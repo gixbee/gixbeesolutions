@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "157133477367",
+    "project_id": "gixbee",
+    "storage_bucket": "gixbee.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:157133477367:android:2406214e83110243a14af2",
+        "android_client_info": {
+          "package_name": "com.gixbee"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCAUSU1ZG8LCgLYnv2BSR7gZIH8asGkqg4"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

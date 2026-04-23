@@ -1,0 +1,1626 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Gixbee — Visual App Documentation</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Segoe UI', Arial, sans-serif; background: #f0f2f5; color: #1a1a2e; }
+
+  /* ── COVER ── */
+  .cover {
+    background: linear-gradient(135deg, #6C63FF 0%, #3B1FA3 100%);
+    padding: 80px 40px; text-align: center; color: #fff;
+  }
+  .cover h1 { font-size: 52px; letter-spacing: -1px; margin-bottom: 10px; }
+  .cover p { font-size: 20px; opacity: .85; max-width: 600px; margin: 0 auto 30px; }
+  .cover .badge {
+    display: inline-block; background: rgba(255,255,255,.15);
+    border: 1px solid rgba(255,255,255,.3); border-radius: 999px;
+    padding: 6px 18px; font-size: 14px; margin: 4px;
+  }
+
+  /* ── NAV ── */
+  .toc {
+    background: #fff; border-bottom: 2px solid #6C63FF;
+    padding: 16px 40px; display: flex; gap: 12px; flex-wrap: wrap; position: sticky; top: 0; z-index: 100;
+  }
+  .toc a {
+    text-decoration: none; font-size: 13px; font-weight: 600;
+    padding: 6px 14px; border-radius: 999px; background: #f0eeff; color: #6C63FF;
+    transition: all .2s;
+  }
+  .toc a:hover { background: #6C63FF; color: #fff; }
+
+  /* ── SECTION ── */
+  .section { max-width: 1200px; margin: 48px auto; padding: 0 24px; }
+  .section-title {
+    font-size: 32px; font-weight: 800; margin-bottom: 6px;
+    display: flex; align-items: center; gap: 12px;
+  }
+  .section-title .icon {
+    width: 48px; height: 48px; border-radius: 14px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 24px; flex-shrink: 0;
+  }
+  .section-sub { font-size: 17px; color: #666; margin-bottom: 32px; max-width: 700px; }
+  .divider { border: none; border-top: 2px dashed #ddd; margin: 48px 0; }
+
+  /* ── PHONE ── */
+  .phone-grid { display: flex; gap: 24px; flex-wrap: wrap; justify-content: flex-start; }
+  .phone-wrap { display: flex; flex-direction: column; align-items: center; gap: 10px; }
+  .phone-label {
+    font-size: 13px; font-weight: 700; color: #555;
+    text-align: center; max-width: 140px;
+  }
+  .phone {
+    width: 148px; border-radius: 28px; overflow: hidden;
+    box-shadow: 0 12px 40px rgba(0,0,0,.18);
+    border: 6px solid #1a1a1a; background: #1a1a1a; flex-shrink: 0;
+  }
+  .phone-notch {
+    background: #1a1a1a; height: 22px; display: flex; align-items: center; justify-content: center;
+  }
+  .phone-notch-inner {
+    width: 50px; height: 10px; background: #333; border-radius: 8px;
+  }
+  .phone-screen { width: 100%; }
+
+  /* ── SCREEN DESIGNS ── */
+  .screen {
+    width: 100%; min-height: 280px; display: flex; flex-direction: column;
+    overflow: hidden; position: relative;
+  }
+
+  /* Welcome */
+  .s-welcome { background: linear-gradient(160deg, #6C63FF, #3B1FA3); padding: 20px 14px; align-items: center; justify-content: center; }
+  .s-welcome .logo { font-size: 28px; font-weight: 900; color: #fff; letter-spacing: -1px; }
+  .s-welcome .tagline { font-size: 9px; color: rgba(255,255,255,.7); text-align: center; margin: 6px 0 20px; }
+  .s-welcome .btn { background: #fff; color: #6C63FF; border-radius: 8px; padding: 7px 20px; font-size: 11px; font-weight: 700; }
+
+  /* Login */
+  .s-login { background: #16161A; padding: 16px 12px; }
+  .s-login .title { color: #fff; font-size: 16px; font-weight: 800; margin-bottom: 4px; }
+  .s-login .sub { color: rgba(255,255,255,.5); font-size: 8px; margin-bottom: 14px; }
+  .s-login .input { background: rgba(255,255,255,.08); border-radius: 8px; padding: 8px 10px; color: rgba(255,255,255,.6); font-size: 9px; margin-bottom: 8px; }
+  .s-login .btn { background: #6C63FF; color: #fff; border-radius: 8px; padding: 7px; text-align: center; font-size: 10px; font-weight: 700; }
+
+  /* OTP */
+  .s-otp { background: #16161A; padding: 16px 12px; }
+  .s-otp .title { color: #fff; font-size: 14px; font-weight: 800; margin-bottom: 4px; }
+  .s-otp .sub { color: rgba(255,255,255,.5); font-size: 8px; margin-bottom: 16px; }
+  .s-otp .boxes { display: flex; gap: 4px; margin-bottom: 14px; }
+  .s-otp .box { flex: 1; background: rgba(255,255,255,.08); border-radius: 6px; height: 26px; display: flex; align-items: center; justify-content: center; color: #fff; font-size: 14px; font-weight: 700; }
+  .s-otp .btn { background: #6C63FF; color: #fff; border-radius: 8px; padding: 7px; text-align: center; font-size: 10px; font-weight: 700; }
+
+  /* Home */
+  .s-home { background: #f5f5f5; }
+  .s-home .header { background: #6C63FF; padding: 10px 10px 10px; }
+  .s-home .search { background: #fff; border-radius: 6px; padding: 5px 8px; font-size: 8px; color: #999; display: flex; align-items: center; gap: 4px; }
+  .s-home .loc { background: #fff; padding: 5px 10px; font-size: 7px; color: #333; display: flex; align-items: center; gap: 4px; border-bottom: 1px solid #eee; }
+  .s-home .cards { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; padding: 10px; }
+  .s-home .card { border-radius: 10px; padding: 8px; min-height: 60px; display: flex; flex-direction: column; justify-content: space-between; }
+  .s-home .card-title { color: #fff; font-size: 9px; font-weight: 700; }
+  .s-home .card-sub { color: rgba(255,255,255,.75); font-size: 7px; }
+  .s-home .nav { background: #fff; display: flex; border-top: 1px solid #eee; }
+  .s-home .nav-item { flex: 1; padding: 6px 0; text-align: center; font-size: 7px; color: #999; }
+  .s-home .nav-item.active { color: #6C63FF; }
+
+  /* Split screen */
+  .s-split { background: #fff; padding: 14px 10px; }
+  .s-split .title { font-size: 13px; font-weight: 800; color: #1a1a2e; margin-bottom: 4px; }
+  .s-split .sub { font-size: 8px; color: #888; margin-bottom: 14px; }
+  .s-split .option { border: 1.5px solid #e0e0e0; border-radius: 10px; padding: 10px; margin-bottom: 8px; display: flex; align-items: center; gap: 8px; }
+  .s-split .option.active { border-color: #6C63FF; background: #f0eeff; }
+  .s-split .opt-icon { width: 28px; height: 28px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 14px; }
+  .s-split .opt-title { font-size: 9px; font-weight: 700; color: #1a1a2e; }
+  .s-split .opt-sub { font-size: 7px; color: #888; }
+
+  /* Presence check */
+  .s-presence { background: #fff; padding: 14px 10px; }
+  .s-presence .title { font-size: 11px; font-weight: 800; color: #1a1a2e; margin-bottom: 12px; }
+  .s-presence .opt { border: 1.5px solid #eee; border-radius: 10px; padding: 8px 10px; margin-bottom: 8px; }
+  .s-presence .opt.active { border-color: #6C63FF; background: #f0eeff; }
+  .s-presence .opt-title { font-size: 9px; font-weight: 700; }
+  .s-presence .opt-sub { font-size: 7px; color: #888; }
+  .s-presence .form-label { font-size: 7px; color: #666; margin-bottom: 3px; }
+  .s-presence .form-input { border: 1px solid #ddd; border-radius: 6px; padding: 4px 6px; font-size: 7px; width: 100%; margin-bottom: 6px; }
+
+  /* OTP Arrival */
+  .s-arrival { background: #fff; padding: 14px 10px; }
+  .s-arrival .badge { background: #fef9c3; color: #92400e; border-radius: 999px; font-size: 8px; font-weight: 700; padding: 3px 10px; display: inline-block; margin-bottom: 10px; }
+  .s-arrival .code { font-size: 36px; font-weight: 900; color: #6C63FF; text-align: center; letter-spacing: 6px; margin: 10px 0; }
+  .s-arrival .sub { font-size: 8px; color: #888; text-align: center; margin-bottom: 14px; }
+  .s-arrival .input-row { display: flex; gap: 4px; margin-bottom: 10px; }
+  .s-arrival .input-box { flex: 1; height: 28px; border: 1.5px solid #6C63FF; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; color: #6C63FF; }
+  .s-arrival .btn { background: #6C63FF; color: #fff; border-radius: 8px; padding: 7px; text-align: center; font-size: 10px; font-weight: 700; }
+
+  /* Calendar */
+  .s-calendar { background: #fff; padding: 10px 8px; }
+  .s-calendar .month { font-size: 10px; font-weight: 700; color: #1a1a2e; margin-bottom: 8px; text-align: center; }
+  .s-calendar .grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; }
+  .s-calendar .day { width: 100%; aspect-ratio: 1; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 7px; }
+  .s-calendar .day.avail { background: #dcfce7; color: #166534; }
+  .s-calendar .day.pend { background: #fef9c3; color: #92400e; }
+  .s-calendar .day.book { background: #fee2e2; color: #991b1b; }
+  .s-calendar .day.head { font-weight: 700; color: #888; background: transparent; }
+  .s-calendar .legend { display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap; }
+  .s-calendar .leg-item { display: flex; align-items: center; gap: 3px; font-size: 7px; }
+  .s-calendar .leg-dot { width: 8px; height: 8px; border-radius: 50%; }
+
+  /* Find Job */
+  .s-job { background: #f8f9ff; padding: 12px 10px; }
+  .s-job .title { font-size: 12px; font-weight: 800; color: #1a1a2e; margin-bottom: 10px; }
+  .s-job .job-card { background: #fff; border-radius: 10px; padding: 8px; margin-bottom: 6px; border-left: 3px solid #6C63FF; }
+  .s-job .job-title { font-size: 9px; font-weight: 700; color: #1a1a2e; }
+  .s-job .job-company { font-size: 7px; color: #888; }
+  .s-job .job-pill { background: #f0eeff; color: #6C63FF; font-size: 7px; border-radius: 999px; padding: 2px 6px; display: inline-block; margin-top: 4px; }
+
+  /* Wallet */
+  .s-wallet { background: linear-gradient(135deg, #6C63FF, #3B1FA3); padding: 14px 10px; }
+  .s-wallet .bal-label { color: rgba(255,255,255,.7); font-size: 8px; margin-bottom: 2px; }
+  .s-wallet .bal { color: #fff; font-size: 28px; font-weight: 900; margin-bottom: 14px; }
+  .s-wallet .card { background: rgba(255,255,255,.12); border-radius: 10px; padding: 8px; margin-bottom: 6px; }
+  .s-wallet .tx-row { display: flex; justify-content: space-between; align-items: center; }
+  .s-wallet .tx-label { color: rgba(255,255,255,.8); font-size: 8px; }
+  .s-wallet .tx-amount { font-size: 9px; font-weight: 700; }
+  .s-wallet .credit { color: #4ade80; }
+  .s-wallet .debit { color: #f87171; }
+  .s-wallet .btn { background: #fff; color: #6C63FF; border-radius: 8px; padding: 7px; text-align: center; font-size: 10px; font-weight: 700; margin-top: 10px; }
+
+  /* Business */
+  .s-biz { background: #f8f9ff; padding: 12px 10px; }
+  .s-biz .title { font-size: 11px; font-weight: 800; margin-bottom: 10px; }
+  .s-biz .type-card { border-radius: 10px; padding: 8px 10px; margin-bottom: 6px; display: flex; align-items: center; gap: 8px; }
+  .s-biz .type-title { font-size: 9px; font-weight: 700; }
+  .s-biz .type-sub { font-size: 7px; opacity: .8; }
+
+  /* Radar/Map */
+  .s-radar { background: #0d1117; padding: 10px; position: relative; min-height: 300px; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+  .s-radar .radar-ring { position: absolute; border-radius: 50%; border: 1px solid rgba(108,99,255,.3); }
+  .s-radar .marker { position: absolute; text-align: center; }
+  .s-radar .marker-dot { width: 32px; height: 32px; border-radius: 50%; border: 2px solid #1DD1A1; background: #0d1117; display: flex; align-items: center; justify-content: center; font-size: 14px; }
+  .s-radar .marker-label { color: #fff; font-size: 7px; margin-top: 2px; font-weight: 700; }
+
+  /* Profile */
+  .s-profile { background: #f8f9ff; }
+  .s-profile .header { background: linear-gradient(135deg, #6C63FF, #3B1FA3); padding: 20px 14px; display: flex; flex-direction: column; align-items: center; }
+  .s-profile .avatar { width: 50px; height: 50px; border-radius: 50%; background: rgba(255,255,255,.2); display: flex; align-items: center; justify-content: center; font-size: 22px; margin-bottom: 6px; }
+  .s-profile .name { color: #fff; font-size: 13px; font-weight: 700; }
+  .s-profile .phone { color: rgba(255,255,255,.7); font-size: 9px; }
+  .s-profile .menu-item { padding: 8px 14px; display: flex; align-items: center; gap: 8px; border-bottom: 1px solid #f0f0f0; background: #fff; }
+  .s-profile .menu-icon { font-size: 14px; }
+  .s-profile .menu-label { font-size: 9px; color: #1a1a2e; font-weight: 600; }
+
+  /* ── FLOW DIAGRAM ── */
+  .flow-container { background: #fff; border-radius: 20px; padding: 32px; box-shadow: 0 4px 24px rgba(0,0,0,.08); overflow-x: auto; }
+  .flow { display: flex; align-items: flex-start; gap: 0; flex-wrap: nowrap; min-width: max-content; }
+  .flow-step {
+    display: flex; flex-direction: column; align-items: center;
+    gap: 8px; min-width: 120px;
+  }
+  .flow-box {
+    padding: 10px 14px; border-radius: 12px; text-align: center;
+    font-size: 12px; font-weight: 700; min-width: 100px; max-width: 120px;
+  }
+  .flow-sub { font-size: 10px; font-weight: 400; opacity: .8; margin-top: 2px; }
+  .flow-arrow {
+    font-size: 22px; color: #6C63FF; align-self: center; padding-top: 20px;
+    flex-shrink: 0;
+  }
+  .flow-decision {
+    width: 80px; height: 80px; transform: rotate(45deg);
+    display: flex; align-items: center; justify-content: center;
+    margin: 8px auto;
+  }
+  .flow-decision-inner {
+    transform: rotate(-45deg);
+    font-size: 10px; font-weight: 700; text-align: center; padding: 4px;
+  }
+
+  /* ── STATUS FLOW ── */
+  .status-flow { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 20px; }
+  .status-pill {
+    padding: 8px 16px; border-radius: 999px; font-size: 13px; font-weight: 700;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .status-arrow { font-size: 20px; color: #aaa; }
+
+  /* ── COLORS ── */
+  .purple { background: linear-gradient(135deg, #6C63FF, #4834DF); }
+  .blue { background: linear-gradient(135deg, #54A0FF, #2E86DE); }
+  .green { background: linear-gradient(135deg, #1DD1A1, #10AC84); }
+  .orange { background: linear-gradient(135deg, #FECA57, #FF9F43); }
+  .red { background: linear-gradient(135deg, #FF6B6B, #EE5A24); }
+  .dark { background: #1a1a2e; }
+
+  .bg-purple { background: #f0eeff; color: #3B1FA3; }
+  .bg-blue { background: #e0f0ff; color: #1a5fa0; }
+  .bg-green { background: #dcfce7; color: #166534; }
+  .bg-yellow { background: #fef9c3; color: #92400e; }
+  .bg-red { background: #fee2e2; color: #991b1b; }
+  .bg-gray { background: #f3f4f6; color: #374151; }
+  .bg-orange { background: #fff7ed; color: #9a3412; }
+
+  /* ── ROLE BOX ── */
+  .roles { display: flex; gap: 16px; flex-wrap: wrap; margin-bottom: 32px; }
+  .role-box {
+    flex: 1; min-width: 220px; border-radius: 16px; padding: 20px;
+    background: #fff; box-shadow: 0 4px 16px rgba(0,0,0,.07);
+  }
+  .role-emoji { font-size: 32px; margin-bottom: 8px; }
+  .role-title { font-size: 18px; font-weight: 800; margin-bottom: 4px; }
+  .role-desc { font-size: 13px; color: #666; line-height: 1.5; }
+  .role-can { margin-top: 12px; }
+  .role-can-item { font-size: 12px; padding: 3px 0; display: flex; align-items: flex-start; gap: 6px; }
+  .role-can-item::before { content: "✓"; color: #1DD1A1; font-weight: 700; flex-shrink: 0; }
+
+  /* ── STEPS ── */
+  .steps { display: flex; flex-direction: column; gap: 0; }
+  .step {
+    display: flex; gap: 16px; align-items: flex-start; padding: 0 0 24px 0;
+    position: relative;
+  }
+  .step:not(:last-child)::before {
+    content: ''; position: absolute; left: 18px; top: 40px;
+    width: 2px; height: calc(100% - 16px); background: #e0e0e0;
+  }
+  .step-num {
+    width: 36px; height: 36px; border-radius: 50%; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 800; font-size: 15px; color: #fff; z-index: 1;
+  }
+  .step-content { flex: 1; padding-top: 4px; }
+  .step-title { font-size: 16px; font-weight: 800; margin-bottom: 4px; }
+  .step-desc { font-size: 13px; color: #666; line-height: 1.6; }
+  .step-note {
+    background: #f0eeff; border-left: 3px solid #6C63FF;
+    border-radius: 0 8px 8px 0; padding: 6px 10px; margin-top: 6px;
+    font-size: 12px; color: #4834DF;
+  }
+
+  /* ── SUMMARY TABLE ── */
+  .summary-table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+  .summary-table th {
+    background: #6C63FF; color: #fff; padding: 12px 16px;
+    text-align: left; font-size: 13px;
+  }
+  .summary-table td { padding: 10px 16px; font-size: 13px; border-bottom: 1px solid #f0f0f0; }
+  .summary-table tr:nth-child(even) td { background: #f8f8ff; }
+
+  /* ── INFO CARD ── */
+  .info-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-top: 24px; }
+  .info-card {
+    background: #fff; border-radius: 16px; padding: 20px;
+    box-shadow: 0 4px 16px rgba(0,0,0,.06);
+    border-top: 4px solid;
+  }
+  .info-card h3 { font-size: 15px; font-weight: 800; margin-bottom: 6px; }
+  .info-card p { font-size: 13px; color: #666; line-height: 1.5; }
+
+  /* ── RESPONSIVE ── */
+  @media (max-width: 700px) {
+    .cover h1 { font-size: 32px; }
+    .phone-grid { justify-content: center; }
+    .toc { gap: 6px; padding: 10px 16px; }
+    .section { padding: 0 16px; }
+  }
+
+  .pill {
+    display: inline-block; border-radius: 999px; padding: 4px 12px;
+    font-size: 12px; font-weight: 700;
+  }
+  .tag { display: inline-block; border-radius: 6px; padding: 3px 8px; font-size: 11px; font-weight: 600; margin: 2px; }
+</style>
+</head>
+<body>
+
+<!-- ╔══════════════════════════════╗ -->
+<!-- ║           COVER              ║ -->
+<!-- ╚══════════════════════════════╝ -->
+<div class="cover">
+  <h1>🐝 Gixbee</h1>
+  <p>A simple visual guide to every screen, every flow, and every feature — explained like a storybook.</p>
+  <br>
+  <span class="badge">📱 Flutter Mobile App</span>
+  <span class="badge">⚙️ NestJS Backend</span>
+  <span class="badge">🗄️ PostgreSQL + Redis</span>
+  <span class="badge">🔔 Firebase FCM</span>
+  <span class="badge">📍 Google Maps</span>
+  <span class="badge">💳 Razorpay Payments</span>
+</div>
+
+<!-- NAV -->
+<div class="toc">
+  <a href="#what">🤔 What is Gixbee?</a>
+  <a href="#users">👥 Who Uses It?</a>
+  <a href="#login">🔐 Login Flow</a>
+  <a href="#home">🏠 Home</a>
+  <a href="#book">🛍 Book Services</a>
+  <a href="#instant">⚡ Instant Help</a>
+  <a href="#plan">📅 Plan Services</a>
+  <a href="#rental">🔧 Rental</a>
+  <a href="#findJob">🎓 Find a Job</a>
+  <a href="#earnWork">💰 Earn by Working</a>
+  <a href="#listBiz">🏢 List My Business</a>
+  <a href="#wallet">👛 Wallet</a>
+  <a href="#map">🗺️ Live Radar</a>
+  <a href="#profile">👤 Profile</a>
+  <a href="#backend">🔧 Backend</a>
+  <a href="#summary">📊 Summary</a>
+</div>
+
+
+<!-- ╔══════════════════════════════╗ -->
+<!-- ║        WHAT IS GIXBEE        ║ -->
+<!-- ╚══════════════════════════════╝ -->
+<div class="section" id="what">
+  <div class="section-title">
+    <div class="icon purple" style="color:#fff;">🐝</div>
+    What is Gixbee?
+  </div>
+  <p class="section-sub">Gixbee is like a super-app for everyday services. Think of it like Uber + LinkedIn + Just Dial — all in one place.</p>
+
+  <div class="info-cards">
+    <div class="info-card" style="border-color:#6C63FF;">
+      <h3>🛍 Book Services</h3>
+      <p>Need a plumber? A photographer for your wedding? A generator for an event? Book it here.</p>
+    </div>
+    <div class="info-card" style="border-color:#54A0FF;">
+      <h3>🎓 Find a Job</h3>
+      <p>Fresh graduates and job-seekers apply for real jobs near them. Get interview calls directly on the app.</p>
+    </div>
+    <div class="info-card" style="border-color:#1DD1A1;">
+      <h3>⚡ Earn by Working</h3>
+      <p>Got a skill? List it. Go live. Get hired instantly for hourly gig work — like being an Uber driver, but for any skill.</p>
+    </div>
+    <div class="info-card" style="border-color:#FECA57;">
+      <h3>🏢 List My Business</h3>
+      <p>Own a catering company or hall? List it, manage bookings, add staff, and transfer ownership — all from the app.</p>
+    </div>
+  </div>
+
+  <br>
+  <div style="background:#fff; border-radius:16px; padding:24px; box-shadow:0 4px 16px rgba(0,0,0,.06); margin-top:8px;">
+    <b style="font-size:16px;">🌟 The Golden Rule of Gixbee</b>
+    <p style="font-size:14px; color:#666; margin-top:8px; line-height:1.7;">
+      Gixbee <b>never assigns</b> anyone to anyone. Every booking, every job acceptance, every hire — is a conscious choice made by the user. Gixbee is just the bridge. This is called the <span style="color:#6C63FF; font-weight:700;">Safe Harbor</span> principle.
+    </p>
+    <div style="display:flex; gap:20px; margin-top:16px; flex-wrap:wrap;">
+      <div style="font-size:13px; color:#555;">✅ Customer <b>chooses</b> a vendor</div>
+      <div style="font-size:13px; color:#555;">✅ Worker <b>chooses</b> to accept</div>
+      <div style="font-size:13px; color:#555;">✅ Employer <b>chooses</b> who to hire</div>
+    </div>
+  </div>
+</div>
+
+<hr class="divider">
+
+<!-- ╔══════════════════════════════╗ -->
+<!-- ║       WHO USES IT            ║ -->
+<!-- ╚══════════════════════════════╝ -->
+<div class="section" id="users">
+  <div class="section-title">
+    <div class="icon blue" style="color:#fff;">👥</div>
+    Who Uses Gixbee?
+  </div>
+  <p class="section-sub">The same person can play all four roles! There is no separate app for workers or vendors.</p>
+
+  <div class="roles">
+    <div class="role-box">
+      <div class="role-emoji">🛒</div>
+      <div class="role-title" style="color:#6C63FF;">Customer</div>
+      <div class="role-desc">Someone who needs a service — could be anyone.</div>
+      <div class="role-can">
+        <div class="role-can-item">Book a hall for a wedding</div>
+        <div class="role-can-item">Hire an electrician urgently</div>
+        <div class="role-can-item">Rent a generator for an event</div>
+        <div class="role-can-item">Apply for a job (same account!)</div>
+      </div>
+    </div>
+    <div class="role-box">
+      <div class="role-emoji">🔧</div>
+      <div class="role-title" style="color:#1DD1A1;">Gig Worker</div>
+      <div class="role-desc">Someone who earns money by offering their skills hourly.</div>
+      <div class="role-can">
+        <div class="role-can-item">Register skills (Electrician, Driver…)</div>
+        <div class="role-can-item">Set hourly rate</div>
+        <div class="role-can-item">Go Live — appear on customer radar</div>
+        <div class="role-can-item">Accept jobs, complete, get paid</div>
+      </div>
+    </div>
+    <div class="role-box">
+      <div class="role-emoji">🏢</div>
+      <div class="role-title" style="color:#FF9F43;">Business Owner</div>
+      <div class="role-desc">Someone who owns a hall, catering company, or hiring firm.</div>
+      <div class="role-can">
+        <div class="role-can-item">List multiple business units</div>
+        <div class="role-can-item">Manage calendars and bookings</div>
+        <div class="role-can-item">Add managers/HR operators</div>
+        <div class="role-can-item">Transfer business ownership</div>
+      </div>
+    </div>
+    <div class="role-box">
+      <div class="role-emoji">🎓</div>
+      <div class="role-title" style="color:#54A0FF;">Job Seeker</div>
+      <div class="role-desc">Students, freshers, and experienced professionals looking for work.</div>
+      <div class="role-can">
+        <div class="role-can-item">Create a talent profile</div>
+        <div class="role-can-item">Get job alerts (push notifications)</div>
+        <div class="role-can-item">Apply with one tap</div>
+        <div class="role-can-item">Track application status live</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<hr class="divider">
+
+<!-- ╔══════════════════════════════╗ -->
+<!-- ║          LOGIN FLOW          ║ -->
+<!-- ╚══════════════════════════════╝ -->
+<div class="section" id="login">
+  <div class="section-title">
+    <div class="icon" style="background:linear-gradient(135deg,#16161A,#333);color:#fff;">🔐</div>
+    Login Flow — How Do You Enter the App?
+  </div>
+  <p class="section-sub">Simple 3-step login. No password to remember! Just your phone number.</p>
+
+  <div class="phone-grid" style="margin-bottom:32px;">
+    <!-- Welcome Screen -->
+    <div class="phone-wrap">
+      <div class="phone">
+        <div class="phone-notch"><div class="phone-notch-inner"></div></div>
+        <div class="phone-screen screen s-welcome">
+          <div style="margin-bottom:8px; font-size:40px;">🐝</div>
+          <div class="logo">Gixbee</div>
+          <div class="tagline">The Skill Intelligence Network</div>
+          <div class="btn">Get Started</div>
+          <div style="margin-top:12px; font-size:8px; color:rgba(255,255,255,.4);">Already have an account? Login</div>
+        </div>
+      </div>
+      <div class="phone-label">①<br>Welcome Screen<br><span style="color:#1DD1A1;font-size:10px;">First thing you see</span></div>
+    </div>
+
+    <!-- Login Screen -->
+    <div class="phone-wrap">
+      <div class="phone">
+        <div class="phone-notch"><div class="phone-notch-inner"></div></div>
+        <div class="phone-screen screen s-login">
+          <div class="title">Welcome Back</div>
+          <div class="sub">Enter your phone number to continue</div>
+          <div class="input">📱 +91 98765 43210</div>
+          <div class="btn">Send OTP Code →</div>
+          <div style="margin-top:10px; font-size:7px; color:rgba(255,255,255,.3);">We'll send a 6-digit code via SMS</div>
+        </div>
+      </div>
+      <div class="phone-label">②<br>Phone Number<br><span style="color:#1DD1A1;font-size:10px;">Enter your number</span></div>
+    </div>
+
+    <!-- OTP Screen -->
+    <div class="phone-wrap">
+      <div class="phone">
+        <div class="phone-notch"><div class="phone-notch-inner"></div></div>
+        <div class="phone-screen screen s-otp">
+          <div class="title">Verification</div>
+          <div class="sub">6-digit code sent to +91 98765 43210</div>
+          <div class="boxes">
+            <div class="box">4</div>
+            <div class="box">8</div>
+            <div class="box">3</div>
+            <div class="box">_</div>
+            <div class="box">_</div>
+            <div class="box">_</div>
+          </div>
+          <div style="font-size:7px;color:rgba(255,255,255,.4);margin-bottom:10px;">Resend code in 24s</div>
+          <div class="btn">Verify ✓</div>
+        </div>
+      </div>
+      <div class="phone-label">③<br>OTP Verification<br><span style="color:#1DD1A1;font-size:10px;">Enter the SMS code</span></div>
+    </div>
+
+    <!-- Home Screen -->
+    <div class="phone-wrap">
+      <div class="phone">
+        <div class="phone-notch"><div class="phone-notch-inner"></div></div>
+        <div class="phone-screen screen s-home">
+          <div class="header">
+            <div class="search">🔍 Search Gixbee...</div>
+          </div>
+          <div class="loc">📍 Deliver to Kochi, Kerala ▾</div>
+          <div style="padding:10px 10px 4px;font-size:9px;font-weight:700;">What do you need?</div>
+          <div class="cards">
+            <div class="card purple"><div class="card-title">⚡ Book Services</div><div class="card-sub">Hire workers & vendors</div></div>
+            <div class="card blue"><div class="card-title">🎓 Find a Job</div><div class="card-sub">Browse open jobs</div></div>
+            <div class="card green"><div class="card-title">💰 Earn by Working</div><div class="card-sub">Register & earn hourly</div></div>
+            <div class="card orange"><div class="card-title">🏢 List My Business</div><div class="card-sub">Get discovered locally</div></div>
+          </div>
+          <div class="nav">
+            <div class="nav-item active">🏠<br>Home</div>
+            <div class="nav-item">📍<br>Radar</div>
+            <div class="nav-item">👤<br>Profile</div>
+          </div>
+        </div>
+      </div>
+      <div class="phone-label">④<br>Home Screen<br><span style="color:#1DD1A1;font-size:10px;">Ready to use!</span></div>
+    </div>
+  </div>
+
+  <!-- Flow -->
+  <div class="flow-container">
+    <div style="font-size:15px;font-weight:800;margin-bottom:20px;">📊 Login Flow Chart</div>
+    <div class="flow">
+      <div class="flow-step">
+        <div class="flow-box bg-gray">Open App</div>
+      </div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step">
+        <div class="flow-box bg-purple">Enter Phone<br>Number</div>
+      </div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step">
+        <div class="flow-box bg-blue">SMS OTP<br>Sent<div class="flow-sub">6 digits, 5 min TTL</div></div>
+      </div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step">
+        <div class="flow-box bg-yellow">User Enters<br>OTP Code</div>
+      </div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step">
+        <div class="flow-box bg-green">JWT Token<br>Issued<div class="flow-sub">Auto-logged in</div></div>
+      </div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step">
+        <div class="flow-box bg-purple">FCM Token<br>Saved<div class="flow-sub">For notifications</div></div>
+      </div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step">
+        <div class="flow-box green" style="color:#fff;">🏠 Home Screen</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<hr class="divider">
+
+<!-- ╔══════════════════════════════╗ -->
+<!-- ║         HOME SCREEN          ║ -->
+<!-- ╚══════════════════════════════╝ -->
+<div class="section" id="home">
+  <div class="section-title">
+    <div class="icon green" style="color:#fff;">🏠</div>
+    Home Screen — The Command Centre
+  </div>
+  <p class="section-sub">After login, users see this screen. Four big cards, each leading to a completely different journey.</p>
+
+  <div style="background:#fff;border-radius:20px;padding:28px;box-shadow:0 4px 24px rgba(0,0,0,.08);">
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px;">
+      <div style="border-radius:14px;padding:20px;background:linear-gradient(135deg,#6C63FF,#4834DF);color:#fff;">
+        <div style="font-size:28px;margin-bottom:8px;">⚡</div>
+        <div style="font-size:16px;font-weight:800;">Book Services</div>
+        <div style="font-size:12px;opacity:.8;margin-top:4px;">Hire an electrician, book a hall, rent a generator, get a cleaner. Choose Plan Services or Instant Help.</div>
+      </div>
+      <div style="border-radius:14px;padding:20px;background:linear-gradient(135deg,#54A0FF,#2E86DE);color:#fff;">
+        <div style="font-size:28px;margin-bottom:8px;">🎓</div>
+        <div style="font-size:16px;font-weight:800;">Find a Job</div>
+        <div style="font-size:12px;opacity:.8;margin-top:4px;">Build a talent profile, enable job alerts, apply with one tap, track your interview status live.</div>
+      </div>
+      <div style="border-radius:14px;padding:20px;background:linear-gradient(135deg,#1DD1A1,#10AC84);color:#fff;">
+        <div style="font-size:28px;margin-bottom:8px;">💰</div>
+        <div style="font-size:16px;font-weight:800;">Earn by Working</div>
+        <div style="font-size:12px;opacity:.8;margin-top:4px;">Register your skill, get verified, go live, accept gig jobs instantly, get paid hourly. Need Rs.12 wallet balance.</div>
+      </div>
+      <div style="border-radius:14px;padding:20px;background:linear-gradient(135deg,#FECA57,#FF9F43);color:#fff;">
+        <div style="font-size:28px;margin-bottom:8px;">🏢</div>
+        <div style="font-size:16px;font-weight:800;">List My Business</div>
+        <div style="font-size:12px;opacity:.8;margin-top:4px;">Add your hall, catering firm, or hiring company. Manage calendars, add operators, handle bookings.</div>
+      </div>
+    </div>
+    <div style="margin-top:20px;padding:14px;background:#f8f9ff;border-radius:12px;font-size:13px;color:#666;">
+      <b>📍 Location Strip:</b> The strip below the search bar shows the user's current delivery location. Tapping it will eventually open a location picker map. This helps Gixbee show services near them.
+    </div>
+  </div>
+</div>
+
+<hr class="divider">
+
+<!-- ╔══════════════════════════════╗ -->
+<!-- ║        BOOK SERVICES         ║ -->
+<!-- ╚══════════════════════════════╝ -->
+<div class="section" id="book">
+  <div class="section-title">
+    <div class="icon purple" style="color:#fff;">🛍</div>
+    Book Services — The Biggest Module
+  </div>
+  <p class="section-sub">After tapping "Book Services", the user chooses between two very different paths.</p>
+
+  <div class="phone-grid" style="margin-bottom:32px;">
+    <div class="phone-wrap">
+      <div class="phone">
+        <div class="phone-notch"><div class="phone-notch-inner"></div></div>
+        <div class="phone-screen screen s-split">
+          <div class="title">Book Services</div>
+          <div class="sub">What kind of help do you need?</div>
+          <div class="option active">
+            <div class="opt-icon purple" style="color:#fff;">📅</div>
+            <div>
+              <div class="opt-title">Plan Services</div>
+              <div class="opt-sub">Book a hall, catering, rental for future</div>
+            </div>
+          </div>
+          <div class="option">
+            <div class="opt-icon green" style="color:#fff;">⚡</div>
+            <div>
+              <div class="opt-title">Instant Help</div>
+              <div class="opt-sub">Electrician, driver, cleaner — now!</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="phone-label">Split Screen<br><span style="color:#6C63FF;font-size:10px;">Choose your path</span></div>
+    </div>
+  </div>
+
+  <!-- Big explanation -->
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-top:8px;" class="two-col">
+    <div style="background:#fff;border-radius:16px;padding:24px;box-shadow:0 4px 16px rgba(0,0,0,.06);border-top:4px solid #6C63FF;">
+      <div style="font-size:22px;margin-bottom:8px;">📅</div>
+      <div style="font-size:18px;font-weight:800;margin-bottom:6px;">Plan Services</div>
+      <div style="font-size:13px;color:#666;line-height:1.6;">For events you are <b>planning ahead</b>. Wedding next month? Need a hall in Kochi? You book it now, the vendor approves, calendar gets blocked.</div>
+      <br>
+      <div style="font-size:12px;font-weight:700;color:#6C63FF;">Includes:</div>
+      <div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:6px;">
+        <span class="tag bg-purple">🏛 Hall</span>
+        <span class="tag bg-purple">🍽 Catering</span>
+        <span class="tag bg-purple">🎨 Decoration</span>
+        <span class="tag bg-purple">📸 Photography</span>
+        <span class="tag bg-purple">⚙️ Rental</span>
+      </div>
+    </div>
+    <div style="background:#fff;border-radius:16px;padding:24px;box-shadow:0 4px 16px rgba(0,0,0,.06);border-top:4px solid #1DD1A1;">
+      <div style="font-size:22px;margin-bottom:8px;">⚡</div>
+      <div style="font-size:18px;font-weight:800;margin-bottom:6px;">Instant Help</div>
+      <div style="font-size:13px;color:#666;line-height:1.6;">For services you need <b>right now</b>. Power trip at home? Need a driver immediately? The Live Worker Engine dispatches someone in minutes.</div>
+      <br>
+      <div style="font-size:12px;font-weight:700;color:#1DD1A1;">Includes:</div>
+      <div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:6px;">
+        <span class="tag bg-green">⚡ Electrician</span>
+        <span class="tag bg-green">🚗 Driver</span>
+        <span class="tag bg-green">🧹 Cleaning</span>
+        <span class="tag bg-green">💊 Nurse</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<hr class="divider">
+
+<!-- ╔══════════════════════════════╗ -->
+<!-- ║        INSTANT HELP          ║ -->
+<!-- ╚══════════════════════════════╝ -->
+<div class="section" id="instant">
+  <div class="section-title">
+    <div class="icon green" style="color:#fff;">⚡</div>
+    Instant Help — The Live Worker Engine
+  </div>
+  <p class="section-sub">The most complex flow. Think of it like Uber — but for any skill. Here's every step, explained simply.</p>
+
+  <div class="phone-grid" style="margin-bottom:32px;">
+    <!-- Location -->
+    <div class="phone-wrap">
+      <div class="phone">
+        <div class="phone-notch"><div class="phone-notch-inner"></div></div>
+        <div class="phone-screen screen s-split" style="padding:14px 10px;">
+          <div class="title" style="font-size:11px;">Where do you need help?</div>
+          <div class="sub">This is NOT your current location — it's where the service should happen</div>
+          <div class="option active"><div class="opt-icon green" style="color:#fff;">📍</div><div><div class="opt-title">Use Current Location</div></div></div>
+          <div class="option"><div class="opt-icon blue" style="color:#fff;">🗺</div><div><div class="opt-title">Another Location</div><div class="opt-sub">e.g. Parent's house in Trivandrum</div></div></div>
+        </div>
+      </div>
+      <div class="phone-label">Step 1<br>Service Location</div>
+    </div>
+
+    <!-- Presence -->
+    <div class="phone-wrap">
+      <div class="phone">
+        <div class="phone-notch"><div class="phone-notch-inner"></div></div>
+        <div class="phone-screen screen s-presence">
+          <div class="title">Who will be present?</div>
+          <div class="opt active"><div class="opt-title">👤 I will be present</div><div class="opt-sub">OTP sent to my phone</div></div>
+          <div class="opt" style="margin-top:8px;"><div class="opt-title">👥 Someone else</div><div class="opt-sub">OTP sent to their phone</div></div>
+          <div style="margin-top:10px;">
+            <div class="form-label">Their Name</div>
+            <div class="form-input">Rahul (Father)</div>
+            <div class="form-label">Phone</div>
+            <div class="form-input">+91 99887 76655</div>
+          </div>
+        </div>
+      </div>
+      <div class="phone-label">Step 2<br>Presence Check<br><span style="color:#FF6B6B;font-size:10px;">Critical — OTP routing</span></div>
+    </div>
+
+    <!-- Arrival OTP -->
+    <div class="phone-wrap">
+      <div class="phone">
+        <div class="phone-notch"><div class="phone-notch-inner"></div></div>
+        <div class="phone-screen screen s-arrival">
+          <div class="badge">⏳ Worker Arrived</div>
+          <div style="font-size:9px;color:#888;text-align:center;">Share this OTP with your worker</div>
+          <div class="code">4 8 3 2</div>
+          <div class="sub">Valid for 10 minutes only</div>
+          <div style="font-size:8px;color:#888;text-align:center;margin-bottom:8px;">Worker enters this code to start the job</div>
+          <div class="btn" style="font-size:9px;">Resend OTP</div>
+        </div>
+      </div>
+      <div class="phone-label">Step 3<br>Arrival OTP<br><span style="color:#1DD1A1;font-size:10px;">Job begins after this</span></div>
+    </div>
+
+    <!-- Completion OTP -->
+    <div class="phone-wrap">
+      <div class="phone">
+        <div class="phone-notch"><div class="phone-notch-inner"></div></div>
+        <div class="phone-screen screen s-arrival" style="background:#f0fff4;">
+          <div class="badge" style="background:#dcfce7;color:#166534;">✅ Job Complete</div>
+          <div style="font-size:9px;color:#888;text-align:center;margin-bottom:4px;">Enter the completion OTP</div>
+          <div class="input-row">
+            <div class="input-box" style="border-color:#1DD1A1;color:#1DD1A1;">7</div>
+            <div class="input-box" style="border-color:#1DD1A1;color:#1DD1A1;">2</div>
+            <div class="input-box" style="border-color:#1DD1A1;color:#1DD1A1;">1</div>
+            <div class="input-box" style="border-color:#ddd;color:#aaa;">_</div>
+          </div>
+          <div style="font-size:8px;color:#888;text-align:center;margin-bottom:8px;">Worker showed you this code after finishing</div>
+          <div class="btn" style="background:#1DD1A1;font-size:9px;">Confirm & Pay →</div>
+        </div>
+      </div>
+      <div class="phone-label">Step 4<br>Completion OTP<br><span style="color:#1DD1A1;font-size:10px;">Job ends, pay now</span></div>
+    </div>
+  </div>
+
+  <!-- Full flow -->
+  <div class="flow-container">
+    <div style="font-size:15px;font-weight:800;margin-bottom:20px;">📊 Complete Instant Help Flow</div>
+    <div class="steps">
+      <div class="step">
+        <div class="step-num" style="background:#6C63FF;">1</div>
+        <div class="step-content">
+          <div class="step-title">Customer selects service + location</div>
+          <div class="step-desc">They pick the skill they need (Electrician, Driver, etc.) and specify where the service should happen — could be their home, parent's house, or office.</div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num" style="background:#54A0FF;">2</div>
+        <div class="step-content">
+          <div class="step-title">Presence Check — who is at the location?</div>
+          <div class="step-desc">The app asks: will YOU be there, or someone else? If someone else (e.g. elderly parent), the customer fills in their name, relation, and phone number. This is the <b>On-Site Contact</b> — the arrival OTP will be sent to THEM, not the customer.</div>
+          <div class="step-note">🔑 This is critical — it ensures the OTP reaches the right person</div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num" style="background:#1DD1A1;">3</div>
+        <div class="step-content">
+          <div class="step-title">System finds nearby active workers</div>
+          <div class="step-desc">Gixbee searches for all verified workers with that skill who are currently Live (active). Push notifications are sent to matching workers simultaneously. First to accept gets the job.</div>
+          <div class="step-note">⏱ Workers have 90 seconds to accept before the request expires</div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num" style="background:#FECA57;">4</div>
+        <div class="step-content">
+          <div class="step-title">Worker accepts → Customer confirms</div>
+          <div class="step-desc">Worker taps Accept. Customer sees the worker's profile and confirms. Background jobs start: 7-minute reminder and 10-minute GPS movement check.</div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num" style="background:#FF9F43;">5</div>
+        <div class="step-content">
+          <div class="step-title">Background monitoring begins</div>
+          <div class="step-desc">Every GPS ping from the worker's device is saved. At 7 minutes: worker gets a reminder push notification. At 10 minutes: if the worker hasn't moved, the booking is auto-cancelled and the worker gets a strike.</div>
+          <div class="step-note">🚗 3 strikes = account suspended</div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num" style="background:#6C63FF;">6</div>
+        <div class="step-content">
+          <div class="step-title">Worker arrives — Arrival OTP</div>
+          <div class="step-desc">Worker taps "Arrived". The system sends a 4-digit OTP to the on-site contact (or customer). Worker must enter this OTP to officially start the job. Status changes to ACTIVE.</div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num" style="background:#1DD1A1;">7</div>
+        <div class="step-content">
+          <div class="step-title">Worker finishes — Completion OTP</div>
+          <div class="step-desc">Worker taps "Finish". Another OTP is sent. Customer verifies the worker's OTP. Status changes to COMPLETED. Billing is calculated: minimum 1 hour, rounded up.</div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num" style="background:#FF6B6B;">8</div>
+        <div class="step-content">
+          <div class="step-title">Payment + Rs.12 Deduction</div>
+          <div class="step-desc">Customer pays the worker. Rs.12 is deducted from the worker's Gixbee wallet as a platform fee. If this was the worker's FIRST ever job, they receive Rs.12 welcome bonus instead!</div>
+          <div class="step-note">💰 First job: Free. After that: maintain Rs.12 balance to stay active.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Booking status flow -->
+  <div style="margin-top:24px;background:#fff;border-radius:16px;padding:24px;box-shadow:0 4px 16px rgba(0,0,0,.06);">
+    <div style="font-size:15px;font-weight:800;margin-bottom:16px;">🔄 Booking Status Flow</div>
+    <div class="status-flow">
+      <span class="status-pill bg-gray">REQUESTED</span>
+      <span class="status-arrow">→</span>
+      <span class="status-pill bg-yellow">ACCEPTED</span>
+      <span class="status-arrow">→</span>
+      <span class="status-pill bg-blue">ACTIVE</span>
+      <span class="status-arrow">→</span>
+      <span class="status-pill bg-green">COMPLETED</span>
+    </div>
+    <div style="font-size:12px;color:#999;margin-top:8px;">Alternative paths: REJECTED (vendor said no) | CANCELLED (auto-cancel on GPS check fail)</div>
+  </div>
+</div>
+
+<hr class="divider">
+
+<!-- ╔══════════════════════════════╗ -->
+<!-- ║        PLAN SERVICES         ║ -->
+<!-- ╚══════════════════════════════╝ -->
+<div class="section" id="plan">
+  <div class="section-title">
+    <div class="icon blue" style="color:#fff;">📅</div>
+    Plan Services — Book for Future Events
+  </div>
+  <p class="section-sub">For weddings, functions, and planned events. Location-driven — you choose WHERE the event is, not just where you are.</p>
+
+  <div class="phone-grid" style="margin-bottom:32px;">
+    <!-- Location picker -->
+    <div class="phone-wrap">
+      <div class="phone">
+        <div class="phone-notch"><div class="phone-notch-inner"></div></div>
+        <div class="phone-screen screen s-split" style="padding:14px 10px;">
+          <div class="title" style="font-size:11px;">Where is your event?</div>
+          <div class="sub" style="margin-bottom:12px;">You can be in Kottayam but book a hall in Kochi</div>
+          <div class="option active"><div><div class="opt-title">🏙 Kochi, Kerala</div><div class="opt-sub">Ernakulam district</div></div></div>
+          <div class="option"><div><div class="opt-title">🏙 Trivandrum</div></div></div>
+          <div class="option"><div><div class="opt-title">🏙 Kottayam</div></div></div>
+          <div style="margin-top:10px;padding:6px 10px;background:#f0eeff;border-radius:8px;font-size:8px;color:#6C63FF;">Now showing services in <b>Kochi</b></div>
+        </div>
+      </div>
+      <div class="phone-label">Step 1<br>Event Location<br><span style="color:#54A0FF;font-size:10px;">Not your GPS!</span></div>
+    </div>
+
+    <!-- Calendar -->
+    <div class="phone-wrap">
+      <div class="phone">
+        <div class="phone-notch"><div class="phone-notch-inner"></div></div>
+        <div class="phone-screen screen s-calendar">
+          <div class="month">◀ November 2025 ▶</div>
+          <div class="grid">
+            <div class="day head">S</div><div class="day head">M</div><div class="day head">T</div><div class="day head">W</div><div class="day head">T</div><div class="day head">F</div><div class="day head">S</div>
+            <div class="day"></div><div class="day"></div><div class="day"></div><div class="day"></div><div class="day avail">1</div><div class="day avail">2</div><div class="day avail">3</div>
+            <div class="day avail">4</div><div class="day avail">5</div><div class="day book">6</div><div class="day book">7</div><div class="day avail">8</div><div class="day avail">9</div><div class="day avail">10</div>
+            <div class="day avail">11</div><div class="day pend">12</div><div class="day pend">13</div><div class="day avail">14</div><div class="day avail">15</div><div class="day book">16</div><div class="day avail">17</div>
+            <div class="day avail">18</div><div class="day avail">19</div><div class="day avail">20</div><div class="day avail">21</div><div class="day avail">22</div><div class="day avail">23</div><div class="day book">24</div>
+            <div class="day avail">25</div><div class="day avail">26</div><div class="day avail">27</div><div class="day avail">28</div><div class="day avail">29</div><div class="day avail">30</div>
+          </div>
+          <div class="legend">
+            <div class="leg-item"><div class="leg-dot" style="background:#dcfce7;"></div>Available</div>
+            <div class="leg-item"><div class="leg-dot" style="background:#fef9c3;"></div>Pending</div>
+            <div class="leg-item"><div class="leg-dot" style="background:#fee2e2;"></div>Booked</div>
+          </div>
+        </div>
+      </div>
+      <div class="phone-label">Step 2<br>Calendar View<br><span style="color:#54A0FF;font-size:10px;">3 colours = 3 states</span></div>
+    </div>
+
+    <!-- Booking Type -->
+    <div class="phone-wrap">
+      <div class="phone">
+        <div class="phone-notch"><div class="phone-notch-inner"></div></div>
+        <div class="phone-screen screen s-split" style="padding:14px 10px;">
+          <div class="title" style="font-size:11px;">How would you like to book?</div>
+          <div class="sub">Nov 22nd selected</div>
+          <div class="option active">
+            <div class="opt-icon purple" style="color:#fff;font-size:12px;">📦</div>
+            <div>
+              <div class="opt-title">Package Booking</div>
+              <div class="opt-sub">Fixed price, ready-made packages</div>
+            </div>
+          </div>
+          <div class="option">
+            <div class="opt-icon blue" style="color:#fff;font-size:12px;">✏️</div>
+            <div>
+              <div class="opt-title">Custom Request</div>
+              <div class="opt-sub">Tell us your requirements, vendor quotes</div>
+            </div>
+          </div>
+          <div style="margin-top:12px;background:#6C63FF;border-radius:8px;padding:7px;text-align:center;color:#fff;font-size:9px;font-weight:700;">Send Request →</div>
+        </div>
+      </div>
+      <div class="phone-label">Step 3<br>Booking Type<br><span style="color:#54A0FF;font-size:10px;">Package or Custom</span></div>
+    </div>
+  </div>
+
+  <div class="flow-container">
+    <div style="font-size:15px;font-weight:800;margin-bottom:20px;">📊 Plan Services Flow</div>
+    <div class="flow">
+      <div class="flow-step"><div class="flow-box bg-purple">Pick Event<br>Location</div></div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step"><div class="flow-box bg-blue">Browse<br>Vendors</div></div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step"><div class="flow-box bg-yellow">Check<br>Calendar</div></div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step"><div class="flow-box bg-purple">Package<br>or Custom?</div></div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step"><div class="flow-box bg-orange">Vendor<br>Approves</div></div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step"><div class="flow-box bg-blue">Customer<br>Confirms</div></div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step"><div class="flow-box bg-green">Calendar<br>Blocked ✓</div></div>
+    </div>
+  </div>
+</div>
+
+<hr class="divider">
+
+<!-- ╔══════════════════════════════╗ -->
+<!-- ║           RENTAL             ║ -->
+<!-- ╚══════════════════════════════╝ -->
+<div class="section" id="rental">
+  <div class="section-title">
+    <div class="icon orange" style="color:#fff;">🔧</div>
+    Rental Service — Equipment for Events
+  </div>
+  <p class="section-sub">Rent generators, mic sets, coolers, pressure washers — by the hour, for your event day.</p>
+
+  <div style="background:#fff;border-radius:16px;padding:24px;box-shadow:0 4px 16px rgba(0,0,0,.06);">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;" class="two-col">
+      <div>
+        <div style="font-size:16px;font-weight:800;margin-bottom:12px;">🔑 Key Rules</div>
+        <div class="step" style="padding-bottom:12px;">
+          <div class="step-num" style="background:#FF9F43;width:28px;height:28px;font-size:12px;">1</div>
+          <div class="step-content"><div class="step-title" style="font-size:13px;">Rental is inside Plan Services, NOT Instant Help</div><div class="step-desc" style="font-size:12px;">Because delivery logistics are involved — it needs planning.</div></div>
+        </div>
+        <div class="step" style="padding-bottom:12px;">
+          <div class="step-num" style="background:#FF9F43;width:28px;height:28px;font-size:12px;">2</div>
+          <div class="step-content"><div class="step-title" style="font-size:13px;">Entire day is blocked on confirmation</div><div class="step-desc" style="font-size:12px;">Avoids return-delay conflicts. Generator booked for Nov 22 = whole day blocked.</div></div>
+        </div>
+        <div class="step" style="padding-bottom:12px;">
+          <div class="step-num" style="background:#FF9F43;width:28px;height:28px;font-size:12px;">3</div>
+          <div class="step-content"><div class="step-title" style="font-size:13px;">Minimum hour billing</div><div class="step-desc" style="font-size:12px;">Use 3 hours on a 4-hour minimum? You pay for 4 hours. Use 6 hours? Pay 6 hours.</div></div>
+        </div>
+        <div class="step">
+          <div class="step-num" style="background:#FF9F43;width:28px;height:28px;font-size:12px;">4</div>
+          <div class="step-content"><div class="step-title" style="font-size:13px;">No OTP required</div><div class="step-desc" style="font-size:12px;">After confirmation, customer and vendor coordinate directly. Gixbee steps back.</div></div>
+        </div>
+      </div>
+      <div>
+        <div style="font-size:16px;font-weight:800;margin-bottom:12px;">💡 Example</div>
+        <div style="background:#fff7ed;border-radius:12px;padding:16px;border-left:4px solid #FF9F43;">
+          <div style="font-size:13px;line-height:1.8;">
+            Rahul is in <b>Kottayam</b> but needs a generator for a wedding in <b>Kochi</b> on the 29th.<br><br>
+            He opens Gixbee → Book Services → Plan Services → Rental → Generator → Kochi.<br><br>
+            He sees <b>PowerPro Generator</b>: ₹1000/hour, minimum 4 hours.<br><br>
+            He checks availability — 29th is <span style="color:#166534;font-weight:700;">green (available)</span>.<br><br>
+            He sends a request. Vendor approves. Rahul confirms.<br><br>
+            The 29th turns <span style="color:#991b1b;font-weight:700;">red (blocked)</span>. They coordinate delivery via phone.
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<hr class="divider">
+
+<!-- ╔══════════════════════════════╗ -->
+<!-- ║          FIND A JOB          ║ -->
+<!-- ╚══════════════════════════════╝ -->
+<div class="section" id="findJob">
+  <div class="section-title">
+    <div class="icon blue" style="color:#fff;">🎓</div>
+    Find a Job — Talent Discovery Engine
+  </div>
+  <p class="section-sub">No agencies, no newspaper ads, no fees. Students and professionals connect directly with employers.</p>
+
+  <div class="phone-grid" style="margin-bottom:32px;">
+    <div class="phone-wrap">
+      <div class="phone">
+        <div class="phone-notch"><div class="phone-notch-inner"></div></div>
+        <div class="phone-screen screen s-job">
+          <div class="title">Find a Job</div>
+          <div class="job-card">
+            <div class="job-title">Staff Nurse — Kochi</div>
+            <div class="job-company">City Hospital | Full Time</div>
+            <div class="job-pill">BSc Nursing</div>
+            <div style="margin-top:6px;background:#6C63FF;color:#fff;border-radius:6px;padding:4px 8px;font-size:8px;font-weight:700;display:inline-block;">Apply Now →</div>
+          </div>
+          <div class="job-card" style="border-left-color:#1DD1A1;">
+            <div class="job-title">Software Engineer — Remote</div>
+            <div class="job-company">TechFlow | ₹30,000/month</div>
+            <div class="job-pill" style="background:#dcfce7;color:#166534;">Flutter</div>
+            <div class="job-pill" style="background:#dcfce7;color:#166534;">Node.js</div>
+          </div>
+          <div class="job-card" style="border-left-color:#FF9F43;">
+            <div class="job-title">Customer Support Executive</div>
+            <div class="job-company">ABC Corp | Part Time</div>
+            <div class="job-pill" style="background:#fff7ed;color:#9a3412;">Freshers OK</div>
+          </div>
+        </div>
+      </div>
+      <div class="phone-label">Job Feed<br><span style="color:#54A0FF;font-size:10px;">Matching your skills</span></div>
+    </div>
+  </div>
+
+  <div class="flow-container">
+    <div style="font-size:15px;font-weight:800;margin-bottom:20px;">📊 Find a Job — Complete Flow</div>
+    <div class="steps">
+      <div class="step">
+        <div class="step-num" style="background:#54A0FF;">1</div>
+        <div class="step-content">
+          <div class="step-title">Build your Talent Profile</div>
+          <div class="step-desc">Add education, skills, experience, current status (Final Year / Graduate / Experienced), preferred job roles and work locations.</div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num" style="background:#54A0FF;">2</div>
+        <div class="step-content">
+          <div class="step-title">Enable Job Alerts 🔔</div>
+          <div class="step-desc">Toggle on Job Alerts. Now when any employer posts a job matching your skills + location, you instantly get a push notification on your phone.</div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num" style="background:#1DD1A1;">3</div>
+        <div class="step-content">
+          <div class="step-title">Apply with one tap</div>
+          <div class="step-desc">See a job you like? Tap Apply. Your talent profile is sent to the employer. Status becomes: <span class="pill bg-blue">APPLIED</span></div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num" style="background:#FECA57;">4</div>
+        <div class="step-content">
+          <div class="step-title">HR shortlists you</div>
+          <div class="step-desc">The employer's HR moves you to Interview. You get a push notification. Status: <span class="pill bg-yellow">INTERVIEW</span></div>
+          <div class="step-note">⚠️ If you accept the interview but don't attend — your no-show count increases and your search ranking drops</div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num" style="background:#1DD1A1;">5</div>
+        <div class="step-content">
+          <div class="step-title">Result</div>
+          <div class="step-desc">You are selected or rejected. Either way, you get notified. Status: <span class="pill bg-green">SELECTED ✓</span> or <span class="pill bg-red">REJECTED</span></div>
+        </div>
+      </div>
+    </div>
+    <div style="margin-top:16px;">
+      <div style="font-size:14px;font-weight:700;margin-bottom:8px;">Application Status Journey:</div>
+      <div class="status-flow">
+        <span class="status-pill bg-gray">APPLIED</span>
+        <span class="status-arrow">→</span>
+        <span class="status-pill bg-yellow">INTERVIEW</span>
+        <span class="status-arrow">→</span>
+        <span class="status-pill bg-green">SELECTED ✓</span>
+        <span style="font-size:16px;color:#aaa;padding:0 8px;">or</span>
+        <span class="status-pill bg-red">REJECTED</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<hr class="divider">
+
+<!-- ╔══════════════════════════════╗ -->
+<!-- ║        EARN BY WORKING       ║ -->
+<!-- ╚══════════════════════════════╝ -->
+<div class="section" id="earnWork">
+  <div class="section-title">
+    <div class="icon green" style="color:#fff;">💰</div>
+    Earn by Working — Become a Gig Worker
+  </div>
+  <p class="section-sub">Got a skill? Turn it into income. This is the worker side of the Live Worker Engine.</p>
+
+  <div class="flow-container">
+    <div style="font-size:15px;font-weight:800;margin-bottom:20px;">📊 Worker Registration & Go-Live Flow</div>
+    <div class="steps">
+      <div class="step">
+        <div class="step-num" style="background:#1DD1A1;">1</div>
+        <div class="step-content">
+          <div class="step-title">Register your skills</div>
+          <div class="step-desc">Choose from the master skill list: Electrician, Driver, Cleaner, Nurse, Carpenter, AC Technician, etc. Each skill needs document proof (certificate, ID, etc.).</div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num" style="background:#1DD1A1;">2</div>
+        <div class="step-content">
+          <div class="step-title">Admin verification</div>
+          <div class="step-desc">Your submission goes to the Gixbee admin panel. Admin reviews your proof and approves or rejects. Status: <span class="pill bg-yellow">PENDING</span> → <span class="pill bg-green">VERIFIED</span></div>
+          <div class="step-note">Only verified workers appear on the customer's radar</div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num" style="background:#1DD1A1;">3</div>
+        <div class="step-content">
+          <div class="step-title">Set your hourly rate</div>
+          <div class="step-desc">You decide how much you charge per hour (within the system range). You can update this <b>maximum 2 times per day</b>.</div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num" style="background:#1DD1A1;">4</div>
+        <div class="step-content">
+          <div class="step-title">Set your availability schedule</div>
+          <div class="step-desc">Tell Gixbee when you're available: Monday 9am-5pm, Tuesday 3pm-7pm, etc. Customers can only find you during these hours.</div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num" style="background:#FF9F43;">5</div>
+        <div class="step-content">
+          <div class="step-title">Toggle Go-Live ⚡</div>
+          <div class="step-desc">Toggle the Go-Live switch ON. Your profile appears on the customer's live radar. Customers nearby can now send you job requests.</div>
+          <div class="step-note">💰 First job: No wallet needed. After first job: must keep Rs.12 in wallet to go live again.</div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num" style="background:#6C63FF;">6</div>
+        <div class="step-content">
+          <div class="step-title">Accept jobs, complete, earn</div>
+          <div class="step-desc">When a customer picks your skill, you get a push notification. You have 90 seconds to accept. Complete the job using the OTP flow. Get paid directly by the customer.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div style="margin-top:20px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;" class="three-col">
+    <div style="background:#fff;border-radius:12px;padding:16px;box-shadow:0 4px 12px rgba(0,0,0,.06);text-align:center;">
+      <div style="font-size:28px;">💳</div>
+      <div style="font-size:14px;font-weight:700;margin:6px 0;">Rs.12 Wallet</div>
+      <div style="font-size:12px;color:#666;">Platform fee per job. After first job, must keep Rs.12 to stay live.</div>
+    </div>
+    <div style="background:#fff;border-radius:12px;padding:16px;box-shadow:0 4px 12px rgba(0,0,0,.06);text-align:center;">
+      <div style="font-size:28px;">⚠️</div>
+      <div style="font-size:14px;font-weight:700;margin:6px 0;">Strike System</div>
+      <div style="font-size:12px;color:#666;">Accept a job but don't move toward customer = Strike. 3 strikes = Account suspended.</div>
+    </div>
+    <div style="background:#fff;border-radius:12px;padding:16px;box-shadow:0 4px 12px rgba(0,0,0,.06);text-align:center;">
+      <div style="font-size:28px;">📊</div>
+      <div style="font-size:14px;font-weight:700;margin:6px 0;">Rate Limit</div>
+      <div style="font-size:12px;color:#666;">Hourly rate can be updated maximum 2 times per day. Resets at midnight.</div>
+    </div>
+  </div>
+</div>
+
+<hr class="divider">
+
+<!-- ╔══════════════════════════════╗ -->
+<!-- ║         LIST MY BUSINESS     ║ -->
+<!-- ╚══════════════════════════════╝ -->
+<div class="section" id="listBiz">
+  <div class="section-title">
+    <div class="icon orange" style="color:#fff;">🏢</div>
+    List My Business — For Business Owners
+  </div>
+  <p class="section-sub">Three types of businesses. One unit-based model. Multiple businesses, all managed from one account.</p>
+
+  <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin-bottom:32px;" class="three-col">
+    <div style="background:#fff;border-radius:16px;padding:20px;box-shadow:0 4px 12px rgba(0,0,0,.06);border-top:4px solid #6C63FF;">
+      <div style="font-size:24px;margin-bottom:8px;">🏛</div>
+      <div style="font-size:16px;font-weight:800;margin-bottom:6px;color:#6C63FF;">Service Business</div>
+      <div style="font-size:12px;color:#666;line-height:1.6;">Hall, Catering, Decoration, Photography. Manage calendar, add operators, handle booking requests.</div>
+      <div style="margin-top:10px;font-size:11px;color:#888;">Example: You own 2 catering brands → 2 separate cards, each managed independently.</div>
+    </div>
+    <div style="background:#fff;border-radius:16px;padding:20px;box-shadow:0 4px 12px rgba(0,0,0,.06);border-top:4px solid #54A0FF;">
+      <div style="font-size:24px;margin-bottom:8px;">👔</div>
+      <div style="font-size:16px;font-weight:800;margin-bottom:6px;color:#54A0FF;">Hiring Business</div>
+      <div style="font-size:12px;color:#666;line-height:1.6;">IT companies, hospitals, schools. Create departments, add HR operators, post jobs, manage applicant pipeline.</div>
+      <div style="margin-top:10px;font-size:11px;color:#888;">Example: ABC Tech → Development Team, Support Team. HR manages each independently.</div>
+    </div>
+    <div style="background:#fff;border-radius:16px;padding:20px;box-shadow:0 4px 12px rgba(0,0,0,.06);border-top:4px solid #FF9F43;">
+      <div style="font-size:24px;margin-bottom:8px;">⚙️</div>
+      <div style="font-size:16px;font-weight:800;margin-bottom:6px;color:#FF9F43;">Rental Business</div>
+      <div style="font-size:12px;color:#666;line-height:1.6;">Generators, mic sets, coolers, pressure washers. List each item with hourly rate and min hours.</div>
+      <div style="margin-top:10px;font-size:11px;color:#888;">Example: PowerPro Rentals lists 5 generators, each with its own calendar and pricing.</div>
+    </div>
+  </div>
+
+  <div class="flow-container">
+    <div style="font-size:15px;font-weight:800;margin-bottom:20px;">📊 Business Registration & Management Flow</div>
+    <div class="steps">
+      <div class="step">
+        <div class="step-num" style="background:#FF9F43;">1</div>
+        <div class="step-content">
+          <div class="step-title">Choose business type and register</div>
+          <div class="step-desc">Select: Service / Hiring / Rental. Fill in business name, location, description. Upload legal proof (GST certificate, etc.). Status: <span class="pill bg-yellow">PENDING</span></div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num" style="background:#FF9F43;">2</div>
+        <div class="step-content">
+          <div class="step-title">Admin reviews and verifies</div>
+          <div class="step-desc">Gixbee admin checks the documents and approves. Status: <span class="pill bg-green">VERIFIED ✓</span>. You get a push notification.</div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num" style="background:#FF9F43;">3</div>
+        <div class="step-content">
+          <div class="step-title">Business Unit Dashboard</div>
+          <div class="step-desc">You see a card for each of your verified businesses. Click a card to manage it: calendar, operators, offline days, bookings.</div>
+          <div style="background:#fff7ed;border-radius:8px;padding:8px 12px;margin-top:6px;font-size:12px;">
+            🃏 Card 1 → Royal Catering &nbsp;|&nbsp; 🃏 Card 2 → City Caterers &nbsp;|&nbsp; ➕ Add New
+          </div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num" style="background:#FF9F43;">4</div>
+        <div class="step-content">
+          <div class="step-title">Add operators (managers / HR)</div>
+          <div class="step-desc">Add a trusted person as an operator. They can manage bookings and calendars. They CANNOT transfer ownership. You remain in full control.</div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num" style="background:#FF6B6B;">5</div>
+        <div class="step-content">
+          <div class="step-title">Ownership Transfer (if selling the business)</div>
+          <div class="step-desc">Initiate a transfer to the new owner. Both you AND the new owner must confirm with OTP. A <b>24-hour hold</b> is applied before the transfer becomes final — giving time to cancel if it was a mistake.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<hr class="divider">
+
+<!-- ╔══════════════════════════════╗ -->
+<!-- ║           WALLET             ║ -->
+<!-- ╚══════════════════════════════╝ -->
+<div class="section" id="wallet">
+  <div class="section-title">
+    <div class="icon purple" style="color:#fff;">👛</div>
+    Wallet — Gixbee's Payment System
+  </div>
+  <p class="section-sub">Every user has a Gixbee wallet. Workers need it to go live. Customers may use it for service fees.</p>
+
+  <div class="phone-grid" style="margin-bottom:32px;">
+    <div class="phone-wrap">
+      <div class="phone">
+        <div class="phone-notch"><div class="phone-notch-inner"></div></div>
+        <div class="phone-screen screen s-wallet">
+          <div class="bal-label">Your Balance</div>
+          <div class="bal">Rs. 88.00</div>
+          <div class="card">
+            <div class="tx-row"><div class="tx-label">Welcome Bonus</div><div class="tx-amount credit">+Rs.12</div></div>
+            <div style="font-size:7px;color:rgba(255,255,255,.4);margin-top:2px;">First job completed</div>
+          </div>
+          <div class="card">
+            <div class="tx-row"><div class="tx-label">Service Fee — Job #A12</div><div class="tx-amount debit">-Rs.12</div></div>
+            <div style="font-size:7px;color:rgba(255,255,255,.4);margin-top:2px;">Platform fee deducted</div>
+          </div>
+          <div class="card">
+            <div class="tx-row"><div class="tx-label">Wallet Recharge</div><div class="tx-amount credit">+Rs.100</div></div>
+            <div style="font-size:7px;color:rgba(255,255,255,.4);margin-top:2px;">Via Razorpay</div>
+          </div>
+          <div class="btn">Top Up via Razorpay →</div>
+        </div>
+      </div>
+      <div class="phone-label">Wallet Screen</div>
+    </div>
+  </div>
+
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;" class="two-col">
+    <div style="background:#fff;border-radius:16px;padding:20px;box-shadow:0 4px 12px rgba(0,0,0,.06);">
+      <div style="font-size:15px;font-weight:800;margin-bottom:12px;">💰 How the Wallet Works</div>
+      <div style="font-size:13px;color:#666;line-height:1.8;">
+        <b>New user joins:</b> Gets Rs.100 starting balance<br>
+        <b>First gig job completed:</b> Gets Rs.12 bonus<br>
+        <b>Every job accepted:</b> Rs.12 deducted from wallet<br>
+        <b>Go live again:</b> Must have Rs.12 in wallet<br>
+        <b>Top up:</b> Via Razorpay (UPI, GPay, Card)
+      </div>
+    </div>
+    <div style="background:#fff;border-radius:16px;padding:20px;box-shadow:0 4px 12px rgba(0,0,0,.06);">
+      <div style="font-size:15px;font-weight:800;margin-bottom:12px;">🔐 The Rs.12 Rule</div>
+      <div style="background:#f0eeff;border-radius:10px;padding:14px;font-size:13px;color:#3B1FA3;line-height:1.7;">
+        Think of it like a taxi driver needing to keep fuel in their car before they start a shift. Workers need Rs.12 "activation fuel" to be available on the Gixbee network. First time is free — after that, it's your responsibility to top up.
+      </div>
+    </div>
+  </div>
+</div>
+
+<hr class="divider">
+
+<!-- ╔══════════════════════════════╗ -->
+<!-- ║          LIVE RADAR          ║ -->
+<!-- ╚══════════════════════════════╝ -->
+<div class="section" id="map">
+  <div class="section-title">
+    <div class="icon dark" style="color:#1DD1A1;">🗺️</div>
+    Live Radar — See Workers Near You
+  </div>
+  <p class="section-sub">The middle tab in the bottom navigation. Shows active workers around you in real-time — like a radar screen.</p>
+
+  <div class="phone-grid" style="margin-bottom:32px;">
+    <div class="phone-wrap">
+      <div class="phone">
+        <div class="phone-notch"><div class="phone-notch-inner"></div></div>
+        <div class="phone-screen screen s-radar" style="min-height:300px;">
+          <div class="radar-ring" style="width:280px;height:280px;top:50%;left:50%;transform:translate(-50%,-50%);"></div>
+          <div class="radar-ring" style="width:180px;height:180px;top:50%;left:50%;transform:translate(-50%,-50%);"></div>
+          <div class="radar-ring" style="width:80px;height:80px;top:50%;left:50%;transform:translate(-50%,-50%);"></div>
+          <!-- Center dot (you) -->
+          <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:12px;height:12px;background:#1DD1A1;border-radius:50%;box-shadow:0 0 16px #1DD1A1;"></div>
+          <!-- Worker markers -->
+          <div class="marker" style="top:30%;left:65%;">
+            <div class="marker-dot">👷</div>
+            <div class="marker-label">Electrician</div>
+          </div>
+          <div class="marker" style="top:55%;left:25%;">
+            <div class="marker-dot">🚗</div>
+            <div class="marker-label">Driver</div>
+          </div>
+          <div class="marker" style="top:70%;left:60%;">
+            <div class="marker-dot">🧹</div>
+            <div class="marker-label">Cleaner</div>
+          </div>
+          <div style="position:absolute;bottom:10px;left:50%;transform:translateX(-50%);background:#1DD1A1;color:#0d1117;font-size:8px;font-weight:700;padding:4px 12px;border-radius:999px;">📍 GPS Recenter</div>
+        </div>
+      </div>
+      <div class="phone-label">Live Radar<br><span style="color:#1DD1A1;font-size:10px;">Real-time worker positions</span></div>
+    </div>
+  </div>
+
+  <div style="background:#fff;border-radius:16px;padding:24px;box-shadow:0 4px 16px rgba(0,0,0,.06);">
+    <div style="font-size:15px;font-weight:800;margin-bottom:12px;">⚙️ How the Radar Works (Behind the Scenes)</div>
+    <div style="font-size:13px;color:#666;line-height:1.8;">
+      1. Worker goes Live → their app starts sending GPS coordinates to the server via <b>WebSocket</b> (a live connection, not a regular refresh)<br>
+      2. Server stores the GPS coordinates in <b>Redis</b> (super-fast memory database)<br>
+      3. Server sends location update only to the customer tracking that specific worker's job<br>
+      4. Customer's radar screen updates in real-time — the worker marker moves as they travel<br>
+      5. If a worker stops moving for 5+ minutes → the 10-minute GPS check detects no movement → auto-cancel
+    </div>
+  </div>
+</div>
+
+<hr class="divider">
+
+<!-- ╔══════════════════════════════╗ -->
+<!-- ║           PROFILE            ║ -->
+<!-- ╚══════════════════════════════╝ -->
+<div class="section" id="profile">
+  <div class="section-title">
+    <div class="icon" style="background:linear-gradient(135deg,#54A0FF,#2E86DE);color:#fff;">👤</div>
+    Profile — Your Account Hub
+  </div>
+  <p class="section-sub">All your personal settings, wallet, worker profile, and application history — in one place.</p>
+
+  <div class="phone-grid">
+    <div class="phone-wrap">
+      <div class="phone">
+        <div class="phone-notch"><div class="phone-notch-inner"></div></div>
+        <div class="phone-screen screen s-profile">
+          <div class="header">
+            <div class="avatar">👤</div>
+            <div class="name">Rahul Menon</div>
+            <div class="phone">+91 98765 43210</div>
+          </div>
+          <div class="menu-item"><div class="menu-icon">👛</div><div class="menu-label">My Wallet — Rs.88.00</div></div>
+          <div class="menu-item"><div class="menu-icon">📅</div><div class="menu-label">My Bookings</div></div>
+          <div class="menu-item"><div class="menu-icon">⚡</div><div class="menu-label">My Worker Profile</div></div>
+          <div class="menu-item"><div class="menu-icon">🎓</div><div class="menu-label">My Job Applications</div></div>
+          <div class="menu-item"><div class="menu-icon">🏢</div><div class="menu-label">My Businesses</div></div>
+          <div class="menu-item"><div class="menu-icon">✏️</div><div class="menu-label">Edit Profile</div></div>
+          <div class="menu-item"><div class="menu-icon">🚪</div><div class="menu-label" style="color:#FF6B6B;">Logout</div></div>
+        </div>
+      </div>
+      <div class="phone-label">Profile Screen</div>
+    </div>
+  </div>
+</div>
+
+<hr class="divider">
+
+<!-- ╔══════════════════════════════╗ -->
+<!-- ║         BACKEND              ║ -->
+<!-- ╚══════════════════════════════╝ -->
+<div class="section" id="backend">
+  <div class="section-title">
+    <div class="icon" style="background:#1a1a2e;color:#1DD1A1;">⚙️</div>
+    What Powers Gixbee? (Simple Version)
+  </div>
+  <p class="section-sub">You don't need to be a developer to understand this. Think of these as departments in a company.</p>
+
+  <div class="info-cards">
+    <div class="info-card" style="border-color:#6C63FF;">
+      <h3>🗄️ PostgreSQL Database</h3>
+      <p>The main filing cabinet. Stores all users, bookings, jobs, businesses, wallet transactions — permanently.</p>
+    </div>
+    <div class="info-card" style="border-color:#FF6B6B;">
+      <h3>⚡ Redis</h3>
+      <p>Super-fast temporary memory. Stores OTP codes (for 5 minutes) and worker GPS locations. Data disappears after a set time — perfect for short-lived info.</p>
+    </div>
+    <div class="info-card" style="border-color:#1DD1A1;">
+      <h3>🔔 Firebase FCM</h3>
+      <p>The notification delivery system. When a booking is accepted, a job alert triggers, or a worker arrives — FCM pushes it to your phone instantly.</p>
+    </div>
+    <div class="info-card" style="border-color:#FECA57;">
+      <h3>🔌 WebSocket</h3>
+      <p>A live permanent connection between the app and server. Used for real-time GPS tracking. Like a phone call — always open, data flows both ways.</p>
+    </div>
+    <div class="info-card" style="border-color:#FF9F43;">
+      <h3>⏰ Bull Queue</h3>
+      <p>A scheduled task manager. Fires the 7-minute reminder and 10-minute GPS check automatically after a booking is created — like a kitchen timer.</p>
+    </div>
+    <div class="info-card" style="border-color:#54A0FF;">
+      <h3>💳 Razorpay</h3>
+      <p>India's payment gateway. Handles UPI, GPay, cards, net banking. Used to top up the Gixbee wallet.</p>
+    </div>
+  </div>
+
+  <br>
+  <div class="flow-container">
+    <div style="font-size:15px;font-weight:800;margin-bottom:20px;">🏗️ How the System is Structured</div>
+    <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;justify-content:center;font-size:13px;">
+      <div style="background:#f0eeff;border-radius:12px;padding:16px 20px;text-align:center;">
+        <div style="font-size:24px;">📱</div>
+        <div style="font-weight:700;color:#6C63FF;">Flutter App</div>
+        <div style="font-size:11px;color:#888;">Android + iOS</div>
+      </div>
+      <div style="font-size:24px;color:#aaa;">⟷</div>
+      <div style="background:#f0fff4;border-radius:12px;padding:16px 20px;text-align:center;">
+        <div style="font-size:24px;">🖥️</div>
+        <div style="font-weight:700;color:#1DD1A1;">NestJS API</div>
+        <div style="font-size:11px;color:#888;">Business Logic</div>
+      </div>
+      <div style="font-size:24px;color:#aaa;">⟷</div>
+      <div style="display:flex;flex-direction:column;gap:8px;">
+        <div style="background:#fff7ed;border-radius:10px;padding:10px 14px;text-align:center;">
+          <div style="font-weight:700;color:#FF9F43;font-size:12px;">🗄️ PostgreSQL</div>
+        </div>
+        <div style="background:#fee2e2;border-radius:10px;padding:10px 14px;text-align:center;">
+          <div style="font-weight:700;color:#991b1b;font-size:12px;">⚡ Redis</div>
+        </div>
+        <div style="background:#f0fff4;border-radius:10px;padding:10px 14px;text-align:center;">
+          <div style="font-weight:700;color:#166534;font-size:12px;">🔔 Firebase FCM</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<hr class="divider">
+
+<!-- ╔══════════════════════════════╗ -->
+<!-- ║           SUMMARY            ║ -->
+<!-- ╚══════════════════════════════╝ -->
+<div class="section" id="summary">
+  <div class="section-title">
+    <div class="icon" style="background:linear-gradient(135deg,#6C63FF,#FF9F43);color:#fff;">📊</div>
+    Complete App Summary
+  </div>
+  <p class="section-sub">Every screen and feature in one table.</p>
+
+  <table class="summary-table">
+    <tr>
+      <th>Module</th>
+      <th>Screens</th>
+      <th>Who Uses It</th>
+      <th>Key Feature</th>
+      <th>Status</th>
+    </tr>
+    <tr>
+      <td><b>🔐 Login</b></td>
+      <td>Welcome, Phone Login, OTP Verify</td>
+      <td>Everyone</td>
+      <td>Firebase SMS OTP, JWT auth</td>
+      <td><span class="pill bg-green">✅ Done</span></td>
+    </tr>
+    <tr>
+      <td><b>🏠 Home</b></td>
+      <td>Home Screen (4 intent cards)</td>
+      <td>Everyone</td>
+      <td>4 entry points + location strip</td>
+      <td><span class="pill bg-green">✅ Done</span></td>
+    </tr>
+    <tr>
+      <td><b>⚡ Instant Help</b></td>
+      <td>Split, Location, Presence Check, Arrival OTP, Completion OTP</td>
+      <td>Customers</td>
+      <td>Live Worker Engine, GPS tracking, 2 OTP gates</td>
+      <td><span class="pill bg-green">✅ Done</span></td>
+    </tr>
+    <tr>
+      <td><b>📅 Plan Services</b></td>
+      <td>Event Location, Vendor List, Calendar, Booking Type</td>
+      <td>Customers</td>
+      <td>3-state calendar, Package vs Custom</td>
+      <td><span class="pill bg-yellow">⚠️ Calendar missing</span></td>
+    </tr>
+    <tr>
+      <td><b>🔧 Rental</b></td>
+      <td>Item browse, Calendar, Request rental</td>
+      <td>Customers</td>
+      <td>Day-block calendar, min-hour billing</td>
+      <td><span class="pill bg-green">✅ Done</span></td>
+    </tr>
+    <tr>
+      <td><b>🎓 Find a Job</b></td>
+      <td>Talent Profile, Job Feed, Alerts, Application Tracker</td>
+      <td>Job Seekers</td>
+      <td>Skill matching, push alerts, pipeline tracking</td>
+      <td><span class="pill bg-green">✅ Done</span></td>
+    </tr>
+    <tr>
+      <td><b>💰 Earn by Working</b></td>
+      <td>Skill Registration, Rate Setting, Go-Live Toggle</td>
+      <td>Gig Workers</td>
+      <td>Rs.12 wallet gate, 2/day rate limit, strike system</td>
+      <td><span class="pill bg-green">✅ Done</span></td>
+    </tr>
+    <tr>
+      <td><b>🏢 List My Business</b></td>
+      <td>Business Type, Register, Unit Dashboard, Pipeline</td>
+      <td>Business Owners</td>
+      <td>Multi-unit, operators, ownership transfer</td>
+      <td><span class="pill bg-yellow">⚠️ Dashboard in progress</span></td>
+    </tr>
+    <tr>
+      <td><b>👛 Wallet</b></td>
+      <td>Balance, Transaction History, Top-Up</td>
+      <td>Workers</td>
+      <td>Rs.12 system, Razorpay top-up</td>
+      <td><span class="pill bg-green">✅ Done</span></td>
+    </tr>
+    <tr>
+      <td><b>🗺️ Live Radar</b></td>
+      <td>Worker Map Screen</td>
+      <td>Customers</td>
+      <td>Real-time GPS via WebSocket + Redis</td>
+      <td><span class="pill bg-yellow">⚠️ Map coordinates fix needed</span></td>
+    </tr>
+    <tr>
+      <td><b>👤 Profile</b></td>
+      <td>Profile Screen, Edit Profile</td>
+      <td>Everyone</td>
+      <td>Account settings, wallet link</td>
+      <td><span class="pill bg-green">✅ Done</span></td>
+    </tr>
+  </table>
+
+  <br>
+  <div style="background:#fff;border-radius:16px;padding:24px;box-shadow:0 4px 16px rgba(0,0,0,.06);margin-top:8px;">
+    <div style="font-size:18px;font-weight:800;margin-bottom:16px;">🌟 The Complete Gixbee Promise</div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;">
+      <div style="text-align:center;padding:16px;background:#f0eeff;border-radius:12px;">
+        <div style="font-size:28px;">🛍</div><div style="font-weight:700;font-size:13px;margin-top:6px;">Event platform</div>
+        <div style="font-size:11px;color:#888;margin-top:2px;">Hall, catering, photography</div>
+      </div>
+      <div style="text-align:center;padding:16px;background:#f0fff4;border-radius:12px;">
+        <div style="font-size:28px;">⚡</div><div style="font-weight:700;font-size:13px;margin-top:6px;">Gig platform</div>
+        <div style="font-size:11px;color:#888;margin-top:2px;">Instant hourly work</div>
+      </div>
+      <div style="text-align:center;padding:16px;background:#e0f0ff;border-radius:12px;">
+        <div style="font-size:28px;">🎓</div><div style="font-weight:700;font-size:13px;margin-top:6px;">Hiring platform</div>
+        <div style="font-size:11px;color:#888;margin-top:2px;">Jobs + talent discovery</div>
+      </div>
+      <div style="text-align:center;padding:16px;background:#fff7ed;border-radius:12px;">
+        <div style="font-size:28px;">🏢</div><div style="font-weight:700;font-size:13px;margin-top:6px;">Vendor platform</div>
+        <div style="font-size:11px;color:#888;margin-top:2px;">Business management</div>
+      </div>
+    </div>
+    <div style="margin-top:20px;text-align:center;font-size:16px;font-weight:700;color:#6C63FF;">All in one. One account. One app. One community.</div>
+  </div>
+</div>
+
+<!-- FOOTER -->
+<div style="background:#1a1a2e;color:#fff;padding:40px;text-align:center;margin-top:48px;">
+  <div style="font-size:28px;font-weight:900;margin-bottom:6px;">🐝 Gixbee</div>
+  <div style="font-size:14px;opacity:.6;">The Skill Intelligence Network</div>
+  <div style="margin-top:16px;font-size:12px;opacity:.4;">Visual Documentation — April 2026 — Confidential</div>
+</div>
+
+<style>
+@media (max-width: 600px) {
+  .two-col { grid-template-columns: 1fr !important; }
+  .three-col { grid-template-columns: 1fr !important; }
+}
+</style>
+
+</body>
+</html>

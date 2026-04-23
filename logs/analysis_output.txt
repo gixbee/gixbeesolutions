@@ -1,0 +1,19 @@
+﻿Analyzing gixbee...                                             
+
+warning - Unused import: '../../theme.dart' - lib\features\graph\skill_graph_screen.dart:3:8 - unused_import
+   info - The private field _nodes could be 'final' - lib\features\graph\skill_graph_screen.dart:15:19 - prefer_final_fields
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\graph\skill_graph_screen.dart:149:41 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\graph\skill_graph_screen.dart:175:49 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\onboarding\welcome_screen.dart:41:47 - deprecated_member_use
+warning - Unused import: '../../theme.dart' - lib\features\profile\worker_profile_card.dart:3:8 - unused_import
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\profile\worker_profile_card.dart:17:48 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\profile\worker_profile_card.dart:20:33 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\profile\worker_profile_card.dart:51:45 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\profile\worker_profile_card.dart:82:53 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\profile\worker_profile_card.dart:102:51 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\profile\worker_profile_card.dart:118:51 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\profile\worker_profile_card.dart:121:53 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\profile\worker_profile_card.dart:128:53 - deprecated_member_use
+warning - Unused import: 'package:flutter/material.dart' - lib\models\worker.dart:1:8 - unused_import
+   info - 'background' is deprecated and shouldn't be used. Use surface instead. This feature was deprecated after v3.18.0-0.1.pre - lib\theme.dart:21:9 - deprecated_member_use
+

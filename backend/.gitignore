@@ -1,0 +1,25 @@
+# Dependencies
+node_modules/
+dist/
+
+# Environment
+.env
+.env.local
+.env.production
+
+# Firebase service account — NEVER commit this
+# Use env vars FIREBASE_PROJECT_ID, FIREBASE_CLIENT_EMAIL, FIREBASE_PRIVATE_KEY instead
+firebase-service-account.json
+
+# Logs
+*.log
+logs/
+
+# Uploads (user-generated content)
+uploads/
+
+# OS
+.DS_Store
+
+# Test coverage
+coverage/
