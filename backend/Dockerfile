@@ -8,8 +8,9 @@ COPY package*.json ./
 
 RUN npm ci --only=production=false
 
-# Copy source and build
+# Copy source and build (limit memory for low-RAM EC2 instances)
 COPY . .
+ENV NODE_OPTIONS="--max-old-space-size=512"
 RUN npm run build
 
 # Remove dev dependencies after build
