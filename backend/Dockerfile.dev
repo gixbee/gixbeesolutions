@@ -1,0 +1,14 @@
+# Development Dockerfile — hot reload, not optimised for size
+FROM node:20-alpine
+
+WORKDIR /app
+
+COPY package*.json ./
+RUN npm install                     # install ALL deps including devDependencies
+
+COPY . .
+
+EXPOSE 3000
+EXPOSE 9229                         # debugger
+
+CMD ["npm", "run", "start:dev"]     # ts-node-dev with watch

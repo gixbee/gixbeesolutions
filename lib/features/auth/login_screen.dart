@@ -120,22 +120,23 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
                         final messenger = ScaffoldMessenger.of(context);
                         try {
-                          await ref.read(authRepositoryProvider).signInWithPhone(phone);
+                          final devOtp = await ref.read(authRepositoryProvider).signInWithPhone(phone);
                           
-                          if (!mounted) return;
+                          if (!context.mounted) return;
                           
                           Navigator.push(
                             context,
                             MaterialPageRoute(
                               builder: (_) => OtpScreen(
                                 phone: phone,
+                                initialOtp: devOtp,
                               ),
                             ),
                           );
                         } catch (e) {
-                          if (mounted) {
+                          if (context.mounted) {
                             messenger.showSnackBar(
-                              SnackBar(content: Text('Supabase Error: $e')),
+                              SnackBar(content: Text('Auth Error: $e')),
                             );
                           }
                         }

@@ -49,6 +49,14 @@ class _MainWrapperState extends ConsumerState<MainWrapper> {
   Future<void> _initNotifications() async {
     final notifService = ref.read(notificationServiceProvider);
 
+    // Token registration on startup
+    notifService.getDeviceToken().then((token) async {
+      if (token != null) {
+        debugPrint('[FCM] Registering token on startup');
+        await ref.read(authRepositoryProvider).registerFcmToken(token);
+      }
+    });
+
     // Token refresh — re-register with backend when FCM rotates the token
     notifService.onTokenRefresh((newToken) async {
       debugPrint('[FCM] Token refreshed — re-registering');

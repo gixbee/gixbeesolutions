@@ -33,42 +33,84 @@ import { BusinessesModule } from './businesses/businesses.module';
 import { TalentModule } from './talent/talent.module';
 import { MasterEntriesModule } from './master-entries/master-entries.module';
 import { MasterEntry } from './master-entries/master-entry.entity';
-// FirebaseModule removed — using OneSignal via NotificationsModule
 import { UploadController } from './uploads/upload.controller';
 
 @Module({
   imports: [
-    ConfigModule.forRoot({
-      isGlobal: true,
-    }),
-    ThrottlerModule.forRoot([{
-      ttl: 60000,
-      limit: 100,
-    }]),
+    ConfigModule.forRoot({ isGlobal: true }),
+
+    ThrottlerModule.forRoot([{ ttl: 60000, limit: 100 }]),
+
+    // ── Database ───────────────────────────────────────────────────────────
+    // Supports two connection modes:
+    //   1. DATABASE_URL  — used by Railway / cloud deployments (single env var)
+    //   2. Individual vars — used by Docker Compose (host/port/user/pass/name)
     TypeOrmModule.forRootAsync({
       imports: [ConfigModule],
-      useFactory: (configService: ConfigService) => ({
-        type: 'postgres',
-        host: configService.get<string>('DATABASE_HOST'),
-        port: configService.get<number>('DATABASE_PORT'),
-        username: configService.get<string>('DATABASE_USER'),
-        password: configService.get<string>('DATABASE_PASSWORD'),
-        database: configService.get<string>('DATABASE_NAME'),
-        entities: [User, Booking, WalletTransaction, WorkerProfile, RentalItem, RentalReservation, JobPost, JobApplication, Business, TalentProfile, ProfessionalSkill, MasterEntry],
-        synchronize: configService.get('NODE_ENV') === 'development', // DEFECT-011: env-controlled
-      }),
+      useFactory: (config: ConfigService) => {
+        const isProduction = config.get('NODE_ENV') === 'production';
+        const databaseUrl = config.get<string>('DATABASE_URL');
+
+        const baseConfig = {
+          type: 'postgres' as const,
+          entities: [
+            User, Booking, WalletTransaction, WorkerProfile,
+            RentalItem, RentalReservation, JobPost, JobApplication,
+            Business, TalentProfile, ProfessionalSkill, MasterEntry,
+          ],
+          synchronize: !isProduction,   // auto-sync only in development
+          migrations: [__dirname + '/migrations/**/*{.ts,.js}'],
+          migrationsRun: isProduction,  // run migrations automatically in prod
+          logging: !isProduction,
+        };
+
+        if (databaseUrl) {
+          // Cloud / Railway mode — single DATABASE_URL
+          return {
+            ...baseConfig,
+            url: databaseUrl,
+            ssl: isProduction ? { rejectUnauthorized: false } : false,
+          };
+        }
+
+        // Docker Compose mode — individual vars injected by docker-compose.yml
+        return {
+          ...baseConfig,
+          host: config.get<string>('DATABASE_HOST', 'postgres'),
+          port: config.get<number>('DATABASE_PORT', 5432),
+          username: config.get<string>('DATABASE_USER', 'postgres'),
+          password: config.get<string>('DATABASE_PASSWORD'),
+          database: config.get<string>('DATABASE_NAME', 'gixbee'),
+          ssl: false,
+        };
+      },
       inject: [ConfigService],
     }),
+
+    // ── Redis / Bull ───────────────────────────────────────────────────────
+    // Supports REDIS_URL (cloud) or individual REDIS_HOST/PORT/PASSWORD (Docker)
     BullModule.forRootAsync({
       imports: [ConfigModule],
-      useFactory: (configService: ConfigService) => ({
-        redis: {
-          host: configService.get<string>('REDIS_HOST'),
-          port: configService.get<number>('REDIS_PORT'),
-        },
-      }),
+      useFactory: (config: ConfigService) => {
+        const redisUrl = config.get<string>('REDIS_URL');
+
+        if (redisUrl) {
+          // Cloud / Upstash mode
+          return { redis: redisUrl };
+        }
+
+        // Docker Compose mode
+        return {
+          redis: {
+            host: config.get<string>('REDIS_HOST', 'redis'),
+            port: config.get<number>('REDIS_PORT', 6379),
+            password: config.get<string>('REDIS_PASSWORD'),
+          },
+        };
+      },
       inject: [ConfigService],
     }),
+
     UsersModule,
     AuthModule,
     WorkerEngineModule,
@@ -83,6 +125,7 @@ import { UploadController } from './uploads/upload.controller';
     TalentModule,
     MasterEntriesModule,
 
+    // Serve uploaded files as static assets
     ServeStaticModule.forRoot({
       rootPath: join(__dirname, '..', 'uploads'),
       serveRoot: '/uploads',
@@ -91,10 +134,7 @@ import { UploadController } from './uploads/upload.controller';
   controllers: [AppController, UploadController],
   providers: [
     AppService,
-    {
-      provide: APP_GUARD,
-      useClass: ThrottlerGuard,
-    },
+    { provide: APP_GUARD, useClass: ThrottlerGuard },
   ],
 })
 export class AppModule {}

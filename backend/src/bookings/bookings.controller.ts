@@ -74,10 +74,11 @@ export class BookingsController {
     // Send push notification to the customer via OneSignal
     const booking = result.booking;
     if (booking.customer?.id) {
-      await this.notificationsService.notifyCustomerBookingAccepted(
-        booking.customer.id,
-        booking.operator?.name || 'Your worker',
-      );
+      await this.notificationsService.sendToUser(booking.customer.id, {
+        title: 'Request Accepted!',
+        body: `${booking.operator?.name || 'Your worker'} is on the way.`,
+        data: { type: 'booking_accepted' },
+      });
     }
 
     return result;

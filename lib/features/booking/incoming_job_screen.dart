@@ -84,15 +84,15 @@ class _IncomingJobScreenState extends ConsumerState<IncomingJobScreen> {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                 decoration: BoxDecoration(
-                  color: Colors.red.withOpacity(0.1),
+                  color: Colors.red.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(20),
                 ),
-                child: Row(
+                child: const Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Icon(Icons.flash_on, color: Colors.orange, size: 20),
-                    const SizedBox(width: 8),
-                    const Text(
+                    Icon(Icons.flash_on, color: Colors.orange, size: 20),
+                    SizedBox(width: 8),
+                    Text(
                       'INSTANT HELP REQUEST',
                       style: TextStyle(color: Colors.orange, fontWeight: FontWeight.bold, fontSize: 12),
                     ),
@@ -109,7 +109,7 @@ class _IncomingJobScreenState extends ConsumerState<IncomingJobScreen> {
                     child: CircularProgressIndicator(
                       value: _secondsRemaining / 90,
                       strokeWidth: 8,
-                      backgroundColor: colorScheme.surfaceVariant,
+                      backgroundColor: colorScheme.surfaceContainerHighest,
                       color: _secondsRemaining > 10 ? Colors.green : Colors.red,
                     ),
                   ),

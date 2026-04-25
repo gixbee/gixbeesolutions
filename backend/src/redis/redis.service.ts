@@ -16,13 +16,56 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
   constructor(private configService: ConfigService) {
     const host = this.configService.get<string>('REDIS_HOST') || 'localhost';
     const port = this.configService.get<number>('REDIS_PORT') || 6379;
+    const password = this.configService.get<string>('REDIS_PASSWORD');
     
     this.client = createClient({
-      url: `redis://${host}:${port}`
+      url: password ? `redis://:${password}@${host}:${port}` : `redis://${host}:${port}`
     });
 
     this.client.on('error', (err) => this.logger.error('Redis Client Error', err));
     this.client.on('connect', () => this.logger.log('Redis connected successfully'));
+  }
+
+  // ─────────────────────────────────────────────
+  // GENERIC CACHE METHODS
+  // ─────────────────────────────────────────────
+
+  async get(key: string): Promise<string | null> {
+    try {
+      return await this.client.get(key);
+    } catch (error) {
+      this.logger.error(`Redis GET failed for key: ${key}`, error);
+      return null;
+    }
+  }
+
+  async set(key: string, value: string, ttlSeconds?: number): Promise<void> {
+    try {
+      if (ttlSeconds) {
+        await this.client.setEx(key, ttlSeconds, value);
+      } else {
+        await this.client.set(key, value);
+      }
+    } catch (error) {
+      this.logger.error(`Redis SET failed for key: ${key}`, error);
+    }
+  }
+
+  async del(...keys: string[]): Promise<void> {
+    try {
+      await this.client.del(keys);
+    } catch (error) {
+      this.logger.error(`Redis DEL failed for keys: ${keys}`, error);
+    }
+  }
+
+  async keys(pattern: string): Promise<string[]> {
+    try {
+      return await this.client.keys(pattern);
+    } catch (error) {
+      this.logger.error(`Redis KEYS failed for pattern: ${pattern}`, error);
+      return [];
+    }
   }
 
   async onModuleInit() {

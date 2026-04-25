@@ -174,7 +174,7 @@ class _RegisterProScreenState extends ConsumerState<RegisterProScreen> {
               ),
             ),
 
-            if (_approvalStatus != null) ...[
+            if (_approvalStatus != null && (_professionalSkills.isNotEmpty || _bioController.text.trim().isNotEmpty)) ...[
               const SizedBox(height: 16),
               Container(
                 width: double.infinity,

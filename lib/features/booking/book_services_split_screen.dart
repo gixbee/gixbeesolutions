@@ -26,14 +26,14 @@ class BookServicesSplitScreen extends StatelessWidget {
                 child: Row(
                   children: [
                     IconButton(
-                      icon: const Icon(Icons.arrow_back_ios, color: Colors.white, size: 20),
+                      icon: Icon(Icons.arrow_back_ios, color: colorScheme.onSurface, size: 20),
                       onPressed: () => Navigator.pop(context),
                     ),
                     const Spacer(),
-                    const Text(
+                    Text(
                       'Book Services',
                       style: TextStyle(
-                        color: Colors.white,
+                        color: colorScheme.onSurface,
                         fontWeight: FontWeight.bold,
                         fontSize: 20,
                       ),
@@ -53,7 +53,7 @@ class BookServicesSplitScreen extends StatelessWidget {
                   'How urgently do you\nneed help?',
                   textAlign: TextAlign.center,
                   style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                        color: Colors.white,
+                        color: colorScheme.onSurface,
                         fontWeight: FontWeight.bold,
                         height: 1.2,
                       ),
@@ -63,7 +63,7 @@ class BookServicesSplitScreen extends StatelessWidget {
               Text(
                 'Select a booking method to proceed',
                 style: TextStyle(
-                  color: Colors.white.withValues(alpha: 0.6),
+                  color: colorScheme.onSurface.withValues(alpha: 0.6),
                   fontSize: 14,
                 ),
               ),
@@ -130,7 +130,7 @@ class BookServicesSplitScreen extends StatelessWidget {
                           child: Text(
                             'Secure payments & verified pros',
                             style: TextStyle(
-                              color: Colors.white.withValues(alpha: 0.7),
+                              color: colorScheme.onSurface.withValues(alpha: 0.7),
                               fontSize: 12,
                             ),
                             overflow: TextOverflow.ellipsis,
@@ -202,8 +202,8 @@ class _ModernSplitCard extends StatelessWidget {
                   const SizedBox(height: 8),
                   Text(
                     title,
-                    style: const TextStyle(
-                      color: Colors.white,
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.onSurface,
                       fontSize: 22,
                       fontWeight: FontWeight.bold,
                     ),
@@ -212,7 +212,7 @@ class _ModernSplitCard extends StatelessWidget {
                   Text(
                     subtitle,
                     style: TextStyle(
-                      color: Colors.white.withValues(alpha: 0.5),
+                      color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.5),
                       fontSize: 13,
                     ),
                   ),

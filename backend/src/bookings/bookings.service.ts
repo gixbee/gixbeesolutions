@@ -26,6 +26,14 @@ export class BookingsService {
   }
 
   async createBooking(bookingData: Partial<Booking>): Promise<Booking> {
+    // Self-booking check
+    const customerId = bookingData.customer?.id || bookingData.customer;
+    const operatorId = bookingData.operator?.id || bookingData.operator;
+    
+    if (customerId && operatorId && customerId === operatorId) {
+      throw new BadRequestException('You cannot book yourself.');
+    }
+
     // Overlap/Double-booking check
     if (bookingData.operator?.id) {
       const activeBooking = await this.bookingsRepository.findOne({
@@ -62,10 +70,11 @@ export class BookingsService {
 
     // Dispatch push notification to the assigned worker via OneSignal
     if (bookingData.operator?.id) {
-      await this.notificationsService.notifyWorkerNewBooking(
-        bookingData.operator.id,
-        savedBooking.id,
-      );
+      await this.notificationsService.sendToUser(bookingData.operator.id, {
+        title: 'New Job Request',
+        body: 'A customer has requested your services.',
+        data: { type: 'new_booking', bookingId: savedBooking.id },
+      });
     }
 
     return savedBooking;
@@ -170,7 +179,11 @@ export class BookingsService {
 
       // Notify customer via OneSignal
       if (booking.customer?.id) {
-        await this.notificationsService.notifyBookingCancelled(booking.customer.id);
+        await this.notificationsService.sendToUser(booking.customer.id, {
+          title: 'Booking Cancelled',
+          body: 'Your booking has been cancelled.',
+          data: { type: 'booking_cancelled' },
+        });
       }
 
       // Notify worker

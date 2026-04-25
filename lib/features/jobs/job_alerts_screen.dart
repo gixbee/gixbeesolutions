@@ -58,6 +58,65 @@ class _JobAlertsScreenState extends ConsumerState<JobAlertsScreen> {
     return _jobs.where((j) => j.jobType == _selectedFilter).toList();
   }
 
+  void _showFilterSheet() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => Container(
+        decoration: BoxDecoration(
+          color: Theme.of(ctx).colorScheme.surface,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+        ),
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text('Filters', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+                IconButton(icon: const Icon(Icons.close), onPressed: () => Navigator.pop(ctx)),
+              ],
+            ),
+            const SizedBox(height: 16),
+            const Text('Price Range', style: TextStyle(fontWeight: FontWeight.bold)),
+            RangeSlider(
+              values: const RangeValues(200, 800),
+              min: 0,
+              max: 2000,
+              divisions: 20,
+              labels: const RangeLabels('₹200', '₹800'),
+              onChanged: (val) {},
+            ),
+            const SizedBox(height: 16),
+            const Text('Experience Level', style: TextStyle(fontWeight: FontWeight.bold)),
+            const SizedBox(height: 12),
+            Wrap(
+              spacing: 8,
+              children: ['Fresher', '1-3 Years', '3-5 Years', '5+ Years'].map((exp) {
+                return ChoiceChip(
+                  label: Text(exp),
+                  selected: exp == '1-3 Years',
+                  onSelected: (val) {},
+                );
+              }).toList(),
+            ),
+            const SizedBox(height: 32),
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('Apply Filters'),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
@@ -97,7 +156,7 @@ class _JobAlertsScreenState extends ConsumerState<JobAlertsScreen> {
                 ),
                 IconButton(
                   icon: Icon(Icons.tune_rounded, color: cs.primary),
-                  onPressed: () {}, // TODO: advanced filter sheet
+                  onPressed: _showFilterSheet,
                 ),
               ],
             ),

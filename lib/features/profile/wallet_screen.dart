@@ -335,7 +335,7 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
                           title: Text(t['description'] ?? 'Transaction', style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
                           subtitle: Text(DateFormat('MMM d, hh:mm a').format(createdAt), style: TextStyle(color: cs.onSurfaceVariant, fontSize: 12)),
                           trailing: Text(
-                            '${isCredit ? '+' : '-'} ₹${(t['amount'] as num).toInt()}',
+                            '${isCredit ? '+' : '-'} ₹${(num.tryParse(t['amount'].toString()) ?? 0).toInt()}',
                             style: TextStyle(
                               fontWeight: FontWeight.bold,
                               fontSize: 14,

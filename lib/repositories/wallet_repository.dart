@@ -16,7 +16,8 @@ class WalletRepository {
   Future<double> getBalance() async {
     try {
       final response = await _dio.get('/wallets/balance');
-      return (response.data['balance'] as num).toDouble();
+      final balance = response.data['balance'];
+      return (num.tryParse(balance.toString()) ?? 0).toDouble();
     } catch (e) {
       debugPrint('GetBalance failed: $e');
       return 0.0;

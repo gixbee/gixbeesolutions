@@ -1,5 +1,6 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { EntityManager } from 'typeorm';
 import * as admin from 'firebase-admin';
 
 @Injectable()
@@ -7,7 +8,10 @@ export class NotificationsService implements OnModuleInit {
   private readonly logger = new Logger(NotificationsService.name);
   private messaging: admin.messaging.Messaging | null = null;
 
-  constructor(private readonly configService: ConfigService) {}
+  constructor(
+    private readonly configService: ConfigService,
+    private readonly entityManager: EntityManager,
+  ) {}
 
   // ── Init ──────────────────────────────────────────────────
 
@@ -121,53 +125,35 @@ export class NotificationsService implements OnModuleInit {
     }
   }
 
-  // ── Booking-specific helpers ──────────────────────────────
-  // These are called by bookings.service.ts, workers.service.ts, etc.
-  // Each method looks up the user's stored FCM token from the users table
-  // and calls sendToDevice().
+  // ── Core send to User ──────────────────────────────────────
 
-  async notifyWorkerNewBooking(fcmToken: string, bookingId: string) {
-    await this.sendToDevice({
-      fcmToken,
-      title: 'New Job Request',
-      body: 'A customer has requested your services.',
-      data: { type: 'new_booking', bookingId },
-    });
-  }
-
-  async notifyCustomerBookingAccepted(fcmToken: string, workerName: string) {
-    await this.sendToDevice({
-      fcmToken,
-      title: 'Request Accepted!',
-      body: `${workerName} is on the way.`,
-      data: { type: 'booking_accepted' },
-    });
-  }
-
-  async notifyWorkerArrived(fcmToken: string, otp: string) {
-    await this.sendToDevice({
-      fcmToken,
-      title: 'Worker Has Arrived',
-      body: `Your arrival OTP is ${otp}`,
-      data: { type: 'worker_arrived', otp },
-    });
-  }
-
-  async notifyJobCompleted(fcmToken: string) {
-    await this.sendToDevice({
-      fcmToken,
-      title: 'Job Completed',
-      body: 'Your service has been completed. Please leave a review.',
-      data: { type: 'job_completed' },
-    });
-  }
-
-  async notifyBookingCancelled(fcmToken: string) {
-    await this.sendToDevice({
-      fcmToken,
-      title: 'Booking Cancelled',
-      body: 'Your booking has been cancelled.',
-      data: { type: 'booking_cancelled' },
-    });
+  /**
+   * Send a push notification to a user by their user ID.
+   * This fetches the user's FCM token from the database.
+   */
+  async sendToUser(userId: string, payload: {
+    title: string;
+    body: string;
+    data?: Record<string, string>;
+  }): Promise<boolean> {
+    try {
+      const user = await this.entityManager.query(
+        `SELECT "fcmToken" FROM "users" WHERE "id" = $1 LIMIT 1`,
+        [userId],
+      );
+      
+      if (user && user.length > 0 && user[0].fcmToken) {
+        return this.sendToDevice({
+          fcmToken: user[0].fcmToken,
+          ...payload,
+        });
+      } else {
+        this.logger.warn(`No FCM token found for user ${userId}`);
+        return false;
+      }
+    } catch (e) {
+      this.logger.error(`Error fetching FCM token for user ${userId}`, e);
+      return false;
+    }
   }
 }

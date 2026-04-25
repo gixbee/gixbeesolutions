@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import '../../shared/widgets/glass_container.dart';
 import '../../repositories/booking_repository.dart';
+import 'booking_detail_screen.dart';
 
 class MyBookingsScreen extends ConsumerStatefulWidget {
   const MyBookingsScreen({super.key});
@@ -199,7 +200,12 @@ class _MyBookingsScreenState extends ConsumerState<MyBookingsScreen> {
                     Expanded(
                       child: OutlinedButton(
                         onPressed: () {
-                          // TODO: Profile/Details screen
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => BookingDetailScreen(booking: booking),
+                            ),
+                          );
                         },
                         child: const Text('Details'),
                       ),

@@ -9,16 +9,23 @@ import '../../shared/widgets/dribbble_background.dart';
 
 class OtpScreen extends ConsumerStatefulWidget {
   final String phone;
+  final String? initialOtp;
 
-  const OtpScreen({super.key, required this.phone});
+  const OtpScreen({super.key, required this.phone, this.initialOtp});
 
   @override
   ConsumerState<OtpScreen> createState() => _OtpScreenState();
 }
 
 class _OtpScreenState extends ConsumerState<OtpScreen> {
-  final List<TextEditingController> _controllers =
-      List.generate(AppConfig.otpLength, (_) => TextEditingController());
+  late final List<TextEditingController> _controllers =
+      List.generate(AppConfig.otpLength, (index) {
+    final controller = TextEditingController();
+    if (widget.initialOtp != null && index < widget.initialOtp!.length) {
+      controller.text = widget.initialOtp![index];
+    }
+    return controller;
+  });
 
   int _resendTimer = AppConfig.otpResendSeconds;
   Timer? _timer;
@@ -56,7 +63,7 @@ class _OtpScreenState extends ConsumerState<OtpScreen> {
     setState(() => _isVerifying = true);
 
     try {
-      // 1. Verify OTP with Supabase → exchanges for Gixbee JWT
+      // 1. Verify OTP with Gixbee API
       await ref.read(authRepositoryProvider).verifyOtp(
             phoneNumber: widget.phone,
             token: otp,

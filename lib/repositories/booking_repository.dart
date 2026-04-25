@@ -149,4 +149,14 @@ class BookingRepository {
       rethrow;
     }
   }
+
+  /// Cancel a booking request
+  Future<void> cancelBooking(String bookingId) async {
+    try {
+      await _dio.patch('/bookings/$bookingId/status', data: {'status': 'CANCELLED'});
+    } catch (e) {
+      debugPrint('CancelBooking failed: $e');
+      rethrow;
+    }
+  }
 }

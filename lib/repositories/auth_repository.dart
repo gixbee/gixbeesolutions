@@ -1,5 +1,5 @@
 import 'package:dio/dio.dart';
-import 'package:supabase_flutter/supabase_flutter.dart' as sb;
+// Removed Supabase dependency
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../core/config/app_config.dart';
@@ -11,8 +11,8 @@ import '../shared/models/user.dart';
 final dioProvider = Provider((ref) {
   final dio = Dio(BaseOptions(
     baseUrl: AppConfig.baseUrl,
-    connectTimeout: Duration(seconds: AppConfig.httpTimeoutSeconds),
-    receiveTimeout: Duration(seconds: AppConfig.httpTimeoutSeconds),
+    connectTimeout: const Duration(seconds: AppConfig.httpTimeoutSeconds),
+    receiveTimeout: const Duration(seconds: AppConfig.httpTimeoutSeconds),
   ));
 
   dio.interceptors.add(InterceptorsWrapper(
@@ -37,17 +37,15 @@ final authRepositoryProvider = Provider((ref) {
   );
 });
 
-/// Source of truth for "is user logged in" — driven by Supabase session.
+/// Source of truth for "is user logged in" — driven by token presence.
 final authStateProvider = StreamProvider<bool>((ref) {
-  return sb.Supabase.instance.client.auth.onAuthStateChange.map((event) {
-    return event.session != null;
-  });
+  return ref.watch(authTokenServiceProvider).onTokenChange();
 });
 
 /// Currently logged-in user profile from the Gixbee backend.
 final currentUserProvider = FutureProvider<User?>((ref) async {
-  final hasToken = await ref.read(authTokenServiceProvider).hasToken();
-  if (!hasToken) return null;
+  final isAuthenticated = ref.watch(authStateProvider).value ?? false;
+  if (!isAuthenticated) return null;
   return await ref.read(authRepositoryProvider).getProfile();
 });
 
@@ -56,18 +54,18 @@ final currentUserProvider = FutureProvider<User?>((ref) async {
 class AuthRepository {
   final Dio _dio;
   final AuthTokenService _tokenService;
-  final sb.SupabaseClient _supabase = sb.Supabase.instance.client;
 
   AuthRepository(this._dio, this._tokenService);
 
-  // ── Supabase Phone OTP Flow ──────────────────────────────
+  // ── Gixbee API OTP Flow ──────────────────────────────
 
-  Future<void> signInWithPhone(String phoneNumber) async {
+  Future<String?> signInWithPhone(String phoneNumber) async {
     try {
       if (kDebugMode) {
-        debugPrint('[AUTH] Requesting OTP for $phoneNumber');
+        debugPrint('[AUTH] Requesting OTP for $phoneNumber via Gixbee API');
       }
-      await _supabase.auth.signInWithOtp(phone: phoneNumber);
+      final response = await _dio.post('/auth/request-otp', data: {'phone': phoneNumber});
+      return response.data['devOtp'] as String?;
     } catch (e) {
       debugPrint('[AUTH] signInWithPhone failed: $e');
       rethrow;
@@ -79,27 +77,21 @@ class AuthRepository {
     required String token,
   }) async {
     try {
-      // 1. Verify OTP with Supabase
-      final response = await _supabase.auth.verifyOTP(
-        phone: phoneNumber,
-        token: token,
-        type: sb.OtpType.sms,
-      );
-
-      if (response.session == null) {
-        throw Exception('OTP verification failed — no session returned');
+      if (kDebugMode) {
+        debugPrint('[AUTH] Verifying OTP for $phoneNumber via Gixbee API');
       }
-
-      // 2. Exchange Supabase session for Gixbee JWT
-      final supabaseAccessToken = response.session!.accessToken;
-      final gixbeeResponse = await _dio.post(
-        '/auth/supabase-login',
-        data: {'idToken': supabaseAccessToken},
+      
+      // 1. Verify OTP with Gixbee Backend
+      final response = await _dio.post(
+        '/auth/verify-otp',
+        data: {'phone': phoneNumber, 'otp': token},
       );
 
-      final gixbeeToken = gixbeeResponse.data['accessToken'] as String?;
+      final gixbeeToken = response.data['accessToken'] as String?;
       if (gixbeeToken != null) {
         await _tokenService.saveToken(gixbeeToken);
+      } else {
+        throw Exception('OTP verification failed — no token returned');
       }
     } catch (e) {
       debugPrint('[AUTH] verifyOtp failed: $e');
@@ -136,7 +128,6 @@ class AuthRepository {
   // ── Sign Out ──────────────────────────────────────────────
 
   Future<void> signOut() async {
-    await _supabase.auth.signOut();
     await _tokenService.deleteToken();
   }
 

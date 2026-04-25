@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../repositories/hiring_repository.dart';
 import '../../shared/models/job_post.dart';
+import 'candidate_profile_screen.dart';
 
 class HiringPipelineScreen extends ConsumerStatefulWidget {
   final String jobId;
@@ -192,7 +193,12 @@ class _HiringPipelineScreenState extends ConsumerState<HiringPipelineScreen> {
                           children: [
                             TextButton(
                               onPressed: () {
-                                // TODO: Navigate to Profile
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => CandidateProfileScreen(application: candidate),
+                                  ),
+                                );
                               },
                               style: TextButton.styleFrom(
                                 padding: EdgeInsets.zero,

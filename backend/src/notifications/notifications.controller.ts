@@ -8,9 +8,10 @@ export class NotificationsController {
   @Post('test')
   @HttpCode(HttpStatus.OK)
   async sendTestNotification(
-    @Body() body: { userId: string; title: string; message: string; data?: any },
+    @Body() body: { fcmToken: string; title: string; message: string; data?: any },
   ) {
-    const success = await this.notificationsService.sendToUser(body.userId, {
+    const success = await this.notificationsService.sendToDevice({
+      fcmToken: body.fcmToken,
       title: body.title || 'Test Notification',
       body: body.message || 'This is a test push notification from Gixbee Backend.',
       data: body.data,

@@ -8,18 +8,19 @@ export class WorkersController {
   constructor(private readonly workersService: WorkersService) {}
 
   @Get()
-  async getAll() {
-    return this.workersService.getAll();
+  async getAll(@Req() req) {
+    return this.workersService.getAll(req.user.userId);
   }
 
   // DEFECT-008: Nearby worker search with skill + location filtering
   @Get('nearby')
   async getNearby(
+    @Req() req,
     @Query('skill') skill: string,
     @Query('lat') lat: string,
     @Query('lng') lng: string,
   ) {
-    return this.workersService.getNearby(skill, parseFloat(lat), parseFloat(lng));
+    return this.workersService.getNearby(req.user.userId, skill, parseFloat(lat), parseFloat(lng));
   }
 
   @Get(':id')

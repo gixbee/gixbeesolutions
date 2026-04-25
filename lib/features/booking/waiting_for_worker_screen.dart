@@ -51,6 +51,15 @@ class _WaitingForWorkerScreenState extends ConsumerState<WaitingForWorkerScreen>
     super.dispose();
   }
 
+  Future<void> _cancelRequest() async {
+    try {
+      await ref.read(bookingRepositoryProvider).cancelBooking(widget.bookingId);
+      if (mounted) Navigator.pop(context);
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed to cancel: $e')));
+    }
+  }
+
   void _startCountdown() {
     _countdownTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
       if (_secondsRemaining > 0) {
@@ -63,7 +72,7 @@ class _WaitingForWorkerScreenState extends ConsumerState<WaitingForWorkerScreen>
   }
 
   void _startPolling() {
-    _pollingTimer = Timer.periodic(Duration(seconds: AppConfig.bookingPollIntervalSeconds), (timer) async {
+    _pollingTimer = Timer.periodic(const Duration(seconds: AppConfig.bookingPollIntervalSeconds), (timer) async {
       try {
         final statusData = await ref.read(bookingRepositoryProvider).pollBookingStatus(widget.bookingId);
         final status = BookingStatus.fromString(statusData['status'] ?? '');
@@ -152,10 +161,7 @@ class _WaitingForWorkerScreenState extends ConsumerState<WaitingForWorkerScreen>
               _buildTimerWidget(colorScheme),
               const SizedBox(height: 40),
               OutlinedButton(
-                onPressed: () {
-                  // TODO: Implement cancel request
-                  Navigator.pop(context);
-                },
+                onPressed: _cancelRequest,
                 child: const Text('Cancel Request'),
               ),
             ] else ...[
@@ -214,7 +220,7 @@ class _WaitingForWorkerScreenState extends ConsumerState<WaitingForWorkerScreen>
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
                   border: Border.all(
-                    color: colorScheme.primary.withOpacity(1 - _pulseController.value),
+                    color: colorScheme.primary.withValues(alpha: 1 - _pulseController.value),
                     width: 2,
                   ),
                 ),
@@ -234,7 +240,7 @@ class _WaitingForWorkerScreenState extends ConsumerState<WaitingForWorkerScreen>
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       decoration: BoxDecoration(
-        color: colorScheme.surfaceVariant,
+        color: colorScheme.surfaceContainerHighest,
         borderRadius: BorderRadius.circular(20),
       ),
       child: Row(

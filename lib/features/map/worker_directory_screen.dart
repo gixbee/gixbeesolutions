@@ -73,7 +73,7 @@ class _WorkerDirectoryScreenState extends ConsumerState<WorkerDirectoryScreen> {
       final position = await Geolocator.getCurrentPosition(
         locationSettings: const LocationSettings(
           accuracy: LocationAccuracy.medium,
-          timeLimit: const Duration(seconds: 3),
+          timeLimit: Duration(seconds: 3),
         ),
       );
       

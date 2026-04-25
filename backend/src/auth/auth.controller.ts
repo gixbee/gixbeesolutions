@@ -16,11 +16,7 @@ export class AuthController {
     return this.authService.verifyOtp(body.phone, body.otp);
   }
 
-  @Post('supabase-login')
-  async supabaseLogin(@Body() body: { idToken: string }) {
-    console.log('[AuthController] Received /auth/supabase-login request');
-    return this.authService.loginWithSupabase(body.idToken);
-  }
+
 
   @UseGuards(AuthGuard('jwt'))
   @Get('profile')

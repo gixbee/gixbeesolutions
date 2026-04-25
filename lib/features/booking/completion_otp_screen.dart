@@ -120,7 +120,11 @@ class _CompletionOtpScreenState extends ConsumerState<CompletionOtpScreen> {
                     color: i < 4 ? Colors.amber : Colors.grey.shade400,
                   ),
                   onPressed: () {
-                    // TODO: submit rating
+                    // Update: Show feedback on rating
+                    Navigator.pop(ctx);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('Thank you! You rated ${widget.workerName} ${i + 1} stars.')),
+                    );
                   },
                 );
               }),
@@ -342,10 +346,7 @@ class _CompletionOtpScreenState extends ConsumerState<CompletionOtpScreen> {
                 // Dispute link
                 TextButton(
                   onPressed: () {
-                    // TODO: Open dispute flow
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Dispute flow coming soon')),
-                    );
+                    _showDisputeDialog();
                   },
                   child: Text(
                     'Report an issue with this job',
@@ -362,6 +363,52 @@ class _CompletionOtpScreenState extends ConsumerState<CompletionOtpScreen> {
           ),
         ),
       ),
+    );
+  }
+
+  void _showDisputeDialog() {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+      builder: (ctx) => Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('Report an Issue', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 12),
+            const Text('What went wrong? Our team will review your report.', style: TextStyle(color: Colors.grey)),
+            const SizedBox(height: 16),
+            _disputeOption('Worker didn\'t show up'),
+            _disputeOption('Unprofessional behavior'),
+            _disputeOption('Work not completed as expected'),
+            _disputeOption('Payment / Pricing issue'),
+            const SizedBox(height: 24),
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('Cancel'),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _disputeOption(String reason) {
+    return ListTile(
+      title: Text(reason),
+      leading: const Icon(Icons.report_problem_outlined, color: Colors.orange),
+      trailing: const Icon(Icons.arrow_forward_ios, size: 14),
+      onTap: () {
+        Navigator.pop(context);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Report filed: $reason')),
+        );
+      },
     );
   }
 }

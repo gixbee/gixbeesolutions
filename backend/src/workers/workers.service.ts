@@ -97,7 +97,7 @@ export class WorkersService {
     };
   }
 
-  async getAll(): Promise<WorkerDto[]> {
+  async getAll(requesterId?: string): Promise<WorkerDto[]> {
     // 1. Fetch from WorkerProfile
     const profiles = await this.workersRepository.find({
       relations: ['user'],
@@ -111,12 +111,18 @@ export class WorkersService {
     const allWorkerDtos: WorkerDto[] = [];
 
     for (const p of profiles) {
-      const status = await this.getWorkerStatus(p.user?.id || p.id);
+      const userId = p.user?.id || p.id;
+      if (requesterId && userId === requesterId) continue;
+      
+      const status = await this.getWorkerStatus(userId);
       allWorkerDtos.push(this.mapToDto(p, status));
     }
 
     for (const p of talentProfiles) {
-      const status = await this.getWorkerStatus(p.user?.id || p.id);
+      const userId = p.user?.id || p.id;
+      if (requesterId && userId === requesterId) continue;
+
+      const status = await this.getWorkerStatus(userId);
       allWorkerDtos.push(this.mapTalentToDto(p, status));
     }
 
@@ -270,14 +276,18 @@ export class WorkersService {
   }
 
   // DEFECT-008: Nearby workers filtered by skill
-  async getNearby(skill: string, lat: number, lng: number): Promise<WorkerDto[]> {
+  async getNearby(requesterId: string, skill: string, lat: number, lng: number): Promise<WorkerDto[]> {
     const all = await this.workersRepository.find({
       where: { isActive: true },
       relations: ['user'],
     });
-    const filtered = all.filter(w =>
-      w.skills?.some(s => s.toLowerCase().includes(skill.toLowerCase()))
-    );
+    
+    const filtered = all.filter(w => {
+      const isSelf = (w.user?.id === requesterId) || (w.id === requesterId);
+      const hasSkill = w.skills?.some(s => s.toLowerCase().includes(skill.toLowerCase()));
+      return !isSelf && hasSkill;
+    });
+
     const result: WorkerDto[] = [];
     for (const w of filtered) {
       const status = await this.getWorkerStatus(w.user?.id || w.id);

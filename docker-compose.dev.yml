@@ -1,0 +1,38 @@
+version: '3.9'
+
+# ── Development override ──────────────────────────────────────────────────────
+# Usage: docker-compose -f docker-compose.yml -f docker-compose.dev.yml up
+#
+# Differences from production:
+#  - Backend uses hot reload (ts-node-dev) instead of compiled dist/
+#  - Database and Redis ports exposed to host for GUI tools (DBeaver, RedisInsight)
+#  - No Nginx — access backend directly on port 3000
+#  - NODE_ENV=development
+
+services:
+
+  postgres:
+    ports:
+      - "5432:5432"    # expose for DBeaver / pgAdmin on host machine
+
+  redis:
+    ports:
+      - "6379:6379"    # expose for RedisInsight on host machine
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.dev    # uses dev dockerfile with hot reload
+    environment:
+      NODE_ENV: development
+    volumes:
+      - ./backend/src:/app/src      # live source mount for hot reload
+      - ./backend/package.json:/app/package.json
+    ports:
+      - "3000:3000"                 # direct access, no Nginx in dev
+      - "9229:9229"                 # Node.js debugger port
+
+  # No nginx in dev — connect directly to backend:3000
+  nginx:
+    profiles:
+      - production                  # nginx only starts in production profile

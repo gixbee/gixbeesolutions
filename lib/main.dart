@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:dynamic_color/dynamic_color.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
-import 'firebase_options.dart';
+// import 'package:supabase_flutter/supabase_flutter.dart'; // Removed Supabase dependency
+// import 'firebase_options.dart';
 import 'theme.dart';
 import 'core/theme_provider.dart';
 import 'core/config/app_config.dart';
@@ -16,19 +16,15 @@ import 'services/notification_service.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // 1. Supabase (auth & realtime)
-  await Supabase.initialize(
-    url: AppConfig.supabaseUrl,
-    anonKey: AppConfig.supabaseAnonKey,
-  );
-
   // 2. Firebase (FCM push notifications only — no firebase_auth)
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
-  );
+  await Firebase.initializeApp();
 
-  // 3. FCM notification service
-  await NotificationService().initialize();
+  // 3. FCM notification service (init non-blocking to prevent ANR)
+  NotificationService().initialize().then((_) {
+    NotificationService().getDeviceToken().then((token) {
+      debugPrint('[FCM] INITIAL_TOKEN: $token');
+    });
+  });
 
   // 4. Plugin registry
   registerDefaultPlugins();

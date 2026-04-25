@@ -4,11 +4,7 @@ class AppConfig {
   AppConfig._();
 
   // ─── API / Network ───────────────────────────────────────
-  static String get baseUrl => const String.fromEnvironment(
-        'API_BASE_URL',
-        defaultValue:
-            kIsWeb ? 'http://localhost:3000' : 'http://10.0.2.2:3000',
-      );
+  static String get baseUrl => 'http://10.0.2.2:3000';
 
   static String get socketUrl => const String.fromEnvironment(
         'SOCKET_URL',
