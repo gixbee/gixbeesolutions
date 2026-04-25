@@ -14,16 +14,28 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
   private client: RedisClientType;
 
   constructor(private configService: ConfigService) {
-    const host = this.configService.get<string>('REDIS_HOST') || 'localhost';
-    const port = this.configService.get<number>('REDIS_PORT') || 6379;
-    const password = this.configService.get<string>('REDIS_PASSWORD');
-    
-    this.client = createClient({
-      url: password ? `redis://:${password}@${host}:${port}` : `redis://${host}:${port}`
-    });
+    const redisUrl = this.configService.get<string>('REDIS_URL');
 
-    this.client.on('error', (err) => this.logger.error('Redis Client Error', err));
-    this.client.on('connect', () => this.logger.log('Redis connected successfully'));
+    if (redisUrl) {
+      this.client = createClient({ url: redisUrl });
+    } else {
+      const host = this.configService.get<string>('REDIS_HOST') || 'localhost';
+      const port = this.configService.get<number>('REDIS_PORT') || 6379;
+      const password = this.configService.get<string>('REDIS_PASSWORD');
+
+      this.client = createClient({
+        url: password
+          ? `redis://:${password}@${host}:${port}`
+          : `redis://${host}:${port}`,
+      });
+    }
+
+    this.client.on('error', (err) =>
+      this.logger.error('Redis Client Error', err),
+    );
+    this.client.on('connect', () =>
+      this.logger.log('Redis connected successfully'),
+    );
   }
 
   // ─────────────────────────────────────────────
