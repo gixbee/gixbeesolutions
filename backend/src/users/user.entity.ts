@@ -46,6 +46,9 @@ export class User {
   @Column({ default: false })
   hasWorkerProfile: boolean;
 
+  @Column({ default: true })
+  isAvailableForWork: boolean;
+
   @Column({
     type: 'enum',
     enum: UserApprovalStatus,

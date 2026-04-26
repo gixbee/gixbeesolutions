@@ -37,7 +37,7 @@ export class UsersController {
   }
 
   @Patch(':id')
-  async updateProfile(@Param('id') id: string, @Body() data: { name?: string; profileImageUrl?: string }) {
+  async updateProfile(@Param('id') id: string, @Body() data: { name?: string; profileImageUrl?: string; isAvailableForWork?: boolean }) {
     return this.usersService.updateProfile(id, data);
   }
 
