@@ -240,14 +240,12 @@ export class BookingsService {
     const booking = await this.bookingsRepository.findOne({ where: { id: bookingId } });
     if (!booking) throw new NotFoundException('Booking not found');
 
-    const storedOtp = await this.redisService.getOtp(`otp:booking:${bookingId}:arrival`);
-    
-    if (!storedOtp || storedOtp !== otp) {
-      throw new BadRequestException('Invalid or expired arrival OTP');
+    if (!booking.arrivalOtp || booking.arrivalOtp !== otp) {
+      throw new BadRequestException('Invalid arrival OTP');
     }
 
-    // Clean up used OTP
-    await this.redisService.deleteOtp(`otp:booking:${bookingId}:arrival`);
+    // Clean up used OTP in redis just in case it exists to be tidy
+    this.redisService.deleteOtp(`otp:booking:${bookingId}:arrival`).catch(() => {});
 
     // Transition: ACCEPTED → ACTIVE (worker has arrived, job begins)
     booking.status = BookingStatus.ACTIVE;
@@ -261,14 +259,12 @@ export class BookingsService {
     const booking = await this.bookingsRepository.findOne({ where: { id: bookingId }, relations: ['operator'] });
     if (!booking) throw new NotFoundException('Booking not found');
 
-    const storedOtp = await this.redisService.getOtp(`otp:booking:${bookingId}:completion`);
-
-    if (!storedOtp || storedOtp !== otp) {
-      throw new BadRequestException('Invalid or expired completion OTP');
+    if (!booking.completionOtp || booking.completionOtp !== otp) {
+      throw new BadRequestException('Invalid completion OTP');
     }
 
-    // Clean up used OTP
-    await this.redisService.deleteOtp(`otp:booking:${bookingId}:completion`);
+    // Clean up used OTP in redis just in case it exists to be tidy
+    this.redisService.deleteOtp(`otp:booking:${bookingId}:completion`).catch(() => {});
 
     if (booking.status !== BookingStatus.ACTIVE) {
       throw new BadRequestException('Job must be active to complete');
