@@ -174,6 +174,37 @@ class ProfileScreen extends ConsumerWidget {
                   },
                 ),
                 const SizedBox(height: 16),
+                userAsync.when(
+                  data: (user) => _ProfileToggleOption(
+                    icon: Icons.work_history_outlined,
+                    label: 'Available for Work',
+                    initialValue: user?.isAvailableForWork ?? true,
+                    onChanged: (val) async {
+                      if (user == null) return;
+                      try {
+                        await ref.read(profileRepositoryProvider).updateProfile(
+                          userId: user.id,
+                          data: {'isAvailableForWork': val},
+                        );
+                        // Refresh the user profile
+                        ref.invalidate(currentUserProvider);
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text(val ? 'You are now visible to clients for booking' : 'You are currently hidden from search')),
+                          );
+                        }
+                      } catch (e) {
+                         if (context.mounted) {
+                           ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('Failed to update availability')),
+                           );
+                         }
+                      }
+                    },
+                  ),
+                  loading: () => const SizedBox.shrink(),
+                  error: (_, __) => const SizedBox.shrink(),
+                ),
                 const _ProfileOption(
                     icon: Icons.notifications_none, label: 'Notifications'),
                 const SizedBox(height: 16),
@@ -271,6 +302,60 @@ class _ProfileOption extends StatelessWidget {
                   color: Colors.white.withValues(alpha: 0.5), size: 16),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _ProfileToggleOption extends StatefulWidget {
+  final IconData icon;
+  final String label;
+  final bool initialValue;
+  final ValueChanged<bool> onChanged;
+
+  const _ProfileToggleOption({
+    required this.icon,
+    required this.label,
+    required this.initialValue,
+    required this.onChanged,
+  });
+
+  @override
+  State<_ProfileToggleOption> createState() => _ProfileToggleOptionState();
+}
+
+class _ProfileToggleOptionState extends State<_ProfileToggleOption> {
+  late bool _value;
+
+  @override
+  void initState() {
+    super.initState();
+    _value = widget.initialValue;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return GlassContainer(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: Row(
+        children: [
+          Icon(widget.icon, color: Colors.white),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Text(
+              widget.label,
+              style: const TextStyle(color: Colors.white, fontSize: 16),
+            ),
+          ),
+          Switch(
+            value: _value,
+            activeColor: Theme.of(context).colorScheme.primary,
+            onChanged: (val) {
+              setState(() => _value = val);
+              widget.onChanged(val);
+            },
+          ),
+        ],
       ),
     );
   }

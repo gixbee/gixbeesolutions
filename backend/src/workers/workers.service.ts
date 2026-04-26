@@ -5,7 +5,7 @@ import { WorkerProfile } from './worker-profile.entity';
 import { WalletsService } from '../wallets/wallets.service';
 import { TalentProfile } from '../talent/talent-profile.entity';
 import { ProfessionalSkill } from '../talent/professional-skill.entity';
-import { User } from '../users/user.entity';
+import { User, UserApprovalStatus } from '../users/user.entity';
 import { Booking, BookingStatus } from '../bookings/booking.entity';
 
 // Worker data matching the Flutter Worker model's expectations exactly
@@ -114,6 +114,10 @@ export class WorkersService {
       const userId = p.user?.id || p.id;
       if (requesterId && userId === requesterId) continue;
       
+      // Skip if explicitly unavailable or not fully approved
+      if (p.user?.isAvailableForWork === false) continue;
+      if (p.user && p.user.approvalStatus !== UserApprovalStatus.APPROVED) continue;
+      
       const status = await this.getWorkerStatus(userId);
       allWorkerDtos.push(this.mapToDto(p, status));
     }
@@ -121,6 +125,10 @@ export class WorkersService {
     for (const p of talentProfiles) {
       const userId = p.user?.id || p.id;
       if (requesterId && userId === requesterId) continue;
+
+      // Skip if explicitly unavailable or not fully approved
+      if (p.user?.isAvailableForWork === false) continue;
+      if (p.user && p.user.approvalStatus !== UserApprovalStatus.APPROVED) continue;
 
       const status = await this.getWorkerStatus(userId);
       allWorkerDtos.push(this.mapTalentToDto(p, status));
@@ -284,8 +292,11 @@ export class WorkersService {
     
     const filtered = all.filter(w => {
       const isSelf = (w.user?.id === requesterId) || (w.id === requesterId);
+      const isUnavailable = w.user?.isAvailableForWork === false;
+      const isNotApproved = w.user && w.user.approvalStatus !== UserApprovalStatus.APPROVED;
       const hasSkill = w.skills?.some(s => s.toLowerCase().includes(skill.toLowerCase()));
-      return !isSelf && hasSkill;
+
+      return !isSelf && !isUnavailable && !isNotApproved && hasSkill;
     });
 
     const result: WorkerDto[] = [];

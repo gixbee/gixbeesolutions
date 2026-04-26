@@ -4,6 +4,7 @@ class User {
   final String? email;
   final String? name;
   final String? avatar;
+  final bool isAvailableForWork;
 
   User({
     required this.id,
@@ -11,6 +12,7 @@ class User {
     this.email,
     this.name,
     this.avatar,
+    this.isAvailableForWork = true,
   });
 
   factory User.fromJson(Map<String, dynamic> json) {
@@ -20,6 +22,7 @@ class User {
       email: json['email'] as String?,
       name: json['name'] as String?,
       avatar: json['avatar'] as String?,
+      isAvailableForWork: json['isAvailableForWork'] as bool? ?? true,
     );
   }
 
