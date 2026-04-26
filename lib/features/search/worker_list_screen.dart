@@ -5,9 +5,10 @@ import '../../shared/models/worker.dart';
 import '../profile/worker_profile_card.dart';
 
 class WorkerListScreen extends ConsumerStatefulWidget {
-  final String? category; // Optional category filter
+  final String? category;
+  final bool isInstant;
 
-  const WorkerListScreen({super.key, this.category});
+  const WorkerListScreen({super.key, this.category, this.isInstant = true});
 
   @override
   ConsumerState<WorkerListScreen> createState() => _WorkerListScreenState();
@@ -105,7 +106,9 @@ class _WorkerListScreenState extends ConsumerState<WorkerListScreen> {
                           itemCount: filteredWorkers.length,
                           itemBuilder: (context, index) {
                             return WorkerProfileCard(
-                                worker: filteredWorkers[index]);
+                                worker: filteredWorkers[index],
+                                isInstant: widget.isInstant,
+                            );
                           },
                         ),
                 ),

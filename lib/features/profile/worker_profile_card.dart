@@ -4,8 +4,9 @@ import '../search/worker_detail_screen.dart';
 
 class WorkerProfileCard extends StatelessWidget {
   final Worker worker;
+  final bool isInstant;
 
-  const WorkerProfileCard({super.key, required this.worker});
+  const WorkerProfileCard({super.key, required this.worker, this.isInstant = true});
 
   @override
   Widget build(BuildContext context) {
@@ -31,7 +32,10 @@ class WorkerProfileCard extends StatelessWidget {
             Navigator.push(
               context,
               MaterialPageRoute(
-                builder: (_) => WorkerDetailScreen(worker: worker),
+                builder: (_) => WorkerDetailScreen(
+                  worker: worker,
+                  isInstant: isInstant,
+                ),
               ),
             );
           },

@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/config/app_config.dart';
@@ -21,7 +22,7 @@ class _OtpScreenState extends ConsumerState<OtpScreen> {
   late final List<TextEditingController> _controllers =
       List.generate(AppConfig.otpLength, (index) {
     final controller = TextEditingController();
-    if (widget.initialOtp != null && index < widget.initialOtp!.length) {
+    if (kDebugMode && widget.initialOtp != null && index < widget.initialOtp!.length) {
       controller.text = widget.initialOtp![index];
     }
     return controller;

@@ -40,7 +40,10 @@ class User {
       'phone': phone,
       'email': email,
       'name': name,
-      'avatar': avatar,
+      'profileImageUrl': avatar,
+      'isAvailableForWork': isAvailableForWork,
+      'role': role,
+      'hasWorkerProfile': hasWorkerProfile,
     };
   }
 }

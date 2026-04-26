@@ -86,7 +86,7 @@ class BookServicesSplitScreen extends StatelessWidget {
                         Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (_) => const WorkerListScreen(category: null),
+                            builder: (_) => const WorkerListScreen(category: null, isInstant: true),
                           ),
                         );
                       },
@@ -105,7 +105,7 @@ class BookServicesSplitScreen extends StatelessWidget {
                         Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (_) => const WorkerListScreen(category: null),
+                            builder: (_) => const WorkerListScreen(category: null, isInstant: false),
                           ),
                         );
                       },
