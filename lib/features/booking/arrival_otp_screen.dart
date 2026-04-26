@@ -10,13 +10,15 @@ import 'completion_otp_screen.dart';
 class ArrivalOtpScreen extends ConsumerStatefulWidget {
   final String bookingId;
   final String workerName;
-  final String arrivalOtp; // the 4-digit OTP the backend generated
+  final String arrivalOtp;
+  final bool isWorker;
 
   const ArrivalOtpScreen({
     super.key,
     required this.bookingId,
     required this.workerName,
     required this.arrivalOtp,
+    this.isWorker = false,
   });
 
   @override
@@ -26,8 +28,10 @@ class ArrivalOtpScreen extends ConsumerStatefulWidget {
 class _ArrivalOtpScreenState extends ConsumerState<ArrivalOtpScreen>
     with SingleTickerProviderStateMixin {
   bool _isRevealed = false;
-  bool _isVerifying = false;
   late AnimationController _pulseController;
+  final List<TextEditingController> _controllers = List.generate(4, (_) => TextEditingController());
+  final List<FocusNode> _focusNodes = List.generate(4, (_) => FocusNode());
+  String? _errorMsg;
 
   @override
   void initState() {
@@ -45,31 +49,39 @@ class _ArrivalOtpScreenState extends ConsumerState<ArrivalOtpScreen>
   }
 
   Future<void> _confirmArrival() async {
-    setState(() => _isVerifying = true);
+    final otpToVerify = widget.isWorker ? _controllers.map((c) => c.text).join() : widget.arrivalOtp;
+    
+    if (widget.isWorker && otpToVerify.length != 4) {
+      setState(() => _errorMsg = 'Please enter all 4 digits');
+      return;
+    }
+
+    setState(() {
+      _isVerifying = true;
+      _errorMsg = null;
+    });
+
     try {
-      // Tell the backend the worker has arrived
       await ref.read(bookingRepositoryProvider).confirmArrival(
             bookingId: widget.bookingId,
-            otp: widget.arrivalOtp,
+            otp: otpToVerify,
           );
 
       if (!mounted) return;
 
-      // Navigate to the Completion OTP screen (gate 2)
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(
           builder: (_) => CompletionOtpScreen(
             bookingId: widget.bookingId,
             workerName: widget.workerName,
+            isWorker: widget.isWorker,
           ),
         ),
       );
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Verification failed: $e')),
-        );
+        setState(() => _errorMsg = 'Invalid OTP. Please try again.');
       }
     } finally {
       if (mounted) setState(() => _isVerifying = false);
@@ -172,7 +184,9 @@ class _ArrivalOtpScreenState extends ConsumerState<ArrivalOtpScreen>
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  '${widget.workerName} has reached your location.\nShare this OTP to confirm arrival.',
+                  widget.isWorker 
+                    ? 'Ask the customer for the arrival OTP and enter it below to begin the job.'
+                    : '${widget.workerName} has reached your location.\nShare this OTP to confirm arrival.',
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     color: colorScheme.onSurfaceVariant,
@@ -182,90 +196,106 @@ class _ArrivalOtpScreenState extends ConsumerState<ArrivalOtpScreen>
 
                 const SizedBox(height: 32),
 
-                // OTP display card
-                GestureDetector(
-                  onTap: () => setState(() => _isRevealed = !_isRevealed),
-                  child: AnimatedContainer(
-                    duration: const Duration(milliseconds: 300),
-                    curve: Curves.easeInOut,
-                    padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 20),
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(20),
-                      color: _isRevealed
-                          ? colorScheme.primary
-                          : colorScheme.surfaceContainerHighest,
-                      border: Border.all(
+                // OTP display OR Input based on role
+                if (!widget.isWorker)
+                  GestureDetector(
+                    onTap: () => setState(() => _isRevealed = !_isRevealed),
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 300),
+                      curve: Curves.easeInOut,
+                      padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 20),
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(20),
                         color: _isRevealed
                             ? colorScheme.primary
-                            : colorScheme.outlineVariant,
-                        width: 2,
+                            : colorScheme.surfaceContainerHighest,
+                        border: Border.all(
+                          color: _isRevealed
+                              ? colorScheme.primary
+                              : colorScheme.outlineVariant,
+                          width: 2,
+                        ),
+                        boxShadow: _isRevealed
+                            ? [
+                                BoxShadow(
+                                  color: colorScheme.primary.withValues(alpha: 0.3),
+                                  blurRadius: 20,
+                                  offset: const Offset(0, 8),
+                                ),
+                              ]
+                            : [],
                       ),
-                      boxShadow: _isRevealed
-                          ? [
-                              BoxShadow(
-                                color: colorScheme.primary.withValues(alpha: 0.3),
-                                blurRadius: 20,
-                                offset: const Offset(0, 8),
-                              ),
-                            ]
-                          : [],
-                    ),
-                    child: Column(
-                      children: [
-                        Text(
-                          _isRevealed ? 'ARRIVAL OTP' : 'TAP TO REVEAL',
-                          style: TextStyle(
-                            color: _isRevealed
-                                ? Colors.white.withValues(alpha: 0.7)
-                                : colorScheme.onSurfaceVariant,
-                            fontSize: 11,
-                            fontWeight: FontWeight.w600,
-                            letterSpacing: 2,
+                      child: Column(
+                        children: [
+                          Text(
+                            _isRevealed ? 'ARRIVAL OTP' : 'TAP TO REVEAL',
+                            style: TextStyle(
+                              color: _isRevealed
+                                  ? Colors.white.withValues(alpha: 0.7)
+                                  : colorScheme.onSurfaceVariant,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                              letterSpacing: 2,
+                            ),
                           ),
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          _isRevealed ? widget.arrivalOtp : '• • • •',
-                          style: TextStyle(
-                            color: _isRevealed ? Colors.white : colorScheme.onSurface,
-                            fontSize: 40,
-                            fontWeight: FontWeight.bold,
-                            letterSpacing: 16,
-                          ),
-                        ),
-                        if (_isRevealed) ...[
                           const SizedBox(height: 8),
-                          GestureDetector(
-                            onTap: () {
-                              Clipboard.setData(ClipboardData(text: widget.arrivalOtp));
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text('OTP copied'),
-                                  duration: Duration(seconds: 1),
-                                ),
-                              );
-                            },
-                            child: const Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(Icons.copy, size: 14, color: Colors.white70),
-                                SizedBox(width: 4),
-                                Text(
-                                  'Copy',
-                                  style: TextStyle(color: Colors.white70, fontSize: 12),
-                                ),
-                              ],
+                          Text(
+                            _isRevealed ? widget.arrivalOtp : '• • • •',
+                            style: TextStyle(
+                              color: _isRevealed ? Colors.white : colorScheme.onSurface,
+                              fontSize: 40,
+                              fontWeight: FontWeight.bold,
+                              letterSpacing: 16,
                             ),
                           ),
                         ],
-                      ],
+                      ),
                     ),
+                  )
+                else
+                  // Worker Input Flow
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: List.generate(4, (i) {
+                      return Container(
+                        width: 60,
+                        height: 68,
+                        margin: const EdgeInsets.symmetric(horizontal: 6),
+                        child: TextField(
+                          controller: _controllers[i],
+                          focusNode: _focusNodes[i],
+                          textAlign: TextAlign.center,
+                          keyboardType: TextInputType.number,
+                          maxLength: 1,
+                          style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
+                          decoration: InputDecoration(
+                            counterText: '',
+                            filled: true,
+                            fillColor: colorScheme.surfaceContainerHighest,
+                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
+                          ),
+                          inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                          onChanged: (value) {
+                            if (value.isNotEmpty && i < 3) _focusNodes[i + 1].requestFocus();
+                            if (i == 3 && value.isNotEmpty && _controllers.every((c) => c.text.isNotEmpty)) {
+                              _confirmArrival();
+                            }
+                          },
+                        ),
+                      );
+                    }),
                   ),
-                ),
+
+                if (_errorMsg != null) ...[
+                  const SizedBox(height: 12),
+                  Text(_errorMsg!, style: const TextStyle(color: Colors.red, fontSize: 13)),
+                ],
 
                 const SizedBox(height: 12),
                 Text(
-                  'Only share this with the worker in person',
+                  widget.isWorker 
+                    ? 'Verify entry only after reaching the site'
+                    : 'Only share this with the worker in person',
                   style: TextStyle(
                     color: colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
                     fontSize: 12,
@@ -274,28 +304,29 @@ class _ArrivalOtpScreenState extends ConsumerState<ArrivalOtpScreen>
 
                 const Spacer(flex: 3),
 
-                // Confirm button
-                SizedBox(
-                  width: double.infinity,
-                  height: 56,
-                  child: FilledButton.icon(
-                    onPressed: _isVerifying ? null : _confirmArrival,
-                    icon: _isVerifying
-                        ? const SizedBox(
-                            width: 20,
-                            height: 20,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              color: Colors.white,
-                            ),
-                          )
-                        : const Icon(Icons.check_circle_outline),
-                    label: Text(
-                      _isVerifying ? 'Verifying...' : 'Worker Has Arrived',
-                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                // Confirm/Verify button
+                if (widget.isWorker)
+                  SizedBox(
+                    width: double.infinity,
+                    height: 56,
+                    child: FilledButton.icon(
+                      onPressed: _isVerifying ? null : _confirmArrival,
+                      icon: _isVerifying
+                          ? const SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                            )
+                          : const Icon(Icons.check_circle_outline),
+                      label: Text(
+                        _isVerifying ? 'Verifying...' : 'Start Job',
+                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                      ),
                     ),
-                  ),
-                ),
+                  )
+                else
+                  // Customer is just waiting for the worker to enter it
+                  const Text('Waiting for worker to start the job...', style: TextStyle(fontStyle: FontStyle.italic, color: Colors.grey)),
 
                 const SizedBox(height: 32),
               ],

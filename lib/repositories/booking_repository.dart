@@ -170,4 +170,15 @@ class BookingRepository {
       rethrow;
     }
   }
+
+  /// Get specific booking details
+  Future<Map<String, dynamic>?> getBookingById(String id) async {
+    try {
+      final response = await _dio.get('/bookings/$id');
+      return Map<String, dynamic>.from(response.data);
+    } catch (e) {
+      debugPrint('GetBookingById failed: $e');
+      return null;
+    }
+  }
 }

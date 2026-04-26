@@ -4,6 +4,9 @@ import 'package:intl/intl.dart';
 import '../../shared/widgets/glass_container.dart';
 import '../../repositories/booking_repository.dart';
 import 'booking_detail_screen.dart';
+import '../../repositories/auth_repository.dart';
+import '../booking/arrival_otp_screen.dart';
+import '../booking/completion_otp_screen.dart';
 
 class MyBookingsScreen extends ConsumerStatefulWidget {
   const MyBookingsScreen({super.key});
@@ -217,11 +220,49 @@ class _MyBookingsScreenState extends ConsumerState<MyBookingsScreen> {
                     ),
                     const SizedBox(width: 12),
                     Expanded(
-                      child: ElevatedButton(
-                        onPressed: () {
-                           // Navigate based on status if needed
-                        },
-                        child: Text(tab == 'ACTIVE' ? 'Open Tracker' : 'Rebook'),
+                      child: Consumer(
+                        builder: (context, ref, _) {
+                          final user = ref.read(currentUserProvider).value;
+                          final isOperator = user?.id == (booking['operator']?['id'] ?? booking['operator']);
+                          
+                          return ElevatedButton(
+                            onPressed: () {
+                               final bStatus = (booking['status'] ?? '').toString().toUpperCase();
+                               
+                               if (bStatus == 'ACCEPTED' || bStatus == 'ARRIVED') {
+                                 Navigator.push(
+                                   context,
+                                   MaterialPageRoute(
+                                     builder: (_) => ArrivalOtpScreen(
+                                       bookingId: booking['id'],
+                                       workerName: booking['operator']?['name'] ?? 'Worker',
+                                       arrivalOtp: booking['arrivalOtp'] ?? '',
+                                       isWorker: isOperator,
+                                     ),
+                                   ),
+                                 );
+                               } else if (bStatus == 'ACTIVE' || bStatus == 'IN_PROGRESS') {
+                                 Navigator.push(
+                                   context,
+                                   MaterialPageRoute(
+                                     builder: (_) => CompletionOtpScreen(
+                                       bookingId: booking['id'],
+                                       workerName: booking['operator']?['name'] ?? 'Worker',
+                                       isWorker: isOperator,
+                                     ),
+                                   ),
+                                 );
+                               } else {
+                                  // Default to details if no active flow
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(builder: (_) => BookingDetailScreen(booking: booking)),
+                                  );
+                               }
+                            },
+                            child: Text(tab == 'ACTIVE' ? 'Open Tracker' : 'Rebook'),
+                          );
+                        }
                       ),
                     ),
                   ],

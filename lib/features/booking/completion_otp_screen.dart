@@ -11,10 +11,13 @@ class CompletionOtpScreen extends ConsumerStatefulWidget {
   final String bookingId;
   final String workerName;
 
+  final bool isWorker;
+
   const CompletionOtpScreen({
     super.key,
     required this.bookingId,
     required this.workerName,
+    this.isWorker = false,
   });
 
   @override
@@ -27,6 +30,29 @@ class _CompletionOtpScreenState extends ConsumerState<CompletionOtpScreen> {
   final List<FocusNode> _focusNodes = List.generate(4, (_) => FocusNode());
   bool _isVerifying = false;
   String? _errorMsg;
+  String? _fetchedOtp; // Used by customer to display
+
+  @override
+  void initState() {
+    super.initState();
+    if (!widget.isWorker) {
+      _fetchOtp();
+    }
+  }
+
+  Future<void> _fetchOtp() async {
+    // In production, we'd fetch the completionOtp field from the booking object.
+    // For now, since we move to Redis, we might need an endpoint or just rely 
+    // on the 'booking' object being fresh.
+    try {
+       final b = await ref.read(bookingRepositoryProvider).getBookingById(widget.bookingId);
+       if (b != null && mounted) {
+         setState(() => _fetchedOtp = b['completionOtp']);
+       }
+    } catch (e) {
+       debugPrint('Error fetching completion otp: $e');
+    }
+  }
 
   @override
   void dispose() {
@@ -228,7 +254,9 @@ class _CompletionOtpScreenState extends ConsumerState<CompletionOtpScreen> {
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  '${widget.workerName} has finished the job.\nAsk for the completion OTP and enter it below.',
+                  widget.isWorker
+                    ? '${widget.workerName} has finished the job.\nAsk for the completion OTP and enter it below.'
+                    : 'Job is complete!\nShare this OTP with ${widget.workerName} to finalize payment.',
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     color: colorScheme.onSurfaceVariant,
@@ -238,70 +266,74 @@ class _CompletionOtpScreenState extends ConsumerState<CompletionOtpScreen> {
 
                 const SizedBox(height: 36),
 
-                // OTP input row
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: List.generate(4, (i) {
-                    return Container(
-                      width: 60,
-                      height: 68,
-                      margin: const EdgeInsets.symmetric(horizontal: 6),
-                      child: TextField(
-                        controller: _controllers[i],
-                        focusNode: _focusNodes[i],
-                        textAlign: TextAlign.center,
-                        keyboardType: TextInputType.number,
-                        maxLength: 1,
-                        style: TextStyle(
-                          fontSize: 28,
-                          fontWeight: FontWeight.bold,
-                          color: colorScheme.onSurface,
+                // OTP display OR Input
+                if (widget.isWorker)
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: List.generate(4, (i) {
+                      return Container(
+                        width: 60,
+                        height: 68,
+                        margin: const EdgeInsets.symmetric(horizontal: 6),
+                        child: TextField(
+                          controller: _controllers[i],
+                          focusNode: _focusNodes[i],
+                          textAlign: TextAlign.center,
+                          keyboardType: TextInputType.number,
+                          maxLength: 1,
+                          style: TextStyle(
+                            fontSize: 28,
+                            fontWeight: FontWeight.bold,
+                            color: colorScheme.onSurface,
+                          ),
+                          decoration: InputDecoration(
+                            counterText: '',
+                            filled: true,
+                            fillColor: _controllers[i].text.isNotEmpty
+                                ? colorScheme.primary.withValues(alpha: 0.08)
+                                : colorScheme.surfaceContainerHighest,
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(14),
+                              borderSide: BorderSide(
+                                color: _errorMsg != null
+                                    ? Colors.red
+                                    : colorScheme.outlineVariant,
+                              ),
+                            ),
+                          ),
+                          inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                          onChanged: (value) {
+                            setState(() => _errorMsg = null);
+                            if (value.isNotEmpty && i < 3) {
+                              _focusNodes[i + 1].requestFocus();
+                            }
+                            if (i == 3 && value.isNotEmpty && _enteredOtp.length == 4) {
+                              _verifyCompletion();
+                            }
+                          },
                         ),
-                        decoration: InputDecoration(
-                          counterText: '',
-                          filled: true,
-                          fillColor: _controllers[i].text.isNotEmpty
-                              ? colorScheme.primary.withValues(alpha: 0.08)
-                              : colorScheme.surfaceContainerHighest,
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(14),
-                            borderSide: BorderSide(
-                              color: _errorMsg != null
-                                  ? Colors.red
-                                  : colorScheme.outlineVariant,
-                            ),
-                          ),
-                          focusedBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(14),
-                            borderSide: BorderSide(
-                              color: colorScheme.primary,
-                              width: 2,
-                            ),
-                          ),
-                          enabledBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(14),
-                            borderSide: BorderSide(
-                              color: _errorMsg != null
-                                  ? Colors.red
-                                  : colorScheme.outlineVariant,
-                            ),
-                          ),
-                        ),
-                        inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                        onChanged: (value) {
-                          setState(() => _errorMsg = null);
-                          if (value.isNotEmpty && i < 3) {
-                            _focusNodes[i + 1].requestFocus();
-                          }
-                          // Auto-verify when all 4 digits are entered
-                          if (i == 3 && value.isNotEmpty && _enteredOtp.length == 4) {
-                            _verifyCompletion();
-                          }
-                        },
-                      ),
-                    );
-                  }),
-                ),
+                      );
+                    }),
+                  )
+                else
+                   // Customer view: Show the code
+                   Container(
+                     padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 20),
+                     decoration: BoxDecoration(
+                       color: Colors.green.withValues(alpha: 0.1),
+                       borderRadius: BorderRadius.circular(20),
+                       border: Border.all(color: Colors.green.withValues(alpha: 0.3)),
+                     ),
+                     child: Text(
+                       _fetchedOtp ?? '• • • •',
+                       style: const TextStyle(
+                         fontSize: 40,
+                         fontWeight: FontWeight.bold,
+                         letterSpacing: 16,
+                         color: Colors.green,
+                       ),
+                     ),
+                   ),
 
                 // Error message
                 if (_errorMsg != null) ...[
@@ -315,31 +347,34 @@ class _CompletionOtpScreenState extends ConsumerState<CompletionOtpScreen> {
                 const Spacer(flex: 3),
 
                 // Verify button
-                SizedBox(
-                  width: double.infinity,
-                  height: 56,
-                  child: FilledButton.icon(
-                    onPressed: _isVerifying ? null : _verifyCompletion,
-                    style: FilledButton.styleFrom(
-                      backgroundColor: Colors.green,
-                      foregroundColor: Colors.white,
+                if (widget.isWorker)
+                  SizedBox(
+                    width: double.infinity,
+                    height: 56,
+                    child: FilledButton.icon(
+                      onPressed: _isVerifying ? null : _verifyCompletion,
+                      style: FilledButton.styleFrom(
+                        backgroundColor: Colors.green,
+                        foregroundColor: Colors.white,
+                      ),
+                      icon: _isVerifying
+                          ? const SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: Colors.white,
+                              ),
+                            )
+                          : const Icon(Icons.check_circle_outline),
+                      label: Text(
+                        _isVerifying ? 'Verifying...' : 'Confirm Job Complete',
+                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                      ),
                     ),
-                    icon: _isVerifying
-                        ? const SizedBox(
-                            width: 20,
-                            height: 20,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              color: Colors.white,
-                            ),
-                          )
-                        : const Icon(Icons.check_circle_outline),
-                    label: Text(
-                      _isVerifying ? 'Verifying...' : 'Confirm Job Complete',
-                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-                    ),
-                  ),
-                ),
+                  )
+                else
+                  const Text('Waiting for worker to verify completion...', style: TextStyle(fontStyle: FontStyle.italic, color: Colors.grey)),
 
                 const SizedBox(height: 16),
 
