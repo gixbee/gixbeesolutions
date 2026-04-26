@@ -32,11 +32,20 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
   // Issue #21: User-editable address instead of hardcoded fake address
   late final TextEditingController _addressController;
   bool _isProcessing = false;
+  double? _walletBalance;
 
   @override
   void initState() {
     super.initState();
     _addressController = TextEditingController(text: widget.initialLocation?.address ?? '');
+    _fetchBalance();
+  }
+
+  Future<void> _fetchBalance() async {
+    try {
+      final balance = await ref.read(walletRepositoryProvider).getBalance();
+      if (mounted) setState(() => _walletBalance = balance);
+    } catch (_) {}
   }
 
   @override
@@ -358,7 +367,7 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
         const SizedBox(height: 12),
         _buildSelectionTile(
           icon: Icons.account_balance_wallet,
-          title: 'UPI / Wallet',
+          title: _walletBalance != null ? 'UPI / Wallet (Balance: ₹${_walletBalance!.toInt()})' : 'UPI / Wallet...',
           isAction: true,
         ),
       ],

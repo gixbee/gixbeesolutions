@@ -77,5 +77,15 @@ class WorkerRepository {
       return getWorkers();
     }
   }
+  Future<List<Map<String, dynamic>>> getWorkerPackages(String workerId) async {
+    try {
+      final response = await _dio.get('/workers/$workerId/packages');
+      final data = response.data as List;
+      return data.map((item) => item as Map<String, dynamic>).toList();
+    } catch (e) {
+      debugPrint('Error fetching worker packages: $e');
+      rethrow;
+    }
+  }
 }
 

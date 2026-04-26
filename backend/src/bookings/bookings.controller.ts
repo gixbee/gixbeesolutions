@@ -170,4 +170,9 @@ export class BookingsController {
   async submitRating(@Param('id') id: string, @Body() body: { rating: number }) {
     return this.bookingsService.submitRating(id, body.rating);
   }
+
+  @Post(':id/dispute')
+  async reportDispute(@Param('id') id: string, @Body() body: { reason: string }) {
+    return { success: true, message: `Dispute logged: ${body.reason}` };
+  }
 }

@@ -1,7 +1,7 @@
 import { Controller, Get, Patch, Param, Body, UseGuards } from '@nestjs/common';
 import { UsersService } from './users.service';
 import { TalentService } from '../talent/talent.service';
-import { UserApprovalStatus } from './user.entity';
+import { UserApprovalStatus, UserRole } from './user.entity';
 import { SkillApprovalStatus } from '../talent/professional-skill.entity';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 
@@ -37,7 +37,7 @@ export class UsersController {
   }
 
   @Patch(':id')
-  async updateProfile(@Param('id') id: string, @Body() data: { name?: string; profileImageUrl?: string; isAvailableForWork?: boolean }) {
+  async updateProfile(@Param('id') id: string, @Body() data: { name?: string; profileImageUrl?: string; isAvailableForWork?: boolean; role?: UserRole; hasWorkerProfile?: boolean }) {
     return this.usersService.updateProfile(id, data);
   }
 

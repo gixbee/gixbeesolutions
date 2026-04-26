@@ -218,4 +218,13 @@ class BookingRepository {
       rethrow;
     }
   }
+
+  Future<void> reportDispute(String bookingId, String reason) async {
+    try {
+      await _dio.post('/bookings/$bookingId/dispute', data: {'reason': reason});
+    } catch (e) {
+      debugPrint('ReportDispute failed: $e');
+      rethrow;
+    }
+  }
 }

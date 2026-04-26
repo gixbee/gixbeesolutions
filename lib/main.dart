@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:dynamic_color/dynamic_color.dart';
-// import 'package:supabase_flutter/supabase_flutter.dart'; // Removed Supabase dependency
-// import 'firebase_options.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'firebase_options.dart';
 import 'theme.dart';
 import 'core/theme_provider.dart';
 import 'core/config/app_config.dart';
@@ -11,13 +11,21 @@ import 'core/plugins/default_plugins.dart';
 import 'features/onboarding/welcome_screen.dart';
 import 'main_wrapper.dart';
 import 'repositories/auth_repository.dart';
-import 'services/notification_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   // 3. Plugin registry
   registerDefaultPlugins();
+
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
+
+  await Supabase.initialize(
+    url: AppConfig.supabaseUrl,
+    anonKey: AppConfig.supabaseAnonKey,
+  );
 
   debugPrint('GIXBEE_BUILD_VERSION: ${AppConfig.buildVersion}');
 

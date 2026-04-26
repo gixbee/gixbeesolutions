@@ -1,24 +1,27 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../repositories/worker_repository.dart';
 import 'event_location_picker_screen.dart';
 import 'booking_screen.dart';
 import '../../shared/models/worker.dart';
 
 /// After the user selects a worker, they choose between a pre-defined
 /// package or a custom/bespoke request before proceeding to checkout.
-class BookingTypeSelector extends StatefulWidget {
+class BookingTypeSelector extends ConsumerStatefulWidget {
   final Worker worker;
 
   const BookingTypeSelector({super.key, required this.worker});
 
   @override
-  State<BookingTypeSelector> createState() => _BookingTypeSelectorState();
+  ConsumerState<BookingTypeSelector> createState() => _BookingTypeSelectorState();
 }
 
-class _BookingTypeSelectorState extends State<BookingTypeSelector> {
+class _BookingTypeSelectorState extends ConsumerState<BookingTypeSelector> {
   _BookingType? _selectedType;
 
-  // Sample packages for the worker (in production, fetched from API)
-  late final List<_ServicePackage> _packages;
+  // Package states
+  List<_ServicePackage>? _packages;
+  bool _isLoadingPackages = true;
 
   // Custom request fields
   final _customDescCtrl = TextEditingController();
@@ -40,8 +43,40 @@ class _BookingTypeSelectorState extends State<BookingTypeSelector> {
   @override
   void initState() {
     super.initState();
-    _packages = _generatePackages(widget.worker);
-    _selectedPackage = _packages.first;
+    _fetchPackages();
+  }
+
+  Future<void> _fetchPackages() async {
+    try {
+      final rawPackages = await ref.read(workerRepositoryProvider).getWorkerPackages(widget.worker.id);
+      
+      final packages = rawPackages.map((p) => _ServicePackage(
+        name: p['name'] as String,
+        description: p['description'] as String,
+        duration: p['duration'] as String,
+        price: (p['price'] as num).toDouble(),
+        includes: p['includes'] != null ? List<String>.from(p['includes']) : ['1 task', 'Basic tools'],
+        isBestValue: p['isPopular'] as bool? ?? false,
+      )).toList();
+
+      if (mounted) {
+        setState(() {
+          _packages = packages;
+          if (packages.isNotEmpty) _selectedPackage = packages.first;
+          _isLoadingPackages = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        // Fallback to local 
+        setState(() {
+          final fallback = _generateFallbackPackages(widget.worker);
+          _packages = fallback;
+          _selectedPackage = fallback.first;
+          _isLoadingPackages = false;
+        });
+      }
+    }
   }
 
   @override
@@ -50,7 +85,7 @@ class _BookingTypeSelectorState extends State<BookingTypeSelector> {
     super.dispose();
   }
 
-  List<_ServicePackage> _generatePackages(Worker worker) {
+  List<_ServicePackage> _generateFallbackPackages(Worker worker) {
     final rate = worker.hourlyRate;
     return [
       _ServicePackage(
@@ -273,7 +308,10 @@ class _BookingTypeSelectorState extends State<BookingTypeSelector> {
           style: TextStyle(color: cs.onSurfaceVariant, fontSize: 12),
         ),
         const SizedBox(height: 16),
-        ..._packages.map((pkg) => _PackageCard(
+        if (_isLoadingPackages)
+          const Center(child: CircularProgressIndicator())
+        else if (_packages != null)
+          ..._packages!.map((pkg) => _PackageCard(
               package: pkg,
               isSelected: _selectedPackage == pkg,
               onTap: () {

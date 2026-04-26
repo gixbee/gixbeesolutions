@@ -109,8 +109,7 @@ class _MainWrapperState extends ConsumerState<MainWrapper> {
   Future<void> _initNotifications() async {
     final notifService = ref.read(notificationServiceProvider);
 
-    // Register FCM token with 3-attempt retry
-    _registerFcmTokenWithRetry(notifService);
+    // Token registration disabled here — we register strictly after auth/OTP.
 
     // Token refresh — re-register when FCM rotates the token
     notifService.onTokenRefresh((newToken) async {
@@ -139,28 +138,12 @@ class _MainWrapperState extends ConsumerState<MainWrapper> {
     }
   }
 
-  Future<void> _registerFcmTokenWithRetry(
-      NotificationService notifService) async {
-    for (int attempt = 1; attempt <= 3; attempt++) {
-      try {
-        final token = await notifService.getDeviceToken();
-        if (token == null) return;
-        await ref.read(authRepositoryProvider).registerFcmToken(token);
-        debugPrint('[FCM] Token registered on attempt $attempt');
-        return;
-      } catch (e) {
-        debugPrint('[FCM] Token registration attempt $attempt failed: $e');
-        if (attempt < 3) {
-          await Future.delayed(Duration(seconds: attempt * 2));
-        }
-      }
-    }
-    debugPrint('[FCM] Token registration failed after 3 attempts');
-  }
-
   void _handleFcmMessage(RemoteMessage message) {
     final type = message.data['type'] as String?;
     final bookingId = message.data['bookingId'] as String?;
+
+    // Refresh history so notifications screen is pseudo-real-time
+    ref.invalidate(myBookingsProvider);
 
     if (type == 'new_booking') {
       // Dedup: skip if already shown via socket or polling

@@ -256,7 +256,11 @@ class HomeScreen extends ConsumerWidget {
         'title': 'Rentals',
         'icon': Icons.category_rounded,
         'color': colorScheme.surfaceContainerHighest,
-        'onTap': () {},
+        'onTap': () {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Rentals module coming soon!')),
+          );
+        },
       },
     ];
 

@@ -563,25 +563,36 @@ class _CompletionOtpScreenState extends ConsumerState<CompletionOtpScreen> {
       title: Text(reason),
       leading: const Icon(Icons.report_problem_outlined, color: Colors.orange),
       trailing: const Icon(Icons.arrow_forward_ios, size: 14),
-      onTap: () {
+      onTap: () async {
         Navigator.pop(context);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Row(
-              children: [
-                const Icon(Icons.check_circle, color: Colors.white),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    'Dispute filed: $reason.\nOur support team will contact you shortly.',
-                  ),
+        try {
+          await ref.read(bookingRepositoryProvider).reportDispute(widget.bookingId, reason);
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Row(
+                  children: [
+                    const Icon(Icons.check_circle, color: Colors.white),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Dispute filed: $reason.\nOur support team will contact you shortly.',
+                      ),
+                    ),
+                  ],
                 ),
-              ],
-            ),
-            backgroundColor: Colors.orange.shade800,
-            duration: const Duration(seconds: 4),
-          ),
-        );
+                backgroundColor: Colors.orange.shade800,
+                duration: const Duration(seconds: 4),
+              ),
+            );
+          }
+        } catch (e) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('Failed to submit dispute: $e')),
+            );
+          }
+        }
       },
     );
   }

@@ -50,4 +50,33 @@ export class WorkersController {
   async updateRate(@Req() req, @Body() body: { hourlyRate: number }) {
     return this.workersService.updateHourlyRate(req.user.userId, body.hourlyRate);
   }
+
+  @Get(':id/packages')
+  async getPackages(@Param('id') id: string) {
+    const worker = await this.workersService.getById(id);
+    const rate = worker.hourly_rate || 50;
+    return [
+      {
+        name: 'Quick Fix',
+        description: '1 hour of focused work on a single task',
+        duration: '1 hr',
+        price: rate,
+        isPopular: false,
+      },
+      {
+        name: 'Half Day',
+        description: 'Standard 4-hour block for moderate sized projects',
+        duration: '4 hrs',
+        price: rate * 3.5, // Bulk discount applied
+        isPopular: true,
+      },
+      {
+        name: 'Full Day',
+        description: 'Comprehensive 8-hour dedication to your needs',
+        duration: '8 hrs',
+        price: rate * 6.0, // Steeper bulk discount
+        isPopular: false,
+      },
+    ];
+  }
 }

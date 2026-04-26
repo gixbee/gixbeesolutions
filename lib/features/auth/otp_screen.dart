@@ -1,8 +1,10 @@
 import 'dart:async';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/config/app_config.dart';
 import '../../main_wrapper.dart';
+import 'registration_screen.dart';
 import '../../repositories/auth_repository.dart';
 import '../../services/notification_service.dart';
 import '../../shared/widgets/dribbble_background.dart';
@@ -72,14 +74,20 @@ class _OtpScreenState extends ConsumerState<OtpScreen> {
       // 2. Register FCM token with the backend so NestJS can push to this device
       await _registerFcmToken();
 
-      // 3. Navigate to main app
-      if (mounted) {
-        Navigator.pushAndRemoveUntil(
-          context,
-          MaterialPageRoute(builder: (_) => const MainWrapper()),
-          (route) => false,
-        );
-      }
+      // 3. Fetch profile to check if registered
+      final user = await ref.read(authRepositoryProvider).getProfile();
+      final isNewUser = user == null || (user.name?.isEmpty ?? true);
+
+      // 4. Navigate based on registration status
+      if (!mounted) return;
+      
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(
+          builder: (_) => isNewUser ? const RegistrationScreen() : const MainWrapper(),
+        ),
+        (route) => false,
+      );
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -224,11 +232,10 @@ class _OtpScreenState extends ConsumerState<OtpScreen> {
                                     });
                                   }
                                 } catch (e) {
-                                  if (mounted) {
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      SnackBar(content: Text('Resend failed: $e')),
-                                    );
-                                  }
+                                  if (!mounted) return;
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(content: Text('Resend failed: $e')),
+                                  );
                                 }
                               }
                         : null,
