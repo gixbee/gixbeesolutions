@@ -4,12 +4,16 @@ import '../../core/theme_provider.dart';
 import '../jobs/offers_screen.dart';
 import '../../services/location_service.dart';
 import '../booking/book_services_split_screen.dart';
+import '../booking/event_location_picker_screen.dart';
 import '../jobs/find_job_module.dart';
 import '../business/list_business_type_screen.dart';
 import '../../shared/widgets/dribbble_background.dart';
 import 'home_carousel.dart';
 import '../jobs/register_pro_screen.dart';
 import 'active_booking_card.dart';
+import '../notifications/notifications_screen.dart';
+import '../../repositories/worker_repository.dart';
+import '../search/worker_list_screen.dart';
 
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
@@ -80,20 +84,80 @@ class HomeScreen extends ConsumerWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Location 
+          // Location + Actions Row
           Row(
             children: [
-              Icon(Icons.location_on_rounded, color: colorScheme.primary, size: 20),
-              const SizedBox(width: 8),
+              // Tappable Location (OLX-style)
               Expanded(
-                child: Text(
-                  address,
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
+                child: GestureDetector(
+                  onTap: () async {
+                    final location = await Navigator.push<PickedLocation>(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const EventLocationPickerScreen(),
+                      ),
+                    );
+                    if (location != null) {
+                      // Update the displayed address
+                      ref.read(currentAddressProvider.notifier).state = location.address;
+                      // Set the selected location for nearby worker discovery
+                      ref.read(selectedLocationProvider.notifier).state = (
+                        lat: location.lat,
+                        lng: location.lng,
+                        address: location.address,
+                      );
+                      // Navigate to nearby workers
+                      if (context.mounted) {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const WorkerListScreen(isInstant: true),
+                          ),
+                        );
+                      }
+                    }
+                  },
+                  child: Row(
+                    children: [
+                      Icon(Icons.location_on_rounded, color: colorScheme.primary, size: 20),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              address,
+                              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                fontWeight: FontWeight.bold,
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            Text(
+                              'Tap to change location',
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: colorScheme.onSurface.withValues(alpha: 0.4),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Icon(Icons.keyboard_arrow_down, color: colorScheme.onSurface.withValues(alpha: 0.5), size: 20),
+                    ],
                   ),
-                  overflow: TextOverflow.ellipsis,
                 ),
               ),
+              // Notification Bell
+              IconButton(
+                icon: const Icon(Icons.notifications_outlined),
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const NotificationsScreen()),
+                  );
+                },
+              ),
+              // Theme Toggle
               IconButton(
                 icon: Icon(isDark ? Icons.light_mode_rounded : Icons.dark_mode_rounded),
                 onPressed: () {
@@ -104,25 +168,35 @@ class HomeScreen extends ConsumerWidget {
           ),
           const SizedBox(height: 16),
           // Floating Search Bar
-          Container(
-            decoration: BoxDecoration(
-              color: colorScheme.surface.withValues(alpha: 0.7),
-              borderRadius: BorderRadius.circular(24),
-              border: Border.all(color: colorScheme.outlineVariant.withValues(alpha: 0.3)),
-            ),
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: Row(
-              children: [
-                Icon(Icons.search_rounded, color: colorScheme.onSurfaceVariant),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Text(
-                    'Find professionals...',
-                    style: TextStyle(color: colorScheme.onSurfaceVariant, fontSize: 16),
-                  ),
+          GestureDetector(
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => const WorkerListScreen(isInstant: true),
                 ),
-                Icon(Icons.mic_rounded, color: colorScheme.primary),
-              ],
+              );
+            },
+            child: Container(
+              decoration: BoxDecoration(
+                color: colorScheme.surface.withValues(alpha: 0.7),
+                borderRadius: BorderRadius.circular(24),
+                border: Border.all(color: colorScheme.outlineVariant.withValues(alpha: 0.3)),
+              ),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+              child: Row(
+                children: [
+                  Icon(Icons.search_rounded, color: colorScheme.onSurfaceVariant),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      'Find professionals...',
+                      style: TextStyle(color: colorScheme.onSurfaceVariant, fontSize: 16),
+                    ),
+                  ),
+                  Icon(Icons.mic_rounded, color: colorScheme.primary),
+                ],
+              ),
             ),
           ),
         ],

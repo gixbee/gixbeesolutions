@@ -135,7 +135,7 @@ class _WorkerListScreenState extends ConsumerState<WorkerListScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final workersAsync = ref.watch(workersProvider);
+    final workersAsync = ref.watch(nearbyWorkersProvider);
     final title = 'Find Talent';
 
     return Scaffold(
@@ -231,7 +231,7 @@ class _WorkerListScreenState extends ConsumerState<WorkerListScreen> {
               Expanded(
                 child: RefreshIndicator(
                   onRefresh: () async {
-                    return await ref.refresh(workersProvider.future);
+                    return await ref.refresh(nearbyWorkersProvider.future);
                   },
                   child: filteredWorkers.isEmpty
                       ? ListView(
