@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../shared/widgets/dribbble_background.dart';
 import '../../shared/widgets/glass_container.dart';
@@ -112,7 +113,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                     .signInWithPhone(phone);
                                 if (!context.mounted) return;
                                 
-                                if (devOtp != null) {
+                                if (kDebugMode && devOtp != null) {
                                   ScaffoldMessenger.of(context).showSnackBar(
                                     SnackBar(
                                       content: Text('TEST MODE: Your OTP is $devOtp'),

@@ -205,11 +205,29 @@ class ProfileScreen extends ConsumerWidget {
                   loading: () => const SizedBox.shrink(),
                   error: (_, __) => const SizedBox.shrink(),
                 ),
-                const _ProfileOption(
-                    icon: Icons.notifications_none, label: 'Notifications'),
+                _ProfileOption(
+                    icon: Icons.notifications_none,
+                    label: 'Notifications',
+                    onTap: () {
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Notification settings coming soon')),
+                        );
+                      }
+                    },
+                ),
                 const SizedBox(height: 16),
-                const _ProfileOption(
-                    icon: Icons.help_outline, label: 'Help & Support'),
+                _ProfileOption(
+                    icon: Icons.help_outline,
+                    label: 'Help & Support',
+                    onTap: () {
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Help center coming soon')),
+                        );
+                      }
+                    },
+                ),
                 const SizedBox(height: 16),
                 _ProfileOption(
                   icon: Icons.logout,

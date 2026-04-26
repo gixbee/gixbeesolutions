@@ -11,7 +11,7 @@ final profileRepositoryProvider = Provider((ref) {
 final userStatsProvider = FutureProvider<Map<String, int>>((ref) async {
   final repo = ref.watch(profileRepositoryProvider);
   // Issue #20: Use real user ID from auth provider instead of placeholder
-  final user = await ref.watch(currentUserProvider.future);
+  final user = await ref.read(currentUserProvider.future);
   if (user == null) return {'bookings': 0, 'reviews': 0, 'saved': 0};
   
   return repo.getUserStats(user.id);

@@ -180,6 +180,10 @@ class _WaitingForWorkerScreenState extends ConsumerState<WaitingForWorkerScreen>
               CircleAvatar(
                 radius: 40,
                 backgroundImage: NetworkImage(widget.worker.imageUrl),
+                onBackgroundImageError: (_, __) {},
+                child: widget.worker.imageUrl.isEmpty
+                    ? Text(widget.worker.name.isNotEmpty ? widget.worker.name[0] : '?', style: const TextStyle(fontSize: 24))
+                    : null,
               ),
               const SizedBox(height: 16),
               Text(
@@ -192,18 +196,25 @@ class _WaitingForWorkerScreenState extends ConsumerState<WaitingForWorkerScreen>
                 style: TextStyle(color: colorScheme.onSurfaceVariant),
               ),
               const SizedBox(height: 48),
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: _confirmAndProceed,
-                  style: ElevatedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    backgroundColor: colorScheme.primary,
-                    foregroundColor: colorScheme.onPrimary,
+              if (_arrivalOtp != null)
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: _confirmAndProceed,
+                    style: ElevatedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      backgroundColor: colorScheme.primary,
+                      foregroundColor: colorScheme.onPrimary,
+                    ),
+                    child: const Text('Confirm & See OTP', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                   ),
-                  child: const Text('Confirm & See OTP', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                )
+              else
+                Text(
+                  'Waiting for worker to confirm arrival at your location...',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: colorScheme.onSurfaceVariant),
                 ),
-              ),
             ],
           ],
         ),

@@ -16,23 +16,7 @@ import 'services/notification_service.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // 2. Firebase (FCM push notifications only — no firebase_auth)
-  try {
-    await Firebase.initializeApp();
-  } catch (e) {
-    debugPrint('[FIREBASE] Initialization failed (likely missing options): $e');
-    // Fallback: App continues but push might not work. 
-    // We already use OneSignal/WebSockets as alternatives.
-  }
-
-  // 3. FCM notification service (init non-blocking to prevent ANR)
-  NotificationService().initialize().then((_) {
-    NotificationService().getDeviceToken().then((token) {
-      debugPrint('[FCM] INITIAL_TOKEN: $token');
-    });
-  });
-
-  // 4. Plugin registry
+  // 3. Plugin registry
   registerDefaultPlugins();
 
   debugPrint('GIXBEE_BUILD_VERSION: ${AppConfig.buildVersion}');

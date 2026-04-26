@@ -21,7 +21,7 @@ class _OtpScreenState extends ConsumerState<OtpScreen> {
   late final List<TextEditingController> _controllers =
       List.generate(AppConfig.otpLength, (index) {
     final controller = TextEditingController();
-    if (widget.initialOtp != null && index < widget.initialOtp!.length) {
+    if (kDebugMode && widget.initialOtp != null && index < widget.initialOtp!.length) {
       controller.text = widget.initialOtp![index];
     }
     return controller;
@@ -186,6 +186,8 @@ class _OtpScreenState extends ConsumerState<OtpScreen> {
                           if (value.isNotEmpty &&
                               index < AppConfig.otpLength - 1) {
                             FocusScope.of(context).nextFocus();
+                          } else if (value.isEmpty && index > 0) {
+                            FocusScope.of(context).previousFocus();
                           }
                           if (index == AppConfig.otpLength - 1 &&
                               value.isNotEmpty) {
@@ -202,24 +204,33 @@ class _OtpScreenState extends ConsumerState<OtpScreen> {
                 // Resend timer
                 Center(
                   child: GestureDetector(
-                    onTap: _resendTimer == 0
-                        ? () async {
-                            setState(
-                                () => _resendTimer = AppConfig.otpResendSeconds);
-                            _startTimer();
-                            final newOtp = await ref
-                                .read(authRepositoryProvider)
-                                .signInWithPhone(widget.phone);
-                            // Update the OTP fields with the new code
-                            if (newOtp != null && mounted) {
-                              setState(() {
-                                for (int i = 0; i < _controllers.length; i++) {
-                                  _controllers[i].text =
-                                      i < newOtp.length ? newOtp[i] : '';
+                        onTap: _resendTimer == 0
+                            ? () async {
+                                try {
+                                  final newOtp = await ref
+                                      .read(authRepositoryProvider)
+                                      .signInWithPhone(widget.phone);
+                                  
+                                  setState(() => _resendTimer = AppConfig.otpResendSeconds);
+                                  _startTimer();
+                                  
+                                  // Update the OTP fields with the new code
+                                  if (kDebugMode && newOtp != null && mounted) {
+                                    setState(() {
+                                      for (int i = 0; i < _controllers.length; i++) {
+                                        _controllers[i].text =
+                                            i < newOtp.length ? newOtp[i] : '';
+                                      }
+                                    });
+                                  }
+                                } catch (e) {
+                                  if (mounted) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(content: Text('Resend failed: $e')),
+                                    );
+                                  }
                                 }
-                              });
-                            }
-                          }
+                              }
                         : null,
                     child: Text(
                       _resendTimer > 0

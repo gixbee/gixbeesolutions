@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:razorpay_flutter/razorpay_flutter.dart';
@@ -118,7 +119,14 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
     }
 
     // Issue #19: Read real user data for Razorpay prefill
-    final user = ref.read(currentUserProvider).value;
+    final userState = ref.read(currentUserProvider);
+    if (userState.isLoading) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Loading profile, please wait...')),
+      );
+      return;
+    }
+    final user = userState.value;
 
     var options = {
       'key': AppConfig.razorpayKey,
@@ -280,7 +288,10 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
                   // Input field
                   TextField(
                     controller: _topUpAmountCtrl,
-                    keyboardType: TextInputType.number,
+                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                    inputFormatters: [
+                      FilteringTextInputFormatter.allow(RegExp(r'^\d+\.?\d{0,2}')),
+                    ],
                     style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
                     decoration: InputDecoration(
                       prefixIcon: const Padding(

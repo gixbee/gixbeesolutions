@@ -566,7 +566,21 @@ class _CompletionOtpScreenState extends ConsumerState<CompletionOtpScreen> {
       onTap: () {
         Navigator.pop(context);
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Report filed: $reason')),
+          SnackBar(
+            content: Row(
+              children: [
+                const Icon(Icons.check_circle, color: Colors.white),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'Dispute filed: $reason.\nOur support team will contact you shortly.',
+                  ),
+                ),
+              ],
+            ),
+            backgroundColor: Colors.orange.shade800,
+            duration: const Duration(seconds: 4),
+          ),
         );
       },
     );

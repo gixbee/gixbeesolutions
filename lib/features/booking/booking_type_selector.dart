@@ -275,10 +275,9 @@ class _BookingTypeSelectorState extends State<BookingTypeSelector> {
         const SizedBox(height: 16),
         ..._packages.map((pkg) => _PackageCard(
               package: pkg,
-              isSelected: false,
+              isSelected: _selectedPackage == pkg,
               onTap: () {
-                // In a real app, track selected package
-                _proceed();
+                setState(() => _selectedPackage = pkg);
               },
             )),
         const SizedBox(height: 24),
@@ -424,6 +423,7 @@ class _BookingTypeSelectorState extends State<BookingTypeSelector> {
                   builder: (_) => const EventLocationPickerScreen()),
             );
             if (location != null && mounted) {
+              setState(() => _selectedLocation = location);
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
                     content:
