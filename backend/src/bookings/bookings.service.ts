@@ -91,6 +91,12 @@ export class BookingsService {
       });
     }
 
+    // Cache initial status in Redis for poll endpoint
+    await this.redisService.cacheBookingStatus(savedBooking.id, {
+      status: 'REQUESTED',
+      operatorName: null,
+    });
+
     return savedBooking;
   }
 
@@ -126,6 +132,13 @@ export class BookingsService {
     // Update Redis status to 'busy'
     await this.workersService.setWorkerStatus(workerId, 'busy');
 
+    // Cache ACCEPTED status in Redis for poll endpoint
+    await this.redisService.cacheBookingStatus(bookingId, {
+      status: 'ACCEPTED',
+      operatorName: booking.operator?.name,
+      arrivalOtp: savedBooking.arrivalOtp,
+    });
+
     // NOW schedule the 7-minute reminder and 10-minute GPS check
     await this.bookingsQueue.add(
       'sevenMinuteReminder',
@@ -144,6 +157,15 @@ export class BookingsService {
       status: 'ACCEPTED',
       booking: savedBooking,
     };
+  }
+
+  // Cache ACCEPTED status in Redis for poll endpoint
+  private async cacheAcceptedStatus(bookingId: string, operatorName?: string, arrivalOtp?: string) {
+    await this.redisService.cacheBookingStatus(bookingId, {
+      status: 'ACCEPTED',
+      operatorName: operatorName || null,
+      arrivalOtp: arrivalOtp || null,
+    });
   }
 
   async updateStatus(id: string, status: BookingStatus): Promise<Booking | null> {
@@ -215,6 +237,12 @@ export class BookingsService {
       // Auto-cancel booking
       booking.status = BookingStatus.CANCELLED;
       await this.bookingsRepository.save(booking);
+
+      // Cache CANCELLED status in Redis for poll endpoint
+      await this.redisService.cacheBookingStatus(bookingId, {
+        status: 'CANCELLED',
+        operatorName: booking.operator?.name,
+      });
 
       // Notify customer via OneSignal
       if (booking.customer?.id) {
