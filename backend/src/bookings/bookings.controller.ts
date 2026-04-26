@@ -45,6 +45,12 @@ export class BookingsController {
     return [...customerBookings, ...operatorBookings];
   }
 
+  // Worker polls this to discover incoming job requests (FCM fallback)
+  @Get('pending')
+  async getPendingBookings(@Req() req) {
+    return this.bookingsService.findPendingForWorker(req.user.userId);
+  }
+
   @Patch(':id/status')
   async updateStatus(@Param('id') id: string, @Body() body: { status: BookingStatus }) {
     return this.bookingsService.updateStatus(id, body.status);

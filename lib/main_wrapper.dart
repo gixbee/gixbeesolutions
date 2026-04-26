@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -21,6 +22,8 @@ class MainWrapper extends ConsumerStatefulWidget {
 
 class _MainWrapperState extends ConsumerState<MainWrapper> {
   int _currentIndex = 0;
+  Timer? _pendingPollTimer;
+  final Set<String> _shownBookingIds = {};
 
   final List<Widget> _screens = const [
     HomeScreen(),
@@ -33,6 +36,34 @@ class _MainWrapperState extends ConsumerState<MainWrapper> {
     super.initState();
     _initSocket();
     _initNotifications();
+    _startPendingBookingPoll();
+  }
+
+  @override
+  void dispose() {
+    _pendingPollTimer?.cancel();
+    super.dispose();
+  }
+
+  // ── Pending Booking Poll (FCM fallback) ─────────────────
+
+  void _startPendingBookingPoll() {
+    _pendingPollTimer = Timer.periodic(const Duration(seconds: 5), (_) async {
+      try {
+        final pending = await ref.read(bookingRepositoryProvider).getPendingBookings();
+        for (final booking in pending) {
+          final id = booking['id'] as String?;
+          if (id != null && !_shownBookingIds.contains(id)) {
+            _shownBookingIds.add(id);
+            _showJobRequestPopup(
+              'New Job Request',
+              '${booking['customer']?['name'] ?? 'A customer'} needs ${booking['skill'] ?? 'your services'}',
+              id,
+            );
+          }
+        }
+      } catch (_) {}
+    });
   }
 
   // ── Socket ───────────────────────────────────────────────

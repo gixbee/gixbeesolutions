@@ -284,4 +284,12 @@ export class BookingsService {
       order: { scheduledAt: 'DESC' },
     });
   }
+
+  async findPendingForWorker(workerId: string): Promise<Booking[]> {
+    return this.bookingsRepository.find({
+      where: { operator: { id: workerId }, status: BookingStatus.REQUESTED },
+      relations: ['customer', 'operator'],
+      order: { createdAt: 'DESC' },
+    });
+  }
 }

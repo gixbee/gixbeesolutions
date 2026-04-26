@@ -139,6 +139,17 @@ class BookingRepository {
     }
   }
 
+  /// Poll for REQUESTED bookings assigned to this worker (FCM fallback)
+  Future<List<dynamic>> getPendingBookings() async {
+    try {
+      final response = await _dio.get('/bookings/pending');
+      return response.data as List<dynamic>;
+    } catch (e) {
+      debugPrint('GetPendingBookings failed: $e');
+      return [];
+    }
+  }
+
   /// Poll the booking status (customer waits for worker acceptance)
   Future<Map<String, dynamic>> pollBookingStatus(String bookingId) async {
     try {
