@@ -210,8 +210,8 @@ class _CompletionOtpScreenState extends ConsumerState<CompletionOtpScreen> {
                         await ref.read(bookingRepositoryProvider).submitRating(
                           widget.bookingId, i + 1
                         );
-                        if (mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
+                        if (ctx.mounted) {
+                          ScaffoldMessenger.of(ctx).showSnackBar(
                             SnackBar(content: Text('Rating saved: ${i + 1} stars')),
                           );
                         }

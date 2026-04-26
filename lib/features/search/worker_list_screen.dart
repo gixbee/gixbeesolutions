@@ -141,7 +141,7 @@ class _WorkerListScreenState extends ConsumerState<WorkerListScreen> {
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
-        title: Text(title),
+        title: const Text(title),
         backgroundColor: Colors.transparent,
         elevation: 0,
         actions: [
