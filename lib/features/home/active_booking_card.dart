@@ -9,10 +9,10 @@ import '../jobs/booking_detail_screen.dart';
 import '../../shared/widgets/glass_container.dart';
 
 // RE-FETCH FIX: Provider to cache active booking state
-final activeBookingProvider = FutureProvider<Map<String, dynamic>?>((ref) async {
+final activeBookingProvider = FutureProvider.autoDispose<Map<String, dynamic>?>((ref) async {
   try {
     final bookings = await ref.watch(bookingRepositoryProvider).getMyBookings();
-    const activeStatuses = ['ACCEPTED', 'ARRIVED', 'ACTIVE', 'IN_PROGRESS', 'CONFIRMED'];
+    const activeStatuses = ['REQUESTED', 'PENDING', 'ACCEPTED', 'ARRIVED', 'ACTIVE', 'IN_PROGRESS', 'CONFIRMED'];
     return bookings.firstWhere(
       (b) => activeStatuses.contains((b['status'] ?? '').toString().toUpperCase()),
     );
@@ -45,7 +45,14 @@ class ActiveBookingCard extends ConsumerWidget {
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
           child: GestureDetector(
             onTap: () {
-              if (bStatus == 'ACCEPTED' || bStatus == 'ARRIVED') {
+              if (bStatus == 'REQUESTED' || bStatus == 'PENDING') {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                      builder: (_) =>
+                          BookingDetailScreen(booking: activeBooking)),
+                );
+              } else if (bStatus == 'ACCEPTED' || bStatus == 'ARRIVED') {
                 final otp = activeBooking['arrivalOtp']?.toString();
                 if (otp == null || otp.isEmpty) {
                   ScaffoldMessenger.of(context).showSnackBar(

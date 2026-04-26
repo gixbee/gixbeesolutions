@@ -204,13 +204,22 @@ class _OtpScreenState extends ConsumerState<OtpScreen> {
                 Center(
                   child: GestureDetector(
                     onTap: _resendTimer == 0
-                        ? () {
+                        ? () async {
                             setState(
                                 () => _resendTimer = AppConfig.otpResendSeconds);
                             _startTimer();
-                            ref
+                            final newOtp = await ref
                                 .read(authRepositoryProvider)
                                 .signInWithPhone(widget.phone);
+                            // Update the OTP fields with the new code
+                            if (newOtp != null && mounted) {
+                              setState(() {
+                                for (int i = 0; i < _controllers.length; i++) {
+                                  _controllers[i].text =
+                                      i < newOtp.length ? newOtp[i] : '';
+                                }
+                              });
+                            }
                           }
                         : null,
                     child: Text(

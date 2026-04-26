@@ -93,13 +93,18 @@ class _IncomingJobScreenState extends ConsumerState<IncomingJobScreen> {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    final customerName =
-        widget.bookingData['customer_name'] as String? ?? 'New Customer';
+    
+    // Support both flat keys (from FCM) and nested objects (from polling/WebSocket)
+    final customerObj = widget.bookingData['customer'];
+    final customerName = widget.bookingData['customer_name'] as String?
+        ?? (customerObj is Map ? customerObj['name'] as String? : null)
+        ?? 'New Customer';
     final skill = widget.bookingData['skill'] as String? ?? 'General Help';
-    final location =
-        widget.bookingData['serviceLocation'] as String? ?? 'Nearby';
-    final amount =
-        (widget.bookingData['amount'] as num?)?.toDouble() ?? 0.0;
+    final location = widget.bookingData['serviceLocation'] as String?
+        ?? widget.bookingData['service_location'] as String?
+        ?? 'Nearby';
+    final rawAmount = widget.bookingData['amount'];
+    final amount = rawAmount is num ? rawAmount.toDouble() : (double.tryParse(rawAmount?.toString() ?? '') ?? 0.0);
     final timerFraction =
         _secondsRemaining / AppConfig.jobAcceptTimeoutSeconds;
 
