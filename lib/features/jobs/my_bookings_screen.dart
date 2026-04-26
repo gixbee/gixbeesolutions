@@ -78,7 +78,9 @@ class _MyBookingsScreenState extends ConsumerState<MyBookingsScreen> {
     final filtered = _bookings.where((b) {
       final bStatus = (b['status'] ?? '').toString().toUpperCase();
       if (tab == 'ACTIVE') {
-        return bStatus == 'REQUESTED' || bStatus == 'ACCEPTED' || bStatus == 'IN_PROGRESS';
+        return ['REQUESTED', 'CUSTOM_REQUESTED', 'PENDING', 'ACCEPTED', 'CONFIRMED', 'ACTIVE', 'IN_PROGRESS'].contains(bStatus);
+      } else if (tab == 'CANCELLED') {
+        return bStatus == 'CANCELLED' || bStatus == 'REJECTED';
       } else {
         return bStatus == tab;
       }
@@ -248,6 +250,7 @@ class _MyBookingsScreenState extends ConsumerState<MyBookingsScreen> {
         color = Colors.green;
         break;
       case 'CANCELLED':
+      case 'REJECTED':
         color = Colors.red;
         break;
       default:

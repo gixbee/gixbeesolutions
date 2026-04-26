@@ -195,18 +195,40 @@ class BookingDetailScreen extends StatelessWidget {
 
   Color _getStatusColor(String status) {
     switch (status) {
-      case 'ACTIVE': return Colors.blue;
+      case 'REQUESTED':
+      case 'CUSTOM_REQUESTED':
+        return Colors.orange;
+      case 'PENDING':
+      case 'ACCEPTED':
+      case 'CONFIRMED':
+      case 'ACTIVE':
+        return Colors.blue;
+      case 'IN_PROGRESS':
+        return Colors.indigo;
       case 'COMPLETED': return Colors.green;
-      case 'CANCELLED': return Colors.red;
+      case 'CANCELLED': 
+      case 'REJECTED':
+        return Colors.red;
       default: return Colors.grey;
     }
   }
 
   IconData _getStatusIcon(String status) {
     switch (status) {
-      case 'ACTIVE': return Icons.directions_run;
+      case 'REQUESTED':
+      case 'CUSTOM_REQUESTED':
+        return Icons.pending_actions;
+      case 'PENDING':
+      case 'ACCEPTED':
+      case 'CONFIRMED':
+      case 'ACTIVE': 
+        return Icons.directions_run;
+      case 'IN_PROGRESS':
+        return Icons.handyman;
       case 'COMPLETED': return Icons.verified;
-      case 'CANCELLED': return Icons.cancel;
+      case 'CANCELLED': 
+      case 'REJECTED': 
+        return Icons.cancel;
       default: return Icons.info;
     }
   }
