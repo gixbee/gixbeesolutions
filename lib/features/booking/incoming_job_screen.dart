@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/config/app_config.dart';
 import '../../repositories/booking_repository.dart';
@@ -24,6 +25,18 @@ class _IncomingJobScreenState extends ConsumerState<IncomingJobScreen> {
     super.initState();
     _secondsRemaining = AppConfig.jobAcceptTimeoutSeconds;
     _startTimer();
+    _alertWorker();
+  }
+
+  /// Vibrate and play system sound to alert the worker
+  void _alertWorker() {
+    // Strong haptic feedback pattern
+    HapticFeedback.heavyImpact();
+    // Repeat vibration 3 times for urgency
+    Future.delayed(const Duration(milliseconds: 300), () => HapticFeedback.heavyImpact());
+    Future.delayed(const Duration(milliseconds: 600), () => HapticFeedback.heavyImpact());
+    // Play system alert sound
+    SystemSound.play(SystemSoundType.alert);
   }
 
   @override

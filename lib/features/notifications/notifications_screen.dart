@@ -100,11 +100,19 @@ final notificationsProvider = FutureProvider.autoDispose<List<AppNotification>>(
   return notifications;
 });
 
-class NotificationsScreen extends ConsumerWidget {
+class NotificationsScreen extends ConsumerStatefulWidget {
   const NotificationsScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<NotificationsScreen> createState() => _NotificationsScreenState();
+}
+
+class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
+  // Track dismissed notification IDs locally
+  final Set<String> _dismissedIds = {};
+
+  @override
+  Widget build(BuildContext context) {
     final notifAsync = ref.watch(notificationsProvider);
     final colorScheme = Theme.of(context).colorScheme;
 
@@ -112,9 +120,20 @@ class NotificationsScreen extends ConsumerWidget {
       appBar: AppBar(
         title: const Text('Notifications'),
         actions: [
+          if (_dismissedIds.isNotEmpty)
+            TextButton(
+              onPressed: () {
+                setState(() => _dismissedIds.clear());
+                ref.invalidate(notificationsProvider);
+              },
+              child: const Text('Restore All'),
+            ),
           IconButton(
             icon: const Icon(Icons.refresh),
-            onPressed: () => ref.invalidate(notificationsProvider),
+            onPressed: () {
+              setState(() => _dismissedIds.clear());
+              ref.invalidate(notificationsProvider);
+            },
           ),
         ],
       ),
@@ -122,7 +141,12 @@ class NotificationsScreen extends ConsumerWidget {
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (err, _) => Center(child: Text('Error: $err')),
         data: (notifications) {
-          if (notifications.isEmpty) {
+          // Filter out dismissed notifications
+          final visible = notifications
+              .where((n) => !_dismissedIds.contains(n.id))
+              .toList();
+
+          if (visible.isEmpty) {
             return Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -135,7 +159,9 @@ class NotificationsScreen extends ConsumerWidget {
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    'Your booking updates will appear here',
+                    _dismissedIds.isNotEmpty
+                        ? 'All notifications cleared'
+                        : 'Your booking updates will appear here',
                     style: TextStyle(color: Colors.grey.shade600, fontSize: 13),
                   ),
                 ],
@@ -145,11 +171,39 @@ class NotificationsScreen extends ConsumerWidget {
 
           return ListView.separated(
             padding: const EdgeInsets.all(16),
-            itemCount: notifications.length,
+            itemCount: visible.length,
             separatorBuilder: (_, __) => const SizedBox(height: 8),
             itemBuilder: (context, index) {
-              final notif = notifications[index];
-              return _buildNotificationTile(context, notif, colorScheme);
+              final notif = visible[index];
+              return Dismissible(
+                key: Key(notif.id),
+                direction: DismissDirection.endToStart,
+                onDismissed: (_) {
+                  setState(() => _dismissedIds.add(notif.id));
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: const Text('Notification cleared'),
+                      action: SnackBarAction(
+                        label: 'Undo',
+                        onPressed: () {
+                          setState(() => _dismissedIds.remove(notif.id));
+                        },
+                      ),
+                      duration: const Duration(seconds: 3),
+                    ),
+                  );
+                },
+                background: Container(
+                  alignment: Alignment.centerRight,
+                  padding: const EdgeInsets.only(right: 20),
+                  decoration: BoxDecoration(
+                    color: Colors.red.withValues(alpha: 0.2),
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: const Icon(Icons.delete_outline, color: Colors.red),
+                ),
+                child: _buildNotificationTile(context, notif, colorScheme),
+              );
             },
           );
         },
