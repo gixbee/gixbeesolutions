@@ -75,6 +75,8 @@ export class AuthService {
     if (!user) throw new NotFoundException('User not found');
     user.fcmToken = token; // Reusing the field — stores OneSignal push subscription ID now
     await this.usersRepository.save(user);
+    // SYNC WITH REDIS
+    await this.redisService.cacheFcmToken(userId, token);
     return { message: 'Push token updated' };
   }
 

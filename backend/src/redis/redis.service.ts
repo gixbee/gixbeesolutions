@@ -149,8 +149,10 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
       timestamp: new Date().toISOString()
     };
     try {
-      // Let's hold this location for 1 hour if no updates occur.
+      // 1. Save literal location for record lookup
       await this.client.setEx(key, 60 * 60, JSON.stringify(payload));
+      // 2. Save to GEO index for spatial search
+      await this.updateWorkerGeoLocation(workerId, lat, lng);
     } catch (error) {
       this.logger.error(`Failed to save location for worker ${workerId}`, error);
     }
@@ -171,9 +173,35 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
     }
   }
 
+  // ─────────────────────────────────────────────
+  // FCM TOKEN CACHE (7-DAY TTL)
+  // ─────────────────────────────────────────────
+
+  async cacheFcmToken(userId: string, token: string): Promise<void> {
+    const key = `user:fcm:${userId}`;
+    try {
+      await this.client.setEx(key, 7 * 24 * 60 * 60, token); // 7 days
+    } catch (error) {
+      this.logger.error(`Failed to cache FCM token for ${userId}`, error);
+    }
+  }
+
+  async getCachedFcmToken(userId: string): Promise<string | null> {
+    const key = `user:fcm:${userId}`;
+    try {
+      return await this.client.get(key);
+    } catch (error) {
+      this.logger.error(`Failed to get cached FCM token for ${userId}`, error);
+      return null;
+    }
+  }
+
+  // ─────────────────────────────────────────────
+  // WORKER GEO INDEXING
+  // ─────────────────────────────────────────────
+
   /**
-   * Execute a raw geographic spatial query natively via Redis GEO commands (optional future enhancement).
-   * Note: This requires inserting the location into a geo key using GEOADD first.
+   * Execute a raw geographic spatial query natively via Redis GEO commands.
    */
   async updateWorkerGeoLocation(workerId: string, lat: number, lng: number): Promise<void> {
     try {

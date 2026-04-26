@@ -2,6 +2,7 @@ import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { EntityManager } from 'typeorm';
 import * as admin from 'firebase-admin';
+import { RedisService } from '../redis/redis.service';
 
 @Injectable()
 export class NotificationsService implements OnModuleInit {
@@ -11,6 +12,7 @@ export class NotificationsService implements OnModuleInit {
   constructor(
     private readonly configService: ConfigService,
     private readonly entityManager: EntityManager,
+    private readonly redisService: RedisService,
   ) {}
 
   // ── Init ──────────────────────────────────────────────────
@@ -137,14 +139,26 @@ export class NotificationsService implements OnModuleInit {
     data?: Record<string, string>;
   }): Promise<boolean> {
     try {
-      const user = await this.entityManager.query(
-        `SELECT "fcmToken" FROM "users" WHERE "id" = $1 LIMIT 1`,
-        [userId],
-      );
+      // 1. Try Redis cache first
+      let fcmToken = await this.redisService.getCachedFcmToken(userId);
+
+      if (!fcmToken) {
+        // 2. Fallback to DB query
+        const user = await this.entityManager.query(
+          `SELECT "fcmToken" FROM "users" WHERE "id" = $1 LIMIT 1`,
+          [userId],
+        );
+        
+        if (user && user.length > 0 && user[0].fcmToken) {
+          fcmToken = user[0].fcmToken;
+          // 3. Update cache for next time
+          await this.redisService.cacheFcmToken(userId, fcmToken!);
+        }
+      }
       
-      if (user && user.length > 0 && user[0].fcmToken) {
+      if (fcmToken) {
         return this.sendToDevice({
-          fcmToken: user[0].fcmToken,
+          fcmToken,
           ...payload,
         });
       } else {

@@ -7,6 +7,7 @@ import { TalentProfile } from '../talent/talent-profile.entity';
 import { ProfessionalSkill } from '../talent/professional-skill.entity';
 import { User, UserApprovalStatus } from '../users/user.entity';
 import { Booking, BookingStatus } from '../bookings/booking.entity';
+import { RedisService } from '../redis/redis.service';
 
 // Worker data matching the Flutter Worker model's expectations exactly
 export interface WorkerDto {
@@ -39,9 +40,16 @@ export class WorkersService {
     @InjectRepository(Booking)
     private readonly bookingsRepository: Repository<Booking>,
     private readonly walletsService: WalletsService,
+    private readonly redisService: RedisService,
   ) {}
 
   private async getWorkerStatus(userId: string): Promise<'available' | 'busy'> {
+    // 1. Try Redis cache first
+    const cachedStatus = await this.redisService.get(`worker:status:${userId}`);
+    if (cachedStatus === 'busy') return 'busy';
+    if (cachedStatus === 'available') return 'available';
+
+    // 2. Fallback to DB query
     const activeBooking = await this.bookingsRepository.findOne({
       where: [
         { operator: { id: userId }, status: BookingStatus.ACTIVE },
@@ -49,7 +57,18 @@ export class WorkersService {
         { operator: { id: userId }, status: BookingStatus.CONFIRMED },
       ],
     });
-    return activeBooking ? 'busy' : 'available';
+    
+    const status = activeBooking ? 'busy' : 'available';
+    // 3. Update cache for next time
+    await this.redisService.set(`worker:status:${userId}`, status, 3600); // 1hr TTL
+    return status;
+  }
+
+  /**
+   * Specifically used to force-sync status in Redis when booking events happen
+   */
+  async setWorkerStatus(userId: string, status: 'available' | 'busy'): Promise<void> {
+    await this.redisService.set(`worker:status:${userId}`, status, 3600);
   }
 
   /**
@@ -214,6 +233,16 @@ export class WorkersService {
 
     await this.workersRepository.save(profile);
 
+    // SYNC WITH REDIS STATUS
+    if (!profile.isActive) {
+      // Remove from geo index and clear status if going offline
+      await this.redisService.del(`worker:location:${profile.user?.id || id}`);
+      await this.redisService.del(`worker:status:${profile.user?.id || id}`);
+    } else {
+      // Mark as available if going online
+      await this.setWorkerStatus(profile.user?.id || id, 'available');
+    }
+
     return {
       isActive: profile.isActive,
       message: profile.isActive 
@@ -285,6 +314,13 @@ export class WorkersService {
 
   // DEFECT-008: Nearby workers filtered by skill
   async getNearby(requesterId: string, skill: string, lat: number, lng: number): Promise<WorkerDto[]> {
+    // 1. Update requester's location in Redis while we're at it (optional)
+    // await this.redisService.updateWorkerGeoLocation(requesterId, lat, lng);
+
+    // 2. Fetch all active workers from DB who are approved and available
+    // NOTE: In a large scale app, we would use Redis GEORADIUS here.
+    // For now, we fetch from DB to ensure we respect metadata (isAvailableForWork, approvalStatus)
+    // but we use Redis for the 'status (busy/available)' lookup.
     const all = await this.workersRepository.find({
       where: { isActive: true },
       relations: ['user'],

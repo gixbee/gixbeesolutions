@@ -7,6 +7,8 @@ import { Booking, BookingStatus } from './booking.entity';
 import { WalletsService } from '../wallets/wallets.service';
 import { WorkerProfile } from '../workers/worker-profile.entity';
 import { NotificationsService } from '../notifications/notifications.service';
+import { RedisService } from '../redis/redis.service';
+import { WorkersService } from '../workers/workers.service';
 
 @Injectable()
 export class BookingsService {
@@ -18,6 +20,8 @@ export class BookingsService {
     @InjectQueue('bookings') private bookingsQueue: Queue,
     private walletsService: WalletsService,
     private notificationsService: NotificationsService,
+    private redisService: RedisService,
+    private workersService: WorkersService,
   ) {}
 
   /** Generate a random 4-digit OTP */
@@ -60,6 +64,11 @@ export class BookingsService {
       completionOtp,
     });
     const savedBooking = await this.bookingsRepository.save(booking);
+
+    // Save OTPs to Redis with a 24-hour TTL (usually jobs are same-day)
+    // Key format: otp:booking:{id}:arrival and otp:booking:{id}:completion
+    await this.redisService.saveOtp(`otp:booking:${savedBooking.id}:arrival`, arrivalOtp);
+    await this.redisService.saveOtp(`otp:booking:${savedBooking.id}:completion`, completionOtp);
 
     // Schedule 90-second request timeout
     await this.bookingsQueue.add(
@@ -105,6 +114,9 @@ export class BookingsService {
     // Transition: REQUESTED → ACCEPTED
     booking.status = BookingStatus.ACCEPTED;
     const savedBooking = await this.bookingsRepository.save(booking);
+
+    // Update Redis status to 'busy'
+    await this.workersService.setWorkerStatus(workerId, 'busy');
 
     // NOW schedule the 7-minute reminder and 10-minute GPS check
     await this.bookingsQueue.add(
@@ -194,6 +206,11 @@ export class BookingsService {
         });
       }
 
+      // Mark worker as available in Redis again
+      if (booking.operator?.id) {
+        await this.workersService.setWorkerStatus(booking.operator.id, 'available');
+      }
+
       return { cancelled: true, strikes: 3 };
     }
 
@@ -223,9 +240,14 @@ export class BookingsService {
     const booking = await this.bookingsRepository.findOne({ where: { id: bookingId } });
     if (!booking) throw new NotFoundException('Booking not found');
 
-    if (booking.arrivalOtp !== otp) {
-      throw new BadRequestException('Invalid arrival OTP');
+    const storedOtp = await this.redisService.getOtp(`otp:booking:${bookingId}:arrival`);
+    
+    if (!storedOtp || storedOtp !== otp) {
+      throw new BadRequestException('Invalid or expired arrival OTP');
     }
+
+    // Clean up used OTP
+    await this.redisService.deleteOtp(`otp:booking:${bookingId}:arrival`);
 
     // Transition: ACCEPTED → ACTIVE (worker has arrived, job begins)
     booking.status = BookingStatus.ACTIVE;
@@ -236,12 +258,17 @@ export class BookingsService {
   }
 
   async verifyCompletionOtp(bookingId: string, otp: string): Promise<{ message: string; status: string; billingHours: number }> {
-    const booking = await this.bookingsRepository.findOne({ where: { id: bookingId } });
+    const booking = await this.bookingsRepository.findOne({ where: { id: bookingId }, relations: ['operator'] });
     if (!booking) throw new NotFoundException('Booking not found');
 
-    if (booking.completionOtp !== otp) {
-      throw new BadRequestException('Invalid completion OTP');
+    const storedOtp = await this.redisService.getOtp(`otp:booking:${bookingId}:completion`);
+
+    if (!storedOtp || storedOtp !== otp) {
+      throw new BadRequestException('Invalid or expired completion OTP');
     }
+
+    // Clean up used OTP
+    await this.redisService.deleteOtp(`otp:booking:${bookingId}:completion`);
 
     if (booking.status !== BookingStatus.ACTIVE) {
       throw new BadRequestException('Job must be active to complete');
@@ -257,6 +284,11 @@ export class BookingsService {
     booking.completedAt = new Date();
     booking.billingHours = hoursWorked;
     await this.bookingsRepository.save(booking);
+
+    // Mark worker as available in Redis again
+    if (booking.operator?.id) {
+      await this.workersService.setWorkerStatus(booking.operator.id, 'available');
+    }
 
     // DEFECT-003 FIX: Credit Rs.12 first-job bonus and set isFirstJobDone
     if (booking.operator?.id) {
