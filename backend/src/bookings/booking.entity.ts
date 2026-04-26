@@ -101,6 +101,9 @@ export class Booking {
   @Column({ type: 'int', nullable: true })
   billingHours: number;
 
+  @Column({ type: 'int', nullable: true })
+  rating: number;
+
   @CreateDateColumn()
   createdAt: Date;
 

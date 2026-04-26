@@ -196,4 +196,14 @@ class BookingRepository {
       rethrow;
     }
   }
+
+  /// Submit a star rating for a completed job
+  Future<void> submitRating(String bookingId, int rating) async {
+    try {
+      await _dio.post('/bookings/$bookingId/rating', data: {'rating': rating});
+    } catch (e) {
+      debugPrint('SubmitRating failed: $e');
+      rethrow;
+    }
+  }
 }

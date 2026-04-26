@@ -350,6 +350,37 @@ export class BookingsService {
     return { message: 'Completion OTP refreshed', completionOtp: newOtp };
   }
 
+  async submitRating(bookingId: string, rating: number): Promise<{ message: string }> {
+    const booking = await this.bookingsRepository.findOne({
+      where: { id: bookingId },
+      relations: ['operator'],
+    });
+
+    if (!booking) throw new NotFoundException('Booking not found');
+    if (booking.status !== BookingStatus.COMPLETED) {
+      throw new BadRequestException('Can only rate completed jobs');
+    }
+
+    booking.rating = rating;
+    await this.bookingsRepository.save(booking);
+
+    // Update worker's average rating
+    if (booking.operator?.id) {
+      const workerProfile = await this.workerProfileRepo.findOne({
+        where: { user: { id: booking.operator.id } },
+      });
+
+      if (workerProfile) {
+        const currentTotal = workerProfile.rating * workerProfile.reviewCount;
+        workerProfile.reviewCount += 1;
+        workerProfile.rating = (currentTotal + rating) / workerProfile.reviewCount;
+        await this.workerProfileRepo.save(workerProfile);
+      }
+    }
+
+    return { message: 'Rating submitted successfully' };
+  }
+
   async findAllByUser(userId: string, role: 'customer' | 'operator'): Promise<Booking[]> {
     return this.bookingsRepository.find({
       where: role === 'customer' ? { customer: { id: userId } } : { operator: { id: userId } },
