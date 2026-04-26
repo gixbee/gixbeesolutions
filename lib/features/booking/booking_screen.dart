@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../shared/models/worker.dart';
 import '../../shared/widgets/glass_container.dart';
 import '../../repositories/booking_repository.dart';
+import 'waiting_for_worker_screen.dart';
 
 class BookingScreen extends ConsumerStatefulWidget {
   final Worker worker;
@@ -48,14 +49,24 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
         _selectedTime!.minute,
       );
 
-      await ref.read(bookingRepositoryProvider).createBooking(
+      final result = await ref.read(bookingRepositoryProvider).createBooking(
         workerId: widget.worker.id,
         scheduledAt: scheduledAt,
         amount: widget.worker.hourlyRate,
+        address: _addressController.text.trim(),
       );
 
       if (mounted) {
-        _showSuccessDialog();
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (_) => WaitingForWorkerScreen(
+              bookingId: result['id'],
+              worker: widget.worker,
+              skill: widget.worker.title,
+            ),
+          ),
+        );
       }
     } catch (e) {
       if (mounted) {
@@ -70,41 +81,7 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
     }
   }
 
-  void _showSuccessDialog() {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => AlertDialog(
-        backgroundColor: Theme.of(context).colorScheme.surface,
-        title: const Icon(Icons.check_circle, color: Colors.green, size: 64),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Text(
-              'Booking Confirmed!',
-              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Your service with ${widget.worker.name} has been scheduled.',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                  color: Theme.of(context).colorScheme.onSurfaceVariant),
-            ),
-          ],
-        ),
-        actions: [
-          Center(
-            child: ElevatedButton(
-              onPressed: () =>
-                  Navigator.of(context).popUntil((route) => route.isFirst),
-              child: const Text('Back to Home'),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+
 
   @override
   Widget build(BuildContext context) {
@@ -193,6 +170,9 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
   bool _canProceed() {
     if (_currentStep == 0) {
       return _selectedDate != null && _selectedTime != null;
+    }
+    if (_currentStep == 1) {
+      return _addressController.text.trim().isNotEmpty;
     }
     return true;
   }

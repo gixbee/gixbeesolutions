@@ -28,6 +28,7 @@ class ArrivalOtpScreen extends ConsumerStatefulWidget {
 class _ArrivalOtpScreenState extends ConsumerState<ArrivalOtpScreen>
     with SingleTickerProviderStateMixin {
   bool _isRevealed = false;
+  bool _isVerifying = false;
   late AnimationController _pulseController;
   final List<TextEditingController> _controllers = List.generate(4, (_) => TextEditingController());
   final List<FocusNode> _focusNodes = List.generate(4, (_) => FocusNode());

@@ -67,6 +67,11 @@ class _WaitingForWorkerScreenState extends ConsumerState<WaitingForWorkerScreen>
       } else {
         _countdownTimer?.cancel();
         _pollingTimer?.cancel();
+        if (mounted) {
+           _showError('No worker accepted your request in time. Please try again later.');
+           // Optional: call _cancelRequest() if you want to ensure backend cancellation
+           ref.read(bookingRepositoryProvider).cancelBooking(widget.bookingId).catchError((_) {});
+        }
       }
     });
   }

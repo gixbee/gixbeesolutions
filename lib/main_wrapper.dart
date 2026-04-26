@@ -38,7 +38,14 @@ class _MainWrapperState extends ConsumerState<MainWrapper> {
     super.initState();
     _initSocket();
     _initNotifications();
-    _startPendingBookingPoll();
+    _maybeStartWorkerPoll();
+  }
+
+  Future<void> _maybeStartWorkerPoll() async {
+    final user = ref.read(currentUserProvider).value;
+    if (user?.isWorker == true) {
+      _startPendingBookingPoll();
+    }
   }
 
   @override
@@ -116,12 +123,19 @@ class _MainWrapperState extends ConsumerState<MainWrapper> {
   /// Handles the data payload from any FCM message.
   void _handleMessage(RemoteMessage message) {
     final type = message.data['type'] as String?;
+    final bookingId = message.data['bookingId'] as String?;
 
     if (type == 'new_booking') {
+      if (bookingId != null && _shownBookingIds.contains(bookingId)) {
+        debugPrint('[FCM] Skipping duplicate popup for booking: $bookingId');
+        return;
+      }
+      if (bookingId != null) _shownBookingIds.add(bookingId);
+
       _showJobRequestPopup(
         message.notification?.title ?? AppStrings.fcmDefaultTitle,
         message.notification?.body ?? AppStrings.fcmDefaultBody,
-        message.data['bookingId'] as String?,
+        bookingId,
       );
     }
   }

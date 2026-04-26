@@ -59,16 +59,38 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
     super.dispose();
   }
 
-  void _handlePaymentSuccess(PaymentSuccessResponse response) {
-    // In a real app, you would send the payment ID to your backend to verify
-    // and then refresh the wallet data.
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Payment successful! Syncing balance...'),
-        backgroundColor: Colors.green,
-      ),
-    );
-    _fetchWalletData();
+  void _handlePaymentSuccess(PaymentSuccessResponse response) async {
+    try {
+      final repo = ref.read(walletRepositoryProvider);
+      
+      // 1. Notify backend to verify and credit
+      await repo.verifyPayment(
+        paymentId: response.paymentId!,
+        orderId: response.orderId,
+        signature: response.signature,
+      );
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Wallet credited successfully!'),
+          backgroundColor: Colors.green,
+        ),
+      );
+
+      // 2. Refresh local data
+      _fetchWalletData();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Payment verification failed: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 
   void _handlePaymentError(PaymentFailureResponse response) {

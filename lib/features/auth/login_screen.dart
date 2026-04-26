@@ -16,6 +16,7 @@ class LoginScreen extends ConsumerStatefulWidget {
 class _LoginScreenState extends ConsumerState<LoginScreen> {
   final TextEditingController _phoneController = TextEditingController();
   final FocusNode _focusNode = FocusNode();
+  bool _isSending = false;
 
   @override
   void dispose() {
@@ -100,13 +101,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
                   // Continue Button
                   ElevatedButton(
-                    onPressed: () async {
+                    onPressed: _isSending ? null : () async {
                       var phone = _phoneController.text.trim();
                       
                       // Firebase Auth REQUIRES the + prefix (e.g., +91...)
                       if (!phone.startsWith('+')) {
-                        // Default to India (+91) if prefix is missing for convenience, 
-                        // but tell the user to be sure.
                         phone = '${AppConfig.defaultCountryCode}$phone'; 
                         debugPrint('Prefixing phone with ${AppConfig.defaultCountryCode}: $phone');
                       }
@@ -119,6 +118,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       }
 
                         final messenger = ScaffoldMessenger.of(context);
+                        setState(() => _isSending = true);
                         try {
                           final devOtp = await ref.read(authRepositoryProvider).signInWithPhone(phone);
                           
@@ -139,14 +139,16 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                               SnackBar(content: Text('Auth Error: $e')),
                             );
                           }
+                        } finally {
+                          if (mounted) setState(() => _isSending = false);
                         }
                     },
-                    // Removed style: ElevatedButton.styleFrom(...) because M3 theme handles it globally
-                    child: const Text(
-                      'Send Code',
-                      style:
-                          TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                    ),
+                    child: _isSending
+                      ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
+                      : const Text(
+                        'Send Code',
+                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                      ),
                   ),
                   const SizedBox(height: 16),
                   Center(
@@ -168,7 +170,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           ),
         ],
       ),
-    ),
-  );
-}
+    );
+  }
 }

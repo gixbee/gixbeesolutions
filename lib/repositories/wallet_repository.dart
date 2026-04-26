@@ -34,6 +34,22 @@ class WalletRepository {
     }
   }
 
-  // Note: Top-up would usually involve a separate Razorpay payment success callback
-  // that notifies the backend to add funds. For now we focus on history retrieval.
+  // ── PAYMENT VERIFICATION ──
+
+  Future<void> verifyPayment({
+    required String paymentId,
+    String? orderId,
+    String? signature,
+  }) async {
+    try {
+      await _dio.post('/wallets/verify-payment', data: {
+        'paymentId': paymentId,
+        'orderId': orderId,
+        'signature': signature,
+      });
+    } catch (e) {
+      debugPrint('VerifyAndCredit failed: $e');
+      rethrow;
+    }
+  }
 }

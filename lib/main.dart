@@ -17,7 +17,13 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   // 2. Firebase (FCM push notifications only — no firebase_auth)
-  await Firebase.initializeApp();
+  try {
+    await Firebase.initializeApp();
+  } catch (e) {
+    debugPrint('[FIREBASE] Initialization failed (likely missing options): $e');
+    // Fallback: App continues but push might not work. 
+    // We already use OneSignal/WebSockets as alternatives.
+  }
 
   // 3. FCM notification service (init non-blocking to prevent ANR)
   NotificationService().initialize().then((_) {

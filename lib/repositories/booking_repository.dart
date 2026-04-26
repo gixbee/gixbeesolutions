@@ -13,17 +13,20 @@ class BookingRepository {
 
   BookingRepository(this._dio);
 
-  Future<void> createBooking({
+  Future<Map<String, dynamic>> createBooking({
     required String workerId,
     required DateTime scheduledAt,
     required double amount,
+    required String address,
   }) async {
     try {
-      await _dio.post('/bookings', data: {
+      final response = await _dio.post('/bookings', data: {
         'workerId': workerId,
         'scheduledAt': scheduledAt.toIso8601String(),
         'amount': amount,
+        'serviceLocation': address,
       });
+      return Map<String, dynamic>.from(response.data);
     } catch (e) {
       debugPrint('CreateBooking failed: $e');
       rethrow;
