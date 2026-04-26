@@ -9,6 +9,7 @@ import '../business/list_business_type_screen.dart';
 import '../../shared/widgets/dribbble_background.dart';
 import 'home_carousel.dart';
 import '../jobs/register_pro_screen.dart';
+import 'active_booking_card.dart';
 
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
@@ -28,6 +29,11 @@ class HomeScreen extends ConsumerWidget {
                 // GLASS Header
                 SliverToBoxAdapter(
                   child: _buildModernHeader(context, ref, isDark),
+                ),
+
+                // ACTIVE BOOKING STATUS
+                const SliverToBoxAdapter(
+                  child: ActiveBookingCard(),
                 ),
 
                 // AMAZON STYLE CATEGORIES
