@@ -6,6 +6,7 @@ import 'core/config/app_strings.dart';
 import 'features/home/home_screen.dart';
 import 'features/map/worker_directory_screen.dart';
 import 'features/profile/profile_screen.dart';
+import 'features/jobs/my_bookings_screen.dart';
 import 'repositories/auth_repository.dart';
 import 'repositories/booking_repository.dart';
 import 'services/auth_token_service.dart';
@@ -25,10 +26,11 @@ class _MainWrapperState extends ConsumerState<MainWrapper> {
   Timer? _pendingPollTimer;
   final Set<String> _shownBookingIds = {};
 
-  final List<Widget> _screens = const [
-    HomeScreen(),
-    WorkerDirectoryScreen(),
-    ProfileScreen(),
+  final List<Widget> _screens = [
+    const HomeScreen(),
+    const MyBookingsScreen(),
+    const WorkerDirectoryScreen(),
+    const ProfileScreen(),
   ];
 
   @override
@@ -129,9 +131,9 @@ class _MainWrapperState extends ConsumerState<MainWrapper> {
     final type = message.data['type'] as String?;
     debugPrint('[FCM] Notification tapped — type: $type');
 
-    if (type == 'new_booking') {
-      // Navigate to bookings or home
-      setState(() => _currentIndex = 0);
+    if (type == 'new_booking' || type == 'booking_accepted') {
+      // Navigate to Bookings tab
+      setState(() => _currentIndex = 1);
     }
   }
 
@@ -177,6 +179,8 @@ class _MainWrapperState extends ConsumerState<MainWrapper> {
                       content: Text('Job Accepted! Head to the location.'),
                     ),
                   );
+                  // Navigate to Bookings tab to see the accepted job
+                  setState(() => _currentIndex = 1);
                 }
               } catch (e) {
                 debugPrint('[Booking] Accept failed: $e');
@@ -218,6 +222,11 @@ class _MainWrapperState extends ConsumerState<MainWrapper> {
             icon: Icon(Icons.home_outlined),
             selectedIcon: Icon(Icons.home),
             label: 'Home',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.receipt_long_outlined),
+            selectedIcon: Icon(Icons.receipt_long),
+            label: 'Bookings',
           ),
           NavigationDestination(
             icon: Icon(Icons.location_searching),

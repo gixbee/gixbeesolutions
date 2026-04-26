@@ -74,11 +74,14 @@ class _MyBookingsScreenState extends ConsumerState<MyBookingsScreen> {
     );
   }
 
-  Widget _buildBookingList(BuildContext context, String status) {
-    // Filter bookings by status (case insensitive comparison)
+  Widget _buildBookingList(BuildContext context, String tab) {
     final filtered = _bookings.where((b) {
       final bStatus = (b['status'] ?? '').toString().toUpperCase();
-      return bStatus == status;
+      if (tab == 'ACTIVE') {
+        return bStatus == 'REQUESTED' || bStatus == 'ACCEPTED' || bStatus == 'IN_PROGRESS';
+      } else {
+        return bStatus == tab;
+      }
     }).toList();
 
     if (filtered.isEmpty) {
@@ -90,7 +93,7 @@ class _MyBookingsScreenState extends ConsumerState<MyBookingsScreen> {
                 size: 64, color: Colors.grey.shade600),
             const SizedBox(height: 16),
             Text(
-              'No ${status.toLowerCase()} bookings found',
+              'No ${tab.toLowerCase()} bookings found',
               style: const TextStyle(color: Colors.grey, fontSize: 16),
             ),
           ],
@@ -146,7 +149,7 @@ class _MyBookingsScreenState extends ConsumerState<MyBookingsScreen> {
                         ],
                       ),
                     ),
-                    _buildStatusBadge(status),
+                    _buildStatusBadge((booking['status'] ?? 'PENDING').toString().toUpperCase()),
                   ],
                 ),
                 const Divider(height: 24),
@@ -175,7 +178,7 @@ class _MyBookingsScreenState extends ConsumerState<MyBookingsScreen> {
                       crossAxisAlignment: CrossAxisAlignment.end,
                       children: [
                         Text(
-                          status == 'ACTIVE' ? 'Estimated' : 'Total Paid',
+                          tab == 'ACTIVE' ? 'Estimated' : 'Total Paid',
                           style: TextStyle(
                             fontSize: 10,
                             color:
@@ -216,7 +219,7 @@ class _MyBookingsScreenState extends ConsumerState<MyBookingsScreen> {
                         onPressed: () {
                            // Navigate based on status if needed
                         },
-                        child: Text(status == 'ACTIVE' ? 'Open Tracker' : 'Rebook'),
+                        child: Text(tab == 'ACTIVE' ? 'Open Tracker' : 'Rebook'),
                       ),
                     ),
                   ],
@@ -232,8 +235,14 @@ class _MyBookingsScreenState extends ConsumerState<MyBookingsScreen> {
   Widget _buildStatusBadge(String status) {
     Color color;
     switch (status.toUpperCase()) {
-      case 'ACTIVE':
+      case 'REQUESTED':
+        color = Colors.orange;
+        break;
+      case 'ACCEPTED':
         color = Colors.blue;
+        break;
+      case 'IN_PROGRESS':
+        color = Colors.indigo;
         break;
       case 'COMPLETED':
         color = Colors.green;
