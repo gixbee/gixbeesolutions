@@ -230,13 +230,20 @@ class _MyBookingsScreenState extends ConsumerState<MyBookingsScreen> {
                                final bStatus = (booking['status'] ?? '').toString().toUpperCase();
                                
                                if (bStatus == 'ACCEPTED' || bStatus == 'ARRIVED') {
+                                 final otp = booking['arrivalOtp']?.toString();
+                                 if (otp == null || otp.isEmpty) {
+                                   ScaffoldMessenger.of(context).showSnackBar(
+                                     const SnackBar(content: Text('Verification code is not generated yet. Please wait...')),
+                                   );
+                                   return;
+                                 }
                                  Navigator.push(
                                    context,
                                    MaterialPageRoute(
                                      builder: (_) => ArrivalOtpScreen(
                                        bookingId: booking['id'],
                                        workerName: booking['operator']?['name'] ?? 'Worker',
-                                       arrivalOtp: booking['arrivalOtp'] ?? '',
+                                       arrivalOtp: otp,
                                        isWorker: isOperator,
                                      ),
                                    ),
