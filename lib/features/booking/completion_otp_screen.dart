@@ -31,12 +31,35 @@ class _CompletionOtpScreenState extends ConsumerState<CompletionOtpScreen> {
   bool _isVerifying = false;
   String? _errorMsg;
   String? _fetchedOtp; // Used by customer to display
+  bool _isRefreshing = false;
 
   @override
   void initState() {
     super.initState();
     if (!widget.isWorker) {
       _fetchOtp();
+    }
+  }
+
+  Future<void> _refreshOtp() async {
+    if (_isRefreshing) return;
+    setState(() => _isRefreshing = true);
+    try {
+      final newOtp = await ref.read(bookingRepositoryProvider).refreshCompletionOtp(widget.bookingId);
+      if (mounted) {
+        setState(() => _fetchedOtp = newOtp);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('OTP Refreshed!')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to refresh OTP: $e')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isRefreshing = false);
     }
   }
 
@@ -316,24 +339,39 @@ class _CompletionOtpScreenState extends ConsumerState<CompletionOtpScreen> {
                     }),
                   )
                 else
-                   // Customer view: Show the code
-                   Container(
-                     padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 20),
-                     decoration: BoxDecoration(
-                       color: Colors.green.withValues(alpha: 0.1),
-                       borderRadius: BorderRadius.circular(20),
-                       border: Border.all(color: Colors.green.withValues(alpha: 0.3)),
-                     ),
-                     child: Text(
-                       _fetchedOtp ?? '• • • •',
-                       style: const TextStyle(
-                         fontSize: 40,
-                         fontWeight: FontWeight.bold,
-                         letterSpacing: 16,
-                         color: Colors.green,
-                       ),
-                     ),
-                   ),
+                  // Customer view: Show the code
+                  Column(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 20),
+                        decoration: BoxDecoration(
+                          color: Colors.green.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(color: Colors.green.withValues(alpha: 0.3)),
+                        ),
+                        child: Text(
+                          _fetchedOtp ?? '• • • •',
+                          style: const TextStyle(
+                            fontSize: 40,
+                            fontWeight: FontWeight.bold,
+                            letterSpacing: 16,
+                            color: Colors.green,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      TextButton.icon(
+                        onPressed: _isRefreshing ? null : _refreshOtp,
+                        icon: _isRefreshing
+                            ? const SizedBox(
+                                width: 16,
+                                height: 16,
+                                child: CircularProgressIndicator(strokeWidth: 2))
+                            : const Icon(Icons.refresh, size: 18),
+                        label: const Text('Refresh OTP'),
+                      ),
+                    ],
+                  ),
 
                 // Error message
                 if (_errorMsg != null) ...[

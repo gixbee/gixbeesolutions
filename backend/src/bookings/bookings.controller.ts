@@ -68,6 +68,11 @@ export class BookingsController {
     return this.bookingsService.verifyCompletionOtp(id, body.otp);
   }
 
+  @Patch(':id/refresh-completion-otp')
+  async refreshCompletionOtp(@Param('id') id: string) {
+    return this.bookingsService.refreshCompletionOtp(id);
+  }
+
   @Patch(':id/confirm')
   async confirmBooking(@Param('id') id: string) {
     return this.bookingsService.updateStatus(id, BookingStatus.ACCEPTED);

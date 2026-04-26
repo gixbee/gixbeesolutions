@@ -186,4 +186,14 @@ class BookingRepository {
       return null;
     }
   }
+  /// Refresh completion OTP
+  Future<String> refreshCompletionOtp(String bookingId) async {
+    try {
+      final response = await _dio.patch('/bookings/$bookingId/refresh-completion-otp');
+      return response.data['completionOtp'] as String;
+    } catch (e) {
+      debugPrint('RefreshCompletionOtp failed: $e');
+      rethrow;
+    }
+  }
 }

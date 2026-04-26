@@ -305,6 +305,31 @@ export class BookingsService {
     };
   }
 
+  async refreshCompletionOtp(bookingId: string): Promise<{ message: string; completionOtp: string }> {
+    const booking = await this.bookingsRepository.findOne({
+      where: { id: bookingId },
+      relations: ['customer'],
+    });
+    if (!booking) throw new NotFoundException('Booking not found');
+
+    const newOtp = this.generateOtp();
+    booking.completionOtp = newOtp;
+    await this.bookingsRepository.save(booking);
+
+    // Also update Redis for consistency (though we now verify against DB primarily)
+    await this.redisService.saveOtp(`otp:booking:${bookingId}:completion`, newOtp);
+
+    // Notify customer
+    if (booking.customer?.id) {
+      await this.notificationsService.sendToUser(booking.customer.id, {
+        title: 'New Completion OTP',
+        body: `Your new completion OTP is: ${newOtp}`,
+      });
+    }
+
+    return { message: 'Completion OTP refreshed', completionOtp: newOtp };
+  }
+
   async findAllByUser(userId: string, role: 'customer' | 'operator'): Promise<Booking[]> {
     return this.bookingsRepository.find({
       where: role === 'customer' ? { customer: { id: userId } } : { operator: { id: userId } },
