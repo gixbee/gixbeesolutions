@@ -1,4 +1,4 @@
-import { Controller, Post, Get, Patch, Param, Body, UseGuards, Req, NotFoundException } from '@nestjs/common';
+import { Controller, Post, Get, Patch, Param, Body, Query, UseGuards, Req, NotFoundException } from '@nestjs/common';
 import { BookingsService } from './bookings.service';
 import { BookingStatus, BookingType } from './booking.entity';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
@@ -39,9 +39,16 @@ export class BookingsController {
   }
 
   @Get('my')
-  async getMyBookings(@Req() req) {
-    const customerBookings = await this.bookingsService.findAllByUser(req.user.userId, 'customer');
-    const operatorBookings = await this.bookingsService.findAllByUser(req.user.userId, 'operator');
+  async getMyBookings(
+    @Req() req,
+    @Query('status') status?: string,
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+  ) {
+    const pageNum = parseInt(page) || 1;
+    const limitNum = parseInt(limit) || 50;
+    const customerBookings = await this.bookingsService.findAllByUser(req.user.userId, 'customer', status, pageNum, limitNum);
+    const operatorBookings = await this.bookingsService.findAllByUser(req.user.userId, 'operator', status, pageNum, limitNum);
     return [...customerBookings, ...operatorBookings];
   }
 

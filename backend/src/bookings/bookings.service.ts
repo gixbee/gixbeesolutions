@@ -381,11 +381,23 @@ export class BookingsService {
     return { message: 'Rating submitted successfully' };
   }
 
-  async findAllByUser(userId: string, role: 'customer' | 'operator'): Promise<Booking[]> {
+  async findAllByUser(userId: string, role: 'customer' | 'operator', status?: string, page = 1, limit = 50): Promise<Booking[]> {
+    const where: any = role === 'customer' ? { customer: { id: userId } } : { operator: { id: userId } };
+    
+    // Optional status filter (supports comma-separated statuses like "COMPLETED" or "CANCELLED,REJECTED")
+    if (status) {
+      const statuses = status.split(',').map(s => s.trim().toUpperCase());
+      if (statuses.length === 1) {
+        where.status = statuses[0] as BookingStatus;
+      }
+    }
+
     return this.bookingsRepository.find({
-      where: role === 'customer' ? { customer: { id: userId } } : { operator: { id: userId } },
+      where,
       relations: ['customer', 'operator'],
       order: { scheduledAt: 'DESC' },
+      skip: (page - 1) * limit,
+      take: limit,
     });
   }
 

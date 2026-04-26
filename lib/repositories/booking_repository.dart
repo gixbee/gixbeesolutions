@@ -42,9 +42,14 @@ class BookingRepository {
     }
   }
 
-  Future<List<dynamic>> getMyBookings() async {
+  Future<List<dynamic>> getMyBookings({String? status, int page = 1, int limit = 50}) async {
     try {
-      final response = await _dio.get('/bookings/my');
+      final queryParams = <String, dynamic>{
+        'page': page.toString(),
+        'limit': limit.toString(),
+      };
+      if (status != null) queryParams['status'] = status;
+      final response = await _dio.get('/bookings/my', queryParameters: queryParams);
       return response.data as List<dynamic>;
     } catch (e) {
       debugPrint('GetMyBookings failed: $e');
