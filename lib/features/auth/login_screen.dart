@@ -111,6 +111,17 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                     .read(authRepositoryProvider)
                                     .signInWithPhone(phone);
                                 if (!context.mounted) return;
+                                
+                                if (devOtp != null) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text('TEST MODE: Your OTP is $devOtp'),
+                                      duration: const Duration(seconds: 5),
+                                      backgroundColor: Colors.green.shade800,
+                                    ),
+                                  );
+                                }
+                                
                                 Navigator.push(
                                   context,
                                   MaterialPageRoute(

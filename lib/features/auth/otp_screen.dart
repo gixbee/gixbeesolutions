@@ -22,7 +22,7 @@ class _OtpScreenState extends ConsumerState<OtpScreen> {
   late final List<TextEditingController> _controllers =
       List.generate(AppConfig.otpLength, (index) {
     final controller = TextEditingController();
-    if (kDebugMode && widget.initialOtp != null && index < widget.initialOtp!.length) {
+    if (widget.initialOtp != null && index < widget.initialOtp!.length) {
       controller.text = widget.initialOtp![index];
     }
     return controller;

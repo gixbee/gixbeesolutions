@@ -27,7 +27,7 @@ class ArrivalOtpScreen extends ConsumerStatefulWidget {
 
 class _ArrivalOtpScreenState extends ConsumerState<ArrivalOtpScreen>
     with SingleTickerProviderStateMixin {
-  bool _isRevealed = false;
+  bool _isRevealed = true;
   bool _isVerifying = false;
   late AnimationController _pulseController;
   final List<TextEditingController> _controllers = List.generate(4, (_) => TextEditingController());
@@ -229,7 +229,7 @@ class _ArrivalOtpScreenState extends ConsumerState<ArrivalOtpScreen>
                       child: Column(
                         children: [
                           Text(
-                            _isRevealed ? 'ARRIVAL OTP' : 'TAP TO REVEAL',
+                            _isRevealed ? 'TAP TO HIDE' : 'TAP TO REVEAL',
                             style: TextStyle(
                               color: _isRevealed
                                   ? Colors.white.withValues(alpha: 0.7)

@@ -90,6 +90,13 @@ export class BookingsController {
     return result;
   }
 
+  @Get(':id')
+  async getBooking(@Param('id') id: string) {
+    const booking = await this.bookingsService.getBookingById(id);
+    if (!booking) throw new NotFoundException('Booking not found');
+    return booking;
+  }
+
   // Get booking status (for polling)
   @Get(':id/status')
   async getBookingStatus(@Param('id') id: string) {
