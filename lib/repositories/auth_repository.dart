@@ -1,5 +1,4 @@
 import 'package:dio/dio.dart';
-import 'package:supabase_flutter/supabase_flutter.dart' as sb;
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../core/config/app_config.dart';
@@ -53,59 +52,45 @@ final currentUserProvider = FutureProvider<User?>((ref) async {
 class AuthRepository {
   final Dio _dio;
   final AuthTokenService _tokenService;
-  final sb.SupabaseClient _supabase = sb.Supabase.instance.client;
 
   AuthRepository(this._dio, this._tokenService);
 
-  // ── Supabase Phone OTP Flow ─────────────────────────────────
+  // ── Custom API OTP Flow ──────────────────────────────────────
 
+  /// Requests an OTP from the Gixbee backend.
   /// Returns devOtp in DEBUG mode only — null in production.
   Future<String?> signInWithPhone(String phoneNumber) async {
     try {
       if (kDebugMode) debugPrint('[AUTH] Requesting OTP for $phoneNumber');
-      await _supabase.auth.signInWithOtp(phone: phoneNumber);
+      final response = await _dio.post(
+        '/auth/request-otp',
+        data: {'phone': phoneNumber},
+      );
 
-      // Dev-only: backend may return a devOtp for local testing
-      if (kDebugMode) {
-        try {
-          final res =
-              await _dio.post('/auth/dev-otp', data: {'phone': phoneNumber});
-          return res.data['devOtp'] as String?;
-        } catch (_) {}
-      }
-      return null;
+      // Dev/test: backend returns devOtp for local testing
+      return response.data['devOtp'] as String?;
     } catch (e) {
       debugPrint('[AUTH] signInWithPhone failed: $e');
       rethrow;
     }
   }
 
+  /// Verifies the OTP with the Gixbee backend and saves the returned JWT.
   Future<void> verifyOtp({
     required String phoneNumber,
     required String token,
   }) async {
     try {
-      final response = await _supabase.auth.verifyOTP(
-        phone: phoneNumber,
-        token: token,
-        type: sb.OtpType.sms,
+      final response = await _dio.post(
+        '/auth/verify-otp',
+        data: {'phone': phoneNumber, 'otp': token},
       );
 
-      if (response.session == null) {
-        throw Exception('OTP verification failed — no session returned');
+      final accessToken = response.data['accessToken'] as String?;
+      if (accessToken == null) {
+        throw Exception('OTP verification failed — no accessToken returned');
       }
-
-      // Exchange Supabase session for Gixbee JWT
-      final supabaseAccessToken = response.session!.accessToken;
-      final gixbeeResponse = await _dio.post(
-        '/auth/supabase-login',
-        data: {'idToken': supabaseAccessToken},
-      );
-
-      final gixbeeToken = gixbeeResponse.data['accessToken'] as String?;
-      if (gixbeeToken != null) {
-        await _tokenService.saveToken(gixbeeToken);
-      }
+      await _tokenService.saveToken(accessToken);
     } catch (e) {
       debugPrint('[AUTH] verifyOtp failed: $e');
       rethrow;
@@ -140,7 +125,7 @@ class AuthRepository {
   // ── Sign Out ───────────────────────────────────────────────────
 
   Future<void> signOut() async {
-    await _supabase.auth.signOut();
     await _tokenService.deleteToken();
   }
 }
+

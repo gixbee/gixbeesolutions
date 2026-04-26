@@ -57,7 +57,16 @@ export class AuthService {
     };
   }
 
-  async getProfile(userId: string): Promise<{ id: string; phone: string; name: string; email: string | null; avatar: string | null }> {
+  async getProfile(userId: string): Promise<{
+    id: string;
+    phone: string;
+    name: string;
+    email: string | null;
+    avatar: string | null;
+    role: string;
+    hasWorkerProfile: boolean;
+    isAvailableForWork: boolean;
+  }> {
     const user = await this.usersRepository.findOne({ where: { id: userId } });
     if (!user) throw new NotFoundException('User not found');
 
@@ -67,6 +76,9 @@ export class AuthService {
       name: user.name || `User ${user.phoneNumber.slice(-4)}`,
       email: null,
       avatar: user.profileImageUrl || null,
+      role: user.role,
+      hasWorkerProfile: user.hasWorkerProfile ?? false,
+      isAvailableForWork: user.isAvailableForWork ?? true,
     };
   }
 
