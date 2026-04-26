@@ -31,22 +31,51 @@ class ActiveBookingCard extends ConsumerStatefulWidget {
 
 class _ActiveBookingCardState extends ConsumerState<ActiveBookingCard> {
   Timer? _pollTimer;
-
-  @override
-  void initState() {
-    super.initState();
-    // Poll every 10 seconds for real-time booking status updates
-    _pollTimer = Timer.periodic(const Duration(seconds: 10), (_) {
-      if (mounted) {
-        ref.invalidate(myBookingsProvider);
-      }
-    });
-  }
+  String? _activeBookingId;
+  String? _liveStatus;
 
   @override
   void dispose() {
     _pollTimer?.cancel();
     super.dispose();
+  }
+
+  /// Lightweight poll: GET /bookings/:id/status (no DB join, single row lookup)
+  /// Only runs when there's an active booking visible on screen.
+  void _startStatusPolling(String bookingId) {
+    // Don't restart if already polling this booking
+    if (_activeBookingId == bookingId && _pollTimer != null) return;
+
+    _pollTimer?.cancel();
+    _activeBookingId = bookingId;
+
+    _pollTimer = Timer.periodic(const Duration(seconds: 10), (_) async {
+      if (!mounted) return;
+      try {
+        final statusData = await ref
+            .read(bookingRepositoryProvider)
+            .pollBookingStatus(bookingId);
+        final newStatus = statusData['status']?.toString().toUpperCase();
+        if (mounted && newStatus != null && newStatus != _liveStatus) {
+          setState(() => _liveStatus = newStatus);
+          // If status changed to a terminal state, stop polling and refresh list
+          if (['COMPLETED', 'CANCELLED', 'REJECTED'].contains(newStatus)) {
+            _pollTimer?.cancel();
+            _pollTimer = null;
+            ref.invalidate(myBookingsProvider);
+          }
+        }
+      } catch (_) {
+        // Silently ignore poll failures
+      }
+    });
+  }
+
+  void _stopPolling() {
+    _pollTimer?.cancel();
+    _pollTimer = null;
+    _activeBookingId = null;
+    _liveStatus = null;
   }
 
   @override
@@ -58,13 +87,25 @@ class _ActiveBookingCardState extends ConsumerState<ActiveBookingCard> {
 
     return activeAsync.when(
       data: (activeBooking) {
-        if (activeBooking == null) return const SizedBox.shrink();
+        if (activeBooking == null) {
+          _stopPolling();
+          return const SizedBox.shrink();
+        }
 
-        final bStatus = (activeBooking['status'] ?? '').toString().toUpperCase();
-        final isOperator = user.id == (activeBooking['operator']?['id'] ?? activeBooking['operator']);
+        final bookingId = activeBooking['id']?.toString() ?? '';
+        // Use live-polled status if available, otherwise from provider
+        final bStatus = _liveStatus ??
+            (activeBooking['status'] ?? '').toString().toUpperCase();
+        final isOperator = user.id ==
+            (activeBooking['operator']?['id'] ?? activeBooking['operator']);
         final scheduledAt = activeBooking['scheduledAt'] != null
             ? DateTime.parse(activeBooking['scheduledAt'])
             : DateTime.now();
+
+        // Start lightweight status-only polling for this booking
+        if (bookingId.isNotEmpty) {
+          _startStatusPolling(bookingId);
+        }
 
         return Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -81,7 +122,9 @@ class _ActiveBookingCardState extends ConsumerState<ActiveBookingCard> {
                 final otp = activeBooking['arrivalOtp']?.toString();
                 if (otp == null || otp.isEmpty) {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Verification code not generated yet.')),
+                    const SnackBar(
+                        content:
+                            Text('Verification code not generated yet.')),
                   );
                   return;
                 }
@@ -90,7 +133,8 @@ class _ActiveBookingCardState extends ConsumerState<ActiveBookingCard> {
                   MaterialPageRoute(
                     builder: (_) => ArrivalOtpScreen(
                       bookingId: activeBooking['id'],
-                      workerName: activeBooking['operator']?['name'] ?? 'Worker',
+                      workerName:
+                          activeBooking['operator']?['name'] ?? 'Worker',
                       arrivalOtp: otp,
                       isWorker: isOperator,
                     ),
@@ -102,7 +146,8 @@ class _ActiveBookingCardState extends ConsumerState<ActiveBookingCard> {
                   MaterialPageRoute(
                     builder: (_) => CompletionOtpScreen(
                       bookingId: activeBooking['id'],
-                      workerName: activeBooking['operator']?['name'] ?? 'Worker',
+                      workerName:
+                          activeBooking['operator']?['name'] ?? 'Worker',
                       isWorker: isOperator,
                     ),
                   ),
@@ -115,7 +160,8 @@ class _ActiveBookingCardState extends ConsumerState<ActiveBookingCard> {
                           BookingDetailScreen(booking: activeBooking)),
                 );
               }
-              // Refresh immediately after returning from any screen
+              // Full refresh after returning from a sub-screen
+              _liveStatus = null;
               ref.invalidate(myBookingsProvider);
             },
             child: GlassContainer(
@@ -126,10 +172,7 @@ class _ActiveBookingCardState extends ConsumerState<ActiveBookingCard> {
                   Container(
                     padding: const EdgeInsets.all(10),
                     decoration: BoxDecoration(
-                      color: Theme.of(context)
-                          .colorScheme
-                          .primary
-                          .withValues(alpha: 0.1),
+                      color: _getStatusColor(bStatus).withValues(alpha: 0.1),
                       shape: BoxShape.circle,
                     ),
                     child: Icon(
@@ -151,8 +194,9 @@ class _ActiveBookingCardState extends ConsumerState<ActiveBookingCard> {
                           '${activeBooking['serviceName'] ?? activeBooking['skill'] ?? 'General Help'} • ${DateFormat('hh:mm a').format(scheduledAt)}',
                           style: TextStyle(
                             fontSize: 12,
-                            color:
-                                Theme.of(context).colorScheme.onSurfaceVariant,
+                            color: Theme.of(context)
+                                .colorScheme
+                                .onSurfaceVariant,
                           ),
                         ),
                       ],
@@ -165,7 +209,8 @@ class _ActiveBookingCardState extends ConsumerState<ActiveBookingCard> {
                         padding: const EdgeInsets.symmetric(
                             horizontal: 8, vertical: 4),
                         decoration: BoxDecoration(
-                          color: _getStatusColor(bStatus).withValues(alpha: 0.1),
+                          color:
+                              _getStatusColor(bStatus).withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: Text(
@@ -229,13 +274,20 @@ class _ActiveBookingCardState extends ConsumerState<ActiveBookingCard> {
 
   String _getStatusLabel(String status) {
     switch (status) {
-      case 'REQUESTED': return 'Waiting';
-      case 'PENDING': return 'Pending';
-      case 'ACCEPTED': return 'Accepted';
-      case 'ARRIVED': return 'Arrived';
-      case 'ACTIVE': return 'In Progress';
-      case 'IN_PROGRESS': return 'In Progress';
-      default: return status;
+      case 'REQUESTED':
+        return 'Waiting';
+      case 'PENDING':
+        return 'Pending';
+      case 'ACCEPTED':
+        return 'Accepted';
+      case 'ARRIVED':
+        return 'Arrived';
+      case 'ACTIVE':
+        return 'In Progress';
+      case 'IN_PROGRESS':
+        return 'In Progress';
+      default:
+        return status;
     }
   }
 }
