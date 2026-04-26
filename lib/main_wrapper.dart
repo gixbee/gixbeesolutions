@@ -7,6 +7,7 @@ import 'features/home/home_screen.dart';
 import 'features/map/worker_directory_screen.dart';
 import 'features/profile/profile_screen.dart';
 import 'features/jobs/my_bookings_screen.dart';
+import 'features/booking/incoming_job_screen.dart';
 import 'repositories/auth_repository.dart';
 import 'repositories/booking_repository.dart';
 import 'services/auth_token_service.dart';
@@ -24,6 +25,9 @@ class MainWrapper extends ConsumerStatefulWidget {
 class _MainWrapperState extends ConsumerState<MainWrapper> {
   int _currentIndex = 0;
   Timer? _pendingPollTimer;
+
+  /// Tracks booking IDs we've already shown a popup for — prevents duplicates
+  /// across FCM foreground + socket + HTTP poll firing simultaneously.
   final Set<String> _shownBookingIds = {};
 
   final List<Widget> _screens = [
@@ -41,204 +45,162 @@ class _MainWrapperState extends ConsumerState<MainWrapper> {
     _maybeStartWorkerPoll();
   }
 
-  Future<void> _maybeStartWorkerPoll() async {
-    final user = ref.read(currentUserProvider).value;
-    if (user?.isWorker == true) {
-      _startPendingBookingPoll();
-    }
-  }
-
   @override
   void dispose() {
     _pendingPollTimer?.cancel();
     super.dispose();
   }
 
-  // ── Pending Booking Poll (FCM fallback) ─────────────────
+  // ── Worker Poll (FCM + Socket fallback) ──────────────────────
+
+  Future<void> _maybeStartWorkerPoll() async {
+    // Use .future to wait for resolution — .value is null at initState
+    final user = await ref.read(currentUserProvider.future);
+    if (user?.isWorker == true) {
+      _startPendingBookingPoll();
+    }
+  }
 
   void _startPendingBookingPoll() {
-    _pendingPollTimer = Timer.periodic(const Duration(seconds: 5), (_) async {
+    _pendingPollTimer =
+        Timer.periodic(const Duration(seconds: 5), (_) async {
       try {
-        final pending = await ref.read(bookingRepositoryProvider).getPendingBookings();
+        final pending =
+            await ref.read(bookingRepositoryProvider).getPendingBookings();
         for (final booking in pending) {
           final id = booking['id'] as String?;
           if (id != null && !_shownBookingIds.contains(id)) {
             _shownBookingIds.add(id);
-            _showJobRequestPopup(
-              'New Job Request',
-              '${booking['customer']?['name'] ?? 'A customer'} needs ${booking['skill'] ?? 'your services'}',
-              id,
-            );
+            _showIncomingJobScreen(booking);
           }
         }
-      } catch (_) {}
+      } catch (_) {
+        // Polling failures are silent — FCM is the primary channel
+      }
     });
   }
 
-  // ── Socket ───────────────────────────────────────────────
+  // ── Socket ───────────────────────────────────────────────────
 
   Future<void> _initSocket() async {
     final token = await ref.read(authTokenServiceProvider).getToken();
-    if (token != null) {
-      final socketService = ref.read(socketServiceProvider);
-      socketService.connect(token);
+    if (token == null) return;
 
-      // Listen for real-time booking events from Socket.io
-      socketService.notifications.listen((data) {
-        final id = data['id'] as String?;
+    final socketService = ref.read(socketServiceProvider);
+    socketService.connect(token);
+
+    socketService.notifications.listen((data) {
+      final event = data['_event'] as String?;
+      final id = data['id'] as String?;
+
+      if (event == 'new_booking_request') {
         if (id != null && !_shownBookingIds.contains(id)) {
           _shownBookingIds.add(id);
-          _showJobRequestPopup(
-            'New Real-time Job',
-            'A customer needs ${data['skill'] ?? 'assistance'}!',
-            id,
-          );
+          _showIncomingJobScreen(data);
         }
-      });
-    }
+      } else if (event == 'booking_accepted') {
+        if (mounted) setState(() => _currentIndex = 1);
+      }
+    });
   }
 
-  // ── FCM Notifications ────────────────────────────────────
+  // ── FCM Notifications ─────────────────────────────────────────
 
   Future<void> _initNotifications() async {
     final notifService = ref.read(notificationServiceProvider);
 
-    // Token registration on startup
-    notifService.getDeviceToken().then((token) async {
-      if (token != null) {
-        debugPrint('[FCM] Registering token on startup');
-        await ref.read(authRepositoryProvider).registerFcmToken(token);
+    // Register FCM token with 3-attempt retry
+    _registerFcmTokenWithRetry(notifService);
+
+    // Token refresh — re-register when FCM rotates the token
+    notifService.onTokenRefresh((newToken) async {
+      try {
+        await ref.read(authRepositoryProvider).registerFcmToken(newToken);
+        debugPrint('[FCM] Token refreshed and re-registered');
+      } catch (e) {
+        debugPrint('[FCM] Token refresh registration failed: $e');
       }
     });
 
-    // Token refresh — re-register with backend when FCM rotates the token
-    notifService.onTokenRefresh((newToken) async {
-      debugPrint('[FCM] Token refreshed — re-registering');
-      await ref.read(authRepositoryProvider).registerFcmToken(newToken);
-    });
-
-    // Foreground — app is open, show in-app dialog for booking events
+    // Foreground — app is open
     notifService.addForegroundListener((RemoteMessage message) {
-      _handleMessage(message);
+      _handleFcmMessage(message);
     });
 
-    // Background tap — user tapped notification while app was backgrounded
+    // Background tap — user tapped notification
     notifService.addClickListener((RemoteMessage message) {
       _handleNotificationTap(message);
     });
 
-    // Killed state tap — app was closed, user tapped notification to open it
+    // Killed state — app launched from notification tap
     final initialMessage = await notifService.getInitialMessage();
     if (initialMessage != null) {
       _handleNotificationTap(initialMessage);
     }
   }
 
-  /// Handles the data payload from any FCM message.
-  void _handleMessage(RemoteMessage message) {
+  Future<void> _registerFcmTokenWithRetry(
+      NotificationService notifService) async {
+    for (int attempt = 1; attempt <= 3; attempt++) {
+      try {
+        final token = await notifService.getDeviceToken();
+        if (token == null) return;
+        await ref.read(authRepositoryProvider).registerFcmToken(token);
+        debugPrint('[FCM] Token registered on attempt $attempt');
+        return;
+      } catch (e) {
+        debugPrint('[FCM] Token registration attempt $attempt failed: $e');
+        if (attempt < 3) {
+          await Future.delayed(Duration(seconds: attempt * 2));
+        }
+      }
+    }
+    debugPrint('[FCM] Token registration failed after 3 attempts');
+  }
+
+  void _handleFcmMessage(RemoteMessage message) {
     final type = message.data['type'] as String?;
     final bookingId = message.data['bookingId'] as String?;
 
     if (type == 'new_booking') {
+      // Dedup: skip if already shown via socket or polling
       if (bookingId != null && _shownBookingIds.contains(bookingId)) {
-        debugPrint('[FCM] Skipping duplicate popup for booking: $bookingId');
+        debugPrint('[FCM] Skipping duplicate for booking: $bookingId');
         return;
       }
       if (bookingId != null) _shownBookingIds.add(bookingId);
 
-      _showJobRequestPopup(
-        message.notification?.title ?? AppStrings.fcmDefaultTitle,
-        message.notification?.body ?? AppStrings.fcmDefaultBody,
-        bookingId,
-      );
+      _showIncomingJobScreen({
+        'id': bookingId,
+        'skill': message.data['skill'] ?? 'General Help',
+        'customer_name': message.notification?.title ?? AppStrings.fcmDefaultTitle,
+        'serviceLocation': message.data['serviceLocation'] ?? '',
+        'amount': double.tryParse(message.data['amount'] ?? '0') ?? 0.0,
+      });
     }
   }
 
-  /// Handles navigation when user taps a notification.
   void _handleNotificationTap(RemoteMessage message) {
     final type = message.data['type'] as String?;
-    debugPrint('[FCM] Notification tapped — type: $type');
-
     if (type == 'new_booking' || type == 'booking_accepted') {
-      // Navigate to Bookings tab
-      setState(() => _currentIndex = 1);
+      if (mounted) setState(() => _currentIndex = 1);
     }
   }
 
-  // ── Job Request Popup ────────────────────────────────────
+  // ── Incoming Job Screen (full-screen, replaces dialog) ────────
 
-  void _showJobRequestPopup(String title, String body, String? bookingId) {
+  void _showIncomingJobScreen(Map<String, dynamic> bookingData) {
     if (!mounted) return;
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: Theme.of(context).colorScheme.surface,
-        title: Text(
-          title,
-          style: const TextStyle(
-            fontWeight: FontWeight.bold,
-            color: Colors.white,
-          ),
-        ),
-        content: Text(
-          body,
-          style: const TextStyle(color: Colors.white70),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () async {
-              Navigator.pop(ctx);
-              if (bookingId != null) {
-                try {
-                  await ref
-                      .read(bookingRepositoryProvider)
-                      .updateBookingStatus(bookingId, 'REJECTED');
-                } catch (_) {}
-              }
-            },
-            child: const Text('Decline', style: TextStyle(color: Colors.grey)),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Theme.of(context).colorScheme.primary,
-            ),
-            onPressed: () async {
-              Navigator.pop(ctx);
-              if (bookingId == null) return;
-              try {
-                await ref
-                    .read(bookingRepositoryProvider)
-                    .acceptBooking(bookingId);
-                if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Job Accepted! Head to the location.'),
-                    ),
-                  );
-                  // Navigate to Bookings tab to see the accepted job
-                  setState(() => _currentIndex = 1);
-                }
-              } catch (e) {
-                debugPrint('[Booking] Accept failed: $e');
-                if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Failed to accept: $e')),
-                  );
-                }
-              }
-            },
-            child: const Text(
-              'Accept Job',
-              style: TextStyle(color: Colors.white),
-            ),
-          ),
-        ],
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => IncomingJobScreen(bookingData: bookingData),
+        fullscreenDialog: true,
       ),
     );
   }
 
-  // ── Build ────────────────────────────────────────────────
+  // ── Build ─────────────────────────────────────────────────────
 
   @override
   Widget build(BuildContext context) {

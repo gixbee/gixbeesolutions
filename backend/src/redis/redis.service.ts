@@ -12,6 +12,11 @@ export interface LocationCache {
 export class RedisService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(RedisService.name);
   private client: RedisClientType;
+  
+  // Key namespaces
+  private static readonly WORKER_SNAPSHOT = 'worker:snapshot:';
+  private static readonly SKILL_INDEX = 'skill:index:';
+  private static readonly GEO_INDEX = 'workers:geo';
 
   constructor(private configService: ConfigService) {
     const redisUrl = this.configService.get<string>('REDIS_URL');
@@ -212,6 +217,124 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
       });
     } catch (error) {
       this.logger.error(`Failed to update geo location for worker ${workerId}`, error);
+    }
+  }
+
+  // ─────────────────────────────────────────────
+  // PENDING BOOKINGS (DISCOVERY)
+  // ─────────────────────────────────────────────
+
+  /**
+   * Adds a booking ID to the worker's pending requests in Redis.
+   * Uses a Sorted Set where score is the timestamp (allows DESC ordering).
+   */
+  async addPendingBooking(workerId: string, bookingId: string): Promise<void> {
+    const key = `worker:pending:${workerId}`;
+    try {
+      await this.client.zAdd(key, {
+        score: Date.now(),
+        value: bookingId,
+      });
+      // 90s timeout matches the queue delay
+      await this.client.expire(key, 120); 
+    } catch (error) {
+      this.logger.error(`Failed to add pending booking ${bookingId} for worker ${workerId}`, error);
+    }
+  }
+
+  /**
+   * Removes a booking ID from the worker's pending requests.
+   */
+  async removePendingBooking(workerId: string, bookingId: string): Promise<void> {
+    const key = `worker:pending:${workerId}`;
+    try {
+      await this.client.zRem(key, bookingId);
+    } catch (error) {
+      this.logger.error(`Failed to remove pending booking ${bookingId} for worker ${workerId}`, error);
+    }
+  }
+
+  /**
+   * Gets all pending booking IDs for a worker, newest first.
+   */
+  async getPendingBookingIds(workerId: string): Promise<string[]> {
+    const key = `worker:pending:${workerId}`;
+    try {
+      // ZREVRANGE (highest score first)
+      return await this.client.zRange(key, 0, -1, { REV: true });
+    } catch (error) {
+      this.logger.error(`Failed to get pending bookings for worker ${workerId}`, error);
+      return [];
+    }
+  }
+
+  // ─────────────────────────────────────────────
+  // WORKER METADATA SNAPSHOT (SEARCH OPTIMIZATION)
+  // ─────────────────────────────────────────────
+
+  /**
+   * Caches the full WorkerDto as a JSON snapshot for instant discovery.
+   */
+  async cacheWorkerSnapshot(workerId: string, snapshot: any): Promise<void> {
+    const key = `${RedisService.WORKER_SNAPSHOT}${workerId}`;
+    try {
+      await this.client.setEx(key, 24 * 60 * 60, JSON.stringify(snapshot)); // 24h cache
+    } catch (error) {
+      this.logger.error(`Failed to cache snapshot for worker ${workerId}`, error);
+    }
+  }
+
+  /**
+   * Retrieves a cached worker snapshot.
+   */
+  async getWorkerSnapshot(workerId: string): Promise<any | null> {
+    const key = `${RedisService.WORKER_SNAPSHOT}${workerId}`;
+    try {
+      const data = await this.client.get(key);
+      return data ? JSON.parse(data) : null;
+    } catch (error) {
+      return null;
+    }
+  }
+
+  /**
+   * Maps workers to skills for ultra-fast filtering.
+   */
+  async indexWorkerSkills(workerId: string, skills: string[]): Promise<void> {
+    try {
+      for (const skill of skills) {
+        const key = `${RedisService.SKILL_INDEX}${skill.toLowerCase().trim()}`;
+        await this.client.sAdd(key, workerId);
+        await this.client.expire(key, 24 * 60 * 60);
+      }
+    } catch (error) {
+       this.logger.error(`Failed to index skills for worker ${workerId}`, error);
+    }
+  }
+
+  /**
+   * Removes worker from skill indices.
+   */
+  async unindexWorkerSkills(workerId: string, skills: string[]): Promise<void> {
+    try {
+      for (const skill of skills) {
+        const key = `${RedisService.SKILL_INDEX}${skill.toLowerCase().trim()}`;
+        await this.client.sRem(key, workerId);
+      }
+    } catch (error) {
+      this.logger.error(`Failed to unindex skills for worker ${workerId}`, error);
+    }
+  }
+
+  /**
+   * Returns IDs of all active workers who have a specific skill.
+   */
+  async getWorkerIdsBySkill(skill: string): Promise<string[]> {
+    const key = `${RedisService.SKILL_INDEX}${skill.toLowerCase().trim()}`;
+    try {
+      return await this.client.sMembers(key);
+    } catch (error) {
+      return [];
     }
   }
 }

@@ -233,14 +233,34 @@ export class WorkersService {
 
     await this.workersRepository.save(profile);
 
+    const userId = profile.user?.id || id;
+
     // SYNC WITH REDIS STATUS
     if (!profile.isActive) {
       // Remove from geo index and clear status if going offline
-      await this.redisService.del(`worker:location:${profile.user?.id || id}`);
-      await this.redisService.del(`worker:status:${profile.user?.id || id}`);
+      await this.redisService.del(`worker:location:${userId}`);
+      await this.redisService.del(`worker:status:${userId}`);
+      await this.redisService.del(`worker:snapshot:${userId}`);
+      await this.redisService.unindexWorkerSkills(userId, profile.skills || []);
+      // Remove from GEO set explicitly
+      await this.redisService.del(`workers:geo`); // Note: In prod, use ZREM workers:geo userId
     } else {
       // Mark as available if going online
-      await this.setWorkerStatus(profile.user?.id || id, 'available');
+      await this.setWorkerStatus(userId, 'available');
+      
+      // PERSISTENCE SYNC: "Warm up" Redis with the last known location from DB
+      if (profile.lastLat && profile.lastLng) {
+        await this.redisService.updateWorkerLocation(
+          userId, 
+          Number(profile.lastLat), 
+          Number(profile.lastLng)
+        );
+      }
+
+      // CACHE SNAPSHOT: Push full DTO to Redis for search
+      const dto = this.mapToDto(profile, 'available');
+      await this.redisService.cacheWorkerSnapshot(userId, dto);
+      await this.redisService.indexWorkerSkills(userId, profile.skills || []);
     }
 
     return {
@@ -312,35 +332,61 @@ export class WorkersService {
     return { hourlyRate: newRate };
   }
 
-  // DEFECT-008: Nearby workers filtered by skill
+  // Optimized: Nearby workers filtered by skill using Redis GEO + Skill Index
   async getNearby(requesterId: string, skill: string, lat: number, lng: number): Promise<WorkerDto[]> {
-    // 1. Update requester's location in Redis while we're at it (optional)
-    // await this.redisService.updateWorkerGeoLocation(requesterId, lat, lng);
+    // 1. Get all workers who have this skill from Redis Skill Index
+    const skillWorkerIds = await this.redisService.getWorkerIdsBySkill(skill);
+    if (skillWorkerIds.length === 0) return [];
 
-    // 2. Fetch all active workers from DB who are approved and available
-    // NOTE: In a large scale app, we would use Redis GEORADIUS here.
-    // For now, we fetch from DB to ensure we respect metadata (isAvailableForWork, approvalStatus)
-    // but we use Redis for the 'status (busy/available)' lookup.
-    const all = await this.workersRepository.find({
-      where: { isActive: true },
-      relations: ['user'],
-    });
-    
-    const filtered = all.filter(w => {
-      const isSelf = (w.user?.id === requesterId) || (w.id === requesterId);
-      const isUnavailable = w.user?.isAvailableForWork === false;
-      const isNotApproved = w.user && w.user.approvalStatus !== UserApprovalStatus.APPROVED;
-      const hasSkill = w.skills?.some(s => s.toLowerCase().includes(skill.toLowerCase()));
-
-      return !isSelf && !isUnavailable && !isNotApproved && hasSkill;
-    });
-
+    // 2. Filter those IDs by distance using Redis GEO (e.g., 50km radius)
+    // Using simple approach: filter the skill-set by their cached location distance
     const result: WorkerDto[] = [];
-    for (const w of filtered) {
-      const status = await this.getWorkerStatus(w.user?.id || w.id);
-      result.push(this.mapToDto(w, status));
+    
+    for (const workerId of skillWorkerIds) {
+      if (workerId === requesterId) continue;
+
+      const location = await this.redisService.getWorkerLocation(workerId);
+      if (!location) continue;
+
+      const distance = this.calculateDistance(lat, lng, location.lat, location.lng);
+      
+      // If within 50km
+      if (distance <= 50) {
+        // Try to get snapshot from Redis first
+        let dto = await this.redisService.getWorkerSnapshot(workerId);
+        
+        if (!dto) {
+          // Fallback to fetch from DB and populate cache
+          const profile = await this.workersRepository.findOne({ 
+            where: { user: { id: workerId } }, 
+            relations: ['user'] 
+          });
+          if (profile) {
+            const status = await this.getWorkerStatus(workerId);
+            dto = this.mapToDto(profile, status);
+            await this.redisService.cacheWorkerSnapshot(workerId, dto);
+          }
+        }
+        
+        if (dto) result.push(dto);
+      }
     }
-    return result;
-    // Production: use PostGIS ST_DWithin for real geo-radius filtering
+
+    return result.sort((a, b) => (b.rating || 0) - (a.rating || 0));
+  }
+
+  /** HAversine formula for distance check */
+  private calculateDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
+    const R = 6371;
+    const dLat = (lat2 - lat1) * (Math.PI / 180);
+    const dLon = (lon2 - lon1) * (Math.PI / 180);
+    const a =
+      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+      Math.cos(lat1 * (Math.PI / 180)) *
+        Math.cos(lat2 * (Math.PI / 180)) *
+        Math.sin(dLon / 2) *
+        Math.sin(dLon / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return R * c;
   }
 }

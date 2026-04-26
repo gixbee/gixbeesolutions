@@ -77,6 +77,12 @@ export class WorkerProfile {
   @Column('simple-array', { nullable: true })
   availabilityTags: string[];
 
+  @Column({ type: 'decimal', precision: 10, scale: 7, nullable: true })
+  lastLat: number;
+
+  @Column({ type: 'decimal', precision: 10, scale: 7, nullable: true })
+  lastLng: number;
+
   @CreateDateColumn()
   createdAt: Date;
 

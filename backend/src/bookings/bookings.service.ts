@@ -77,6 +77,11 @@ export class BookingsService {
       { delay: 90 * 1000 },
     );
 
+    // PERSISTENCE OPTIMIZATION: Add to Redis for high-frequency polling
+    if (bookingData.operator?.id) {
+       await this.redisService.addPendingBooking(bookingData.operator.id, savedBooking.id);
+    }
+
     // Dispatch push notification to the assigned worker via OneSignal
     if (bookingData.operator?.id) {
       await this.notificationsService.sendToUser(bookingData.operator.id, {
@@ -115,6 +120,9 @@ export class BookingsService {
     booking.status = BookingStatus.ACCEPTED;
     const savedBooking = await this.bookingsRepository.save(booking);
 
+    // REDIS SYNC: Remove from pending requests discovery
+    await this.redisService.removePendingBooking(workerId, bookingId);
+
     // Update Redis status to 'busy'
     await this.workersService.setWorkerStatus(workerId, 'busy');
 
@@ -139,11 +147,23 @@ export class BookingsService {
   }
 
   async updateStatus(id: string, status: BookingStatus): Promise<Booking | null> {
-    const booking = await this.bookingsRepository.findOne({ where: { id } });
+    const booking = await this.bookingsRepository.findOne({ 
+      where: { id },
+      relations: ['operator'] 
+    });
     if (!booking) return null;
 
     booking.status = status;
-    return this.bookingsRepository.save(booking);
+    const saved = await this.bookingsRepository.save(booking);
+
+    // Clean up Redis discovery if cancelled/rejected
+    if (status === BookingStatus.CANCELLED || status === BookingStatus.REJECTED) {
+      if (booking.operator?.id) {
+        await this.redisService.removePendingBooking(booking.operator.id, id);
+      }
+    }
+
+    return saved;
   }
 
   // ─── STEP 5: MONITORING & GPS STRIKES ─────────────────────
@@ -339,10 +359,32 @@ export class BookingsService {
   }
 
   async findPendingForWorker(workerId: string): Promise<Booking[]> {
-    return this.bookingsRepository.find({
+    // 1. Try Redis discovery first
+    const ids = await this.redisService.getPendingBookingIds(workerId);
+    
+    if (ids.length > 0) {
+      const bookings = await this.bookingsRepository.find({
+        where: ids.map(id => ({ id })),
+        relations: ['customer', 'operator']
+      });
+      // Ensure we preserve Redis order (DESC)
+      return bookings.sort((a, b) => ids.indexOf(a.id) - ids.indexOf(b.id));
+    }
+
+    // 2. Fallback to DB query if Redis is empty or cold
+    const dbBookings = await this.bookingsRepository.find({
       where: { operator: { id: workerId }, status: BookingStatus.REQUESTED },
       relations: ['customer', 'operator'],
       order: { createdAt: 'DESC' },
     });
+
+    // 3. Re-populate Redis if we found some in DB
+    if (dbBookings.length > 0) {
+      for (const b of dbBookings) {
+        await this.redisService.addPendingBooking(workerId, b.id);
+      }
+    }
+
+    return dbBookings;
   }
 }

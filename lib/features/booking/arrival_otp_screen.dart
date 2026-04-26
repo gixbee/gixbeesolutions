@@ -1,12 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../core/config/app_config.dart';
 import '../../repositories/booking_repository.dart';
 import 'completion_otp_screen.dart';
 
-/// Gate 1 of the live flow.
-/// The customer reads this OTP aloud; the worker types it in their app.
-/// Once verified, the booking status moves from ACCEPTED → ACTIVE.
 class ArrivalOtpScreen extends ConsumerStatefulWidget {
   final String bookingId;
   final String workerName;
@@ -27,16 +25,27 @@ class ArrivalOtpScreen extends ConsumerStatefulWidget {
 
 class _ArrivalOtpScreenState extends ConsumerState<ArrivalOtpScreen>
     with SingleTickerProviderStateMixin {
-  bool _isRevealed = true;
+  // ── Customer state ──────────────────────────────────────────
+  bool _isRevealed = false; // hidden by default for security
+
+  // ── Worker state ────────────────────────────────────────────
+  bool _hasMarkedArrived = false;
+  bool _isMarkingArrived = false;
   bool _isVerifying = false;
+
   late AnimationController _pulseController;
-  final List<TextEditingController> _controllers = List.generate(4, (_) => TextEditingController());
-  final List<FocusNode> _focusNodes = List.generate(4, (_) => FocusNode());
+  late List<TextEditingController> _controllers;
+  late List<FocusNode> _focusNodes;
   String? _errorMsg;
 
   @override
   void initState() {
     super.initState();
+    _controllers = List.generate(
+        AppConfig.bookingOtpLength, (_) => TextEditingController());
+    _focusNodes =
+        List.generate(AppConfig.bookingOtpLength, (_) => FocusNode());
+
     _pulseController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 1200),
@@ -46,14 +55,53 @@ class _ArrivalOtpScreenState extends ConsumerState<ArrivalOtpScreen>
   @override
   void dispose() {
     _pulseController.dispose();
+    for (final c in _controllers) {
+      c.dispose();
+    }
+    for (final f in _focusNodes) {
+      f.dispose();
+    }
     super.dispose();
   }
 
+  // ── Mark arrived — triggers backend to generate arrivalOtp ──
+
+  Future<void> _markArrived() async {
+    setState(() => _isMarkingArrived = true);
+    try {
+      await ref
+          .read(bookingRepositoryProvider)
+          .markArrived(widget.bookingId);
+      setState(() => _hasMarkedArrived = true);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+                'Arrival confirmed! Ask the customer for their OTP.'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to mark arrival: $e')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isMarkingArrived = false);
+    }
+  }
+
+  // ── Confirm arrival OTP (worker submits what customer told them) ──
+
   Future<void> _confirmArrival() async {
-    final otpToVerify = widget.isWorker ? _controllers.map((c) => c.text).join() : widget.arrivalOtp;
-    
-    if (widget.isWorker && otpToVerify.length != 4) {
-      setState(() => _errorMsg = 'Please enter all 4 digits');
+    final otpToVerify =
+        _controllers.map((c) => c.text).join();
+
+    if (otpToVerify.length != AppConfig.bookingOtpLength) {
+      setState(() =>
+          _errorMsg = 'Please enter all ${AppConfig.bookingOtpLength} digits');
       return;
     }
 
@@ -69,7 +117,6 @@ class _ArrivalOtpScreenState extends ConsumerState<ArrivalOtpScreen>
           );
 
       if (!mounted) return;
-
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(
@@ -83,6 +130,10 @@ class _ArrivalOtpScreenState extends ConsumerState<ArrivalOtpScreen>
     } catch (e) {
       if (mounted) {
         setState(() => _errorMsg = 'Invalid OTP. Please try again.');
+        for (final c in _controllers) {
+          c.clear();
+        }
+        _focusNodes[0].requestFocus();
       }
     } finally {
       if (mounted) setState(() => _isVerifying = false);
@@ -121,7 +172,8 @@ class _ArrivalOtpScreenState extends ConsumerState<ArrivalOtpScreen>
                     ),
                     const Spacer(),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 6),
                       decoration: BoxDecoration(
                         color: Colors.orange.withValues(alpha: 0.15),
                         borderRadius: BorderRadius.circular(20),
@@ -137,15 +189,18 @@ class _ArrivalOtpScreenState extends ConsumerState<ArrivalOtpScreen>
                               decoration: BoxDecoration(
                                 shape: BoxShape.circle,
                                 color: Colors.orange.withValues(
-                                  alpha: 0.5 + _pulseController.value * 0.5,
+                                  alpha: 0.5 +
+                                      _pulseController.value * 0.5,
                                 ),
                               ),
                             ),
                           ),
                           const SizedBox(width: 6),
-                          const Text(
-                            'Worker Arriving',
-                            style: TextStyle(
+                          Text(
+                            widget.isWorker
+                                ? 'At Location'
+                                : 'Worker Arriving',
+                            style: const TextStyle(
                               color: Colors.orange,
                               fontWeight: FontWeight.w600,
                               fontSize: 12,
@@ -155,13 +210,12 @@ class _ArrivalOtpScreenState extends ConsumerState<ArrivalOtpScreen>
                       ),
                     ),
                     const Spacer(),
-                    const SizedBox(width: 48), // balance the back button
+                    const SizedBox(width: 48),
                   ],
                 ),
 
                 const Spacer(flex: 2),
 
-                // Icon
                 Container(
                   padding: const EdgeInsets.all(24),
                   decoration: BoxDecoration(
@@ -176,18 +230,20 @@ class _ArrivalOtpScreenState extends ConsumerState<ArrivalOtpScreen>
                 ),
                 const SizedBox(height: 24),
 
-                // Title
                 Text(
                   'Arrival Verification',
-                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                        fontWeight: FontWeight.bold,
-                      ),
+                  style: Theme.of(context)
+                      .textTheme
+                      .headlineSmall
+                      ?.copyWith(fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  widget.isWorker 
-                    ? 'Ask the customer for the arrival OTP and enter it below to begin the job.'
-                    : '${widget.workerName} has reached your location.\nShare this OTP to confirm arrival.',
+                  widget.isWorker
+                      ? _hasMarkedArrived
+                          ? 'Ask the customer for the arrival OTP\nand enter it below to begin the job.'
+                          : 'Tap "I\'ve Arrived" when you reach\nthe service location.'
+                      : '${widget.workerName} will arrive shortly.\nShare the OTP below when they arrive.',
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     color: colorScheme.onSurfaceVariant,
@@ -197,14 +253,112 @@ class _ArrivalOtpScreenState extends ConsumerState<ArrivalOtpScreen>
 
                 const SizedBox(height: 32),
 
-                // OTP display OR Input based on role
-                if (!widget.isWorker)
+                // ── WORKER VIEW ─────────────────────────────
+                if (widget.isWorker) ...[
+                  if (!_hasMarkedArrived) ...[
+                    // Step 1: Mark arrived
+                    SizedBox(
+                      width: double.infinity,
+                      height: 56,
+                      child: ElevatedButton.icon(
+                        onPressed:
+                            _isMarkingArrived ? null : _markArrived,
+                        icon: _isMarkingArrived
+                            ? const SizedBox(
+                                width: 20,
+                                height: 20,
+                                child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: Colors.white),
+                              )
+                            : const Icon(Icons.location_on),
+                        label: Text(
+                          _isMarkingArrived
+                              ? 'Confirming...'
+                              : 'I\'ve Arrived at Location',
+                          style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16),
+                        ),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.orange,
+                          foregroundColor: Colors.white,
+                        ),
+                      ),
+                    ),
+                  ] else ...[
+                    // Step 2: Enter OTP
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: List.generate(
+                          AppConfig.bookingOtpLength, (i) {
+                        return Container(
+                          width: 60,
+                          height: 68,
+                          margin: const EdgeInsets.symmetric(
+                              horizontal: 6),
+                          child: TextField(
+                            controller: _controllers[i],
+                            focusNode: _focusNodes[i],
+                            textAlign: TextAlign.center,
+                            keyboardType: TextInputType.number,
+                            maxLength: 1,
+                            style: const TextStyle(
+                                fontSize: 28,
+                                fontWeight: FontWeight.bold),
+                            decoration: InputDecoration(
+                              counterText: '',
+                              filled: true,
+                              fillColor: _errorMsg != null
+                                  ? Colors.red.withValues(alpha: 0.05)
+                                  : colorScheme.surfaceContainerHighest,
+                              border: OutlineInputBorder(
+                                borderRadius:
+                                    BorderRadius.circular(14),
+                                borderSide: BorderSide(
+                                  color: _errorMsg != null
+                                      ? Colors.red
+                                      : colorScheme.outlineVariant,
+                                ),
+                              ),
+                            ),
+                            inputFormatters: [
+                              FilteringTextInputFormatter.digitsOnly
+                            ],
+                            onChanged: (value) {
+                              setState(() => _errorMsg = null);
+                              if (value.isNotEmpty &&
+                                  i < AppConfig.bookingOtpLength - 1) {
+                                _focusNodes[i + 1].requestFocus();
+                              } else if (value.isEmpty && i > 0) {
+                                // Backspace → move to previous field
+                                _focusNodes[i - 1].requestFocus();
+                              }
+                              // No auto-submit — worker taps the button
+                            },
+                          ),
+                        );
+                      }),
+                    ),
+                    if (_errorMsg != null) ...[
+                      const SizedBox(height: 12),
+                      Text(_errorMsg!,
+                          style: const TextStyle(
+                              color: Colors.red, fontSize: 13)),
+                    ],
+                  ],
+                ],
+
+                // ── CUSTOMER VIEW ───────────────────────────
+                if (!widget.isWorker) ...[
                   GestureDetector(
-                    onTap: () => setState(() => _isRevealed = !_isRevealed),
+                    onTap: () =>
+                        setState(() => _isRevealed = !_isRevealed),
                     child: AnimatedContainer(
                       duration: const Duration(milliseconds: 300),
                       curve: Curves.easeInOut,
-                      padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 20),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 32, vertical: 20),
                       decoration: BoxDecoration(
                         borderRadius: BorderRadius.circular(20),
                         color: _isRevealed
@@ -219,7 +373,8 @@ class _ArrivalOtpScreenState extends ConsumerState<ArrivalOtpScreen>
                         boxShadow: _isRevealed
                             ? [
                                 BoxShadow(
-                                  color: colorScheme.primary.withValues(alpha: 0.3),
+                                  color: colorScheme.primary
+                                      .withValues(alpha: 0.3),
                                   blurRadius: 20,
                                   offset: const Offset(0, 8),
                                 ),
@@ -241,9 +396,15 @@ class _ArrivalOtpScreenState extends ConsumerState<ArrivalOtpScreen>
                           ),
                           const SizedBox(height: 8),
                           Text(
-                            _isRevealed ? widget.arrivalOtp : '• • • •',
+                            _isRevealed
+                                ? (widget.arrivalOtp.isNotEmpty
+                                    ? widget.arrivalOtp
+                                    : '– – – –')
+                                : '• • • •',
                             style: TextStyle(
-                              color: _isRevealed ? Colors.white : colorScheme.onSurface,
+                              color: _isRevealed
+                                  ? Colors.white
+                                  : colorScheme.onSurface,
                               fontSize: 40,
                               fontWeight: FontWeight.bold,
                               letterSpacing: 16,
@@ -252,61 +413,35 @@ class _ArrivalOtpScreenState extends ConsumerState<ArrivalOtpScreen>
                         ],
                       ),
                     ),
-                  )
-                else
-                  // Worker Input Flow
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: List.generate(4, (i) {
-                      return Container(
-                        width: 60,
-                        height: 68,
-                        margin: const EdgeInsets.symmetric(horizontal: 6),
-                        child: TextField(
-                          controller: _controllers[i],
-                          focusNode: _focusNodes[i],
-                          textAlign: TextAlign.center,
-                          keyboardType: TextInputType.number,
-                          maxLength: 1,
-                          style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
-                          decoration: InputDecoration(
-                            counterText: '',
-                            filled: true,
-                            fillColor: colorScheme.surfaceContainerHighest,
-                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
-                          ),
-                          inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                          onChanged: (value) {
-                            if (value.isNotEmpty && i < 3) _focusNodes[i + 1].requestFocus();
-                            if (i == 3 && value.isNotEmpty && _controllers.every((c) => c.text.isNotEmpty)) {
-                              _confirmArrival();
-                            }
-                          },
-                        ),
-                      );
-                    }),
                   ),
-
-                if (_errorMsg != null) ...[
-                  const SizedBox(height: 12),
-                  Text(_errorMsg!, style: const TextStyle(color: Colors.red, fontSize: 13)),
+                  if (widget.arrivalOtp.isEmpty) ...[
+                    const SizedBox(height: 12),
+                    Text(
+                      'Waiting for worker to mark arrival...',
+                      style: TextStyle(
+                          color: colorScheme.onSurfaceVariant
+                              .withValues(alpha: 0.6),
+                          fontSize: 13),
+                    ),
+                  ],
                 ],
 
                 const SizedBox(height: 12),
                 Text(
-                  widget.isWorker 
-                    ? 'Verify entry only after reaching the site'
-                    : 'Only share this with the worker in person',
+                  widget.isWorker
+                      ? 'Verify entry only after reaching the site'
+                      : 'Only share this with the worker in person',
                   style: TextStyle(
-                    color: colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
+                    color:
+                        colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
                     fontSize: 12,
                   ),
                 ),
 
                 const Spacer(flex: 3),
 
-                // Confirm/Verify button
-                if (widget.isWorker)
+                // ── ACTION BUTTONS ──────────────────────────
+                if (widget.isWorker && _hasMarkedArrived)
                   SizedBox(
                     width: double.infinity,
                     height: 56,
@@ -316,18 +451,24 @@ class _ArrivalOtpScreenState extends ConsumerState<ArrivalOtpScreen>
                           ? const SizedBox(
                               width: 20,
                               height: 20,
-                              child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                              child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: Colors.white),
                             )
                           : const Icon(Icons.check_circle_outline),
                       label: Text(
                         _isVerifying ? 'Verifying...' : 'Start Job',
-                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                        style: const TextStyle(
+                            fontWeight: FontWeight.bold, fontSize: 16),
                       ),
                     ),
                   )
-                else
-                  // Customer is just waiting for the worker to enter it
-                  const Text('Waiting for worker to start the job...', style: TextStyle(fontStyle: FontStyle.italic, color: Colors.grey)),
+                else if (!widget.isWorker)
+                  const Text(
+                    'Waiting for worker to confirm arrival...',
+                    style: TextStyle(
+                        fontStyle: FontStyle.italic, color: Colors.grey),
+                  ),
 
                 const SizedBox(height: 32),
               ],
@@ -338,4 +479,3 @@ class _ArrivalOtpScreenState extends ConsumerState<ArrivalOtpScreen>
     );
   }
 }
-

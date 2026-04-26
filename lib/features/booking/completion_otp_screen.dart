@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../repositories/booking_repository.dart';
+import '../../core/config/app_config.dart';
 
 /// Gate 2 of the live flow.
 /// After the job is done, the customer shares the Completion OTP with the
@@ -25,17 +26,25 @@ class CompletionOtpScreen extends ConsumerStatefulWidget {
 }
 
 class _CompletionOtpScreenState extends ConsumerState<CompletionOtpScreen> {
-  final List<TextEditingController> _controllers =
-      List.generate(4, (_) => TextEditingController());
-  final List<FocusNode> _focusNodes = List.generate(4, (_) => FocusNode());
+  late List<TextEditingController> _controllers;
+  late List<FocusNode> _focusNodes;
   bool _isVerifying = false;
   String? _errorMsg;
   String? _fetchedOtp; // Used by customer to display
+  bool _isFetchingOtp = false; // Loading indicator for customer
+  bool _isMarkingComplete = false;
+  bool _hasMarkedComplete = false;
   bool _isRefreshing = false;
+  int? _selectedRating;
 
   @override
   void initState() {
     super.initState();
+    _controllers = List.generate(
+        AppConfig.bookingOtpLength, (_) => TextEditingController());
+    _focusNodes =
+        List.generate(AppConfig.bookingOtpLength, (_) => FocusNode());
+
     if (!widget.isWorker) {
       _fetchOtp();
     }
@@ -64,16 +73,40 @@ class _CompletionOtpScreenState extends ConsumerState<CompletionOtpScreen> {
   }
 
   Future<void> _fetchOtp() async {
-    // In production, we'd fetch the completionOtp field from the booking object.
-    // For now, since we move to Redis, we might need an endpoint or just rely 
-    // on the 'booking' object being fresh.
+    setState(() => _isFetchingOtp = true);
     try {
-       final b = await ref.read(bookingRepositoryProvider).getBookingById(widget.bookingId);
-       if (b != null && mounted) {
-         setState(() => _fetchedOtp = b['completionOtp']);
-       }
+      final b = await ref.read(bookingRepositoryProvider).getBookingById(widget.bookingId);
+      if (b != null && mounted) {
+        setState(() => _fetchedOtp = b['completionOtp']);
+      }
     } catch (e) {
-       debugPrint('Error fetching completion otp: $e');
+      debugPrint('Error fetching completion otp: $e');
+    } finally {
+      if (mounted) setState(() => _isFetchingOtp = false);
+    }
+  }
+
+  Future<void> _markComplete() async {
+    setState(() => _isMarkingComplete = true);
+    try {
+      await ref.read(bookingRepositoryProvider).markComplete(widget.bookingId);
+      setState(() => _hasMarkedComplete = true);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Job marked as complete! Ask customer for completion OTP.'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to mark complete: $e')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isMarkingComplete = false);
     }
   }
 
@@ -92,8 +125,9 @@ class _CompletionOtpScreenState extends ConsumerState<CompletionOtpScreen> {
 
   Future<void> _verifyCompletion() async {
     final otp = _enteredOtp;
-    if (otp.length != 4) {
-      setState(() => _errorMsg = 'Enter all 4 digits');
+    if (otp.length != AppConfig.bookingOtpLength) {
+      setState(() =>
+          _errorMsg = 'Enter all ${AppConfig.bookingOtpLength} digits');
       return;
     }
 
@@ -159,24 +193,35 @@ class _CompletionOtpScreenState extends ConsumerState<CompletionOtpScreen> {
             ),
             const SizedBox(height: 24),
             // Rating prompt row
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: List.generate(5, (i) {
-                return IconButton(
-                  icon: Icon(
-                    Icons.star_rounded,
-                    size: 32,
-                    color: i < 4 ? Colors.amber : Colors.grey.shade400,
-                  ),
-                  onPressed: () {
-                    // Update: Show feedback on rating
-                    Navigator.pop(ctx);
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('Thank you! You rated ${widget.workerName} ${i + 1} stars.')),
-                    );
-                  },
-                );
-              }),
+            StatefulBuilder(
+              builder: (context, setDialogState) => Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: List.generate(5, (i) {
+                  return IconButton(
+                    icon: Icon(
+                      Icons.star_rounded,
+                      size: 32,
+                      color: (_selectedRating != null && i <= _selectedRating!) 
+                          ? Colors.amber : Colors.grey.shade400,
+                    ),
+                    onPressed: () async {
+                      setDialogState(() => _selectedRating = i);
+                      try {
+                        await ref.read(bookingRepositoryProvider).submitRating(
+                          widget.bookingId, i + 1
+                        );
+                        if (mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text('Rating saved: ${i + 1} stars')),
+                          );
+                        }
+                      } catch (e) {
+                         debugPrint('Rating failed: $e');
+                      }
+                    },
+                  );
+                }),
+              ),
             ),
             const SizedBox(height: 16),
             SizedBox(
@@ -278,7 +323,9 @@ class _CompletionOtpScreenState extends ConsumerState<CompletionOtpScreen> {
                 const SizedBox(height: 8),
                 Text(
                   widget.isWorker
-                    ? '${widget.workerName} has finished the job.\nAsk for the completion OTP and enter it below.'
+                    ? _hasMarkedComplete
+                        ? 'Job finished! Ask for the completion OTP\nand enter it below to receive payment.'
+                        : 'Tap "I\'ve Finished" when the work is\nfully completed.'
                     : 'Job is complete!\nShare this OTP with ${widget.workerName} to finalize payment.',
                   textAlign: TextAlign.center,
                   style: TextStyle(
@@ -293,7 +340,7 @@ class _CompletionOtpScreenState extends ConsumerState<CompletionOtpScreen> {
                 if (widget.isWorker)
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
-                    children: List.generate(4, (i) {
+                    children: List.generate(AppConfig.bookingOtpLength, (i) {
                       return Container(
                         width: 60,
                         height: 68,
@@ -324,15 +371,18 @@ class _CompletionOtpScreenState extends ConsumerState<CompletionOtpScreen> {
                               ),
                             ),
                           ),
-                          inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                          inputFormatters: [
+                            FilteringTextInputFormatter.digitsOnly
+                          ],
                           onChanged: (value) {
                             setState(() => _errorMsg = null);
-                            if (value.isNotEmpty && i < 3) {
+                            if (value.isNotEmpty &&
+                                i < AppConfig.bookingOtpLength - 1) {
                               _focusNodes[i + 1].requestFocus();
+                            } else if (value.isEmpty && i > 0) {
+                              _focusNodes[i - 1].requestFocus();
                             }
-                            if (i == 3 && value.isNotEmpty && _enteredOtp.length == 4) {
-                              _verifyCompletion();
-                            }
+                            // No auto-submit
                           },
                         ),
                       );
@@ -349,19 +399,33 @@ class _CompletionOtpScreenState extends ConsumerState<CompletionOtpScreen> {
                           borderRadius: BorderRadius.circular(20),
                           border: Border.all(color: Colors.green.withValues(alpha: 0.3)),
                         ),
-                        child: Text(
-                          _fetchedOtp ?? '• • • •',
-                          style: const TextStyle(
-                            fontSize: 40,
-                            fontWeight: FontWeight.bold,
-                            letterSpacing: 16,
-                            color: Colors.green,
-                          ),
-                        ),
+                        child: _isFetchingOtp
+                            ? const SizedBox(
+                                width: 40,
+                                height: 40,
+                                child: CircularProgressIndicator(strokeWidth: 3),
+                              )
+                            : Text(
+                                _fetchedOtp ?? '• • • •',
+                                style: const TextStyle(
+                                  fontSize: 40,
+                                  fontWeight: FontWeight.bold,
+                                  letterSpacing: 16,
+                                  color: Colors.green,
+                                ),
+                              ),
                       ),
                       const SizedBox(height: 16),
+                      if (_fetchedOtp == null && !_isFetchingOtp)
+                        const Padding(
+                          padding: EdgeInsets.only(bottom: 12),
+                          child: Text(
+                            'Waiting for worker to mark job complete...',
+                            style: TextStyle(color: Colors.grey, fontSize: 13),
+                          ),
+                        ),
                       TextButton.icon(
-                        onPressed: _isRefreshing ? null : _refreshOtp,
+                        onPressed: _isRefreshing || _isFetchingOtp ? null : _refreshOtp,
                         icon: _isRefreshing
                             ? const SizedBox(
                                 width: 16,
@@ -386,31 +450,54 @@ class _CompletionOtpScreenState extends ConsumerState<CompletionOtpScreen> {
 
                 // Verify button
                 if (widget.isWorker)
-                  SizedBox(
-                    width: double.infinity,
-                    height: 56,
-                    child: FilledButton.icon(
-                      onPressed: _isVerifying ? null : _verifyCompletion,
-                      style: FilledButton.styleFrom(
-                        backgroundColor: Colors.green,
-                        foregroundColor: Colors.white,
-                      ),
-                      icon: _isVerifying
-                          ? const SizedBox(
-                              width: 20,
-                              height: 20,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                color: Colors.white,
-                              ),
-                            )
-                          : const Icon(Icons.check_circle_outline),
-                      label: Text(
-                        _isVerifying ? 'Verifying...' : 'Confirm Job Complete',
-                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-                      ),
-                    ),
-                  )
+                  _hasMarkedComplete
+                      ? SizedBox(
+                          width: double.infinity,
+                          height: 56,
+                          child: FilledButton.icon(
+                            onPressed: _isVerifying ? null : _verifyCompletion,
+                            style: FilledButton.styleFrom(
+                              backgroundColor: Colors.green,
+                              foregroundColor: Colors.white,
+                            ),
+                            icon: _isVerifying
+                                ? const SizedBox(
+                                    width: 20,
+                                    height: 20,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      color: Colors.white,
+                                    ),
+                                  )
+                                : const Icon(Icons.check_circle_outline),
+                            label: Text(
+                              _isVerifying ? 'Verifying...' : 'Confirm Job Complete',
+                              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                            ),
+                          ),
+                        )
+                      : SizedBox(
+                          width: double.infinity,
+                          height: 56,
+                          child: ElevatedButton.icon(
+                            onPressed: _isMarkingComplete ? null : _markComplete,
+                            icon: _isMarkingComplete
+                                ? const SizedBox(
+                                    width: 20,
+                                    height: 20,
+                                    child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                                  )
+                                : const Icon(Icons.task_alt),
+                            label: Text(
+                              _isMarkingComplete ? 'Confirming...' : 'I\'ve Finished the Job',
+                              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                            ),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.green,
+                              foregroundColor: Colors.white,
+                            ),
+                          ),
+                        )
                 else
                   const Text('Waiting for worker to verify completion...', style: TextStyle(fontStyle: FontStyle.italic, color: Colors.grey)),
 

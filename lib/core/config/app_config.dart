@@ -6,7 +6,8 @@ class AppConfig {
   // ─── API / Network ───────────────────────────────────────
   static String get baseUrl => const String.fromEnvironment(
         'API_BASE_URL',
-        defaultValue: 'http://10.0.2.2:3000',
+        defaultValue:
+            kIsWeb ? 'http://localhost:3000' : 'http://10.0.2.2:3000',
       );
 
   static String get socketUrl => const String.fromEnvironment(
@@ -29,7 +30,8 @@ class AppConfig {
       );
 
   // ─── Auth / OTP ──────────────────────────────────────────
-  static const int otpLength = 6;
+  static const int otpLength = 6;           // login/auth OTP
+  static const int bookingOtpLength = 4;    // arrival + completion OTP
   static const int otpResendSeconds = 30;
   static const int phoneMinLength = 13;
   static const String defaultCountryCode = '+91';
