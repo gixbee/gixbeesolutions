@@ -1,14 +1,17 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import '../../shared/widgets/glass_container.dart';
+import '../../repositories/auth_repository.dart';
+import '../../repositories/booking_repository.dart';
 
-class BookingDetailScreen extends StatelessWidget {
+class BookingDetailScreen extends ConsumerWidget {
   final Map<String, dynamic> booking;
 
   const BookingDetailScreen({super.key, required this.booking});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final colorScheme = Theme.of(context).colorScheme;
     final scheduledAt = booking['scheduledAt'] != null
         ? DateTime.parse(booking['scheduledAt'])
@@ -18,6 +21,9 @@ class BookingDetailScreen extends StatelessWidget {
     final displayUser = booking['operator'] ?? booking['customer'] ?? {};
     final userName = displayUser['name'] ?? 'Worker';
     final userImg = displayUser['profileImageUrl'] ?? 'https://i.pravatar.cc/150?u=${booking['id']}';
+    
+    final currentUser = ref.watch(currentUserProvider).value;
+    final isAssignedWorker = currentUser?.id == booking['operator']?['id'];
 
     return Scaffold(
       appBar: AppBar(
@@ -74,7 +80,25 @@ class BookingDetailScreen extends StatelessWidget {
               ),
             ),
 
-            const SizedBox(height: 32),
+            const SizedBox(height: 24),
+
+            // OTP Section (Only for Customers)
+            if (!isAssignedWorker && (status == 'ACCEPTED' || status == 'ACTIVE'))
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Security Pin',
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Colors.grey),
+                  ),
+                  const SizedBox(height: 12),
+                  if (status == 'ACCEPTED' && booking['arrivalOtp'] != null)
+                    _buildOtpCard(context, 'Arrival OTP', booking['arrivalOtp'].toString(), Icons.meeting_room, Colors.orange),
+                  if (status == 'ACTIVE' && booking['completionOtp'] != null)
+                    _buildOtpCard(context, 'Completion OTP', booking['completionOtp'].toString(), Icons.verified, Colors.green),
+                  const SizedBox(height: 24),
+                ],
+              ),
 
             // Service Details
             const Text(
@@ -127,6 +151,58 @@ class BookingDetailScreen extends StatelessWidget {
             ),
 
             const SizedBox(height: 60),
+
+            // Actions for REQUESTED Booking (Worker Fallback)
+            if (status == 'REQUESTED' && isAssignedWorker)
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: () async {
+                        try {
+                          await ref.read(bookingRepositoryProvider).updateBookingStatus(booking['id'], 'REJECTED');
+                          if (context.mounted) Navigator.pop(context);
+                        } catch (e) {
+                          if (context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed to decline: $e')));
+                          }
+                        }
+                      },
+                      style: OutlinedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        side: const BorderSide(color: Colors.red),
+                        foregroundColor: Colors.red,
+                      ),
+                      child: const Text('Decline'),
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    flex: 2,
+                    child: ElevatedButton(
+                      onPressed: () async {
+                        try {
+                          await ref.read(bookingRepositoryProvider).acceptBooking(booking['id']);
+                          if (context.mounted) {
+                            Navigator.pop(context);
+                            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Job Accepted!')));
+                          }
+                        } catch (e) {
+                          if (context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed to accept: $e')));
+                          }
+                        }
+                      },
+                      style: ElevatedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        backgroundColor: Colors.green,
+                        foregroundColor: Colors.white,
+                      ),
+                      child: const Text('Accept Job', style: TextStyle(fontWeight: FontWeight.bold)),
+                    ),
+                  ),
+                ],
+              ),
 
             // Actions for Active Booking
             if (status == 'ACTIVE')
@@ -231,5 +307,43 @@ class BookingDetailScreen extends StatelessWidget {
         return Icons.cancel;
       default: return Icons.info;
     }
+  }
+
+  Widget _buildOtpCard(BuildContext context, String title, String otp, IconData icon, Color color) {
+    return GlassContainer(
+      padding: const EdgeInsets.all(16),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.2),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(icon, color: color),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(title, style: const TextStyle(color: Colors.grey, fontSize: 12)),
+                const SizedBox(height: 4),
+                const Text('Share this code when the worker asks for it', style: TextStyle(fontSize: 11)),
+              ],
+            ),
+          ),
+          Text(
+            otp,
+            style: TextStyle(
+              fontSize: 28,
+              fontWeight: FontWeight.bold,
+              letterSpacing: 4,
+              color: color,
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
