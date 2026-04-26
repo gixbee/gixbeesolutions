@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import '../../shared/widgets/glass_container.dart';
 import '../../repositories/auth_repository.dart';
 import '../../repositories/booking_repository.dart';
+import '../home/active_booking_card.dart';
 
 class BookingDetailScreen extends ConsumerWidget {
   final Map<String, dynamic> booking;
@@ -161,6 +162,8 @@ class BookingDetailScreen extends ConsumerWidget {
                       onPressed: () async {
                         try {
                           await ref.read(bookingRepositoryProvider).updateBookingStatus(booking['id'], 'REJECTED');
+                          ref.invalidate(myBookingsProvider);
+                          ref.invalidate(activeBookingProvider);
                           if (context.mounted) Navigator.pop(context);
                         } catch (e) {
                           if (context.mounted) {
@@ -183,6 +186,8 @@ class BookingDetailScreen extends ConsumerWidget {
                       onPressed: () async {
                         try {
                           await ref.read(bookingRepositoryProvider).acceptBooking(booking['id']);
+                          ref.invalidate(myBookingsProvider);
+                          ref.invalidate(activeBookingProvider);
                           if (context.mounted) {
                             Navigator.pop(context);
                             ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Job Accepted!')));

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/config/app_config.dart';
 import '../../repositories/booking_repository.dart';
+import '../home/active_booking_card.dart';
 
 class IncomingJobScreen extends ConsumerStatefulWidget {
   final Map<String, dynamic> bookingData;
@@ -52,6 +53,10 @@ class _IncomingJobScreenState extends ConsumerState<IncomingJobScreen> {
 
       await ref.read(bookingRepositoryProvider).acceptBooking(bookingId);
 
+      // Refresh all booking screens
+      ref.invalidate(myBookingsProvider);
+      ref.invalidate(activeBookingProvider);
+
       if (mounted) {
         Navigator.pop(context, true); // return accepted=true
         ScaffoldMessenger.of(context).showSnackBar(
@@ -82,6 +87,9 @@ class _IncomingJobScreenState extends ConsumerState<IncomingJobScreen> {
         await ref
             .read(bookingRepositoryProvider)
             .updateBookingStatus(bookingId, 'REJECTED');
+        // Refresh all booking screens
+        ref.invalidate(myBookingsProvider);
+        ref.invalidate(activeBookingProvider);
       }
     } catch (e) {
       debugPrint('[IncomingJob] Decline notify failed: $e');

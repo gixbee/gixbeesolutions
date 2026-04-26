@@ -8,6 +8,13 @@ final bookingRepositoryProvider = Provider((ref) {
   return BookingRepository(dio);
 });
 
+/// Shared provider that all booking screens watch.
+/// Invalidate this after any mutation (accept, decline, complete, etc.)
+final myBookingsProvider = FutureProvider.autoDispose<List<dynamic>>((ref) async {
+  final repo = ref.watch(bookingRepositoryProvider);
+  return repo.getMyBookings();
+});
+
 class BookingRepository {
   final Dio _dio;
 

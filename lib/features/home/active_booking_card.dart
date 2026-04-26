@@ -8,10 +8,10 @@ import '../booking/completion_otp_screen.dart';
 import '../jobs/booking_detail_screen.dart';
 import '../../shared/widgets/glass_container.dart';
 
-// RE-FETCH FIX: Provider to cache active booking state
+// RE-FETCH FIX: Derives from shared myBookingsProvider — auto-refreshes on invalidation
 final activeBookingProvider = FutureProvider.autoDispose<Map<String, dynamic>?>((ref) async {
   try {
-    final bookings = await ref.watch(bookingRepositoryProvider).getMyBookings();
+    final bookings = await ref.watch(myBookingsProvider.future);
     const activeStatuses = ['REQUESTED', 'PENDING', 'ACCEPTED', 'ARRIVED', 'ACTIVE', 'IN_PROGRESS', 'CONFIRMED'];
     return bookings.firstWhere(
       (b) => activeStatuses.contains((b['status'] ?? '').toString().toUpperCase()),

@@ -8,40 +8,13 @@ import '../../repositories/auth_repository.dart';
 import '../booking/arrival_otp_screen.dart';
 import '../booking/completion_otp_screen.dart';
 
-class MyBookingsScreen extends ConsumerStatefulWidget {
+class MyBookingsScreen extends ConsumerWidget {
   const MyBookingsScreen({super.key});
 
   @override
-  ConsumerState<MyBookingsScreen> createState() => _MyBookingsScreenState();
-}
+  Widget build(BuildContext context, WidgetRef ref) {
+    final bookingsAsync = ref.watch(myBookingsProvider);
 
-class _MyBookingsScreenState extends ConsumerState<MyBookingsScreen> {
-  bool _isLoading = true;
-  List<dynamic> _bookings = [];
-
-  @override
-  void initState() {
-    super.initState();
-    _fetchBookings();
-  }
-
-  Future<void> _fetchBookings() async {
-    try {
-      final repo = ref.read(bookingRepositoryProvider);
-      final list = await repo.getMyBookings();
-      if (mounted) {
-        setState(() {
-          _bookings = list;
-          _isLoading = false;
-        });
-      }
-    } catch (e) {
-      if (mounted) setState(() => _isLoading = false);
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
     return DefaultTabController(
       length: 3,
       child: Scaffold(
@@ -57,28 +30,27 @@ class _MyBookingsScreenState extends ConsumerState<MyBookingsScreen> {
           actions: [
             IconButton(
               icon: const Icon(Icons.refresh),
-              onPressed: () {
-                setState(() => _isLoading = true);
-                _fetchBookings();
-              },
+              onPressed: () => ref.invalidate(myBookingsProvider),
             ),
           ],
         ),
-        body: _isLoading
-            ? const Center(child: CircularProgressIndicator())
-            : TabBarView(
-                children: [
-                  _buildBookingList(context, 'ACTIVE'),
-                  _buildBookingList(context, 'COMPLETED'),
-                  _buildBookingList(context, 'CANCELLED'),
-                ],
-              ),
+        body: bookingsAsync.when(
+          loading: () => const Center(child: CircularProgressIndicator()),
+          error: (err, _) => Center(child: Text('Error: $err')),
+          data: (bookings) => TabBarView(
+            children: [
+              _buildBookingList(context, ref, bookings, 'ACTIVE'),
+              _buildBookingList(context, ref, bookings, 'COMPLETED'),
+              _buildBookingList(context, ref, bookings, 'CANCELLED'),
+            ],
+          ),
+        ),
       ),
     );
   }
 
-  Widget _buildBookingList(BuildContext context, String tab) {
-    final filtered = _bookings.where((b) {
+  Widget _buildBookingList(BuildContext context, WidgetRef ref, List<dynamic> bookings, String tab) {
+    final filtered = bookings.where((b) {
       final bStatus = (b['status'] ?? '').toString().toUpperCase();
       if (tab == 'ACTIVE') {
         return ['REQUESTED', 'CUSTOM_REQUESTED', 'PENDING', 'ACCEPTED', 'CONFIRMED', 'ACTIVE', 'IN_PROGRESS'].contains(bStatus);
@@ -207,13 +179,14 @@ class _MyBookingsScreenState extends ConsumerState<MyBookingsScreen> {
                   children: [
                     Expanded(
                       child: OutlinedButton(
-                        onPressed: () {
-                          Navigator.push(
+                        onPressed: () async {
+                          await Navigator.push(
                             context,
                             MaterialPageRoute(
                               builder: (_) => BookingDetailScreen(booking: booking),
                             ),
                           );
+                          ref.invalidate(myBookingsProvider);
                         },
                         child: const Text('Details'),
                       ),
@@ -226,7 +199,7 @@ class _MyBookingsScreenState extends ConsumerState<MyBookingsScreen> {
                           final isOperator = user?.id == (booking['operator']?['id'] ?? booking['operator']);
                           
                           return ElevatedButton(
-                            onPressed: () {
+                            onPressed: () async {
                                final bStatus = (booking['status'] ?? '').toString().toUpperCase();
                                
                                if (bStatus == 'ACCEPTED' || bStatus == 'ARRIVED') {
@@ -237,7 +210,7 @@ class _MyBookingsScreenState extends ConsumerState<MyBookingsScreen> {
                                    );
                                    return;
                                  }
-                                 Navigator.push(
+                                 await Navigator.push(
                                    context,
                                    MaterialPageRoute(
                                      builder: (_) => ArrivalOtpScreen(
@@ -249,7 +222,7 @@ class _MyBookingsScreenState extends ConsumerState<MyBookingsScreen> {
                                    ),
                                  );
                                } else if (bStatus == 'ACTIVE' || bStatus == 'IN_PROGRESS') {
-                                 Navigator.push(
+                                 await Navigator.push(
                                    context,
                                    MaterialPageRoute(
                                      builder: (_) => CompletionOtpScreen(
@@ -260,12 +233,13 @@ class _MyBookingsScreenState extends ConsumerState<MyBookingsScreen> {
                                    ),
                                  );
                                } else {
-                                  // Default to details if no active flow
-                                  Navigator.push(
+                                  await Navigator.push(
                                     context,
                                     MaterialPageRoute(builder: (_) => BookingDetailScreen(booking: booking)),
                                   );
                                }
+                               // Refresh bookings after returning from any sub-screen
+                               ref.invalidate(myBookingsProvider);
                             },
                             child: Text(tab == 'ACTIVE' ? 'Open Tracker' : 'Rebook'),
                           );
