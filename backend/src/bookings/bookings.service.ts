@@ -156,6 +156,13 @@ export class BookingsService {
     booking.status = status;
     const saved = await this.bookingsRepository.save(booking);
 
+    // Update Redis cache so poll endpoint reads from memory
+    await this.redisService.cacheBookingStatus(id, {
+      status: saved.status,
+      operatorName: saved.operator?.name,
+      arrivalOtp: saved.status === BookingStatus.ACCEPTED ? saved.arrivalOtp : null,
+    });
+
     // Clean up Redis discovery if cancelled/rejected
     if (status === BookingStatus.CANCELLED || status === BookingStatus.REJECTED) {
       if (booking.operator?.id) {
@@ -272,6 +279,12 @@ export class BookingsService {
     booking.startedAt = new Date();
     await this.bookingsRepository.save(booking);
 
+    // Update Redis cache for poll endpoint
+    await this.redisService.cacheBookingStatus(bookingId, {
+      status: 'ACTIVE',
+      operatorName: null,
+    });
+
     return { message: 'Arrival confirmed. Job is now active.', status: 'ACTIVE' };
   }
 
@@ -300,6 +313,12 @@ export class BookingsService {
     booking.completedAt = new Date();
     booking.billingHours = hoursWorked;
     await this.bookingsRepository.save(booking);
+
+    // Update Redis cache for poll endpoint
+    await this.redisService.cacheBookingStatus(bookingId, {
+      status: 'COMPLETED',
+      operatorName: booking.operator?.name,
+    });
 
     // Mark worker as available in Redis again
     if (booking.operator?.id) {

@@ -140,6 +140,39 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
   }
 
   // ─────────────────────────────────────────────
+  // BOOKING STATUS CACHE (for lightweight polling)
+  // ─────────────────────────────────────────────
+
+  /**
+   * Cache the current booking status in Redis.
+   * Called on every status transition so the poll endpoint never hits the DB.
+   */
+  async cacheBookingStatus(bookingId: string, statusData: Record<string, any>): Promise<void> {
+    const key = `booking:status:${bookingId}`;
+    try {
+      // 24h TTL — stale entries auto-clean
+      await this.client.setEx(key, 24 * 60 * 60, JSON.stringify(statusData));
+    } catch (error) {
+      this.logger.error(`Failed to cache booking status: ${bookingId}`, error);
+    }
+  }
+
+  /**
+   * Read cached booking status from Redis.
+   * Returns null if not cached (caller should fall back to DB).
+   */
+  async getCachedBookingStatus(bookingId: string): Promise<Record<string, any> | null> {
+    const key = `booking:status:${bookingId}`;
+    try {
+      const data = await this.client.get(key);
+      return data ? JSON.parse(data) : null;
+    } catch (error) {
+      this.logger.error(`Failed to get cached booking status: ${bookingId}`, error);
+      return null;
+    }
+  }
+
+  // ─────────────────────────────────────────────
   // WORKER LOCATION CACHE
   // ─────────────────────────────────────────────
 

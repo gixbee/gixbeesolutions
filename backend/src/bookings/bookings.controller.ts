@@ -3,6 +3,7 @@ import { BookingsService } from './bookings.service';
 import { BookingStatus, BookingType } from './booking.entity';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { NotificationsService } from '../notifications/notifications.service';
+import { RedisService } from '../redis/redis.service';
 
 @Controller('bookings')
 @UseGuards(JwtAuthGuard)
@@ -10,6 +11,7 @@ export class BookingsController {
   constructor(
     private readonly bookingsService: BookingsService,
     private readonly notificationsService: NotificationsService,
+    private readonly redisService: RedisService,
   ) {}
 
   @Post()
@@ -109,16 +111,23 @@ export class BookingsController {
     return booking;
   }
 
-  // Get booking status (for polling)
+  // Get booking status (for polling) — reads from Redis, zero DB cost
   @Get(':id/status')
   async getBookingStatus(@Param('id') id: string) {
+    // Try Redis first (sub-millisecond response)
+    const cached = await this.redisService.getCachedBookingStatus(id);
+    if (cached) return cached;
+
+    // Cache miss — fall back to DB and populate cache
     const booking = await this.bookingsService.getBookingById(id);
     if (!booking) throw new NotFoundException('Booking not found');
-    return {
+    const statusData = {
       status: booking.status,
       operatorName: booking.operator?.name,
       arrivalOtp: booking.status === BookingStatus.ACCEPTED ? booking.arrivalOtp : null,
     };
+    await this.redisService.cacheBookingStatus(id, statusData);
+    return statusData;
   }
 
   // DEFECT-012 FIX: Send arrival OTP to customer via FCM push
