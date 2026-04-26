@@ -10,8 +10,8 @@ import '../shared/models/user.dart';
 final dioProvider = Provider((ref) {
   final dio = Dio(BaseOptions(
     baseUrl: AppConfig.baseUrl,
-    connectTimeout: Duration(seconds: AppConfig.httpTimeoutSeconds),
-    receiveTimeout: Duration(seconds: AppConfig.httpTimeoutSeconds),
+    connectTimeout: const Duration(seconds: AppConfig.httpTimeoutSeconds),
+    receiveTimeout: const Duration(seconds: AppConfig.httpTimeoutSeconds),
   ));
 
   dio.interceptors.add(InterceptorsWrapper(

@@ -349,7 +349,7 @@ class _ProfileToggleOptionState extends State<_ProfileToggleOption> {
           ),
           Switch(
             value: _value,
-            activeColor: Theme.of(context).colorScheme.primary,
+            activeThumbColor: Theme.of(context).colorScheme.primary,
             onChanged: (val) {
               setState(() => _value = val);
               widget.onChanged(val);

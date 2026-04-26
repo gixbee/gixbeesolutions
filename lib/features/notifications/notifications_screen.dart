@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../shared/widgets/glass_container.dart';
 import '../../repositories/booking_repository.dart';
-import '../home/active_booking_card.dart';
 
 /// Simple in-app notification model
 class AppNotification {

@@ -136,7 +136,7 @@ class _WorkerListScreenState extends ConsumerState<WorkerListScreen> {
   @override
   Widget build(BuildContext context) {
     final workersAsync = ref.watch(nearbyWorkersProvider);
-    final title = 'Find Talent';
+    const title = 'Find Talent';
 
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
@@ -210,7 +210,7 @@ class _WorkerListScreenState extends ConsumerState<WorkerListScreen> {
                     const SizedBox(width: 8),
                     _buildQuickFilter(
                       icon: Icons.star_border, 
-                      label: _minRating > 0 ? '${_minRating}+ Stars' : 'Any Rating',
+                      label: _minRating > 0 ? '$_minRating+ Stars' : 'Any Rating',
                       onTap: _showFilterModal,
                       isActive: _minRating > 0,
                     ),

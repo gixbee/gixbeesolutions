@@ -45,8 +45,8 @@ export class BookingsController {
     @Query('page') page?: string,
     @Query('limit') limit?: string,
   ) {
-    const pageNum = parseInt(page) || 1;
-    const limitNum = parseInt(limit) || 50;
+    const pageNum = parseInt(page || '1') || 1;
+    const limitNum = parseInt(limit || '50') || 50;
     const customerBookings = await this.bookingsService.findAllByUser(req.user.userId, 'customer', status, pageNum, limitNum);
     const operatorBookings = await this.bookingsService.findAllByUser(req.user.userId, 'operator', status, pageNum, limitNum);
     return [...customerBookings, ...operatorBookings];
