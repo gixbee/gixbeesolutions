@@ -3,11 +3,13 @@ import '../../shared/models/worker.dart';
 import '../../shared/widgets/glass_container.dart';
 import '../booking/event_location_picker_screen.dart';
 import '../booking/presence_check_screen.dart';
+import '../booking/booking_type_selector.dart';
 
 class WorkerDetailScreen extends StatelessWidget {
   final Worker worker;
+  final bool isInstant;
 
-  const WorkerDetailScreen({super.key, required this.worker});
+  const WorkerDetailScreen({super.key, required this.worker, this.isInstant = true});
 
   @override
   Widget build(BuildContext context) {
@@ -212,7 +214,11 @@ class WorkerDetailScreen extends StatelessWidget {
           children: [
             Expanded(
               child: OutlinedButton(
-                onPressed: () {},
+                onPressed: () {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Chat feature coming soon!')),
+                  );
+                },
                 style: OutlinedButton.styleFrom(
                   padding: const EdgeInsets.symmetric(vertical: 16),
                 ),
@@ -225,26 +231,37 @@ class WorkerDetailScreen extends StatelessWidget {
               child: ElevatedButton(
                 onPressed: worker.status == 'available'
                     ? () async {
-                        // Step 1: Pick Location
-                        final location = await Navigator.push<PickedLocation>(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => const EventLocationPickerScreen(),
-                          ),
-                        );
+                        if (isInstant) {
+                          // Instant flow: Pick Location -> Presence Check
+                          final location = await Navigator.push<PickedLocation>(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const EventLocationPickerScreen(),
+                            ),
+                          );
 
-                        if (location != null && context.mounted) {
-                          // Step 2: Presence Check
+                          if (location != null && context.mounted) {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => PresenceCheckScreen(
+                                  worker: worker,
+                                  skill: worker.skills.isNotEmpty
+                                      ? worker.skills.first
+                                      : 'General Task',
+                                  serviceLocation: location.address,
+                                  lat: location.lat,
+                                  lng: location.lng,
+                                ),
+                              ),
+                            );
+                          }
+                        } else {
+                          // Scheduled flow: Type/Package Selector
                           Navigator.push(
                             context,
                             MaterialPageRoute(
-                              builder: (_) => PresenceCheckScreen(
-                                worker: worker,
-                                skill: worker.skills.isNotEmpty ? worker.skills.first : 'General Task',
-                                serviceLocation: location.address,
-                                lat: location.lat,
-                                lng: location.lng,
-                              ),
+                              builder: (_) => BookingTypeSelector(worker: worker),
                             ),
                           );
                         }

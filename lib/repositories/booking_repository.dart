@@ -18,6 +18,7 @@ class BookingRepository {
     required DateTime scheduledAt,
     required double amount,
     required String address,
+    String? description,
   }) async {
     try {
       final response = await _dio.post('/bookings', data: {
@@ -25,6 +26,7 @@ class BookingRepository {
         'scheduledAt': scheduledAt.toIso8601String(),
         'amount': amount,
         'serviceLocation': address,
+        'description': description,
       });
       return Map<String, dynamic>.from(response.data);
     } catch (e) {

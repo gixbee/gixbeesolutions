@@ -45,6 +45,7 @@ class PresenceCheckScreen extends ConsumerStatefulWidget {
 
 class _PresenceCheckScreenState extends ConsumerState<PresenceCheckScreen> {
   bool _selfPresent = true;
+  bool _isLoading = false;
   final _nameController = TextEditingController();
   final _relationController = TextEditingController();
   final _phoneController = TextEditingController();
@@ -69,6 +70,7 @@ class _PresenceCheckScreenState extends ConsumerState<PresenceCheckScreen> {
       );
     }
 
+    setState(() => _isLoading = true);
     try {
       final repo = ref.read(bookingRepositoryProvider);
       final bookingResponse = await repo.sendInstantRequest(
@@ -99,6 +101,8 @@ class _PresenceCheckScreenState extends ConsumerState<PresenceCheckScreen> {
           SnackBar(content: Text('Failed to send request: $e')),
         );
       }
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
@@ -245,16 +249,17 @@ class _PresenceCheckScreenState extends ConsumerState<PresenceCheckScreen> {
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(
-                onPressed: _proceed,
+                onPressed: _isLoading ? null : _proceed,
                 style: ElevatedButton.styleFrom(
                   padding: const EdgeInsets.symmetric(vertical: 16),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(14),
                   ),
                 ),
-                child: const Text('Find Workers',
-                    style:
-                        TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                child: _isLoading 
+                    ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
+                    : const Text('Find Workers',
+                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
               ),
             ),
             const SizedBox(height: 40),

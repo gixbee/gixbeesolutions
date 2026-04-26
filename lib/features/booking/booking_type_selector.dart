@@ -34,10 +34,14 @@ class _BookingTypeSelectorState extends State<BookingTypeSelector> {
     'Other',
   ];
 
+  _ServicePackage? _selectedPackage;
+  PickedLocation? _selectedLocation;
+
   @override
   void initState() {
     super.initState();
     _packages = _generatePackages(widget.worker);
+    _selectedPackage = _packages.first;
   }
 
   @override
@@ -47,7 +51,6 @@ class _BookingTypeSelectorState extends State<BookingTypeSelector> {
   }
 
   List<_ServicePackage> _generatePackages(Worker worker) {
-    // Generate contextual packages based on the worker's skills
     final rate = worker.hourlyRate;
     return [
       _ServicePackage(
@@ -83,11 +86,26 @@ class _BookingTypeSelectorState extends State<BookingTypeSelector> {
       return;
     }
 
-    // Both paths lead to the booking checkout screen
+    if (_selectedType == _BookingType.custom && _customDescCtrl.text.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please describe your requirements')),
+      );
+      return;
+    }
+
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (_) => BookingScreen(worker: widget.worker),
+        builder: (_) => BookingScreen(
+          worker: widget.worker,
+          baseAmount: _selectedType == _BookingType.package 
+              ? _selectedPackage?.price 
+              : widget.worker.hourlyRate,
+          bookingDescription: _selectedType == _BookingType.package
+              ? 'Package: ${_selectedPackage?.name} (${_selectedPackage?.duration})'
+              : 'Custom Request: $_customEventType - ${_customDescCtrl.text}',
+          initialLocation: _selectedLocation,
+        ),
       ),
     );
   }

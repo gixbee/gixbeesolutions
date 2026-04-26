@@ -80,7 +80,21 @@ class _MainWrapperState extends ConsumerState<MainWrapper> {
   Future<void> _initSocket() async {
     final token = await ref.read(authTokenServiceProvider).getToken();
     if (token != null) {
-      ref.read(socketServiceProvider).connect(token);
+      final socketService = ref.read(socketServiceProvider);
+      socketService.connect(token);
+
+      // Listen for real-time booking events from Socket.io
+      socketService.notifications.listen((data) {
+        final id = data['id'] as String?;
+        if (id != null && !_shownBookingIds.contains(id)) {
+          _shownBookingIds.add(id);
+          _showJobRequestPopup(
+            'New Real-time Job',
+            'A customer needs ${data['skill'] ?? 'assistance'}!',
+            id,
+          );
+        }
+      });
     }
   }
 
@@ -173,7 +187,16 @@ class _MainWrapperState extends ConsumerState<MainWrapper> {
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(ctx),
+            onPressed: () async {
+              Navigator.pop(ctx);
+              if (bookingId != null) {
+                try {
+                  await ref
+                      .read(bookingRepositoryProvider)
+                      .updateBookingStatus(bookingId, 'REJECTED');
+                } catch (_) {}
+              }
+            },
             child: const Text('Decline', style: TextStyle(color: Colors.grey)),
           ),
           ElevatedButton(

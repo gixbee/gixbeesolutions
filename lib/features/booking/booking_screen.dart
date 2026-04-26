@@ -3,12 +3,23 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../shared/models/worker.dart';
 import '../../shared/widgets/glass_container.dart';
 import '../../repositories/booking_repository.dart';
+import '../../repositories/wallet_repository.dart';
 import 'waiting_for_worker_screen.dart';
+import 'event_location_picker_screen.dart';
 
 class BookingScreen extends ConsumerStatefulWidget {
   final Worker worker;
+  final double? baseAmount;
+  final String? bookingDescription;
+  final PickedLocation? initialLocation;
 
-  const BookingScreen({super.key, required this.worker});
+  const BookingScreen({
+    super.key,
+    required this.worker,
+    this.baseAmount,
+    this.bookingDescription,
+    this.initialLocation,
+  });
 
   @override
   ConsumerState<BookingScreen> createState() => _BookingScreenState();
@@ -19,8 +30,20 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
   DateTime? _selectedDate;
   TimeOfDay? _selectedTime;
   // Issue #21: User-editable address instead of hardcoded fake address
-  final TextEditingController _addressController = TextEditingController();
+  late final TextEditingController _addressController;
   bool _isProcessing = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _addressController = TextEditingController(text: widget.initialLocation?.address ?? '');
+  }
+
+  @override
+  void dispose() {
+    _addressController.dispose();
+    super.dispose();
+  }
 
   void _nextStep() {
     if (_currentStep < 2) {
@@ -41,6 +64,23 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
   Future<void> _confirmBooking() async {
     setState(() => _isProcessing = true);
     try {
+      // Issue #17 fix: Check wallet balance before confirming
+      final balance = await ref.read(walletRepositoryProvider).getBalance();
+      final totalAmount = widget.baseAmount ?? widget.worker.hourlyRate;
+
+      if (balance < totalAmount) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Insufficient balance (₹$balance). Please add funds.'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+        setState(() => _isProcessing = false);
+        return;
+      }
+
       final scheduledAt = DateTime(
         _selectedDate!.year,
         _selectedDate!.month,
@@ -52,8 +92,9 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
       final result = await ref.read(bookingRepositoryProvider).createBooking(
         workerId: widget.worker.id,
         scheduledAt: scheduledAt,
-        amount: widget.worker.hourlyRate,
+        amount: totalAmount,
         address: _addressController.text.trim(),
+        description: widget.bookingDescription,
       );
 
       if (mounted) {
@@ -136,7 +177,7 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
               children: [
                 const Text('Total Amount', style: TextStyle(fontSize: 12)),
                 Text(
-                  '₹${widget.worker.hourlyRate.toInt()}',
+                  '₹${(widget.baseAmount ?? widget.worker.hourlyRate).toInt()}',
                   style: const TextStyle(
                       fontWeight: FontWeight.bold, fontSize: 20),
                 ),

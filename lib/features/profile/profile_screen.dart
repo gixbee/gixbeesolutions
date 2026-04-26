@@ -4,7 +4,7 @@ import '../../shared/widgets/dribbble_background.dart';
 import '../../shared/widgets/glass_container.dart';
 import '../../repositories/auth_repository.dart';
 import '../../core/config/app_config.dart';
-import '../auth/login_screen.dart';
+import '../onboarding/welcome_screen.dart';
 import 'edit_profile_screen.dart';
 import '../../repositories/profile_repository.dart';
 import 'wallet_screen.dart';
@@ -220,7 +220,7 @@ class ProfileScreen extends ConsumerWidget {
                     if (context.mounted) {
                       Navigator.pushAndRemoveUntil(
                         context,
-                        MaterialPageRoute(builder: (_) => const LoginScreen()),
+                        MaterialPageRoute(builder: (_) => const WelcomeScreen()),
                         (route) => false,
                       );
                     }
