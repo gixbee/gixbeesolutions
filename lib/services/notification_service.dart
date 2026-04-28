@@ -8,7 +8,7 @@ final notificationServiceProvider =
 
 /// Background message handler — top-level function required by Firebase.
 @pragma('vm:entry-point')
-Future<void> _firebaseBackgroundHandler(RemoteMessage message) async {
+Future<void> firebaseBackgroundHandler(RemoteMessage message) async {
   debugPrint('[FCM] Background message: ${message.messageId}');
 }
 
@@ -27,7 +27,7 @@ class NotificationService {
   );
 
   Future<void> initialize() async {
-    FirebaseMessaging.onBackgroundMessage(_firebaseBackgroundHandler);
+    FirebaseMessaging.onBackgroundMessage(firebaseBackgroundHandler);
 
     final settings = await _messaging.requestPermission(
       alert: true,

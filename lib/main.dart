@@ -3,7 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:dynamic_color/dynamic_color.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'firebase_options.dart';
+import 'services/notification_service.dart';
 import 'theme.dart';
 import 'core/theme_provider.dart';
 import 'core/config/app_config.dart';
@@ -21,6 +23,8 @@ void main() async {
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
+
+  FirebaseMessaging.onBackgroundMessage(firebaseBackgroundHandler);
 
   await Supabase.initialize(
     url: AppConfig.supabaseUrl,

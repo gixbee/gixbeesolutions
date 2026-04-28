@@ -41,7 +41,9 @@ class _MainWrapperState extends ConsumerState<MainWrapper> {
   void initState() {
     super.initState();
     _initSocket();
-    _initNotifications();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _initNotifications();
+    });
     _maybeStartWorkerPoll();
   }
 
@@ -108,6 +110,7 @@ class _MainWrapperState extends ConsumerState<MainWrapper> {
 
   Future<void> _initNotifications() async {
     final notifService = ref.read(notificationServiceProvider);
+    await notifService.initialize();
 
     // Token registration disabled here — we register strictly after auth/OTP.
 
