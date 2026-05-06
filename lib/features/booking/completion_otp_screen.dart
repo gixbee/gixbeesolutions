@@ -94,7 +94,7 @@ class _CompletionOtpScreenState extends ConsumerState<CompletionOtpScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Job marked as complete! Ask customer for completion OTP.'),
+            content: Text('OTP requested! Ask the customer for the completion OTP.'),
             backgroundColor: Colors.green,
           ),
         );
@@ -324,8 +324,8 @@ class _CompletionOtpScreenState extends ConsumerState<CompletionOtpScreen> {
                 Text(
                   widget.isWorker
                     ? _hasMarkedComplete
-                        ? 'Job finished! Ask for the completion OTP\nand enter it below to receive payment.'
-                        : 'Tap "I\'ve Finished" when the work is\nfully completed.'
+                        ? 'Enter the completion OTP provided by the customer to finalize the job.'
+                        : 'Tap "Request Completion OTP" to notify the customer that you have finished.'
                     : 'Job is complete!\nShare this OTP with ${widget.workerName} to finalize payment.',
                   textAlign: TextAlign.center,
                   style: TextStyle(
@@ -471,7 +471,7 @@ class _CompletionOtpScreenState extends ConsumerState<CompletionOtpScreen> {
                                   )
                                 : const Icon(Icons.check_circle_outline),
                             label: Text(
-                              _isVerifying ? 'Verifying...' : 'Confirm Job Complete',
+                              _isVerifying ? 'Verifying...' : 'Submit OTP to Complete Job',
                               style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
                             ),
                           ),
@@ -489,7 +489,7 @@ class _CompletionOtpScreenState extends ConsumerState<CompletionOtpScreen> {
                                   )
                                 : const Icon(Icons.task_alt),
                             label: Text(
-                              _isMarkingComplete ? 'Confirming...' : 'I\'ve Finished the Job',
+                              _isMarkingComplete ? 'Requesting...' : 'Request Completion OTP',
                               style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
                             ),
                             style: ElevatedButton.styleFrom(

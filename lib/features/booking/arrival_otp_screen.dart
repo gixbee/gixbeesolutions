@@ -77,7 +77,7 @@ class _ArrivalOtpScreenState extends ConsumerState<ArrivalOtpScreen>
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text(
-                'Arrival confirmed! Ask the customer for their OTP.'),
+                'OTP requested! Ask the customer for the arrival OTP.'),
             backgroundColor: Colors.green,
           ),
         );
@@ -241,8 +241,8 @@ class _ArrivalOtpScreenState extends ConsumerState<ArrivalOtpScreen>
                 Text(
                   widget.isWorker
                       ? _hasMarkedArrived
-                          ? 'Ask the customer for the arrival OTP\nand enter it below to begin the job.'
-                          : 'Tap "I\'ve Arrived" when you reach\nthe service location.'
+                          ? 'Enter the arrival OTP provided by the customer to start the job.'
+                          : 'Tap "Request Arrival OTP" to notify the customer you have arrived.'
                       : '${widget.workerName} will arrive shortly.\nShare the OTP below when they arrive.',
                   textAlign: TextAlign.center,
                   style: TextStyle(
@@ -274,8 +274,8 @@ class _ArrivalOtpScreenState extends ConsumerState<ArrivalOtpScreen>
                             : const Icon(Icons.location_on),
                         label: Text(
                           _isMarkingArrived
-                              ? 'Confirming...'
-                              : 'I\'ve Arrived at Location',
+                              ? 'Requesting...'
+                              : 'Request Arrival OTP',
                           style: const TextStyle(
                               fontWeight: FontWeight.bold,
                               fontSize: 16),

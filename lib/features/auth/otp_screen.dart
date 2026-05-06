@@ -101,6 +101,9 @@ class _OtpScreenState extends ConsumerState<OtpScreen> {
 
   Future<void> _registerFcmToken() async {
     try {
+      // Initialize first to ensure permissions are requested
+      await ref.read(notificationServiceProvider).initialize();
+
       final fcmToken =
           await ref.read(notificationServiceProvider).getDeviceToken();
       if (fcmToken != null) {

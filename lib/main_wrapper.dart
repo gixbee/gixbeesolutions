@@ -112,7 +112,15 @@ class _MainWrapperState extends ConsumerState<MainWrapper> {
     final notifService = ref.read(notificationServiceProvider);
     await notifService.initialize();
 
-    // Token registration disabled here — we register strictly after auth/OTP.
+    // Token registration — sync on launch to prevent stale tokens if changed while killed
+    try {
+      final fcmToken = await notifService.getDeviceToken();
+      if (fcmToken != null) {
+        await ref.read(authRepositoryProvider).registerFcmToken(fcmToken);
+      }
+    } catch (e) {
+      debugPrint('[FCM] Token sync failed on launch: $e');
+    }
 
     // Token refresh — re-register when FCM rotates the token
     notifService.onTokenRefresh((newToken) async {
