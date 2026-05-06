@@ -113,11 +113,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                     .signInWithPhone(phone);
                                 if (!context.mounted) return;
                                 
-                                if (kDebugMode && devOtp != null) {
+                                if (devOtp != null) {
                                   ScaffoldMessenger.of(context).showSnackBar(
                                     SnackBar(
                                       content: Text('TEST MODE: Your OTP is $devOtp'),
-                                      duration: const Duration(seconds: 5),
+                                      duration: const Duration(seconds: 8),
                                       backgroundColor: Colors.green.shade800,
                                     ),
                                   );

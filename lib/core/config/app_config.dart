@@ -18,17 +18,6 @@ class AppConfig {
 
   static const int httpTimeoutSeconds = 15;
 
-  // ─── Supabase ────────────────────────────────────────────
-  static String get supabaseUrl => const String.fromEnvironment(
-        'SUPABASE_URL',
-        defaultValue: '',
-      );
-
-  static String get supabaseAnonKey => const String.fromEnvironment(
-        'SUPABASE_ANON_KEY',
-        defaultValue: '',
-      );
-
   // ─── Auth / OTP ──────────────────────────────────────────
   static const int otpLength = 6;           // login/auth OTP
   static const int bookingOtpLength = 4;    // arrival + completion OTP

@@ -22,6 +22,14 @@ final dioProvider = Provider((ref) {
       }
       return handler.next(options);
     },
+    onError: (e, handler) async {
+      if (e.response?.statusCode == 401) {
+        debugPrint('[DIO] 401 Unauthorized — clearing token and forcing logout');
+        await ref.read(authRepositoryProvider).signOut();
+        // The UI will react via authStateProvider and redirect to login screen
+      }
+      return handler.next(e);
+    },
   ));
 
   return dio;
