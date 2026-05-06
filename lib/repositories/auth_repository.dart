@@ -7,7 +7,7 @@ import '../shared/models/user.dart';
 
 // ── Dio provider ─────────────────────────────────────────────────────────────
 
-final dioProvider = Provider((ref) {
+final dioProvider = Provider<Dio>((ref) {
   final dio = Dio(BaseOptions(
     baseUrl: AppConfig.baseUrl,
     connectTimeout: const Duration(seconds: AppConfig.httpTimeoutSeconds),
@@ -25,8 +25,8 @@ final dioProvider = Provider((ref) {
     onError: (e, handler) async {
       if (e.response?.statusCode == 401) {
         debugPrint('[DIO] 401 Unauthorized — clearing token and forcing logout');
-        await ref.read(authRepositoryProvider).signOut();
-        // The UI will react via authStateProvider and redirect to login screen
+        await ref.read(authTokenServiceProvider).deleteToken();
+        ref.invalidate(authStateProvider);
       }
       return handler.next(e);
     },
