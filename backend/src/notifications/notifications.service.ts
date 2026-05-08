@@ -45,6 +45,25 @@ export class NotificationsService implements OnModuleInit {
     this.logger.log('Firebase Admin SDK initialized — ready to send FCM pushes');
   }
 
+  // ── Diagnostics ───────────────────────────────────────────────────────────
+
+  getDiagnostics() {
+    const projectId = this.configService.get<string>('FIREBASE_PROJECT_ID');
+    const clientEmail = this.configService.get<string>('FIREBASE_CLIENT_EMAIL');
+    const privateKey = this.configService.get<string>('FIREBASE_PRIVATE_KEY');
+
+    return {
+      firebaseInitialized: !!this.messaging,
+      credentials: {
+        hasProjectId: !!projectId,
+        hasClientEmail: !!clientEmail,
+        hasPrivateKey: !!privateKey,
+        projectId: projectId ?? '(not set)',
+      },
+      firebaseAppsCount: admin.apps.length,
+    };
+  }
+
   // ── Core: send to a single FCM token ─────────────────────────────────────
 
   /**
