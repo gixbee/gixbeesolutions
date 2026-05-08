@@ -104,6 +104,11 @@ export class BookingsController {
     return result;
   }
 
+  @Patch(':id/reject')
+  async rejectBooking(@Param('id') id: string, @Req() req) {
+    return this.bookingsService.rejectBooking(id, req.user.userId);
+  }
+
   @Get(':id')
   async getBooking(@Param('id') id: string) {
     const booking = await this.bookingsService.getBookingById(id);

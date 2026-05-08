@@ -173,7 +173,7 @@ class BookingRepository {
     required String otp,
   }) async {
     try {
-      await _dio.post('/bookings/$bookingId/verify-arrival', data: {'otp': otp});
+      await _dio.post('/bookings/$bookingId/arrival', data: {'otp': otp});
     } catch (e) {
       debugPrint('ConfirmArrival failed: $e');
       rethrow;
@@ -198,7 +198,7 @@ class BookingRepository {
   }) async {
     try {
       await _dio.post(
-        '/bookings/$bookingId/verify-completion',
+        '/bookings/$bookingId/completion',
         data: {'otp': otp},
       );
     } catch (e) {
