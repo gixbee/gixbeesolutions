@@ -135,6 +135,7 @@ class _MainWrapperState extends ConsumerState<MainWrapper> {
 
       if (event == 'new_booking_request') {
         if (id != null && !_shownBookingIds.contains(id)) {
+          ref.read(debugLogProvider.notifier).log('[SOURCE: SOCKET] Incoming job $id');
           _shownBookingIds.add(id);
           _showIncomingJobScreen(data);
         }
@@ -162,6 +163,7 @@ class _MainWrapperState extends ConsumerState<MainWrapper> {
         for (final booking in pending) {
           final id = booking['id'] as String?;
           if (id != null && !_shownBookingIds.contains(id)) {
+            ref.read(debugLogProvider.notifier).log('[SOURCE: HTTP_POLL] Incoming job $id');
             _shownBookingIds.add(id);
             _showIncomingJobScreen(booking);
           }
@@ -184,6 +186,8 @@ class _MainWrapperState extends ConsumerState<MainWrapper> {
         debugPrint('[FCM] Skipping duplicate popup for booking: $bookingId');
         return;
       }
+      
+      ref.read(debugLogProvider.notifier).log('[SOURCE: FCM] Incoming job $bookingId');
       if (bookingId != null) _shownBookingIds.add(bookingId);
 
       _showIncomingJobScreen({
