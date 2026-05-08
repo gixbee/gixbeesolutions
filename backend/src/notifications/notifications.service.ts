@@ -177,6 +177,79 @@ export class NotificationsService implements OnModuleInit {
     return this.sendToDevice({ fcmToken: user.fcmToken, ...payload });
   }
 
+  // ── Test Push with diagnostics ────────────────────────────────────────────
+
+  async testPushToUser(userId: string) {
+    const steps: string[] = [];
+    let fcmToken: string | null = null;
+
+    // Step 1: Check Redis
+    try {
+      const cachedToken = await this.redisService.getCachedFcmToken(userId);
+      if (cachedToken) {
+        fcmToken = cachedToken;
+        steps.push(`✅ Redis: token found (${cachedToken.substring(0, 20)}...)`);
+      } else {
+        steps.push('⚠️ Redis: no cached token');
+      }
+    } catch (e) {
+      steps.push(`❌ Redis error: ${e}`);
+    }
+
+    // Step 2: Check DB
+    if (!fcmToken) {
+      try {
+        const user = await this.usersRepository.findOne({ where: { id: userId } });
+        if (!user) {
+          steps.push('❌ DB: user not found');
+          return { success: false, userId, steps, message: 'User not found in database' };
+        }
+        if (user.fcmToken) {
+          fcmToken = user.fcmToken;
+          steps.push(`✅ DB: token found (${user.fcmToken.substring(0, 20)}...)`);
+          // Re-cache
+          await this.redisService.cacheFcmToken(userId, user.fcmToken).catch(() => {});
+        } else {
+          steps.push('❌ DB: user.fcmToken is NULL — device never registered');
+          return {
+            success: false,
+            userId,
+            steps,
+            message: 'No FCM token saved for this user. The app needs to call PATCH /auth/fcm-token after login.',
+          };
+        }
+      } catch (e) {
+        steps.push(`❌ DB error: ${e}`);
+        return { success: false, userId, steps, message: `DB lookup failed: ${e}` };
+      }
+    }
+
+    // Step 3: Send push
+    steps.push('📤 Sending test push via Firebase Admin SDK...');
+    const success = await this.sendToDevice({
+      fcmToken: fcmToken!,
+      title: '🔔 FCM Test',
+      body: 'If you see this, push notifications are working!',
+      data: { type: 'test_push' },
+    });
+
+    if (success) {
+      steps.push('✅ Firebase accepted the message');
+    } else {
+      steps.push('❌ Firebase rejected — token may be stale or invalid');
+    }
+
+    return {
+      success,
+      userId,
+      fcmTokenPrefix: fcmToken?.substring(0, 20) + '...',
+      steps,
+      message: success
+        ? 'Push sent successfully! You should see a notification.'
+        : 'Firebase rejected the push. The FCM token may be expired. Try logging out and back in.',
+    };
+  }
+
   // ── Multicast: send to multiple users ─────────────────────────────────────
 
   async sendToUsers(

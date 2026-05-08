@@ -138,17 +138,22 @@ class DebugLogScreen extends ConsumerWidget {
       final response = await dio.post('/notifications/test-self');
       final data = response.data as Map<String, dynamic>;
       final success = data['success'] ?? false;
+      final steps = data['steps'] as List<dynamic>? ?? [];
 
-      logger.log('[DIAG] Test push result: ${data['message']}');
-      logger.log('[DIAG] Success: $success, userId: ${data['userId']}');
+      // Log each diagnostic step
+      for (final step in steps) {
+        logger.log('[DIAG] $step');
+      }
+      logger.log('[DIAG] Result: ${data['message']}');
 
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(success
                 ? '✅ Push sent! Check your notification tray.'
-                : '❌ Push failed: ${data['message']}'),
+                : '❌ ${data['message']}'),
             backgroundColor: success ? Colors.green : Colors.red,
+            duration: const Duration(seconds: 5),
           ),
         );
       }

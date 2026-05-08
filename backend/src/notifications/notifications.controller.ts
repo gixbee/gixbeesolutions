@@ -19,19 +19,7 @@ export class NotificationsController {
   @HttpCode(HttpStatus.OK)
   async testSelfPush(@Req() req) {
     const userId = req.user.userId;
-    const success = await this.notificationsService.sendToUser(userId, {
-      title: '🔔 FCM Test',
-      body: 'If you see this, push notifications are working!',
-      data: { type: 'test_push' },
-    });
-
-    return {
-      success,
-      userId,
-      message: success
-        ? 'Push sent! You should see a notification.'
-        : 'Failed — check backend logs. Likely: Firebase not initialized or FCM token missing.',
-    };
+    return this.notificationsService.testPushToUser(userId);
   }
 
   @Post('test')
