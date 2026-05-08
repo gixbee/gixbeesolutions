@@ -2,6 +2,7 @@ import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateCol
 import { TalentProfile } from '../talent/talent-profile.entity';
 
 export enum UserRole {
+  CUSTOMER = 'CUSTOMER',
   OWNER = 'OWNER',
   OPERATOR = 'OPERATOR',
   ADMIN = 'ADMIN',
@@ -27,7 +28,7 @@ export class User {
   @Column({
     type: 'enum',
     enum: UserRole,
-    default: UserRole.OPERATOR,
+    default: UserRole.CUSTOMER,
   })
   role: UserRole;
 
