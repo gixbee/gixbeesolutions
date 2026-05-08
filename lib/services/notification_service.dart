@@ -1,3 +1,7 @@
+import 'package:flutter/foundation.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'debug_log_service.dart';
 
 final notificationServiceProvider =
@@ -71,9 +75,9 @@ class NotificationService {
     // Initialize local notifications plugin (used to show foreground banners)
     const androidSettings =
         AndroidInitializationSettings('@mipmap/ic_launcher');
-    const iosSettings = DarwinInitializationSettings();
+    final iosSettings = const DarwinInitializationSettings();
     await _localNotifications.initialize(
-      const InitializationSettings(
+      InitializationSettings(
         android: androidSettings,
         iOS: iosSettings,
       ),
@@ -131,7 +135,7 @@ class NotificationService {
             playSound: true,
             icon: '@mipmap/ic_launcher',
           ),
-          iOS: const DarwinNotificationDetails(
+          iOS: DarwinNotificationDetails(
             sound: 'default',
             presentAlert: true,
             presentBadge: true,

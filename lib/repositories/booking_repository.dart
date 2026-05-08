@@ -47,6 +47,35 @@ class BookingRepository {
     }
   }
 
+  Future<Map<String, dynamic>> sendInstantRequest({
+    required String workerId,
+    required String skill,
+    required String serviceLocation,
+    required double lat,
+    required double lng,
+    required double amount,
+    Map<String, dynamic>? onSiteContact,
+  }) async {
+    try {
+      final response = await _dio.post('/bookings', data: {
+        'workerId': workerId,
+        'skill': skill,
+        'serviceLocation': serviceLocation,
+        'serviceLat': lat,
+        'serviceLng': lng,
+        'amount': amount,
+        'scheduledAt': DateTime.now().toIso8601String(),
+        'type': 'INSTANT',
+        if (onSiteContact != null) 'onSiteContact': onSiteContact,
+      });
+      return Map<String, dynamic>.from(response.data);
+    } catch (e) {
+      debugPrint('SendInstantRequest failed: $e');
+      rethrow;
+    }
+  }
+
+
   // ── Read ──────────────────────────────────────────────────────────────────
 
   Future<List<dynamic>> getMyBookings({
