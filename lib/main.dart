@@ -16,18 +16,23 @@ import 'repositories/auth_repository.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // 3. Plugin registry
+  // 1. Plugin registry (synchronous — must be first)
   registerDefaultPlugins();
 
+  // 2. Firebase — must be initialized before any FCM or Firestore calls
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
 
+  // 3. Register FCM background handler as a top-level function BEFORE runApp().
+  //    Flutter requires this to be registered here, not inside any class or widget.
+  //    NotificationService.initialize() does NOT register this again.
   FirebaseMessaging.onBackgroundMessage(firebaseBackgroundHandler);
-
 
   debugPrint('GIXBEE_BUILD_VERSION: ${AppConfig.buildVersion}');
 
+  // 4. Start the app — all further init (permissions, channel, listeners)
+  //    happens in main_wrapper._initNotifications() after login.
   runApp(const ProviderScope(child: GixbeeApp()));
 }
 
@@ -48,8 +53,9 @@ class GixbeeApp extends ConsumerWidget {
           darkTheme: GixbeeTheme.darkTheme(darkDynamic),
           themeMode: themeMode,
           home: authState.when(
-            data: (isAuthenticated) =>
-                isAuthenticated ? const MainWrapper() : const WelcomeScreen(),
+            data: (isAuthenticated) => isAuthenticated
+                ? const MainWrapper()
+                : const WelcomeScreen(),
             loading: () => const Scaffold(
               body: Center(child: CircularProgressIndicator()),
             ),

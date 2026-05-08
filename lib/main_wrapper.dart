@@ -26,8 +26,8 @@ class _MainWrapperState extends ConsumerState<MainWrapper> {
   int _currentIndex = 0;
   Timer? _pendingPollTimer;
 
-  /// Tracks booking IDs we've already shown a popup for — prevents duplicates
-  /// across FCM foreground + socket + HTTP poll firing simultaneously.
+  /// Tracks booking IDs already shown — prevents duplicate popups from
+  /// FCM foreground + socket + HTTP poll all firing for the same booking.
   final Set<String> _shownBookingIds = {};
 
   final List<Widget> _screens = [
@@ -40,11 +40,12 @@ class _MainWrapperState extends ConsumerState<MainWrapper> {
   @override
   void initState() {
     super.initState();
-    _initSocket();
+    // Use addPostFrameCallback so ref is safe to use after first frame
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      _initSocket();
       _initNotifications();
+      _maybeStartWorkerPoll();
     });
-    _maybeStartWorkerPoll();
   }
 
   @override
@@ -53,36 +54,72 @@ class _MainWrapperState extends ConsumerState<MainWrapper> {
     super.dispose();
   }
 
-  // ── Worker Poll (FCM + Socket fallback) ──────────────────────
+  // ── Notification Initialization ─────────────────────────────────────────
 
-  Future<void> _maybeStartWorkerPoll() async {
-    // Use .future to wait for resolution — .value is null at initState
-    final user = await ref.read(currentUserProvider.future);
-    if (user?.isWorker == true) {
-      _startPendingBookingPoll();
-    }
-  }
+  Future<void> _initNotifications() async {
+    final notifService = ref.read(notificationServiceProvider);
 
-  void _startPendingBookingPoll() {
-    _pendingPollTimer =
-        Timer.periodic(const Duration(seconds: 5), (_) async {
+    // STEP 1 — Initialize FCM listeners, Android channel, permission prompt.
+    // This is called ONCE here. The _initialized guard in NotificationService
+    // ensures it's a no-op if somehow called again.
+    // Note: FirebaseMessaging.onBackgroundMessage was already registered in
+    // main() before runApp() — NotificationService.initialize() does NOT
+    // register it again.
+    await notifService.initialize();
+
+    // STEP 2 — Sync FCM token with backend on every app start.
+    // If the token was rotated by FCM while the app was killed, this ensures
+    // the backend always has the current token.
+    await _syncFcmToken(notifService);
+
+    // STEP 3 — Listen for token rotation by FCM (happens ~monthly)
+    notifService.onTokenRefresh((newToken) async {
       try {
-        final pending =
-            await ref.read(bookingRepositoryProvider).getPendingBookings();
-        for (final booking in pending) {
-          final id = booking['id'] as String?;
-          if (id != null && !_shownBookingIds.contains(id)) {
-            _shownBookingIds.add(id);
-            _showIncomingJobScreen(booking);
-          }
-        }
-      } catch (_) {
-        // Polling failures are silent — FCM is the primary channel
+        await ref.read(authRepositoryProvider).registerFcmToken(newToken);
+        debugPrint('[FCM] Token refreshed and re-registered with backend');
+      } catch (e) {
+        debugPrint('[FCM] Token refresh registration failed: $e');
+      }
+    });
+
+    // STEP 4 — Foreground messages (app is open)
+    notifService.addForegroundListener((RemoteMessage message) {
+      _handleFcmMessage(message);
+    });
+
+    // STEP 5 — Notification tap (app was in background)
+    notifService.addClickListener((RemoteMessage message) {
+      _handleNotificationTap(message);
+    });
+
+    // STEP 6 — App was killed and launched via notification tap
+    // Must be called after initialize() to be reliable
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      final initialMessage = await notifService.getInitialMessage();
+      if (initialMessage != null && mounted) {
+        _handleNotificationTap(initialMessage);
       }
     });
   }
 
-  // ── Socket ───────────────────────────────────────────────────
+  Future<void> _syncFcmToken(NotificationService notifService) async {
+    for (int attempt = 1; attempt <= 3; attempt++) {
+      try {
+        final token = await notifService.getDeviceToken();
+        if (token == null) return;
+        await ref.read(authRepositoryProvider).registerFcmToken(token);
+        debugPrint('[FCM] Token synced on app start (attempt $attempt)');
+        return;
+      } catch (e) {
+        debugPrint('[FCM] Token sync attempt $attempt failed: $e');
+        if (attempt < 3) {
+          await Future.delayed(Duration(seconds: attempt * 2));
+        }
+      }
+    }
+  }
+
+  // ── Socket ──────────────────────────────────────────────────────────────
 
   Future<void> _initSocket() async {
     final token = await ref.read(authTokenServiceProvider).getToken();
@@ -106,60 +143,44 @@ class _MainWrapperState extends ConsumerState<MainWrapper> {
     });
   }
 
-  // ── FCM Notifications ─────────────────────────────────────────
+  // ── Worker Poll (FCM + Socket fallback) ─────────────────────────────────
 
-  Future<void> _initNotifications() async {
-    final notifService = ref.read(notificationServiceProvider);
-    await notifService.initialize();
-
-    // Token registration — sync on launch to prevent stale tokens if changed while killed
-    try {
-      final fcmToken = await notifService.getDeviceToken();
-      if (fcmToken != null) {
-        await ref.read(authRepositoryProvider).registerFcmToken(fcmToken);
-      }
-    } catch (e) {
-      debugPrint('[FCM] Token sync failed on launch: $e');
-    }
-
-    // Token refresh — re-register when FCM rotates the token
-    notifService.onTokenRefresh((newToken) async {
-      try {
-        await ref.read(authRepositoryProvider).registerFcmToken(newToken);
-        debugPrint('[FCM] Token refreshed and re-registered');
-      } catch (e) {
-        debugPrint('[FCM] Token refresh registration failed: $e');
-      }
-    });
-
-    // Foreground — app is open
-    notifService.addForegroundListener((RemoteMessage message) {
-      _handleFcmMessage(message);
-    });
-
-    // Background tap — user tapped notification
-    notifService.addClickListener((RemoteMessage message) {
-      _handleNotificationTap(message);
-    });
-
-    // Killed state — app launched from notification tap
-    final initialMessage = await notifService.getInitialMessage();
-    if (initialMessage != null) {
-      _handleNotificationTap(initialMessage);
+  Future<void> _maybeStartWorkerPoll() async {
+    // await .future to get the resolved value — .value is null at initState time
+    final user = await ref.read(currentUserProvider.future);
+    if (user?.isWorker == true) {
+      _startPendingBookingPoll();
     }
   }
+
+  void _startPendingBookingPoll() {
+    _pendingPollTimer = Timer.periodic(const Duration(seconds: 5), (_) async {
+      try {
+        final pending =
+            await ref.read(bookingRepositoryProvider).getPendingBookings();
+        for (final booking in pending) {
+          final id = booking['id'] as String?;
+          if (id != null && !_shownBookingIds.contains(id)) {
+            _shownBookingIds.add(id);
+            _showIncomingJobScreen(booking);
+          }
+        }
+      } catch (_) {
+        // Silent — FCM is the primary delivery channel
+      }
+    });
+  }
+
+  // ── FCM Message Handlers ─────────────────────────────────────────────────
 
   void _handleFcmMessage(RemoteMessage message) {
     final type = message.data['type'] as String?;
     final bookingId = message.data['bookingId'] as String?;
 
-    // Refresh history so notifications screen is pseudo-real-time
-    ref.invalidate(myBookingsProvider);
-
     if (type == 'new_booking') {
-      // Dedup: skip if already shown via socket or polling
+      // Dedup: skip if already shown via socket or HTTP poll
       if (bookingId != null && _shownBookingIds.contains(bookingId)) {
-        debugPrint('[FCM] Skipping duplicate for booking: $bookingId');
+        debugPrint('[FCM] Skipping duplicate popup for booking: $bookingId');
         return;
       }
       if (bookingId != null) _shownBookingIds.add(bookingId);
@@ -167,21 +188,24 @@ class _MainWrapperState extends ConsumerState<MainWrapper> {
       _showIncomingJobScreen({
         'id': bookingId,
         'skill': message.data['skill'] ?? 'General Help',
-        'customer_name': message.notification?.title ?? AppStrings.fcmDefaultTitle,
+        'customer_name':
+            message.notification?.title ?? AppStrings.fcmDefaultTitle,
         'serviceLocation': message.data['serviceLocation'] ?? '',
-        'amount': double.tryParse(message.data['amount'] ?? '0') ?? 0.0,
+        'amount':
+            double.tryParse(message.data['amount'] ?? '0') ?? 0.0,
       });
     }
   }
 
   void _handleNotificationTap(RemoteMessage message) {
     final type = message.data['type'] as String?;
+    if (!mounted) return;
     if (type == 'new_booking' || type == 'booking_accepted') {
-      if (mounted) setState(() => _currentIndex = 1);
+      setState(() => _currentIndex = 1); // go to Bookings tab
     }
   }
 
-  // ── Incoming Job Screen (full-screen, replaces dialog) ────────
+  // ── Incoming Job Screen ──────────────────────────────────────────────────
 
   void _showIncomingJobScreen(Map<String, dynamic> bookingData) {
     if (!mounted) return;
@@ -194,7 +218,7 @@ class _MainWrapperState extends ConsumerState<MainWrapper> {
     );
   }
 
-  // ── Build ─────────────────────────────────────────────────────
+  // ── Build ────────────────────────────────────────────────────────────────
 
   @override
   Widget build(BuildContext context) {

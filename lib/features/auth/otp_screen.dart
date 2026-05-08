@@ -23,7 +23,9 @@ class _OtpScreenState extends ConsumerState<OtpScreen> {
   late final List<TextEditingController> _controllers =
       List.generate(AppConfig.otpLength, (index) {
     final controller = TextEditingController();
-    if (kDebugMode && widget.initialOtp != null && index < widget.initialOtp!.length) {
+    if (kDebugMode &&
+        widget.initialOtp != null &&
+        index < widget.initialOtp!.length) {
       controller.text = widget.initialOtp![index];
     }
     return controller;
@@ -65,26 +67,26 @@ class _OtpScreenState extends ConsumerState<OtpScreen> {
     setState(() => _isVerifying = true);
 
     try {
-      // 1. Verify OTP with Gixbee API
+      // 1. Verify OTP with Gixbee backend
       await ref.read(authRepositoryProvider).verifyOtp(
             phoneNumber: widget.phone,
             token: otp,
           );
 
-      // 2. Register FCM token with the backend so NestJS can push to this device
+      // 2. Register FCM token — gives the backend a device to push to
       await _registerFcmToken();
 
-      // 3. Fetch profile to check if registered
+      // 3. Check profile to decide where to navigate
       final user = await ref.read(authRepositoryProvider).getProfile();
       final isNewUser = user == null || (user.name?.isEmpty ?? true);
 
-      // 4. Navigate based on registration status
       if (!mounted) return;
-      
+
       Navigator.pushAndRemoveUntil(
         context,
         MaterialPageRoute(
-          builder: (_) => isNewUser ? const RegistrationScreen() : const MainWrapper(),
+          builder: (_) =>
+              isNewUser ? const RegistrationScreen() : const MainWrapper(),
         ),
         (route) => false,
       );
@@ -99,20 +101,28 @@ class _OtpScreenState extends ConsumerState<OtpScreen> {
     }
   }
 
+  /// Register the FCM device token with the backend immediately after login.
+  /// This ensures NestJS can push job request notifications to this device.
+  ///
+  /// NOTE: We do NOT call notificationService.initialize() here.
+  ///   - initialize() is called ONCE in main_wrapper._initNotifications()
+  ///     after this screen navigates away and MainWrapper mounts.
+  ///   - Calling initialize() here would register the background handler
+  ///     and local notification plugin a second time before MainWrapper
+  ///     has even mounted, causing duplicate listeners.
+  ///   - getDeviceToken() works without initialize() because Firebase is
+  ///     already initialized in main() via Firebase.initializeApp().
   Future<void> _registerFcmToken() async {
     try {
-      // Initialize first to ensure permissions are requested
-      await ref.read(notificationServiceProvider).initialize();
-
       final fcmToken =
           await ref.read(notificationServiceProvider).getDeviceToken();
       if (fcmToken != null) {
         await ref.read(authRepositoryProvider).registerFcmToken(fcmToken);
-        debugPrint('[FCM] Token registered with backend');
+        debugPrint('[FCM] Token registered with backend after OTP login');
       }
     } catch (e) {
-      // Non-fatal — user can still use the app, just won't receive push notifications
-      debugPrint('[FCM] Token registration failed: $e');
+      // Non-fatal — user can use the app, just won't receive push notifications
+      debugPrint('[FCM] Token registration failed (non-fatal): $e');
     }
   }
 
@@ -131,7 +141,8 @@ class _OtpScreenState extends ConsumerState<OtpScreen> {
                 Align(
                   alignment: Alignment.centerLeft,
                   child: IconButton(
-                    icon: const Icon(Icons.arrow_back_ios, color: Colors.white),
+                    icon:
+                        const Icon(Icons.arrow_back_ios, color: Colors.white),
                     onPressed: () => Navigator.pop(context),
                   ),
                 ),
@@ -171,8 +182,9 @@ class _OtpScreenState extends ConsumerState<OtpScreen> {
                           color: _controllers[index].text.isNotEmpty
                               ? Theme.of(context).colorScheme.primary
                               : Colors.white.withValues(alpha: 0.2),
-                          width:
-                              _controllers[index].text.isNotEmpty ? 1.5 : 1.0,
+                          width: _controllers[index].text.isNotEmpty
+                              ? 1.5
+                              : 1.0,
                         ),
                       ),
                       child: TextField(
@@ -215,32 +227,39 @@ class _OtpScreenState extends ConsumerState<OtpScreen> {
                 // Resend timer
                 Center(
                   child: GestureDetector(
-                        onTap: _resendTimer == 0
-                            ? () async {
-                                try {
-                                  final newOtp = await ref
-                                      .read(authRepositoryProvider)
-                                      .signInWithPhone(widget.phone);
-                                  
-                                  setState(() => _resendTimer = AppConfig.otpResendSeconds);
-                                  _startTimer();
-                                  
-                                  // Update the OTP fields with the new code
-                                  if (kDebugMode && newOtp != null && mounted) {
-                                    setState(() {
-                                      for (int i = 0; i < _controllers.length; i++) {
-                                        _controllers[i].text =
-                                            i < newOtp.length ? newOtp[i] : '';
-                                      }
-                                    });
+                    onTap: _resendTimer == 0
+                        ? () async {
+                            try {
+                              final newOtp = await ref
+                                  .read(authRepositoryProvider)
+                                  .signInWithPhone(widget.phone);
+
+                              // Restart timer only after successful API call
+                              if (!mounted) return;
+                              setState(() {
+                                _resendTimer = AppConfig.otpResendSeconds;
+                              });
+                              _startTimer();
+
+                              // Auto-fill in debug mode only
+                              if (kDebugMode && newOtp != null && mounted) {
+                                setState(() {
+                                  for (int i = 0;
+                                      i < _controllers.length;
+                                      i++) {
+                                    _controllers[i].text =
+                                        i < newOtp.length ? newOtp[i] : '';
                                   }
-                                } catch (e) {
-                                  if (!mounted) return;
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(content: Text('Resend failed: $e')),
-                                  );
-                                }
+                                });
                               }
+                            } catch (e) {
+                              if (!mounted) return;
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                    content: Text('Resend failed: $e')),
+                              );
+                            }
+                          }
                         : null,
                     child: Text(
                       _resendTimer > 0

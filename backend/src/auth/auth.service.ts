@@ -16,48 +16,70 @@ export class AuthService {
     private configService: ConfigService,
   ) {}
 
-  async requestOtp(phoneNumber: string): Promise<{ message: string; devOtp?: string }> {
-    // TODO: Replace with MSG91 or Firebase Auth SMS integration
-    // Step 1: Generate a random 6-digit OTP
+  // ── OTP Request ────────────────────────────────────────────────────────────
+
+  async requestOtp(
+    phoneNumber: string,
+  ): Promise<{ message: string; devOtp?: string }> {
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
-    // Step 2: Store OTP in Redis with 5-minute TTL (key: otp:{phoneNumber})
+
+    // Store OTP in Redis with 5-minute TTL
     await this.redisService.saveOtp(`otp:${phoneNumber}`, otp);
-    // Step 3: Send SMS via MSG91
-    // await this.smsService.send(phoneNumber, `Your Gixbee OTP is ${otp}`);
-    console.log(`[DEV ONLY] OTP for ${phoneNumber}: ${otp}`);
-    return { message: 'OTP sent successfully', devOtp: otp };
+
+    // TODO: Replace with Twilio Verify or MSG91 in production
+    // await this.twilioClient.verify.v2
+    //   .services(process.env.TWILIO_VERIFY_SERVICE_SID)
+    //   .verifications.create({ to: phoneNumber, channel: 'sms' });
+
+    const isProduction = this.configService.get('NODE_ENV') === 'production';
+
+    if (!isProduction) {
+      // Only log and return devOtp in non-production environments
+      console.log(`[DEV ONLY] OTP for ${phoneNumber}: ${otp}`);
+      return { message: 'OTP sent successfully', devOtp: otp };
+    }
+
+    return { message: 'OTP sent successfully' };
   }
 
-  async verifyOtp(phoneNumber: string, otp: string): Promise<{ accessToken: string }> {
-    // Master OTP bypass for development/testing
-    const isMasterOtp = otp === '123456';
-    
-    // Fetch OTP from Redis and compare
+  // ── OTP Verify ────────────────────────────────────────────────────────────
+
+  async verifyOtp(
+    phoneNumber: string,
+    otp: string,
+  ): Promise<{ accessToken: string }> {
     const storedOtp = await this.redisService.getOtp(`otp:${phoneNumber}`);
-    
-    if (!isMasterOtp && (!storedOtp || storedOtp !== otp)) {
+
+    if (!storedOtp || storedOtp !== otp) {
       throw new UnauthorizedException('Invalid or expired OTP');
     }
+
+    // Delete OTP after single use — prevents replay attacks
     await this.redisService.deleteOtp(`otp:${phoneNumber}`);
 
+    // Create user if first login
     let user = await this.usersRepository.findOne({ where: { phoneNumber } });
-
     if (!user) {
       user = this.usersRepository.create({
         phoneNumber,
-        name: `User ${phoneNumber.slice(-4)}`,
-        role: UserRole.OPERATOR,
+        name: '',                   // collected in RegistrationScreen after OTP
+        role: UserRole.CUSTOMER,    // default to CUSTOMER — workers register via /register-pro
         isVerified: true,
-        walletBalance: 100, // Give new users Rs. 100 starting balance
+        walletBalance: 0,           // no free credits — prevents wallet exploit
       });
       await this.usersRepository.save(user);
     }
 
-    const payload = { sub: user.id, phoneNumber: user.phoneNumber, role: user.role };
-    return {
-      accessToken: await this.jwtService.signAsync(payload),
+    const payload = {
+      sub: user.id,
+      phoneNumber: user.phoneNumber,
+      role: user.role,
     };
+
+    return { accessToken: await this.jwtService.signAsync(payload) };
   }
+
+  // ── Profile ────────────────────────────────────────────────────────────────
 
   async getProfile(userId: string): Promise<{
     id: string;
@@ -75,36 +97,67 @@ export class AuthService {
     return {
       id: user.id,
       phone: user.phoneNumber,
-      name: user.name || `User ${user.phoneNumber.slice(-4)}`,
+      name: user.name ?? '',
       email: null,
-      avatar: user.profileImageUrl || null,
+      avatar: user.profileImageUrl ?? null,
       role: user.role,
       hasWorkerProfile: user.hasWorkerProfile ?? false,
       isAvailableForWork: user.isAvailableForWork ?? true,
     };
   }
 
-  async updatePushToken(userId: string, token: string): Promise<{ message: string }> {
+  // ── FCM Token Registration ─────────────────────────────────────────────────
+
+  /**
+   * Called by Flutter via PATCH /auth/fcm-token after OTP login.
+   * Stores the device's Firebase FCM token in DB + Redis.
+   * NotificationsService uses this token to push job notifications to the device.
+   */
+  async updatePushToken(
+    userId: string,
+    token: string,
+  ): Promise<{ message: string }> {
     const user = await this.usersRepository.findOne({ where: { id: userId } });
     if (!user) throw new NotFoundException('User not found');
-    user.fcmToken = token; // Reusing the field — stores OneSignal push subscription ID now
+
+    user.fcmToken = token;
     await this.usersRepository.save(user);
-    // SYNC WITH REDIS
+
+    // Cache in Redis for fast lookup by NotificationsService
     await this.redisService.cacheFcmToken(userId, token);
+
     return { message: 'Push token updated' };
   }
 
-  async adminLogin(username: string, password: string): Promise<{ accessToken: string }> {
-    // Scaffold explicitly for the Super Admin panel Web UI
-    if (username !== 'admin' || password !== 'admin') {
+  // ── Admin Login ────────────────────────────────────────────────────────────
+
+  /**
+   * Super-admin panel login.
+   * Credentials must come from environment variables — never hardcoded.
+   */
+  async adminLogin(
+    username: string,
+    password: string,
+  ): Promise<{ accessToken: string }> {
+    const adminUsername = this.configService.get<string>('ADMIN_USERNAME');
+    const adminPassword = this.configService.get<string>('ADMIN_PASSWORD');
+
+    if (!adminUsername || !adminPassword) {
+      throw new UnauthorizedException(
+        'Admin credentials not configured on server',
+      );
+    }
+
+    if (username !== adminUsername || password !== adminPassword) {
       throw new UnauthorizedException('Invalid admin credentials');
     }
 
-    // Usually, you'd mint the token against a real DB admin user ID.
-    // For scaffolding, we provide a valid dummy sub that allows bypass, mapped to the ADMIN role.
-    const payload = { sub: 'admin-scaffold-001', role: UserRole.ADMIN, phoneNumber: 'admin' };
-    return {
-      accessToken: await this.jwtService.signAsync(payload),
+    const payload = {
+      sub: 'admin-001',
+      role: UserRole.ADMIN,
+      phoneNumber: 'admin',
     };
+
+    return { accessToken: await this.jwtService.signAsync(payload) };
   }
 }
