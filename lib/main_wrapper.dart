@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'services/debug_log_service.dart';
 import 'core/config/app_strings.dart';
 import 'features/home/home_screen.dart';
 import 'features/map/worker_directory_screen.dart';
@@ -108,7 +109,7 @@ class _MainWrapperState extends ConsumerState<MainWrapper> {
         final token = await notifService.getDeviceToken();
         if (token == null) return;
         await ref.read(authRepositoryProvider).registerFcmToken(token);
-        debugPrint('[FCM] Token synced on app start (attempt $attempt)');
+        ref.read(debugLogProvider.notifier).log('FCM token synced on start');
         return;
       } catch (e) {
         debugPrint('[FCM] Token sync attempt $attempt failed: $e');

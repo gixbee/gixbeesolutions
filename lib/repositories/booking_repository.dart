@@ -1,7 +1,7 @@
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'auth_repository.dart'; // To get dioProvider
+import 'auth_repository.dart';
 
 final bookingRepositoryProvider = Provider((ref) {
   final dio = ref.watch(dioProvider);
@@ -10,7 +10,8 @@ final bookingRepositoryProvider = Provider((ref) {
 
 /// Shared provider that all booking screens watch.
 /// Invalidate this after any mutation (accept, decline, complete, etc.)
-final myBookingsProvider = FutureProvider.autoDispose<List<dynamic>>((ref) async {
+final myBookingsProvider =
+    FutureProvider.autoDispose<List<dynamic>>((ref) async {
   final repo = ref.watch(bookingRepositoryProvider);
   return repo.getMyBookings();
 });
@@ -20,12 +21,15 @@ class BookingRepository {
 
   BookingRepository(this._dio);
 
+  // ── Create ─────────────────────────────────────────────────────────────────
+
   Future<Map<String, dynamic>> createBooking({
     required String workerId,
     required DateTime scheduledAt,
     required double amount,
     required String address,
     String? description,
+    String? skill,
   }) async {
     try {
       final response = await _dio.post('/bookings', data: {
@@ -33,7 +37,8 @@ class BookingRepository {
         'scheduledAt': scheduledAt.toIso8601String(),
         'amount': amount,
         'serviceLocation': address,
-        'description': description,
+        if (description != null) 'description': description,
+        if (skill != null) 'skill': skill,
       });
       return Map<String, dynamic>.from(response.data);
     } catch (e) {
@@ -42,14 +47,21 @@ class BookingRepository {
     }
   }
 
-  Future<List<dynamic>> getMyBookings({String? status, int page = 1, int limit = 50}) async {
+  // ── Read ──────────────────────────────────────────────────────────────────
+
+  Future<List<dynamic>> getMyBookings({
+    String? status,
+    int page = 1,
+    int limit = 50,
+  }) async {
     try {
       final queryParams = <String, dynamic>{
         'page': page.toString(),
         'limit': limit.toString(),
       };
       if (status != null) queryParams['status'] = status;
-      final response = await _dio.get('/bookings/my', queryParameters: queryParams);
+      final response =
+          await _dio.get('/bookings/my', queryParameters: queryParams);
       return response.data as List<dynamic>;
     } catch (e) {
       debugPrint('GetMyBookings failed: $e');
@@ -57,117 +69,17 @@ class BookingRepository {
     }
   }
 
-  /// Gate 1: Confirm the worker has arrived at the service location
-  Future<void> confirmArrival({
-    required String bookingId,
-    required String otp,
-  }) async {
+  Future<Map<String, dynamic>?> getBookingById(String id) async {
     try {
-      await _dio.post('/bookings/$bookingId/arrival', data: {'otp': otp});
-    } catch (e) {
-      debugPrint('ConfirmArrival failed: $e');
-      rethrow;
-    }
-  }
-
-  /// Gate 2: Confirm the job is complete
-  Future<void> confirmCompletion({
-    required String bookingId,
-    required String otp,
-  }) async {
-    try {
-      await _dio.post('/bookings/$bookingId/completion', data: {'otp': otp});
-    } catch (e) {
-      debugPrint('ConfirmCompletion failed: $e');
-      rethrow;
-    }
-  }
-
-  // Vendor approve/reject a booking request
-  Future<void> updateBookingStatus(String bookingId, String status) async {
-    await _dio.patch('/bookings/$bookingId/status', data: {'status': status});
-  }
-
-  // Customer confirm after vendor approves
-  Future<void> confirmBooking(String bookingId) async {
-    await _dio.patch('/bookings/$bookingId/confirm');
-  }
-
-  // Worker taps Arrived — triggers arrival OTP sent to user
-  Future<void> markArrived(String bookingId) async {
-    await _dio.patch('/bookings/$bookingId/arrive');
-  }
-
-  // Worker taps Finish — triggers completion OTP sent to user
-  Future<void> markComplete(String bookingId) async {
-    await _dio.patch('/bookings/$bookingId/complete');
-  }
-
-  // Get blocked calendar dates for a vendor
-  Future<List<DateTime>> getCalendarDates(String vendorId) async {
-    try {
-      final res = await _dio.get('/bookings/calendar/$vendorId');
-      final List<dynamic> datesStr = res.data;
-      return datesStr.map((d) => DateTime.parse(d as String)).toList();
-    } catch (e) {
-      debugPrint('GetCalendarDates failed: $e');
-      return [];
-    }
-  }
-
-  // ─── STEP 4: INSTANT REQUEST + ACCEPT FLOW ────────────────
-
-  /// Customer sends an instant service request
-  Future<Map<String, dynamic>> sendInstantRequest({
-    required String workerId,
-    required String skill,
-    required String serviceLocation,
-    required double lat,
-    required double lng,
-    required double amount,
-    Map<String, String>? onSiteContact,
-  }) async {
-    try {
-      final response = await _dio.post('/bookings', data: {
-        'workerId': workerId,
-        'skill': skill,
-        'serviceLocation': serviceLocation,
-        'serviceLat': lat,
-        'serviceLng': lng,
-        'amount': amount,
-        'type': 'INSTANT',
-        'scheduledAt': DateTime.now().toIso8601String(),
-        if (onSiteContact != null) 'onSiteContact': onSiteContact,
-      });
+      final response = await _dio.get('/bookings/$id');
       return Map<String, dynamic>.from(response.data);
     } catch (e) {
-      debugPrint('SendInstantRequest failed: $e');
-      rethrow;
+      debugPrint('GetBookingById failed: $e');
+      return null;
     }
   }
 
-  /// Worker accepts an incoming job request
-  Future<void> acceptBooking(String bookingId) async {
-    try {
-      await _dio.patch('/bookings/$bookingId/accept');
-    } catch (e) {
-      debugPrint('AcceptBooking failed: $e');
-      rethrow;
-    }
-  }
-
-  /// Poll for REQUESTED bookings assigned to this worker (FCM fallback)
-  Future<List<dynamic>> getPendingBookings() async {
-    try {
-      final response = await _dio.get('/bookings/pending');
-      return response.data as List<dynamic>;
-    } catch (e) {
-      debugPrint('GetPendingBookings failed: $e');
-      return [];
-    }
-  }
-
-  /// Poll the booking status (customer waits for worker acceptance)
+  /// Poll booking status from Redis cache (fast, used by WaitingForWorkerScreen)
   Future<Map<String, dynamic>> pollBookingStatus(String bookingId) async {
     try {
       final response = await _dio.get('/bookings/$bookingId/status');
@@ -178,30 +90,100 @@ class BookingRepository {
     }
   }
 
-  /// Cancel a booking request
-  Future<void> cancelBooking(String bookingId) async {
+  /// Returns all REQUESTED bookings assigned to the current worker.
+  /// Used by the IncomingJobScreen queue and the 5-second poll fallback.
+  Future<List<dynamic>> getPendingBookings() async {
     try {
-      await _dio.patch('/bookings/$bookingId/status', data: {'status': 'CANCELLED'});
+      final response = await _dio.get('/bookings/pending');
+      return response.data as List<dynamic>;
     } catch (e) {
-      debugPrint('CancelBooking failed: $e');
+      debugPrint('GetPendingBookings failed: $e');
+      return [];
+    }
+  }
+
+  // ── Worker Actions ────────────────────────────────────────────────────────
+
+  /// Worker accepts one booking.
+  /// Backend auto-cancels all other REQUESTED bookings for this worker.
+  Future<void> acceptBooking(String bookingId) async {
+    try {
+      await _dio.patch('/bookings/$bookingId/accept');
+    } catch (e) {
+      debugPrint('AcceptBooking failed: $e');
       rethrow;
     }
   }
 
-  /// Get specific booking details
-  Future<Map<String, dynamic>?> getBookingById(String id) async {
+  /// Worker explicitly declines one pending booking request.
+  /// Backend notifies the customer and removes it from the queue.
+  /// Other pending requests remain unaffected.
+  Future<void> rejectBooking(String bookingId) async {
     try {
-      final response = await _dio.get('/bookings/$id');
-      return Map<String, dynamic>.from(response.data);
+      await _dio.patch('/bookings/$bookingId/reject');
     } catch (e) {
-      debugPrint('GetBookingById failed: $e');
-      return null;
+      debugPrint('RejectBooking failed: $e');
+      rethrow;
     }
   }
-  /// Refresh completion OTP
+
+  /// Gate 1: Worker confirms arrival at the service location.
+  /// Triggers backend to mark booking ACTIVE.
+  Future<void> markArrived(String bookingId) async {
+    try {
+      await _dio.patch('/bookings/$bookingId/arrive');
+    } catch (e) {
+      debugPrint('MarkArrived failed: $e');
+      rethrow;
+    }
+  }
+
+  /// Gate 1: Verify arrival OTP entered by worker.
+  Future<void> confirmArrival({
+    required String bookingId,
+    required String otp,
+  }) async {
+    try {
+      await _dio.post('/bookings/$bookingId/verify-arrival', data: {'otp': otp});
+    } catch (e) {
+      debugPrint('ConfirmArrival failed: $e');
+      rethrow;
+    }
+  }
+
+  /// Gate 2: Worker marks job as complete.
+  /// Triggers backend to send completion OTP to customer.
+  Future<void> markComplete(String bookingId) async {
+    try {
+      await _dio.patch('/bookings/$bookingId/complete');
+    } catch (e) {
+      debugPrint('MarkComplete failed: $e');
+      rethrow;
+    }
+  }
+
+  /// Gate 2: Verify completion OTP entered by worker.
+  Future<void> confirmCompletion({
+    required String bookingId,
+    required String otp,
+  }) async {
+    try {
+      await _dio.post(
+        '/bookings/$bookingId/verify-completion',
+        data: {'otp': otp},
+      );
+    } catch (e) {
+      debugPrint('ConfirmCompletion failed: $e');
+      rethrow;
+    }
+  }
+
+  /// Refresh completion OTP (customer requests a new one)
   Future<String> refreshCompletionOtp(String bookingId) async {
     try {
-      final response = await _dio.patch('/bookings/$bookingId/refresh-completion-otp');
+      final response = await _dio.patch(
+        '/bookings/$bookingId/refresh-completion-otp',
+      );
       return response.data['completionOtp'] as String;
     } catch (e) {
       debugPrint('RefreshCompletionOtp failed: $e');
@@ -209,7 +191,22 @@ class BookingRepository {
     }
   }
 
-  /// Submit a star rating for a completed job
+  // ── Customer Actions ──────────────────────────────────────────────────────
+
+  Future<void> cancelBooking(String bookingId) async {
+    try {
+      await _dio.patch(
+        '/bookings/$bookingId/status',
+        data: {'status': 'CANCELLED'},
+      );
+    } catch (e) {
+      debugPrint('CancelBooking failed: $e');
+      rethrow;
+    }
+  }
+
+  // ── Rating & Dispute ──────────────────────────────────────────────────────
+
   Future<void> submitRating(String bookingId, int rating) async {
     try {
       await _dio.post('/bookings/$bookingId/rating', data: {'rating': rating});
@@ -221,9 +218,26 @@ class BookingRepository {
 
   Future<void> reportDispute(String bookingId, String reason) async {
     try {
-      await _dio.post('/bookings/$bookingId/dispute', data: {'reason': reason});
+      await _dio.post(
+        '/bookings/$bookingId/dispute',
+        data: {'reason': reason},
+      );
     } catch (e) {
       debugPrint('ReportDispute failed: $e');
+      rethrow;
+    }
+  }
+
+  // ── Generic status update (admin / override) ──────────────────────────────
+
+  Future<void> updateBookingStatus(String bookingId, String status) async {
+    try {
+      await _dio.patch(
+        '/bookings/$bookingId/status',
+        data: {'status': status},
+      );
+    } catch (e) {
+      debugPrint('UpdateBookingStatus failed: $e');
       rethrow;
     }
   }

@@ -1,6 +1,10 @@
-import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  BadRequestException,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, DataSource, In } from 'typeorm';
 import { InjectQueue } from '@nestjs/bull';
 import type { Queue } from 'bull';
 import { Booking, BookingStatus } from './booking.entity';
@@ -22,38 +26,52 @@ export class BookingsService {
     private notificationsService: NotificationsService,
     private redisService: RedisService,
     private workersService: WorkersService,
+    private dataSource: DataSource,
   ) {}
 
-  /** Generate a random 4-digit OTP */
   private generateOtp(): string {
     return Math.floor(1000 + Math.random() * 9000).toString();
   }
 
+  // ── Create Booking ────────────────────────────────────────────────────────
+
+  /**
+   * Creates a booking request for a specific worker.
+   *
+   * Race condition handling:
+   *   Multiple customers can book the same worker simultaneously. Each booking
+   *   is created as REQUESTED. When the worker accepts ONE, all other REQUESTED
+   *   bookings for that worker are auto-cancelled (see acceptBooking).
+   *
+   *   We only hard-block if the worker is ALREADY on an active/accepted job.
+   *   This allows the worker to see a queue of incoming requests and pick the
+   *   best one, rather than rejecting all but the first.
+   */
   async createBooking(bookingData: Partial<Booking>): Promise<Booking> {
-    // Self-booking check
-    const customerId = bookingData.customer?.id || bookingData.customer;
-    const operatorId = bookingData.operator?.id || bookingData.operator;
-    
+    const customerId = (bookingData.customer as any)?.id ?? bookingData.customer;
+    const operatorId = (bookingData.operator as any)?.id ?? bookingData.operator;
+
+    // Prevent self-booking
     if (customerId && operatorId && customerId === operatorId) {
       throw new BadRequestException('You cannot book yourself.');
     }
 
-    // Overlap/Double-booking check
-    if (bookingData.operator?.id) {
-      const activeBooking = await this.bookingsRepository.findOne({
+    // Prevent booking a worker who is already mid-job (ACTIVE or ARRIVED)
+    if (operatorId) {
+      const activeJob = await this.bookingsRepository.findOne({
         where: [
-          { operator: { id: bookingData.operator.id }, status: BookingStatus.ACTIVE },
-          { operator: { id: bookingData.operator.id }, status: BookingStatus.ACCEPTED },
-          { operator: { id: bookingData.operator.id }, status: BookingStatus.CONFIRMED },
+          { operator: { id: operatorId }, status: BookingStatus.ACTIVE },
+          { operator: { id: operatorId }, status: BookingStatus.ARRIVED },
         ],
       });
-
-      if (activeBooking) {
-        throw new BadRequestException('This worker is currently on another job or has a pending task.');
+      if (activeJob) {
+        throw new BadRequestException(
+          'This worker is currently on an active job. Try again later.',
+        );
       }
     }
 
-    // Generate both OTPs at booking creation time
+    // Generate OTPs at booking creation time
     const arrivalOtp = this.generateOtp();
     const completionOtp = this.generateOtp();
 
@@ -65,10 +83,15 @@ export class BookingsService {
     });
     const savedBooking = await this.bookingsRepository.save(booking);
 
-    // Save OTPs to Redis with a 24-hour TTL (usually jobs are same-day)
-    // Key format: otp:booking:{id}:arrival and otp:booking:{id}:completion
-    await this.redisService.saveOtp(`otp:booking:${savedBooking.id}:arrival`, arrivalOtp);
-    await this.redisService.saveOtp(`otp:booking:${savedBooking.id}:completion`, completionOtp);
+    // Save OTPs to Redis (24-hour TTL)
+    await this.redisService.saveOtp(
+      `otp:booking:${savedBooking.id}:arrival`,
+      arrivalOtp,
+    );
+    await this.redisService.saveOtp(
+      `otp:booking:${savedBooking.id}:completion`,
+      completionOtp,
+    );
 
     // Schedule 90-second request timeout
     await this.bookingsQueue.add(
@@ -77,21 +100,21 @@ export class BookingsService {
       { delay: 90 * 1000 },
     );
 
-    // PERSISTENCE OPTIMIZATION: Add to Redis for high-frequency polling
-    if (bookingData.operator?.id) {
-       await this.redisService.addPendingBooking(bookingData.operator.id, savedBooking.id);
+    // Add to Redis pending list for fast poll discovery
+    if (operatorId) {
+      await this.redisService.addPendingBooking(operatorId, savedBooking.id);
     }
 
-    // Dispatch push notification to the assigned worker via OneSignal
-    if (bookingData.operator?.id) {
-      await this.notificationsService.sendToUser(bookingData.operator.id, {
-        title: 'New Job Request',
-        body: 'A customer has requested your services.',
-        data: { type: 'new_booking', bookingId: savedBooking.id },
-      });
+    // Push notification to worker
+    if (operatorId) {
+      await this.notificationsService.notifyWorkerNewBooking(
+        operatorId,
+        savedBooking.id,
+        (bookingData as any).skill ?? 'General Help',
+      );
     }
 
-    // Cache initial status in Redis for poll endpoint
+    // Cache initial status for poll endpoint
     await this.redisService.cacheBookingStatus(savedBooking.id, {
       status: 'REQUESTED',
       operatorName: null,
@@ -100,93 +123,193 @@ export class BookingsService {
     return savedBooking;
   }
 
-  // ─── STEP 4: WORKER ACCEPTANCE ────────────────────────────
+  // ── Accept Booking ────────────────────────────────────────────────────────
 
-  async acceptBooking(bookingId: string, workerId: string): Promise<{ message: string; status: string; booking: Booking }> {
-    const booking = await this.bookingsRepository.findOne({
-      where: { id: bookingId },
-      relations: ['customer', 'operator'],
+  /**
+   * Worker accepts one booking from their queue.
+   *
+   * When accepted:
+   *   1. This booking → ACCEPTED
+   *   2. All OTHER pending REQUESTED bookings for this worker → CANCELLED
+   *   3. Each cancelled customer receives a push notification
+   *   4. Worker wallet is debited the platform fee
+   *   5. Worker status → busy
+   *
+   * This ensures the worker only ever has one active job at a time,
+   * while allowing multiple customers to queue up for the same worker.
+   */
+  async acceptBooking(
+    bookingId: string,
+    workerId: string,
+  ): Promise<{ message: string; status: string; booking: Booking }> {
+    // Use a database transaction to prevent race conditions when
+    // two accept requests arrive simultaneously for the same worker
+    return await this.dataSource.transaction(async (manager) => {
+      // Lock this booking row exclusively to prevent double-accept
+      const booking = await manager
+        .createQueryBuilder(Booking, 'booking')
+        .setLock('pessimistic_write')
+        .leftJoinAndSelect('booking.customer', 'customer')
+        .leftJoinAndSelect('booking.operator', 'operator')
+        .where('booking.id = :bookingId', { bookingId })
+        .getOne();
+
+      if (!booking) throw new NotFoundException('Booking not found');
+
+      if (booking.status !== BookingStatus.REQUESTED) {
+        throw new BadRequestException(
+          'This booking is no longer available — it may have been accepted or cancelled.',
+        );
+      }
+
+      if (booking.operator?.id !== workerId) {
+        throw new BadRequestException('You are not assigned to this booking.');
+      }
+
+      // Transition this booking → ACCEPTED
+      booking.status = BookingStatus.ACCEPTED;
+      const savedBooking = await manager.save(booking);
+
+      // ── Auto-cancel all other REQUESTED bookings for this worker ────────
+      const otherPending = await manager.find(Booking, {
+        where: {
+          operator: { id: workerId },
+          status: BookingStatus.REQUESTED,
+        },
+        relations: ['customer'],
+      });
+
+      const otherPendingFiltered = otherPending.filter(
+        (b) => b.id !== bookingId,
+      );
+
+      if (otherPendingFiltered.length > 0) {
+        await manager.update(
+          Booking,
+          { id: In(otherPendingFiltered.map((b) => b.id)) },
+          { status: BookingStatus.CANCELLED },
+        );
+
+        // Notify each customer whose request was auto-cancelled
+        for (const cancelled of otherPendingFiltered) {
+          if (cancelled.customer?.id) {
+            await this.notificationsService.notifyBookingCancelled(
+              cancelled.customer.id,
+              'The worker accepted another job. Please try booking again.',
+            );
+          }
+          // Clean up Redis
+          await this.redisService
+            .removePendingBooking(workerId, cancelled.id)
+            .catch(() => {});
+          await this.redisService.cacheBookingStatus(cancelled.id, {
+            status: 'CANCELLED',
+            operatorName: null,
+          });
+        }
+      }
+      // ────────────────────────────────────────────────────────────────────
+
+      // Deduct platform fee from worker wallet
+      await this.walletsService.deductBookingFee(workerId);
+
+      // Mark worker as busy
+      await this.workersService.setWorkerStatus(workerId, 'busy');
+
+      // Remove from Redis pending list
+      await this.redisService.removePendingBooking(workerId, bookingId);
+
+      // Cache ACCEPTED status for poll endpoint (includes arrivalOtp for customer)
+      await this.redisService.cacheBookingStatus(bookingId, {
+        status: 'ACCEPTED',
+        operatorName: booking.operator?.name ?? null,
+        arrivalOtp: savedBooking.arrivalOtp,
+      });
+
+      // Schedule GPS monitoring jobs
+      await this.bookingsQueue.add(
+        'sevenMinuteReminder',
+        { bookingId: savedBooking.id },
+        { delay: 7 * 60 * 1000 },
+      );
+      await this.bookingsQueue.add(
+        'tenMinuteGpsCheck',
+        { bookingId: savedBooking.id },
+        { delay: 10 * 60 * 1000 },
+      );
+
+      return {
+        message: `Booking accepted. Head to the service location now.`,
+        status: 'ACCEPTED',
+        booking: savedBooking,
+      };
     });
+  }
+
+  // ── Reject / Decline Booking ──────────────────────────────────────────────
+
+  /**
+   * Worker explicitly declines one booking from their queue.
+   * The customer is notified and may rebook with a different worker.
+   * Other pending bookings in the worker's queue are unaffected.
+   */
+  async rejectBooking(
+    bookingId: string,
+    workerId: string,
+  ): Promise<{ message: string }> {
+    const booking = await this.bookingsRepository.findOne({
+      where: { id: bookingId, operator: { id: workerId } },
+      relations: ['customer'],
+    });
+
     if (!booking) throw new NotFoundException('Booking not found');
 
-    // Only REQUESTED bookings can be accepted
     if (booking.status !== BookingStatus.REQUESTED) {
-      throw new BadRequestException('This booking is no longer available for acceptance.');
+      throw new BadRequestException('Only pending requests can be declined.');
     }
 
-    // Validate the worker is the assigned operator
-    if (booking.operator?.id !== workerId) {
-      throw new BadRequestException('You are not assigned to this booking.');
-    }
+    booking.status = BookingStatus.REJECTED;
+    await this.bookingsRepository.save(booking);
 
-    // Deduct platform fee from worker wallet
-    await this.walletsService.deductBookingFee(workerId);
-
-    // Transition: REQUESTED → ACCEPTED
-    booking.status = BookingStatus.ACCEPTED;
-    const savedBooking = await this.bookingsRepository.save(booking);
-
-    // REDIS SYNC: Remove from pending requests discovery
     await this.redisService.removePendingBooking(workerId, bookingId);
-
-    // Update Redis status to 'busy'
-    await this.workersService.setWorkerStatus(workerId, 'busy');
-
-    // Cache ACCEPTED status in Redis for poll endpoint
     await this.redisService.cacheBookingStatus(bookingId, {
-      status: 'ACCEPTED',
-      operatorName: booking.operator?.name,
-      arrivalOtp: savedBooking.arrivalOtp,
+      status: 'REJECTED',
+      operatorName: null,
     });
 
-    // NOW schedule the 7-minute reminder and 10-minute GPS check
-    await this.bookingsQueue.add(
-      'sevenMinuteReminder',
-      { bookingId: savedBooking.id },
-      { delay: 7 * 60 * 1000 },
-    );
+    if (booking.customer?.id) {
+      await this.notificationsService.notifyBookingCancelled(
+        booking.customer.id,
+        'The worker is unavailable for this request. Please try again.',
+      );
+    }
 
-    await this.bookingsQueue.add(
-      'tenMinuteGpsCheck',
-      { bookingId: savedBooking.id },
-      { delay: 10 * 60 * 1000 },
-    );
-
-    return {
-      message: 'Booking accepted. Head to the service location now.',
-      status: 'ACCEPTED',
-      booking: savedBooking,
-    };
+    return { message: 'Booking declined.' };
   }
 
-  // Cache ACCEPTED status in Redis for poll endpoint
-  private async cacheAcceptedStatus(bookingId: string, operatorName?: string, arrivalOtp?: string) {
-    await this.redisService.cacheBookingStatus(bookingId, {
-      status: 'ACCEPTED',
-      operatorName: operatorName || null,
-      arrivalOtp: arrivalOtp || null,
-    });
-  }
+  // ── Update Status ─────────────────────────────────────────────────────────
 
   async updateStatus(id: string, status: BookingStatus): Promise<Booking | null> {
-    const booking = await this.bookingsRepository.findOne({ 
+    const booking = await this.bookingsRepository.findOne({
       where: { id },
-      relations: ['operator'] 
+      relations: ['operator'],
     });
     if (!booking) return null;
 
     booking.status = status;
     const saved = await this.bookingsRepository.save(booking);
 
-    // Update Redis cache so poll endpoint reads from memory
     await this.redisService.cacheBookingStatus(id, {
       status: saved.status,
       operatorName: saved.operator?.name,
-      arrivalOtp: saved.status === BookingStatus.ACCEPTED ? saved.arrivalOtp : null,
+      arrivalOtp:
+        saved.status === BookingStatus.ACCEPTED ? saved.arrivalOtp : null,
     });
 
-    // Clean up Redis discovery if cancelled/rejected
-    if (status === BookingStatus.CANCELLED || status === BookingStatus.REJECTED) {
+    if (
+      status === BookingStatus.CANCELLED ||
+      status === BookingStatus.REJECTED
+    ) {
       if (booking.operator?.id) {
         await this.redisService.removePendingBooking(booking.operator.id, id);
       }
@@ -195,119 +318,59 @@ export class BookingsService {
     return saved;
   }
 
-  // ─── STEP 5: MONITORING & GPS STRIKES ─────────────────────
+  // ── Find Pending for Worker ───────────────────────────────────────────────
 
   /**
-   * Calculates distance between two coordinates in kilometers using Haversine formula.
+   * Returns ALL pending booking requests for this worker.
+   * Used by the worker's queue UI to show multiple simultaneous requests.
    */
-  calculateDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
-    const R = 6371; // Earth's radius in km
-    const dLat = (lat2 - lat1) * (Math.PI / 180);
-    const dLon = (lon2 - lon1) * (Math.PI / 180);
-    const a =
-      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-      Math.cos(lat1 * (Math.PI / 180)) *
-        Math.cos(lat2 * (Math.PI / 180)) *
-        Math.sin(dLon / 2) *
-        Math.sin(dLon / 2);
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-    return R * c;
-  }
+  async findPendingForWorker(workerId: string): Promise<Booking[]> {
+    const ids = await this.redisService.getPendingBookingIds(workerId);
 
-  /**
-   * Adds a GPS strike to a booking. Cancels the booking if 3 strikes are reached.
-   */
-  async addGpsStrike(bookingId: string) {
-    const booking = await this.bookingsRepository.findOne({
-      where: { id: bookingId },
+    if (ids.length > 0) {
+      const bookings = await this.bookingsRepository.find({
+        where: { id: In(ids) },
+        relations: ['customer', 'operator'],
+      });
+      return bookings.sort((a, b) => ids.indexOf(a.id) - ids.indexOf(b.id));
+    }
+
+    const dbBookings = await this.bookingsRepository.find({
+      where: { operator: { id: workerId }, status: BookingStatus.REQUESTED },
       relations: ['customer', 'operator'],
+      order: { createdAt: 'DESC' },
     });
 
-    if (!booking) return;
-
-    // Only add strikes if the booking is still in ACCEPTED status (arrival monitoring)
-    if (booking.status !== BookingStatus.ACCEPTED) {
-      return { status: 'Skipped - Not in monitoring phase' };
+    if (dbBookings.length > 0) {
+      for (const b of dbBookings) {
+        await this.redisService.addPendingBooking(workerId, b.id);
+      }
     }
 
-    booking.gpsStrikes += 1;
-    await this.bookingsRepository.save(booking);
-
-    if (booking.gpsStrikes >= 3) {
-      // Auto-cancel booking
-      booking.status = BookingStatus.CANCELLED;
-      await this.bookingsRepository.save(booking);
-
-      // Cache CANCELLED status in Redis for poll endpoint
-      await this.redisService.cacheBookingStatus(bookingId, {
-        status: 'CANCELLED',
-        operatorName: booking.operator?.name,
-      });
-
-      // Notify customer via OneSignal
-      if (booking.customer?.id) {
-        await this.notificationsService.sendToUser(booking.customer.id, {
-          title: 'Booking Cancelled',
-          body: 'Your booking has been cancelled.',
-          data: { type: 'booking_cancelled' },
-        });
-      }
-
-      // Notify worker
-      if (booking.operator?.id) {
-        await this.notificationsService.sendToUser(booking.operator.id, {
-          title: 'Booking Forfeited',
-          body: 'You received 3 GPS strikes for not moving towards the site. The job has been forfeited.',
-        });
-      }
-
-      // Mark worker as available in Redis again
-      if (booking.operator?.id) {
-        await this.workersService.setWorkerStatus(booking.operator.id, 'available');
-      }
-
-      return { cancelled: true, strikes: 3 };
-    }
-
-    // Notify worker about the strike
-    if (booking.operator?.id) {
-      await this.notificationsService.sendToUser(booking.operator.id, {
-        title: 'GPS Warning!',
-        body: `You received strike ${booking.gpsStrikes}/3. Please head to the service location or the job will be forfeited.`,
-      });
-    }
-
-    return { cancelled: false, strikes: booking.gpsStrikes };
+    return dbBookings;
   }
 
-  async getBookingById(id: string): Promise<Booking | null> {
-    return this.bookingsRepository
-      .createQueryBuilder('booking')
-      .leftJoinAndSelect('booking.customer', 'customer')
-      .leftJoinAndSelect('booking.operator', 'operator')
-      .where('booking.id = :id', { id })
-      .getOne();
-  }
+  // ── OTP Verification ──────────────────────────────────────────────────────
 
-  // ─── OTP GATE 1: ARRIVAL ──────────────────────────────────
-
-  async verifyArrivalOtp(bookingId: string, otp: string): Promise<{ message: string; status: string }> {
-    const booking = await this.bookingsRepository.findOne({ where: { id: bookingId } });
+  async verifyArrivalOtp(
+    bookingId: string,
+    otp: string,
+  ): Promise<{ message: string; status: string }> {
+    const booking = await this.bookingsRepository.findOne({
+      where: { id: bookingId },
+    });
     if (!booking) throw new NotFoundException('Booking not found');
 
     if (!booking.arrivalOtp || booking.arrivalOtp !== otp) {
       throw new BadRequestException('Invalid arrival OTP');
     }
 
-    // Clean up used OTP in redis just in case it exists to be tidy
     this.redisService.deleteOtp(`otp:booking:${bookingId}:arrival`).catch(() => {});
 
-    // Transition: ACCEPTED → ACTIVE (worker has arrived, job begins)
     booking.status = BookingStatus.ACTIVE;
     booking.startedAt = new Date();
     await this.bookingsRepository.save(booking);
 
-    // Update Redis cache for poll endpoint
     await this.redisService.cacheBookingStatus(bookingId, {
       status: 'ACTIVE',
       operatorName: null,
@@ -316,45 +379,47 @@ export class BookingsService {
     return { message: 'Arrival confirmed. Job is now active.', status: 'ACTIVE' };
   }
 
-  async verifyCompletionOtp(bookingId: string, otp: string): Promise<{ message: string; status: string; billingHours: number }> {
-    const booking = await this.bookingsRepository.findOne({ where: { id: bookingId }, relations: ['operator'] });
+  async verifyCompletionOtp(
+    bookingId: string,
+    otp: string,
+  ): Promise<{ message: string; status: string; billingHours: number }> {
+    const booking = await this.bookingsRepository.findOne({
+      where: { id: bookingId },
+      relations: ['operator'],
+    });
     if (!booking) throw new NotFoundException('Booking not found');
 
     if (!booking.completionOtp || booking.completionOtp !== otp) {
       throw new BadRequestException('Invalid completion OTP');
     }
 
-    // Clean up used OTP in redis just in case it exists to be tidy
     this.redisService.deleteOtp(`otp:booking:${bookingId}:completion`).catch(() => {});
 
     if (booking.status !== BookingStatus.ACTIVE) {
       throw new BadRequestException('Job must be active to complete');
     }
 
-    // Calculate billing hours
-    const startTime = booking.startedAt ? new Date(booking.startedAt).getTime() : Date.now();
-    const endTime = Date.now();
-    const hoursWorked = Math.max(1, Math.ceil((endTime - startTime) / (1000 * 60 * 60)));
+    const startTime = booking.startedAt
+      ? new Date(booking.startedAt).getTime()
+      : Date.now();
+    const hoursWorked = Math.max(
+      1,
+      Math.ceil((Date.now() - startTime) / (1000 * 60 * 60)),
+    );
 
-    // Transition: ACTIVE → COMPLETED
     booking.status = BookingStatus.COMPLETED;
     booking.completedAt = new Date();
     booking.billingHours = hoursWorked;
     await this.bookingsRepository.save(booking);
 
-    // Update Redis cache for poll endpoint
     await this.redisService.cacheBookingStatus(bookingId, {
       status: 'COMPLETED',
       operatorName: booking.operator?.name,
     });
 
-    // Mark worker as available in Redis again
     if (booking.operator?.id) {
       await this.workersService.setWorkerStatus(booking.operator.id, 'available');
-    }
 
-    // DEFECT-003 FIX: Credit Rs.12 first-job bonus and set isFirstJobDone
-    if (booking.operator?.id) {
       const workerProfile = await this.workerProfileRepo.findOne({
         where: { user: { id: booking.operator.id } },
       });
@@ -372,7 +437,9 @@ export class BookingsService {
     };
   }
 
-  async refreshCompletionOtp(bookingId: string): Promise<{ message: string; completionOtp: string }> {
+  async refreshCompletionOtp(
+    bookingId: string,
+  ): Promise<{ message: string; completionOtp: string }> {
     const booking = await this.bookingsRepository.findOne({
       where: { id: bookingId },
       relations: ['customer'],
@@ -382,27 +449,26 @@ export class BookingsService {
     const newOtp = this.generateOtp();
     booking.completionOtp = newOtp;
     await this.bookingsRepository.save(booking);
-
-    // Also update Redis for consistency (though we now verify against DB primarily)
     await this.redisService.saveOtp(`otp:booking:${bookingId}:completion`, newOtp);
 
-    // Notify customer
     if (booking.customer?.id) {
-      await this.notificationsService.sendToUser(booking.customer.id, {
-        title: 'New Completion OTP',
-        body: `Your new completion OTP is: ${newOtp}`,
-      });
+      await this.notificationsService.notifyCustomerJobComplete(
+        booking.customer.id,
+        newOtp,
+      );
     }
 
     return { message: 'Completion OTP refreshed', completionOtp: newOtp };
   }
 
-  async submitRating(bookingId: string, rating: number): Promise<{ message: string }> {
+  async submitRating(
+    bookingId: string,
+    rating: number,
+  ): Promise<{ message: string }> {
     const booking = await this.bookingsRepository.findOne({
       where: { id: bookingId },
       relations: ['operator'],
     });
-
     if (!booking) throw new NotFoundException('Booking not found');
     if (booking.status !== BookingStatus.COMPLETED) {
       throw new BadRequestException('Can only rate completed jobs');
@@ -411,16 +477,15 @@ export class BookingsService {
     booking.rating = rating;
     await this.bookingsRepository.save(booking);
 
-    // Update worker's average rating
     if (booking.operator?.id) {
       const workerProfile = await this.workerProfileRepo.findOne({
         where: { user: { id: booking.operator.id } },
       });
-
       if (workerProfile) {
         const currentTotal = workerProfile.rating * workerProfile.reviewCount;
         workerProfile.reviewCount += 1;
-        workerProfile.rating = (currentTotal + rating) / workerProfile.reviewCount;
+        workerProfile.rating =
+          (currentTotal + rating) / workerProfile.reviewCount;
         await this.workerProfileRepo.save(workerProfile);
       }
     }
@@ -428,15 +493,30 @@ export class BookingsService {
     return { message: 'Rating submitted successfully' };
   }
 
-  async findAllByUser(userId: string, role: 'customer' | 'operator', status?: string, page = 1, limit = 50): Promise<Booking[]> {
-    const where: any = role === 'customer' ? { customer: { id: userId } } : { operator: { id: userId } };
-    
-    // Optional status filter (supports comma-separated statuses like "COMPLETED" or "CANCELLED,REJECTED")
+  async getBookingById(id: string): Promise<Booking | null> {
+    return this.bookingsRepository
+      .createQueryBuilder('booking')
+      .leftJoinAndSelect('booking.customer', 'customer')
+      .leftJoinAndSelect('booking.operator', 'operator')
+      .where('booking.id = :id', { id })
+      .getOne();
+  }
+
+  async findAllByUser(
+    userId: string,
+    role: 'customer' | 'operator',
+    status?: string,
+    page = 1,
+    limit = 50,
+  ): Promise<Booking[]> {
+    const where: any =
+      role === 'customer'
+        ? { customer: { id: userId } }
+        : { operator: { id: userId } };
+
     if (status) {
-      const statuses = status.split(',').map(s => s.trim().toUpperCase());
-      if (statuses.length === 1) {
-        where.status = statuses[0] as BookingStatus;
-      }
+      const statuses = status.split(',').map((s) => s.trim().toUpperCase());
+      where.status = statuses.length === 1 ? statuses[0] : In(statuses);
     }
 
     return this.bookingsRepository.find({
@@ -448,33 +528,48 @@ export class BookingsService {
     });
   }
 
-  async findPendingForWorker(workerId: string): Promise<Booking[]> {
-    // 1. Try Redis discovery first
-    const ids = await this.redisService.getPendingBookingIds(workerId);
-    
-    if (ids.length > 0) {
-      const bookings = await this.bookingsRepository.find({
-        where: ids.map(id => ({ id })),
-        relations: ['customer', 'operator']
-      });
-      // Ensure we preserve Redis order (DESC)
-      return bookings.sort((a, b) => ids.indexOf(a.id) - ids.indexOf(b.id));
-    }
-
-    // 2. Fallback to DB query if Redis is empty or cold
-    const dbBookings = await this.bookingsRepository.find({
-      where: { operator: { id: workerId }, status: BookingStatus.REQUESTED },
+  async addGpsStrike(bookingId: string) {
+    const booking = await this.bookingsRepository.findOne({
+      where: { id: bookingId },
       relations: ['customer', 'operator'],
-      order: { createdAt: 'DESC' },
     });
+    if (!booking) return;
+    if (booking.status !== BookingStatus.ACCEPTED) return;
 
-    // 3. Re-populate Redis if we found some in DB
-    if (dbBookings.length > 0) {
-      for (const b of dbBookings) {
-        await this.redisService.addPendingBooking(workerId, b.id);
+    booking.gpsStrikes += 1;
+    await this.bookingsRepository.save(booking);
+
+    if (booking.gpsStrikes >= 3) {
+      booking.status = BookingStatus.CANCELLED;
+      await this.bookingsRepository.save(booking);
+
+      await this.redisService.cacheBookingStatus(bookingId, {
+        status: 'CANCELLED',
+        operatorName: booking.operator?.name,
+      });
+
+      if (booking.customer?.id) {
+        await this.notificationsService.notifyBookingCancelled(
+          booking.customer.id,
+        );
       }
+      if (booking.operator?.id) {
+        await this.notificationsService.sendToUser(booking.operator.id, {
+          title: 'Booking Forfeited',
+          body: 'You received 3 GPS strikes. The job has been forfeited.',
+          data: { type: 'booking_forfeited', bookingId },
+        });
+        await this.workersService.setWorkerStatus(booking.operator.id, 'available');
+      }
+
+      return { cancelled: true, strikes: 3 };
     }
 
-    return dbBookings;
+    await this.notificationsService.notifyGpsStrike(
+      booking.operator.id,
+      booking.gpsStrikes,
+    );
+
+    return { cancelled: false, strikes: booking.gpsStrikes };
   }
 }

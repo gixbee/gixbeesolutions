@@ -11,6 +11,7 @@ import 'wallet_screen.dart';
 import '../business/business_unit_dashboard.dart';
 import '../jobs/register_pro_screen.dart';
 import '../../repositories/talent_repository.dart';
+import 'debug_log_screen.dart';
 
 class ProfileScreen extends ConsumerWidget {
   const ProfileScreen({super.key});
@@ -222,6 +223,15 @@ class ProfileScreen extends ConsumerWidget {
                         );
                       }
                     },
+                ),
+                const SizedBox(height: 16),
+                _ProfileOption(
+                  icon: Icons.bug_report_outlined,
+                  label: 'System Logs',
+                  onTap: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const DebugLogScreen()),
+                  ),
                 ),
                 const SizedBox(height: 16),
                 _ProfileOption(

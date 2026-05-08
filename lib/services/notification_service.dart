@@ -1,10 +1,7 @@
-import 'package:flutter/foundation.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:firebase_messaging/firebase_messaging.dart';
+import 'debug_log_service.dart';
 
 final notificationServiceProvider =
-    Provider((ref) => NotificationService());
+    Provider((ref) => NotificationService(ref));
 
 /// Top-level background message handler.
 /// Registered in main() ONLY — not in initialize() to avoid double registration.
@@ -16,9 +13,12 @@ Future<void> firebaseBackgroundHandler(RemoteMessage message) async {
 }
 
 class NotificationService {
+  final Ref _ref;
   final FirebaseMessaging _messaging = FirebaseMessaging.instance;
   final FlutterLocalNotificationsPlugin _localNotifications =
       FlutterLocalNotificationsPlugin();
+
+  NotificationService(this._ref);
 
   // Guard against calling initialize() more than once.
   // Can happen if both otp_screen and main_wrapper call it.
@@ -53,7 +53,7 @@ class NotificationService {
       sound: true,
       provisional: false,
     );
-    debugPrint('[FCM] Permission: ${settings.authorizationStatus}');
+    _ref.read(debugLogProvider.notifier).log('FCM Permission: ${settings.authorizationStatus}');
 
     // Create Android high-importance channel (required for Android 8+)
     await _localNotifications
@@ -79,7 +79,7 @@ class NotificationService {
       ),
     );
 
-    debugPrint('[FCM] NotificationService initialized');
+    _ref.read(debugLogProvider.notifier).log('NotificationService initialized');
   }
 
   /// Get the FCM device token to register with the backend.
@@ -87,10 +87,10 @@ class NotificationService {
   Future<String?> getDeviceToken() async {
     try {
       final token = await _messaging.getToken();
-      debugPrint('[FCM] Device token: ${token?.substring(0, 20)}...');
+      _ref.read(debugLogProvider.notifier).log('FCM Token: ${token?.substring(0, 10)}...');
       return token;
     } catch (e) {
-      debugPrint('[FCM] Failed to get token: $e');
+      _ref.read(debugLogProvider.notifier).log('FCM Token Failed: $e');
       return null;
     }
   }
@@ -106,7 +106,7 @@ class NotificationService {
   /// Works for both data-only and notification+data FCM messages.
   void addForegroundListener(void Function(RemoteMessage message) handler) {
     FirebaseMessaging.onMessage.listen((message) {
-      debugPrint('[FCM] Foreground message: ${message.messageId}');
+      _ref.read(debugLogProvider.notifier).log('FCM Foreground: ${message.notification?.title ?? "Data message"}');
 
       // Support both notification+data and data-only FCM messages
       final title = message.notification?.title ??
