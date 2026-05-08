@@ -196,6 +196,15 @@ class ProfileScreen extends ConsumerWidget {
                         );
                         // Refresh the user profile
                         ref.invalidate(currentUserProvider);
+
+                        // Also send a test push to verify FCM is working
+                        try {
+                          final dio = ref.read(dioProvider);
+                          await dio.post('/notifications/test-self');
+                        } catch (_) {
+                          // Non-critical — don't block the toggle
+                        }
+
                         if (context.mounted) {
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(content: Text(val ? 'You are now visible to clients for booking' : 'You are currently hidden from search')),
