@@ -195,10 +195,16 @@ class _IncomingJobScreenState extends ConsumerState<IncomingJobScreen> {
 
     final colorScheme = Theme.of(context).colorScheme;
     final current = _requests[_currentIndex];
-    final customerName = current['customer_name'] as String? ?? 'New Customer';
+    final customer = current['customer'];
+    final customerName = (current['customer_name'] as String?) ??
+                         (customer is Map ? customer['name'] as String? : null) ??
+                         'New Customer';
     final skill = current['skill'] as String? ?? 'General Help';
     final location = current['serviceLocation'] as String? ?? 'Nearby';
-    final amount = (current['amount'] as num?)?.toDouble() ?? 0.0;
+    final amountRaw = current['amount'];
+    final amount = amountRaw is num 
+        ? amountRaw.toDouble() 
+        : double.tryParse(amountRaw?.toString() ?? '0') ?? 0.0;
     final totalRequests = _requests.length;
     final timerFraction =
         _secondsRemaining / AppConfig.jobAcceptTimeoutSeconds;
