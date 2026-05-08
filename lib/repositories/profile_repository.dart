@@ -24,7 +24,7 @@ class ProfileRepository {
 
   Future<Map<String, int>> getUserStats(String userId) async {
     try {
-      final response = await _dio.get('/users/$userId/stats');
+      final response = await _dio.get('/admin-user-list/$userId/stats');
       final data = response.data as Map<String, dynamic>;
       
       return {
@@ -43,7 +43,7 @@ class ProfileRepository {
     required Map<String, dynamic> data,
   }) async {
     try {
-      await _dio.patch('/users/$userId', data: data);
+      await _dio.patch('/admin-user-list/$userId', data: data);
     } catch (e) {
       debugPrint('Error updating profile: $e');
       rethrow;
