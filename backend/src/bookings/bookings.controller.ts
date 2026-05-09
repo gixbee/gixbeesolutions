@@ -89,19 +89,29 @@ export class BookingsController {
 
   @Patch(':id/accept')
   async acceptBooking(@Param('id') id: string, @Req() req) {
-    const result = await this.bookingsService.acceptBooking(id, req.user.userId);
+    try {
+      const result = await this.bookingsService.acceptBooking(id, req.user.userId);
 
-    // Send push notification to the customer via OneSignal
-    const booking = result.booking;
-    if (booking.customer?.id) {
-      await this.notificationsService.sendToUser(booking.customer.id, {
-        title: 'Request Accepted!',
-        body: `${booking.operator?.name || 'Your worker'} is on the way.`,
-        data: { type: 'booking_accepted' },
-      });
+      // Send push notification to the customer
+      const booking = result.booking;
+      if (booking && booking.customer) {
+        const customerId = typeof booking.customer === 'string' ? booking.customer : (booking.customer as any).id;
+        const operatorName = booking.operator?.name || 'Your worker';
+        
+        if (customerId) {
+          await this.notificationsService.sendToUser(customerId, {
+            title: 'Request Accepted!',
+            body: `${operatorName} is on the way.`,
+            data: { type: 'booking_accepted', bookingId: id },
+          }).catch(err => console.error('[AcceptBooking] Notification failed:', err));
+        }
+      }
+
+      return result;
+    } catch (error) {
+      console.error('[AcceptBooking] Error:', error);
+      throw error;
     }
-
-    return result;
   }
 
   @Patch(':id/reject')
