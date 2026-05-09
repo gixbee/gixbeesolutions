@@ -3,6 +3,8 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:google_maps_flutter_android/google_maps_flutter_android.dart';
+import 'package:google_maps_flutter_platform_interface/google_maps_flutter_platform_interface.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../services/socket_service.dart';
 import '../../shared/models/worker.dart';
@@ -19,6 +21,7 @@ class LiveTrackingMapScreen extends ConsumerStatefulWidget {
   final double? customerLat;
   final double? customerLng;
   final String? arrivalOtp;
+  final bool isWorker;
 
   const LiveTrackingMapScreen({
     super.key,
@@ -28,6 +31,7 @@ class LiveTrackingMapScreen extends ConsumerStatefulWidget {
     this.customerLat,
     this.customerLng,
     this.arrivalOtp,
+    this.isWorker = false,
   });
 
   @override
@@ -50,6 +54,7 @@ class _LiveTrackingMapScreenState extends ConsumerState<LiveTrackingMapScreen> {
   void initState() {
     super.initState();
     _arrivalOtp = widget.arrivalOtp;
+    _initMapRenderer();
 
     // Set customer location if provided
     if (widget.customerLat != null && widget.customerLng != null) {
@@ -74,6 +79,14 @@ class _LiveTrackingMapScreenState extends ConsumerState<LiveTrackingMapScreen> {
 
     // Start polling for status changes (ACCEPTED → ARRIVED → ACTIVE)
     _startStatusPolling();
+  }
+
+  /// Ensures the latest Android map renderer is used (fixes blank map issue).
+  void _initMapRenderer() {
+    final mapsImpl = GoogleMapsFlutterPlatform.instance;
+    if (mapsImpl is GoogleMapsFlutterAndroid) {
+      mapsImpl.useAndroidViewSurface = true;
+    }
   }
 
   @override
@@ -202,82 +215,86 @@ class _LiveTrackingMapScreenState extends ConsumerState<LiveTrackingMapScreen> {
     final center = _workerLocation ?? _customerLocation ?? _defaultCenter;
 
     return Scaffold(
-      body: Stack(
-        children: [
-          // ── Google Map ──
-          GoogleMap(
-            initialCameraPosition: CameraPosition(
-              target: center,
-              zoom: 14,
-            ),
-            markers: _buildMarkers(),
-            polylines: _buildPolylines(),
-            myLocationEnabled: true,
-            myLocationButtonEnabled: false,
-            zoomControlsEnabled: false,
-            mapToolbarEnabled: false,
-            onMapCreated: (controller) {
-              _mapController = controller;
-              setState(() => _isMapReady = true);
-              // Fit bounds once map is ready
-              Future.delayed(const Duration(milliseconds: 500), _fitMapBounds);
-            },
-          ),
-
-          // ── Top Bar ──
-          SafeArea(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Row(
-                children: [
-                  // Back button
-                  Container(
-                    decoration: BoxDecoration(
-                      color: cs.surface,
-                      shape: BoxShape.circle,
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.1),
-                          blurRadius: 8,
-                        ),
-                      ],
-                    ),
-                    child: IconButton(
-                      icon: const Icon(Icons.arrow_back),
-                      onPressed: () => Navigator.pop(context),
-                    ),
-                  ),
-                  const Spacer(),
-                  // Re-center button
-                  Container(
-                    decoration: BoxDecoration(
-                      color: cs.surface,
-                      shape: BoxShape.circle,
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.1),
-                          blurRadius: 8,
-                        ),
-                      ],
-                    ),
-                    child: IconButton(
-                      icon: const Icon(Icons.my_location),
-                      onPressed: _fitMapBounds,
-                    ),
-                  ),
-                ],
+      body: SizedBox.expand(
+        child: Stack(
+          children: [
+            // ── Google Map ──
+            Positioned.fill(
+              child: GoogleMap(
+                initialCameraPosition: CameraPosition(
+                  target: center,
+                  zoom: 14,
+                ),
+                markers: _buildMarkers(),
+                polylines: _buildPolylines(),
+                myLocationEnabled: true,
+                myLocationButtonEnabled: false,
+                zoomControlsEnabled: false,
+                mapToolbarEnabled: false,
+                onMapCreated: (controller) {
+                  _mapController = controller;
+                  setState(() => _isMapReady = true);
+                  // Fit bounds once map is ready
+                  Future.delayed(const Duration(milliseconds: 500), _fitMapBounds);
+                },
               ),
             ),
-          ),
 
-          // ── Bottom Info Panel ──
-          Positioned(
-            bottom: 0,
-            left: 0,
-            right: 0,
-            child: _buildBottomPanel(cs),
-          ),
-        ],
+            // ── Top Bar ──
+            SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Row(
+                  children: [
+                    // Back button
+                    Container(
+                      decoration: BoxDecoration(
+                        color: cs.surface,
+                        shape: BoxShape.circle,
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.1),
+                            blurRadius: 8,
+                          ),
+                        ],
+                      ),
+                      child: IconButton(
+                        icon: const Icon(Icons.arrow_back),
+                        onPressed: () => Navigator.pop(context),
+                      ),
+                    ),
+                    const Spacer(),
+                    // Re-center button
+                    Container(
+                      decoration: BoxDecoration(
+                        color: cs.surface,
+                        shape: BoxShape.circle,
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.1),
+                            blurRadius: 8,
+                          ),
+                        ],
+                      ),
+                      child: IconButton(
+                        icon: const Icon(Icons.my_location),
+                        onPressed: _fitMapBounds,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+
+            // ── Bottom Info Panel ──
+            Positioned(
+              bottom: 0,
+              left: 0,
+              right: 0,
+              child: _buildBottomPanel(cs),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -429,31 +446,60 @@ class _LiveTrackingMapScreenState extends ConsumerState<LiveTrackingMapScreen> {
                     ),
                   ),
                   const SizedBox(width: 12),
-                  // OTP / Arrived button
-                  Expanded(
-                    flex: 2,
-                    child: FilledButton.icon(
-                      onPressed: _arrivalOtp != null ? _goToOtpScreen : null,
-                      icon: Icon(
-                        _currentStatus == 'ARRIVED'
-                            ? Icons.verified_user_rounded
-                            : Icons.directions_walk_rounded,
-                        size: 18,
+                  // Worker sees navigation prompt; Customer sees OTP button
+                  if (widget.isWorker)
+                    Expanded(
+                      flex: 2,
+                      child: FilledButton.icon(
+                        onPressed: () async {
+                          // Open Google Maps navigation to customer
+                          if (_customerLocation != null) {
+                            final url = Uri.parse(
+                              'google.navigation:q=${_customerLocation!.latitude},${_customerLocation!.longitude}&mode=d',
+                            );
+                            if (await canLaunchUrl(url)) {
+                              await launchUrl(url);
+                            }
+                          }
+                        },
+                        icon: const Icon(Icons.navigation_rounded, size: 18),
+                        label: const Text(
+                          'Navigate to Customer',
+                          style: TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                        style: FilledButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
                       ),
-                      label: Text(
-                        _currentStatus == 'ARRIVED'
-                            ? 'Verify Arrival OTP'
-                            : 'Waiting for Arrival...',
-                        style: const TextStyle(fontWeight: FontWeight.bold),
-                      ),
-                      style: FilledButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
+                    )
+                  else
+                    Expanded(
+                      flex: 2,
+                      child: FilledButton.icon(
+                        onPressed: _arrivalOtp != null ? _goToOtpScreen : null,
+                        icon: Icon(
+                          _currentStatus == 'ARRIVED'
+                              ? Icons.verified_user_rounded
+                              : Icons.directions_walk_rounded,
+                          size: 18,
+                        ),
+                        label: Text(
+                          _currentStatus == 'ARRIVED'
+                              ? 'Verify Arrival OTP'
+                              : 'Waiting for Arrival...',
+                          style: const TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                        style: FilledButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
                         ),
                       ),
                     ),
-                  ),
                 ],
               ),
 

@@ -148,6 +148,7 @@ class _ActiveBookingCardState extends ConsumerState<ActiveBookingCard> {
                         status: 'available',
                       ),
                       arrivalOtp: otp,
+                      isWorker: isOperator,
                     ),
                   ),
                 );
