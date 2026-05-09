@@ -28,7 +28,6 @@ RUN addgroup -S gixbee && adduser -S gixbee -G gixbee
 COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/package.json ./package.json
-COPY --from=builder /app/firebase-service-account.json ./firebase-service-account.json
 
 # Create uploads directory with correct permissions
 RUN mkdir -p /app/uploads && chown -R gixbee:gixbee /app

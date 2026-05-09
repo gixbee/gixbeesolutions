@@ -65,6 +65,7 @@ services:
       FIREBASE_KEY_PATH: /app/firebase-service-account.json
     volumes:
       - uploads_data:/app/uploads
+      - ./backend/firebase-service-account.json:/app/firebase-service-account.json:ro
     networks:
       - gixbee_net
     depends_on:
