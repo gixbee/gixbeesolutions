@@ -153,22 +153,30 @@ export class BookingsService {
       const txResult = await this.dataSource.transaction(async (manager) => {
         console.log('[AcceptBooking] Inside transaction — locking booking row');
 
-        const booking = await manager
+        // Step 1: Lock ONLY the booking row (no joins — PostgreSQL doesn't support FOR UPDATE with LEFT JOIN)
+        const lockedBooking = await manager
           .createQueryBuilder(Booking, 'booking')
           .setLock('pessimistic_write')
-          .leftJoinAndSelect('booking.customer', 'customer')
-          .leftJoinAndSelect('booking.operator', 'operator')
           .where('booking.id = :bookingId', { bookingId })
           .getOne();
 
-        if (!booking) throw new NotFoundException('Booking not found');
-        console.log(`[AcceptBooking] Booking found — status=${booking.status}, operator=${booking.operator?.id}`);
+        if (!lockedBooking) throw new NotFoundException('Booking not found');
+        console.log(`[AcceptBooking] Locked booking — status=${lockedBooking.status}`);
 
-        if (booking.status !== BookingStatus.REQUESTED) {
+        if (lockedBooking.status !== BookingStatus.REQUESTED) {
           throw new BadRequestException(
             'This booking is no longer available — it may have been accepted or cancelled.',
           );
         }
+
+        // Step 2: Now load the full booking WITH relations (no lock needed, row is already locked)
+        const booking = await manager.findOne(Booking, {
+          where: { id: bookingId },
+          relations: ['customer', 'operator'],
+        });
+
+        if (!booking) throw new NotFoundException('Booking not found');
+        console.log(`[AcceptBooking] Booking loaded — operator=${booking.operator?.id}`);
 
         if (booking.operator?.id !== workerId) {
           throw new BadRequestException('You are not assigned to this booking.');
