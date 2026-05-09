@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../repositories/booking_repository.dart';
 import '../../core/config/app_config.dart';
+import 'collect_payment_screen.dart';
 
 /// Gate 2 of the live flow.
 /// After the job is done, the customer shares the Completion OTP with the
@@ -137,13 +138,27 @@ class _CompletionOtpScreenState extends ConsumerState<CompletionOtpScreen> {
     });
 
     try {
-      await ref.read(bookingRepositoryProvider).confirmCompletion(
+      final response = await ref.read(bookingRepositoryProvider).confirmCompletion(
             bookingId: widget.bookingId,
             otp: otp,
           );
 
       if (!mounted) return;
-      _showSuccessDialog();
+
+      if (response['paymentMethod'] == 'DIRECT') {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (_) => CollectPaymentScreen(
+              bookingId: widget.bookingId,
+              amount: (response['totalAmount'] ?? 0).toDouble(),
+              customerName: widget.workerName, // In worker view, workerName is actually the customer's name
+            ),
+          ),
+        );
+      } else {
+        _showSuccessDialog();
+      }
     } catch (e) {
       if (mounted) {
         setState(() => _errorMsg = 'Invalid OTP. Please try again.');

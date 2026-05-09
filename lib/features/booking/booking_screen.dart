@@ -33,6 +33,7 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
   late final TextEditingController _addressController;
   bool _isProcessing = false;
   double? _walletBalance;
+  String _paymentMethod = 'WALLET'; // 'WALLET' or 'DIRECT'
 
   @override
   void initState() {
@@ -73,21 +74,23 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
   Future<void> _confirmBooking() async {
     setState(() => _isProcessing = true);
     try {
-      // Issue #17 fix: Check wallet balance before confirming
-      final balance = await ref.read(walletRepositoryProvider).getBalance();
       final totalAmount = widget.baseAmount ?? widget.worker.hourlyRate;
 
-      if (balance < totalAmount) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Insufficient balance (₹$balance). Please add funds.'),
-              backgroundColor: Colors.red,
-            ),
-          );
+      // Issue #17 fix: Check wallet balance before confirming ONLY if WALLET is selected
+      if (_paymentMethod == 'WALLET') {
+        final balance = await ref.read(walletRepositoryProvider).getBalance();
+        if (balance < totalAmount) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Insufficient balance (₹$balance). Please add funds.'),
+                backgroundColor: Colors.red,
+              ),
+            );
+          }
+          setState(() => _isProcessing = false);
+          return;
         }
-        setState(() => _isProcessing = false);
-        return;
       }
 
       final scheduledAt = DateTime(
@@ -104,6 +107,7 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
         amount: totalAmount,
         address: _addressController.text.trim(),
         description: widget.bookingDescription,
+        paymentMethod: _paymentMethod,
       );
 
       if (mounted) {
@@ -190,7 +194,7 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
                   style: const TextStyle(
                       fontWeight: FontWeight.bold, fontSize: 20),
                 ),
-                if (_walletBalance != null)
+                if (_paymentMethod == 'WALLET' && _walletBalance != null)
                   Text(
                     'Wallet: ₹${_walletBalance!.toInt()}',
                     style: TextStyle(
@@ -376,10 +380,22 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
         const SizedBox(height: 24),
         _buildSectionTitle('Select Payment Method'),
         const SizedBox(height: 12),
-        _buildSelectionTile(
-          icon: Icons.account_balance_wallet,
-          title: _walletBalance != null ? 'UPI / Wallet (Balance: ₹${_walletBalance!.toInt()})' : 'UPI / Wallet...',
-          isAction: true,
+        InkWell(
+          onTap: () => setState(() => _paymentMethod = 'WALLET'),
+          child: _buildSelectionTile(
+            icon: Icons.account_balance_wallet,
+            title: _walletBalance != null ? 'UPI / Wallet (Balance: ₹${_walletBalance!.toInt()})' : 'UPI / Wallet',
+            isSelected: _paymentMethod == 'WALLET',
+          ),
+        ),
+        const SizedBox(height: 12),
+        InkWell(
+          onTap: () => setState(() => _paymentMethod = 'DIRECT'),
+          child: _buildSelectionTile(
+            icon: Icons.money,
+            title: 'Pay directly to Pro (Cash / external UPI)',
+            isSelected: _paymentMethod == 'DIRECT',
+          ),
         ),
       ],
     );
@@ -393,25 +409,23 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
   }
 
   Widget _buildSelectionTile(
-      {required IconData icon, required String title, bool isAction = false}) {
+      {required IconData icon, required String title, bool isSelected = false}) {
+    final colorScheme = Theme.of(context).colorScheme;
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Theme.of(context)
-            .colorScheme
-            .surfaceContainerHighest
-            .withValues(alpha: 0.3),
+        color: isSelected ? colorScheme.primaryContainer.withValues(alpha: 0.3) : colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
+        border: Border.all(color: isSelected ? colorScheme.primary : colorScheme.outlineVariant),
       ),
       child: Row(
         children: [
-          Icon(icon, color: Theme.of(context).colorScheme.primary),
+          Icon(icon, color: isSelected ? colorScheme.primary : colorScheme.onSurfaceVariant),
           const SizedBox(width: 16),
           Expanded(
               child: Text(title,
-                  style: const TextStyle(fontWeight: FontWeight.w500))),
-          if (isAction) const Icon(Icons.keyboard_arrow_right),
+                  style: TextStyle(fontWeight: isSelected ? FontWeight.bold : FontWeight.w500))),
+          if (isSelected) Icon(Icons.check_circle, color: colorScheme.primary),
         ],
       ),
     );

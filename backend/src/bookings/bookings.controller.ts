@@ -37,6 +37,7 @@ export class BookingsController {
       scheduledAt: new Date(body.scheduledAt),
       amount: body.amount,
       type: body.type,
+      paymentMethod: body.paymentMethod || 'WALLET',
     });
   }
 

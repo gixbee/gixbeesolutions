@@ -30,6 +30,7 @@ class BookingRepository {
     required String address,
     String? description,
     String? skill,
+    String paymentMethod = 'WALLET',
   }) async {
     try {
       final response = await _dio.post('/bookings', data: {
@@ -39,6 +40,7 @@ class BookingRepository {
         'serviceLocation': address,
         if (description != null) 'description': description,
         if (skill != null) 'skill': skill,
+        'paymentMethod': paymentMethod,
       });
       return Map<String, dynamic>.from(response.data);
     } catch (e) {
@@ -55,6 +57,7 @@ class BookingRepository {
     required double lng,
     required double amount,
     Map<String, dynamic>? onSiteContact,
+    String paymentMethod = 'WALLET',
   }) async {
     try {
       final response = await _dio.post('/bookings', data: {
@@ -67,6 +70,7 @@ class BookingRepository {
         'scheduledAt': DateTime.now().toIso8601String(),
         'type': 'INSTANT',
         if (onSiteContact != null) 'onSiteContact': onSiteContact,
+        'paymentMethod': paymentMethod,
       });
       return Map<String, dynamic>.from(response.data);
     } catch (e) {
@@ -192,15 +196,16 @@ class BookingRepository {
   }
 
   /// Gate 2: Verify completion OTP entered by worker.
-  Future<void> confirmCompletion({
+  Future<Map<String, dynamic>> confirmCompletion({
     required String bookingId,
     required String otp,
   }) async {
     try {
-      await _dio.post(
+      final response = await _dio.post(
         '/bookings/$bookingId/completion',
         data: {'otp': otp},
       );
+      return Map<String, dynamic>.from(response.data);
     } catch (e) {
       debugPrint('ConfirmCompletion failed: $e');
       rethrow;
@@ -258,6 +263,15 @@ class BookingRepository {
   }
 
   // ── Generic status update (admin / override) ──────────────────────────────
+
+  Future<void> markPaid(String bookingId) async {
+    try {
+      await _dio.patch('/bookings/$bookingId/mark-paid');
+    } catch (e) {
+      debugPrint('MarkPaid failed: $e');
+      rethrow;
+    }
+  }
 
   Future<void> updateBookingStatus(String bookingId, String status) async {
     try {

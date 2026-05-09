@@ -479,6 +479,7 @@ export class BookingsService {
     booking.status = BookingStatus.COMPLETED;
     booking.completedAt = new Date();
     booking.billingHours = hoursWorked;
+    const totalAmount = hoursWorked * (booking.amount || 0);
     await this.bookingsRepository.save(booking);
 
     await this.redisService.cacheBookingStatus(bookingId, {
@@ -499,11 +500,29 @@ export class BookingsService {
       }
     }
 
+    if (booking.paymentMethod === 'WALLET') {
+      booking.isPaid = true;
+    }
+
     return {
       message: 'Job completed successfully.',
       status: 'COMPLETED',
       billingHours: hoursWorked,
+      paymentMethod: booking.paymentMethod,
+      totalAmount,
     };
+  }
+
+  async markPaid(bookingId: string): Promise<{ message: string }> {
+    const booking = await this.bookingsRepository.findOne({
+      where: { id: bookingId },
+    });
+    if (!booking) throw new NotFoundException('Booking not found');
+
+    booking.isPaid = true;
+    await this.bookingsRepository.save(booking);
+
+    return { message: 'Booking marked as paid.' };
   }
 
   async refreshCompletionOtp(

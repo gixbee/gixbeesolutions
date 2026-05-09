@@ -99,6 +99,12 @@ export class Booking {
   @Column({ nullable: true })
   completionOtp: string;
 
+  @Column({ default: 'WALLET' })
+  paymentMethod: string;
+
+  @Column({ type: 'boolean', default: false })
+  isPaid: boolean;
+
   @Column({ type: 'int', nullable: true })
   billingHours: number;
 
