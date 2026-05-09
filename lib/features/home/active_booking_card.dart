@@ -10,6 +10,7 @@ import '../booking/live_tracking_map_screen.dart';
 import '../jobs/booking_detail_screen.dart';
 import '../../shared/models/worker.dart';
 import '../../shared/widgets/glass_container.dart';
+import '../booking/collect_payment_screen.dart';
 
 // Derives from shared myBookingsProvider — auto-refreshes on invalidation
 final activeBookingProvider = FutureProvider.autoDispose<Map<String, dynamic>?>((ref) async {
