@@ -141,92 +141,139 @@ export class BookingsService {
   async acceptBooking(
     bookingId: string,
     workerId: string,
-  ): Promise<{ message: string; status: string; booking: Booking }> {
-    // Use a database transaction to prevent race conditions when
-    // two accept requests arrive simultaneously for the same worker
-    return await this.dataSource.transaction(async (manager) => {
-      // Lock this booking row exclusively to prevent double-accept
-      const booking = await manager
-        .createQueryBuilder(Booking, 'booking')
-        .setLock('pessimistic_write')
-        .leftJoinAndSelect('booking.customer', 'customer')
-        .leftJoinAndSelect('booking.operator', 'operator')
-        .where('booking.id = :bookingId', { bookingId })
-        .getOne();
+  ): Promise<{ message: string; status: string; booking: any }> {
+    console.log(`[AcceptBooking] START — bookingId=${bookingId}, workerId=${workerId}`);
 
-      if (!booking) throw new NotFoundException('Booking not found');
+    // ── STEP 1: Database transaction (only DB writes that MUST be atomic) ──
+    let savedBooking: Booking;
+    let otherPendingFiltered: Booking[] = [];
+    let operatorName: string | null = null;
 
-      if (booking.status !== BookingStatus.REQUESTED) {
-        throw new BadRequestException(
-          'This booking is no longer available — it may have been accepted or cancelled.',
-        );
-      }
+    try {
+      const txResult = await this.dataSource.transaction(async (manager) => {
+        console.log('[AcceptBooking] Inside transaction — locking booking row');
 
-      if (booking.operator?.id !== workerId) {
-        throw new BadRequestException('You are not assigned to this booking.');
-      }
+        const booking = await manager
+          .createQueryBuilder(Booking, 'booking')
+          .setLock('pessimistic_write')
+          .leftJoinAndSelect('booking.customer', 'customer')
+          .leftJoinAndSelect('booking.operator', 'operator')
+          .where('booking.id = :bookingId', { bookingId })
+          .getOne();
 
-      // Transition this booking → ACCEPTED
-      booking.status = BookingStatus.ACCEPTED;
-      const savedBooking = await manager.save(booking);
+        if (!booking) throw new NotFoundException('Booking not found');
+        console.log(`[AcceptBooking] Booking found — status=${booking.status}, operator=${booking.operator?.id}`);
 
-      // ── Auto-cancel all other REQUESTED bookings for this worker ────────
-      const otherPending = await manager.find(Booking, {
-        where: {
-          operator: { id: workerId },
-          status: BookingStatus.REQUESTED,
-        },
-        relations: ['customer'],
+        if (booking.status !== BookingStatus.REQUESTED) {
+          throw new BadRequestException(
+            'This booking is no longer available — it may have been accepted or cancelled.',
+          );
+        }
+
+        if (booking.operator?.id !== workerId) {
+          throw new BadRequestException('You are not assigned to this booking.');
+        }
+
+        // Transition this booking → ACCEPTED
+        booking.status = BookingStatus.ACCEPTED;
+        const saved = await manager.save(booking);
+        console.log('[AcceptBooking] Booking saved as ACCEPTED');
+
+        // Find other REQUESTED bookings for this worker
+        const otherPending = await manager.find(Booking, {
+          where: {
+            operator: { id: workerId },
+            status: BookingStatus.REQUESTED,
+          },
+          relations: ['customer'],
+        });
+
+        const filtered = otherPending.filter((b) => b.id !== bookingId);
+
+        if (filtered.length > 0) {
+          console.log(`[AcceptBooking] Cancelling ${filtered.length} other pending bookings`);
+          await manager.update(
+            Booking,
+            { id: In(filtered.map((b) => b.id)) },
+            { status: BookingStatus.CANCELLED },
+          );
+        }
+
+        return {
+          saved,
+          filtered,
+          opName: booking.operator?.name ?? null,
+          customerId: booking.customer?.id ?? null,
+        };
       });
 
-      const otherPendingFiltered = otherPending.filter(
-        (b) => b.id !== bookingId,
-      );
+      savedBooking = txResult.saved;
+      otherPendingFiltered = txResult.filtered;
+      operatorName = txResult.opName;
+      console.log('[AcceptBooking] Transaction committed successfully');
+    } catch (error) {
+      console.error('[AcceptBooking] Transaction FAILED:', error?.message ?? error);
+      throw error;
+    }
 
-      if (otherPendingFiltered.length > 0) {
-        await manager.update(
-          Booking,
-          { id: In(otherPendingFiltered.map((b) => b.id)) },
-          { status: BookingStatus.CANCELLED },
-        );
+    // ── STEP 2: Side effects OUTSIDE the transaction (non-atomic, resilient) ──
 
-        // Notify each customer whose request was auto-cancelled
-        for (const cancelled of otherPendingFiltered) {
-          if (cancelled.customer?.id) {
-            await this.notificationsService.notifyBookingCancelled(
-              cancelled.customer.id,
-              'The worker accepted another job. Please try booking again.',
-            );
-          }
-          // Clean up Redis
-          await this.redisService
-            .removePendingBooking(workerId, cancelled.id)
-            .catch(() => {});
-          await this.redisService.cacheBookingStatus(cancelled.id, {
-            status: 'CANCELLED',
-            operatorName: null,
-          });
-        }
-      }
-      // ────────────────────────────────────────────────────────────────────
-
-      // Deduct platform fee from worker wallet
+    // Deduct platform fee from worker wallet
+    try {
+      console.log('[AcceptBooking] Deducting booking fee...');
       await this.walletsService.deductBookingFee(workerId);
+      console.log('[AcceptBooking] Booking fee deducted');
+    } catch (error) {
+      // Log but don't fail the accept — fee can be reconciled later
+      console.error('[AcceptBooking] Wallet deduction failed (non-fatal):', error?.message ?? error);
+    }
 
-      // Mark worker as busy
+    // Mark worker as busy in Redis
+    try {
       await this.workersService.setWorkerStatus(workerId, 'busy');
+    } catch (e) {
+      console.error('[AcceptBooking] setWorkerStatus failed:', e);
+    }
 
-      // Remove from Redis pending list
+    // Remove from Redis pending list
+    try {
       await this.redisService.removePendingBooking(workerId, bookingId);
+    } catch (e) {
+      console.error('[AcceptBooking] removePendingBooking failed:', e);
+    }
 
-      // Cache ACCEPTED status for poll endpoint (includes arrivalOtp for customer)
+    // Cache ACCEPTED status for poll endpoint
+    try {
       await this.redisService.cacheBookingStatus(bookingId, {
         status: 'ACCEPTED',
-        operatorName: booking.operator?.name ?? null,
+        operatorName: operatorName,
         arrivalOtp: savedBooking.arrivalOtp,
       });
+    } catch (e) {
+      console.error('[AcceptBooking] cacheBookingStatus failed:', e);
+    }
 
-      // Schedule GPS monitoring jobs
+    // Notify cancelled customers
+    for (const cancelled of otherPendingFiltered) {
+      try {
+        if (cancelled.customer?.id) {
+          await this.notificationsService.notifyBookingCancelled(
+            cancelled.customer.id,
+            'The worker accepted another job. Please try booking again.',
+          );
+        }
+        await this.redisService.removePendingBooking(workerId, cancelled.id).catch(() => {});
+        await this.redisService.cacheBookingStatus(cancelled.id, {
+          status: 'CANCELLED',
+          operatorName: null,
+        });
+      } catch (e) {
+        console.error(`[AcceptBooking] Cancelled-notification failed for ${cancelled.id}:`, e);
+      }
+    }
+
+    // Schedule GPS monitoring jobs
+    try {
       await this.bookingsQueue.add(
         'sevenMinuteReminder',
         { bookingId: savedBooking.id },
@@ -237,13 +284,27 @@ export class BookingsService {
         { bookingId: savedBooking.id },
         { delay: 10 * 60 * 1000 },
       );
+    } catch (e) {
+      console.error('[AcceptBooking] Queue scheduling failed:', e);
+    }
 
-      return {
-        message: `Booking accepted. Head to the service location now.`,
-        status: 'ACCEPTED',
-        booking: savedBooking,
-      };
-    });
+    console.log('[AcceptBooking] DONE — returning success');
+
+    // Return a plain object (no circular entity references)
+    return {
+      message: `Booking accepted. Head to the service location now.`,
+      status: 'ACCEPTED',
+      booking: {
+        id: savedBooking.id,
+        status: savedBooking.status,
+        skill: savedBooking.skill,
+        amount: savedBooking.amount,
+        serviceLocation: savedBooking.serviceLocation,
+        arrivalOtp: savedBooking.arrivalOtp,
+        completionOtp: savedBooking.completionOtp,
+        createdAt: savedBooking.createdAt,
+      },
+    };
   }
 
   // ── Reject / Decline Booking ──────────────────────────────────────────────
