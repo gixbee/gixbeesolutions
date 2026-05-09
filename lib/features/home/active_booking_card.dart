@@ -17,7 +17,12 @@ final activeBookingProvider = FutureProvider.autoDispose<Map<String, dynamic>?>(
     final bookings = await ref.watch(myBookingsProvider.future);
     const activeStatuses = ['REQUESTED', 'PENDING', 'ACCEPTED', 'ARRIVED', 'ACTIVE', 'IN_PROGRESS', 'CONFIRMED'];
     return bookings.firstWhere(
-      (b) => activeStatuses.contains((b['status'] ?? '').toString().toUpperCase()),
+      (b) {
+        final status = (b['status'] ?? '').toString().toUpperCase();
+        if (activeStatuses.contains(status)) return true;
+        if (status == 'COMPLETED' && b['paymentMethod'] == 'DIRECT' && b['isPaid'] == false) return true;
+        return false;
+      },
     );
   } catch (_) {
     return null;
@@ -62,6 +67,7 @@ class _ActiveBookingCardState extends ConsumerState<ActiveBookingCard> {
           setState(() => _liveStatus = newStatus);
           // If status changed to a terminal state, stop polling and refresh list
           if (['COMPLETED', 'CANCELLED', 'REJECTED'].contains(newStatus)) {
+            // Wait! If it's COMPLETED but needs payment, we should still refresh to get the updated isPaid/paymentMethod state
             _pollTimer?.cancel();
             _pollTimer = null;
             ref.invalidate(myBookingsProvider);
@@ -164,6 +170,19 @@ class _ActiveBookingCardState extends ConsumerState<ActiveBookingCard> {
                     ),
                   ),
                 );
+              } else if (bStatus == 'COMPLETED' &&
+                  activeBooking['paymentMethod'] == 'DIRECT' &&
+                  activeBooking['isPaid'] == false) {
+                await Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => CollectPaymentScreen(
+                      bookingId: bookingId,
+                      amount: (activeBooking['totalAmount'] ?? 0).toDouble(),
+                      customerName: activeBooking['customer']?['name'] ?? 'Customer',
+                    ),
+                  ),
+                );
               } else {
                 await Navigator.push(
                   context,
@@ -262,6 +281,8 @@ class _ActiveBookingCardState extends ConsumerState<ActiveBookingCard> {
       case 'ACTIVE':
       case 'IN_PROGRESS':
         return Icons.run_circle_outlined;
+      case 'COMPLETED':
+        return Icons.payments_outlined;
       default:
         return Icons.bookmark_outline;
     }
@@ -279,6 +300,8 @@ class _ActiveBookingCardState extends ConsumerState<ActiveBookingCard> {
       case 'ACTIVE':
       case 'IN_PROGRESS':
         return Colors.green;
+      case 'COMPLETED':
+        return Colors.redAccent;
       default:
         return Colors.orange;
     }
@@ -298,6 +321,8 @@ class _ActiveBookingCardState extends ConsumerState<ActiveBookingCard> {
         return 'In Progress';
       case 'IN_PROGRESS':
         return 'In Progress';
+      case 'COMPLETED':
+        return 'Pending Payment';
       default:
         return status;
     }

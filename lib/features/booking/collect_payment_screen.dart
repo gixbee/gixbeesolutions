@@ -25,6 +25,7 @@ class _CollectPaymentScreenState extends ConsumerState<CollectPaymentScreen> {
     setState(() => _isLoading = true);
     try {
       await ref.read(bookingRepositoryProvider).markPaid(widget.bookingId);
+      ref.invalidate(myBookingsProvider);
       if (mounted) {
         _showSuccessDialog();
       }

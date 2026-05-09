@@ -480,6 +480,7 @@ export class BookingsService {
     booking.completedAt = new Date();
     booking.billingHours = hoursWorked;
     const totalAmount = hoursWorked * (booking.amount || 0);
+    booking.totalAmount = totalAmount;
     await this.bookingsRepository.save(booking);
 
     await this.redisService.cacheBookingStatus(bookingId, {

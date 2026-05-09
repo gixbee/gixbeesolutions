@@ -38,6 +38,12 @@ export class Booking {
   @Column({ nullable: true })
   serviceLocation: string;
 
+  @Column({ type: 'decimal', precision: 10, scale: 2, nullable: true })
+  totalAmount: number;
+
+  @Column({ nullable: true })
+  cancellationReason: string;
+
   @Column({ type: 'decimal', precision: 9, scale: 6, nullable: true })
   serviceLat: number;
 
