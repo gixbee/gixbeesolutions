@@ -26,10 +26,12 @@ class TalentRepository {
     return response.data;
   }
 
-  Future<Map<String, dynamic>> addOrUpdateSkill(String skillName, double rate) async {
+  Future<Map<String, dynamic>> addOrUpdateSkill(String skillName, double rate, String bio, Map<String, double> rateChart) async {
     final response = await _dio.post('/talent/skills', data: {
       'skillName': skillName,
       'rate': rate,
+      'bio': bio,
+      'rateChart': rateChart,
     });
     return response.data;
   }

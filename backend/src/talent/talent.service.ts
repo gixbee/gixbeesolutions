@@ -34,7 +34,7 @@ export class TalentService {
     return this.talentRepo.save(profile);
   }
 
-  async addOrUpdateSkill(userId: string, skillName: string, rate: number): Promise<ProfessionalSkill> {
+  async addOrUpdateSkill(userId: string, skillName: string, rate: number, bio: string, rateChart?: Record<string, number>): Promise<ProfessionalSkill> {
     const profile = await this.getProfile(userId);
     let skill = await this.skillRepo.findOne({
       where: { talentProfile: { id: profile.id }, name: skillName }
@@ -42,12 +42,16 @@ export class TalentService {
 
     if (skill) {
       skill.hourlyRate = rate;
+      if (bio !== undefined) skill.bio = bio;
+      if (rateChart !== undefined) skill.rateChart = rateChart;
       skill.status = SkillApprovalStatus.PENDING; // Reset status on rate update? Or keep if approved?
     } else {
       skill = this.skillRepo.create({
         talentProfile: profile,
         name: skillName,
         hourlyRate: rate,
+        bio: bio,
+        rateChart: rateChart,
         status: SkillApprovalStatus.PENDING,
       });
     }

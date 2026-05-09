@@ -44,7 +44,27 @@ class _IncomingJobScreenState extends ConsumerState<IncomingJobScreen> {
 
   void _startTimer() {
     _timer?.cancel();
-    setState(() => _secondsRemaining = AppConfig.jobAcceptTimeoutSeconds);
+    
+    int initialRemaining = AppConfig.jobAcceptTimeoutSeconds;
+    if (_requests.isNotEmpty && _currentIndex < _requests.length) {
+      final currentRequest = _requests[_currentIndex];
+      if (currentRequest['createdAt'] != null) {
+        final createdAt = DateTime.tryParse(currentRequest['createdAt'].toString())?.toLocal();
+        if (createdAt != null) {
+          final elapsedSeconds = DateTime.now().difference(createdAt).inSeconds;
+          initialRemaining = AppConfig.jobAcceptTimeoutSeconds - elapsedSeconds;
+          if (initialRemaining < 0) initialRemaining = 0;
+        }
+      }
+    }
+
+    setState(() => _secondsRemaining = initialRemaining);
+    
+    if (_secondsRemaining <= 0) {
+      _autoDeclineCurrent();
+      return;
+    }
+
     _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
       if (_secondsRemaining > 0) {
         setState(() => _secondsRemaining--);

@@ -12,6 +12,7 @@ import '../business/business_unit_dashboard.dart';
 import '../jobs/register_pro_screen.dart';
 import '../../repositories/talent_repository.dart';
 import 'debug_log_screen.dart';
+import '../notifications/notifications_screen.dart';
 
 class ProfileScreen extends ConsumerWidget {
   const ProfileScreen({super.key});
@@ -32,7 +33,9 @@ class ProfileScreen extends ConsumerWidget {
             icon: const Icon(Icons.settings),
             onPressed: () {
               ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Settings page coming soon')),
+                const SnackBar(
+                  behavior: SnackBarBehavior.floating,
+                  content: Text('Settings page coming soon')),
               );
             },
           ),
@@ -197,23 +200,21 @@ class ProfileScreen extends ConsumerWidget {
                         // Refresh the user profile
                         ref.invalidate(currentUserProvider);
 
-                        // Also send a test push to verify FCM is working
-                        try {
-                          final dio = ref.read(dioProvider);
-                          await dio.post('/notifications/test-self');
-                        } catch (_) {
-                          // Non-critical — don't block the toggle
-                        }
+
 
                         if (context.mounted) {
                           ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(content: Text(val ? 'You are now visible to clients for booking' : 'You are currently hidden from search')),
+                            SnackBar(
+                  behavior: SnackBarBehavior.floating,
+                  content: Text(val ? 'You are now visible to clients for booking' : 'You are currently hidden from search')),
                           );
                         }
                       } catch (e) {
                          if (context.mounted) {
                            ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('Failed to update availability')),
+                            const SnackBar(
+                  behavior: SnackBarBehavior.floating,
+                  content: Text('Failed to update availability')),
                            );
                          }
                       }
@@ -222,16 +223,14 @@ class ProfileScreen extends ConsumerWidget {
                   loading: () => const SizedBox.shrink(),
                   error: (_, __) => const SizedBox.shrink(),
                 ),
+                const SizedBox(height: 16),
                 _ProfileOption(
                     icon: Icons.notifications_none,
                     label: 'Notifications',
-                    onTap: () {
-                      if (context.mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Notification settings coming soon')),
-                        );
-                      }
-                    },
+                    onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const NotificationsScreen()),
+                    ),
                 ),
                 const SizedBox(height: 16),
                 _ProfileOption(
@@ -249,7 +248,9 @@ class ProfileScreen extends ConsumerWidget {
                     onTap: () {
                       if (context.mounted) {
                         ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Help center coming soon')),
+                          const SnackBar(
+                  behavior: SnackBarBehavior.floating,
+                  content: Text('Help center coming soon')),
                         );
                       }
                     },

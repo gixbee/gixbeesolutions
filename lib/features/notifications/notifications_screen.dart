@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'dart:convert';
 import '../../shared/widgets/glass_container.dart';
 import '../../repositories/booking_repository.dart';
 
@@ -110,6 +112,35 @@ class NotificationsScreen extends ConsumerStatefulWidget {
 class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
   // Track dismissed notification IDs locally
   final Set<String> _dismissedIds = {};
+  static const _storage = FlutterSecureStorage();
+  static const _dismissedKey = 'dismissed_notifications';
+
+  @override
+  void initState() {
+    super.initState();
+    _loadDismissed();
+  }
+
+  Future<void> _loadDismissed() async {
+    try {
+      final data = await _storage.read(key: _dismissedKey);
+      if (data != null && mounted) {
+        setState(() {
+          _dismissedIds.addAll(List<String>.from(json.decode(data)));
+        });
+      }
+    } catch (e) {
+      debugPrint('Error loading dismissed notifications: $e');
+    }
+  }
+
+  Future<void> _saveDismissed() async {
+    try {
+      await _storage.write(key: _dismissedKey, value: json.encode(_dismissedIds.toList()));
+    } catch (e) {
+      debugPrint('Error saving dismissed notifications: $e');
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -122,8 +153,9 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
         actions: [
           if (_dismissedIds.isNotEmpty)
             TextButton(
-              onPressed: () {
+              onPressed: () async {
                 setState(() => _dismissedIds.clear());
+                await _saveDismissed();
                 ref.invalidate(notificationsProvider);
               },
               child: const Text('Restore All'),
@@ -131,7 +163,7 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
           IconButton(
             icon: const Icon(Icons.refresh),
             onPressed: () {
-              setState(() => _dismissedIds.clear());
+              // Only invalidate the data, do NOT clear the dismissed IDs
               ref.invalidate(notificationsProvider);
             },
           ),
@@ -178,15 +210,19 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
               return Dismissible(
                 key: Key(notif.id),
                 direction: DismissDirection.endToStart,
-                onDismissed: (_) {
+                onDismissed: (_) async {
                   setState(() => _dismissedIds.add(notif.id));
+                  await _saveDismissed();
+                  if (!mounted) return;
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
                       content: const Text('Notification cleared'),
+                      behavior: SnackBarBehavior.floating,
                       action: SnackBarAction(
                         label: 'Undo',
-                        onPressed: () {
+                        onPressed: () async {
                           setState(() => _dismissedIds.remove(notif.id));
+                          await _saveDismissed();
                         },
                       ),
                       duration: const Duration(seconds: 3),

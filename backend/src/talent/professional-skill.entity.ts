@@ -25,6 +25,12 @@ export class ProfessionalSkill {
   })
   status: SkillApprovalStatus;
 
+  @Column({ nullable: true })
+  bio: string;
+
+  @Column({ type: 'jsonb', nullable: true })
+  rateChart: Record<string, number>;
+
   @ManyToOne(() => TalentProfile, (profile) => profile.professionalSkills, { onDelete: 'CASCADE' })
   talentProfile: TalentProfile;
 

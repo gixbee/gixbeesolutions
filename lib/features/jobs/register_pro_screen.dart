@@ -20,6 +20,17 @@ class _RegisterProScreenState extends ConsumerState<RegisterProScreen> {
   String? _selectedSkillName;
   final TextEditingController _newSkillRateController = TextEditingController();
   final TextEditingController _bioController = TextEditingController();
+  
+  final List<String> _rateTiers = [
+    'First 1 Hr',
+    'Upto 1.5 Hrs',
+    'Upto 2 Hrs',
+    'Upto 2.5 Hrs',
+    'Upto 3 Hrs',
+    'Upto 3.5 Hrs',
+    'Upto 4 Hrs',
+  ];
+  late Map<String, TextEditingController> _rateChartControllers;
   bool _isSubmitting = false;
   bool _isLoading = true;
   String? _approvalStatus;
@@ -27,6 +38,9 @@ class _RegisterProScreenState extends ConsumerState<RegisterProScreen> {
   @override
   void initState() {
     super.initState();
+    _rateChartControllers = {
+      for (var tier in _rateTiers) tier: TextEditingController(),
+    };
     _fetchProfile();
   }
 
@@ -38,7 +52,6 @@ class _RegisterProScreenState extends ConsumerState<RegisterProScreen> {
       if (mounted) {
         setState(() {
           _professionalSkills = profile['professionalSkills'] as List? ?? [];
-          _bioController.text = (profile['experience'] ?? '').toString();
           
           if (profile['user'] != null) {
             _approvalStatus = profile['user']['approvalStatus'];
@@ -58,6 +71,9 @@ class _RegisterProScreenState extends ConsumerState<RegisterProScreen> {
   void dispose() {
     _newSkillRateController.dispose();
     _bioController.dispose();
+    for (var controller in _rateChartControllers.values) {
+      controller.dispose();
+    }
     super.dispose();
   }
 
@@ -66,6 +82,12 @@ class _RegisterProScreenState extends ConsumerState<RegisterProScreen> {
       _isEditing = true;
       _selectedSkillName = skill['name'];
       _newSkillRateController.text = skill['hourlyRate'].toString();
+      _bioController.text = skill['bio'] ?? '';
+      
+      final chart = skill['rateChart'] as Map<String, dynamic>? ?? {};
+      for (var tier in _rateTiers) {
+        _rateChartControllers[tier]?.text = chart[tier]?.toString() ?? '';
+      }
     });
   }
 
@@ -74,6 +96,10 @@ class _RegisterProScreenState extends ConsumerState<RegisterProScreen> {
       _isEditing = false;
       _selectedSkillName = null;
       _newSkillRateController.clear();
+      _bioController.clear();
+      for (var controller in _rateChartControllers.values) {
+        controller.clear();
+      }
     });
   }
 
@@ -90,8 +116,26 @@ class _RegisterProScreenState extends ConsumerState<RegisterProScreen> {
 
     setState(() => _isSubmitting = true);
     try {
-      await ref.read(talentRepositoryProvider).addOrUpdateSkill(_selectedSkillName!, rate);
+      final Map<String, double> rateChart = {};
+      for (var tier in _rateTiers) {
+        final val = double.tryParse(_rateChartControllers[tier]?.text ?? '');
+        if (val != null) {
+          rateChart[tier] = val;
+        }
+      }
+
+      await ref.read(talentRepositoryProvider).addOrUpdateSkill(
+        _selectedSkillName!, 
+        rate, 
+        _bioController.text.trim(),
+        rateChart,
+      );
+      
       _newSkillRateController.clear();
+      _bioController.clear();
+      for (var controller in _rateChartControllers.values) {
+        controller.clear();
+      }
       _selectedSkillName = null;
       _isEditing = false;
       await _fetchProfile();
@@ -117,21 +161,7 @@ class _RegisterProScreenState extends ConsumerState<RegisterProScreen> {
     }
   }
 
-  Future<void> _submitBio() async {
-    setState(() => _isSubmitting = true);
-    try {
-      await ref.read(talentRepositoryProvider).updateProfile({
-        'experience': _bioController.text.trim(),
-      });
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Profile updated!'), backgroundColor: Colors.green));
-      }
-    } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Update failed: $e')));
-    } finally {
-      if (mounted) setState(() => _isSubmitting = false);
-    }
-  }
+
 
   @override
   Widget build(BuildContext context) {
@@ -221,7 +251,6 @@ class _RegisterProScreenState extends ConsumerState<RegisterProScreen> {
                 children: _professionalSkills.map((skill) {
                   final status = skill['status'] ?? 'PENDING';
                   final isCurrentlyEditing = _isEditing && _selectedSkillName == skill['name'];
-                  
                   return Card(
                     margin: const EdgeInsets.only(bottom: 12),
                     elevation: 0,
@@ -232,21 +261,33 @@ class _RegisterProScreenState extends ConsumerState<RegisterProScreen> {
                         width: isCurrentlyEditing ? 2 : 1,
                       ),
                     ),
-                    child: ListTile(
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                    child: ExpansionTile(
+                      shape: const RoundedRectangleBorder(side: BorderSide.none),
+                      collapsedShape: const RoundedRectangleBorder(side: BorderSide.none),
+                      tilePadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
                       title: Text(skill['name'] ?? '', style: const TextStyle(fontWeight: FontWeight.bold)),
-                      subtitle: Row(
+                      subtitle: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text('₹${skill['hourlyRate']}/hr', style: TextStyle(color: colorScheme.primary, fontWeight: FontWeight.w600)),
-                          const SizedBox(width: 12),
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                            decoration: BoxDecoration(
-                              color: _getStatusColor(status).withValues(alpha: 0.1),
-                              borderRadius: BorderRadius.circular(4),
-                            ),
-                            child: Text(status, style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: _getStatusColor(status))),
+                          const SizedBox(height: 4),
+                          Row(
+                            children: [
+                              Text('₹${skill['hourlyRate']}/hr (Base)', style: TextStyle(color: colorScheme.primary, fontWeight: FontWeight.w600)),
+                              const SizedBox(width: 12),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: _getStatusColor(status).withValues(alpha: 0.1),
+                                  borderRadius: BorderRadius.circular(4),
+                                ),
+                                child: Text(status, style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: _getStatusColor(status))),
+                              ),
+                            ],
                           ),
+                          if (skill['bio'] != null && skill['bio'].toString().isNotEmpty) ...[
+                            const SizedBox(height: 8),
+                            Text(skill['bio'], style: TextStyle(color: colorScheme.onSurface.withValues(alpha: 0.7), fontSize: 13)),
+                          ],
                         ],
                       ),
                       trailing: Row(
@@ -262,6 +303,29 @@ class _RegisterProScreenState extends ConsumerState<RegisterProScreen> {
                           ),
                         ],
                       ),
+                      children: [
+                        if (skill['rateChart'] != null)
+                          Padding(
+                            padding: const EdgeInsets.all(16.0),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text('RATE CHART', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: Colors.grey)),
+                                const Divider(),
+                                ...(skill['rateChart'] as Map<String, dynamic>).entries.map((e) => Padding(
+                                  padding: const EdgeInsets.symmetric(vertical: 4),
+                                  child: Row(
+                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      Text(e.key, style: const TextStyle(fontSize: 14)),
+                                      Text('₹${e.value}', style: const TextStyle(fontWeight: FontWeight.bold)),
+                                    ],
+                                  ),
+                                )).toList(),
+                              ],
+                            ),
+                          ),
+                      ],
                     ),
                   );
                 }).toList(),
@@ -317,63 +381,74 @@ class _RegisterProScreenState extends ConsumerState<RegisterProScreen> {
                 }).toList(),
               ),
 
-            if (_selectedSkillName != null) ...[
               const SizedBox(height: 24),
-              Text('Rate for $_selectedSkillName (Rs./hr)', style: const TextStyle(fontWeight: FontWeight.w600)),
+              Text('Base Hourly Rate for $_selectedSkillName', style: const TextStyle(fontWeight: FontWeight.w600)),
               const SizedBox(height: 8),
-              Row(
-                children: [
-                  Expanded(
-                    child: TextField(
-                      controller: _newSkillRateController,
-                      keyboardType: TextInputType.number,
-                      decoration: InputDecoration(
-                        hintText: 'e.g. 200',
-                        prefixText: '₹ ',
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+              TextField(
+                controller: _newSkillRateController,
+                keyboardType: TextInputType.number,
+                decoration: InputDecoration(
+                  hintText: 'e.g. 200',
+                  prefixText: '₹ ',
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+              ),
+              
+              const SizedBox(height: 24),
+              Text('Rate Chart for $_selectedSkillName', style: const TextStyle(fontWeight: FontWeight.bold)),
+              const SizedBox(height: 4),
+              Text('Enter specific pricing for different time blocks.', style: Theme.of(context).textTheme.bodySmall),
+              const SizedBox(height: 12),
+              ..._rateTiers.map((tier) => Padding(
+                padding: const EdgeInsets.only(bottom: 8.0),
+                child: Row(
+                  children: [
+                    Expanded(flex: 3, child: Text(tier, style: const TextStyle(fontSize: 14))),
+                    Expanded(
+                      flex: 4,
+                      child: TextField(
+                        controller: _rateChartControllers[tier],
+                        keyboardType: TextInputType.number,
+                        decoration: InputDecoration(
+                          hintText: 'Price',
+                          prefixText: '₹ ',
+                          isDense: true,
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                        ),
                       ),
                     ),
+                  ],
+                ),
+              )).toList(),
+              const SizedBox(height: 16),
+              Text('Bio for $_selectedSkillName', style: const TextStyle(fontWeight: FontWeight.w600)),
+              const SizedBox(height: 8),
+              TextField(
+                controller: _bioController,
+                maxLines: 3,
+                decoration: InputDecoration(
+                  hintText: 'Tell customers about your experience with $_selectedSkillName...',
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
                   ),
-                  const SizedBox(width: 12),
-                  ElevatedButton(
-                    onPressed: _isSubmitting ? null : _addSkill,
-                    style: ElevatedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                    ),
-                    child: Text(_isEditing ? 'Update' : 'Add'),
+                ),
+              ),
+              const SizedBox(height: 16),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: _isSubmitting ? null : _addSkill,
+                  style: ElevatedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                   ),
-                ],
+                  child: Text(_isEditing ? 'Update Skill' : 'Add Skill'),
+                ),
               ),
             ],
 
             const SizedBox(height: 40),
-
-            // Bio remains pretty much the same but needs its own submit
-            Text('Expertise Bio',
-                style: Theme.of(context)
-                    .textTheme
-                    .titleMedium
-                    ?.copyWith(fontWeight: FontWeight.bold)),
-            const SizedBox(height: 8),
-            TextField(
-              controller: _bioController,
-              maxLines: 3,
-              decoration: InputDecoration(
-                hintText: 'Tell customers about your experience...',
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-              ),
-            ),
-            const SizedBox(height: 16),
-            SizedBox(
-              width: double.infinity,
-              child: OutlinedButton(
-                onPressed: _isSubmitting ? null : _submitBio,
-                child: const Text('Update Bio'),
-              ),
-            ),
 
             const SizedBox(height: 60),
           ],

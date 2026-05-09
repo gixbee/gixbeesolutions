@@ -18,8 +18,8 @@ export class TalentController {
   }
 
   @Post('skills')
-  async addOrUpdateSkill(@Req() req: any, @Body('skillName') skillName: string, @Body('rate') rate: number) {
-    return this.talentService.addOrUpdateSkill(req.user.userId, skillName, Number(rate));
+  async addOrUpdateSkill(@Req() req: any, @Body('skillName') skillName: string, @Body('rate') rate: number, @Body('bio') bio: string, @Body('rateChart') rateChart: Record<string, number>) {
+    return this.talentService.addOrUpdateSkill(req.user.userId, skillName, Number(rate), bio, rateChart);
   }
 
   @Post('skills/remove')
