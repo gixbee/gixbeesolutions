@@ -2,12 +2,14 @@ import 'dart:async';
 import 'package:socket_io_client/socket_io_client.dart' as io;
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:geolocator/geolocator.dart';
 import '../core/config/app_config.dart';
 
 final socketServiceProvider = Provider((ref) => SocketService());
 
 class SocketService {
   io.Socket? _socket;
+  StreamSubscription<Position>? _locationStreamSub;
 
   // ── Notification stream — booking events pushed from server ──
   final _notificationController =
@@ -117,7 +119,40 @@ class SocketService {
     );
   }
 
+  // ── Worker-side: stream GPS to the job room ─────────────────
+
+  /// Starts streaming the worker's GPS location to the booking's Socket.IO room.
+  /// Call after accepting a booking. Emits `updateLocation` every ~5 seconds.
+  void startLocationStream(String userId, String jobId) {
+    stopLocationStream(); // Cancel any existing stream
+
+    debugPrint('[Socket] Starting location stream for job $jobId');
+
+    _locationStreamSub = Geolocator.getPositionStream(
+      locationSettings: const LocationSettings(
+        accuracy: LocationAccuracy.high,
+        distanceFilter: 10, // Only emit if moved 10+ meters
+      ),
+    ).listen(
+      (position) {
+        updateLocation(userId, position.latitude, position.longitude, jobId: jobId);
+        debugPrint('[Socket] Location update sent: ${position.latitude}, ${position.longitude}');
+      },
+      onError: (e) {
+        debugPrint('[Socket] Location stream error: $e');
+      },
+    );
+  }
+
+  /// Stops the worker's GPS streaming.
+  void stopLocationStream() {
+    _locationStreamSub?.cancel();
+    _locationStreamSub = null;
+    debugPrint('[Socket] Location stream stopped');
+  }
+
   void disconnect() {
+    stopLocationStream();
     _socket?.disconnect();
     if (!_notificationController.isClosed) {
       _notificationController.close();

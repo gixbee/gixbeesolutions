@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/config/app_config.dart';
 import '../../repositories/booking_repository.dart';
+import '../../repositories/auth_repository.dart';
+import '../../services/socket_service.dart';
 
 /// Shown as a full-screen modal when the worker receives job requests.
 /// Handles a QUEUE of multiple simultaneous requests from different customers.
@@ -113,6 +115,13 @@ class _IncomingJobScreenState extends ConsumerState<IncomingJobScreen> {
       await ref.read(bookingRepositoryProvider).acceptBooking(bookingId);
 
       if (!mounted) return;
+
+      // Start streaming worker's location to the customer
+      final user = await ref.read(currentUserProvider.future);
+      if (user != null) {
+        ref.read(socketServiceProvider).startLocationStream(user.id, bookingId);
+      }
+
       // Backend auto-cancels all other pending bookings for this worker
       Navigator.pop(context, {'accepted': true, 'bookingId': bookingId});
       ScaffoldMessenger.of(context).showSnackBar(

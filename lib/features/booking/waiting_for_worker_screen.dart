@@ -6,6 +6,7 @@ import '../../shared/models/worker.dart';
 import '../../shared/models/booking_status.dart';
 import '../../core/config/app_config.dart';
 import 'arrival_otp_screen.dart';
+import 'live_tracking_map_screen.dart';
 
 class WaitingForWorkerScreen extends ConsumerStatefulWidget {
   final String bookingId;
@@ -120,19 +121,14 @@ class _WaitingForWorkerScreenState extends ConsumerState<WaitingForWorkerScreen>
   }
 
   void _confirmAndProceed() {
-    // Issue #22: Error state instead of silently falling back to '0000'
-    if (_arrivalOtp == null) {
-      _showError('OTP not received. Please contact support.');
-      return;
-    }
-
+    // Navigate to live tracking map
     Navigator.pushReplacement(
       context,
       MaterialPageRoute(
-        builder: (_) => ArrivalOtpScreen(
+        builder: (_) => LiveTrackingMapScreen(
           bookingId: widget.bookingId,
-          workerName: widget.worker.name,
-          arrivalOtp: _arrivalOtp!,
+          worker: widget.worker,
+          arrivalOtp: _arrivalOtp,
         ),
       ),
     );
@@ -195,26 +191,20 @@ class _WaitingForWorkerScreenState extends ConsumerState<WaitingForWorkerScreen>
                 'Is on their way to your location',
                 style: TextStyle(color: colorScheme.onSurfaceVariant),
               ),
-              const SizedBox(height: 48),
-              if (_arrivalOtp != null)
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton(
-                    onPressed: _confirmAndProceed,
-                    style: ElevatedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      backgroundColor: colorScheme.primary,
-                      foregroundColor: colorScheme.onPrimary,
-                    ),
-                    child: const Text('Confirm & See OTP', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 32),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  onPressed: _confirmAndProceed,
+                  style: ElevatedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    backgroundColor: colorScheme.primary,
+                    foregroundColor: colorScheme.onPrimary,
                   ),
-                )
-              else
-                Text(
-                  'Waiting for worker to confirm arrival at your location...',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(color: colorScheme.onSurfaceVariant),
+                  icon: const Icon(Icons.map_rounded),
+                  label: const Text('Track on Map', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                 ),
+              ),
             ],
           ],
         ),

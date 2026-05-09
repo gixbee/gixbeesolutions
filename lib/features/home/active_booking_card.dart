@@ -6,7 +6,9 @@ import '../../repositories/booking_repository.dart';
 import '../../repositories/auth_repository.dart';
 import '../booking/arrival_otp_screen.dart';
 import '../booking/completion_otp_screen.dart';
+import '../booking/live_tracking_map_screen.dart';
 import '../jobs/booking_detail_screen.dart';
+import '../../shared/models/worker.dart';
 import '../../shared/widgets/glass_container.dart';
 
 // Derives from shared myBookingsProvider — auto-refreshes on invalidation
@@ -119,24 +121,33 @@ class _ActiveBookingCardState extends ConsumerState<ActiveBookingCard> {
                           BookingDetailScreen(booking: activeBooking)),
                 );
               } else if (bStatus == 'ACCEPTED' || bStatus == 'ARRIVED') {
+                final operatorData = activeBooking['operator'];
+                final workerName = operatorData?['name'] ?? 'Worker';
+                final workerId = operatorData?['id']?.toString() ?? '';
                 final otp = activeBooking['arrivalOtp']?.toString();
-                if (otp == null || otp.isEmpty) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                        content:
-                            Text('Verification code not generated yet.')),
-                  );
-                  return;
-                }
+
                 await Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (_) => ArrivalOtpScreen(
-                      bookingId: activeBooking['id'],
-                      workerName:
-                          activeBooking['operator']?['name'] ?? 'Worker',
+                    builder: (_) => LiveTrackingMapScreen(
+                      bookingId: bookingId,
+                      worker: Worker(
+                        id: workerId,
+                        name: workerName,
+                        title: activeBooking['skill'] ?? 'Professional',
+                        bio: '',
+                        imageUrl: operatorData?['profileImageUrl'] ?? '',
+                        rating: 0,
+                        completedJobs: 0,
+                        reviewCount: 0,
+                        isFeatured: false,
+                        hourlyRate: 0,
+                        skills: [],
+                        availabilityTags: [],
+                        primaryType: SkillType.manual,
+                        status: 'available',
+                      ),
                       arrivalOtp: otp,
-                      isWorker: isOperator,
                     ),
                   ),
                 );
