@@ -21,28 +21,49 @@ export class NotificationsService implements OnModuleInit {
   // ── Firebase Admin SDK Init ───────────────────────────────────────────────
 
   onModuleInit() {
-    const projectId = this.configService.get<string>('FIREBASE_PROJECT_ID');
-    const clientEmail = this.configService.get<string>('FIREBASE_CLIENT_EMAIL');
-    const privateKey = this.configService
-      .get<string>('FIREBASE_PRIVATE_KEY')
-      ?.replace(/\\n/g, '\n');
-
-    if (!projectId || !clientEmail || !privateKey) {
-      this.logger.warn(
-        'Firebase credentials missing — push notifications disabled. ' +
-          'Set FIREBASE_PROJECT_ID, FIREBASE_CLIENT_EMAIL, FIREBASE_PRIVATE_KEY in .env',
-      );
-      return;
-    }
-
     if (!admin.apps.length) {
-      admin.initializeApp({
-        credential: admin.credential.cert({ projectId, clientEmail, privateKey }),
-      });
+      // Strategy 1: Use JSON key file (most reliable)
+      const keyFilePath = this.configService.get<string>('FIREBASE_KEY_PATH');
+      const googleAppCreds = process.env.GOOGLE_APPLICATION_CREDENTIALS;
+
+      if (keyFilePath || googleAppCreds) {
+        const filePath = keyFilePath || googleAppCreds;
+        try {
+          // eslint-disable-next-line @typescript-eslint/no-var-requires
+          const serviceAccount = require(filePath!);
+          admin.initializeApp({
+            credential: admin.credential.cert(serviceAccount),
+          });
+          this.logger.log(`Firebase Admin SDK initialized from JSON file: ${filePath}`);
+        } catch (e) {
+          this.logger.error(`Failed to load Firebase key file at ${filePath}: ${e}`);
+          return;
+        }
+      } else {
+        // Strategy 2: Fall back to individual .env variables
+        const projectId = this.configService.get<string>('FIREBASE_PROJECT_ID');
+        const clientEmail = this.configService.get<string>('FIREBASE_CLIENT_EMAIL');
+        const privateKey = this.configService
+          .get<string>('FIREBASE_PRIVATE_KEY')
+          ?.replace(/\\n/g, '\n');
+
+        if (!projectId || !clientEmail || !privateKey) {
+          this.logger.warn(
+            'Firebase credentials missing — push notifications disabled. ' +
+              'Set FIREBASE_KEY_PATH to a JSON key file, or set FIREBASE_PROJECT_ID, FIREBASE_CLIENT_EMAIL, FIREBASE_PRIVATE_KEY in .env',
+          );
+          return;
+        }
+
+        admin.initializeApp({
+          credential: admin.credential.cert({ projectId, clientEmail, privateKey }),
+        });
+        this.logger.log('Firebase Admin SDK initialized from .env variables');
+      }
     }
 
     this.messaging = admin.messaging();
-    this.logger.log('Firebase Admin SDK initialized — ready to send FCM pushes');
+    this.logger.log('Firebase Admin SDK ready — push notifications enabled');
   }
 
   // ── Diagnostics ───────────────────────────────────────────────────────────
