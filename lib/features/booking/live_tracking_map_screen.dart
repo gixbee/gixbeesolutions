@@ -5,7 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:google_maps_flutter_android/google_maps_flutter_android.dart';
 import 'package:google_maps_flutter_platform_interface/google_maps_flutter_platform_interface.dart';
-import 'package:url_launcher/url_launcher.dart';
+import 'package:dio/dio.dart';
 import '../../services/socket_service.dart';
 import '../../shared/models/worker.dart';
 import '../../repositories/booking_repository.dart';
@@ -47,6 +47,12 @@ class _LiveTrackingMapScreenState extends ConsumerState<LiveTrackingMapScreen> {
   String? _arrivalOtp;
   bool _isMapReady = false;
 
+  // Directions API state
+  List<LatLng> _routePoints = [];
+  String? _routeDistanceText;
+  String? _routeEtaText;
+  DateTime? _lastRouteFetch;
+
   // Default: center of India (Nagpur)
   static const LatLng _defaultCenter = LatLng(21.1458, 79.0882);
 
@@ -74,6 +80,7 @@ class _LiveTrackingMapScreenState extends ConsumerState<LiveTrackingMapScreen> {
           _workerLocation = LatLng(lat, lng);
         });
         _fitMapBounds();
+        _fetchRoute(); // Update road route dynamically
       }
     });
 
@@ -150,6 +157,77 @@ class _LiveTrackingMapScreenState extends ConsumerState<LiveTrackingMapScreen> {
     }
   }
 
+  Future<void> _fetchRoute() async {
+    if (_workerLocation == null || _customerLocation == null) return;
+    
+    // Don't fetch if fetched less than 30 seconds ago to avoid spamming the API
+    if (_lastRouteFetch != null && DateTime.now().difference(_lastRouteFetch!).inSeconds < 30) {
+      return;
+    }
+    
+    _lastRouteFetch = DateTime.now();
+
+    try {
+      const apiKey = 'AIzaSyB6POkXTMveS1m6NJNGxduXtc-_CwQ4Ty4';
+      final origin = '${_workerLocation!.latitude},${_workerLocation!.longitude}';
+      final destination = '${_customerLocation!.latitude},${_customerLocation!.longitude}';
+      final url = 'https://maps.googleapis.com/maps/api/directions/json?origin=$origin&destination=$destination&key=$apiKey';
+      
+      final response = await Dio().get(url);
+      
+      if (response.statusCode == 200) {
+        final data = response.data;
+        if (data['status'] == 'OK' && (data['routes'] as List).isNotEmpty) {
+          final route = data['routes'][0];
+          final leg = route['legs'][0];
+          
+          final polylineStr = route['overview_polyline']['points'];
+          final points = _decodePolyline(polylineStr);
+          
+          if (mounted) {
+            setState(() {
+              _routePoints = points;
+              _routeDistanceText = leg['distance']['text'];
+              _routeEtaText = leg['duration']['text'];
+            });
+          }
+        }
+      }
+    } catch (e) {
+      debugPrint('Failed to fetch route: $e');
+    }
+  }
+
+  List<LatLng> _decodePolyline(String encoded) {
+    List<LatLng> polyline = [];
+    int index = 0, len = encoded.length;
+    int lat = 0, lng = 0;
+
+    while (index < len) {
+      int b, shift = 0, result = 0;
+      do {
+        b = encoded.codeUnitAt(index++) - 63;
+        result |= (b & 0x1f) << shift;
+        shift += 5;
+      } while (b >= 0x20);
+      int dlat = ((result & 1) != 0 ? ~(result >> 1) : (result >> 1));
+      lat += dlat;
+
+      shift = 0;
+      result = 0;
+      do {
+        b = encoded.codeUnitAt(index++) - 63;
+        result |= (b & 0x1f) << shift;
+        shift += 5;
+      } while (b >= 0x20);
+      int dlng = ((result & 1) != 0 ? ~(result >> 1) : (result >> 1));
+      lng += dlng;
+
+      polyline.add(LatLng(lat / 1E5, lng / 1E5));
+    }
+    return polyline;
+  }
+
   Set<Marker> _buildMarkers() {
     final markers = <Marker>{};
 
@@ -184,9 +262,22 @@ class _LiveTrackingMapScreenState extends ConsumerState<LiveTrackingMapScreen> {
 
   Set<Polyline> _buildPolylines() {
     if (_workerLocation == null || _customerLocation == null) return {};
+    
+    // Use real road route if fetched, otherwise fallback to dashed straight line
+    if (_routePoints.isNotEmpty) {
+      return {
+        Polyline(
+          polylineId: const PolylineId('road_route'),
+          points: _routePoints,
+          color: Colors.blueAccent,
+          width: 5,
+        ),
+      };
+    }
+    
     return {
       Polyline(
-        polylineId: const PolylineId('route'),
+        polylineId: const PolylineId('straight_line'),
         points: [_workerLocation!, _customerLocation!],
         color: Colors.blueAccent,
         width: 4,
@@ -300,8 +391,12 @@ class _LiveTrackingMapScreenState extends ConsumerState<LiveTrackingMapScreen> {
   }
 
   Widget _buildBottomPanel(ColorScheme cs) {
-    final distance = _estimateDistance();
-    final eta = distance != null ? (distance / 30 * 60).round() : null; // ~30 km/h avg
+    // Priority: Real API distance/ETA > Fallback Math estimate
+    final fallbackDistance = _estimateDistance();
+    final fallbackEta = fallbackDistance != null ? (fallbackDistance / 30 * 60).round() : null;
+
+    final displayEta = _routeEtaText ?? (fallbackEta != null ? '${fallbackEta < 1 ? "<1" : fallbackEta} min' : null);
+    final displayDistance = _routeDistanceText ?? (fallbackDistance != null ? '${fallbackDistance.toStringAsFixed(1)} km' : null);
 
     return Container(
       decoration: BoxDecoration(
@@ -392,7 +487,7 @@ class _LiveTrackingMapScreenState extends ConsumerState<LiveTrackingMapScreen> {
                     ),
                   ),
                   // ETA chip
-                  if (eta != null && _workerLocation != null)
+                  if (displayEta != null && _workerLocation != null)
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                       decoration: BoxDecoration(
@@ -402,20 +497,21 @@ class _LiveTrackingMapScreenState extends ConsumerState<LiveTrackingMapScreen> {
                       child: Column(
                         children: [
                           Text(
-                            '${eta < 1 ? "<1" : eta} min',
+                            displayEta,
                             style: TextStyle(
                               fontWeight: FontWeight.bold,
                               fontSize: 14,
                               color: cs.primary,
                             ),
                           ),
-                          Text(
-                            '${distance!.toStringAsFixed(1)} km',
-                            style: TextStyle(
-                              fontSize: 10,
-                              color: cs.onSurfaceVariant,
+                          if (displayDistance != null)
+                            Text(
+                              displayDistance,
+                              style: TextStyle(
+                                fontSize: 10,
+                                color: cs.onSurfaceVariant,
+                              ),
                             ),
-                          ),
                         ],
                       ),
                     ),
