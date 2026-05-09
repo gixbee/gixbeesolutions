@@ -528,8 +528,10 @@ class _LiveTrackingMapScreenState extends ConsumerState<LiveTrackingMapScreen> {
                     child: OutlinedButton.icon(
                       onPressed: () async {
                         final url = Uri.parse('tel:+91${widget.worker.id}');
-                        if (await canLaunchUrl(url)) {
-                          await launchUrl(url);
+                        try {
+                          await launchUrl(url, mode: LaunchMode.externalApplication);
+                        } catch (e) {
+                          debugPrint('Could not launch call: $e');
                         }
                       },
                       icon: const Icon(Icons.call, size: 18),
@@ -552,10 +554,12 @@ class _LiveTrackingMapScreenState extends ConsumerState<LiveTrackingMapScreen> {
                           // Open Google Maps navigation to customer
                           if (_customerLocation != null) {
                             final url = Uri.parse(
-                              'google.navigation:q=${_customerLocation!.latitude},${_customerLocation!.longitude}&mode=d',
+                              'https://www.google.com/maps/dir/?api=1&destination=${_customerLocation!.latitude},${_customerLocation!.longitude}&travelmode=driving',
                             );
-                            if (await canLaunchUrl(url)) {
-                              await launchUrl(url);
+                            try {
+                              await launchUrl(url, mode: LaunchMode.externalApplication);
+                            } catch (e) {
+                              debugPrint('Could not launch navigation: $e');
                             }
                           }
                         },
