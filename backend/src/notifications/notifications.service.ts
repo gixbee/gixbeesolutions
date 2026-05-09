@@ -224,30 +224,51 @@ export class NotificationsService implements OnModuleInit {
       }
     }
 
-    // Step 3: Send push
+    // Step 3: Send push directly (with full error capture)
     steps.push('📤 Sending test push via Firebase Admin SDK...');
-    const success = await this.sendToDevice({
-      fcmToken: fcmToken!,
-      title: '🔔 FCM Test',
-      body: 'If you see this, push notifications are working!',
-      data: { type: 'test_push' },
-    });
+    steps.push(`📋 Token length: ${fcmToken!.length} chars`);
 
-    if (success) {
-      steps.push('✅ Firebase accepted the message');
-    } else {
-      steps.push('❌ Firebase rejected — token may be stale or invalid');
+    try {
+      const messageId = await this.messaging!.send({
+        token: fcmToken!,
+        notification: {
+          title: '🔔 FCM Test',
+          body: 'If you see this, push notifications are working!',
+        },
+        data: { type: 'test_push' },
+        android: {
+          priority: 'high',
+          notification: {
+            channelId: 'gixbee_high_importance',
+            sound: 'default',
+            priority: 'max',
+          },
+        },
+      });
+
+      steps.push(`✅ Firebase accepted — messageId: ${messageId}`);
+      return {
+        success: true,
+        userId,
+        fcmTokenPrefix: fcmToken?.substring(0, 30) + '...',
+        steps,
+        message: 'Push sent successfully! You should see a notification.',
+      };
+    } catch (error: any) {
+      const code = error?.errorInfo?.code ?? 'unknown';
+      const msg = error?.errorInfo?.message ?? error?.message ?? String(error);
+      steps.push(`❌ Firebase error code: ${code}`);
+      steps.push(`❌ Firebase error msg: ${msg}`);
+
+      return {
+        success: false,
+        userId,
+        fcmTokenPrefix: fcmToken?.substring(0, 30) + '...',
+        firebaseErrorCode: code,
+        steps,
+        message: `Firebase error: ${code} — ${msg}`,
+      };
     }
-
-    return {
-      success,
-      userId,
-      fcmTokenPrefix: fcmToken?.substring(0, 20) + '...',
-      steps,
-      message: success
-        ? 'Push sent successfully! You should see a notification.'
-        : 'Firebase rejected the push. The FCM token may be expired. Try logging out and back in.',
-    };
   }
 
   // ── Multicast: send to multiple users ─────────────────────────────────────
