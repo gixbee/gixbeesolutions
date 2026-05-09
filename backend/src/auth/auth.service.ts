@@ -5,6 +5,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { User, UserRole } from '../users/user.entity';
 import { RedisService } from '../redis/redis.service';
+import * as crypto from 'crypto';
 
 @Injectable()
 export class AuthService {
@@ -47,7 +48,7 @@ export class AuthService {
   async verifyOtp(
     phoneNumber: string,
     otp: string,
-  ): Promise<{ accessToken: string }> {
+  ): Promise<{ accessToken: string; refreshToken: string }> {
     const storedOtp = await this.redisService.getOtp(`otp:${phoneNumber}`);
 
     if (!storedOtp || storedOtp !== otp) {
@@ -70,13 +71,71 @@ export class AuthService {
       await this.usersRepository.save(user);
     }
 
+    return this.generateTokenPair(user);
+  }
+
+  // ── Token Pair Generation ──────────────────────────────────────────────────
+
+  private async generateTokenPair(user: User): Promise<{ accessToken: string; refreshToken: string }> {
     const payload = {
       sub: user.id,
       phoneNumber: user.phoneNumber,
       role: user.role,
     };
 
-    return { accessToken: await this.jwtService.signAsync(payload) };
+    // Access token: short-lived (1h, configured in auth.module.ts)
+    const accessToken = await this.jwtService.signAsync(payload);
+
+    // Refresh token: long-lived (30d), signed with a different secret suffix
+    const refreshSecret = (this.configService.get<string>('JWT_SECRET') ?? 'fallback-secret') + '-refresh';
+    const refreshToken = await this.jwtService.signAsync(
+      { sub: user.id, type: 'refresh' },
+      { secret: refreshSecret, expiresIn: '30d' },
+    );
+
+    // Store refresh token hash in Redis (30-day TTL)
+    const tokenHash = crypto.createHash('sha256').update(refreshToken).digest('hex');
+    await this.redisService.set(`refresh:${user.id}`, tokenHash, 30 * 24 * 60 * 60);
+
+    return { accessToken, refreshToken };
+  }
+
+  // ── Refresh Access Token ──────────────────────────────────────────────────
+
+  async refreshAccessToken(refreshToken: string): Promise<{ accessToken: string }> {
+    const refreshSecret = (this.configService.get<string>('JWT_SECRET') ?? 'fallback-secret') + '-refresh';
+
+    let payload: any;
+    try {
+      payload = await this.jwtService.verifyAsync(refreshToken, { secret: refreshSecret });
+    } catch {
+      throw new UnauthorizedException('Invalid or expired refresh token');
+    }
+
+    if (payload.type !== 'refresh') {
+      throw new UnauthorizedException('Invalid token type');
+    }
+
+    // Verify the token hash matches what's stored in Redis
+    const tokenHash = crypto.createHash('sha256').update(refreshToken).digest('hex');
+    const storedHash = await this.redisService.get(`refresh:${payload.sub}`);
+
+    if (!storedHash || storedHash !== tokenHash) {
+      throw new UnauthorizedException('Refresh token revoked or expired');
+    }
+
+    // Issue new access token
+    const user = await this.usersRepository.findOne({ where: { id: payload.sub } });
+    if (!user) throw new UnauthorizedException('User not found');
+
+    const accessPayload = {
+      sub: user.id,
+      phoneNumber: user.phoneNumber,
+      role: user.role,
+    };
+
+    const accessToken = await this.jwtService.signAsync(accessPayload);
+    return { accessToken };
   }
 
   // ── Profile ────────────────────────────────────────────────────────────────

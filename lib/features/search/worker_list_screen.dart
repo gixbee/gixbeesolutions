@@ -19,11 +19,18 @@ class _WorkerListScreenState extends ConsumerState<WorkerListScreen> {
   String? _selectedSkill;
   double? _maxRate;
   double _minRating = 0.0;
+  final TextEditingController _searchController = TextEditingController();
 
   @override
   void initState() {
     super.initState();
     _selectedSkill = widget.category;
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
   }
 
   List<Worker> _filterWorkers(List<Worker> workers) {
@@ -164,6 +171,7 @@ class _WorkerListScreenState extends ConsumerState<WorkerListScreen> {
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
                 child: TextField(
+                  controller: _searchController,
                   onChanged: (value) => setState(() => _searchQuery = value),
                   style: const TextStyle(color: Colors.white),
                   decoration: InputDecoration(
@@ -231,6 +239,14 @@ class _WorkerListScreenState extends ConsumerState<WorkerListScreen> {
               Expanded(
                 child: RefreshIndicator(
                   onRefresh: () async {
+                    // Clear all filters on pull-to-refresh
+                    setState(() {
+                      _searchQuery = '';
+                      _searchController.clear();
+                      _selectedSkill = widget.category;
+                      _maxRate = null;
+                      _minRating = 0.0;
+                    });
                     return await ref.refresh(nearbyWorkersProvider.future);
                   },
                   child: filteredWorkers.isEmpty

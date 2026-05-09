@@ -389,4 +389,92 @@ export class WorkersService {
     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
     return R * c;
   }
+
+  // ── Worker Packages ────────────────────────────────────────────────────────
+
+  async getWorkerPackages(workerId: string): Promise<any[]> {
+    const worker = await this.getById(workerId);
+    const rate = worker.hourly_rate || 50;
+
+    // Try to find rateChart from the worker's professional skills
+    const profile = await this.talentRepository.findOne({
+      where: { user: { id: workerId } } as any,
+    });
+
+    if (profile) {
+      const skills = await this.skillRepository.find({
+        where: { talentProfile: { id: profile.id } },
+      });
+
+      // Check if any skill has a rateChart with custom package pricing
+      const skillWithChart = skills.find(s => s.rateChart && Object.keys(s.rateChart).length > 0);
+
+      if (skillWithChart && skillWithChart.rateChart) {
+        const chart = skillWithChart.rateChart;
+        const packages: any[] = [];
+
+        // Map rateChart keys to package definitions
+        if (chart['quickFix'] || chart['1hr']) {
+          packages.push({
+            name: 'Quick Fix',
+            description: `1 hour of focused ${skillWithChart.name} work`,
+            duration: '1 hr',
+            price: chart['quickFix'] || chart['1hr'] || rate,
+            isPopular: false,
+            includes: ['1 task', 'Basic tools', 'Arrival OTP verified'],
+          });
+        }
+        if (chart['halfDay'] || chart['4hr']) {
+          packages.push({
+            name: 'Half Day',
+            description: `Extended ${skillWithChart.name} session for bigger jobs`,
+            duration: '4 hrs',
+            price: chart['halfDay'] || chart['4hr'],
+            isPopular: true,
+            includes: ['Up to 3 tasks', 'All tools included', 'Report on completion'],
+          });
+        }
+        if (chart['fullDay'] || chart['8hr']) {
+          packages.push({
+            name: 'Full Day',
+            description: `Full day ${skillWithChart.name} engagement`,
+            duration: '8 hrs',
+            price: chart['fullDay'] || chart['8hr'],
+            isPopular: false,
+            includes: ['Unlimited tasks', 'Materials advice', 'Priority rebooking'],
+          });
+        }
+
+        if (packages.length > 0) return packages;
+      }
+    }
+
+    // Fallback: multiplier-based packages
+    return [
+      {
+        name: 'Quick Fix',
+        description: '1 hour of focused work on a single task',
+        duration: '1 hr',
+        price: rate,
+        isPopular: false,
+        includes: ['1 task', 'Basic tools', 'Arrival OTP verified'],
+      },
+      {
+        name: 'Half Day',
+        description: 'Standard 4-hour block for moderate sized projects',
+        duration: '4 hrs',
+        price: Math.round(rate * 3.5),
+        isPopular: true,
+        includes: ['Up to 3 tasks', 'All tools included', 'Report on completion'],
+      },
+      {
+        name: 'Full Day',
+        description: 'Comprehensive 8-hour dedication to your needs',
+        duration: '8 hrs',
+        price: Math.round(rate * 6.0),
+        isPopular: false,
+        includes: ['Unlimited tasks', 'Materials advice', 'Priority rebooking'],
+      },
+    ];
+  }
 }

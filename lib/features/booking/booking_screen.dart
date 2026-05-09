@@ -190,6 +190,17 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
                   style: const TextStyle(
                       fontWeight: FontWeight.bold, fontSize: 20),
                 ),
+                if (_walletBalance != null)
+                  Text(
+                    'Wallet: ₹${_walletBalance!.toInt()}',
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                      color: _walletBalance! >= (widget.baseAmount ?? widget.worker.hourlyRate)
+                          ? Colors.green
+                          : Colors.red,
+                    ),
+                  ),
               ],
             ),
             SizedBox(

@@ -14,6 +14,7 @@ import 'active_booking_card.dart';
 import '../notifications/notifications_screen.dart';
 import '../../repositories/worker_repository.dart';
 import '../search/worker_list_screen.dart';
+import 'coming_soon_screen.dart';
 
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
@@ -256,11 +257,15 @@ class HomeScreen extends ConsumerWidget {
         'title': 'Rentals',
         'icon': Icons.category_rounded,
         'color': colorScheme.surfaceContainerHighest,
-        'onTap': () {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Rentals module coming soon!')),
-          );
-        },
+        'onTap': () => Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => const ComingSoonScreen(
+              featureName: 'Rentals',
+              icon: Icons.category_rounded,
+            ),
+          ),
+        ),
       },
     ];
 

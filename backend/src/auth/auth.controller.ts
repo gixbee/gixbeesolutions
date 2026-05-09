@@ -16,6 +16,10 @@ export class AuthController {
     return this.authService.verifyOtp(body.phone, body.otp);
   }
 
+  @Post('refresh')
+  async refreshToken(@Body() body: { refreshToken: string }) {
+    return this.authService.refreshAccessToken(body.refreshToken);
+  }
 
 
   @UseGuards(AuthGuard('jwt'))

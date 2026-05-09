@@ -14,18 +14,51 @@ final dioProvider = Provider<Dio>((ref) {
     receiveTimeout: const Duration(seconds: AppConfig.httpTimeoutSeconds),
   ));
 
+  final tokenService = ref.read(authTokenServiceProvider);
+
   dio.interceptors.add(InterceptorsWrapper(
     onRequest: (options, handler) async {
-      final token = await ref.read(authTokenServiceProvider).getToken();
+      final token = await tokenService.getToken();
       if (token != null) {
         options.headers['Authorization'] = 'Bearer $token';
       }
       return handler.next(options);
     },
     onError: (e, handler) async {
-      if (e.response?.statusCode == 401) {
-        debugPrint('[DIO] 401 Unauthorized — clearing token and forcing logout');
-        await ref.read(authTokenServiceProvider).deleteToken();
+      if (e.response?.statusCode == 401 &&
+          !e.requestOptions.path.contains('/auth/refresh') &&
+          !e.requestOptions.path.contains('/auth/verify-otp')) {
+        // Attempt silent token refresh
+        debugPrint('[DIO] 401 — attempting token refresh');
+        final refreshToken = await tokenService.getRefreshToken();
+
+        if (refreshToken != null) {
+          try {
+            final refreshDio = Dio(BaseOptions(baseUrl: AppConfig.baseUrl));
+            final response = await refreshDio.post(
+              '/auth/refresh',
+              data: {'refreshToken': refreshToken},
+            );
+
+            final newAccessToken = response.data['accessToken'] as String?;
+            if (newAccessToken != null) {
+              await tokenService.saveToken(newAccessToken);
+              debugPrint('[DIO] Token refreshed — retrying original request');
+
+              // Retry the original request with the new token
+              final opts = e.requestOptions;
+              opts.headers['Authorization'] = 'Bearer $newAccessToken';
+              final retryResponse = await dio.fetch(opts);
+              return handler.resolve(retryResponse);
+            }
+          } catch (refreshError) {
+            debugPrint('[DIO] Token refresh failed: $refreshError');
+          }
+        }
+
+        // Refresh failed — force logout
+        debugPrint('[DIO] 401 Unauthorized — clearing tokens and forcing logout');
+        await tokenService.deleteToken();
         ref.invalidate(authStateProvider);
       }
       return handler.next(e);
@@ -83,7 +116,7 @@ class AuthRepository {
     }
   }
 
-  /// Verifies the OTP with the Gixbee backend and saves the returned JWT.
+  /// Verifies the OTP with the Gixbee backend and saves both JWT tokens.
   Future<void> verifyOtp({
     required String phoneNumber,
     required String token,
@@ -95,10 +128,16 @@ class AuthRepository {
       );
 
       final accessToken = response.data['accessToken'] as String?;
+      final refreshToken = response.data['refreshToken'] as String?;
+
       if (accessToken == null) {
         throw Exception('OTP verification failed — no accessToken returned');
       }
       await _tokenService.saveToken(accessToken);
+
+      if (refreshToken != null) {
+        await _tokenService.saveRefreshToken(refreshToken);
+      }
     } catch (e) {
       debugPrint('[AUTH] verifyOtp failed: $e');
       rethrow;
@@ -136,4 +175,3 @@ class AuthRepository {
     await _tokenService.deleteToken();
   }
 }
-
