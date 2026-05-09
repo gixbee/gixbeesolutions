@@ -451,7 +451,7 @@ export class BookingsService {
   async verifyCompletionOtp(
     bookingId: string,
     otp: string,
-  ): Promise<{ message: string; status: string; billingHours: number }> {
+  ): Promise<{ message: string; status: string; billingHours: number; paymentMethod: string; totalAmount: number; }> {
     const booking = await this.bookingsRepository.findOne({
       where: { id: bookingId },
       relations: ['operator'],

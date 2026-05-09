@@ -25,6 +25,7 @@ export class BookingsController {
     scheduledAt: string;
     amount: number;
     type: BookingType;
+    paymentMethod?: string;
   }) {
     return this.bookingsService.createBooking({
       customer: { id: req.user.userId } as any,
