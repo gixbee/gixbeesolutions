@@ -183,6 +183,11 @@ export class BookingsController {
     return { message: 'Completion OTP sent to customer.' };
   }
 
+  @Patch(':id/mark-paid')
+  async markPaid(@Param('id') id: string) {
+    return this.bookingsService.markPaid(id);
+  }
+
   @Post(':id/rating')
   async submitRating(@Param('id') id: string, @Body() body: { rating: number }) {
     return this.bookingsService.submitRating(id, body.rating);

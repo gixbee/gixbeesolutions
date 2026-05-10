@@ -481,13 +481,21 @@ export class BookingsService {
     booking.billingHours = hoursWorked;
     const totalAmount = hoursWorked * (booking.amount || 0);
     booking.totalAmount = totalAmount;
+
+    // Mark WALLET payments as paid immediately
+    if (booking.paymentMethod === 'WALLET') {
+      booking.isPaid = true;
+    }
+
     await this.bookingsRepository.save(booking);
 
+    // Update Redis cache
     await this.redisService.cacheBookingStatus(bookingId, {
       status: 'COMPLETED',
       operatorName: booking.operator?.name,
     });
 
+    // Release worker and handle first-job bonus
     if (booking.operator?.id) {
       await this.workersService.setWorkerStatus(booking.operator.id, 'available');
 
@@ -499,10 +507,6 @@ export class BookingsService {
         workerProfile.isFirstJobDone = true;
         await this.workerProfileRepo.save(workerProfile);
       }
-    }
-
-    if (booking.paymentMethod === 'WALLET') {
-      booking.isPaid = true;
     }
 
     return {
