@@ -479,7 +479,8 @@ export class BookingsService {
     booking.status = BookingStatus.COMPLETED;
     booking.completedAt = new Date();
     booking.billingHours = hoursWorked;
-    const totalAmount = hoursWorked * (booking.amount || 0);
+    // booking.amount is the full package price from the rate chart — not a per-hour rate
+    const totalAmount = booking.amount || 0;
     booking.totalAmount = totalAmount;
 
     // Mark WALLET payments as paid immediately
