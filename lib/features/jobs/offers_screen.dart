@@ -1,7 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../theme.dart';
 import '../../shared/widgets/dribbble_background.dart';
 import '../../shared/widgets/glass_container.dart';
+import '../../shared/widgets/gx_button.dart';
+import '../../shared/widgets/gx_snackbar.dart';
 
 class OffersScreen extends ConsumerWidget {
   const OffersScreen({super.key});
@@ -17,8 +21,8 @@ class OffersScreen extends ConsumerWidget {
         title: const Text('Special Offers', style: TextStyle(fontWeight: FontWeight.bold)),
         backgroundColor: Colors.transparent,
         elevation: 0,
-        iconTheme: const IconThemeData(color: Colors.white),
-        titleTextStyle: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold),
+        iconTheme: IconThemeData(color: context.gx.ink),
+        titleTextStyle: TextStyle(color: context.gx.ink, fontSize: 20, fontWeight: FontWeight.bold),
       ),
       body: DribbbleBackground(
         child: SafeArea(
@@ -31,7 +35,7 @@ class OffersScreen extends ConsumerWidget {
                 'Get 20% off on all AC services this week.',
                 'SUMMER20',
                 Icons.ac_unit_rounded,
-                colorScheme.primary,
+                GixbeeTheme.accentBlue,
               ),
               const SizedBox(height: 16),
               _buildModernOfferCard(
@@ -86,14 +90,14 @@ class OffersScreen extends ConsumerWidget {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                 decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.1),
+                  color: context.gx.ink.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: Colors.white24),
+                  border: Border.all(color: context.gx.ink.withValues(alpha: 0.24)),
                 ),
                 child: Text(
                   code,
-                  style: const TextStyle(
-                    color: Colors.white,
+                  style: TextStyle(
+                    color: context.gx.ink,
                     fontWeight: FontWeight.bold,
                     letterSpacing: 1.2,
                   ),
@@ -104,8 +108,8 @@ class OffersScreen extends ConsumerWidget {
           const SizedBox(height: 20),
           Text(
             title,
-            style: const TextStyle(
-              color: Colors.white,
+            style: TextStyle(
+              color: context.gx.ink,
               fontSize: 22,
               fontWeight: FontWeight.bold,
             ),
@@ -114,29 +118,35 @@ class OffersScreen extends ConsumerWidget {
           Text(
             desc,
             style: TextStyle(
-              color: Colors.white.withValues(alpha: 0.6),
+              color: context.gx.ink.withValues(alpha: 0.6),
               fontSize: 14,
               height: 1.4,
             ),
           ),
           const SizedBox(height: 20),
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton(
-              onPressed: () {},
-              style: ElevatedButton.styleFrom(
-                backgroundColor: accentColor,
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-              ),
-              child: const Text('Claim Offer'),
-            ),
+          GxButton(
+            label: 'Claim Offer',
+            onTap: () => _claimOffer(context, code),
+            gradient: [accentColor, accentColor],
+            accent: accentColor,
+            height: 48,
+            radius: 12,
           ),
         ],
       ),
     );
+  }
+
+  /// Copies the promo code to the clipboard and confirms via a glass toast —
+  /// the same dependency-free pattern Today's Offers uses on the home screen
+  /// (`home_sections.dart` `_claim`). No backend offers endpoint exists yet, so
+  /// claiming = "code in hand, show it at the store/checkout".
+  Future<void> _claimOffer(BuildContext context, String code) async {
+    await Clipboard.setData(ClipboardData(text: code));
+    if (context.mounted) {
+      showGxSnack(context, 'Code $code copied — apply it at checkout',
+          type: GxSnackType.success);
+    }
   }
 }
 

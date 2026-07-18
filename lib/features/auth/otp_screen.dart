@@ -2,13 +2,19 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:google_fonts/google_fonts.dart';
 import '../../core/config/app_config.dart';
 import '../../main_wrapper.dart';
+import '../../theme.dart';
+import '../../shared/widgets/gx_snackbar.dart';
+import 'auth_chrome.dart';
 import 'registration_screen.dart';
 import '../../repositories/auth_repository.dart';
 import '../../services/notification_service.dart';
-import '../../shared/widgets/dribbble_background.dart';
 
+/// OTP verification — restyled to the orange super-app mockup:
+/// dark radial backdrop, branded digit boxes, demo helper banner,
+/// brand-gradient Verify CTA. Logic (verify → FCM → profile route) unchanged.
 class OtpScreen extends ConsumerStatefulWidget {
   final String phone;
   final String? initialOtp;
@@ -92,9 +98,8 @@ class _OtpScreenState extends ConsumerState<OtpScreen> {
       );
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Verification failed: $e')),
-        );
+        showGxSnack(context, 'Verification failed: $e',
+            type: GxSnackType.error);
       }
     } finally {
       if (mounted) setState(() => _isVerifying = false);
@@ -129,62 +134,51 @@ class _OtpScreenState extends ConsumerState<OtpScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Theme.of(context).colorScheme.surface,
-      body: DribbbleBackground(
+      backgroundColor: GixbeeTheme.background,
+      body: AuthBackdrop(
         child: SafeArea(
           child: Padding(
-            padding: const EdgeInsets.all(24.0),
+            padding: const EdgeInsets.fromLTRB(24, 8, 24, 20),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                const SizedBox(height: 48),
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: IconButton(
-                    icon:
-                        const Icon(Icons.arrow_back_ios, color: Colors.white),
-                    onPressed: () => Navigator.pop(context),
-                  ),
-                ),
-                const SizedBox(height: 32),
-
+                const AuthBackButton(),
+                const SizedBox(height: 28),
                 Text(
-                  'Verification',
-                  style: Theme.of(context)
-                      .textTheme
-                      .displayMedium
-                      ?.copyWith(
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
-                      ),
+                  'Enter code',
+                  style: GoogleFonts.outfit(
+                    fontSize: 28,
+                    fontWeight: FontWeight.w700,
+                    color: Colors.white,
+                  ),
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  'Enter the ${AppConfig.otpLength}-digit code sent to\n${widget.phone}',
-                  style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                        color: Colors.white.withValues(alpha: 0.6),
-                      ),
+                  'We sent a ${AppConfig.otpLength}-digit code to ${widget.phone}',
+                  style: GoogleFonts.outfit(
+                    fontSize: 15,
+                    height: 1.4,
+                    color: Colors.white.withValues(alpha: 0.55),
+                  ),
                 ),
-
-                const SizedBox(height: 48),
+                const SizedBox(height: 36),
 
                 // OTP digit inputs
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: List.generate(AppConfig.otpLength, (index) {
+                    final filled = _controllers[index].text.isNotEmpty;
                     return Container(
                       width: 45,
                       height: 55,
                       decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.1),
+                        color: const Color(0xFF1A1A26),
                         borderRadius: BorderRadius.circular(12),
                         border: Border.all(
-                          color: _controllers[index].text.isNotEmpty
-                              ? Theme.of(context).colorScheme.primary
-                              : Colors.white.withValues(alpha: 0.2),
-                          width: _controllers[index].text.isNotEmpty
-                              ? 1.5
-                              : 1.0,
+                          color: filled
+                              ? GixbeeTheme.brandOrange
+                              : const Color(0xFF2A2A3A),
+                          width: filled ? 1.5 : 1.0,
                         ),
                       ),
                       child: TextField(
@@ -192,15 +186,18 @@ class _OtpScreenState extends ConsumerState<OtpScreen> {
                         textAlign: TextAlign.center,
                         keyboardType: TextInputType.number,
                         maxLength: 1,
-                        cursorColor: Colors.white,
-                        style: const TextStyle(
+                        cursorColor: GixbeeTheme.brandOrange,
+                        style: GoogleFonts.outfit(
                           color: Colors.white,
                           fontSize: 22,
-                          fontWeight: FontWeight.bold,
+                          fontWeight: FontWeight.w700,
                         ),
                         decoration: const InputDecoration(
                           counterText: '',
+                          filled: false,
                           border: InputBorder.none,
+                          enabledBorder: InputBorder.none,
+                          focusedBorder: InputBorder.none,
                           contentPadding:
                               EdgeInsets.symmetric(vertical: 12),
                         ),
@@ -224,7 +221,6 @@ class _OtpScreenState extends ConsumerState<OtpScreen> {
 
                 const SizedBox(height: 24),
 
-                // Resend timer
                 Center(
                   child: GestureDetector(
                     onTap: _resendTimer == 0
@@ -234,14 +230,12 @@ class _OtpScreenState extends ConsumerState<OtpScreen> {
                                   .read(authRepositoryProvider)
                                   .signInWithPhone(widget.phone);
 
-                              // Restart timer only after successful API call
                               if (!mounted) return;
                               setState(() {
                                 _resendTimer = AppConfig.otpResendSeconds;
                               });
                               _startTimer();
 
-                              // Auto-fill in debug mode only
                               if (kDebugMode && newOtp != null && mounted) {
                                 setState(() {
                                   for (int i = 0;
@@ -253,23 +247,21 @@ class _OtpScreenState extends ConsumerState<OtpScreen> {
                                 });
                               }
                             } catch (e) {
-                              if (!mounted) return;
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                    content: Text('Resend failed: $e')),
-                              );
+                              if (!context.mounted) return;
+                              showGxSnack(context, 'Resend failed. Try again.',
+                                  type: GxSnackType.error);
                             }
                           }
                         : null,
                     child: Text(
                       _resendTimer > 0
                           ? 'Resend code in ${_resendTimer}s'
-                          : 'Resend Code',
-                      style: TextStyle(
+                          : 'Resend code',
+                      style: GoogleFonts.outfit(
                         color: _resendTimer > 0
-                            ? Colors.white.withValues(alpha: 0.5)
-                            : Theme.of(context).colorScheme.primary,
-                        fontWeight: FontWeight.bold,
+                            ? Colors.white.withValues(alpha: 0.45)
+                            : GixbeeTheme.brandOrange,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
                   ),
@@ -277,29 +269,40 @@ class _OtpScreenState extends ConsumerState<OtpScreen> {
 
                 const Spacer(),
 
-                ElevatedButton(
-                  onPressed: _isVerifying ? null : _verify,
-                  child: _isVerifying
-                      ? const SizedBox(
-                          height: 20,
-                          width: 20,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: Colors.white,
-                          ),
-                        )
-                      : const Text(
-                          'Verify',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
+                if (kDebugMode && widget.initialOtp != null) ...[
+                  _devBanner(),
+                  const SizedBox(height: 12),
+                ],
+
+                AuthPrimaryButton(
+                  label: 'Verify',
+                  loading: _isVerifying,
+                  onPressed: _verify,
                 ),
-                const SizedBox(height: 32),
               ],
             ),
           ),
+        ),
+      ),
+    );
+  }
+
+  Widget _devBanner() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: GixbeeTheme.brandOrange.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(
+          color: GixbeeTheme.brandOrange.withValues(alpha: 0.28),
+        ),
+      ),
+      child: Text(
+        'Debug — code ${widget.initialOtp} is prefilled.',
+        style: GoogleFonts.outfit(
+          color: GixbeeTheme.brandOrange,
+          fontSize: 12,
+          fontWeight: FontWeight.w500,
         ),
       ),
     );

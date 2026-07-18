@@ -3,7 +3,13 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../repositories/booking_repository.dart';
 import '../../core/config/app_config.dart';
+import 'active_job_controls.dart';
 import 'collect_payment_screen.dart';
+import '../../theme.dart';
+import '../../shared/widgets/gx_dialog.dart';
+import '../../shared/widgets/gx_snackbar.dart';
+import '../../shared/widgets/gx_button.dart';
+import '../../shared/widgets/gx_pressable.dart';
 
 /// Gate 2 of the live flow.
 /// After the job is done, the customer shares the Completion OTP with the
@@ -58,15 +64,12 @@ class _CompletionOtpScreenState extends ConsumerState<CompletionOtpScreen> {
       final newOtp = await ref.read(bookingRepositoryProvider).refreshCompletionOtp(widget.bookingId);
       if (mounted) {
         setState(() => _fetchedOtp = newOtp);
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('OTP Refreshed!')),
-        );
+        showGxSnack(context, 'OTP Refreshed!', type: GxSnackType.success);
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to refresh OTP: $e')),
-        );
+        showGxSnack(context, 'Failed to refresh OTP: $e',
+            type: GxSnackType.error);
       }
     } finally {
       if (mounted) setState(() => _isRefreshing = false);
@@ -93,18 +96,16 @@ class _CompletionOtpScreenState extends ConsumerState<CompletionOtpScreen> {
       await ref.read(bookingRepositoryProvider).markComplete(widget.bookingId);
       setState(() => _hasMarkedComplete = true);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('OTP requested! Ask the customer for the completion OTP.'),
-            backgroundColor: Colors.green,
-          ),
+        showGxSnack(
+          context,
+          'OTP requested! Ask the customer for the completion OTP.',
+          type: GxSnackType.success,
         );
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to mark complete: $e')),
-        );
+        showGxSnack(context, 'Failed to mark complete: $e',
+            type: GxSnackType.error);
       }
     } finally {
       if (mounted) setState(() => _isMarkingComplete = false);
@@ -151,7 +152,9 @@ class _CompletionOtpScreenState extends ConsumerState<CompletionOtpScreen> {
           MaterialPageRoute(
             builder: (_) => CollectPaymentScreen(
               bookingId: widget.bookingId,
-              amount: (response['totalAmount'] ?? 0).toDouble(),
+              // Decimal may arrive as a string — .toDouble() on it would throw.
+              amount: (num.tryParse('${response['totalAmount'] ?? 0}') ?? 0)
+                  .toDouble(),
               customerName: widget.workerName, // In worker view, workerName is actually the customer's name
             ),
           ),
@@ -174,82 +177,84 @@ class _CompletionOtpScreenState extends ConsumerState<CompletionOtpScreen> {
   }
 
   void _showSuccessDialog() {
-    showDialog(
-      context: context,
+    showGxDialog(
+      context,
       barrierDismissible: false,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: Theme.of(ctx).colorScheme.surface,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const SizedBox(height: 16),
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: Colors.green.withValues(alpha: 0.1),
-              ),
-              child: const Icon(Icons.check_circle, color: Colors.green, size: 56),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          SizedBox(height: 4),
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: Colors.green.withValues(alpha: 0.12),
             ),
-            const SizedBox(height: 20),
-            const Text(
-              'Job Completed!',
-              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 22),
+            child: Icon(Icons.check_circle, color: Colors.green, size: 56),
+          ),
+          const SizedBox(height: 20),
+          Text(
+            'Job Completed!',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontWeight: FontWeight.w800,
+              fontSize: 22,
+              color: context.gx.ink,
             ),
-            const SizedBox(height: 8),
-            Text(
-              '${widget.workerName}\'s service has been verified and marked complete. A receipt has been sent.',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                color: Theme.of(ctx).colorScheme.onSurfaceVariant,
-                height: 1.5,
-              ),
+          ),
+          SizedBox(height: 8),
+          Text(
+            '${widget.workerName}\'s service has been verified and marked complete. A receipt has been sent.',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: context.gx.ink.withValues(alpha: 0.72),
+              height: 1.5,
             ),
-            const SizedBox(height: 24),
-            // Rating prompt row
-            StatefulBuilder(
-              builder: (context, setDialogState) => Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: List.generate(5, (i) {
-                  return IconButton(
-                    icon: Icon(
-                      Icons.star_rounded,
-                      size: 32,
-                      color: (_selectedRating != null && i <= _selectedRating!) 
-                          ? Colors.amber : Colors.grey.shade400,
-                    ),
-                    onPressed: () async {
-                      setDialogState(() => _selectedRating = i);
-                      try {
-                        await ref.read(bookingRepositoryProvider).submitRating(
-                          widget.bookingId, i + 1
-                        );
-                        if (ctx.mounted) {
-                          ScaffoldMessenger.of(ctx).showSnackBar(
-                            SnackBar(content: Text('Rating saved: ${i + 1} stars')),
+          ),
+          SizedBox(height: 20),
+          // Rating prompt row
+          StatefulBuilder(
+            builder: (ctx2, setDialogState) => Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: List.generate(5, (i) {
+                return IconButton(
+                  icon: Icon(
+                    Icons.star_rounded,
+                    size: 32,
+                    color: (_selectedRating != null && i <= _selectedRating!)
+                        ? Colors.amber
+                        : context.gx.ink.withValues(alpha: 0.30),
+                  ),
+                  onPressed: () async {
+                    setDialogState(() => _selectedRating = i);
+                    try {
+                      await ref.read(bookingRepositoryProvider).submitRating(
+                            widget.bookingId,
+                            i + 1,
                           );
-                        }
-                      } catch (e) {
-                         debugPrint('Rating failed: $e');
+                      if (ctx2.mounted) {
+                        showGxSnack(ctx2, 'Rating saved: ${i + 1} stars',
+                            type: GxSnackType.success);
                       }
-                    },
-                  );
-                }),
-              ),
+                    } catch (e) {
+                      debugPrint('Rating failed: $e');
+                    }
+                  },
+                );
+              }),
             ),
-            const SizedBox(height: 16),
-            SizedBox(
-              width: double.infinity,
-              child: FilledButton(
-                onPressed: () =>
-                    Navigator.of(ctx).popUntil((route) => route.isFirst),
-                child: const Text('Back to Home'),
-              ),
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
+      actions: [
+        GxDialogAction(
+          'Back to Home',
+          isPrimary: true,
+          onTap: () =>
+              Navigator.of(context).popUntil((route) => route.isFirst),
+        ),
+      ],
     );
   }
 
@@ -274,13 +279,13 @@ class _CompletionOtpScreenState extends ConsumerState<CompletionOtpScreen> {
             padding: const EdgeInsets.symmetric(horizontal: 24),
             child: Column(
               children: [
-                const SizedBox(height: 24),
+                SizedBox(height: 24),
 
                 // Top bar
                 Row(
                   children: [
                     IconButton(
-                      icon: const Icon(Icons.arrow_back),
+                      icon: Icon(Icons.arrow_back),
                       onPressed: () => Navigator.pop(context),
                     ),
                     const Spacer(),
@@ -290,7 +295,7 @@ class _CompletionOtpScreenState extends ConsumerState<CompletionOtpScreen> {
                         color: Colors.green.withValues(alpha: 0.15),
                         borderRadius: BorderRadius.circular(20),
                       ),
-                      child: const Row(
+                      child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           Icon(Icons.handyman, size: 14, color: Colors.green),
@@ -309,6 +314,15 @@ class _CompletionOtpScreenState extends ConsumerState<CompletionOtpScreen> {
                     const Spacer(),
                     const SizedBox(width: 48),
                   ],
+                ),
+
+                const SizedBox(height: 10),
+
+                // Live job timer + pause/resume controls + report (v126) —
+                // this screen is where both roles live during ACTIVE work.
+                ActiveJobControls(
+                  bookingId: widget.bookingId,
+                  isWorker: widget.isWorker,
                 ),
 
                 const Spacer(flex: 2),
@@ -375,7 +389,7 @@ class _CompletionOtpScreenState extends ConsumerState<CompletionOtpScreen> {
                             counterText: '',
                             filled: true,
                             fillColor: _controllers[i].text.isNotEmpty
-                                ? colorScheme.primary.withValues(alpha: 0.08)
+                                ? context.gx.accent.withValues(alpha: 0.08)
                                 : colorScheme.surfaceContainerHighest,
                             border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(14),
@@ -415,14 +429,14 @@ class _CompletionOtpScreenState extends ConsumerState<CompletionOtpScreen> {
                           border: Border.all(color: Colors.green.withValues(alpha: 0.3)),
                         ),
                         child: _isFetchingOtp
-                            ? const SizedBox(
+                            ? SizedBox(
                                 width: 40,
                                 height: 40,
                                 child: CircularProgressIndicator(strokeWidth: 3),
                               )
                             : Text(
                                 _fetchedOtp ?? '• • • •',
-                                style: const TextStyle(
+                                style: TextStyle(
                                   fontSize: 40,
                                   fontWeight: FontWeight.bold,
                                   letterSpacing: 16,
@@ -439,15 +453,36 @@ class _CompletionOtpScreenState extends ConsumerState<CompletionOtpScreen> {
                             style: TextStyle(color: Colors.grey, fontSize: 13),
                           ),
                         ),
-                      TextButton.icon(
-                        onPressed: _isRefreshing || _isFetchingOtp ? null : _refreshOtp,
-                        icon: _isRefreshing
-                            ? const SizedBox(
-                                width: 16,
-                                height: 16,
-                                child: CircularProgressIndicator(strokeWidth: 2))
-                            : const Icon(Icons.refresh, size: 18),
-                        label: const Text('Refresh OTP'),
+                      GxPressable(
+                        onTap: _isRefreshing || _isFetchingOtp ? null : _refreshOtp,
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(
+                              vertical: 8, horizontal: 12),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              _isRefreshing
+                                  ? SizedBox(
+                                      width: 16,
+                                      height: 16,
+                                      child: CircularProgressIndicator(
+                                          strokeWidth: 2,
+                                          color: context.gx.accent))
+                                  : Icon(Icons.refresh,
+                                      size: 18,
+                                      color: context.gx.accent),
+                              SizedBox(width: 6),
+                              Text(
+                                'Refresh OTP',
+                                style: TextStyle(
+                                  color: context.gx.accent,
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 14,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
                       ),
                     ],
                   ),
@@ -466,52 +501,29 @@ class _CompletionOtpScreenState extends ConsumerState<CompletionOtpScreen> {
                 // Verify button
                 if (widget.isWorker)
                   _hasMarkedComplete
-                      ? SizedBox(
-                          width: double.infinity,
+                      ? GxButton(
+                          label: _isVerifying
+                              ? 'Verifying...'
+                              : 'Submit OTP to Complete Job',
+                          icon: Icons.check_circle_outline,
+                          onTap: _isVerifying ? null : _verifyCompletion,
+                          loading: _isVerifying,
+                          gradient: const [Colors.green, Colors.green],
+                          accent: Colors.green,
                           height: 56,
-                          child: FilledButton.icon(
-                            onPressed: _isVerifying ? null : _verifyCompletion,
-                            style: FilledButton.styleFrom(
-                              backgroundColor: Colors.green,
-                              foregroundColor: Colors.white,
-                            ),
-                            icon: _isVerifying
-                                ? const SizedBox(
-                                    width: 20,
-                                    height: 20,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 2,
-                                      color: Colors.white,
-                                    ),
-                                  )
-                                : const Icon(Icons.check_circle_outline),
-                            label: Text(
-                              _isVerifying ? 'Verifying...' : 'Submit OTP to Complete Job',
-                              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-                            ),
-                          ),
+                          fontSize: 16,
                         )
-                      : SizedBox(
-                          width: double.infinity,
+                      : GxButton(
+                          label: _isMarkingComplete
+                              ? 'Requesting...'
+                              : 'Request Completion OTP',
+                          icon: Icons.task_alt,
+                          onTap: _isMarkingComplete ? null : _markComplete,
+                          loading: _isMarkingComplete,
+                          gradient: const [Colors.green, Colors.green],
+                          accent: Colors.green,
                           height: 56,
-                          child: ElevatedButton.icon(
-                            onPressed: _isMarkingComplete ? null : _markComplete,
-                            icon: _isMarkingComplete
-                                ? const SizedBox(
-                                    width: 20,
-                                    height: 20,
-                                    child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                                  )
-                                : const Icon(Icons.task_alt),
-                            label: Text(
-                              _isMarkingComplete ? 'Requesting...' : 'Request Completion OTP',
-                              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-                            ),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.green,
-                              foregroundColor: Colors.white,
-                            ),
-                          ),
+                          fontSize: 16,
                         )
                 else
                   const Text('Waiting for worker to verify completion...', style: TextStyle(fontStyle: FontStyle.italic, color: Colors.grey)),
@@ -519,15 +531,17 @@ class _CompletionOtpScreenState extends ConsumerState<CompletionOtpScreen> {
                 const SizedBox(height: 16),
 
                 // Dispute link
-                TextButton(
-                  onPressed: () {
-                    _showDisputeDialog();
-                  },
-                  child: Text(
-                    'Report an issue with this job',
-                    style: TextStyle(
-                      color: colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
-                      fontSize: 13,
+                GxPressable(
+                  onTap: _showDisputeDialog,
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 8),
+                    child: Text(
+                      'Report an issue with this job',
+                      style: TextStyle(
+                        color:
+                            colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
+                        fontSize: 13,
+                      ),
                     ),
                   ),
                 ),
@@ -560,12 +574,10 @@ class _CompletionOtpScreenState extends ConsumerState<CompletionOtpScreen> {
             _disputeOption('Work not completed as expected'),
             _disputeOption('Payment / Pricing issue'),
             const SizedBox(height: 24),
-            SizedBox(
-              width: double.infinity,
-              child: OutlinedButton(
-                onPressed: () => Navigator.pop(ctx),
-                child: const Text('Cancel'),
-              ),
+            GxButton(
+              label: 'Cancel',
+              onTap: () => Navigator.pop(ctx),
+              filled: false,
             ),
           ],
         ),
@@ -603,9 +615,8 @@ class _CompletionOtpScreenState extends ConsumerState<CompletionOtpScreen> {
           }
         } catch (e) {
           if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text('Failed to submit dispute: $e')),
-            );
+            showGxSnack(context, 'Failed to submit dispute: $e',
+                type: GxSnackType.error);
           }
         }
       },

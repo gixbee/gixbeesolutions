@@ -1,5 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../theme.dart';
+import '../../shared/widgets/gx_button.dart';
+import '../../shared/widgets/gx_text_field.dart';
+import '../../shared/widgets/gx_snackbar.dart';
 import '../../repositories/hiring_repository.dart';
 import '../../repositories/business_repository.dart';
 import '../../repositories/master_entries_repository.dart';
@@ -58,9 +62,7 @@ class _PostJobScreenState extends ConsumerState<PostJobScreen> {
   void _submitJob() async {
     if (!_formKey.currentState!.validate()) return;
     if (_selectedSkills.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please select at least one skill')),
-      );
+      showGxSnack(context, 'Please select at least one skill');
       return;
     }
 
@@ -91,15 +93,13 @@ class _PostJobScreenState extends ConsumerState<PostJobScreen> {
       await ref.read(hiringRepositoryProvider).postJob(jobPost);
 
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Job Posted Successfully')),
-      );
+      showGxSnack(context, 'Job Posted Successfully',
+          type: GxSnackType.success);
       Navigator.pop(context);
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to post job: $e')),
-        );
+        showGxSnack(context, 'Failed to post job: $e',
+            type: GxSnackType.error);
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);
@@ -135,14 +135,12 @@ class _PostJobScreenState extends ConsumerState<PostJobScreen> {
               Text('Job Details', style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
               const SizedBox(height: 12),
               
-              TextFormField(
+              GxTextField(
                 controller: _titleController,
-                decoration: const InputDecoration(
-                  labelText: 'Job Title',
-                  border: OutlineInputBorder(),
-                  prefixIcon: Icon(Icons.work),
-                ),
-                validator: (v) => v!.isEmpty ? 'Required' : null,
+                label: 'Job Title',
+                prefixIcon: Icons.work,
+                accent: GixbeeTheme.accentBlue,
+                validator: (v) => (v == null || v.isEmpty) ? 'Required' : null,
               ),
               const SizedBox(height: 16),
 
@@ -157,8 +155,8 @@ class _PostJobScreenState extends ConsumerState<PostJobScreen> {
                     label: Text(skill),
                     selected: isSelected,
                     onSelected: (_) => _toggleSkill(skill),
-                    selectedColor: theme.colorScheme.primaryContainer,
-                    checkmarkColor: theme.colorScheme.primary,
+                    selectedColor: GixbeeTheme.accentBlue.withValues(alpha: 0.18),
+                    checkmarkColor: GixbeeTheme.accentBlue,
                   );
                 }).toList(),
               ),
@@ -197,55 +195,49 @@ class _PostJobScreenState extends ConsumerState<PostJobScreen> {
               Row(
                 children: [
                   Expanded(
-                    child: TextFormField(
+                    child: GxTextField(
                       controller: _salaryController,
-                      decoration: const InputDecoration(
-                        labelText: 'Salary (Rs/month)',
-                        border: OutlineInputBorder(),
-                        prefixIcon: Icon(Icons.currency_rupee),
-                      ),
+                      label: 'Salary (Rs/month)',
+                      prefixIcon: Icons.currency_rupee,
                       keyboardType: TextInputType.number,
-                      validator: (v) => v!.isEmpty ? 'Required' : null,
+                      accent: GixbeeTheme.accentBlue,
+                      validator: (v) =>
+                          (v == null || v.isEmpty) ? 'Required' : null,
                     ),
                   ),
                   const SizedBox(width: 12),
                   Expanded(
-                    child: TextFormField(
+                    child: GxTextField(
                       controller: _locationController,
-                      decoration: const InputDecoration(
-                        labelText: 'Location/City',
-                        border: OutlineInputBorder(),
-                        prefixIcon: Icon(Icons.location_city),
-                      ),
-                      validator: (v) => v!.isEmpty ? 'Required' : null,
+                      label: 'Location/City',
+                      prefixIcon: Icons.location_city,
+                      accent: GixbeeTheme.accentBlue,
+                      validator: (v) =>
+                          (v == null || v.isEmpty) ? 'Required' : null,
                     ),
                   ),
                 ],
               ),
               const SizedBox(height: 16),
 
-              TextFormField(
+              GxTextField(
                 controller: _descriptionController,
-                decoration: const InputDecoration(
-                  labelText: 'Job Description',
-                  border: OutlineInputBorder(),
-                  alignLabelWithHint: true,
-                ),
+                label: 'Job Description',
                 maxLines: 4,
-                validator: (v) => v!.isEmpty ? 'Required' : null,
+                accent: GixbeeTheme.accentBlue,
+                validator: (v) => (v == null || v.isEmpty) ? 'Required' : null,
               ),
 
               const SizedBox(height: 32),
 
-              SizedBox(
-                width: double.infinity,
+              GxButton(
+                label: 'Post Job',
+                onTap: _isLoading ? null : _submitJob,
+                loading: _isLoading,
+                gradient: const [GixbeeTheme.accentBlue, Color(0xFF1D4ED8)],
+                accent: GixbeeTheme.accentBlue,
                 height: 50,
-                child: FilledButton(
-                  onPressed: _isLoading ? null : _submitJob,
-                  child: _isLoading 
-                      ? const SizedBox(height: 24, width: 24, child: CircularProgressIndicator(strokeWidth: 2)) 
-                      : const Text('Post Job', style: TextStyle(fontSize: 16)),
-                ),
+                fontSize: 16,
               )
             ],
           ),

@@ -7,16 +7,32 @@ class AppConfig {
   static String get baseUrl => const String.fromEnvironment(
         'API_BASE_URL',
         defaultValue:
-            kIsWeb ? 'http://localhost:3000' : 'http://10.0.2.2:3000',
+            kIsWeb ? 'http://localhost:3000' : 'http://127.0.0.1:3000',
       );
 
   static String get socketUrl => const String.fromEnvironment(
         'SOCKET_URL',
         defaultValue:
-            kIsWeb ? 'http://localhost:3000' : 'http://10.0.2.2:3000',
+            kIsWeb ? 'http://localhost:3000' : 'http://127.0.0.1:3000',
       );
 
   static const int httpTimeoutSeconds = 15;
+
+  // ─── Ola Maps (tiles + directions) ───────────────────────
+  // Build with: flutter run --dart-define=OLA_MAPS_API_KEY=xxxx
+  // Empty key → tracking screen shows a graceful "map unavailable" panel
+  // (status/OTP/pause logic keeps working) and skips Directions calls.
+  static const String olaMapsApiKey = String.fromEnvironment(
+    'OLA_MAPS_API_KEY',
+    defaultValue: '',
+  );
+
+  /// MapLibre style JSON for Ola's default light style.
+  static String get olaStyleUrl =>
+      'https://api.olamaps.io/tiles/vector/v1/styles/default-light-standard/style.json?api_key=$olaMapsApiKey';
+
+  static const String olaDirectionsUrl =
+      'https://api.olamaps.io/routing/v1/directions';
 
   // ─── Auth / OTP ──────────────────────────────────────────
   static const int otpLength = 6;           // login/auth OTP
@@ -37,7 +53,7 @@ class AppConfig {
 
   // ─── Booking ─────────────────────────────────────────────
   static const int jobAcceptTimeoutSeconds = 90;
-  static const int bookingPollIntervalSeconds = 3;
+  static const int bookingPollIntervalSeconds = 5;
   static const int maxRateUpdatesPerDay = 2;
   static const int movementCheckMinutes = 10;
   static const int reminderMinutes = 7;

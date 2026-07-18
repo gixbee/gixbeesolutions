@@ -1,10 +1,9 @@
-import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import '../../repositories/booking_repository.dart';
+import '../../repositories/booking_status_provider.dart';
 import '../../repositories/auth_repository.dart';
-import '../booking/arrival_otp_screen.dart';
 import '../booking/completion_otp_screen.dart';
 import '../booking/live_tracking_map_screen.dart';
 import '../jobs/booking_detail_screen.dart';
@@ -38,53 +37,25 @@ class ActiveBookingCard extends ConsumerStatefulWidget {
 }
 
 class _ActiveBookingCardState extends ConsumerState<ActiveBookingCard> {
-  Timer? _pollTimer;
-  String? _activeBookingId;
+  // AUDIT FIX: this card ran its OWN 10s poll, duplicating the tracking
+  // screen's and the job-controls' polls for the same booking. It now watches
+  // the shared bookingStatusProvider — one poll per booking, app-wide, with
+  // background pausing handled inside that provider.
   String? _liveStatus;
+  String? _lastTerminalId; // avoid re-invalidating the list on every rebuild
 
-  @override
-  void dispose() {
-    _pollTimer?.cancel();
-    super.dispose();
-  }
-
-  /// Lightweight poll: GET /bookings/:id/status (no DB join, single row lookup)
-  /// Only runs when there's an active booking visible on screen.
-  void _startStatusPolling(String bookingId) {
-    // Don't restart if already polling this booking
-    if (_activeBookingId == bookingId && _pollTimer != null) return;
-
-    _pollTimer?.cancel();
-    _activeBookingId = bookingId;
-
-    _pollTimer = Timer.periodic(const Duration(seconds: 10), (_) async {
-      if (!mounted) return;
-      try {
-        final statusData = await ref
-            .read(bookingRepositoryProvider)
-            .pollBookingStatus(bookingId);
-        final newStatus = statusData['status']?.toString().toUpperCase();
-        if (mounted && newStatus != null && newStatus != _liveStatus) {
-          setState(() => _liveStatus = newStatus);
-          // If status changed to a terminal state, stop polling and refresh list
-          if (['COMPLETED', 'CANCELLED', 'REJECTED'].contains(newStatus)) {
-            // Wait! If it's COMPLETED but needs payment, we should still refresh to get the updated isPaid/paymentMethod state
-            _pollTimer?.cancel();
-            _pollTimer = null;
-            ref.invalidate(myBookingsProvider);
-          }
-        }
-      } catch (_) {
-        // Silently ignore poll failures
-      }
-    });
-  }
-
-  void _stopPolling() {
-    _pollTimer?.cancel();
-    _pollTimer = null;
-    _activeBookingId = null;
-    _liveStatus = null;
+  /// Terminal transitions still need the bookings list refreshed.
+  void _onStatus(String bookingId, String? newStatus) {
+    if (newStatus == null || newStatus == _liveStatus) return;
+    _liveStatus = newStatus;
+    if (['COMPLETED', 'CANCELLED', 'REJECTED'].contains(newStatus) &&
+        _lastTerminalId != bookingId) {
+      _lastTerminalId = bookingId;
+      // Defer: we're inside build.
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) ref.invalidate(myBookingsProvider);
+      });
+    }
   }
 
   @override
@@ -97,24 +68,26 @@ class _ActiveBookingCardState extends ConsumerState<ActiveBookingCard> {
     return activeAsync.when(
       data: (activeBooking) {
         if (activeBooking == null) {
-          _stopPolling();
+          _liveStatus = null;
           return const SizedBox.shrink();
         }
 
         final bookingId = activeBooking['id']?.toString() ?? '';
-        // Use live-polled status if available, otherwise from provider
-        final bStatus = _liveStatus ??
+
+        // Shared status poll (one per booking, app-wide) — no local timer.
+        final polled = bookingId.isEmpty
+            ? null
+            : ref.watch(bookingStatusProvider(bookingId)).value;
+        final polledStatus = polled?['status']?.toString().toUpperCase();
+        if (bookingId.isNotEmpty) _onStatus(bookingId, polledStatus);
+
+        final bStatus = polledStatus ??
             (activeBooking['status'] ?? '').toString().toUpperCase();
         final isOperator = user.id ==
             (activeBooking['operator']?['id'] ?? activeBooking['operator']);
         final scheduledAt = activeBooking['scheduledAt'] != null
             ? DateTime.parse(activeBooking['scheduledAt'])
             : DateTime.now();
-
-        // Start lightweight status-only polling for this booking
-        if (bookingId.isNotEmpty) {
-          _startStatusPolling(bookingId);
-        }
 
         return Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -179,7 +152,11 @@ class _ActiveBookingCardState extends ConsumerState<ActiveBookingCard> {
                   MaterialPageRoute(
                     builder: (_) => CollectPaymentScreen(
                       bookingId: bookingId,
-                      amount: (activeBooking['totalAmount'] ?? 0).toDouble(),
+                      // Decimal may arrive as a string; fall back to the
+                      // booked `amount` if `totalAmount` isn't set yet.
+                      amount: (num.tryParse('${activeBooking['totalAmount'] ?? activeBooking['amount'] ?? 0}') ??
+                              0)
+                          .toDouble(),
                       customerName: activeBooking['customer']?['name'] ?? 'Customer',
                     ),
                   ),

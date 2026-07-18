@@ -1,6 +1,6 @@
 import 'dart:math';
 import 'package:flutter/material.dart';
-import '../search/worker_list_screen.dart';
+import '../booking/instant_help_screen.dart';
 
 class SkillGraphScreen extends StatefulWidget {
   const SkillGraphScreen({super.key});
@@ -68,6 +68,7 @@ class _SkillGraphScreenState extends State<SkillGraphScreen>
         elevation: 0,
         actions: [
           IconButton(
+            tooltip: 'Regenerate graph',
             onPressed: () {
               setState(() {
                 _nodes.clear();
@@ -95,11 +96,11 @@ class _SkillGraphScreenState extends State<SkillGraphScreen>
         onPressed: () {
           Navigator.of(context).push(
             MaterialPageRoute(
-              builder: (_) => const WorkerListScreen(),
+              builder: (_) => const InstantHelpScreen(),
             ),
           );
         },
-        label: const Text('Find Talent'),
+        label: const Text('Request Service'),
         icon: const Icon(Icons.search),
       ),
     );

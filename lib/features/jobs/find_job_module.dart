@@ -3,9 +3,10 @@ import 'talent_profile_screen.dart';
 import 'job_alerts_screen.dart';
 import 'application_tracker_screen.dart';
 import '../../shared/widgets/dribbble_background.dart';
+import '../../theme.dart';
 
-/// Root screen for the "Find a Job" module.
-/// Bottom nav with 3 tabs: Job Alerts, Applications, My Profile.
+/// Root screen for the "Find a Job" module (mockup "job" sub-app).
+/// Bottom nav with 3 tabs: Job Alerts, Applications, Talent Bio.
 class FindJobModule extends StatefulWidget {
   const FindJobModule({super.key});
 
@@ -34,22 +35,26 @@ class _FindJobModuleState extends State<FindJobModule> {
       bottomNavigationBar: NavigationBar(
         selectedIndex: _currentIndex,
         onDestinationSelected: (i) => setState(() => _currentIndex = i),
-        backgroundColor: cs.surface.withValues(alpha: 0.8), // Semi-transparent for M3 look
-        indicatorColor: cs.primaryContainer,
+        backgroundColor: cs.surface.withValues(alpha: 0.85),
+        // v106: Find a Job uses the green accent (home quad colour-coding).
+        indicatorColor: GixbeeTheme.accentGreen.withValues(alpha: 0.18),
         destinations: const [
           NavigationDestination(
             icon: Icon(Icons.work_outline),
-            selectedIcon: Icon(Icons.work),
+            selectedIcon:
+                Icon(Icons.work, color: GixbeeTheme.accentGreen),
             label: 'Jobs',
           ),
           NavigationDestination(
             icon: Icon(Icons.assignment_outlined),
-            selectedIcon: Icon(Icons.assignment),
+            selectedIcon:
+                Icon(Icons.assignment, color: GixbeeTheme.accentGreen),
             label: 'Applications',
           ),
           NavigationDestination(
             icon: Icon(Icons.badge_outlined),
-            selectedIcon: Icon(Icons.badge),
+            selectedIcon:
+                Icon(Icons.badge, color: GixbeeTheme.accentGreen),
             label: 'Talent Bio',
           ),
         ],
@@ -57,4 +62,3 @@ class _FindJobModuleState extends State<FindJobModule> {
     );
   }
 }
-

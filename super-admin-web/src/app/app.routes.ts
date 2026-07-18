@@ -3,9 +3,16 @@ import { LayoutComponent } from './core/components/layout/layout.component';
 import { MasterEntriesComponent } from './features/master-entries/master-entries.component';
 import { UsersComponent } from './features/users/users.component';
 import { BusinessesComponent } from './features/businesses/businesses.component';
+import { CitiesComponent } from './features/cities/cities.component';
+import { VerificationsComponent } from './features/verifications/verifications.component';
+import { DisputesComponent } from './features/disputes/disputes.component';
+import { BookingsComponent } from './features/bookings/bookings.component';
+import { SupportComponent } from './features/support/support.component';
 import { LoginComponent } from './features/auth/login/login.component';
 import { DashboardComponent } from './features/dashboard/dashboard.component';
+import { StaffComponent } from './features/staff/staff.component';
 import { authGuard } from './core/guards/auth.guard';
+import { pageGuard } from './core/guards/page.guard';
 
 export const routes: Routes = [
   { path: 'login', component: LoginComponent },
@@ -14,11 +21,17 @@ export const routes: Routes = [
     component: LayoutComponent,
     canActivate: [authGuard],
     children: [
-      { path: '', component: DashboardComponent },
-      { path: 'master-entries', component: MasterEntriesComponent },
-      { path: 'users', component: UsersComponent },
-      { path: 'businesses', component: BusinessesComponent },
-    ]
+      { path: '', component: DashboardComponent, canActivate: [pageGuard], data: { page: 'dashboard' } },
+      { path: 'bookings', component: BookingsComponent, canActivate: [pageGuard], data: { page: 'bookings' } },
+      { path: 'verifications', component: VerificationsComponent, canActivate: [pageGuard], data: { page: 'verifications' } },
+      { path: 'disputes', component: DisputesComponent, canActivate: [pageGuard], data: { page: 'disputes' } },
+      { path: 'support', component: SupportComponent, canActivate: [pageGuard], data: { page: 'support' } },
+      { path: 'master-entries', component: MasterEntriesComponent, canActivate: [pageGuard], data: { page: 'master-entries' } },
+      { path: 'cities', component: CitiesComponent, canActivate: [pageGuard], data: { page: 'cities' } },
+      { path: 'users', component: UsersComponent, canActivate: [pageGuard], data: { page: 'users' } },
+      { path: 'businesses', component: BusinessesComponent, canActivate: [pageGuard], data: { page: 'businesses' } },
+      { path: 'staff', component: StaffComponent, canActivate: [pageGuard], data: { page: 'staff' } },
+    ],
   },
-  { path: '**', redirectTo: '' }
+  { path: '**', redirectTo: '' },
 ];

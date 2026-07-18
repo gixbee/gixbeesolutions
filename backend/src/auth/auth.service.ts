@@ -5,6 +5,11 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { User, UserRole } from '../users/user.entity';
 import { RedisService } from '../redis/redis.service';
+import { AdminStaffService } from '../admin-staff/admin-staff.service';
+import {
+  AdminStaffRole,
+  ADMIN_PORTAL_PAGES,
+} from '../admin-staff/admin-staff.entity';
 import * as crypto from 'crypto';
 
 @Injectable()
@@ -15,6 +20,7 @@ export class AuthService {
     private jwtService: JwtService,
     private redisService: RedisService,
     private configService: ConfigService,
+    private adminStaffService: AdminStaffService,
   ) {}
 
   // ── OTP Request ────────────────────────────────────────────────────────────
@@ -32,12 +38,24 @@ export class AuthService {
     //   .services(process.env.TWILIO_VERIFY_SERVICE_SID)
     //   .verifications.create({ to: phoneNumber, channel: 'sms' });
 
-    const isProduction = this.configService.get('NODE_ENV') === 'production';
+    // SECURITY FIX: this used to return the OTP in the HTTP response whenever
+    // NODE_ENV !== 'production' — and the committed .env sets
+    // NODE_ENV=development, so ANY deploy that forgot to override it handed
+    // out a full auth bypass to anyone who called /auth/request-otp.
+    // Now it requires an EXPLICIT opt-in flag that no real deployment sets.
+    const otpEchoEnabled =
+      this.configService.get('ALLOW_OTP_ECHO') === 'true' &&
+      this.configService.get('NODE_ENV') !== 'production';
 
-    if (!isProduction) {
-      // Only log and return devOtp in non-production environments
+    if (otpEchoEnabled) {
       console.log(`[DEV ONLY] OTP for ${phoneNumber}: ${otp}`);
       return { message: 'OTP sent successfully', devOtp: otp };
+    }
+
+    // No SMS provider is wired yet (MSG91/Twilio TODO above). Log server-side
+    // so local testing still works, but never return the code to the caller.
+    if (this.configService.get('NODE_ENV') !== 'production') {
+      console.log(`[DEV] OTP for ${phoneNumber}: ${otp}`);
     }
 
     return { message: 'OTP sent successfully' };
@@ -49,14 +67,13 @@ export class AuthService {
     phoneNumber: string,
     otp: string,
   ): Promise<{ accessToken: string; refreshToken: string }> {
-    const storedOtp = await this.redisService.getOtp(`otp:${phoneNumber}`);
+    // AUDIT FIX: atomic GETDEL — closes the get-then-delete replay window
+    // where two concurrent verifies could both read the same OTP.
+    const storedOtp = await this.redisService.consumeOtp(`otp:${phoneNumber}`);
 
     if (!storedOtp || storedOtp !== otp) {
       throw new UnauthorizedException('Invalid or expired OTP');
     }
-
-    // Delete OTP after single use — prevents replay attacks
-    await this.redisService.deleteOtp(`otp:${phoneNumber}`);
 
     // Create user if first login
     let user = await this.usersRepository.findOne({ where: { phoneNumber } });
@@ -192,12 +209,45 @@ export class AuthService {
 
   /**
    * Super-admin panel login.
-   * Credentials must come from environment variables — never hardcoded.
+   * 1) DB staff users (role-based pages)
+   * 2) Fallback: env ADMIN_USERNAME / ADMIN_PASSWORD → full SUPER_ADMIN
    */
   async adminLogin(
     username: string,
     password: string,
-  ): Promise<{ accessToken: string }> {
+  ): Promise<{
+    accessToken: string;
+    staffRole: AdminStaffRole;
+    pages: string[];
+    displayName: string;
+    username: string;
+  }> {
+    const user = username?.trim() ?? '';
+    const pass = password ?? '';
+
+    // 1) Portal staff account
+    const staff = await this.adminStaffService.validateCredentials(user, pass);
+    if (staff) {
+      const pages = this.adminStaffService.effectivePages(staff);
+      const payload = {
+        sub: staff.id,
+        role: UserRole.ADMIN,
+        staffRole: staff.staffRole,
+        pages,
+        username: staff.username,
+        displayName: staff.displayName || staff.username,
+        phoneNumber: 'admin',
+      };
+      return {
+        accessToken: await this.jwtService.signAsync(payload),
+        staffRole: staff.staffRole,
+        pages,
+        displayName: payload.displayName,
+        username: staff.username,
+      };
+    }
+
+    // 2) Env bootstrap super-admin (legacy single credential)
     const adminUsername = this.configService.get<string>('ADMIN_USERNAME');
     const adminPassword = this.configService.get<string>('ADMIN_PASSWORD');
 
@@ -207,16 +257,27 @@ export class AuthService {
       );
     }
 
-    if (username !== adminUsername || password !== adminPassword) {
+    if (user !== adminUsername || pass !== adminPassword) {
       throw new UnauthorizedException('Invalid admin credentials');
     }
 
+    const pages = [...ADMIN_PORTAL_PAGES];
     const payload = {
-      sub: 'admin-001',
+      sub: 'env-admin',
       role: UserRole.ADMIN,
+      staffRole: AdminStaffRole.SUPER_ADMIN,
+      pages,
+      username: adminUsername,
+      displayName: 'SuperAdmin',
       phoneNumber: 'admin',
     };
 
-    return { accessToken: await this.jwtService.signAsync(payload) };
+    return {
+      accessToken: await this.jwtService.signAsync(payload),
+      staffRole: AdminStaffRole.SUPER_ADMIN,
+      pages,
+      displayName: 'SuperAdmin',
+      username: adminUsername,
+    };
   }
 }

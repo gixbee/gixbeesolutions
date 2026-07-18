@@ -1,5 +1,6 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
+import '../../theme.dart';
 
 class GlassContainer extends StatelessWidget {
   final Widget child;
@@ -33,9 +34,9 @@ class GlassContainer extends StatelessWidget {
         filter: ImageFilter.blur(sigmaX: blur, sigmaY: blur),
         child: Container(
           decoration: BoxDecoration(
-            color: Theme.of(context).colorScheme.onSurface.withValues(alpha: opacity),
+            color: context.gx.card.withValues(alpha: opacity),
             borderRadius: br,
-            border: border ?? Border.all(color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.1)),
+            border: border ?? Border.all(color: context.gx.ink.withValues(alpha: 0.1)),
             gradient: gradient,
             boxShadow: boxShadow,
           ),

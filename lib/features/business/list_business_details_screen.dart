@@ -1,11 +1,24 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:image_picker/image_picker.dart';
 import 'list_business_type_screen.dart';
 import '../../shared/models/business.dart';
+import '../../shared/widgets/gx_button.dart';
+import '../../shared/widgets/gx_glass_card.dart';
+import '../../shared/widgets/gx_pressable.dart';
+import '../../shared/widgets/gx_text_field.dart';
+import '../../shared/widgets/gx_sheet.dart';
+import '../../shared/widgets/gx_snackbar.dart';
+import '../../theme.dart';
 import '../../repositories/business_repository.dart';
+import '../../repositories/cities_repository.dart'; // currentCityProvider
 
 /// Step 2 of the Business Listing flow.
 /// Adapts its form fields based on the selected business type.
+/// Gixbee 2026 / v106 reskin: neutral header, form grouped into glass
+/// sections, success confirmation via glass bottom sheet, surgical accent —
+/// the "Gixbee for Business" colour is blue (accentBlue); the single gradient
+/// on this screen is the Submit CTA.
 class ListBusinessDetailsScreen extends ConsumerStatefulWidget {
   final BusinessType type;
 
@@ -16,7 +29,8 @@ class ListBusinessDetailsScreen extends ConsumerStatefulWidget {
       _ListBusinessDetailsScreenState();
 }
 
-class _ListBusinessDetailsScreenState extends ConsumerState<ListBusinessDetailsScreen> {
+class _ListBusinessDetailsScreenState
+    extends ConsumerState<ListBusinessDetailsScreen> {
   final _nameCtrl = TextEditingController();
   final _descCtrl = TextEditingController();
   final _phoneCtrl = TextEditingController();
@@ -26,6 +40,38 @@ class _ListBusinessDetailsScreenState extends ConsumerState<ListBusinessDetailsS
   final _specialtyCtrl = TextEditingController();
 
   bool _isSubmitting = false;
+
+  // ── Optional registration/tax-ID document upload (image_picker → /uploads/image) ──
+  bool _uploadingDoc = false;
+  String? _docUrl;
+
+  Future<void> _pickDocument() async {
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      final x = await ImagePicker().pickImage(
+        source: ImageSource.gallery,
+        maxWidth: 1600,
+        imageQuality: 85,
+      );
+      if (x == null) return;
+      setState(() => _uploadingDoc = true);
+      final bytes = await x.readAsBytes();
+      final url =
+          await ref.read(businessRepositoryProvider).uploadImage(bytes, x.name);
+      if (!mounted) return;
+      setState(() {
+        _docUrl = url;
+        _uploadingDoc = false;
+      });
+      messenger.showSnackBar(
+          gxSnackBar('Document uploaded', type: GxSnackType.success));
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _uploadingDoc = false);
+      messenger.showSnackBar(
+          gxSnackBar('Document upload failed: $e', type: GxSnackType.error));
+    }
+  }
 
   @override
   void dispose() {
@@ -45,6 +91,17 @@ class _ListBusinessDetailsScreenState extends ConsumerState<ListBusinessDetailsS
         return 'Hiring Agency';
       case BusinessType.rental:
         return 'Rental Business';
+    }
+  }
+
+  String get _typePill {
+    switch (widget.type) {
+      case BusinessType.service:
+        return 'SERVICE';
+      case BusinessType.hiring:
+        return 'HIRING';
+      case BusinessType.rental:
+        return 'RENTAL';
     }
   }
 
@@ -72,9 +129,7 @@ class _ListBusinessDetailsScreenState extends ConsumerState<ListBusinessDetailsS
 
   void _submit() async {
     if (_nameCtrl.text.isEmpty || _phoneCtrl.text.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please fill all required fields')),
-      );
+      showGxSnack(context, 'Please fill all required fields');
       return;
     }
 
@@ -89,6 +144,10 @@ class _ListBusinessDetailsScreenState extends ConsumerState<ListBusinessDetailsS
         specialty: _specialtyCtrl.text,
         phone: _phoneCtrl.text,
         address: _addressCtrl.text,
+        documentUrl: _docUrl,
+        // Structured city scope from the home-selected serviceable city
+        // (nullable — legacy behaviour when no city is selected).
+        cityId: ref.read(currentCityProvider)?.id,
         ownerId: '', // Backend extracts this from JWT
         status: 'PENDING',
       );
@@ -96,63 +155,68 @@ class _ListBusinessDetailsScreenState extends ConsumerState<ListBusinessDetailsS
       await ref.read(businessRepositoryProvider).registerBusiness(business);
 
       if (!mounted) return;
-      _showSuccessDialog();
+      await _showSuccessSheet();
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error: ${e.toString()}')),
-      );
+      showGxSnack(context, 'Error: ${e.toString()}', type: GxSnackType.error);
     } finally {
       if (mounted) setState(() => _isSubmitting = false);
     }
   }
 
-  void _showSuccessDialog() {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: Theme.of(ctx).colorScheme.surface,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const SizedBox(height: 16),
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: Colors.green.withValues(alpha: 0.1),
-              ),
-              child: const Icon(Icons.check_circle, color: Colors.green, size: 56),
+  /// Glass success sheet (replaces the old AlertDialog). Whether dismissed
+  /// via the CTA or a drag-down, we always return to the home tab — the
+  /// application has already been submitted at this point.
+  Future<void> _showSuccessSheet() async {
+    final cs = Theme.of(context).colorScheme;
+    await showGxSheet<void>(
+      context,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          const SizedBox(height: 8),
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: Colors.green.withValues(alpha: 0.12),
             ),
-            const SizedBox(height: 20),
-            const Text(
-              'Application Submitted',
-              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20),
+            child:
+                const Icon(Icons.check_circle, color: Colors.green, size: 52),
+          ),
+          const SizedBox(height: 18),
+          Text(
+            'Application Submitted',
+            style: TextStyle(
+                fontWeight: FontWeight.w900,
+                fontSize: 20,
+                color: context.gx.ink),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Your business profile is under review. Our team will contact you within 24 hours to verify your details.',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: cs.onSurfaceVariant,
+              height: 1.5,
+              fontSize: 13,
             ),
-            const SizedBox(height: 8),
-            Text(
-              'Your business profile is under review. Our team will contact you within 24 hours to verify your details.',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                color: Theme.of(ctx).colorScheme.onSurfaceVariant,
-                height: 1.5,
-                fontSize: 13,
-              ),
-            ),
-            const SizedBox(height: 24),
-            SizedBox(
-              width: double.infinity,
-              child: FilledButton(
-                onPressed: () => Navigator.of(ctx).popUntil((r) => r.isFirst),
-                child: const Text('Back to Home'),
-              ),
-            ),
-          ],
-        ),
+          ),
+          const SizedBox(height: 22),
+          GxButton(
+            label: 'Back to Home',
+            // Pops the sheet (topmost route); navigation home happens below.
+            onTap: () => Navigator.of(context).pop(),
+            gradient: const [GixbeeTheme.accentBlue, Color(0xFF1D4ED8)],
+            accent: GixbeeTheme.accentBlue,
+            height: 52,
+          ),
+        ],
       ),
     );
+    if (!mounted) return;
+    Navigator.of(context).popUntil((r) => r.isFirst);
   }
 
   @override
@@ -160,209 +224,280 @@ class _ListBusinessDetailsScreenState extends ConsumerState<ListBusinessDetailsS
     final cs = Theme.of(context).colorScheme;
 
     return Scaffold(
-      body: Container(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [
-              cs.surface,
-              cs.surfaceContainerHighest.withValues(alpha: 0.2),
-            ],
-          ),
-        ),
-        child: SafeArea(
-          child: Column(
-            children: [
-              // ── TOP BAR ──
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-                child: Row(
+      backgroundColor: cs.surface,
+      body: SafeArea(
+        child: Column(
+          children: [
+            _header(context),
+            Expanded(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    IconButton(
-                      icon: const Icon(Icons.arrow_back),
-                      onPressed: () => Navigator.pop(context),
-                    ),
-                    const SizedBox(width: 4),
-                    Text(
-                      'Business Details',
-                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                            fontWeight: FontWeight.bold,
-                          ),
-                    ),
-                  ],
-                ),
-              ),
+                    const SizedBox(height: 8),
 
-              Expanded(
-                child: SingleChildScrollView(
-                  padding: const EdgeInsets.symmetric(horizontal: 24),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const SizedBox(height: 16),
-
-                      // ── INFO BANNER ──
-                      Container(
-                        padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(16),
-                          color: const Color(0xFFFF9F43).withValues(alpha: 0.1),
-                          border: Border.all(
-                            color: const Color(0xFFFF9F43).withValues(alpha: 0.3),
-                          ),
-                        ),
-                        child: Row(
-                          children: [
-                            Icon(_heroIcon, color: const Color(0xFFFF9F43), size: 28),
-                            const SizedBox(width: 16),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    'Registering as a $_title',
-                                    style: const TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 14,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 4),
-                                  Text(
-                                    'Tell us about your organization so we can verify and list you.',
-                                    style: TextStyle(
-                                      color: cs.onSurfaceVariant,
-                                      fontSize: 12,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-
-                      const SizedBox(height: 32),
-
-                      // ── FORM FIELDS ──
-                      _buildTextField(
-                        controller: _nameCtrl,
-                        label: 'Business / Company Name *',
-                        icon: Icons.business_rounded,
-                      ),
-                      const SizedBox(height: 16),
-
-                      _buildTextField(
-                        controller: _descCtrl,
-                        label: 'Brief Description',
-                        icon: Icons.info_outline,
-                        maxLines: 3,
-                      ),
-                      const SizedBox(height: 16),
-
-                      _buildTextField(
-                        controller: _specialtyCtrl,
-                        label: _specialtyLabel,
-                        icon: Icons.category_outlined,
-                      ),
-                      const SizedBox(height: 16),
-
-                      _buildTextField(
-                        controller: _phoneCtrl,
-                        label: 'Business Phone Number *',
-                        icon: Icons.phone_outlined,
-                        keyboardType: TextInputType.phone,
-                      ),
-                      const SizedBox(height: 16),
-
-                      _buildTextField(
-                        controller: _addressCtrl,
-                        label: 'Headquarters / Main Address',
-                        icon: Icons.location_city_outlined,
-                        maxLines: 2,
-                      ),
-
-                      const SizedBox(height: 24),
-
-                      // ── DOCUMENT UPLOAD PLACEHOLDER ──
-                      Text(
-                        'Business Documents',
-                        style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                              fontWeight: FontWeight.bold,
-                            ),
-                      ),
-                      const SizedBox(height: 8),
-                      InkWell(
-                        onTap: () {},
+                    // ── INFO BANNER (neutral bento, primary-tint icon) ──
+                    Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
                         borderRadius: BorderRadius.circular(16),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(vertical: 24),
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(16),
-                            border: Border.all(
-                              color: cs.outlineVariant,
-                              style: BorderStyle.solid,
+                        color:
+                            cs.surfaceContainerHighest.withValues(alpha: 0.3),
+                        border: Border.all(
+                            color: cs.outlineVariant.withValues(alpha: 0.2)),
+                      ),
+                      child: Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(11),
+                            decoration: BoxDecoration(
+                              color: GixbeeTheme.accentBlue.withValues(alpha: 0.12),
+                              borderRadius: BorderRadius.circular(13),
                             ),
-                            color: cs.surfaceContainerHighest.withValues(alpha: 0.3),
+                            child:
+                                Icon(_heroIcon, color: GixbeeTheme.accentBlue, size: 24),
                           ),
-                          child: Center(
+                          const SizedBox(width: 14),
+                          Expanded(
                             child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Icon(Icons.upload_file_rounded, size: 32, color: cs.primary),
-                                const SizedBox(height: 8),
                                 Text(
-                                  'Upload Registration or Tax ID (Optional)',
-                                  style: TextStyle(color: cs.primary, fontWeight: FontWeight.w600),
+                                  'Registering as a $_title',
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.w800,
+                                    fontSize: 14,
+                                  ),
                                 ),
                                 const SizedBox(height: 4),
                                 Text(
-                                  'PDF, JPG, or PNG up to 5MB',
-                                  style: TextStyle(color: cs.onSurfaceVariant, fontSize: 12),
+                                  'Tell us about your organization so we can verify and list you.',
+                                  style: TextStyle(
+                                    color: cs.onSurfaceVariant,
+                                    fontSize: 12,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    const SizedBox(height: 22),
+
+                    // ── GLASS SECTION: BUSINESS INFO ──
+                    _sectionLabel(context, 'BUSINESS INFO'),
+                    GxGlassCard(
+                      child: Column(
+                        children: [
+                          _buildTextField(
+                            controller: _nameCtrl,
+                            label: 'Business / Company Name *',
+                            icon: Icons.business_rounded,
+                          ),
+                          const SizedBox(height: 14),
+                          _buildTextField(
+                            controller: _descCtrl,
+                            label: 'Brief Description',
+                            icon: Icons.info_outline,
+                            maxLines: 3,
+                          ),
+                          const SizedBox(height: 14),
+                          _buildTextField(
+                            controller: _specialtyCtrl,
+                            label: _specialtyLabel,
+                            icon: Icons.category_outlined,
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    const SizedBox(height: 22),
+
+                    // ── GLASS SECTION: CONTACT ──
+                    _sectionLabel(context, 'CONTACT'),
+                    GxGlassCard(
+                      child: Column(
+                        children: [
+                          _buildTextField(
+                            controller: _phoneCtrl,
+                            label: 'Business Phone Number *',
+                            icon: Icons.phone_outlined,
+                            keyboardType: TextInputType.phone,
+                          ),
+                          const SizedBox(height: 14),
+                          _buildTextField(
+                            controller: _addressCtrl,
+                            label: 'Headquarters / Main Address',
+                            icon: Icons.location_city_outlined,
+                            maxLines: 2,
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    const SizedBox(height: 22),
+
+                    // ── GLASS SECTION: DOCUMENTS ──
+                    _sectionLabel(context, 'DOCUMENTS'),
+                    GxGlassCard(
+                      padding: EdgeInsets.zero,
+                      child: GxPressable(
+                        onTap: _uploadingDoc ? null : _pickDocument,
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 22),
+                          child: Center(
+                            child: Column(
+                              children: [
+                                if (_uploadingDoc)
+                                  const SizedBox(
+                                    width: 30,
+                                    height: 30,
+                                    child: CircularProgressIndicator(
+                                        strokeWidth: 2.5,
+                                        valueColor: AlwaysStoppedAnimation(
+                                            GixbeeTheme.accentBlue)),
+                                  )
+                                else
+                                  Icon(
+                                      _docUrl != null
+                                          ? Icons.check_circle_rounded
+                                          : Icons.upload_file_rounded,
+                                      size: 30,
+                                      color: _docUrl != null
+                                          ? GixbeeTheme.accentGreen
+                                          : GixbeeTheme.accentBlue),
+                                const SizedBox(height: 8),
+                                Text(
+                                  _uploadingDoc
+                                      ? 'Uploading…'
+                                      : _docUrl != null
+                                          ? 'Document uploaded — tap to replace'
+                                          : 'Upload Registration or Tax ID (Optional)',
+                                  style: TextStyle(
+                                      color: _docUrl != null
+                                          ? GixbeeTheme.accentGreen
+                                          : GixbeeTheme.accentBlue,
+                                      fontWeight: FontWeight.w600,
+                                      fontSize: 13),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  'JPG or PNG up to 5MB',
+                                  style: TextStyle(
+                                      color: cs.onSurfaceVariant,
+                                      fontSize: 12),
                                 ),
                               ],
                             ),
                           ),
                         ),
                       ),
-
-                      const SizedBox(height: 40),
-                    ],
-                  ),
-                ),
-              ),
-
-              // ── BOTTOM BUTTON ──
-              Container(
-                padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                  color: Theme.of(context).scaffoldBackgroundColor,
-                  border: Border(
-                    top: BorderSide(color: cs.outlineVariant.withValues(alpha: 0.1)),
-                  ),
-                ),
-                child: SizedBox(
-                  width: double.infinity,
-                  height: 56,
-                  child: FilledButton(
-                    onPressed: _isSubmitting ? null : _submit,
-                    style: FilledButton.styleFrom(
-                      backgroundColor: const Color(0xFFFF9F43),
                     ),
-                    child: _isSubmitting
-                        ? const SizedBox(
-                            width: 24,
-                            height: 24,
-                            child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
-                          )
-                        : const Text(
-                            'Submit Application',
-                            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-                          ),
-                  ),
+
+                    const SizedBox(height: 32),
+                  ],
                 ),
               ),
-            ],
+            ),
+          ],
+        ),
+      ),
+
+      // ── STICKY BOTTOM CTA (single gradient on this screen) ──
+      bottomNavigationBar: Container(
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          color: Theme.of(context).scaffoldBackgroundColor,
+          border: Border(
+            top: BorderSide(color: cs.outlineVariant.withValues(alpha: 0.1)),
           ),
+        ),
+        child: SafeArea(
+          child: GxButton(
+            label: 'Submit Application',
+            onTap: _isSubmitting ? null : _submit,
+            loading: _isSubmitting,
+            gradient: const [GixbeeTheme.accentBlue, Color(0xFF1D4ED8)],
+            accent: GixbeeTheme.accentBlue,
+            height: 56,
+            radius: 16,
+            fontSize: 16,
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ── Neutral header (no gradient — surgical orange) ──────────────────────
+  Widget _header(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+      child: Row(
+        children: [
+          GxPressable(
+            onTap: () => Navigator.pop(context),
+            child: Container(
+              padding: const EdgeInsets.all(9),
+              decoration: BoxDecoration(
+                color: context.gx.ink.withValues(alpha: 0.06),
+                shape: BoxShape.circle,
+                border:
+                    Border.all(color: context.gx.ink.withValues(alpha: 0.10)),
+              ),
+              child: Icon(Icons.arrow_back_rounded,
+                  color: context.gx.ink, size: 18),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Business Details',
+                    style: TextStyle(
+                        color: context.gx.ink,
+                        fontSize: 19,
+                        fontWeight: FontWeight.w900)),
+                Text('Step 2 of 2 — almost there',
+                    style: TextStyle(
+                        color: cs.onSurfaceVariant, fontSize: 11)),
+              ],
+            ),
+          ),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+            decoration: BoxDecoration(
+              color: GixbeeTheme.accentBlue.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(999),
+              border: Border.all(color: GixbeeTheme.accentBlue.withValues(alpha: 0.3)),
+            ),
+            child: Text(_typePill,
+                style: TextStyle(
+                    color: GixbeeTheme.accentBlue,
+                    fontSize: 9,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 0.8)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _sectionLabel(BuildContext context, String text) {
+    final cs = Theme.of(context).colorScheme;
+    return Padding(
+      padding: const EdgeInsets.only(left: 4, bottom: 10),
+      child: Text(
+        text,
+        style: TextStyle(
+          fontSize: 11,
+          fontWeight: FontWeight.w800,
+          letterSpacing: 1.2,
+          color: cs.onSurfaceVariant,
         ),
       ),
     );
@@ -375,37 +510,13 @@ class _ListBusinessDetailsScreenState extends ConsumerState<ListBusinessDetailsS
     int maxLines = 1,
     TextInputType keyboardType = TextInputType.text,
   }) {
-    final cs = Theme.of(context).colorScheme;
-    return TextField(
+    return GxTextField(
       controller: controller,
+      label: label,
+      prefixIcon: icon,
       maxLines: maxLines,
       keyboardType: keyboardType,
-      style: const TextStyle(fontSize: 14),
-      decoration: InputDecoration(
-        labelText: label,
-        labelStyle: TextStyle(color: cs.onSurfaceVariant, fontSize: 13),
-        alignLabelWithHint: maxLines > 1,
-        prefixIcon: Padding(
-          padding: EdgeInsets.only(bottom: maxLines > 1 ? (maxLines * 12.0) : 0),
-          child: Icon(icon, size: 20, color: cs.onSurfaceVariant),
-        ),
-        filled: true,
-        fillColor: cs.surfaceContainerHighest.withValues(alpha: 0.3),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: cs.outlineVariant.withValues(alpha: 0.2)),
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: cs.outlineVariant.withValues(alpha: 0.2)),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: Color(0xFFFF9F43), width: 2),
-        ),
-        contentPadding: const EdgeInsets.all(16),
-      ),
+      accent: GixbeeTheme.accentBlue,
     );
   }
 }
-

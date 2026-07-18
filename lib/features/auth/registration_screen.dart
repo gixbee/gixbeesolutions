@@ -1,11 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:google_fonts/google_fonts.dart';
 import '../../main_wrapper.dart';
 import '../../repositories/auth_repository.dart';
 import '../../repositories/profile_repository.dart';
-import '../../shared/widgets/dribbble_background.dart';
-import '../../shared/widgets/glass_container.dart';
+import '../../theme.dart';
+import '../../shared/widgets/gx_snackbar.dart';
 
+/// Name + role screen — restyled to the orange super-app mockup:
+/// dark radial backdrop, branded inputs, gradient role cards + CTA.
+/// Submit logic (profile update → MainWrapper) unchanged.
 class RegistrationScreen extends ConsumerStatefulWidget {
   const RegistrationScreen({super.key});
 
@@ -18,12 +22,16 @@ class _RegistrationScreenState extends ConsumerState<RegistrationScreen> {
   bool _isWorker = false;
   bool _isSubmitting = false;
 
+  @override
+  void dispose() {
+    _nameController.dispose();
+    super.dispose();
+  }
+
   Future<void> _submit() async {
     final name = _nameController.text.trim();
     if (name.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter your name')),
-      );
+      showGxSnack(context, 'Please enter your name');
       return;
     }
 
@@ -52,9 +60,8 @@ class _RegistrationScreenState extends ConsumerState<RegistrationScreen> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to update profile: $e')),
-        );
+        showGxSnack(context, 'Failed to update profile: $e',
+            type: GxSnackType.error);
       }
     } finally {
       if (mounted) setState(() => _isSubmitting = false);
@@ -64,56 +71,93 @@ class _RegistrationScreenState extends ConsumerState<RegistrationScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      extendBodyBehindAppBar: true,
-      appBar: AppBar(
-        title: const Text('Complete Profile', style: TextStyle(color: Colors.white)),
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-      ),
-      body: DribbbleBackground(
+      body: Container(
+        width: double.infinity,
+        height: double.infinity,
+        decoration: const BoxDecoration(
+          gradient: RadialGradient(
+            center: Alignment(0, -0.5),
+            radius: 1.1,
+            colors: [Color(0xFF1A0800), Color(0xFF08080F)],
+            stops: [0.0, 0.6],
+          ),
+        ),
         child: SafeArea(
           child: SingleChildScrollView(
             padding: const EdgeInsets.all(24.0),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                const SizedBox(height: 24),
-                const Text(
+                const SizedBox(height: 16),
+                ShaderMask(
+                  shaderCallback: (b) => const LinearGradient(
+                    colors: GixbeeTheme.brandGradient,
+                  ).createShader(b),
+                  child: Text(
+                    'gixbee',
+                    style: GoogleFonts.nunito(
+                      fontSize: 34,
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: -1.5,
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 20),
+                Text(
                   'Welcome to Gixbee!',
-                  style: TextStyle(
-                    fontSize: 32,
-                    fontWeight: FontWeight.bold,
+                  style: GoogleFonts.nunito(
+                    fontSize: 30,
+                    fontWeight: FontWeight.w900,
                     color: Colors.white,
                   ),
                 ),
                 const SizedBox(height: 8),
-                const Text(
-                  'Let\'s set up your profile so you can get started.',
-                  style: TextStyle(
-                    fontSize: 16,
-                    color: Colors.white70,
+                Text(
+                  "Let's set up your profile so you can get started.",
+                  style: GoogleFonts.outfit(
+                    fontSize: 15,
+                    color: Colors.white.withValues(alpha: 0.55),
                   ),
                 ),
-                const SizedBox(height: 48),
-                GlassContainer(
-                  padding: const EdgeInsets.all(24),
+                const SizedBox(height: 36),
+                Container(
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF1A1A26),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: const Color(0xFF1E1E2E)),
+                  ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
                       // Name Input
-                      const Text(
+                      Text(
                         'Full Name',
-                        style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                        style: GoogleFonts.outfit(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w700),
                       ),
                       const SizedBox(height: 8),
                       TextField(
                         controller: _nameController,
-                        style: const TextStyle(color: Colors.white),
+                        style: GoogleFonts.outfit(color: Colors.white),
                         decoration: InputDecoration(
                           hintText: 'e.g. John Doe',
-                          hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.5)),
+                          hintStyle: GoogleFonts.outfit(
+                              color: Colors.white.withValues(alpha: 0.4)),
                           filled: true,
-                          fillColor: Colors.white.withValues(alpha: 0.1),
+                          fillColor: Colors.white.withValues(alpha: 0.06),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide:
+                                const BorderSide(color: Color(0xFF1E1E2E)),
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: const BorderSide(
+                                color: GixbeeTheme.brandOrange),
+                          ),
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(12),
                             borderSide: BorderSide.none,
@@ -123,9 +167,11 @@ class _RegistrationScreenState extends ConsumerState<RegistrationScreen> {
                       const SizedBox(height: 24),
 
                       // Role Toggle
-                      const Text(
+                      Text(
                         'How will you use Gixbee?',
-                        style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                        style: GoogleFonts.outfit(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w700),
                       ),
                       const SizedBox(height: 12),
                       Row(
@@ -133,6 +179,7 @@ class _RegistrationScreenState extends ConsumerState<RegistrationScreen> {
                           Expanded(
                             child: _RoleCard(
                               title: 'Customer',
+                              subtitle: 'Book services & events',
                               icon: Icons.person_search_rounded,
                               isSelected: !_isWorker,
                               onTap: () => setState(() => _isWorker = false),
@@ -142,6 +189,7 @@ class _RegistrationScreenState extends ConsumerState<RegistrationScreen> {
                           Expanded(
                             child: _RoleCard(
                               title: 'Worker',
+                              subtitle: 'Earn hourly, find jobs',
                               icon: Icons.handyman_rounded,
                               isSelected: _isWorker,
                               onTap: () => setState(() => _isWorker = true),
@@ -149,29 +197,51 @@ class _RegistrationScreenState extends ConsumerState<RegistrationScreen> {
                           ),
                         ],
                       ),
-                      const SizedBox(height: 48),
+                      const SizedBox(height: 36),
 
                       // Submit Button
-                      ElevatedButton(
-                        onPressed: _isSubmitting ? null : _submit,
-                        style: ElevatedButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(vertical: 16),
-                          backgroundColor: Theme.of(context).colorScheme.primary,
-                          foregroundColor: Colors.white,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
+                      SizedBox(
+                        height: 56,
+                        child: DecoratedBox(
+                          decoration: BoxDecoration(
+                            gradient: const LinearGradient(
+                                colors: GixbeeTheme.brandGradient),
+                            borderRadius: BorderRadius.circular(14),
+                            boxShadow: [
+                              BoxShadow(
+                                color: GixbeeTheme.brandFlame
+                                    .withValues(alpha: 0.35),
+                                blurRadius: 20,
+                                offset: const Offset(0, 4),
+                              ),
+                            ],
+                          ),
+                          child: Material(
+                            color: Colors.transparent,
+                            child: InkWell(
+                              borderRadius: BorderRadius.circular(14),
+                              onTap: _isSubmitting ? null : _submit,
+                              child: Center(
+                                child: _isSubmitting
+                                    ? const SizedBox(
+                                        height: 20,
+                                        width: 20,
+                                        child: CircularProgressIndicator(
+                                            strokeWidth: 2,
+                                            color: Colors.white),
+                                      )
+                                    : Text(
+                                        'Complete & Continue  →',
+                                        style: GoogleFonts.outfit(
+                                            fontSize: 16,
+                                            fontWeight: FontWeight.w800,
+                                            color: Colors.white,
+                                            letterSpacing: 0.5),
+                                      ),
+                              ),
+                            ),
                           ),
                         ),
-                        child: _isSubmitting
-                            ? const SizedBox(
-                                height: 20,
-                                width: 20,
-                                child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                              )
-                            : const Text(
-                                'Complete & Continue',
-                                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                              ),
                       ),
                     ],
                   ),
@@ -187,12 +257,14 @@ class _RegistrationScreenState extends ConsumerState<RegistrationScreen> {
 
 class _RoleCard extends StatelessWidget {
   final String title;
+  final String subtitle;
   final IconData icon;
   final bool isSelected;
   final VoidCallback onTap;
 
   const _RoleCard({
     required this.title,
+    required this.subtitle,
     required this.icon,
     required this.isSelected,
     required this.onTap,
@@ -206,12 +278,19 @@ class _RoleCard extends StatelessWidget {
         duration: const Duration(milliseconds: 200),
         padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 8),
         decoration: BoxDecoration(
-          color: isSelected
-              ? Theme.of(context).colorScheme.primary.withValues(alpha: 0.2)
-              : Colors.white.withValues(alpha: 0.05),
+          gradient: isSelected
+              ? LinearGradient(
+                  colors: GixbeeTheme.brandGradient
+                      .map((c) => c.withValues(alpha: 0.18))
+                      .toList(),
+                )
+              : null,
+          color: isSelected ? null : Colors.white.withValues(alpha: 0.04),
           border: Border.all(
-            color: isSelected ? Theme.of(context).colorScheme.primary : Colors.white.withValues(alpha: 0.1),
-            width: 2,
+            color: isSelected
+                ? GixbeeTheme.brandOrange
+                : const Color(0xFF1E1E2E),
+            width: 1.5,
           ),
           borderRadius: BorderRadius.circular(12),
         ),
@@ -219,15 +298,26 @@ class _RoleCard extends StatelessWidget {
           children: [
             Icon(
               icon,
-              size: 40,
-              color: isSelected ? Theme.of(context).colorScheme.primary : Colors.white70,
+              size: 36,
+              color:
+                  isSelected ? GixbeeTheme.brandOrange : Colors.white70,
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 10),
             Text(
               title,
-              style: TextStyle(
+              style: GoogleFonts.outfit(
                 color: isSelected ? Colors.white : Colors.white70,
-                fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                fontWeight:
+                    isSelected ? FontWeight.w800 : FontWeight.w500,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              subtitle,
+              textAlign: TextAlign.center,
+              style: GoogleFonts.outfit(
+                fontSize: 11,
+                color: Colors.white.withValues(alpha: 0.45),
               ),
             ),
           ],

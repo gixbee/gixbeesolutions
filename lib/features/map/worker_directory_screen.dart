@@ -7,6 +7,7 @@ import '../../repositories/worker_repository.dart';
 import '../../services/socket_service.dart';
 import '../../shared/widgets/dribbble_background.dart';
 import '../../shared/widgets/glass_container.dart';
+import '../../shared/widgets/gx_snackbar.dart';
 import '../profile/worker_profile_card.dart';
 
 class WorkerDirectoryScreen extends ConsumerStatefulWidget {
@@ -97,9 +98,8 @@ class _WorkerDirectoryScreenState extends ConsumerState<WorkerDirectoryScreen> {
       await launchUrl(uri, mode: LaunchMode.externalApplication);
     } else {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Could not open maps application.')),
-        );
+        showGxSnack(context, 'Could not open maps application.',
+            type: GxSnackType.error);
       }
     }
   }

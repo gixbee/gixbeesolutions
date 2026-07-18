@@ -4,9 +4,10 @@ import { RentalItem } from './rental-item.entity';
 import { RentalReservation } from './rental-reservation.entity';
 import { RentalsService } from './rentals.service';
 import { RentalsController } from './rentals.controller';
+import { NotificationsModule } from '../notifications/notifications.module';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([RentalItem, RentalReservation])],
+  imports: [TypeOrmModule.forFeature([RentalItem, RentalReservation]), NotificationsModule],
   controllers: [RentalsController],
   providers: [RentalsService],
   exports: [RentalsService],

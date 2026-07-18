@@ -30,6 +30,7 @@ class BookingRepository {
     required String address,
     String? description,
     String? skill,
+    String? addressId,
     String paymentMethod = 'WALLET',
   }) async {
     try {
@@ -40,6 +41,7 @@ class BookingRepository {
         'serviceLocation': address,
         if (description != null) 'description': description,
         if (skill != null) 'skill': skill,
+        if (addressId != null) 'addressId': addressId,
         'paymentMethod': paymentMethod,
       });
       return Map<String, dynamic>.from(response.data);
@@ -79,6 +81,43 @@ class BookingRepository {
     }
   }
 
+
+  /// v126 broadcast dispatch: no worker chosen — the backend notifies every
+  /// nearby live pro for [skill]; the first to accept is assigned. Returns
+  /// the raw payload: { booking: {...}, notified: n }. When notified == 0 the
+  /// caller should go straight to the no-workers screen.
+  Future<Map<String, dynamic>> sendBroadcastRequest({
+    required String skill,
+    required String serviceLocation,
+    required double lat,
+    required double lng,
+    required double amount,
+    String? description,
+    List<String>? preferredLanguages,
+    String? addressId,
+    Map<String, dynamic>? onSiteContact,
+    String paymentMethod = 'WALLET',
+  }) async {
+    try {
+      final response = await _dio.post('/bookings/instant', data: {
+        'skill': skill,
+        'serviceLocation': serviceLocation,
+        'serviceLat': lat,
+        'serviceLng': lng,
+        'amount': amount,
+        if (description != null) 'description': description,
+        if (preferredLanguages != null && preferredLanguages.isNotEmpty)
+          'preferredLanguages': preferredLanguages,
+        if (addressId != null) 'addressId': addressId,
+        if (onSiteContact != null) 'onSiteContact': onSiteContact,
+        'paymentMethod': paymentMethod,
+      });
+      return Map<String, dynamic>.from(response.data);
+    } catch (e) {
+      debugPrint('SendBroadcastRequest failed: $e');
+      rethrow;
+    }
+  }
 
   // ── Read ──────────────────────────────────────────────────────────────────
 
@@ -227,12 +266,21 @@ class BookingRepository {
 
   // ── Customer Actions ──────────────────────────────────────────────────────
 
-  Future<void> cancelBooking(String bookingId) async {
+  /// Cancels a booking with a reason and returns the refund outcome
+  /// (`refundAmount`, `refundMethod`). The backend refunds WALLET-settled
+  /// payments by reversing the settlement (worker debit + customer credit);
+  /// directly collected payments (cash/UPI) are not wallet-credited —
+  /// `refundMethod` is `DIRECT` and the parties settle offline.
+  Future<Map<String, dynamic>> cancelBooking(
+    String bookingId, {
+    String reason = 'Not specified',
+  }) async {
     try {
-      await _dio.patch(
-        '/bookings/$bookingId/status',
-        data: {'status': 'CANCELLED'},
+      final response = await _dio.patch(
+        '/bookings/$bookingId/cancel',
+        data: {'reason': reason},
       );
+      return Map<String, dynamic>.from(response.data);
     } catch (e) {
       debugPrint('CancelBooking failed: $e');
       rethrow;
@@ -246,6 +294,50 @@ class BookingRepository {
       await _dio.post('/bookings/$bookingId/rating', data: {'rating': rating});
     } catch (e) {
       debugPrint('SubmitRating failed: $e');
+      rethrow;
+    }
+  }
+
+  /// Worker rates the customer after completion (v126 parity — both sides
+  /// rate). Backend validates the caller is this booking's operator.
+  Future<void> rateCustomer(String bookingId, int rating) async {
+    try {
+      await _dio.post('/bookings/$bookingId/rate-customer',
+          data: {'rating': rating});
+    } catch (e) {
+      debugPrint('RateCustomer failed: $e');
+      rethrow;
+    }
+  }
+
+  // ── Pause / resume (v126 Instant Help) ────────────────────────────────────
+  // Worker asks → customer approves/declines → worker resumes. Status stays
+  // ACTIVE; poll payload carries `pauseRequested` / `paused` / `pausedMinutes`.
+
+  Future<void> requestPause(String bookingId) async {
+    try {
+      await _dio.patch('/bookings/$bookingId/pause-request');
+    } catch (e) {
+      debugPrint('RequestPause failed: $e');
+      rethrow;
+    }
+  }
+
+  Future<void> respondPause(String bookingId, {required bool approve}) async {
+    try {
+      await _dio.patch(
+          '/bookings/$bookingId/${approve ? 'pause-approve' : 'pause-decline'}');
+    } catch (e) {
+      debugPrint('RespondPause failed: $e');
+      rethrow;
+    }
+  }
+
+  Future<void> resumeWork(String bookingId) async {
+    try {
+      await _dio.patch('/bookings/$bookingId/resume');
+    } catch (e) {
+      debugPrint('ResumeWork failed: $e');
       rethrow;
     }
   }

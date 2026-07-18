@@ -1,1 +1,248 @@
-/* You can add global styles to this file, and also import other style files */
+/* ═══════════════════════════════════════════════════════════════════
+   Gixbee Admin — standard-application theme layered over Bootstrap.
+   Design tokens + component refinements; pages keep using Bootstrap
+   classes (.card, .table, .btn, .badge) and inherit this look.
+   ═══════════════════════════════════════════════════════════════════ */
+
+:root {
+  --gx-sidebar-bg: #0f172a;      /* slate-900 */
+  --gx-sidebar-active: #1e293b;  /* slate-800 */
+  --gx-sidebar-text: #94a3b8;    /* slate-400 */
+  --gx-content-bg: #f1f5f9;      /* slate-100 */
+  --gx-card-border: #e2e8f0;     /* slate-200 */
+  --gx-text: #0f172a;
+  --gx-text-muted: #64748b;
+  --gx-primary: #4f46e5;         /* indigo-600 */
+  --gx-primary-hover: #4338ca;
+  --gx-success: #16a34a;
+  --gx-danger: #dc2626;
+  --gx-warning: #d97706;
+  --gx-radius: 10px;
+}
+
+html, body {
+  height: 100%;
+  background: var(--gx-content-bg);
+  color: var(--gx-text);
+  font-family: 'Inter', -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  font-size: 14px;
+  -webkit-font-smoothing: antialiased;
+}
+
+h1, h2, h3, h4, h5, h6 { font-weight: 700; color: var(--gx-text); }
+
+/* ── Cards ── */
+.card {
+  border: 1px solid var(--gx-card-border);
+  border-radius: var(--gx-radius);
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+}
+.card-header {
+  background: #fff !important;
+  border-bottom: 1px solid var(--gx-card-border);
+  border-radius: var(--gx-radius) var(--gx-radius) 0 0 !important;
+}
+.card-header h4, .card-header h5 { font-size: 16px; }
+
+/* ── Tables ── */
+.table { font-size: 13.5px; margin-bottom: 0; }
+.table thead th {
+  background: #f8fafc;
+  color: var(--gx-text-muted);
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  border-bottom: 1px solid var(--gx-card-border);
+  padding: 10px 12px;
+  white-space: nowrap;
+}
+.table tbody td {
+  padding: 12px;
+  vertical-align: middle;
+  border-bottom: 1px solid #f1f5f9;
+  color: var(--gx-text);
+}
+.table-hover tbody tr:hover { background: #f8fafc; }
+
+/* ── Buttons ── */
+.btn { border-radius: 8px; font-weight: 600; font-size: 13px; }
+.btn-primary {
+  background: var(--gx-primary);
+  border-color: var(--gx-primary);
+}
+.btn-primary:hover, .btn-primary:focus {
+  background: var(--gx-primary-hover);
+  border-color: var(--gx-primary-hover);
+}
+.btn-outline-primary { color: var(--gx-primary); border-color: #c7d2fe; }
+.btn-outline-primary:hover { background: var(--gx-primary); border-color: var(--gx-primary); }
+.btn-sm { padding: 4px 12px; }
+
+/* ── Badges (status pills) ── */
+.badge {
+  font-weight: 600;
+  font-size: 11px;
+  padding: 5px 10px;
+  border-radius: 999px;
+  letter-spacing: 0.02em;
+}
+.badge.bg-success { background: #dcfce7 !important; color: #15803d !important; }
+.badge.bg-danger { background: #fee2e2 !important; color: #b91c1c !important; }
+.badge.bg-warning { background: #fef3c7 !important; color: #b45309 !important; }
+.badge.bg-info { background: #e0e7ff !important; color: #4338ca !important; }
+.badge.bg-secondary { background: #f1f5f9 !important; color: #475569 !important; }
+
+/* ── Forms ── */
+.form-control, .form-select {
+  border-radius: 8px;
+  border-color: var(--gx-card-border);
+  font-size: 13.5px;
+}
+.form-control:focus, .form-select:focus {
+  border-color: var(--gx-primary);
+  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.12);
+}
+.form-label { font-weight: 600; font-size: 13px; color: var(--gx-text); }
+.form-text { color: var(--gx-text-muted); }
+
+/* ── Modals ── */
+.modal-content { border: none; border-radius: 14px; box-shadow: 0 20px 50px rgba(15, 23, 42, 0.25); }
+.modal-header { border-bottom: 1px solid var(--gx-card-border); }
+.modal-title { font-size: 16px; font-weight: 700; }
+
+/* ── Sidebar (used by LayoutComponent) ──
+   FIX: the sidebar used to scroll away with the page on long tables (the nav
+   links disappeared off the top). It's now pinned to the viewport and scrolls
+   independently only if the nav itself is taller than the screen. */
+.gx-sidebar {
+  width: 240px;
+  background: var(--gx-sidebar-bg);
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  overflow-y: auto;
+  padding-bottom: 12px;
+}
+/* Slim scrollbar, only visible if the nav overflows a short viewport. */
+.gx-sidebar::-webkit-scrollbar { width: 6px; }
+.gx-sidebar::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.12);
+  border-radius: 3px;
+}
+.gx-sidebar::-webkit-scrollbar-track { background: transparent; }
+.gx-sidebar-brand {
+  padding: 20px 20px 16px;
+  font-size: 18px;
+  font-weight: 800;
+  color: #fff;
+  letter-spacing: -0.02em;
+}
+.gx-sidebar-brand .accent { color: #fb923c; }
+.gx-nav-section {
+  padding: 14px 20px 6px;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  color: #475569;
+  text-transform: uppercase;
+}
+.gx-nav-link {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 14px;
+  margin: 1px 10px;
+  border-radius: 8px;
+  color: var(--gx-sidebar-text);
+  text-decoration: none;
+  font-size: 13.5px;
+  font-weight: 500;
+  transition: background 0.12s, color 0.12s;
+}
+.gx-nav-link i { font-size: 15px; width: 18px; text-align: center; }
+.gx-nav-link:hover { background: rgba(255, 255, 255, 0.05); color: #e2e8f0; }
+.gx-nav-link.active { background: var(--gx-primary); color: #fff; font-weight: 600; }
+
+/* ── Topbar ── */
+.gx-topbar {
+  background: #fff;
+  border-bottom: 1px solid var(--gx-card-border);
+  padding: 12px 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+.gx-topbar .title { font-size: 15px; font-weight: 700; }
+.gx-admin-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: #f8fafc;
+  border: 1px solid var(--gx-card-border);
+  border-radius: 999px;
+  padding: 5px 12px 5px 6px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--gx-text);
+}
+.gx-admin-chip .avatar {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--gx-primary);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+/* ── Page container ── */
+.gx-page { padding: 24px; max-width: 1400px; }
+.gx-page-title { font-size: 20px; font-weight: 800; margin-bottom: 2px; }
+.gx-page-sub { color: var(--gx-text-muted); font-size: 13px; margin-bottom: 18px; }
+
+/* ── Stat cards (dashboard) ── */
+.gx-stat {
+  background: #fff;
+  border: 1px solid var(--gx-card-border);
+  border-radius: var(--gx-radius);
+  padding: 16px 18px;
+}
+.gx-stat .label {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--gx-text-muted);
+}
+.gx-stat .value { font-size: 26px; font-weight: 800; margin-top: 2px; }
+
+/* ── Empty state ── */
+.gx-empty {
+  text-align: center;
+  color: var(--gx-text-muted);
+  padding: 40px 16px;
+  font-size: 13.5px;
+}
+.gx-empty i { font-size: 28px; display: block; margin-bottom: 8px; color: #cbd5e1; }
+
+/* ── Doc thumbnails (verification/business review) ── */
+.gx-doc-thumb {
+  width: 84px;
+  height: 64px;
+  object-fit: cover;
+  border-radius: 8px;
+  border: 1px solid var(--gx-card-border);
+  cursor: pointer;
+  transition: transform 0.12s;
+}
+.gx-doc-thumb:hover { transform: scale(1.04); }

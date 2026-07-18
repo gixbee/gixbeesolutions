@@ -1,9 +1,19 @@
 import { Controller, Post, Get, Patch, Param, Body, Query, UseGuards, Req, NotFoundException } from '@nestjs/common';
 import { BookingsService } from './bookings.service';
-import { BookingStatus, BookingType } from './booking.entity';
+import { BookingStatus } from './booking.entity';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { AdminGuard } from '../auth/admin.guard';
 import { NotificationsService } from '../notifications/notifications.service';
 import { RedisService } from '../redis/redis.service';
+import { CreateBookingDto, CreateInstantRequestDto } from './dto/create-booking.dto';
+import {
+  UpdateBookingStatusDto,
+  CancelBookingDto,
+  ConfirmOtpDto,
+  SubmitRatingDto,
+  ReportDisputeDto,
+  ResolveDisputeDto,
+} from './dto/booking-actions.dto';
 
 @Controller('bookings')
 @UseGuards(JwtAuthGuard)
@@ -15,18 +25,7 @@ export class BookingsController {
   ) {}
 
   @Post()
-  async create(@Req() req, @Body() body: {
-    workerId: string;
-    skill: string;
-    serviceLocation: string;
-    serviceLat: number;
-    serviceLng: number;
-    onSiteContact?: { name: string; relation: string; phone: string };
-    scheduledAt: string;
-    amount: number;
-    type: BookingType;
-    paymentMethod?: string;
-  }) {
+  async create(@Req() req, @Body() body: CreateBookingDto) {
     return this.bookingsService.createBooking({
       customer: { id: req.user.userId } as any,
       operator: { id: body.workerId } as any,
@@ -38,8 +37,69 @@ export class BookingsController {
       scheduledAt: new Date(body.scheduledAt),
       amount: body.amount,
       type: body.type,
+      addressId: body.addressId,
       paymentMethod: body.paymentMethod || 'WALLET',
     });
+  }
+
+  // v126 broadcast dispatch: no worker chosen — all nearby live pros with the
+  // skill are notified, first accept wins. Returns { booking, notified } so
+  // the app can go straight to the no-workers screen when notified === 0.
+  @Post('instant')
+  async createInstantRequest(@Req() req, @Body() body: CreateInstantRequestDto) {
+    return this.bookingsService.createBroadcastBooking(req.user.userId, {
+      skill: body.skill,
+      serviceLocation: body.serviceLocation,
+      serviceLat: body.serviceLat,
+      serviceLng: body.serviceLng,
+      amount: body.amount,
+      description: body.description,
+      preferredLanguages: body.preferredLanguages,
+      addressId: body.addressId,
+      paymentMethod: body.paymentMethod,
+      onSiteContact: body.onSiteContact,
+    });
+  }
+
+  // ── Admin: portal monitor + disputes (AdminGuard) ─────────────────────────
+
+  @Get('admin/all')
+  @UseGuards(AdminGuard)
+  async adminListBookings(
+    @Query('status') status?: string,
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+  ) {
+    return this.bookingsService.adminListBookings(
+      status || undefined,
+      parseInt(page || '1') || 1,
+      parseInt(limit || '50') || 50,
+    );
+  }
+
+  @Get('admin/disputes')
+  @UseGuards(AdminGuard)
+  async adminDisputes(
+    @Query('open') open?: string,
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+  ) {
+    const pageNum = parseInt(page || '1') || 1;
+    const limitNum = Math.min(100, parseInt(limit || '50') || 50);
+    return this.bookingsService.getDisputes(
+      open === 'true',
+      pageNum,
+      limitNum,
+    );
+  }
+
+  @Patch('admin/disputes/:id/resolve')
+  @UseGuards(AdminGuard)
+  async adminResolveDispute(
+    @Param('id') id: string,
+    @Body() body: ResolveDisputeDto,
+  ) {
+    return this.bookingsService.resolveDispute(id, body.resolution);
   }
 
   @Get('my')
@@ -51,9 +111,12 @@ export class BookingsController {
   ) {
     const pageNum = parseInt(page || '1') || 1;
     const limitNum = parseInt(limit || '50') || 50;
-    const customerBookings = await this.bookingsService.findAllByUser(req.user.userId, 'customer', status, pageNum, limitNum);
-    const operatorBookings = await this.bookingsService.findAllByUser(req.user.userId, 'operator', status, pageNum, limitNum);
-    return [...customerBookings, ...operatorBookings];
+    return this.bookingsService.findMyBookings(
+      req.user.userId,
+      status,
+      pageNum,
+      limitNum,
+    );
   }
 
   // Worker polls this to discover incoming job requests (FCM fallback)
@@ -63,29 +126,41 @@ export class BookingsController {
   }
 
   @Patch(':id/status')
-  async updateStatus(@Param('id') id: string, @Body() body: { status: BookingStatus }) {
+  async updateStatus(@Param('id') id: string, @Req() req, @Body() body: UpdateBookingStatusDto) {
+    // SECURITY FIX: was unscoped — anyone could set any booking to COMPLETED.
+    await this.bookingsService.assertParticipant(id, req.user.userId);
     return this.bookingsService.updateStatus(id, body.status);
+  }
+
+  // Customer cancellation with reason + wallet refund
+  @Patch(':id/cancel')
+  async cancel(@Param('id') id: string, @Req() req, @Body() body: CancelBookingDto) {
+    await this.bookingsService.assertParticipant(id, req.user.userId);
+    return this.bookingsService.cancelBooking(id, body?.reason ?? 'Not specified');
   }
 
   // ─── OTP GATES ──────────────────────────────────────────
 
   @Post(':id/arrival')
-  async confirmArrival(@Param('id') id: string, @Body() body: { otp: string }) {
+  async confirmArrival(@Param('id') id: string, @Body() body: ConfirmOtpDto) {
     return this.bookingsService.verifyArrivalOtp(id, body.otp);
   }
 
   @Post(':id/completion')
-  async confirmCompletion(@Param('id') id: string, @Body() body: { otp: string }) {
+  async confirmCompletion(@Param('id') id: string, @Body() body: ConfirmOtpDto) {
     return this.bookingsService.verifyCompletionOtp(id, body.otp);
   }
 
   @Patch(':id/refresh-completion-otp')
-  async refreshCompletionOtp(@Param('id') id: string) {
+  async refreshCompletionOtp(@Param('id') id: string, @Req() req) {
+    // OTP recipient is the customer — only participants may trigger a resend.
+    await this.bookingsService.assertParticipant(id, req.user.userId);
     return this.bookingsService.refreshCompletionOtp(id);
   }
 
   @Patch(':id/confirm')
-  async confirmBooking(@Param('id') id: string) {
+  async confirmBooking(@Param('id') id: string, @Req() req) {
+    await this.bookingsService.assertParticipant(id, req.user.userId);
     return this.bookingsService.updateStatus(id, BookingStatus.ACCEPTED);
   }
 
@@ -122,29 +197,49 @@ export class BookingsController {
   }
 
   @Get(':id')
-  async getBooking(@Param('id') id: string) {
+  async getBooking(@Param('id') id: string, @Req() req) {
     const booking = await this.bookingsService.getBookingById(id);
     if (!booking) throw new NotFoundException('Booking not found');
+    // SECURITY FIX: only participants may read a booking. Previously ANY
+    // logged-in user could read customer PII, the service address AND the
+    // arrival/completion OTPs — reading the OTP straight out of this response
+    // defeated the arrival/completion gates entirely.
+    const isParticipant =
+      booking.customer?.id === req.user.userId ||
+      booking.operator?.id === req.user.userId;
+    if (!isParticipant) throw new NotFoundException('Booking not found');
     return booking;
   }
 
-  // Get booking status (for polling) — reads from Redis, zero DB cost
+  // Get booking status (for polling). SECURITY FIX: this used to be
+  // unscoped and returned the arrivalOtp to anyone — reading it here defeated
+  // the arrival gate. Now: participant-only, and the arrivalOtp is ONLY
+  // returned to the customer (who displays it for the worker to enter).
   @Get(':id/status')
-  async getBookingStatus(@Param('id') id: string) {
-    // Try Redis first (sub-millisecond response)
-    const cached = await this.redisService.getCachedBookingStatus(id);
-    if (cached) return cached;
+  async getBookingStatus(@Param('id') id: string, @Req() req) {
+    const uid = req.user.userId;
 
-    // Cache miss — fall back to DB and populate cache
+    // One indexed lookup resolves both identity and the fresh values; the
+    // Redis cache still absorbs the heavy relation reads elsewhere.
     const booking = await this.bookingsService.getBookingById(id);
     if (!booking) throw new NotFoundException('Booking not found');
-    const statusData = {
+    const isCustomer = booking.customer?.id === uid;
+    const isOperator = booking.operator?.id === uid;
+    if (!isCustomer && !isOperator) throw new NotFoundException('Booking not found');
+
+    return {
       status: booking.status,
       operatorName: booking.operator?.name,
-      arrivalOtp: booking.status === BookingStatus.ACCEPTED ? booking.arrivalOtp : null,
+      operatorId: booking.operator?.id,
+      // OTP visible to the customer only.
+      arrivalOtp:
+        isCustomer && booking.status === BookingStatus.ACCEPTED
+          ? booking.arrivalOtp
+          : null,
+      pauseRequested: !!booking.pauseRequestedAt,
+      paused: !!booking.pausedAt,
+      pausedMinutes: booking.pausedMinutes ?? 0,
     };
-    await this.redisService.cacheBookingStatus(id, statusData);
-    return statusData;
   }
 
   // DEFECT-012 FIX: Send arrival OTP to customer via FCM push
@@ -184,17 +279,48 @@ export class BookingsController {
   }
 
   @Patch(':id/mark-paid')
-  async markPaid(@Param('id') id: string) {
-    return this.bookingsService.markPaid(id);
+  async markPaid(@Param('id') id: string, @Req() req) {
+    return this.bookingsService.markPaid(id, req.user.userId);
   }
 
   @Post(':id/rating')
-  async submitRating(@Param('id') id: string, @Body() body: { rating: number }) {
+  async submitRating(@Param('id') id: string, @Body() body: SubmitRatingDto) {
     return this.bookingsService.submitRating(id, body.rating);
   }
 
+  // v126 parity: worker rates the customer after completion.
+  @Post(':id/rate-customer')
+  async rateCustomer(@Param('id') id: string, @Req() req, @Body() body: SubmitRatingDto) {
+    return this.bookingsService.rateCustomer(id, req.user.userId, body.rating);
+  }
+
+  // ── Pause / resume (v126 Instant Help). Worker asks → customer approves or
+  // declines → worker resumes. Status stays ACTIVE; pollers see the pause
+  // state via the Redis status payload.
+  @Patch(':id/pause-request')
+  async requestPause(@Param('id') id: string, @Req() req) {
+    return this.bookingsService.requestPause(id, req.user.userId);
+  }
+
+  @Patch(':id/pause-approve')
+  async approvePause(@Param('id') id: string, @Req() req) {
+    return this.bookingsService.respondPause(id, req.user.userId, true);
+  }
+
+  @Patch(':id/pause-decline')
+  async declinePause(@Param('id') id: string, @Req() req) {
+    return this.bookingsService.respondPause(id, req.user.userId, false);
+  }
+
+  @Patch(':id/resume')
+  async resumeWork(@Param('id') id: string, @Req() req) {
+    return this.bookingsService.resumeWork(id, req.user.userId);
+  }
+
+  // Persisted now (was log-only): stored on the booking with reporter role
+  // + timestamp so support/admin can review.
   @Post(':id/dispute')
-  async reportDispute(@Param('id') id: string, @Body() body: { reason: string }) {
-    return { success: true, message: `Dispute logged: ${body.reason}` };
+  async reportDispute(@Param('id') id: string, @Req() req, @Body() body: ReportDisputeDto) {
+    return this.bookingsService.reportDispute(id, req.user.userId, body.reason);
   }
 }

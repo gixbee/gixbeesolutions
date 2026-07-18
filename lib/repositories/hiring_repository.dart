@@ -31,10 +31,16 @@ class HiringRepository {
   }
 
   // Talent methods
-  Future<void> applyToJob(String jobId, {String? coverLetter}) async {
+  Future<void> applyToJob(String jobId,
+      {String? coverLetter, String? resumeUrl}) async {
     await _dio.post('/hiring/jobs/$jobId/apply', data: {
       'coverLetter': coverLetter,
+      if (resumeUrl != null) 'resumeUrl': resumeUrl,
     });
+  }
+
+  Future<void> withdrawApplication(String applicationId) async {
+    await _dio.post('/hiring/applications/$applicationId/withdraw');
   }
 
   Future<List<JobApplication>> getMyApplications() async {
@@ -53,8 +59,16 @@ class HiringRepository {
   }
 
   Future<List<JobPost>> getMatchingJobs() async {
-    final res = await _dio.get('/hiring/jobs'); // For now, get all jobs
-    return (res.data as List).map((json) => JobPost.fromJson(json)).toList();
+    // Preference-matched feed: the server scores jobs against the seeker's
+    // profile (preferred roles / skills / expected salary) and sorts matches
+    // first. Falls back to the plain public list if the matched route fails.
+    try {
+      final res = await _dio.get('/hiring/jobs/matched');
+      return (res.data as List).map((json) => JobPost.fromJson(json)).toList();
+    } catch (_) {
+      final res = await _dio.get('/hiring/jobs');
+      return (res.data as List).map((json) => JobPost.fromJson(json)).toList();
+    }
   }
 
   Future<void> toggleJobAlerts(bool enabled) async {

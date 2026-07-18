@@ -33,7 +33,20 @@ import { BusinessesModule } from './businesses/businesses.module';
 import { TalentModule } from './talent/talent.module';
 import { MasterEntriesModule } from './master-entries/master-entries.module';
 import { MasterEntry } from './master-entries/master-entry.entity';
+import { MessagesModule } from './messages/messages.module';
+import { Message } from './messages/message.entity';
+import { PaymentsModule } from './payments/payments.module';
+import { FavouritesModule } from './favourites/favourites.module';
+import { Favourite } from './favourites/favourite.entity';
+import { AddressesModule } from './addresses/addresses.module';
+import { Address } from './addresses/address.entity';
+import { CitiesModule } from './cities/cities.module';
+import { City } from './cities/city.entity';
+import { SupportModule } from './support/support.module';
+import { SupportTicket } from './support/support-ticket.entity';
+import { AdminStaff } from './admin-staff/admin-staff.entity';
 import { UploadController } from './uploads/upload.controller';
+import { AdminStaffModule } from './admin-staff/admin-staff.module';
 
 @Module({
   imports: [
@@ -57,6 +70,7 @@ import { UploadController } from './uploads/upload.controller';
             User, Booking, WalletTransaction, WorkerProfile,
             RentalItem, RentalReservation, JobPost, JobApplication,
             Business, TalentProfile, ProfessionalSkill, MasterEntry,
+            Message, Favourite, Address, City, SupportTicket, AdminStaff,
           ],
           synchronize: !isProduction,   // auto-sync only in development
           migrations: [__dirname + '/migrations/**/*{.ts,.js}'],
@@ -124,6 +138,13 @@ import { UploadController } from './uploads/upload.controller';
     BusinessesModule,
     TalentModule,
     MasterEntriesModule,
+    MessagesModule,
+    PaymentsModule,
+    FavouritesModule,
+    AddressesModule,
+    CitiesModule,
+    SupportModule,
+    AdminStaffModule,
 
     // Serve uploaded files as static assets
     ServeStaticModule.forRoot({

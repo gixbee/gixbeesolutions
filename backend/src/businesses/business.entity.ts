@@ -21,8 +21,20 @@ export class Business {
   @Column()
   location: string;
 
+  // Structured location scope: City.id from the cities master (nullable —
+  // legacy rows and listings created before a city was chosen have null).
+  // `location` above stays as the free-text display string; cityId is what
+  // filtering uses (OLX-style city scoping).
+  @Column({ type: 'uuid', nullable: true })
+  cityId: string | null;
+
   @Column({ type: 'text', nullable: true })
   description: string;
+
+  // Optional registration / tax-ID document image uploaded during listing
+  // (POST /uploads/image → URL). Persisted so admin review can see it.
+  @Column({ type: 'text', nullable: true })
+  documentUrl: string;
 
   @Column({ type: 'enum', enum: ['PENDING', 'VERIFIED', 'REJECTED'], default: 'PENDING' })
   status: string;

@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import '../../shared/widgets/gx_button.dart';
+import '../../theme.dart';
+import '../booking/instant_request_screen.dart';
 
 class WorkerReelsScreen extends StatefulWidget {
   final String name;
@@ -24,10 +27,19 @@ class _WorkerReelsScreenState extends State<WorkerReelsScreen> {
       body: Stack(
         fit: StackFit.expand,
         children: [
-          // Background Image (Full Screen)
+          // Background Image (Full Screen) — cacheWidth caps decode size
           Image.network(
             widget.image,
             fit: BoxFit.cover,
+            cacheWidth: (MediaQuery.sizeOf(context).width *
+                    MediaQuery.devicePixelRatioOf(context))
+                .round()
+                .clamp(1, 2048),
+            errorBuilder: (_, __, ___) => Container(
+              color: Colors.black87,
+              alignment: Alignment.center,
+              child: Icon(Icons.person, color: context.gx.onAccent, size: 72),
+            ),
           ),
 
           // Gradient Overlay
@@ -56,7 +68,7 @@ class _WorkerReelsScreenState extends State<WorkerReelsScreen> {
                   child: Container(
                     height: 2,
                     decoration: BoxDecoration(
-                      color: Colors.white,
+                      color: context.gx.onAccent,
                       borderRadius: BorderRadius.circular(2),
                     ),
                   ),
@@ -66,7 +78,7 @@ class _WorkerReelsScreenState extends State<WorkerReelsScreen> {
                   child: Container(
                     height: 2,
                     decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.3),
+                      color: context.gx.onAccent.withValues(alpha: 0.3),
                       borderRadius: BorderRadius.circular(2),
                     ),
                   ),
@@ -92,8 +104,8 @@ class _WorkerReelsScreenState extends State<WorkerReelsScreen> {
                     const SizedBox(width: 10),
                     Text(
                       widget.name,
-                      style: const TextStyle(
-                        color: Colors.white,
+                      style: TextStyle(
+                        color: context.gx.onAccent,
                         fontWeight: FontWeight.bold,
                         fontSize: 16,
                       ),
@@ -103,25 +115,36 @@ class _WorkerReelsScreenState extends State<WorkerReelsScreen> {
                       padding: const EdgeInsets.symmetric(
                           horizontal: 8, vertical: 2),
                       decoration: BoxDecoration(
-                        border: Border.all(color: Colors.white),
+                        border: Border.all(color: context.gx.onAccent),
                         borderRadius: BorderRadius.circular(4),
                       ),
-                      child: const Text('Follow',
-                          style: TextStyle(color: Colors.white, fontSize: 10)),
+                      child: Text('Follow',
+                          style: TextStyle(color: context.gx.onAccent, fontSize: 10)),
                     ),
                   ],
                 ),
                 const SizedBox(height: 16),
                 Text(
                   'Hi! I am specialized in ${widget.role}. Check out my recent work portfolio below 👇 #gixbee #${widget.role.toLowerCase()}',
-                  style: const TextStyle(color: Colors.white),
+                  style: TextStyle(color: context.gx.onAccent),
                 ),
                 const SizedBox(height: 16),
                 Row(
                   children: [
-                    ElevatedButton(
-                      onPressed: () {},
-                      child: const Text('Book Now'),
+                    GxButton(
+                      label: 'Book Now',
+                      expand: false,
+                      height: 44,
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => InstantRequestScreen(
+                              skill: widget.role,
+                            ),
+                          ),
+                        );
+                      },
                     ),
                   ],
                 ),
@@ -134,7 +157,7 @@ class _WorkerReelsScreenState extends State<WorkerReelsScreen> {
             top: 60,
             right: 20,
             child: IconButton(
-              icon: const Icon(Icons.close, color: Colors.white),
+              icon: Icon(Icons.close, color: context.gx.onAccent),
               onPressed: () => Navigator.pop(context),
             ),
           ),
@@ -169,9 +192,9 @@ class _ReelAction extends StatelessWidget {
   Widget build(BuildContext context) {
     return Column(
       children: [
-        Icon(icon, color: Colors.white, size: 30),
+        Icon(icon, color: context.gx.onAccent, size: 30),
         const SizedBox(height: 4),
-        Text(label, style: const TextStyle(color: Colors.white, fontSize: 12)),
+        Text(label, style: TextStyle(color: context.gx.onAccent, fontSize: 12)),
       ],
     );
   }

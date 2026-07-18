@@ -43,4 +43,32 @@ class TalentRepository {
   Future<void> toggleAlerts(bool enabled) async {
     await _dio.patch('/talent/alerts', data: {'enabled': enabled});
   }
+
+  /// "Later" bookmark in the job-alerts feed (v126 Find a Job). Toggles the
+  /// job id in the profile's savedJobIds; backend returns the updated list.
+  Future<void> toggleSavedJob(String jobId) async {
+    await _dio.post('/talent/saved-jobs/toggle', data: {'jobId': jobId});
+  }
+
+  /// DigiLocker verification readiness (Phase 5 — credential-blocked stub).
+  /// Mirrors the UPI gateway-status read: the Register-as-Pro "Verify" sheet
+  /// uses this to render live vs. "setup pending" without hard-coding the
+  /// state. Returns the backend payload
+  /// ({provider, available, needsApiKey, verified, message}); never reports a
+  /// fake verified result.
+  Future<Map<String, dynamic>> getVerificationStatus() async {
+    final response = await _dio.get('/talent/verification/status');
+    return Map<String, dynamic>.from(response.data as Map);
+  }
+
+  /// Uploads image bytes to the backend and returns the stored URL
+  /// (e.g. "/uploads/1234.jpg"). Uses MultipartFile.fromBytes so it works
+  /// identically on web and mobile (fromFile is not supported on web).
+  Future<String> uploadImage(List<int> bytes, String filename) async {
+    final form = FormData.fromMap({
+      'file': MultipartFile.fromBytes(bytes, filename: filename),
+    });
+    final response = await _dio.post('/uploads/image', data: form);
+    return response.data['url'] as String;
+  }
 }

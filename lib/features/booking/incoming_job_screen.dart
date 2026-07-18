@@ -5,6 +5,9 @@ import '../../core/config/app_config.dart';
 import '../../repositories/booking_repository.dart';
 import '../../repositories/auth_repository.dart';
 import '../../services/socket_service.dart';
+import '../../theme.dart';
+import '../../shared/widgets/gx_snackbar.dart';
+import '../../shared/widgets/gx_pressable.dart';
 
 /// Shown as a full-screen modal when the worker receives job requests.
 /// Handles a QUEUE of multiple simultaneous requests from different customers.
@@ -97,7 +100,9 @@ class _IncomingJobScreenState extends ConsumerState<IncomingJobScreen> {
           }
         }
       });
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('[IncomingJob] Poll merge failed: $e');
+    }
   }
 
   // ── Accept ────────────────────────────────────────────────────────────────
@@ -121,25 +126,37 @@ class _IncomingJobScreenState extends ConsumerState<IncomingJobScreen> {
       if (user != null) {
         ref.read(socketServiceProvider).startLocationStream(user.id, bookingId);
       }
+      if (!mounted) return; // re-check: awaited currentUserProvider above
 
       // Backend auto-cancels all other pending bookings for this worker
       Navigator.pop(context, {'accepted': true, 'bookingId': bookingId});
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('✅ Job Accepted! Head to the customer location.'),
-          backgroundColor: Colors.green,
-          duration: Duration(seconds: 4),
-        ),
+      showGxSnack(
+        context,
+        'Job Accepted! Head to the customer location.',
+        type: GxSnackType.success,
+        duration: const Duration(seconds: 4),
       );
     } catch (e) {
       if (!mounted) return;
       setState(() => _isProcessing = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Failed to accept: $e'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      // Broadcast race lost (v126 first-accept-wins): another pro claimed it
+      // first. Drop this card from the queue instead of showing a raw error.
+      final msg = e.toString();
+      if (msg.contains('no longer available') || msg.contains('already taken')) {
+        showGxSnack(context, 'Too late — another pro accepted this job.',
+            type: GxSnackType.info);
+        setState(() {
+          _requests.removeAt(_currentIndex);
+          if (_currentIndex >= _requests.length) _currentIndex = 0;
+        });
+        if (_requests.isEmpty) {
+          Navigator.pop(context, {'accepted': false});
+          return;
+        }
+        _startTimer();
+        return;
+      }
+      showGxSnack(context, 'Failed to accept: $e', type: GxSnackType.error);
       _startTimer();
     }
   }
@@ -168,12 +185,20 @@ class _IncomingJobScreenState extends ConsumerState<IncomingJobScreen> {
       if (bookingId != null) {
         await ref.read(bookingRepositoryProvider).rejectBooking(bookingId);
       }
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('[IncomingJob] Auto-decline failed: $e');
+    }
     _removeCurrentAndAdvance(isTimeout: true);
   }
 
   void _removeCurrentAndAdvance({bool isTimeout = false}) {
     if (!mounted) return;
+    // Capture the name of the request being removed BEFORE removeAt — after the
+    // removal `_requests[_currentIndex]` points at the *next* request, so reading
+    // it for the timeout message would name the wrong customer.
+    final timedOutName = (_currentIndex >= 0 && _currentIndex < _requests.length)
+        ? (_requests[_currentIndex]['customer_name'] as String? ?? 'customer')
+        : 'customer';
     setState(() {
       _requests.removeAt(_currentIndex);
       _isProcessing = false;
@@ -193,13 +218,10 @@ class _IncomingJobScreenState extends ConsumerState<IncomingJobScreen> {
       _resetTimerForNewRequest();
 
       if (isTimeout) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              '⏱ Request from ${_requests[_currentIndex]['customer_name'] ?? 'customer'} timed out. Moving to next.',
-            ),
-            duration: const Duration(seconds: 2),
-          ),
+        showGxSnack(
+          context,
+          'Request from $timedOutName timed out. Moving to next.',
+          duration: const Duration(seconds: 2),
         );
       }
     });
@@ -250,6 +272,7 @@ class _IncomingJobScreenState extends ConsumerState<IncomingJobScreen> {
                 children: [
                   // Close
                   IconButton(
+                    tooltip: 'Dismiss request',
                     icon: const Icon(Icons.close),
                     onPressed: _isProcessing
                         ? null
@@ -329,12 +352,12 @@ class _IncomingJobScreenState extends ConsumerState<IncomingJobScreen> {
                             horizontal: 14, vertical: 8),
                         decoration: BoxDecoration(
                           color: isActive
-                              ? colorScheme.primary
+                              ? context.gx.accent
                               : colorScheme.surfaceContainerHighest,
                           borderRadius: BorderRadius.circular(20),
                           border: Border.all(
                             color: isActive
-                                ? colorScheme.primary
+                                ? context.gx.accent
                                 : colorScheme.outlineVariant,
                           ),
                         ),
@@ -358,7 +381,15 @@ class _IncomingJobScreenState extends ConsumerState<IncomingJobScreen> {
             const Spacer(),
 
             // ── Countdown ring ──────────────────────────────────────────────
-            Stack(
+            // Single coherent a11y label for the countdown — without this a
+            // screen reader reads the ring's two visual Text nodes as the
+            // disjoint "36" then "seconds", plus the progress indicator's raw
+            // percentage. ExcludeSemantics suppresses those noisy inner nodes.
+            Semantics(
+              label:
+                  '$_secondsRemaining seconds remaining to respond to this request',
+              child: ExcludeSemantics(
+                child: Stack(
               alignment: Alignment.center,
               children: [
                 SizedBox(
@@ -392,6 +423,8 @@ class _IncomingJobScreenState extends ConsumerState<IncomingJobScreen> {
                   ],
                 ),
               ],
+                ),
+              ),
             ),
 
             const SizedBox(height: 32),
@@ -429,6 +462,31 @@ class _IncomingJobScreenState extends ConsumerState<IncomingJobScreen> {
                     value: '₹${amount.toStringAsFixed(0)}',
                     color: Colors.green,
                   ),
+                  // Uber-style broadcast requests carry the customer's issue
+                  // description — show it so the pro can decide before accepting.
+                  if ((current['description'] as String?)?.isNotEmpty ??
+                      false) ...[
+                    const SizedBox(height: 12),
+                    _DetailCard(
+                      icon: Icons.description_outlined,
+                      label: 'Issue',
+                      value: current['description'] as String,
+                      color: context.gx.accentSoft,
+                    ),
+                  ],
+                  // v126 language step: the customer's required languages.
+                  if ((current['preferredLanguages'] as List?)?.isNotEmpty ??
+                      false) ...[
+                    const SizedBox(height: 12),
+                    _DetailCard(
+                      icon: Icons.translate_rounded,
+                      label: 'Customer speaks',
+                      value: (current['preferredLanguages'] as List)
+                          .map((e) => e.toString())
+                          .join(' · '),
+                      color: GixbeeTheme.accentTeal,
+                    ),
+                  ],
                   if (totalRequests > 1) ...[
                     const SizedBox(height: 12),
                     _DetailCard(
@@ -451,49 +509,61 @@ class _IncomingJobScreenState extends ConsumerState<IncomingJobScreen> {
                   const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
               child: Row(
                 children: [
-                  // Decline button
+                  // Decline button (semantic red — v106 press-scale)
                   Expanded(
-                    child: OutlinedButton(
-                      onPressed: _isProcessing ? null : _declineCurrent,
-                      style: OutlinedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                        side: const BorderSide(color: Colors.red),
-                        foregroundColor: Colors.red,
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(14)),
-                      ),
-                      child: Text(
-                        totalRequests > 1 ? 'Skip' : 'Decline',
-                        style: const TextStyle(
-                            fontWeight: FontWeight.bold, fontSize: 15),
+                    child: GxPressable(
+                      onTap: _isProcessing ? null : _declineCurrent,
+                      child: Opacity(
+                        opacity: _isProcessing ? 0.5 : 1,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          alignment: Alignment.center,
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(color: Colors.red),
+                          ),
+                          child: Text(
+                            totalRequests > 1 ? 'Skip' : 'Decline',
+                            style: const TextStyle(
+                                color: Colors.red,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 15),
+                          ),
+                        ),
                       ),
                     ),
                   ),
                   const SizedBox(width: 16),
-                  // Accept button
+                  // Accept button (semantic green — v106 press-scale)
                   Expanded(
                     flex: 2,
-                    child: FilledButton(
-                      onPressed: _isProcessing ? null : _accept,
-                      style: FilledButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                        backgroundColor: Colors.green,
-                        foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(14)),
+                    child: GxPressable(
+                      onTap: _isProcessing ? null : _accept,
+                      child: Opacity(
+                        opacity: _isProcessing ? 0.7 : 1,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          alignment: Alignment.center,
+                          decoration: BoxDecoration(
+                            color: Colors.green,
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                          child: _isProcessing
+                              ? const SizedBox(
+                                  height: 22,
+                                  width: 22,
+                                  child: CircularProgressIndicator(
+                                      color: Colors.white, strokeWidth: 2.5),
+                                )
+                              : const Text(
+                                  'Accept Job',
+                                  style: TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 17,
+                                      fontWeight: FontWeight.bold),
+                                ),
+                        ),
                       ),
-                      child: _isProcessing
-                          ? const SizedBox(
-                              height: 22,
-                              width: 22,
-                              child: CircularProgressIndicator(
-                                  color: Colors.white, strokeWidth: 2.5),
-                            )
-                          : const Text(
-                              'Accept Job',
-                              style: TextStyle(
-                                  fontSize: 17, fontWeight: FontWeight.bold),
-                            ),
                     ),
                   ),
                 ],

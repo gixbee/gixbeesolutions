@@ -1,8 +1,9 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, ILike } from 'typeorm';
 import { User, UserRole, UserApprovalStatus } from './user.entity';
 import { Booking } from '../bookings/booking.entity';
+import { Favourite } from '../favourites/favourite.entity';
 
 @Injectable()
 export class UsersService {
@@ -11,6 +12,8 @@ export class UsersService {
     private usersRepository: Repository<User>,
     @InjectRepository(Booking)
     private bookingsRepository: Repository<Booking>,
+    @InjectRepository(Favourite)
+    private favouritesRepository: Repository<Favourite>,
   ) {}
 
   async findById(id: string): Promise<User> {
@@ -30,10 +33,17 @@ export class UsersService {
         where: { customer: { id: userId } },
       });
 
+      // savedCount = how many workers this user has favourited. Sourced from the
+      // real `favourites` table (Pass 104 module) so the Profile "SAVED" stat
+      // reflects actual saves instead of the previous hardcoded 0.
+      const savedCount = await this.favouritesRepository.count({
+        where: { user: { id: userId } },
+      });
+
       return {
         bookingsCount,
         reviewsCount: 0,
-        savedCount: 0,
+        savedCount,
       };
     } catch {
       // Handle invalid UUID format or any DB errors gracefully
@@ -64,6 +74,29 @@ export class UsersService {
     return this.usersRepository.find({
       order: { createdAt: 'DESC' },
       relations: ['talentProfile', 'talentProfile.professionalSkills'],
+    });
+  }
+
+  /**
+   * Name/phone lookup so an operator (or any admin picker) can be found by a
+   * human-readable query instead of pasting a raw UUID into addOperator
+   * (P106 operator-picker foundation). Case-insensitive partial match on name
+   * OR phoneNumber. Returns a lean projection (no fcmToken/wallet/flags) and is
+   * capped (1..50) so an empty or pathological query can't dump the whole table.
+   * An empty/whitespace query short-circuits to [] with no DB hit.
+   */
+  async searchUsers(
+    query: string,
+    limit = 20,
+  ): Promise<Pick<User, 'id' | 'name' | 'phoneNumber' | 'role' | 'profileImageUrl'>[]> {
+    const q = (query || '').trim();
+    if (!q) return [];
+    const take = Math.min(Math.max(Math.trunc(limit) || 20, 1), 50);
+    return this.usersRepository.find({
+      where: [{ name: ILike(`%${q}%`) }, { phoneNumber: ILike(`%${q}%`) }],
+      select: ['id', 'name', 'phoneNumber', 'role', 'profileImageUrl'],
+      take,
+      order: { name: 'ASC' },
     });
   }
 

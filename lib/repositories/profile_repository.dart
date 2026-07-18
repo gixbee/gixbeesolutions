@@ -49,4 +49,16 @@ class ProfileRepository {
       rethrow;
     }
   }
+
+  /// Uploads an image to the shared `/uploads/image` endpoint and returns the
+  /// relative URL (e.g. `/uploads/123.jpg`). Mirrors
+  /// `TalentRepository.uploadImage` — same endpoint, no new dependency
+  /// (FormData/MultipartFile come from the already-imported dio package).
+  Future<String> uploadImage(List<int> bytes, String filename) async {
+    final form = FormData.fromMap({
+      'file': MultipartFile.fromBytes(bytes, filename: filename),
+    });
+    final response = await _dio.post('/uploads/image', data: form);
+    return response.data['url'] as String;
+  }
 }

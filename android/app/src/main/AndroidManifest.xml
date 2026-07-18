@@ -36,10 +36,10 @@
             </intent-filter>
         </activity>
         
-        <!-- Google Maps API Key —  replace with your actual key -->
-        <meta-data
-            android:name="com.google.android.geo.API_KEY"
-            android:value="AIzaSyB6POkXTMveS1m6NJNGxduXtc-_CwQ4Ty4" />
+        <!-- Maps: Ola Maps via maplibre_gl — no manifest key needed; the
+             Ola API key is passed at build time (dart-define OLA_MAPS_API_KEY).
+             NOTE: the old Google Maps key that lived here should be revoked
+             in Google Cloud Console — it shipped inside released APKs. -->
         <!-- Disable Impeller to prevent native crashes on some emulators -->
         <meta-data
             android:name="io.flutter.embedding.android.EnableImpeller"

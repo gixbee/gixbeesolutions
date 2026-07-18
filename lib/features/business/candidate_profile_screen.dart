@@ -1,6 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
+import '../../core/config/app_config.dart';
 import '../../shared/models/job_post.dart';
 import '../../shared/widgets/glass_container.dart';
+import '../../shared/widgets/gx_button.dart';
+import '../../shared/widgets/gx_pressable.dart';
+import '../../shared/widgets/gx_snackbar.dart';
+import '../../theme.dart';
+import '../messages/chat_thread_screen.dart';
 
 class CandidateProfileScreen extends StatelessWidget {
   final JobApplication application;
@@ -9,8 +16,6 @@ class CandidateProfileScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-
     return Scaffold(
       appBar: AppBar(
         title: const Text('Candidate Profile'),
@@ -23,12 +28,26 @@ class CandidateProfileScreen extends StatelessWidget {
             Center(
               child: Column(
                 children: [
-                  CircleAvatar(
-                    radius: 50,
-                    backgroundColor: colorScheme.primaryContainer,
-                    child: Text(
-                      application.applicantName != null ? application.applicantName![0] : 'U',
-                      style: TextStyle(fontSize: 40, color: colorScheme.onPrimaryContainer),
+                  Container(
+                    padding: const EdgeInsets.all(3),
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                        color: GixbeeTheme.accentBlue.withValues(alpha: 0.4),
+                        width: 2,
+                      ),
+                    ),
+                    child: CircleAvatar(
+                      radius: 50,
+                      backgroundColor: GixbeeTheme.accentBlue.withValues(alpha: 0.18),
+                      child: Text(
+                        application.applicantName != null ? application.applicantName![0] : 'U',
+                        style: const TextStyle(
+                          fontSize: 40,
+                          fontWeight: FontWeight.w800,
+                          color: GixbeeTheme.accentBlue,
+                        ),
+                      ),
                     ),
                   ),
                   const SizedBox(height: 16),
@@ -82,23 +101,93 @@ class CandidateProfileScreen extends StatelessWidget {
             Row(
               children: [
                 Expanded(
-                  child: OutlinedButton.icon(
-                    onPressed: () {},
-                    icon: const Icon(Icons.download),
-                    label: const Text('Resume'),
+                  child: GxButton(
+                    label: 'Resume',
+                    icon: Icons.download,
+                    onTap: () => _downloadResume(context),
+                    filled: false,
+                    accent: GixbeeTheme.accentBlue,
                   ),
                 ),
                 const SizedBox(width: 16),
                 Expanded(
-                  child: ElevatedButton.icon(
-                    onPressed: () {},
-                    icon: const Icon(Icons.chat_bubble_outline),
-                    label: const Text('Message'),
+                  child: GxPressable(
+                    onTap: () => _messageCandidate(context),
+                    child: Container(
+                      height: 54,
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(
+                          colors: [GixbeeTheme.accentBlue, Color(0xFF1D4ED8)],
+                        ),
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.chat_bubble_outline, color: context.gx.onAccent, size: 20),
+                          const SizedBox(width: 8),
+                          Text(
+                            'Message',
+                            style: TextStyle(
+                              color: context.gx.onAccent,
+                              fontWeight: FontWeight.w700,
+                              fontSize: 15,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
                   ),
                 ),
               ],
             ),
           ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _downloadResume(BuildContext context) async {
+    // Applicants can now attach a résumé at apply time (JobApplication.resumeUrl
+    // — an /uploads/... path). Open it in the OS viewer/browser when present;
+    // otherwise be honest rather than leaving a dead button.
+    final raw = application.resumeUrl;
+    if (raw == null || raw.isEmpty) {
+      showGxSnack(
+        context,
+        'No résumé on file — this candidate applied without uploading one.',
+        type: GxSnackType.info,
+      );
+      return;
+    }
+    // Uploads return a relative `/uploads/...` path; prefix the API base so the
+    // OS browser can resolve it (mirrors edit_profile._fullUrl).
+    final url = raw.startsWith('http') ? raw : '${AppConfig.baseUrl}$raw';
+    final uri = Uri.tryParse(url);
+    if (uri == null) {
+      showGxSnack(context, 'Résumé link looks invalid',
+          type: GxSnackType.error);
+      return;
+    }
+    final ok = await launchUrl(uri, mode: LaunchMode.externalApplication);
+    if (!ok && context.mounted) {
+      showGxSnack(context, 'Could not open the résumé',
+          type: GxSnackType.error);
+    }
+  }
+
+  void _messageCandidate(BuildContext context) {
+    if (application.applicantId.isEmpty) {
+      showGxSnack(context, 'Candidate contact unavailable');
+      return;
+    }
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => ChatThreadScreen(
+          otherUserId: application.applicantId,
+          otherUserName: application.applicantName ?? 'Candidate',
         ),
       ),
     );
@@ -142,6 +231,7 @@ class CandidateProfileScreen extends StatelessWidget {
       case ApplicationStatus.interview: return Colors.amber;
       case ApplicationStatus.selected: return Colors.green;
       case ApplicationStatus.rejected: return Colors.red;
+      case ApplicationStatus.withdrawn: return Colors.grey;
     }
   }
 }

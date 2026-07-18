@@ -3,12 +3,17 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'services/debug_log_service.dart';
+import 'services/location_bootstrap.dart';
 import 'core/config/app_strings.dart';
+import 'theme.dart';
 import 'features/home/home_screen.dart';
-import 'features/map/worker_directory_screen.dart';
+import 'features/home/active_booking_card.dart';
+import 'features/messages/messages_list_screen.dart';
 import 'features/profile/profile_screen.dart';
 import 'features/jobs/my_bookings_screen.dart';
 import 'features/booking/incoming_job_screen.dart';
+import 'features/worker/go_live_screen.dart';
+import 'repositories/worker_repository.dart';
 import 'repositories/auth_repository.dart';
 import 'repositories/booking_repository.dart';
 import 'services/auth_token_service.dart';
@@ -23,36 +28,78 @@ class MainWrapper extends ConsumerStatefulWidget {
   ConsumerState<MainWrapper> createState() => _MainWrapperState();
 }
 
-class _MainWrapperState extends ConsumerState<MainWrapper> {
+class _MainWrapperState extends ConsumerState<MainWrapper>
+    with WidgetsBindingObserver {
   int _currentIndex = 0;
   Timer? _pendingPollTimer;
+  StreamSubscription? _notifSub; // AUDIT FIX: was leaked (never cancelled)
+  bool _pollWasRunning = false;
 
   /// Tracks booking IDs already shown — prevents duplicate popups from
   /// FCM foreground + socket + HTTP poll all firing for the same booking.
   final Set<String> _shownBookingIds = {};
 
+  /// Body screens, indexed by [_currentIndex]. Go Live is NOT a body tab —
+  /// it is the center FAB that pushes [GoLiveScreen] as an overlay, matching
+  /// the mockup. Tab order: Home · Bookings · Messages · Profile.
   final List<Widget> _screens = [
     const HomeScreen(),
     const MyBookingsScreen(),
-    const WorkerDirectoryScreen(),
+    const MessagesListScreen(),
     const ProfileScreen(),
   ];
+
+  void _openGoLive() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const GoLiveScreen()),
+    );
+  }
 
   @override
   void initState() {
     super.initState();
+    // AUDIT FIX: observe app lifecycle so background time doesn't burn
+    // battery/data with the 5s pending-jobs poll.
+    WidgetsBinding.instance.addObserver(this);
     // Use addPostFrameCallback so ref is safe to use after first frame
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _initSocket();
       _initNotifications();
       _maybeStartWorkerPoll();
+      // Location chain: restore last pick, else GPS auto-detect + nearest
+      // serviceable city — so the home bar and city-scoped feeds are correct
+      // without the user opening the picker.
+      ensureLocationInitialized(ref);
     });
   }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _pendingPollTimer?.cancel();
+    _notifSub?.cancel();
     super.dispose();
+  }
+
+  /// Pause the pending-jobs poll while backgrounded; resume on return.
+  /// (The worker GPS stream is deliberately NOT paused — an en-route worker
+  /// must keep sharing location even with the phone pocketed.)
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+    if (state == AppLifecycleState.paused ||
+        state == AppLifecycleState.inactive) {
+      if (_pendingPollTimer?.isActive ?? false) {
+        _pollWasRunning = true;
+        _pendingPollTimer?.cancel();
+      }
+    } else if (state == AppLifecycleState.resumed) {
+      if (_pollWasRunning) {
+        _pollWasRunning = false;
+        _startPendingBookingPoll();
+      }
+    }
   }
 
   // ── Notification Initialization ─────────────────────────────────────────
@@ -129,7 +176,12 @@ class _MainWrapperState extends ConsumerState<MainWrapper> {
     final socketService = ref.read(socketServiceProvider);
     socketService.connect(token);
 
-    socketService.notifications.listen((data) {
+    // Join personal chat room so the server can push `new_message` events.
+    final user = await ref.read(currentUserProvider.future);
+    if (user != null) socketService.joinUserRoom(user.id);
+
+    _notifSub?.cancel();
+    _notifSub = socketService.notifications.listen((data) {
       final event = data['_event'] as String?;
       final id = data['id'] as String?;
 
@@ -227,40 +279,142 @@ class _MainWrapperState extends ConsumerState<MainWrapper> {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final isLive = ref.watch(workerLiveStateProvider);
+
     return Scaffold(
       backgroundColor: Colors.transparent,
       body: DribbbleBackground(
-        child: _screens[_currentIndex],
+        child: Stack(
+          children: [
+            _screens[_currentIndex],
+            // Gixbee 2026: Uber-style persistent activity pill — the active
+            // booking stays visible on every tab. Home (index 0) already
+            // renders ActiveBookingCard inline, so skip it there.
+            if (_currentIndex != 0)
+              const Positioned(
+                left: 0,
+                right: 0,
+                bottom: 4,
+                child: SafeArea(
+                  top: false,
+                  child: ActiveBookingCard(),
+                ),
+              ),
+          ],
+        ),
       ),
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: _currentIndex,
-        onDestinationSelected: (index) =>
-            setState(() => _currentIndex = index),
-        backgroundColor: Theme.of(context).colorScheme.surface,
-        indicatorColor:
-            Theme.of(context).colorScheme.primary.withValues(alpha: 0.2),
-        destinations: const [
-          NavigationDestination(
-            icon: Icon(Icons.home_outlined),
-            selectedIcon: Icon(Icons.home),
-            label: 'Home',
+      floatingActionButton: _GoLiveFab(isLive: isLive, onTap: _openGoLive),
+      floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
+      bottomNavigationBar: BottomAppBar(
+        height: 64,
+        color: scheme.surface,
+        shape: const CircularNotchedRectangle(),
+        notchMargin: 8,
+        padding: EdgeInsets.zero,
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceAround,
+          children: [
+            _navItem(scheme, index: 0, icon: Icons.home_outlined,
+                activeIcon: Icons.home, label: 'Home'),
+            _navItem(scheme, index: 1, icon: Icons.receipt_long_outlined,
+                activeIcon: Icons.receipt_long, label: 'Bookings'),
+            const SizedBox(width: 56), // gap for the center Go Live FAB
+            _navItem(scheme, index: 2, icon: Icons.chat_bubble_outline,
+                activeIcon: Icons.chat_bubble, label: 'Messages'),
+            _navItem(scheme, index: 3, icon: Icons.person_outline,
+                activeIcon: Icons.person, label: 'Profile'),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _navItem(
+    ColorScheme scheme, {
+    required int index,
+    required IconData icon,
+    required IconData activeIcon,
+    required String label,
+  }) {
+    final selected = _currentIndex == index;
+    // Shell accent: violet in Gixbee Dark, Grab green in light.
+    final color = selected ? context.gx.accent : scheme.onSurfaceVariant;
+    return Expanded(
+      child: Semantics(
+        button: true,
+        selected: selected,
+        label: label,
+        child: InkWell(
+        onTap: () => setState(() => _currentIndex = index),
+        borderRadius: BorderRadius.circular(12),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(selected ? activeIcon : icon, size: 22, color: color),
+            const SizedBox(height: 2),
+            Text(label,
+                style: TextStyle(
+                    fontSize: 9, fontWeight: FontWeight.w700, color: color)),
+          ],
+        ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Center bottom-nav action that launches the worker Go-Live engine.
+/// Turns green while the worker is live so the state is visible from any tab.
+class _GoLiveFab extends StatelessWidget {
+  final bool isLive;
+  final VoidCallback onTap;
+  const _GoLiveFab({required this.isLive, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final gx = context.gx;
+    // Live = functional green; idle FAB uses theme shell gradient.
+    return SizedBox(
+      width: 58,
+      height: 58,
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          gradient: isLive
+              ? const LinearGradient(
+                  colors: [Color(0xFF10B981), Color(0xFF059669)])
+              : LinearGradient(colors: gx.accentGradient),
+          boxShadow: [
+            BoxShadow(
+              color: (isLive ? const Color(0xFF10B981) : gx.accent)
+                  .withValues(alpha: 0.45),
+              blurRadius: 14,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Material(
+          color: Colors.transparent,
+          shape: const CircleBorder(),
+          child: InkWell(
+            customBorder: const CircleBorder(),
+            onTap: onTap,
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(isLive ? Icons.podcasts : Icons.bolt,
+                    color: gx.onAccent, size: 22),
+                Text('Go Live',
+                    style: TextStyle(
+                        color: gx.onAccent,
+                        fontSize: 7,
+                        fontWeight: FontWeight.w800)),
+              ],
+            ),
           ),
-          NavigationDestination(
-            icon: Icon(Icons.receipt_long_outlined),
-            selectedIcon: Icon(Icons.receipt_long),
-            label: 'Bookings',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.location_searching),
-            selectedIcon: Icon(Icons.my_location),
-            label: 'Nearby',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.person_outline),
-            selectedIcon: Icon(Icons.person),
-            label: 'Profile',
-          ),
-        ],
+        ),
       ),
     );
   }

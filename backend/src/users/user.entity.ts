@@ -1,4 +1,5 @@
 import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, OneToOne } from 'typeorm';
+import { Exclude } from 'class-transformer';
 import { TalentProfile } from '../talent/talent-profile.entity';
 
 export enum UserRole {
@@ -32,6 +33,12 @@ export class User {
   })
   role: UserRole;
 
+  // AUDIT FIX: private fields must never ride along when a User is embedded
+  // as a relation (booking.customer/operator, job.employer, rental.owner…).
+  // The global ClassSerializerInterceptor (main.ts) strips @Exclude'd fields
+  // from every entity response. Own wallet balance is served by the wallets
+  // endpoints; own profile is a hand-built object in auth.service (unaffected).
+  @Exclude()
   @Column({ type: 'decimal', precision: 10, scale: 2, default: 0 })
   walletBalance: number;
 
@@ -41,6 +48,7 @@ export class User {
   @Column({ nullable: true })
   profileImageUrl: string;
 
+  @Exclude()
   @Column({ nullable: true })
   fcmToken: string;
 

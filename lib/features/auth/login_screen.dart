@@ -1,12 +1,17 @@
-import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../shared/widgets/dribbble_background.dart';
-import '../../shared/widgets/glass_container.dart';
-import '../../repositories/auth_repository.dart';
+import 'package:google_fonts/google_fonts.dart';
+
 import '../../core/config/app_config.dart';
+import '../../repositories/auth_repository.dart';
+import '../../shared/widgets/gx_snackbar.dart';
+import '../../theme.dart';
+import 'auth_chrome.dart';
 import 'otp_screen.dart';
 
+/// Phone sign-in — standard layout: back, brand, title, phone field, CTA.
+/// Dark + brand-orange regardless of Profile → Appearance.
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
 
@@ -14,168 +19,223 @@ class LoginScreen extends ConsumerStatefulWidget {
   ConsumerState<LoginScreen> createState() => _LoginScreenState();
 }
 
-class _LoginScreenState extends ConsumerState<LoginScreen> {
+class _LoginScreenState extends ConsumerState<LoginScreen>
+    with SingleTickerProviderStateMixin {
   final TextEditingController _phoneController = TextEditingController();
   final FocusNode _focusNode = FocusNode();
+  late final AnimationController _enter;
   bool _isSending = false;
 
   @override
+  void initState() {
+    super.initState();
+    _enter = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 420),
+    )..forward();
+    _focusNode.addListener(() {
+      if (mounted) setState(() {});
+    });
+  }
+
+  @override
   void dispose() {
+    _enter.dispose();
     _phoneController.dispose();
     _focusNode.dispose();
     super.dispose();
   }
 
+  Future<void> _sendCode() async {
+    var phone = _phoneController.text.trim().replaceAll(RegExp(r'\s+'), '');
+    if (!phone.startsWith('+')) {
+      phone = '${AppConfig.defaultCountryCode}$phone';
+    }
+    if (phone.length < AppConfig.phoneMinLength) {
+      showGxSnack(context, 'Enter a valid 10-digit mobile number');
+      return;
+    }
+    setState(() => _isSending = true);
+    try {
+      final devOtp =
+          await ref.read(authRepositoryProvider).signInWithPhone(phone);
+      if (!mounted) return;
+
+      if (kDebugMode && devOtp != null) {
+        showGxSnack(
+          context,
+          'Dev OTP: $devOtp',
+          type: GxSnackType.success,
+          duration: const Duration(seconds: 6),
+        );
+      }
+
+      Navigator.push(
+        context,
+        PageRouteBuilder(
+          transitionDuration: const Duration(milliseconds: 300),
+          pageBuilder: (_, __, ___) => OtpScreen(
+            phone: phone,
+            initialOtp: kDebugMode ? devOtp : null,
+          ),
+          transitionsBuilder: (_, animation, __, child) => FadeTransition(
+            opacity: CurvedAnimation(parent: animation, curve: Curves.easeOut),
+            child: child,
+          ),
+        ),
+      );
+    } catch (e) {
+      if (mounted) {
+        showGxSnack(context, 'Could not send code. Try again.',
+            type: GxSnackType.error);
+      }
+    } finally {
+      if (mounted) setState(() => _isSending = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Theme.of(context).colorScheme.surface,
-      body: DribbbleBackground(
-        child: Stack(
-          children: [
-            SafeArea(
-              child: Padding(
-                padding: const EdgeInsets.all(24.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    const SizedBox(height: 48),
-                    Align(
-                      alignment: Alignment.centerLeft,
-                      child: IconButton(
-                        icon: const Icon(Icons.arrow_back_ios, color: Colors.white),
-                        onPressed: () => Navigator.pop(context),
-                      ),
+      backgroundColor: GixbeeTheme.background,
+      body: AuthBackdrop(
+        child: SafeArea(
+          child: AuthEntrance(
+            animation: _enter,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(24, 8, 24, 20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  const AuthBackButton(),
+                  const SizedBox(height: 28),
+                  const AuthWordmark(fontSize: 36),
+                  const SizedBox(height: 28),
+                  Text(
+                    'Sign in',
+                    style: GoogleFonts.outfit(
+                      fontSize: 28,
+                      fontWeight: FontWeight.w700,
+                      color: Colors.white,
                     ),
-                    const SizedBox(height: 32),
-                    Text(
-                      'Welcome Back',
-                      style: Theme.of(context).textTheme.displayMedium?.copyWith(
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
-                          ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'We’ll text you a one-time code. New numbers are registered automatically.',
+                    style: GoogleFonts.outfit(
+                      fontSize: 15,
+                      height: 1.4,
+                      color: Colors.white.withValues(alpha: 0.55),
                     ),
-                    const SizedBox(height: 8),
-                    Text(
-                      'Enter your phone number to continue',
-                      style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                            color: Colors.white.withValues(alpha: 0.6),
-                          ),
-                    ),
-                    const SizedBox(height: 48),
-                    GlassContainer(
-                      child: GestureDetector(
-                        onTap: () => _focusNode.requestFocus(),
-                        behavior: HitTestBehavior.opaque,
-                        child: TextField(
-                          controller: _phoneController,
-                          focusNode: _focusNode,
-                          autofocus: true,
-                          keyboardType: TextInputType.phone,
-                          style: const TextStyle(color: Colors.white, fontSize: 18),
-                          decoration: InputDecoration(
-                            hintText: '98765 43210',
-                            prefixText: '${AppConfig.defaultCountryCode} ',
-                            prefixStyle: TextStyle(
-                                color: Theme.of(context).colorScheme.primary,
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold),
-                            hintStyle: TextStyle(
-                                color: Colors.white.withValues(alpha: 0.3)),
-                            border: InputBorder.none,
-                            prefixIcon: Icon(Icons.phone,
-                                color: Theme.of(context).colorScheme.primary),
-                          ),
-                        ),
-                      ),
-                    ),
-                    const Spacer(),
-                    ElevatedButton(
-                      onPressed: _isSending
-                          ? null
-                          : () async {
-                              var phone = _phoneController.text.trim();
-                              if (!phone.startsWith('+')) {
-                                phone = '${AppConfig.defaultCountryCode}$phone';
-                              }
-                              if (phone.length < AppConfig.phoneMinLength) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                      content: Text(
-                                          'Enter a valid phone number (e.g., +91 9605...)')),
-                                );
-                                return;
-                              }
-                              setState(() => _isSending = true);
-                              try {
-                                final devOtp = await ref
-                                    .read(authRepositoryProvider)
-                                    .signInWithPhone(phone);
-                                if (!context.mounted) return;
-                                
-                                if (devOtp != null) {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(
-                                      content: Text('TEST MODE: Your OTP is $devOtp'),
-                                      duration: const Duration(seconds: 8),
-                                      backgroundColor: Colors.green.shade800,
-                                    ),
-                                  );
-                                }
-                                
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (_) => OtpScreen(
-                                      phone: phone,
-                                      initialOtp: devOtp,
-                                    ),
-                                  ),
-                                );
-                              } catch (e) {
-                                if (context.mounted) {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(content: Text('Auth Error: $e')),
-                                  );
-                                }
-                              } finally {
-                                if (mounted) setState(() => _isSending = false);
-                              }
-                            },
-                      child: _isSending
-                          ? const SizedBox(
-                              width: 20,
-                              height: 20,
-                              child: CircularProgressIndicator(strokeWidth: 2))
-                          : const Text(
-                              'Send Code',
-                              style: TextStyle(
-                                  fontSize: 16, fontWeight: FontWeight.bold),
-                            ),
-                    ),
-                    const SizedBox(height: 16),
-                    Center(
-                      child: TextButton(
-                        onPressed: () {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                                content:
-                                    Text('Just enter your phone number to start!')),
-                          );
-                        },
-                        child: Text(
-                          'New to Gixbee? Register here',
-                          style: TextStyle(
-                              color: Colors.white.withValues(alpha: 0.6)),
-                        ),
-                      ),
-                    ),
+                  ),
+                  const SizedBox(height: 32),
+                  _phoneField(),
+                  if (kDebugMode) ...[
+                    const SizedBox(height: 14),
+                    _devBanner(),
                   ],
-                ),
+                  const Spacer(),
+                  AuthPrimaryButton(
+                    label: 'Send code',
+                    loading: _isSending,
+                    onPressed: _sendCode,
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    'Standard SMS rates may apply.',
+                    textAlign: TextAlign.center,
+                    style: GoogleFonts.outfit(
+                      fontSize: 11,
+                      color: Colors.white.withValues(alpha: 0.32),
+                    ),
+                  ),
+                ],
               ),
             ),
-          ],
+          ),
         ),
+      ),
+    );
+  }
+
+  Widget _phoneField() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 2),
+      decoration: BoxDecoration(
+        color: const Color(0xFF1A1A26),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: _focusNode.hasFocus
+              ? GixbeeTheme.brandOrange
+              : const Color(0xFF2A2A3A),
+          width: _focusNode.hasFocus ? 1.5 : 1,
+        ),
+      ),
+      child: TextField(
+        controller: _phoneController,
+        focusNode: _focusNode,
+        autofocus: true,
+        keyboardType: TextInputType.phone,
+        textInputAction: TextInputAction.done,
+        onSubmitted: (_) => _sendCode(),
+        style: GoogleFonts.outfit(
+          color: Colors.white,
+          fontSize: 18,
+          fontWeight: FontWeight.w600,
+        ),
+        decoration: InputDecoration(
+          hintText: '98765 43210',
+          prefixText: '${AppConfig.defaultCountryCode}  ',
+          prefixStyle: GoogleFonts.outfit(
+            color: GixbeeTheme.brandOrange,
+            fontSize: 18,
+            fontWeight: FontWeight.w700,
+          ),
+          hintStyle: GoogleFonts.outfit(
+            color: Colors.white.withValues(alpha: 0.28),
+          ),
+          filled: false,
+          border: InputBorder.none,
+          enabledBorder: InputBorder.none,
+          focusedBorder: InputBorder.none,
+          prefixIcon: const Icon(
+            Icons.phone_iphone_rounded,
+            color: GixbeeTheme.brandOrange,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _devBanner() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: GixbeeTheme.brandOrange.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(
+          color: GixbeeTheme.brandOrange.withValues(alpha: 0.28),
+        ),
+      ),
+      child: Row(
+        children: [
+          Icon(
+            Icons.bug_report_outlined,
+            size: 16,
+            color: GixbeeTheme.brandOrange.withValues(alpha: 0.9),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              'Debug build — OTP may be echoed when ALLOW_OTP_ECHO is on.',
+              style: GoogleFonts.outfit(
+                color: GixbeeTheme.brandOrange.withValues(alpha: 0.95),
+                fontSize: 12,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

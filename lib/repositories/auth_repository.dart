@@ -102,7 +102,10 @@ class AuthRepository {
   /// Returns devOtp in DEBUG mode only — null in production.
   Future<String?> signInWithPhone(String phoneNumber) async {
     try {
-      if (kDebugMode) debugPrint('[AUTH] Requesting OTP for $phoneNumber');
+      if (kDebugMode) {
+        debugPrint('[AUTH] Requesting OTP for $phoneNumber');
+        debugPrint('[AUTH] Base URL is: ${AppConfig.baseUrl}');
+      }
       final response = await _dio.post(
         '/auth/request-otp',
         data: {'phone': phoneNumber},

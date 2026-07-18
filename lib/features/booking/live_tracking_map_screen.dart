@@ -2,15 +2,19 @@ import 'dart:async';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:google_maps_flutter/google_maps_flutter.dart';
-import 'package:google_maps_flutter_android/google_maps_flutter_android.dart';
-import 'package:google_maps_flutter_platform_interface/google_maps_flutter_platform_interface.dart';
+import 'package:maplibre_gl/maplibre_gl.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:dio/dio.dart';
+import '../../core/config/app_config.dart';
+import '../../theme.dart';
+import '../../shared/widgets/gx_button.dart';
 import '../../services/socket_service.dart';
 import '../../shared/models/worker.dart';
 import '../../repositories/booking_repository.dart';
+import '../../repositories/booking_status_provider.dart';
+import '../../shared/widgets/gx_snackbar.dart';
 import 'arrival_otp_screen.dart';
+import 'report_issue_sheet.dart';
 
 /// Live map screen shown to the **customer** after a worker accepts their booking.
 /// Displays the worker's real-time GPS location on a Google Map with the
@@ -40,13 +44,34 @@ class LiveTrackingMapScreen extends ConsumerStatefulWidget {
 }
 
 class _LiveTrackingMapScreenState extends ConsumerState<LiveTrackingMapScreen> {
-  GoogleMapController? _mapController;
+  // Ola Maps (MapLibre-spec vector tiles) rendered via maplibre_gl.
+  // AUDIT FIX: no private _pollTimer any more — status comes from the shared
+  // bookingStatusProvider (single poll per booking, app-wide).
+  // NOTE: maplibre_gl 0.21+ renamed the public classes (Maplibre* → MapLibre*).
+  // pubspec resolves 0.26.x, so these are MapLibreMap / MapLibreMapController.
+  MapLibreMapController? _mapController;
+  bool _styleReady = false;
+  Circle? _workerCircle;
+  Circle? _customerCircle;
+  Line? _routeLine;
   LatLng? _workerLocation;
   LatLng? _customerLocation;
-  Timer? _pollTimer;
   String _currentStatus = 'ACCEPTED';
   String? _arrivalOtp;
   bool _isMapReady = false;
+
+  // Pause state (v126 Instant Help): carried in the /status poll payload.
+  bool _pauseRequested = false;
+  bool _paused = false;
+  bool _pauseActionBusy = false;
+
+  // Job timer (mockup parity): starts when the arrival OTP flips the booking
+  // ACTIVE (startedAt), ticks every second, freezes while paused, and
+  // subtracts accumulated approved pause minutes.
+  DateTime? _startedAt;
+  int _pausedMinutes = 0;
+  Duration _elapsed = Duration.zero;
+  Timer? _jobTicker;
 
   // Directions API state
   List<LatLng> _routePoints = [];
@@ -61,7 +86,6 @@ class _LiveTrackingMapScreenState extends ConsumerState<LiveTrackingMapScreen> {
   void initState() {
     super.initState();
     _arrivalOtp = widget.arrivalOtp;
-    _initMapRenderer();
 
     // Set customer location if provided
     if (widget.customerLat != null && widget.customerLng != null) {
@@ -80,54 +104,153 @@ class _LiveTrackingMapScreenState extends ConsumerState<LiveTrackingMapScreen> {
         setState(() {
           _workerLocation = LatLng(lat, lng);
         });
+        _syncMapAnnotations();
         _fitMapBounds();
         _fetchRoute(); // Update road route dynamically
       }
     });
 
-    // Start polling for status changes (ACCEPTED → ARRIVED → ACTIVE)
-    _startStatusPolling();
+    // Status changes (ACCEPTED → ARRIVED → ACTIVE) now arrive via the shared
+    // bookingStatusProvider — wired with ref.listen in build().
   }
 
-  /// Ensures the latest Android map renderer is used (fixes blank map issue).
-  void _initMapRenderer() {
-    final mapsImpl = GoogleMapsFlutterPlatform.instance;
-    if (mapsImpl is GoogleMapsFlutterAndroid) {
-      mapsImpl.useAndroidViewSurface = true;
+  /// Keep the worker/customer dots and the route line in sync with state.
+  /// MapLibre annotations are imperative (add/update handles), unlike the
+  /// declarative google_maps_flutter marker sets this replaced.
+  Future<void> _syncMapAnnotations() async {
+    final c = _mapController;
+    if (c == null || !_styleReady) return;
+    try {
+      // Worker dot (violet, moving).
+      if (_workerLocation != null) {
+        final opts = CircleOptions(
+          geometry: _workerLocation,
+          circleRadius: 9,
+          circleColor: '#8B5CF6',
+          circleStrokeColor: '#FFFFFF',
+          circleStrokeWidth: 2.5,
+        );
+        if (_workerCircle == null) {
+          _workerCircle = await c.addCircle(opts);
+        } else {
+          await c.updateCircle(_workerCircle!, opts);
+        }
+      }
+      // Customer dot (green, static).
+      if (_customerLocation != null && _customerCircle == null) {
+        _customerCircle = await c.addCircle(CircleOptions(
+          geometry: _customerLocation,
+          circleRadius: 9,
+          circleColor: '#10B981',
+          circleStrokeColor: '#FFFFFF',
+          circleStrokeWidth: 2.5,
+        ));
+      }
+      // Route line: real road route when fetched, straight line as fallback.
+      final points = _routePoints.isNotEmpty
+          ? _routePoints
+          : (_workerLocation != null && _customerLocation != null)
+              ? [_workerLocation!, _customerLocation!]
+              : const <LatLng>[];
+      if (points.length >= 2) {
+        final lineOpts = LineOptions(
+          geometry: points,
+          lineColor: '#448AFF',
+          lineWidth: 4,
+          lineOpacity: 0.9,
+        );
+        if (_routeLine == null) {
+          _routeLine = await c.addLine(lineOpts);
+        } else {
+          await c.updateLine(_routeLine!, lineOpts);
+        }
+      }
+    } catch (e) {
+      debugPrint('Map annotation sync failed: $e');
     }
   }
 
   @override
   void dispose() {
-    _pollTimer?.cancel();
+    _jobTicker?.cancel();
+    // AUDIT FIX: detach the socket listener registered in initState so this
+    // dead State's setState can't be called and listeners don't stack.
+    ref.read(socketServiceProvider).offLocationUpdated();
     _mapController?.dispose();
     super.dispose();
   }
 
-  void _startStatusPolling() {
-    _pollTimer = Timer.periodic(const Duration(seconds: 5), (_) async {
-      if (!mounted) return;
-      try {
-        final statusData = await ref
-            .read(bookingRepositoryProvider)
-            .pollBookingStatus(widget.bookingId);
-        final newStatus = statusData['status']?.toString().toUpperCase() ?? '';
-        final otp = statusData['arrivalOtp']?.toString();
+  /// Fetch startedAt once the job goes ACTIVE, then tick the visible timer.
+  Future<void> _startJobTimer() async {
+    if (_startedAt != null) return;
+    try {
+      final booking = await ref
+          .read(bookingRepositoryProvider)
+          .getBookingById(widget.bookingId);
+      final raw = booking?['startedAt']?.toString();
+      if (raw == null) return;
+      _startedAt = DateTime.tryParse(raw);
+      if (_startedAt == null) return;
+      _jobTicker?.cancel();
+      _jobTicker = Timer.periodic(const Duration(seconds: 1), (_) {
+        if (!mounted) return;
+        if (_paused) return; // frozen while the customer-approved pause runs
+        final worked = DateTime.now().difference(_startedAt!) -
+            Duration(minutes: _pausedMinutes);
+        setState(() => _elapsed = worked.isNegative ? Duration.zero : worked);
+      });
+    } catch (e) {
+      debugPrint('Job timer init failed: $e');
+    }
+  }
 
-        if (mounted && newStatus != _currentStatus) {
-          setState(() {
-            _currentStatus = newStatus;
-            if (otp != null && otp.isNotEmpty) _arrivalOtp = otp;
-          });
+  String get _elapsedLabel {
+    final h = _elapsed.inHours.toString().padLeft(2, '0');
+    final m = (_elapsed.inMinutes % 60).toString().padLeft(2, '0');
+    final s = (_elapsed.inSeconds % 60).toString().padLeft(2, '0');
+    return '$h:$m:$s';
+  }
 
-          // If completed or cancelled, go back
-          if (['COMPLETED', 'CANCELLED', 'REJECTED'].contains(newStatus)) {
-            _pollTimer?.cancel();
-            if (mounted) Navigator.pop(context);
-          }
-        }
-      } catch (_) {}
-    });
+  /// AUDIT FIX: consume the SHARED booking-status poll (one per booking,
+  /// app-wide) instead of running a private Timer here. Called from build via
+  /// ref.listen, so state transitions are handled exactly once per new value.
+  void _applyStatusData(Map<String, dynamic> statusData) {
+    if (!mounted) return;
+    final newStatus = statusData['status']?.toString().toUpperCase() ?? '';
+    final otp = statusData['arrivalOtp']?.toString();
+
+    // Pause flags change without a status transition — sync every update.
+    final pauseRequested = statusData['pauseRequested'] == true;
+    final paused = statusData['paused'] == true;
+    final pausedMinutes =
+        (statusData['pausedMinutes'] as num?)?.toInt() ?? _pausedMinutes;
+    if (pauseRequested != _pauseRequested ||
+        paused != _paused ||
+        pausedMinutes != _pausedMinutes) {
+      setState(() {
+        _pauseRequested = pauseRequested;
+        _paused = paused;
+        _pausedMinutes = pausedMinutes;
+      });
+    }
+
+    // Arrival OTP verified → job ACTIVE → start the visible work timer.
+    if ((newStatus == 'ACTIVE' || newStatus == 'IN_PROGRESS') &&
+        _startedAt == null) {
+      _startJobTimer();
+    }
+
+    if (newStatus != _currentStatus) {
+      setState(() {
+        _currentStatus = newStatus;
+        if (otp != null && otp.isNotEmpty) _arrivalOtp = otp;
+      });
+
+      // If completed or cancelled, leave the screen.
+      if (['COMPLETED', 'CANCELLED', 'REJECTED'].contains(newStatus)) {
+        Navigator.pop(context);
+      }
+    }
   }
 
   void _fitMapBounds() {
@@ -149,7 +272,8 @@ class _LiveTrackingMapScreenState extends ConsumerState<LiveTrackingMapScreen> {
         ),
       );
       _mapController?.animateCamera(
-        CameraUpdate.newLatLngBounds(bounds, 80),
+        CameraUpdate.newLatLngBounds(bounds,
+            left: 60, top: 120, right: 60, bottom: 340),
       );
     } else if (points.length == 1) {
       _mapController?.animateCamera(
@@ -168,34 +292,68 @@ class _LiveTrackingMapScreenState extends ConsumerState<LiveTrackingMapScreen> {
     
     _lastRouteFetch = DateTime.now();
 
+    // Ola Maps Directions (replaces Google Directions). Key comes from
+    // --dart-define=OLA_MAPS_API_KEY; without it we keep the haversine
+    // fallback ETA and the straight-line route — never a fake road route.
+    if (AppConfig.olaMapsApiKey.isEmpty) return;
+
     try {
-      const apiKey = 'AIzaSyB6POkXTMveS1m6NJNGxduXtc-_CwQ4Ty4';
       final origin = '${_workerLocation!.latitude},${_workerLocation!.longitude}';
       final destination = '${_customerLocation!.latitude},${_customerLocation!.longitude}';
-      final url = 'https://maps.googleapis.com/maps/api/directions/json?origin=$origin&destination=$destination&key=$apiKey';
-      
-      final response = await Dio().get(url);
-      
+
+      // Ola's Directions API is a POST with query parameters.
+      // NOTE: deliberately a separate bare Dio (NOT dioProvider) — the shared
+      // client attaches the user's JWT, which must never be sent to Ola.
+      // AUDIT FIX: added timeouts so a stalled route call can't hang forever.
+      final response = await Dio(BaseOptions(
+        connectTimeout: const Duration(seconds: 8),
+        receiveTimeout: const Duration(seconds: 8),
+      )).post(
+        AppConfig.olaDirectionsUrl,
+        queryParameters: {
+          'origin': origin,
+          'destination': destination,
+          'api_key': AppConfig.olaMapsApiKey,
+        },
+      );
+
       if (response.statusCode == 200) {
         final data = response.data;
-        if (data['status'] == 'OK' && (data['routes'] as List).isNotEmpty) {
-          final route = data['routes'][0];
-          final leg = route['legs'][0];
-          
-          final polylineStr = route['overview_polyline']['points'];
-          final points = _decodePolyline(polylineStr);
-          
+        final routes = data['routes'] as List?;
+        if (routes != null && routes.isNotEmpty) {
+          final route = routes[0];
+          final legs = route['legs'] as List?;
+          final leg = (legs != null && legs.isNotEmpty) ? legs[0] : null;
+
+          // overview_polyline is a plain encoded-polyline string.
+          final polylineStr = route['overview_polyline']?.toString();
+          final points =
+              polylineStr == null ? <LatLng>[] : _decodePolyline(polylineStr);
+
+          // Prefer readable fields; fall back to raw metres/seconds.
+          String? distanceText = leg?['readable_distance']?.toString();
+          String? etaText = leg?['readable_duration']?.toString();
+          final rawDistance = leg?['distance'];
+          final rawDuration = leg?['duration'];
+          if (distanceText == null && rawDistance is num) {
+            distanceText = '${(rawDistance / 1000).toStringAsFixed(1)} km';
+          }
+          if (etaText == null && rawDuration is num) {
+            etaText = '${(rawDuration / 60).ceil()} min';
+          }
+
           if (mounted) {
             setState(() {
-              _routePoints = points;
-              _routeDistanceText = leg['distance']['text'];
-              _routeEtaText = leg['duration']['text'];
+              if (points.isNotEmpty) _routePoints = points;
+              _routeDistanceText = distanceText;
+              _routeEtaText = etaText;
             });
+            _syncMapAnnotations();
           }
         }
       }
     } catch (e) {
-      debugPrint('Failed to fetch route: $e');
+      debugPrint('Failed to fetch Ola route: $e');
     }
   }
 
@@ -229,64 +387,6 @@ class _LiveTrackingMapScreenState extends ConsumerState<LiveTrackingMapScreen> {
     return polyline;
   }
 
-  Set<Marker> _buildMarkers() {
-    final markers = <Marker>{};
-
-    // Worker marker (moving)
-    if (_workerLocation != null) {
-      markers.add(Marker(
-        markerId: const MarkerId('worker'),
-        position: _workerLocation!,
-        icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueAzure),
-        infoWindow: InfoWindow(
-          title: widget.worker.name,
-          snippet: 'On the way',
-        ),
-      ));
-    }
-
-    // Customer marker (static)
-    if (_customerLocation != null) {
-      markers.add(Marker(
-        markerId: const MarkerId('customer'),
-        position: _customerLocation!,
-        icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed),
-        infoWindow: InfoWindow(
-          title: 'Your Location',
-          snippet: widget.serviceAddress ?? '',
-        ),
-      ));
-    }
-
-    return markers;
-  }
-
-  Set<Polyline> _buildPolylines() {
-    if (_workerLocation == null || _customerLocation == null) return {};
-    
-    // Use real road route if fetched, otherwise fallback to dashed straight line
-    if (_routePoints.isNotEmpty) {
-      return {
-        Polyline(
-          polylineId: const PolylineId('road_route'),
-          points: _routePoints,
-          color: Colors.blueAccent,
-          width: 5,
-        ),
-      };
-    }
-    
-    return {
-      Polyline(
-        polylineId: const PolylineId('straight_line'),
-        points: [_workerLocation!, _customerLocation!],
-        color: Colors.blueAccent,
-        width: 4,
-        patterns: [PatternItem.dash(20), PatternItem.gap(10)],
-      ),
-    };
-  }
-
   double? _estimateDistance() {
     if (_workerLocation == null || _customerLocation == null) return null;
     // Haversine formula
@@ -303,6 +403,16 @@ class _LiveTrackingMapScreenState extends ConsumerState<LiveTrackingMapScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // Shared booking-status poll (one per booking, app-wide). Each new value
+    // drives the same transitions the old private timer handled.
+    ref.listen<AsyncValue<Map<String, dynamic>>>(
+      bookingStatusProvider(widget.bookingId),
+      (_, next) {
+        final data = next.value;
+        if (data != null) _applyStatusData(data);
+      },
+    );
+
     final cs = Theme.of(context).colorScheme;
     final center = _workerLocation ?? _customerLocation ?? _defaultCenter;
 
@@ -310,26 +420,55 @@ class _LiveTrackingMapScreenState extends ConsumerState<LiveTrackingMapScreen> {
       body: SizedBox.expand(
         child: Stack(
           children: [
-            // ── Google Map ──
+            // ── Ola Map (MapLibre-spec vector tiles) ──
             Positioned.fill(
-              child: GoogleMap(
-                initialCameraPosition: CameraPosition(
-                  target: center,
-                  zoom: 14,
-                ),
-                markers: _buildMarkers(),
-                polylines: _buildPolylines(),
-                myLocationEnabled: true,
-                myLocationButtonEnabled: false,
-                zoomControlsEnabled: false,
-                mapToolbarEnabled: false,
-                onMapCreated: (controller) {
-                  _mapController = controller;
-                  setState(() => _isMapReady = true);
-                  // Fit bounds once map is ready
-                  Future.delayed(const Duration(milliseconds: 500), _fitMapBounds);
-                },
-              ),
+              child: AppConfig.olaMapsApiKey.isEmpty
+                  // No key configured — honest placeholder; the status panel,
+                  // OTP gates, timer and pause logic all keep working.
+                  ? Container(
+                      color: context.gx.card,
+                      alignment: Alignment.center,
+                      padding: const EdgeInsets.symmetric(horizontal: 40),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.map_outlined,
+                              size: 48,
+                              color: context.gx.ink.withValues(alpha: 0.25)),
+                          const SizedBox(height: 12),
+                          Text(
+                            'Map preview unavailable\n(Ola Maps key not configured)',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                                fontSize: 13,
+                                height: 1.5,
+                                color: context.gx.ink.withValues(alpha: 0.45)),
+                          ),
+                        ],
+                      ),
+                    )
+                  : MapLibreMap(
+                      styleString: AppConfig.olaStyleUrl,
+                      initialCameraPosition: CameraPosition(
+                        target: center,
+                        zoom: 14,
+                      ),
+                      myLocationEnabled: true,
+                      compassEnabled: false,
+                      rotateGesturesEnabled: false,
+                      onMapCreated: (controller) {
+                        _mapController = controller;
+                      },
+                      onStyleLoadedCallback: () {
+                        setState(() {
+                          _styleReady = true;
+                          _isMapReady = true;
+                        });
+                        _syncMapAnnotations();
+                        Future.delayed(const Duration(milliseconds: 400),
+                            _fitMapBounds);
+                      },
+                    ),
             ),
 
             // ── Top Bar ──
@@ -351,6 +490,7 @@ class _LiveTrackingMapScreenState extends ConsumerState<LiveTrackingMapScreen> {
                         ],
                       ),
                       child: IconButton(
+                        tooltip: 'Go back',
                         icon: const Icon(Icons.arrow_back),
                         onPressed: () => Navigator.pop(context),
                       ),
@@ -369,6 +509,7 @@ class _LiveTrackingMapScreenState extends ConsumerState<LiveTrackingMapScreen> {
                         ],
                       ),
                       child: IconButton(
+                        tooltip: 'Re-center map',
                         icon: const Icon(Icons.my_location),
                         onPressed: _fitMapBounds,
                       ),
@@ -441,12 +582,15 @@ class _LiveTrackingMapScreenState extends ConsumerState<LiveTrackingMapScreen> {
                   children: [
                     Icon(_getStatusIcon(), size: 16, color: _getStatusColor()),
                     const SizedBox(width: 6),
-                    Text(
-                      _getStatusText(),
-                      style: TextStyle(
-                        color: _getStatusColor(),
-                        fontWeight: FontWeight.w700,
-                        fontSize: 12,
+                    Semantics(
+                      liveRegion: true,
+                      child: Text(
+                        _getStatusText(),
+                        style: TextStyle(
+                          color: _getStatusColor(),
+                          fontWeight: FontWeight.w700,
+                          fontSize: 12,
+                        ),
                       ),
                     ),
                   ],
@@ -492,7 +636,7 @@ class _LiveTrackingMapScreenState extends ConsumerState<LiveTrackingMapScreen> {
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                       decoration: BoxDecoration(
-                        color: cs.primaryContainer.withValues(alpha: 0.3),
+                        color: context.gx.accent.withValues(alpha: 0.18),
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: Column(
@@ -502,7 +646,7 @@ class _LiveTrackingMapScreenState extends ConsumerState<LiveTrackingMapScreen> {
                             style: TextStyle(
                               fontWeight: FontWeight.bold,
                               fontSize: 14,
-                              color: cs.primary,
+                              color: context.gx.accent,
                             ),
                           ),
                           if (displayDistance != null)
@@ -520,13 +664,76 @@ class _LiveTrackingMapScreenState extends ConsumerState<LiveTrackingMapScreen> {
               ),
               const SizedBox(height: 16),
 
+              // Job timer (starts at arrival-OTP entry, freezes while paused).
+              if ((_currentStatus == 'ACTIVE' ||
+                      _currentStatus == 'IN_PROGRESS') &&
+                  _startedAt != null)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 12),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 14, vertical: 10),
+                    decoration: BoxDecoration(
+                      color: (_paused
+                              ? GixbeeTheme.accentGold
+                              : context.gx.accentSoft)
+                          .withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Row(
+                          children: [
+                            Icon(
+                              _paused
+                                  ? Icons.pause_circle_outline_rounded
+                                  : Icons.timer_outlined,
+                              size: 16,
+                              color: _paused
+                                  ? GixbeeTheme.accentGold
+                                  : context.gx.accentSoft,
+                            ),
+                            const SizedBox(width: 8),
+                            Text(_paused ? 'Job timer · paused' : 'Job timer',
+                                style: TextStyle(
+                                    fontSize: 12.5,
+                                    fontWeight: FontWeight.w600,
+                                    color: cs.onSurfaceVariant)),
+                          ],
+                        ),
+                        Text(_elapsedLabel,
+                            style: TextStyle(
+                                fontSize: 15,
+                                fontWeight: FontWeight.w800,
+                                fontFeatures: const [
+                                  FontFeature.tabularFigures()
+                                ],
+                                color: _paused
+                                    ? GixbeeTheme.accentGold
+                                    : context.gx.accentSoft)),
+                      ],
+                    ),
+                  ),
+                ),
+
+              // Pause / resume controls (v126) — only during active work.
+              if (_currentStatus == 'ACTIVE' || _currentStatus == 'IN_PROGRESS')
+                _pauseSection(cs),
+
               // Action buttons
               Row(
                 children: [
                   // Call button
                   Expanded(
-                    child: OutlinedButton.icon(
-                      onPressed: () async {
+                    child: GxButton(
+                      label: 'Call',
+                      icon: Icons.call,
+                      filled: false,
+                      height: 48,
+                      radius: 12,
+                      fontSize: 14,
+                      onTap: () async {
                         final url = Uri.parse('tel:+91${widget.worker.id}');
                         try {
                           await launchUrl(url, mode: LaunchMode.externalApplication);
@@ -534,14 +741,6 @@ class _LiveTrackingMapScreenState extends ConsumerState<LiveTrackingMapScreen> {
                           debugPrint('Could not launch call: $e');
                         }
                       },
-                      icon: const Icon(Icons.call, size: 18),
-                      label: const Text('Call'),
-                      style: OutlinedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -549,8 +748,13 @@ class _LiveTrackingMapScreenState extends ConsumerState<LiveTrackingMapScreen> {
                   if (widget.isWorker)
                     Expanded(
                       flex: 2,
-                      child: FilledButton.icon(
-                        onPressed: () async {
+                      child: GxButton(
+                        label: 'Navigate to Customer',
+                        icon: Icons.navigation_rounded,
+                        height: 48,
+                        radius: 12,
+                        fontSize: 14,
+                        onTap: () async {
                           // Open Google Maps navigation to customer
                           if (_customerLocation != null) {
                             final url = Uri.parse(
@@ -563,46 +767,55 @@ class _LiveTrackingMapScreenState extends ConsumerState<LiveTrackingMapScreen> {
                             }
                           }
                         },
-                        icon: const Icon(Icons.navigation_rounded, size: 18),
-                        label: const Text(
-                          'Navigate to Customer',
-                          style: TextStyle(fontWeight: FontWeight.bold),
-                        ),
-                        style: FilledButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(vertical: 12),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                        ),
                       ),
                     )
                   else
                     Expanded(
                       flex: 2,
-                      child: FilledButton.icon(
-                        onPressed: _arrivalOtp != null ? _goToOtpScreen : null,
-                        icon: Icon(
-                          _currentStatus == 'ARRIVED'
-                              ? Icons.verified_user_rounded
-                              : Icons.directions_walk_rounded,
-                          size: 18,
-                        ),
-                        label: Text(
-                          _currentStatus == 'ARRIVED'
-                              ? 'Verify Arrival OTP'
-                              : 'Waiting for Arrival...',
-                          style: const TextStyle(fontWeight: FontWeight.bold),
-                        ),
-                        style: FilledButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(vertical: 12),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                        ),
+                      child: GxButton(
+                        label: _currentStatus == 'ARRIVED'
+                            ? 'Verify Arrival OTP'
+                            : 'Waiting for Arrival...',
+                        icon: _currentStatus == 'ARRIVED'
+                            ? Icons.verified_user_rounded
+                            : Icons.directions_walk_rounded,
+                        onTap: _arrivalOtp != null ? _goToOtpScreen : null,
+                        height: 48,
+                        radius: 12,
+                        fontSize: 14,
                       ),
                     ),
                 ],
               ),
+
+              // v126 w3: the WORKER's arrival gate — visible while heading
+              // to the customer. Opens the OTP entry (mark arrived → ask the
+              // customer for the code → timer starts on verify).
+              if (widget.isWorker &&
+                  (_currentStatus == 'ACCEPTED' ||
+                      _currentStatus == 'ARRIVED')) ...[
+                const SizedBox(height: 10),
+                GxButton(
+                  label: 'I have arrived — enter OTP',
+                  icon: Icons.pin_rounded,
+                  height: 48,
+                  radius: 12,
+                  fontSize: 14,
+                  onTap: () {
+                    Navigator.pushReplacement(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => ArrivalOtpScreen(
+                          bookingId: widget.bookingId,
+                          workerName: widget.worker.name,
+                          arrivalOtp: '', // worker mode: entered, not shown
+                          isWorker: true,
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ],
 
               // No location warning
               if (_workerLocation == null) ...[
@@ -622,6 +835,150 @@ class _LiveTrackingMapScreenState extends ConsumerState<LiveTrackingMapScreen> {
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  // ── Pause / resume + report (v126 Instant Help c12–c14 / w5–w7) ──────────
+
+  Future<void> _pauseAction(Future<void> Function() action) async {
+    if (_pauseActionBusy) return;
+    setState(() => _pauseActionBusy = true);
+    try {
+      await action();
+      // Refresh the SHARED poll immediately so the UI doesn't wait for the
+      // next 5s tick (and every other widget sees the new state too).
+      ref.invalidate(bookingStatusProvider(widget.bookingId));
+    } catch (e) {
+      if (mounted) {
+        showGxSnack(context, 'Action failed: $e', type: GxSnackType.error);
+      }
+    } finally {
+      if (mounted) setState(() => _pauseActionBusy = false);
+    }
+  }
+
+  Widget _pauseSection(ColorScheme cs) {
+    final repo = ref.read(bookingRepositoryProvider);
+
+    Widget child;
+    if (widget.isWorker) {
+      if (_paused) {
+        child = GxButton(
+          label: 'Resume work — timer continues',
+          icon: Icons.play_arrow_rounded,
+          height: 44,
+          radius: 12,
+          fontSize: 13,
+          onTap: _pauseActionBusy
+              ? null
+              : () => _pauseAction(() => repo.resumeWork(widget.bookingId)),
+        );
+      } else if (_pauseRequested) {
+        child = Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const SizedBox(
+                width: 14,
+                height: 14,
+                child: CircularProgressIndicator(strokeWidth: 2)),
+            const SizedBox(width: 10),
+            Text('Pause requested — waiting for customer',
+                style: TextStyle(
+                    fontSize: 12.5, color: cs.onSurfaceVariant)),
+          ],
+        );
+      } else {
+        child = GxButton(
+          label: 'Request pause',
+          icon: Icons.pause_rounded,
+          filled: false,
+          height: 44,
+          radius: 12,
+          fontSize: 13,
+          onTap: _pauseActionBusy
+              ? null
+              : () => _pauseAction(() => repo.requestPause(widget.bookingId)),
+        );
+      }
+    } else {
+      if (_pauseRequested) {
+        child = Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text('${widget.worker.name} asked to pause the job timer',
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                    fontSize: 13, fontWeight: FontWeight.w700)),
+            const SizedBox(height: 10),
+            Row(
+              children: [
+                Expanded(
+                  child: GxButton(
+                    label: 'Approve pause',
+                    height: 44,
+                    radius: 12,
+                    fontSize: 13,
+                    onTap: _pauseActionBusy
+                        ? null
+                        : () => _pauseAction(() =>
+                            repo.respondPause(widget.bookingId, approve: true)),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: GxButton(
+                    label: 'Decline',
+                    filled: false,
+                    height: 44,
+                    radius: 12,
+                    fontSize: 13,
+                    onTap: _pauseActionBusy
+                        ? null
+                        : () => _pauseAction(() => repo
+                            .respondPause(widget.bookingId, approve: false)),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        );
+      } else if (_paused) {
+        child = Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.pause_circle_outline_rounded,
+                size: 16, color: GixbeeTheme.accentGold),
+            const SizedBox(width: 8),
+            Text('Timer paused — resumes when work continues',
+                style: TextStyle(fontSize: 12.5, color: cs.onSurfaceVariant)),
+          ],
+        );
+      } else {
+        child = const SizedBox.shrink();
+      }
+    }
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          child,
+          const SizedBox(height: 6),
+          Center(
+            child: TextButton.icon(
+              onPressed: () => showReportIssueSheet(context, ref,
+                  bookingId: widget.bookingId, isWorker: widget.isWorker),
+              icon: Icon(Icons.flag_outlined,
+                  size: 14, color: context.gx.ink.withValues(alpha: 0.5)),
+              label: Text('Report an issue',
+                  style: TextStyle(
+                      fontSize: 12,
+                      color: context.gx.ink.withValues(alpha: 0.5))),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -676,6 +1033,8 @@ class _LiveTrackingMapScreenState extends ConsumerState<LiveTrackingMapScreen> {
         return 'Worker has arrived';
       case 'ACTIVE':
       case 'IN_PROGRESS':
+        if (_paused) return 'Paused — timer stopped';
+        if (_pauseRequested) return 'Pause requested';
         return 'Work in progress';
       default:
         return 'Tracking';

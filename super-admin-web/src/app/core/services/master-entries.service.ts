@@ -9,6 +9,9 @@ export interface MasterEntry {
   value: string;
   icon?: string;
   category?: string;
+  // Location scope — City.id from the cities master; null/undefined = global
+  // (shown in every city). Mainly used for BANNER / DEAL entries.
+  cityId?: string | null;
   isActive: boolean;
   createdAt?: string;
   updatedAt?: string;

@@ -4,6 +4,16 @@ import { diskStorage } from 'multer';
 import { extname } from 'path';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 
+// Whitelisted image types. SVG is deliberately EXCLUDED — it can carry script
+// and these files are served publicly from the API origin.
+const ALLOWED_EXT = ['.jpg', '.jpeg', '.png', '.gif', '.webp'];
+const ALLOWED_MIME = [
+  'image/jpeg',
+  'image/png',
+  'image/gif',
+  'image/webp',
+];
+
 @Controller('uploads')
 export class UploadController {
   @Post('image')
@@ -13,12 +23,22 @@ export class UploadController {
       destination: './uploads',
       filename: (req, file, callback) => {
         const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
-        const ext = extname(file.originalname);
+        // SECURITY FIX: derive the stored extension from the VALIDATED
+        // whitelist, never from user input. Previously `extname(originalname)`
+        // was trusted, so "x.jpg.html" passed the (unanchored) filter and was
+        // stored — and served — as .html from the API origin.
+        const ext = ALLOWED_EXT.find((e) =>
+          file.originalname.toLowerCase().endsWith(e),
+        ) ?? '.jpg';
         callback(null, `${uniqueSuffix}${ext}`);
       },
     }),
     fileFilter: (req, file, callback) => {
-      if (!file.originalname.match(/\.(jpg|jpeg|png|gif|webp)$/)) {
+      // Anchored extension check AND declared MIME must both be an image.
+      const name = file.originalname.toLowerCase();
+      const extOk = ALLOWED_EXT.some((e) => name.endsWith(e));
+      const mimeOk = ALLOWED_MIME.includes(file.mimetype);
+      if (!extOk || !mimeOk) {
         return callback(new BadRequestException('Only image files are allowed!'), false);
       }
       callback(null, true);

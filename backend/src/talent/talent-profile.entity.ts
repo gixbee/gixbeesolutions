@@ -20,6 +20,14 @@ export class TalentProfile {
   @Column('simple-array', { nullable: true })
   skills: string[];
 
+  // Profile photo URL (uploaded via POST /uploads/image, then saved here).
+  @Column({ nullable: true })
+  photoUrl: string;
+
+  // Certificate/document image URLs (uploaded via POST /uploads/image).
+  @Column('simple-array', { nullable: true })
+  certificates: string[];
+
   @Column({ nullable: true })
   experience: string;
 
@@ -29,6 +37,11 @@ export class TalentProfile {
   @Column({ type: 'enum', enum: ['FINAL_YEAR', 'GRADUATE', 'EXPERIENCED'], nullable: true })
   currentStatus: string;
 
+  // Expected monthly salary in ₹ (v126 Find a Job wizard "salary" step).
+  // Distinct from hourlyRate, which is the Earn Hourly per-hour rate.
+  @Column({ type: 'int', nullable: true })
+  expectedSalary: number;
+
   @Column('simple-array', { nullable: true })
   preferredRoles: string[];
 
@@ -37,6 +50,11 @@ export class TalentProfile {
 
   @Column({ default: true })
   jobAlertsEnabled: boolean;
+
+  // Job posts bookmarked via "Later" in the alerts feed (v126 Find a Job).
+  // Plain id list (not a relation) — the feed already has the posts loaded.
+  @Column('simple-array', { nullable: true })
+  savedJobIds: string[];
 
   @Column({ default: 0 })
   noShowCount: number;

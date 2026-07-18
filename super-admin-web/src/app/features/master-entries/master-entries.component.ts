@@ -2,6 +2,7 @@ import { Component, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { MasterEntriesService, MasterEntry } from '../../core/services/master-entries.service';
+import { CitiesService, City } from '../../core/services/cities.service';
 
 @Component({
   selector: 'app-master-entries',
@@ -18,16 +19,26 @@ import { MasterEntriesService, MasterEntry } from '../../core/services/master-en
       <div class="card-body">
         
         <!-- Filters -->
-        <div class="row mb-4">
+        <div class="row mb-3 g-2 align-items-center">
           <div class="col-md-3">
-            <select class="form-select" [(ngModel)]="filterType" (change)="loadEntries()">
+            <select class="form-select" [(ngModel)]="filterType" (change)="onFilterChange()">
               <option value="">All Types</option>
               <option value="CATEGORY">Category</option>
               <option value="SERVICE">Service</option>
-               <option value="ROLE">Role</option>
+              <option value="ROLE">Role</option>
               <option value="CONFIGURATION">Configuration</option>
               <option value="BANNER">Home Carousel Banner</option>
+              <option value="DEAL">Deal</option>
+              <option value="PRO_TRADE">Pro Trade</option>
+              <option value="PRO_SUB_SKILL">Pro Sub-Skill</option>
             </select>
+          </div>
+          <div class="col-md-4">
+            <input class="form-control" type="search" placeholder="Search label or value…"
+                   [(ngModel)]="search" (input)="page = 1">
+          </div>
+          <div class="col-md-5 text-md-end text-muted" style="font-size: 13px">
+            {{ filtered().length }} entries
           </div>
         </div>
 
@@ -40,17 +51,25 @@ import { MasterEntriesService, MasterEntry } from '../../core/services/master-en
                 <th>Label</th>
                 <th>Value</th>
                 <th>Category</th>
+                <th>City</th>
                 <th>Status</th>
                 <th class="text-end">Actions</th>
               </tr>
             </thead>
             <tbody>
-              @for (entry of entries; track entry.id) {
+              @for (entry of paged(); track entry.id) {
                 <tr>
                   <td><span class="badge bg-secondary">{{ entry.type }}</span></td>
-                  <td class="fw-bold">{{ entry.label }}</td>
+                  <td class="fw-bold">{{ entry.icon ? entry.icon + ' ' : '' }}{{ entry.label }}</td>
                   <td>{{ entry.value }}</td>
                   <td>{{ entry.category || '-' }}</td>
+                  <td>
+                    @if (entry.cityId) {
+                      <span class="badge bg-info text-dark">{{ cityName(entry.cityId) }}</span>
+                    } @else {
+                      <span class="text-muted">Global</span>
+                    }
+                  </td>
                   <td>
                     <span class="badge" [ngClass]="entry.isActive ? 'bg-success' : 'bg-danger'">
                       {{ entry.isActive ? 'Active' : 'Disabled' }}
@@ -67,12 +86,27 @@ import { MasterEntriesService, MasterEntry } from '../../core/services/master-en
                 </tr>
               } @empty {
                 <tr>
-                  <td colspan="6" class="text-center py-4 text-muted">No master entries found. Create one above!</td>
+                  <td colspan="7" class="text-center py-4 text-muted">No master entries found. Create one above!</td>
                 </tr>
               }
             </tbody>
           </table>
         </div>
+
+        <!-- Pagination: keeps the page short so the sidebar/topbar stay in view -->
+        @if (totalPages() > 1) {
+          <div class="d-flex justify-content-between align-items-center pt-3">
+            <span class="text-muted" style="font-size: 13px">
+              Page {{ page }} of {{ totalPages() }}
+            </span>
+            <div class="btn-group">
+              <button class="btn btn-sm btn-outline-primary" [disabled]="page === 1"
+                      (click)="page = page - 1">Previous</button>
+              <button class="btn btn-sm btn-outline-primary" [disabled]="page === totalPages()"
+                      (click)="page = page + 1">Next</button>
+            </div>
+          </div>
+        }
       </div>
     </div>
 
@@ -92,9 +126,12 @@ import { MasterEntriesService, MasterEntry } from '../../core/services/master-en
                   <select class="form-select" [(ngModel)]="currentEntry.type" name="type" required>
                     <option value="CATEGORY">Category</option>
                     <option value="SERVICE">Service</option>
-                     <option value="ROLE">Role</option>
+                    <option value="ROLE">Role</option>
                     <option value="CONFIGURATION">Configuration</option>
                     <option value="BANNER">Home Carousel Banner</option>
+                    <option value="DEAL">Deal</option>
+                    <option value="PRO_TRADE">Pro Trade</option>
+                    <option value="PRO_SUB_SKILL">Pro Sub-Skill</option>
                   </select>
                 </div>
                 <div class="mb-3">
@@ -114,14 +151,32 @@ import { MasterEntriesService, MasterEntry } from '../../core/services/master-en
                   </div>
                 } @else {
                   <div class="mb-3">
-                    <label class="form-label">Value (Internal Key / Config)</label>
+                    <label class="form-label">
+                      {{ currentEntry.type === 'PRO_TRADE' ? 'Sub-skills (Comma-separated)' : 'Value (Internal Key / Config)' }}
+                    </label>
                     <input type="text" class="form-control" [(ngModel)]="currentEntry.value" name="value" required>
                   </div>
                 }
                 
+                @if (currentEntry.type !== 'BANNER') {
+                  <div class="mb-3">
+                    <label class="form-label">Icon (Optional — emoji or icon name)</label>
+                    <input type="text" class="form-control" [(ngModel)]="currentEntry.icon" name="icon" placeholder="e.g. 🧹 or bi-wrench">
+                  </div>
+                }
                 <div class="mb-3">
                   <label class="form-label">Target URL / Category (Optional)</label>
                   <input type="text" class="form-control" [(ngModel)]="currentEntry.category" name="category" placeholder="e.g. /offers/summer">
+                </div>
+                <div class="mb-3">
+                  <label class="form-label">City Scope</label>
+                  <select class="form-select" [(ngModel)]="currentEntry.cityId" name="cityId">
+                    <option [ngValue]="null">All cities (Global)</option>
+                    @for (c of cities; track c.id) {
+                      <option [ngValue]="c.id">{{ c.name }}, {{ c.state }}</option>
+                    }
+                  </select>
+                  <div class="form-text">Scoped entries are shown only to users in that city (banners, deals).</div>
                 </div>
                 <div class="form-check form-switch mb-3">
                   <input class="form-check-input" type="checkbox" [(ngModel)]="currentEntry.isActive" name="isActive" id="isActiveCheck">
@@ -141,10 +196,43 @@ import { MasterEntriesService, MasterEntry } from '../../core/services/master-en
 })
 export class MasterEntriesComponent implements OnInit {
   private service = inject(MasterEntriesService);
-  
+  private citiesService = inject(CitiesService);
+
   entries: MasterEntry[] = [];
+  cities: City[] = [];
   filterType: string = '';
-  
+  search = '';
+  page = 1;
+  readonly pageSize = 15;
+
+  /// Type filter is applied server-side; search is client-side over the result.
+  filtered(): MasterEntry[] {
+    const q = this.search.trim().toLowerCase();
+    if (!q) return this.entries;
+    return this.entries.filter(
+      (e) =>
+        e.label?.toLowerCase().includes(q) ||
+        e.value?.toLowerCase().includes(q) ||
+        e.category?.toLowerCase().includes(q),
+    );
+  }
+
+  totalPages(): number {
+    return Math.max(1, Math.ceil(this.filtered().length / this.pageSize));
+  }
+
+  paged(): MasterEntry[] {
+    const list = this.filtered();
+    if (this.page > this.totalPages()) this.page = 1;
+    const start = (this.page - 1) * this.pageSize;
+    return list.slice(start, start + this.pageSize);
+  }
+
+  onFilterChange() {
+    this.page = 1;
+    this.loadEntries();
+  }
+
   showForm = false;
   isEditing = false;
   currentEntry: Partial<MasterEntry> = {};
@@ -152,6 +240,15 @@ export class MasterEntriesComponent implements OnInit {
 
   ngOnInit() {
     this.loadEntries();
+    // City list for the scope dropdown + name lookup in the table.
+    this.citiesService.getAll().subscribe(res => {
+      this.cities = res;
+    });
+  }
+
+  cityName(id: string): string {
+    const c = this.cities.find(x => x.id === id);
+    return c ? c.name : '…';
   }
 
   loadEntries() {
@@ -162,13 +259,15 @@ export class MasterEntriesComponent implements OnInit {
 
   openForm() {
     this.isEditing = false;
-    this.currentEntry = { type: 'CATEGORY', isActive: true };
+    this.currentEntry = { type: 'CATEGORY', isActive: true, cityId: null };
     this.showForm = true;
   }
 
   editEntry(entry: MasterEntry) {
     this.isEditing = true;
-    this.currentEntry = { ...entry };
+    // Normalise undefined → null so the "All cities (Global)" [ngValue]="null"
+    // option is pre-selected for unscoped entries.
+    this.currentEntry = { ...entry, cityId: entry.cityId ?? null };
     this.showForm = true;
   }
 

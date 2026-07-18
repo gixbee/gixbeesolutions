@@ -1,7 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../shared/widgets/glass_container.dart';
+import 'package:image_picker/image_picker.dart';
+import '../../core/config/app_config.dart';
+import '../../theme.dart';
+import '../../shared/widgets/gx_text_field.dart';
+import '../../shared/widgets/gx_pressable.dart';
+import '../../shared/widgets/gx_snackbar.dart';
 import '../../repositories/profile_repository.dart';
+import '../../repositories/auth_repository.dart';
 
 class EditProfileScreen extends ConsumerStatefulWidget {
   const EditProfileScreen({super.key});
@@ -14,11 +20,16 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
   final _formKey = GlobalKey<FormState>();
   late TextEditingController _nameController;
   bool _isLoading = false;
+  bool _uploadingPhoto = false;
+  // Relative `/uploads/...` URL of the (newly picked or existing) avatar.
+  String? _photoUrl;
+  // Seed the name field + avatar from the live profile exactly once (the
+  // provider resolves asynchronously, so we can't read it in initState).
+  bool _seeded = false;
 
   @override
   void initState() {
     super.initState();
-    // In a real app, this would fetch from a profile provider
     _nameController = TextEditingController(text: '');
   }
 
@@ -28,31 +39,76 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
     super.dispose();
   }
 
+  // Uploaded files come back as a relative `/uploads/...` path; prefix the API
+  // base so NetworkImage can resolve it (mirrors register_pro._fullUrl).
+  String _fullUrl(String path) =>
+      path.startsWith('http') ? path : '${AppConfig.baseUrl}$path';
+
+  // Pick → upload → stash the returned URL (persisted on Save Changes).
+  // Mirrors register_pro._pickPhoto: same picker args, same /uploads/image
+  // endpoint, mounted-guarded, error → snackbar.
+  Future<void> _pickPhoto() async {
+    try {
+      final x = await ImagePicker().pickImage(
+        source: ImageSource.gallery,
+        maxWidth: 1024,
+        imageQuality: 80,
+      );
+      if (x == null) return;
+      setState(() => _uploadingPhoto = true);
+      final bytes = await x.readAsBytes();
+      final url =
+          await ref.read(profileRepositoryProvider).uploadImage(bytes, x.name);
+      if (!mounted) return;
+      setState(() {
+        _photoUrl = url;
+        _uploadingPhoto = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _uploadingPhoto = false);
+      showGxSnack(context, 'Photo upload failed: $e', type: GxSnackType.error);
+    }
+  }
+
   Future<void> _save() async {
     if (!_formKey.currentState!.validate()) return;
 
     setState(() => _isLoading = true);
 
     try {
-      // In a real app, we'd get the userId from an auth provider
-      const userId = 'placeholder-user-id';
+      // Resolve the real authenticated user instead of a placeholder id.
+      final user = await ref.read(currentUserProvider.future);
+      if (user == null) {
+        if (mounted) {
+          showGxSnack(context, 'You must be signed in to update your profile.',
+              type: GxSnackType.error);
+        }
+        return;
+      }
 
       await ref.read(profileRepositoryProvider).updateProfile(
-        userId: userId,
-        data: {'name': _nameController.text},
+        userId: user.id,
+        data: {
+          'name': _nameController.text,
+          // Persist the new avatar only if one was picked this session
+          // (backend UsersService.updateProfile saves profileImageUrl).
+          if (_photoUrl != null) 'profileImageUrl': _photoUrl,
+        },
       );
 
+      // Refresh the cached profile so the new name shows everywhere.
+      ref.invalidate(currentUserProvider);
+
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Profile updated successfully!')),
-        );
+        showGxSnack(context, 'Profile updated successfully!',
+            type: GxSnackType.success);
         Navigator.pop(context);
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error updating profile: $e')),
-        );
+        showGxSnack(context, 'Error updating profile: $e',
+            type: GxSnackType.error);
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);
@@ -61,6 +117,19 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // Pre-fill the name field once the live profile resolves.
+    ref.listen(currentUserProvider, (prev, next) {
+      next.whenData((user) {
+        if (!_seeded && user != null) {
+          final name = user.name;
+          if (name != null && name.isNotEmpty) _nameController.text = name;
+          // Seed the existing avatar so the picker shows current photo.
+          final avatar = user.avatar;
+          if (avatar != null && avatar.isNotEmpty) _photoUrl = avatar;
+          if (name != null && name.isNotEmpty) _seeded = true;
+        }
+      });
+    });
     return Scaffold(
       backgroundColor: Theme.of(context).colorScheme.surface,
       appBar: AppBar(
@@ -91,24 +160,35 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                           padding: const EdgeInsets.all(4),
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
-                            border: Border.all(color: Theme.of(context).colorScheme.primary, width: 2),
+                            border: Border.all(color: context.gx.accent, width: 2),
                           ),
-                          child: const CircleAvatar(
+                          child: CircleAvatar(
                             radius: 60,
                             backgroundImage: NetworkImage(
-                                'https://ui-avatars.com/api/?name=Gixbee+User&background=6200EE&color=fff'),
+                                (_photoUrl != null && _photoUrl!.isNotEmpty)
+                                    ? _fullUrl(_photoUrl!)
+                                    : 'https://ui-avatars.com/api/?name=Gixbee+User&background=6200EE&color=fff'),
                           ),
                         ),
                         Positioned(
                           right: 0,
                           bottom: 0,
                           child: CircleAvatar(
-                            backgroundColor: Theme.of(context).colorScheme.primary,
+                            backgroundColor: context.gx.accent,
                             radius: 20,
                             child: IconButton(
-                              icon: const Icon(Icons.camera_alt,
-                                  color: Colors.white, size: 20),
-                              onPressed: () {},
+                              tooltip: 'Change photo',
+                              icon: _uploadingPhoto
+                                  ? SizedBox(
+                                      height: 18,
+                                      width: 18,
+                                      child: CircularProgressIndicator(
+                                          color: context.gx.onAccent,
+                                          strokeWidth: 2.5),
+                                    )
+                                  : Icon(Icons.camera_alt,
+                                      color: context.gx.onAccent, size: 20),
+                              onPressed: _uploadingPhoto ? null : _pickPhoto,
                             ),
                           ),
                         ),
@@ -116,36 +196,44 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                     ),
                   ),
                   const SizedBox(height: 48),
-                  Text(
-                    'Full Name',
-                    style: TextStyle(
-                        color: Colors.white.withValues(alpha: 0.6),
-                        fontSize: 14),
-                  ),
-                  const SizedBox(height: 8),
-                  GlassContainer(
-                    padding: EdgeInsets.zero,
-                    child: TextFormField(
-                      controller: _nameController,
-                      style: const TextStyle(color: Colors.white),
-                      decoration: const InputDecoration(
-                        hintText: 'Enter your full name',
-                        hintStyle: TextStyle(color: Colors.white24),
-                        border: InputBorder.none,
-                        contentPadding: EdgeInsets.symmetric(horizontal: 16),
-                      ),
-                      validator: (value) =>
-                          value!.isEmpty ? 'Please enter your name' : null,
-                    ),
+                  GxTextField(
+                    label: 'Full Name',
+                    hint: 'Enter your full name',
+                    controller: _nameController,
+                    textInputAction: TextInputAction.done,
+                    validator: (value) => (value == null || value.isEmpty)
+                        ? 'Please enter your name'
+                        : null,
                   ),
                   const Spacer(),
-                  ElevatedButton(
-                    onPressed: _isLoading ? null : _save,
-                    // M3 handles button styling globally
-                    child: _isLoading
-                        ? const CircularProgressIndicator(color: Colors.white)
-                        : const Text('Save Changes',
-                            style: TextStyle(fontWeight: FontWeight.bold)),
+                  GxPressable(
+                    onTap: _isLoading ? null : _save,
+                    child: Container(
+                      height: 54,
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(
+                        gradient: _isLoading
+                            ? null
+                            : LinearGradient(
+                                colors: context.gx.accentGradient),
+                        color: _isLoading
+                            ? context.gx.ink.withValues(alpha: 0.08)
+                            : null,
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                      child: _isLoading
+                          ? SizedBox(
+                              height: 22,
+                              width: 22,
+                              child: CircularProgressIndicator(
+                                  color: context.gx.onAccent, strokeWidth: 2.5),
+                            )
+                          : Text('Save Changes',
+                              style: TextStyle(
+                                  color: context.gx.onAccent,
+                                  fontWeight: FontWeight.w700,
+                                  fontSize: 16)),
+                    ),
                   ),
                 ],
               ),

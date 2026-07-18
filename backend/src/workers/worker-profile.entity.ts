@@ -1,6 +1,6 @@
 import {
   Entity, PrimaryGeneratedColumn, Column, CreateDateColumn,
-  UpdateDateColumn, OneToOne, JoinColumn,
+  UpdateDateColumn, OneToOne, JoinColumn, Index,
 } from 'typeorm';
 import { User } from '../users/user.entity';
 
@@ -10,7 +10,11 @@ export enum VerificationStatus {
   REJECTED = 'REJECTED',
 }
 
+// AUDIT FIX (missing index): the admin verification queue filters by
+// verificationStatus; dispatch/DB fallbacks look profiles up by user (the
+// OneToOne JoinColumn is already unique-indexed by Postgres).
 @Entity('worker_profiles')
+@Index(['verificationStatus'])
 export class WorkerProfile {
   @PrimaryGeneratedColumn('uuid')
   id: string;
@@ -21,6 +25,25 @@ export class WorkerProfile {
 
   @Column('simple-array', { nullable: true })
   skills: string[];
+
+  /// Subset of [skills] the worker has switched ON for instant dispatch.
+  /// Null/empty = all skills active (back-compat with profiles created
+  /// before per-service activation existed).
+  @Column('simple-array', { nullable: true })
+  activeSkills: string[];
+
+  /// Languages the pro speaks (v126 language matching). Null/empty =
+  /// unknown — such pros are still notified (lenient matching) so legacy
+  /// profiles aren't starved of jobs until they set this in Go Live.
+  @Column('simple-array', { nullable: true })
+  languages: string[];
+
+  /// How far the pro is willing to travel for an instant job, in km.
+  /// The broadcast fan-out only pings a pro when the job is inside THIS
+  /// radius (see WorkersService.getNearby). Capped server-side at
+  /// MAX_DISPATCH_RADIUS_KM so nobody can opt into the whole state.
+  @Column({ type: 'int', default: 10 })
+  serviceRadiusKm: number;
 
   @Column({ type: 'decimal', precision: 10, scale: 2, default: 0 })
   hourlyRate: number;

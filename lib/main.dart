@@ -1,3 +1,4 @@
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_core/firebase_core.dart';
@@ -6,12 +7,10 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'firebase_options.dart';
 import 'services/notification_service.dart';
 import 'theme.dart';
-import 'core/theme_provider.dart';
 import 'core/config/app_config.dart';
 import 'core/plugins/default_plugins.dart';
-import 'features/onboarding/welcome_screen.dart';
-import 'main_wrapper.dart';
-import 'repositories/auth_repository.dart';
+import 'core/theme_provider.dart';
+import 'features/onboarding/animated_splash_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -36,14 +35,56 @@ void main() async {
   runApp(const ProviderScope(child: GixbeeApp()));
 }
 
+/// Enables mouse/trackpad/stylus drag on every scrollable (Flutter web
+/// defaults to touch-only, which froze the horizontal home strips).
+class _GxScrollBehavior extends MaterialScrollBehavior {
+  const _GxScrollBehavior();
+
+  @override
+  Set<PointerDeviceKind> get dragDevices => {
+        PointerDeviceKind.touch,
+        PointerDeviceKind.mouse,
+        PointerDeviceKind.stylus,
+        PointerDeviceKind.trackpad,
+      };
+}
+
 class GixbeeApp extends ConsumerWidget {
   const GixbeeApp({super.key});
 
+  /// Gixbee 2026 is a dark-first design — on wide windows (web/desktop)
+  /// render inside a centered phone-width canvas so cards keep their
+  /// intended proportions instead of stretching across the window.
+  static Widget _phoneCanvas(BuildContext context, Widget? child) {
+    if (child == null) return const SizedBox.shrink();
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        const maxW = 430.0;
+        if (constraints.maxWidth <= 520) return child;
+        final mq = MediaQuery.of(context);
+        return ColoredBox(
+          color: const Color(0xFF050509),
+          child: Center(
+            child: SizedBox(
+              width: maxW,
+              height: constraints.maxHeight,
+              child: MediaQuery(
+                data: mq.copyWith(
+                    size: Size(maxW, constraints.maxHeight)),
+                child: child,
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    // Appearance: Gixbee Dark (default) or the Grab-style light theme —
+    // user-switchable in Profile → Appearance, persisted across restarts.
     final themeMode = ref.watch(themeModeProvider);
-    final authState = ref.watch(authStateProvider);
-
     return DynamicColorBuilder(
       builder: (ColorScheme? lightDynamic, ColorScheme? darkDynamic) {
         return MaterialApp(
@@ -52,15 +93,13 @@ class GixbeeApp extends ConsumerWidget {
           theme: GixbeeTheme.lightTheme(lightDynamic),
           darkTheme: GixbeeTheme.darkTheme(darkDynamic),
           themeMode: themeMode,
-          home: authState.when(
-            data: (isAuthenticated) => isAuthenticated
-                ? const MainWrapper()
-                : const WelcomeScreen(),
-            loading: () => const Scaffold(
-              body: Center(child: CircularProgressIndicator()),
-            ),
-            error: (_, __) => const WelcomeScreen(),
-          ),
+          // Web/desktop: let the mouse drag horizontal strips (events,
+          // deals, …) — Flutter web only enables touch drag by default.
+          scrollBehavior: const _GxScrollBehavior(),
+          builder: _phoneCanvas,
+          // Branded opening animation (replaces the old bare spinner) —
+          // resolves auth in parallel and fades into MainWrapper / Welcome.
+          home: const AnimatedSplashScreen(),
         );
       },
     );

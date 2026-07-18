@@ -1,18 +1,23 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../shared/widgets/dribbble_background.dart';
-import '../../shared/widgets/glass_container.dart';
+import '../../shared/widgets/gx_pressable.dart';
+import '../../shared/widgets/gx_snackbar.dart';
 import '../../repositories/auth_repository.dart';
+import '../../repositories/profile_repository.dart';
 import '../../core/config/app_config.dart';
+import '../../theme.dart';
 import '../onboarding/welcome_screen.dart';
 import 'edit_profile_screen.dart';
-import '../../repositories/profile_repository.dart';
 import 'wallet_screen.dart';
 import '../business/business_unit_dashboard.dart';
 import '../jobs/register_pro_screen.dart';
-import '../../repositories/talent_repository.dart';
-import 'debug_log_screen.dart';
+import '../jobs/post_job_screen.dart';
 import '../notifications/notifications_screen.dart';
+import '../messages/messages_list_screen.dart';
+import '../jobs/my_bookings_screen.dart';
+import 'profile_subscreens.dart';
+import '../../core/theme_provider.dart';
+import '../../shared/widgets/gx_sheet.dart';
 
 class ProfileScreen extends ConsumerWidget {
   const ProfileScreen({super.key});
@@ -20,387 +25,620 @@ class ProfileScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final userAsync = ref.watch(currentUserProvider);
+    final stats = ref.watch(userStatsProvider).value ?? <String, int>{};
+    final bookingsCount = stats['bookings'] ?? 0;
+    final savedCount = stats['saved'] ?? 0;
 
     return Scaffold(
-      backgroundColor: Theme.of(context).colorScheme.surface,
-      extendBodyBehindAppBar: true,
-      appBar: AppBar(
-        title: const Text('Profile'),
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.settings),
-            onPressed: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  behavior: SnackBarBehavior.floating,
-                  content: Text('Settings page coming soon')),
-              );
-            },
-          ),
-        ],
-      ),
-      body: DribbbleBackground(
-        child: SafeArea(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              children: [
-                // Profile Header
-                userAsync.when(
-                  data: (user) => Center(
-                    child: Column(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.all(4),
+      backgroundColor: context.gx.bg,
+      body: SafeArea(
+        child: Column(
+          children: [
+            // ── Header ──
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+              child: Row(
+                children: [
+                  IconButton(
+                    icon: Icon(Icons.arrow_back_rounded, color: context.gx.ink),
+                    onPressed: () => Navigator.pop(context),
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
+                  ),
+                  SizedBox(width: 16),
+                  Expanded(
+                    child: Text(
+                      'My Profile',
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w800,
+                        color: context.gx.ink,
+                      ),
+                    ),
+                  ),
+                  GxPressable(
+                    onTap: () {
+                      showGxSnack(context, 'Settings opening...');
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.all(9),
+                      decoration: BoxDecoration(
+                        color: context.gx.ink.withValues(alpha: 0.05),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Icon(Icons.settings_outlined, color: context.gx.ink.withValues(alpha: 0.55), size: 18),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            
+            Expanded(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.only(bottom: 88),
+                child: Column(
+                  children: [
+                    // ── Profile Hero ──
+                    userAsync.when(
+                      data: (user) {
+                        final name = (user?.name ?? '').isNotEmpty ? user!.name! : 'User';
+                        final initial = name.characters.first.toUpperCase();
+                        return Container(
+                          padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
                           decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            border: Border.all(color: Theme.of(context).colorScheme.primary, width: 2),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.3),
-                                blurRadius: 20,
+                            border: Border(bottom: BorderSide(color: context.gx.border)),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.center,
+                            children: [
+                              Stack(
+                                children: [
+                                  Container(
+                                    width: 80,
+                                    height: 80,
+                                    decoration: BoxDecoration(
+                                      shape: BoxShape.circle,
+                                      gradient: LinearGradient(
+                                        colors: [context.gx.accentSoft, Color(0xFFEC4899)],
+                                        begin: Alignment.topLeft,
+                                        end: Alignment.bottomRight,
+                                      ),
+                                    ),
+                                    alignment: Alignment.center,
+                                    child: Text(
+                                      initial,
+                                      style: TextStyle(fontSize: 32, fontWeight: FontWeight.w900, color: context.gx.onAccent),
+                                    ),
+                                  ),
+                                  Positioned(
+                                    bottom: 0,
+                                    right: 0,
+                                    child: Container(
+                                      padding: const EdgeInsets.all(2),
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xFF22C55E),
+                                        shape: BoxShape.circle,
+                                        border: Border.all(color: context.gx.bg, width: 3),
+                                      ),
+                                      child: Icon(Icons.check, size: 12, color: context.gx.onAccent),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              SizedBox(height: 12),
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Text(name, style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900, color: context.gx.ink)),
+                                  SizedBox(width: 8),
+                                  GxPressable(
+                                    onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const EditProfileScreen())),
+                                    child: Container(
+                                      padding: const EdgeInsets.all(6),
+                                      decoration: BoxDecoration(
+                                        color: context.gx.ink.withValues(alpha: 0.05),
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                      child: Icon(Icons.edit_outlined, size: 14, color: context.gx.accentSoft),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              SizedBox(height: 4),
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(Icons.phone_outlined, size: 14, color: context.gx.accentSoft),
+                                  SizedBox(width: 6),
+                                  Text(user?.phone ?? '+91 98765 43210', style: TextStyle(fontSize: 13, color: context.gx.ink.withValues(alpha: 0.55))),
+                                ],
+                              ),
+                              SizedBox(height: 4),
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(Icons.location_on_outlined, size: 14, color: context.gx.accentSoft),
+                                  SizedBox(width: 6),
+                                  Text('Coimbatore, Tamil Nadu', style: TextStyle(fontSize: 13, color: context.gx.ink.withValues(alpha: 0.55))),
+                                ],
+                              ),
+                              SizedBox(height: 12),
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFF22C55E).withValues(alpha: 0.1),
+                                      border: Border.all(color: const Color(0xFF22C55E).withValues(alpha: 0.2)),
+                                      borderRadius: BorderRadius.circular(20),
+                                    ),
+                                    child: Row(
+                                      children: [
+                                        Icon(Icons.verified_user_outlined, size: 12, color: Color(0xFF22C55E)),
+                                        SizedBox(width: 4),
+                                        Text('Aadhaar Verified', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Color(0xFF22C55E))),
+                                      ],
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                                    decoration: BoxDecoration(
+                                      color: context.gx.accentSoft.withValues(alpha: 0.1),
+                                      border: Border.all(color: context.gx.accentSoft.withValues(alpha: 0.2)),
+                                      borderRadius: BorderRadius.circular(20),
+                                    ),
+                                    child: Row(
+                                      children: [
+                                        Icon(Icons.star_rounded, size: 12, color: context.gx.accentSoft),
+                                        SizedBox(width: 4),
+                                        Text('4.8 Rating', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: context.gx.accentSoft)),
+                                      ],
+                                    ),
+                                  ),
+                                ],
                               ),
                             ],
                           ),
-                          child: CircleAvatar(
-                            radius: 50,
-                            backgroundImage: NetworkImage(user?.avatar ??
-                                '${AppConfig.avatarBaseUrl}?name=${user?.name ?? "User"}&background=6200EE&color=fff'),
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-                        Text(
-                          user?.name ?? 'User',
-                          style: Theme.of(context)
-                              .textTheme
-                              .headlineMedium
-                              ?.copyWith(
-                                color: Colors.white,
-                                fontWeight: FontWeight.bold,
+                        );
+                      },
+                      loading: () => const Center(child: CircularProgressIndicator()),
+                      error: (e, __) => const Text('Error loading profile', style: TextStyle(color: Colors.red)),
+                    ),
+
+                    // ── Stats row ──
+                    Consumer(
+                      builder: (context, ref, _) {
+                        final statsAsync = ref.watch(userStatsProvider);
+                        return statsAsync.when(
+                          data: (stats) {
+                            return Container(
+                              decoration: BoxDecoration(
+                                border: Border(bottom: BorderSide(color: context.gx.border)),
                               ),
-                        ),
-                        Text(
-                          user?.phone ?? user?.email ?? 'Guest',
-                          style: TextStyle(
-                              color: Colors.white.withValues(alpha: 0.5)),
-                        ),
+                              child: Row(
+                                children: [
+                                  Expanded(
+                                    child: Container(
+                                      padding: const EdgeInsets.all(14),
+                                      decoration: BoxDecoration(
+                                        border: Border(right: BorderSide(color: context.gx.border)),
+                                      ),
+                                      child: Column(
+                                        children: [
+                                          Text('${stats['bookings'] ?? 0}',
+                                              style: TextStyle(
+                                                  fontSize: 22,
+                                                  fontWeight: FontWeight.w900,
+                                                  color: context.gx.accentSoft)),
+                                          const SizedBox(height: 2),
+                                          Text('Bookings',
+                                              style: TextStyle(
+                                                  fontSize: 11,
+                                                  color: context.gx.ink
+                                                      .withValues(alpha: 0.55))),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                  Expanded(
+                                    child: Container(
+                                      padding: const EdgeInsets.all(14),
+                                      decoration: BoxDecoration(
+                                        border: Border(
+                                            right: BorderSide(
+                                                color: context.gx.border)),
+                                      ),
+                                      child: Column(
+                                        children: [
+                                          Text('${stats['saved'] ?? 0}',
+                                              style: const TextStyle(
+                                                  fontSize: 22,
+                                                  fontWeight: FontWeight.w900,
+                                                  color: Color(0xFF22C55E))),
+                                          const SizedBox(height: 2),
+                                          Text('Saved',
+                                              style: TextStyle(
+                                                  fontSize: 11,
+                                                  color: context.gx.ink
+                                                      .withValues(alpha: 0.55))),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                  Expanded(
+                                    child: Padding(
+                                      padding: const EdgeInsets.all(14),
+                                      child: Column(
+                                        children: [
+                                          Text(
+                                              (stats['reviews'] ?? 0) > 0
+                                                  ? '${stats['reviews']}'
+                                                  : '—',
+                                              style: const TextStyle(
+                                                  fontSize: 22,
+                                                  fontWeight: FontWeight.w900,
+                                                  color: GixbeeTheme.accentGold)),
+                                          const SizedBox(height: 2),
+                                          Text('Reviews',
+                                              style: TextStyle(
+                                                  fontSize: 11,
+                                                  color: context.gx.ink
+                                                      .withValues(alpha: 0.55))),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            );
+                          },
+                          loading: () => const SizedBox.shrink(),
+                          error: (_, __) => const SizedBox.shrink(),
+                        );
+                      },
+                    ),
+
+                    // ── Menu Items ──
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 8),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _buildSectionHeader(context, 'MY ACTIVITY'),
+                          _buildMenuItem(
+                            context,
+                            icon: Icons.calendar_today_rounded,
+                            color: context.gx.accentSoft,
+                            title: 'My Bookings',
+                            trailingText: '$bookingsCount',
+                            onTap: () => Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                  builder: (_) => const MyBookingsScreen()),
+                            ),
+                          ),
+                          _buildMenuItem(
+                            context,
+                            icon: Icons.chat_bubble_outline_rounded,
+                            color: const Color(0xFF22C55E),
+                            title: 'Messages',
+                            onTap: () => Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                  builder: (_) => const MessagesListScreen()),
+                            ),
+                          ),
+                          _buildMenuItem(
+                            context,
+                            icon: Icons.credit_card_outlined,
+                            color: GixbeeTheme.accentGold,
+                            title: 'Payment History',
+                            onTap: () => Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                  builder: (_) => const PaymentHistoryScreen()),
+                            ),
+                          ),
+                          _buildMenuItem(
+                            context,
+                            icon: Icons.favorite_border_rounded,
+                            color: const Color(0xFFEC4899),
+                            title: 'Saved Vendors',
+                            trailingText: '$savedCount',
+                            onTap: () => Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                  builder: (_) => const SavedVendorsScreen()),
+                            ),
+                          ),
+
+                          const SizedBox(height: 6),
+                          _buildSectionHeader(context, 'MY BUSINESS'),
+                          _buildMenuItem(
+                            context,
+                            icon: Icons.storefront_outlined,
+                            color: const Color(0xFF3B82F6),
+                            title: 'List My Business',
+                            onTap: () => Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                  builder: (_) =>
+                                      const BusinessUnitDashboard()),
+                            ),
+                          ),
+                          _buildMenuItem(
+                            context,
+                            icon: Icons.work_outline_rounded,
+                            color: const Color(0xFF22C55E),
+                            title: 'Post a Job',
+                            onTap: () => Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                  builder: (_) => const PostJobScreen()),
+                            ),
+                          ),
+
+                          const SizedBox(height: 6),
+                          _buildSectionHeader(context, 'SETTINGS'),
+                          _buildMenuItem(
+                            context,
+                            icon: Icons.notifications_none_rounded,
+                            color: const Color(0xFFF97316),
+                            title: 'Notifications',
+                            onTap: () => Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                  builder: (_) =>
+                                      const NotificationSettingsScreen()),
+                            ),
+                          ),
+                          _buildMenuItem(
+                            context,
+                            icon: Icons.language_rounded,
+                            color: const Color(0xFF0EA5E9),
+                            title: 'Language',
+                            trailingText: 'English',
+                            onTap: () => Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                  builder: (_) => const LanguageScreen()),
+                            ),
+                          ),
+                          _buildMenuItem(
+                            context,
+                            icon: Icons.palette_outlined,
+                            color: const Color(0xFF00B14F),
+                            title: 'Appearance',
+                            trailingText: ref.watch(themeChoiceProvider) ==
+                                    AppThemeChoice.grabLight
+                                ? 'Grab Green'
+                                : 'Gixbee Dark',
+                            onTap: () => _showThemePicker(context, ref),
+                          ),
+                          _buildMenuItem(
+                            context,
+                            icon: Icons.help_outline_rounded,
+                            color: context.gx.accentSoft,
+                            title: 'Help & Support',
+                            onTap: () => Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                  builder: (_) => const HelpSupportScreen()),
+                            ),
+                          ),
+                          _buildMenuItem(
+                            context,
+                            icon: Icons.info_outline_rounded,
+                            color: context.gx.ink.withValues(alpha: 0.55),
+                            title: 'About Gixbee',
+                            trailingText: AppConfig.buildVersion,
+                            onTap: () => Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                  builder: (_) => const AboutScreen()),
+                            ),
+                          ),
+                          
+                          const SizedBox(height: 14),
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 16),
+                            child: GxPressable(
+                              onTap: () async {
+                                await ref.read(authRepositoryProvider).signOut();
+                                if (context.mounted) {
+                                  Navigator.pushAndRemoveUntil(
+                                    context,
+                                    MaterialPageRoute(builder: (_) => const WelcomeScreen()),
+                                    (r) => false,
+                                  );
+                                }
+                              },
+                              child: Container(
+                                width: double.infinity,
+                                padding: const EdgeInsets.all(13),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFEF4444).withValues(alpha: 0.08),
+                                  border: Border.all(color: const Color(0xFFEF4444).withValues(alpha: 0.13)),
+                                  borderRadius: BorderRadius.circular(14),
+                                ),
+                                alignment: Alignment.center,
+                                child: const Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(Icons.logout_rounded, color: Color(0xFFEF4444), size: 16),
+                                    SizedBox(width: 8),
+                                    Text('Sign Out', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: Color(0xFFEF4444))),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Appearance picker: Gixbee Dark (default) vs Grab-style Green light.
+  void _showThemePicker(BuildContext context, WidgetRef ref) {
+    showGxSheet<void>(
+      context,
+      title: 'Appearance',
+      child: Consumer(builder: (ctx, sheetRef, _) {
+        final current = sheetRef.watch(themeChoiceProvider);
+
+        Widget option(AppThemeChoice choice, String title, String sub,
+            IconData icon, Color accent) {
+          final selected = current == choice;
+          return GxPressable(
+            onTap: () {
+              sheetRef.read(themeChoiceProvider.notifier).set(choice);
+              Navigator.pop(ctx);
+            },
+            child: Container(
+              margin: const EdgeInsets.only(bottom: 10),
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: selected
+                    ? accent.withValues(alpha: 0.1)
+                    : ctx.gx.card2,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(
+                    color: selected ? accent : ctx.gx.border,
+                    width: 1.5),
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                      selected
+                          ? Icons.radio_button_checked_rounded
+                          : Icons.radio_button_off_rounded,
+                      size: 20,
+                      color: selected
+                          ? accent
+                          : ctx.gx.ink.withValues(alpha: 0.35)),
+                  const SizedBox(width: 12),
+                  Icon(icon, size: 18, color: accent),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(title,
+                            style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w800,
+                                color: ctx.gx.ink)),
+                        const SizedBox(height: 2),
+                        Text(sub,
+                            style: TextStyle(
+                                fontSize: 11.5,
+                                color: ctx.gx.ink.withValues(alpha: 0.5))),
                       ],
                     ),
                   ),
-                  loading: () => const Center(child: CircularProgressIndicator()),
-                  error: (e, __) => Text('Error loading profile: $e', style: const TextStyle(color: Colors.red)),
-                ),
-
-                const SizedBox(height: 32),
-
-                // Stats Row
-                Consumer(
-                  builder: (context, ref, _) {
-                    final statsAsync = ref.watch(userStatsProvider);
-                    return statsAsync.when(
-                      data: (stats) => Row(
-                        children: [
-                          _ProfileStat(
-                              label: 'Bookings',
-                              value: '${stats['bookings']}',
-                              color: Theme.of(context).colorScheme.primary),
-                          const SizedBox(width: 16),
-                          _ProfileStat(
-                              label: 'Saved',
-                              value: '${stats['saved']}',
-                              color: Theme.of(context).colorScheme.secondary),
-                          const SizedBox(width: 16),
-                          _ProfileStat(
-                              label: 'Reviews',
-                              value: '${stats['reviews']}',
-                              color: Theme.of(context).colorScheme.tertiary),
-                        ],
-                      ),
-                      loading: () =>
-                          const Center(child: CircularProgressIndicator()),
-                      error: (e, __) => const Text('Error loading stats',
-                          style: TextStyle(color: Colors.red)),
-                    );
-                  },
-                ),
-
-                const SizedBox(height: 32),
-
-                // Menu Options
-                _ProfileOption(
-                  icon: Icons.person_outline,
-                  label: 'Edit Profile',
-                  onTap: () => Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                        builder: (_) => const EditProfileScreen()),
-                  ),
-                ),
-                const SizedBox(height: 16),
-                _ProfileOption(
-                  icon: Icons.account_balance_wallet,
-                  label: 'My Wallet',
-                  onTap: () => Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (_) => const WalletScreen()),
-                  ),
-                ),
-                const SizedBox(height: 16),
-                _ProfileOption(
-                  icon: Icons.storefront_outlined,
-                  label: 'My Businesses',
-                  onTap: () => Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (_) => const BusinessUnitDashboard()),
-                  ),
-                ),
-                const SizedBox(height: 16),
-                Consumer(
-                  builder: (context, ref, _) {
-                    final talentAsync = ref.watch(talentProfileProvider);
-                    return talentAsync.when(
-                      data: (talent) {
-                        final hasSkills = (talent['professionalSkills'] as List? ?? []).isNotEmpty;
-                        return _ProfileOption(
-                          icon: hasSkills ? Icons.badge_outlined : Icons.assignment_ind_outlined,
-                          label: hasSkills ? 'Professional Bio' : 'Register as Pro',
-                          onTap: () => Navigator.push(
-                            context,
-                            MaterialPageRoute(builder: (_) => const RegisterProScreen()),
-                          ),
-                        );
-                      },
-                      loading: () => const SizedBox.shrink(),
-                      error: (e, __) => _ProfileOption(
-                        icon: Icons.assignment_ind_outlined,
-                        label: 'Register as Pro',
-                        onTap: () => Navigator.push(
-                          context,
-                          MaterialPageRoute(builder: (_) => const RegisterProScreen()),
-                        ),
-                      ),
-                    );
-                  },
-                ),
-                const SizedBox(height: 16),
-                userAsync.when(
-                  data: (user) => _ProfileToggleOption(
-                    icon: Icons.work_history_outlined,
-                    label: 'Available for Work',
-                    initialValue: user?.isAvailableForWork ?? true,
-                    onChanged: (val) async {
-                      if (user == null) return;
-                      try {
-                        await ref.read(profileRepositoryProvider).updateProfile(
-                          userId: user.id,
-                          data: {'isAvailableForWork': val},
-                        );
-                        // Refresh the user profile
-                        ref.invalidate(currentUserProvider);
-
-
-
-                        if (context.mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                  behavior: SnackBarBehavior.floating,
-                  content: Text(val ? 'You are now visible to clients for booking' : 'You are currently hidden from search')),
-                          );
-                        }
-                      } catch (e) {
-                         if (context.mounted) {
-                           ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                  behavior: SnackBarBehavior.floating,
-                  content: Text('Failed to update availability')),
-                           );
-                         }
-                      }
-                    },
-                  ),
-                  loading: () => const SizedBox.shrink(),
-                  error: (_, __) => const SizedBox.shrink(),
-                ),
-                const SizedBox(height: 16),
-                _ProfileOption(
-                    icon: Icons.notifications_none,
-                    label: 'Notifications',
-                    onTap: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (_) => const NotificationsScreen()),
-                    ),
-                ),
-                const SizedBox(height: 16),
-                _ProfileOption(
-                  icon: Icons.bug_report_outlined,
-                  label: 'System Logs',
-                  onTap: () => Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (_) => const DebugLogScreen()),
-                  ),
-                ),
-                const SizedBox(height: 16),
-                _ProfileOption(
-                    icon: Icons.help_outline,
-                    label: 'Help & Support',
-                    onTap: () {
-                      if (context.mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                  behavior: SnackBarBehavior.floating,
-                  content: Text('Help center coming soon')),
-                        );
-                      }
-                    },
-                ),
-                const SizedBox(height: 16),
-                _ProfileOption(
-                  icon: Icons.logout,
-                  label: 'Log Out',
-                  isData: false,
-                  onTap: () async {
-                    await ref.read(authRepositoryProvider).signOut();
-                    if (context.mounted) {
-                      Navigator.pushAndRemoveUntil(
-                        context,
-                        MaterialPageRoute(builder: (_) => const WelcomeScreen()),
-                        (route) => false,
-                      );
-                    }
-                  },
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _ProfileStat extends StatelessWidget {
-  final String label;
-  final String value;
-  final Color color;
-
-  const _ProfileStat(
-      {required this.label, required this.value, required this.color});
-
-  @override
-  Widget build(BuildContext context) {
-    return Expanded(
-      child: GlassContainer(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          children: [
-            Text(
-              value,
-              style: TextStyle(
-                  color: color, fontSize: 24, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              label,
-              style: TextStyle(
-                  color: Colors.white.withValues(alpha: 0.7), fontSize: 12),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _ProfileOption extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final bool isData;
-  final VoidCallback? onTap;
-
-  const _ProfileOption({
-    required this.icon,
-    required this.label,
-    this.isData = true,
-    this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: GlassContainer(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-        child: Row(
-          children: [
-            Icon(icon, color: Colors.white),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Text(
-                label,
-                style: const TextStyle(color: Colors.white, fontSize: 16),
+                ],
               ),
             ),
-            if (isData)
-              Icon(Icons.arrow_forward_ios,
-                  color: Colors.white.withValues(alpha: 0.5), size: 16),
+          );
+        }
+
+        return Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            option(AppThemeChoice.gixbeeDark, 'Gixbee Dark',
+                'Deep-void look with violet accents (default)',
+                Icons.dark_mode_rounded, GixbeeTheme.accentViolet),
+            option(AppThemeChoice.grabLight, 'Grab Green',
+                'Light surfaces + green accents. Login stays brand-orange.',
+                Icons.light_mode_rounded, GixbeeTheme.grabGreen),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(4, 4, 4, 8),
+              child: Text(
+                'Auth & splash always use the orange Gixbee wordmark — '
+                'Appearance only changes the main app shell.',
+                style: TextStyle(
+                  fontSize: 11,
+                  height: 1.35,
+                  color: ctx.gx.ink.withValues(alpha: 0.45),
+                ),
+              ),
+            ),
           ],
+        );
+      }),
+    );
+  }
+
+  Widget _buildSectionHeader(BuildContext context, String title) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 6, 16, 4),
+      child: Text(
+        title,
+        style: TextStyle(
+          fontSize: 10,
+          fontWeight: FontWeight.w700,
+          color: context.gx.ink.withValues(alpha: 0.55),
+          letterSpacing: 1.2,
         ),
       ),
     );
   }
-}
 
-class _ProfileToggleOption extends StatefulWidget {
-  final IconData icon;
-  final String label;
-  final bool initialValue;
-  final ValueChanged<bool> onChanged;
-
-  const _ProfileToggleOption({
-    required this.icon,
-    required this.label,
-    required this.initialValue,
-    required this.onChanged,
-  });
-
-  @override
-  State<_ProfileToggleOption> createState() => _ProfileToggleOptionState();
-}
-
-class _ProfileToggleOptionState extends State<_ProfileToggleOption> {
-  late bool _value;
-
-  @override
-  void initState() {
-    super.initState();
-    _value = widget.initialValue;
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return GlassContainer(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      child: Row(
-        children: [
-          Icon(widget.icon, color: Colors.white),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Text(
-              widget.label,
-              style: const TextStyle(color: Colors.white, fontSize: 16),
+  Widget _buildMenuItem(
+    BuildContext context, {
+    required IconData icon,
+    required Color color,
+    required String title,
+    String? trailingText,
+    String? trailingBadge,
+    required VoidCallback onTap,
+  }) {
+    return GxPressable(
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        child: Row(
+          children: [
+            Icon(icon, color: color, size: 20),
+            SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                title,
+                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: context.gx.ink),
+              ),
             ),
-          ),
-          Switch(
-            value: _value,
-            activeThumbColor: Theme.of(context).colorScheme.primary,
-            onChanged: (val) {
-              setState(() => _value = val);
-              widget.onChanged(val);
-            },
-          ),
-        ],
+            if (trailingText != null)
+              Text(
+                trailingText,
+                style: TextStyle(fontSize: 12, color: context.gx.ink.withValues(alpha: 0.55)),
+              ),
+            if (trailingBadge != null)
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFEF4444),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Text(
+                  trailingBadge,
+                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: context.gx.onAccent),
+                ),
+              ),
+            SizedBox(width: 8),
+            Icon(Icons.chevron_right_rounded, color: context.gx.ink.withValues(alpha: 0.55), size: 20),
+          ],
+        ),
       ),
     );
   }

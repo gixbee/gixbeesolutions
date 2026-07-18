@@ -1,15 +1,25 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../repositories/talent_repository.dart';
+import '../../shared/widgets/gx_glass_card.dart';
+import '../../shared/widgets/gx_pressable.dart';
+import '../../shared/widgets/gx_snackbar.dart';
+import '../../shared/widgets/gx_skeleton.dart';
+import '../../shared/widgets/gx_fade.dart';
+import '../../theme.dart';
 import 'register_pro_screen.dart';
+import 'seeker_profile_wizard.dart';
 
 /// The job seeker's talent profile — skills, experience, bio, portfolio.
 /// This is what customers see when reviewing applicants.
+/// Gixbee 2026 reskin: neutral header, glass profile card, ALL-CAPS bento
+/// sections, skeleton loading, single gradient CTA (complete-profile).
 class TalentProfileScreen extends ConsumerStatefulWidget {
   const TalentProfileScreen({super.key});
 
   @override
-  ConsumerState<TalentProfileScreen> createState() => _TalentProfileScreenState();
+  ConsumerState<TalentProfileScreen> createState() =>
+      _TalentProfileScreenState();
 }
 
 class _TalentProfileScreenState extends ConsumerState<TalentProfileScreen> {
@@ -38,411 +48,342 @@ class _TalentProfileScreenState extends ConsumerState<TalentProfileScreen> {
     }
   }
 
+  /// Skills (and the bio/base rate) are managed in RegisterProScreen.
+  Future<void> _openEditor() async {
+    await Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const RegisterProScreen()),
+    );
+    _fetchProfile();
+  }
+
+  /// v126 Find a Job wizard — job-seeker preferences (categories, skills,
+  /// expected salary, cities). Separate from the Earn Hourly pro editor.
+  Future<void> _openJobPrefs() async {
+    await Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const SeekerProfileWizard()),
+    );
+    _fetchProfile();
+  }
+
+  bool get _hasSkills => _profile?['skills']?.isNotEmpty == true;
+
+  String get _initial {
+    final name = (_profile?['fullName'] as String?)?.trim() ?? '';
+    return name.isEmpty ? 'G' : name[0].toUpperCase();
+  }
+
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
 
-    if (_isLoading) {
-      return const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
-      );
-    }
-
-    return Scaffold(
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 20),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const SizedBox(height: 16),
-
-              // ── HEADER ──
-              Text(
-                'Talent Bio',
-                style: Theme.of(context)
-                    .textTheme
-                    .titleLarge
-                    ?.copyWith(fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                'This is how customers see you when you apply',
-                style: TextStyle(color: cs.onSurfaceVariant, fontSize: 12),
-              ),
-
-              const SizedBox(height: 24),
-
-              // ── PROFILE CARD ──
-              Container(
-                padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(20),
-                  gradient: LinearGradient(
-                    colors: [
-                      const Color(0xFF54A0FF).withValues(alpha: 0.08),
-                      cs.surface,
-                    ],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
-                  border: Border.all(
-                    color: const Color(0xFF54A0FF).withValues(alpha: 0.2),
-                  ),
+    return SafeArea(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // ── NEUTRAL HEADER ──
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 10, 16, 12),
+            child: Row(
+              children: [
+                GxPressable(
+                  onTap: () => Navigator.pop(context),
+                  child: const _RoundIconButton(
+                      icon: Icons.arrow_back, semanticLabel: 'Go back'),
                 ),
-                child: Column(
-                  children: [
-                    // Avatar + name
-                    Row(
-                      children: [
-                        CircleAvatar(
-                          radius: 32,
-                          backgroundColor:
-                              const Color(0xFF54A0FF).withValues(alpha: 0.15),
-                          child: const Icon(Icons.person,
-                              size: 32, color: Color(0xFF54A0FF)),
-                        ),
-                        const SizedBox(width: 16),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                _profile?['fullName'] ?? 'Your Name',
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 18,
-                                ),
-                              ),
-                              Text(
-                                _profile?['bio']?.isNotEmpty == true
-                                    ? _profile!['bio']
-                                    : 'Tap to complete your profile',
-                                style: TextStyle(
-                                  color: cs.onSurfaceVariant,
-                                  fontSize: 12,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        IconButton(
-                          icon: Icon(Icons.edit_outlined, color: cs.primary),
-                          onPressed: () {},
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 16),
-
-                    // Completion progress
-                    _ProgressSection(
-                      progress: _profile?['skills']?.isNotEmpty == true ? 0.7 : 0.3,
-                      cs: cs,
-                    ),
-                  ],
-                ),
-              ),
-
-              if (_profile?['skills']?.isEmpty == true) ...[
-                const SizedBox(height: 16),
-                Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: cs.primary.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: cs.primary.withValues(alpha: 0.3)),
-                  ),
-                  child: Row(
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Icon(Icons.info_outline, color: cs.primary),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Text(
-                              'Complete Professional Registration',
-                              style: TextStyle(fontWeight: FontWeight.bold),
-                            ),
-                            Text(
-                              'Add your skills and rates to appear in searches.',
-                              style: TextStyle(fontSize: 12, color: cs.onSurfaceVariant),
-                            ),
-                          ],
+                      const Text(
+                        'Talent Bio',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w800,
+                          fontSize: 19,
                         ),
                       ),
-                      TextButton(
-                        onPressed: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(builder: (_) => const RegisterProScreen()),
-                          );
-                        },
-                        child: const Text('Start Now'),
+                      Text(
+                        'How customers see you when you apply',
+                        style: TextStyle(
+                          color: cs.onSurfaceVariant,
+                          fontSize: 12,
+                        ),
                       ),
                     ],
                   ),
                 ),
               ],
+            ),
+          ),
 
-              const SizedBox(height: 24),
-
-              // ── SECTIONS ──
-              _buildSection(
-                context,
-                icon: Icons.psychology_outlined,
-                title: 'Skills',
-                subtitle: 'What are you good at?',
-                trailing: _buildAddButton(context),
-                child: Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: [
-                    ...(_profile?['skills'] as List? ?? []).map((s) => _SkillChip(label: s, level: 'Expert')),
-                    _AddSkillChip(onTap: () {}),
-                  ],
-                ),
-              ),
-
-              _buildSection(
-                context,
-                icon: Icons.work_history_outlined,
-                title: 'Experience',
-                subtitle: 'Your work history',
-                trailing: _buildAddButton(context),
-                child: const Column(
-                  children: [
-                    _ExperienceItem(
-                      role: 'Freelance Plumber',
-                      place: 'Self-employed',
-                      period: '2020 – Present',
-                      description:
-                          'Residential plumbing repairs, pipe installations, and bathroom fittings across Kochi.',
+          Expanded(
+            child: GxFade(
+              child: KeyedSubtree(
+                key: ValueKey(_isLoading ? 'loading' : 'data'),
+                child: _isLoading
+                ? _buildSkeleton()
+                : RefreshIndicator(
+                    onRefresh: _fetchProfile,
+                    child: ListView(
+                      physics: const AlwaysScrollableScrollPhysics(),
+                      padding: const EdgeInsets.fromLTRB(20, 4, 20, 28),
+                      children: [
+                        _buildProfileCard(cs),
+                        const SizedBox(height: 14),
+                        _buildJobPrefsCard(cs),
+                        if (!_hasSkills) ...[
+                          const SizedBox(height: 14),
+                          _buildCompleteCta(cs),
+                        ],
+                        const SizedBox(height: 24),
+                        _buildSection(
+                          cs,
+                          icon: Icons.psychology_outlined,
+                          label: 'SKILLS',
+                          child: Wrap(
+                            spacing: 8,
+                            runSpacing: 8,
+                            children: [
+                              ...(_profile?['skills'] as List? ?? [])
+                                  .map((s) => _SkillChip(label: '$s')),
+                              _AddSkillChip(onTap: _openEditor),
+                            ],
+                          ),
+                        ),
+                        _buildSection(
+                          cs,
+                          icon: Icons.work_history_outlined,
+                          label: 'EXPERIENCE',
+                          trailing: const _SoonPill(),
+                          child: const _HintRow(
+                            icon: Icons.history_rounded,
+                            text:
+                                'Your completed Gixbee jobs will appear here as work history.',
+                          ),
+                        ),
+                        _buildSection(
+                          cs,
+                          icon: Icons.collections_outlined,
+                          label: 'PORTFOLIO',
+                          trailing: const _SoonPill(),
+                          child: SizedBox(
+                            height: 96,
+                            child: ListView(
+                              scrollDirection: Axis.horizontal,
+                              children: const [
+                                _PortfolioPlaceholder(),
+                                _PortfolioPlaceholder(),
+                                _PortfolioPlaceholder(),
+                              ],
+                            ),
+                          ),
+                        ),
+                        _buildSection(
+                          cs,
+                          icon: Icons.verified_outlined,
+                          label: 'CERTIFICATIONS',
+                          trailing: const _SoonPill(),
+                          child: const _HintRow(
+                            icon: Icons.workspace_premium_outlined,
+                            text: 'Upload certificates to build trust.',
+                          ),
+                        ),
+                        _buildSection(
+                          cs,
+                          icon: Icons.location_on_outlined,
+                          label: 'SERVICE AREA',
+                          trailing: const _SoonPill(),
+                          child: const _HintRow(
+                            icon: Icons.map_outlined,
+                            text: 'Set the areas where you accept work.',
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        _buildAvailabilityCard(cs),
+                      ],
                     ),
-                    _EmptyExperienceHint(),
-                  ],
-                ),
+                  ),
               ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 
-              _buildSection(
-                context,
-                icon: Icons.collections_outlined,
-                title: 'Portfolio',
-                subtitle: 'Photos of past work',
-                trailing: _buildAddButton(context),
-                child: SizedBox(
-                  height: 100,
-                  child: ListView(
-                    scrollDirection: Axis.horizontal,
-                    children: [
-                      _PortfolioPlaceholder(onTap: () {}),
-                      _PortfolioPlaceholder(onTap: () {}),
-                      _PortfolioPlaceholder(onTap: () {}),
-                    ],
+  // ── GLASS PROFILE CARD ──
+  Widget _buildProfileCard(ColorScheme cs) {
+    final bio = _profile?['bio'] as String?;
+    return GxGlassCard(
+      radius: 20,
+      child: Column(
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 56,
+                height: 56,
+                decoration: BoxDecoration(
+                  color: GixbeeTheme.accentGreen.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(18),
+                ),
+                alignment: Alignment.center,
+                child: Text(
+                  _initial,
+                  style: const TextStyle(
+                    color: GixbeeTheme.accentGreen,
+                    fontWeight: FontWeight.w800,
+                    fontSize: 22,
                   ),
                 ),
               ),
-
-              _buildSection(
-                context,
-                icon: Icons.verified_outlined,
-                title: 'Certifications',
-                subtitle: 'Licenses & training',
-                trailing: _buildAddButton(context),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      _profile?['fullName'] ?? 'Your Name',
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w800,
+                        fontSize: 17,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      bio?.isNotEmpty == true
+                          ? bio!
+                          : 'Tap Edit to complete your profile',
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: cs.onSurfaceVariant,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              GxPressable(
+                onTap: _openEditor,
                 child: Container(
-                  padding: const EdgeInsets.all(14),
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 12, vertical: 7),
                   decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(12),
-                    color: cs.surfaceContainerHighest.withValues(alpha: 0.3),
-                    border: Border.all(
-                      color: cs.outlineVariant.withValues(alpha: 0.2),
-                    ),
+                    color: GixbeeTheme.accentGreen.withValues(alpha: 0.14),
+                    borderRadius: BorderRadius.circular(999),
                   ),
-                  child: Row(
+                  child: const Row(
+                    mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(Icons.add_circle_outline,
-                          size: 20, color: cs.primary),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Text(
-                          'Upload certificates to build trust',
-                          style: TextStyle(
-                              color: cs.onSurfaceVariant, fontSize: 12),
+                      Icon(Icons.edit_outlined,
+                          size: 14, color: GixbeeTheme.accentGreen),
+                      SizedBox(width: 5),
+                      Text(
+                        'Edit',
+                        style: TextStyle(
+                          color: GixbeeTheme.accentGreen,
+                          fontWeight: FontWeight.w700,
+                          fontSize: 12,
                         ),
                       ),
                     ],
                   ),
                 ),
               ),
-
-              _buildSection(
-                context,
-                icon: Icons.location_on_outlined,
-                title: 'Service Area',
-                subtitle: 'Where you work',
-                child: Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: [
-                    const _AreaChip(label: 'Kochi'),
-                    const _AreaChip(label: 'Ernakulam'),
-                    const _AreaChip(label: 'Aluva'),
-                    ActionChip(
-                      avatar: Icon(Icons.add, size: 16, color: cs.primary),
-                      label: const Text('Add Area',
-                          style: TextStyle(fontSize: 12)),
-                      onPressed: () {},
-                    ),
-                  ],
-                ),
-              ),
-
-              const SizedBox(height: 24),
-
-              // ── AVAILABILITY TOGGLE ──
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(16),
-                  color: Colors.green.withValues(alpha: 0.06),
-                  border:
-                      Border.all(color: Colors.green.withValues(alpha: 0.2)),
-                ),
-                child: Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: Colors.green.withValues(alpha: 0.12),
-                      ),
-                      child: const Icon(Icons.circle,
-                          size: 12, color: Colors.green),
-                    ),
-                    const SizedBox(width: 14),
-                    const Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Available for Work',
-                            style: TextStyle(
-                                fontWeight: FontWeight.bold, fontSize: 14),
-                          ),
-                          Text(
-                            'Customers can see you in search results',
-                            style: TextStyle(fontSize: 11, color: Colors.grey),
-                          ),
-                        ],
-                      ),
-                    ),
-                    Switch(
-                      value: _profile?['alertsEnabled'] ?? true,
-                      onChanged: (val) async {
-                        final messenger = ScaffoldMessenger.of(context);
-                        try {
-                          await ref.read(talentRepositoryProvider).toggleAlerts(val);
-                          await _fetchProfile(); // Refresh
-                        } catch (e) {
-                          if (mounted) {
-                            messenger.showSnackBar(SnackBar(content: Text('Failed: $e')));
-                          }
-                        }
-                      },
-                      activeThumbColor: Colors.green,
-                    ),
-                  ],
-                ),
-              ),
-
-              const SizedBox(height: 32),
             ],
           ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildSection(
-    BuildContext context, {
-    required IconData icon,
-    required String title,
-    required String subtitle,
-    Widget? trailing,
-    required Widget child,
-  }) {
-    final cs = Theme.of(context).colorScheme;
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 20),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(icon, size: 20, color: cs.primary),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(title,
-                        style: const TextStyle(
-                            fontWeight: FontWeight.bold, fontSize: 15)),
-                    Text(subtitle,
-                        style: TextStyle(
-                            color: cs.onSurfaceVariant, fontSize: 11)),
-                  ],
-                ),
-              ),
-              if (trailing != null) trailing,
-            ],
-          ),
-          const SizedBox(height: 12),
-          child,
+          const SizedBox(height: 16),
+          _buildProgress(cs),
         ],
       ),
     );
   }
 
-  Widget _buildAddButton(BuildContext context) {
-    return IconButton(
-      icon: Icon(Icons.add_circle_outline,
-          size: 20, color: Theme.of(context).colorScheme.primary),
-      onPressed: () {},
-      constraints: const BoxConstraints(),
-      padding: EdgeInsets.zero,
+  /// v126 Find a Job: entry card for the seeker-preferences wizard —
+  /// categories, expected salary and preferred cities used for job matching.
+  Widget _buildJobPrefsCard(ColorScheme cs) {
+    final roles = (_profile?['preferredRoles'] as List? ?? [])
+        .map((e) => e.toString())
+        .toList();
+    final salary = _profile?['expectedSalary'];
+    final subtitle = roles.isEmpty
+        ? 'Set what you\'re looking for — categories, salary, cities'
+        : [
+            roles.take(3).join(' · '),
+            if (salary != null) '₹$salary/mo',
+          ].join('  ·  ');
+
+    return GxPressable(
+      onTap: _openJobPrefs,
+      child: GxGlassCard(
+        padding: const EdgeInsets.all(14),
+        child: Row(
+          children: [
+            Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                color: GixbeeTheme.accentGreen.withValues(alpha: 0.14),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: const Icon(Icons.tune_rounded,
+                  color: GixbeeTheme.accentGreen, size: 20),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('Job preferences',
+                      style: TextStyle(
+                          fontSize: 14, fontWeight: FontWeight.w800)),
+                  const SizedBox(height: 2),
+                  Text(
+                    subtitle,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style:
+                        TextStyle(color: cs.onSurfaceVariant, fontSize: 11.5),
+                  ),
+                ],
+              ),
+            ),
+            Icon(Icons.chevron_right_rounded,
+                color: cs.onSurfaceVariant, size: 20),
+          ],
+        ),
+      ),
     );
   }
-}
 
-// ─────────────────────────────────────
-// PROGRESS SECTION
-// ─────────────────────────────────────
-class _ProgressSection extends StatelessWidget {
-  final double progress;
-  final ColorScheme cs;
-  const _ProgressSection({required this.progress, required this.cs});
-
-  @override
-  Widget build(BuildContext context) {
+  Widget _buildProgress(ColorScheme cs) {
+    final progress = _hasSkills ? 0.7 : 0.3;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Row(
           children: [
             Text(
-              'Profile ${(progress * 100).toInt()}% complete',
+              'PROFILE STRENGTH · ${(progress * 100).toInt()}%',
               style: TextStyle(
                 color: cs.onSurfaceVariant,
-                fontSize: 12,
-                fontWeight: FontWeight.w500,
+                fontSize: 10,
+                fontWeight: FontWeight.w600,
+                letterSpacing: 1.2,
               ),
             ),
             const Spacer(),
-            Text(
+            const Text(
               'Complete to get more jobs',
-              style:
-                  TextStyle(color: cs.primary, fontSize: 11, fontWeight: FontWeight.w600),
+              style: TextStyle(
+                color: GixbeeTheme.accentGreen,
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+              ),
             ),
           ],
         ),
@@ -452,9 +393,289 @@ class _ProgressSection extends StatelessWidget {
           child: LinearProgressIndicator(
             value: progress,
             minHeight: 6,
-            backgroundColor: cs.outlineVariant.withValues(alpha: 0.2),
+            backgroundColor: context.gx.ink.withValues(alpha: 0.08),
             valueColor:
-                const AlwaysStoppedAnimation<Color>(Color(0xFF54A0FF)),
+                const AlwaysStoppedAnimation<Color>(GixbeeTheme.accentGreen),
+          ),
+        ),
+      ],
+    );
+  }
+
+  // ── COMPLETE-PROFILE CTA (the one gradient on this screen) ──
+  Widget _buildCompleteCta(ColorScheme cs) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: cs.surfaceContainerHighest.withValues(alpha: 0.35),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: cs.outlineVariant.withValues(alpha: 0.2)),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Complete professional registration',
+                  style: TextStyle(fontWeight: FontWeight.w800, fontSize: 13),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  'Add your skills and rates to appear in searches.',
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: cs.onSurfaceVariant,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 10),
+          GxPressable(
+            onTap: _openEditor,
+            child: Container(
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [GixbeeTheme.accentGreen, Color(0xFF047857)],
+                ),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Text(
+                'Start Now',
+                style: TextStyle(
+                  color: context.gx.onAccent,
+                  fontWeight: FontWeight.w800,
+                  fontSize: 12,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ── AVAILABILITY TOGGLE (logic unchanged) ──
+  Widget _buildAvailabilityCard(ColorScheme cs) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(16),
+        color: Colors.green.withValues(alpha: 0.06),
+        border: Border.all(color: Colors.green.withValues(alpha: 0.2)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: Colors.green.withValues(alpha: 0.12),
+            ),
+            child: const Icon(Icons.circle, size: 12, color: Colors.green),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Available for Work',
+                  style: TextStyle(fontWeight: FontWeight.w800, fontSize: 14),
+                ),
+                Text(
+                  'Customers can see you in search results',
+                  style:
+                      TextStyle(fontSize: 11, color: cs.onSurfaceVariant),
+                ),
+              ],
+            ),
+          ),
+          Switch(
+            value: _profile?['alertsEnabled'] ?? true,
+            onChanged: (val) async {
+              final messenger = ScaffoldMessenger.of(context);
+              try {
+                await ref.read(talentRepositoryProvider).toggleAlerts(val);
+                await _fetchProfile(); // Refresh
+              } catch (e) {
+                if (mounted) {
+                  messenger.showSnackBar(
+                      gxSnackBar('Failed: $e', type: GxSnackType.error));
+                }
+              }
+            },
+            activeThumbColor: Colors.green,
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ── SECTION SCAFFOLD: squircle icon block + ALL-CAPS label + bento card ──
+  Widget _buildSection(
+    ColorScheme cs, {
+    required IconData icon,
+    required String label,
+    Widget? trailing,
+    required Widget child,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 32,
+                height: 32,
+                decoration: BoxDecoration(
+                  color: GixbeeTheme.accentGreen.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(icon, size: 17, color: GixbeeTheme.accentGreen),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  label,
+                  style: TextStyle(
+                    color: cs.onSurfaceVariant,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 11,
+                    letterSpacing: 1.2,
+                  ),
+                ),
+              ),
+              if (trailing != null) trailing,
+            ],
+          ),
+          const SizedBox(height: 12),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: cs.surfaceContainerHighest.withValues(alpha: 0.35),
+              borderRadius: BorderRadius.circular(16),
+              border:
+                  Border.all(color: cs.outlineVariant.withValues(alpha: 0.2)),
+            ),
+            child: child,
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ── SKELETON (loading) ──
+  Widget _buildSkeleton() {
+    return ListView(
+      physics: const NeverScrollableScrollPhysics(),
+      padding: const EdgeInsets.fromLTRB(20, 4, 20, 28),
+      children: const [
+        GxSkeleton(width: double.infinity, height: 132, radius: 20),
+        SizedBox(height: 24),
+        GxSkeleton(width: 140, height: 14, radius: 7),
+        SizedBox(height: 12),
+        GxSkeleton(width: double.infinity, height: 64, radius: 16),
+        SizedBox(height: 24),
+        GxSkeleton(width: 140, height: 14, radius: 7),
+        SizedBox(height: 12),
+        GxSkeleton(width: double.infinity, height: 64, radius: 16),
+        SizedBox(height: 24),
+        GxSkeleton(width: 140, height: 14, radius: 7),
+        SizedBox(height: 12),
+        GxSkeleton(width: double.infinity, height: 96, radius: 16),
+      ],
+    );
+  }
+}
+
+// ─────────────────────────────────────
+// SMALL PRIVATE WIDGETS
+// ─────────────────────────────────────
+
+class _RoundIconButton extends StatelessWidget {
+  final IconData icon;
+  final String? semanticLabel;
+  const _RoundIconButton({required this.icon, this.semanticLabel});
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final container = Container(
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: cs.surfaceContainerHighest.withValues(alpha: 0.5),
+        shape: BoxShape.circle,
+        border: Border.all(color: cs.outlineVariant.withValues(alpha: 0.25)),
+      ),
+      child: Icon(icon, size: 19),
+    );
+    if (semanticLabel == null) return container;
+    return Semantics(
+      button: true,
+      label: semanticLabel,
+      child: container,
+    );
+  }
+}
+
+/// "SOON" pill for sections whose backing endpoints don't exist yet —
+/// honest placeholder, no dead buttons.
+class _SoonPill extends StatelessWidget {
+  const _SoonPill();
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: cs.surfaceContainerHighest.withValues(alpha: 0.5),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: cs.outlineVariant.withValues(alpha: 0.25)),
+      ),
+      child: Text(
+        'SOON',
+        style: TextStyle(
+          color: cs.onSurfaceVariant,
+          fontSize: 9,
+          fontWeight: FontWeight.w700,
+          letterSpacing: 1.0,
+        ),
+      ),
+    );
+  }
+}
+
+class _HintRow extends StatelessWidget {
+  final IconData icon;
+  final String text;
+  const _HintRow({required this.icon, required this.text});
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    return Row(
+      children: [
+        Icon(icon, size: 18, color: cs.onSurfaceVariant),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Text(
+            text,
+            style: TextStyle(
+              color: cs.onSurfaceVariant,
+              fontSize: 12,
+              height: 1.4,
+            ),
           ),
         ),
       ],
@@ -462,33 +683,27 @@ class _ProgressSection extends StatelessWidget {
   }
 }
 
-// SKILL CHIP
 class _SkillChip extends StatelessWidget {
   final String label;
-  final String level;
-  const _SkillChip({required this.label, required this.level});
+  const _SkillChip({required this.label});
 
   @override
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(10),
-        color: const Color(0xFF54A0FF).withValues(alpha: 0.08),
-        border: Border.all(
-            color: const Color(0xFF54A0FF).withValues(alpha: 0.2)),
+        borderRadius: BorderRadius.circular(999),
+        color: GixbeeTheme.accentGreen.withValues(alpha: 0.10),
+        border:
+            Border.all(color: GixbeeTheme.accentGreen.withValues(alpha: 0.3)),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(label,
-              style:
-                  const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
-          Text(level,
-              style: TextStyle(
-                  color: Theme.of(context).colorScheme.onSurfaceVariant,
-                  fontSize: 10)),
-        ],
+      child: Text(
+        label,
+        style: const TextStyle(
+          fontWeight: FontWeight.w700,
+          fontSize: 12,
+          color: GixbeeTheme.accentGreen,
+        ),
       ),
     );
   }
@@ -501,24 +716,28 @@ class _AddSkillChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
-    return InkWell(
+    return GxPressable(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(10),
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(10),
-          border: Border.all(
-              color: cs.outlineVariant.withValues(alpha: 0.3),
-              style: BorderStyle.solid),
+          borderRadius: BorderRadius.circular(999),
+          border:
+              Border.all(color: cs.outlineVariant.withValues(alpha: 0.35)),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.add, size: 16, color: cs.primary),
+            Icon(Icons.add, size: 14, color: GixbeeTheme.accentGreen),
             const SizedBox(width: 4),
-            Text('Add Skill',
-                style: TextStyle(color: cs.primary, fontSize: 12)),
+            Text(
+              'Add Skill',
+              style: TextStyle(
+                color: GixbeeTheme.accentGreen,
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
           ],
         ),
       ),
@@ -526,136 +745,36 @@ class _AddSkillChip extends StatelessWidget {
   }
 }
 
-// EXPERIENCE ITEM
-class _ExperienceItem extends StatelessWidget {
-  final String role;
-  final String place;
-  final String period;
-  final String description;
-  const _ExperienceItem({
-    required this.role,
-    required this.place,
-    required this.period,
-    required this.description,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(12),
-        color: cs.surfaceContainerHighest.withValues(alpha: 0.3),
-        border:
-            Border.all(color: cs.outlineVariant.withValues(alpha: 0.2)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Expanded(
-                  child: Text(role,
-                      style: const TextStyle(
-                          fontWeight: FontWeight.bold, fontSize: 14))),
-              Text(period,
-                  style: TextStyle(
-                      color: cs.onSurfaceVariant, fontSize: 11)),
-            ],
-          ),
-          Text(place,
-              style: TextStyle(color: cs.primary, fontSize: 12)),
-          const SizedBox(height: 6),
-          Text(description,
-              style: TextStyle(
-                  color: cs.onSurfaceVariant,
-                  fontSize: 12,
-                  height: 1.4)),
-        ],
-      ),
-    );
-  }
-}
-
-class _EmptyExperienceHint extends StatelessWidget {
-  const _EmptyExperienceHint();
-
-  @override
-  Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-            color: cs.outlineVariant.withValues(alpha: 0.2),
-            style: BorderStyle.solid),
-      ),
-      child: Row(
-        children: [
-          Icon(Icons.add_circle_outline, size: 18, color: cs.primary),
-          const SizedBox(width: 10),
-          Text('Add more experience',
-              style: TextStyle(color: cs.primary, fontSize: 12)),
-        ],
-      ),
-    );
-  }
-}
-
-// PORTFOLIO
 class _PortfolioPlaceholder extends StatelessWidget {
-  final VoidCallback onTap;
-  const _PortfolioPlaceholder({required this.onTap});
+  const _PortfolioPlaceholder();
 
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
     return Padding(
       padding: const EdgeInsets.only(right: 10),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(12),
-        child: Container(
-          width: 100,
-          height: 100,
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(12),
-            color: cs.surfaceContainerHighest.withValues(alpha: 0.3),
-            border: Border.all(
-                color: cs.outlineVariant.withValues(alpha: 0.2)),
-          ),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(Icons.add_photo_alternate_outlined,
-                  size: 28, color: cs.primary.withValues(alpha: 0.5)),
-              const SizedBox(height: 4),
-              Text('Upload',
-                  style: TextStyle(
-                      color: cs.onSurfaceVariant, fontSize: 10)),
-            ],
-          ),
+      child: Container(
+        width: 96,
+        height: 96,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(14),
+          color: cs.surfaceContainerHighest.withValues(alpha: 0.3),
+          border:
+              Border.all(color: cs.outlineVariant.withValues(alpha: 0.2)),
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.add_photo_alternate_outlined,
+                size: 26, color: cs.onSurfaceVariant.withValues(alpha: 0.6)),
+            const SizedBox(height: 4),
+            Text(
+              'Upload',
+              style: TextStyle(color: cs.onSurfaceVariant, fontSize: 10),
+            ),
+          ],
         ),
       ),
     );
   }
 }
-
-// AREA CHIP
-class _AreaChip extends StatelessWidget {
-  final String label;
-  const _AreaChip({required this.label});
-
-  @override
-  Widget build(BuildContext context) {
-    return Chip(
-      label: Text(label, style: const TextStyle(fontSize: 12)),
-      deleteIcon: const Icon(Icons.close, size: 14),
-      onDeleted: () {},
-    );
-  }
-}
-

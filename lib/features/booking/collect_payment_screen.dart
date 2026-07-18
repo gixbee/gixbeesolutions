@@ -1,6 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../theme.dart';
 import '../../repositories/booking_repository.dart';
+import '../../shared/widgets/gx_dialog.dart';
+import '../../shared/widgets/gx_snackbar.dart';
+import '../../shared/widgets/gx_button.dart';
+import 'rate_customer_screen.dart';
 
 class CollectPaymentScreen extends ConsumerStatefulWidget {
   final String bookingId;
@@ -31,9 +36,8 @@ class _CollectPaymentScreenState extends ConsumerState<CollectPaymentScreen> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to mark as paid: $e')),
-        );
+        showGxSnack(context, 'Failed to mark as paid: $e',
+            type: GxSnackType.error);
       }
     } finally {
       if (mounted) {
@@ -43,46 +47,62 @@ class _CollectPaymentScreenState extends ConsumerState<CollectPaymentScreen> {
   }
 
   void _showSuccessDialog() {
-    showDialog(
-      context: context,
+    showGxDialog(
+      context,
       barrierDismissible: false,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: Theme.of(ctx).colorScheme.surface,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const SizedBox(height: 16),
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: Colors.green.withValues(alpha: 0.1),
-              ),
-              child: const Icon(Icons.check_circle, color: Colors.green, size: 56),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          const SizedBox(height: 4),
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: Colors.green.withValues(alpha: 0.12),
             ),
-            const SizedBox(height: 20),
-            const Text(
-              'Payment Received!',
-              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 22),
+            child: Icon(Icons.check_circle, color: Colors.green, size: 56),
+          ),
+          const SizedBox(height: 20),
+          Text(
+            'Payment Received!',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontWeight: FontWeight.w800,
+              fontSize: 22,
+              color: context.gx.ink,
             ),
-            const SizedBox(height: 8),
-            const Text(
-              'The job has been fully completed and paid.',
-              textAlign: TextAlign.center,
-              style: TextStyle(height: 1.5),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'The job has been fully completed and paid.',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              height: 1.5,
+              color: context.gx.ink.withValues(alpha: 0.72),
             ),
-            const SizedBox(height: 24),
-            SizedBox(
-              width: double.infinity,
-              child: FilledButton(
-                onPressed: () => Navigator.of(ctx).popUntil((route) => route.isFirst),
-                child: const Text('Back to Home'),
-              ),
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
+      actions: [
+        // v126 w10: after payment, the worker rates the customer.
+        GxDialogAction(
+          'Continue',
+          isPrimary: true,
+          onTap: () {
+            Navigator.pop(context); // close dialog
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(
+                builder: (_) => RateCustomerScreen(
+                  bookingId: widget.bookingId,
+                  customerName: widget.customerName,
+                ),
+              ),
+            );
+          },
+        ),
+      ],
     );
   }
 
@@ -92,7 +112,7 @@ class _CollectPaymentScreenState extends ConsumerState<CollectPaymentScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Collect Payment'),
+        title: Text('Collect Payment'),
         automaticallyImplyLeading: false,
       ),
       body: Center(
@@ -101,7 +121,7 @@ class _CollectPaymentScreenState extends ConsumerState<CollectPaymentScreen> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(Icons.currency_rupee, size: 80, color: colorScheme.primary),
+              Icon(Icons.currency_rupee, size: 80, color: context.gx.accent),
               const SizedBox(height: 24),
               Text(
                 'Collect Payment',
@@ -126,30 +146,17 @@ class _CollectPaymentScreenState extends ConsumerState<CollectPaymentScreen> {
                 style: TextStyle(
                   fontSize: 48,
                   fontWeight: FontWeight.bold,
-                  color: colorScheme.primary,
+                  color: context.gx.accent,
                 ),
               ),
               const SizedBox(height: 64),
-              SizedBox(
-                width: double.infinity,
+              GxButton(
+                label: 'Mark as Paid',
+                onTap: _markPaid,
+                loading: _isLoading,
                 height: 56,
-                child: ElevatedButton(
-                  onPressed: _isLoading ? null : _markPaid,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: colorScheme.primary,
-                    foregroundColor: colorScheme.onPrimary,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                  ),
-                  child: _isLoading
-                      ? const SizedBox(
-                          height: 24, width: 24, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                      : const Text(
-                          'Mark as Paid',
-                          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                        ),
-                ),
+                radius: 16,
+                fontSize: 18,
               ),
             ],
           ),

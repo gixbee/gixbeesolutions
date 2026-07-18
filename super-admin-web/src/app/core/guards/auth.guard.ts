@@ -2,15 +2,20 @@ import { CanActivateFn, Router } from '@angular/router';
 import { inject } from '@angular/core';
 import { AuthService } from '../services/auth.service';
 
-export const authGuard: CanActivateFn = (route, state) => {
+export const authGuard: CanActivateFn = () => {
   const authService = inject(AuthService);
   const router = inject(Router);
 
-  if (authService.hasToken()) {
-    return true;
+  if (!authService.hasToken()) {
+    router.navigate(['/login']);
+    return false;
   }
 
-  // Redirect to the login page if the user doesn't have a token
-  router.navigate(['/login']);
-  return false;
+  // Tokens issued before staff RBAC have no session blob — force re-login.
+  if (!authService.getSession()) {
+    authService.logout();
+    return false;
+  }
+
+  return true;
 };

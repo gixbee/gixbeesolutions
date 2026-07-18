@@ -1,8 +1,16 @@
 import 'package:flutter/material.dart';
+import '../../shared/widgets/dribbble_background.dart';
+import '../../shared/widgets/gx_button.dart';
+import '../../shared/widgets/gx_pressable.dart';
+import '../../theme.dart';
 import 'list_business_details_screen.dart';
 
-/// Entry point for the "List My Business" intent.
-/// Allows the user to pick the type of business they want to register.
+/// "List My Business" module (mockup `lmb`).
+/// Step 1: pick the type of business to register
+/// (service / hiring agency / rental), then continue to details.
+/// Gixbee 2026 / v106 reskin: neutral header, bento type trio, surgical
+/// accent — the "Gixbee for Business" colour is blue (accentBlue); the single
+/// gradient on this screen is the Continue CTA.
 class ListBusinessTypeScreen extends StatefulWidget {
   const ListBusinessTypeScreen({super.key});
 
@@ -28,87 +36,40 @@ class _ListBusinessTypeScreenState extends State<ListBusinessTypeScreen> {
     final cs = Theme.of(context).colorScheme;
 
     return Scaffold(
-      body: Container(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [
-              const Color(0xFFFF9F43).withValues(alpha: 0.15),
-              cs.surface,
-            ],
-          ),
-        ),
+      backgroundColor: cs.surface,
+      body: DribbbleBackground(
         child: SafeArea(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // ── TOP BAR ──
-              Padding(
-                padding: const EdgeInsets.all(8.0),
-                child: Row(
-                  children: [
-                    IconButton(
-                      icon: const Icon(Icons.close),
-                      onPressed: () => Navigator.pop(context),
+          child: CustomScrollView(
+            slivers: [
+              SliverToBoxAdapter(child: _header(context)),
+              SliverToBoxAdapter(child: _heroCard(context)),
+              SliverToBoxAdapter(child: _trustStrip(context)),
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 22, 20, 10),
+                  child: Text(
+                    'BUSINESS TYPE',
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 1.2,
+                      color: cs.onSurfaceVariant,
                     ),
-                  ],
+                  ),
                 ),
               ),
-
-              // ── HEADER ──
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 24),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const SizedBox(height: 8),
-                    Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFFF9F43).withValues(alpha: 0.2),
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Icon(
-                        Icons.storefront_rounded,
-                        color: Color(0xFFFECA57),
-                        size: 36,
-                      ),
-                    ),
-                    const SizedBox(height: 24),
-                    Text(
-                      'Grow your business\nwith Gixbee',
-                      style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                            fontWeight: FontWeight.bold,
-                            height: 1.2,
-                          ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      'What kind of business are you listing?',
-                      style: TextStyle(
-                        color: cs.onSurfaceVariant,
-                        fontSize: 14,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-
-              const SizedBox(height: 32),
-
-              // ── BUSINESS TYPES ──
-              Expanded(
-                child: ListView(
-                  padding: const EdgeInsets.symmetric(horizontal: 20),
-                  children: [
+              SliverPadding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                sliver: SliverList(
+                  delegate: SliverChildListDelegate([
                     _TypeCard(
                       type: BusinessType.service,
                       icon: Icons.plumbing_rounded,
                       title: 'Service Business',
                       subtitle: 'Agencies, Salons, Workshops, Clinics',
                       isSelected: _selectedType == BusinessType.service,
-                      onTap: () => setState(() => _selectedType = BusinessType.service),
+                      onTap: () => setState(
+                          () => _selectedType = BusinessType.service),
                     ),
                     _TypeCard(
                       type: BusinessType.hiring,
@@ -116,7 +77,8 @@ class _ListBusinessTypeScreenState extends State<ListBusinessTypeScreen> {
                       title: 'Hiring Agency',
                       subtitle: 'Recruiters, Staffing, Event Organisers',
                       isSelected: _selectedType == BusinessType.hiring,
-                      onTap: () => setState(() => _selectedType = BusinessType.hiring),
+                      onTap: () =>
+                          setState(() => _selectedType = BusinessType.hiring),
                     ),
                     _TypeCard(
                       type: BusinessType.rental,
@@ -124,17 +86,19 @@ class _ListBusinessTypeScreenState extends State<ListBusinessTypeScreen> {
                       title: 'Rental Business',
                       subtitle: 'Vehicles, Equipment, Properties, Costumes',
                       isSelected: _selectedType == BusinessType.rental,
-                      onTap: () => setState(() => _selectedType = BusinessType.rental),
+                      onTap: () =>
+                          setState(() => _selectedType = BusinessType.rental),
                     ),
-                  ],
+                  ]),
                 ),
               ),
+              const SliverToBoxAdapter(child: SizedBox(height: 16)),
             ],
           ),
         ),
       ),
 
-      // ── BOTTOM BUTTON ──
+      // ── STICKY BOTTOM CTA (single gradient on this screen) ──
       bottomNavigationBar: Container(
         padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(
@@ -144,22 +108,150 @@ class _ListBusinessTypeScreenState extends State<ListBusinessTypeScreen> {
           ),
         ),
         child: SafeArea(
-          child: SizedBox(
-            width: double.infinity,
+          child: GxButton(
+            label: 'Continue',
+            icon: Icons.arrow_forward_rounded,
+            onTap: _selectedType != null ? _proceed : null,
+            gradient: const [GixbeeTheme.accentBlue, Color(0xFF1D4ED8)],
+            accent: GixbeeTheme.accentBlue,
             height: 56,
-            child: FilledButton.icon(
-              onPressed: _selectedType != null ? _proceed : null,
-              style: FilledButton.styleFrom(
-                backgroundColor: const Color(0xFFFF9F43),
-                disabledBackgroundColor: cs.surfaceContainerHighest,
+            radius: 16,
+            fontSize: 16,
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ── Neutral header (no gradient — surgical orange) ──────────────────────
+  Widget _header(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
+      child: Row(
+        children: [
+          GxPressable(
+            onTap: () => Navigator.pop(context),
+            child: Container(
+              padding: const EdgeInsets.all(9),
+              decoration: BoxDecoration(
+                color: context.gx.ink.withValues(alpha: 0.06),
+                shape: BoxShape.circle,
+                border:
+                    Border.all(color: context.gx.ink.withValues(alpha: 0.10)),
               ),
-              icon: const Icon(Icons.arrow_forward_rounded, size: 20, color: Colors.white),
-              label: const Text(
-                'Continue',
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.white),
-              ),
+              child: Icon(Icons.arrow_back_rounded,
+                  color: context.gx.ink, size: 18),
             ),
           ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text('List My Business',
+                style: TextStyle(
+                    color: context.gx.ink,
+                    fontSize: 19,
+                    fontWeight: FontWeight.w900)),
+          ),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+            decoration: BoxDecoration(
+              color: GixbeeTheme.accentBlue.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(999),
+              border: Border.all(
+                  color: GixbeeTheme.accentBlue.withValues(alpha: 0.3)),
+            ),
+            child: Text('FOR BUSINESSES',
+                style: TextStyle(
+                    color: GixbeeTheme.accentBlue,
+                    fontSize: 9,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 0.8)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ── Neutral bento hero (was a full gradient banner) ─────────────────────
+  Widget _heroCard(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: cs.surfaceContainerHighest.withValues(alpha: 0.3),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: cs.outlineVariant.withValues(alpha: 0.2)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: GixbeeTheme.accentBlue.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: const Icon(Icons.storefront_rounded,
+                color: GixbeeTheme.accentBlue, size: 30),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Grow with Gixbee',
+                    style: TextStyle(
+                        color: context.gx.ink,
+                        fontSize: 17,
+                        fontWeight: FontWeight.w900)),
+                const SizedBox(height: 4),
+                Text(
+                  'Get discovered by thousands of customers near you',
+                  style: TextStyle(
+                      color: cs.onSurfaceVariant, fontSize: 12, height: 1.4),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ── Trust strip ──────────────────────────────────────────────────────────
+  Widget _trustStrip(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    const items = [
+      (Icons.currency_rupee_rounded, 'Free listing'),
+      (Icons.verified_rounded, 'Verified badge'),
+      (Icons.groups_rounded, '1.2L+ customers'),
+    ];
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 12),
+        decoration: BoxDecoration(
+          color: cs.surfaceContainerHighest.withValues(alpha: 0.3),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: cs.outlineVariant.withValues(alpha: 0.4)),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+          children: [
+            for (final item in items)
+              Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(item.$1, color: GixbeeTheme.accentBlue, size: 20),
+                  const SizedBox(height: 4),
+                  Text(item.$2,
+                      style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          color: cs.onSurfaceVariant)),
+                ],
+              ),
+          ],
         ),
       ),
     );
@@ -171,6 +263,8 @@ class _ListBusinessTypeScreenState extends State<ListBusinessTypeScreen> {
 // ─────────────────────────────────────
 enum BusinessType { service, hiring, rental }
 
+/// Bento-style selectable type card (Gixbee 2026): squircle icon block in
+/// primary tint when selected, neutral otherwise; check ring on the right.
 class _TypeCard extends StatelessWidget {
   final BusinessType type;
   final IconData icon;
@@ -191,40 +285,44 @@ class _TypeCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
-    const primaryOrange = Color(0xFFFF9F43);
 
     return Padding(
-      padding: const EdgeInsets.only(bottom: 16),
-      child: InkWell(
+      padding: const EdgeInsets.only(bottom: 14),
+      child: GxPressable(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(20),
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 200),
-          padding: const EdgeInsets.all(20),
+          padding: const EdgeInsets.all(18),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(20),
             color: isSelected
-                ? primaryOrange.withValues(alpha: 0.1)
+                ? GixbeeTheme.accentBlue.withValues(alpha: 0.08)
                 : cs.surfaceContainerHighest.withValues(alpha: 0.3),
             border: Border.all(
-              color: isSelected ? primaryOrange : cs.outlineVariant.withValues(alpha: 0.2),
-              width: isSelected ? 2 : 1,
+              color: isSelected
+                  ? GixbeeTheme.accentBlue
+                  : cs.outlineVariant.withValues(alpha: 0.2),
+              width: isSelected ? 1.6 : 1,
             ),
           ),
           child: Row(
             children: [
-              Container(
-                padding: const EdgeInsets.all(12),
+              // Squircle icon block (primary tint when selected — no gradient)
+              AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                padding: const EdgeInsets.all(13),
                 decoration: BoxDecoration(
                   color: isSelected
-                      ? primaryOrange.withValues(alpha: 0.2)
+                      ? GixbeeTheme.accentBlue.withValues(alpha: 0.16)
                       : cs.surfaceContainerHighest.withValues(alpha: 0.5),
-                  shape: BoxShape.circle,
+                  borderRadius: BorderRadius.circular(15),
                 ),
                 child: Icon(
                   icon,
-                  size: 28,
-                  color: isSelected ? primaryOrange : cs.onSurfaceVariant,
+                  size: 26,
+                  color: isSelected
+                      ? GixbeeTheme.accentBlue
+                      : cs.onSurfaceVariant,
                 ),
               ),
               const SizedBox(width: 16),
@@ -235,9 +333,11 @@ class _TypeCard extends StatelessWidget {
                     Text(
                       title,
                       style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 16,
-                        color: isSelected ? primaryOrange : cs.onSurface,
+                        fontWeight: FontWeight.w800,
+                        fontSize: 15.5,
+                        color: isSelected
+                            ? GixbeeTheme.accentBlue
+                            : cs.onSurface,
                       ),
                     ),
                     const SizedBox(height: 4),
@@ -245,23 +345,33 @@ class _TypeCard extends StatelessWidget {
                       subtitle,
                       style: TextStyle(
                         color: cs.onSurfaceVariant,
-                        fontSize: 13,
+                        fontSize: 12.5,
                       ),
                     ),
                   ],
                 ),
               ),
               const SizedBox(width: 12),
-              Container(
+              AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
                 width: 24,
                 height: 24,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
+                  color: isSelected
+                      ? GixbeeTheme.accentBlue
+                      : Colors.transparent,
                   border: Border.all(
-                    color: isSelected ? primaryOrange : cs.outlineVariant.withValues(alpha: 0.5),
-                    width: isSelected ? 6 : 2,
+                    color: isSelected
+                        ? GixbeeTheme.accentBlue
+                        : cs.outlineVariant.withValues(alpha: 0.5),
+                    width: 2,
                   ),
                 ),
+                child: isSelected
+                    ? Icon(Icons.check_rounded,
+                        size: 16, color: context.gx.onAccent)
+                    : null,
               ),
             ],
           ),

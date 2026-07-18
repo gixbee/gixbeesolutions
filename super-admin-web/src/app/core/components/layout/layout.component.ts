@@ -3,67 +3,114 @@ import { RouterOutlet, RouterLink, RouterLinkActive } from '@angular/router';
 import { CommonModule } from '@angular/common';
 import { AuthService } from '../../services/auth.service';
 
+interface NavItem {
+  page: string;
+  path: string;
+  label: string;
+  icon: string;
+  exact?: boolean;
+}
+
 @Component({
   selector: 'app-layout',
   standalone: true,
   imports: [RouterOutlet, RouterLink, RouterLinkActive, CommonModule],
   template: `
     <div class="d-flex" style="min-height: 100vh;">
-      <!-- Sidebar -->
-      <div class="sidebar bg-dark text-white p-3" style="width: 250px;">
-        <h3 class="mb-4 text-center">Gixbee Admin</h3>
-        <ul class="nav flex-column">
-          <li class="nav-item mb-2">
-            <a class="nav-link text-white" routerLink="/" routerLinkActive="active" [routerLinkActiveOptions]="{exact: true}">
-              <i class="bi bi-speedometer2 me-2"></i> Dashboard
-            </a>
-          </li>
-          <li class="nav-item mb-2">
-            <a class="nav-link text-white" routerLink="/master-entries" routerLinkActive="active">
-              <i class="bi bi-list-columns-reverse me-2"></i> Master Entries
-            </a>
-          </li>
-          <li class="nav-item mb-2">
-            <a class="nav-link text-white" routerLink="/businesses" routerLinkActive="active">
-              <i class="bi bi-shop me-2"></i> Businesses
-            </a>
-          </li>
-          <li class="nav-item mb-2">
-            <a class="nav-link text-white" routerLink="/users" routerLinkActive="active">
-              <i class="bi bi-people me-2"></i> Users
-            </a>
-          </li>
-        </ul>
-      </div>
+      <aside class="gx-sidebar">
+        <div class="gx-sidebar-brand">gixbee<span class="accent">·admin</span></div>
 
-      <!-- Main Content -->
-      <div class="flex-grow-1 bg-light">
-        <nav class="navbar navbar-expand-lg navbar-light bg-white border-bottom px-4">
-          <div class="container-fluid">
-            <span class="navbar-brand mb-0 h1">Admin Dashboard</span>
-            <div class="d-flex align-items-center">
-              <span class="me-3">SuperAdmin</span>
-              <button class="btn btn-outline-danger btn-sm" (click)="onLogout()">Logout</button>
-            </div>
+        <ng-container *ngFor="let section of visibleSections">
+          <div class="gx-nav-section">{{ section.title }}</div>
+          <a *ngFor="let item of section.items"
+             class="gx-nav-link"
+             [routerLink]="item.path"
+             routerLinkActive="active"
+             [routerLinkActiveOptions]="{ exact: !!item.exact }">
+            <i class="bi" [ngClass]="item.icon"></i> {{ item.label }}
+          </a>
+        </ng-container>
+      </aside>
+
+      <div class="flex-grow-1 d-flex flex-column" style="min-width: 0;">
+        <header class="gx-topbar">
+          <span class="title">Gixbee Operations</span>
+          <div class="d-flex align-items-center gap-3">
+            <span class="gx-admin-chip">
+              <span class="avatar">{{ initials }}</span>
+              {{ displayName }}
+              <span class="badge bg-dark ms-2" style="font-size: 10px;">{{ staffRole }}</span>
+            </span>
+            <button class="btn btn-sm btn-outline-danger" (click)="onLogout()">
+              <i class="bi bi-box-arrow-right me-1"></i>Logout
+            </button>
           </div>
-        </nav>
+        </header>
 
-        <div class="p-4">
+        <main class="gx-page flex-grow-1 w-100">
           <router-outlet></router-outlet>
-        </div>
+        </main>
       </div>
     </div>
   `,
-  styles: [`
-    .nav-link.active {
-      background-color: rgba(255, 255, 255, 0.1);
-      border-radius: 4px;
-      font-weight: bold;
-    }
-  `]
 })
 export class LayoutComponent {
   private authService = inject(AuthService);
+
+  private readonly sections: { title: string; items: NavItem[] }[] = [
+    {
+      title: 'Overview',
+      items: [
+        { page: 'dashboard', path: '/', label: 'Dashboard', icon: 'bi-speedometer2', exact: true },
+      ],
+    },
+    {
+      title: 'Operations',
+      items: [
+        { page: 'bookings', path: '/bookings', label: 'Bookings', icon: 'bi-calendar-check' },
+        { page: 'verifications', path: '/verifications', label: 'Verifications', icon: 'bi-patch-check' },
+        { page: 'disputes', path: '/disputes', label: 'Disputes', icon: 'bi-flag' },
+        { page: 'support', path: '/support', label: 'Support', icon: 'bi-life-preserver' },
+        { page: 'businesses', path: '/businesses', label: 'Businesses', icon: 'bi-shop' },
+      ],
+    },
+    {
+      title: 'Catalog',
+      items: [
+        { page: 'master-entries', path: '/master-entries', label: 'Master Entries', icon: 'bi-list-columns-reverse' },
+        { page: 'cities', path: '/cities', label: 'Cities', icon: 'bi-geo-alt' },
+      ],
+    },
+    {
+      title: 'People',
+      items: [
+        { page: 'users', path: '/users', label: 'Users', icon: 'bi-people' },
+        { page: 'staff', path: '/staff', label: 'Admin staff', icon: 'bi-shield-lock' },
+      ],
+    },
+  ];
+
+  get visibleSections() {
+    return this.sections
+      .map((s) => ({
+        title: s.title,
+        items: s.items.filter((i) => this.authService.canAccess(i.page)),
+      }))
+      .filter((s) => s.items.length > 0);
+  }
+
+  get displayName() {
+    return this.authService.getSession()?.displayName || 'Admin';
+  }
+
+  get staffRole() {
+    return this.authService.getSession()?.staffRole || 'ADMIN';
+  }
+
+  get initials() {
+    const n = this.displayName.trim();
+    return (n.charAt(0) || 'A').toUpperCase();
+  }
 
   onLogout() {
     this.authService.logout();

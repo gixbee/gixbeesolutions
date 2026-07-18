@@ -16,6 +16,11 @@ class Worker {
   final SkillType primaryType;
   final String status;
 
+  /// Straight-line distance from the user in km, set by the `/workers/nearby`
+  /// backend (haversine). Null on the plain `/workers` list, which carries no
+  /// location — the UI falls back to a deterministic placeholder then.
+  final double? distanceKm;
+
   Worker({
     required this.id,
     required this.name,
@@ -31,6 +36,7 @@ class Worker {
     required this.availabilityTags,
     required this.primaryType,
     required this.status,
+    this.distanceKm,
   });
 
   factory Worker.fromMap(Map<String, dynamic> map) {
@@ -52,6 +58,7 @@ class Worker {
         orElse: () => SkillType.manual,
       ),
       status: map['status'] ?? 'available',
+      distanceKm: (map['distance_km'] as num?)?.toDouble(),
     );
   }
 
@@ -71,6 +78,7 @@ class Worker {
       'availability_tags': availabilityTags,
       'primary_type': primaryType.toString().split('.').last,
       'status': status,
+      if (distanceKm != null) 'distance_km': distanceKm,
     };
   }
 }

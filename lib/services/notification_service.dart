@@ -75,9 +75,9 @@ class NotificationService {
     // Initialize local notifications plugin (used to show foreground banners)
     const androidSettings =
         AndroidInitializationSettings('@mipmap/ic_launcher');
-    final iosSettings = const DarwinInitializationSettings();
+    const iosSettings = DarwinInitializationSettings();
     await _localNotifications.initialize(
-      InitializationSettings(
+      const InitializationSettings(
         android: androidSettings,
         iOS: iosSettings,
       ),
@@ -91,7 +91,10 @@ class NotificationService {
   Future<String?> getDeviceToken() async {
     try {
       final token = await _messaging.getToken();
-      _ref.read(debugLogProvider.notifier).log('FCM Token: ${token?.substring(0, 10)}...');
+      // Length-guarded: a short/null token must not RangeError.
+      final tokenPreview =
+          token == null ? 'null' : (token.length > 10 ? token.substring(0, 10) : token);
+      _ref.read(debugLogProvider.notifier).log('FCM Token: $tokenPreview...');
       return token;
     } catch (e) {
       _ref.read(debugLogProvider.notifier).log('FCM Token Failed: $e');
@@ -135,7 +138,7 @@ class NotificationService {
             playSound: true,
             icon: '@mipmap/ic_launcher',
           ),
-          iOS: DarwinNotificationDetails(
+          iOS: const DarwinNotificationDetails(
             sound: 'default',
             presentAlert: true,
             presentBadge: true,

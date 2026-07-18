@@ -2,6 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../repositories/hiring_repository.dart';
 import '../../shared/models/job_post.dart';
+import '../../shared/widgets/gx_pressable.dart';
+import '../../shared/widgets/gx_skeleton.dart';
+import '../../shared/widgets/gx_fade.dart';
+import '../../shared/widgets/gx_snackbar.dart';
+import '../../theme.dart';
 import 'candidate_profile_screen.dart';
 
 class HiringPipelineScreen extends ConsumerStatefulWidget {
@@ -45,7 +50,8 @@ class _HiringPipelineScreenState extends ConsumerState<HiringPipelineScreen> {
     } catch (e) {
       if (mounted) {
         setState(() => _isLoading = false);
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error loading candidates: $e')));
+        showGxSnack(context, 'Error loading candidates: $e',
+            type: GxSnackType.error);
       }
     }
   }
@@ -56,6 +62,7 @@ class _HiringPipelineScreenState extends ConsumerState<HiringPipelineScreen> {
       case ApplicationStatus.interview: return Colors.amber.shade100;
       case ApplicationStatus.selected: return Colors.green.shade100;
       case ApplicationStatus.rejected: return Colors.red.shade100;
+      case ApplicationStatus.withdrawn: return Colors.grey.shade300;
     }
   }
 
@@ -64,15 +71,14 @@ class _HiringPipelineScreenState extends ConsumerState<HiringPipelineScreen> {
       await ref.read(hiringRepositoryProvider).updateApplicationStatus(appId, newStatus);
       _fetchApplications(); // Refresh list to get updated status from backend
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Candidate moved to ${newStatus.name.toUpperCase()}')),
-        );
+        showGxSnack(
+            context, 'Candidate moved to ${newStatus.name.toUpperCase()}',
+            type: GxSnackType.success);
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to update status: $e')),
-        );
+        showGxSnack(context, 'Failed to update status: $e',
+            type: GxSnackType.error);
       }
     }
   }
@@ -166,10 +172,10 @@ class _HiringPipelineScreenState extends ConsumerState<HiringPipelineScreen> {
                           children: [
                             CircleAvatar(
                               radius: 16,
-                              backgroundColor: colorScheme.primary,
+                              backgroundColor: GixbeeTheme.accentBlue,
                               child: Text(
                                 candidate.applicantName != null ? candidate.applicantName![0] : 'U',
-                                style: const TextStyle(color: Colors.white, fontSize: 12),
+                                style: TextStyle(color: context.gx.onAccent, fontSize: 12),
                               ),
                             ),
                             const SizedBox(width: 8),
@@ -191,8 +197,8 @@ class _HiringPipelineScreenState extends ConsumerState<HiringPipelineScreen> {
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            TextButton(
-                              onPressed: () {
+                            GxPressable(
+                              onTap: () {
                                 Navigator.push(
                                   context,
                                   MaterialPageRoute(
@@ -200,16 +206,22 @@ class _HiringPipelineScreenState extends ConsumerState<HiringPipelineScreen> {
                                   ),
                                 );
                               },
-                              style: TextButton.styleFrom(
-                                padding: EdgeInsets.zero,
-                                minimumSize: const Size(0, 0),
-                                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                              child: const Padding(
+                                padding: EdgeInsets.symmetric(vertical: 4),
+                                child: Text(
+                                  'View Profile',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w700,
+                                    color: GixbeeTheme.accentBlue,
+                                  ),
+                                ),
                               ),
-                              child: const Text('View Profile', style: TextStyle(fontSize: 12)),
                             ),
                             IconButton(
                               constraints: const BoxConstraints(),
                               padding: EdgeInsets.zero,
+                              tooltip: 'Move candidate stage',
                               icon: const Icon(Icons.swap_horiz, size: 20),
                               onPressed: () => _showStatusUpdateDialog(candidate),
                             )
@@ -241,8 +253,11 @@ class _HiringPipelineScreenState extends ConsumerState<HiringPipelineScreen> {
           ],
         ),
       ),
-      body: _isLoading 
-        ? const Center(child: CircularProgressIndicator())
+      body: GxFade(
+        child: KeyedSubtree(
+          key: ValueKey(_isLoading ? 'loading' : 'data'),
+          child: _isLoading
+        ? _buildSkeleton()
         : SingleChildScrollView(
             scrollDirection: Axis.horizontal,
             padding: const EdgeInsets.all(16),
@@ -251,6 +266,33 @@ class _HiringPipelineScreenState extends ConsumerState<HiringPipelineScreen> {
               children: _stages.map((stage) => _buildKanbanColumn(stage, colorScheme)).toList(),
             ),
           ),
+        ),
+      ),
+    );
+  }
+
+  // ── Skeleton kanban while loading (Gixbee 2026 — no centered spinner) ──
+  Widget _buildSkeleton() {
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      physics: const NeverScrollableScrollPhysics(),
+      padding: const EdgeInsets.all(16),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: List.generate(3, (_) => Padding(
+          padding: const EdgeInsets.only(right: 12),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: const [
+              GxSkeleton(width: 220, height: 28, radius: 10),
+              SizedBox(height: 12),
+              GxSkeleton(width: 220, height: 96, radius: 16),
+              SizedBox(height: 12),
+              GxSkeleton(width: 220, height: 96, radius: 16),
+            ],
+          ),
+        )),
+      ),
     );
   }
 }

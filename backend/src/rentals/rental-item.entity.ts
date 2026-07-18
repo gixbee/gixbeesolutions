@@ -1,11 +1,15 @@
-import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, ManyToOne } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, ManyToOne, Index } from 'typeorm';
 import { User } from '../users/user.entity';
 
+// AUDIT FIX (missing indexes): catalog reads filter isAvailable + recency;
+// the owner's "my items" filters by owner.
 @Entity('rental_items')
+@Index(['isAvailable', 'createdAt'])
 export class RentalItem {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
+  @Index()
   @ManyToOne(() => User)
   owner: User;
 

@@ -7,7 +7,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, DataSource, In } from 'typeorm';
 import { InjectQueue } from '@nestjs/bull';
 import type { Queue } from 'bull';
-import { Booking, BookingStatus } from './booking.entity';
+import { Booking, BookingStatus, BookingType } from './booking.entity';
 import { WalletsService } from '../wallets/wallets.service';
 import { WorkerProfile } from '../workers/worker-profile.entity';
 import { NotificationsService } from '../notifications/notifications.service';
@@ -138,6 +138,136 @@ export class BookingsService {
    * This ensures the worker only ever has one active job at a time,
    * while allowing multiple customers to queue up for the same worker.
    */
+  /**
+   * v126 broadcast dispatch ("first accept wins"): creates ONE booking with
+   * NO pre-assigned worker, then notifies every eligible nearby LIVE pro for
+   * the skill (Redis skill index + GEO search via WorkersService.getNearby).
+   * Each notified worker sees it in their pending queue; acceptBooking's row
+   * lock makes the claim atomic. The existing 90s requestTimeout cancels the
+   * request if nobody accepts. Returns how many pros were notified so the
+   * client can short-circuit to the no-workers screen when it's zero.
+   */
+  async createBroadcastBooking(
+    customerId: string,
+    data: {
+      skill: string;
+      serviceLocation: string;
+      serviceLat: number;
+      serviceLng: number;
+      amount: number;
+      description?: string;
+      preferredLanguages?: string[];
+      addressId?: string;
+      paymentMethod?: string;
+      onSiteContact?: { name: string; relation: string; phone: string };
+    },
+  ): Promise<{ booking: Booking; notified: number }> {
+    // Find eligible pros FIRST — no point persisting a request nobody can see.
+    const nearby = await this.workersService.getNearby(
+      customerId,
+      data.skill,
+      data.serviceLat,
+      data.serviceLng,
+    );
+
+    // v126 language matching: when the customer requires languages, notify
+    // only pros with an overlap. Pros who haven't set their languages yet
+    // (null/empty) are INCLUDED — lenient by design so legacy profiles keep
+    // receiving jobs until they fill it in via Go Live.
+    const wanted = (data.preferredLanguages ?? []).map((l) => l.toLowerCase());
+    const languageEligible =
+      wanted.length === 0
+        ? nearby
+        : nearby.filter((w) => {
+            const spoken = (w.languages ?? []).map((l) => l.toLowerCase());
+            return spoken.length === 0 || spoken.some((l) => wanted.includes(l));
+          });
+
+    // Cap the fan-out; getNearby is rating-sorted, so the best pros hear first.
+    const targets = languageEligible.slice(0, 15);
+
+    const arrivalOtp = this.generateOtp();
+    const completionOtp = this.generateOtp();
+
+    const booking = this.bookingsRepository.create({
+      customer: { id: customerId } as any,
+      operator: null as any,
+      skill: data.skill,
+      serviceLocation: data.serviceLocation,
+      serviceLat: data.serviceLat,
+      serviceLng: data.serviceLng,
+      addressId: data.addressId,
+      description: data.description,
+      preferredLanguages: data.preferredLanguages,
+      onSiteContact: data.onSiteContact,
+      scheduledAt: new Date(),
+      amount: data.amount,
+      type: BookingType.INSTANT,
+      paymentMethod: data.paymentMethod || 'WALLET',
+      status: BookingStatus.REQUESTED,
+      arrivalOtp,
+      completionOtp,
+    });
+    const savedBooking = await this.bookingsRepository.save(booking);
+
+    await this.redisService.saveOtp(
+      `otp:booking:${savedBooking.id}:arrival`,
+      arrivalOtp,
+    );
+    await this.redisService.saveOtp(
+      `otp:booking:${savedBooking.id}:completion`,
+      completionOtp,
+    );
+
+    // Same 90-second timeout as targeted requests.
+    await this.bookingsQueue.add(
+      'requestTimeout',
+      { bookingId: savedBooking.id },
+      { delay: 90 * 1000 },
+    );
+
+    await this.redisService.cacheBookingStatus(savedBooking.id, {
+      status: 'REQUESTED',
+      operatorName: null,
+    });
+
+    // Fan out: pending-queue entry + one multicast push. AUDIT FIX: was a
+    // serial await sendToUser loop (≤15); Redis pending is parallelized and
+    // FCM goes through sendToUsers (sendEachForMulticast).
+    const notifiedIds: string[] = [];
+    await Promise.all(
+      targets.map(async (w) => {
+        try {
+          await this.redisService.addPendingBooking(w.id, savedBooking.id);
+          notifiedIds.push(w.id);
+        } catch (e) {
+          console.error(`[BroadcastBooking] pending ${w.id} failed:`, e);
+        }
+      }),
+    );
+    if (notifiedIds.length > 0) {
+      await this.notificationsService
+        .sendToUsers(notifiedIds, {
+          title: 'New Job Request',
+          body: `A customer needs ${data.skill} help nearby.`,
+          data: { type: 'new_booking', bookingId: savedBooking.id },
+        })
+        .catch((e) =>
+          console.error('[BroadcastBooking] multicast failed:', e),
+        );
+      await this.redisService.set(
+        `booking:notified:${savedBooking.id}`,
+        JSON.stringify(notifiedIds),
+        60 * 60,
+      );
+    }
+
+    console.log(
+      `[BroadcastBooking] ${savedBooking.id} broadcast to ${notifiedIds.length} pros for ${data.skill}`,
+    );
+    return { booking: savedBooking, notified: notifiedIds.length };
+  }
+
   async acceptBooking(
     bookingId: string,
     workerId: string,
@@ -178,13 +308,27 @@ export class BookingsService {
         if (!booking) throw new NotFoundException('Booking not found');
         console.log(`[AcceptBooking] Booking loaded — operator=${booking.operator?.id}`);
 
-        if (booking.operator?.id !== workerId) {
+        if (!booking.operator) {
+          // Broadcast request (v126 first-accept-wins): no worker was
+          // pre-assigned. The pessimistic row lock above makes this claim
+          // atomic — the first accepter flips REQUESTED→ACCEPTED and later
+          // accepters fail the REQUESTED check with a clean 400.
+          booking.operator = { id: workerId } as any;
+          console.log(`[AcceptBooking] Broadcast claim by worker ${workerId}`);
+        } else if (booking.operator.id !== workerId) {
           throw new BadRequestException('You are not assigned to this booking.');
         }
 
         // Transition this booking → ACCEPTED
         booking.status = BookingStatus.ACCEPTED;
-        const saved = await manager.save(booking);
+        await manager.save(booking);
+        // Reload with relations so a broadcast claim resolves the operator's
+        // name (the claim above only set the id).
+        const saved =
+          (await manager.findOne(Booking, {
+            where: { id: bookingId },
+            relations: ['customer', 'operator'],
+          })) ?? booking;
         console.log('[AcceptBooking] Booking saved as ACCEPTED');
 
         // Find other REQUESTED bookings for this worker
@@ -210,8 +354,8 @@ export class BookingsService {
         return {
           saved,
           filtered,
-          opName: booking.operator?.name ?? null,
-          customerId: booking.customer?.id ?? null,
+          opName: saved.operator?.name ?? null,
+          customerId: saved.customer?.id ?? null,
         };
       });
 
@@ -250,35 +394,73 @@ export class BookingsService {
       console.error('[AcceptBooking] removePendingBooking failed:', e);
     }
 
-    // Cache ACCEPTED status for poll endpoint
+    // Cache ACCEPTED status for poll endpoint. operatorId included so the
+    // customer app can identify a broadcast-claimed worker it never picked.
     try {
       await this.redisService.cacheBookingStatus(bookingId, {
         status: 'ACCEPTED',
         operatorName: operatorName,
+        operatorId: workerId,
         arrivalOtp: savedBooking.arrivalOtp,
       });
     } catch (e) {
       console.error('[AcceptBooking] cacheBookingStatus failed:', e);
     }
 
-    // Notify cancelled customers
-    for (const cancelled of otherPendingFiltered) {
-      try {
-        if (cancelled.customer?.id) {
-          await this.notificationsService.notifyBookingCancelled(
-            cancelled.customer.id,
-            'The worker accepted another job. Please try booking again.',
+    // Broadcast cleanup: pull this request out of every OTHER notified
+    // worker's pending list so it disappears from their queues.
+    try {
+      const raw = await this.redisService.get(`booking:notified:${bookingId}`);
+      if (raw) {
+        const notified: string[] = JSON.parse(raw);
+        await Promise.all(
+          notified
+            .filter((otherId) => otherId !== workerId)
+            .map((otherId) =>
+              this.redisService
+                .removePendingBooking(otherId, bookingId)
+                .catch(() => {}),
+            ),
+        );
+        await this.redisService.del(`booking:notified:${bookingId}`);
+      }
+    } catch (e) {
+      console.error('[AcceptBooking] broadcast cleanup failed:', e);
+    }
+
+    // Notify cancelled customers (AUDIT FIX: one multicast, not serial awaits).
+    const cancelledCustomerIds = otherPendingFiltered
+      .map((c) => c.customer?.id)
+      .filter((id): id is string => !!id);
+    if (cancelledCustomerIds.length > 0) {
+      await this.notificationsService
+        .sendToUsers(cancelledCustomerIds, {
+          title: 'Booking Cancelled',
+          body: 'The worker accepted another job. Please try booking again.',
+          data: { type: 'booking_cancelled' },
+        })
+        .catch((e) =>
+          console.error('[AcceptBooking] cancel multicast failed:', e),
+        );
+    }
+    await Promise.all(
+      otherPendingFiltered.map(async (cancelled) => {
+        try {
+          await this.redisService
+            .removePendingBooking(workerId, cancelled.id)
+            .catch(() => {});
+          await this.redisService.cacheBookingStatus(cancelled.id, {
+            status: 'CANCELLED',
+            operatorName: null,
+          });
+        } catch (e) {
+          console.error(
+            `[AcceptBooking] Cancelled-cache failed for ${cancelled.id}:`,
+            e,
           );
         }
-        await this.redisService.removePendingBooking(workerId, cancelled.id).catch(() => {});
-        await this.redisService.cacheBookingStatus(cancelled.id, {
-          status: 'CANCELLED',
-          operatorName: null,
-        });
-      } catch (e) {
-        console.error(`[AcceptBooking] Cancelled-notification failed for ${cancelled.id}:`, e);
-      }
-    }
+      }),
+    );
 
     // Schedule GPS monitoring jobs
     try {
@@ -387,6 +569,95 @@ export class BookingsService {
     return saved;
   }
 
+  // ── Customer Cancellation (with reason + refund) ──────────────────────────
+
+  /**
+   * Cancels a booking, records the reason, and refunds any captured payment
+   * back to the customer's wallet. Completed bookings cannot be cancelled.
+   */
+  async cancelBooking(
+    id: string,
+    reason: string,
+  ): Promise<{
+    status: string;
+    refundAmount: number;
+    refundMethod: string;
+    message: string;
+  }> {
+    const booking = await this.bookingsRepository.findOne({
+      where: { id },
+      relations: ['customer', 'operator'],
+    });
+    if (!booking) throw new NotFoundException('Booking not found');
+    if (booking.status === BookingStatus.COMPLETED) {
+      throw new BadRequestException('Completed bookings cannot be cancelled.');
+    }
+
+    booking.status = BookingStatus.CANCELLED;
+    booking.cancellationReason = reason;
+
+    // Refund policy: refund only money Gixbee actually captured.
+    // - WALLET bookings: settlement moved funds customer→worker, so the
+    //   cancellation reverses that pair (worker debit + customer credit —
+    //   the clawback that was previously missing).
+    // - CASH/UPI direct collection (markPaid): the worker was paid
+    //   directly and Gixbee never held the money — no wallet credit is
+    //   minted out of thin air; the parties settle directly.
+    // - Unpaid bookings: nothing captured, nothing to refund.
+    let refundAmount = 0;
+    let refundMethod = 'NONE';
+    if (booking.isPaid && booking.customer?.id) {
+      const paidAmount = Number(booking.totalAmount ?? booking.amount) || 0;
+      if (paidAmount > 0) {
+        if (booking.paymentMethod === 'WALLET' && booking.operator?.id) {
+          await this.walletsService.reverseBookingTransfer(
+            booking.customer.id,
+            booking.operator.id,
+            paidAmount,
+            id,
+          );
+          refundAmount = paidAmount;
+          refundMethod = 'WALLET';
+        } else {
+          refundMethod = 'DIRECT';
+        }
+      }
+    }
+
+    await this.bookingsRepository.save(booking);
+
+    if (booking.operator?.id) {
+      await this.redisService
+        .removePendingBooking(booking.operator.id, id)
+        .catch(() => {});
+      // Let the worker know the job was cancelled.
+      await this.notificationsService
+        .sendToUser(booking.operator.id, {
+          title: 'Booking cancelled',
+          body: `A customer cancelled their booking.`,
+          data: { type: 'booking_cancelled', bookingId: id },
+        })
+        .catch(() => {});
+    }
+    await this.redisService
+      .cacheBookingStatus(id, {
+        status: 'CANCELLED',
+        operatorName: booking.operator?.name,
+        arrivalOtp: null,
+      })
+      .catch(() => {});
+
+    return {
+      status: 'CANCELLED',
+      refundAmount,
+      refundMethod,
+      message:
+        refundMethod === 'DIRECT'
+          ? 'Booking cancelled. Payment was collected directly by the worker — please settle any refund with them.'
+          : 'Booking cancelled',
+    };
+  }
+
   // ── Find Pending for Worker ───────────────────────────────────────────────
 
   /**
@@ -401,7 +672,14 @@ export class BookingsService {
         where: { id: In(ids) },
         relations: ['customer', 'operator'],
       });
-      return bookings.sort((a, b) => ids.indexOf(a.id) - ids.indexOf(b.id));
+      // Drop entries that are no longer open — e.g. a broadcast request
+      // another pro already claimed, or a timed-out request — and prune the
+      // stale ids from this worker's Redis queue.
+      const open = bookings.filter((b) => b.status === BookingStatus.REQUESTED);
+      for (const stale of bookings.filter((b) => b.status !== BookingStatus.REQUESTED)) {
+        await this.redisService.removePendingBooking(workerId, stale.id).catch(() => {});
+      }
+      return open.sort((a, b) => ids.indexOf(a.id) - ids.indexOf(b.id));
     }
 
     const dbBookings = await this.bookingsRepository.find({
@@ -451,10 +729,10 @@ export class BookingsService {
   async verifyCompletionOtp(
     bookingId: string,
     otp: string,
-  ): Promise<{ message: string; status: string; billingHours: number; paymentMethod: string; totalAmount: number; }> {
+  ): Promise<{ message: string; status: string; billingHours: number; paymentMethod: string; totalAmount: number; isPaid: boolean; }> {
     const booking = await this.bookingsRepository.findOne({
       where: { id: bookingId },
-      relations: ['operator'],
+      relations: ['customer', 'operator'],
     });
     if (!booking) throw new NotFoundException('Booking not found');
 
@@ -468,24 +746,68 @@ export class BookingsService {
       throw new BadRequestException('Job must be active to complete');
     }
 
+    // AUDIT FIX (double-settlement race): atomically claim the completion.
+    // Only ONE concurrent verify call can flip ACTIVE → COMPLETED; losers
+    // fail here BEFORE any wallet settlement can run twice.
+    const claim = await this.bookingsRepository.update(
+      { id: bookingId, status: BookingStatus.ACTIVE },
+      { status: BookingStatus.COMPLETED, completedAt: new Date() },
+    );
+    if (!claim.affected) {
+      throw new BadRequestException('Job must be active to complete');
+    }
+
     const startTime = booking.startedAt
       ? new Date(booking.startedAt).getTime()
       : Date.now();
-    const hoursWorked = Math.max(
-      1,
-      Math.ceil((Date.now() - startTime) / (1000 * 60 * 60)),
-    );
+    // Bill only WORKED time: subtract approved pause windows (pausedMinutes),
+    // including a still-open pause at completion time.
+    let pausedMs = (booking.pausedMinutes ?? 0) * 60 * 1000;
+    if (booking.pausedAt) {
+      pausedMs += Math.max(0, Date.now() - new Date(booking.pausedAt).getTime());
+      booking.pausedAt = null as any;
+    }
+    const workedMs = Math.max(0, Date.now() - startTime - pausedMs);
+    const hoursWorked = Math.max(1, Math.ceil(workedMs / (1000 * 60 * 60)));
 
-    booking.status = BookingStatus.COMPLETED;
-    booking.completedAt = new Date();
+    booking.status = BookingStatus.COMPLETED; // already claimed atomically above
+    booking.completedAt = booking.completedAt ?? new Date();
     booking.billingHours = hoursWorked;
-    // booking.amount is the full package price from the rate chart — not a per-hour rate
-    const totalAmount = booking.amount || 0;
+    // INSTANT (broadcast) requests carry the customer's ₹/hr budget in
+    // `amount` — total = rate × worked hours. PACKAGE/CUSTOM/RENTAL keep
+    // `amount` as the flat agreed price from the rate chart / quote.
+    const totalAmount =
+      booking.type === BookingType.INSTANT
+        ? (booking.amount || 0) * hoursWorked
+        : booking.amount || 0;
     booking.totalAmount = totalAmount;
 
-    // Mark WALLET payments as paid immediately
+    // Settle WALLET payments for real: debit customer, credit worker (atomic).
+    // On insufficient balance the booking stays unpaid and the worker's
+    // collect-payment flow (cash/UPI → markPaid) takes over.
     if (booking.paymentMethod === 'WALLET') {
-      booking.isPaid = true;
+      if (totalAmount <= 0) {
+        booking.isPaid = true; // nothing to settle
+      } else if (booking.customer?.id && booking.operator?.id) {
+        try {
+          await this.walletsService.transferForBooking(
+            booking.customer.id,
+            booking.operator.id,
+            totalAmount,
+            bookingId,
+          );
+          booking.isPaid = true;
+          console.log(
+            `[CompleteBooking] Wallet settled: ₹${totalAmount} customer→worker for ${bookingId}`,
+          );
+        } catch (error) {
+          booking.isPaid = false;
+          console.error(
+            '[CompleteBooking] Wallet settlement failed — falling back to direct collection:',
+            error?.message ?? error,
+          );
+        }
+      }
     }
 
     await this.bookingsRepository.save(booking);
@@ -516,14 +838,24 @@ export class BookingsService {
       billingHours: hoursWorked,
       paymentMethod: booking.paymentMethod,
       totalAmount,
+      isPaid: booking.isPaid,
     };
   }
 
-  async markPaid(bookingId: string): Promise<{ message: string }> {
+  // AUDIT FIX: was callable by ANY authenticated user on ANY booking. Only
+  // the booking's participants may mark it paid, and only after completion.
+  async markPaid(bookingId: string, userId: string): Promise<{ message: string }> {
     const booking = await this.bookingsRepository.findOne({
       where: { id: bookingId },
+      relations: ['customer', 'operator'],
     });
     if (!booking) throw new NotFoundException('Booking not found');
+    if (booking.operator?.id !== userId && booking.customer?.id !== userId) {
+      throw new BadRequestException('Only participants of this booking can mark it paid');
+    }
+    if (booking.status !== BookingStatus.COMPLETED) {
+      throw new BadRequestException('Only completed bookings can be marked paid');
+    }
 
     booking.isPaid = true;
     await this.bookingsRepository.save(booking);
@@ -555,8 +887,74 @@ export class BookingsService {
     return { message: 'Completion OTP refreshed', completionOtp: newOtp };
   }
 
+  /**
+   * Customer rates the worker after COMPLETED.
+   * AUDIT FIX: booking + worker-profile updates run in one transaction with
+   * pessimistic locks so concurrent ratings cannot both read the same
+   * (rating, reviewCount) and drop one from the average. Re-rating an already
+   * rated booking is idempotent (no second fold into the average).
+   */
   async submitRating(
     bookingId: string,
+    rating: number,
+  ): Promise<{ message: string }> {
+    await this.dataSource.transaction(async (manager) => {
+      const bookingRepo = manager.getRepository(Booking);
+      const profileRepo = manager.getRepository(WorkerProfile);
+
+      const locked = await bookingRepo
+        .createQueryBuilder('booking')
+        .setLock('pessimistic_write')
+        .where('booking.id = :bookingId', { bookingId })
+        .getOne();
+      if (!locked) throw new NotFoundException('Booking not found');
+
+      const booking = await bookingRepo.findOne({
+        where: { id: bookingId },
+        relations: ['operator'],
+      });
+      if (!booking) throw new NotFoundException('Booking not found');
+      if (booking.status !== BookingStatus.COMPLETED) {
+        throw new BadRequestException('Can only rate completed jobs');
+      }
+      if (booking.rating != null) {
+        return; // already counted — don't inflate reviewCount
+      }
+
+      booking.rating = rating;
+      await bookingRepo.save(booking);
+
+      if (!booking.operator?.id) return;
+
+      const profile = await profileRepo.findOne({
+        where: { user: { id: booking.operator.id } },
+      });
+      if (!profile) return;
+
+      await profileRepo
+        .createQueryBuilder('profile')
+        .setLock('pessimistic_write')
+        .where('profile.id = :id', { id: profile.id })
+        .getOne();
+
+      const fresh = await profileRepo.findOne({ where: { id: profile.id } });
+      if (!fresh) return;
+
+      const currentTotal = Number(fresh.rating) * fresh.reviewCount;
+      fresh.reviewCount += 1;
+      fresh.rating = (currentTotal + rating) / fresh.reviewCount;
+      await profileRepo.save(fresh);
+    });
+
+    return { message: 'Rating submitted successfully' };
+  }
+
+  // ── v126 parity: worker rates the customer after completion. Mirrors
+  // submitRating but writes customerRating and checks the caller IS the
+  // operator on this booking.
+  async rateCustomer(
+    bookingId: string,
+    operatorUserId: string,
     rating: number,
   ): Promise<{ message: string }> {
     const booking = await this.bookingsRepository.findOne({
@@ -564,27 +962,203 @@ export class BookingsService {
       relations: ['operator'],
     });
     if (!booking) throw new NotFoundException('Booking not found');
+    if (booking.operator?.id !== operatorUserId) {
+      throw new BadRequestException('Only the assigned worker can rate this customer');
+    }
     if (booking.status !== BookingStatus.COMPLETED) {
       throw new BadRequestException('Can only rate completed jobs');
     }
-
-    booking.rating = rating;
+    booking.customerRating = rating;
     await this.bookingsRepository.save(booking);
+    return { message: 'Customer rating submitted' };
+  }
 
-    if (booking.operator?.id) {
-      const workerProfile = await this.workerProfileRepo.findOne({
-        where: { user: { id: booking.operator.id } },
-      });
-      if (workerProfile) {
-        const currentTotal = workerProfile.rating * workerProfile.reviewCount;
-        workerProfile.reviewCount += 1;
-        workerProfile.rating =
-          (currentTotal + rating) / workerProfile.reviewCount;
-        await this.workerProfileRepo.save(workerProfile);
-      }
+  // ── Pause / resume (v126 Instant Help c12–c14 / w6–w7) ────────────────────
+  // Worker requests a pause mid-job → customer approves (timer stops) or
+  // declines → worker resumes when work restarts. Status stays ACTIVE
+  // throughout (pause lives in dedicated columns, see booking.entity.ts);
+  // pausedMinutes accumulates so billing can subtract idle time.
+
+  private async loadActiveBooking(bookingId: string): Promise<Booking> {
+    const booking = await this.bookingsRepository.findOne({
+      where: { id: bookingId },
+      relations: ['customer', 'operator'],
+    });
+    if (!booking) throw new NotFoundException('Booking not found');
+    if (booking.status !== BookingStatus.ACTIVE) {
+      throw new BadRequestException('Pause is only available during active work');
     }
+    return booking;
+  }
 
-    return { message: 'Rating submitted successfully' };
+  /** Broadcast pause state to the pollers via the Redis status cache. */
+  private async cachePauseState(booking: Booking): Promise<void> {
+    await this.redisService.cacheBookingStatus(booking.id, {
+      status: booking.status,
+      operatorName: booking.operator?.name,
+      arrivalOtp: null,
+      pauseRequested: !!booking.pauseRequestedAt,
+      paused: !!booking.pausedAt,
+      pausedMinutes: booking.pausedMinutes ?? 0,
+    });
+  }
+
+  async requestPause(bookingId: string, operatorUserId: string) {
+    const booking = await this.loadActiveBooking(bookingId);
+    if (booking.operator?.id !== operatorUserId) {
+      throw new BadRequestException('Only the assigned worker can request a pause');
+    }
+    if (booking.pausedAt) throw new BadRequestException('Job is already paused');
+    booking.pauseRequestedAt = new Date();
+    await this.bookingsRepository.save(booking);
+    await this.cachePauseState(booking);
+    if (booking.customer?.id) {
+      await this.notificationsService
+        .sendToUser(booking.customer.id, {
+          title: 'Pause requested',
+          body: 'Your worker asked to pause the job timer. Approve or decline in the app.',
+          data: { type: 'pause_requested', bookingId: booking.id },
+        })
+        .catch((err) => console.error('[RequestPause] notification failed:', err));
+    }
+    return { message: 'Pause request sent to customer', pauseRequested: true };
+  }
+
+  async respondPause(bookingId: string, customerUserId: string, approve: boolean) {
+    const booking = await this.loadActiveBooking(bookingId);
+    if (booking.customer?.id !== customerUserId) {
+      throw new BadRequestException('Only the customer can respond to a pause request');
+    }
+    if (!booking.pauseRequestedAt) {
+      throw new BadRequestException('No pending pause request');
+    }
+    booking.pauseRequestedAt = null as any;
+    if (approve) booking.pausedAt = new Date();
+    await this.bookingsRepository.save(booking);
+    await this.cachePauseState(booking);
+    if (booking.operator?.id) {
+      await this.notificationsService
+        .sendToUser(booking.operator.id, {
+          title: approve ? 'Pause approved' : 'Pause declined',
+          body: approve
+            ? 'Timer stopped. Tap Resume when work continues.'
+            : 'The customer declined the pause — keep working.',
+          data: { type: approve ? 'pause_approved' : 'pause_declined', bookingId: booking.id },
+        })
+        .catch((err) => console.error('[RespondPause] notification failed:', err));
+    }
+    return { message: approve ? 'Pause approved' : 'Pause declined', paused: approve };
+  }
+
+  async resumeWork(bookingId: string, operatorUserId: string) {
+    const booking = await this.loadActiveBooking(bookingId);
+    if (booking.operator?.id !== operatorUserId) {
+      throw new BadRequestException('Only the assigned worker can resume the job');
+    }
+    if (!booking.pausedAt) throw new BadRequestException('Job is not paused');
+    const pausedMs = Date.now() - new Date(booking.pausedAt).getTime();
+    booking.pausedMinutes = (booking.pausedMinutes ?? 0) + Math.max(0, Math.round(pausedMs / 60000));
+    booking.pausedAt = null as any;
+    await this.bookingsRepository.save(booking);
+    await this.cachePauseState(booking);
+    if (booking.customer?.id) {
+      await this.notificationsService
+        .sendToUser(booking.customer.id, {
+          title: 'Work resumed',
+          body: 'The job timer is running again.',
+          data: { type: 'work_resumed', bookingId: booking.id },
+        })
+        .catch((err) => console.error('[ResumeWork] notification failed:', err));
+    }
+    return { message: 'Work resumed', pausedMinutes: booking.pausedMinutes };
+  }
+
+  // ── Dispute / report — persisted (was a log-only stub). Either party can
+  // file; stored on the booking so admin review and support can act on it.
+  async reportDispute(bookingId: string, userId: string, reason: string) {
+    const booking = await this.bookingsRepository.findOne({
+      where: { id: bookingId },
+      relations: ['customer', 'operator'],
+    });
+    if (!booking) throw new NotFoundException('Booking not found');
+    const isCustomer = booking.customer?.id === userId;
+    const isOperator = booking.operator?.id === userId;
+    if (!isCustomer && !isOperator) {
+      throw new BadRequestException('Only participants of this booking can report it');
+    }
+    booking.disputeReason = reason;
+    booking.disputeReporterRole = isCustomer ? 'CUSTOMER' : 'WORKER';
+    booking.disputedAt = new Date();
+    await this.bookingsRepository.save(booking);
+    return { success: true, message: 'Report submitted — our team will review it.' };
+  }
+
+  // ── Admin: disputes + bookings monitor (portal only) ──────────────────────
+
+  /// Disputed bookings for the portal. open=true → unresolved only.
+  async getDisputes(
+    openOnly = false,
+    page = 1,
+    limit = 50,
+  ): Promise<Booking[]> {
+    const qb = this.bookingsRepository
+      .createQueryBuilder('booking')
+      .leftJoinAndSelect('booking.customer', 'customer')
+      .leftJoinAndSelect('booking.operator', 'operator')
+      .where('booking.disputedAt IS NOT NULL')
+      .orderBy('booking.disputedAt', 'DESC')
+      .skip((page - 1) * limit)
+      .take(limit);
+    if (openOnly) qb.andWhere('booking.disputeResolvedAt IS NULL');
+    return qb.getMany();
+  }
+
+  async resolveDispute(bookingId: string, resolution: string): Promise<Booking> {
+    const booking = await this.bookingsRepository.findOne({
+      where: { id: bookingId },
+      relations: ['customer', 'operator'],
+    });
+    if (!booking) throw new NotFoundException('Booking not found');
+    if (!booking.disputedAt) {
+      throw new BadRequestException('This booking has no dispute to resolve');
+    }
+    booking.disputeResolution = resolution;
+    booking.disputeResolvedAt = new Date();
+    await this.bookingsRepository.save(booking);
+    // Tell both parties the outcome (multicast — same payload).
+    const partyIds = [booking.customer?.id, booking.operator?.id].filter(
+      (id): id is string => !!id,
+    );
+    if (partyIds.length > 0) {
+      await this.notificationsService
+        .sendToUsers(partyIds, {
+          title: 'Report resolved',
+          body: 'The Gixbee team reviewed the report on your booking.',
+          data: { type: 'dispute_resolved', bookingId },
+        })
+        .catch(() => {});
+    }
+    return booking;
+  }
+
+  /// Paginated all-bookings list for the portal monitor.
+  async adminListBookings(
+    status?: string,
+    page = 1,
+    limit = 50,
+  ): Promise<Booking[]> {
+    const where: any = {};
+    if (status) {
+      const statuses = status.split(',').map((s) => s.trim().toUpperCase());
+      where.status = statuses.length === 1 ? statuses[0] : In(statuses);
+    }
+    return this.bookingsRepository.find({
+      where,
+      relations: ['customer', 'operator'],
+      order: { createdAt: 'DESC' },
+      skip: (page - 1) * limit,
+      take: limit,
+    });
   }
 
   async getBookingById(id: string): Promise<Booking | null> {
@@ -594,6 +1168,18 @@ export class BookingsService {
       .leftJoinAndSelect('booking.operator', 'operator')
       .where('booking.id = :id', { id })
       .getOne();
+  }
+
+  /// SECURITY FIX: shared guard for the booking mutation endpoints that used
+  /// to trust the URL id. Throws unless the caller is this booking's customer
+  /// or operator.
+  async assertParticipant(bookingId: string, userId: string): Promise<Booking> {
+    const booking = await this.getBookingById(bookingId);
+    if (!booking) throw new NotFoundException('Booking not found');
+    if (booking.customer?.id !== userId && booking.operator?.id !== userId) {
+      throw new BadRequestException('You are not a participant of this booking');
+    }
+    return booking;
   }
 
   async findAllByUser(
@@ -620,6 +1206,39 @@ export class BookingsService {
       skip: (page - 1) * limit,
       take: limit,
     });
+  }
+
+  /// Single paginated list of bookings where the user is customer OR operator.
+  /// Replaces the old two-query merge on GET /bookings/my (which doubled page
+  /// size and could duplicate self-bookings if any slipped through).
+  async findMyBookings(
+    userId: string,
+    status?: string,
+    page = 1,
+    limit = 50,
+  ): Promise<Booking[]> {
+    const qb = this.bookingsRepository
+      .createQueryBuilder('booking')
+      .leftJoinAndSelect('booking.customer', 'customer')
+      .leftJoinAndSelect('booking.operator', 'operator')
+      .where('(customer.id = :userId OR operator.id = :userId)', { userId })
+      .orderBy('booking.scheduledAt', 'DESC')
+      .skip((page - 1) * limit)
+      .take(limit);
+
+    if (status) {
+      const statuses = status
+        .split(',')
+        .map((s) => s.trim().toUpperCase())
+        .filter(Boolean);
+      if (statuses.length === 1) {
+        qb.andWhere('booking.status = :status', { status: statuses[0] });
+      } else if (statuses.length > 1) {
+        qb.andWhere('booking.status IN (:...statuses)', { statuses });
+      }
+    }
+
+    return qb.getMany();
   }
 
   async addGpsStrike(bookingId: string) {

@@ -1,22 +1,29 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../theme.dart';
+import '../../shared/widgets/gx_snackbar.dart';
+import '../../shared/widgets/gx_button.dart';
 import '../../repositories/booking_repository.dart';
 import '../../shared/models/worker.dart';
 import '../../shared/models/booking_status.dart';
 import '../../core/config/app_config.dart';
-import 'arrival_otp_screen.dart';
 import 'live_tracking_map_screen.dart';
+import 'no_workers_screen.dart';
 
 class WaitingForWorkerScreen extends ConsumerStatefulWidget {
   final String bookingId;
-  final Worker worker;
+
+  /// The pre-chosen pro for targeted requests — NULL for v126 broadcast
+  /// requests ("first accept wins"), where the pro is only known once the
+  /// status poll reports ACCEPTED (operatorName/operatorId in the payload).
+  final Worker? worker;
   final String skill;
 
   const WaitingForWorkerScreen({
     super.key,
     required this.bookingId,
-    required this.worker,
+    this.worker,
     required this.skill,
   });
 
@@ -31,6 +38,10 @@ class _WaitingForWorkerScreenState extends ConsumerState<WaitingForWorkerScreen>
   Timer? _countdownTimer;
   bool _isAccepted = false;
   String? _arrivalOtp;
+
+  // Broadcast requests: the claiming pro, learned from the accept poll.
+  String? _acceptedName;
+  String? _acceptedId;
 
   @override
   void initState() {
@@ -57,7 +68,9 @@ class _WaitingForWorkerScreenState extends ConsumerState<WaitingForWorkerScreen>
       await ref.read(bookingRepositoryProvider).cancelBooking(widget.bookingId);
       if (mounted) Navigator.pop(context);
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed to cancel: $e')));
+      if (mounted) {
+        showGxSnack(context, 'Failed to cancel: $e', type: GxSnackType.error);
+      }
     }
   }
 
@@ -69,9 +82,13 @@ class _WaitingForWorkerScreenState extends ConsumerState<WaitingForWorkerScreen>
         _countdownTimer?.cancel();
         _pollingTimer?.cancel();
         if (mounted) {
-           _showError('No worker accepted your request in time. Please try again later.');
-           // Optional: call _cancelRequest() if you want to ensure backend cancellation
-           ref.read(bookingRepositoryProvider).cancelBooking(widget.bookingId).catchError((_) {});
+          // Make sure the stale request is cancelled server-side, then show
+          // the v126 "no pros available" fallback with real next steps.
+          ref
+              .read(bookingRepositoryProvider)
+              .cancelBooking(widget.bookingId)
+              .then((_) {}, onError: (_) {});
+          _showNoWorkers();
         }
       }
     });
@@ -89,12 +106,14 @@ class _WaitingForWorkerScreenState extends ConsumerState<WaitingForWorkerScreen>
           setState(() {
             _isAccepted = true;
             _arrivalOtp = statusData['arrivalOtp'];
+            _acceptedName = statusData['operatorName']?.toString();
+            _acceptedId = statusData['operatorId']?.toString();
           });
         } else if (status == BookingStatus.cancelled || status == BookingStatus.rejected) {
           _pollingTimer?.cancel();
           _countdownTimer?.cancel();
           if (mounted) {
-            _showError('Request was not accepted or timed out.');
+            _showNoWorkers();
           }
         }
       } catch (e) {
@@ -103,22 +122,33 @@ class _WaitingForWorkerScreenState extends ConsumerState<WaitingForWorkerScreen>
     });
   }
 
-  void _showError(String message) {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => AlertDialog(
-        title: const Text('Request Status'),
-        content: Text(message),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).popUntil((route) => route.isFirst),
-            child: const Text('Back to Home'),
-          ),
-        ],
-      ),
+  void _showNoWorkers() {
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(builder: (_) => NoWorkersScreen(skill: widget.skill)),
     );
   }
+
+  /// The pro to show downstream: the pre-chosen one, or (broadcast) a
+  /// minimal placeholder built from the accept poll payload.
+  Worker get _effectiveWorker =>
+      widget.worker ??
+      Worker(
+        id: _acceptedId ?? '',
+        name: _acceptedName ?? 'Your pro',
+        title: widget.skill,
+        bio: '',
+        imageUrl: '',
+        rating: 0,
+        completedJobs: 0,
+        reviewCount: 0,
+        isFeatured: false,
+        hourlyRate: 0,
+        skills: [widget.skill],
+        availabilityTags: const [],
+        primaryType: SkillType.manual,
+        status: 'available',
+      );
 
   void _confirmAndProceed() {
     // Navigate to live tracking map
@@ -127,7 +157,7 @@ class _WaitingForWorkerScreenState extends ConsumerState<WaitingForWorkerScreen>
       MaterialPageRoute(
         builder: (_) => LiveTrackingMapScreen(
           bookingId: widget.bookingId,
-          worker: widget.worker,
+          worker: _effectiveWorker,
           arrivalOtp: _arrivalOtp,
         ),
       ),
@@ -154,36 +184,50 @@ class _WaitingForWorkerScreenState extends ConsumerState<WaitingForWorkerScreen>
               ),
               const SizedBox(height: 12),
               Text(
-                'Waiting for ${widget.worker.name} to accept your request',
+                widget.worker != null
+                    ? 'Waiting for ${widget.worker!.name} to accept your request'
+                    : 'All nearby ${widget.skill} pros have been notified — the first to accept gets assigned',
                 textAlign: TextAlign.center,
                 style: TextStyle(color: colorScheme.onSurfaceVariant),
               ),
               const SizedBox(height: 32),
               _buildTimerWidget(colorScheme),
               const SizedBox(height: 40),
-              OutlinedButton(
-                onPressed: _cancelRequest,
-                child: const Text('Cancel Request'),
+              GxButton(
+                label: 'Cancel Request',
+                onTap: _cancelRequest,
+                filled: false,
+                expand: false,
               ),
             ] else ...[
               const Icon(Icons.check_circle, color: Colors.green, size: 80),
               const SizedBox(height: 24),
-              const Text(
-                'Request Accepted!',
-                style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+              Semantics(
+                liveRegion: true,
+                child: Text(
+                  'Request Accepted!',
+                  style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                ),
               ),
               const SizedBox(height: 16),
               CircleAvatar(
                 radius: 40,
-                backgroundImage: NetworkImage(widget.worker.imageUrl),
-                onBackgroundImageError: (_, __) {},
-                child: widget.worker.imageUrl.isEmpty
-                    ? Text(widget.worker.name.isNotEmpty ? widget.worker.name[0] : '?', style: const TextStyle(fontSize: 24))
+                backgroundImage: _effectiveWorker.imageUrl.isNotEmpty
+                    ? NetworkImage(_effectiveWorker.imageUrl)
+                    : null,
+                onBackgroundImageError:
+                    _effectiveWorker.imageUrl.isNotEmpty ? (_, __) {} : null,
+                child: _effectiveWorker.imageUrl.isEmpty
+                    ? Text(
+                        _effectiveWorker.name.isNotEmpty
+                            ? _effectiveWorker.name[0]
+                            : '?',
+                        style: const TextStyle(fontSize: 24))
                     : null,
               ),
               const SizedBox(height: 16),
               Text(
-                widget.worker.name,
+                _effectiveWorker.name,
                 style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
               ),
               const SizedBox(height: 8),
@@ -192,18 +236,11 @@ class _WaitingForWorkerScreenState extends ConsumerState<WaitingForWorkerScreen>
                 style: TextStyle(color: colorScheme.onSurfaceVariant),
               ),
               const SizedBox(height: 32),
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton.icon(
-                  onPressed: _confirmAndProceed,
-                  style: ElevatedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    backgroundColor: colorScheme.primary,
-                    foregroundColor: colorScheme.onPrimary,
-                  ),
-                  icon: const Icon(Icons.map_rounded),
-                  label: const Text('Track on Map', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-                ),
+              GxButton(
+                label: 'Track on Map',
+                onTap: _confirmAndProceed,
+                icon: Icons.map_rounded,
+                fontSize: 16,
               ),
             ],
           ],
@@ -226,14 +263,14 @@ class _WaitingForWorkerScreenState extends ConsumerState<WaitingForWorkerScreen>
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
                   border: Border.all(
-                    color: colorScheme.primary.withValues(alpha: 1 - _pulseController.value),
+                    color: context.gx.accent.withValues(alpha: 1 - _pulseController.value),
                     width: 2,
                   ),
                 ),
               ),
             CircleAvatar(
               radius: 40,
-              backgroundColor: colorScheme.primary,
+              backgroundColor: context.gx.accent,
               child: const Icon(Icons.flash_on, color: Colors.white, size: 40),
             ),
           ],

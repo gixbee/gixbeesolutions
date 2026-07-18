@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../shared/models/worker.dart';
+import '../../theme.dart';
 import '../search/worker_detail_screen.dart';
 
 class WorkerProfileCard extends StatelessWidget {
@@ -81,7 +82,7 @@ class WorkerProfileCard extends StatelessWidget {
                                     .titleMedium
                                     ?.copyWith(
                                       fontWeight: FontWeight.bold,
-                                      color: Colors.white,
+                                      color: context.gx.ink,
                                     ),
                               ),
                               const SizedBox(width: 8),
@@ -151,7 +152,7 @@ class WorkerProfileCard extends StatelessWidget {
                               skill,
                               style: TextStyle(
                                 fontSize: 10,
-                                color: Colors.white.withValues(alpha: 0.9),
+                                color: context.gx.ink.withValues(alpha: 0.9),
                               ),
                             ),
                           );

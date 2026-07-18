@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import { ConfigService } from '@nestjs/config';
 import { TalentProfile } from './talent-profile.entity';
 import { User } from '../users/user.entity';
 import { ProfessionalSkill, SkillApprovalStatus } from './professional-skill.entity';
@@ -12,7 +13,79 @@ export class TalentService {
     private readonly talentRepo: Repository<TalentProfile>,
     @InjectRepository(ProfessionalSkill)
     private readonly skillRepo: Repository<ProfessionalSkill>,
+    private readonly config: ConfigService,
   ) {}
+
+  /**
+   * DigiLocker identity verification — stub (Phase 5, credential-blocked).
+   *
+   * Government-ID verification via DigiLocker is intentionally NOT live: no
+   * DigiLocker OAuth credentials are configured yet. The status/initiate pair
+   * below mirrors the PhonePe gateway stub (PaymentsService): the client reads
+   * status to render the "Verify with DigiLocker" tile as live vs. "setup
+   * pending" without hard-coding that state, and initiate returns an explicit
+   * needs-API-key payload instead of ever faking a verified result.
+   *
+   * // TODO: needs DigiLocker API key — set DIGILOCKER_CLIENT_ID,
+   * //       DIGILOCKER_CLIENT_SECRET (and DIGILOCKER_REDIRECT_URI) env vars,
+   * //       then implement the real OAuth consent + e-KYC document pull here.
+   */
+  private get digiLockerConfigured(): boolean {
+    return Boolean(
+      this.config.get<string>('DIGILOCKER_CLIENT_ID') &&
+        this.config.get<string>('DIGILOCKER_CLIENT_SECRET'),
+    );
+  }
+
+  /**
+   * Verification readiness for the Register-as-Pro "Verify" step.
+   * `verified` is always false here: with no provider configured no real
+   * verification can have happened, so this never reports a fake verified
+   * state. The Flutter app branches on `needsApiKey` to show the shell.
+   */
+  getVerificationStatus() {
+    const configured = this.digiLockerConfigured;
+    return {
+      provider: 'DIGILOCKER',
+      available: configured,
+      needsApiKey: !configured,
+      verified: false,
+      message: configured
+        ? null
+        : 'Government-ID verification via DigiLocker is coming soon. Verified pros rank higher and get more jobs. For now you can upload certificates as proof.',
+    };
+  }
+
+  /**
+   * Begin DigiLocker verification — stubbed until credentials exist.
+   * Never returns a verified result: when unconfigured it returns an explicit
+   * needs-API-key payload (HTTP 200 so the client can branch cleanly).
+   */
+  initiateVerification(_userId: string) {
+    if (!this.digiLockerConfigured) {
+      // TODO: needs DigiLocker API key — replace this stub with the real
+      // DigiLocker OAuth consent URL + e-KYC pull once credentials exist.
+      return {
+        status: 'UNAVAILABLE',
+        needsApiKey: true,
+        provider: 'DIGILOCKER',
+        verified: false,
+        message:
+          'Identity verification is not live yet: the DigiLocker API key has not been configured. You can still upload certificates as proof for now.',
+      };
+    }
+
+    // Credentials exist but the real integration is still to be written —
+    // refuse rather than pretend the identity was verified.
+    return {
+      status: 'NOT_IMPLEMENTED',
+      needsApiKey: false,
+      provider: 'DIGILOCKER',
+      verified: false,
+      message:
+        'DigiLocker credentials detected, but the verification flow is not implemented yet.',
+    };
+  }
 
   async getProfile(userId: string): Promise<TalentProfile> {
     const profile = await this.talentRepo.findOne({ 
@@ -77,6 +150,20 @@ export class TalentService {
 
   async toggleAlerts(userId: string, enabled: boolean): Promise<TalentProfile> {
     return this.updateProfile(userId, { jobAlertsEnabled: enabled });
+  }
+
+  // "Later" bookmark in the job-alerts feed (v126 Find a Job): toggles a job
+  // post id in savedJobIds. Returns the updated list so the client can render
+  // optimistically without a refetch.
+  async toggleSavedJob(userId: string, jobId: string): Promise<{ savedJobIds: string[] }> {
+    const profile = await this.getProfile(userId); // auto-creates when missing
+    const current = profile.savedJobIds ?? [];
+    const savedJobIds = current.includes(jobId)
+      ? current.filter((id) => id !== jobId)
+      : [...current, jobId];
+    profile.savedJobIds = savedJobIds;
+    await this.talentRepo.save(profile);
+    return { savedJobIds };
   }
 
   // DEFECT-010: Record no-show and reduce search rank

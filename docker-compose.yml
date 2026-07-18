@@ -21,13 +21,19 @@ services:
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: gixbee123
-      POSTGRES_DB: gixbee
+      # MUST match DATABASE_NAME in backend/.env. NOTE: POSTGRES_DB only takes
+      # effect when the data volume is empty (first boot) — changing it later
+      # does NOT rename/create anything, it just makes the healthcheck below
+      # probe a database that doesn't exist ("FATAL: database ... does not
+      # exist" spam every 10s). To truly rename, create the DB by hand or wipe
+      # the volume with `docker compose down -v`.
+      POSTGRES_DB: gixbee_db
     volumes:
       - postgres_data:/var/lib/postgresql/data
     networks:
       - gixbee_net
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d gixbee"]
+      test: ["CMD-SHELL", "pg_isready -U postgres -d gixbee_db"]
       interval: 10s
       timeout: 5s
       retries: 5

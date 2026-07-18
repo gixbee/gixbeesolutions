@@ -1,4 +1,4 @@
-import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, ManyToOne } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, ManyToOne, Index } from 'typeorm';
 import { User } from '../users/user.entity';
 
 export enum BookingStatus {
@@ -21,14 +21,23 @@ export enum BookingType {
   RENTAL = 'RENTAL',
 }
 
+// AUDIT FIX (missing indexes): every hot path filters bookings by
+// participant + status — the worker's pending queue (operator + REQUESTED),
+// the customer's list, the admin monitor, the "already on a job?" guard and
+// the accept-race lock. Without these, Postgres seq-scans the whole table.
 @Entity('bookings')
+@Index(['operator', 'status'])
+@Index(['customer', 'status'])
+@Index(['status', 'createdAt'])
 export class Booking {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
+  @Index()
   @ManyToOne(() => User)
   customer: User;
 
+  @Index()
   @ManyToOne(() => User, { nullable: true })
   operator: User;
 
@@ -37,6 +46,25 @@ export class Booking {
 
   @Column({ nullable: true })
   serviceLocation: string;
+
+  // Optional FK-by-id to the saved Address the customer picked for this booking.
+  // Kept as a plain nullable string (not a ManyToOne relation) so a deleted
+  // saved address never cascades into or orphans the booking — the booking
+  // still carries the resolved free-text `serviceLocation` independently.
+  @Column({ nullable: true })
+  addressId: string;
+
+  // Customer's issue description for Uber-style instant requests (selected
+  // issue chips + free text) — shown to notified pros so they can decide
+  // before accepting.
+  @Column({ type: 'text', nullable: true })
+  description: string;
+
+  // v126 language-preference step: languages the customer needs the pro to
+  // speak. Shown on the pro's incoming-job card; hard matching can start
+  // once worker profiles carry their spoken languages.
+  @Column('simple-array', { nullable: true })
+  preferredLanguages: string[];
 
   @Column({ type: 'decimal', precision: 10, scale: 2, nullable: true })
   totalAmount: number;
@@ -116,6 +144,43 @@ export class Booking {
 
   @Column({ type: 'int', nullable: true })
   rating: number;
+
+  // ── Worker → customer rating (v126 parity: both sides rate after a job).
+  @Column({ type: 'int', nullable: true })
+  customerRating: number;
+
+  // ── Pause / resume (v126 Instant Help c12–c14 / w6–w7). NOT a BookingStatus
+  // (growing that enum breaks exhaustive switches app-side); pause state lives
+  // in these columns while status stays ACTIVE.
+  // pauseRequestedAt: worker asked, awaiting customer approval.
+  // pausedAt: customer approved; timer considered stopped from this instant.
+  // pausedMinutes: accumulated across pause windows — billing subtracts it.
+  @Column({ type: 'timestamp', nullable: true })
+  pauseRequestedAt: Date;
+
+  @Column({ type: 'timestamp', nullable: true })
+  pausedAt: Date;
+
+  @Column({ type: 'int', default: 0 })
+  pausedMinutes: number;
+
+  // ── Dispute / report (was a log-only stub; now persisted so admin review
+  // and the reporter can see it). reporterRole distinguishes who filed.
+  @Column({ type: 'text', nullable: true })
+  disputeReason: string;
+
+  @Column({ nullable: true })
+  disputeReporterRole: string; // 'CUSTOMER' | 'WORKER'
+
+  @Column({ type: 'timestamp', nullable: true })
+  disputedAt: Date;
+
+  // Admin resolution of a dispute (portal Disputes page).
+  @Column({ type: 'text', nullable: true })
+  disputeResolution: string;
+
+  @Column({ type: 'timestamp', nullable: true })
+  disputeResolvedAt: Date;
 
   @CreateDateColumn()
   createdAt: Date;

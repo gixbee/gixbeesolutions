@@ -33,8 +33,7 @@ export class LoginComponent {
     this.authService.login(this.username, this.password).subscribe({
       next: () => {
         this.isLoading = false;
-        // Redirect to dashboard on success
-        this.router.navigate(['/master-entries']);
+        this.router.navigateByUrl(this.authService.homeRoute());
       },
       error: (err: HttpErrorResponse) => {
         this.isLoading = false;

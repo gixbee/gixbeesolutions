@@ -13,7 +13,7 @@ services:
 
   postgres:
     ports:
-      - "5432:5432"    # expose for DBeaver / pgAdmin on host machine
+      - "5437:5432"    # remapped to 5437 to avoid conflict with other postgres instances
 
   redis:
     ports:

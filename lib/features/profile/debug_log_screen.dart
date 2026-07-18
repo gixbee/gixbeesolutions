@@ -3,7 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../services/debug_log_service.dart';
 import '../../shared/widgets/dribbble_background.dart';
 import '../../shared/widgets/glass_container.dart';
+import '../../shared/widgets/gx_snackbar.dart';
 import '../../repositories/auth_repository.dart';
+import '../../theme.dart';
 
 class DebugLogScreen extends ConsumerWidget {
   const DebugLogScreen({super.key});
@@ -21,6 +23,7 @@ class DebugLogScreen extends ConsumerWidget {
         elevation: 0,
         actions: [
           IconButton(
+            tooltip: 'Clear logs',
             icon: const Icon(Icons.delete_outline),
             onPressed: () => ref.read(debugLogProvider.notifier).clear(),
           ),
@@ -60,10 +63,10 @@ class DebugLogScreen extends ConsumerWidget {
               // ── Log List ────────────────────────────────────────
               Expanded(
                 child: logs.isEmpty
-                    ? const Center(
+                    ? Center(
                         child: Text(
                           'No logs captured yet.',
-                          style: TextStyle(color: Colors.white54),
+                          style: TextStyle(color: context.gx.ink.withValues(alpha: 0.54)),
                         ),
                       )
                     : ListView.separated(
@@ -76,8 +79,8 @@ class DebugLogScreen extends ConsumerWidget {
                             padding: const EdgeInsets.all(12),
                             child: Text(
                               log,
-                              style: const TextStyle(
-                                color: Colors.white,
+                              style: TextStyle(
+                                color: context.gx.ink,
                                 fontSize: 13,
                                 fontFamily: 'monospace',
                               ),
@@ -111,21 +114,19 @@ class DebugLogScreen extends ConsumerWidget {
       logger.log('[DIAG] Firebase apps: ${data['firebaseAppsCount']}');
 
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(initialized
-                ? '✅ Firebase is initialized'
-                : '❌ Firebase NOT initialized — check server .env'),
-            backgroundColor: initialized ? Colors.green : Colors.red,
-          ),
+        showGxSnack(
+          context,
+          initialized
+              ? 'Firebase is initialized'
+              : 'Firebase NOT initialized — check server .env',
+          type: initialized ? GxSnackType.success : GxSnackType.error,
         );
       }
     } catch (e) {
       logger.log('[DIAG] Health check failed: $e');
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Health check failed: $e'), backgroundColor: Colors.red),
-        );
+        showGxSnack(context, 'Health check failed: $e',
+            type: GxSnackType.error);
       }
     }
   }
@@ -147,22 +148,19 @@ class DebugLogScreen extends ConsumerWidget {
       logger.log('[DIAG] Result: ${data['message']}');
 
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(success
-                ? '✅ Push sent! Check your notification tray.'
-                : '❌ ${data['message']}'),
-            backgroundColor: success ? Colors.green : Colors.red,
-            duration: const Duration(seconds: 5),
-          ),
+        showGxSnack(
+          context,
+          success
+              ? 'Push sent! Check your notification tray.'
+              : '${data['message']}',
+          type: success ? GxSnackType.success : GxSnackType.error,
+          duration: const Duration(seconds: 5),
         );
       }
     } catch (e) {
       logger.log('[DIAG] Test push failed: $e');
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Test push failed: $e'), backgroundColor: Colors.red),
-        );
+        showGxSnack(context, 'Test push failed: $e', type: GxSnackType.error);
       }
     }
   }

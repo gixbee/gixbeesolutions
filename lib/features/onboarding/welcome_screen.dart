@@ -1,209 +1,117 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_animate/flutter_animate.dart';
 import 'package:google_fonts/google_fonts.dart';
-import '../../features/auth/login_screen.dart';
 
-class WelcomeScreen extends StatelessWidget {
+import '../../theme.dart';
+import '../auth/auth_chrome.dart';
+import '../auth/login_screen.dart';
+
+/// First guest screen after splash: brand, one line of value, primary CTA.
+class WelcomeScreen extends StatefulWidget {
   const WelcomeScreen({super.key});
 
-  // Premium gold accent color
-  static const Color _gold = Color(0xFFD4A843);
-  static const Color _goldMuted = Color(0x99C9A84C);
-  static const Color _bgTop = Color(0xFF080C14);
-  static const Color _bgBottom = Color(0xFF0E1420);
+  @override
+  State<WelcomeScreen> createState() => _WelcomeScreenState();
+}
+
+class _WelcomeScreenState extends State<WelcomeScreen>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _enter;
+
+  @override
+  void initState() {
+    super.initState();
+    _enter = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 520),
+    )..forward();
+  }
+
+  @override
+  void dispose() {
+    _enter.dispose();
+    super.dispose();
+  }
+
+  void _goLogin() {
+    Navigator.of(context, rootNavigator: true).push(
+      PageRouteBuilder(
+        transitionDuration: const Duration(milliseconds: 320),
+        pageBuilder: (_, __, ___) => const LoginScreen(),
+        transitionsBuilder: (_, animation, __, child) {
+          return FadeTransition(
+            opacity: CurvedAnimation(parent: animation, curve: Curves.easeOut),
+            child: SlideTransition(
+              position: Tween<Offset>(
+                begin: const Offset(0.04, 0),
+                end: Offset.zero,
+              ).animate(
+                CurvedAnimation(parent: animation, curve: Curves.easeOutCubic),
+              ),
+              child: child,
+            ),
+          );
+        },
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Container(
-        width: double.infinity,
-        height: double.infinity,
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [_bgTop, _bgBottom],
-          ),
-        ),
+      backgroundColor: GixbeeTheme.background,
+      body: AuthBackdrop(
         child: SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 32.0),
-            child: Column(
-              children: [
-                const Spacer(flex: 3),
-
-                // ── LOGO with golden glow ring ──
-                _buildLogoSection(),
-
-                const SizedBox(height: 48),
-
-                // ── TITLE ──
-                Text(
-                  'Gixbee',
-                  style: GoogleFonts.playfairDisplay(
-                    fontSize: 52,
-                    fontWeight: FontWeight.w700,
-                    color: Colors.white.withValues(alpha: 0.95),
-                    letterSpacing: 1.5,
+          child: AuthEntrance(
+            animation: _enter,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 28),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  const Spacer(flex: 3),
+                  const Center(child: AuthWordmark(fontSize: 56)),
+                  const SizedBox(height: 20),
+                  Text(
+                    'Everything local,\nin one place.',
+                    textAlign: TextAlign.center,
+                    style: GoogleFonts.outfit(
+                      fontSize: 26,
+                      fontWeight: FontWeight.w700,
+                      height: 1.25,
+                      color: Colors.white,
+                    ),
                   ),
-                  textAlign: TextAlign.center,
-                ).animate().fadeIn(delay: 300.ms, duration: 600.ms).slideY(begin: 0.15, end: 0),
-
-                const SizedBox(height: 16),
-
-                // ── Gold divider line ──
-                Container(
-                  width: 40,
-                  height: 2,
-                  decoration: BoxDecoration(
-                    color: _gold,
-                    borderRadius: BorderRadius.circular(1),
+                  const SizedBox(height: 12),
+                  Text(
+                    'Book help, find work, hire talent, and rent gear near you.',
+                    textAlign: TextAlign.center,
+                    style: GoogleFonts.outfit(
+                      fontSize: 15,
+                      height: 1.45,
+                      color: Colors.white.withValues(alpha: 0.55),
+                    ),
                   ),
-                ).animate().fadeIn(delay: 500.ms, duration: 400.ms).scaleX(begin: 0, end: 1),
-
-                const SizedBox(height: 20),
-
-                // ── TAGLINE ──
-                Text(
-                  'THE  ARCHITECTURE  OF  TALENT',
-                  style: GoogleFonts.outfit(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w400,
-                    color: _gold,
-                    letterSpacing: 5.0,
+                  const Spacer(flex: 4),
+                  AuthPrimaryButton(
+                    label: 'Continue with phone',
+                    onPressed: _goLogin,
                   ),
-                  textAlign: TextAlign.center,
-                ).animate().fadeIn(delay: 600.ms, duration: 500.ms),
-
-                const Spacer(flex: 4),
-
-                // ── CTA BUTTON ──
-                _buildSignInButton(context),
-
-                const SizedBox(height: 20),
-
-                // ── Footer text ──
-                Text(
-                  'PREMIUM EXECUTIVE ACCESS',
-                  style: GoogleFonts.outfit(
-                    fontSize: 10,
-                    fontWeight: FontWeight.w400,
-                    color: _goldMuted,
-                    letterSpacing: 3.5,
+                  const SizedBox(height: 14),
+                  Text(
+                    'By continuing you agree to Gixbee\'s Terms & Privacy Policy.',
+                    textAlign: TextAlign.center,
+                    style: GoogleFonts.outfit(
+                      fontSize: 11,
+                      color: Colors.white.withValues(alpha: 0.32),
+                    ),
                   ),
-                  textAlign: TextAlign.center,
-                ).animate().fadeIn(delay: 1000.ms, duration: 500.ms),
-
-                const SizedBox(height: 32),
-              ],
+                  const SizedBox(height: 20),
+                ],
+              ),
             ),
           ),
         ),
       ),
     );
-  }
-
-  Widget _buildLogoSection() {
-    return Center(
-      child: SizedBox(
-        width: 160,
-        height: 160,
-        child: Stack(
-          alignment: Alignment.center,
-          children: [
-            // Outer golden glow
-            Container(
-              width: 160,
-              height: 160,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                gradient: RadialGradient(
-                  colors: [
-                    _gold.withValues(alpha: 0.12),
-                    _gold.withValues(alpha: 0.04),
-                    Colors.transparent,
-                  ],
-                  stops: const [0.4, 0.7, 1.0],
-                ),
-              ),
-            ),
-
-            // Subtle ring
-            Container(
-              width: 130,
-              height: 130,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                border: Border.all(
-                  color: _gold.withValues(alpha: 0.2),
-                  width: 1.0,
-                ),
-              ),
-            ),
-
-            // Inner dark circle with icon
-            Container(
-              width: 100,
-              height: 100,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: const Color(0xFF151B28),
-                border: Border.all(
-                  color: _gold.withValues(alpha: 0.35),
-                  width: 1.5,
-                ),
-                boxShadow: [
-                  BoxShadow(
-                    color: _gold.withValues(alpha: 0.15),
-                    blurRadius: 30,
-                    spreadRadius: 2,
-                  ),
-                ],
-              ),
-              child: const Icon(
-                Icons.hub_rounded,
-                size: 40,
-                color: _gold,
-              ),
-            ),
-          ],
-        ),
-      ),
-    ).animate()
-        .scale(duration: 700.ms, curve: Curves.easeOutBack)
-        .fadeIn(duration: 500.ms);
-  }
-
-  Widget _buildSignInButton(BuildContext context) {
-    return SizedBox(
-      width: double.infinity,
-      height: 54,
-      child: OutlinedButton(
-        onPressed: () {
-          Navigator.of(context).push(
-            MaterialPageRoute(
-              builder: (_) => const LoginScreen(),
-            ),
-          );
-        },
-        style: OutlinedButton.styleFrom(
-          side: const BorderSide(color: _gold, width: 1.0),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(4),
-          ),
-          foregroundColor: Colors.white,
-          backgroundColor: Colors.transparent,
-        ),
-        child: Text(
-          'SIGN IN / REGISTER',
-          style: GoogleFonts.outfit(
-            fontSize: 14,
-            fontWeight: FontWeight.w500,
-            letterSpacing: 3.0,
-            color: Colors.white.withValues(alpha: 0.9),
-          ),
-        ),
-      ),
-    ).animate().fadeIn(delay: 800.ms, duration: 500.ms).slideY(begin: 0.3, end: 0);
   }
 }

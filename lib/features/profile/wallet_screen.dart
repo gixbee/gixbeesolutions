@@ -6,6 +6,11 @@ import 'package:razorpay_flutter/razorpay_flutter.dart';
 import '../../repositories/wallet_repository.dart';
 import '../../repositories/auth_repository.dart';
 import '../../core/config/app_config.dart';
+import '../../shared/widgets/gx_skeleton.dart';
+import '../../shared/widgets/gx_fade.dart';
+import '../../shared/widgets/gx_snackbar.dart';
+import '../../shared/widgets/gx_pressable.dart';
+import '../../theme.dart';
 
 /// User Wallet Screen.
 /// Displays current balance, transaction history, and allows top-ups via Razorpay.
@@ -73,57 +78,40 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
 
       if (!mounted) return;
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Wallet credited successfully!'),
-          backgroundColor: Colors.green,
-        ),
-      );
+      showGxSnack(context, 'Wallet credited successfully!',
+          type: GxSnackType.success);
 
       // 2. Refresh local data
       _fetchWalletData();
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Payment verification failed: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
+        showGxSnack(context, 'Payment verification failed: $e',
+            type: GxSnackType.error);
       }
     }
   }
 
   void _handlePaymentError(PaymentFailureResponse response) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Payment failed: ${response.message}'),
-        backgroundColor: Colors.red,
-      ),
-    );
+    showGxSnack(context, 'Payment failed: ${response.message}',
+        type: GxSnackType.error);
   }
 
   void _handleExternalWallet(ExternalWalletResponse response) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('External Wallet Selected: ${response.walletName}')),
-    );
+    showGxSnack(context, 'External Wallet Selected: ${response.walletName}');
   }
 
   void _startTopUp() {
     final amount = double.tryParse(_topUpAmountCtrl.text);
     if (amount == null || amount < AppConfig.walletMinTopUp) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Minimum top-up is ₹${AppConfig.walletMinTopUp.toInt()}')),
-      );
+      showGxSnack(context,
+          'Minimum top-up is ₹${AppConfig.walletMinTopUp.toInt()}');
       return;
     }
 
     // Issue #19: Read real user data for Razorpay prefill
     final userState = ref.read(currentUserProvider);
     if (userState.isLoading) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Loading profile, please wait...')),
-      );
+      showGxSnack(context, 'Loading profile, please wait...');
       return;
     }
     final user = userState.value;
@@ -166,6 +154,7 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
         elevation: 0,
         actions: [
           IconButton(
+            tooltip: 'Refresh',
             icon: const Icon(Icons.refresh),
             onPressed: () {
               setState(() => _isLoading = true);
@@ -174,8 +163,11 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
           ),
         ],
       ),
-      body: _isLoading 
-        ? const Center(child: CircularProgressIndicator())
+      body: GxFade(
+        child: KeyedSubtree(
+          key: ValueKey(_isLoading ? 'loading' : 'data'),
+          child: _isLoading
+        ? _buildSkeleton()
         : Column(
         children: [
           // ── BALANCE CARD ──
@@ -184,14 +176,14 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
             padding: const EdgeInsets.all(24),
             decoration: BoxDecoration(
               gradient: LinearGradient(
-                colors: [cs.primary, cs.primary.withValues(alpha: 0.8)],
+                colors: context.gx.accentGradient,
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
               ),
               borderRadius: BorderRadius.circular(24),
               boxShadow: [
                 BoxShadow(
-                  color: cs.primary.withValues(alpha: 0.3),
+                  color: context.gx.accent.withValues(alpha: 0.3),
                   blurRadius: 16,
                   offset: const Offset(0, 8),
                 ),
@@ -206,19 +198,19 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
                     Text(
                       'Available Balance',
                       style: TextStyle(
-                        color: Colors.white.withValues(alpha: 0.8),
+                        color: context.gx.onAccent.withValues(alpha: 0.8),
                         fontSize: 14,
                         fontWeight: FontWeight.w500,
                       ),
                     ),
-                    const Icon(Icons.account_balance_wallet, color: Colors.white, size: 20),
+                    Icon(Icons.account_balance_wallet, color: context.gx.onAccent, size: 20),
                   ],
                 ),
                 const SizedBox(height: 8),
                 Text(
                   '₹${_balance.toStringAsFixed(2)}',
-                  style: const TextStyle(
-                    color: Colors.white,
+                  style: TextStyle(
+                    color: context.gx.onAccent,
                     fontSize: 40,
                     fontWeight: FontWeight.bold,
                   ),
@@ -236,7 +228,7 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
                     children: [
                       Icon(
                         isLowBalance ? Icons.warning_amber_rounded : Icons.check_circle_outline,
-                        color: Colors.white,
+                        color: context.gx.onAccent,
                         size: 16,
                       ),
                       const SizedBox(width: 8),
@@ -245,7 +237,7 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
                           isLowBalance
                               ? 'Low balance! Add funds to book a service.'
                               : 'You have enough balance to book services.',
-                          style: const TextStyle(color: Colors.white, fontSize: 12),
+                          style: TextStyle(color: context.gx.onAccent, fontSize: 12),
                         ),
                       ),
                     ],
@@ -322,12 +314,22 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
                   ),
 
                   const SizedBox(height: 24),
-                  SizedBox(
-                    width: double.infinity,
-                    height: 54,
-                    child: FilledButton(
-                      onPressed: _startTopUp,
-                      child: const Text('Proceed to Pay', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                  GxPressable(
+                    onTap: _startTopUp,
+                    child: Container(
+                      width: double.infinity,
+                      height: 54,
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                            colors: context.gx.accentGradient),
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                      child: Text('Proceed to Pay',
+                          style: TextStyle(
+                              color: context.gx.onAccent,
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold)),
                     ),
                   ),
 
@@ -385,6 +387,39 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
           ),
         ],
       ),
+        ),
+      ),
+    );
+  }
+
+  // ── Skeleton while loading (Gixbee 2026 — no centered spinner) ──
+  Widget _buildSkeleton() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        const Padding(
+          padding: EdgeInsets.all(20),
+          child: GxSkeleton(width: double.infinity, height: 150, radius: 24),
+        ),
+        const Padding(
+          padding: EdgeInsets.symmetric(horizontal: 20),
+          child: Align(
+            alignment: Alignment.centerLeft,
+            child: GxSkeleton(width: 160, height: 18, radius: 8),
+          ),
+        ),
+        const SizedBox(height: 16),
+        Expanded(
+          child: ListView.separated(
+            physics: const NeverScrollableScrollPhysics(),
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            itemCount: 6,
+            separatorBuilder: (_, __) => const SizedBox(height: 12),
+            itemBuilder: (_, __) =>
+                const GxSkeleton(width: double.infinity, height: 56, radius: 14),
+          ),
+        ),
+      ],
     );
   }
 }
@@ -412,7 +447,9 @@ class _QuickAmountChip extends StatelessWidget {
           child: Center(
             child: Text(
               '+ ₹$amount',
-              style: TextStyle(fontWeight: FontWeight.bold, color: cs.primary),
+              style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: context.gx.accent),
             ),
           ),
         ),

@@ -1,6 +1,7 @@
-import { Controller, Get, UseGuards, Req } from '@nestjs/common';
+import { Controller, Get, UseGuards, Req, Query } from '@nestjs/common';
 import { WalletsService } from './wallets.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { parsePagination } from '../common/pagination';
 
 @Controller('wallets')
 @UseGuards(JwtAuthGuard)
@@ -14,7 +15,16 @@ export class WalletsController {
   }
 
   @Get('transactions')
-  async getTransactions(@Req() req: any) {
-    return this.walletsService.getTransactions(req.user.userId);
+  async getTransactions(
+    @Req() req: any,
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+  ) {
+    const p = parsePagination(page, limit);
+    return this.walletsService.getTransactions(
+      req.user.userId,
+      p.page,
+      p.limit,
+    );
   }
 }

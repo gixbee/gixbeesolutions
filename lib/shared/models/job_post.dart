@@ -61,7 +61,7 @@ class JobPost {
   }
 }
 
-enum ApplicationStatus { applied, interview, selected, rejected }
+enum ApplicationStatus { applied, interview, selected, rejected, withdrawn }
 
 class JobApplication {
   final String id;
@@ -69,6 +69,7 @@ class JobApplication {
   final String applicantId;
   final String? applicantName;
   final String? coverLetter;
+  final String? resumeUrl;
   final ApplicationStatus status;
   final DateTime? createdAt;
 
@@ -78,6 +79,7 @@ class JobApplication {
     required this.applicantId,
     this.applicantName,
     this.coverLetter,
+    this.resumeUrl,
     required this.status,
     this.createdAt,
   });
@@ -89,6 +91,7 @@ class JobApplication {
       applicantId: json['applicant']?['id'] ?? '',
       applicantName: json['applicant']?['fullName'],
       coverLetter: json['coverLetter'],
+      resumeUrl: json['resumeUrl'],
       status: _statusFromString(json['status']),
       createdAt: json['createdAt'] != null ? DateTime.parse(json['createdAt']) : null,
     );
@@ -100,6 +103,7 @@ class JobApplication {
       case 'INTERVIEW': return ApplicationStatus.interview;
       case 'SELECTED': return ApplicationStatus.selected;
       case 'REJECTED': return ApplicationStatus.rejected;
+      case 'WITHDRAWN': return ApplicationStatus.withdrawn;
       default: return ApplicationStatus.applied;
     }
   }

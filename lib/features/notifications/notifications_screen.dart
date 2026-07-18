@@ -3,7 +3,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'dart:convert';
 import '../../shared/widgets/glass_container.dart';
+import '../../shared/widgets/gx_empty.dart';
+import '../../shared/widgets/gx_pressable.dart';
+import '../../shared/widgets/gx_skeleton.dart';
+import '../../shared/widgets/gx_fade.dart';
 import '../../repositories/booking_repository.dart';
+import '../../theme.dart';
 
 /// Simple in-app notification model
 class AppNotification {
@@ -152,15 +157,26 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
         title: const Text('Notifications'),
         actions: [
           if (_dismissedIds.isNotEmpty)
-            TextButton(
-              onPressed: () async {
+            GxPressable(
+              onTap: () async {
                 setState(() => _dismissedIds.clear());
                 await _saveDismissed();
                 ref.invalidate(notificationsProvider);
               },
-              child: const Text('Restore All'),
+              child: const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                child: Text(
+                  'Restore All',
+                  style: TextStyle(
+                    color: GixbeeTheme.accentPurple,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 14,
+                  ),
+                ),
+              ),
             ),
           IconButton(
+            tooltip: 'Refresh',
             icon: const Icon(Icons.refresh),
             onPressed: () {
               // Only invalidate the data, do NOT clear the dismissed IDs
@@ -169,8 +185,15 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
           ),
         ],
       ),
-      body: notifAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
+      body: GxFade(
+        child: KeyedSubtree(
+          key: ValueKey(notifAsync.maybeWhen(
+            data: (_) => 'data',
+            error: (_, __) => 'error',
+            orElse: () => 'loading',
+          )),
+          child: notifAsync.when(
+        loading: () => _buildSkeletonList(),
         error: (err, _) => Center(child: Text('Error: $err')),
         data: (notifications) {
           // Filter out dismissed notifications
@@ -179,25 +202,13 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
               .toList();
 
           if (visible.isEmpty) {
-            return Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.notifications_off_outlined, size: 72, color: Colors.grey.shade600),
-                  const SizedBox(height: 16),
-                  const Text(
-                    'No notifications yet',
-                    style: TextStyle(color: Colors.grey, fontSize: 16),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    _dismissedIds.isNotEmpty
-                        ? 'All notifications cleared'
-                        : 'Your booking updates will appear here',
-                    style: TextStyle(color: Colors.grey.shade600, fontSize: 13),
-                  ),
-                ],
-              ),
+            return GxEmptyState(
+              icon: Icons.notifications_off_outlined,
+              title: 'No notifications yet',
+              message: _dismissedIds.isNotEmpty
+                  ? 'All notifications cleared.'
+                  : 'Your booking updates will appear here.',
+              accent: GixbeeTheme.accentPurple,
             );
           }
 
@@ -213,7 +224,9 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
                 onDismissed: (_) async {
                   setState(() => _dismissedIds.add(notif.id));
                   await _saveDismissed();
-                  if (!mounted) return;
+                  // itemBuilder's context needs its own mounted check —
+                  // State.mounted is "unrelated" to this BuildContext.
+                  if (!context.mounted) return;
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
                       content: const Text('Notification cleared'),
@@ -244,6 +257,20 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
           );
         },
       ),
+        ),
+      ),
+    );
+  }
+
+  // ── Skeleton list while loading (Gixbee 2026 — no centered spinner) ──
+  Widget _buildSkeletonList() {
+    return ListView.separated(
+      physics: const NeverScrollableScrollPhysics(),
+      padding: const EdgeInsets.all(16),
+      itemCount: 7,
+      separatorBuilder: (_, __) => const SizedBox(height: 8),
+      itemBuilder: (_, __) =>
+          const GxSkeleton(width: double.infinity, height: 76, radius: 16),
     );
   }
 
@@ -252,7 +279,10 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
     final iconColor = _getColor(notif.type);
     final timeAgo = _formatTimeAgo(notif.timestamp);
 
-    return GlassContainer(
+    // Merge title + time + body into one screen-reader node so each
+    // notification reads as a single item rather than three swipe stops.
+    return MergeSemantics(
+      child: GlassContainer(
       padding: const EdgeInsets.all(14),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -302,6 +332,7 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
             ),
           ),
         ],
+      ),
       ),
     );
   }

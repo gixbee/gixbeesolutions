@@ -4,6 +4,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/config/app_config.dart';
 import '../../repositories/booking_repository.dart';
 import 'completion_otp_screen.dart';
+import '../../theme.dart';
+import '../../shared/widgets/gx_snackbar.dart';
+import '../../shared/widgets/gx_button.dart';
 
 class ArrivalOtpScreen extends ConsumerStatefulWidget {
   final String bookingId;
@@ -74,19 +77,16 @@ class _ArrivalOtpScreenState extends ConsumerState<ArrivalOtpScreen>
           .markArrived(widget.bookingId);
       setState(() => _hasMarkedArrived = true);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text(
-                'OTP requested! Ask the customer for the arrival OTP.'),
-            backgroundColor: Colors.green,
-          ),
+        showGxSnack(
+          context,
+          'OTP requested! Ask the customer for the arrival OTP.',
+          type: GxSnackType.success,
         );
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to mark arrival: $e')),
-        );
+        showGxSnack(context, 'Failed to mark arrival: $e',
+            type: GxSnackType.error);
       }
     } finally {
       if (mounted) setState(() => _isMarkingArrived = false);
@@ -151,7 +151,7 @@ class _ArrivalOtpScreenState extends ConsumerState<ArrivalOtpScreen>
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
             colors: [
-              colorScheme.primaryContainer,
+              context.gx.accent.withValues(alpha: 0.25),
               colorScheme.surface,
             ],
           ),
@@ -167,7 +167,7 @@ class _ArrivalOtpScreenState extends ConsumerState<ArrivalOtpScreen>
                 Row(
                   children: [
                     IconButton(
-                      icon: const Icon(Icons.arrow_back),
+                      icon: Icon(Icons.arrow_back),
                       onPressed: () => Navigator.pop(context),
                     ),
                     const Spacer(),
@@ -175,7 +175,7 @@ class _ArrivalOtpScreenState extends ConsumerState<ArrivalOtpScreen>
                       padding: const EdgeInsets.symmetric(
                           horizontal: 12, vertical: 6),
                       decoration: BoxDecoration(
-                        color: Colors.orange.withValues(alpha: 0.15),
+                        color: context.gx.accent.withValues(alpha: 0.15),
                         borderRadius: BorderRadius.circular(20),
                       ),
                       child: Row(
@@ -188,7 +188,7 @@ class _ArrivalOtpScreenState extends ConsumerState<ArrivalOtpScreen>
                               height: 8,
                               decoration: BoxDecoration(
                                 shape: BoxShape.circle,
-                                color: Colors.orange.withValues(
+                                color: context.gx.accent.withValues(
                                   alpha: 0.5 +
                                       _pulseController.value * 0.5,
                                 ),
@@ -200,8 +200,8 @@ class _ArrivalOtpScreenState extends ConsumerState<ArrivalOtpScreen>
                             widget.isWorker
                                 ? 'At Location'
                                 : 'Worker Arriving',
-                            style: const TextStyle(
-                              color: Colors.orange,
+                            style: TextStyle(
+                              color: context.gx.accent,
                               fontWeight: FontWeight.w600,
                               fontSize: 12,
                             ),
@@ -220,12 +220,12 @@ class _ArrivalOtpScreenState extends ConsumerState<ArrivalOtpScreen>
                   padding: const EdgeInsets.all(24),
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    color: colorScheme.primary.withValues(alpha: 0.1),
+                    color: context.gx.accent.withValues(alpha: 0.1),
                   ),
                   child: Icon(
                     Icons.directions_walk_rounded,
                     size: 56,
-                    color: colorScheme.primary,
+                    color: context.gx.accent,
                   ),
                 ),
                 const SizedBox(height: 24),
@@ -257,34 +257,13 @@ class _ArrivalOtpScreenState extends ConsumerState<ArrivalOtpScreen>
                 if (widget.isWorker) ...[
                   if (!_hasMarkedArrived) ...[
                     // Step 1: Mark arrived
-                    SizedBox(
-                      width: double.infinity,
+                    GxButton(
+                      label: 'Request Arrival OTP',
+                      onTap: _markArrived,
+                      icon: Icons.location_on,
+                      loading: _isMarkingArrived,
                       height: 56,
-                      child: ElevatedButton.icon(
-                        onPressed:
-                            _isMarkingArrived ? null : _markArrived,
-                        icon: _isMarkingArrived
-                            ? const SizedBox(
-                                width: 20,
-                                height: 20,
-                                child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                    color: Colors.white),
-                              )
-                            : const Icon(Icons.location_on),
-                        label: Text(
-                          _isMarkingArrived
-                              ? 'Requesting...'
-                              : 'Request Arrival OTP',
-                          style: const TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 16),
-                        ),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.orange,
-                          foregroundColor: Colors.white,
-                        ),
-                      ),
+                      fontSize: 16,
                     ),
                   ] else ...[
                     // Step 2: Enter OTP
@@ -362,18 +341,18 @@ class _ArrivalOtpScreenState extends ConsumerState<ArrivalOtpScreen>
                       decoration: BoxDecoration(
                         borderRadius: BorderRadius.circular(20),
                         color: _isRevealed
-                            ? colorScheme.primary
+                            ? context.gx.accent
                             : colorScheme.surfaceContainerHighest,
                         border: Border.all(
                           color: _isRevealed
-                              ? colorScheme.primary
+                              ? context.gx.accent
                               : colorScheme.outlineVariant,
                           width: 2,
                         ),
                         boxShadow: _isRevealed
                             ? [
                                 BoxShadow(
-                                  color: colorScheme.primary
+                                  color: context.gx.accent
                                       .withValues(alpha: 0.3),
                                   blurRadius: 20,
                                   offset: const Offset(0, 8),
@@ -387,7 +366,7 @@ class _ArrivalOtpScreenState extends ConsumerState<ArrivalOtpScreen>
                             _isRevealed ? 'TAP TO HIDE' : 'TAP TO REVEAL',
                             style: TextStyle(
                               color: _isRevealed
-                                  ? Colors.white.withValues(alpha: 0.7)
+                                  ? context.gx.onAccent.withValues(alpha: 0.7)
                                   : colorScheme.onSurfaceVariant,
                               fontSize: 11,
                               fontWeight: FontWeight.w600,
@@ -403,7 +382,7 @@ class _ArrivalOtpScreenState extends ConsumerState<ArrivalOtpScreen>
                                 : '• • • •',
                             style: TextStyle(
                               color: _isRevealed
-                                  ? Colors.white
+                                  ? context.gx.onAccent
                                   : colorScheme.onSurface,
                               fontSize: 40,
                               fontWeight: FontWeight.bold,
@@ -442,26 +421,13 @@ class _ArrivalOtpScreenState extends ConsumerState<ArrivalOtpScreen>
 
                 // ── ACTION BUTTONS ──────────────────────────
                 if (widget.isWorker && _hasMarkedArrived)
-                  SizedBox(
-                    width: double.infinity,
+                  GxButton(
+                    label: 'Start Job',
+                    onTap: _confirmArrival,
+                    icon: Icons.check_circle_outline,
+                    loading: _isVerifying,
                     height: 56,
-                    child: FilledButton.icon(
-                      onPressed: _isVerifying ? null : _confirmArrival,
-                      icon: _isVerifying
-                          ? const SizedBox(
-                              width: 20,
-                              height: 20,
-                              child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                  color: Colors.white),
-                            )
-                          : const Icon(Icons.check_circle_outline),
-                      label: Text(
-                        _isVerifying ? 'Verifying...' : 'Start Job',
-                        style: const TextStyle(
-                            fontWeight: FontWeight.bold, fontSize: 16),
-                      ),
-                    ),
+                    fontSize: 16,
                   )
                 else if (!widget.isWorker)
                   const Text(
