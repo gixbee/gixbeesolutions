@@ -393,6 +393,13 @@ class GixbeeTheme {
           return IconThemeData(color: colorScheme.onSurfaceVariant, size: 24);
         }),
       ),
+
+      bottomAppBarTheme: BottomAppBarThemeData(
+        color: colorScheme.surface,
+        elevation: 0,
+        shadowColor: Colors.transparent,
+        surfaceTintColor: Colors.transparent,
+      ),
     );
   }
 }

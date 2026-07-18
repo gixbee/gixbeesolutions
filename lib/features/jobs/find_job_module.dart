@@ -28,14 +28,15 @@ class _FindJobModuleState extends State<FindJobModule> {
     final cs = Theme.of(context).colorScheme;
 
     return Scaffold(
-      backgroundColor: Colors.transparent,
+      backgroundColor: context.gx.bg,
       body: DribbbleBackground(
         child: _screens[_currentIndex],
       ),
       bottomNavigationBar: NavigationBar(
         selectedIndex: _currentIndex,
         onDestinationSelected: (i) => setState(() => _currentIndex = i),
-        backgroundColor: cs.surface.withValues(alpha: 0.85),
+        backgroundColor: cs.surface,
+        surfaceTintColor: Colors.transparent,
         // v106: Find a Job uses the green accent (home quad colour-coding).
         indicatorColor: GixbeeTheme.accentGreen.withValues(alpha: 0.18),
         destinations: const [

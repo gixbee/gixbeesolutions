@@ -83,10 +83,9 @@ class _MessagesListScreenState extends ConsumerState<MessagesListScreen> {
                     child: Container(
                       padding: const EdgeInsets.all(9),
                       decoration: BoxDecoration(
-                        color: context.gx.ink.withValues(alpha: 0.06),
+                        color: scheme.surface,
                         shape: BoxShape.circle,
-                        border: Border.all(
-                            color: context.gx.ink.withValues(alpha: 0.10)),
+                        border: Border.all(color: context.gx.border),
                       ),
                       child: Icon(Icons.refresh_rounded,
                           color: context.gx.ink, size: 18),
@@ -101,7 +100,7 @@ class _MessagesListScreenState extends ConsumerState<MessagesListScreen> {
               padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
               child: TextField(
                 controller: _searchCtrl,
-                style: TextStyle(fontSize: 14),
+                style: TextStyle(fontSize: 14, color: context.gx.ink),
                 decoration: InputDecoration(
                   hintText: 'Search conversations…',
                   hintStyle:
@@ -117,24 +116,22 @@ class _MessagesListScreenState extends ConsumerState<MessagesListScreen> {
                         )
                       : null,
                   filled: true,
-                  fillColor: context.gx.ink.withValues(alpha: 0.05),
+                  fillColor: scheme.surface,
                   isDense: true,
                   contentPadding:
                       const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(999),
-                    borderSide: BorderSide(
-                        color: context.gx.ink.withValues(alpha: 0.10)),
+                    borderSide: BorderSide(color: context.gx.border),
                   ),
                   enabledBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(999),
-                    borderSide: BorderSide(
-                        color: context.gx.ink.withValues(alpha: 0.10)),
+                    borderSide: BorderSide(color: context.gx.border),
                   ),
                   focusedBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(999),
                     borderSide:
-                        BorderSide(color: context.gx.accent),
+                        BorderSide(color: context.gx.accent, width: 1.5),
                   ),
                 ),
               ),

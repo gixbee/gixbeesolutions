@@ -447,6 +447,8 @@ class _FeaturedOffer extends StatelessWidget {
                         color: context.gx.ink)),
                 SizedBox(height: 6),
                 Text('Limited time · tap to claim',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                     style: TextStyle(
                         fontSize: 11,
                         color: context.gx.ink.withValues(alpha: 0.55))),

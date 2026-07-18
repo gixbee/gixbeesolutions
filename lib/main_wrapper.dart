@@ -282,8 +282,10 @@ class _MainWrapperState extends ConsumerState<MainWrapper>
     final scheme = Theme.of(context).colorScheme;
     final isLive = ref.watch(workerLiveStateProvider);
 
+    // Solid scaffold colour (not transparent) so the FAB notch never falls
+    // through to the black window behind — that was the harsh "black scoop".
     return Scaffold(
-      backgroundColor: Colors.transparent,
+      backgroundColor: context.gx.bg,
       body: DribbbleBackground(
         child: Stack(
           children: [
@@ -309,8 +311,11 @@ class _MainWrapperState extends ConsumerState<MainWrapper>
       bottomNavigationBar: BottomAppBar(
         height: 64,
         color: scheme.surface,
+        elevation: 0,
+        shadowColor: Colors.transparent,
+        surfaceTintColor: Colors.transparent,
         shape: const CircularNotchedRectangle(),
-        notchMargin: 8,
+        notchMargin: 10,
         padding: EdgeInsets.zero,
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceAround,
@@ -389,9 +394,9 @@ class _GoLiveFab extends StatelessWidget {
           boxShadow: [
             BoxShadow(
               color: (isLive ? const Color(0xFF10B981) : gx.accent)
-                  .withValues(alpha: 0.45),
-              blurRadius: 14,
-              offset: const Offset(0, 4),
+                  .withValues(alpha: 0.28),
+              blurRadius: 10,
+              offset: const Offset(0, 3),
             ),
           ],
         ),

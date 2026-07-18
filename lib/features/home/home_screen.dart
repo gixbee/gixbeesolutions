@@ -274,7 +274,7 @@ class HomeScreen extends ConsumerWidget {
               SizedBox(width: 10),
               Expanded(
                 child: Text(
-                  'Search services, jobs, professionals, businesses…',
+                  'Search services, jobs & more',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(color: context.gx.ink.withValues(alpha: 0.55), fontSize: 13),
@@ -297,23 +297,21 @@ class HomeScreen extends ConsumerWidget {
     );
   }
 
-  // ── Service quad (2×2 colour-coded cards) ────────────────────────────────
+  // ── Service quad (2×2) — calm tinted tiles, short tags ───────────────────
   Widget _servicesQuad(BuildContext context, WidgetRef ref) {
     final cards = <_QuadData>[
       _QuadData(
         title: 'Find a Job',
-        tag: 'Full/part-time, contract & internships',
+        tag: 'Full-time & gigs',
         icon: Icons.work_outline_rounded,
         accent: GixbeeTheme.accentGreen,
-        tileColors: const [Color(0xFF10B981), Color(0xFF047857)],
         onTap: () => _go(context, const FindJobModule()),
       ),
       _QuadData(
         title: 'Earn Hourly',
-        tag: 'Work nearby · paid fast',
+        tag: 'Nearby · paid fast',
         icon: Icons.schedule_rounded,
         accent: GixbeeTheme.accentGold,
-        tileColors: const [Color(0xFFF59E0B), Color(0xFFB45309)],
         // Registered pros go straight to the Go Live dashboard; only new
         // users see the onboarding wizard. Without this, every login forced
         // the full register + verify flow again (hasWorkerProfile fix pairs
@@ -330,20 +328,18 @@ class HomeScreen extends ConsumerWidget {
       ),
       _QuadData(
         title: 'Instant Help',
-        tag: 'At your door in 15–45 min',
+        tag: 'At your door fast',
         icon: Icons.bolt_rounded,
         accent: context.gx.accentSoft,
-        tileColors: context.gx.accentGradient,
         // Uber/Grab model: pick the SERVICE, not the person — the request is
         // broadcast to all nearby live pros, first accept wins.
         onTap: () => _go(context, const InstantHelpScreen()),
       ),
       _QuadData(
         title: 'Plan an Event',
-        tag: 'Events, rentals & shop offers',
+        tag: 'Venues & rentals',
         icon: Icons.calendar_month_rounded,
         accent: GixbeeTheme.accentPink,
-        tileColors: const [Color(0xFFEC4899), Color(0xFFBE185D)],
         onTap: () => _go(context, const BookServicesSplitScreen()),
       ),
     ];
@@ -354,9 +350,9 @@ class HomeScreen extends ConsumerWidget {
         crossAxisCount: 2,
         shrinkWrap: true,
         physics: const NeverScrollableScrollPhysics(),
-        mainAxisSpacing: 9,
-        crossAxisSpacing: 9,
-        childAspectRatio: 1.45,
+        mainAxisSpacing: 10,
+        crossAxisSpacing: 10,
+        childAspectRatio: 1.55,
         children: [for (final c in cards) _quadCard(context, c)],
       ),
     );
@@ -366,67 +362,41 @@ class HomeScreen extends ConsumerWidget {
     return GxPressable(
       onTap: d.onTap,
       child: Container(
-        padding: const EdgeInsets.all(12),
+        padding: const EdgeInsets.fromLTRB(12, 12, 12, 10),
         decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: const Alignment(-0.4, -1),
-            end: Alignment.bottomRight,
-            colors: [d.accent.withValues(alpha: 0.20), context.gx.card],
-            stops: const [0, 0.62],
-          ),
-          borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: d.accent.withValues(alpha: 0.28), width: 1.5),
-          boxShadow: [
-            BoxShadow(
-              color: d.accent.withValues(alpha: 0.22),
-              blurRadius: 18,
-              spreadRadius: -8,
-              offset: const Offset(0, 10),
-            ),
-          ],
+          color: context.gx.card,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: context.gx.border),
         ),
         child: MergeSemantics(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Container(
-                width: 38,
-                height: 38,
+                width: 36,
+                height: 36,
                 decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: d.tileColors,
-                  ),
-                  borderRadius: BorderRadius.circular(12),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.45),
-                      blurRadius: 12,
-                      offset: const Offset(0, 5),
-                    ),
-                  ],
+                  color: d.accent.withValues(alpha: 0.14),
+                  borderRadius: BorderRadius.circular(11),
                 ),
-                child: Icon(d.icon, color: Colors.white, size: 20),
+                child: Icon(d.icon, color: d.accent, size: 20),
               ),
-              SizedBox(height: 8),
+              const Spacer(),
               Text(d.title,
                   style: TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w900,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w800,
                       height: 1.1,
                       color: context.gx.ink)),
-              SizedBox(height: 3),
-              Expanded(
-                child: Text(d.tag,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                        fontSize: 10,
-                        height: 1.28,
-                        fontWeight: FontWeight.w500,
-                        color: context.gx.ink.withValues(alpha: 0.55))),
-              ),
+              const SizedBox(height: 3),
+              Text(d.tag,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                      fontSize: 11,
+                      height: 1.2,
+                      fontWeight: FontWeight.w500,
+                      color: context.gx.ink.withValues(alpha: 0.5))),
             ],
           ),
         ),
@@ -434,34 +404,18 @@ class HomeScreen extends ConsumerWidget {
     );
   }
 
-  // ── Rentals (teal) — NEW module, sits beside Plan an Event ──────────────
+  // ── Rentals — quiet row entry ────────────────────────────────────────────
   Widget _rentalsButton(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 0, 16, 9),
       child: GxPressable(
         onTap: () => _go(context, const RentalsCatalogScreen()),
         child: Container(
-          padding: const EdgeInsets.fromLTRB(14, 10, 14, 10),
+          padding: const EdgeInsets.fromLTRB(14, 12, 12, 12),
           decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: const Alignment(-0.4, -1),
-              end: Alignment.bottomRight,
-              colors: [
-                GixbeeTheme.accentTeal.withValues(alpha: 0.16),
-                GixbeeTheme.accentTeal.withValues(alpha: 0.05),
-              ],
-            ),
+            color: context.gx.card,
             borderRadius: BorderRadius.circular(14),
-            border: Border.all(
-                color: GixbeeTheme.accentTeal.withValues(alpha: 0.26)),
-            boxShadow: [
-              BoxShadow(
-                color: GixbeeTheme.accentTeal.withValues(alpha: 0.5),
-                blurRadius: 22,
-                spreadRadius: -12,
-                offset: const Offset(0, 8),
-              ),
-            ],
+            border: Border.all(color: context.gx.border),
           ),
           child: MergeSemantics(
             child: Row(
@@ -470,17 +424,13 @@ class HomeScreen extends ConsumerWidget {
                   width: 36,
                   height: 36,
                   decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                      colors: [Color(0xFF14B8A6), Color(0xFF0F766E)],
-                    ),
+                    color: GixbeeTheme.accentTeal.withValues(alpha: 0.14),
                     borderRadius: BorderRadius.circular(11),
                   ),
-                  child: Icon(Icons.handyman_rounded,
-                      color: Colors.white, size: 19),
+                  child: const Icon(Icons.handyman_rounded,
+                      color: GixbeeTheme.accentTeal, size: 19),
                 ),
-                SizedBox(width: 11),
+                const SizedBox(width: 11),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -490,15 +440,16 @@ class HomeScreen extends ConsumerWidget {
                               fontSize: 14,
                               fontWeight: FontWeight.w800,
                               color: context.gx.ink)),
-                      SizedBox(height: 2),
-                      Text('Rent tools, gear & event supplies — or list yours',
-                          style:
-                              TextStyle(fontSize: 10.5, color: context.gx.ink.withValues(alpha: 0.55))),
+                      const SizedBox(height: 2),
+                      Text('Tools, gear & event supplies',
+                          style: TextStyle(
+                              fontSize: 11,
+                              color: context.gx.ink.withValues(alpha: 0.5))),
                     ],
                   ),
                 ),
-                const Icon(Icons.chevron_right_rounded,
-                    color: GixbeeTheme.accentTeal, size: 22),
+                Icon(Icons.chevron_right_rounded,
+                    color: context.gx.ink.withValues(alpha: 0.35), size: 22),
               ],
             ),
           ),
@@ -507,34 +458,18 @@ class HomeScreen extends ConsumerWidget {
     );
   }
 
-  // ── Gixbee for Business (blue) ───────────────────────────────────────────
+  // ── Gixbee for Business ──────────────────────────────────────────────────
   Widget _businessButton(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 0, 16, 9),
       child: GxPressable(
         onTap: () => _go(context, const ListBusinessTypeScreen()),
         child: Container(
-          padding: const EdgeInsets.fromLTRB(14, 10, 14, 10),
+          padding: const EdgeInsets.fromLTRB(14, 12, 12, 12),
           decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: const Alignment(-0.4, -1),
-              end: Alignment.bottomRight,
-              colors: [
-                GixbeeTheme.accentBlue.withValues(alpha: 0.16),
-                GixbeeTheme.accentBlue.withValues(alpha: 0.05),
-              ],
-            ),
+            color: context.gx.card,
             borderRadius: BorderRadius.circular(14),
-            border: Border.all(
-                color: GixbeeTheme.accentBlue.withValues(alpha: 0.26)),
-            boxShadow: [
-              BoxShadow(
-                color: GixbeeTheme.accentBlue.withValues(alpha: 0.5),
-                blurRadius: 22,
-                spreadRadius: -12,
-                offset: const Offset(0, 8),
-              ),
-            ],
+            border: Border.all(color: context.gx.border),
           ),
           child: MergeSemantics(
             child: Row(
@@ -543,17 +478,13 @@ class HomeScreen extends ConsumerWidget {
                   width: 36,
                   height: 36,
                   decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                      colors: [Color(0xFF3B82F6), Color(0xFF1D4ED8)],
-                    ),
+                    color: GixbeeTheme.accentBlue.withValues(alpha: 0.14),
                     borderRadius: BorderRadius.circular(11),
                   ),
-                  child: Icon(Icons.storefront_rounded,
-                      color: Colors.white, size: 19),
+                  child: const Icon(Icons.storefront_rounded,
+                      color: GixbeeTheme.accentBlue, size: 19),
                 ),
-                SizedBox(width: 11),
+                const SizedBox(width: 11),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -563,15 +494,16 @@ class HomeScreen extends ConsumerWidget {
                               fontSize: 14,
                               fontWeight: FontWeight.w800,
                               color: context.gx.ink)),
-                      SizedBox(height: 2),
-                      Text('List your business, or hire staff & interns',
-                          style:
-                              TextStyle(fontSize: 10.5, color: context.gx.ink.withValues(alpha: 0.55))),
+                      const SizedBox(height: 2),
+                      Text('List a shop or hire staff',
+                          style: TextStyle(
+                              fontSize: 11,
+                              color: context.gx.ink.withValues(alpha: 0.5))),
                     ],
                   ),
                 ),
-                const Icon(Icons.chevron_right_rounded,
-                    color: GixbeeTheme.accentBlue, size: 22),
+                Icon(Icons.chevron_right_rounded,
+                    color: context.gx.ink.withValues(alpha: 0.35), size: 22),
               ],
             ),
           ),
@@ -724,7 +656,6 @@ class _QuadData {
   final String tag;
   final IconData icon;
   final Color accent;
-  final List<Color> tileColors;
   final VoidCallback onTap;
 
   _QuadData({
@@ -732,7 +663,6 @@ class _QuadData {
     required this.tag,
     required this.icon,
     required this.accent,
-    required this.tileColors,
     required this.onTap,
   });
 }

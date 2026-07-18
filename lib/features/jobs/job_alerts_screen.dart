@@ -444,17 +444,18 @@ class _JobAlertsScreenState extends ConsumerState<JobAlertsScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text(
+                      Text(
                         'Find a Job',
                         style: TextStyle(
                           fontWeight: FontWeight.w800,
                           fontSize: 19,
+                          color: context.gx.ink,
                         ),
                       ),
                       Text(
                         '${_jobs.length} open gigs near you',
                         style: TextStyle(
-                          color: cs.onSurfaceVariant,
+                          color: context.gx.ink.withValues(alpha: 0.55),
                           fontSize: 12,
                         ),
                       ),
@@ -598,12 +599,11 @@ class _RoundIconButton extends StatelessWidget {
     final container = Container(
       padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
-        color: cs.surfaceContainerHighest.withValues(alpha: 0.5),
+        color: cs.surface,
         shape: BoxShape.circle,
-        border:
-            Border.all(color: cs.outlineVariant.withValues(alpha: 0.25)),
+        border: Border.all(color: context.gx.border),
       ),
-      child: Icon(icon, size: 19),
+      child: Icon(icon, size: 19, color: context.gx.ink),
     );
     if (semanticLabel == null) return container;
     return Semantics(
