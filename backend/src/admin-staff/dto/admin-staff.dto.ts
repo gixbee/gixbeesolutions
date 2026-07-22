@@ -7,7 +7,7 @@ import {
   MinLength,
   ArrayUnique,
 } from 'class-validator';
-import { AdminStaffRole } from './admin-staff.entity';
+import { AdminStaffRole } from '../admin-staff.entity';
 
 export class CreateAdminStaffDto {
   @IsString()
