@@ -74,6 +74,8 @@ class _LiveTrackingMapScreenState extends ConsumerState<LiveTrackingMapScreen> {
   /// after back+reopen often renders a full-screen blank.
   late final Key _mapViewKey = UniqueKey();
 
+  late final SocketService _socketService;
+
   /// Don't mount MapLibre until we have real coords (avoids Nagpur default).
   bool _coordsReady = false;
 
@@ -115,11 +117,11 @@ class _LiveTrackingMapScreenState extends ConsumerState<LiveTrackingMapScreen> {
 
     // Join the Socket.IO room for this booking (queued if not connected yet;
     // re-emitted on every reconnect via SocketService).
-    final socketService = ref.read(socketServiceProvider);
-    socketService.joinJobRoom(widget.bookingId);
+    _socketService = ref.read(socketServiceProvider);
+    _socketService.joinJobRoom(widget.bookingId);
 
     // Listen for real-time location updates (customer sees the worker move).
-    socketService.onLocationUpdated((data) {
+    _socketService.onLocationUpdated((data) {
       final lat = readCoord(data['lat']);
       final lng = readCoord(data['lng']);
       if (lat != null && lng != null && mounted) {
@@ -212,9 +214,8 @@ class _LiveTrackingMapScreenState extends ConsumerState<LiveTrackingMapScreen> {
       _fitMapBounds();
       _fetchRoute();
       if (user != null) {
-        final socket = ref.read(socketServiceProvider);
-        socket.startLocationStream(user.id, widget.bookingId);
-        socket.updateLocation(
+        _socketService.startLocationStream(user.id, widget.bookingId);
+        _socketService.updateLocation(
           user.id,
           pos.latitude,
           pos.longitude,
@@ -350,9 +351,8 @@ class _LiveTrackingMapScreenState extends ConsumerState<LiveTrackingMapScreen> {
     _workerHttpHeartbeat?.cancel();
     // AUDIT FIX: detach the socket listener registered in initState so this
     // dead State's setState can't be called and listeners don't stack.
-    final socket = ref.read(socketServiceProvider);
-    socket.offLocationUpdated();
-    socket.leaveJobRoom(widget.bookingId);
+    _socketService.offLocationUpdated();
+    _socketService.leaveJobRoom(widget.bookingId);
     // Do NOT dispose MapLibreMapController here — disposing then recreating
     // the platform view on the next open often yields a full-screen blank.
     _mapController = null;
@@ -440,9 +440,13 @@ class _LiveTrackingMapScreenState extends ConsumerState<LiveTrackingMapScreen> {
         if (otp != null && otp.isNotEmpty) _arrivalOtp = otp;
       });
 
-      // If completed or cancelled, leave the screen.
+      // If completed or cancelled, leave the screen safely without build-phase or unmounted navigation crashes.
       if (['COMPLETED', 'CANCELLED', 'REJECTED'].contains(newStatus)) {
-        Navigator.pop(context);
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted && Navigator.canPop(context)) {
+            Navigator.pop(context);
+          }
+        });
       }
     }
   }
@@ -1215,7 +1219,7 @@ class _LiveTrackingMapScreenState extends ConsumerState<LiveTrackingMapScreen> {
   }
 
   void _goToOtpScreen() {
-    if (_arrivalOtp == null) return;
+    if (!mounted || _arrivalOtp == null) return;
     Navigator.pushReplacement(
       context,
       MaterialPageRoute(
