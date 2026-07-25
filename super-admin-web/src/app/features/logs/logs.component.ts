@@ -7,7 +7,7 @@ import { AuthService } from '../../core/services/auth.service';
 interface SystemLog {
   id: string;
   level: 'INFO' | 'WARN' | 'ERROR';
-  type: 'API' | 'AUTH' | 'DB' | 'SYSTEM';
+  type: 'API' | 'AUTH' | 'DB' | 'SYSTEM' | 'APP_CRASH';
   method: string | null;
   path: string | null;
   statusCode: number | null;
