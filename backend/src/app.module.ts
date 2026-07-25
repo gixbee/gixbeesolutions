@@ -81,6 +81,16 @@ import { SystemMetricsModule } from './system-metrics/system-metrics.module';
           migrations: [__dirname + '/migrations/**/*{.ts,.js}'],
           migrationsRun: isProduction,  // run migrations automatically in prod
           logging: !isProduction,
+          // App-side pg pool. With PgBouncer in front (transaction pooling),
+          // these are cheap client connections to the pooler — not real
+          // Postgres backends — so it's safe to raise above the pg default
+          // of 10. PgBouncer multiplexes them onto DEFAULT_POOL_SIZE real
+          // server connections.
+          extra: {
+            max: 50,
+            idleTimeoutMillis: 30_000,
+            connectionTimeoutMillis: 10_000,
+          },
         };
 
         if (databaseUrl) {

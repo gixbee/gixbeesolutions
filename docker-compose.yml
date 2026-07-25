@@ -33,12 +33,59 @@ services:
       # exist" spam every 10s). To truly rename, create the DB by hand or wipe
       # the volume with `docker compose down -v`.
       POSTGRES_DB: gixbee_db
+    ulimits:
+      nofile:
+        soft: 65535
+        hard: 65535
     volumes:
       - postgres_data:/var/lib/postgresql/data
     networks:
       - gixbee_net
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres -d gixbee_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ── PgBouncer (connection pooler) ─────────────────────────────────────
+  # Sits between the backend and Postgres. Thousands of client connections
+  # share DEFAULT_POOL_SIZE real server connections (Postgres default
+  # max_connections=100), which removes the TypeORM 5s pool-timeout failures
+  # under load. Transaction pooling mode = one server conn per transaction.
+  # CAVEAT: session-level features (LISTEN/NOTIFY, session advisory locks,
+  # named prepared statements) don't work in transaction mode.
+  pgbouncer:
+    image: bitnami/pgbouncer:latest
+    container_name: gixbee_pgbouncer
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    environment:
+      POSTGRESQL_HOST: postgres
+      POSTGRESQL_PORT: 5432
+      POSTGRESQL_USERNAME: postgres
+      POSTGRESQL_PASSWORD: gixbee123
+      PGBOUNCER_DATABASE: gixbee_db
+      PGBOUNCER_PORT: 6432
+      PGBOUNCER_POOL_MODE: transaction
+      PGBOUNCER_MAX_CLIENT_CONN: "10000"
+      PGBOUNCER_DEFAULT_POOL_SIZE: "40"
+      PGBOUNCER_RESERVE_POOL_SIZE: "10"
+      PGBOUNCER_IGNORE_STARTUP_PARAMETERS: extra_float_digits
+    ulimits:
+      nofile:
+        soft: 65535
+        hard: 65535
+    networks:
+      - gixbee_net
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "timeout 2 bash -c '</dev/tcp/127.0.0.1/6432'"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -54,6 +101,10 @@ services:
         max-size: "10m"
         max-file: "3"
     command: redis-server --appendonly yes
+    ulimits:
+      nofile:
+        soft: 65535
+        hard: 65535
     networks:
       - gixbee_net
     healthcheck:
@@ -77,13 +128,18 @@ services:
     env_file:
       - ./backend/.env
     environment:
-      DATABASE_HOST: postgres
-      DATABASE_PORT: 5432
+      # Route DB traffic through PgBouncer (transaction pooling).
+      DATABASE_HOST: pgbouncer
+      DATABASE_PORT: 6432
       REDIS_HOST: redis
       REDIS_PORT: 6379
       NODE_ENV: development
       PORT: 3000
       FIREBASE_KEY_PATH: /app/firebase-service-account.json
+    ulimits:
+      nofile:
+        soft: 65535
+        hard: 65535
     volumes:
       - uploads_data:/app/uploads
       - ./backend/firebase-service-account.json:/app/firebase-service-account.json:ro
@@ -91,6 +147,8 @@ services:
       - gixbee_net
     depends_on:
       postgres:
+        condition: service_healthy
+      pgbouncer:
         condition: service_healthy
       redis:
         condition: service_healthy
