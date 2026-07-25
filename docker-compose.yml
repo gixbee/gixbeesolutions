@@ -125,12 +125,13 @@ services:
       timeout: 5s
       retries: 5
 
-  # ── NestJS Backend ─────────────────────────────────────────────────────────
+  # ── NestJS Backend (Scaled to 4 Replicas) ──────────────────────────────────
   backend:
     build:
       context: ./backend
       dockerfile: Dockerfile
-    container_name: gixbee_backend
+    deploy:
+      replicas: 4
     restart: unless-stopped
     logging:
       driver: json-file
@@ -164,6 +165,24 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+
+  # ── Nginx API Load Balancer ────────────────────────────────────────────────
+  api_balancer:
+    image: nginx:alpine
+    container_name: gixbee_api_balancer
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    volumes:
+      - ./nginx/lb.conf:/etc/nginx/nginx.conf:ro
+      - uploads_data:/app/uploads
+    networks:
+      - gixbee_net
+    depends_on:
+      - backend
     ports:
       - "3000:3000"
 
