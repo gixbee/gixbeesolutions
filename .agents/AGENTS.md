@@ -13,16 +13,20 @@ Gixbee is an on-demand service platform consisting of three containerized/native
 - **Navigation Guardrail**: For out-of-context navigation (e.g., Dio HTTP interceptor redirecting to `/welcome` on `401 Unauthorized`), use the global `rootNavigatorKey` defined in `lib/core/navigator_key.dart`. Do NOT create circular dependencies between `dioProvider` and auth state.
 - **Real-Time GPS & Maps**: Live tracking (`lib/features/booking/live_tracking_map_screen.dart`) relies on bi-directional Socket.IO streams (`lib/services/socket_service.dart`) and Google/Ola Maps services (`lib/services/ola_maps_style_service.dart`).
 - **Crash Reporting**: Keep `CrashReporter` (`lib/services/crash_reporter.dart`) initialized in `main.dart` to transmit unhandled widget/platform exceptions to `POST /client-logs` as `APP_CRASH`.
+- **Client Features Index (16 Modules in `lib/features/`)**: `auth`, `booking`, `business`, `common`, `graph`, `home`, `jobs`, `map`, `messages`, `notifications`, `onboarding`, `profile`, `reels`, `rentals`, `search`, `worker`.
 
 ### Backend API (`backend/src/`) — NestJS, PostgreSQL & Redis
 - **Stack & Ports**: Runs on port `3000` via Docker Compose (`gixbee_backend`). Connects to PostgreSQL 16 (`gixbee_postgres:5432`) and Redis 7 (`gixbee_redis:6379`).
 - **Transactional Outbox Pattern**: All booking lifecycle state changes MUST emit events via `OutboxService` (`backend/src/outbox/`). The `OutboxDispatcher` handles reliable WebSocket notifications and background tasks.
 - **WebSocket Scaling**: Uses `RedisIoAdapter` (`backend/src/redis/`) for real-time worker GPS broadcasting and instant job matching (`backend/src/worker-engine/`).
 - **Logging & Monitoring**: System logs and mobile client crash reports are processed in `backend/src/system-logs/` and monitored via `backend/src/system-metrics/`.
+- **Database Entities Index (20 Tables)**: `User`, `Booking`, `WalletTransaction`, `WorkerProfile`, `RentalItem`, `RentalReservation`, `JobPost`, `JobApplication`, `Business`, `TalentProfile`, `ProfessionalSkill`, `MasterEntry`, `Message`, `Favourite`, `Address`, `City`, `SupportTicket`, `AdminStaff`, `OutboxEvent`, `SystemLog`.
+- **Server Modules Index (22 Modules)**: `Users`, `Auth`, `WorkerEngine`, `Bookings`, `Wallets`, `Workers`, `Notifications`, `Redis`, `Rentals`, `Hiring`, `Businesses`, `Talent`, `MasterEntries`, `Messages`, `Payments`, `Favourites`, `Addresses`, `Cities`, `Support`, `AdminStaff`, `SystemLogs`, `SystemMetrics`.
 
 ### Super Admin Portal (`super-admin-web/src/`) — Angular & Nginx
 - **Stack & Ports**: Served on port `80` via Docker Compose (`gixbee_admin`).
 - **UI Architecture**: Standard Angular standalone components in `src/app/features/`. Maintain custom badge styling in `logs.component.ts` for distinct error visualization (e.g., pink `APP_CRASH` badges).
+- **Admin Features Index (13 Modules in `src/app/features/`)**: `auth`, `bookings`, `businesses`, `cities`, `dashboard`, `disputes`, `logs`, `master-entries`, `monitoring`, `staff`, `support`, `users`, `verifications`.
 
 ---
 
