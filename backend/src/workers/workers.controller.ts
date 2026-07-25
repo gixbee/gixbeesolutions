@@ -25,6 +25,21 @@ export class WorkersController {
     return this.workersService.getNearby(req.user.userId, skill, parseFloat(lat), parseFloat(lng));
   }
 
+  /// Approximate live-pro counts per trade around the given point — powers
+  /// the customer service-selection grid ("~8 live nearby"). Values are
+  /// upper-bound approximations (pre language/travel-radius filters) and
+  /// cached ~45s server-side; clients must render them with "~".
+  @Get('nearby-counts')
+  async getNearbyCounts(
+    @Query('lat') lat: string,
+    @Query('lng') lng: string,
+  ) {
+    return this.workersService.getNearbyCounts(
+      parseFloat(lat),
+      parseFloat(lng),
+    );
+  }
+
   /// Go-Live dashboard for the authed worker: skills + active-skill toggles,
   /// live state, and an earnings summary (total / today / this week + recent
   /// completed jobs). Declared before ':id' so the static segment wins.

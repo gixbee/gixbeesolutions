@@ -104,8 +104,14 @@ export class BookingLifecycleHandler {
       id: p.bookingId,
       skill: p.skill,
       serviceLocation: p.serviceLocation,
+      serviceLat: p.serviceLat ?? null,
+      serviceLng: p.serviceLng ?? null,
       amount: p.amount,
-      customer_name: 'Customer',
+      type: 'INSTANT', // broadcast Instant Help — `amount` is ₹/hr, not a total
+      customer_name: p.customerName || 'Customer',
+      description: p.description ?? null,
+      preferredLanguages: p.preferredLanguages ?? [],
+      createdAt: p.createdAt ?? new Date().toISOString(),
     };
     for (const wid of notifiedIds) {
       try {
@@ -122,13 +128,14 @@ export class BookingLifecycleHandler {
     await this.notificationsService
       .sendToUsers(notifiedIds, {
         title: 'New Job Request',
-        body: `A customer needs ${p.skill} help nearby.`,
+        body: `${p.customerName || 'A customer'} needs ${p.skill} help nearby · ₹${p.amount ?? 0}/hr`,
         data: {
           type: 'new_booking',
           bookingId: p.bookingId,
           skill: p.skill,
           serviceLocation: p.serviceLocation,
           amount: String(p.amount ?? 0),
+          createdAt: p.createdAt ?? '',
         },
       })
       .catch((e) => this.logger.error(`multicast failed: ${e?.message ?? e}`));

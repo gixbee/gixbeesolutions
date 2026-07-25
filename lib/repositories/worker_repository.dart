@@ -38,10 +38,45 @@ final nearbyWorkersProvider = FutureProvider.autoDispose<List<Worker>>((ref) asy
   );
 });
 
+/// Approximate live-pro counts per trade around the selected location
+/// ("~8 live nearby" on the Instant Help grid). Empty map when no location
+/// is picked yet or the fetch fails — the grid then simply shows no counts.
+final nearbyCountsProvider =
+    FutureProvider.autoDispose<Map<String, int>>((ref) async {
+  final location = ref.watch(selectedLocationProvider);
+  if (location == null) return const {};
+  try {
+    return await ref.watch(workerRepositoryProvider).getNearbyCounts(
+          lat: location.lat,
+          lng: location.lng,
+        );
+  } catch (e) {
+    debugPrint('Nearby counts fetch failed: $e');
+    return const {};
+  }
+});
+
 class WorkerRepository {
   final Dio _dio;
 
   WorkerRepository(this._dio);
+
+  /// GET /workers/nearby-counts — approximate live counts per trade label.
+  /// Server caches ~45s; values are upper bounds, render with "~".
+  Future<Map<String, int>> getNearbyCounts({
+    required double lat,
+    required double lng,
+  }) async {
+    final response = await _dio.get(
+      '/workers/nearby-counts',
+      queryParameters: {'lat': lat, 'lng': lng},
+    );
+    final data = response.data;
+    if (data is! Map) return const {};
+    return data.map(
+      (k, v) => MapEntry('$k', (v is num) ? v.toInt() : 0),
+    );
+  }
 
   Future<List<Worker>> getWorkers() async {
     try {

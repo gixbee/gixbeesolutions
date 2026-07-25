@@ -1,4 +1,6 @@
 import 'dart:async';
+import 'dart:math' as math;
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/config/app_config.dart';
@@ -23,7 +25,8 @@ class IncomingJobScreen extends ConsumerStatefulWidget {
   ConsumerState<IncomingJobScreen> createState() => _IncomingJobScreenState();
 }
 
-class _IncomingJobScreenState extends ConsumerState<IncomingJobScreen> {
+class _IncomingJobScreenState extends ConsumerState<IncomingJobScreen>
+    with WidgetsBindingObserver {
   // ── All pending requests for this worker ──────────────────────────────────
   late List<Map<String, dynamic>> _requests;
   int _currentIndex = 0;
@@ -32,56 +35,121 @@ class _IncomingJobScreenState extends ConsumerState<IncomingJobScreen> {
 
   // ── Per-request state ─────────────────────────────────────────────────────
   int _secondsRemaining = AppConfig.jobAcceptTimeoutSeconds;
+
+  /// Wall-clock deadline for the current request. The countdown derives from
+  /// this on every tick instead of decrementing a counter — Android suspends
+  /// Dart timers while the phone is locked, so a decrementing counter freezes
+  /// and resumes stale, showing time that actually expired long ago.
+  DateTime? _deadline;
   Timer? _timer;
   bool _isProcessing = false;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _requests = [widget.bookingData];
+    unawaited(_loadMyPosition());
     _startTimer();
     _pollForMoreRequests();
   }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _timer?.cancel();
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      // Phone unlocked: re-sync the countdown from the wall clock right now.
+      // Requests that expired while locked are auto-declined instead of
+      // showing a frozen timer that errors on Accept.
+      _tick();
+      _pollForMoreRequests();
+    }
+  }
+
+  // ── Distance to the job ("· 2.3 km away") ───────────────────────────
+
+  /// Worker's own GPS, fetched once when the card opens. Computed client-side
+  /// (vs server-side) so it's accurate to where the worker is NOW, whether
+  /// the offer arrived via socket, FCM tap, or the pending poll.
+  ({double lat, double lng})? _myPos;
+
+  Future<void> _loadMyPosition() async {
+    try {
+      final pos =
+          await ref.read(locationServiceProvider).getCurrentPosition();
+      if (pos != null && mounted) {
+        setState(() => _myPos = (lat: pos.latitude, lng: pos.longitude));
+      }
+    } catch (_) {}
+  }
+
+  /// Haversine distance (km) from the worker to this request's job site.
+  /// Null when either side's coords are unavailable — the card then shows
+  /// the address alone.
+  double? _distanceKmFor(Map<String, dynamic> r) {
+    final me = _myPos;
+    final lat = double.tryParse('${r['serviceLat'] ?? ''}');
+    final lng = double.tryParse('${r['serviceLng'] ?? ''}');
+    if (me == null || lat == null || lng == null) return null;
+    const rEarth = 6371.0;
+    final dLat = (lat - me.lat) * math.pi / 180;
+    final dLng = (lng - me.lng) * math.pi / 180;
+    final a = math.sin(dLat / 2) * math.sin(dLat / 2) +
+        math.cos(me.lat * math.pi / 180) *
+            math.cos(lat * math.pi / 180) *
+            math.sin(dLng / 2) *
+            math.sin(dLng / 2);
+    return rEarth * 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a));
   }
 
   // ── Timer ─────────────────────────────────────────────────────────────────
 
   void _startTimer() {
     _timer?.cancel();
-    
-    int initialRemaining = AppConfig.jobAcceptTimeoutSeconds;
+
+    // Deadline = createdAt + timeout when the server timestamp is available
+    // (so time spent locked/backgrounded counts against the window), else
+    // now + timeout.
+    var deadline = DateTime.now()
+        .add(Duration(seconds: AppConfig.jobAcceptTimeoutSeconds));
     if (_requests.isNotEmpty && _currentIndex < _requests.length) {
       final currentRequest = _requests[_currentIndex];
-      if (currentRequest['createdAt'] != null) {
-        final createdAt = DateTime.tryParse(currentRequest['createdAt'].toString())?.toLocal();
-        if (createdAt != null) {
-          final elapsedSeconds = DateTime.now().difference(createdAt).inSeconds;
-          initialRemaining = AppConfig.jobAcceptTimeoutSeconds - elapsedSeconds;
-          if (initialRemaining < 0) initialRemaining = 0;
-        }
+      final createdAt =
+          DateTime.tryParse('${currentRequest['createdAt'] ?? ''}')?.toLocal();
+      if (createdAt != null) {
+        deadline =
+            createdAt.add(Duration(seconds: AppConfig.jobAcceptTimeoutSeconds));
       }
     }
+    _deadline = deadline;
 
-    setState(() => _secondsRemaining = initialRemaining);
-    
-    if (_secondsRemaining <= 0) {
+    _tick();
+    if (_timer == null || !_timer!.isActive) {
+      _timer = Timer.periodic(const Duration(seconds: 1), (_) => _tick());
+    }
+  }
+
+  /// Recompute remaining time from the wall clock. Runs every second while
+  /// foregrounded AND immediately on resume after the phone unlocks.
+  void _tick() {
+    if (!mounted || _deadline == null) return;
+    final remaining = _deadline!.difference(DateTime.now()).inSeconds;
+    if (remaining <= 0) {
+      _timer?.cancel();
+      if (_isProcessing) return; // don't yank the card mid accept/decline
+      setState(() => _secondsRemaining = 0);
       _autoDeclineCurrent();
       return;
     }
-
-    _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
-      if (_secondsRemaining > 0) {
-        setState(() => _secondsRemaining--);
-      } else {
-        _timer?.cancel();
-        _autoDeclineCurrent();
-      }
-    });
+    if (remaining != _secondsRemaining) {
+      setState(() => _secondsRemaining = remaining);
+    }
   }
 
   void _resetTimerForNewRequest() {
@@ -158,11 +226,25 @@ class _IncomingJobScreenState extends ConsumerState<IncomingJobScreen> {
     } catch (e) {
       if (!mounted) return;
       setState(() => _isProcessing = false);
-      // Broadcast race lost (v126 first-accept-wins): another pro claimed it
-      // first. Drop this card from the queue instead of showing a raw error.
-      final msg = e.toString();
-          if (msg.contains('no longer available') || msg.contains('already taken')) {
-        showGxSnack(context, 'Too late — another pro accepted this job.',
+      // Extract the real server message (DioException.toString() hides it).
+      String msg = e.toString();
+      if (e is DioException) {
+        final data = e.response?.data;
+        if (data is Map && data['message'] != null) {
+          msg = data['message'].toString();
+        }
+      }
+      final lower = msg.toLowerCase();
+      // Broadcast race lost (v126 first-accept-wins), or the request expired /
+      // was cancelled while the phone was locked — drop the card gracefully
+      // instead of showing a raw error.
+      if (lower.contains('no longer available') ||
+          lower.contains('already taken') ||
+          lower.contains('not pending') ||
+          lower.contains('expired') ||
+          lower.contains('cancelled') ||
+          lower.contains('not found')) {
+        showGxSnack(context, 'Too late — this request is no longer available.',
             type: GxSnackType.info);
         setState(() {
           _requests.removeAt(_currentIndex);
@@ -178,7 +260,7 @@ class _IncomingJobScreenState extends ConsumerState<IncomingJobScreen> {
         _startTimer();
         return;
       }
-      showGxSnack(context, 'Failed to accept: $e', type: GxSnackType.error);
+      showGxSnack(context, 'Failed to accept: $msg', type: GxSnackType.error);
       _startTimer();
     }
   }
@@ -308,10 +390,18 @@ class _IncomingJobScreenState extends ConsumerState<IncomingJobScreen> {
                          'New Customer';
     final skill = current['skill'] as String? ?? 'General Help';
     final location = current['serviceLocation'] as String? ?? 'Nearby';
+    final distanceKm = _distanceKmFor(current);
+    final locationLine = distanceKm != null
+        ? '$location · ${distanceKm.toStringAsFixed(1)} km away'
+        : location;
     final amountRaw = current['amount'];
     final amount = amountRaw is num 
         ? amountRaw.toDouble() 
         : double.tryParse(amountRaw?.toString() ?? '0') ?? 0.0;
+    // INSTANT broadcast jobs bill hourly: `amount` is the customer's ₹/hr
+    // offer (billing = rate × worked time), not a flat total.
+    final isHourlyRate =
+        (current['type'] ?? 'INSTANT').toString().toUpperCase() == 'INSTANT';
     final totalRequests = _requests.length;
     final timerFraction =
         _secondsRemaining / AppConfig.jobAcceptTimeoutSeconds;
@@ -506,14 +596,16 @@ class _IncomingJobScreenState extends ConsumerState<IncomingJobScreen> {
                   _DetailCard(
                     icon: Icons.location_on_rounded,
                     label: 'Location',
-                    value: location,
+                    value: locationLine,
                     color: Colors.blue,
                   ),
                   const SizedBox(height: 12),
                   _DetailCard(
                     icon: Icons.payments_rounded,
-                    label: 'Estimated Earnings',
-                    value: '₹${amount.toStringAsFixed(0)}',
+                    label: isHourlyRate ? "Customer's Rate" : 'Job Amount',
+                    value: isHourlyRate
+                        ? '₹${amount.toStringAsFixed(0)}/hr · 1 hr minimum'
+                        : '₹${amount.toStringAsFixed(0)}',
                     color: Colors.green,
                   ),
                   // Uber-style broadcast requests carry the customer's issue

@@ -871,6 +871,80 @@ export class WorkersService {
     return { hourlyRate: newRate };
   }
 
+  /**
+   * Approximate live-pro counts per trade around a point — powers the
+   * customer's service-selection screen ("~8 live nearby").
+   *
+   * Design notes:
+   * - ONE GEOSEARCH for the whole area, then in-memory intersection with the
+   *   per-trade Redis skill index — no per-worker snapshot/DB work at all.
+   * - Cached 45s keyed by coords rounded to ~1 km, shared across users, so
+   *   the most-viewed screen in the app costs one Redis GET per view.
+   * - Counts run BEFORE language filtering and before each pro's own travel
+   *   radius is enforced, so they are UPPER-BOUND approximations by design —
+   *   clients must render them as "~N", never exact.
+   */
+  async getNearbyCounts(
+    lat: number,
+    lng: number,
+  ): Promise<Record<string, number>> {
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+      throw new BadRequestException('lat and lng are required');
+    }
+    const cacheKey = `nearby:counts:${lat.toFixed(2)}:${lng.toFixed(2)}`;
+    const cached = await this.redisService.get(cacheKey).catch(() => null);
+    if (cached) {
+      try {
+        return JSON.parse(cached) as Record<string, number>;
+      } catch {
+        // corrupt cache entry — fall through and rebuild
+      }
+    }
+
+    // Trades from the same admin master the app grid renders (PRO_TRADE).
+    let trades: Array<{ label: string }> = [];
+    try {
+      trades = await this.masterEntriesService.findAll(
+        MasterEntryType.PRO_TRADE,
+        true,
+      );
+    } catch {
+      trades = [];
+    }
+    const labels = trades.map((t) => t.label).filter(Boolean);
+    if (labels.length === 0) return {};
+
+    // Single GEOSEARCH; null = geo index unavailable (e.g. cold after a
+    // Redis restart) — counts then fall back to "live with this skill
+    // anywhere", still an upper bound.
+    const nearbyIds = await this.redisService.searchNearbyWorkerIds(
+      lat,
+      lng,
+      MAX_DISPATCH_RADIUS_KM,
+    );
+    const nearSet = nearbyIds === null ? null : new Set(nearbyIds);
+
+    const counts: Record<string, number> = {};
+    await Promise.all(
+      labels.map(async (label) => {
+        try {
+          const ids = await this.redisService.getWorkerIdsBySkill(label);
+          counts[label] =
+            nearSet === null
+              ? ids.length
+              : ids.filter((id) => nearSet.has(id)).length;
+        } catch {
+          counts[label] = 0;
+        }
+      }),
+    );
+
+    await this.redisService
+      .set(cacheKey, JSON.stringify(counts), 45)
+      .catch(() => {});
+    return counts;
+  }
+
   // Optimized: Nearby workers filtered by skill using Redis GEO + Skill Index
   async getNearby(requesterId: string, skill: string, lat: number, lng: number): Promise<WorkerDto[]> {
     // 1. Get all workers who have this skill from Redis Skill Index

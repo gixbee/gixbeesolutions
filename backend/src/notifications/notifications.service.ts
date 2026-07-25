@@ -315,7 +315,24 @@ export class NotificationsService implements OnModuleInit {
         tokens,
         notification: { title: payload.title, body: payload.body },
         data: payload.data ?? {},
-        android: { priority: 'high' },
+        // Same wake-the-device config as sendToDevice — without the channel +
+        // sound + max priority, job offers land on Android's default channel
+        // and locked phones never ring (worker misses the job entirely).
+        android: {
+          priority: 'high',
+          notification: {
+            channelId: 'gixbee_high_importance',
+            sound: 'default',
+            priority: 'max',
+            defaultSound: true,
+          },
+        },
+        apns: {
+          payload: {
+            aps: { sound: 'default', badge: 1, contentAvailable: true },
+          },
+          headers: { 'apns-priority': '10' },
+        },
       });
 
       this.logger.log(

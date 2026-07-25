@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../theme.dart';
 import '../../services/location_service.dart';
+import '../../repositories/worker_repository.dart'; // nearbyCountsProvider
 import '../../shared/widgets/dribbble_background.dart';
 import '../../shared/widgets/gx_pressable.dart';
 import '../../shared/widgets/gx_skeleton.dart';
@@ -21,6 +22,9 @@ class InstantHelpScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final tradesAsync = ref.watch(proTradesProvider);
     final address = ref.watch(currentAddressProvider);
+    // Approximate live counts per trade ("~8 live nearby"). Empty until the
+    // location is picked / while loading — cards just omit the line then.
+    final counts = ref.watch(nearbyCountsProvider).value ?? const <String, int>{};
 
     return Scaffold(
       backgroundColor: context.gx.bg,
@@ -91,9 +95,9 @@ class InstantHelpScreen extends ConsumerWidget {
                         height: double.infinity,
                         radius: 18),
                   ),
-                  error: (_, __) => _grid(context, kProTrades),
+                  error: (_, __) => _grid(context, kProTrades, counts),
                   data: (trades) =>
-                      _grid(context, trades.isEmpty ? kProTrades : trades),
+                      _grid(context, trades.isEmpty ? kProTrades : trades, counts),
                 ),
               ),
             ],
@@ -103,7 +107,8 @@ class InstantHelpScreen extends ConsumerWidget {
     );
   }
 
-  Widget _grid(BuildContext context, List<ProTrade> trades) {
+  Widget _grid(
+      BuildContext context, List<ProTrade> trades, Map<String, int> counts) {
     return GridView.builder(
       padding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
@@ -115,6 +120,7 @@ class InstantHelpScreen extends ConsumerWidget {
       itemCount: trades.length,
       itemBuilder: (context, i) {
         final t = trades[i];
+        final count = counts[t.name];
         return GxPressable(
           onTap: () {
             Navigator.push(
@@ -159,12 +165,40 @@ class InstantHelpScreen extends ConsumerWidget {
                             fontWeight: FontWeight.w800,
                             color: context.gx.ink)),
                     const SizedBox(height: 2),
-                    Text('At your door in 15–45 min',
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                            fontSize: 10.5,
-                            color: context.gx.ink.withValues(alpha: 0.45))),
+                    // Live availability: "~N live nearby" when pros are on.
+                    // Counts are server-side upper bounds ("~" by design);
+                    // zero/unknown gets neutral copy — never a red "None",
+                    // which both advertises supply gaps and kills conversion.
+                    if (count != null && count > 0)
+                      Row(
+                        children: [
+                          Container(
+                            width: 6,
+                            height: 6,
+                            decoration: const BoxDecoration(
+                              color: GixbeeTheme.accentGreen,
+                              shape: BoxShape.circle,
+                            ),
+                          ),
+                          const SizedBox(width: 4),
+                          Flexible(
+                            child: Text('~$count live nearby',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                    fontSize: 10.5,
+                                    fontWeight: FontWeight.w700,
+                                    color: GixbeeTheme.accentGreen)),
+                          ),
+                        ],
+                      )
+                    else
+                      Text('At your door in 15–45 min',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                              fontSize: 10.5,
+                              color: context.gx.ink.withValues(alpha: 0.45))),
                   ],
                 ),
               ],

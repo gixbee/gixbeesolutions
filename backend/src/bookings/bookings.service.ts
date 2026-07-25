@@ -9,6 +9,7 @@ import { Repository, DataSource, In } from 'typeorm';
 import { InjectQueue } from '@nestjs/bull';
 import type { Queue } from 'bull';
 import { Booking, BookingStatus, BookingType } from './booking.entity';
+import { User } from '../users/user.entity';
 import { WalletsService } from '../wallets/wallets.service';
 import { WorkerProfile } from '../workers/worker-profile.entity';
 import { NotificationsService } from '../notifications/notifications.service';
@@ -129,8 +130,13 @@ export class BookingsService {
           id: savedBooking.id,
           skill: (bookingData as any).skill ?? 'General Help',
           serviceLocation: savedBooking.serviceLocation,
+          serviceLat: savedBooking.serviceLat ?? null,
+          serviceLng: savedBooking.serviceLng ?? null,
           amount: savedBooking.amount,
           customer_name: savedBooking.customer?.name ?? 'Customer',
+          createdAt: savedBooking.createdAt
+            ? new Date(savedBooking.createdAt).toISOString()
+            : new Date().toISOString(),
         });
       } catch (e) {
         console.error('[CreateBooking] socket emit failed:', e);
@@ -223,6 +229,14 @@ export class BookingsService {
     const arrivalOtp = this.generateOtp();
     const completionOtp = this.generateOtp();
 
+    // First name only for the pre-accept card (privacy: full name after accept).
+    const customer = await this.dataSource
+      .getRepository(User)
+      .findOne({ where: { id: customerId }, select: ['id', 'name'] })
+      .catch(() => null);
+    const customerFirstName =
+      customer?.name?.trim().split(/\s+/)[0] || undefined;
+
     // Eligible worker ids known before persist — carried in outbox payload so
     // FCM / socket / Redis pending can run after commit (retryable).
     const notifiedWorkerIds = targets.map((w) => w.id);
@@ -257,9 +271,15 @@ export class BookingsService {
           {
             bookingId: saved.id,
             customerId,
+            customerName: customerFirstName,
             skill: data.skill,
             serviceLocation: data.serviceLocation,
+            serviceLat: data.serviceLat,
+            serviceLng: data.serviceLng,
             amount: data.amount,
+            description: data.description,
+            preferredLanguages: data.preferredLanguages,
+            createdAt: (saved.createdAt ?? new Date()).toISOString(),
             arrivalOtp,
             completionOtp,
             notifiedWorkerIds,
@@ -839,12 +859,15 @@ export class BookingsService {
     booking.billingHours = billingHours;
     booking.workedMinutes = workedMinutes;
     // INSTANT (broadcast) requests carry the customer's ₹/hr budget in
-    // `amount` — total = rate × worked hours (fractional). PACKAGE/CUSTOM/
-    // RENTAL keep `amount` as the flat agreed price from the rate chart / quote.
+    // `amount`. Billing: MINIMUM 1 HOUR (the visit itself costs the worker
+    // travel time + petrol), then proportional per minute after the first
+    // hour — e.g. 30 min → 1 hr charge; 1 hr 45 min → 1.75 hr charge.
+    // PACKAGE/CUSTOM/RENTAL keep `amount` as the flat agreed price.
     const hourlyRate = Number(booking.amount) || 0;
+    const billableMinutes = Math.max(60, workedMinutes);
     const totalAmount =
       booking.type === BookingType.INSTANT
-        ? Math.round(hourlyRate * (workedMinutes / 60))
+        ? Math.round(hourlyRate * (billableMinutes / 60))
         : hourlyRate;
     booking.totalAmount = totalAmount;
 

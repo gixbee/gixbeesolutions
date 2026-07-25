@@ -253,6 +253,7 @@ class _CustomerPayScreenState extends ConsumerState<CustomerPayScreen> {
           'Continue',
           isPrimary: true,
           onTap: () {
+            if (!mounted) return;
             Navigator.pop(context);
             _goToRate();
           },
@@ -268,7 +269,9 @@ class _CustomerPayScreenState extends ConsumerState<CustomerPayScreen> {
       if (data != null && bookingFlagTrue(data['isPaid'])) {
         _waitPoll?.cancel();
         _refreshProviders();
-        _goToRate();
+        // Don't race with the success dialog — if it's already showing,
+        // the user will tap "Continue" which calls _goToRate() itself.
+        if (!_advancedToRate) _goToRate();
       }
     });
 

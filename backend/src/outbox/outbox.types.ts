@@ -15,9 +15,19 @@ export type OutboxEventTypeName =
 export interface BookingBroadcastCreatedPayload {
   bookingId: string;
   customerId: string;
+  /** Customer's first name for the worker's incoming card (no full name pre-accept). */
+  customerName?: string;
   skill: string;
   serviceLocation: string;
+  /** Job coordinates — lets the worker's card compute "2.3 km away" locally. */
+  serviceLat?: number;
+  serviceLng?: number;
+  /** INSTANT broadcast: the customer's offered ₹/hr rate — NOT a flat job total. */
   amount: number;
+  description?: string;
+  preferredLanguages?: string[];
+  /** Booking creation time (ISO) — anchors the worker-side accept countdown. */
+  createdAt?: string;
   arrivalOtp: string;
   completionOtp: string;
   notifiedWorkerIds: string[];

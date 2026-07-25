@@ -864,6 +864,8 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
     final customer = (job['customer_name'] ?? job['customerName'] ?? 'Customer').toString();
     final location = (job['serviceLocation'] ?? '').toString();
     final amount = (job['amount'] is num) ? (job['amount'] as num).toDouble() : 0.0;
+    final isHourly =
+        (job['type'] ?? 'INSTANT').toString().toUpperCase() == 'INSTANT';
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
@@ -905,7 +907,12 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
                 ),
               ),
               if (amount > 0)
-                Text('₹${amount.toStringAsFixed(0)}', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 18, color: GixbeeTheme.accentGold)),
+                Text(
+                  isHourly
+                      ? '₹${amount.toStringAsFixed(0)}/hr'
+                      : '₹${amount.toStringAsFixed(0)}',
+                  style: TextStyle(fontWeight: FontWeight.w900, fontSize: 18, color: GixbeeTheme.accentGold),
+                ),
             ],
           ),
           if (location.isNotEmpty) ...[
