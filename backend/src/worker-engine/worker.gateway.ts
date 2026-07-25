@@ -9,7 +9,7 @@ import {
 } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
 import { UseGuards } from '@nestjs/common';
-import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { WsJwtGuard } from '../auth/ws-jwt.guard';
 import { RedisService } from '../redis/redis.service';
 
 @WebSocketGateway({
@@ -17,7 +17,9 @@ import { RedisService } from '../redis/redis.service';
     origin: '*',
   },
 })
-@UseGuards(JwtAuthGuard)
+// Must use WsJwtGuard — Flutter sends JWT via socket.auth.token, not HTTP
+// Authorization. JwtAuthGuard silently blocked joinJobRoom + updateLocation.
+@UseGuards(WsJwtGuard)
 export class WorkerGateway implements OnGatewayConnection, OnGatewayDisconnect {
   @WebSocketServer()
   server: Server;
@@ -66,5 +68,16 @@ export class WorkerGateway implements OnGatewayConnection, OnGatewayDisconnect {
   ) {
     client.join(`job_${data.jobId}`);
     return { event: 'joined', data: `Joined room job_${data.jobId}` };
+  }
+
+  @SubscribeMessage('leaveJobRoom')
+  handleLeaveJobRoom(
+    @MessageBody() data: { jobId: string },
+    @ConnectedSocket() client: Socket,
+  ) {
+    if (data?.jobId) {
+      client.leave(`job_${data.jobId}`);
+    }
+    return { event: 'left', data: data?.jobId ? `Left room job_${data.jobId}` : null };
   }
 }

@@ -201,7 +201,7 @@ describe('BookingsController OTP gates', () => {
 });
 
 describe('BookingsController.acceptBooking', () => {
-  it('sends a push to the customer (object-shaped) on success', async () => {
+  it('delegates accept to the service (customer FCM is sent inside the service)', async () => {
     const acceptBooking = jest.fn(async () => ({
       booking: { customer: { id: 'cust-1' }, operator: { name: 'Asha' } },
     }));
@@ -210,28 +210,8 @@ describe('BookingsController.acceptBooking', () => {
     const res = await controller.acceptBooking('b1', req('w-1'));
 
     expect(acceptBooking).toHaveBeenCalledWith('b1', 'w-1');
-    expect(notificationsService.sendToUser).toHaveBeenCalledWith('cust-1', expect.objectContaining({
-      title: 'Request Accepted!',
-      body: 'Asha is on the way.',
-      data: { type: 'booking_accepted', bookingId: 'b1' },
-    }));
-    expect(res).toBeDefined();
-  });
-
-  it('resolves a string-shaped customer id and uses the default name', async () => {
-    const acceptBooking = jest.fn(async () => ({ booking: { customer: 'cust-2', operator: null } }));
-    const { controller, notificationsService } = makeController({ bookings: { acceptBooking } });
-    await controller.acceptBooking('b1', req('w-1'));
-    expect(notificationsService.sendToUser).toHaveBeenCalledWith('cust-2', expect.objectContaining({
-      body: 'Your worker is on the way.',
-    }));
-  });
-
-  it('still returns the result when the push rejects', async () => {
-    const acceptBooking = jest.fn(async () => ({ booking: { customer: { id: 'cust-1' }, operator: { name: 'A' } } }));
-    const { controller, notificationsService } = makeController({ bookings: { acceptBooking } });
-    notificationsService.sendToUser = jest.fn(async () => { throw new Error('fcm down'); });
-    const res = await controller.acceptBooking('b1', req('w-1'));
+    // Controller no longer pushes — BookingsService.acceptBooking owns FCM.
+    expect(notificationsService.sendToUser).not.toHaveBeenCalled();
     expect(res).toBeDefined();
   });
 
@@ -239,13 +219,6 @@ describe('BookingsController.acceptBooking', () => {
     const acceptBooking = jest.fn(async () => { throw new Error('already taken'); });
     const { controller } = makeController({ bookings: { acceptBooking } });
     await expect(controller.acceptBooking('b1', req('w-1'))).rejects.toThrow('already taken');
-  });
-
-  it('does not push when there is no customer on the result', async () => {
-    const acceptBooking = jest.fn(async () => ({ booking: { customer: null, operator: null } }));
-    const { controller, notificationsService } = makeController({ bookings: { acceptBooking } });
-    await controller.acceptBooking('b1', req('w-1'));
-    expect(notificationsService.sendToUser).not.toHaveBeenCalled();
   });
 });
 
@@ -343,8 +316,12 @@ describe('BookingsController.markArrived / markComplete', () => {
 describe('BookingsController.markPaid / submitRating / reportDispute', () => {
   it('markPaid delegates', async () => {
     const { controller, bookingsService } = makeController();
-    await controller.markPaid('b1');
-    expect(bookingsService.markPaid).toHaveBeenCalledWith('b1');
+    await controller.markPaid('b1', { user: { userId: 'u1' } }, {
+      honestyCheck: 'EXACT',
+    });
+    expect(bookingsService.markPaid).toHaveBeenCalledWith('b1', 'u1', {
+      honestyCheck: 'EXACT',
+    });
   });
 
   it('submitRating passes the numeric rating', async () => {

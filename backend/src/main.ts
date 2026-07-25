@@ -1,7 +1,9 @@
 import { NestFactory, Reflector } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { ClassSerializerInterceptor, ValidationPipe } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
+import { RedisIoAdapter } from './redis/redis-io.adapter';
 
 /**
  * SECURITY FIX — refuse to start production with development secrets.
@@ -45,6 +47,12 @@ async function bootstrap() {
   assertProductionSecrets();
 
   const app = await NestFactory.create(AppModule);
+
+  // Multi-instance Socket.IO fan-out via Redis. Fail-soft: if Redis is down
+  // at boot we keep the default in-memory adapter (fine for single-process dev).
+  const redisIoAdapter = new RedisIoAdapter(app, app.get(ConfigService));
+  await redisIoAdapter.connectToRedis();
+  app.useWebSocketAdapter(redisIoAdapter);
 
   // CORS for the Flutter web app. Tokens ride the Authorization header (not
   // cookies), so `credentials` is deliberately NOT enabled.

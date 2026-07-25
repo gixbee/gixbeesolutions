@@ -1,10 +1,13 @@
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../repositories/booking_repository.dart';
+import '../../repositories/booking_status_provider.dart';
 import '../../core/config/app_config.dart';
 import 'active_job_controls.dart';
 import 'collect_payment_screen.dart';
+import 'customer_pay_screen.dart';
 import '../../theme.dart';
 import '../../shared/widgets/gx_dialog.dart';
 import '../../shared/widgets/gx_snackbar.dart';
@@ -43,6 +46,7 @@ class _CompletionOtpScreenState extends ConsumerState<CompletionOtpScreen> {
   bool _hasMarkedComplete = false;
   bool _isRefreshing = false;
   int? _selectedRating;
+  bool _navigatingToPayment = false;
 
   @override
   void initState() {
@@ -57,6 +61,72 @@ class _CompletionOtpScreenState extends ConsumerState<CompletionOtpScreen> {
     }
   }
 
+  /// Customer stays on the OTP screen while the worker verifies. When status
+  /// flips to COMPLETED, open the manual pay screen (or wallet success).
+  void _watchCompletionForCustomer() {
+    if (widget.isWorker || _navigatingToPayment) return;
+    ref.listen<AsyncValue<Map<String, dynamic>>>(
+      bookingStatusProvider(widget.bookingId),
+      (prev, next) {
+        final status = next.value?['status']?.toString().toUpperCase();
+        if (status == 'COMPLETED') {
+          _openCustomerPostCompletion();
+        } else if (next.hasValue) {
+          // Keep the displayed OTP in sync in case either side rotated it.
+          _fetchOtp(silent: true);
+        }
+      },
+    );
+  }
+
+  Future<void> _openCustomerPostCompletion() async {
+    if (_navigatingToPayment || !mounted) return;
+    _navigatingToPayment = true;
+    try {
+      final b = await ref
+          .read(bookingRepositoryProvider)
+          .getBookingById(widget.bookingId);
+      if (!mounted) return;
+      if (b == null) {
+        _navigatingToPayment = false;
+        return;
+      }
+      final isPaid = b['isPaid'] == true;
+      if (isPaid) {
+        _showSuccessDialog();
+        return;
+      }
+      final amount =
+          (num.tryParse('${b['totalAmount'] ?? b['amount'] ?? 0}') ?? 0)
+              .toDouble();
+      final hourlyRate = (num.tryParse(
+                  '${b['hourlyRate'] ?? (b['type']?.toString().toUpperCase() == 'INSTANT' ? b['amount'] : 0) ?? 0}') ??
+              0)
+          .toDouble();
+      final workedMinutes = (num.tryParse('${b['workedMinutes'] ?? 60}') ?? 60)
+          .round();
+      final pausedMinutes =
+          (num.tryParse('${b['pausedMinutes'] ?? 0}') ?? 0).round();
+
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (_) => CustomerPayScreen(
+            bookingId: widget.bookingId,
+            amount: amount,
+            workerName: b['operator']?['name']?.toString() ?? widget.workerName,
+            hourlyRate: hourlyRate > 0 ? hourlyRate : null,
+            workedMinutes: workedMinutes,
+            pausedMinutes: pausedMinutes,
+          ),
+        ),
+      );
+    } catch (e) {
+      _navigatingToPayment = false;
+      debugPrint('Customer post-completion nav failed: $e');
+    }
+  }
+
   Future<void> _refreshOtp() async {
     if (_isRefreshing) return;
     setState(() => _isRefreshing = true);
@@ -64,7 +134,13 @@ class _CompletionOtpScreenState extends ConsumerState<CompletionOtpScreen> {
       final newOtp = await ref.read(bookingRepositoryProvider).refreshCompletionOtp(widget.bookingId);
       if (mounted) {
         setState(() => _fetchedOtp = newOtp);
-        showGxSnack(context, 'OTP Refreshed!', type: GxSnackType.success);
+        showGxSnack(
+          context,
+          widget.isWorker
+              ? 'New OTP sent to customer'
+              : 'New OTP ready — share it with the worker',
+          type: GxSnackType.success,
+        );
       }
     } catch (e) {
       if (mounted) {
@@ -76,17 +152,23 @@ class _CompletionOtpScreenState extends ConsumerState<CompletionOtpScreen> {
     }
   }
 
-  Future<void> _fetchOtp() async {
-    setState(() => _isFetchingOtp = true);
+  /// Fetch the current completionOtp for the customer display. [silent]
+  /// refreshes in the background (no spinner) — used on every status poll so
+  /// a rotated OTP can never stay stale on screen.
+  Future<void> _fetchOtp({bool silent = false}) async {
+    if (!silent) setState(() => _isFetchingOtp = true);
     try {
       final b = await ref.read(bookingRepositoryProvider).getBookingById(widget.bookingId);
       if (b != null && mounted) {
-        setState(() => _fetchedOtp = b['completionOtp']);
+        final otp = b['completionOtp']?.toString();
+        if (otp != null && otp != _fetchedOtp) {
+          setState(() => _fetchedOtp = otp);
+        }
       }
     } catch (e) {
       debugPrint('Error fetching completion otp: $e');
     } finally {
-      if (mounted) setState(() => _isFetchingOtp = false);
+      if (!silent && mounted) setState(() => _isFetchingOtp = false);
     }
   }
 
@@ -98,7 +180,7 @@ class _CompletionOtpScreenState extends ConsumerState<CompletionOtpScreen> {
       if (mounted) {
         showGxSnack(
           context,
-          'OTP requested! Ask the customer for the completion OTP.',
+          'Customer notified! Ask them for the completion OTP.',
           type: GxSnackType.success,
         );
       }
@@ -146,25 +228,80 @@ class _CompletionOtpScreenState extends ConsumerState<CompletionOtpScreen> {
 
       if (!mounted) return;
 
-      if (response['paymentMethod'] == 'DIRECT') {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(
-            builder: (_) => CollectPaymentScreen(
-              bookingId: widget.bookingId,
-              // Decimal may arrive as a string — .toDouble() on it would throw.
-              amount: (num.tryParse('${response['totalAmount'] ?? 0}') ?? 0)
-                  .toDouble(),
-              customerName: widget.workerName, // In worker view, workerName is actually the customer's name
+      final needsPay = response['needsManualPayment'] == true ||
+          response['isPaid'] == false;
+      if (needsPay) {
+        final amount =
+            (num.tryParse('${response['totalAmount'] ?? 0}') ?? 0).toDouble();
+        final hourlyRate =
+            (num.tryParse('${response['hourlyRate'] ?? 0}') ?? 0).toDouble();
+        final workedMinutes =
+            (num.tryParse('${response['workedMinutes'] ?? 0}') ?? 0).round();
+        final pausedMinutes =
+            (num.tryParse('${response['pausedMinutes'] ?? 0}') ?? 0).round();
+        final platformFee =
+            (num.tryParse('${response['platformFee'] ?? 12}') ?? 12).toDouble();
+
+        if (widget.isWorker) {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(
+              builder: (_) => CollectPaymentScreen(
+                bookingId: widget.bookingId,
+                amount: amount,
+                customerName: response['customerName']?.toString() ??
+                    widget.workerName,
+                hourlyRate: hourlyRate > 0 ? hourlyRate : null,
+                workedMinutes: workedMinutes > 0 ? workedMinutes : null,
+                pausedMinutes: pausedMinutes,
+                platformFee: platformFee,
+              ),
             ),
-          ),
-        );
+          );
+        } else {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(
+              builder: (_) => CustomerPayScreen(
+                bookingId: widget.bookingId,
+                amount: amount,
+                workerName: response['workerName']?.toString() ??
+                    widget.workerName,
+                hourlyRate: hourlyRate > 0 ? hourlyRate : null,
+                workedMinutes: workedMinutes > 0 ? workedMinutes : null,
+                pausedMinutes: pausedMinutes,
+                platformFee: platformFee,
+              ),
+            ),
+          );
+        }
       } else {
         _showSuccessDialog();
       }
     } catch (e) {
+      if (!mounted) return;
+      // Surface the real server error instead of a blanket "Invalid OTP".
+      String msg = 'Invalid OTP. Please try again.';
+      if (e is DioException) {
+        final data = e.response?.data;
+        final m = data is Map ? data['message'] : null;
+        if (m != null && m.toString().isNotEmpty) msg = m.toString();
+      }
+      // Double-submit safety: if a previous submit already completed the
+      // booking server-side (response lost), continue instead of looping.
+      if (msg.toLowerCase().contains('must be active')) {
+        final b = await ref
+            .read(bookingRepositoryProvider)
+            .getBookingById(widget.bookingId);
+        if (mounted &&
+            b != null &&
+            b['status']?.toString().toUpperCase() == 'COMPLETED') {
+          _handleAlreadyCompleted(b);
+          return;
+        }
+      }
       if (mounted) {
-        setState(() => _errorMsg = 'Invalid OTP. Please try again.');
+        setState(() => _errorMsg = msg);
         // Shake + clear
         for (final c in _controllers) {
           c.clear();
@@ -174,6 +311,44 @@ class _CompletionOtpScreenState extends ConsumerState<CompletionOtpScreen> {
     } finally {
       if (mounted) setState(() => _isVerifying = false);
     }
+  }
+
+  /// The server already marked this booking COMPLETED (a previous submit's
+  /// response never reached the app). Route forward as if it just succeeded.
+  void _handleAlreadyCompleted(Map<String, dynamic> b) {
+    if (!widget.isWorker) {
+      _openCustomerPostCompletion();
+      return;
+    }
+    if (b['isPaid'] == true) {
+      _showSuccessDialog();
+      return;
+    }
+    final amount =
+        (num.tryParse('${b['totalAmount'] ?? b['amount'] ?? 0}') ?? 0)
+            .toDouble();
+    final hourlyRate =
+        (num.tryParse('${b['hourlyRate'] ?? 0}') ?? 0).toDouble();
+    final workedMinutes =
+        (num.tryParse('${b['workedMinutes'] ?? 0}') ?? 0).round();
+    final pausedMinutes =
+        (num.tryParse('${b['pausedMinutes'] ?? 0}') ?? 0).round();
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(
+        builder: (_) => CollectPaymentScreen(
+          bookingId: widget.bookingId,
+          amount: amount,
+          customerName:
+              b['customer']?['name']?.toString() ?? widget.workerName,
+          hourlyRate: hourlyRate > 0 ? hourlyRate : null,
+          workedMinutes: workedMinutes > 0 ? workedMinutes : null,
+          pausedMinutes: pausedMinutes,
+          platformFee:
+              (num.tryParse('${b['platformFee'] ?? 12}') ?? 12).toDouble(),
+        ),
+      ),
+    );
   }
 
   void _showSuccessDialog() {
@@ -260,6 +435,7 @@ class _CompletionOtpScreenState extends ConsumerState<CompletionOtpScreen> {
 
   @override
   Widget build(BuildContext context) {
+    _watchCompletionForCustomer();
     final colorScheme = Theme.of(context).colorScheme;
 
     return Scaffold(
@@ -354,7 +530,7 @@ class _CompletionOtpScreenState extends ConsumerState<CompletionOtpScreen> {
                   widget.isWorker
                     ? _hasMarkedComplete
                         ? 'Enter the completion OTP provided by the customer to finalize the job.'
-                        : 'Tap "Request Completion OTP" to notify the customer that you have finished.'
+                        : 'Tap "Completion OTP" to notify the customer that you have finished.'
                     : 'Job is complete!\nShare this OTP with ${widget.workerName} to finalize payment.',
                   textAlign: TextAlign.center,
                   style: TextStyle(
@@ -473,7 +649,7 @@ class _CompletionOtpScreenState extends ConsumerState<CompletionOtpScreen> {
                                       color: context.gx.accent),
                               SizedBox(width: 6),
                               Text(
-                                'Refresh OTP',
+                                'Request new OTP',
                                 style: TextStyle(
                                   color: context.gx.accent,
                                   fontWeight: FontWeight.w600,
@@ -498,8 +674,8 @@ class _CompletionOtpScreenState extends ConsumerState<CompletionOtpScreen> {
 
                 const Spacer(flex: 3),
 
-                // Verify button
-                if (widget.isWorker)
+                // Verify / request button
+                if (widget.isWorker) ...[
                   _hasMarkedComplete
                       ? GxButton(
                           label: _isVerifying
@@ -515,8 +691,8 @@ class _CompletionOtpScreenState extends ConsumerState<CompletionOtpScreen> {
                         )
                       : GxButton(
                           label: _isMarkingComplete
-                              ? 'Requesting...'
-                              : 'Request Completion OTP',
+                              ? 'Sending...'
+                              : 'Completion OTP',
                           icon: Icons.task_alt,
                           onTap: _isMarkingComplete ? null : _markComplete,
                           loading: _isMarkingComplete,
@@ -524,8 +700,8 @@ class _CompletionOtpScreenState extends ConsumerState<CompletionOtpScreen> {
                           accent: Colors.green,
                           height: 56,
                           fontSize: 16,
-                        )
-                else
+                        ),
+                ] else
                   const Text('Waiting for worker to verify completion...', style: TextStyle(fontStyle: FontStyle.italic, color: Colors.grey)),
 
                 const SizedBox(height: 16),

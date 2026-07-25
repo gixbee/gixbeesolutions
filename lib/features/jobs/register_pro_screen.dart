@@ -109,13 +109,20 @@ class _RegisterProScreenState extends ConsumerState<RegisterProScreen> {
           );
           if (trade.name.isEmpty) continue;
           final bio = '${s['bio'] ?? ''}';
-          final subs = bio
+          // Skill tasks are stored as "about — task1, task2" (or just
+          // "task1, task2" when about is empty). Only parse the tasks
+          // segment so reopening the editor still matches sub-skill chips.
+          final sep = bio.indexOf(' — ');
+          final tasksPart = sep >= 0 ? bio.substring(sep + 3) : bio;
+          final aboutPart = sep >= 0 ? bio.substring(0, sep).trim() : '';
+          final subs = tasksPart
               .split(',')
               .map((e) => e.trim())
               .where((e) => e.isNotEmpty)
               .toSet();
           if (subs.isNotEmpty) {
             _selected[trade.name] = subs;
+            _expandedTrades.add(trade.name);
           }
           if (s['hourlyRate'] != null) {
             final parsedRate = '${s['hourlyRate']}';
@@ -123,7 +130,9 @@ class _RegisterProScreenState extends ConsumerState<RegisterProScreen> {
             // Also store it specifically for this trade
             _tradeRateCtrls[trade.name] = TextEditingController(text: parsedRate);
           }
-          if (_bioCtrl.text.isEmpty && bio.isNotEmpty) _bioCtrl.text = bio;
+          if (_bioCtrl.text.isEmpty && aboutPart.isNotEmpty) {
+            _bioCtrl.text = aboutPart;
+          }
         }
         _isLoading = false;
       });
@@ -259,6 +268,10 @@ class _RegisterProScreenState extends ConsumerState<RegisterProScreen> {
 
   Future<void> _submit() async {
     final messenger = ScaffoldMessenger.of(context);
+    // Capture before save/refetch — after submit `_savedSkillIds` is always
+    // non-empty, which would incorrectly skip first-time → Go Live.
+    final editingExisting = _savedSkillIds.isNotEmpty ||
+        (ref.read(currentUserProvider).value?.isWorker ?? false);
     setState(() => _isSubmitting = true);
     try {
       final repo = ref.read(talentRepositoryProvider);
@@ -296,9 +309,12 @@ class _RegisterProScreenState extends ConsumerState<RegisterProScreen> {
       
       try {
         final workerRepo = ref.read(workerRepositoryProvider);
-        final allSkills = _selected.entries.expand((e) => e.value).toList();
+        // Go Live toggles are trade-level only ("Electrician"). Sub-skills
+        // stay on the talent profile bio via addOrUpdateSkill above.
+        // Instant Help dispatches by trade name, so indexing trades is enough.
+        final tradeSkills = _selected.keys.toList();
         await workerRepo.registerWorker(
-          skills: allSkills.isNotEmpty ? allSkills : ['General Services'],
+          skills: tradeSkills.isNotEmpty ? tradeSkills : ['General Services'],
           hourlyRate: 0.0,
           bio: bio,
         );
@@ -314,7 +330,11 @@ class _RegisterProScreenState extends ConsumerState<RegisterProScreen> {
       await _fetchProfile();
       if (!mounted) return;
       setState(() => _isSubmitting = false);
-      _goLive();
+      if (editingExisting && Navigator.of(context).canPop()) {
+        Navigator.of(context).pop(true);
+      } else {
+        _goLive();
+      }
     } catch (e) {
       if (!mounted) return;
       setState(() => _isSubmitting = false);
@@ -580,14 +600,42 @@ class _RegisterProScreenState extends ConsumerState<RegisterProScreen> {
 
   // ── STEP 2: Skills ──────────────────────────────────────────────────────
   Widget _stepSkills(ColorScheme cs) {
+    final selectedFlat = <MapEntry<String, String>>[];
+    for (final e in _selected.entries) {
+      for (final sub in e.value) {
+        selectedFlat.add(MapEntry(e.key, sub));
+      }
+    }
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         _label(cs, 'SELECT YOUR SKILLS'),
         Text(
             'Pick every task you can handle. You\'ll only be matched to jobs '
-            'for the skills you select.',
+            'for the skills you select. Uncheck or tap × to remove; expand '
+            'another trade to add more anytime.',
             style: TextStyle(color: cs.onSurfaceVariant, fontSize: 11)),
+        if (selectedFlat.isNotEmpty) ...[
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              for (final e in selectedFlat)
+                InputChip(
+                  label: Text('${e.key}: ${e.value}',
+                      style: const TextStyle(
+                          fontSize: 11, fontWeight: FontWeight.w600)),
+                  onDeleted: () => _toggleSub(e.key, e.value),
+                  deleteIconColor: GixbeeTheme.accentGold,
+                  backgroundColor:
+                      GixbeeTheme.accentGold.withValues(alpha: 0.10),
+                  side: BorderSide(
+                      color: GixbeeTheme.accentGold.withValues(alpha: 0.35)),
+                ),
+            ],
+          ),
+        ],
         const SizedBox(height: 12),
         ref.watch(proTradesProvider).when(
               data: (trades) => Column(
@@ -1038,7 +1086,11 @@ class _RegisterProScreenState extends ConsumerState<RegisterProScreen> {
               flex: 2,
               child: GxButton(
                 // v106: Earn Hourly uses the gold accent.
-                label: isLast ? 'Submit & Go Live' : 'Continue',
+                label: isLast
+                    ? (_savedSkillIds.isNotEmpty
+                        ? 'Save skills'
+                        : 'Submit & Go Live')
+                    : 'Continue',
                 icon: isLast
                     ? Icons.bolt_rounded
                     : Icons.arrow_forward_rounded,

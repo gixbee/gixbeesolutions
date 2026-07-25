@@ -17,8 +17,8 @@ import '../core/config/app_config.dart';
 /// the timer down when the last listener goes away. The poll also pauses
 /// while the app is backgrounded and fires an immediate refresh on resume.
 ///
-/// Payload is the raw `/status` map: status, operatorName, operatorId,
-/// arrivalOtp, pauseRequested, paused, pausedMinutes.
+/// Interval is a **fallback** (FCM + Socket.IO are primary). Backend serves
+/// status from Redis when warm so these ticks stay cheap.
 final bookingStatusProvider = StreamProvider.autoDispose
     .family<Map<String, dynamic>, String>((ref, bookingId) {
   final repo = ref.watch(bookingRepositoryProvider);

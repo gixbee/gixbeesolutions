@@ -67,7 +67,40 @@ class _TalentProfileScreenState extends ConsumerState<TalentProfileScreen> {
     _fetchProfile();
   }
 
-  bool get _hasSkills => _profile?['skills']?.isNotEmpty == true;
+  bool get _hasSkills =>
+      _skillEntries.isNotEmpty ||
+      (_profile?['skills'] as List?)?.isNotEmpty == true;
+
+  /// Prefer professional skills (with ids for delete); fall back to the
+  /// string `skills` list from seeker prefs.
+  List<({String label, String? id})> get _skillEntries {
+    final pro = _profile?['professionalSkills'] as List? ?? const [];
+    if (pro.isNotEmpty) {
+      return [
+        for (final s in pro)
+          (
+            label: '${s['name'] ?? s}',
+            id: s['id']?.toString(),
+          ),
+      ];
+    }
+    return [
+      for (final s in (_profile?['skills'] as List? ?? const []))
+        (label: '$s', id: null),
+    ];
+  }
+
+  Future<void> _removeSkill(String skillId) async {
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      await ref.read(talentRepositoryProvider).removeSkill(skillId);
+      await _fetchProfile();
+    } catch (e) {
+      if (!mounted) return;
+      messenger.showSnackBar(
+          gxSnackBar('Could not remove skill: $e', type: GxSnackType.error));
+    }
+  }
 
   String get _initial {
     final name = (_profile?['fullName'] as String?)?.trim() ?? '';
@@ -146,8 +179,12 @@ class _TalentProfileScreenState extends ConsumerState<TalentProfileScreen> {
                             spacing: 8,
                             runSpacing: 8,
                             children: [
-                              ...(_profile?['skills'] as List? ?? [])
-                                  .map((s) => _SkillChip(label: '$s')),
+                              ..._skillEntries.map((e) => _SkillChip(
+                                    label: e.label,
+                                    onDeleted: e.id == null
+                                        ? () => _openEditor()
+                                        : () => _removeSkill(e.id!),
+                                  )),
                               _AddSkillChip(onTap: _openEditor),
                             ],
                           ),
@@ -685,19 +722,13 @@ class _HintRow extends StatelessWidget {
 
 class _SkillChip extends StatelessWidget {
   final String label;
-  const _SkillChip({required this.label});
+  final VoidCallback? onDeleted;
+  const _SkillChip({required this.label, this.onDeleted});
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(999),
-        color: GixbeeTheme.accentGreen.withValues(alpha: 0.10),
-        border:
-            Border.all(color: GixbeeTheme.accentGreen.withValues(alpha: 0.3)),
-      ),
-      child: Text(
+    return InputChip(
+      label: Text(
         label,
         style: const TextStyle(
           fontWeight: FontWeight.w700,
@@ -705,6 +736,11 @@ class _SkillChip extends StatelessWidget {
           color: GixbeeTheme.accentGreen,
         ),
       ),
+      onDeleted: onDeleted,
+      deleteIconColor: GixbeeTheme.accentGreen,
+      backgroundColor: GixbeeTheme.accentGreen.withValues(alpha: 0.10),
+      side: BorderSide(
+          color: GixbeeTheme.accentGreen.withValues(alpha: 0.3)),
     );
   }
 }

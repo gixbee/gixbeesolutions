@@ -4,7 +4,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/config/app_config.dart';
 import '../../repositories/booking_repository.dart';
 import '../../repositories/auth_repository.dart';
+import '../../repositories/worker_repository.dart';
 import '../../services/socket_service.dart';
+import '../../services/location_service.dart';
 import '../../theme.dart';
 import '../../shared/widgets/gx_snackbar.dart';
 import '../../shared/widgets/gx_pressable.dart';
@@ -25,6 +27,8 @@ class _IncomingJobScreenState extends ConsumerState<IncomingJobScreen> {
   // ── All pending requests for this worker ──────────────────────────────────
   late List<Map<String, dynamic>> _requests;
   int _currentIndex = 0;
+  /// Booking ids this worker declined/dismissed during this screen session.
+  final List<String> _declinedIds = [];
 
   // ── Per-request state ─────────────────────────────────────────────────────
   int _secondsRemaining = AppConfig.jobAcceptTimeoutSeconds;
@@ -125,8 +129,23 @@ class _IncomingJobScreenState extends ConsumerState<IncomingJobScreen> {
       final user = await ref.read(currentUserProvider.future);
       if (user != null) {
         ref.read(socketServiceProvider).startLocationStream(user.id, bookingId);
+        // Seed Redis immediately so customer status-poll can show a pin
+        // before the first GPS stream tick arrives.
+        try {
+          final pos =
+              await ref.read(locationServiceProvider).getCurrentPosition();
+          if (pos != null) {
+            await ref.read(workerRepositoryProvider).updateMyLocation(
+                  lat: pos.latitude,
+                  lng: pos.longitude,
+                );
+          }
+        } catch (_) {}
       }
       if (!mounted) return; // re-check: awaited currentUserProvider above
+
+      // So Home's active-job card appears immediately (not only after pull-refresh).
+      ref.invalidate(myBookingsProvider);
 
       // Backend auto-cancels all other pending bookings for this worker
       Navigator.pop(context, {'accepted': true, 'bookingId': bookingId});
@@ -142,7 +161,7 @@ class _IncomingJobScreenState extends ConsumerState<IncomingJobScreen> {
       // Broadcast race lost (v126 first-accept-wins): another pro claimed it
       // first. Drop this card from the queue instead of showing a raw error.
       final msg = e.toString();
-      if (msg.contains('no longer available') || msg.contains('already taken')) {
+          if (msg.contains('no longer available') || msg.contains('already taken')) {
         showGxSnack(context, 'Too late — another pro accepted this job.',
             type: GxSnackType.info);
         setState(() {
@@ -150,7 +169,10 @@ class _IncomingJobScreenState extends ConsumerState<IncomingJobScreen> {
           if (_currentIndex >= _requests.length) _currentIndex = 0;
         });
         if (_requests.isEmpty) {
-          Navigator.pop(context, {'accepted': false});
+          Navigator.pop(context, {
+            'accepted': false,
+            'declinedIds': List<String>.from(_declinedIds),
+          });
           return;
         }
         _startTimer();
@@ -171,9 +193,13 @@ class _IncomingJobScreenState extends ConsumerState<IncomingJobScreen> {
     try {
       if (bookingId != null) {
         await ref.read(bookingRepositoryProvider).rejectBooking(bookingId);
+        _declinedIds.add(bookingId);
       }
     } catch (e) {
       debugPrint('[IncomingJob] Decline failed: $e');
+      // Still treat as declined locally so poll/FCM cannot reopen a card the
+      // worker already dismissed (backend may have already removed pending).
+      if (bookingId != null) _declinedIds.add(bookingId);
     }
 
     _removeCurrentAndAdvance();
@@ -184,11 +210,38 @@ class _IncomingJobScreenState extends ConsumerState<IncomingJobScreen> {
     try {
       if (bookingId != null) {
         await ref.read(bookingRepositoryProvider).rejectBooking(bookingId);
+        _declinedIds.add(bookingId);
       }
     } catch (e) {
       debugPrint('[IncomingJob] Auto-decline failed: $e');
+      if (bookingId != null) _declinedIds.add(bookingId);
     }
     _removeCurrentAndAdvance(isTimeout: true);
+  }
+
+  /// X button: permanently decline every queued request for this worker so
+  /// poll/FCM/socket cannot reopen the same Instant Help cards.
+  Future<void> _dismissAll() async {
+    if (_isProcessing) return;
+    _timer?.cancel();
+    setState(() => _isProcessing = true);
+    final ids = _requests
+        .map((r) => r['id'] as String?)
+        .whereType<String>()
+        .toList();
+    for (final id in ids) {
+      try {
+        await ref.read(bookingRepositoryProvider).rejectBooking(id);
+      } catch (e) {
+        debugPrint('[IncomingJob] Dismiss decline failed for $id: $e');
+      }
+      _declinedIds.add(id);
+    }
+    if (!mounted) return;
+    Navigator.pop(context, {
+      'accepted': false,
+      'declinedIds': List<String>.from(_declinedIds),
+    });
   }
 
   void _removeCurrentAndAdvance({bool isTimeout = false}) {
@@ -205,7 +258,10 @@ class _IncomingJobScreenState extends ConsumerState<IncomingJobScreen> {
 
       if (_requests.isEmpty) {
         // No more requests — close the screen
-        Navigator.pop(context, {'accepted': false});
+        Navigator.pop(context, {
+          'accepted': false,
+          'declinedIds': List<String>.from(_declinedIds),
+        });
         return;
       }
 
@@ -274,9 +330,7 @@ class _IncomingJobScreenState extends ConsumerState<IncomingJobScreen> {
                   IconButton(
                     tooltip: 'Dismiss request',
                     icon: const Icon(Icons.close),
-                    onPressed: _isProcessing
-                        ? null
-                        : () => Navigator.pop(context, {'accepted': false}),
+                    onPressed: _isProcessing ? null : _dismissAll,
                   ),
                   const Spacer(),
                   // Queue indicator badge

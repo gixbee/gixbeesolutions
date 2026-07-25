@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:geocoding/geocoding.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/legacy.dart';
 
 final locationServiceProvider = Provider((ref) => LocationService());
 
@@ -10,6 +11,8 @@ final currentAddressProvider =
 final locationLoadingProvider = StateProvider<bool>((ref) => false);
 
 class LocationService {
+  final Geocoding _geocoding = Geocoding();
+
   Future<Position?> getCurrentPosition() async {
     bool serviceEnabled;
     LocationPermission permission;
@@ -55,10 +58,12 @@ class LocationService {
     }
 
     try {
-      List<Placemark> placemarks = await placemarkFromCoordinates(
-        position.latitude,
-        position.longitude,
-      ).timeout(const Duration(seconds: 5));
+      List<Placemark> placemarks = await _geocoding
+          .placemarkFromCoordinates(
+            position.latitude,
+            position.longitude,
+          )
+          .timeout(const Duration(seconds: 5));
 
       if (placemarks.isNotEmpty) {
         Placemark place = placemarks[0];

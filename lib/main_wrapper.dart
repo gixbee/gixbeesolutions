@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'services/debug_log_service.dart';
 import 'services/location_bootstrap.dart';
 import 'core/config/app_strings.dart';
+import 'core/config/app_config.dart';
 import 'theme.dart';
 import 'features/home/home_screen.dart';
 import 'features/home/active_booking_card.dart';
@@ -20,6 +21,7 @@ import 'services/auth_token_service.dart';
 import 'services/notification_service.dart';
 import 'services/socket_service.dart';
 import 'shared/widgets/dribbble_background.dart';
+import 'core/main_tab_provider.dart';
 
 class MainWrapper extends ConsumerStatefulWidget {
   const MainWrapper({super.key});
@@ -39,6 +41,14 @@ class _MainWrapperState extends ConsumerState<MainWrapper>
   /// FCM foreground + socket + HTTP poll all firing for the same booking.
   final Set<String> _shownBookingIds = {};
 
+  /// Worker declined / dismissed these — never re-open via poll/FCM/socket
+  /// for the rest of this session (backend also drops Redis pending).
+  final Set<String> _declinedBookingIds = {};
+
+  /// True while IncomingJobScreen is on the navigator stack — blocks stacked
+  /// duplicate pushes from poll + FCM racing.
+  bool _incomingJobOpen = false;
+
   /// Body screens, indexed by [_currentIndex]. Go Live is NOT a body tab —
   /// it is the center FAB that pushes [GoLiveScreen] as an overlay, matching
   /// the mockup. Tab order: Home · Bookings · Messages · Profile.
@@ -48,6 +58,11 @@ class _MainWrapperState extends ConsumerState<MainWrapper>
     const MessagesListScreen(),
     const ProfileScreen(),
   ];
+
+  void _goToTab(int index) {
+    ref.read(mainTabIndexProvider.notifier).state = index;
+    if (_currentIndex != index) setState(() => _currentIndex = index);
+  }
 
   void _openGoLive() {
     Navigator.push(
@@ -99,6 +114,10 @@ class _MainWrapperState extends ConsumerState<MainWrapper>
         _pollWasRunning = false;
         _startPendingBookingPoll();
       }
+      // Catch jobs that arrived while backgrounded (poll was paused, FCM
+      // only showed a tray banner — popup never opened).
+      unawaited(_pollPendingBookingsOnce());
+      ref.invalidate(myBookingsProvider);
     }
   }
 
@@ -113,7 +132,13 @@ class _MainWrapperState extends ConsumerState<MainWrapper>
     // Note: FirebaseMessaging.onBackgroundMessage was already registered in
     // main() before runApp() — NotificationService.initialize() does NOT
     // register it again.
-    await notifService.initialize();
+    await notifService.initialize(
+      onLocalNotificationTap: (payload) {
+        unawaited(
+          _handleNotificationData(payload, fromUserGesture: true),
+        );
+      },
+    );
 
     // STEP 2 — Sync FCM token with backend on every app start.
     // If the token was rotated by FCM while the app was killed, this ensures
@@ -186,13 +211,15 @@ class _MainWrapperState extends ConsumerState<MainWrapper>
       final id = data['id'] as String?;
 
       if (event == 'new_booking_request') {
-        if (id != null && !_shownBookingIds.contains(id)) {
+        if (id != null &&
+            !_shownBookingIds.contains(id) &&
+            !_declinedBookingIds.contains(id)) {
           ref.read(debugLogProvider.notifier).log('[SOURCE: SOCKET] Incoming job $id');
-          _shownBookingIds.add(id);
-          _showIncomingJobScreen(data);
+          unawaited(_showIncomingJobScreen(data));
         }
       } else if (event == 'booking_accepted') {
-        if (mounted) setState(() => _currentIndex = 1);
+        ref.invalidate(myBookingsProvider);
+        if (mounted) _goToTab(0);
       }
     });
   }
@@ -208,71 +235,145 @@ class _MainWrapperState extends ConsumerState<MainWrapper>
   }
 
   void _startPendingBookingPoll() {
-    _pendingPollTimer = Timer.periodic(const Duration(seconds: 5), (_) async {
-      try {
-        final pending =
-            await ref.read(bookingRepositoryProvider).getPendingBookings();
-        for (final booking in pending) {
-          final id = booking['id'] as String?;
-          if (id != null && !_shownBookingIds.contains(id)) {
-            ref.read(debugLogProvider.notifier).log('[SOURCE: HTTP_POLL] Incoming job $id');
-            _shownBookingIds.add(id);
-            _showIncomingJobScreen(booking);
-          }
+    _pendingPollTimer?.cancel();
+    // Immediate first check — periodic alone waits a full 5s.
+    unawaited(_pollPendingBookingsOnce());
+    _pendingPollTimer = Timer.periodic(
+      const Duration(seconds: AppConfig.pendingJobsPollIntervalSeconds),
+      (_) {
+        unawaited(_pollPendingBookingsOnce());
+      },
+    );
+  }
+
+  Future<void> _pollPendingBookingsOnce() async {
+    try {
+      final pending =
+          await ref.read(bookingRepositoryProvider).getPendingBookings();
+      for (final booking in pending) {
+        final id = booking['id'] as String?;
+        if (id != null &&
+            !_shownBookingIds.contains(id) &&
+            !_declinedBookingIds.contains(id)) {
+          ref
+              .read(debugLogProvider.notifier)
+              .log('[SOURCE: HTTP_POLL] Incoming job $id');
+          await _showIncomingJobScreen(
+            Map<String, dynamic>.from(booking as Map),
+          );
         }
-      } catch (_) {
-        // Silent — FCM is the primary delivery channel
       }
-    });
+    } catch (_) {
+      // Silent — FCM is the primary delivery channel
+    }
   }
 
   // ── FCM Message Handlers ─────────────────────────────────────────────────
 
   void _handleFcmMessage(RemoteMessage message) {
-    final type = message.data['type'] as String?;
-    final bookingId = message.data['bookingId'] as String?;
-
-    if (type == 'new_booking') {
-      // Dedup: skip if already shown via socket or HTTP poll
-      if (bookingId != null && _shownBookingIds.contains(bookingId)) {
-        debugPrint('[FCM] Skipping duplicate popup for booking: $bookingId');
-        return;
-      }
-      
-      ref.read(debugLogProvider.notifier).log('[SOURCE: FCM] Incoming job $bookingId');
-      if (bookingId != null) _shownBookingIds.add(bookingId);
-
-      _showIncomingJobScreen({
-        'id': bookingId,
-        'skill': message.data['skill'] ?? 'General Help',
-        'customer_name':
-            message.notification?.title ?? AppStrings.fcmDefaultTitle,
-        'serviceLocation': message.data['serviceLocation'] ?? '',
-        'amount':
-            double.tryParse(message.data['amount'] ?? '0') ?? 0.0,
-      });
-    }
+    unawaited(_handleNotificationData(
+      message.data.map((k, v) => MapEntry(k, '$v')),
+      notificationTitle: message.notification?.title,
+      fromUserGesture: false,
+    ));
   }
 
   void _handleNotificationTap(RemoteMessage message) {
-    final type = message.data['type'] as String?;
+    unawaited(_handleNotificationData(
+      message.data.map((k, v) => MapEntry(k, '$v')),
+      notificationTitle: message.notification?.title,
+      fromUserGesture: true,
+    ));
+  }
+
+  Future<void> _handleNotificationData(
+    Map<String, String> data, {
+    String? notificationTitle,
+    bool fromUserGesture = false,
+  }) async {
     if (!mounted) return;
-    if (type == 'new_booking' || type == 'booking_accepted') {
-      setState(() => _currentIndex = 1); // go to Bookings tab
+    final type = data['type'];
+    final bookingId = data['bookingId'];
+
+    if (type == 'new_booking') {
+      // Dedup auto-delivery only. Taps always open the popup — workers often
+      // see the tray banner while backgrounded and expect the accept screen.
+      // Never reopen after this worker already declined/dismissed.
+      if (bookingId != null && _declinedBookingIds.contains(bookingId)) {
+        debugPrint('[FCM] Skipping declined booking $bookingId');
+        return;
+      }
+      if (!fromUserGesture &&
+          bookingId != null &&
+          _shownBookingIds.contains(bookingId)) {
+        debugPrint('[FCM] Skipping duplicate auto-popup for $bookingId');
+        return;
+      }
+
+      ref
+          .read(debugLogProvider.notifier)
+          .log('[SOURCE: FCM] Incoming job $bookingId');
+
+      await _showIncomingJobScreen({
+        'id': bookingId,
+        'skill': data['skill'] ?? 'General Help',
+        'customer_name': notificationTitle ?? AppStrings.fcmDefaultTitle,
+        'serviceLocation': data['serviceLocation'] ?? '',
+        'amount': double.tryParse(data['amount'] ?? '0') ?? 0.0,
+      });
+      return;
+    }
+
+    if (type == 'booking_accepted') {
+      ref.invalidate(myBookingsProvider);
+      if (mounted) _goToTab(0);
     }
   }
 
   // ── Incoming Job Screen ──────────────────────────────────────────────────
 
-  void _showIncomingJobScreen(Map<String, dynamic> bookingData) {
+  Future<void> _showIncomingJobScreen(Map<String, dynamic> bookingData) async {
     if (!mounted) return;
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => IncomingJobScreen(bookingData: bookingData),
-        fullscreenDialog: true,
-      ),
-    );
+    final id = bookingData['id']?.toString();
+
+    // Don't stack multiple incoming screens; keep the ID unmarked so a later
+    // tap/poll can present it once the current one closes.
+    if (_incomingJobOpen) return;
+
+    // Mark only once we're about to present — avoids permanent skip if
+    // !mounted aborts before Navigator.push.
+    if (!mounted) return;
+    _incomingJobOpen = true;
+    if (id != null && id.isNotEmpty) _shownBookingIds.add(id);
+
+    try {
+      final result = await Navigator.push<Map<String, dynamic>>(
+        context,
+        MaterialPageRoute(
+          builder: (_) => IncomingJobScreen(bookingData: bookingData),
+          fullscreenDialog: true,
+        ),
+      );
+      if (!mounted) return;
+      if (result != null && result['accepted'] == true) {
+        ref.invalidate(myBookingsProvider);
+        _goToTab(0); // Home — active job card
+      } else {
+        final declined = result?['declinedIds'];
+        if (declined is List) {
+          for (final d in declined) {
+            final did = d?.toString();
+            if (did != null && did.isNotEmpty) _declinedBookingIds.add(did);
+          }
+        } else if (id != null) {
+          // Decline / timeout / empty-queue close — keep out of poll/FCM reopen.
+          _declinedBookingIds.add(id);
+        }
+        if (id != null) _shownBookingIds.remove(id);
+      }
+    } finally {
+      _incomingJobOpen = false;
+    }
   }
 
   // ── Build ────────────────────────────────────────────────────────────────
@@ -281,6 +382,13 @@ class _MainWrapperState extends ConsumerState<MainWrapper>
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     final isLive = ref.watch(workerLiveStateProvider);
+    // Profile back / Home avatar write [mainTabIndexProvider]; keep the
+    // bottom bar body in sync without Navigator.pop on the shell.
+    ref.listen<int>(mainTabIndexProvider, (prev, next) {
+      if (next != _currentIndex) {
+        setState(() => _currentIndex = next);
+      }
+    });
 
     // Solid scaffold colour (not transparent) so the FAB notch never falls
     // through to the black window behind — that was the harsh "black scoop".
@@ -351,7 +459,7 @@ class _MainWrapperState extends ConsumerState<MainWrapper>
         selected: selected,
         label: label,
         child: InkWell(
-        onTap: () => setState(() => _currentIndex = index),
+        onTap: () => _goToTab(index),
         borderRadius: BorderRadius.circular(12),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,

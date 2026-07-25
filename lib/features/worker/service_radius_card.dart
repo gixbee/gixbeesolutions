@@ -23,10 +23,13 @@ class ServiceRadiusCard extends ConsumerStatefulWidget {
 
 class _ServiceRadiusCardState extends ConsumerState<ServiceRadiusCard> {
   /// Must stay within the backend's MAX_DISPATCH_RADIUS_KM (50).
-  static const _presets = [3, 5, 10, 15, 25, 50];
+  static const _minKm = 1;
+  static const _maxKm = 50;
   static const _defaultRadius = 10;
 
   int _radius = _defaultRadius;
+  /// Last value confirmed by the server (or loaded) — used to skip no-op saves.
+  int _persisted = _defaultRadius;
   bool _loading = true;
   bool _saving = false;
 
@@ -40,9 +43,11 @@ class _ServiceRadiusCardState extends ConsumerState<ServiceRadiusCard> {
     try {
       final me = await ref.read(workerRepositoryProvider).getMyWorkerProfile();
       if (!mounted) return;
+      final km = (me['serviceRadiusKm'] as num?)?.toInt() ?? _defaultRadius;
+      final clamped = km.clamp(_minKm, _maxKm);
       setState(() {
-        _radius =
-            (me['serviceRadiusKm'] as num?)?.toInt() ?? _defaultRadius;
+        _radius = clamped;
+        _persisted = clamped;
         _loading = false;
       });
     } catch (e) {
@@ -51,26 +56,30 @@ class _ServiceRadiusCardState extends ConsumerState<ServiceRadiusCard> {
     }
   }
 
-  Future<void> _select(int km) async {
-    if (km == _radius || _saving) return;
-    final previous = _radius;
+  Future<void> _persist(int km) async {
+    final clamped = km.clamp(_minKm, _maxKm);
+    if (clamped == _persisted || _saving) return;
+    final previous = _persisted;
     setState(() {
-      _radius = km;
+      _radius = clamped;
       _saving = true;
     });
     try {
       // The server clamps — trust its answer over ours.
       final confirmed =
-          await ref.read(workerRepositoryProvider).setServiceRadius(km);
+          await ref.read(workerRepositoryProvider).setServiceRadius(clamped);
       if (!mounted) return;
+      final next = confirmed.clamp(_minKm, _maxKm);
       setState(() {
-        _radius = confirmed;
+        _radius = next;
+        _persisted = next;
         _saving = false;
       });
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _radius = previous; // revert the optimistic change
+        _radius = previous;
+        _persisted = previous;
         _saving = false;
       });
       showGxSnack(context, 'Could not save service area: $e',
@@ -133,43 +142,57 @@ class _ServiceRadiusCardState extends ConsumerState<ServiceRadiusCard> {
                       ),
                   ],
                 ),
-                const SizedBox(height: 10),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: [
-                    for (final km in _presets)
-                      GestureDetector(
-                        onTap: () => _select(km),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 14, vertical: 8),
-                          decoration: BoxDecoration(
-                            color: km == _radius
-                                ? GixbeeTheme.accentPurple
-                                : context.gx.card,
-                            borderRadius: BorderRadius.circular(20),
-                            border: Border.all(
-                              color: km == _radius
-                                  ? GixbeeTheme.accentPurple
-                                  : context.gx.border,
-                            ),
-                          ),
-                          child: Text(
-                            '$km km',
-                            style: TextStyle(
-                              fontSize: 12.5,
-                              fontWeight: FontWeight.w700,
-                              color: km == _radius
-                                  ? context.gx.onAccent
-                                  : context.gx.ink.withValues(alpha: 0.7),
-                            ),
-                          ),
+                const SizedBox(height: 6),
+                SliderTheme(
+                  data: SliderTheme.of(context).copyWith(
+                    activeTrackColor: GixbeeTheme.accentPurple,
+                    inactiveTrackColor:
+                        GixbeeTheme.accentPurple.withValues(alpha: 0.18),
+                    thumbColor: GixbeeTheme.accentPurple,
+                    overlayColor:
+                        GixbeeTheme.accentPurple.withValues(alpha: 0.12),
+                    valueIndicatorColor: GixbeeTheme.accentPurple,
+                    trackHeight: 3.5,
+                  ),
+                  child: Slider(
+                    value: _radius.toDouble(),
+                    min: _minKm.toDouble(),
+                    max: _maxKm.toDouble(),
+                    divisions: _maxKm - _minKm,
+                    label: '$_radius km',
+                    onChanged: _saving
+                        ? null
+                        : (v) => setState(() => _radius = v.round()),
+                    onChangeEnd: _saving
+                        ? null
+                        : (v) => _persist(v.round()),
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 4),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        '$_minKm km',
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          color: context.gx.ink.withValues(alpha: 0.4),
                         ),
                       ),
-                  ],
+                      Text(
+                        '$_maxKm km',
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          color: context.gx.ink.withValues(alpha: 0.4),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-                const SizedBox(height: 10),
+                const SizedBox(height: 8),
                 Text(
                   'You will only be offered instant jobs within $_radius km of '
                   'your live location. A wider area means more jobs, but longer '

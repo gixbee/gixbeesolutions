@@ -1,6 +1,7 @@
 import { BadRequestException } from '@nestjs/common';
 import { BookingsService } from './bookings.service';
 import { BookingStatus } from './booking.entity';
+import { OutboxEventType } from '../outbox/outbox.types';
 
 /**
  * Unit tests for the cancelBooking refund policy:
@@ -8,6 +9,7 @@ import { BookingStatus } from './booking.entity';
  * - paid WALLET booking       → settlement reversed (worker debit + customer credit)
  * - paid CASH/UPI (markPaid)  → Gixbee never held the money → no wallet credit (DIRECT)
  * - completed booking         → cannot be cancelled
+ * - outbox BOOKING_CANCELLED appended in the same transaction as the save
  */
 function makeService(booking: any) {
   const bookingsRepository: any = {
@@ -24,15 +26,33 @@ function makeService(booking: any) {
   };
   const notificationsService: any = {
     sendToUser: jest.fn(async () => undefined),
+    sendToUsers: jest.fn(async () => undefined),
   };
   const redisService: any = {
     removePendingBooking: jest.fn(async () => undefined),
     cacheBookingStatus: jest.fn(async () => undefined),
+    get: jest.fn(async () => null),
+    set: jest.fn(async () => undefined),
+    del: jest.fn(async () => undefined),
   };
   const workersService: any = {
     setWorkerStatus: jest.fn(async () => undefined),
   };
-  const dataSource: any = { transaction: jest.fn() };
+  const manager: any = {
+    save: jest.fn(async (b: any) => b),
+  };
+  const dataSource: any = {
+    transaction: jest.fn(async (cb: any) => cb(manager)),
+  };
+  const outboxService: any = {
+    append: jest.fn(async (_m: any, type: string, aggregateId: string, payload: any) => ({
+      id: 'outbox-cancel-1',
+      type,
+      aggregateId,
+      payload,
+    })),
+    enqueueDispatch: jest.fn(async () => undefined),
+  };
 
   const service = new BookingsService(
     bookingsRepository,
@@ -43,8 +63,18 @@ function makeService(booking: any) {
     redisService,
     workersService,
     dataSource,
+    { emitUserEvent: jest.fn() } as any,
+    outboxService,
   );
-  return { service, bookingsRepository, walletsService };
+  return {
+    service,
+    bookingsRepository,
+    walletsService,
+    manager,
+    outboxService,
+    redisService,
+    notificationsService,
+  };
 }
 
 const baseBooking = () => ({
@@ -59,9 +89,10 @@ const baseBooking = () => ({
 });
 
 describe('BookingsService.cancelBooking refund policy', () => {
-  it('refunds nothing on an unpaid booking', async () => {
+  it('refunds nothing on an unpaid booking and appends cancel outbox', async () => {
     const booking = baseBooking();
-    const { service, walletsService, bookingsRepository } = makeService(booking);
+    const { service, walletsService, manager, outboxService, redisService } =
+      makeService(booking);
 
     const res = await service.cancelBooking('b1', 'Change of plans');
 
@@ -72,7 +103,15 @@ describe('BookingsService.cancelBooking refund policy', () => {
     expect(walletsService.addFunds).not.toHaveBeenCalled();
     expect(booking.status).toBe(BookingStatus.CANCELLED);
     expect((booking as any).cancellationReason).toBe('Change of plans');
-    expect(bookingsRepository.save).toHaveBeenCalledWith(booking);
+    expect(manager.save).toHaveBeenCalledWith(booking);
+    expect(outboxService.append).toHaveBeenCalledWith(
+      manager,
+      OutboxEventType.BOOKING_CANCELLED,
+      'b1',
+      expect.objectContaining({ source: 'customer', reason: 'Change of plans' }),
+    );
+    expect(outboxService.enqueueDispatch).toHaveBeenCalledWith('outbox-cancel-1');
+    expect(redisService.removePendingBooking).not.toHaveBeenCalled();
   });
 
   it('reverses the wallet settlement on a paid WALLET booking', async () => {
@@ -131,10 +170,11 @@ describe('BookingsService.cancelBooking refund policy', () => {
 
   it('refuses to cancel a completed booking', async () => {
     const booking = { ...baseBooking(), status: BookingStatus.COMPLETED };
-    const { service } = makeService(booking);
+    const { service, outboxService } = makeService(booking);
 
     await expect(service.cancelBooking('b1', 'reason')).rejects.toThrow(
       BadRequestException,
     );
+    expect(outboxService.append).not.toHaveBeenCalled();
   });
 });

@@ -18,6 +18,8 @@ const PAGE_LABELS: Record<string, string> = {
   cities: 'Cities',
   users: 'Users',
   staff: 'Staff (admins)',
+  logs: 'System Logs',
+  monitoring: 'Monitoring',
 };
 
 @Component({

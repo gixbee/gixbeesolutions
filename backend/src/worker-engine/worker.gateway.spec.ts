@@ -142,4 +142,14 @@ describe('WorkerGateway', () => {
       expect(ack).toEqual({ event: 'joined', data: 'Joined room job_j9' });
     });
   });
+
+  describe('handleLeaveJobRoom', () => {
+    it('leaves the namespaced job room', () => {
+      const { gateway } = makeGateway();
+      const client = { ...makeClient(), leave: jest.fn() } as any;
+      const ack = gateway.handleLeaveJobRoom({ jobId: 'j9' }, client);
+      expect(client.leave).toHaveBeenCalledWith('job_j9');
+      expect(ack).toEqual({ event: 'left', data: 'Left room job_j9' });
+    });
+  });
 });

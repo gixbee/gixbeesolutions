@@ -25,6 +25,7 @@ function makeProcessor() {
     sendToUser: jest.fn(async () => undefined),
   };
   const workersService: any = {};
+  const systemLogs: any = { record: jest.fn() };
   const bookingsQueue: any = { add: jest.fn(async () => undefined) };
 
   const processor = new BookingsProcessor(
@@ -32,6 +33,7 @@ function makeProcessor() {
     redisService,
     notificationsService,
     workersService,
+    systemLogs,
     bookingsQueue,
   );
   // silence the Logger so test output stays clean
@@ -266,7 +268,7 @@ describe('BookingsProcessor', () => {
       expect(notificationsService.sendToUser).not.toHaveBeenCalled();
     });
 
-    it('auto-cancels and notifies the customer when still REQUESTED', async () => {
+    it('auto-cancels via updateStatus when still REQUESTED (FCM via outbox)', async () => {
       const { processor, bookingsService, notificationsService } = makeProcessor();
       bookingsService.getBookingById.mockResolvedValueOnce({
         status: BookingStatus.REQUESTED,
@@ -276,14 +278,12 @@ describe('BookingsProcessor', () => {
       const res = await processor.handleRequestTimeout(job('b1'));
 
       expect(bookingsService.updateStatus).toHaveBeenCalledWith('b1', BookingStatus.CANCELLED);
-      expect(notificationsService.sendToUser).toHaveBeenCalledWith(
-        'c1',
-        expect.objectContaining({ title: 'No Workers Available' }),
-      );
+      // Customer FCM is emitted by the BOOKING_CANCELLED outbox listener.
+      expect(notificationsService.sendToUser).not.toHaveBeenCalled();
       expect(res).toEqual({ status: 'Cancelled - Timeout' });
     });
 
-    it('auto-cancels but skips notify when no customer id is present', async () => {
+    it('auto-cancels when no customer id is present', async () => {
       const { processor, bookingsService, notificationsService } = makeProcessor();
       bookingsService.getBookingById.mockResolvedValueOnce({
         status: BookingStatus.REQUESTED,

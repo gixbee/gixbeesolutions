@@ -249,13 +249,32 @@ describe('WorkersService.toggleGoLive', () => {
     expect(redisService.removeWorkerFromGeoIndex).toHaveBeenCalledWith('u1');
   });
 
-  it('enforces the 2-toggles-per-day limit', async () => {
+  it('enforces the daily go-live limit', async () => {
     const { service, workersRepository } = setup();
     workersRepository.findOne.mockResolvedValue(
-      workerProfile({ isActive: false, isFirstJobDone: false, goLiveToggleDate: today(), goLiveToggleCountToday: 2 }),
+      workerProfile({ isActive: false, isFirstJobDone: false, goLiveToggleDate: today(), goLiveToggleCountToday: 6 }),
     );
 
     await expect(service.toggleGoLive('wp1')).rejects.toThrow(BadRequestException);
+  });
+
+  it('persists GPS coords when going live so Instant Help can match', async () => {
+    const { service, workersRepository, redisService } = setup();
+    const profile = workerProfile({
+      isActive: false,
+      isFirstJobDone: false,
+      skills: ['AC Technician'],
+      lastLat: null,
+      lastLng: null,
+    });
+    workersRepository.findOne.mockResolvedValue(profile);
+
+    const res = await service.toggleGoLive('wp1', { lat: 13.0, lng: 77.6 });
+
+    expect(res.isActive).toBe(true);
+    expect(profile.lastLat).toBe(13.0);
+    expect(profile.lastLng).toBe(77.6);
+    expect(redisService.updateWorkerLocation).toHaveBeenCalledWith('u1', 13.0, 77.6);
   });
 
   it('resets the daily toggle count on a new calendar day', async () => {
@@ -412,11 +431,12 @@ describe('WorkersService.getNearby', () => {
 
   it('falls back to the DB and caches a snapshot when Redis has none', async () => {
     const { service, workersRepository, redisService } = setup();
-    redisService.getWorkerIdsBySkill.mockResolvedValue(['w1']);
+    // Skill index stores user ids — must match profile.user.id from the DB.
+    redisService.getWorkerIdsBySkill.mockResolvedValue(['u1']);
     redisService.searchNearbyWorkerIds.mockResolvedValue(null);
     redisService.getWorkerLocation.mockResolvedValue({ lat: 0, lng: 0 });
     redisService.getWorkerSnapshot.mockResolvedValue(null); // miss → DB fallback
-    workersRepository.findOne.mockResolvedValue(workerProfile());
+    workersRepository.find.mockResolvedValue([workerProfile()]);
 
     const res = await service.getNearby('req', 'plumber', 0, 0);
 
@@ -436,6 +456,53 @@ describe('WorkersService.getNearby', () => {
     const res = await service.getNearby('req', 'plumber', 0, 0);
 
     expect(res).toEqual([]);
+  });
+
+  it('skips busy workers from the final result', async () => {
+    const { service, redisService } = setup();
+    redisService.getWorkerIdsBySkill.mockResolvedValue(['free', 'busy']);
+    redisService.searchNearbyWorkerIds.mockResolvedValue(null);
+    redisService.getWorkerLocation.mockResolvedValue({ lat: 0, lng: 0 });
+    redisService.getWorkerSnapshot.mockImplementation(async (id: string) => ({
+      id,
+      rating: 4,
+      status: id === 'busy' ? 'busy' : 'available',
+      service_radius_km: 50,
+    }));
+
+    const res = await service.getNearby('req', 'plumber', 0, 0);
+
+    expect(res.map((w) => w.id)).toEqual(['free']);
+  });
+
+  it('caps candidates by distance before snapshot resolution', async () => {
+    const { service, redisService } = setup();
+    // 45 in-range workers; only nearest MAX_NEARBY_CANDIDATES (40) should be snapshotted.
+    const ids = Array.from({ length: 45 }, (_, i) => `w${i}`);
+    redisService.getWorkerIdsBySkill.mockResolvedValue(ids);
+    redisService.searchNearbyWorkerIds.mockResolvedValue(null);
+    // Place workers along lng so distance ≈ i * ~0.11 km (still within 50km).
+    redisService.getWorkerLocation.mockImplementation(async (id: string) => {
+      const i = Number(id.slice(1));
+      return { lat: 0, lng: i * 0.001 };
+    });
+    redisService.getWorkerSnapshot.mockImplementation(async (id: string) => ({
+      id,
+      rating: 3,
+      status: 'available',
+      service_radius_km: 50,
+    }));
+
+    const res = await service.getNearby('req', 'plumber', 0, 0);
+
+    expect(redisService.getWorkerSnapshot).toHaveBeenCalledTimes(40);
+    expect(res).toHaveLength(40);
+    // Nearest 40 are w0..w39; furthest (w40..w44) never snapshotted.
+    const snapshotted = redisService.getWorkerSnapshot.mock.calls.map(
+      (c: string[]) => c[0],
+    );
+    expect(snapshotted).not.toContain('w44');
+    expect(snapshotted).toContain('w0');
   });
 });
 

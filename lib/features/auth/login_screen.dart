@@ -61,7 +61,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
           await ref.read(authRepositoryProvider).signInWithPhone(phone);
       if (!mounted) return;
 
-      if (kDebugMode && devOtp != null) {
+      if (devOtp != null) {
         showGxSnack(
           context,
           'Dev OTP: $devOtp',
@@ -76,7 +76,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
           transitionDuration: const Duration(milliseconds: 300),
           pageBuilder: (_, __, ___) => OtpScreen(
             phone: phone,
-            initialOtp: kDebugMode ? devOtp : null,
+            initialOtp: devOtp,
           ),
           transitionsBuilder: (_, animation, __, child) => FadeTransition(
             opacity: CurvedAnimation(parent: animation, curve: Curves.easeOut),

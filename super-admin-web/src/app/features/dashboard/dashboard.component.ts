@@ -59,7 +59,7 @@ import { UserService } from '../../core/services/user.service';
                   <tr>
                     <td>
                       <div class="d-flex align-items-center">
-                        <img [src]="user.profileImageUrl || 'https://i.pravatar.cc/150'" class="rounded-circle me-2" width="28" height="28" alt="">
+                        <img [src]="user.profileImageUrl || 'data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2228%22 height=%2228%22%3E%3Crect fill=%22%23cbd5e1%22 width=%2228%22 height=%2228%22/%3E%3C/svg%3E'" class="rounded-circle me-2" width="28" height="28" alt="">
                         <span class="fw-semibold">{{ user.name || 'Unnamed' }}</span>
                       </div>
                     </td>

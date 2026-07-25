@@ -13,6 +13,7 @@ import {
   SubmitRatingDto,
   ReportDisputeDto,
   ResolveDisputeDto,
+  MarkPaidDto,
 } from './dto/booking-actions.dto';
 
 @Controller('bookings')
@@ -167,24 +168,9 @@ export class BookingsController {
   @Patch(':id/accept')
   async acceptBooking(@Param('id') id: string, @Req() req) {
     try {
-      const result = await this.bookingsService.acceptBooking(id, req.user.userId);
-
-      // Send push notification to the customer
-      const booking = result.booking;
-      if (booking && booking.customer) {
-        const customerId = typeof booking.customer === 'string' ? booking.customer : (booking.customer as any).id;
-        const operatorName = booking.operator?.name || 'Your worker';
-        
-        if (customerId) {
-          await this.notificationsService.sendToUser(customerId, {
-            title: 'Request Accepted!',
-            body: `${operatorName} is on the way.`,
-            data: { type: 'booking_accepted', bookingId: id },
-          }).catch(err => console.error('[AcceptBooking] Notification failed:', err));
-        }
-      }
-
-      return result;
+      // Customer FCM is sent inside BookingsService.acceptBooking (the
+      // stripped return payload previously skipped notification here).
+      return await this.bookingsService.acceptBooking(id, req.user.userId);
     } catch (error) {
       console.error('[AcceptBooking] Error:', error);
       throw error;
@@ -217,29 +203,7 @@ export class BookingsController {
   // returned to the customer (who displays it for the worker to enter).
   @Get(':id/status')
   async getBookingStatus(@Param('id') id: string, @Req() req) {
-    const uid = req.user.userId;
-
-    // One indexed lookup resolves both identity and the fresh values; the
-    // Redis cache still absorbs the heavy relation reads elsewhere.
-    const booking = await this.bookingsService.getBookingById(id);
-    if (!booking) throw new NotFoundException('Booking not found');
-    const isCustomer = booking.customer?.id === uid;
-    const isOperator = booking.operator?.id === uid;
-    if (!isCustomer && !isOperator) throw new NotFoundException('Booking not found');
-
-    return {
-      status: booking.status,
-      operatorName: booking.operator?.name,
-      operatorId: booking.operator?.id,
-      // OTP visible to the customer only.
-      arrivalOtp:
-        isCustomer && booking.status === BookingStatus.ACCEPTED
-          ? booking.arrivalOtp
-          : null,
-      pauseRequested: !!booking.pauseRequestedAt,
-      paused: !!booking.pausedAt,
-      pausedMinutes: booking.pausedMinutes ?? 0,
-    };
+    return this.bookingsService.getStatusForParticipant(id, req.user.userId);
   }
 
   // DEFECT-012 FIX: Send arrival OTP to customer via FCM push
@@ -279,8 +243,8 @@ export class BookingsController {
   }
 
   @Patch(':id/mark-paid')
-  async markPaid(@Param('id') id: string, @Req() req) {
-    return this.bookingsService.markPaid(id, req.user.userId);
+  async markPaid(@Param('id') id: string, @Req() req, @Body() body: MarkPaidDto) {
+    return this.bookingsService.markPaid(id, req.user.userId, body ?? {});
   }
 
   @Post(':id/rating')

@@ -5,10 +5,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../repositories/auth_repository.dart';
 import '../../repositories/worker_repository.dart';
+import '../../services/location_service.dart';
 import '../../services/socket_service.dart';
 import '../../theme.dart';
 import '../../shared/widgets/gx_snackbar.dart';
 import '../../shared/widgets/gx_button.dart';
+import '../../shared/widgets/gx_pressable.dart';
 import '../jobs/register_pro_screen.dart';
 import '../booking/incoming_job_screen.dart';
 import 'worker_languages_card.dart';
@@ -50,16 +52,26 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
   /// Incoming job requests received while live (newest first).
   final List<Map<String, dynamic>> _jobFeed = [];
   StreamSubscription<Map<String, dynamic>>? _socketSub;
+  Timer? _locationHeartbeat;
+  bool _presenceStarted = false;
 
   @override
   void initState() {
     super.initState();
     _socketSub = ref.read(socketServiceProvider).notifications.listen(_onSocketEvent);
+    // If already live when opening this screen, start GPS presence.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      if (ref.read(workerLiveStateProvider)) {
+        unawaited(_ensureLivePresence());
+      }
+    });
   }
 
   @override
   void dispose() {
     _ticker?.cancel();
+    _locationHeartbeat?.cancel();
     _socketSub?.cancel();
     super.dispose();
   }
@@ -90,21 +102,84 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
     _elapsed = Duration.zero;
   }
 
+  Future<void> _ensureLivePresence() async {
+    if (_presenceStarted) return;
+    final user = await ref.read(currentUserProvider.future);
+    if (user == null || !mounted) return;
+    _presenceStarted = true;
+
+    final socket = ref.read(socketServiceProvider);
+    // Socket is already connected in MainWrapper with the JWT — do not
+    // reconnect with the user id (that would break auth).
+    socket.joinUserRoom(user.id);
+    socket.startLivePresenceStream(user.id);
+
+    // HTTP heartbeat so Instant Help still matches if the socket is down.
+    _locationHeartbeat?.cancel();
+    Future<void> pushLoc() async {
+      try {
+        final pos =
+            await ref.read(locationServiceProvider).getCurrentPosition();
+        if (pos == null) return;
+        await ref.read(workerRepositoryProvider).updateMyLocation(
+              lat: pos.latitude,
+              lng: pos.longitude,
+            );
+      } catch (_) {}
+    }
+
+    unawaited(pushLoc());
+    _locationHeartbeat = Timer.periodic(
+      const Duration(seconds: 30),
+      (_) => unawaited(pushLoc()),
+    );
+  }
+
+  void _stopLivePresence() {
+    _presenceStarted = false;
+    _locationHeartbeat?.cancel();
+    _locationHeartbeat = null;
+    ref.read(socketServiceProvider).stopLocationStream();
+  }
+
   Future<void> _toggle() async {
     if (_toggling) return;
     setState(() => _toggling = true);
     try {
-      final result = await ref.read(workerRepositoryProvider).goLiveToggle();
+      // Capture GPS before going live so Instant Help can match this worker.
+      double? lat;
+      double? lng;
+      final currentlyLive = ref.read(workerLiveStateProvider);
+      if (!currentlyLive) {
+        final pos =
+            await ref.read(locationServiceProvider).getCurrentPosition();
+        lat = pos?.latitude;
+        lng = pos?.longitude;
+      }
+
+      final result = await ref.read(workerRepositoryProvider).goLiveToggle(
+            lat: lat,
+            lng: lng,
+          );
       ref.read(workerLiveStateProvider.notifier).state = result.isActive;
       ref.invalidate(goLiveDashboardProvider);
+
       if (result.isActive) {
         _startTicker();
+        await _ensureLivePresence();
       } else {
         _stopTicker();
         _jobFeed.clear();
+        _stopLivePresence();
       }
       if (mounted) {
         _toast(result.message, error: false);
+        if (result.isActive && lat == null && !currentlyLive) {
+          _toast(
+            'Location unavailable — enable GPS so customers can find you.',
+            error: true,
+          );
+        }
       }
     } on DioException catch (e) {
       final msg = e.response?.data is Map
@@ -144,8 +219,31 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
     return '${two(d.inHours)}:${two(d.inMinutes % 60)}:${two(d.inSeconds % 60)}';
   }
 
+  /// Sync the local live flag with the server's `isActive` from the
+  /// dashboard. Fixes the "Go Live Now" showing after app restart while the
+  /// backend still has this worker live.
+  void _syncLiveFromServer(Map<String, dynamic>? dash) {
+    if (dash == null || !dash.containsKey('isActive')) return;
+    final serverLive = dash['isActive'] == true;
+    final localLive = ref.read(workerLiveStateProvider);
+    if (serverLive == localLive) return;
+    ref.read(workerLiveStateProvider.notifier).state = serverLive;
+    if (serverLive) {
+      if (_liveSince == null) _startTicker();
+      unawaited(_ensureLivePresence());
+    } else {
+      _stopTicker();
+      _jobFeed.clear();
+      _stopLivePresence();
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    ref.listen(goLiveDashboardProvider, (prev, next) {
+      final dash = next.asData?.value;
+      if (dash != null) _syncLiveFromServer(dash);
+    });
     final scheme = Theme.of(context).colorScheme;
     final isLive = ref.watch(workerLiveStateProvider);
     final userAsync = ref.watch(currentUserProvider);
@@ -338,11 +436,61 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
           ),
 
           // SELECT SERVICES
-          Text('SERVICES TO OFFER TODAY', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: context.gx.ink.withValues(alpha: 0.55), letterSpacing: 1.2)),
+          Row(
+            children: [
+              Expanded(
+                child: Text('SERVICES TO OFFER TODAY',
+                    style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                        color: context.gx.ink.withValues(alpha: 0.55),
+                        letterSpacing: 1.2)),
+              ),
+              GxPressable(
+                onTap: () async {
+                  await Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                        builder: (_) => const RegisterProScreen()),
+                  );
+                  if (!mounted) return;
+                  ref.invalidate(goLiveDashboardProvider);
+                  setState(() => _activeOverride = null);
+                },
+                child: Text(
+                  'Add / edit',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w800,
+                    color: GixbeeTheme.accentPurple,
+                  ),
+                ),
+              ),
+            ],
+          ),
           const SizedBox(height: 10),
           
           if (dash != null) ...[
             _serviceActivationCard(scheme, dash),
+            if ((dash['skills'] as List? ?? const []).isEmpty)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: GxButton(
+                  label: 'Add skills to go live',
+                  icon: Icons.add_rounded,
+                  filled: false,
+                  accent: GixbeeTheme.accentPurple,
+                  onTap: () async {
+                    await Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) => const RegisterProScreen()),
+                    );
+                    if (!mounted) return;
+                    ref.invalidate(goLiveDashboardProvider);
+                  },
+                ),
+              ),
           ] else if (isLoading) ...[
             const Center(child: Padding(padding: EdgeInsets.all(20), child: CircularProgressIndicator())),
           ],

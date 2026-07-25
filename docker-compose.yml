@@ -18,6 +18,11 @@ services:
     image: postgres:16-alpine
     container_name: gixbee_postgres
     restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: gixbee123
@@ -43,6 +48,11 @@ services:
     image: redis:7-alpine
     container_name: gixbee_redis
     restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
     command: redis-server --appendonly yes
     networks:
       - gixbee_net
@@ -59,6 +69,11 @@ services:
       dockerfile: Dockerfile
     container_name: gixbee_backend
     restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
     env_file:
       - ./backend/.env
     environment:
@@ -89,6 +104,11 @@ services:
       dockerfile: Dockerfile
     container_name: gixbee_admin
     restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
     networks:
       - gixbee_net
     depends_on:

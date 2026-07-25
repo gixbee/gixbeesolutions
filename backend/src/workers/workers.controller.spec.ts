@@ -85,8 +85,23 @@ describe('WorkersController.getById', () => {
 describe('WorkersController.toggleGoLive', () => {
   it('uses the JWT userId (not a URL param) — DEFECT-004 fix', async () => {
     const { controller, workersService } = makeController();
-    await controller.toggleGoLive({ user: { userId: 'u-7' } });
-    expect(workersService.toggleGoLive).toHaveBeenCalledWith('u-7');
+    await controller.toggleGoLive({ user: { userId: 'u-7' } }, {});
+    expect(workersService.toggleGoLive).toHaveBeenCalledWith('u-7', {
+      lat: undefined,
+      lng: undefined,
+    });
+  });
+
+  it('forwards optional GPS coords for Instant Help matching', async () => {
+    const { controller, workersService } = makeController();
+    await controller.toggleGoLive(
+      { user: { userId: 'u-7' } },
+      { lat: 12.9, lng: 77.5 },
+    );
+    expect(workersService.toggleGoLive).toHaveBeenCalledWith('u-7', {
+      lat: 12.9,
+      lng: 77.5,
+    });
   });
 });
 

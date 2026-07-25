@@ -139,8 +139,33 @@ export class Booking {
   @Column({ type: 'boolean', default: false })
   isPaid: boolean;
 
+  // Manual (cash / UPI / other) post-completion confirmation — both sides
+  // confirm before `isPaid` flips. Gixbee never handles the money.
+  @Column({ type: 'boolean', default: false })
+  workerPaidConfirmed: boolean;
+
+  @Column({ type: 'boolean', default: false })
+  customerPaidConfirmed: boolean;
+
+  // Customer's chosen off-app method: CASH | UPI | OTHER
+  @Column({ nullable: true })
+  paymentCollectionMethod: string;
+
+  // Worker honesty check: EXACT | TIP | UNDERPAID
+  @Column({ nullable: true })
+  workerHonestyCheck: string;
+
+  // Customer safety check: OK | ASKED_MORE | TIP
+  @Column({ nullable: true })
+  customerSafetyCheck: string;
+
   @Column({ type: 'int', nullable: true })
   billingHours: number;
+
+  // Worked minutes after pause subtraction — used for proportional ₹/hr billing
+  // and the payment-screen duration label (e.g. "1 hr 12 min").
+  @Column({ type: 'int', nullable: true })
+  workedMinutes: number;
 
   @Column({ type: 'int', nullable: true })
   rating: number;

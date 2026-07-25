@@ -53,7 +53,10 @@ class AppConfig {
 
   // ─── Booking ─────────────────────────────────────────────
   static const int jobAcceptTimeoutSeconds = 90;
-  static const int bookingPollIntervalSeconds = 5;
+  /// Fallback only — FCM + Socket.IO are the primary delivery path.
+  static const int bookingPollIntervalSeconds = 30;
+  /// Worker pending-queue fallback when FCM/socket miss a job.
+  static const int pendingJobsPollIntervalSeconds = 30;
   static const int maxRateUpdatesPerDay = 2;
   static const int movementCheckMinutes = 10;
   static const int reminderMinutes = 7;

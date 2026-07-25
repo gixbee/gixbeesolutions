@@ -47,6 +47,10 @@ import { SupportTicket } from './support/support-ticket.entity';
 import { AdminStaff } from './admin-staff/admin-staff.entity';
 import { UploadController } from './uploads/upload.controller';
 import { AdminStaffModule } from './admin-staff/admin-staff.module';
+import { OutboxEvent } from './outbox/outbox-event.entity';
+import { SystemLogsModule } from './system-logs/system-logs.module';
+import { SystemLog } from './system-logs/system-log.entity';
+import { SystemMetricsModule } from './system-metrics/system-metrics.module';
 
 @Module({
   imports: [
@@ -71,6 +75,7 @@ import { AdminStaffModule } from './admin-staff/admin-staff.module';
             RentalItem, RentalReservation, JobPost, JobApplication,
             Business, TalentProfile, ProfessionalSkill, MasterEntry,
             Message, Favourite, Address, City, SupportTicket, AdminStaff,
+            OutboxEvent, SystemLog,
           ],
           synchronize: !isProduction,   // auto-sync only in development
           migrations: [__dirname + '/migrations/**/*{.ts,.js}'],
@@ -145,6 +150,8 @@ import { AdminStaffModule } from './admin-staff/admin-staff.module';
     CitiesModule,
     SupportModule,
     AdminStaffModule,
+    SystemLogsModule,
+    SystemMetricsModule,
 
     // Serve uploaded files as static assets
     ServeStaticModule.forRoot({

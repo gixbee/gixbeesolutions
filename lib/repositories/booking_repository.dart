@@ -84,8 +84,10 @@ class BookingRepository {
 
   /// v126 broadcast dispatch: no worker chosen — the backend notifies every
   /// nearby live pro for [skill]; the first to accept is assigned. Returns
-  /// the raw payload: { booking: {...}, notified: n }. When notified == 0 the
-  /// caller should go straight to the no-workers screen.
+  /// the raw payload: { booking: {...}, notified: n }. Callers should always
+  /// open WaitingForWorkerScreen when a booking id is present (including
+  /// notified == 0) so the customer sees the searching UX until accept or
+  /// timeout.
   Future<Map<String, dynamic>> sendBroadcastRequest({
     required String skill,
     required String serviceLocation,
@@ -356,9 +358,22 @@ class BookingRepository {
 
   // ── Generic status update (admin / override) ──────────────────────────────
 
-  Future<void> markPaid(String bookingId) async {
+  Future<Map<String, dynamic>> markPaid(
+    String bookingId, {
+    String? collectionMethod,
+    String? honestyCheck,
+    String? safetyCheck,
+  }) async {
     try {
-      await _dio.patch('/bookings/$bookingId/mark-paid');
+      final response = await _dio.patch(
+        '/bookings/$bookingId/mark-paid',
+        data: {
+          if (collectionMethod != null) 'collectionMethod': collectionMethod,
+          if (honestyCheck != null) 'honestyCheck': honestyCheck,
+          if (safetyCheck != null) 'safetyCheck': safetyCheck,
+        },
+      );
+      return Map<String, dynamic>.from(response.data ?? {'message': 'ok'});
     } catch (e) {
       debugPrint('MarkPaid failed: $e');
       rethrow;

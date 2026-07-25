@@ -10,13 +10,16 @@ import { BookingStatus } from './booking.entity';
  *                                (worker's cash/UPI collect flow takes over)
  * - WALLET + zero amount       → nothing to settle, isPaid = true
  * - CASH/UPI                   → no wallet movement, isPaid stays false
- * - billingHours = ceil(elapsed hours), minimum 1
+ * - billingHours = ceil(worked minutes / 60), minimum 1
+ * - workedMinutes = round(elapsed − pause), minimum 1
+ * - INSTANT totalAmount = round(rate × workedMinutes / 60)
  * - first completed job        → ₹12 bonus, exactly once
  */
 function makeService(booking: any, workerProfile: any = undefined) {
   const bookingsRepository: any = {
     findOne: jest.fn(async () => booking),
     save: jest.fn(async (b: any) => b),
+    update: jest.fn(async () => ({ affected: 1 })),
   };
   const workerProfileRepo: any = {
     findOne: jest.fn(async () => workerProfile),
@@ -49,6 +52,11 @@ function makeService(booking: any, workerProfile: any = undefined) {
     redisService,
     workersService,
     dataSource,
+    { emitUserEvent: jest.fn() } as any,
+    {
+      append: jest.fn(async () => ({ id: 'ob' })),
+      enqueueDispatch: jest.fn(async () => undefined),
+    } as any,
   );
   return {
     service,
@@ -117,8 +125,8 @@ describe('BookingsService.verifyCompletionOtp', () => {
 
   // ── Wallet settlement ─────────────────────────────────────────────────────
 
-  it('settles a WALLET booking: customer→worker transfer, isPaid = true', async () => {
-    const booking = baseBooking();
+  it('settles a non-INSTANT WALLET booking: customer→worker transfer, isPaid = true', async () => {
+    const booking = { ...baseBooking(), type: 'PACKAGE' };
     const {
       service,
       bookingsRepository,
@@ -151,8 +159,19 @@ describe('BookingsService.verifyCompletionOtp', () => {
     );
   });
 
+  it('skips wallet settlement for INSTANT jobs (manual cash/UPI confirm)', async () => {
+    const booking = { ...baseBooking(), type: 'INSTANT', paymentMethod: 'WALLET' };
+    const { service, walletsService } = makeService(booking);
+
+    const res = await service.verifyCompletionOtp('b1', '1234');
+
+    expect(walletsService.transferForBooking).not.toHaveBeenCalled();
+    expect(res.isPaid).toBe(false);
+    expect(res.needsManualPayment).toBe(true);
+  });
+
   it('still completes the job when the wallet transfer fails (collect flow takes over)', async () => {
-    const booking = baseBooking();
+    const booking = { ...baseBooking(), type: 'PACKAGE' };
     const { service, bookingsRepository, walletsService } =
       makeService(booking);
     walletsService.transferForBooking.mockRejectedValueOnce(
@@ -168,8 +187,8 @@ describe('BookingsService.verifyCompletionOtp', () => {
     expect(bookingsRepository.save).toHaveBeenCalledWith(booking);
   });
 
-  it('marks a zero-amount WALLET booking paid without moving money', async () => {
-    const booking = { ...baseBooking(), amount: 0 };
+  it('marks a zero-amount non-INSTANT WALLET booking paid without moving money', async () => {
+    const booking = { ...baseBooking(), type: 'PACKAGE', amount: 0 };
     const { service, walletsService } = makeService(booking);
 
     const res = await service.verifyCompletionOtp('b1', '1234');
@@ -193,26 +212,49 @@ describe('BookingsService.verifyCompletionOtp', () => {
 
   // ── Billing hours ─────────────────────────────────────────────────────────
 
-  it('bills ceil(elapsed hours): 90 minutes → 2 hours', async () => {
+  it('bills proportional minutes: 90 minutes → workedMinutes 90, billingHours 2', async () => {
     const booking = {
       ...baseBooking(),
+      type: 'INSTANT',
+      amount: 130,
       startedAt: new Date(Date.now() - 1.5 * HOUR),
     };
     const { service } = makeService(booking);
 
     const res = await service.verifyCompletionOtp('b1', '1234');
 
+    expect(res.workedMinutes).toBe(90);
     expect(res.billingHours).toBe(2);
+    expect(res.totalAmount).toBe(195); // round(130 * 90/60)
+    expect((booking as any).workedMinutes).toBe(90);
     expect((booking as any).billingHours).toBe(2);
   });
 
-  it('bills a minimum of 1 hour even when startedAt is missing', async () => {
+  it('bills a minimum of 1 worked minute / 1 billing hour when startedAt is missing', async () => {
     const booking = { ...baseBooking(), startedAt: null as any };
     const { service } = makeService(booking);
 
     const res = await service.verifyCompletionOtp('b1', '1234');
 
+    expect(res.workedMinutes).toBe(1);
     expect(res.billingHours).toBe(1);
+  });
+
+  it('excludes pause time from worked minutes', async () => {
+    const booking = {
+      ...baseBooking(),
+      type: 'INSTANT',
+      amount: 130,
+      startedAt: new Date(Date.now() - 94 * 60 * 1000), // 94 min wall
+      pausedMinutes: 22,
+    };
+    const { service } = makeService(booking);
+
+    const res = await service.verifyCompletionOtp('b1', '1234');
+
+    expect(res.workedMinutes).toBe(72);
+    expect(res.pausedMinutes).toBe(22);
+    expect(res.totalAmount).toBe(156); // round(130 * 72/60)
   });
 
   // ── First-job bonus ───────────────────────────────────────────────────────

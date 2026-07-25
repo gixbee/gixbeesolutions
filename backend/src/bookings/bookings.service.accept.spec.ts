@@ -1,6 +1,7 @@
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { BookingsService } from './bookings.service';
 import { BookingStatus } from './booking.entity';
+import { OutboxEventType } from '../outbox/outbox.types';
 
 /**
  * Unit tests for acceptBooking — the transaction + race-condition path:
@@ -8,13 +9,12 @@ import { BookingStatus } from './booking.entity';
  *     missing booking            → 404, no save, no side-effects
  *     booking no longer REQUESTED → 400 (already accepted/cancelled)
  *     worker not assigned        → 400
- * - happy path: booking → ACCEPTED, returns the plain booking payload,
- *     worker marked busy, pending list cleared, status cached
+ * - happy path: booking → ACCEPTED, outbox BOOKING_ACCEPTED appended in-tx,
+ *     wallet fee deducted after commit
  * - RACE CONDITION: when the worker has OTHER REQUESTED bookings, exactly
- *     those (never the accepted one) are bulk-CANCELLED and their customers
- *     are notified; with no competitors, no bulk update runs
- * - resilience: post-transaction side effects (wallet fee, worker status)
- *     are non-fatal — the accept still succeeds if they throw
+ *     those (never the accepted one) are bulk-CANCELLED; cancelled ids ride
+ *     in the outbox payload (FCM/Redis handled by the listener)
+ * - resilience: post-transaction wallet fee is non-fatal
  *
  * acceptBooking does its atomic work inside `dataSource.transaction(cb)`,
  * so the mock runs the callback with a fake EntityManager whose
@@ -61,12 +61,24 @@ function makeService(opts: {
   const redisService: any = {
     removePendingBooking: jest.fn(async () => undefined),
     cacheBookingStatus: jest.fn(async () => undefined),
+    get: jest.fn(async () => null),
+    set: jest.fn(async () => undefined),
+    del: jest.fn(async () => undefined),
   };
   const workersService: any = {
     setWorkerStatus: jest.fn(async () => undefined),
   };
   const dataSource: any = {
     transaction: jest.fn(async (cb: any) => cb(manager)),
+  };
+  const outboxService: any = {
+    append: jest.fn(async (_m: any, type: string, aggregateId: string, payload: any) => ({
+      id: 'outbox-1',
+      type,
+      aggregateId,
+      payload,
+    })),
+    enqueueDispatch: jest.fn(async () => undefined),
   };
 
   const service = new BookingsService(
@@ -78,6 +90,8 @@ function makeService(opts: {
     redisService,
     workersService,
     dataSource,
+    { emitUserEvent: jest.fn() } as any,
+    outboxService,
   );
   return {
     service,
@@ -87,6 +101,7 @@ function makeService(opts: {
     notificationsService,
     redisService,
     workersService,
+    outboxService,
   };
 }
 
@@ -113,18 +128,20 @@ describe('BookingsService.acceptBooking', () => {
   // ── Guards (inside the locked transaction) ──────────────────────────────────
 
   it('404s when the locked booking row does not exist', async () => {
-    const { service, walletsService } = makeService({ lockedBooking: null });
+    const { service, walletsService, outboxService } = makeService({
+      lockedBooking: null,
+    });
 
     await expect(service.acceptBooking('nope', 'work-1')).rejects.toThrow(
       NotFoundException,
     );
-    // side effects never run when the transaction throws
     expect(walletsService.deductBookingFee).not.toHaveBeenCalled();
+    expect(outboxService.append).not.toHaveBeenCalled();
   });
 
   it('rejects a booking that is no longer REQUESTED', async () => {
     const locked = { ...baseBooking(), status: BookingStatus.ACCEPTED };
-    const { service, manager, walletsService } = makeService({
+    const { service, manager, walletsService, outboxService } = makeService({
       lockedBooking: locked,
     });
 
@@ -133,6 +150,7 @@ describe('BookingsService.acceptBooking', () => {
     );
     expect(manager.save).not.toHaveBeenCalled();
     expect(walletsService.deductBookingFee).not.toHaveBeenCalled();
+    expect(outboxService.append).not.toHaveBeenCalled();
   });
 
   it('rejects when the worker is not the one assigned to the booking', async () => {
@@ -150,9 +168,9 @@ describe('BookingsService.acceptBooking', () => {
 
   // ── Happy path ──────────────────────────────────────────────────────────────
 
-  it('accepts the booking: status → ACCEPTED with the plain payload returned', async () => {
+  it('accepts the booking: status → ACCEPTED with outbox append in-tx', async () => {
     const booking = baseBooking();
-    const { service, manager, walletsService, redisService, workersService } =
+    const { service, manager, walletsService, outboxService, redisService } =
       makeService({
         lockedBooking: { id: 'b1', status: BookingStatus.REQUESTED },
         fullBooking: booking,
@@ -175,68 +193,62 @@ describe('BookingsService.acceptBooking', () => {
         completionOtp: '2222',
       }),
     );
-    // post-transaction side effects
+    expect(outboxService.append).toHaveBeenCalledWith(
+      manager,
+      OutboxEventType.BOOKING_ACCEPTED,
+      'b1',
+      expect.objectContaining({
+        bookingId: 'b1',
+        workerId: 'work-1',
+        customerId: 'cust-1',
+        operatorName: 'Anu',
+        cancelledBookingIds: [],
+      }),
+    );
+    expect(outboxService.enqueueDispatch).toHaveBeenCalledWith('outbox-1');
     expect(walletsService.deductBookingFee).toHaveBeenCalledWith('work-1');
-    expect(workersService.setWorkerStatus).toHaveBeenCalledWith(
-      'work-1',
-      'busy',
-    );
-    expect(redisService.removePendingBooking).toHaveBeenCalledWith(
-      'work-1',
-      'b1',
-    );
-    expect(redisService.cacheBookingStatus).toHaveBeenCalledWith(
-      'b1',
-      expect.objectContaining({ status: 'ACCEPTED', operatorName: 'Anu' }),
-    );
+    // Redis / FCM moved to outbox listener — not called from the service.
+    expect(redisService.removePendingBooking).not.toHaveBeenCalled();
+    expect(redisService.cacheBookingStatus).not.toHaveBeenCalled();
   });
 
   // ── Race condition: competing requests for the same worker ──────────────────
 
-  it('bulk-cancels the worker’s OTHER pending bookings and notifies them', async () => {
+  it('bulk-cancels the worker’s OTHER pending bookings and records them in outbox', async () => {
     const booking = baseBooking();
     const competitorA = { id: 'b2', customer: { id: 'cust-2' } };
     const competitorB = { id: 'b3', customer: { id: 'cust-3' } };
-    const {
-      service,
-      manager,
-      notificationsService,
-      redisService,
-    } = makeService({
-      lockedBooking: { id: 'b1', status: BookingStatus.REQUESTED },
-      fullBooking: booking,
-      // find() returns ALL requested incl. the one being accepted
-      otherPending: [booking, competitorA, competitorB],
-    });
+    const { service, manager, outboxService, notificationsService } =
+      makeService({
+        lockedBooking: { id: 'b1', status: BookingStatus.REQUESTED },
+        fullBooking: booking,
+        otherPending: [booking, competitorA, competitorB],
+      });
 
     await service.acceptBooking('b1', 'work-1');
 
-    // exactly one bulk update, with CANCELLED status, never touching b1
     expect(manager.update).toHaveBeenCalledTimes(1);
     expect(manager.update).toHaveBeenCalledWith(
       expect.anything(),
       expect.anything(),
       { status: BookingStatus.CANCELLED },
     );
-    // both losing customers notified via multicast; the winner is not
-    expect(notificationsService.sendToUsers).toHaveBeenCalledTimes(1);
-    expect(notificationsService.sendToUsers).toHaveBeenCalledWith(
-      expect.arrayContaining(['cust-2', 'cust-3']),
+    expect(outboxService.append).toHaveBeenCalledWith(
+      manager,
+      OutboxEventType.BOOKING_ACCEPTED,
+      'b1',
       expect.objectContaining({
-        title: 'Booking Cancelled',
-        data: { type: 'booking_cancelled' },
+        cancelledBookingIds: expect.arrayContaining(['b2', 'b3']),
+        cancelledCustomerIds: expect.arrayContaining(['cust-2', 'cust-3']),
       }),
     );
-    expect(notificationsService.sendToUsers.mock.calls[0][0]).toHaveLength(2);
-    expect(redisService.cacheBookingStatus).toHaveBeenCalledWith(
-      'b2',
-      expect.objectContaining({ status: 'CANCELLED' }),
-    );
+    // FCM is listener-owned now
+    expect(notificationsService.sendToUsers).not.toHaveBeenCalled();
   });
 
   it('runs no bulk-cancel when the worker has no competing requests', async () => {
     const booking = baseBooking();
-    const { service, manager, notificationsService } = makeService({
+    const { service, manager, outboxService } = makeService({
       lockedBooking: { id: 'b1', status: BookingStatus.REQUESTED },
       fullBooking: booking,
       otherPending: [booking], // only the accepted booking itself
@@ -245,40 +257,23 @@ describe('BookingsService.acceptBooking', () => {
     await service.acceptBooking('b1', 'work-1');
 
     expect(manager.update).not.toHaveBeenCalled();
-    expect(notificationsService.sendToUsers).not.toHaveBeenCalled();
-    expect(notificationsService.notifyBookingCancelled).not.toHaveBeenCalled();
+    expect(outboxService.append).toHaveBeenCalledWith(
+      manager,
+      OutboxEventType.BOOKING_ACCEPTED,
+      'b1',
+      expect.objectContaining({ cancelledBookingIds: [] }),
+    );
   });
 
-  // ── Resilience: non-fatal post-transaction side effects ─────────────────────
-
-  it('still succeeds when the wallet fee deduction throws (fee reconciled later)', async () => {
+  it('still succeeds when wallet fee deduction throws', async () => {
     const booking = baseBooking();
     const { service, walletsService } = makeService({
       lockedBooking: { id: 'b1', status: BookingStatus.REQUESTED },
       fullBooking: booking,
     });
-    walletsService.deductBookingFee.mockRejectedValueOnce(
-      new BadRequestException('Insufficient wallet balance'),
-    );
+    walletsService.deductBookingFee.mockRejectedValue(new Error('wallet down'));
 
     const res = await service.acceptBooking('b1', 'work-1');
-
-    expect(res.status).toBe('ACCEPTED');
-    expect(booking.status).toBe(BookingStatus.ACCEPTED);
-  });
-
-  it('still succeeds when marking the worker busy throws', async () => {
-    const booking = baseBooking();
-    const { service, workersService } = makeService({
-      lockedBooking: { id: 'b1', status: BookingStatus.REQUESTED },
-      fullBooking: booking,
-    });
-    workersService.setWorkerStatus.mockRejectedValueOnce(
-      new Error('redis down'),
-    );
-
-    const res = await service.acceptBooking('b1', 'work-1');
-
     expect(res.status).toBe('ACCEPTED');
   });
 });

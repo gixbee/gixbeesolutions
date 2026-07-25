@@ -246,3 +246,69 @@ h1, h2, h3, h4, h5, h6 { font-weight: 700; color: var(--gx-text); }
   transition: transform 0.12s;
 }
 .gx-doc-thumb:hover { transform: scale(1.04); }
+
+/* ── Mobile drawer controls (hidden on desktop via Bootstrap d-lg-none) ── */
+.gx-menu-toggle {
+  background: transparent;
+  border: 1px solid var(--gx-card-border);
+  border-radius: 8px;
+  width: 36px;
+  height: 36px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--gx-text);
+  font-size: 18px;
+  flex-shrink: 0;
+}
+.gx-menu-toggle:hover { background: #f1f5f9; }
+.gx-sidebar-brand { display: flex; align-items: center; justify-content: space-between; }
+.gx-sidebar-close {
+  background: transparent;
+  border: none;
+  color: var(--gx-sidebar-text);
+  font-size: 16px;
+  line-height: 1;
+  padding: 4px;
+}
+.gx-sidebar-close:hover { color: #fff; }
+
+/* ── Off-canvas backdrop (mobile only) ── */
+.gx-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.5);
+  z-index: 1049;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.2s ease;
+}
+.gx-backdrop.show { opacity: 1; visibility: visible; }
+
+/* ═══ Responsive: below the Bootstrap lg breakpoint (992px) ═══
+   The sidebar becomes an off-canvas drawer toggled by the hamburger. */
+@media (max-width: 991.98px) {
+  .gx-sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    height: 100vh;
+    z-index: 1050;
+    transform: translateX(-100%);
+    transition: transform 0.25s ease;
+    box-shadow: 0 0 40px rgba(15, 23, 42, 0.3);
+  }
+  .gx-sidebar.open { transform: translateX(0); }
+
+  .gx-topbar { padding: 10px 14px; }
+  .gx-topbar .title { font-size: 14px; }
+  .gx-page { padding: 16px 14px; }
+}
+
+/* Compact the admin chip on small phones so the topbar never overflows. */
+@media (max-width: 575.98px) {
+  .gx-admin-name, .gx-admin-role { display: none; }
+  .gx-admin-chip { padding: 4px; border-radius: 999px; }
+  .gx-page { padding: 14px 10px; }
+  .gx-page-title { font-size: 18px; }
+}

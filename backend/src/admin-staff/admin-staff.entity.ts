@@ -31,6 +31,8 @@ export const ADMIN_PORTAL_PAGES = [
   'cities',
   'users',
   'staff',
+  'logs',
+  'monitoring',
 ] as const;
 
 export type AdminPortalPage = (typeof ADMIN_PORTAL_PAGES)[number];

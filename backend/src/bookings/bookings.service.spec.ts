@@ -66,6 +66,9 @@ function makeService() {
     removePendingBooking: jest.fn(async () => undefined),
     getPendingBookingIds: jest.fn(async () => []),
     cacheBookingStatus: jest.fn(async () => undefined),
+    get: jest.fn(async () => null),
+    set: jest.fn(async () => undefined),
+    del: jest.fn(async () => undefined),
   };
   const workersService: any = {
     setWorkerStatus: jest.fn(async () => undefined),
@@ -75,9 +78,26 @@ function makeService() {
       const manager = {
         getRepository: (entity: any) =>
           entity === WorkerProfile ? workerProfileRepo : bookingsRepository,
+        save: jest.fn(async (b: any) => {
+          if (typeof bookingsRepository.save === 'function') {
+            return bookingsRepository.save(b);
+          }
+          return b;
+        }),
+        create: jest.fn((_e: any, data: any) => data),
       };
       return cb(manager);
     }),
+  };
+
+  const outboxService: any = {
+    append: jest.fn(async (_m: any, type: string, aggregateId: string, payload: any) => ({
+      id: 'ob',
+      type,
+      aggregateId,
+      payload,
+    })),
+    enqueueDispatch: jest.fn(async () => undefined),
   };
 
   const service = new BookingsService(
@@ -89,6 +109,8 @@ function makeService() {
     redisService,
     workersService,
     dataSource,
+    { emitUserEvent: jest.fn() } as any,
+    outboxService,
   );
   return {
     service,
@@ -102,6 +124,7 @@ function makeService() {
     dataSource,
     queryBuilder,
     workerProfileQb,
+    outboxService,
   };
 }
 
@@ -172,6 +195,9 @@ describe('BookingsService.createBooking', () => {
     expect(redisService.cacheBookingStatus).toHaveBeenCalledWith('new-1', {
       status: 'REQUESTED',
       operatorName: null,
+      operatorId: 'work-1',
+      customerId: 'cust-1',
+      arrivalOtp: expect.any(String),
     });
   });
 
@@ -206,6 +232,9 @@ describe('BookingsService.createBooking', () => {
     expect(redisService.cacheBookingStatus).toHaveBeenCalledWith('new-3', {
       status: 'REQUESTED',
       operatorName: null,
+      operatorId: null,
+      customerId: 'cust-1',
+      arrivalOtp: expect.any(String),
     });
   });
 
@@ -255,8 +284,16 @@ describe('BookingsService.createBooking', () => {
 });
 
 describe('BookingsService.rejectBooking', () => {
-  it('404s when no matching booking for that worker', async () => {
-    const { service } = makeService();
+  it('404s when worker was never notified and is not the assigned operator', async () => {
+    const { service, bookingsRepository, redisService } = makeService();
+    bookingsRepository.findOne.mockResolvedValueOnce({
+      id: 'b1',
+      status: BookingStatus.REQUESTED,
+      operator: null,
+      customer: { id: 'cust-1' },
+    });
+    redisService.getPendingBookingIds.mockResolvedValueOnce([]);
+    redisService.get.mockResolvedValueOnce(null);
     await expect(service.rejectBooking('b1', 'work-1')).rejects.toThrow(
       NotFoundException,
     );
@@ -267,6 +304,7 @@ describe('BookingsService.rejectBooking', () => {
     bookingsRepository.findOne.mockResolvedValueOnce({
       id: 'b1',
       status: BookingStatus.ACCEPTED,
+      operator: { id: 'work-1' },
       customer: { id: 'cust-1' },
     });
     await expect(service.rejectBooking('b1', 'work-1')).rejects.toThrow(
@@ -274,10 +312,11 @@ describe('BookingsService.rejectBooking', () => {
     );
   });
 
-  it('declines a REQUESTED booking: REJECTED, redis cleared, customer notified', async () => {
+  it('declines a targeted REQUESTED booking: REJECTED, redis cleared, customer notified', async () => {
     const booking: any = {
       id: 'b1',
       status: BookingStatus.REQUESTED,
+      operator: { id: 'work-1' },
       customer: { id: 'cust-1' },
     };
     const { service, bookingsRepository, redisService, notificationsService } = makeService();
@@ -291,6 +330,8 @@ describe('BookingsService.rejectBooking', () => {
     expect(redisService.cacheBookingStatus).toHaveBeenCalledWith('b1', {
       status: 'REJECTED',
       operatorName: null,
+      operatorId: 'work-1',
+      customerId: 'cust-1',
     });
     expect(notificationsService.notifyBookingCancelled).toHaveBeenCalledWith(
       'cust-1',
@@ -299,11 +340,58 @@ describe('BookingsService.rejectBooking', () => {
     expect(res.message).toBe('Booking declined.');
   });
 
-  it('does not notify when the booking has no customer', async () => {
+  it('broadcast decline: removes only this worker, keeps REQUESTED for others', async () => {
+    const booking: any = {
+      id: 'b1',
+      status: BookingStatus.REQUESTED,
+      operator: null,
+      customer: { id: 'cust-1' },
+    };
+    const { service, bookingsRepository, redisService, notificationsService } =
+      makeService();
+    bookingsRepository.findOne.mockResolvedValueOnce(booking);
+    redisService.getPendingBookingIds.mockResolvedValueOnce(['b1']);
+    redisService.get.mockResolvedValueOnce(JSON.stringify(['work-1', 'work-2']));
+
+    const res = await service.rejectBooking('b1', 'work-1');
+
+    expect(booking.status).toBe(BookingStatus.REQUESTED);
+    expect(bookingsRepository.save).not.toHaveBeenCalled();
+    expect(redisService.removePendingBooking).toHaveBeenCalledWith('work-1', 'b1');
+    expect(redisService.set).toHaveBeenCalledWith(
+      'booking:notified:b1',
+      JSON.stringify(['work-2']),
+      60 * 60,
+    );
+    expect(notificationsService.notifyBookingCancelled).not.toHaveBeenCalled();
+    expect(res.message).toBe('Booking declined.');
+  });
+
+  it('broadcast decline via notified list even if Redis pending already empty', async () => {
+    const booking: any = {
+      id: 'b1',
+      status: BookingStatus.REQUESTED,
+      operator: null,
+      customer: { id: 'cust-1' },
+    };
+    const { service, bookingsRepository, redisService } = makeService();
+    bookingsRepository.findOne.mockResolvedValueOnce(booking);
+    redisService.getPendingBookingIds.mockResolvedValueOnce([]);
+    redisService.get.mockResolvedValueOnce(JSON.stringify(['work-1']));
+
+    await service.rejectBooking('b1', 'work-1');
+
+    expect(redisService.removePendingBooking).toHaveBeenCalledWith('work-1', 'b1');
+    expect(redisService.del).toHaveBeenCalledWith('booking:notified:b1');
+    expect(booking.status).toBe(BookingStatus.REQUESTED);
+  });
+
+  it('does not notify when a targeted reject has no customer', async () => {
     const { service, bookingsRepository, notificationsService } = makeService();
     bookingsRepository.findOne.mockResolvedValueOnce({
       id: 'b1',
       status: BookingStatus.REQUESTED,
+      operator: { id: 'work-1' },
       customer: null,
     });
     await service.rejectBooking('b1', 'work-1');
@@ -336,6 +424,8 @@ describe('BookingsService.updateStatus', () => {
     expect(redisService.cacheBookingStatus).toHaveBeenCalledWith('b1', {
       status: BookingStatus.ACCEPTED,
       operatorName: 'Wendy',
+      operatorId: 'work-1',
+      customerId: null,
       arrivalOtp: '1234',
     });
     // not a CANCELLED/REJECTED transition → pending list untouched
@@ -357,23 +447,39 @@ describe('BookingsService.updateStatus', () => {
     expect(redisService.cacheBookingStatus).toHaveBeenCalledWith('b1', {
       status: BookingStatus.ACTIVE,
       operatorName: 'Wendy',
+      operatorId: 'work-1',
+      customerId: null,
       arrivalOtp: null,
     });
   });
 
-  it('removes the worker pending entry when transitioning to CANCELLED', async () => {
+  it('appends BOOKING_CANCELLED outbox when transitioning to CANCELLED', async () => {
     const booking: any = {
       id: 'b1',
       status: BookingStatus.ACCEPTED,
       arrivalOtp: '1234',
       operator: { id: 'work-1', name: 'Wendy' },
+      customer: { id: 'cust-1' },
     };
-    const { service, bookingsRepository, redisService } = makeService();
+    const { service, bookingsRepository, redisService, outboxService } =
+      makeService();
     bookingsRepository.findOne.mockResolvedValueOnce(booking);
 
     await service.updateStatus('b1', BookingStatus.CANCELLED);
 
-    expect(redisService.removePendingBooking).toHaveBeenCalledWith('work-1', 'b1');
+    expect(outboxService.append).toHaveBeenCalledWith(
+      expect.anything(),
+      'booking.cancelled',
+      'b1',
+      expect.objectContaining({
+        source: 'timeout',
+        operatorId: 'work-1',
+        customerId: 'cust-1',
+      }),
+    );
+    expect(outboxService.enqueueDispatch).toHaveBeenCalledWith('ob');
+    // Redis cleanup is listener-owned
+    expect(redisService.removePendingBooking).not.toHaveBeenCalled();
   });
 });
 
@@ -461,6 +567,8 @@ describe('BookingsService.verifyArrivalOtp', () => {
     expect(redisService.cacheBookingStatus).toHaveBeenCalledWith('b1', {
       status: 'ACTIVE',
       operatorName: null,
+      operatorId: null,
+      customerId: null,
     });
     expect(res.status).toBe('ACTIVE');
   });
@@ -469,18 +577,56 @@ describe('BookingsService.verifyArrivalOtp', () => {
 describe('BookingsService.markPaid', () => {
   it('404s when the booking does not exist', async () => {
     const { service } = makeService();
-    await expect(service.markPaid('b1')).rejects.toThrow(NotFoundException);
+    await expect(service.markPaid('b1', 'u1')).rejects.toThrow(NotFoundException);
   });
 
-  it('flips isPaid to true and saves', async () => {
-    const booking: any = { id: 'b1', isPaid: false };
+  it('records worker honesty confirm without flipping isPaid alone', async () => {
+    const booking: any = {
+      id: 'b1',
+      isPaid: false,
+      status: BookingStatus.COMPLETED,
+      operator: { id: 'work-1' },
+      customer: { id: 'cust-1' },
+      workerPaidConfirmed: false,
+      customerPaidConfirmed: false,
+    };
     const { service, bookingsRepository } = makeService();
     bookingsRepository.findOne.mockResolvedValueOnce(booking);
 
-    const res = await service.markPaid('b1');
+    const res = await service.markPaid('b1', 'work-1', { honestyCheck: 'EXACT' });
 
-    expect(booking.isPaid).toBe(true);
+    expect(booking.workerPaidConfirmed).toBe(true);
+    expect(booking.workerHonestyCheck).toBe('EXACT');
+    expect(booking.isPaid).toBe(false);
+    expect(res.isPaid).toBe(false);
     expect(bookingsRepository.save).toHaveBeenCalledWith(booking);
+  });
+
+  it('flips isPaid when both worker and customer have confirmed', async () => {
+    const booking: any = {
+      id: 'b1',
+      isPaid: false,
+      status: BookingStatus.COMPLETED,
+      operator: { id: 'work-1' },
+      customer: { id: 'cust-1' },
+      workerPaidConfirmed: false,
+      customerPaidConfirmed: false,
+    };
+    const { service, bookingsRepository } = makeService();
+    bookingsRepository.findOne.mockResolvedValue(booking);
+
+    await service.markPaid('b1', 'work-1', { honestyCheck: 'TIP' });
+    const res = await service.markPaid('b1', 'cust-1', {
+      collectionMethod: 'UPI',
+      safetyCheck: 'OK',
+    });
+
+    expect(booking.workerPaidConfirmed).toBe(true);
+    expect(booking.customerPaidConfirmed).toBe(true);
+    expect(booking.paymentCollectionMethod).toBe('UPI');
+    expect(booking.customerSafetyCheck).toBe('OK');
+    expect(booking.isPaid).toBe(true);
+    expect(res.isPaid).toBe(true);
     expect(res.message).toBe('Booking marked as paid.');
   });
 });

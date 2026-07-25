@@ -53,6 +53,11 @@ function makeService(booking: any) {
     redisService,
     workersService,
     dataSource,
+    { emitUserEvent: jest.fn() } as any,
+    {
+      append: jest.fn(async () => ({ id: 'ob' })),
+      enqueueDispatch: jest.fn(async () => undefined),
+    } as any,
   );
   return {
     service,
@@ -151,6 +156,8 @@ describe('BookingsService.addGpsStrike', () => {
     expect(redisService.cacheBookingStatus).toHaveBeenCalledWith('b1', {
       status: 'CANCELLED',
       operatorName: 'Asha',
+      operatorId: 'work-1',
+      customerId: 'cust-1',
     });
     expect(notificationsService.notifyBookingCancelled).toHaveBeenCalledWith(
       'cust-1',

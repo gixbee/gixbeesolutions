@@ -9,6 +9,9 @@ import { WalletsModule } from '../wallets/wallets.module';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { WorkersModule } from '../workers/workers.module';
 import { WorkerProfile } from '../workers/worker-profile.entity';
+import { MessagesModule } from '../messages/messages.module';
+import { OutboxModule } from '../outbox/outbox.module';
+import { SystemLogsModule } from '../system-logs/system-logs.module';
 
 @Module({
   imports: [
@@ -19,6 +22,9 @@ import { WorkerProfile } from '../workers/worker-profile.entity';
     WalletsModule,
     NotificationsModule,
     WorkersModule,
+    MessagesModule,
+    OutboxModule,
+    SystemLogsModule,
   ],
   controllers: [BookingsController],
   providers: [BookingsService, BookingsProcessor],

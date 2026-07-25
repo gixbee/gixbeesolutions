@@ -1,7 +1,7 @@
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:geocoding/geocoding.dart' show locationFromAddress;
+import 'package:geocoding/geocoding.dart';
 import '../../theme.dart';
 import '../../repositories/auth_repository.dart'; // currentUserProvider
 import '../../repositories/booking_repository.dart';
@@ -75,14 +75,23 @@ class _InstantRequestScreenState extends ConsumerState<InstantRequestScreen> {
   // Step 4 — languages (demo requires at least one)
   final Set<String> _selectedLanguages = {};
 
-  // Step 5 — budget
-  final _budgetCtrl = TextEditingController();
+  // Step 5 — budget range (₹/hour). Backend Instant Help only accepts a
+  // single `amount`; we send the **max** of the range as the billed budget.
+  // Instant Help does not filter workers by budget vs their rate.
+  static const double _budgetFloor = 50;
+  static const double _budgetCeil = 500;
+  RangeValues _budgetRange = const RangeValues(100, 250);
 
   @override
   void initState() {
     super.initState();
     if (widget.suggestedRate > 0) {
-      _budgetCtrl.text = widget.suggestedRate.round().toString();
+      final mid = widget.suggestedRate
+          .clamp(_budgetFloor, _budgetCeil)
+          .toDouble();
+      final lo = (mid * 0.7).clamp(_budgetFloor, mid).toDouble();
+      final hi = (mid * 1.3).clamp(mid, _budgetCeil).toDouble();
+      _budgetRange = RangeValues(lo.roundToDouble(), hi.roundToDouble());
     }
     _issueOptions = widget.issueOptions;
     if (_issueOptions.isEmpty) _loadIssueOptions();
@@ -94,7 +103,6 @@ class _InstantRequestScreenState extends ConsumerState<InstantRequestScreen> {
     _contactNameCtrl.dispose();
     _contactPhoneCtrl.dispose();
     _noteCtrl.dispose();
-    _budgetCtrl.dispose();
     super.dispose();
   }
 
@@ -133,11 +141,15 @@ class _InstantRequestScreenState extends ConsumerState<InstantRequestScreen> {
       case 3:
         return _selectedLanguages.isNotEmpty; // demo: select at least one
       case 4:
-        return (double.tryParse(_budgetCtrl.text.trim()) ?? 0) > 0;
+        return _budgetRange.end >= _budgetRange.start &&
+            _budgetRange.end >= _budgetFloor;
       default:
         return true;
     }
   }
+
+  /// Value posted as Instant Help `amount` — the upper end of the range.
+  double get _budgetAmount => _budgetRange.end.roundToDouble();
 
   /// Coordinates for the request. "Current location" uses the home-picked
   /// coords; a typed "different location" is forward-geocoded so the pro
@@ -151,7 +163,8 @@ class _InstantRequestScreenState extends ConsumerState<InstantRequestScreen> {
     final typed = _addressCtrl.text.trim();
     if (!kIsWeb) {
       try {
-        final results = await locationFromAddress(typed)
+        final results = await Geocoding()
+            .locationFromAddress(typed)
             .timeout(const Duration(seconds: 6));
         if (results.isNotEmpty) {
           return (lat: results.first.latitude, lng: results.first.longitude);
@@ -176,7 +189,7 @@ class _InstantRequestScreenState extends ConsumerState<InstantRequestScreen> {
       }
       return;
     }
-    final budget = double.parse(_budgetCtrl.text.trim());
+    final budget = _budgetAmount;
     final address =
         _useCurrentLocation ? _currentAddress : _addressCtrl.text.trim();
 
@@ -215,7 +228,11 @@ class _InstantRequestScreenState extends ConsumerState<InstantRequestScreen> {
       final notified = (res['notified'] as num?)?.toInt() ?? 0;
       final bookingId = res['booking']?['id']?.toString();
 
-      if (notified == 0 || bookingId == null) {
+      // Always show the searching/waiting screen when a booking was created —
+      // even if notified == 0 (matching may still be catching up, or the
+      // customer should at least see the search UX before the timeout
+      // fallback). Only skip straight to NoWorkers when we have no booking.
+      if (bookingId == null) {
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(
@@ -224,12 +241,15 @@ class _InstantRequestScreenState extends ConsumerState<InstantRequestScreen> {
         return;
       }
 
+      ref.invalidate(myBookingsProvider);
+
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(
           builder: (_) => WaitingForWorkerScreen(
             bookingId: bookingId,
             skill: widget.skill,
+            notifiedCount: notified,
           ),
         ),
       );
@@ -587,23 +607,83 @@ class _InstantRequestScreenState extends ConsumerState<InstantRequestScreen> {
   }
 
   Widget _stepBudget() {
+    final minR = _budgetRange.start.round();
+    final maxR = _budgetRange.end.round();
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         _title(context, 'Your budget',
             'Set your preferred hourly rate for ${widget.skill}. Billed per worked hour; paused time is free.'),
         _caption(context, 'YOUR BUDGET (₹ / HOUR)'),
-        TextField(
-          controller: _budgetCtrl,
-          keyboardType: TextInputType.number,
-          onChanged: (_) => setState(() {}),
-          style: TextStyle(color: context.gx.ink, fontSize: 15),
-          decoration: _dec(
-              context,
-              widget.suggestedRate > 0
-                  ? 'Suggested: ₹${widget.suggestedRate.round()}'
-                  : 'e.g. 150',
-              prefix: '₹ '),
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                '₹$minR – ₹$maxR / hour',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w900,
+                  color: context.gx.accentSoft,
+                ),
+              ),
+            ),
+            if (widget.suggestedRate > 0)
+              Text(
+                'Suggested ₹${widget.suggestedRate.round()}',
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: context.gx.ink.withValues(alpha: 0.45),
+                ),
+              ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        SliderTheme(
+          data: SliderTheme.of(context).copyWith(
+            activeTrackColor: context.gx.accentSoft,
+            inactiveTrackColor:
+                context.gx.accentSoft.withValues(alpha: 0.18),
+            thumbColor: context.gx.accentSoft,
+            overlayColor: context.gx.accentSoft.withValues(alpha: 0.12),
+            rangeThumbShape:
+                const RoundRangeSliderThumbShape(enabledThumbRadius: 10),
+            trackHeight: 3.5,
+          ),
+          child: RangeSlider(
+            values: _budgetRange,
+            min: _budgetFloor,
+            max: _budgetCeil,
+            divisions: ((_budgetCeil - _budgetFloor) / 10).round(),
+            labels: RangeLabels('₹$minR', '₹$maxR'),
+            onChanged: (v) => setState(() => _budgetRange = v),
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 4),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text('₹${_budgetFloor.round()}',
+                  style: TextStyle(
+                      fontSize: 11,
+                      color: context.gx.ink.withValues(alpha: 0.4))),
+              Text('₹${_budgetCeil.round()}',
+                  style: TextStyle(
+                      fontSize: 11,
+                      color: context.gx.ink.withValues(alpha: 0.4))),
+            ],
+          ),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          'Pros are notified by skill and location — not filtered by this '
+          'range. Your booking budget is recorded as ₹$maxR/hr (the max).',
+          style: TextStyle(
+            fontSize: 11.5,
+            height: 1.4,
+            color: context.gx.ink.withValues(alpha: 0.45),
+          ),
         ),
         const SizedBox(height: 18),
         Container(

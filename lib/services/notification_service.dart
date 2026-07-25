@@ -40,7 +40,9 @@ class NotificationService {
   /// Initialize FCM listeners, Android channel, local notifications plugin.
   /// Called ONCE from main_wrapper._initNotifications() after login.
   /// DO NOT call from otp_screen — it runs before MainWrapper mounts.
-  Future<void> initialize() async {
+  Future<void> initialize({
+    void Function(Map<String, String> payload)? onLocalNotificationTap,
+  }) async {
     if (_initialized) {
       debugPrint('[FCM] Already initialized — skipping');
       return;
@@ -77,10 +79,24 @@ class NotificationService {
         AndroidInitializationSettings('@mipmap/ic_launcher');
     const iosSettings = DarwinInitializationSettings();
     await _localNotifications.initialize(
-      const InitializationSettings(
+      settings: const InitializationSettings(
         android: androidSettings,
         iOS: iosSettings,
       ),
+      onDidReceiveNotificationResponse: (response) {
+        final raw = response.payload;
+        if (raw == null || raw.isEmpty || onLocalNotificationTap == null) {
+          return;
+        }
+        final map = <String, String>{};
+        for (final part in raw.split('&')) {
+          final i = part.indexOf('=');
+          if (i <= 0) continue;
+          map[Uri.decodeComponent(part.substring(0, i))] =
+              Uri.decodeComponent(part.substring(i + 1));
+        }
+        onLocalNotificationTap(map);
+      },
     );
 
     _ref.read(debugLogProvider.notifier).log('NotificationService initialized');
@@ -124,11 +140,15 @@ class NotificationService {
           'A new booking has arrived.';
 
       // Always show local notification banner with sound in foreground
+      final payload = message.data.entries
+          .map((e) =>
+              '${Uri.encodeComponent(e.key)}=${Uri.encodeComponent('${e.value}')}')
+          .join('&');
       _localNotifications.show(
-        message.hashCode,
-        title,
-        body,
-        NotificationDetails(
+        id: message.hashCode,
+        title: title,
+        body: body,
+        notificationDetails: NotificationDetails(
           android: AndroidNotificationDetails(
             _channel.id,
             _channel.name,
@@ -145,6 +165,7 @@ class NotificationService {
             presentSound: true,
           ),
         ),
+        payload: payload,
       );
 
       handler(message);

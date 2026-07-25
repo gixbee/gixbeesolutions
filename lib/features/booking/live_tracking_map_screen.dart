@@ -9,9 +9,13 @@ import '../../core/config/app_config.dart';
 import '../../theme.dart';
 import '../../shared/widgets/gx_button.dart';
 import '../../services/socket_service.dart';
+import '../../services/location_service.dart';
+import '../../services/ola_maps_style_service.dart';
+import '../../repositories/auth_repository.dart';
 import '../../shared/models/worker.dart';
 import '../../repositories/booking_repository.dart';
 import '../../repositories/booking_status_provider.dart';
+import '../../repositories/worker_repository.dart';
 import '../../shared/widgets/gx_snackbar.dart';
 import 'arrival_otp_screen.dart';
 import 'report_issue_sheet.dart';
@@ -60,6 +64,19 @@ class _LiveTrackingMapScreenState extends ConsumerState<LiveTrackingMapScreen> {
   String? _arrivalOtp;
   bool _isMapReady = false;
 
+  /// Pre-hydrated Ola style JSON (api_key on every tile URL). Null while
+  /// loading / on failure — MapLibre never sees a bare style URL alone.
+  String? _olaStyleJson;
+  bool _olaStyleLoading = true;
+  String? _olaStyleError;
+
+  /// Fresh platform-view key each visit — reusing a disposed MapLibre view
+  /// after back+reopen often renders a full-screen blank.
+  late final Key _mapViewKey = UniqueKey();
+
+  /// Don't mount MapLibre until we have real coords (avoids Nagpur default).
+  bool _coordsReady = false;
+
   // Pause state (v126 Instant Help): carried in the /status poll payload.
   bool _pauseRequested = false;
   bool _paused = false;
@@ -72,6 +89,10 @@ class _LiveTrackingMapScreenState extends ConsumerState<LiveTrackingMapScreen> {
   int _pausedMinutes = 0;
   Duration _elapsed = Duration.zero;
   Timer? _jobTicker;
+
+  /// Worker-only: HTTP location heartbeat so Redis stays warm for the
+  /// customer's status-poll fallback even if the socket blips.
+  Timer? _workerHttpHeartbeat;
 
   // Directions API state
   List<LatLng> _routePoints = [];
@@ -87,31 +108,184 @@ class _LiveTrackingMapScreenState extends ConsumerState<LiveTrackingMapScreen> {
     super.initState();
     _arrivalOtp = widget.arrivalOtp;
 
-    // Set customer location if provided
+    // Set customer location if provided by the opener.
     if (widget.customerLat != null && widget.customerLng != null) {
       _customerLocation = LatLng(widget.customerLat!, widget.customerLng!);
     }
 
-    // Join the Socket.IO room for this booking
+    // Join the Socket.IO room for this booking (queued if not connected yet;
+    // re-emitted on every reconnect via SocketService).
     final socketService = ref.read(socketServiceProvider);
     socketService.joinJobRoom(widget.bookingId);
 
-    // Listen for real-time location updates
+    // Listen for real-time location updates (customer sees the worker move).
     socketService.onLocationUpdated((data) {
-      final lat = (data['lat'] as num?)?.toDouble();
-      final lng = (data['lng'] as num?)?.toDouble();
+      final lat = readCoord(data['lat']);
+      final lng = readCoord(data['lng']);
       if (lat != null && lng != null && mounted) {
-        setState(() {
-          _workerLocation = LatLng(lat, lng);
-        });
-        _syncMapAnnotations();
-        _fitMapBounds();
-        _fetchRoute(); // Update road route dynamically
+        _applyWorkerLocation(lat, lng);
       }
     });
 
-    // Status changes (ACCEPTED → ARRIVED → ACTIVE) now arrive via the shared
-    // bookingStatusProvider — wired with ref.listen in build().
+    unawaited(_bootstrapMapAndLocations());
+  }
+
+  void _applyWorkerLocation(double lat, double lng) {
+    if (!mounted) return;
+    setState(() {
+      _workerLocation = LatLng(lat, lng);
+    });
+    _syncMapAnnotations();
+    _fitMapBounds();
+    unawaited(_fetchRoute());
+  }
+
+  Future<void> _bootstrapMapAndLocations() async {
+    // 1) Resolve real coordinates FIRST so the map never opens on Nagpur.
+    await Future.wait([
+      _loadBookingCoords(),
+      if (widget.isWorker) _seedWorkerLocation(),
+    ]);
+    if (!mounted) return;
+
+    setState(() => _coordsReady = true);
+
+    // 2) Then load (or reuse cached) Ola style and create the map once.
+    await _loadOlaStyle();
+  }
+
+  Future<void> _loadOlaStyle() async {
+    if (AppConfig.olaMapsApiKey.isEmpty) {
+      if (!mounted) return;
+      setState(() {
+        _olaStyleLoading = false;
+        _olaStyleError = 'Ola Maps key not configured';
+      });
+      return;
+    }
+    final json = await OlaMapsStyleService().buildStyleJson();
+    if (!mounted) return;
+    setState(() {
+      _olaStyleJson = json;
+      _olaStyleLoading = false;
+      _olaStyleError = json == null ? 'Could not load Ola Maps style' : null;
+    });
+  }
+
+  Future<void> _loadBookingCoords() async {
+    // Always refresh from booking — opener may have passed null when
+    // serviceLat arrived as a string Decimal from the API.
+    try {
+      final booking = await ref
+          .read(bookingRepositoryProvider)
+          .getBookingById(widget.bookingId);
+      final lat = readCoord(booking?['serviceLat']) ??
+          readCoord(widget.customerLat);
+      final lng = readCoord(booking?['serviceLng']) ??
+          readCoord(widget.customerLng);
+      if (lat != null && lng != null && mounted) {
+        setState(() => _customerLocation = LatLng(lat, lng));
+        _syncMapAnnotations();
+        _fitMapBounds();
+        unawaited(_fetchRoute());
+      }
+    } catch (e) {
+      debugPrint('Load booking coords failed: $e');
+      final lat = readCoord(widget.customerLat);
+      final lng = readCoord(widget.customerLng);
+      if (lat != null && lng != null && mounted) {
+        setState(() => _customerLocation = LatLng(lat, lng));
+      }
+    }
+  }
+
+  Future<void> _seedWorkerLocation() async {
+    try {
+      final pos =
+          await ref.read(locationServiceProvider).getCurrentPosition();
+      final user = await ref.read(currentUserProvider.future);
+      if (pos == null || !mounted) return;
+      setState(() {
+        _workerLocation = LatLng(pos.latitude, pos.longitude);
+      });
+      _syncMapAnnotations();
+      _fitMapBounds();
+      _fetchRoute();
+      if (user != null) {
+        final socket = ref.read(socketServiceProvider);
+        socket.startLocationStream(user.id, widget.bookingId);
+        socket.updateLocation(
+          user.id,
+          pos.latitude,
+          pos.longitude,
+          jobId: widget.bookingId,
+        );
+        // Keep Redis warm for customer poll fallback.
+        unawaited(_pushWorkerHttpLocation(pos.latitude, pos.longitude));
+        _workerHttpHeartbeat?.cancel();
+        _workerHttpHeartbeat = Timer.periodic(
+          const Duration(seconds: 15),
+          (_) async {
+            try {
+              final p = await ref
+                  .read(locationServiceProvider)
+                  .getCurrentPosition();
+              if (p == null) return;
+              await _pushWorkerHttpLocation(p.latitude, p.longitude);
+            } catch (_) {}
+          },
+        );
+      }
+    } catch (e) {
+      debugPrint('Seed worker location failed: $e');
+    }
+  }
+
+  Future<void> _pushWorkerHttpLocation(double lat, double lng) async {
+    try {
+      await ref.read(workerRepositoryProvider).updateMyLocation(
+            lat: lat,
+            lng: lng,
+          );
+    } catch (e) {
+      debugPrint('Worker HTTP location push failed: $e');
+    }
+  }
+
+  Future<void> _openCustomerNavigation() async {
+    final dest = _customerLocation;
+    if (dest == null) {
+      if (mounted) {
+        showGxSnack(
+          context,
+          'Customer location not available yet. Try again in a moment.',
+          type: GxSnackType.error,
+        );
+      }
+      return;
+    }
+    final lat = dest.latitude;
+    final lng = dest.longitude;
+    final candidates = <Uri>[
+      Uri.parse('google.navigation:q=$lat,$lng&mode=d'),
+      Uri.parse(
+        'https://www.google.com/maps/dir/?api=1&destination=$lat,$lng&travelmode=driving',
+      ),
+      Uri.parse('geo:$lat,$lng?q=$lat,$lng'),
+    ];
+    for (final url in candidates) {
+      try {
+        final ok = await launchUrl(url, mode: LaunchMode.externalApplication);
+        if (ok) return;
+      } catch (_) {}
+    }
+    if (mounted) {
+      showGxSnack(
+        context,
+        'Could not open Maps. Install Google Maps and try again.',
+        type: GxSnackType.error,
+      );
+    }
   }
 
   /// Keep the worker/customer dots and the route line in sync with state.
@@ -173,10 +347,15 @@ class _LiveTrackingMapScreenState extends ConsumerState<LiveTrackingMapScreen> {
   @override
   void dispose() {
     _jobTicker?.cancel();
+    _workerHttpHeartbeat?.cancel();
     // AUDIT FIX: detach the socket listener registered in initState so this
     // dead State's setState can't be called and listeners don't stack.
-    ref.read(socketServiceProvider).offLocationUpdated();
-    _mapController?.dispose();
+    final socket = ref.read(socketServiceProvider);
+    socket.offLocationUpdated();
+    socket.leaveJobRoom(widget.bookingId);
+    // Do NOT dispose MapLibreMapController here — disposing then recreating
+    // the platform view on the next open often yields a full-screen blank.
+    _mapController = null;
     super.dispose();
   }
 
@@ -218,6 +397,21 @@ class _LiveTrackingMapScreenState extends ConsumerState<LiveTrackingMapScreen> {
     if (!mounted) return;
     final newStatus = statusData['status']?.toString().toUpperCase() ?? '';
     final otp = statusData['arrivalOtp']?.toString();
+
+    // Poll fallback: operator lat/lng from Redis when socket is slow/down.
+    if (!widget.isWorker) {
+      final opLat = readCoord(statusData['operatorLat']);
+      final opLng = readCoord(statusData['operatorLng']);
+      if (opLat != null && opLng != null) {
+        final prev = _workerLocation;
+        final moved = prev == null ||
+            (prev.latitude - opLat).abs() > 0.00001 ||
+            (prev.longitude - opLng).abs() > 0.00001;
+        if (moved) {
+          _applyWorkerLocation(opLat, opLng);
+        }
+      }
+    }
 
     // Pause flags change without a status transition — sync every update.
     final pauseRequested = statusData['pauseRequested'] == true;
@@ -401,6 +595,84 @@ class _LiveTrackingMapScreenState extends ConsumerState<LiveTrackingMapScreen> {
     return r * c;
   }
 
+  Widget _buildMapLayer(BuildContext context) {
+    final center = _workerLocation ?? _customerLocation ?? _defaultCenter;
+
+    if (_olaStyleLoading || !_coordsReady) {
+      return Container(
+        color: context.gx.card,
+        alignment: Alignment.center,
+        child: const CircularProgressIndicator(),
+      );
+    }
+
+    if (_olaStyleJson == null) {
+      return Container(
+        color: context.gx.card,
+        alignment: Alignment.center,
+        padding: const EdgeInsets.symmetric(horizontal: 40),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.map_outlined,
+                size: 48, color: context.gx.ink.withValues(alpha: 0.25)),
+            const SizedBox(height: 12),
+            Text(
+              'Map preview unavailable\n(${_olaStyleError ?? 'Ola Maps unavailable'})',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 13,
+                height: 1.5,
+                color: context.gx.ink.withValues(alpha: 0.45),
+              ),
+            ),
+            const SizedBox(height: 16),
+            TextButton(
+              onPressed: () {
+                setState(() {
+                  _olaStyleLoading = true;
+                  _olaStyleError = null;
+                });
+                unawaited(_loadOlaStyle());
+              },
+              child: const Text('Retry map'),
+            ),
+          ],
+        ),
+      );
+    }
+
+    // UniqueKey forces a fresh Android platform view after back+reopen.
+    return MapLibreMap(
+      key: _mapViewKey,
+      styleString: _olaStyleJson!,
+      initialCameraPosition: CameraPosition(target: center, zoom: 15),
+      myLocationEnabled: widget.isWorker,
+      compassEnabled: false,
+      rotateGesturesEnabled: false,
+      trackCameraPosition: false,
+      onMapCreated: (controller) {
+        _mapController = controller;
+      },
+      onStyleLoadedCallback: () {
+        if (!mounted) return;
+        setState(() {
+          _styleReady = true;
+          _isMapReady = true;
+        });
+        // Reset annotation handles — they belong to the previous native map.
+        _workerCircle = null;
+        _customerCircle = null;
+        _routeLine = null;
+        _syncMapAnnotations();
+        Future.delayed(const Duration(milliseconds: 300), () {
+          if (!mounted) return;
+          _fitMapBounds();
+        });
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     // Shared booking-status poll (one per booking, app-wide). Each new value
@@ -414,7 +686,6 @@ class _LiveTrackingMapScreenState extends ConsumerState<LiveTrackingMapScreen> {
     );
 
     final cs = Theme.of(context).colorScheme;
-    final center = _workerLocation ?? _customerLocation ?? _defaultCenter;
 
     return Scaffold(
       body: SizedBox.expand(
@@ -422,53 +693,7 @@ class _LiveTrackingMapScreenState extends ConsumerState<LiveTrackingMapScreen> {
           children: [
             // ── Ola Map (MapLibre-spec vector tiles) ──
             Positioned.fill(
-              child: AppConfig.olaMapsApiKey.isEmpty
-                  // No key configured — honest placeholder; the status panel,
-                  // OTP gates, timer and pause logic all keep working.
-                  ? Container(
-                      color: context.gx.card,
-                      alignment: Alignment.center,
-                      padding: const EdgeInsets.symmetric(horizontal: 40),
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(Icons.map_outlined,
-                              size: 48,
-                              color: context.gx.ink.withValues(alpha: 0.25)),
-                          const SizedBox(height: 12),
-                          Text(
-                            'Map preview unavailable\n(Ola Maps key not configured)',
-                            textAlign: TextAlign.center,
-                            style: TextStyle(
-                                fontSize: 13,
-                                height: 1.5,
-                                color: context.gx.ink.withValues(alpha: 0.45)),
-                          ),
-                        ],
-                      ),
-                    )
-                  : MapLibreMap(
-                      styleString: AppConfig.olaStyleUrl,
-                      initialCameraPosition: CameraPosition(
-                        target: center,
-                        zoom: 14,
-                      ),
-                      myLocationEnabled: true,
-                      compassEnabled: false,
-                      rotateGesturesEnabled: false,
-                      onMapCreated: (controller) {
-                        _mapController = controller;
-                      },
-                      onStyleLoadedCallback: () {
-                        setState(() {
-                          _styleReady = true;
-                          _isMapReady = true;
-                        });
-                        _syncMapAnnotations();
-                        Future.delayed(const Duration(milliseconds: 400),
-                            _fitMapBounds);
-                      },
-                    ),
+              child: _buildMapLayer(context),
             ),
 
             // ── Top Bar ──
@@ -754,19 +979,7 @@ class _LiveTrackingMapScreenState extends ConsumerState<LiveTrackingMapScreen> {
                         height: 48,
                         radius: 12,
                         fontSize: 14,
-                        onTap: () async {
-                          // Open Google Maps navigation to customer
-                          if (_customerLocation != null) {
-                            final url = Uri.parse(
-                              'https://www.google.com/maps/dir/?api=1&destination=${_customerLocation!.latitude},${_customerLocation!.longitude}&travelmode=driving',
-                            );
-                            try {
-                              await launchUrl(url, mode: LaunchMode.externalApplication);
-                            } catch (e) {
-                              debugPrint('Could not launch navigation: $e');
-                            }
-                          }
-                        },
+                        onTap: _openCustomerNavigation,
                       ),
                     )
                   else
@@ -826,7 +1039,25 @@ class _LiveTrackingMapScreenState extends ConsumerState<LiveTrackingMapScreen> {
                     Icon(Icons.info_outline, size: 14, color: cs.onSurfaceVariant),
                     const SizedBox(width: 6),
                     Text(
-                      'Waiting for worker\'s location...',
+                      widget.isWorker
+                          ? 'Waiting for your GPS…'
+                          : 'Waiting for worker\'s location...',
+                      style: TextStyle(color: cs.onSurfaceVariant, fontSize: 11),
+                    ),
+                  ],
+                ),
+              ],
+              if (widget.isWorker &&
+                  _workerLocation != null &&
+                  _customerLocation == null) ...[
+                const SizedBox(height: 8),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.info_outline, size: 14, color: cs.onSurfaceVariant),
+                    const SizedBox(width: 6),
+                    Text(
+                      'Waiting for customer location…',
                       style: TextStyle(color: cs.onSurfaceVariant, fontSize: 11),
                     ),
                   ],

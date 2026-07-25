@@ -81,8 +81,8 @@ Business _biz(String id) => Business(
 
 /// Hosts PostJobScreen directly as `home` (fine for every flow that does NOT
 /// call Navigator.pop — i.e. all but the happy path).
-Widget _host(List<Override> overrides) => ProviderScope(
-      overrides: overrides,
+Widget _host(List<dynamic> overrides) => ProviderScope(
+      overrides: overrides.cast(),
       child: MaterialApp(
         theme: ThemeData(brightness: Brightness.dark),
         home: const PostJobScreen(),
@@ -91,8 +91,8 @@ Widget _host(List<Override> overrides) => ProviderScope(
 
 /// Hosts PostJobScreen behind a pushed route so its success-path
 /// `Navigator.pop` returns to a launcher rather than popping the last route.
-Widget _pushHost(List<Override> overrides) => ProviderScope(
-      overrides: overrides,
+Widget _pushHost(List<dynamic> overrides) => ProviderScope(
+      overrides: overrides.cast(),
       child: MaterialApp(
         theme: ThemeData(brightness: Brightness.dark),
         home: Scaffold(

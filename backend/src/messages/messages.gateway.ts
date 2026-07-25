@@ -39,4 +39,14 @@ export class MessagesGateway {
   emitToUser(userId: string, payload: Record<string, unknown>) {
     this.server?.to(`user_${userId}`).emit('new_message', payload);
   }
+
+  /** Push a named booking/job event to `user_<userId>` (FCM companion). */
+  emitUserEvent(
+    userId: string,
+    event: string,
+    payload: Record<string, unknown>,
+  ) {
+    if (!userId || !event) return;
+    this.server?.to(`user_${userId}`).emit(event, payload);
+  }
 }

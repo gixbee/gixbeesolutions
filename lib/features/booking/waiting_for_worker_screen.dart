@@ -1,13 +1,17 @@
 import 'dart:async';
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../theme.dart';
+import '../../shared/widgets/dribbble_background.dart';
 import '../../shared/widgets/gx_snackbar.dart';
 import '../../shared/widgets/gx_button.dart';
 import '../../repositories/booking_repository.dart';
+import '../../repositories/booking_status_provider.dart';
 import '../../shared/models/worker.dart';
 import '../../shared/models/booking_status.dart';
 import '../../core/config/app_config.dart';
+import '../../services/socket_service.dart';
 import 'live_tracking_map_screen.dart';
 import 'no_workers_screen.dart';
 
@@ -20,22 +24,29 @@ class WaitingForWorkerScreen extends ConsumerStatefulWidget {
   final Worker? worker;
   final String skill;
 
+  /// How many pros the backend notified at broadcast time. Used only for
+  /// copy; never gates whether this screen is shown.
+  final int notifiedCount;
+
   const WaitingForWorkerScreen({
     super.key,
     required this.bookingId,
     this.worker,
     required this.skill,
+    this.notifiedCount = 0,
   });
 
   @override
-  ConsumerState<WaitingForWorkerScreen> createState() => _WaitingForWorkerScreenState();
+  ConsumerState<WaitingForWorkerScreen> createState() =>
+      _WaitingForWorkerScreenState();
 }
 
-class _WaitingForWorkerScreenState extends ConsumerState<WaitingForWorkerScreen> with SingleTickerProviderStateMixin {
+class _WaitingForWorkerScreenState extends ConsumerState<WaitingForWorkerScreen>
+    with SingleTickerProviderStateMixin {
   late AnimationController _pulseController;
-  Timer? _pollingTimer;
   int _secondsRemaining = AppConfig.jobAcceptTimeoutSeconds;
   Timer? _countdownTimer;
+  StreamSubscription<Map<String, dynamic>>? _socketSub;
   bool _isAccepted = false;
   String? _arrivalOtp;
 
@@ -48,19 +59,34 @@ class _WaitingForWorkerScreenState extends ConsumerState<WaitingForWorkerScreen>
     super.initState();
     _pulseController = AnimationController(
       vsync: this,
-      duration: const Duration(seconds: 2),
+      duration: const Duration(milliseconds: 2200),
     )..repeat();
 
     _startCountdown();
-    _startPolling();
+    // Primary: Socket.IO booking_accepted. Fallback: shared status provider
+    // (30s Redis-backed poll) — no extra 5s timer.
+    _socketSub =
+        ref.read(socketServiceProvider).notifications.listen(_onSocketEvent);
   }
 
   @override
   void dispose() {
     _pulseController.dispose();
-    _pollingTimer?.cancel();
     _countdownTimer?.cancel();
+    _socketSub?.cancel();
     super.dispose();
+  }
+
+  void _onSocketEvent(Map<String, dynamic> data) {
+    if (data['_event'] != 'booking_accepted') return;
+    final id = data['id']?.toString() ?? data['bookingId']?.toString();
+    if (id != widget.bookingId) return;
+    _applyStatus({
+      'status': data['status'] ?? 'ACCEPTED',
+      'arrivalOtp': data['arrivalOtp'],
+      'operatorName': data['operatorName'],
+      'operatorId': data['operatorId'],
+    });
   }
 
   Future<void> _cancelRequest() async {
@@ -80,7 +106,6 @@ class _WaitingForWorkerScreenState extends ConsumerState<WaitingForWorkerScreen>
         setState(() => _secondsRemaining--);
       } else {
         _countdownTimer?.cancel();
-        _pollingTimer?.cancel();
         if (mounted) {
           // Make sure the stale request is cancelled server-side, then show
           // the v126 "no pros available" fallback with real next steps.
@@ -94,32 +119,27 @@ class _WaitingForWorkerScreenState extends ConsumerState<WaitingForWorkerScreen>
     });
   }
 
-  void _startPolling() {
-    _pollingTimer = Timer.periodic(const Duration(seconds: AppConfig.bookingPollIntervalSeconds), (timer) async {
-      try {
-        final statusData = await ref.read(bookingRepositoryProvider).pollBookingStatus(widget.bookingId);
-        final status = BookingStatus.fromString(statusData['status'] ?? '');
+  void _applyStatus(Map<String, dynamic> statusData) {
+    if (!mounted || _isAccepted) return;
+    final status = BookingStatus.fromString(statusData['status'] ?? '');
 
-        if (status == BookingStatus.accepted) {
-          _pollingTimer?.cancel();
-          _countdownTimer?.cancel();
-          setState(() {
-            _isAccepted = true;
-            _arrivalOtp = statusData['arrivalOtp'];
-            _acceptedName = statusData['operatorName']?.toString();
-            _acceptedId = statusData['operatorId']?.toString();
-          });
-        } else if (status == BookingStatus.cancelled || status == BookingStatus.rejected) {
-          _pollingTimer?.cancel();
-          _countdownTimer?.cancel();
-          if (mounted) {
-            _showNoWorkers();
-          }
-        }
-      } catch (e) {
-        debugPrint('Polling failed: $e');
+    if (status == BookingStatus.accepted) {
+      _countdownTimer?.cancel();
+      setState(() {
+        _isAccepted = true;
+        _arrivalOtp = statusData['arrivalOtp']?.toString();
+        _acceptedName = statusData['operatorName']?.toString();
+        _acceptedId = statusData['operatorId']?.toString();
+      });
+      // Keep home / bookings lists fresh when the customer confirms.
+      ref.invalidate(myBookingsProvider);
+    } else if (status == BookingStatus.cancelled ||
+        status == BookingStatus.rejected) {
+      _countdownTimer?.cancel();
+      if (mounted) {
+        _showNoWorkers();
       }
-    });
+    }
   }
 
   void _showNoWorkers() {
@@ -151,7 +171,6 @@ class _WaitingForWorkerScreenState extends ConsumerState<WaitingForWorkerScreen>
       );
 
   void _confirmAndProceed() {
-    // Navigate to live tracking map
     Navigator.pushReplacement(
       context,
       MaterialPageRoute(
@@ -164,136 +183,229 @@ class _WaitingForWorkerScreenState extends ConsumerState<WaitingForWorkerScreen>
     );
   }
 
+  String get _searchSubtitle {
+    if (widget.worker != null) {
+      return 'Waiting for ${widget.worker!.name} to accept your request';
+    }
+    if (widget.notifiedCount > 0) {
+      return 'Notified ${widget.notifiedCount} nearby '
+          '${widget.skill} pro${widget.notifiedCount == 1 ? '' : 's'} — '
+          'the first to accept gets assigned';
+    }
+    return 'Looking for nearby ${widget.skill} pros who can help right now';
+  }
+
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
+    // Fallback status stream (30s, Redis-backed) — socket/FCM are primary.
+    ref.listen<AsyncValue<Map<String, dynamic>>>(
+      bookingStatusProvider(widget.bookingId),
+      (_, next) {
+        final data = next.value;
+        if (data != null) _applyStatus(data);
+      },
+    );
 
     return Scaffold(
-      body: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.symmetric(horizontal: 24),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            if (!_isAccepted) ...[
-              _buildRadarAnimation(colorScheme),
-              const SizedBox(height: 40),
-              Text(
-                'Searching for ${widget.skill}...',
-                style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 12),
-              Text(
-                widget.worker != null
-                    ? 'Waiting for ${widget.worker!.name} to accept your request'
-                    : 'All nearby ${widget.skill} pros have been notified — the first to accept gets assigned',
-                textAlign: TextAlign.center,
-                style: TextStyle(color: colorScheme.onSurfaceVariant),
-              ),
-              const SizedBox(height: 32),
-              _buildTimerWidget(colorScheme),
-              const SizedBox(height: 40),
-              GxButton(
-                label: 'Cancel Request',
-                onTap: _cancelRequest,
-                filled: false,
-                expand: false,
-              ),
-            ] else ...[
-              const Icon(Icons.check_circle, color: Colors.green, size: 80),
-              const SizedBox(height: 24),
-              Semantics(
-                liveRegion: true,
-                child: Text(
-                  'Request Accepted!',
-                  style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-                ),
-              ),
-              const SizedBox(height: 16),
-              CircleAvatar(
-                radius: 40,
-                backgroundImage: _effectiveWorker.imageUrl.isNotEmpty
-                    ? NetworkImage(_effectiveWorker.imageUrl)
-                    : null,
-                onBackgroundImageError:
-                    _effectiveWorker.imageUrl.isNotEmpty ? (_, __) {} : null,
-                child: _effectiveWorker.imageUrl.isEmpty
-                    ? Text(
-                        _effectiveWorker.name.isNotEmpty
-                            ? _effectiveWorker.name[0]
-                            : '?',
-                        style: const TextStyle(fontSize: 24))
-                    : null,
-              ),
-              const SizedBox(height: 16),
-              Text(
-                _effectiveWorker.name,
-                style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'Is on their way to your location',
-                style: TextStyle(color: colorScheme.onSurfaceVariant),
-              ),
-              const SizedBox(height: 32),
-              GxButton(
-                label: 'Track on Map',
-                onTap: _confirmAndProceed,
-                icon: Icons.map_rounded,
-                fontSize: 16,
-              ),
-            ],
-          ],
+      backgroundColor: context.gx.bg,
+      body: DribbbleBackground(
+        child: SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 24),
+            child: Column(
+              children: [
+                const Spacer(flex: 2),
+                if (!_isAccepted) ...[
+                  _buildRadarAnimation(),
+                  const SizedBox(height: 36),
+                  Semantics(
+                    liveRegion: true,
+                    child: Text(
+                      'Searching for ${widget.skill}…',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: 22,
+                        fontWeight: FontWeight.w900,
+                        color: context.gx.ink,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    _searchSubtitle,
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 14,
+                      height: 1.45,
+                      color: context.gx.ink.withValues(alpha: 0.6),
+                    ),
+                  ),
+                  const SizedBox(height: 28),
+                  _buildTimerWidget(),
+                  const SizedBox(height: 12),
+                  Text(
+                    'Stay on this screen — we\'ll notify you when a pro accepts',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 12.5,
+                      color: context.gx.ink.withValues(alpha: 0.45),
+                    ),
+                  ),
+                  const Spacer(flex: 3),
+                  GxButton(
+                    label: 'Cancel Request',
+                    onTap: _cancelRequest,
+                    filled: false,
+                  ),
+                  const SizedBox(height: 16),
+                ] else ...[
+                  Icon(Icons.check_circle_rounded,
+                      color: context.gx.accentSoft, size: 80),
+                  const SizedBox(height: 24),
+                  Semantics(
+                    liveRegion: true,
+                    child: Text(
+                      'Request Accepted!',
+                      style: TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.w900,
+                        color: context.gx.ink,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  CircleAvatar(
+                    radius: 40,
+                    backgroundColor: context.gx.card2,
+                    backgroundImage: _effectiveWorker.imageUrl.isNotEmpty
+                        ? NetworkImage(_effectiveWorker.imageUrl)
+                        : null,
+                    onBackgroundImageError: _effectiveWorker.imageUrl.isNotEmpty
+                        ? (_, __) {}
+                        : null,
+                    child: _effectiveWorker.imageUrl.isEmpty
+                        ? Text(
+                            _effectiveWorker.name.isNotEmpty
+                                ? _effectiveWorker.name[0]
+                                : '?',
+                            style: TextStyle(
+                              fontSize: 24,
+                              fontWeight: FontWeight.w800,
+                              color: context.gx.ink,
+                            ),
+                          )
+                        : null,
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    _effectiveWorker.name,
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.w700,
+                      color: context.gx.ink,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Is on their way to your location',
+                    style: TextStyle(
+                      color: context.gx.ink.withValues(alpha: 0.6),
+                    ),
+                  ),
+                  const Spacer(flex: 3),
+                  GxButton(
+                    label: 'Track on Map',
+                    onTap: _confirmAndProceed,
+                    icon: Icons.map_rounded,
+                    fontSize: 16,
+                  ),
+                  const SizedBox(height: 16),
+                ],
+              ],
+            ),
+          ),
         ),
       ),
     );
   }
 
-  Widget _buildRadarAnimation(ColorScheme colorScheme) {
-    return AnimatedBuilder(
-      animation: _pulseController,
-      builder: (context, child) {
-        return Stack(
-          alignment: Alignment.center,
-          children: [
-            for (int i = 0; i < 3; i++)
-              Container(
-                width: 100 + (i * 50 * _pulseController.value),
-                height: 100 + (i * 50 * _pulseController.value),
+  Widget _buildRadarAnimation() {
+    const size = 220.0;
+    return SizedBox(
+      width: size,
+      height: size,
+      child: AnimatedBuilder(
+        animation: _pulseController,
+        builder: (context, child) {
+          return CustomPaint(
+            size: const Size(size, size),
+            painter: _SearchRadarPainter(
+              progress: _pulseController.value,
+              accent: context.gx.accent,
+              accentSoft: context.gx.accentSoft,
+            ),
+            child: Center(
+              child: Container(
+                width: 72,
+                height: 72,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  border: Border.all(
-                    color: context.gx.accent.withValues(alpha: 1 - _pulseController.value),
-                    width: 2,
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: context.gx.accentGradient,
                   ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: context.gx.accent.withValues(alpha: 0.35),
+                      blurRadius: 18,
+                      spreadRadius: 2,
+                    ),
+                  ],
                 ),
+                child: const Icon(Icons.bolt_rounded,
+                    color: Colors.white, size: 36),
               ),
-            CircleAvatar(
-              radius: 40,
-              backgroundColor: context.gx.accent,
-              child: const Icon(Icons.flash_on, color: Colors.white, size: 40),
             ),
-          ],
-        );
-      },
+          );
+        },
+      ),
     );
   }
 
-  Widget _buildTimerWidget(ColorScheme colorScheme) {
+  Widget _buildTimerWidget() {
+    final minutes = _secondsRemaining ~/ 60;
+    final seconds = _secondsRemaining % 60;
+    final label = minutes > 0
+        ? '${minutes}m ${seconds.toString().padLeft(2, '0')}s'
+        : '${_secondsRemaining}s';
+
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
       decoration: BoxDecoration(
-        color: colorScheme.surfaceContainerHighest,
+        color: context.gx.card2,
         borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: context.gx.border),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Icon(Icons.timer, size: 18),
+          Icon(Icons.timer_outlined, size: 18, color: context.gx.accentSoft),
           const SizedBox(width: 8),
           Text(
-            '$_secondsRemaining s',
-            style: const TextStyle(fontWeight: FontWeight.bold),
+            label,
+            style: TextStyle(
+              fontWeight: FontWeight.w800,
+              color: context.gx.ink,
+            ),
+          ),
+          const SizedBox(width: 6),
+          Text(
+            'remaining',
+            style: TextStyle(
+              fontSize: 12.5,
+              color: context.gx.ink.withValues(alpha: 0.5),
+            ),
           ),
         ],
       ),
@@ -301,3 +413,76 @@ class _WaitingForWorkerScreenState extends ConsumerState<WaitingForWorkerScreen>
   }
 }
 
+/// Expanding radar rings + a sweeping arc — reads as “searching nearby”, not
+/// a generic spinner.
+class _SearchRadarPainter extends CustomPainter {
+  final double progress;
+  final Color accent;
+  final Color accentSoft;
+
+  _SearchRadarPainter({
+    required this.progress,
+    required this.accent,
+    required this.accentSoft,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final center = Offset(size.width / 2, size.height / 2);
+    final maxR = size.width / 2;
+
+    // Soft fill disc behind the rings.
+    canvas.drawCircle(
+      center,
+      maxR * 0.92,
+      Paint()
+        ..color = accent.withValues(alpha: 0.06)
+        ..style = PaintingStyle.fill,
+    );
+
+    // Three staggered expanding rings.
+    for (var i = 0; i < 3; i++) {
+      final t = (progress + i / 3) % 1.0;
+      final radius = 36 + t * (maxR - 40);
+      final alpha = (1.0 - t).clamp(0.0, 1.0);
+      canvas.drawCircle(
+        center,
+        radius,
+        Paint()
+          ..color = accent.withValues(alpha: 0.15 + alpha * 0.45)
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 2.2,
+      );
+    }
+
+    // Sweeping radar wedge.
+    final sweepAngle = progress * 2 * math.pi;
+    final sweepPaint = Paint()
+      ..shader = SweepGradient(
+        startAngle: sweepAngle - 0.9,
+        endAngle: sweepAngle,
+        colors: [
+          accentSoft.withValues(alpha: 0.0),
+          accentSoft.withValues(alpha: 0.28),
+        ],
+        transform: GradientRotation(sweepAngle - 0.9),
+      ).createShader(Rect.fromCircle(center: center, radius: maxR));
+    canvas.drawCircle(center, maxR * 0.88, sweepPaint);
+
+    // Outer guide ring.
+    canvas.drawCircle(
+      center,
+      maxR * 0.88,
+      Paint()
+        ..color = accent.withValues(alpha: 0.18)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1.2,
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant _SearchRadarPainter oldDelegate) =>
+      oldDelegate.progress != progress ||
+      oldDelegate.accent != accent ||
+      oldDelegate.accentSoft != accentSoft;
+}

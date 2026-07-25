@@ -17,10 +17,22 @@ import '../messages/messages_list_screen.dart';
 import '../jobs/my_bookings_screen.dart';
 import 'profile_subscreens.dart';
 import '../../core/theme_provider.dart';
+import '../../core/main_tab_provider.dart';
 import '../../shared/widgets/gx_sheet.dart';
 
 class ProfileScreen extends ConsumerWidget {
   const ProfileScreen({super.key});
+
+  /// Back from Profile: if this screen was pushed (Home avatar), pop it.
+  /// If it's the Profile tab root, switching to Home — never Navigator.pop
+  /// the shell (that removes MainWrapper and leaves a full black screen).
+  void _onBack(BuildContext context, WidgetRef ref) {
+    if (Navigator.of(context).canPop()) {
+      Navigator.of(context).pop();
+      return;
+    }
+    ref.read(mainTabIndexProvider.notifier).state = 0;
+  }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -41,7 +53,7 @@ class ProfileScreen extends ConsumerWidget {
                 children: [
                   IconButton(
                     icon: Icon(Icons.arrow_back_rounded, color: context.gx.ink),
-                    onPressed: () => Navigator.pop(context),
+                    onPressed: () => _onBack(context, ref),
                     padding: EdgeInsets.zero,
                     constraints: const BoxConstraints(),
                   ),
@@ -501,8 +513,10 @@ class ProfileScreen extends ConsumerWidget {
           final selected = current == choice;
           return GxPressable(
             onTap: () {
-              sheetRef.read(themeChoiceProvider.notifier).set(choice);
+              // Close the sheet first, then apply theme — changing ThemeMode
+              // while the modal is open can leave a stale barrier / blank route.
               Navigator.pop(ctx);
+              sheetRef.read(themeChoiceProvider.notifier).set(choice);
             },
             child: Container(
               margin: const EdgeInsets.only(bottom: 10),

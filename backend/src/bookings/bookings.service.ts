@@ -12,7 +12,13 @@ import { WalletsService } from '../wallets/wallets.service';
 import { WorkerProfile } from '../workers/worker-profile.entity';
 import { NotificationsService } from '../notifications/notifications.service';
 import { RedisService } from '../redis/redis.service';
-import { WorkersService } from '../workers/workers.service';
+import {
+  MAX_BROADCAST_FANOUT,
+  WorkersService,
+} from '../workers/workers.service';
+import { MessagesGateway } from '../messages/messages.gateway';
+import { OutboxService } from '../outbox/outbox.service';
+import { OutboxEventType } from '../outbox/outbox.types';
 
 @Injectable()
 export class BookingsService {
@@ -27,6 +33,8 @@ export class BookingsService {
     private redisService: RedisService,
     private workersService: WorkersService,
     private dataSource: DataSource,
+    private messagesGateway: MessagesGateway,
+    private outboxService: OutboxService,
   ) {}
 
   private generateOtp(): string {
@@ -112,12 +120,27 @@ export class BookingsService {
         savedBooking.id,
         (bookingData as any).skill ?? 'General Help',
       );
+      // Realtime companion to FCM — clients treat this as primary, poll as fallback.
+      try {
+        this.messagesGateway.emitUserEvent(operatorId, 'new_booking_request', {
+          id: savedBooking.id,
+          skill: (bookingData as any).skill ?? 'General Help',
+          serviceLocation: savedBooking.serviceLocation,
+          amount: savedBooking.amount,
+          customer_name: savedBooking.customer?.name ?? 'Customer',
+        });
+      } catch (e) {
+        console.error('[CreateBooking] socket emit failed:', e);
+      }
     }
 
     // Cache initial status for poll endpoint
     await this.redisService.cacheBookingStatus(savedBooking.id, {
       status: 'REQUESTED',
       operatorName: null,
+      operatorId: operatorId ?? null,
+      customerId: customerId ?? null,
+      arrivalOtp: savedBooking.arrivalOtp,
     });
 
     return savedBooking;
@@ -183,89 +206,72 @@ export class BookingsService {
             return spoken.length === 0 || spoken.some((l) => wanted.includes(l));
           });
 
-    // Cap the fan-out; getNearby is rating-sorted, so the best pros hear first.
-    const targets = languageEligible.slice(0, 15);
+    // Prefer nearest, then highest-rated, then cap fan-out (MAX_BROADCAST_FANOUT).
+    // getNearby already distance-caps then rating-sorts; re-sort here so
+    // language filtering does not unfairly favour distant high-rated pros.
+    const targets = [...languageEligible]
+      .sort((a, b) => {
+        const d = (a.distance_km ?? Infinity) - (b.distance_km ?? Infinity);
+        if (d !== 0) return d;
+        return (b.rating || 0) - (a.rating || 0);
+      })
+      .slice(0, MAX_BROADCAST_FANOUT);
 
     const arrivalOtp = this.generateOtp();
     const completionOtp = this.generateOtp();
 
-    const booking = this.bookingsRepository.create({
-      customer: { id: customerId } as any,
-      operator: null as any,
-      skill: data.skill,
-      serviceLocation: data.serviceLocation,
-      serviceLat: data.serviceLat,
-      serviceLng: data.serviceLng,
-      addressId: data.addressId,
-      description: data.description,
-      preferredLanguages: data.preferredLanguages,
-      onSiteContact: data.onSiteContact,
-      scheduledAt: new Date(),
-      amount: data.amount,
-      type: BookingType.INSTANT,
-      paymentMethod: data.paymentMethod || 'WALLET',
-      status: BookingStatus.REQUESTED,
-      arrivalOtp,
-      completionOtp,
-    });
-    const savedBooking = await this.bookingsRepository.save(booking);
+    // Eligible worker ids known before persist — carried in outbox payload so
+    // FCM / socket / Redis pending can run after commit (retryable).
+    const notifiedWorkerIds = targets.map((w) => w.id);
 
-    await this.redisService.saveOtp(
-      `otp:booking:${savedBooking.id}:arrival`,
-      arrivalOtp,
-    );
-    await this.redisService.saveOtp(
-      `otp:booking:${savedBooking.id}:completion`,
-      completionOtp,
-    );
+    const { savedBooking, outboxId } = await this.dataSource.transaction(
+      async (manager) => {
+        const booking = manager.create(Booking, {
+          customer: { id: customerId } as any,
+          operator: null as any,
+          skill: data.skill,
+          serviceLocation: data.serviceLocation,
+          serviceLat: data.serviceLat,
+          serviceLng: data.serviceLng,
+          addressId: data.addressId,
+          description: data.description,
+          preferredLanguages: data.preferredLanguages,
+          onSiteContact: data.onSiteContact,
+          scheduledAt: new Date(),
+          amount: data.amount,
+          type: BookingType.INSTANT,
+          paymentMethod: data.paymentMethod || 'WALLET',
+          status: BookingStatus.REQUESTED,
+          arrivalOtp,
+          completionOtp,
+        });
+        const saved = await manager.save(booking);
 
-    // Same 90-second timeout as targeted requests.
-    await this.bookingsQueue.add(
-      'requestTimeout',
-      { bookingId: savedBooking.id },
-      { delay: 90 * 1000 },
-    );
-
-    await this.redisService.cacheBookingStatus(savedBooking.id, {
-      status: 'REQUESTED',
-      operatorName: null,
-    });
-
-    // Fan out: pending-queue entry + one multicast push. AUDIT FIX: was a
-    // serial await sendToUser loop (≤15); Redis pending is parallelized and
-    // FCM goes through sendToUsers (sendEachForMulticast).
-    const notifiedIds: string[] = [];
-    await Promise.all(
-      targets.map(async (w) => {
-        try {
-          await this.redisService.addPendingBooking(w.id, savedBooking.id);
-          notifiedIds.push(w.id);
-        } catch (e) {
-          console.error(`[BroadcastBooking] pending ${w.id} failed:`, e);
-        }
-      }),
-    );
-    if (notifiedIds.length > 0) {
-      await this.notificationsService
-        .sendToUsers(notifiedIds, {
-          title: 'New Job Request',
-          body: `A customer needs ${data.skill} help nearby.`,
-          data: { type: 'new_booking', bookingId: savedBooking.id },
-        })
-        .catch((e) =>
-          console.error('[BroadcastBooking] multicast failed:', e),
+        const outbox = await this.outboxService.append(
+          manager,
+          OutboxEventType.BOOKING_BROADCAST_CREATED,
+          saved.id,
+          {
+            bookingId: saved.id,
+            customerId,
+            skill: data.skill,
+            serviceLocation: data.serviceLocation,
+            amount: data.amount,
+            arrivalOtp,
+            completionOtp,
+            notifiedWorkerIds,
+          },
         );
-      await this.redisService.set(
-        `booking:notified:${savedBooking.id}`,
-        JSON.stringify(notifiedIds),
-        60 * 60,
-      );
-    }
+        return { savedBooking: saved, outboxId: outbox.id };
+      },
+    );
+
+    await this.outboxService.enqueueDispatch(outboxId);
 
     console.log(
-      `[BroadcastBooking] ${savedBooking.id} broadcast to ${notifiedIds.length} pros for ${data.skill}`,
+      `[BroadcastBooking] ${savedBooking.id} queued fan-out to ${notifiedWorkerIds.length} pros for ${data.skill}`,
     );
-    return { booking: savedBooking, notified: notifiedIds.length };
+    return { booking: savedBooking, notified: notifiedWorkerIds.length };
   }
 
   async acceptBooking(
@@ -276,7 +282,6 @@ export class BookingsService {
 
     // ── STEP 1: Database transaction (only DB writes that MUST be atomic) ──
     let savedBooking: Booking;
-    let otherPendingFiltered: Booking[] = [];
     let operatorName: string | null = null;
 
     try {
@@ -351,24 +356,46 @@ export class BookingsService {
           );
         }
 
+        const customerId = saved.customer?.id ?? null;
+        const opName = saved.operator?.name ?? null;
+        const outbox = await this.outboxService.append(
+          manager,
+          OutboxEventType.BOOKING_ACCEPTED,
+          bookingId,
+          {
+            bookingId,
+            workerId,
+            customerId,
+            operatorName: opName,
+            arrivalOtp: saved.arrivalOtp ?? null,
+            cancelledBookingIds: filtered.map((b) => b.id),
+            cancelledCustomerIds: filtered
+              .map((c) => c.customer?.id)
+              .filter((id): id is string => !!id),
+          },
+        );
+
         return {
           saved,
-          filtered,
-          opName: saved.operator?.name ?? null,
-          customerId: saved.customer?.id ?? null,
+          opName,
+          customerId,
+          outboxId: outbox.id,
         };
       });
 
       savedBooking = txResult.saved;
-      otherPendingFiltered = txResult.filtered;
       operatorName = txResult.opName;
       console.log('[AcceptBooking] Transaction committed successfully');
+
+      // Kick dispatcher after commit (poller is the crash-safety net).
+      await this.outboxService.enqueueDispatch(txResult.outboxId);
     } catch (error) {
       console.error('[AcceptBooking] Transaction FAILED:', error?.message ?? error);
       throw error;
     }
 
-    // ── STEP 2: Side effects OUTSIDE the transaction (non-atomic, resilient) ──
+    // ── STEP 2: Money side effect (kept in service; non-fatal) ──────────────
+    // FCM / socket / Redis / GPS jobs moved to outbox listener (BOOKING_ACCEPTED).
 
     // Deduct platform fee from worker wallet
     try {
@@ -378,104 +405,6 @@ export class BookingsService {
     } catch (error) {
       // Log but don't fail the accept — fee can be reconciled later
       console.error('[AcceptBooking] Wallet deduction failed (non-fatal):', error?.message ?? error);
-    }
-
-    // Mark worker as busy in Redis
-    try {
-      await this.workersService.setWorkerStatus(workerId, 'busy');
-    } catch (e) {
-      console.error('[AcceptBooking] setWorkerStatus failed:', e);
-    }
-
-    // Remove from Redis pending list
-    try {
-      await this.redisService.removePendingBooking(workerId, bookingId);
-    } catch (e) {
-      console.error('[AcceptBooking] removePendingBooking failed:', e);
-    }
-
-    // Cache ACCEPTED status for poll endpoint. operatorId included so the
-    // customer app can identify a broadcast-claimed worker it never picked.
-    try {
-      await this.redisService.cacheBookingStatus(bookingId, {
-        status: 'ACCEPTED',
-        operatorName: operatorName,
-        operatorId: workerId,
-        arrivalOtp: savedBooking.arrivalOtp,
-      });
-    } catch (e) {
-      console.error('[AcceptBooking] cacheBookingStatus failed:', e);
-    }
-
-    // Broadcast cleanup: pull this request out of every OTHER notified
-    // worker's pending list so it disappears from their queues.
-    try {
-      const raw = await this.redisService.get(`booking:notified:${bookingId}`);
-      if (raw) {
-        const notified: string[] = JSON.parse(raw);
-        await Promise.all(
-          notified
-            .filter((otherId) => otherId !== workerId)
-            .map((otherId) =>
-              this.redisService
-                .removePendingBooking(otherId, bookingId)
-                .catch(() => {}),
-            ),
-        );
-        await this.redisService.del(`booking:notified:${bookingId}`);
-      }
-    } catch (e) {
-      console.error('[AcceptBooking] broadcast cleanup failed:', e);
-    }
-
-    // Notify cancelled customers (AUDIT FIX: one multicast, not serial awaits).
-    const cancelledCustomerIds = otherPendingFiltered
-      .map((c) => c.customer?.id)
-      .filter((id): id is string => !!id);
-    if (cancelledCustomerIds.length > 0) {
-      await this.notificationsService
-        .sendToUsers(cancelledCustomerIds, {
-          title: 'Booking Cancelled',
-          body: 'The worker accepted another job. Please try booking again.',
-          data: { type: 'booking_cancelled' },
-        })
-        .catch((e) =>
-          console.error('[AcceptBooking] cancel multicast failed:', e),
-        );
-    }
-    await Promise.all(
-      otherPendingFiltered.map(async (cancelled) => {
-        try {
-          await this.redisService
-            .removePendingBooking(workerId, cancelled.id)
-            .catch(() => {});
-          await this.redisService.cacheBookingStatus(cancelled.id, {
-            status: 'CANCELLED',
-            operatorName: null,
-          });
-        } catch (e) {
-          console.error(
-            `[AcceptBooking] Cancelled-cache failed for ${cancelled.id}:`,
-            e,
-          );
-        }
-      }),
-    );
-
-    // Schedule GPS monitoring jobs
-    try {
-      await this.bookingsQueue.add(
-        'sevenMinuteReminder',
-        { bookingId: savedBooking.id },
-        { delay: 7 * 60 * 1000 },
-      );
-      await this.bookingsQueue.add(
-        'tenMinuteGpsCheck',
-        { bookingId: savedBooking.id },
-        { delay: 10 * 60 * 1000 },
-      );
-    } catch (e) {
-      console.error('[AcceptBooking] Queue scheduling failed:', e);
     }
 
     console.log('[AcceptBooking] DONE — returning success');
@@ -490,9 +419,18 @@ export class BookingsService {
         skill: savedBooking.skill,
         amount: savedBooking.amount,
         serviceLocation: savedBooking.serviceLocation,
+        serviceLat: savedBooking.serviceLat,
+        serviceLng: savedBooking.serviceLng,
         arrivalOtp: savedBooking.arrivalOtp,
         completionOtp: savedBooking.completionOtp,
         createdAt: savedBooking.createdAt,
+        customer: savedBooking.customer
+          ? { id: savedBooking.customer.id }
+          : null,
+        operator: {
+          id: workerId,
+          name: operatorName,
+        },
       },
     };
   }
@@ -500,17 +438,22 @@ export class BookingsService {
   // ── Reject / Decline Booking ──────────────────────────────────────────────
 
   /**
-   * Worker explicitly declines one booking from their queue.
-   * The customer is notified and may rebook with a different worker.
-   * Other pending bookings in the worker's queue are unaffected.
+   * Worker declines one booking from their own queue.
+   *
+   * Targeted (operator already assigned to this worker): mark REJECTED and
+   * notify the customer.
+   *
+   * Broadcast Instant Help (operator null, fan-out to many pros): only remove
+   * THIS worker from Redis pending + booking:notified. Booking stays REQUESTED
+   * so other eligible workers can still accept. Never re-notify the decliner.
    */
   async rejectBooking(
     bookingId: string,
     workerId: string,
   ): Promise<{ message: string }> {
     const booking = await this.bookingsRepository.findOne({
-      where: { id: bookingId, operator: { id: workerId } },
-      relations: ['customer'],
+      where: { id: bookingId },
+      relations: ['customer', 'operator'],
     });
 
     if (!booking) throw new NotFoundException('Booking not found');
@@ -519,23 +462,95 @@ export class BookingsService {
       throw new BadRequestException('Only pending requests can be declined.');
     }
 
-    booking.status = BookingStatus.REJECTED;
-    await this.bookingsRepository.save(booking);
+    const isAssignedOperator = booking.operator?.id === workerId;
+    const pendingIds =
+      await this.redisService.getPendingBookingIds(workerId);
+    const inPending = pendingIds.includes(bookingId);
+    const notified = await this.getNotifiedWorkerIds(bookingId);
+    const inNotified = notified.includes(workerId);
 
+    if (!isAssignedOperator && !inPending && !inNotified) {
+      throw new NotFoundException('Booking not found');
+    }
+
+    // Permanent removal from this worker's queue — poll/socket/FCM must not
+    // surface this booking to them again while it stays open for others.
     await this.redisService.removePendingBooking(workerId, bookingId);
-    await this.redisService.cacheBookingStatus(bookingId, {
-      status: 'REJECTED',
-      operatorName: null,
-    });
+    await this.dropWorkerFromNotified(bookingId, workerId, notified);
 
-    if (booking.customer?.id) {
-      await this.notificationsService.notifyBookingCancelled(
-        booking.customer.id,
-        'The worker is unavailable for this request. Please try again.',
-      );
+    if (isAssignedOperator) {
+      booking.status = BookingStatus.REJECTED;
+      await this.bookingsRepository.save(booking);
+
+      await this.redisService.cacheBookingStatus(bookingId, {
+        status: 'REJECTED',
+        operatorName: null,
+        operatorId: workerId,
+        customerId: booking.customer?.id ?? null,
+      });
+
+      if (booking.customer?.id) {
+        await this.notificationsService.notifyBookingCancelled(
+          booking.customer.id,
+          'The worker is unavailable for this request. Please try again.',
+        );
+      }
     }
 
     return { message: 'Booking declined.' };
+  }
+
+  /** Worker ids that received a broadcast Instant Help fan-out. */
+  private async getNotifiedWorkerIds(bookingId: string): Promise<string[]> {
+    try {
+      const raw = await this.redisService.get(`booking:notified:${bookingId}`);
+      if (!raw) return [];
+      const parsed = JSON.parse(raw);
+      return Array.isArray(parsed)
+        ? parsed.filter((id): id is string => typeof id === 'string')
+        : [];
+    } catch {
+      return [];
+    }
+  }
+
+  private async dropWorkerFromNotified(
+    bookingId: string,
+    workerId: string,
+    notified?: string[],
+  ): Promise<void> {
+    const list = notified ?? (await this.getNotifiedWorkerIds(bookingId));
+    if (list.length === 0) return;
+    const remaining = list.filter((id) => id !== workerId);
+    try {
+      if (remaining.length === 0) {
+        await this.redisService.del(`booking:notified:${bookingId}`);
+      } else {
+        await this.redisService.set(
+          `booking:notified:${bookingId}`,
+          JSON.stringify(remaining),
+          60 * 60,
+        );
+      }
+    } catch (e) {
+      console.error(`[RejectBooking] notified update failed for ${bookingId}:`, e);
+    }
+  }
+
+  /**
+   * Pull a booking out of every notified worker's pending queue (and drop the
+   * notified set). Used when the request ends for everyone: accept (other
+   * workers), customer cancel, timeout, or whole-booking reject.
+   */
+  private async clearAllNotifiedPending(bookingId: string): Promise<void> {
+    const notified = await this.getNotifiedWorkerIds(bookingId);
+    if (notified.length === 0) return;
+    await Promise.all(
+      notified.map((wid) =>
+        this.redisService.removePendingBooking(wid, bookingId).catch(() => {}),
+      ),
+    );
+    await this.redisService.del(`booking:notified:${bookingId}`).catch(() => {});
   }
 
   // ── Update Status ─────────────────────────────────────────────────────────
@@ -543,27 +558,50 @@ export class BookingsService {
   async updateStatus(id: string, status: BookingStatus): Promise<Booking | null> {
     const booking = await this.bookingsRepository.findOne({
       where: { id },
-      relations: ['operator'],
+      relations: ['customer', 'operator'],
     });
     if (!booking) return null;
 
-    booking.status = status;
-    const saved = await this.bookingsRepository.save(booking);
+    const isTerminalCancel =
+      status === BookingStatus.CANCELLED || status === BookingStatus.REJECTED;
 
-    await this.redisService.cacheBookingStatus(id, {
-      status: saved.status,
-      operatorName: saved.operator?.name,
-      arrivalOtp:
-        saved.status === BookingStatus.ACCEPTED ? saved.arrivalOtp : null,
+    let outboxId: string | null = null;
+    const saved = await this.dataSource.transaction(async (manager) => {
+      booking.status = status;
+      const updated = await manager.save(booking);
+
+      if (isTerminalCancel) {
+        const outbox = await this.outboxService.append(
+          manager,
+          OutboxEventType.BOOKING_CANCELLED,
+          id,
+          {
+            bookingId: id,
+            reason: 'status_update',
+            // Timeout path (Bull requestTimeout) is the main CANCELLED caller here.
+            source: status === BookingStatus.CANCELLED ? 'timeout' : 'system',
+            operatorId: booking.operator?.id ?? null,
+            operatorName: booking.operator?.name ?? null,
+            customerId: booking.customer?.id ?? null,
+          },
+        );
+        outboxId = outbox.id;
+      }
+      return updated;
     });
 
-    if (
-      status === BookingStatus.CANCELLED ||
-      status === BookingStatus.REJECTED
-    ) {
-      if (booking.operator?.id) {
-        await this.redisService.removePendingBooking(booking.operator.id, id);
-      }
+    if (outboxId) {
+      await this.outboxService.enqueueDispatch(outboxId);
+    } else {
+      // Non-cancel status changes still warm the poll cache inline.
+      await this.redisService.cacheBookingStatus(id, {
+        status: saved.status,
+        operatorName: saved.operator?.name,
+        operatorId: saved.operator?.id ?? null,
+        customerId: saved.customer?.id ?? null,
+        arrivalOtp:
+          saved.status === BookingStatus.ACCEPTED ? saved.arrivalOtp : null,
+      });
     }
 
     return saved;
@@ -624,28 +662,24 @@ export class BookingsService {
       }
     }
 
-    await this.bookingsRepository.save(booking);
-
-    if (booking.operator?.id) {
-      await this.redisService
-        .removePendingBooking(booking.operator.id, id)
-        .catch(() => {});
-      // Let the worker know the job was cancelled.
-      await this.notificationsService
-        .sendToUser(booking.operator.id, {
-          title: 'Booking cancelled',
-          body: `A customer cancelled their booking.`,
-          data: { type: 'booking_cancelled', bookingId: id },
-        })
-        .catch(() => {});
-    }
-    await this.redisService
-      .cacheBookingStatus(id, {
-        status: 'CANCELLED',
-        operatorName: booking.operator?.name,
-        arrivalOtp: null,
-      })
-      .catch(() => {});
+    // Persist cancel + outbox in one transaction; FCM/Redis via listener.
+    const outbox = await this.dataSource.transaction(async (manager) => {
+      await manager.save(booking);
+      return this.outboxService.append(
+        manager,
+        OutboxEventType.BOOKING_CANCELLED,
+        id,
+        {
+          bookingId: id,
+          reason,
+          source: 'customer',
+          operatorId: booking.operator?.id ?? null,
+          operatorName: booking.operator?.name ?? null,
+          customerId: booking.customer?.id ?? null,
+        },
+      );
+    });
+    await this.outboxService.enqueueDispatch(outbox.id);
 
     return {
       status: 'CANCELLED',
@@ -705,6 +739,7 @@ export class BookingsService {
   ): Promise<{ message: string; status: string }> {
     const booking = await this.bookingsRepository.findOne({
       where: { id: bookingId },
+      relations: ['customer', 'operator'],
     });
     if (!booking) throw new NotFoundException('Booking not found');
 
@@ -720,7 +755,9 @@ export class BookingsService {
 
     await this.redisService.cacheBookingStatus(bookingId, {
       status: 'ACTIVE',
-      operatorName: null,
+      operatorName: booking.operator?.name ?? null,
+      operatorId: booking.operator?.id ?? null,
+      customerId: booking.customer?.id ?? null,
     });
 
     return { message: 'Arrival confirmed. Job is now active.', status: 'ACTIVE' };
@@ -729,7 +766,21 @@ export class BookingsService {
   async verifyCompletionOtp(
     bookingId: string,
     otp: string,
-  ): Promise<{ message: string; status: string; billingHours: number; paymentMethod: string; totalAmount: number; isPaid: boolean; }> {
+  ): Promise<{
+    message: string;
+    status: string;
+    billingHours: number;
+    workedMinutes: number;
+    pausedMinutes: number;
+    hourlyRate: number;
+    platformFee: number;
+    paymentMethod: string;
+    totalAmount: number;
+    isPaid: boolean;
+    needsManualPayment: boolean;
+    customerName: string | null;
+    workerName: string | null;
+  }> {
     const booking = await this.bookingsRepository.findOne({
       where: { id: bookingId },
       relations: ['customer', 'operator'],
@@ -762,30 +813,42 @@ export class BookingsService {
       : Date.now();
     // Bill only WORKED time: subtract approved pause windows (pausedMinutes),
     // including a still-open pause at completion time.
-    let pausedMs = (booking.pausedMinutes ?? 0) * 60 * 1000;
+    let pausedMinutes = booking.pausedMinutes ?? 0;
     if (booking.pausedAt) {
-      pausedMs += Math.max(0, Date.now() - new Date(booking.pausedAt).getTime());
+      pausedMinutes += Math.max(
+        0,
+        Math.round((Date.now() - new Date(booking.pausedAt).getTime()) / 60000),
+      );
       booking.pausedAt = null as any;
     }
-    const workedMs = Math.max(0, Date.now() - startTime - pausedMs);
-    const hoursWorked = Math.max(1, Math.ceil(workedMs / (1000 * 60 * 60)));
+    booking.pausedMinutes = pausedMinutes;
+
+    const elapsedMs = Math.max(0, Date.now() - startTime);
+    const pausedMs = pausedMinutes * 60 * 1000;
+    const workedMs = Math.max(0, elapsedMs - pausedMs);
+    // Proportional billing: minutes × rate/hr (matches payment-screen mock).
+    // Floor at 1 minute so a near-instant completion still has a charge base.
+    const workedMinutes = Math.max(1, Math.round(workedMs / 60000));
+    const billingHours = Math.max(1, Math.ceil(workedMinutes / 60));
 
     booking.status = BookingStatus.COMPLETED; // already claimed atomically above
     booking.completedAt = booking.completedAt ?? new Date();
-    booking.billingHours = hoursWorked;
+    booking.billingHours = billingHours;
+    booking.workedMinutes = workedMinutes;
     // INSTANT (broadcast) requests carry the customer's ₹/hr budget in
-    // `amount` — total = rate × worked hours. PACKAGE/CUSTOM/RENTAL keep
-    // `amount` as the flat agreed price from the rate chart / quote.
+    // `amount` — total = rate × worked hours (fractional). PACKAGE/CUSTOM/
+    // RENTAL keep `amount` as the flat agreed price from the rate chart / quote.
+    const hourlyRate = Number(booking.amount) || 0;
     const totalAmount =
       booking.type === BookingType.INSTANT
-        ? (booking.amount || 0) * hoursWorked
-        : booking.amount || 0;
+        ? Math.round(hourlyRate * (workedMinutes / 60))
+        : hourlyRate;
     booking.totalAmount = totalAmount;
 
-    // Settle WALLET payments for real: debit customer, credit worker (atomic).
-    // On insufficient balance the booking stays unpaid and the worker's
-    // collect-payment flow (cash/UPI → markPaid) takes over.
-    if (booking.paymentMethod === 'WALLET') {
+    // Instant Help settles offline (cash / UPI / other). Gixbee never
+    // moves the job money — both sides confirm on the payment screens.
+    // Non-instant WALLET bookings still settle in-app when funded.
+    if (booking.type !== BookingType.INSTANT && booking.paymentMethod === 'WALLET') {
       if (totalAmount <= 0) {
         booking.isPaid = true; // nothing to settle
       } else if (booking.customer?.id && booking.operator?.id) {
@@ -808,14 +871,24 @@ export class BookingsService {
           );
         }
       }
+    } else if (booking.type === BookingType.INSTANT) {
+      booking.isPaid = false;
     }
 
     await this.bookingsRepository.save(booking);
+
+    // TODO(outbox): append BOOKING_COMPLETED here (same transaction as save)
+    // once complete-path Redis/worker-release side effects move to the listener.
 
     // Update Redis cache
     await this.redisService.cacheBookingStatus(bookingId, {
       status: 'COMPLETED',
       operatorName: booking.operator?.name,
+      operatorId: booking.operator?.id ?? null,
+      customerId: booking.customer?.id ?? null,
+      isPaid: !!booking.isPaid,
+      workerPaidConfirmed: !!booking.workerPaidConfirmed,
+      customerPaidConfirmed: !!booking.customerPaidConfirmed,
     });
 
     // Release worker and handle first-job bonus
@@ -832,35 +905,115 @@ export class BookingsService {
       }
     }
 
+    const platformFee = 12;
     return {
       message: 'Job completed successfully.',
       status: 'COMPLETED',
-      billingHours: hoursWorked,
+      billingHours,
+      workedMinutes,
+      pausedMinutes,
+      hourlyRate,
+      platformFee,
       paymentMethod: booking.paymentMethod,
       totalAmount,
       isPaid: booking.isPaid,
+      needsManualPayment: !booking.isPaid,
+      customerName: booking.customer?.name ?? null,
+      workerName: booking.operator?.name ?? null,
     };
   }
 
   // AUDIT FIX: was callable by ANY authenticated user on ANY booking. Only
   // the booking's participants may mark it paid, and only after completion.
-  async markPaid(bookingId: string, userId: string): Promise<{ message: string }> {
+  // Dual confirm: worker + customer each confirm offline collection; `isPaid`
+  // flips only when both sides have confirmed (or when a role re-confirms
+  // after the other already has).
+  async markPaid(
+    bookingId: string,
+    userId: string,
+    body: {
+      collectionMethod?: string;
+      honestyCheck?: string;
+      safetyCheck?: string;
+    } = {},
+  ): Promise<{
+    message: string;
+    isPaid: boolean;
+    workerPaidConfirmed: boolean;
+    customerPaidConfirmed: boolean;
+  }> {
     const booking = await this.bookingsRepository.findOne({
       where: { id: bookingId },
       relations: ['customer', 'operator'],
     });
     if (!booking) throw new NotFoundException('Booking not found');
-    if (booking.operator?.id !== userId && booking.customer?.id !== userId) {
+    const isWorker = booking.operator?.id === userId;
+    const isCustomer = booking.customer?.id === userId;
+    if (!isWorker && !isCustomer) {
       throw new BadRequestException('Only participants of this booking can mark it paid');
     }
     if (booking.status !== BookingStatus.COMPLETED) {
       throw new BadRequestException('Only completed bookings can be marked paid');
     }
 
-    booking.isPaid = true;
+    if (isWorker) {
+      booking.workerPaidConfirmed = true;
+      if (body.honestyCheck) {
+        booking.workerHonestyCheck = body.honestyCheck;
+      }
+    }
+    if (isCustomer) {
+      booking.customerPaidConfirmed = true;
+      if (body.collectionMethod) {
+        booking.paymentCollectionMethod = body.collectionMethod;
+      }
+      if (body.safetyCheck) {
+        booking.customerSafetyCheck = body.safetyCheck;
+      }
+    }
+
+    // Fully paid once both sides confirm. A single-sided confirm (e.g. older
+    // client that only had the worker button) still marks paid if the other
+    // side already confirmed, or if this is the first confirm and the other
+    // role is missing from the booking.
+    const bothConfirmed =
+      !!booking.workerPaidConfirmed && !!booking.customerPaidConfirmed;
+    const otherMissing =
+      (isWorker && !booking.customer?.id) || (isCustomer && !booking.operator?.id);
+    if (bothConfirmed || otherMissing || booking.isPaid) {
+      booking.isPaid = true;
+    }
+
     await this.bookingsRepository.save(booking);
 
-    return { message: 'Booking marked as paid.' };
+    // TODO(outbox): when isPaid flips true, append BOOKING_PAYMENT_CONFIRMED
+    // in the same transaction and move status-cache refresh to the listener.
+
+    // Keep status poll warm so both phones drop the pending-payment card
+    // as soon as isPaid flips (without waiting for a full bookings list refresh).
+    await this.redisService
+      .cacheBookingStatus(bookingId, {
+        status: booking.status,
+        operatorName: booking.operator?.name ?? null,
+        operatorId: booking.operator?.id ?? null,
+        customerId: booking.customer?.id ?? null,
+        isPaid: !!booking.isPaid,
+        workerPaidConfirmed: !!booking.workerPaidConfirmed,
+        customerPaidConfirmed: !!booking.customerPaidConfirmed,
+        pauseRequested: !!booking.pauseRequestedAt,
+        paused: !!booking.pausedAt,
+        pausedMinutes: booking.pausedMinutes ?? 0,
+      })
+      .catch(() => {});
+
+    return {
+      message: booking.isPaid
+        ? 'Booking marked as paid.'
+        : 'Payment confirmation recorded. Waiting for the other party.',
+      isPaid: !!booking.isPaid,
+      workerPaidConfirmed: !!booking.workerPaidConfirmed,
+      customerPaidConfirmed: !!booking.customerPaidConfirmed,
+    };
   }
 
   async refreshCompletionOtp(
@@ -996,6 +1149,8 @@ export class BookingsService {
     await this.redisService.cacheBookingStatus(booking.id, {
       status: booking.status,
       operatorName: booking.operator?.name,
+      operatorId: booking.operator?.id ?? null,
+      customerId: booking.customer?.id ?? null,
       arrivalOtp: null,
       pauseRequested: !!booking.pauseRequestedAt,
       paused: !!booking.pausedAt,
@@ -1170,6 +1325,133 @@ export class BookingsService {
       .getOne();
   }
 
+  /**
+   * Status poll used by the app. Prefers Redis (written on every transition)
+   * so the 30s fallback poll does not hit Postgres on every tick. Falls back
+   * to DB and refreshes the cache when Redis is cold / unauthorized.
+   */
+  async getStatusForParticipant(
+    bookingId: string,
+    userId: string,
+  ): Promise<{
+    status: string;
+    operatorName: string | null;
+    operatorId: string | null;
+    arrivalOtp: string | null;
+    pauseRequested: boolean;
+    paused: boolean;
+    pausedMinutes: number;
+    isPaid: boolean;
+    workerPaidConfirmed: boolean;
+    customerPaidConfirmed: boolean;
+    /** Live worker GPS from Redis — for customer map poll fallback. */
+    operatorLat: number | null;
+    operatorLng: number | null;
+  }> {
+    const trackingStatuses = new Set([
+      'ACCEPTED',
+      'ARRIVED',
+      'ACTIVE',
+      'IN_PROGRESS',
+    ]);
+
+    const attachOperatorLocation = async (
+      operatorId: string | null | undefined,
+      status: string,
+    ): Promise<{ operatorLat: number | null; operatorLng: number | null }> => {
+      if (!operatorId || !trackingStatuses.has(status)) {
+        return { operatorLat: null, operatorLng: null };
+      }
+      try {
+        const loc = await this.redisService.getWorkerLocation(operatorId);
+        if (
+          loc &&
+          typeof loc.lat === 'number' &&
+          typeof loc.lng === 'number' &&
+          Number.isFinite(loc.lat) &&
+          Number.isFinite(loc.lng)
+        ) {
+          return { operatorLat: loc.lat, operatorLng: loc.lng };
+        }
+      } catch {
+        // Redis miss/error — socket path remains primary.
+      }
+      return { operatorLat: null, operatorLng: null };
+    };
+
+    const cached = await this.redisService.getCachedBookingStatus(bookingId);
+    if (
+      cached &&
+      (cached.customerId === userId || cached.operatorId === userId)
+    ) {
+      const isCustomer = cached.customerId === userId;
+      const status = String(cached.status || '').toUpperCase();
+      const loc = await attachOperatorLocation(cached.operatorId, status);
+      return {
+        status,
+        operatorName: cached.operatorName ?? null,
+        operatorId: cached.operatorId ?? null,
+        arrivalOtp:
+          isCustomer && status === 'ACCEPTED'
+            ? (cached.arrivalOtp ?? null)
+            : null,
+        pauseRequested: !!cached.pauseRequested,
+        paused: !!cached.paused,
+        pausedMinutes: Number(cached.pausedMinutes ?? 0) || 0,
+        isPaid: !!cached.isPaid,
+        workerPaidConfirmed: !!cached.workerPaidConfirmed,
+        customerPaidConfirmed: !!cached.customerPaidConfirmed,
+        operatorLat: loc.operatorLat,
+        operatorLng: loc.operatorLng,
+      };
+    }
+
+    const booking = await this.getBookingById(bookingId);
+    if (!booking) throw new NotFoundException('Booking not found');
+    const isCustomer = booking.customer?.id === userId;
+    const isOperator = booking.operator?.id === userId;
+    if (!isCustomer && !isOperator) {
+      throw new NotFoundException('Booking not found');
+    }
+
+    const payload = {
+      status: booking.status,
+      operatorName: booking.operator?.name ?? null,
+      operatorId: booking.operator?.id ?? null,
+      customerId: booking.customer?.id ?? null,
+      arrivalOtp: booking.arrivalOtp,
+      pauseRequested: !!booking.pauseRequestedAt,
+      paused: !!booking.pausedAt,
+      pausedMinutes: booking.pausedMinutes ?? 0,
+      isPaid: !!booking.isPaid,
+      workerPaidConfirmed: !!booking.workerPaidConfirmed,
+      customerPaidConfirmed: !!booking.customerPaidConfirmed,
+    };
+    await this.redisService
+      .cacheBookingStatus(bookingId, payload)
+      .catch(() => {});
+
+    const status = String(booking.status);
+    const loc = await attachOperatorLocation(payload.operatorId, status.toUpperCase());
+    return {
+      status,
+      operatorName: payload.operatorName,
+      operatorId: payload.operatorId,
+      arrivalOtp:
+        isCustomer && booking.status === BookingStatus.ACCEPTED
+          ? booking.arrivalOtp
+          : null,
+      pauseRequested: payload.pauseRequested,
+      paused: payload.paused,
+      pausedMinutes: payload.pausedMinutes,
+      isPaid: payload.isPaid,
+      workerPaidConfirmed: payload.workerPaidConfirmed,
+      customerPaidConfirmed: payload.customerPaidConfirmed,
+      operatorLat: loc.operatorLat,
+      operatorLng: loc.operatorLng,
+    };
+  }
+
   /// SECURITY FIX: shared guard for the booking mutation endpoints that used
   /// to trust the URL id. Throws unless the caller is this booking's customer
   /// or operator.
@@ -1259,6 +1541,8 @@ export class BookingsService {
       await this.redisService.cacheBookingStatus(bookingId, {
         status: 'CANCELLED',
         operatorName: booking.operator?.name,
+        operatorId: booking.operator?.id ?? null,
+        customerId: booking.customer?.id ?? null,
       });
 
       if (booking.customer?.id) {

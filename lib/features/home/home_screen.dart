@@ -20,7 +20,7 @@ import '../booking/instant_help_screen.dart';
 import '../rentals/rentals_catalog_screen.dart';
 import 'active_booking_card.dart';
 import '../notifications/notifications_screen.dart';
-import '../profile/profile_screen.dart';
+import '../../core/main_tab_provider.dart';
 
 /// Home — rebuilt to match the user's `Gixbee_home_v106.html` mockup:
 /// orange wordmark + location bar, search, a 2×2 colour-coded service quad,
@@ -189,7 +189,8 @@ class HomeScreen extends ConsumerWidget {
           SizedBox(width: 10),
           // Avatar with online dot.
           GxPressable(
-            onTap: () => _go(context, const ProfileScreen()),
+            onTap: () =>
+                ref.read(mainTabIndexProvider.notifier).state = 3, // Profile tab
             child: Container(
               width: 36,
               height: 36,

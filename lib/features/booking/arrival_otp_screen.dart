@@ -67,7 +67,9 @@ class _ArrivalOtpScreenState extends ConsumerState<ArrivalOtpScreen>
     super.dispose();
   }
 
-  // ── Mark arrived — triggers backend to generate arrivalOtp ──
+  // ── Mark arrived — notifies the customer (FCM push containing the
+  // arrivalOtp that was generated at booking creation). Does NOT generate
+  // a new OTP; it just announces arrival and unlocks the OTP entry below.
 
   Future<void> _markArrived() async {
     setState(() => _isMarkingArrived = true);
@@ -79,7 +81,7 @@ class _ArrivalOtpScreenState extends ConsumerState<ArrivalOtpScreen>
       if (mounted) {
         showGxSnack(
           context,
-          'OTP requested! Ask the customer for the arrival OTP.',
+          'Customer notified! Ask them for the 4-digit arrival OTP.',
           type: GxSnackType.success,
         );
       }
@@ -242,7 +244,7 @@ class _ArrivalOtpScreenState extends ConsumerState<ArrivalOtpScreen>
                   widget.isWorker
                       ? _hasMarkedArrived
                           ? 'Enter the arrival OTP provided by the customer to start the job.'
-                          : 'Tap "Request Arrival OTP" to notify the customer you have arrived.'
+                          : 'Tap "I Have Arrived" to notify the customer. They will share the arrival OTP with you.'
                       : '${widget.workerName} will arrive shortly.\nShare the OTP below when they arrive.',
                   textAlign: TextAlign.center,
                   style: TextStyle(
@@ -258,7 +260,7 @@ class _ArrivalOtpScreenState extends ConsumerState<ArrivalOtpScreen>
                   if (!_hasMarkedArrived) ...[
                     // Step 1: Mark arrived
                     GxButton(
-                      label: 'Request Arrival OTP',
+                      label: 'I Have Arrived',
                       onTap: _markArrived,
                       icon: Icons.location_on,
                       loading: _isMarkingArrived,

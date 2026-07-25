@@ -60,3 +60,23 @@ export class ResolveDisputeDto {
   @IsNotEmpty()
   resolution: string;
 }
+
+// PATCH /bookings/:id/mark-paid — worker and/or customer confirm offline
+// collection (cash / UPI / other). Body fields are role-specific and optional
+// so a bare confirm still works for older clients.
+export class MarkPaidDto {
+  /** Customer's off-app method: CASH | UPI | OTHER */
+  @IsOptional()
+  @IsString()
+  collectionMethod?: string;
+
+  /** Worker honesty: EXACT | TIP | UNDERPAID */
+  @IsOptional()
+  @IsString()
+  honestyCheck?: string;
+
+  /** Customer safety: OK | ASKED_MORE | TIP */
+  @IsOptional()
+  @IsString()
+  safetyCheck?: string;
+}

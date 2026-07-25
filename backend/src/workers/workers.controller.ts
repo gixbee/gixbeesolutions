@@ -2,7 +2,7 @@ import { Controller, Get, Post, Patch, Param, Query, Body, Req, UseGuards } from
 import { WorkersService } from './workers.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { AdminGuard } from '../auth/admin.guard';
-import { SetActiveSkillsDto, RegisterWorkerDto, UpdateRateDto, UpdateLanguagesDto, SetWorkerVerificationDto, UpdateServiceRadiusDto } from './dto/workers.dto';
+import { SetActiveSkillsDto, RegisterWorkerDto, UpdateRateDto, UpdateLanguagesDto, SetWorkerVerificationDto, UpdateServiceRadiusDto, LiveToggleDto, UpdateLocationDto } from './dto/workers.dto';
 
 @Controller('workers')
 @UseGuards(JwtAuthGuard)
@@ -92,8 +92,21 @@ export class WorkersController {
 
   // DEFECT-004 FIX: Use JWT userId instead of URL param to prevent auth bypass
   @Post('live-toggle')
-  async toggleGoLive(@Req() req) {
-    return this.workersService.toggleGoLive(req.user.userId);
+  async toggleGoLive(@Req() req, @Body() body: LiveToggleDto) {
+    return this.workersService.toggleGoLive(req.user.userId, {
+      lat: body?.lat,
+      lng: body?.lng,
+    });
+  }
+
+  /// Persist GPS for Instant Help matching while the worker is live.
+  @Patch('me/location')
+  async updateMyLocation(@Req() req, @Body() body: UpdateLocationDto) {
+    return this.workersService.updateMyLocation(
+      req.user.userId,
+      body.lat,
+      body.lng,
+    );
   }
 
   // DEFECT-006: Worker registration endpoint

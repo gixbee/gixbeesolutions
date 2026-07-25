@@ -27,6 +27,13 @@ class SocketService {
   /// User id used to (re)join the personal chat room after every connect.
   String? _userId;
 
+  /// Active Instant Help / booking room — re-joined on every (re)connect so
+  /// the customer keeps receiving `locationUpdated` after a socket blip.
+  String? _activeJobId;
+
+  /// Customer tracking-screen callback for live worker GPS.
+  void Function(Map<String, dynamic>)? _locationUpdatedCallback;
+
   io.Socket? get socket => _socket;
   bool get isConnected => _socket?.connected ?? false;
 
@@ -55,10 +62,15 @@ class SocketService {
 
     _socket!.onConnect((_) {
       debugPrint('[Socket] Connected');
-      // Re-join the personal chat room after every (re)connect.
+      // Re-join personal + job rooms after every (re)connect.
       if (_userId != null) {
         _socket!.emit('joinUserRoom', {'userId': _userId});
       }
+      if (_activeJobId != null) {
+        _socket!.emit('joinJobRoom', {'jobId': _activeJobId});
+        debugPrint('[Socket] Re-joined job room $_activeJobId');
+      }
+      _bindLocationUpdatedListener();
     });
 
     // ── Incoming chat messages (recipient receives) ───────────
@@ -121,6 +133,8 @@ class SocketService {
         });
       }
     });
+
+    _bindLocationUpdatedListener();
   }
 
   // ── Outgoing events ──────────────────────────────────────────
@@ -136,35 +150,82 @@ class SocketService {
     }
   }
 
+  /// Join `job_<id>` so this client receives worker `locationUpdated` events.
+  /// Safe before connect — job id is cached and emitted on (re)connect.
   void joinJobRoom(String jobId) {
+    _activeJobId = jobId;
     if (isConnected) {
-      _socket?.emit('joinJobRoom', {'jobId': jobId});
+      _socket!.emit('joinJobRoom', {'jobId': jobId});
+    } else {
+      debugPrint('[Socket] joinJobRoom queued until connect: $jobId');
     }
+  }
+
+  /// Leave the active job room (call from tracking screen dispose).
+  void leaveJobRoom([String? jobId]) {
+    final id = jobId ?? _activeJobId;
+    if (id == null) return;
+    if (isConnected) {
+      _socket!.emit('leaveJobRoom', {'jobId': id});
+    }
+    if (_activeJobId == id) _activeJobId = null;
   }
 
   void onLocationUpdated(Function(Map<String, dynamic>) callback) {
     // AUDIT FIX: remove any previous handler first — screens registered a new
     // callback on every initState with no matching off(), so reopening the
     // tracking screen stacked duplicate listeners (each firing setState).
+    _locationUpdatedCallback = callback;
+    _bindLocationUpdatedListener();
+  }
+
+  void _bindLocationUpdatedListener() {
     _socket?.off('locationUpdated');
-    _socket?.on(
-      'locationUpdated',
-      (data) => callback(data as Map<String, dynamic>),
-    );
+    final cb = _locationUpdatedCallback;
+    if (cb == null || _socket == null) return;
+    _socket!.on('locationUpdated', (data) {
+      if (data is Map) {
+        cb(Map<String, dynamic>.from(data));
+      }
+    });
   }
 
   /// Unsubscribe from location updates — call from the tracking screen's
   /// dispose so a dead State's setState is never invoked.
   void offLocationUpdated() {
+    _locationUpdatedCallback = null;
     _socket?.off('locationUpdated');
   }
 
   // ── Worker-side: stream GPS to the job room ─────────────────
 
+  /// Starts streaming the worker's GPS while Go Live is on (no job room).
+  /// Instant Help matching requires Redis location — without this, live
+  /// workers are never notified.
+  void startLivePresenceStream(String userId) {
+    stopLocationStream();
+    debugPrint('[Socket] Starting live presence location stream');
+    _locationStreamSub = Geolocator.getPositionStream(
+      locationSettings: const LocationSettings(
+        accuracy: LocationAccuracy.high,
+        distanceFilter: 25,
+      ),
+    ).listen(
+      (position) {
+        updateLocation(userId, position.latitude, position.longitude);
+      },
+      onError: (e) {
+        debugPrint('[Socket] Live presence stream error: $e');
+      },
+    );
+  }
+
   /// Starts streaming the worker's GPS location to the booking's Socket.IO room.
   /// Call after accepting a booking. Emits `updateLocation` every ~5 seconds.
   void startLocationStream(String userId, String jobId) {
     stopLocationStream(); // Cancel any existing stream
+    // Ensure the worker is also in the job room (harmless if already joined).
+    joinJobRoom(jobId);
 
     debugPrint('[Socket] Starting location stream for job $jobId');
 
@@ -193,6 +254,8 @@ class SocketService {
 
   void disconnect() {
     stopLocationStream();
+    _activeJobId = null;
+    _locationUpdatedCallback = null;
     _socket?.disconnect();
     if (!_notificationController.isClosed) {
       _notificationController.close();

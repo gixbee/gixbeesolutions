@@ -9,6 +9,7 @@ import { User, UserApprovalStatus } from '../users/user.entity';
 import { Booking, BookingStatus } from '../bookings/booking.entity';
 import { RedisService } from '../redis/redis.service';
 import { MasterEntriesService } from '../master-entries/master-entries.service';
+import { MasterEntryType } from '../master-entries/master-entry.entity';
 
 // Worker data matching the Flutter Worker model's expectations exactly
 export interface WorkerDto {
@@ -42,12 +43,31 @@ export interface WorkerDto {
   service_radius_km?: number;
 }
 
-/** Hard ceiling on how far any pro can be dispatched (also the GEOSEARCH
- *  pre-filter). A pro's own radius is clamped to this. */
+/**
+ * Hard ceiling on how far any pro can be dispatched (also the GEOSEARCH
+ * pre-filter). A pro's own radius is clamped to this.
+ *
+ * Instant Help is city-scoped via this geo radius — User/WorkerProfile have
+ * no cityId yet; City exists only for the app location picker. Do not invent
+ * a city schema migration for dispatch.
+ */
 export const MAX_DISPATCH_RADIUS_KM = 50;
 
 /** Applied to legacy profiles that never set a radius. */
 export const DEFAULT_SERVICE_RADIUS_KM = 10;
+
+/**
+ * Cap on candidates that proceed to snapshot/status resolution after the
+ * distance filter. Prevents unbounded Redis/DB work when the geo index is
+ * cold and the skill set is huge (~1k live workers).
+ */
+export const MAX_NEARBY_CANDIDATES = 40;
+
+/**
+ * Hard cap on Instant Help broadcast fan-out (pending queue + FCM/socket).
+ * Applied after language filter + nearest/best sort.
+ */
+export const MAX_BROADCAST_FANOUT = 15;
 
 @Injectable()
 export class WorkersService {
@@ -290,12 +310,16 @@ export class WorkersService {
         }
       }
       profile = await this.workersRepository.save(profile);
+      profile = await this.healTradeSkills(profile);
     }
     
     return profile!;
   }
 
-  async toggleGoLive(id: string): Promise<{ isActive: boolean; message: string }> {
+  async toggleGoLive(
+    id: string,
+    coords?: { lat?: number; lng?: number },
+  ): Promise<{ isActive: boolean; message: string }> {
     // We assume the ID passed is the internal profile ID or the user ID
     // Check if it's an internal profile ID first, if so get user ID
     let userId = id;
@@ -355,6 +379,21 @@ export class WorkersService {
     profile.isActive = !profile.isActive;
     if (goingLive) profile.goLiveToggleCountToday += 1;
 
+    // Persist GPS from the client when going live so Instant Help can match
+    // this worker even when lastLat/lastLng were never written before.
+    const lat = coords?.lat;
+    const lng = coords?.lng;
+    if (
+      goingLive &&
+      typeof lat === 'number' &&
+      typeof lng === 'number' &&
+      Number.isFinite(lat) &&
+      Number.isFinite(lng)
+    ) {
+      profile.lastLat = lat;
+      profile.lastLng = lng;
+    }
+
     await this.workersRepository.save(profile);
     await this.invalidateWorkerListCache(); // directory shows is_active
 
@@ -372,7 +411,7 @@ export class WorkersService {
       // Mark as available if going online
       await this.setWorkerStatus(userId, 'available');
       
-      // PERSISTENCE SYNC: "Warm up" Redis with the last known location from DB
+      // PERSISTENCE SYNC: warm Redis with coords from this request or DB
       if (profile.lastLat && profile.lastLng) {
         await this.redisService.updateWorkerLocation(
           userId, 
@@ -396,6 +435,26 @@ export class WorkersService {
     };
   }
 
+  /** Update the worker's last-known GPS (DB + Redis). Required for Instant
+   *  Help matching while live — without Redis location, getNearby skips them. */
+  async updateMyLocation(
+    userId: string,
+    lat: number,
+    lng: number,
+  ): Promise<{ ok: true }> {
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+      throw new BadRequestException('lat and lng are required');
+    }
+    const profile = await this.ensureWorkerProfile(userId);
+    profile.lastLat = lat;
+    profile.lastLng = lng;
+    await this.workersRepository.save(profile);
+    if (profile.isActive) {
+      await this.redisService.updateWorkerLocation(userId, lat, lng);
+    }
+    return { ok: true };
+  }
+
   /** Skills that should receive instant dispatch: activeSkills if the worker
    *  curated a subset, otherwise every registered skill (back-compat). */
   private dispatchableSkills(profile: WorkerProfile): string[] {
@@ -403,6 +462,82 @@ export class WorkersService {
       (s) => (profile.skills || []).includes(s),
     );
     return active.length > 0 ? active : profile.skills || [];
+  }
+
+  /**
+   * Go Live toggles + Instant Help matching are trade-level only
+   * ("Electrician"), not every sub-skill ("Fan installation"). Collapse a
+   * polluted skills list back to PRO_TRADE labels, recovering parent trades
+   * from sub-skills when needed.
+   */
+  private async normalizeTradeSkills(skills: string[]): Promise<string[]> {
+    const unique = [...new Set((skills || []).map((s) => s.trim()).filter(Boolean))];
+    if (unique.length === 0) return [];
+
+    let trades: Array<{ label: string; value?: string | null }> = [];
+    try {
+      trades = await this.masterEntriesService.findAll(
+        MasterEntryType.PRO_TRADE,
+        true,
+      );
+    } catch {
+      return unique;
+    }
+    if (!trades.length) return unique;
+
+    const tradeLabels = new Set(trades.map((t) => t.label));
+    const tradeOnly = unique.filter((s) => tradeLabels.has(s));
+    if (tradeOnly.length > 0) return tradeOnly;
+
+    const recovered = new Set<string>();
+    for (const trade of trades) {
+      const subs = (trade.value || '')
+        .split(',')
+        .map((s) => s.trim())
+        .filter(Boolean);
+      if (unique.some((s) => subs.includes(s))) {
+        recovered.add(trade.label);
+      }
+    }
+
+    try {
+      const subEntries = await this.masterEntriesService.findAll(
+        MasterEntryType.PRO_SUB_SKILL,
+        true,
+      );
+      for (const sub of subEntries) {
+        if (!unique.includes(sub.label)) continue;
+        if (sub.category && tradeLabels.has(sub.category)) {
+          recovered.add(sub.category);
+        }
+      }
+    } catch {
+      // ignore — trade.value CSV recovery above is enough
+    }
+
+    return recovered.size > 0 ? [...recovered] : unique;
+  }
+
+  /** Persist trade-only skills when a profile still has sub-skill noise. */
+  private async healTradeSkills(profile: WorkerProfile): Promise<WorkerProfile> {
+    const normalized = await this.normalizeTradeSkills(profile.skills || []);
+    const before = [...(profile.skills || [])].sort().join('|');
+    const after = [...normalized].sort().join('|');
+    if (before === after) return profile;
+
+    profile.skills = normalized;
+    const active = (profile.activeSkills || []).filter((s) =>
+      normalized.includes(s),
+    );
+    // Empty activeSkills means "all trades on" — keep that semantics when
+    // every former active entry was a sub-skill we dropped.
+    profile.activeSkills =
+      active.length > 0
+        ? active
+        : (profile.activeSkills || []).length === 0
+          ? []
+          : [...normalized];
+    return this.workersRepository.save(profile);
   }
 
   /** Per-service activation: persist which skills accept instant jobs.
@@ -451,6 +586,7 @@ export class WorkersService {
     };
   }> {
     const profile = await this.ensureWorkerProfile(userId);
+    const healed = await this.healTradeSkills(profile);
 
     const completed = await this.bookingsRepository.find({
       where: { operator: { id: userId }, status: BookingStatus.COMPLETED },
@@ -479,10 +615,10 @@ export class WorkersService {
     }
 
     return {
-      skills: profile.skills || [],
-      activeSkills: profile.activeSkills || [],
-      isActive: profile.isActive,
-      serviceRadiusKm: profile.serviceRadiusKm ?? DEFAULT_SERVICE_RADIUS_KM,
+      skills: healed.skills || [],
+      activeSkills: healed.activeSkills || [],
+      isActive: healed.isActive,
+      serviceRadiusKm: healed.serviceRadiusKm ?? DEFAULT_SERVICE_RADIUS_KM,
       earnings: {
         total: Math.round(total * 100) / 100,
         today: Math.round(today * 100) / 100,
@@ -528,19 +664,24 @@ export class WorkersService {
       where: { user: { id: userId } },
     });
 
+    const tradeSkills = await this.normalizeTradeSkills(data.skills || []);
+
     let saved: WorkerProfile;
     if (existing) {
-      // Upsert: refresh the editable fields, PRESERVE verification/progress
-      // state (verificationStatus, isFirstJobDone, isActive, strikes).
-      existing.skills = data.skills;
+      // Upsert: replace with trade-level skills (not sub-skill noise).
+      existing.skills = tradeSkills;
       existing.hourlyRate = data.hourlyRate;
       if (data.bio !== undefined) existing.bio = data.bio;
       if (data.title !== undefined) existing.title = data.title;
+      // Drop active entries that are no longer trades.
+      existing.activeSkills = (existing.activeSkills || []).filter((s) =>
+        tradeSkills.includes(s),
+      );
       saved = await this.workersRepository.save(existing);
     } else {
       const profile = this.workersRepository.create({
         user: { id: userId } as any,
-        skills: data.skills,
+        skills: tradeSkills,
         hourlyRate: data.hourlyRate,
         bio: data.bio,
         title: data.title,
@@ -778,13 +919,18 @@ export class WorkersService {
     });
     if (inRadius.length === 0) return [];
 
+    // Nearest-first candidate cap BEFORE snapshot/status work — keeps Redis
+    // and DB load bounded when geo is cold and the skill index is large.
+    inRadius.sort((a, b) => a.distance - b.distance);
+    const capped = inRadius.slice(0, MAX_NEARBY_CANDIDATES);
+
     // 3b. All snapshots in parallel.
     const snapshots = await Promise.all(
-      inRadius.map((c) => this.redisService.getWorkerSnapshot(c.workerId)),
+      capped.map((c) => this.redisService.getWorkerSnapshot(c.workerId)),
     );
 
     // 3c. Cache misses resolved with a SINGLE DB query + parallel statuses.
-    const missIds = inRadius
+    const missIds = capped
       .filter((_, i) => !snapshots[i])
       .map((c) => c.workerId);
     const rebuilt = new Map<string, WorkerDto>();
@@ -809,9 +955,12 @@ export class WorkersService {
     }
 
     const result: WorkerDto[] = [];
-    inRadius.forEach((c, i) => {
+    capped.forEach((c, i) => {
       const dto = snapshots[i] ?? rebuilt.get(c.workerId);
       if (!dto) return;
+
+      // Skip workers already on a job — Instant Help only notifies available.
+      if (dto.status === 'busy') return;
 
       // ── Worker-set travel limit ──
       // Each pro declares how far they'll travel (Go Live → Service area).
@@ -830,6 +979,7 @@ export class WorkersService {
       result.push(dto);
     });
 
+    // Among the nearest capped set, prefer higher-rated pros.
     return result.sort((a, b) => (b.rating || 0) - (a.rating || 0));
   }
 

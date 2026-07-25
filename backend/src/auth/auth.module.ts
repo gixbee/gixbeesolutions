@@ -6,6 +6,7 @@ import { AuthService } from './auth.service';
 import { AuthController } from './auth.controller';
 import { UsersModule } from '../users/users.module';
 import { JwtStrategy } from './jwt.strategy';
+import { WsJwtGuard } from './ws-jwt.guard';
 import { AdminStaffModule } from '../admin-staff/admin-staff.module';
 
 @Module({
@@ -22,8 +23,8 @@ import { AdminStaffModule } from '../admin-staff/admin-staff.module';
       inject: [ConfigService],
     }),
   ],
-  providers: [AuthService, JwtStrategy],
+  providers: [AuthService, JwtStrategy, WsJwtGuard],
   controllers: [AuthController],
-  exports: [AuthService],
+  exports: [AuthService, WsJwtGuard],
 })
 export class AuthModule {}

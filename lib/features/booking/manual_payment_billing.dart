@@ -1,0 +1,97 @@
+/// Shared billing helpers for post-completion manual payment screens.
+class ManualPaymentBilling {
+  final double amount;
+  final double hourlyRate;
+  final int workedMinutes;
+  final int pausedMinutes;
+  final double platformFee;
+  final String counterpartName;
+
+  const ManualPaymentBilling({
+    required this.amount,
+    required this.hourlyRate,
+    required this.workedMinutes,
+    required this.pausedMinutes,
+    required this.platformFee,
+    required this.counterpartName,
+  });
+
+  int get amountInt => amount.round();
+  int get rateInt => hourlyRate.round();
+  int get feeInt => platformFee.round();
+
+  String get durationLabel => formatDuration(workedMinutes);
+
+  String get pauseLabel {
+    if (pausedMinutes <= 0) return '₹0';
+    return '${formatDuration(pausedMinutes)} · ₹0';
+  }
+
+  /// `1hr 12min` style used on the worker breakdown row.
+  String get compactDurationLabel {
+    final h = workedMinutes ~/ 60;
+    final m = workedMinutes % 60;
+    if (h <= 0) return '${m}min';
+    if (m <= 0) return '${h}hr';
+    return '${h}hr ${m}min';
+  }
+
+  static String formatDuration(int totalMinutes) {
+    final m = totalMinutes < 0 ? 0 : totalMinutes;
+    final h = m ~/ 60;
+    final rem = m % 60;
+    if (h <= 0) return '$rem min';
+    if (rem == 0) return '$h hr';
+    return '$h hr $rem min';
+  }
+
+  static ManualPaymentBilling fromMaps({
+    required Map<String, dynamic>? booking,
+    Map<String, dynamic>? completion,
+    required String fallbackName,
+    bool counterpartIsCustomer = true,
+  }) {
+    final src = <String, dynamic>{
+      ...?booking,
+      ...?completion,
+    };
+    final amount = _num(src['totalAmount'] ?? src['amount'] ?? 0);
+    final rate = _num(
+      src['hourlyRate'] ??
+          (src['type']?.toString().toUpperCase() == 'INSTANT'
+              ? src['amount']
+              : src['hourlyRate']) ??
+          amount,
+    );
+    final worked = _int(
+      src['workedMinutes'] ??
+          ((src['billingHours'] != null)
+              ? (_num(src['billingHours']) * 60).round()
+              : 60),
+    );
+    final paused = _int(src['pausedMinutes'] ?? 0);
+    final fee = _num(src['platformFee'] ?? 12);
+    String name = fallbackName;
+    if (counterpartIsCustomer) {
+      name = src['customerName']?.toString() ??
+          booking?['customer']?['name']?.toString() ??
+          fallbackName;
+    } else {
+      name = src['workerName']?.toString() ??
+          booking?['operator']?['name']?.toString() ??
+          fallbackName;
+    }
+    return ManualPaymentBilling(
+      amount: amount,
+      hourlyRate: rate > 0 ? rate : amount,
+      workedMinutes: worked > 0 ? worked : 1,
+      pausedMinutes: paused,
+      platformFee: fee,
+      counterpartName: name,
+    );
+  }
+
+  static double _num(dynamic v) =>
+      (num.tryParse('$v') ?? 0).toDouble();
+  static int _int(dynamic v) => (num.tryParse('$v') ?? 0).round();
+}

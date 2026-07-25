@@ -56,6 +56,27 @@ export class UpdateServiceRadiusDto {
   serviceRadiusKm: number;
 }
 
+// POST /workers/live-toggle — optional GPS so Instant Help can match this
+// worker immediately (without waiting for a post-accept location stream).
+export class LiveToggleDto {
+  @IsOptional()
+  @IsNumber()
+  lat?: number;
+
+  @IsOptional()
+  @IsNumber()
+  lng?: number;
+}
+
+// PATCH /workers/me/location — refresh Redis + last known DB coords while live.
+export class UpdateLocationDto {
+  @IsNumber()
+  lat: number;
+
+  @IsNumber()
+  lng: number;
+}
+
 // PATCH /workers/admin/:userId/verification — admin approves/rejects a
 // worker's verification from the portal queue.
 export class SetWorkerVerificationDto {

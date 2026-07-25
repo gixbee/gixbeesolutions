@@ -4,12 +4,15 @@ import 'package:intl/intl.dart';
 import '../../repositories/booking_repository.dart';
 import '../../repositories/booking_status_provider.dart';
 import '../../repositories/auth_repository.dart';
+import '../../services/ola_maps_style_service.dart';
 import '../booking/completion_otp_screen.dart';
 import '../booking/live_tracking_map_screen.dart';
 import '../jobs/booking_detail_screen.dart';
 import '../../shared/models/worker.dart';
 import '../../shared/widgets/glass_container.dart';
 import '../booking/collect_payment_screen.dart';
+import '../booking/customer_pay_screen.dart';
+import '../../shared/utils/booking_flags.dart';
 
 // Derives from shared myBookingsProvider — auto-refreshes on invalidation
 final activeBookingProvider = FutureProvider.autoDispose<Map<String, dynamic>?>((ref) async {
@@ -20,7 +23,8 @@ final activeBookingProvider = FutureProvider.autoDispose<Map<String, dynamic>?>(
       (b) {
         final status = (b['status'] ?? '').toString().toUpperCase();
         if (activeStatuses.contains(status)) return true;
-        if (status == 'COMPLETED' && b['paymentMethod'] == 'DIRECT' && b['isPaid'] == false) return true;
+        // Unpaid completed jobs still need the manual payment screens.
+        if (status == 'COMPLETED' && !bookingFlagTrue(b['isPaid'])) return true;
         return false;
       },
     );
@@ -43,10 +47,26 @@ class _ActiveBookingCardState extends ConsumerState<ActiveBookingCard> {
   // background pausing handled inside that provider.
   String? _liveStatus;
   String? _lastTerminalId; // avoid re-invalidating the list on every rebuild
+  String? _lastPaidRefreshId;
 
   /// Terminal transitions still need the bookings list refreshed.
-  void _onStatus(String bookingId, String? newStatus) {
-    if (newStatus == null || newStatus == _liveStatus) return;
+  void _onStatus(String bookingId, Map<String, dynamic>? polled) {
+    final newStatus = polled?['status']?.toString().toUpperCase();
+    if (newStatus == null || newStatus == _liveStatus) {
+      // Still watch isPaid flips on an already-COMPLETED booking.
+      if (newStatus == 'COMPLETED' &&
+          bookingFlagTrue(polled?['isPaid']) &&
+          _lastPaidRefreshId != bookingId) {
+        _lastPaidRefreshId = bookingId;
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) {
+            ref.invalidate(myBookingsProvider);
+            ref.invalidate(activeBookingProvider);
+          }
+        });
+      }
+      return;
+    }
     _liveStatus = newStatus;
     if (['COMPLETED', 'CANCELLED', 'REJECTED'].contains(newStatus) &&
         _lastTerminalId != bookingId) {
@@ -54,6 +74,17 @@ class _ActiveBookingCardState extends ConsumerState<ActiveBookingCard> {
       // Defer: we're inside build.
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) ref.invalidate(myBookingsProvider);
+      });
+    }
+    if (newStatus == 'COMPLETED' &&
+        bookingFlagTrue(polled?['isPaid']) &&
+        _lastPaidRefreshId != bookingId) {
+      _lastPaidRefreshId = bookingId;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          ref.invalidate(myBookingsProvider);
+          ref.invalidate(activeBookingProvider);
+        }
       });
     }
   }
@@ -78,13 +109,28 @@ class _ActiveBookingCardState extends ConsumerState<ActiveBookingCard> {
         final polled = bookingId.isEmpty
             ? null
             : ref.watch(bookingStatusProvider(bookingId)).value;
-        final polledStatus = polled?['status']?.toString().toUpperCase();
-        if (bookingId.isNotEmpty) _onStatus(bookingId, polledStatus);
+        if (bookingId.isNotEmpty) _onStatus(bookingId, polled);
 
+        final polledStatus = polled?['status']?.toString().toUpperCase();
         final bStatus = polledStatus ??
             (activeBooking['status'] ?? '').toString().toUpperCase();
+        final isPaid = bookingFlagTrue(polled?['isPaid']) ||
+            bookingFlagTrue(activeBooking['isPaid']);
+
+        // Both sides confirmed — drop pending-payment card immediately.
+        if (bStatus == 'COMPLETED' && isPaid) {
+          return const SizedBox.shrink();
+        }
+
         final isOperator = user.id ==
             (activeBooking['operator']?['id'] ?? activeBooking['operator']);
+        final workerConfirmed = bookingFlagTrue(polled?['workerPaidConfirmed']) ||
+            bookingFlagTrue(activeBooking['workerPaidConfirmed']);
+        final customerConfirmed =
+            bookingFlagTrue(polled?['customerPaidConfirmed']) ||
+                bookingFlagTrue(activeBooking['customerPaidConfirmed']);
+        final iConfirmed =
+            isOperator ? workerConfirmed : customerConfirmed;
         final scheduledAt = activeBooking['scheduledAt'] != null
             ? DateTime.parse(activeBooking['scheduledAt'])
             : DateTime.now();
@@ -127,6 +173,8 @@ class _ActiveBookingCardState extends ConsumerState<ActiveBookingCard> {
                         primaryType: SkillType.manual,
                         status: 'available',
                       ),
+                      customerLat: readCoord(activeBooking['serviceLat']),
+                      customerLng: readCoord(activeBooking['serviceLng']),
                       arrivalOtp: otp,
                       isWorker: isOperator,
                     ),
@@ -144,23 +192,56 @@ class _ActiveBookingCardState extends ConsumerState<ActiveBookingCard> {
                     ),
                   ),
                 );
-              } else if (bStatus == 'COMPLETED' &&
-                  activeBooking['paymentMethod'] == 'DIRECT' &&
-                  activeBooking['isPaid'] == false) {
-                await Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => CollectPaymentScreen(
-                      bookingId: bookingId,
-                      // Decimal may arrive as a string; fall back to the
-                      // booked `amount` if `totalAmount` isn't set yet.
-                      amount: (num.tryParse('${activeBooking['totalAmount'] ?? activeBooking['amount'] ?? 0}') ??
-                              0)
-                          .toDouble(),
-                      customerName: activeBooking['customer']?['name'] ?? 'Customer',
+              } else if (bStatus == 'COMPLETED' && !isPaid) {
+                final amount = (num.tryParse(
+                            '${activeBooking['totalAmount'] ?? activeBooking['amount'] ?? 0}') ??
+                        0)
+                    .toDouble();
+                final hourlyRate = (num.tryParse(
+                            '${activeBooking['hourlyRate'] ?? (activeBooking['type']?.toString().toUpperCase() == 'INSTANT' ? activeBooking['amount'] : 0) ?? 0}') ??
+                        0)
+                    .toDouble();
+                final workedMinutes = (num.tryParse(
+                            '${activeBooking['workedMinutes'] ?? ((activeBooking['billingHours'] != null) ? (num.tryParse('${activeBooking['billingHours']}') ?? 1) * 60 : 60)}') ??
+                        60)
+                    .round();
+                final pausedMinutes =
+                    (num.tryParse('${activeBooking['pausedMinutes'] ?? 0}') ?? 0)
+                        .round();
+
+                if (isOperator) {
+                  await Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => CollectPaymentScreen(
+                        bookingId: bookingId,
+                        amount: amount,
+                        customerName:
+                            activeBooking['customer']?['name'] ?? 'Customer',
+                        hourlyRate: hourlyRate > 0 ? hourlyRate : null,
+                        workedMinutes: workedMinutes,
+                        pausedMinutes: pausedMinutes,
+                        initiallyWaiting: iConfirmed,
+                      ),
                     ),
-                  ),
-                );
+                  );
+                } else {
+                  await Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => CustomerPayScreen(
+                        bookingId: bookingId,
+                        amount: amount,
+                        workerName:
+                            activeBooking['operator']?['name'] ?? 'Worker',
+                        hourlyRate: hourlyRate > 0 ? hourlyRate : null,
+                        workedMinutes: workedMinutes,
+                        pausedMinutes: pausedMinutes,
+                        initiallyWaiting: iConfirmed,
+                      ),
+                    ),
+                  );
+                }
               } else {
                 await Navigator.push(
                   context,
@@ -171,7 +252,11 @@ class _ActiveBookingCardState extends ConsumerState<ActiveBookingCard> {
               }
               // Full refresh after returning from a sub-screen
               _liveStatus = null;
+              _lastPaidRefreshId = null;
               ref.invalidate(myBookingsProvider);
+              if (bookingId.isNotEmpty) {
+                ref.invalidate(bookingStatusProvider(bookingId));
+              }
             },
             child: GlassContainer(
               padding: const EdgeInsets.all(16),
@@ -181,12 +266,13 @@ class _ActiveBookingCardState extends ConsumerState<ActiveBookingCard> {
                   Container(
                     padding: const EdgeInsets.all(10),
                     decoration: BoxDecoration(
-                      color: _getStatusColor(bStatus).withValues(alpha: 0.1),
+                      color: _getStatusColor(bStatus, iConfirmed)
+                          .withValues(alpha: 0.1),
                       shape: BoxShape.circle,
                     ),
                     child: Icon(
-                      _getStatusIcon(bStatus),
-                      color: _getStatusColor(bStatus),
+                      _getStatusIcon(bStatus, iConfirmed),
+                      color: _getStatusColor(bStatus, iConfirmed),
                     ),
                   ),
                   const SizedBox(width: 16),
@@ -218,16 +304,16 @@ class _ActiveBookingCardState extends ConsumerState<ActiveBookingCard> {
                         padding: const EdgeInsets.symmetric(
                             horizontal: 8, vertical: 4),
                         decoration: BoxDecoration(
-                          color:
-                              _getStatusColor(bStatus).withValues(alpha: 0.1),
+                          color: _getStatusColor(bStatus, iConfirmed)
+                              .withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: Text(
-                          _getStatusLabel(bStatus),
+                          _getStatusLabel(bStatus, iConfirmed),
                           style: TextStyle(
                             fontSize: 10,
                             fontWeight: FontWeight.bold,
-                            color: _getStatusColor(bStatus),
+                            color: _getStatusColor(bStatus, iConfirmed),
                           ),
                         ),
                       ),
@@ -247,7 +333,7 @@ class _ActiveBookingCardState extends ConsumerState<ActiveBookingCard> {
     );
   }
 
-  IconData _getStatusIcon(String status) {
+  IconData _getStatusIcon(String status, bool waitingConfirm) {
     switch (status) {
       case 'REQUESTED':
       case 'PENDING':
@@ -260,13 +346,15 @@ class _ActiveBookingCardState extends ConsumerState<ActiveBookingCard> {
       case 'IN_PROGRESS':
         return Icons.run_circle_outlined;
       case 'COMPLETED':
-        return Icons.payments_outlined;
+        return waitingConfirm
+            ? Icons.hourglass_bottom_rounded
+            : Icons.payments_outlined;
       default:
         return Icons.bookmark_outline;
     }
   }
 
-  Color _getStatusColor(String status) {
+  Color _getStatusColor(String status, bool waitingConfirm) {
     switch (status) {
       case 'REQUESTED':
       case 'PENDING':
@@ -279,13 +367,13 @@ class _ActiveBookingCardState extends ConsumerState<ActiveBookingCard> {
       case 'IN_PROGRESS':
         return Colors.green;
       case 'COMPLETED':
-        return Colors.redAccent;
+        return waitingConfirm ? Colors.amber.shade700 : Colors.redAccent;
       default:
         return Colors.orange;
     }
   }
 
-  String _getStatusLabel(String status) {
+  String _getStatusLabel(String status, bool waitingConfirm) {
     switch (status) {
       case 'REQUESTED':
         return 'Waiting';
@@ -300,7 +388,7 @@ class _ActiveBookingCardState extends ConsumerState<ActiveBookingCard> {
       case 'IN_PROGRESS':
         return 'In Progress';
       case 'COMPLETED':
-        return 'Pending Payment';
+        return waitingConfirm ? 'Awaiting confirm' : 'Pending Payment';
       default:
         return status;
     }

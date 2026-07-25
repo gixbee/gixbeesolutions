@@ -1,6 +1,7 @@
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/legacy.dart';
 import '../shared/models/worker.dart';
 import 'auth_repository.dart'; // To get dioProvider
 
@@ -95,16 +96,34 @@ class WorkerRepository {
 
   /// Toggles the worker's Go-Live state on the server.
   ///
-  /// Hits `POST /workers/live-toggle` (JWT identifies the worker). The backend
-  /// enforces the min-wallet-balance and 2-toggles/day rules and returns the
-  /// resulting state. Throws [DioException] on a 400 so the UI can surface the
-  /// server message (e.g. "Minimum Rs.12 wallet balance required").
-  Future<({bool isActive, String message})> goLiveToggle() async {
-    final response = await _dio.post('/workers/live-toggle');
+  /// Hits `POST /workers/live-toggle` (JWT identifies the worker). Optional
+  /// [lat]/[lng] warm Redis so Instant Help can match this worker immediately.
+  Future<({bool isActive, String message})> goLiveToggle({
+    double? lat,
+    double? lng,
+  }) async {
+    final response = await _dio.post(
+      '/workers/live-toggle',
+      data: {
+        if (lat != null) 'lat': lat,
+        if (lng != null) 'lng': lng,
+      },
+    );
     final data = Map<String, dynamic>.from(response.data);
     return (
       isActive: data['isActive'] == true,
       message: (data['message'] ?? '') as String,
+    );
+  }
+
+  /// `PATCH /workers/me/location` — keep Redis GPS warm while live.
+  Future<void> updateMyLocation({
+    required double lat,
+    required double lng,
+  }) async {
+    await _dio.patch(
+      '/workers/me/location',
+      data: {'lat': lat, 'lng': lng},
     );
   }
 

@@ -329,7 +329,9 @@ class BookingDetailScreen extends ConsumerWidget {
               accent: Colors.red,
               onTap: () async {
                 try {
-                  await ref.read(bookingRepositoryProvider).updateBookingStatus(booking['id'], 'REJECTED');
+                  await ref
+                      .read(bookingRepositoryProvider)
+                      .rejectBooking(booking['id'].toString());
                   ref.invalidate(myBookingsProvider);
                   ref.invalidate(activeBookingProvider);
                   if (context.mounted) Navigator.pop(context);

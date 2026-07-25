@@ -1,6 +1,7 @@
 import { Injectable, Logger, OnModuleInit, OnModuleDestroy } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { createClient, RedisClientType } from 'redis';
+import { buildRedisUrl } from './redis-url';
 
 export interface LocationCache {
   lat: number;
@@ -38,27 +39,15 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
   private memKeyExp = new Map<string, number>(); // key-level TTL for sets/zsets
 
   constructor(private configService: ConfigService) {
-    const redisUrl = this.configService.get<string>('REDIS_URL');
-
     // Capped exponential backoff so a missing Redis doesn't spam reconnects
     const socket = {
       reconnectStrategy: (retries: number) => Math.min(retries * 500, 30_000),
     };
 
-    if (redisUrl) {
-      this.client = createClient({ url: redisUrl, socket });
-    } else {
-      const host = this.configService.get<string>('REDIS_HOST') || 'localhost';
-      const port = this.configService.get<number>('REDIS_PORT') || 6379;
-      const password = this.configService.get<string>('REDIS_PASSWORD');
-
-      this.client = createClient({
-        url: password
-          ? `redis://:${password}@${host}:${port}`
-          : `redis://${host}:${port}`,
-        socket,
-      });
-    }
+    this.client = createClient({
+      url: buildRedisUrl(this.configService),
+      socket,
+    });
 
     this.client.on('error', (err) => {
       // Log once per outage, not per failed command
@@ -78,6 +67,22 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
   /** True when commands can actually be sent to Redis. */
   private get live(): boolean {
     return this.client?.isReady ?? false;
+  }
+
+  /** Public readiness for health badges (Monitoring page). */
+  isReady(): boolean {
+    return this.live;
+  }
+
+  /** Lightweight PING for health checks. False when using in-memory fallback. */
+  async ping(): Promise<boolean> {
+    if (!this.live) return false;
+    try {
+      const pong = await this.client.ping();
+      return pong === 'PONG';
+    } catch {
+      return false;
+    }
   }
 
   async onModuleInit() {

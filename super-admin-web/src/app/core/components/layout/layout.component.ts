@@ -1,4 +1,4 @@
-import { Component, inject } from '@angular/core';
+import { Component, inject, signal, HostListener } from '@angular/core';
 import { RouterOutlet, RouterLink, RouterLinkActive } from '@angular/router';
 import { CommonModule } from '@angular/common';
 import { AuthService } from '../../services/auth.service';
@@ -17,8 +17,18 @@ interface NavItem {
   imports: [RouterOutlet, RouterLink, RouterLinkActive, CommonModule],
   template: `
     <div class="d-flex" style="min-height: 100vh;">
-      <aside class="gx-sidebar">
-        <div class="gx-sidebar-brand">gixbee<span class="accent">·admin</span></div>
+      <!-- Backdrop shown only when the mobile drawer is open -->
+      <div class="gx-backdrop d-lg-none"
+           [class.show]="sidebarOpen()"
+           (click)="closeSidebar()"></div>
+
+      <aside class="gx-sidebar" [class.open]="sidebarOpen()">
+        <div class="gx-sidebar-brand">
+          gixbee<span class="accent">·admin</span>
+          <button class="gx-sidebar-close d-lg-none" (click)="closeSidebar()" aria-label="Close menu">
+            <i class="bi bi-x-lg"></i>
+          </button>
+        </div>
 
         <ng-container *ngFor="let section of visibleSections">
           <div class="gx-nav-section">{{ section.title }}</div>
@@ -26,7 +36,8 @@ interface NavItem {
              class="gx-nav-link"
              [routerLink]="item.path"
              routerLinkActive="active"
-             [routerLinkActiveOptions]="{ exact: !!item.exact }">
+             [routerLinkActiveOptions]="{ exact: !!item.exact }"
+             (click)="closeSidebar()">
             <i class="bi" [ngClass]="item.icon"></i> {{ item.label }}
           </a>
         </ng-container>
@@ -34,15 +45,20 @@ interface NavItem {
 
       <div class="flex-grow-1 d-flex flex-column" style="min-width: 0;">
         <header class="gx-topbar">
-          <span class="title">Gixbee Operations</span>
-          <div class="d-flex align-items-center gap-3">
+          <div class="d-flex align-items-center gap-2" style="min-width: 0;">
+            <button class="gx-menu-toggle d-lg-none" (click)="toggleSidebar()" aria-label="Open menu">
+              <i class="bi bi-list"></i>
+            </button>
+            <span class="title text-truncate">Gixbee Operations</span>
+          </div>
+          <div class="d-flex align-items-center gap-2 gap-md-3">
             <span class="gx-admin-chip">
               <span class="avatar">{{ initials }}</span>
-              {{ displayName }}
-              <span class="badge bg-dark ms-2" style="font-size: 10px;">{{ staffRole }}</span>
+              <span class="gx-admin-name">{{ displayName }}</span>
+              <span class="badge bg-dark ms-2 gx-admin-role" style="font-size: 10px;">{{ staffRole }}</span>
             </span>
             <button class="btn btn-sm btn-outline-danger" (click)="onLogout()">
-              <i class="bi bi-box-arrow-right me-1"></i>Logout
+              <i class="bi bi-box-arrow-right me-1"></i><span class="d-none d-sm-inline">Logout</span>
             </button>
           </div>
         </header>
@@ -56,6 +72,25 @@ interface NavItem {
 })
 export class LayoutComponent {
   private authService = inject(AuthService);
+
+  /** Whether the off-canvas sidebar drawer is open (mobile only). */
+  readonly sidebarOpen = signal(false);
+
+  toggleSidebar() {
+    this.sidebarOpen.update((v) => !v);
+  }
+
+  closeSidebar() {
+    this.sidebarOpen.set(false);
+  }
+
+  /** Auto-close the drawer if the viewport grows back to desktop width. */
+  @HostListener('window:resize')
+  onResize() {
+    if (typeof window !== 'undefined' && window.innerWidth >= 992 && this.sidebarOpen()) {
+      this.sidebarOpen.set(false);
+    }
+  }
 
   private readonly sections: { title: string; items: NavItem[] }[] = [
     {
@@ -88,29 +123,32 @@ export class LayoutComponent {
         { page: 'staff', path: '/staff', label: 'Admin staff', icon: 'bi-shield-lock' },
       ],
     },
+    {
+      title: 'System',
+      items: [
+        { page: 'monitoring', path: '/monitoring', label: 'Monitoring', icon: 'bi-activity' },
+        { page: 'logs', path: '/logs', label: 'Logs', icon: 'bi-journal-text' },
+      ],
+    },
   ];
 
-  get visibleSections() {
-    return this.sections
-      .map((s) => ({
-        title: s.title,
-        items: s.items.filter((i) => this.authService.canAccess(i.page)),
-      }))
-      .filter((s) => s.items.length > 0);
-  }
+  readonly visibleSections = this.sections
+    .map((s) => ({
+      title: s.title,
+      items: s.items.filter((i) => this.authService.canAccess(i.page)),
+    }))
+    .filter((s) => s.items.length > 0);
 
-  get displayName() {
-    return this.authService.getSession()?.displayName || 'Admin';
-  }
+  readonly displayName =
+    this.authService.getSession()?.displayName || 'Admin';
 
-  get staffRole() {
-    return this.authService.getSession()?.staffRole || 'ADMIN';
-  }
+  readonly staffRole =
+    this.authService.getSession()?.staffRole || 'ADMIN';
 
-  get initials() {
+  readonly initials = (() => {
     const n = this.displayName.trim();
     return (n.charAt(0) || 'A').toUpperCase();
-  }
+  })();
 
   onLogout() {
     this.authService.logout();
