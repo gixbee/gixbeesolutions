@@ -55,7 +55,7 @@ services:
   # CAVEAT: session-level features (LISTEN/NOTIFY, session advisory locks,
   # named prepared statements) don't work in transaction mode.
   pgbouncer:
-    image: bitnami/pgbouncer:latest
+    image: edoburu/pgbouncer:latest
     container_name: gixbee_pgbouncer
     restart: unless-stopped
     logging:
@@ -64,6 +64,16 @@ services:
         max-size: "10m"
         max-file: "3"
     environment:
+      DB_USER: postgres
+      DB_PASSWORD: gixbee123
+      DB_HOST: postgres
+      DB_NAME: gixbee_db
+      LISTEN_PORT: 6432
+      POOL_MODE: transaction
+      MAX_CLIENT_CONN: 10000
+      DEFAULT_POOL_SIZE: 40
+      RESERVE_POOL_SIZE: 10
+      IGNORE_STARTUP_PARAMETERS: extra_float_digits
       POSTGRESQL_HOST: postgres
       POSTGRESQL_PORT: 5432
       POSTGRESQL_USERNAME: postgres
