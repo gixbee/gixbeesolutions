@@ -79,6 +79,49 @@ export class OutboxService {
     });
   }
 
+  /**
+   * Atomically claim an event for processing — compare-and-set on `attempts`.
+   * With multiple replicas (or the 'dispatch' kick racing the 'poll' tick),
+   * only ONE worker's UPDATE matches; everyone else sees affected=0 and
+   * skips, preventing duplicate FCM pushes / handler side effects.
+   * The claim itself counts as the attempt: if the process crashes
+   * mid-handle, the row stays PENDING with the attempt recorded, and the
+   * poller retries it on a later tick.
+   */
+  async claim(id: string, expectedAttempts: number): Promise<boolean> {
+    const res = await this.outboxRepo
+      .createQueryBuilder()
+      .update(OutboxEvent)
+      .set({ attempts: () => '"attempts" + 1' })
+      .where('id = :id', { id })
+      .andWhere('status = :pending', { pending: OutboxStatus.PENDING })
+      .andWhere('attempts = :expectedAttempts', { expectedAttempts })
+      .execute();
+    return (res.affected ?? 0) === 1;
+  }
+
+  /**
+   * Record a failure for an event that was already claimed (attempts was
+   * incremented by `claim`, so this only sets the error / terminal status).
+   */
+  async recordFailureAfterClaim(id: string, errorMessage: string): Promise<void> {
+    const row = await this.outboxRepo.findOne({ where: { id } });
+    if (!row) return;
+    const attempts = row.attempts ?? 0;
+    const status =
+      attempts >= MAX_ATTEMPTS ? OutboxStatus.FAILED : OutboxStatus.PENDING;
+    await this.outboxRepo.update(id, {
+      status,
+      lastError: errorMessage.slice(0, 2000),
+      processedAt: status === OutboxStatus.FAILED ? new Date() : null,
+    });
+    if (status === OutboxStatus.FAILED) {
+      this.logger.error(
+        `Outbox event ${id} marked FAILED after ${attempts} attempts: ${errorMessage}`,
+      );
+    }
+  }
+
   async markProcessed(id: string): Promise<void> {
     await this.outboxRepo.update(id, {
       status: OutboxStatus.PROCESSED,

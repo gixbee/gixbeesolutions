@@ -78,7 +78,7 @@ export class BookingLifecycleHandler {
       },
     );
 
-    await this.redisService.cacheBookingStatus(p.bookingId, {
+    await this.cacheAndEmitBookingStatus(p.bookingId, {
       status: 'REQUESTED',
       operatorName: null,
       operatorId: null,
@@ -154,7 +154,7 @@ export class BookingLifecycleHandler {
     }
 
     try {
-      await this.redisService.cacheBookingStatus(p.bookingId, {
+      await this.cacheAndEmitBookingStatus(p.bookingId, {
         status: 'ACCEPTED',
         operatorName: p.operatorName,
         operatorId: p.workerId,
@@ -185,7 +185,7 @@ export class BookingLifecycleHandler {
           await this.redisService
             .removePendingBooking(p.workerId, cancelledId)
             .catch(() => undefined);
-          await this.redisService.cacheBookingStatus(cancelledId, {
+          await this.cacheAndEmitBookingStatus(cancelledId, {
             status: 'CANCELLED',
             operatorName: null,
             operatorId: p.workerId,
@@ -340,5 +340,54 @@ export class BookingLifecycleHandler {
       ),
     );
     await this.redisService.del(`booking:notified:${bookingId}`).catch(() => undefined);
+  }
+
+  /**
+   * Caches the booking status in Redis AND instantly pushes a real-time
+   * 'booking_status_update' event over Socket.IO to both customer and worker.
+   */
+  private async cacheAndEmitBookingStatus(
+    bookingId: string,
+    payload: Record<string, any>,
+  ): Promise<void> {
+    await this.redisService.cacheBookingStatus(bookingId, payload).catch(() => {});
+
+    const status = String(payload.status || '').toUpperCase();
+    if (payload.customerId) {
+      try {
+        this.messagesGateway.emitUserEvent(
+          payload.customerId,
+          'booking_status_update',
+          {
+            ...payload,
+            bookingId,
+            id: bookingId,
+            arrivalOtp: status === 'ACCEPTED' ? payload.arrivalOtp : null,
+          },
+        );
+      } catch (e) {
+        this.logger.error(
+          `Socket emit booking_status_update (customer) failed: ${(e as Error)?.message}`,
+        );
+      }
+    }
+    if (payload.operatorId) {
+      try {
+        this.messagesGateway.emitUserEvent(
+          payload.operatorId,
+          'booking_status_update',
+          {
+            ...payload,
+            bookingId,
+            id: bookingId,
+            arrivalOtp: null, // worker never receives arrivalOtp in status payload
+          },
+        );
+      } catch (e) {
+        this.logger.error(
+          `Socket emit booking_status_update (worker) failed: ${(e as Error)?.message}`,
+        );
+      }
+    }
   }
 }

@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'booking_repository.dart';
 import '../core/config/app_config.dart';
+import '../services/socket_service.dart';
 
 /// AUDIT FIX — single source of truth for live booking status.
 ///
@@ -22,11 +23,26 @@ import '../core/config/app_config.dart';
 final bookingStatusProvider = StreamProvider.autoDispose
     .family<Map<String, dynamic>, String>((ref, bookingId) {
   final repo = ref.watch(bookingRepositoryProvider);
+  final socketService = ref.watch(socketServiceProvider);
   final controller = StreamController<Map<String, dynamic>>();
 
   Timer? timer;
   var inFlight = false;
   var disposed = false;
+
+  final socketSub = socketService.notifications.listen((data) {
+    final event = data['_event'] as String?;
+    if (event == 'booking_status_update' ||
+        event == 'booking_accepted' ||
+        event == 'booking_cancelled') {
+      final targetId = (data['bookingId'] ?? data['id'])?.toString();
+      if (targetId == bookingId && !disposed && !controller.isClosed) {
+        debugPrint(
+            '[BookingStatusProvider] Instant socket push received for $bookingId: ${data['status'] ?? event}');
+        controller.add(Map<String, dynamic>.from(data));
+      }
+    }
+  });
 
   Future<void> tick() async {
     if (disposed || inFlight) return; // never stack overlapping requests
@@ -65,6 +81,7 @@ final bookingStatusProvider = StreamProvider.autoDispose
 
   ref.onDispose(() {
     disposed = true;
+    socketSub.cancel();
     timer?.cancel();
     lifecycleListener.dispose();
     controller.close();

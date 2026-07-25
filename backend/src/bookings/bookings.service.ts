@@ -2,6 +2,7 @@ import {
   Injectable,
   BadRequestException,
   NotFoundException,
+  Logger,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, DataSource, In } from 'typeorm';
@@ -22,6 +23,8 @@ import { OutboxEventType } from '../outbox/outbox.types';
 
 @Injectable()
 export class BookingsService {
+  private readonly logger = new Logger(BookingsService.name);
+
   constructor(
     @InjectRepository(Booking)
     private bookingsRepository: Repository<Booking>,
@@ -134,8 +137,8 @@ export class BookingsService {
       }
     }
 
-    // Cache initial status for poll endpoint
-    await this.redisService.cacheBookingStatus(savedBooking.id, {
+    // Cache initial status and emit over socket
+    await this.cacheAndEmitBookingStatus(savedBooking.id, {
       status: 'REQUESTED',
       operatorName: null,
       operatorId: operatorId ?? null,
@@ -482,7 +485,7 @@ export class BookingsService {
       booking.status = BookingStatus.REJECTED;
       await this.bookingsRepository.save(booking);
 
-      await this.redisService.cacheBookingStatus(bookingId, {
+      await this.cacheAndEmitBookingStatus(bookingId, {
         status: 'REJECTED',
         operatorName: null,
         operatorId: workerId,
@@ -593,8 +596,8 @@ export class BookingsService {
     if (outboxId) {
       await this.outboxService.enqueueDispatch(outboxId);
     } else {
-      // Non-cancel status changes still warm the poll cache inline.
-      await this.redisService.cacheBookingStatus(id, {
+      // Non-cancel status changes still warm the poll cache inline and emit socket event.
+      await this.cacheAndEmitBookingStatus(id, {
         status: saved.status,
         operatorName: saved.operator?.name,
         operatorId: saved.operator?.id ?? null,
@@ -753,7 +756,7 @@ export class BookingsService {
     booking.startedAt = new Date();
     await this.bookingsRepository.save(booking);
 
-    await this.redisService.cacheBookingStatus(bookingId, {
+    await this.cacheAndEmitBookingStatus(bookingId, {
       status: 'ACTIVE',
       operatorName: booking.operator?.name ?? null,
       operatorId: booking.operator?.id ?? null,
@@ -880,8 +883,8 @@ export class BookingsService {
     // TODO(outbox): append BOOKING_COMPLETED here (same transaction as save)
     // once complete-path Redis/worker-release side effects move to the listener.
 
-    // Update Redis cache
-    await this.redisService.cacheBookingStatus(bookingId, {
+    // Update Redis cache and emit socket status update
+    await this.cacheAndEmitBookingStatus(bookingId, {
       status: 'COMPLETED',
       operatorName: booking.operator?.name,
       operatorId: booking.operator?.id ?? null,
@@ -989,10 +992,10 @@ export class BookingsService {
     // TODO(outbox): when isPaid flips true, append BOOKING_PAYMENT_CONFIRMED
     // in the same transaction and move status-cache refresh to the listener.
 
-    // Keep status poll warm so both phones drop the pending-payment card
+    // Keep status poll warm and push socket update so both phones drop the pending-payment card
     // as soon as isPaid flips (without waiting for a full bookings list refresh).
-    await this.redisService
-      .cacheBookingStatus(bookingId, {
+    await this
+      .cacheAndEmitBookingStatus(bookingId, {
         status: booking.status,
         operatorName: booking.operator?.name ?? null,
         operatorId: booking.operator?.id ?? null,
@@ -1144,9 +1147,9 @@ export class BookingsService {
     return booking;
   }
 
-  /** Broadcast pause state to the pollers via the Redis status cache. */
+  /** Broadcast pause state to the pollers via the Redis status cache and socket. */
   private async cachePauseState(booking: Booking): Promise<void> {
-    await this.redisService.cacheBookingStatus(booking.id, {
+    await this.cacheAndEmitBookingStatus(booking.id, {
       status: booking.status,
       operatorName: booking.operator?.name,
       operatorId: booking.operator?.id ?? null,
@@ -1156,6 +1159,57 @@ export class BookingsService {
       paused: !!booking.pausedAt,
       pausedMinutes: booking.pausedMinutes ?? 0,
     });
+  }
+
+  /**
+   * Caches the booking status in Redis AND instantly pushes a real-time
+   * 'booking_status_update' event over Socket.IO to both customer and worker.
+   * This allows clients to update their UI in ~10ms while keeping the 30s poll
+   * interval as a relaxed fallback.
+   */
+  async cacheAndEmitBookingStatus(
+    bookingId: string,
+    payload: Record<string, any>,
+  ): Promise<void> {
+    await this.redisService.cacheBookingStatus(bookingId, payload).catch(() => {});
+
+    const status = String(payload.status || '').toUpperCase();
+    if (payload.customerId) {
+      try {
+        this.messagesGateway.emitUserEvent(
+          payload.customerId,
+          'booking_status_update',
+          {
+            ...payload,
+            bookingId,
+            id: bookingId,
+            arrivalOtp: status === 'ACCEPTED' ? payload.arrivalOtp : null,
+          },
+        );
+      } catch (e) {
+        this.logger.error(
+          `Socket emit booking_status_update (customer) failed: ${(e as Error)?.message}`,
+        );
+      }
+    }
+    if (payload.operatorId) {
+      try {
+        this.messagesGateway.emitUserEvent(
+          payload.operatorId,
+          'booking_status_update',
+          {
+            ...payload,
+            bookingId,
+            id: bookingId,
+            arrivalOtp: null, // worker never receives arrivalOtp in status payload
+          },
+        );
+      } catch (e) {
+        this.logger.error(
+          `Socket emit booking_status_update (worker) failed: ${(e as Error)?.message}`,
+        );
+      }
+    }
   }
 
   async requestPause(bookingId: string, operatorUserId: string) {
@@ -1538,7 +1592,7 @@ export class BookingsService {
       booking.status = BookingStatus.CANCELLED;
       await this.bookingsRepository.save(booking);
 
-      await this.redisService.cacheBookingStatus(bookingId, {
+      await this.cacheAndEmitBookingStatus(bookingId, {
         status: 'CANCELLED',
         operatorName: booking.operator?.name,
         operatorId: booking.operator?.id ?? null,

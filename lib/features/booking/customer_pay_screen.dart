@@ -75,7 +75,7 @@ class _CustomerPayScreenState extends ConsumerState<CustomerPayScreen> {
 
   void _startWaitingPoll() {
     _waitPoll?.cancel();
-    _waitPoll = Timer.periodic(const Duration(seconds: 3), (_) {
+    _waitPoll = Timer.periodic(const Duration(seconds: 30), (_) {
       unawaited(_checkPaidAndAdvance());
     });
     unawaited(_checkPaidAndAdvance());
@@ -263,6 +263,15 @@ class _CustomerPayScreenState extends ConsumerState<CustomerPayScreen> {
 
   @override
   Widget build(BuildContext context) {
+    ref.listen(bookingStatusProvider(widget.bookingId), (prev, next) {
+      final data = next.value;
+      if (data != null && bookingFlagTrue(data['isPaid'])) {
+        _waitPoll?.cancel();
+        _refreshProviders();
+        _goToRate();
+      }
+    });
+
     final gx = context.gx;
     final billing = _billing;
     final amount = billing?.amountInt ?? widget.amount.round();

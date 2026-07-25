@@ -81,6 +81,13 @@ export class OutboxDispatcher implements OnModuleInit {
       return 'skipped';
     }
 
+    // Atomic claim: only one worker across all replicas wins this event.
+    // Losers (e.g. the poll tick racing the dispatch kick) skip silently.
+    const claimed = await this.outboxService.claim(eventId, event.attempts);
+    if (!claimed) {
+      return 'skipped';
+    }
+
     try {
       await this.handler.handle(event);
       await this.outboxService.markProcessed(eventId);
@@ -89,7 +96,7 @@ export class OutboxDispatcher implements OnModuleInit {
       const msg = (e as Error)?.message ?? String(e);
       const stack = e instanceof Error ? e.stack ?? null : null;
       this.logger.error(`Outbox dispatch ${eventId} failed: ${msg}`);
-      await this.outboxService.recordAttempt(eventId, msg);
+      await this.outboxService.recordFailureAfterClaim(eventId, msg);
 
       // Persist to system_logs so background failures show in the admin Logs
       // page. Successful polls intentionally do not log.
