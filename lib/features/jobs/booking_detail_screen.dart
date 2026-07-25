@@ -5,11 +5,8 @@ import '../../repositories/auth_repository.dart';
 import '../../repositories/booking_repository.dart';
 import '../home/active_booking_card.dart';
 import '../booking/cancel_booking_screen.dart';
-import '../booking/live_tracking_map_screen.dart';
 import '../messages/chat_thread_screen.dart';
-import '../../shared/models/worker.dart';
 import '../../theme.dart';
-import '../../shared/widgets/gx_glass_card.dart';
 import '../../shared/widgets/gx_snackbar.dart';
 import '../../shared/widgets/gx_sheet.dart';
 import '../../shared/widgets/gx_button.dart';
@@ -24,34 +21,7 @@ class BookingDetailScreen extends ConsumerWidget {
 
   const BookingDetailScreen({super.key, required this.booking});
 
-  static const List<String> _stepLabels = [
-    'Requested',
-    'Accepted',
-    'In progress',
-    'Done',
-  ];
 
-  /// 0..3 along the happy path, or null for terminal/unknown states
-  /// (CANCELLED / REJECTED) where dots make no sense.
-  int? _stepIndex(String status) {
-    switch (status) {
-      case 'REQUESTED':
-      case 'CUSTOM_REQUESTED':
-      case 'PENDING':
-        return 0;
-      case 'ACCEPTED':
-      case 'CONFIRMED':
-      case 'ARRIVED':
-        return 1;
-      case 'ACTIVE':
-      case 'IN_PROGRESS':
-        return 2;
-      case 'COMPLETED':
-        return 3;
-      default:
-        return null;
-    }
-  }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -376,7 +346,7 @@ class BookingDetailScreen extends ConsumerWidget {
                 context,
                 MaterialPageRoute(
                   builder: (_) => ChatThreadScreen(
-                    otherUserId: counterpartId!,
+                    otherUserId: counterpartId,
                     otherUserName: counterpartName,
                     bookingId: booking['id']?.toString(),
                   ),

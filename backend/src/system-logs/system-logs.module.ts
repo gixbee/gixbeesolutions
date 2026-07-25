@@ -4,6 +4,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { SystemLog } from './system-log.entity';
 import { SystemLogsService } from './system-logs.service';
 import { SystemLogsController } from './system-logs.controller';
+import { ClientLogsController } from './client-logs.controller';
 import { ApiLoggingInterceptor } from './api-logging.interceptor';
 
 /**
@@ -17,7 +18,7 @@ import { ApiLoggingInterceptor } from './api-logging.interceptor';
     SystemLogsService,
     { provide: APP_INTERCEPTOR, useClass: ApiLoggingInterceptor },
   ],
-  controllers: [SystemLogsController],
+  controllers: [SystemLogsController, ClientLogsController],
   exports: [SystemLogsService],
 })
 export class SystemLogsModule {}

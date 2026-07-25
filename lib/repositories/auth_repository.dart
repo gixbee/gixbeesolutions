@@ -1,7 +1,10 @@
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../core/config/app_config.dart';
+import '../core/navigator_key.dart';
+import '../features/onboarding/welcome_screen.dart';
 import '../services/auth_token_service.dart';
 import '../shared/models/user.dart';
 
@@ -60,6 +63,14 @@ final dioProvider = Provider<Dio>((ref) {
         debugPrint('[DIO] 401 Unauthorized — clearing tokens and forcing logout');
         await tokenService.deleteToken();
         ref.invalidate(authStateProvider);
+        // Navigate to welcome screen — currentUserProvider will naturally
+        // return null on next read since the token has been deleted.
+        if (rootNavigatorKey.currentState != null) {
+          rootNavigatorKey.currentState!.pushAndRemoveUntil(
+            MaterialPageRoute(builder: (_) => const WelcomeScreen()),
+            (route) => false,
+          );
+        }
       }
       return handler.next(e);
     },

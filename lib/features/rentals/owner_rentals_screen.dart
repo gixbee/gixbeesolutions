@@ -368,7 +368,7 @@ class _OwnerRentalsScreenState extends ConsumerState<OwnerRentalsScreen> {
               ),
               Switch(
                 value: available,
-                activeColor: GixbeeTheme.accentTeal,
+                activeThumbColor: GixbeeTheme.accentTeal,
                 onChanged: (v) async {
                   await ref
                       .read(rentalsRepositoryProvider)

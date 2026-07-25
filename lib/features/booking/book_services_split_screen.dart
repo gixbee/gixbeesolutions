@@ -438,7 +438,6 @@ class _BookServicesSplitScreenState extends State<BookServicesSplitScreen> {
   }
 
   Widget _stepBtn(BuildContext context, IconData icon, VoidCallback onTap) {
-    final colorScheme = Theme.of(context).colorScheme;
     return GxPressable(
       onTap: onTap,
       child: Container(

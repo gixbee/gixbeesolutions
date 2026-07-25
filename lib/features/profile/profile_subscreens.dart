@@ -291,7 +291,7 @@ class NotificationSettingsScreen extends ConsumerWidget {
           Text(key, style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: context.gx.ink)),
           Switch(
             value: value,
-            activeColor: context.gx.accentSoft,
+            activeThumbColor: context.gx.accentSoft,
             inactiveTrackColor: context.gx.border,
             inactiveThumbColor: context.gx.ink.withValues(alpha: 0.55),
             onChanged: (val) {

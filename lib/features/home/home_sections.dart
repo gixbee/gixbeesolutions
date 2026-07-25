@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../theme.dart';
 import '../../repositories/auth_repository.dart'; // dioProvider
@@ -7,7 +6,6 @@ import '../../repositories/cities_repository.dart'; // currentCityProvider
 import '../../shared/widgets/gx_pressable.dart';
 import '../../shared/widgets/gx_sheet.dart';
 import '../../shared/widgets/gx_skeleton.dart';
-import '../../shared/widgets/gx_snackbar.dart';
 import '../booking/book_services_split_screen.dart';
 import '../booking/instant_request_screen.dart';
 

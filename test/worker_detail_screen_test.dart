@@ -194,21 +194,21 @@ Widget _host(
     );
 
 void main() {
-  HttpOverrides? _previous;
+  HttpOverrides? previous;
 
   setUpAll(() {
-    _previous = HttpOverrides.current;
+    previous = HttpOverrides.current;
     HttpOverrides.global = _MockImageHttpOverrides();
   });
 
   tearDownAll(() {
-    HttpOverrides.global = _previous;
+    HttpOverrides.global = previous;
   });
 
   group('WorkerDetailScreen', () {
     // Two bounded frames: build + the `_FavouriteButton` initState microtask.
     // Kept off `pumpAndSettle`, consistent with the sibling suites.
-    Future<void> _settle(WidgetTester tester) async {
+    Future<void> settle(WidgetTester tester) async {
       await tester.pump();
       await tester.pump();
     }
@@ -216,16 +216,16 @@ void main() {
     // Each test sets a phone viewport so the fixed bottom-sheet CTA row and the
     // tall SliverAppBar lay out without a RenderFlex overflow on the default
     // 800x600 test surface.
-    void _phone(WidgetTester tester) {
+    void phone(WidgetTester tester) {
       tester.view.physicalSize = const Size(1200, 2600);
       tester.view.devicePixelRatio = 3.0;
       addTearDown(tester.view.reset);
     }
 
     testWidgets('renders the worker profile fields', (tester) async {
-      _phone(tester);
+      phone(tester);
       await tester.pumpWidget(_host(_worker()));
-      await _settle(tester);
+      await settle(tester);
 
       expect(find.text('Asha Kumar'), findsOneWidget);
       expect(find.text('Master Electrician'), findsOneWidget);
@@ -249,9 +249,9 @@ void main() {
 
     testWidgets('available worker → shows Book Now + Chat Now CTAs',
         (tester) async {
-      _phone(tester);
+      phone(tester);
       await tester.pumpWidget(_host(_worker(status: 'available')));
-      await _settle(tester);
+      await settle(tester);
 
       expect(find.text('Chat Now'), findsOneWidget);
       expect(find.text('Book Now'), findsOneWidget);
@@ -260,9 +260,9 @@ void main() {
 
     testWidgets('busy worker → shows the disabled Worker is Busy CTA',
         (tester) async {
-      _phone(tester);
+      phone(tester);
       await tester.pumpWidget(_host(_worker(status: 'busy')));
-      await _settle(tester);
+      await settle(tester);
 
       expect(find.text('Worker is Busy'), findsOneWidget);
       expect(find.text('Book Now'), findsNothing);
@@ -272,26 +272,26 @@ void main() {
 
     testWidgets('distanceKm present → renders the "km away" line',
         (tester) async {
-      _phone(tester);
+      phone(tester);
       await tester.pumpWidget(_host(_worker(distanceKm: 2.5)));
-      await _settle(tester);
+      await settle(tester);
 
       expect(find.text('2.5 km away'), findsOneWidget);
     });
 
     testWidgets('distanceKm null → hides the "km away" line', (tester) async {
-      _phone(tester);
+      phone(tester);
       await tester.pumpWidget(_host(_worker(distanceKm: null)));
-      await _settle(tester);
+      await settle(tester);
 
       expect(find.textContaining('km away'), findsNothing);
     });
 
     testWidgets('favourite = false → header shows the "Save" heart',
         (tester) async {
-      _phone(tester);
+      phone(tester);
       await tester.pumpWidget(_host(_worker(), favInitial: false));
-      await _settle(tester);
+      await settle(tester);
 
       expect(find.byTooltip('Save to favourites'), findsOneWidget);
       expect(find.byTooltip('Remove from favourites'), findsNothing);
@@ -302,9 +302,9 @@ void main() {
 
     testWidgets('favourite = true → header shows the "Remove" heart',
         (tester) async {
-      _phone(tester);
+      phone(tester);
       await tester.pumpWidget(_host(_worker(), favInitial: true));
-      await _settle(tester);
+      await settle(tester);
 
       expect(find.byTooltip('Remove from favourites'), findsOneWidget);
       expect(find.byTooltip('Save to favourites'), findsNothing);

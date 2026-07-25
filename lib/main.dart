@@ -6,8 +6,10 @@ import 'package:dynamic_color/dynamic_color.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'firebase_options.dart';
 import 'services/notification_service.dart';
+import 'services/crash_reporter.dart';
 import 'theme.dart';
 import 'core/config/app_config.dart';
+import 'core/navigator_key.dart';
 import 'core/plugins/default_plugins.dart';
 import 'core/theme_provider.dart';
 import 'features/onboarding/animated_splash_screen.dart';
@@ -18,19 +20,23 @@ void main() async {
   // 1. Plugin registry (synchronous — must be first)
   registerDefaultPlugins();
 
-  // 2. Firebase — must be initialized before any FCM or Firestore calls
+  // 2. Global crash reporter — catches unhandled Flutter/Dart errors and
+  //    POSTs them to /client-logs so they appear in the admin portal.
+  CrashReporter.init();
+
+  // 3. Firebase — must be initialized before any FCM or Firestore calls
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
 
-  // 3. Register FCM background handler as a top-level function BEFORE runApp().
+  // 4. Register FCM background handler as a top-level function BEFORE runApp().
   //    Flutter requires this to be registered here, not inside any class or widget.
   //    NotificationService.initialize() does NOT register this again.
   FirebaseMessaging.onBackgroundMessage(firebaseBackgroundHandler);
 
   debugPrint('GIXBEE_BUILD_VERSION: ${AppConfig.buildVersion}');
 
-  // 4. Start the app — all further init (permissions, channel, listeners)
+  // 5. Start the app — all further init (permissions, channel, listeners)
   //    happens in main_wrapper._initNotifications() after login.
   runApp(const ProviderScope(child: GixbeeApp()));
 }
@@ -88,6 +94,7 @@ class GixbeeApp extends ConsumerWidget {
     return DynamicColorBuilder(
       builder: (ColorScheme? lightDynamic, ColorScheme? darkDynamic) {
         return MaterialApp(
+          navigatorKey: rootNavigatorKey,
           title: AppConfig.appName,
           debugShowCheckedModeBanner: false,
           theme: GixbeeTheme.lightTheme(lightDynamic),

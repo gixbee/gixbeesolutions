@@ -5,7 +5,6 @@ import '../../theme.dart';
 import '../../services/location_service.dart';
 import '../../services/location_bootstrap.dart';
 import '../../repositories/auth_repository.dart'; // currentUserProvider
-import '../../repositories/cities_repository.dart'; // currentCityProvider
 import '../booking/book_services_split_screen.dart';
 import 'home_location_picker_screen.dart';
 import '../jobs/find_job_module.dart';

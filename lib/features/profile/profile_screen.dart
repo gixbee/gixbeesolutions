@@ -8,11 +8,8 @@ import '../../core/config/app_config.dart';
 import '../../theme.dart';
 import '../onboarding/welcome_screen.dart';
 import 'edit_profile_screen.dart';
-import 'wallet_screen.dart';
 import '../business/business_unit_dashboard.dart';
-import '../jobs/register_pro_screen.dart';
 import '../jobs/post_job_screen.dart';
-import '../notifications/notifications_screen.dart';
 import '../messages/messages_list_screen.dart';
 import '../jobs/my_bookings_screen.dart';
 import 'profile_subscreens.dart';
@@ -93,7 +90,65 @@ class ProfileScreen extends ConsumerWidget {
                     // ── Profile Hero ──
                     userAsync.when(
                       data: (user) {
-                        final name = (user?.name ?? '').isNotEmpty ? user!.name! : 'User';
+                        if (user == null) {
+                          return Container(
+                            padding: const EdgeInsets.symmetric(vertical: 40, horizontal: 20),
+                            decoration: BoxDecoration(
+                              border: Border(bottom: BorderSide(color: context.gx.border)),
+                            ),
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Container(
+                                  width: 72,
+                                  height: 72,
+                                  decoration: BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    color: context.gx.ink.withValues(alpha: 0.05),
+                                  ),
+                                  alignment: Alignment.center,
+                                  child: Icon(Icons.person_outline, size: 36, color: context.gx.ink.withValues(alpha: 0.4)),
+                                ),
+                                const SizedBox(height: 16),
+                                Text(
+                                  'Session Expired',
+                                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: context.gx.ink),
+                                ),
+                                const SizedBox(height: 6),
+                                Text(
+                                  'Please log in again to view your profile and manage your bookings.',
+                                  textAlign: TextAlign.center,
+                                  style: TextStyle(fontSize: 13, color: context.gx.ink.withValues(alpha: 0.55)),
+                                ),
+                                const SizedBox(height: 20),
+                                GxPressable(
+                                  onTap: () {
+                                    Navigator.pushAndRemoveUntil(
+                                      context,
+                                      MaterialPageRoute(builder: (_) => const WelcomeScreen()),
+                                      (r) => false,
+                                    );
+                                  },
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 28),
+                                    decoration: BoxDecoration(
+                                      gradient: LinearGradient(
+                                        colors: [context.gx.accentSoft, const Color(0xFFEC4899)],
+                                      ),
+                                      borderRadius: BorderRadius.circular(10),
+                                    ),
+                                    child: Text(
+                                      'Log In Again',
+                                      style: TextStyle(color: context.gx.onAccent, fontWeight: FontWeight.w700, fontSize: 14),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          );
+                        }
+
+                        final name = (user.name ?? '').isNotEmpty ? user.name! : 'Gixbee User';
                         final initial = name.characters.first.toUpperCase();
                         return Container(
                           padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
@@ -162,7 +217,7 @@ class ProfileScreen extends ConsumerWidget {
                                 children: [
                                   Icon(Icons.phone_outlined, size: 14, color: context.gx.accentSoft),
                                   SizedBox(width: 6),
-                                  Text(user?.phone ?? '+91 98765 43210', style: TextStyle(fontSize: 13, color: context.gx.ink.withValues(alpha: 0.55))),
+                                  Text(user.phone, style: TextStyle(fontSize: 13, color: context.gx.ink.withValues(alpha: 0.55))),
                                 ],
                               ),
                               SizedBox(height: 4),

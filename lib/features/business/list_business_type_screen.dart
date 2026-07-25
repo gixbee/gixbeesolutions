@@ -125,7 +125,6 @@ class _ListBusinessTypeScreenState extends State<ListBusinessTypeScreen> {
 
   // ── Neutral header (no gradient — surgical orange) ──────────────────────
   Widget _header(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
       child: Row(

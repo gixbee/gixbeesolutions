@@ -32,9 +32,9 @@ import 'package:gixbee/shared/widgets/gx_button.dart';
 
 /// Returns a fixed skill list, or throws to exercise the initState fallback.
 class _FakeMasterRepo extends MasterEntriesRepository {
-  _FakeMasterRepo({this.labels = const ['Plumbing', 'Welding'], this.fail = false})
+  _FakeMasterRepo({this.fail = false})
       : super(Dio());
-  final List<String> labels;
+  final List<String> labels = const ['Plumbing', 'Welding'];
   final bool fail;
 
   @override
@@ -58,8 +58,8 @@ class _FakeBusinessRepo extends BusinessRepository {
 
 /// Captures the posted JobPost (or throws if [fail]).
 class _FakeHiringRepo extends HiringRepository {
-  _FakeHiringRepo({this.fail = false}) : super(Dio());
-  final bool fail;
+  _FakeHiringRepo() : super(Dio());
+  final bool fail = false;
   JobPost? posted;
 
   @override

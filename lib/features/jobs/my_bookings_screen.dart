@@ -4,11 +4,7 @@ import 'package:intl/intl.dart';
 import '../../theme.dart';
 import '../../repositories/booking_repository.dart';
 import 'booking_detail_screen.dart';
-import '../../repositories/auth_repository.dart';
-import '../booking/arrival_otp_screen.dart';
-import '../booking/completion_otp_screen.dart';
 import '../../shared/widgets/gx_pressable.dart';
-import '../../shared/widgets/gx_snackbar.dart';
 import '../../shared/widgets/gx_skeleton.dart';
 import '../../shared/widgets/gx_fade.dart';
 

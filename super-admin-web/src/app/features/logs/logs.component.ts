@@ -43,7 +43,7 @@ interface LogStats {
   imports: [CommonModule, FormsModule],
   template: `
     <div class="gx-page-title">System Logs</div>
-    <div class="gx-page-sub">API calls, auth attempts, database failures and server errors.</div>
+    <div class="gx-page-sub">API calls, auth attempts, database failures, server errors and app crashes.</div>
 
     <!-- 24h summary chips -->
     @if (stats) {
@@ -52,6 +52,7 @@ interface LogStats {
         <span class="badge bg-primary" role="button" (click)="quickType('API')">API {{ stats.byType['API'] || 0 }}</span>
         <span class="badge bg-info text-dark" role="button" (click)="quickType('AUTH')">Auth {{ stats.byType['AUTH'] || 0 }}</span>
         <span class="badge bg-dark" role="button" (click)="quickType('DB')">DB {{ stats.byType['DB'] || 0 }}</span>
+        <span class="badge text-white" role="button" style="background:#e91e8b" (click)="quickType('APP_CRASH')">App Crashes {{ stats.byType['APP_CRASH'] || 0 }}</span>
         <span class="badge bg-warning text-dark" role="button" (click)="quickLevel('WARN')">Warnings {{ stats.byLevel['WARN'] || 0 }}</span>
         <span class="badge bg-danger" role="button" (click)="quickLevel('ERROR')">Errors {{ stats.byLevel['ERROR'] || 0 }}</span>
         <span class="badge" role="button"
@@ -87,6 +88,7 @@ interface LogStats {
               <option value="AUTH">Auth</option>
               <option value="DB">Database</option>
               <option value="SYSTEM">System</option>
+              <option value="APP_CRASH">App Crashes</option>
             </select>
           </div>
           <div class="col-6 col-md-2">
@@ -191,7 +193,8 @@ interface LogStats {
                     'bg-info text-dark': l.type === 'AUTH',
                     'bg-dark': l.type === 'DB',
                     'bg-secondary': l.type === 'SYSTEM'
-                  }">{{ l.type }}</span>
+                  }" [style.background]="l.type === 'APP_CRASH' ? '#e91e8b' : null"
+                     [style.color]="l.type === 'APP_CRASH' ? '#fff' : null">{{ l.type === 'APP_CRASH' ? 'APP CRASH' : l.type }}</span>
                 </td>
                 <td class="fw-semibold">{{ l.method || '—' }}</td>
                 <td style="max-width:280px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap"

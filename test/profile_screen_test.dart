@@ -240,20 +240,20 @@ void _phoneView(WidgetTester tester) {
 }
 
 void main() {
-  HttpOverrides? _previous;
+  HttpOverrides? previous;
 
   setUpAll(() {
-    _previous = HttpOverrides.current;
+    previous = HttpOverrides.current;
     HttpOverrides.global = _MockImageHttpOverrides();
   });
 
   tearDownAll(() {
-    HttpOverrides.global = _previous;
+    HttpOverrides.global = previous;
   });
 
   group('ProfileScreen', () {
     // Bounded frames: build + the overridden futures resolving on a microtask.
-    Future<void> _settle(WidgetTester tester) async {
+    Future<void> settle(WidgetTester tester) async {
       await tester.pump();
       await tester.pump();
     }
@@ -262,7 +262,7 @@ void main() {
         (tester) async {
       _phoneView(tester);
       await tester.pumpWidget(_host(user: (ref) async => _user()));
-      await _settle(tester);
+      await settle(tester);
 
       // Header + section labels.
       expect(find.text('Profile'), findsOneWidget);
@@ -299,7 +299,7 @@ void main() {
         user: (ref) async => _user(),
         talent: (ref) async => <String, dynamic>{'professionalSkills': <String>[]},
       ));
-      await _settle(tester);
+      await settle(tester);
 
       expect(find.text('Register as Pro'), findsOneWidget);
       expect(find.text('Professional Bio'), findsNothing);
@@ -313,7 +313,7 @@ void main() {
           'professionalSkills': <String>['Electrician'],
         },
       ));
-      await _settle(tester);
+      await settle(tester);
 
       expect(find.text('Professional Bio'), findsOneWidget);
       expect(find.text('Register as Pro'), findsNothing);
@@ -337,7 +337,7 @@ void main() {
       _phoneView(tester);
       await tester.pumpWidget(
           _host(user: (ref) async => throw Exception('nope')));
-      await _settle(tester);
+      await settle(tester);
 
       expect(find.textContaining('Error loading profile'), findsOneWidget);
       expect(find.text('Ada Lovelace'), findsNothing);
@@ -349,7 +349,7 @@ void main() {
         user: (ref) async => _user(),
         stats: (ref) async => throw Exception('stats boom'),
       ));
-      await _settle(tester);
+      await settle(tester);
 
       // Identity still renders; only the stats row degrades.
       expect(find.text('Ada Lovelace'), findsOneWidget);
@@ -364,7 +364,7 @@ void main() {
         user: (ref) async => _user(available: true),
         profile: profile,
       ));
-      await _settle(tester);
+      await settle(tester);
 
       // The toggle starts on (isAvailableForWork == true); flip it off.
       final sw = find.byType(Switch);
@@ -395,7 +395,7 @@ void main() {
         user: (ref) async => _user(available: false),
         profile: profile,
       ));
-      await _settle(tester);
+      await settle(tester);
 
       final sw = find.byType(Switch);
       expect(sw, findsOneWidget);
@@ -426,7 +426,7 @@ void main() {
         user: (ref) async => _user(available: true),
         profile: _ThrowingProfileRepo(),
       ));
-      await _settle(tester);
+      await settle(tester);
 
       final sw = find.byType(Switch);
       expect(sw, findsOneWidget);
@@ -454,7 +454,7 @@ void main() {
         user: (ref) async => _user(),
         auth: auth,
       ));
-      await _settle(tester);
+      await settle(tester);
 
       final logout = find.text('Log Out');
       expect(logout, findsOneWidget);

@@ -684,8 +684,11 @@ class _RegisterProScreenState extends ConsumerState<RegisterProScreen> {
           initiallyExpanded: active,
           onExpansionChanged: (expanded) {
             setState(() {
-              if (expanded) _expandedTrades.add(trade.name);
-              else _expandedTrades.remove(trade.name);
+              if (expanded) {
+                _expandedTrades.add(trade.name);
+              } else {
+                _expandedTrades.remove(trade.name);
+              }
             });
           },
           tilePadding: const EdgeInsets.symmetric(horizontal: 14),

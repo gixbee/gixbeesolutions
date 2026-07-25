@@ -20,16 +20,18 @@ export enum SystemLogLevel {
 
 /**
  * Category of a log entry — the primary filter axis in the admin portal.
- * API    — normal HTTP request/response
- * AUTH   — anything under /auth (logins, OTP, admin-login)
- * DB     — database failures (TypeORM QueryFailedError)
- * SYSTEM — everything else recorded manually (boot events, jobs, etc.)
+ * API       — normal HTTP request/response
+ * AUTH      — anything under /auth (logins, OTP, admin-login)
+ * DB        — database failures (TypeORM QueryFailedError)
+ * SYSTEM    — everything else recorded manually (boot events, jobs, etc.)
+ * APP_CRASH — client-side Flutter crashes sent via POST /client-logs
  */
 export enum SystemLogType {
   API = 'API',
   AUTH = 'AUTH',
   DB = 'DB',
   SYSTEM = 'SYSTEM',
+  APP_CRASH = 'APP_CRASH',
 }
 
 /**
