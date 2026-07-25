@@ -125,13 +125,13 @@ services:
       timeout: 5s
       retries: 5
 
-  # ── NestJS Backend (Scaled to 4 Replicas) ──────────────────────────────────
+  # ── NestJS Backend (Scaled to 2 Replicas for 2 vCPU Cores) ─────────────────
   backend:
     build:
       context: ./backend
       dockerfile: Dockerfile
     deploy:
-      replicas: 4
+      replicas: 2
     restart: unless-stopped
     logging:
       driver: json-file
