@@ -19,7 +19,10 @@ flutter build apk --release --dart-define=OLA_MAPS_API_KEY=Vr2MnNlJ6LrLXTrkPOe8m
 
 ## 🚀 2. How to Deploy / Publish Backend to AWS EC2
 
-The production backend and database run via Docker Compose on AWS EC2 (`13.233.60.215`).
+The production backend and database run via Docker Compose on AWS EC2 Amazon Linux 2023 (`13.233.60.215`).
+- **EC2 Instance ID**: `i-0263e6862a2e32e59`
+- **OS User**: `ec2-user`
+- **Server Repository Directory**: `/home/ec2-user/gixbeesolutions`
 
 ### Step A: Push local changes to GitHub
 ```powershell
@@ -28,16 +31,19 @@ git commit -m "feat: description of changes"
 git push origin main
 ```
 
-### Step B: Update the AWS EC2 Live Server
-Once changes are pushed to `main`, connect to the EC2 server via SSH (using the appropriate private key `.pem` file) and run:
+### Step B: Automated Deployment via AWS EC2 Instance Connect
+Once changes are pushed to `main`, use the AWS CLI with EC2 Instance Connect to temporarily authorize your public key and execute the pull and container rebuild directly in PowerShell:
+
+```powershell
+aws ec2-instance-connect send-ssh-public-key --instance-id i-0263e6862a2e32e59 --instance-os-user ec2-user --ssh-public-key file://C:\Users\gkv00\.ssh\gixbee-ec2.pub ; ssh -i C:\Users\gkv00\.ssh\gixbee-ec2 -o StrictHostKeyChecking=no ec2-user@13.233.60.215 "cd /home/ec2-user/gixbeesolutions && git pull origin main && docker compose up --build -d backend && docker compose ps"
+```
+
+### Manual Deployment on Server Terminal
+If connecting manually over SSH as `ec2-user`, run:
 ```bash
-# 1. Navigate to repository directory and pull latest changes
+cd /home/ec2-user/gixbeesolutions
 git pull origin main
-
-# 2. Rebuild and restart the backend Docker container (in detached mode)
 docker compose up --build -d backend
-
-# 3. Verify container health and logs
 docker compose ps
 docker compose logs -f --tail=50 backend
 ```
