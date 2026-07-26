@@ -10,7 +10,6 @@ import '../onboarding/welcome_screen.dart';
 import 'edit_profile_screen.dart';
 import '../business/business_unit_dashboard.dart';
 import '../jobs/post_job_screen.dart';
-import '../messages/messages_list_screen.dart';
 import '../jobs/my_bookings_screen.dart';
 import 'profile_subscreens.dart';
 import '../../core/theme_provider.dart';
@@ -384,17 +383,6 @@ class ProfileScreen extends ConsumerWidget {
                               context,
                               MaterialPageRoute(
                                   builder: (_) => const MyBookingsScreen()),
-                            ),
-                          ),
-                          _buildMenuItem(
-                            context,
-                            icon: Icons.chat_bubble_outline_rounded,
-                            color: const Color(0xFF22C55E),
-                            title: 'Messages',
-                            onTap: () => Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                  builder: (_) => const MessagesListScreen()),
                             ),
                           ),
                           _buildMenuItem(

@@ -1,8 +1,13 @@
+import 'dart:convert';
+import 'dart:math' as math;
+
+import 'package:carousel_slider/carousel_slider.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../theme.dart';
 import '../../repositories/auth_repository.dart'; // dioProvider
 import '../../repositories/cities_repository.dart'; // currentCityProvider
+import '../../repositories/worker_repository.dart'; // selectedLocationProvider
 import '../../shared/widgets/gx_pressable.dart';
 import '../../shared/widgets/gx_sheet.dart';
 import '../../shared/widgets/gx_skeleton.dart';
@@ -261,20 +266,65 @@ class DealEntry {
   final String title;
   final String code;
   final String? subtitle;
+  final String? discount;
+  final String? description;
+  final String? imageUrl;
+  final double? lat;
+  final double? lng;
 
   const DealEntry({
     required this.id,
     required this.title,
     required this.code,
     this.subtitle,
+    this.discount,
+    this.description,
+    this.imageUrl,
+    this.lat,
+    this.lng,
   });
 
   factory DealEntry.fromMap(Map<String, dynamic> map) {
+    final rawValue = (map['value'] as String? ?? '').trim();
+    String code = rawValue;
+    String? discount;
+    String? description;
+    String? imageUrl;
+    double? lat;
+    double? lng;
+    // Rich offers — admin master `value` as JSON:
+    //   {"code":"FIT20","discount":"20% OFF","description":"20% OFF on
+    //    Memberships","imageUrl":"https://…","lat":8.51,"lng":76.94}
+    // Plain-string values remain supported as just the promo code, so
+    // existing DEAL entries keep working unchanged.
+    if (rawValue.startsWith('{')) {
+      try {
+        final j = jsonDecode(rawValue) as Map<String, dynamic>;
+        code = '${j['code'] ?? ''}';
+        discount = j['discount']?.toString();
+        description = j['description']?.toString();
+        imageUrl = j['imageUrl']?.toString();
+        lat = double.tryParse('${j['lat'] ?? ''}');
+        lng = double.tryParse('${j['lng'] ?? ''}');
+      } catch (_) {
+        // not JSON after all — treat rawValue as the code
+      }
+    }
+    // Simple entries can carry the image in the `icon` column instead.
+    final icon = map['icon'] as String?;
+    if (imageUrl == null && icon != null && icon.startsWith('http')) {
+      imageUrl = icon;
+    }
     return DealEntry(
       id: map['id'] as String,
-      title: map['label'] as String,
-      code: map['value'] as String,
+      title: map['label'] as String? ?? 'Offer',
+      code: code,
       subtitle: map['category'] as String?,
+      discount: discount,
+      description: description,
+      imageUrl: imageUrl,
+      lat: lat,
+      lng: lng,
     );
   }
 }
@@ -330,21 +380,237 @@ class DealsStrip extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final deals = ref.watch(dealsProvider);
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      child: deals.when(
-        loading: () =>
-            const GxSkeleton(width: double.infinity, height: 196, radius: 18),
-        error: (_, __) => const _FeaturedOffer(deals: _fallbackDeals),
-        data: (items) =>
-            _FeaturedOffer(deals: items.isEmpty ? _fallbackDeals : items),
+    final myLoc = ref.watch(selectedLocationProvider);
+    return deals.when(
+      loading: () => const Padding(
+        padding: EdgeInsets.symmetric(horizontal: 16),
+        child: GxSkeleton(width: double.infinity, height: 196, radius: 18),
       ),
+      error: (_, __) => _OffersCarousel(deals: _fallbackDeals, myLoc: myLoc),
+      data: (items) => _OffersCarousel(
+          deals: items.isEmpty ? _fallbackDeals : items, myLoc: myLoc),
     );
   }
 }
 
-/// Single prominent "gx-fd" featured-offer card (matches the mockup's
-/// Today's Offers block). Tapping it — or the Claim button — copies the code.
+/// Auto-playing "Today's Offers" carousel (mockup parity): partner cards
+/// with image, discount badge, description and distance — driven entirely
+/// by the admin master (type DEAL, city-scoped). Auto-advances every ~3.5s;
+/// swiping still works and pauses the auto-play while touched.
+class _OffersCarousel extends StatefulWidget {
+  const _OffersCarousel({required this.deals, this.myLoc});
+
+  final List<DealEntry> deals;
+  final ({double lat, double lng, String address})? myLoc;
+
+  @override
+  State<_OffersCarousel> createState() => _OffersCarouselState();
+}
+
+class _OffersCarouselState extends State<_OffersCarousel> {
+  int _current = 0;
+
+  /// Straight-line distance from the customer's picked location to the
+  /// partner outlet — shown as "2.8 km away" like the mockup. Null (line
+  /// hidden) when either side has no coordinates.
+  double? _kmTo(DealEntry d) {
+    final me = widget.myLoc;
+    if (me == null || d.lat == null || d.lng == null) return null;
+    const r = 6371.0;
+    final dLat = (d.lat! - me.lat) * math.pi / 180;
+    final dLng = (d.lng! - me.lng) * math.pi / 180;
+    final a = math.sin(dLat / 2) * math.sin(dLat / 2) +
+        math.cos(me.lat * math.pi / 180) *
+            math.cos(d.lat! * math.pi / 180) *
+            math.sin(dLng / 2) *
+            math.sin(dLng / 2);
+    return r * 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final deals = widget.deals;
+    return Column(
+      children: [
+        CarouselSlider(
+          items: [
+            for (final d in deals) _OfferCard(deal: d, distanceKm: _kmTo(d)),
+          ],
+          options: CarouselOptions(
+            height: 212,
+            viewportFraction: 0.48,
+            padEnds: false,
+            enableInfiniteScroll: deals.length > 2,
+            autoPlay: deals.length > 1,
+            autoPlayInterval: const Duration(milliseconds: 3500),
+            autoPlayAnimationDuration: const Duration(milliseconds: 650),
+            autoPlayCurve: Curves.easeInOutCubic,
+            pauseAutoPlayOnTouch: true,
+            onPageChanged: (i, _) => setState(() => _current = i),
+          ),
+        ),
+        if (deals.length > 1) ...[
+          const SizedBox(height: 10),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              for (int i = 0; i < deals.length; i++)
+                AnimatedContainer(
+                  duration: const Duration(milliseconds: 250),
+                  margin: const EdgeInsets.symmetric(horizontal: 2.5),
+                  width: i == _current ? 18 : 6,
+                  height: 6,
+                  decoration: BoxDecoration(
+                    color: i == _current
+                        ? GixbeeTheme.accentGreen
+                        : context.gx.border,
+                    borderRadius: BorderRadius.circular(3),
+                  ),
+                ),
+            ],
+          ),
+        ],
+      ],
+    );
+  }
+}
+
+class _OfferCard extends StatelessWidget {
+  const _OfferCard({required this.deal, this.distanceKm});
+
+  final DealEntry deal;
+  final double? distanceKm;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(left: 16),
+      child: GxPressable(
+        onTap: () => showGxSheet(
+          context,
+          title: 'Claimed from',
+          child: ClaimDealSheet(deal: deal),
+        ),
+        child: Container(
+          width: double.infinity,
+          clipBehavior: Clip.antiAlias,
+          decoration: BoxDecoration(
+            color: context.gx.card,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: context.gx.border),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // ── Image header + discount badge ──
+              SizedBox(
+                height: 88,
+                width: double.infinity,
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    if (deal.imageUrl != null && deal.imageUrl!.isNotEmpty)
+                      Image.network(
+                        deal.imageUrl!,
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, __, ___) => _imageFallback(context),
+                      )
+                    else
+                      _imageFallback(context),
+                    if ((deal.discount ?? '').isNotEmpty)
+                      Positioned(
+                        top: 8,
+                        right: 8,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 8, vertical: 3),
+                          decoration: BoxDecoration(
+                            color: GixbeeTheme.accentGreen,
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: Text(deal.discount!,
+                              style: TextStyle(
+                                  fontSize: 9.5,
+                                  fontWeight: FontWeight.w800,
+                                  color: context.gx.onAccent)),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+              // ── Text body ──
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(11, 9, 11, 9),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(deal.title,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w800,
+                              color: context.gx.ink)),
+                      const SizedBox(height: 3),
+                      Expanded(
+                        child: Text(
+                            deal.description ?? deal.subtitle ?? deal.code,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                                fontSize: 10.5,
+                                height: 1.35,
+                                color: context.gx.ink
+                                    .withValues(alpha: 0.55))),
+                      ),
+                      if (distanceKm != null)
+                        Row(
+                          children: [
+                            const Icon(Icons.storefront_rounded,
+                                size: 12, color: GixbeeTheme.accentGreen),
+                            const SizedBox(width: 4),
+                            Text(
+                                '${distanceKm!.toStringAsFixed(1)} km away',
+                                style: const TextStyle(
+                                    fontSize: 10.5,
+                                    fontWeight: FontWeight.w700,
+                                    color: GixbeeTheme.accentGreen)),
+                          ],
+                        ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _imageFallback(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            context.gx.accentSoft.withValues(alpha: 0.35),
+            context.gx.accent.withValues(alpha: 0.25),
+          ],
+        ),
+      ),
+      alignment: Alignment.center,
+      child: Icon(Icons.local_offer_rounded,
+          color: context.gx.onAccent.withValues(alpha: 0.9), size: 28),
+    );
+  }
+}
+
+/// LEGACY — superseded by [_OffersCarousel] above; no longer referenced.
+/// Safe to delete this whole class whenever convenient.
+// ignore: unused_element
 class _FeaturedOffer extends StatelessWidget {
   const _FeaturedOffer({required this.deals});
 

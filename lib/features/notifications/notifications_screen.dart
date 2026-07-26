@@ -107,6 +107,21 @@ final notificationsProvider = FutureProvider.autoDispose<List<AppNotification>>(
   return notifications;
 });
 
+/// Checks whether any notification is newer than when the user last viewed the notifications screen
+final hasUnreadNotificationsProvider = FutureProvider.autoDispose<bool>((ref) async {
+  final notifs = await ref.watch(notificationsProvider.future);
+  if (notifs.isEmpty) return false;
+
+  const storage = FlutterSecureStorage();
+  final lastSeenStr = await storage.read(key: 'last_seen_notification_time');
+  if (lastSeenStr == null) return true;
+
+  final lastSeen = DateTime.tryParse(lastSeenStr);
+  if (lastSeen == null) return true;
+
+  return notifs.any((n) => n.timestamp.isAfter(lastSeen));
+});
+
 class NotificationsScreen extends ConsumerStatefulWidget {
   const NotificationsScreen({super.key});
 
@@ -128,6 +143,9 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
 
   Future<void> _loadDismissed() async {
     try {
+      await _storage.write(key: 'last_seen_notification_time', value: DateTime.now().toIso8601String());
+      ref.invalidate(hasUnreadNotificationsProvider);
+
       final data = await _storage.read(key: _dismissedKey);
       if (data != null && mounted) {
         setState(() {

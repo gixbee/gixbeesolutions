@@ -143,12 +143,17 @@ export class BookingsController {
   // ─── OTP GATES ──────────────────────────────────────────
 
   @Post(':id/arrival')
-  async confirmArrival(@Param('id') id: string, @Body() body: ConfirmOtpDto) {
+  async confirmArrival(@Param('id') id: string, @Req() req, @Body() body: ConfirmOtpDto) {
+    // SECURITY FIX: participants only — was open to 4-digit OTP brute force
+    // by any authenticated user.
+    await this.bookingsService.assertParticipant(id, req.user.userId);
     return this.bookingsService.verifyArrivalOtp(id, body.otp);
   }
 
   @Post(':id/completion')
-  async confirmCompletion(@Param('id') id: string, @Body() body: ConfirmOtpDto) {
+  async confirmCompletion(@Param('id') id: string, @Req() req, @Body() body: ConfirmOtpDto) {
+    // SECURITY FIX: participants only (see arrival above).
+    await this.bookingsService.assertParticipant(id, req.user.userId);
     return this.bookingsService.verifyCompletionOtp(id, body.otp);
   }
 
@@ -208,9 +213,17 @@ export class BookingsController {
 
   // DEFECT-012 FIX: Send arrival OTP to customer via FCM push
   @Patch(':id/arrive')
-  async markArrived(@Param('id') id: string) {
-    const booking = await this.bookingsService.getBookingById(id);
-    if (!booking) throw new NotFoundException('Booking not found');
+  async markArrived(@Param('id') id: string, @Req() req) {
+    // SECURITY FIX: was unscoped — any logged-in user could trigger OTP
+    // pushes to any customer (spam/social-engineering vector). Only the
+    // assigned worker may announce arrival.
+    const booking = await this.bookingsService.assertParticipant(
+      id,
+      req.user.userId,
+    );
+    if (booking.operator?.id !== req.user.userId) {
+      throw new NotFoundException('Booking not found');
+    }
 
     const otp = booking.arrivalOtp;
 
@@ -226,9 +239,15 @@ export class BookingsController {
 
   // DEFECT-012 FIX: Send completion OTP to customer via FCM push
   @Patch(':id/complete')
-  async markComplete(@Param('id') id: string) {
-    const booking = await this.bookingsService.getBookingById(id);
-    if (!booking) throw new NotFoundException('Booking not found');
+  async markComplete(@Param('id') id: string, @Req() req) {
+    // SECURITY FIX: assigned worker only (see markArrived above).
+    const booking = await this.bookingsService.assertParticipant(
+      id,
+      req.user.userId,
+    );
+    if (booking.operator?.id !== req.user.userId) {
+      throw new NotFoundException('Booking not found');
+    }
 
     const otp = booking.completionOtp;
 
@@ -248,7 +267,16 @@ export class BookingsController {
   }
 
   @Post(':id/rating')
-  async submitRating(@Param('id') id: string, @Body() body: SubmitRatingDto) {
+  async submitRating(@Param('id') id: string, @Req() req, @Body() body: SubmitRatingDto) {
+    // SECURITY FIX: was unscoped — anyone could rate any booking. Only the
+    // customer may rate the worker.
+    const booking = await this.bookingsService.assertParticipant(
+      id,
+      req.user.userId,
+    );
+    if (booking.customer?.id !== req.user.userId) {
+      throw new NotFoundException('Booking not found');
+    }
     return this.bookingsService.submitRating(id, body.rating);
   }
 

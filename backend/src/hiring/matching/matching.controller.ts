@@ -1,0 +1,170 @@
+import {
+  Controller,
+  Get,
+  Post,
+  Patch,
+  Delete,
+  Param,
+  Query,
+  Body,
+  Req,
+  UseGuards,
+} from '@nestjs/common';
+import { JwtAuthGuard } from '../../auth/jwt-auth.guard';
+import { MatchingService, feeForVacancies } from './matching.service';
+import { NoticePeriod } from './job-preference.entity';
+import { EmployerDecision } from './hiring-interest.entity';
+
+/**
+ * Smart Hiring (FRD: Find a Job + Hire Employee, connected by the matching
+ * engine). All endpoints JWT-guarded; employer endpoints operate on the
+ * caller's own requests only.
+ */
+@Controller('hiring/match')
+@UseGuards(JwtAuthGuard)
+export class MatchingController {
+  constructor(private readonly matchingService: MatchingService) {}
+
+  // ── Candidate: Job Type preference profiles ──────────────────────────────
+
+  @Get('preferences')
+  async myPreferences(@Req() req) {
+    return this.matchingService.listMyPreferences(req.user.userId);
+  }
+
+  @Post('preferences')
+  async createPreference(
+    @Req() req,
+    @Body()
+    body: {
+      jobType: string;
+      skills?: string[];
+      preferredLocation?: string;
+      expectedSalary?: number;
+      experienceYears?: number;
+      noticePeriod?: NoticePeriod;
+    },
+  ) {
+    return this.matchingService.createPreference(req.user.userId, body);
+  }
+
+  @Patch('preferences/:id')
+  async updatePreference(@Req() req, @Param('id') id: string, @Body() body) {
+    return this.matchingService.updatePreference(req.user.userId, id, body);
+  }
+
+  @Delete('preferences/:id')
+  async deletePreference(@Req() req, @Param('id') id: string) {
+    await this.matchingService.deletePreference(req.user.userId, id);
+    return { deleted: true };
+  }
+
+  // ── Candidate: offers + Interested / Not Interested ─────────────────────
+
+  @Get('offers')
+  async myOffers(@Req() req) {
+    return this.matchingService.listMyOffers(req.user.userId);
+  }
+
+  @Post('offers/:requestId/respond')
+  async respond(
+    @Req() req,
+    @Param('requestId') requestId: string,
+    @Body() body: { interested: boolean },
+  ) {
+    return this.matchingService.respond(
+      req.user.userId,
+      requestId,
+      body?.interested === true,
+    );
+  }
+
+  // ── Employer: estimate, create, review ───────────────────────────────────
+
+  /** Salary-slider live estimate. skills = comma-separated. */
+  @Get('estimate')
+  async estimate(
+    @Query('jobType') jobType: string,
+    @Query('salary') salary: string,
+    @Query('location') location?: string,
+    @Query('experienceMin') experienceMin?: string,
+    @Query('skills') skills?: string,
+  ) {
+    return this.matchingService.estimateCandidates({
+      jobType: jobType ?? '',
+      salaryOffered: parseFloat(salary) || 0,
+      location,
+      experienceMinYears: experienceMin ? parseInt(experienceMin, 10) : 0,
+      skills: skills
+        ? skills.split(',').map((s) => s.trim()).filter(Boolean)
+        : [],
+    });
+  }
+
+  /** Pricing table for the app's payment sheet (₹49/99/199/399 tiers). */
+  @Get('pricing')
+  pricing() {
+    return {
+      tiers: [
+        { maxVacancies: 1, fee: feeForVacancies(1) },
+        { maxVacancies: 5, fee: feeForVacancies(5) },
+        { maxVacancies: 10, fee: feeForVacancies(10) },
+        { maxVacancies: 25, fee: feeForVacancies(25) },
+      ],
+      guaranteeHours: 24,
+    };
+  }
+
+  @Post('requests')
+  async createRequest(
+    @Req() req,
+    @Body()
+    body: {
+      jobType: string;
+      skills?: string[];
+      location?: string;
+      salaryOffered: number;
+      experienceMinYears?: number;
+      vacancies: number;
+    },
+  ) {
+    return this.matchingService.createRequest(req.user.userId, body);
+  }
+
+  @Get('requests')
+  async myRequests(@Req() req) {
+    return this.matchingService.listMyRequests(req.user.userId);
+  }
+
+  @Get('requests/:id')
+  async requestDetail(@Req() req, @Param('id') id: string) {
+    return this.matchingService.getRequestDetail(req.user.userId, id);
+  }
+
+  /** Guarantee remedy after a failed 24 h window: CREDIT (instant) or REFUND. */
+  @Post('requests/:id/resolve')
+  async resolveGuarantee(
+    @Req() req,
+    @Param('id') id: string,
+    @Body() body: { choice: 'CREDIT' | 'REFUND' },
+  ) {
+    return this.matchingService.resolveGuarantee(
+      req.user.userId,
+      id,
+      body?.choice === 'REFUND' ? 'REFUND' : 'CREDIT',
+    );
+  }
+
+  @Patch('interests/:id/decision')
+  async setDecision(
+    @Req() req,
+    @Param('id') id: string,
+    @Body() body: { decision: EmployerDecision },
+  ) {
+    return this.matchingService.setDecision(
+      req.user.userId,
+      id,
+      body.decision,
+    );
+  }
+}

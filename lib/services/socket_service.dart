@@ -10,6 +10,7 @@ final socketServiceProvider = Provider((ref) => SocketService());
 class SocketService {
   io.Socket? _socket;
   StreamSubscription<Position>? _locationStreamSub;
+  DateTime? _lastPresenceEmit;
 
   // ── Notification stream — booking events pushed from server ──
   final _notificationController =
@@ -202,16 +203,31 @@ class SocketService {
   /// Starts streaming the worker's GPS while Go Live is on (no job room).
   /// Instant Help matching requires Redis location — without this, live
   /// workers are never notified.
+  ///
+  /// BATTERY-SAVER profile: while merely live (nobody is watching a map),
+  /// medium accuracy keeps the GPS chip mostly off — network/cell fixes are
+  /// plenty for dispatch matching — and a 100 m movement gate plus a 30 s
+  /// time gate cap the emit rate. The tight high-accuracy stream in
+  /// [startLocationStream] runs only during an ACTIVE job, when a customer
+  /// is actually tracking the pin. A pro live for an 8-hour shift should
+  /// end the day with a working phone.
   void startLivePresenceStream(String userId) {
     stopLocationStream();
-    debugPrint('[Socket] Starting live presence location stream');
+    debugPrint('[Socket] Starting live presence stream (battery-saver)');
+    _lastPresenceEmit = null;
     _locationStreamSub = Geolocator.getPositionStream(
       locationSettings: const LocationSettings(
-        accuracy: LocationAccuracy.high,
-        distanceFilter: 25,
+        accuracy: LocationAccuracy.medium,
+        distanceFilter: 100,
       ),
     ).listen(
       (position) {
+        final now = DateTime.now();
+        if (_lastPresenceEmit != null &&
+            now.difference(_lastPresenceEmit!).inSeconds < 30) {
+          return; // time gate: at most one presence emit per 30 s
+        }
+        _lastPresenceEmit = now;
         updateLocation(userId, position.latitude, position.longitude);
       },
       onError: (e) {

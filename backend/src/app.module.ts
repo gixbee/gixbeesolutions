@@ -16,6 +16,9 @@ import { RentalItem } from './rentals/rental-item.entity';
 import { RentalReservation } from './rentals/rental-reservation.entity';
 import { JobPost } from './hiring/job-post.entity';
 import { JobApplication } from './hiring/job-application.entity';
+import { JobPreference } from './hiring/matching/job-preference.entity';
+import { HiringRequest } from './hiring/matching/hiring-request.entity';
+import { HiringInterest } from './hiring/matching/hiring-interest.entity';
 import { Business } from './businesses/business.entity';
 import { TalentProfile } from './talent/talent-profile.entity';
 import { ProfessionalSkill } from './talent/professional-skill.entity';
@@ -73,6 +76,7 @@ import { SystemMetricsModule } from './system-metrics/system-metrics.module';
           entities: [
             User, Booking, WalletTransaction, WorkerProfile,
             RentalItem, RentalReservation, JobPost, JobApplication,
+            JobPreference, HiringRequest, HiringInterest,
             Business, TalentProfile, ProfessionalSkill, MasterEntry,
             Message, Favourite, Address, City, SupportTicket, AdminStaff,
             OutboxEvent, SystemLog,

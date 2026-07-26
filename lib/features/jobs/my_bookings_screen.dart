@@ -73,7 +73,11 @@ class _MyBookingsScreenState extends ConsumerState<MyBookingsScreen>
 
     try {
       final repo = ref.read(bookingRepositoryProvider);
-      final status = tab == 'PAST' ? 'COMPLETED' : tab == 'UPCOMING' ? 'PENDING' : 'ACTIVE';
+      final status = tab == 'PAST'
+          ? 'COMPLETED,CANCELLED,REJECTED,EXPIRED'
+          : tab == 'UPCOMING'
+              ? 'REQUESTED,CUSTOM_REQUESTED,PENDING,ACCEPTED,CONFIRMED'
+              : 'ACTIVE,IN_PROGRESS,ARRIVED';
       final results = await repo.getMyBookings(
         status: status,
         page: _currentPage[tab]!,

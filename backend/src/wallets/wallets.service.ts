@@ -52,6 +52,42 @@ export class WalletsService {
     });
   }
 
+  /**
+   * Generic wallet debit with row lock — used by Smart Hiring fees
+   * (job-preference ₹50/month, hiring-request tier pricing) and any future
+   * flat charges. Throws on insufficient balance.
+   */
+  async charge(
+    userId: string,
+    amount: number,
+    description: string,
+  ): Promise<void> {
+    if (amount <= 0) return;
+    await this.dataSource.transaction(async (manager) => {
+      const user = await manager
+        .createQueryBuilder(User, 'user')
+        .setLock('pessimistic_write')
+        .where('user.id = :userId', { userId })
+        .getOne();
+      if (!user) throw new BadRequestException('User not found');
+      if (Number(user.walletBalance) < amount) {
+        throw new BadRequestException(
+          `Insufficient wallet balance — ₹${amount} required. Please top up.`,
+        );
+      }
+      user.walletBalance = Number(user.walletBalance) - amount;
+      await manager.save(user);
+      await manager.save(
+        this.transactionsRepository.create({
+          user,
+          amount,
+          type: TransactionType.DEBIT,
+          description,
+        }),
+      );
+    });
+  }
+
   async addFunds(userId: string, amount: number): Promise<number> {
     return this.dataSource.transaction(async (manager) => {
       const user = await manager

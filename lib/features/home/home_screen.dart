@@ -77,6 +77,7 @@ class HomeScreen extends ConsumerWidget {
   Widget _locationBar(BuildContext context, WidgetRef ref) {
     final address = ref.watch(currentAddressProvider);
     final user = ref.watch(currentUserProvider).value;
+    final hasUnreadNotifs = ref.watch(hasUnreadNotificationsProvider).value ?? false;
     final initial = (user?.name?.trim().isNotEmpty ?? false)
         ? user!.name!.trim()[0].toUpperCase()
         : 'G';
@@ -166,20 +167,21 @@ class HomeScreen extends ConsumerWidget {
                 children: [
                   Icon(Icons.notifications_none_rounded,
                       size: 19, color: context.gx.ink),
-                  Positioned(
-                    top: 8,
-                    right: 8,
-                    child: Container(
-                      width: 8,
-                      height: 8,
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFEF4444),
-                        shape: BoxShape.circle,
-                        border: Border.all(
-                            color: context.gx.bg, width: 2),
+                  if (hasUnreadNotifs)
+                    Positioned(
+                      top: 8,
+                      right: 8,
+                      child: Container(
+                        width: 8,
+                        height: 8,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFEF4444),
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                              color: context.gx.bg, width: 2),
+                        ),
                       ),
                     ),
-                  ),
                 ],
               ),
             ),

@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 import '../../repositories/auth_repository.dart';
 import '../../repositories/worker_repository.dart';
@@ -63,6 +64,7 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       if (ref.read(workerLiveStateProvider)) {
+        unawaited(_startTicker(reset: false));
         unawaited(_ensureLivePresence());
       }
     });
@@ -86,8 +88,20 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
     }
   }
 
-  void _startTicker() {
-    _liveSince = DateTime.now();
+  Future<void> _startTicker({bool reset = false}) async {
+    const storage = FlutterSecureStorage();
+    if (reset || _liveSince == null) {
+      if (!reset) {
+        final stored = await storage.read(key: 'worker_live_since');
+        if (stored != null) {
+          _liveSince = DateTime.tryParse(stored);
+        }
+      }
+      if (_liveSince == null || reset) {
+        _liveSince = DateTime.now();
+        await storage.write(key: 'worker_live_since', value: _liveSince!.toIso8601String());
+      }
+    }
     _ticker?.cancel();
     _ticker = Timer.periodic(const Duration(seconds: 1), (_) {
       if (!mounted || _liveSince == null) return;
@@ -95,11 +109,13 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
     });
   }
 
-  void _stopTicker() {
+  Future<void> _stopTicker() async {
+    const storage = FlutterSecureStorage();
+    await storage.delete(key: 'worker_live_since');
     _ticker?.cancel();
     _ticker = null;
     _liveSince = null;
-    _elapsed = Duration.zero;
+    if (mounted) setState(() => _elapsed = Duration.zero);
   }
 
   Future<void> _ensureLivePresence() async {
@@ -165,10 +181,10 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
       ref.invalidate(goLiveDashboardProvider);
 
       if (result.isActive) {
-        _startTicker();
+        unawaited(_startTicker(reset: true));
         await _ensureLivePresence();
       } else {
-        _stopTicker();
+        unawaited(_stopTicker());
         _jobFeed.clear();
         _stopLivePresence();
       }
@@ -229,10 +245,10 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
     if (serverLive == localLive) return;
     ref.read(workerLiveStateProvider.notifier).state = serverLive;
     if (serverLive) {
-      if (_liveSince == null) _startTicker();
+      if (_liveSince == null) unawaited(_startTicker(reset: false));
       unawaited(_ensureLivePresence());
     } else {
-      _stopTicker();
+      unawaited(_stopTicker());
       _jobFeed.clear();
       _stopLivePresence();
     }

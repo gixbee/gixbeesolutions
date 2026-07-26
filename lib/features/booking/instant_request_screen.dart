@@ -16,6 +16,7 @@ import '../../shared/widgets/gx_snackbar.dart';
 import '../jobs/pro_skill_provider.dart';
 import 'no_workers_screen.dart';
 import 'waiting_for_worker_screen.dart';
+import 'location_pin_screen.dart';
 
 /// Uber/Grab-style instant request — stepped exactly like the client's v126
 /// demo (ih module c2–c6): LOCATION → PRESENCE (who receives the arrival
@@ -61,6 +62,13 @@ class _InstantRequestScreenState extends ConsumerState<InstantRequestScreen> {
   /// Saved-address id when the user picked one from the address book — sent as
   /// `addressId` so the booking links back to the saved entry.
   String? _selectedAddressId;
+
+  /// Exact coordinates the user confirmed on the pin-drop map for a typed /
+  /// different location. When set, these are the authoritative booking
+  /// coordinates — no forward-geocoding, no city-centre fallback. Cleared
+  /// whenever the address text changes so a stale pin can't attach to a
+  /// different address.
+  ({double lat, double lng})? _pinnedCoords;
 
   // Step 2 — presence (arrival-OTP recipient)
   bool _selfPresent = true;
@@ -151,17 +159,27 @@ class _InstantRequestScreenState extends ConsumerState<InstantRequestScreen> {
   /// Value posted as Instant Help `amount` — the upper end of the range.
   double get _budgetAmount => _budgetRange.end.roundToDouble();
 
-  /// Coordinates for the request. "Current location" uses the home-picked
-  /// coords; a typed "different location" is forward-geocoded so the pro
-  /// matching (GEO search) actually happens around the RIGHT place, with the
-  /// serviceable-city centre as fallback when geocoding fails.
+  /// Coordinates for the request.
+  /// - "Current location" → the home-picked coords.
+  /// - A typed / different location → the pin the user CONFIRMED on the map
+  ///   ([_pinnedCoords]). We never silently forward-geocode-with-city-centre-
+  ///   fallback here any more: that path put dispatch, routing and GPS strikes
+  ///   on the wrong spot (and always fired on web). If somehow no pin was
+  ///   captured, we return null and the caller asks the user to drop one.
   Future<({double lat, double lng})?> _resolveCoords() async {
     final loc = ref.read(selectedLocationProvider);
     if (_useCurrentLocation) {
       return loc == null ? null : (lat: loc.lat, lng: loc.lng);
     }
+    return _pinnedCoords;
+  }
+
+  /// Best-effort STARTING camera target for the pin map (never the booking
+  /// coordinate). Tries a forward-geocode of the typed address, then the
+  /// home pick, then the serviceable city centre.
+  Future<({double lat, double lng})> _mapStartGuess() async {
     final typed = _addressCtrl.text.trim();
-    if (!kIsWeb) {
+    if (!kIsWeb && typed.isNotEmpty) {
       try {
         final results = await Geocoding()
             .locationFromAddress(typed)
@@ -170,13 +188,44 @@ class _InstantRequestScreenState extends ConsumerState<InstantRequestScreen> {
           return (lat: results.first.latitude, lng: results.first.longitude);
         }
       } catch (e) {
-        debugPrint('Forward geocoding failed: $e');
+        debugPrint('Forward geocode (map start guess) failed: $e');
       }
     }
-    // Fallback: the selected serviceable city's centre, then the home pick.
+    final loc = ref.read(selectedLocationProvider);
+    if (loc != null) return (lat: loc.lat, lng: loc.lng);
     final city = ref.read(currentCityProvider);
     if (city != null) return (lat: city.lat, lng: city.lng);
-    return loc == null ? null : (lat: loc.lat, lng: loc.lng);
+    // Absolute last resort — Kerala centre-ish; the user will move the pin.
+    return (lat: 8.5241, lng: 76.9366);
+  }
+
+  /// Push the pin-drop map for a typed / different location and store the
+  /// confirmed coordinates. Returns true when the user confirmed a pin.
+  Future<bool> _confirmPinForTypedAddress() async {
+    final start = await _mapStartGuess();
+    if (!mounted) return false;
+    final result = await Navigator.push<PinnedLocation>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => LocationPinScreen(
+          initialLat: start.lat,
+          initialLng: start.lng,
+          initialAddress: _addressCtrl.text.trim().isEmpty
+              ? null
+              : _addressCtrl.text.trim(),
+        ),
+      ),
+    );
+    if (result == null) return false; // user backed out
+    setState(() {
+      _pinnedCoords = (lat: result.lat, lng: result.lng);
+      // Keep the user's typed text as the human-facing service location, but
+      // if they hadn't typed anything, adopt the reverse-geocoded label.
+      if (_addressCtrl.text.trim().isEmpty && result.address.isNotEmpty) {
+        _addressCtrl.text = result.address;
+      }
+    });
+    return true;
   }
 
   Future<void> _submit() async {
@@ -417,10 +466,67 @@ class _InstantRequestScreenState extends ConsumerState<InstantRequestScreen> {
           TextField(
             controller: _addressCtrl,
             maxLines: 2,
-            onChanged: (_) => setState(() {}),
+            onChanged: (_) => setState(() {
+              // Address text changed — any previously confirmed pin no longer
+              // corresponds to what's typed; force a fresh pin-drop.
+              _pinnedCoords = null;
+              _selectedAddressId = null;
+            }),
             style: TextStyle(color: context.gx.ink, fontSize: 14),
             decoration: _dec(context, 'House / street / landmark…'),
           ),
+          if (!_useCurrentLocation && _addressCtrl.text.trim().isNotEmpty) ...[
+            const SizedBox(height: 10),
+            // Pin status: confirmed vs still-needed. Continue forces the pin
+            // drop when this is unconfirmed (see the scaffold button).
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              decoration: BoxDecoration(
+                color: _pinnedCoords != null
+                    ? GixbeeTheme.accentGreen.withValues(alpha: 0.1)
+                    : context.gx.accentSoft.withValues(alpha: 0.08),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                    color: _pinnedCoords != null
+                        ? GixbeeTheme.accentGreen.withValues(alpha: 0.4)
+                        : context.gx.border),
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                      _pinnedCoords != null
+                          ? Icons.check_circle_rounded
+                          : Icons.location_on_outlined,
+                      size: 18,
+                      color: _pinnedCoords != null
+                          ? GixbeeTheme.accentGreen
+                          : context.gx.accentSoft),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      _pinnedCoords != null
+                          ? 'Exact spot confirmed on map'
+                          : 'Pinpoint the exact spot on the map',
+                      style: TextStyle(
+                          fontSize: 12.5,
+                          fontWeight: FontWeight.w600,
+                          color: context.gx.ink.withValues(alpha: 0.75)),
+                    ),
+                  ),
+                  GxPressable(
+                    onTap: () => _confirmPinForTypedAddress(),
+                    child: Text(
+                      _pinnedCoords != null ? 'Adjust' : 'Set pin',
+                      style: TextStyle(
+                          fontSize: 12.5,
+                          fontWeight: FontWeight.w800,
+                          color: context.gx.accentSoft),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
           // Saved addresses (address book): tap to fill the field instead of
           // retyping. Restores the feature that lost its home when the old
           // pick-a-pro checkout was removed.
@@ -453,6 +559,10 @@ class _InstantRequestScreenState extends ConsumerState<InstantRequestScreen> {
                 onTap: () => setState(() {
                   _addressCtrl.text = a.line;
                   _selectedAddressId = a.id;
+                  // Saved addresses store only line text (their coords aren't
+                  // surfaced here yet) — so a saved pick still needs a map
+                  // confirm. Null any prior pin; Continue will prompt.
+                  _pinnedCoords = null;
                 }),
                 child: Container(
                   margin: const EdgeInsets.only(bottom: 8),
@@ -613,7 +723,7 @@ class _InstantRequestScreenState extends ConsumerState<InstantRequestScreen> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         _title(context, 'Your budget',
-            'Set your preferred hourly rate for ${widget.skill}. Billed per worked hour; paused time is free.'),
+            'Set your preferred hourly rate for ${widget.skill}. Minimum charge: 1 hour — after that, billed per worked minute; paused time is free.'),
         _caption(context, 'YOUR BUDGET (₹ / HOUR)'),
         Row(
           children: [
@@ -714,6 +824,19 @@ class _InstantRequestScreenState extends ConsumerState<InstantRequestScreen> {
     );
   }
 
+  /// Advance one step. On the LOCATION step, a typed / different location
+  /// must have a confirmed map pin first — if it doesn't, we open the pin
+  /// drop instead of advancing, and only move on once the user confirms.
+  Future<void> _advance() async {
+    if (_step == 0 && !_useCurrentLocation) {
+      if (_pinnedCoords == null) {
+        final confirmed = await _confirmPinForTypedAddress();
+        if (!confirmed) return; // user backed out of the map — stay put
+      }
+    }
+    if (mounted) setState(() => _step++);
+  }
+
   // ── scaffold ───────────────────────────────────────────────────────────────
 
   @override
@@ -797,8 +920,7 @@ class _InstantRequestScreenState extends ConsumerState<InstantRequestScreen> {
                   icon: isLast ? Icons.bolt_rounded : null,
                   onTap: !_canContinue || _submitting
                       ? null
-                      : () =>
-                          isLast ? _submit() : setState(() => _step++),
+                      : () => isLast ? _submit() : _advance(),
                 ),
               ),
             ],
