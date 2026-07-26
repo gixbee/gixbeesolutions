@@ -69,7 +69,7 @@ class _CompletionOtpScreenState extends ConsumerState<CompletionOtpScreen> {
       bookingStatusProvider(widget.bookingId),
       (prev, next) {
         final status = next.value?['status']?.toString().toUpperCase();
-        if (status == 'COMPLETED') {
+        if (status == 'COMPLETED' || next.value?['isPaid'] == true) {
           _openCustomerPostCompletion();
         } else if (next.hasValue) {
           // Keep the displayed OTP in sync in case either side rotated it.
@@ -160,6 +160,11 @@ class _CompletionOtpScreenState extends ConsumerState<CompletionOtpScreen> {
     try {
       final b = await ref.read(bookingRepositoryProvider).getBookingById(widget.bookingId);
       if (b != null && mounted) {
+        final status = b['status']?.toString().toUpperCase();
+        if (status == 'COMPLETED' || b['isPaid'] == true) {
+          _openCustomerPostCompletion();
+          return;
+        }
         final otp = b['completionOtp']?.toString();
         if (otp != null && otp != _fetchedOtp) {
           setState(() => _fetchedOtp = otp);

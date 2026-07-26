@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/config/app_config.dart';
 import '../../repositories/booking_repository.dart';
+import '../../repositories/booking_status_provider.dart';
 import 'completion_otp_screen.dart';
 import '../../theme.dart';
 import '../../shared/widgets/gx_snackbar.dart';
@@ -53,6 +54,54 @@ class _ArrivalOtpScreenState extends ConsumerState<ArrivalOtpScreen>
       vsync: this,
       duration: const Duration(milliseconds: 1200),
     )..repeat(reverse: true);
+
+    if (!widget.isWorker) {
+      _checkInitialStatus();
+    }
+  }
+
+  Future<void> _checkInitialStatus() async {
+    try {
+      final b = await ref.read(bookingRepositoryProvider).getBookingById(widget.bookingId);
+      if (b != null && mounted) {
+        final status = b['status']?.toString().toUpperCase();
+        if (status == 'ACTIVE' || status == 'IN_PROGRESS' || status == 'COMPLETED') {
+          _transitionToNextScreen();
+        }
+      }
+    } catch (e) {
+      debugPrint('Error checking initial status on ArrivalOtpScreen: $e');
+    }
+  }
+
+  bool _navigatingAway = false;
+
+  void _watchArrivalForCustomer() {
+    if (widget.isWorker || _navigatingAway) return;
+    ref.listen<AsyncValue<Map<String, dynamic>>>(
+      bookingStatusProvider(widget.bookingId),
+      (prev, next) {
+        final status = next.value?['status']?.toString().toUpperCase();
+        if (status == 'ACTIVE' || status == 'IN_PROGRESS' || status == 'COMPLETED') {
+          _transitionToNextScreen();
+        }
+      },
+    );
+  }
+
+  void _transitionToNextScreen() {
+    if (_navigatingAway || !mounted) return;
+    _navigatingAway = true;
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(
+        builder: (_) => CompletionOtpScreen(
+          bookingId: widget.bookingId,
+          workerName: widget.workerName,
+          isWorker: widget.isWorker,
+        ),
+      ),
+    );
   }
 
   @override
@@ -144,6 +193,7 @@ class _ArrivalOtpScreenState extends ConsumerState<ArrivalOtpScreen>
 
   @override
   Widget build(BuildContext context) {
+    _watchArrivalForCustomer();
     final colorScheme = Theme.of(context).colorScheme;
 
     return Scaffold(
