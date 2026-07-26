@@ -58,6 +58,8 @@ export class UsersService {
     if (data.name !== undefined) user.name = data.name;
     if (data.profileImageUrl !== undefined) user.profileImageUrl = data.profileImageUrl;
     if (data.isAvailableForWork !== undefined) user.isAvailableForWork = data.isAvailableForWork;
+    if (data.role !== undefined) user.role = data.role;
+    if (data.hasWorkerProfile !== undefined) user.hasWorkerProfile = data.hasWorkerProfile;
 
     return this.usersRepository.save(user);
   }

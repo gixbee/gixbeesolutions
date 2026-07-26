@@ -38,25 +38,31 @@ class _RegistrationScreenState extends ConsumerState<RegistrationScreen> {
     setState(() => _isSubmitting = true);
 
     try {
-      final user = await ref.read(currentUserProvider.future);
-      if (user != null) {
-        await ref.read(profileRepositoryProvider).updateProfile(
-          userId: user.id,
-          data: {
-            'name': name,
-            'role': _isWorker ? 'OPERATOR' : 'OWNER',
-            'hasWorkerProfile': _isWorker,
-          },
-        );
-        ref.invalidate(currentUserProvider); // Reload profile info
+      var user = await ref.read(currentUserProvider.future);
+      if (user == null) {
+        ref.invalidate(currentUserProvider);
+        user = await ref.read(authRepositoryProvider).getProfile();
+      }
+      if (user == null) {
+        throw Exception('User session not found. Please try logging in again.');
+      }
 
-        if (mounted) {
-          Navigator.pushAndRemoveUntil(
-            context,
-            MaterialPageRoute(builder: (_) => const MainWrapper()),
-            (route) => false,
-          );
-        }
+      await ref.read(profileRepositoryProvider).updateProfile(
+        userId: user.id,
+        data: {
+          'name': name,
+          'role': _isWorker ? 'OPERATOR' : 'OWNER',
+          'hasWorkerProfile': _isWorker,
+        },
+      );
+      ref.invalidate(currentUserProvider); // Reload profile info
+
+      if (mounted) {
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(builder: (_) => const MainWrapper()),
+          (route) => false,
+        );
       }
     } catch (e) {
       if (mounted) {

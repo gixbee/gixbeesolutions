@@ -77,6 +77,9 @@ class _OtpScreenState extends ConsumerState<OtpScreen> {
             token: otp,
           );
 
+      ref.invalidate(authStateProvider);
+      ref.invalidate(currentUserProvider);
+
       // 2. Register FCM token — gives the backend a device to push to
       await _registerFcmToken();
 

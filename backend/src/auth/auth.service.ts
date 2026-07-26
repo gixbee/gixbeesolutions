@@ -85,7 +85,7 @@ export class AuthService {
         isVerified: true,
         walletBalance: 0,           // no free credits — prevents wallet exploit
       });
-      await this.usersRepository.save(user);
+      user = await this.usersRepository.save(user);
     }
 
     return this.generateTokenPair(user);
