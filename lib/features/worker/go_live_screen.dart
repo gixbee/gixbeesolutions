@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 import '../../repositories/auth_repository.dart';
+import '../../repositories/booking_repository.dart';
 import '../../repositories/worker_repository.dart';
 import '../../services/location_service.dart';
 import '../../services/socket_service.dart';
@@ -66,6 +67,7 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
       if (ref.read(workerLiveStateProvider)) {
         unawaited(_startTicker(reset: false));
         unawaited(_ensureLivePresence());
+        unawaited(_refreshPendingFeed());
       }
     });
   }
@@ -81,11 +83,50 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
   void _onSocketEvent(Map<String, dynamic> data) {
     if (!mounted) return;
     final event = data['_event'] as String?;
-    final id = data['id'] as String?;
+    final id = (data['id'] ?? data['bookingId'])?.toString();
     if (event == 'new_booking_request' && id != null) {
-      if (_jobFeed.any((j) => j['id'] == id)) return;
+      if (_jobFeed.any((j) => j['id']?.toString() == id)) return;
       setState(() => _jobFeed.insert(0, data));
+      unawaited(_refreshPendingFeed());
+    } else if (event == 'booking_status_update' ||
+               event == 'booking_accepted' ||
+               event == 'booking_cancelled' ||
+               event == 'booking_completed') {
+      if (id != null) {
+        setState(() => _jobFeed.removeWhere((j) => j['id']?.toString() == id));
+      } else {
+        final status = data['status']?.toString().toUpperCase();
+        if (status != null && status != 'REQUESTED') {
+          final targetId = (data['bookingId'] ?? data['id'])?.toString();
+          if (targetId != null) {
+            setState(() => _jobFeed.removeWhere((j) => j['id']?.toString() == targetId));
+          }
+        }
+      }
+      unawaited(_refreshPendingFeed());
     }
+  }
+
+  Future<void> _refreshPendingFeed() async {
+    if (!mounted || !ref.read(workerLiveStateProvider)) return;
+    try {
+      final pending = await ref.read(bookingRepositoryProvider).getPendingBookings();
+      if (!mounted) return;
+      final pendingMaps = pending
+          .whereType<Map>()
+          .map((b) => Map<String, dynamic>.from(b))
+          .toList();
+      final pendingIds = pendingMaps.map((b) => b['id']?.toString()).toSet();
+      setState(() {
+        _jobFeed.removeWhere((j) => !pendingIds.contains(j['id']?.toString()));
+        for (final item in pendingMaps) {
+          final id = item['id']?.toString();
+          if (id != null && !_jobFeed.any((j) => j['id']?.toString() == id)) {
+            _jobFeed.add(item);
+          }
+        }
+      });
+    } catch (_) {}
   }
 
   Future<void> _startTicker({bool reset = false}) async {
@@ -103,9 +144,12 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
       }
     }
     _ticker?.cancel();
-    _ticker = Timer.periodic(const Duration(seconds: 1), (_) {
+    _ticker = Timer.periodic(const Duration(seconds: 1), (timer) {
       if (!mounted || _liveSince == null) return;
       setState(() => _elapsed = DateTime.now().difference(_liveSince!));
+      if (timer.tick % 5 == 0) {
+        unawaited(_refreshPendingFeed());
+      }
     });
   }
 
@@ -183,6 +227,7 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
       if (result.isActive) {
         unawaited(_startTicker(reset: true));
         await _ensureLivePresence();
+        unawaited(_refreshPendingFeed());
       } else {
         unawaited(_stopTicker());
         _jobFeed.clear();
@@ -227,6 +272,7 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
     );
     if (mounted) {
       setState(() => _jobFeed.removeWhere((j) => j['id'] == job['id']));
+      unawaited(_refreshPendingFeed());
     }
   }
 
@@ -247,6 +293,7 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
     if (serverLive) {
       if (_liveSince == null) unawaited(_startTicker(reset: false));
       unawaited(_ensureLivePresence());
+      unawaited(_refreshPendingFeed());
     } else {
       unawaited(_stopTicker());
       _jobFeed.clear();
@@ -259,6 +306,11 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
     ref.listen(goLiveDashboardProvider, (prev, next) {
       final dash = next.asData?.value;
       if (dash != null) _syncLiveFromServer(dash);
+    });
+    ref.listen(myBookingsProvider, (prev, next) {
+      if (ref.read(workerLiveStateProvider)) {
+        unawaited(_refreshPendingFeed());
+      }
     });
     final scheme = Theme.of(context).colorScheme;
     final isLive = ref.watch(workerLiveStateProvider);
@@ -299,6 +351,7 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
                 color: context.gx.accent,
                 onRefresh: () async {
                   ref.invalidate(goLiveDashboardProvider);
+                  unawaited(_refreshPendingFeed());
                   await ref.read(goLiveDashboardProvider.future);
                 },
                 child: SingleChildScrollView(

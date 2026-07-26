@@ -42,6 +42,7 @@ class _IncomingJobScreenState extends ConsumerState<IncomingJobScreen>
   /// and resumes stale, showing time that actually expired long ago.
   DateTime? _deadline;
   Timer? _timer;
+  Timer? _pollTimer;
   bool _isProcessing = false;
 
   @override
@@ -51,13 +52,15 @@ class _IncomingJobScreenState extends ConsumerState<IncomingJobScreen>
     _requests = [widget.bookingData];
     unawaited(_loadMyPosition());
     _startTimer();
-    _pollForMoreRequests();
+    Future.delayed(const Duration(seconds: 2), _pollForMoreRequests);
+    _pollTimer = Timer.periodic(const Duration(seconds: 4), (_) => _pollForMoreRequests());
   }
 
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _timer?.cancel();
+    _pollTimer?.cancel();
     super.dispose();
   }
 
@@ -68,7 +71,7 @@ class _IncomingJobScreenState extends ConsumerState<IncomingJobScreen>
       // Requests that expired while locked are auto-declined instead of
       // showing a frozen timer that errors on Accept.
       _tick();
-      _pollForMoreRequests();
+      unawaited(_pollForMoreRequests());
     }
   }
 
@@ -159,15 +162,32 @@ class _IncomingJobScreenState extends ConsumerState<IncomingJobScreen>
   // ── Poll for more requests while screen is open ───────────────────────────
 
   Future<void> _pollForMoreRequests() async {
-    await Future.delayed(const Duration(seconds: 3));
     if (!mounted) return;
     try {
       final all = await ref.read(bookingRepositoryProvider).getPendingBookings();
       if (!mounted) return;
       setState(() {
-        final existingIds = _requests.map((r) => r['id']).toSet();
-        for (final r in all) {
-          if (!existingIds.contains(r['id'])) {
+        final allMaps = all
+            .whereType<Map>()
+            .map((r) => Map<String, dynamic>.from(r))
+            .toList();
+        final validIds = allMaps.map((r) => r['id']?.toString()).toSet();
+        // Remove requests that are no longer pending on the backend
+        _requests.removeWhere((r) => !validIds.contains(r['id']?.toString()));
+        if (_requests.isEmpty) {
+          Navigator.pop(context, {
+            'accepted': false,
+            'declinedIds': List<String>.from(_declinedIds),
+          });
+          return;
+        }
+        if (_currentIndex >= _requests.length) {
+          _currentIndex = 0;
+          _resetTimerForNewRequest();
+        }
+        final existingIds = _requests.map((r) => r['id']?.toString()).toSet();
+        for (final r in allMaps) {
+          if (!existingIds.contains(r['id']?.toString())) {
             _requests.add(r);
           }
         }
@@ -243,7 +263,9 @@ class _IncomingJobScreenState extends ConsumerState<IncomingJobScreen>
           lower.contains('not pending') ||
           lower.contains('expired') ||
           lower.contains('cancelled') ||
-          lower.contains('not found')) {
+          lower.contains('not found') ||
+          lower.contains('not assigned') ||
+          lower.contains('was accepted')) {
         showGxSnack(context, 'Too late — this request is no longer available.',
             type: GxSnackType.info);
         setState(() {

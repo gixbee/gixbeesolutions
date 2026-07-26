@@ -322,6 +322,22 @@ export class BookingsService {
         console.log(`[AcceptBooking] Locked booking — status=${lockedBooking.status}`);
 
         if (lockedBooking.status !== BookingStatus.REQUESTED) {
+          if (lockedBooking.status === BookingStatus.ACCEPTED) {
+            const booking = await manager.findOne(Booking, {
+              where: { id: bookingId },
+              relations: ['customer', 'operator'],
+            });
+            if (booking?.operator?.id === workerId) {
+              console.log(`[AcceptBooking] Idempotent retry by worker ${workerId} on already ACCEPTED booking ${bookingId}`);
+              (booking as any)._idempotent = true;
+              return {
+                saved: booking,
+                opName: booking.operator?.name ?? null,
+                customerId: booking.customer?.id ?? null,
+                outboxId: null,
+              };
+            }
+          }
           throw new BadRequestException(
             'This booking is no longer available — it may have been accepted or cancelled.',
           );
@@ -411,7 +427,9 @@ export class BookingsService {
       console.log('[AcceptBooking] Transaction committed successfully');
 
       // Kick dispatcher after commit (poller is the crash-safety net).
-      await this.outboxService.enqueueDispatch(txResult.outboxId);
+      if (txResult.outboxId) {
+        await this.outboxService.enqueueDispatch(txResult.outboxId);
+      }
     } catch (error) {
       console.error('[AcceptBooking] Transaction FAILED:', error?.message ?? error);
       throw error;
@@ -420,14 +438,16 @@ export class BookingsService {
     // ── STEP 2: Money side effect (kept in service; non-fatal) ──────────────
     // FCM / socket / Redis / GPS jobs moved to outbox listener (BOOKING_ACCEPTED).
 
-    // Deduct platform fee from worker wallet
-    try {
-      console.log('[AcceptBooking] Deducting booking fee...');
-      await this.walletsService.deductBookingFee(workerId);
-      console.log('[AcceptBooking] Booking fee deducted');
-    } catch (error) {
-      // Log but don't fail the accept — fee can be reconciled later
-      console.error('[AcceptBooking] Wallet deduction failed (non-fatal):', error?.message ?? error);
+    // Deduct platform fee from worker wallet only on initial acceptance
+    if ((savedBooking as any)?._idempotent !== true) {
+      try {
+        console.log('[AcceptBooking] Deducting booking fee...');
+        await this.walletsService.deductBookingFee(workerId);
+        console.log('[AcceptBooking] Booking fee deducted');
+      } catch (error) {
+        // Log but don't fail the accept — fee can be reconciled later
+        console.error('[AcceptBooking] Wallet deduction failed (non-fatal):', error?.message ?? error);
+      }
     }
 
     console.log('[AcceptBooking] DONE — returning success');
