@@ -10,6 +10,7 @@ volumes:
   postgres_data:
   uploads_data:
   redis_data:
+  beszel_data:
 
 # ─── Services ────────────────────────────────────────────────────────────────
 services:
@@ -192,6 +193,7 @@ services:
         max-file: "3"
     volumes:
       - ./nginx/lb.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/.htpasswd:/etc/nginx/infra.htpasswd:ro
       - uploads_data:/app/uploads
     networks:
       - gixbee_net
@@ -218,3 +220,56 @@ services:
       - backend
     ports:
       - "80:80"
+      - "8091:8091"
+
+  # ── Infrastructure Monitoring: Dozzle (Live Logs) ──────────────────────────
+  dozzle:
+    image: amir20/dozzle:latest
+    container_name: gixbee_dozzle
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    environment:
+      DOZZLE_BASE: /infra/dozzle
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    networks:
+      - gixbee_net
+
+  # ── Infrastructure Monitoring: Beszel (Resource Hub) ───────────────────────
+  beszel:
+    image: henrygd/beszel:latest
+    container_name: gixbee_beszel
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    volumes:
+      - beszel_data:/beszel_data
+    networks:
+      - gixbee_net
+
+  # ── Infrastructure Monitoring: Beszel Agent ────────────────────────────────
+  beszel-agent:
+    image: henrygd/beszel-agent:latest
+    container_name: gixbee_beszel_agent
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    environment:
+      PORT: 45876
+      KEY: "gixbee-internal-monitor-2026-key"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    networks:
+      - gixbee_net
+    depends_on:
+      - beszel

@@ -128,6 +128,7 @@ export class LayoutComponent {
       title: 'System',
       items: [
         { page: 'monitoring', path: '/monitoring', label: 'Monitoring', icon: 'bi-activity' },
+        { page: 'monitoring', path: '/infrastructure', label: 'Infrastructure', icon: 'bi-cpu' },
         { page: 'logs', path: '/logs', label: 'Logs', icon: 'bi-journal-text' },
       ],
     },

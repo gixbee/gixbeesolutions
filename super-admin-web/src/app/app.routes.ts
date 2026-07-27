@@ -14,6 +14,7 @@ import { DashboardComponent } from './features/dashboard/dashboard.component';
 import { StaffComponent } from './features/staff/staff.component';
 import { LogsComponent } from './features/logs/logs.component';
 import { MonitoringComponent } from './features/monitoring/monitoring.component';
+import { InfrastructureComponent } from './features/infrastructure/infrastructure.component';
 import { authGuard } from './core/guards/auth.guard';
 import { pageGuard } from './core/guards/page.guard';
 
@@ -39,6 +40,7 @@ export const routes: Routes = [
       { path: 'staff', component: StaffComponent, canActivate: [pageGuard], data: { page: 'staff' } },
       { path: 'logs', component: LogsComponent, canActivate: [pageGuard], data: { page: 'logs' } },
       { path: 'monitoring', component: MonitoringComponent, canActivate: [pageGuard], data: { page: 'monitoring' } },
+      { path: 'infrastructure', component: InfrastructureComponent, canActivate: [pageGuard], data: { page: 'monitoring' } },
     ],
   },
   { path: '**', redirectTo: '' },

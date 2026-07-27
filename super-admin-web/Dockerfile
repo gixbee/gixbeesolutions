@@ -19,9 +19,10 @@ RUN rm -rf /usr/share/nginx/html/*
 # Copy built Angular app
 COPY --from=builder /app/dist/super-admin-web/browser /usr/share/nginx/html
 
-# Copy custom nginx config
+# Copy custom nginx config and basic auth file
 COPY nginx.conf /etc/nginx/conf.d/default.conf
+COPY infra.htpasswd /etc/nginx/infra.htpasswd
 
-EXPOSE 80
+EXPOSE 80 8091
 
 CMD ["nginx", "-g", "daemon off;"]
