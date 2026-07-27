@@ -207,6 +207,12 @@ h1, h2, h3, h4, h5, h6 { font-weight: 700; color: var(--gx-text); }
 
 /* ── Page container ── */
 .gx-page { padding: 24px; max-width: 1400px; }
+.gx-page:has(.gx-full-screen-view) {
+  max-width: none !important;
+  padding: 16px 24px !important;
+  display: flex !important;
+  flex-direction: column !important;
+}
 .gx-page-title { font-size: 20px; font-weight: 800; margin-bottom: 2px; }
 .gx-page-sub { color: var(--gx-text-muted); font-size: 13px; margin-bottom: 18px; }
 

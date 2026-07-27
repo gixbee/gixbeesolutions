@@ -7,68 +7,68 @@ import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
   standalone: true,
   imports: [CommonModule],
   template: `
-    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-4">
-      <div>
-        <div class="gx-page-title mb-1">Infrastructure Monitoring</div>
-        <div class="text-secondary small d-flex align-items-center gap-2">
-          <span>Live container resources & real-time log streaming</span>
-          <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle">
-            <i class="bi bi-shield-lock me-1"></i>Protected by Basic Auth (user: admin)
-          </span>
+    <div class="gx-full-screen-view d-flex flex-column flex-grow-1 w-100">
+      <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+        <div>
+          <div class="gx-page-title mb-1">Infrastructure Monitoring</div>
+          <div class="text-secondary small d-flex align-items-center gap-2">
+            <span>Live container resources & real-time log streaming</span>
+            <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle">
+              <i class="bi bi-shield-lock me-1"></i>Protected by Basic Auth (user: admin)
+            </span>
+          </div>
+        </div>
+        <div class="d-flex gap-2">
+          <a [href]="rawBeszelUrl" target="_blank" class="btn btn-outline-secondary btn-sm d-flex align-items-center gap-2">
+            <i class="bi bi-cpu"></i>
+            <span>Open Beszel Hub</span>
+            <i class="bi bi-box-arrow-up-right small"></i>
+          </a>
+          <a href="/infra/dozzle/" target="_blank" class="btn btn-outline-secondary btn-sm d-flex align-items-center gap-2">
+            <i class="bi bi-terminal"></i>
+            <span>Open Dozzle Logs</span>
+            <i class="bi bi-box-arrow-up-right small"></i>
+          </a>
         </div>
       </div>
-      <div class="d-flex gap-2">
-        <a [href]="rawBeszelUrl" target="_blank" class="btn btn-outline-secondary btn-sm d-flex align-items-center gap-2">
-          <i class="bi bi-cpu"></i>
-          <span>Open Beszel Hub</span>
-          <i class="bi bi-box-arrow-up-right small"></i>
-        </a>
-        <a href="/infra/dozzle/" target="_blank" class="btn btn-outline-secondary btn-sm d-flex align-items-center gap-2">
-          <i class="bi bi-terminal"></i>
-          <span>Open Dozzle Logs</span>
-          <i class="bi bi-box-arrow-up-right small"></i>
-        </a>
-      </div>
-    </div>
 
-    <!-- Navigation Tabs -->
-    <ul class="nav nav-tabs gx-nav-tabs mb-3" role="tablist">
-      <li class="nav-item" role="presentation">
-        <button
-          class="nav-link d-flex align-items-center gap-2"
-          [class.active]="activeTab === 'beszel'"
-          (click)="activeTab = 'beszel'"
-          type="button"
-          role="tab"
-        >
-          <i class="bi bi-activity"></i>
-          <span>Resource Metrics (Beszel)</span>
-        </button>
-      </li>
-      <li class="nav-item" role="presentation">
-        <button
-          class="nav-link d-flex align-items-center gap-2"
-          [class.active]="activeTab === 'dozzle'"
-          (click)="activeTab = 'dozzle'"
-          type="button"
-          role="tab"
-        >
-          <i class="bi bi-terminal-split"></i>
-          <span>Live Container Logs (Dozzle)</span>
-        </button>
-      </li>
-    </ul>
+      <!-- Navigation Tabs -->
+      <ul class="nav nav-tabs gx-nav-tabs mb-3" role="tablist">
+        <li class="nav-item" role="presentation">
+          <button
+            class="nav-link d-flex align-items-center gap-2"
+            [class.active]="activeTab === 'beszel'"
+            (click)="activeTab = 'beszel'"
+            type="button"
+            role="tab"
+          >
+            <i class="bi bi-activity"></i>
+            <span>Resource Metrics (Beszel)</span>
+          </button>
+        </li>
+        <li class="nav-item" role="presentation">
+          <button
+            class="nav-link d-flex align-items-center gap-2"
+            [class.active]="activeTab === 'dozzle'"
+            (click)="activeTab = 'dozzle'"
+            type="button"
+            role="tab"
+          >
+            <i class="bi bi-terminal-split"></i>
+            <span>Live Container Logs (Dozzle)</span>
+          </button>
+        </li>
+      </ul>
 
-    <!-- Tab Content / IFrames -->
-    <div class="card gx-card border-0 shadow-sm overflow-hidden" style="min-height: 75vh;">
-      <div class="card-body p-0 position-relative d-flex flex-column" style="min-height: 75vh;">
+      <!-- Tab Content / IFrames -->
+      <div class="iframe-container flex-grow-1 d-flex flex-column w-100 shadow-sm border rounded-3 overflow-hidden">
         
         <!-- Beszel Tab -->
         <div [class.d-none]="activeTab !== 'beszel'" class="w-100 flex-grow-1 d-flex flex-column">
           <iframe
             [src]="beszelUrl"
             class="w-100 flex-grow-1 border-0"
-            style="min-height: 75vh;"
+            style="min-height: calc(100vh - 190px); display: block;"
             title="Beszel Resource Monitor"
             allow="clipboard-read; clipboard-write"
           ></iframe>
@@ -79,7 +79,7 @@ import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
           <iframe
             [src]="dozzleUrl"
             class="w-100 flex-grow-1 border-0"
-            style="min-height: 75vh;"
+            style="min-height: calc(100vh - 190px); display: block;"
             title="Dozzle Container Logs"
             allow="clipboard-read; clipboard-write"
           ></iframe>
@@ -89,6 +89,32 @@ import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
     </div>
   `,
   styles: [`
+    :host {
+      display: flex;
+      flex-direction: column;
+      width: 100%;
+      flex-grow: 1;
+    }
+    .gx-full-screen-view {
+      width: 100% !important;
+      min-width: 100% !important;
+      display: flex;
+      flex-direction: column;
+      flex-grow: 1;
+    }
+    .iframe-container {
+      width: 100% !important;
+      min-width: 100% !important;
+      background: #111318;
+      border-color: rgba(255, 255, 255, 0.1) !important;
+    }
+    iframe {
+      width: 100% !important;
+      min-width: 100% !important;
+      height: 100% !important;
+      border: none !important;
+      display: block !important;
+    }
     .gx-nav-tabs {
       border-bottom: 2px solid var(--gx-border-color, #dee2e6);
     }
