@@ -131,9 +131,12 @@ class _ActiveBookingCardState extends ConsumerState<ActiveBookingCard> {
                 bookingFlagTrue(activeBooking['customerPaidConfirmed']);
         final iConfirmed =
             isOperator ? workerConfirmed : customerConfirmed;
-        final scheduledAt = activeBooking['scheduledAt'] != null
-            ? DateTime.parse(activeBooking['scheduledAt'])
-            : DateTime.now();
+        final dtRaw = activeBooking['scheduledAt'] != null
+            ? (DateTime.tryParse(activeBooking['scheduledAt'].toString()) ?? DateTime.now())
+            : (activeBooking['createdAt'] != null
+                ? (DateTime.tryParse(activeBooking['createdAt'].toString()) ?? DateTime.now())
+                : DateTime.now());
+        final scheduledAt = dtRaw.toLocal();
 
         return Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),

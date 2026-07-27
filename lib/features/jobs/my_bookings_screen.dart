@@ -349,9 +349,12 @@ class _MyBookingsScreenState extends ConsumerState<MyBookingsScreen>
 
   // ── v126 Booking Card ────────────────────────────
   Widget _buildBookingCard(BuildContext context, WidgetRef ref, dynamic booking, String tab) {
-    final scheduledAt = booking['scheduledAt'] != null
-        ? DateTime.parse(booking['scheduledAt'])
-        : DateTime.now();
+    final dtRaw = booking['scheduledAt'] != null
+        ? (DateTime.tryParse(booking['scheduledAt'].toString()) ?? DateTime.now())
+        : (booking['createdAt'] != null
+            ? (DateTime.tryParse(booking['createdAt'].toString()) ?? DateTime.now())
+            : DateTime.now());
+    final scheduledAt = dtRaw.toLocal();
     final displayUser = booking['operator'] ?? booking['customer'] ?? {};
     final bookingId = booking['id']?.toString() ?? '';
     final shortId = '#BK-${bookingId.length > 5 ? bookingId.substring(0, 5) : bookingId}';

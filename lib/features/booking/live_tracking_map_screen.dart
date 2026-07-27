@@ -18,6 +18,7 @@ import '../../repositories/booking_status_provider.dart';
 import '../../repositories/worker_repository.dart';
 import '../../shared/widgets/gx_snackbar.dart';
 import 'arrival_otp_screen.dart';
+import 'completion_otp_screen.dart';
 import 'report_issue_sheet.dart';
 
 /// Live map screen shown to the **customer** after a worker accepts their booking.
@@ -181,6 +182,24 @@ class _LiveTrackingMapScreenState extends ConsumerState<LiveTrackingMapScreen> {
       final booking = await ref
           .read(bookingRepositoryProvider)
           .getBookingById(widget.bookingId);
+      if (booking != null) {
+        final st = booking['status']?.toString().toUpperCase() ?? '';
+        if (st == 'ACTIVE' || st == 'IN_PROGRESS' || st == 'WORK_IN_PROGRESS') {
+          if (mounted) {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(
+                builder: (_) => CompletionOtpScreen(
+                  bookingId: widget.bookingId,
+                  workerName: widget.worker.name,
+                  isWorker: widget.isWorker,
+                ),
+              ),
+            );
+          }
+          return;
+        }
+      }
       final lat = readCoord(booking?['serviceLat']) ??
           readCoord(widget.customerLat);
       final lng = readCoord(booking?['serviceLng']) ??
@@ -426,6 +445,25 @@ class _LiveTrackingMapScreenState extends ConsumerState<LiveTrackingMapScreen> {
         _paused = paused;
         _pausedMinutes = pausedMinutes;
       });
+    }
+
+    // Arrival OTP verified → job ACTIVE → transition to CompletionOtpScreen where active work & completion live!
+    if (newStatus == 'ACTIVE' || newStatus == 'IN_PROGRESS' || newStatus == 'WORK_IN_PROGRESS') {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(
+              builder: (_) => CompletionOtpScreen(
+                bookingId: widget.bookingId,
+                workerName: widget.worker.name,
+                isWorker: widget.isWorker,
+              ),
+            ),
+          );
+        }
+      });
+      return;
     }
 
     // Arrival OTP verified → job ACTIVE → start the visible work timer.
@@ -990,13 +1028,30 @@ class _LiveTrackingMapScreenState extends ConsumerState<LiveTrackingMapScreen> {
                     Expanded(
                       flex: 2,
                       child: GxButton(
-                        label: _currentStatus == 'ARRIVED'
-                            ? 'Verify Arrival OTP'
-                            : 'Waiting for Arrival...',
-                        icon: _currentStatus == 'ARRIVED'
-                            ? Icons.verified_user_rounded
-                            : Icons.directions_walk_rounded,
-                        onTap: _arrivalOtp != null ? _goToOtpScreen : null,
+                        label: (_currentStatus == 'ACTIVE' || _currentStatus == 'IN_PROGRESS' || _currentStatus == 'WORK_IN_PROGRESS')
+                            ? 'Work in Progress · On-Site'
+                            : (_currentStatus == 'ARRIVED'
+                                ? 'Verify Arrival OTP'
+                                : 'Waiting for Arrival...'),
+                        icon: (_currentStatus == 'ACTIVE' || _currentStatus == 'IN_PROGRESS' || _currentStatus == 'WORK_IN_PROGRESS')
+                            ? Icons.build_circle_rounded
+                            : (_currentStatus == 'ARRIVED'
+                                ? Icons.verified_user_rounded
+                                : Icons.directions_walk_rounded),
+                        onTap: (_currentStatus == 'ACTIVE' || _currentStatus == 'IN_PROGRESS' || _currentStatus == 'WORK_IN_PROGRESS')
+                            ? () {
+                                Navigator.pushReplacement(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => CompletionOtpScreen(
+                                      bookingId: widget.bookingId,
+                                      workerName: widget.worker.name,
+                                      isWorker: widget.isWorker,
+                                    ),
+                                  ),
+                                );
+                              }
+                            : (_arrivalOtp != null ? _goToOtpScreen : null),
                         height: 48,
                         radius: 12,
                         fontSize: 14,

@@ -10,6 +10,7 @@ import '../../theme.dart';
 import '../../shared/widgets/gx_snackbar.dart';
 import '../../shared/widgets/gx_sheet.dart';
 import '../../shared/widgets/gx_button.dart';
+import '../../shared/utils/booking_flags.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 /// Gixbee 2026 — booking detail: hero status header with progress dots
@@ -25,10 +26,27 @@ class BookingDetailScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final scheduledAt = booking['scheduledAt'] != null
-        ? DateTime.parse(booking['scheduledAt'])
-        : DateTime.now();
+    final scheduledAtRaw = booking['scheduledAt'] != null
+        ? (DateTime.tryParse(booking['scheduledAt'].toString()) ?? DateTime.now())
+        : (booking['createdAt'] != null
+            ? (DateTime.tryParse(booking['createdAt'].toString()) ?? DateTime.now())
+            : DateTime.now());
+    final scheduledAt = scheduledAtRaw.toLocal();
     final status = (booking['status'] ?? 'PENDING').toString().toUpperCase();
+
+    final isPaid = bookingFlagTrue(booking['isPaid']) ||
+        bookingFlagTrue(booking['customerPaidConfirmed']) ||
+        bookingFlagTrue(booking['workerPaidConfirmed']);
+    final paymentStatusText = isPaid
+        ? 'Paid'
+        : (status == 'CANCELLED' || status == 'REJECTED'
+            ? 'Cancelled'
+            : 'Pending (Post-Service)');
+    final paymentStatusColor = isPaid
+        ? GixbeeTheme.accentGreen
+        : (status == 'CANCELLED' || status == 'REJECTED'
+            ? const Color(0xFFEF4444)
+            : GixbeeTheme.accentGold);
 
     final displayUser = booking['operator'] ?? booking['customer'] ?? {};
     final userName = (displayUser['name'] ?? 'Worker').toString();
@@ -96,7 +114,7 @@ class BookingDetailScreen extends ConsumerWidget {
                   _buildDetailRow(context, 'Date', DateFormat('d MMM yyyy').format(scheduledAt)),
                   _buildDetailRow(context, 'Time', DateFormat('hh:mm a').format(scheduledAt)),
                   _buildDetailRow(context, 'Total Amount', '₹${amount.toStringAsFixed(amount.truncateToDouble() == amount ? 0 : 2)}', color: GixbeeTheme.accentGold, isBig: true),
-                  _buildDetailRow(context, 'Payment', 'Paid', color: GixbeeTheme.accentGreen),
+                  _buildDetailRow(context, 'Payment', paymentStatusText, color: paymentStatusColor),
                   _buildDetailRow(context, 'Location', booking['serviceLocation'] ?? 'As specified in request'),
                 ],
               ),
