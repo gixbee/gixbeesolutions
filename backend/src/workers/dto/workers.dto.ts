@@ -1,4 +1,4 @@
-import { IsString, IsNotEmpty, IsOptional, IsNumber, IsArray, IsIn, IsInt, Min, Max } from 'class-validator';
+import { IsString, IsNotEmpty, IsOptional, IsNumber, IsArray, IsIn, IsInt, IsBoolean, MaxLength, Min, Max } from 'class-validator';
 
 // DTOs for the workers write endpoints.
 
@@ -82,4 +82,25 @@ export class UpdateLocationDto {
 export class SetWorkerVerificationDto {
   @IsIn(['VERIFIED', 'REJECTED'])
   status: 'VERIFIED' | 'REJECTED';
+}
+
+// POST /workers/me/strikes/:id/appeal — the worker's side of the story.
+// One appeal per strike; admin resolves via ResolveStrikeDto below.
+export class AppealStrikeDto {
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(1000)
+  message: string;
+}
+
+// PATCH /workers/admin/strikes/:id/resolve — admin overturns or upholds an
+// appealed strike. `note` is shown to the worker, so write it for them.
+export class ResolveStrikeDto {
+  @IsBoolean()
+  overturn: boolean;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(1000)
+  note?: string;
 }

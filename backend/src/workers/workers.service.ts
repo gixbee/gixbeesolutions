@@ -2,6 +2,12 @@ import { Injectable, NotFoundException, BadRequestException } from '@nestjs/comm
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, Repository } from 'typeorm';
 import { WorkerProfile } from './worker-profile.entity';
+import {
+  WorkerStrike,
+  WorkerStrikeStatus,
+  WorkerStrikeType,
+} from './worker-strike.entity';
+import { NotificationsService } from '../notifications/notifications.service';
 import { WalletsService } from '../wallets/wallets.service';
 import { TalentProfile } from '../talent/talent-profile.entity';
 import { ProfessionalSkill } from '../talent/professional-skill.entity';
@@ -69,11 +75,23 @@ export const MAX_NEARBY_CANDIDATES = 40;
  */
 export const MAX_BROADCAST_FANOUT = 15;
 
+/** Counting strikes at which a worker is suspended from going live. */
+export const SUSPENSION_STRIKE_THRESHOLD = 3;
+
+/**
+ * Rebroadcast (attempt 2, nobody accepted in 90s): each pro's own travel
+ * radius is stretched by this factor — a job "slightly beyond your usual
+ * area" they can still decline. Hard ceiling MAX_DISPATCH_RADIUS_KM applies.
+ */
+export const REBROADCAST_RADIUS_STRETCH = 1.3;
+
 @Injectable()
 export class WorkersService {
   constructor(
     @InjectRepository(WorkerProfile)
     private readonly workersRepository: Repository<WorkerProfile>,
+    @InjectRepository(WorkerStrike)
+    private readonly strikesRepository: Repository<WorkerStrike>,
     @InjectRepository(TalentProfile)
     private readonly talentRepository: Repository<TalentProfile>,
     @InjectRepository(ProfessionalSkill)
@@ -85,6 +103,7 @@ export class WorkersService {
     private readonly walletsService: WalletsService,
     private readonly redisService: RedisService,
     private readonly masterEntriesService: MasterEntriesService,
+    private readonly notificationsService: NotificationsService,
   ) {}
 
   private async getWorkerStatus(userId: string): Promise<'available' | 'busy'> {
@@ -344,6 +363,19 @@ export class WorkersService {
     const goingLive = !profile.isActive;
 
     if (goingLive) {
+      // ── Strike suspension gate ──
+      // 3+ counting strikes (ACTIVE / APPEALED / UPHELD) = suspended from
+      // going live until an appeal is overturned or an admin clears it.
+      // Enforced HERE (not just isActive=false) because a worker could
+      // otherwise simply toggle back on after a forfeit deactivated them.
+      if ((profile.strikeCount || 0) >= SUSPENSION_STRIKE_THRESHOLD) {
+        throw new BadRequestException(
+          'Your account is suspended after repeated job violations. ' +
+            'Open Profile → Strikes to see the reasons and file an appeal — ' +
+            'our team reviews every appeal.',
+        );
+      }
+
       // Wallet floor — admin-tunable (Master Entries → go_live_min_wallet).
       const minWallet = await this.masterEntriesService.getConfigNumber(
         'go_live_min_wallet',
@@ -635,18 +667,215 @@ export class WorkersService {
     };
   }
 
+  /**
+   * Rebuild the cached dispatch snapshot for a pro (rating, reviewCount,
+   * radius…). Called after rating writes — snapshots live 24h, so without
+   * this, broadcast target scoring sorts on a day-old rating.
+   */
+  async refreshWorkerSnapshot(userId: string): Promise<void> {
+    const profile = await this.workersRepository.findOne({
+      where: { user: { id: userId } },
+      relations: ['user'],
+    });
+    if (!profile) return;
+    const status = await this.getWorkerStatus(userId);
+    await this.redisService.cacheWorkerSnapshot(
+      userId,
+      this.mapToDto(profile, status),
+    );
+    await this.invalidateWorkerListCache();
+  }
+
+  // ── Strike ledger (fair penalties: reason + notice + appeal) ────────────
+  // Replaces the old silent addStrike (count++ → deactivate at 3, no record,
+  // no reason, no appeal, no Redis cleanup). Every strike is now a row the
+  // worker can read and appeal; suspension blocks Go Live (see toggleGoLive)
+  // instead of relying on a flippable isActive flag.
+
+  /** @deprecated kept for old callers — use recordStrike with a real reason. */
   async addStrike(userId: string): Promise<void> {
+    await this.recordStrike(userId, {
+      type: WorkerStrikeType.ADMIN,
+      reason: 'Policy violation recorded by the system.',
+    });
+  }
+
+  /**
+   * Record a strike against a worker WITH a written reason, notify them, and
+   * suspend (block Go Live + pull from dispatch) at the threshold.
+   */
+  async recordStrike(
+    userId: string,
+    opts: { type: WorkerStrikeType; reason: string; bookingId?: string },
+  ): Promise<{ strikeCount: number; suspended: boolean }> {
+    const profile = await this.workersRepository.findOne({
+      where: { user: { id: userId } },
+      relations: ['user'],
+    });
+    if (!profile) return { strikeCount: 0, suspended: false };
+
+    await this.strikesRepository.save(
+      this.strikesRepository.create({
+        workerUserId: userId,
+        bookingId: opts.bookingId ?? null,
+        type: opts.type,
+        reason: opts.reason,
+        status: WorkerStrikeStatus.ACTIVE,
+      }),
+    );
+
+    profile.strikeCount = (profile.strikeCount || 0) + 1;
+    const suspended = profile.strikeCount >= SUSPENSION_STRIKE_THRESHOLD;
+    if (suspended) profile.isActive = false;
+    await this.workersRepository.save(profile);
+
+    if (suspended) {
+      // Fully remove from dispatch — the old code left suspended workers in
+      // the Redis geo/skill index, so they kept receiving job pings.
+      await this.redisService.del(`worker:location:${userId}`).catch(() => {});
+      await this.redisService.del(`worker:status:${userId}`).catch(() => {});
+      await this.redisService.del(`worker:snapshot:${userId}`).catch(() => {});
+      await this.redisService
+        .unindexWorkerSkills(userId, profile.skills || [])
+        .catch(() => {});
+      await this.redisService.removeWorkerFromGeoIndex(userId).catch(() => {});
+      await this.invalidateWorkerListCache();
+    }
+
+    // Written notice — the worker must always know WHY and what to do next.
+    await this.notificationsService
+      .sendToUser(userId, {
+        title: suspended
+          ? 'Account suspended — you can appeal'
+          : `Strike ${profile.strikeCount} of ${SUSPENSION_STRIKE_THRESHOLD}`,
+        body: suspended
+          ? `${opts.reason} You now have ${profile.strikeCount} strikes and cannot go live. Open Profile → Strikes to appeal — our team reviews every appeal.`
+          : `${opts.reason} At ${SUSPENSION_STRIKE_THRESHOLD} strikes you will be suspended. You can view or appeal this in Profile → Strikes.`,
+        data: {
+          type: 'worker_strike',
+          strikeCount: String(profile.strikeCount),
+          suspended: String(suspended),
+        },
+      })
+      .catch((e) =>
+        console.error('[RecordStrike] notification failed:', e?.message ?? e),
+      );
+
+    return { strikeCount: profile.strikeCount, suspended };
+  }
+
+  /** The worker's own strike history — Profile → Strikes screen. */
+  async getMyStrikes(userId: string): Promise<{
+    strikeCount: number;
+    suspended: boolean;
+    threshold: number;
+    strikes: WorkerStrike[];
+  }> {
     const profile = await this.workersRepository.findOne({
       where: { user: { id: userId } },
     });
-    if (!profile) return;
-    
-    profile.strikeCount = (profile.strikeCount || 0) + 1;
-    if (profile.strikeCount >= 3) {
-      profile.isActive = false;
-      // Note: we can optionally set verificationStatus to SUSPENDED here if available
+    const strikes = await this.strikesRepository.find({
+      where: { workerUserId: userId },
+      order: { createdAt: 'DESC' },
+      take: 50,
+    });
+    const count = profile?.strikeCount || 0;
+    return {
+      strikeCount: count,
+      suspended: count >= SUSPENSION_STRIKE_THRESHOLD,
+      threshold: SUSPENSION_STRIKE_THRESHOLD,
+      strikes,
+    };
+  }
+
+  /** Worker files an appeal on one of their own ACTIVE strikes. */
+  async appealStrike(
+    userId: string,
+    strikeId: string,
+    message: string,
+  ): Promise<{ message: string }> {
+    const strike = await this.strikesRepository.findOne({
+      where: { id: strikeId, workerUserId: userId },
+    });
+    if (!strike) throw new NotFoundException('Strike not found');
+    if (strike.status === WorkerStrikeStatus.OVERTURNED) {
+      throw new BadRequestException('This strike was already overturned.');
     }
-    await this.workersRepository.save(profile);
+    if (strike.status !== WorkerStrikeStatus.ACTIVE) {
+      throw new BadRequestException(
+        'This strike was already appealed and reviewed.',
+      );
+    }
+    strike.status = WorkerStrikeStatus.APPEALED;
+    strike.appealMessage = message;
+    strike.appealedAt = new Date();
+    await this.strikesRepository.save(strike);
+    return {
+      message:
+        'Appeal submitted. Our team will review it and you will be notified of the outcome.',
+    };
+  }
+
+  /** Admin: strike queue (default = appeals awaiting review). */
+  async adminListStrikes(status?: string): Promise<WorkerStrike[]> {
+    const where: any = {};
+    if (status) where.status = status as WorkerStrikeStatus;
+    return this.strikesRepository.find({
+      where,
+      order: { appealedAt: 'DESC', createdAt: 'DESC' },
+      take: 200,
+    });
+  }
+
+  /**
+   * Admin resolves an appealed strike. Overturning decrements the profile
+   * count — dropping below the threshold lifts the Go Live suspension
+   * immediately (the worker still has to toggle Go Live themselves).
+   */
+  async adminResolveStrike(
+    strikeId: string,
+    overturn: boolean,
+    note?: string,
+  ): Promise<WorkerStrike> {
+    const strike = await this.strikesRepository.findOne({
+      where: { id: strikeId },
+    });
+    if (!strike) throw new NotFoundException('Strike not found');
+    if (
+      strike.status === WorkerStrikeStatus.OVERTURNED ||
+      strike.status === WorkerStrikeStatus.UPHELD
+    ) {
+      throw new BadRequestException('This strike is already resolved.');
+    }
+
+    strike.status = overturn
+      ? WorkerStrikeStatus.OVERTURNED
+      : WorkerStrikeStatus.UPHELD;
+    strike.resolutionNote = note ?? null;
+    strike.resolvedAt = new Date();
+    await this.strikesRepository.save(strike);
+
+    if (overturn) {
+      const profile = await this.workersRepository.findOne({
+        where: { user: { id: strike.workerUserId } },
+      });
+      if (profile) {
+        profile.strikeCount = Math.max(0, (profile.strikeCount || 0) - 1);
+        await this.workersRepository.save(profile);
+      }
+    }
+
+    await this.notificationsService
+      .sendToUser(strike.workerUserId, {
+        title: overturn ? 'Appeal accepted — strike removed' : 'Appeal reviewed',
+        body: overturn
+          ? `Your appeal was accepted and the strike no longer counts.${note ? ' Note: ' + note : ''} If you were suspended, you can go live again.`
+          : `Your appeal was reviewed and the strike stands.${note ? ' Note: ' + note : ''}`,
+        data: { type: 'strike_resolved', strikeId, overturned: String(overturn) },
+      })
+      .catch(() => {});
+
+    return strike;
   }
 
   // DEFECT-006: Create (or update) the worker profile. IDEMPOTENT on purpose:
@@ -946,7 +1175,16 @@ export class WorkersService {
   }
 
   // Optimized: Nearby workers filtered by skill using Redis GEO + Skill Index
-  async getNearby(requesterId: string, skill: string, lat: number, lng: number): Promise<WorkerDto[]> {
+  // `radiusStretch` (default 1) multiplies each pro's OWN travel radius — used
+  // only by the timeout rebroadcast so a wider second wave can reach pros just
+  // beyond their preference. Never exceeds MAX_DISPATCH_RADIUS_KM.
+  async getNearby(
+    requesterId: string,
+    skill: string,
+    lat: number,
+    lng: number,
+    radiusStretch = 1,
+  ): Promise<WorkerDto[]> {
     // 1. Get all workers who have this skill from Redis Skill Index
     let skillWorkerIds = await this.redisService.getWorkerIdsBySkill(skill);
     if (skillWorkerIds.length === 0) return [];
@@ -1043,7 +1281,8 @@ export class WorkersService {
       // Legacy snapshots cached before this field existed fall back to the
       // default rather than being excluded.
       const limit = Math.min(
-        dto.service_radius_km ?? DEFAULT_SERVICE_RADIUS_KM,
+        (dto.service_radius_km ?? DEFAULT_SERVICE_RADIUS_KM) *
+          Math.max(1, radiusStretch),
         MAX_DISPATCH_RADIUS_KM,
       );
       if (c.distance > limit) return;

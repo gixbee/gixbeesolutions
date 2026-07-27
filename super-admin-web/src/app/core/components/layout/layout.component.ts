@@ -105,6 +105,7 @@ export class LayoutComponent {
         { page: 'bookings', path: '/bookings', label: 'Bookings', icon: 'bi-calendar-check' },
         { page: 'verifications', path: '/verifications', label: 'Verifications', icon: 'bi-patch-check' },
         { page: 'disputes', path: '/disputes', label: 'Disputes', icon: 'bi-flag' },
+        { page: 'disputes', path: '/strikes', label: 'Strike Appeals', icon: 'bi-hammer' },
         { page: 'support', path: '/support', label: 'Support', icon: 'bi-life-preserver' },
         { page: 'businesses', path: '/businesses', label: 'Businesses', icon: 'bi-shop' },
       ],

@@ -149,14 +149,18 @@ export class BookingsProcessor {
   async handleRequestTimeout(job: Job) {
     try {
       const { bookingId } = job.data;
+      // Wave 1 (initial 90s) → widen + retry once. Wave 2 (final 90s) →
+      // cancel. Legacy jobs without `attempt` behave like wave 1, so any
+      // in-flight requests during deploy still get the widened second chance.
+      const attempt = Number((job.data as { attempt?: number }).attempt ?? 1);
       this.logger.log(
-        `Checking 90-second request timeout for booking: ${bookingId}`,
+        `Request timeout check (attempt ${attempt}) for booking: ${bookingId}`,
       );
 
       const booking = await this.bookingsService.getBookingById(bookingId);
       if (!booking) return;
 
-      // Only cancel if the booking is still REQUESTED (no worker accepted yet)
+      // Only act if the booking is still REQUESTED (no worker accepted yet)
       if (booking.status !== BookingStatus.REQUESTED) {
         this.logger.debug(
           `Booking ${bookingId} is ${booking.status}. Timeout skipped.`,
@@ -164,14 +168,34 @@ export class BookingsProcessor {
         return { status: 'Skipped - Already accepted' };
       }
 
-      // Auto-cancel the request (outbox BOOKING_CANCELLED + timeout FCM via listener)
+      // Widened second wave applies ONLY to broadcast Instant Help (no
+      // pre-assigned operator). Targeted requests keep the original single
+      // 90s window — there is nobody else to widen the search to.
+      const isBroadcast = !booking.operator;
+
+      if (attempt < 2 && isBroadcast) {
+        // Nobody accepted the first wave — widen the search once instead of
+        // failing the customer. rebroadcastBooking schedules the FINAL 90s
+        // timeout itself (before fanning out), so this path never cancels.
+        const res = await this.bookingsService.rebroadcastBooking(bookingId);
+        if (!res.stillOpen) {
+          return { status: 'Skipped - No longer open' };
+        }
+        this.logger.log(
+          `Booking ${bookingId} rebroadcast — ${res.notified} new pros notified; final window running.`,
+        );
+        return { status: `Rebroadcast - ${res.notified} new pros` };
+      }
+
+      // Final window expired — auto-cancel the request
+      // (outbox BOOKING_CANCELLED + timeout FCM via listener)
       await this.bookingsService.updateStatus(
         bookingId,
         BookingStatus.CANCELLED,
       );
 
       this.logger.warn(
-        `Booking ${bookingId} auto-cancelled — no worker accepted within 90 seconds.`,
+        `Booking ${bookingId} auto-cancelled — no worker accepted after the widened search.`,
       );
       return { status: 'Cancelled - Timeout' };
     } catch (err) {

@@ -85,6 +85,63 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
     }
   }
 
+  /**
+   * Cache-effectiveness stats from INFO — powers the Monitoring page.
+   * hitRatio > 0.9 is healthy; evictedKeys must stay 0 (noeviction policy —
+   * a rising value means the policy was changed and Bull jobs are at risk);
+   * usedMemoryPct nearing 100 with noeviction means writes will start
+   * failing — time to split cache onto a second instance.
+   * Null when Redis is unreachable (in-memory fallback active).
+   */
+  async getCacheStats(): Promise<{
+    hits: number;
+    misses: number;
+    hitRatio: number | null;
+    usedMemoryBytes: number;
+    maxMemoryBytes: number;
+    usedMemoryPct: number | null;
+    evictedKeys: number;
+    connectedClients: number;
+    opsPerSec: number;
+  } | null> {
+    if (!this.live) return null;
+    try {
+      const [stats, memory, clients] = await Promise.all([
+        this.client.info('stats'),
+        this.client.info('memory'),
+        this.client.info('clients'),
+      ]);
+      const num = (blob: string, field: string): number => {
+        const m = blob.match(new RegExp(`^${field}:(\\d+)`, 'm'));
+        return m ? Number(m[1]) : 0;
+      };
+      const hits = num(stats, 'keyspace_hits');
+      const misses = num(stats, 'keyspace_misses');
+      const usedMemoryBytes = num(memory, 'used_memory');
+      const maxMemoryBytes = num(memory, 'maxmemory');
+      return {
+        hits,
+        misses,
+        hitRatio:
+          hits + misses > 0
+            ? Math.round((hits / (hits + misses)) * 1000) / 1000
+            : null,
+        usedMemoryBytes,
+        maxMemoryBytes,
+        usedMemoryPct:
+          maxMemoryBytes > 0
+            ? Math.round((usedMemoryBytes / maxMemoryBytes) * 1000) / 10
+            : null,
+        evictedKeys: num(stats, 'evicted_keys'),
+        connectedClients: num(clients, 'connected_clients'),
+        opsPerSec: num(stats, 'instantaneous_ops_per_sec'),
+      };
+    } catch (error) {
+      this.logger.error('Redis INFO stats failed', error);
+      return null;
+    }
+  }
+
   async onModuleInit() {
     try {
       await this.client.connect();
@@ -205,9 +262,22 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
   async keys(pattern: string): Promise<string[]> {
     if (this.live) {
       try {
-        return await this.client.keys(pattern);
+        // SCAN, not KEYS: KEYS is O(N) over the whole keyspace and blocks
+        // Redis's single thread — called from clearCache() on every
+        // master-entry admin save, it would stall dispatch/polls as the
+        // keyspace grows. SCAN iterates in small non-blocking batches.
+        const found: string[] = [];
+        for await (const batch of this.client.scanIterator({
+          MATCH: pattern,
+          COUNT: 200,
+        })) {
+          // node-redis v4 yields single keys; v5 yields arrays — handle both.
+          if (Array.isArray(batch)) found.push(...batch);
+          else found.push(batch as string);
+        }
+        return found;
       } catch (error) {
-        this.logger.error(`Redis KEYS failed for pattern: ${pattern}`, error);
+        this.logger.error(`Redis SCAN failed for pattern: ${pattern}`, error);
       }
     }
     // Glob → regex (only * supported, which is all we use)

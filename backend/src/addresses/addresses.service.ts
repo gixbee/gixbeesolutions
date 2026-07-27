@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Address } from './address.entity';
@@ -11,16 +11,40 @@ export class AddressesService {
     private readonly addrRepo: Repository<Address>,
   ) {}
 
-  // Save a new address scoped to the user. `label` is optional.
+  // Save a new address scoped to the user. `label` is optional; lat/lng come
+  // from a confirmed map pin (never geocoding) and are optional.
   async add(
     userId: string,
-    data: { line: string; label?: string },
+    data: { line: string; label?: string; lat?: number; lng?: number },
   ): Promise<Address> {
     const addr = this.addrRepo.create({
       user: { id: userId } as User,
       line: data.line,
       label: data.label,
+      lat: data.lat,
+      lng: data.lng,
     });
+    return this.addrRepo.save(addr);
+  }
+
+  /**
+   * Backfill confirmed pin coordinates onto an existing saved address (the
+   * first time the user reuses a coord-less address in Instant Help and
+   * confirms its pin). Scoped to the owner — you can't move someone else's
+   * saved address.
+   */
+  async updateCoords(
+    userId: string,
+    id: string,
+    lat: number,
+    lng: number,
+  ): Promise<Address> {
+    const addr = await this.addrRepo.findOne({
+      where: { id, user: { id: userId } },
+    });
+    if (!addr) throw new NotFoundException('Address not found');
+    addr.lat = lat;
+    addr.lng = lng;
     return this.addrRepo.save(addr);
   }
 

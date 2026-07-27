@@ -51,6 +51,13 @@ class _MyBookingsScreenState extends ConsumerState<MyBookingsScreen>
         }
       }
     });
+    // The screen opens on UPCOMING (index 0), which is a paginated tab —
+    // kick its first page immediately instead of waiting for a tab change.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted && _paginatedData['UPCOMING']!.isEmpty) {
+        _loadPage('UPCOMING');
+      }
+    });
   }
 
   @override
@@ -74,10 +81,10 @@ class _MyBookingsScreenState extends ConsumerState<MyBookingsScreen>
     try {
       final repo = ref.read(bookingRepositoryProvider);
       final status = tab == 'PAST'
-          ? 'COMPLETED,CANCELLED,REJECTED,EXPIRED'
+          ? 'COMPLETED,CANCELLED,REJECTED'
           : tab == 'UPCOMING'
               ? 'REQUESTED,CUSTOM_REQUESTED,PENDING,ACCEPTED,CONFIRMED'
-              : 'ACTIVE,IN_PROGRESS,ARRIVED';
+              : 'ACTIVE,ARRIVED';
       final results = await repo.getMyBookings(
         status: status,
         page: _currentPage[tab]!,
@@ -137,6 +144,12 @@ class _MyBookingsScreenState extends ConsumerState<MyBookingsScreen>
             child: TabBarView(
               controller: _tabController,
               children: [
+                // ORDER MUST MATCH _tabNames = [UPCOMING, ACTIVE, PAST].
+                // (These were previously [ACTIVE, UPCOMING, PAST] — the pill
+                // labels and the rendered lists were scrambled, and the tab
+                // listener paged data for a tab the user wasn't looking at.)
+                // Upcoming — paginated
+                _buildPaginatedList(context, ref, 'UPCOMING'),
                 // Active tab — shared provider (small dataset, no pagination)
                 RefreshIndicator(
                   color: GixbeeTheme.accentViolet,
@@ -160,8 +173,7 @@ class _MyBookingsScreenState extends ConsumerState<MyBookingsScreen>
                     ),
                   ),
                 ),
-                // Upcoming / Past — paginated
-                _buildPaginatedList(context, ref, 'UPCOMING'),
+                // Past — paginated
                 _buildPaginatedList(context, ref, 'PAST'),
               ],
             ),

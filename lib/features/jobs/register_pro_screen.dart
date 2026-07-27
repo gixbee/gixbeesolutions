@@ -29,7 +29,14 @@ import 'pro_skill_taxonomy.dart';
 /// Public constructor unchanged — `const RegisterProScreen()` is used by
 /// home_screen, profile_screen and talent_profile_screen.
 class RegisterProScreen extends ConsumerStatefulWidget {
-  const RegisterProScreen({super.key});
+  final int initialStep;
+  final bool isEditingSkills;
+
+  const RegisterProScreen({
+    super.key,
+    this.initialStep = 0,
+    this.isEditingSkills = false,
+  });
 
   @override
   ConsumerState<RegisterProScreen> createState() => _RegisterProScreenState();
@@ -64,6 +71,7 @@ class _RegisterProScreenState extends ConsumerState<RegisterProScreen> {
   @override
   void initState() {
     super.initState();
+    _step = widget.initialStep;
     _fetchProfile();
   }
 
@@ -330,7 +338,7 @@ class _RegisterProScreenState extends ConsumerState<RegisterProScreen> {
       await _fetchProfile();
       if (!mounted) return;
       setState(() => _isSubmitting = false);
-      if (editingExisting && Navigator.of(context).canPop()) {
+      if ((editingExisting || widget.isEditingSkills) && Navigator.of(context).canPop()) {
         Navigator.of(context).pop(true);
       } else {
         _goLive();
@@ -361,7 +369,7 @@ class _RegisterProScreenState extends ConsumerState<RegisterProScreen> {
           child: Column(
             children: [
               _header(cs),
-              _progress(cs),
+              if (!widget.isEditingSkills) _progress(cs),
               Expanded(
                 child: _isLoading
                     ? _skeleton()
@@ -386,7 +394,7 @@ class _RegisterProScreenState extends ConsumerState<RegisterProScreen> {
         children: [
           GxPressable(
             onTap: () =>
-                _step == 0 ? Navigator.pop(context) : setState(() => _step--),
+                (_step == 0 || widget.isEditingSkills) ? Navigator.pop(context) : setState(() => _step--),
             child: Container(
               padding: const EdgeInsets.all(9),
               decoration: BoxDecoration(
@@ -404,14 +412,18 @@ class _RegisterProScreenState extends ConsumerState<RegisterProScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Register as Pro',
+                Text(
+                    widget.isEditingSkills
+                        ? 'Edit Services & Skills'
+                        : 'Register as Pro',
                     style: TextStyle(
                         color: context.gx.ink,
                         fontSize: 19,
                         fontWeight: FontWeight.w900)),
-                Text(_stepTitle,
-                    style:
-                        TextStyle(color: cs.onSurfaceVariant, fontSize: 11)),
+                if (!widget.isEditingSkills)
+                  Text(_stepTitle,
+                      style:
+                          TextStyle(color: cs.onSurfaceVariant, fontSize: 11)),
               ],
             ),
           ),
@@ -1058,7 +1070,7 @@ class _RegisterProScreenState extends ConsumerState<RegisterProScreen> {
 
   // ── Bottom bar ──────────────────────────────────────────────────────────
   Widget _bottomBar(ColorScheme cs) {
-    final isLast = _step == 3;
+    final isLast = _step == 3 || widget.isEditingSkills;
     final enabled = _canAdvance && !_isSubmitting;
     return Container(
       padding: const EdgeInsets.all(16),
@@ -1072,7 +1084,7 @@ class _RegisterProScreenState extends ConsumerState<RegisterProScreen> {
         top: false,
         child: Row(
           children: [
-            if (_step > 0) ...[
+            if (_step > 0 && !widget.isEditingSkills) ...[
               Expanded(
                 child: GxButton(
                   label: 'Back',
@@ -1089,13 +1101,15 @@ class _RegisterProScreenState extends ConsumerState<RegisterProScreen> {
               flex: 2,
               child: GxButton(
                 // v106: Earn Hourly uses the gold accent.
-                label: isLast
-                    ? (_savedSkillIds.isNotEmpty
-                        ? 'Save skills'
-                        : 'Submit & Go Live')
-                    : 'Continue',
-                icon: isLast
-                    ? Icons.bolt_rounded
+                label: widget.isEditingSkills
+                    ? 'Save & Return'
+                    : isLast
+                        ? (_savedSkillIds.isNotEmpty
+                            ? 'Save skills'
+                            : 'Submit & Go Live')
+                        : 'Continue',
+                icon: (isLast || widget.isEditingSkills)
+                    ? Icons.check_rounded
                     : Icons.arrow_forward_rounded,
                 gradient: const [GixbeeTheme.accentGold, Color(0xFFB45309)],
                 accent: GixbeeTheme.accentGold,

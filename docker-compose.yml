@@ -9,6 +9,7 @@ networks:
 volumes:
   postgres_data:
   uploads_data:
+  redis_data:
 
 # ─── Services ────────────────────────────────────────────────────────────────
 services:
@@ -116,7 +117,16 @@ services:
       options:
         max-size: "10m"
         max-file: "3"
-    command: redis-server --appendonly yes
+    # maxmemory: without a cap Redis grows until the LINUX OOM KILLER picks a
+    # victim (possibly Postgres). noeviction (not allkeys-lru!) because Bull
+    # jobs + outbox dispatch + OTPs live here — BullMQ requires noeviction;
+    # an evicted job disappears silently. Cache keys all carry TTLs, so
+    # normal operation stays far below the cap. AOF persists queued jobs
+    # across restarts. If used_memory ever nears 512mb, split into a second
+    # cache-only instance with allkeys-lru instead of raising this blindly.
+    command: redis-server --appendonly yes --maxmemory 512mb --maxmemory-policy noeviction
+    volumes:
+      - redis_data:/data
     ulimits:
       nofile:
         soft: 65535

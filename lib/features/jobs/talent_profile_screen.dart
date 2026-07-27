@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../repositories/auth_repository.dart'; // currentUserProvider
 import '../../repositories/talent_repository.dart';
 import '../../shared/widgets/gx_glass_card.dart';
 import '../../shared/widgets/gx_pressable.dart';
@@ -50,9 +51,14 @@ class _TalentProfileScreenState extends ConsumerState<TalentProfileScreen> {
 
   /// Skills (and the bio/base rate) are managed in RegisterProScreen.
   Future<void> _openEditor() async {
+    final isWorker = ref.read(currentUserProvider).value?.isWorker ?? false;
     await Navigator.push(
       context,
-      MaterialPageRoute(builder: (_) => const RegisterProScreen()),
+      MaterialPageRoute(
+          builder: (_) => RegisterProScreen(
+                initialStep: isWorker ? 1 : 0,
+                isEditingSkills: isWorker,
+              )),
     );
     _fetchProfile();
   }

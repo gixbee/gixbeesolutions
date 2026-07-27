@@ -2,7 +2,7 @@ import { Controller, Get, Post, Patch, Param, Query, Body, Req, UseGuards } from
 import { WorkersService } from './workers.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { AdminGuard } from '../auth/admin.guard';
-import { SetActiveSkillsDto, RegisterWorkerDto, UpdateRateDto, UpdateLanguagesDto, SetWorkerVerificationDto, UpdateServiceRadiusDto, LiveToggleDto, UpdateLocationDto } from './dto/workers.dto';
+import { SetActiveSkillsDto, RegisterWorkerDto, UpdateRateDto, UpdateLanguagesDto, SetWorkerVerificationDto, UpdateServiceRadiusDto, LiveToggleDto, UpdateLocationDto, AppealStrikeDto, ResolveStrikeDto } from './dto/workers.dto';
 
 @Controller('workers')
 @UseGuards(JwtAuthGuard)
@@ -73,6 +73,48 @@ export class WorkersController {
     @Body() body: SetWorkerVerificationDto,
   ) {
     return this.workersService.setVerificationStatus(userId, body.status);
+  }
+
+  /// Fair-penalty ledger: the worker's own strikes with reasons + appeal
+  /// state (Profile → Strikes). Declared before ':id' so the static wins.
+  @Get('me/strikes')
+  async getMyStrikes(@Req() req) {
+    return this.workersService.getMyStrikes(req.user.userId);
+  }
+
+  /// Worker appeals one of their own strikes (one appeal per strike).
+  @Post('me/strikes/:strikeId/appeal')
+  async appealStrike(
+    @Req() req,
+    @Param('strikeId') strikeId: string,
+    @Body() body: AppealStrikeDto,
+  ) {
+    return this.workersService.appealStrike(
+      req.user.userId,
+      strikeId,
+      body.message,
+    );
+  }
+
+  /// Admin: strike queue — ?status=APPEALED shows appeals awaiting review.
+  @Get('admin/strikes')
+  @UseGuards(AdminGuard)
+  async adminListStrikes(@Query('status') status?: string) {
+    return this.workersService.adminListStrikes(status || undefined);
+  }
+
+  /// Admin: overturn (removes from the count, can lift suspension) or uphold.
+  @Patch('admin/strikes/:strikeId/resolve')
+  @UseGuards(AdminGuard)
+  async adminResolveStrike(
+    @Param('strikeId') strikeId: string,
+    @Body() body: ResolveStrikeDto,
+  ) {
+    return this.workersService.adminResolveStrike(
+      strikeId,
+      body.overturn,
+      body.note,
+    );
   }
 
   /// v126 language matching: the languages this pro speaks. Broadcast

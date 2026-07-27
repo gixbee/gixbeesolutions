@@ -36,9 +36,17 @@ void main() async {
 
   debugPrint('GIXBEE_BUILD_VERSION: ${AppConfig.buildVersion}');
 
-  // 5. Start the app — all further init (permissions, channel, listeners)
+  // 5. Restore the saved Appearance BEFORE the first frame — otherwise the
+  //    app boots in the default dark theme and visibly snaps to Grab Light a
+  //    few hundred ms later. The read is a few ms; the splash isn't delayed.
+  final initialTheme = await ThemeChoiceNotifier.restore();
+
+  // 6. Start the app — all further init (permissions, channel, listeners)
   //    happens in main_wrapper._initNotifications() after login.
-  runApp(const ProviderScope(child: GixbeeApp()));
+  runApp(ProviderScope(
+    overrides: [initialThemeChoiceProvider.overrideWithValue(initialTheme)],
+    child: const GixbeeApp(),
+  ));
 }
 
 /// Enables mouse/trackpad/stylus drag on every scrollable (Flutter web
@@ -68,8 +76,13 @@ class GixbeeApp extends ConsumerWidget {
         const maxW = 430.0;
         if (constraints.maxWidth <= 520) return child;
         final mq = MediaQuery.of(context);
+        // Gutter follows the active theme — a hardcoded near-black frame
+        // around a Grab-Light app read as "different theming" on web.
+        final gutter = Theme.of(context).brightness == Brightness.light
+            ? const Color(0xFFE9ECEF)
+            : const Color(0xFF050509);
         return ColoredBox(
-          color: const Color(0xFF050509),
+          color: gutter,
           child: Center(
             child: SizedBox(
               width: maxW,

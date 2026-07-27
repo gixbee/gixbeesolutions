@@ -135,6 +135,20 @@ class SocketService {
       }
     });
 
+    // Broadcast Instant Help: nobody accepted the first 90s wave, so the
+    // backend widened the search and (maybe) notified more pros. The waiting
+    // screen uses this to EXTEND its countdown instead of showing "no
+    // workers" while the second wave is still running.
+    _socket!.on('booking_search_expanded', (data) {
+      debugPrint('[Socket] booking_search_expanded received');
+      if (!_notificationController.isClosed) {
+        _notificationController.add({
+          ...Map<String, dynamic>.from(data as Map),
+          '_event': 'booking_search_expanded',
+        });
+      }
+    });
+
     _bindLocationUpdatedListener();
   }
 

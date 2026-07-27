@@ -339,10 +339,11 @@ export class SystemMetricsService implements OnModuleInit, OnModuleDestroy {
   async current() {
     const latest = this.samples[this.samples.length - 1] ?? null;
 
-    const [postgresUp, redisUp, outbox, bookingsQ, outboxQ, errors1m] =
+    const [postgresUp, redisUp, redisStats, outbox, bookingsQ, outboxQ, errors1m] =
       await Promise.all([
         this.pingPostgres(),
         this.redis.ping(),
+        this.redis.getCacheStats(),
         this.outboxCounts(),
         this.queueDepth(this.bookingsQueue),
         this.queueDepth(this.outboxQueue),
@@ -356,6 +357,30 @@ export class SystemMetricsService implements OnModuleInit, OnModuleDestroy {
       outboxFailed: outbox.failed,
       errors1m,
     });
+
+    // Redis cache-health alerts. evicted_keys must stay 0 under noeviction —
+    // a rising value means the eviction policy was changed and Bull jobs can
+    // silently vanish. Memory nearing the cap under noeviction means cache
+    // WRITES will start failing (reads keep working) — split instances then.
+    if (redisStats) {
+      if (redisStats.evictedKeys > 0) {
+        alerts.push({
+          severity: 'critical',
+          code: 'redis_evictions',
+          message: `Redis evicted ${redisStats.evictedKeys} key(s) — eviction policy is not noeviction; Bull jobs at risk`,
+        });
+      }
+      if (
+        redisStats.usedMemoryPct !== null &&
+        redisStats.usedMemoryPct > 80
+      ) {
+        alerts.push({
+          severity: 'warning',
+          code: 'redis_mem_high',
+          message: `Redis memory ${redisStats.usedMemoryPct}% of maxmemory — plan a cache/queue instance split`,
+        });
+      }
+    }
 
     return {
       latest,
@@ -376,6 +401,8 @@ export class SystemMetricsService implements OnModuleInit, OnModuleDestroy {
         postgres: postgresUp,
         redis: redisUp,
       },
+      /** Cache effectiveness — hitRatio, memory vs cap, evictions, ops/sec. */
+      redisStats,
       outbox,
       queues: {
         bookings: bookingsQ,

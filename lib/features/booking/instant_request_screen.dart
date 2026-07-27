@@ -70,6 +70,10 @@ class _InstantRequestScreenState extends ConsumerState<InstantRequestScreen> {
   /// different address.
   ({double lat, double lng})? _pinnedCoords;
 
+  /// Save the newly typed + pinned address (with its confirmed pin) to the
+  /// address book when the request is submitted — next booking is one-tap.
+  bool _saveThisAddress = false;
+
   // Step 2 — presence (arrival-OTP recipient)
   bool _selfPresent = true;
   final _contactNameCtrl = TextEditingController();
@@ -225,6 +229,19 @@ class _InstantRequestScreenState extends ConsumerState<InstantRequestScreen> {
         _addressCtrl.text = result.address;
       }
     });
+    // A saved address was selected — persist this confirmed pin onto it
+    // (backfills legacy coord-less addresses; refreshes after an Adjust).
+    // Fire-and-forget: the booking flow never waits on it.
+    final savedId = _selectedAddressId;
+    if (savedId != null) {
+      ref
+          .read(addressesRepositoryProvider)
+          .updateCoords(savedId, result.lat, result.lng)
+          .then((_) => ref.invalidate(myAddressesProvider))
+          .catchError((e) {
+        debugPrint('Address pin backfill failed: $e');
+      });
+    }
     return true;
   }
 
@@ -291,6 +308,22 @@ class _InstantRequestScreenState extends ConsumerState<InstantRequestScreen> {
       }
 
       ref.invalidate(myBookingsProvider);
+
+      // Persist the newly typed + pinned address so the next booking here is
+      // one-tap. Fire-and-forget — the request is already on its way.
+      if (_saveThisAddress &&
+          !_useCurrentLocation &&
+          _selectedAddressId == null &&
+          _pinnedCoords != null) {
+        ref
+            .read(addressesRepositoryProvider)
+            .add(address,
+                lat: _pinnedCoords!.lat, lng: _pinnedCoords!.lng)
+            .then((_) => ref.invalidate(myAddressesProvider))
+            .catchError((e) {
+          debugPrint('Address save failed: $e');
+        });
+      }
 
       Navigator.pushReplacement(
         context,
@@ -527,6 +560,40 @@ class _InstantRequestScreenState extends ConsumerState<InstantRequestScreen> {
               ),
             ),
           ],
+          if (!_useCurrentLocation &&
+              _addressCtrl.text.trim().isNotEmpty &&
+              _pinnedCoords != null &&
+              _selectedAddressId == null) ...[
+            const SizedBox(height: 10),
+            // New typed address with a confirmed pin — offer to keep both so
+            // the next booking here is one-tap (saved on submit).
+            GxPressable(
+              onTap: () =>
+                  setState(() => _saveThisAddress = !_saveThisAddress),
+              child: Row(
+                children: [
+                  Icon(
+                      _saveThisAddress
+                          ? Icons.check_box_rounded
+                          : Icons.check_box_outline_blank_rounded,
+                      size: 20,
+                      color: _saveThisAddress
+                          ? context.gx.accentSoft
+                          : context.gx.ink.withValues(alpha: 0.4)),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Save this address & pin for next time',
+                      style: TextStyle(
+                          fontSize: 12.5,
+                          fontWeight: FontWeight.w600,
+                          color: context.gx.ink.withValues(alpha: 0.75)),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
           // Saved addresses (address book): tap to fill the field instead of
           // retyping. Restores the feature that lost its home when the old
           // pick-a-pro checkout was removed.
@@ -559,10 +626,12 @@ class _InstantRequestScreenState extends ConsumerState<InstantRequestScreen> {
                 onTap: () => setState(() {
                   _addressCtrl.text = a.line;
                   _selectedAddressId = a.id;
-                  // Saved addresses store only line text (their coords aren't
-                  // surfaced here yet) — so a saved pick still needs a map
-                  // confirm. Null any prior pin; Continue will prompt.
-                  _pinnedCoords = null;
+                  _saveThisAddress = false;
+                  // Pinned before → reuse the confirmed pin ONE-TAP (no map).
+                  // Legacy address without coords → the pin confirm is still
+                  // required, and confirming backfills it for next time.
+                  _pinnedCoords =
+                      a.hasPin ? (lat: a.lat!, lng: a.lng!) : null;
                 }),
                 child: Container(
                   margin: const EdgeInsets.only(bottom: 8),
@@ -607,6 +676,10 @@ class _InstantRequestScreenState extends ConsumerState<InstantRequestScreen> {
                           ],
                         ),
                       ),
+                      if (a.hasPin)
+                        // This address carries a confirmed pin — one tap, no map.
+                        Icon(Icons.location_on_rounded,
+                            size: 14, color: GixbeeTheme.accentGreen),
                     ],
                   ),
                 ),

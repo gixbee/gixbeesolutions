@@ -56,6 +56,13 @@ final nearbyCountsProvider =
   }
 });
 
+/// The worker's own strike ledger (Profile → Strikes & Appeals). Refreshed
+/// on every open; invalidate after filing an appeal.
+final myStrikesProvider =
+    FutureProvider.autoDispose<Map<String, dynamic>>((ref) async {
+  return ref.watch(workerRepositoryProvider).getMyStrikes();
+});
+
 class WorkerRepository {
   final Dio _dio;
 
@@ -204,6 +211,25 @@ class WorkerRepository {
         await _dio.patch('/workers/me/active-skills', data: {'skills': skills});
     final data = Map<String, dynamic>.from(response.data as Map);
     return List<String>.from(data['activeSkills'] as List? ?? const []);
+  }
+
+  /// `GET /workers/me/strikes` → `{strikeCount, suspended, threshold,
+  /// strikes: [{id, type, reason, status, appealMessage, resolutionNote,
+  /// createdAt, ...}]}`. Fair-penalty ledger — every strike carries a
+  /// written reason and can be appealed once.
+  Future<Map<String, dynamic>> getMyStrikes() async {
+    final response = await _dio.get('/workers/me/strikes');
+    return Map<String, dynamic>.from(response.data as Map);
+  }
+
+  /// `POST /workers/me/strikes/:id/appeal` — file the one allowed appeal.
+  Future<String> appealStrike(String strikeId, String message) async {
+    final response = await _dio.post(
+      '/workers/me/strikes/$strikeId/appeal',
+      data: {'message': message},
+    );
+    final data = Map<String, dynamic>.from(response.data as Map);
+    return (data['message'] ?? 'Appeal submitted.') as String;
   }
 
   /// Registers a new worker profile.

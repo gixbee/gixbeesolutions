@@ -68,6 +68,21 @@ class CrashReporter {
       return;
     }
 
+    // Ignore routine offline network drops, timeouts, and socket errors so they
+    // do not pollute the server logs as false app crashes.
+    if (error.contains('SocketException') ||
+        error.contains('Network is unreachable') ||
+        error.contains('connection error') ||
+        error.contains('Connection failed') ||
+        error.contains('Failed host lookup') ||
+        error.contains('connection timeout') ||
+        error.contains('receive timeout') ||
+        error.contains('send timeout') ||
+        error.contains('Connection reset by peer') ||
+        error.contains('Software caused connection abort')) {
+      return;
+    }
+
     try {
       _dio.post('/client-logs', data: {
         'error': error.length > 500 ? error.substring(0, 500) : error,

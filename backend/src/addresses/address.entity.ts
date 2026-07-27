@@ -29,6 +29,19 @@ export class Address {
   @Column()
   line: string;
 
+  // Confirmed map-pin coordinates for this address. Written when the user
+  // pins it on the LocationPinScreen (either while saving, or backfilled the
+  // first time they reuse a coord-less saved address in Instant Help).
+  // Nullable: legacy rows and addresses saved outside the pin flow have no
+  // coords — those still require a pin confirm before dispatch, because the
+  // pin is the ONLY coordinate the booking flow trusts (typed text is just a
+  // human-readable label; forward-geocoding Kerala addresses is unreliable).
+  @Column({ type: 'decimal', precision: 9, scale: 6, nullable: true })
+  lat: number;
+
+  @Column({ type: 'decimal', precision: 9, scale: 6, nullable: true })
+  lng: number;
+
   @CreateDateColumn()
   createdAt: Date;
 }

@@ -50,6 +50,20 @@ class _WaitingForWorkerScreenState extends ConsumerState<WaitingForWorkerScreen>
   bool _isAccepted = false;
   String? _arrivalOtp;
 
+  /// Broadcast search wave. 1 = initial 90s fan-out; 2 = backend widened the
+  /// radius and (maybe) notified more pros — the countdown restarts for the
+  /// final window. Targeted requests (widget.worker != null) never enter
+  /// wave 2: their single 90s window is authoritative.
+  int _searchWave = 1;
+
+  /// New pros pinged by the widened wave (from booking_search_expanded).
+  int _wave2Notified = 0;
+
+  /// Grace on top of the server window so the backend's own timeout (which
+  /// cancels the booking and reaches us via socket/poll) normally wins — the
+  /// local expiry is only the offline fallback.
+  static const int _waveGraceSeconds = 15;
+
   // Broadcast requests: the claiming pro, learned from the accept poll.
   String? _acceptedName;
   String? _acceptedId;
@@ -78,14 +92,44 @@ class _WaitingForWorkerScreenState extends ConsumerState<WaitingForWorkerScreen>
   }
 
   void _onSocketEvent(Map<String, dynamic> data) {
-    if (data['_event'] != 'booking_accepted') return;
+    final event = data['_event'];
     final id = data['id']?.toString() ?? data['bookingId']?.toString();
     if (id != widget.bookingId) return;
+
+    if (event == 'booking_search_expanded') {
+      _enterSecondWave(
+        (data['newWorkersNotified'] as num?)?.toInt() ?? 0,
+      );
+      return;
+    }
+
+    if (event != 'booking_accepted') return;
     _applyStatus({
       'status': data['status'] ?? 'ACCEPTED',
       'arrivalOtp': data['arrivalOtp'],
       'operatorName': data['operatorName'],
       'operatorId': data['operatorId'],
+    });
+  }
+
+  /// Switch to the widened-search wave: restart the countdown for the final
+  /// window instead of declaring "no workers" while the backend is still
+  /// searching. Idempotent — the local timer expiry and the socket event can
+  /// both trigger it in either order.
+  void _enterSecondWave(int newWorkersNotified) {
+    if (!mounted || _isAccepted || widget.worker != null) return;
+    if (_searchWave >= 2) {
+      // Already in wave 2 — just refresh the notified copy if it arrived late.
+      if (newWorkersNotified > 0 && _wave2Notified == 0) {
+        setState(() => _wave2Notified = newWorkersNotified);
+      }
+      return;
+    }
+    setState(() {
+      _searchWave = 2;
+      _wave2Notified = newWorkersNotified;
+      _secondsRemaining =
+          AppConfig.jobAcceptTimeoutSeconds + _waveGraceSeconds;
     });
   }
 
@@ -104,17 +148,29 @@ class _WaitingForWorkerScreenState extends ConsumerState<WaitingForWorkerScreen>
     _countdownTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
       if (_secondsRemaining > 0) {
         setState(() => _secondsRemaining--);
-      } else {
-        _countdownTimer?.cancel();
-        if (mounted) {
-          // Make sure the stale request is cancelled server-side, then show
-          // the v126 "no pros available" fallback with real next steps.
-          ref
-              .read(bookingRepositoryProvider)
-              .cancelBooking(widget.bookingId)
-              .then((_) {}, onError: (_) {});
-          _showNoWorkers();
-        }
+        return;
+      }
+
+      // Broadcast wave 1 expired locally: the backend is widening the search
+      // right now (its rebroadcast runs at the same 90s mark) — flip to the
+      // final window even if the booking_search_expanded socket event was
+      // missed. NEVER cancel here; that would kill the second wave.
+      if (widget.worker == null && _searchWave < 2) {
+        _enterSecondWave(0);
+        return;
+      }
+
+      // Final window (or targeted request) expired with no news — the
+      // backend timeout normally cancelled it already and told us via
+      // socket/poll; this is the offline fallback. cancelBooking on an
+      // already-CANCELLED booking is harmless.
+      _countdownTimer?.cancel();
+      if (mounted) {
+        ref
+            .read(bookingRepositoryProvider)
+            .cancelBooking(widget.bookingId)
+            .then((_) {}, onError: (_) {});
+        _showNoWorkers();
       }
     });
   }
@@ -187,6 +243,13 @@ class _WaitingForWorkerScreenState extends ConsumerState<WaitingForWorkerScreen>
     if (widget.worker != null) {
       return 'Waiting for ${widget.worker!.name} to accept your request';
     }
+    if (_searchWave >= 2) {
+      return _wave2Notified > 0
+          ? 'Expanded the search area — notified $_wave2Notified more '
+              '${widget.skill} pro${_wave2Notified == 1 ? '' : 's'} slightly '
+              'farther away'
+          : 'Expanded the search area — still looking for an available pro';
+    }
     if (widget.notifiedCount > 0) {
       return 'Notified ${widget.notifiedCount} nearby '
           '${widget.skill} pro${widget.notifiedCount == 1 ? '' : 's'} — '
@@ -221,7 +284,9 @@ class _WaitingForWorkerScreenState extends ConsumerState<WaitingForWorkerScreen>
                   Semantics(
                     liveRegion: true,
                     child: Text(
-                      'Searching for ${widget.skill}…',
+                      _searchWave >= 2
+                          ? 'Widening the search…'
+                          : 'Searching for ${widget.skill}…',
                       textAlign: TextAlign.center,
                       style: TextStyle(
                         fontSize: 22,

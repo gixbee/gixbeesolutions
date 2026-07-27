@@ -31,6 +31,13 @@ export interface BookingBroadcastCreatedPayload {
   arrivalOtp: string;
   completionOtp: string;
   notifiedWorkerIds: string[];
+  /**
+   * Fan-out wave: 1 = initial broadcast (schedules the first 90s timeout,
+   * WRITES the notified set), 2 = widened rebroadcast after nobody accepted
+   * (timeout already scheduled by rebroadcastBooking, MERGES the notified
+   * set). Absent = legacy event → treated as 1.
+   */
+  attempt?: number;
 }
 
 export interface BookingAcceptedPayload {

@@ -143,6 +143,10 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
         await storage.write(key: 'worker_live_since', value: _liveSince!.toIso8601String());
       }
     }
+    // Eagerly compute elapsed so the UI never flashes 0:00:00 on re-entry.
+    if (mounted && _liveSince != null) {
+      setState(() => _elapsed = DateTime.now().difference(_liveSince!));
+    }
     _ticker?.cancel();
     _ticker = Timer.periodic(const Duration(seconds: 1), (timer) {
       if (!mounted || _liveSince == null) return;
@@ -520,7 +524,10 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
                   await Navigator.push(
                     context,
                     MaterialPageRoute(
-                        builder: (_) => const RegisterProScreen()),
+                        builder: (_) => const RegisterProScreen(
+                              initialStep: 1,
+                              isEditingSkills: true,
+                            )),
                   );
                   if (!mounted) return;
                   ref.invalidate(goLiveDashboardProvider);
@@ -553,7 +560,10 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
                     await Navigator.push(
                       context,
                       MaterialPageRoute(
-                          builder: (_) => const RegisterProScreen()),
+                          builder: (_) => const RegisterProScreen(
+                                initialStep: 1,
+                                isEditingSkills: true,
+                              )),
                     );
                     if (!mounted) return;
                     ref.invalidate(goLiveDashboardProvider);

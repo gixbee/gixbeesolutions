@@ -16,8 +16,11 @@ import { NotificationsService } from '../notifications/notifications.service';
 import { RedisService } from '../redis/redis.service';
 import {
   MAX_BROADCAST_FANOUT,
+  REBROADCAST_RADIUS_STRETCH,
   WorkersService,
 } from '../workers/workers.service';
+import { WorkerStrikeType } from '../workers/worker-strike.entity';
+import type { WorkerDto } from '../workers/workers.service';
 import { MessagesGateway } from '../messages/messages.gateway';
 import { OutboxService } from '../outbox/outbox.service';
 import { OutboxEventType } from '../outbox/outbox.types';
@@ -202,29 +205,10 @@ export class BookingsService {
       data.serviceLng,
     );
 
-    // v126 language matching: when the customer requires languages, notify
-    // only pros with an overlap. Pros who haven't set their languages yet
-    // (null/empty) are INCLUDED — lenient by design so legacy profiles keep
-    // receiving jobs until they fill it in via Go Live.
-    const wanted = (data.preferredLanguages ?? []).map((l) => l.toLowerCase());
-    const languageEligible =
-      wanted.length === 0
-        ? nearby
-        : nearby.filter((w) => {
-            const spoken = (w.languages ?? []).map((l) => l.toLowerCase());
-            return spoken.length === 0 || spoken.some((l) => wanted.includes(l));
-          });
-
-    // Prefer nearest, then highest-rated, then cap fan-out (MAX_BROADCAST_FANOUT).
-    // getNearby already distance-caps then rating-sorts; re-sort here so
-    // language filtering does not unfairly favour distant high-rated pros.
-    const targets = [...languageEligible]
-      .sort((a, b) => {
-        const d = (a.distance_km ?? Infinity) - (b.distance_km ?? Infinity);
-        if (d !== 0) return d;
-        return (b.rating || 0) - (a.rating || 0);
-      })
-      .slice(0, MAX_BROADCAST_FANOUT);
+    const targets = this.selectBroadcastTargets(
+      nearby,
+      data.preferredLanguages,
+    );
 
     const arrivalOtp = this.generateOtp();
     const completionOtp = this.generateOtp();
@@ -283,6 +267,7 @@ export class BookingsService {
             arrivalOtp,
             completionOtp,
             notifiedWorkerIds,
+            attempt: 1,
           },
         );
         return { savedBooking: saved, outboxId: outbox.id };
@@ -295,6 +280,158 @@ export class BookingsService {
       `[BroadcastBooking] ${savedBooking.id} queued fan-out to ${notifiedWorkerIds.length} pros for ${data.skill}`,
     );
     return { booking: savedBooking, notified: notifiedWorkerIds.length };
+  }
+
+  /**
+   * v126 language matching + fan-out shaping shared by the initial broadcast
+   * AND the timeout rebroadcast. When the customer requires languages, notify
+   * only pros with an overlap; pros with no languages set (null/empty) are
+   * INCLUDED — lenient by design so legacy profiles keep receiving jobs.
+   * Then nearest-first, rating tie-break, capped at MAX_BROADCAST_FANOUT.
+   */
+  private selectBroadcastTargets(
+    nearby: WorkerDto[],
+    preferredLanguages?: string[],
+  ): WorkerDto[] {
+    const wanted = (preferredLanguages ?? []).map((l) => l.toLowerCase());
+    const languageEligible =
+      wanted.length === 0
+        ? nearby
+        : nearby.filter((w) => {
+            const spoken = (w.languages ?? []).map((l) => l.toLowerCase());
+            return spoken.length === 0 || spoken.some((l) => wanted.includes(l));
+          });
+
+    return [...languageEligible]
+      .sort((a, b) => {
+        const d = (a.distance_km ?? Infinity) - (b.distance_km ?? Infinity);
+        if (d !== 0) return d;
+        return (b.rating || 0) - (a.rating || 0);
+      })
+      .slice(0, MAX_BROADCAST_FANOUT);
+  }
+
+  /**
+   * Attempt-2 fan-out when NOBODY accepted within the first 90s window
+   * (called by the requestTimeout job — see BookingsProcessor).
+   *
+   * Widening strategy:
+   *  - re-runs the geo search (pros who came online since attempt 1 appear)
+   *  - stretches each pro's own travel radius by REBROADCAST_RADIUS_STRETCH
+   *    ("slightly beyond your usual area" — the incoming card shows the real
+   *    distance, so the pro still decides)
+   *  - notifies ONLY pros not already pinged in attempt 1 (never re-ping)
+   *  - tells the customer the search was expanded (socket + FCM)
+   *
+   * The FINAL 90s timeout is scheduled here unconditionally — even with zero
+   * new pros, attempt-1 pros still hold the request and may yet accept.
+   */
+  async rebroadcastBooking(
+    bookingId: string,
+  ): Promise<{ stillOpen: boolean; notified: number }> {
+    const booking = await this.getBookingById(bookingId);
+    if (
+      !booking ||
+      booking.status !== BookingStatus.REQUESTED ||
+      booking.operator ||
+      booking.type !== BookingType.INSTANT
+    ) {
+      return { stillOpen: false, notified: 0 };
+    }
+
+    // Final window is scheduled FIRST so a crash mid-rebroadcast can never
+    // leave the request open forever. jobId dedupes retries.
+    await this.bookingsQueue.add(
+      'requestTimeout',
+      { bookingId, attempt: 2 },
+      {
+        jobId: `requestTimeout:${bookingId}:final`,
+        delay: 90 * 1000,
+        removeOnComplete: true,
+      },
+    );
+
+    const alreadyNotified = new Set(await this.getNotifiedWorkerIds(bookingId));
+
+    const nearby = await this.workersService.getNearby(
+      booking.customer?.id ?? '',
+      booking.skill,
+      Number(booking.serviceLat),
+      Number(booking.serviceLng),
+      REBROADCAST_RADIUS_STRETCH,
+    );
+    const fresh = this.selectBroadcastTargets(
+      nearby.filter((w) => !alreadyNotified.has(w.id)),
+      booking.preferredLanguages,
+    );
+    const freshIds = fresh.map((w) => w.id);
+
+    // Tell the customer we widened the search (best-effort — poll cache
+    // still shows REQUESTED, so nothing breaks if both channels miss).
+    if (booking.customer?.id) {
+      try {
+        this.messagesGateway.emitUserEvent(
+          booking.customer.id,
+          'booking_search_expanded',
+          {
+            bookingId,
+            id: bookingId,
+            newWorkersNotified: freshIds.length,
+          },
+        );
+      } catch {}
+      await this.notificationsService
+        .sendToUser(booking.customer.id, {
+          title: 'Still searching…',
+          body:
+            freshIds.length > 0
+              ? `We expanded the search area and notified ${freshIds.length} more ${booking.skill} pro${freshIds.length === 1 ? '' : 's'}.`
+              : 'We expanded the search area — still looking for an available pro.',
+          data: { type: 'booking_search_expanded', bookingId },
+        })
+        .catch(() => {});
+    }
+
+    if (freshIds.length === 0) {
+      this.logger.log(
+        `[Rebroadcast] ${bookingId}: no new pros in the widened area`,
+      );
+      return { stillOpen: true, notified: 0 };
+    }
+
+    // Same outbox event as attempt 1 — the listener handles attempt 2 by
+    // MERGING the notified set and skipping the (already scheduled) timeout.
+    const outbox = await this.dataSource.transaction(async (manager) =>
+      this.outboxService.append(
+        manager,
+        OutboxEventType.BOOKING_BROADCAST_CREATED,
+        bookingId,
+        {
+          bookingId,
+          customerId: booking.customer?.id ?? '',
+          customerName:
+            booking.customer?.name?.trim().split(/\s+/)[0] || undefined,
+          skill: booking.skill,
+          serviceLocation: booking.serviceLocation,
+          serviceLat: Number(booking.serviceLat),
+          serviceLng: Number(booking.serviceLng),
+          amount: Number(booking.amount),
+          description: booking.description,
+          preferredLanguages: booking.preferredLanguages,
+          createdAt: (booking.createdAt ?? new Date()).toISOString(),
+          arrivalOtp: booking.arrivalOtp,
+          completionOtp: booking.completionOtp,
+          notifiedWorkerIds: freshIds,
+          attempt: 2,
+        },
+      ),
+    );
+    await this.outboxService.enqueueDispatch(outbox.id);
+
+    this.logger.log(
+      `[Rebroadcast] ${bookingId}: widened wave queued to ${freshIds.length} new pros`,
+    );
+    return { stillOpen: true, notified: freshIds.length };
   }
 
   async acceptBooking(
@@ -1097,6 +1234,7 @@ export class BookingsService {
     bookingId: string,
     rating: number,
   ): Promise<{ message: string }> {
+    let ratedOperatorId: string | null = null;
     await this.dataSource.transaction(async (manager) => {
       const bookingRepo = manager.getRepository(Booking);
       const profileRepo = manager.getRepository(WorkerProfile);
@@ -1143,7 +1281,21 @@ export class BookingsService {
       fresh.reviewCount += 1;
       fresh.rating = (currentTotal + rating) / fresh.reviewCount;
       await profileRepo.save(fresh);
+      ratedOperatorId = booking.operator.id;
     });
+
+    // Keep the dispatch snapshot's rating fresh — snapshots live 24h, and
+    // broadcast targeting sorts on rating. Fire-and-forget: a failed refresh
+    // just means the next cold miss rebuilds it.
+    if (ratedOperatorId) {
+      this.workersService
+        .refreshWorkerSnapshot(ratedOperatorId)
+        .catch((e) =>
+          this.logger.error(
+            `[SubmitRating] snapshot refresh failed: ${e?.message ?? e}`,
+          ),
+        );
+    }
 
     return { message: 'Rating submitted successfully' };
   }
@@ -1581,7 +1733,8 @@ export class BookingsService {
     return this.bookingsRepository.find({
       where,
       relations: ['customer', 'operator'],
-      order: { scheduledAt: 'DESC' },
+      // Same stable-pagination ordering as findMyBookings (tie-broken).
+      order: { scheduledAt: 'DESC', createdAt: 'DESC', id: 'DESC' },
       skip: (page - 1) * limit,
       take: limit,
     });
@@ -1601,7 +1754,16 @@ export class BookingsService {
       .leftJoinAndSelect('booking.customer', 'customer')
       .leftJoinAndSelect('booking.operator', 'operator')
       .where('(customer.id = :userId OR operator.id = :userId)', { userId })
-      .orderBy('booking.scheduledAt', 'DESC')
+      // PAGINATION FIX: scheduledAt alone is not a stable sort — instant
+      // bookings share near-identical timestamps, and Postgres gives no
+      // ordering guarantee among ties, so page 2 could repeat page-1 rows
+      // and silently skip others ("my old bookings never show up").
+      // NULLS LAST keeps rare schedule-less rows from jamming the top of
+      // every page (DESC defaults to NULLS FIRST); createdAt + id break
+      // ties deterministically.
+      .orderBy('booking.scheduledAt', 'DESC', 'NULLS LAST')
+      .addOrderBy('booking.createdAt', 'DESC')
+      .addOrderBy('booking.id', 'DESC')
       .skip((page - 1) * limit)
       .take(limit);
 
@@ -1654,6 +1816,21 @@ export class BookingsService {
           data: { type: 'booking_forfeited', bookingId },
         });
         await this.workersService.setWorkerStatus(booking.operator.id, 'available');
+
+        // Fair-penalty ledger: the forfeit becomes a written, appealable
+        // strike on the worker's profile (3 profile strikes → Go Live
+        // suspension). Per-attempt GPS pings stay on the booking only.
+        await this.workersService
+          .recordStrike(booking.operator.id, {
+            type: WorkerStrikeType.GPS_FORFEIT,
+            bookingId,
+            reason: `A ${booking.skill || 'service'} job was forfeited because GPS showed no movement toward the customer within the arrival window.`,
+          })
+          .catch((e) =>
+            this.logger.error(
+              `[GpsStrike] recordStrike failed for ${bookingId}: ${e?.message ?? e}`,
+            ),
+          );
       }
 
       return { cancelled: true, strikes: 3 };

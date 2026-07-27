@@ -158,8 +158,11 @@ export class MasterEntriesService implements OnModuleInit {
 
     const entries = await this.masterEntryRepo.find({ where, order: { createdAt: 'DESC' } });
 
-    // 3. Store in Redis for 1 hour (master data doesn't change often)
-    await this.redisService.set(cacheKey, JSON.stringify(entries), 3600);
+    // 3. Store in Redis for ~1 hour with ±10% JITTER — with two backend
+    //    replicas, identical TTLs expire in lockstep and both replicas miss
+    //    simultaneously, stampeding Postgres for this hottest of keys.
+    const ttl = 3600 + Math.floor(Math.random() * 721) - 360;
+    await this.redisService.set(cacheKey, JSON.stringify(entries), ttl);
 
     return entries;
   }

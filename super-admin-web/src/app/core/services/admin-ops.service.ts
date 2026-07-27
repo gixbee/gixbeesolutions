@@ -53,6 +53,21 @@ export interface AdminBusiness {
   owner?: { id: string; name: string; phoneNumber?: string };
 }
 
+// Fair-penalty ledger row (worker_strikes) — see /workers/admin/strikes.
+export interface WorkerStrike {
+  id: string;
+  workerUserId: string;
+  bookingId: string | null;
+  type: 'GPS_FORFEIT' | 'NO_SHOW' | 'ADMIN';
+  reason: string;
+  status: 'ACTIVE' | 'APPEALED' | 'OVERTURNED' | 'UPHELD';
+  appealMessage: string | null;
+  appealedAt: string | null;
+  resolutionNote: string | null;
+  resolvedAt: string | null;
+  createdAt: string;
+}
+
 @Injectable({ providedIn: 'root' })
 export class AdminOpsService {
   private http = inject(HttpClient);
@@ -84,6 +99,20 @@ export class AdminOpsService {
 
   resolveDispute(bookingId: string, resolution: string): Observable<any> {
     return this.http.patch(`/api/bookings/admin/disputes/${bookingId}/resolve`, { resolution });
+  }
+
+  // ── Worker strikes / appeals ──
+  getStrikes(status?: string): Observable<WorkerStrike[]> {
+    const params: any = {};
+    if (status) params.status = status;
+    return this.http.get<WorkerStrike[]>('/api/workers/admin/strikes', { params });
+  }
+
+  resolveStrike(strikeId: string, overturn: boolean, note?: string): Observable<any> {
+    return this.http.patch(`/api/workers/admin/strikes/${strikeId}/resolve`, {
+      overturn,
+      ...(note ? { note } : {}),
+    });
   }
 
   // ── Businesses ──

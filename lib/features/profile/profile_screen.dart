@@ -12,6 +12,7 @@ import '../business/business_unit_dashboard.dart';
 import '../jobs/post_job_screen.dart';
 import '../jobs/my_bookings_screen.dart';
 import 'profile_subscreens.dart';
+import 'strikes_screen.dart';
 import '../../core/theme_provider.dart';
 import '../../core/main_tab_provider.dart';
 import '../../shared/widgets/gx_sheet.dart';
@@ -406,6 +407,18 @@ class ProfileScreen extends ConsumerWidget {
                               context,
                               MaterialPageRoute(
                                   builder: (_) => const SavedVendorsScreen()),
+                            ),
+                          ),
+
+                          _buildMenuItem(
+                            context,
+                            icon: Icons.gavel_rounded,
+                            color: const Color(0xFFF97316),
+                            title: 'Strikes & Appeals',
+                            onTap: () => Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                  builder: (_) => const StrikesScreen()),
                             ),
                           ),
 

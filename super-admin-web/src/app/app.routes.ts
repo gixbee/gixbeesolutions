@@ -6,6 +6,7 @@ import { BusinessesComponent } from './features/businesses/businesses.component'
 import { CitiesComponent } from './features/cities/cities.component';
 import { VerificationsComponent } from './features/verifications/verifications.component';
 import { DisputesComponent } from './features/disputes/disputes.component';
+import { StrikesComponent } from './features/strikes/strikes.component';
 import { BookingsComponent } from './features/bookings/bookings.component';
 import { SupportComponent } from './features/support/support.component';
 import { LoginComponent } from './features/auth/login/login.component';
@@ -27,6 +28,9 @@ export const routes: Routes = [
       { path: 'bookings', component: BookingsComponent, canActivate: [pageGuard], data: { page: 'bookings' } },
       { path: 'verifications', component: VerificationsComponent, canActivate: [pageGuard], data: { page: 'verifications' } },
       { path: 'disputes', component: DisputesComponent, canActivate: [pageGuard], data: { page: 'disputes' } },
+      // Strike appeals share the disputes permission — same operational job
+      // (reviewing worker conduct), so no staff-permission change needed.
+      { path: 'strikes', component: StrikesComponent, canActivate: [pageGuard], data: { page: 'disputes' } },
       { path: 'support', component: SupportComponent, canActivate: [pageGuard], data: { page: 'support' } },
       { path: 'master-entries', component: MasterEntriesComponent, canActivate: [pageGuard], data: { page: 'master-entries' } },
       { path: 'cities', component: CitiesComponent, canActivate: [pageGuard], data: { page: 'cities' } },

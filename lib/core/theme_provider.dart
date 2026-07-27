@@ -12,19 +12,23 @@ const _kThemeKey = 'gx_theme_choice';
 const _storage = FlutterSecureStorage();
 
 class ThemeChoiceNotifier extends StateNotifier<AppThemeChoice> {
-  ThemeChoiceNotifier() : super(AppThemeChoice.gixbeeDark) {
-    _restore();
-  }
+  /// The initial value is resolved BEFORE runApp (see main.dart) and injected
+  /// via [initialThemeChoiceProvider] — the old async restore-in-constructor
+  /// made every cold start render dark first and SNAP to Grab Light a few
+  /// hundred ms later (the "first page looks different" flicker).
+  ThemeChoiceNotifier(super.initial);
 
-  Future<void> _restore() async {
+  /// Read the persisted choice. Called once in main() before the first frame.
+  static Future<AppThemeChoice> restore() async {
     try {
       final raw = await _storage.read(key: _kThemeKey);
       if (raw == AppThemeChoice.grabLight.name) {
-        state = AppThemeChoice.grabLight;
+        return AppThemeChoice.grabLight;
       }
     } catch (e) {
       debugPrint('Theme restore failed: $e');
     }
+    return AppThemeChoice.gixbeeDark;
   }
 
   Future<void> set(AppThemeChoice choice) async {
@@ -37,9 +41,14 @@ class ThemeChoiceNotifier extends StateNotifier<AppThemeChoice> {
   }
 }
 
+/// Overridden in main() with the value restored from secure storage, so the
+/// very first frame already wears the user's chosen theme.
+final initialThemeChoiceProvider =
+    Provider<AppThemeChoice>((_) => AppThemeChoice.gixbeeDark);
+
 final themeChoiceProvider =
     StateNotifierProvider<ThemeChoiceNotifier, AppThemeChoice>(
-        (ref) => ThemeChoiceNotifier());
+        (ref) => ThemeChoiceNotifier(ref.watch(initialThemeChoiceProvider)));
 
 /// ThemeMode derived from the choice — watched by MaterialApp in main.dart.
 final themeModeProvider = Provider<ThemeMode>((ref) {

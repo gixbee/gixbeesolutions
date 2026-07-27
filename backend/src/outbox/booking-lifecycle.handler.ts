@@ -59,6 +59,11 @@ export class BookingLifecycleHandler {
   private async onBroadcastCreated(
     p: BookingBroadcastCreatedPayload,
   ): Promise<void> {
+    // Wave 1 = initial broadcast. Wave 2 = widened rebroadcast (nobody
+    // accepted in 90s): its FINAL timeout is scheduled by rebroadcastBooking
+    // BEFORE the fan-out, and the notified set is MERGED, not overwritten.
+    const attempt = p.attempt ?? 1;
+
     await this.redisService.saveOtp(
       `otp:booking:${p.bookingId}:arrival`,
       p.arrivalOtp,
@@ -68,23 +73,25 @@ export class BookingLifecycleHandler {
       p.completionOtp,
     );
 
-    await this.bookingsQueue.add(
-      'requestTimeout',
-      { bookingId: p.bookingId },
-      {
-        jobId: `requestTimeout:${p.bookingId}`,
-        delay: 90 * 1000,
-        removeOnComplete: true,
-      },
-    );
+    if (attempt === 1) {
+      await this.bookingsQueue.add(
+        'requestTimeout',
+        { bookingId: p.bookingId, attempt: 1 },
+        {
+          jobId: `requestTimeout:${p.bookingId}`,
+          delay: 90 * 1000,
+          removeOnComplete: true,
+        },
+      );
 
-    await this.cacheAndEmitBookingStatus(p.bookingId, {
-      status: 'REQUESTED',
-      operatorName: null,
-      operatorId: null,
-      customerId: p.customerId,
-      arrivalOtp: p.arrivalOtp,
-    });
+      await this.cacheAndEmitBookingStatus(p.bookingId, {
+        status: 'REQUESTED',
+        operatorName: null,
+        operatorId: null,
+        customerId: p.customerId,
+        arrivalOtp: p.arrivalOtp,
+      });
+    }
 
     const notifiedIds: string[] = [];
     await Promise.all(
@@ -140,9 +147,14 @@ export class BookingLifecycleHandler {
       })
       .catch((e) => this.logger.error(`multicast failed: ${e?.message ?? e}`));
 
+    // Attempt 2 MERGES so attempt-1 pros keep their decline/cleanup rights;
+    // a plain overwrite would orphan them in Redis pending queues forever.
+    const existing =
+      attempt > 1 ? await this.getNotifiedWorkerIds(p.bookingId) : [];
+    const merged = [...new Set([...existing, ...notifiedIds])];
     await this.redisService.set(
       `booking:notified:${p.bookingId}`,
-      JSON.stringify(notifiedIds),
+      JSON.stringify(merged),
       60 * 60,
     );
   }
