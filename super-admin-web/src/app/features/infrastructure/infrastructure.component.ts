@@ -116,7 +116,7 @@ export class InfrastructureComponent {
 
   activeTab: 'beszel' | 'dozzle' = 'beszel';
 
-  readonly rawBeszelUrl = `http://${window.location.hostname}:8091/`;
+  readonly rawBeszelUrl = '/infra/beszel/';
   readonly beszelUrl: SafeResourceUrl = this.sanitizer.bypassSecurityTrustResourceUrl(this.rawBeszelUrl);
   readonly dozzleUrl: SafeResourceUrl = this.sanitizer.bypassSecurityTrustResourceUrl('/infra/dozzle/');
 }

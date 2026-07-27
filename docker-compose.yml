@@ -220,7 +220,6 @@ services:
       - backend
     ports:
       - "80:80"
-      - "8091:8091"
 
   # ── Infrastructure Monitoring: Dozzle (Live Logs) ──────────────────────────
   dozzle:
@@ -249,6 +248,8 @@ services:
       options:
         max-size: "10m"
         max-file: "3"
+    environment:
+      APP_URL: "http://13.233.60.215/infra/beszel"
     volumes:
       - beszel_data:/beszel_data
     networks:
