@@ -13,8 +13,8 @@ import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
           <div class="gx-page-title mb-1">Infrastructure Monitoring</div>
           <div class="text-secondary small d-flex align-items-center gap-2">
             <span>Live container resources & real-time log streaming</span>
-            <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle">
-              <i class="bi bi-shield-lock me-1"></i>Protected by Basic Auth (user: admin)
+            <span class="badge bg-success-subtle text-success border border-success-subtle">
+              <i class="bi bi-shield-check me-1"></i>Super Admin Access
             </span>
           </div>
         </div>
