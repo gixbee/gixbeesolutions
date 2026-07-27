@@ -90,14 +90,10 @@ export class SystemMetricsService implements OnModuleInit, OnModuleDestroy {
   onModuleInit() {
     this.loopHistogram = monitorEventLoopDelay({ resolution: 20 });
     this.loopHistogram.enable();
-    this.timer = setInterval(() => this.sample(), SAMPLE_MS);
-    // Don't keep the process alive just for sampling.
-    this.timer.unref?.();
     void this.refreshDisk().then(() => this.sample());
   }
 
   onModuleDestroy() {
-    if (this.timer) clearInterval(this.timer);
     this.loopHistogram?.disable();
   }
 
@@ -337,6 +333,7 @@ export class SystemMetricsService implements OnModuleInit, OnModuleDestroy {
 
   /** Latest snapshot + host/process info + health / queues / alerts. */
   async current() {
+    this.sample();
     const latest = this.samples[this.samples.length - 1] ?? null;
 
     const [postgresUp, redisUp, redisStats, outbox, bookingsQ, outboxQ, errors1m] =

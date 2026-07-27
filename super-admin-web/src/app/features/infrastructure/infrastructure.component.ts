@@ -10,7 +10,7 @@ import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
     <div class="gx-full-screen-view d-flex flex-column flex-grow-1 w-100">
       <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
         <div>
-          <div class="gx-page-title mb-1">Infrastructure Monitoring</div>
+          <div class="gx-page-title mb-1">System Monitoring</div>
           <div class="text-secondary small d-flex align-items-center gap-2">
             <span>Live container resources & real-time log streaming</span>
             <span class="badge bg-success-subtle text-success border border-success-subtle">

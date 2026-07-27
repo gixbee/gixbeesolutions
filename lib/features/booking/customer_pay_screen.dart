@@ -54,6 +54,7 @@ class _CustomerPayScreenState extends ConsumerState<CustomerPayScreen> {
   bool _waitingForOther = false;
   Timer? _waitPoll;
   bool _advancedToRate = false;
+  bool _dialogShowing = false;
 
   @override
   void initState() {
@@ -212,6 +213,9 @@ class _CustomerPayScreenState extends ConsumerState<CustomerPayScreen> {
   }
 
   void _showSuccessDialog() {
+    if (_dialogShowing || _advancedToRate) return;
+    _dialogShowing = true;
+    _waitPoll?.cancel();
     final name = _billing?.counterpartName ?? widget.workerName;
     showGxDialog(
       context,
@@ -253,8 +257,7 @@ class _CustomerPayScreenState extends ConsumerState<CustomerPayScreen> {
           'Continue',
           isPrimary: true,
           onTap: () {
-            if (!mounted) return;
-            Navigator.pop(context);
+            Navigator.of(context, rootNavigator: true).pop();
             _goToRate();
           },
         ),
@@ -269,9 +272,9 @@ class _CustomerPayScreenState extends ConsumerState<CustomerPayScreen> {
       if (data != null && bookingFlagTrue(data['isPaid'])) {
         _waitPoll?.cancel();
         _refreshProviders();
-        // Don't race with the success dialog — if it's already showing,
-        // the user will tap "Continue" which calls _goToRate() itself.
-        if (!_advancedToRate) _goToRate();
+        if (!_advancedToRate && !_dialogShowing) {
+          _showSuccessDialog();
+        }
       }
     });
 

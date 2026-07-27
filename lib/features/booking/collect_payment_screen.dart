@@ -52,6 +52,7 @@ class _CollectPaymentScreenState extends ConsumerState<CollectPaymentScreen> {
   bool _waitingForOther = false;
   Timer? _waitPoll;
   bool _advancedToRate = false;
+  bool _dialogShowing = false;
 
   @override
   void initState() {
@@ -200,6 +201,9 @@ class _CollectPaymentScreenState extends ConsumerState<CollectPaymentScreen> {
   }
 
   void _showSuccessDialog() {
+    if (_dialogShowing || _advancedToRate) return;
+    _dialogShowing = true;
+    _waitPoll?.cancel();
     final name = _billing?.counterpartName ?? widget.customerName;
     showGxDialog(
       context,
@@ -244,7 +248,7 @@ class _CollectPaymentScreenState extends ConsumerState<CollectPaymentScreen> {
           'Continue',
           isPrimary: true,
           onTap: () {
-            Navigator.pop(context);
+            Navigator.of(context, rootNavigator: true).pop();
             _goToRate();
           },
         ),
@@ -259,7 +263,9 @@ class _CollectPaymentScreenState extends ConsumerState<CollectPaymentScreen> {
       if (data != null && bookingFlagTrue(data['isPaid'])) {
         _waitPoll?.cancel();
         _refreshProviders();
-        _goToRate();
+        if (!_advancedToRate && !_dialogShowing) {
+          _showSuccessDialog();
+        }
       }
     });
 
