@@ -267,7 +267,7 @@ services:
         max-file: "3"
     environment:
       PORT: 45876
-      KEY: "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIGixbeeInternalMonitorDummyKeyForBeszelAgent root@gixbee"
+      KEY: "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIC17mUbLsNFJB9szC7LwFWEIfUBCNAJFNbkb2DzWW9Ja"
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
     networks:
