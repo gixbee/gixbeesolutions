@@ -50,7 +50,7 @@ export class WorkerStrike {
   workerUserId: string;
 
   /** Booking that triggered the strike, when applicable. */
-  @Column({ nullable: true })
+  @Column({ type: 'uuid', nullable: true })
   bookingId: string | null;
 
   @Column({ type: 'enum', enum: WorkerStrikeType })
