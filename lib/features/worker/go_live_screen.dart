@@ -13,6 +13,7 @@ import '../../theme.dart';
 import '../../shared/widgets/gx_snackbar.dart';
 import '../../shared/widgets/gx_button.dart';
 import '../../shared/widgets/gx_pressable.dart';
+import '../../shared/widgets/gx_sheet.dart';
 import '../jobs/register_pro_screen.dart';
 import '../booking/incoming_job_screen.dart';
 import 'worker_languages_card.dart';
@@ -60,6 +61,10 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
   StreamSubscription<Map<String, dynamic>>? _socketSub;
   Timer? _locationHeartbeat;
   bool _presenceStarted = false;
+
+  /// True when the live-mode heartbeat can't get a GPS fix any more — the
+  /// pro is drifting out of dispatch and must be told, not left "waiting".
+  bool _gpsLost = false;
 
   @override
   void initState() {
@@ -188,7 +193,13 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
       try {
         final pos =
             await ref.read(locationServiceProvider).getCurrentPosition();
-        if (pos == null) return;
+        if (pos == null) {
+          // GPS died mid-session — surface it (banner in the live view)
+          // instead of silently letting the pro fall out of dispatch.
+          if (mounted && !_gpsLost) setState(() => _gpsLost = true);
+          return;
+        }
+        if (mounted && _gpsLost) setState(() => _gpsLost = false);
         await ref.read(workerRepositoryProvider).updateMyLocation(
               lat: pos.latitude,
               lng: pos.longitude,
@@ -214,15 +225,25 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
     if (_toggling) return;
     setState(() => _toggling = true);
     try {
-      // Capture GPS before going live so Instant Help can match this worker.
+      // HARD GATE: going live REQUIRES a GPS fix. Without one the pro never
+      // enters the dispatch geo index — they'd sit "live", burning their
+      // daily session, receiving zero jobs, and blaming the app. (The old
+      // flow went live anyway and just showed an apologetic red toast.)
       double? lat;
       double? lng;
       final currentlyLive = ref.read(workerLiveStateProvider);
       if (!currentlyLive) {
         final pos =
             await ref.read(locationServiceProvider).getCurrentPosition();
-        lat = pos?.latitude;
-        lng = pos?.longitude;
+        if (pos == null) {
+          if (mounted) {
+            setState(() => _toggling = false);
+            await _showGpsRequiredSheet();
+          }
+          return;
+        }
+        lat = pos.latitude;
+        lng = pos.longitude;
       }
 
       final result = await ref.read(workerRepositoryProvider).goLiveToggle(
@@ -240,15 +261,10 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
         unawaited(_stopTicker());
         _jobFeed.clear();
         _stopLivePresence();
+        if (_gpsLost) setState(() => _gpsLost = false);
       }
       if (mounted) {
         _toast(result.message, error: false);
-        if (result.isActive && lat == null && !currentlyLive) {
-          _toast(
-            'Location unavailable — enable GPS so customers can find you.',
-            error: true,
-          );
-        }
       }
     } on DioException catch (e) {
       final msg = e.response?.data is Map
@@ -260,6 +276,64 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
     } finally {
       if (mounted) setState(() => _toggling = false);
     }
+  }
+
+  /// GPS-required sheet shown instead of going live without a fix. The
+  /// action button is REASON-AWARE: device location off → location settings;
+  /// permission permanently denied → app settings; plain denied → retry
+  /// (which re-triggers the OS prompt via getCurrentPosition).
+  Future<void> _showGpsRequiredSheet() async {
+    final reason =
+        await ref.read(locationServiceProvider).gpsBlockReason();
+    if (!mounted) return;
+    final isServiceOff = reason == 'service_off';
+    final isDeniedForever = reason == 'denied_forever';
+    await showGxSheet<void>(
+      context,
+      title: 'Location needed to go live',
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(
+            'Customers are matched to pros by live location. Without GPS you '
+            'would appear online but never receive a single job — so Go Live '
+            'stays off until location is available.',
+            style: TextStyle(
+                fontSize: 13,
+                height: 1.5,
+                color: context.gx.ink.withValues(alpha: 0.65)),
+          ),
+          const SizedBox(height: 16),
+          if (isServiceOff || isDeniedForever)
+            GxButton(
+              label: isServiceOff
+                  ? 'Turn on device location'
+                  : 'Open app settings',
+              icon: Icons.settings_rounded,
+              onTap: () {
+                final svc = ref.read(locationServiceProvider);
+                if (isServiceOff) {
+                  svc.openLocationSettings();
+                } else {
+                  svc.openAppSettings();
+                }
+                Navigator.pop(context);
+              },
+            )
+          else
+            GxButton(
+              label: 'Allow location & go live',
+              icon: Icons.my_location_rounded,
+              onTap: () {
+                Navigator.pop(context);
+                _toggle();
+              },
+            ),
+          const SizedBox(height: 8),
+        ],
+      ),
+    );
   }
 
   void _toast(String msg, {required bool error}) {
@@ -668,6 +742,42 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
+        // Mid-session GPS loss — the pro is decaying out of dispatch; say so
+        // loudly with a one-tap fix instead of a silent "waiting" forever.
+        if (_gpsLost)
+          GxPressable(
+            onTap: () =>
+                ref.read(locationServiceProvider).openLocationSettings(),
+            child: Container(
+              margin: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+              padding: const EdgeInsets.symmetric(
+                  horizontal: 14, vertical: 12),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF97316).withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(
+                    color: const Color(0xFFF97316).withValues(alpha: 0.5)),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.gps_off_rounded,
+                      size: 20, color: Color(0xFFF97316)),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      'GPS signal lost — you may stop receiving jobs. Tap to '
+                      'check location settings.',
+                      style: TextStyle(
+                          fontSize: 12.5,
+                          height: 1.4,
+                          fontWeight: FontWeight.w700,
+                          color: context.gx.ink),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
         // LIVE HERO
         Container(
           decoration: BoxDecoration(

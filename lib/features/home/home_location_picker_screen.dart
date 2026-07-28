@@ -2,9 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../services/location_service.dart';
 import '../../repositories/cities_repository.dart';
+import '../../repositories/addresses_repository.dart';
+import '../../repositories/worker_repository.dart'; // selectedLocationProvider
 import '../../shared/widgets/dribbble_background.dart';
 import '../../theme.dart';
 import '../../shared/widgets/gx_snackbar.dart';
+import '../booking/location_pin_screen.dart';
+import '../profile/addresses/save_address_bottom_sheet.dart';
 
 class HomePickedLocation {
   final String address;
@@ -102,6 +106,135 @@ class _HomeLocationPickerScreenState
 
   void _selectCity(HomePickedLocation city) {
     Navigator.pop(context, city);
+  }
+
+  IconData _iconForLabel(String? label) {
+    final l = (label ?? '').toLowerCase();
+    if (l == 'home') return Icons.home_outlined;
+    if (l == 'work' || l == 'office') return Icons.work_outline;
+    return Icons.location_on_outlined;
+  }
+
+  /// "Add new Address": pin on the map → save with label → apply as the
+  /// current location. Map opens at the user's current context, never a
+  /// hardcoded city.
+  Future<void> _addNewAddress() async {
+    final applied = ref.read(selectedLocationProvider);
+    final cities = ref.read(citiesProvider).value ?? const <CityEntry>[];
+    final startLat = applied?.lat ?? 8.5241; // Trivandrum fallback
+    final startLng = applied?.lng ?? 76.9366;
+
+    final result = await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => LocationPinScreen(
+          initialLat: startLat,
+          initialLng: startLng,
+          initialAddress: null,
+        ),
+      ),
+    );
+    if (!mounted || result is! PinnedLocation) return;
+
+    final saved = await showModalBottomSheet<SavedAddress?>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => SaveAddressBottomSheet(pinnedLocation: result),
+    );
+    if (!mounted || saved == null || !saved.hasPin) return;
+
+    Navigator.pop(
+      context,
+      HomePickedLocation(
+        address: saved.line,
+        lat: saved.lat!,
+        lng: saved.lng!,
+        city: nearestCity(cities, saved.lat!, saved.lng!),
+      ),
+    );
+  }
+
+  /// Saved addresses (pinned ones) + "Add new Address" — the everyday entry
+  /// point for the address book, Swiggy-style. Coord-less legacy addresses
+  /// are hidden here: without a pin they can't scope the home location.
+  Widget _savedAddressesSection() {
+    final saved =
+        ref.watch(myAddressesProvider).value ?? const <SavedAddress>[];
+    final pinned = saved.where((a) => a.hasPin).take(4).toList();
+    final cities = ref.watch(citiesProvider).value ?? const <CityEntry>[];
+
+    return Column(
+      children: [
+        for (final a in pinned)
+          InkWell(
+            onTap: () => Navigator.pop(
+              context,
+              HomePickedLocation(
+                address: a.line,
+                lat: a.lat!,
+                lng: a.lng!,
+                city: nearestCity(cities, a.lat!, a.lng!),
+              ),
+            ),
+            child: Padding(
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+              child: Row(
+                children: [
+                  Icon(_iconForLabel(a.label),
+                      color: context.gx.ink.withValues(alpha: 0.7), size: 22),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        if (a.label != null && a.label!.isNotEmpty)
+                          Text(a.label!,
+                              style: TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w700,
+                                  color: context.gx.ink)),
+                        Text(a.line,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                                fontSize: 12.5,
+                                color:
+                                    context.gx.ink.withValues(alpha: 0.55))),
+                      ],
+                    ),
+                  ),
+                  Icon(Icons.chevron_right,
+                      color: context.gx.ink.withValues(alpha: 0.38),
+                      size: 20),
+                ],
+              ),
+            ),
+          ),
+        InkWell(
+          onTap: _addNewAddress,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+            child: Row(
+              children: [
+                Icon(Icons.add, color: context.gx.accentSoft, size: 22),
+                const SizedBox(width: 16),
+                Text(
+                  'Add new Address',
+                  style: TextStyle(
+                    color: context.gx.accentSoft,
+                    fontSize: 15,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        Divider(color: context.gx.border, height: 1),
+      ],
+    );
   }
 
   @override
@@ -203,6 +336,9 @@ class _HomeLocationPickerScreenState
               ),
 
               Divider(color: context.gx.border, height: 1),
+
+              // Saved addresses + add-new (address book entry point)
+              _savedAddressesSection(),
 
               // Serviceable cities (admin cities master; fallback when offline)
               Padding(

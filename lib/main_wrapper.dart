@@ -14,6 +14,7 @@ import 'features/profile/profile_screen.dart';
 import 'features/jobs/my_bookings_screen.dart';
 import 'features/booking/incoming_job_screen.dart';
 import 'features/jobs/pro_skill_provider.dart';
+import 'features/profile/addresses/address_picker_bottom_sheet.dart';
 import 'features/worker/go_live_screen.dart';
 import 'repositories/worker_repository.dart';
 import 'repositories/auth_repository.dart';
@@ -37,6 +38,9 @@ class _MainWrapperState extends ConsumerState<MainWrapper>
   Timer? _pendingPollTimer;
   StreamSubscription? _notifSub; // AUDIT FIX: was leaked (never cancelled)
   bool _pollWasRunning = false;
+
+  /// One-shot guard for the first-run location prompt (Swiggy pattern).
+  bool _locationPromptShown = false;
 
   /// Tracks booking IDs already shown — prevents duplicate popups from
   /// FCM foreground + socket + HTTP poll all firing for the same booking.
@@ -86,7 +90,17 @@ class _MainWrapperState extends ConsumerState<MainWrapper>
       // Location chain: restore last pick, else GPS auto-detect + nearest
       // serviceable city — so the home bar and city-scoped feeds are correct
       // without the user opening the picker.
-      ensureLocationInitialized(ref);
+      // If NEITHER resolves (fresh install with device location off or the
+      // permission denied), prompt IMMEDIATELY with the address picker —
+      // Swiggy-style — instead of leaving a blank "Select Location" the
+      // user has to discover on their own. The sheet offers all three exits:
+      // use live location, pick a saved address, or pin on the map.
+      ensureLocationInitialized(ref).then((_) {
+        if (!mounted) return;
+        if (ref.read(selectedLocationProvider) == null) {
+          _promptLocationPicker();
+        }
+      });
       // CACHE WARM (client bug: Instant Help showed a ~4s blank grid on
       // first open): kick the trades-master fetch NOW, at app start. The
       // provider keepAlives for 10 min, so the grid is already populated
@@ -384,6 +398,20 @@ class _MainWrapperState extends ConsumerState<MainWrapper>
   }
 
   // ── Build ────────────────────────────────────────────────────────────────
+
+  /// Swiggy-style first-run prompt: opens the address picker sheet when the
+  /// app has no location at all. One-shot per session — if the user swipes
+  /// it away they can still pick later from the home location bar.
+  void _promptLocationPicker() {
+    if (_locationPromptShown || !mounted) return;
+    _locationPromptShown = true;
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => const AddressPickerBottomSheet(),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {

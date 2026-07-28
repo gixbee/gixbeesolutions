@@ -12,6 +12,7 @@ import '../business/business_unit_dashboard.dart';
 import '../jobs/post_job_screen.dart';
 import '../jobs/my_bookings_screen.dart';
 import 'profile_subscreens.dart';
+import 'addresses/address_picker_bottom_sheet.dart';
 import 'strikes_screen.dart';
 import '../../core/theme_provider.dart';
 import '../../core/main_tab_provider.dart';
@@ -407,6 +408,20 @@ class ProfileScreen extends ConsumerWidget {
                               context,
                               MaterialPageRoute(
                                   builder: (_) => const SavedVendorsScreen()),
+                            ),
+                          ),
+
+                          _buildMenuItem(
+                            context,
+                            icon: Icons.location_on_outlined,
+                            color: const Color(0xFF0EA5E9),
+                            title: 'Saved Addresses',
+                            onTap: () => showModalBottomSheet(
+                              context: context,
+                              isScrollControlled: true,
+                              backgroundColor: Colors.transparent,
+                              builder: (_) =>
+                                  const AddressPickerBottomSheet(),
                             ),
                           ),
 

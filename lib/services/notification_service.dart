@@ -74,8 +74,12 @@ class NotificationService {
           : 'gixbee_alerts_silent_v2');
 
   static const List<AndroidNotificationChannel> _channels = [
-    // Default: sound + vibration. ID kept as gixbee_high_importance because
-    // the backend FCM payload targets this channel for background delivery.
+    // Default: sound + vibration, with the custom Gixbee chime
+    // (android/app/src/main/res/raw/gixbee_alert.wav). IDs carry a _v2
+    // suffix because Android channels are IMMUTABLE after creation — the
+    // old default-tone channels can't gain the chime, so new IDs replace
+    // them (v1 channels are deleted at init). The backend FCM payload MUST
+    // target gixbee_high_importance_v2 for background delivery.
     AndroidNotificationChannel(
       'gixbee_high_importance_v2',
       'Gixbee Job Alerts',
@@ -153,6 +157,16 @@ class NotificationService {
     final androidPlugin = _localNotifications
         .resolvePlatformSpecificImplementation<
             AndroidFlutterLocalNotificationsPlugin>();
+    // Remove the pre-chime v1 channels so updated installs don't show two
+    // duplicate "Gixbee Job Alerts" sets in system notification settings.
+    for (final oldId in const [
+      'gixbee_high_importance',
+      'gixbee_alerts_novibe',
+      'gixbee_alerts_vibe_only',
+      'gixbee_alerts_silent',
+    ]) {
+      await androidPlugin?.deleteNotificationChannel(oldId).catchError((_) {});
+    }
     for (final ch in _channels) {
       await androidPlugin?.createNotificationChannel(ch);
     }
@@ -252,7 +266,10 @@ class NotificationService {
             icon: '@mipmap/ic_launcher',
           ),
           iOS: DarwinNotificationDetails(
-            sound: soundEnabled ? 'default' : null,
+            // Custom chime — requires gixbee_alert.wav added to the Runner
+            // bundle in Xcode; iOS silently falls back to the default tone
+            // until it is.
+            sound: soundEnabled ? 'gixbee_alert.wav' : null,
             presentAlert: true,
             presentBadge: true,
             presentSound: soundEnabled,

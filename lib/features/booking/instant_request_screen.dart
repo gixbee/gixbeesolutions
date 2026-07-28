@@ -18,6 +18,7 @@ import '../jobs/pro_skill_provider.dart';
 import 'no_workers_screen.dart';
 import 'waiting_for_worker_screen.dart';
 import 'location_pin_screen.dart';
+import '../profile/addresses/save_address_bottom_sheet.dart';
 
 /// Uber/Grab-style instant request — stepped exactly like the client's v126
 /// demo (ih module c2–c6): LOCATION → PRESENCE (who receives the arrival
@@ -244,6 +245,44 @@ class _InstantRequestScreenState extends ConsumerState<InstantRequestScreen> {
       });
     }
     return true;
+  }
+
+  /// Full add-address flow FROM INSIDE the booking: pin on the map (with
+  /// Ola search) → label it Home/Work/Other with house number → the new
+  /// address is saved to the book AND selected for this booking in one go.
+  /// (The lighter "save this address" checkbox stays for quick typed spots.)
+  Future<void> _addNewSavedAddress() async {
+    final start = await _mapStartGuess();
+    if (!mounted) return;
+    final pinned = await Navigator.push<PinnedLocation>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => LocationPinScreen(
+          initialLat: start.lat,
+          initialLng: start.lng,
+          initialAddress: null,
+        ),
+      ),
+    );
+    if (!mounted || pinned == null) return;
+
+    final saved = await showModalBottomSheet<SavedAddress?>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => SaveAddressBottomSheet(pinnedLocation: pinned),
+    );
+    if (!mounted || saved == null) return;
+
+    setState(() {
+      _useCurrentLocation = false;
+      _addressCtrl.text = saved.line;
+      _selectedAddressId = saved.id;
+      _saveThisAddress = false;
+      _pinnedCoords = saved.hasPin
+          ? (lat: saved.lat!, lng: saved.lng!)
+          : (lat: pinned.lat, lng: pinned.lng);
+    });
   }
 
   Future<void> _submit() async {
@@ -640,25 +679,25 @@ class _InstantRequestScreenState extends ConsumerState<InstantRequestScreen> {
     );
   }
 
-  /// Chips for the user's saved addresses (GET /addresses). Silent when the
-  /// user has none saved or the fetch fails.
+  /// Chips for the user's saved addresses (GET /addresses) plus an
+  /// "Add new address" tile — same address-book flow as the home picker,
+  /// reachable right where booking happens. Section renders even with an
+  /// empty book so the add-new entry is always discoverable.
   Widget _savedAddresses() {
     final saved = ref.watch(myAddressesProvider);
-    return saved.maybeWhen(
-      data: (addresses) {
-        if (addresses.isEmpty) return const SizedBox.shrink();
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const SizedBox(height: 14),
-            Text('SAVED ADDRESSES',
-                style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: 1.2,
-                    color: context.gx.ink.withValues(alpha: 0.45))),
-            const SizedBox(height: 8),
-            for (final a in addresses)
+    final addresses = saved.asData?.value ?? const <SavedAddress>[];
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const SizedBox(height: 14),
+        Text('SAVED ADDRESSES',
+            style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+                letterSpacing: 1.2,
+                color: context.gx.ink.withValues(alpha: 0.45))),
+        const SizedBox(height: 8),
+        for (final a in addresses)
               GxPressable(
                 onTap: () => setState(() {
                   _addressCtrl.text = a.line;
@@ -721,10 +760,35 @@ class _InstantRequestScreenState extends ConsumerState<InstantRequestScreen> {
                   ),
                 ),
               ),
-          ],
-        );
-      },
-      orElse: () => const SizedBox.shrink(),
+        // Add new address — opens the map (with search) then the label
+        // sheet; the saved address is immediately selected for this booking.
+        GxPressable(
+          onTap: _addNewSavedAddress,
+          child: Container(
+            margin: const EdgeInsets.only(bottom: 8),
+            padding:
+                const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+            decoration: BoxDecoration(
+              color: context.gx.card2,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                  color: context.gx.accentSoft.withValues(alpha: 0.5)),
+            ),
+            child: Row(
+              children: [
+                Icon(Icons.add_location_alt_outlined,
+                    size: 16, color: context.gx.accentSoft),
+                const SizedBox(width: 10),
+                Text('Add new address',
+                    style: TextStyle(
+                        fontSize: 12.5,
+                        fontWeight: FontWeight.w800,
+                        color: context.gx.accentSoft)),
+              ],
+            ),
+          ),
+        ),
+      ],
     );
   }
 

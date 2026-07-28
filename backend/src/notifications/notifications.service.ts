@@ -25,6 +25,7 @@ export class NotificationsService implements OnModuleInit {
       // Strategy 1: Use JSON key file (most reliable)
       const keyFilePath = this.configService.get<string>('FIREBASE_KEY_PATH');
       const googleAppCreds = process.env.GOOGLE_APPLICATION_CREDENTIALS;
+      let initialized = false;
 
       if (keyFilePath || googleAppCreds) {
         const filePath = keyFilePath || googleAppCreds;
@@ -34,12 +35,25 @@ export class NotificationsService implements OnModuleInit {
           admin.initializeApp({
             credential: admin.credential.cert(serviceAccount),
           });
+          initialized = true;
           this.logger.log(`Firebase Admin SDK initialized from JSON file: ${filePath}`);
         } catch (e) {
-          this.logger.error(`Failed to load Firebase key file at ${filePath}: ${e}`);
-          return;
+          // PROD TRAP: the key file is gitignored, so on a fresh server it
+          // doesn't exist — and Docker turns a MISSING bind-mount source
+          // into an empty DIRECTORY at this path, making require() throw
+          // EISDIR. The old code `return`ed here, permanently disabling
+          // FCM even when env-var credentials were available. Now we log
+          // loudly and FALL THROUGH to Strategy 2.
+          this.logger.error(
+            `Failed to load Firebase key file at ${filePath}: ${e}. ` +
+              `If this path is an empty directory, the JSON key is missing ` +
+              `on the host (it is gitignored — copy it to the server ` +
+              `manually). Falling back to FIREBASE_* env variables…`,
+          );
         }
-      } else {
+      }
+
+      if (!initialized) {
         // Strategy 2: Fall back to individual .env variables
         const projectId = this.configService.get<string>('FIREBASE_PROJECT_ID');
         const clientEmail = this.configService.get<string>('FIREBASE_CLIENT_EMAIL');
@@ -55,10 +69,15 @@ export class NotificationsService implements OnModuleInit {
           return;
         }
 
-        admin.initializeApp({
-          credential: admin.credential.cert({ projectId, clientEmail, privateKey }),
-        });
-        this.logger.log('Firebase Admin SDK initialized from .env variables');
+        try {
+          admin.initializeApp({
+            credential: admin.credential.cert({ projectId, clientEmail, privateKey }),
+          });
+          this.logger.log('Firebase Admin SDK initialized from .env variables');
+        } catch (e) {
+          this.logger.error(`Firebase env-var credential init failed: ${e}`);
+          return;
+        }
       }
     }
 
@@ -259,8 +278,10 @@ export class NotificationsService implements OnModuleInit {
         android: {
           priority: 'high',
           notification: {
-            channelId: 'gixbee_high_importance',
-            sound: 'default',
+            // Mirror production sends exactly — a test on the old/deleted v1
+            // channel would "pass" while real job offers misfire.
+            channelId: 'gixbee_high_importance_v2',
+            sound: 'gixbee_alert',
             priority: 'max',
           },
         },
@@ -317,18 +338,19 @@ export class NotificationsService implements OnModuleInit {
         // Same wake-the-device config as sendToDevice — without the channel +
         // sound + max priority, job offers land on Android's default channel
         // and locked phones never ring (worker misses the job entirely).
+        // MUST match the app's v2 channel ids (v1 channels are DELETED at app
+        // init since the custom-chime migration) and the raw chime resource.
         android: {
           priority: 'high',
           notification: {
-            channelId: 'gixbee_high_importance',
-            sound: 'default',
+            channelId: 'gixbee_high_importance_v2',
+            sound: 'gixbee_alert',
             priority: 'max',
-            defaultSound: true,
           },
         },
         apns: {
           payload: {
-            aps: { sound: 'default', badge: 1, contentAvailable: true },
+            aps: { sound: 'gixbee_alert.wav', badge: 1, contentAvailable: true },
           },
           headers: { 'apns-priority': '10' },
         },

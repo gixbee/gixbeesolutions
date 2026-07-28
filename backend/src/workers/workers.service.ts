@@ -420,6 +420,29 @@ export class WorkersService {
           `You have gone live ${dailyLimit} times today, which is the daily limit. Try again tomorrow.`,
         );
       }
+
+      // ── Location gate ──
+      // A live worker with NO coordinates never enters the Redis geo index —
+      // they'd burn a go-live session appearing online while receiving zero
+      // jobs. The app enforces this client-side (GPS-required sheet); this
+      // closes the loop for modified/legacy clients: going live requires
+      // coords in THIS request, or a previously persisted location we can
+      // warm the index with (the 30s heartbeat then keeps it fresh).
+      const reqLat = coords?.lat;
+      const reqLng = coords?.lng;
+      const hasRequestCoords =
+        typeof reqLat === 'number' &&
+        typeof reqLng === 'number' &&
+        Number.isFinite(reqLat) &&
+        Number.isFinite(reqLng);
+      const hasStoredCoords =
+        profile.lastLat != null && profile.lastLng != null;
+      if (!hasRequestCoords && !hasStoredCoords) {
+        throw new BadRequestException(
+          'Location is required to go live — customers are matched to pros ' +
+            'by live GPS. Enable location and try again.',
+        );
+      }
     }
 
     // Process toggle

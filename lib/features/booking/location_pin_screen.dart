@@ -6,6 +6,7 @@ import '../../core/config/app_config.dart';
 import '../../theme.dart';
 import '../../services/ola_maps_style_service.dart';
 import '../../shared/widgets/gx_button.dart';
+import '../profile/addresses/location_search_delegate.dart';
 
 /// Result of a pin-drop: the exact coordinates the user confirmed, plus a
 /// best-effort reverse-geocoded address label.
@@ -215,36 +216,51 @@ class _LocationPinScreenState extends State<LocationPinScreen> {
               ),
             ),
 
-            // Helper hint at top
+            // Search bar overlay
             Positioned(
               top: 16,
               left: 64,
               right: 16,
-              child: Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                decoration: BoxDecoration(
-                  color: context.gx.card,
-                  borderRadius: BorderRadius.circular(12),
-                  boxShadow: [
-                    BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.08),
-                        blurRadius: 8),
-                  ],
-                ),
-                child: Row(
-                  children: [
-                    Icon(Icons.touch_app_rounded,
-                        size: 16, color: context.gx.accentSoft),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text('Move the map to place the pin on your gate',
-                          style: TextStyle(
-                              fontSize: 12.5,
-                              fontWeight: FontWeight.w600,
-                              color: context.gx.ink)),
-                    ),
-                  ],
+              child: GestureDetector(
+                onTap: () async {
+                  final place = await showSearch<OlaPlace?>(
+                    context: context,
+                    delegate: LocationSearchDelegate(),
+                  );
+                  if (place != null && _controller != null) {
+                    _controller!.animateCamera(
+                      CameraUpdate.newLatLngZoom(
+                        LatLng(place.lat, place.lng),
+                        16.0,
+                      ),
+                    );
+                  }
+                },
+                child: Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                  decoration: BoxDecoration(
+                    color: context.gx.card,
+                    borderRadius: BorderRadius.circular(12),
+                    boxShadow: [
+                      BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.08),
+                          blurRadius: 8),
+                    ],
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(Icons.search,
+                          size: 20, color: context.gx.ink.withValues(alpha: 0.5)),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text('Search an area or address...',
+                            style: TextStyle(
+                                fontSize: 14,
+                                color: context.gx.ink.withValues(alpha: 0.5))),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),

@@ -51,6 +51,29 @@ class LocationService {
     );
   }
 
+  /// Why a GPS fix is currently impossible:
+  /// - 'service_off'    — device location is disabled (needs the LOCATION
+  ///                      settings screen, not app settings)
+  /// - 'denied_forever'  — permission permanently denied (needs APP settings)
+  /// - 'denied'          — denied but re-promptable
+  /// - null              — nothing blocking; a fix should be attainable.
+  Future<String?> gpsBlockReason() async {
+    if (kIsWeb) return null;
+    if (!await Geolocator.isLocationServiceEnabled()) return 'service_off';
+    final permission = await Geolocator.checkPermission();
+    if (permission == LocationPermission.deniedForever) {
+      return 'denied_forever';
+    }
+    if (permission == LocationPermission.denied) return 'denied';
+    return null;
+  }
+
+  /// Opens the device's LOCATION settings (for 'service_off').
+  Future<bool> openLocationSettings() => Geolocator.openLocationSettings();
+
+  /// Opens this app's settings page (for 'denied_forever').
+  Future<bool> openAppSettings() => Geolocator.openAppSettings();
+
   Future<String> getAddressFromLatLng(Position position) async {
     // The 'geocoding' package does not support Flutter Web
     if (kIsWeb) {
