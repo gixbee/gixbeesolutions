@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:razorpay_flutter/razorpay_flutter.dart';
@@ -66,29 +67,21 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
   }
 
   void _handlePaymentSuccess(PaymentSuccessResponse response) async {
-    try {
-      final repo = ref.read(walletRepositoryProvider);
-      
-      // 1. Notify backend to verify and credit
-      await repo.verifyPayment(
-        paymentId: response.paymentId!,
-        orderId: response.orderId,
-        signature: response.signature,
-      );
-
-      if (!mounted) return;
-
-      showGxSnack(context, 'Wallet credited successfully!',
-          type: GxSnackType.success);
-
-      // 2. Refresh local data
-      _fetchWalletData();
-    } catch (e) {
-      if (mounted) {
-        showGxSnack(context, 'Payment verification failed: $e',
-            type: GxSnackType.error);
-      }
-    }
+    // WEBHOOK-ONLY CREDITING: the server credits the wallet when Razorpay's
+    // signed webhook lands (usually within seconds). The app just refreshes
+    // — twice, staggered — so the balance appears without user action.
+    if (!mounted) return;
+    showGxSnack(
+      context,
+      'Payment received — updating your balance…',
+      type: GxSnackType.success,
+    );
+    Future.delayed(const Duration(seconds: 2), () {
+      if (mounted) _fetchWalletData();
+    });
+    Future.delayed(const Duration(seconds: 6), () {
+      if (mounted) _fetchWalletData();
+    });
   }
 
   void _handlePaymentError(PaymentFailureResponse response) {
@@ -100,7 +93,7 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
     showGxSnack(context, 'External Wallet Selected: ${response.walletName}');
   }
 
-  void _startTopUp() {
+  Future<void> _startTopUp() async {
     final amount = double.tryParse(_topUpAmountCtrl.text);
     if (amount == null || amount < AppConfig.walletMinTopUp) {
       showGxSnack(context,
@@ -116,9 +109,34 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
     }
     final user = userState.value;
 
+    // SERVER-SIDE ORDER FIRST (fix: checkout used to open with just the
+    // client key and no order_id — no server record existed, so nothing
+    // could ever be credited). The webhook credits against this order.
+    Map<String, dynamic> order;
+    try {
+      order = await ref
+          .read(walletRepositoryProvider)
+          .createRechargeOrder(amount);
+    } on DioException catch (e) {
+      final msg = e.response?.data is Map
+          ? (e.response?.data['message']?.toString() ??
+              'Could not start the payment')
+          : 'Could not start the payment';
+      if (mounted) showGxSnack(context, msg, type: GxSnackType.error);
+      return;
+    } catch (_) {
+      if (mounted) {
+        showGxSnack(context, 'Could not start the payment',
+            type: GxSnackType.error);
+      }
+      return;
+    }
+
     var options = {
-      'key': AppConfig.razorpayKey,
-      'amount': (amount * 100).toInt(), // Razorpay expects amount in paise
+      'key': order['keyId'] ?? AppConfig.razorpayKey,
+      'amount': order['amount'], // paise, echoed by the server
+      'order_id': order['orderId'],
+      'currency': order['currency'] ?? 'INR',
       'name': AppConfig.appName,
       'description': AppConfig.walletTopUpDescription,
       'timeout': AppConfig.paymentTimeoutSeconds,

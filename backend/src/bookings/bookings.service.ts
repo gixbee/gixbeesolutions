@@ -575,15 +575,23 @@ export class BookingsService {
     // ── STEP 2: Money side effect (kept in service; non-fatal) ──────────────
     // FCM / socket / Redis / GPS jobs moved to outbox listener (BOOKING_ACCEPTED).
 
-    // Deduct platform fee from worker wallet only on initial acceptance
+    // Deduct platform fee from worker wallet only on initial acceptance —
+    // and ONLY under the legacy per-booking model. Under the periodic plan
+    // (go_live_jobs_per_payment > 0) the fee is collected at the Go Live
+    // gate instead of dripping ₹12 per accept.
     if ((savedBooking as any)?._idempotent !== true) {
-      try {
-        console.log('[AcceptBooking] Deducting booking fee...');
-        await this.walletsService.deductBookingFee(workerId);
-        console.log('[AcceptBooking] Booking fee deducted');
-      } catch (error) {
-        // Log but don't fail the accept — fee can be reconciled later
-        console.error('[AcceptBooking] Wallet deduction failed (non-fatal):', error?.message ?? error);
+      const periodicJobs = await this.workersService
+        .periodicJobsPerPayment()
+        .catch(() => 0);
+      if (periodicJobs <= 0) {
+        try {
+          console.log('[AcceptBooking] Deducting booking fee...');
+          await this.walletsService.deductBookingFee(workerId);
+          console.log('[AcceptBooking] Booking fee deducted');
+        } catch (error) {
+          // Log but don't fail the accept — fee can be reconciled later
+          console.error('[AcceptBooking] Wallet deduction failed (non-fatal):', error?.message ?? error);
+        }
       }
     }
 
@@ -1083,11 +1091,24 @@ export class BookingsService {
     if (booking.operator?.id) {
       await this.workersService.setWorkerStatus(booking.operator.id, 'available');
 
+      // Periodic fee plan: this completion consumes one included job
+      // (atomic increment; no-op while the plan is off).
+      await this.workersService
+        .recordCompletedJobForPeriod(booking.operator.id)
+        .catch(() => {});
+
       const workerProfile = await this.workerProfileRepo.findOne({
         where: { user: { id: booking.operator.id } },
       });
       if (workerProfile && !workerProfile.isFirstJobDone) {
-        await this.walletsService.addFunds(booking.operator.id, 12);
+        // The ₹12 first-job bonus exists to seed the LEGACY per-accept fee
+        // wallet — under the periodic plan it would just be free money.
+        const periodicJobs = await this.workersService
+          .periodicJobsPerPayment()
+          .catch(() => 0);
+        if (periodicJobs <= 0) {
+          await this.walletsService.addFunds(booking.operator.id, 12);
+        }
         workerProfile.isFirstJobDone = true;
         await this.workerProfileRepo.save(workerProfile);
       }

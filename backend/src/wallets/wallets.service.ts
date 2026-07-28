@@ -88,7 +88,11 @@ export class WalletsService {
     });
   }
 
-  async addFunds(userId: string, amount: number): Promise<number> {
+  async addFunds(
+    userId: string,
+    amount: number,
+    description = 'Wallet Recharge',
+  ): Promise<number> {
     return this.dataSource.transaction(async (manager) => {
       const user = await manager
         .createQueryBuilder(User, 'user')
@@ -105,7 +109,7 @@ export class WalletsService {
           user,
           amount,
           type: TransactionType.CREDIT,
-          description: 'Wallet Recharge',
+          description,
         }),
       );
 

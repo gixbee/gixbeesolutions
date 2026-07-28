@@ -142,6 +142,14 @@ export class WorkersController {
     return this.workersService.setActiveSkills(req.user.userId, body?.skills ?? []);
   }
 
+  /// Periodic fee plan ("N jobs, then pay"): pay the period fee to unlock
+  /// the next batch of included jobs. Wallet-charged; resets the counter.
+  /// Master Entries: go_live_jobs_per_payment / go_live_period_fee.
+  @Post('me/pay-period-fee')
+  async payPeriodFee(@Req() req) {
+    return this.workersService.payPeriodFee(req.user.userId);
+  }
+
   @Get(':id')
   async getById(@Param('id') id: string) {
     return this.workersService.getById(id);

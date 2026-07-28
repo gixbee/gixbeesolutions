@@ -46,7 +46,11 @@ function assertProductionSecrets() {
 async function bootstrap() {
   assertProductionSecrets();
 
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create(AppModule, {
+    // Raw body retained for HMAC verification of the Razorpay webhook
+    // (POST /payments/webhook) — parsed body alone cannot be re-signed.
+    rawBody: true,
+  });
 
   // Multi-instance Socket.IO fan-out via Redis. Fail-soft: if Redis is down
   // at boot we keep the default in-memory adapter (fine for single-process dev).

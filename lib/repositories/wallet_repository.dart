@@ -34,22 +34,18 @@ class WalletRepository {
     }
   }
 
-  // ── PAYMENT VERIFICATION ──
+  // ── RAZORPAY RECHARGE ──
 
-  Future<void> verifyPayment({
-    required String paymentId,
-    String? orderId,
-    String? signature,
-  }) async {
-    try {
-      await _dio.post('/wallets/verify-payment', data: {
-        'paymentId': paymentId,
-        'orderId': orderId,
-        'signature': signature,
-      });
-    } catch (e) {
-      debugPrint('VerifyAndCredit failed: $e');
-      rethrow;
-    }
+  /// Step 1 of a wallet recharge: the SERVER creates the Razorpay order.
+  /// `POST /payments/recharge/order` → {orderId, amount(paise), currency,
+  /// keyId}. Checkout must be opened with this orderId; crediting happens
+  /// exclusively via the signature-verified Razorpay webhook — the app
+  /// never confirms payments itself.
+  Future<Map<String, dynamic>> createRechargeOrder(double amount) async {
+    final response = await _dio.post(
+      '/payments/recharge/order',
+      data: {'amount': amount},
+    );
+    return Map<String, dynamic>.from(response.data as Map);
   }
 }

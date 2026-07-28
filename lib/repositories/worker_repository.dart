@@ -184,6 +184,14 @@ class WorkerRepository {
     return Map<String, dynamic>.from(response.data as Map);
   }
 
+  /// Periodic fee plan ("N jobs, then pay"): pay the period fee to unlock
+  /// the next batch of included jobs. `POST /workers/me/pay-period-fee`
+  /// — charged from the Gixbee wallet; resets the per-period counter.
+  Future<Map<String, dynamic>> payPeriodFee() async {
+    final response = await _dio.post('/workers/me/pay-period-fee');
+    return Map<String, dynamic>.from(response.data as Map);
+  }
+
   /// `PATCH /workers/me/languages` — languages this pro speaks (v126
   /// language matching; broadcast fan-outs only notify overlapping pros).
   Future<void> setLanguages(List<String> languages) async {

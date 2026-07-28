@@ -1,80 +1,286 @@
-import { Injectable, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  BadRequestException,
+  ForbiddenException,
+  Logger,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
+import * as crypto from 'crypto';
+import { PaymentOrder, PaymentOrderStatus } from './payment-order.entity';
+import { WalletsService } from '../wallets/wallets.service';
+import { MasterEntriesService } from '../master-entries/master-entries.service';
 
 /**
- * Payment-gateway stub service (Phase 5 — credential-blocked).
+ * Razorpay wallet-recharge integration.
  *
- * PhonePe / UPI gateway integration is intentionally NOT live: no merchant
- * credentials are configured yet. This service reports gateway readiness and
- * returns a clear "needs API key" state instead of faking transactions.
+ * Flow:
+ *  1. App: POST /payments/recharge/order {amount} → we create a Razorpay
+ *     Order (server-side, REST API with key secret — no SDK dependency) and
+ *     persist a PaymentOrder row (CREATED).
+ *  2. App opens Razorpay Checkout with that order_id.
+ *  3. Razorpay calls POST /payments/webhook (payment.captured). We verify
+ *     the HMAC signature against the RAW body, atomically claim the order
+ *     (CREATED → CREDITED — duplicate deliveries and the parallel
+ *     order.paid event lose the claim and are ignored), then credit the
+ *     wallet. First credited recharge can add a bonus
+ *     (Master Entries → first_recharge_bonus, ₹, 0 = off).
  *
- * // TODO: needs PhonePe API key — set PHONEPE_MERCHANT_ID, PHONEPE_SALT_KEY,
- * //       PHONEPE_SALT_INDEX env vars, then implement the real /pg/v1/pay
- * //       call + server-to-server callback verification here.
+ * The client's payment-success callback NEVER credits — webhook-only, so a
+ * modified client cannot mint balance.
  */
 @Injectable()
 export class PaymentsService {
-  constructor(private readonly config: ConfigService) {}
+  private readonly logger = new Logger(PaymentsService.name);
 
-  /** True only when all PhonePe merchant credentials are present. */
-  private get phonepeConfigured(): boolean {
-    return Boolean(
-      this.config.get<string>('PHONEPE_MERCHANT_ID') &&
-        this.config.get<string>('PHONEPE_SALT_KEY'),
-    );
+  constructor(
+    private readonly config: ConfigService,
+    @InjectRepository(PaymentOrder)
+    private readonly ordersRepo: Repository<PaymentOrder>,
+    private readonly walletsService: WalletsService,
+    private readonly masterEntriesService: MasterEntriesService,
+  ) {}
+
+  private get keyId(): string {
+    return this.config.get<string>('RAZORPAY_KEY_ID') ?? '';
+  }
+  private get keySecret(): string {
+    return this.config.get<string>('RAZORPAY_KEY_SECRET') ?? '';
+  }
+  private get webhookSecret(): string {
+    return this.config.get<string>('RAZORPAY_WEBHOOK_SECRET') ?? '';
+  }
+  private get razorpayConfigured(): boolean {
+    return Boolean(this.keyId && this.keySecret);
   }
 
   /**
-   * Gateway readiness for the client payment-method picker.
-   * The Flutter app uses this to render UPI/PhonePe as live vs.
-   * "setup pending" without hard-coding the state client-side.
+   * Gateway readiness for the client payment-method picker. Razorpay drives
+   * wallet recharge; wallet/cash remain the booking settlement methods.
    */
   getGatewayStatus() {
     return {
       wallet: { available: true },
       cash: { available: true },
-      upi: {
-        available: this.phonepeConfigured,
-        provider: 'PHONEPE',
-        needsApiKey: !this.phonepeConfigured,
-        message: this.phonepeConfigured
+      razorpay: {
+        available: this.razorpayConfigured,
+        needsApiKey: !this.razorpayConfigured,
+        message: this.razorpayConfigured
           ? null
-          : 'PhonePe gateway not configured — merchant API key required',
+          : 'Razorpay not configured — set RAZORPAY_KEY_ID / RAZORPAY_KEY_SECRET',
+      },
+      // Legacy field kept so older app builds' pickers don't break.
+      upi: {
+        available: false,
+        provider: 'PHONEPE',
+        needsApiKey: true,
+        message: 'Direct UPI gateway not configured — use wallet recharge.',
       },
     };
   }
 
   /**
-   * UPI payment initiation — stubbed until credentials exist.
-   * Never fakes a success: when unconfigured it returns an explicit
-   * needs-API-key payload (HTTP 200 so clients can branch on it cleanly).
+   * Create a Razorpay Order for a wallet recharge and persist the ledger
+   * row. Returns exactly what Checkout needs; the amount is echoed in PAISE
+   * because that is Razorpay's unit.
    */
-  initiateUpiPayment(userId: string, body: { amount?: number; bookingId?: string }) {
-    const amount = Number(body?.amount);
-    if (!Number.isFinite(amount) || amount <= 0) {
-      throw new BadRequestException('A positive amount is required');
+  async createRechargeOrder(
+    userId: string,
+    amount: number,
+  ): Promise<{
+    orderId: string;
+    amount: number;
+    currency: string;
+    keyId: string;
+  }> {
+    const rupees = Math.round(Number(amount));
+    if (!Number.isFinite(rupees) || rupees < 10 || rupees > 100000) {
+      throw new BadRequestException(
+        'Recharge amount must be between ₹10 and ₹1,00,000.',
+      );
+    }
+    if (!this.razorpayConfigured) {
+      throw new BadRequestException(
+        'Online recharge is not available yet — payment gateway is not configured on the server.',
+      );
     }
 
-    if (!this.phonepeConfigured) {
-      // TODO: needs PhonePe API key — replace this stub with the real
-      // PhonePe Pay API request once merchant credentials are provided.
-      return {
-        status: 'UNAVAILABLE',
-        needsApiKey: true,
-        provider: 'PHONEPE',
-        message:
-          'UPI payments are not live yet: the PhonePe merchant API key has not been configured. Choose Wallet or Cash instead.',
-      };
+    const auth = Buffer.from(`${this.keyId}:${this.keySecret}`).toString(
+      'base64',
+    );
+    const res = await fetch('https://api.razorpay.com/v1/orders', {
+      method: 'POST',
+      headers: {
+        Authorization: `Basic ${auth}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        amount: rupees * 100, // paise
+        currency: 'INR',
+        receipt: `rcg_${Date.now().toString(36)}`,
+        notes: { gixbeeUserId: userId, purpose: 'wallet_recharge' },
+      }),
+    });
+
+    if (!res.ok) {
+      const detail = await res.text().catch(() => '');
+      this.logger.error(
+        `[Razorpay] order create failed (${res.status}): ${detail.slice(0, 500)}`,
+      );
+      throw new BadRequestException(
+        'Could not start the payment — please try again in a moment.',
+      );
     }
 
-    // Credentials exist but the real integration is still to be written —
-    // refuse rather than pretend the charge happened.
+    const order = (await res.json()) as { id: string };
+    await this.ordersRepo.save(
+      this.ordersRepo.create({
+        userId,
+        amount: rupees,
+        razorpayOrderId: order.id,
+        status: PaymentOrderStatus.CREATED,
+      }),
+    );
+
+    this.logger.log(
+      `[Razorpay] order ${order.id} created — ₹${rupees} recharge for ${userId}`,
+    );
     return {
-      status: 'NOT_IMPLEMENTED',
-      needsApiKey: false,
-      provider: 'PHONEPE',
-      message:
-        'PhonePe credentials detected, but the gateway call is not implemented yet.',
+      orderId: order.id,
+      amount: rupees * 100,
+      currency: 'INR',
+      keyId: this.keyId,
     };
+  }
+
+  /** Constant-time HMAC-SHA256 check against the RAW request body. */
+  private verifyWebhookSignature(rawBody: Buffer, signature: string): boolean {
+    if (!this.webhookSecret || !signature) return false;
+    const expected = crypto
+      .createHmac('sha256', this.webhookSecret)
+      .update(rawBody)
+      .digest('hex');
+    try {
+      return crypto.timingSafeEqual(
+        Buffer.from(expected),
+        Buffer.from(signature),
+      );
+    } catch {
+      return false;
+    }
+  }
+
+  /**
+   * Razorpay webhook — the ONLY place wallet credit happens.
+   *
+   * Idempotency: the CREATED → CREDITED transition is a single conditional
+   * UPDATE; whichever delivery wins credits, every other delivery
+   * (retries, the parallel order.paid event) affects 0 rows and is ignored.
+   * If the wallet credit itself fails after a successful claim, the claim
+   * is reverted and we throw — Razorpay retries the webhook and the credit
+   * is attempted again.
+   */
+  async handleWebhook(
+    rawBody: Buffer | undefined,
+    signature: string | undefined,
+  ): Promise<{ ok: boolean; duplicate?: boolean; ignored?: string }> {
+    if (!rawBody || rawBody.length === 0) {
+      throw new BadRequestException('Missing request body');
+    }
+    if (!this.verifyWebhookSignature(rawBody, signature ?? '')) {
+      this.logger.warn('[Razorpay] webhook signature mismatch — rejected');
+      throw new ForbiddenException('Invalid signature');
+    }
+
+    let event: any;
+    try {
+      event = JSON.parse(rawBody.toString('utf8'));
+    } catch {
+      throw new BadRequestException('Invalid JSON');
+    }
+
+    const type = String(event?.event ?? '');
+    if (type !== 'payment.captured' && type !== 'order.paid') {
+      return { ok: true, ignored: type };
+    }
+
+    const payment = event?.payload?.payment?.entity;
+    const orderId: string | undefined =
+      payment?.order_id ?? event?.payload?.order?.entity?.id;
+    const paymentId: string | null = payment?.id ?? null;
+    if (!orderId) return { ok: true, ignored: 'no order id' };
+
+    // Atomic idempotent claim.
+    const claim = await this.ordersRepo.update(
+      { razorpayOrderId: orderId, status: PaymentOrderStatus.CREATED },
+      { status: PaymentOrderStatus.CREDITED, razorpayPaymentId: paymentId },
+    );
+    if (!claim.affected) {
+      this.logger.log(
+        `[Razorpay] ${orderId}: already credited or unknown — duplicate delivery ignored`,
+      );
+      return { ok: true, duplicate: true };
+    }
+
+    const order = await this.ordersRepo.findOne({
+      where: { razorpayOrderId: orderId },
+    });
+    if (!order) return { ok: true }; // unreachable after a successful claim
+
+    try {
+      await this.walletsService.addFunds(
+        order.userId,
+        Number(order.amount),
+        'Wallet Recharge (Razorpay)',
+      );
+      this.logger.log(
+        `[Razorpay] ${orderId}: credited ₹${order.amount} to ${order.userId}`,
+      );
+    } catch (e) {
+      // Revert the claim so Razorpay's retry can credit again.
+      await this.ordersRepo
+        .update(
+          { razorpayOrderId: orderId },
+          { status: PaymentOrderStatus.CREATED, razorpayPaymentId: null },
+        )
+        .catch(() => {});
+      this.logger.error(
+        `[Razorpay] ${orderId}: wallet credit FAILED — claim reverted for retry: ${
+          (e as Error)?.message ?? e
+        }`,
+      );
+      throw e; // 5xx → Razorpay retries the webhook
+    }
+
+    // First-recharge bonus (Master Entries → first_recharge_bonus, ₹, 0=off).
+    try {
+      const creditedCount = await this.ordersRepo.count({
+        where: { userId: order.userId, status: PaymentOrderStatus.CREDITED },
+      });
+      if (creditedCount === 1) {
+        const bonus = await this.masterEntriesService.getConfigNumber(
+          'first_recharge_bonus',
+          0,
+        );
+        if (bonus > 0) {
+          await this.walletsService.addFunds(
+            order.userId,
+            bonus,
+            'First recharge bonus',
+          );
+          this.logger.log(
+            `[Razorpay] first-recharge bonus ₹${bonus} → ${order.userId}`,
+          );
+        }
+      }
+    } catch (e) {
+      // Bonus is best-effort — never fail the webhook over it.
+      this.logger.warn(
+        `[Razorpay] first-recharge bonus failed: ${(e as Error)?.message ?? e}`,
+      );
+    }
+
+    return { ok: true };
   }
 }

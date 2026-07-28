@@ -40,6 +40,7 @@ import { MasterEntry } from './master-entries/master-entry.entity';
 import { MessagesModule } from './messages/messages.module';
 import { Message } from './messages/message.entity';
 import { PaymentsModule } from './payments/payments.module';
+import { PaymentOrder } from './payments/payment-order.entity';
 import { FavouritesModule } from './favourites/favourites.module';
 import { Favourite } from './favourites/favourite.entity';
 import { AddressesModule } from './addresses/addresses.module';
@@ -80,7 +81,7 @@ import { SystemMetricsModule } from './system-metrics/system-metrics.module';
             JobPreference, HiringRequest, HiringInterest,
             Business, TalentProfile, ProfessionalSkill, MasterEntry,
             Message, Favourite, Address, City, SupportTicket, AdminStaff,
-            OutboxEvent, SystemLog,
+            OutboxEvent, SystemLog, PaymentOrder,
           ],
           synchronize: !isProduction,   // auto-sync only in development
           migrations: [__dirname + '/migrations/**/*{.ts,.js}'],

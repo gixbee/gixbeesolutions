@@ -19,16 +19,18 @@ class ThemeChoiceNotifier extends StateNotifier<AppThemeChoice> {
   ThemeChoiceNotifier(super.initial);
 
   /// Read the persisted choice. Called once in main() before the first frame.
+  /// DEFAULT IS GRAB LIGHT (grab-green): fresh installs and any unknown value
+  /// land on grabLight; only an explicit saved gixbeeDark keeps dark.
   static Future<AppThemeChoice> restore() async {
     try {
       final raw = await _storage.read(key: _kThemeKey);
-      if (raw == AppThemeChoice.grabLight.name) {
-        return AppThemeChoice.grabLight;
+      if (raw == AppThemeChoice.gixbeeDark.name) {
+        return AppThemeChoice.gixbeeDark;
       }
     } catch (e) {
       debugPrint('Theme restore failed: $e');
     }
-    return AppThemeChoice.gixbeeDark;
+    return AppThemeChoice.grabLight;
   }
 
   Future<void> set(AppThemeChoice choice) async {
@@ -42,9 +44,10 @@ class ThemeChoiceNotifier extends StateNotifier<AppThemeChoice> {
 }
 
 /// Overridden in main() with the value restored from secure storage, so the
-/// very first frame already wears the user's chosen theme.
+/// very first frame already wears the user's chosen theme. Grab Light is
+/// the product default.
 final initialThemeChoiceProvider =
-    Provider<AppThemeChoice>((_) => AppThemeChoice.gixbeeDark);
+    Provider<AppThemeChoice>((_) => AppThemeChoice.grabLight);
 
 final themeChoiceProvider =
     StateNotifierProvider<ThemeChoiceNotifier, AppThemeChoice>(

@@ -1,17 +1,18 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../../core/config/app_config.dart';
 import '../../repositories/auth_repository.dart';
 import '../../shared/widgets/gx_snackbar.dart';
-import '../../theme.dart';
 import 'auth_chrome.dart';
 import 'otp_screen.dart';
 
-/// Phone sign-in — standard layout: back, brand, title, phone field, CTA.
-/// Dark + brand-orange regardless of Profile → Appearance.
+/// Phone sign-in — grab-green auth look (theme-aware via AuthPalette):
+/// brand wordmark, clear title, single phone card with +91 chip, trust row,
+/// and the green CTA pinned above the keyboard-safe footer.
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
 
@@ -96,8 +97,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
 
   @override
   Widget build(BuildContext context) {
+    final p = AuthPalette.of(context);
     return Scaffold(
-      backgroundColor: GixbeeTheme.background,
+      backgroundColor: p.bgBottom,
+      resizeToAvoidBottomInset: true,
       body: AuthBackdrop(
         child: SafeArea(
           child: AuthEntrance(
@@ -109,27 +112,31 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                 children: [
                   const AuthBackButton(),
                   const SizedBox(height: 28),
-                  const AuthWordmark(fontSize: 36),
-                  const SizedBox(height: 28),
+                  const AuthWordmark(fontSize: 38),
+                  const SizedBox(height: 26),
                   Text(
-                    'Sign in',
+                    'Sign in with mobile',
                     style: GoogleFonts.outfit(
-                      fontSize: 28,
-                      fontWeight: FontWeight.w700,
-                      color: Colors.white,
+                      fontSize: 27,
+                      fontWeight: FontWeight.w800,
+                      color: p.ink,
+                      height: 1.15,
                     ),
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    'We’ll text you a one-time code. New numbers are registered automatically.',
+                    'We\u2019ll text you a one-time code — no passwords. '
+                    'New numbers are registered automatically.',
                     style: GoogleFonts.outfit(
-                      fontSize: 15,
-                      height: 1.4,
-                      color: Colors.white.withValues(alpha: 0.55),
+                      fontSize: 14.5,
+                      height: 1.45,
+                      color: p.sub,
                     ),
                   ),
-                  const SizedBox(height: 32),
-                  _phoneField(),
+                  const SizedBox(height: 28),
+                  _phoneField(p),
+                  const SizedBox(height: 14),
+                  _trustRow(p),
                   if (kDebugMode) ...[
                     const SizedBox(height: 14),
                     _devBanner(),
@@ -146,7 +153,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                     textAlign: TextAlign.center,
                     style: GoogleFonts.outfit(
                       fontSize: 11,
-                      color: Colors.white.withValues(alpha: 0.32),
+                      color: p.faint,
                     ),
                   ),
                 ],
@@ -158,52 +165,96 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
     );
   }
 
-  Widget _phoneField() {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 2),
+  Widget _phoneField(AuthPalette p) {
+    final focused = _focusNode.hasFocus;
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 160),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
       decoration: BoxDecoration(
-        color: const Color(0xFF1A1A26),
-        borderRadius: BorderRadius.circular(14),
+        color: p.surface,
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: _focusNode.hasFocus
-              ? GixbeeTheme.brandOrange
-              : const Color(0xFF2A2A3A),
-          width: _focusNode.hasFocus ? 1.5 : 1,
+          color: focused ? kAuthGreen : p.surfaceBorder,
+          width: focused ? 1.6 : 1,
         ),
+        boxShadow: [
+          if (p.isLight)
+            BoxShadow(
+              color: focused
+                  ? kAuthGreen.withValues(alpha: 0.14)
+                  : Colors.black.withValues(alpha: 0.05),
+              blurRadius: focused ? 16 : 10,
+              offset: const Offset(0, 4),
+            ),
+        ],
       ),
-      child: TextField(
-        controller: _phoneController,
-        focusNode: _focusNode,
-        autofocus: true,
-        keyboardType: TextInputType.phone,
-        textInputAction: TextInputAction.done,
-        onSubmitted: (_) => _sendCode(),
-        style: GoogleFonts.outfit(
-          color: Colors.white,
-          fontSize: 18,
-          fontWeight: FontWeight.w600,
-        ),
-        decoration: InputDecoration(
-          hintText: '98765 43210',
-          prefixText: '${AppConfig.defaultCountryCode}  ',
-          prefixStyle: GoogleFonts.outfit(
-            color: GixbeeTheme.brandOrange,
-            fontSize: 18,
-            fontWeight: FontWeight.w700,
+      child: Row(
+        children: [
+          // Country chip
+          Container(
+            margin: const EdgeInsets.symmetric(vertical: 8),
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+            decoration: BoxDecoration(
+              color: kAuthGreen.withValues(alpha: 0.10),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Text(
+              '\u{1F1EE}\u{1F1F3}  ${AppConfig.defaultCountryCode}',
+              style: GoogleFonts.outfit(
+                color: kAuthGreenDeep,
+                fontSize: 15,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
           ),
-          hintStyle: GoogleFonts.outfit(
-            color: Colors.white.withValues(alpha: 0.28),
+          const SizedBox(width: 12),
+          Expanded(
+            child: TextField(
+              controller: _phoneController,
+              focusNode: _focusNode,
+              autofocus: true,
+              keyboardType: TextInputType.phone,
+              textInputAction: TextInputAction.done,
+              maxLength: 10,
+              inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+              onSubmitted: (_) => _sendCode(),
+              style: GoogleFonts.outfit(
+                color: p.ink,
+                fontSize: 19,
+                fontWeight: FontWeight.w600,
+                letterSpacing: 0.8,
+              ),
+              decoration: InputDecoration(
+                hintText: '98765 43210',
+                counterText: '',
+                hintStyle: GoogleFonts.outfit(
+                  color: p.faint,
+                  letterSpacing: 0.8,
+                ),
+                filled: false,
+                border: InputBorder.none,
+                enabledBorder: InputBorder.none,
+                focusedBorder: InputBorder.none,
+              ),
+            ),
           ),
-          filled: false,
-          border: InputBorder.none,
-          enabledBorder: InputBorder.none,
-          focusedBorder: InputBorder.none,
-          prefixIcon: const Icon(
-            Icons.phone_iphone_rounded,
-            color: GixbeeTheme.brandOrange,
-          ),
-        ),
+        ],
       ),
+    );
+  }
+
+  Widget _trustRow(AuthPalette p) {
+    return Row(
+      children: [
+        Icon(Icons.lock_outline_rounded, size: 14, color: p.faint),
+        const SizedBox(width: 6),
+        Expanded(
+          child: Text(
+            'Your number is used only for login and job contact.',
+            style: GoogleFonts.outfit(fontSize: 12, color: p.faint),
+          ),
+        ),
+      ],
     );
   }
 
@@ -211,25 +262,20 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
-        color: GixbeeTheme.brandOrange.withValues(alpha: 0.08),
+        color: kAuthGreen.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(
-          color: GixbeeTheme.brandOrange.withValues(alpha: 0.28),
-        ),
+        border: Border.all(color: kAuthGreen.withValues(alpha: 0.28)),
       ),
       child: Row(
         children: [
-          Icon(
-            Icons.bug_report_outlined,
-            size: 16,
-            color: GixbeeTheme.brandOrange.withValues(alpha: 0.9),
-          ),
+          const Icon(Icons.bug_report_outlined,
+              size: 16, color: kAuthGreenDeep),
           const SizedBox(width: 8),
           Expanded(
             child: Text(
               'Debug build — OTP may be echoed when ALLOW_OTP_ECHO is on.',
               style: GoogleFonts.outfit(
-                color: GixbeeTheme.brandOrange.withValues(alpha: 0.95),
+                color: kAuthGreenDeep,
                 fontSize: 12,
                 fontWeight: FontWeight.w500,
               ),

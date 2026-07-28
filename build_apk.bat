@@ -20,9 +20,18 @@ if "%OLA_MAPS_API_KEY%"=="PASTE_YOUR_ROTATED_OLA_KEY_HERE" (
 
 call "%FLUTTER%" pub get
 echo.
-call "%FLUTTER%" build apk --release %GX_DEFINES%
+REM --split-per-abi: one APK per CPU architecture instead of a ~96MB "fat"
+REM APK carrying all three. Share app-arm64-v8a-release.apk (~30-35MB) —
+REM every Android phone from the last ~8 years is arm64. The armeabi-v7a
+REM APK exists for very old budget devices; x86_64 is emulators only.
+REM For Play Store uploads use build_appbundle instead — Play serves each
+REM device only its own architecture automatically.
+call "%FLUTTER%" build apk --release --split-per-abi %GX_DEFINES%
 echo.
-echo APK: build\app\outputs\flutter-apk\app-release.apk
+echo APKs: build\app\outputs\flutter-apk\
+echo   app-arm64-v8a-release.apk    ^<-- send THIS one to testers/clients
+echo   app-armeabi-v7a-release.apk  (very old devices)
+echo   app-x86_64-release.apk       (emulators)
 echo Install on a connected phone with:
-echo   adb install -r build\app\outputs\flutter-apk\app-release.apk
+echo   adb install -r build\app\outputs\flutter-apk\app-arm64-v8a-release.apk
 pause

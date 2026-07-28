@@ -4,7 +4,6 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../../main_wrapper.dart';
 import '../../repositories/auth_repository.dart';
-import '../../theme.dart';
 import '../auth/auth_chrome.dart';
 import 'welcome_screen.dart';
 
@@ -12,7 +11,7 @@ import 'welcome_screen.dart';
 /// to MainWrapper (authed) or WelcomeScreen (guest).
 ///
 /// Timing stays short (≈1.4s min). Auth resolves in parallel.
-/// Always dark + brand-orange — does not follow Appearance / Grab Green.
+/// Theme-aware via AuthPalette — grab-green brand on light (default) or dark.
 class AnimatedSplashScreen extends ConsumerStatefulWidget {
   const AnimatedSplashScreen({super.key});
 
@@ -92,8 +91,9 @@ class _AnimatedSplashScreenState extends ConsumerState<AnimatedSplashScreen>
 
   @override
   Widget build(BuildContext context) {
+    final p = AuthPalette.of(context);
     return Scaffold(
-      backgroundColor: GixbeeTheme.background,
+      backgroundColor: p.bgBottom,
       body: AuthBackdrop(
         child: AnimatedBuilder(
           animation: _intro,
@@ -118,7 +118,7 @@ class _AnimatedSplashScreenState extends ConsumerState<AnimatedSplashScreen>
                         fontSize: 13,
                         fontWeight: FontWeight.w500,
                         letterSpacing: 0.4,
-                        color: Colors.white.withValues(alpha: 0.45),
+                        color: p.sub,
                       ),
                     ),
                   ),

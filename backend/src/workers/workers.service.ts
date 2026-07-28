@@ -279,6 +279,33 @@ export class WorkersService {
   // GO-LIVE TOGGLE (RATE LIMITED TO 2/DAY)
   // ─────────────────────────────────────────────
 
+  // ── IST calendar helpers ──
+  // Daily limits and "today" figures must roll over at INDIAN midnight.
+  // The Docker containers run in UTC, so `new Date().toISOString()` dates
+  // don't flip until 05:30 IST — a worker who used yesterday's go-live cap
+  // stayed blocked PAST midnight (client bug, reported at 12:27 AM: "I went
+  // live 6 times yesterday, but now it still shows the limit").
+  private static readonly IST_OFFSET_MS = 5.5 * 60 * 60 * 1000;
+
+  /** Calendar date (YYYY-MM-DD) in Asia/Kolkata, regardless of server TZ. */
+  private istToday(): string {
+    return new Date().toLocaleDateString('en-CA', {
+      timeZone: 'Asia/Kolkata',
+    });
+  }
+
+  /** The UTC instant of today's 00:00 in IST. */
+  private istStartOfDay(): Date {
+    const nowIst = new Date(Date.now() + WorkersService.IST_OFFSET_MS);
+    return new Date(
+      Date.UTC(
+        nowIst.getUTCFullYear(),
+        nowIst.getUTCMonth(),
+        nowIst.getUTCDate(),
+      ) - WorkersService.IST_OFFSET_MS,
+    );
+  }
+
   private async ensureWorkerProfile(userId: string): Promise<WorkerProfile> {
     let profile = await this.workersRepository.findOne({
       where: { user: { id: userId } },
@@ -364,7 +391,9 @@ export class WorkersService {
     
     const profile = await this.ensureWorkerProfile(userId);
 
-    const todayDateStr = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+    // IST calendar date — NOT toISOString() (UTC), which doesn't roll over
+    // until 05:30 IST and kept workers locked out past Indian midnight.
+    const todayDateStr = this.istToday();
 
     // Reset rate limits if it's a new day
     if (profile.goLiveToggleDate !== todayDateStr) {
@@ -391,17 +420,39 @@ export class WorkersService {
         );
       }
 
-      // Wallet floor — admin-tunable (Master Entries → go_live_min_wallet).
-      const minWallet = await this.masterEntriesService.getConfigNumber(
-        'go_live_min_wallet',
-        12,
-      );
-      if (profile.isFirstJobDone && minWallet > 0) {
-        const balance = await this.walletsService.getBalance(profile.user?.id || id);
-        if (balance < minWallet) {
-          throw new BadRequestException(
-            `Minimum Rs.${minWallet} wallet balance required to go live. Please top up.`,
+      // ── Platform fee gate ──
+      // PERIODIC model (Master Entries → go_live_jobs_per_payment > 0):
+      // each period includes N completed jobs; when they're used up, going
+      // live is blocked until the worker pays the period fee. New workers
+      // start at 0 — the first period is free. When enabled, this REPLACES
+      // the legacy per-booking ₹12 wallet drip and its min-wallet floor.
+      const jobsIncluded = await this.periodicJobsPerPayment();
+      if (jobsIncluded > 0) {
+        const jobsUsed = profile.jobsSincePayment ?? 0;
+        if (jobsUsed >= jobsIncluded) {
+          const fee = await this.masterEntriesService.getConfigNumber(
+            'go_live_period_fee',
+            49,
           );
+          throw new BadRequestException(
+            `You've used the ${jobsIncluded} jobs included in your plan. ` +
+              `Pay ₹${fee} in the Go Live screen to unlock your next ` +
+              `${jobsIncluded} jobs.`,
+          );
+        }
+      } else {
+        // LEGACY per-booking model: wallet floor guarantees fee coverage.
+        const minWallet = await this.masterEntriesService.getConfigNumber(
+          'go_live_min_wallet',
+          12,
+        );
+        if (profile.isFirstJobDone && minWallet > 0) {
+          const balance = await this.walletsService.getBalance(profile.user?.id || id);
+          if (balance < minWallet) {
+            throw new BadRequestException(
+              `Minimum Rs.${minWallet} wallet balance required to go live. Please top up.`,
+            );
+          }
         }
       }
 
@@ -502,6 +553,76 @@ export class WorkersService {
       message: profile.isActive 
         ? 'You are now LIVE on the map and accepting jobs.' 
         : 'You are now OFFLINE. Customers cannot dispatch you instantly.',
+    };
+  }
+
+  // ── Periodic fee model ("N jobs, then pay") ─────────────────────────
+
+  /** Jobs included per paid period (Master Entries → go_live_jobs_per_payment).
+   *  0 = model OFF → the legacy per-booking ₹12 wallet drip applies. */
+  async periodicJobsPerPayment(): Promise<number> {
+    return this.masterEntriesService.getConfigNumber(
+      'go_live_jobs_per_payment',
+      0,
+    );
+  }
+
+  /** Count a COMPLETED job against the worker's current period. Atomic SQL
+   *  increment; NO-OP while the model is off, so enabling it later starts
+   *  every worker at 0 (first period free). */
+  async recordCompletedJobForPeriod(userId: string): Promise<void> {
+    const jobsIncluded = await this.periodicJobsPerPayment();
+    if (jobsIncluded <= 0) return;
+    await this.workersRepository
+      .createQueryBuilder()
+      .update(WorkerProfile)
+      .set({ jobsSincePayment: () => '"jobsSincePayment" + 1' })
+      .where('"userId" = :uid', { uid: userId })
+      .execute();
+  }
+
+  /** Worker pays to unlock the next period of included jobs. Charged from
+   *  the wallet today (WalletsService.charge — row-locked); when Razorpay
+   *  lands, its capture webhook can drive this same reset after a direct
+   *  payment. Nothing due → no charge (safe to re-call). */
+  async payPeriodFee(userId: string): Promise<{
+    message: string;
+    jobsIncluded: number;
+    jobsUsed: number;
+    paymentDue: boolean;
+  }> {
+    const jobsIncluded = await this.periodicJobsPerPayment();
+    if (jobsIncluded <= 0) {
+      throw new BadRequestException('The per-jobs payment plan is not enabled.');
+    }
+    const profile = await this.ensureWorkerProfile(userId);
+    const jobsUsed = profile.jobsSincePayment ?? 0;
+    if (jobsUsed < jobsIncluded) {
+      return {
+        message: `No payment due yet — ${jobsIncluded - jobsUsed} of your ${jobsIncluded} included jobs remain.`,
+        jobsIncluded,
+        jobsUsed,
+        paymentDue: false,
+      };
+    }
+    const fee = await this.masterEntriesService.getConfigNumber(
+      'go_live_period_fee',
+      49,
+    );
+    if (fee > 0) {
+      await this.walletsService.charge(
+        userId,
+        fee,
+        `Gixbee platform fee — next ${jobsIncluded} jobs`,
+      );
+    }
+    profile.jobsSincePayment = 0;
+    await this.workersRepository.save(profile);
+    return {
+      message: `Payment received — your next ${jobsIncluded} jobs are unlocked. Go live!`,
+      jobsIncluded,
+      jobsUsed: 0,
+      paymentDue: false,
     };
   }
 
@@ -641,6 +762,13 @@ export class WorkersService {
     activeSkills: string[];
     isActive: boolean;
     serviceRadiusKm: number;
+    feeModel: {
+      enabled: boolean;
+      jobsIncluded: number;
+      jobsUsed: number;
+      fee: number;
+      paymentDue: boolean;
+    };
     earnings: {
       total: number;
       today: number;
@@ -658,6 +786,17 @@ export class WorkersService {
     const profile = await this.ensureWorkerProfile(userId);
     const healed = await this.healTradeSkills(profile);
 
+    // Periodic fee plan state for the Go Live screen's plan card.
+    const feeJobsIncluded = await this.periodicJobsPerPayment();
+    const feeAmount =
+      feeJobsIncluded > 0
+        ? await this.masterEntriesService.getConfigNumber(
+            'go_live_period_fee',
+            49,
+          )
+        : 0;
+    const feeJobsUsed = healed.jobsSincePayment ?? 0;
+
     const completed = await this.bookingsRepository.find({
       where: { operator: { id: userId }, status: BookingStatus.COMPLETED },
       relations: ['customer'],
@@ -665,8 +804,7 @@ export class WorkersService {
       take: 200,
     });
 
-    const now = new Date();
-    const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const startOfDay = this.istStartOfDay(); // IST midnight, not server-local
     const startOfWeek = new Date(startOfDay);
     startOfWeek.setDate(startOfWeek.getDate() - 6); // rolling 7 days
 
@@ -689,6 +827,13 @@ export class WorkersService {
       activeSkills: healed.activeSkills || [],
       isActive: healed.isActive,
       serviceRadiusKm: healed.serviceRadiusKm ?? DEFAULT_SERVICE_RADIUS_KM,
+      feeModel: {
+        enabled: feeJobsIncluded > 0,
+        jobsIncluded: feeJobsIncluded,
+        jobsUsed: feeJobsUsed,
+        fee: feeAmount,
+        paymentDue: feeJobsIncluded > 0 && feeJobsUsed >= feeJobsIncluded,
+      },
       earnings: {
         total: Math.round(total * 100) / 100,
         today: Math.round(today * 100) / 100,
@@ -1123,7 +1268,7 @@ export class WorkersService {
     });
     if (!profile) throw new NotFoundException('Worker profile not found');
 
-    const todayStr = new Date().toISOString().split('T')[0];
+    const todayStr = this.istToday(); // IST — same midnight-rollover fix as go-live
     if (profile.rateUpdateDate !== todayStr) {
       profile.rateUpdateDate = todayStr;
       profile.rateUpdateCountToday = 0;

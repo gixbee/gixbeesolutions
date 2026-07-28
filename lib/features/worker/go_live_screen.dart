@@ -66,6 +66,9 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
   /// pro is drifting out of dispatch and must be told, not left "waiting".
   bool _gpsLost = false;
 
+  /// In-flight guard for the periodic-plan payment button.
+  bool _payingFee = false;
+
   @override
   void initState() {
     super.initState();
@@ -344,6 +347,101 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
     );
   }
 
+  /// Pay the period fee (periodic plan) and refresh the dashboard — on
+  /// success the plan card flips back to "N jobs left" and Go Live unblocks.
+  Future<void> _payPeriodFee() async {
+    if (_payingFee) return;
+    setState(() => _payingFee = true);
+    try {
+      final res = await ref.read(workerRepositoryProvider).payPeriodFee();
+      ref.invalidate(goLiveDashboardProvider);
+      if (mounted) {
+        _toast((res['message'] ?? 'Payment received.').toString(),
+            error: false);
+      }
+    } on DioException catch (e) {
+      final msg = e.response?.data is Map
+          ? (e.response?.data['message']?.toString() ?? 'Payment failed')
+          : 'Payment failed';
+      if (mounted) _toast(msg, error: true);
+    } catch (_) {
+      if (mounted) _toast('Payment failed', error: true);
+    } finally {
+      if (mounted) setState(() => _payingFee = false);
+    }
+  }
+
+  /// Periodic-plan card (replaces the old HARDCODED wallet card that showed
+  /// a fake ₹100 balance): included-jobs usage, and the pay-to-unlock button
+  /// when the batch is used up. Hidden entirely while the plan is off.
+  Widget _feeModelCard(Map<String, dynamic>? dash) {
+    final fm = dash?['feeModel'];
+    if (fm is! Map || fm['enabled'] != true) return const SizedBox.shrink();
+    final included = (fm['jobsIncluded'] as num?)?.toInt() ?? 0;
+    final used = (fm['jobsUsed'] as num?)?.toInt() ?? 0;
+    final fee = (fm['fee'] as num?)?.toInt() ?? 0;
+    final due = fm['paymentDue'] == true;
+    final color = due ? const Color(0xFFF97316) : GixbeeTheme.accentGreen;
+
+    return Container(
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.08),
+        border: Border.all(color: color.withValues(alpha: 0.35), width: 1.5),
+        borderRadius: BorderRadius.circular(14),
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      margin: const EdgeInsets.only(bottom: 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(due ? Icons.lock_clock : Icons.confirmation_num_outlined,
+                  size: 18, color: color),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  due
+                      ? 'Included jobs used up'
+                      : 'Job plan: $used of $included used',
+                  style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w800,
+                      color: context.gx.ink),
+                ),
+              ),
+              if (!due)
+                Text('${included - used} left',
+                    style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w800,
+                        color: color)),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Text(
+            due
+                ? 'Pay ₹$fee to unlock your next $included jobs and go live.'
+                : 'Your plan includes $included jobs — you only pay ₹$fee '
+                    'when they\'re used up.',
+            style: TextStyle(
+                fontSize: 11.5,
+                height: 1.4,
+                color: context.gx.ink.withValues(alpha: 0.6)),
+          ),
+          if (due) ...[
+            const SizedBox(height: 10),
+            GxButton(
+              label: _payingFee ? 'Processing…' : 'Pay ₹$fee & unlock',
+              icon: Icons.bolt,
+              onTap: _payingFee ? null : _payPeriodFee,
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
   Future<void> _openJob(Map<String, dynamic> job) async {
     await Navigator.push(
       context,
@@ -559,57 +657,9 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
             ),
           ),
 
-          // WALLET STATUS
-          Container(
-            decoration: BoxDecoration(
-              color: const Color(0x0F10B981),
-              border: Border.all(color: const Color(0x3310B981), width: 1.5),
-              borderRadius: BorderRadius.circular(14),
-            ),
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-            margin: const EdgeInsets.only(bottom: 16),
-            child: Row(
-              children: [
-                Container(
-                  width: 36,
-                  height: 36,
-                  decoration: BoxDecoration(
-                    color: const Color(0x1F10B981),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: const Icon(Icons.account_balance_wallet, size: 18, color: GixbeeTheme.accentGreen),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text('Gixbee Wallet', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: context.gx.ink)),
-                      const SizedBox(height: 2),
-                      RichText(
-                        text: TextSpan(
-                          style: TextStyle(fontSize: 11, color: context.gx.ink.withValues(alpha: 0.55), fontFamily: 'Inter'),
-                          children: [
-                            const TextSpan(text: '₹12 deducted per job · Balance: '),
-                            TextSpan(text: '₹100', style: const TextStyle(fontWeight: FontWeight.w700, color: GixbeeTheme.accentGreen)),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: const Color(0x1A10B981),
-                    border: Border.all(color: const Color(0x3310B981)),
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Text('Ready', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: GixbeeTheme.accentGreen)),
-                ),
-              ],
-            ),
-          ),
+          // PLATFORM FEE PLAN — dynamic plan card (replaces the old
+          // hardcoded wallet card that showed a fake ₹100 balance).
+          _feeModelCard(dash),
 
           // SELECT SERVICES
           Row(

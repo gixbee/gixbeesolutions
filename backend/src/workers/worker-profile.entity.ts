@@ -60,6 +60,13 @@ export class WorkerProfile {
   @Column({ type: 'date', nullable: true })
   goLiveToggleDate: string;
 
+  /// Periodic fee model ("N jobs, then pay"): COMPLETED jobs consumed in the
+  /// current period. Gate: >= go_live_jobs_per_payment blocks Go Live until
+  /// payPeriodFee() resets it. Only incremented while the model is enabled,
+  /// so switching it on later starts every worker at 0 (first period free).
+  @Column({ type: 'int', default: 0 })
+  jobsSincePayment: number;
+
   @Column({ default: false })
   isFirstJobDone: boolean;
 

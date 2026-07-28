@@ -165,7 +165,7 @@ class NotificationService {
       'gixbee_alerts_vibe_only',
       'gixbee_alerts_silent',
     ]) {
-      await androidPlugin?.deleteNotificationChannel(oldId).catchError((_) {});
+      await androidPlugin?.deleteNotificationChannel(channelId: oldId).catchError((_) {});
     }
     for (final ch in _channels) {
       await androidPlugin?.createNotificationChannel(ch);
