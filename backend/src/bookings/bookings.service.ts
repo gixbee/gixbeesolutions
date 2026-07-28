@@ -658,6 +658,11 @@ export class BookingsService {
     await this.redisService.removePendingBooking(workerId, bookingId);
     await this.dropWorkerFromNotified(bookingId, workerId, notified);
 
+    if (booking.customer?.id && booking.skill) {
+      // Avoid pinging them again if the customer immediately creates a new request
+      await this.redisService.markWorkerRejectedJob(booking.customer.id, booking.skill, workerId);
+    }
+
     if (isAssignedOperator) {
       booking.status = BookingStatus.REJECTED;
       await this.bookingsRepository.save(booking);

@@ -551,6 +551,37 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
     this.memZsets.get(key)?.delete(bookingId);
   }
 
+  /** Caches that a worker rejected a request for 15 minutes to avoid second-round pings */
+  async markWorkerRejectedJob(customerId: string, skill: string, workerId: string): Promise<void> {
+    const key = `rejected:${customerId}:${skill}`;
+    if (this.live) {
+      try {
+        await this.client.sAdd(key, workerId);
+        await this.client.expire(key, 900); // 15 mins
+        return;
+      } catch (error) {
+        this.logger.error(`Failed to set rejected cache ${key}`, error);
+      }
+    }
+    const memSet = this.memSets.get(key) || new Set<string>();
+    memSet.add(workerId);
+    this.memSets.set(key, memSet);
+    this.memKeyExp.set(key, Date.now() + 900 * 1000);
+  }
+
+  async getRejectedWorkersForJob(customerId: string, skill: string): Promise<string[]> {
+    const key = `rejected:${customerId}:${skill}`;
+    if (this.live) {
+      try {
+        return await this.client.sMembers(key);
+      } catch (error) {
+        this.logger.error(`Failed to get rejected cache ${key}`, error);
+      }
+    }
+    if (!this.memKeyAlive(key)) return [];
+    return Array.from(this.memSets.get(key) || []);
+  }
+
   /** Gets all pending booking IDs for a worker, newest first. */
   async getPendingBookingIds(workerId: string): Promise<string[]> {
     const key = `worker:pending:${workerId}`;

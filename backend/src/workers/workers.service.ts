@@ -1229,7 +1229,9 @@ export class WorkersService {
     // round-trips before a single pro is notified. Now every stage is
     // resolved in parallel, and the DB fallback for cache misses is ONE
     // `IN (...)` query instead of one query per worker.
-    const candidates = skillWorkerIds.filter((id) => id !== requesterId);
+    const rejectedIds = await this.redisService.getRejectedWorkersForJob(requesterId, skill);
+    const rejectedSet = new Set(rejectedIds);
+    const candidates = skillWorkerIds.filter((id) => id !== requesterId && !rejectedSet.has(id));
 
     // 3a. All locations in parallel; keep only those inside the radius.
     const locations = await Promise.all(
