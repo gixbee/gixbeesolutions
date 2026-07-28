@@ -114,16 +114,15 @@ export class NotificationsService implements OnModuleInit {
         android: {
           priority: 'high',
           notification: {
-            channelId: 'gixbee_high_importance',
-            sound: 'default',
+            channelId: 'gixbee_high_importance_v2',
+            sound: 'gixbee_alert',
             priority: 'max',
-            defaultSound: true,
           },
         },
         apns: {
           payload: {
             aps: {
-              sound: 'default',
+              sound: 'gixbee_alert.wav',
               badge: 1,
               contentAvailable: true,
             },

@@ -68,32 +68,34 @@ class NotificationService {
 
   /// The channel matching the current sound/vibration prefs.
   String get _activeChannelId => soundEnabled
-      ? (vibrationEnabled ? 'gixbee_high_importance' : 'gixbee_alerts_novibe')
+      ? (vibrationEnabled ? 'gixbee_high_importance_v2' : 'gixbee_alerts_novibe_v2')
       : (vibrationEnabled
-          ? 'gixbee_alerts_vibe_only'
-          : 'gixbee_alerts_silent');
+          ? 'gixbee_alerts_vibe_only_v2'
+          : 'gixbee_alerts_silent_v2');
 
   static const List<AndroidNotificationChannel> _channels = [
     // Default: sound + vibration. ID kept as gixbee_high_importance because
     // the backend FCM payload targets this channel for background delivery.
     AndroidNotificationChannel(
-      'gixbee_high_importance',
+      'gixbee_high_importance_v2',
       'Gixbee Job Alerts',
       description: 'Booking requests and job notifications',
       importance: Importance.max,
       playSound: true,
+      sound: RawResourceAndroidNotificationSound('gixbee_alert'),
       enableVibration: true,
     ),
     AndroidNotificationChannel(
-      'gixbee_alerts_novibe',
+      'gixbee_alerts_novibe_v2',
       'Gixbee Job Alerts (no vibration)',
       description: 'Booking requests and job notifications — sound only',
       importance: Importance.max,
       playSound: true,
+      sound: RawResourceAndroidNotificationSound('gixbee_alert'),
       enableVibration: false,
     ),
     AndroidNotificationChannel(
-      'gixbee_alerts_vibe_only',
+      'gixbee_alerts_vibe_only_v2',
       'Gixbee Job Alerts (vibration only)',
       description: 'Booking requests and job notifications — no sound',
       importance: Importance.max,
@@ -101,7 +103,7 @@ class NotificationService {
       enableVibration: true,
     ),
     AndroidNotificationChannel(
-      'gixbee_alerts_silent',
+      'gixbee_alerts_silent_v2',
       'Gixbee Job Alerts (silent)',
       description: 'Booking requests and job notifications — silent',
       importance: Importance.max,
