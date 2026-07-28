@@ -12,6 +12,7 @@ import { User } from './users/user.entity';
 import { Booking } from './bookings/booking.entity';
 import { WalletTransaction } from './wallets/wallet-transaction.entity';
 import { WorkerProfile } from './workers/worker-profile.entity';
+import { WorkerStrike } from './workers/worker-strike.entity';
 import { RentalItem } from './rentals/rental-item.entity';
 import { RentalReservation } from './rentals/rental-reservation.entity';
 import { JobPost } from './hiring/job-post.entity';
@@ -74,7 +75,7 @@ import { SystemMetricsModule } from './system-metrics/system-metrics.module';
         const baseConfig = {
           type: 'postgres' as const,
           entities: [
-            User, Booking, WalletTransaction, WorkerProfile,
+            User, Booking, WalletTransaction, WorkerProfile, WorkerStrike,
             RentalItem, RentalReservation, JobPost, JobApplication,
             JobPreference, HiringRequest, HiringInterest,
             Business, TalentProfile, ProfessionalSkill, MasterEntry,

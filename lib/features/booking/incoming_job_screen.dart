@@ -310,6 +310,7 @@ class _IncomingJobScreenState extends ConsumerState<IncomingJobScreen>
   }
 
   Future<void> _autoDeclineCurrent() async {
+    if (_requests.isEmpty || _currentIndex >= _requests.length) return;
     final bookingId = _requests[_currentIndex]['id'] as String?;
     try {
       if (bookingId != null) {
