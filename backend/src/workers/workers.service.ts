@@ -331,7 +331,22 @@ export class WorkersService {
       profile = await this.workersRepository.save(profile);
       profile = await this.healTradeSkills(profile);
     }
-    
+
+    // FLAG HEAL (client bug: "Go Live asks me to Register as Pro even though
+    // my data is in Earn Hourly"): talent-path registration creates the
+    // WorkerProfile lazily HERE, but only createProfile() ever flipped
+    // users.hasWorkerProfile — so GET /auth/profile kept reporting false and
+    // the app routed verified pros back to the wizard forever. Heal the flag
+    // whenever the loaded relation shows it stale (idempotent, no extra
+    // UPDATE once healed).
+    const owner = profile!.user;
+    if (owner?.id && owner.hasWorkerProfile !== true) {
+      await this.usersRepository
+        .update(owner.id, { hasWorkerProfile: true })
+        .catch(() => {});
+      owner.hasWorkerProfile = true;
+    }
+
     return profile!;
   }
 

@@ -13,6 +13,7 @@ import 'features/messages/messages_list_screen.dart';
 import 'features/profile/profile_screen.dart';
 import 'features/jobs/my_bookings_screen.dart';
 import 'features/booking/incoming_job_screen.dart';
+import 'features/jobs/pro_skill_provider.dart';
 import 'features/worker/go_live_screen.dart';
 import 'repositories/worker_repository.dart';
 import 'repositories/auth_repository.dart';
@@ -86,6 +87,12 @@ class _MainWrapperState extends ConsumerState<MainWrapper>
       // serviceable city — so the home bar and city-scoped feeds are correct
       // without the user opening the picker.
       ensureLocationInitialized(ref);
+      // CACHE WARM (client bug: Instant Help showed a ~4s blank grid on
+      // first open): kick the trades-master fetch NOW, at app start. The
+      // provider keepAlives for 10 min, so the grid is already populated
+      // when the user reaches it — the skeleton only ever shows on a truly
+      // cold cache with a slow connection.
+      ref.read(proTradesProvider);
     });
   }
 
@@ -382,6 +389,16 @@ class _MainWrapperState extends ConsumerState<MainWrapper>
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     final isLive = ref.watch(workerLiveStateProvider);
+    // If the user's worker status is discovered/healed mid-session (e.g. the
+    // Go Live screen proved registration against the server and refreshed
+    // currentUserProvider), start the pending-jobs poll now — it's the FCM
+    // fallback and previously only started when isWorker was true at boot.
+    ref.listen(currentUserProvider, (prev, next) {
+      final becameWorker = next.asData?.value?.isWorker == true;
+      if (becameWorker && !(_pendingPollTimer?.isActive ?? false)) {
+        _startPendingBookingPoll();
+      }
+    });
     // Profile back / Home avatar write [mainTabIndexProvider]; keep the
     // bottom bar body in sync without Navigator.pop on the shell.
     ref.listen<int>(mainTabIndexProvider, (prev, next) {

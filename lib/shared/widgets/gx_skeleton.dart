@@ -35,17 +35,24 @@ class _GxSkeletonState extends State<GxSkeleton>
 
   @override
   Widget build(BuildContext context) {
+    // THEME-ROBUST FILL (client bug: on the Grab-light theme the old
+    // `card2` fill + `border` colors were near-white on a white background,
+    // so the pulsing skeleton was invisible — a 4s load looked like a blank
+    // broken screen). Ink-derived alpha reads as a grey block on light and
+    // a soft white block on dark, and the wider opacity sweep makes the
+    // pulse unmistakably "loading" rather than decoration.
+    final ink = context.gx.ink;
     return FadeTransition(
-      opacity: Tween<double>(begin: 0.35, end: 0.75).animate(
+      opacity: Tween<double>(begin: 0.45, end: 1.0).animate(
         CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
       ),
       child: Container(
         width: widget.width,
         height: widget.height,
         decoration: BoxDecoration(
-          color: context.gx.card2,
+          color: ink.withValues(alpha: 0.07),
           borderRadius: BorderRadius.circular(widget.radius),
-          border: Border.all(color: context.gx.border),
+          border: Border.all(color: ink.withValues(alpha: 0.12)),
         ),
       ),
     );

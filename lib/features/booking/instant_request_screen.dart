@@ -1,3 +1,4 @@
+import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -338,8 +339,44 @@ class _InstantRequestScreenState extends ConsumerState<InstantRequestScreen> {
     } catch (e) {
       if (!mounted) return;
       setState(() => _submitting = false);
-      showGxSnack(context, 'Could not send request: $e',
-          type: GxSnackType.error);
+
+      // Pull the SERVER's message out of Dio errors — raw `$e` leaks
+      // "DioException"/"Exception:" wrappers that read like a crash (this
+      // was the client-reported bug). NestJS ValidationPipe sends message
+      // as a String or a List<String>.
+      String message = 'Something went wrong. Please try again.';
+      if (e is DioException) {
+        final data = e.response?.data;
+        final raw = data is Map ? data['message'] : null;
+        if (raw is String && raw.isNotEmpty) {
+          message = raw;
+        } else if (raw is List && raw.isNotEmpty) {
+          message = raw.first.toString();
+        } else if (e.type == DioExceptionType.connectionTimeout ||
+            e.type == DioExceptionType.receiveTimeout ||
+            e.type == DioExceptionType.connectionError) {
+          message = 'No connection. Check your internet and try again.';
+        }
+      } else {
+        message = e.toString().replaceFirst('Exception: ', '');
+      }
+
+      // "Nobody live near this spot" is a normal marketplace state, not an
+      // error — show the dedicated fallback screen with real next steps
+      // (try later / post a job) instead of a red crash-looking toast.
+      final lower = message.toLowerCase();
+      if (lower.contains('no pros') ||
+          lower.contains('no workers') ||
+          lower.contains('available near')) {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+              builder: (_) => NoWorkersScreen(skill: widget.skill)),
+        );
+        return;
+      }
+
+      showGxSnack(context, message, type: GxSnackType.error);
     }
   }
 

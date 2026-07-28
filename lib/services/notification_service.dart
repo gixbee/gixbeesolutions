@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'debug_log_service.dart';
 
@@ -27,6 +28,87 @@ class NotificationService {
   // Guard against calling initialize() more than once.
   // Can happen if both otp_screen and main_wrapper call it.
   bool _initialized = false;
+
+  // ── User alert preferences (Settings → Notifications) ────────────────
+  // Android 8+ makes sound/vibration CHANNEL-level and immutable after the
+  // channel is created — per-notification flags are ignored. So we create
+  // four channels up-front and route each alert to the one matching the
+  // prefs. Applies to app-shown banners (foreground FCM + poll alerts);
+  // system-rendered notifications when the app is killed follow the phone's
+  // own settings for the payload's channel.
+  static const _storage = FlutterSecureStorage();
+  static const _kSound = 'notif_sound_enabled';
+  static const _kVibration = 'notif_vibration_enabled';
+
+  bool soundEnabled = true;
+  bool vibrationEnabled = true;
+
+  Future<void> setSoundEnabled(bool on) async {
+    soundEnabled = on;
+    try {
+      await _storage.write(key: _kSound, value: on ? '1' : '0');
+    } catch (_) {}
+  }
+
+  Future<void> setVibrationEnabled(bool on) async {
+    vibrationEnabled = on;
+    try {
+      await _storage.write(key: _kVibration, value: on ? '1' : '0');
+    } catch (_) {}
+  }
+
+  Future<void> _loadAlertPrefs() async {
+    try {
+      soundEnabled = (await _storage.read(key: _kSound)) != '0';
+      vibrationEnabled = (await _storage.read(key: _kVibration)) != '0';
+    } catch (_) {
+      // Defaults (on/on) if storage is unavailable.
+    }
+  }
+
+  /// The channel matching the current sound/vibration prefs.
+  String get _activeChannelId => soundEnabled
+      ? (vibrationEnabled ? 'gixbee_high_importance' : 'gixbee_alerts_novibe')
+      : (vibrationEnabled
+          ? 'gixbee_alerts_vibe_only'
+          : 'gixbee_alerts_silent');
+
+  static const List<AndroidNotificationChannel> _channels = [
+    // Default: sound + vibration. ID kept as gixbee_high_importance because
+    // the backend FCM payload targets this channel for background delivery.
+    AndroidNotificationChannel(
+      'gixbee_high_importance',
+      'Gixbee Job Alerts',
+      description: 'Booking requests and job notifications',
+      importance: Importance.max,
+      playSound: true,
+      enableVibration: true,
+    ),
+    AndroidNotificationChannel(
+      'gixbee_alerts_novibe',
+      'Gixbee Job Alerts (no vibration)',
+      description: 'Booking requests and job notifications — sound only',
+      importance: Importance.max,
+      playSound: true,
+      enableVibration: false,
+    ),
+    AndroidNotificationChannel(
+      'gixbee_alerts_vibe_only',
+      'Gixbee Job Alerts (vibration only)',
+      description: 'Booking requests and job notifications — no sound',
+      importance: Importance.max,
+      playSound: false,
+      enableVibration: true,
+    ),
+    AndroidNotificationChannel(
+      'gixbee_alerts_silent',
+      'Gixbee Job Alerts (silent)',
+      description: 'Booking requests and job notifications — silent',
+      importance: Importance.max,
+      playSound: false,
+      enableVibration: false,
+    ),
+  ];
 
   static const AndroidNotificationChannel _channel =
       AndroidNotificationChannel(
@@ -61,11 +143,17 @@ class NotificationService {
     );
     _ref.read(debugLogProvider.notifier).log('FCM Permission: ${settings.authorizationStatus}');
 
-    // Create Android high-importance channel (required for Android 8+)
-    await _localNotifications
+    // Load persisted sound/vibration prefs BEFORE any banner can show.
+    await _loadAlertPrefs();
+
+    // Create all four Android channels (required for Android 8+). Channels
+    // are immutable once created — the prefs pick which one each alert uses.
+    final androidPlugin = _localNotifications
         .resolvePlatformSpecificImplementation<
-            AndroidFlutterLocalNotificationsPlugin>()
-        ?.createNotificationChannel(_channel);
+            AndroidFlutterLocalNotificationsPlugin>();
+    for (final ch in _channels) {
+      await androidPlugin?.createNotificationChannel(ch);
+    }
 
     // iOS: show notifications even when app is in foreground
     await _messaging.setForegroundNotificationPresentationOptions(
@@ -150,19 +238,22 @@ class NotificationService {
         body: body,
         notificationDetails: NotificationDetails(
           android: AndroidNotificationDetails(
-            _channel.id,
+            // Channel selected by the user's sound/vibration prefs — on
+            // Android 8+ the CHANNEL decides sound/vibe, not the flags below.
+            _activeChannelId,
             _channel.name,
             channelDescription: _channel.description,
             importance: Importance.max,
             priority: Priority.high,
-            playSound: true,
+            playSound: soundEnabled,
+            enableVibration: vibrationEnabled,
             icon: '@mipmap/ic_launcher',
           ),
-          iOS: const DarwinNotificationDetails(
-            sound: 'default',
+          iOS: DarwinNotificationDetails(
+            sound: soundEnabled ? 'default' : null,
             presentAlert: true,
             presentBadge: true,
-            presentSound: true,
+            presentSound: soundEnabled,
           ),
         ),
         payload: payload,

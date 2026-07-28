@@ -10,6 +10,7 @@ import '../../repositories/favourites_repository.dart';
 import '../../shared/models/worker.dart';
 import '../../theme.dart';
 import '../../shared/widgets/gx_snackbar.dart';
+import '../../services/notification_service.dart';
 import '../../shared/widgets/gx_empty.dart';
 import '../../shared/widgets/gx_pressable.dart';
 import '../../shared/widgets/gx_skeleton.dart';
@@ -36,6 +37,14 @@ final notificationPrefsProvider =
           'Offers & deals': false,
           'Gixbee news & updates': false,
         });
+
+/// Sound / vibration for job-alert banners — initialized from the persisted
+/// values NotificationService loaded at startup; writes persist via the
+/// service (secure storage) so they survive restarts.
+final notificationSoundProvider = StateProvider<bool>(
+    (ref) => ref.read(notificationServiceProvider).soundEnabled);
+final notificationVibrationProvider = StateProvider<bool>(
+    (ref) => ref.read(notificationServiceProvider).vibrationEnabled);
 
 // ── Language picker ──────────────────────────────────────────────────────────
 
@@ -212,6 +221,49 @@ class NotificationSettingsScreen extends ConsumerWidget {
               child: ListView(
                 padding: const EdgeInsets.only(bottom: 24),
                 children: [
+                  // ── Sound & vibration (persisted; drives the Android alert
+                  // channel + iOS presentSound for banners the app shows) ──
+                  Padding(
+                    padding: EdgeInsets.fromLTRB(16, 10, 16, 4),
+                    child: Text(
+                      'SOUND & VIBRATION',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                        color: context.gx.ink.withValues(alpha: 0.55),
+                        letterSpacing: 1.2,
+                      ),
+                    ),
+                  ),
+                  _buildHardwareToggle(
+                    context,
+                    ref,
+                    label: 'Notification sound',
+                    icon: Icons.volume_up_rounded,
+                    provider: notificationSoundProvider,
+                    onPersist: (svc, val) => svc.setSoundEnabled(val),
+                  ),
+                  _buildHardwareToggle(
+                    context,
+                    ref,
+                    label: 'Vibration',
+                    icon: Icons.vibration_rounded,
+                    provider: notificationVibrationProvider,
+                    onPersist: (svc, val) => svc.setVibrationEnabled(val),
+                  ),
+                  Padding(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 20, vertical: 6),
+                    child: Text(
+                      'Applies to alerts while the app is open. When the app '
+                      'is closed, your phone\u2019s notification settings for '
+                      'Gixbee decide sound and vibration.',
+                      style: TextStyle(
+                          fontSize: 11,
+                          height: 1.4,
+                          color: context.gx.ink.withValues(alpha: 0.45)),
+                    ),
+                  ),
                   Padding(
                     padding: EdgeInsets.fromLTRB(16, 10, 16, 4),
                     child: Text(
@@ -273,6 +325,53 @@ class NotificationSettingsScreen extends ConsumerWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildHardwareToggle(
+    BuildContext context,
+    WidgetRef ref, {
+    required String label,
+    required IconData icon,
+    required StateProvider<bool> provider,
+    required Future<void> Function(NotificationService svc, bool val)
+        onPersist,
+  }) {
+    final value = ref.watch(provider);
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        color: context.gx.ink.withValues(alpha: 0.03),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Row(
+            children: [
+              Icon(icon, size: 18, color: context.gx.accentSoft),
+              const SizedBox(width: 10),
+              Text(label,
+                  style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: context.gx.ink)),
+            ],
+          ),
+          Switch(
+            value: value,
+            activeThumbColor: context.gx.accentSoft,
+            inactiveTrackColor: context.gx.border,
+            inactiveThumbColor: context.gx.ink.withValues(alpha: 0.55),
+            onChanged: (val) {
+              ref.read(provider.notifier).state = val;
+              // Persist + apply immediately (fire-and-forget).
+              onPersist(ref.read(notificationServiceProvider), val);
+            },
+          ),
+        ],
       ),
     );
   }

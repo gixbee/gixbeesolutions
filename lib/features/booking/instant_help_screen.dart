@@ -81,19 +81,55 @@ class InstantHelpScreen extends ConsumerWidget {
               ),
               Expanded(
                 child: tradesAsync.when(
-                  loading: () => GridView.builder(
-                    padding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
-                    gridDelegate:
-                        const SliverGridDelegateWithFixedCrossAxisCount(
-                            crossAxisCount: 2,
-                            mainAxisSpacing: 12,
-                            crossAxisSpacing: 12,
-                            childAspectRatio: 1.55),
-                    itemCount: 6,
-                    itemBuilder: (_, __) => const GxSkeleton(
-                        width: double.infinity,
-                        height: double.infinity,
-                        radius: 18),
+                  loading: () => Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Explicit cue (client bug: skeletons alone read as a
+                      // blank screen during slow loads — "how does the user
+                      // know it is loading?"). Spinner + label is unambiguous
+                      // even in a still glance / screenshot.
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(20, 4, 20, 4),
+                        child: Row(
+                          children: [
+                            SizedBox(
+                              width: 14,
+                              height: 14,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: context.gx.accentSoft,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              'Loading services…',
+                              style: TextStyle(
+                                fontSize: 12.5,
+                                fontWeight: FontWeight.w600,
+                                color:
+                                    context.gx.ink.withValues(alpha: 0.55),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Expanded(
+                        child: GridView.builder(
+                          padding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
+                          gridDelegate:
+                              const SliverGridDelegateWithFixedCrossAxisCount(
+                                  crossAxisCount: 2,
+                                  mainAxisSpacing: 12,
+                                  crossAxisSpacing: 12,
+                                  childAspectRatio: 1.55),
+                          itemCount: 6,
+                          itemBuilder: (_, __) => const GxSkeleton(
+                              width: double.infinity,
+                              height: double.infinity,
+                              radius: 18),
+                        ),
+                      ),
+                    ],
                   ),
                   error: (_, __) => _grid(context, kProTrades, counts),
                   data: (trades) =>

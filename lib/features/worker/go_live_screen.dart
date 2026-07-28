@@ -43,6 +43,10 @@ class GoLiveScreen extends ConsumerStatefulWidget {
 class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
   bool _toggling = false;
 
+  /// One-shot heal of the cached user when the server proves worker status
+  /// (see the registration gate in build) — guards an invalidate loop.
+  bool _healedUserFlag = false;
+
   /// Optimistic local copy of the active-service set (null = derive from
   /// server data). Empty `activeSkills` from the server means "all active".
   Set<String>? _activeOverride;
@@ -344,10 +348,35 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (_, __) => Center(child: Text('Could not load your profile', style: TextStyle(color: context.gx.ink))),
         data: (user) {
-          if (user == null || !user.isWorker) {
+          if (user == null) {
             return _NotAWorker(scheme: scheme);
           }
+
           final dashAsync = ref.watch(goLiveDashboardProvider);
+
+          // REGISTRATION GATE — server truth over the cached flag.
+          // `user.isWorker` comes from users.hasWorkerProfile, which stayed
+          // false for pros who registered via the talent/Earn Hourly path
+          // (client bug: fully VERIFIED pro shown "Register as Pro"). The
+          // dashboard endpoint resolves the real profile (and lazily creates
+          // it from the talent profile), so: dashboard loads → worker,
+          // regardless of the flag. Only a dashboard 404 with a false flag
+          // means genuinely not registered.
+          if (!user.isWorker) {
+            if (dashAsync.isLoading) {
+              return const Center(child: CircularProgressIndicator());
+            }
+            if (dashAsync.hasError) {
+              return _NotAWorker(scheme: scheme);
+            }
+            // Server says registered — refresh the stale cached user once so
+            // the rest of the app (pending-jobs poll, menus) heals too.
+            if (!_healedUserFlag) {
+              _healedUserFlag = true;
+              Future.microtask(() => ref.invalidate(currentUserProvider));
+            }
+          }
+
           final dash = dashAsync.asData?.value;
           return Stack(
             children: [

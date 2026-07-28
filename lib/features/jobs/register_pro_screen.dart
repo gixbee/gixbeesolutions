@@ -153,6 +153,19 @@ class _RegisterProScreenState extends ConsumerState<RegisterProScreen> {
 
   bool get _hasSkillSelection => _selected.values.any((set) => set.isNotEmpty);
 
+  /// Trades with selected tasks but no valid hourly rate (> 0) — the rate is
+  /// MANDATORY per selected trade. (Client bug: a Carpenter with tasks ticked
+  /// and ₹0 rate sailed through to review; the profile then advertised ₹0/hr
+  /// and the customer-side "Suggested ₹X" averaged zeros.)
+  List<String> get _tradesMissingRate => _selected.entries
+      .where((e) => e.value.isNotEmpty)
+      .map((e) => e.key)
+      .where((t) {
+        final txt = _tradeRateCtrls[t]?.text.trim() ?? '';
+        return (double.tryParse(txt) ?? 0) <= 0;
+      })
+      .toList();
+
   bool get _canAdvance {
     switch (_step) {
       case 1:
@@ -274,7 +287,43 @@ class _RegisterProScreenState extends ConsumerState<RegisterProScreen> {
     );
   }
 
+  /// Advance / submit with rate validation. Leaving the skills step (or
+  /// saving in edit mode) requires every selected trade to carry a rate —
+  /// missing ones are auto-expanded and named so the fix is one glance away.
+  void _advanceOrSubmit(bool isLast) {
+    if (_step == 1 || widget.isEditingSkills) {
+      final missing = _tradesMissingRate;
+      if (missing.isNotEmpty) {
+        setState(() => _expandedTrades.addAll(missing));
+        ScaffoldMessenger.of(context).showSnackBar(gxSnackBar(
+          'Set an hourly rate for: ${missing.join(', ')}',
+          type: GxSnackType.error,
+        ));
+        return;
+      }
+    }
+    if (isLast) {
+      _submit();
+    } else {
+      setState(() => _step++);
+    }
+  }
+
   Future<void> _submit() async {
+    // Defense in depth — the review step can be reached with stale state if
+    // rates were cleared after passing the skills gate.
+    final missing = _tradesMissingRate;
+    if (missing.isNotEmpty) {
+      setState(() {
+        _step = 1;
+        _expandedTrades.addAll(missing);
+      });
+      ScaffoldMessenger.of(context).showSnackBar(gxSnackBar(
+        'Set an hourly rate for: ${missing.join(', ')}',
+        type: GxSnackType.error,
+      ));
+      return;
+    }
     final messenger = ScaffoldMessenger.of(context);
     // Capture before save/refetch — after submit `_savedSkillIds` is always
     // non-empty, which would incorrectly skip first-time → Go Live.
@@ -321,9 +370,21 @@ class _RegisterProScreenState extends ConsumerState<RegisterProScreen> {
         // stay on the talent profile bio via addOrUpdateSkill above.
         // Instant Help dispatches by trade name, so indexing trades is enough.
         final tradeSkills = _selected.keys.toList();
+        // Representative profile rate — this was HARDCODED 0.0, so every
+        // wizard-registered pro advertised ₹0/hr on worker cards and dragged
+        // the customer-side "Suggested ₹X" average down to zero. Use the
+        // average of the per-trade rates the pro actually entered.
+        final rates = tradeSkills
+            .map((t) =>
+                double.tryParse(_tradeRateCtrls[t]?.text.trim() ?? '') ?? 0)
+            .where((r) => r > 0)
+            .toList();
+        final profileRate = rates.isEmpty
+            ? 0.0
+            : (rates.reduce((a, b) => a + b) / rates.length).roundToDouble();
         await workerRepo.registerWorker(
           skills: tradeSkills.isNotEmpty ? tradeSkills : ['General Services'],
-          hourlyRate: 0.0,
+          hourlyRate: profileRate,
           bio: bio,
         );
       } catch (e) {
@@ -627,6 +688,39 @@ class _RegisterProScreenState extends ConsumerState<RegisterProScreen> {
             'for the skills you select. Uncheck or tap × to remove; expand '
             'another trade to add more anytime.',
             style: TextStyle(color: cs.onSurfaceVariant, fontSize: 11)),
+        // Upsert transparency (client question: "why does registration have
+        // pre-ticked data?") — when an existing profile prefilled the wizard,
+        // say so, instead of letting it look like defaults for a new user.
+        if (_savedSkillIds.isNotEmpty && !widget.isEditingSkills) ...[
+          const SizedBox(height: 10),
+          Container(
+            padding:
+                const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            decoration: BoxDecoration(
+              color: GixbeeTheme.accentGold.withValues(alpha: 0.08),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                  color: GixbeeTheme.accentGold.withValues(alpha: 0.3)),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.history_rounded,
+                    size: 16, color: GixbeeTheme.accentGold),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'Your saved skills and rates are pre-filled — submitting '
+                    'updates your existing profile.',
+                    style: TextStyle(
+                        fontSize: 11,
+                        height: 1.4,
+                        color: cs.onSurfaceVariant),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
         if (selectedFlat.isNotEmpty) ...[
           const SizedBox(height: 12),
           Wrap(
@@ -1115,9 +1209,7 @@ class _RegisterProScreenState extends ConsumerState<RegisterProScreen> {
                 accent: GixbeeTheme.accentGold,
                 height: 52,
                 loading: _isSubmitting,
-                onTap: enabled
-                    ? (isLast ? _submit : () => setState(() => _step++))
-                    : null,
+                onTap: enabled ? () => _advanceOrSubmit(isLast) : null,
               ),
             ),
           ],
