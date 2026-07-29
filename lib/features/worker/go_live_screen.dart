@@ -243,7 +243,19 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
       double? lat;
       double? lng;
       final currentlyLive = ref.read(workerLiveStateProvider);
+      final dash = ref.read(goLiveDashboardProvider).asData?.value;
       if (!currentlyLive) {
+        if (dash != null) {
+          final credits = (dash['jobCredits'] as num?)?.toInt() ?? 0;
+          if (credits <= 0) {
+            if (mounted) {
+              _toast('You need job credits to accept new bookings. Buy a pack now.', error: true);
+              setState(() => _toggling = false);
+            }
+            return;
+          }
+        }
+
         final pos =
             await ref.read(locationServiceProvider).getCurrentPosition();
         if (pos == null) {
@@ -476,15 +488,16 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
                       color: color.withValues(alpha: 0.9)),
                 ),
               ),
-              GxButton(
-                label: 'Buy Pack',
-                expand: false,
-                height: 36,
-                fontSize: 13,
-                onTap: () => Navigator.of(context).push(
-                  MaterialPageRoute(builder: (_) => const JobPackScreen()),
+              if (isLow)
+                GxButton(
+                  label: 'Buy Pack',
+                  expand: false,
+                  height: 36,
+                  fontSize: 13,
+                  onTap: () => Navigator.of(context).push(
+                    MaterialPageRoute(builder: (_) => const JobPackScreen()),
+                  ),
                 ),
-              ),
             ],
           ),
           if (isLow) ...[
@@ -629,7 +642,7 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
                   bottom: 0,
                   left: 0,
                   right: 0,
-                  child: _buildStickyFooter(isLive),
+                  child: _buildStickyFooter(isLive, dash),
                 ),
             ],
           );
@@ -993,7 +1006,10 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
     );
   }
 
-  Widget _buildStickyFooter(bool isLive) {
+  Widget _buildStickyFooter(bool isLive, Map<String, dynamic> dash) {
+    final credits = (dash['jobCredits'] as num?)?.toInt() ?? 0;
+    final isDisabled = !isLive && credits <= 0;
+
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -1001,7 +1017,7 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
         border: Border(top: BorderSide(color: context.gx.border)),
       ),
       child: GestureDetector(
-        onTap: _toggling ? null : _toggle,
+        onTap: (_toggling || isDisabled) ? null : _toggle,
         child: Container(
           width: double.infinity,
           padding: const EdgeInsets.all(16),
@@ -1023,6 +1039,12 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
             ],
           ),
           alignment: Alignment.center,
+          foregroundDecoration: isDisabled
+              ? BoxDecoration(
+                  color: context.gx.bg.withValues(alpha: 0.6),
+                  borderRadius: BorderRadius.circular(16),
+                )
+              : null,
           child: _toggling
               ? SizedBox(width: 24, height: 24, child: CircularProgressIndicator(color: context.gx.onAccent, strokeWidth: 3))
               : Row(
