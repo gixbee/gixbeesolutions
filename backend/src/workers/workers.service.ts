@@ -449,6 +449,7 @@ export class WorkersService {
               `Pay ₹${fee} in the Go Live screen to unlock your next ` +
               `${jobsIncluded} jobs.`,
           );
+        }
       }
 
       // Daily go-live cap — admin-tunable (Master Entries →
