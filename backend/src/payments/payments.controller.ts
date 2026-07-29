@@ -37,6 +37,17 @@ export class PaymentsController {
   }
 
   /**
+   * Worker period-fee checkout ("N jobs, then pay") — direct Razorpay
+   * payment, no wallet. Price comes from Master Entries server-side; the
+   * webhook resets the worker's job counter on capture.
+   */
+  @Post('period-fee/order')
+  @UseGuards(JwtAuthGuard)
+  createPeriodFeeOrder(@Req() req: any) {
+    return this.paymentsService.createPeriodFeeOrder(req.user.userId);
+  }
+
+  /**
    * PUBLIC Razorpay webhook (payment.captured / order.paid). Auth is the
    * HMAC signature over the RAW body — requires rawBody:true in main.ts.
    * Always fast-200s handled/duplicate deliveries; 403 on bad signature;

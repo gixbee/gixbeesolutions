@@ -641,17 +641,17 @@ class ProfileScreen extends ConsumerWidget {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            option(AppThemeChoice.gixbeeDark, 'Gixbee Dark',
-                'Deep-void look with violet accents (default)',
-                Icons.dark_mode_rounded, GixbeeTheme.accentViolet),
             option(AppThemeChoice.grabLight, 'Grab Green',
-                'Light surfaces + green accents. Login stays brand-orange.',
+                'Light surfaces + green accents (default)',
                 Icons.light_mode_rounded, GixbeeTheme.grabGreen),
+            option(AppThemeChoice.gixbeeDark, 'Gixbee Dark',
+                'Deep-void look with violet accents',
+                Icons.dark_mode_rounded, GixbeeTheme.accentViolet),
             Padding(
               padding: const EdgeInsets.fromLTRB(4, 4, 4, 8),
               child: Text(
-                'Auth & splash always use the orange Gixbee wordmark — '
-                'Appearance only changes the main app shell.',
+                'The whole app follows your choice — including login, OTP '
+                'and the splash screen.',
                 style: TextStyle(
                   fontSize: 11,
                   height: 1.35,

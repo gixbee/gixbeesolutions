@@ -8,9 +8,10 @@ import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import * as crypto from 'crypto';
-import { PaymentOrder, PaymentOrderStatus } from './payment-order.entity';
+import { PaymentOrder, PaymentOrderStatus, PaymentPurpose } from './payment-order.entity';
 import { WalletsService } from '../wallets/wallets.service';
 import { MasterEntriesService } from '../master-entries/master-entries.service';
+import { WorkersService } from '../workers/workers.service';
 
 /**
  * Razorpay wallet-recharge integration.
@@ -40,6 +41,7 @@ export class PaymentsService {
     private readonly ordersRepo: Repository<PaymentOrder>,
     private readonly walletsService: WalletsService,
     private readonly masterEntriesService: MasterEntriesService,
+    private readonly workersService: WorkersService,
   ) {}
 
   private get keyId(): string {
@@ -61,7 +63,11 @@ export class PaymentsService {
    */
   getGatewayStatus() {
     return {
-      wallet: { available: true },
+      // WALLET IS OFF (product decision): no customer/worker wallet for
+      // now — jobs settle directly (cash/UPI dual-confirm). Kept in the
+      // payload so older app builds' pickers render it as unavailable
+      // instead of crashing on a missing key.
+      wallet: { available: false },
       cash: { available: true },
       razorpay: {
         available: this.razorpayConfigured,
@@ -100,9 +106,48 @@ export class PaymentsService {
         'Recharge amount must be between ₹10 and ₹1,00,000.',
       );
     }
+    return this.createOrder(userId, rupees, PaymentPurpose.WALLET_RECHARGE);
+  }
+
+  /**
+   * Worker period-fee checkout ("N jobs, then pay") — DIRECT payment, no
+   * wallet hop. The PRICE COMES FROM THE SERVER (Master Entries →
+   * go_live_period_fee); the client only asks for the order. Fulfilment on
+   * webhook: WorkersService.markPeriodFeePaid resets the job counter.
+   */
+  async createPeriodFeeOrder(userId: string): Promise<{
+    orderId: string;
+    amount: number;
+    currency: string;
+    keyId: string;
+  }> {
+    const jobsIncluded = await this.workersService.periodicJobsPerPayment();
+    if (jobsIncluded <= 0) {
+      throw new BadRequestException('The per-jobs payment plan is not enabled.');
+    }
+    const fee = await this.masterEntriesService.getConfigNumber(
+      'go_live_period_fee',
+      49,
+    );
+    if (fee <= 0) {
+      throw new BadRequestException('No fee is configured for the plan.');
+    }
+    return this.createOrder(userId, fee, PaymentPurpose.PERIOD_FEE);
+  }
+
+  private async createOrder(
+    userId: string,
+    rupees: number,
+    purpose: PaymentPurpose,
+  ): Promise<{
+    orderId: string;
+    amount: number;
+    currency: string;
+    keyId: string;
+  }> {
     if (!this.razorpayConfigured) {
       throw new BadRequestException(
-        'Online recharge is not available yet — payment gateway is not configured on the server.',
+        'Online payment is not available yet — payment gateway is not configured on the server.',
       );
     }
 
@@ -118,8 +163,8 @@ export class PaymentsService {
       body: JSON.stringify({
         amount: rupees * 100, // paise
         currency: 'INR',
-        receipt: `rcg_${Date.now().toString(36)}`,
-        notes: { gixbeeUserId: userId, purpose: 'wallet_recharge' },
+        receipt: `${purpose === PaymentPurpose.PERIOD_FEE ? 'fee' : 'rcg'}_${Date.now().toString(36)}`,
+        notes: { gixbeeUserId: userId, purpose },
       }),
     });
 
@@ -139,12 +184,13 @@ export class PaymentsService {
         userId,
         amount: rupees,
         razorpayOrderId: order.id,
+        purpose,
         status: PaymentOrderStatus.CREATED,
       }),
     );
 
     this.logger.log(
-      `[Razorpay] order ${order.id} created — ₹${rupees} recharge for ${userId}`,
+      `[Razorpay] order ${order.id} created — ₹${rupees} ${purpose} for ${userId}`,
     );
     return {
       orderId: order.id,
@@ -228,6 +274,33 @@ export class PaymentsService {
     });
     if (!order) return { ok: true }; // unreachable after a successful claim
 
+    // ── Fulfilment by purpose ──
+    if (order.purpose === PaymentPurpose.PERIOD_FEE) {
+      // Worker platform fee: unlock the next batch of included jobs.
+      // Direct payment — the wallet is never touched.
+      try {
+        await this.workersService.markPeriodFeePaid(order.userId);
+        this.logger.log(
+          `[Razorpay] ${orderId}: period fee ₹${order.amount} — jobs unlocked for ${order.userId}`,
+        );
+      } catch (e) {
+        await this.ordersRepo
+          .update(
+            { razorpayOrderId: orderId },
+            { status: PaymentOrderStatus.CREATED, razorpayPaymentId: null },
+          )
+          .catch(() => {});
+        this.logger.error(
+          `[Razorpay] ${orderId}: period-fee fulfilment FAILED — claim reverted for retry: ${
+            (e as Error)?.message ?? e
+          }`,
+        );
+        throw e; // 5xx → Razorpay retries the webhook
+      }
+      return { ok: true };
+    }
+
+    // WALLET_RECHARGE (default): credit the wallet.
     try {
       await this.walletsService.addFunds(
         order.userId,
@@ -256,7 +329,11 @@ export class PaymentsService {
     // First-recharge bonus (Master Entries → first_recharge_bonus, ₹, 0=off).
     try {
       const creditedCount = await this.ordersRepo.count({
-        where: { userId: order.userId, status: PaymentOrderStatus.CREDITED },
+        where: {
+          userId: order.userId,
+          status: PaymentOrderStatus.CREDITED,
+          purpose: PaymentPurpose.WALLET_RECHARGE,
+        },
       });
       if (creditedCount === 1) {
         const bonus = await this.masterEntriesService.getConfigNumber(

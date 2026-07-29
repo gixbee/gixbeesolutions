@@ -187,8 +187,17 @@ class WorkerRepository {
   /// Periodic fee plan ("N jobs, then pay"): pay the period fee to unlock
   /// the next batch of included jobs. `POST /workers/me/pay-period-fee`
   /// — charged from the Gixbee wallet; resets the per-period counter.
+  /// DEV FALLBACK ONLY — production uses [createPeriodFeeOrder] + Razorpay.
   Future<Map<String, dynamic>> payPeriodFee() async {
     final response = await _dio.post('/workers/me/pay-period-fee');
+    return Map<String, dynamic>.from(response.data as Map);
+  }
+
+  /// Direct Razorpay checkout for the period fee — the production path.
+  /// `POST /payments/period-fee/order` → {orderId, amount(paise), currency,
+  /// keyId}. The server sets the price; the webhook unlocks the jobs.
+  Future<Map<String, dynamic>> createPeriodFeeOrder() async {
+    final response = await _dio.post('/payments/period-fee/order');
     return Map<String, dynamic>.from(response.data as Map);
   }
 

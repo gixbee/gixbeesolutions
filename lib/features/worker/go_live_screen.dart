@@ -3,7 +3,9 @@ import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:razorpay_flutter/razorpay_flutter.dart';
 
+import '../../core/config/app_config.dart';
 import '../../repositories/auth_repository.dart';
 import '../../repositories/booking_repository.dart';
 import '../../repositories/worker_repository.dart';
@@ -69,6 +71,10 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
   /// In-flight guard for the periodic-plan payment button.
   bool _payingFee = false;
 
+  /// Razorpay checkout for the DIRECT period-fee payment (no wallet hop).
+  /// Lazily created on first use; cleared in dispose.
+  Razorpay? _razorpay;
+
   @override
   void initState() {
     super.initState();
@@ -89,6 +95,7 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
     _ticker?.cancel();
     _locationHeartbeat?.cancel();
     _socketSub?.cancel();
+    _razorpay?.clear();
     super.dispose();
   }
 
@@ -347,11 +354,77 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
     );
   }
 
-  /// Pay the period fee (periodic plan) and refresh the dashboard — on
-  /// success the plan card flips back to "N jobs left" and Go Live unblocks.
+  /// Pay the period fee — DIRECT Razorpay checkout (production path): the
+  /// server creates the order at the Master-Entries price, the user pays in
+  /// checkout, and the WEBHOOK unlocks the jobs. Falls back to the wallet
+  /// charge only when the gateway isn't configured (dev machines).
   Future<void> _payPeriodFee() async {
     if (_payingFee) return;
     setState(() => _payingFee = true);
+    try {
+      final order =
+          await ref.read(workerRepositoryProvider).createPeriodFeeOrder();
+      final user = ref.read(currentUserProvider).value;
+
+      _razorpay ??= Razorpay()
+        ..on(Razorpay.EVENT_PAYMENT_SUCCESS, _onFeePaymentSuccess)
+        ..on(Razorpay.EVENT_PAYMENT_ERROR, _onFeePaymentError)
+        ..on(Razorpay.EVENT_EXTERNAL_WALLET, (_) {});
+
+      _razorpay!.open({
+        'key': order['keyId'] ?? AppConfig.razorpayKey,
+        'amount': order['amount'], // paise, server-priced
+        'order_id': order['orderId'],
+        'currency': order['currency'] ?? 'INR',
+        'name': AppConfig.appName,
+        'description': 'Gixbee platform fee — unlock your next jobs',
+        'timeout': AppConfig.paymentTimeoutSeconds,
+        'prefill': {'contact': user?.phone ?? '', 'email': user?.email ?? ''},
+      });
+      // _payingFee is released by the success/error handlers.
+    } on DioException catch (e) {
+      final msg = e.response?.data is Map
+          ? (e.response?.data['message']?.toString() ?? '')
+          : '';
+      if (msg.contains('not configured')) {
+        // Dev fallback: gateway absent → wallet charge keeps testing possible.
+        await _payPeriodFeeViaWallet();
+      } else {
+        if (mounted) {
+          _toast(msg.isEmpty ? 'Could not start the payment' : msg,
+              error: true);
+        }
+      }
+      if (mounted) setState(() => _payingFee = false);
+    } catch (_) {
+      if (mounted) {
+        _toast('Could not start the payment', error: true);
+        setState(() => _payingFee = false);
+      }
+    }
+  }
+
+  void _onFeePaymentSuccess(PaymentSuccessResponse response) {
+    if (!mounted) return;
+    setState(() => _payingFee = false);
+    _toast('Payment received — unlocking your jobs…', error: false);
+    // Webhook fulfils within seconds; refresh twice, staggered.
+    Future.delayed(const Duration(seconds: 2), () {
+      if (mounted) ref.invalidate(goLiveDashboardProvider);
+    });
+    Future.delayed(const Duration(seconds: 6), () {
+      if (mounted) ref.invalidate(goLiveDashboardProvider);
+    });
+  }
+
+  void _onFeePaymentError(PaymentFailureResponse response) {
+    if (!mounted) return;
+    setState(() => _payingFee = false);
+    _toast('Payment failed: ${response.message ?? 'try again'}', error: true);
+  }
+
+  /// Dev-only fallback when Razorpay keys aren't configured on the server.
+  Future<void> _payPeriodFeeViaWallet() async {
     try {
       final res = await ref.read(workerRepositoryProvider).payPeriodFee();
       ref.invalidate(goLiveDashboardProvider);
@@ -366,8 +439,6 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
       if (mounted) _toast(msg, error: true);
     } catch (_) {
       if (mounted) _toast('Payment failed', error: true);
-    } finally {
-      if (mounted) setState(() => _payingFee = false);
     }
   }
 

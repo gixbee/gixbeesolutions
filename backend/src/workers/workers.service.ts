@@ -79,6 +79,15 @@ export const MAX_BROADCAST_FANOUT = 15;
 export const SUSPENSION_STRIKE_THRESHOLD = 3;
 
 /**
+ * WALLET IS OFF (product decision, mirrors BookingsService): the legacy
+ * min-wallet Go Live floor must not fire while there is no wallet product
+ * to top up — otherwise workers would be blocked by a balance they cannot
+ * change. The periodic "N jobs then pay" plan (direct Razorpay) is the only
+ * fee mechanism.
+ */
+export const WALLET_PAYMENTS_ENABLED = false;
+
+/**
  * Rebroadcast (attempt 2, nobody accepted in 90s): each pro's own travel
  * radius is stretched by this factor — a job "slightly beyond your usual
  * area" they can still decline. Hard ceiling MAX_DISPATCH_RADIUS_KM applies.
@@ -440,8 +449,9 @@ export class WorkersService {
               `${jobsIncluded} jobs.`,
           );
         }
-      } else {
+      } else if (WALLET_PAYMENTS_ENABLED) {
         // LEGACY per-booking model: wallet floor guarantees fee coverage.
+        // Dormant while the wallet product is off.
         const minWallet = await this.masterEntriesService.getConfigNumber(
           'go_live_min_wallet',
           12,
@@ -573,12 +583,35 @@ export class WorkersService {
   async recordCompletedJobForPeriod(userId: string): Promise<void> {
     const jobsIncluded = await this.periodicJobsPerPayment();
     if (jobsIncluded <= 0) return;
-    await this.workersRepository
+    const res = await this.workersRepository
       .createQueryBuilder()
       .update(WorkerProfile)
       .set({ jobsSincePayment: () => '"jobsSincePayment" + 1' })
       .where('"userId" = :uid', { uid: userId })
       .execute();
+    this.logger.log(
+      `[PeriodFee] +1 completed job for ${userId} (rows: ${res.affected ?? 0}, plan: ${jobsIncluded}/period)`,
+    );
+  }
+
+  /** Fulfilment for a Razorpay PERIOD_FEE payment — called by the payments
+   *  webhook after signature verification. Direct payment, NO wallet
+   *  involvement: unlock the next batch and tell the pro. */
+  async markPeriodFeePaid(userId: string): Promise<void> {
+    await this.workersRepository
+      .createQueryBuilder()
+      .update(WorkerProfile)
+      .set({ jobsSincePayment: 0 })
+      .where('"userId" = :uid', { uid: userId })
+      .execute();
+    const jobsIncluded = await this.periodicJobsPerPayment();
+    this.notificationsService
+      .sendToUser(userId, {
+        title: 'Payment received',
+        body: `Your next ${jobsIncluded} jobs are unlocked — go live when ready!`,
+        data: { type: 'period_fee_paid' },
+      })
+      .catch(() => {});
   }
 
   /** Worker pays to unlock the next period of included jobs. Charged from

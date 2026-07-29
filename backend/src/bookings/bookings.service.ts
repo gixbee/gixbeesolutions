@@ -29,6 +29,16 @@ import { OutboxEventType } from '../outbox/outbox.types';
 export class BookingsService {
   private readonly logger = new Logger(BookingsService.name);
 
+  /**
+   * WALLET IS OFF (product decision): no customer or worker wallet for now.
+   * All job payments settle DIRECTLY between customer and worker (cash/UPI,
+   * dual-confirm markPaid); the only money Gixbee collects is the worker
+   * period fee via direct Razorpay checkout. Flip this back on when the
+   * wallet product returns — the settlement/fee/bonus code below is kept
+   * intact behind this switch.
+   */
+  private static readonly WALLET_PAYMENTS_ENABLED = false;
+
   constructor(
     @InjectRepository(Booking)
     private bookingsRepository: Repository<Booking>,
@@ -583,7 +593,7 @@ export class BookingsService {
       const periodicJobs = await this.workersService
         .periodicJobsPerPayment()
         .catch(() => 0);
-      if (periodicJobs <= 0) {
+      if (BookingsService.WALLET_PAYMENTS_ENABLED && periodicJobs <= 0) {
         try {
           console.log('[AcceptBooking] Deducting booking fee...');
           await this.walletsService.deductBookingFee(workerId);
@@ -1043,8 +1053,14 @@ export class BookingsService {
 
     // Instant Help settles offline (cash / UPI / other). Gixbee never
     // moves the job money — both sides confirm on the payment screens.
-    // Non-instant WALLET bookings still settle in-app when funded.
-    if (booking.type !== BookingType.INSTANT && booking.paymentMethod === 'WALLET') {
+    // Non-instant WALLET bookings settled in-app when the wallet product
+    // was live; with WALLET_PAYMENTS_ENABLED=false everything falls
+    // through to direct collection (isPaid=false → dual-confirm markPaid).
+    if (
+      BookingsService.WALLET_PAYMENTS_ENABLED &&
+      booking.type !== BookingType.INSTANT &&
+      booking.paymentMethod === 'WALLET'
+    ) {
       if (totalAmount <= 0) {
         booking.isPaid = true; // nothing to settle
       } else if (booking.customer?.id && booking.operator?.id) {
@@ -1092,21 +1108,29 @@ export class BookingsService {
       await this.workersService.setWorkerStatus(booking.operator.id, 'available');
 
       // Periodic fee plan: this completion consumes one included job
-      // (atomic increment; no-op while the plan is off).
+      // (atomic increment; no-op while the plan is off). A FAILURE HERE IS
+      // LOUD — if the jobsSincePayment migration hasn't been run, this is
+      // where you find out, not weeks later when nobody was ever charged.
       await this.workersService
         .recordCompletedJobForPeriod(booking.operator.id)
-        .catch(() => {});
+        .catch((e) =>
+          this.logger.error(
+            `[PeriodFee] FAILED to count completed job for ${booking.operator!.id}: ${
+              (e as Error)?.message ?? e
+            } — was the jobsSincePayment migration run?`,
+          ),
+        );
 
       const workerProfile = await this.workerProfileRepo.findOne({
         where: { user: { id: booking.operator.id } },
       });
       if (workerProfile && !workerProfile.isFirstJobDone) {
         // The ₹12 first-job bonus exists to seed the LEGACY per-accept fee
-        // wallet — under the periodic plan it would just be free money.
+        // wallet — dormant while the wallet product is off.
         const periodicJobs = await this.workersService
           .periodicJobsPerPayment()
           .catch(() => 0);
-        if (periodicJobs <= 0) {
+        if (BookingsService.WALLET_PAYMENTS_ENABLED && periodicJobs <= 0) {
           await this.walletsService.addFunds(booking.operator.id, 12);
         }
         workerProfile.isFirstJobDone = true;

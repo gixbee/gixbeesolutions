@@ -10,10 +10,19 @@ import {
 export enum PaymentOrderStatus {
   /** Razorpay order created; awaiting payment + webhook. */
   CREATED = 'CREATED',
-  /** Webhook verified and the wallet was credited. Terminal. */
+  /** Webhook verified and the purchase was fulfilled. Terminal. */
   CREDITED = 'CREDITED',
   /** Payment failed/expired (currently informational only). */
   FAILED = 'FAILED',
+}
+
+export enum PaymentPurpose {
+  /** Customer wallet top-up — fulfilment credits the wallet. */
+  WALLET_RECHARGE = 'WALLET_RECHARGE',
+  /** Worker periodic platform fee ("N jobs, then pay") — fulfilment
+   *  resets jobsSincePayment so the pro can go live again. NO wallet
+   *  involvement: the payment_orders row is the receipt. */
+  PERIOD_FEE = 'PERIOD_FEE',
 }
 
 /**
@@ -40,6 +49,13 @@ export class PaymentOrder {
   @Index({ unique: true })
   @Column()
   razorpayOrderId: string;
+
+  @Column({
+    type: 'enum',
+    enum: PaymentPurpose,
+    default: PaymentPurpose.WALLET_RECHARGE,
+  })
+  purpose: PaymentPurpose;
 
   @Column({ type: 'varchar', nullable: true })
   razorpayPaymentId: string | null;
