@@ -438,7 +438,7 @@ export class WorkersService {
 
       // Check Job Credits balance
       const creditRow = await this.jobCreditRepository.findOne({
-        where: { workerId: userId },
+        where: { user: { id: userId } },
       });
       const credits = creditRow ? creditRow.balance : 0;
       if (credits <= 0) {
