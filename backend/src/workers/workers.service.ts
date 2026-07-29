@@ -449,22 +449,6 @@ export class WorkersService {
               `Pay ₹${fee} in the Go Live screen to unlock your next ` +
               `${jobsIncluded} jobs.`,
           );
-        }
-      } else if (WALLET_PAYMENTS_ENABLED) {
-        // LEGACY per-booking model: wallet floor guarantees fee coverage.
-        // Dormant while the wallet product is off.
-        const minWallet = await this.masterEntriesService.getConfigNumber(
-          'go_live_min_wallet',
-          12,
-        );
-        if (profile.isFirstJobDone && minWallet > 0) {
-          const balance = await this.walletsService.getBalance(profile.user?.id || id);
-          if (balance < minWallet) {
-            throw new BadRequestException(
-              `Minimum Rs.${minWallet} wallet balance required to go live. Please top up.`,
-            );
-          }
-        }
       }
 
       // Daily go-live cap — admin-tunable (Master Entries →

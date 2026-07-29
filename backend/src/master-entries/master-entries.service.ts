@@ -77,11 +77,6 @@ export class MasterEntriesService implements OnModuleInit {
       note: 'How many times a worker may go LIVE per day (going offline is free). 0 = unlimited.',
     },
     {
-      key: 'go_live_min_wallet',
-      value: '12',
-      note: 'Minimum wallet balance (Rs.) required to go live, once the first job is done. DORMANT while the wallet product is off.',
-    },
-    {
       key: 'go_live_jobs_per_payment',
       value: '3',
       note: 'Periodic fee plan: completed jobs included per payment. Worker pays the period fee after using them to go live again. 0 = plan OFF.',
