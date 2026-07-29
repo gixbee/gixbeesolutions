@@ -478,6 +478,9 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
               ),
               GxButton(
                 label: 'Buy Pack',
+                expand: false,
+                height: 36,
+                fontSize: 13,
                 onTap: () => Navigator.of(context).push(
                   MaterialPageRoute(builder: (_) => const JobPackScreen()),
                 ),
@@ -621,7 +624,7 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
                 ),
               ),
               // Sticky Go Live / Offline Button
-              if (dash?['feeModel']?['paymentDue'] != true)
+              if (dash != null)
                 Positioned(
                   bottom: 0,
                   left: 0,
@@ -953,6 +956,12 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
                 ),
               ],
             ),
+          ),
+
+        if (dash != null)
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: _jobCreditsCard(dash),
           ),
 
         Padding(

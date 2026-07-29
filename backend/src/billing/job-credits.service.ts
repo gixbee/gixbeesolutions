@@ -81,7 +81,7 @@ export class JobCreditsService {
     });
   }
 
-  async consumeCredit(userId: string, bookingId: string, providedManager?: any): Promise<void> {
+  async consumeCredit(userId: string, bookingId: string, providedManager?: any): Promise<number> {
     const execute = async (manager: any) => {
       let credit = await manager.findOne(JobCredit, {
         where: { user: { id: userId } },
@@ -103,12 +103,14 @@ export class JobCreditsService {
           bookingId,
         }),
       );
+      
+      return credit.balance;
     };
 
     if (providedManager) {
-      await execute(providedManager);
+      return await execute(providedManager);
     } else {
-      await this.dataSource.transaction(execute);
+      return await this.dataSource.transaction(execute);
     }
   }
 

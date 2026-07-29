@@ -436,6 +436,17 @@ export class WorkersService {
         );
       }
 
+      // Check Job Credits balance
+      const creditRow = await this.jobCreditRepository.findOne({
+        where: { workerId: userId },
+      });
+      const credits = creditRow ? creditRow.balance : 0;
+      if (credits <= 0) {
+        throw new BadRequestException(
+          'You need job credits to go live and accept new bookings. Please buy a job pack to continue.'
+        );
+      }
+
 
       // Daily go-live cap — admin-tunable (Master Entries →
       // go_live_daily_limit; 0 or blank = unlimited).
@@ -567,6 +578,14 @@ export class WorkersService {
     // If they hit the limit, force them offline immediately so they can't receive more jobs.
     const profile = await this.workersRepository.findOne({ where: { user: { id: userId } } });
     if (profile && profile.isActive && profile.jobsSincePayment >= jobsIncluded) {
+      await this.forceOffline(userId);
+      this.logger.log(`[PeriodFee] Worker ${userId} hit limit (${profile.jobsSincePayment}/${jobsIncluded}), forced offline.`);
+    }
+  }
+
+  async forceOffline(userId: string): Promise<void> {
+    const profile = await this.workersRepository.findOne({ where: { user: { id: userId } } });
+    if (profile && profile.isActive) {
       profile.isActive = false;
       await this.workersRepository.save(profile);
       
@@ -578,7 +597,7 @@ export class WorkersService {
       
       await this.invalidateWorkerListCache();
       
-      this.logger.log(`[PeriodFee] Worker ${userId} hit limit (${profile.jobsSincePayment}/${jobsIncluded}), forced offline.`);
+      this.logger.log(`Worker ${userId} forced offline.`);
     }
   }
 

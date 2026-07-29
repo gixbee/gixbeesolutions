@@ -241,6 +241,8 @@ class _JobPackScreenState extends ConsumerState<JobPackScreen> {
                       ? const CircularProgressIndicator()
                       : GxButton(
                           label: 'Buy Now',
+                          expand: false,
+                          height: 40,
                           onTap: _startPurchase,
                         ),
                 ],

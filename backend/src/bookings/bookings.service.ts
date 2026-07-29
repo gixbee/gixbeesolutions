@@ -504,7 +504,17 @@ export class BookingsService {
 
         // Step 2.5: Consume 1 job credit (throws if balance < 1)
         console.log(`[AcceptBooking] Consuming credit for worker ${workerId}`);
-        await this.jobCreditsService.consumeCredit(workerId, bookingId, manager);
+        const remainingCredits = await this.jobCreditsService.consumeCredit(workerId, bookingId, manager);
+
+        if (remainingCredits === 0) {
+          console.log(`[AcceptBooking] Worker ${workerId} is out of credits. Forcing offline.`);
+          await this.workersService.forceOffline(workerId);
+          this.notificationsService.sendToUser(workerId, {
+            title: 'Out of credits',
+            body: 'You have been taken offline because you have no job credits left. Buy a pack to receive new jobs.',
+            data: { type: 'out_of_credits' },
+          });
+        }
 
 
         if (!booking.operator) {
