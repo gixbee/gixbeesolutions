@@ -13,7 +13,6 @@ import '../../theme.dart';
 import '../../shared/widgets/gx_snackbar.dart';
 import '../../shared/widgets/gx_pressable.dart';
 import '../../theme.dart';
-import '../../services/audio_service.dart';
 import '../billing/job_pack_screen.dart';
 
 /// Shown as a full-screen modal when the worker receives job requests.

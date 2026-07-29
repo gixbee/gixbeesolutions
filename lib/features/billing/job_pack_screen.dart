@@ -169,7 +169,7 @@ class _JobPackScreenState extends ConsumerState<JobPackScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Job Credits', style: TextStyle(fontWeight: FontWeight.bold)),
-        backgroundColor: context.gx.surface,
+        backgroundColor: context.gx.card,
         elevation: 0,
       ),
       body: Padding(
@@ -199,7 +199,7 @@ class _JobPackScreenState extends ConsumerState<JobPackScreen> {
                     'Credits Remaining',
                     style: TextStyle(
                       fontSize: 16,
-                      color: context.gx.onSurface.withOpacity(0.7),
+                      color: context.gx.ink.withOpacity(0.7),
                     ),
                   ),
                 ],
@@ -208,13 +208,13 @@ class _JobPackScreenState extends ConsumerState<JobPackScreen> {
             const SizedBox(height: 32),
             Text(
               'Buy Job Pack',
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: context.gx.onSurface),
+              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: context.gx.ink),
             ),
             const SizedBox(height: 16),
             Container(
               padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
-                color: context.gx.surface,
+                color: context.gx.card,
                 borderRadius: BorderRadius.circular(12),
                 boxShadow: [
                   BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 4)),
@@ -228,7 +228,7 @@ class _JobPackScreenState extends ConsumerState<JobPackScreen> {
                     children: [
                       Text(
                         '$credits Jobs',
-                        style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600, color: context.gx.onSurface),
+                        style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600, color: context.gx.ink),
                       ),
                       const SizedBox(height: 4),
                       Text(
@@ -241,8 +241,7 @@ class _JobPackScreenState extends ConsumerState<JobPackScreen> {
                       ? const CircularProgressIndicator()
                       : GxButton(
                           label: 'Buy Now',
-                          onPressed: _startPurchase,
-                          size: GxButtonSize.small,
+                          onTap: _startPurchase,
                         ),
                 ],
               ),
@@ -252,7 +251,7 @@ class _JobPackScreenState extends ConsumerState<JobPackScreen> {
               'One job credit is consumed automatically when you accept a booking. If the customer cancels, your credit is refunded.',
               style: TextStyle(
                 fontSize: 14,
-                color: context.gx.onSurface.withOpacity(0.6),
+                color: context.gx.ink.withOpacity(0.6),
                 height: 1.4,
               ),
               textAlign: TextAlign.center,

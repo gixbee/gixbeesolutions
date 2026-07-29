@@ -1,9 +1,6 @@
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../core/repositories/auth_repository.dart'; // Adjust path if auth_repository is elsewhere. Wait, wallet_repository uses `import 'auth_repository.dart';`. Let me check where wallet_repository is.
-
-// Re-using the import pattern from wallet_repository:
 import 'auth_repository.dart';
 
 final jobCreditsRepositoryProvider = Provider((ref) {

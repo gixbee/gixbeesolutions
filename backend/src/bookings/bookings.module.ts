@@ -12,6 +12,7 @@ import { WorkerProfile } from '../workers/worker-profile.entity';
 import { MessagesModule } from '../messages/messages.module';
 import { OutboxModule } from '../outbox/outbox.module';
 import { SystemLogsModule } from '../system-logs/system-logs.module';
+import { BillingModule } from '../billing/billing.module';
 
 @Module({
   imports: [
@@ -25,6 +26,7 @@ import { SystemLogsModule } from '../system-logs/system-logs.module';
     MessagesModule,
     OutboxModule,
     SystemLogsModule,
+    BillingModule,
   ],
   controllers: [BookingsController],
   providers: [BookingsService, BookingsProcessor],

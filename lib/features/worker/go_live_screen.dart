@@ -478,10 +478,9 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
               ),
               GxButton(
                 label: 'Buy Pack',
-                onPressed: () => Navigator.of(context).push(
+                onTap: () => Navigator.of(context).push(
                   MaterialPageRoute(builder: (_) => const JobPackScreen()),
                 ),
-                size: GxButtonSize.small,
               ),
             ],
           ),
