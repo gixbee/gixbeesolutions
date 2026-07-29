@@ -593,6 +593,23 @@ export class WorkersService {
     this.logger.log(
       `[PeriodFee] +1 completed job for ${userId} (rows: ${res.affected ?? 0}, plan: ${jobsIncluded}/period)`,
     );
+
+    // If they hit the limit, force them offline immediately so they can't receive more jobs.
+    const profile = await this.workersRepository.findOne({ where: { user: { id: userId } } });
+    if (profile && profile.isActive && profile.jobsSincePayment >= jobsIncluded) {
+      profile.isActive = false;
+      await this.workersRepository.save(profile);
+      
+      await this.redisService.del(`worker:location:${userId}`);
+      await this.redisService.del(`worker:status:${userId}`);
+      await this.redisService.del(`worker:snapshot:${userId}`);
+      await this.redisService.unindexWorkerSkills(userId, profile.skills || []);
+      await this.redisService.removeWorkerFromGeoIndex(userId);
+      
+      await this.invalidateWorkerListCache();
+      
+      this.logger.log(`[PeriodFee] Worker ${userId} hit limit (${profile.jobsSincePayment}/${jobsIncluded}), forced offline.`);
+    }
   }
 
   /** Fulfilment for a Razorpay PERIOD_FEE payment — called by the payments

@@ -638,12 +638,13 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
                 ),
               ),
               // Sticky Go Live / Offline Button
-              Positioned(
-                bottom: 0,
-                left: 0,
-                right: 0,
-                child: _buildStickyFooter(isLive),
-              ),
+              if (dash?['feeModel']?['paymentDue'] != true)
+                Positioned(
+                  bottom: 0,
+                  left: 0,
+                  right: 0,
+                  child: _buildStickyFooter(isLive),
+                ),
             ],
           );
         },
