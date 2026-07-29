@@ -137,7 +137,8 @@ export class BookingsController {
   @Patch(':id/cancel')
   async cancel(@Param('id') id: string, @Req() req, @Body() body: CancelBookingDto) {
     await this.bookingsService.assertParticipant(id, req.user.userId);
-    return this.bookingsService.cancelBooking(id, body?.reason ?? 'Not specified');
+    const source = req.user.role === 'CUSTOMER' ? 'customer' : 'operator';
+    return this.bookingsService.cancelBooking(id, body?.reason ?? 'Not specified', source);
   }
 
   // ─── OTP GATES ──────────────────────────────────────────

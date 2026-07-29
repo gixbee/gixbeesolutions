@@ -24,6 +24,8 @@ import type { WorkerDto } from '../workers/workers.service';
 import { MessagesGateway } from '../messages/messages.gateway';
 import { OutboxService } from '../outbox/outbox.service';
 import { OutboxEventType } from '../outbox/outbox.types';
+import { JobCreditsService } from '../billing/job-credits.service';
+import { CreditTransactionReason } from '../billing/credit-transaction.entity';
 
 @Injectable()
 export class BookingsService {
@@ -52,6 +54,7 @@ export class BookingsService {
     private dataSource: DataSource,
     private messagesGateway: MessagesGateway,
     private outboxService: OutboxService,
+    private jobCreditsService: JobCreditsService,
   ) {}
 
   private generateOtp(): string {
@@ -499,6 +502,11 @@ export class BookingsService {
         if (!booking) throw new NotFoundException('Booking not found');
         console.log(`[AcceptBooking] Booking loaded — operator=${booking.operator?.id}`);
 
+        // Step 2.5: Consume 1 job credit (throws if balance < 1)
+        console.log(`[AcceptBooking] Consuming credit for worker ${workerId}`);
+        await this.jobCreditsService.consumeCredit(workerId, bookingId, manager);
+
+
         if (!booking.operator) {
           // Broadcast request (v126 first-accept-wins): no worker was
           // pre-assigned. The pessimistic row lock above makes this claim
@@ -585,25 +593,6 @@ export class BookingsService {
     // ── STEP 2: Money side effect (kept in service; non-fatal) ──────────────
     // FCM / socket / Redis / GPS jobs moved to outbox listener (BOOKING_ACCEPTED).
 
-    // Deduct platform fee from worker wallet only on initial acceptance —
-    // and ONLY under the legacy per-booking model. Under the periodic plan
-    // (go_live_jobs_per_payment > 0) the fee is collected at the Go Live
-    // gate instead of dripping ₹12 per accept.
-    if ((savedBooking as any)?._idempotent !== true) {
-      const periodicJobs = await this.workersService
-        .periodicJobsPerPayment()
-        .catch(() => 0);
-      if (BookingsService.WALLET_PAYMENTS_ENABLED && periodicJobs <= 0) {
-        try {
-          console.log('[AcceptBooking] Deducting booking fee...');
-          await this.walletsService.deductBookingFee(workerId);
-          console.log('[AcceptBooking] Booking fee deducted');
-        } catch (error) {
-          // Log but don't fail the accept — fee can be reconciled later
-          console.error('[AcceptBooking] Wallet deduction failed (non-fatal):', error?.message ?? error);
-        }
-      }
-    }
 
     console.log('[AcceptBooking] DONE — returning success');
 
@@ -819,6 +808,7 @@ export class BookingsService {
   async cancelBooking(
     id: string,
     reason: string,
+    source: 'customer' | 'operator' = 'customer',
   ): Promise<{
     status: string;
     refundAmount: number;
@@ -838,13 +828,6 @@ export class BookingsService {
     booking.cancellationReason = reason;
 
     // Refund policy: refund only money Gixbee actually captured.
-    // - WALLET bookings: settlement moved funds customer→worker, so the
-    //   cancellation reverses that pair (worker debit + customer credit —
-    //   the clawback that was previously missing).
-    // - CASH/UPI direct collection (markPaid): the worker was paid
-    //   directly and Gixbee never held the money — no wallet credit is
-    //   minted out of thin air; the parties settle directly.
-    // - Unpaid bookings: nothing captured, nothing to refund.
     let refundAmount = 0;
     let refundMethod = 'NONE';
     if (booking.isPaid && booking.customer?.id) {
@@ -868,6 +851,17 @@ export class BookingsService {
     // Persist cancel + outbox in one transaction; FCM/Redis via listener.
     const outbox = await this.dataSource.transaction(async (manager) => {
       await manager.save(booking);
+
+      if (source === 'customer' && booking.operator?.id) {
+        console.log(`[CancelBooking] Refunding 1 job credit to worker ${booking.operator.id} due to customer cancellation`);
+        await this.jobCreditsService.refundCredit(
+          booking.operator.id,
+          id,
+          CreditTransactionReason.REFUND_CUSTOMER_CANCEL,
+          manager,
+        );
+      }
+
       return this.outboxService.append(
         manager,
         OutboxEventType.BOOKING_CANCELLED,
@@ -875,7 +869,7 @@ export class BookingsService {
         {
           bookingId: id,
           reason,
-          source: 'customer',
+          source,
           operatorId: booking.operator?.id ?? null,
           operatorName: booking.operator?.name ?? null,
           customerId: booking.customer?.id ?? null,

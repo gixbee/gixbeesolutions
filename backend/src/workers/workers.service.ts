@@ -16,6 +16,10 @@ import { Booking, BookingStatus } from '../bookings/booking.entity';
 import { RedisService } from '../redis/redis.service';
 import { MasterEntriesService } from '../master-entries/master-entries.service';
 import { MasterEntryType } from '../master-entries/master-entry.entity';
+import { ConfigService } from '@nestjs/config';
+import { OutboxService } from '../outbox/outbox.service';
+import { OutboxEventType } from '../outbox/outbox.types';
+import { JobCredit } from '../billing/job-credit.entity';
 
 // Worker data matching the Flutter Worker model's expectations exactly
 export interface WorkerDto {
@@ -114,6 +118,8 @@ export class WorkersService {
     private readonly redisService: RedisService,
     private readonly masterEntriesService: MasterEntriesService,
     private readonly notificationsService: NotificationsService,
+    @InjectRepository(JobCredit)
+    private readonly jobCreditRepository: Repository<JobCredit>,
   ) {}
 
   private async getWorkerStatus(userId: string): Promise<'available' | 'busy'> {
@@ -430,27 +436,6 @@ export class WorkersService {
         );
       }
 
-      // ── Platform fee gate ──
-      // PERIODIC model (Master Entries → go_live_jobs_per_payment > 0):
-      // each period includes N completed jobs; when they're used up, going
-      // live is blocked until the worker pays the period fee. New workers
-      // start at 0 — the first period is free. When enabled, this REPLACES
-      // the legacy per-booking ₹12 wallet drip and its min-wallet floor.
-      const jobsIncluded = await this.periodicJobsPerPayment();
-      if (jobsIncluded > 0) {
-        const jobsUsed = profile.jobsSincePayment ?? 0;
-        if (jobsUsed >= jobsIncluded) {
-          const fee = await this.masterEntriesService.getConfigNumber(
-            'go_live_period_fee',
-            49,
-          );
-          throw new BadRequestException(
-            `You've used the ${jobsIncluded} jobs included in your plan. ` +
-              `Pay ₹${fee} in the Go Live screen to unlock your next ` +
-              `${jobsIncluded} jobs.`,
-          );
-        }
-      }
 
       // Daily go-live cap — admin-tunable (Master Entries →
       // go_live_daily_limit; 0 or blank = unlimited).
@@ -798,6 +783,7 @@ export class WorkersService {
     activeSkills: string[];
     isActive: boolean;
     serviceRadiusKm: number;
+    jobCredits: number;
     feeModel: {
       enabled: boolean;
       jobsIncluded: number;
@@ -821,6 +807,12 @@ export class WorkersService {
   }> {
     const profile = await this.ensureWorkerProfile(userId);
     const healed = await this.healTradeSkills(profile);
+
+    // Job credits balance
+    const creditRecord = await this.jobCreditRepository.findOne({
+      where: { user: { id: userId } },
+    });
+    const jobCredits = creditRecord?.balance ?? 0;
 
     // Periodic fee plan state for the Go Live screen's plan card.
     const feeJobsIncluded = await this.periodicJobsPerPayment();
@@ -863,6 +855,7 @@ export class WorkersService {
       activeSkills: healed.activeSkills || [],
       isActive: healed.isActive,
       serviceRadiusKm: healed.serviceRadiusKm ?? DEFAULT_SERVICE_RADIUS_KM,
+      jobCredits,
       feeModel: {
         enabled: feeJobsIncluded > 0,
         jobsIncluded: feeJobsIncluded,

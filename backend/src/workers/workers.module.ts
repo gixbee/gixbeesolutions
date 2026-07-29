@@ -12,9 +12,11 @@ import { WorkerStrike } from './worker-strike.entity';
 import { Booking } from '../bookings/booking.entity';
 import { User } from '../users/user.entity';
 
+import { JobCredit } from '../billing/job-credit.entity';
+
 @Module({
   imports: [
-    TypeOrmModule.forFeature([WorkerProfile, WorkerStrike, TalentProfile, ProfessionalSkill, Booking, User]),
+    TypeOrmModule.forFeature([WorkerProfile, WorkerStrike, TalentProfile, ProfessionalSkill, Booking, User, JobCredit]),
     WalletsModule,
     // Go-Live limits (daily cap, wallet floor) are admin-editable CONFIGURATION
     // master entries — see MasterEntriesService.getConfigNumber.

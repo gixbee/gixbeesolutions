@@ -406,18 +406,7 @@ class _CollectPaymentScreenState extends ConsumerState<CollectPaymentScreen> {
                               value: '₹0',
                               valueColor: gx.ink.withValues(alpha: 0.45),
                             ),
-                            _BreakdownRow(
-                              label: 'Gixbee fee (from your wallet)',
-                              value: '-₹$fee',
-                              valueColor: const Color(0xFFEF4444),
-                            ),
                           ],
-                        ),
-                        const SizedBox(height: 14),
-                        _NoteBox(
-                          purple: purple,
-                          text:
-                              'Collect ₹$amount from $name in cash or any method. Gixbee fee ₹$fee is deducted from your wallet — not this payment.',
                         ),
                         const SizedBox(height: 22),
                         Text(
@@ -498,15 +487,6 @@ class _CollectPaymentScreenState extends ConsumerState<CollectPaymentScreen> {
                                       color: Color(0xFF0B1A12),
                                     ),
                                   ),
-                          ),
-                        ),
-                        const SizedBox(height: 10),
-                        Text(
-                          'Gixbee fee ₹$fee deducted from your wallet after confirmation',
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            fontSize: 11,
-                            color: gx.ink.withValues(alpha: 0.40),
                           ),
                         ),
                       ],

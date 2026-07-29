@@ -594,15 +594,6 @@ class _CustomerPayScreenState extends ConsumerState<CustomerPayScreen> {
                                   ),
                           ),
                         ),
-                        const SizedBox(height: 10),
-                        Text(
-                          'Gixbee deducts ₹$fee from $name\'s wallet, not from your payment',
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            fontSize: 11,
-                            color: gx.ink.withValues(alpha: 0.40),
-                          ),
-                        ),
                       ],
                     ),
                   ),

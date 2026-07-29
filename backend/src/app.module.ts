@@ -56,6 +56,9 @@ import { OutboxEvent } from './outbox/outbox-event.entity';
 import { SystemLogsModule } from './system-logs/system-logs.module';
 import { SystemLog } from './system-logs/system-log.entity';
 import { SystemMetricsModule } from './system-metrics/system-metrics.module';
+import { BillingModule } from './billing/billing.module';
+import { JobCredit } from './billing/job-credit.entity';
+import { CreditTransaction } from './billing/credit-transaction.entity';
 
 @Module({
   imports: [
@@ -81,7 +84,7 @@ import { SystemMetricsModule } from './system-metrics/system-metrics.module';
             JobPreference, HiringRequest, HiringInterest,
             Business, TalentProfile, ProfessionalSkill, MasterEntry,
             Message, Favourite, Address, City, SupportTicket, AdminStaff,
-            OutboxEvent, SystemLog, PaymentOrder,
+            OutboxEvent, SystemLog, PaymentOrder, JobCredit, CreditTransaction,
           ],
           synchronize: !isProduction,   // auto-sync only in development
           migrations: [__dirname + '/migrations/**/*{.ts,.js}'],
@@ -163,6 +166,7 @@ import { SystemMetricsModule } from './system-metrics/system-metrics.module';
     PaymentsModule,
     FavouritesModule,
     AddressesModule,
+    BillingModule,
     CitiesModule,
     SupportModule,
     AdminStaffModule,

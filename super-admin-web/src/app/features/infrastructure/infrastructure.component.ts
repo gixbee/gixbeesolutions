@@ -1,11 +1,12 @@
 import { Component, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
+import { RedisViewerComponent } from './redis-viewer.component';
 
 @Component({
   selector: 'app-infrastructure',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, RedisViewerComponent],
   template: `
     <div class="gx-full-screen-view d-flex flex-column flex-grow-1 w-100">
       <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
@@ -58,6 +59,18 @@ import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
             <span>Live Container Logs (Dozzle)</span>
           </button>
         </li>
+        <li class="nav-item" role="presentation">
+          <button
+            class="nav-link d-flex align-items-center gap-2"
+            [class.active]="activeTab === 'redis'"
+            (click)="activeTab = 'redis'"
+            type="button"
+            role="tab"
+          >
+            <i class="bi bi-database"></i>
+            <span>Redis Data Viewer</span>
+          </button>
+        </li>
       </ul>
 
       <!-- Tab Content / IFrames -->
@@ -83,6 +96,11 @@ import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
             title="Dozzle Container Logs"
             allow="clipboard-read; clipboard-write"
           ></iframe>
+        </div>
+
+        <!-- Redis Tab -->
+        <div *ngIf="activeTab === 'redis'" class="w-100 flex-grow-1 d-flex flex-column h-100" style="min-height: calc(100vh - 190px);">
+          <app-redis-viewer class="flex-grow-1"></app-redis-viewer>
         </div>
 
       </div>
@@ -140,7 +158,7 @@ import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
 export class InfrastructureComponent {
   private sanitizer = inject(DomSanitizer);
 
-  activeTab: 'beszel' | 'dozzle' = 'beszel';
+  activeTab: 'beszel' | 'dozzle' | 'redis' = 'beszel';
 
   readonly rawBeszelUrl = '/infra/beszel/';
   readonly beszelUrl: SafeResourceUrl = this.sanitizer.bypassSecurityTrustResourceUrl(this.rawBeszelUrl);

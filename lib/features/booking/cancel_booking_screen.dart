@@ -60,7 +60,7 @@ class _CancelBookingScreenState extends ConsumerState<CancelBookingScreen> {
       context,
       title: 'Booking cancelled',
       message: refund > 0
-          ? '₹${refund.toStringAsFixed(0)} has been refunded to your Gixbee wallet.'
+          ? '₹${refund.toStringAsFixed(0)} has been refunded to your original payment method.'
           : 'Your booking has been cancelled. No payment was captured, so there is nothing to refund.',
       actions: [
         GxDialogAction(
@@ -127,7 +127,7 @@ class _CancelBookingScreenState extends ConsumerState<CancelBookingScreen> {
                       const SizedBox(width: 8),
                       Expanded(
                         child: Text(
-                          'Any payment already made will be refunded to your wallet.',
+                          'Any payment already made will be refunded to your original payment method.',
                           style: TextStyle(
                               fontSize: 12, color: scheme.onSurfaceVariant),
                         ),

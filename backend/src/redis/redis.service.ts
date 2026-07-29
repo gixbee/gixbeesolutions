@@ -682,4 +682,51 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
     if (!this.memKeyAlive(key)) return [];
     return [...(this.memSets.get(key) ?? [])];
   }
+
+  // ── Admin Endpoints ──
+
+  async getAdminKeys(pattern: string = '*'): Promise<string[]> {
+    if (!this.live) return [];
+    try {
+      const keys = await this.client.keys(pattern);
+      return keys;
+    } catch (error) {
+      this.logger.error('Failed to get Redis keys', error);
+      return [];
+    }
+  }
+
+  async getAdminKeyDetails(key: string): Promise<any> {
+    if (!this.live) return null;
+    try {
+      const type = await this.client.type(key);
+      const ttl = await this.client.ttl(key);
+      let value: any = null;
+
+      switch (type) {
+        case 'string':
+          value = await this.client.get(key);
+          break;
+        case 'hash':
+          value = await this.client.hGetAll(key);
+          break;
+        case 'set':
+          value = await this.client.sMembers(key);
+          break;
+        case 'zset':
+          value = await this.client.zRangeWithScores(key, 0, -1);
+          break;
+        case 'list':
+          value = await this.client.lRange(key, 0, -1);
+          break;
+        default:
+          value = `Cannot fetch value for type: ${type}`;
+      }
+
+      return { key, type, ttl, value };
+    } catch (error) {
+      this.logger.error(`Failed to get details for Redis key ${key}`, error);
+      return { key, type: 'error', ttl: -1, value: null };
+    }
+  }
 }

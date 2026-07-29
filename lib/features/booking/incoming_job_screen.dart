@@ -12,6 +12,9 @@ import '../../services/location_service.dart';
 import '../../theme.dart';
 import '../../shared/widgets/gx_snackbar.dart';
 import '../../shared/widgets/gx_pressable.dart';
+import '../../theme.dart';
+import '../../services/audio_service.dart';
+import '../billing/job_pack_screen.dart';
 
 /// Shown as a full-screen modal when the worker receives job requests.
 /// Handles a QUEUE of multiple simultaneous requests from different customers.
@@ -282,6 +285,19 @@ class _IncomingJobScreenState extends ConsumerState<IncomingJobScreen>
         _startTimer();
         return;
       }
+      
+      if (lower.contains('job credits left') || lower.contains('buy a pack')) {
+        showGxSnack(context, msg, type: GxSnackType.error);
+        Navigator.pop(context, {
+          'accepted': false,
+          'declinedIds': List<String>.from(_declinedIds),
+        });
+        Navigator.of(context).push(
+          MaterialPageRoute(builder: (_) => const JobPackScreen()),
+        );
+        return;
+      }
+
       showGxSnack(context, 'Failed to accept: $msg', type: GxSnackType.error);
       _startTimer();
     }

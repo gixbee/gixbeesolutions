@@ -892,7 +892,7 @@ class _PaymentsTab extends ConsumerWidget {
           icon: Icons.receipt_long_outlined,
           title: 'No payments yet',
           message:
-              'Payments for your bookings will appear here. Wallet top-ups are shown in My Wallet.',
+              'Payments for your bookings will appear here.',
         ),
       ],
     );

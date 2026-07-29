@@ -18,6 +18,7 @@ import '../../shared/widgets/gx_pressable.dart';
 import '../../shared/widgets/gx_sheet.dart';
 import '../jobs/register_pro_screen.dart';
 import '../booking/incoming_job_screen.dart';
+import '../billing/job_pack_screen.dart';
 import 'worker_languages_card.dart';
 import 'service_radius_card.dart';
 
@@ -442,17 +443,11 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
     }
   }
 
-  /// Periodic-plan card (replaces the old HARDCODED wallet card that showed
-  /// a fake ₹100 balance): included-jobs usage, and the pay-to-unlock button
-  /// when the batch is used up. Hidden entirely while the plan is off.
-  Widget _feeModelCard(Map<String, dynamic>? dash) {
-    final fm = dash?['feeModel'];
-    if (fm is! Map || fm['enabled'] != true) return const SizedBox.shrink();
-    final included = (fm['jobsIncluded'] as num?)?.toInt() ?? 0;
-    final used = (fm['jobsUsed'] as num?)?.toInt() ?? 0;
-    final fee = (fm['fee'] as num?)?.toInt() ?? 0;
-    final due = fm['paymentDue'] == true;
-    final color = due ? const Color(0xFFF97316) : GixbeeTheme.accentGreen;
+  /// Job Credits card showing current balance and buy pack button
+  Widget _jobCreditsCard(Map<String, dynamic>? dash) {
+    final balance = (dash?['jobCredits'] as num?)?.toInt() ?? 0;
+    final isLow = balance == 0;
+    final color = isLow ? const Color(0xFFF97316) : GixbeeTheme.accentGreen;
 
     return Container(
       decoration: BoxDecoration(
@@ -467,47 +462,36 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
         children: [
           Row(
             children: [
-              Icon(due ? Icons.lock_clock : Icons.confirmation_num_outlined,
+              Icon(isLow ? Icons.lock_clock : Icons.confirmation_num_outlined,
                   size: 18, color: color),
               const SizedBox(width: 10),
               Expanded(
                 child: Text(
-                  due
-                      ? 'Included jobs used up'
-                      : 'Job plan: $used of $included used',
+                  isLow
+                      ? 'No job credits remaining'
+                      : 'Job Credits: $balance',
                   style: TextStyle(
                       fontSize: 13,
                       fontWeight: FontWeight.w800,
-                      color: context.gx.ink),
+                      color: color.withValues(alpha: 0.9)),
                 ),
               ),
-              if (!due)
-                Text('${included - used} left',
-                    style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w800,
-                        color: color)),
+              GxButton(
+                label: 'Buy Pack',
+                onPressed: () => Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const JobPackScreen()),
+                ),
+                size: GxButtonSize.small,
+              ),
             ],
           ),
-          const SizedBox(height: 6),
-          Text(
-            due
-                ? 'Pay ₹$fee to unlock your next $included jobs and go live.'
-                : 'Your plan includes $included jobs — you only pay ₹$fee '
-                    'when they\'re used up.',
-            style: TextStyle(
-                fontSize: 11.5,
-                height: 1.4,
-                color: context.gx.ink.withValues(alpha: 0.6)),
-          ),
-          if (due) ...[
-            const SizedBox(height: 10),
-            GxButton(
-              label: _payingFee ? 'Processing…' : 'Pay ₹$fee & unlock',
-              icon: Icons.bolt,
-              onTap: _payingFee ? null : _payPeriodFee,
+          if (isLow) ...[
+            const SizedBox(height: 6),
+            const Text(
+              'You need job credits to accept new bookings. Buy a pack now.',
+              style: TextStyle(fontSize: 12, height: 1.3),
             ),
-          ],
+          ]
         ],
       ),
     );
@@ -729,9 +713,9 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
             ),
           ),
 
-          // PLATFORM FEE PLAN — dynamic plan card (replaces the old
-          // hardcoded wallet card that showed a fake ₹100 balance).
-          _feeModelCard(dash),
+          const SizedBox(height: 16),
+          _jobCreditsCard(dash),
+          const SizedBox(height: 24),
 
           // SELECT SERVICES
           Row(
