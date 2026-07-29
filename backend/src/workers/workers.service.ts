@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, Repository } from 'typeorm';
 import { WorkerProfile } from './worker-profile.entity';
@@ -96,6 +96,7 @@ export const REBROADCAST_RADIUS_STRETCH = 1.3;
 
 @Injectable()
 export class WorkersService {
+  private readonly logger = new Logger(WorkersService.name);
   constructor(
     @InjectRepository(WorkerProfile)
     private readonly workersRepository: Repository<WorkerProfile>,
