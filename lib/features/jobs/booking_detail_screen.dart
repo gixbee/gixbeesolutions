@@ -48,16 +48,24 @@ class BookingDetailScreen extends ConsumerWidget {
             ? const Color(0xFFEF4444)
             : GixbeeTheme.accentGold);
 
-    final displayUser = booking['operator'] ?? booking['customer'] ?? {};
-    final userName = (displayUser['name'] ?? 'Worker').toString();
+    final currentUser = ref.watch(currentUserProvider).value;
+    final operatorMap = booking['operator'] is Map ? booking['operator'] as Map : null;
+    final customerMap = booking['customer'] is Map ? booking['customer'] as Map : null;
+    final isAssignedWorker = currentUser?.id != null &&
+        currentUser!.id == operatorMap?['id']?.toString();
+
+    // The OTHER party, relative to the viewer — null while a broadcast is
+    // still searching (operator unassigned). The old code fell back to
+    // booking['customer'], showing customers THEIR OWN name as "vendor"
+    // with a hardcoded fake rating.
+    final counterpart = isAssignedWorker ? customerMap : operatorMap;
+    final counterpartName = counterpart?['name']?.toString();
+
     final bookingId = booking['id']?.toString() ?? '';
     final shortId = '#BK-${bookingId.length > 5 ? bookingId.substring(0, 5) : bookingId}';
-    
+
     final amount = num.tryParse('${booking['totalAmount'] ?? booking['amount'] ?? 0}') ?? 0;
     final serviceName = (booking['skill'] ?? booking['serviceName'] ?? 'General Help').toString();
-
-    final currentUser = ref.watch(currentUserProvider).value;
-    final isAssignedWorker = currentUser?.id == booking['operator']?['id'];
 
     return Scaffold(
       backgroundColor: context.gx.bg,
@@ -79,11 +87,34 @@ class BookingDetailScreen extends ConsumerWidget {
               ),
               child: Column(
                 children: [
-                  const Text('🛠️', style: TextStyle(fontSize: 52)),
-                  const SizedBox(height: 10),
+                  Container(
+                    width: 68,
+                    height: 68,
+                    decoration: BoxDecoration(
+                      color: GixbeeTheme.accentGreen.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(
+                          color:
+                              GixbeeTheme.accentGreen.withValues(alpha: 0.3)),
+                    ),
+                    child: const Icon(Icons.handyman_rounded,
+                        size: 34, color: GixbeeTheme.accentGreen),
+                  ),
+                  const SizedBox(height: 12),
                   Text(serviceName, style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: context.gx.ink)),
                   const SizedBox(height: 4),
-                  Text(userName, style: const TextStyle(fontSize: 13, color: Color(0xFF888888))),
+                  Text(
+                    counterpartName != null
+                        ? (isAssignedWorker
+                            ? 'for $counterpartName'
+                            : 'with $counterpartName')
+                        : (status == 'REQUESTED'
+                            ? 'Finding a pro near you…'
+                            : 'Instant request'),
+                    style: TextStyle(
+                        fontSize: 13,
+                        color: context.gx.ink.withValues(alpha: 0.55)),
+                  ),
                   const SizedBox(height: 10),
                   _buildStatusBadge(status),
                 ],
@@ -120,7 +151,9 @@ class BookingDetailScreen extends ConsumerWidget {
               ),
             ),
 
-            // Counterpart contact section
+            // Counterpart contact section — only when the other party exists.
+            // A REQUESTED broadcast has no pro yet: show the searching note
+            // instead of a fake vendor card.
             Container(
               margin: const EdgeInsets.only(top: 14),
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
@@ -131,46 +164,93 @@ class BookingDetailScreen extends ConsumerWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    isAssignedWorker ? 'CUSTOMER CONTACT' : 'VENDOR CONTACT',
-                    style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Color(0xFF2A2A3E), letterSpacing: 1.2),
+                    isAssignedWorker ? 'CUSTOMER' : 'YOUR PRO',
+                    style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        color: context.gx.ink.withValues(alpha: 0.45),
+                        letterSpacing: 1.2),
                   ),
                   const SizedBox(height: 10),
-                  Container(
-                    padding: const EdgeInsets.all(13),
-                    decoration: BoxDecoration(
-                      color: context.gx.card,
-                      borderRadius: BorderRadius.circular(14),
-                      border: Border.all(color: context.gx.border),
+                  if (counterpart != null)
+                    Container(
+                      padding: const EdgeInsets.all(13),
+                      decoration: BoxDecoration(
+                        color: context.gx.card,
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(color: context.gx.border),
+                      ),
+                      child: Row(
+                        children: [
+                          Container(
+                            width: 40,
+                            height: 40,
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                  colors: context.gx.accentGradient),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            alignment: Alignment.center,
+                            child: Text(
+                              (counterpartName?.isNotEmpty ?? false)
+                                  ? counterpartName![0].toUpperCase()
+                                  : '?',
+                              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: context.gx.onAccent),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(counterpartName ?? 'Gixbee user',
+                                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: context.gx.ink)),
+                                const SizedBox(height: 2),
+                                Text(
+                                  isAssignedWorker
+                                      ? 'Customer for this booking'
+                                      : '$serviceName pro',
+                                  style: TextStyle(
+                                      fontSize: 11,
+                                      color: context.gx.ink
+                                          .withValues(alpha: 0.55)),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    )
+                  else
+                    Container(
+                      padding: const EdgeInsets.all(13),
+                      decoration: BoxDecoration(
+                        color: GixbeeTheme.accentGreen.withValues(alpha: 0.07),
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(
+                            color: GixbeeTheme.accentGreen
+                                .withValues(alpha: 0.25)),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.search_rounded,
+                              size: 20, color: GixbeeTheme.accentGreen),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Text(
+                              status == 'REQUESTED'
+                                  ? 'Searching for a nearby pro — you\'ll be notified the moment one accepts.'
+                                  : 'No pro was assigned to this booking.',
+                              style: TextStyle(
+                                  fontSize: 12.5,
+                                  height: 1.4,
+                                  color: context.gx.ink
+                                      .withValues(alpha: 0.7)),
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
-                    child: Row(
-                      children: [
-                        Container(
-                          width: 40,
-                          height: 40,
-                          decoration: BoxDecoration(
-                            gradient: const LinearGradient(colors: GixbeeTheme.purpleGradient),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          alignment: Alignment.center,
-                          child: Text(
-                            userName.isNotEmpty ? userName[0].toUpperCase() : '?',
-                            style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: context.gx.onAccent),
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(userName, style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: context.gx.ink)),
-                              const SizedBox(height: 2),
-                              const Text('Verified · 4.8 ⭐', style: TextStyle(fontSize: 11, color: Color(0xFF888888))),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
                   const SizedBox(height: 12),
                   // Action buttons
                   _buildStickyActionBar(context, ref, status, isAssignedWorker),
@@ -233,15 +313,24 @@ class BookingDetailScreen extends ConsumerWidget {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(label, style: const TextStyle(fontSize: 14, color: Color(0xFF888888))),
-          Text(
-            value,
-            style: TextStyle(
-              fontSize: isBig ? 15 : 14,
-              fontWeight: FontWeight.w600,
-              color: color ?? context.gx.ink,
+          Text(label,
+              style: TextStyle(
+                  fontSize: 14,
+                  color: context.gx.ink.withValues(alpha: 0.5))),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Text(
+              value,
+              textAlign: TextAlign.right,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontSize: isBig ? 15 : 14,
+                fontWeight: FontWeight.w600,
+                color: color ?? context.gx.ink,
+              ),
             ),
           ),
         ],
@@ -408,16 +497,24 @@ class BookingDetailScreen extends ConsumerWidget {
           ),
         if (canCancel) const SizedBox(width: 8),
         if (canCancel)
-          GestureDetector(
-            onTap: () => _confirmCancel(context),
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              decoration: BoxDecoration(
-                color: Colors.red.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(12),
+          Expanded(
+            child: GestureDetector(
+              onTap: () => _confirmCancel(context),
+              child: Container(
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                decoration: BoxDecoration(
+                  color: Colors.red.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(12),
+                  border:
+                      Border.all(color: Colors.red.withValues(alpha: 0.35)),
+                ),
+                alignment: Alignment.center,
+                child: const Text('Cancel',
+                    style: TextStyle(
+                        color: Colors.red,
+                        fontWeight: FontWeight.w700,
+                        fontSize: 14)),
               ),
-              alignment: Alignment.center,
-              child: const Icon(Icons.close, color: Colors.red, size: 20),
             ),
           ),
       ],

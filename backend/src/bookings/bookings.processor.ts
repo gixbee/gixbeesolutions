@@ -187,12 +187,19 @@ export class BookingsProcessor {
         return { status: `Rebroadcast - ${res.notified} new pros` };
       }
 
-      // Final window expired — auto-cancel the request
-      // (outbox BOOKING_CANCELLED + timeout FCM via listener)
-      await this.bookingsService.updateStatus(
-        bookingId,
-        BookingStatus.CANCELLED,
-      );
+      // Final window expired — auto-cancel the request ATOMICALLY.
+      // timeoutCancelBooking only flips REQUESTED→CANCELLED; if a worker's
+      // accept committed after our status read above, the claim affects 0
+      // rows and this is a no-op — the old blind updateStatus() here
+      // OVERWROTE freshly-accepted bookings (customer got "No Workers
+      // Available" seconds after a pro accepted).
+      const res = await this.bookingsService.timeoutCancelBooking(bookingId);
+      if (!res.cancelled) {
+        this.logger.log(
+          `Booking ${bookingId} was accepted while the timeout ran — cancel skipped.`,
+        );
+        return { status: 'Skipped - Accepted during timeout' };
+      }
 
       this.logger.warn(
         `Booking ${bookingId} auto-cancelled — no worker accepted after the widened search.`,

@@ -141,6 +141,11 @@ export class BookingLifecycleHandler {
           bookingId: p.bookingId,
           skill: p.skill,
           serviceLocation: p.serviceLocation,
+          // Coords ride along (FCM data values MUST be strings) so the
+          // incoming-job card can show "· 2.3 km away" even when the offer
+          // arrives via push — socket and poll paths already carry them.
+          serviceLat: p.serviceLat != null ? String(p.serviceLat) : '',
+          serviceLng: p.serviceLng != null ? String(p.serviceLng) : '',
           amount: String(p.amount ?? 0),
           createdAt: p.createdAt ?? '',
         },

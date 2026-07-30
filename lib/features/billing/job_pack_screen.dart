@@ -8,6 +8,7 @@ import '../../core/config/app_config.dart';
 import '../../shared/widgets/gx_snackbar.dart';
 import '../../shared/widgets/gx_button.dart';
 import '../../theme.dart';
+import 'credit_history_screen.dart';
 
 class JobPackScreen extends ConsumerStatefulWidget {
   const JobPackScreen({super.key});
@@ -171,6 +172,16 @@ class _JobPackScreenState extends ConsumerState<JobPackScreen> {
         title: const Text('Job Credits', style: TextStyle(fontWeight: FontWeight.bold)),
         backgroundColor: context.gx.card,
         elevation: 0,
+        actions: [
+          IconButton(
+            tooltip: 'Credit history',
+            icon: const Icon(Icons.history_rounded),
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const CreditHistoryScreen()),
+            ),
+          ),
+        ],
       ),
       body: Padding(
         padding: const EdgeInsets.all(24.0),

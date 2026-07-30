@@ -23,6 +23,21 @@ class JobCreditsRepository {
     }
   }
 
+  /// Credit + debit history, newest first. Each row: {id, delta, reason,
+  /// bookingId, bookingSkill, createdAt}.
+  Future<List<Map<String, dynamic>>> getTransactions({int page = 1}) async {
+    final response = await _dio.get(
+      '/billing/credits/transactions',
+      queryParameters: {'page': page},
+    );
+    final list = response.data['transactions'];
+    if (list is! List) return const [];
+    return list
+        .whereType<Map>()
+        .map((e) => Map<String, dynamic>.from(e))
+        .toList();
+  }
+
   Future<Map<String, dynamic>> getPackInfo() async {
     try {
       final response = await _dio.get('/billing/credits/pack-info');

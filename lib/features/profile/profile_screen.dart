@@ -66,19 +66,6 @@ class ProfileScreen extends ConsumerWidget {
                       ),
                     ),
                   ),
-                  GxPressable(
-                    onTap: () {
-                      showGxSnack(context, 'Settings opening...');
-                    },
-                    child: Container(
-                      padding: const EdgeInsets.all(9),
-                      decoration: BoxDecoration(
-                        color: context.gx.ink.withValues(alpha: 0.05),
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: Icon(Icons.settings_outlined, color: context.gx.ink.withValues(alpha: 0.55), size: 18),
-                    ),
-                  ),
                 ],
               ),
             ),
@@ -219,52 +206,6 @@ class ProfileScreen extends ConsumerWidget {
                                   Icon(Icons.phone_outlined, size: 14, color: context.gx.accentSoft),
                                   SizedBox(width: 6),
                                   Text(user.phone, style: TextStyle(fontSize: 13, color: context.gx.ink.withValues(alpha: 0.55))),
-                                ],
-                              ),
-                              SizedBox(height: 4),
-                              Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Icon(Icons.location_on_outlined, size: 14, color: context.gx.accentSoft),
-                                  SizedBox(width: 6),
-                                  Text('Coimbatore, Tamil Nadu', style: TextStyle(fontSize: 13, color: context.gx.ink.withValues(alpha: 0.55))),
-                                ],
-                              ),
-                              SizedBox(height: 12),
-                              Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                                    decoration: BoxDecoration(
-                                      color: const Color(0xFF22C55E).withValues(alpha: 0.1),
-                                      border: Border.all(color: const Color(0xFF22C55E).withValues(alpha: 0.2)),
-                                      borderRadius: BorderRadius.circular(20),
-                                    ),
-                                    child: Row(
-                                      children: [
-                                        Icon(Icons.verified_user_outlined, size: 12, color: Color(0xFF22C55E)),
-                                        SizedBox(width: 4),
-                                        Text('Aadhaar Verified', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Color(0xFF22C55E))),
-                                      ],
-                                    ),
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                                    decoration: BoxDecoration(
-                                      color: context.gx.accentSoft.withValues(alpha: 0.1),
-                                      border: Border.all(color: context.gx.accentSoft.withValues(alpha: 0.2)),
-                                      borderRadius: BorderRadius.circular(20),
-                                    ),
-                                    child: Row(
-                                      children: [
-                                        Icon(Icons.star_rounded, size: 12, color: context.gx.accentSoft),
-                                        SizedBox(width: 4),
-                                        Text('4.8 Rating', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: context.gx.accentSoft)),
-                                      ],
-                                    ),
-                                  ),
                                 ],
                               ),
                             ],

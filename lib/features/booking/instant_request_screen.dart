@@ -372,6 +372,8 @@ class _InstantRequestScreenState extends ConsumerState<InstantRequestScreen> {
             bookingId: bookingId,
             skill: widget.skill,
             notifiedCount: notified,
+            hourlyRate: budget,
+            locationLabel: address,
           ),
         ),
       );

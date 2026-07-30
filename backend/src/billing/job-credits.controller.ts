@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, UseGuards, Request, BadRequestException } from '@nestjs/common';
+import { Controller, Get, Post, Body, Query, UseGuards, Request, BadRequestException } from '@nestjs/common';
 import { JobCreditsService, CREDITS_PER_PACK, PACK_PRICE_INR } from './job-credits.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { ConfigService } from '@nestjs/config';
@@ -17,6 +17,21 @@ export class JobCreditsController {
   async getBalance(@Request() req: any) {
     const balance = await this.jobCreditsService.getBalance(req.user.id);
     return { balance };
+  }
+
+  /** Credit + debit history ("where did my credits go") — newest first. */
+  @Get('transactions')
+  async getTransactions(
+    @Request() req: any,
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+  ) {
+    const transactions = await this.jobCreditsService.getTransactions(
+      req.user.id,
+      Math.max(1, Number(page) || 1),
+      Math.min(100, Math.max(1, Number(limit) || 50)),
+    );
+    return { transactions };
   }
 
   @Get('pack-info')

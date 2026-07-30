@@ -51,7 +51,156 @@ export class MasterEntriesService implements OnModuleInit {
       console.log('Seeded default PRO_TRADE and PRO_SUB_SKILL entries');
     }
 
+    await this.seedExpandedTrades();
     await this.seedDefaultConfigs();
+  }
+
+  // ── Catalog expansion (JOBOY-parity trades, Jul 2026) ────────────────
+  //
+  // Seeded INACTIVE: every visible trade is a promise that a live pro
+  // exists, and an instant request into an empty trade dead-ends at the
+  // No Workers screen. Flip a trade on in Admin → Master Entries only
+  // once ~3 pros are registered for it in the launch city. Idempotent:
+  // checked per-label on every boot, so it's safe across deploys and
+  // never duplicates rows or resurrects admin-deleted trades' sub-skills
+  // (sub-skills are only created together with their trade).
+  private static readonly EXPANDED_TRADES: Array<{
+    label: string;
+    icon: string;
+    subSkills: string[];
+  }> = [
+    {
+      label: 'Painter',
+      icon: 'format_paint_rounded',
+      subSkills: [
+        'Interior painting',
+        'Exterior painting',
+        'Putty & primer',
+        'Wood polish',
+        'Waterproof coating',
+      ],
+    },
+    {
+      label: 'Appliance Technician',
+      icon: 'local_laundry_service_rounded',
+      subSkills: [
+        'Washing machine',
+        'Fridge',
+        'TV repair',
+        'Microwave oven',
+        'Gas stove',
+        'Water purifier',
+      ],
+    },
+    {
+      label: 'Pest Control',
+      icon: 'pest_control_rounded',
+      subSkills: [
+        'Cockroach control',
+        'Termite treatment',
+        'Rodent control',
+        'Bed bugs',
+        'Mosquito treatment',
+      ],
+    },
+    {
+      label: 'Beautician',
+      icon: 'spa_rounded',
+      subSkills: [
+        'Haircut & styling',
+        'Facial & cleanup',
+        'Mehendi',
+        'Bridal makeup',
+        'Waxing & threading',
+      ],
+    },
+    {
+      label: 'Electronics Repair',
+      icon: 'devices_rounded',
+      subSkills: [
+        'Mobile repair',
+        'Laptop repair',
+        'Desktop repair',
+        'CCTV installation',
+        'Tablet repair',
+      ],
+    },
+    {
+      label: 'Gardener',
+      icon: 'grass_rounded',
+      subSkills: [
+        'Grass cutting',
+        'Tree trimming',
+        'Garden maintenance',
+        'Landscaping',
+      ],
+    },
+    {
+      label: 'Renovation Pro',
+      icon: 'construction_rounded',
+      subSkills: [
+        'Tile work',
+        'Waterproofing',
+        'Aluminium fabrication',
+        'False ceiling',
+        'Truss & roofing work',
+      ],
+    },
+  ];
+
+  /** Kerala-specific additions to the EXISTING Cleaner trade. */
+  private static readonly CLEANER_EXTRA_SUB_SKILLS = [
+    'Water tank cleaning',
+    'Well cleaning',
+  ];
+
+  private async seedExpandedTrades(): Promise<void> {
+    for (const trade of MasterEntriesService.EXPANDED_TRADES) {
+      const existing = await this.masterEntryRepo.findOne({
+        where: { type: MasterEntryType.PRO_TRADE, label: trade.label },
+      });
+      if (existing) continue;
+
+      await this.create({
+        type: MasterEntryType.PRO_TRADE,
+        label: trade.label,
+        icon: trade.icon,
+        value: '',
+        isActive: false, // activate in the portal once pros are recruited
+      });
+      for (const sub of trade.subSkills) {
+        await this.create({
+          type: MasterEntryType.PRO_SUB_SKILL,
+          label: sub,
+          value: sub,
+          category: trade.label,
+          isActive: true,
+        });
+      }
+      console.log(
+        `Seeded PRO_TRADE ${trade.label} (INACTIVE) with ${trade.subSkills.length} sub-skills`,
+      );
+    }
+
+    // Cleaner extras — checked individually against the existing trade.
+    for (const sub of MasterEntriesService.CLEANER_EXTRA_SUB_SKILLS) {
+      const existing = await this.masterEntryRepo.findOne({
+        where: {
+          type: MasterEntryType.PRO_SUB_SKILL,
+          label: sub,
+          category: 'Cleaner',
+        },
+      });
+      if (existing) continue;
+      await this.create({
+        type: MasterEntryType.PRO_SUB_SKILL,
+        label: sub,
+        value: sub,
+        category: 'Cleaner',
+        isActive: true,
+      });
+      console.log(`Seeded Cleaner sub-skill: ${sub}`);
+    }
   }
 
   // ── Runtime configuration (admin-editable) ─────────────────────────────────

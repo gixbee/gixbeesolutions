@@ -812,6 +812,58 @@ export class BookingsService {
   // ── Customer Cancellation (with reason + refund) ──────────────────────────
 
   /**
+   * Timeout auto-cancel — ATOMIC. The Bull requestTimeout job used to
+   * check-then-act (read status, then blindly updateStatus), so an accept
+   * committing in the gap was OVERWRITTEN to CANCELLED: the worker's fresh
+   * job vanished from Home and the customer got a "No Workers Available"
+   * push seconds after a pro accepted — both reported from the field
+   * (acceptance at ~82s of the 90s window). Now the CANCELLED claim is a
+   * single conditional UPDATE … WHERE status='REQUESTED' in the same
+   * transaction as the outbox append: whichever of accept/timeout commits
+   * first wins; the loser is a clean no-op.
+   */
+  async timeoutCancelBooking(
+    bookingId: string,
+  ): Promise<{ cancelled: boolean }> {
+    let outboxId: string | null = null;
+    const cancelled = await this.dataSource.transaction(async (manager) => {
+      const claim = await manager.update(
+        Booking,
+        { id: bookingId, status: BookingStatus.REQUESTED },
+        {
+          status: BookingStatus.CANCELLED,
+          cancellationReason: 'No worker accepted in time',
+        },
+      );
+      if (!claim.affected) return false;
+
+      const booking = await manager.findOne(Booking, {
+        where: { id: bookingId },
+        relations: ['customer', 'operator'],
+      });
+      const outbox = await this.outboxService.append(
+        manager,
+        OutboxEventType.BOOKING_CANCELLED,
+        bookingId,
+        {
+          bookingId,
+          reason: 'No worker accepted in time',
+          source: 'timeout',
+          operatorId: booking?.operator?.id ?? null,
+          operatorName: booking?.operator?.name ?? null,
+          customerId: booking?.customer?.id ?? null,
+        },
+      );
+      outboxId = outbox.id;
+      return true;
+    });
+    if (outboxId) {
+      await this.outboxService.enqueueDispatch(outboxId);
+    }
+    return { cancelled };
+  }
+
+  /**
    * Cancels a booking, records the reason, and refunds any captured payment
    * back to the customer's wallet. Completed bookings cannot be cancelled.
    */

@@ -7,6 +7,7 @@ import '../../core/config/app_config.dart';
 import '../../repositories/booking_repository.dart';
 import '../../repositories/auth_repository.dart';
 import '../../repositories/worker_repository.dart';
+import '../../repositories/job_credits_repository.dart';
 import '../../services/socket_service.dart';
 import '../../services/location_service.dart';
 import '../../theme.dart';
@@ -53,6 +54,7 @@ class _IncomingJobScreenState extends ConsumerState<IncomingJobScreen>
     WidgetsBinding.instance.addObserver(this);
     _requests = [widget.bookingData];
     unawaited(_loadMyPosition());
+    unawaited(_loadCreditBalance());
     _startTimer();
     Future.delayed(const Duration(seconds: 2), _pollForMoreRequests);
     _pollTimer = Timer.periodic(const Duration(seconds: 4), (_) => _pollForMoreRequests());
@@ -111,6 +113,21 @@ class _IncomingJobScreenState extends ConsumerState<IncomingJobScreen>
             math.sin(dLng / 2) *
             math.sin(dLng / 2);
     return rEarth * 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a));
+  }
+
+  // ── Job-credit cost ("1 credit · N left") ───────────────────────
+
+  /// Worker's current job-credit balance, fetched once when the card opens
+  /// so the pro sees the COST of accepting before deciding. Null = still
+  /// loading / fetch failed → the credits row is simply omitted.
+  int? _creditBalance;
+
+  Future<void> _loadCreditBalance() async {
+    try {
+      final balance =
+          await ref.read(jobCreditsRepositoryProvider).getBalance();
+      if (mounted) setState(() => _creditBalance = balance);
+    } catch (_) {}
   }
 
   // ── Timer ─────────────────────────────────────────────────────────────────
@@ -191,6 +208,19 @@ class _IncomingJobScreenState extends ConsumerState<IncomingJobScreen>
         for (final r in allMaps) {
           if (!existingIds.contains(r['id']?.toString())) {
             _requests.add(r);
+          }
+        }
+        // ENRICH entries already on screen with the fresh server payload —
+        // an offer opened from FCM starts with a minimal map (no coords →
+        // no "km away" line); the poll returns full booking entities, so
+        // merge them in (fresh values win, keep any extra local keys).
+        final freshById = {
+          for (final r in allMaps) r['id']?.toString(): r,
+        };
+        for (var i = 0; i < _requests.length; i++) {
+          final fresh = freshById[_requests[i]['id']?.toString()];
+          if (fresh != null) {
+            _requests[i] = {..._requests[i], ...fresh};
           }
         }
       });
@@ -646,6 +676,23 @@ class _IncomingJobScreenState extends ConsumerState<IncomingJobScreen>
                         : '₹${amount.toStringAsFixed(0)}',
                     color: Colors.green,
                   ),
+                  // Cost transparency: accepting consumes a job credit — say
+                  // so BEFORE the pro commits, with their remaining balance.
+                  if (_creditBalance != null) ...[
+                    const SizedBox(height: 12),
+                    _DetailCard(
+                      icon: Icons.confirmation_num_outlined,
+                      label: 'Job credit',
+                      value: _creditBalance! <= 0
+                          ? 'No credits left — buying a pack is needed to accept'
+                          : '1 credit used on accept · ${_creditBalance! - 1} will remain',
+                      color: _creditBalance! <= 0
+                          ? Colors.red
+                          : _creditBalance! == 1
+                              ? Colors.orange
+                              : Colors.teal,
+                    ),
+                  ],
                   // Uber-style broadcast requests carry the customer's issue
                   // description — show it so the pro can decide before accepting.
                   if ((current['description'] as String?)?.isNotEmpty ??
