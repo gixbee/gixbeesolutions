@@ -241,6 +241,7 @@ class _WaitingForWorkerScreenState extends ConsumerState<WaitingForWorkerScreen>
       );
 
   void _confirmAndProceed() {
+    if (!mounted) return;
     Navigator.pushReplacement(
       context,
       MaterialPageRoute(

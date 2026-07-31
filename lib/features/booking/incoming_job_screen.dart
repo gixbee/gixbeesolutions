@@ -247,6 +247,7 @@ class _IncomingJobScreenState extends ConsumerState<IncomingJobScreen>
 
       // Start streaming worker's location to the customer
       final user = await ref.read(currentUserProvider.future);
+      if (!mounted) return;
       if (user != null) {
         ref.read(socketServiceProvider).startLocationStream(user.id, bookingId);
         // Seed Redis immediately so customer status-poll can show a pin
@@ -254,7 +255,7 @@ class _IncomingJobScreenState extends ConsumerState<IncomingJobScreen>
         try {
           final pos =
               await ref.read(locationServiceProvider).getCurrentPosition();
-          if (pos != null) {
+          if (pos != null && mounted) {
             await ref.read(workerRepositoryProvider).updateMyLocation(
                   lat: pos.latitude,
                   lng: pos.longitude,
@@ -262,19 +263,24 @@ class _IncomingJobScreenState extends ConsumerState<IncomingJobScreen>
           }
         } catch (_) {}
       }
-      if (!mounted) return; // re-check: awaited currentUserProvider above
+      if (!mounted) return;
 
-      // So Home's active-job card appears immediately (not only after pull-refresh).
       ref.invalidate(myBookingsProvider);
 
-      // Backend auto-cancels all other pending bookings for this worker
-      Navigator.pop(context, {'accepted': true, 'bookingId': bookingId});
+      // Show the snack BEFORE popping — after Navigator.pop the widget is
+      // leaving the tree and its context is stale. Calling showGxSnack /
+      // ScaffoldMessenger on a dead context throws silently and leaves a
+      // black frame. The snack renders on the ScaffoldMessenger (root) and
+      // persists naturally onto whatever screen comes next.
       showGxSnack(
         context,
         'Job Accepted! Head to the customer location.',
         type: GxSnackType.success,
         duration: const Duration(seconds: 4),
       );
+
+      // Backend auto-cancels all other pending bookings for this worker.
+      Navigator.pop(context, {'accepted': true, 'bookingId': bookingId});
     } catch (e) {
       if (!mounted) return;
       setState(() => _isProcessing = false);
@@ -314,16 +320,17 @@ class _IncomingJobScreenState extends ConsumerState<IncomingJobScreen>
         _startTimer();
         return;
       }
-      
+
       if (lower.contains('job credits left') || lower.contains('buy a pack')) {
         showGxSnack(context, msg, type: GxSnackType.error);
+        // Signal the caller (main_wrapper / go_live_screen) to open the
+        // pack screen AFTER we pop — we must NOT push on this context after
+        // popping, that leaves a blank route on the stack (black screen bug).
         Navigator.pop(context, {
           'accepted': false,
+          'openJobPack': true,
           'declinedIds': List<String>.from(_declinedIds),
         });
-        Navigator.of(context).push(
-          MaterialPageRoute(builder: (_) => const JobPackScreen()),
-        );
         return;
       }
 

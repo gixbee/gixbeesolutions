@@ -162,8 +162,8 @@ class _CollectPaymentScreenState extends ConsumerState<CollectPaymentScreen> {
             widget.bookingId,
             honestyCheck: _honestyApi,
           );
-      _refreshProviders();
       if (!mounted) return;
+      _refreshProviders();
       if (bookingFlagTrue(res['isPaid'])) {
         _showSuccessDialog();
       } else {

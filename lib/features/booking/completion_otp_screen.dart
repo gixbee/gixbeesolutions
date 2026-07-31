@@ -181,19 +181,17 @@ class _CompletionOtpScreenState extends ConsumerState<CompletionOtpScreen> {
     setState(() => _isMarkingComplete = true);
     try {
       await ref.read(bookingRepositoryProvider).markComplete(widget.bookingId);
+      if (!mounted) return;
       setState(() => _hasMarkedComplete = true);
-      if (mounted) {
-        showGxSnack(
-          context,
-          'Customer notified! Ask them for the completion OTP.',
-          type: GxSnackType.success,
-        );
-      }
+      showGxSnack(
+        context,
+        'Customer notified! Ask them for the completion OTP.',
+        type: GxSnackType.success,
+      );
     } catch (e) {
-      if (mounted) {
-        showGxSnack(context, 'Failed to mark complete: $e',
-            type: GxSnackType.error);
-      }
+      if (!mounted) return;
+      showGxSnack(context, 'Failed to mark complete: $e',
+          type: GxSnackType.error);
     } finally {
       if (mounted) setState(() => _isMarkingComplete = false);
     }

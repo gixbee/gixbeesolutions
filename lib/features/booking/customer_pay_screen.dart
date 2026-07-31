@@ -174,8 +174,8 @@ class _CustomerPayScreenState extends ConsumerState<CustomerPayScreen> {
             collectionMethod: _methodApi,
             safetyCheck: _safetyApi,
           );
-      _refreshProviders();
       if (!mounted) return;
+      _refreshProviders();
       if (bookingFlagTrue(res['isPaid'])) {
         _showSuccessDialog();
       } else {

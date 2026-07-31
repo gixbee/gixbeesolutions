@@ -14,6 +14,7 @@ import 'features/messages/messages_list_screen.dart';
 import 'features/profile/profile_screen.dart';
 import 'features/jobs/my_bookings_screen.dart';
 import 'features/booking/incoming_job_screen.dart';
+import 'features/billing/job_pack_screen.dart';
 import 'features/jobs/pro_skill_provider.dart';
 import 'features/profile/addresses/address_picker_bottom_sheet.dart';
 import 'features/worker/go_live_screen.dart';
@@ -417,6 +418,14 @@ class _MainWrapperState extends ConsumerState<MainWrapper>
           _declinedBookingIds.add(id);
         }
         if (id != null) _shownBookingIds.remove(id);
+        // Worker ran out of credits during accept — open the pack screen
+        // now that we have a live context (IncomingJobScreen is fully gone).
+        if (result?['openJobPack'] == true && mounted) {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => const JobPackScreen()),
+          );
+        }
       }
     } finally {
       _incomingJobOpen = false;

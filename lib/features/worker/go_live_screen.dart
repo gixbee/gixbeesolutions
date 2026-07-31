@@ -513,16 +513,22 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
   }
 
   Future<void> _openJob(Map<String, dynamic> job) async {
-    await Navigator.push(
+    final result = await Navigator.push<Map<String, dynamic>>(
       context,
       MaterialPageRoute(
         builder: (_) => IncomingJobScreen(bookingData: job),
         fullscreenDialog: true,
       ),
     );
-    if (mounted) {
-      setState(() => _jobFeed.removeWhere((j) => j['id'] == job['id']));
-      unawaited(_refreshPendingFeed());
+    if (!mounted) return;
+    setState(() => _jobFeed.removeWhere((j) => j['id'] == job['id']));
+    unawaited(_refreshPendingFeed());
+    // Worker ran out of credits during accept — navigate to the pack screen
+    // now that we have a valid context (IncomingJobScreen is fully gone).
+    if (result?['openJobPack'] == true) {
+      Navigator.of(context).push(
+        MaterialPageRoute(builder: (_) => const JobPackScreen()),
+      );
     }
   }
 

@@ -81,13 +81,13 @@ class _ActiveJobControlsState extends ConsumerState<ActiveJobControls> {
     setState(() => _busy = true);
     try {
       await action();
+      if (!mounted) return;
       // Refresh the shared poll immediately so the UI reflects the new state
       // without waiting for the next 5s tick.
       ref.invalidate(bookingStatusProvider(widget.bookingId));
     } catch (e) {
-      if (mounted) {
-        showGxSnack(context, 'Action failed: $e', type: GxSnackType.error);
-      }
+      if (!mounted) return;
+      showGxSnack(context, 'Action failed: $e', type: GxSnackType.error);
     } finally {
       if (mounted) setState(() => _busy = false);
     }
