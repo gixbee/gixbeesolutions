@@ -180,7 +180,9 @@ class AuthBackButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final p = AuthPalette.of(context);
-    return Material(
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: Material(
       color: p.surface,
       borderRadius: BorderRadius.circular(12),
       child: InkWell(
@@ -209,6 +211,7 @@ class AuthBackButton extends StatelessWidget {
             size: 18,
           ),
         ),
+      ),
       ),
     );
   }
