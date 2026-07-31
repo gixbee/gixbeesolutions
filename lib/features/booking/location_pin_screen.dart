@@ -57,7 +57,8 @@ class LocationPinScreen extends StatefulWidget {
   State<LocationPinScreen> createState() => _LocationPinScreenState();
 }
 
-class _LocationPinScreenState extends State<LocationPinScreen> {
+class _LocationPinScreenState extends State<LocationPinScreen>
+    with WidgetsBindingObserver {
   MapLibreMapController? _controller;
   String? _styleJson;
   bool _styleLoading = true;
@@ -77,15 +78,27 @@ class _LocationPinScreenState extends State<LocationPinScreen> {
   void initState() {
     super.initState();
     _address = widget.initialAddress?.trim() ?? '';
+    WidgetsBinding.instance.addObserver(this);
     unawaited(_loadStyle());
   }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     // Do NOT dispose the controller (disposing + recreating the platform view
     // yields a blank map on the next open, per the tracking screen's note).
     _controller = null;
     super.dispose();
+  }
+
+  /// Same white-map bug can strike when the app is backgrounded and resumed
+  /// while this screen is visible (system reclaims the GL surface). A nudge
+  /// on resume forces a redraw, identical to the showSearch fix above.
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _controller?.animateCamera(CameraUpdate.zoomBy(0.0001));
+    }
   }
 
   Future<void> _loadStyle() async {
@@ -228,12 +241,24 @@ class _LocationPinScreenState extends State<LocationPinScreen> {
                     delegate: LocationSearchDelegate(),
                   );
                   if (place != null && _controller != null) {
-                    _controller!.animateCamera(
+                    // Place selected — animate to it. animateCamera also
+                    // forces the GL surface to redraw (see note below).
+                    await _controller!.animateCamera(
                       CameraUpdate.newLatLngZoom(
                         LatLng(place.lat, place.lng),
                         16.0,
                       ),
                     );
+                  } else {
+                    // maplibre_gl 0.21 Android bug: showSearch() pushes a
+                    // full opaque route that hides the platform view; when
+                    // it pops the GL surface is not redrawn and the map
+                    // stays permanently white. A sub-pixel zoom nudge is
+                    // the minimal trigger to force a redraw without visibly
+                    // moving the map. The selected-place path above already
+                    // recovered via animateCamera — this covers the dismiss
+                    // path that previously left a white canvas.
+                    _controller?.animateCamera(CameraUpdate.zoomBy(0.0001));
                   }
                 },
                 child: Container(

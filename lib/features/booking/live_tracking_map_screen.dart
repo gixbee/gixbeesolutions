@@ -55,6 +55,7 @@ class _LiveTrackingMapScreenState extends ConsumerState<LiveTrackingMapScreen> {
   // NOTE: maplibre_gl 0.21+ renamed the public classes (Maplibre* → MapLibre*).
   // pubspec resolves 0.26.x, so these are MapLibreMap / MapLibreMapController.
   MapLibreMapController? _mapController;
+  bool _currentStatus_navigatingAway = false;
   bool _styleReady = false;
   Circle? _workerCircle;
   Circle? _customerCircle;
@@ -76,6 +77,7 @@ class _LiveTrackingMapScreenState extends ConsumerState<LiveTrackingMapScreen> {
   late final Key _mapViewKey = UniqueKey();
 
   late final SocketService _socketService;
+  StreamSubscription<Map<String, dynamic>>? _statusSocketSub;
 
   /// Don't mount MapLibre until we have real coords (avoids Nagpur default).
   bool _coordsReady = false;
@@ -120,6 +122,21 @@ class _LiveTrackingMapScreenState extends ConsumerState<LiveTrackingMapScreen> {
     // re-emitted on every reconnect via SocketService).
     _socketService = ref.read(socketServiceProvider);
     _socketService.joinJobRoom(widget.bookingId);
+
+    // Real-time status transitions via socket — don't wait for the 5-second
+    // HTTP poll. When the worker verifies the arrival OTP the backend emits
+    // booking_status_update with status:ACTIVE immediately; this catches it
+    // in ~10ms instead of up to 5 seconds, fixing the "customer stuck on
+    // tracking map after work started" bug.
+    _statusSocketSub = _socketService.notifications.listen((event) {
+      if (!mounted) return;
+      final eventName = event['_event']?.toString();
+      if (eventName != 'booking_status_update') return;
+      final targetId =
+          (event['bookingId'] ?? event['id'])?.toString();
+      if (targetId != null && targetId != widget.bookingId) return;
+      _applyStatusData(Map<String, dynamic>.from(event));
+    });
 
     // Listen for real-time location updates (customer sees the worker move).
     _socketService.onLocationUpdated((data) {
@@ -368,6 +385,7 @@ class _LiveTrackingMapScreenState extends ConsumerState<LiveTrackingMapScreen> {
   void dispose() {
     _jobTicker?.cancel();
     _workerHttpHeartbeat?.cancel();
+    _statusSocketSub?.cancel();
     // AUDIT FIX: detach the socket listener registered in initState so this
     // dead State's setState can't be called and listeners don't stack.
     _socketService.offLocationUpdated();
@@ -447,21 +465,33 @@ class _LiveTrackingMapScreenState extends ConsumerState<LiveTrackingMapScreen> {
       });
     }
 
-    // Arrival OTP verified → job ACTIVE → transition to CompletionOtpScreen where active work & completion live!
+    // Arrival OTP verified → job ACTIVE → navigate to CompletionOtpScreen.
+    //
+    // GUARD: _currentStatus_navigatingAway prevents stacked navigations when
+    // this is called from both the socket subscription AND the ref.listen
+    // poll in the same frame. Both paths are intentional (belt + suspenders)
+    // but only one should push the route.
     if (newStatus == 'ACTIVE' || newStatus == 'IN_PROGRESS' || newStatus == 'WORK_IN_PROGRESS') {
+      // Update the status label immediately so the UI shows "Work in progress"
+      // even if navigation takes a beat (e.g. addPostFrameCallback fires on
+      // the following frame).
+      if (newStatus != _currentStatus) {
+        setState(() => _currentStatus = newStatus);
+      }
+      if (_currentStatus_navigatingAway) return;
+      _currentStatus_navigatingAway = true;
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) {
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(
-              builder: (_) => CompletionOtpScreen(
-                bookingId: widget.bookingId,
-                workerName: widget.worker.name,
-                isWorker: widget.isWorker,
-              ),
+        if (!mounted) return;
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (_) => CompletionOtpScreen(
+              bookingId: widget.bookingId,
+              workerName: widget.worker.name,
+              isWorker: widget.isWorker,
             ),
-          );
-        }
+          ),
+        );
       });
       return;
     }

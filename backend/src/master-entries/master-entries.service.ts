@@ -222,8 +222,8 @@ export class MasterEntriesService implements OnModuleInit {
   }> = [
     {
       key: 'go_live_daily_limit',
-      value: '6',
-      note: 'How many times a worker may go LIVE per day (going offline is free). 0 = unlimited.',
+      value: '0',
+      note: 'How many times a worker may go LIVE per day (going offline is free). 0 = unlimited. Changed from 6 to 0 (Jul 2026) — periodic fee model charges per completed job, not per session.',
     },
     {
       key: 'go_live_jobs_per_payment',
@@ -238,6 +238,24 @@ export class MasterEntriesService implements OnModuleInit {
   ];
 
   private async seedDefaultConfigs(): Promise<void> {
+    // ONE-TIME MIGRATION: go_live_daily_limit was seeded as '6' under the
+    // old wallet model. Under the periodic fee model (Jul 2026) workers pay
+    // per COMPLETED job, not per session, so the cap is irrelevant. Reset
+    // any existing '6' entry to '0' (unlimited) so deployed instances get
+    // the fix on the next boot without a manual DB change.
+    const existingLimit = await this.masterEntryRepo.findOne({
+      where: { type: MasterEntryType.CONFIGURATION, label: 'go_live_daily_limit' },
+    });
+    if (existingLimit && existingLimit.value === '6') {
+      existingLimit.value = '0';
+      existingLimit.category =
+        'How many times a worker may go LIVE per day. 0 = unlimited. ' +
+        'Reset from 6 to 0 (Jul 2026) — periodic fee model charges per completed job, not per session.';
+      await this.masterEntryRepo.save(existingLimit);
+      await this.clearCache();
+      console.log('MIGRATION: go_live_daily_limit reset from 6 to 0 (periodic fee model)');
+    }
+
     for (const cfg of MasterEntriesService.DEFAULT_CONFIGS) {
       const existing = await this.masterEntryRepo.findOne({
         where: { type: MasterEntryType.CONFIGURATION, label: cfg.key },

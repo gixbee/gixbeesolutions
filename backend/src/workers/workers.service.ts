@@ -451,12 +451,16 @@ export class WorkersService {
       // Daily go-live cap — admin-tunable (Master Entries →
       // go_live_daily_limit; 0 or blank = unlimited).
       //
-      // BUGFIX: this used to count EVERY toggle, so "go live" + "go offline
-      // for lunch" hit the old cap of 2 and locked the worker out for the
-      // rest of the day. Only going live is counted now.
+      // PRODUCT DECISION (periodic fee model, Jul 2026): with the wallet
+      // system off and workers paying per COMPLETED job (not per go-live
+      // session), there is no longer any cost to going live. The cap was
+      // designed to prevent free-riding when each session consumed wallet
+      // balance; it is now irrelevant. Default changed to 0 (unlimited).
+      // An admin can still set a positive value in Master Entries if abuse
+      // becomes a problem later.
       const dailyLimit = await this.masterEntriesService.getConfigNumber(
         'go_live_daily_limit',
-        6,
+        0, // 0 = unlimited (was 6 under the old wallet model)
       );
       if (dailyLimit > 0 && profile.goLiveToggleCountToday >= dailyLimit) {
         throw new BadRequestException(
