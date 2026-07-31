@@ -29,14 +29,18 @@ function assertProductionSecrets() {
     problems.push('ADMIN_USERNAME is missing or the default "admin"');
   }
   if (!adminPass || adminPass === 'admin' || adminPass.length < 12) {
-    problems.push('ADMIN_PASSWORD is missing, default, or shorter than 12 chars');
+    problems.push(
+      'ADMIN_PASSWORD is missing, default, or shorter than 12 chars',
+    );
   }
   if (process.env.ALLOW_OTP_ECHO === 'true') {
     problems.push('ALLOW_OTP_ECHO=true would return login OTPs to callers');
   }
 
   if (problems.length > 0) {
-    console.error('\n[FATAL] Refusing to start in production with insecure config:');
+    console.error(
+      '\n[FATAL] Refusing to start in production with insecure config:',
+    );
     for (const p of problems) console.error(`  - ${p}`);
     console.error('Rotate these values and restart.\n');
     process.exit(1);
@@ -65,10 +69,12 @@ async function bootstrap() {
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
   });
 
-  app.useGlobalPipes(new ValidationPipe({
-    whitelist: true,
-    transform: true,
-  }));
+  app.useGlobalPipes(
+    new ValidationPipe({
+      whitelist: true,
+      transform: true,
+    }),
+  );
 
   // Strip @Exclude'd entity fields (User.fcmToken/walletBalance) from every
   // response — relation-loaded users no longer leak private data.

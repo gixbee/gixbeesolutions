@@ -1,4 +1,11 @@
-import { IsString, IsNotEmpty, IsOptional, IsNumber, IsArray, IsEnum } from 'class-validator';
+import {
+  IsString,
+  IsNotEmpty,
+  IsOptional,
+  IsNumber,
+  IsArray,
+  IsEnum,
+} from 'class-validator';
 import { ApplicationStatus } from '../job-application.entity';
 
 // DTOs for the hiring write endpoints. The global ValidationPipe

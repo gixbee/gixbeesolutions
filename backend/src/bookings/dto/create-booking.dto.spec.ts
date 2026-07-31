@@ -54,7 +54,7 @@ describe('CreateBookingDto validation', () => {
       amount: 100,
       hackerField: 'DROP TABLE bookings;',
     });
-    expect((out as any).hackerField).toBeUndefined();
+    expect(out.hackerField).toBeUndefined();
     expect(out.workerId).toBe('w3');
   });
 

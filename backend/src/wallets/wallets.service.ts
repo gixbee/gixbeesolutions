@@ -2,7 +2,10 @@ import { Injectable, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, DataSource } from 'typeorm';
 import { User } from '../users/user.entity';
-import { WalletTransaction, TransactionType } from './wallet-transaction.entity';
+import {
+  WalletTransaction,
+  TransactionType,
+} from './wallet-transaction.entity';
 
 @Injectable()
 export class WalletsService {
@@ -152,7 +155,9 @@ export class WalletsService {
         lock: { mode: 'pessimistic_write' },
       });
 
-      const customer = await manager.findOne(User, { where: { id: customerId } });
+      const customer = await manager.findOne(User, {
+        where: { id: customerId },
+      });
       const worker = await manager.findOne(User, { where: { id: workerId } });
       if (!customer) throw new BadRequestException('Customer not found');
       if (!worker) throw new BadRequestException('Worker not found');
@@ -204,7 +209,9 @@ export class WalletsService {
   ): Promise<void> {
     if (amount <= 0) return;
     if (customerId === workerId) {
-      throw new BadRequestException('Cannot reverse a transfer to the same user');
+      throw new BadRequestException(
+        'Cannot reverse a transfer to the same user',
+      );
     }
 
     const ref = bookingId.length > 8 ? bookingId.substring(0, 8) : bookingId;
@@ -222,7 +229,9 @@ export class WalletsService {
         lock: { mode: 'pessimistic_write' },
       });
 
-      const customer = await manager.findOne(User, { where: { id: customerId } });
+      const customer = await manager.findOne(User, {
+        where: { id: customerId },
+      });
       const worker = await manager.findOne(User, { where: { id: workerId } });
       if (!customer) throw new BadRequestException('Customer not found');
       if (!worker) throw new BadRequestException('Worker not found');

@@ -127,7 +127,9 @@ describe('HiringService', () => {
   describe('createJobPost', () => {
     it('creates with the employer wrapped and saves, returning the saved job', async () => {
       const { service, jobPostRepo, jobSaved } = makeService({ workers: [] });
-      const result = await service.createJobPost('emp-1', { title: 'Plumber needed' });
+      const result = await service.createJobPost('emp-1', {
+        title: 'Plumber needed',
+      });
       expect(jobPostRepo.create).toHaveBeenCalledWith({
         title: 'Plumber needed',
         employer: { id: 'emp-1' },
@@ -172,7 +174,9 @@ describe('HiringService', () => {
 
   describe('getActiveJobs', () => {
     it('returns the active list ordered by createdAt DESC', async () => {
-      const { service, jobPostRepo } = makeService({ activeJobs: [{ id: 'j1' }, { id: 'j2' }] });
+      const { service, jobPostRepo } = makeService({
+        activeJobs: [{ id: 'j1' }, { id: 'j2' }],
+      });
       await expect(service.getActiveJobs()).resolves.toHaveLength(2);
       expect(jobPostRepo.find).toHaveBeenCalledWith({
         where: { isActive: true },
@@ -186,33 +190,47 @@ describe('HiringService', () => {
   describe('getJobById', () => {
     it('returns the job when found', async () => {
       const { service } = makeService({ job: { id: 'j1' } });
-      await expect(service.getJobById('j1')).resolves.toMatchObject({ id: 'j1' });
+      await expect(service.getJobById('j1')).resolves.toMatchObject({
+        id: 'j1',
+      });
     });
     it('throws NotFound when missing', async () => {
       const { service } = makeService({ job: null });
-      await expect(service.getJobById('x')).rejects.toBeInstanceOf(NotFoundException);
+      await expect(service.getJobById('x')).rejects.toBeInstanceOf(
+        NotFoundException,
+      );
     });
   });
 
   describe('applyForJob', () => {
     it('throws NotFound when the job does not exist', async () => {
       const { service } = makeService({ job: null });
-      await expect(service.applyForJob('j', 'a')).rejects.toBeInstanceOf(NotFoundException);
+      await expect(service.applyForJob('j', 'a')).rejects.toBeInstanceOf(
+        NotFoundException,
+      );
     });
 
     it('throws BadRequest when the job is inactive', async () => {
       const { service } = makeService({ job: { id: 'j', isActive: false } });
-      await expect(service.applyForJob('j', 'a')).rejects.toBeInstanceOf(BadRequestException);
+      await expect(service.applyForJob('j', 'a')).rejects.toBeInstanceOf(
+        BadRequestException,
+      );
     });
 
     it('throws BadRequest on a double-apply', async () => {
-      const { service, applicationRepo } = makeService({ job: { id: 'j', isActive: true } });
+      const { service, applicationRepo } = makeService({
+        job: { id: 'j', isActive: true },
+      });
       applicationRepo.findOne.mockResolvedValueOnce({ id: 'existing' });
-      await expect(service.applyForJob('j', 'a')).rejects.toBeInstanceOf(BadRequestException);
+      await expect(service.applyForJob('j', 'a')).rejects.toBeInstanceOf(
+        BadRequestException,
+      );
     });
 
     it('saves a new APPLIED application on the happy path', async () => {
-      const { service, appSaved } = makeService({ job: { id: 'j', isActive: true } });
+      const { service, appSaved } = makeService({
+        job: { id: 'j', isActive: true },
+      });
       const result = await service.applyForJob('j', 'a', 'please hire me');
       expect(result.status).toBe(ApplicationStatus.APPLIED);
       expect(appSaved[0]).toMatchObject({
@@ -223,13 +241,22 @@ describe('HiringService', () => {
     });
 
     it('carries the attached resumeUrl through to the created application', async () => {
-      const { service, appSaved } = makeService({ job: { id: 'j', isActive: true } });
-      await service.applyForJob('j', 'a', 'please hire me', '/uploads/cv-7.jpg');
+      const { service, appSaved } = makeService({
+        job: { id: 'j', isActive: true },
+      });
+      await service.applyForJob(
+        'j',
+        'a',
+        'please hire me',
+        '/uploads/cv-7.jpg',
+      );
       expect(appSaved[0].resumeUrl).toBe('/uploads/cv-7.jpg');
     });
 
     it('leaves resumeUrl undefined when the applicant attached nothing', async () => {
-      const { service, appSaved } = makeService({ job: { id: 'j', isActive: true } });
+      const { service, appSaved } = makeService({
+        job: { id: 'j', isActive: true },
+      });
       await service.applyForJob('j', 'a', 'please hire me');
       expect(appSaved[0].resumeUrl).toBeUndefined();
     });
@@ -252,7 +279,9 @@ describe('HiringService', () => {
     });
 
     it('NO_SHOW records a talent no-show and notifies', async () => {
-      const { service, talentService, notificationsService } = makeService({ application: app() });
+      const { service, talentService, notificationsService } = makeService({
+        application: app(),
+      });
       await service.updateApplicationStatus('app-1', ApplicationStatus.NO_SHOW);
       expect(talentService.recordNoShow).toHaveBeenCalledWith('u1');
       expect(notificationsService.sendToUser).toHaveBeenCalledWith('u1', {
@@ -262,8 +291,13 @@ describe('HiringService', () => {
     });
 
     it('SELECTED notifies with the congratulations copy (no no-show recorded)', async () => {
-      const { service, talentService, notificationsService } = makeService({ application: app() });
-      await service.updateApplicationStatus('app-1', ApplicationStatus.SELECTED);
+      const { service, talentService, notificationsService } = makeService({
+        application: app(),
+      });
+      await service.updateApplicationStatus(
+        'app-1',
+        ApplicationStatus.SELECTED,
+      );
       expect(talentService.recordNoShow).not.toHaveBeenCalled();
       expect(notificationsService.sendToUser).toHaveBeenCalledWith('u1', {
         title: 'Cook',
@@ -275,7 +309,10 @@ describe('HiringService', () => {
       const { service, notificationsService } = makeService({
         application: app({ jobPost: undefined }),
       });
-      await service.updateApplicationStatus('app-1', ApplicationStatus.INTERVIEW);
+      await service.updateApplicationStatus(
+        'app-1',
+        ApplicationStatus.INTERVIEW,
+      );
       expect(notificationsService.sendToUser).toHaveBeenCalledWith('u1', {
         title: 'Application Update',
         body: expect.stringContaining('interview'),
@@ -283,7 +320,9 @@ describe('HiringService', () => {
     });
 
     it('a no-message status (APPLIED) saves but does not notify', async () => {
-      const { service, notificationsService, appSaved } = makeService({ application: app() });
+      const { service, notificationsService, appSaved } = makeService({
+        application: app(),
+      });
       await service.updateApplicationStatus('app-1', ApplicationStatus.APPLIED);
       expect(appSaved).toHaveLength(1);
       expect(notificationsService.sendToUser).not.toHaveBeenCalled();
@@ -301,23 +340,25 @@ describe('HiringService', () => {
 
     it('throws NotFound when missing', async () => {
       const { service } = makeService({ application: null });
-      await expect(service.withdrawApplication('x', 'u1')).rejects.toBeInstanceOf(
-        NotFoundException,
-      );
+      await expect(
+        service.withdrawApplication('x', 'u1'),
+      ).rejects.toBeInstanceOf(NotFoundException);
     });
 
-    it('throws BadRequest when withdrawing someone else\'s application', async () => {
+    it("throws BadRequest when withdrawing someone else's application", async () => {
       const { service } = makeService({ application: app() });
-      await expect(service.withdrawApplication('app-1', 'other')).rejects.toBeInstanceOf(
-        BadRequestException,
-      );
+      await expect(
+        service.withdrawApplication('app-1', 'other'),
+      ).rejects.toBeInstanceOf(BadRequestException);
     });
 
     it('throws BadRequest when not in a withdrawable state', async () => {
-      const { service } = makeService({ application: app({ status: ApplicationStatus.SELECTED }) });
-      await expect(service.withdrawApplication('app-1', 'u1')).rejects.toBeInstanceOf(
-        BadRequestException,
-      );
+      const { service } = makeService({
+        application: app({ status: ApplicationStatus.SELECTED }),
+      });
+      await expect(
+        service.withdrawApplication('app-1', 'u1'),
+      ).rejects.toBeInstanceOf(BadRequestException);
     });
 
     it('flips an APPLIED application to WITHDRAWN', async () => {
@@ -328,7 +369,9 @@ describe('HiringService', () => {
     });
 
     it('allows withdrawing while in INTERVIEW state', async () => {
-      const { service } = makeService({ application: app({ status: ApplicationStatus.INTERVIEW }) });
+      const { service } = makeService({
+        application: app({ status: ApplicationStatus.INTERVIEW }),
+      });
       const result = await service.withdrawApplication('app-1', 'u1');
       expect(result.status).toBe(ApplicationStatus.WITHDRAWN);
     });
@@ -337,7 +380,9 @@ describe('HiringService', () => {
   describe('getRecommendedTalent', () => {
     it('throws NotFound when the job is missing', async () => {
       const { service } = makeService({ job: null });
-      await expect(service.getRecommendedTalent('x')).rejects.toBeInstanceOf(NotFoundException);
+      await expect(service.getRecommendedTalent('x')).rejects.toBeInstanceOf(
+        NotFoundException,
+      );
     });
 
     it('returns top-rated active workers when the job has no required skills', async () => {
@@ -355,7 +400,11 @@ describe('HiringService', () => {
     });
 
     it('scores by overlapping skills and keeps only matches, ordered by score then rating', async () => {
-      const wHigh = worker({ id: 'high', rating: 3, skills: ['Plumbing', 'Electrical'] });
+      const wHigh = worker({
+        id: 'high',
+        rating: 3,
+        skills: ['Plumbing', 'Electrical'],
+      });
       const wLow = worker({ id: 'low', rating: 5, skills: ['plumbing'] });
       const wNone = worker({ id: 'none', rating: 5, skills: ['Painting'] });
       const { service, workerProfileRepo } = makeService({

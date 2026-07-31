@@ -30,7 +30,9 @@ function chainBuilder(rows: any[]) {
   return qb;
 }
 
-function makeService(opts: { recipient?: any; reloaded?: any; rows?: any[] } = {}) {
+function makeService(
+  opts: { recipient?: any; reloaded?: any; rows?: any[] } = {},
+) {
   const saved: any[] = [];
   const qb = chainBuilder(opts.rows ?? []);
 
@@ -58,7 +60,9 @@ describe('MessagesService.send', () => {
   it('throws NotFound when the recipient does not exist', async () => {
     const { service, gateway } = makeService({ recipient: null });
 
-    await expect(service.send('s1', 'ghost', 'hi')).rejects.toBeInstanceOf(NotFoundException);
+    await expect(service.send('s1', 'ghost', 'hi')).rejects.toBeInstanceOf(
+      NotFoundException,
+    );
     expect(gateway.emitToUser).not.toHaveBeenCalled();
   });
 
@@ -81,7 +85,11 @@ describe('MessagesService.send', () => {
 
     // body trimmed + isRead false at create time
     expect(messagesRepo.create).toHaveBeenCalledWith(
-      expect.objectContaining({ body: 'hello', isRead: false, bookingId: 'booking-9' }),
+      expect.objectContaining({
+        body: 'hello',
+        isRead: false,
+        bookingId: 'booking-9',
+      }),
     );
     expect(saved).toHaveLength(1);
     // DTO carries the reloaded sender/recipient ids
@@ -90,7 +98,11 @@ describe('MessagesService.send', () => {
     // gateway gets a new_message event addressed to the recipient
     expect(gateway.emitToUser).toHaveBeenCalledWith(
       'r1',
-      expect.objectContaining({ _event: 'new_message', senderId: 's1', recipientId: 'r1' }),
+      expect.objectContaining({
+        _event: 'new_message',
+        senderId: 's1',
+        recipientId: 'r1',
+      }),
     );
   });
 
@@ -104,7 +116,10 @@ describe('MessagesService.send', () => {
       sender: { id: 's1' },
       recipient: { id: 'r1' },
     };
-    const { service, messagesRepo } = makeService({ recipient: { id: 'r1' }, reloaded });
+    const { service, messagesRepo } = makeService({
+      recipient: { id: 'r1' },
+      reloaded,
+    });
 
     await service.send('s1', 'r1', 'yo');
 

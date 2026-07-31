@@ -1,4 +1,15 @@
-import { Controller, Get, Patch, Param, Query, Body, Req, UseGuards, ForbiddenException, BadRequestException } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Patch,
+  Param,
+  Query,
+  Body,
+  Req,
+  UseGuards,
+  ForbiddenException,
+  BadRequestException,
+} from '@nestjs/common';
 import { UsersService } from './users.service';
 import { TalentService } from '../talent/talent.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
@@ -69,7 +80,11 @@ export class UsersController {
   }
 
   @Patch(':id/fcm-token')
-  async updateFcmToken(@Param('id') id: string, @Req() req: any, @Body() body: UpdateFcmTokenDto) {
+  async updateFcmToken(
+    @Param('id') id: string,
+    @Req() req: any,
+    @Body() body: UpdateFcmTokenDto,
+  ) {
     // SECURITY FIX: was trusting the URL id — any user could overwrite another
     // user's push token and hijack their notifications (incl. OTP pushes).
     if (req.user.userId !== id && req.user.role !== 'ADMIN') {
@@ -79,16 +94,21 @@ export class UsersController {
     return this.usersService.updateFcmToken(id, body.token);
   }
 
-
   @Patch('skill/:skillId/status')
   @UseGuards(AdminGuard)
-  async updateSkillStatus(@Param('skillId') skillId: string, @Body() body: UpdateSkillStatusDto) {
+  async updateSkillStatus(
+    @Param('skillId') skillId: string,
+    @Body() body: UpdateSkillStatusDto,
+  ) {
     return this.talentService.updateSkillStatus(skillId, body.status);
   }
 
   @Patch(':id/status')
   @UseGuards(AdminGuard)
-  async updateStatus(@Param('id') id: string, @Body() body: UpdateUserStatusDto) {
+  async updateStatus(
+    @Param('id') id: string,
+    @Body() body: UpdateUserStatusDto,
+  ) {
     return this.usersService.updateApprovalStatus(id, body.status);
   }
 

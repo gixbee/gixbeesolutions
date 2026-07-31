@@ -9,7 +9,11 @@ import { CreateMasterEntryDto, UpdateMasterEntryDto } from './master-entry.dto';
 // modal echoes back.
 describe('CreateMasterEntryDto validation', () => {
   const pipe = new ValidationPipe({ whitelist: true, transform: true });
-  const meta = { type: 'body', metatype: CreateMasterEntryDto, data: '' } as any;
+  const meta = {
+    type: 'body',
+    metatype: CreateMasterEntryDto,
+    data: '',
+  } as any;
   const transform = (body: any) => pipe.transform(body, meta);
 
   it('accepts a full CATEGORY payload', async () => {
@@ -46,8 +50,8 @@ describe('CreateMasterEntryDto validation', () => {
       id: 'should-be-stripped',
       createdAt: '2026-01-01',
     });
-    expect((out as any).id).toBeUndefined();
-    expect((out as any).createdAt).toBeUndefined();
+    expect(out.id).toBeUndefined();
+    expect(out.createdAt).toBeUndefined();
   });
 
   it('rejects a missing required field (no value)', async () => {
@@ -77,7 +81,11 @@ describe('CreateMasterEntryDto validation', () => {
 
 describe('UpdateMasterEntryDto validation', () => {
   const pipe = new ValidationPipe({ whitelist: true, transform: true });
-  const meta = { type: 'body', metatype: UpdateMasterEntryDto, data: '' } as any;
+  const meta = {
+    type: 'body',
+    metatype: UpdateMasterEntryDto,
+    data: '',
+  } as any;
   const transform = (body: any) => pipe.transform(body, meta);
 
   it('accepts the toggle body of ONLY { isActive }', async () => {
@@ -104,20 +112,20 @@ describe('UpdateMasterEntryDto validation', () => {
       createdAt: '2026-01-01',
       updatedAt: '2026-02-02',
     });
-    expect((out as any).id).toBeUndefined();
-    expect((out as any).createdAt).toBeUndefined();
-    expect((out as any).updatedAt).toBeUndefined();
+    expect(out.id).toBeUndefined();
+    expect(out.createdAt).toBeUndefined();
+    expect(out.updatedAt).toBeUndefined();
   });
 
   it('rejects an empty-string value when value IS present', async () => {
-    await expect(
-      transform({ value: '' }),
-    ).rejects.toBeInstanceOf(BadRequestException);
+    await expect(transform({ value: '' })).rejects.toBeInstanceOf(
+      BadRequestException,
+    );
   });
 
   it('rejects an invalid type enum when present', async () => {
-    await expect(
-      transform({ type: 'BOGUS' }),
-    ).rejects.toBeInstanceOf(BadRequestException);
+    await expect(transform({ type: 'BOGUS' })).rejects.toBeInstanceOf(
+      BadRequestException,
+    );
   });
 });

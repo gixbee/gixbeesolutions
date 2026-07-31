@@ -79,16 +79,37 @@ import { CreditTransaction } from './billing/credit-transaction.entity';
         const baseConfig = {
           type: 'postgres' as const,
           entities: [
-            User, Booking, WalletTransaction, WorkerProfile, WorkerStrike,
-            RentalItem, RentalReservation, JobPost, JobApplication,
-            JobPreference, HiringRequest, HiringInterest,
-            Business, TalentProfile, ProfessionalSkill, MasterEntry,
-            Message, Favourite, Address, City, SupportTicket, AdminStaff,
-            OutboxEvent, SystemLog, PaymentOrder, JobCredit, CreditTransaction,
+            User,
+            Booking,
+            WalletTransaction,
+            WorkerProfile,
+            WorkerStrike,
+            RentalItem,
+            RentalReservation,
+            JobPost,
+            JobApplication,
+            JobPreference,
+            HiringRequest,
+            HiringInterest,
+            Business,
+            TalentProfile,
+            ProfessionalSkill,
+            MasterEntry,
+            Message,
+            Favourite,
+            Address,
+            City,
+            SupportTicket,
+            AdminStaff,
+            OutboxEvent,
+            SystemLog,
+            PaymentOrder,
+            JobCredit,
+            CreditTransaction,
           ],
-          synchronize: !isProduction,   // auto-sync only in development
+          synchronize: !isProduction, // auto-sync only in development
           migrations: [__dirname + '/migrations/**/*{.ts,.js}'],
-          migrationsRun: isProduction,  // run migrations automatically in prod
+          migrationsRun: isProduction, // run migrations automatically in prod
           logging: !isProduction,
           // App-side pg pool. With PgBouncer in front (transaction pooling),
           // these are cheap client connections to the pooler — not real
@@ -180,9 +201,6 @@ import { CreditTransaction } from './billing/credit-transaction.entity';
     }),
   ],
   controllers: [AppController, UploadController],
-  providers: [
-    AppService,
-    { provide: APP_GUARD, useClass: ThrottlerGuard },
-  ],
+  providers: [AppService, { provide: APP_GUARD, useClass: ThrottlerGuard }],
 })
 export class AppModule {}

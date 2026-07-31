@@ -1,8 +1,23 @@
-import { Controller, Get, Post, Patch, Param, Body, BadRequestException, UseGuards, Req, Query } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Patch,
+  Param,
+  Body,
+  BadRequestException,
+  UseGuards,
+  Req,
+  Query,
+} from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { HiringService } from './hiring.service';
 import { ApplicationStatus } from './job-application.entity';
-import { CreateJobPostDto, ApplyForJobDto, UpdateApplicationStatusDto } from './dto/hiring.dto';
+import {
+  CreateJobPostDto,
+  ApplyForJobDto,
+  UpdateApplicationStatusDto,
+} from './dto/hiring.dto';
 import { parsePagination } from '../common/pagination';
 
 // SECURITY FIX: guard the whole controller. Previously several routes
@@ -18,10 +33,7 @@ export class HiringController {
 
   @UseGuards(JwtAuthGuard)
   @Post('jobs')
-  async createJobPost(
-    @Req() req: any,
-    @Body() body: CreateJobPostDto
-  ) {
+  async createJobPost(@Req() req: any, @Body() body: CreateJobPostDto) {
     if (!body.title || !body.description) {
       throw new BadRequestException('title and description are required.');
     }
@@ -65,9 +77,14 @@ export class HiringController {
   async applyForJob(
     @Param('id') jobId: string,
     @Req() req: any,
-    @Body() body: ApplyForJobDto
+    @Body() body: ApplyForJobDto,
   ) {
-    return this.hiringService.applyForJob(jobId, req.user.userId, body.coverLetter, body.resumeUrl);
+    return this.hiringService.applyForJob(
+      jobId,
+      req.user.userId,
+      body.coverLetter,
+      body.resumeUrl,
+    );
   }
 
   @UseGuards(JwtAuthGuard)
@@ -107,19 +124,26 @@ export class HiringController {
     @Param('id') applicationId: string,
     @Req() req: any,
   ) {
-    return this.hiringService.withdrawApplication(applicationId, req.user.userId);
+    return this.hiringService.withdrawApplication(
+      applicationId,
+      req.user.userId,
+    );
   }
 
   @Patch('applications/:id/status')
   async updateApplicationStatus(
     @Param('id') applicationId: string,
     @Req() req: any,
-    @Body() body: UpdateApplicationStatusDto
+    @Body() body: UpdateApplicationStatusDto,
   ) {
     const status = body.status;
     if (!status || !Object.values(ApplicationStatus).includes(status)) {
       throw new BadRequestException('Invalid status provided.');
     }
-    return this.hiringService.updateApplicationStatus(applicationId, status, req.user.userId);
+    return this.hiringService.updateApplicationStatus(
+      applicationId,
+      status,
+      req.user.userId,
+    );
   }
 }

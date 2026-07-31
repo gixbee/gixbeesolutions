@@ -40,8 +40,8 @@ describe('SendMessageDto validation', () => {
       senderId: 'spoofed', // server sets sender from JWT — must not be settable
       isRead: true,
     });
-    expect((out as any).senderId).toBeUndefined();
-    expect((out as any).isRead).toBeUndefined();
+    expect(out.senderId).toBeUndefined();
+    expect(out.isRead).toBeUndefined();
     expect(out.recipientId).toBe('user-42');
   });
 
@@ -58,9 +58,9 @@ describe('SendMessageDto validation', () => {
   });
 
   it('rejects a missing body', async () => {
-    await expect(
-      transform({ recipientId: 'user-42' }),
-    ).rejects.toBeInstanceOf(BadRequestException);
+    await expect(transform({ recipientId: 'user-42' })).rejects.toBeInstanceOf(
+      BadRequestException,
+    );
   });
 
   it('rejects an empty body', async () => {

@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../shared/widgets/gx_pressable.dart';
-import '../../shared/widgets/gx_snackbar.dart';
 import '../../repositories/auth_repository.dart';
 import '../../repositories/profile_repository.dart';
 import '../../core/config/app_config.dart';

@@ -36,11 +36,16 @@ export class WorkerGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
   @SubscribeMessage('updateLocation')
   async handleLocationUpdate(
-    @MessageBody() data: { userId: string; lat: number; lng: number; jobId?: string },
+    @MessageBody()
+    data: { userId: string; lat: number; lng: number; jobId?: string },
     @ConnectedSocket() client: Socket,
   ) {
     // 1. Persist to Redis so the background health-check (10-minute rule) can see it
-    await this.redisService.updateWorkerLocation(data.userId, data.lat, data.lng);
+    await this.redisService.updateWorkerLocation(
+      data.userId,
+      data.lat,
+      data.lng,
+    );
 
     // 2. If a jobId is provided, only broadcast to that job's room
     if (data.jobId) {
@@ -78,6 +83,9 @@ export class WorkerGateway implements OnGatewayConnection, OnGatewayDisconnect {
     if (data?.jobId) {
       client.leave(`job_${data.jobId}`);
     }
-    return { event: 'left', data: data?.jobId ? `Left room job_${data.jobId}` : null };
+    return {
+      event: 'left',
+      data: data?.jobId ? `Left room job_${data.jobId}` : null,
+    };
   }
 }

@@ -218,6 +218,7 @@ class _AnimatedSplashScreenState extends ConsumerState<AnimatedSplashScreen>
           alignment: Alignment.center,
           transform: Matrix4.identity()
             ..rotateZ(heading)
+            // ignore: deprecated_member_use
             ..scale(flip ? -1.0 : 1.0, 1.0),
           child: CustomPaint(
             size: Size(f.size * 2, f.size * 1.6),

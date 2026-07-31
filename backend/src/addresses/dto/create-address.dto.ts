@@ -1,4 +1,12 @@
-import { IsString, IsNotEmpty, IsOptional, IsNumber, Max, MaxLength, Min } from 'class-validator';
+import {
+  IsString,
+  IsNotEmpty,
+  IsOptional,
+  IsNumber,
+  Max,
+  MaxLength,
+  Min,
+} from 'class-validator';
 
 // POST /addresses — addresses_repository.add sends { line, label?, lat?, lng? }.
 // Field names mirror EXACTLY what the Flutter client sends so the global

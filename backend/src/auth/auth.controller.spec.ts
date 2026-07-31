@@ -34,8 +34,14 @@ describe('AuthController.requestOtp', () => {
 describe('AuthController.verifyOtp', () => {
   it('forwards phone + otp from the body', async () => {
     const { controller, authService } = makeController();
-    const res = await controller.verifyOtp({ phone: '+919000000000', otp: '123456' });
-    expect(authService.verifyOtp).toHaveBeenCalledWith('+919000000000', '123456');
+    const res = await controller.verifyOtp({
+      phone: '+919000000000',
+      otp: '123456',
+    });
+    expect(authService.verifyOtp).toHaveBeenCalledWith(
+      '+919000000000',
+      '123456',
+    );
     expect(res).toEqual({ accessToken: 'a', refreshToken: 'r' });
   });
 });
@@ -60,7 +66,10 @@ describe('AuthController.getProfile', () => {
 describe('AuthController.updatePushToken', () => {
   it('forwards the authed userId + the pushToken', async () => {
     const { controller, authService } = makeController();
-    await controller.updatePushToken({ user: { userId: 'u-7' } }, { pushToken: 'tok-1' });
+    await controller.updatePushToken(
+      { user: { userId: 'u-7' } },
+      { pushToken: 'tok-1' },
+    );
     expect(authService.updatePushToken).toHaveBeenCalledWith('u-7', 'tok-1');
   });
 });
@@ -68,8 +77,14 @@ describe('AuthController.updatePushToken', () => {
 describe('AuthController.updateFcmToken (legacy alias)', () => {
   it('maps the legacy fcmToken body to updatePushToken with the authed userId', async () => {
     const { controller, authService } = makeController();
-    await controller.updateFcmToken({ user: { userId: 'u-7' } }, { fcmToken: 'legacy-tok' });
-    expect(authService.updatePushToken).toHaveBeenCalledWith('u-7', 'legacy-tok');
+    await controller.updateFcmToken(
+      { user: { userId: 'u-7' } },
+      { fcmToken: 'legacy-tok' },
+    );
+    expect(authService.updatePushToken).toHaveBeenCalledWith(
+      'u-7',
+      'legacy-tok',
+    );
   });
 });
 

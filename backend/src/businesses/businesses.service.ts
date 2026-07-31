@@ -1,4 +1,9 @@
-import { Injectable, NotFoundException, BadRequestException, ForbiddenException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+  ForbiddenException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Business } from './business.entity';
@@ -46,7 +51,10 @@ export class BusinessesService {
   }
 
   async getById(id: string): Promise<Business> {
-    const business = await this.businessRepo.findOne({ where: { id }, relations: ['owner'] });
+    const business = await this.businessRepo.findOne({
+      where: { id },
+      relations: ['owner'],
+    });
     if (!business) throw new NotFoundException('Business not found');
     return business;
   }
@@ -86,7 +94,10 @@ export class BusinessesService {
   }
 
   // SECURITY FIX: only the business owner may manage operators/calendar.
-  private async getOwned(businessId: string, requesterId: string): Promise<Business> {
+  private async getOwned(
+    businessId: string,
+    requesterId: string,
+  ): Promise<Business> {
     const business = await this.getById(businessId); // loads ['owner']
     if (business.owner?.id !== requesterId) {
       throw new ForbiddenException('You do not own this business');
@@ -94,7 +105,11 @@ export class BusinessesService {
     return business;
   }
 
-  async addOperator(businessId: string, userId: string, requesterId: string): Promise<Business> {
+  async addOperator(
+    businessId: string,
+    userId: string,
+    requesterId: string,
+  ): Promise<Business> {
     const business = await this.getOwned(businessId, requesterId);
     const ops = business.operatorIds || [];
     if (!ops.includes(userId)) {
@@ -105,7 +120,11 @@ export class BusinessesService {
     return business;
   }
 
-  async addOfflineDay(businessId: string, dateIsoString: string, requesterId: string): Promise<Business> {
+  async addOfflineDay(
+    businessId: string,
+    dateIsoString: string,
+    requesterId: string,
+  ): Promise<Business> {
     const business = await this.getOwned(businessId, requesterId);
     const days = business.offlineDays || [];
     if (!days.includes(dateIsoString)) {
@@ -116,7 +135,11 @@ export class BusinessesService {
     return business;
   }
 
-  async removeOfflineDay(businessId: string, dateIsoString: string, requesterId: string): Promise<Business> {
+  async removeOfflineDay(
+    businessId: string,
+    dateIsoString: string,
+    requesterId: string,
+  ): Promise<Business> {
     const business = await this.getOwned(businessId, requesterId);
     const days = business.offlineDays || [];
     const next = days.filter((d) => d !== dateIsoString);

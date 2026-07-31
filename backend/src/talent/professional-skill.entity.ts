@@ -1,4 +1,11 @@
-import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, ManyToOne } from 'typeorm';
+import {
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  CreateDateColumn,
+  UpdateDateColumn,
+  ManyToOne,
+} from 'typeorm';
 import { TalentProfile } from './talent-profile.entity';
 
 export enum SkillApprovalStatus {
@@ -31,7 +38,9 @@ export class ProfessionalSkill {
   @Column({ type: 'jsonb', nullable: true })
   rateChart: Record<string, number>;
 
-  @ManyToOne(() => TalentProfile, (profile) => profile.professionalSkills, { onDelete: 'CASCADE' })
+  @ManyToOne(() => TalentProfile, (profile) => profile.professionalSkills, {
+    onDelete: 'CASCADE',
+  })
   talentProfile: TalentProfile;
 
   @CreateDateColumn()

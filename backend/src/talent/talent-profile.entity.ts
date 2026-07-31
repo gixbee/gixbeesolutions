@@ -1,4 +1,13 @@
-import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, OneToOne, JoinColumn, OneToMany } from 'typeorm';
+import {
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  CreateDateColumn,
+  UpdateDateColumn,
+  OneToOne,
+  JoinColumn,
+  OneToMany,
+} from 'typeorm';
 import { User } from '../users/user.entity';
 import { ProfessionalSkill } from './professional-skill.entity';
 
@@ -11,7 +20,9 @@ export class TalentProfile {
   @JoinColumn()
   user: User;
 
-  @OneToMany(() => ProfessionalSkill, (skill) => skill.talentProfile, { cascade: true })
+  @OneToMany(() => ProfessionalSkill, (skill) => skill.talentProfile, {
+    cascade: true,
+  })
   professionalSkills: ProfessionalSkill[];
 
   @Column('simple-array', { nullable: true })
@@ -34,7 +45,11 @@ export class TalentProfile {
   @Column({ type: 'float', nullable: true })
   hourlyRate: number;
 
-  @Column({ type: 'enum', enum: ['FINAL_YEAR', 'GRADUATE', 'EXPERIENCED'], nullable: true })
+  @Column({
+    type: 'enum',
+    enum: ['FINAL_YEAR', 'GRADUATE', 'EXPERIENCED'],
+    nullable: true,
+  })
   currentStatus: string;
 
   // Expected monthly salary in ₹ (v126 Find a Job wizard "salary" step).

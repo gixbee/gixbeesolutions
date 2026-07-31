@@ -30,10 +30,7 @@ export class MessagesController {
 
   /** Send a message. */
   @Post()
-  async send(
-    @Req() req,
-    @Body() body: SendMessageDto,
-  ) {
+  async send(@Req() req, @Body() body: SendMessageDto) {
     return this.messagesService.send(
       req.user.userId,
       body.recipientId,

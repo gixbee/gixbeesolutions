@@ -23,7 +23,10 @@ export function parsePagination(
   const rawPage = typeof page === 'string' ? parseInt(page, 10) : Number(page);
   const rawLimit =
     typeof limit === 'string' ? parseInt(limit, 10) : Number(limit);
-  const p = Number.isFinite(rawPage) && rawPage > 0 ? Math.floor(rawPage) : DEFAULT_PAGE;
+  const p =
+    Number.isFinite(rawPage) && rawPage > 0
+      ? Math.floor(rawPage)
+      : DEFAULT_PAGE;
   const lRaw =
     Number.isFinite(rawLimit) && rawLimit > 0
       ? Math.floor(rawLimit)

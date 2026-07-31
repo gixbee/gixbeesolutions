@@ -24,25 +24,52 @@ import { BookingStatus, BookingType } from './booking.entity';
  *  - dispute() echoes the reason without touching the service.
  */
 
-function makeController(opts: {
-  bookings?: Partial<Record<string, jest.Mock>>;
-  redisCached?: any;
-} = {}) {
+function makeController(
+  opts: {
+    bookings?: Partial<Record<string, jest.Mock>>;
+    redisCached?: any;
+  } = {},
+) {
   const bookingsService: any = {
     createBooking: jest.fn(async (dto: any) => ({ id: 'b1', ...dto })),
     findAllByUser: jest.fn(async () => []),
     findMyBookings: jest.fn(async () => []),
     findPendingForWorker: jest.fn(async () => []),
-    updateStatus: jest.fn(async (id: string, status: BookingStatus) => ({ id, status })),
-    cancelBooking: jest.fn(async (id: string, reason: string) => ({ id, status: BookingStatus.CANCELLED, reason })),
-    verifyArrivalOtp: jest.fn(async (id: string, otp: string) => ({ id, otp, ok: true })),
-    verifyCompletionOtp: jest.fn(async (id: string, otp: string) => ({ id, otp, ok: true })),
-    refreshCompletionOtp: jest.fn(async (id: string) => ({ id, completionOtp: '654321' })),
+    updateStatus: jest.fn(async (id: string, status: BookingStatus) => ({
+      id,
+      status,
+    })),
+    cancelBooking: jest.fn(async (id: string, reason: string) => ({
+      id,
+      status: BookingStatus.CANCELLED,
+      reason,
+    })),
+    verifyArrivalOtp: jest.fn(async (id: string, otp: string) => ({
+      id,
+      otp,
+      ok: true,
+    })),
+    verifyCompletionOtp: jest.fn(async (id: string, otp: string) => ({
+      id,
+      otp,
+      ok: true,
+    })),
+    refreshCompletionOtp: jest.fn(async (id: string) => ({
+      id,
+      completionOtp: '654321',
+    })),
     acceptBooking: jest.fn(),
-    rejectBooking: jest.fn(async (id: string, workerId: string) => ({ id, workerId, rejected: true })),
+    rejectBooking: jest.fn(async (id: string, workerId: string) => ({
+      id,
+      workerId,
+      rejected: true,
+    })),
     getBookingById: jest.fn(async () => null),
     markPaid: jest.fn(async (id: string) => ({ message: 'paid' })),
-    submitRating: jest.fn(async (id: string, rating: number) => ({ id, rating })),
+    submitRating: jest.fn(async (id: string, rating: number) => ({
+      id,
+      rating,
+    })),
     ...(opts.bookings ?? {}),
   };
 
@@ -55,7 +82,11 @@ function makeController(opts: {
     cacheBookingStatus: jest.fn(async () => undefined),
   };
 
-  const controller = new BookingsController(bookingsService, notificationsService, redisService);
+  const controller = new BookingsController(
+    bookingsService,
+    notificationsService,
+    redisService,
+  );
   return { controller, bookingsService, notificationsService, redisService };
 }
 
@@ -98,7 +129,9 @@ describe('BookingsController.create', () => {
       type: BookingType.PACKAGE,
       paymentMethod: 'UPI',
     });
-    expect(bookingsService.createBooking.mock.calls[0][0].paymentMethod).toBe('UPI');
+    expect(bookingsService.createBooking.mock.calls[0][0].paymentMethod).toBe(
+      'UPI',
+    );
   });
 
   it('forwards a picked saved-address id, and leaves it undefined when omitted', async () => {
@@ -110,7 +143,9 @@ describe('BookingsController.create', () => {
       amount: 1,
       addressId: 'addr-7',
     } as any);
-    expect(bookingsService.createBooking.mock.calls[0][0].addressId).toBe('addr-7');
+    expect(bookingsService.createBooking.mock.calls[0][0].addressId).toBe(
+      'addr-7',
+    );
 
     await controller.create(req(), {
       workerId: 'w-9',
@@ -118,7 +153,9 @@ describe('BookingsController.create', () => {
       scheduledAt: '2026-07-01T10:00:00.000Z',
       amount: 1,
     } as any);
-    expect(bookingsService.createBooking.mock.calls[1][0].addressId).toBeUndefined();
+    expect(
+      bookingsService.createBooking.mock.calls[1][0].addressId,
+    ).toBeUndefined();
   });
 });
 
@@ -129,7 +166,12 @@ describe('BookingsController.getMyBookings', () => {
       bookings: { findMyBookings },
     });
 
-    const res = await controller.getMyBookings(req('u-7'), 'ACCEPTED', '2', '10');
+    const res = await controller.getMyBookings(
+      req('u-7'),
+      'ACCEPTED',
+      '2',
+      '10',
+    );
 
     expect(res).toEqual([{ id: 'c1' }, { id: 'o1' }]);
     expect(bookingsService.findMyBookings).toHaveBeenCalledWith(
@@ -164,13 +206,19 @@ describe('BookingsController.updateStatus / confirm', () => {
   it('updateStatus passes the body status through', async () => {
     const { controller, bookingsService } = makeController();
     await controller.updateStatus('b1', { status: BookingStatus.ACTIVE });
-    expect(bookingsService.updateStatus).toHaveBeenCalledWith('b1', BookingStatus.ACTIVE);
+    expect(bookingsService.updateStatus).toHaveBeenCalledWith(
+      'b1',
+      BookingStatus.ACTIVE,
+    );
   });
 
   it('confirmBooking forces ACCEPTED', async () => {
     const { controller, bookingsService } = makeController();
     await controller.confirmBooking('b1');
-    expect(bookingsService.updateStatus).toHaveBeenCalledWith('b1', BookingStatus.ACCEPTED);
+    expect(bookingsService.updateStatus).toHaveBeenCalledWith(
+      'b1',
+      BookingStatus.ACCEPTED,
+    );
   });
 });
 
@@ -178,13 +226,19 @@ describe('BookingsController.cancel', () => {
   it('passes the supplied reason', async () => {
     const { controller, bookingsService } = makeController();
     await controller.cancel('b1', { reason: 'changed mind' });
-    expect(bookingsService.cancelBooking).toHaveBeenCalledWith('b1', 'changed mind');
+    expect(bookingsService.cancelBooking).toHaveBeenCalledWith(
+      'b1',
+      'changed mind',
+    );
   });
 
   it('falls back to "Not specified" when reason missing', async () => {
     const { controller, bookingsService } = makeController();
     await controller.cancel('b1', {} as any);
-    expect(bookingsService.cancelBooking).toHaveBeenCalledWith('b1', 'Not specified');
+    expect(bookingsService.cancelBooking).toHaveBeenCalledWith(
+      'b1',
+      'Not specified',
+    );
   });
 });
 
@@ -194,8 +248,14 @@ describe('BookingsController OTP gates', () => {
     await controller.confirmArrival('b1', { otp: '111111' });
     await controller.confirmCompletion('b1', { otp: '222222' });
     await controller.refreshCompletionOtp('b1');
-    expect(bookingsService.verifyArrivalOtp).toHaveBeenCalledWith('b1', '111111');
-    expect(bookingsService.verifyCompletionOtp).toHaveBeenCalledWith('b1', '222222');
+    expect(bookingsService.verifyArrivalOtp).toHaveBeenCalledWith(
+      'b1',
+      '111111',
+    );
+    expect(bookingsService.verifyCompletionOtp).toHaveBeenCalledWith(
+      'b1',
+      '222222',
+    );
     expect(bookingsService.refreshCompletionOtp).toHaveBeenCalledWith('b1');
   });
 });
@@ -205,7 +265,9 @@ describe('BookingsController.acceptBooking', () => {
     const acceptBooking = jest.fn(async () => ({
       booking: { customer: { id: 'cust-1' }, operator: { name: 'Asha' } },
     }));
-    const { controller, notificationsService } = makeController({ bookings: { acceptBooking } });
+    const { controller, notificationsService } = makeController({
+      bookings: { acceptBooking },
+    });
 
     const res = await controller.acceptBooking('b1', req('w-1'));
 
@@ -216,9 +278,13 @@ describe('BookingsController.acceptBooking', () => {
   });
 
   it('rethrows a service error', async () => {
-    const acceptBooking = jest.fn(async () => { throw new Error('already taken'); });
+    const acceptBooking = jest.fn(async () => {
+      throw new Error('already taken');
+    });
     const { controller } = makeController({ bookings: { acceptBooking } });
-    await expect(controller.acceptBooking('b1', req('w-1'))).rejects.toThrow('already taken');
+    await expect(controller.acceptBooking('b1', req('w-1'))).rejects.toThrow(
+      'already taken',
+    );
   });
 });
 
@@ -239,13 +305,17 @@ describe('BookingsController.getBooking', () => {
 
   it('throws NotFound when absent', async () => {
     const { controller } = makeController(); // getBookingById → null
-    await expect(controller.getBooking('b1')).rejects.toBeInstanceOf(NotFoundException);
+    await expect(controller.getBooking('b1')).rejects.toBeInstanceOf(
+      NotFoundException,
+    );
   });
 });
 
 describe('BookingsController.getBookingStatus', () => {
   it('returns the Redis cache on a hit (no DB read)', async () => {
-    const { controller, bookingsService, redisService } = makeController({ redisCached: { status: 'ACCEPTED' } });
+    const { controller, bookingsService, redisService } = makeController({
+      redisCached: { status: 'ACCEPTED' },
+    });
     const res = await controller.getBookingStatus('b1');
     expect(res).toEqual({ status: 'ACCEPTED' });
     expect(bookingsService.getBookingById).not.toHaveBeenCalled();
@@ -258,9 +328,15 @@ describe('BookingsController.getBookingStatus', () => {
       operator: { name: 'Asha' },
       arrivalOtp: '999999',
     }));
-    const { controller, redisService } = makeController({ bookings: { getBookingById } });
+    const { controller, redisService } = makeController({
+      bookings: { getBookingById },
+    });
     const res = await controller.getBookingStatus('b1');
-    expect(res).toEqual({ status: BookingStatus.ACCEPTED, operatorName: 'Asha', arrivalOtp: '999999' });
+    expect(res).toEqual({
+      status: BookingStatus.ACCEPTED,
+      operatorName: 'Asha',
+      arrivalOtp: '999999',
+    });
     expect(redisService.cacheBookingStatus).toHaveBeenCalledWith('b1', res);
   });
 
@@ -277,48 +353,74 @@ describe('BookingsController.getBookingStatus', () => {
 
   it('throws NotFound when neither cache nor DB has it', async () => {
     const { controller } = makeController(); // cache null + getBookingById null
-    await expect(controller.getBookingStatus('b1')).rejects.toBeInstanceOf(NotFoundException);
+    await expect(controller.getBookingStatus('b1')).rejects.toBeInstanceOf(
+      NotFoundException,
+    );
   });
 });
 
 describe('BookingsController.markArrived / markComplete', () => {
   it('markArrived sends the arrival OTP push and returns a message', async () => {
-    const getBookingById = jest.fn(async () => ({ arrivalOtp: '123456', customer: { id: 'cust-1' } }));
-    const { controller, notificationsService } = makeController({ bookings: { getBookingById } });
-    const res = await controller.markArrived('b1');
-    expect(notificationsService.sendToUser).toHaveBeenCalledWith('cust-1', expect.objectContaining({
-      title: 'Worker has arrived',
+    const getBookingById = jest.fn(async () => ({
+      arrivalOtp: '123456',
+      customer: { id: 'cust-1' },
     }));
+    const { controller, notificationsService } = makeController({
+      bookings: { getBookingById },
+    });
+    const res = await controller.markArrived('b1');
+    expect(notificationsService.sendToUser).toHaveBeenCalledWith(
+      'cust-1',
+      expect.objectContaining({
+        title: 'Worker has arrived',
+      }),
+    );
     expect(res).toEqual({ message: 'Arrival OTP sent to customer.' });
   });
 
   it('markArrived throws NotFound when booking missing', async () => {
     const { controller } = makeController();
-    await expect(controller.markArrived('b1')).rejects.toBeInstanceOf(NotFoundException);
+    await expect(controller.markArrived('b1')).rejects.toBeInstanceOf(
+      NotFoundException,
+    );
   });
 
   it('markComplete sends the completion OTP push and returns a message', async () => {
-    const getBookingById = jest.fn(async () => ({ completionOtp: '654321', customer: { id: 'cust-1' } }));
-    const { controller, notificationsService } = makeController({ bookings: { getBookingById } });
-    const res = await controller.markComplete('b1');
-    expect(notificationsService.sendToUser).toHaveBeenCalledWith('cust-1', expect.objectContaining({
-      title: 'Job marked as complete',
+    const getBookingById = jest.fn(async () => ({
+      completionOtp: '654321',
+      customer: { id: 'cust-1' },
     }));
+    const { controller, notificationsService } = makeController({
+      bookings: { getBookingById },
+    });
+    const res = await controller.markComplete('b1');
+    expect(notificationsService.sendToUser).toHaveBeenCalledWith(
+      'cust-1',
+      expect.objectContaining({
+        title: 'Job marked as complete',
+      }),
+    );
     expect(res).toEqual({ message: 'Completion OTP sent to customer.' });
   });
 
   it('markComplete throws NotFound when booking missing', async () => {
     const { controller } = makeController();
-    await expect(controller.markComplete('b1')).rejects.toBeInstanceOf(NotFoundException);
+    await expect(controller.markComplete('b1')).rejects.toBeInstanceOf(
+      NotFoundException,
+    );
   });
 });
 
 describe('BookingsController.markPaid / submitRating / reportDispute', () => {
   it('markPaid delegates', async () => {
     const { controller, bookingsService } = makeController();
-    await controller.markPaid('b1', { user: { userId: 'u1' } }, {
-      honestyCheck: 'EXACT',
-    });
+    await controller.markPaid(
+      'b1',
+      { user: { userId: 'u1' } },
+      {
+        honestyCheck: 'EXACT',
+      },
+    );
     expect(bookingsService.markPaid).toHaveBeenCalledWith('b1', 'u1', {
       honestyCheck: 'EXACT',
     });

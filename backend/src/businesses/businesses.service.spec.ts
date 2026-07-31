@@ -86,7 +86,9 @@ describe('BusinessesService.getById', () => {
   it('throws NotFound when the business does not exist', async () => {
     const { service } = makeService({ business: null });
 
-    await expect(service.getById('missing')).rejects.toBeInstanceOf(NotFoundException);
+    await expect(service.getById('missing')).rejects.toBeInstanceOf(
+      NotFoundException,
+    );
   });
 });
 
@@ -124,7 +126,11 @@ describe('BusinessesService.addOperator', () => {
 
 describe('BusinessesService.addOfflineDay', () => {
   it('appends a new offline day and saves', async () => {
-    const biz: any = { id: 'b1', owner: { id: 'o1' }, offlineDays: ['2026-06-18'] };
+    const biz: any = {
+      id: 'b1',
+      owner: { id: 'o1' },
+      offlineDays: ['2026-06-18'],
+    };
     const { service, saved } = makeService({ business: biz });
 
     const result = await service.addOfflineDay('b1', '2026-06-19');
@@ -144,7 +150,11 @@ describe('BusinessesService.addOfflineDay', () => {
   });
 
   it('is idempotent — does not duplicate or save an existing day', async () => {
-    const biz: any = { id: 'b1', owner: { id: 'o1' }, offlineDays: ['2026-06-18'] };
+    const biz: any = {
+      id: 'b1',
+      owner: { id: 'o1' },
+      offlineDays: ['2026-06-18'],
+    };
     const { service, saved } = makeService({ business: biz });
 
     const result = await service.addOfflineDay('b1', '2026-06-18');
@@ -156,7 +166,11 @@ describe('BusinessesService.addOfflineDay', () => {
 
 describe('BusinessesService.removeOfflineDay', () => {
   it('removes an existing offline day and saves', async () => {
-    const biz: any = { id: 'b1', owner: { id: 'o1' }, offlineDays: ['2026-06-18', '2026-06-19'] };
+    const biz: any = {
+      id: 'b1',
+      owner: { id: 'o1' },
+      offlineDays: ['2026-06-18', '2026-06-19'],
+    };
     const { service, saved } = makeService({ business: biz });
 
     const result = await service.removeOfflineDay('b1', '2026-06-18');
@@ -166,7 +180,11 @@ describe('BusinessesService.removeOfflineDay', () => {
   });
 
   it('is a no-op (no save) when the day is not present', async () => {
-    const biz: any = { id: 'b1', owner: { id: 'o1' }, offlineDays: ['2026-06-18'] };
+    const biz: any = {
+      id: 'b1',
+      owner: { id: 'o1' },
+      offlineDays: ['2026-06-18'],
+    };
     const { service, saved } = makeService({ business: biz });
 
     const result = await service.removeOfflineDay('b1', '2026-06-20');

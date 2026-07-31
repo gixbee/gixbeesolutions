@@ -1,4 +1,9 @@
-import { Injectable, NotFoundException, BadRequestException, ForbiddenException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+  ForbiddenException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Brackets, Repository } from 'typeorm';
 import { JobPost } from './job-post.entity';
@@ -41,7 +46,10 @@ export class HiringService {
   // ─── JOB POSTS ─────────────────────────────────────────────────────────
 
   // DEFECT-005 FIX: Notify matched talent when a new job is posted
-  async createJobPost(employerId: string, data: Partial<JobPost>): Promise<JobPost> {
+  async createJobPost(
+    employerId: string,
+    data: Partial<JobPost>,
+  ): Promise<JobPost> {
     const job = this.jobPostRepo.create({
       ...data,
       employer: { id: employerId } as User,
@@ -54,9 +62,7 @@ export class HiringService {
     setImmediate(async () => {
       try {
         const matched = await this.getRecommendedTalent(savedJob.id);
-        const userIds = matched
-          .filter((m) => m.user?.id)
-          .map((m) => m.user.id);
+        const userIds = matched.filter((m) => m.user?.id).map((m) => m.user.id);
         if (userIds.length === 0) return;
         await this.notificationsService.sendToUsers(userIds, {
           title: `New job: ${savedJob.title}`,
@@ -109,26 +115,30 @@ export class HiringService {
       return jobs; // no profile — plain feed
     }
 
-    const roles = ((profile?.preferredRoles ?? []) as string[])
-        .map((r) => r.toLowerCase());
-    const skills = ((profile?.skills ?? []) as string[])
-        .map((s) => s.toLowerCase());
-    const locations = ((profile?.preferredLocations ?? []) as string[])
-        .map((l) => l.toLowerCase());
+    const roles = ((profile?.preferredRoles ?? []) as string[]).map((r) =>
+      r.toLowerCase(),
+    );
+    const skills = ((profile?.skills ?? []) as string[]).map((s) =>
+      s.toLowerCase(),
+    );
+    const locations = ((profile?.preferredLocations ?? []) as string[]).map(
+      (l) => l.toLowerCase(),
+    );
     const expectedSalary = profile?.expectedSalary as number | null;
 
-    if (roles.length === 0 && skills.length === 0 &&
-        locations.length === 0 && !expectedSalary) {
+    if (
+      roles.length === 0 &&
+      skills.length === 0 &&
+      locations.length === 0 &&
+      !expectedSalary
+    ) {
       return jobs;
     }
 
     const scored = jobs.map((job) => {
-      const haystack = [
-        job.title ?? '',
-        ...(job.requiredSkills ?? []),
-      ]
-          .join(' ')
-          .toLowerCase();
+      const haystack = [job.title ?? '', ...(job.requiredSkills ?? [])]
+        .join(' ')
+        .toLowerCase();
 
       let score = 0;
       for (const role of roles) {
@@ -148,7 +158,10 @@ export class HiringService {
       }
       // Preferred-city hit (uses the newly persisted job.location).
       const jobLoc = (job.location ?? '').toLowerCase();
-      if (jobLoc && locations.some((l) => l && (jobLoc.includes(l) || l.includes(jobLoc)))) {
+      if (
+        jobLoc &&
+        locations.some((l) => l && (jobLoc.includes(l) || l.includes(jobLoc)))
+      ) {
         score += 2;
       }
       return { job, score };
@@ -175,16 +188,23 @@ export class HiringService {
 
   // ─── APPLICATIONS PIPELINE ──────────────────────────────────────────────
 
-  async applyForJob(jobId: string, applicantId: string, coverLetter?: string, resumeUrl?: string): Promise<JobApplication> {
+  async applyForJob(
+    jobId: string,
+    applicantId: string,
+    coverLetter?: string,
+    resumeUrl?: string,
+  ): Promise<JobApplication> {
     const job = await this.jobPostRepo.findOne({ where: { id: jobId } });
     if (!job) throw new NotFoundException('Job post not found');
-    if (!job.isActive) throw new BadRequestException('This job is no longer active');
+    if (!job.isActive)
+      throw new BadRequestException('This job is no longer active');
 
     // Prevent double applying
     const existing = await this.applicationRepo.findOne({
       where: { jobPost: { id: jobId }, applicant: { id: applicantId } },
     });
-    if (existing) throw new BadRequestException('You have already applied for this job');
+    if (existing)
+      throw new BadRequestException('You have already applied for this job');
 
     const app = this.applicationRepo.create({
       jobPost: { id: jobId } as JobPost,
@@ -213,7 +233,9 @@ export class HiringService {
     // SECURITY FIX: only the job's employer may move an application through
     // the pipeline (was unauthenticated → anyone could SELECT/REJECT/NO_SHOW).
     if (app.jobPost?.employer?.id !== requesterId) {
-      throw new ForbiddenException('Only the job owner can update this application');
+      throw new ForbiddenException(
+        'Only the job owner can update this application',
+      );
     }
 
     app.status = newStatus;
@@ -226,10 +248,13 @@ export class HiringService {
 
     // DEFECT-009: Send push notification to applicant
     const messages: Partial<Record<ApplicationStatus, string>> = {
-      [ApplicationStatus.INTERVIEW]: 'You have been shortlisted for an interview!',
+      [ApplicationStatus.INTERVIEW]:
+        'You have been shortlisted for an interview!',
       [ApplicationStatus.SELECTED]: 'Congratulations! You have been selected.',
-      [ApplicationStatus.REJECTED]: 'Your application was not selected this time.',
-      [ApplicationStatus.NO_SHOW]: 'You were marked as no-show. This affects your ranking.',
+      [ApplicationStatus.REJECTED]:
+        'Your application was not selected this time.',
+      [ApplicationStatus.NO_SHOW]:
+        'You were marked as no-show. This affects your ranking.',
     };
 
     const msg = messages[newStatus];
@@ -268,17 +293,27 @@ export class HiringService {
   }
 
   /// Talent withdraws their own application (only while still in play).
-  async withdrawApplication(applicationId: string, applicantId: string): Promise<JobApplication> {
+  async withdrawApplication(
+    applicationId: string,
+    applicantId: string,
+  ): Promise<JobApplication> {
     const app = await this.applicationRepo.findOne({
       where: { id: applicationId },
       relations: ['jobPost', 'applicant'],
     });
     if (!app) throw new NotFoundException('Application not found');
     if (app.applicant?.id !== applicantId) {
-      throw new BadRequestException('You can only withdraw your own application');
+      throw new BadRequestException(
+        'You can only withdraw your own application',
+      );
     }
-    if (app.status !== ApplicationStatus.APPLIED && app.status !== ApplicationStatus.INTERVIEW) {
-      throw new BadRequestException(`Cannot withdraw an application in ${app.status} state`);
+    if (
+      app.status !== ApplicationStatus.APPLIED &&
+      app.status !== ApplicationStatus.INTERVIEW
+    ) {
+      throw new BadRequestException(
+        `Cannot withdraw an application in ${app.status} state`,
+      );
     }
     app.status = ApplicationStatus.WITHDRAWN;
     return this.applicationRepo.save(app);
@@ -300,7 +335,10 @@ export class HiringService {
 
   // ─── TALENT MATCHING ────────────────────────────────────────────────────
 
-  async getRecommendedTalent(jobId: string, requesterId?: string): Promise<WorkerProfile[]> {
+  async getRecommendedTalent(
+    jobId: string,
+    requesterId?: string,
+  ): Promise<WorkerProfile[]> {
     const job = await this.jobPostRepo.findOne({
       where: { id: jobId },
       relations: ['employer'],
@@ -364,10 +402,7 @@ export class HiringService {
 
     return scoredWorkers
       .filter((sw) => sw.score > 0)
-      .sort(
-        (a, b) =>
-          b.score - a.score || b.worker.rating - a.worker.rating,
-      )
+      .sort((a, b) => b.score - a.score || b.worker.rating - a.worker.rating)
       .slice(0, HiringService.RECOMMENDED_RETURN_CAP)
       .map((sw) => sw.worker);
   }

@@ -20,7 +20,10 @@ function makeController() {
     getUserStats: jest.fn(async () => ({ bookings: 5 })),
     updateProfile: jest.fn(async () => ({ id: 'u1', name: 'New' })),
     updateFcmToken: jest.fn(async () => ({ ok: true })),
-    updateApprovalStatus: jest.fn(async () => ({ id: 'u1', approvalStatus: 'APPROVED' })),
+    updateApprovalStatus: jest.fn(async () => ({
+      id: 'u1',
+      approvalStatus: 'APPROVED',
+    })),
     updateVerification: jest.fn(async () => ({ id: 'u1', isVerified: true })),
   };
   const talentService: any = {
@@ -104,7 +107,9 @@ describe('UsersController.updateFcmToken', () => {
 
   it('throws when the token is missing and never calls the service', async () => {
     const { controller, usersService } = makeController();
-    await expect(controller.updateFcmToken('u-42', { token: '' } as any)).rejects.toThrow('FCM token is required');
+    await expect(
+      controller.updateFcmToken('u-42', { token: '' } as any),
+    ).rejects.toThrow('FCM token is required');
     expect(usersService.updateFcmToken).not.toHaveBeenCalled();
   });
 });
@@ -112,8 +117,13 @@ describe('UsersController.updateFcmToken', () => {
 describe('UsersController.updateSkillStatus', () => {
   it('delegates to TalentService (not UsersService) with skillId + status', async () => {
     const { controller, talentService, usersService } = makeController();
-    await controller.updateSkillStatus('s-1', { status: SkillApprovalStatus.APPROVED } as any);
-    expect(talentService.updateSkillStatus).toHaveBeenCalledWith('s-1', SkillApprovalStatus.APPROVED);
+    await controller.updateSkillStatus('s-1', {
+      status: SkillApprovalStatus.APPROVED,
+    } as any);
+    expect(talentService.updateSkillStatus).toHaveBeenCalledWith(
+      's-1',
+      SkillApprovalStatus.APPROVED,
+    );
     expect(usersService.updateApprovalStatus).not.toHaveBeenCalled();
   });
 });
@@ -121,8 +131,13 @@ describe('UsersController.updateSkillStatus', () => {
 describe('UsersController.updateStatus', () => {
   it('forwards :id + approval status', async () => {
     const { controller, usersService } = makeController();
-    await controller.updateStatus('u-42', { status: UserApprovalStatus.APPROVED } as any);
-    expect(usersService.updateApprovalStatus).toHaveBeenCalledWith('u-42', UserApprovalStatus.APPROVED);
+    await controller.updateStatus('u-42', {
+      status: UserApprovalStatus.APPROVED,
+    } as any);
+    expect(usersService.updateApprovalStatus).toHaveBeenCalledWith(
+      'u-42',
+      UserApprovalStatus.APPROVED,
+    );
   });
 });
 

@@ -1,4 +1,12 @@
-import { IsString, IsNotEmpty, IsOptional, IsEnum, IsBoolean, IsUUID, ValidateIf } from 'class-validator';
+import {
+  IsString,
+  IsNotEmpty,
+  IsOptional,
+  IsEnum,
+  IsBoolean,
+  IsUUID,
+  ValidateIf,
+} from 'class-validator';
 import { MasterEntryType } from '../master-entry.entity';
 
 // DTOs for the admin-only master-entries write endpoints (POST / PATCH), both

@@ -13,7 +13,10 @@ import { AllExceptionsFilter } from './all-exceptions.filter';
  * (table/column names, offending value) lives in the driver message and must
  * never reach the client envelope.
  */
-function makeQueryFailedError(code: string, detail = 'Key (phone)=(+15555550000) already exists.') {
+function makeQueryFailedError(
+  code: string,
+  detail = 'Key (phone)=(+15555550000) already exists.',
+) {
   const driverError: any = new Error(detail);
   driverError.code = code;
   driverError.detail = detail;
@@ -41,8 +44,12 @@ describe('AllExceptionsFilter', () => {
   beforeEach(() => {
     filter = new AllExceptionsFilter();
     // Silence the logger so test output stays clean.
-    jest.spyOn((filter as any).logger, 'error').mockImplementation(() => undefined);
-    jest.spyOn((filter as any).logger, 'warn').mockImplementation(() => undefined);
+    jest
+      .spyOn((filter as any).logger, 'error')
+      .mockImplementation(() => undefined);
+    jest
+      .spyOn((filter as any).logger, 'warn')
+      .mockImplementation(() => undefined);
 
     jsonMock = jest.fn();
     statusMock = jest.fn(() => ({ json: jsonMock }));
@@ -74,7 +81,10 @@ describe('AllExceptionsFilter', () => {
   });
 
   it('collapses unknown errors to a generic 500 without leaking the message', () => {
-    filter.catch(new Error('secret db password in connection string'), makeHost());
+    filter.catch(
+      new Error('secret db password in connection string'),
+      makeHost(),
+    );
 
     expect(statusMock).toHaveBeenCalledWith(HttpStatus.INTERNAL_SERVER_ERROR);
     const body = jsonMock.mock.calls[0][0];
@@ -128,7 +138,9 @@ describe('AllExceptionsFilter', () => {
   });
 
   it('reads the code from driverError when not copied onto the QFE itself', () => {
-    const driverError: any = new Error('duplicate key value violates unique constraint');
+    const driverError: any = new Error(
+      'duplicate key value violates unique constraint',
+    );
     driverError.code = '23505';
     const qfe = new QueryFailedError('INSERT ...', [], driverError);
     // Intentionally do NOT copy `.code` onto the QFE — only driverError has it.
@@ -139,7 +151,10 @@ describe('AllExceptionsFilter', () => {
   });
 
   it('lets an unmapped DB constraint code collapse to a generic 500', () => {
-    filter.catch(makeQueryFailedError('99999', 'some unexpected pg error'), makeHost());
+    filter.catch(
+      makeQueryFailedError('99999', 'some unexpected pg error'),
+      makeHost(),
+    );
 
     expect(statusMock).toHaveBeenCalledWith(HttpStatus.INTERNAL_SERVER_ERROR);
     const body = jsonMock.mock.calls[0][0];

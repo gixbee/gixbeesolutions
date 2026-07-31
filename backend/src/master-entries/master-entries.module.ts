@@ -8,6 +8,6 @@ import { MasterEntriesController } from './master-entries.controller';
   imports: [TypeOrmModule.forFeature([MasterEntry])],
   providers: [MasterEntriesService],
   controllers: [MasterEntriesController],
-  exports: [MasterEntriesService]
+  exports: [MasterEntriesService],
 })
 export class MasterEntriesModule {}

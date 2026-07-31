@@ -8,7 +8,11 @@ import { UserRole } from '../user.entity';
 // validation must reject malformed values.
 describe('UpdateUserProfileDto validation', () => {
   const pipe = new ValidationPipe({ whitelist: true, transform: true });
-  const meta = { type: 'body', metatype: UpdateUserProfileDto, data: '' } as any;
+  const meta = {
+    type: 'body',
+    metatype: UpdateUserProfileDto,
+    data: '',
+  } as any;
   const transform = (body: any) => pipe.transform(body, meta);
 
   it('accepts the registration_screen payload { name, role, hasWorkerProfile }', async () => {
@@ -35,7 +39,11 @@ describe('UpdateUserProfileDto validation', () => {
   });
 
   it('accepts the OWNER role too', async () => {
-    const out = await transform({ name: 'Biz', role: 'OWNER', hasWorkerProfile: false });
+    const out = await transform({
+      name: 'Biz',
+      role: 'OWNER',
+      hasWorkerProfile: false,
+    });
     expect(out.role).toBe(UserRole.OWNER);
   });
 
@@ -45,14 +53,20 @@ describe('UpdateUserProfileDto validation', () => {
   });
 
   it('strips unknown fields (whitelist)', async () => {
-    const out = await transform({ name: 'Asha', email: 'a@b.com', isVerified: true });
-    expect((out as any).email).toBeUndefined();
-    expect((out as any).isVerified).toBeUndefined();
+    const out = await transform({
+      name: 'Asha',
+      email: 'a@b.com',
+      isVerified: true,
+    });
+    expect(out.email).toBeUndefined();
+    expect(out.isVerified).toBeUndefined();
     expect(out.name).toBe('Asha');
   });
 
   it('rejects a non-string name', async () => {
-    await expect(transform({ name: 123 })).rejects.toBeInstanceOf(BadRequestException);
+    await expect(transform({ name: 123 })).rejects.toBeInstanceOf(
+      BadRequestException,
+    );
   });
 
   it('rejects a non-boolean isAvailableForWork', async () => {
@@ -62,6 +76,8 @@ describe('UpdateUserProfileDto validation', () => {
   });
 
   it('rejects an invalid role enum value', async () => {
-    await expect(transform({ role: 'SUPERUSER' })).rejects.toBeInstanceOf(BadRequestException);
+    await expect(transform({ role: 'SUPERUSER' })).rejects.toBeInstanceOf(
+      BadRequestException,
+    );
   });
 });

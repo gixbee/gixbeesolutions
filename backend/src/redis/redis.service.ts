@@ -1,4 +1,9 @@
-import { Injectable, Logger, OnModuleInit, OnModuleDestroy } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  OnModuleInit,
+  OnModuleDestroy,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { createClient, RedisClientType } from 'redis';
 import { buildRedisUrl } from './redis-url';
@@ -32,7 +37,10 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
   private static readonly GEO_INDEX = 'workers:geo';
 
   // ── In-memory fallback stores (used only when Redis is unreachable) ──
-  private memKv = new Map<string, { value: string; expiresAt: number | null }>();
+  private memKv = new Map<
+    string,
+    { value: string; expiresAt: number | null }
+  >();
   private memSets = new Map<string, Set<string>>();
   private memZsets = new Map<string, Map<string, number>>(); // member → score
   private memGeo = new Map<string, { lat: number; lng: number }>(); // member → coords
@@ -387,7 +395,11 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
       timestamp: new Date().toISOString(),
     };
     // 1. Save literal location for record lookup
-    await this.set(`worker:location:${workerId}`, JSON.stringify(payload), 60 * 60);
+    await this.set(
+      `worker:location:${workerId}`,
+      JSON.stringify(payload),
+      60 * 60,
+    );
     // 2. Save to GEO index for spatial search
     await this.updateWorkerGeoLocation(workerId, lat, lng);
   }
@@ -552,7 +564,11 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
   }
 
   /** Caches that a worker rejected a request for 15 minutes to avoid second-round pings */
-  async markWorkerRejectedJob(customerId: string, skill: string, workerId: string): Promise<void> {
+  async markWorkerRejectedJob(
+    customerId: string,
+    skill: string,
+    workerId: string,
+  ): Promise<void> {
     const key = `rejected:${customerId}:${skill}`;
     if (this.live) {
       try {
@@ -569,7 +585,10 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
     this.memKeyExp.set(key, Date.now() + 900 * 1000);
   }
 
-  async getRejectedWorkersForJob(customerId: string, skill: string): Promise<string[]> {
+  async getRejectedWorkersForJob(
+    customerId: string,
+    skill: string,
+  ): Promise<string[]> {
     const key = `rejected:${customerId}:${skill}`;
     if (this.live) {
       try {

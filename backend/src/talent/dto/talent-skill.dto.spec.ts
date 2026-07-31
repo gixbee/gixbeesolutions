@@ -1,5 +1,9 @@
 import { ValidationPipe, BadRequestException } from '@nestjs/common';
-import { AddSkillDto, RemoveSkillDto, ToggleAlertsDto } from './talent-skill.dto';
+import {
+  AddSkillDto,
+  RemoveSkillDto,
+  ToggleAlertsDto,
+} from './talent-skill.dto';
 
 // Drives the REAL global ValidationPipe (same options as main.ts) against the
 // three talent skill/alert DTOs — proving the pipe now enforces input shape AND
@@ -43,7 +47,7 @@ describe('talent skill/alert DTO validation', () => {
         bio: 'x',
         searchRank: 9999, // server-managed, must not be settable
       });
-      expect((out as any).searchRank).toBeUndefined();
+      expect(out.searchRank).toBeUndefined();
       expect(out.skillName).toBe('CARPENTRY');
     });
 

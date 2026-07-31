@@ -4,7 +4,10 @@ import { Repository } from 'typeorm';
 import { ConfigService } from '@nestjs/config';
 import { TalentProfile } from './talent-profile.entity';
 import { User } from '../users/user.entity';
-import { ProfessionalSkill, SkillApprovalStatus } from './professional-skill.entity';
+import {
+  ProfessionalSkill,
+  SkillApprovalStatus,
+} from './professional-skill.entity';
 
 @Injectable()
 export class TalentService {
@@ -33,7 +36,7 @@ export class TalentService {
   private get digiLockerConfigured(): boolean {
     return Boolean(
       this.config.get<string>('DIGILOCKER_CLIENT_ID') &&
-        this.config.get<string>('DIGILOCKER_CLIENT_SECRET'),
+      this.config.get<string>('DIGILOCKER_CLIENT_SECRET'),
     );
   }
 
@@ -88,9 +91,9 @@ export class TalentService {
   }
 
   async getProfile(userId: string): Promise<TalentProfile> {
-    const profile = await this.talentRepo.findOne({ 
+    const profile = await this.talentRepo.findOne({
       where: { user: { id: userId } } as any,
-      relations: ['user', 'professionalSkills']
+      relations: ['user', 'professionalSkills'],
     });
     if (!profile) {
       const newProfile = this.talentRepo.create({
@@ -101,16 +104,25 @@ export class TalentService {
     return profile;
   }
 
-  async updateProfile(userId: string, data: Partial<TalentProfile>): Promise<TalentProfile> {
+  async updateProfile(
+    userId: string,
+    data: Partial<TalentProfile>,
+  ): Promise<TalentProfile> {
     const profile = await this.getProfile(userId);
     Object.assign(profile, data);
     return this.talentRepo.save(profile);
   }
 
-  async addOrUpdateSkill(userId: string, skillName: string, rate: number, bio: string, rateChart?: Record<string, number>): Promise<ProfessionalSkill> {
+  async addOrUpdateSkill(
+    userId: string,
+    skillName: string,
+    rate: number,
+    bio: string,
+    rateChart?: Record<string, number>,
+  ): Promise<ProfessionalSkill> {
     const profile = await this.getProfile(userId);
     let skill = await this.skillRepo.findOne({
-      where: { talentProfile: { id: profile.id }, name: skillName }
+      where: { talentProfile: { id: profile.id }, name: skillName },
     });
 
     if (skill) {
@@ -135,13 +147,16 @@ export class TalentService {
   async removeSkill(userId: string, skillId: string): Promise<void> {
     const profile = await this.getProfile(userId);
     const skill = await this.skillRepo.findOne({
-      where: { id: skillId, talentProfile: { id: profile.id } }
+      where: { id: skillId, talentProfile: { id: profile.id } },
     });
     if (!skill) throw new NotFoundException('Skill not found in your profile');
     await this.skillRepo.remove(skill);
   }
 
-  async updateSkillStatus(skillId: string, status: SkillApprovalStatus): Promise<ProfessionalSkill> {
+  async updateSkillStatus(
+    skillId: string,
+    status: SkillApprovalStatus,
+  ): Promise<ProfessionalSkill> {
     const skill = await this.skillRepo.findOne({ where: { id: skillId } });
     if (!skill) throw new NotFoundException('Skill not found');
     skill.status = status;
@@ -155,7 +170,10 @@ export class TalentService {
   // "Later" bookmark in the job-alerts feed (v126 Find a Job): toggles a job
   // post id in savedJobIds. Returns the updated list so the client can render
   // optimistically without a refetch.
-  async toggleSavedJob(userId: string, jobId: string): Promise<{ savedJobIds: string[] }> {
+  async toggleSavedJob(
+    userId: string,
+    jobId: string,
+  ): Promise<{ savedJobIds: string[] }> {
     const profile = await this.getProfile(userId); // auto-creates when missing
     const current = profile.savedJobIds ?? [];
     const savedJobIds = current.includes(jobId)

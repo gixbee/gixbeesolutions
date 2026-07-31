@@ -105,8 +105,12 @@ describe('BookingsService.addGpsStrike', () => {
 
   it('records a first strike without forfeiting', async () => {
     const booking = baseBooking({ gpsStrikes: 0 });
-    const { service, bookingsRepository, notificationsService, workersService } =
-      makeService(booking);
+    const {
+      service,
+      bookingsRepository,
+      notificationsService,
+      workersService,
+    } = makeService(booking);
 
     const res = await service.addGpsStrike('b1');
 

@@ -81,9 +81,7 @@ export class MatchingService {
 
     const existing = await this.listMyPreferences(userId);
     if (
-      existing.some(
-        (p) => p.jobType.toLowerCase() === jobType.toLowerCase(),
-      )
+      existing.some((p) => p.jobType.toLowerCase() === jobType.toLowerCase())
     ) {
       throw new BadRequestException(
         'You already have a profile for this Job Type',
@@ -286,7 +284,10 @@ export class MatchingService {
         skills: (dto.skills ?? []).map((s) => s.trim()).filter(Boolean),
         location: dto.location?.trim(),
         salaryOffered: dto.salaryOffered,
-        experienceMinYears: Math.max(0, Math.round(dto.experienceMinYears ?? 0)),
+        experienceMinYears: Math.max(
+          0,
+          Math.round(dto.experienceMinYears ?? 0),
+        ),
         vacancies,
         targetInterested: vacancies * TARGET_MULTIPLIER,
         feeAmount: fee,
@@ -351,8 +352,7 @@ export class MatchingService {
       ...alreadyNotified.map((i) => i.candidate.id),
     ];
 
-    const batchSize =
-      BATCH_SIZES[Math.min(batchIndex, BATCH_SIZES.length - 1)];
+    const batchSize = BATCH_SIZES[Math.min(batchIndex, BATCH_SIZES.length - 1)];
     const matches = await this.findMatchingPreferences({
       jobType: request.jobType,
       salaryOffered: Number(request.salaryOffered),
@@ -544,7 +544,9 @@ export class MatchingService {
         return {
           interestId: i.id,
           name: i.candidate.name,
-          phone: revealContact ? (i.candidate as any).phoneNumber ?? null : null,
+          phone: revealContact
+            ? ((i.candidate as any).phoneNumber ?? null)
+            : null,
           decision: i.decision,
           respondedAt: i.respondedAt,
           skills: i.preference?.skills ?? [],
@@ -651,7 +653,9 @@ export class MatchingService {
       throw new BadRequestException('You have already responded to this offer');
     }
     if (interest.request.status !== HiringRequestStatus.COLLECTING) {
-      throw new BadRequestException('This opening is no longer accepting responses');
+      throw new BadRequestException(
+        'This opening is no longer accepting responses',
+      );
     }
 
     interest.response = interested

@@ -1,4 +1,11 @@
-import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, ManyToOne } from 'typeorm';
+import {
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  CreateDateColumn,
+  UpdateDateColumn,
+  ManyToOne,
+} from 'typeorm';
 import { User } from '../users/user.entity';
 
 @Entity('businesses')
@@ -12,7 +19,11 @@ export class Business {
   @Column({ type: 'enum', enum: ['SERVICE', 'HIRING', 'RENTAL'] })
   type: string;
 
-  @Column({ type: 'enum', enum: ['HALL', 'CATERING', 'DECORATION', 'PHOTOGRAPHY'], nullable: true })
+  @Column({
+    type: 'enum',
+    enum: ['HALL', 'CATERING', 'DECORATION', 'PHOTOGRAPHY'],
+    nullable: true,
+  })
   serviceType: string;
 
   @Column()
@@ -36,7 +47,11 @@ export class Business {
   @Column({ type: 'text', nullable: true })
   documentUrl: string;
 
-  @Column({ type: 'enum', enum: ['PENDING', 'VERIFIED', 'REJECTED'], default: 'PENDING' })
+  @Column({
+    type: 'enum',
+    enum: ['PENDING', 'VERIFIED', 'REJECTED'],
+    default: 'PENDING',
+  })
   status: string;
 
   // We could create an Operator mapping table, but keeping it as a simple-array or relation is fine for V1

@@ -1,4 +1,10 @@
-import { IsString, IsNotEmpty, IsOptional, IsNumber, IsBoolean } from 'class-validator';
+import {
+  IsString,
+  IsNotEmpty,
+  IsOptional,
+  IsNumber,
+  IsBoolean,
+} from 'class-validator';
 
 // DTOs for the rentals endpoints. Owner/renter identity comes from the JWT
 // (req.user.userId) — the old spoofable ownerId/renterId body fields are gone.

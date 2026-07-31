@@ -11,7 +11,11 @@ describe('parsePagination', () => {
   });
 
   it('parses string query values and computes skip', () => {
-    expect(parsePagination('3', '20')).toEqual({ page: 3, limit: 20, skip: 40 });
+    expect(parsePagination('3', '20')).toEqual({
+      page: 3,
+      limit: 20,
+      skip: 40,
+    });
   });
 
   it('caps limit at MAX_LIMIT', () => {

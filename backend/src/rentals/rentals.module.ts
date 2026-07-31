@@ -7,7 +7,10 @@ import { RentalsController } from './rentals.controller';
 import { NotificationsModule } from '../notifications/notifications.module';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([RentalItem, RentalReservation]), NotificationsModule],
+  imports: [
+    TypeOrmModule.forFeature([RentalItem, RentalReservation]),
+    NotificationsModule,
+  ],
   controllers: [RentalsController],
   providers: [RentalsService],
   exports: [RentalsService],

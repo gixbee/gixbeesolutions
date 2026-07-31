@@ -29,7 +29,7 @@ export class BookingsProcessor {
   /** Persist unexpected job crashes so they appear in admin System Logs. */
   private recordJobError(jobName: string, job: Job, err: unknown): void {
     const msg = err instanceof Error ? err.message : String(err);
-    const stack = err instanceof Error ? err.stack ?? null : null;
+    const stack = err instanceof Error ? (err.stack ?? null) : null;
     const bookingId = (job.data as { bookingId?: string })?.bookingId;
     this.systemLogs.record({
       level: SystemLogLevel.ERROR,
@@ -118,7 +118,9 @@ export class BookingsProcessor {
       }
 
       if (isViolating) {
-        this.logger.warn(`⚠️ GPS Violation for Booking ${bookingId}: ${reason}`);
+        this.logger.warn(
+          `⚠️ GPS Violation for Booking ${bookingId}: ${reason}`,
+        );
 
         const result = await this.bookingsService.addGpsStrike(bookingId);
 

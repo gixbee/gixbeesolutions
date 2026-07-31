@@ -26,7 +26,12 @@ function makeController() {
 describe('MasterEntriesController.create', () => {
   it('passes the body straight through to service.create', async () => {
     const { controller, service } = makeController();
-    const body = { type: MasterEntryType.DEAL, label: '20% off', value: 'deal20', icon: '🔥' };
+    const body = {
+      type: MasterEntryType.DEAL,
+      label: '20% off',
+      value: 'deal20',
+      icon: '🔥',
+    };
     const res = await controller.create(body);
     expect(service.create).toHaveBeenCalledWith(body);
     expect(res).toEqual({ id: 'm1', ...body });
@@ -49,7 +54,10 @@ describe('MasterEntriesController.findAll (query-param coercion)', () => {
   it('leaves isActive undefined when the param is omitted', async () => {
     const { controller, service } = makeController();
     await controller.findAll(MasterEntryType.CATEGORY, undefined);
-    expect(service.findAll).toHaveBeenCalledWith(MasterEntryType.CATEGORY, undefined);
+    expect(service.findAll).toHaveBeenCalledWith(
+      MasterEntryType.CATEGORY,
+      undefined,
+    );
   });
 
   it('treats any non-true/false isActive string as undefined (not falsey-coerced)', async () => {

@@ -1,4 +1,9 @@
-import { CanActivate, ExecutionContext, Injectable, ForbiddenException } from '@nestjs/common';
+import {
+  CanActivate,
+  ExecutionContext,
+  Injectable,
+  ForbiddenException,
+} from '@nestjs/common';
 import { UserRole } from '../users/user.entity';
 
 /**

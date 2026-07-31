@@ -45,7 +45,9 @@ export class CreateSystemLogs1753370000000 implements MigrationInterface {
 
   public async down(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.query(`DROP INDEX IF EXISTS "IDX_system_logs_createdAt"`);
-    await queryRunner.query(`DROP INDEX IF EXISTS "IDX_system_logs_statusCode"`);
+    await queryRunner.query(
+      `DROP INDEX IF EXISTS "IDX_system_logs_statusCode"`,
+    );
     await queryRunner.query(`DROP INDEX IF EXISTS "IDX_system_logs_path"`);
     await queryRunner.query(`DROP INDEX IF EXISTS "IDX_system_logs_type"`);
     await queryRunner.query(`DROP INDEX IF EXISTS "IDX_system_logs_level"`);

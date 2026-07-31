@@ -57,9 +57,7 @@ describe('WorkersService.getDashboard', () => {
   it('throws NotFound when the worker profile does not exist', async () => {
     const { service } = makeService({ profile: null });
 
-    await expect(service.getDashboard('u1')).rejects.toThrow(
-      NotFoundException,
-    );
+    await expect(service.getDashboard('u1')).rejects.toThrow(NotFoundException);
   });
 
   it('aggregates total / today / rolling-7-day earnings from COMPLETED bookings', async () => {
@@ -178,9 +176,9 @@ describe('WorkersService.setActiveSkills', () => {
     const profile = { skills: ['plumber'], activeSkills: [], isActive: false };
     const { service, workersRepository } = makeService({ profile });
 
-    await expect(
-      service.setActiveSkills('u1', ['astronaut']),
-    ).rejects.toThrow(BadRequestException);
+    await expect(service.setActiveSkills('u1', ['astronaut'])).rejects.toThrow(
+      BadRequestException,
+    );
     expect(workersRepository.save).not.toHaveBeenCalled();
   });
 

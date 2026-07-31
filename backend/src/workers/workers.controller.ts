@@ -1,8 +1,29 @@
-import { Controller, Get, Post, Patch, Param, Query, Body, Req, UseGuards } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Patch,
+  Param,
+  Query,
+  Body,
+  Req,
+  UseGuards,
+} from '@nestjs/common';
 import { WorkersService } from './workers.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { AdminGuard } from '../auth/admin.guard';
-import { SetActiveSkillsDto, RegisterWorkerDto, UpdateRateDto, UpdateLanguagesDto, SetWorkerVerificationDto, UpdateServiceRadiusDto, LiveToggleDto, UpdateLocationDto, AppealStrikeDto, ResolveStrikeDto } from './dto/workers.dto';
+import {
+  SetActiveSkillsDto,
+  RegisterWorkerDto,
+  UpdateRateDto,
+  UpdateLanguagesDto,
+  SetWorkerVerificationDto,
+  UpdateServiceRadiusDto,
+  LiveToggleDto,
+  UpdateLocationDto,
+  AppealStrikeDto,
+  ResolveStrikeDto,
+} from './dto/workers.dto';
 
 @Controller('workers')
 @UseGuards(JwtAuthGuard)
@@ -22,7 +43,12 @@ export class WorkersController {
     @Query('lat') lat: string,
     @Query('lng') lng: string,
   ) {
-    return this.workersService.getNearby(req.user.userId, skill, parseFloat(lat), parseFloat(lng));
+    return this.workersService.getNearby(
+      req.user.userId,
+      skill,
+      parseFloat(lat),
+      parseFloat(lng),
+    );
   }
 
   /// Approximate live-pro counts per trade around the given point — powers
@@ -30,10 +56,7 @@ export class WorkersController {
   /// upper-bound approximations (pre language/travel-radius filters) and
   /// cached ~45s server-side; clients must render them with "~".
   @Get('nearby-counts')
-  async getNearbyCounts(
-    @Query('lat') lat: string,
-    @Query('lng') lng: string,
-  ) {
+  async getNearbyCounts(@Query('lat') lat: string, @Query('lng') lng: string) {
     return this.workersService.getNearbyCounts(
       parseFloat(lat),
       parseFloat(lng),
@@ -122,7 +145,10 @@ export class WorkersController {
   /// (pros with no languages set are still included, leniently).
   @Patch('me/languages')
   async setLanguages(@Req() req, @Body() body: UpdateLanguagesDto) {
-    return this.workersService.setLanguages(req.user.userId, body.languages ?? []);
+    return this.workersService.setLanguages(
+      req.user.userId,
+      body.languages ?? [],
+    );
   }
 
   /// Service area: how far the pro is willing to travel for instant jobs.
@@ -139,7 +165,10 @@ export class WorkersController {
   /// Per-service activation: which of the worker's skills accept instant jobs.
   @Patch('me/active-skills')
   async setActiveSkills(@Req() req, @Body() body: SetActiveSkillsDto) {
-    return this.workersService.setActiveSkills(req.user.userId, body?.skills ?? []);
+    return this.workersService.setActiveSkills(
+      req.user.userId,
+      body?.skills ?? [],
+    );
   }
 
   /// Periodic fee plan ("N jobs, then pay"): pay the period fee to unlock
@@ -183,7 +212,10 @@ export class WorkersController {
   // DEFECT-007: Hourly rate update with 2/day rate limiting
   @Patch('rate')
   async updateRate(@Req() req, @Body() body: UpdateRateDto) {
-    return this.workersService.updateHourlyRate(req.user.userId, body.hourlyRate);
+    return this.workersService.updateHourlyRate(
+      req.user.userId,
+      body.hourlyRate,
+    );
   }
 
   @Get(':id/packages')

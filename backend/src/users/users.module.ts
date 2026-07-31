@@ -8,10 +8,7 @@ import { UsersController } from './users.controller';
 import { TalentModule } from '../talent/talent.module';
 
 @Module({
-  imports: [
-    TypeOrmModule.forFeature([User, Booking, Favourite]),
-    TalentModule,
-  ],
+  imports: [TypeOrmModule.forFeature([User, Booking, Favourite]), TalentModule],
   providers: [UsersService],
   controllers: [UsersController],
   exports: [TypeOrmModule, UsersService],

@@ -371,6 +371,7 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
   /// server creates the order at the Master-Entries price, the user pays in
   /// checkout, and the WEBHOOK unlocks the jobs. Falls back to the wallet
   /// charge only when the gateway isn't configured (dev machines).
+  // ignore: unused_element
   Future<void> _payPeriodFee() async {
     if (_payingFee) return;
     setState(() => _payingFee = true);

@@ -273,9 +273,7 @@ class _CollectPaymentScreenState extends ConsumerState<CollectPaymentScreen> {
     final billing = _billing;
     final amount = billing?.amountInt ?? widget.amount.round();
     final name = billing?.counterpartName ?? widget.customerName;
-    final fee = billing?.feeInt ?? 12;
     final green = GixbeeTheme.accentGreen;
-    final purple = gx.accent;
 
     if (_waitingForOther && !_loadingBilling) {
       return Scaffold(
@@ -597,33 +595,6 @@ class _BreakdownRow {
     required this.value,
     required this.valueColor,
   });
-}
-
-class _NoteBox extends StatelessWidget {
-  final Color purple;
-  final String text;
-  const _NoteBox({required this.purple, required this.text});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: purple.withValues(alpha: 0.10),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: purple.withValues(alpha: 0.45)),
-      ),
-      child: Text(
-        text,
-        style: TextStyle(
-          fontSize: 13,
-          height: 1.45,
-          color: context.gx.ink.withValues(alpha: 0.78),
-        ),
-      ),
-    );
-  }
 }
 
 class _HonestyOption extends StatelessWidget {

@@ -22,9 +22,15 @@ export class UsersService {
     return user;
   }
 
-  async getUserStats(userId: string): Promise<{ bookingsCount: number; reviewsCount: number; savedCount: number }> {
+  async getUserStats(userId: string): Promise<{
+    bookingsCount: number;
+    reviewsCount: number;
+    savedCount: number;
+  }> {
     try {
-      const user = await this.usersRepository.findOne({ where: { id: userId } });
+      const user = await this.usersRepository.findOne({
+        where: { id: userId },
+      });
       if (!user) {
         return { bookingsCount: 0, reviewsCount: 0, savedCount: 0 };
       }
@@ -56,10 +62,13 @@ export class UsersService {
     if (!user) throw new NotFoundException('User not found');
 
     if (data.name !== undefined) user.name = data.name;
-    if (data.profileImageUrl !== undefined) user.profileImageUrl = data.profileImageUrl;
-    if (data.isAvailableForWork !== undefined) user.isAvailableForWork = data.isAvailableForWork;
+    if (data.profileImageUrl !== undefined)
+      user.profileImageUrl = data.profileImageUrl;
+    if (data.isAvailableForWork !== undefined)
+      user.isAvailableForWork = data.isAvailableForWork;
     if (data.role !== undefined) user.role = data.role;
-    if (data.hasWorkerProfile !== undefined) user.hasWorkerProfile = data.hasWorkerProfile;
+    if (data.hasWorkerProfile !== undefined)
+      user.hasWorkerProfile = data.hasWorkerProfile;
 
     return this.usersRepository.save(user);
   }
@@ -90,7 +99,9 @@ export class UsersService {
   async searchUsers(
     query: string,
     limit = 20,
-  ): Promise<Pick<User, 'id' | 'name' | 'phoneNumber' | 'role' | 'profileImageUrl'>[]> {
+  ): Promise<
+    Pick<User, 'id' | 'name' | 'phoneNumber' | 'role' | 'profileImageUrl'>[]
+  > {
     const q = (query || '').trim();
     if (!q) return [];
     const take = Math.min(Math.max(Math.trunc(limit) || 20, 1), 50);
@@ -102,10 +113,13 @@ export class UsersService {
     });
   }
 
-  async updateApprovalStatus(id: string, status: UserApprovalStatus): Promise<User> {
+  async updateApprovalStatus(
+    id: string,
+    status: UserApprovalStatus,
+  ): Promise<User> {
     const user = await this.findById(id);
     user.approvalStatus = status;
-    
+
     // Auto-verify if approved
     if (status === UserApprovalStatus.APPROVED) {
       user.isVerified = true;
@@ -113,7 +127,7 @@ export class UsersService {
     } else if (status === UserApprovalStatus.REJECTED) {
       user.isVerified = false;
     }
-    
+
     return this.usersRepository.save(user);
   }
 
@@ -121,21 +135,25 @@ export class UsersService {
     const user = await this.findById(id);
     user.isVerified = isVerified;
     if (isVerified) {
-       user.hasWorkerProfile = true; // Auto-enable worker features on verification
+      user.hasWorkerProfile = true; // Auto-enable worker features on verification
     }
     return this.usersRepository.save(user);
   }
 
   async getSystemSummary(): Promise<any> {
     const totalUsers = await this.usersRepository.count();
-    const totalWorkers = await this.usersRepository.count({ where: { hasWorkerProfile: true } });
+    const totalWorkers = await this.usersRepository.count({
+      where: { hasWorkerProfile: true },
+    });
     const totalBookings = await this.bookingsRepository.count();
-    const pendingApprovals = await this.usersRepository.count({ where: { approvalStatus: UserApprovalStatus.PENDING } });
+    const pendingApprovals = await this.usersRepository.count({
+      where: { approvalStatus: UserApprovalStatus.PENDING },
+    });
 
     // Recent users list
     const recentUsers = await this.usersRepository.find({
       order: { createdAt: 'DESC' },
-      take: 5
+      take: 5,
     });
 
     return {
@@ -143,7 +161,7 @@ export class UsersService {
       totalWorkers,
       totalBookings,
       pendingApprovals,
-      recentUsers
+      recentUsers,
     };
   }
 }

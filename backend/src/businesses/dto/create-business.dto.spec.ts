@@ -37,13 +37,13 @@ describe('CreateBusinessDto validation', () => {
       type: 'CLEANING',
       status: 'APPROVED',
     });
-    expect((out as any).status).toBeUndefined();
+    expect(out.status).toBeUndefined();
   });
 
   it('rejects a missing name', async () => {
-    await expect(
-      transform({ type: 'CLEANING' }),
-    ).rejects.toBeInstanceOf(BadRequestException);
+    await expect(transform({ type: 'CLEANING' })).rejects.toBeInstanceOf(
+      BadRequestException,
+    );
   });
 
   it('rejects an empty-string type', async () => {

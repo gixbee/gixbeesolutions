@@ -54,7 +54,12 @@ describe('WalletsService.transferForBooking', () => {
       'work-1': worker,
     });
 
-    await service.transferForBooking('cust-1', 'work-1', 40, 'booking-12345678');
+    await service.transferForBooking(
+      'cust-1',
+      'work-1',
+      40,
+      'booking-12345678',
+    );
 
     expect(customer.walletBalance).toBe(60);
     expect(worker.walletBalance).toBe(50);

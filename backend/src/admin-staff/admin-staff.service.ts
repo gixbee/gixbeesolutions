@@ -11,7 +11,10 @@ import {
   AdminStaffRole,
   ADMIN_PORTAL_PAGES,
 } from './admin-staff.entity';
-import { CreateAdminStaffDto, UpdateAdminStaffDto } from './dto/admin-staff.dto';
+import {
+  CreateAdminStaffDto,
+  UpdateAdminStaffDto,
+} from './dto/admin-staff.dto';
 import { hashPassword, verifyPassword } from './password.util';
 
 @Injectable()

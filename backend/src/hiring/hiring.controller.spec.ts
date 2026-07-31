@@ -21,8 +21,14 @@ function makeController() {
     applyForJob: jest.fn(async () => ({ id: 'a1' })),
     getMyApplications: jest.fn(async () => [{ id: 'a1' }]),
     getApplicationsForJob: jest.fn(async () => [{ id: 'a1' }]),
-    withdrawApplication: jest.fn(async () => ({ id: 'a1', status: 'WITHDRAWN' })),
-    updateApplicationStatus: jest.fn(async () => ({ id: 'a1', status: 'SELECTED' })),
+    withdrawApplication: jest.fn(async () => ({
+      id: 'a1',
+      status: 'WITHDRAWN',
+    })),
+    updateApplicationStatus: jest.fn(async () => ({
+      id: 'a1',
+      status: 'SELECTED',
+    })),
   };
   const controller = new HiringController(hiringService);
   return { controller, hiringService };
@@ -33,7 +39,12 @@ describe('HiringController.createJobPost', () => {
     const { controller, hiringService } = makeController();
     await controller.createJobPost(
       { user: { userId: 'u-1' } },
-      { title: 'Cook', description: 'Catering gig', salaryMin: 100, salaryMax: 200 },
+      {
+        title: 'Cook',
+        description: 'Catering gig',
+        salaryMin: 100,
+        salaryMax: 200,
+      },
     );
     expect(hiringService.createJobPost).toHaveBeenCalledWith('u-1', {
       title: 'Cook',
@@ -50,13 +61,18 @@ describe('HiringController.createJobPost', () => {
       { user: { userId: 'u-1' } },
       { title: 'Cook', description: 'gig', requiredSkills: ['baking'] },
     );
-    expect(hiringService.createJobPost.mock.calls[0][1].requiredSkills).toEqual(['baking']);
+    expect(hiringService.createJobPost.mock.calls[0][1].requiredSkills).toEqual(
+      ['baking'],
+    );
   });
 
   it('throws BadRequest and never calls the service when title is missing', async () => {
     const { controller, hiringService } = makeController();
     await expect(
-      controller.createJobPost({ user: { userId: 'u-1' } }, { title: '', description: 'gig' } as any),
+      controller.createJobPost({ user: { userId: 'u-1' } }, {
+        title: '',
+        description: 'gig',
+      } as any),
     ).rejects.toBeInstanceOf(BadRequestException);
     expect(hiringService.createJobPost).not.toHaveBeenCalled();
   });
@@ -64,7 +80,10 @@ describe('HiringController.createJobPost', () => {
   it('throws BadRequest when description is missing', async () => {
     const { controller } = makeController();
     await expect(
-      controller.createJobPost({ user: { userId: 'u-1' } }, { title: 'Cook', description: '' } as any),
+      controller.createJobPost({ user: { userId: 'u-1' } }, {
+        title: 'Cook',
+        description: '',
+      } as any),
     ).rejects.toBeInstanceOf(BadRequestException);
   });
 });
@@ -100,17 +119,35 @@ describe('HiringController.getTalentMatches', () => {
 describe('HiringController.applyForJob', () => {
   it('forwards jobId (URL), authed userId, the cover letter, and the resumeUrl', async () => {
     const { controller, hiringService } = makeController();
-    await controller.applyForJob('j-9', { user: { userId: 'u-1' } }, {
-      coverLetter: 'hi',
-      resumeUrl: '/uploads/cv-7.jpg',
-    });
-    expect(hiringService.applyForJob).toHaveBeenCalledWith('j-9', 'u-1', 'hi', '/uploads/cv-7.jpg');
+    await controller.applyForJob(
+      'j-9',
+      { user: { userId: 'u-1' } },
+      {
+        coverLetter: 'hi',
+        resumeUrl: '/uploads/cv-7.jpg',
+      },
+    );
+    expect(hiringService.applyForJob).toHaveBeenCalledWith(
+      'j-9',
+      'u-1',
+      'hi',
+      '/uploads/cv-7.jpg',
+    );
   });
 
   it('passes undefined resumeUrl when none is attached', async () => {
     const { controller, hiringService } = makeController();
-    await controller.applyForJob('j-9', { user: { userId: 'u-1' } }, { coverLetter: 'hi' });
-    expect(hiringService.applyForJob).toHaveBeenCalledWith('j-9', 'u-1', 'hi', undefined);
+    await controller.applyForJob(
+      'j-9',
+      { user: { userId: 'u-1' } },
+      { coverLetter: 'hi' },
+    );
+    expect(hiringService.applyForJob).toHaveBeenCalledWith(
+      'j-9',
+      'u-1',
+      'hi',
+      undefined,
+    );
   });
 });
 
@@ -141,7 +178,10 @@ describe('HiringController.withdrawApplication', () => {
   it('forwards the applicationId (URL) + authed userId', async () => {
     const { controller, hiringService } = makeController();
     await controller.withdrawApplication('a-1', { user: { userId: 'u-1' } });
-    expect(hiringService.withdrawApplication).toHaveBeenCalledWith('a-1', 'u-1');
+    expect(hiringService.withdrawApplication).toHaveBeenCalledWith(
+      'a-1',
+      'u-1',
+    );
   });
 });
 
@@ -163,11 +203,9 @@ describe('HiringController.updateApplicationStatus', () => {
   it('throws BadRequest and never calls the service for an invalid status', async () => {
     const { controller, hiringService } = makeController();
     await expect(
-      controller.updateApplicationStatus(
-        'a-1',
-        { user: { userId: 'emp-1' } },
-        { status: 'NOPE' } as any,
-      ),
+      controller.updateApplicationStatus('a-1', { user: { userId: 'emp-1' } }, {
+        status: 'NOPE',
+      } as any),
     ).rejects.toBeInstanceOf(BadRequestException);
     expect(hiringService.updateApplicationStatus).not.toHaveBeenCalled();
   });

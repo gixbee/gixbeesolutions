@@ -121,22 +121,67 @@ describe('WorkersService.getAll', () => {
   it('filters out the requester, the unavailable, and the not-approved; maps the rest', async () => {
     const { service, workersRepository } = setup();
     workersRepository.find.mockResolvedValue([
-      workerProfile({ id: 'wp-ok', user: { id: 'u-ok', name: 'OK', isAvailableForWork: true, approvalStatus: UserApprovalStatus.APPROVED } }),
-      workerProfile({ id: 'wp-self', user: { id: 'u-self', name: 'Self', isAvailableForWork: true, approvalStatus: UserApprovalStatus.APPROVED } }),
-      workerProfile({ id: 'wp-unavail', user: { id: 'u-unavail', name: 'Away', isAvailableForWork: false, approvalStatus: UserApprovalStatus.APPROVED } }),
-      workerProfile({ id: 'wp-pending', user: { id: 'u-pending', name: 'Pend', isAvailableForWork: true, approvalStatus: UserApprovalStatus.PENDING } }),
+      workerProfile({
+        id: 'wp-ok',
+        user: {
+          id: 'u-ok',
+          name: 'OK',
+          isAvailableForWork: true,
+          approvalStatus: UserApprovalStatus.APPROVED,
+        },
+      }),
+      workerProfile({
+        id: 'wp-self',
+        user: {
+          id: 'u-self',
+          name: 'Self',
+          isAvailableForWork: true,
+          approvalStatus: UserApprovalStatus.APPROVED,
+        },
+      }),
+      workerProfile({
+        id: 'wp-unavail',
+        user: {
+          id: 'u-unavail',
+          name: 'Away',
+          isAvailableForWork: false,
+          approvalStatus: UserApprovalStatus.APPROVED,
+        },
+      }),
+      workerProfile({
+        id: 'wp-pending',
+        user: {
+          id: 'u-pending',
+          name: 'Pend',
+          isAvailableForWork: true,
+          approvalStatus: UserApprovalStatus.PENDING,
+        },
+      }),
     ]);
 
     const res = await service.getAll('u-self');
 
     expect(res).toHaveLength(1);
-    expect(res[0]).toMatchObject({ id: 'u-ok', name: 'OK', status: 'available' });
+    expect(res[0]).toMatchObject({
+      id: 'u-ok',
+      name: 'OK',
+      status: 'available',
+    });
   });
 
   it('deduplicates a user that appears in both worker and talent profiles (worker wins)', async () => {
     const { service, workersRepository, talentRepository } = setup();
     workersRepository.find.mockResolvedValue([
-      workerProfile({ id: 'wp-dup', title: 'Plumber', user: { id: 'u-dup', name: 'FromWorker', isAvailableForWork: true, approvalStatus: UserApprovalStatus.APPROVED } }),
+      workerProfile({
+        id: 'wp-dup',
+        title: 'Plumber',
+        user: {
+          id: 'u-dup',
+          name: 'FromWorker',
+          isAvailableForWork: true,
+          approvalStatus: UserApprovalStatus.APPROVED,
+        },
+      }),
     ]);
     talentRepository.find.mockResolvedValue([
       {
@@ -144,7 +189,12 @@ describe('WorkersService.getAll', () => {
         experience: 'exp',
         hourlyRate: 80,
         professionalSkills: [],
-        user: { id: 'u-dup', name: 'FromTalent', isAvailableForWork: true, approvalStatus: UserApprovalStatus.APPROVED },
+        user: {
+          id: 'u-dup',
+          name: 'FromTalent',
+          isAvailableForWork: true,
+          approvalStatus: UserApprovalStatus.APPROVED,
+        },
       },
     ]);
 
@@ -155,7 +205,8 @@ describe('WorkersService.getAll', () => {
   });
 
   it('resolves status from the Redis cache when present (no DB status query)', async () => {
-    const { service, workersRepository, bookingsRepository, redisService } = setup();
+    const { service, workersRepository, bookingsRepository, redisService } =
+      setup();
     workersRepository.find.mockResolvedValue([workerProfile()]);
     redisService.get.mockResolvedValue('busy');
 
@@ -197,7 +248,9 @@ describe('WorkersService.getById', () => {
 describe('WorkersService.toggleGoLive', () => {
   it('throws NotFound when the worker profile does not exist', async () => {
     const { service } = setup();
-    await expect(service.toggleGoLive('ghost')).rejects.toThrow(NotFoundException);
+    await expect(service.toggleGoLive('ghost')).rejects.toThrow(
+      NotFoundException,
+    );
   });
 
   it('blocks going live when first job is done and the wallet is below Rs.12', async () => {
@@ -207,7 +260,9 @@ describe('WorkersService.toggleGoLive', () => {
     );
     walletsService.getBalance.mockResolvedValue(5);
 
-    await expect(service.toggleGoLive('wp1')).rejects.toThrow(BadRequestException);
+    await expect(service.toggleGoLive('wp1')).rejects.toThrow(
+      BadRequestException,
+    );
     expect(workersRepository.save).not.toHaveBeenCalled();
   });
 
@@ -228,10 +283,20 @@ describe('WorkersService.toggleGoLive', () => {
     expect(res.isActive).toBe(true);
     expect(profile.goLiveToggleCountToday).toBe(1);
     expect(workersRepository.save).toHaveBeenCalledTimes(1);
-    expect(redisService.set).toHaveBeenCalledWith('worker:status:u1', 'available', 3600);
-    expect(redisService.updateWorkerLocation).toHaveBeenCalledWith('u1', 12.9, 77.5);
+    expect(redisService.set).toHaveBeenCalledWith(
+      'worker:status:u1',
+      'available',
+      3600,
+    );
+    expect(redisService.updateWorkerLocation).toHaveBeenCalledWith(
+      'u1',
+      12.9,
+      77.5,
+    );
     expect(redisService.cacheWorkerSnapshot).toHaveBeenCalledTimes(1);
-    expect(redisService.indexWorkerSkills).toHaveBeenCalledWith('u1', ['plumber']);
+    expect(redisService.indexWorkerSkills).toHaveBeenCalledWith('u1', [
+      'plumber',
+    ]);
   });
 
   it('goes offline: clears Redis location/status/snapshot and the geo + skill indexes', async () => {
@@ -245,17 +310,26 @@ describe('WorkersService.toggleGoLive', () => {
     expect(redisService.del).toHaveBeenCalledWith('worker:location:u1');
     expect(redisService.del).toHaveBeenCalledWith('worker:status:u1');
     expect(redisService.del).toHaveBeenCalledWith('worker:snapshot:u1');
-    expect(redisService.unindexWorkerSkills).toHaveBeenCalledWith('u1', ['plumber']);
+    expect(redisService.unindexWorkerSkills).toHaveBeenCalledWith('u1', [
+      'plumber',
+    ]);
     expect(redisService.removeWorkerFromGeoIndex).toHaveBeenCalledWith('u1');
   });
 
   it('enforces the daily go-live limit', async () => {
     const { service, workersRepository } = setup();
     workersRepository.findOne.mockResolvedValue(
-      workerProfile({ isActive: false, isFirstJobDone: false, goLiveToggleDate: today(), goLiveToggleCountToday: 6 }),
+      workerProfile({
+        isActive: false,
+        isFirstJobDone: false,
+        goLiveToggleDate: today(),
+        goLiveToggleCountToday: 6,
+      }),
     );
 
-    await expect(service.toggleGoLive('wp1')).rejects.toThrow(BadRequestException);
+    await expect(service.toggleGoLive('wp1')).rejects.toThrow(
+      BadRequestException,
+    );
   });
 
   it('persists GPS coords when going live so Instant Help can match', async () => {
@@ -274,7 +348,11 @@ describe('WorkersService.toggleGoLive', () => {
     expect(res.isActive).toBe(true);
     expect(profile.lastLat).toBe(13.0);
     expect(profile.lastLng).toBe(77.6);
-    expect(redisService.updateWorkerLocation).toHaveBeenCalledWith('u1', 13.0, 77.6);
+    expect(redisService.updateWorkerLocation).toHaveBeenCalledWith(
+      'u1',
+      13.0,
+      77.6,
+    );
   });
 
   it('resets the daily toggle count on a new calendar day', async () => {
@@ -364,12 +442,17 @@ describe('WorkersService.createProfile', () => {
 describe('WorkersService.updateHourlyRate', () => {
   it('throws NotFound when the worker profile does not exist', async () => {
     const { service } = setup();
-    await expect(service.updateHourlyRate('u1', 99)).rejects.toThrow(NotFoundException);
+    await expect(service.updateHourlyRate('u1', 99)).rejects.toThrow(
+      NotFoundException,
+    );
   });
 
   it('updates the rate and increments the daily counter', async () => {
     const { service, workersRepository } = setup();
-    const profile = workerProfile({ rateUpdateDate: today(), rateUpdateCountToday: 0 });
+    const profile = workerProfile({
+      rateUpdateDate: today(),
+      rateUpdateCountToday: 0,
+    });
     workersRepository.findOne.mockResolvedValue(profile);
 
     const res = await service.updateHourlyRate('u1', 120);
@@ -386,12 +469,17 @@ describe('WorkersService.updateHourlyRate', () => {
       workerProfile({ rateUpdateDate: today(), rateUpdateCountToday: 2 }),
     );
 
-    await expect(service.updateHourlyRate('u1', 120)).rejects.toThrow(BadRequestException);
+    await expect(service.updateHourlyRate('u1', 120)).rejects.toThrow(
+      BadRequestException,
+    );
   });
 
   it('resets the daily counter on a new calendar day', async () => {
     const { service, workersRepository } = setup();
-    const profile = workerProfile({ rateUpdateDate: '2000-01-01', rateUpdateCountToday: 9 });
+    const profile = workerProfile({
+      rateUpdateDate: '2000-01-01',
+      rateUpdateCountToday: 9,
+    });
     workersRepository.findOne.mockResolvedValue(profile);
 
     const res = await service.updateHourlyRate('u1', 60);
@@ -414,7 +502,12 @@ describe('WorkersService.getNearby', () => {
 
   it('excludes the requester + the out-of-range, and sorts by rating desc (snapshot path)', async () => {
     const { service, redisService } = setup();
-    redisService.getWorkerIdsBySkill.mockResolvedValue(['low', 'high', 'far', 'req']);
+    redisService.getWorkerIdsBySkill.mockResolvedValue([
+      'low',
+      'high',
+      'far',
+      'req',
+    ]);
     redisService.searchNearbyWorkerIds.mockResolvedValue(null); // geo index cold → keep full set
     redisService.getWorkerLocation.mockImplementation(async (id: string) =>
       id === 'far' ? { lat: 80, lng: 80 } : { lat: 0, lng: 0 },
@@ -509,23 +602,35 @@ describe('WorkersService.getNearby', () => {
 describe('WorkersService.getWorkerPackages', () => {
   it('returns multiplier-based fallback packages when there is no rate chart', async () => {
     const { service, workersRepository, talentRepository } = setup();
-    workersRepository.findOne.mockResolvedValue(workerProfile({ hourlyRate: 50 }));
+    workersRepository.findOne.mockResolvedValue(
+      workerProfile({ hourlyRate: 50 }),
+    );
     talentRepository.findOne.mockResolvedValue(null);
 
     const pkgs = await service.getWorkerPackages('u1');
 
     expect(pkgs).toHaveLength(3);
     expect(pkgs[0]).toMatchObject({ name: 'Quick Fix', price: 50 });
-    expect(pkgs[1]).toMatchObject({ name: 'Half Day', price: 175, isPopular: true }); // round(50 * 3.5)
+    expect(pkgs[1]).toMatchObject({
+      name: 'Half Day',
+      price: 175,
+      isPopular: true,
+    }); // round(50 * 3.5)
     expect(pkgs[2]).toMatchObject({ name: 'Full Day', price: 300 }); // round(50 * 6)
   });
 
   it('builds packages from a professional skill rate chart when present', async () => {
-    const { service, workersRepository, talentRepository, skillRepository } = setup();
-    workersRepository.findOne.mockResolvedValue(workerProfile({ hourlyRate: 50 }));
+    const { service, workersRepository, talentRepository, skillRepository } =
+      setup();
+    workersRepository.findOne.mockResolvedValue(
+      workerProfile({ hourlyRate: 50 }),
+    );
     talentRepository.findOne.mockResolvedValue({ id: 'tp1' });
     skillRepository.find.mockResolvedValue([
-      { name: 'Plumbing', rateChart: { quickFix: 100, halfDay: 350, fullDay: 600 } },
+      {
+        name: 'Plumbing',
+        rateChart: { quickFix: 100, halfDay: 350, fullDay: 600 },
+      },
     ]);
 
     const pkgs = await service.getWorkerPackages('u1');
@@ -541,6 +646,10 @@ describe('WorkersService.setWorkerStatus', () => {
   it('writes the status to Redis with a 1-hour TTL', async () => {
     const { service, redisService } = setup();
     await service.setWorkerStatus('u1', 'busy');
-    expect(redisService.set).toHaveBeenCalledWith('worker:status:u1', 'busy', 3600);
+    expect(redisService.set).toHaveBeenCalledWith(
+      'worker:status:u1',
+      'busy',
+      3600,
+    );
   });
 });

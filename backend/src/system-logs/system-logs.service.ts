@@ -7,11 +7,7 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, LessThan } from 'typeorm';
-import {
-  SystemLog,
-  SystemLogLevel,
-  SystemLogType,
-} from './system-log.entity';
+import { SystemLog, SystemLogLevel, SystemLogType } from './system-log.entity';
 
 export interface RecordLogInput {
   level?: SystemLogLevel;
@@ -72,7 +68,8 @@ export class SystemLogsService implements OnModuleInit, OnModuleDestroy {
     config: ConfigService,
   ) {
     const raw = Number(config.get<string>('LOG_RETENTION_DAYS'));
-    this.retentionDays = Number.isFinite(raw) && raw >= 0 ? Math.floor(raw) : 30;
+    this.retentionDays =
+      Number.isFinite(raw) && raw >= 0 ? Math.floor(raw) : 30;
   }
 
   onModuleInit() {
@@ -86,9 +83,15 @@ export class SystemLogsService implements OnModuleInit, OnModuleDestroy {
     // First run shortly after boot, then every 24 h. unref() so the timers
     // never keep the process alive on shutdown. Purge is idempotent, so
     // multiple backend instances running it concurrently is harmless.
-    this.bootTimer = setTimeout(() => this.autoPurge(), AUTO_PURGE_BOOT_DELAY_MS);
+    this.bootTimer = setTimeout(
+      () => this.autoPurge(),
+      AUTO_PURGE_BOOT_DELAY_MS,
+    );
     this.bootTimer.unref?.();
-    this.purgeTimer = setInterval(() => this.autoPurge(), AUTO_PURGE_INTERVAL_MS);
+    this.purgeTimer = setInterval(
+      () => this.autoPurge(),
+      AUTO_PURGE_INTERVAL_MS,
+    );
     this.purgeTimer.unref?.();
   }
 
@@ -181,7 +184,8 @@ export class SystemLogsService implements OnModuleInit, OnModuleDestroy {
       });
     }
 
-    if (q.from) qb.andWhere('log.createdAt >= :from', { from: new Date(q.from) });
+    if (q.from)
+      qb.andWhere('log.createdAt >= :from', { from: new Date(q.from) });
     if (q.to) qb.andWhere('log.createdAt <= :to', { to: new Date(q.to) });
 
     qb.orderBy('log.createdAt', 'DESC')
@@ -195,15 +199,16 @@ export class SystemLogsService implements OnModuleInit, OnModuleDestroy {
   /** Aggregate counts for the filter chips (last 24 h). */
   async stats() {
     const since = new Date(Date.now() - 24 * 60 * 60 * 1000);
-    const rows: { type: string; level: string; count: string }[] = await this.repo
-      .createQueryBuilder('log')
-      .select('log.type', 'type')
-      .addSelect('log.level', 'level')
-      .addSelect('COUNT(*)', 'count')
-      .where('log.createdAt >= :since', { since })
-      .groupBy('log.type')
-      .addGroupBy('log.level')
-      .getRawMany();
+    const rows: { type: string; level: string; count: string }[] =
+      await this.repo
+        .createQueryBuilder('log')
+        .select('log.type', 'type')
+        .addSelect('log.level', 'level')
+        .addSelect('COUNT(*)', 'count')
+        .where('log.createdAt >= :since', { since })
+        .groupBy('log.type')
+        .addGroupBy('log.level')
+        .getRawMany();
 
     const byType: Record<string, number> = {};
     const byLevel: Record<string, number> = {};

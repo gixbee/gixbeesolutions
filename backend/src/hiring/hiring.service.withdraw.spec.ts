@@ -12,7 +12,9 @@ import { ApplicationStatus } from './job-application.entity';
 function makeService(applications: Record<string, any>) {
   const saved: any[] = [];
   const applicationRepo: any = {
-    findOne: jest.fn(async ({ where: { id } }: any) => applications[id] ?? null),
+    findOne: jest.fn(
+      async ({ where: { id } }: any) => applications[id] ?? null,
+    ),
     save: jest.fn(async (app: any) => {
       saved.push({ ...app });
       return app;
@@ -75,9 +77,9 @@ describe('HiringService.withdrawApplication', () => {
     const a = app('a1', 'talent-1', ApplicationStatus.APPLIED);
     const { service, saved } = makeService({ a1: a });
 
-    await expect(
-      service.withdrawApplication('a1', 'talent-2'),
-    ).rejects.toThrow(BadRequestException);
+    await expect(service.withdrawApplication('a1', 'talent-2')).rejects.toThrow(
+      BadRequestException,
+    );
     expect(saved).toHaveLength(0);
     expect(a.status).toBe(ApplicationStatus.APPLIED);
   });
@@ -91,9 +93,9 @@ describe('HiringService.withdrawApplication', () => {
     const a = app('a1', 'talent-1', status);
     const { service, saved } = makeService({ a1: a });
 
-    await expect(
-      service.withdrawApplication('a1', 'talent-1'),
-    ).rejects.toThrow(BadRequestException);
+    await expect(service.withdrawApplication('a1', 'talent-1')).rejects.toThrow(
+      BadRequestException,
+    );
     expect(saved).toHaveLength(0);
     expect(a.status).toBe(status);
   });

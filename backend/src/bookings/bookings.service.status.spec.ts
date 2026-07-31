@@ -6,11 +6,13 @@ import { BookingStatus } from './booking.entity';
  * Focused coverage for getStatusForParticipant — including operatorLat/Lng
  * from Redis so the customer map poll fallback has live worker GPS.
  */
-function makeService(opts: {
-  cached?: any;
-  booking?: any;
-  workerLoc?: { lat: number; lng: number } | null;
-} = {}) {
+function makeService(
+  opts: {
+    cached?: any;
+    booking?: any;
+    workerLoc?: { lat: number; lng: number } | null;
+  } = {},
+) {
   const redisService: any = {
     getCachedBookingStatus: jest.fn(async () => opts.cached ?? null),
     cacheBookingStatus: jest.fn(async () => undefined),
@@ -36,9 +38,7 @@ function makeService(opts: {
   );
   // getBookingById is used on cache miss — stub via prototype if needed.
   if (opts.booking !== undefined) {
-    jest
-      .spyOn(service, 'getBookingById')
-      .mockResolvedValue(opts.booking as any);
+    jest.spyOn(service, 'getBookingById').mockResolvedValue(opts.booking);
   } else {
     jest.spyOn(service, 'getBookingById').mockResolvedValue(null as any);
   }

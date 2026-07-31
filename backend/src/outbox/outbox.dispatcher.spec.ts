@@ -81,9 +81,11 @@ describe('OutboxDispatcher.dispatchOne idempotency', () => {
       },
     });
     // After recordAttempt, findById still returns pending with attempts bumped.
-    outboxService.findById
-      .mockResolvedValueOnce(event)
-      .mockResolvedValueOnce({ ...event, attempts: 1, status: OutboxStatus.PENDING });
+    outboxService.findById.mockResolvedValueOnce(event).mockResolvedValueOnce({
+      ...event,
+      attempts: 1,
+      status: OutboxStatus.PENDING,
+    });
 
     const result = await dispatcher.dispatchOne('e1');
 
@@ -119,9 +121,14 @@ describe('OutboxDispatcher.dispatchOne idempotency', () => {
     };
     const handler: any = { handle: jest.fn(async () => undefined) };
     const systemLogs: any = { record: jest.fn() };
-    const dispatcher = new OutboxDispatcher(outboxService, handler, systemLogs, {
-      add: jest.fn(),
-    } as any);
+    const dispatcher = new OutboxDispatcher(
+      outboxService,
+      handler,
+      systemLogs,
+      {
+        add: jest.fn(),
+      } as any,
+    );
 
     expect(await dispatcher.dispatchOne('e1')).toBe('processed');
     expect(await dispatcher.dispatchOne('e1')).toBe('skipped');

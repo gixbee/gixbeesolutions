@@ -62,9 +62,9 @@ describe('PaymentsService.initiateUpiPayment', () => {
     expect(() => service.initiateUpiPayment('u1', { amount: -50 })).toThrow(
       BadRequestException,
     );
-    expect(() =>
-      service.initiateUpiPayment('u1', { amount: NaN }),
-    ).toThrow(BadRequestException);
+    expect(() => service.initiateUpiPayment('u1', { amount: NaN })).toThrow(
+      BadRequestException,
+    );
   });
 
   it('returns an explicit UNAVAILABLE needs-API-key payload when unconfigured', () => {

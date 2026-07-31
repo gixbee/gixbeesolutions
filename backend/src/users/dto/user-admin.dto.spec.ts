@@ -19,9 +19,15 @@ describe('admin-user-list DTOs under the real ValidationPipe', () => {
 
   it('UpdateFcmTokenDto accepts { token } and rejects an empty/missing token', async () => {
     const meta = { type: 'body' as const, metatype: UpdateFcmTokenDto };
-    expect(await pipe.transform({ token: 'tok-1' }, meta)).toEqual({ token: 'tok-1' });
-    await expect(pipe.transform({ token: '' }, meta)).rejects.toBeInstanceOf(BadRequestException);
-    await expect(pipe.transform({}, meta)).rejects.toBeInstanceOf(BadRequestException);
+    expect(await pipe.transform({ token: 'tok-1' }, meta)).toEqual({
+      token: 'tok-1',
+    });
+    await expect(pipe.transform({ token: '' }, meta)).rejects.toBeInstanceOf(
+      BadRequestException,
+    );
+    await expect(pipe.transform({}, meta)).rejects.toBeInstanceOf(
+      BadRequestException,
+    );
   });
 
   it('UpdateSkillStatusDto accepts a valid enum and rejects a bad one', async () => {
@@ -29,9 +35,9 @@ describe('admin-user-list DTOs under the real ValidationPipe', () => {
     expect(
       await pipe.transform({ status: SkillApprovalStatus.APPROVED }, meta),
     ).toEqual({ status: SkillApprovalStatus.APPROVED });
-    await expect(pipe.transform({ status: 'NOPE' }, meta)).rejects.toBeInstanceOf(
-      BadRequestException,
-    );
+    await expect(
+      pipe.transform({ status: 'NOPE' }, meta),
+    ).rejects.toBeInstanceOf(BadRequestException);
   });
 
   it('UpdateUserStatusDto accepts a valid enum and rejects a bad one', async () => {
@@ -39,17 +45,19 @@ describe('admin-user-list DTOs under the real ValidationPipe', () => {
     expect(
       await pipe.transform({ status: UserApprovalStatus.APPROVED }, meta),
     ).toEqual({ status: UserApprovalStatus.APPROVED });
-    await expect(pipe.transform({ status: 'NOPE' }, meta)).rejects.toBeInstanceOf(
-      BadRequestException,
-    );
+    await expect(
+      pipe.transform({ status: 'NOPE' }, meta),
+    ).rejects.toBeInstanceOf(BadRequestException);
   });
 
   it('VerifyUserDto accepts a boolean and rejects a non-boolean', async () => {
     const meta = { type: 'body' as const, metatype: VerifyUserDto };
-    expect(await pipe.transform({ isVerified: true }, meta)).toEqual({ isVerified: true });
-    await expect(pipe.transform({ isVerified: 'yes' }, meta)).rejects.toBeInstanceOf(
-      BadRequestException,
-    );
+    expect(await pipe.transform({ isVerified: true }, meta)).toEqual({
+      isVerified: true,
+    });
+    await expect(
+      pipe.transform({ isVerified: 'yes' }, meta),
+    ).rejects.toBeInstanceOf(BadRequestException);
   });
 
   it('strips unknown fields (whitelist) on a status update', async () => {

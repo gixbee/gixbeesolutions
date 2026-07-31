@@ -37,13 +37,28 @@ describe('WorkersController.getAll', () => {
 describe('WorkersController.getNearby', () => {
   it('parses lat/lng to floats and forwards userId + skill', async () => {
     const { controller, workersService } = makeController();
-    await controller.getNearby({ user: { userId: 'u-1' } }, 'plumber', '12.97', '77.59');
-    expect(workersService.getNearby).toHaveBeenCalledWith('u-1', 'plumber', 12.97, 77.59);
+    await controller.getNearby(
+      { user: { userId: 'u-1' } },
+      'plumber',
+      '12.97',
+      '77.59',
+    );
+    expect(workersService.getNearby).toHaveBeenCalledWith(
+      'u-1',
+      'plumber',
+      12.97,
+      77.59,
+    );
   });
 
   it('passes NaN through when a coordinate is non-numeric (service guards)', async () => {
     const { controller, workersService } = makeController();
-    await controller.getNearby({ user: { userId: 'u-1' } }, 'plumber', 'x', '77.59');
+    await controller.getNearby(
+      { user: { userId: 'u-1' } },
+      'plumber',
+      'x',
+      '77.59',
+    );
     const [, , lat, lng] = workersService.getNearby.mock.calls[0];
     expect(Number.isNaN(lat)).toBe(true);
     expect(lng).toBe(77.59);
@@ -62,13 +77,22 @@ describe('WorkersController.getMyDashboard', () => {
 describe('WorkersController.setActiveSkills', () => {
   it('forwards the provided skills array', async () => {
     const { controller, workersService } = makeController();
-    await controller.setActiveSkills({ user: { userId: 'u-1' } }, { skills: ['a', 'b'] });
-    expect(workersService.setActiveSkills).toHaveBeenCalledWith('u-1', ['a', 'b']);
+    await controller.setActiveSkills(
+      { user: { userId: 'u-1' } },
+      { skills: ['a', 'b'] },
+    );
+    expect(workersService.setActiveSkills).toHaveBeenCalledWith('u-1', [
+      'a',
+      'b',
+    ]);
   });
 
   it('defaults to an empty array when the body or skills is missing', async () => {
     const { controller, workersService } = makeController();
-    await controller.setActiveSkills({ user: { userId: 'u-1' } }, undefined as any);
+    await controller.setActiveSkills(
+      { user: { userId: 'u-1' } },
+      undefined as any,
+    );
     expect(workersService.setActiveSkills).toHaveBeenCalledWith('u-1', []);
   });
 });
@@ -117,7 +141,10 @@ describe('WorkersController.register', () => {
 describe('WorkersController.updateRate', () => {
   it('forwards the authed userId + the new hourly rate', async () => {
     const { controller, workersService } = makeController();
-    await controller.updateRate({ user: { userId: 'u-1' } }, { hourlyRate: 750 });
+    await controller.updateRate(
+      { user: { userId: 'u-1' } },
+      { hourlyRate: 750 },
+    );
     expect(workersService.updateHourlyRate).toHaveBeenCalledWith('u-1', 750);
   });
 });

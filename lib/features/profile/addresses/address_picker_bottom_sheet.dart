@@ -153,7 +153,7 @@ class _AddressPickerBottomSheetState
               width: 40,
               height: 4,
               decoration: BoxDecoration(
-                color: Colors.grey.withOpacity(0.3),
+                color: Colors.grey.withValues(alpha: 0.3),
                 borderRadius: BorderRadius.circular(2),
               ),
             ),

@@ -72,12 +72,20 @@ function makeService(
     }),
   };
 
-  const service = new NotificationsService(configService, usersRepository, redisService);
+  const service = new NotificationsService(
+    configService,
+    usersRepository,
+    redisService,
+  );
   if (opts.messaging !== undefined) {
     (service as any).messaging = opts.messaging;
   }
   // silence the logger so test output stays clean
-  (service as any).logger = { log: jest.fn(), warn: jest.fn(), error: jest.fn() };
+  (service as any).logger = {
+    log: jest.fn(),
+    warn: jest.fn(),
+    error: jest.fn(),
+  };
 
   return { service, usersRepository, redisService, configService, qb };
 }
@@ -112,14 +120,22 @@ describe('NotificationsService.getDiagnostics', () => {
 describe('NotificationsService.sendToDevice', () => {
   it('short-circuits to false when messaging is not initialised', async () => {
     const { service } = makeService({ messaging: null });
-    const ok = await service.sendToDevice({ fcmToken: 't', title: 'T', body: 'B' });
+    const ok = await service.sendToDevice({
+      fcmToken: 't',
+      title: 'T',
+      body: 'B',
+    });
     expect(ok).toBe(false);
   });
 
   it('sends and returns true, defaulting data to {} when omitted', async () => {
     const messaging = okMessaging();
     const { service } = makeService({ messaging });
-    const ok = await service.sendToDevice({ fcmToken: 'tok', title: 'Hi', body: 'There' });
+    const ok = await service.sendToDevice({
+      fcmToken: 'tok',
+      title: 'Hi',
+      body: 'There',
+    });
     expect(ok).toBe(true);
     expect(messaging.send).toHaveBeenCalledTimes(1);
     const msg = messaging.send.mock.calls[0][0];
@@ -147,10 +163,16 @@ describe('NotificationsService.sendToDevice', () => {
   it('clears the stale token and returns false on a not-registered error', async () => {
     const messaging = okMessaging();
     messaging.send = jest.fn(async () => {
-      throw { errorInfo: { code: 'messaging/registration-token-not-registered' } };
+      throw {
+        errorInfo: { code: 'messaging/registration-token-not-registered' },
+      };
     });
     const { service, usersRepository, qb } = makeService({ messaging });
-    const ok = await service.sendToDevice({ fcmToken: 'stale-tok', title: 'T', body: 'B' });
+    const ok = await service.sendToDevice({
+      fcmToken: 'stale-tok',
+      title: 'T',
+      body: 'B',
+    });
     expect(ok).toBe(false);
     // clearStaleToken ran its UPDATE … WHERE fcmToken = :fcmToken
     expect(usersRepository.createQueryBuilder).toHaveBeenCalled();
@@ -165,7 +187,11 @@ describe('NotificationsService.sendToDevice', () => {
       throw { errorInfo: { code: 'messaging/invalid-registration-token' } };
     });
     const { service, qb } = makeService({ messaging });
-    const ok = await service.sendToDevice({ fcmToken: 'bad', title: 'T', body: 'B' });
+    const ok = await service.sendToDevice({
+      fcmToken: 'bad',
+      title: 'T',
+      body: 'B',
+    });
     expect(ok).toBe(false);
     expect(qb.execute).toHaveBeenCalled();
   });
@@ -173,10 +199,17 @@ describe('NotificationsService.sendToDevice', () => {
   it('returns false WITHOUT clearing the token on an unrelated error', async () => {
     const messaging = okMessaging();
     messaging.send = jest.fn(async () => {
-      throw { errorInfo: { code: 'messaging/internal-error' }, message: 'boom' };
+      throw {
+        errorInfo: { code: 'messaging/internal-error' },
+        message: 'boom',
+      };
     });
     const { service, usersRepository } = makeService({ messaging });
-    const ok = await service.sendToDevice({ fcmToken: 'tok', title: 'T', body: 'B' });
+    const ok = await service.sendToDevice({
+      fcmToken: 'tok',
+      title: 'T',
+      body: 'B',
+    });
     expect(ok).toBe(false);
     expect(usersRepository.createQueryBuilder).not.toHaveBeenCalled();
   });
@@ -205,7 +238,9 @@ describe('NotificationsService.sendToUser', () => {
     });
     const ok = await service.sendToUser('u1', { title: 'T', body: 'B' });
     expect(ok).toBe(false);
-    expect(usersRepository.findOne).toHaveBeenCalledWith({ where: { id: 'u1' } });
+    expect(usersRepository.findOne).toHaveBeenCalledWith({
+      where: { id: 'u1' },
+    });
     expect(messaging.send).not.toHaveBeenCalled();
   });
 
@@ -312,7 +347,10 @@ describe('NotificationsService.sendToUsers (multicast)', () => {
 describe('NotificationsService.testPushToUser', () => {
   it('uses the Redis-cached token and reports success', async () => {
     const messaging = okMessaging();
-    const { service } = makeService({ messaging, cachedToken: 'cached-abcdefghijklmnopqrstuvwxyz' });
+    const { service } = makeService({
+      messaging,
+      cachedToken: 'cached-abcdefghijklmnopqrstuvwxyz',
+    });
     const res = await service.testPushToUser('u1');
     expect(res.success).toBe(true);
     expect(res.steps.some((s) => s.includes('Redis: token found'))).toBe(true);
@@ -321,7 +359,11 @@ describe('NotificationsService.testPushToUser', () => {
 
   it('returns user-not-found when Redis empty and DB has no such user', async () => {
     const messaging = okMessaging();
-    const { service } = makeService({ messaging, cachedToken: null, dbUser: null });
+    const { service } = makeService({
+      messaging,
+      cachedToken: null,
+      dbUser: null,
+    });
     const res = await service.testPushToUser('ghost');
     expect(res.success).toBe(false);
     expect(res.message).toBe('User not found in database');
@@ -355,9 +397,14 @@ describe('NotificationsService.testPushToUser', () => {
   it('captures the Firebase error code when the send fails', async () => {
     const messaging = okMessaging();
     messaging.send = jest.fn(async () => {
-      throw { errorInfo: { code: 'messaging/invalid-argument', message: 'bad token' } };
+      throw {
+        errorInfo: { code: 'messaging/invalid-argument', message: 'bad token' },
+      };
     });
-    const { service } = makeService({ messaging, cachedToken: 'cached-abcdefghijklmnopqrst' });
+    const { service } = makeService({
+      messaging,
+      cachedToken: 'cached-abcdefghijklmnopqrst',
+    });
     const res = await service.testPushToUser('u1');
     expect(res.success).toBe(false);
     expect((res as any).firebaseErrorCode).toBe('messaging/invalid-argument');
@@ -368,9 +415,7 @@ describe('NotificationsService.testPushToUser', () => {
 describe('NotificationsService notify* helpers', () => {
   function spyService() {
     const { service } = makeService({ messaging: okMessaging() });
-    const spy = jest
-      .spyOn(service, 'sendToUser')
-      .mockResolvedValue(true);
+    const spy = jest.spyOn(service, 'sendToUser').mockResolvedValue(true);
     return { service, spy };
   }
 

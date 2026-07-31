@@ -94,7 +94,7 @@ class _SaveAddressBottomSheetState extends ConsumerState<SaveAddressBottomSheet>
               width: 40,
               height: 4,
               decoration: BoxDecoration(
-                color: Colors.grey.withOpacity(0.3),
+                color: Colors.grey.withValues(alpha: 0.3),
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
@@ -115,7 +115,7 @@ class _SaveAddressBottomSheetState extends ConsumerState<SaveAddressBottomSheet>
             decoration: BoxDecoration(
               color: context.gx.card,
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: context.gx.ink.withOpacity(0.1)),
+              border: Border.all(color: context.gx.ink.withValues(alpha: 0.1)),
             ),
             child: Row(
               children: [

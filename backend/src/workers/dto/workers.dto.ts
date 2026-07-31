@@ -1,4 +1,16 @@
-import { IsString, IsNotEmpty, IsOptional, IsNumber, IsArray, IsIn, IsInt, IsBoolean, MaxLength, Min, Max } from 'class-validator';
+import {
+  IsString,
+  IsNotEmpty,
+  IsOptional,
+  IsNumber,
+  IsArray,
+  IsIn,
+  IsInt,
+  IsBoolean,
+  MaxLength,
+  Min,
+  Max,
+} from 'class-validator';
 
 // DTOs for the workers write endpoints.
 

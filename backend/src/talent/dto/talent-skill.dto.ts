@@ -1,4 +1,11 @@
-import { IsString, IsNotEmpty, IsOptional, IsNumber, IsBoolean, IsObject } from 'class-validator';
+import {
+  IsString,
+  IsNotEmpty,
+  IsOptional,
+  IsNumber,
+  IsBoolean,
+  IsObject,
+} from 'class-validator';
 
 // DTOs for the remaining talent write endpoints that previously used
 // single-property @Body('x') extraction (primitives bypass class-validator, so

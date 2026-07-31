@@ -8,7 +8,11 @@ import { UpdateTalentProfileDto } from './update-talent-profile.dto';
 // no longer tamper with its own search rank.
 describe('UpdateTalentProfileDto validation', () => {
   const pipe = new ValidationPipe({ whitelist: true, transform: true });
-  const meta = { type: 'body', metatype: UpdateTalentProfileDto, data: '' } as any;
+  const meta = {
+    type: 'body',
+    metatype: UpdateTalentProfileDto,
+    data: '',
+  } as any;
   const transform = (body: any) => pipe.transform(body, meta);
 
   it('accepts the register_pro path ({ photoUrl, certificates })', async () => {
@@ -42,15 +46,19 @@ describe('UpdateTalentProfileDto validation', () => {
       searchRank: 99999,
       noShowCount: -50,
     });
-    expect((out as any).searchRank).toBeUndefined();
-    expect((out as any).noShowCount).toBeUndefined();
+    expect(out.searchRank).toBeUndefined();
+    expect(out.noShowCount).toBeUndefined();
     expect(out.skills).toEqual(['DESIGN']);
   });
 
   it('strips non-column fields sent by toJson (bio, isActive)', async () => {
-    const out = await transform({ skills: ['DESIGN'], bio: 'x', isActive: true });
-    expect((out as any).bio).toBeUndefined();
-    expect((out as any).isActive).toBeUndefined();
+    const out = await transform({
+      skills: ['DESIGN'],
+      bio: 'x',
+      isActive: true,
+    });
+    expect(out.bio).toBeUndefined();
+    expect(out.isActive).toBeUndefined();
   });
 
   it('accepts a valid currentStatus enum value', async () => {
@@ -59,20 +67,20 @@ describe('UpdateTalentProfileDto validation', () => {
   });
 
   it('rejects an invalid currentStatus enum value', async () => {
-    await expect(
-      transform({ currentStatus: 'ALIEN' }),
-    ).rejects.toBeInstanceOf(BadRequestException);
+    await expect(transform({ currentStatus: 'ALIEN' })).rejects.toBeInstanceOf(
+      BadRequestException,
+    );
   });
 
   it('rejects a non-array skills value', async () => {
-    await expect(
-      transform({ skills: 'DESIGN' }),
-    ).rejects.toBeInstanceOf(BadRequestException);
+    await expect(transform({ skills: 'DESIGN' })).rejects.toBeInstanceOf(
+      BadRequestException,
+    );
   });
 
   it('rejects a non-boolean jobAlertsEnabled', async () => {
-    await expect(
-      transform({ jobAlertsEnabled: 'yes' }),
-    ).rejects.toBeInstanceOf(BadRequestException);
+    await expect(transform({ jobAlertsEnabled: 'yes' })).rejects.toBeInstanceOf(
+      BadRequestException,
+    );
   });
 });

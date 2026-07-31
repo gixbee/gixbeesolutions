@@ -26,15 +26,15 @@ describe('SetActiveSkillsDto validation', () => {
   });
 
   it('rejects a non-array skills value', async () => {
-    await expect(
-      transform({ skills: 'CLEANING' }),
-    ).rejects.toBeInstanceOf(BadRequestException);
+    await expect(transform({ skills: 'CLEANING' })).rejects.toBeInstanceOf(
+      BadRequestException,
+    );
   });
 
   it('rejects a skills array with non-string members', async () => {
-    await expect(
-      transform({ skills: ['CLEANING', 5] }),
-    ).rejects.toBeInstanceOf(BadRequestException);
+    await expect(transform({ skills: ['CLEANING', 5] })).rejects.toBeInstanceOf(
+      BadRequestException,
+    );
   });
 });
 
@@ -67,13 +67,13 @@ describe('RegisterWorkerDto validation', () => {
       hourlyRate: 200,
       searchRank: 9999,
     });
-    expect((out as any).searchRank).toBeUndefined();
+    expect(out.searchRank).toBeUndefined();
   });
 
   it('rejects a missing skills array', async () => {
-    await expect(
-      transform({ hourlyRate: 200 }),
-    ).rejects.toBeInstanceOf(BadRequestException);
+    await expect(transform({ hourlyRate: 200 })).rejects.toBeInstanceOf(
+      BadRequestException,
+    );
   });
 
   it('rejects a non-numeric hourlyRate', async () => {
@@ -99,8 +99,8 @@ describe('UpdateRateDto validation', () => {
   });
 
   it('rejects a non-numeric hourlyRate', async () => {
-    await expect(
-      transform({ hourlyRate: 'free' }),
-    ).rejects.toBeInstanceOf(BadRequestException);
+    await expect(transform({ hourlyRate: 'free' })).rejects.toBeInstanceOf(
+      BadRequestException,
+    );
   });
 });

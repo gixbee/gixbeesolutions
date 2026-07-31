@@ -125,7 +125,9 @@ describe('AuthService.requestOtp', () => {
   });
 
   it('hides devOtp in production', async () => {
-    const { service, redisService } = makeDeps({ config: { NODE_ENV: 'production' } });
+    const { service, redisService } = makeDeps({
+      config: { NODE_ENV: 'production' },
+    });
 
     const result = await service.requestOtp('+919000000002');
 
@@ -138,24 +140,25 @@ describe('AuthService.requestOtp', () => {
 describe('AuthService.verifyOtp', () => {
   it('throws Unauthorized when no OTP is stored', async () => {
     const { service } = makeDeps();
-    await expect(service.verifyOtp('+919000000003', '123456')).rejects.toBeInstanceOf(
-      UnauthorizedException,
-    );
+    await expect(
+      service.verifyOtp('+919000000003', '123456'),
+    ).rejects.toBeInstanceOf(UnauthorizedException);
   });
 
   it('throws Unauthorized when the OTP does not match (and still consumes it)', async () => {
     const { service, redisStore } = makeDeps();
     redisStore.set('otp:+919000000004', '111111');
-    await expect(service.verifyOtp('+919000000004', '222222')).rejects.toBeInstanceOf(
-      UnauthorizedException,
-    );
+    await expect(
+      service.verifyOtp('+919000000004', '222222'),
+    ).rejects.toBeInstanceOf(UnauthorizedException);
     expect(redisStore.has('otp:+919000000004')).toBe(false);
   });
 
   it('creates a default-CUSTOMER user on first login and returns a token pair', async () => {
-    const { service, usersRepository, redisService, saved, redisStore } = makeDeps({
-      config: { JWT_SECRET: 'unit-secret' },
-    });
+    const { service, usersRepository, redisService, saved, redisStore } =
+      makeDeps({
+        config: { JWT_SECRET: 'unit-secret' },
+      });
     redisStore.set('otp:+919000000005', '654321');
 
     const result = await service.verifyOtp('+919000000005', '654321');
@@ -177,7 +180,11 @@ describe('AuthService.verifyOtp', () => {
   });
 
   it('reuses an existing user without creating a new one', async () => {
-    const existing = { id: 'u-existing', phoneNumber: '+919000000006', role: UserRole.OPERATOR };
+    const existing = {
+      id: 'u-existing',
+      phoneNumber: '+919000000006',
+      role: UserRole.OPERATOR,
+    };
     const { service, usersRepository, saved, redisStore } = makeDeps({
       user: existing,
       config: { JWT_SECRET: 'unit-secret' },
@@ -191,7 +198,11 @@ describe('AuthService.verifyOtp', () => {
   });
 
   it('stores the sha256 hash of the refresh token in Redis with a 30-day TTL', async () => {
-    const existing = { id: 'u-hash', phoneNumber: '+919000000007', role: UserRole.CUSTOMER };
+    const existing = {
+      id: 'u-hash',
+      phoneNumber: '+919000000007',
+      role: UserRole.CUSTOMER,
+    };
     const { service, redisService, redisStore } = makeDeps({
       user: existing,
       config: { JWT_SECRET: 'unit-secret' },
@@ -214,7 +225,9 @@ describe('AuthService.verifyOtp', () => {
 
 describe('AuthService.refreshAccessToken', () => {
   it('throws Unauthorized when the refresh token cannot be verified', async () => {
-    const { service, jwtService } = makeDeps({ config: { JWT_SECRET: 'unit-secret' } });
+    const { service, jwtService } = makeDeps({
+      config: { JWT_SECRET: 'unit-secret' },
+    });
     jwtService.verifyAsync.mockRejectedValueOnce(new Error('bad sig'));
 
     await expect(service.refreshAccessToken('garbage')).rejects.toBeInstanceOf(
@@ -223,7 +236,9 @@ describe('AuthService.refreshAccessToken', () => {
   });
 
   it('throws Unauthorized when the token type is not "refresh"', async () => {
-    const { service, jwtService } = makeDeps({ config: { JWT_SECRET: 'unit-secret' } });
+    const { service, jwtService } = makeDeps({
+      config: { JWT_SECRET: 'unit-secret' },
+    });
     jwtService.verifyAsync.mockResolvedValueOnce({ sub: 'u1', type: 'access' });
 
     await expect(service.refreshAccessToken('tok')).rejects.toBeInstanceOf(
@@ -232,8 +247,13 @@ describe('AuthService.refreshAccessToken', () => {
   });
 
   it('throws Unauthorized when the stored hash is missing or mismatched (revoked)', async () => {
-    const { service, jwtService } = makeDeps({ config: { JWT_SECRET: 'unit-secret' } });
-    jwtService.verifyAsync.mockResolvedValueOnce({ sub: 'u1', type: 'refresh' });
+    const { service, jwtService } = makeDeps({
+      config: { JWT_SECRET: 'unit-secret' },
+    });
+    jwtService.verifyAsync.mockResolvedValueOnce({
+      sub: 'u1',
+      type: 'refresh',
+    });
     // redisStore has no refresh:u1 entry → revoked.
 
     await expect(service.refreshAccessToken('tok')).rejects.toBeInstanceOf(
@@ -245,7 +265,10 @@ describe('AuthService.refreshAccessToken', () => {
     const { service, jwtService, redisStore } = makeDeps({
       config: { JWT_SECRET: 'unit-secret' },
     });
-    jwtService.verifyAsync.mockResolvedValueOnce({ sub: 'u-gone', type: 'refresh' });
+    jwtService.verifyAsync.mockResolvedValueOnce({
+      sub: 'u-gone',
+      type: 'refresh',
+    });
     const hash = crypto.createHash('sha256').update('tok').digest('hex');
     redisStore.set('refresh:u-gone', hash);
     // usersRepository.findOne returns null (no user configured).
@@ -256,12 +279,19 @@ describe('AuthService.refreshAccessToken', () => {
   });
 
   it('mints a fresh access token on the happy path', async () => {
-    const user = { id: 'u-ok', phoneNumber: '+919000000010', role: UserRole.CUSTOMER };
+    const user = {
+      id: 'u-ok',
+      phoneNumber: '+919000000010',
+      role: UserRole.CUSTOMER,
+    };
     const { service, jwtService, redisStore } = makeDeps({
       user,
       config: { JWT_SECRET: 'unit-secret' },
     });
-    jwtService.verifyAsync.mockResolvedValueOnce({ sub: 'u-ok', type: 'refresh' });
+    jwtService.verifyAsync.mockResolvedValueOnce({
+      sub: 'u-ok',
+      type: 'refresh',
+    });
     const hash = crypto.createHash('sha256').update('tok').digest('hex');
     redisStore.set('refresh:u-ok', hash);
 
@@ -275,7 +305,9 @@ describe('AuthService.refreshAccessToken', () => {
 describe('AuthService.getProfile', () => {
   it('throws NotFound when the user is absent', async () => {
     const { service } = makeDeps();
-    await expect(service.getProfile('missing')).rejects.toBeInstanceOf(NotFoundException);
+    await expect(service.getProfile('missing')).rejects.toBeInstanceOf(
+      NotFoundException,
+    );
   });
 
   it('maps the entity to the API shape with null/empty defaults', async () => {
@@ -328,9 +360,9 @@ describe('AuthService.getProfile', () => {
 describe('AuthService.updatePushToken', () => {
   it('throws NotFound when the user is absent', async () => {
     const { service } = makeDeps();
-    await expect(service.updatePushToken('missing', 'fcm-tok')).rejects.toBeInstanceOf(
-      NotFoundException,
-    );
+    await expect(
+      service.updatePushToken('missing', 'fcm-tok'),
+    ).rejects.toBeInstanceOf(NotFoundException);
   });
 
   it('persists the FCM token on the user and caches it in Redis', async () => {
@@ -341,7 +373,10 @@ describe('AuthService.updatePushToken', () => {
 
     expect(user.fcmToken).toBe('fcm-tok-123');
     expect(saved).toContain(user);
-    expect(redisService.cacheFcmToken).toHaveBeenCalledWith('u-fcm', 'fcm-tok-123');
+    expect(redisService.cacheFcmToken).toHaveBeenCalledWith(
+      'u-fcm',
+      'fcm-tok-123',
+    );
     expect(result.message).toBe('Push token updated');
   });
 });

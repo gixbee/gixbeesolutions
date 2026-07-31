@@ -30,13 +30,14 @@ export class NotificationsService implements OnModuleInit {
       if (keyFilePath || googleAppCreds) {
         const filePath = keyFilePath || googleAppCreds;
         try {
-          // eslint-disable-next-line @typescript-eslint/no-var-requires
           const serviceAccount = require(filePath!);
           admin.initializeApp({
             credential: admin.credential.cert(serviceAccount),
           });
           initialized = true;
-          this.logger.log(`Firebase Admin SDK initialized from JSON file: ${filePath}`);
+          this.logger.log(
+            `Firebase Admin SDK initialized from JSON file: ${filePath}`,
+          );
         } catch (e) {
           // PROD TRAP: the key file is gitignored, so on a fresh server it
           // doesn't exist — and Docker turns a MISSING bind-mount source
@@ -56,7 +57,9 @@ export class NotificationsService implements OnModuleInit {
       if (!initialized) {
         // Strategy 2: Fall back to individual .env variables
         const projectId = this.configService.get<string>('FIREBASE_PROJECT_ID');
-        const clientEmail = this.configService.get<string>('FIREBASE_CLIENT_EMAIL');
+        const clientEmail = this.configService.get<string>(
+          'FIREBASE_CLIENT_EMAIL',
+        );
         const privateKey = this.configService
           .get<string>('FIREBASE_PRIVATE_KEY')
           ?.replace(/\\n/g, '\n');
@@ -71,7 +74,11 @@ export class NotificationsService implements OnModuleInit {
 
         try {
           admin.initializeApp({
-            credential: admin.credential.cert({ projectId, clientEmail, privateKey }),
+            credential: admin.credential.cert({
+              projectId,
+              clientEmail,
+              privateKey,
+            }),
           });
           this.logger.log('Firebase Admin SDK initialized from .env variables');
         } catch (e) {
@@ -193,7 +200,7 @@ export class NotificationsService implements OnModuleInit {
   ): Promise<boolean> {
     // 1. Fast path — Redis cache (avoids DB query per notification)
     const cachedToken = await this.redisService
-      .getCachedFcmToken(userId)   // ← matches redis.service.ts method name
+      .getCachedFcmToken(userId) // ← matches redis.service.ts method name
       .catch(() => null);
 
     if (cachedToken) {
@@ -211,7 +218,9 @@ export class NotificationsService implements OnModuleInit {
     }
 
     // 3. Re-populate Redis for next time
-    await this.redisService.cacheFcmToken(userId, user.fcmToken).catch(() => {});
+    await this.redisService
+      .cacheFcmToken(userId, user.fcmToken)
+      .catch(() => {});
 
     return this.sendToDevice({ fcmToken: user.fcmToken, ...payload });
   }
@@ -227,7 +236,9 @@ export class NotificationsService implements OnModuleInit {
       const cachedToken = await this.redisService.getCachedFcmToken(userId);
       if (cachedToken) {
         fcmToken = cachedToken;
-        steps.push(`✅ Redis: token found (${cachedToken.substring(0, 20)}...)`);
+        steps.push(
+          `✅ Redis: token found (${cachedToken.substring(0, 20)}...)`,
+        );
       } else {
         steps.push('⚠️ Redis: no cached token');
       }
@@ -238,38 +249,55 @@ export class NotificationsService implements OnModuleInit {
     // Step 2: Check DB
     if (!fcmToken) {
       try {
-        const user = await this.usersRepository.findOne({ where: { id: userId } });
+        const user = await this.usersRepository.findOne({
+          where: { id: userId },
+        });
         if (!user) {
           steps.push('❌ DB: user not found');
-          return { success: false, userId, steps, message: 'User not found in database' };
+          return {
+            success: false,
+            userId,
+            steps,
+            message: 'User not found in database',
+          };
         }
         if (user.fcmToken) {
           fcmToken = user.fcmToken;
-          steps.push(`✅ DB: token found (${user.fcmToken.substring(0, 20)}...)`);
+          steps.push(
+            `✅ DB: token found (${user.fcmToken.substring(0, 20)}...)`,
+          );
           // Re-cache
-          await this.redisService.cacheFcmToken(userId, user.fcmToken).catch(() => {});
+          await this.redisService
+            .cacheFcmToken(userId, user.fcmToken)
+            .catch(() => {});
         } else {
           steps.push('❌ DB: user.fcmToken is NULL — device never registered');
           return {
             success: false,
             userId,
             steps,
-            message: 'No FCM token saved for this user. The app needs to call PATCH /auth/fcm-token after login.',
+            message:
+              'No FCM token saved for this user. The app needs to call PATCH /auth/fcm-token after login.',
           };
         }
       } catch (e) {
         steps.push(`❌ DB error: ${e}`);
-        return { success: false, userId, steps, message: `DB lookup failed: ${e}` };
+        return {
+          success: false,
+          userId,
+          steps,
+          message: `DB lookup failed: ${e}`,
+        };
       }
     }
 
     // Step 3: Send push directly (with full error capture)
     steps.push('📤 Sending test push via Firebase Admin SDK...');
-    steps.push(`📋 Token length: ${fcmToken!.length} chars`);
+    steps.push(`📋 Token length: ${fcmToken.length} chars`);
 
     try {
       const messageId = await this.messaging!.send({
-        token: fcmToken!,
+        token: fcmToken,
         notification: {
           title: '🔔 FCM Test',
           body: 'If you see this, push notifications are working!',
@@ -327,7 +355,7 @@ export class NotificationsService implements OnModuleInit {
       .andWhere('user.fcmToken IS NOT NULL')
       .getMany();
 
-    const tokens = users.map((u) => u.fcmToken).filter(Boolean) as string[];
+    const tokens = users.map((u) => u.fcmToken).filter(Boolean);
     if (tokens.length === 0) return;
 
     try {
@@ -350,7 +378,11 @@ export class NotificationsService implements OnModuleInit {
         },
         apns: {
           payload: {
-            aps: { sound: 'gixbee_alert.wav', badge: 1, contentAvailable: true },
+            aps: {
+              sound: 'gixbee_alert.wav',
+              badge: 1,
+              contentAvailable: true,
+            },
           },
           headers: { 'apns-priority': '10' },
         },
@@ -394,7 +426,11 @@ export class NotificationsService implements OnModuleInit {
 
   // ── Booking notification helpers ──────────────────────────────────────────
 
-  async notifyWorkerNewBooking(workerId: string, bookingId: string, skill: string) {
+  async notifyWorkerNewBooking(
+    workerId: string,
+    bookingId: string,
+    skill: string,
+  ) {
     return this.sendToUser(workerId, {
       title: 'New Job Request',
       body: `A customer needs ${skill} help nearby.`,

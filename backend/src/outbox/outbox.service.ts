@@ -104,7 +104,10 @@ export class OutboxService {
    * Record a failure for an event that was already claimed (attempts was
    * incremented by `claim`, so this only sets the error / terminal status).
    */
-  async recordFailureAfterClaim(id: string, errorMessage: string): Promise<void> {
+  async recordFailureAfterClaim(
+    id: string,
+    errorMessage: string,
+  ): Promise<void> {
     const row = await this.outboxRepo.findOne({ where: { id } });
     if (!row) return;
     const attempts = row.attempts ?? 0;

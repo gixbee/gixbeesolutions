@@ -48,7 +48,8 @@ export class ApiLoggingInterceptor implements NestInterceptor {
     const url = req.originalUrl || req.url || '';
     const pathOnly = url.split('?')[0];
     if (SKIP_PREFIXES.some((p) => pathOnly.startsWith(p))) return next.handle();
-    if (req.method === 'GET' && SKIP_EXACT_GET.has(pathOnly)) return next.handle();
+    if (req.method === 'GET' && SKIP_EXACT_GET.has(pathOnly))
+      return next.handle();
 
     const started = Date.now();
     const method = req.method;
@@ -89,14 +90,15 @@ export class ApiLoggingInterceptor implements NestInterceptor {
             typeof res === 'string'
               ? res
               : Array.isArray((res as { message?: unknown }).message)
-                ? ((res as { message: string[] }).message).join('; ')
+                ? (res as { message: string[] }).message.join('; ')
                 : String((res as { message?: unknown }).message ?? err.message);
           if (statusCode >= 500) detail = err.stack ?? null;
         } else if (err instanceof QueryFailedError) {
           type = SystemLogType.DB;
           message = err.message;
-          const drv = (err as { driverError?: { code?: string; detail?: string } })
-            .driverError;
+          const drv = (
+            err as { driverError?: { code?: string; detail?: string } }
+          ).driverError;
           detail = [
             drv?.code ? `SQLSTATE ${drv.code}` : null,
             drv?.detail ?? null,
@@ -112,8 +114,7 @@ export class ApiLoggingInterceptor implements NestInterceptor {
         }
 
         this.logs.record({
-          level:
-            statusCode >= 500 ? SystemLogLevel.ERROR : SystemLogLevel.WARN,
+          level: statusCode >= 500 ? SystemLogLevel.ERROR : SystemLogLevel.WARN,
           type,
           method,
           path: url,

@@ -191,9 +191,9 @@ class _JobPackScreenState extends ConsumerState<JobPackScreen> {
             Container(
               padding: const EdgeInsets.all(24),
               decoration: BoxDecoration(
-                color: context.gx.accent.withOpacity(0.1),
+                color: context.gx.accent.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: context.gx.accent.withOpacity(0.2)),
+                border: Border.all(color: context.gx.accent.withValues(alpha: 0.2)),
               ),
               child: Column(
                 children: [
@@ -210,7 +210,7 @@ class _JobPackScreenState extends ConsumerState<JobPackScreen> {
                     'Credits Remaining',
                     style: TextStyle(
                       fontSize: 16,
-                      color: context.gx.ink.withOpacity(0.7),
+                      color: context.gx.ink.withValues(alpha: 0.7),
                     ),
                   ),
                 ],
@@ -228,7 +228,7 @@ class _JobPackScreenState extends ConsumerState<JobPackScreen> {
                 color: context.gx.card,
                 borderRadius: BorderRadius.circular(12),
                 boxShadow: [
-                  BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 4)),
+                  BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 10, offset: const Offset(0, 4)),
                 ],
               ),
               child: Row(
@@ -264,7 +264,7 @@ class _JobPackScreenState extends ConsumerState<JobPackScreen> {
               'One job credit is consumed automatically when you accept a booking. If the customer cancels, your credit is refunded.',
               style: TextStyle(
                 fontSize: 14,
-                color: context.gx.ink.withOpacity(0.6),
+                color: context.gx.ink.withValues(alpha: 0.6),
                 height: 1.4,
               ),
               textAlign: TextAlign.center,

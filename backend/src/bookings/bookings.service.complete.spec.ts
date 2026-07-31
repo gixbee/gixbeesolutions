@@ -160,7 +160,11 @@ describe('BookingsService.verifyCompletionOtp', () => {
   });
 
   it('skips wallet settlement for INSTANT jobs (manual cash/UPI confirm)', async () => {
-    const booking = { ...baseBooking(), type: 'INSTANT', paymentMethod: 'WALLET' };
+    const booking = {
+      ...baseBooking(),
+      type: 'INSTANT',
+      paymentMethod: 'WALLET',
+    };
     const { service, walletsService } = makeService(booking);
 
     const res = await service.verifyCompletionOtp('b1', '1234');

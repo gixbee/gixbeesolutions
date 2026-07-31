@@ -1,4 +1,10 @@
-import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn } from 'typeorm';
+import {
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  CreateDateColumn,
+  UpdateDateColumn,
+} from 'typeorm';
 
 export enum MasterEntryType {
   CATEGORY = 'CATEGORY',
@@ -8,7 +14,7 @@ export enum MasterEntryType {
   BANNER = 'BANNER',
   DEAL = 'DEAL',
   PRO_TRADE = 'PRO_TRADE',
-  PRO_SUB_SKILL = 'PRO_SUB_SKILL'
+  PRO_SUB_SKILL = 'PRO_SUB_SKILL',
 }
 
 @Entity('master_entries')

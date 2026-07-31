@@ -94,7 +94,7 @@ export class OutboxDispatcher implements OnModuleInit {
       return 'processed';
     } catch (e) {
       const msg = (e as Error)?.message ?? String(e);
-      const stack = e instanceof Error ? e.stack ?? null : null;
+      const stack = e instanceof Error ? (e.stack ?? null) : null;
       this.logger.error(`Outbox dispatch ${eventId} failed: ${msg}`);
       await this.outboxService.recordFailureAfterClaim(eventId, msg);
 
@@ -108,7 +108,7 @@ export class OutboxDispatcher implements OnModuleInit {
         path: `outbox://${event.type}`,
         message: terminal
           ? `Outbox FAILED after ${after?.attempts ?? '?'} attempts: ${event.type} (${eventId.slice(0, 8)}…)`
-          : `Outbox dispatch failed: ${event.type} (${eventId.slice(0, 8)}…) attempt ${(after?.attempts ?? 0)}`,
+          : `Outbox dispatch failed: ${event.type} (${eventId.slice(0, 8)}…) attempt ${after?.attempts ?? 0}`,
         detail: [
           `eventId=${eventId}`,
           `aggregateId=${event.aggregateId}`,

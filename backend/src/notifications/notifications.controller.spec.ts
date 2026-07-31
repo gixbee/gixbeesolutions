@@ -52,7 +52,10 @@ describe('NotificationsController.sendTestNotification', () => {
       body: 'body text',
       data: { k: 'v' },
     });
-    expect(res).toEqual({ success: true, message: 'Notification sent successfully' });
+    expect(res).toEqual({
+      success: true,
+      message: 'Notification sent successfully',
+    });
   });
 
   it('applies default title/body when they are omitted', async () => {

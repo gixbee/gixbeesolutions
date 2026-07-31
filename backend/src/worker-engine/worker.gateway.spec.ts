@@ -57,7 +57,9 @@ describe('WorkerGateway', () => {
     it('reads the client id without throwing on connect', () => {
       const { gateway } = makeGateway();
       const client = makeClient('abc');
-      const spy = jest.spyOn(console, 'log').mockImplementation(() => undefined);
+      const spy = jest
+        .spyOn(console, 'log')
+        .mockImplementation(() => undefined);
       expect(() => gateway.handleConnection(client)).not.toThrow();
       expect(spy).toHaveBeenCalledWith('Client connected: abc');
       spy.mockRestore();
@@ -66,7 +68,9 @@ describe('WorkerGateway', () => {
     it('reads the client id without throwing on disconnect', () => {
       const { gateway } = makeGateway();
       const client = makeClient('xyz');
-      const spy = jest.spyOn(console, 'log').mockImplementation(() => undefined);
+      const spy = jest
+        .spyOn(console, 'log')
+        .mockImplementation(() => undefined);
       expect(() => gateway.handleDisconnect(client)).not.toThrow();
       expect(spy).toHaveBeenCalledWith('Client disconnected: xyz');
       spy.mockRestore();
@@ -146,7 +150,7 @@ describe('WorkerGateway', () => {
   describe('handleLeaveJobRoom', () => {
     it('leaves the namespaced job room', () => {
       const { gateway } = makeGateway();
-      const client = { ...makeClient(), leave: jest.fn() } as any;
+      const client = { ...makeClient(), leave: jest.fn() };
       const ack = gateway.handleLeaveJobRoom({ jobId: 'j9' }, client);
       expect(client.leave).toHaveBeenCalledWith('job_j9');
       expect(ack).toEqual({ event: 'left', data: 'Left room job_j9' });

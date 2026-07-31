@@ -12,11 +12,18 @@ import { BadRequestException } from '@nestjs/common';
 
 function makeController() {
   const service: any = {
-    create: jest.fn(async (ownerId: string, data: any) => ({ id: 'b1', ownerId, ...data })),
+    create: jest.fn(async (ownerId: string, data: any) => ({
+      id: 'b1',
+      ownerId,
+      ...data,
+    })),
     getMyBusinesses: jest.fn(async () => [{ id: 'b1' }, { id: 'b2' }]),
     getById: jest.fn(async () => ({ id: 'b1' })),
     addOperator: jest.fn(async () => ({ id: 'b1', operators: ['u9'] })),
-    addOfflineDay: jest.fn(async () => ({ id: 'b1', offlineDays: ['2026-07-01'] })),
+    addOfflineDay: jest.fn(async () => ({
+      id: 'b1',
+      offlineDays: ['2026-07-01'],
+    })),
     removeOfflineDay: jest.fn(async () => ({ id: 'b1', offlineDays: [] })),
   };
   const controller = new BusinessesController(service);
@@ -36,7 +43,9 @@ describe('BusinessesController.create', () => {
 describe('BusinessesController.getMyBusinesses', () => {
   it('scopes the list to the authenticated owner', async () => {
     const { controller, service } = makeController();
-    const res = await controller.getMyBusinesses({ user: { userId: 'owner-7' } });
+    const res = await controller.getMyBusinesses({
+      user: { userId: 'owner-7' },
+    });
     expect(service.getMyBusinesses).toHaveBeenCalledWith('owner-7');
     expect(res).toEqual([{ id: 'b1' }, { id: 'b2' }]);
   });
@@ -60,7 +69,9 @@ describe('BusinessesController.addOperator', () => {
 
   it('throws BadRequest and never calls the service when userId is missing', async () => {
     const { controller, service } = makeController();
-    await expect(controller.addOperator('b-42', { userId: '' } as any)).rejects.toThrow(BadRequestException);
+    await expect(
+      controller.addOperator('b-42', { userId: '' } as any),
+    ).rejects.toThrow(BadRequestException);
     expect(service.addOperator).not.toHaveBeenCalled();
   });
 });
@@ -74,7 +85,9 @@ describe('BusinessesController.addOfflineDay', () => {
 
   it('throws BadRequest and never calls the service when date is missing', async () => {
     const { controller, service } = makeController();
-    await expect(controller.addOfflineDay('b-42', { date: '' } as any)).rejects.toThrow(BadRequestException);
+    await expect(
+      controller.addOfflineDay('b-42', { date: '' } as any),
+    ).rejects.toThrow(BadRequestException);
     expect(service.addOfflineDay).not.toHaveBeenCalled();
   });
 });
@@ -89,7 +102,9 @@ describe('BusinessesController.removeOfflineDay', () => {
 
   it('throws BadRequest and never calls the service when date is missing', async () => {
     const { controller, service } = makeController();
-    await expect(controller.removeOfflineDay('b-42', '' as any)).rejects.toThrow(BadRequestException);
+    await expect(
+      controller.removeOfflineDay('b-42', '' as any),
+    ).rejects.toThrow(BadRequestException);
     expect(service.removeOfflineDay).not.toHaveBeenCalled();
   });
 });

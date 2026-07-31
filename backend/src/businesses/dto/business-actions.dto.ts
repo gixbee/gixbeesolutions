@@ -1,4 +1,10 @@
-import { IsString, IsNotEmpty, IsOptional, IsDateString, IsIn } from 'class-validator';
+import {
+  IsString,
+  IsNotEmpty,
+  IsOptional,
+  IsDateString,
+  IsIn,
+} from 'class-validator';
 
 // DTOs for the two single-field business write endpoints. Previously these used
 // `@Body('userId')` / `@Body('date')` primitive extraction, which the global

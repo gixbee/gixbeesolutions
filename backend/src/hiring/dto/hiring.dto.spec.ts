@@ -1,5 +1,9 @@
 import { ValidationPipe, BadRequestException } from '@nestjs/common';
-import { CreateJobPostDto, ApplyForJobDto, UpdateApplicationStatusDto } from './hiring.dto';
+import {
+  CreateJobPostDto,
+  ApplyForJobDto,
+  UpdateApplicationStatusDto,
+} from './hiring.dto';
 import { ApplicationStatus } from '../job-application.entity';
 
 // Exercises the REAL global ValidationPipe (same options as main.ts) against the
@@ -54,7 +58,7 @@ describe('CreateJobPostDto validation', () => {
       description: 'General help.',
       isFeatured: true,
     });
-    expect((out as any).isFeatured).toBeUndefined();
+    expect(out.isFeatured).toBeUndefined();
   });
 
   it('rejects a missing title', async () => {
@@ -104,15 +108,19 @@ describe('ApplyForJobDto validation', () => {
   });
 
   it('rejects a non-string coverLetter', async () => {
-    await expect(
-      transform({ coverLetter: 42 }),
-    ).rejects.toBeInstanceOf(BadRequestException);
+    await expect(transform({ coverLetter: 42 })).rejects.toBeInstanceOf(
+      BadRequestException,
+    );
   });
 });
 
 describe('UpdateApplicationStatusDto validation', () => {
   const pipe = new ValidationPipe({ whitelist: true, transform: true });
-  const meta = { type: 'body', metatype: UpdateApplicationStatusDto, data: '' } as any;
+  const meta = {
+    type: 'body',
+    metatype: UpdateApplicationStatusDto,
+    data: '',
+  } as any;
   const transform = (body: any) => pipe.transform(body, meta);
 
   it('accepts the uppercase status the client sends', async () => {
@@ -122,7 +130,9 @@ describe('UpdateApplicationStatusDto validation', () => {
   });
 
   it('rejects a value outside the enum', async () => {
-    await expect(transform({ status: 'NOPE' })).rejects.toBeInstanceOf(BadRequestException);
+    await expect(transform({ status: 'NOPE' })).rejects.toBeInstanceOf(
+      BadRequestException,
+    );
   });
 
   it('rejects a missing status', async () => {
@@ -130,7 +140,10 @@ describe('UpdateApplicationStatusDto validation', () => {
   });
 
   it('strips unknown fields (whitelist)', async () => {
-    const out = await transform({ status: ApplicationStatus.SELECTED, hacker: 1 });
-    expect((out as any).hacker).toBeUndefined();
+    const out = await transform({
+      status: ApplicationStatus.SELECTED,
+      hacker: 1,
+    });
+    expect(out.hacker).toBeUndefined();
   });
 });

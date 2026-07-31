@@ -1,4 +1,8 @@
-import { Injectable, UnauthorizedException, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  UnauthorizedException,
+  NotFoundException,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -80,10 +84,10 @@ export class AuthService {
     if (!user) {
       user = this.usersRepository.create({
         phoneNumber,
-        name: '',                   // collected in RegistrationScreen after OTP
-        role: UserRole.CUSTOMER,    // default to CUSTOMER — workers register via /register-pro
+        name: '', // collected in RegistrationScreen after OTP
+        role: UserRole.CUSTOMER, // default to CUSTOMER — workers register via /register-pro
         isVerified: true,
-        walletBalance: 0,           // no free credits — prevents wallet exploit
+        walletBalance: 0, // no free credits — prevents wallet exploit
       });
       user = await this.usersRepository.save(user);
     }
@@ -93,7 +97,9 @@ export class AuthService {
 
   // ── Token Pair Generation ──────────────────────────────────────────────────
 
-  private async generateTokenPair(user: User): Promise<{ accessToken: string; refreshToken: string }> {
+  private async generateTokenPair(
+    user: User,
+  ): Promise<{ accessToken: string; refreshToken: string }> {
     const payload = {
       sub: user.id,
       phoneNumber: user.phoneNumber,
@@ -104,27 +110,42 @@ export class AuthService {
     const accessToken = await this.jwtService.signAsync(payload);
 
     // Refresh token: long-lived (30d), signed with a different secret suffix
-    const refreshSecret = (this.configService.get<string>('JWT_SECRET') ?? 'fallback-secret') + '-refresh';
+    const refreshSecret =
+      (this.configService.get<string>('JWT_SECRET') ?? 'fallback-secret') +
+      '-refresh';
     const refreshToken = await this.jwtService.signAsync(
       { sub: user.id, type: 'refresh' },
       { secret: refreshSecret, expiresIn: '30d' },
     );
 
     // Store refresh token hash in Redis (30-day TTL)
-    const tokenHash = crypto.createHash('sha256').update(refreshToken).digest('hex');
-    await this.redisService.set(`refresh:${user.id}`, tokenHash, 30 * 24 * 60 * 60);
+    const tokenHash = crypto
+      .createHash('sha256')
+      .update(refreshToken)
+      .digest('hex');
+    await this.redisService.set(
+      `refresh:${user.id}`,
+      tokenHash,
+      30 * 24 * 60 * 60,
+    );
 
     return { accessToken, refreshToken };
   }
 
   // ── Refresh Access Token ──────────────────────────────────────────────────
 
-  async refreshAccessToken(refreshToken: string): Promise<{ accessToken: string }> {
-    const refreshSecret = (this.configService.get<string>('JWT_SECRET') ?? 'fallback-secret') + '-refresh';
+  async refreshAccessToken(
+    refreshToken: string,
+  ): Promise<{ accessToken: string }> {
+    const refreshSecret =
+      (this.configService.get<string>('JWT_SECRET') ?? 'fallback-secret') +
+      '-refresh';
 
     let payload: any;
     try {
-      payload = await this.jwtService.verifyAsync(refreshToken, { secret: refreshSecret });
+      payload = await this.jwtService.verifyAsync(refreshToken, {
+        secret: refreshSecret,
+      });
     } catch {
       throw new UnauthorizedException('Invalid or expired refresh token');
     }
@@ -134,7 +155,10 @@ export class AuthService {
     }
 
     // Verify the token hash matches what's stored in Redis
-    const tokenHash = crypto.createHash('sha256').update(refreshToken).digest('hex');
+    const tokenHash = crypto
+      .createHash('sha256')
+      .update(refreshToken)
+      .digest('hex');
     const storedHash = await this.redisService.get(`refresh:${payload.sub}`);
 
     if (!storedHash || storedHash !== tokenHash) {
@@ -142,7 +166,9 @@ export class AuthService {
     }
 
     // Issue new access token
-    const user = await this.usersRepository.findOne({ where: { id: payload.sub } });
+    const user = await this.usersRepository.findOne({
+      where: { id: payload.sub },
+    });
     if (!user) throw new UnauthorizedException('User not found');
 
     const accessPayload = {

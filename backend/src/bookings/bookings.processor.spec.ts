@@ -37,9 +37,15 @@ function makeProcessor() {
     bookingsQueue,
   );
   // silence the Logger so test output stays clean
-  jest.spyOn((processor as any).logger, 'log').mockImplementation(() => undefined);
-  jest.spyOn((processor as any).logger, 'warn').mockImplementation(() => undefined);
-  jest.spyOn((processor as any).logger, 'debug').mockImplementation(() => undefined);
+  jest
+    .spyOn((processor as any).logger, 'log')
+    .mockImplementation(() => undefined);
+  jest
+    .spyOn((processor as any).logger, 'warn')
+    .mockImplementation(() => undefined);
+  jest
+    .spyOn((processor as any).logger, 'debug')
+    .mockImplementation(() => undefined);
 
   return {
     processor,
@@ -50,13 +56,14 @@ function makeProcessor() {
   };
 }
 
-const job = (bookingId: any) => ({ data: { bookingId } } as any);
+const job = (bookingId: any) => ({ data: { bookingId } }) as any;
 
 describe('BookingsProcessor', () => {
   // ---- handleSevenMinuteReminder --------------------------------------
   describe('handleSevenMinuteReminder', () => {
     it('returns undefined and notifies no one when the booking is missing', async () => {
-      const { processor, bookingsService, notificationsService } = makeProcessor();
+      const { processor, bookingsService, notificationsService } =
+        makeProcessor();
       bookingsService.getBookingById.mockResolvedValueOnce(null);
 
       const res = await processor.handleSevenMinuteReminder(job('b1'));
@@ -66,7 +73,8 @@ describe('BookingsProcessor', () => {
     });
 
     it('skips (no notify) when the booking is no longer ACCEPTED', async () => {
-      const { processor, bookingsService, notificationsService } = makeProcessor();
+      const { processor, bookingsService, notificationsService } =
+        makeProcessor();
       bookingsService.getBookingById.mockResolvedValueOnce({
         status: BookingStatus.ACTIVE,
         operator: { id: 'op1' },
@@ -79,7 +87,8 @@ describe('BookingsProcessor', () => {
     });
 
     it('notifies the operator and returns "Reminder Sent" when ACCEPTED', async () => {
-      const { processor, bookingsService, notificationsService } = makeProcessor();
+      const { processor, bookingsService, notificationsService } =
+        makeProcessor();
       bookingsService.getBookingById.mockResolvedValueOnce({
         status: BookingStatus.ACCEPTED,
         operator: { id: 'op1' },
@@ -95,7 +104,8 @@ describe('BookingsProcessor', () => {
     });
 
     it('still returns "Reminder Sent" but skips notify when no operator is assigned', async () => {
-      const { processor, bookingsService, notificationsService } = makeProcessor();
+      const { processor, bookingsService, notificationsService } =
+        makeProcessor();
       bookingsService.getBookingById.mockResolvedValueOnce({
         status: BookingStatus.ACCEPTED,
         operator: null,
@@ -156,7 +166,10 @@ describe('BookingsProcessor', () => {
         serviceLat: 12.9,
         serviceLng: 77.6,
       });
-      redisService.getWorkerLocation.mockResolvedValueOnce({ lat: 12.91, lng: 77.61 });
+      redisService.getWorkerLocation.mockResolvedValueOnce({
+        lat: 12.91,
+        lng: 77.61,
+      });
       bookingsService.calculateDistance.mockReturnValueOnce(1.2);
 
       const res = await processor.handleTenMinuteGpsCheck(job('b1'));
@@ -166,7 +179,8 @@ describe('BookingsProcessor', () => {
     });
 
     it('issues a strike and reschedules a 3-minute recheck when no location is cached', async () => {
-      const { processor, bookingsService, redisService, bookingsQueue } = makeProcessor();
+      const { processor, bookingsService, redisService, bookingsQueue } =
+        makeProcessor();
       bookingsService.getBookingById.mockResolvedValueOnce({
         status: BookingStatus.ACCEPTED,
         operator: { id: 'op1' },
@@ -174,7 +188,10 @@ describe('BookingsProcessor', () => {
         serviceLng: 77.6,
       });
       redisService.getWorkerLocation.mockResolvedValueOnce(null);
-      bookingsService.addGpsStrike.mockResolvedValueOnce({ cancelled: false, strikes: 2 });
+      bookingsService.addGpsStrike.mockResolvedValueOnce({
+        cancelled: false,
+        strikes: 2,
+      });
 
       const res = await processor.handleTenMinuteGpsCheck(job('b1'));
 
@@ -185,30 +202,42 @@ describe('BookingsProcessor', () => {
         { bookingId: 'b1' },
         { delay: 3 * 60 * 1000 },
       );
-      expect(res).toEqual({ status: 'Strike 2 issued. Rescheduled check in 3m.' });
+      expect(res).toEqual({
+        status: 'Strike 2 issued. Rescheduled check in 3m.',
+      });
     });
 
     it('issues a strike when the worker is more than 5km away', async () => {
-      const { processor, bookingsService, redisService, bookingsQueue } = makeProcessor();
+      const { processor, bookingsService, redisService, bookingsQueue } =
+        makeProcessor();
       bookingsService.getBookingById.mockResolvedValueOnce({
         status: BookingStatus.ACCEPTED,
         operator: { id: 'op1' },
         serviceLat: 12.9,
         serviceLng: 77.6,
       });
-      redisService.getWorkerLocation.mockResolvedValueOnce({ lat: 13.5, lng: 78.2 });
+      redisService.getWorkerLocation.mockResolvedValueOnce({
+        lat: 13.5,
+        lng: 78.2,
+      });
       bookingsService.calculateDistance.mockReturnValueOnce(42.5);
-      bookingsService.addGpsStrike.mockResolvedValueOnce({ cancelled: false, strikes: 1 });
+      bookingsService.addGpsStrike.mockResolvedValueOnce({
+        cancelled: false,
+        strikes: 1,
+      });
 
       const res = await processor.handleTenMinuteGpsCheck(job('b1'));
 
       expect(bookingsService.addGpsStrike).toHaveBeenCalledWith('b1');
       expect(bookingsQueue.add).toHaveBeenCalledTimes(1);
-      expect(res).toEqual({ status: 'Strike 1 issued. Rescheduled check in 3m.' });
+      expect(res).toEqual({
+        status: 'Strike 1 issued. Rescheduled check in 3m.',
+      });
     });
 
     it('forfeits the booking (no reschedule) when the strike result is cancelled', async () => {
-      const { processor, bookingsService, redisService, bookingsQueue } = makeProcessor();
+      const { processor, bookingsService, redisService, bookingsQueue } =
+        makeProcessor();
       bookingsService.getBookingById.mockResolvedValueOnce({
         status: BookingStatus.ACCEPTED,
         operator: { id: 'op1' },
@@ -216,7 +245,10 @@ describe('BookingsProcessor', () => {
         serviceLng: 77.6,
       });
       redisService.getWorkerLocation.mockResolvedValueOnce(null);
-      bookingsService.addGpsStrike.mockResolvedValueOnce({ cancelled: true, strikes: 3 });
+      bookingsService.addGpsStrike.mockResolvedValueOnce({
+        cancelled: true,
+        strikes: 3,
+      });
 
       const res = await processor.handleTenMinuteGpsCheck(job('b1'));
 
@@ -225,7 +257,8 @@ describe('BookingsProcessor', () => {
     });
 
     it('forfeits when addGpsStrike returns null (no reschedule)', async () => {
-      const { processor, bookingsService, redisService, bookingsQueue } = makeProcessor();
+      const { processor, bookingsService, redisService, bookingsQueue } =
+        makeProcessor();
       bookingsService.getBookingById.mockResolvedValueOnce({
         status: BookingStatus.ACCEPTED,
         operator: { id: 'op1' },
@@ -255,7 +288,8 @@ describe('BookingsProcessor', () => {
     });
 
     it('skips cancellation when the booking is no longer REQUESTED', async () => {
-      const { processor, bookingsService, notificationsService } = makeProcessor();
+      const { processor, bookingsService, notificationsService } =
+        makeProcessor();
       bookingsService.getBookingById.mockResolvedValueOnce({
         status: BookingStatus.ACCEPTED,
         customer: { id: 'c1' },
@@ -269,7 +303,8 @@ describe('BookingsProcessor', () => {
     });
 
     it('auto-cancels via updateStatus when still REQUESTED (FCM via outbox)', async () => {
-      const { processor, bookingsService, notificationsService } = makeProcessor();
+      const { processor, bookingsService, notificationsService } =
+        makeProcessor();
       bookingsService.getBookingById.mockResolvedValueOnce({
         status: BookingStatus.REQUESTED,
         customer: { id: 'c1' },
@@ -277,14 +312,18 @@ describe('BookingsProcessor', () => {
 
       const res = await processor.handleRequestTimeout(job('b1'));
 
-      expect(bookingsService.updateStatus).toHaveBeenCalledWith('b1', BookingStatus.CANCELLED);
+      expect(bookingsService.updateStatus).toHaveBeenCalledWith(
+        'b1',
+        BookingStatus.CANCELLED,
+      );
       // Customer FCM is emitted by the BOOKING_CANCELLED outbox listener.
       expect(notificationsService.sendToUser).not.toHaveBeenCalled();
       expect(res).toEqual({ status: 'Cancelled - Timeout' });
     });
 
     it('auto-cancels when no customer id is present', async () => {
-      const { processor, bookingsService, notificationsService } = makeProcessor();
+      const { processor, bookingsService, notificationsService } =
+        makeProcessor();
       bookingsService.getBookingById.mockResolvedValueOnce({
         status: BookingStatus.REQUESTED,
         customer: null,
@@ -292,7 +331,10 @@ describe('BookingsProcessor', () => {
 
       const res = await processor.handleRequestTimeout(job('b1'));
 
-      expect(bookingsService.updateStatus).toHaveBeenCalledWith('b1', BookingStatus.CANCELLED);
+      expect(bookingsService.updateStatus).toHaveBeenCalledWith(
+        'b1',
+        BookingStatus.CANCELLED,
+      );
       expect(notificationsService.sendToUser).not.toHaveBeenCalled();
       expect(res).toEqual({ status: 'Cancelled - Timeout' });
     });

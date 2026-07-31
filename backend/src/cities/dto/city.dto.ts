@@ -1,4 +1,12 @@
-import { IsString, IsNotEmpty, IsOptional, IsBoolean, IsNumber, Min, Max } from 'class-validator';
+import {
+  IsString,
+  IsNotEmpty,
+  IsOptional,
+  IsBoolean,
+  IsNumber,
+  Min,
+  Max,
+} from 'class-validator';
 
 // DTOs for the admin-only cities write endpoints (POST / PATCH), guarded by
 // JwtAuthGuard + AdminGuard — same convention as master-entries. Field names

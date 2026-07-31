@@ -16,11 +16,11 @@ export class CreatePaymentOrders1753400000000 implements MigrationInterface {
         "updatedAt" TIMESTAMPTZ NOT NULL DEFAULT now()
       )
     `);
-    
+
     await queryRunner.query(`
       ALTER TABLE worker_profiles ADD COLUMN IF NOT EXISTS "jobsSincePayment" integer DEFAULT 0
     `);
-    
+
     await queryRunner.query(`
       CREATE INDEX IF NOT EXISTS "IDX_payment_orders_userId" ON payment_orders ("userId")
     `);
@@ -30,9 +30,13 @@ export class CreatePaymentOrders1753400000000 implements MigrationInterface {
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
-    await queryRunner.query(`DROP INDEX IF EXISTS "IDX_payment_orders_razorpayOrderId"`);
+    await queryRunner.query(
+      `DROP INDEX IF EXISTS "IDX_payment_orders_razorpayOrderId"`,
+    );
     await queryRunner.query(`DROP INDEX IF EXISTS "IDX_payment_orders_userId"`);
-    await queryRunner.query(`ALTER TABLE worker_profiles DROP COLUMN IF EXISTS "jobsSincePayment"`);
+    await queryRunner.query(
+      `ALTER TABLE worker_profiles DROP COLUMN IF EXISTS "jobsSincePayment"`,
+    );
     await queryRunner.query(`DROP TABLE IF EXISTS payment_orders`);
   }
 }

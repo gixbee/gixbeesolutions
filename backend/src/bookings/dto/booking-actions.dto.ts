@@ -1,4 +1,12 @@
-import { IsString, IsNotEmpty, IsOptional, IsEnum, IsInt, Min, Max } from 'class-validator';
+import {
+  IsString,
+  IsNotEmpty,
+  IsOptional,
+  IsEnum,
+  IsInt,
+  Min,
+  Max,
+} from 'class-validator';
 import { BookingStatus } from '../booking.entity';
 
 // Single-prop write bodies on BookingsController that were previously typed as

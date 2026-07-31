@@ -16,7 +16,9 @@ import { MasterEntryType } from './master-entry.entity';
  * The TypeORM repo + RedisService are mocked in-memory so each branch toggles
  * deterministically; no database or Redis is touched.
  */
-function makeService(opts: { entry?: any; cached?: string | null; keys?: string[] } = {}) {
+function makeService(
+  opts: { entry?: any; cached?: string | null; keys?: string[] } = {},
+) {
   const saved: any[] = [];
   const removed: any[] = [];
   let lastFindArgs: any = null;
@@ -46,14 +48,26 @@ function makeService(opts: { entry?: any; cached?: string | null; keys?: string[
   };
 
   const service = new MasterEntriesService(repo, redis);
-  return { service, repo, redis, saved, removed, getFindArgs: () => lastFindArgs };
+  return {
+    service,
+    repo,
+    redis,
+    saved,
+    removed,
+    getFindArgs: () => lastFindArgs,
+  };
 }
 
 describe('MasterEntriesService.create', () => {
   it('saves the entry and invalidates the cache', async () => {
-    const { service, saved, redis } = makeService({ keys: ['master_entries:CATEGORY:any'] });
+    const { service, saved, redis } = makeService({
+      keys: ['master_entries:CATEGORY:any'],
+    });
 
-    const result = await service.create({ label: 'Plumbing', value: 'plumbing' } as any);
+    const result = await service.create({
+      label: 'Plumbing',
+      value: 'plumbing',
+    } as any);
 
     expect(saved).toHaveLength(1);
     expect(result.label).toBe('Plumbing');
@@ -64,7 +78,9 @@ describe('MasterEntriesService.create', () => {
 describe('MasterEntriesService.findAll', () => {
   it('returns parsed JSON on a cache hit without querying the DB', async () => {
     const cachedEntries = [{ id: 'm1', label: 'Cached' }];
-    const { service, repo, redis } = makeService({ cached: JSON.stringify(cachedEntries) });
+    const { service, repo, redis } = makeService({
+      cached: JSON.stringify(cachedEntries),
+    });
 
     const result = await service.findAll();
 
@@ -75,7 +91,10 @@ describe('MasterEntriesService.findAll', () => {
 
   it('queries the DB on a miss and caches the result for 1 hour', async () => {
     const entry = { id: 'm1', label: 'Fresh' };
-    const { service, redis, getFindArgs } = makeService({ entry, cached: null });
+    const { service, redis, getFindArgs } = makeService({
+      entry,
+      cached: null,
+    });
 
     const result = await service.findAll();
 
@@ -90,7 +109,10 @@ describe('MasterEntriesService.findAll', () => {
   });
 
   it('builds the WHERE clause from type + isActive filters', async () => {
-    const { service, redis, getFindArgs } = makeService({ entry: null, cached: null });
+    const { service, redis, getFindArgs } = makeService({
+      entry: null,
+      cached: null,
+    });
 
     await service.findAll(MasterEntryType.SERVICE, false);
 
@@ -118,14 +140,19 @@ describe('MasterEntriesService.findOne', () => {
   it('throws NotFound for an unknown id', async () => {
     const { service } = makeService({ entry: null });
 
-    await expect(service.findOne('nope')).rejects.toBeInstanceOf(NotFoundException);
+    await expect(service.findOne('nope')).rejects.toBeInstanceOf(
+      NotFoundException,
+    );
   });
 });
 
 describe('MasterEntriesService.update', () => {
   it('merges the patch, saves, and invalidates the cache', async () => {
     const entry: any = { id: 'm1', label: 'Old', value: 'old' };
-    const { service, saved, redis } = makeService({ entry, keys: ['master_entries:all:any'] });
+    const { service, saved, redis } = makeService({
+      entry,
+      keys: ['master_entries:all:any'],
+    });
 
     const result = await service.update('m1', { label: 'New' });
 
@@ -147,7 +174,10 @@ describe('MasterEntriesService.update', () => {
 describe('MasterEntriesService.remove', () => {
   it('removes the resolved entry and invalidates the cache', async () => {
     const entry: any = { id: 'm1', label: 'Doomed' };
-    const { service, removed, redis } = makeService({ entry, keys: ['master_entries:all:any'] });
+    const { service, removed, redis } = makeService({
+      entry,
+      keys: ['master_entries:all:any'],
+    });
 
     await service.remove('m1');
 
@@ -159,7 +189,9 @@ describe('MasterEntriesService.remove', () => {
   it('throws NotFound when removing an unknown id', async () => {
     const { service, removed } = makeService({ entry: null });
 
-    await expect(service.remove('nope')).rejects.toBeInstanceOf(NotFoundException);
+    await expect(service.remove('nope')).rejects.toBeInstanceOf(
+      NotFoundException,
+    );
     expect(removed).toHaveLength(0);
   });
 });

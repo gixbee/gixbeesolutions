@@ -16,7 +16,15 @@ import { JobCredit } from '../billing/job-credit.entity';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([WorkerProfile, WorkerStrike, TalentProfile, ProfessionalSkill, Booking, User, JobCredit]),
+    TypeOrmModule.forFeature([
+      WorkerProfile,
+      WorkerStrike,
+      TalentProfile,
+      ProfessionalSkill,
+      Booking,
+      User,
+      JobCredit,
+    ]),
     WalletsModule,
     // Go-Live limits (daily cap, wallet floor) are admin-editable CONFIGURATION
     // master entries — see MasterEntriesService.getConfigNumber.

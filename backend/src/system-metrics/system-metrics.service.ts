@@ -105,7 +105,11 @@ export class SystemMetricsService implements OnModuleInit, OnModuleDestroy {
     for (const cpu of os.cpus()) {
       idle += cpu.times.idle;
       total +=
-        cpu.times.user + cpu.times.nice + cpu.times.sys + cpu.times.idle + cpu.times.irq;
+        cpu.times.user +
+        cpu.times.nice +
+        cpu.times.sys +
+        cpu.times.idle +
+        cpu.times.irq;
     }
     return { idle, total };
   }
@@ -117,14 +121,16 @@ export class SystemMetricsService implements OnModuleInit, OnModuleDestroy {
    */
   private async refreshDisk(): Promise<void> {
     try {
-      const statfs = (fsp as typeof fsp & {
-        statfs?: (path: string) => Promise<{
-          bsize: number | bigint;
-          blocks: number | bigint;
-          bavail: number | bigint;
-          bfree: number | bigint;
-        }>;
-      }).statfs;
+      const statfs = (
+        fsp as typeof fsp & {
+          statfs?: (path: string) => Promise<{
+            bsize: number | bigint;
+            blocks: number | bigint;
+            bavail: number | bigint;
+            bfree: number | bigint;
+          }>;
+        }
+      ).statfs;
       if (typeof statfs !== 'function') {
         this.lastDisk = { free: null, total: null, freePct: null };
         return;
@@ -149,7 +155,9 @@ export class SystemMetricsService implements OnModuleInit, OnModuleDestroy {
     const cpu = process.cpuUsage();
     const elapsedUs = Number(nowHr - this.lastHrtime) / 1_000;
     const usedUs =
-      cpu.user - this.lastCpuUsage.user + (cpu.system - this.lastCpuUsage.system);
+      cpu.user -
+      this.lastCpuUsage.user +
+      (cpu.system - this.lastCpuUsage.system);
     const cores = os.cpus().length || 1;
     const procCpu =
       elapsedUs > 0 ? Math.min(100, (usedUs / elapsedUs) * (100 / cores)) : 0;
@@ -336,16 +344,23 @@ export class SystemMetricsService implements OnModuleInit, OnModuleDestroy {
     this.sample();
     const latest = this.samples[this.samples.length - 1] ?? null;
 
-    const [postgresUp, redisUp, redisStats, outbox, bookingsQ, outboxQ, errors1m] =
-      await Promise.all([
-        this.pingPostgres(),
-        this.redis.ping(),
-        this.redis.getCacheStats(),
-        this.outboxCounts(),
-        this.queueDepth(this.bookingsQueue),
-        this.queueDepth(this.outboxQueue),
-        this.errorsLastMinute(),
-      ]);
+    const [
+      postgresUp,
+      redisUp,
+      redisStats,
+      outbox,
+      bookingsQ,
+      outboxQ,
+      errors1m,
+    ] = await Promise.all([
+      this.pingPostgres(),
+      this.redis.ping(),
+      this.redis.getCacheStats(),
+      this.outboxCounts(),
+      this.queueDepth(this.bookingsQueue),
+      this.queueDepth(this.outboxQueue),
+      this.errorsLastMinute(),
+    ]);
 
     const alerts = this.buildAlerts({
       latest,
@@ -367,10 +382,7 @@ export class SystemMetricsService implements OnModuleInit, OnModuleDestroy {
           message: `Redis evicted ${redisStats.evictedKeys} key(s) — eviction policy is not noeviction; Bull jobs at risk`,
         });
       }
-      if (
-        redisStats.usedMemoryPct !== null &&
-        redisStats.usedMemoryPct > 80
-      ) {
+      if (redisStats.usedMemoryPct !== null && redisStats.usedMemoryPct > 80) {
         alerts.push({
           severity: 'warning',
           code: 'redis_mem_high',

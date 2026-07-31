@@ -52,7 +52,9 @@ export class BookingLifecycleHandler {
         this.logger.debug(`No-op listener for ${event.type} (not wired yet)`);
         return;
       default:
-        this.logger.warn(`Unknown outbox type ${event.type} — marking processed`);
+        this.logger.warn(
+          `Unknown outbox type ${event.type} — marking processed`,
+        );
     }
   }
 
@@ -174,7 +176,9 @@ export class BookingLifecycleHandler {
     try {
       await this.redisService.removePendingBooking(p.workerId, p.bookingId);
     } catch (e) {
-      this.logger.error(`removePendingBooking failed: ${(e as Error)?.message}`);
+      this.logger.error(
+        `removePendingBooking failed: ${(e as Error)?.message}`,
+      );
     }
 
     try {
@@ -360,10 +364,14 @@ export class BookingLifecycleHandler {
     if (notified.length === 0) return;
     await Promise.all(
       notified.map((wid) =>
-        this.redisService.removePendingBooking(wid, bookingId).catch(() => undefined),
+        this.redisService
+          .removePendingBooking(wid, bookingId)
+          .catch(() => undefined),
       ),
     );
-    await this.redisService.del(`booking:notified:${bookingId}`).catch(() => undefined);
+    await this.redisService
+      .del(`booking:notified:${bookingId}`)
+      .catch(() => undefined);
   }
 
   /**
@@ -374,7 +382,9 @@ export class BookingLifecycleHandler {
     bookingId: string,
     payload: Record<string, any>,
   ): Promise<void> {
-    await this.redisService.cacheBookingStatus(bookingId, payload).catch(() => {});
+    await this.redisService
+      .cacheBookingStatus(bookingId, payload)
+      .catch(() => {});
 
     const status = String(payload.status || '').toUpperCase();
     if (payload.customerId) {

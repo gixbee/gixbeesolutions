@@ -74,7 +74,9 @@ describe('TalentController.addOrUpdateSkill', () => {
       'bio text',
       rateChart,
     );
-    expect(typeof talentService.addOrUpdateSkill.mock.calls[0][2]).toBe('number');
+    expect(typeof talentService.addOrUpdateSkill.mock.calls[0][2]).toBe(
+      'number',
+    );
   });
 });
 
@@ -99,7 +101,11 @@ describe('TalentController.getVerificationStatus', () => {
     const { controller, talentService } = makeController();
     const res = controller.getVerificationStatus();
     expect(talentService.getVerificationStatus).toHaveBeenCalled();
-    expect(res).toMatchObject({ provider: 'DIGILOCKER', needsApiKey: true, verified: false });
+    expect(res).toMatchObject({
+      provider: 'DIGILOCKER',
+      needsApiKey: true,
+      verified: false,
+    });
   });
 });
 

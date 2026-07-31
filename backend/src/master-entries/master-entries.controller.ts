@@ -1,9 +1,22 @@
-import { Controller, Get, Post, Patch, Delete, Param, Body, Query, UseGuards } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Patch,
+  Delete,
+  Param,
+  Body,
+  Query,
+  UseGuards,
+} from '@nestjs/common';
 import { MasterEntriesService } from './master-entries.service';
 import { MasterEntryType } from './master-entry.entity';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { AdminGuard } from '../auth/admin.guard';
-import { CreateMasterEntryDto, UpdateMasterEntryDto } from './dto/master-entry.dto';
+import {
+  CreateMasterEntryDto,
+  UpdateMasterEntryDto,
+} from './dto/master-entry.dto';
 
 // Read routes (findAll / findOne) stay PUBLIC — the consumer mobile app fetches
 // banners / deals / categories from GET /master-entries with no admin login.
@@ -27,7 +40,7 @@ export class MasterEntriesController {
     @Query('type') type?: MasterEntryType,
     @Query('isActive') isActive?: string,
     @Query('category') category?: string,
-    @Query('cityId') cityId?: string
+    @Query('cityId') cityId?: string,
   ) {
     let _isActive: boolean | undefined = undefined;
     if (isActive === 'true') _isActive = true;

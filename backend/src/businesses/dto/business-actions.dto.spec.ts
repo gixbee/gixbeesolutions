@@ -15,7 +15,10 @@ describe('business-actions DTOs under the real ValidationPipe', () => {
 
   describe('AddOperatorDto', () => {
     it('accepts the client { userId, role } body and keeps both fields', async () => {
-      const out = await pipe.transform({ userId: 'u9', role: 'MANAGER' }, operatorMeta);
+      const out = await pipe.transform(
+        { userId: 'u9', role: 'MANAGER' },
+        operatorMeta,
+      );
       expect(out).toEqual({ userId: 'u9', role: 'MANAGER' });
     });
 
@@ -25,20 +28,23 @@ describe('business-actions DTOs under the real ValidationPipe', () => {
     });
 
     it('strips unknown fields (whitelist)', async () => {
-      const out = await pipe.transform({ userId: 'u9', hacker: 1 }, operatorMeta);
+      const out = await pipe.transform(
+        { userId: 'u9', hacker: 1 },
+        operatorMeta,
+      );
       expect(out).toEqual({ userId: 'u9' });
     });
 
     it('rejects a missing userId', async () => {
-      await expect(pipe.transform({ role: 'MANAGER' }, operatorMeta)).rejects.toBeInstanceOf(
-        BadRequestException,
-      );
+      await expect(
+        pipe.transform({ role: 'MANAGER' }, operatorMeta),
+      ).rejects.toBeInstanceOf(BadRequestException);
     });
 
     it('rejects an empty userId', async () => {
-      await expect(pipe.transform({ userId: '' }, operatorMeta)).rejects.toBeInstanceOf(
-        BadRequestException,
-      );
+      await expect(
+        pipe.transform({ userId: '' }, operatorMeta),
+      ).rejects.toBeInstanceOf(BadRequestException);
     });
   });
 
@@ -55,13 +61,15 @@ describe('business-actions DTOs under the real ValidationPipe', () => {
     });
 
     it('rejects a non-date string', async () => {
-      await expect(pipe.transform({ date: 'not-a-date' }, offlineMeta)).rejects.toBeInstanceOf(
-        BadRequestException,
-      );
+      await expect(
+        pipe.transform({ date: 'not-a-date' }, offlineMeta),
+      ).rejects.toBeInstanceOf(BadRequestException);
     });
 
     it('rejects a missing date', async () => {
-      await expect(pipe.transform({}, offlineMeta)).rejects.toBeInstanceOf(BadRequestException);
+      await expect(pipe.transform({}, offlineMeta)).rejects.toBeInstanceOf(
+        BadRequestException,
+      );
     });
   });
 });

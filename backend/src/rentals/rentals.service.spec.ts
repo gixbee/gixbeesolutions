@@ -130,7 +130,12 @@ describe('RentalsService.requestReservation', () => {
       overlap: false,
     });
 
-    const res = await service.requestReservation('renter-1', 'item-1', START, END);
+    const res = await service.requestReservation(
+      'renter-1',
+      'item-1',
+      START,
+      END,
+    );
 
     expect(res.status).toBe(RentalStatus.PENDING);
     expect(res.totalPrice).toBe(150); // 3h * 50
@@ -147,7 +152,12 @@ describe('RentalsService.requestReservation', () => {
       overlap: false,
     });
 
-    const res = await service.requestReservation('renter-1', 'item-1', START, END);
+    const res = await service.requestReservation(
+      'renter-1',
+      'item-1',
+      START,
+      END,
+    );
 
     expect(res.totalPrice).toBe(150);
     expect(typeof res.totalPrice).toBe('number');
@@ -275,9 +285,9 @@ describe('RentalsService.confirmReservation', () => {
       item: item(),
     });
 
-    await expect(service.confirmReservation('res-1', 'owner-1')).rejects.toThrow(
-      BadRequestException,
-    );
+    await expect(
+      service.confirmReservation('res-1', 'owner-1'),
+    ).rejects.toThrow(BadRequestException);
     expect(saved).toHaveLength(0);
   });
 
@@ -288,9 +298,9 @@ describe('RentalsService.confirmReservation', () => {
       overlap: true,
     });
 
-    await expect(service.confirmReservation('res-1', 'owner-1')).rejects.toThrow(
-      ConflictException,
-    );
+    await expect(
+      service.confirmReservation('res-1', 'owner-1'),
+    ).rejects.toThrow(ConflictException);
     expect(saved).toHaveLength(0);
   });
 });

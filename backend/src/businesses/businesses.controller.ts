@@ -1,9 +1,25 @@
-import { Controller, Get, Post, Patch, Delete, Param, Body, BadRequestException, Query, UseGuards, Req } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Patch,
+  Delete,
+  Param,
+  Body,
+  BadRequestException,
+  Query,
+  UseGuards,
+  Req,
+} from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { AdminGuard } from '../auth/admin.guard';
 import { BusinessesService } from './businesses.service';
 import { CreateBusinessDto } from './dto/create-business.dto';
-import { AddOperatorDto, AddOfflineDayDto, SetBusinessStatusDto } from './dto/business-actions.dto';
+import {
+  AddOperatorDto,
+  AddOfflineDayDto,
+  SetBusinessStatusDto,
+} from './dto/business-actions.dto';
 
 @Controller('businesses')
 export class BusinessesController {
@@ -48,21 +64,33 @@ export class BusinessesController {
   // calendar. Now JWT-guarded + owner-checked in the service.
   @UseGuards(JwtAuthGuard)
   @Post(':id/operators')
-  async addOperator(@Param('id') id: string, @Req() req: any, @Body() body: AddOperatorDto) {
+  async addOperator(
+    @Param('id') id: string,
+    @Req() req: any,
+    @Body() body: AddOperatorDto,
+  ) {
     if (!body.userId) throw new BadRequestException('userId required');
     return this.val.addOperator(id, body.userId, req.user.userId);
   }
 
   @UseGuards(JwtAuthGuard)
   @Post(':id/calendar/offline')
-  async addOfflineDay(@Param('id') id: string, @Req() req: any, @Body() body: AddOfflineDayDto) {
+  async addOfflineDay(
+    @Param('id') id: string,
+    @Req() req: any,
+    @Body() body: AddOfflineDayDto,
+  ) {
     if (!body.date) throw new BadRequestException('date required');
     return this.val.addOfflineDay(id, body.date, req.user.userId);
   }
 
   @UseGuards(JwtAuthGuard)
   @Delete(':id/calendar/offline')
-  async removeOfflineDay(@Param('id') id: string, @Req() req: any, @Query('date') date: string) {
+  async removeOfflineDay(
+    @Param('id') id: string,
+    @Req() req: any,
+    @Query('date') date: string,
+  ) {
     if (!date) throw new BadRequestException('date required');
     return this.val.removeOfflineDay(id, date, req.user.userId);
   }

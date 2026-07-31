@@ -1,4 +1,12 @@
-import { Controller, Post, Get, Patch, Body, UseGuards, Req } from '@nestjs/common';
+import {
+  Controller,
+  Post,
+  Get,
+  Patch,
+  Body,
+  UseGuards,
+  Req,
+} from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { Throttle } from '@nestjs/throttler';
 import { AuthService } from './auth.service';
@@ -35,7 +43,6 @@ export class AuthController {
     return this.authService.refreshAccessToken(body.refreshToken);
   }
 
-
   @UseGuards(AuthGuard('jwt'))
   @Get('profile')
   async getProfile(@Req() req: any) {
@@ -59,6 +66,9 @@ export class AuthController {
   @Throttle({ default: { ttl: 60000, limit: 5 } })
   @Post('admin-login')
   async adminLogin(@Body() body: AdminLoginDto) {
-    return this.authService.adminLogin(body.username || '', body.password || '');
+    return this.authService.adminLogin(
+      body.username || '',
+      body.password || '',
+    );
   }
 }

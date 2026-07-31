@@ -29,11 +29,30 @@ import { QueryFailedError } from 'typeorm';
  * Postgres SQLSTATE codes for the constraint violations we surface as 4xx.
  * Anything not listed stays a generic 500 so we never leak unexpected DB detail.
  */
-const PG_CONSTRAINT_MAP: Record<string, { status: HttpStatus; error: string; message: string }> = {
-  '23505': { status: HttpStatus.CONFLICT, error: 'Conflict', message: 'Resource already exists.' },
-  '23503': { status: HttpStatus.BAD_REQUEST, error: 'Bad Request', message: 'A referenced resource does not exist.' },
-  '23502': { status: HttpStatus.BAD_REQUEST, error: 'Bad Request', message: 'A required field is missing.' },
-  '23514': { status: HttpStatus.BAD_REQUEST, error: 'Bad Request', message: 'A value failed a database constraint.' },
+const PG_CONSTRAINT_MAP: Record<
+  string,
+  { status: HttpStatus; error: string; message: string }
+> = {
+  '23505': {
+    status: HttpStatus.CONFLICT,
+    error: 'Conflict',
+    message: 'Resource already exists.',
+  },
+  '23503': {
+    status: HttpStatus.BAD_REQUEST,
+    error: 'Bad Request',
+    message: 'A referenced resource does not exist.',
+  },
+  '23502': {
+    status: HttpStatus.BAD_REQUEST,
+    error: 'Bad Request',
+    message: 'A required field is missing.',
+  },
+  '23514': {
+    status: HttpStatus.BAD_REQUEST,
+    error: 'Bad Request',
+    message: 'A value failed a database constraint.',
+  },
 };
 
 @Catch()
@@ -71,8 +90,10 @@ export class AllExceptionsFilter implements ExceptionFilter {
       // (older typeorm copies it onto the QueryFailedError itself) or on
       // `.driverError.code`. Map known constraint codes to a 4xx with a
       // generic message — the raw SQL detail is only logged below, never sent.
-      const driver = (exception as { driverError?: { code?: string } }).driverError;
-      const code = (exception as unknown as { code?: string }).code ?? driver?.code;
+      const driver = (exception as { driverError?: { code?: string } })
+        .driverError;
+      const code =
+        (exception as unknown as { code?: string }).code ?? driver?.code;
       const mapped = code ? PG_CONSTRAINT_MAP[code] : undefined;
       if (mapped) {
         statusCode = mapped.status;

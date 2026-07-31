@@ -44,8 +44,18 @@ function makeService(opts: { user?: any; users?: any[] } = {}) {
     count: jest.fn(async () => 0),
   };
 
-  const service = new UsersService(usersRepository, bookingsRepository, favouritesRepository);
-  return { service, usersRepository, bookingsRepository, favouritesRepository, saved };
+  const service = new UsersService(
+    usersRepository,
+    bookingsRepository,
+    favouritesRepository,
+  );
+  return {
+    service,
+    usersRepository,
+    bookingsRepository,
+    favouritesRepository,
+    saved,
+  };
 }
 
 const user = (over: Partial<any> = {}) => ({
@@ -64,12 +74,16 @@ describe('UsersService', () => {
   describe('findById', () => {
     it('returns the user when found', async () => {
       const { service } = makeService({ user: user() });
-      await expect(service.findById('user-1')).resolves.toMatchObject({ id: 'user-1' });
+      await expect(service.findById('user-1')).resolves.toMatchObject({
+        id: 'user-1',
+      });
     });
 
     it('throws NotFound when missing', async () => {
       const { service } = makeService({ user: null });
-      await expect(service.findById('nope')).rejects.toBeInstanceOf(NotFoundException);
+      await expect(service.findById('nope')).rejects.toBeInstanceOf(
+        NotFoundException,
+      );
     });
   });
 
@@ -78,7 +92,11 @@ describe('UsersService', () => {
       const { service, bookingsRepository } = makeService({ user: user() });
       bookingsRepository.count.mockResolvedValueOnce(7);
       const stats = await service.getUserStats('user-1');
-      expect(stats).toEqual({ bookingsCount: 7, reviewsCount: 0, savedCount: 0 });
+      expect(stats).toEqual({
+        bookingsCount: 7,
+        reviewsCount: 0,
+        savedCount: 0,
+      });
       expect(bookingsRepository.count).toHaveBeenCalledWith({
         where: { customer: { id: 'user-1' } },
       });
@@ -97,24 +115,34 @@ describe('UsersService', () => {
     it('returns all-zeros when the user is missing (no booking count attempted)', async () => {
       const { service, bookingsRepository } = makeService({ user: null });
       const stats = await service.getUserStats('ghost');
-      expect(stats).toEqual({ bookingsCount: 0, reviewsCount: 0, savedCount: 0 });
+      expect(stats).toEqual({
+        bookingsCount: 0,
+        reviewsCount: 0,
+        savedCount: 0,
+      });
       expect(bookingsRepository.count).not.toHaveBeenCalled();
     });
 
     it('swallows a repo error (invalid UUID) into all-zeros', async () => {
       const { service, usersRepository } = makeService({ user: user() });
-      usersRepository.findOne.mockRejectedValueOnce(new Error('invalid input syntax for uuid'));
+      usersRepository.findOne.mockRejectedValueOnce(
+        new Error('invalid input syntax for uuid'),
+      );
       const stats = await service.getUserStats('not-a-uuid');
-      expect(stats).toEqual({ bookingsCount: 0, reviewsCount: 0, savedCount: 0 });
+      expect(stats).toEqual({
+        bookingsCount: 0,
+        reviewsCount: 0,
+        savedCount: 0,
+      });
     });
   });
 
   describe('updateProfile', () => {
     it('throws NotFound when the user is missing', async () => {
       const { service } = makeService({ user: null });
-      await expect(service.updateProfile('x', { name: 'New' })).rejects.toBeInstanceOf(
-        NotFoundException,
-      );
+      await expect(
+        service.updateProfile('x', { name: 'New' }),
+      ).rejects.toBeInstanceOf(NotFoundException);
     });
 
     it('applies only the defined fields and leaves undefined ones untouched', async () => {
@@ -142,7 +170,9 @@ describe('UsersService', () => {
   describe('updateFcmToken', () => {
     it('throws NotFound when the user is missing', async () => {
       const { service } = makeService({ user: null });
-      await expect(service.updateFcmToken('x', 'tok')).rejects.toBeInstanceOf(NotFoundException);
+      await expect(service.updateFcmToken('x', 'tok')).rejects.toBeInstanceOf(
+        NotFoundException,
+      );
     });
 
     it('writes the token and saves', async () => {
@@ -168,22 +198,35 @@ describe('UsersService', () => {
   describe('updateApprovalStatus', () => {
     it('APPROVED auto-verifies and enables the worker profile', async () => {
       const { service } = makeService({ user: user() });
-      const result = await service.updateApprovalStatus('user-1', UserApprovalStatus.APPROVED);
+      const result = await service.updateApprovalStatus(
+        'user-1',
+        UserApprovalStatus.APPROVED,
+      );
       expect(result.approvalStatus).toBe(UserApprovalStatus.APPROVED);
       expect(result.isVerified).toBe(true);
       expect(result.hasWorkerProfile).toBe(true);
     });
 
     it('REJECTED clears isVerified', async () => {
-      const { service } = makeService({ user: user({ isVerified: true, hasWorkerProfile: true }) });
-      const result = await service.updateApprovalStatus('user-1', UserApprovalStatus.REJECTED);
+      const { service } = makeService({
+        user: user({ isVerified: true, hasWorkerProfile: true }),
+      });
+      const result = await service.updateApprovalStatus(
+        'user-1',
+        UserApprovalStatus.REJECTED,
+      );
       expect(result.approvalStatus).toBe(UserApprovalStatus.REJECTED);
       expect(result.isVerified).toBe(false);
     });
 
     it('PENDING leaves verification flags unchanged', async () => {
-      const { service } = makeService({ user: user({ isVerified: true, hasWorkerProfile: true }) });
-      const result = await service.updateApprovalStatus('user-1', UserApprovalStatus.PENDING);
+      const { service } = makeService({
+        user: user({ isVerified: true, hasWorkerProfile: true }),
+      });
+      const result = await service.updateApprovalStatus(
+        'user-1',
+        UserApprovalStatus.PENDING,
+      );
       expect(result.approvalStatus).toBe(UserApprovalStatus.PENDING);
       expect(result.isVerified).toBe(true);
       expect(result.hasWorkerProfile).toBe(true);
@@ -206,7 +249,9 @@ describe('UsersService', () => {
     });
 
     it('false sets isVerified false and leaves hasWorkerProfile alone', async () => {
-      const { service } = makeService({ user: user({ hasWorkerProfile: true }) });
+      const { service } = makeService({
+        user: user({ hasWorkerProfile: true }),
+      });
       const result = await service.updateVerification('user-1', false);
       expect(result.isVerified).toBe(false);
       expect(result.hasWorkerProfile).toBe(true);
@@ -214,14 +259,18 @@ describe('UsersService', () => {
 
     it('throws NotFound when the user is missing', async () => {
       const { service } = makeService({ user: null });
-      await expect(service.updateVerification('x', true)).rejects.toBeInstanceOf(NotFoundException);
+      await expect(
+        service.updateVerification('x', true),
+      ).rejects.toBeInstanceOf(NotFoundException);
     });
   });
 
   describe('getSystemSummary', () => {
     it('aggregates the four counts and recent users', async () => {
       const recent = [user({ id: 'r1' }), user({ id: 'r2' })];
-      const { service, usersRepository, bookingsRepository } = makeService({ users: recent });
+      const { service, usersRepository, bookingsRepository } = makeService({
+        users: recent,
+      });
       usersRepository.count
         .mockResolvedValueOnce(100) // totalUsers
         .mockResolvedValueOnce(40) // totalWorkers
@@ -251,7 +300,10 @@ describe('UsersService', () => {
     });
 
     it('returns the matched rows from the repository for a non-empty query', async () => {
-      const rows = [user({ id: 'u1', name: 'Anu' }), user({ id: 'u2', name: 'Anand' })];
+      const rows = [
+        user({ id: 'u1', name: 'Anu' }),
+        user({ id: 'u2', name: 'Anand' }),
+      ];
       const { service, usersRepository } = makeService({ users: rows });
       const res = await service.searchUsers('an');
       expect(res).toEqual(rows);
@@ -266,7 +318,13 @@ describe('UsersService', () => {
       expect(arg.where).toHaveLength(2);
       expect(Object.keys(arg.where[0])).toEqual(['name']);
       expect(Object.keys(arg.where[1])).toEqual(['phoneNumber']);
-      expect(arg.select).toEqual(['id', 'name', 'phoneNumber', 'role', 'profileImageUrl']);
+      expect(arg.select).toEqual([
+        'id',
+        'name',
+        'phoneNumber',
+        'role',
+        'profileImageUrl',
+      ]);
       expect(arg.take).toBe(20);
       expect(arg.order).toEqual({ name: 'ASC' });
     });

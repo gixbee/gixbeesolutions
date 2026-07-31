@@ -282,7 +282,6 @@ class _CustomerPayScreenState extends ConsumerState<CustomerPayScreen> {
     final billing = _billing;
     final amount = billing?.amountInt ?? widget.amount.round();
     final name = billing?.counterpartName ?? widget.workerName;
-    final fee = billing?.feeInt ?? 12;
     final green = GixbeeTheme.accentGreen;
     final purple = gx.accent;
 

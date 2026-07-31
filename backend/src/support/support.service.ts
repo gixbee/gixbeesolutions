@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { SupportTicket } from './support-ticket.entity';
@@ -12,7 +16,11 @@ export class SupportService {
     private readonly notificationsService: NotificationsService,
   ) {}
 
-  async create(userId: string, subject: string, message: string): Promise<SupportTicket> {
+  async create(
+    userId: string,
+    subject: string,
+    message: string,
+  ): Promise<SupportTicket> {
     const ticket = this.ticketRepo.create({
       user: { id: userId } as any,
       subject,

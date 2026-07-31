@@ -1,8 +1,21 @@
-import { Controller, Get, Post, Patch, Body, UseGuards, Req } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Patch,
+  Body,
+  UseGuards,
+  Req,
+} from '@nestjs/common';
 import { TalentService } from './talent.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { UpdateTalentProfileDto } from './dto/update-talent-profile.dto';
-import { AddSkillDto, RemoveSkillDto, ToggleAlertsDto, ToggleSavedJobDto } from './dto/talent-skill.dto';
+import {
+  AddSkillDto,
+  RemoveSkillDto,
+  ToggleAlertsDto,
+  ToggleSavedJobDto,
+} from './dto/talent-skill.dto';
 
 @UseGuards(JwtAuthGuard)
 @Controller('talent')
@@ -35,7 +48,13 @@ export class TalentController {
 
   @Post('skills')
   async addOrUpdateSkill(@Req() req: any, @Body() body: AddSkillDto) {
-    return this.talentService.addOrUpdateSkill(req.user.userId, body.skillName, Number(body.rate), body.bio, body.rateChart);
+    return this.talentService.addOrUpdateSkill(
+      req.user.userId,
+      body.skillName,
+      Number(body.rate),
+      body.bio,
+      body.rateChart,
+    );
   }
 
   @Post('skills/remove')

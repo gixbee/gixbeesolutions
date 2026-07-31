@@ -39,7 +39,10 @@ export class RentalsService {
   // ── Items ──────────────────────────────────────────────────────────────────
 
   /** Owner lists an item. Identity comes from the JWT, never the body. */
-  async createItem(ownerId: string, data: Partial<RentalItem>): Promise<RentalItem> {
+  async createItem(
+    ownerId: string,
+    data: Partial<RentalItem>,
+  ): Promise<RentalItem> {
     const item = this.rentalItemRepo.create({
       ...data,
       owner: { id: ownerId } as User,
@@ -344,8 +347,11 @@ export class RentalsService {
     }
     reservation.status = RentalStatus.REJECTED;
     const saved = await this.reservationRepo.save(reservation);
-    await this.notifyRenter(saved, 'Rental request declined',
-        `The owner declined your request for "${reservation.item.name}".`);
+    await this.notifyRenter(
+      saved,
+      'Rental request declined',
+      `The owner declined your request for "${reservation.item.name}".`,
+    );
     return saved;
   }
 
@@ -373,8 +379,11 @@ export class RentalsService {
     }
     reservation.status = RentalStatus.COMPLETED;
     const saved = await this.reservationRepo.save(reservation);
-    await this.notifyRenter(saved, 'Rental completed',
-        `"${reservation.item.name}" was returned — thanks for renting on Gixbee!`);
+    await this.notifyRenter(
+      saved,
+      'Rental completed',
+      `"${reservation.item.name}" was returned — thanks for renting on Gixbee!`,
+    );
     return saved;
   }
 
@@ -391,8 +400,10 @@ export class RentalsService {
     if (reservation.renter?.id !== renterId) {
       throw new ForbiddenException('You can only cancel your own reservations');
     }
-    if (reservation.status !== RentalStatus.PENDING &&
-        reservation.status !== RentalStatus.CONFIRMED) {
+    if (
+      reservation.status !== RentalStatus.PENDING &&
+      reservation.status !== RentalStatus.CONFIRMED
+    ) {
       throw new BadRequestException(
         `Cannot cancel a reservation with status ${reservation.status}`,
       );

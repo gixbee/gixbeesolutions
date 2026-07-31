@@ -27,11 +27,13 @@ describe('booking action DTO validation', () => {
 
     it('strips unknown fields', async () => {
       const out = await t({ status: 'ACCEPTED', hacker: 'x' });
-      expect((out as any).hacker).toBeUndefined();
+      expect(out.hacker).toBeUndefined();
     });
 
     it('rejects a bogus status', async () => {
-      await expect(t({ status: 'TELEPORTED' })).rejects.toBeInstanceOf(BadRequestException);
+      await expect(t({ status: 'TELEPORTED' })).rejects.toBeInstanceOf(
+        BadRequestException,
+      );
     });
 
     it('rejects a missing status', async () => {
@@ -53,7 +55,9 @@ describe('booking action DTO validation', () => {
     });
 
     it('rejects a non-string reason', async () => {
-      await expect(t({ reason: 42 })).rejects.toBeInstanceOf(BadRequestException);
+      await expect(t({ reason: 42 })).rejects.toBeInstanceOf(
+        BadRequestException,
+      );
     });
   });
 
@@ -83,15 +87,21 @@ describe('booking action DTO validation', () => {
     });
 
     it('rejects a below-range rating', async () => {
-      await expect(t({ rating: 0 })).rejects.toBeInstanceOf(BadRequestException);
+      await expect(t({ rating: 0 })).rejects.toBeInstanceOf(
+        BadRequestException,
+      );
     });
 
     it('rejects an above-range rating (anti-skew)', async () => {
-      await expect(t({ rating: 1000 })).rejects.toBeInstanceOf(BadRequestException);
+      await expect(t({ rating: 1000 })).rejects.toBeInstanceOf(
+        BadRequestException,
+      );
     });
 
     it('rejects a non-integer rating', async () => {
-      await expect(t({ rating: 3.5 })).rejects.toBeInstanceOf(BadRequestException);
+      await expect(t({ rating: 3.5 })).rejects.toBeInstanceOf(
+        BadRequestException,
+      );
     });
   });
 
@@ -104,7 +114,9 @@ describe('booking action DTO validation', () => {
     });
 
     it('rejects an empty reason (required)', async () => {
-      await expect(t({ reason: '' })).rejects.toBeInstanceOf(BadRequestException);
+      await expect(t({ reason: '' })).rejects.toBeInstanceOf(
+        BadRequestException,
+      );
     });
 
     it('rejects a missing reason', async () => {

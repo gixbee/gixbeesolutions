@@ -2,7 +2,10 @@ import { Injectable, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, DataSource, In } from 'typeorm';
 import { JobCredit } from './job-credit.entity';
-import { CreditTransaction, CreditTransactionReason } from './credit-transaction.entity';
+import {
+  CreditTransaction,
+  CreditTransactionReason,
+} from './credit-transaction.entity';
 import { User } from '../users/user.entity';
 import { Booking } from '../bookings/booking.entity';
 
@@ -83,9 +86,7 @@ export class JobCreditsService {
       delta: t.delta,
       reason: t.reason,
       bookingId: t.bookingId ?? null,
-      bookingSkill: t.bookingId
-        ? (skillById.get(t.bookingId) ?? null)
-        : null,
+      bookingSkill: t.bookingId ? (skillById.get(t.bookingId) ?? null) : null,
       createdAt: t.createdAt,
     }));
   }
@@ -101,7 +102,9 @@ export class JobCreditsService {
           where: { razorpayPaymentId: options.razorpayPaymentId },
         });
         if (existingTx) {
-          const c = await manager.findOne(JobCredit, { where: { user: { id: userId } } });
+          const c = await manager.findOne(JobCredit, {
+            where: { user: { id: userId } },
+          });
           return c ? c.balance : 0;
         }
       }
@@ -134,15 +137,21 @@ export class JobCreditsService {
     });
   }
 
-  async consumeCredit(userId: string, bookingId: string, providedManager?: any): Promise<number> {
+  async consumeCredit(
+    userId: string,
+    bookingId: string,
+    providedManager?: any,
+  ): Promise<number> {
     const execute = async (manager: any) => {
-      let credit = await manager.findOne(JobCredit, {
+      const credit = await manager.findOne(JobCredit, {
         where: { user: { id: userId } },
         lock: { mode: 'pessimistic_write' },
       });
 
       if (!credit || credit.balance < 1) {
-        throw new BadRequestException('No job credits left. Buy a pack to continue.');
+        throw new BadRequestException(
+          'No job credits left. Buy a pack to continue.',
+        );
       }
 
       credit.balance -= 1;
@@ -156,7 +165,7 @@ export class JobCreditsService {
           bookingId,
         }),
       );
-      
+
       return credit.balance;
     };
 

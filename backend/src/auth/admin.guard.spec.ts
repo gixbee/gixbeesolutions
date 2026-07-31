@@ -16,13 +16,15 @@ describe('AdminGuard', () => {
   const guard = new AdminGuard();
 
   it('allows a request whose JWT carries the ADMIN role', () => {
-    expect(guard.canActivate(ctx({ userId: 'admin-001', role: UserRole.ADMIN }))).toBe(true);
+    expect(
+      guard.canActivate(ctx({ userId: 'admin-001', role: UserRole.ADMIN })),
+    ).toBe(true);
   });
 
   it('rejects a non-admin (e.g. CUSTOMER) token', () => {
-    expect(() => guard.canActivate(ctx({ userId: 'u1', role: UserRole.CUSTOMER }))).toThrow(
-      ForbiddenException,
-    );
+    expect(() =>
+      guard.canActivate(ctx({ userId: 'u1', role: UserRole.CUSTOMER })),
+    ).toThrow(ForbiddenException);
   });
 
   it('rejects a request with no authenticated user', () => {
@@ -30,6 +32,8 @@ describe('AdminGuard', () => {
   });
 
   it('rejects a user object missing a role', () => {
-    expect(() => guard.canActivate(ctx({ userId: 'u1' }))).toThrow(ForbiddenException);
+    expect(() => guard.canActivate(ctx({ userId: 'u1' }))).toThrow(
+      ForbiddenException,
+    );
   });
 });

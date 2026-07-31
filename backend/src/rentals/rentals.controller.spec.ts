@@ -16,7 +16,10 @@ function makeController() {
     getItems: jest.fn(async () => [{ id: 'i1' }]),
     createItem: jest.fn(async () => ({ id: 'i2' })),
     requestReservation: jest.fn(async () => ({ id: 'res1' })),
-    confirmReservation: jest.fn(async () => ({ id: 'res1', status: 'CONFIRMED' })),
+    confirmReservation: jest.fn(async () => ({
+      id: 'res1',
+      status: 'CONFIRMED',
+    })),
   };
   const controller = new RentalsController(rentalsService);
   return { controller, rentalsService };
@@ -34,7 +37,11 @@ describe('RentalsController.getItems', () => {
 describe('RentalsController.createItem', () => {
   it('forwards the ownerId + item data and defaults minHoursToRent to 1', async () => {
     const { controller, rentalsService } = makeController();
-    await controller.createItem({ ownerId: 'o1', name: 'Drill', hourlyRate: 50 } as any);
+    await controller.createItem({
+      ownerId: 'o1',
+      name: 'Drill',
+      hourlyRate: 50,
+    } as any);
     expect(rentalsService.createItem).toHaveBeenCalledWith('o1', {
       name: 'Drill',
       hourlyRate: 50,
@@ -62,9 +69,9 @@ describe('RentalsController.createItem', () => {
 
   it('throws BadRequest and never calls the service when a required field is missing', async () => {
     const { controller, rentalsService } = makeController();
-    await expect(controller.createItem({ name: 'Drill', hourlyRate: 50 } as any)).rejects.toBeInstanceOf(
-      BadRequestException,
-    );
+    await expect(
+      controller.createItem({ name: 'Drill', hourlyRate: 50 } as any),
+    ).rejects.toBeInstanceOf(BadRequestException);
     expect(rentalsService.createItem).not.toHaveBeenCalled();
   });
 });
@@ -90,7 +97,10 @@ describe('RentalsController.requestReservation', () => {
   it('throws BadRequest and never calls the service when a required field is missing', async () => {
     const { controller, rentalsService } = makeController();
     await expect(
-      controller.requestReservation('item-1', { renterId: 'r1', startTime: '2026-07-01' } as any),
+      controller.requestReservation('item-1', {
+        renterId: 'r1',
+        startTime: '2026-07-01',
+      } as any),
     ).rejects.toBeInstanceOf(BadRequestException);
     expect(rentalsService.requestReservation).not.toHaveBeenCalled();
   });

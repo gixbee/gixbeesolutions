@@ -47,13 +47,23 @@ describe('MessagesController.send', () => {
       body: 'hello',
       bookingId: 'b-7',
     });
-    expect(messagesService.send).toHaveBeenCalledWith('me-1', 'r-2', 'hello', 'b-7');
+    expect(messagesService.send).toHaveBeenCalledWith(
+      'me-1',
+      'r-2',
+      'hello',
+      'b-7',
+    );
     expect(res).toEqual({ id: 'm3' });
   });
 
   it('passes undefined bookingId through when omitted', async () => {
     const { controller, messagesService } = makeController();
     await controller.send(req, { recipientId: 'r-2', body: 'hi' });
-    expect(messagesService.send).toHaveBeenCalledWith('me-1', 'r-2', 'hi', undefined);
+    expect(messagesService.send).toHaveBeenCalledWith(
+      'me-1',
+      'r-2',
+      'hi',
+      undefined,
+    );
   });
 });

@@ -25,7 +25,10 @@ export class FavouritesService {
     return this.favRepo.save(fav);
   }
 
-  async remove(userId: string, workerId: string): Promise<{ removed: boolean }> {
+  async remove(
+    userId: string,
+    workerId: string,
+  ): Promise<{ removed: boolean }> {
     const result = await this.favRepo.delete({
       user: { id: userId },
       workerId,

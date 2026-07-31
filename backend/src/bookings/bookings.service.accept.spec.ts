@@ -72,12 +72,14 @@ function makeService(opts: {
     transaction: jest.fn(async (cb: any) => cb(manager)),
   };
   const outboxService: any = {
-    append: jest.fn(async (_m: any, type: string, aggregateId: string, payload: any) => ({
-      id: 'outbox-1',
-      type,
-      aggregateId,
-      payload,
-    })),
+    append: jest.fn(
+      async (_m: any, type: string, aggregateId: string, payload: any) => ({
+        id: 'outbox-1',
+        type,
+        aggregateId,
+        payload,
+      }),
+    ),
     enqueueDispatch: jest.fn(async () => undefined),
   };
 

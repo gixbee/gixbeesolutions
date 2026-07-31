@@ -44,12 +44,7 @@ export class AddressesController {
     @Param('id') id: string,
     @Body() body: UpdateAddressCoordsDto,
   ) {
-    return this.addresses.updateCoords(
-      req.user.userId,
-      id,
-      body.lat,
-      body.lng,
-    );
+    return this.addresses.updateCoords(req.user.userId, id, body.lat, body.lng);
   }
 
   @Delete(':id')

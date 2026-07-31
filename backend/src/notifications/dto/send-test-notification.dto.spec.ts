@@ -7,7 +7,11 @@ import { SendTestNotificationDto } from './send-test-notification.dto';
 // controller defaults them) and data is free-form.
 describe('SendTestNotificationDto validation', () => {
   const pipe = new ValidationPipe({ whitelist: true, transform: true });
-  const meta = { type: 'body', metatype: SendTestNotificationDto, data: '' } as any;
+  const meta = {
+    type: 'body',
+    metatype: SendTestNotificationDto,
+    data: '',
+  } as any;
   const transform = (body: any) => pipe.transform(body, meta);
 
   it('accepts a full payload { fcmToken, title, message, data }', async () => {
@@ -31,15 +35,19 @@ describe('SendTestNotificationDto validation', () => {
 
   it('strips unknown fields (whitelist)', async () => {
     const out = await transform({ fcmToken: 'tok-123', priority: 'high' });
-    expect((out as any).priority).toBeUndefined();
+    expect(out.priority).toBeUndefined();
   });
 
   it('rejects a missing fcmToken', async () => {
-    await expect(transform({ title: 'Hi' })).rejects.toBeInstanceOf(BadRequestException);
+    await expect(transform({ title: 'Hi' })).rejects.toBeInstanceOf(
+      BadRequestException,
+    );
   });
 
   it('rejects an empty-string fcmToken', async () => {
-    await expect(transform({ fcmToken: '' })).rejects.toBeInstanceOf(BadRequestException);
+    await expect(transform({ fcmToken: '' })).rejects.toBeInstanceOf(
+      BadRequestException,
+    );
   });
 
   it('rejects a non-string title', async () => {

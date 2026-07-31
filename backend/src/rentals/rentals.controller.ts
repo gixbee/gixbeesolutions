@@ -1,7 +1,22 @@
-import { Controller, Get, Post, Patch, Param, Body, BadRequestException, Req, UseGuards, Query } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Patch,
+  Param,
+  Body,
+  BadRequestException,
+  Req,
+  UseGuards,
+  Query,
+} from '@nestjs/common';
 import { RentalsService } from './rentals.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
-import { CreateRentalItemDto, UpdateRentalItemDto, RequestReservationDto } from './dto/rentals.dto';
+import {
+  CreateRentalItemDto,
+  UpdateRentalItemDto,
+  RequestReservationDto,
+} from './dto/rentals.dto';
 import { parsePagination } from '../common/pagination';
 
 // Rentals: owners list items, customers reserve date/time ranges, owners

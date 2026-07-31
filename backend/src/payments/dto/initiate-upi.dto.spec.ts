@@ -24,11 +24,13 @@ describe('InitiateUpiDto validation', () => {
 
   it('strips unknown fields (whitelist)', async () => {
     const out = await transform({ amount: 100, currency: 'INR' });
-    expect((out as any).currency).toBeUndefined();
+    expect(out.currency).toBeUndefined();
   });
 
   it('rejects a non-numeric amount', async () => {
-    await expect(transform({ amount: '100' })).rejects.toBeInstanceOf(BadRequestException);
+    await expect(transform({ amount: '100' })).rejects.toBeInstanceOf(
+      BadRequestException,
+    );
   });
 
   it('rejects a non-string bookingId', async () => {

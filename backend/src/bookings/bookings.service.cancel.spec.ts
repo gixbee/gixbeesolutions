@@ -45,12 +45,14 @@ function makeService(booking: any) {
     transaction: jest.fn(async (cb: any) => cb(manager)),
   };
   const outboxService: any = {
-    append: jest.fn(async (_m: any, type: string, aggregateId: string, payload: any) => ({
-      id: 'outbox-cancel-1',
-      type,
-      aggregateId,
-      payload,
-    })),
+    append: jest.fn(
+      async (_m: any, type: string, aggregateId: string, payload: any) => ({
+        id: 'outbox-cancel-1',
+        type,
+        aggregateId,
+        payload,
+      }),
+    ),
     enqueueDispatch: jest.fn(async () => undefined),
   };
 
@@ -108,9 +110,14 @@ describe('BookingsService.cancelBooking refund policy', () => {
       manager,
       OutboxEventType.BOOKING_CANCELLED,
       'b1',
-      expect.objectContaining({ source: 'customer', reason: 'Change of plans' }),
+      expect.objectContaining({
+        source: 'customer',
+        reason: 'Change of plans',
+      }),
     );
-    expect(outboxService.enqueueDispatch).toHaveBeenCalledWith('outbox-cancel-1');
+    expect(outboxService.enqueueDispatch).toHaveBeenCalledWith(
+      'outbox-cancel-1',
+    );
     expect(redisService.removePendingBooking).not.toHaveBeenCalled();
   });
 

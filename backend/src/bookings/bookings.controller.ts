@@ -1,11 +1,25 @@
-import { Controller, Post, Get, Patch, Param, Body, Query, UseGuards, Req, NotFoundException } from '@nestjs/common';
+import {
+  Controller,
+  Post,
+  Get,
+  Patch,
+  Param,
+  Body,
+  Query,
+  UseGuards,
+  Req,
+  NotFoundException,
+} from '@nestjs/common';
 import { BookingsService } from './bookings.service';
 import { BookingStatus } from './booking.entity';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { AdminGuard } from '../auth/admin.guard';
 import { NotificationsService } from '../notifications/notifications.service';
 import { RedisService } from '../redis/redis.service';
-import { CreateBookingDto, CreateInstantRequestDto } from './dto/create-booking.dto';
+import {
+  CreateBookingDto,
+  CreateInstantRequestDto,
+} from './dto/create-booking.dto';
 import {
   UpdateBookingStatusDto,
   CancelBookingDto,
@@ -47,7 +61,10 @@ export class BookingsController {
   // skill are notified, first accept wins. Returns { booking, notified } so
   // the app can go straight to the no-workers screen when notified === 0.
   @Post('instant')
-  async createInstantRequest(@Req() req, @Body() body: CreateInstantRequestDto) {
+  async createInstantRequest(
+    @Req() req,
+    @Body() body: CreateInstantRequestDto,
+  ) {
     return this.bookingsService.createBroadcastBooking(req.user.userId, {
       skill: body.skill,
       serviceLocation: body.serviceLocation,
@@ -87,11 +104,7 @@ export class BookingsController {
   ) {
     const pageNum = parseInt(page || '1') || 1;
     const limitNum = Math.min(100, parseInt(limit || '50') || 50);
-    return this.bookingsService.getDisputes(
-      open === 'true',
-      pageNum,
-      limitNum,
-    );
+    return this.bookingsService.getDisputes(open === 'true', pageNum, limitNum);
   }
 
   @Patch('admin/disputes/:id/resolve')
@@ -127,7 +140,11 @@ export class BookingsController {
   }
 
   @Patch(':id/status')
-  async updateStatus(@Param('id') id: string, @Req() req, @Body() body: UpdateBookingStatusDto) {
+  async updateStatus(
+    @Param('id') id: string,
+    @Req() req,
+    @Body() body: UpdateBookingStatusDto,
+  ) {
     // SECURITY FIX: was unscoped — anyone could set any booking to COMPLETED.
     await this.bookingsService.assertParticipant(id, req.user.userId);
     return this.bookingsService.updateStatus(id, body.status);
@@ -135,16 +152,28 @@ export class BookingsController {
 
   // Customer cancellation with reason + wallet refund
   @Patch(':id/cancel')
-  async cancel(@Param('id') id: string, @Req() req, @Body() body: CancelBookingDto) {
+  async cancel(
+    @Param('id') id: string,
+    @Req() req,
+    @Body() body: CancelBookingDto,
+  ) {
     await this.bookingsService.assertParticipant(id, req.user.userId);
     const source = req.user.role === 'CUSTOMER' ? 'customer' : 'operator';
-    return this.bookingsService.cancelBooking(id, body?.reason ?? 'Not specified', source);
+    return this.bookingsService.cancelBooking(
+      id,
+      body?.reason ?? 'Not specified',
+      source,
+    );
   }
 
   // ─── OTP GATES ──────────────────────────────────────────
 
   @Post(':id/arrival')
-  async confirmArrival(@Param('id') id: string, @Req() req, @Body() body: ConfirmOtpDto) {
+  async confirmArrival(
+    @Param('id') id: string,
+    @Req() req,
+    @Body() body: ConfirmOtpDto,
+  ) {
     // SECURITY FIX: participants only — was open to 4-digit OTP brute force
     // by any authenticated user.
     await this.bookingsService.assertParticipant(id, req.user.userId);
@@ -152,7 +181,11 @@ export class BookingsController {
   }
 
   @Post(':id/completion')
-  async confirmCompletion(@Param('id') id: string, @Req() req, @Body() body: ConfirmOtpDto) {
+  async confirmCompletion(
+    @Param('id') id: string,
+    @Req() req,
+    @Body() body: ConfirmOtpDto,
+  ) {
     // SECURITY FIX: participants only (see arrival above).
     await this.bookingsService.assertParticipant(id, req.user.userId);
     return this.bookingsService.verifyCompletionOtp(id, body.otp);
@@ -263,12 +296,20 @@ export class BookingsController {
   }
 
   @Patch(':id/mark-paid')
-  async markPaid(@Param('id') id: string, @Req() req, @Body() body: MarkPaidDto) {
+  async markPaid(
+    @Param('id') id: string,
+    @Req() req,
+    @Body() body: MarkPaidDto,
+  ) {
     return this.bookingsService.markPaid(id, req.user.userId, body ?? {});
   }
 
   @Post(':id/rating')
-  async submitRating(@Param('id') id: string, @Req() req, @Body() body: SubmitRatingDto) {
+  async submitRating(
+    @Param('id') id: string,
+    @Req() req,
+    @Body() body: SubmitRatingDto,
+  ) {
     // SECURITY FIX: was unscoped — anyone could rate any booking. Only the
     // customer may rate the worker.
     const booking = await this.bookingsService.assertParticipant(
@@ -283,7 +324,11 @@ export class BookingsController {
 
   // v126 parity: worker rates the customer after completion.
   @Post(':id/rate-customer')
-  async rateCustomer(@Param('id') id: string, @Req() req, @Body() body: SubmitRatingDto) {
+  async rateCustomer(
+    @Param('id') id: string,
+    @Req() req,
+    @Body() body: SubmitRatingDto,
+  ) {
     return this.bookingsService.rateCustomer(id, req.user.userId, body.rating);
   }
 
@@ -313,7 +358,11 @@ export class BookingsController {
   // Persisted now (was log-only): stored on the booking with reporter role
   // + timestamp so support/admin can review.
   @Post(':id/dispute')
-  async reportDispute(@Param('id') id: string, @Req() req, @Body() body: ReportDisputeDto) {
+  async reportDispute(
+    @Param('id') id: string,
+    @Req() req,
+    @Body() body: ReportDisputeDto,
+  ) {
     return this.bookingsService.reportDispute(id, req.user.userId, body.reason);
   }
 }

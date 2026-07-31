@@ -1,4 +1,9 @@
-import { Injectable, NotFoundException, BadRequestException, Logger } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+  Logger,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, Repository } from 'typeorm';
 import { WorkerProfile } from './worker-profile.entity';
@@ -136,7 +141,7 @@ export class WorkersService {
         { operator: { id: userId }, status: BookingStatus.CONFIRMED },
       ],
     });
-    
+
     const status = activeBooking ? 'busy' : 'available';
     // 3. Update cache for next time
     await this.redisService.set(`worker:status:${userId}`, status, 3600); // 1hr TTL
@@ -146,7 +151,10 @@ export class WorkersService {
   /**
    * Specifically used to force-sync status in Redis when booking events happen
    */
-  async setWorkerStatus(userId: string, status: 'available' | 'busy'): Promise<void> {
+  async setWorkerStatus(
+    userId: string,
+    status: 'available' | 'busy',
+  ): Promise<void> {
     await this.redisService.set(`worker:status:${userId}`, status, 3600);
   }
 
@@ -154,7 +162,10 @@ export class WorkersService {
    * Helper mapper to convert from TypeORM entity to Flutter's DTO interface
    * This handles the shape mismatch from DB structure to API payload.
    */
-  private  mapToDto(profile: WorkerProfile, status: 'available' | 'busy' = 'available'): WorkerDto {
+  private mapToDto(
+    profile: WorkerProfile,
+    status: 'available' | 'busy' = 'available',
+  ): WorkerDto {
     return {
       id: profile.user?.id || profile.id, // Using user ID externally if available
       name: profile.user?.name || 'Unknown Worker',
@@ -176,21 +187,30 @@ export class WorkersService {
     };
   }
 
-  private mapTalentToDto(profile: TalentProfile, status: 'available' | 'busy' = 'available'): WorkerDto {
+  private mapTalentToDto(
+    profile: TalentProfile,
+    status: 'available' | 'busy' = 'available',
+  ): WorkerDto {
     const primarySkill = profile.professionalSkills?.[0];
     return {
       id: profile.user?.id || profile.id,
       name: profile.user?.name || 'Unknown Professional',
-      title: primarySkill ? `${primarySkill.name} Expert` : 'Professional Services',
+      title: primarySkill
+        ? `${primarySkill.name} Expert`
+        : 'Professional Services',
       bio: profile.experience || '',
       image_url: profile.user?.profileImageUrl || 'https://i.pravatar.cc/150',
       rating: 5.0, // Default for new pros
       completed_jobs: 0,
       review_count: 0,
       is_featured: false,
-      hourly_rate: primarySkill ? Number(primarySkill.hourlyRate) : (profile.hourlyRate || 0),
-      skills: profile.professionalSkills?.map(s => s.name) || [],
-      availability_tags: [status === 'available' ? 'Available Now' : 'Currently Busy'],
+      hourly_rate: primarySkill
+        ? Number(primarySkill.hourlyRate)
+        : profile.hourlyRate || 0,
+      skills: profile.professionalSkills?.map((s) => s.name) || [],
+      availability_tags: [
+        status === 'available' ? 'Available Now' : 'Currently Busy',
+      ],
       primary_type: 'manual',
       is_active: true, // Professionals are considered active if they have a profile for now
       status: status,
@@ -241,7 +261,9 @@ export class WorkersService {
     // AUDIT FIX (N+1): resolve every worker's busy/available status in
     // parallel instead of awaiting one at a time.
     const [statuses, talentStatuses] = await Promise.all([
-      Promise.all(eligible.map((p) => this.getWorkerStatus(p.user?.id || p.id))),
+      Promise.all(
+        eligible.map((p) => this.getWorkerStatus(p.user?.id || p.id)),
+      ),
       Promise.all(
         eligibleTalent.map((p) => this.getWorkerStatus(p.user?.id || p.id)),
       ),
@@ -249,7 +271,9 @@ export class WorkersService {
 
     const allWorkerDtos: WorkerDto[] = [
       ...eligible.map((p, i) => this.mapToDto(p, statuses[i])),
-      ...eligibleTalent.map((p, i) => this.mapTalentToDto(p, talentStatuses[i])),
+      ...eligibleTalent.map((p, i) =>
+        this.mapTalentToDto(p, talentStatuses[i]),
+      ),
     ];
 
     // 3. Deduplicate by user ID
@@ -283,7 +307,9 @@ export class WorkersService {
       if (!userProfile) {
         throw new NotFoundException(`Worker with ID ${id} not found`);
       }
-      const status = await this.getWorkerStatus(userProfile.user?.id || userProfile.id);
+      const status = await this.getWorkerStatus(
+        userProfile.user?.id || userProfile.id,
+      );
       return this.mapToDto(userProfile, status);
     }
 
@@ -338,9 +364,12 @@ export class WorkersService {
     }
 
     if (talent) {
-      const talentSkills = talent.professionalSkills?.map(s => s.name) || [];
-      const primaryRate = talent.professionalSkills?.[0]?.hourlyRate ?? talent.hourlyRate ?? 50;
-      const primaryTitle = talent.professionalSkills?.[0]?.name ? `${talent.professionalSkills[0].name} Expert` : 'Professional Services';
+      const talentSkills = talent.professionalSkills?.map((s) => s.name) || [];
+      const primaryRate =
+        talent.professionalSkills?.[0]?.hourlyRate ?? talent.hourlyRate ?? 50;
+      const primaryTitle = talent.professionalSkills?.[0]?.name
+        ? `${talent.professionalSkills[0].name} Expert`
+        : 'Professional Services';
 
       if (!profile) {
         profile = this.workersRepository.create({
@@ -400,11 +429,14 @@ export class WorkersService {
     // We assume the ID passed is the internal profile ID or the user ID
     // Check if it's an internal profile ID first, if so get user ID
     let userId = id;
-    const directProfile = await this.workersRepository.findOne({ where: { id }, relations: ['user'] });
+    const directProfile = await this.workersRepository.findOne({
+      where: { id },
+      relations: ['user'],
+    });
     if (directProfile && directProfile.user) {
       userId = directProfile.user.id;
     }
-    
+
     const profile = await this.ensureWorkerProfile(userId);
 
     // IST calendar date — NOT toISOString() (UTC), which doesn't roll over
@@ -443,10 +475,9 @@ export class WorkersService {
       const credits = creditRow ? creditRow.balance : 0;
       if (credits <= 0) {
         throw new BadRequestException(
-          'You need job credits to go live and accept new bookings. Please buy a job pack to continue.'
+          'You need job credits to go live and accept new bookings. Please buy a job pack to continue.',
         );
       }
-
 
       // Daily go-live cap — admin-tunable (Master Entries →
       // go_live_daily_limit; 0 or blank = unlimited).
@@ -527,13 +558,13 @@ export class WorkersService {
     } else {
       // Mark as available if going online
       await this.setWorkerStatus(userId, 'available');
-      
+
       // PERSISTENCE SYNC: warm Redis with coords from this request or DB
       if (profile.lastLat && profile.lastLng) {
         await this.redisService.updateWorkerLocation(
-          userId, 
-          Number(profile.lastLat), 
-          Number(profile.lastLng)
+          userId,
+          Number(profile.lastLat),
+          Number(profile.lastLng),
         );
       }
 
@@ -541,13 +572,16 @@ export class WorkersService {
       const dto = this.mapToDto(profile, 'available');
       await this.redisService.cacheWorkerSnapshot(userId, dto);
       // Only index skills the worker has switched ON (empty/null = all).
-      await this.redisService.indexWorkerSkills(userId, this.dispatchableSkills(profile));
+      await this.redisService.indexWorkerSkills(
+        userId,
+        this.dispatchableSkills(profile),
+      );
     }
 
     return {
       isActive: profile.isActive,
-      message: profile.isActive 
-        ? 'You are now LIVE on the map and accepting jobs.' 
+      message: profile.isActive
+        ? 'You are now LIVE on the map and accepting jobs.'
         : 'You are now OFFLINE. Customers cannot dispatch you instantly.',
     };
   }
@@ -580,27 +614,37 @@ export class WorkersService {
     );
 
     // If they hit the limit, force them offline immediately so they can't receive more jobs.
-    const profile = await this.workersRepository.findOne({ where: { user: { id: userId } } });
-    if (profile && profile.isActive && profile.jobsSincePayment >= jobsIncluded) {
+    const profile = await this.workersRepository.findOne({
+      where: { user: { id: userId } },
+    });
+    if (
+      profile &&
+      profile.isActive &&
+      profile.jobsSincePayment >= jobsIncluded
+    ) {
       await this.forceOffline(userId);
-      this.logger.log(`[PeriodFee] Worker ${userId} hit limit (${profile.jobsSincePayment}/${jobsIncluded}), forced offline.`);
+      this.logger.log(
+        `[PeriodFee] Worker ${userId} hit limit (${profile.jobsSincePayment}/${jobsIncluded}), forced offline.`,
+      );
     }
   }
 
   async forceOffline(userId: string): Promise<void> {
-    const profile = await this.workersRepository.findOne({ where: { user: { id: userId } } });
+    const profile = await this.workersRepository.findOne({
+      where: { user: { id: userId } },
+    });
     if (profile && profile.isActive) {
       profile.isActive = false;
       await this.workersRepository.save(profile);
-      
+
       await this.redisService.del(`worker:location:${userId}`);
       await this.redisService.del(`worker:status:${userId}`);
       await this.redisService.del(`worker:snapshot:${userId}`);
       await this.redisService.unindexWorkerSkills(userId, profile.skills || []);
       await this.redisService.removeWorkerFromGeoIndex(userId);
-      
+
       await this.invalidateWorkerListCache();
-      
+
       this.logger.log(`Worker ${userId} forced offline.`);
     }
   }
@@ -637,7 +681,9 @@ export class WorkersService {
   }> {
     const jobsIncluded = await this.periodicJobsPerPayment();
     if (jobsIncluded <= 0) {
-      throw new BadRequestException('The per-jobs payment plan is not enabled.');
+      throw new BadRequestException(
+        'The per-jobs payment plan is not enabled.',
+      );
     }
     const profile = await this.ensureWorkerProfile(userId);
     const jobsUsed = profile.jobsSincePayment ?? 0;
@@ -693,8 +739,8 @@ export class WorkersService {
   /** Skills that should receive instant dispatch: activeSkills if the worker
    *  curated a subset, otherwise every registered skill (back-compat). */
   private dispatchableSkills(profile: WorkerProfile): string[] {
-    const active = (profile.activeSkills || []).filter(
-      (s) => (profile.skills || []).includes(s),
+    const active = (profile.activeSkills || []).filter((s) =>
+      (profile.skills || []).includes(s),
     );
     return active.length > 0 ? active : profile.skills || [];
   }
@@ -706,7 +752,9 @@ export class WorkersService {
    * from sub-skills when needed.
    */
   private async normalizeTradeSkills(skills: string[]): Promise<string[]> {
-    const unique = [...new Set((skills || []).map((s) => s.trim()).filter(Boolean))];
+    const unique = [
+      ...new Set((skills || []).map((s) => s.trim()).filter(Boolean)),
+    ];
     if (unique.length === 0) return [];
 
     let trades: Array<{ label: string; value?: string | null }> = [];
@@ -754,7 +802,9 @@ export class WorkersService {
   }
 
   /** Persist trade-only skills when a profile still has sub-skill noise. */
-  private async healTradeSkills(profile: WorkerProfile): Promise<WorkerProfile> {
+  private async healTradeSkills(
+    profile: WorkerProfile,
+  ): Promise<WorkerProfile> {
     const normalized = await this.normalizeTradeSkills(profile.skills || []);
     const before = [...(profile.skills || [])].sort().join('|');
     const after = [...normalized].sort().join('|');
@@ -787,7 +837,9 @@ export class WorkersService {
     const allowed = profile.skills || [];
     const cleaned = [...new Set(skills)].filter((s) => allowed.includes(s));
     if (skills.length > 0 && cleaned.length === 0) {
-      throw new BadRequestException('None of those services are on your profile');
+      throw new BadRequestException(
+        'None of those services are on your profile',
+      );
     }
     profile.activeSkills = cleaned;
     await this.workersRepository.save(profile);
@@ -795,7 +847,10 @@ export class WorkersService {
     if (profile.isActive) {
       // Re-sync the dispatch index: drop everything, re-add the active set.
       await this.redisService.unindexWorkerSkills(userId, allowed);
-      await this.redisService.indexWorkerSkills(userId, this.dispatchableSkills(profile));
+      await this.redisService.indexWorkerSkills(
+        userId,
+        this.dispatchableSkills(profile),
+      );
     }
     return { skills: allowed, activeSkills: profile.activeSkills || [] };
   }
@@ -1102,11 +1157,17 @@ export class WorkersService {
 
     await this.notificationsService
       .sendToUser(strike.workerUserId, {
-        title: overturn ? 'Appeal accepted — strike removed' : 'Appeal reviewed',
+        title: overturn
+          ? 'Appeal accepted — strike removed'
+          : 'Appeal reviewed',
         body: overturn
           ? `Your appeal was accepted and the strike no longer counts.${note ? ' Note: ' + note : ''} If you were suspended, you can go live again.`
           : `Your appeal was reviewed and the strike stands.${note ? ' Note: ' + note : ''}`,
-        data: { type: 'strike_resolved', strikeId, overturned: String(overturn) },
+        data: {
+          type: 'strike_resolved',
+          strikeId,
+          overturned: String(overturn),
+        },
       })
       .catch(() => {});
 
@@ -1118,12 +1179,15 @@ export class WorkersService {
   // (400 'already exists', swallowed by the client) meant a re-run changed
   // nothing AND the user flag below was never set — which is why users were
   // asked to register + verify again on every login.
-  async createProfile(userId: string, data: {
-    skills: string[];
-    hourlyRate: number;
-    bio?: string;
-    title?: string;
-  }): Promise<WorkerProfile> {
+  async createProfile(
+    userId: string,
+    data: {
+      skills: string[];
+      hourlyRate: number;
+      bio?: string;
+      title?: string;
+    },
+  ): Promise<WorkerProfile> {
     const existing = await this.workersRepository.findOne({
       where: { user: { id: userId } },
     });
@@ -1209,7 +1273,7 @@ export class WorkersService {
     // AUDIT FIX (N+1): the talent profile (photo + certificates) used to be
     // fetched with one query PER pending worker. Now it's a single IN query,
     // indexed by userId for the join below.
-    const userIds = profiles.map((p) => p.user?.id).filter(Boolean) as string[];
+    const userIds = profiles.map((p) => p.user?.id).filter(Boolean);
     const talents = userIds.length
       ? await this.talentRepository.find({
           where: { user: { id: In(userIds) } } as any,
@@ -1263,7 +1327,10 @@ export class WorkersService {
   /// v126 language matching — the pro sets the languages they speak.
   /// Refreshes the cached worker snapshot so broadcast fan-outs see the
   /// change immediately.
-  async setLanguages(userId: string, languages: string[]): Promise<{ languages: string[] }> {
+  async setLanguages(
+    userId: string,
+    languages: string[],
+  ): Promise<{ languages: string[] }> {
     const profile = await this.workersRepository.findOne({
       where: { user: { id: userId } },
       relations: ['user'],
@@ -1274,7 +1341,10 @@ export class WorkersService {
     await this.invalidateWorkerListCache();
     try {
       const status = await this.getWorkerStatus(userId);
-      await this.redisService.cacheWorkerSnapshot(userId, this.mapToDto(profile, status));
+      await this.redisService.cacheWorkerSnapshot(
+        userId,
+        this.mapToDto(profile, status),
+      );
     } catch (e) {
       console.error('[SetLanguages] snapshot refresh failed:', e);
     }
@@ -1314,7 +1384,10 @@ export class WorkersService {
   }
 
   // DEFECT-007: Update hourly rate with 2/day rate limit
-  async updateHourlyRate(userId: string, newRate: number): Promise<{ hourlyRate: number }> {
+  async updateHourlyRate(
+    userId: string,
+    newRate: number,
+  ): Promise<{ hourlyRate: number }> {
     const profile = await this.workersRepository.findOne({
       where: { user: { id: userId } },
     });
@@ -1326,7 +1399,9 @@ export class WorkersService {
       profile.rateUpdateCountToday = 0;
     }
     if (profile.rateUpdateCountToday >= 2) {
-      throw new BadRequestException('Hourly rate can only be updated twice per day.');
+      throw new BadRequestException(
+        'Hourly rate can only be updated twice per day.',
+      );
     }
     profile.hourlyRate = newRate;
     profile.rateUpdateCountToday += 1;
@@ -1449,9 +1524,14 @@ export class WorkersService {
     // round-trips before a single pro is notified. Now every stage is
     // resolved in parallel, and the DB fallback for cache misses is ONE
     // `IN (...)` query instead of one query per worker.
-    const rejectedIds = await this.redisService.getRejectedWorkersForJob(requesterId, skill);
+    const rejectedIds = await this.redisService.getRejectedWorkersForJob(
+      requesterId,
+      skill,
+    );
     const rejectedSet = new Set(rejectedIds);
-    const candidates = skillWorkerIds.filter((id) => id !== requesterId && !rejectedSet.has(id));
+    const candidates = skillWorkerIds.filter(
+      (id) => id !== requesterId && !rejectedSet.has(id),
+    );
 
     // 3a. All locations in parallel; keep only those inside the radius.
     const locations = await Promise.all(
@@ -1461,10 +1541,16 @@ export class WorkersService {
     candidates.forEach((workerId, i) => {
       const location = locations[i];
       if (!location) return;
-      const distance = this.calculateDistance(lat, lng, location.lat, location.lng);
+      const distance = this.calculateDistance(
+        lat,
+        lng,
+        location.lat,
+        location.lng,
+      );
       // Coarse pre-filter only — the pro's OWN serviceRadiusKm is enforced
       // below, once their snapshot (which carries it) is resolved.
-      if (distance <= MAX_DISPATCH_RADIUS_KM) inRadius.push({ workerId, distance });
+      if (distance <= MAX_DISPATCH_RADIUS_KM)
+        inRadius.push({ workerId, distance });
     });
     if (inRadius.length === 0) return [];
 
@@ -1496,9 +1582,7 @@ export class WorkersService {
           const id = p.user?.id || p.id;
           const dto = this.mapToDto(p, statuses[i]);
           rebuilt.set(id, dto);
-          await this.redisService
-            .cacheWorkerSnapshot(id, dto)
-            .catch(() => {});
+          await this.redisService.cacheWorkerSnapshot(id, dto).catch(() => {});
         }),
       );
     }
@@ -1534,7 +1618,12 @@ export class WorkersService {
   }
 
   /** HAversine formula for distance check */
-  private calculateDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
+  private calculateDistance(
+    lat1: number,
+    lon1: number,
+    lat2: number,
+    lon2: number,
+  ): number {
     const R = 6371;
     const dLat = (lat2 - lat1) * (Math.PI / 180);
     const dLon = (lon2 - lon1) * (Math.PI / 180);
@@ -1565,7 +1654,9 @@ export class WorkersService {
       });
 
       // Check if any skill has a rateChart with custom package pricing
-      const skillWithChart = skills.find(s => s.rateChart && Object.keys(s.rateChart).length > 0);
+      const skillWithChart = skills.find(
+        (s) => s.rateChart && Object.keys(s.rateChart).length > 0,
+      );
 
       if (skillWithChart && skillWithChart.rateChart) {
         const chart = skillWithChart.rateChart;
@@ -1589,7 +1680,11 @@ export class WorkersService {
             duration: '4 hrs',
             price: chart['halfDay'] || chart['4hr'],
             isPopular: true,
-            includes: ['Up to 3 tasks', 'All tools included', 'Report on completion'],
+            includes: [
+              'Up to 3 tasks',
+              'All tools included',
+              'Report on completion',
+            ],
           });
         }
         if (chart['fullDay'] || chart['8hr']) {
@@ -1599,7 +1694,11 @@ export class WorkersService {
             duration: '8 hrs',
             price: chart['fullDay'] || chart['8hr'],
             isPopular: false,
-            includes: ['Unlimited tasks', 'Materials advice', 'Priority rebooking'],
+            includes: [
+              'Unlimited tasks',
+              'Materials advice',
+              'Priority rebooking',
+            ],
           });
         }
 
@@ -1623,7 +1722,11 @@ export class WorkersService {
         duration: '4 hrs',
         price: Math.round(rate * 3.5),
         isPopular: true,
-        includes: ['Up to 3 tasks', 'All tools included', 'Report on completion'],
+        includes: [
+          'Up to 3 tasks',
+          'All tools included',
+          'Report on completion',
+        ],
       },
       {
         name: 'Full Day',

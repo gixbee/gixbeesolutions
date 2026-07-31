@@ -8,7 +8,11 @@ import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import * as crypto from 'crypto';
-import { PaymentOrder, PaymentOrderStatus, PaymentPurpose } from './payment-order.entity';
+import {
+  PaymentOrder,
+  PaymentOrderStatus,
+  PaymentPurpose,
+} from './payment-order.entity';
 import { WalletsService } from '../wallets/wallets.service';
 import { MasterEntriesService } from '../master-entries/master-entries.service';
 import { WorkersService } from '../workers/workers.service';
@@ -123,7 +127,9 @@ export class PaymentsService {
   }> {
     const jobsIncluded = await this.workersService.periodicJobsPerPayment();
     if (jobsIncluded <= 0) {
-      throw new BadRequestException('The per-jobs payment plan is not enabled.');
+      throw new BadRequestException(
+        'The per-jobs payment plan is not enabled.',
+      );
     }
     const fee = await this.masterEntriesService.getConfigNumber(
       'go_live_period_fee',

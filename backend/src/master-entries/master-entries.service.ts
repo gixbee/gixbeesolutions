@@ -16,16 +16,53 @@ export class MasterEntriesService implements OnModuleInit {
 
   async onModuleInit() {
     // Seed default PRO_TRADES if none exist
-    const count = await this.masterEntryRepo.count({ where: { type: MasterEntryType.PRO_TRADE } });
+    const count = await this.masterEntryRepo.count({
+      where: { type: MasterEntryType.PRO_TRADE },
+    });
     if (count === 0) {
       const defaultTrades = [
-        { label: 'Electrician', icon: 'bolt_rounded', value: 'Wiring & rewiring,Switch & socket repair,Fan installation,Light fitting,MCB / fuse box,Inverter & battery' },
-        { label: 'Plumber', icon: 'plumbing_rounded', value: 'Pipe leaking / dripping,Burst pipe emergency,Wall / ceiling leakage,Joint / fitting leak,Drain & blockage,Toilet repair,Tap & faucet,Water supply' },
-        { label: 'Driver', icon: 'directions_car_rounded', value: 'Personal driver (hourly),Outstation trips,Two-wheeler delivery,Goods transport,Airport pickup / drop' },
-        { label: 'Cleaner', icon: 'cleaning_services_rounded', value: 'Home deep cleaning,Bathroom cleaning,Kitchen cleaning,Sofa & carpet,Office cleaning,Move-in / move-out' },
-        { label: 'Nurse', icon: 'medical_services_rounded', value: 'Elderly care,Patient bedside care,Injection & dressing,Post-surgery care,Baby care' },
-        { label: 'Carpenter', icon: 'handyman_rounded', value: 'Furniture repair,Door & window fitting,Modular kitchen,Bed & wardrobe,Custom woodwork' },
-        { label: 'AC Technician', icon: 'ac_unit_rounded', value: 'AC servicing,Gas refill,Installation / uninstall,Cooling repair,Water leakage fix' },
+        {
+          label: 'Electrician',
+          icon: 'bolt_rounded',
+          value:
+            'Wiring & rewiring,Switch & socket repair,Fan installation,Light fitting,MCB / fuse box,Inverter & battery',
+        },
+        {
+          label: 'Plumber',
+          icon: 'plumbing_rounded',
+          value:
+            'Pipe leaking / dripping,Burst pipe emergency,Wall / ceiling leakage,Joint / fitting leak,Drain & blockage,Toilet repair,Tap & faucet,Water supply',
+        },
+        {
+          label: 'Driver',
+          icon: 'directions_car_rounded',
+          value:
+            'Personal driver (hourly),Outstation trips,Two-wheeler delivery,Goods transport,Airport pickup / drop',
+        },
+        {
+          label: 'Cleaner',
+          icon: 'cleaning_services_rounded',
+          value:
+            'Home deep cleaning,Bathroom cleaning,Kitchen cleaning,Sofa & carpet,Office cleaning,Move-in / move-out',
+        },
+        {
+          label: 'Nurse',
+          icon: 'medical_services_rounded',
+          value:
+            'Elderly care,Patient bedside care,Injection & dressing,Post-surgery care,Baby care',
+        },
+        {
+          label: 'Carpenter',
+          icon: 'handyman_rounded',
+          value:
+            'Furniture repair,Door & window fitting,Modular kitchen,Bed & wardrobe,Custom woodwork',
+        },
+        {
+          label: 'AC Technician',
+          icon: 'ac_unit_rounded',
+          value:
+            'AC servicing,Gas refill,Installation / uninstall,Cooling repair,Water leakage fix',
+        },
       ];
 
       for (const trade of defaultTrades) {
@@ -36,7 +73,7 @@ export class MasterEntriesService implements OnModuleInit {
           value: '',
           isActive: true,
         });
-        
+
         const subSkills = trade.value.split(',');
         for (const sub of subSkills) {
           await this.create({
@@ -244,7 +281,10 @@ export class MasterEntriesService implements OnModuleInit {
     // any existing '6' entry to '0' (unlimited) so deployed instances get
     // the fix on the next boot without a manual DB change.
     const existingLimit = await this.masterEntryRepo.findOne({
-      where: { type: MasterEntryType.CONFIGURATION, label: 'go_live_daily_limit' },
+      where: {
+        type: MasterEntryType.CONFIGURATION,
+        label: 'go_live_daily_limit',
+      },
     });
     if (existingLimit && existingLimit.value === '6') {
       existingLimit.value = '0';
@@ -253,7 +293,9 @@ export class MasterEntriesService implements OnModuleInit {
         'Reset from 6 to 0 (Jul 2026) — periodic fee model charges per completed job, not per session.';
       await this.masterEntryRepo.save(existingLimit);
       await this.clearCache();
-      console.log('MIGRATION: go_live_daily_limit reset from 6 to 0 (periodic fee model)');
+      console.log(
+        'MIGRATION: go_live_daily_limit reset from 6 to 0 (periodic fee model)',
+      );
     }
 
     for (const cfg of MasterEntriesService.DEFAULT_CONFIGS) {
@@ -326,9 +368,17 @@ export class MasterEntriesService implements OnModuleInit {
     if (isActive !== undefined) base.isActive = isActive;
     if (category) base.category = category;
 
-    const where = cityId ? [{ ...base, cityId: IsNull() }, { ...base, cityId }] : base;
+    const where = cityId
+      ? [
+          { ...base, cityId: IsNull() },
+          { ...base, cityId },
+        ]
+      : base;
 
-    const entries = await this.masterEntryRepo.find({ where, order: { createdAt: 'DESC' } });
+    const entries = await this.masterEntryRepo.find({
+      where,
+      order: { createdAt: 'DESC' },
+    });
 
     // 3. Store in Redis for ~1 hour with ±10% JITTER — with two backend
     //    replicas, identical TTLs expire in lockstep and both replicas miss

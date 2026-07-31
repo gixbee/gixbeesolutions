@@ -25,7 +25,11 @@ describe('CreateRentalItemDto validation', () => {
   });
 
   it('accepts the minimal required payload (no minHoursToRent/description)', async () => {
-    const out = await transform({ ownerId: 'u1', name: 'Ladder', hourlyRate: 20 });
+    const out = await transform({
+      ownerId: 'u1',
+      name: 'Ladder',
+      hourlyRate: 20,
+    });
     expect(out.minHoursToRent).toBeUndefined();
     expect(out.description).toBeUndefined();
   });
@@ -37,7 +41,7 @@ describe('CreateRentalItemDto validation', () => {
       hourlyRate: 50,
       isAdmin: true,
     });
-    expect((out as any).isAdmin).toBeUndefined();
+    expect(out.isAdmin).toBeUndefined();
     expect(out.name).toBe('Drill');
   });
 
@@ -62,7 +66,11 @@ describe('CreateRentalItemDto validation', () => {
 
 describe('RequestReservationDto validation', () => {
   const pipe = new ValidationPipe({ whitelist: true, transform: true });
-  const meta = { type: 'body', metatype: RequestReservationDto, data: '' } as any;
+  const meta = {
+    type: 'body',
+    metatype: RequestReservationDto,
+    data: '',
+  } as any;
   const transform = (body: any) => pipe.transform(body, meta);
 
   it('accepts ISO start/end strings (parsed by the controller, not the DTO)', async () => {

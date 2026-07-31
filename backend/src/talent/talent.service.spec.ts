@@ -18,11 +18,13 @@ import { SkillApprovalStatus } from './professional-skill.entity';
  * Both repositories are mocked in-memory so each branch can be toggled
  * deterministically; no database is touched.
  */
-function makeService(opts: {
-  profile?: any;
-  skill?: any;
-  configValues?: Record<string, string>;
-} = {}) {
+function makeService(
+  opts: {
+    profile?: any;
+    skill?: any;
+    configValues?: Record<string, string>;
+  } = {},
+) {
   const talentSaved: any[] = [];
   const skillSaved: any[] = [];
   const skillRemoved: any[] = [];
@@ -54,7 +56,15 @@ function makeService(opts: {
   };
 
   const service = new TalentService(talentRepo, skillRepo, config);
-  return { service, talentRepo, skillRepo, talentSaved, skillSaved, skillRemoved, config };
+  return {
+    service,
+    talentRepo,
+    skillRepo,
+    talentSaved,
+    skillSaved,
+    skillRemoved,
+    config,
+  };
 }
 
 const profile = (over: Partial<any> = {}) => ({
@@ -69,7 +79,9 @@ const profile = (over: Partial<any> = {}) => ({
 describe('TalentService.getProfile', () => {
   it('returns the existing profile when one is found', async () => {
     const existing = profile();
-    const { service, talentRepo, talentSaved } = makeService({ profile: existing });
+    const { service, talentRepo, talentSaved } = makeService({
+      profile: existing,
+    });
 
     const result = await service.getProfile('user-1');
 
@@ -141,9 +153,17 @@ describe('TalentService.addOrUpdateSkill', () => {
       rateChart: { '1h': 100 },
       status: SkillApprovalStatus.APPROVED,
     };
-    const { service } = makeService({ profile: profile(), skill: existingSkill });
+    const { service } = makeService({
+      profile: profile(),
+      skill: existingSkill,
+    });
 
-    const result = await service.addOrUpdateSkill('user-1', 'Plumbing', 300, undefined as any);
+    const result = await service.addOrUpdateSkill(
+      'user-1',
+      'Plumbing',
+      300,
+      undefined as any,
+    );
 
     expect(result.hourlyRate).toBe(300);
     expect(result.rateChart).toEqual({ '1h': 100 });
@@ -156,7 +176,12 @@ describe('TalentService.addOrUpdateSkill', () => {
       skill: null,
     });
 
-    const result = await service.addOrUpdateSkill('user-1', 'Carpentry', 180, 'bio');
+    const result = await service.addOrUpdateSkill(
+      'user-1',
+      'Carpentry',
+      180,
+      'bio',
+    );
 
     expect(skillRepo.create).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -174,7 +199,10 @@ describe('TalentService.addOrUpdateSkill', () => {
 describe('TalentService.removeSkill', () => {
   it('removes the skill when it belongs to the user profile', async () => {
     const skill = { id: 'skill-1' };
-    const { service, skillRemoved } = makeService({ profile: profile(), skill });
+    const { service, skillRemoved } = makeService({
+      profile: profile(),
+      skill,
+    });
 
     await service.removeSkill('user-1', 'skill-1');
 
@@ -183,11 +211,14 @@ describe('TalentService.removeSkill', () => {
   });
 
   it('throws NotFound when the skill is not on the profile', async () => {
-    const { service, skillRemoved } = makeService({ profile: profile(), skill: null });
+    const { service, skillRemoved } = makeService({
+      profile: profile(),
+      skill: null,
+    });
 
-    await expect(service.removeSkill('user-1', 'missing')).rejects.toBeInstanceOf(
-      NotFoundException,
-    );
+    await expect(
+      service.removeSkill('user-1', 'missing'),
+    ).rejects.toBeInstanceOf(NotFoundException);
     expect(skillRemoved).toHaveLength(0);
   });
 });
@@ -197,7 +228,10 @@ describe('TalentService.updateSkillStatus', () => {
     const skill = { id: 'skill-1', status: SkillApprovalStatus.PENDING };
     const { service, skillSaved } = makeService({ skill });
 
-    const result = await service.updateSkillStatus('skill-1', SkillApprovalStatus.APPROVED);
+    const result = await service.updateSkillStatus(
+      'skill-1',
+      SkillApprovalStatus.APPROVED,
+    );
 
     expect(result.status).toBe(SkillApprovalStatus.APPROVED);
     expect(skillSaved).toHaveLength(1);

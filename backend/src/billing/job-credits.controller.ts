@@ -1,5 +1,18 @@
-import { Controller, Get, Post, Body, Query, UseGuards, Request, BadRequestException } from '@nestjs/common';
-import { JobCreditsService, CREDITS_PER_PACK, PACK_PRICE_INR } from './job-credits.service';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Query,
+  UseGuards,
+  Request,
+  BadRequestException,
+} from '@nestjs/common';
+import {
+  JobCreditsService,
+  CREDITS_PER_PACK,
+  PACK_PRICE_INR,
+} from './job-credits.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { ConfigService } from '@nestjs/config';
 import * as crypto from 'crypto';
@@ -36,7 +49,11 @@ export class JobCreditsController {
 
   @Get('pack-info')
   getPackInfo() {
-    return { credits: CREDITS_PER_PACK, price: PACK_PRICE_INR, currency: 'INR' };
+    return {
+      credits: CREDITS_PER_PACK,
+      price: PACK_PRICE_INR,
+      currency: 'INR',
+    };
   }
 
   @Post('create-order')

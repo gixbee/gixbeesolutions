@@ -96,7 +96,10 @@ export class MatchingController {
       location,
       experienceMinYears: experienceMin ? parseInt(experienceMin, 10) : 0,
       skills: skills
-        ? skills.split(',').map((s) => s.trim()).filter(Boolean)
+        ? skills
+            .split(',')
+            .map((s) => s.trim())
+            .filter(Boolean)
         : [],
     });
   }
@@ -161,10 +164,6 @@ export class MatchingController {
     @Param('id') id: string,
     @Body() body: { decision: EmployerDecision },
   ) {
-    return this.matchingService.setDecision(
-      req.user.userId,
-      id,
-      body.decision,
-    );
+    return this.matchingService.setDecision(req.user.userId, id, body.decision);
   }
 }

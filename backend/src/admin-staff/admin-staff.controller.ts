@@ -13,7 +13,10 @@ import {
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { AdminGuard } from '../auth/admin.guard';
 import { AdminStaffService } from './admin-staff.service';
-import { CreateAdminStaffDto, UpdateAdminStaffDto } from './dto/admin-staff.dto';
+import {
+  CreateAdminStaffDto,
+  UpdateAdminStaffDto,
+} from './dto/admin-staff.dto';
 import { AdminStaffRole } from './admin-staff.entity';
 
 @Controller('admin-staff')

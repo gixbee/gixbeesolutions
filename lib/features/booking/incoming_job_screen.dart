@@ -13,8 +13,6 @@ import '../../services/location_service.dart';
 import '../../theme.dart';
 import '../../shared/widgets/gx_snackbar.dart';
 import '../../shared/widgets/gx_pressable.dart';
-import '../../theme.dart';
-import '../billing/job_pack_screen.dart';
 
 /// Shown as a full-screen modal when the worker receives job requests.
 /// Handles a QUEUE of multiple simultaneous requests from different customers.

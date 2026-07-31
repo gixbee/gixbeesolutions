@@ -14,9 +14,17 @@ function makeController() {
     getGatewayStatus: jest.fn(() => ({
       wallet: { available: true },
       cash: { available: true },
-      upi: { available: false, provider: 'PHONEPE', needsApiKey: true, message: 'm' },
+      upi: {
+        available: false,
+        provider: 'PHONEPE',
+        needsApiKey: true,
+        message: 'm',
+      },
     })),
-    initiateUpiPayment: jest.fn(() => ({ status: 'UNAVAILABLE', needsApiKey: true })),
+    initiateUpiPayment: jest.fn(() => ({
+      status: 'UNAVAILABLE',
+      needsApiKey: true,
+    })),
   };
   const controller = new PaymentsController(paymentsService);
   return { controller, paymentsService };
@@ -37,7 +45,10 @@ describe('PaymentsController.initiateUpi', () => {
     const { controller, paymentsService } = makeController();
     const body = { amount: 250, bookingId: 'b1' };
     const res = controller.initiateUpi({ user: { userId: 'u-1' } }, body);
-    expect(paymentsService.initiateUpiPayment).toHaveBeenCalledWith('u-1', body);
+    expect(paymentsService.initiateUpiPayment).toHaveBeenCalledWith(
+      'u-1',
+      body,
+    );
     expect(res).toEqual({ status: 'UNAVAILABLE', needsApiKey: true });
   });
 });

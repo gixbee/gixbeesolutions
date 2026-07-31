@@ -53,7 +53,9 @@ export class MessagesService {
     body: string,
     bookingId?: string,
   ): Promise<MessageDto> {
-    const recipient = await this.usersRepo.findOne({ where: { id: recipientId } });
+    const recipient = await this.usersRepo.findOne({
+      where: { id: recipientId },
+    });
     if (!recipient) throw new NotFoundException('Recipient not found');
 
     const message = this.messagesRepo.create({
@@ -98,10 +100,13 @@ export class MessagesService {
       .createQueryBuilder()
       .update(Message)
       .set({ isRead: true })
-      .where('recipientId = :userId AND senderId = :otherUserId AND isRead = false', {
-        userId,
-        otherUserId,
-      })
+      .where(
+        'recipientId = :userId AND senderId = :otherUserId AND isRead = false',
+        {
+          userId,
+          otherUserId,
+        },
+      )
       .execute();
 
     return messages.map((m) => this.toDto(m));

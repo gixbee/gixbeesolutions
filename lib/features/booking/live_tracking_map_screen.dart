@@ -55,7 +55,7 @@ class _LiveTrackingMapScreenState extends ConsumerState<LiveTrackingMapScreen> {
   // NOTE: maplibre_gl 0.21+ renamed the public classes (Maplibre* → MapLibre*).
   // pubspec resolves 0.26.x, so these are MapLibreMap / MapLibreMapController.
   MapLibreMapController? _mapController;
-  bool _currentStatus_navigatingAway = false;
+  bool _currentStatusNavigatingAway = false;
   bool _styleReady = false;
   Circle? _workerCircle;
   Circle? _customerCircle;
@@ -467,7 +467,7 @@ class _LiveTrackingMapScreenState extends ConsumerState<LiveTrackingMapScreen> {
 
     // Arrival OTP verified → job ACTIVE → navigate to CompletionOtpScreen.
     //
-    // GUARD: _currentStatus_navigatingAway prevents stacked navigations when
+    // GUARD: _currentStatusNavigatingAway prevents stacked navigations when
     // this is called from both the socket subscription AND the ref.listen
     // poll in the same frame. Both paths are intentional (belt + suspenders)
     // but only one should push the route.
@@ -478,8 +478,8 @@ class _LiveTrackingMapScreenState extends ConsumerState<LiveTrackingMapScreen> {
       if (newStatus != _currentStatus) {
         setState(() => _currentStatus = newStatus);
       }
-      if (_currentStatus_navigatingAway) return;
-      _currentStatus_navigatingAway = true;
+      if (_currentStatusNavigatingAway) return;
+      _currentStatusNavigatingAway = true;
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
         Navigator.pushReplacement(

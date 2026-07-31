@@ -24,11 +24,13 @@ describe('Auth DTO validation', () => {
       await expect(run({})).rejects.toBeInstanceOf(BadRequestException);
     });
     it('rejects an empty phone', async () => {
-      await expect(run({ phone: '' })).rejects.toBeInstanceOf(BadRequestException);
+      await expect(run({ phone: '' })).rejects.toBeInstanceOf(
+        BadRequestException,
+      );
     });
     it('strips unknown fields', async () => {
       const out = await run({ phone: '123', evil: 1 });
-      expect((out as any).evil).toBeUndefined();
+      expect(out.evil).toBeUndefined();
     });
   });
 
@@ -39,7 +41,9 @@ describe('Auth DTO validation', () => {
       expect(out.otp).toBe('0000');
     });
     it('rejects a missing otp', async () => {
-      await expect(run({ phone: '123' })).rejects.toBeInstanceOf(BadRequestException);
+      await expect(run({ phone: '123' })).rejects.toBeInstanceOf(
+        BadRequestException,
+      );
     });
   });
 

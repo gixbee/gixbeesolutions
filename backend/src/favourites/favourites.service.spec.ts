@@ -11,7 +11,9 @@ import { FavouritesService } from './favourites.service';
  * The Favourite repository is mocked in-memory so each branch toggles
  * deterministically; no database is touched.
  */
-function makeService(opts: { existing?: any; count?: number; affected?: number } = {}) {
+function makeService(
+  opts: { existing?: any; count?: number; affected?: number } = {},
+) {
   const saved: any[] = [];
 
   const favRepo: any = {
