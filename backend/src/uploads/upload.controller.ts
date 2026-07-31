@@ -7,6 +7,7 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
+import { Throttle } from '@nestjs/throttler';
 import { diskStorage } from 'multer';
 import { extname } from 'path';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
@@ -20,6 +21,7 @@ const ALLOWED_MIME = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
 export class UploadController {
   @Post('image')
   @UseGuards(JwtAuthGuard)
+  @Throttle({ default: { ttl: 60_000, limit: 20 } })
   @UseInterceptors(
     FileInterceptor('file', {
       storage: diskStorage({

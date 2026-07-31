@@ -13,6 +13,7 @@ import { MasterEntriesService } from './master-entries.service';
 import { MasterEntryType } from './master-entry.entity';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { AdminGuard } from '../auth/admin.guard';
+import { RequireAdminPage } from '../auth/require-admin-page.decorator';
 import {
   CreateMasterEntryDto,
   UpdateMasterEntryDto,
@@ -31,6 +32,7 @@ export class MasterEntriesController {
 
   @Post()
   @UseGuards(JwtAuthGuard, AdminGuard)
+  @RequireAdminPage('master-entries')
   async create(@Body() body: CreateMasterEntryDto) {
     return this.service.create(body);
   }
@@ -56,12 +58,14 @@ export class MasterEntriesController {
 
   @Patch(':id')
   @UseGuards(JwtAuthGuard, AdminGuard)
+  @RequireAdminPage('master-entries')
   async update(@Param('id') id: string, @Body() body: UpdateMasterEntryDto) {
     return this.service.update(id, body);
   }
 
   @Delete(':id')
   @UseGuards(JwtAuthGuard, AdminGuard)
+  @RequireAdminPage('master-entries')
   async remove(@Param('id') id: string) {
     return this.service.remove(id);
   }

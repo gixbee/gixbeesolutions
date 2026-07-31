@@ -6,6 +6,7 @@ import {
   Post,
   Req,
 } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
 import { Request } from 'express';
 import { SystemLogsService } from './system-logs.service';
 import { SystemLogLevel, SystemLogType } from './system-log.entity';
@@ -16,9 +17,8 @@ import { ClientLogDto } from './dto/client-log.dto';
  * No auth guard — the app must be able to report errors even when the
  * JWT has expired (which is itself a common crash scenario).
  *
- * Rate-limited by default via the global throttle guard in main.ts.
- * Reports are stored as SystemLog rows with type APP_CRASH so they
- * appear alongside server errors in the admin portal's Logs page.
+ * Tighter than the global 120/min default — crash spam should not flood
+ * system_logs. Reports are stored as SystemLog rows with type APP_CRASH.
  */
 @Controller('client-logs')
 export class ClientLogsController {
@@ -26,6 +26,7 @@ export class ClientLogsController {
 
   @Post()
   @HttpCode(HttpStatus.NO_CONTENT)
+  @Throttle({ default: { ttl: 60_000, limit: 30 } })
   report(@Body() dto: ClientLogDto, @Req() req: Request): void {
     const ip =
       (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() ||

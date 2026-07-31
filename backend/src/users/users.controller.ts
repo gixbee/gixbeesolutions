@@ -14,6 +14,7 @@ import { UsersService } from './users.service';
 import { TalentService } from '../talent/talent.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { AdminGuard } from '../auth/admin.guard';
+import { RequireAdminPage } from '../auth/require-admin-page.decorator';
 import { UpdateUserProfileDto } from './dto/update-profile.dto';
 import {
   UpdateFcmTokenDto,
@@ -36,12 +37,14 @@ export class UsersController {
   // trusting the URL id (was an auth bypass).
   @Get('summary')
   @UseGuards(AdminGuard)
+  @RequireAdminPage('dashboard', 'users')
   async getSummary() {
     return this.usersService.getSystemSummary();
   }
 
   @Get()
   @UseGuards(AdminGuard)
+  @RequireAdminPage('users')
   async getAllUsers() {
     return this.usersService.findAll();
   }
@@ -96,6 +99,7 @@ export class UsersController {
 
   @Patch('skill/:skillId/status')
   @UseGuards(AdminGuard)
+  @RequireAdminPage('users', 'verifications')
   async updateSkillStatus(
     @Param('skillId') skillId: string,
     @Body() body: UpdateSkillStatusDto,
@@ -105,6 +109,7 @@ export class UsersController {
 
   @Patch(':id/status')
   @UseGuards(AdminGuard)
+  @RequireAdminPage('users')
   async updateStatus(
     @Param('id') id: string,
     @Body() body: UpdateUserStatusDto,
@@ -114,6 +119,7 @@ export class UsersController {
 
   @Patch(':id/verify')
   @UseGuards(AdminGuard)
+  @RequireAdminPage('users')
   async verifyUser(@Param('id') id: string, @Body() body: VerifyUserDto) {
     return this.usersService.updateVerification(id, body.isVerified);
   }

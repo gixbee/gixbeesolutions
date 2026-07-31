@@ -1103,141 +1103,136 @@ export class BookingsService {
       throw new BadRequestException('Job must be active to complete');
     }
 
-    // AUDIT FIX (double-settlement race): atomically claim the completion.
-    // Only ONE concurrent verify call can flip ACTIVE → COMPLETED; losers
-    // fail here BEFORE any wallet settlement can run twice.
-    const claim = await this.bookingsRepository.update(
-      { id: bookingId, status: BookingStatus.ACTIVE },
-      { status: BookingStatus.COMPLETED, completedAt: new Date() },
-    );
-    if (!claim.affected) {
-      throw new BadRequestException('Job must be active to complete');
-    }
-
-    const startTime = booking.startedAt
-      ? new Date(booking.startedAt).getTime()
-      : Date.now();
-    // Bill only WORKED time: subtract approved pause windows (pausedMinutes),
-    // including a still-open pause at completion time.
-    let pausedMinutes = booking.pausedMinutes ?? 0;
-    if (booking.pausedAt) {
-      pausedMinutes += Math.max(
-        0,
-        Math.round((Date.now() - new Date(booking.pausedAt).getTime()) / 60000),
+    // Claim + billing save + outbox in one TX so Redis/socket/worker-release
+    // side effects survive a crash after commit (BOOKING_COMPLETED listener).
+    const txResult = await this.dataSource.transaction(async (manager) => {
+      // AUDIT FIX (double-settlement race): atomically claim the completion.
+      const claim = await manager.update(
+        Booking,
+        { id: bookingId, status: BookingStatus.ACTIVE },
+        { status: BookingStatus.COMPLETED, completedAt: new Date() },
       );
-      booking.pausedAt = null as any;
-    }
-    booking.pausedMinutes = pausedMinutes;
-
-    const elapsedMs = Math.max(0, Date.now() - startTime);
-    const pausedMs = pausedMinutes * 60 * 1000;
-    const workedMs = Math.max(0, elapsedMs - pausedMs);
-    // Proportional billing: minutes × rate/hr (matches payment-screen mock).
-    // Floor at 1 minute so a near-instant completion still has a charge base.
-    const workedMinutes = Math.max(1, Math.round(workedMs / 60000));
-    const billingHours = Math.max(1, Math.ceil(workedMinutes / 60));
-
-    booking.status = BookingStatus.COMPLETED; // already claimed atomically above
-    booking.completedAt = booking.completedAt ?? new Date();
-    booking.billingHours = billingHours;
-    booking.workedMinutes = workedMinutes;
-    // INSTANT (broadcast) requests carry the customer's ₹/hr budget in
-    // `amount`. Billing: MINIMUM 1 HOUR (the visit itself costs the worker
-    // travel time + petrol), then proportional per minute after the first
-    // hour — e.g. 30 min → 1 hr charge; 1 hr 45 min → 1.75 hr charge.
-    // PACKAGE/CUSTOM/RENTAL keep `amount` as the flat agreed price.
-    const hourlyRate = Number(booking.amount) || 0;
-    const billableMinutes = Math.max(60, workedMinutes);
-    const totalAmount =
-      booking.type === BookingType.INSTANT
-        ? Math.round(hourlyRate * (billableMinutes / 60))
-        : hourlyRate;
-    booking.totalAmount = totalAmount;
-
-    // Instant Help settles offline (cash / UPI / other). Gixbee never
-    // moves the job money — both sides confirm on the payment screens.
-    // Non-instant WALLET bookings settled in-app when the wallet product
-    // was live; with WALLET_PAYMENTS_ENABLED=false everything falls
-    // through to direct collection (isPaid=false → dual-confirm markPaid).
-    if (
-      BookingsService.WALLET_PAYMENTS_ENABLED &&
-      booking.type !== BookingType.INSTANT &&
-      booking.paymentMethod === 'WALLET'
-    ) {
-      if (totalAmount <= 0) {
-        booking.isPaid = true; // nothing to settle
-      } else if (booking.customer?.id && booking.operator?.id) {
-        try {
-          await this.walletsService.transferForBooking(
-            booking.customer.id,
-            booking.operator.id,
-            totalAmount,
-            bookingId,
-          );
-          booking.isPaid = true;
-          console.log(
-            `[CompleteBooking] Wallet settled: ₹${totalAmount} customer→worker for ${bookingId}`,
-          );
-        } catch (error) {
-          booking.isPaid = false;
-          console.error(
-            '[CompleteBooking] Wallet settlement failed — falling back to direct collection:',
-            error?.message ?? error,
-          );
-        }
+      if (!claim.affected) {
+        throw new BadRequestException('Job must be active to complete');
       }
-    } else if (booking.type === BookingType.INSTANT) {
-      booking.isPaid = false;
-    }
 
-    await this.bookingsRepository.save(booking);
+      const locked =
+        (await manager.findOne(Booking, {
+          where: { id: bookingId },
+          relations: ['customer', 'operator'],
+        })) ?? booking;
 
-    // TODO(outbox): append BOOKING_COMPLETED here (same transaction as save)
-    // once complete-path Redis/worker-release side effects move to the listener.
-
-    // Update Redis cache and emit socket status update
-    await this.cacheAndEmitBookingStatus(bookingId, {
-      status: 'COMPLETED',
-      operatorName: booking.operator?.name,
-      operatorId: booking.operator?.id ?? null,
-      customerId: booking.customer?.id ?? null,
-      isPaid: !!booking.isPaid,
-      workerPaidConfirmed: !!booking.workerPaidConfirmed,
-      customerPaidConfirmed: !!booking.customerPaidConfirmed,
-    });
-
-    // Release worker and handle first-job bonus
-    if (booking.operator?.id) {
-      await this.workersService.setWorkerStatus(
-        booking.operator.id,
-        'available',
-      );
-
-      // Periodic fee plan: this completion consumes one included job
-      // (atomic increment; no-op while the plan is off). A FAILURE HERE IS
-      // LOUD — if the jobsSincePayment migration hasn't been run, this is
-      // where you find out, not weeks later when nobody was ever charged.
-      await this.workersService
-        .recordCompletedJobForPeriod(booking.operator.id)
-        .catch((e) =>
-          this.logger.error(
-            `[PeriodFee] FAILED to count completed job for ${booking.operator.id}: ${
-              (e as Error)?.message ?? e
-            } — was the jobsSincePayment migration run?`,
+      const startTime = locked.startedAt
+        ? new Date(locked.startedAt).getTime()
+        : Date.now();
+      // Bill only WORKED time: subtract approved pause windows (pausedMinutes),
+      // including a still-open pause at completion time.
+      let pausedMinutes = locked.pausedMinutes ?? 0;
+      if (locked.pausedAt) {
+        pausedMinutes += Math.max(
+          0,
+          Math.round(
+            (Date.now() - new Date(locked.pausedAt).getTime()) / 60000,
           ),
         );
+        locked.pausedAt = null as any;
+      }
+      locked.pausedMinutes = pausedMinutes;
 
+      const elapsedMs = Math.max(0, Date.now() - startTime);
+      const pausedMs = pausedMinutes * 60 * 1000;
+      const workedMs = Math.max(0, elapsedMs - pausedMs);
+      // Floor at 1 minute so a near-instant completion still has a charge base.
+      const workedMinutes = Math.max(1, Math.round(workedMs / 60000));
+      const billingHours = Math.max(1, Math.ceil(workedMinutes / 60));
+
+      locked.status = BookingStatus.COMPLETED;
+      locked.completedAt = locked.completedAt ?? new Date();
+      locked.billingHours = billingHours;
+      locked.workedMinutes = workedMinutes;
+      // INSTANT: amount is ₹/hr — min 1 hour then proportional. Others: flat.
+      const hourlyRate = Number(locked.amount) || 0;
+      const billableMinutes = Math.max(60, workedMinutes);
+      const totalAmount =
+        locked.type === BookingType.INSTANT
+          ? Math.round(hourlyRate * (billableMinutes / 60))
+          : hourlyRate;
+      locked.totalAmount = totalAmount;
+
+      // Instant Help settles offline. Non-instant WALLET path kept behind flag.
+      if (
+        BookingsService.WALLET_PAYMENTS_ENABLED &&
+        locked.type !== BookingType.INSTANT &&
+        locked.paymentMethod === 'WALLET'
+      ) {
+        if (totalAmount <= 0) {
+          locked.isPaid = true;
+        } else if (locked.customer?.id && locked.operator?.id) {
+          try {
+            await this.walletsService.transferForBooking(
+              locked.customer.id,
+              locked.operator.id,
+              totalAmount,
+              bookingId,
+            );
+            locked.isPaid = true;
+            console.log(
+              `[CompleteBooking] Wallet settled: ₹${totalAmount} customer→worker for ${bookingId}`,
+            );
+          } catch (error) {
+            locked.isPaid = false;
+            console.error(
+              '[CompleteBooking] Wallet settlement failed — falling back to direct collection:',
+              error?.message ?? error,
+            );
+          }
+        }
+      } else if (locked.type === BookingType.INSTANT) {
+        locked.isPaid = false;
+      }
+
+      await manager.save(locked);
+
+      const outbox = await this.outboxService.append(
+        manager,
+        OutboxEventType.BOOKING_COMPLETED,
+        bookingId,
+        {
+          bookingId,
+          customerId: locked.customer?.id ?? null,
+          operatorId: locked.operator?.id ?? null,
+          operatorName: locked.operator?.name ?? null,
+          isPaid: !!locked.isPaid,
+          workerPaidConfirmed: !!locked.workerPaidConfirmed,
+          customerPaidConfirmed: !!locked.customerPaidConfirmed,
+        },
+      );
+
+      return {
+        locked,
+        outboxId: outbox.id,
+        billingHours,
+        workedMinutes,
+        pausedMinutes,
+        hourlyRate,
+        totalAmount,
+      };
+    });
+
+    await this.outboxService.enqueueDispatch(txResult.outboxId);
+
+    // First-job bonus stays in-service (wallet product side-effect).
+    const completed = txResult.locked;
+    if (completed.operator?.id) {
       const workerProfile = await this.workerProfileRepo.findOne({
-        where: { user: { id: booking.operator.id } },
+        where: { user: { id: completed.operator.id } },
       });
       if (workerProfile && !workerProfile.isFirstJobDone) {
-        // The ₹12 first-job bonus exists to seed the LEGACY per-accept fee
-        // wallet — dormant while the wallet product is off.
         const periodicJobs = await this.workersService
           .periodicJobsPerPayment()
           .catch(() => 0);
         if (BookingsService.WALLET_PAYMENTS_ENABLED && periodicJobs <= 0) {
-          await this.walletsService.addFunds(booking.operator.id, 12);
+          await this.walletsService.addFunds(completed.operator.id, 12);
         }
         workerProfile.isFirstJobDone = true;
         await this.workerProfileRepo.save(workerProfile);
@@ -1248,17 +1243,17 @@ export class BookingsService {
     return {
       message: 'Job completed successfully.',
       status: 'COMPLETED',
-      billingHours,
-      workedMinutes,
-      pausedMinutes,
-      hourlyRate,
+      billingHours: txResult.billingHours,
+      workedMinutes: txResult.workedMinutes,
+      pausedMinutes: txResult.pausedMinutes,
+      hourlyRate: txResult.hourlyRate,
       platformFee,
-      paymentMethod: booking.paymentMethod,
-      totalAmount,
-      isPaid: booking.isPaid,
-      needsManualPayment: !booking.isPaid,
-      customerName: booking.customer?.name ?? null,
-      workerName: booking.operator?.name ?? null,
+      paymentMethod: completed.paymentMethod,
+      totalAmount: txResult.totalAmount,
+      isPaid: completed.isPaid,
+      needsManualPayment: !completed.isPaid,
+      customerName: completed.customer?.name ?? null,
+      workerName: completed.operator?.name ?? null,
     };
   }
 
@@ -1328,25 +1323,30 @@ export class BookingsService {
       booking.isPaid = true;
     }
 
-    await this.bookingsRepository.save(booking);
+    const txResult = await this.dataSource.transaction(async (manager) => {
+      await manager.save(booking);
+      const outbox = await this.outboxService.append(
+        manager,
+        OutboxEventType.BOOKING_PAYMENT_CONFIRMED,
+        bookingId,
+        {
+          bookingId,
+          customerId: booking.customer?.id ?? null,
+          operatorId: booking.operator?.id ?? null,
+          operatorName: booking.operator?.name ?? null,
+          status: booking.status,
+          isPaid: !!booking.isPaid,
+          workerPaidConfirmed: !!booking.workerPaidConfirmed,
+          customerPaidConfirmed: !!booking.customerPaidConfirmed,
+          pauseRequested: !!booking.pauseRequestedAt,
+          paused: !!booking.pausedAt,
+          pausedMinutes: booking.pausedMinutes ?? 0,
+        },
+      );
+      return { outboxId: outbox.id };
+    });
 
-    // TODO(outbox): when isPaid flips true, append BOOKING_PAYMENT_CONFIRMED
-    // in the same transaction and move status-cache refresh to the listener.
-
-    // Keep status poll warm and push socket update so both phones drop the pending-payment card
-    // as soon as isPaid flips (without waiting for a full bookings list refresh).
-    await this.cacheAndEmitBookingStatus(bookingId, {
-      status: booking.status,
-      operatorName: booking.operator?.name ?? null,
-      operatorId: booking.operator?.id ?? null,
-      customerId: booking.customer?.id ?? null,
-      isPaid: !!booking.isPaid,
-      workerPaidConfirmed: !!booking.workerPaidConfirmed,
-      customerPaidConfirmed: !!booking.customerPaidConfirmed,
-      pauseRequested: !!booking.pauseRequestedAt,
-      paused: !!booking.pausedAt,
-      pausedMinutes: booking.pausedMinutes ?? 0,
-    }).catch(() => {});
+    await this.outboxService.enqueueDispatch(txResult.outboxId);
 
     return {
       message: booking.isPaid

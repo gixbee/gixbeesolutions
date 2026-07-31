@@ -3,9 +3,7 @@ export const OutboxEventType = {
   BOOKING_BROADCAST_CREATED: 'booking.broadcast_created',
   BOOKING_ACCEPTED: 'booking.accepted',
   BOOKING_CANCELLED: 'booking.cancelled',
-  /** TODO: wire from verifyCompletionOtp */
   BOOKING_COMPLETED: 'booking.completed',
-  /** TODO: wire from markPaid when isPaid flips true */
   BOOKING_PAYMENT_CONFIRMED: 'booking.payment_confirmed',
 } as const;
 
@@ -60,4 +58,29 @@ export interface BookingCancelledPayload {
   customerId: string | null;
   /** Extra worker ids that had this request in pending (broadcast fan-out). */
   notifyWorkerIds?: string[];
+}
+
+export interface BookingCompletedPayload {
+  bookingId: string;
+  customerId: string | null;
+  operatorId: string | null;
+  operatorName: string | null;
+  isPaid: boolean;
+  workerPaidConfirmed: boolean;
+  customerPaidConfirmed: boolean;
+}
+
+export interface BookingPaymentConfirmedPayload {
+  bookingId: string;
+  customerId: string | null;
+  operatorId: string | null;
+  operatorName: string | null;
+  /** Booking status string (usually COMPLETED). */
+  status: string;
+  isPaid: boolean;
+  workerPaidConfirmed: boolean;
+  customerPaidConfirmed: boolean;
+  pauseRequested?: boolean;
+  paused?: boolean;
+  pausedMinutes?: number;
 }

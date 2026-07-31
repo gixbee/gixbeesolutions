@@ -1,4 +1,5 @@
 import { WorkerGateway } from './worker.gateway';
+import { WsException } from '@nestjs/websockets';
 
 /**
  * Unit tests for the realtime WorkerGateway (socket.io).
@@ -8,11 +9,11 @@ import { WorkerGateway } from './worker.gateway';
  * `client` doubles:
  * - handleConnection / handleDisconnect: log the client id (smoke — must not
  *   throw, must read client.id).
- * - handleLocationUpdate: ALWAYS persists the location to Redis first; then, if
- *   a jobId is present, broadcasts 'locationUpdated' to that job's room
- *   (`job_<id>`) and NOT back to the bare sender; if jobId is absent, emits
- *   'locationUpdated' only back to the sender (client.emit) and never touches a
- *   room.
+ * - handleLocationUpdate: ALWAYS persists the location to Redis first using the
+ *   JWT userId on the socket (never body.userId); then, if a jobId is present,
+ *   broadcasts 'locationUpdated' to that job's room (`job_<id>`) and NOT back
+ *   to the bare sender; if jobId is absent, emits 'locationUpdated' only back
+ *   to the sender (client.emit) and never touches a room.
  * - handleJoinJobRoom: joins the `job_<id>` room and returns the ack envelope
  *   `{ event: 'joined', data: ... }`.
  *
@@ -35,12 +36,14 @@ function makeServer() {
   return { to, rooms } as any;
 }
 
-/** A connected-socket double. */
-function makeClient(id = 'sock-1') {
+/** A connected-socket double with JWT identity already attached by WsJwtGuard. */
+function makeClient(id = 'sock-1', userId = 'u1') {
   return {
     id,
     emit: jest.fn(),
     join: jest.fn(),
+    data: { user: { userId } },
+    user: { userId },
   } as any;
 }
 
@@ -80,7 +83,7 @@ describe('WorkerGateway', () => {
   describe('handleLocationUpdate', () => {
     it('persists the location to Redis before any broadcast', async () => {
       const { gateway, redis, server } = makeGateway();
-      const client = makeClient();
+      const client = makeClient('sock-1', 'u1');
       await gateway.handleLocationUpdate(
         { userId: 'u1', lat: 12.9, lng: 77.6, jobId: 'j1' },
         client,
@@ -91,9 +94,36 @@ describe('WorkerGateway', () => {
       void server;
     });
 
+    it('ignores a spoofed body.userId and uses the JWT identity', async () => {
+      const { gateway, redis, server } = makeGateway();
+      const client = makeClient('sock-1', 'real-worker');
+      await gateway.handleLocationUpdate(
+        { userId: 'victim-worker', lat: 12.9, lng: 77.6, jobId: 'j1' },
+        client,
+      );
+      expect(redis.updateWorkerLocation).toHaveBeenCalledWith(
+        'real-worker',
+        12.9,
+        77.6,
+      );
+      const roomEmit = server.rooms['job_j1'].emit;
+      const [, payload] = roomEmit.mock.calls[0];
+      expect(payload.userId).toBe('real-worker');
+    });
+
+    it('rejects when the socket has no JWT user', async () => {
+      const { gateway } = makeGateway();
+      const client = makeClient();
+      client.data = {};
+      client.user = undefined;
+      await expect(
+        gateway.handleLocationUpdate({ lat: 1, lng: 2 }, client),
+      ).rejects.toBeInstanceOf(WsException);
+    });
+
     it('broadcasts only to the job room when a jobId is given', async () => {
       const { gateway, server } = makeGateway();
-      const client = makeClient();
+      const client = makeClient('sock-1', 'u1');
       await gateway.handleLocationUpdate(
         { userId: 'u1', lat: 12.9, lng: 77.6, jobId: 'j1' },
         client,
@@ -111,7 +141,7 @@ describe('WorkerGateway', () => {
 
     it('echoes only back to the sender when no jobId is given', async () => {
       const { gateway, server } = makeGateway();
-      const client = makeClient();
+      const client = makeClient('sock-1', 'u2');
       await gateway.handleLocationUpdate(
         { userId: 'u2', lat: 1.1, lng: 2.2 },
         client,
@@ -127,7 +157,7 @@ describe('WorkerGateway', () => {
 
     it('treats an empty-string jobId as absent (falls back to sender)', async () => {
       const { gateway, server } = makeGateway();
-      const client = makeClient();
+      const client = makeClient('sock-1', 'u3');
       await gateway.handleLocationUpdate(
         { userId: 'u3', lat: 0, lng: 0, jobId: '' },
         client,

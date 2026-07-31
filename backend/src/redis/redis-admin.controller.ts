@@ -7,10 +7,12 @@ import {
 } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { AdminGuard } from '../auth/admin.guard';
+import { RequireAdminPage } from '../auth/require-admin-page.decorator';
 import { RedisService } from './redis.service';
 
 @Controller('redis/admin')
 @UseGuards(JwtAuthGuard, AdminGuard)
+@RequireAdminPage('monitoring')
 export class RedisAdminController {
   constructor(private readonly redisService: RedisService) {}
 

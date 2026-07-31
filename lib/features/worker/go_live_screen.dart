@@ -608,25 +608,55 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
           // false for pros who registered via the talent/Earn Hourly path
           // (client bug: fully VERIFIED pro shown "Register as Pro"). The
           // dashboard endpoint resolves the real profile (and lazily creates
-          // it from the talent profile), so: dashboard loads → worker,
-          // regardless of the flag. Only a dashboard 404 with a false flag
-          // means genuinely not registered.
-          if (!user.isWorker) {
-            if (dashAsync.isLoading) {
-              return const Center(child: CircularProgressIndicator());
-            }
-            if (dashAsync.hasError) {
+          // it from the talent profile).
+          //
+          // Important: The backend auto-creates an empty PENDING shell and
+          // forces hasWorkerProfile=true just because this endpoint is hit.
+          // So we must ALWAYS do a "ghost profile" check, regardless of the
+          // cached flag.
+          
+          if (dashAsync.isLoading) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          
+          if (dashAsync.hasError) {
+            if (!user.isWorker) {
               return _NotAWorker(scheme: scheme);
             }
-            // Server says registered — refresh the stale cached user once so
-            // the rest of the app (pending-jobs poll, menus) heals too.
-            if (!_healedUserFlag) {
-              _healedUserFlag = true;
-              Future.microtask(() => ref.invalidate(currentUserProvider));
-            }
+            return Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.wifi_off, size: 48),
+                  const SizedBox(height: 12),
+                  Text('Could not load dashboard. Pull to retry.',
+                      style: TextStyle(color: context.gx.ink)),
+                ],
+              ),
+            );
           }
 
-          final dash = dashAsync.asData?.value;
+          final dashData = dashAsync.asData?.value;
+          final hasSkills =
+              ((dashData?['skills'] as List?)?.isNotEmpty ?? false);
+          final verStatus =
+              (dashData?['verificationStatus'] as String?) ?? 'PENDING';
+              
+          // Ghost profile check: if no skills were ever submitted AND the status 
+          // is still PENDING, this is an auto-created shell from opening Earn Hourly.
+          // Send them back to the wizard.
+          if (!hasSkills && verStatus == 'PENDING') {
+            return _NotAWorker(scheme: scheme);
+          }
+
+          // Server says registered with real skills — refresh the stale
+          // cached user once if the old flag was false.
+          if (!user.isWorker && !_healedUserFlag) {
+            _healedUserFlag = true;
+            Future.microtask(() => ref.invalidate(currentUserProvider));
+          }
+
+          final dash = dashData;
           return Stack(
             children: [
               RefreshIndicator(
@@ -720,9 +750,10 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
                     Text(
-                      ((dash?['rating'] as num?)?.toDouble() ?? 0.0) > 0
-                          ? (dash!['rating'] as num).toStringAsFixed(1)
-                          : 'New',
+                      (() {
+                        final r = double.tryParse('${dash?['rating'] ?? 0}') ?? 0.0;
+                        return r > 0 ? r.toStringAsFixed(1) : 'New';
+                      })(),
                       style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: GixbeeTheme.accentGold),
                     ),
                     Text('★ rating', style: TextStyle(fontSize: 10, color: GixbeeTheme.accentGold)),

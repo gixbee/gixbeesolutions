@@ -113,6 +113,7 @@ function makeService() {
     dataSource,
     { emitUserEvent: jest.fn() } as any,
     outboxService,
+    { consumeCredit: jest.fn(), refundCredit: jest.fn() } as any,
   );
   return {
     service,
@@ -637,7 +638,7 @@ describe('BookingsService.markPaid', () => {
       workerPaidConfirmed: false,
       customerPaidConfirmed: false,
     };
-    const { service, bookingsRepository } = makeService();
+    const { service, bookingsRepository, outboxService } = makeService();
     bookingsRepository.findOne.mockResolvedValueOnce(booking);
 
     const res = await service.markPaid('b1', 'work-1', {
@@ -649,6 +650,13 @@ describe('BookingsService.markPaid', () => {
     expect(booking.isPaid).toBe(false);
     expect(res.isPaid).toBe(false);
     expect(bookingsRepository.save).toHaveBeenCalledWith(booking);
+    expect(outboxService.append).toHaveBeenCalledWith(
+      expect.anything(),
+      'booking.payment_confirmed',
+      'b1',
+      expect.objectContaining({ isPaid: false, workerPaidConfirmed: true }),
+    );
+    expect(outboxService.enqueueDispatch).toHaveBeenCalled();
   });
 
   it('flips isPaid when both worker and customer have confirmed', async () => {

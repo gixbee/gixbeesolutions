@@ -12,6 +12,7 @@ import {
 import { CitiesService } from './cities.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { AdminGuard } from '../auth/admin.guard';
+import { RequireAdminPage } from '../auth/require-admin-page.decorator';
 import { CreateCityDto, UpdateCityDto } from './dto/city.dto';
 
 // Same access convention as master-entries: reads are PUBLIC (the consumer
@@ -23,6 +24,7 @@ export class CitiesController {
 
   @Post()
   @UseGuards(JwtAuthGuard, AdminGuard)
+  @RequireAdminPage('cities')
   async create(@Body() body: CreateCityDto) {
     return this.service.create(body);
   }
@@ -42,12 +44,14 @@ export class CitiesController {
 
   @Patch(':id')
   @UseGuards(JwtAuthGuard, AdminGuard)
+  @RequireAdminPage('cities')
   async update(@Param('id') id: string, @Body() body: UpdateCityDto) {
     return this.service.update(id, body);
   }
 
   @Delete(':id')
   @UseGuards(JwtAuthGuard, AdminGuard)
+  @RequireAdminPage('cities')
   async remove(@Param('id') id: string) {
     return this.service.remove(id);
   }

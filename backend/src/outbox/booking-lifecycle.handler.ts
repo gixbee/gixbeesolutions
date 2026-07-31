@@ -10,6 +10,8 @@ import {
   BookingAcceptedPayload,
   BookingBroadcastCreatedPayload,
   BookingCancelledPayload,
+  BookingCompletedPayload,
+  BookingPaymentConfirmedPayload,
   OutboxEventType,
 } from './outbox.types';
 
@@ -47,15 +49,70 @@ export class BookingLifecycleHandler {
         );
         return;
       case OutboxEventType.BOOKING_COMPLETED:
+        await this.onCompleted(
+          event.payload as unknown as BookingCompletedPayload,
+        );
+        return;
       case OutboxEventType.BOOKING_PAYMENT_CONFIRMED:
-        // TODO: wire listeners when BookingsService emits these types.
-        this.logger.debug(`No-op listener for ${event.type} (not wired yet)`);
+        await this.onPaymentConfirmed(
+          event.payload as unknown as BookingPaymentConfirmedPayload,
+        );
         return;
       default:
         this.logger.warn(
           `Unknown outbox type ${event.type} — marking processed`,
         );
     }
+  }
+
+  private async onCompleted(p: BookingCompletedPayload): Promise<void> {
+    await this.cacheAndEmitBookingStatus(p.bookingId, {
+      status: 'COMPLETED',
+      operatorName: p.operatorName,
+      operatorId: p.operatorId,
+      customerId: p.customerId,
+      isPaid: !!p.isPaid,
+      workerPaidConfirmed: !!p.workerPaidConfirmed,
+      customerPaidConfirmed: !!p.customerPaidConfirmed,
+    });
+
+    if (!p.operatorId) return;
+
+    try {
+      await this.workersService.setWorkerStatus(p.operatorId, 'available');
+    } catch (e) {
+      this.logger.error(
+        `setWorkerStatus(available) failed: ${(e as Error)?.message}`,
+      );
+    }
+
+    // Period fee plan: each completion consumes one included job (no-op when off).
+    await this.workersService
+      .recordCompletedJobForPeriod(p.operatorId)
+      .catch((e) =>
+        this.logger.error(
+          `[PeriodFee] FAILED to count completed job for ${p.operatorId}: ${
+            (e as Error)?.message ?? e
+          } — was the jobsSincePayment migration run?`,
+        ),
+      );
+  }
+
+  private async onPaymentConfirmed(
+    p: BookingPaymentConfirmedPayload,
+  ): Promise<void> {
+    await this.cacheAndEmitBookingStatus(p.bookingId, {
+      status: p.status,
+      operatorName: p.operatorName,
+      operatorId: p.operatorId,
+      customerId: p.customerId,
+      isPaid: !!p.isPaid,
+      workerPaidConfirmed: !!p.workerPaidConfirmed,
+      customerPaidConfirmed: !!p.customerPaidConfirmed,
+      pauseRequested: !!p.pauseRequested,
+      paused: !!p.paused,
+      pausedMinutes: p.pausedMinutes ?? 0,
+    });
   }
 
   private async onBroadcastCreated(

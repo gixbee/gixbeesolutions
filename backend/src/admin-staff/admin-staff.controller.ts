@@ -12,6 +12,7 @@ import {
 } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { AdminGuard } from '../auth/admin.guard';
+import { RequireAdminPage } from '../auth/require-admin-page.decorator';
 import { AdminStaffService } from './admin-staff.service';
 import {
   CreateAdminStaffDto,
@@ -24,7 +25,7 @@ import { AdminStaffRole } from './admin-staff.entity';
 export class AdminStaffController {
   constructor(private readonly staffService: AdminStaffService) {}
 
-  /** Catalog of assignable portal pages (any admin JWT). */
+  /** Catalog of assignable portal pages (any admin JWT — needed for shell). */
   @Get('pages')
   listPages() {
     return this.staffService.listPages();
@@ -43,18 +44,21 @@ export class AdminStaffController {
   }
 
   @Get()
+  @RequireAdminPage('staff')
   async list(@Req() req: any) {
     this.assertSuperAdmin(req);
     return this.staffService.findAll();
   }
 
   @Post()
+  @RequireAdminPage('staff')
   async create(@Req() req: any, @Body() body: CreateAdminStaffDto) {
     this.assertSuperAdmin(req);
     return this.staffService.create(body);
   }
 
   @Patch(':id')
+  @RequireAdminPage('staff')
   async update(
     @Req() req: any,
     @Param('id') id: string,
@@ -65,6 +69,7 @@ export class AdminStaffController {
   }
 
   @Delete(':id')
+  @RequireAdminPage('staff')
   async remove(@Req() req: any, @Param('id') id: string) {
     this.assertSuperAdmin(req);
     if (req.user.userId === id) {

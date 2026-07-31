@@ -45,16 +45,6 @@ class _MainWrapperState extends ConsumerState<MainWrapper>
   bool _locationPromptShown = false;
 
   /// Non-null while GPS is blocked ('service_off' | 'denied_forever' |
-  /// 'denied') — drives the Swiggy-style "Location Permission is Off"
-  /// banner shown on every tab. Cleared automatically on resume once the
-  /// user grants permission / turns location on.
-  String? _gpsBannerReason;
-
-  /// One-shot: the OS permission dialog is triggered at most once per app
-  /// start (Swiggy asks on open; nagging on every resume gets the app
-  /// permanently denied).
-  bool _gpsPromptedThisSession = false;
-
   /// Tracks booking IDs already shown — prevents duplicate popups from
   /// FCM foreground + socket + HTTP poll all firing for the same booking.
   final Set<String> _shownBookingIds = {};
@@ -114,9 +104,8 @@ class _MainWrapperState extends ConsumerState<MainWrapper>
           _promptLocationPicker();
         }
         // Swiggy pattern part 2: ASK for device location on app open when
-        // it's merely un-granted, and surface a persistent banner when it
-        // stays blocked (off / permanently denied).
-        unawaited(_checkGpsAccess(promptIfAskable: true));
+        // it's merely un-granted.
+        unawaited(_checkGpsAccess());
       });
       // CACHE WARM (client bug: Instant Help showed a ~4s blank grid on
       // first open): kick the trades-master fetch NOW, at app start. The
@@ -156,9 +145,7 @@ class _MainWrapperState extends ConsumerState<MainWrapper>
       // only showed a tray banner — popup never opened).
       unawaited(_pollPendingBookingsOnce());
       ref.invalidate(myBookingsProvider);
-      // User may be returning from Settings after granting location —
-      // re-evaluate so the banner clears itself (no re-prompt).
-      unawaited(_checkGpsAccess(promptIfAskable: false));
+
     }
   }
 
@@ -452,110 +439,18 @@ class _MainWrapperState extends ConsumerState<MainWrapper>
 
   /// Evaluate GPS availability. When [promptIfAskable] and the permission is
   /// merely 'denied' (re-promptable), trigger the OS dialog once by
-  /// requesting a position — that IS the ask-on-open. Whatever remains
-  /// blocked afterwards drives the banner.
-  Future<void> _checkGpsAccess({required bool promptIfAskable}) async {
+  /// requesting a position — that IS the ask-on-open.
+  Future<void> _checkGpsAccess() async {
     try {
       final svc = ref.read(locationServiceProvider);
-      var reason = await svc.gpsBlockReason();
-      if (reason == 'denied' && promptIfAskable && !_gpsPromptedThisSession) {
-        _gpsPromptedThisSession = true;
+      final reason = await svc.gpsBlockReason();
+      if (reason == 'denied') {
         await svc.getCurrentPosition(); // surfaces the OS permission dialog
-        reason = await svc.gpsBlockReason();
-      }
-      if (mounted && reason != _gpsBannerReason) {
-        setState(() => _gpsBannerReason = reason);
       }
     } catch (_) {}
   }
 
-  /// GRANT tap — reason-aware, mirroring the Go Live sheet: re-promptable →
-  /// OS dialog now; permanently denied → app settings; device location off
-  /// → location settings. The resume hook re-checks and clears the banner.
-  Future<void> _onGrantLocation() async {
-    final svc = ref.read(locationServiceProvider);
-    switch (_gpsBannerReason) {
-      case 'denied':
-        await svc.getCurrentPosition();
-        await _checkGpsAccess(promptIfAskable: false);
-        break;
-      case 'denied_forever':
-        await svc.openAppSettings();
-        break;
-      case 'service_off':
-        await svc.openLocationSettings();
-        break;
-    }
-  }
 
-  Widget _gpsBanner() {
-    return Container(
-      margin: const EdgeInsets.fromLTRB(12, 8, 12, 0),
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-      decoration: BoxDecoration(
-        color: const Color(0xFF5A7BE0),
-        borderRadius: BorderRadius.circular(14),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.15),
-            blurRadius: 12,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          const Icon(Icons.location_off_rounded,
-              color: Colors.white, size: 20),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'Location is off',
-                  style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 13,
-                      fontWeight: FontWeight.w800),
-                ),
-                Text(
-                  _gpsBannerReason == 'service_off'
-                      ? 'Turn on device location for accurate addresses and nearby pros.'
-                      : 'Allow location for accurate addresses and nearby pros.',
-                  style: TextStyle(
-                      color: Colors.white.withValues(alpha: 0.85),
-                      fontSize: 11,
-                      height: 1.3),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(width: 10),
-          Material(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(10),
-            child: InkWell(
-              borderRadius: BorderRadius.circular(10),
-              onTap: _onGrantLocation,
-              child: const Padding(
-                padding:
-                    EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                child: Text(
-                  'GRANT',
-                  style: TextStyle(
-                      color: Color(0xFF4A67C7),
-                      fontSize: 12,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: 0.5),
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -587,15 +482,6 @@ class _MainWrapperState extends ConsumerState<MainWrapper>
         child: Stack(
           children: [
             _screens[_currentIndex],
-            // Swiggy-style location banner — visible on every tab while GPS
-            // is blocked; disappears the moment access is restored.
-            if (_gpsBannerReason != null)
-              Positioned(
-                left: 0,
-                right: 0,
-                top: 0,
-                child: SafeArea(bottom: false, child: _gpsBanner()),
-              ),
             // Gixbee 2026: Uber-style persistent activity pill — the active
             // booking stays visible on every tab. Home (index 0) already
             // renders ActiveBookingCard inline, so skip it there.

@@ -5,16 +5,14 @@ import { UserRole } from '../user.entity';
 // @Body() literal ({ name?, profileImageUrl?, isAvailableForWork?, role?,
 // hasWorkerProfile? }). Every field is optional because this is a partial PATCH
 // hit from several call sites with DIFFERENT field sets (traced before writing):
-//   - registration_screen.dart → { name, role, hasWorkerProfile }
-//       (role is sent as 'OPERATOR'/'OWNER' — both valid UserRole values)
+//   - registration_screen.dart → { name } (intent-based; no role at signup)
 //   - edit_profile_screen.dart → { name }
 //   - profile_screen.dart availability toggle → { isAvailableForWork }
 //   - super-admin-web user.service.update(id, Partial<User>) → arbitrary subset
-// UsersService.updateProfile only PERSISTS name / profileImageUrl /
-// isAvailableForWork; role + hasWorkerProfile are accepted-but-ignored today, so
-// they are declared here (optional) purely so `whitelist:true` does not strip a
-// field the client legitimately sends. No behavioural change — only type/enum
-// validation when a field is present.
+// UsersService.updateProfile persists name / profileImageUrl /
+// isAvailableForWork / role / hasWorkerProfile when present. role +
+// hasWorkerProfile stay optional so `whitelist:true` does not strip fields
+// older clients may still send.
 export class UpdateUserProfileDto {
   @IsOptional()
   @IsString()

@@ -12,6 +12,7 @@ import {
 import { SupportService } from './support.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { AdminGuard } from '../auth/admin.guard';
+import { RequireAdminPage } from '../auth/require-admin-page.decorator';
 import { CreateTicketDto, ResolveTicketDto } from './dto/support.dto';
 
 // General support channel: any signed-in user can file a ticket from the
@@ -34,12 +35,14 @@ export class SupportController {
 
   @Get('admin/all')
   @UseGuards(AdminGuard)
+  @RequireAdminPage('support')
   async adminList(@Query('status') status?: string) {
     return this.service.adminList(status || undefined);
   }
 
   @Patch('admin/:id/resolve')
   @UseGuards(AdminGuard)
+  @RequireAdminPage('support')
   async resolve(@Param('id') id: string, @Body() body: ResolveTicketDto) {
     return this.service.resolve(id, body.reply);
   }

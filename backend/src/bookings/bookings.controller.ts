@@ -14,6 +14,7 @@ import { BookingsService } from './bookings.service';
 import { BookingStatus } from './booking.entity';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { AdminGuard } from '../auth/admin.guard';
+import { RequireAdminPage } from '../auth/require-admin-page.decorator';
 import { NotificationsService } from '../notifications/notifications.service';
 import { RedisService } from '../redis/redis.service';
 import {
@@ -83,6 +84,7 @@ export class BookingsController {
 
   @Get('admin/all')
   @UseGuards(AdminGuard)
+  @RequireAdminPage('bookings')
   async adminListBookings(
     @Query('status') status?: string,
     @Query('page') page?: string,
@@ -97,6 +99,7 @@ export class BookingsController {
 
   @Get('admin/disputes')
   @UseGuards(AdminGuard)
+  @RequireAdminPage('disputes')
   async adminDisputes(
     @Query('open') open?: string,
     @Query('page') page?: string,
@@ -109,6 +112,7 @@ export class BookingsController {
 
   @Patch('admin/disputes/:id/resolve')
   @UseGuards(AdminGuard)
+  @RequireAdminPage('disputes')
   async adminResolveDispute(
     @Param('id') id: string,
     @Body() body: ResolveDisputeDto,

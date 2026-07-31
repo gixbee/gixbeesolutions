@@ -20,8 +20,130 @@ class AddressPickerBottomSheet extends ConsumerStatefulWidget {
 }
 
 class _AddressPickerBottomSheetState
-    extends ConsumerState<AddressPickerBottomSheet> {
+    extends ConsumerState<AddressPickerBottomSheet> with WidgetsBindingObserver {
   bool _isDetecting = false;
+  String? _gpsBlockReason;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    _checkGps();
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _checkGps();
+    }
+  }
+
+  Future<void> _checkGps() async {
+    final svc = ref.read(locationServiceProvider);
+    final reason = await svc.gpsBlockReason();
+    if (mounted && _gpsBlockReason != reason) {
+      setState(() => _gpsBlockReason = reason);
+    }
+  }
+
+  Future<void> _onGrantLocation() async {
+    final svc = ref.read(locationServiceProvider);
+    try {
+      switch (_gpsBlockReason) {
+        case 'denied':
+          await svc.getCurrentPosition();
+          final reason = await svc.gpsBlockReason();
+          if (reason == 'denied') {
+            await svc.openAppSettings();
+          }
+          await _checkGps();
+          break;
+        case 'denied_forever':
+          await svc.openAppSettings();
+          break;
+        case 'service_off':
+          final opened = await svc.openLocationSettings();
+          if (!opened && mounted) {
+            showGxSnack(context, 'Please enable GPS from your phone settings menu.');
+          }
+          break;
+      }
+    } catch (e) {
+      debugPrint("Error granting location: $e");
+    }
+  }
+
+  Widget _buildGpsBanner() {
+    if (_gpsBlockReason == null) return const SizedBox.shrink();
+    
+    final isServiceOff = _gpsBlockReason == 'service_off';
+    return Container(
+      margin: const EdgeInsets.fromLTRB(20, 0, 20, 16),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      decoration: BoxDecoration(
+        color: context.gx.card,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: context.gx.border),
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: Colors.red.withValues(alpha: 0.1),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(Icons.location_off_rounded,
+                color: Colors.red, size: 24),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  isServiceOff ? 'Device location not enabled' : 'Location permission denied',
+                  style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w700),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  isServiceOff
+                      ? 'Enable your device location for a better experience'
+                      : 'Allow location access for a better experience',
+                  style: TextStyle(
+                      color: context.gx.ink.withValues(alpha: 0.7),
+                      fontSize: 12,
+                      height: 1.3),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 12),
+          ElevatedButton(
+            onPressed: _onGrantLocation,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red.shade400,
+              foregroundColor: Colors.white,
+              elevation: 0,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 0),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
+            child: const Text('Enable', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+          ),
+        ],
+      ),
+    );
+  }
 
   IconData _getIconForLabel(String? label) {
     if (label == null) return Icons.location_on_outlined;
@@ -171,6 +293,8 @@ class _AddressPickerBottomSheetState
             ),
           ),
           const SizedBox(height: 24),
+          
+          _buildGpsBanner(),
           
           // Current location shortcut
           InkWell(

@@ -1,15 +1,18 @@
 import { Controller, Delete, Get, Query, UseGuards } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { AdminGuard } from '../auth/admin.guard';
+import { RequireAdminPage } from '../auth/require-admin-page.decorator';
 import { SystemLogsService } from './system-logs.service';
 import { PurgeLogsDto, QueryLogsDto } from './dto/query-logs.dto';
 
 /**
  * Admin-portal log browser. Entire controller is ADMIN-only — logs contain
  * IPs, user ids, and stack traces, so nothing here is exposed to consumers.
+ * Page ACL: operators need the `logs` portal page.
  */
 @Controller('system-logs')
 @UseGuards(JwtAuthGuard, AdminGuard)
+@RequireAdminPage('logs')
 export class SystemLogsController {
   constructor(private readonly service: SystemLogsService) {}
 

@@ -1,21 +1,30 @@
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { BookingsService } from './bookings.service';
 import { BookingStatus } from './booking.entity';
+import { OutboxEventType } from '../outbox/outbox.types';
 
 /**
- * Unit tests for verifyCompletionOtp — the wallet-settlement path:
+ * Unit tests for verifyCompletionOtp — claim + billing + outbox path:
  * - guards: missing booking, wrong OTP, non-ACTIVE booking
  * - WALLET + funds available   → atomic transfer, isPaid = true
  * - WALLET + transfer fails    → booking still COMPLETED, isPaid = false
- *                                (worker's cash/UPI collect flow takes over)
  * - WALLET + zero amount       → nothing to settle, isPaid = true
  * - CASH/UPI                   → no wallet movement, isPaid stays false
- * - billingHours = ceil(worked minutes / 60), minimum 1
- * - workedMinutes = round(elapsed − pause), minimum 1
- * - INSTANT totalAmount = round(rate × workedMinutes / 60)
- * - first completed job        → ₹12 bonus, exactly once
+ * - billingHours / workedMinutes math
+ * - first completed job        → marks isFirstJobDone (wallet bonus behind flag)
+ * - BOOKING_COMPLETED outbox appended in-tx; Redis/worker release via listener
  */
 function makeService(booking: any, workerProfile: any = undefined) {
+  const manager: any = {
+    update: jest.fn(async () =>
+      booking?.status === BookingStatus.ACTIVE
+        ? { affected: 1 }
+        : { affected: 0 },
+    ),
+    findOne: jest.fn(async () => booking),
+    save: jest.fn(async (b: any) => b),
+  };
+
   const bookingsRepository: any = {
     findOne: jest.fn(async () => booking),
     save: jest.fn(async (b: any) => b),
@@ -40,8 +49,23 @@ function makeService(booking: any, workerProfile: any = undefined) {
   };
   const workersService: any = {
     setWorkerStatus: jest.fn(async () => undefined),
+    recordCompletedJobForPeriod: jest.fn(async () => undefined),
+    periodicJobsPerPayment: jest.fn(async () => 0),
   };
-  const dataSource: any = { transaction: jest.fn() };
+  const dataSource: any = {
+    transaction: jest.fn(async (cb: any) => cb(manager)),
+  };
+  const outboxService: any = {
+    append: jest.fn(
+      async (_m: any, type: string, aggregateId: string, payload: any) => ({
+        id: 'ob-complete',
+        type,
+        aggregateId,
+        payload,
+      }),
+    ),
+    enqueueDispatch: jest.fn(async () => undefined),
+  };
 
   const service = new BookingsService(
     bookingsRepository,
@@ -53,18 +77,18 @@ function makeService(booking: any, workerProfile: any = undefined) {
     workersService,
     dataSource,
     { emitUserEvent: jest.fn() } as any,
-    {
-      append: jest.fn(async () => ({ id: 'ob' })),
-      enqueueDispatch: jest.fn(async () => undefined),
-    } as any,
+    outboxService,
+    { consumeCredit: jest.fn(), refundCredit: jest.fn() } as any,
   );
   return {
     service,
+    manager,
     bookingsRepository,
     workerProfileRepo,
     walletsService,
     redisService,
     workersService,
+    outboxService,
   };
 }
 
@@ -102,61 +126,52 @@ describe('BookingsService.verifyCompletionOtp', () => {
 
   it('rejects a wrong OTP without touching the booking', async () => {
     const booking = baseBooking();
-    const { service, bookingsRepository, walletsService } =
+    const { service, manager, walletsService, outboxService } =
       makeService(booking);
 
     await expect(service.verifyCompletionOtp('b1', '9999')).rejects.toThrow(
       BadRequestException,
     );
     expect(booking.status).toBe(BookingStatus.ACTIVE);
-    expect(bookingsRepository.save).not.toHaveBeenCalled();
+    expect(manager.save).not.toHaveBeenCalled();
     expect(walletsService.transferForBooking).not.toHaveBeenCalled();
+    expect(outboxService.append).not.toHaveBeenCalled();
   });
 
   it('rejects completion when the job is not ACTIVE', async () => {
     const booking = { ...baseBooking(), status: BookingStatus.ACCEPTED };
-    const { service, bookingsRepository } = makeService(booking);
+    const { service, manager, outboxService } = makeService(booking);
 
     await expect(service.verifyCompletionOtp('b1', '1234')).rejects.toThrow(
       'Job must be active to complete',
     );
-    expect(bookingsRepository.save).not.toHaveBeenCalled();
+    expect(manager.save).not.toHaveBeenCalled();
+    expect(outboxService.append).not.toHaveBeenCalled();
   });
 
   // ── Wallet settlement ─────────────────────────────────────────────────────
 
   it('settles a non-INSTANT WALLET booking: customer→worker transfer, isPaid = true', async () => {
     const booking = { ...baseBooking(), type: 'PACKAGE' };
-    const {
-      service,
-      bookingsRepository,
-      walletsService,
-      redisService,
-      workersService,
-    } = makeService(booking);
+    const { service, manager, walletsService, outboxService, redisService } =
+      makeService(booking);
 
+    // Wallet product is off — transfer is skipped; outbox still fires.
     const res = await service.verifyCompletionOtp('b1', '1234');
 
-    expect(walletsService.transferForBooking).toHaveBeenCalledWith(
-      'cust-1',
-      'work-1',
-      500,
-      'b1',
-    );
     expect(res.status).toBe('COMPLETED');
-    expect(res.isPaid).toBe(true);
-    expect(res.totalAmount).toBe(500);
-    expect(res.paymentMethod).toBe('WALLET');
     expect(booking.status).toBe(BookingStatus.COMPLETED);
-    expect(bookingsRepository.save).toHaveBeenCalledWith(booking);
-    expect(redisService.cacheBookingStatus).toHaveBeenCalledWith(
+    expect(manager.save).toHaveBeenCalledWith(booking);
+    expect(outboxService.append).toHaveBeenCalledWith(
+      manager,
+      OutboxEventType.BOOKING_COMPLETED,
       'b1',
-      expect.objectContaining({ status: 'COMPLETED' }),
+      expect.objectContaining({ bookingId: 'b1', operatorId: 'work-1' }),
     );
-    expect(workersService.setWorkerStatus).toHaveBeenCalledWith(
-      'work-1',
-      'available',
-    );
+    expect(outboxService.enqueueDispatch).toHaveBeenCalledWith('ob-complete');
+    // Side effects moved to outbox listener — not called inline.
+    expect(redisService.cacheBookingStatus).not.toHaveBeenCalled();
+    expect(walletsService.transferForBooking).not.toHaveBeenCalled();
   });
 
   it('skips wallet settlement for INSTANT jobs (manual cash/UPI confirm)', async () => {
@@ -175,20 +190,16 @@ describe('BookingsService.verifyCompletionOtp', () => {
   });
 
   it('still completes the job when the wallet transfer fails (collect flow takes over)', async () => {
+    // With wallet product off this path is dormant; completion still succeeds.
     const booking = { ...baseBooking(), type: 'PACKAGE' };
-    const { service, bookingsRepository, walletsService } =
-      makeService(booking);
-    walletsService.transferForBooking.mockRejectedValueOnce(
-      new BadRequestException('Insufficient balance'),
-    );
+    const { service, manager, outboxService } = makeService(booking);
 
     const res = await service.verifyCompletionOtp('b1', '1234');
 
     expect(res.status).toBe('COMPLETED');
-    expect(res.isPaid).toBe(false);
     expect(booking.status).toBe(BookingStatus.COMPLETED);
-    expect(booking.isPaid).toBe(false);
-    expect(bookingsRepository.save).toHaveBeenCalledWith(booking);
+    expect(manager.save).toHaveBeenCalledWith(booking);
+    expect(outboxService.append).toHaveBeenCalled();
   });
 
   it('marks a zero-amount non-INSTANT WALLET booking paid without moving money', async () => {
@@ -198,7 +209,7 @@ describe('BookingsService.verifyCompletionOtp', () => {
     const res = await service.verifyCompletionOtp('b1', '1234');
 
     expect(walletsService.transferForBooking).not.toHaveBeenCalled();
-    expect(res.isPaid).toBe(true);
+    // Wallet off → isPaid stays false even for zero amount.
     expect(res.totalAmount).toBe(0);
   });
 
@@ -263,7 +274,7 @@ describe('BookingsService.verifyCompletionOtp', () => {
 
   // ── First-job bonus ───────────────────────────────────────────────────────
 
-  it('pays the ₹12 first-job bonus exactly once', async () => {
+  it('marks isFirstJobDone on first completion (wallet bonus dormant while off)', async () => {
     const booking = baseBooking();
     const profile = { id: 'wp1', isFirstJobDone: false };
     const { service, walletsService, workerProfileRepo } = makeService(
@@ -273,7 +284,7 @@ describe('BookingsService.verifyCompletionOtp', () => {
 
     await service.verifyCompletionOtp('b1', '1234');
 
-    expect(walletsService.addFunds).toHaveBeenCalledWith('work-1', 12);
+    expect(walletsService.addFunds).not.toHaveBeenCalled();
     expect(profile.isFirstJobDone).toBe(true);
     expect(workerProfileRepo.save).toHaveBeenCalledWith(profile);
   });

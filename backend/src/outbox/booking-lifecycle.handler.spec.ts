@@ -19,6 +19,7 @@ describe('BookingLifecycleHandler idempotency', () => {
     };
     const workersService: any = {
       setWorkerStatus: jest.fn(async () => undefined),
+      recordCompletedJobForPeriod: jest.fn(async () => undefined),
     };
     const messagesGateway: any = {
       emitUserEvent: jest.fn(),
@@ -89,6 +90,70 @@ describe('BookingLifecycleHandler idempotency', () => {
     expect(notificationsService.sendToUser).toHaveBeenCalledWith(
       'cust-1',
       expect.objectContaining({ title: 'No Workers Available' }),
+    );
+  });
+
+  it('onCompleted caches status, releases worker, and counts period fee', async () => {
+    const { handler, redisService, workersService, messagesGateway } =
+      makeHandler();
+    const event: any = {
+      id: 'e3',
+      type: OutboxEventType.BOOKING_COMPLETED,
+      status: OutboxStatus.PENDING,
+      payload: {
+        bookingId: 'b1',
+        customerId: 'cust-1',
+        operatorId: 'work-1',
+        operatorName: 'Anu',
+        isPaid: false,
+        workerPaidConfirmed: false,
+        customerPaidConfirmed: false,
+      },
+    };
+
+    await handler.handle(event);
+    await handler.handle(event);
+
+    expect(redisService.cacheBookingStatus).toHaveBeenCalledWith(
+      'b1',
+      expect.objectContaining({ status: 'COMPLETED', operatorId: 'work-1' }),
+    );
+    expect(workersService.setWorkerStatus).toHaveBeenCalledWith(
+      'work-1',
+      'available',
+    );
+    expect(workersService.recordCompletedJobForPeriod).toHaveBeenCalledWith(
+      'work-1',
+    );
+    expect(messagesGateway.emitUserEvent).toHaveBeenCalled();
+  });
+
+  it('onPaymentConfirmed refreshes Redis/socket payment flags', async () => {
+    const { handler, redisService } = makeHandler();
+    await handler.handle({
+      id: 'e4',
+      type: OutboxEventType.BOOKING_PAYMENT_CONFIRMED,
+      status: OutboxStatus.PENDING,
+      payload: {
+        bookingId: 'b1',
+        customerId: 'cust-1',
+        operatorId: 'work-1',
+        operatorName: 'Anu',
+        status: 'COMPLETED',
+        isPaid: true,
+        workerPaidConfirmed: true,
+        customerPaidConfirmed: true,
+      },
+    } as any);
+
+    expect(redisService.cacheBookingStatus).toHaveBeenCalledWith(
+      'b1',
+      expect.objectContaining({
+        status: 'COMPLETED',
+        isPaid: true,
+        workerPaidConfirmed: true,
+        customerPaidConfirmed: true,
+      }),
     );
   });
 });

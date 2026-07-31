@@ -4,26 +4,54 @@ import {
   Injectable,
   ForbiddenException,
 } from '@nestjs/common';
+import { Reflector } from '@nestjs/core';
 import { UserRole } from '../users/user.entity';
+import { AdminStaffRole } from '../admin-staff/admin-staff.entity';
+import { ADMIN_PAGES_KEY } from './require-admin-page.decorator';
 
 /**
- * Role gate for super-admin-only routes. Runs AFTER JwtAuthGuard, which
- * authenticates the request and populates `req.user` (see JwtStrategy.validate,
- * which returns `{ userId, phoneNumber, role }`). Use them together and in order:
+ * Role + page gate for super-admin portal routes. Runs AFTER JwtAuthGuard,
+ * which populates `req.user` as `{ userId, role, staffRole?, pages? }`.
  *
  *   @UseGuards(JwtAuthGuard, AdminGuard)
+ *   @RequireAdminPage('users')
  *
- * The super-admin portal obtains an ADMIN-role JWT from POST /auth/admin-login;
- * a normal consumer JWT (issued via OTP) carries CUSTOMER/WORKER and is rejected
- * here, so a valid-but-non-admin token cannot mutate master data.
+ * - Any non-ADMIN JWT is rejected.
+ * - SUPER_ADMIN always allowed.
+ * - OPERATOR must have at least one of the required page keys in JWT `pages`.
+ * - Routes without `@RequireAdminPage` stay ADMIN-only (any admin JWT) —
+ *   use that only for shared shell endpoints like `/admin-staff/me`.
  */
 @Injectable()
 export class AdminGuard implements CanActivate {
+  constructor(private readonly reflector: Reflector) {}
+
   canActivate(context: ExecutionContext): boolean {
     const req = context.switchToHttp().getRequest();
     if (req.user?.role !== UserRole.ADMIN) {
       throw new ForbiddenException('Admin access required');
     }
-    return true;
+
+    const requiredPages = this.reflector.getAllAndOverride<string[]>(
+      ADMIN_PAGES_KEY,
+      [context.getHandler(), context.getClass()],
+    );
+
+    if (!requiredPages || requiredPages.length === 0) {
+      return true;
+    }
+
+    if (req.user.staffRole === AdminStaffRole.SUPER_ADMIN) {
+      return true;
+    }
+
+    const granted: string[] = Array.isArray(req.user.pages)
+      ? req.user.pages
+      : [];
+    if (requiredPages.some((page) => granted.includes(page))) {
+      return true;
+    }
+
+    throw new ForbiddenException('Insufficient admin page access');
   }
 }

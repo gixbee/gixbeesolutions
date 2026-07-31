@@ -9,6 +9,7 @@ import {
   Req,
   UseGuards,
 } from '@nestjs/common';
+import { SkipThrottle, Throttle } from '@nestjs/throttler';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { PaymentsService } from './payments.service';
 import { CreateRechargeOrderDto } from './dto/create-recharge-order.dto';
@@ -29,6 +30,7 @@ export class PaymentsController {
    */
   @Post('recharge/order')
   @UseGuards(JwtAuthGuard)
+  @Throttle({ default: { ttl: 60_000, limit: 20 } })
   createRechargeOrder(@Req() req: any, @Body() body: CreateRechargeOrderDto) {
     return this.paymentsService.createRechargeOrder(
       req.user.userId,
@@ -43,6 +45,7 @@ export class PaymentsController {
    */
   @Post('period-fee/order')
   @UseGuards(JwtAuthGuard)
+  @Throttle({ default: { ttl: 60_000, limit: 20 } })
   createPeriodFeeOrder(@Req() req: any) {
     return this.paymentsService.createPeriodFeeOrder(req.user.userId);
   }
@@ -52,9 +55,11 @@ export class PaymentsController {
    * HMAC signature over the RAW body — requires rawBody:true in main.ts.
    * Always fast-200s handled/duplicate deliveries; 403 on bad signature;
    * 5xx only when crediting fails (so Razorpay retries).
+   * SkipThrottle: provider retries must never hit 429.
    */
   @Post('webhook')
   @HttpCode(200)
+  @SkipThrottle()
   webhook(
     @Req() req: RawBodyRequest<any>,
     @Headers('x-razorpay-signature') signature?: string,

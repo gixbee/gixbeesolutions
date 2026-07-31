@@ -1,4 +1,8 @@
-import { ExecutionContext, Injectable } from '@nestjs/common';
+import {
+  ExecutionContext,
+  Injectable,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 
 /**
@@ -11,7 +15,9 @@ import { AuthGuard } from '@nestjs/passport';
  * customers never receive live worker GPS on the tracking map.
  *
  * This guard adapts the handshake into a request-shaped object so passport-jwt
- * can validate the same Bearer token the REST API uses.
+ * can validate the same Bearer token the REST API uses, then stores the
+ * validated user on `client.data.user` / `client.user` so handlers can trust
+ * JWT identity (never a client-supplied body userId).
  */
 @Injectable()
 export class WsJwtGuard extends AuthGuard('jwt') {
@@ -40,10 +46,30 @@ export class WsJwtGuard extends AuthGuard('jwt') {
         : `Bearer ${headerAuth}`;
     }
 
-    return {
-      headers: {
-        authorization: bearer,
-      },
+    // Return the socket itself so passport attaches `.user` onto it (not onto
+    // a throwaway { headers } object that handlers can never see).
+    client.headers = {
+      ...(client.headers ?? {}),
+      authorization: bearer,
     };
+    return client;
+  }
+
+  handleRequest<TUser = any>(
+    err: any,
+    user: TUser,
+    info: any,
+    context: ExecutionContext,
+  ): TUser {
+    if (err || !user) {
+      throw err || new UnauthorizedException(info?.message || 'Unauthorized');
+    }
+    const client = context.switchToWs().getClient();
+    if (client) {
+      client.data = client.data ?? {};
+      client.data.user = user;
+      client.user = user;
+    }
+    return user;
   }
 }

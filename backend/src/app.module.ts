@@ -64,7 +64,16 @@ import { CreditTransaction } from './billing/credit-transaction.entity';
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
 
-    ThrottlerModule.forRoot([{ ttl: 60000, limit: 100000 }]),
+    // Global default: 120 req/min per IP. Auth routes override tighter via
+    // @Throttle. Razorpay webhook uses @SkipThrottle so provider retries
+    // are never 429'd. (Previously 100000 — effectively unlimited.)
+    ThrottlerModule.forRoot([
+      {
+        name: 'default',
+        ttl: 60_000,
+        limit: 120,
+      },
+    ]),
 
     // ── Database ───────────────────────────────────────────────────────────
     // Supports two connection modes:

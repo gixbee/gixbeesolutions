@@ -12,6 +12,7 @@ import {
 import { WorkersService } from './workers.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { AdminGuard } from '../auth/admin.guard';
+import { RequireAdminPage } from '../auth/require-admin-page.decorator';
 import {
   SetActiveSkillsDto,
   RegisterWorkerDto,
@@ -85,12 +86,14 @@ export class WorkersController {
   // Declared before ':id' so the static segment wins.
   @Get('admin/verification-queue')
   @UseGuards(AdminGuard)
+  @RequireAdminPage('verifications')
   async getVerificationQueue(@Query('status') status?: string) {
     return this.workersService.getVerificationQueue(status || undefined);
   }
 
   @Patch('admin/:userId/verification')
   @UseGuards(AdminGuard)
+  @RequireAdminPage('verifications')
   async setVerification(
     @Param('userId') userId: string,
     @Body() body: SetWorkerVerificationDto,
@@ -122,6 +125,7 @@ export class WorkersController {
   /// Admin: strike queue — ?status=APPEALED shows appeals awaiting review.
   @Get('admin/strikes')
   @UseGuards(AdminGuard)
+  @RequireAdminPage('disputes')
   async adminListStrikes(@Query('status') status?: string) {
     return this.workersService.adminListStrikes(status || undefined);
   }
@@ -129,6 +133,7 @@ export class WorkersController {
   /// Admin: overturn (removes from the count, can lift suspension) or uphold.
   @Patch('admin/strikes/:strikeId/resolve')
   @UseGuards(AdminGuard)
+  @RequireAdminPage('disputes')
   async adminResolveStrike(
     @Param('strikeId') strikeId: string,
     @Body() body: ResolveStrikeDto,

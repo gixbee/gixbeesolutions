@@ -15,7 +15,14 @@ describe('UpdateUserProfileDto validation', () => {
   } as any;
   const transform = (body: any) => pipe.transform(body, meta);
 
-  it('accepts the registration_screen payload { name, role, hasWorkerProfile }', async () => {
+  it('accepts the registration_screen payload { name }', async () => {
+    const out = await transform({ name: 'Priya' });
+    expect(out).toBeInstanceOf(UpdateUserProfileDto);
+    expect(out.name).toBe('Priya');
+    expect(out.role).toBeUndefined();
+  });
+
+  it('still accepts legacy { name, role, hasWorkerProfile }', async () => {
     const out = await transform({
       name: 'Asha',
       role: 'OPERATOR',

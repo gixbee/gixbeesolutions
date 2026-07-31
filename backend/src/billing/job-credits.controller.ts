@@ -28,7 +28,7 @@ export class JobCreditsController {
 
   @Get('balance')
   async getBalance(@Request() req: any) {
-    const balance = await this.jobCreditsService.getBalance(req.user.id);
+    const balance = await this.jobCreditsService.getBalance(req.user.userId);
     return { balance };
   }
 
@@ -40,7 +40,7 @@ export class JobCreditsController {
     @Query('limit') limit?: string,
   ) {
     const transactions = await this.jobCreditsService.getTransactions(
-      req.user.id,
+      req.user.userId,
       Math.max(1, Number(page) || 1),
       Math.min(100, Math.max(1, Number(limit) || 50)),
     );
@@ -76,7 +76,7 @@ export class JobCreditsController {
         amount: PACK_PRICE_INR * 100, // paise
         currency: 'INR',
         receipt: `jobpack_${Date.now().toString(36)}`,
-        notes: { gixbeeUserId: req.user.id, purpose: 'JOB_PACK' },
+        notes: { gixbeeUserId: req.user.userId, purpose: 'JOB_PACK' },
       }),
     });
 
@@ -128,12 +128,12 @@ export class JobCreditsController {
     // The service doesn't have an idempotency check for PURCHASE yet, wait, we need to handle that!
     // I should update the service to be idempotent for PURCHASE if razorpayPaymentId is provided.
     // I will call addCredits, and in addCredits I will add idempotency.
-    await this.jobCreditsService.addCredits(req.user.id, CREDITS_PER_PACK, {
+    await this.jobCreditsService.addCredits(req.user.userId, CREDITS_PER_PACK, {
       reason: CreditTransactionReason.PURCHASE,
       razorpayPaymentId: razorpay_payment_id,
     });
 
-    const balance = await this.jobCreditsService.getBalance(req.user.id);
+    const balance = await this.jobCreditsService.getBalance(req.user.userId);
     return { balance };
   }
 }

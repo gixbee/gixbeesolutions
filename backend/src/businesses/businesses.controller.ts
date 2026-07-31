@@ -13,6 +13,7 @@ import {
 } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { AdminGuard } from '../auth/admin.guard';
+import { RequireAdminPage } from '../auth/require-admin-page.decorator';
 import { BusinessesService } from './businesses.service';
 import { CreateBusinessDto } from './dto/create-business.dto';
 import {
@@ -40,12 +41,14 @@ export class BusinessesController {
   // ── Admin: moderation (portal only). Before ':id' so the static segment
   // wins.
   @UseGuards(JwtAuthGuard, AdminGuard)
+  @RequireAdminPage('businesses')
   @Get('admin/all')
   async adminListAll(@Query('status') status?: string) {
     return this.val.adminListAll(status || undefined);
   }
 
   @UseGuards(JwtAuthGuard, AdminGuard)
+  @RequireAdminPage('businesses')
   @Patch('admin/:id/status')
   async adminSetStatus(
     @Param('id') id: string,
