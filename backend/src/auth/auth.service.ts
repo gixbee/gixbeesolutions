@@ -11,9 +11,15 @@ import { User, UserRole } from '../users/user.entity';
 import { RedisService } from '../redis/redis.service';
 import { AdminStaffService } from '../admin-staff/admin-staff.service';
 import {
+  AdminStaff,
   AdminStaffRole,
   ADMIN_PORTAL_PAGES,
 } from '../admin-staff/admin-staff.entity';
+import {
+  WalletTransaction,
+  TransactionType,
+} from '../wallets/wallet-transaction.entity';
+import { JobCredit } from '../billing/job-credit.entity';
 import * as crypto from 'crypto';
 
 @Injectable()
@@ -21,6 +27,10 @@ export class AuthService {
   constructor(
     @InjectRepository(User)
     private usersRepository: Repository<User>,
+    @InjectRepository(WalletTransaction)
+    private transactionsRepository: Repository<WalletTransaction>,
+    @InjectRepository(JobCredit)
+    private jobCreditRepository: Repository<JobCredit>,
     private jwtService: JwtService,
     private redisService: RedisService,
     private configService: ConfigService,
@@ -87,9 +97,22 @@ export class AuthService {
         name: '', // collected in RegistrationScreen after OTP
         role: UserRole.CUSTOMER, // default to CUSTOMER — workers register via /register-pro
         isVerified: true,
-        walletBalance: 0, // no free credits — prevents wallet exploit
+        walletBalance: 30, // Welcome Bonus
       });
       user = await this.usersRepository.save(user);
+
+      // Create ledger entry for the welcome bonus
+      const tx = this.transactionsRepository.create({
+        user,
+        amount: 30,
+        type: TransactionType.CREDIT,
+        description: 'Welcome Bonus',
+      });
+      await this.transactionsRepository.save(tx);
+
+      // Grant 30 Job Credits so new pros can go live immediately
+      const jobCredit = this.jobCreditRepository.create({ user, balance: 30 });
+      await this.jobCreditRepository.save(jobCredit);
     }
 
     return this.generateTokenPair(user);

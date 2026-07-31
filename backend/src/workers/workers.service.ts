@@ -6,7 +6,7 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, Repository } from 'typeorm';
-import { WorkerProfile } from './worker-profile.entity';
+import { WorkerProfile, VerificationStatus } from './worker-profile.entity';
 import {
   WorkerStrike,
   WorkerStrikeStatus,
@@ -455,6 +455,12 @@ export class WorkersService {
     const goingLive = !profile.isActive;
 
     if (goingLive) {
+      if (profile.verificationStatus !== VerificationStatus.VERIFIED) {
+        throw new BadRequestException(
+          'Your profile is not verified yet. Please complete the verification process to go live.',
+        );
+      }
+
       // ── Strike suspension gate ──
       // 3+ counting strikes (ACTIVE / APPEALED / UPHELD) = suspended from
       // going live until an appeal is overturned or an admin clears it.
@@ -860,6 +866,8 @@ export class WorkersService {
     skills: string[];
     activeSkills: string[];
     isActive: boolean;
+    verificationStatus: string;
+    rating: number;
     serviceRadiusKm: number;
     jobCredits: number;
     feeModel: {
@@ -932,6 +940,8 @@ export class WorkersService {
       skills: healed.skills || [],
       activeSkills: healed.activeSkills || [],
       isActive: healed.isActive,
+      verificationStatus: healed.verificationStatus,
+      rating: healed.rating || 0,
       serviceRadiusKm: healed.serviceRadiusKm ?? DEFAULT_SERVICE_RADIUS_KM,
       jobCredits,
       feeModel: {

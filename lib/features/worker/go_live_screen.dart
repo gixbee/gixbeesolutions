@@ -704,13 +704,7 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
                     children: [
                       Text(user.name, style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: context.gx.ink)),
                       const SizedBox(height: 3),
-                      Row(
-                        children: [
-                          const Icon(Icons.verified_user, size: 12, color: GixbeeTheme.accentGreen),
-                          const SizedBox(width: 5),
-                          Text('Aadhaar Verified', style: TextStyle(fontSize: 12, color: context.gx.ink.withValues(alpha: 0.55))),
-                        ],
-                      ),
+                      _buildVerificationBadge(context, dash),
                       const SizedBox(height: 2),
                       Row(
                         children: [
@@ -725,7 +719,12 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
-                    Text('4.8', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: GixbeeTheme.accentGold)),
+                    Text(
+                      ((dash?['rating'] as num?)?.toDouble() ?? 0.0) > 0
+                          ? (dash!['rating'] as num).toStringAsFixed(1)
+                          : 'New',
+                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: GixbeeTheme.accentGold),
+                    ),
                     Text('★ rating', style: TextStyle(fontSize: 10, color: GixbeeTheme.accentGold)),
                     const SizedBox(height: 2),
                     Text('${dash?['earnings']?['jobsCompleted'] ?? 0} jobs', style: TextStyle(fontSize: 10, color: context.gx.ink.withValues(alpha: 0.55))),
@@ -1013,9 +1012,40 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
     );
   }
 
+  /// Renders the Aadhaar/verification status row badge inside the profile card.
+  /// PENDING → amber warning, REJECTED → red, VERIFIED → green tick.
+  Widget _buildVerificationBadge(BuildContext context, Map<String, dynamic>? dash) {
+    final status = (dash?['verificationStatus'] as String?) ?? 'PENDING';
+    switch (status) {
+      case 'VERIFIED':
+        return Row(children: [
+          const Icon(Icons.verified_user, size: 12, color: GixbeeTheme.accentGreen),
+          const SizedBox(width: 5),
+          Text('Aadhaar Verified',
+              style: TextStyle(fontSize: 12, color: context.gx.ink.withValues(alpha: 0.55))),
+        ]);
+      case 'REJECTED':
+        return Row(children: [
+          const Icon(Icons.cancel, size: 12, color: Color(0xFFDC2626)),
+          const SizedBox(width: 5),
+          Text('Verification Rejected',
+              style: const TextStyle(fontSize: 12, color: Color(0xFFDC2626), fontWeight: FontWeight.w600)),
+        ]);
+      default: // PENDING
+        return Row(children: [
+          const Icon(Icons.access_time, size: 12, color: Color(0xFFF59E0B)),
+          const SizedBox(width: 5),
+          Text('Verification Pending',
+              style: const TextStyle(fontSize: 12, color: Color(0xFFF59E0B), fontWeight: FontWeight.w600)),
+        ]);
+    }
+  }
+
   Widget _buildStickyFooter(bool isLive, Map<String, dynamic> dash) {
     final credits = (dash['jobCredits'] as num?)?.toInt() ?? 0;
-    final isDisabled = !isLive && credits <= 0;
+    final verStatus = (dash['verificationStatus'] as String?) ?? 'PENDING';
+    final isVerified = verStatus == 'VERIFIED';
+    final isDisabled = !isLive && (credits <= 0 || !isVerified);
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -1023,49 +1053,80 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
         color: context.gx.bg,
         border: Border(top: BorderSide(color: context.gx.border)),
       ),
-      child: GestureDetector(
-        onTap: (_toggling || isDisabled) ? null : _toggle,
-        child: Container(
-          width: double.infinity,
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: isLive 
-                ? [const Color(0xFFDC2626), const Color(0xFF991B1B)] 
-                : [const Color(0xFF059669), const Color(0xFF10B981)],
-            ),
-            borderRadius: BorderRadius.circular(16),
-            boxShadow: [
-              BoxShadow(
-                color: (isLive ? const Color(0xFFDC2626) : const Color(0xFF10B981)).withValues(alpha: 0.4),
-                blurRadius: 20,
-                offset: const Offset(0, 4),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (!isLive && !isVerified) ...[
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              margin: const EdgeInsets.only(bottom: 10),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF59E0B).withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: const Color(0xFFF59E0B).withValues(alpha: 0.4)),
               ),
-            ],
-          ),
-          alignment: Alignment.center,
-          foregroundDecoration: isDisabled
-              ? BoxDecoration(
-                  color: context.gx.bg.withValues(alpha: 0.6),
-                  borderRadius: BorderRadius.circular(16),
-                )
-              : null,
-          child: _toggling
-              ? SizedBox(width: 24, height: 24, child: CircularProgressIndicator(color: context.gx.onAccent, strokeWidth: 3))
-              : Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(isLive ? Icons.power_settings_new : Icons.bolt, color: context.gx.onAccent, size: 20),
-                    const SizedBox(width: 10),
-                    Text(
-                      isLive ? 'Go Offline' : 'Go Live Now',
-                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.w900, color: context.gx.onAccent),
+              child: Row(
+                children: [
+                  const Icon(Icons.hourglass_top, size: 14, color: Color(0xFFF59E0B)),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      verStatus == 'REJECTED'
+                          ? 'Verification rejected. Please re-upload your documents.'
+                          : 'Your profile is under review. You can go live once verified.',
+                      style: const TextStyle(fontSize: 12, color: Color(0xFFF59E0B), fontWeight: FontWeight.w600),
                     ),
-                  ],
+                  ),
+                ],
+              ),
+            ),
+          ],
+          GestureDetector(
+            onTap: (_toggling || isDisabled) ? null : _toggle,
+            child: Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: isLive 
+                    ? [const Color(0xFFDC2626), const Color(0xFF991B1B)] 
+                    : [const Color(0xFF059669), const Color(0xFF10B981)],
                 ),
-        ),
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: [
+                  BoxShadow(
+                    color: (isLive ? const Color(0xFFDC2626) : const Color(0xFF10B981)).withValues(alpha: 0.4),
+                    blurRadius: 20,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              alignment: Alignment.center,
+              foregroundDecoration: isDisabled
+                  ? BoxDecoration(
+                      color: context.gx.bg.withValues(alpha: 0.6),
+                      borderRadius: BorderRadius.circular(16),
+                    )
+                  : null,
+              child: _toggling
+                  ? SizedBox(width: 24, height: 24, child: CircularProgressIndicator(color: context.gx.onAccent, strokeWidth: 3))
+                  : Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(isLive ? Icons.power_settings_new : Icons.bolt, color: context.gx.onAccent, size: 20),
+                        const SizedBox(width: 10),
+                        Text(
+                          isLive ? 'Go Offline' : 'Go Live Now',
+                          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w900, color: context.gx.onAccent),
+                        ),
+                      ],
+                    ),
+            ),
+          ),
+        ],
       ),
     );
   }

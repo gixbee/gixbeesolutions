@@ -8,11 +8,15 @@ import { UsersModule } from '../users/users.module';
 import { JwtStrategy } from './jwt.strategy';
 import { WsJwtGuard } from './ws-jwt.guard';
 import { AdminStaffModule } from '../admin-staff/admin-staff.module';
+import { TypeOrmModule } from '@nestjs/typeorm';
+import { WalletTransaction } from '../wallets/wallet-transaction.entity';
+import { JobCredit } from '../billing/job-credit.entity';
 
 @Module({
   imports: [
     UsersModule,
     AdminStaffModule,
+    TypeOrmModule.forFeature([WalletTransaction, JobCredit]),
     PassportModule,
     JwtModule.registerAsync({
       imports: [ConfigModule],

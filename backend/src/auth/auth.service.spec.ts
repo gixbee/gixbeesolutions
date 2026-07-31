@@ -87,8 +87,14 @@ function makeDeps(opts: { user?: any; config?: Record<string, any> } = {}) {
     effectivePages: jest.fn(() => []),
   };
 
+  const transactionsRepository: any = {
+    create: jest.fn((e) => e),
+    save: jest.fn(async (e) => e),
+  };
+
   const service = new AuthService(
     usersRepository,
+    transactionsRepository,
     jwtService,
     redisService,
     configService,
@@ -171,7 +177,7 @@ describe('AuthService.verifyOtp', () => {
         phoneNumber: '+919000000005',
         role: UserRole.CUSTOMER,
         isVerified: true,
-        walletBalance: 0,
+        walletBalance: 30,
       }),
     );
     expect(saved).toHaveLength(1);
