@@ -2162,6 +2162,8 @@ export class BookingsService {
     pauseRequested: boolean;
     paused: boolean;
     pausedMinutes: number;
+    cancelRequested: boolean;
+    workerNoProgress?: boolean;
     isPaid: boolean;
     workerPaidConfirmed: boolean;
     customerPaidConfirmed: boolean;
@@ -2220,6 +2222,7 @@ export class BookingsService {
         paused: false,
         pausedMinutes: 0,
         cancelRequested: !!cached.cancelRequested,
+        workerNoProgress: !!cached.workerNoProgress,
         isPaid: !!cached.isPaid,
         workerPaidConfirmed: !!cached.workerPaidConfirmed,
         customerPaidConfirmed: !!cached.customerPaidConfirmed,
@@ -2246,6 +2249,7 @@ export class BookingsService {
       paused: false,
       pausedMinutes: 0,
       cancelRequested: !!booking.cancelRequestedAt,
+      workerNoProgress: !!booking.workerNoProgressAt,
       isPaid: !!booking.isPaid,
       workerPaidConfirmed: !!booking.workerPaidConfirmed,
       customerPaidConfirmed: !!booking.customerPaidConfirmed,
@@ -2271,6 +2275,7 @@ export class BookingsService {
       paused: payload.paused,
       pausedMinutes: payload.pausedMinutes,
       cancelRequested: payload.cancelRequested,
+      workerNoProgress: payload.workerNoProgress,
       isPaid: payload.isPaid,
       workerPaidConfirmed: payload.workerPaidConfirmed,
       customerPaidConfirmed: payload.customerPaidConfirmed,
