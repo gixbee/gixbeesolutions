@@ -130,14 +130,16 @@ import { CreditTransaction } from './billing/credit-transaction.entity';
           // server backend. Do NOT use session-scoped Postgres features:
           // LISTEN/NOTIFY, session advisory locks, or named PREPARE that
           // outlive a transaction. Keep work inside TypeORM transactions /
-          // single queries. `statement_timeout` bounds runaway queries so a
-          // stuck client cannot hold a pooled server connection forever.
+          // single queries.
+          //
+          // Do NOT set `options: '-c statement_timeout=...'` here — PgBouncer
+          // rejects that startup parameter. Timeout is enforced on Postgres
+          // itself via docker-compose (`postgres -c statement_timeout=60s`).
           extra: {
             max: 50,
             idleTimeoutMillis: 30_000,
             connectionTimeoutMillis: 10_000,
             application_name: 'gixbee-backend',
-            options: '-c statement_timeout=60000',
           },
         };
 

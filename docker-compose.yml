@@ -36,6 +36,9 @@ services:
       # exist" spam every 10s). To truly rename, create the DB by hand or wipe
       # the volume with `docker compose down -v`.
       POSTGRES_DB: gixbee_db
+    # Bound runaway queries at the server (PgBouncer rejects client-side
+    # `options: -c statement_timeout=...` startup parameters).
+    command: ["postgres", "-c", "statement_timeout=60s"]
     ulimits:
       nofile:
         soft: 65535
