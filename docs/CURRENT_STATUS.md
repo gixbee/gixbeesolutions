@@ -1,7 +1,7 @@
 # Gixbee — Current Status
 
 > **Single source of truth** for what is done vs still open.  
-> Last updated: **2026-07-18**  
+> Last updated: **2026-08-01**  
 > Prefer this file over older archaeology in git history (April backlog dumps were deleted from `docs/` on 2026-07-18).
 
 ---
@@ -13,9 +13,10 @@
 | App | Flutter + Riverpod + Dio + Socket.IO + MapLibre (Ola) + FCM |
 | API | NestJS 11 + TypeORM + Postgres + Redis + Bull + JWT |
 | Admin | Angular 19 (`super-admin-web/`) |
+| Infra | Docker Compose · Nginx LB · PgBouncer · AWS EC2 `i-0263e6862a2e32e59` (`13.233.60.215`) · Beszel / Dozzle / pgAdmin |
 | Themes | **Gixbee Dark** (violet shell) · **Grab Green** (light) via Profile → Appearance |
 
-Theme tokens live in `lib/theme.dart` (`context.gx.*`). Auth/splash stay dark + brand-orange on purpose.
+Theme tokens live in `lib/theme.dart` (`context.gx.*`). Auth/splash stay dark + brand-orange on purpose. Deploy via [`.agents/skills/gixbee_deploy/SKILL.md`](../.agents/skills/gixbee_deploy/SKILL.md).
 
 ---
 
@@ -33,24 +34,49 @@ See [AUDIT_2026-07-13.md](./AUDIT_2026-07-13.md) and [SECURITY_2026-07-13.md](./
 - Redis OTP storage + verify (not “any 6 digits”)
 - Firebase initialized in Flutter; FCM token registration on login path
 - TypeORM `synchronize: !isProduction`
+- Admin page ACL + WS JWT hardening; throttler restored to sane defaults (2026-07)
 
 ### Product modules that exist in code
 
-| Area | Status |
+Every folder in `lib/features/` (17) is listed here, so a missing row means a missing flow.
+
+| Flow (`lib/features/…`) | Status |
 |---|---|
-| Home (intent / service quad, offers, location) | Done |
-| Instant Help + broadcast request + waiting / tracking / OTPs | Done |
-| Plan an Event + `showGxCalendar` | Done |
-| Rentals catalog / detail / reserve (`showGxCalendar` + time picker) | Done |
-| Go Live + incoming job queue | Done |
-| Find a Job / talent / post job (full form) / hiring pipeline | Done |
-| Business list + unit dashboard + hiring pipeline | Done |
-| Messages (list + thread) | Done |
-| Profile / wallet / favourites / about / support | Done (menus wired 2026-07-18) |
+| `onboarding` splash / welcome, `auth` OTP login + registration | Done — Demo Skip Login **removed** (2026-07-18) |
+| `home` (intent / service quad, offers, location) | Done |
+| `booking` — Instant Help, broadcast, waiting, tracking, OTPs, pay | Done (+ late-cancel + petrol — see below) |
+| `booking` — Plan an Event + `showGxCalendar` | Done |
+| `rentals` catalog / detail / reserve (`showGxCalendar` + time picker) | Done |
+| `worker` Go Live + incoming job queue | Done |
+| `billing` job packs + credit history; period fee (Razorpay) | Done |
+| `jobs` — Find a Job / talent / post job / hiring pipeline | Done |
+| `business` list + unit dashboard + hiring pipeline | Done |
+| `messages` (list + thread) | Done |
+| `notifications` list + FCM push + badge | Done |
+| `profile` / wallet / favourites / about / support | Done (menus wired 2026-07-18) |
+| `search` → `worker_detail_screen` (pro profile from search results) | Done |
+| `map` → `worker_directory_screen` (nearby pros); live tracking lives in `booking` | Done |
+| `reels` → `worker_reels_screen` | Done — “Book Now” routes to Instant Request |
+| `graph` → `skill_graph_screen` (skill relationship view) | Done |
+| `common` shared shells and `gx_*` widgets | Done |
 | Cities, addresses, favourites, support, payments module shells | Done |
-| Dual theme (Gixbee Dark / Grab Green) surface + shell accents | Done (2026-07-18) |
-| Demo Skip Login on welcome | **Removed** (2026-07-18) |
-| Admin portal staff + page ACL | **Done** (2026-07-18) — create staff, map pages, role-based login |
+| Dual theme (Gixbee Dark / Grab Green) | Done (2026-07-18) |
+| Admin portal staff + page ACL | Done (2026-07-18) |
+| Admin System Monitoring (Beszel + Dozzle + pgAdmin) | Done (2026-08-01) |
+| Admin disputes / strikes / verifications / logs / master entries | Done |
+
+### Shipped 2026-07-18 → 2026-08-01 (live on EC2)
+
+| Area | What landed |
+|---|---|
+| **Late-cancel protection** | Free cancel only while `REQUESTED` or within 3 min after accept. After grace: cancel request to worker, or force-cancel = late-cancel strike. After `ARRIVED`/`ACTIVE`: customer cannot cancel alone. 3 strikes → Instant Help blocked until distance-based travel compensation paid (Razorpay; ₹10/km, min ₹49 max ₹299; frozen on ban; recorded for worker payout — not an in-app wallet). |
+| **Worker no-progress free cancel** | Progress GPS checks replace blanket GPS forfeit; if the pro is not making progress, customer may cancel free (`WORKER_NO_PROGRESS`). Migration `1754100000000-WorkerProgressGps`. |
+| **Instant petrol billing** | Instant Help only: one-way ₹/km from `acceptDistanceKm`; rate from Master Entries `instant_petrol_per_km` (default **10**); frozen on booking as `petrolDistanceKm` / `petrolRatePerKm` / `petrolAmount`; work + petrol breakdown on collect/pay/OTP screens. Missing accept distance → petrol ₹0. Non-Instant unchanged. Migration `1754100000001-InstantPetrolBilling`. Deployed `f13db57`. |
+| **Job pause removed** | Active-job pause/resume removed; wall-clock billing only. |
+| **Aadhaar preference** | Pro verify UI + talent stub prefer Aadhaar OTP/eKYC over DigiLocker (still credential-blocked until KYC keys). |
+| **Go Live hardening** | Verification gate, credits/period fee, force offline at limits, location gate, skills editing. |
+| **pgAdmin** | Embedded under `/infra/pgadmin/` in admin monitoring (path/SCRIPT_NAME + healthcheck fixes). |
+| **Ops** | EC2 disk prune (~80% free after cleanup); backend replicas healthy after petrol deploy. |
 
 ---
 
@@ -61,23 +87,37 @@ See [AUDIT_2026-07-13.md](./AUDIT_2026-07-13.md) and [SECURITY_2026-07-13.md](./
 | Item | Notes |
 |---|---|
 | **SMS OTP** | MSG91/Twilio not wired — OTP only logged server-side without a provider |
-| **Payments** | PhonePe/UPI/Razorpay return `needsApiKey` until credentials are set |
+| **Payments** | PhonePe/UPI/Razorpay return `needsApiKey` until credentials are set (period fee + late-cancel compensation need live Razorpay keys) |
 | **Aadhaar eKYC** | Pro ID verification still “coming soon” (Aadhaar OTP preferred over DigiLocker) |
-| **Secrets ops** | Rotate weak local JWT/admin if any env is shared; never commit Firebase admin JSON |
+| **Secrets ops** | Rotate weak JWT/admin/DB/pgAdmin defaults if any env is shared; never commit Firebase admin JSON |
 
-### P1 — Backend residual (from July audit, still open)
+### P1 — Ops / infra follow-ups
+
+| Item | Notes |
+|---|---|
+| **Grow EBS volume** | Disk was tight; prune helped — still prefer larger root volume for image builds |
+| **Rotate default passwords** | pgAdmin / DB defaults used for bootstrap — rotate in prod |
+| **Flutter APK rollout** | Petrol + late-cancel UI need new APK install on devices (backend already live) |
+
+### P1 — Known product bugs
+
+| Item | Notes |
+|---|---|
+| **Call button** | Suspected wrong dial target (`tel:+91${worker.id}` instead of phone) — confirm and fix |
+
+### P1 — Backend residual (from July audit)
 
 | Item | Notes |
 |---|---|
 | `GET /bookings/my` | **Fixed** (2026-07-18) — single OR query + pagination |
-| Rental overlap | **Fixed** (2026-07-18) — item row `pessimistic_write` + overlap check inside transaction |
+| Rental overlap | **Fixed** (2026-07-18) |
 | OTP verify | **Fixed** (2026-07-18) — atomic Redis GETDEL via `consumeOtp` |
-| Unbounded `find()` | **Fixed** (2026-07-18) — `take` / `?page=&limit=` on rentals, wallets, disputes, applications; recommended talent capped + skill-prefilter |
-| Rating average | **Fixed** (2026-07-18) — booking + profile `pessimistic_write` in transaction; re-rate idempotent |
-| Serial FCM fan-out | **Fixed** (2026-07-18) — broadcast / job-match / accept-cancel / dispute use `sendToUsers` + `Promise.all` |
+| Unbounded `find()` | **Fixed** (2026-07-18) |
+| Rating average | **Fixed** (2026-07-18) |
+| Serial FCM fan-out | **Fixed** (2026-07-18) |
 | `.gitignore` | Prefer `*firebase-adminsdk*.json` pattern at repo root |
 
-### P2 — Product polish (partially addressed 2026-07-18)
+### P2 — Product polish
 
 | Item | Status |
 |---|---|
@@ -94,7 +134,7 @@ See [AUDIT_2026-07-13.md](./AUDIT_2026-07-13.md) and [SECURITY_2026-07-13.md](./
 
 | Item | Status |
 |---|---|
-| This file as status source of truth | **Done** |
+| This file as status source of truth | **Done** — refresh on each shipped feature set |
 | April backlog / extract dumps under `docs/` | **Removed** 2026-07-18 (recoverable via git) |
 
 ---
@@ -109,6 +149,7 @@ See [AUDIT_2026-07-13.md](./AUDIT_2026-07-13.md) and [SECURITY_2026-07-13.md](./
 | [HOSTING_GUIDE.md](./HOSTING_GUIDE.md) | Hosting setup |
 | [AWS_DEPLOYMENT.md](./AWS_DEPLOYMENT.md) | AWS deploy notes |
 | [.README.md](../.README.md) | Product overview + setup |
+| [gixbee_deploy skill](../.agents/skills/gixbee_deploy/SKILL.md) | EC2 Instance Connect deploy command |
 
 April-era backlog / gap / extract dumps were removed from `docs/` (2026-07-18). Use git history if you need them.
 
