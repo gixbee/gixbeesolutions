@@ -99,12 +99,16 @@ describe('MasterEntriesService.findAll', () => {
     const result = await service.findAll();
 
     expect(result).toEqual([entry]);
-    // no filters supplied → empty WHERE
-    expect(getFindArgs()).toEqual({ where: {}, order: { createdAt: 'DESC' } });
+    // no filters supplied → empty WHERE; hard-capped take for safety
+    expect(getFindArgs()).toEqual({
+      where: {},
+      order: { createdAt: 'DESC' },
+      take: 2000,
+    });
     expect(redis.set).toHaveBeenCalledWith(
-      'master_entries:all:any',
+      'master_entries:all:any:all:all',
       JSON.stringify([entry]),
-      3600,
+      expect.any(Number),
     );
   });
 
@@ -119,12 +123,15 @@ describe('MasterEntriesService.findAll', () => {
     expect(getFindArgs()).toEqual({
       where: { type: MasterEntryType.SERVICE, isActive: false },
       order: { createdAt: 'DESC' },
+      take: 2000,
     });
-    expect(redis.get).toHaveBeenCalledWith('master_entries:SERVICE:false');
+    expect(redis.get).toHaveBeenCalledWith(
+      'master_entries:SERVICE:false:all:all',
+    );
     expect(redis.set).toHaveBeenCalledWith(
-      'master_entries:SERVICE:false',
+      'master_entries:SERVICE:false:all:all',
       JSON.stringify([]),
-      3600,
+      expect.any(Number),
     );
   });
 });

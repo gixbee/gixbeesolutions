@@ -43,11 +43,17 @@ describe('UsersController.getSummary', () => {
 });
 
 describe('UsersController.getAllUsers', () => {
-  it('returns the full user list from the service', async () => {
+  it('forwards parsed page/limit to the service', async () => {
     const { controller, usersService } = makeController();
-    const res = await controller.getAllUsers();
-    expect(usersService.findAll).toHaveBeenCalledTimes(1);
+    const res = await controller.getAllUsers('2', '20');
+    expect(usersService.findAll).toHaveBeenCalledWith(2, 20);
     expect(res).toEqual([{ id: 'u1' }, { id: 'u2' }]);
+  });
+
+  it('defaults to page 1 / limit 50 when query params are omitted', async () => {
+    const { controller, usersService } = makeController();
+    await controller.getAllUsers();
+    expect(usersService.findAll).toHaveBeenCalledWith(1, 50);
   });
 });
 

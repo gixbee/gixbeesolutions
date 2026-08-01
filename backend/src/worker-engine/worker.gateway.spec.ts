@@ -26,6 +26,16 @@ function makeRedis() {
   };
 }
 
+function makeBookingsRepository() {
+  return {
+    findOne: jest.fn(async () => ({
+      id: 'j1',
+      customer: { id: 'c1' },
+      operator: { id: 'u1' },
+    })),
+  };
+}
+
 /** A socket.io Server double whose `.to(room)` returns a per-room emitter. */
 function makeServer() {
   const rooms: Record<string, { emit: jest.Mock }> = {};
@@ -49,10 +59,11 @@ function makeClient(id = 'sock-1', userId = 'u1') {
 
 function makeGateway() {
   const redis = makeRedis();
-  const gateway = new WorkerGateway(redis as any);
+  const bookingsRepository = makeBookingsRepository();
+  const gateway = new WorkerGateway(redis as any, bookingsRepository as any);
   const server = makeServer();
   gateway.server = server;
-  return { gateway, redis, server };
+  return { gateway, redis, bookingsRepository, server };
 }
 
 describe('WorkerGateway', () => {
@@ -95,7 +106,12 @@ describe('WorkerGateway', () => {
     });
 
     it('ignores a spoofed body.userId and uses the JWT identity', async () => {
-      const { gateway, redis, server } = makeGateway();
+      const { gateway, redis, bookingsRepository, server } = makeGateway();
+      bookingsRepository.findOne.mockResolvedValueOnce({
+        id: 'j1',
+        customer: { id: 'c1' },
+        operator: { id: 'real-worker' },
+      });
       const client = makeClient('sock-1', 'real-worker');
       await gateway.handleLocationUpdate(
         { userId: 'victim-worker', lat: 12.9, lng: 77.6, jobId: 'j1' },
@@ -119,6 +135,18 @@ describe('WorkerGateway', () => {
       await expect(
         gateway.handleLocationUpdate({ lat: 1, lng: 2 }, client),
       ).rejects.toBeInstanceOf(WsException);
+    });
+
+    it('rejects job-room GPS from a user who is not the assigned operator', async () => {
+      const { gateway, server } = makeGateway();
+      const client = makeClient('sock-1', 'attacker');
+      await expect(
+        gateway.handleLocationUpdate(
+          { lat: 12.9, lng: 77.6, jobId: 'j1' },
+          client,
+        ),
+      ).rejects.toThrow('Forbidden');
+      expect(server.to).not.toHaveBeenCalled();
     });
 
     it('broadcasts only to the job room when a jobId is given', async () => {
@@ -168,12 +196,32 @@ describe('WorkerGateway', () => {
   });
 
   describe('handleJoinJobRoom', () => {
-    it('joins the namespaced job room and returns the ack envelope', () => {
+    it('allows a booking participant to join the namespaced room', async () => {
+      const { gateway } = makeGateway();
+      const client = makeClient('sock-1', 'c1');
+      const ack = await gateway.handleJoinJobRoom({ jobId: 'j1' }, client);
+      expect(client.join).toHaveBeenCalledWith('job_j1');
+      expect(ack).toEqual({ event: 'joined', data: 'Joined room job_j1' });
+    });
+
+    it('rejects an authenticated non-participant', async () => {
+      const { gateway } = makeGateway();
+      const client = makeClient('sock-1', 'attacker');
+      await expect(
+        gateway.handleJoinJobRoom({ jobId: 'j1' }, client),
+      ).rejects.toThrow('Forbidden');
+      expect(client.join).not.toHaveBeenCalled();
+    });
+
+    it('rejects a socket without an authenticated JWT user', async () => {
       const { gateway } = makeGateway();
       const client = makeClient();
-      const ack = gateway.handleJoinJobRoom({ jobId: 'j9' }, client);
-      expect(client.join).toHaveBeenCalledWith('job_j9');
-      expect(ack).toEqual({ event: 'joined', data: 'Joined room job_j9' });
+      client.data = {};
+      client.user = undefined;
+      await expect(
+        gateway.handleJoinJobRoom({ jobId: 'j1' }, client),
+      ).rejects.toThrow('Unauthorized');
+      expect(client.join).not.toHaveBeenCalled();
     });
   });
 

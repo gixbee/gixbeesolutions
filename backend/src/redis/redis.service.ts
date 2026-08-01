@@ -3,10 +3,12 @@ import {
   Logger,
   OnModuleInit,
   OnModuleDestroy,
+  ServiceUnavailableException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { createClient, RedisClientType } from 'redis';
 import { buildRedisUrl } from './redis-url';
+import { redisAllowsMemoryFallback } from './redis-fallback';
 
 export interface LocationCache {
   lat: number;
@@ -15,26 +17,30 @@ export interface LocationCache {
 }
 
 /**
- * RedisService — all Redis access for the app, with a built-in
- * IN-MEMORY FALLBACK: when Redis is unreachable, every method transparently
- * degrades to a process-local store so the backend stays fully functional
- * (OTP login, refresh tokens, dispatch, caches) on a dev machine without
- * Redis running.
+ * RedisService — all Redis access for the app.
  *
- * The fallback is single-instance and non-persistent — fine for development,
- * NOT a substitute for Redis in production (and Bull queues still require a
- * real Redis for delayed jobs: request timeouts + GPS checks).
+ * When Redis is unreachable, methods may degrade to a process-local store
+ * ONLY if {@link redisAllowsMemoryFallback} is true (local single-process
+ * dev). With `replicas: 2`, a silent memory store splits OTP, locks, and
+ * caches across instances — so production / compose sets
+ * `REDIS_ALLOW_MEMORY_FALLBACK=false` and Redis outages fail closed.
+ *
+ * Bull delayed jobs always need a real Redis regardless.
  */
 @Injectable()
 export class RedisService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(RedisService.name);
   private client: RedisClientType;
   private fallbackAnnounced = false;
+  private readonly allowMemoryFallback: boolean;
 
   // Key namespaces
   private static readonly WORKER_SNAPSHOT = 'worker:snapshot:';
   private static readonly SKILL_INDEX = 'skill:index:';
   private static readonly GEO_INDEX = 'workers:geo';
+
+  /** Max keys the admin key browser will collect in one scan. */
+  private static readonly ADMIN_KEYS_LIMIT = 1000;
 
   // ── In-memory fallback stores (used only when Redis is unreachable) ──
   private memKv = new Map<
@@ -47,6 +53,8 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
   private memKeyExp = new Map<string, number>(); // key-level TTL for sets/zsets
 
   constructor(private configService: ConfigService) {
+    this.allowMemoryFallback = redisAllowsMemoryFallback(configService);
+
     // Capped exponential backoff so a missing Redis doesn't spam reconnects
     const socket = {
       reconnectStrategy: (retries: number) => Math.min(retries * 500, 30_000),
@@ -61,7 +69,9 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
       // Log once per outage, not per failed command
       if (!this.fallbackAnnounced) {
         this.logger.warn(
-          `Redis unreachable (${err?.message ?? err}) — using in-memory fallback until it returns`,
+          this.allowMemoryFallback
+            ? `Redis unreachable (${err?.message ?? err}) — using in-memory fallback until it returns`
+            : `Redis unreachable (${err?.message ?? err}) — memory fallback disabled; commands will fail closed`,
         );
         this.fallbackAnnounced = true;
       }
@@ -70,6 +80,22 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
       this.fallbackAnnounced = false;
       this.logger.log('Redis connected successfully');
     });
+  }
+
+  /** True when process-local memory may stand in for Redis (single-process dev). */
+  allowsMemoryFallback(): boolean {
+    return this.allowMemoryFallback;
+  }
+
+  /**
+   * Call before touching mem* stores. Throws when fallback is disabled so
+   * multi-replica deploys never silently split OTP / locks / caches.
+   */
+  private assertMemoryFallbackAllowed(op: string): void {
+    if (this.allowMemoryFallback) return;
+    throw new ServiceUnavailableException(
+      `Redis unavailable for ${op} (in-memory fallback disabled)`,
+    );
   }
 
   /** True when commands can actually be sent to Redis. */
@@ -154,6 +180,12 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
     try {
       await this.client.connect();
     } catch (error) {
+      if (!this.allowMemoryFallback) {
+        this.logger.error(
+          'Could not connect to Redis and REDIS_ALLOW_MEMORY_FALLBACK is off — refusing to boot',
+        );
+        throw error;
+      }
       this.logger.warn(
         'Could not connect to Redis — running on the in-memory fallback. ' +
           'Start Redis (docker compose up redis) for multi-instance/persistent state.',
@@ -229,8 +261,10 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
         return await this.client.get(key);
       } catch (error) {
         this.logger.error(`Redis GET failed for key: ${key}`, error);
+        if (!this.allowMemoryFallback) throw error;
       }
     }
+    this.assertMemoryFallbackAllowed('GET');
     return this.memGet(key);
   }
 
@@ -245,8 +279,10 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
         return;
       } catch (error) {
         this.logger.error(`Redis SET failed for key: ${key}`, error);
+        if (!this.allowMemoryFallback) throw error;
       }
     }
+    this.assertMemoryFallbackAllowed('SET');
     this.memSet(key, value, ttlSeconds);
   }
 
@@ -257,8 +293,10 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
         return;
       } catch (error) {
         this.logger.error(`Redis DEL failed for keys: ${keys}`, error);
+        if (!this.allowMemoryFallback) throw error;
       }
     }
+    this.assertMemoryFallbackAllowed('DEL');
     for (const key of keys) {
       this.memKv.delete(key);
       this.memSets.delete(key);
@@ -267,27 +305,37 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
     }
   }
 
+  /**
+   * SCAN, not KEYS: KEYS is O(N) over the whole keyspace and blocks Redis's
+   * single thread — called from clearCache() on every master-entry admin
+   * save, it would stall dispatch/polls as the keyspace grows. SCAN iterates
+   * in small non-blocking batches. `limit` caps how many keys are collected;
+   * pass 0 for no cap.
+   */
+  private async scanKeys(pattern: string, limit = 0): Promise<string[]> {
+    const found: string[] = [];
+    for await (const batch of this.client.scanIterator({
+      MATCH: pattern,
+      COUNT: 200,
+    })) {
+      // node-redis v4 yields single keys; v5 yields arrays — handle both.
+      if (Array.isArray(batch)) found.push(...batch);
+      else found.push(batch as string);
+      if (limit > 0 && found.length >= limit) return found.slice(0, limit);
+    }
+    return found;
+  }
+
   async keys(pattern: string): Promise<string[]> {
     if (this.live) {
       try {
-        // SCAN, not KEYS: KEYS is O(N) over the whole keyspace and blocks
-        // Redis's single thread — called from clearCache() on every
-        // master-entry admin save, it would stall dispatch/polls as the
-        // keyspace grows. SCAN iterates in small non-blocking batches.
-        const found: string[] = [];
-        for await (const batch of this.client.scanIterator({
-          MATCH: pattern,
-          COUNT: 200,
-        })) {
-          // node-redis v4 yields single keys; v5 yields arrays — handle both.
-          if (Array.isArray(batch)) found.push(...batch);
-          else found.push(batch as string);
-        }
-        return found;
+        return await this.scanKeys(pattern);
       } catch (error) {
         this.logger.error(`Redis SCAN failed for pattern: ${pattern}`, error);
+        if (!this.allowMemoryFallback) throw error;
       }
     }
+    this.assertMemoryFallbackAllowed('KEYS');
     // Glob → regex (only * supported, which is all we use)
     const regex = new RegExp(
       '^' +
@@ -299,6 +347,37 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
       if (regex.test(key) && this.memGet(key) !== null) result.push(key);
     }
     return result;
+  }
+
+  /**
+   * Best-effort single-runner lock (SET NX EX). Returns true to exactly one
+   * caller across all replicas until `ttlSeconds` elapses. The lock is never
+   * released early — it is sized to the work it guards, so a crashed holder
+   * costs one skipped cycle rather than a permanent stall.
+   *
+   * When memory fallback is disabled and Redis is down, returns false (skip
+   * the guarded work) instead of granting every replica a local lock.
+   * When fallback is allowed, degrades to per-process locking — only safe
+   * for single-process local dev and idempotent work.
+   */
+  async acquireLock(key: string, ttlSeconds: number): Promise<boolean> {
+    if (this.live) {
+      try {
+        const res = await this.client.set(key, '1', {
+          NX: true,
+          EX: ttlSeconds,
+        });
+        return res === 'OK';
+      } catch (error) {
+        this.logger.error(`Redis lock failed for key: ${key}`, error);
+        if (!this.allowMemoryFallback) return false;
+      }
+    } else if (!this.allowMemoryFallback) {
+      return false;
+    }
+    if (this.memGet(key) !== null) return false;
+    this.memSet(key, '1', ttlSeconds);
+    return true;
   }
 
   // ─────────────────────────────────────────────
@@ -332,8 +411,10 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
         return await this.client.getDel(key);
       } catch (error) {
         this.logger.error(`Redis GETDEL failed for key: ${key}`, error);
+        if (!this.allowMemoryFallback) throw error;
       }
     }
+    this.assertMemoryFallbackAllowed('GETDEL');
     const value = this.memGet(key);
     if (value !== null) this.memKv.delete(key);
     return value;
@@ -450,8 +531,10 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
           `Failed to update geo location for worker ${workerId}`,
           error,
         );
+        if (!this.allowMemoryFallback) throw error;
       }
     }
+    this.assertMemoryFallbackAllowed('GEOADD');
     this.memGeo.set(workerId, { lat, lng });
   }
 
@@ -470,8 +553,10 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
           `Failed to remove worker ${workerId} from geo index`,
           error,
         );
+        if (!this.allowMemoryFallback) throw error;
       }
     }
+    this.assertMemoryFallbackAllowed('ZREM');
     this.memGeo.delete(workerId);
   }
 
@@ -500,6 +585,7 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
         return null;
       }
     }
+    if (!this.allowMemoryFallback) return null;
     const result: string[] = [];
     for (const [workerId, coords] of this.memGeo) {
       if (
@@ -532,11 +618,10 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
           `Failed to add pending booking ${bookingId} for worker ${workerId}`,
           error,
         );
+        if (!this.allowMemoryFallback) throw error;
       }
     }
-    if (!this.memKeyAlive(key)) {
-      // expired — start a fresh set
-    }
+    this.assertMemoryFallbackAllowed('ZADD');
     const zset = this.memZsets.get(key) ?? new Map<string, number>();
     zset.set(bookingId, Date.now());
     this.memZsets.set(key, zset);
@@ -558,8 +643,10 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
           `Failed to remove pending booking ${bookingId} for worker ${workerId}`,
           error,
         );
+        if (!this.allowMemoryFallback) throw error;
       }
     }
+    this.assertMemoryFallbackAllowed('ZREM');
     this.memZsets.get(key)?.delete(bookingId);
   }
 
@@ -577,8 +664,10 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
         return;
       } catch (error) {
         this.logger.error(`Failed to set rejected cache ${key}`, error);
+        if (!this.allowMemoryFallback) throw error;
       }
     }
+    this.assertMemoryFallbackAllowed('SADD');
     const memSet = this.memSets.get(key) || new Set<string>();
     memSet.add(workerId);
     this.memSets.set(key, memSet);
@@ -595,8 +684,10 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
         return await this.client.sMembers(key);
       } catch (error) {
         this.logger.error(`Failed to get rejected cache ${key}`, error);
+        if (!this.allowMemoryFallback) throw error;
       }
     }
+    this.assertMemoryFallbackAllowed('SMEMBERS');
     if (!this.memKeyAlive(key)) return [];
     return Array.from(this.memSets.get(key) || []);
   }
@@ -613,8 +704,10 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
           `Failed to get pending bookings for worker ${workerId}`,
           error,
         );
+        if (!this.allowMemoryFallback) throw error;
       }
     }
+    this.assertMemoryFallbackAllowed('ZRANGE');
     if (!this.memKeyAlive(key)) return [];
     const zset = this.memZsets.get(key);
     if (!zset) return [];
@@ -660,8 +753,10 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
             `Failed to index skill ${skill} for worker ${workerId}`,
             error,
           );
+          if (!this.allowMemoryFallback) throw error;
         }
       }
+      this.assertMemoryFallbackAllowed('SADD');
       const set = this.memSets.get(key) ?? new Set<string>();
       set.add(workerId);
       this.memSets.set(key, set);
@@ -682,8 +777,10 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
             `Failed to unindex skill ${skill} for worker ${workerId}`,
             error,
           );
+          if (!this.allowMemoryFallback) throw error;
         }
       }
+      this.assertMemoryFallbackAllowed('SREM');
       this.memSets.get(key)?.delete(workerId);
     }
   }
@@ -696,19 +793,28 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
         return await this.client.sMembers(key);
       } catch (error) {
         this.logger.error(`Failed to get workers for skill ${skill}`, error);
+        if (!this.allowMemoryFallback) throw error;
       }
     }
+    this.assertMemoryFallbackAllowed('SMEMBERS');
     if (!this.memKeyAlive(key)) return [];
     return [...(this.memSets.get(key) ?? [])];
   }
 
   // ── Admin Endpoints ──
 
-  async getAdminKeys(pattern: string = '*'): Promise<string[]> {
+  /**
+   * Key browser for the admin monitoring page. Capped SCAN rather than KEYS:
+   * this runs against production Redis on demand, and a default `*` KEYS over
+   * the live keyspace blocks the server for every other caller.
+   */
+  async getAdminKeys(
+    pattern: string = '*',
+    limit: number = RedisService.ADMIN_KEYS_LIMIT,
+  ): Promise<string[]> {
     if (!this.live) return [];
     try {
-      const keys = await this.client.keys(pattern);
-      return keys;
+      return await this.scanKeys(pattern, limit);
     } catch (error) {
       this.logger.error('Failed to get Redis keys', error);
       return [];

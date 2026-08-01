@@ -125,10 +125,19 @@ import { CreditTransaction } from './billing/credit-transaction.entity';
           // Postgres backends — so it's safe to raise above the pg default
           // of 10. PgBouncer multiplexes them onto DEFAULT_POOL_SIZE real
           // server connections.
+          //
+          // TRANSACTION pooling means each checkout may land on a different
+          // server backend. Do NOT use session-scoped Postgres features:
+          // LISTEN/NOTIFY, session advisory locks, or named PREPARE that
+          // outlive a transaction. Keep work inside TypeORM transactions /
+          // single queries. `statement_timeout` bounds runaway queries so a
+          // stuck client cannot hold a pooled server connection forever.
           extra: {
             max: 50,
             idleTimeoutMillis: 30_000,
             connectionTimeoutMillis: 10_000,
+            application_name: 'gixbee-backend',
+            options: '-c statement_timeout=60000',
           },
         };
 

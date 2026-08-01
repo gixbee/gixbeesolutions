@@ -22,6 +22,7 @@ import {
   UpdateUserStatusDto,
   VerifyUserDto,
 } from './dto/user-admin.dto';
+import { parsePagination } from '../common/pagination';
 
 @Controller('admin-user-list')
 @UseGuards(JwtAuthGuard)
@@ -45,8 +46,12 @@ export class UsersController {
   @Get()
   @UseGuards(AdminGuard)
   @RequireAdminPage('users')
-  async getAllUsers() {
-    return this.usersService.findAll();
+  async getAllUsers(
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+  ) {
+    const p = parsePagination(page, limit);
+    return this.usersService.findAll(p.page, p.limit);
   }
 
   // Registered BEFORE @Get(':id') so the static "search" segment isn't captured

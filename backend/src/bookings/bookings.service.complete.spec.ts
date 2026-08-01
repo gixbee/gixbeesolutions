@@ -320,20 +320,18 @@ describe('BookingsService.verifyCompletionOtp', () => {
     expect(res.billingHours).toBe(1);
   });
 
-  it('bills full wall-clock time after pause removal', async () => {
+  it('bills full wall-clock time', async () => {
     const booking = {
       ...baseBooking(),
       type: 'INSTANT',
       amount: 130,
       startedAt: new Date(Date.now() - 94 * 60 * 1000),
-      pausedMinutes: 22,
     };
     const { service } = makeService(booking);
 
     const res = await service.verifyCompletionOtp('b1', '1234');
 
     expect(res.workedMinutes).toBe(94);
-    expect(res.pausedMinutes).toBe(0);
     expect(res.totalAmount).toBe(204); // round(130 * 94/60)
   });
 

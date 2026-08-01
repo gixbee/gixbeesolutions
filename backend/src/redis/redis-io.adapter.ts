@@ -5,25 +5,35 @@ import { createAdapter } from '@socket.io/redis-adapter';
 import { createClient, RedisClientType } from 'redis';
 import { ServerOptions } from 'socket.io';
 import { buildRedisUrl } from './redis-url';
+import { redisAllowsMemoryFallback } from './redis-fallback';
 
 /**
  * Socket.IO Redis adapter so WebSocket rooms/events fan out across multiple
  * Nest backend instances (~1k concurrent live workers / multi-replica deploy).
  *
- * If Redis is unreachable at boot, connectToRedis() logs a warning and leaves
- * the default in-memory adapter in place — useful for local dev without Redis.
+ * If Redis is unreachable at boot and memory fallback is allowed (local
+ * single-process dev), connectToRedis() leaves the default in-memory adapter.
+ * When fallback is disabled (compose / production with replicas: 2), callers
+ * must treat a false return as fatal — process-local rooms would silently
+ * drop cross-replica job offers, tracking, and chat.
  */
 export class RedisIoAdapter extends IoAdapter {
   private readonly logger = new Logger(RedisIoAdapter.name);
   private adapterConstructor: ReturnType<typeof createAdapter> | null = null;
   private pubClient: RedisClientType | null = null;
   private subClient: RedisClientType | null = null;
+  private readonly allowMemoryFallback: boolean;
 
   constructor(
     app: INestApplication,
     private readonly configService: ConfigService,
   ) {
     super(app);
+    this.allowMemoryFallback = redisAllowsMemoryFallback(configService);
+  }
+
+  allowsMemoryFallback(): boolean {
+    return this.allowMemoryFallback;
   }
 
   async connectToRedis(): Promise<boolean> {
@@ -48,9 +58,16 @@ export class RedisIoAdapter extends IoAdapter {
       this.logger.log('Socket.IO Redis adapter connected');
       return true;
     } catch (err: any) {
-      this.logger.warn(
-        `Socket.IO Redis adapter unavailable (${err?.message ?? err}) — using in-memory adapter`,
-      );
+      const detail = err?.message ?? err;
+      if (this.allowMemoryFallback) {
+        this.logger.warn(
+          `Socket.IO Redis adapter unavailable (${detail}) — using in-memory adapter`,
+        );
+      } else {
+        this.logger.error(
+          `Socket.IO Redis adapter unavailable (${detail}) — memory fallback disabled`,
+        );
+      }
       await this.disconnectQuietly();
       this.adapterConstructor = null;
       return false;

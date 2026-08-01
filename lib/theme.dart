@@ -163,6 +163,8 @@ class GixbeeTheme {
 
   // Functional / intent accents (product areas — not shell chrome).
   static const Color accentGreen = Color(0xFF10B981); // --gn
+  static const Color accentGreenDark = Color(0xFF059669);
+  static const Color successInk = Color(0xFF0B1A12);
   static const Color accentGold = Color(0xFFF59E0B); // gold
   static const Color accentPink = Color(0xFFEC4899); // --pk
   static const Color accentBlue = Color(0xFF3B82F6); // --bl

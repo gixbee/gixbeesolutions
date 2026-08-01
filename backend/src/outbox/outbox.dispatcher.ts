@@ -11,6 +11,12 @@ import {
   SystemLogType,
 } from '../system-logs/system-log.entity';
 
+/** Safety-net sweep interval. Part of the Bull repeatable key — see prune. */
+const POLL_EVERY_MS = 5000;
+/** Stable id so all replicas register the same repeatable. */
+const POLL_JOB_ID = 'outbox-poll-repeat';
+const POLL_JOB_NAME = 'poll';
+
 /**
  * Dispatches pending outbox rows on a dedicated `outbox` queue:
  *  - `dispatch` — immediate kick after commit (by event id)
@@ -29,21 +35,43 @@ export class OutboxDispatcher implements OnModuleInit {
 
   async onModuleInit(): Promise<void> {
     try {
+      await this.pruneStaleRepeatables();
       await this.outboxQueue.add(
-        'poll',
+        POLL_JOB_NAME,
         {},
         {
-          jobId: 'outbox-poll-repeat',
-          repeat: { every: 5000 },
+          jobId: POLL_JOB_ID,
+          repeat: { every: POLL_EVERY_MS },
           removeOnComplete: true,
           removeOnFail: true,
         },
       );
-      this.logger.log('Outbox poller registered (every 5s)');
+      this.logger.log(`Outbox poller registered (every ${POLL_EVERY_MS}ms)`);
     } catch (e) {
       this.logger.warn(
         `Outbox poller registration skipped: ${(e as Error)?.message ?? e}`,
       );
+    }
+  }
+
+  /**
+   * Bull derives a repeatable's identity from name + jobId + interval, so
+   * every replica registering the poller with the same values collapses onto
+   * one scheduler. Changing POLL_EVERY_MS or POLL_JOB_ID mints a *new*
+   * identity and orphans the old one, which keeps firing forever because it
+   * lives in Redis and outlives the deploy that removed it. Drop every
+   * repeatable that isn't the current config before registering.
+   */
+  private async pruneStaleRepeatables(): Promise<void> {
+    const existing = await this.outboxQueue.getRepeatableJobs();
+    for (const job of existing) {
+      const isCurrent =
+        job.name === POLL_JOB_NAME &&
+        job.id === POLL_JOB_ID &&
+        Number(job.every) === POLL_EVERY_MS;
+      if (isCurrent) continue;
+      await this.outboxQueue.removeRepeatableByKey(job.key);
+      this.logger.warn(`Removed stale outbox repeatable: ${job.key}`);
     }
   }
 

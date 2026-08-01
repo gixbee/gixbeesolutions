@@ -44,8 +44,10 @@ export class UserService {
   private http = inject(HttpClient);
   private apiUrl = '/api/admin-user-list';
 
-  getAll(): Observable<User[]> {
-    return this.http.get<User[]>(this.apiUrl);
+  getAll(page = 1, limit = 50): Observable<User[]> {
+    return this.http.get<User[]>(this.apiUrl, {
+      params: { page: String(page), limit: String(limit) },
+    });
   }
 
   getSummary(): Observable<any> {

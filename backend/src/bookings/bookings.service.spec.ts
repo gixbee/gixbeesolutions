@@ -193,11 +193,15 @@ describe('BookingsService.createBooking', () => {
       'otp:booking:new-1:completion',
       created.completionOtp,
     );
-    // 90s request timeout scheduled
+    // 90s request timeout scheduled with stable jobId (dedupe across retries)
     expect(bookingsQueue.add).toHaveBeenCalledWith(
       'requestTimeout',
-      { bookingId: 'new-1' },
-      { delay: 90 * 1000 },
+      { bookingId: 'new-1', attempt: 1 },
+      {
+        jobId: 'requestTimeout:new-1',
+        delay: 90 * 1000,
+        removeOnComplete: true,
+      },
     );
     expect(redisService.addPendingBooking).toHaveBeenCalledWith(
       'work-1',

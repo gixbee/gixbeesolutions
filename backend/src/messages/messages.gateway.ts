@@ -2,10 +2,12 @@ import {
   WebSocketGateway,
   WebSocketServer,
   SubscribeMessage,
-  MessageBody,
   ConnectedSocket,
+  WsException,
 } from '@nestjs/websockets';
+import { UseGuards } from '@nestjs/common';
 import { Server, Socket } from 'socket.io';
+import { WsJwtGuard } from '../auth/ws-jwt.guard';
 
 /**
  * Realtime chat delivery. Shares the same Socket.IO server as WorkerGateway
@@ -20,19 +22,24 @@ import { Server, Socket } from 'socket.io';
     origin: '*',
   },
 })
+@UseGuards(WsJwtGuard)
 export class MessagesGateway {
   @WebSocketServer()
   server: Server;
 
   @SubscribeMessage('joinUserRoom')
-  handleJoinUserRoom(
-    @MessageBody() data: { userId: string },
-    @ConnectedSocket() client: Socket,
-  ) {
-    if (data?.userId) {
-      client.join(`user_${data.userId}`);
+  handleJoinUserRoom(@ConnectedSocket() client: Socket) {
+    const user =
+      (client as any).data?.user ?? (client as any).user ?? undefined;
+    const userId = user?.userId;
+    if (typeof userId !== 'string' || userId.length === 0) {
+      throw new WsException('Unauthorized');
     }
-    return { event: 'joinedUserRoom', data: data?.userId };
+
+    // The personal room always comes from the verified JWT. A body userId is
+    // intentionally ignored so a client cannot subscribe to another account.
+    client.join(`user_${userId}`);
+    return { event: 'joinedUserRoom', data: userId };
   }
 
   /** Push a message payload to the recipient's personal room. */

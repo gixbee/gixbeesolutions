@@ -129,7 +129,7 @@ export class SupportComponent implements OnInit {
   }
 
   load() {
-    const params: any = {};
+    const params: any = { page: '1', limit: '100' };
     if (this.filter) params.status = this.filter;
     this.http.get<SupportTicket[]>('/api/support/admin/all', { params }).subscribe(res => {
       this.tickets = res;

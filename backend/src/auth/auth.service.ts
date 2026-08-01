@@ -8,6 +8,7 @@ import { JwtService } from '@nestjs/jwt';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { User, UserRole } from '../users/user.entity';
+import { NEW_USER_WALLET_BONUS } from '../common/money-model';
 import { RedisService } from '../redis/redis.service';
 import { AdminStaffService } from '../admin-staff/admin-staff.service';
 import {
@@ -97,7 +98,7 @@ export class AuthService {
         name: '', // collected in RegistrationScreen after OTP
         role: UserRole.CUSTOMER, // default to CUSTOMER — workers register via /register-pro
         isVerified: true,
-        walletBalance: 30, // Welcome Bonus
+        walletBalance: NEW_USER_WALLET_BONUS, // 0 while wallet product is off
       });
       user = await this.usersRepository.save(user);
 

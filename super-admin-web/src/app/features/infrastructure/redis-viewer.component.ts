@@ -25,7 +25,12 @@ import { FormsModule } from '@angular/forms';
       <div class="flex-grow-1 d-flex gap-3 overflow-hidden">
         <!-- Key List -->
         <div class="col-4 d-flex flex-column border border-secondary rounded h-100 overflow-hidden">
-          <div class="p-2 border-bottom border-secondary bg-darker fw-bold">Keys ({{keys().length}})</div>
+          <div class="p-2 border-bottom border-secondary bg-darker fw-bold d-flex justify-content-between align-items-center">
+            <span>Keys ({{keys().length}})</span>
+            <span *ngIf="truncated()" class="badge bg-warning text-dark fw-normal" title="Scan stopped at its cap — narrow the pattern to see the rest">
+              capped
+            </span>
+          </div>
           
           <div class="flex-grow-1 overflow-auto">
             <div *ngIf="isLoading()" class="p-3 text-center text-secondary">
@@ -97,6 +102,8 @@ export class RedisViewerComponent {
   
   searchPattern = '*';
   keys = signal<string[]>([]);
+  /** Server stopped the scan at its cap; the listing is partial. */
+  truncated = signal<boolean>(false);
   isLoading = signal<boolean>(false);
   
   selectedKey = signal<string | null>(null);
@@ -112,15 +119,17 @@ export class RedisViewerComponent {
     this.selectedKey.set(null);
     this.selectedKeyDetails.set(null);
     
-    this.http.get<{keys: string[]}>(`/api/redis/admin/keys`, {
+    this.http.get<{keys: string[]; truncated?: boolean}>(`/api/redis/admin/keys`, {
       params: { pattern: this.searchPattern }
     }).subscribe({
       next: (res) => {
         this.keys.set(res.keys || []);
+        this.truncated.set(!!res.truncated);
         this.isLoading.set(false);
       },
       error: (err) => {
         console.error('Error fetching redis keys', err);
+        this.truncated.set(false);
         this.isLoading.set(false);
       }
     });

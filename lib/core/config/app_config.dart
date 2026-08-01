@@ -21,7 +21,7 @@ class AppConfig {
   // ─── Ola Maps (tiles + directions) ───────────────────────
   // Build with: flutter run --dart-define=OLA_MAPS_API_KEY=xxxx
   // Empty key → tracking screen shows a graceful "map unavailable" panel
-  // (status/OTP/pause logic keeps working) and skips Directions calls.
+  // (status/OTP logic keeps working) and skips Directions calls.
   static const String olaMapsApiKey = String.fromEnvironment(
     'OLA_MAPS_API_KEY',
     defaultValue: '',
@@ -54,9 +54,7 @@ class AppConfig {
   // ─── Booking ─────────────────────────────────────────────
   static const int jobAcceptTimeoutSeconds = 90;
   /// Fallback only — FCM + Socket.IO are the primary delivery path.
-  static const int bookingPollIntervalSeconds = 30;
-  /// Worker pending-queue fallback when FCM/socket miss a job.
-  static const int pendingJobsPollIntervalSeconds = 30;
+  static const int bookingPollIntervalSeconds = 5;
   static const int maxRateUpdatesPerDay = 2;
   static const int movementCheckMinutes = 10;
   static const int reminderMinutes = 7;

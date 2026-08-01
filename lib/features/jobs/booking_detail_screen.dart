@@ -116,7 +116,7 @@ class BookingDetailScreen extends ConsumerWidget {
                         color: context.gx.ink.withValues(alpha: 0.55)),
                   ),
                   const SizedBox(height: 10),
-                  _buildStatusBadge(status),
+                  _buildStatusBadge(context, status),
                 ],
               ),
             ),
@@ -129,7 +129,7 @@ class BookingDetailScreen extends ConsumerWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     if (status == 'ACCEPTED' && booking['arrivalOtp'] != null)
-                      _buildOtpCard(context, 'Arrival OTP', booking['arrivalOtp'].toString(), Icons.meeting_room, GixbeeTheme.accentPurple),
+                      _buildOtpCard(context, 'Arrival OTP', booking['arrivalOtp'].toString(), Icons.meeting_room, context.gx.accent),
                     if (status == 'ACTIVE' && booking['completionOtp'] != null)
                       _buildOtpCard(context, 'Completion OTP', booking['completionOtp'].toString(), Icons.verified, Colors.green),
                   ],
@@ -141,7 +141,7 @@ class BookingDetailScreen extends ConsumerWidget {
               padding: const EdgeInsets.symmetric(vertical: 4),
               child: Column(
                 children: [
-                  _buildDetailRow(context, 'Booking ID', shortId, color: GixbeeTheme.accentViolet),
+                  _buildDetailRow(context, 'Booking ID', shortId, color: context.gx.accentSoft),
                   _buildDetailRow(context, 'Date', DateFormat('d MMM yyyy').format(scheduledAt)),
                   _buildDetailRow(context, 'Time', DateFormat('hh:mm a').format(scheduledAt)),
                   _buildDetailRow(context, 'Total Amount', '₹${amount.toStringAsFixed(amount.truncateToDouble() == amount ? 0 : 2)}', color: GixbeeTheme.accentGold, isBig: true),
@@ -263,7 +263,7 @@ class BookingDetailScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildStatusBadge(String status) {
+  Widget _buildStatusBadge(BuildContext context, String status) {
     Color color;
     switch (status) {
       case 'REQUESTED':
@@ -278,7 +278,7 @@ class BookingDetailScreen extends ConsumerWidget {
         break;
       case 'ACTIVE':
       case 'IN_PROGRESS':
-        color = GixbeeTheme.accentViolet;
+        color = context.gx.accentSoft;
         break;
       case 'COMPLETED':
         color = GixbeeTheme.accentGreen;
@@ -288,7 +288,7 @@ class BookingDetailScreen extends ConsumerWidget {
         color = const Color(0xFFEF4444);
         break;
       default:
-        color = GixbeeTheme.textMed;
+        color = context.gx.ink.withValues(alpha: 0.58);
     }
 
     return Container(
@@ -362,7 +362,7 @@ class BookingDetailScreen extends ConsumerWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(title, style: const TextStyle(color: GixbeeTheme.textMed, fontSize: 12)),
+                Text(title, style: TextStyle(color: context.gx.ink.withValues(alpha: 0.58), fontSize: 12)),
                 const SizedBox(height: 4),
                 Text('Share this code with the worker', style: TextStyle(fontSize: 11, color: context.gx.ink)),
               ],
@@ -462,7 +462,7 @@ class BookingDetailScreen extends ConsumerWidget {
               child: Container(
                 padding: const EdgeInsets.symmetric(vertical: 12),
                 decoration: BoxDecoration(
-                  color: GixbeeTheme.accentViolet,
+                  color: context.gx.accentSoft,
                   borderRadius: BorderRadius.circular(12),
                 ),
                 alignment: Alignment.center,
@@ -529,9 +529,9 @@ class BookingDetailScreen extends ConsumerWidget {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
+          Text(
             'Refunds follow the cancellation policy based on how close to the start time you cancel.',
-            style: TextStyle(color: GixbeeTheme.textMed, fontSize: 13, height: 1.5),
+            style: TextStyle(color: context.gx.ink.withValues(alpha: 0.58), fontSize: 13, height: 1.5),
           ),
           const SizedBox(height: 20),
           Row(

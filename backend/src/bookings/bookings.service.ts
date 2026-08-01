@@ -27,6 +27,10 @@ import { OutboxEventType } from '../outbox/outbox.types';
 import { JobCreditsService } from '../billing/job-credits.service';
 import { CreditTransactionReason } from '../billing/credit-transaction.entity';
 import { MasterEntriesService } from '../master-entries/master-entries.service';
+import {
+  DEFAULT_BOOKING_PAYMENT_METHOD,
+  WALLET_PAYMENTS_ENABLED,
+} from '../common/money-model';
 
 @Injectable()
 export class BookingsService {
@@ -49,15 +53,6 @@ export class BookingsService {
   /** Progress violations before customer gets free cancel. */
   private static readonly PROGRESS_STRIKE_THRESHOLD = 2;
 
-  /**
-   * WALLET IS OFF (product decision): no customer or worker wallet for now.
-   * All job payments settle DIRECTLY between customer and worker (cash/UPI,
-   * dual-confirm markPaid); the only money Gixbee collects is the worker
-   * period fee via direct Razorpay checkout. Flip this back on when the
-   * wallet product returns — the settlement/fee/bonus code below is kept
-   * intact behind this switch.
-   */
-  private static readonly WALLET_PAYMENTS_ENABLED = false;
 
   constructor(
     @InjectRepository(Booking)
@@ -130,6 +125,8 @@ export class BookingsService {
 
     const booking = this.bookingsRepository.create({
       ...bookingData,
+      paymentMethod:
+        bookingData.paymentMethod || DEFAULT_BOOKING_PAYMENT_METHOD,
       status: BookingStatus.REQUESTED,
       arrivalOtp,
       completionOtp,
@@ -146,11 +143,16 @@ export class BookingsService {
       completionOtp,
     );
 
-    // Schedule 90-second request timeout
+    // Schedule 90-second request timeout. Stable jobId so retries / double
+    // submits collapse onto one delayed job (matches broadcast outbox path).
     await this.bookingsQueue.add(
       'requestTimeout',
-      { bookingId: savedBooking.id },
-      { delay: 90 * 1000 },
+      { bookingId: savedBooking.id, attempt: 1 },
+      {
+        jobId: `requestTimeout:${savedBooking.id}`,
+        delay: 90 * 1000,
+        removeOnComplete: true,
+      },
     );
 
     // Add to Redis pending list for fast poll discovery
@@ -281,7 +283,7 @@ export class BookingsService {
           scheduledAt: new Date(),
           amount: data.amount,
           type: BookingType.INSTANT,
-          paymentMethod: data.paymentMethod || 'WALLET',
+          paymentMethod: data.paymentMethod || DEFAULT_BOOKING_PAYMENT_METHOD,
           status: BookingStatus.REQUESTED,
           arrivalOtp,
           completionOtp,
@@ -1156,9 +1158,6 @@ export class BookingsService {
       operatorId: booking.operator?.id ?? null,
       customerId: booking.customer?.id ?? null,
       arrivalOtp: null,
-      pauseRequested: false,
-      paused: false,
-      pausedMinutes: 0,
       cancelRequested: true,
     });
     if (booking.operator?.id) {
@@ -1213,9 +1212,6 @@ export class BookingsService {
       operatorId: booking.operator?.id ?? null,
       customerId: booking.customer?.id ?? null,
       arrivalOtp: null,
-      pauseRequested: false,
-      paused: false,
-      pausedMinutes: 0,
       cancelRequested: false,
     });
     if (booking.customer?.id) {
@@ -1250,9 +1246,6 @@ export class BookingsService {
       operatorId: booking.operator?.id ?? null,
       customerId: booking.customer?.id ?? null,
       arrivalOtp: null,
-      pauseRequested: false,
-      paused: false,
-      pausedMinutes: 0,
       cancelRequested: false,
     });
     return { cancelRequested: false, message: 'Cancel request withdrawn' };
@@ -1581,7 +1574,6 @@ export class BookingsService {
     status: string;
     billingHours: number;
     workedMinutes: number;
-    pausedMinutes: number;
     hourlyRate: number;
     serviceAmount: number;
     petrolDistanceKm: number;
@@ -1657,9 +1649,6 @@ export class BookingsService {
       locked.completedAt = locked.completedAt ?? new Date();
       locked.billingHours = billingHours;
       locked.workedMinutes = workedMinutes;
-      locked.pausedAt = null as any;
-      locked.pauseRequestedAt = null as any;
-      locked.pausedMinutes = 0;
       // INSTANT: amount is ₹/hr — min 1 hour then proportional. Others: flat.
       const hourlyRate = Number(locked.amount) || 0;
       const billableMinutes = Math.max(60, workedMinutes);
@@ -1692,7 +1681,7 @@ export class BookingsService {
 
       // Instant Help settles offline. Non-instant WALLET path kept behind flag.
       if (
-        BookingsService.WALLET_PAYMENTS_ENABLED &&
+        WALLET_PAYMENTS_ENABLED &&
         locked.type !== BookingType.INSTANT &&
         locked.paymentMethod === 'WALLET'
       ) {
@@ -1744,7 +1733,6 @@ export class BookingsService {
         outboxId: outbox.id,
         billingHours,
         workedMinutes,
-        pausedMinutes: 0,
         hourlyRate,
         serviceAmount,
         petrolDistanceKm,
@@ -1766,7 +1754,7 @@ export class BookingsService {
         const periodicJobs = await this.workersService
           .periodicJobsPerPayment()
           .catch(() => 0);
-        if (BookingsService.WALLET_PAYMENTS_ENABLED && periodicJobs <= 0) {
+        if (WALLET_PAYMENTS_ENABLED && periodicJobs <= 0) {
           await this.walletsService.addFunds(completed.operator.id, 12);
         }
         workerProfile.isFirstJobDone = true;
@@ -1780,7 +1768,6 @@ export class BookingsService {
       status: 'COMPLETED',
       billingHours: txResult.billingHours,
       workedMinutes: txResult.workedMinutes,
-      pausedMinutes: txResult.pausedMinutes,
       hourlyRate: txResult.hourlyRate,
       serviceAmount: txResult.serviceAmount,
       petrolDistanceKm: txResult.petrolDistanceKm,
@@ -1877,9 +1864,6 @@ export class BookingsService {
           isPaid: !!booking.isPaid,
           workerPaidConfirmed: !!booking.workerPaidConfirmed,
           customerPaidConfirmed: !!booking.customerPaidConfirmed,
-          pauseRequested: false,
-          paused: false,
-          pausedMinutes: 0,
         },
       );
       return { outboxId: outbox.id };
@@ -2027,9 +2011,6 @@ export class BookingsService {
     return { message: 'Customer rating submitted' };
   }
 
-  // Status poll fields still include pause* keys as always-false/0 so older
-  // clients don't break; pause/resume was removed.
-
   /**
    * Caches the booking status in Redis AND instantly pushes a real-time
    * 'booking_status_update' event over Socket.IO to both customer and worker.
@@ -2082,9 +2063,6 @@ export class BookingsService {
       }
     }
   }
-
-  // Pause / resume removed — bill full wall-clock time. DB columns remain
-  // for historical rows; status always reports no pause.
 
   // ── Dispute / report — persisted (was a log-only stub). Either party can
   // file; stored on the booking so admin review and support can act on it.
@@ -2193,7 +2171,7 @@ export class BookingsService {
 
   /**
    * Status poll used by the app. Prefers Redis (written on every transition)
-   * so the 30s fallback poll does not hit Postgres on every tick. Falls back
+   * so the shared fallback poll does not hit Postgres on every tick. Falls back
    * to DB and refreshes the cache when Redis is cold / unauthorized.
    */
   async getStatusForParticipant(
@@ -2204,9 +2182,6 @@ export class BookingsService {
     operatorName: string | null;
     operatorId: string | null;
     arrivalOtp: string | null;
-    pauseRequested: boolean;
-    paused: boolean;
-    pausedMinutes: number;
     cancelRequested: boolean;
     workerNoProgress?: boolean;
     isPaid: boolean;
@@ -2263,9 +2238,6 @@ export class BookingsService {
           isCustomer && status === 'ACCEPTED'
             ? (cached.arrivalOtp ?? null)
             : null,
-        pauseRequested: false,
-        paused: false,
-        pausedMinutes: 0,
         cancelRequested: !!cached.cancelRequested,
         workerNoProgress: !!cached.workerNoProgress,
         isPaid: !!cached.isPaid,
@@ -2290,9 +2262,6 @@ export class BookingsService {
       operatorId: booking.operator?.id ?? null,
       customerId: booking.customer?.id ?? null,
       arrivalOtp: booking.arrivalOtp,
-      pauseRequested: false,
-      paused: false,
-      pausedMinutes: 0,
       cancelRequested: !!booking.cancelRequestedAt,
       workerNoProgress: !!booking.workerNoProgressAt,
       isPaid: !!booking.isPaid,
@@ -2316,9 +2285,6 @@ export class BookingsService {
         isCustomer && booking.status === BookingStatus.ACCEPTED
           ? booking.arrivalOtp
           : null,
-      pauseRequested: payload.pauseRequested,
-      paused: payload.paused,
-      pausedMinutes: payload.pausedMinutes,
       cancelRequested: payload.cancelRequested,
       workerNoProgress: payload.workerNoProgress,
       isPaid: payload.isPaid,

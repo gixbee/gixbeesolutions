@@ -10,7 +10,10 @@ import {
 } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
 import { UseGuards } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
 import { WsJwtGuard } from '../auth/ws-jwt.guard';
+import { Booking } from '../bookings/booking.entity';
 import { RedisService } from '../redis/redis.service';
 
 @WebSocketGateway({
@@ -25,7 +28,11 @@ export class WorkerGateway implements OnGatewayConnection, OnGatewayDisconnect {
   @WebSocketServer()
   server: Server;
 
-  constructor(private readonly redisService: RedisService) {}
+  constructor(
+    private readonly redisService: RedisService,
+    @InjectRepository(Booking)
+    private readonly bookingsRepository: Repository<Booking>,
+  ) {}
 
   handleConnection(client: Socket) {
     console.log(`Client connected: ${client.id}`);
@@ -44,6 +51,23 @@ export class WorkerGateway implements OnGatewayConnection, OnGatewayDisconnect {
       throw new WsException('Unauthorized');
     }
     return userId;
+  }
+
+  private async getBookingParticipant(
+    jobId: string,
+    userId: string,
+  ): Promise<'customer' | 'operator' | null> {
+    if (typeof jobId !== 'string' || jobId.length === 0) {
+      throw new WsException('Invalid job');
+    }
+
+    const booking = await this.bookingsRepository.findOne({
+      where: { id: jobId },
+      relations: { customer: true, operator: true },
+    });
+    if (booking?.customer?.id === userId) return 'customer';
+    if (booking?.operator?.id === userId) return 'operator';
+    return null;
   }
 
   @SubscribeMessage('updateLocation')
@@ -68,6 +92,11 @@ export class WorkerGateway implements OnGatewayConnection, OnGatewayDisconnect {
       timestamp: new Date().toISOString(),
     };
     if (data.jobId) {
+      const participant = await this.getBookingParticipant(data.jobId, userId);
+      // Only the assigned pro may publish GPS into a booking room.
+      if (participant !== 'operator') {
+        throw new WsException('Forbidden');
+      }
       this.server.to(`job_${data.jobId}`).emit('locationUpdated', payload);
     } else {
       // Fallback: emit only back to the sender
@@ -76,10 +105,16 @@ export class WorkerGateway implements OnGatewayConnection, OnGatewayDisconnect {
   }
 
   @SubscribeMessage('joinJobRoom')
-  handleJoinJobRoom(
+  async handleJoinJobRoom(
     @MessageBody() data: { jobId: string },
     @ConnectedSocket() client: Socket,
   ) {
+    const userId = this.authedUserId(client);
+    const participant = await this.getBookingParticipant(data?.jobId, userId);
+    if (!participant) {
+      throw new WsException('Forbidden');
+    }
+
     client.join(`job_${data.jobId}`);
     return { event: 'joined', data: `Joined room job_${data.jobId}` };
   }

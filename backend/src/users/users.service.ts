@@ -4,6 +4,7 @@ import { Repository, ILike } from 'typeorm';
 import { User, UserRole, UserApprovalStatus } from './user.entity';
 import { Booking } from '../bookings/booking.entity';
 import { Favourite } from '../favourites/favourite.entity';
+import { parsePagination } from '../common/pagination';
 
 @Injectable()
 export class UsersService {
@@ -81,10 +82,17 @@ export class UsersService {
     return this.usersRepository.save(user);
   }
 
-  async findAll(): Promise<User[]> {
+  /**
+   * Paginated admin user list. Nested talent relations amplify row size —
+   * never load the whole table.
+   */
+  async findAll(page = 1, limit = 50): Promise<User[]> {
+    const p = parsePagination(page, limit);
     return this.usersRepository.find({
       order: { createdAt: 'DESC' },
       relations: ['talentProfile', 'talentProfile.professionalSkills'],
+      skip: p.skip,
+      take: p.limit,
     });
   }
 

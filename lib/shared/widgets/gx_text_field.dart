@@ -13,7 +13,7 @@ import '../../theme.dart';
 ///
 /// Visuals: an optional caption [label] above a translucent glass field
 /// (light [BackdropFilter] blur + faint fill + 1px border). The border + cursor
-/// animate to [accent] on focus — defaults to [GixbeeTheme.accentPurple] but
+/// animate to [accent] on focus — defaults to the active theme shell accent but
 /// every screen can pass its quad colour (business=accentBlue, find-job=
 /// accentGreen, …) exactly like [GxButton].
 ///

@@ -17,6 +17,10 @@ import { WalletsService } from '../wallets/wallets.service';
 import { MasterEntriesService } from '../master-entries/master-entries.service';
 import { WorkersService } from '../workers/workers.service';
 import { BookingsService } from '../bookings/bookings.service';
+import {
+  WALLET_PAYMENTS_ENABLED,
+  WalletPaymentsDisabledError,
+} from '../common/money-model';
 
 /**
  * Razorpay wallet-recharge integration.
@@ -64,16 +68,18 @@ export class PaymentsService {
   }
 
   /**
-   * Gateway readiness for the client payment-method picker. Razorpay drives
-   * wallet recharge; wallet/cash remain the booking settlement methods.
+   * Gateway readiness for the client payment-method picker.
+   * See common/money-model.ts — wallet off; jobs settle cash/UPI; Razorpay
+   * is for period fee + late-cancel compensation (not wallet recharge).
    */
   getGatewayStatus() {
     return {
-      // WALLET IS OFF (product decision): no customer/worker wallet for
-      // now — jobs settle directly (cash/UPI dual-confirm). Kept in the
-      // payload so older app builds' pickers render it as unavailable
-      // instead of crashing on a missing key.
-      wallet: { available: false },
+      wallet: {
+        available: WALLET_PAYMENTS_ENABLED,
+        message: WALLET_PAYMENTS_ENABLED
+          ? null
+          : 'Gixbee Wallet is off — pay the pro directly (cash/UPI).',
+      },
       cash: { available: true },
       razorpay: {
         available: this.razorpayConfigured,
@@ -87,7 +93,8 @@ export class PaymentsService {
         available: false,
         provider: 'PHONEPE',
         needsApiKey: true,
-        message: 'Direct UPI gateway not configured — use wallet recharge.',
+        message:
+          'In-app UPI gateway not configured — use cash/UPI with the pro, or Razorpay for period fee / late-cancel.',
       },
     };
   }
@@ -106,6 +113,11 @@ export class PaymentsService {
     currency: string;
     keyId: string;
   }> {
+    if (!WALLET_PAYMENTS_ENABLED) {
+      throw new BadRequestException(
+        new WalletPaymentsDisabledError('wallet recharge').message,
+      );
+    }
     const rupees = Math.round(Number(amount));
     if (!Number.isFinite(rupees) || rupees < 10 || rupees > 100000) {
       throw new BadRequestException(
@@ -363,7 +375,13 @@ export class PaymentsService {
       return { ok: true };
     }
 
-    // WALLET_RECHARGE (default): credit the wallet.
+    // WALLET_RECHARGE: credit the wallet only when the product is on.
+    if (!WALLET_PAYMENTS_ENABLED) {
+      this.logger.warn(
+        `[Razorpay] ${orderId}: wallet recharge ignored — WALLET_PAYMENTS_ENABLED=false`,
+      );
+      return { ok: true, ignored: 'wallet_disabled' };
+    }
     try {
       await this.walletsService.addFunds(
         order.userId,

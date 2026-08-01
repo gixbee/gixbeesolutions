@@ -8,6 +8,7 @@ import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, LessThan } from 'typeorm';
 import { SystemLog, SystemLogLevel, SystemLogType } from './system-log.entity';
+import { RedisService } from '../redis/redis.service';
 
 export interface RecordLogInput {
   level?: SystemLogLevel;
@@ -49,6 +50,12 @@ const clip = (v: string | null | undefined, max: number): string | null =>
 const AUTO_PURGE_INTERVAL_MS = 24 * 60 * 60 * 1000;
 /** Delay after boot before the first purge (let the app settle / table sync). */
 const AUTO_PURGE_BOOT_DELAY_MS = 60 * 1000;
+/**
+ * Cross-replica lock so only one backend instance sweeps per window. Held for
+ * just under the interval so the next scheduled run is never blocked by it.
+ */
+const AUTO_PURGE_LOCK_KEY = 'lock:system-logs:auto-purge';
+const AUTO_PURGE_LOCK_TTL_S = 23 * 60 * 60;
 
 @Injectable()
 export class SystemLogsService implements OnModuleInit, OnModuleDestroy {
@@ -65,6 +72,7 @@ export class SystemLogsService implements OnModuleInit, OnModuleDestroy {
   constructor(
     @InjectRepository(SystemLog)
     private readonly repo: Repository<SystemLog>,
+    private readonly redis: RedisService,
     config: ConfigService,
   ) {
     const raw = Number(config.get<string>('LOG_RETENTION_DAYS'));
@@ -81,8 +89,8 @@ export class SystemLogsService implements OnModuleInit, OnModuleDestroy {
       `Auto-purge enabled: system_logs older than ${this.retentionDays} days, daily`,
     );
     // First run shortly after boot, then every 24 h. unref() so the timers
-    // never keep the process alive on shutdown. Purge is idempotent, so
-    // multiple backend instances running it concurrently is harmless.
+    // never keep the process alive on shutdown. Every replica arms its own
+    // timers; a Redis lock in autoPurge() elects one runner per window.
     this.bootTimer = setTimeout(
       () => this.autoPurge(),
       AUTO_PURGE_BOOT_DELAY_MS,
@@ -100,9 +108,19 @@ export class SystemLogsService implements OnModuleInit, OnModuleDestroy {
     if (this.purgeTimer) clearInterval(this.purgeTimer);
   }
 
-  /** Scheduled retention sweep — failures logged, never thrown. */
+  /**
+   * Scheduled retention sweep — failures logged, never thrown. Only the
+   * replica that wins the lock sweeps; the rest skip. The delete is
+   * idempotent anyway, so losing the lock to Redis being down just means two
+   * replicas both run a harmless cutoff delete.
+   */
   private async autoPurge(): Promise<void> {
     try {
+      const won = await this.redis.acquireLock(
+        AUTO_PURGE_LOCK_KEY,
+        AUTO_PURGE_LOCK_TTL_S,
+      );
+      if (!won) return;
       const deleted = await this.purge(this.retentionDays);
       if (deleted > 0) {
         this.logger.log(

@@ -104,11 +104,11 @@ class _WorkerLanguagesCardState extends ConsumerState<WorkerLanguagesCard> {
                                     : context.gx.ink.withValues(alpha: 0.7))),
                         selected: _selected.contains(lang),
                         onSelected: (_) => _toggle(lang),
-                        selectedColor: GixbeeTheme.accentPurple,
+                        selectedColor: context.gx.accent,
                         backgroundColor: context.gx.card2,
                         side: BorderSide(
                             color: _selected.contains(lang)
-                                ? GixbeeTheme.accentPurple
+                                ? context.gx.accent
                                 : context.gx.border),
                       ),
                   ],

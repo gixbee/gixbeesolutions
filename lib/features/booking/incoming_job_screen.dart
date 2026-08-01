@@ -43,7 +43,7 @@ class _IncomingJobScreenState extends ConsumerState<IncomingJobScreen>
   /// and resumes stale, showing time that actually expired long ago.
   DateTime? _deadline;
   Timer? _timer;
-  Timer? _pollTimer;
+  StreamSubscription<Map<String, dynamic>>? _socketSub;
   bool _isProcessing = false;
 
   @override
@@ -54,15 +54,21 @@ class _IncomingJobScreenState extends ConsumerState<IncomingJobScreen>
     unawaited(_loadMyPosition());
     unawaited(_loadCreditBalance());
     _startTimer();
-    Future.delayed(const Duration(seconds: 2), _pollForMoreRequests);
-    _pollTimer = Timer.periodic(const Duration(seconds: 4), (_) => _pollForMoreRequests());
+    _socketSub =
+        ref.read(socketServiceProvider).notifications.listen(_onSocketEvent);
+    // One initial reconciliation enriches FCM-minimal payloads and catches
+    // offers delivered while the socket was reconnecting.
+    Future.delayed(
+      const Duration(seconds: 2),
+      () => unawaited(_refreshPendingRequests()),
+    );
   }
 
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _timer?.cancel();
-    _pollTimer?.cancel();
+    _socketSub?.cancel();
     super.dispose();
   }
 
@@ -73,7 +79,7 @@ class _IncomingJobScreenState extends ConsumerState<IncomingJobScreen>
       // Requests that expired while locked are auto-declined instead of
       // showing a frozen timer that errors on Accept.
       _tick();
-      unawaited(_pollForMoreRequests());
+      unawaited(_refreshPendingRequests());
     }
   }
 
@@ -176,9 +182,20 @@ class _IncomingJobScreenState extends ConsumerState<IncomingJobScreen>
     _startTimer();
   }
 
-  // ── Poll for more requests while screen is open ───────────────────────────
+  // ── Socket-first queue updates + one-shot reconciliation ──────────────────
 
-  Future<void> _pollForMoreRequests() async {
+  void _onSocketEvent(Map<String, dynamic> event) {
+    if (!mounted || event['_event'] != 'new_booking_request') return;
+    final id = (event['id'] ?? event['bookingId'])?.toString();
+    if (id == null ||
+        _declinedIds.contains(id) ||
+        _requests.any((r) => r['id']?.toString() == id)) {
+      return;
+    }
+    setState(() => _requests.add(Map<String, dynamic>.from(event)));
+  }
+
+  Future<void> _refreshPendingRequests() async {
     if (!mounted) return;
     try {
       final all = await ref.read(bookingRepositoryProvider).getPendingBookings();
@@ -223,7 +240,7 @@ class _IncomingJobScreenState extends ConsumerState<IncomingJobScreen>
         }
       });
     } catch (e) {
-      debugPrint('[IncomingJob] Poll merge failed: $e');
+      debugPrint('[IncomingJob] Queue reconciliation failed: $e');
     }
   }
 
@@ -508,12 +525,13 @@ class _IncomingJobScreenState extends ConsumerState<IncomingJobScreen>
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          const Icon(Icons.people, color: Colors.white, size: 16),
+                          Icon(Icons.people,
+                              color: context.gx.onAccent, size: 16),
                           const SizedBox(width: 4),
                           Text(
                             '$totalRequests requests waiting',
-                            style: const TextStyle(
-                              color: Colors.white,
+                            style: TextStyle(
+                              color: context.gx.onAccent,
                               fontWeight: FontWeight.bold,
                               fontSize: 12,
                             ),
@@ -581,7 +599,7 @@ class _IncomingJobScreenState extends ConsumerState<IncomingJobScreen>
                         child: Text(
                           req['customer_name'] as String? ?? 'Request ${i + 1}',
                           style: TextStyle(
-                            color: isActive ? Colors.white : null,
+                            color: isActive ? context.gx.onAccent : null,
                             fontWeight: isActive
                                 ? FontWeight.bold
                                 : FontWeight.normal,
@@ -781,20 +799,21 @@ class _IncomingJobScreenState extends ConsumerState<IncomingJobScreen>
                           padding: const EdgeInsets.symmetric(vertical: 16),
                           alignment: Alignment.center,
                           decoration: BoxDecoration(
-                            color: Colors.green,
+                            color: GixbeeTheme.accentGreen,
                             borderRadius: BorderRadius.circular(14),
                           ),
                           child: _isProcessing
-                              ? const SizedBox(
+                              ? SizedBox(
                                   height: 22,
                                   width: 22,
                                   child: CircularProgressIndicator(
-                                      color: Colors.white, strokeWidth: 2.5),
+                                      color: context.gx.onAccent,
+                                      strokeWidth: 2.5),
                                 )
-                              : const Text(
+                              : Text(
                                   'Accept Job',
                                   style: TextStyle(
-                                      color: Colors.white,
+                                      color: context.gx.onAccent,
                                       fontSize: 17,
                                       fontWeight: FontWeight.bold),
                                 ),

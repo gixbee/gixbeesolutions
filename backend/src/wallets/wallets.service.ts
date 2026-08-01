@@ -6,9 +6,20 @@ import {
   WalletTransaction,
   TransactionType,
 } from './wallet-transaction.entity';
+import {
+  WALLET_PAYMENTS_ENABLED,
+  WalletPaymentsDisabledError,
+} from '../common/money-model';
 
 @Injectable()
 export class WalletsService {
+  private assertWalletOn(action: string): void {
+    if (WALLET_PAYMENTS_ENABLED) return;
+    throw new BadRequestException(
+      new WalletPaymentsDisabledError(action).message,
+    );
+  }
+
   constructor(
     @InjectRepository(User)
     private usersRepository: Repository<User>,
@@ -28,6 +39,7 @@ export class WalletsService {
   // transaction with a pessimistic row lock, matching transferForBooking.
 
   async deductBookingFee(userId: string): Promise<void> {
+    this.assertWalletOn('booking fee');
     await this.dataSource.transaction(async (manager) => {
       const user = await manager
         .createQueryBuilder(User, 'user')
@@ -65,6 +77,7 @@ export class WalletsService {
     amount: number,
     description: string,
   ): Promise<void> {
+    this.assertWalletOn('wallet charge');
     if (amount <= 0) return;
     await this.dataSource.transaction(async (manager) => {
       const user = await manager

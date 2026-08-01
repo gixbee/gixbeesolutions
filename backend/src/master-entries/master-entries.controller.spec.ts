@@ -42,13 +42,23 @@ describe('MasterEntriesController.findAll (query-param coercion)', () => {
   it("coerces isActive='true' to boolean true", async () => {
     const { controller, service } = makeController();
     await controller.findAll(MasterEntryType.BANNER, 'true');
-    expect(service.findAll).toHaveBeenCalledWith(MasterEntryType.BANNER, true);
+    expect(service.findAll).toHaveBeenCalledWith(
+      MasterEntryType.BANNER,
+      true,
+      undefined,
+      undefined,
+    );
   });
 
   it("coerces isActive='false' to boolean false", async () => {
     const { controller, service } = makeController();
     await controller.findAll(MasterEntryType.BANNER, 'false');
-    expect(service.findAll).toHaveBeenCalledWith(MasterEntryType.BANNER, false);
+    expect(service.findAll).toHaveBeenCalledWith(
+      MasterEntryType.BANNER,
+      false,
+      undefined,
+      undefined,
+    );
   });
 
   it('leaves isActive undefined when the param is omitted', async () => {
@@ -57,19 +67,31 @@ describe('MasterEntriesController.findAll (query-param coercion)', () => {
     expect(service.findAll).toHaveBeenCalledWith(
       MasterEntryType.CATEGORY,
       undefined,
+      undefined,
+      undefined,
     );
   });
 
   it('treats any non-true/false isActive string as undefined (not falsey-coerced)', async () => {
     const { controller, service } = makeController();
     await controller.findAll(undefined, 'yes');
-    expect(service.findAll).toHaveBeenCalledWith(undefined, undefined);
+    expect(service.findAll).toHaveBeenCalledWith(
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+    );
   });
 
   it('forwards an undefined type filter unchanged (public consumer read)', async () => {
     const { controller, service } = makeController();
     const res = await controller.findAll(undefined, undefined);
-    expect(service.findAll).toHaveBeenCalledWith(undefined, undefined);
+    expect(service.findAll).toHaveBeenCalledWith(
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+    );
     expect(res).toEqual([{ id: 'm1' }, { id: 'm2' }]);
   });
 });

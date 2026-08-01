@@ -7,6 +7,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { SupportTicket } from './support-ticket.entity';
 import { NotificationsService } from '../notifications/notifications.service';
+import { parsePagination } from '../common/pagination';
 
 @Injectable()
 export class SupportService {
@@ -31,21 +32,30 @@ export class SupportService {
   }
 
   async myTickets(userId: string): Promise<SupportTicket[]> {
+    // User-scoped but still capped — a chatty account shouldn't dump forever.
     return this.ticketRepo.find({
       where: { user: { id: userId } },
       order: { createdAt: 'DESC' },
+      take: 100,
     });
   }
 
   // ── Admin ──────────────────────────────────────────────────────────────────
 
-  async adminList(status?: string): Promise<SupportTicket[]> {
+  async adminList(
+    status?: string,
+    page = 1,
+    limit = 50,
+  ): Promise<SupportTicket[]> {
+    const p = parsePagination(page, limit);
     const where: any = {};
     if (status) where.status = status;
     return this.ticketRepo.find({
       where,
       relations: ['user'],
       order: { createdAt: 'DESC' },
+      skip: p.skip,
+      take: p.limit,
     });
   }
 

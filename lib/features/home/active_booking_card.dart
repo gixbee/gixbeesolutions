@@ -13,6 +13,7 @@ import '../../shared/widgets/glass_container.dart';
 import '../booking/collect_payment_screen.dart';
 import '../booking/customer_pay_screen.dart';
 import '../../shared/utils/booking_flags.dart';
+import '../../theme.dart';
 
 // Derives from shared myBookingsProvider — auto-refreshes on invalidation
 final activeBookingProvider = FutureProvider.autoDispose<Map<String, dynamic>?>((ref) async {
@@ -208,9 +209,6 @@ class _ActiveBookingCardState extends ConsumerState<ActiveBookingCard> {
                             '${activeBooking['workedMinutes'] ?? ((activeBooking['billingHours'] != null) ? (num.tryParse('${activeBooking['billingHours']}') ?? 1) * 60 : 60)}') ??
                         60)
                     .round();
-                final pausedMinutes =
-                    (num.tryParse('${activeBooking['pausedMinutes'] ?? 0}') ?? 0)
-                        .round();
 
                 if (isOperator) {
                   await Navigator.push(
@@ -223,7 +221,6 @@ class _ActiveBookingCardState extends ConsumerState<ActiveBookingCard> {
                             activeBooking['customer']?['name'] ?? 'Customer',
                         hourlyRate: hourlyRate > 0 ? hourlyRate : null,
                         workedMinutes: workedMinutes,
-                        pausedMinutes: pausedMinutes,
                         initiallyWaiting: iConfirmed,
                       ),
                     ),
@@ -239,7 +236,6 @@ class _ActiveBookingCardState extends ConsumerState<ActiveBookingCard> {
                             activeBooking['operator']?['name'] ?? 'Worker',
                         hourlyRate: hourlyRate > 0 ? hourlyRate : null,
                         workedMinutes: workedMinutes,
-                        pausedMinutes: pausedMinutes,
                         initiallyWaiting: iConfirmed,
                       ),
                     ),
@@ -321,8 +317,9 @@ class _ActiveBookingCardState extends ConsumerState<ActiveBookingCard> {
                         ),
                       ),
                       const SizedBox(height: 4),
-                      const Icon(Icons.arrow_forward_ios,
-                          size: 12, color: Colors.grey),
+                      Icon(Icons.arrow_forward_ios,
+                          size: 12,
+                          color: context.gx.ink.withValues(alpha: 0.45)),
                     ],
                   ),
                 ],

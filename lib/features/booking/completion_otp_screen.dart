@@ -71,9 +71,6 @@ class _CompletionOtpScreenState extends ConsumerState<CompletionOtpScreen> {
         final status = next.value?['status']?.toString().toUpperCase();
         if (status == 'COMPLETED' || next.value?['isPaid'] == true) {
           _openCustomerPostCompletion();
-        } else if (next.hasValue) {
-          // Keep the displayed OTP in sync in case either side rotated it.
-          _fetchOtp(silent: true);
         }
       },
     );
@@ -116,8 +113,6 @@ class _CompletionOtpScreenState extends ConsumerState<CompletionOtpScreen> {
           .toDouble();
       final workedMinutes =
           (num.tryParse('${b['workedMinutes'] ?? 60}') ?? 60).round();
-      final pausedMinutes =
-          (num.tryParse('${b['pausedMinutes'] ?? 0}') ?? 0).round();
 
       Navigator.pushReplacement(
         context,
@@ -132,7 +127,6 @@ class _CompletionOtpScreenState extends ConsumerState<CompletionOtpScreen> {
             petrolDistanceKm: petrolDistanceKm,
             petrolRatePerKm: petrolRatePerKm,
             workedMinutes: workedMinutes,
-            pausedMinutes: pausedMinutes,
           ),
         ),
       );
@@ -169,11 +163,10 @@ class _CompletionOtpScreenState extends ConsumerState<CompletionOtpScreen> {
     }
   }
 
-  /// Fetch the current completionOtp for the customer display. [silent]
-  /// refreshes in the background (no spinner) — used on every status poll so
-  /// a rotated OTP can never stay stale on screen.
-  Future<void> _fetchOtp({bool silent = false}) async {
-    if (!silent) setState(() => _isFetchingOtp = true);
+  /// Fetch the current completion OTP once when the customer screen opens.
+  /// Explicit rotation is handled by [_refreshOtp].
+  Future<void> _fetchOtp() async {
+    setState(() => _isFetchingOtp = true);
     try {
       final b = await ref
           .read(bookingRepositoryProvider)
@@ -192,7 +185,7 @@ class _CompletionOtpScreenState extends ConsumerState<CompletionOtpScreen> {
     } catch (e) {
       debugPrint('Error fetching completion otp: $e');
     } finally {
-      if (!silent && mounted) setState(() => _isFetchingOtp = false);
+      if (mounted) setState(() => _isFetchingOtp = false);
     }
   }
 
@@ -271,8 +264,6 @@ class _CompletionOtpScreenState extends ConsumerState<CompletionOtpScreen> {
                 .toDouble();
         final workedMinutes =
             (num.tryParse('${response['workedMinutes'] ?? 0}') ?? 0).round();
-        final pausedMinutes =
-            (num.tryParse('${response['pausedMinutes'] ?? 0}') ?? 0).round();
         final platformFee =
             (num.tryParse('${response['platformFee'] ?? 12}') ?? 12).toDouble();
 
@@ -291,7 +282,6 @@ class _CompletionOtpScreenState extends ConsumerState<CompletionOtpScreen> {
                 petrolDistanceKm: petrolDistanceKm,
                 petrolRatePerKm: petrolRatePerKm,
                 workedMinutes: workedMinutes > 0 ? workedMinutes : null,
-                pausedMinutes: pausedMinutes,
                 platformFee: platformFee,
               ),
             ),
@@ -311,7 +301,6 @@ class _CompletionOtpScreenState extends ConsumerState<CompletionOtpScreen> {
                 petrolDistanceKm: petrolDistanceKm,
                 petrolRatePerKm: petrolRatePerKm,
                 workedMinutes: workedMinutes > 0 ? workedMinutes : null,
-                pausedMinutes: pausedMinutes,
                 platformFee: platformFee,
               ),
             ),
@@ -373,8 +362,6 @@ class _CompletionOtpScreenState extends ConsumerState<CompletionOtpScreen> {
         (num.tryParse('${b['hourlyRate'] ?? 0}') ?? 0).toDouble();
     final workedMinutes =
         (num.tryParse('${b['workedMinutes'] ?? 0}') ?? 0).round();
-    final pausedMinutes =
-        (num.tryParse('${b['pausedMinutes'] ?? 0}') ?? 0).round();
     Navigator.pushReplacement(
       context,
       MaterialPageRoute(
@@ -384,7 +371,6 @@ class _CompletionOtpScreenState extends ConsumerState<CompletionOtpScreen> {
           customerName: b['customer']?['name']?.toString() ?? widget.workerName,
           hourlyRate: hourlyRate > 0 ? hourlyRate : null,
           workedMinutes: workedMinutes > 0 ? workedMinutes : null,
-          pausedMinutes: pausedMinutes,
           platformFee:
               (num.tryParse('${b['platformFee'] ?? 12}') ?? 12).toDouble(),
         ),
@@ -405,9 +391,10 @@ class _CompletionOtpScreenState extends ConsumerState<CompletionOtpScreen> {
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              color: Colors.green.withValues(alpha: 0.12),
+              color: GixbeeTheme.accentGreen.withValues(alpha: 0.12),
             ),
-            child: Icon(Icons.check_circle, color: Colors.green, size: 56),
+            child: const Icon(Icons.check_circle,
+                color: GixbeeTheme.accentGreen, size: 56),
           ),
           const SizedBox(height: 20),
           Text(
@@ -509,18 +496,20 @@ class _CompletionOtpScreenState extends ConsumerState<CompletionOtpScreen> {
                       padding: const EdgeInsets.symmetric(
                           horizontal: 12, vertical: 6),
                       decoration: BoxDecoration(
-                        color: Colors.green.withValues(alpha: 0.15),
+                        color:
+                            GixbeeTheme.accentGreen.withValues(alpha: 0.15),
                         borderRadius: BorderRadius.circular(20),
                       ),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Icon(Icons.handyman, size: 14, color: Colors.green),
+                          Icon(Icons.handyman,
+                              size: 14, color: GixbeeTheme.accentGreen),
                           SizedBox(width: 6),
                           Text(
                             'Work In Progress',
                             style: TextStyle(
-                              color: Colors.green,
+                              color: GixbeeTheme.accentGreen,
                               fontWeight: FontWeight.w600,
                               fontSize: 12,
                             ),
@@ -549,12 +538,13 @@ class _CompletionOtpScreenState extends ConsumerState<CompletionOtpScreen> {
                   padding: const EdgeInsets.all(24),
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    color: Colors.green.withValues(alpha: 0.1),
+                    color:
+                        GixbeeTheme.accentGreen.withValues(alpha: 0.1),
                   ),
                   child: const Icon(
                     Icons.verified_rounded,
                     size: 56,
-                    color: Colors.green,
+                    color: GixbeeTheme.accentGreen,
                   ),
                 ),
                 const SizedBox(height: 24),
@@ -642,10 +632,12 @@ class _CompletionOtpScreenState extends ConsumerState<CompletionOtpScreen> {
                         padding: const EdgeInsets.symmetric(
                             horizontal: 32, vertical: 20),
                         decoration: BoxDecoration(
-                          color: Colors.green.withValues(alpha: 0.1),
+                          color:
+                              GixbeeTheme.accentGreen.withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(20),
                           border: Border.all(
-                              color: Colors.green.withValues(alpha: 0.3)),
+                              color: GixbeeTheme.accentGreen
+                                  .withValues(alpha: 0.3)),
                         ),
                         child: _isFetchingOtp
                             ? SizedBox(
@@ -660,17 +652,19 @@ class _CompletionOtpScreenState extends ConsumerState<CompletionOtpScreen> {
                                   fontSize: 40,
                                   fontWeight: FontWeight.bold,
                                   letterSpacing: 16,
-                                  color: Colors.green,
+                                  color: GixbeeTheme.accentGreen,
                                 ),
                               ),
                       ),
                       const SizedBox(height: 16),
                       if (_fetchedOtp == null && !_isFetchingOtp)
-                        const Padding(
-                          padding: EdgeInsets.only(bottom: 12),
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 12),
                           child: Text(
                             'Waiting for worker to mark job complete...',
-                            style: TextStyle(color: Colors.grey, fontSize: 13),
+                            style: TextStyle(
+                                color: context.gx.ink.withValues(alpha: 0.55),
+                                fontSize: 13),
                           ),
                         ),
                       GxPressable(
@@ -729,8 +723,11 @@ class _CompletionOtpScreenState extends ConsumerState<CompletionOtpScreen> {
                           icon: Icons.check_circle_outline,
                           onTap: _isVerifying ? null : _verifyCompletion,
                           loading: _isVerifying,
-                          gradient: const [Colors.green, Colors.green],
-                          accent: Colors.green,
+                          gradient: const [
+                            GixbeeTheme.accentGreen,
+                            GixbeeTheme.accentGreen
+                          ],
+                          accent: GixbeeTheme.accentGreen,
                           height: 56,
                           fontSize: 16,
                         )
@@ -741,15 +738,19 @@ class _CompletionOtpScreenState extends ConsumerState<CompletionOtpScreen> {
                           icon: Icons.task_alt,
                           onTap: _isMarkingComplete ? null : _markComplete,
                           loading: _isMarkingComplete,
-                          gradient: const [Colors.green, Colors.green],
-                          accent: Colors.green,
+                          gradient: const [
+                            GixbeeTheme.accentGreen,
+                            GixbeeTheme.accentGreen
+                          ],
+                          accent: GixbeeTheme.accentGreen,
                           height: 56,
                           fontSize: 16,
                         ),
                 ] else
-                  const Text('Waiting for worker to verify completion...',
+                  Text('Waiting for worker to verify completion...',
                       style: TextStyle(
-                          fontStyle: FontStyle.italic, color: Colors.grey)),
+                          fontStyle: FontStyle.italic,
+                          color: context.gx.ink.withValues(alpha: 0.55))),
 
                 const SizedBox(height: 16),
 
@@ -792,8 +793,9 @@ class _CompletionOtpScreenState extends ConsumerState<CompletionOtpScreen> {
             const Text('Report an Issue',
                 style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
             const SizedBox(height: 12),
-            const Text('What went wrong? Our team will review your report.',
-                style: TextStyle(color: Colors.grey)),
+            Text('What went wrong? Our team will review your report.',
+                style: TextStyle(
+                    color: context.gx.ink.withValues(alpha: 0.55))),
             const SizedBox(height: 16),
             _disputeOption('Worker didn\'t show up'),
             _disputeOption('Unprofessional behavior'),
@@ -827,7 +829,7 @@ class _CompletionOtpScreenState extends ConsumerState<CompletionOtpScreen> {
               SnackBar(
                 content: Row(
                   children: [
-                    const Icon(Icons.check_circle, color: Colors.white),
+                    Icon(Icons.check_circle, color: context.gx.onAccent),
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(

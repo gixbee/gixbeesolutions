@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../theme.dart';
@@ -24,7 +22,6 @@ class CustomerPayScreen extends ConsumerStatefulWidget {
   final double? petrolDistanceKm;
   final double? petrolRatePerKm;
   final int? workedMinutes;
-  final int? pausedMinutes;
   final double? platformFee;
 
   /// True when this customer already confirmed and is waiting on the worker.
@@ -41,7 +38,6 @@ class CustomerPayScreen extends ConsumerStatefulWidget {
     this.petrolDistanceKm,
     this.petrolRatePerKm,
     this.workedMinutes,
-    this.pausedMinutes,
     this.platformFee,
     this.initiallyWaiting = false,
   });
@@ -61,7 +57,6 @@ class _CustomerPayScreenState extends ConsumerState<CustomerPayScreen> {
   ManualPaymentBilling? _billing;
   bool _loadingBilling = true;
   bool _waitingForOther = false;
-  Timer? _waitPoll;
   bool _advancedToRate = false;
   bool _dialogShowing = false;
 
@@ -72,37 +67,9 @@ class _CustomerPayScreenState extends ConsumerState<CustomerPayScreen> {
     _hydrate();
   }
 
-  @override
-  void dispose() {
-    _waitPoll?.cancel();
-    super.dispose();
-  }
-
   void _refreshProviders() {
     ref.invalidate(myBookingsProvider);
     ref.invalidate(bookingStatusProvider(widget.bookingId));
-  }
-
-  void _startWaitingPoll() {
-    _waitPoll?.cancel();
-    _waitPoll = Timer.periodic(const Duration(seconds: 30), (_) {
-      unawaited(_checkPaidAndAdvance());
-    });
-    unawaited(_checkPaidAndAdvance());
-  }
-
-  Future<void> _checkPaidAndAdvance() async {
-    try {
-      final b = await ref
-          .read(bookingRepositoryProvider)
-          .getBookingById(widget.bookingId);
-      if (!mounted || b == null) return;
-      if (bookingFlagTrue(b['isPaid'])) {
-        _waitPoll?.cancel();
-        _refreshProviders();
-        _goToRate();
-      }
-    } catch (_) {}
   }
 
   Future<void> _hydrate() async {
@@ -114,7 +81,6 @@ class _CustomerPayScreenState extends ConsumerState<CustomerPayScreen> {
       petrolRatePerKm: widget.petrolRatePerKm ?? 0,
       hourlyRate: widget.hourlyRate ?? widget.amount,
       workedMinutes: widget.workedMinutes ?? 60,
-      pausedMinutes: widget.pausedMinutes ?? 0,
       platformFee: widget.platformFee ?? 12,
       counterpartName: widget.workerName,
     );
@@ -138,8 +104,6 @@ class _CustomerPayScreenState extends ConsumerState<CustomerPayScreen> {
               'petrolRatePerKm': widget.petrolRatePerKm,
             if (widget.workedMinutes != null)
               'workedMinutes': widget.workedMinutes,
-            if (widget.pausedMinutes != null)
-              'pausedMinutes': widget.pausedMinutes,
             if (widget.platformFee != null) 'platformFee': widget.platformFee,
             'totalAmount': widget.amount,
           },
@@ -165,7 +129,6 @@ class _CustomerPayScreenState extends ConsumerState<CustomerPayScreen> {
       _loadingBilling = false;
       _waitingForOther = waiting;
     });
-    if (waiting) _startWaitingPoll();
   }
 
   String get _methodApi {
@@ -204,7 +167,6 @@ class _CustomerPayScreenState extends ConsumerState<CustomerPayScreen> {
         _showSuccessDialog();
       } else {
         setState(() => _waitingForOther = true);
-        _startWaitingPoll();
         showGxSnack(
           context,
           'Waiting for the worker to confirm payment',
@@ -239,7 +201,6 @@ class _CustomerPayScreenState extends ConsumerState<CustomerPayScreen> {
   void _showSuccessDialog() {
     if (_dialogShowing || _advancedToRate) return;
     _dialogShowing = true;
-    _waitPoll?.cancel();
     final name = _billing?.counterpartName ?? widget.workerName;
     showGxDialog(
       context,
@@ -294,7 +255,6 @@ class _CustomerPayScreenState extends ConsumerState<CustomerPayScreen> {
     ref.listen(bookingStatusProvider(widget.bookingId), (prev, next) {
       final data = next.value;
       if (data != null && bookingFlagTrue(data['isPaid'])) {
-        _waitPoll?.cancel();
         _refreshProviders();
         if (!_advancedToRate && !_dialogShowing) {
           _showSuccessDialog();
@@ -608,7 +568,7 @@ class _CustomerPayScreenState extends ConsumerState<CustomerPayScreen> {
                                     child: CircularProgressIndicator(
                                       strokeWidth: 2.4,
                                       valueColor: AlwaysStoppedAnimation(
-                                          Color(0xFF0B1A12)),
+                                          GixbeeTheme.successInk),
                                     ),
                                   )
                                 : Text(
@@ -616,7 +576,7 @@ class _CustomerPayScreenState extends ConsumerState<CustomerPayScreen> {
                                     style: const TextStyle(
                                       fontSize: 16,
                                       fontWeight: FontWeight.w800,
-                                      color: Color(0xFF0B1A12),
+                                      color: GixbeeTheme.successInk,
                                     ),
                                   ),
                           ),
@@ -748,7 +708,8 @@ class _SafetyOption extends StatelessWidget {
                 ),
               ),
               child: selected
-                  ? const Icon(Icons.circle, size: 8, color: Color(0xFF0B1A12))
+                  ? const Icon(Icons.circle,
+                      size: 8, color: GixbeeTheme.successInk)
                   : null,
             ),
             const SizedBox(width: 12),

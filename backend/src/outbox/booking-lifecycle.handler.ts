@@ -109,9 +109,6 @@ export class BookingLifecycleHandler {
       isPaid: !!p.isPaid,
       workerPaidConfirmed: !!p.workerPaidConfirmed,
       customerPaidConfirmed: !!p.customerPaidConfirmed,
-      pauseRequested: !!p.pauseRequested,
-      paused: !!p.paused,
-      pausedMinutes: p.pausedMinutes ?? 0,
     });
   }
 

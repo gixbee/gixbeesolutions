@@ -18,11 +18,19 @@ class _FakeBookingRepo extends BookingRepository {
         'amount': 130,
         'type': 'INSTANT',
         'workedMinutes': 72,
-        'pausedMinutes': 22,
         'hourlyRate': 130,
         'platformFee': 12,
         'customer': {'name': 'Suresh'},
         'operator': {'name': 'Rajesh'},
+      };
+
+  @override
+  Future<Map<String, dynamic>> pollBookingStatus(String bookingId) async => {
+        'id': bookingId,
+        'status': 'COMPLETED',
+        'isPaid': false,
+        'workerPaidConfirmed': false,
+        'customerPaidConfirmed': false,
       };
 
   @override
@@ -68,7 +76,6 @@ void main() {
         amount: 156,
         hourlyRate: 130,
         workedMinutes: 72,
-        pausedMinutes: 0,
         platformFee: 12,
         counterpartName: 'Suresh',
       );
@@ -89,7 +96,6 @@ void main() {
           customerName: 'Suresh',
           hourlyRate: 130,
           workedMinutes: 72,
-          pausedMinutes: 22,
           platformFee: 12,
         ),
       );
@@ -98,7 +104,7 @@ void main() {
       expect(find.text('Collect from customer then confirm'), findsOneWidget);
       expect(find.text('Honesty check'), findsOneWidget);
       expect(find.text('Payment received · Confirm'), findsOneWidget);
-      expect(find.textContaining('Gixbee fee'), findsWidgets);
+      expect(find.text('Total'), findsOneWidget);
     });
   });
 
@@ -113,7 +119,6 @@ void main() {
           workerName: 'Rajesh',
           hourlyRate: 130,
           workedMinutes: 72,
-          pausedMinutes: 22,
           platformFee: 12,
         ),
       );

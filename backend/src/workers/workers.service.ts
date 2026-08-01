@@ -87,14 +87,8 @@ export const MAX_BROADCAST_FANOUT = 15;
 /** Counting strikes at which a worker is suspended from going live. */
 export const SUSPENSION_STRIKE_THRESHOLD = 3;
 
-/**
- * WALLET IS OFF (product decision, mirrors BookingsService): the legacy
- * min-wallet Go Live floor must not fire while there is no wallet product
- * to top up — otherwise workers would be blocked by a balance they cannot
- * change. The periodic "N jobs then pay" plan (direct Razorpay) is the only
- * fee mechanism.
- */
-export const WALLET_PAYMENTS_ENABLED = false;
+/** Re-export — single source of truth in common/money-model.ts */
+export { WALLET_PAYMENTS_ENABLED } from '../common/money-model';
 
 /**
  * Rebroadcast (attempt 2, nobody accepted in 90s): each pro's own travel

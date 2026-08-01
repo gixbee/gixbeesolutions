@@ -6,7 +6,6 @@ import 'services/debug_log_service.dart';
 import 'services/location_bootstrap.dart';
 import 'services/location_service.dart';
 import 'core/config/app_strings.dart';
-import 'core/config/app_config.dart';
 import 'theme.dart';
 import 'features/home/home_screen.dart';
 import 'features/home/active_booking_card.dart';
@@ -37,24 +36,22 @@ class MainWrapper extends ConsumerStatefulWidget {
 class _MainWrapperState extends ConsumerState<MainWrapper>
     with WidgetsBindingObserver {
   int _currentIndex = 0;
-  Timer? _pendingPollTimer;
   StreamSubscription? _notifSub; // AUDIT FIX: was leaked (never cancelled)
-  bool _pollWasRunning = false;
 
   /// One-shot guard for the first-run location prompt (Swiggy pattern).
   bool _locationPromptShown = false;
 
   /// Non-null while GPS is blocked ('service_off' | 'denied_forever' |
   /// Tracks booking IDs already shown — prevents duplicate popups from
-  /// FCM foreground + socket + HTTP poll all firing for the same booking.
+  /// FCM, socket, and HTTP reconciliation firing for the same booking.
   final Set<String> _shownBookingIds = {};
 
-  /// Worker declined / dismissed these — never re-open via poll/FCM/socket
+  /// Worker declined / dismissed these — never re-open via HTTP/FCM/socket
   /// for the rest of this session (backend also drops Redis pending).
   final Set<String> _declinedBookingIds = {};
 
   /// True while IncomingJobScreen is on the navigator stack — blocks stacked
-  /// duplicate pushes from poll + FCM racing.
+  /// duplicate pushes from socket + FCM racing.
   bool _incomingJobOpen = false;
 
   /// Body screens, indexed by [_currentIndex]. Go Live is NOT a body tab —
@@ -82,14 +79,13 @@ class _MainWrapperState extends ConsumerState<MainWrapper>
   @override
   void initState() {
     super.initState();
-    // AUDIT FIX: observe app lifecycle so background time doesn't burn
-    // battery/data with the 5s pending-jobs poll.
+    // Observe app lifecycle to reconcile offers received while backgrounded.
     WidgetsBinding.instance.addObserver(this);
     // Use addPostFrameCallback so ref is safe to use after first frame
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _initSocket();
       _initNotifications();
-      _maybeStartWorkerPoll();
+      _checkWorkerPendingOnce();
       // Location chain: restore last pick, else GPS auto-detect + nearest
       // serviceable city — so the home bar and city-scoped feeds are correct
       // without the user opening the picker.
@@ -119,33 +115,18 @@ class _MainWrapperState extends ConsumerState<MainWrapper>
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
-    _pendingPollTimer?.cancel();
     _notifSub?.cancel();
     super.dispose();
   }
 
-  /// Pause the pending-jobs poll while backgrounded; resume on return.
-  /// (The worker GPS stream is deliberately NOT paused — an en-route worker
-  /// must keep sharing location even with the phone pocketed.)
+  /// Socket + FCM are primary. On resume, perform one HTTP reconciliation for
+  /// offers delivered while the app was suspended.
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     super.didChangeAppLifecycleState(state);
-    if (state == AppLifecycleState.paused ||
-        state == AppLifecycleState.inactive) {
-      if (_pendingPollTimer?.isActive ?? false) {
-        _pollWasRunning = true;
-        _pendingPollTimer?.cancel();
-      }
-    } else if (state == AppLifecycleState.resumed) {
-      if (_pollWasRunning) {
-        _pollWasRunning = false;
-        _startPendingBookingPoll();
-      }
-      // Catch jobs that arrived while backgrounded (poll was paused, FCM
-      // only showed a tray banner — popup never opened).
-      unawaited(_pollPendingBookingsOnce());
+    if (state == AppLifecycleState.resumed) {
+      unawaited(_reconcilePendingBookings());
       ref.invalidate(myBookingsProvider);
-
     }
   }
 
@@ -252,29 +233,17 @@ class _MainWrapperState extends ConsumerState<MainWrapper>
     });
   }
 
-  // ── Worker Poll (FCM + Socket fallback) ─────────────────────────────────
+  // ── One-shot worker queue reconciliation (FCM + Socket fallback) ────────
 
-  Future<void> _maybeStartWorkerPoll() async {
+  Future<void> _checkWorkerPendingOnce() async {
     // await .future to get the resolved value — .value is null at initState time
     final user = await ref.read(currentUserProvider.future);
     if (user?.isWorker == true) {
-      _startPendingBookingPoll();
+      await _reconcilePendingBookings();
     }
   }
 
-  void _startPendingBookingPoll() {
-    _pendingPollTimer?.cancel();
-    // Immediate first check — periodic alone waits a full 5s.
-    unawaited(_pollPendingBookingsOnce());
-    _pendingPollTimer = Timer.periodic(
-      const Duration(seconds: AppConfig.pendingJobsPollIntervalSeconds),
-      (_) {
-        unawaited(_pollPendingBookingsOnce());
-      },
-    );
-  }
-
-  Future<void> _pollPendingBookingsOnce() async {
+  Future<void> _reconcilePendingBookings() async {
     try {
       final pending =
           await ref.read(bookingRepositoryProvider).getPendingBookings();
@@ -285,7 +254,7 @@ class _MainWrapperState extends ConsumerState<MainWrapper>
             !_declinedBookingIds.contains(id)) {
           ref
               .read(debugLogProvider.notifier)
-              .log('[SOURCE: HTTP_POLL] Incoming job $id');
+              .log('[SOURCE: HTTP_RECONCILE] Incoming job $id');
           await _showIncomingJobScreen(
             Map<String, dynamic>.from(booking as Map),
           );
@@ -372,7 +341,7 @@ class _MainWrapperState extends ConsumerState<MainWrapper>
     final id = bookingData['id']?.toString();
 
     // Don't stack multiple incoming screens; keep the ID unmarked so a later
-    // tap/poll can present it once the current one closes.
+    // tap/reconciliation can present it once the current one closes.
     if (_incomingJobOpen) return;
 
     // Mark only once we're about to present — avoids permanent skip if
@@ -401,7 +370,7 @@ class _MainWrapperState extends ConsumerState<MainWrapper>
             if (did != null && did.isNotEmpty) _declinedBookingIds.add(did);
           }
         } else if (id != null) {
-          // Decline / timeout / empty-queue close — keep out of poll/FCM reopen.
+          // Decline/timeout/empty queue — keep out of HTTP/FCM reopen.
           _declinedBookingIds.add(id);
         }
         if (id != null) _shownBookingIds.remove(id);
@@ -456,14 +425,13 @@ class _MainWrapperState extends ConsumerState<MainWrapper>
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     final isLive = ref.watch(workerLiveStateProvider);
-    // If the user's worker status is discovered/healed mid-session (e.g. the
-    // Go Live screen proved registration against the server and refreshed
-    // currentUserProvider), start the pending-jobs poll now — it's the FCM
-    // fallback and previously only started when isWorker was true at boot.
+    // If worker status is discovered mid-session, reconcile the queue once.
+    // Future offers arrive through Socket.IO / FCM.
     ref.listen(currentUserProvider, (prev, next) {
-      final becameWorker = next.asData?.value?.isWorker == true;
-      if (becameWorker && !(_pendingPollTimer?.isActive ?? false)) {
-        _startPendingBookingPoll();
+      final wasWorker = prev?.asData?.value?.isWorker == true;
+      final becameWorker = !wasWorker && next.asData?.value?.isWorker == true;
+      if (becameWorker) {
+        unawaited(_reconcilePendingBookings());
       }
     });
     // Profile back / Home avatar write [mainTabIndexProvider]; keep the
@@ -581,11 +549,14 @@ class _GoLiveFab extends StatelessWidget {
           shape: BoxShape.circle,
           gradient: isLive
               ? const LinearGradient(
-                  colors: [Color(0xFF10B981), Color(0xFF059669)])
+                  colors: [
+                    GixbeeTheme.accentGreen,
+                    GixbeeTheme.accentGreenDark,
+                  ])
               : LinearGradient(colors: gx.accentGradient),
           boxShadow: [
             BoxShadow(
-              color: (isLive ? const Color(0xFF10B981) : gx.accent)
+              color: (isLive ? GixbeeTheme.accentGreen : gx.accent)
                   .withValues(alpha: 0.28),
               blurRadius: 10,
               offset: const Offset(0, 3),

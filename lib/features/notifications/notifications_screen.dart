@@ -181,12 +181,12 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
                 await _saveDismissed();
                 ref.invalidate(notificationsProvider);
               },
-              child: const Padding(
-                padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                 child: Text(
                   'Restore All',
                   style: TextStyle(
-                    color: GixbeeTheme.accentPurple,
+                    color: context.gx.accent,
                     fontWeight: FontWeight.w700,
                     fontSize: 14,
                   ),
@@ -226,7 +226,7 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
               message: _dismissedIds.isNotEmpty
                   ? 'All notifications cleared.'
                   : 'Your booking updates will appear here.',
-              accent: GixbeeTheme.accentPurple,
+              accent: context.gx.accent,
             );
           }
 

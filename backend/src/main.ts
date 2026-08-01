@@ -56,10 +56,18 @@ async function bootstrap() {
     rawBody: true,
   });
 
-  // Multi-instance Socket.IO fan-out via Redis. Fail-soft: if Redis is down
-  // at boot we keep the default in-memory adapter (fine for single-process dev).
+  // Multi-instance Socket.IO fan-out via Redis. Fail-soft only when
+  // REDIS_ALLOW_MEMORY_FALLBACK permits it (single-process local dev).
+  // With replicas: 2, an in-memory adapter silently drops cross-replica events.
   const redisIoAdapter = new RedisIoAdapter(app, app.get(ConfigService));
-  await redisIoAdapter.connectToRedis();
+  const redisIoReady = await redisIoAdapter.connectToRedis();
+  if (!redisIoReady && !redisIoAdapter.allowsMemoryFallback()) {
+    console.error(
+      '\n[FATAL] Redis is required for Socket.IO across backend replicas.\n' +
+        '  Start Redis, or set REDIS_ALLOW_MEMORY_FALLBACK=true for single-process local dev only.\n',
+    );
+    process.exit(1);
+  }
   app.useWebSocketAdapter(redisIoAdapter);
 
   // CORS for the Flutter web app. Tokens ride the Authorization header (not

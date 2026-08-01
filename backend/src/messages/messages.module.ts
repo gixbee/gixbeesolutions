@@ -5,9 +5,10 @@ import { User } from '../users/user.entity';
 import { MessagesService } from './messages.service';
 import { MessagesController } from './messages.controller';
 import { MessagesGateway } from './messages.gateway';
+import { AuthModule } from '../auth/auth.module';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Message, User])],
+  imports: [TypeOrmModule.forFeature([Message, User]), AuthModule],
   controllers: [MessagesController],
   providers: [MessagesService, MessagesGateway],
   exports: [MessagesService, MessagesGateway],

@@ -21,6 +21,7 @@ import {
   CreateBookingDto,
   CreateInstantRequestDto,
 } from './dto/create-booking.dto';
+import { DEFAULT_BOOKING_PAYMENT_METHOD } from '../common/money-model';
 import {
   UpdateBookingStatusDto,
   CancelBookingDto,
@@ -54,7 +55,7 @@ export class BookingsController {
       amount: body.amount,
       type: body.type,
       addressId: body.addressId,
-      paymentMethod: body.paymentMethod || 'WALLET',
+      paymentMethod: body.paymentMethod || DEFAULT_BOOKING_PAYMENT_METHOD,
     });
   }
 

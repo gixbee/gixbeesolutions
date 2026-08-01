@@ -86,7 +86,4 @@ export interface BookingPaymentConfirmedPayload {
   isPaid: boolean;
   workerPaidConfirmed: boolean;
   customerPaidConfirmed: boolean;
-  pauseRequested?: boolean;
-  paused?: boolean;
-  pausedMinutes?: number;
 }

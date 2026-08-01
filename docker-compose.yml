@@ -55,8 +55,11 @@ services:
   # share DEFAULT_POOL_SIZE real server connections (Postgres default
   # max_connections=100), which removes the TypeORM 5s pool-timeout failures
   # under load. Transaction pooling mode = one server conn per transaction.
-  # CAVEAT: session-level features (LISTEN/NOTIFY, session advisory locks,
-  # named prepared statements) don't work in transaction mode.
+  # CAVEAT (enforced in app.module TypeORM extra + AGENTS.md): session-level
+  # features (LISTEN/NOTIFY, session advisory locks, named PREPARE that
+  # outlive a transaction) do NOT work in transaction mode. Stay in
+  # transaction mode for connection multiplexing under load — do not flip
+  # to session mode without revisiting pool sizing.
   pgbouncer:
     image: edoburu/pgbouncer:latest
     container_name: gixbee_pgbouncer
@@ -78,6 +81,9 @@ services:
       RESERVE_POOL_SIZE: 10
       QUERY_WAIT_TIMEOUT: 15
       CLIENT_IDLE_TIMEOUT: 30
+      # Drop any leftover session state between client checkouts (safe no-op
+      # under transaction mode; documents the pooling contract).
+      SERVER_RESET_QUERY: DISCARD ALL
       PGBOUNCER_QUERY_WAIT_TIMEOUT: 15
       PGBOUNCER_CLIENT_IDLE_TIMEOUT: 30
       IGNORE_STARTUP_PARAMETERS: extra_float_digits
@@ -162,6 +168,9 @@ services:
       DATABASE_PORT: 6432
       REDIS_HOST: redis
       REDIS_PORT: 6379
+      # Fail closed if Redis is down — with replicas: 2 a process-local
+      # memory store would split OTP, locks, and Socket.IO rooms.
+      REDIS_ALLOW_MEMORY_FALLBACK: "false"
       NODE_ENV: development
       PORT: 3000
       FIREBASE_KEY_PATH: /app/firebase-service-account.json

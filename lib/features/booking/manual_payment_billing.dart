@@ -7,7 +7,6 @@ class ManualPaymentBilling {
   final double petrolRatePerKm;
   final double hourlyRate;
   final int workedMinutes;
-  final int pausedMinutes;
   final double platformFee;
   final String counterpartName;
 
@@ -19,7 +18,6 @@ class ManualPaymentBilling {
     this.petrolRatePerKm = 0,
     required this.hourlyRate,
     required this.workedMinutes,
-    required this.pausedMinutes,
     required this.platformFee,
     required this.counterpartName,
   });
@@ -42,11 +40,6 @@ class ManualPaymentBilling {
   }
 
   String get durationLabel => formatDuration(workedMinutes);
-
-  String get pauseLabel {
-    if (pausedMinutes <= 0) return '₹0';
-    return '${formatDuration(pausedMinutes)} · ₹0';
-  }
 
   /// `1hr 12min` style used on the worker breakdown row.
   String get compactDurationLabel {
@@ -95,7 +88,6 @@ class ManualPaymentBilling {
               ? (_num(src['billingHours']) * 60).round()
               : 60),
     );
-    final paused = _int(src['pausedMinutes'] ?? 0);
     final fee = _num(src['platformFee'] ?? 12);
     String name = fallbackName;
     if (counterpartIsCustomer) {
@@ -115,7 +107,6 @@ class ManualPaymentBilling {
       petrolRatePerKm: _num(src['petrolRatePerKm'] ?? 0),
       hourlyRate: rate > 0 ? rate : amount,
       workedMinutes: worked > 0 ? worked : 1,
-      pausedMinutes: paused,
       platformFee: fee,
       counterpartName: name,
     );

@@ -203,8 +203,7 @@ export class Booking {
   @Column({ type: 'int', nullable: true })
   billingHours: number;
 
-  // Worked minutes after pause subtraction — used for proportional ₹/hr billing
-  // and the payment-screen duration label (e.g. "1 hr 12 min").
+  // Full wall-clock minutes from arrival confirmation to completion.
   @Column({ type: 'int', nullable: true })
   workedMinutes: number;
 
@@ -214,21 +213,6 @@ export class Booking {
   // ── Worker → customer rating (v126 parity: both sides rate after a job).
   @Column({ type: 'int', nullable: true })
   customerRating: number;
-
-  // ── Pause / resume (v126 Instant Help c12–c14 / w6–w7). NOT a BookingStatus
-  // (growing that enum breaks exhaustive switches app-side); pause state lives
-  // in these columns while status stays ACTIVE.
-  // pauseRequestedAt: worker asked, awaiting customer approval.
-  // pausedAt: customer approved; timer considered stopped from this instant.
-  // pausedMinutes: accumulated across pause windows — billing subtracts it.
-  @Column({ type: 'timestamp', nullable: true })
-  pauseRequestedAt: Date;
-
-  @Column({ type: 'timestamp', nullable: true })
-  pausedAt: Date;
-
-  @Column({ type: 'int', default: 0 })
-  pausedMinutes: number;
 
   /** Customer asked the worker to cancel; awaiting Approve/Decline. */
   @Column({ type: 'timestamp', nullable: true })

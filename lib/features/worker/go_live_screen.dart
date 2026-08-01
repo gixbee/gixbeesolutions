@@ -190,12 +190,9 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
       setState(() => _elapsed = DateTime.now().difference(_liveSince!));
     }
     _ticker?.cancel();
-    _ticker = Timer.periodic(const Duration(seconds: 1), (timer) {
+    _ticker = Timer.periodic(const Duration(seconds: 1), (_) {
       if (!mounted || _liveSince == null) return;
       setState(() => _elapsed = DateTime.now().difference(_liveSince!));
-      if (timer.tick % 5 == 0) {
-        unawaited(_refreshPendingFeed());
-      }
     });
   }
 
@@ -887,7 +884,7 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
                   style: TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.w800,
-                    color: GixbeeTheme.accentPurple,
+                    color: context.gx.accent,
                   ),
                 ),
               ),
@@ -904,7 +901,7 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
                   label: 'Add skills to go live',
                   icon: Icons.add_rounded,
                   filled: false,
-                  accent: GixbeeTheme.accentPurple,
+                  accent: context.gx.accent,
                   onTap: () async {
                     await Navigator.push(
                       context,
@@ -1032,7 +1029,11 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
               end: Alignment.bottomRight,
               colors: [context.gx.bg, context.gx.card],
             ),
-            border: Border(bottom: BorderSide(color: Color(0x2210B981))),
+            border: Border(
+              bottom: BorderSide(
+                color: GixbeeTheme.accentGreen.withValues(alpha: 0.13),
+              ),
+            ),
           ),
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 28),
           child: Column(
@@ -1046,7 +1047,8 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
                     height: 140,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      color: const Color(0x1A10B981),
+                      color:
+                          GixbeeTheme.accentGreen.withValues(alpha: 0.10),
                     ),
                   ),
                   Container(
@@ -1054,7 +1056,8 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
                     height: 110,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      color: const Color(0x3310B981),
+                      color:
+                          GixbeeTheme.accentGreen.withValues(alpha: 0.20),
                     ),
                   ),
                   Container(
@@ -1064,7 +1067,11 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
                       shape: BoxShape.circle,
                       color: GixbeeTheme.accentGreen,
                       boxShadow: [
-                        BoxShadow(color: Color(0x6610B981), blurRadius: 20),
+                        BoxShadow(
+                          color: GixbeeTheme.accentGreen
+                              .withValues(alpha: 0.40),
+                          blurRadius: 20,
+                        ),
                       ],
                     ),
                     alignment: Alignment.center,
@@ -1152,10 +1159,11 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
         ]);
       default: // PENDING
         return Row(children: [
-          const Icon(Icons.access_time, size: 12, color: Color(0xFFF59E0B)),
+          const Icon(Icons.access_time,
+              size: 12, color: GixbeeTheme.accentGold),
           const SizedBox(width: 5),
           Text('Verification Pending',
-              style: const TextStyle(fontSize: 12, color: Color(0xFFF59E0B), fontWeight: FontWeight.w600)),
+              style: const TextStyle(fontSize: 12, color: GixbeeTheme.accentGold, fontWeight: FontWeight.w600)),
         ]);
     }
   }
@@ -1181,20 +1189,23 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               margin: const EdgeInsets.only(bottom: 10),
               decoration: BoxDecoration(
-                color: const Color(0xFFF59E0B).withValues(alpha: 0.12),
+                color: GixbeeTheme.accentGold.withValues(alpha: 0.12),
                 borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: const Color(0xFFF59E0B).withValues(alpha: 0.4)),
+                border: Border.all(
+                    color:
+                        GixbeeTheme.accentGold.withValues(alpha: 0.4)),
               ),
               child: Row(
                 children: [
-                  const Icon(Icons.hourglass_top, size: 14, color: Color(0xFFF59E0B)),
+                  const Icon(Icons.hourglass_top,
+                      size: 14, color: GixbeeTheme.accentGold),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
                       verStatus == 'REJECTED'
                           ? 'Verification rejected. Please re-upload your documents.'
                           : 'Your profile is under review. You can go live once verified.',
-                      style: const TextStyle(fontSize: 12, color: Color(0xFFF59E0B), fontWeight: FontWeight.w600),
+                      style: const TextStyle(fontSize: 12, color: GixbeeTheme.accentGold, fontWeight: FontWeight.w600),
                     ),
                   ),
                 ],
@@ -1468,7 +1479,7 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
                 children: [
                   Icon(Icons.location_on, size: 14, color: context.gx.accent),
                   const SizedBox(width: 8),
-                  Expanded(child: Text(location, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 12, color: Color(0xFFDDDDDD)))),
+                  Expanded(child: Text(location, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 12, color: context.gx.ink.withValues(alpha: 0.87)))),
                 ],
               ),
             ),

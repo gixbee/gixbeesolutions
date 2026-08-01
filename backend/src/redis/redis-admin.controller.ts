@@ -16,11 +16,18 @@ import { RedisService } from './redis.service';
 export class RedisAdminController {
   constructor(private readonly redisService: RedisService) {}
 
+  /** `truncated` tells the UI the scan hit its cap and the pattern needs narrowing. */
   @Get('keys')
-  async getKeys(@Query('pattern') pattern?: string) {
+  async getKeys(
+    @Query('pattern') pattern?: string,
+    @Query('limit') limit?: string,
+  ) {
     const searchPattern = pattern || '*';
-    const keys = await this.redisService.getAdminKeys(searchPattern);
-    return { keys };
+    const parsed = Number(limit);
+    const cap =
+      Number.isFinite(parsed) && parsed > 0 ? Math.min(parsed, 5000) : 1000;
+    const keys = await this.redisService.getAdminKeys(searchPattern, cap);
+    return { keys, truncated: keys.length >= cap };
   }
 
   @Get('key')

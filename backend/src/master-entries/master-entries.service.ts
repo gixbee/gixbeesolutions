@@ -1,11 +1,21 @@
-import { Injectable, NotFoundException, OnModuleInit } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  NotFoundException,
+  OnModuleInit,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, IsNull } from 'typeorm';
 import { MasterEntry, MasterEntryType } from './master-entry.entity';
 import { RedisService } from '../redis/redis.service';
+import { parsePagination } from '../common/pagination';
+
+/** Safety ceiling for the cached catalog read (app + getConfig). */
+const MAX_CACHED_ENTRIES = 2000;
 
 @Injectable()
 export class MasterEntriesService implements OnModuleInit {
+  private readonly logger = new Logger(MasterEntriesService.name);
   private readonly CACHE_KEY_PREFIX = 'master_entries';
 
   constructor(
@@ -349,6 +359,11 @@ export class MasterEntriesService implements OnModuleInit {
     return result;
   }
 
+  /**
+   * Cached catalog for the app / getConfig. Hard-capped so a cache miss can
+   * never dump an unbounded table into memory. Prefer {@link adminList} for
+   * the portal's paginated browser.
+   */
   async findAll(
     type?: MasterEntryType,
     isActive?: boolean,
@@ -366,8 +381,7 @@ export class MasterEntriesService implements OnModuleInit {
     // 2. Fetch from Postgres. When cityId is given, return GLOBAL entries
     //    (cityId NULL) plus entries scoped to that city — an OR expressed as
     //    two where-branches sharing the common filters. Without cityId the
-    //    behaviour is unchanged (all rows regardless of scope), so the admin
-    //    portal keeps seeing everything.
+    //    behaviour is unchanged (all rows regardless of scope).
     const base: any = {};
     if (type) base.type = type;
     if (isActive !== undefined) base.isActive = isActive;
@@ -383,7 +397,13 @@ export class MasterEntriesService implements OnModuleInit {
     const entries = await this.masterEntryRepo.find({
       where,
       order: { createdAt: 'DESC' },
+      take: MAX_CACHED_ENTRIES,
     });
+    if (entries.length >= MAX_CACHED_ENTRIES) {
+      this.logger.warn(
+        `master_entries findAll hit safety cap ${MAX_CACHED_ENTRIES} for ${cacheKey} — narrow filters or raise the cap`,
+      );
+    }
 
     // 3. Store in Redis for ~1 hour with ±10% JITTER — with two backend
     //    replicas, identical TTLs expire in lockstep and both replicas miss
@@ -392,6 +412,25 @@ export class MasterEntriesService implements OnModuleInit {
     await this.redisService.set(cacheKey, JSON.stringify(entries), ttl);
 
     return entries;
+  }
+
+  /** Paginated admin browser — never caches a page of the full table. */
+  async adminList(
+    type?: MasterEntryType,
+    isActive?: boolean,
+    page = 1,
+    limit = 50,
+  ): Promise<MasterEntry[]> {
+    const p = parsePagination(page, limit);
+    const where: any = {};
+    if (type) where.type = type;
+    if (isActive !== undefined) where.isActive = isActive;
+    return this.masterEntryRepo.find({
+      where,
+      order: { createdAt: 'DESC' },
+      skip: p.skip,
+      take: p.limit,
+    });
   }
 
   async findOne(id: string): Promise<MasterEntry> {

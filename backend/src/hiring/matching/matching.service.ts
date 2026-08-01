@@ -17,6 +17,7 @@ import {
 } from './hiring-interest.entity';
 import { User } from '../../users/user.entity';
 import { WalletsService } from '../../wallets/wallets.service';
+import { WALLET_PAYMENTS_ENABLED } from '../../common/money-model';
 import { NotificationsService } from '../../notifications/notifications.service';
 
 // ── Business constants (FRD + pricing doc) ─────────────────────────────────
@@ -88,8 +89,11 @@ export class MatchingService {
       );
     }
 
-    // First 2 are free; each extra slot is ₹50/month, wallet-charged now.
-    const needsPayment = existing.length >= FREE_PREFERENCES;
+    // First 2 are free; each extra slot is ₹50/month when wallet is on.
+    // While wallet product is off (money-model), extras are free so hiring
+    // is not blocked by a balance users cannot top up.
+    const needsPayment =
+      WALLET_PAYMENTS_ENABLED && existing.length >= FREE_PREFERENCES;
     if (needsPayment) {
       await this.walletsService.charge(
         userId,
@@ -270,12 +274,15 @@ export class MatchingService {
       throw new BadRequestException('salaryOffered (₹/month) is required');
     }
 
-    // Charge the wallet FIRST (employers pay for matching, not posting).
-    await this.walletsService.charge(
-      employerId,
-      fee,
-      `Smart Hiring — ${jobType} × ${vacancies} vacanc${vacancies > 1 ? 'ies' : 'y'} (24 h guarantee)`,
-    );
+    // Employers pay for matching via wallet when the product is on.
+    // While off, matching runs without a wallet debit (see money-model.ts).
+    if (WALLET_PAYMENTS_ENABLED) {
+      await this.walletsService.charge(
+        employerId,
+        fee,
+        `Smart Hiring — ${jobType} × ${vacancies} vacanc${vacancies > 1 ? 'ies' : 'y'} (24 h guarantee)`,
+      );
+    }
 
     const request = await this.requestRepo.save(
       this.requestRepo.create({
@@ -484,7 +491,12 @@ export class MatchingService {
       );
     }
     if (choice === 'CREDIT') {
-      await this.walletsService.addFunds(employerId, Number(request.feeAmount));
+      if (WALLET_PAYMENTS_ENABLED) {
+        await this.walletsService.addFunds(
+          employerId,
+          Number(request.feeAmount),
+        );
+      }
       request.status = HiringRequestStatus.RESOLVED_CREDIT;
     } else {
       // Refund to original method is processed via the payment gateway /

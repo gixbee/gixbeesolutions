@@ -79,7 +79,6 @@ class _LiveTrackingMapScreenState extends ConsumerState<LiveTrackingMapScreen> {
   late final Key _mapViewKey = UniqueKey();
 
   late final SocketService _socketService;
-  StreamSubscription<Map<String, dynamic>>? _statusSocketSub;
 
   /// Don't mount MapLibre until we have real coords (avoids Nagpur default).
   bool _coordsReady = false;
@@ -117,21 +116,6 @@ class _LiveTrackingMapScreenState extends ConsumerState<LiveTrackingMapScreen> {
     // re-emitted on every reconnect via SocketService).
     _socketService = ref.read(socketServiceProvider);
     _socketService.joinJobRoom(widget.bookingId);
-
-    // Real-time status transitions via socket — don't wait for the 5-second
-    // HTTP poll. When the worker verifies the arrival OTP the backend emits
-    // booking_status_update with status:ACTIVE immediately; this catches it
-    // in ~10ms instead of up to 5 seconds, fixing the "customer stuck on
-    // tracking map after work started" bug.
-    _statusSocketSub = _socketService.notifications.listen((event) {
-      if (!mounted) return;
-      final eventName = event['_event']?.toString();
-      if (eventName != 'booking_status_update') return;
-      final targetId =
-          (event['bookingId'] ?? event['id'])?.toString();
-      if (targetId != null && targetId != widget.bookingId) return;
-      _applyStatusData(Map<String, dynamic>.from(event));
-    });
 
     // Listen for real-time location updates (customer sees the worker move).
     _socketService.onLocationUpdated((data) {
@@ -380,9 +364,6 @@ class _LiveTrackingMapScreenState extends ConsumerState<LiveTrackingMapScreen> {
   void dispose() {
     _jobTicker?.cancel();
     _workerHttpHeartbeat?.cancel();
-    _statusSocketSub?.cancel();
-    // AUDIT FIX: detach the socket listener registered in initState so this
-    // dead State's setState can't be called and listeners don't stack.
     _socketService.offLocationUpdated();
     _socketService.leaveJobRoom(widget.bookingId);
     // Do NOT dispose MapLibreMapController here — disposing then recreating

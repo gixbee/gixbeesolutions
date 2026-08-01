@@ -904,7 +904,7 @@ class _InstantRequestScreenState extends ConsumerState<InstantRequestScreen> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         _title(context, 'Your budget',
-            'Set your preferred hourly rate for ${widget.skill}. Minimum charge: 1 hour — after that, billed per worked minute; paused time is free.'),
+            'Set your preferred hourly rate for ${widget.skill}. Minimum charge: 1 hour — after that, billed per elapsed work minute.'),
         _caption(context, 'YOUR BUDGET (₹ / HOUR)'),
         Row(
           children: [

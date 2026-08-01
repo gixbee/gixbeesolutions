@@ -236,4 +236,104 @@ describe('RedisService (in-memory fallback)', () => {
       expect(await svc.getWorkerIdsBySkill('astrophysics')).toEqual([]);
     });
   });
+
+  describe('acquireLock (single-runner election)', () => {
+    it('grants the lock to the first caller only', async () => {
+      expect(await svc.acquireLock('lock:job', 60)).toBe(true);
+      expect(await svc.acquireLock('lock:job', 60)).toBe(false);
+    });
+
+    it('grants it again once the TTL has elapsed', async () => {
+      jest.useFakeTimers();
+      jest.setSystemTime(new Date('2026-06-20T00:00:00Z').getTime());
+      expect(await svc.acquireLock('lock:job', 60)).toBe(true);
+      jest.advanceTimersByTime(61_000);
+      expect(await svc.acquireLock('lock:job', 60)).toBe(true);
+    });
+
+    it('does not block an unrelated lock key', async () => {
+      expect(await svc.acquireLock('lock:a', 60)).toBe(true);
+      expect(await svc.acquireLock('lock:b', 60)).toBe(true);
+    });
+  });
+});
+
+/**
+ * With replicas: 2, process-local memory must never stand in for Redis —
+ * OTP, locks, and Socket.IO rooms would silently split. Compose sets
+ * REDIS_ALLOW_MEMORY_FALLBACK=false; these tests cover that fail-closed path.
+ */
+describe('RedisService fail-closed (no memory fallback)', () => {
+  function makeRefuseService(): RedisService {
+    const config = {
+      get: jest.fn((key: string) =>
+        key === 'REDIS_ALLOW_MEMORY_FALLBACK' ? 'false' : undefined,
+      ),
+    } as any;
+    return new RedisService(config);
+  }
+
+  it('throws on get when Redis is down and fallback is disabled', async () => {
+    const refuse = makeRefuseService();
+    await expect(refuse.get('k')).rejects.toThrow(/Redis unavailable/);
+  });
+
+  it('throws on set when Redis is down and fallback is disabled', async () => {
+    const refuse = makeRefuseService();
+    await expect(refuse.set('k', 'v')).rejects.toThrow(/Redis unavailable/);
+  });
+
+  it('returns false from acquireLock instead of granting a local lock', async () => {
+    const refuse = makeRefuseService();
+    expect(await refuse.acquireLock('lock:x', 60)).toBe(false);
+  });
+
+  it('exposes allowsMemoryFallback() as false', () => {
+    expect(makeRefuseService().allowsMemoryFallback()).toBe(false);
+  });
+});
+
+/**
+ * The live path for the two key-enumeration entry points. KEYS blocks Redis's
+ * single thread for the whole keyspace, so neither may ever call it, and the
+ * admin browser must stop at its cap instead of loading a production keyspace
+ * into memory.
+ */
+describe('RedisService key enumeration (live client)', () => {
+  function makeLiveService(allKeys: string[]) {
+    const svc = makeService();
+    const client = {
+      isReady: true,
+      keys: jest.fn(async () => allKeys),
+      // node-redis v5 yields a batch array per iteration.
+      scanIterator: jest.fn(function* () {
+        for (let i = 0; i < allKeys.length; i += 10) {
+          yield allKeys.slice(i, i + 10);
+        }
+      }),
+    };
+    (svc as any).client = client;
+    return { svc, client };
+  }
+
+  it('scans instead of calling KEYS for cache invalidation', async () => {
+    const { svc, client } = makeLiveService(['a:1', 'a:2']);
+    expect(await svc.keys('a:*')).toEqual(['a:1', 'a:2']);
+    expect(client.keys).not.toHaveBeenCalled();
+    expect(client.scanIterator).toHaveBeenCalledWith(
+      expect.objectContaining({ MATCH: 'a:*' }),
+    );
+  });
+
+  it('scans instead of calling KEYS for the admin browser', async () => {
+    const { svc, client } = makeLiveService(['k1', 'k2']);
+    expect(await svc.getAdminKeys('*')).toEqual(['k1', 'k2']);
+    expect(client.keys).not.toHaveBeenCalled();
+  });
+
+  it('caps the admin browser result instead of returning the whole keyspace', async () => {
+    const all = Array.from({ length: 5000 }, (_, i) => `k${i}`);
+    const { svc } = makeLiveService(all);
+    expect(await svc.getAdminKeys('*', 25)).toHaveLength(25);
+  });
 });

@@ -152,7 +152,7 @@ class _MyBookingsScreenState extends ConsumerState<MyBookingsScreen>
                 _buildPaginatedList(context, ref, 'UPCOMING'),
                 // Active tab — shared provider (small dataset, no pagination)
                 RefreshIndicator(
-                  color: GixbeeTheme.accentViolet,
+                  color: context.gx.accentSoft,
                   onRefresh: () async {
                     ref.invalidate(myBookingsProvider);
                     await ref.read(myBookingsProvider.future);
@@ -203,7 +203,7 @@ class _MyBookingsScreenState extends ConsumerState<MyBookingsScreen>
                 duration: const Duration(milliseconds: 150),
                 padding: const EdgeInsets.symmetric(vertical: 7),
                 decoration: BoxDecoration(
-                  color: selected ? GixbeeTheme.accentViolet : Colors.transparent,
+                  color: selected ? context.gx.accentSoft : Colors.transparent,
                   borderRadius: BorderRadius.circular(20),
                 ),
                 alignment: Alignment.center,
@@ -247,7 +247,8 @@ class _MyBookingsScreenState extends ConsumerState<MyBookingsScreen>
         Text(
           'Could not load bookings\n$message',
           textAlign: TextAlign.center,
-          style: const TextStyle(color: GixbeeTheme.textMed, fontSize: 13),
+          style: TextStyle(
+              color: context.gx.ink.withValues(alpha: 0.58), fontSize: 13),
         ),
       ],
     );
@@ -291,7 +292,7 @@ class _MyBookingsScreenState extends ConsumerState<MyBookingsScreen>
       }
       // Loaded once, zero results.
       return RefreshIndicator(
-        color: GixbeeTheme.accentViolet,
+        color: context.gx.accentSoft,
         onRefresh: () => _loadPage(tab, reset: true),
         child: _buildEmptyState(tab.toLowerCase()),
       );
@@ -302,7 +303,7 @@ class _MyBookingsScreenState extends ConsumerState<MyBookingsScreen>
     }
 
     return RefreshIndicator(
-      color: GixbeeTheme.accentViolet,
+      color: context.gx.accentSoft,
       onRefresh: () => _loadPage(tab, reset: true),
       child: NotificationListener<ScrollNotification>(
         onNotification: (scrollInfo) {
@@ -336,12 +337,13 @@ class _MyBookingsScreenState extends ConsumerState<MyBookingsScreen>
       children: [
         const SizedBox(height: 96),
         Icon(Icons.receipt_long_outlined,
-            size: 64, color: GixbeeTheme.accentViolet.withValues(alpha: 0.35)),
+            size: 64, color: context.gx.accentSoft.withValues(alpha: 0.35)),
         const SizedBox(height: 16),
         Text(
           'No $tab bookings found',
           textAlign: TextAlign.center,
-          style: const TextStyle(color: GixbeeTheme.textMed, fontSize: 15),
+          style: TextStyle(
+              color: context.gx.ink.withValues(alpha: 0.58), fontSize: 15),
         ),
       ],
     );
@@ -397,7 +399,7 @@ class _MyBookingsScreenState extends ConsumerState<MyBookingsScreen>
                       color: context.gx.card2,
                       borderRadius: BorderRadius.circular(12),
                     ),
-                    child: Text(shortId, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Color(0xFF666666))),
+                    child: Text(shortId, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: context.gx.ink.withValues(alpha: 0.4))),
                   ),
                   _buildStatusBadge(status),
                 ],
@@ -416,14 +418,14 @@ class _MyBookingsScreenState extends ConsumerState<MyBookingsScreen>
               // Provider / User
               Row(
                 children: [
-                  const Icon(Icons.storefront_outlined, size: 14, color: GixbeeTheme.accentViolet),
+                  Icon(Icons.storefront_outlined, size: 14, color: context.gx.accentSoft),
                   const SizedBox(width: 4),
                   Expanded(
                     child: Text(
                       userName,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(fontSize: 13, color: Color(0xFF888888)),
+                      style: TextStyle(fontSize: 13, color: context.gx.ink.withValues(alpha: 0.53)),
                     ),
                   ),
                 ],
@@ -440,7 +442,7 @@ class _MyBookingsScreenState extends ConsumerState<MyBookingsScreen>
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text('Date & Time', style: TextStyle(fontSize: 11, color: Color(0xFF888888))),
+                      Text('Date & Time', style: TextStyle(fontSize: 11, color: context.gx.ink.withValues(alpha: 0.53))),
                       const SizedBox(height: 4),
                       Text(
                         DateFormat('d MMM yyyy, hh:mm a').format(scheduledAt),
@@ -451,7 +453,7 @@ class _MyBookingsScreenState extends ConsumerState<MyBookingsScreen>
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
-                      const Text('Amount', style: TextStyle(fontSize: 11, color: Color(0xFF888888))),
+                      Text('Amount', style: TextStyle(fontSize: 11, color: context.gx.ink.withValues(alpha: 0.53))),
                       const SizedBox(height: 4),
                       Text(
                         '₹${amount.toStringAsFixed(amount.truncateToDouble() == amount ? 0 : 2)}',
@@ -484,7 +486,7 @@ class _MyBookingsScreenState extends ConsumerState<MyBookingsScreen>
         break;
       case 'ACTIVE':
       case 'IN_PROGRESS':
-        color = GixbeeTheme.accentViolet;
+        color = context.gx.accentSoft;
         break;
       case 'COMPLETED':
         color = GixbeeTheme.accentGreen;
@@ -494,7 +496,7 @@ class _MyBookingsScreenState extends ConsumerState<MyBookingsScreen>
         color = const Color(0xFFEF4444);
         break;
       default:
-        color = GixbeeTheme.textMed;
+        color = context.gx.ink.withValues(alpha: 0.58);
     }
 
     return Container(

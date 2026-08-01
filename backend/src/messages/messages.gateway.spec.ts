@@ -6,9 +6,8 @@ import { MessagesGateway } from './messages.gateway';
  * The gateway has two reachable behaviours, both unit-testable without a real
  * socket server by hand-rolling `server` / `client` doubles (same approach as
  * worker.gateway.spec.ts):
- * - handleJoinUserRoom: joins the caller's personal room `user_<id>` ONLY when a
- *   non-empty userId is supplied, and always returns the ack envelope
- *   `{ event: 'joinedUserRoom', data: <userId> }` (data is undefined when absent).
+ * - handleJoinUserRoom: joins only the personal room derived from the verified
+ *   socket JWT; a client-supplied user id is never trusted.
  * - emitToUser: pushes a `new_message` payload to `user_<recipientId>`; the
  *   optional-chaining on `this.server?` must make it a no-op (not throw) when the
  *   server has not been wired yet.
@@ -27,11 +26,13 @@ function makeServer() {
 }
 
 /** A connected-socket double. */
-function makeClient(id = 'sock-1') {
+function makeClient(id = 'sock-1', userId = 'u1') {
   return {
     id,
     emit: jest.fn(),
     join: jest.fn(),
+    data: { user: { userId } },
+    user: { userId },
   } as any;
 }
 
@@ -44,28 +45,21 @@ function makeGateway() {
 
 describe('MessagesGateway', () => {
   describe('handleJoinUserRoom', () => {
-    it('joins the namespaced user room and returns the ack envelope', () => {
+    it('joins the JWT user room and returns the ack envelope', () => {
       const { gateway } = makeGateway();
-      const client = makeClient();
-      const ack = gateway.handleJoinUserRoom({ userId: 'u9' }, client);
+      const client = makeClient('sock-1', 'u9');
+      const ack = gateway.handleJoinUserRoom(client);
       expect(client.join).toHaveBeenCalledWith('user_u9');
       expect(ack).toEqual({ event: 'joinedUserRoom', data: 'u9' });
     });
 
-    it('does not join a room when userId is missing but still acks', () => {
+    it('rejects a socket without an authenticated JWT user', () => {
       const { gateway } = makeGateway();
       const client = makeClient();
-      const ack = gateway.handleJoinUserRoom({} as any, client);
+      client.data = {};
+      client.user = undefined;
+      expect(() => gateway.handleJoinUserRoom(client)).toThrow('Unauthorized');
       expect(client.join).not.toHaveBeenCalled();
-      expect(ack).toEqual({ event: 'joinedUserRoom', data: undefined });
-    });
-
-    it('treats an empty-string userId as absent (no join)', () => {
-      const { gateway } = makeGateway();
-      const client = makeClient();
-      const ack = gateway.handleJoinUserRoom({ userId: '' }, client);
-      expect(client.join).not.toHaveBeenCalled();
-      expect(ack).toEqual({ event: 'joinedUserRoom', data: '' });
     });
   });
 

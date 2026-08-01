@@ -35,6 +35,9 @@ See [AUDIT_2026-07-13.md](./AUDIT_2026-07-13.md) and [SECURITY_2026-07-13.md](./
 - Firebase initialized in Flutter; FCM token registration on login path
 - TypeORM `synchronize: !isProduction`
 - Admin page ACL + WS JWT hardening; throttler restored to sane defaults (2026-07)
+- Socket rooms secured (2026-08-01): personal rooms derive identity from the
+  verified JWT; job rooms require booking participation; only the assigned pro
+  may publish GPS into a booking room.
 
 ### Product modules that exist in code
 
@@ -72,7 +75,16 @@ Every folder in `lib/features/` (17) is listed here, so a missing row means a mi
 | **Late-cancel protection** | Free cancel only while `REQUESTED` or within 3 min after accept. After grace: cancel request to worker, or force-cancel = late-cancel strike. After `ARRIVED`/`ACTIVE`: customer cannot cancel alone. 3 strikes → Instant Help blocked until distance-based travel compensation paid (Razorpay; ₹10/km, min ₹49 max ₹299; frozen on ban; recorded for worker payout — not an in-app wallet). |
 | **Worker no-progress free cancel** | Progress GPS checks replace blanket GPS forfeit; if the pro is not making progress, customer may cancel free (`WORKER_NO_PROGRESS`). Migration `1754100000000-WorkerProgressGps`. |
 | **Instant petrol billing** | Instant Help only: one-way ₹/km from `acceptDistanceKm`; rate from Master Entries `instant_petrol_per_km` (default **10**); frozen on booking as `petrolDistanceKm` / `petrolRatePerKm` / `petrolAmount`; work + petrol breakdown on collect/pay/OTP screens. Missing accept distance → petrol ₹0. Non-Instant unchanged. Migration `1754100000001-InstantPetrolBilling`. Deployed `f13db57`. |
-| **Job pause removed** | Active-job pause/resume removed; wall-clock billing only. |
+| **Job pause removed** | Active-job pause/resume removed end-to-end; entity/API/outbox/payment remnants dropped; wall-clock billing only. Migration `1754100000002-RemoveBookingPause`. |
+| **Realtime consolidation** | Socket.IO + FCM are primary; one shared 5s `bookingStatusProvider` remains as the Redis-backed status fallback. Payment screens no longer run extra 30s fetches; incoming jobs and `MainWrapper` use one HTTP reconciliation at startup/resume instead of 4s/5s periodic polling. |
+| **Theme debt reduction** | Theme-sensitive shell accents, text, borders and surfaces in booking, jobs, worker, search and notification flows use `context.gx`; fixed colors remain only for semantic/category/brand meaning. |
+| **Replica-safe schedulers** | With `replicas: 2` the outbox poller was already deduped by Bull (constant `jobId` + interval), but a changed interval/id would orphan the old repeatable in Redis forever — `OutboxDispatcher` now prunes non-matching repeatables at boot. The `system_logs` retention sweep, which really did run on both replicas, elects one runner via `RedisService.acquireLock()`. |
+| **No blocking Redis `KEYS`** | Cache invalidation already used `SCAN`; the admin key browser's `KEYS *` is now a capped `SCAN` (default 1000) that reports `truncated` so the monitoring page can no longer stall production Redis. |
+| **Redis / Socket.IO fail-closed** | Compose sets `REDIS_ALLOW_MEMORY_FALLBACK=false`. RedisService and Socket.IO refuse process-local memory when Redis is down (boot exits if the IO adapter cannot connect). Local single-process dev keeps the fallback when the flag is unset and `NODE_ENV != production`. |
+| **Bounded admin lists** | Users + support tickets paginate (`page`/`limit`, shared `parsePagination`); master-entries cache miss hard-capped at 2000. |
+| **Stable requestTimeout jobId** | Direct Instant booking timeout enqueue uses `jobId: requestTimeout:{bookingId}` (matches broadcast outbox path). |
+| **PgBouncer contract** | TypeORM sets `statement_timeout=60s` + `application_name`; compose documents transaction-mode bans (LISTEN/NOTIFY / session locks / long-lived PREPARE) and `SERVER_RESET_QUERY=DISCARD ALL`. |
+| **Money model source of truth** | `backend/src/common/money-model.ts` — wallet OFF; defaults to `CASH`; recharge/hiring charges gated; live paths are dual-confirm job pay + Razorpay period fee / late-cancel. |
 | **Aadhaar preference** | Pro verify UI + talent stub prefer Aadhaar OTP/eKYC over DigiLocker (still credential-blocked until KYC keys). |
 | **Go Live hardening** | Verification gate, credits/period fee, force offline at limits, location gate, skills editing. |
 | **pgAdmin** | Embedded under `/infra/pgadmin/` in admin monitoring (path/SCRIPT_NAME + healthcheck fixes). |
@@ -115,6 +127,13 @@ Every folder in `lib/features/` (17) is listed here, so a missing row means a mi
 | Unbounded `find()` | **Fixed** (2026-07-18) |
 | Rating average | **Fixed** (2026-07-18) |
 | Serial FCM fan-out | **Fixed** (2026-07-18) |
+| Redis `KEYS` | **Fixed** — `SCAN` everywhere; admin browser capped at 1000 keys |
+| Duplicate schedulers | **Fixed** — Bull repeatables pruned at boot; log purge behind a Redis lock |
+| Redis / Socket.IO memory split | **Fixed** — fail-closed when `REDIS_ALLOW_MEMORY_FALLBACK=false` |
+| Unbounded admin reads | **Fixed** — users/support paginated; master-entries capped at 2000 |
+| requestTimeout without jobId | **Fixed** — stable `jobId` on direct Instant create |
+| PgBouncer session caveats | **Documented + guarded** — statement_timeout; no LISTEN/NOTIFY in codebase |
+| **Stale backend specs** | Several suites still fail against current code (e.g. `auth/jwt.strategy` predates admin `pages`/`staffRole`; `payments.service` methods renamed). Unrelated to shipped behaviour — the specs need rewriting to match. |
 | `.gitignore` | Prefer `*firebase-adminsdk*.json` pattern at repo root |
 
 ### P2 — Product polish
@@ -125,10 +144,10 @@ Every folder in `lib/features/` (17) is listed here, so a missing row means a mi
 | Reels “Book Now” no-op | **Fixed** → Instant Request for role |
 | Rental Material date picker | **Fixed** → `showGxCalendar` / `showGxTimePicker` |
 | Silent empty catches | **Fixed** — `debugPrint` |
-| Aggressive 3s poll | **Fixed** — 5s via `AppConfig` |
+| Duplicate polling | **Fixed** — socket/FCM primary; one shared 5s booking fallback; pending queue reconciles only at startup/resume |
 | Image decode size | **Improved** — `cacheWidth` on key screens |
 | Full `cached_network_image` package | Optional follow-up |
-| Remaining dark-hex screens outside migrated set | Gradual `context.gx` migration |
+| Remaining fixed colors | Semantic/category/auth-brand colors only; shell/surface/text use `context.gx` |
 
 ### P3 — Docs / process
 

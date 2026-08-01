@@ -31,7 +31,7 @@ class BookingRepository {
     String? description,
     String? skill,
     String? addressId,
-    String paymentMethod = 'WALLET',
+    String paymentMethod = 'CASH',
   }) async {
     try {
       final response = await _dio.post('/bookings', data: {
@@ -59,7 +59,7 @@ class BookingRepository {
     required double lng,
     required double amount,
     Map<String, dynamic>? onSiteContact,
-    String paymentMethod = 'WALLET',
+    String paymentMethod = 'CASH',
   }) async {
     try {
       final response = await _dio.post('/bookings', data: {
@@ -98,7 +98,7 @@ class BookingRepository {
     List<String>? preferredLanguages,
     String? addressId,
     Map<String, dynamic>? onSiteContact,
-    String paymentMethod = 'WALLET',
+    String paymentMethod = 'CASH',
   }) async {
     try {
       final response = await _dio.post('/bookings/instant', data: {
@@ -165,7 +165,7 @@ class BookingRepository {
   }
 
   /// Returns all REQUESTED bookings assigned to the current worker.
-  /// Used by the IncomingJobScreen queue and the 5-second poll fallback.
+  /// Used for startup/resume reconciliation and to enrich socket/FCM offers.
   Future<List<dynamic>> getPendingBookings() async {
     try {
       final response = await _dio.get('/bookings/pending');

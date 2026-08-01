@@ -90,8 +90,8 @@ class _WaitingForWorkerScreenState extends ConsumerState<WaitingForWorkerScreen>
     )..repeat();
 
     _startCountdown();
-    // Primary: Socket.IO booking_accepted. Fallback: shared status provider
-    // (30s Redis-backed poll) — no extra 5s timer.
+    // Search-wave expansion is screen-specific. Booking acceptance flows
+    // through the shared socket-backed status provider.
     _socketSub =
         ref.read(socketServiceProvider).notifications.listen(_onSocketEvent);
   }
@@ -116,13 +116,6 @@ class _WaitingForWorkerScreenState extends ConsumerState<WaitingForWorkerScreen>
       return;
     }
 
-    if (event != 'booking_accepted') return;
-    _applyStatus({
-      'status': data['status'] ?? 'ACCEPTED',
-      'arrivalOtp': data['arrivalOtp'],
-      'operatorName': data['operatorName'],
-      'operatorId': data['operatorId'],
-    });
   }
 
   /// Switch to the widened-search wave: restart the countdown for the final
@@ -256,7 +249,7 @@ class _WaitingForWorkerScreenState extends ConsumerState<WaitingForWorkerScreen>
 
   @override
   Widget build(BuildContext context) {
-    // Fallback status stream (30s, Redis-backed) — socket/FCM are primary.
+    // Shared status stream: socket-first with a 5s Redis-backed fallback.
     ref.listen<AsyncValue<Map<String, dynamic>>>(
       bookingStatusProvider(widget.bookingId),
       (_, next) {

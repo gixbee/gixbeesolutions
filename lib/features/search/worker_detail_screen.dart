@@ -113,7 +113,7 @@ class WorkerDetailScreen extends StatelessWidget {
                                 children: [
                                   Icon(Icons.near_me_rounded,
                                       size: 14,
-                                      color: GixbeeTheme.accentPurple),
+                                      color: context.gx.accent),
                                   const SizedBox(width: 4),
                                   Text(
                                     '${worker.distanceKm!.toStringAsFixed(1)} km away',
@@ -166,7 +166,7 @@ class WorkerDetailScreen extends StatelessWidget {
                             .headlineMedium
                             ?.copyWith(
                               fontWeight: FontWeight.bold,
-                              color: GixbeeTheme.accentPurple,
+                              color: context.gx.accent,
                             ),
                       ),
                       const SizedBox(width: 4),
@@ -402,7 +402,7 @@ class _FavouriteButtonState extends ConsumerState<_FavouriteButton> {
         tooltip: _isFav ? 'Remove from favourites' : 'Save to favourites',
         icon: Icon(
           _isFav ? Icons.favorite : Icons.favorite_border,
-          color: _isFav ? GixbeeTheme.accentPurple : Colors.white,
+          color: _isFav ? context.gx.accent : context.gx.onAccent,
         ),
         onPressed: _busy ? null : _toggle,
       ),

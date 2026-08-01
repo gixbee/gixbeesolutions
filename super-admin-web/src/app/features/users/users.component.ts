@@ -213,7 +213,8 @@ export class UsersComponent implements OnInit {
 
   loadUsers(): void {
     console.log('Angular: Loading users...');
-    this.userService.getAll().subscribe({
+    // Server-paginated (default 50, max 100) — never pull the whole users table.
+    this.userService.getAll(1, 100).subscribe({
       next: (users) => {
         console.log('Angular: Users fetched:', users);
         this.users = users;

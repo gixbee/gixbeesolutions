@@ -184,13 +184,15 @@ describe('UsersService', () => {
   });
 
   describe('findAll', () => {
-    it('returns the ordered list with talent relations', async () => {
+    it('returns a paginated list with talent relations', async () => {
       const list = [user({ id: 'a' }), user({ id: 'b' })];
       const { service, usersRepository } = makeService({ users: list });
-      await expect(service.findAll()).resolves.toHaveLength(2);
+      await expect(service.findAll(1, 50)).resolves.toHaveLength(2);
       expect(usersRepository.find).toHaveBeenCalledWith({
         order: { createdAt: 'DESC' },
         relations: ['talentProfile', 'talentProfile.professionalSkills'],
+        skip: 0,
+        take: 50,
       });
     });
   });

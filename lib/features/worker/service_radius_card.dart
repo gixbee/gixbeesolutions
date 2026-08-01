@@ -112,8 +112,8 @@ class _ServiceRadiusCardState extends ConsumerState<ServiceRadiusCard> {
               children: [
                 Row(
                   children: [
-                    const Icon(Icons.social_distance_rounded,
-                        size: 16, color: GixbeeTheme.accentPurple),
+                    Icon(Icons.social_distance_rounded,
+                        size: 16, color: context.gx.accent),
                     const SizedBox(width: 8),
                     Text(
                       'SERVICE AREA',
@@ -134,10 +134,10 @@ class _ServiceRadiusCardState extends ConsumerState<ServiceRadiusCard> {
                     else
                       Text(
                         '$_radius km',
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 13,
                           fontWeight: FontWeight.w900,
-                          color: GixbeeTheme.accentPurple,
+                          color: context.gx.accent,
                         ),
                       ),
                   ],
@@ -145,13 +145,13 @@ class _ServiceRadiusCardState extends ConsumerState<ServiceRadiusCard> {
                 const SizedBox(height: 6),
                 SliderTheme(
                   data: SliderTheme.of(context).copyWith(
-                    activeTrackColor: GixbeeTheme.accentPurple,
+                    activeTrackColor: context.gx.accent,
                     inactiveTrackColor:
-                        GixbeeTheme.accentPurple.withValues(alpha: 0.18),
-                    thumbColor: GixbeeTheme.accentPurple,
+                        context.gx.accent.withValues(alpha: 0.18),
+                    thumbColor: context.gx.accent,
                     overlayColor:
-                        GixbeeTheme.accentPurple.withValues(alpha: 0.12),
-                    valueIndicatorColor: GixbeeTheme.accentPurple,
+                        context.gx.accent.withValues(alpha: 0.12),
+                    valueIndicatorColor: context.gx.accent,
                     trackHeight: 3.5,
                   ),
                   child: Slider(
