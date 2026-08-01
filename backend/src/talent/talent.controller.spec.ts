@@ -18,7 +18,7 @@ function makeController() {
     removeSkill: jest.fn(async () => undefined),
     toggleAlerts: jest.fn(async () => ({ id: 'tp1', jobAlertsEnabled: true })),
     getVerificationStatus: jest.fn(() => ({
-      provider: 'DIGILOCKER',
+      provider: 'AADHAAR',
       available: false,
       needsApiKey: true,
       verified: false,
@@ -27,7 +27,7 @@ function makeController() {
     initiateVerification: jest.fn(() => ({
       status: 'UNAVAILABLE',
       needsApiKey: true,
-      provider: 'DIGILOCKER',
+      provider: 'AADHAAR',
       verified: false,
       message: 'not live yet',
     })),
@@ -102,7 +102,7 @@ describe('TalentController.getVerificationStatus', () => {
     const res = controller.getVerificationStatus();
     expect(talentService.getVerificationStatus).toHaveBeenCalled();
     expect(res).toMatchObject({
-      provider: 'DIGILOCKER',
+      provider: 'AADHAAR',
       needsApiKey: true,
       verified: false,
     });

@@ -62,7 +62,7 @@ See [AUDIT_2026-07-13.md](./AUDIT_2026-07-13.md) and [SECURITY_2026-07-13.md](./
 |---|---|
 | **SMS OTP** | MSG91/Twilio not wired — OTP only logged server-side without a provider |
 | **Payments** | PhonePe/UPI/Razorpay return `needsApiKey` until credentials are set |
-| **DigiLocker** | Pro ID verification still “coming soon” |
+| **Aadhaar eKYC** | Pro ID verification still “coming soon” (Aadhaar OTP preferred over DigiLocker) |
 | **Secrets ops** | Rotate weak local JWT/admin if any env is shared; never commit Firebase admin JSON |
 
 ### P1 — Backend residual (from July audit, still open)

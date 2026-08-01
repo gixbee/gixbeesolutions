@@ -424,7 +424,7 @@ export class WorkersService {
 
   async toggleGoLive(
     id: string,
-    coords?: { lat?: number; lng?: number },
+    coords?: { lat?: number; lng?: number; active?: boolean },
   ): Promise<{ isActive: boolean; message: string }> {
     // We assume the ID passed is the internal profile ID or the user ID
     // Check if it's an internal profile ID first, if so get user ID
@@ -449,10 +449,24 @@ export class WorkersService {
       profile.goLiveToggleCountToday = 0;
     }
 
-    // `isActive` is the state BEFORE this call, so this is the direction of
-    // travel. Everything below only restricts GOING LIVE — going offline is
-    // always allowed and always free (see the counter note below).
-    const goingLive = !profile.isActive;
+    // Desired-state (`active`) is preferred — a lost response + retry must
+    // not flip the pro offline. Omit `active` to keep legacy flip behaviour.
+    const targetActive =
+      typeof coords?.active === 'boolean' ? coords.active : !profile.isActive;
+
+    // Already in the desired state — no-op success (idempotent).
+    if (profile.isActive === targetActive) {
+      return {
+        isActive: profile.isActive,
+        message: profile.isActive
+          ? 'You are now LIVE on the map and accepting jobs.'
+          : 'You are now OFFLINE. Customers cannot dispatch you instantly.',
+      };
+    }
+
+    // Direction of travel. Gates below only restrict GOING LIVE — going
+    // offline is always allowed and always free.
+    const goingLive = targetActive;
 
     if (goingLive) {
       if (profile.verificationStatus !== VerificationStatus.VERIFIED) {
@@ -529,8 +543,8 @@ export class WorkersService {
       }
     }
 
-    // Process toggle
-    profile.isActive = !profile.isActive;
+    // Apply desired / flipped state
+    profile.isActive = targetActive;
     if (goingLive) profile.goLiveToggleCountToday += 1;
 
     // Persist GPS from the client when going live so Instant Help can match

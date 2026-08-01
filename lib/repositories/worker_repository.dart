@@ -138,18 +138,29 @@ class WorkerRepository {
 
   /// Toggles the worker's Go-Live state on the server.
   ///
-  /// Hits `POST /workers/live-toggle` (JWT identifies the worker). Optional
-  /// [lat]/[lng] warm Redis so Instant Help can match this worker immediately.
+  /// Hits `POST /workers/live-toggle` (JWT identifies the worker). Pass
+  /// [active] for an idempotent desired-state update (safe to retry after
+  /// a timeout). Optional [lat]/[lng] warm Redis so Instant Help can match
+  /// this worker immediately.
   Future<({bool isActive, String message})> goLiveToggle({
     double? lat,
     double? lng,
+    bool? active,
   }) async {
     final response = await _dio.post(
       '/workers/live-toggle',
       data: {
         if (lat != null) 'lat': lat,
         if (lng != null) 'lng': lng,
+        if (active != null) 'active': active,
       },
+      // Profile heal + Redis warm can exceed the default 15s on a cold
+      // container / weak mobile link — a timeout after the DB save is what
+      // used to desync the UI from server truth.
+      options: Options(
+        sendTimeout: const Duration(seconds: 30),
+        receiveTimeout: const Duration(seconds: 30),
+      ),
     );
     final data = Map<String, dynamic>.from(response.data);
     return (

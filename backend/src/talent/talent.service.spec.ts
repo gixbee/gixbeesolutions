@@ -299,22 +299,22 @@ describe('TalentService.recordNoShow', () => {
 });
 
 /**
- * DigiLocker identity-verification stub (Phase 5 — credential-blocked).
- * With no DIGILOCKER_* env vars the status/initiate pair must advertise
+ * Aadhaar eKYC identity-verification stub (credential-blocked).
+ * With no AADHAAR_* env vars the status/initiate pair must advertise
  * needsApiKey and NEVER report a verified result; with both creds present
- * (real flow still unwritten) initiate must return NOT_IMPLEMENTED rather
+ * (real OTP flow still unwritten) initiate must return NOT_IMPLEMENTED rather
  * than faking a verified identity. `verified` is false in every branch.
  */
-describe('TalentService — DigiLocker verification stub', () => {
+describe('TalentService — Aadhaar verification stub', () => {
   const bothCreds = {
-    DIGILOCKER_CLIENT_ID: 'cid',
-    DIGILOCKER_CLIENT_SECRET: 'secret',
+    AADHAAR_CLIENT_ID: 'cid',
+    AADHAAR_CLIENT_SECRET: 'secret',
   };
 
   it('getVerificationStatus reports needsApiKey when unconfigured', () => {
     const { service } = makeService();
     const status = service.getVerificationStatus();
-    expect(status.provider).toBe('DIGILOCKER');
+    expect(status.provider).toBe('AADHAAR');
     expect(status.available).toBe(false);
     expect(status.needsApiKey).toBe(true);
     expect(status.verified).toBe(false);
@@ -332,7 +332,7 @@ describe('TalentService — DigiLocker verification stub', () => {
 
   it('treats a partial credential set as unconfigured', () => {
     const { service } = makeService({
-      configValues: { DIGILOCKER_CLIENT_ID: 'cid' }, // secret missing
+      configValues: { AADHAAR_CLIENT_ID: 'cid' }, // secret missing
     });
     expect(service.getVerificationStatus().available).toBe(false);
   });
@@ -343,7 +343,7 @@ describe('TalentService — DigiLocker verification stub', () => {
     expect(res.status).toBe('UNAVAILABLE');
     expect(res.needsApiKey).toBe(true);
     expect(res.verified).toBe(false);
-    expect(res.provider).toBe('DIGILOCKER');
+    expect(res.provider).toBe('AADHAAR');
   });
 
   it('initiateVerification returns NOT_IMPLEMENTED (never verified) when creds exist', () => {

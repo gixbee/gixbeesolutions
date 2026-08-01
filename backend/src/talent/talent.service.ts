@@ -20,23 +20,20 @@ export class TalentService {
   ) {}
 
   /**
-   * DigiLocker identity verification — stub (Phase 5, credential-blocked).
+   * Aadhaar eKYC identity verification — stub (credential-blocked).
    *
-   * Government-ID verification via DigiLocker is intentionally NOT live: no
-   * DigiLocker OAuth credentials are configured yet. The status/initiate pair
-   * below mirrors the PhonePe gateway stub (PaymentsService): the client reads
-   * status to render the "Verify with DigiLocker" tile as live vs. "setup
-   * pending" without hard-coding that state, and initiate returns an explicit
-   * needs-API-key payload instead of ever faking a verified result.
+   * Prefer Aadhaar OTP over DigiLocker: every adult in India has Aadhaar;
+   * DigiLocker is optional. Not live until a KYC provider key is configured
+   * (Cashfree / Surepass / HyperVerge / etc.). Status/initiate mirror the
+   * PhonePe gateway stub — client never sees a fake verified result.
    *
-   * // TODO: needs DigiLocker API key — set DIGILOCKER_CLIENT_ID,
-   * //       DIGILOCKER_CLIENT_SECRET (and DIGILOCKER_REDIRECT_URI) env vars,
-   * //       then implement the real OAuth consent + e-KYC document pull here.
+   * // TODO: set AADHAAR_CLIENT_ID + AADHAAR_CLIENT_SECRET (or provider
+   * //       equivalents), then implement Aadhaar OTP send/verify eKYC.
    */
-  private get digiLockerConfigured(): boolean {
+  private get aadhaarConfigured(): boolean {
     return Boolean(
-      this.config.get<string>('DIGILOCKER_CLIENT_ID') &&
-      this.config.get<string>('DIGILOCKER_CLIENT_SECRET'),
+      this.config.get<string>('AADHAAR_CLIENT_ID') &&
+      this.config.get<string>('AADHAAR_CLIENT_SECRET'),
     );
   }
 
@@ -47,46 +44,45 @@ export class TalentService {
    * state. The Flutter app branches on `needsApiKey` to show the shell.
    */
   getVerificationStatus() {
-    const configured = this.digiLockerConfigured;
+    const configured = this.aadhaarConfigured;
     return {
-      provider: 'DIGILOCKER',
+      provider: 'AADHAAR',
       available: configured,
       needsApiKey: !configured,
       verified: false,
       message: configured
         ? null
-        : 'Government-ID verification via DigiLocker is coming soon. Verified pros rank higher and get more jobs. For now you can upload certificates as proof.',
+        : 'Aadhaar verification is coming soon. Confirm with the OTP on your Aadhaar-linked mobile — no DigiLocker account needed. Verified pros rank higher and get more jobs. For now you can upload certificates as proof.',
     };
   }
 
   /**
-   * Begin DigiLocker verification — stubbed until credentials exist.
+   * Begin Aadhaar verification — stubbed until credentials exist.
    * Never returns a verified result: when unconfigured it returns an explicit
    * needs-API-key payload (HTTP 200 so the client can branch cleanly).
    */
   initiateVerification(_userId: string) {
-    if (!this.digiLockerConfigured) {
-      // TODO: needs DigiLocker API key — replace this stub with the real
-      // DigiLocker OAuth consent URL + e-KYC pull once credentials exist.
+    if (!this.aadhaarConfigured) {
+      // TODO: wire Aadhaar OTP eKYC once AADHAAR_CLIENT_ID/SECRET exist.
       return {
         status: 'UNAVAILABLE',
         needsApiKey: true,
-        provider: 'DIGILOCKER',
+        provider: 'AADHAAR',
         verified: false,
         message:
-          'Identity verification is not live yet: the DigiLocker API key has not been configured. You can still upload certificates as proof for now.',
+          'Aadhaar verification is not live yet: the KYC provider key has not been configured. You can still upload certificates as proof for now.',
       };
     }
 
-    // Credentials exist but the real integration is still to be written —
+    // Credentials exist but the real OTP/eKYC flow is still to be written —
     // refuse rather than pretend the identity was verified.
     return {
       status: 'NOT_IMPLEMENTED',
       needsApiKey: false,
-      provider: 'DIGILOCKER',
+      provider: 'AADHAAR',
       verified: false,
       message:
-        'DigiLocker credentials detected, but the verification flow is not implemented yet.',
+        'Aadhaar KYC credentials detected, but the OTP verification flow is not implemented yet.',
     };
   }
 

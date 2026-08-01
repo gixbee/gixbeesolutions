@@ -195,6 +195,7 @@ export class WorkersController {
     return this.workersService.toggleGoLive(req.user.userId, {
       lat: body?.lat,
       lng: body?.lng,
+      active: body?.active,
     });
   }
 

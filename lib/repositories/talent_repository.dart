@@ -50,7 +50,7 @@ class TalentRepository {
     await _dio.post('/talent/saved-jobs/toggle', data: {'jobId': jobId});
   }
 
-  /// DigiLocker verification readiness (Phase 5 — credential-blocked stub).
+  /// Aadhaar eKYC verification readiness (credential-blocked stub).
   /// Mirrors the UPI gateway-status read: the Register-as-Pro "Verify" sheet
   /// uses this to render live vs. "setup pending" without hard-coding the
   /// state. Returns the backend payload

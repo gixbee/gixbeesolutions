@@ -113,6 +113,7 @@ describe('WorkersController.toggleGoLive', () => {
     expect(workersService.toggleGoLive).toHaveBeenCalledWith('u-7', {
       lat: undefined,
       lng: undefined,
+      active: undefined,
     });
   });
 
@@ -125,6 +126,20 @@ describe('WorkersController.toggleGoLive', () => {
     expect(workersService.toggleGoLive).toHaveBeenCalledWith('u-7', {
       lat: 12.9,
       lng: 77.5,
+      active: undefined,
+    });
+  });
+
+  it('forwards desired-state active for idempotent retries', async () => {
+    const { controller, workersService } = makeController();
+    await controller.toggleGoLive(
+      { user: { userId: 'u-7' } },
+      { lat: 12.9, lng: 77.5, active: true },
+    );
+    expect(workersService.toggleGoLive).toHaveBeenCalledWith('u-7', {
+      lat: 12.9,
+      lng: 77.5,
+      active: true,
     });
   });
 });

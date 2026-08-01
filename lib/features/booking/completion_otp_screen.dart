@@ -497,7 +497,7 @@ class _CompletionOtpScreenState extends ConsumerState<CompletionOtpScreen> {
 
                 const SizedBox(height: 10),
 
-                // Live job timer + pause/resume controls + report (v126) —
+                // Live job timer + report link.
                 // this screen is where both roles live during ACTIVE work.
                 ActiveJobControls(
                   bookingId: widget.bookingId,

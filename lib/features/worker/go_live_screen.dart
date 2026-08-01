@@ -24,10 +24,32 @@ import 'service_radius_card.dart';
 
 /// Go-Live dashboard: skills + per-service activation + earnings summary.
 /// `GET /workers/me/dashboard` — refreshed after every live toggle.
-final goLiveDashboardProvider =
-    FutureProvider.autoDispose<Map<String, dynamic>>((ref) async {
-  return ref.watch(workerRepositoryProvider).getGoLiveDashboard();
-});
+///
+/// Riverpod 3 retries a failed future 10 times with exponential backoff
+/// (~38s total). This endpoint 404s for anyone who has not registered as a
+/// pro, so the tab sat spinning through the whole retry ladder before finally
+/// showing "Register as Pro". Only transient transport failures are worth a
+/// retry here, and only twice.
+final goLiveDashboardProvider = FutureProvider.autoDispose<Map<String, dynamic>>(
+  (ref) async {
+    return ref.watch(workerRepositoryProvider).getGoLiveDashboard();
+  },
+  retry: (retryCount, error) {
+    if (retryCount >= 2) return null;
+    if (error is DioException) {
+      switch (error.type) {
+        case DioExceptionType.connectionError:
+        case DioExceptionType.connectionTimeout:
+        case DioExceptionType.receiveTimeout:
+        case DioExceptionType.sendTimeout:
+          return Duration(milliseconds: 300 * (retryCount + 1));
+        default:
+          return null;
+      }
+    }
+    return null;
+  },
+);
 
 /// Worker "Go Live" engine.
 ///
@@ -203,7 +225,9 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
     Future<void> pushLoc() async {
       try {
         final pos =
-            await ref.read(locationServiceProvider).getCurrentPosition();
+            await ref.read(locationServiceProvider).getCurrentPosition(
+                  fallbackToLastKnown: true,
+                );
         if (pos == null) {
           // GPS died mid-session — surface it (banner in the live view)
           // instead of silently letting the pro fall out of dispatch.
@@ -235,6 +259,8 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
   Future<void> _toggle() async {
     if (_toggling) return;
     setState(() => _toggling = true);
+    final currentlyLive = ref.read(workerLiveStateProvider);
+    final wantLive = !currentlyLive;
     try {
       // HARD GATE: going live REQUIRES a GPS fix. Without one the pro never
       // enters the dispatch geo index — they'd sit "live", burning their
@@ -242,9 +268,8 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
       // flow went live anyway and just showed an apologetic red toast.)
       double? lat;
       double? lng;
-      final currentlyLive = ref.read(workerLiveStateProvider);
       final dash = ref.read(goLiveDashboardProvider).asData?.value;
-      if (!currentlyLive) {
+      if (wantLive) {
         if (dash != null) {
           final credits = (dash['jobCredits'] as num?)?.toInt() ?? 0;
           if (credits <= 0) {
@@ -256,8 +281,12 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
           }
         }
 
-        final pos =
-            await ref.read(locationServiceProvider).getCurrentPosition();
+        // fallbackToLastKnown: live fix often times out indoors / on cold
+        // start; last-known keeps the toggle from failing with a generic
+        // error when the server was never even called.
+        final pos = await ref
+            .read(locationServiceProvider)
+            .getCurrentPosition(fallbackToLastKnown: true);
         if (pos == null) {
           if (mounted) {
             setState(() => _toggling = false);
@@ -269,9 +298,12 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
         lng = pos.longitude;
       }
 
+      // Desired-state body — safe to retry if the response is lost after
+      // the server already flipped the row.
       final result = await ref.read(workerRepositoryProvider).goLiveToggle(
             lat: lat,
             lng: lng,
+            active: wantLive,
           );
       ref.read(workerLiveStateProvider.notifier).state = result.isActive;
       ref.invalidate(goLiveDashboardProvider);
@@ -290,14 +322,68 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
         _toast(result.message, error: false);
       }
     } on DioException catch (e) {
-      final msg = e.response?.data is Map
-          ? (e.response?.data['message']?.toString() ?? 'Could not update Go-Live status')
-          : 'Could not update Go-Live status';
-      if (mounted) _toast(msg, error: true);
+      await _resyncLiveAfterToggleFailure();
+      if (!mounted) return;
+      // Response lost after a successful save: UI now matches intent — treat
+      // as success so the pro isn't told it failed while already live.
+      if (ref.read(workerLiveStateProvider) == wantLive) {
+        _toast(
+          wantLive
+              ? 'You are now LIVE on the map and accepting jobs.'
+              : 'You are now OFFLINE. Customers cannot dispatch you instantly.',
+          error: false,
+        );
+        return;
+      }
+      _toast(_goLiveErrorMessage(e), error: true);
     } catch (_) {
-      if (mounted) _toast('Could not update Go-Live status', error: true);
+      await _resyncLiveAfterToggleFailure();
+      if (!mounted) return;
+      if (ref.read(workerLiveStateProvider) == wantLive) {
+        _toast(
+          wantLive
+              ? 'You are now LIVE on the map and accepting jobs.'
+              : 'You are now OFFLINE. Customers cannot dispatch you instantly.',
+          error: false,
+        );
+        return;
+      }
+      _toast('Could not update Go-Live status. Please try again.', error: true);
     } finally {
       if (mounted) setState(() => _toggling = false);
+    }
+  }
+
+  /// Map Dio failures to actionable toasts (timeout ≠ "server rejected").
+  String _goLiveErrorMessage(DioException e) {
+    if (e.type == DioExceptionType.connectionTimeout ||
+        e.type == DioExceptionType.sendTimeout ||
+        e.type == DioExceptionType.receiveTimeout) {
+      return 'Network timed out while updating Go-Live. Check your connection and try again.';
+    }
+    if (e.type == DioExceptionType.connectionError) {
+      return 'No network connection. Check your signal and try again.';
+    }
+    final data = e.response?.data;
+    if (data is Map && data['message'] != null) {
+      final m = data['message'];
+      if (m is List && m.isNotEmpty) return m.first.toString();
+      return m.toString();
+    }
+    return 'Could not update Go-Live status. Please try again.';
+  }
+
+  /// After a failed toggle, re-read server truth so a lost 200 after DB
+  /// save does not leave the button showing the wrong state.
+  Future<void> _resyncLiveAfterToggleFailure() async {
+    try {
+      final dash =
+          await ref.read(workerRepositoryProvider).getGoLiveDashboard();
+      if (!mounted) return;
+      ref.invalidate(goLiveDashboardProvider);
+      _syncLiveFromServer(dash);
+    } catch (_) {
+      // Best-effort — leave local state as-is if dashboard also fails.
     }
   }
 
@@ -602,6 +688,7 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
           }
 
           final dashAsync = ref.watch(goLiveDashboardProvider);
+          final dashData = dashAsync.asData?.value;
 
           // REGISTRATION GATE — server truth over the cached flag.
           // `user.isWorker` comes from users.hasWorkerProfile, which stayed
@@ -614,33 +701,35 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
           // forces hasWorkerProfile=true just because this endpoint is hit.
           // So we must ALWAYS do a "ghost profile" check, regardless of the
           // cached flag.
-          
-          if (dashAsync.isLoading) {
-            return const Center(child: CircularProgressIndicator());
-          }
-          
-          if (dashAsync.hasError) {
+          //
+          // While the dashboard is still in flight, a user whose cached flag
+          // says "not a pro" gets the wizard CTA straight away rather than a
+          // spinner — the dashboard result still overrides it a moment later
+          // if the server disagrees (talent-path pros).
+          if (dashData == null) {
             if (!user.isWorker) {
               return _NotAWorker(scheme: scheme);
             }
-            return Center(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Icon(Icons.wifi_off, size: 48),
-                  const SizedBox(height: 12),
-                  Text('Could not load dashboard. Pull to retry.',
-                      style: TextStyle(color: context.gx.ink)),
-                ],
-              ),
-            );
+            if (dashAsync.hasError) {
+              return Center(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.wifi_off, size: 48),
+                    const SizedBox(height: 12),
+                    Text('Could not load dashboard. Pull to retry.',
+                        style: TextStyle(color: context.gx.ink)),
+                  ],
+                ),
+              );
+            }
+            return const Center(child: CircularProgressIndicator());
           }
 
-          final dashData = dashAsync.asData?.value;
           final hasSkills =
-              ((dashData?['skills'] as List?)?.isNotEmpty ?? false);
+              ((dashData['skills'] as List?)?.isNotEmpty ?? false);
           final verStatus =
-              (dashData?['verificationStatus'] as String?) ?? 'PENDING';
+              (dashData['verificationStatus'] as String?) ?? 'PENDING';
               
           // Ghost profile check: if no skills were ever submitted AND the status 
           // is still PENDING, this is an auto-created shell from opening Earn Hourly.
@@ -674,13 +763,12 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
                 ),
               ),
               // Sticky Go Live / Offline Button
-              if (dash != null)
-                Positioned(
-                  bottom: 0,
-                  left: 0,
-                  right: 0,
-                  child: _buildStickyFooter(isLive, dash),
-                ),
+              Positioned(
+                bottom: 0,
+                left: 0,
+                right: 0,
+                child: _buildStickyFooter(isLive, dash),
+              ),
             ],
           );
         },

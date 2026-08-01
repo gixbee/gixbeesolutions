@@ -82,16 +82,9 @@ class _LiveTrackingMapScreenState extends ConsumerState<LiveTrackingMapScreen> {
   /// Don't mount MapLibre until we have real coords (avoids Nagpur default).
   bool _coordsReady = false;
 
-  // Pause state (v126 Instant Help): carried in the /status poll payload.
-  bool _pauseRequested = false;
-  bool _paused = false;
-  bool _pauseActionBusy = false;
-
-  // Job timer (mockup parity): starts when the arrival OTP flips the booking
-  // ACTIVE (startedAt), ticks every second, freezes while paused, and
-  // subtracts accumulated approved pause minutes.
+  // Job timer: starts when the arrival OTP flips the booking ACTIVE
+  // (startedAt) and ticks every second for the full elapsed wall time.
   DateTime? _startedAt;
-  int _pausedMinutes = 0;
   Duration _elapsed = Duration.zero;
   Timer? _jobTicker;
 
@@ -409,10 +402,8 @@ class _LiveTrackingMapScreenState extends ConsumerState<LiveTrackingMapScreen> {
       if (_startedAt == null) return;
       _jobTicker?.cancel();
       _jobTicker = Timer.periodic(const Duration(seconds: 1), (_) {
-        if (!mounted) return;
-        if (_paused) return; // frozen while the customer-approved pause runs
-        final worked = DateTime.now().difference(_startedAt!) -
-            Duration(minutes: _pausedMinutes);
+        if (!mounted || _startedAt == null) return;
+        final worked = DateTime.now().difference(_startedAt!);
         setState(() => _elapsed = worked.isNegative ? Duration.zero : worked);
       });
     } catch (e) {
@@ -448,21 +439,6 @@ class _LiveTrackingMapScreenState extends ConsumerState<LiveTrackingMapScreen> {
           _applyWorkerLocation(opLat, opLng);
         }
       }
-    }
-
-    // Pause flags change without a status transition — sync every update.
-    final pauseRequested = statusData['pauseRequested'] == true;
-    final paused = statusData['paused'] == true;
-    final pausedMinutes =
-        (statusData['pausedMinutes'] as num?)?.toInt() ?? _pausedMinutes;
-    if (pauseRequested != _pauseRequested ||
-        paused != _paused ||
-        pausedMinutes != _pausedMinutes) {
-      setState(() {
-        _pauseRequested = pauseRequested;
-        _paused = paused;
-        _pausedMinutes = pausedMinutes;
-      });
     }
 
     // Arrival OTP verified → job ACTIVE → navigate to CompletionOtpScreen.
@@ -961,7 +937,7 @@ class _LiveTrackingMapScreenState extends ConsumerState<LiveTrackingMapScreen> {
               ),
               const SizedBox(height: 16),
 
-              // Job timer (starts at arrival-OTP entry, freezes while paused).
+              // Job timer (starts at arrival-OTP entry).
               if ((_currentStatus == 'ACTIVE' ||
                       _currentStatus == 'IN_PROGRESS') &&
                   _startedAt != null)
@@ -971,10 +947,7 @@ class _LiveTrackingMapScreenState extends ConsumerState<LiveTrackingMapScreen> {
                     padding: const EdgeInsets.symmetric(
                         horizontal: 14, vertical: 10),
                     decoration: BoxDecoration(
-                      color: (_paused
-                              ? GixbeeTheme.accentGold
-                              : context.gx.accentSoft)
-                          .withValues(alpha: 0.12),
+                      color: context.gx.accentSoft.withValues(alpha: 0.12),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Row(
@@ -983,16 +956,12 @@ class _LiveTrackingMapScreenState extends ConsumerState<LiveTrackingMapScreen> {
                         Row(
                           children: [
                             Icon(
-                              _paused
-                                  ? Icons.pause_circle_outline_rounded
-                                  : Icons.timer_outlined,
+                              Icons.timer_outlined,
                               size: 16,
-                              color: _paused
-                                  ? GixbeeTheme.accentGold
-                                  : context.gx.accentSoft,
+                              color: context.gx.accentSoft,
                             ),
                             const SizedBox(width: 8),
-                            Text(_paused ? 'Job timer · paused' : 'Job timer',
+                            Text('Job timer',
                                 style: TextStyle(
                                     fontSize: 12.5,
                                     fontWeight: FontWeight.w600,
@@ -1006,17 +975,30 @@ class _LiveTrackingMapScreenState extends ConsumerState<LiveTrackingMapScreen> {
                                 fontFeatures: const [
                                   FontFeature.tabularFigures()
                                 ],
-                                color: _paused
-                                    ? GixbeeTheme.accentGold
-                                    : context.gx.accentSoft)),
+                                color: context.gx.accentSoft)),
                       ],
                     ),
                   ),
                 ),
 
-              // Pause / resume controls (v126) — only during active work.
               if (_currentStatus == 'ACTIVE' || _currentStatus == 'IN_PROGRESS')
-                _pauseSection(cs),
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 12),
+                  child: Center(
+                    child: TextButton.icon(
+                      onPressed: () => showReportIssueSheet(context, ref,
+                          bookingId: widget.bookingId,
+                          isWorker: widget.isWorker),
+                      icon: Icon(Icons.flag_outlined,
+                          size: 14,
+                          color: context.gx.ink.withValues(alpha: 0.5)),
+                      label: Text('Report an issue',
+                          style: TextStyle(
+                              fontSize: 12,
+                              color: context.gx.ink.withValues(alpha: 0.5))),
+                    ),
+                  ),
+                ),
 
               // Action buttons
               Row(
@@ -1159,150 +1141,6 @@ class _LiveTrackingMapScreenState extends ConsumerState<LiveTrackingMapScreen> {
     );
   }
 
-  // ── Pause / resume + report (v126 Instant Help c12–c14 / w5–w7) ──────────
-
-  Future<void> _pauseAction(Future<void> Function() action) async {
-    if (_pauseActionBusy) return;
-    setState(() => _pauseActionBusy = true);
-    try {
-      await action();
-      // Refresh the SHARED poll immediately so the UI doesn't wait for the
-      // next 5s tick (and every other widget sees the new state too).
-      ref.invalidate(bookingStatusProvider(widget.bookingId));
-    } catch (e) {
-      if (mounted) {
-        showGxSnack(context, 'Action failed: $e', type: GxSnackType.error);
-      }
-    } finally {
-      if (mounted) setState(() => _pauseActionBusy = false);
-    }
-  }
-
-  Widget _pauseSection(ColorScheme cs) {
-    final repo = ref.read(bookingRepositoryProvider);
-
-    Widget child;
-    if (widget.isWorker) {
-      if (_paused) {
-        child = GxButton(
-          label: 'Resume work — timer continues',
-          icon: Icons.play_arrow_rounded,
-          height: 44,
-          radius: 12,
-          fontSize: 13,
-          onTap: _pauseActionBusy
-              ? null
-              : () => _pauseAction(() => repo.resumeWork(widget.bookingId)),
-        );
-      } else if (_pauseRequested) {
-        child = Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const SizedBox(
-                width: 14,
-                height: 14,
-                child: CircularProgressIndicator(strokeWidth: 2)),
-            const SizedBox(width: 10),
-            Text('Pause requested — waiting for customer',
-                style: TextStyle(
-                    fontSize: 12.5, color: cs.onSurfaceVariant)),
-          ],
-        );
-      } else {
-        child = GxButton(
-          label: 'Request pause',
-          icon: Icons.pause_rounded,
-          filled: false,
-          height: 44,
-          radius: 12,
-          fontSize: 13,
-          onTap: _pauseActionBusy
-              ? null
-              : () => _pauseAction(() => repo.requestPause(widget.bookingId)),
-        );
-      }
-    } else {
-      if (_pauseRequested) {
-        child = Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Text('${widget.worker.name} asked to pause the job timer',
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                    fontSize: 13, fontWeight: FontWeight.w700)),
-            const SizedBox(height: 10),
-            Row(
-              children: [
-                Expanded(
-                  child: GxButton(
-                    label: 'Approve pause',
-                    height: 44,
-                    radius: 12,
-                    fontSize: 13,
-                    onTap: _pauseActionBusy
-                        ? null
-                        : () => _pauseAction(() =>
-                            repo.respondPause(widget.bookingId, approve: true)),
-                  ),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: GxButton(
-                    label: 'Decline',
-                    filled: false,
-                    height: 44,
-                    radius: 12,
-                    fontSize: 13,
-                    onTap: _pauseActionBusy
-                        ? null
-                        : () => _pauseAction(() => repo
-                            .respondPause(widget.bookingId, approve: false)),
-                  ),
-                ),
-              ],
-            ),
-          ],
-        );
-      } else if (_paused) {
-        child = Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Icon(Icons.pause_circle_outline_rounded,
-                size: 16, color: GixbeeTheme.accentGold),
-            const SizedBox(width: 8),
-            Text('Timer paused — resumes when work continues',
-                style: TextStyle(fontSize: 12.5, color: cs.onSurfaceVariant)),
-          ],
-        );
-      } else {
-        child = const SizedBox.shrink();
-      }
-    }
-
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          child,
-          const SizedBox(height: 6),
-          Center(
-            child: TextButton.icon(
-              onPressed: () => showReportIssueSheet(context, ref,
-                  bookingId: widget.bookingId, isWorker: widget.isWorker),
-              icon: Icon(Icons.flag_outlined,
-                  size: 14, color: context.gx.ink.withValues(alpha: 0.5)),
-              label: Text('Report an issue',
-                  style: TextStyle(
-                      fontSize: 12,
-                      color: context.gx.ink.withValues(alpha: 0.5))),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
   void _goToOtpScreen() {
     if (!mounted || _arrivalOtp == null) return;
     Navigator.pushReplacement(
@@ -1353,8 +1191,6 @@ class _LiveTrackingMapScreenState extends ConsumerState<LiveTrackingMapScreen> {
         return 'Worker has arrived';
       case 'ACTIVE':
       case 'IN_PROGRESS':
-        if (_paused) return 'Paused — timer stopped';
-        if (_pauseRequested) return 'Pause requested';
         return 'Work in progress';
       default:
         return 'Tracking';

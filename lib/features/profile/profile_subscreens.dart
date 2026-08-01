@@ -1181,8 +1181,8 @@ class HelpFaqScreen extends StatelessWidget {
     ),
     (
       'Is my data safe?',
-      'Yes. Identity verification is handled via government-backed DigiLocker and '
-          'Gixbee never stores your Aadhaar number.'
+      'Yes. Pro identity is verified with Aadhaar OTP (eKYC). Gixbee does not '
+          'store your full Aadhaar number — only a verification status.'
     ),
   ];
 

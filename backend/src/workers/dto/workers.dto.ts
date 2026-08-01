@@ -70,6 +70,8 @@ export class UpdateServiceRadiusDto {
 
 // POST /workers/live-toggle — optional GPS so Instant Help can match this
 // worker immediately (without waiting for a post-accept location stream).
+// Optional `active` makes the call idempotent (desired state) so a lost
+// response + retry cannot flip the pro the wrong way.
 export class LiveToggleDto {
   @IsOptional()
   @IsNumber()
@@ -78,6 +80,10 @@ export class LiveToggleDto {
   @IsOptional()
   @IsNumber()
   lng?: number;
+
+  @IsOptional()
+  @IsBoolean()
+  active?: boolean;
 }
 
 // PATCH /workers/me/location — refresh Redis + last known DB coords while live.

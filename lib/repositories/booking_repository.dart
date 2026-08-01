@@ -312,37 +312,7 @@ class BookingRepository {
     }
   }
 
-  // ── Pause / resume (v126 Instant Help) ────────────────────────────────────
-  // Worker asks → customer approves/declines → worker resumes. Status stays
-  // ACTIVE; poll payload carries `pauseRequested` / `paused` / `pausedMinutes`.
-
-  Future<void> requestPause(String bookingId) async {
-    try {
-      await _dio.patch('/bookings/$bookingId/pause-request');
-    } catch (e) {
-      debugPrint('RequestPause failed: $e');
-      rethrow;
-    }
-  }
-
-  Future<void> respondPause(String bookingId, {required bool approve}) async {
-    try {
-      await _dio.patch(
-          '/bookings/$bookingId/${approve ? 'pause-approve' : 'pause-decline'}');
-    } catch (e) {
-      debugPrint('RespondPause failed: $e');
-      rethrow;
-    }
-  }
-
-  Future<void> resumeWork(String bookingId) async {
-    try {
-      await _dio.patch('/bookings/$bookingId/resume');
-    } catch (e) {
-      debugPrint('ResumeWork failed: $e');
-      rethrow;
-    }
-  }
+  // Dispute reporting (pause/resume was removed — bill full wall-clock time).
 
   Future<void> reportDispute(String bookingId, String reason) async {
     try {

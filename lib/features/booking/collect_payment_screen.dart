@@ -399,11 +399,6 @@ class _CollectPaymentScreenState extends ConsumerState<CollectPaymentScreen> {
                               value: '₹$amount',
                               valueColor: green,
                             ),
-                            _BreakdownRow(
-                              label: 'Pause time (not charged)',
-                              value: '₹0',
-                              valueColor: gx.ink.withValues(alpha: 0.45),
-                            ),
                           ],
                         ),
                         const SizedBox(height: 22),

@@ -13,7 +13,16 @@ final locationLoadingProvider = StateProvider<bool>((ref) => false);
 class LocationService {
   final Geocoding _geocoding = Geocoding();
 
-  Future<Position?> getCurrentPosition() async {
+  /// Current GPS fix. Returns null when services/permission are blocked,
+  /// or when the fix times out / fails.
+  ///
+  /// [fallbackToLastKnown]: if the live fix fails (common indoors / cold
+  /// start), return the OS last-known position when available. Prefer this
+  /// for Go Live — a slightly stale coord is far better than a failed
+  /// toggle that never reaches the server.
+  Future<Position?> getCurrentPosition({
+    bool fallbackToLastKnown = false,
+  }) async {
     bool serviceEnabled;
     LocationPermission permission;
 
@@ -43,12 +52,29 @@ class LocationService {
       return null;
     }
 
-    return await Geolocator.getCurrentPosition(
-      locationSettings: const LocationSettings(
-        accuracy: LocationAccuracy.low,
-        timeLimit: Duration(seconds: 10),
-      ),
-    );
+    try {
+      return await Geolocator.getCurrentPosition(
+        locationSettings: const LocationSettings(
+          accuracy: LocationAccuracy.medium,
+          timeLimit: Duration(seconds: 12),
+        ),
+      );
+    } catch (e) {
+      debugPrint('getCurrentPosition failed: $e');
+      if (fallbackToLastKnown) {
+        try {
+          final last = await Geolocator.getLastKnownPosition();
+          if (last != null) {
+            debugPrint(
+                'Using last-known position (${last.latitude}, ${last.longitude})');
+            return last;
+          }
+        } catch (lastErr) {
+          debugPrint('getLastKnownPosition failed: $lastErr');
+        }
+      }
+      return null;
+    }
   }
 
   /// Why a GPS fix is currently impossible:

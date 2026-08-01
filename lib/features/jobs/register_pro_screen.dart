@@ -21,7 +21,7 @@ import 'pro_skill_taxonomy.dart';
 ///
 /// Step 1 Profile  — photo upload + short bio
 /// Step 2 Skills   — trade categories with sub-skill checkboxes + base rate
-/// Step 3 Verify   — DigiLocker (stubbed) + certificate upload
+/// Step 3 Verify   — Aadhaar eKYC (stubbed) + certificate upload
 /// Step 4 Review   — summary → submit → Go Live
 ///
 /// Gixbee 2026 design: neutral header, progress dots, glass cards, bento
@@ -240,19 +240,18 @@ class _RegisterProScreenState extends ConsumerState<RegisterProScreen> {
     });
   }
 
-  // ── DigiLocker stub (credential-blocked) ─────────────────────────────────
-  // TODO: needs DigiLocker API key — replace with the real OAuth consent flow.
-  // The "coming soon" copy is now driven by the backend verification-status
-  // stub (GET /talent/verification/status) — mirroring how the checkout UPI
-  // tile renders from /payments/gateway-status — so the shell state lives in
-  // one place. Falls back to local copy if the status call fails (offline).
-  static const String _digiLockerFallbackMsg =
-      'Government-ID verification via DigiLocker is coming soon. '
-      'Verified pros rank higher and get more jobs. For now you can '
+  // ── Aadhaar eKYC stub (credential-blocked) ───────────────────────────────
+  // Prefer Aadhaar OTP / eKYC over DigiLocker — every adult in India has an
+  // Aadhaar; DigiLocker is optional. Status copy comes from
+  // GET /talent/verification/status (same pattern as UPI gateway-status).
+  static const String _aadhaarFallbackMsg =
+      'Aadhaar verification is coming soon. Enter your Aadhaar and confirm '
+      'with the OTP sent to your registered mobile — no DigiLocker account '
+      'needed. Verified pros rank higher and get more jobs. For now you can '
       'upload certificates below as proof.';
 
-  Future<void> _showDigiLockerSheet() async {
-    String message = _digiLockerFallbackMsg;
+  Future<void> _showAadhaarSheet() async {
+    String message = _aadhaarFallbackMsg;
     try {
       final status =
           await ref.read(talentRepositoryProvider).getVerificationStatus();
@@ -264,7 +263,7 @@ class _RegisterProScreenState extends ConsumerState<RegisterProScreen> {
     if (!mounted) return;
     showGxSheet(
       context,
-      title: 'DigiLocker verification',
+      title: 'Aadhaar verification',
       child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -395,6 +394,16 @@ class _RegisterProScreenState extends ConsumerState<RegisterProScreen> {
       // so user.isWorker is true IN THIS SESSION (Go Live gate + Earn Hourly
       // routing), not only after the next login.
       ref.invalidate(currentUserProvider);
+      // A Go Live screen sitting under this wizard keeps the dashboard
+      // provider alive, so its pre-registration 404 / empty-shell result
+      // survives and the new screen re-reads it — showing "Register as Pro"
+      // to a pro who just registered until the route is popped and reopened.
+      ref.invalidate(goLiveDashboardProvider);
+      // Let the user refetch land before routing, so the Go Live gate reads
+      // hasWorkerProfile=true instead of briefly flashing the wizard CTA.
+      try {
+        await ref.read(currentUserProvider.future);
+      } catch (_) {}
 
       await _fetchProfile();
       if (!mounted) return;
@@ -927,14 +936,14 @@ class _RegisterProScreenState extends ConsumerState<RegisterProScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text('Verify with DigiLocker',
+                    const Text('Verify with Aadhaar',
                         style: TextStyle(
                             fontWeight: FontWeight.w800, fontSize: 14)),
                     const SizedBox(height: 3),
                     Text(
                         _isVerified
-                            ? 'Your identity is verified.'
-                            : 'Government-ID check. Verified pros get more jobs.',
+                            ? 'Your Aadhaar is verified.'
+                            : 'OTP on your Aadhaar-linked mobile. No DigiLocker needed.',
                         style: TextStyle(
                             color: cs.onSurfaceVariant, fontSize: 11)),
                   ],
@@ -945,12 +954,12 @@ class _RegisterProScreenState extends ConsumerState<RegisterProScreen> {
         ),
         const SizedBox(height: 10),
         GxButton(
-          label: 'Verify with DigiLocker',
-          icon: Icons.account_balance_rounded,
+          label: 'Verify with Aadhaar',
+          icon: Icons.badge_outlined,
           filled: false,
           accent: GixbeeTheme.accentGold,
           height: 46,
-          onTap: _showDigiLockerSheet,
+          onTap: _showAadhaarSheet,
         ),
         const SizedBox(height: 24),
         _label(cs, 'CERTIFICATES & DOCUMENTS'),

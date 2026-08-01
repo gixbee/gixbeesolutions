@@ -1125,23 +1125,9 @@ export class BookingsService {
       const startTime = locked.startedAt
         ? new Date(locked.startedAt).getTime()
         : Date.now();
-      // Bill only WORKED time: subtract approved pause windows (pausedMinutes),
-      // including a still-open pause at completion time.
-      let pausedMinutes = locked.pausedMinutes ?? 0;
-      if (locked.pausedAt) {
-        pausedMinutes += Math.max(
-          0,
-          Math.round(
-            (Date.now() - new Date(locked.pausedAt).getTime()) / 60000,
-          ),
-        );
-        locked.pausedAt = null as any;
-      }
-      locked.pausedMinutes = pausedMinutes;
-
+      // Bill full wall-clock time from start → complete (no pause deduction).
       const elapsedMs = Math.max(0, Date.now() - startTime);
-      const pausedMs = pausedMinutes * 60 * 1000;
-      const workedMs = Math.max(0, elapsedMs - pausedMs);
+      const workedMs = elapsedMs;
       // Floor at 1 minute so a near-instant completion still has a charge base.
       const workedMinutes = Math.max(1, Math.round(workedMs / 60000));
       const billingHours = Math.max(1, Math.ceil(workedMinutes / 60));
@@ -1150,6 +1136,9 @@ export class BookingsService {
       locked.completedAt = locked.completedAt ?? new Date();
       locked.billingHours = billingHours;
       locked.workedMinutes = workedMinutes;
+      locked.pausedAt = null as any;
+      locked.pauseRequestedAt = null as any;
+      locked.pausedMinutes = 0;
       // INSTANT: amount is ₹/hr — min 1 hour then proportional. Others: flat.
       const hourlyRate = Number(locked.amount) || 0;
       const billableMinutes = Math.max(60, workedMinutes);
@@ -1213,7 +1202,7 @@ export class BookingsService {
         outboxId: outbox.id,
         billingHours,
         workedMinutes,
-        pausedMinutes,
+        pausedMinutes: 0,
         hourlyRate,
         totalAmount,
       };
@@ -1338,9 +1327,9 @@ export class BookingsService {
           isPaid: !!booking.isPaid,
           workerPaidConfirmed: !!booking.workerPaidConfirmed,
           customerPaidConfirmed: !!booking.customerPaidConfirmed,
-          pauseRequested: !!booking.pauseRequestedAt,
-          paused: !!booking.pausedAt,
-          pausedMinutes: booking.pausedMinutes ?? 0,
+          pauseRequested: false,
+          paused: false,
+          pausedMinutes: 0,
         },
       );
       return { outboxId: outbox.id };
@@ -1488,39 +1477,8 @@ export class BookingsService {
     return { message: 'Customer rating submitted' };
   }
 
-  // ── Pause / resume (v126 Instant Help c12–c14 / w6–w7) ────────────────────
-  // Worker requests a pause mid-job → customer approves (timer stops) or
-  // declines → worker resumes when work restarts. Status stays ACTIVE
-  // throughout (pause lives in dedicated columns, see booking.entity.ts);
-  // pausedMinutes accumulates so billing can subtract idle time.
-
-  private async loadActiveBooking(bookingId: string): Promise<Booking> {
-    const booking = await this.bookingsRepository.findOne({
-      where: { id: bookingId },
-      relations: ['customer', 'operator'],
-    });
-    if (!booking) throw new NotFoundException('Booking not found');
-    if (booking.status !== BookingStatus.ACTIVE) {
-      throw new BadRequestException(
-        'Pause is only available during active work',
-      );
-    }
-    return booking;
-  }
-
-  /** Broadcast pause state to the pollers via the Redis status cache and socket. */
-  private async cachePauseState(booking: Booking): Promise<void> {
-    await this.cacheAndEmitBookingStatus(booking.id, {
-      status: booking.status,
-      operatorName: booking.operator?.name,
-      operatorId: booking.operator?.id ?? null,
-      customerId: booking.customer?.id ?? null,
-      arrivalOtp: null,
-      pauseRequested: !!booking.pauseRequestedAt,
-      paused: !!booking.pausedAt,
-      pausedMinutes: booking.pausedMinutes ?? 0,
-    });
-  }
+  // Status poll fields still include pause* keys as always-false/0 so older
+  // clients don't break; pause/resume was removed.
 
   /**
    * Caches the booking status in Redis AND instantly pushes a real-time
@@ -1575,99 +1533,8 @@ export class BookingsService {
     }
   }
 
-  async requestPause(bookingId: string, operatorUserId: string) {
-    const booking = await this.loadActiveBooking(bookingId);
-    if (booking.operator?.id !== operatorUserId) {
-      throw new BadRequestException(
-        'Only the assigned worker can request a pause',
-      );
-    }
-    if (booking.pausedAt)
-      throw new BadRequestException('Job is already paused');
-    booking.pauseRequestedAt = new Date();
-    await this.bookingsRepository.save(booking);
-    await this.cachePauseState(booking);
-    if (booking.customer?.id) {
-      await this.notificationsService
-        .sendToUser(booking.customer.id, {
-          title: 'Pause requested',
-          body: 'Your worker asked to pause the job timer. Approve or decline in the app.',
-          data: { type: 'pause_requested', bookingId: booking.id },
-        })
-        .catch((err) =>
-          console.error('[RequestPause] notification failed:', err),
-        );
-    }
-    return { message: 'Pause request sent to customer', pauseRequested: true };
-  }
-
-  async respondPause(
-    bookingId: string,
-    customerUserId: string,
-    approve: boolean,
-  ) {
-    const booking = await this.loadActiveBooking(bookingId);
-    if (booking.customer?.id !== customerUserId) {
-      throw new BadRequestException(
-        'Only the customer can respond to a pause request',
-      );
-    }
-    if (!booking.pauseRequestedAt) {
-      throw new BadRequestException('No pending pause request');
-    }
-    booking.pauseRequestedAt = null as any;
-    if (approve) booking.pausedAt = new Date();
-    await this.bookingsRepository.save(booking);
-    await this.cachePauseState(booking);
-    if (booking.operator?.id) {
-      await this.notificationsService
-        .sendToUser(booking.operator.id, {
-          title: approve ? 'Pause approved' : 'Pause declined',
-          body: approve
-            ? 'Timer stopped. Tap Resume when work continues.'
-            : 'The customer declined the pause — keep working.',
-          data: {
-            type: approve ? 'pause_approved' : 'pause_declined',
-            bookingId: booking.id,
-          },
-        })
-        .catch((err) =>
-          console.error('[RespondPause] notification failed:', err),
-        );
-    }
-    return {
-      message: approve ? 'Pause approved' : 'Pause declined',
-      paused: approve,
-    };
-  }
-
-  async resumeWork(bookingId: string, operatorUserId: string) {
-    const booking = await this.loadActiveBooking(bookingId);
-    if (booking.operator?.id !== operatorUserId) {
-      throw new BadRequestException(
-        'Only the assigned worker can resume the job',
-      );
-    }
-    if (!booking.pausedAt) throw new BadRequestException('Job is not paused');
-    const pausedMs = Date.now() - new Date(booking.pausedAt).getTime();
-    booking.pausedMinutes =
-      (booking.pausedMinutes ?? 0) + Math.max(0, Math.round(pausedMs / 60000));
-    booking.pausedAt = null as any;
-    await this.bookingsRepository.save(booking);
-    await this.cachePauseState(booking);
-    if (booking.customer?.id) {
-      await this.notificationsService
-        .sendToUser(booking.customer.id, {
-          title: 'Work resumed',
-          body: 'The job timer is running again.',
-          data: { type: 'work_resumed', bookingId: booking.id },
-        })
-        .catch((err) =>
-          console.error('[ResumeWork] notification failed:', err),
-        );
-    }
-    return { message: 'Work resumed', pausedMinutes: booking.pausedMinutes };
-  }
+  // Pause / resume removed — bill full wall-clock time. DB columns remain
+  // for historical rows; status always reports no pause.
 
   // ── Dispute / report — persisted (was a log-only stub). Either party can
   // file; stored on the booking so admin review and support can act on it.
@@ -1844,9 +1711,9 @@ export class BookingsService {
           isCustomer && status === 'ACCEPTED'
             ? (cached.arrivalOtp ?? null)
             : null,
-        pauseRequested: !!cached.pauseRequested,
-        paused: !!cached.paused,
-        pausedMinutes: Number(cached.pausedMinutes ?? 0) || 0,
+        pauseRequested: false,
+        paused: false,
+        pausedMinutes: 0,
         isPaid: !!cached.isPaid,
         workerPaidConfirmed: !!cached.workerPaidConfirmed,
         customerPaidConfirmed: !!cached.customerPaidConfirmed,
@@ -1869,9 +1736,9 @@ export class BookingsService {
       operatorId: booking.operator?.id ?? null,
       customerId: booking.customer?.id ?? null,
       arrivalOtp: booking.arrivalOtp,
-      pauseRequested: !!booking.pauseRequestedAt,
-      paused: !!booking.pausedAt,
-      pausedMinutes: booking.pausedMinutes ?? 0,
+      pauseRequested: false,
+      paused: false,
+      pausedMinutes: 0,
       isPaid: !!booking.isPaid,
       workerPaidConfirmed: !!booking.workerPaidConfirmed,
       customerPaidConfirmed: !!booking.customerPaidConfirmed,

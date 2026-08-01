@@ -438,12 +438,6 @@ class _CustomerPayScreenState extends ConsumerState<CustomerPayScreen> {
                               const SizedBox(height: 10),
                               _row('Active work time', billing.durationLabel,
                                   green, gx),
-                              _row(
-                                'Pause time (not charged)',
-                                billing.pauseLabel,
-                                gx.ink.withValues(alpha: 0.45),
-                                gx,
-                              ),
                               _row('Rate', '₹${billing.rateInt}/hr', gx.ink, gx),
                               _row('Total', '₹$amount', green, gx, bold: true),
                             ],

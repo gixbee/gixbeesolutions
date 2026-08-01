@@ -336,28 +336,7 @@ export class BookingsController {
     return this.bookingsService.rateCustomer(id, req.user.userId, body.rating);
   }
 
-  // ── Pause / resume (v126 Instant Help). Worker asks → customer approves or
-  // declines → worker resumes. Status stays ACTIVE; pollers see the pause
-  // state via the Redis status payload.
-  @Patch(':id/pause-request')
-  async requestPause(@Param('id') id: string, @Req() req) {
-    return this.bookingsService.requestPause(id, req.user.userId);
-  }
-
-  @Patch(':id/pause-approve')
-  async approvePause(@Param('id') id: string, @Req() req) {
-    return this.bookingsService.respondPause(id, req.user.userId, true);
-  }
-
-  @Patch(':id/pause-decline')
-  async declinePause(@Param('id') id: string, @Req() req) {
-    return this.bookingsService.respondPause(id, req.user.userId, false);
-  }
-
-  @Patch(':id/resume')
-  async resumeWork(@Param('id') id: string, @Req() req) {
-    return this.bookingsService.resumeWork(id, req.user.userId);
-  }
+  // Dispute reporting (pause/resume was removed — bill full wall-clock time).
 
   // Persisted now (was log-only): stored on the booking with reporter role
   // + timestamp so support/admin can review.

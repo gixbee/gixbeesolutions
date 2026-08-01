@@ -63,18 +63,17 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   group('ManualPaymentBilling', () {
-    test('formats duration and pause labels', () {
+    test('formats duration labels', () {
       const b = ManualPaymentBilling(
         amount: 156,
         hourlyRate: 130,
         workedMinutes: 72,
-        pausedMinutes: 22,
+        pausedMinutes: 0,
         platformFee: 12,
         counterpartName: 'Suresh',
       );
       expect(b.compactDurationLabel, '1hr 12min');
       expect(b.durationLabel, '1 hr 12 min');
-      expect(b.pauseLabel, '22 min · ₹0');
       expect(b.amountInt, 156);
     });
   });
