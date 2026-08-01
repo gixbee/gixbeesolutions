@@ -315,10 +315,12 @@ services:
         max-size: "10m"
         max-file: "3"
     environment:
-      PGADMIN_DEFAULT_EMAIL: admin@gixbee.local
+      PGADMIN_DEFAULT_EMAIL: admin@gixbee.com
       PGADMIN_DEFAULT_PASSWORD: gixbee-pgadmin-2026
       PGADMIN_CONFIG_SERVER_MODE: "True"
       PGADMIN_CONFIG_MASTER_PASSWORD_REQUIRED: "False"
+      # Allow .local later if needed; use a real TLD so email validation passes.
+      PGADMIN_CONFIG_CHECK_EMAIL_DELIVERABILITY: "False"
       SCRIPT_NAME: /infra/pgadmin
     volumes:
       - pgadmin_data:/var/lib/pgadmin
