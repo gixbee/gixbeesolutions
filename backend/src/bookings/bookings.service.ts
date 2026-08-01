@@ -38,6 +38,7 @@ export class BookingsService {
   private static readonly COMP_PER_KM_DEFAULT = 10;
   private static readonly COMP_MIN_INR_DEFAULT = 49;
   private static readonly COMP_MAX_INR_DEFAULT = 299;
+  private static readonly INSTANT_PETROL_PER_KM_DEFAULT = 10;
 
   /** Worker GPS must be this fresh for a progress check to pass. */
   private static readonly GPS_LOCATION_MAX_AGE_MS = 90_000;
@@ -1582,6 +1583,10 @@ export class BookingsService {
     workedMinutes: number;
     pausedMinutes: number;
     hourlyRate: number;
+    serviceAmount: number;
+    petrolDistanceKm: number;
+    petrolRatePerKm: number;
+    petrolAmount: number;
     platformFee: number;
     paymentMethod: string;
     totalAmount: number;
@@ -1607,6 +1612,17 @@ export class BookingsService {
     if (booking.status !== BookingStatus.ACTIVE) {
       throw new BadRequestException('Job must be active to complete');
     }
+
+    const configuredPetrolRate =
+      booking.type === BookingType.INSTANT
+        ? Math.max(
+            0,
+            await this.masterEntriesService.getConfigNumber(
+              'instant_petrol_per_km',
+              BookingsService.INSTANT_PETROL_PER_KM_DEFAULT,
+            ),
+          )
+        : 0;
 
     // Claim + billing save + outbox in one TX so Redis/socket/worker-release
     // side effects survive a crash after commit (BOOKING_COMPLETED listener).
@@ -1647,10 +1663,31 @@ export class BookingsService {
       // INSTANT: amount is ₹/hr — min 1 hour then proportional. Others: flat.
       const hourlyRate = Number(locked.amount) || 0;
       const billableMinutes = Math.max(60, workedMinutes);
-      const totalAmount =
+      const serviceAmount =
         locked.type === BookingType.INSTANT
           ? Math.round(hourlyRate * (billableMinutes / 60))
           : hourlyRate;
+      const rawPetrolDistance = Number(locked.acceptDistanceKm);
+      const petrolDistanceKm =
+        locked.type === BookingType.INSTANT &&
+        Number.isFinite(rawPetrolDistance) &&
+        rawPetrolDistance > 0
+          ? rawPetrolDistance
+          : 0;
+      const petrolRatePerKm =
+        locked.type === BookingType.INSTANT ? configuredPetrolRate : 0;
+      const petrolAmount =
+        locked.type === BookingType.INSTANT
+          ? Math.round(petrolDistanceKm * petrolRatePerKm)
+          : 0;
+      const totalAmount = serviceAmount + petrolAmount;
+
+      locked.petrolDistanceKm =
+        locked.type === BookingType.INSTANT ? petrolDistanceKm : null;
+      locked.petrolRatePerKm =
+        locked.type === BookingType.INSTANT ? petrolRatePerKm : null;
+      locked.petrolAmount =
+        locked.type === BookingType.INSTANT ? petrolAmount : null;
       locked.totalAmount = totalAmount;
 
       // Instant Help settles offline. Non-instant WALLET path kept behind flag.
@@ -1709,6 +1746,10 @@ export class BookingsService {
         workedMinutes,
         pausedMinutes: 0,
         hourlyRate,
+        serviceAmount,
+        petrolDistanceKm,
+        petrolRatePerKm,
+        petrolAmount,
         totalAmount,
       };
     });
@@ -1741,6 +1782,10 @@ export class BookingsService {
       workedMinutes: txResult.workedMinutes,
       pausedMinutes: txResult.pausedMinutes,
       hourlyRate: txResult.hourlyRate,
+      serviceAmount: txResult.serviceAmount,
+      petrolDistanceKm: txResult.petrolDistanceKm,
+      petrolRatePerKm: txResult.petrolRatePerKm,
+      petrolAmount: txResult.petrolAmount,
       platformFee,
       paymentMethod: completed.paymentMethod,
       totalAmount: txResult.totalAmount,

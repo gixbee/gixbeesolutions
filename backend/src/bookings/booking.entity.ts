@@ -150,6 +150,16 @@ export class Booking {
   @Column({ type: 'decimal', precision: 8, scale: 2, nullable: true })
   acceptDistanceKm: number | null;
 
+  /** Frozen Instant Help petrol billing values, set when the job completes. */
+  @Column({ type: 'decimal', precision: 8, scale: 2, nullable: true })
+  petrolDistanceKm: number | null;
+
+  @Column({ type: 'decimal', precision: 8, scale: 2, nullable: true })
+  petrolRatePerKm: number | null;
+
+  @Column({ type: 'int', nullable: true })
+  petrolAmount: number | null;
+
   /**
    * Set when GPS progress checks confirm the worker is not moving toward the
    * job. While set (and status still ACCEPTED), the customer may cancel free

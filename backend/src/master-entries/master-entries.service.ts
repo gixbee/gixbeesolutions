@@ -272,6 +272,11 @@ export class MasterEntriesService implements OnModuleInit {
       value: '49',
       note: 'Periodic fee plan: Rs. charged (direct Razorpay) to unlock the next batch of included jobs.',
     },
+    {
+      key: 'instant_petrol_per_km',
+      value: '10',
+      note: 'Instant Help petrol charge in Rs. per one-way km from the worker accept location to the customer.',
+    },
   ];
 
   private async seedDefaultConfigs(): Promise<void> {

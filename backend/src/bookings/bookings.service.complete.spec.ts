@@ -14,7 +14,11 @@ import { OutboxEventType } from '../outbox/outbox.types';
  * - first completed job        → marks isFirstJobDone (wallet bonus behind flag)
  * - BOOKING_COMPLETED outbox appended in-tx; Redis/worker release via listener
  */
-function makeService(booking: any, workerProfile: any = undefined) {
+function makeService(
+  booking: any,
+  workerProfile: any = undefined,
+  configValues: Record<string, number> = {},
+) {
   const manager: any = {
     update: jest.fn(async () =>
       booking?.status === BookingStatus.ACTIVE
@@ -79,7 +83,12 @@ function makeService(booking: any, workerProfile: any = undefined) {
     { emitUserEvent: jest.fn() } as any,
     outboxService,
     { consumeCredit: jest.fn(), refundCredit: jest.fn() } as any,
-    { getConfigNumber: jest.fn(async (_k: string, f: number) => f) } as any,
+    {
+      getConfigNumber: jest.fn(
+        async (key: string, fallback: number) =>
+          configValues[key] ?? fallback,
+      ),
+    } as any,
   );
   return {
     service,
@@ -246,6 +255,61 @@ describe('BookingsService.verifyCompletionOtp', () => {
     expect((booking as any).billingHours).toBe(2);
   });
 
+  it('adds one-way petrol to an Instant job using the Master rate', async () => {
+    const booking = {
+      ...baseBooking(),
+      type: 'INSTANT',
+      amount: 200,
+      acceptDistanceKm: 5.2,
+      startedAt: new Date(Date.now() - 70 * 60 * 1000),
+    };
+    const { service } = makeService(booking, undefined, {
+      instant_petrol_per_km: 12,
+    });
+
+    const res = await service.verifyCompletionOtp('b1', '1234');
+
+    expect(res.serviceAmount).toBe(233);
+    expect(res.petrolDistanceKm).toBe(5.2);
+    expect(res.petrolRatePerKm).toBe(12);
+    expect(res.petrolAmount).toBe(62);
+    expect(res.totalAmount).toBe(295);
+    expect((booking as any).petrolAmount).toBe(62);
+  });
+
+  it('charges no petrol when an Instant booking has no accept distance', async () => {
+    const booking = {
+      ...baseBooking(),
+      type: 'INSTANT',
+      amount: 200,
+      acceptDistanceKm: null,
+    };
+    const { service } = makeService(booking);
+
+    const res = await service.verifyCompletionOtp('b1', '1234');
+
+    expect(res.serviceAmount).toBe(200);
+    expect(res.petrolDistanceKm).toBe(0);
+    expect(res.petrolAmount).toBe(0);
+    expect(res.totalAmount).toBe(200);
+  });
+
+  it('does not add petrol to non-Instant bookings', async () => {
+    const booking = {
+      ...baseBooking(),
+      type: 'PACKAGE',
+      amount: 200,
+      acceptDistanceKm: 5.2,
+    };
+    const { service } = makeService(booking);
+
+    const res = await service.verifyCompletionOtp('b1', '1234');
+
+    expect(res.petrolAmount).toBe(0);
+    expect(res.totalAmount).toBe(200);
+    expect((booking as any).petrolAmount).toBeNull();
+  });
+
   it('bills a minimum of 1 worked minute / 1 billing hour when startedAt is missing', async () => {
     const booking = { ...baseBooking(), startedAt: null as any };
     const { service } = makeService(booking);
@@ -256,21 +320,21 @@ describe('BookingsService.verifyCompletionOtp', () => {
     expect(res.billingHours).toBe(1);
   });
 
-  it('excludes pause time from worked minutes', async () => {
+  it('bills full wall-clock time after pause removal', async () => {
     const booking = {
       ...baseBooking(),
       type: 'INSTANT',
       amount: 130,
-      startedAt: new Date(Date.now() - 94 * 60 * 1000), // 94 min wall
+      startedAt: new Date(Date.now() - 94 * 60 * 1000),
       pausedMinutes: 22,
     };
     const { service } = makeService(booking);
 
     const res = await service.verifyCompletionOtp('b1', '1234');
 
-    expect(res.workedMinutes).toBe(72);
-    expect(res.pausedMinutes).toBe(22);
-    expect(res.totalAmount).toBe(156); // round(130 * 72/60)
+    expect(res.workedMinutes).toBe(94);
+    expect(res.pausedMinutes).toBe(0);
+    expect(res.totalAmount).toBe(204); // round(130 * 94/60)
   });
 
   // ── First-job bonus ───────────────────────────────────────────────────────

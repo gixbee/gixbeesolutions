@@ -32,7 +32,8 @@ class CompletionOtpScreen extends ConsumerStatefulWidget {
   });
 
   @override
-  ConsumerState<CompletionOtpScreen> createState() => _CompletionOtpScreenState();
+  ConsumerState<CompletionOtpScreen> createState() =>
+      _CompletionOtpScreenState();
 }
 
 class _CompletionOtpScreenState extends ConsumerState<CompletionOtpScreen> {
@@ -53,8 +54,7 @@ class _CompletionOtpScreenState extends ConsumerState<CompletionOtpScreen> {
     super.initState();
     _controllers = List.generate(
         AppConfig.bookingOtpLength, (_) => TextEditingController());
-    _focusNodes =
-        List.generate(AppConfig.bookingOtpLength, (_) => FocusNode());
+    _focusNodes = List.generate(AppConfig.bookingOtpLength, (_) => FocusNode());
 
     if (!widget.isWorker) {
       _fetchOtp();
@@ -99,12 +99,23 @@ class _CompletionOtpScreenState extends ConsumerState<CompletionOtpScreen> {
       final amount =
           (num.tryParse('${b['totalAmount'] ?? b['amount'] ?? 0}') ?? 0)
               .toDouble();
+      final petrolAmount =
+          (num.tryParse('${b['petrolAmount'] ?? 0}') ?? 0).toDouble();
+      final serviceAmount = (num.tryParse(
+                '${b['serviceAmount'] ?? (amount - petrolAmount)}',
+              ) ??
+              (amount - petrolAmount))
+          .toDouble();
+      final petrolDistanceKm =
+          (num.tryParse('${b['petrolDistanceKm'] ?? 0}') ?? 0).toDouble();
+      final petrolRatePerKm =
+          (num.tryParse('${b['petrolRatePerKm'] ?? 0}') ?? 0).toDouble();
       final hourlyRate = (num.tryParse(
                   '${b['hourlyRate'] ?? (b['type']?.toString().toUpperCase() == 'INSTANT' ? b['amount'] : 0) ?? 0}') ??
               0)
           .toDouble();
-      final workedMinutes = (num.tryParse('${b['workedMinutes'] ?? 60}') ?? 60)
-          .round();
+      final workedMinutes =
+          (num.tryParse('${b['workedMinutes'] ?? 60}') ?? 60).round();
       final pausedMinutes =
           (num.tryParse('${b['pausedMinutes'] ?? 0}') ?? 0).round();
 
@@ -116,6 +127,10 @@ class _CompletionOtpScreenState extends ConsumerState<CompletionOtpScreen> {
             amount: amount,
             workerName: b['operator']?['name']?.toString() ?? widget.workerName,
             hourlyRate: hourlyRate > 0 ? hourlyRate : null,
+            serviceAmount: serviceAmount,
+            petrolAmount: petrolAmount,
+            petrolDistanceKm: petrolDistanceKm,
+            petrolRatePerKm: petrolRatePerKm,
             workedMinutes: workedMinutes,
             pausedMinutes: pausedMinutes,
           ),
@@ -131,7 +146,9 @@ class _CompletionOtpScreenState extends ConsumerState<CompletionOtpScreen> {
     if (_isRefreshing) return;
     setState(() => _isRefreshing = true);
     try {
-      final newOtp = await ref.read(bookingRepositoryProvider).refreshCompletionOtp(widget.bookingId);
+      final newOtp = await ref
+          .read(bookingRepositoryProvider)
+          .refreshCompletionOtp(widget.bookingId);
       if (mounted) {
         setState(() => _fetchedOtp = newOtp);
         showGxSnack(
@@ -158,7 +175,9 @@ class _CompletionOtpScreenState extends ConsumerState<CompletionOtpScreen> {
   Future<void> _fetchOtp({bool silent = false}) async {
     if (!silent) setState(() => _isFetchingOtp = true);
     try {
-      final b = await ref.read(bookingRepositoryProvider).getBookingById(widget.bookingId);
+      final b = await ref
+          .read(bookingRepositoryProvider)
+          .getBookingById(widget.bookingId);
       if (b != null && mounted) {
         final status = b['status']?.toString().toUpperCase();
         if (status == 'COMPLETED' || b['isPaid'] == true) {
@@ -213,8 +232,8 @@ class _CompletionOtpScreenState extends ConsumerState<CompletionOtpScreen> {
   Future<void> _verifyCompletion() async {
     final otp = _enteredOtp;
     if (otp.length != AppConfig.bookingOtpLength) {
-      setState(() =>
-          _errorMsg = 'Enter all ${AppConfig.bookingOtpLength} digits');
+      setState(
+          () => _errorMsg = 'Enter all ${AppConfig.bookingOtpLength} digits');
       return;
     }
 
@@ -224,20 +243,32 @@ class _CompletionOtpScreenState extends ConsumerState<CompletionOtpScreen> {
     });
 
     try {
-      final response = await ref.read(bookingRepositoryProvider).confirmCompletion(
-            bookingId: widget.bookingId,
-            otp: otp,
-          );
+      final response =
+          await ref.read(bookingRepositoryProvider).confirmCompletion(
+                bookingId: widget.bookingId,
+                otp: otp,
+              );
 
       if (!mounted) return;
 
-      final needsPay = response['needsManualPayment'] == true ||
-          response['isPaid'] == false;
+      final needsPay =
+          response['needsManualPayment'] == true || response['isPaid'] == false;
       if (needsPay) {
         final amount =
             (num.tryParse('${response['totalAmount'] ?? 0}') ?? 0).toDouble();
         final hourlyRate =
             (num.tryParse('${response['hourlyRate'] ?? 0}') ?? 0).toDouble();
+        final serviceAmount =
+            (num.tryParse('${response['serviceAmount'] ?? amount}') ?? amount)
+                .toDouble();
+        final petrolAmount =
+            (num.tryParse('${response['petrolAmount'] ?? 0}') ?? 0).toDouble();
+        final petrolDistanceKm =
+            (num.tryParse('${response['petrolDistanceKm'] ?? 0}') ?? 0)
+                .toDouble();
+        final petrolRatePerKm =
+            (num.tryParse('${response['petrolRatePerKm'] ?? 0}') ?? 0)
+                .toDouble();
         final workedMinutes =
             (num.tryParse('${response['workedMinutes'] ?? 0}') ?? 0).round();
         final pausedMinutes =
@@ -252,9 +283,13 @@ class _CompletionOtpScreenState extends ConsumerState<CompletionOtpScreen> {
               builder: (_) => CollectPaymentScreen(
                 bookingId: widget.bookingId,
                 amount: amount,
-                customerName: response['customerName']?.toString() ??
-                    widget.workerName,
+                customerName:
+                    response['customerName']?.toString() ?? widget.workerName,
                 hourlyRate: hourlyRate > 0 ? hourlyRate : null,
+                serviceAmount: serviceAmount,
+                petrolAmount: petrolAmount,
+                petrolDistanceKm: petrolDistanceKm,
+                petrolRatePerKm: petrolRatePerKm,
                 workedMinutes: workedMinutes > 0 ? workedMinutes : null,
                 pausedMinutes: pausedMinutes,
                 platformFee: platformFee,
@@ -268,9 +303,13 @@ class _CompletionOtpScreenState extends ConsumerState<CompletionOtpScreen> {
               builder: (_) => CustomerPayScreen(
                 bookingId: widget.bookingId,
                 amount: amount,
-                workerName: response['workerName']?.toString() ??
-                    widget.workerName,
+                workerName:
+                    response['workerName']?.toString() ?? widget.workerName,
                 hourlyRate: hourlyRate > 0 ? hourlyRate : null,
+                serviceAmount: serviceAmount,
+                petrolAmount: petrolAmount,
+                petrolDistanceKm: petrolDistanceKm,
+                petrolRatePerKm: petrolRatePerKm,
                 workedMinutes: workedMinutes > 0 ? workedMinutes : null,
                 pausedMinutes: pausedMinutes,
                 platformFee: platformFee,
@@ -342,8 +381,7 @@ class _CompletionOtpScreenState extends ConsumerState<CompletionOtpScreen> {
         builder: (_) => CollectPaymentScreen(
           bookingId: widget.bookingId,
           amount: amount,
-          customerName:
-              b['customer']?['name']?.toString() ?? widget.workerName,
+          customerName: b['customer']?['name']?.toString() ?? widget.workerName,
           hourlyRate: hourlyRate > 0 ? hourlyRate : null,
           workedMinutes: workedMinutes > 0 ? workedMinutes : null,
           pausedMinutes: pausedMinutes,
@@ -429,8 +467,7 @@ class _CompletionOtpScreenState extends ConsumerState<CompletionOtpScreen> {
         GxDialogAction(
           'Back to Home',
           isPrimary: true,
-          onTap: () =>
-              Navigator.of(context).popUntil((route) => route.isFirst),
+          onTap: () => Navigator.of(context).popUntil((route) => route.isFirst),
         ),
       ],
     );
@@ -469,7 +506,8 @@ class _CompletionOtpScreenState extends ConsumerState<CompletionOtpScreen> {
                     ),
                     const Spacer(),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 6),
                       decoration: BoxDecoration(
                         color: Colors.green.withValues(alpha: 0.15),
                         borderRadius: BorderRadius.circular(20),
@@ -531,10 +569,10 @@ class _CompletionOtpScreenState extends ConsumerState<CompletionOtpScreen> {
                 const SizedBox(height: 8),
                 Text(
                   widget.isWorker
-                    ? _hasMarkedComplete
-                        ? 'Enter the completion OTP provided by the customer to finalize the job.'
-                        : 'Tap "Completion OTP" to notify the customer that you have finished.'
-                    : 'Job is complete!\nShare this OTP with ${widget.workerName} to finalize payment.',
+                      ? _hasMarkedComplete
+                          ? 'Enter the completion OTP provided by the customer to finalize the job.'
+                          : 'Tap "Completion OTP" to notify the customer that you have finished.'
+                      : 'Job is complete!\nShare this OTP with ${widget.workerName} to finalize payment.',
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     color: colorScheme.onSurfaceVariant,
@@ -601,17 +639,20 @@ class _CompletionOtpScreenState extends ConsumerState<CompletionOtpScreen> {
                   Column(
                     children: [
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 20),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 32, vertical: 20),
                         decoration: BoxDecoration(
                           color: Colors.green.withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(20),
-                          border: Border.all(color: Colors.green.withValues(alpha: 0.3)),
+                          border: Border.all(
+                              color: Colors.green.withValues(alpha: 0.3)),
                         ),
                         child: _isFetchingOtp
                             ? SizedBox(
                                 width: 40,
                                 height: 40,
-                                child: CircularProgressIndicator(strokeWidth: 3),
+                                child:
+                                    CircularProgressIndicator(strokeWidth: 3),
                               )
                             : Text(
                                 _fetchedOtp ?? '• • • •',
@@ -633,7 +674,9 @@ class _CompletionOtpScreenState extends ConsumerState<CompletionOtpScreen> {
                           ),
                         ),
                       GxPressable(
-                        onTap: _isRefreshing || _isFetchingOtp ? null : _refreshOtp,
+                        onTap: _isRefreshing || _isFetchingOtp
+                            ? null
+                            : _refreshOtp,
                         child: Padding(
                           padding: const EdgeInsets.symmetric(
                               vertical: 8, horizontal: 12),
@@ -648,8 +691,7 @@ class _CompletionOtpScreenState extends ConsumerState<CompletionOtpScreen> {
                                           strokeWidth: 2,
                                           color: context.gx.accent))
                                   : Icon(Icons.refresh,
-                                      size: 18,
-                                      color: context.gx.accent),
+                                      size: 18, color: context.gx.accent),
                               SizedBox(width: 6),
                               Text(
                                 'Request new OTP',
@@ -705,7 +747,9 @@ class _CompletionOtpScreenState extends ConsumerState<CompletionOtpScreen> {
                           fontSize: 16,
                         ),
                 ] else
-                  const Text('Waiting for worker to verify completion...', style: TextStyle(fontStyle: FontStyle.italic, color: Colors.grey)),
+                  const Text('Waiting for worker to verify completion...',
+                      style: TextStyle(
+                          fontStyle: FontStyle.italic, color: Colors.grey)),
 
                 const SizedBox(height: 16),
 
@@ -737,16 +781,19 @@ class _CompletionOtpScreenState extends ConsumerState<CompletionOtpScreen> {
   void _showDisputeDialog() {
     showModalBottomSheet(
       context: context,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+      shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
       builder: (ctx) => Padding(
         padding: const EdgeInsets.all(24),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('Report an Issue', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+            const Text('Report an Issue',
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
             const SizedBox(height: 12),
-            const Text('What went wrong? Our team will review your report.', style: TextStyle(color: Colors.grey)),
+            const Text('What went wrong? Our team will review your report.',
+                style: TextStyle(color: Colors.grey)),
             const SizedBox(height: 16),
             _disputeOption('Worker didn\'t show up'),
             _disputeOption('Unprofessional behavior'),
@@ -772,7 +819,9 @@ class _CompletionOtpScreenState extends ConsumerState<CompletionOtpScreen> {
       onTap: () async {
         Navigator.pop(context);
         try {
-          await ref.read(bookingRepositoryProvider).reportDispute(widget.bookingId, reason);
+          await ref
+              .read(bookingRepositoryProvider)
+              .reportDispute(widget.bookingId, reason);
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
@@ -802,4 +851,3 @@ class _CompletionOtpScreenState extends ConsumerState<CompletionOtpScreen> {
     );
   }
 }
-

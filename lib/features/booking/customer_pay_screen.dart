@@ -19,9 +19,14 @@ class CustomerPayScreen extends ConsumerStatefulWidget {
   final double amount;
   final String workerName;
   final double? hourlyRate;
+  final double? serviceAmount;
+  final double? petrolAmount;
+  final double? petrolDistanceKm;
+  final double? petrolRatePerKm;
   final int? workedMinutes;
   final int? pausedMinutes;
   final double? platformFee;
+
   /// True when this customer already confirmed and is waiting on the worker.
   final bool initiallyWaiting;
 
@@ -31,6 +36,10 @@ class CustomerPayScreen extends ConsumerStatefulWidget {
     required this.amount,
     required this.workerName,
     this.hourlyRate,
+    this.serviceAmount,
+    this.petrolAmount,
+    this.petrolDistanceKm,
+    this.petrolRatePerKm,
     this.workedMinutes,
     this.pausedMinutes,
     this.platformFee,
@@ -99,6 +108,10 @@ class _CustomerPayScreenState extends ConsumerState<CustomerPayScreen> {
   Future<void> _hydrate() async {
     ManualPaymentBilling billing = ManualPaymentBilling(
       amount: widget.amount,
+      serviceAmount: widget.serviceAmount ?? 0,
+      petrolAmount: widget.petrolAmount ?? 0,
+      petrolDistanceKm: widget.petrolDistanceKm ?? 0,
+      petrolRatePerKm: widget.petrolRatePerKm ?? 0,
       hourlyRate: widget.hourlyRate ?? widget.amount,
       workedMinutes: widget.workedMinutes ?? 60,
       pausedMinutes: widget.pausedMinutes ?? 0,
@@ -107,15 +120,26 @@ class _CustomerPayScreenState extends ConsumerState<CustomerPayScreen> {
     );
     var waiting = widget.initiallyWaiting;
     try {
-      final b =
-          await ref.read(bookingRepositoryProvider).getBookingById(widget.bookingId);
+      final b = await ref
+          .read(bookingRepositoryProvider)
+          .getBookingById(widget.bookingId);
       if (b != null) {
         billing = ManualPaymentBilling.fromMaps(
           booking: b,
           completion: {
             if (widget.hourlyRate != null) 'hourlyRate': widget.hourlyRate,
-            if (widget.workedMinutes != null) 'workedMinutes': widget.workedMinutes,
-            if (widget.pausedMinutes != null) 'pausedMinutes': widget.pausedMinutes,
+            if (widget.serviceAmount != null)
+              'serviceAmount': widget.serviceAmount,
+            if (widget.petrolAmount != null)
+              'petrolAmount': widget.petrolAmount,
+            if (widget.petrolDistanceKm != null)
+              'petrolDistanceKm': widget.petrolDistanceKm,
+            if (widget.petrolRatePerKm != null)
+              'petrolRatePerKm': widget.petrolRatePerKm,
+            if (widget.workedMinutes != null)
+              'workedMinutes': widget.workedMinutes,
+            if (widget.pausedMinutes != null)
+              'pausedMinutes': widget.pausedMinutes,
             if (widget.platformFee != null) 'platformFee': widget.platformFee,
             'totalAmount': widget.amount,
           },
@@ -310,8 +334,8 @@ class _CustomerPayScreenState extends ConsumerState<CustomerPayScreen> {
                     shape: BoxShape.circle,
                     color: green.withValues(alpha: 0.12),
                   ),
-                  child: Icon(Icons.hourglass_top_rounded,
-                      color: green, size: 48),
+                  child:
+                      Icon(Icons.hourglass_top_rounded, color: green, size: 48),
                 ),
                 const SizedBox(height: 24),
                 Text(
@@ -438,7 +462,17 @@ class _CustomerPayScreenState extends ConsumerState<CustomerPayScreen> {
                               const SizedBox(height: 10),
                               _row('Active work time', billing.durationLabel,
                                   green, gx),
-                              _row('Rate', '₹${billing.rateInt}/hr', gx.ink, gx),
+                              _row(
+                                  'Rate', '₹${billing.rateInt}/hr', gx.ink, gx),
+                              _row('Work charge',
+                                  '₹${billing.serviceAmountInt}', gx.ink, gx),
+                              if (billing.hasPetrol)
+                                _row(
+                                  'Petrol · ${billing.petrolDistanceLabel} × ₹${billing.petrolRateInt}/km',
+                                  '₹${billing.petrolAmountInt}',
+                                  gx.ink,
+                                  gx,
+                                ),
                               _row('Total', '₹$amount', green, gx, bold: true),
                             ],
                           ),
@@ -538,8 +572,8 @@ class _CustomerPayScreenState extends ConsumerState<CustomerPayScreen> {
                           title: 'Yes — he asked for more money',
                           subtitle: 'I felt pressured to pay extra',
                           green: green,
-                          onTap: () => setState(
-                              () => _safety = _SafetyChoice.askedMore),
+                          onTap: () =>
+                              setState(() => _safety = _SafetyChoice.askedMore),
                         ),
                         const SizedBox(height: 10),
                         _SafetyOption(

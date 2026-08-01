@@ -1,6 +1,10 @@
 /// Shared billing helpers for post-completion manual payment screens.
 class ManualPaymentBilling {
   final double amount;
+  final double serviceAmount;
+  final double petrolAmount;
+  final double petrolDistanceKm;
+  final double petrolRatePerKm;
   final double hourlyRate;
   final int workedMinutes;
   final int pausedMinutes;
@@ -9,6 +13,10 @@ class ManualPaymentBilling {
 
   const ManualPaymentBilling({
     required this.amount,
+    this.serviceAmount = 0,
+    this.petrolAmount = 0,
+    this.petrolDistanceKm = 0,
+    this.petrolRatePerKm = 0,
     required this.hourlyRate,
     required this.workedMinutes,
     required this.pausedMinutes,
@@ -17,8 +25,21 @@ class ManualPaymentBilling {
   });
 
   int get amountInt => amount.round();
+  int get serviceAmountInt =>
+      (serviceAmount > 0 ? serviceAmount : amount - petrolAmount).round();
+  int get petrolAmountInt => petrolAmount.round();
+  int get petrolRateInt => petrolRatePerKm.round();
   int get rateInt => hourlyRate.round();
   int get feeInt => platformFee.round();
+  bool get hasPetrol => petrolAmount > 0;
+
+  String get petrolDistanceLabel {
+    if (petrolDistanceKm <= 0) return '0 km';
+    final rounded = petrolDistanceKm.roundToDouble();
+    return petrolDistanceKm == rounded
+        ? '${rounded.toInt()} km'
+        : '${petrolDistanceKm.toStringAsFixed(1)} km';
+  }
 
   String get durationLabel => formatDuration(workedMinutes);
 
@@ -56,6 +77,11 @@ class ManualPaymentBilling {
       ...?completion,
     };
     final amount = _num(src['totalAmount'] ?? src['amount'] ?? 0);
+    final petrolAmount = _num(src['petrolAmount'] ?? 0);
+    final calculatedService = amount - petrolAmount;
+    final serviceAmount = src['serviceAmount'] != null
+        ? _num(src['serviceAmount'])
+        : (calculatedService > 0 ? calculatedService : 0.0);
     final rate = _num(
       src['hourlyRate'] ??
           (src['type']?.toString().toUpperCase() == 'INSTANT'
@@ -83,6 +109,10 @@ class ManualPaymentBilling {
     }
     return ManualPaymentBilling(
       amount: amount,
+      serviceAmount: serviceAmount,
+      petrolAmount: petrolAmount,
+      petrolDistanceKm: _num(src['petrolDistanceKm'] ?? 0),
+      petrolRatePerKm: _num(src['petrolRatePerKm'] ?? 0),
       hourlyRate: rate > 0 ? rate : amount,
       workedMinutes: worked > 0 ? worked : 1,
       pausedMinutes: paused,
@@ -91,7 +121,6 @@ class ManualPaymentBilling {
     );
   }
 
-  static double _num(dynamic v) =>
-      (num.tryParse('$v') ?? 0).toDouble();
+  static double _num(dynamic v) => (num.tryParse('$v') ?? 0).toDouble();
   static int _int(dynamic v) => (num.tryParse('$v') ?? 0).round();
 }
