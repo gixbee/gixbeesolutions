@@ -26,10 +26,27 @@ import { OutboxService } from '../outbox/outbox.service';
 import { OutboxEventType } from '../outbox/outbox.types';
 import { JobCreditsService } from '../billing/job-credits.service';
 import { CreditTransactionReason } from '../billing/credit-transaction.entity';
+import { MasterEntriesService } from '../master-entries/master-entries.service';
 
 @Injectable()
 export class BookingsService {
   private readonly logger = new Logger(BookingsService.name);
+
+  /** Free unilateral cancel for this many minutes after ACCEPTED. */
+  private static readonly CANCEL_GRACE_MINUTES = 3;
+  private static readonly LATE_CANCEL_STRIKE_THRESHOLD = 3;
+  private static readonly COMP_PER_KM_DEFAULT = 10;
+  private static readonly COMP_MIN_INR_DEFAULT = 49;
+  private static readonly COMP_MAX_INR_DEFAULT = 299;
+
+  /** Worker GPS must be this fresh for a progress check to pass. */
+  private static readonly GPS_LOCATION_MAX_AGE_MS = 90_000;
+  /** Within this distance of the job counts as progressed. */
+  private static readonly PROGRESS_NEAR_JOB_KM = 0.5;
+  /** Must close at least this much distance vs accept snapshot. */
+  private static readonly PROGRESS_MIN_CLOSER_KM = 0.3;
+  /** Progress violations before customer gets free cancel. */
+  private static readonly PROGRESS_STRIKE_THRESHOLD = 2;
 
   /**
    * WALLET IS OFF (product decision): no customer or worker wallet for now.
@@ -55,6 +72,7 @@ export class BookingsService {
     private messagesGateway: MessagesGateway,
     private outboxService: OutboxService,
     private jobCreditsService: JobCreditsService,
+    private masterEntriesService: MasterEntriesService,
   ) {}
 
   private generateOtp(): string {
@@ -80,6 +98,10 @@ export class BookingsService {
       (bookingData.customer as any)?.id ?? bookingData.customer;
     const operatorId =
       (bookingData.operator as any)?.id ?? bookingData.operator;
+
+    if (customerId) {
+      await this.assertInstantHelpAllowed(String(customerId));
+    }
 
     // Prevent self-booking
     if (customerId && operatorId && customerId === operatorId) {
@@ -212,6 +234,8 @@ export class BookingsService {
       onSiteContact?: { name: string; relation: string; phone: string };
     },
   ): Promise<{ booking: Booking; notified: number }> {
+    await this.assertInstantHelpAllowed(customerId);
+
     // Find eligible pros FIRST — no point persisting a request nobody can see.
     const nearby = await this.workersService.getNearby(
       customerId,
@@ -549,6 +573,34 @@ export class BookingsService {
 
         // Transition this booking → ACCEPTED
         booking.status = BookingStatus.ACCEPTED;
+        booking.acceptedAt = new Date();
+
+        // Snapshot worker GPS at accept so later progress checks can tell
+        // "still sitting" from "heading to the customer".
+        const acceptLoc =
+          await this.redisService.getWorkerLocation(workerId);
+        if (
+          acceptLoc &&
+          Number.isFinite(acceptLoc.lat) &&
+          Number.isFinite(acceptLoc.lng)
+        ) {
+          booking.acceptLat = Number(acceptLoc.lat);
+          booking.acceptLng = Number(acceptLoc.lng);
+          const jobLat = Number(booking.serviceLat);
+          const jobLng = Number(booking.serviceLng);
+          if (Number.isFinite(jobLat) && Number.isFinite(jobLng)) {
+            booking.acceptDistanceKm =
+              Math.round(
+                this.calculateDistance(
+                  booking.acceptLat,
+                  booking.acceptLng,
+                  jobLat,
+                  jobLng,
+                ) * 100,
+              ) / 100;
+          }
+        }
+
         await manager.save(booking);
         // Reload with relations so a broadcast claim resolves the operator's
         // name (the claim above only set the id).
@@ -898,18 +950,33 @@ export class BookingsService {
   }
 
   /**
-   * Cancels a booking, records the reason, and refunds any captured payment
-   * back to the customer's wallet. Completed bookings cannot be cancelled.
+   * Cancels a booking. Unilateral customer cancel is gated by stage:
+   * - REQUESTED / ACCEPTED within grace → free
+   * - ACCEPTED past grace → allowed with late-cancel strike
+   * - ACCEPTED + workerNoProgressAt → free (no strike, no credit refund)
+   * - ARRIVED / ACTIVE → blocked (use cancel-request)
+   * Worker-approved cancels call this with applyLateCancelStrike=false.
    */
   async cancelBooking(
     id: string,
     reason: string,
     source: 'customer' | 'operator' = 'customer',
+    opts?: {
+      applyLateCancelStrike?: boolean;
+      skipStageGate?: boolean;
+      refundJobCredit?: boolean;
+    },
   ): Promise<{
     status: string;
     refundAmount: number;
     refundMethod: string;
     message: string;
+    lateCancelStrike?: boolean;
+    strikeCount?: number;
+    instantHelpBlocked?: boolean;
+    compensationAmount?: number | null;
+    compensationDistanceKm?: number | null;
+    workerNoProgress?: boolean;
   }> {
     const booking = await this.bookingsRepository.findOne({
       where: { id },
@@ -920,8 +987,45 @@ export class BookingsService {
       throw new BadRequestException('Completed bookings cannot be cancelled.');
     }
 
+    const freeDueToNoProgress =
+      source === 'customer' &&
+      !!booking.workerNoProgressAt &&
+      booking.status === BookingStatus.ACCEPTED;
+
+    const applyStrike =
+      source === 'customer' &&
+      opts?.applyLateCancelStrike !== false &&
+      !freeDueToNoProgress;
+    let lateCancelStrike = false;
+    let strikeCount: number | undefined;
+    let instantHelpBlocked = false;
+    let compensationAmount: number | null = null;
+    let compensationDistanceKm: number | null = null;
+
+    if (source === 'customer' && !opts?.skipStageGate) {
+      const st = booking.status;
+      if (st === BookingStatus.ARRIVED || st === BookingStatus.ACTIVE) {
+        throw new BadRequestException(
+          'This job has already started or the pro has arrived. Ask your pro to approve a cancellation instead.',
+        );
+      }
+      if (
+        st === BookingStatus.ACCEPTED &&
+        !freeDueToNoProgress &&
+        !this.isWithinCancelGrace(booking)
+      ) {
+        // Allowed with strike — applied after successful cancel below.
+        lateCancelStrike = applyStrike;
+      }
+    }
+
+    const cancelReason = freeDueToNoProgress
+      ? `${reason} [WORKER_NO_PROGRESS]`
+      : reason;
+
     booking.status = BookingStatus.CANCELLED;
-    booking.cancellationReason = reason;
+    booking.cancellationReason = cancelReason;
+    booking.cancelRequestedAt = null as any;
 
     // Refund policy: refund only money Gixbee actually captured.
     let refundAmount = 0;
@@ -944,11 +1048,16 @@ export class BookingsService {
       }
     }
 
-    // Persist cancel + outbox in one transaction; FCM/Redis via listener.
+    const shouldRefundCredit =
+      source === 'customer' &&
+      !!booking.operator?.id &&
+      opts?.refundJobCredit !== false &&
+      !freeDueToNoProgress;
+
     const outbox = await this.dataSource.transaction(async (manager) => {
       await manager.save(booking);
 
-      if (source === 'customer' && booking.operator?.id) {
+      if (shouldRefundCredit && booking.operator?.id) {
         console.log(
           `[CancelBooking] Refunding 1 job credit to worker ${booking.operator.id} due to customer cancellation`,
         );
@@ -960,14 +1069,26 @@ export class BookingsService {
         );
       }
 
+      if (lateCancelStrike && booking.customer?.id) {
+        const result = await this.applyLateCancelStrike(
+          manager,
+          booking.customer.id,
+          booking,
+        );
+        strikeCount = result.strikeCount;
+        instantHelpBlocked = result.instantHelpBlocked;
+        compensationAmount = result.compensationAmount;
+        compensationDistanceKm = result.compensationDistanceKm;
+      }
+
       return this.outboxService.append(
         manager,
         OutboxEventType.BOOKING_CANCELLED,
         id,
         {
           bookingId: id,
-          reason,
-          source,
+          reason: cancelReason,
+          source: freeDueToNoProgress ? 'WORKER_NO_PROGRESS' : source,
           operatorId: booking.operator?.id ?? null,
           operatorName: booking.operator?.name ?? null,
           customerId: booking.customer?.id ?? null,
@@ -976,14 +1097,398 @@ export class BookingsService {
     });
     await this.outboxService.enqueueDispatch(outbox.id);
 
+    let message =
+      refundMethod === 'DIRECT'
+        ? 'Booking cancelled. Payment was collected directly by the worker — please settle any refund with them.'
+        : 'Booking cancelled';
+    if (freeDueToNoProgress) {
+      message =
+        'Booking cancelled at no cost — your pro was not making progress toward you.';
+    } else if (lateCancelStrike) {
+      message = instantHelpBlocked
+        ? `Booking cancelled. This was a late cancel (strike ${strikeCount}). Instant Help is blocked until you pay travel compensation.`
+        : `Booking cancelled. Late cancel recorded (strike ${strikeCount} of ${BookingsService.LATE_CANCEL_STRIKE_THRESHOLD}).`;
+    }
+
     return {
       status: 'CANCELLED',
       refundAmount,
       refundMethod,
-      message:
-        refundMethod === 'DIRECT'
-          ? 'Booking cancelled. Payment was collected directly by the worker — please settle any refund with them.'
-          : 'Booking cancelled',
+      message,
+      lateCancelStrike: lateCancelStrike || undefined,
+      strikeCount,
+      instantHelpBlocked: instantHelpBlocked || undefined,
+      compensationAmount,
+      compensationDistanceKm,
+      workerNoProgress: freeDueToNoProgress || undefined,
+    };
+  }
+
+  async requestCancel(bookingId: string, customerUserId: string, reason?: string) {
+    const booking = await this.bookingsRepository.findOne({
+      where: { id: bookingId },
+      relations: ['customer', 'operator'],
+    });
+    if (!booking) throw new NotFoundException('Booking not found');
+    if (booking.customer?.id !== customerUserId) {
+      throw new BadRequestException('Only the customer can request cancellation');
+    }
+    const st = booking.status;
+    if (
+      st !== BookingStatus.ACCEPTED &&
+      st !== BookingStatus.ARRIVED &&
+      st !== BookingStatus.ACTIVE
+    ) {
+      throw new BadRequestException(
+        'Cancel request is only available after a pro has accepted the job',
+      );
+    }
+    if (booking.cancelRequestedAt) {
+      return { cancelRequested: true, message: 'Cancel request already pending' };
+    }
+    booking.cancelRequestedAt = new Date();
+    if (reason) booking.cancellationReason = reason;
+    await this.bookingsRepository.save(booking);
+    await this.cacheAndEmitBookingStatus(bookingId, {
+      status: booking.status,
+      operatorName: booking.operator?.name,
+      operatorId: booking.operator?.id ?? null,
+      customerId: booking.customer?.id ?? null,
+      arrivalOtp: null,
+      pauseRequested: false,
+      paused: false,
+      pausedMinutes: 0,
+      cancelRequested: true,
+    });
+    if (booking.operator?.id) {
+      await this.notificationsService
+        .sendToUser(booking.operator.id, {
+          title: 'Cancellation requested',
+          body: 'The customer asked to cancel this job. Approve or decline in the app.',
+          data: { type: 'cancel_requested', bookingId: booking.id },
+        })
+        .catch(() => {});
+    }
+    return { cancelRequested: true, message: 'Cancel request sent to your pro' };
+  }
+
+  async approveCancelRequest(bookingId: string, operatorUserId: string) {
+    const booking = await this.bookingsRepository.findOne({
+      where: { id: bookingId },
+      relations: ['customer', 'operator'],
+    });
+    if (!booking) throw new NotFoundException('Booking not found');
+    if (booking.operator?.id !== operatorUserId) {
+      throw new BadRequestException('Only the assigned worker can approve cancellation');
+    }
+    if (!booking.cancelRequestedAt) {
+      throw new BadRequestException('No pending cancel request');
+    }
+    return this.cancelBooking(
+      bookingId,
+      booking.cancellationReason || 'Cancelled by mutual agreement',
+      'customer',
+      { applyLateCancelStrike: false, skipStageGate: true },
+    );
+  }
+
+  async declineCancelRequest(bookingId: string, operatorUserId: string) {
+    const booking = await this.bookingsRepository.findOne({
+      where: { id: bookingId },
+      relations: ['customer', 'operator'],
+    });
+    if (!booking) throw new NotFoundException('Booking not found');
+    if (booking.operator?.id !== operatorUserId) {
+      throw new BadRequestException('Only the assigned worker can decline cancellation');
+    }
+    if (!booking.cancelRequestedAt) {
+      throw new BadRequestException('No pending cancel request');
+    }
+    booking.cancelRequestedAt = null as any;
+    await this.bookingsRepository.save(booking);
+    await this.cacheAndEmitBookingStatus(bookingId, {
+      status: booking.status,
+      operatorName: booking.operator?.name,
+      operatorId: booking.operator?.id ?? null,
+      customerId: booking.customer?.id ?? null,
+      arrivalOtp: null,
+      pauseRequested: false,
+      paused: false,
+      pausedMinutes: 0,
+      cancelRequested: false,
+    });
+    if (booking.customer?.id) {
+      await this.notificationsService
+        .sendToUser(booking.customer.id, {
+          title: 'Cancel declined',
+          body: 'Your pro declined the cancellation — the job continues.',
+          data: { type: 'cancel_declined', bookingId: booking.id },
+        })
+        .catch(() => {});
+    }
+    return { cancelRequested: false, message: 'Cancel request declined' };
+  }
+
+  async withdrawCancelRequest(bookingId: string, customerUserId: string) {
+    const booking = await this.bookingsRepository.findOne({
+      where: { id: bookingId },
+      relations: ['customer', 'operator'],
+    });
+    if (!booking) throw new NotFoundException('Booking not found');
+    if (booking.customer?.id !== customerUserId) {
+      throw new BadRequestException('Only the customer can withdraw a cancel request');
+    }
+    if (!booking.cancelRequestedAt) {
+      return { cancelRequested: false, message: 'No pending cancel request' };
+    }
+    booking.cancelRequestedAt = null as any;
+    await this.bookingsRepository.save(booking);
+    await this.cacheAndEmitBookingStatus(bookingId, {
+      status: booking.status,
+      operatorName: booking.operator?.name,
+      operatorId: booking.operator?.id ?? null,
+      customerId: booking.customer?.id ?? null,
+      arrivalOtp: null,
+      pauseRequested: false,
+      paused: false,
+      pausedMinutes: 0,
+      cancelRequested: false,
+    });
+    return { cancelRequested: false, message: 'Cancel request withdrawn' };
+  }
+
+  /** Razorpay webhook fulfilment — unlock Instant Help after compensation paid. */
+  async markLateCancelCompensationPaid(customerUserId: string): Promise<void> {
+    const users = this.dataSource.getRepository(User);
+    const user = await users.findOne({ where: { id: customerUserId } });
+    if (!user) throw new NotFoundException('User not found');
+    if (!user.instantHelpBlocked) return;
+
+    const bookingId = user.unblockCompensationBookingId;
+    const amount = user.unblockCompensationAmountInr ?? 0;
+    const distanceKm = user.unblockCompensationDistanceKm;
+
+    user.instantHelpBlocked = false;
+    user.lateCancelStrikeCount = 0;
+    user.unblockCompensationBookingId = null;
+    user.unblockCompensationAmountInr = null;
+    user.unblockCompensationDistanceKm = null;
+    await users.save(user);
+
+    let workerId: string | null = null;
+    if (bookingId) {
+      const booking = await this.bookingsRepository.findOne({
+        where: { id: bookingId },
+        relations: ['operator'],
+      });
+      if (booking) {
+        booking.lateCancelCompensationPaidAt = new Date();
+        booking.lateCancelCompensationAmountInr = amount;
+        if (distanceKm != null) {
+          booking.lateCancelCompensationDistanceKm = Number(distanceKm);
+        }
+        await this.bookingsRepository.save(booking);
+        workerId = booking.operator?.id ?? null;
+      }
+    }
+
+    if (workerId) {
+      await this.notificationsService
+        .sendToUser(workerId, {
+          title: 'Travel compensation received',
+          body: `A customer paid ₹${amount} travel compensation for a late-cancelled job.`,
+          data: {
+            type: 'late_cancel_compensation_paid',
+            bookingId: bookingId ?? '',
+            amount: String(amount),
+          },
+        })
+        .catch(() => {});
+    }
+  }
+
+  getLateCancelCompensationQuote(userId: string): Promise<{
+    blocked: boolean;
+    amountInr: number | null;
+    distanceKm: number | null;
+    bookingId: string | null;
+    workerName: string | null;
+  }> {
+    return this.dataSource
+      .getRepository(User)
+      .findOne({ where: { id: userId } })
+      .then(async (user) => {
+        if (!user || !user.instantHelpBlocked) {
+          return {
+            blocked: false,
+            amountInr: null,
+            distanceKm: null,
+            bookingId: null,
+            workerName: null,
+          };
+        }
+        let workerName: string | null = null;
+        if (user.unblockCompensationBookingId) {
+          const b = await this.bookingsRepository.findOne({
+            where: { id: user.unblockCompensationBookingId },
+            relations: ['operator'],
+          });
+          workerName = b?.operator?.name ?? null;
+        }
+        return {
+          blocked: true,
+          amountInr: user.unblockCompensationAmountInr,
+          distanceKm:
+            user.unblockCompensationDistanceKm != null
+              ? Number(user.unblockCompensationDistanceKm)
+              : null,
+          bookingId: user.unblockCompensationBookingId,
+          workerName,
+        };
+      });
+  }
+
+  private async assertInstantHelpAllowed(customerId: string): Promise<void> {
+    const user = await this.dataSource
+      .getRepository(User)
+      .findOne({ where: { id: customerId } });
+    if (user?.instantHelpBlocked) {
+      const amt = user.unblockCompensationAmountInr ?? 0;
+      const km = user.unblockCompensationDistanceKm;
+      const kmPart =
+        km != null && Number(km) > 0
+          ? ` (${Number(km).toFixed(1)} km travel)`
+          : '';
+      throw new BadRequestException(
+        `Instant Help is blocked after repeated late cancels. Pay ₹${amt} travel compensation${kmPart} to unlock.`,
+      );
+    }
+  }
+
+  private isWithinCancelGrace(booking: Booking): boolean {
+    const acceptedAt = booking.acceptedAt
+      ? new Date(booking.acceptedAt).getTime()
+      : null;
+    // Legacy rows without acceptedAt: treat as still in grace (one free cancel).
+    if (!acceptedAt) return true;
+    const graceMs = BookingsService.CANCEL_GRACE_MINUTES * 60 * 1000;
+    return Date.now() - acceptedAt <= graceMs;
+  }
+
+  private async applyLateCancelStrike(
+    manager: any,
+    customerId: string,
+    booking: Booking,
+  ): Promise<{
+    strikeCount: number;
+    instantHelpBlocked: boolean;
+    compensationAmount: number | null;
+    compensationDistanceKm: number | null;
+  }> {
+    const users = manager.getRepository(User);
+    const user = await users.findOne({ where: { id: customerId } });
+    if (!user) {
+      return {
+        strikeCount: 0,
+        instantHelpBlocked: false,
+        compensationAmount: null,
+        compensationDistanceKm: null,
+      };
+    }
+
+    user.lateCancelStrikeCount = (user.lateCancelStrikeCount || 0) + 1;
+    let compensationAmount: number | null = null;
+    let compensationDistanceKm: number | null = null;
+
+    if (
+      user.lateCancelStrikeCount >= BookingsService.LATE_CANCEL_STRIKE_THRESHOLD
+    ) {
+      const comp = await this.computeDistanceCompensation(booking);
+      user.instantHelpBlocked = true;
+      user.unblockCompensationBookingId = booking.id;
+      user.unblockCompensationAmountInr = comp.amountInr;
+      user.unblockCompensationDistanceKm = comp.distanceKm;
+      compensationAmount = comp.amountInr;
+      compensationDistanceKm = comp.distanceKm;
+
+      booking.lateCancelCompensationAmountInr = comp.amountInr;
+      booking.lateCancelCompensationDistanceKm = comp.distanceKm;
+      await manager.save(booking);
+
+      await this.notificationsService
+        .sendToUser(customerId, {
+          title: 'Instant Help blocked',
+          body: `Pay ₹${comp.amountInr} travel compensation to unlock Instant Help.`,
+          data: { type: 'instant_help_blocked', bookingId: booking.id },
+        })
+        .catch(() => {});
+    }
+
+    await users.save(user);
+    return {
+      strikeCount: user.lateCancelStrikeCount,
+      instantHelpBlocked: !!user.instantHelpBlocked,
+      compensationAmount,
+      compensationDistanceKm,
+    };
+  }
+
+  private async computeDistanceCompensation(booking: Booking): Promise<{
+    amountInr: number;
+    distanceKm: number;
+  }> {
+    const perKm = await this.masterEntriesService.getConfigNumber(
+      'late_cancel_compensation_per_km',
+      BookingsService.COMP_PER_KM_DEFAULT,
+    );
+    const minInr = await this.masterEntriesService.getConfigNumber(
+      'late_cancel_compensation_min_inr',
+      BookingsService.COMP_MIN_INR_DEFAULT,
+    );
+    const maxInr = await this.masterEntriesService.getConfigNumber(
+      'late_cancel_compensation_max_inr',
+      BookingsService.COMP_MAX_INR_DEFAULT,
+    );
+
+    const jobLat = Number(booking.serviceLat);
+    const jobLng = Number(booking.serviceLng);
+    let workerLat: number | null = null;
+    let workerLng: number | null = null;
+
+    const operatorId = booking.operator?.id;
+    if (operatorId) {
+      const loc = await this.redisService.getWorkerLocation(operatorId);
+      if (loc && Number.isFinite(loc.lat) && Number.isFinite(loc.lng)) {
+        workerLat = Number(loc.lat);
+        workerLng = Number(loc.lng);
+      } else {
+        const profile = await this.workerProfileRepo.findOne({
+          where: { user: { id: operatorId } },
+        });
+        if (profile?.lastLat != null && profile?.lastLng != null) {
+          workerLat = Number(profile.lastLat);
+          workerLng = Number(profile.lastLng);
+        }
+      }
+    }
+
+    let distanceKm = 0;
+    if (
+      Number.isFinite(jobLat) &&
+      Number.isFinite(jobLng) &&
+      workerLat != null &&
+      workerLng != null &&
+      Number.isFinite(workerLat) &&
+      Number.isFinite(workerLng)
+    ) {
+      distanceKm = this.calculateDistance(workerLat, workerLng, jobLat, jobLng);
+    }
+
+    const raw = Math.round(distanceKm * perKm);
+    const amountInr = Math.min(maxInr, Math.max(minInr, raw || minInr));
+    return {
+      amountInr,
+      distanceKm: Math.round(distanceKm * 100) / 100,
     };
   }
 
@@ -1714,6 +2219,7 @@ export class BookingsService {
         pauseRequested: false,
         paused: false,
         pausedMinutes: 0,
+        cancelRequested: !!cached.cancelRequested,
         isPaid: !!cached.isPaid,
         workerPaidConfirmed: !!cached.workerPaidConfirmed,
         customerPaidConfirmed: !!cached.customerPaidConfirmed,
@@ -1739,6 +2245,7 @@ export class BookingsService {
       pauseRequested: false,
       paused: false,
       pausedMinutes: 0,
+      cancelRequested: !!booking.cancelRequestedAt,
       isPaid: !!booking.isPaid,
       workerPaidConfirmed: !!booking.workerPaidConfirmed,
       customerPaidConfirmed: !!booking.customerPaidConfirmed,
@@ -1763,6 +2270,7 @@ export class BookingsService {
       pauseRequested: payload.pauseRequested,
       paused: payload.paused,
       pausedMinutes: payload.pausedMinutes,
+      cancelRequested: payload.cancelRequested,
       isPaid: payload.isPaid,
       workerPaidConfirmed: payload.workerPaidConfirmed,
       customerPaidConfirmed: payload.customerPaidConfirmed,
@@ -1854,7 +2362,103 @@ export class BookingsService {
     return qb.getMany();
   }
 
-  async addGpsStrike(bookingId: string) {
+  /**
+   * True when the worker has fresh GPS and is either near the job or has
+   * closed meaningful distance since accept. Used by the Bull progress job.
+   */
+  evaluateWorkerProgress(
+    booking: {
+      serviceLat?: number | string | null;
+      serviceLng?: number | string | null;
+      acceptDistanceKm?: number | string | null;
+    },
+    location: { lat: number; lng: number; timestamp?: string } | null,
+    nowMs: number = Date.now(),
+  ): { progressing: boolean; reason: string; distanceKm?: number } {
+    if (!location || !Number.isFinite(location.lat) || !Number.isFinite(location.lng)) {
+      return { progressing: false, reason: 'No recent location update found.' };
+    }
+
+    if (location.timestamp) {
+      const age = nowMs - new Date(location.timestamp).getTime();
+      if (!Number.isFinite(age) || age > BookingsService.GPS_LOCATION_MAX_AGE_MS) {
+        return {
+          progressing: false,
+          reason: 'Location update is stale (GPS not fresh).',
+        };
+      }
+    }
+
+    const jobLat = Number(booking.serviceLat);
+    const jobLng = Number(booking.serviceLng);
+    if (!Number.isFinite(jobLat) || !Number.isFinite(jobLng)) {
+      return { progressing: true, reason: 'No job coordinates — skip check.' };
+    }
+
+    const distanceKm = this.calculateDistance(
+      location.lat,
+      location.lng,
+      jobLat,
+      jobLng,
+    );
+
+    if (distanceKm <= BookingsService.PROGRESS_NEAR_JOB_KM) {
+      return {
+        progressing: true,
+        reason: `Worker is near the job (${distanceKm.toFixed(2)} km).`,
+        distanceKm,
+      };
+    }
+
+    const acceptDist =
+      booking.acceptDistanceKm != null
+        ? Number(booking.acceptDistanceKm)
+        : NaN;
+    if (Number.isFinite(acceptDist)) {
+      const closerBy = acceptDist - distanceKm;
+      if (closerBy >= BookingsService.PROGRESS_MIN_CLOSER_KM) {
+        return {
+          progressing: true,
+          reason: `Worker moved ${closerBy.toFixed(2)} km closer.`,
+          distanceKm,
+        };
+      }
+      return {
+        progressing: false,
+        reason: `Worker has not progressed (only ${closerBy.toFixed(2)} km closer; still ${distanceKm.toFixed(2)} km away).`,
+        distanceKm,
+      };
+    }
+
+    // Legacy bookings without an accept snapshot: keep the old 5 km rule.
+    if (distanceKm <= 5) {
+      return {
+        progressing: true,
+        reason: `Within 5 km (legacy, no accept baseline).`,
+        distanceKm,
+      };
+    }
+    return {
+      progressing: false,
+      reason: `Worker is too far (${distanceKm.toFixed(2)} km) without accept baseline.`,
+      distanceKm,
+    };
+  }
+
+  /**
+   * Records a progress/GPS violation while the booking is ACCEPTED.
+   * 1st: warn worker and allow a 3-minute recheck.
+   * 2nd: flag workerNoProgressAt so the customer can cancel free; record a
+   *      worker profile strike. Does not auto-cancel the booking.
+   */
+  async addGpsStrike(bookingId: string): Promise<
+    | {
+        cancelled: boolean;
+        strikes: number;
+        freeCancelEnabled?: boolean;
+      }
+    | undefined
+  > {
     const booking = await this.bookingsRepository.findOne({
       where: { id: bookingId },
       relations: ['customer', 'operator'],
@@ -1862,44 +2466,50 @@ export class BookingsService {
     if (!booking) return;
     if (booking.status !== BookingStatus.ACCEPTED) return;
 
-    booking.gpsStrikes += 1;
-    await this.bookingsRepository.save(booking);
+    if (booking.workerNoProgressAt) {
+      return {
+        cancelled: false,
+        strikes: booking.gpsStrikes,
+        freeCancelEnabled: true,
+      };
+    }
 
-    if (booking.gpsStrikes >= 3) {
-      booking.status = BookingStatus.CANCELLED;
+    booking.gpsStrikes += 1;
+
+    if (booking.gpsStrikes >= BookingsService.PROGRESS_STRIKE_THRESHOLD) {
+      booking.workerNoProgressAt = new Date();
       await this.bookingsRepository.save(booking);
 
       await this.cacheAndEmitBookingStatus(bookingId, {
-        status: 'CANCELLED',
+        status: booking.status,
         operatorName: booking.operator?.name,
         operatorId: booking.operator?.id ?? null,
         customerId: booking.customer?.id ?? null,
+        workerNoProgress: true,
       });
 
       if (booking.customer?.id) {
-        await this.notificationsService.notifyBookingCancelled(
-          booking.customer.id,
-        );
+        await this.notificationsService.sendToUser(booking.customer.id, {
+          title: 'Pro not moving',
+          body: 'Your pro does not appear to be heading your way. You can cancel this booking at no cost.',
+          data: {
+            type: 'worker_no_progress',
+            bookingId,
+          },
+        });
       }
       if (booking.operator?.id) {
         await this.notificationsService.sendToUser(booking.operator.id, {
-          title: 'Booking Forfeited',
-          body: 'You received 3 GPS strikes. The job has been forfeited.',
-          data: { type: 'booking_forfeited', bookingId },
+          title: 'No progress detected',
+          body: 'GPS shows you have not moved toward the customer. They can now cancel free, and a strike was recorded.',
+          data: { type: 'worker_no_progress', bookingId },
         });
-        await this.workersService.setWorkerStatus(
-          booking.operator.id,
-          'available',
-        );
 
-        // Fair-penalty ledger: the forfeit becomes a written, appealable
-        // strike on the worker's profile (3 profile strikes → Go Live
-        // suspension). Per-attempt GPS pings stay on the booking only.
         await this.workersService
           .recordStrike(booking.operator.id, {
             type: WorkerStrikeType.GPS_FORFEIT,
             bookingId,
-            reason: `A ${booking.skill || 'service'} job was forfeited because GPS showed no movement toward the customer within the arrival window.`,
+            reason: `A ${booking.skill || 'service'} job showed no GPS progress toward the customer; customer may cancel free.`,
           })
           .catch((e) =>
             this.logger.error(
@@ -1908,13 +2518,21 @@ export class BookingsService {
           );
       }
 
-      return { cancelled: true, strikes: 3 };
+      return {
+        cancelled: false,
+        strikes: booking.gpsStrikes,
+        freeCancelEnabled: true,
+      };
     }
 
-    await this.notificationsService.notifyGpsStrike(
-      booking.operator.id,
-      booking.gpsStrikes,
-    );
+    await this.bookingsRepository.save(booking);
+
+    if (booking.operator?.id) {
+      await this.notificationsService.notifyGpsStrike(
+        booking.operator.id,
+        booking.gpsStrikes,
+      );
+    }
 
     return { cancelled: false, strikes: booking.gpsStrikes };
   }

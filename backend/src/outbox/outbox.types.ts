@@ -51,8 +51,14 @@ export interface BookingAcceptedPayload {
 export interface BookingCancelledPayload {
   bookingId: string;
   reason: string;
-  /** customer | timeout | sibling_accept | system */
-  source: 'customer' | 'timeout' | 'sibling_accept' | 'system';
+  /** customer | timeout | sibling_accept | system | WORKER_NO_PROGRESS */
+  source:
+    | 'customer'
+    | 'operator'
+    | 'timeout'
+    | 'sibling_accept'
+    | 'system'
+    | 'WORKER_NO_PROGRESS';
   operatorId: string | null;
   operatorName: string | null;
   customerId: string | null;

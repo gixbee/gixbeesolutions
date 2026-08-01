@@ -64,6 +64,7 @@ function makeService(opts: {
     get: jest.fn(async () => null),
     set: jest.fn(async () => undefined),
     del: jest.fn(async () => undefined),
+    getWorkerLocation: jest.fn(async () => null),
   };
   const workersService: any = {
     setWorkerStatus: jest.fn(async () => undefined),
@@ -94,6 +95,8 @@ function makeService(opts: {
     dataSource,
     { emitUserEvent: jest.fn() } as any,
     outboxService,
+    { refundCredit: jest.fn(), consumeCredit: jest.fn() } as any,
+    { getConfigNumber: jest.fn(async (_k: string, f: number) => f) } as any,
   );
   return {
     service,
@@ -142,9 +145,15 @@ describe('BookingsService.acceptBooking', () => {
   });
 
   it('rejects a booking that is no longer REQUESTED', async () => {
-    const locked = { ...baseBooking(), status: BookingStatus.ACCEPTED };
+    // Already ACCEPTED by a *different* worker — same worker is idempotent.
+    const locked = {
+      ...baseBooking(),
+      status: BookingStatus.ACCEPTED,
+      operator: { id: 'other-worker', name: 'Other' },
+    };
     const { service, manager, walletsService, outboxService } = makeService({
       lockedBooking: locked,
+      fullBooking: locked,
     });
 
     await expect(service.acceptBooking('b1', 'work-1')).rejects.toThrow(
@@ -208,7 +217,8 @@ describe('BookingsService.acceptBooking', () => {
       }),
     );
     expect(outboxService.enqueueDispatch).toHaveBeenCalledWith('outbox-1');
-    expect(walletsService.deductBookingFee).toHaveBeenCalledWith('work-1');
+    // Wallet period fee is off (WALLET_PAYMENTS_ENABLED=false); credits are
+    // consumed instead. Do not assert deductBookingFee.
     // Redis / FCM moved to outbox listener — not called from the service.
     expect(redisService.removePendingBooking).not.toHaveBeenCalled();
     expect(redisService.cacheBookingStatus).not.toHaveBeenCalled();

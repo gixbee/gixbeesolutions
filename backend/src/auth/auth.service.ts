@@ -215,6 +215,10 @@ export class AuthService {
     role: string;
     hasWorkerProfile: boolean;
     isAvailableForWork: boolean;
+    instantHelpBlocked: boolean;
+    lateCancelStrikeCount: number;
+    unblockCompensationAmountInr: number | null;
+    unblockCompensationDistanceKm: number | null;
   }> {
     const user = await this.usersRepository.findOne({ where: { id: userId } });
     if (!user) throw new NotFoundException('User not found');
@@ -228,6 +232,13 @@ export class AuthService {
       role: user.role,
       hasWorkerProfile: user.hasWorkerProfile ?? false,
       isAvailableForWork: user.isAvailableForWork ?? true,
+      instantHelpBlocked: user.instantHelpBlocked ?? false,
+      lateCancelStrikeCount: user.lateCancelStrikeCount ?? 0,
+      unblockCompensationAmountInr: user.unblockCompensationAmountInr ?? null,
+      unblockCompensationDistanceKm:
+        user.unblockCompensationDistanceKm != null
+          ? Number(user.unblockCompensationDistanceKm)
+          : null,
     };
   }
 

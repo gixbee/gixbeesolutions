@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../theme.dart';
 import '../../services/location_service.dart';
+import '../../repositories/auth_repository.dart';
 import '../../repositories/worker_repository.dart'; // nearbyCountsProvider
 import '../../shared/widgets/dribbble_background.dart';
 import '../../shared/widgets/gx_pressable.dart';
@@ -9,6 +10,7 @@ import '../../shared/widgets/gx_skeleton.dart';
 import '../jobs/pro_skill_provider.dart';
 import '../jobs/pro_skill_taxonomy.dart';
 import 'instant_request_screen.dart';
+import 'instant_help_unblock_screen.dart';
 
 /// Uber/Grab-style Instant Help entry: the customer picks a SERVICE, never a
 /// person. Tapping a trade goes straight to the request screen (issues +
@@ -131,9 +133,12 @@ class InstantHelpScreen extends ConsumerWidget {
                       ),
                     ],
                   ),
-                  error: (_, __) => _grid(context, kProTrades, counts),
-                  data: (trades) =>
-                      _grid(context, trades.isEmpty ? kProTrades : trades, counts),
+                  error: (_, __) => _grid(context, ref, kProTrades, counts),
+                  data: (trades) => _grid(
+                      context,
+                      ref,
+                      trades.isEmpty ? kProTrades : trades,
+                      counts),
                 ),
               ),
             ],
@@ -143,8 +148,8 @@ class InstantHelpScreen extends ConsumerWidget {
     );
   }
 
-  Widget _grid(
-      BuildContext context, List<ProTrade> trades, Map<String, int> counts) {
+  Widget _grid(BuildContext context, WidgetRef ref, List<ProTrade> trades,
+      Map<String, int> counts) {
     return GridView.builder(
       padding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
@@ -158,7 +163,13 @@ class InstantHelpScreen extends ConsumerWidget {
         final t = trades[i];
         final count = counts[t.name];
         return GxPressable(
-          onTap: () {
+          onTap: () async {
+            final user = ref.read(currentUserProvider).value;
+            if (user?.instantHelpBlocked == true) {
+              await openInstantHelpUnblockScreen(context);
+              return;
+            }
+            if (!context.mounted) return;
             Navigator.push(
               context,
               MaterialPageRoute(

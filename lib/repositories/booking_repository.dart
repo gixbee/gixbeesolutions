@@ -289,6 +289,68 @@ class BookingRepository {
     }
   }
 
+  /// Customer asks the pro to approve cancellation (ARRIVED / ACTIVE jobs).
+  Future<Map<String, dynamic>> requestCancel(
+    String bookingId, {
+    String? reason,
+  }) async {
+    try {
+      final response = await _dio.patch(
+        '/bookings/$bookingId/cancel-request',
+        data: {if (reason != null) 'reason': reason},
+      );
+      return Map<String, dynamic>.from(response.data);
+    } catch (e) {
+      debugPrint('RequestCancel failed: $e');
+      rethrow;
+    }
+  }
+
+  /// Worker approves a pending cancel request.
+  Future<Map<String, dynamic>> approveCancel(String bookingId) async {
+    try {
+      final response = await _dio.patch('/bookings/$bookingId/cancel-approve');
+      return Map<String, dynamic>.from(response.data);
+    } catch (e) {
+      debugPrint('ApproveCancel failed: $e');
+      rethrow;
+    }
+  }
+
+  /// Worker declines a pending cancel request.
+  Future<Map<String, dynamic>> declineCancel(String bookingId) async {
+    try {
+      final response = await _dio.patch('/bookings/$bookingId/cancel-decline');
+      return Map<String, dynamic>.from(response.data);
+    } catch (e) {
+      debugPrint('DeclineCancel failed: $e');
+      rethrow;
+    }
+  }
+
+  /// Customer withdraws a pending cancel request.
+  Future<Map<String, dynamic>> withdrawCancelRequest(String bookingId) async {
+    try {
+      final response =
+          await _dio.patch('/bookings/$bookingId/cancel-request-withdraw');
+      return Map<String, dynamic>.from(response.data);
+    } catch (e) {
+      debugPrint('WithdrawCancelRequest failed: $e');
+      rethrow;
+    }
+  }
+
+  /// Quote for unblocking Instant Help after repeated late cancels.
+  Future<Map<String, dynamic>> getLateCancelCompensationQuote() async {
+    try {
+      final response = await _dio.get('/bookings/me/late-cancel-compensation');
+      return Map<String, dynamic>.from(response.data);
+    } catch (e) {
+      debugPrint('GetLateCancelCompensationQuote failed: $e');
+      rethrow;
+    }
+  }
+
   // ── Rating & Dispute ──────────────────────────────────────────────────────
 
   Future<void> submitRating(String bookingId, int rating) async {

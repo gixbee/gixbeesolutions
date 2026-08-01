@@ -114,6 +114,7 @@ function makeService() {
     { emitUserEvent: jest.fn() } as any,
     outboxService,
     { consumeCredit: jest.fn(), refundCredit: jest.fn() } as any,
+    { getConfigNumber: jest.fn(async (_k: string, f: number) => f) } as any,
   );
   return {
     service,

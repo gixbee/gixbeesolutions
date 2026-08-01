@@ -50,6 +50,16 @@ export class PaymentsController {
     return this.paymentsService.createPeriodFeeOrder(req.user.userId);
   }
 
+  /** Late-cancel travel compensation — unlocks Instant Help after 3 strikes. */
+  @Post('late-cancel-compensation/order')
+  @UseGuards(JwtAuthGuard)
+  @Throttle({ default: { ttl: 60_000, limit: 20 } })
+  createLateCancelCompensationOrder(@Req() req: any) {
+    return this.paymentsService.createLateCancelCompensationOrder(
+      req.user.userId,
+    );
+  }
+
   /**
    * PUBLIC Razorpay webhook (payment.captured / order.paid). Auth is the
    * HMAC signature over the RAW body — requires rawBody:true in main.ts.

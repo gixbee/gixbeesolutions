@@ -35,6 +35,8 @@ function makeService(
       append: jest.fn(async () => ({ id: 'ob' })),
       enqueueDispatch: jest.fn(async () => undefined),
     } as any,
+    {} as any,
+    {} as any,
   );
   // getBookingById is used on cache miss — stub via prototype if needed.
   if (opts.booking !== undefined) {

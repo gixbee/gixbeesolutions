@@ -16,6 +16,7 @@ import {
 import { WalletsService } from '../wallets/wallets.service';
 import { MasterEntriesService } from '../master-entries/master-entries.service';
 import { WorkersService } from '../workers/workers.service';
+import { BookingsService } from '../bookings/bookings.service';
 
 /**
  * Razorpay wallet-recharge integration.
@@ -46,6 +47,7 @@ export class PaymentsService {
     private readonly walletsService: WalletsService,
     private readonly masterEntriesService: MasterEntriesService,
     private readonly workersService: WorkersService,
+    private readonly bookingsService: BookingsService,
   ) {}
 
   private get keyId(): string {
@@ -141,6 +143,30 @@ export class PaymentsService {
     return this.createOrder(userId, fee, PaymentPurpose.PERIOD_FEE);
   }
 
+  /**
+   * Customer late-cancel travel compensation — amount is frozen on the user
+   * at ban time (distance-based). Fulfilment unlocks Instant Help.
+   */
+  async createLateCancelCompensationOrder(userId: string): Promise<{
+    orderId: string;
+    amount: number;
+    currency: string;
+    keyId: string;
+  }> {
+    const quote =
+      await this.bookingsService.getLateCancelCompensationQuote(userId);
+    if (!quote.blocked || !quote.amountInr || quote.amountInr <= 0) {
+      throw new BadRequestException(
+        'No travel compensation is due — Instant Help is not blocked.',
+      );
+    }
+    return this.createOrder(
+      userId,
+      quote.amountInr,
+      PaymentPurpose.LATE_CANCEL_COMPENSATION,
+    );
+  }
+
   private async createOrder(
     userId: string,
     rupees: number,
@@ -169,7 +195,13 @@ export class PaymentsService {
       body: JSON.stringify({
         amount: rupees * 100, // paise
         currency: 'INR',
-        receipt: `${purpose === PaymentPurpose.PERIOD_FEE ? 'fee' : 'rcg'}_${Date.now().toString(36)}`,
+        receipt: `${
+          purpose === PaymentPurpose.PERIOD_FEE
+            ? 'fee'
+            : purpose === PaymentPurpose.LATE_CANCEL_COMPENSATION
+              ? 'lcc'
+              : 'rcg'
+        }_${Date.now().toString(36)}`,
         notes: { gixbeeUserId: userId, purpose },
       }),
     });
@@ -302,6 +334,31 @@ export class PaymentsService {
           }`,
         );
         throw e; // 5xx → Razorpay retries the webhook
+      }
+      return { ok: true };
+    }
+
+    if (order.purpose === PaymentPurpose.LATE_CANCEL_COMPENSATION) {
+      try {
+        await this.bookingsService.markLateCancelCompensationPaid(
+          order.userId,
+        );
+        this.logger.log(
+          `[Razorpay] ${orderId}: late-cancel compensation ₹${order.amount} — Instant Help unlocked for ${order.userId}`,
+        );
+      } catch (e) {
+        await this.ordersRepo
+          .update(
+            { razorpayOrderId: orderId },
+            { status: PaymentOrderStatus.CREATED, razorpayPaymentId: null },
+          )
+          .catch(() => {});
+        this.logger.error(
+          `[Razorpay] ${orderId}: late-cancel compensation FAILED — claim reverted: ${
+            (e as Error)?.message ?? e
+          }`,
+        );
+        throw e;
       }
       return { ok: true };
     }

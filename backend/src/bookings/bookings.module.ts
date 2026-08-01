@@ -13,6 +13,7 @@ import { MessagesModule } from '../messages/messages.module';
 import { OutboxModule } from '../outbox/outbox.module';
 import { SystemLogsModule } from '../system-logs/system-logs.module';
 import { BillingModule } from '../billing/billing.module';
+import { MasterEntriesModule } from '../master-entries/master-entries.module';
 
 @Module({
   imports: [
@@ -27,6 +28,7 @@ import { BillingModule } from '../billing/billing.module';
     OutboxModule,
     SystemLogsModule,
     BillingModule,
+    MasterEntriesModule,
   ],
   controllers: [BookingsController],
   providers: [BookingsService, BookingsProcessor],

@@ -80,6 +80,11 @@ export class BookingsController {
     });
   }
 
+  @Get('me/late-cancel-compensation')
+  async lateCancelCompensationQuote(@Req() req) {
+    return this.bookingsService.getLateCancelCompensationQuote(req.user.userId);
+  }
+
   // ── Admin: portal monitor + disputes (AdminGuard) ─────────────────────────
 
   @Get('admin/all')
@@ -167,7 +172,40 @@ export class BookingsController {
       id,
       body?.reason ?? 'Not specified',
       source,
+      source === 'operator' ? { skipStageGate: true, applyLateCancelStrike: false } : undefined,
     );
+  }
+
+  @Patch(':id/cancel-request')
+  async requestCancel(
+    @Param('id') id: string,
+    @Req() req,
+    @Body() body: CancelBookingDto,
+  ) {
+    await this.bookingsService.assertParticipant(id, req.user.userId);
+    return this.bookingsService.requestCancel(
+      id,
+      req.user.userId,
+      body?.reason,
+    );
+  }
+
+  @Patch(':id/cancel-approve')
+  async approveCancel(@Param('id') id: string, @Req() req) {
+    await this.bookingsService.assertParticipant(id, req.user.userId);
+    return this.bookingsService.approveCancelRequest(id, req.user.userId);
+  }
+
+  @Patch(':id/cancel-decline')
+  async declineCancel(@Param('id') id: string, @Req() req) {
+    await this.bookingsService.assertParticipant(id, req.user.userId);
+    return this.bookingsService.declineCancelRequest(id, req.user.userId);
+  }
+
+  @Patch(':id/cancel-request-withdraw')
+  async withdrawCancelRequest(@Param('id') id: string, @Req() req) {
+    await this.bookingsService.assertParticipant(id, req.user.userId);
+    return this.bookingsService.withdrawCancelRequest(id, req.user.userId);
   }
 
   // ─── OTP GATES ──────────────────────────────────────────

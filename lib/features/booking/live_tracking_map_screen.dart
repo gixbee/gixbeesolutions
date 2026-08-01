@@ -19,6 +19,7 @@ import '../../repositories/worker_repository.dart';
 import '../../shared/widgets/gx_snackbar.dart';
 import 'arrival_otp_screen.dart';
 import 'completion_otp_screen.dart';
+import 'cancel_booking_screen.dart';
 import 'report_issue_sheet.dart';
 
 /// Live map screen shown to the **customer** after a worker accepts their booking.
@@ -63,6 +64,7 @@ class _LiveTrackingMapScreenState extends ConsumerState<LiveTrackingMapScreen> {
   LatLng? _workerLocation;
   LatLng? _customerLocation;
   String _currentStatus = 'ACCEPTED';
+  bool _workerNoProgress = false;
   String? _arrivalOtp;
   bool _isMapReady = false;
 
@@ -425,6 +427,11 @@ class _LiveTrackingMapScreenState extends ConsumerState<LiveTrackingMapScreen> {
     if (!mounted) return;
     final newStatus = statusData['status']?.toString().toUpperCase() ?? '';
     final otp = statusData['arrivalOtp']?.toString();
+    final noProgress = statusData['workerNoProgress'] == true;
+
+    if (noProgress && !_workerNoProgress && !widget.isWorker) {
+      setState(() => _workerNoProgress = true);
+    }
 
     // Poll fallback: operator lat/lng from Redis when socket is slow/down.
     if (!widget.isWorker) {
@@ -936,6 +943,53 @@ class _LiveTrackingMapScreenState extends ConsumerState<LiveTrackingMapScreen> {
                 ],
               ),
               const SizedBox(height: 16),
+
+              if (!widget.isWorker &&
+                  _workerNoProgress &&
+                  _currentStatus == 'ACCEPTED') ...[
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(12),
+                  margin: const EdgeInsets.only(bottom: 12),
+                  decoration: BoxDecoration(
+                    color: cs.errorContainer.withValues(alpha: 0.35),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Text(
+                        'Your pro does not appear to be heading your way. '
+                        'You can cancel at no cost.',
+                        style: TextStyle(
+                          fontSize: 13,
+                          height: 1.35,
+                          color: cs.onSurface,
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      GxButton(
+                        label: 'Cancel free',
+                        onTap: () async {
+                          final done = await Navigator.push<bool>(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => CancelBookingScreen(
+                                bookingId: widget.bookingId,
+                              ),
+                            ),
+                          );
+                          if (done == true && mounted && Navigator.canPop(context)) {
+                            Navigator.pop(context);
+                          }
+                        },
+                        gradient: [cs.error, cs.error],
+                        accent: cs.error,
+                      ),
+                    ],
+                  ),
+                ),
+              ],
 
               // Job timer (starts at arrival-OTP entry).
               if ((_currentStatus == 'ACTIVE' ||

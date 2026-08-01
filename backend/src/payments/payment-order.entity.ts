@@ -23,6 +23,9 @@ export enum PaymentPurpose {
    *  resets jobsSincePayment so the pro can go live again. NO wallet
    *  involvement: the payment_orders row is the receipt. */
   PERIOD_FEE = 'PERIOD_FEE',
+  /** Customer late-cancel travel compensation — unlocks Instant Help and
+   *  records a payout owed to the affected worker. */
+  LATE_CANCEL_COMPENSATION = 'LATE_CANCEL_COMPENSATION',
 }
 
 /**

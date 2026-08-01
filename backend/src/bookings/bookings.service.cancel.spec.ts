@@ -38,11 +38,31 @@ function makeService(booking: any) {
   const workersService: any = {
     setWorkerStatus: jest.fn(async () => undefined),
   };
+  const jobCreditsService: any = {
+    refundCredit: jest.fn(async () => undefined),
+    consumeCredit: jest.fn(async () => 5),
+  };
+  const masterEntriesService: any = {
+    getConfigNumber: jest.fn(async (_k: string, fallback: number) => fallback),
+  };
+
   const manager: any = {
     save: jest.fn(async (b: any) => b),
+    getRepository: jest.fn(() => ({
+      findOne: jest.fn(async () => ({
+        id: 'cust-1',
+        lateCancelStrikeCount: 0,
+        instantHelpBlocked: false,
+      })),
+      save: jest.fn(async (u: any) => u),
+    })),
   };
   const dataSource: any = {
     transaction: jest.fn(async (cb: any) => cb(manager)),
+    getRepository: jest.fn(() => ({
+      findOne: jest.fn(async () => null),
+      save: jest.fn(async (u: any) => u),
+    })),
   };
   const outboxService: any = {
     append: jest.fn(
@@ -67,6 +87,8 @@ function makeService(booking: any) {
     dataSource,
     { emitUserEvent: jest.fn() } as any,
     outboxService,
+    jobCreditsService,
+    masterEntriesService,
   );
   return {
     service,
@@ -76,6 +98,7 @@ function makeService(booking: any) {
     outboxService,
     redisService,
     notificationsService,
+    jobCreditsService,
   };
 }
 

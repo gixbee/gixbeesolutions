@@ -19,6 +19,7 @@ import 'no_workers_screen.dart';
 import 'waiting_for_worker_screen.dart';
 import 'location_pin_screen.dart';
 import '../profile/addresses/save_address_bottom_sheet.dart';
+import 'instant_help_unblock_screen.dart';
 
 /// Uber/Grab-style instant request — stepped exactly like the client's v126
 /// demo (ih module c2–c6): LOCATION → PRESENCE (who receives the arrival
@@ -406,6 +407,10 @@ class _InstantRequestScreenState extends ConsumerState<InstantRequestScreen> {
       // error — show the dedicated fallback screen with real next steps
       // (try later / post a job) instead of a red crash-looking toast.
       final lower = message.toLowerCase();
+      if (isInstantHelpBlockedError(e)) {
+        await openInstantHelpUnblockScreen(context);
+        return;
+      }
       if (lower.contains('no pros') ||
           lower.contains('no workers') ||
           lower.contains('available near')) {

@@ -17,6 +17,12 @@ function makeProcessor() {
     addGpsStrike: jest.fn(async () => ({ cancelled: false, strikes: 1 })),
     updateStatus: jest.fn(async () => undefined),
     calculateDistance: jest.fn(() => 0),
+    evaluateWorkerProgress: jest.fn(() => ({
+      progressing: true,
+      reason: 'ok',
+    })),
+    rebroadcastBooking: jest.fn(async () => ({ stillOpen: true, notified: 0 })),
+    timeoutCancelBooking: jest.fn(async () => ({ cancelled: true })),
   };
   const redisService: any = {
     getWorkerLocation: jest.fn(async () => null),
@@ -158,19 +164,24 @@ describe('BookingsProcessor', () => {
       expect(redisService.getWorkerLocation).not.toHaveBeenCalled();
     });
 
-    it('verifies movement (no strike) when the worker is within 5km', async () => {
+    it('verifies progress (no strike) when evaluateWorkerProgress passes', async () => {
       const { processor, bookingsService, redisService } = makeProcessor();
       bookingsService.getBookingById.mockResolvedValueOnce({
         status: BookingStatus.ACCEPTED,
         operator: { id: 'op1' },
         serviceLat: 12.9,
         serviceLng: 77.6,
+        acceptDistanceKm: 2,
       });
       redisService.getWorkerLocation.mockResolvedValueOnce({
         lat: 12.91,
         lng: 77.61,
+        timestamp: new Date().toISOString(),
       });
-      bookingsService.calculateDistance.mockReturnValueOnce(1.2);
+      bookingsService.evaluateWorkerProgress.mockReturnValueOnce({
+        progressing: true,
+        reason: 'Moved closer',
+      });
 
       const res = await processor.handleTenMinuteGpsCheck(job('b1'));
 
@@ -178,7 +189,7 @@ describe('BookingsProcessor', () => {
       expect(bookingsService.addGpsStrike).not.toHaveBeenCalled();
     });
 
-    it('issues a strike and reschedules a 3-minute recheck when no location is cached', async () => {
+    it('issues a strike and reschedules a 3-minute recheck when not progressing', async () => {
       const { processor, bookingsService, redisService, bookingsQueue } =
         makeProcessor();
       bookingsService.getBookingById.mockResolvedValueOnce({
@@ -188,39 +199,10 @@ describe('BookingsProcessor', () => {
         serviceLng: 77.6,
       });
       redisService.getWorkerLocation.mockResolvedValueOnce(null);
-      bookingsService.addGpsStrike.mockResolvedValueOnce({
-        cancelled: false,
-        strikes: 2,
+      bookingsService.evaluateWorkerProgress.mockReturnValueOnce({
+        progressing: false,
+        reason: 'No recent location update found.',
       });
-
-      const res = await processor.handleTenMinuteGpsCheck(job('b1'));
-
-      expect(bookingsService.calculateDistance).not.toHaveBeenCalled(); // no cache → short-circuit
-      expect(bookingsService.addGpsStrike).toHaveBeenCalledWith('b1');
-      expect(bookingsQueue.add).toHaveBeenCalledWith(
-        'tenMinuteGpsCheck',
-        { bookingId: 'b1' },
-        { delay: 3 * 60 * 1000 },
-      );
-      expect(res).toEqual({
-        status: 'Strike 2 issued. Rescheduled check in 3m.',
-      });
-    });
-
-    it('issues a strike when the worker is more than 5km away', async () => {
-      const { processor, bookingsService, redisService, bookingsQueue } =
-        makeProcessor();
-      bookingsService.getBookingById.mockResolvedValueOnce({
-        status: BookingStatus.ACCEPTED,
-        operator: { id: 'op1' },
-        serviceLat: 12.9,
-        serviceLng: 77.6,
-      });
-      redisService.getWorkerLocation.mockResolvedValueOnce({
-        lat: 13.5,
-        lng: 78.2,
-      });
-      bookingsService.calculateDistance.mockReturnValueOnce(42.5);
       bookingsService.addGpsStrike.mockResolvedValueOnce({
         cancelled: false,
         strikes: 1,
@@ -229,13 +211,17 @@ describe('BookingsProcessor', () => {
       const res = await processor.handleTenMinuteGpsCheck(job('b1'));
 
       expect(bookingsService.addGpsStrike).toHaveBeenCalledWith('b1');
-      expect(bookingsQueue.add).toHaveBeenCalledTimes(1);
+      expect(bookingsQueue.add).toHaveBeenCalledWith(
+        'tenMinuteGpsCheck',
+        { bookingId: 'b1' },
+        { delay: 3 * 60 * 1000 },
+      );
       expect(res).toEqual({
         status: 'Strike 1 issued. Rescheduled check in 3m.',
       });
     });
 
-    it('forfeits the booking (no reschedule) when the strike result is cancelled', async () => {
+    it('stops rescheduling when free cancel is enabled', async () => {
       const { processor, bookingsService, redisService, bookingsQueue } =
         makeProcessor();
       bookingsService.getBookingById.mockResolvedValueOnce({
@@ -245,33 +231,36 @@ describe('BookingsProcessor', () => {
         serviceLng: 77.6,
       });
       redisService.getWorkerLocation.mockResolvedValueOnce(null);
+      bookingsService.evaluateWorkerProgress.mockReturnValueOnce({
+        progressing: false,
+        reason: 'No recent location update found.',
+      });
       bookingsService.addGpsStrike.mockResolvedValueOnce({
-        cancelled: true,
-        strikes: 3,
+        cancelled: false,
+        strikes: 2,
+        freeCancelEnabled: true,
       });
 
       const res = await processor.handleTenMinuteGpsCheck(job('b1'));
 
-      expect(res).toEqual({ status: 'Booking forfeited due to 3 strikes.' });
+      expect(res).toEqual({
+        status: 'No progress — customer free cancel enabled (strike 2).',
+      });
       expect(bookingsQueue.add).not.toHaveBeenCalled();
     });
 
-    it('forfeits when addGpsStrike returns null (no reschedule)', async () => {
-      const { processor, bookingsService, redisService, bookingsQueue } =
-        makeProcessor();
+    it('skips work when free cancel was already enabled', async () => {
+      const { processor, bookingsService, redisService } = makeProcessor();
       bookingsService.getBookingById.mockResolvedValueOnce({
         status: BookingStatus.ACCEPTED,
         operator: { id: 'op1' },
-        serviceLat: 12.9,
-        serviceLng: 77.6,
+        workerNoProgressAt: new Date(),
       });
-      redisService.getWorkerLocation.mockResolvedValueOnce(null);
-      bookingsService.addGpsStrike.mockResolvedValueOnce(null);
 
       const res = await processor.handleTenMinuteGpsCheck(job('b1'));
 
-      expect(res).toEqual({ status: 'Booking forfeited due to 3 strikes.' });
-      expect(bookingsQueue.add).not.toHaveBeenCalled();
+      expect(res).toEqual({ status: 'Free cancel already enabled' });
+      expect(redisService.getWorkerLocation).not.toHaveBeenCalled();
     });
   });
 
@@ -302,20 +291,21 @@ describe('BookingsProcessor', () => {
       expect(notificationsService.sendToUser).not.toHaveBeenCalled();
     });
 
-    it('auto-cancels via updateStatus when still REQUESTED (FCM via outbox)', async () => {
+    it('auto-cancels via timeoutCancelBooking when still REQUESTED (FCM via outbox)', async () => {
       const { processor, bookingsService, notificationsService } =
         makeProcessor();
       bookingsService.getBookingById.mockResolvedValueOnce({
         status: BookingStatus.REQUESTED,
         customer: { id: 'c1' },
+        operator: { id: 'op1' }, // targeted — skip rebroadcast wave
+      });
+      bookingsService.timeoutCancelBooking.mockResolvedValueOnce({
+        cancelled: true,
       });
 
       const res = await processor.handleRequestTimeout(job('b1'));
 
-      expect(bookingsService.updateStatus).toHaveBeenCalledWith(
-        'b1',
-        BookingStatus.CANCELLED,
-      );
+      expect(bookingsService.timeoutCancelBooking).toHaveBeenCalledWith('b1');
       // Customer FCM is emitted by the BOOKING_CANCELLED outbox listener.
       expect(notificationsService.sendToUser).not.toHaveBeenCalled();
       expect(res).toEqual({ status: 'Cancelled - Timeout' });
@@ -327,14 +317,15 @@ describe('BookingsProcessor', () => {
       bookingsService.getBookingById.mockResolvedValueOnce({
         status: BookingStatus.REQUESTED,
         customer: null,
+        operator: { id: 'op1' },
+      });
+      bookingsService.timeoutCancelBooking.mockResolvedValueOnce({
+        cancelled: true,
       });
 
       const res = await processor.handleRequestTimeout(job('b1'));
 
-      expect(bookingsService.updateStatus).toHaveBeenCalledWith(
-        'b1',
-        BookingStatus.CANCELLED,
-      );
+      expect(bookingsService.timeoutCancelBooking).toHaveBeenCalledWith('b1');
       expect(notificationsService.sendToUser).not.toHaveBeenCalled();
       expect(res).toEqual({ status: 'Cancelled - Timeout' });
     });

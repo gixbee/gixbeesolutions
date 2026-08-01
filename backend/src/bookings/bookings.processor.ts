@@ -78,7 +78,7 @@ export class BookingsProcessor {
   async handleTenMinuteGpsCheck(job: Job) {
     try {
       const { bookingId } = job.data;
-      this.logger.log(`Starting GPS movement check for booking: ${bookingId}`);
+      this.logger.log(`Starting GPS progress check for booking: ${bookingId}`);
 
       const booking = await this.bookingsService.getBookingById(bookingId);
       if (!booking) return;
@@ -94,35 +94,28 @@ export class BookingsProcessor {
       const workerId = booking.operator?.id;
       if (!workerId) return;
 
-      const locationCache = await this.redisService.getWorkerLocation(workerId);
-
-      let isViolating = false;
-      let reason = '';
-
-      if (!locationCache) {
-        isViolating = true;
-        reason = 'No recent location update found.';
-      } else {
-        const distance = this.bookingsService.calculateDistance(
-          locationCache.lat,
-          locationCache.lng,
-          Number(booking.serviceLat),
-          Number(booking.serviceLng),
-        );
-
-        // Rule: Worker must be within 5km 10 minutes after acceptance
-        if (distance > 5) {
-          isViolating = true;
-          reason = `Worker is too far (${distance.toFixed(2)} km) from destination.`;
-        }
+      if (booking.workerNoProgressAt) {
+        return { status: 'Free cancel already enabled' };
       }
 
-      if (isViolating) {
+      const locationCache = await this.redisService.getWorkerLocation(workerId);
+      const progress = this.bookingsService.evaluateWorkerProgress(
+        booking,
+        locationCache,
+      );
+
+      if (!progress.progressing) {
         this.logger.warn(
-          `⚠️ GPS Violation for Booking ${bookingId}: ${reason}`,
+          `⚠️ GPS progress violation for Booking ${bookingId}: ${progress.reason}`,
         );
 
         const result = await this.bookingsService.addGpsStrike(bookingId);
+
+        if (result?.freeCancelEnabled) {
+          return {
+            status: `No progress — customer free cancel enabled (strike ${result.strikes}).`,
+          };
+        }
 
         if (result && !result.cancelled) {
           // Reschedule another check in 3 minutes
@@ -136,10 +129,12 @@ export class BookingsProcessor {
           };
         }
 
-        return { status: 'Booking forfeited due to 3 strikes.' };
+        return { status: 'Progress check ended.' };
       }
 
-      this.logger.log(`Worker ${workerId} movement verified.`);
+      this.logger.log(
+        `Worker ${workerId} progress verified: ${progress.reason}`,
+      );
       return { status: 'GPS Verified' };
     } catch (err) {
       this.recordJobError('tenMinuteGpsCheck', job, err);

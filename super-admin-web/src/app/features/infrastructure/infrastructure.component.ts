@@ -19,7 +19,7 @@ import { RedisViewerComponent } from './redis-viewer.component';
             </span>
           </div>
         </div>
-        <div class="d-flex gap-2">
+        <div class="d-flex gap-2 flex-wrap">
           <a [href]="rawBeszelUrl" target="_blank" class="btn btn-outline-secondary btn-sm d-flex align-items-center gap-2">
             <i class="bi bi-cpu"></i>
             <span>Open Beszel Hub</span>
@@ -28,6 +28,11 @@ import { RedisViewerComponent } from './redis-viewer.component';
           <a href="/infra/dozzle/" target="_blank" class="btn btn-outline-secondary btn-sm d-flex align-items-center gap-2">
             <i class="bi bi-terminal"></i>
             <span>Open Dozzle Logs</span>
+            <i class="bi bi-box-arrow-up-right small"></i>
+          </a>
+          <a [href]="rawPgAdminUrl" target="_blank" class="btn btn-outline-secondary btn-sm d-flex align-items-center gap-2">
+            <i class="bi bi-database-fill-gear"></i>
+            <span>Open pgAdmin</span>
             <i class="bi bi-box-arrow-up-right small"></i>
           </a>
         </div>
@@ -57,6 +62,18 @@ import { RedisViewerComponent } from './redis-viewer.component';
           >
             <i class="bi bi-terminal-split"></i>
             <span>Live Container Logs (Dozzle)</span>
+          </button>
+        </li>
+        <li class="nav-item" role="presentation">
+          <button
+            class="nav-link d-flex align-items-center gap-2"
+            [class.active]="activeTab === 'pgadmin'"
+            (click)="activeTab = 'pgadmin'"
+            type="button"
+            role="tab"
+          >
+            <i class="bi bi-database-fill-gear"></i>
+            <span>Postgres (pgAdmin)</span>
           </button>
         </li>
         <li class="nav-item" role="presentation">
@@ -94,6 +111,17 @@ import { RedisViewerComponent } from './redis-viewer.component';
             class="w-100 flex-grow-1 border-0"
             style="min-height: calc(100vh - 190px); display: block;"
             title="Dozzle Container Logs"
+            allow="clipboard-read; clipboard-write"
+          ></iframe>
+        </div>
+
+        <!-- pgAdmin Tab -->
+        <div [class.d-none]="activeTab !== 'pgadmin'" class="w-100 flex-grow-1 d-flex flex-column">
+          <iframe
+            [src]="pgAdminUrl"
+            class="w-100 flex-grow-1 border-0"
+            style="min-height: calc(100vh - 190px); display: block;"
+            title="pgAdmin Postgres Console"
             allow="clipboard-read; clipboard-write"
           ></iframe>
         </div>
@@ -158,9 +186,11 @@ import { RedisViewerComponent } from './redis-viewer.component';
 export class InfrastructureComponent {
   private sanitizer = inject(DomSanitizer);
 
-  activeTab: 'beszel' | 'dozzle' | 'redis' = 'beszel';
+  activeTab: 'beszel' | 'dozzle' | 'pgadmin' | 'redis' = 'beszel';
 
   readonly rawBeszelUrl = '/infra/beszel/';
+  readonly rawPgAdminUrl = '/infra/pgadmin/';
   readonly beszelUrl: SafeResourceUrl = this.sanitizer.bypassSecurityTrustResourceUrl(this.rawBeszelUrl);
   readonly dozzleUrl: SafeResourceUrl = this.sanitizer.bypassSecurityTrustResourceUrl('/infra/dozzle/');
+  readonly pgAdminUrl: SafeResourceUrl = this.sanitizer.bypassSecurityTrustResourceUrl(this.rawPgAdminUrl);
 }

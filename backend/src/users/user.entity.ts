@@ -65,6 +65,26 @@ export class User {
   @Column({ default: true })
   isAvailableForWork: boolean;
 
+  /** Forced late-cancels after accept grace (worker-approved cancels do not count). */
+  @Column({ type: 'int', default: 0 })
+  lateCancelStrikeCount: number;
+
+  /** Instant Help blocked until travel compensation is paid. */
+  @Column({ default: false })
+  instantHelpBlocked: boolean;
+
+  /** Booking that triggered the ban — compensation payout goes to its worker. */
+  @Column({ type: 'uuid', nullable: true })
+  unblockCompensationBookingId: string | null;
+
+  /** Frozen INR amount owed to unlock Instant Help. */
+  @Column({ type: 'int', nullable: true })
+  unblockCompensationAmountInr: number | null;
+
+  /** Distance used when freezing compensation (for UI). */
+  @Column({ type: 'decimal', precision: 8, scale: 2, nullable: true })
+  unblockCompensationDistanceKm: number | null;
+
   @Column({
     type: 'enum',
     enum: UserApprovalStatus,

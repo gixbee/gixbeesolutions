@@ -129,11 +129,34 @@ export class Booking {
   @Column({ type: 'timestamp', nullable: true })
   startedAt: Date;
 
+  /** When the booking flipped to ACCEPTED — used for cancel grace window. */
+  @Column({ type: 'timestamp', nullable: true })
+  acceptedAt: Date;
+
   @Column({ type: 'timestamp', nullable: true })
   completedAt: Date;
 
   @Column({ type: 'int', default: 0 })
   gpsStrikes: number;
+
+  /** Worker GPS at accept — baseline for "is the pro moving?" checks. */
+  @Column({ type: 'decimal', precision: 9, scale: 6, nullable: true })
+  acceptLat: number | null;
+
+  @Column({ type: 'decimal', precision: 9, scale: 6, nullable: true })
+  acceptLng: number | null;
+
+  /** Straight-line km from worker → job at accept time. */
+  @Column({ type: 'decimal', precision: 8, scale: 2, nullable: true })
+  acceptDistanceKm: number | null;
+
+  /**
+   * Set when GPS progress checks confirm the worker is not moving toward the
+   * job. While set (and status still ACCEPTED), the customer may cancel free
+   * with no late-cancel strike; the worker does not get a job-credit refund.
+   */
+  @Column({ type: 'timestamp', nullable: true })
+  workerNoProgressAt: Date | null;
 
   @Column({ nullable: true })
   arrivalOtp: string;
@@ -196,6 +219,20 @@ export class Booking {
 
   @Column({ type: 'int', default: 0 })
   pausedMinutes: number;
+
+  /** Customer asked the worker to cancel; awaiting Approve/Decline. */
+  @Column({ type: 'timestamp', nullable: true })
+  cancelRequestedAt: Date;
+
+  /** Travel compensation frozen at late-cancel ban (audit / payout). */
+  @Column({ type: 'int', nullable: true })
+  lateCancelCompensationAmountInr: number | null;
+
+  @Column({ type: 'decimal', precision: 8, scale: 2, nullable: true })
+  lateCancelCompensationDistanceKm: number | null;
+
+  @Column({ type: 'timestamp', nullable: true })
+  lateCancelCompensationPaidAt: Date | null;
 
   // ── Dispute / report (was a log-only stub; now persisted so admin review
   // and the reporter can see it). reporterRole distinguishes who filed.

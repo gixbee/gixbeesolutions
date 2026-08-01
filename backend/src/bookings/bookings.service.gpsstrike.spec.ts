@@ -1,21 +1,16 @@
 import { BookingsService } from './bookings.service';
 import { BookingStatus } from './booking.entity';
+import { WorkerStrikeType } from '../workers/worker-strike.entity';
 
 /**
- * Unit tests for addGpsStrike — the 3-strike GPS forfeit path:
+ * Unit tests for addGpsStrike — progress-violation path:
  * - guards:
  *     missing booking            → returns undefined, no save, no notify
- *     non-ACTIVE/ACCEPTED status → returns undefined, no save, no notify
- * - 1st/2nd strike: counter increments, booking saved once, a GPS-strike
- *     notification is sent, status stays ACCEPTED, returns
- *     { cancelled: false, strikes: n }
- * - 3rd strike (forfeit): booking → CANCELLED, status cached in redis,
- *     customer notified of cancellation, operator notified of forfeit,
- *     worker released to 'available', returns { cancelled: true, strikes: 3 }
- *
- * addGpsStrike reads/writes via the plain bookingsRepository (no
- * transaction), so the mock just needs a findOne + save and the
- * notification / redis / workers collaborators.
+ *     non-ACCEPTED status        → returns undefined, no save, no notify
+ * - 1st strike: counter increments, GPS-strike notification, status stays ACCEPTED
+ * - 2nd strike: flags workerNoProgressAt (customer free cancel), worker profile
+ *     strike, customer + worker notified — does NOT auto-cancel
+ * - already flagged: idempotent return with freeCancelEnabled
  */
 function makeService(booking: any) {
   const bookingsRepository: any = {
@@ -41,6 +36,7 @@ function makeService(booking: any) {
   };
   const workersService: any = {
     setWorkerStatus: jest.fn(async () => undefined),
+    recordStrike: jest.fn(async () => undefined),
   };
   const dataSource: any = { transaction: jest.fn() };
 
@@ -58,6 +54,8 @@ function makeService(booking: any) {
       append: jest.fn(async () => ({ id: 'ob' })),
       enqueueDispatch: jest.fn(async () => undefined),
     } as any,
+    { refundCredit: jest.fn(), consumeCredit: jest.fn() } as any,
+    { getConfigNumber: jest.fn(async (_k: string, f: number) => f) } as any,
   );
   return {
     service,
@@ -72,6 +70,8 @@ const baseBooking = (overrides: Partial<any> = {}) => ({
   id: 'b1',
   status: BookingStatus.ACCEPTED,
   gpsStrikes: 0,
+  workerNoProgressAt: null,
+  skill: 'plumber',
   customer: { id: 'cust-1' },
   operator: { id: 'work-1', name: 'Asha' },
   ...overrides,
@@ -87,7 +87,6 @@ describe('BookingsService.addGpsStrike', () => {
     expect(res).toBeUndefined();
     expect(bookingsRepository.save).not.toHaveBeenCalled();
     expect(notificationsService.notifyGpsStrike).not.toHaveBeenCalled();
-    expect(notificationsService.notifyBookingCancelled).not.toHaveBeenCalled();
   });
 
   it('does nothing when the booking is not ACCEPTED', async () => {
@@ -103,7 +102,7 @@ describe('BookingsService.addGpsStrike', () => {
     expect(notificationsService.notifyGpsStrike).not.toHaveBeenCalled();
   });
 
-  it('records a first strike without forfeiting', async () => {
+  it('records a first strike without enabling free cancel', async () => {
     const booking = baseBooking({ gpsStrikes: 0 });
     const {
       service,
@@ -116,32 +115,18 @@ describe('BookingsService.addGpsStrike', () => {
 
     expect(res).toEqual({ cancelled: false, strikes: 1 });
     expect(booking.gpsStrikes).toBe(1);
+    expect(booking.workerNoProgressAt).toBeNull();
     expect(booking.status).toBe(BookingStatus.ACCEPTED);
     expect(bookingsRepository.save).toHaveBeenCalledTimes(1);
     expect(notificationsService.notifyGpsStrike).toHaveBeenCalledWith(
       'work-1',
       1,
     );
-    expect(notificationsService.notifyBookingCancelled).not.toHaveBeenCalled();
-    expect(workersService.setWorkerStatus).not.toHaveBeenCalled();
+    expect(workersService.recordStrike).not.toHaveBeenCalled();
   });
 
-  it('records a second strike without forfeiting', async () => {
+  it('on second strike enables free cancel and records a worker strike', async () => {
     const booking = baseBooking({ gpsStrikes: 1 });
-    const { service, notificationsService } = makeService(booking);
-
-    const res = await service.addGpsStrike('b1');
-
-    expect(res).toEqual({ cancelled: false, strikes: 2 });
-    expect(booking.gpsStrikes).toBe(2);
-    expect(notificationsService.notifyGpsStrike).toHaveBeenCalledWith(
-      'work-1',
-      2,
-    );
-  });
-
-  it('forfeits the job on the third strike', async () => {
-    const booking = baseBooking({ gpsStrikes: 2 });
     const {
       service,
       bookingsRepository,
@@ -152,32 +137,117 @@ describe('BookingsService.addGpsStrike', () => {
 
     const res = await service.addGpsStrike('b1');
 
-    expect(res).toEqual({ cancelled: true, strikes: 3 });
-    expect(booking.gpsStrikes).toBe(3);
-    expect(booking.status).toBe(BookingStatus.CANCELLED);
-    // increment save + forfeit save
-    expect(bookingsRepository.save).toHaveBeenCalledTimes(2);
-    expect(redisService.cacheBookingStatus).toHaveBeenCalledWith('b1', {
-      status: 'CANCELLED',
-      operatorName: 'Asha',
-      operatorId: 'work-1',
-      customerId: 'cust-1',
+    expect(res).toEqual({
+      cancelled: false,
+      strikes: 2,
+      freeCancelEnabled: true,
     });
-    expect(notificationsService.notifyBookingCancelled).toHaveBeenCalledWith(
-      'cust-1',
-    );
-    expect(notificationsService.sendToUser).toHaveBeenCalledWith(
-      'work-1',
+    expect(booking.gpsStrikes).toBe(2);
+    expect(booking.workerNoProgressAt).toBeInstanceOf(Date);
+    expect(booking.status).toBe(BookingStatus.ACCEPTED);
+    expect(bookingsRepository.save).toHaveBeenCalledTimes(1);
+    expect(redisService.cacheBookingStatus).toHaveBeenCalledWith(
+      'b1',
       expect.objectContaining({
-        title: 'Booking Forfeited',
-        data: { type: 'booking_forfeited', bookingId: 'b1' },
+        workerNoProgress: true,
+        customerId: 'cust-1',
+        operatorId: 'work-1',
       }),
     );
-    expect(workersService.setWorkerStatus).toHaveBeenCalledWith(
-      'work-1',
-      'available',
+    expect(notificationsService.sendToUser).toHaveBeenCalledWith(
+      'cust-1',
+      expect.objectContaining({
+        title: 'Pro not moving',
+        data: { type: 'worker_no_progress', bookingId: 'b1' },
+      }),
     );
-    // the per-strike notification is NOT sent on the forfeit path
+    expect(workersService.recordStrike).toHaveBeenCalledWith(
+      'work-1',
+      expect.objectContaining({
+        type: WorkerStrikeType.GPS_FORFEIT,
+        bookingId: 'b1',
+      }),
+    );
     expect(notificationsService.notifyGpsStrike).not.toHaveBeenCalled();
+  });
+
+  it('is idempotent when free cancel is already enabled', async () => {
+    const booking = baseBooking({
+      gpsStrikes: 2,
+      workerNoProgressAt: new Date('2026-01-01'),
+    });
+    const { service, bookingsRepository, workersService } =
+      makeService(booking);
+
+    const res = await service.addGpsStrike('b1');
+
+    expect(res).toEqual({
+      cancelled: false,
+      strikes: 2,
+      freeCancelEnabled: true,
+    });
+    expect(bookingsRepository.save).not.toHaveBeenCalled();
+    expect(workersService.recordStrike).not.toHaveBeenCalled();
+  });
+});
+
+describe('BookingsService.evaluateWorkerProgress', () => {
+  function makeBareService() {
+    return makeService(null).service;
+  }
+
+  const now = Date.parse('2026-08-01T12:00:00.000Z');
+  const freshTs = new Date(now - 30_000).toISOString();
+
+  it('fails when there is no location', () => {
+    const service = makeBareService();
+    expect(service.evaluateWorkerProgress({ serviceLat: 12.9, serviceLng: 77.6 }, null)).toEqual(
+      expect.objectContaining({ progressing: false }),
+    );
+  });
+
+  it('fails when location timestamp is stale', () => {
+    const service = makeBareService();
+    const res = service.evaluateWorkerProgress(
+      { serviceLat: 12.9, serviceLng: 77.6, acceptDistanceKm: 2 },
+      { lat: 12.9, lng: 77.6, timestamp: new Date(now - 120_000).toISOString() },
+      now,
+    );
+    expect(res.progressing).toBe(false);
+    expect(res.reason).toMatch(/stale/i);
+  });
+
+  it('passes when worker is within 500m of the job', () => {
+    const service = makeBareService();
+    // ~0.2 km north of job
+    const res = service.evaluateWorkerProgress(
+      { serviceLat: 12.9, serviceLng: 77.6, acceptDistanceKm: 3 },
+      { lat: 12.9018, lng: 77.6, timestamp: freshTs },
+      now,
+    );
+    expect(res.progressing).toBe(true);
+  });
+
+  it('passes when worker closed at least 300m since accept', () => {
+    const service = makeBareService();
+    jest.spyOn(service, 'calculateDistance').mockReturnValue(1.5);
+    const res = service.evaluateWorkerProgress(
+      { serviceLat: 12.9, serviceLng: 77.6, acceptDistanceKm: 2.0 },
+      { lat: 12.91, lng: 77.61, timestamp: freshTs },
+      now,
+    );
+    expect(res.progressing).toBe(true);
+    expect(res.reason).toMatch(/closer/i);
+  });
+
+  it('fails when worker has barely moved closer', () => {
+    const service = makeBareService();
+    jest.spyOn(service, 'calculateDistance').mockReturnValue(1.9);
+    const res = service.evaluateWorkerProgress(
+      { serviceLat: 12.9, serviceLng: 77.6, acceptDistanceKm: 2.0 },
+      { lat: 12.91, lng: 77.61, timestamp: freshTs },
+      now,
+    );
+    expect(res.progressing).toBe(false);
   });
 });

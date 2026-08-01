@@ -299,7 +299,9 @@ export class BookingLifecycleHandler {
         { bookingId: p.bookingId },
         {
           jobId: `tenMinuteGpsCheck:${p.bookingId}`,
-          delay: 10 * 60 * 1000,
+          // First progress check ~7 minutes after accept (name kept for
+          // queue compatibility with in-flight jobs).
+          delay: 7 * 60 * 1000,
           removeOnComplete: true,
         },
       );
@@ -348,11 +350,14 @@ export class BookingLifecycleHandler {
       await this.redisService
         .removePendingBooking(p.operatorId, p.bookingId)
         .catch(() => undefined);
-      if (p.source === 'customer') {
+      if (p.source === 'customer' || p.source === 'WORKER_NO_PROGRESS') {
         await this.notificationsService
           .sendToUser(p.operatorId, {
             title: 'Booking cancelled',
-            body: 'A customer cancelled their booking.',
+            body:
+              p.source === 'WORKER_NO_PROGRESS'
+                ? 'The customer cancelled — GPS showed you were not heading to the job.'
+                : 'A customer cancelled their booking.',
             data: { type: 'booking_cancelled', bookingId: p.bookingId },
           })
           .catch(() => undefined);
