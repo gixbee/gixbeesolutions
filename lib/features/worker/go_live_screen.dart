@@ -16,6 +16,7 @@ import '../../shared/widgets/gx_snackbar.dart';
 import '../../shared/widgets/gx_button.dart';
 import '../../shared/widgets/gx_pressable.dart';
 import '../../shared/widgets/gx_sheet.dart';
+import '../../shared/widgets/gx_network_error.dart';
 import '../jobs/register_pro_screen.dart';
 import '../booking/incoming_job_screen.dart';
 import '../billing/job_pack_screen.dart';
@@ -679,16 +680,10 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
               return GoLiveNotAWorker(scheme: scheme);
             }
             if (dashAsync.hasError) {
-              return Center(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Icon(Icons.wifi_off, size: 48),
-                    const SizedBox(height: 12),
-                    Text('Could not load dashboard. Pull to retry.',
-                        style: TextStyle(color: context.gx.ink)),
-                  ],
-                ),
+              return GxNetworkError(
+                error: dashAsync.error,
+                title: 'Could not load dashboard',
+                onRetry: () => ref.invalidate(goLiveDashboardProvider),
               );
             }
             return const Center(child: CircularProgressIndicator());

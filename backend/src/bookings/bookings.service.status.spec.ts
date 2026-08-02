@@ -24,10 +24,14 @@ function makeService(
   const messagesGateway: any = {
     emitUserEvent: jest.fn(),
   };
+  const masterEntriesService: any = {
+    getConfigNumber: jest.fn(async (_k: string, fallback: number) => fallback),
+  };
   const service = new BookingStatusService(
     bookingsRepository,
     redisService,
     messagesGateway,
+    masterEntriesService,
   );
   // getBookingById is used on cache miss — stub via prototype if needed.
   if (opts.booking !== undefined) {

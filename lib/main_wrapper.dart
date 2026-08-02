@@ -23,8 +23,11 @@ import 'repositories/booking_repository.dart';
 import 'services/auth_token_service.dart';
 import 'services/notification_service.dart';
 import 'services/socket_service.dart';
+import 'shared/models/user.dart';
 import 'shared/widgets/dribbble_background.dart';
 import 'core/main_tab_provider.dart';
+import 'core/navigator_key.dart';
+import 'features/onboarding/welcome_screen.dart';
 
 class MainWrapper extends ConsumerStatefulWidget {
   const MainWrapper({super.key});
@@ -65,15 +68,68 @@ class _MainWrapperState extends ConsumerState<MainWrapper>
   ];
 
   void _goToTab(int index) {
-    ref.read(mainTabIndexProvider.notifier).state = index;
-    if (_currentIndex != index) setState(() => _currentIndex = index);
+    if (_sessionExitStarted) return;
+    // Block tab switches once the session is gone (Profile may still be
+    // painting "Session Expired" for a frame before Welcome replaces us).
+    unawaited(() async {
+      final userAsync = ref.read(currentUserProvider);
+      if (userAsync is AsyncData<User?> && userAsync.value == null) {
+        _forceSessionEnd();
+        return;
+      }
+      final authed = await ref.read(authTokenServiceProvider).hasToken();
+      if (!authed) {
+        _forceSessionEnd();
+        return;
+      }
+      if (!mounted) return;
+      ref.read(mainTabIndexProvider.notifier).state = index;
+      if (_currentIndex != index) setState(() => _currentIndex = index);
+    }());
   }
 
   void _openGoLive() {
+    if (_sessionExitStarted) return;
+    final userAsync = ref.read(currentUserProvider);
+    if (userAsync is AsyncData<User?> && userAsync.value == null) {
+      _forceSessionEnd();
+      return;
+    }
     Navigator.push(
       context,
       MaterialPageRoute(builder: (_) => const GoLiveScreen()),
     );
+  }
+
+  bool _sessionExitStarted = false;
+
+  /// Leave the shell entirely (no bottom nav / Go Live). Clears tokens even
+  /// if a stale access token is still on disk — profile null means logged out.
+  void _forceSessionEnd() {
+    if (_sessionExitStarted) return;
+    _sessionExitStarted = true;
+    unawaited(() async {
+      try {
+        ref.read(socketServiceProvider).disconnect();
+      } catch (_) {}
+      await ref.read(authTokenServiceProvider).deleteToken();
+      ref.invalidate(authStateProvider);
+      ref.invalidate(currentUserProvider);
+      if (!mounted) return;
+      rootNavigatorKey.currentState?.pushAndRemoveUntil(
+        MaterialPageRoute(builder: (_) => const WelcomeScreen()),
+        (route) => false,
+      );
+    }());
+  }
+
+  /// Soft check used on resume/tab — only exit when there is truly no token.
+  void _kickToWelcomeIfLoggedOut() {
+    unawaited(() async {
+      final authed = await ref.read(authTokenServiceProvider).hasToken();
+      if (authed || !mounted) return;
+      _forceSessionEnd();
+    }());
   }
 
   @override
@@ -125,6 +181,7 @@ class _MainWrapperState extends ConsumerState<MainWrapper>
   void didChangeAppLifecycleState(AppLifecycleState state) {
     super.didChangeAppLifecycleState(state);
     if (state == AppLifecycleState.resumed) {
+      _kickToWelcomeIfLoggedOut();
       unawaited(_reconcilePendingBookings());
       ref.invalidate(myBookingsProvider);
     }
@@ -433,6 +490,15 @@ class _MainWrapperState extends ConsumerState<MainWrapper>
       if (becameWorker) {
         unawaited(_reconcilePendingBookings());
       }
+      // Profile resolved to null ⇒ session dead — tear down shell + nav.
+      if (next is AsyncData<User?> && next.value == null) {
+        _forceSessionEnd();
+      }
+    });
+    ref.listen(authStateProvider, (prev, next) {
+      next.whenData((authed) {
+        if (!authed) _forceSessionEnd();
+      });
     });
     // Profile back / Home avatar write [mainTabIndexProvider]; keep the
     // bottom bar body in sync without Navigator.pop on the shell.
@@ -441,6 +507,23 @@ class _MainWrapperState extends ConsumerState<MainWrapper>
         setState(() => _currentIndex = next);
       }
     });
+
+    final userAsync = ref.watch(currentUserProvider);
+    // Never paint bottom nav / Go Live while logged out — even for one frame
+    // before Welcome replaces this route.
+    final sessionGone = _sessionExitStarted ||
+        (userAsync is AsyncData<User?> && userAsync.value == null);
+    if (sessionGone) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _forceSessionEnd();
+      });
+      return Scaffold(
+        backgroundColor: context.gx.bg,
+        body: Center(
+          child: CircularProgressIndicator(color: context.gx.accent),
+        ),
+      );
+    }
 
     // Solid scaffold colour (not transparent) so the FAB notch never falls
     // through to the black window behind — that was the harsh "black scoop".

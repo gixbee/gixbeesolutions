@@ -6,6 +6,7 @@ import '../core/config/app_config.dart';
 import '../core/navigator_key.dart';
 import '../features/onboarding/welcome_screen.dart';
 import '../services/auth_token_service.dart';
+import '../services/socket_service.dart';
 import '../shared/models/user.dart';
 
 // ── Dio provider ─────────────────────────────────────────────────────────────
@@ -59,18 +60,9 @@ final dioProvider = Provider<Dio>((ref) {
           }
         }
 
-        // Refresh failed — force logout
+        // Refresh failed — force logout (clears shell + tokens).
         debugPrint('[DIO] 401 Unauthorized — clearing tokens and forcing logout');
-        await tokenService.deleteToken();
-        ref.invalidate(authStateProvider);
-        // Navigate to welcome screen — currentUserProvider will naturally
-        // return null on next read since the token has been deleted.
-        if (rootNavigatorKey.currentState != null) {
-          rootNavigatorKey.currentState!.pushAndRemoveUntil(
-            MaterialPageRoute(builder: (_) => const WelcomeScreen()),
-            (route) => false,
-          );
-        }
+        await forceLogoutToWelcome(ref);
       }
       return handler.next(e);
     },
@@ -78,6 +70,24 @@ final dioProvider = Provider<Dio>((ref) {
 
   return dio;
 });
+
+/// Clear tokens, invalidate auth providers, and replace the nav stack with
+/// Welcome. Safe to call from interceptors and UI (idempotent).
+Future<void> forceLogoutToWelcome(Ref ref) async {
+  try {
+    ref.read(socketServiceProvider).disconnect();
+  } catch (_) {}
+  final tokenService = ref.read(authTokenServiceProvider);
+  await tokenService.deleteToken();
+  ref.invalidate(authStateProvider);
+  ref.invalidate(currentUserProvider);
+  final nav = rootNavigatorKey.currentState;
+  if (nav == null) return;
+  nav.pushAndRemoveUntil(
+    MaterialPageRoute(builder: (_) => const WelcomeScreen()),
+    (route) => false,
+  );
+}
 
 // ── Providers ─────────────────────────────────────────────────────────────────
 
@@ -96,7 +106,12 @@ final authStateProvider = FutureProvider<bool>((ref) async {
 final currentUserProvider = FutureProvider<User?>((ref) async {
   final hasToken = await ref.read(authTokenServiceProvider).hasToken();
   if (!hasToken) return null;
-  return ref.read(authRepositoryProvider).getProfile();
+  try {
+    return await ref.read(authRepositoryProvider).getProfile();
+  } on DioException catch (e) {
+    if (e.response?.statusCode == 401) return null;
+    rethrow;
+  }
 });
 
 // ── Repository ────────────────────────────────────────────────────────────────
@@ -164,9 +179,15 @@ class AuthRepository {
     try {
       final response = await _dio.get('/auth/profile');
       return User.fromJson(response.data as Map<String, dynamic>);
+    } on DioException catch (e) {
+      // Never swallow failures as a null user — that painted "Session Expired"
+      // while the shell (bottom nav) stayed up. 401 → interceptor logout;
+      // other errors stay as errors so the shell is not torn down.
+      debugPrint('[AUTH] getProfile failed: $e');
+      rethrow;
     } catch (e) {
       debugPrint('[AUTH] getProfile failed: $e');
-      return null;
+      rethrow;
     }
   }
 

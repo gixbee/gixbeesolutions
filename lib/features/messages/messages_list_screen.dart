@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../repositories/chat_repository.dart';
 import '../../services/socket_service.dart';
 import '../../shared/widgets/gx_empty.dart';
+import '../../shared/widgets/gx_network_error.dart';
 import '../../shared/widgets/gx_pressable.dart';
 import '../../shared/widgets/gx_skeleton.dart';
 import '../../shared/widgets/gx_fade.dart';
@@ -148,9 +149,11 @@ class _MessagesListScreenState extends ConsumerState<MessagesListScreen> {
                   )),
                   child: convosAsync.when(
                 loading: () => _skeletonList(),
-                error: (_, __) => Center(
-                  child: Text('Could not load messages',
-                      style: TextStyle(color: scheme.onSurfaceVariant)),
+                error: (e, __) => GxNetworkError(
+                  error: e,
+                  title: 'Could not load messages',
+                  accent: context.gx.accentSoft,
+                  onRetry: () => ref.invalidate(conversationsProvider),
                 ),
                 data: (convos) {
                   final filtered = _query.isEmpty

@@ -5,9 +5,10 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { Booking, BookingStatus } from './booking.entity';
+import { Booking, BookingStatus, BookingType } from './booking.entity';
 import { RedisService } from '../redis/redis.service';
 import { MessagesGateway } from '../messages/messages.gateway';
+import { MasterEntriesService } from '../master-entries/master-entries.service';
 
 @Injectable()
 export class BookingStatusService {
@@ -18,6 +19,7 @@ export class BookingStatusService {
     private bookingsRepository: Repository<Booking>,
     private redisService: RedisService,
     private messagesGateway: MessagesGateway,
+    private masterEntriesService: MasterEntriesService,
   ) {}
 
   /**
@@ -127,6 +129,38 @@ export class BookingStatusService {
     };
   }
 
+  private async billingExtras(booking: Booking): Promise<{
+    skill: string | null;
+    type: string | null;
+    hourlyRate: number | null;
+    acceptDistanceKm: number | null;
+    petrolRatePerKm: number | null;
+    estimatedPetrolAmount: number | null;
+  }> {
+    const hourlyRate = Number(booking.amount);
+    const dist = Number(booking.acceptDistanceKm);
+    const isInstant = booking.type === BookingType.INSTANT;
+    const acceptDistanceKm =
+      Number.isFinite(dist) && dist > 0 ? Math.round(dist * 100) / 100 : null;
+    let petrolRatePerKm: number | null = null;
+    let estimatedPetrolAmount: number | null = null;
+    if (isInstant && acceptDistanceKm != null) {
+      petrolRatePerKm = await this.masterEntriesService.getConfigNumber(
+        'instant_petrol_per_km',
+        10,
+      );
+      estimatedPetrolAmount = Math.round(acceptDistanceKm * petrolRatePerKm);
+    }
+    return {
+      skill: booking.skill ?? null,
+      type: booking.type ?? null,
+      hourlyRate: Number.isFinite(hourlyRate) ? hourlyRate : null,
+      acceptDistanceKm,
+      petrolRatePerKm,
+      estimatedPetrolAmount,
+    };
+  }
+
   async getStatusForParticipant(
     bookingId: string,
     userId: string,
@@ -145,6 +179,12 @@ export class BookingStatusService {
     operatorLng: number | null;
     /** Phone to dial for the other party on this booking. */
     counterpartPhone: string | null;
+    skill?: string | null;
+    type?: string | null;
+    hourlyRate?: number | null;
+    acceptDistanceKm?: number | null;
+    petrolRatePerKm?: number | null;
+    estimatedPetrolAmount?: number | null;
   }> {
     const trackingStatuses = new Set([
       'ACCEPTED',
@@ -208,6 +248,27 @@ export class BookingStatusService {
         }
       }
 
+      const billing =
+        cached.hourlyRate != null || cached.acceptDistanceKm != null
+          ? {
+              skill: cached.skill ?? null,
+              type: cached.type ?? null,
+              hourlyRate: cached.hourlyRate ?? null,
+              acceptDistanceKm: cached.acceptDistanceKm ?? null,
+              petrolRatePerKm: cached.petrolRatePerKm ?? null,
+              estimatedPetrolAmount: cached.estimatedPetrolAmount ?? null,
+            }
+          : await this.getBookingById(bookingId).then((b) =>
+              b ? this.billingExtras(b) : Promise.resolve({
+                skill: null,
+                type: null,
+                hourlyRate: null,
+                acceptDistanceKm: null,
+                petrolRatePerKm: null,
+                estimatedPetrolAmount: null,
+              }),
+            );
+
       return {
         status,
         operatorName: cached.operatorName ?? null,
@@ -224,6 +285,7 @@ export class BookingStatusService {
         operatorLat: loc.operatorLat,
         operatorLng: loc.operatorLng,
         counterpartPhone,
+        ...billing,
       };
     }
 
@@ -236,6 +298,7 @@ export class BookingStatusService {
     }
 
     const phones = this.extractBookingPhones(booking);
+    const billing = await this.billingExtras(booking);
     const payload = {
       status: booking.status,
       operatorName: booking.operator?.name ?? null,
@@ -248,6 +311,7 @@ export class BookingStatusService {
       workerPaidConfirmed: !!booking.workerPaidConfirmed,
       customerPaidConfirmed: !!booking.customerPaidConfirmed,
       ...phones,
+      ...billing,
     };
     await this.redisService
       .cacheBookingStatus(bookingId, payload)
@@ -274,6 +338,7 @@ export class BookingStatusService {
       operatorLat: loc.operatorLat,
       operatorLng: loc.operatorLng,
       counterpartPhone: this.resolveCounterpartPhone(isCustomer, phones),
+      ...billing,
     };
   }
 }

@@ -4,7 +4,8 @@ import 'package:dio/dio.dart';
 /// Never returns raw `DioException` / `SocketException` dumps.
 String apiErrorMessage(
   Object error, {
-  String fallback = 'Something went wrong. Please try again.',
+  String fallback =
+      'Please check your network or try again later.',
 }) {
   if (error is DioException) {
     switch (error.type) {

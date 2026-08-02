@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../shared/widgets/gx_pressable.dart';
+import '../../shared/widgets/gx_network_error.dart';
 import '../../repositories/auth_repository.dart';
 import '../../repositories/profile_repository.dart';
+import '../../services/auth_token_service.dart';
 import '../../core/config/app_config.dart';
+import '../../core/navigator_key.dart';
 import '../../theme.dart';
 import '../onboarding/welcome_screen.dart';
 import 'edit_profile_screen.dart';
@@ -109,10 +112,17 @@ class ProfileScreen extends ConsumerWidget {
                                 ),
                                 const SizedBox(height: 20),
                                 GxPressable(
-                                  onTap: () {
-                                    Navigator.pushAndRemoveUntil(
-                                      context,
-                                      MaterialPageRoute(builder: (_) => const WelcomeScreen()),
+                                  onTap: () async {
+                                    await ref
+                                        .read(authTokenServiceProvider)
+                                        .deleteToken();
+                                    ref.invalidate(authStateProvider);
+                                    ref.invalidate(currentUserProvider);
+                                    rootNavigatorKey.currentState
+                                        ?.pushAndRemoveUntil(
+                                      MaterialPageRoute(
+                                        builder: (_) => const WelcomeScreen(),
+                                      ),
                                       (r) => false,
                                     );
                                   },
@@ -212,9 +222,19 @@ class ProfileScreen extends ConsumerWidget {
                         );
                       },
                       loading: () => const Center(child: CircularProgressIndicator()),
-                      error: (e, __) => const Text('Error loading profile', style: TextStyle(color: Colors.red)),
+                      error: (e, __) => Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 48),
+                        child: GxNetworkError(
+                          error: e,
+                          onRetry: () =>
+                              ref.invalidate(currentUserProvider),
+                        ),
+                      ),
                     ),
 
+                    if (userAsync.hasError || userAsync.value == null) ...[
+                      // Network / session hero is the only content (no menus).
+                    ] else ...[
                     // ── Stats row ──
                     Consumer(
                       builder: (context, ref, _) {
@@ -470,13 +490,14 @@ class ProfileScreen extends ConsumerWidget {
                             child: GxPressable(
                               onTap: () async {
                                 await ref.read(authRepositoryProvider).signOut();
-                                if (context.mounted) {
-                                  Navigator.pushAndRemoveUntil(
-                                    context,
-                                    MaterialPageRoute(builder: (_) => const WelcomeScreen()),
-                                    (r) => false,
-                                  );
-                                }
+                                ref.invalidate(authStateProvider);
+                                ref.invalidate(currentUserProvider);
+                                rootNavigatorKey.currentState?.pushAndRemoveUntil(
+                                  MaterialPageRoute(
+                                    builder: (_) => const WelcomeScreen(),
+                                  ),
+                                  (r) => false,
+                                );
                               },
                               child: Container(
                                 width: double.infinity,
@@ -501,6 +522,7 @@ class ProfileScreen extends ConsumerWidget {
                         ],
                       ),
                     ),
+                    ], // logged-in only: stats + menus
                   ],
                 ),
               ),

@@ -7,6 +7,7 @@ import 'booking_detail_screen.dart';
 import '../../shared/widgets/gx_pressable.dart';
 import '../../shared/widgets/gx_skeleton.dart';
 import '../../shared/widgets/gx_fade.dart';
+import '../../shared/widgets/gx_network_error.dart';
 
 /// Gixbee v106 — Grab "Activity" pattern: segmented pill tabs, timeline-style
 /// booking cards, pull-to-refresh, skeleton loading. Migrated to the v106
@@ -33,7 +34,7 @@ class _MyBookingsScreenState extends ConsumerState<MyBookingsScreen>
   final Map<String, int> _currentPage = {'UPCOMING': 1, 'PAST': 1};
   final Map<String, bool> _hasMore = {'UPCOMING': true, 'PAST': true};
   final Map<String, bool> _isLoadingMore = {'UPCOMING': false, 'PAST': false};
-  final Map<String, String?> _loadError = {'UPCOMING': null, 'PAST': null};
+  final Map<String, Object?> _loadError = {'UPCOMING': null, 'PAST': null};
   static const int _pageSize = 15;
 
   @override
@@ -111,7 +112,7 @@ class _MyBookingsScreenState extends ConsumerState<MyBookingsScreen>
           // Stop the empty+hasMore skeleton retry loop; surface the failure.
           if (_paginatedData[tab]!.isEmpty) {
             _hasMore[tab] = false;
-            _loadError[tab] = '$e';
+            _loadError[tab] = e;
           }
         });
       }
@@ -181,7 +182,12 @@ class _MyBookingsScreenState extends ConsumerState<MyBookingsScreen>
                       )),
                       child: bookingsAsync.when(
                         loading: () => _buildSkeletonList(),
-                        error: (err, _) => _buildErrorList('$err'),
+                        error: (err, _) => _buildErrorList(
+                          err,
+                          onRetry: () {
+                            ref.invalidate(myBookingsProvider);
+                          },
+                        ),
                         data: (bookings) =>
                             _buildActiveList(context, ref, bookings),
                       ),
@@ -250,20 +256,17 @@ class _MyBookingsScreenState extends ConsumerState<MyBookingsScreen>
     );
   }
 
-  Widget _buildErrorList(String message) {
+  Widget _buildErrorList(Object error, {required VoidCallback onRetry}) {
     return ListView(
       physics: const AlwaysScrollableScrollPhysics(),
-      padding: const EdgeInsets.all(24),
       children: [
-        const SizedBox(height: 80),
-        Icon(Icons.cloud_off_outlined,
-            size: 56, color: context.gx.ink.withValues(alpha: 0.25)),
-        const SizedBox(height: 16),
-        Text(
-          'Could not load bookings\n$message',
-          textAlign: TextAlign.center,
-          style: TextStyle(
-              color: context.gx.ink.withValues(alpha: 0.58), fontSize: 13),
+        SizedBox(
+          height: MediaQuery.sizeOf(context).height * 0.55,
+          child: GxNetworkError(
+            error: error,
+            title: 'Could not load bookings',
+            onRetry: onRetry,
+          ),
         ),
       ],
     );
@@ -300,7 +303,10 @@ class _MyBookingsScreenState extends ConsumerState<MyBookingsScreen>
       return RefreshIndicator(
         color: context.gx.accentSoft,
         onRefresh: () => _loadPage(tab, reset: true),
-        child: _buildErrorList(err),
+        child: _buildErrorList(
+          err,
+          onRetry: () => _loadPage(tab, reset: true),
+        ),
       );
     }
 

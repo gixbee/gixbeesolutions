@@ -81,6 +81,12 @@ class _WaitingForWorkerScreenState extends ConsumerState<WaitingForWorkerScreen>
   String? _acceptedName;
   String? _acceptedId;
 
+  /// Billing snapshot loaded once on accept (rate / travel / est. petrol).
+  double? _acceptedHourlyRate;
+  double? _acceptDistanceKm;
+  double? _estimatedPetrolAmount;
+  double _petrolRatePerKm = 10;
+
   @override
   void initState() {
     super.initState();
@@ -193,9 +199,12 @@ class _WaitingForWorkerScreenState extends ConsumerState<WaitingForWorkerScreen>
         _arrivalOtp = statusData['arrivalOtp']?.toString();
         _acceptedName = statusData['operatorName']?.toString();
         _acceptedId = statusData['operatorId']?.toString();
+        _acceptedHourlyRate ??= widget.hourlyRate;
+        _applyBillingHints(statusData);
       });
       // Keep home / bookings lists fresh when the customer confirms.
       ref.invalidate(myBookingsProvider);
+      unawaited(_loadAcceptedBilling());
     } else if (status == BookingStatus.cancelled ||
         status == BookingStatus.rejected) {
       _countdownTimer?.cancel();
@@ -203,6 +212,38 @@ class _WaitingForWorkerScreenState extends ConsumerState<WaitingForWorkerScreen>
         _showNoWorkers();
       }
     }
+  }
+
+  void _applyBillingHints(Map<String, dynamic> data) {
+    final rate = _readNum(
+      data['hourlyRate'] ?? data['amount'] ?? widget.hourlyRate,
+    );
+    final dist = _readNum(data['acceptDistanceKm'] ?? data['petrolDistanceKm']);
+    final petrolRate =
+        _readNum(data['petrolRatePerKm']) ?? _petrolRatePerKm;
+    final petrol =
+        _readNum(data['estimatedPetrolAmount'] ?? data['petrolAmount']);
+    if (rate != null && rate > 0) _acceptedHourlyRate = rate;
+    if (petrolRate != null && petrolRate > 0) _petrolRatePerKm = petrolRate;
+    if (dist != null && dist > 0) {
+      _acceptDistanceKm = dist;
+      _estimatedPetrolAmount = petrol ?? (dist * _petrolRatePerKm);
+    }
+  }
+
+  Future<void> _loadAcceptedBilling() async {
+    // Prefer full booking row — status cache may omit travel/petrol fields.
+    final booking = await ref
+        .read(bookingRepositoryProvider)
+        .getBookingById(widget.bookingId);
+    if (!mounted || booking == null) return;
+    setState(() => _applyBillingHints(booking));
+  }
+
+  double? _readNum(dynamic v) {
+    if (v == null) return null;
+    if (v is num) return v.toDouble();
+    return double.tryParse(v.toString());
   }
 
   void _showNoWorkers() {
@@ -361,6 +402,8 @@ class _WaitingForWorkerScreenState extends ConsumerState<WaitingForWorkerScreen>
                       color: context.gx.ink.withValues(alpha: 0.6),
                     ),
                   ),
+                  const SizedBox(height: 20),
+                  _acceptedBillingCard(),
                   const Spacer(flex: 3),
                   GxButton(
                     label: 'Track on Map',
@@ -379,6 +422,112 @@ class _WaitingForWorkerScreenState extends ConsumerState<WaitingForWorkerScreen>
   }
 
   // ── Searching-state widgets ──────────────────────────────────────
+
+  /// Rate + travel/petrol snapshot after a pro accepts.
+  Widget _acceptedBillingCard() {
+    final rate = _acceptedHourlyRate ?? widget.hourlyRate;
+    final dist = _acceptDistanceKm;
+    final petrol = _estimatedPetrolAmount;
+    final hasRate = rate != null && rate > 0;
+    final hasTravel = dist != null && dist > 0;
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+      decoration: BoxDecoration(
+        color: context.gx.card,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: context.gx.border),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            widget.skill,
+            style: TextStyle(
+              fontSize: 15,
+              fontWeight: FontWeight.w900,
+              color: context.gx.ink,
+            ),
+          ),
+          const SizedBox(height: 10),
+          _acceptedBillingRow(
+            Icons.schedule_rounded,
+            'Work rate',
+            hasRate
+                ? '₹${rate.round()}/hr · 1 hr minimum'
+                : 'Pay after the job (cash/UPI)',
+          ),
+          if (hasTravel) ...[
+            const SizedBox(height: 8),
+            _acceptedBillingRow(
+              Icons.route_rounded,
+              'Travel to you',
+              '${dist!.toStringAsFixed(dist >= 10 || dist == dist.roundToDouble() ? 0 : 1)} km one-way',
+            ),
+          ],
+          if (petrol != null && petrol > 0) ...[
+            const SizedBox(height: 8),
+            _acceptedBillingRow(
+              Icons.local_gas_station_rounded,
+              'Est. petrol',
+              '₹${petrol.round()} (₹${_petrolRatePerKm.round()}/km · final at completion)',
+            ),
+          ] else if (!hasTravel) ...[
+            const SizedBox(height: 8),
+            _acceptedBillingRow(
+              Icons.local_gas_station_rounded,
+              'Petrol',
+              'Added from travel distance when the pro accepted',
+            ),
+          ],
+          const SizedBox(height: 10),
+          Text(
+            'Final total = work time + petrol. Confirmed after the job.',
+            style: TextStyle(
+              fontSize: 11.5,
+              height: 1.35,
+              color: context.gx.ink.withValues(alpha: 0.5),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _acceptedBillingRow(IconData icon, String label, String value) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(icon, size: 16, color: context.gx.accent),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 11.5,
+                  fontWeight: FontWeight.w600,
+                  color: context.gx.ink.withValues(alpha: 0.5),
+                ),
+              ),
+              const SizedBox(height: 1),
+              Text(
+                value,
+                style: TextStyle(
+                  fontSize: 13.5,
+                  fontWeight: FontWeight.w700,
+                  color: context.gx.ink,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
 
   /// What the customer asked for — skill, budget, place — so the wait
   /// screen answers "what exactly is being searched?" at a glance.
