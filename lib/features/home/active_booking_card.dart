@@ -15,23 +15,31 @@ import '../booking/customer_pay_screen.dart';
 import '../../shared/utils/booking_flags.dart';
 import '../../theme.dart';
 
-// Derives from shared myBookingsProvider — auto-refreshes on invalidation
-final activeBookingProvider = FutureProvider.autoDispose<Map<String, dynamic>?>((ref) async {
-  try {
-    final bookings = await ref.watch(myBookingsProvider.future);
-    const activeStatuses = ['REQUESTED', 'PENDING', 'ACCEPTED', 'ARRIVED', 'ACTIVE', 'IN_PROGRESS', 'CONFIRMED'];
-    return bookings.firstWhere(
-      (b) {
-        final status = (b['status'] ?? '').toString().toUpperCase();
-        if (activeStatuses.contains(status)) return true;
-        // Unpaid completed jobs still need the manual payment screens.
-        if (status == 'COMPLETED' && !bookingFlagTrue(b['isPaid'])) return true;
-        return false;
-      },
-    );
-  } catch (_) {
-    return null;
+// Derives from shared myBookingsProvider — auto-refreshes on invalidation.
+// API failures propagate (do not collapse to null/"no booking").
+final activeBookingProvider =
+    FutureProvider.autoDispose<Map<String, dynamic>?>((ref) async {
+  final bookings = await ref.watch(myBookingsProvider.future);
+  const activeStatuses = [
+    'REQUESTED',
+    'PENDING',
+    'ACCEPTED',
+    'ARRIVED',
+    'ACTIVE',
+    'IN_PROGRESS',
+    'CONFIRMED',
+  ];
+  for (final b in bookings) {
+    final status = (b['status'] ?? '').toString().toUpperCase();
+    if (activeStatuses.contains(status)) {
+      return Map<String, dynamic>.from(b as Map);
+    }
+    // Unpaid completed jobs still need the manual payment screens.
+    if (status == 'COMPLETED' && !bookingFlagTrue(b['isPaid'])) {
+      return Map<String, dynamic>.from(b as Map);
+    }
   }
+  return null;
 });
 
 class ActiveBookingCard extends ConsumerStatefulWidget {
@@ -152,9 +160,30 @@ class _ActiveBookingCardState extends ConsumerState<ActiveBookingCard> {
                 );
               } else if (bStatus == 'ACCEPTED' || bStatus == 'ARRIVED') {
                 final operatorData = activeBooking['operator'];
+                final customerData = activeBooking['customer'];
                 final workerName = operatorData?['name'] ?? 'Worker';
                 final workerId = operatorData?['id']?.toString() ?? '';
                 final otp = activeBooking['arrivalOtp']?.toString();
+                String? readPhone(dynamic user) {
+                  if (user is! Map) return null;
+                  final raw = user['phoneNumber'] ?? user['phone'];
+                  final s = raw?.toString().trim();
+                  return (s == null || s.isEmpty) ? null : s;
+                }
+
+                String? counterpartPhone;
+                if (isOperator) {
+                  final onSite = activeBooking['onSiteContact'];
+                  final onSitePhone = onSite is Map
+                      ? onSite['phone']?.toString().trim()
+                      : null;
+                  counterpartPhone =
+                      (onSitePhone != null && onSitePhone.isNotEmpty)
+                          ? onSitePhone
+                          : readPhone(customerData);
+                } else {
+                  counterpartPhone = readPhone(operatorData);
+                }
 
                 await Navigator.push(
                   context,
@@ -181,6 +210,7 @@ class _ActiveBookingCardState extends ConsumerState<ActiveBookingCard> {
                       customerLng: readCoord(activeBooking['serviceLng']),
                       arrivalOtp: otp,
                       isWorker: isOperator,
+                      counterpartPhone: counterpartPhone,
                     ),
                   ),
                 );
@@ -329,7 +359,43 @@ class _ActiveBookingCardState extends ConsumerState<ActiveBookingCard> {
         );
       },
       loading: () => const SizedBox.shrink(),
-      error: (_, __) => const SizedBox.shrink(),
+      error: (_, __) => Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        child: Material(
+          color: context.gx.card2,
+          borderRadius: BorderRadius.circular(12),
+          child: InkWell(
+            borderRadius: BorderRadius.circular(12),
+            onTap: () {
+              ref.invalidate(myBookingsProvider);
+              ref.invalidate(activeBookingProvider);
+            },
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+              child: Row(
+                children: [
+                  Icon(Icons.cloud_off_outlined,
+                      size: 18,
+                      color: context.gx.ink.withValues(alpha: 0.55)),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      'Could not load bookings. Tap to retry.',
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: context.gx.ink.withValues(alpha: 0.7),
+                      ),
+                    ),
+                  ),
+                  Icon(Icons.refresh,
+                      size: 18, color: context.gx.accent),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
     );
   }
 

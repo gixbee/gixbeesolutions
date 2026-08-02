@@ -14,6 +14,13 @@ import { OutboxModule } from '../outbox/outbox.module';
 import { SystemLogsModule } from '../system-logs/system-logs.module';
 import { BillingModule } from '../billing/billing.module';
 import { MasterEntriesModule } from '../master-entries/master-entries.module';
+import { BookingStatusService } from './booking-status.service';
+import { BookingCancelService } from './booking-cancel.service';
+import { BookingDispatchService } from './booking-dispatch.service';
+import { BookingSettlementService } from './booking-settlement.service';
+import { BookingProgressService } from './booking-progress.service';
+import { BookingClaimService } from './booking-claim.service';
+import { BookingBroadcastService } from './booking-broadcast.service';
 
 @Module({
   imports: [
@@ -31,7 +38,17 @@ import { MasterEntriesModule } from '../master-entries/master-entries.module';
     MasterEntriesModule,
   ],
   controllers: [BookingsController],
-  providers: [BookingsService, BookingsProcessor],
+  providers: [
+    BookingsService,
+    BookingsProcessor,
+    BookingStatusService,
+    BookingCancelService,
+    BookingClaimService,
+    BookingBroadcastService,
+    BookingDispatchService,
+    BookingSettlementService,
+    BookingProgressService,
+  ],
   exports: [BookingsService],
 })
 export class BookingsModule {}

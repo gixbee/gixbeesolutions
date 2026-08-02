@@ -100,7 +100,7 @@ class _RateWorkerScreenState extends ConsumerState<RateWorkerScreen> {
                         Icons.star_rounded,
                         size: 40,
                         color: filled
-                            ? Colors.amber
+                            ? GixbeeTheme.accentGold
                             : context.gx.ink.withValues(alpha: 0.28),
                       ),
                     );
@@ -116,7 +116,7 @@ class _RateWorkerScreenState extends ConsumerState<RateWorkerScreen> {
                   fontSize: 16,
                   gradient: const [
                     GixbeeTheme.accentGreen,
-                    Color(0xFF059669),
+                    GixbeeTheme.accentGreenDark,
                   ],
                 ),
                 const SizedBox(height: 12),

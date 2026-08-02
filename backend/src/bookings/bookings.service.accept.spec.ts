@@ -1,5 +1,6 @@
 import { BadRequestException, NotFoundException } from '@nestjs/common';
-import { BookingsService } from './bookings.service';
+import { BookingDispatchService } from './booking-dispatch.service';
+import { BookingClaimService } from './booking-claim.service';
 import { BookingStatus } from './booking.entity';
 import { OutboxEventType } from '../outbox/outbox.types';
 
@@ -84,19 +85,33 @@ function makeService(opts: {
     enqueueDispatch: jest.fn(async () => undefined),
   };
 
-  const service = new BookingsService(
+  const jobCreditsService = {
+    refundCredit: jest.fn(),
+    consumeCredit: jest.fn(),
+  } as any;
+  const bookingStatusService = {
+    cacheAndEmitBookingStatus: jest.fn(async () => undefined),
+  } as any;
+  const claimService = new BookingClaimService(
     bookingsRepository,
-    workerProfileRepo,
-    bookingsQueue,
-    walletsService,
     notificationsService,
     redisService,
     workersService,
     dataSource,
-    { emitUserEvent: jest.fn() } as any,
     outboxService,
-    { refundCredit: jest.fn(), consumeCredit: jest.fn() } as any,
-    { getConfigNumber: jest.fn(async (_k: string, f: number) => f) } as any,
+    jobCreditsService,
+    bookingStatusService,
+  );
+  const service = new BookingDispatchService(
+    bookingsRepository,
+    bookingsQueue,
+    notificationsService,
+    redisService,
+    dataSource,
+    { emitUserEvent: jest.fn() } as any,
+    bookingStatusService,
+    claimService,
+    {} as any,
   );
   return {
     service,
@@ -123,7 +138,7 @@ const baseBooking = () => ({
   customer: { id: 'cust-1' },
 });
 
-describe('BookingsService.acceptBooking', () => {
+describe('BookingDispatchService.acceptBooking', () => {
   beforeEach(() => {
     jest.spyOn(console, 'log').mockImplementation(() => undefined);
     jest.spyOn(console, 'error').mockImplementation(() => undefined);

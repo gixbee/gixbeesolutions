@@ -5,8 +5,8 @@ import 'package:carousel_slider/carousel_slider.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../theme.dart';
-import '../../repositories/auth_repository.dart'; // dioProvider
 import '../../repositories/cities_repository.dart'; // currentCityProvider
+import '../../repositories/master_entries_repository.dart';
 import '../../repositories/worker_repository.dart'; // selectedLocationProvider
 import '../../shared/widgets/gx_pressable.dart';
 import '../../shared/widgets/gx_sheet.dart';
@@ -353,20 +353,13 @@ const _fallbackDeals = [
 ];
 
 final dealsProvider = FutureProvider<List<DealEntry>>((ref) async {
-  final dio = ref.watch(dioProvider);
+  final repo = ref.watch(masterEntriesRepositoryProvider);
   // City scoping: global deals + deals targeted at the selected serviceable
   // city; refetches automatically when the user switches city.
   final city = ref.watch(currentCityProvider);
   try {
-    final response = await dio.get('/master-entries', queryParameters: {
-      'type': 'DEAL',
-      'isActive': true,
-      if (city != null) 'cityId': city.id,
-    });
-    final data = response.data as List;
-    final deals = data
-        .map((item) => DealEntry.fromMap(item as Map<String, dynamic>))
-        .toList();
+    final entries = await repo.getByType('DEAL', cityId: city?.id);
+    final deals = entries.map((e) => DealEntry.fromMap(e.toMap())).toList();
     if (deals.isNotEmpty) return deals;
   } catch (e) {
     debugPrint('Error fetching deals: $e');

@@ -86,6 +86,7 @@ flutter build apk --release --dart-define=OLA_MAPS_API_KEY=Vr2MnNlJ6LrLXTrkPOe8m
 ```
 
 - **Output Location**: `build\app\outputs\flutter-apk\app-release.apk`
+- **Fail-closed**: release/profile builds refuse to start if `API_BASE_URL` / `SOCKET_URL` are still loopback (`127.0.0.1` / `localhost` / `10.0.2.2`). Always pass the dart-defines above (or use `build_apk.bat`, which loads `gixbee_keys.bat`).
 - **Dependency Warnings Notice**: When `flutter pub get` or APK builds output `"X packages have newer versions incompatible with dependency constraints"`, **do NOT automatically run `flutter pub upgrade`**. In production, keep dependency version constraints locked in `pubspec.yaml` to ensure build stability unless an upgrade is explicitly requested by the user.
 
 ---

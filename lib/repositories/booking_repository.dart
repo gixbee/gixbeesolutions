@@ -138,8 +138,9 @@ class BookingRepository {
           await _dio.get('/bookings/my', queryParameters: queryParams);
       return response.data as List<dynamic>;
     } catch (e) {
+      // Do not soft-fail to [] — callers/UI treat that as "no bookings".
       debugPrint('GetMyBookings failed: $e');
-      return [];
+      rethrow;
     }
   }
 
@@ -171,8 +172,9 @@ class BookingRepository {
       final response = await _dio.get('/bookings/pending');
       return response.data as List<dynamic>;
     } catch (e) {
+      // Do not soft-fail to [] — empty means "no pending offers", not "API down".
       debugPrint('GetPendingBookings failed: $e');
-      return [];
+      rethrow;
     }
   }
 

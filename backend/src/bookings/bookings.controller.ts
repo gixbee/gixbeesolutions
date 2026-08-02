@@ -15,8 +15,6 @@ import { BookingStatus } from './booking.entity';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { AdminGuard } from '../auth/admin.guard';
 import { RequireAdminPage } from '../auth/require-admin-page.decorator';
-import { NotificationsService } from '../notifications/notifications.service';
-import { RedisService } from '../redis/redis.service';
 import {
   CreateBookingDto,
   CreateInstantRequestDto,
@@ -35,11 +33,7 @@ import {
 @Controller('bookings')
 @UseGuards(JwtAuthGuard)
 export class BookingsController {
-  constructor(
-    private readonly bookingsService: BookingsService,
-    private readonly notificationsService: NotificationsService,
-    private readonly redisService: RedisService,
-  ) {}
+  constructor(private readonly bookingsService: BookingsService) {}
 
   @Post()
   async create(@Req() req, @Body() body: CreateBookingDto) {
@@ -291,51 +285,13 @@ export class BookingsController {
   // DEFECT-012 FIX: Send arrival OTP to customer via FCM push
   @Patch(':id/arrive')
   async markArrived(@Param('id') id: string, @Req() req) {
-    // SECURITY FIX: was unscoped — any logged-in user could trigger OTP
-    // pushes to any customer (spam/social-engineering vector). Only the
-    // assigned worker may announce arrival.
-    const booking = await this.bookingsService.assertParticipant(
-      id,
-      req.user.userId,
-    );
-    if (booking.operator?.id !== req.user.userId) {
-      throw new NotFoundException('Booking not found');
-    }
-
-    const otp = booking.arrivalOtp;
-
-    if (booking.customer?.id) {
-      await this.notificationsService.sendToUser(booking.customer.id, {
-        title: 'Worker has arrived',
-        body: `Arrival OTP: ${otp}. Share this with the worker to begin.`,
-      });
-    }
-
-    return { message: 'Arrival OTP sent to customer.' };
+    return this.bookingsService.notifyArrival(id, req.user.userId);
   }
 
   // DEFECT-012 FIX: Send completion OTP to customer via FCM push
   @Patch(':id/complete')
   async markComplete(@Param('id') id: string, @Req() req) {
-    // SECURITY FIX: assigned worker only (see markArrived above).
-    const booking = await this.bookingsService.assertParticipant(
-      id,
-      req.user.userId,
-    );
-    if (booking.operator?.id !== req.user.userId) {
-      throw new NotFoundException('Booking not found');
-    }
-
-    const otp = booking.completionOtp;
-
-    if (booking.customer?.id) {
-      await this.notificationsService.sendToUser(booking.customer.id, {
-        title: 'Job marked as complete',
-        body: `Completion OTP: ${otp}. Enter this to confirm and close the job.`,
-      });
-    }
-
-    return { message: 'Completion OTP sent to customer.' };
+    return this.bookingsService.notifyCompletion(id, req.user.userId);
   }
 
   @Patch(':id/mark-paid')

@@ -194,7 +194,9 @@ class _ArrivalOtpScreenState extends ConsumerState<ArrivalOtpScreen>
   @override
   Widget build(BuildContext context) {
     _watchArrivalForCustomer();
-    final colorScheme = Theme.of(context).colorScheme;
+    final gx = context.gx;
+    final muted = gx.ink.withValues(alpha: 0.55);
+    final err = Theme.of(context).colorScheme.error;
 
     return Scaffold(
       body: Container(
@@ -203,8 +205,8 @@ class _ArrivalOtpScreenState extends ConsumerState<ArrivalOtpScreen>
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
             colors: [
-              context.gx.accent.withValues(alpha: 0.25),
-              colorScheme.surface,
+              gx.accent.withValues(alpha: 0.25),
+              gx.bg,
             ],
           ),
         ),
@@ -219,7 +221,7 @@ class _ArrivalOtpScreenState extends ConsumerState<ArrivalOtpScreen>
                 Row(
                   children: [
                     IconButton(
-                      icon: Icon(Icons.arrow_back),
+                      icon: Icon(Icons.arrow_back, color: gx.ink),
                       onPressed: () => Navigator.pop(context),
                     ),
                     const Spacer(),
@@ -298,7 +300,7 @@ class _ArrivalOtpScreenState extends ConsumerState<ArrivalOtpScreen>
                       : '${widget.workerName} will arrive shortly.\nShare the OTP below when they arrive.',
                   textAlign: TextAlign.center,
                   style: TextStyle(
-                    color: colorScheme.onSurfaceVariant,
+                    color: muted,
                     height: 1.5,
                   ),
                 ),
@@ -334,22 +336,23 @@ class _ArrivalOtpScreenState extends ConsumerState<ArrivalOtpScreen>
                             textAlign: TextAlign.center,
                             keyboardType: TextInputType.number,
                             maxLength: 1,
-                            style: const TextStyle(
+                            style: TextStyle(
                                 fontSize: 28,
-                                fontWeight: FontWeight.bold),
+                                fontWeight: FontWeight.bold,
+                                color: gx.ink),
                             decoration: InputDecoration(
                               counterText: '',
                               filled: true,
                               fillColor: _errorMsg != null
-                                  ? Colors.red.withValues(alpha: 0.05)
-                                  : colorScheme.surfaceContainerHighest,
+                                  ? err.withValues(alpha: 0.08)
+                                  : gx.card2,
                               border: OutlineInputBorder(
                                 borderRadius:
                                     BorderRadius.circular(14),
                                 borderSide: BorderSide(
                                   color: _errorMsg != null
-                                      ? Colors.red
-                                      : colorScheme.outlineVariant,
+                                      ? err
+                                      : gx.border,
                                 ),
                               ),
                             ),
@@ -374,8 +377,7 @@ class _ArrivalOtpScreenState extends ConsumerState<ArrivalOtpScreen>
                     if (_errorMsg != null) ...[
                       const SizedBox(height: 12),
                       Text(_errorMsg!,
-                          style: const TextStyle(
-                              color: Colors.red, fontSize: 13)),
+                          style: TextStyle(color: err, fontSize: 13)),
                     ],
                   ],
                 ],
@@ -392,20 +394,15 @@ class _ArrivalOtpScreenState extends ConsumerState<ArrivalOtpScreen>
                           horizontal: 32, vertical: 20),
                       decoration: BoxDecoration(
                         borderRadius: BorderRadius.circular(20),
-                        color: _isRevealed
-                            ? context.gx.accent
-                            : colorScheme.surfaceContainerHighest,
+                        color: _isRevealed ? gx.accent : gx.card2,
                         border: Border.all(
-                          color: _isRevealed
-                              ? context.gx.accent
-                              : colorScheme.outlineVariant,
+                          color: _isRevealed ? gx.accent : gx.border,
                           width: 2,
                         ),
                         boxShadow: _isRevealed
                             ? [
                                 BoxShadow(
-                                  color: context.gx.accent
-                                      .withValues(alpha: 0.3),
+                                  color: gx.accent.withValues(alpha: 0.3),
                                   blurRadius: 20,
                                   offset: const Offset(0, 8),
                                 ),
@@ -418,8 +415,8 @@ class _ArrivalOtpScreenState extends ConsumerState<ArrivalOtpScreen>
                             _isRevealed ? 'TAP TO HIDE' : 'TAP TO REVEAL',
                             style: TextStyle(
                               color: _isRevealed
-                                  ? context.gx.onAccent.withValues(alpha: 0.7)
-                                  : colorScheme.onSurfaceVariant,
+                                  ? gx.onAccent.withValues(alpha: 0.7)
+                                  : muted,
                               fontSize: 11,
                               fontWeight: FontWeight.w600,
                               letterSpacing: 2,
@@ -433,9 +430,7 @@ class _ArrivalOtpScreenState extends ConsumerState<ArrivalOtpScreen>
                                     : '– – – –')
                                 : '• • • •',
                             style: TextStyle(
-                              color: _isRevealed
-                                  ? context.gx.onAccent
-                                  : colorScheme.onSurface,
+                              color: _isRevealed ? gx.onAccent : gx.ink,
                               fontSize: 40,
                               fontWeight: FontWeight.bold,
                               letterSpacing: 16,
@@ -449,10 +444,7 @@ class _ArrivalOtpScreenState extends ConsumerState<ArrivalOtpScreen>
                     const SizedBox(height: 12),
                     Text(
                       'Waiting for worker to mark arrival...',
-                      style: TextStyle(
-                          color: colorScheme.onSurfaceVariant
-                              .withValues(alpha: 0.6),
-                          fontSize: 13),
+                      style: TextStyle(color: muted, fontSize: 13),
                     ),
                   ],
                 ],
@@ -462,11 +454,7 @@ class _ArrivalOtpScreenState extends ConsumerState<ArrivalOtpScreen>
                   widget.isWorker
                       ? 'Verify entry only after reaching the site'
                       : 'Only share this with the worker in person',
-                  style: TextStyle(
-                    color:
-                        colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
-                    fontSize: 12,
-                  ),
+                  style: TextStyle(color: muted, fontSize: 12),
                 ),
 
                 const Spacer(flex: 3),
@@ -482,10 +470,10 @@ class _ArrivalOtpScreenState extends ConsumerState<ArrivalOtpScreen>
                     fontSize: 16,
                   )
                 else if (!widget.isWorker)
-                  const Text(
+                  Text(
                     'Waiting for worker to confirm arrival...',
                     style: TextStyle(
-                        fontStyle: FontStyle.italic, color: Colors.grey),
+                        fontStyle: FontStyle.italic, color: muted),
                   ),
 
                 const SizedBox(height: 32),

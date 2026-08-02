@@ -4,11 +4,8 @@ import { BookingStatus, BookingType } from './booking.entity';
 
 /**
  * Unit tests for the BookingsController HTTP layer. The controller is a thin
- * delegation surface over BookingsService (+ NotificationsService for the
- * accept/arrive/complete push side-effects, + RedisService for the cached
- * status poll). These tests instantiate the controller directly with jest-mock
- * services (matching the service-spec style in this repo — no Nest TestingModule,
- * no DB, no network) and assert:
+ * delegation surface over BookingsService. These tests instantiate the
+ * controller directly with jest-mock services (no Nest TestingModule) and assert:
  *  - create() maps the request body + req.user.userId into the service DTO shape
  *    (customer/operator wrapped as {id}, scheduledAt → Date, paymentMethod default
  *    'WALLET').
@@ -65,6 +62,21 @@ function makeController(
       rejected: true,
     })),
     getBookingById: jest.fn(async () => null),
+    getStatusForParticipant: jest.fn(async () => ({ status: 'REQUESTED' })),
+    assertParticipant: jest.fn(async () => ({
+      id: 'b1',
+      customer: { id: 'u1' },
+    })),
+    notifyArrival: jest.fn(async () => ({
+      message: 'Arrival OTP sent to customer.',
+    })),
+    notifyCompletion: jest.fn(async () => ({
+      message: 'Completion OTP sent to customer.',
+    })),
+    reportDispute: jest.fn(async () => ({
+      success: true,
+      message: 'Dispute logged',
+    })),
     markPaid: jest.fn(async (id: string) => ({ message: 'paid' })),
     submitRating: jest.fn(async (id: string, rating: number) => ({
       id,
@@ -73,24 +85,13 @@ function makeController(
     ...(opts.bookings ?? {}),
   };
 
-  const notificationsService: any = {
-    sendToUser: jest.fn(async () => undefined),
-  };
-
-  const redisService: any = {
-    getCachedBookingStatus: jest.fn(async () => opts.redisCached ?? null),
-    cacheBookingStatus: jest.fn(async () => undefined),
-  };
-
-  const controller = new BookingsController(
-    bookingsService,
-    notificationsService,
-    redisService,
-  );
-  return { controller, bookingsService, notificationsService, redisService };
+  const controller = new BookingsController(bookingsService);
+  return { controller, bookingsService };
 }
 
-const req = (userId = 'u1') => ({ user: { userId } });
+const req = (userId = 'u1', role = 'CUSTOMER') => ({
+  user: { userId, role },
+});
 
 describe('BookingsController.create', () => {
   it('maps the body + req.user into the service DTO shape', async () => {
@@ -113,7 +114,7 @@ describe('BookingsController.create', () => {
     expect(dto.scheduledAt).toBeInstanceOf(Date);
     expect(dto.scheduledAt.toISOString()).toBe('2026-07-01T10:00:00.000Z');
     expect(dto.amount).toBe(500);
-    expect(dto.paymentMethod).toBe('WALLET'); // default when omitted
+    expect(dto.paymentMethod).toBe('CASH'); // default when omitted
   });
 
   it('keeps a supplied paymentMethod', async () => {
@@ -205,7 +206,10 @@ describe('BookingsController.getPendingBookings', () => {
 describe('BookingsController.updateStatus / confirm', () => {
   it('updateStatus passes the body status through', async () => {
     const { controller, bookingsService } = makeController();
-    await controller.updateStatus('b1', { status: BookingStatus.ACTIVE });
+    await controller.updateStatus('b1', req(), {
+      status: BookingStatus.ACTIVE,
+    });
+    expect(bookingsService.assertParticipant).toHaveBeenCalledWith('b1', 'u1');
     expect(bookingsService.updateStatus).toHaveBeenCalledWith(
       'b1',
       BookingStatus.ACTIVE,
@@ -214,7 +218,7 @@ describe('BookingsController.updateStatus / confirm', () => {
 
   it('confirmBooking forces ACCEPTED', async () => {
     const { controller, bookingsService } = makeController();
-    await controller.confirmBooking('b1');
+    await controller.confirmBooking('b1', req());
     expect(bookingsService.updateStatus).toHaveBeenCalledWith(
       'b1',
       BookingStatus.ACCEPTED,
@@ -223,21 +227,27 @@ describe('BookingsController.updateStatus / confirm', () => {
 });
 
 describe('BookingsController.cancel', () => {
-  it('passes the supplied reason', async () => {
+  it('passes the supplied reason with customer source', async () => {
     const { controller, bookingsService } = makeController();
-    await controller.cancel('b1', { reason: 'changed mind' });
+    await controller.cancel('b1', req('u1', 'CUSTOMER'), {
+      reason: 'changed mind',
+    });
     expect(bookingsService.cancelBooking).toHaveBeenCalledWith(
       'b1',
       'changed mind',
+      'customer',
+      undefined,
     );
   });
 
   it('falls back to "Not specified" when reason missing', async () => {
     const { controller, bookingsService } = makeController();
-    await controller.cancel('b1', {} as any);
+    await controller.cancel('b1', req('u1', 'CUSTOMER'), {} as any);
     expect(bookingsService.cancelBooking).toHaveBeenCalledWith(
       'b1',
       'Not specified',
+      'customer',
+      undefined,
     );
   });
 });
@@ -245,9 +255,9 @@ describe('BookingsController.cancel', () => {
 describe('BookingsController OTP gates', () => {
   it('confirmArrival / confirmCompletion / refreshCompletionOtp delegate', async () => {
     const { controller, bookingsService } = makeController();
-    await controller.confirmArrival('b1', { otp: '111111' });
-    await controller.confirmCompletion('b1', { otp: '222222' });
-    await controller.refreshCompletionOtp('b1');
+    await controller.confirmArrival('b1', req(), { otp: '111111' });
+    await controller.confirmCompletion('b1', req(), { otp: '222222' });
+    await controller.refreshCompletionOtp('b1', req());
     expect(bookingsService.verifyArrivalOtp).toHaveBeenCalledWith(
       'b1',
       '111111',
@@ -265,15 +275,13 @@ describe('BookingsController.acceptBooking', () => {
     const acceptBooking = jest.fn(async () => ({
       booking: { customer: { id: 'cust-1' }, operator: { name: 'Asha' } },
     }));
-    const { controller, notificationsService } = makeController({
+    const { controller } = makeController({
       bookings: { acceptBooking },
     });
 
     const res = await controller.acceptBooking('b1', req('w-1'));
 
     expect(acceptBooking).toHaveBeenCalledWith('b1', 'w-1');
-    // Controller no longer pushes — BookingsService.acceptBooking owns FCM.
-    expect(notificationsService.sendToUser).not.toHaveBeenCalled();
     expect(res).toBeDefined();
   });
 
@@ -297,117 +305,74 @@ describe('BookingsController.rejectBooking', () => {
 });
 
 describe('BookingsController.getBooking', () => {
-  it('returns the booking when found', async () => {
-    const getBookingById = jest.fn(async () => ({ id: 'b1' }));
+  it('returns the booking when the caller is a participant', async () => {
+    const getBookingById = jest.fn(async () => ({
+      id: 'b1',
+      customer: { id: 'cust-1' },
+      operator: { id: 'w-1' },
+    }));
     const { controller } = makeController({ bookings: { getBookingById } });
-    expect(await controller.getBooking('b1')).toEqual({ id: 'b1' });
+    expect(await controller.getBooking('b1', req('cust-1'))).toEqual({
+      id: 'b1',
+      customer: { id: 'cust-1' },
+      operator: { id: 'w-1' },
+    });
   });
 
   it('throws NotFound when absent', async () => {
-    const { controller } = makeController(); // getBookingById → null
-    await expect(controller.getBooking('b1')).rejects.toBeInstanceOf(
+    const { controller } = makeController();
+    await expect(controller.getBooking('b1', req('u1'))).rejects.toBeInstanceOf(
       NotFoundException,
     );
+  });
+
+  it('throws NotFound when the caller is not a participant', async () => {
+    const getBookingById = jest.fn(async () => ({
+      id: 'b1',
+      customer: { id: 'cust-1' },
+      operator: { id: 'w-1' },
+    }));
+    const { controller } = makeController({ bookings: { getBookingById } });
+    await expect(
+      controller.getBooking('b1', req('stranger')),
+    ).rejects.toBeInstanceOf(NotFoundException);
   });
 });
 
 describe('BookingsController.getBookingStatus', () => {
-  it('returns the Redis cache on a hit (no DB read)', async () => {
-    const { controller, bookingsService, redisService } = makeController({
-      redisCached: { status: 'ACCEPTED' },
-    });
-    const res = await controller.getBookingStatus('b1');
-    expect(res).toEqual({ status: 'ACCEPTED' });
-    expect(bookingsService.getBookingById).not.toHaveBeenCalled();
-    expect(redisService.cacheBookingStatus).not.toHaveBeenCalled();
-  });
-
-  it('falls back to DB and populates the cache on a miss', async () => {
-    const getBookingById = jest.fn(async () => ({
-      status: BookingStatus.ACCEPTED,
-      operator: { name: 'Asha' },
-      arrivalOtp: '999999',
-    }));
-    const { controller, redisService } = makeController({
-      bookings: { getBookingById },
-    });
-    const res = await controller.getBookingStatus('b1');
-    expect(res).toEqual({
-      status: BookingStatus.ACCEPTED,
+  it('delegates to getStatusForParticipant with the caller id', async () => {
+    const getStatusForParticipant = jest.fn(async () => ({
+      status: 'ACCEPTED',
       operatorName: 'Asha',
-      arrivalOtp: '999999',
-    });
-    expect(redisService.cacheBookingStatus).toHaveBeenCalledWith('b1', res);
-  });
-
-  it('hides the arrivalOtp when status is not ACCEPTED', async () => {
-    const getBookingById = jest.fn(async () => ({
-      status: BookingStatus.ACTIVE,
-      operator: { name: 'Asha' },
-      arrivalOtp: '999999',
     }));
-    const { controller } = makeController({ bookings: { getBookingById } });
-    const res: any = await controller.getBookingStatus('b1');
-    expect(res.arrivalOtp).toBeNull();
-  });
-
-  it('throws NotFound when neither cache nor DB has it', async () => {
-    const { controller } = makeController(); // cache null + getBookingById null
-    await expect(controller.getBookingStatus('b1')).rejects.toBeInstanceOf(
-      NotFoundException,
-    );
+    const { controller } = makeController({
+      bookings: { getStatusForParticipant },
+    });
+    const res = await controller.getBookingStatus('b1', req('cust-1'));
+    expect(getStatusForParticipant).toHaveBeenCalledWith('b1', 'cust-1');
+    expect(res).toEqual({ status: 'ACCEPTED', operatorName: 'Asha' });
   });
 });
 
 describe('BookingsController.markArrived / markComplete', () => {
-  it('markArrived sends the arrival OTP push and returns a message', async () => {
-    const getBookingById = jest.fn(async () => ({
-      arrivalOtp: '123456',
-      customer: { id: 'cust-1' },
+  it('markArrived delegates to notifyArrival', async () => {
+    const notifyArrival = jest.fn(async () => ({
+      message: 'Arrival OTP sent to customer.',
     }));
-    const { controller, notificationsService } = makeController({
-      bookings: { getBookingById },
-    });
-    const res = await controller.markArrived('b1');
-    expect(notificationsService.sendToUser).toHaveBeenCalledWith(
-      'cust-1',
-      expect.objectContaining({
-        title: 'Worker has arrived',
-      }),
-    );
+    const { controller } = makeController({ bookings: { notifyArrival } });
+    const res = await controller.markArrived('b1', req('w-1'));
+    expect(notifyArrival).toHaveBeenCalledWith('b1', 'w-1');
     expect(res).toEqual({ message: 'Arrival OTP sent to customer.' });
   });
 
-  it('markArrived throws NotFound when booking missing', async () => {
-    const { controller } = makeController();
-    await expect(controller.markArrived('b1')).rejects.toBeInstanceOf(
-      NotFoundException,
-    );
-  });
-
-  it('markComplete sends the completion OTP push and returns a message', async () => {
-    const getBookingById = jest.fn(async () => ({
-      completionOtp: '654321',
-      customer: { id: 'cust-1' },
+  it('markComplete delegates to notifyCompletion', async () => {
+    const notifyCompletion = jest.fn(async () => ({
+      message: 'Completion OTP sent to customer.',
     }));
-    const { controller, notificationsService } = makeController({
-      bookings: { getBookingById },
-    });
-    const res = await controller.markComplete('b1');
-    expect(notificationsService.sendToUser).toHaveBeenCalledWith(
-      'cust-1',
-      expect.objectContaining({
-        title: 'Job marked as complete',
-      }),
-    );
+    const { controller } = makeController({ bookings: { notifyCompletion } });
+    const res = await controller.markComplete('b1', req('w-1'));
+    expect(notifyCompletion).toHaveBeenCalledWith('b1', 'w-1');
     expect(res).toEqual({ message: 'Completion OTP sent to customer.' });
-  });
-
-  it('markComplete throws NotFound when booking missing', async () => {
-    const { controller } = makeController();
-    await expect(controller.markComplete('b1')).rejects.toBeInstanceOf(
-      NotFoundException,
-    );
   });
 });
 
@@ -426,16 +391,29 @@ describe('BookingsController.markPaid / submitRating / reportDispute', () => {
     });
   });
 
-  it('submitRating passes the numeric rating', async () => {
-    const { controller, bookingsService } = makeController();
-    await controller.submitRating('b1', { rating: 5 });
+  it('submitRating passes the numeric rating for the customer', async () => {
+    const assertParticipant = jest.fn(async () => ({
+      id: 'b1',
+      customer: { id: 'u1' },
+    }));
+    const { controller, bookingsService } = makeController({
+      bookings: { assertParticipant },
+    });
+    await controller.submitRating('b1', req('u1'), { rating: 5 });
+    expect(assertParticipant).toHaveBeenCalledWith('b1', 'u1');
     expect(bookingsService.submitRating).toHaveBeenCalledWith('b1', 5);
   });
 
-  it('reportDispute echoes the reason without touching the service', async () => {
-    const { controller, bookingsService } = makeController();
-    const res = await controller.reportDispute('b1', { reason: 'late' });
+  it('reportDispute delegates reason to the service', async () => {
+    const reportDispute = jest.fn(async () => ({
+      success: true,
+      message: 'Dispute logged: late',
+    }));
+    const { controller } = makeController({ bookings: { reportDispute } });
+    const res = await controller.reportDispute('b1', req('u1'), {
+      reason: 'late',
+    });
+    expect(reportDispute).toHaveBeenCalledWith('b1', 'u1', 'late');
     expect(res).toEqual({ success: true, message: 'Dispute logged: late' });
-    expect(bookingsService.submitRating).not.toHaveBeenCalled();
   });
 });

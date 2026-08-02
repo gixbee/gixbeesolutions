@@ -1,6 +1,10 @@
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { In } from 'typeorm';
 import { BookingsService } from './bookings.service';
+import { BookingDispatchService } from './booking-dispatch.service';
+import { BookingClaimService } from './booking-claim.service';
+import { BookingSettlementService } from './booking-settlement.service';
+import { BookingProgressService } from './booking-progress.service';
 import { BookingStatus } from './booking.entity';
 import { WorkerProfile } from '../workers/worker-profile.entity';
 
@@ -21,6 +25,7 @@ function makeService() {
     where: jest.fn(() => queryBuilder),
     andWhere: jest.fn(() => queryBuilder),
     orderBy: jest.fn(() => queryBuilder),
+    addOrderBy: jest.fn(() => queryBuilder),
     skip: jest.fn(() => queryBuilder),
     take: jest.fn(() => queryBuilder),
     setLock: jest.fn(() => queryBuilder),
@@ -72,6 +77,7 @@ function makeService() {
   };
   const workersService: any = {
     setWorkerStatus: jest.fn(async () => undefined),
+    refreshWorkerSnapshot: jest.fn(async () => undefined),
   };
   const dataSource: any = {
     transaction: jest.fn(async (cb: any) => {
@@ -88,6 +94,9 @@ function makeService() {
       };
       return cb(manager);
     }),
+    getRepository: jest.fn(() => ({
+      findOne: jest.fn(async () => null),
+    })),
   };
 
   const outboxService: any = {
@@ -102,22 +111,82 @@ function makeService() {
     enqueueDispatch: jest.fn(async () => undefined),
   };
 
-  const service = new BookingsService(
+  const bookingStatusService: any = {
+    cacheAndEmitBookingStatus: jest.fn(async () => undefined),
+    getBookingById: jest.fn(async (_id: string) => {
+      const qb = bookingsRepository.createQueryBuilder('booking');
+      qb.leftJoinAndSelect('booking.customer', 'customer');
+      qb.leftJoinAndSelect('booking.operator', 'operator');
+      qb.where('booking.id = :id', { id: _id });
+      return qb.getOne();
+    }),
+  };
+  const messagesGateway: any = { emitUserEvent: jest.fn() };
+  const jobCreditsService: any = {
+    consumeCredit: jest.fn(),
+    refundCredit: jest.fn(),
+  };
+
+  const claimService = new BookingClaimService(
+    bookingsRepository,
+    notificationsService,
+    redisService,
+    workersService,
+    dataSource,
+    outboxService,
+    jobCreditsService,
+    bookingStatusService,
+  );
+  const dispatchService = new BookingDispatchService(
+    bookingsRepository,
+    bookingsQueue,
+    notificationsService,
+    redisService,
+    dataSource,
+    messagesGateway,
+    bookingStatusService,
+    claimService,
+    {} as any,
+  );
+
+  const masterEntriesService: any = {
+    getConfigNumber: jest.fn(async (_k: string, f: number) => f),
+  };
+
+  const settlementService = new BookingSettlementService(
     bookingsRepository,
     workerProfileRepo,
-    bookingsQueue,
     walletsService,
     notificationsService,
     redisService,
     workersService,
     dataSource,
-    { emitUserEvent: jest.fn() } as any,
     outboxService,
-    { consumeCredit: jest.fn(), refundCredit: jest.fn() } as any,
-    { getConfigNumber: jest.fn(async (_k: string, f: number) => f) } as any,
+    masterEntriesService,
+    bookingStatusService,
+  );
+
+  const bookingProgressService = new BookingProgressService(
+    bookingsRepository,
+    notificationsService,
+    workersService,
+    bookingStatusService,
+  );
+
+  const service = new BookingsService(
+    bookingsRepository,
+    dataSource,
+    outboxService,
+    bookingStatusService,
+    {} as any,
+    dispatchService,
+    settlementService,
+    bookingProgressService,
   );
   return {
     service,
+    dispatchService,
+    settlementService,
     bookingsRepository,
     workerProfileRepo,
     bookingsQueue,
@@ -129,12 +198,14 @@ function makeService() {
     queryBuilder,
     workerProfileQb,
     outboxService,
+    bookingStatusService,
+    messagesGateway,
   };
 }
 
-describe('BookingsService.createBooking', () => {
+describe('BookingDispatchService.createBooking', () => {
   it('refuses self-booking when customer === operator', async () => {
-    const { service, bookingsRepository } = makeService();
+    const { dispatchService: service, bookingsRepository } = makeService();
 
     await expect(
       service.createBooking({
@@ -146,7 +217,7 @@ describe('BookingsService.createBooking', () => {
   });
 
   it('rejects booking a worker already on an ACTIVE/ARRIVED job', async () => {
-    const { service, bookingsRepository } = makeService();
+    const { dispatchService: service, bookingsRepository } = makeService();
     bookingsRepository.findOne.mockResolvedValueOnce({ id: 'active-job' });
 
     await expect(
@@ -159,14 +230,14 @@ describe('BookingsService.createBooking', () => {
   });
 
   it('creates a REQUESTED booking with OTPs, schedules timeout, notifies + caches', async () => {
-    const ctx = makeService();
     const {
-      service,
+      dispatchService: service,
       bookingsRepository,
       redisService,
       bookingsQueue,
       notificationsService,
-    } = ctx;
+      bookingStatusService,
+    } = makeService();
     bookingsRepository.findOne.mockResolvedValueOnce(null); // no active job
     bookingsRepository.save.mockImplementationOnce(async (b: any) => ({
       ...b,
@@ -212,17 +283,24 @@ describe('BookingsService.createBooking', () => {
       'new-1',
       'Plumbing',
     );
-    expect(redisService.cacheBookingStatus).toHaveBeenCalledWith('new-1', {
-      status: 'REQUESTED',
-      operatorName: null,
-      operatorId: 'work-1',
-      customerId: 'cust-1',
-      arrivalOtp: expect.any(String),
-    });
+    expect(bookingStatusService.cacheAndEmitBookingStatus).toHaveBeenCalledWith(
+      'new-1',
+      {
+        status: 'REQUESTED',
+        operatorName: null,
+        operatorId: 'work-1',
+        customerId: 'cust-1',
+        arrivalOtp: expect.any(String),
+      },
+    );
   });
 
   it('defaults the notification skill to "General Help" when none supplied', async () => {
-    const { service, bookingsRepository, notificationsService } = makeService();
+    const {
+      dispatchService: service,
+      bookingsRepository,
+      notificationsService,
+    } = makeService();
     bookingsRepository.findOne.mockResolvedValueOnce(null);
     bookingsRepository.save.mockImplementationOnce(async (b: any) => ({
       ...b,
@@ -242,8 +320,13 @@ describe('BookingsService.createBooking', () => {
   });
 
   it('skips the active-job check, pending list and worker notify when there is no operator', async () => {
-    const { service, bookingsRepository, redisService, notificationsService } =
-      makeService();
+    const {
+      dispatchService: service,
+      bookingsRepository,
+      redisService,
+      notificationsService,
+      bookingStatusService,
+    } = makeService();
     bookingsRepository.save.mockImplementationOnce(async (b: any) => ({
       ...b,
       id: 'new-3',
@@ -256,17 +339,20 @@ describe('BookingsService.createBooking', () => {
     expect(redisService.addPendingBooking).not.toHaveBeenCalled();
     expect(notificationsService.notifyWorkerNewBooking).not.toHaveBeenCalled();
     // status is still cached
-    expect(redisService.cacheBookingStatus).toHaveBeenCalledWith('new-3', {
-      status: 'REQUESTED',
-      operatorName: null,
-      operatorId: null,
-      customerId: 'cust-1',
-      arrivalOtp: expect.any(String),
-    });
+    expect(bookingStatusService.cacheAndEmitBookingStatus).toHaveBeenCalledWith(
+      'new-3',
+      {
+        status: 'REQUESTED',
+        operatorName: null,
+        operatorId: null,
+        customerId: 'cust-1',
+        arrivalOtp: expect.any(String),
+      },
+    );
   });
 
   it('accepts bare-string customer/operator ids (not wrapped objects)', async () => {
-    const { service, bookingsRepository } = makeService();
+    const { dispatchService: service, bookingsRepository } = makeService();
     // same id as string on both → self-booking guard
     await expect(
       service.createBooking({ customer: 'u9' as any, operator: 'u9' as any }),
@@ -275,7 +361,7 @@ describe('BookingsService.createBooking', () => {
   });
 
   it('carries the picked saved-address id (addressId) through to the created booking (P107)', async () => {
-    const { service, bookingsRepository } = makeService();
+    const { dispatchService: service, bookingsRepository } = makeService();
     bookingsRepository.findOne.mockResolvedValueOnce(null); // no active job
     bookingsRepository.save.mockImplementationOnce(async (b: any) => ({
       ...b,
@@ -297,7 +383,7 @@ describe('BookingsService.createBooking', () => {
   });
 
   it('leaves addressId undefined when the customer free-typed an address (P107)', async () => {
-    const { service, bookingsRepository } = makeService();
+    const { dispatchService: service, bookingsRepository } = makeService();
     bookingsRepository.findOne.mockResolvedValueOnce(null);
     bookingsRepository.save.mockImplementationOnce(async (b: any) => ({
       ...b,
@@ -316,9 +402,13 @@ describe('BookingsService.createBooking', () => {
   });
 });
 
-describe('BookingsService.rejectBooking', () => {
+describe('BookingDispatchService.rejectBooking', () => {
   it('404s when worker was never notified and is not the assigned operator', async () => {
-    const { service, bookingsRepository, redisService } = makeService();
+    const {
+      dispatchService: service,
+      bookingsRepository,
+      redisService,
+    } = makeService();
     bookingsRepository.findOne.mockResolvedValueOnce({
       id: 'b1',
       status: BookingStatus.REQUESTED,
@@ -333,7 +423,7 @@ describe('BookingsService.rejectBooking', () => {
   });
 
   it('rejects declining a booking that is not REQUESTED', async () => {
-    const { service, bookingsRepository } = makeService();
+    const { dispatchService: service, bookingsRepository } = makeService();
     bookingsRepository.findOne.mockResolvedValueOnce({
       id: 'b1',
       status: BookingStatus.ACCEPTED,
@@ -352,8 +442,13 @@ describe('BookingsService.rejectBooking', () => {
       operator: { id: 'work-1' },
       customer: { id: 'cust-1' },
     };
-    const { service, bookingsRepository, redisService, notificationsService } =
-      makeService();
+    const {
+      dispatchService: service,
+      bookingsRepository,
+      redisService,
+      notificationsService,
+      bookingStatusService,
+    } = makeService();
     bookingsRepository.findOne.mockResolvedValueOnce(booking);
 
     const res = await service.rejectBooking('b1', 'work-1');
@@ -364,12 +459,15 @@ describe('BookingsService.rejectBooking', () => {
       'work-1',
       'b1',
     );
-    expect(redisService.cacheBookingStatus).toHaveBeenCalledWith('b1', {
-      status: 'REJECTED',
-      operatorName: null,
-      operatorId: 'work-1',
-      customerId: 'cust-1',
-    });
+    expect(bookingStatusService.cacheAndEmitBookingStatus).toHaveBeenCalledWith(
+      'b1',
+      {
+        status: 'REJECTED',
+        operatorName: null,
+        operatorId: 'work-1',
+        customerId: 'cust-1',
+      },
+    );
     expect(notificationsService.notifyBookingCancelled).toHaveBeenCalledWith(
       'cust-1',
       expect.any(String),
@@ -384,8 +482,12 @@ describe('BookingsService.rejectBooking', () => {
       operator: null,
       customer: { id: 'cust-1' },
     };
-    const { service, bookingsRepository, redisService, notificationsService } =
-      makeService();
+    const {
+      dispatchService: service,
+      bookingsRepository,
+      redisService,
+      notificationsService,
+    } = makeService();
     bookingsRepository.findOne.mockResolvedValueOnce(booking);
     redisService.getPendingBookingIds.mockResolvedValueOnce(['b1']);
     redisService.get.mockResolvedValueOnce(
@@ -416,7 +518,11 @@ describe('BookingsService.rejectBooking', () => {
       operator: null,
       customer: { id: 'cust-1' },
     };
-    const { service, bookingsRepository, redisService } = makeService();
+    const {
+      dispatchService: service,
+      bookingsRepository,
+      redisService,
+    } = makeService();
     bookingsRepository.findOne.mockResolvedValueOnce(booking);
     redisService.getPendingBookingIds.mockResolvedValueOnce([]);
     redisService.get.mockResolvedValueOnce(JSON.stringify(['work-1']));
@@ -432,7 +538,11 @@ describe('BookingsService.rejectBooking', () => {
   });
 
   it('does not notify when a targeted reject has no customer', async () => {
-    const { service, bookingsRepository, notificationsService } = makeService();
+    const {
+      dispatchService: service,
+      bookingsRepository,
+      notificationsService,
+    } = makeService();
     bookingsRepository.findOne.mockResolvedValueOnce({
       id: 'b1',
       status: BookingStatus.REQUESTED,
@@ -459,20 +569,24 @@ describe('BookingsService.updateStatus', () => {
       arrivalOtp: '1234',
       operator: { id: 'work-1', name: 'Wendy' },
     };
-    const { service, bookingsRepository, redisService } = makeService();
+    const { service, bookingsRepository, redisService, bookingStatusService } =
+      makeService();
     bookingsRepository.findOne.mockResolvedValueOnce(booking);
 
     await service.updateStatus('b1', BookingStatus.ACCEPTED);
 
     expect(booking.status).toBe(BookingStatus.ACCEPTED);
     expect(bookingsRepository.save).toHaveBeenCalledWith(booking);
-    expect(redisService.cacheBookingStatus).toHaveBeenCalledWith('b1', {
-      status: BookingStatus.ACCEPTED,
-      operatorName: 'Wendy',
-      operatorId: 'work-1',
-      customerId: null,
-      arrivalOtp: '1234',
-    });
+    expect(bookingStatusService.cacheAndEmitBookingStatus).toHaveBeenCalledWith(
+      'b1',
+      {
+        status: BookingStatus.ACCEPTED,
+        operatorName: 'Wendy',
+        operatorId: 'work-1',
+        customerId: null,
+        arrivalOtp: '1234',
+      },
+    );
     // not a CANCELLED/REJECTED transition → pending list untouched
     expect(redisService.removePendingBooking).not.toHaveBeenCalled();
   });
@@ -484,18 +598,22 @@ describe('BookingsService.updateStatus', () => {
       arrivalOtp: '1234',
       operator: { id: 'work-1', name: 'Wendy' },
     };
-    const { service, bookingsRepository, redisService } = makeService();
+    const { service, bookingsRepository, redisService, bookingStatusService } =
+      makeService();
     bookingsRepository.findOne.mockResolvedValueOnce(booking);
 
     await service.updateStatus('b1', BookingStatus.ACTIVE);
 
-    expect(redisService.cacheBookingStatus).toHaveBeenCalledWith('b1', {
-      status: BookingStatus.ACTIVE,
-      operatorName: 'Wendy',
-      operatorId: 'work-1',
-      customerId: null,
-      arrivalOtp: null,
-    });
+    expect(bookingStatusService.cacheAndEmitBookingStatus).toHaveBeenCalledWith(
+      'b1',
+      {
+        status: BookingStatus.ACTIVE,
+        operatorName: 'Wendy',
+        operatorId: 'work-1',
+        customerId: null,
+        arrivalOtp: null,
+      },
+    );
   });
 
   it('appends BOOKING_CANCELLED outbox when transitioning to CANCELLED', async () => {
@@ -528,9 +646,13 @@ describe('BookingsService.updateStatus', () => {
   });
 });
 
-describe('BookingsService.findPendingForWorker', () => {
+describe('BookingDispatchService.findPendingForWorker', () => {
   it('returns redis-ordered bookings when redis has pending ids', async () => {
-    const { service, bookingsRepository, redisService } = makeService();
+    const {
+      dispatchService: service,
+      bookingsRepository,
+      redisService,
+    } = makeService();
     redisService.getPendingBookingIds.mockResolvedValueOnce(['b2', 'b1']);
     bookingsRepository.find.mockResolvedValueOnce([
       { id: 'b1', status: BookingStatus.REQUESTED },
@@ -550,7 +672,11 @@ describe('BookingsService.findPendingForWorker', () => {
   });
 
   it('falls back to a DB query and re-populates redis when redis is empty', async () => {
-    const { service, bookingsRepository, redisService } = makeService();
+    const {
+      dispatchService: service,
+      bookingsRepository,
+      redisService,
+    } = makeService();
     redisService.getPendingBookingIds.mockResolvedValueOnce([]);
     bookingsRepository.find.mockResolvedValueOnce([{ id: 'b7' }, { id: 'b8' }]);
 
@@ -567,7 +693,11 @@ describe('BookingsService.findPendingForWorker', () => {
   });
 
   it('returns an empty list and re-populates nothing when there is no pending work', async () => {
-    const { service, bookingsRepository, redisService } = makeService();
+    const {
+      dispatchService: service,
+      bookingsRepository,
+      redisService,
+    } = makeService();
     redisService.getPendingBookingIds.mockResolvedValueOnce([]);
     bookingsRepository.find.mockResolvedValueOnce([]);
 
@@ -578,16 +708,16 @@ describe('BookingsService.findPendingForWorker', () => {
   });
 });
 
-describe('BookingsService.verifyArrivalOtp', () => {
+describe('BookingSettlementService.verifyArrivalOtp', () => {
   it('404s when the booking does not exist', async () => {
-    const { service } = makeService();
+    const { settlementService: service } = makeService();
     await expect(service.verifyArrivalOtp('b1', '1234')).rejects.toThrow(
       NotFoundException,
     );
   });
 
   it('rejects a missing or mismatched OTP without saving', async () => {
-    const { service, bookingsRepository } = makeService();
+    const { settlementService: service, bookingsRepository } = makeService();
     bookingsRepository.findOne.mockResolvedValueOnce({
       id: 'b1',
       arrivalOtp: '1234',
@@ -604,7 +734,12 @@ describe('BookingsService.verifyArrivalOtp', () => {
       arrivalOtp: '1234',
       status: BookingStatus.ACCEPTED,
     };
-    const { service, bookingsRepository, redisService } = makeService();
+    const {
+      settlementService: service,
+      bookingsRepository,
+      redisService,
+      bookingStatusService,
+    } = makeService();
     bookingsRepository.findOne.mockResolvedValueOnce(booking);
 
     const res = await service.verifyArrivalOtp('b1', '1234');
@@ -615,19 +750,22 @@ describe('BookingsService.verifyArrivalOtp', () => {
     expect(redisService.deleteOtp).toHaveBeenCalledWith(
       'otp:booking:b1:arrival',
     );
-    expect(redisService.cacheBookingStatus).toHaveBeenCalledWith('b1', {
-      status: 'ACTIVE',
-      operatorName: null,
-      operatorId: null,
-      customerId: null,
-    });
+    expect(bookingStatusService.cacheAndEmitBookingStatus).toHaveBeenCalledWith(
+      'b1',
+      {
+        status: 'ACTIVE',
+        operatorName: null,
+        operatorId: null,
+        customerId: null,
+      },
+    );
     expect(res.status).toBe('ACTIVE');
   });
 });
 
-describe('BookingsService.markPaid', () => {
+describe('BookingSettlementService.markPaid', () => {
   it('404s when the booking does not exist', async () => {
-    const { service } = makeService();
+    const { settlementService: service } = makeService();
     await expect(service.markPaid('b1', 'u1')).rejects.toThrow(
       NotFoundException,
     );
@@ -643,7 +781,11 @@ describe('BookingsService.markPaid', () => {
       workerPaidConfirmed: false,
       customerPaidConfirmed: false,
     };
-    const { service, bookingsRepository, outboxService } = makeService();
+    const {
+      settlementService: service,
+      bookingsRepository,
+      outboxService,
+    } = makeService();
     bookingsRepository.findOne.mockResolvedValueOnce(booking);
 
     const res = await service.markPaid('b1', 'work-1', {
@@ -674,7 +816,7 @@ describe('BookingsService.markPaid', () => {
       workerPaidConfirmed: false,
       customerPaidConfirmed: false,
     };
-    const { service, bookingsRepository } = makeService();
+    const { settlementService: service, bookingsRepository } = makeService();
     bookingsRepository.findOne.mockResolvedValue(booking);
 
     await service.markPaid('b1', 'work-1', { honestyCheck: 'TIP' });
@@ -693,9 +835,9 @@ describe('BookingsService.markPaid', () => {
   });
 });
 
-describe('BookingsService.refreshCompletionOtp', () => {
+describe('BookingSettlementService.refreshCompletionOtp', () => {
   it('404s when the booking does not exist', async () => {
-    const { service } = makeService();
+    const { settlementService: service } = makeService();
     await expect(service.refreshCompletionOtp('b1')).rejects.toThrow(
       NotFoundException,
     );
@@ -707,8 +849,12 @@ describe('BookingsService.refreshCompletionOtp', () => {
       completionOtp: '0000',
       customer: { id: 'cust-1' },
     };
-    const { service, bookingsRepository, redisService, notificationsService } =
-      makeService();
+    const {
+      settlementService: service,
+      bookingsRepository,
+      redisService,
+      notificationsService,
+    } = makeService();
     bookingsRepository.findOne.mockResolvedValueOnce(booking);
 
     const res = await service.refreshCompletionOtp('b1');
@@ -728,7 +874,11 @@ describe('BookingsService.refreshCompletionOtp', () => {
 
   it('does not notify when the booking has no customer', async () => {
     const booking: any = { id: 'b1', completionOtp: '0000', customer: null };
-    const { service, bookingsRepository, notificationsService } = makeService();
+    const {
+      settlementService: service,
+      bookingsRepository,
+      notificationsService,
+    } = makeService();
     bookingsRepository.findOne.mockResolvedValueOnce(booking);
 
     await service.refreshCompletionOtp('b1');
@@ -739,9 +889,9 @@ describe('BookingsService.refreshCompletionOtp', () => {
   });
 });
 
-describe('BookingsService.submitRating', () => {
+describe('BookingSettlementService.submitRating', () => {
   it('404s when the booking does not exist', async () => {
-    const { service } = makeService();
+    const { settlementService: service } = makeService();
     await expect(service.submitRating('b1', 5)).rejects.toThrow(
       NotFoundException,
     );
@@ -749,7 +899,11 @@ describe('BookingsService.submitRating', () => {
 
   it('rejects rating a job that is not COMPLETED', async () => {
     const booking: any = { id: 'b1', status: BookingStatus.ACTIVE };
-    const { service, bookingsRepository, queryBuilder } = makeService();
+    const {
+      settlementService: service,
+      bookingsRepository,
+      queryBuilder,
+    } = makeService();
     queryBuilder.getOne.mockResolvedValueOnce(booking);
     bookingsRepository.findOne.mockResolvedValueOnce(booking);
     await expect(service.submitRating('b1', 5)).rejects.toThrow(
@@ -766,7 +920,7 @@ describe('BookingsService.submitRating', () => {
     };
     const profile: any = { id: 'wp-1', rating: 4, reviewCount: 2 };
     const {
-      service,
+      settlementService: service,
       bookingsRepository,
       workerProfileRepo,
       queryBuilder,
@@ -798,8 +952,12 @@ describe('BookingsService.submitRating', () => {
       rating: 4,
       operator: { id: 'work-1' },
     };
-    const { service, bookingsRepository, workerProfileRepo, queryBuilder } =
-      makeService();
+    const {
+      settlementService: service,
+      bookingsRepository,
+      workerProfileRepo,
+      queryBuilder,
+    } = makeService();
     queryBuilder.getOne.mockResolvedValue(booking);
     bookingsRepository.findOne.mockResolvedValue(booking);
 
@@ -817,8 +975,12 @@ describe('BookingsService.submitRating', () => {
       rating: null,
       operator: { id: 'work-1' },
     };
-    const { service, bookingsRepository, workerProfileRepo, queryBuilder } =
-      makeService();
+    const {
+      settlementService: service,
+      bookingsRepository,
+      workerProfileRepo,
+      queryBuilder,
+    } = makeService();
     queryBuilder.getOne.mockResolvedValue(booking);
     bookingsRepository.findOne.mockResolvedValue(booking);
     workerProfileRepo.findOne.mockResolvedValue(null);
@@ -836,8 +998,12 @@ describe('BookingsService.submitRating', () => {
       rating: null,
       operator: null,
     };
-    const { service, bookingsRepository, workerProfileRepo, queryBuilder } =
-      makeService();
+    const {
+      settlementService: service,
+      bookingsRepository,
+      workerProfileRepo,
+      queryBuilder,
+    } = makeService();
     queryBuilder.getOne.mockResolvedValue(booking);
     bookingsRepository.findOne.mockResolvedValue(booking);
 
@@ -891,6 +1057,7 @@ describe('BookingsService.findMyBookings', () => {
     expect(queryBuilder.orderBy).toHaveBeenCalledWith(
       'booking.scheduledAt',
       'DESC',
+      'NULLS LAST',
     );
     expect(queryBuilder.skip).toHaveBeenCalledWith(10);
     expect(queryBuilder.take).toHaveBeenCalledWith(10);
@@ -922,7 +1089,11 @@ describe('BookingsService.findAllByUser', () => {
     await service.findAllByUser('u1', 'customer');
     const arg = bookingsRepository.find.mock.calls[0][0];
     expect(arg.where).toEqual({ customer: { id: 'u1' } });
-    expect(arg.order).toEqual({ scheduledAt: 'DESC' });
+    expect(arg.order).toEqual({
+      scheduledAt: 'DESC',
+      createdAt: 'DESC',
+      id: 'DESC',
+    });
   });
 
   it('filters by operator id for the operator role', async () => {

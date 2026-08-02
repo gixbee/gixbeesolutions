@@ -3,16 +3,8 @@ import { JwtStrategy } from './jwt.strategy';
 /**
  * Unit tests for the passport-jwt JwtStrategy.
  *
- * Two reachable behaviours, testable by injecting a ConfigService stub:
- * - constructor: reads 'JWT_SECRET' from config and falls back to
- *   'fallback-secret' when unset — both paths must construct without throwing
- *   (passport-jwt's Strategy requires a non-empty secretOrKey).
- * - validate(payload): maps the JWT claims to the request-user shape
- *   { userId: payload.sub, phoneNumber, role } — this is what every authed
- *   controller reads off `req.user`.
- *
- * No HTTP request, token signing, or passport runtime is exercised — only the
- * strategy's own logic.
+ * - constructor: reads JWT_SECRET (fallback when unset).
+ * - validate(payload): maps JWT claims to req.user shape used by guards/controllers.
  */
 
 function makeConfig(secret?: string) {
@@ -38,27 +30,39 @@ describe('JwtStrategy', () => {
   });
 
   describe('validate', () => {
-    it('maps sub -> userId and forwards phoneNumber + role', async () => {
+    it('maps sub -> userId and forwards app + staff claims', async () => {
       const strategy = new JwtStrategy(makeConfig('s'));
       const result = await strategy.validate({
         sub: 'user-42',
         phoneNumber: '+15551234567',
         role: 'WORKER',
+        staffRole: 'ADMIN',
+        pages: ['bookings', 'users'],
+        username: 'asha',
+        displayName: 'Asha',
       });
       expect(result).toEqual({
         userId: 'user-42',
         phoneNumber: '+15551234567',
         role: 'WORKER',
+        staffRole: 'ADMIN',
+        pages: ['bookings', 'users'],
+        username: 'asha',
+        displayName: 'Asha',
       });
     });
 
-    it('passes through undefined claims rather than inventing values', async () => {
+    it('defaults pages to [] and leaves optional claims undefined', async () => {
       const strategy = new JwtStrategy(makeConfig('s'));
       const result = await strategy.validate({ sub: 'only-sub' });
       expect(result).toEqual({
         userId: 'only-sub',
         phoneNumber: undefined,
         role: undefined,
+        staffRole: undefined,
+        pages: [],
+        username: undefined,
+        displayName: undefined,
       });
     });
   });

@@ -472,7 +472,9 @@ class _IncomingJobScreenState extends ConsumerState<IncomingJobScreen>
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
-    final colorScheme = Theme.of(context).colorScheme;
+    final gx = context.gx;
+    final muted = gx.ink.withValues(alpha: 0.55);
+    final err = Theme.of(context).colorScheme.error;
     final current = _requests[_currentIndex];
     final customer = current['customer'];
     final customerName = (current['customer_name'] as String?) ??
@@ -497,7 +499,9 @@ class _IncomingJobScreenState extends ConsumerState<IncomingJobScreen>
         _secondsRemaining / AppConfig.jobAcceptTimeoutSeconds;
 
     return Scaffold(
-      backgroundColor: colorScheme.surface,
+      backgroundColor: gx.bg,
+      // Pin Decline/Accept above the system nav bar. The middle scrolls so
+      // short phones (credit + issue + language cards) never bury the CTAs.
       body: SafeArea(
         child: Column(
           children: [
@@ -509,7 +513,7 @@ class _IncomingJobScreenState extends ConsumerState<IncomingJobScreen>
                   // Close
                   IconButton(
                     tooltip: 'Dismiss request',
-                    icon: const Icon(Icons.close),
+                    icon: Icon(Icons.close, color: gx.ink),
                     onPressed: _isProcessing ? null : _dismissAll,
                   ),
                   const Spacer(),
@@ -519,19 +523,18 @@ class _IncomingJobScreenState extends ConsumerState<IncomingJobScreen>
                       padding: const EdgeInsets.symmetric(
                           horizontal: 12, vertical: 6),
                       decoration: BoxDecoration(
-                        color: Colors.orange,
+                        color: GixbeeTheme.accentGold,
                         borderRadius: BorderRadius.circular(20),
                       ),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Icon(Icons.people,
-                              color: context.gx.onAccent, size: 16),
+                          Icon(Icons.people, color: gx.onAccent, size: 16),
                           const SizedBox(width: 4),
                           Text(
                             '$totalRequests requests waiting',
                             style: TextStyle(
-                              color: context.gx.onAccent,
+                              color: gx.onAccent,
                               fontWeight: FontWeight.bold,
                               fontSize: 12,
                             ),
@@ -544,18 +547,19 @@ class _IncomingJobScreenState extends ConsumerState<IncomingJobScreen>
                       padding: const EdgeInsets.symmetric(
                           horizontal: 12, vertical: 6),
                       decoration: BoxDecoration(
-                        color: Colors.red.withValues(alpha: 0.1),
+                        color: GixbeeTheme.accentGold.withValues(alpha: 0.12),
                         borderRadius: BorderRadius.circular(20),
                       ),
-                      child: const Row(
+                      child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Icon(Icons.flash_on, color: Colors.orange, size: 16),
-                          SizedBox(width: 4),
+                          Icon(Icons.flash_on,
+                              color: GixbeeTheme.accentGold, size: 16),
+                          const SizedBox(width: 4),
                           Text(
                             'INSTANT REQUEST',
                             style: TextStyle(
-                                color: Colors.orange,
+                                color: GixbeeTheme.accentGold,
                                 fontWeight: FontWeight.bold,
                                 fontSize: 12),
                           ),
@@ -586,20 +590,16 @@ class _IncomingJobScreenState extends ConsumerState<IncomingJobScreen>
                         padding: const EdgeInsets.symmetric(
                             horizontal: 14, vertical: 8),
                         decoration: BoxDecoration(
-                          color: isActive
-                              ? context.gx.accent
-                              : colorScheme.surfaceContainerHighest,
+                          color: isActive ? gx.accent : gx.card2,
                           borderRadius: BorderRadius.circular(20),
                           border: Border.all(
-                            color: isActive
-                                ? context.gx.accent
-                                : colorScheme.outlineVariant,
+                            color: isActive ? gx.accent : gx.border,
                           ),
                         ),
                         child: Text(
                           req['customer_name'] as String? ?? 'Request ${i + 1}',
                           style: TextStyle(
-                            color: isActive ? context.gx.onAccent : null,
+                            color: isActive ? gx.onAccent : gx.ink,
                             fontWeight: isActive
                                 ? FontWeight.bold
                                 : FontWeight.normal,
@@ -613,154 +613,167 @@ class _IncomingJobScreenState extends ConsumerState<IncomingJobScreen>
               ),
             ],
 
-            const Spacer(),
-
-            // ── Countdown ring ──────────────────────────────────────────────
-            // Single coherent a11y label for the countdown — without this a
-            // screen reader reads the ring's two visual Text nodes as the
-            // disjoint "36" then "seconds", plus the progress indicator's raw
-            // percentage. ExcludeSemantics suppresses those noisy inner nodes.
-            Semantics(
-              label:
-                  '$_secondsRemaining seconds remaining to respond to this request',
-              child: ExcludeSemantics(
-                child: Stack(
-              alignment: Alignment.center,
-              children: [
-                SizedBox(
-                  width: 110,
-                  height: 110,
-                  child: CircularProgressIndicator(
-                    value: timerFraction,
-                    strokeWidth: 8,
-                    backgroundColor: colorScheme.surfaceContainerHighest,
-                    color: _secondsRemaining > 20
-                        ? Colors.green
-                        : _secondsRemaining > 10
-                            ? Colors.orange
-                            : Colors.red,
-                  ),
-                ),
-                Column(
-                  mainAxisSize: MainAxisSize.min,
+            Expanded(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.fromLTRB(0, 20, 0, 12),
+                child: Column(
                   children: [
-                    Text(
-                      '$_secondsRemaining',
-                      style: const TextStyle(
-                          fontSize: 36, fontWeight: FontWeight.bold),
+                    // ── Countdown ring ──────────────────────────────────────
+                    // Single coherent a11y label for the countdown — without
+                    // this a screen reader reads the ring's two visual Text
+                    // nodes as the disjoint "36" then "seconds", plus the
+                    // progress indicator's raw percentage. ExcludeSemantics
+                    // suppresses those noisy inner nodes.
+                    Semantics(
+                      label:
+                          '$_secondsRemaining seconds remaining to respond to this request',
+                      child: ExcludeSemantics(
+                        child: Stack(
+                          alignment: Alignment.center,
+                          children: [
+                            SizedBox(
+                              width: 110,
+                              height: 110,
+                              child: CircularProgressIndicator(
+                                value: timerFraction,
+                                strokeWidth: 8,
+                                backgroundColor: gx.card2,
+                                color: _secondsRemaining > 20
+                                    ? GixbeeTheme.accentGreen
+                                    : _secondsRemaining > 10
+                                        ? GixbeeTheme.accentGold
+                                        : err,
+                              ),
+                            ),
+                            Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(
+                                  '$_secondsRemaining',
+                                  style: TextStyle(
+                                      fontSize: 36,
+                                      fontWeight: FontWeight.bold,
+                                      color: gx.ink),
+                                ),
+                                Text(
+                                  'seconds',
+                                  style:
+                                      TextStyle(fontSize: 11, color: muted),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
                     ),
+
+                    const SizedBox(height: 24),
+
+                    // ── Customer info ───────────────────────────────────────
                     Text(
-                      'seconds',
+                      customerName,
+                      textAlign: TextAlign.center,
                       style: TextStyle(
-                          fontSize: 11,
-                          color: colorScheme.onSurfaceVariant),
+                          fontSize: 26,
+                          fontWeight: FontWeight.bold,
+                          color: gx.ink),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'needs a $skill',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(fontSize: 17, color: gx.accentSoft),
+                    ),
+
+                    const SizedBox(height: 24),
+
+                    // ── Details cards ───────────────────────────────────────
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 32),
+                      child: Column(
+                        children: [
+                          _DetailCard(
+                            icon: Icons.location_on_rounded,
+                            label: 'Location',
+                            value: locationLine,
+                            color: GixbeeTheme.accentBlue,
+                          ),
+                          const SizedBox(height: 12),
+                          _DetailCard(
+                            icon: Icons.payments_rounded,
+                            label: isHourlyRate
+                                ? "Customer's Rate"
+                                : 'Job Amount',
+                            value: isHourlyRate
+                                ? '₹${amount.toStringAsFixed(0)}/hr · 1 hr minimum'
+                                : '₹${amount.toStringAsFixed(0)}',
+                            color: GixbeeTheme.accentGreen,
+                          ),
+                          // Cost transparency: accepting consumes a job credit —
+                          // say so BEFORE the pro commits, with remaining balance.
+                          if (_creditBalance != null) ...[
+                            const SizedBox(height: 12),
+                            _DetailCard(
+                              icon: Icons.confirmation_num_outlined,
+                              label: 'Job credit',
+                              value: _creditBalance! <= 0
+                                  ? 'No credits left — buying a pack is needed to accept'
+                                  : '1 credit used on accept · ${_creditBalance! - 1} will remain',
+                              color: _creditBalance! <= 0
+                                  ? err
+                                  : _creditBalance! == 1
+                                      ? GixbeeTheme.accentGold
+                                      : GixbeeTheme.accentTeal,
+                            ),
+                          ],
+                          // Uber-style broadcast requests carry the customer's
+                          // issue description — show it so the pro can decide.
+                          if ((current['description'] as String?)?.isNotEmpty ??
+                              false) ...[
+                            const SizedBox(height: 12),
+                            _DetailCard(
+                              icon: Icons.description_outlined,
+                              label: 'Issue',
+                              value: current['description'] as String,
+                              color: gx.accentSoft,
+                            ),
+                          ],
+                          // v126 language step: the customer's required languages.
+                          if ((current['preferredLanguages'] as List?)
+                                  ?.isNotEmpty ??
+                              false) ...[
+                            const SizedBox(height: 12),
+                            _DetailCard(
+                              icon: Icons.translate_rounded,
+                              label: 'Customer speaks',
+                              value: (current['preferredLanguages'] as List)
+                                  .map((e) => e.toString())
+                                  .join(' · '),
+                              color: GixbeeTheme.accentTeal,
+                            ),
+                          ],
+                          if (totalRequests > 1) ...[
+                            const SizedBox(height: 12),
+                            _DetailCard(
+                              icon: Icons.info_outline_rounded,
+                              label: 'Queue note',
+                              value:
+                                  'Accepting this cancels your other ${totalRequests - 1} pending request${totalRequests > 2 ? 's' : ''}',
+                              color: GixbeeTheme.accentGold,
+                            ),
+                          ],
+                        ],
+                      ),
                     ),
                   ],
-                ),
-              ],
                 ),
               ),
             ),
 
-            const SizedBox(height: 32),
-
-            // ── Customer info ───────────────────────────────────────────────
-            Text(
-              customerName,
-              style: const TextStyle(
-                  fontSize: 26, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              'needs a $skill',
-              style: TextStyle(
-                  fontSize: 17, color: colorScheme.secondary),
-            ),
-
-            const SizedBox(height: 28),
-
-            // ── Details cards ───────────────────────────────────────────────
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 32),
-              child: Column(
-                children: [
-                  _DetailCard(
-                    icon: Icons.location_on_rounded,
-                    label: 'Location',
-                    value: locationLine,
-                    color: Colors.blue,
-                  ),
-                  const SizedBox(height: 12),
-                  _DetailCard(
-                    icon: Icons.payments_rounded,
-                    label: isHourlyRate ? "Customer's Rate" : 'Job Amount',
-                    value: isHourlyRate
-                        ? '₹${amount.toStringAsFixed(0)}/hr · 1 hr minimum'
-                        : '₹${amount.toStringAsFixed(0)}',
-                    color: Colors.green,
-                  ),
-                  // Cost transparency: accepting consumes a job credit — say
-                  // so BEFORE the pro commits, with their remaining balance.
-                  if (_creditBalance != null) ...[
-                    const SizedBox(height: 12),
-                    _DetailCard(
-                      icon: Icons.confirmation_num_outlined,
-                      label: 'Job credit',
-                      value: _creditBalance! <= 0
-                          ? 'No credits left — buying a pack is needed to accept'
-                          : '1 credit used on accept · ${_creditBalance! - 1} will remain',
-                      color: _creditBalance! <= 0
-                          ? Colors.red
-                          : _creditBalance! == 1
-                              ? Colors.orange
-                              : Colors.teal,
-                    ),
-                  ],
-                  // Uber-style broadcast requests carry the customer's issue
-                  // description — show it so the pro can decide before accepting.
-                  if ((current['description'] as String?)?.isNotEmpty ??
-                      false) ...[
-                    const SizedBox(height: 12),
-                    _DetailCard(
-                      icon: Icons.description_outlined,
-                      label: 'Issue',
-                      value: current['description'] as String,
-                      color: context.gx.accentSoft,
-                    ),
-                  ],
-                  // v126 language step: the customer's required languages.
-                  if ((current['preferredLanguages'] as List?)?.isNotEmpty ??
-                      false) ...[
-                    const SizedBox(height: 12),
-                    _DetailCard(
-                      icon: Icons.translate_rounded,
-                      label: 'Customer speaks',
-                      value: (current['preferredLanguages'] as List)
-                          .map((e) => e.toString())
-                          .join(' · '),
-                      color: GixbeeTheme.accentTeal,
-                    ),
-                  ],
-                  if (totalRequests > 1) ...[
-                    const SizedBox(height: 12),
-                    _DetailCard(
-                      icon: Icons.info_outline_rounded,
-                      label: 'Queue note',
-                      value:
-                          'Accepting this cancels your other ${totalRequests - 1} pending request${totalRequests > 2 ? 's' : ''}',
-                      color: Colors.orange,
-                    ),
-                  ],
-                ],
-              ),
-            ),
-
-            const Spacer(),
-
-            // ── Action buttons ──────────────────────────────────────────────
+            // ── Action buttons (always visible above system nav) ───────────
             Padding(
               padding:
-                  const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+                  const EdgeInsets.fromLTRB(24, 8, 24, 16),
               child: Row(
                 children: [
                   // Decline button (semantic red — v106 press-scale)
@@ -774,12 +787,12 @@ class _IncomingJobScreenState extends ConsumerState<IncomingJobScreen>
                           alignment: Alignment.center,
                           decoration: BoxDecoration(
                             borderRadius: BorderRadius.circular(14),
-                            border: Border.all(color: Colors.red),
+                            border: Border.all(color: err),
                           ),
                           child: Text(
                             totalRequests > 1 ? 'Skip' : 'Decline',
-                            style: const TextStyle(
-                                color: Colors.red,
+                            style: TextStyle(
+                                color: err,
                                 fontWeight: FontWeight.bold,
                                 fontSize: 15),
                           ),
@@ -873,8 +886,10 @@ class _DetailCard extends StatelessWidget {
                 ),
                 const SizedBox(height: 2),
                 Text(value,
-                    style: const TextStyle(
-                        fontSize: 14, fontWeight: FontWeight.w500)),
+                    style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                        color: context.gx.ink)),
               ],
             ),
           ),

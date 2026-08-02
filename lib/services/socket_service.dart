@@ -19,6 +19,13 @@ class SocketService {
   Stream<Map<String, dynamic>> get notifications =>
       _notificationController.stream;
 
+  // ── Connection stream — true on connect/reconnect, false on disconnect ──
+  final _connectionController = StreamController<bool>.broadcast();
+
+  /// Emits whenever the socket connects (`true`) or drops (`false`).
+  /// Used by booking status polling to slow/fast the HTTP fallback.
+  Stream<bool> get connectionChanges => _connectionController.stream;
+
   // ── Chat stream — `new_message` events pushed to the user's room ──
   final _messageController =
       StreamController<Map<String, dynamic>>.broadcast();
@@ -63,6 +70,9 @@ class SocketService {
 
     _socket!.onConnect((_) {
       debugPrint('[Socket] Connected');
+      if (!_connectionController.isClosed) {
+        _connectionController.add(true);
+      }
       // Re-join personal + job rooms after every (re)connect.
       if (_userId != null) {
         _socket!.emit('joinUserRoom', {'userId': _userId});
@@ -84,6 +94,9 @@ class SocketService {
 
     _socket!.onDisconnect((_) {
       debugPrint('[Socket] Disconnected');
+      if (!_connectionController.isClosed) {
+        _connectionController.add(false);
+      }
     });
 
     _socket!.onConnectError((data) {
@@ -92,6 +105,9 @@ class SocketService {
 
     _socket!.onReconnect((_) {
       debugPrint('[Socket] Reconnected');
+      if (!_connectionController.isClosed) {
+        _connectionController.add(true);
+      }
     });
 
     // ── Incoming booking events (worker receives) ─────────────
@@ -287,6 +303,9 @@ class SocketService {
     _activeJobId = null;
     _locationUpdatedCallback = null;
     _socket?.disconnect();
+    if (!_connectionController.isClosed) {
+      _connectionController.close();
+    }
     if (!_notificationController.isClosed) {
       _notificationController.close();
     }

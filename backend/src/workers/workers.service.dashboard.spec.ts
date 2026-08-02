@@ -1,5 +1,6 @@
 import { BadRequestException, NotFoundException } from '@nestjs/common';
-import { WorkersService } from './workers.service';
+import { WorkerGoLiveService } from './worker-golive.service';
+import { WorkerAvailabilityService } from './worker-availability.service';
 import { BookingStatus } from '../bookings/booking.entity';
 
 /**
@@ -25,35 +26,52 @@ function makeService(opts: { profile?: any; bookings?: any[] }) {
     unindexWorkerSkills: jest.fn(async () => undefined),
     get: jest.fn(async () => null),
   };
-  const talentRepository: any = {};
-  const skillRepository: any = {};
+  const talentRepository: any = {
+    findOne: jest.fn(async () => null),
+  };
   const walletsService: any = {};
   const usersRepository: any = {
     findOne: jest.fn(async () => null),
     save: jest.fn(async (u: any) => u),
+    update: jest.fn(async () => undefined),
   };
   // Admin-editable Go-Live limits — tests take the code's fallbacks.
   const masterEntriesService: any = {
     getConfig: jest.fn(async () => null),
     getConfigNumber: jest.fn(async (_k: string, fallback: number) => fallback),
+    findAll: jest.fn(async () => []),
+  };
+  const notificationsService: any = {
+    sendToUser: jest.fn(async () => undefined),
+  };
+  const jobCreditRepository: any = {
+    findOne: jest.fn(async () => null),
   };
 
-  const service = new WorkersService(
+  const availability = new WorkerAvailabilityService(
+    workersRepository,
+    bookingsRepository,
+    redisService,
+    masterEntriesService,
+  );
+  const service = new WorkerGoLiveService(
     workersRepository,
     talentRepository,
-    skillRepository,
     bookingsRepository,
     usersRepository,
+    jobCreditRepository,
     walletsService,
     redisService,
     masterEntriesService,
+    notificationsService,
+    availability,
   );
   return { service, workersRepository, bookingsRepository, redisService };
 }
 
 const daysAgo = (n: number) => new Date(Date.now() - n * 24 * 60 * 60 * 1000);
 
-describe('WorkersService.getDashboard', () => {
+describe('WorkerGoLiveService.getDashboard', () => {
   it('throws NotFound when the worker profile does not exist', async () => {
     const { service } = makeService({ profile: null });
 
@@ -145,7 +163,7 @@ describe('WorkersService.getDashboard', () => {
   });
 });
 
-describe('WorkersService.setActiveSkills', () => {
+describe('WorkerGoLiveService.setActiveSkills', () => {
   it('persists the deduped intersection with the profile skills', async () => {
     const profile = {
       skills: ['plumber', 'electrician'],

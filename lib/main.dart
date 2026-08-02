@@ -17,6 +17,10 @@ import 'features/onboarding/animated_splash_screen.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
+  // Fail-closed: a release APK without dart-define API/socket hosts would
+  // silently talk to 127.0.0.1 on the phone ("Could not send code").
+  AppConfig.assertReleaseNetworkConfig();
+
   // 1. Plugin registry (synchronous — must be first)
   registerDefaultPlugins();
 

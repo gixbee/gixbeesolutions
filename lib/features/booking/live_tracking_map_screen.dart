@@ -1,13 +1,10 @@
 import 'dart:async';
-import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:maplibre_gl/maplibre_gl.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'package:dio/dio.dart';
 import '../../core/config/app_config.dart';
 import '../../theme.dart';
-import '../../shared/widgets/gx_button.dart';
 import '../../services/socket_service.dart';
 import '../../services/location_service.dart';
 import '../../services/ola_maps_style_service.dart';
@@ -21,6 +18,8 @@ import 'arrival_otp_screen.dart';
 import 'completion_otp_screen.dart';
 import 'cancel_booking_screen.dart';
 import 'report_issue_sheet.dart';
+import 'live_tracking_bottom_panel.dart';
+import 'live_tracking_route_service.dart';
 
 /// Live map screen shown to the **customer** after a worker accepts their booking.
 /// Displays the worker's real-time GPS location on a Google Map with the
@@ -34,6 +33,9 @@ class LiveTrackingMapScreen extends ConsumerStatefulWidget {
   final String? arrivalOtp;
   final bool isWorker;
 
+  /// Role-aware dial target (pro phone for customer, customer/on-site for pro).
+  final String? counterpartPhone;
+
   const LiveTrackingMapScreen({
     super.key,
     required this.bookingId,
@@ -43,10 +45,12 @@ class LiveTrackingMapScreen extends ConsumerStatefulWidget {
     this.customerLng,
     this.arrivalOtp,
     this.isWorker = false,
+    this.counterpartPhone,
   });
 
   @override
-  ConsumerState<LiveTrackingMapScreen> createState() => _LiveTrackingMapScreenState();
+  ConsumerState<LiveTrackingMapScreen> createState() =>
+      _LiveTrackingMapScreenState();
 }
 
 class _LiveTrackingMapScreenState extends ConsumerState<LiveTrackingMapScreen> {
@@ -66,6 +70,7 @@ class _LiveTrackingMapScreenState extends ConsumerState<LiveTrackingMapScreen> {
   String _currentStatus = 'ACCEPTED';
   bool _workerNoProgress = false;
   String? _arrivalOtp;
+  String? _counterpartPhone;
   bool _isMapReady = false;
 
   /// Pre-hydrated Ola style JSON (api_key on every tile URL). Null while
@@ -98,6 +103,7 @@ class _LiveTrackingMapScreenState extends ConsumerState<LiveTrackingMapScreen> {
   String? _routeDistanceText;
   String? _routeEtaText;
   DateTime? _lastRouteFetch;
+  final LiveTrackingRouteService _routeService = LiveTrackingRouteService();
 
   // Default: center of India (Nagpur)
   static const LatLng _defaultCenter = LatLng(21.1458, 79.0882);
@@ -106,6 +112,7 @@ class _LiveTrackingMapScreenState extends ConsumerState<LiveTrackingMapScreen> {
   void initState() {
     super.initState();
     _arrivalOtp = widget.arrivalOtp;
+    _counterpartPhone = _normalizePhone(widget.counterpartPhone);
 
     // Set customer location if provided by the opener.
     if (widget.customerLat != null && widget.customerLng != null) {
@@ -196,10 +203,10 @@ class _LiveTrackingMapScreenState extends ConsumerState<LiveTrackingMapScreen> {
           return;
         }
       }
-      final lat = readCoord(booking?['serviceLat']) ??
-          readCoord(widget.customerLat);
-      final lng = readCoord(booking?['serviceLng']) ??
-          readCoord(widget.customerLng);
+      final lat =
+          readCoord(booking?['serviceLat']) ?? readCoord(widget.customerLat);
+      final lng =
+          readCoord(booking?['serviceLng']) ?? readCoord(widget.customerLng);
       if (lat != null && lng != null && mounted) {
         setState(() => _customerLocation = LatLng(lat, lng));
         _syncMapAnnotations();
@@ -218,8 +225,7 @@ class _LiveTrackingMapScreenState extends ConsumerState<LiveTrackingMapScreen> {
 
   Future<void> _seedWorkerLocation() async {
     try {
-      final pos =
-          await ref.read(locationServiceProvider).getCurrentPosition();
+      final pos = await ref.read(locationServiceProvider).getCurrentPosition();
       final user = await ref.read(currentUserProvider.future);
       if (pos == null || !mounted) return;
       setState(() {
@@ -243,9 +249,8 @@ class _LiveTrackingMapScreenState extends ConsumerState<LiveTrackingMapScreen> {
           const Duration(seconds: 15),
           (_) async {
             try {
-              final p = await ref
-                  .read(locationServiceProvider)
-                  .getCurrentPosition();
+              final p =
+                  await ref.read(locationServiceProvider).getCurrentPosition();
               if (p == null) return;
               await _pushWorkerHttpLocation(p.latitude, p.longitude);
             } catch (_) {}
@@ -404,11 +409,76 @@ class _LiveTrackingMapScreenState extends ConsumerState<LiveTrackingMapScreen> {
   /// AUDIT FIX: consume the SHARED booking-status poll (one per booking,
   /// app-wide) instead of running a private Timer here. Called from build via
   /// ref.listen, so state transitions are handled exactly once per new value.
+  String? _normalizePhone(dynamic raw) {
+    final s = raw?.toString().trim();
+    if (s == null || s.isEmpty) return null;
+    return s;
+  }
+
+  /// Prefer status/API phone; fall back to a one-shot booking fetch.
+  Future<String?> _resolveCounterpartPhone() async {
+    final cached = _normalizePhone(_counterpartPhone);
+    if (cached != null) return cached;
+
+    final booking = await ref
+        .read(bookingRepositoryProvider)
+        .getBookingById(widget.bookingId);
+    if (booking == null) return null;
+
+    if (widget.isWorker) {
+      final onSite = booking['onSiteContact'];
+      final onSitePhone =
+          onSite is Map ? _normalizePhone(onSite['phone']) : null;
+      if (onSitePhone != null) return onSitePhone;
+      final customer = booking['customer'];
+      if (customer is Map) {
+        return _normalizePhone(customer['phoneNumber']) ??
+            _normalizePhone(customer['phone']);
+      }
+      return null;
+    }
+
+    final operator = booking['operator'];
+    if (operator is Map) {
+      return _normalizePhone(operator['phoneNumber']) ??
+          _normalizePhone(operator['phone']);
+    }
+    return null;
+  }
+
+  Future<void> _dialCounterpart() async {
+    final phone = await _resolveCounterpartPhone();
+    if (!mounted) return;
+    if (phone == null) {
+      showGxSnack(context, 'Phone number not available');
+      return;
+    }
+    if (_counterpartPhone != phone) {
+      setState(() => _counterpartPhone = phone);
+    }
+    final uri = Uri.parse('tel:$phone');
+    try {
+      if (await canLaunchUrl(uri)) {
+        await launchUrl(uri, mode: LaunchMode.externalApplication);
+      } else {
+        if (mounted) showGxSnack(context, 'Could not open the dialer');
+      }
+    } catch (e) {
+      debugPrint('Could not launch call: $e');
+      if (mounted) showGxSnack(context, 'Could not open the dialer');
+    }
+  }
+
   void _applyStatusData(Map<String, dynamic> statusData) {
     if (!mounted) return;
     final newStatus = statusData['status']?.toString().toUpperCase() ?? '';
     final otp = statusData['arrivalOtp']?.toString();
     final noProgress = statusData['workerNoProgress'] == true;
+    final phoneFromStatus = _normalizePhone(statusData['counterpartPhone']);
+
+    if (phoneFromStatus != null && phoneFromStatus != _counterpartPhone) {
+      setState(() => _counterpartPhone = phoneFromStatus);
+    }
 
     if (noProgress && !_workerNoProgress && !widget.isWorker) {
       setState(() => _workerNoProgress = true);
@@ -435,7 +505,9 @@ class _LiveTrackingMapScreenState extends ConsumerState<LiveTrackingMapScreen> {
     // this is called from both the socket subscription AND the ref.listen
     // poll in the same frame. Both paths are intentional (belt + suspenders)
     // but only one should push the route.
-    if (newStatus == 'ACTIVE' || newStatus == 'IN_PROGRESS' || newStatus == 'WORK_IN_PROGRESS') {
+    if (newStatus == 'ACTIVE' ||
+        newStatus == 'IN_PROGRESS' ||
+        newStatus == 'WORK_IN_PROGRESS') {
       // Update the status label immediately so the UI shows "Work in progress"
       // even if navigation takes a beat (e.g. addPostFrameCallback fires on
       // the following frame).
@@ -514,121 +586,25 @@ class _LiveTrackingMapScreenState extends ConsumerState<LiveTrackingMapScreen> {
 
   Future<void> _fetchRoute() async {
     if (_workerLocation == null || _customerLocation == null) return;
-    
+
     // Don't fetch if fetched less than 30 seconds ago to avoid spamming the API
-    if (_lastRouteFetch != null && DateTime.now().difference(_lastRouteFetch!).inSeconds < 30) {
+    if (_lastRouteFetch != null &&
+        DateTime.now().difference(_lastRouteFetch!).inSeconds < 30) {
       return;
     }
-    
+
     _lastRouteFetch = DateTime.now();
-
-    // Ola Maps Directions (replaces Google Directions). Key comes from
-    // --dart-define=OLA_MAPS_API_KEY; without it we keep the haversine
-    // fallback ETA and the straight-line route — never a fake road route.
-    if (AppConfig.olaMapsApiKey.isEmpty) return;
-
-    try {
-      final origin = '${_workerLocation!.latitude},${_workerLocation!.longitude}';
-      final destination = '${_customerLocation!.latitude},${_customerLocation!.longitude}';
-
-      // Ola's Directions API is a POST with query parameters.
-      // NOTE: deliberately a separate bare Dio (NOT dioProvider) — the shared
-      // client attaches the user's JWT, which must never be sent to Ola.
-      // AUDIT FIX: added timeouts so a stalled route call can't hang forever.
-      final response = await Dio(BaseOptions(
-        connectTimeout: const Duration(seconds: 8),
-        receiveTimeout: const Duration(seconds: 8),
-      )).post(
-        AppConfig.olaDirectionsUrl,
-        queryParameters: {
-          'origin': origin,
-          'destination': destination,
-          'api_key': AppConfig.olaMapsApiKey,
-        },
-      );
-
-      if (response.statusCode == 200) {
-        final data = response.data;
-        final routes = data['routes'] as List?;
-        if (routes != null && routes.isNotEmpty) {
-          final route = routes[0];
-          final legs = route['legs'] as List?;
-          final leg = (legs != null && legs.isNotEmpty) ? legs[0] : null;
-
-          // overview_polyline is a plain encoded-polyline string.
-          final polylineStr = route['overview_polyline']?.toString();
-          final points =
-              polylineStr == null ? <LatLng>[] : _decodePolyline(polylineStr);
-
-          // Prefer readable fields; fall back to raw metres/seconds.
-          String? distanceText = leg?['readable_distance']?.toString();
-          String? etaText = leg?['readable_duration']?.toString();
-          final rawDistance = leg?['distance'];
-          final rawDuration = leg?['duration'];
-          if (distanceText == null && rawDistance is num) {
-            distanceText = '${(rawDistance / 1000).toStringAsFixed(1)} km';
-          }
-          if (etaText == null && rawDuration is num) {
-            etaText = '${(rawDuration / 60).ceil()} min';
-          }
-
-          if (mounted) {
-            setState(() {
-              if (points.isNotEmpty) _routePoints = points;
-              _routeDistanceText = distanceText;
-              _routeEtaText = etaText;
-            });
-            _syncMapAnnotations();
-          }
-        }
-      }
-    } catch (e) {
-      debugPrint('Failed to fetch Ola route: $e');
-    }
-  }
-
-  List<LatLng> _decodePolyline(String encoded) {
-    List<LatLng> polyline = [];
-    int index = 0, len = encoded.length;
-    int lat = 0, lng = 0;
-
-    while (index < len) {
-      int b, shift = 0, result = 0;
-      do {
-        b = encoded.codeUnitAt(index++) - 63;
-        result |= (b & 0x1f) << shift;
-        shift += 5;
-      } while (b >= 0x20);
-      int dlat = ((result & 1) != 0 ? ~(result >> 1) : (result >> 1));
-      lat += dlat;
-
-      shift = 0;
-      result = 0;
-      do {
-        b = encoded.codeUnitAt(index++) - 63;
-        result |= (b & 0x1f) << shift;
-        shift += 5;
-      } while (b >= 0x20);
-      int dlng = ((result & 1) != 0 ? ~(result >> 1) : (result >> 1));
-      lng += dlng;
-
-      polyline.add(LatLng(lat / 1E5, lng / 1E5));
-    }
-    return polyline;
-  }
-
-  double? _estimateDistance() {
-    if (_workerLocation == null || _customerLocation == null) return null;
-    // Haversine formula
-    const r = 6371.0; // Earth radius in km
-    final dLat = (_customerLocation!.latitude - _workerLocation!.latitude) * math.pi / 180;
-    final dLng = (_customerLocation!.longitude - _workerLocation!.longitude) * math.pi / 180;
-    final a = math.sin(dLat / 2) * math.sin(dLat / 2) +
-        math.cos(_workerLocation!.latitude * math.pi / 180) *
-            math.cos(_customerLocation!.latitude * math.pi / 180) *
-            math.sin(dLng / 2) * math.sin(dLng / 2);
-    final c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a));
-    return r * c;
+    final result = await _routeService.fetchRoute(
+      origin: _workerLocation!,
+      destination: _customerLocation!,
+    );
+    if (!mounted || result == null) return;
+    setState(() {
+      if (result.points.isNotEmpty) _routePoints = result.points;
+      _routeDistanceText = result.distanceText;
+      _routeEtaText = result.etaText;
+    });
+    _syncMapAnnotations();
   }
 
   Widget _buildMapLayer(BuildContext context) {
@@ -721,7 +697,8 @@ class _LiveTrackingMapScreenState extends ConsumerState<LiveTrackingMapScreen> {
       },
     );
 
-    final cs = Theme.of(context).colorScheme;
+    final gx = context.gx;
+    final shadow = gx.ink.withValues(alpha: 0.12);
 
     return Scaffold(
       body: SizedBox.expand(
@@ -741,18 +718,18 @@ class _LiveTrackingMapScreenState extends ConsumerState<LiveTrackingMapScreen> {
                     // Back button
                     Container(
                       decoration: BoxDecoration(
-                        color: cs.surface,
+                        color: gx.card,
                         shape: BoxShape.circle,
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.1),
+                            color: shadow,
                             blurRadius: 8,
                           ),
                         ],
                       ),
                       child: IconButton(
                         tooltip: 'Go back',
-                        icon: const Icon(Icons.arrow_back),
+                        icon: Icon(Icons.arrow_back, color: gx.ink),
                         onPressed: () => Navigator.pop(context),
                       ),
                     ),
@@ -760,18 +737,18 @@ class _LiveTrackingMapScreenState extends ConsumerState<LiveTrackingMapScreen> {
                     // Re-center button
                     Container(
                       decoration: BoxDecoration(
-                        color: cs.surface,
+                        color: gx.card,
                         shape: BoxShape.circle,
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.1),
+                            color: shadow,
                             blurRadius: 8,
                           ),
                         ],
                       ),
                       child: IconButton(
                         tooltip: 'Re-center map',
-                        icon: const Icon(Icons.my_location),
+                        icon: Icon(Icons.my_location, color: gx.ink),
                         onPressed: _fitMapBounds,
                       ),
                     ),
@@ -785,7 +762,7 @@ class _LiveTrackingMapScreenState extends ConsumerState<LiveTrackingMapScreen> {
               bottom: 0,
               left: 0,
               right: 0,
-              child: _buildBottomPanel(cs),
+              child: _buildExtractedBottomPanel(),
             ),
           ],
         ),
@@ -793,384 +770,91 @@ class _LiveTrackingMapScreenState extends ConsumerState<LiveTrackingMapScreen> {
     );
   }
 
-  Widget _buildBottomPanel(ColorScheme cs) {
-    // Priority: Real API distance/ETA > Fallback Math estimate
-    final fallbackDistance = _estimateDistance();
-    final fallbackEta = fallbackDistance != null ? (fallbackDistance / 30 * 60).round() : null;
+  Widget _buildExtractedBottomPanel() {
+    final fallbackDistance =
+        _workerLocation != null && _customerLocation != null
+            ? LiveTrackingRouteService.estimateDistanceKm(
+                _workerLocation!,
+                _customerLocation!,
+              )
+            : null;
+    final fallbackEta =
+        fallbackDistance != null ? (fallbackDistance / 30 * 60).round() : null;
+    final displayEta = _routeEtaText ??
+        (fallbackEta != null
+            ? '${fallbackEta < 1 ? "<1" : fallbackEta} min'
+            : null);
+    final displayDistance = _routeDistanceText ??
+        (fallbackDistance != null
+            ? '${fallbackDistance.toStringAsFixed(1)} km'
+            : null);
 
-    final displayEta = _routeEtaText ?? (fallbackEta != null ? '${fallbackEta < 1 ? "<1" : fallbackEta} min' : null);
-    final displayDistance = _routeDistanceText ?? (fallbackDistance != null ? '${fallbackDistance.toStringAsFixed(1)} km' : null);
-
-    return Container(
-      decoration: BoxDecoration(
-        color: cs.surface,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.1),
-            blurRadius: 20,
-            offset: const Offset(0, -4),
-          ),
-        ],
+    return LiveTrackingBottomPanel(
+      worker: widget.worker,
+      status: _currentStatus,
+      isWorker: widget.isWorker,
+      workerNoProgress: _workerNoProgress,
+      hasWorkerLocation: _workerLocation != null,
+      hasCustomerLocation: _customerLocation != null,
+      elapsedLabel: _elapsedLabel,
+      showTimer:
+          (_currentStatus == 'ACTIVE' || _currentStatus == 'IN_PROGRESS') &&
+              _startedAt != null,
+      etaText: displayEta,
+      distanceText: displayDistance,
+      onCall: _dialCounterpart,
+      onPrimaryAction: widget.isWorker
+          ? _openCustomerNavigation
+          : (_currentStatus == 'ACTIVE' ||
+                  _currentStatus == 'IN_PROGRESS' ||
+                  _currentStatus == 'WORK_IN_PROGRESS')
+              ? _goToCompletionScreen
+              : (_arrivalOtp != null ? _goToOtpScreen : null),
+      onWorkerArrived: _goToWorkerArrivalScreen,
+      onCancelFree: _cancelFree,
+      onReportIssue: () => showReportIssueSheet(
+        context,
+        ref,
+        bookingId: widget.bookingId,
+        isWorker: widget.isWorker,
       ),
-      child: SafeArea(
-        top: false,
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(20, 16, 20, 16),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // Handle bar
-              Container(
-                width: 40,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: cs.outlineVariant.withValues(alpha: 0.3),
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-              const SizedBox(height: 16),
+    );
+  }
 
-              // Status badge
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                decoration: BoxDecoration(
-                  color: _getStatusColor().withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(_getStatusIcon(), size: 16, color: _getStatusColor()),
-                    const SizedBox(width: 6),
-                    Semantics(
-                      liveRegion: true,
-                      child: Text(
-                        _getStatusText(),
-                        style: TextStyle(
-                          color: _getStatusColor(),
-                          fontWeight: FontWeight.w700,
-                          fontSize: 12,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 16),
+  Future<void> _cancelFree() async {
+    final done = await Navigator.push<bool>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => CancelBookingScreen(bookingId: widget.bookingId),
+      ),
+    );
+    if (done == true && mounted && Navigator.canPop(context)) {
+      Navigator.pop(context);
+    }
+  }
 
-              // Worker info row
-              Row(
-                children: [
-                  CircleAvatar(
-                    radius: 24,
-                    backgroundImage: NetworkImage(widget.worker.imageUrl),
-                    onBackgroundImageError: (_, __) {},
-                    child: widget.worker.imageUrl.isEmpty
-                        ? Text(widget.worker.name.isNotEmpty ? widget.worker.name[0] : '?')
-                        : null,
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          widget.worker.name,
-                          style: const TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 16,
-                          ),
-                        ),
-                        Text(
-                          widget.worker.title,
-                          style: TextStyle(
-                            color: cs.onSurfaceVariant,
-                            fontSize: 12,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  // ETA chip
-                  if (displayEta != null && _workerLocation != null)
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                      decoration: BoxDecoration(
-                        color: context.gx.accent.withValues(alpha: 0.18),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Column(
-                        children: [
-                          Text(
-                            displayEta,
-                            style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 14,
-                              color: context.gx.accent,
-                            ),
-                          ),
-                          if (displayDistance != null)
-                            Text(
-                              displayDistance,
-                              style: TextStyle(
-                                fontSize: 10,
-                                color: cs.onSurfaceVariant,
-                              ),
-                            ),
-                        ],
-                      ),
-                    ),
-                ],
-              ),
-              const SizedBox(height: 16),
+  void _goToCompletionScreen() {
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(
+        builder: (_) => CompletionOtpScreen(
+          bookingId: widget.bookingId,
+          workerName: widget.worker.name,
+          isWorker: widget.isWorker,
+        ),
+      ),
+    );
+  }
 
-              if (!widget.isWorker &&
-                  _workerNoProgress &&
-                  _currentStatus == 'ACCEPTED') ...[
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(12),
-                  margin: const EdgeInsets.only(bottom: 12),
-                  decoration: BoxDecoration(
-                    color: cs.errorContainer.withValues(alpha: 0.35),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      Text(
-                        'Your pro does not appear to be heading your way. '
-                        'You can cancel at no cost.',
-                        style: TextStyle(
-                          fontSize: 13,
-                          height: 1.35,
-                          color: cs.onSurface,
-                        ),
-                      ),
-                      const SizedBox(height: 10),
-                      GxButton(
-                        label: 'Cancel free',
-                        onTap: () async {
-                          final done = await Navigator.push<bool>(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => CancelBookingScreen(
-                                bookingId: widget.bookingId,
-                              ),
-                            ),
-                          );
-                          if (done == true && mounted && Navigator.canPop(context)) {
-                            Navigator.pop(context);
-                          }
-                        },
-                        gradient: [cs.error, cs.error],
-                        accent: cs.error,
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-
-              // Job timer (starts at arrival-OTP entry).
-              if ((_currentStatus == 'ACTIVE' ||
-                      _currentStatus == 'IN_PROGRESS') &&
-                  _startedAt != null)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 12),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 14, vertical: 10),
-                    decoration: BoxDecoration(
-                      color: context.gx.accentSoft.withValues(alpha: 0.12),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Row(
-                          children: [
-                            Icon(
-                              Icons.timer_outlined,
-                              size: 16,
-                              color: context.gx.accentSoft,
-                            ),
-                            const SizedBox(width: 8),
-                            Text('Job timer',
-                                style: TextStyle(
-                                    fontSize: 12.5,
-                                    fontWeight: FontWeight.w600,
-                                    color: cs.onSurfaceVariant)),
-                          ],
-                        ),
-                        Text(_elapsedLabel,
-                            style: TextStyle(
-                                fontSize: 15,
-                                fontWeight: FontWeight.w800,
-                                fontFeatures: const [
-                                  FontFeature.tabularFigures()
-                                ],
-                                color: context.gx.accentSoft)),
-                      ],
-                    ),
-                  ),
-                ),
-
-              if (_currentStatus == 'ACTIVE' || _currentStatus == 'IN_PROGRESS')
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 12),
-                  child: Center(
-                    child: TextButton.icon(
-                      onPressed: () => showReportIssueSheet(context, ref,
-                          bookingId: widget.bookingId,
-                          isWorker: widget.isWorker),
-                      icon: Icon(Icons.flag_outlined,
-                          size: 14,
-                          color: context.gx.ink.withValues(alpha: 0.5)),
-                      label: Text('Report an issue',
-                          style: TextStyle(
-                              fontSize: 12,
-                              color: context.gx.ink.withValues(alpha: 0.5))),
-                    ),
-                  ),
-                ),
-
-              // Action buttons
-              Row(
-                children: [
-                  // Call button
-                  Expanded(
-                    child: GxButton(
-                      label: 'Call',
-                      icon: Icons.call,
-                      filled: false,
-                      height: 48,
-                      radius: 12,
-                      fontSize: 14,
-                      onTap: () async {
-                        final url = Uri.parse('tel:+91${widget.worker.id}');
-                        try {
-                          await launchUrl(url, mode: LaunchMode.externalApplication);
-                        } catch (e) {
-                          debugPrint('Could not launch call: $e');
-                        }
-                      },
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  // Worker sees navigation prompt; Customer sees OTP button
-                  if (widget.isWorker)
-                    Expanded(
-                      flex: 2,
-                      child: GxButton(
-                        label: 'Navigate to Customer',
-                        icon: Icons.navigation_rounded,
-                        height: 48,
-                        radius: 12,
-                        fontSize: 14,
-                        onTap: _openCustomerNavigation,
-                      ),
-                    )
-                  else
-                    Expanded(
-                      flex: 2,
-                      child: GxButton(
-                        label: (_currentStatus == 'ACTIVE' || _currentStatus == 'IN_PROGRESS' || _currentStatus == 'WORK_IN_PROGRESS')
-                            ? 'Work in Progress · On-Site'
-                            : (_currentStatus == 'ARRIVED'
-                                ? 'Verify Arrival OTP'
-                                : 'Waiting for Arrival...'),
-                        icon: (_currentStatus == 'ACTIVE' || _currentStatus == 'IN_PROGRESS' || _currentStatus == 'WORK_IN_PROGRESS')
-                            ? Icons.build_circle_rounded
-                            : (_currentStatus == 'ARRIVED'
-                                ? Icons.verified_user_rounded
-                                : Icons.directions_walk_rounded),
-                        onTap: (_currentStatus == 'ACTIVE' || _currentStatus == 'IN_PROGRESS' || _currentStatus == 'WORK_IN_PROGRESS')
-                            ? () {
-                                Navigator.pushReplacement(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (_) => CompletionOtpScreen(
-                                      bookingId: widget.bookingId,
-                                      workerName: widget.worker.name,
-                                      isWorker: widget.isWorker,
-                                    ),
-                                  ),
-                                );
-                              }
-                            : (_arrivalOtp != null ? _goToOtpScreen : null),
-                        height: 48,
-                        radius: 12,
-                        fontSize: 14,
-                      ),
-                    ),
-                ],
-              ),
-
-              // v126 w3: the WORKER's arrival gate — visible while heading
-              // to the customer. Opens the OTP entry (mark arrived → ask the
-              // customer for the code → timer starts on verify).
-              if (widget.isWorker &&
-                  (_currentStatus == 'ACCEPTED' ||
-                      _currentStatus == 'ARRIVED')) ...[
-                const SizedBox(height: 10),
-                GxButton(
-                  label: 'I have arrived — enter OTP',
-                  icon: Icons.pin_rounded,
-                  height: 48,
-                  radius: 12,
-                  fontSize: 14,
-                  onTap: () {
-                    Navigator.pushReplacement(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => ArrivalOtpScreen(
-                          bookingId: widget.bookingId,
-                          workerName: widget.worker.name,
-                          arrivalOtp: '', // worker mode: entered, not shown
-                          isWorker: true,
-                        ),
-                      ),
-                    );
-                  },
-                ),
-              ],
-
-              // No location warning
-              if (_workerLocation == null) ...[
-                const SizedBox(height: 12),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(Icons.info_outline, size: 14, color: cs.onSurfaceVariant),
-                    const SizedBox(width: 6),
-                    Text(
-                      widget.isWorker
-                          ? 'Waiting for your GPS…'
-                          : 'Waiting for worker\'s location...',
-                      style: TextStyle(color: cs.onSurfaceVariant, fontSize: 11),
-                    ),
-                  ],
-                ),
-              ],
-              if (widget.isWorker &&
-                  _workerLocation != null &&
-                  _customerLocation == null) ...[
-                const SizedBox(height: 8),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(Icons.info_outline, size: 14, color: cs.onSurfaceVariant),
-                    const SizedBox(width: 6),
-                    Text(
-                      'Waiting for customer location…',
-                      style: TextStyle(color: cs.onSurfaceVariant, fontSize: 11),
-                    ),
-                  ],
-                ),
-              ],
-            ],
-          ),
+  void _goToWorkerArrivalScreen() {
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(
+        builder: (_) => ArrivalOtpScreen(
+          bookingId: widget.bookingId,
+          workerName: widget.worker.name,
+          arrivalOtp: '',
+          isWorker: true,
         ),
       ),
     );
@@ -1188,47 +872,5 @@ class _LiveTrackingMapScreenState extends ConsumerState<LiveTrackingMapScreen> {
         ),
       ),
     );
-  }
-
-  Color _getStatusColor() {
-    switch (_currentStatus) {
-      case 'ACCEPTED':
-        return Colors.blue;
-      case 'ARRIVED':
-        return Colors.green;
-      case 'ACTIVE':
-      case 'IN_PROGRESS':
-        return Colors.orange;
-      default:
-        return Colors.blue;
-    }
-  }
-
-  IconData _getStatusIcon() {
-    switch (_currentStatus) {
-      case 'ACCEPTED':
-        return Icons.directions_car_rounded;
-      case 'ARRIVED':
-        return Icons.place_rounded;
-      case 'ACTIVE':
-      case 'IN_PROGRESS':
-        return Icons.build_rounded;
-      default:
-        return Icons.directions_car_rounded;
-    }
-  }
-
-  String _getStatusText() {
-    switch (_currentStatus) {
-      case 'ACCEPTED':
-        return 'Worker is on the way';
-      case 'ARRIVED':
-        return 'Worker has arrived';
-      case 'ACTIVE':
-      case 'IN_PROGRESS':
-        return 'Work in progress';
-      default:
-        return 'Tracking';
-    }
   }
 }

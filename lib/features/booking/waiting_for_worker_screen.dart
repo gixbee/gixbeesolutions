@@ -401,8 +401,8 @@ class _WaitingForWorkerScreenState extends ConsumerState<WaitingForWorkerScreen>
               gradient: LinearGradient(colors: context.gx.accentGradient),
               borderRadius: BorderRadius.circular(13),
             ),
-            child: const Icon(Icons.bolt_rounded,
-                color: Colors.white, size: 24),
+            child: Icon(Icons.bolt_rounded,
+                color: context.gx.onAccent, size: 24),
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -556,8 +556,8 @@ class _WaitingForWorkerScreenState extends ConsumerState<WaitingForWorkerScreen>
                                 color: context.gx.border, width: 2),
                       ),
                       child: s.done
-                          ? const Icon(Icons.check_rounded,
-                              size: 14, color: Colors.white)
+                          ? Icon(Icons.check_rounded,
+                              size: 14, color: context.gx.onAccent)
                           : null,
                     ),
               if (!isLast)

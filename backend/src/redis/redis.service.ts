@@ -9,12 +9,14 @@ import { ConfigService } from '@nestjs/config';
 import { createClient, RedisClientType } from 'redis';
 import { buildRedisUrl } from './redis-url';
 import { redisAllowsMemoryFallback } from './redis-fallback';
+import { RedisBookingStateService } from './redis-booking-state.service';
+import {
+  LocationCache,
+  RedisWorkerIndexService,
+} from './redis-worker-index.service';
+import { RedisAdminService } from './redis-admin.service';
 
-export interface LocationCache {
-  lat: number;
-  lng: number;
-  timestamp: string;
-}
+export type { LocationCache } from './redis-worker-index.service';
 
 /**
  * RedisService — all Redis access for the app.
@@ -34,13 +36,7 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
   private fallbackAnnounced = false;
   private readonly allowMemoryFallback: boolean;
 
-  // Key namespaces
-  private static readonly WORKER_SNAPSHOT = 'worker:snapshot:';
-  private static readonly SKILL_INDEX = 'skill:index:';
   private static readonly GEO_INDEX = 'workers:geo';
-
-  /** Max keys the admin key browser will collect in one scan. */
-  private static readonly ADMIN_KEYS_LIMIT = 1000;
 
   // ── In-memory fallback stores (used only when Redis is unreachable) ──
   private memKv = new Map<
@@ -51,6 +47,9 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
   private memZsets = new Map<string, Map<string, number>>(); // member → score
   private memGeo = new Map<string, { lat: number; lng: number }>(); // member → coords
   private memKeyExp = new Map<string, number>(); // key-level TTL for sets/zsets
+  private _bookingState?: RedisBookingStateService;
+  private _workerIndex?: RedisWorkerIndexService;
+  private _admin?: RedisAdminService;
 
   constructor(private configService: ConfigService) {
     this.allowMemoryFallback = redisAllowsMemoryFallback(configService);
@@ -305,6 +304,185 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
     }
   }
 
+  async getDel(key: string): Promise<string | null> {
+    if (this.live) {
+      try {
+        return await this.client.getDel(key);
+      } catch (error) {
+        this.logger.error(`Redis GETDEL failed for key: ${key}`, error);
+        if (!this.allowMemoryFallback) throw error;
+      }
+    }
+    this.assertMemoryFallbackAllowed('GETDEL');
+    const value = this.memGet(key);
+    if (value !== null) this.memKv.delete(key);
+    return value;
+  }
+
+  async sAdd(key: string, member: string, ttlSeconds?: number): Promise<void> {
+    if (this.live) {
+      try {
+        await this.client.sAdd(key, member);
+        if (ttlSeconds) await this.client.expire(key, ttlSeconds);
+        return;
+      } catch (error) {
+        this.logger.error(`Redis SADD failed for key: ${key}`, error);
+        if (!this.allowMemoryFallback) throw error;
+      }
+    }
+    this.assertMemoryFallbackAllowed('SADD');
+    const set = this.memSets.get(key) ?? new Set<string>();
+    set.add(member);
+    this.memSets.set(key, set);
+    if (ttlSeconds) {
+      this.memKeyExp.set(key, Date.now() + ttlSeconds * 1000);
+    }
+  }
+
+  async sRem(key: string, member: string): Promise<void> {
+    if (this.live) {
+      try {
+        await this.client.sRem(key, member);
+        return;
+      } catch (error) {
+        this.logger.error(`Redis SREM failed for key: ${key}`, error);
+        if (!this.allowMemoryFallback) throw error;
+      }
+    }
+    this.assertMemoryFallbackAllowed('SREM');
+    this.memSets.get(key)?.delete(member);
+  }
+
+  async sMembers(key: string): Promise<string[]> {
+    if (this.live) {
+      try {
+        return await this.client.sMembers(key);
+      } catch (error) {
+        this.logger.error(`Redis SMEMBERS failed for key: ${key}`, error);
+        if (!this.allowMemoryFallback) throw error;
+      }
+    }
+    this.assertMemoryFallbackAllowed('SMEMBERS');
+    if (!this.memKeyAlive(key)) return [];
+    return [...(this.memSets.get(key) ?? [])];
+  }
+
+  async zAdd(
+    key: string,
+    score: number,
+    member: string,
+    ttlSeconds?: number,
+  ): Promise<void> {
+    if (this.live) {
+      try {
+        await this.client.zAdd(key, { score, value: member });
+        if (ttlSeconds) await this.client.expire(key, ttlSeconds);
+        return;
+      } catch (error) {
+        this.logger.error(`Redis ZADD failed for key: ${key}`, error);
+        if (!this.allowMemoryFallback) throw error;
+      }
+    }
+    this.assertMemoryFallbackAllowed('ZADD');
+    const zset = this.memZsets.get(key) ?? new Map<string, number>();
+    zset.set(member, score);
+    this.memZsets.set(key, zset);
+    if (ttlSeconds) {
+      this.memKeyExp.set(key, Date.now() + ttlSeconds * 1000);
+    }
+  }
+
+  async zRem(key: string, member: string): Promise<void> {
+    if (this.live) {
+      try {
+        await this.client.zRem(key, member);
+        return;
+      } catch (error) {
+        this.logger.error(`Redis ZREM failed for key: ${key}`, error);
+        if (!this.allowMemoryFallback) throw error;
+      }
+    }
+    this.assertMemoryFallbackAllowed('ZREM');
+    this.memZsets.get(key)?.delete(member);
+  }
+
+  async zRangeRev(key: string): Promise<string[]> {
+    if (this.live) {
+      try {
+        return await this.client.zRange(key, 0, -1, { REV: true });
+      } catch (error) {
+        this.logger.error(`Redis ZRANGE failed for key: ${key}`, error);
+        if (!this.allowMemoryFallback) throw error;
+      }
+    }
+    this.assertMemoryFallbackAllowed('ZRANGE');
+    if (!this.memKeyAlive(key)) return [];
+    return [...(this.memZsets.get(key)?.entries() ?? [])]
+      .sort((a, b) => b[1] - a[1])
+      .map(([member]) => member);
+  }
+
+  async geoAdd(member: string, lat: number, lng: number): Promise<void> {
+    if (this.live) {
+      try {
+        await this.client.geoAdd(RedisService.GEO_INDEX, {
+          longitude: lng,
+          latitude: lat,
+          member,
+        });
+        return;
+      } catch (error) {
+        this.logger.error(`Redis GEOADD failed for member: ${member}`, error);
+        if (!this.allowMemoryFallback) throw error;
+      }
+    }
+    this.assertMemoryFallbackAllowed('GEOADD');
+    this.memGeo.set(member, { lat, lng });
+  }
+
+  async geoRem(member: string): Promise<void> {
+    if (this.live) {
+      try {
+        await this.client.zRem(RedisService.GEO_INDEX, member);
+        return;
+      } catch (error) {
+        this.logger.error(`Redis GEO ZREM failed for member: ${member}`, error);
+        if (!this.allowMemoryFallback) throw error;
+      }
+    }
+    this.assertMemoryFallbackAllowed('ZREM');
+    this.memGeo.delete(member);
+  }
+
+  async geoSearch(
+    lat: number,
+    lng: number,
+    radiusKm: number,
+  ): Promise<string[] | null> {
+    if (this.live) {
+      try {
+        return (await this.client.geoSearch(
+          RedisService.GEO_INDEX,
+          { longitude: lng, latitude: lat },
+          { radius: radiusKm, unit: 'km' },
+        )) as string[];
+      } catch (error) {
+        this.logger.error('Redis GEOSEARCH failed', error);
+        return null;
+      }
+    }
+    if (!this.allowMemoryFallback) return null;
+    const result: string[] = [];
+    for (const [member, coords] of this.memGeo) {
+      if (
+        RedisService.haversineKm(lat, lng, coords.lat, coords.lng) <= radiusKm
+      ) {
+        result.push(member);
+      }
+    }
+    return result;
+  }
+
   /**
    * SCAN, not KEYS: KEYS is O(N) over the whole keyspace and blocks Redis's
    * single thread — called from clearCache() on every master-entry admin
@@ -312,7 +490,11 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
    * in small non-blocking batches. `limit` caps how many keys are collected;
    * pass 0 for no cap.
    */
-  private async scanKeys(pattern: string, limit = 0): Promise<string[]> {
+  async scanKeysLimited(pattern: string, limit = 0): Promise<string[]> {
+    if (!this.live) {
+      this.assertMemoryFallbackAllowed('SCAN');
+      return (await this.keys(pattern)).slice(0, limit > 0 ? limit : undefined);
+    }
     const found: string[] = [];
     for await (const batch of this.client.scanIterator({
       MATCH: pattern,
@@ -329,7 +511,7 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
   async keys(pattern: string): Promise<string[]> {
     if (this.live) {
       try {
-        return await this.scanKeys(pattern);
+        return await this.scanKeysLimited(pattern);
       } catch (error) {
         this.logger.error(`Redis SCAN failed for pattern: ${pattern}`, error);
         if (!this.allowMemoryFallback) throw error;
@@ -347,6 +529,33 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
       if (regex.test(key) && this.memGet(key) !== null) result.push(key);
     }
     return result;
+  }
+
+  async inspectKey(key: string): Promise<any> {
+    if (!this.live) return null;
+    const type = await this.client.type(key);
+    const ttl = await this.client.ttl(key);
+    let value: any = null;
+    switch (type) {
+      case 'string':
+        value = await this.client.get(key);
+        break;
+      case 'hash':
+        value = await this.client.hGetAll(key);
+        break;
+      case 'set':
+        value = await this.client.sMembers(key);
+        break;
+      case 'zset':
+        value = await this.client.zRangeWithScores(key, 0, -1);
+        break;
+      case 'list':
+        value = await this.client.lRange(key, 0, -1);
+        break;
+      default:
+        value = `Cannot fetch value for type: ${type}`;
+    }
+    return { key, type, ttl, value };
   }
 
   /**
@@ -380,6 +589,18 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
     return true;
   }
 
+  private bookingState(): RedisBookingStateService {
+    return (this._bookingState ??= new RedisBookingStateService(this));
+  }
+
+  private workerIndex(): RedisWorkerIndexService {
+    return (this._workerIndex ??= new RedisWorkerIndexService(this));
+  }
+
+  private admin(): RedisAdminService {
+    return (this._admin ??= new RedisAdminService(this));
+  }
+
   // ─────────────────────────────────────────────
   // OTP STORAGE (5-MIN TTL)
   // ─────────────────────────────────────────────
@@ -390,13 +611,12 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
    * @param otp The actual OTP string
    */
   async saveOtp(key: string, otp: string): Promise<void> {
-    const TTL_SECONDS = 5 * 60; // 5 minutes
-    await this.set(key, otp, TTL_SECONDS);
+    return this.bookingState().saveOtp(key, otp);
   }
 
   /** Retrieve an OTP (non-destructive — prefer {@link consumeOtp} for verify). */
   async getOtp(key: string): Promise<string | null> {
-    return this.get(key);
+    return this.bookingState().getOtp(key);
   }
 
   /**
@@ -406,23 +626,12 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
    * Wrong submissions also consume the code — caller must request a new OTP.
    */
   async consumeOtp(key: string): Promise<string | null> {
-    if (this.live) {
-      try {
-        return await this.client.getDel(key);
-      } catch (error) {
-        this.logger.error(`Redis GETDEL failed for key: ${key}`, error);
-        if (!this.allowMemoryFallback) throw error;
-      }
-    }
-    this.assertMemoryFallbackAllowed('GETDEL');
-    const value = this.memGet(key);
-    if (value !== null) this.memKv.delete(key);
-    return value;
+    return this.bookingState().consumeOtp(key);
   }
 
   /** Delete an OTP (e.g. after booking arrival/completion gate). */
   async deleteOtp(key: string): Promise<void> {
-    await this.del(key);
+    return this.bookingState().deleteOtp(key);
   }
 
   // ─────────────────────────────────────────────
@@ -437,12 +646,7 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
     bookingId: string,
     statusData: Record<string, any>,
   ): Promise<void> {
-    // 24h TTL — stale entries auto-clean
-    await this.set(
-      `booking:status:${bookingId}`,
-      JSON.stringify(statusData),
-      24 * 60 * 60,
-    );
+    return this.bookingState().cacheBookingStatus(bookingId, statusData);
   }
 
   /**
@@ -452,12 +656,7 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
   async getCachedBookingStatus(
     bookingId: string,
   ): Promise<Record<string, any> | null> {
-    const data = await this.get(`booking:status:${bookingId}`);
-    try {
-      return data ? JSON.parse(data) : null;
-    } catch {
-      return null;
-    }
+    return this.bookingState().getCachedBookingStatus(bookingId);
   }
 
   // ─────────────────────────────────────────────
@@ -470,30 +669,12 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
     lat: number,
     lng: number,
   ): Promise<void> {
-    const payload: LocationCache = {
-      lat,
-      lng,
-      timestamp: new Date().toISOString(),
-    };
-    // 1. Save literal location for record lookup
-    await this.set(
-      `worker:location:${workerId}`,
-      JSON.stringify(payload),
-      60 * 60,
-    );
-    // 2. Save to GEO index for spatial search
-    await this.updateWorkerGeoLocation(workerId, lat, lng);
+    return this.workerIndex().updateWorkerLocation(workerId, lat, lng);
   }
 
   /** Get a worker's last known location. */
   async getWorkerLocation(workerId: string): Promise<LocationCache | null> {
-    const data = await this.get(`worker:location:${workerId}`);
-    try {
-      if (data) return JSON.parse(data) as LocationCache;
-    } catch {
-      return null;
-    }
-    return null;
+    return this.workerIndex().getWorkerLocation(workerId);
   }
 
   // ─────────────────────────────────────────────
@@ -501,11 +682,11 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
   // ─────────────────────────────────────────────
 
   async cacheFcmToken(userId: string, token: string): Promise<void> {
-    await this.set(`user:fcm:${userId}`, token, 7 * 24 * 60 * 60);
+    return this.bookingState().cacheFcmToken(userId, token);
   }
 
   async getCachedFcmToken(userId: string): Promise<string | null> {
-    return this.get(`user:fcm:${userId}`);
+    return this.bookingState().getCachedFcmToken(userId);
   }
 
   // ─────────────────────────────────────────────
@@ -518,24 +699,7 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
     lat: number,
     lng: number,
   ): Promise<void> {
-    if (this.live) {
-      try {
-        await this.client.geoAdd(RedisService.GEO_INDEX, {
-          longitude: lng,
-          latitude: lat,
-          member: workerId,
-        });
-        return;
-      } catch (error) {
-        this.logger.error(
-          `Failed to update geo location for worker ${workerId}`,
-          error,
-        );
-        if (!this.allowMemoryFallback) throw error;
-      }
-    }
-    this.assertMemoryFallbackAllowed('GEOADD');
-    this.memGeo.set(workerId, { lat, lng });
+    return this.workerIndex().updateWorkerGeoLocation(workerId, lat, lng);
   }
 
   /**
@@ -544,20 +708,7 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
    * this replaces the old (buggy) DEL of the entire index.
    */
   async removeWorkerFromGeoIndex(workerId: string): Promise<void> {
-    if (this.live) {
-      try {
-        await this.client.zRem(RedisService.GEO_INDEX, workerId);
-        return;
-      } catch (error) {
-        this.logger.error(
-          `Failed to remove worker ${workerId} from geo index`,
-          error,
-        );
-        if (!this.allowMemoryFallback) throw error;
-      }
-    }
-    this.assertMemoryFallbackAllowed('ZREM');
-    this.memGeo.delete(workerId);
+    return this.workerIndex().removeWorkerFromGeoIndex(workerId);
   }
 
   /**
@@ -572,29 +723,7 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
     lng: number,
     radiusKm: number,
   ): Promise<string[] | null> {
-    if (this.live) {
-      try {
-        const members = await this.client.geoSearch(
-          RedisService.GEO_INDEX,
-          { longitude: lng, latitude: lat },
-          { radius: radiusKm, unit: 'km' },
-        );
-        return members as string[];
-      } catch (error) {
-        this.logger.error('Redis GEOSEARCH failed', error);
-        return null;
-      }
-    }
-    if (!this.allowMemoryFallback) return null;
-    const result: string[] = [];
-    for (const [workerId, coords] of this.memGeo) {
-      if (
-        RedisService.haversineKm(lat, lng, coords.lat, coords.lng) <= radiusKm
-      ) {
-        result.push(workerId);
-      }
-    }
-    return result;
+    return this.workerIndex().searchNearbyWorkerIds(lat, lng, radiusKm);
   }
 
   // ─────────────────────────────────────────────
@@ -606,26 +735,7 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
    * Uses a Sorted Set where score is the timestamp (allows DESC ordering).
    */
   async addPendingBooking(workerId: string, bookingId: string): Promise<void> {
-    const key = `worker:pending:${workerId}`;
-    if (this.live) {
-      try {
-        await this.client.zAdd(key, { score: Date.now(), value: bookingId });
-        // 90s timeout matches the queue delay
-        await this.client.expire(key, 120);
-        return;
-      } catch (error) {
-        this.logger.error(
-          `Failed to add pending booking ${bookingId} for worker ${workerId}`,
-          error,
-        );
-        if (!this.allowMemoryFallback) throw error;
-      }
-    }
-    this.assertMemoryFallbackAllowed('ZADD');
-    const zset = this.memZsets.get(key) ?? new Map<string, number>();
-    zset.set(bookingId, Date.now());
-    this.memZsets.set(key, zset);
-    this.memKeyExp.set(key, Date.now() + 120 * 1000);
+    return this.bookingState().addPendingBooking(workerId, bookingId);
   }
 
   /** Removes a booking ID from the worker's pending requests. */
@@ -633,21 +743,7 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
     workerId: string,
     bookingId: string,
   ): Promise<void> {
-    const key = `worker:pending:${workerId}`;
-    if (this.live) {
-      try {
-        await this.client.zRem(key, bookingId);
-        return;
-      } catch (error) {
-        this.logger.error(
-          `Failed to remove pending booking ${bookingId} for worker ${workerId}`,
-          error,
-        );
-        if (!this.allowMemoryFallback) throw error;
-      }
-    }
-    this.assertMemoryFallbackAllowed('ZREM');
-    this.memZsets.get(key)?.delete(bookingId);
+    return this.bookingState().removePendingBooking(workerId, bookingId);
   }
 
   /** Caches that a worker rejected a request for 15 minutes to avoid second-round pings */
@@ -656,64 +752,23 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
     skill: string,
     workerId: string,
   ): Promise<void> {
-    const key = `rejected:${customerId}:${skill}`;
-    if (this.live) {
-      try {
-        await this.client.sAdd(key, workerId);
-        await this.client.expire(key, 900); // 15 mins
-        return;
-      } catch (error) {
-        this.logger.error(`Failed to set rejected cache ${key}`, error);
-        if (!this.allowMemoryFallback) throw error;
-      }
-    }
-    this.assertMemoryFallbackAllowed('SADD');
-    const memSet = this.memSets.get(key) || new Set<string>();
-    memSet.add(workerId);
-    this.memSets.set(key, memSet);
-    this.memKeyExp.set(key, Date.now() + 900 * 1000);
+    return this.bookingState().markWorkerRejectedJob(
+      customerId,
+      skill,
+      workerId,
+    );
   }
 
   async getRejectedWorkersForJob(
     customerId: string,
     skill: string,
   ): Promise<string[]> {
-    const key = `rejected:${customerId}:${skill}`;
-    if (this.live) {
-      try {
-        return await this.client.sMembers(key);
-      } catch (error) {
-        this.logger.error(`Failed to get rejected cache ${key}`, error);
-        if (!this.allowMemoryFallback) throw error;
-      }
-    }
-    this.assertMemoryFallbackAllowed('SMEMBERS');
-    if (!this.memKeyAlive(key)) return [];
-    return Array.from(this.memSets.get(key) || []);
+    return this.bookingState().getRejectedWorkersForJob(customerId, skill);
   }
 
   /** Gets all pending booking IDs for a worker, newest first. */
   async getPendingBookingIds(workerId: string): Promise<string[]> {
-    const key = `worker:pending:${workerId}`;
-    if (this.live) {
-      try {
-        // ZREVRANGE (highest score first)
-        return await this.client.zRange(key, 0, -1, { REV: true });
-      } catch (error) {
-        this.logger.error(
-          `Failed to get pending bookings for worker ${workerId}`,
-          error,
-        );
-        if (!this.allowMemoryFallback) throw error;
-      }
-    }
-    this.assertMemoryFallbackAllowed('ZRANGE');
-    if (!this.memKeyAlive(key)) return [];
-    const zset = this.memZsets.get(key);
-    if (!zset) return [];
-    return [...zset.entries()]
-      .sort((a, b) => b[1] - a[1])
-      .map(([member]) => member);
+    return this.bookingState().getPendingBookingIds(workerId);
   }
 
   // ─────────────────────────────────────────────
@@ -722,83 +777,27 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
 
   /** Caches the full WorkerDto as a JSON snapshot for instant discovery. */
   async cacheWorkerSnapshot(workerId: string, snapshot: any): Promise<void> {
-    await this.set(
-      `${RedisService.WORKER_SNAPSHOT}${workerId}`,
-      JSON.stringify(snapshot),
-      24 * 60 * 60,
-    ); // 24h cache
+    return this.workerIndex().cacheWorkerSnapshot(workerId, snapshot);
   }
 
   /** Retrieves a cached worker snapshot. */
   async getWorkerSnapshot(workerId: string): Promise<any | null> {
-    const data = await this.get(`${RedisService.WORKER_SNAPSHOT}${workerId}`);
-    try {
-      return data ? JSON.parse(data) : null;
-    } catch {
-      return null;
-    }
+    return this.workerIndex().getWorkerSnapshot(workerId);
   }
 
   /** Maps workers to skills for ultra-fast filtering. */
   async indexWorkerSkills(workerId: string, skills: string[]): Promise<void> {
-    for (const skill of skills) {
-      const key = `${RedisService.SKILL_INDEX}${skill.toLowerCase().trim()}`;
-      if (this.live) {
-        try {
-          await this.client.sAdd(key, workerId);
-          await this.client.expire(key, 24 * 60 * 60);
-          continue;
-        } catch (error) {
-          this.logger.error(
-            `Failed to index skill ${skill} for worker ${workerId}`,
-            error,
-          );
-          if (!this.allowMemoryFallback) throw error;
-        }
-      }
-      this.assertMemoryFallbackAllowed('SADD');
-      const set = this.memSets.get(key) ?? new Set<string>();
-      set.add(workerId);
-      this.memSets.set(key, set);
-      this.memKeyExp.set(key, Date.now() + 24 * 60 * 60 * 1000);
-    }
+    return this.workerIndex().indexWorkerSkills(workerId, skills);
   }
 
   /** Removes worker from skill indices. */
   async unindexWorkerSkills(workerId: string, skills: string[]): Promise<void> {
-    for (const skill of skills) {
-      const key = `${RedisService.SKILL_INDEX}${skill.toLowerCase().trim()}`;
-      if (this.live) {
-        try {
-          await this.client.sRem(key, workerId);
-          continue;
-        } catch (error) {
-          this.logger.error(
-            `Failed to unindex skill ${skill} for worker ${workerId}`,
-            error,
-          );
-          if (!this.allowMemoryFallback) throw error;
-        }
-      }
-      this.assertMemoryFallbackAllowed('SREM');
-      this.memSets.get(key)?.delete(workerId);
-    }
+    return this.workerIndex().unindexWorkerSkills(workerId, skills);
   }
 
   /** Returns IDs of all active workers who have a specific skill. */
   async getWorkerIdsBySkill(skill: string): Promise<string[]> {
-    const key = `${RedisService.SKILL_INDEX}${skill.toLowerCase().trim()}`;
-    if (this.live) {
-      try {
-        return await this.client.sMembers(key);
-      } catch (error) {
-        this.logger.error(`Failed to get workers for skill ${skill}`, error);
-        if (!this.allowMemoryFallback) throw error;
-      }
-    }
-    this.assertMemoryFallbackAllowed('SMEMBERS');
-    if (!this.memKeyAlive(key)) return [];
-    return [...(this.memSets.get(key) ?? [])];
+    return this.workerIndex().getWorkerIdsBySkill(skill);
   }
 
   // ── Admin Endpoints ──
@@ -808,50 +807,11 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
    * this runs against production Redis on demand, and a default `*` KEYS over
    * the live keyspace blocks the server for every other caller.
    */
-  async getAdminKeys(
-    pattern: string = '*',
-    limit: number = RedisService.ADMIN_KEYS_LIMIT,
-  ): Promise<string[]> {
-    if (!this.live) return [];
-    try {
-      return await this.scanKeys(pattern, limit);
-    } catch (error) {
-      this.logger.error('Failed to get Redis keys', error);
-      return [];
-    }
+  async getAdminKeys(pattern = '*', limit = 1000): Promise<string[]> {
+    return this.admin().getAdminKeys(pattern, limit);
   }
 
   async getAdminKeyDetails(key: string): Promise<any> {
-    if (!this.live) return null;
-    try {
-      const type = await this.client.type(key);
-      const ttl = await this.client.ttl(key);
-      let value: any = null;
-
-      switch (type) {
-        case 'string':
-          value = await this.client.get(key);
-          break;
-        case 'hash':
-          value = await this.client.hGetAll(key);
-          break;
-        case 'set':
-          value = await this.client.sMembers(key);
-          break;
-        case 'zset':
-          value = await this.client.zRangeWithScores(key, 0, -1);
-          break;
-        case 'list':
-          value = await this.client.lRange(key, 0, -1);
-          break;
-        default:
-          value = `Cannot fetch value for type: ${type}`;
-      }
-
-      return { key, type, ttl, value };
-    } catch (error) {
-      this.logger.error(`Failed to get details for Redis key ${key}`, error);
-      return { key, type: 'error', ttl: -1, value: null };
-    }
+    return this.admin().getAdminKeyDetails(key);
   }
 }

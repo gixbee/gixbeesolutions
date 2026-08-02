@@ -8,13 +8,13 @@ import {
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { AdminGuard } from '../auth/admin.guard';
 import { RequireAdminPage } from '../auth/require-admin-page.decorator';
-import { RedisService } from './redis.service';
+import { RedisAdminService } from './redis-admin.service';
 
 @Controller('redis/admin')
 @UseGuards(JwtAuthGuard, AdminGuard)
 @RequireAdminPage('monitoring')
 export class RedisAdminController {
-  constructor(private readonly redisService: RedisService) {}
+  constructor(private readonly redisAdminService: RedisAdminService) {}
 
   /** `truncated` tells the UI the scan hit its cap and the pattern needs narrowing. */
   @Get('keys')
@@ -26,7 +26,7 @@ export class RedisAdminController {
     const parsed = Number(limit);
     const cap =
       Number.isFinite(parsed) && parsed > 0 ? Math.min(parsed, 5000) : 1000;
-    const keys = await this.redisService.getAdminKeys(searchPattern, cap);
+    const keys = await this.redisAdminService.getAdminKeys(searchPattern, cap);
     return { keys, truncated: keys.length >= cap };
   }
 
@@ -35,7 +35,7 @@ export class RedisAdminController {
     if (!keyId) {
       throw new BadRequestException('Key ID is required');
     }
-    const details = await this.redisService.getAdminKeyDetails(keyId);
+    const details = await this.redisAdminService.getAdminKeyDetails(keyId);
     return details;
   }
 }

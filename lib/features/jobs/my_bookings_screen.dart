@@ -33,6 +33,7 @@ class _MyBookingsScreenState extends ConsumerState<MyBookingsScreen>
   final Map<String, int> _currentPage = {'UPCOMING': 1, 'PAST': 1};
   final Map<String, bool> _hasMore = {'UPCOMING': true, 'PAST': true};
   final Map<String, bool> _isLoadingMore = {'UPCOMING': false, 'PAST': false};
+  final Map<String, String?> _loadError = {'UPCOMING': null, 'PAST': null};
   static const int _pageSize = 15;
 
   @override
@@ -70,7 +71,10 @@ class _MyBookingsScreenState extends ConsumerState<MyBookingsScreen>
     if (_isLoadingMore[tab] == true) return;
     if (!reset && _hasMore[tab] == false) return;
 
-    setState(() => _isLoadingMore[tab] = true);
+    setState(() {
+      _isLoadingMore[tab] = true;
+      _loadError[tab] = null;
+    });
 
     if (reset) {
       _currentPage[tab] = 1;
@@ -97,10 +101,20 @@ class _MyBookingsScreenState extends ConsumerState<MyBookingsScreen>
           _hasMore[tab] = results.length >= _pageSize;
           _currentPage[tab] = _currentPage[tab]! + 1;
           _isLoadingMore[tab] = false;
+          _loadError[tab] = null;
         });
       }
     } catch (e) {
-      if (mounted) setState(() => _isLoadingMore[tab] = false);
+      if (mounted) {
+        setState(() {
+          _isLoadingMore[tab] = false;
+          // Stop the empty+hasMore skeleton retry loop; surface the failure.
+          if (_paginatedData[tab]!.isEmpty) {
+            _hasMore[tab] = false;
+            _loadError[tab] = '$e';
+          }
+        });
+      }
     }
   }
 
@@ -110,6 +124,7 @@ class _MyBookingsScreenState extends ConsumerState<MyBookingsScreen>
       _paginatedData[tab] = [];
       _currentPage[tab] = 1;
       _hasMore[tab] = true;
+      _loadError[tab] = null;
     }
     final tabName = _tabNames[_tabController.index];
     if (tabName != 'ACTIVE') _loadPage(tabName, reset: true);
@@ -279,12 +294,23 @@ class _MyBookingsScreenState extends ConsumerState<MyBookingsScreen>
     final items = _paginatedData[tab]!;
     final loading = _isLoadingMore[tab] == true;
     final hasMore = _hasMore[tab] == true;
+    final err = _loadError[tab];
+
+    if (items.isEmpty && !loading && err != null) {
+      return RefreshIndicator(
+        color: context.gx.accentSoft,
+        onRefresh: () => _loadPage(tab, reset: true),
+        child: _buildErrorList(err),
+      );
+    }
 
     if (items.isEmpty && !loading) {
       if (hasMore) {
         // Trigger initial load
         WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (_paginatedData[tab]!.isEmpty && _hasMore[tab] == true) {
+          if (_paginatedData[tab]!.isEmpty &&
+              _hasMore[tab] == true &&
+              _loadError[tab] == null) {
             _loadPage(tab);
           }
         });

@@ -21,6 +21,8 @@ import '../booking/incoming_job_screen.dart';
 import '../billing/job_pack_screen.dart';
 import 'worker_languages_card.dart';
 import 'service_radius_card.dart';
+import 'go_live_job_feed.dart';
+import 'go_live_screen_widgets.dart';
 
 /// Go-Live dashboard: skills + per-service activation + earnings summary.
 /// `GET /workers/me/dashboard` — refreshed after every live toggle.
@@ -30,7 +32,8 @@ import 'service_radius_card.dart';
 /// pro, so the tab sat spinning through the whole retry ladder before finally
 /// showing "Register as Pro". Only transient transport failures are worth a
 /// retry here, and only twice.
-final goLiveDashboardProvider = FutureProvider.autoDispose<Map<String, dynamic>>(
+final goLiveDashboardProvider =
+    FutureProvider.autoDispose<Map<String, dynamic>>(
   (ref) async {
     return ref.watch(workerRepositoryProvider).getGoLiveDashboard();
   },
@@ -101,7 +104,8 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
   @override
   void initState() {
     super.initState();
-    _socketSub = ref.read(socketServiceProvider).notifications.listen(_onSocketEvent);
+    _socketSub =
+        ref.read(socketServiceProvider).notifications.listen(_onSocketEvent);
     // If already live when opening this screen, start GPS presence.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
@@ -131,9 +135,9 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
       setState(() => _jobFeed.insert(0, data));
       unawaited(_refreshPendingFeed());
     } else if (event == 'booking_status_update' ||
-               event == 'booking_accepted' ||
-               event == 'booking_cancelled' ||
-               event == 'booking_completed') {
+        event == 'booking_accepted' ||
+        event == 'booking_cancelled' ||
+        event == 'booking_completed') {
       if (id != null) {
         setState(() => _jobFeed.removeWhere((j) => j['id']?.toString() == id));
       } else {
@@ -141,7 +145,8 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
         if (status != null && status != 'REQUESTED') {
           final targetId = (data['bookingId'] ?? data['id'])?.toString();
           if (targetId != null) {
-            setState(() => _jobFeed.removeWhere((j) => j['id']?.toString() == targetId));
+            setState(() =>
+                _jobFeed.removeWhere((j) => j['id']?.toString() == targetId));
           }
         }
       }
@@ -152,7 +157,8 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
   Future<void> _refreshPendingFeed() async {
     if (!mounted || !ref.read(workerLiveStateProvider)) return;
     try {
-      final pending = await ref.read(bookingRepositoryProvider).getPendingBookings();
+      final pending =
+          await ref.read(bookingRepositoryProvider).getPendingBookings();
       if (!mounted) return;
       final pendingMaps = pending
           .whereType<Map>()
@@ -182,7 +188,8 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
       }
       if (_liveSince == null || reset) {
         _liveSince = DateTime.now();
-        await storage.write(key: 'worker_live_since', value: _liveSince!.toIso8601String());
+        await storage.write(
+            key: 'worker_live_since', value: _liveSince!.toIso8601String());
       }
     }
     // Eagerly compute elapsed so the UI never flashes 0:00:00 on re-entry.
@@ -221,10 +228,9 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
     _locationHeartbeat?.cancel();
     Future<void> pushLoc() async {
       try {
-        final pos =
-            await ref.read(locationServiceProvider).getCurrentPosition(
-                  fallbackToLastKnown: true,
-                );
+        final pos = await ref.read(locationServiceProvider).getCurrentPosition(
+              fallbackToLastKnown: true,
+            );
         if (pos == null) {
           // GPS died mid-session — surface it (banner in the live view)
           // instead of silently letting the pro fall out of dispatch.
@@ -271,7 +277,9 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
           final credits = (dash['jobCredits'] as num?)?.toInt() ?? 0;
           if (credits <= 0) {
             if (mounted) {
-              _toast('You need job credits to accept new bookings. Buy a pack now.', error: true);
+              _toast(
+                  'You need job credits to accept new bookings. Buy a pack now.',
+                  error: true);
               setState(() => _toggling = false);
             }
             return;
@@ -389,8 +397,7 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
   /// permission permanently denied → app settings; plain denied → retry
   /// (which re-triggers the OS prompt via getCurrentPosition).
   Future<void> _showGpsRequiredSheet() async {
-    final reason =
-        await ref.read(locationServiceProvider).gpsBlockReason();
+    final reason = await ref.read(locationServiceProvider).gpsBlockReason();
     if (!mounted) return;
     final isServiceOff = reason == 'service_off';
     final isDeniedForever = reason == 'denied_forever';
@@ -542,56 +549,10 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
   /// Job Credits card showing current balance and buy pack button
   Widget _jobCreditsCard(Map<String, dynamic>? dash) {
     final balance = (dash?['jobCredits'] as num?)?.toInt() ?? 0;
-    final isLow = balance == 0;
-    final color = isLow ? const Color(0xFFF97316) : GixbeeTheme.accentGreen;
-
-    return Container(
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.08),
-        border: Border.all(color: color.withValues(alpha: 0.35), width: 1.5),
-        borderRadius: BorderRadius.circular(14),
-      ),
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-      margin: const EdgeInsets.only(bottom: 16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(isLow ? Icons.lock_clock : Icons.confirmation_num_outlined,
-                  size: 18, color: color),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Text(
-                  isLow
-                      ? 'No job credits remaining'
-                      : 'Job Credits: $balance',
-                  style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w800,
-                      color: color.withValues(alpha: 0.9)),
-                ),
-              ),
-              if (isLow)
-                GxButton(
-                  label: 'Buy Pack',
-                  expand: false,
-                  height: 36,
-                  fontSize: 13,
-                  onTap: () => Navigator.of(context).push(
-                    MaterialPageRoute(builder: (_) => const JobPackScreen()),
-                  ),
-                ),
-            ],
-          ),
-          if (isLow) ...[
-            const SizedBox(height: 6),
-            const Text(
-              'You need job credits to accept new bookings. Buy a pack now.',
-              style: TextStyle(fontSize: 12, height: 1.3),
-            ),
-          ]
-        ],
+    return GoLiveJobCreditsCard(
+      balance: balance,
+      onBuyPack: () => Navigator.of(context).push(
+        MaterialPageRoute(builder: (_) => const JobPackScreen()),
       ),
     );
   }
@@ -661,7 +622,11 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
-        title: Text('Go Live', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 18, color: context.gx.ink)),
+        title: Text('Go Live',
+            style: TextStyle(
+                fontWeight: FontWeight.w800,
+                fontSize: 18,
+                color: context.gx.ink)),
         centerTitle: true,
         actions: [
           if (isLive)
@@ -670,7 +635,11 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
               child: Center(
                 child: Text(
                   _fmt(_elapsed),
-                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: GixbeeTheme.accentGreen, fontFeatures: [FontFeature.tabularFigures()]),
+                  style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w700,
+                      color: GixbeeTheme.accentGreen,
+                      fontFeatures: [FontFeature.tabularFigures()]),
                 ),
               ),
             ),
@@ -678,10 +647,12 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
       ),
       body: userAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (_, __) => Center(child: Text('Could not load your profile', style: TextStyle(color: context.gx.ink))),
+        error: (_, __) => Center(
+            child: Text('Could not load your profile',
+                style: TextStyle(color: context.gx.ink))),
         data: (user) {
           if (user == null) {
-            return _NotAWorker(scheme: scheme);
+            return GoLiveNotAWorker(scheme: scheme);
           }
 
           final dashAsync = ref.watch(goLiveDashboardProvider);
@@ -705,7 +676,7 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
           // if the server disagrees (talent-path pros).
           if (dashData == null) {
             if (!user.isWorker) {
-              return _NotAWorker(scheme: scheme);
+              return GoLiveNotAWorker(scheme: scheme);
             }
             if (dashAsync.hasError) {
               return Center(
@@ -727,12 +698,12 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
               ((dashData['skills'] as List?)?.isNotEmpty ?? false);
           final verStatus =
               (dashData['verificationStatus'] as String?) ?? 'PENDING';
-              
-          // Ghost profile check: if no skills were ever submitted AND the status 
+
+          // Ghost profile check: if no skills were ever submitted AND the status
           // is still PENDING, this is an auto-created shell from opening Earn Hourly.
           // Send them back to the wizard.
           if (!hasSkills && verStatus == 'PENDING') {
-            return _NotAWorker(scheme: scheme);
+            return GoLiveNotAWorker(scheme: scheme);
           }
 
           // Server says registered with real skills — refresh the stale
@@ -756,7 +727,8 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
                   physics: const AlwaysScrollableScrollPhysics(),
                   child: isLive
                       ? _buildLiveView(scheme, user, dash)
-                      : _buildSetupView(scheme, user, dash, dashAsync.isLoading),
+                      : _buildSetupView(
+                          scheme, user, dash, dashAsync.isLoading),
                 ),
               ),
               // Sticky Go Live / Offline Button
@@ -773,9 +745,11 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
     );
   }
 
-  Widget _buildSetupView(ColorScheme scheme, dynamic user, Map<String, dynamic>? dash, bool isLoading) {
+  Widget _buildSetupView(ColorScheme scheme, dynamic user,
+      Map<String, dynamic>? dash, bool isLoading) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 100), // padding for sticky footer
+      padding: const EdgeInsets.fromLTRB(
+          16, 16, 16, 100), // padding for sticky footer
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -809,7 +783,10 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
                   alignment: Alignment.center,
                   child: Text(
                     user.name.isNotEmpty ? user.name[0].toUpperCase() : 'W',
-                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900, color: context.gx.onAccent),
+                    style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w900,
+                        color: context.gx.onAccent),
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -817,15 +794,24 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(user.name, style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: context.gx.ink)),
+                      Text(user.name,
+                          style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w800,
+                              color: context.gx.ink)),
                       const SizedBox(height: 3),
-                      _buildVerificationBadge(context, dash),
+                      _buildVerificationBadge(dash),
                       const SizedBox(height: 2),
                       Row(
                         children: [
-                          Icon(Icons.location_on, size: 12, color: context.gx.accent),
+                          Icon(Icons.location_on,
+                              size: 12, color: context.gx.accent),
                           const SizedBox(width: 5),
-                          Text('Auto-updating GPS', style: TextStyle(fontSize: 12, color: context.gx.ink.withValues(alpha: 0.55))),
+                          Text('Auto-updating GPS',
+                              style: TextStyle(
+                                  fontSize: 12,
+                                  color:
+                                      context.gx.ink.withValues(alpha: 0.55))),
                         ],
                       ),
                     ],
@@ -836,14 +822,23 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
                   children: [
                     Text(
                       (() {
-                        final r = double.tryParse('${dash?['rating'] ?? 0}') ?? 0.0;
+                        final r =
+                            double.tryParse('${dash?['rating'] ?? 0}') ?? 0.0;
                         return r > 0 ? r.toStringAsFixed(1) : 'New';
                       })(),
-                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: GixbeeTheme.accentGold),
+                      style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w900,
+                          color: GixbeeTheme.accentGold),
                     ),
-                    Text('★ rating', style: TextStyle(fontSize: 10, color: GixbeeTheme.accentGold)),
+                    Text('★ rating',
+                        style: TextStyle(
+                            fontSize: 10, color: GixbeeTheme.accentGold)),
                     const SizedBox(height: 2),
-                    Text('${dash?['earnings']?['jobsCompleted'] ?? 0} jobs', style: TextStyle(fontSize: 10, color: context.gx.ink.withValues(alpha: 0.55))),
+                    Text('${dash?['earnings']?['jobsCompleted'] ?? 0} jobs',
+                        style: TextStyle(
+                            fontSize: 10,
+                            color: context.gx.ink.withValues(alpha: 0.55))),
                   ],
                 ),
               ],
@@ -891,7 +886,7 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
             ],
           ),
           const SizedBox(height: 10),
-          
+
           if (dash != null) ...[
             _serviceActivationCard(scheme, dash),
             if ((dash['skills'] as List? ?? const []).isEmpty)
@@ -917,13 +912,21 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
                 ),
               ),
           ] else if (isLoading) ...[
-            const Center(child: Padding(padding: EdgeInsets.all(20), child: CircularProgressIndicator())),
+            const Center(
+                child: Padding(
+                    padding: EdgeInsets.all(20),
+                    child: CircularProgressIndicator())),
           ],
 
           const SizedBox(height: 14),
           // v126 language matching: customers can require languages; only
           // pros with an overlap get those broadcasts.
-          Text('LANGUAGES I SPEAK', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: context.gx.ink.withValues(alpha: 0.55), letterSpacing: 1.2)),
+          Text('LANGUAGES I SPEAK',
+              style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                  color: context.gx.ink.withValues(alpha: 0.55),
+                  letterSpacing: 1.2)),
           const SizedBox(height: 10),
           const WorkerLanguagesCard(),
 
@@ -933,7 +936,12 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
           const ServiceRadiusCard(),
 
           const SizedBox(height: 14),
-          Text('YOUR LOCATION', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: context.gx.ink.withValues(alpha: 0.55), letterSpacing: 1.2)),
+          Text('YOUR LOCATION',
+              style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                  color: context.gx.ink.withValues(alpha: 0.55),
+                  letterSpacing: 1.2)),
           const SizedBox(height: 8),
           Container(
             decoration: BoxDecoration(
@@ -952,16 +960,24 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
                     color: context.gx.accent.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(10),
                   ),
-                  child: Icon(Icons.location_on, size: 18, color: context.gx.accent),
+                  child: Icon(Icons.location_on,
+                      size: 18, color: context.gx.accent),
                 ),
                 const SizedBox(width: 10),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('Current Location', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: context.gx.ink)),
+                      Text('Current Location',
+                          style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                              color: context.gx.ink)),
                       const SizedBox(height: 2),
-                      Text('GPS: Auto-updating · Accurate', style: TextStyle(fontSize: 11, color: context.gx.ink.withValues(alpha: 0.55))),
+                      Text('GPS: Auto-updating · Accurate',
+                          style: TextStyle(
+                              fontSize: 11,
+                              color: context.gx.ink.withValues(alpha: 0.55))),
                     ],
                   ),
                 ),
@@ -981,7 +997,8 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
     );
   }
 
-  Widget _buildLiveView(ColorScheme scheme, dynamic user, Map<String, dynamic>? dash) {
+  Widget _buildLiveView(
+      ColorScheme scheme, dynamic user, Map<String, dynamic>? dash) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -993,8 +1010,7 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
                 ref.read(locationServiceProvider).openLocationSettings(),
             child: Container(
               margin: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-              padding: const EdgeInsets.symmetric(
-                  horizontal: 14, vertical: 12),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
               decoration: BoxDecoration(
                 color: const Color(0xFFF97316).withValues(alpha: 0.12),
                 borderRadius: BorderRadius.circular(14),
@@ -1047,8 +1063,7 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
                     height: 140,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      color:
-                          GixbeeTheme.accentGreen.withValues(alpha: 0.10),
+                      color: GixbeeTheme.accentGreen.withValues(alpha: 0.10),
                     ),
                   ),
                   Container(
@@ -1056,8 +1071,7 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
                     height: 110,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      color:
-                          GixbeeTheme.accentGreen.withValues(alpha: 0.20),
+                      color: GixbeeTheme.accentGreen.withValues(alpha: 0.20),
                     ),
                   ),
                   Container(
@@ -1068,21 +1082,29 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
                       color: GixbeeTheme.accentGreen,
                       boxShadow: [
                         BoxShadow(
-                          color: GixbeeTheme.accentGreen
-                              .withValues(alpha: 0.40),
+                          color:
+                              GixbeeTheme.accentGreen.withValues(alpha: 0.40),
                           blurRadius: 20,
                         ),
                       ],
                     ),
                     alignment: Alignment.center,
-                    child: Icon(Icons.radar, color: context.gx.onAccent, size: 36),
+                    child:
+                        Icon(Icons.radar, color: context.gx.onAccent, size: 36),
                   ),
                 ],
               ),
               const SizedBox(height: 16),
-              Text('Looking for nearby jobs...', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: context.gx.ink)),
+              Text('Looking for nearby jobs...',
+                  style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w900,
+                      color: context.gx.ink)),
               const SizedBox(height: 4),
-              Text('Keep app open. You will be notified instantly.', style: TextStyle(fontSize: 13, color: context.gx.ink.withValues(alpha: 0.55))),
+              Text('Keep app open. You will be notified instantly.',
+                  style: TextStyle(
+                      fontSize: 13,
+                      color: context.gx.ink.withValues(alpha: 0.55))),
             ],
           ),
         ),
@@ -1093,11 +1115,13 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
             child: Row(
               children: [
                 Expanded(
-                  child: _buildLiveStatCard('Jobs Today', '${dash['earnings']?['jobsCompleted'] ?? 0}'),
+                  child: _buildLiveStatCard('Jobs Today',
+                      '${dash['earnings']?['jobsCompleted'] ?? 0}'),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
-                  child: _buildLiveStatCard('Earned', '₹${dash['earnings']?['today'] ?? 0}'),
+                  child: _buildLiveStatCard(
+                      'Earned', '₹${dash['earnings']?['today'] ?? 0}'),
                 ),
               ],
             ),
@@ -1113,59 +1137,21 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
           padding: const EdgeInsets.symmetric(horizontal: 16),
           child: _jobFeedSection(scheme),
         ),
-        
+
         const SizedBox(height: 100), // Sticky footer padding
       ],
     );
   }
 
   Widget _buildLiveStatCard(String label, String value) {
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: 12),
-      decoration: BoxDecoration(
-        color: context.gx.card,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: context.gx.border),
-      ),
-      alignment: Alignment.center,
-      child: Column(
-        children: [
-          Text(value, style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900, color: context.gx.ink)),
-          const SizedBox(height: 2),
-          Text(label, style: TextStyle(fontSize: 12, color: context.gx.ink.withValues(alpha: 0.55))),
-        ],
-      ),
-    );
+    return GoLiveStatCard(label: label, value: value);
   }
 
   /// Renders the Aadhaar/verification status row badge inside the profile card.
   /// PENDING → amber warning, REJECTED → red, VERIFIED → green tick.
-  Widget _buildVerificationBadge(BuildContext context, Map<String, dynamic>? dash) {
+  Widget _buildVerificationBadge(Map<String, dynamic>? dash) {
     final status = (dash?['verificationStatus'] as String?) ?? 'PENDING';
-    switch (status) {
-      case 'VERIFIED':
-        return Row(children: [
-          const Icon(Icons.verified_user, size: 12, color: GixbeeTheme.accentGreen),
-          const SizedBox(width: 5),
-          Text('Aadhaar Verified',
-              style: TextStyle(fontSize: 12, color: context.gx.ink.withValues(alpha: 0.55))),
-        ]);
-      case 'REJECTED':
-        return Row(children: [
-          const Icon(Icons.cancel, size: 12, color: Color(0xFFDC2626)),
-          const SizedBox(width: 5),
-          Text('Verification Rejected',
-              style: const TextStyle(fontSize: 12, color: Color(0xFFDC2626), fontWeight: FontWeight.w600)),
-        ]);
-      default: // PENDING
-        return Row(children: [
-          const Icon(Icons.access_time,
-              size: 12, color: GixbeeTheme.accentGold),
-          const SizedBox(width: 5),
-          Text('Verification Pending',
-              style: const TextStyle(fontSize: 12, color: GixbeeTheme.accentGold, fontWeight: FontWeight.w600)),
-        ]);
-    }
+    return GoLiveVerificationBadge(status: status);
   }
 
   Widget _buildStickyFooter(bool isLive, Map<String, dynamic> dash) {
@@ -1192,8 +1178,7 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
                 color: GixbeeTheme.accentGold.withValues(alpha: 0.12),
                 borderRadius: BorderRadius.circular(10),
                 border: Border.all(
-                    color:
-                        GixbeeTheme.accentGold.withValues(alpha: 0.4)),
+                    color: GixbeeTheme.accentGold.withValues(alpha: 0.4)),
               ),
               child: Row(
                 children: [
@@ -1205,7 +1190,10 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
                       verStatus == 'REJECTED'
                           ? 'Verification rejected. Please re-upload your documents.'
                           : 'Your profile is under review. You can go live once verified.',
-                      style: const TextStyle(fontSize: 12, color: GixbeeTheme.accentGold, fontWeight: FontWeight.w600),
+                      style: const TextStyle(
+                          fontSize: 12,
+                          color: GixbeeTheme.accentGold,
+                          fontWeight: FontWeight.w600),
                     ),
                   ),
                 ],
@@ -1221,14 +1209,17 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
                 gradient: LinearGradient(
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
-                  colors: isLive 
-                    ? [const Color(0xFFDC2626), const Color(0xFF991B1B)] 
-                    : [const Color(0xFF059669), const Color(0xFF10B981)],
+                  colors: isLive
+                      ? [const Color(0xFFDC2626), const Color(0xFF991B1B)]
+                      : [const Color(0xFF059669), const Color(0xFF10B981)],
                 ),
                 borderRadius: BorderRadius.circular(16),
                 boxShadow: [
                   BoxShadow(
-                    color: (isLive ? const Color(0xFFDC2626) : const Color(0xFF10B981)).withValues(alpha: 0.4),
+                    color: (isLive
+                            ? const Color(0xFFDC2626)
+                            : const Color(0xFF10B981))
+                        .withValues(alpha: 0.4),
                     blurRadius: 20,
                     offset: const Offset(0, 4),
                   ),
@@ -1242,15 +1233,23 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
                     )
                   : null,
               child: _toggling
-                  ? SizedBox(width: 24, height: 24, child: CircularProgressIndicator(color: context.gx.onAccent, strokeWidth: 3))
+                  ? SizedBox(
+                      width: 24,
+                      height: 24,
+                      child: CircularProgressIndicator(
+                          color: context.gx.onAccent, strokeWidth: 3))
                   : Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Icon(isLive ? Icons.power_settings_new : Icons.bolt, color: context.gx.onAccent, size: 20),
+                        Icon(isLive ? Icons.power_settings_new : Icons.bolt,
+                            color: context.gx.onAccent, size: 20),
                         const SizedBox(width: 10),
                         Text(
                           isLive ? 'Go Offline' : 'Go Live Now',
-                          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w900, color: context.gx.onAccent),
+                          style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w900,
+                              color: context.gx.onAccent),
                         ),
                       ],
                     ),
@@ -1291,7 +1290,8 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
       await ref.read(workerRepositoryProvider).setActiveSkills(next.toList());
     } on DioException catch (e) {
       final msg = e.response?.data is Map
-          ? (e.response?.data['message']?.toString() ?? 'Could not update services')
+          ? (e.response?.data['message']?.toString() ??
+              'Could not update services')
           : 'Could not update services';
       if (mounted) {
         setState(() => _activeOverride = previous);
@@ -1323,7 +1323,8 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
             decoration: BoxDecoration(
               color: on ? context.gx.card2 : context.gx.card,
               borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: on ? context.gx.accent : context.gx.border),
+              border:
+                  Border.all(color: on ? context.gx.accent : context.gx.border),
             ),
             child: Row(
               children: [
@@ -1331,19 +1332,36 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
                   width: 38,
                   height: 38,
                   decoration: BoxDecoration(
-                    color: on ? context.gx.accent.withValues(alpha: 0.2) : context.gx.border,
+                    color: on
+                        ? context.gx.accent.withValues(alpha: 0.2)
+                        : context.gx.border,
                     borderRadius: BorderRadius.circular(10),
                   ),
-                  child: Icon(on ? Icons.bolt : Icons.design_services, size: 18, color: on ? context.gx.accent : context.gx.ink.withValues(alpha: 0.55)),
+                  child: Icon(on ? Icons.bolt : Icons.design_services,
+                      size: 18,
+                      color: on
+                          ? context.gx.accent
+                          : context.gx.ink.withValues(alpha: 0.55)),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(skill, style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: on ? context.gx.ink : context.gx.ink.withValues(alpha: 0.55))),
+                      Text(skill,
+                          style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w700,
+                              color: on
+                                  ? context.gx.ink
+                                  : context.gx.ink.withValues(alpha: 0.55))),
                       const SizedBox(height: 2),
-                      Text('Active', style: TextStyle(fontSize: 11, color: on ? context.gx.ink.withValues(alpha: 0.55) : context.gx.ink.withValues(alpha: 0.55))),
+                      Text('Active',
+                          style: TextStyle(
+                              fontSize: 11,
+                              color: on
+                                  ? context.gx.ink.withValues(alpha: 0.55)
+                                  : context.gx.ink.withValues(alpha: 0.55))),
                     ],
                   ),
                 ),
@@ -1366,7 +1384,9 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
                           width: 20,
                           height: 20,
                           decoration: BoxDecoration(
-                            color: on ? context.gx.onAccent : context.gx.ink.withValues(alpha: 0.55),
+                            color: on
+                                ? context.gx.onAccent
+                                : context.gx.ink.withValues(alpha: 0.55),
                             shape: BoxShape.circle,
                           ),
                         ),
@@ -1383,174 +1403,16 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
   }
 
   Widget _jobFeedSection(ColorScheme scheme) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text('INCOMING JOBS', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: context.gx.ink.withValues(alpha: 0.55), letterSpacing: 1.2)),
-        const SizedBox(height: 10),
-        if (_jobFeed.isEmpty)
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.symmetric(vertical: 28),
-            decoration: BoxDecoration(
-              color: context.gx.card,
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: context.gx.border),
-            ),
-            child: Column(
-              children: [
-                SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: context.gx.accent)),
-                const SizedBox(height: 10),
-                Text('Waiting for job requests...', style: TextStyle(color: context.gx.ink.withValues(alpha: 0.55), fontSize: 13)),
-              ],
-            ),
-          )
-        else
-          ..._jobFeed.map((job) => _jobCard(scheme, job)),
-      ],
-    );
-  }
-
-  Widget _jobCard(ColorScheme scheme, Map<String, dynamic> job) {
-    final skill = (job['skill'] ?? 'Service').toString();
-    final customer = (job['customer_name'] ?? job['customerName'] ?? 'Customer').toString();
-    final location = (job['serviceLocation'] ?? '').toString();
-    final amount = (job['amount'] is num) ? (job['amount'] as num).toDouble() : 0.0;
-    final isHourly =
-        (job['type'] ?? 'INSTANT').toString().toUpperCase() == 'INSTANT';
-
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: context.gx.card,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: context.gx.accent.withValues(alpha: 0.5), width: 1.5),
-        boxShadow: [
-          BoxShadow(
-            color: context.gx.accent.withValues(alpha: 0.1),
-            blurRadius: 10,
-            spreadRadius: 2,
-          ),
-        ],
-      ),
-      child: Column(
-        children: [
-          Row(
-            children: [
-              Container(
-                width: 40,
-                height: 40,
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(colors: context.gx.accentGradient),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Icon(Icons.flash_on, color: context.gx.onAccent, size: 20),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(skill, style: TextStyle(fontWeight: FontWeight.w800, fontSize: 15, color: context.gx.ink)),
-                    const SizedBox(height: 2),
-                    Text(customer, style: TextStyle(fontSize: 12, color: context.gx.ink.withValues(alpha: 0.55))),
-                  ],
-                ),
-              ),
-              if (amount > 0)
-                Text(
-                  isHourly
-                      ? '₹${amount.toStringAsFixed(0)}/hr'
-                      : '₹${amount.toStringAsFixed(0)}',
-                  style: TextStyle(fontWeight: FontWeight.w900, fontSize: 18, color: GixbeeTheme.accentGold),
-                ),
-            ],
-          ),
-          if (location.isNotEmpty) ...[
-            const SizedBox(height: 12),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              decoration: BoxDecoration(
-                color: context.gx.card2,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Row(
-                children: [
-                  Icon(Icons.location_on, size: 14, color: context.gx.accent),
-                  const SizedBox(width: 8),
-                  Expanded(child: Text(location, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 12, color: context.gx.ink.withValues(alpha: 0.87)))),
-                ],
-              ),
-            ),
-          ],
-          const SizedBox(height: 16),
-          Row(
-            children: [
-              Expanded(
-                child: GxButton(
-                  label: 'Decline',
-                  filled: false,
-                  onTap: () {
-                    if (mounted) setState(() => _jobFeed.removeWhere((j) => j['id'] == job['id']));
-                  },
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: GxButton(
-                  label: 'View Job',
-                  gradient: const [Color(0xFF059669), Color(0xFF10B981)],
-                  onTap: () => _openJob(job),
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-}
-
-class _NotAWorker extends StatelessWidget {
-  final ColorScheme scheme;
-  const _NotAWorker({required this.scheme});
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(28),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.badge_outlined, size: 56, color: scheme.onSurfaceVariant),
-            const SizedBox(height: 16),
-            Text('Become a Gixbee Pro',
-                style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w800,
-                    color: scheme.onSurface)),
-            const SizedBox(height: 8),
-            Text(
-              'Register your skills to start receiving instant jobs and go live.',
-              textAlign: TextAlign.center,
-              style: TextStyle(color: scheme.onSurfaceVariant, height: 1.5),
-            ),
-            const SizedBox(height: 20),
-            GxButton(
-              label: 'Register as Pro',
-              icon: Icons.assignment_ind_outlined,
-              expand: false,
-              onTap: () => Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const RegisterProScreen()),
-              ),
-            ),
-          ],
-        ),
-      ),
+    return GoLiveJobFeed(
+      jobs: _jobFeed,
+      onOpenJob: _openJob,
+      onDeclineJob: (job) {
+        if (mounted) {
+          setState(
+            () => _jobFeed.removeWhere((item) => item['id'] == job['id']),
+          );
+        }
+      },
     );
   }
 }

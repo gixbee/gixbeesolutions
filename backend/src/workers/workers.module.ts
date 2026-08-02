@@ -7,6 +7,9 @@ import { TalentProfile } from '../talent/talent-profile.entity';
 import { ProfessionalSkill } from '../talent/professional-skill.entity';
 import { WorkersController } from './workers.controller';
 import { WorkersService } from './workers.service';
+import { WorkerAvailabilityService } from './worker-availability.service';
+import { WorkerGoLiveService } from './worker-golive.service';
+import { WorkerStrikeService } from './worker-strike.service';
 import { WorkerProfile } from './worker-profile.entity';
 import { WorkerStrike } from './worker-strike.entity';
 import { Booking } from '../bookings/booking.entity';
@@ -33,7 +36,12 @@ import { JobCredit } from '../billing/job-credit.entity';
     NotificationsModule,
   ],
   controllers: [WorkersController],
-  providers: [WorkersService],
+  providers: [
+    WorkersService,
+    WorkerAvailabilityService,
+    WorkerGoLiveService,
+    WorkerStrikeService,
+  ],
   exports: [WorkersService],
 })
 export class WorkersModule {}

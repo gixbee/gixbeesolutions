@@ -1,5 +1,5 @@
 import { BadRequestException, NotFoundException } from '@nestjs/common';
-import { BookingsService } from './bookings.service';
+import { BookingSettlementService } from './booking-settlement.service';
 import { BookingStatus } from './booking.entity';
 import { OutboxEventType } from '../outbox/outbox.types';
 
@@ -71,24 +71,22 @@ function makeService(
     enqueueDispatch: jest.fn(async () => undefined),
   };
 
-  const service = new BookingsService(
+  const service = new BookingSettlementService(
     bookingsRepository,
     workerProfileRepo,
-    bookingsQueue,
     walletsService,
     notificationsService,
     redisService,
     workersService,
     dataSource,
-    { emitUserEvent: jest.fn() } as any,
     outboxService,
-    { consumeCredit: jest.fn(), refundCredit: jest.fn() } as any,
     {
       getConfigNumber: jest.fn(
         async (key: string, fallback: number) =>
           configValues[key] ?? fallback,
       ),
     } as any,
+    { cacheAndEmitBookingStatus: jest.fn(async () => undefined) } as any,
   );
   return {
     service,
@@ -117,7 +115,7 @@ const baseBooking = () => ({
   operator: { id: 'work-1' },
 });
 
-describe('BookingsService.verifyCompletionOtp', () => {
+describe('BookingSettlementService.verifyCompletionOtp', () => {
   beforeEach(() => {
     jest.spyOn(console, 'log').mockImplementation(() => undefined);
     jest.spyOn(console, 'error').mockImplementation(() => undefined);

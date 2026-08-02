@@ -426,7 +426,7 @@ class _CompletionOtpScreenState extends ConsumerState<CompletionOtpScreen> {
                     Icons.star_rounded,
                     size: 32,
                     color: (_selectedRating != null && i <= _selectedRating!)
-                        ? Colors.amber
+                        ? GixbeeTheme.accentGold
                         : context.gx.ink.withValues(alpha: 0.30),
                   ),
                   onPressed: () async {
@@ -463,7 +463,9 @@ class _CompletionOtpScreenState extends ConsumerState<CompletionOtpScreen> {
   @override
   Widget build(BuildContext context) {
     _watchCompletionForCustomer();
-    final colorScheme = Theme.of(context).colorScheme;
+    final gx = context.gx;
+    final muted = gx.ink.withValues(alpha: 0.55);
+    final err = Theme.of(context).colorScheme.error;
 
     return Scaffold(
       body: Container(
@@ -472,8 +474,8 @@ class _CompletionOtpScreenState extends ConsumerState<CompletionOtpScreen> {
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
             colors: [
-              colorScheme.surface,
-              colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
+              gx.bg,
+              gx.card2.withValues(alpha: 0.55),
             ],
           ),
         ),
@@ -488,7 +490,7 @@ class _CompletionOtpScreenState extends ConsumerState<CompletionOtpScreen> {
                 Row(
                   children: [
                     IconButton(
-                      icon: Icon(Icons.arrow_back),
+                      icon: Icon(Icons.arrow_back, color: gx.ink),
                       onPressed: () => Navigator.pop(context),
                     ),
                     const Spacer(),
@@ -565,7 +567,7 @@ class _CompletionOtpScreenState extends ConsumerState<CompletionOtpScreen> {
                       : 'Job is complete!\nShare this OTP with ${widget.workerName} to finalize payment.',
                   textAlign: TextAlign.center,
                   style: TextStyle(
-                    color: colorScheme.onSurfaceVariant,
+                    color: muted,
                     height: 1.5,
                   ),
                 ),
@@ -590,20 +592,18 @@ class _CompletionOtpScreenState extends ConsumerState<CompletionOtpScreen> {
                           style: TextStyle(
                             fontSize: 28,
                             fontWeight: FontWeight.bold,
-                            color: colorScheme.onSurface,
+                            color: gx.ink,
                           ),
                           decoration: InputDecoration(
                             counterText: '',
                             filled: true,
                             fillColor: _controllers[i].text.isNotEmpty
-                                ? context.gx.accent.withValues(alpha: 0.08)
-                                : colorScheme.surfaceContainerHighest,
+                                ? gx.accent.withValues(alpha: 0.08)
+                                : gx.card2,
                             border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(14),
                               borderSide: BorderSide(
-                                color: _errorMsg != null
-                                    ? Colors.red
-                                    : colorScheme.outlineVariant,
+                                color: _errorMsg != null ? err : gx.border,
                               ),
                             ),
                           ),
@@ -707,7 +707,7 @@ class _CompletionOtpScreenState extends ConsumerState<CompletionOtpScreen> {
                   const SizedBox(height: 12),
                   Text(
                     _errorMsg!,
-                    style: const TextStyle(color: Colors.red, fontSize: 13),
+                    style: TextStyle(color: err, fontSize: 13),
                   ),
                 ],
 
@@ -762,8 +762,7 @@ class _CompletionOtpScreenState extends ConsumerState<CompletionOtpScreen> {
                     child: Text(
                       'Report an issue with this job',
                       style: TextStyle(
-                        color:
-                            colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
+                        color: muted.withValues(alpha: 0.75),
                         fontSize: 13,
                       ),
                     ),
@@ -816,7 +815,8 @@ class _CompletionOtpScreenState extends ConsumerState<CompletionOtpScreen> {
   Widget _disputeOption(String reason) {
     return ListTile(
       title: Text(reason),
-      leading: const Icon(Icons.report_problem_outlined, color: Colors.orange),
+      leading: Icon(Icons.report_problem_outlined,
+          color: GixbeeTheme.accentGold),
       trailing: const Icon(Icons.arrow_forward_ios, size: 14),
       onTap: () async {
         Navigator.pop(context);
@@ -838,7 +838,7 @@ class _CompletionOtpScreenState extends ConsumerState<CompletionOtpScreen> {
                     ),
                   ],
                 ),
-                backgroundColor: Colors.orange.shade800,
+                backgroundColor: GixbeeTheme.accentGold,
                 duration: const Duration(seconds: 4),
               ),
             );

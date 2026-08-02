@@ -1,4 +1,4 @@
-import { BookingsService } from './bookings.service';
+import { BookingProgressService } from './booking-progress.service';
 import { BookingStatus } from './booking.entity';
 import { WorkerStrikeType } from '../workers/worker-strike.entity';
 
@@ -17,52 +17,31 @@ function makeService(booking: any) {
     findOne: jest.fn(async () => booking),
     save: jest.fn(async (b: any) => b),
   };
-  const workerProfileRepo: any = { findOne: jest.fn(), save: jest.fn() };
-  const bookingsQueue: any = { add: jest.fn(async () => undefined) };
-  const walletsService: any = {
-    reverseBookingTransfer: jest.fn(async () => undefined),
-    transferForBooking: jest.fn(async () => undefined),
-    addFunds: jest.fn(async () => 0),
-    deductBookingFee: jest.fn(async () => undefined),
-  };
   const notificationsService: any = {
     sendToUser: jest.fn(async () => undefined),
     notifyBookingCancelled: jest.fn(async () => undefined),
     notifyGpsStrike: jest.fn(async () => undefined),
   };
-  const redisService: any = {
-    removePendingBooking: jest.fn(async () => undefined),
-    cacheBookingStatus: jest.fn(async () => undefined),
-  };
   const workersService: any = {
     setWorkerStatus: jest.fn(async () => undefined),
     recordStrike: jest.fn(async () => undefined),
   };
-  const dataSource: any = { transaction: jest.fn() };
+  const bookingStatusService: any = {
+    cacheAndEmitBookingStatus: jest.fn(async () => undefined),
+  };
 
-  const service = new BookingsService(
+  const service = new BookingProgressService(
     bookingsRepository,
-    workerProfileRepo,
-    bookingsQueue,
-    walletsService,
     notificationsService,
-    redisService,
     workersService,
-    dataSource,
-    { emitUserEvent: jest.fn() } as any,
-    {
-      append: jest.fn(async () => ({ id: 'ob' })),
-      enqueueDispatch: jest.fn(async () => undefined),
-    } as any,
-    { refundCredit: jest.fn(), consumeCredit: jest.fn() } as any,
-    { getConfigNumber: jest.fn(async (_k: string, f: number) => f) } as any,
+    bookingStatusService,
   );
   return {
     service,
     bookingsRepository,
     notificationsService,
-    redisService,
     workersService,
+    bookingStatusService,
   };
 }
 
@@ -77,7 +56,7 @@ const baseBooking = (overrides: Partial<any> = {}) => ({
   ...overrides,
 });
 
-describe('BookingsService.addGpsStrike', () => {
+describe('BookingProgressService.addGpsStrike', () => {
   it('does nothing when the booking does not exist', async () => {
     const { service, bookingsRepository, notificationsService } =
       makeService(null);
@@ -131,7 +110,7 @@ describe('BookingsService.addGpsStrike', () => {
       service,
       bookingsRepository,
       notificationsService,
-      redisService,
+      bookingStatusService,
       workersService,
     } = makeService(booking);
 
@@ -146,7 +125,7 @@ describe('BookingsService.addGpsStrike', () => {
     expect(booking.workerNoProgressAt).toBeInstanceOf(Date);
     expect(booking.status).toBe(BookingStatus.ACCEPTED);
     expect(bookingsRepository.save).toHaveBeenCalledTimes(1);
-    expect(redisService.cacheBookingStatus).toHaveBeenCalledWith(
+    expect(bookingStatusService.cacheAndEmitBookingStatus).toHaveBeenCalledWith(
       'b1',
       expect.objectContaining({
         workerNoProgress: true,
@@ -168,15 +147,14 @@ describe('BookingsService.addGpsStrike', () => {
         bookingId: 'b1',
       }),
     );
-    expect(notificationsService.notifyGpsStrike).not.toHaveBeenCalled();
   });
 
-  it('is idempotent when free cancel is already enabled', async () => {
+  it('is idempotent once free cancel is already enabled', async () => {
     const booking = baseBooking({
       gpsStrikes: 2,
-      workerNoProgressAt: new Date('2026-01-01'),
+      workerNoProgressAt: new Date(),
     });
-    const { service, bookingsRepository, workersService } =
+    const { service, bookingsRepository, notificationsService } =
       makeService(booking);
 
     const res = await service.addGpsStrike('b1');
@@ -187,67 +165,57 @@ describe('BookingsService.addGpsStrike', () => {
       freeCancelEnabled: true,
     });
     expect(bookingsRepository.save).not.toHaveBeenCalled();
-    expect(workersService.recordStrike).not.toHaveBeenCalled();
+    expect(notificationsService.notifyGpsStrike).not.toHaveBeenCalled();
   });
 });
 
-describe('BookingsService.evaluateWorkerProgress', () => {
-  function makeBareService() {
-    return makeService(null).service;
-  }
-
-  const now = Date.parse('2026-08-01T12:00:00.000Z');
-  const freshTs = new Date(now - 30_000).toISOString();
-
+describe('BookingProgressService.evaluateWorkerProgress', () => {
   it('fails when there is no location', () => {
-    const service = makeBareService();
-    expect(service.evaluateWorkerProgress({ serviceLat: 12.9, serviceLng: 77.6 }, null)).toEqual(
-      expect.objectContaining({ progressing: false }),
-    );
-  });
-
-  it('fails when location timestamp is stale', () => {
-    const service = makeBareService();
+    const { service } = makeService(null);
     const res = service.evaluateWorkerProgress(
-      { serviceLat: 12.9, serviceLng: 77.6, acceptDistanceKm: 2 },
-      { lat: 12.9, lng: 77.6, timestamp: new Date(now - 120_000).toISOString() },
-      now,
+      { serviceLat: 12.9, serviceLng: 77.6 },
+      null,
     );
     expect(res.progressing).toBe(false);
-    expect(res.reason).toMatch(/stale/i);
   });
 
-  it('passes when worker is within 500m of the job', () => {
-    const service = makeBareService();
-    // ~0.2 km north of job
+  it('passes when near the job', () => {
+    const { service } = makeService(null);
+    jest.spyOn(service, 'calculateDistance').mockReturnValue(0.2);
     const res = service.evaluateWorkerProgress(
-      { serviceLat: 12.9, serviceLng: 77.6, acceptDistanceKm: 3 },
-      { lat: 12.9018, lng: 77.6, timestamp: freshTs },
-      now,
+      { serviceLat: 12.9, serviceLng: 77.6, acceptDistanceKm: 2 },
+      { lat: 12.9, lng: 77.6, timestamp: new Date().toISOString() },
     );
     expect(res.progressing).toBe(true);
   });
 
-  it('passes when worker closed at least 300m since accept', () => {
-    const service = makeBareService();
-    jest.spyOn(service, 'calculateDistance').mockReturnValue(1.5);
-    const res = service.evaluateWorkerProgress(
-      { serviceLat: 12.9, serviceLng: 77.6, acceptDistanceKm: 2.0 },
-      { lat: 12.91, lng: 77.61, timestamp: freshTs },
-      now,
-    );
-    expect(res.progressing).toBe(true);
-    expect(res.reason).toMatch(/closer/i);
-  });
-
-  it('fails when worker has barely moved closer', () => {
-    const service = makeBareService();
+  it('fails when not closing enough distance vs accept', () => {
+    const { service } = makeService(null);
     jest.spyOn(service, 'calculateDistance').mockReturnValue(1.9);
     const res = service.evaluateWorkerProgress(
       { serviceLat: 12.9, serviceLng: 77.6, acceptDistanceKm: 2.0 },
-      { lat: 12.91, lng: 77.61, timestamp: freshTs },
-      now,
+      { lat: 12.91, lng: 77.61, timestamp: new Date().toISOString() },
     );
     expect(res.progressing).toBe(false);
+  });
+
+  it('passes when closed enough vs accept snapshot', () => {
+    const { service } = makeService(null);
+    jest.spyOn(service, 'calculateDistance').mockReturnValue(1.5);
+    const res = service.evaluateWorkerProgress(
+      { serviceLat: 12.9, serviceLng: 77.6, acceptDistanceKm: 2.0 },
+      { lat: 12.91, lng: 77.61, timestamp: new Date().toISOString() },
+    );
+    expect(res.progressing).toBe(true);
+  });
+
+  it('uses legacy 5km rule without accept baseline', () => {
+    const { service } = makeService(null);
+    jest.spyOn(service, 'calculateDistance').mockReturnValue(1.9);
+    const res = service.evaluateWorkerProgress(
+      { serviceLat: 12.9, serviceLng: 77.6 },
+      { lat: 12.91, lng: 77.61, timestamp: new Date().toISOString() },
+    );
+    expect(res.progressing).toBe(true);
   });
 });

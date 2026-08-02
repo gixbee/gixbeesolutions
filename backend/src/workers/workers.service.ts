@@ -7,223 +7,66 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, Repository } from 'typeorm';
 import { WorkerProfile, VerificationStatus } from './worker-profile.entity';
-import {
-  WorkerStrike,
-  WorkerStrikeStatus,
-  WorkerStrikeType,
-} from './worker-strike.entity';
-import { NotificationsService } from '../notifications/notifications.service';
-import { WalletsService } from '../wallets/wallets.service';
+import { WorkerStrikeType } from './worker-strike.entity';
 import { TalentProfile } from '../talent/talent-profile.entity';
 import { ProfessionalSkill } from '../talent/professional-skill.entity';
 import { User, UserApprovalStatus } from '../users/user.entity';
-import { Booking, BookingStatus } from '../bookings/booking.entity';
 import { RedisService } from '../redis/redis.service';
-import { MasterEntriesService } from '../master-entries/master-entries.service';
-import { MasterEntryType } from '../master-entries/master-entry.entity';
-import { ConfigService } from '@nestjs/config';
-import { OutboxService } from '../outbox/outbox.service';
-import { OutboxEventType } from '../outbox/outbox.types';
-import { JobCredit } from '../billing/job-credit.entity';
+import { WorkerAvailabilityService } from './worker-availability.service';
+import { WorkerGoLiveService } from './worker-golive.service';
+import { WorkerStrikeService } from './worker-strike.service';
+import {
+  WorkerDto,
+  MAX_DISPATCH_RADIUS_KM,
+  DEFAULT_SERVICE_RADIUS_KM,
+  MAX_NEARBY_CANDIDATES,
+  MAX_BROADCAST_FANOUT,
+  SUSPENSION_STRIKE_THRESHOLD,
+  WALLET_PAYMENTS_ENABLED,
+  REBROADCAST_RADIUS_STRETCH,
+  WORKERS_LIST_CACHE_KEY,
+} from './worker.shared';
 
-// Worker data matching the Flutter Worker model's expectations exactly
-export interface WorkerDto {
-  id: string;
-  name: string;
-  title: string;
-  bio: string;
-  image_url: string;
-  rating: number;
-  completed_jobs: number;
-  review_count: number;
-  is_featured: boolean;
-  hourly_rate: number;
-  skills: string[];
-  availability_tags: string[];
-  primary_type: string;
-  is_active?: boolean;
-  status: 'available' | 'busy';
-  /** Straight-line distance from the requester in km, rounded to 1 dp.
-   *  Only populated by the geo-aware `getNearby` path; absent on the plain
-   *  `/workers` list (which has no requester location). */
-  distance_km?: number;
-
-  /** Languages the pro speaks (v126 language matching). Absent/empty =
-   *  unknown — treated leniently by the broadcast fan-out. */
-  languages?: string[];
-
-  /** How far this pro is willing to travel, in km. The dispatch fan-out
-   *  only notifies them when distance_km <= this. Absent = legacy profile,
-   *  treated as DEFAULT_SERVICE_RADIUS_KM. */
-  service_radius_km?: number;
-}
-
-/**
- * Hard ceiling on how far any pro can be dispatched (also the GEOSEARCH
- * pre-filter). A pro's own radius is clamped to this.
- *
- * Instant Help is city-scoped via this geo radius — User/WorkerProfile have
- * no cityId yet; City exists only for the app location picker. Do not invent
- * a city schema migration for dispatch.
- */
-export const MAX_DISPATCH_RADIUS_KM = 50;
-
-/** Applied to legacy profiles that never set a radius. */
-export const DEFAULT_SERVICE_RADIUS_KM = 10;
-
-/**
- * Cap on candidates that proceed to snapshot/status resolution after the
- * distance filter. Prevents unbounded Redis/DB work when the geo index is
- * cold and the skill set is huge (~1k live workers).
- */
-export const MAX_NEARBY_CANDIDATES = 40;
-
-/**
- * Hard cap on Instant Help broadcast fan-out (pending queue + FCM/socket).
- * Applied after language filter + nearest/best sort.
- */
-export const MAX_BROADCAST_FANOUT = 15;
-
-/** Counting strikes at which a worker is suspended from going live. */
-export const SUSPENSION_STRIKE_THRESHOLD = 3;
-
-/** Re-export — single source of truth in common/money-model.ts */
-export { WALLET_PAYMENTS_ENABLED } from '../common/money-model';
-
-/**
- * Rebroadcast (attempt 2, nobody accepted in 90s): each pro's own travel
- * radius is stretched by this factor — a job "slightly beyond your usual
- * area" they can still decline. Hard ceiling MAX_DISPATCH_RADIUS_KM applies.
- */
-export const REBROADCAST_RADIUS_STRETCH = 1.3;
+export type { WorkerDto };
+export {
+  MAX_DISPATCH_RADIUS_KM,
+  DEFAULT_SERVICE_RADIUS_KM,
+  MAX_NEARBY_CANDIDATES,
+  MAX_BROADCAST_FANOUT,
+  SUSPENSION_STRIKE_THRESHOLD,
+  WALLET_PAYMENTS_ENABLED,
+  REBROADCAST_RADIUS_STRETCH,
+};
 
 @Injectable()
 export class WorkersService {
   private readonly logger = new Logger(WorkersService.name);
+
   constructor(
     @InjectRepository(WorkerProfile)
     private readonly workersRepository: Repository<WorkerProfile>,
-    @InjectRepository(WorkerStrike)
-    private readonly strikesRepository: Repository<WorkerStrike>,
     @InjectRepository(TalentProfile)
     private readonly talentRepository: Repository<TalentProfile>,
     @InjectRepository(ProfessionalSkill)
     private readonly skillRepository: Repository<ProfessionalSkill>,
-    @InjectRepository(Booking)
-    private readonly bookingsRepository: Repository<Booking>,
     @InjectRepository(User)
     private readonly usersRepository: Repository<User>,
-    private readonly walletsService: WalletsService,
     private readonly redisService: RedisService,
-    private readonly masterEntriesService: MasterEntriesService,
-    private readonly notificationsService: NotificationsService,
-    @InjectRepository(JobCredit)
-    private readonly jobCreditRepository: Repository<JobCredit>,
+    private readonly workerAvailabilityService: WorkerAvailabilityService,
+    private readonly workerGoLiveService: WorkerGoLiveService,
+    private readonly workerStrikeService: WorkerStrikeService,
   ) {}
 
-  private async getWorkerStatus(userId: string): Promise<'available' | 'busy'> {
-    // 1. Try Redis cache first
-    const cachedStatus = await this.redisService.get(`worker:status:${userId}`);
-    if (cachedStatus === 'busy') return 'busy';
-    if (cachedStatus === 'available') return 'available';
-
-    // 2. Fallback to DB query
-    const activeBooking = await this.bookingsRepository.findOne({
-      where: [
-        { operator: { id: userId }, status: BookingStatus.ACTIVE },
-        { operator: { id: userId }, status: BookingStatus.ACCEPTED },
-        { operator: { id: userId }, status: BookingStatus.CONFIRMED },
-      ],
-    });
-
-    const status = activeBooking ? 'busy' : 'available';
-    // 3. Update cache for next time
-    await this.redisService.set(`worker:status:${userId}`, status, 3600); // 1hr TTL
-    return status;
-  }
-
-  /**
-   * Specifically used to force-sync status in Redis when booking events happen
-   */
-  async setWorkerStatus(
-    userId: string,
-    status: 'available' | 'busy',
-  ): Promise<void> {
-    await this.redisService.set(`worker:status:${userId}`, status, 3600);
-  }
-
-  /**
-   * Helper mapper to convert from TypeORM entity to Flutter's DTO interface
-   * This handles the shape mismatch from DB structure to API payload.
-   */
-  private mapToDto(
-    profile: WorkerProfile,
-    status: 'available' | 'busy' = 'available',
-  ): WorkerDto {
-    return {
-      id: profile.user?.id || profile.id, // Using user ID externally if available
-      name: profile.user?.name || 'Unknown Worker',
-      title: profile.title || 'Professional Services',
-      bio: profile.bio || '',
-      image_url: profile.user?.profileImageUrl || 'https://i.pravatar.cc/150',
-      rating: Number(profile.rating),
-      completed_jobs: profile.completedJobs,
-      review_count: profile.reviewCount,
-      is_featured: false, // Could be logic driven
-      hourly_rate: Number(profile.hourlyRate),
-      skills: profile.skills || [],
-      availability_tags: profile.availabilityTags || [],
-      primary_type: 'manual', // Can be dynamically deduced based on skills
-      is_active: profile.isActive,
-      status: status,
-      languages: profile.languages || [],
-      service_radius_km: profile.serviceRadiusKm ?? DEFAULT_SERVICE_RADIUS_KM,
-    };
-  }
-
-  private mapTalentToDto(
-    profile: TalentProfile,
-    status: 'available' | 'busy' = 'available',
-  ): WorkerDto {
-    const primarySkill = profile.professionalSkills?.[0];
-    return {
-      id: profile.user?.id || profile.id,
-      name: profile.user?.name || 'Unknown Professional',
-      title: primarySkill
-        ? `${primarySkill.name} Expert`
-        : 'Professional Services',
-      bio: profile.experience || '',
-      image_url: profile.user?.profileImageUrl || 'https://i.pravatar.cc/150',
-      rating: 5.0, // Default for new pros
-      completed_jobs: 0,
-      review_count: 0,
-      is_featured: false,
-      hourly_rate: primarySkill
-        ? Number(primarySkill.hourlyRate)
-        : profile.hourlyRate || 0,
-      skills: profile.professionalSkills?.map((s) => s.name) || [],
-      availability_tags: [
-        status === 'available' ? 'Available Now' : 'Currently Busy',
-      ],
-      primary_type: 'manual',
-      is_active: true, // Professionals are considered active if they have a profile for now
-      status: status,
-    };
-  }
-
-  /** Redis key for the shared (requester-independent) worker directory. */
-  private static readonly LIST_CACHE_KEY = 'workers:list';
-
-  /** Drop the cached directory — call after any profile/skill/rate write. */
   async invalidateWorkerListCache(): Promise<void> {
-    await this.redisService.del(WorkersService.LIST_CACHE_KEY).catch(() => {});
+    await this.redisService.del(WORKERS_LIST_CACHE_KEY).catch(() => {});
   }
+
 
   async getAll(requesterId?: string): Promise<WorkerDto[]> {
     // AUDIT FIX (uncached feed + N+1): the full directory is built once and
     // cached for 60s. The requester-specific bit (hide yourself) is applied
     // AFTER the cache read, so one cache entry serves every user.
-    const cached = await this.redisService.get(WorkersService.LIST_CACHE_KEY);
+    const cached = await this.redisService.get(WORKERS_LIST_CACHE_KEY);
     if (cached) {
       const all = JSON.parse(cached) as WorkerDto[];
       return requesterId ? all.filter((w) => w.id !== requesterId) : all;
@@ -256,17 +99,17 @@ export class WorkersService {
     // parallel instead of awaiting one at a time.
     const [statuses, talentStatuses] = await Promise.all([
       Promise.all(
-        eligible.map((p) => this.getWorkerStatus(p.user?.id || p.id)),
+        eligible.map((p) => this.workerAvailabilityService.getWorkerStatus(p.user?.id || p.id)),
       ),
       Promise.all(
-        eligibleTalent.map((p) => this.getWorkerStatus(p.user?.id || p.id)),
+        eligibleTalent.map((p) => this.workerAvailabilityService.getWorkerStatus(p.user?.id || p.id)),
       ),
     ]);
 
     const allWorkerDtos: WorkerDto[] = [
-      ...eligible.map((p, i) => this.mapToDto(p, statuses[i])),
+      ...eligible.map((p, i) => this.workerAvailabilityService.mapToDto(p, statuses[i])),
       ...eligibleTalent.map((p, i) =>
-        this.mapTalentToDto(p, talentStatuses[i]),
+        this.workerAvailabilityService.mapTalentToDto(p, talentStatuses[i]),
       ),
     ];
 
@@ -281,7 +124,7 @@ export class WorkersService {
 
     // Cache the shared directory for 60s; writes call invalidateWorkerListCache().
     await this.redisService
-      .set(WorkersService.LIST_CACHE_KEY, JSON.stringify(all), 60)
+      .set(WORKERS_LIST_CACHE_KEY, JSON.stringify(all), 60)
       .catch(() => {});
 
     return requesterId ? all.filter((w) => w.id !== requesterId) : all;
@@ -301,902 +144,135 @@ export class WorkersService {
       if (!userProfile) {
         throw new NotFoundException(`Worker with ID ${id} not found`);
       }
-      const status = await this.getWorkerStatus(
+      const status = await this.workerAvailabilityService.getWorkerStatus(
         userProfile.user?.id || userProfile.id,
       );
-      return this.mapToDto(userProfile, status);
+      return this.workerAvailabilityService.mapToDto(userProfile, status);
     }
 
-    const status = await this.getWorkerStatus(profile.user?.id || profile.id);
-    return this.mapToDto(profile, status);
+    const status = await this.workerAvailabilityService.getWorkerStatus(profile.user?.id || profile.id);
+    return this.workerAvailabilityService.mapToDto(profile, status);
   }
 
-  // ─────────────────────────────────────────────
-  // GO-LIVE TOGGLE (RATE LIMITED TO 2/DAY)
-  // ─────────────────────────────────────────────
+  // ── Availability (delegates) ───────────────────────────────────────────
 
-  // ── IST calendar helpers ──
-  // Daily limits and "today" figures must roll over at INDIAN midnight.
-  // The Docker containers run in UTC, so `new Date().toISOString()` dates
-  // don't flip until 05:30 IST — a worker who used yesterday's go-live cap
-  // stayed blocked PAST midnight (client bug, reported at 12:27 AM: "I went
-  // live 6 times yesterday, but now it still shows the limit").
-  private static readonly IST_OFFSET_MS = 5.5 * 60 * 60 * 1000;
-
-  /** Calendar date (YYYY-MM-DD) in Asia/Kolkata, regardless of server TZ. */
-  private istToday(): string {
-    return new Date().toLocaleDateString('en-CA', {
-      timeZone: 'Asia/Kolkata',
-    });
+  setWorkerStatus(userId: string, status: 'available' | 'busy') {
+    return this.workerAvailabilityService.setWorkerStatus(userId, status);
   }
 
-  /** The UTC instant of today's 00:00 in IST. */
-  private istStartOfDay(): Date {
-    const nowIst = new Date(Date.now() + WorkersService.IST_OFFSET_MS);
-    return new Date(
-      Date.UTC(
-        nowIst.getUTCFullYear(),
-        nowIst.getUTCMonth(),
-        nowIst.getUTCDate(),
-      ) - WorkersService.IST_OFFSET_MS,
+  getNearby(
+    requesterId: string,
+    skill: string,
+    lat: number,
+    lng: number,
+    radiusStretch = 1,
+  ) {
+    return this.workerAvailabilityService.getNearby(
+      requesterId,
+      skill,
+      lat,
+      lng,
+      radiusStretch,
     );
   }
 
-  private async ensureWorkerProfile(userId: string): Promise<WorkerProfile> {
-    let profile = await this.workersRepository.findOne({
-      where: { user: { id: userId } },
-      relations: ['user'],
-    });
-
-    const talent = await this.talentRepository.findOne({
-      where: { user: { id: userId } },
-      relations: ['user', 'professionalSkills'],
-    });
-
-    if (!profile && !talent) {
-      throw new NotFoundException('Worker profile not found');
-    }
-
-    if (talent) {
-      const talentSkills = talent.professionalSkills?.map((s) => s.name) || [];
-      const primaryRate =
-        talent.professionalSkills?.[0]?.hourlyRate ?? talent.hourlyRate ?? 50;
-      const primaryTitle = talent.professionalSkills?.[0]?.name
-        ? `${talent.professionalSkills[0].name} Expert`
-        : 'Professional Services';
-
-      if (!profile) {
-        profile = this.workersRepository.create({
-          user: { id: userId } as any, // fallback if talent.user is undefined
-          skills: talentSkills,
-          activeSkills: talentSkills,
-          hourlyRate: primaryRate,
-          bio: talent.experience || '',
-          title: primaryTitle,
-          isActive: false,
-          isFirstJobDone: false,
-          verificationStatus: 'PENDING' as any,
-        });
-        if (talent.user) profile.user = talent.user;
-      } else {
-        const existingSkills = new Set(profile.skills || []);
-        let changed = false;
-        for (const s of talentSkills) {
-          if (!existingSkills.has(s)) {
-            existingSkills.add(s);
-            changed = true;
-          }
-        }
-        if (changed) {
-          profile.skills = Array.from(existingSkills);
-          const active = new Set(profile.activeSkills || []);
-          for (const s of profile.skills) active.add(s);
-          profile.activeSkills = Array.from(active);
-        }
-      }
-      profile = await this.workersRepository.save(profile);
-      profile = await this.healTradeSkills(profile);
-    }
-
-    // FLAG HEAL (client bug: "Go Live asks me to Register as Pro even though
-    // my data is in Earn Hourly"): talent-path registration creates the
-    // WorkerProfile lazily HERE, but only createProfile() ever flipped
-    // users.hasWorkerProfile — so GET /auth/profile kept reporting false and
-    // the app routed verified pros back to the wizard forever. Heal the flag
-    // whenever the loaded relation shows it stale (idempotent, no extra
-    // UPDATE once healed).
-    const owner = profile!.user;
-    if (owner?.id && owner.hasWorkerProfile !== true) {
-      await this.usersRepository
-        .update(owner.id, { hasWorkerProfile: true })
-        .catch(() => {});
-      owner.hasWorkerProfile = true;
-    }
-
-    return profile!;
+  getNearbyCounts(lat: number, lng: number) {
+    return this.workerAvailabilityService.getNearbyCounts(lat, lng);
   }
 
-  async toggleGoLive(
+  // ── Go-live (delegates) ────────────────────────────────────────────────
+
+  toggleGoLive(
     id: string,
     coords?: { lat?: number; lng?: number; active?: boolean },
-  ): Promise<{ isActive: boolean; message: string }> {
-    // We assume the ID passed is the internal profile ID or the user ID
-    // Check if it's an internal profile ID first, if so get user ID
-    let userId = id;
-    const directProfile = await this.workersRepository.findOne({
-      where: { id },
-      relations: ['user'],
-    });
-    if (directProfile && directProfile.user) {
-      userId = directProfile.user.id;
-    }
-
-    const profile = await this.ensureWorkerProfile(userId);
-
-    // IST calendar date — NOT toISOString() (UTC), which doesn't roll over
-    // until 05:30 IST and kept workers locked out past Indian midnight.
-    const todayDateStr = this.istToday();
-
-    // Reset rate limits if it's a new day
-    if (profile.goLiveToggleDate !== todayDateStr) {
-      profile.goLiveToggleDate = todayDateStr;
-      profile.goLiveToggleCountToday = 0;
-    }
-
-    // Desired-state (`active`) is preferred — a lost response + retry must
-    // not flip the pro offline. Omit `active` to keep legacy flip behaviour.
-    const targetActive =
-      typeof coords?.active === 'boolean' ? coords.active : !profile.isActive;
-
-    // Already in the desired state — no-op success (idempotent).
-    if (profile.isActive === targetActive) {
-      return {
-        isActive: profile.isActive,
-        message: profile.isActive
-          ? 'You are now LIVE on the map and accepting jobs.'
-          : 'You are now OFFLINE. Customers cannot dispatch you instantly.',
-      };
-    }
-
-    // Direction of travel. Gates below only restrict GOING LIVE — going
-    // offline is always allowed and always free.
-    const goingLive = targetActive;
-
-    if (goingLive) {
-      if (profile.verificationStatus !== VerificationStatus.VERIFIED) {
-        throw new BadRequestException(
-          'Your profile is not verified yet. Please complete the verification process to go live.',
-        );
-      }
-
-      // ── Strike suspension gate ──
-      // 3+ counting strikes (ACTIVE / APPEALED / UPHELD) = suspended from
-      // going live until an appeal is overturned or an admin clears it.
-      // Enforced HERE (not just isActive=false) because a worker could
-      // otherwise simply toggle back on after a forfeit deactivated them.
-      if ((profile.strikeCount || 0) >= SUSPENSION_STRIKE_THRESHOLD) {
-        throw new BadRequestException(
-          'Your account is suspended after repeated job violations. ' +
-            'Open Profile → Strikes to see the reasons and file an appeal — ' +
-            'our team reviews every appeal.',
-        );
-      }
-
-      // Check Job Credits balance
-      const creditRow = await this.jobCreditRepository.findOne({
-        where: { user: { id: userId } },
-      });
-      const credits = creditRow ? creditRow.balance : 0;
-      if (credits <= 0) {
-        throw new BadRequestException(
-          'You need job credits to go live and accept new bookings. Please buy a job pack to continue.',
-        );
-      }
-
-      // Daily go-live cap — admin-tunable (Master Entries →
-      // go_live_daily_limit; 0 or blank = unlimited).
-      //
-      // PRODUCT DECISION (periodic fee model, Jul 2026): with the wallet
-      // system off and workers paying per COMPLETED job (not per go-live
-      // session), there is no longer any cost to going live. The cap was
-      // designed to prevent free-riding when each session consumed wallet
-      // balance; it is now irrelevant. Default changed to 0 (unlimited).
-      // An admin can still set a positive value in Master Entries if abuse
-      // becomes a problem later.
-      const dailyLimit = await this.masterEntriesService.getConfigNumber(
-        'go_live_daily_limit',
-        0, // 0 = unlimited (was 6 under the old wallet model)
-      );
-      if (dailyLimit > 0 && profile.goLiveToggleCountToday >= dailyLimit) {
-        throw new BadRequestException(
-          `You have gone live ${dailyLimit} times today, which is the daily limit. Try again tomorrow.`,
-        );
-      }
-
-      // ── Location gate ──
-      // A live worker with NO coordinates never enters the Redis geo index —
-      // they'd burn a go-live session appearing online while receiving zero
-      // jobs. The app enforces this client-side (GPS-required sheet); this
-      // closes the loop for modified/legacy clients: going live requires
-      // coords in THIS request, or a previously persisted location we can
-      // warm the index with (the 30s heartbeat then keeps it fresh).
-      const reqLat = coords?.lat;
-      const reqLng = coords?.lng;
-      const hasRequestCoords =
-        typeof reqLat === 'number' &&
-        typeof reqLng === 'number' &&
-        Number.isFinite(reqLat) &&
-        Number.isFinite(reqLng);
-      const hasStoredCoords =
-        profile.lastLat != null && profile.lastLng != null;
-      if (!hasRequestCoords && !hasStoredCoords) {
-        throw new BadRequestException(
-          'Location is required to go live — customers are matched to pros ' +
-            'by live GPS. Enable location and try again.',
-        );
-      }
-    }
-
-    // Apply desired / flipped state
-    profile.isActive = targetActive;
-    if (goingLive) profile.goLiveToggleCountToday += 1;
-
-    // Persist GPS from the client when going live so Instant Help can match
-    // this worker even when lastLat/lastLng were never written before.
-    const lat = coords?.lat;
-    const lng = coords?.lng;
-    if (
-      goingLive &&
-      typeof lat === 'number' &&
-      typeof lng === 'number' &&
-      Number.isFinite(lat) &&
-      Number.isFinite(lng)
-    ) {
-      profile.lastLat = lat;
-      profile.lastLng = lng;
-    }
-
-    await this.workersRepository.save(profile);
-    await this.invalidateWorkerListCache(); // directory shows is_active
-
-    // SYNC WITH REDIS STATUS
-    if (!profile.isActive) {
-      // Remove from geo index and clear status if going offline
-      await this.redisService.del(`worker:location:${userId}`);
-      await this.redisService.del(`worker:status:${userId}`);
-      await this.redisService.del(`worker:snapshot:${userId}`);
-      await this.redisService.unindexWorkerSkills(userId, profile.skills || []);
-      // Remove ONLY this worker from the GEO set (ZREM) — a DEL here would
-      // wipe every live worker off the map.
-      await this.redisService.removeWorkerFromGeoIndex(userId);
-    } else {
-      // Mark as available if going online
-      await this.setWorkerStatus(userId, 'available');
-
-      // PERSISTENCE SYNC: warm Redis with coords from this request or DB
-      if (profile.lastLat && profile.lastLng) {
-        await this.redisService.updateWorkerLocation(
-          userId,
-          Number(profile.lastLat),
-          Number(profile.lastLng),
-        );
-      }
-
-      // CACHE SNAPSHOT: Push full DTO to Redis for search
-      const dto = this.mapToDto(profile, 'available');
-      await this.redisService.cacheWorkerSnapshot(userId, dto);
-      // Only index skills the worker has switched ON (empty/null = all).
-      await this.redisService.indexWorkerSkills(
-        userId,
-        this.dispatchableSkills(profile),
-      );
-    }
-
-    return {
-      isActive: profile.isActive,
-      message: profile.isActive
-        ? 'You are now LIVE on the map and accepting jobs.'
-        : 'You are now OFFLINE. Customers cannot dispatch you instantly.',
-    };
+  ) {
+    return this.workerGoLiveService.toggleGoLive(id, coords);
   }
 
-  // ── Periodic fee model ("N jobs, then pay") ─────────────────────────
-
-  /** Jobs included per paid period (Master Entries → go_live_jobs_per_payment).
-   *  0 = model OFF → the legacy per-booking ₹12 wallet drip applies. */
-  async periodicJobsPerPayment(): Promise<number> {
-    return this.masterEntriesService.getConfigNumber(
-      'go_live_jobs_per_payment',
-      0,
-    );
+  periodicJobsPerPayment() {
+    return this.workerGoLiveService.periodicJobsPerPayment();
   }
 
-  /** Count a COMPLETED job against the worker's current period. Atomic SQL
-   *  increment; NO-OP while the model is off, so enabling it later starts
-   *  every worker at 0 (first period free). */
-  async recordCompletedJobForPeriod(userId: string): Promise<void> {
-    const jobsIncluded = await this.periodicJobsPerPayment();
-    if (jobsIncluded <= 0) return;
-    const res = await this.workersRepository
-      .createQueryBuilder()
-      .update(WorkerProfile)
-      .set({ jobsSincePayment: () => '"jobsSincePayment" + 1' })
-      .where('"userId" = :uid', { uid: userId })
-      .execute();
-    this.logger.log(
-      `[PeriodFee] +1 completed job for ${userId} (rows: ${res.affected ?? 0}, plan: ${jobsIncluded}/period)`,
-    );
-
-    // If they hit the limit, force them offline immediately so they can't receive more jobs.
-    const profile = await this.workersRepository.findOne({
-      where: { user: { id: userId } },
-    });
-    if (
-      profile &&
-      profile.isActive &&
-      profile.jobsSincePayment >= jobsIncluded
-    ) {
-      await this.forceOffline(userId);
-      this.logger.log(
-        `[PeriodFee] Worker ${userId} hit limit (${profile.jobsSincePayment}/${jobsIncluded}), forced offline.`,
-      );
-    }
+  recordCompletedJobForPeriod(userId: string) {
+    return this.workerGoLiveService.recordCompletedJobForPeriod(userId);
   }
 
-  async forceOffline(userId: string): Promise<void> {
-    const profile = await this.workersRepository.findOne({
-      where: { user: { id: userId } },
-    });
-    if (profile && profile.isActive) {
-      profile.isActive = false;
-      await this.workersRepository.save(profile);
-
-      await this.redisService.del(`worker:location:${userId}`);
-      await this.redisService.del(`worker:status:${userId}`);
-      await this.redisService.del(`worker:snapshot:${userId}`);
-      await this.redisService.unindexWorkerSkills(userId, profile.skills || []);
-      await this.redisService.removeWorkerFromGeoIndex(userId);
-
-      await this.invalidateWorkerListCache();
-
-      this.logger.log(`Worker ${userId} forced offline.`);
-    }
+  forceOffline(userId: string) {
+    return this.workerGoLiveService.forceOffline(userId);
   }
 
-  /** Fulfilment for a Razorpay PERIOD_FEE payment — called by the payments
-   *  webhook after signature verification. Direct payment, NO wallet
-   *  involvement: unlock the next batch and tell the pro. */
-  async markPeriodFeePaid(userId: string): Promise<void> {
-    await this.workersRepository
-      .createQueryBuilder()
-      .update(WorkerProfile)
-      .set({ jobsSincePayment: 0 })
-      .where('"userId" = :uid', { uid: userId })
-      .execute();
-    const jobsIncluded = await this.periodicJobsPerPayment();
-    this.notificationsService
-      .sendToUser(userId, {
-        title: 'Payment received',
-        body: `Your next ${jobsIncluded} jobs are unlocked — go live when ready!`,
-        data: { type: 'period_fee_paid' },
-      })
-      .catch(() => {});
+  markPeriodFeePaid(userId: string) {
+    return this.workerGoLiveService.markPeriodFeePaid(userId);
   }
 
-  /** Worker pays to unlock the next period of included jobs. Charged from
-   *  the wallet today (WalletsService.charge — row-locked); when Razorpay
-   *  lands, its capture webhook can drive this same reset after a direct
-   *  payment. Nothing due → no charge (safe to re-call). */
-  async payPeriodFee(userId: string): Promise<{
-    message: string;
-    jobsIncluded: number;
-    jobsUsed: number;
-    paymentDue: boolean;
-  }> {
-    const jobsIncluded = await this.periodicJobsPerPayment();
-    if (jobsIncluded <= 0) {
-      throw new BadRequestException(
-        'The per-jobs payment plan is not enabled.',
-      );
-    }
-    const profile = await this.ensureWorkerProfile(userId);
-    const jobsUsed = profile.jobsSincePayment ?? 0;
-    if (jobsUsed < jobsIncluded) {
-      return {
-        message: `No payment due yet — ${jobsIncluded - jobsUsed} of your ${jobsIncluded} included jobs remain.`,
-        jobsIncluded,
-        jobsUsed,
-        paymentDue: false,
-      };
-    }
-    const fee = await this.masterEntriesService.getConfigNumber(
-      'go_live_period_fee',
-      49,
-    );
-    if (fee > 0) {
-      await this.walletsService.charge(
-        userId,
-        fee,
-        `Gixbee platform fee — next ${jobsIncluded} jobs`,
-      );
-    }
-    profile.jobsSincePayment = 0;
-    await this.workersRepository.save(profile);
-    return {
-      message: `Payment received — your next ${jobsIncluded} jobs are unlocked. Go live!`,
-      jobsIncluded,
-      jobsUsed: 0,
-      paymentDue: false,
-    };
+  payPeriodFee(userId: string) {
+    return this.workerGoLiveService.payPeriodFee(userId);
   }
 
-  /** Update the worker's last-known GPS (DB + Redis). Required for Instant
-   *  Help matching while live — without Redis location, getNearby skips them. */
-  async updateMyLocation(
+  updateMyLocation(
     userId: string,
     lat: number,
     lng: number,
-  ): Promise<{ ok: true }> {
-    if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
-      throw new BadRequestException('lat and lng are required');
-    }
-    const profile = await this.ensureWorkerProfile(userId);
-    profile.lastLat = lat;
-    profile.lastLng = lng;
-    await this.workersRepository.save(profile);
-    if (profile.isActive) {
-      await this.redisService.updateWorkerLocation(userId, lat, lng);
-    }
-    return { ok: true };
+  ) {
+    return this.workerGoLiveService.updateMyLocation(userId, lat, lng);
   }
 
-  /** Skills that should receive instant dispatch: activeSkills if the worker
-   *  curated a subset, otherwise every registered skill (back-compat). */
-  private dispatchableSkills(profile: WorkerProfile): string[] {
-    const active = (profile.activeSkills || []).filter((s) =>
-      (profile.skills || []).includes(s),
-    );
-    return active.length > 0 ? active : profile.skills || [];
+  setActiveSkills(userId: string, skills: string[]) {
+    return this.workerGoLiveService.setActiveSkills(userId, skills);
   }
 
-  /**
-   * Go Live toggles + Instant Help matching are trade-level only
-   * ("Electrician"), not every sub-skill ("Fan installation"). Collapse a
-   * polluted skills list back to PRO_TRADE labels, recovering parent trades
-   * from sub-skills when needed.
-   */
-  private async normalizeTradeSkills(skills: string[]): Promise<string[]> {
-    const unique = [
-      ...new Set((skills || []).map((s) => s.trim()).filter(Boolean)),
-    ];
-    if (unique.length === 0) return [];
-
-    let trades: Array<{ label: string; value?: string | null }> = [];
-    try {
-      trades = await this.masterEntriesService.findAll(
-        MasterEntryType.PRO_TRADE,
-        true,
-      );
-    } catch {
-      return unique;
-    }
-    if (!trades.length) return unique;
-
-    const tradeLabels = new Set(trades.map((t) => t.label));
-    const tradeOnly = unique.filter((s) => tradeLabels.has(s));
-    if (tradeOnly.length > 0) return tradeOnly;
-
-    const recovered = new Set<string>();
-    for (const trade of trades) {
-      const subs = (trade.value || '')
-        .split(',')
-        .map((s) => s.trim())
-        .filter(Boolean);
-      if (unique.some((s) => subs.includes(s))) {
-        recovered.add(trade.label);
-      }
-    }
-
-    try {
-      const subEntries = await this.masterEntriesService.findAll(
-        MasterEntryType.PRO_SUB_SKILL,
-        true,
-      );
-      for (const sub of subEntries) {
-        if (!unique.includes(sub.label)) continue;
-        if (sub.category && tradeLabels.has(sub.category)) {
-          recovered.add(sub.category);
-        }
-      }
-    } catch {
-      // ignore — trade.value CSV recovery above is enough
-    }
-
-    return recovered.size > 0 ? [...recovered] : unique;
+  getDashboard(userId: string) {
+    return this.workerGoLiveService.getDashboard(userId);
   }
 
-  /** Persist trade-only skills when a profile still has sub-skill noise. */
-  private async healTradeSkills(
-    profile: WorkerProfile,
-  ): Promise<WorkerProfile> {
-    const normalized = await this.normalizeTradeSkills(profile.skills || []);
-    const before = [...(profile.skills || [])].sort().join('|');
-    const after = [...normalized].sort().join('|');
-    if (before === after) return profile;
-
-    profile.skills = normalized;
-    const active = (profile.activeSkills || []).filter((s) =>
-      normalized.includes(s),
-    );
-    // Empty activeSkills means "all trades on" — keep that semantics when
-    // every former active entry was a sub-skill we dropped.
-    profile.activeSkills =
-      active.length > 0
-        ? active
-        : (profile.activeSkills || []).length === 0
-          ? []
-          : [...normalized];
-    return this.workersRepository.save(profile);
-  }
-
-  /** Per-service activation: persist which skills accept instant jobs.
-   *  If the worker is currently live, the Redis skill index is re-synced so
-   *  dispatch immediately respects the new selection. */
-  async setActiveSkills(
-    userId: string,
-    skills: string[],
-  ): Promise<{ skills: string[]; activeSkills: string[] }> {
-    const profile = await this.ensureWorkerProfile(userId);
-
-    const allowed = profile.skills || [];
-    const cleaned = [...new Set(skills)].filter((s) => allowed.includes(s));
-    if (skills.length > 0 && cleaned.length === 0) {
-      throw new BadRequestException(
-        'None of those services are on your profile',
-      );
-    }
-    profile.activeSkills = cleaned;
-    await this.workersRepository.save(profile);
-
-    if (profile.isActive) {
-      // Re-sync the dispatch index: drop everything, re-add the active set.
-      await this.redisService.unindexWorkerSkills(userId, allowed);
-      await this.redisService.indexWorkerSkills(
-        userId,
-        this.dispatchableSkills(profile),
-      );
-    }
-    return { skills: allowed, activeSkills: profile.activeSkills || [] };
-  }
-
-  /** Go-Live dashboard: skills + activation state + earnings summary. */
-  async getDashboard(userId: string): Promise<{
-    skills: string[];
-    activeSkills: string[];
-    isActive: boolean;
-    verificationStatus: string;
-    rating: number;
-    serviceRadiusKm: number;
-    jobCredits: number;
-    feeModel: {
-      enabled: boolean;
-      jobsIncluded: number;
-      jobsUsed: number;
-      fee: number;
-      paymentDue: boolean;
-    };
-    earnings: {
-      total: number;
-      today: number;
-      thisWeek: number;
-      jobsCompleted: number;
-      recent: Array<{
-        id: string;
-        skill: string;
-        amount: number;
-        customerName: string;
-        completedAt: string | null;
-      }>;
-    };
-  }> {
-    const profile = await this.ensureWorkerProfile(userId);
-    const healed = await this.healTradeSkills(profile);
-
-    // Job credits balance
-    const creditRecord = await this.jobCreditRepository.findOne({
-      where: { user: { id: userId } },
-    });
-    const jobCredits = creditRecord?.balance ?? 0;
-
-    // Periodic fee plan state for the Go Live screen's plan card.
-    const feeJobsIncluded = await this.periodicJobsPerPayment();
-    const feeAmount =
-      feeJobsIncluded > 0
-        ? await this.masterEntriesService.getConfigNumber(
-            'go_live_period_fee',
-            49,
-          )
-        : 0;
-    const feeJobsUsed = healed.jobsSincePayment ?? 0;
-
-    const completed = await this.bookingsRepository.find({
-      where: { operator: { id: userId }, status: BookingStatus.COMPLETED },
-      relations: ['customer'],
-      order: { updatedAt: 'DESC' },
-      take: 200,
-    });
-
-    const startOfDay = this.istStartOfDay(); // IST midnight, not server-local
-    const startOfWeek = new Date(startOfDay);
-    startOfWeek.setDate(startOfWeek.getDate() - 6); // rolling 7 days
-
-    const amountOf = (b: Booking): number =>
-      Number(b.totalAmount ?? b.amount ?? 0) || 0;
-    const doneAt = (b: Booking): Date => b.updatedAt;
-
-    let total = 0;
-    let today = 0;
-    let thisWeek = 0;
-    for (const b of completed) {
-      const amt = amountOf(b);
-      total += amt;
-      if (doneAt(b) >= startOfDay) today += amt;
-      if (doneAt(b) >= startOfWeek) thisWeek += amt;
-    }
-
-    return {
-      skills: healed.skills || [],
-      activeSkills: healed.activeSkills || [],
-      isActive: healed.isActive,
-      verificationStatus: healed.verificationStatus,
-      rating: healed.rating || 0,
-      serviceRadiusKm: healed.serviceRadiusKm ?? DEFAULT_SERVICE_RADIUS_KM,
-      jobCredits,
-      feeModel: {
-        enabled: feeJobsIncluded > 0,
-        jobsIncluded: feeJobsIncluded,
-        jobsUsed: feeJobsUsed,
-        fee: feeAmount,
-        paymentDue: feeJobsIncluded > 0 && feeJobsUsed >= feeJobsIncluded,
-      },
-      earnings: {
-        total: Math.round(total * 100) / 100,
-        today: Math.round(today * 100) / 100,
-        thisWeek: Math.round(thisWeek * 100) / 100,
-        jobsCompleted: completed.length,
-        recent: completed.slice(0, 10).map((b) => ({
-          id: b.id,
-          skill: b.skill || 'Service',
-          amount: amountOf(b),
-          customerName: b.customer?.name || 'Customer',
-          completedAt: b.updatedAt ? b.updatedAt.toISOString() : null,
-        })),
-      },
-    };
-  }
-
-  /**
-   * Rebuild the cached dispatch snapshot for a pro (rating, reviewCount,
-   * radius…). Called after rating writes — snapshots live 24h, so without
-   * this, broadcast target scoring sorts on a day-old rating.
-   */
   async refreshWorkerSnapshot(userId: string): Promise<void> {
     const profile = await this.workersRepository.findOne({
       where: { user: { id: userId } },
       relations: ['user'],
     });
     if (!profile) return;
-    const status = await this.getWorkerStatus(userId);
+    const status = await this.workerAvailabilityService.getWorkerStatus(userId);
     await this.redisService.cacheWorkerSnapshot(
       userId,
-      this.mapToDto(profile, status),
+      this.workerAvailabilityService.mapToDto(profile, status),
     );
     await this.invalidateWorkerListCache();
   }
 
-  // ── Strike ledger (fair penalties: reason + notice + appeal) ────────────
-  // Replaces the old silent addStrike (count++ → deactivate at 3, no record,
-  // no reason, no appeal, no Redis cleanup). Every strike is now a row the
-  // worker can read and appeal; suspension blocks Go Live (see toggleGoLive)
-  // instead of relying on a flippable isActive flag.
 
-  /** @deprecated kept for old callers — use recordStrike with a real reason. */
-  async addStrike(userId: string): Promise<void> {
-    await this.recordStrike(userId, {
-      type: WorkerStrikeType.ADMIN,
-      reason: 'Policy violation recorded by the system.',
-    });
+  // ── Strikes (delegates) ────────────────────────────────────────────────
+
+  addStrike(userId: string) {
+    return this.workerStrikeService.addStrike(userId);
   }
 
-  /**
-   * Record a strike against a worker WITH a written reason, notify them, and
-   * suspend (block Go Live + pull from dispatch) at the threshold.
-   */
-  async recordStrike(
+  recordStrike(
     userId: string,
     opts: { type: WorkerStrikeType; reason: string; bookingId?: string },
-  ): Promise<{ strikeCount: number; suspended: boolean }> {
-    const profile = await this.workersRepository.findOne({
-      where: { user: { id: userId } },
-      relations: ['user'],
-    });
-    if (!profile) return { strikeCount: 0, suspended: false };
-
-    await this.strikesRepository.save(
-      this.strikesRepository.create({
-        workerUserId: userId,
-        bookingId: opts.bookingId ?? null,
-        type: opts.type,
-        reason: opts.reason,
-        status: WorkerStrikeStatus.ACTIVE,
-      }),
-    );
-
-    profile.strikeCount = (profile.strikeCount || 0) + 1;
-    const suspended = profile.strikeCount >= SUSPENSION_STRIKE_THRESHOLD;
-    if (suspended) profile.isActive = false;
-    await this.workersRepository.save(profile);
-
-    if (suspended) {
-      // Fully remove from dispatch — the old code left suspended workers in
-      // the Redis geo/skill index, so they kept receiving job pings.
-      await this.redisService.del(`worker:location:${userId}`).catch(() => {});
-      await this.redisService.del(`worker:status:${userId}`).catch(() => {});
-      await this.redisService.del(`worker:snapshot:${userId}`).catch(() => {});
-      await this.redisService
-        .unindexWorkerSkills(userId, profile.skills || [])
-        .catch(() => {});
-      await this.redisService.removeWorkerFromGeoIndex(userId).catch(() => {});
-      await this.invalidateWorkerListCache();
-    }
-
-    // Written notice — the worker must always know WHY and what to do next.
-    await this.notificationsService
-      .sendToUser(userId, {
-        title: suspended
-          ? 'Account suspended — you can appeal'
-          : `Strike ${profile.strikeCount} of ${SUSPENSION_STRIKE_THRESHOLD}`,
-        body: suspended
-          ? `${opts.reason} You now have ${profile.strikeCount} strikes and cannot go live. Open Profile → Strikes to appeal — our team reviews every appeal.`
-          : `${opts.reason} At ${SUSPENSION_STRIKE_THRESHOLD} strikes you will be suspended. You can view or appeal this in Profile → Strikes.`,
-        data: {
-          type: 'worker_strike',
-          strikeCount: String(profile.strikeCount),
-          suspended: String(suspended),
-        },
-      })
-      .catch((e) =>
-        console.error('[RecordStrike] notification failed:', e?.message ?? e),
-      );
-
-    return { strikeCount: profile.strikeCount, suspended };
+  ) {
+    return this.workerStrikeService.recordStrike(userId, opts);
   }
 
-  /** The worker's own strike history — Profile → Strikes screen. */
-  async getMyStrikes(userId: string): Promise<{
-    strikeCount: number;
-    suspended: boolean;
-    threshold: number;
-    strikes: WorkerStrike[];
-  }> {
-    const profile = await this.workersRepository.findOne({
-      where: { user: { id: userId } },
-    });
-    const strikes = await this.strikesRepository.find({
-      where: { workerUserId: userId },
-      order: { createdAt: 'DESC' },
-      take: 50,
-    });
-    const count = profile?.strikeCount || 0;
-    return {
-      strikeCount: count,
-      suspended: count >= SUSPENSION_STRIKE_THRESHOLD,
-      threshold: SUSPENSION_STRIKE_THRESHOLD,
-      strikes,
-    };
+  getMyStrikes(userId: string) {
+    return this.workerStrikeService.getMyStrikes(userId);
   }
 
-  /** Worker files an appeal on one of their own ACTIVE strikes. */
-  async appealStrike(
-    userId: string,
-    strikeId: string,
-    message: string,
-  ): Promise<{ message: string }> {
-    const strike = await this.strikesRepository.findOne({
-      where: { id: strikeId, workerUserId: userId },
-    });
-    if (!strike) throw new NotFoundException('Strike not found');
-    if (strike.status === WorkerStrikeStatus.OVERTURNED) {
-      throw new BadRequestException('This strike was already overturned.');
-    }
-    if (strike.status !== WorkerStrikeStatus.ACTIVE) {
-      throw new BadRequestException(
-        'This strike was already appealed and reviewed.',
-      );
-    }
-    strike.status = WorkerStrikeStatus.APPEALED;
-    strike.appealMessage = message;
-    strike.appealedAt = new Date();
-    await this.strikesRepository.save(strike);
-    return {
-      message:
-        'Appeal submitted. Our team will review it and you will be notified of the outcome.',
-    };
+  appealStrike(userId: string, strikeId: string, message: string) {
+    return this.workerStrikeService.appealStrike(userId, strikeId, message);
   }
 
-  /** Admin: strike queue (default = appeals awaiting review). */
-  async adminListStrikes(status?: string): Promise<WorkerStrike[]> {
-    const where: any = {};
-    if (status) where.status = status as WorkerStrikeStatus;
-    return this.strikesRepository.find({
-      where,
-      order: { appealedAt: 'DESC', createdAt: 'DESC' },
-      take: 200,
-    });
+  adminListStrikes(status?: string) {
+    return this.workerStrikeService.adminListStrikes(status);
   }
 
-  /**
-   * Admin resolves an appealed strike. Overturning decrements the profile
-   * count — dropping below the threshold lifts the Go Live suspension
-   * immediately (the worker still has to toggle Go Live themselves).
-   */
-  async adminResolveStrike(
+  adminResolveStrike(
     strikeId: string,
     overturn: boolean,
     note?: string,
-  ): Promise<WorkerStrike> {
-    const strike = await this.strikesRepository.findOne({
-      where: { id: strikeId },
-    });
-    if (!strike) throw new NotFoundException('Strike not found');
-    if (
-      strike.status === WorkerStrikeStatus.OVERTURNED ||
-      strike.status === WorkerStrikeStatus.UPHELD
-    ) {
-      throw new BadRequestException('This strike is already resolved.');
-    }
-
-    strike.status = overturn
-      ? WorkerStrikeStatus.OVERTURNED
-      : WorkerStrikeStatus.UPHELD;
-    strike.resolutionNote = note ?? null;
-    strike.resolvedAt = new Date();
-    await this.strikesRepository.save(strike);
-
-    if (overturn) {
-      const profile = await this.workersRepository.findOne({
-        where: { user: { id: strike.workerUserId } },
-      });
-      if (profile) {
-        profile.strikeCount = Math.max(0, (profile.strikeCount || 0) - 1);
-        await this.workersRepository.save(profile);
-      }
-    }
-
-    await this.notificationsService
-      .sendToUser(strike.workerUserId, {
-        title: overturn
-          ? 'Appeal accepted — strike removed'
-          : 'Appeal reviewed',
-        body: overturn
-          ? `Your appeal was accepted and the strike no longer counts.${note ? ' Note: ' + note : ''} If you were suspended, you can go live again.`
-          : `Your appeal was reviewed and the strike stands.${note ? ' Note: ' + note : ''}`,
-        data: {
-          type: 'strike_resolved',
-          strikeId,
-          overturned: String(overturn),
-        },
-      })
-      .catch(() => {});
-
-    return strike;
+  ) {
+    return this.workerStrikeService.adminResolveStrike(strikeId, overturn, note);
   }
 
-  // DEFECT-006: Create (or update) the worker profile. IDEMPOTENT on purpose:
-  // the Earn Hourly wizard re-submits on every pass, and the old behaviour
-  // (400 'already exists', swallowed by the client) meant a re-run changed
-  // nothing AND the user flag below was never set — which is why users were
-  // asked to register + verify again on every login.
   async createProfile(
     userId: string,
     data: {
@@ -1210,7 +286,7 @@ export class WorkersService {
       where: { user: { id: userId } },
     });
 
-    const tradeSkills = await this.normalizeTradeSkills(data.skills || []);
+    const tradeSkills = await this.workerGoLiveService.normalizeTradeSkills(data.skills || []);
 
     let saved: WorkerProfile;
     if (existing) {
@@ -1243,7 +319,7 @@ export class WorkersService {
     // Go Live instead of the onboarding wizard. Also heals accounts that
     // registered before this fix (their re-submit lands in the upsert branch).
     await this.usersRepository.update(userId, { hasWorkerProfile: true });
-    await this.invalidateWorkerListCache();
+    await this.redisService.del(WORKERS_LIST_CACHE_KEY).catch(() => {});
 
     return saved;
   }
@@ -1338,7 +414,7 @@ export class WorkersService {
         hasWorkerProfile: true,
       } as any);
     }
-    await this.invalidateWorkerListCache();
+    await this.redisService.del(WORKERS_LIST_CACHE_KEY).catch(() => {});
     return { userId, verificationStatus: status };
   }
 
@@ -1356,12 +432,12 @@ export class WorkersService {
     if (!profile) throw new NotFoundException('Worker profile not found');
     profile.languages = languages;
     await this.workersRepository.save(profile);
-    await this.invalidateWorkerListCache();
+    await this.redisService.del(WORKERS_LIST_CACHE_KEY).catch(() => {});
     try {
-      const status = await this.getWorkerStatus(userId);
+      const status = await this.workerAvailabilityService.getWorkerStatus(userId);
       await this.redisService.cacheWorkerSnapshot(
         userId,
-        this.mapToDto(profile, status),
+        this.workerAvailabilityService.mapToDto(profile, status),
       );
     } catch (e) {
       console.error('[SetLanguages] snapshot refresh failed:', e);
@@ -1388,12 +464,12 @@ export class WorkersService {
     );
     profile.serviceRadiusKm = clamped;
     await this.workersRepository.save(profile);
-    await this.invalidateWorkerListCache();
+    await this.redisService.del(WORKERS_LIST_CACHE_KEY).catch(() => {});
     try {
-      const status = await this.getWorkerStatus(userId);
+      const status = await this.workerAvailabilityService.getWorkerStatus(userId);
       await this.redisService.cacheWorkerSnapshot(
         userId,
-        this.mapToDto(profile, status),
+        this.workerAvailabilityService.mapToDto(profile, status),
       );
     } catch (e) {
       console.error('[SetServiceRadius] snapshot refresh failed:', e);
@@ -1411,7 +487,7 @@ export class WorkersService {
     });
     if (!profile) throw new NotFoundException('Worker profile not found');
 
-    const todayStr = this.istToday(); // IST — same midnight-rollover fix as go-live
+    const todayStr = this.workerGoLiveService.istToday(); // IST — same midnight-rollover fix as go-live
     if (profile.rateUpdateDate !== todayStr) {
       profile.rateUpdateDate = todayStr;
       profile.rateUpdateCountToday = 0;
@@ -1424,235 +500,8 @@ export class WorkersService {
     profile.hourlyRate = newRate;
     profile.rateUpdateCountToday += 1;
     await this.workersRepository.save(profile);
-    await this.invalidateWorkerListCache();
+    await this.redisService.del(WORKERS_LIST_CACHE_KEY).catch(() => {});
     return { hourlyRate: newRate };
-  }
-
-  /**
-   * Approximate live-pro counts per trade around a point — powers the
-   * customer's service-selection screen ("~8 live nearby").
-   *
-   * Design notes:
-   * - ONE GEOSEARCH for the whole area, then in-memory intersection with the
-   *   per-trade Redis skill index — no per-worker snapshot/DB work at all.
-   * - Cached 45s keyed by coords rounded to ~1 km, shared across users, so
-   *   the most-viewed screen in the app costs one Redis GET per view.
-   * - Counts run BEFORE language filtering and before each pro's own travel
-   *   radius is enforced, so they are UPPER-BOUND approximations by design —
-   *   clients must render them as "~N", never exact.
-   */
-  async getNearbyCounts(
-    lat: number,
-    lng: number,
-  ): Promise<Record<string, number>> {
-    if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
-      throw new BadRequestException('lat and lng are required');
-    }
-    const cacheKey = `nearby:counts:${lat.toFixed(2)}:${lng.toFixed(2)}`;
-    const cached = await this.redisService.get(cacheKey).catch(() => null);
-    if (cached) {
-      try {
-        return JSON.parse(cached) as Record<string, number>;
-      } catch {
-        // corrupt cache entry — fall through and rebuild
-      }
-    }
-
-    // Trades from the same admin master the app grid renders (PRO_TRADE).
-    let trades: Array<{ label: string }> = [];
-    try {
-      trades = await this.masterEntriesService.findAll(
-        MasterEntryType.PRO_TRADE,
-        true,
-      );
-    } catch {
-      trades = [];
-    }
-    const labels = trades.map((t) => t.label).filter(Boolean);
-    if (labels.length === 0) return {};
-
-    // Single GEOSEARCH; null = geo index unavailable (e.g. cold after a
-    // Redis restart) — counts then fall back to "live with this skill
-    // anywhere", still an upper bound.
-    const nearbyIds = await this.redisService.searchNearbyWorkerIds(
-      lat,
-      lng,
-      MAX_DISPATCH_RADIUS_KM,
-    );
-    const nearSet = nearbyIds === null ? null : new Set(nearbyIds);
-
-    const counts: Record<string, number> = {};
-    await Promise.all(
-      labels.map(async (label) => {
-        try {
-          const ids = await this.redisService.getWorkerIdsBySkill(label);
-          counts[label] =
-            nearSet === null
-              ? ids.length
-              : ids.filter((id) => nearSet.has(id)).length;
-        } catch {
-          counts[label] = 0;
-        }
-      }),
-    );
-
-    await this.redisService
-      .set(cacheKey, JSON.stringify(counts), 45)
-      .catch(() => {});
-    return counts;
-  }
-
-  // Optimized: Nearby workers filtered by skill using Redis GEO + Skill Index
-  // `radiusStretch` (default 1) multiplies each pro's OWN travel radius — used
-  // only by the timeout rebroadcast so a wider second wave can reach pros just
-  // beyond their preference. Never exceeds MAX_DISPATCH_RADIUS_KM.
-  async getNearby(
-    requesterId: string,
-    skill: string,
-    lat: number,
-    lng: number,
-    radiusStretch = 1,
-  ): Promise<WorkerDto[]> {
-    // 1. Get all workers who have this skill from Redis Skill Index
-    let skillWorkerIds = await this.redisService.getWorkerIdsBySkill(skill);
-    if (skillWorkerIds.length === 0) return [];
-
-    // 2. GEO pre-filter: one GEOSEARCH narrows the candidate set to the 50km
-    //    radius before the per-worker checks below. If the geo query is
-    //    unavailable (null), we keep the full skill set — the loop's own
-    //    haversine check below remains the source of truth either way.
-    const nearbyIds = await this.redisService.searchNearbyWorkerIds(
-      lat,
-      lng,
-      MAX_DISPATCH_RADIUS_KM,
-    );
-    if (nearbyIds !== null && nearbyIds.length > 0) {
-      const nearSet = new Set(nearbyIds);
-      const narrowed = skillWorkerIds.filter((id) => nearSet.has(id));
-      // Only narrow when the geo index actually knows these workers —
-      // an empty intersection with a non-empty skill set may just mean the
-      // geo index is cold (e.g. after a Redis restart).
-      if (narrowed.length > 0) skillWorkerIds = narrowed;
-    }
-
-    // 3. Per-worker distance + snapshot resolution.
-    // AUDIT FIX (N+1 on the dispatch hot path): this used to await Redis
-    // location → Redis snapshot → (miss) DB profile → status SERIALLY for
-    // every candidate — with 15 candidates that's up to 60 sequential
-    // round-trips before a single pro is notified. Now every stage is
-    // resolved in parallel, and the DB fallback for cache misses is ONE
-    // `IN (...)` query instead of one query per worker.
-    const rejectedIds = await this.redisService.getRejectedWorkersForJob(
-      requesterId,
-      skill,
-    );
-    const rejectedSet = new Set(rejectedIds);
-    const candidates = skillWorkerIds.filter(
-      (id) => id !== requesterId && !rejectedSet.has(id),
-    );
-
-    // 3a. All locations in parallel; keep only those inside the radius.
-    const locations = await Promise.all(
-      candidates.map((id) => this.redisService.getWorkerLocation(id)),
-    );
-    const inRadius: { workerId: string; distance: number }[] = [];
-    candidates.forEach((workerId, i) => {
-      const location = locations[i];
-      if (!location) return;
-      const distance = this.calculateDistance(
-        lat,
-        lng,
-        location.lat,
-        location.lng,
-      );
-      // Coarse pre-filter only — the pro's OWN serviceRadiusKm is enforced
-      // below, once their snapshot (which carries it) is resolved.
-      if (distance <= MAX_DISPATCH_RADIUS_KM)
-        inRadius.push({ workerId, distance });
-    });
-    if (inRadius.length === 0) return [];
-
-    // Nearest-first candidate cap BEFORE snapshot/status work — keeps Redis
-    // and DB load bounded when geo is cold and the skill index is large.
-    inRadius.sort((a, b) => a.distance - b.distance);
-    const capped = inRadius.slice(0, MAX_NEARBY_CANDIDATES);
-
-    // 3b. All snapshots in parallel.
-    const snapshots = await Promise.all(
-      capped.map((c) => this.redisService.getWorkerSnapshot(c.workerId)),
-    );
-
-    // 3c. Cache misses resolved with a SINGLE DB query + parallel statuses.
-    const missIds = capped
-      .filter((_, i) => !snapshots[i])
-      .map((c) => c.workerId);
-    const rebuilt = new Map<string, WorkerDto>();
-    if (missIds.length > 0) {
-      const profiles = await this.workersRepository.find({
-        where: { user: { id: In(missIds) } },
-        relations: ['user'],
-      });
-      const statuses = await Promise.all(
-        profiles.map((p) => this.getWorkerStatus(p.user?.id || p.id)),
-      );
-      await Promise.all(
-        profiles.map(async (p, i) => {
-          const id = p.user?.id || p.id;
-          const dto = this.mapToDto(p, statuses[i]);
-          rebuilt.set(id, dto);
-          await this.redisService.cacheWorkerSnapshot(id, dto).catch(() => {});
-        }),
-      );
-    }
-
-    const result: WorkerDto[] = [];
-    capped.forEach((c, i) => {
-      const dto = snapshots[i] ?? rebuilt.get(c.workerId);
-      if (!dto) return;
-
-      // Skip workers already on a job — Instant Help only notifies available.
-      if (dto.status === 'busy') return;
-
-      // ── Worker-set travel limit ──
-      // Each pro declares how far they'll travel (Go Live → Service area).
-      // A job outside that radius is simply not offered to them — this is
-      // what stops a plumber in Kochi being pinged for a job 40 km away.
-      // Legacy snapshots cached before this field existed fall back to the
-      // default rather than being excluded.
-      const limit = Math.min(
-        (dto.service_radius_km ?? DEFAULT_SERVICE_RADIUS_KM) *
-          Math.max(1, radiusStretch),
-        MAX_DISPATCH_RADIUS_KM,
-      );
-      if (c.distance > limit) return;
-
-      // Surface the real haversine distance so clients can show a true ETA.
-      dto.distance_km = Math.round(c.distance * 10) / 10;
-      result.push(dto);
-    });
-
-    // Among the nearest capped set, prefer higher-rated pros.
-    return result.sort((a, b) => (b.rating || 0) - (a.rating || 0));
-  }
-
-  /** HAversine formula for distance check */
-  private calculateDistance(
-    lat1: number,
-    lon1: number,
-    lat2: number,
-    lon2: number,
-  ): number {
-    const R = 6371;
-    const dLat = (lat2 - lat1) * (Math.PI / 180);
-    const dLon = (lon2 - lon1) * (Math.PI / 180);
-    const a =
-      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-      Math.cos(lat1 * (Math.PI / 180)) *
-        Math.cos(lat2 * (Math.PI / 180)) *
-        Math.sin(dLon / 2) *
-        Math.sin(dLon / 2);
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-    return R * c;
   }
 
   // ── Worker Packages ────────────────────────────────────────────────────────
@@ -1757,3 +606,4 @@ export class WorkersService {
     ];
   }
 }
+

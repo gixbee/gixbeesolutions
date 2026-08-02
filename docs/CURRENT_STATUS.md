@@ -115,7 +115,9 @@ Every folder in `lib/features/` (17) is listed here, so a missing row means a mi
 
 | Item | Notes |
 |---|---|
-| **Call button** | Suspected wrong dial target (`tel:+91${worker.id}` instead of phone) — confirm and fix |
+| **Call button** | **Fixed** — live tracking dials role-aware `counterpartPhone` (status API + booking fetch fallback); detail screen reads `phoneNumber` |
+| **Busy worker still offered jobs** | **Fixed** — Instant Help fan-out uses live `worker:status` (not stale snapshot); accept/arrived/active all count as busy; targeted book blocked for those too |
+| **Release APK loopback default** | **Fixed** — release/profile boot asserts non-loopback `API_BASE_URL` / `SOCKET_URL` (`AppConfig.assertReleaseNetworkConfig`) |
 
 ### P1 — Backend residual (from July audit)
 
@@ -147,7 +149,8 @@ Every folder in `lib/features/` (17) is listed here, so a missing row means a mi
 | Duplicate polling | **Fixed** — socket/FCM primary; one shared 5s booking fallback; pending queue reconciles only at startup/resume |
 | Image decode size | **Improved** — `cacheWidth` on key screens |
 | Full `cached_network_image` package | Optional follow-up |
-| Remaining fixed colors | Semantic/category/auth-brand colors only; shell/surface/text use `context.gx` |
+| Remaining fixed colors | Booking shell chrome on `context.gx` (live track / waiting / incoming / OTP / cancel / rate). Left intentional: Plan Event category colors + pink brand, map pin shadows, success `accentGreen`, Material `colorScheme.error` |
+| Soft-fail empty booking lists | **Fixed** — `getMyBookings` / `getPendingBookings` rethrow; Active tab + home card show retry on API error |
 
 ### P3 — Docs / process
 

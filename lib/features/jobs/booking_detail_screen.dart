@@ -387,7 +387,21 @@ class BookingDetailScreen extends ConsumerWidget {
     final counterpart = isAssignedWorker ? (booking['customer'] ?? {}) : (booking['operator'] ?? {});
     final counterpartId = counterpart['id']?.toString();
     final counterpartName = (counterpart['name'] ?? 'Gixbee user').toString();
-    final counterpartPhone = counterpart['phone']?.toString();
+    // User entity serializes as phoneNumber; tolerate legacy `phone` too.
+    String? counterpartPhone = (counterpart['phoneNumber'] ?? counterpart['phone'])
+        ?.toString()
+        .trim();
+    if (counterpartPhone != null && counterpartPhone.isEmpty) {
+      counterpartPhone = null;
+    }
+    if (isAssignedWorker && counterpartPhone == null) {
+      final onSite = booking['onSiteContact'];
+      final onSitePhone =
+          onSite is Map ? onSite['phone']?.toString().trim() : null;
+      if (onSitePhone != null && onSitePhone.isNotEmpty) {
+        counterpartPhone = onSitePhone;
+      }
+    }
 
     const cancellable = {'PENDING', 'REQUESTED', 'ACCEPTED', 'CONFIRMED'};
     final canCancel = !isAssignedWorker && cancellable.contains(status);

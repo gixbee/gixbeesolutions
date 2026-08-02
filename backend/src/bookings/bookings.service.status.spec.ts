@@ -1,5 +1,5 @@
 import { NotFoundException } from '@nestjs/common';
-import { BookingsService } from './bookings.service';
+import { BookingStatusService } from './booking-status.service';
 import { BookingStatus } from './booking.entity';
 
 /**
@@ -21,22 +21,13 @@ function makeService(
   const bookingsRepository: any = {
     findOne: jest.fn(async () => opts.booking ?? null),
   };
-  const service = new BookingsService(
+  const messagesGateway: any = {
+    emitUserEvent: jest.fn(),
+  };
+  const service = new BookingStatusService(
     bookingsRepository,
-    {} as any,
-    {} as any,
-    {} as any,
-    {} as any,
     redisService,
-    {} as any,
-    {} as any,
-    { emitUserEvent: jest.fn() } as any,
-    {
-      append: jest.fn(async () => ({ id: 'ob' })),
-      enqueueDispatch: jest.fn(async () => undefined),
-    } as any,
-    {} as any,
-    {} as any,
+    messagesGateway,
   );
   // getBookingById is used on cache miss — stub via prototype if needed.
   if (opts.booking !== undefined) {
@@ -47,7 +38,7 @@ function makeService(
   return { service, redisService };
 }
 
-describe('BookingsService.getStatusForParticipant', () => {
+describe('BookingStatusService.getStatusForParticipant', () => {
   it('attaches Redis operator coords for ACCEPTED customer polls', async () => {
     const { service, redisService } = makeService({
       cached: {
@@ -117,8 +108,8 @@ describe('BookingsService.getStatusForParticipant', () => {
     const { service, redisService } = makeService({
       booking: {
         status: BookingStatus.ARRIVED,
-        customer: { id: 'cust-1' },
-        operator: { id: 'op-9', name: 'Ravi' },
+        customer: { id: 'cust-1', phoneNumber: '+919900000001' },
+        operator: { id: 'op-9', name: 'Ravi', phoneNumber: '+919900000009' },
         arrivalOtp: '9999',
         isPaid: false,
         workerPaidConfirmed: false,
@@ -131,6 +122,55 @@ describe('BookingsService.getStatusForParticipant', () => {
     expect(res.operatorId).toBe('op-9');
     expect(res.operatorLat).toBe(13.1);
     expect(res.operatorLng).toBe(77.2);
+    expect(res.counterpartPhone).toBe('+919900000009');
+    expect(redisService.cacheBookingStatus).toHaveBeenCalled();
+  });
+
+  it('returns role-aware counterpartPhone from cache', async () => {
+    const { service } = makeService({
+      cached: {
+        status: 'ACCEPTED',
+        customerId: 'cust-1',
+        operatorId: 'op-1',
+        customerPhone: '+919911111111',
+        operatorPhone: '+919922222222',
+      },
+    });
+    const asCustomer = await service.getStatusForParticipant('b1', 'cust-1');
+    expect(asCustomer.counterpartPhone).toBe('+919922222222');
+    const asWorker = await service.getStatusForParticipant('b1', 'op-1');
+    expect(asWorker.counterpartPhone).toBe('+919911111111');
+  });
+
+  it('prefers on-site contact phone for the worker', async () => {
+    const { service } = makeService({
+      booking: {
+        status: BookingStatus.ACCEPTED,
+        customer: { id: 'cust-1', phoneNumber: '+919911111111' },
+        operator: { id: 'op-1', phoneNumber: '+919922222222' },
+        onSiteContact: { name: 'Anu', relation: 'Self', phone: '9876543210' },
+      },
+    });
+    const res = await service.getStatusForParticipant('b1', 'op-1');
+    expect(res.counterpartPhone).toBe('9876543210');
+  });
+
+  it('enriches missing phones from DB when cache is stale', async () => {
+    const { service, redisService } = makeService({
+      cached: {
+        status: 'ACCEPTED',
+        customerId: 'cust-1',
+        operatorId: 'op-1',
+        operatorName: 'Asha',
+      },
+      booking: {
+        status: BookingStatus.ACCEPTED,
+        customer: { id: 'cust-1', phoneNumber: '+919911111111' },
+        operator: { id: 'op-1', name: 'Asha', phoneNumber: '+919933333333' },
+      },
+    });
+    const res = await service.getStatusForParticipant('b1', 'cust-1');
+    expect(res.counterpartPhone).toBe('+919933333333');
     expect(redisService.cacheBookingStatus).toHaveBeenCalled();
   });
 

@@ -1,5 +1,9 @@
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { WorkersService } from './workers.service';
+import { WorkerAvailabilityService } from './worker-availability.service';
+import { WorkerGoLiveService } from './worker-golive.service';
+import { WorkerStrikeService } from './worker-strike.service';
+import { VerificationStatus } from './worker-profile.entity';
 import { BookingStatus } from '../bookings/booking.entity';
 import { UserApprovalStatus } from '../users/user.entity';
 
@@ -15,6 +19,12 @@ import { UserApprovalStatus } from '../users/user.entity';
  */
 function setup() {
   const workersRepository: any = {
+    find: jest.fn(async () => []),
+    findOne: jest.fn(async () => null),
+    save: jest.fn(async (p: any) => p),
+    create: jest.fn((p: any) => p),
+  };
+  const strikesRepository: any = {
     find: jest.fn(async () => []),
     findOne: jest.fn(async () => null),
     save: jest.fn(async (p: any) => p),
@@ -47,11 +57,13 @@ function setup() {
     getWorkerLocation: jest.fn(async () => null),
     getWorkerIdsBySkill: jest.fn(async () => []),
     searchNearbyWorkerIds: jest.fn(async () => null),
+    getRejectedWorkersForJob: jest.fn(async () => []),
   };
 
   const usersRepository: any = {
     findOne: jest.fn(async () => null),
     save: jest.fn(async (u: any) => u),
+    update: jest.fn(async () => undefined),
   };
 
   // Go-Live limits are admin-editable CONFIGURATION master entries; the tests
@@ -59,30 +71,69 @@ function setup() {
   const masterEntriesService: any = {
     getConfig: jest.fn(async () => null),
     getConfigNumber: jest.fn(async (_k: string, fallback: number) => fallback),
+    findAll: jest.fn(async () => []),
+  };
+  const notificationsService: any = {
+    sendToUser: jest.fn(async () => undefined),
+  };
+  const jobCreditRepository: any = {
+    findOne: jest.fn(async () => ({ balance: 5 })),
+    save: jest.fn(async (p: any) => p),
   };
 
+  const availability = new WorkerAvailabilityService(
+    workersRepository,
+    bookingsRepository,
+    redisService,
+    masterEntriesService,
+  );
+  const goLive = new WorkerGoLiveService(
+    workersRepository,
+    talentRepository,
+    bookingsRepository,
+    usersRepository,
+    jobCreditRepository,
+    walletsService,
+    redisService,
+    masterEntriesService,
+    notificationsService,
+    availability,
+  );
+  const strike = new WorkerStrikeService(
+    workersRepository,
+    strikesRepository,
+    redisService,
+    notificationsService,
+  );
   const service = new WorkersService(
     workersRepository,
+    talentRepository,
+    skillRepository,
+    usersRepository,
+    redisService,
+    availability,
+    goLive,
+    strike,
+  );
+  return {
+    service,
+    availability,
+    goLive,
+    strike,
+    workersRepository,
+    strikesRepository,
     talentRepository,
     skillRepository,
     bookingsRepository,
     usersRepository,
     walletsService,
     redisService,
-    masterEntriesService,
-  );
-  return {
-    service,
-    workersRepository,
-    talentRepository,
-    skillRepository,
-    bookingsRepository,
-    walletsService,
-    redisService,
   };
 }
 
-const today = () => new Date().toISOString().split('T')[0];
+/** IST calendar date — matches WorkerGoLiveService.istToday(). */
+const today = () =>
+  new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
 
 /** Minimal WorkerProfile shape the mappers/branches read. */
 function workerProfile(over: any = {}): any {
@@ -99,6 +150,7 @@ function workerProfile(over: any = {}): any {
     activeSkills: [],
     isActive: false,
     isFirstJobDone: false,
+    verificationStatus: VerificationStatus.VERIFIED,
     strikeCount: 0,
     goLiveToggleDate: today(),
     goLiveToggleCountToday: 0,
@@ -208,7 +260,9 @@ describe('WorkersService.getAll', () => {
     const { service, workersRepository, bookingsRepository, redisService } =
       setup();
     workersRepository.find.mockResolvedValue([workerProfile()]);
-    redisService.get.mockResolvedValue('busy');
+    redisService.get.mockImplementation(async (key: string) =>
+      key.startsWith('worker:status:') ? 'busy' : null,
+    );
 
     const res = await service.getAll();
 
@@ -362,6 +416,8 @@ describe('WorkersService.toggleGoLive', () => {
       isFirstJobDone: false,
       goLiveToggleDate: '2000-01-01',
       goLiveToggleCountToday: 9,
+      lastLat: 12.9,
+      lastLng: 77.5,
     });
     workersRepository.findOne.mockResolvedValue(profile);
 
@@ -405,14 +461,21 @@ describe('WorkersService.addStrike', () => {
 });
 
 describe('WorkersService.createProfile', () => {
-  it('rejects when a worker profile already exists', async () => {
-    const { service, workersRepository } = setup();
-    workersRepository.findOne.mockResolvedValue(workerProfile());
+  it('upserts skills/rate when a worker profile already exists', async () => {
+    const { service, workersRepository, usersRepository } = setup();
+    const existing = workerProfile({ skills: ['old'], hourlyRate: 40 });
+    workersRepository.findOne.mockResolvedValue(existing);
 
-    await expect(
-      service.createProfile('u1', { skills: ['plumber'], hourlyRate: 50 }),
-    ).rejects.toThrow(BadRequestException);
-    expect(workersRepository.save).not.toHaveBeenCalled();
+    const saved = await service.createProfile('u1', {
+      skills: ['plumber'],
+      hourlyRate: 50,
+    });
+
+    expect(saved.hourlyRate).toBe(50);
+    expect(workersRepository.save).toHaveBeenCalledWith(existing);
+    expect(usersRepository.update).toHaveBeenCalledWith('u1', {
+      hasWorkerProfile: true,
+    });
   });
 
   it('creates a PENDING, inactive profile with the supplied fields', async () => {
@@ -556,16 +619,42 @@ describe('WorkersService.getNearby', () => {
     redisService.getWorkerIdsBySkill.mockResolvedValue(['free', 'busy']);
     redisService.searchNearbyWorkerIds.mockResolvedValue(null);
     redisService.getWorkerLocation.mockResolvedValue({ lat: 0, lng: 0 });
+    // Snapshot still says available for both — live worker:status must win.
     redisService.getWorkerSnapshot.mockImplementation(async (id: string) => ({
       id,
       rating: 4,
-      status: id === 'busy' ? 'busy' : 'available',
+      status: 'available',
       service_radius_km: 50,
     }));
+    redisService.get.mockImplementation(async (key: string) => {
+      if (key === 'worker:status:busy') return 'busy';
+      if (key === 'worker:status:free') return 'available';
+      return null;
+    });
 
     const res = await service.getNearby('req', 'plumber', 0, 0);
 
     expect(res.map((w) => w.id)).toEqual(['free']);
+  });
+
+  it('skips workers whose snapshot is stale-available but Redis status is busy', async () => {
+    const { service, redisService } = setup();
+    redisService.getWorkerIdsBySkill.mockResolvedValue(['worker-a']);
+    redisService.searchNearbyWorkerIds.mockResolvedValue(null);
+    redisService.getWorkerLocation.mockResolvedValue({ lat: 0, lng: 0 });
+    redisService.getWorkerSnapshot.mockResolvedValue({
+      id: 'worker-a',
+      rating: 5,
+      status: 'available', // stale after accept
+      service_radius_km: 50,
+    });
+    redisService.get.mockImplementation(async (key: string) =>
+      key === 'worker:status:worker-a' ? 'busy' : null,
+    );
+
+    const res = await service.getNearby('req', 'plumber', 0, 0);
+
+    expect(res).toEqual([]);
   });
 
   it('caps candidates by distance before snapshot resolution', async () => {
@@ -651,5 +740,20 @@ describe('WorkersService.setWorkerStatus', () => {
       'busy',
       3600,
     );
+  });
+
+  it('patches a cached snapshot so discovery stays in sync', async () => {
+    const { service, redisService } = setup();
+    redisService.getWorkerSnapshot.mockResolvedValue({
+      id: 'u1',
+      status: 'available',
+      rating: 4,
+    });
+    await service.setWorkerStatus('u1', 'busy');
+    expect(redisService.cacheWorkerSnapshot).toHaveBeenCalledWith('u1', {
+      id: 'u1',
+      status: 'busy',
+      rating: 4,
+    });
   });
 });

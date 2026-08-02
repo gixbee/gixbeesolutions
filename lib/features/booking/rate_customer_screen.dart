@@ -68,10 +68,10 @@ class _RateCustomerScreenState extends ConsumerState<RateCustomerScreen> {
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    color: Colors.green.withValues(alpha: 0.12),
+                    color: GixbeeTheme.accentGreen.withValues(alpha: 0.12),
                   ),
                   child: const Icon(Icons.check_circle,
-                      color: Colors.green, size: 56),
+                      color: GixbeeTheme.accentGreen, size: 56),
                 ),
                 const SizedBox(height: 20),
                 Text(

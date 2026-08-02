@@ -176,25 +176,26 @@ class _CancelBookingScreenState extends ConsumerState<CancelBookingScreen> {
   }
 
   Widget _infoBanner(String text, {Color? color}) {
-    final scheme = Theme.of(context).colorScheme;
+    final gx = context.gx;
+    final muted = gx.ink.withValues(alpha: 0.55);
+    final tone = color ?? gx.accent;
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: (color ?? scheme.primaryContainer).withValues(alpha: 0.35),
+        color: tone.withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(12),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(Icons.info_outline,
-              size: 18, color: color ?? scheme.onSurfaceVariant),
+          Icon(Icons.info_outline, size: 18, color: color ?? muted),
           const SizedBox(width: 8),
           Expanded(
             child: Text(text,
                 style: TextStyle(
                     fontSize: 12.5,
                     height: 1.4,
-                    color: scheme.onSurfaceVariant)),
+                    color: muted)),
           ),
         ],
       ),
@@ -203,9 +204,11 @@ class _CancelBookingScreenState extends ConsumerState<CancelBookingScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
+    final gx = context.gx;
+    final err = Theme.of(context).colorScheme.error;
 
     return Scaffold(
+      backgroundColor: gx.bg,
       appBar: AppBar(title: const Text('Cancel booking')),
       body: Column(
         children: [
@@ -224,14 +227,14 @@ class _CancelBookingScreenState extends ConsumerState<CancelBookingScreen> {
                       'Your pro has already arrived or work has started. '
                       'They must approve a cancellation — you cannot cancel '
                       'unilaterally.',
-                      color: scheme.error,
+                      color: err,
                     ),
                     const SizedBox(height: 16),
                   ] else if (_freeCancelDueToNoProgress) ...[
                     _infoBanner(
                       'Your pro does not appear to be heading your way. '
                       'You can cancel at no cost — no late-cancel strike.',
-                      color: scheme.tertiary,
+                      color: GixbeeTheme.accentGold,
                     ),
                     const SizedBox(height: 16),
                   ] else if (_isAccepted) ...[
@@ -247,26 +250,27 @@ class _CancelBookingScreenState extends ConsumerState<CancelBookingScreen> {
                     style: TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.w800,
-                        color: scheme.onSurface)),
+                        color: gx.ink)),
                 const SizedBox(height: 4),
                 Text('Your feedback helps us improve.',
-                    style: TextStyle(color: scheme.onSurfaceVariant)),
+                    style: TextStyle(
+                        color: gx.ink.withValues(alpha: 0.55))),
                 const SizedBox(height: 16),
                 ..._reasons.map((r) {
                   final selected = _selected == r;
                   return Card(
                     margin: const EdgeInsets.only(bottom: 8),
                     color: selected
-                        ? context.gx.accent.withValues(alpha: 0.18)
-                        : scheme.surfaceContainerHighest.withValues(alpha: 0.4),
+                        ? gx.accent.withValues(alpha: 0.18)
+                        : gx.card2,
                     child: ListTile(
                       onTap: () => setState(() => _selected = r),
-                      title: Text(r),
+                      title: Text(r, style: TextStyle(color: gx.ink)),
                       trailing: Icon(
                         selected
                             ? Icons.radio_button_checked
                             : Icons.radio_button_off,
-                        color: selected ? context.gx.accent : scheme.outline,
+                        color: selected ? gx.accent : gx.border,
                       ),
                     ),
                   );
@@ -302,8 +306,8 @@ class _CancelBookingScreenState extends ConsumerState<CancelBookingScreen> {
                           ? null
                           : _confirmCancel,
                       loading: _submitting,
-                      gradient: [scheme.error, scheme.error],
-                      accent: scheme.error,
+                      gradient: [err, err],
+                      accent: err,
                     )
                   else if (_isAccepted) ...[
                     GxButton(
@@ -320,8 +324,8 @@ class _CancelBookingScreenState extends ConsumerState<CancelBookingScreen> {
                           ? null
                           : _confirmCancel,
                       loading: _submitting,
-                      gradient: [scheme.error, scheme.error],
-                      accent: scheme.error,
+                      gradient: [err, err],
+                      accent: err,
                     ),
                   ] else
                     GxButton(
@@ -330,8 +334,8 @@ class _CancelBookingScreenState extends ConsumerState<CancelBookingScreen> {
                           ? null
                           : _confirmCancel,
                       loading: _submitting,
-                      gradient: [scheme.error, scheme.error],
-                      accent: scheme.error,
+                      gradient: [err, err],
+                      accent: err,
                     ),
                 ],
               ),

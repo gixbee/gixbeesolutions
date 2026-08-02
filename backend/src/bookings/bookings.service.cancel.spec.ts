@@ -1,5 +1,5 @@
 import { BadRequestException } from '@nestjs/common';
-import { BookingsService } from './bookings.service';
+import { BookingCancelService } from './booking-cancel.service';
 import { BookingStatus } from './booking.entity';
 import { OutboxEventType } from '../outbox/outbox.types';
 
@@ -17,7 +17,6 @@ function makeService(booking: any) {
     save: jest.fn(async (b: any) => b),
   };
   const workerProfileRepo: any = { findOne: jest.fn(), save: jest.fn() };
-  const bookingsQueue: any = { add: jest.fn(async () => undefined) };
   const walletsService: any = {
     reverseBookingTransfer: jest.fn(async () => undefined),
     transferForBooking: jest.fn(async () => undefined),
@@ -34,9 +33,6 @@ function makeService(booking: any) {
     get: jest.fn(async () => null),
     set: jest.fn(async () => undefined),
     del: jest.fn(async () => undefined),
-  };
-  const workersService: any = {
-    setWorkerStatus: jest.fn(async () => undefined),
   };
   const jobCreditsService: any = {
     refundCredit: jest.fn(async () => undefined),
@@ -75,20 +71,21 @@ function makeService(booking: any) {
     ),
     enqueueDispatch: jest.fn(async () => undefined),
   };
+  const bookingStatusService: any = {
+    cacheAndEmitBookingStatus: jest.fn(async () => undefined),
+  };
 
-  const service = new BookingsService(
+  const service = new BookingCancelService(
     bookingsRepository,
     workerProfileRepo,
-    bookingsQueue,
     walletsService,
     notificationsService,
     redisService,
-    workersService,
     dataSource,
-    { emitUserEvent: jest.fn() } as any,
     outboxService,
     jobCreditsService,
     masterEntriesService,
+    bookingStatusService,
   );
   return {
     service,
@@ -113,7 +110,7 @@ const baseBooking = () => ({
   operator: { id: 'work-1' },
 });
 
-describe('BookingsService.cancelBooking refund policy', () => {
+describe('BookingCancelService.cancelBooking refund policy', () => {
   it('refunds nothing on an unpaid booking and appends cancel outbox', async () => {
     const booking = baseBooking();
     const { service, walletsService, manager, outboxService, redisService } =

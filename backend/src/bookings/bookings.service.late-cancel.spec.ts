@@ -1,5 +1,5 @@
 import { BadRequestException } from '@nestjs/common';
-import { BookingsService } from './bookings.service';
+import { BookingCancelService } from './booking-cancel.service';
 import { BookingStatus } from './booking.entity';
 
 /**
@@ -13,7 +13,6 @@ function makeService(booking: any, userOver: any = {}) {
   const workerProfileRepo: any = {
     findOne: jest.fn(async () => ({ lastLat: 12.97, lastLng: 77.59 })),
   };
-  const bookingsQueue: any = { add: jest.fn(async () => undefined) };
   const walletsService: any = {
     reverseBookingTransfer: jest.fn(async () => undefined),
   };
@@ -25,7 +24,6 @@ function makeService(booking: any, userOver: any = {}) {
     cacheBookingStatus: jest.fn(async () => undefined),
     getCachedBookingStatus: jest.fn(async () => null),
   };
-  const workersService: any = {};
   const customer = {
     id: 'cust-1',
     lateCancelStrikeCount: 0,
@@ -54,20 +52,21 @@ function makeService(booking: any, userOver: any = {}) {
   const masterEntriesService: any = {
     getConfigNumber: jest.fn(async (_k: string, f: number) => f),
   };
+  const bookingStatusService: any = {
+    cacheAndEmitBookingStatus: jest.fn(async () => undefined),
+  };
 
-  const service = new BookingsService(
+  const service = new BookingCancelService(
     bookingsRepository,
     workerProfileRepo,
-    bookingsQueue,
     walletsService,
     notificationsService,
     redisService,
-    workersService,
     dataSource,
-    { emitUserEvent: jest.fn() } as any,
     outboxService,
     jobCreditsService,
     masterEntriesService,
+    bookingStatusService,
   );
   return {
     service,
@@ -93,7 +92,7 @@ const booking = (over: any = {}) => ({
   ...over,
 });
 
-describe('BookingsService late-cancel gates', () => {
+describe('BookingCancelService late-cancel gates', () => {
   it('blocks unilateral cancel when ARRIVED', async () => {
     const { service } = makeService(booking({ status: BookingStatus.ARRIVED }));
     await expect(service.cancelBooking('b1', 'nope')).rejects.toThrow(

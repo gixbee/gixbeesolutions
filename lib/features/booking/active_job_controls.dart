@@ -153,7 +153,9 @@ class _ActiveJobControlsState extends ConsumerState<ActiveJobControls> {
   }
 
   Widget _cancelRequestSection(bool cancelRequested) {
-    final cs = Theme.of(context).colorScheme;
+    final gx = context.gx;
+    final muted = gx.ink.withValues(alpha: 0.55);
+    final err = Theme.of(context).colorScheme.error;
 
     if (widget.isWorker) {
       if (!cancelRequested) return const SizedBox.shrink();
@@ -166,7 +168,7 @@ class _ActiveJobControlsState extends ConsumerState<ActiveJobControls> {
               style: TextStyle(
                   fontSize: 12.5,
                   fontWeight: FontWeight.w700,
-                  color: cs.onSurfaceVariant)),
+                  color: muted)),
           const SizedBox(height: 8),
           Row(
             children: [
@@ -175,8 +177,8 @@ class _ActiveJobControlsState extends ConsumerState<ActiveJobControls> {
                   label: 'Decline',
                   onTap: _cancelBusy ? null : _declineCancel,
                   loading: _cancelBusy,
-                  gradient: [cs.surfaceContainerHighest, cs.surfaceContainerHighest],
-                  accent: cs.onSurfaceVariant,
+                  gradient: [gx.card2, gx.card2],
+                  accent: muted,
                 ),
               ),
               const SizedBox(width: 10),
@@ -185,8 +187,8 @@ class _ActiveJobControlsState extends ConsumerState<ActiveJobControls> {
                   label: 'Approve',
                   onTap: _cancelBusy ? null : _approveCancel,
                   loading: _cancelBusy,
-                  gradient: [cs.error, cs.error],
-                  accent: cs.error,
+                  gradient: [err, err],
+                  accent: err,
                 ),
               ),
             ],
@@ -205,7 +207,7 @@ class _ActiveJobControlsState extends ConsumerState<ActiveJobControls> {
               style: TextStyle(
                   fontSize: 12.5,
                   fontWeight: FontWeight.w600,
-                  color: cs.onSurfaceVariant)),
+                  color: muted)),
           const SizedBox(height: 8),
           GxButton(
             label: 'Withdraw request',
@@ -224,8 +226,8 @@ class _ActiveJobControlsState extends ConsumerState<ActiveJobControls> {
           label: 'Request cancellation',
           onTap: _cancelBusy ? null : _requestCancel,
           loading: _cancelBusy,
-          gradient: [cs.error.withValues(alpha: 0.85), cs.error],
-          accent: cs.error,
+          gradient: [err.withValues(alpha: 0.85), err],
+          accent: err,
         ),
       ],
     );
@@ -248,16 +250,17 @@ class _ActiveJobControlsState extends ConsumerState<ActiveJobControls> {
       return const SizedBox.shrink();
     }
 
-    final cs = Theme.of(context).colorScheme;
-    final accent = context.gx.accentSoft;
+    final gx = context.gx;
+    final accent = gx.accentSoft;
+    final muted = gx.ink.withValues(alpha: 0.55);
 
     return Container(
       margin: const EdgeInsets.fromLTRB(20, 4, 20, 8),
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: context.gx.card,
+        color: gx.card,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: context.gx.border, width: 1.5),
+        border: Border.all(color: gx.border, width: 1.5),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -273,7 +276,7 @@ class _ActiveJobControlsState extends ConsumerState<ActiveJobControls> {
                       style: TextStyle(
                           fontSize: 12.5,
                           fontWeight: FontWeight.w600,
-                          color: cs.onSurfaceVariant)),
+                          color: muted)),
                 ],
               ),
               Text(_label,
