@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../core/config/app_config.dart';
 import '../../main_wrapper.dart';
+import '../../shared/utils/api_error_message.dart';
 import '../../shared/widgets/gx_snackbar.dart';
 import 'auth_chrome.dart';
 import 'registration_screen.dart';
@@ -98,8 +99,14 @@ class _OtpScreenState extends ConsumerState<OtpScreen> {
       );
     } catch (e) {
       if (mounted) {
-        showGxSnack(context, 'Verification failed: $e',
-            type: GxSnackType.error);
+        showGxSnack(
+          context,
+          apiErrorMessage(
+            e,
+            fallback: 'Verification failed. Check the code and try again.',
+          ),
+          type: GxSnackType.error,
+        );
       }
     } finally {
       if (mounted) setState(() => _isVerifying = false);
@@ -259,8 +266,14 @@ class _OtpScreenState extends ConsumerState<OtpScreen> {
                               }
                             } catch (e) {
                               if (!context.mounted) return;
-                              showGxSnack(context, 'Resend failed. Try again.',
-                                  type: GxSnackType.error);
+                              showGxSnack(
+                                context,
+                                apiErrorMessage(
+                                  e,
+                                  fallback: 'Resend failed. Try again.',
+                                ),
+                                type: GxSnackType.error,
+                              );
                             }
                           }
                         : null,
