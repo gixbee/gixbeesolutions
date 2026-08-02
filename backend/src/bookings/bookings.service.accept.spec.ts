@@ -122,6 +122,7 @@ function makeService(opts: {
     redisService,
     workersService,
     outboxService,
+    bookingStatusService,
   };
 }
 
@@ -196,11 +197,17 @@ describe('BookingDispatchService.acceptBooking', () => {
 
   it('accepts the booking: status → ACCEPTED with outbox append in-tx', async () => {
     const booking = baseBooking();
-    const { service, manager, walletsService, outboxService, redisService } =
-      makeService({
-        lockedBooking: { id: 'b1', status: BookingStatus.REQUESTED },
-        fullBooking: booking,
-      });
+    const {
+      service,
+      manager,
+      walletsService,
+      outboxService,
+      redisService,
+      bookingStatusService,
+    } = makeService({
+      lockedBooking: { id: 'b1', status: BookingStatus.REQUESTED },
+      fullBooking: booking,
+    });
 
     const res = await service.acceptBooking('b1', 'work-1');
 
@@ -232,9 +239,19 @@ describe('BookingDispatchService.acceptBooking', () => {
       }),
     );
     expect(outboxService.enqueueDispatch).toHaveBeenCalledWith('outbox-1');
+    // Immediate Redis/socket publish so the customer leaves "searching"
+    // before the outbox FCM/busy side-effects run.
+    expect(bookingStatusService.cacheAndEmitBookingStatus).toHaveBeenCalledWith(
+      'b1',
+      expect.objectContaining({
+        status: 'ACCEPTED',
+        operatorId: 'work-1',
+        customerId: 'cust-1',
+      }),
+    );
     // Wallet period fee is off (WALLET_PAYMENTS_ENABLED=false); credits are
     // consumed instead. Do not assert deductBookingFee.
-    // Redis / FCM moved to outbox listener — not called from the service.
+    // Pending-clear / FCM still owned by the outbox listener.
     expect(redisService.removePendingBooking).not.toHaveBeenCalled();
     expect(redisService.cacheBookingStatus).not.toHaveBeenCalled();
   });

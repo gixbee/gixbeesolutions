@@ -109,7 +109,16 @@ class _GxDialogButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return GxPressable(
-      onTap: action.onTap,
+      onTap: () {
+        // Always dismiss with the dialog's own context — callers that
+        // capture a parent State.context crash after that State is
+        // disposed (seen on Collect Payment → Continue). Also handle
+        // actions with a null onTap (e.g. "Done" / "Cancel request sent").
+        if (Navigator.of(context).canPop()) {
+          Navigator.of(context).pop();
+        }
+        action.onTap?.call();
+      },
       child: Container(
         height: 50,
         alignment: Alignment.center,

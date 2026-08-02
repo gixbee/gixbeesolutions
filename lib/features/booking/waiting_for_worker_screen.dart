@@ -148,10 +148,36 @@ class _WaitingForWorkerScreenState extends ConsumerState<WaitingForWorkerScreen>
 
   Future<void> _cancelRequest() async {
     try {
+      // If the worker already accepted but this UI was still on "searching",
+      // refresh status and flip to the accepted view instead of cancelling.
+      try {
+        final live = await ref
+            .read(bookingRepositoryProvider)
+            .pollBookingStatus(widget.bookingId);
+        final st =
+            BookingStatus.fromString(live['status']?.toString() ?? '');
+        if (st == BookingStatus.accepted || st.isActive) {
+          _applyStatus(live);
+          return;
+        }
+      } catch (_) {}
+
       await ref.read(bookingRepositoryProvider).cancelBooking(widget.bookingId);
       if (mounted) Navigator.pop(context);
     } catch (e) {
       if (mounted) {
+        // Cancel may fail if accept won the race — pull status again.
+        try {
+          final live = await ref
+              .read(bookingRepositoryProvider)
+              .pollBookingStatus(widget.bookingId);
+          final st =
+              BookingStatus.fromString(live['status']?.toString() ?? '');
+          if (st == BookingStatus.accepted || st.isActive) {
+            _applyStatus(live);
+            return;
+          }
+        } catch (_) {}
         showGxSnack(context, 'Failed to cancel: $e', type: GxSnackType.error);
       }
     }
@@ -192,7 +218,12 @@ class _WaitingForWorkerScreenState extends ConsumerState<WaitingForWorkerScreen>
     if (!mounted || _isAccepted) return;
     final status = BookingStatus.fromString(statusData['status'] ?? '');
 
-    if (status == BookingStatus.accepted) {
+    // Accept (or any post-accept live state if we missed the first push).
+    if (status == BookingStatus.accepted ||
+        status == BookingStatus.confirmed ||
+        status == BookingStatus.arrived ||
+        status == BookingStatus.active ||
+        status == BookingStatus.inProgress) {
       _countdownTimer?.cancel();
       setState(() {
         _isAccepted = true;

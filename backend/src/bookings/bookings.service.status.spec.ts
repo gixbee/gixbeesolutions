@@ -190,4 +190,31 @@ describe('BookingStatusService.getStatusForParticipant', () => {
       service.getStatusForParticipant('b1', 'stranger'),
     ).rejects.toBeInstanceOf(NotFoundException);
   });
+
+  it('revalidates stale REQUESTED cache when DB is already ACCEPTED', async () => {
+    const { service, redisService } = makeService({
+      cached: {
+        status: 'REQUESTED',
+        customerId: 'cust-1',
+        operatorId: 'op-1',
+        operatorName: null,
+      },
+      booking: {
+        status: BookingStatus.ACCEPTED,
+        customer: { id: 'cust-1', phoneNumber: '+919911111111' },
+        operator: { id: 'op-1', name: 'Asha', phoneNumber: '+919922222222' },
+        arrivalOtp: '4321',
+        isPaid: false,
+        workerPaidConfirmed: false,
+        customerPaidConfirmed: false,
+      },
+      workerLoc: { lat: 12.9, lng: 77.6 },
+    });
+    const res = await service.getStatusForParticipant('b1', 'cust-1');
+    expect(res.status).toBe('ACCEPTED');
+    expect(res.operatorName).toBe('Asha');
+    expect(res.arrivalOtp).toBe('4321');
+    expect(res.operatorLat).toBe(12.9);
+    expect(redisService.cacheBookingStatus).toHaveBeenCalled();
+  });
 });

@@ -199,9 +199,10 @@ class _CustomerPayScreenState extends ConsumerState<CustomerPayScreen> {
   }
 
   void _showSuccessDialog() {
-    if (_dialogShowing || _advancedToRate) return;
+    if (_dialogShowing || _advancedToRate || !mounted) return;
     _dialogShowing = true;
     final name = _billing?.counterpartName ?? widget.workerName;
+    final ink = context.gx.ink;
     showGxDialog(
       context,
       barrierDismissible: false,
@@ -223,7 +224,7 @@ class _CustomerPayScreenState extends ConsumerState<CustomerPayScreen> {
             style: TextStyle(
               fontWeight: FontWeight.w800,
               fontSize: 22,
-              color: context.gx.ink,
+              color: ink,
             ),
           ),
           const SizedBox(height: 8),
@@ -232,7 +233,7 @@ class _CustomerPayScreenState extends ConsumerState<CustomerPayScreen> {
             textAlign: TextAlign.center,
             style: TextStyle(
               height: 1.5,
-              color: context.gx.ink.withValues(alpha: 0.72),
+              color: ink.withValues(alpha: 0.72),
             ),
           ),
         ],
@@ -241,10 +242,8 @@ class _CustomerPayScreenState extends ConsumerState<CustomerPayScreen> {
         GxDialogAction(
           'Continue',
           isPrimary: true,
-          onTap: () {
-            Navigator.of(context, rootNavigator: true).pop();
-            _goToRate();
-          },
+          // Dialog self-dismisses; only advance if this screen is still alive.
+          onTap: _goToRate,
         ),
       ],
     );

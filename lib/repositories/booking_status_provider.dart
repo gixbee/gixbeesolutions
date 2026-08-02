@@ -14,8 +14,19 @@ const _terminalStatuses = {
   'REJECTED',
 };
 
+/// Still matching / awaiting accept — keep HTTP fallback fast even when the
+/// socket looks connected (accept can land in DB before the push arrives).
+const _openMatchStatuses = {
+  'REQUESTED',
+  'PENDING',
+  'CUSTOM_REQUESTED',
+};
+
 bool _isTerminalStatus(String? status) =>
     _terminalStatuses.contains((status ?? '').toUpperCase());
+
+bool _isOpenMatchStatus(String? status) =>
+    _openMatchStatuses.contains((status ?? '').toUpperCase());
 
 /// AUDIT FIX — single source of truth for live booking status.
 ///
@@ -42,6 +53,8 @@ final bookingStatusProvider = StreamProvider.autoDispose
   var inFlight = false;
   var disposed = false;
   var terminal = false;
+  String? lastStatus;
+  late void Function() start;
 
   Future<void> tick() async {
     if (disposed || inFlight || terminal) return;
@@ -49,11 +62,16 @@ final bookingStatusProvider = StreamProvider.autoDispose
     try {
       final data = await repo.pollBookingStatus(bookingId);
       if (!disposed && !controller.isClosed) {
+        final prev = lastStatus;
+        lastStatus = data['status']?.toString().toUpperCase();
         controller.add(data);
-        if (_isTerminalStatus(data['status']?.toString())) {
+        if (_isTerminalStatus(lastStatus)) {
           terminal = true;
           timer?.cancel();
           timer = null;
+        } else if (prev != lastStatus) {
+          // Open → accepted (etc.): retune poll interval immediately.
+          start();
         }
       }
     } catch (e) {
@@ -65,14 +83,17 @@ final bookingStatusProvider = StreamProvider.autoDispose
     }
   }
 
-  void start() {
+  start = () {
     if (disposed || terminal) return;
     timer?.cancel();
-    final seconds = socketService.isConnected
-        ? AppConfig.bookingPollBackoffSeconds
-        : AppConfig.bookingPollIntervalSeconds;
+    // Fast while matching (or socket down); backoff only after accept when
+    // the socket is healthy.
+    final seconds =
+        !socketService.isConnected || _isOpenMatchStatus(lastStatus)
+            ? AppConfig.bookingPollIntervalSeconds
+            : AppConfig.bookingPollBackoffSeconds;
     timer = Timer.periodic(Duration(seconds: seconds), (_) => tick());
-  }
+  };
 
   final socketSub = socketService.notifications.listen((data) {
     final event = data['_event'] as String?;

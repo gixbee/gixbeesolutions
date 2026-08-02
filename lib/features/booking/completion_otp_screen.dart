@@ -454,7 +454,11 @@ class _CompletionOtpScreenState extends ConsumerState<CompletionOtpScreen> {
         GxDialogAction(
           'Back to Home',
           isPrimary: true,
-          onTap: () => Navigator.of(context).popUntil((route) => route.isFirst),
+          onTap: () {
+            // Dialog already dismissed itself; clear the booking stack.
+            if (!mounted) return;
+            Navigator.of(context).popUntil((route) => route.isFirst);
+          },
         ),
       ],
     );

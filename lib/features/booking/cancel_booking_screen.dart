@@ -166,10 +166,10 @@ class _CancelBookingScreenState extends ConsumerState<CancelBookingScreen> {
       title: cancelled ? 'Booking cancelled' : 'Cancel request sent',
       message: parts.join('\n\n'),
       actions: [
-        GxDialogAction(
+        // Dialog self-dismisses; no extra pop (would remove this screen).
+        const GxDialogAction(
           'Done',
           isPrimary: true,
-          onTap: () => Navigator.pop(context),
         ),
       ],
     );

@@ -215,6 +215,26 @@ export class BookingClaimService {
       throw error;
     }
 
+    // Publish ACCEPTED to Redis + sockets immediately. The outbox handler
+    // also does this (FCM, busy flag, queues), but customer status polls hit
+    // Redis first — leaving REQUESTED until Bull runs kept the search UI
+    // up and still cancelable after the worker had already accepted.
+    const customerId = savedBooking.customer?.id ?? null;
+    await this.bookingStatusService
+      .cacheAndEmitBookingStatus(bookingId, {
+        status: 'ACCEPTED',
+        operatorName,
+        operatorId: workerId,
+        customerId,
+        arrivalOtp: savedBooking.arrivalOtp,
+      })
+      .catch((e) =>
+        console.error(
+          '[AcceptBooking] immediate status publish failed:',
+          e?.message ?? e,
+        ),
+      );
+
     return {
       message: 'Booking accepted. Head to the service location now.',
       status: 'ACCEPTED',

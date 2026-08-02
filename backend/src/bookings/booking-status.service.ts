@@ -223,7 +223,69 @@ export class BookingStatusService {
       (cached.customerId === userId || cached.operatorId === userId)
     ) {
       const isCustomer = cached.customerId === userId;
-      const status = String(cached.status || '').toUpperCase();
+      let status = String(cached.status || '').toUpperCase();
+
+      // Stale open-status cache: accept commits to Postgres before the outbox
+      // refreshes Redis. If we still serve REQUESTED, the customer stays on
+      // "Finding your pro" and can cancel an already-accepted job.
+      const openCached = new Set([
+        'REQUESTED',
+        'PENDING',
+        'CUSTOM_REQUESTED',
+      ]);
+      if (openCached.has(status)) {
+        const fresh = await this.getBookingById(bookingId);
+        if (fresh) {
+          const dbStatus = String(fresh.status || '').toUpperCase();
+          if (dbStatus && dbStatus !== status) {
+            const phones = this.extractBookingPhones(fresh);
+            const billing = await this.billingExtras(fresh);
+            const payload = {
+              status: fresh.status,
+              operatorName: fresh.operator?.name ?? null,
+              operatorId: fresh.operator?.id ?? null,
+              customerId: fresh.customer?.id ?? null,
+              arrivalOtp: fresh.arrivalOtp,
+              cancelRequested: !!fresh.cancelRequestedAt,
+              workerNoProgress: !!fresh.workerNoProgressAt,
+              isPaid: !!fresh.isPaid,
+              workerPaidConfirmed: !!fresh.workerPaidConfirmed,
+              customerPaidConfirmed: !!fresh.customerPaidConfirmed,
+              ...phones,
+              ...billing,
+            };
+            await this.redisService
+              .cacheBookingStatus(bookingId, payload)
+              .catch(() => {});
+            const loc = await attachOperatorLocation(
+              payload.operatorId,
+              dbStatus,
+            );
+            return {
+              status: dbStatus,
+              operatorName: payload.operatorName,
+              operatorId: payload.operatorId,
+              arrivalOtp:
+                isCustomer && dbStatus === 'ACCEPTED'
+                  ? (fresh.arrivalOtp ?? null)
+                  : null,
+              cancelRequested: payload.cancelRequested,
+              workerNoProgress: payload.workerNoProgress,
+              isPaid: payload.isPaid,
+              workerPaidConfirmed: payload.workerPaidConfirmed,
+              customerPaidConfirmed: payload.customerPaidConfirmed,
+              operatorLat: loc.operatorLat,
+              operatorLng: loc.operatorLng,
+              counterpartPhone: this.resolveCounterpartPhone(
+                isCustomer,
+                phones,
+              ),
+              ...billing,
+            };
+          }
+        }
+      }
+
       const loc = await attachOperatorLocation(cached.operatorId, status);
 
       let phones = {
