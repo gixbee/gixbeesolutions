@@ -37,6 +37,11 @@ class _MyBookingsScreenState extends ConsumerState<MyBookingsScreen>
   final Map<String, Object?> _loadError = {'UPCOMING': null, 'PAST': null};
   static const int _pageSize = 15;
 
+  /// Bumped on every reset so in-flight page responses from the previous
+  /// generation are discarded instead of appended to the cleared list.
+  int _generation = 0;
+  bool _sawFirstBookings = false;
+
   @override
   void initState() {
     super.initState();
@@ -83,6 +88,7 @@ class _MyBookingsScreenState extends ConsumerState<MyBookingsScreen>
       _hasMore[tab] = true;
     }
 
+    final generation = _generation;
     try {
       final repo = ref.read(bookingRepositoryProvider);
       final status = tab == 'PAST'
@@ -96,7 +102,7 @@ class _MyBookingsScreenState extends ConsumerState<MyBookingsScreen>
         limit: _pageSize,
       );
 
-      if (mounted) {
+      if (mounted && generation == _generation) {
         setState(() {
           _paginatedData[tab]!.addAll(results);
           _hasMore[tab] = results.length >= _pageSize;
@@ -106,7 +112,7 @@ class _MyBookingsScreenState extends ConsumerState<MyBookingsScreen>
         });
       }
     } catch (e) {
-      if (mounted) {
+      if (mounted && generation == _generation) {
         setState(() {
           _isLoadingMore[tab] = false;
           // Stop the empty+hasMore skeleton retry loop; surface the failure.
@@ -119,21 +125,46 @@ class _MyBookingsScreenState extends ConsumerState<MyBookingsScreen>
     }
   }
 
-  void _refreshAll() {
-    ref.invalidate(myBookingsProvider);
-    for (final tab in ['UPCOMING', 'PAST']) {
-      _paginatedData[tab] = [];
-      _currentPage[tab] = 1;
-      _hasMore[tab] = true;
-      _loadError[tab] = null;
-    }
+  /// Drop the per-tab page caches and reload whichever paginated tab is on
+  /// screen. The other tab reloads lazily when the user opens it.
+  void _resetPaginatedTabs() {
+    if (!mounted) return;
+    _generation++;
+    setState(() {
+      for (final tab in ['UPCOMING', 'PAST']) {
+        _paginatedData[tab] = [];
+        _currentPage[tab] = 1;
+        _hasMore[tab] = true;
+        _loadError[tab] = null;
+        _isLoadingMore[tab] = false;
+      }
+    });
     final tabName = _tabNames[_tabController.index];
     if (tabName != 'ACTIVE') _loadPage(tabName, reset: true);
+  }
+
+  void _refreshAll() {
+    ref.invalidate(myBookingsProvider);
+    _resetPaginatedTabs();
   }
 
   @override
   Widget build(BuildContext context) {
     final bookingsAsync = ref.watch(myBookingsProvider);
+
+    // Cancels, approvals and accepts all invalidate myBookingsProvider from
+    // wherever they happen. The Active tab follows it for free; the paginated
+    // tabs own their lists, so a cancelled job used to sit under Upcoming
+    // until a manual refresh. Refetch them on every change after the first.
+    ref.listen<AsyncValue<List<dynamic>>>(myBookingsProvider, (_, next) {
+      if (next.isLoading || !next.hasValue) return;
+      if (!_sawFirstBookings) {
+        _sawFirstBookings = true;
+        return;
+      }
+      WidgetsBinding.instance
+          .addPostFrameCallback((_) => _resetPaginatedTabs());
+    });
 
     return Scaffold(
       backgroundColor: context.gx.bg,

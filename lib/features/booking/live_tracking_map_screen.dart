@@ -65,6 +65,8 @@ class _LiveTrackingMapScreenState extends ConsumerState<LiveTrackingMapScreen> {
   Circle? _workerCircle;
   Circle? _customerCircle;
   Line? _routeLine;
+  bool _syncingAnnotations = false;
+  bool _annotationSyncQueued = false;
   LatLng? _workerLocation;
   LatLng? _customerLocation;
   String _currentStatus = 'ACCEPTED';
@@ -309,10 +311,30 @@ class _LiveTrackingMapScreenState extends ConsumerState<LiveTrackingMapScreen> {
     }
   }
 
+  /// Serialised entry point. Callers fire this from GPS, socket, poll and
+  /// style-loaded paths, and the body awaits before storing its annotation
+  /// handles — two concurrent runs would both add a line and leak one of them
+  /// (a stale straight fallback that never gets updated again).
+  Future<void> _syncMapAnnotations() async {
+    if (_syncingAnnotations) {
+      _annotationSyncQueued = true;
+      return;
+    }
+    _syncingAnnotations = true;
+    try {
+      do {
+        _annotationSyncQueued = false;
+        await _applyMapAnnotations();
+      } while (_annotationSyncQueued && mounted);
+    } finally {
+      _syncingAnnotations = false;
+    }
+  }
+
   /// Keep the worker/customer dots and the route line in sync with state.
   /// MapLibre annotations are imperative (add/update handles), unlike the
   /// declarative google_maps_flutter marker sets this replaced.
-  Future<void> _syncMapAnnotations() async {
+  Future<void> _applyMapAnnotations() async {
     final c = _mapController;
     if (c == null || !_styleReady) return;
     try {
