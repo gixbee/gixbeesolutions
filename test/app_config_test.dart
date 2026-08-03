@@ -47,14 +47,17 @@ void main() {
       );
     });
 
-    test('release message also flags placeholder Razorpay key', () {
+    test('release boot does not refuse solely for placeholder Razorpay', () {
+      // Loopback still throws first in this suite (no dart-defines). The
+      // Razorpay placeholder alone must not be a boot killer — that left
+      // release APKs on a black screen when RAZORPAY_KEY was unset.
       expect(
         () => AppConfig.assertReleaseNetworkConfig(isRelease: true),
         throwsA(
           isA<StateError>().having(
             (e) => e.message,
             'message',
-            contains('RAZORPAY_KEY'),
+            isNot(contains('RAZORPAY_KEY')),
           ),
         ),
       );

@@ -17,40 +17,78 @@ import 'features/onboarding/animated_splash_screen.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Fail-closed: a release APK without dart-define API/socket hosts would
-  // silently talk to 127.0.0.1 on the phone ("Could not send code").
-  AppConfig.assertReleaseNetworkConfig();
+  try {
+    // Fail-closed: a release APK without dart-define API/socket hosts would
+    // silently talk to 127.0.0.1 on the phone ("Could not send code").
+    AppConfig.assertReleaseNetworkConfig();
 
-  // 1. Plugin registry (synchronous — must be first)
-  registerDefaultPlugins();
+    // 1. Plugin registry (synchronous — must be first)
+    registerDefaultPlugins();
 
-  // 2. Global crash reporter — catches unhandled Flutter/Dart errors and
-  //    POSTs them to /client-logs so they appear in the admin portal.
-  CrashReporter.init();
+    // 2. Global crash reporter — catches unhandled Flutter/Dart errors and
+    //    POSTs them to /client-logs so they appear in the admin portal.
+    CrashReporter.init();
 
-  // 3. Firebase — must be initialized before any FCM or Firestore calls
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
-  );
+    // 3. Firebase — must be initialized before any FCM or Firestore calls
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
 
-  // 4. Register FCM background handler as a top-level function BEFORE runApp().
-  //    Flutter requires this to be registered here, not inside any class or widget.
-  //    NotificationService.initialize() does NOT register this again.
-  FirebaseMessaging.onBackgroundMessage(firebaseBackgroundHandler);
+    // 4. Register FCM background handler as a top-level function BEFORE runApp().
+    //    Flutter requires this to be registered here, not inside any class or widget.
+    //    NotificationService.initialize() does NOT register this again.
+    FirebaseMessaging.onBackgroundMessage(firebaseBackgroundHandler);
 
-  debugPrint('GIXBEE_BUILD_VERSION: ${AppConfig.buildVersion}');
+    debugPrint('GIXBEE_BUILD_VERSION: ${AppConfig.buildVersion}');
 
-  // 5. Restore the saved Appearance BEFORE the first frame — otherwise the
-  //    app boots in the default dark theme and visibly snaps to Grab Light a
-  //    few hundred ms later. The read is a few ms; the splash isn't delayed.
-  final initialTheme = await ThemeChoiceNotifier.restore();
+    // 5. Restore the saved Appearance BEFORE the first frame — otherwise the
+    //    app boots in the default dark theme and visibly snaps to Grab Light a
+    //    few hundred ms later. The read is a few ms; the splash isn't delayed.
+    final initialTheme = await ThemeChoiceNotifier.restore();
 
-  // 6. Start the app — all further init (permissions, channel, listeners)
-  //    happens in main_wrapper._initNotifications() after login.
-  runApp(ProviderScope(
-    overrides: [initialThemeChoiceProvider.overrideWithValue(initialTheme)],
-    child: const GixbeeApp(),
-  ));
+    // 6. Start the app — all further init (permissions, channel, listeners)
+    //    happens in main_wrapper._initNotifications() after login.
+    runApp(ProviderScope(
+      overrides: [initialThemeChoiceProvider.overrideWithValue(initialTheme)],
+      child: const GixbeeApp(),
+    ));
+  } catch (e, st) {
+    // Never leave a release install on a full black screen if boot fails
+    // before runApp (missing dart-defines, Firebase init, etc.).
+    debugPrint('Gixbee boot failed: $e\n$st');
+    runApp(MaterialApp(
+      home: Scaffold(
+        backgroundColor: const Color(0xFF0B0B0F),
+        body: SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Gixbee failed to start',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 22,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  '$e',
+                  style: const TextStyle(
+                    color: Color(0xFFB8B8C0),
+                    fontSize: 13,
+                    height: 1.4,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    ));
+  }
 }
 
 /// Enables mouse/trackpad/stylus drag on every scrollable (Flutter web
