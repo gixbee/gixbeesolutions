@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
@@ -10,6 +12,7 @@ import '../../repositories/addresses_repository.dart'; // saved address book
 import '../../repositories/cities_repository.dart'; // currentCityProvider
 import '../../repositories/worker_repository.dart'; // selectedLocationProvider
 import '../../services/location_service.dart';
+import '../../shared/models/worker.dart';
 import '../../shared/widgets/dribbble_background.dart';
 import '../../shared/widgets/gx_button.dart';
 import '../../shared/widgets/gx_pressable.dart';
@@ -48,12 +51,25 @@ class InstantRequestScreen extends ConsumerStatefulWidget {
 }
 
 class _InstantRequestScreenState extends ConsumerState<InstantRequestScreen> {
-  static const _steps = ['Location', 'Presence', 'Issues', 'Language', 'Budget'];
+  static const _steps = [
+    'Location',
+    'Presence',
+    'Issues',
+    'Language',
+    'Budget'
+  ];
 
   // v126 c5 language list.
   static const _languages = [
-    'Malayalam', 'Tamil', 'English', 'Hindi', 'Telugu',
-    'Kannada', 'Urdu', 'Bengali', 'Marathi',
+    'Malayalam',
+    'Tamil',
+    'English',
+    'Hindi',
+    'Telugu',
+    'Kannada',
+    'Urdu',
+    'Bengali',
+    'Marathi',
   ];
 
   int _step = 0;
@@ -62,6 +78,7 @@ class _InstantRequestScreenState extends ConsumerState<InstantRequestScreen> {
   // Step 1 — location
   bool _useCurrentLocation = true;
   final _addressCtrl = TextEditingController();
+
   /// Saved-address id when the user picked one from the address book — sent as
   /// `addressId` so the booking links back to the saved entry.
   String? _selectedAddressId;
@@ -96,14 +113,16 @@ class _InstantRequestScreenState extends ConsumerState<InstantRequestScreen> {
   static const double _budgetFloor = 50;
   static const double _budgetCeil = 500;
   RangeValues _budgetRange = const RangeValues(100, 250);
+  List<Worker>? _nearbyBudgetPros;
+  bool _loadingBudgetPros = false;
+  Object? _budgetProsError;
 
   @override
   void initState() {
     super.initState();
     if (widget.suggestedRate > 0) {
-      final mid = widget.suggestedRate
-          .clamp(_budgetFloor, _budgetCeil)
-          .toDouble();
+      final mid =
+          widget.suggestedRate.clamp(_budgetFloor, _budgetCeil).toDouble();
       final lo = (mid * 0.7).clamp(_budgetFloor, mid).toDouble();
       final hi = (mid * 1.3).clamp(mid, _budgetCeil).toDouble();
       _budgetRange = RangeValues(lo.roundToDouble(), hi.roundToDouble());
@@ -165,6 +184,41 @@ class _InstantRequestScreenState extends ConsumerState<InstantRequestScreen> {
 
   /// Value posted as Instant Help `amount` — the upper end of the range.
   double get _budgetAmount => _budgetRange.end.roundToDouble();
+
+  int get _prosInBudget {
+    final pros = _nearbyBudgetPros;
+    if (pros == null) return 0;
+    return pros.where((pro) {
+      return pro.hourlyRate >= _budgetRange.start &&
+          pro.hourlyRate <= _budgetRange.end;
+    }).length;
+  }
+
+  Future<void> _loadBudgetPros() async {
+    if (_loadingBudgetPros) return;
+    setState(() {
+      _loadingBudgetPros = true;
+      _budgetProsError = null;
+    });
+    try {
+      final coords = await _resolveCoords();
+      if (coords == null) {
+        throw StateError('Booking location is unavailable');
+      }
+      final pros = await ref.read(workerRepositoryProvider).getNearbyWorkers(
+            lat: coords.lat,
+            lng: coords.lng,
+            skill: widget.skill,
+            fallbackToAll: false,
+          );
+      if (!mounted) return;
+      setState(() => _nearbyBudgetPros = pros);
+    } catch (e) {
+      if (mounted) setState(() => _budgetProsError = e);
+    } finally {
+      if (mounted) setState(() => _loadingBudgetPros = false);
+    }
+  }
 
   /// Coordinates for the request.
   /// - "Current location" → the home-picked coords.
@@ -290,8 +344,8 @@ class _InstantRequestScreenState extends ConsumerState<InstantRequestScreen> {
     final coords = await _resolveCoords();
     if (coords == null) {
       if (mounted) {
-        showGxSnack(context,
-            'Please pick your location from the home screen first',
+        showGxSnack(
+            context, 'Please pick your location from the home screen first',
             type: GxSnackType.error);
       }
       return;
@@ -320,17 +374,18 @@ class _InstantRequestScreenState extends ConsumerState<InstantRequestScreen> {
 
     setState(() => _submitting = true);
     try {
-      final res = await ref.read(bookingRepositoryProvider).sendBroadcastRequest(
-            skill: widget.skill,
-            serviceLocation: address,
-            lat: coords.lat,
-            lng: coords.lng,
-            amount: budget,
-            description: description.isEmpty ? null : description,
-            preferredLanguages: _selectedLanguages.toList(),
-            addressId: _useCurrentLocation ? null : _selectedAddressId,
-            onSiteContact: onSiteContact,
-          );
+      final res =
+          await ref.read(bookingRepositoryProvider).sendBroadcastRequest(
+                skill: widget.skill,
+                serviceLocation: address,
+                lat: coords.lat,
+                lng: coords.lng,
+                amount: budget,
+                description: description.isEmpty ? null : description,
+                preferredLanguages: _selectedLanguages.toList(),
+                addressId: _useCurrentLocation ? null : _selectedAddressId,
+                onSiteContact: onSiteContact,
+              );
       if (!mounted) return;
       final notified = (res['notified'] as num?)?.toInt() ?? 0;
       final bookingId = res['booking']?['id']?.toString();
@@ -358,8 +413,7 @@ class _InstantRequestScreenState extends ConsumerState<InstantRequestScreen> {
           _pinnedCoords != null) {
         ref
             .read(addressesRepositoryProvider)
-            .add(address,
-                lat: _pinnedCoords!.lat, lng: _pinnedCoords!.lng)
+            .add(address, lat: _pinnedCoords!.lat, lng: _pinnedCoords!.lng)
             .then((_) => ref.invalidate(myAddressesProvider))
             .catchError((e) {
           debugPrint('Address save failed: $e');
@@ -432,8 +486,7 @@ class _InstantRequestScreenState extends ConsumerState<InstantRequestScreen> {
       InputDecoration(
         hintText: hint,
         prefixText: prefix,
-        prefixStyle:
-            TextStyle(color: context.gx.accentSoft, fontSize: 15),
+        prefixStyle: TextStyle(color: context.gx.accentSoft, fontSize: 15),
         hintStyle: TextStyle(color: context.gx.ink.withValues(alpha: 0.3)),
         filled: true,
         fillColor: context.gx.card2,
@@ -535,8 +588,8 @@ class _InstantRequestScreenState extends ConsumerState<InstantRequestScreen> {
     );
   }
 
-  Widget _chip(
-          BuildContext context, String label, bool selected, VoidCallback onTap) =>
+  Widget _chip(BuildContext context, String label, bool selected,
+          VoidCallback onTap) =>
       ChoiceChip(
         label: Text(label,
             style: TextStyle(
@@ -566,7 +619,9 @@ class _InstantRequestScreenState extends ConsumerState<InstantRequestScreen> {
           selected: _useCurrentLocation,
           icon: Icons.my_location_rounded,
           title: 'Use my current location',
-          sub: _currentAddress.isEmpty ? 'Pick on the home screen' : _currentAddress,
+          sub: _currentAddress.isEmpty
+              ? 'Pick on the home screen'
+              : _currentAddress,
           onTap: () => setState(() => _useCurrentLocation = true),
         ),
         _optionCard(
@@ -651,8 +706,7 @@ class _InstantRequestScreenState extends ConsumerState<InstantRequestScreen> {
             // New typed address with a confirmed pin — offer to keep both so
             // the next booking here is one-tap (saved on submit).
             GxPressable(
-              onTap: () =>
-                  setState(() => _saveThisAddress = !_saveThisAddress),
+              onTap: () => setState(() => _saveThisAddress = !_saveThisAddress),
               child: Row(
                 children: [
                   Icon(
@@ -705,76 +759,72 @@ class _InstantRequestScreenState extends ConsumerState<InstantRequestScreen> {
                 color: context.gx.ink.withValues(alpha: 0.45))),
         const SizedBox(height: 8),
         for (final a in addresses)
-              GxPressable(
-                onTap: () => setState(() {
-                  _addressCtrl.text = a.line;
-                  _selectedAddressId = a.id;
-                  _saveThisAddress = false;
-                  // Pinned before → reuse the confirmed pin ONE-TAP (no map).
-                  // Legacy address without coords → the pin confirm is still
-                  // required, and confirming backfills it for next time.
-                  _pinnedCoords =
-                      a.hasPin ? (lat: a.lat!, lng: a.lng!) : null;
-                }),
-                child: Container(
-                  margin: const EdgeInsets.only(bottom: 8),
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 12, vertical: 10),
-                  decoration: BoxDecoration(
+          GxPressable(
+            onTap: () => setState(() {
+              _addressCtrl.text = a.line;
+              _selectedAddressId = a.id;
+              _saveThisAddress = false;
+              // Pinned before → reuse the confirmed pin ONE-TAP (no map).
+              // Legacy address without coords → the pin confirm is still
+              // required, and confirming backfills it for next time.
+              _pinnedCoords = a.hasPin ? (lat: a.lat!, lng: a.lng!) : null;
+            }),
+            child: Container(
+              margin: const EdgeInsets.only(bottom: 8),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              decoration: BoxDecoration(
+                color: _selectedAddressId == a.id
+                    ? context.gx.accentSoft.withValues(alpha: 0.1)
+                    : context.gx.card2,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
                     color: _selectedAddressId == a.id
-                        ? context.gx.accentSoft.withValues(alpha: 0.1)
-                        : context.gx.card2,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(
-                        color: _selectedAddressId == a.id
-                            ? context.gx.accentSoft
-                            : context.gx.border),
-                  ),
-                  child: Row(
-                    children: [
-                      Icon(
-                          a.label?.toLowerCase() == 'work'
-                              ? Icons.business_center_outlined
-                              : Icons.home_outlined,
-                          size: 16,
-                          color: context.gx.accentSoft),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            if (a.label != null && a.label!.isNotEmpty)
-                              Text(a.label!,
-                                  style: TextStyle(
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.w800,
-                                      color: context.gx.ink)),
-                            Text(a.line,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: TextStyle(
-                                    fontSize: 12,
-                                    color: context.gx.ink
-                                        .withValues(alpha: 0.6))),
-                          ],
-                        ),
-                      ),
-                      if (a.hasPin)
-                        // This address carries a confirmed pin — one tap, no map.
-                        Icon(Icons.location_on_rounded,
-                            size: 14, color: GixbeeTheme.accentGreen),
-                    ],
-                  ),
-                ),
+                        ? context.gx.accentSoft
+                        : context.gx.border),
               ),
+              child: Row(
+                children: [
+                  Icon(
+                      a.label?.toLowerCase() == 'work'
+                          ? Icons.business_center_outlined
+                          : Icons.home_outlined,
+                      size: 16,
+                      color: context.gx.accentSoft),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        if (a.label != null && a.label!.isNotEmpty)
+                          Text(a.label!,
+                              style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w800,
+                                  color: context.gx.ink)),
+                        Text(a.line,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                                fontSize: 12,
+                                color: context.gx.ink.withValues(alpha: 0.6))),
+                      ],
+                    ),
+                  ),
+                  if (a.hasPin)
+                    // This address carries a confirmed pin — one tap, no map.
+                    Icon(Icons.location_on_rounded,
+                        size: 14, color: GixbeeTheme.accentGreen),
+                ],
+              ),
+            ),
+          ),
         // Add new address — opens the map (with search) then the label
         // sheet; the saved address is immediately selected for this booking.
         GxPressable(
           onTap: _addNewSavedAddress,
           child: Container(
             margin: const EdgeInsets.only(bottom: 8),
-            padding:
-                const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
             decoration: BoxDecoration(
               color: context.gx.card2,
               borderRadius: BorderRadius.circular(12),
@@ -812,7 +862,9 @@ class _InstantRequestScreenState extends ConsumerState<InstantRequestScreen> {
           selected: _selfPresent,
           icon: Icons.person_rounded,
           title: 'I will be there myself',
-          sub: myPhone.isNotEmpty ? 'OTP sent to $myPhone' : 'OTP sent to your number',
+          sub: myPhone.isNotEmpty
+              ? 'OTP sent to $myPhone'
+              : 'OTP sent to your number',
           onTap: () => setState(() => _selfPresent = true),
         ),
         _optionCard(
@@ -933,8 +985,7 @@ class _InstantRequestScreenState extends ConsumerState<InstantRequestScreen> {
         SliderTheme(
           data: SliderTheme.of(context).copyWith(
             activeTrackColor: context.gx.accentSoft,
-            inactiveTrackColor:
-                context.gx.accentSoft.withValues(alpha: 0.18),
+            inactiveTrackColor: context.gx.accentSoft.withValues(alpha: 0.18),
             thumbColor: context.gx.accentSoft,
             overlayColor: context.gx.accentSoft.withValues(alpha: 0.12),
             rangeThumbShape:
@@ -976,19 +1027,20 @@ class _InstantRequestScreenState extends ConsumerState<InstantRequestScreen> {
             color: context.gx.ink.withValues(alpha: 0.45),
           ),
         ),
-        const SizedBox(height: 18),
+        const SizedBox(height: 14),
+        _budgetMatchCard(minR: minR, maxR: maxR),
+        const SizedBox(height: 14),
         Container(
           padding: const EdgeInsets.all(14),
           decoration: BoxDecoration(
             color: context.gx.accentSoft.withValues(alpha: 0.1),
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(
-                color: context.gx.accentSoft.withValues(alpha: 0.3)),
+            border:
+                Border.all(color: context.gx.accentSoft.withValues(alpha: 0.3)),
           ),
           child: Row(
             children: [
-              Icon(Icons.bolt_rounded,
-                  color: context.gx.accentSoft, size: 22),
+              Icon(Icons.bolt_rounded, color: context.gx.accentSoft, size: 22),
               const SizedBox(width: 10),
               Expanded(
                 child: Text(
@@ -1005,6 +1057,177 @@ class _InstantRequestScreenState extends ConsumerState<InstantRequestScreen> {
     );
   }
 
+  Widget _budgetMatchCard({required int minR, required int maxR}) {
+    final gx = context.gx;
+    final total = _nearbyBudgetPros?.length ?? 0;
+    final matches = _prosInBudget;
+    final ratio = total == 0 ? 0.0 : matches / total;
+
+    Widget body;
+    if (_loadingBudgetPros) {
+      body = Row(
+        children: [
+          SizedBox(
+            width: 22,
+            height: 22,
+            child: CircularProgressIndicator(
+              strokeWidth: 2.5,
+              color: gx.accentSoft,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              'Checking live pros near your location…',
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: gx.ink.withValues(alpha: 0.7),
+              ),
+            ),
+          ),
+        ],
+      );
+    } else if (_budgetProsError != null) {
+      body = Row(
+        children: [
+          Icon(Icons.cloud_off_rounded,
+              size: 22, color: gx.ink.withValues(alpha: 0.45)),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              'Live pro count is unavailable right now.',
+              style: TextStyle(
+                fontSize: 12.5,
+                color: gx.ink.withValues(alpha: 0.6),
+              ),
+            ),
+          ),
+          TextButton(onPressed: _loadBudgetPros, child: const Text('Retry')),
+        ],
+      );
+    } else if (_nearbyBudgetPros == null) {
+      body = const SizedBox.shrink();
+    } else {
+      body = Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Container(
+                width: 48,
+                height: 48,
+                decoration: BoxDecoration(
+                  color: gx.accentSoft.withValues(alpha: 0.14),
+                  shape: BoxShape.circle,
+                ),
+                alignment: Alignment.center,
+                child: Text(
+                  '$matches',
+                  style: TextStyle(
+                    fontSize: 21,
+                    fontWeight: FontWeight.w900,
+                    color: gx.accentSoft,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      matches == 1
+                          ? '1 pro matches your budget'
+                          : '$matches pros match your budget',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w800,
+                        color: gx.ink,
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      total == 0
+                          ? 'No ${widget.skill} pros are live nearby right now.'
+                          : 'Hourly rates between ₹$minR and ₹$maxR · '
+                              '$total nearby ${total == 1 ? "pro" : "pros"} total',
+                      style: TextStyle(
+                        fontSize: 11.5,
+                        height: 1.35,
+                        color: gx.ink.withValues(alpha: 0.55),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          if (total > 0) ...[
+            const SizedBox(height: 12),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(99),
+              child: LinearProgressIndicator(
+                value: ratio,
+                minHeight: 6,
+                backgroundColor: gx.accentSoft.withValues(alpha: 0.12),
+                valueColor: AlwaysStoppedAnimation(gx.accentSoft),
+              ),
+            ),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Icon(Icons.campaign_rounded,
+                    size: 15, color: gx.ink.withValues(alpha: 0.45)),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    'All $total eligible nearby ${total == 1 ? "pro is" : "pros are"} '
+                    'notified, even outside this budget range.',
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: gx.ink.withValues(alpha: 0.5),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ],
+      );
+    }
+
+    return AnimatedSize(
+      duration: const Duration(milliseconds: 220),
+      curve: Curves.easeOut,
+      child: AnimatedSwitcher(
+        duration: const Duration(milliseconds: 180),
+        child: Container(
+          key: ValueKey(
+              '${_loadingBudgetPros}_${_budgetProsError != null}_${_nearbyBudgetPros != null}_$matches'),
+          width: double.infinity,
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: gx.card,
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(
+              color: gx.accentSoft.withValues(alpha: 0.22),
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: gx.ink.withValues(alpha: 0.04),
+                blurRadius: 14,
+                offset: const Offset(0, 5),
+              ),
+            ],
+          ),
+          child: body,
+        ),
+      ),
+    );
+  }
+
   /// Advance one step. On the LOCATION step, a typed / different location
   /// must have a confirmed map pin first — if it doesn't, we open the pin
   /// drop instead of advancing, and only move on once the user confirms.
@@ -1015,7 +1238,12 @@ class _InstantRequestScreenState extends ConsumerState<InstantRequestScreen> {
         if (!confirmed) return; // user backed out of the map — stay put
       }
     }
-    if (mounted) setState(() => _step++);
+    if (!mounted) return;
+    final nextStep = _step + 1;
+    setState(() => _step = nextStep);
+    if (nextStep == _steps.length - 1 && _nearbyBudgetPros == null) {
+      unawaited(_loadBudgetPros());
+    }
   }
 
   // ── scaffold ───────────────────────────────────────────────────────────────

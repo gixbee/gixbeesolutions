@@ -16,7 +16,8 @@ final workersProvider = FutureProvider<List<Worker>>((ref) async {
 });
 
 /// Holds the user's selected location for discovering nearby workers (OLX-style)
-final selectedLocationProvider = StateProvider<({double lat, double lng, String address})?>(
+final selectedLocationProvider =
+    StateProvider<({double lat, double lng, String address})?>(
   (ref) => null,
 );
 
@@ -26,16 +27,17 @@ final selectedLocationProvider = StateProvider<({double lat, double lng, String 
 final workerLiveStateProvider = StateProvider<bool>((ref) => false);
 
 /// Fetches nearby workers based on the selected location
-final nearbyWorkersProvider = FutureProvider.autoDispose<List<Worker>>((ref) async {
+final nearbyWorkersProvider =
+    FutureProvider.autoDispose<List<Worker>>((ref) async {
   final location = ref.watch(selectedLocationProvider);
   if (location == null) {
     // No location selected, fall back to all workers
     return ref.watch(workerRepositoryProvider).getWorkers();
   }
   return ref.watch(workerRepositoryProvider).getNearbyWorkers(
-    lat: location.lat,
-    lng: location.lng,
-  );
+        lat: location.lat,
+        lng: location.lng,
+      );
 });
 
 /// Approximate live-pro counts per trade around the selected location
@@ -89,7 +91,9 @@ class WorkerRepository {
     try {
       final response = await _dio.get('/workers');
       final data = response.data as List;
-      return data.map((item) => Worker.fromMap(item as Map<String, dynamic>)).toList();
+      return data
+          .map((item) => Worker.fromMap(item as Map<String, dynamic>))
+          .toList();
     } catch (e) {
       debugPrint('Error fetching workers: $e');
       rethrow;
@@ -109,6 +113,7 @@ class WorkerRepository {
     required double lat,
     required double lng,
     String? skill,
+    bool fallbackToAll = true,
   }) async {
     try {
       final params = <String, dynamic>{
@@ -116,15 +121,22 @@ class WorkerRepository {
         'lng': lng.toString(),
       };
       if (skill != null) params['skill'] = skill;
-      final response = await _dio.get('/workers/nearby', queryParameters: params);
+      final response =
+          await _dio.get('/workers/nearby', queryParameters: params);
       final data = response.data as List;
-      return data.map((item) => Worker.fromMap(item as Map<String, dynamic>)).toList();
+      return data
+          .map((item) => Worker.fromMap(item as Map<String, dynamic>))
+          .toList();
     } catch (e) {
       debugPrint('Error fetching nearby workers: $e');
-      // Fallback to all workers if nearby API fails
-      return getWorkers();
+      // Directory screens can remain useful with the full list, but callers
+      // displaying a nearby count must fail instead of presenting every pro
+      // in the system as local.
+      if (fallbackToAll) return getWorkers();
+      rethrow;
     }
   }
+
   Future<List<Map<String, dynamic>>> getWorkerPackages(String workerId) async {
     try {
       final response = await _dio.get('/workers/$workerId/packages');
@@ -281,4 +293,3 @@ class WorkerRepository {
     }
   }
 }
-
