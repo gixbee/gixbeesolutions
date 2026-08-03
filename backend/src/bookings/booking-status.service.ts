@@ -46,7 +46,10 @@ export class BookingStatusService {
             ...payload,
             bookingId,
             id: bookingId,
-            arrivalOtp: status === 'ACCEPTED' ? payload.arrivalOtp : null,
+            arrivalOtp:
+              status === 'ACCEPTED' || status === 'ARRIVED'
+                ? payload.arrivalOtp
+                : null,
           },
         );
       } catch (e) {
@@ -225,15 +228,20 @@ export class BookingStatusService {
       const isCustomer = cached.customerId === userId;
       let status = String(cached.status || '').toUpperCase();
 
-      // Stale open-status cache: accept commits to Postgres before the outbox
-      // refreshes Redis. If we still serve REQUESTED, the customer stays on
-      // "Finding your pro" and can cancel an already-accepted job.
+      // Stale cache repair: open statuses lag accept; live statuses lag cancel.
       const openCached = new Set([
         'REQUESTED',
         'PENDING',
         'CUSTOM_REQUESTED',
       ]);
-      if (openCached.has(status)) {
+      const liveCached = new Set([
+        'ACCEPTED',
+        'CONFIRMED',
+        'ARRIVED',
+        'ACTIVE',
+        'IN_PROGRESS',
+      ]);
+      if (openCached.has(status) || liveCached.has(status)) {
         const fresh = await this.getBookingById(bookingId);
         if (fresh) {
           const dbStatus = String(fresh.status || '').toUpperCase();
@@ -266,7 +274,8 @@ export class BookingStatusService {
               operatorName: payload.operatorName,
               operatorId: payload.operatorId,
               arrivalOtp:
-                isCustomer && dbStatus === 'ACCEPTED'
+                isCustomer &&
+                (dbStatus === 'ACCEPTED' || dbStatus === 'ARRIVED')
                   ? (fresh.arrivalOtp ?? null)
                   : null,
               cancelRequested: payload.cancelRequested,
@@ -336,7 +345,7 @@ export class BookingStatusService {
         operatorName: cached.operatorName ?? null,
         operatorId: cached.operatorId ?? null,
         arrivalOtp:
-          isCustomer && status === 'ACCEPTED'
+          isCustomer && (status === 'ACCEPTED' || status === 'ARRIVED')
             ? (cached.arrivalOtp ?? null)
             : null,
         cancelRequested: !!cached.cancelRequested,

@@ -12,23 +12,21 @@ class SocketService {
   StreamSubscription<Position>? _locationStreamSub;
   DateTime? _lastPresenceEmit;
 
-  // ── Notification stream — booking events pushed from server ──
-  final _notificationController =
+  // Broadcast controllers — must survive logout/re-login. disconnect() must
+  // NOT close them permanently (that killed realtime until app restart).
+  StreamController<Map<String, dynamic>> _notificationController =
+      StreamController<Map<String, dynamic>>.broadcast();
+  StreamController<bool> _connectionController =
+      StreamController<bool>.broadcast();
+  StreamController<Map<String, dynamic>> _messageController =
       StreamController<Map<String, dynamic>>.broadcast();
 
   Stream<Map<String, dynamic>> get notifications =>
       _notificationController.stream;
 
-  // ── Connection stream — true on connect/reconnect, false on disconnect ──
-  final _connectionController = StreamController<bool>.broadcast();
-
   /// Emits whenever the socket connects (`true`) or drops (`false`).
   /// Used by booking status polling to slow/fast the HTTP fallback.
   Stream<bool> get connectionChanges => _connectionController.stream;
-
-  // ── Chat stream — `new_message` events pushed to the user's room ──
-  final _messageController =
-      StreamController<Map<String, dynamic>>.broadcast();
 
   Stream<Map<String, dynamic>> get messages => _messageController.stream;
 
@@ -39,11 +37,31 @@ class SocketService {
   /// the customer keeps receiving `locationUpdated` after a socket blip.
   String? _activeJobId;
 
+  /// True after we emit joinUserRoom while connected (cleared on disconnect).
+  bool _userRoomJoined = false;
+
   /// Customer tracking-screen callback for live worker GPS.
   void Function(Map<String, dynamic>)? _locationUpdatedCallback;
 
   io.Socket? get socket => _socket;
   bool get isConnected => _socket?.connected ?? false;
+
+  /// Connected AND personal room joined — safe to back off HTTP status polls.
+  bool get isLiveForPolling =>
+      isConnected && _userId != null && _userRoomJoined;
+
+  void _ensureControllersOpen() {
+    if (_notificationController.isClosed) {
+      _notificationController =
+          StreamController<Map<String, dynamic>>.broadcast();
+    }
+    if (_connectionController.isClosed) {
+      _connectionController = StreamController<bool>.broadcast();
+    }
+    if (_messageController.isClosed) {
+      _messageController = StreamController<Map<String, dynamic>>.broadcast();
+    }
+  }
 
   /// Join the personal room `user_<id>` so the server can push chat messages.
   /// Safe to call before connect — the id is cached and re-sent on (re)connect.
@@ -51,10 +69,22 @@ class SocketService {
     _userId = userId;
     if (isConnected) {
       _socket!.emit('joinUserRoom', {'userId': userId});
+      _userRoomJoined = true;
     }
   }
 
   void connect(String token) {
+    _ensureControllersOpen();
+    // Replace any prior socket (e.g. re-login without process kill).
+    if (_socket != null) {
+      try {
+        _socket!.disconnect();
+        _socket!.dispose();
+      } catch (_) {}
+      _socket = null;
+    }
+    _userRoomJoined = false;
+
     _socket = io.io(
       AppConfig.socketUrl,
       io.OptionBuilder()
@@ -76,6 +106,7 @@ class SocketService {
       // Re-join personal + job rooms after every (re)connect.
       if (_userId != null) {
         _socket!.emit('joinUserRoom', {'userId': _userId});
+        _userRoomJoined = true;
       }
       if (_activeJobId != null) {
         _socket!.emit('joinJobRoom', {'jobId': _activeJobId});
@@ -94,6 +125,7 @@ class SocketService {
 
     _socket!.onDisconnect((_) {
       debugPrint('[Socket] Disconnected');
+      _userRoomJoined = false;
       if (!_connectionController.isClosed) {
         _connectionController.add(false);
       }
@@ -101,6 +133,7 @@ class SocketService {
 
     _socket!.onConnectError((data) {
       debugPrint('[Socket] Connection error: $data');
+      _userRoomJoined = false;
     });
 
     _socket!.onReconnect((_) {
@@ -298,19 +331,34 @@ class SocketService {
     debugPrint('[Socket] Location stream stopped');
   }
 
+  /// Tear down the socket without closing stream controllers so a later
+  /// [connect] / re-login keeps working in the same process.
   void disconnect() {
     stopLocationStream();
     _activeJobId = null;
     _locationUpdatedCallback = null;
-    _socket?.disconnect();
+    _userRoomJoined = false;
+    try {
+      _socket?.disconnect();
+      _socket?.dispose();
+    } catch (_) {}
+    _socket = null;
     if (!_connectionController.isClosed) {
-      _connectionController.close();
+      _connectionController.add(false);
     }
-    if (!_notificationController.isClosed) {
-      _notificationController.close();
-    }
-    if (!_messageController.isClosed) {
-      _messageController.close();
-    }
+  }
+
+  /// After Dio silent JWT refresh — reconnect with the new access token so
+  /// guarded handlers (`joinUserRoom`) keep working.
+  void reconnectWithToken(String token) {
+    final uid = _userId;
+    final jobId = _activeJobId;
+    final locCb = _locationUpdatedCallback;
+    disconnect();
+    _userId = uid;
+    _activeJobId = jobId;
+    _locationUpdatedCallback = locCb;
+    connect(token);
+    if (uid != null) joinUserRoom(uid);
   }
 }

@@ -48,6 +48,11 @@ final dioProvider = Provider<Dio>((ref) {
             if (newAccessToken != null) {
               await tokenService.saveToken(newAccessToken);
               debugPrint('[DIO] Token refreshed — retrying original request');
+              try {
+                ref
+                    .read(socketServiceProvider)
+                    .reconnectWithToken(newAccessToken);
+              } catch (_) {}
 
               // Retry the original request with the new token
               final opts = e.requestOptions;
@@ -73,14 +78,38 @@ final dioProvider = Provider<Dio>((ref) {
 
 /// Clear tokens, invalidate auth providers, and replace the nav stack with
 /// Welcome. Safe to call from interceptors and UI (idempotent).
-Future<void> forceLogoutToWelcome(Ref ref) async {
+Future<void> forceLogoutToWelcome(Ref ref) => _forceLogoutToWelcome(
+      ref.read(socketServiceProvider),
+      ref.read(authTokenServiceProvider),
+      () {
+        ref.invalidate(authStateProvider);
+        ref.invalidate(currentUserProvider);
+      },
+    );
+
+/// Same teardown from a widget. `WidgetRef` and `Ref` share no supertype, so
+/// sign-out buttons need their own entry point instead of a second copy of the
+/// teardown.
+Future<void> forceLogoutToWelcomeFromWidget(WidgetRef ref) =>
+    _forceLogoutToWelcome(
+      ref.read(socketServiceProvider),
+      ref.read(authTokenServiceProvider),
+      () {
+        ref.invalidate(authStateProvider);
+        ref.invalidate(currentUserProvider);
+      },
+    );
+
+Future<void> _forceLogoutToWelcome(
+  SocketService socketService,
+  AuthTokenService tokenService,
+  void Function() invalidateSession,
+) async {
   try {
-    ref.read(socketServiceProvider).disconnect();
+    socketService.disconnect();
   } catch (_) {}
-  final tokenService = ref.read(authTokenServiceProvider);
   await tokenService.deleteToken();
-  ref.invalidate(authStateProvider);
-  ref.invalidate(currentUserProvider);
+  invalidateSession();
   final nav = rootNavigatorKey.currentState;
   if (nav == null) return;
   nav.pushAndRemoveUntil(

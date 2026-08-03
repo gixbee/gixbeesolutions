@@ -489,15 +489,7 @@ class ProfileScreen extends ConsumerWidget {
                             padding: const EdgeInsets.symmetric(horizontal: 16),
                             child: GxPressable(
                               onTap: () async {
-                                await ref.read(authRepositoryProvider).signOut();
-                                ref.invalidate(authStateProvider);
-                                ref.invalidate(currentUserProvider);
-                                rootNavigatorKey.currentState?.pushAndRemoveUntil(
-                                  MaterialPageRoute(
-                                    builder: (_) => const WelcomeScreen(),
-                                  ),
-                                  (r) => false,
-                                );
+                                await forceLogoutToWelcomeFromWidget(ref);
                               },
                               child: Container(
                                 width: double.infinity,

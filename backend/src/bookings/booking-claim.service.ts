@@ -101,6 +101,18 @@ export class BookingClaimService {
         });
         if (!booking) throw new NotFoundException('Booking not found');
 
+        // Broadcast Instant Help: only notified / pending workers may claim.
+        if (!booking.operator) {
+          const pendingIds =
+            await this.redisService.getPendingBookingIds(workerId);
+          const notified = await this.getNotifiedWorkerIds(bookingId);
+          if (!pendingIds.includes(bookingId) && !notified.includes(workerId)) {
+            throw new BadRequestException(
+              'You are not eligible to accept this booking.',
+            );
+          }
+        }
+
         const remainingCredits = await this.jobCreditsService.consumeCredit(
           workerId,
           bookingId,
@@ -234,6 +246,17 @@ export class BookingClaimService {
           e?.message ?? e,
         ),
       );
+
+    // Mark busy inline so Instant Help targeting stops offering this worker
+    // before the outbox onAccepted handler runs.
+    try {
+      await this.workersService.setWorkerStatus(workerId, 'busy');
+    } catch (e) {
+      console.error(
+        '[AcceptBooking] setWorkerStatus(busy) failed:',
+        (e as Error)?.message ?? e,
+      );
+    }
 
     return {
       message: 'Booking accepted. Head to the service location now.',

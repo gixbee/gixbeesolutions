@@ -20,14 +20,30 @@ import 'features/worker/go_live_screen.dart';
 import 'repositories/worker_repository.dart';
 import 'repositories/auth_repository.dart';
 import 'repositories/booking_repository.dart';
+import 'repositories/booking_status_provider.dart';
 import 'services/auth_token_service.dart';
 import 'services/notification_service.dart';
 import 'services/socket_service.dart';
 import 'shared/models/user.dart';
 import 'shared/widgets/dribbble_background.dart';
 import 'core/main_tab_provider.dart';
-import 'core/navigator_key.dart';
-import 'features/onboarding/welcome_screen.dart';
+
+/// Push `data.type` values that mean "this booking changed" — every one of
+/// them should refresh the booking lists and the live status stream.
+/// `new_booking` is excluded: it opens the incoming-job screen instead.
+const _bookingStateTypes = {
+  'booking_accepted',
+  'booking_cancelled',
+  'booking_status_update',
+  'booking_search_expanded',
+  'worker_arrived',
+  'job_complete',
+  'cancel_requested',
+  'cancel_declined',
+  'worker_no_progress',
+  'late_cancel_compensation_paid',
+  'dispute_resolved',
+};
 
 class MainWrapper extends ConsumerStatefulWidget {
   const MainWrapper({super.key});
@@ -108,19 +124,7 @@ class _MainWrapperState extends ConsumerState<MainWrapper>
   void _forceSessionEnd() {
     if (_sessionExitStarted) return;
     _sessionExitStarted = true;
-    unawaited(() async {
-      try {
-        ref.read(socketServiceProvider).disconnect();
-      } catch (_) {}
-      await ref.read(authTokenServiceProvider).deleteToken();
-      ref.invalidate(authStateProvider);
-      ref.invalidate(currentUserProvider);
-      if (!mounted) return;
-      rootNavigatorKey.currentState?.pushAndRemoveUntil(
-        MaterialPageRoute(builder: (_) => const WelcomeScreen()),
-        (route) => false,
-      );
-    }());
+    unawaited(forceLogoutToWelcomeFromWidget(ref));
   }
 
   /// Soft check used on resume/tab — only exit when there is truly no token.
@@ -283,9 +287,12 @@ class _MainWrapperState extends ConsumerState<MainWrapper>
           ref.read(debugLogProvider.notifier).log('[SOURCE: SOCKET] Incoming job $id');
           unawaited(_showIncomingJobScreen(data));
         }
-      } else if (event == 'booking_accepted') {
+      } else if (_bookingStateTypes.contains(event)) {
+        // The live status stream consumes these directly; the lists and the
+        // home active-job card need an explicit refresh.
         ref.invalidate(myBookingsProvider);
-        if (mounted) _goToTab(0);
+        ref.invalidate(activeBookingProvider);
+        if (event == 'booking_accepted' && mounted) _goToTab(0);
       }
     });
   }
@@ -385,9 +392,17 @@ class _MainWrapperState extends ConsumerState<MainWrapper>
       return;
     }
 
-    if (type == 'booking_accepted') {
+    if (_bookingStateTypes.contains(type)) {
+      // Everything that moves a booking forward: refresh the lists and make
+      // the live status stream re-poll now. Previously only `booking_accepted`
+      // was handled, so a push that arrived while the socket was down (or
+      // while backgrounded) left the open screen waiting for its next poll.
       ref.invalidate(myBookingsProvider);
-      if (mounted) _goToTab(0);
+      ref.invalidate(activeBookingProvider);
+      if (bookingId != null) {
+        ref.read(bookingStatusNudgeProvider).poke(bookingId);
+      }
+      if (type == 'booking_accepted' && mounted) _goToTab(0);
     }
   }
 

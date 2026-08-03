@@ -7,6 +7,7 @@ import '../../repositories/worker_repository.dart';
 import '../../services/socket_service.dart';
 import '../../shared/widgets/dribbble_background.dart';
 import '../../shared/widgets/glass_container.dart';
+import '../../shared/widgets/gx_network_error.dart';
 import '../../shared/widgets/gx_snackbar.dart';
 import '../profile/worker_profile_card.dart';
 
@@ -146,7 +147,11 @@ class _WorkerDirectoryScreenState extends ConsumerState<WorkerDirectoryScreen> {
         child: SafeArea(
           child: workersAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (err, stack) => Center(child: Text('Error: $err')),
+        error: (err, stack) => GxNetworkError(
+          error: err,
+          title: 'Could not load pros',
+          onRetry: () => ref.invalidate(workersProvider),
+        ),
         data: (workers) {
           if (_isLoadingLocation) {
             return const Center(child: CircularProgressIndicator());

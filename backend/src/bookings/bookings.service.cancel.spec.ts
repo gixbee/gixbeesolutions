@@ -44,6 +44,15 @@ function makeService(booking: any) {
 
   const manager: any = {
     save: jest.fn(async (b: any) => b),
+    createQueryBuilder: jest.fn(() => {
+      const qb: any = {
+        setLock: jest.fn(() => qb),
+        leftJoinAndSelect: jest.fn(() => qb),
+        where: jest.fn(() => qb),
+        getOne: jest.fn(async () => booking),
+      };
+      return qb;
+    }),
     getRepository: jest.fn(() => ({
       findOne: jest.fn(async () => ({
         id: 'cust-1',
@@ -96,6 +105,7 @@ function makeService(booking: any) {
     redisService,
     notificationsService,
     jobCreditsService,
+    bookingStatusService,
   };
 }
 

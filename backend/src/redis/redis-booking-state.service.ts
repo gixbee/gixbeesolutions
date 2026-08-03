@@ -28,9 +28,17 @@ export class RedisBookingStateService {
     bookingId: string,
     statusData: Record<string, any>,
   ): Promise<void> {
+    // Merge-on-write: partial callers (cancel-request, GPS strike, etc.) must
+    // not wipe arrivalOtp / phones / payment flags already in the cache.
+    const existing = await this.getCachedBookingStatus(bookingId);
+    const merged = { ...(existing ?? {}), ...statusData };
+    // Explicit nulls in the patch clear keys (e.g. cancelRequested: false).
+    for (const [key, value] of Object.entries(statusData)) {
+      if (value === undefined) delete merged[key];
+    }
     await this.redis.set(
       `booking:status:${bookingId}`,
-      JSON.stringify(statusData),
+      JSON.stringify(merged),
       24 * 60 * 60,
     );
   }

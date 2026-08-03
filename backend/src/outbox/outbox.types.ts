@@ -26,6 +26,12 @@ export interface BookingBroadcastCreatedPayload {
   preferredLanguages?: string[];
   /** Booking creation time (ISO) — anchors the worker-side accept countdown. */
   createdAt?: string;
+  /**
+   * When this worker was offered the job (ISO). Wave-2 rebroadcasts set this
+   * to "now" so the worker gets a fresh 90s window instead of an already-expired
+   * createdAt + 90s deadline.
+   */
+  notifiedAt?: string;
   arrivalOtp: string;
   completionOtp: string;
   notifiedWorkerIds: string[];

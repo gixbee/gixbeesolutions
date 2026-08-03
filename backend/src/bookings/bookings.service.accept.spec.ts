@@ -66,6 +66,7 @@ function makeService(opts: {
     set: jest.fn(async () => undefined),
     del: jest.fn(async () => undefined),
     getWorkerLocation: jest.fn(async () => null),
+    getPendingBookingIds: jest.fn(async () => []),
   };
   const workersService: any = {
     setWorkerStatus: jest.fn(async () => undefined),
@@ -204,6 +205,7 @@ describe('BookingDispatchService.acceptBooking', () => {
       outboxService,
       redisService,
       bookingStatusService,
+      workersService,
     } = makeService({
       lockedBooking: { id: 'b1', status: BookingStatus.REQUESTED },
       fullBooking: booking,
@@ -248,6 +250,10 @@ describe('BookingDispatchService.acceptBooking', () => {
         operatorId: 'work-1',
         customerId: 'cust-1',
       }),
+    );
+    expect(workersService.setWorkerStatus).toHaveBeenCalledWith(
+      'work-1',
+      'busy',
     );
     // Wallet period fee is off (WALLET_PAYMENTS_ENABLED=false); credits are
     // consumed instead. Do not assert deductBookingFee.

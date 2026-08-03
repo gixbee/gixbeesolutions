@@ -38,12 +38,13 @@ export class WorkerAvailabilityService {
   ) {}
 
   async getWorkerStatus(userId: string): Promise<'available' | 'busy'> {
-    // 1. Try Redis cache first
+    // Trust Redis "busy" immediately after accept. Never trust "available" —
+    // that short-circuit kept Instant Help offers flowing after accept while
+    // outbox setWorkerStatus('busy') was still queued.
     const cachedStatus = await this.redisService.get(`worker:status:${userId}`);
     if (cachedStatus === 'busy') return 'busy';
-    if (cachedStatus === 'available') return 'available';
 
-    // 2. Fallback to DB — any accepted-through-active job means busy.
+    // Reconcile against an active booking (covers stale "available" cache).
     const activeBooking = await this.bookingsRepository.findOne({
       where: WorkerAvailabilityService.BUSY_BOOKING_STATUSES.map((status) => ({
         operator: { id: userId },
@@ -52,7 +53,6 @@ export class WorkerAvailabilityService {
     });
 
     const status = activeBooking ? 'busy' : 'available';
-    // 3. Update cache for next time
     await this.redisService.set(`worker:status:${userId}`, status, 3600); // 1hr TTL
     return status;
   }

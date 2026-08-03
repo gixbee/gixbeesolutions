@@ -520,7 +520,7 @@ class HelpSupportScreen extends StatelessWidget {
                   ),
 
                   _buildFaqItem(context, 'How do I cancel a booking?', 'You can cancel a booking from the My Bookings section. Please note our cancellation policy.'),
-                  _buildFaqItem(context, 'When will I get my refund?', 'Refunds are processed within 5-7 business days to your original payment method.'),
+                  _buildFaqItem(context, 'When will I get my refund?', 'Jobs are settled directly with your pro once the work is done, so a cancelled booking has nothing to refund. If you already paid a pro and something went wrong, raise a ticket here and we will look into it.'),
                   _buildFaqItem(context, 'How do I contact a vendor?', 'You can message or call a vendor directly from their profile or booking details page.'),
 
                   SizedBox(height: 16),
@@ -901,7 +901,9 @@ class _PaymentsTab extends ConsumerWidget {
   Widget _paymentCard(BuildContext context, ColorScheme scheme, Map<String, dynamic> b) {
     final status = (b['status'] ?? '').toString().toUpperCase();
     final isPaid = b['isPaid'] == true;
-    final method = (b['paymentMethod'] ?? 'WALLET').toString().toUpperCase();
+    // Mirror the server default (CASH) — the old WALLET fallback labelled
+    // cash-settled jobs as wallet payments.
+    final method = (b['paymentMethod'] ?? 'CASH').toString().toUpperCase();
     final worker = b['operator'] is Map ? b['operator'] as Map : const {};
     final when = DateTime.tryParse('${b['createdAt'] ?? b['scheduledAt'] ?? ''}');
 
@@ -1170,14 +1172,19 @@ class HelpFaqScreen extends StatelessWidget {
     ),
     (
       'How are payments handled?',
-      'You can pay from your Gixbee wallet, UPI/PhonePe, bank transfer, or cash. '
-          'Choose a method at checkout. Refunds for cancellations go back to your '
-          'wallet automatically.'
+      'You pay your pro directly when the job is done — cash or UPI, whichever '
+          'suits you both. Each of you confirms the amount in the app, and the '
+          'record shows up under Payments. Gixbee never holds your money, so '
+          'there is nothing to top up before booking.'
     ),
     (
       'How do I cancel a booking?',
-      'Open the booking, tap Cancel, choose a reason and confirm. Any captured '
-          'payment is refunded to your wallet.'
+      'Open the booking, tap Cancel, choose a reason and confirm. Cancelling is '
+          'free while we are still searching, and for a short grace period after '
+          'a pro accepts. Once your pro has arrived or started, they need to '
+          'approve the cancellation. Nothing was charged up front, so there is '
+          'nothing to refund — but repeated late cancels can pause Instant Help '
+          'until you cover your pro\'s travel.'
     ),
     (
       'Is my data safe?',

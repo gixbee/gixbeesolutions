@@ -178,6 +178,7 @@ class _WaitingForWorkerScreenState extends ConsumerState<WaitingForWorkerScreen>
             return;
           }
         } catch (_) {}
+        if (!mounted) return;
         showGxSnack(context, 'Failed to cancel: $e', type: GxSnackType.error);
       }
     }
@@ -255,7 +256,7 @@ class _WaitingForWorkerScreenState extends ConsumerState<WaitingForWorkerScreen>
     final petrol =
         _readNum(data['estimatedPetrolAmount'] ?? data['petrolAmount']);
     if (rate != null && rate > 0) _acceptedHourlyRate = rate;
-    if (petrolRate != null && petrolRate > 0) _petrolRatePerKm = petrolRate;
+    if (petrolRate > 0) _petrolRatePerKm = petrolRate;
     if (dist != null && dist > 0) {
       _acceptDistanceKm = dist;
       _estimatedPetrolAmount = petrol ?? (dist * _petrolRatePerKm);
@@ -494,7 +495,7 @@ class _WaitingForWorkerScreenState extends ConsumerState<WaitingForWorkerScreen>
             _acceptedBillingRow(
               Icons.route_rounded,
               'Travel to you',
-              '${dist!.toStringAsFixed(dist >= 10 || dist == dist.roundToDouble() ? 0 : 1)} km one-way',
+              '${dist.toStringAsFixed(dist >= 10 || dist == dist.roundToDouble() ? 0 : 1)} km one-way',
             ),
           ],
           if (petrol != null && petrol > 0) ...[

@@ -52,6 +52,9 @@ export class BookingCancelService {
     bookingId: string,
   ): Promise<{ cancelled: boolean }> {
     let outboxId: string | null = null;
+    let customerId: string | null = null;
+    let operatorId: string | null = null;
+    let operatorName: string | null = null;
     const cancelled = await this.dataSource.transaction(async (manager) => {
       const claim = await manager.update(
         Booking,
@@ -67,6 +70,9 @@ export class BookingCancelService {
         where: { id: bookingId },
         relations: ['customer', 'operator'],
       });
+      customerId = booking?.customer?.id ?? null;
+      operatorId = booking?.operator?.id ?? null;
+      operatorName = booking?.operator?.name ?? null;
       const outbox = await this.outboxService.append(
         manager,
         OutboxEventType.BOOKING_CANCELLED,
@@ -75,9 +81,9 @@ export class BookingCancelService {
           bookingId,
           reason: 'No worker accepted in time',
           source: 'timeout',
-          operatorId: booking?.operator?.id ?? null,
-          operatorName: booking?.operator?.name ?? null,
-          customerId: booking?.customer?.id ?? null,
+          operatorId,
+          operatorName,
+          customerId,
         },
       );
       outboxId = outbox.id;
@@ -85,6 +91,15 @@ export class BookingCancelService {
     });
     if (outboxId) {
       await this.outboxService.enqueueDispatch(outboxId);
+      await this.bookingStatusService
+        .cacheAndEmitBookingStatus(bookingId, {
+          status: 'CANCELLED',
+          operatorName,
+          operatorId,
+          customerId,
+          cancelRequested: false,
+        })
+        .catch(() => undefined);
     }
     return { cancelled };
   }
@@ -96,6 +111,9 @@ export class BookingCancelService {
    * - ACCEPTED + workerNoProgressAt → free (no strike, no credit refund)
    * - ARRIVED / ACTIVE → blocked (use cancel-request)
    * Worker-approved cancels call this with applyLateCancelStrike=false.
+   *
+   * Accept races: the row is locked in-tx. A cancel that started while
+   * REQUESTED fails cleanly if accept already committed ACCEPTED+.
    */
   async cancelBooking(
     id: string,
@@ -118,108 +136,153 @@ export class BookingCancelService {
     compensationDistanceKm?: number | null;
     workerNoProgress?: boolean;
   }> {
-    const booking = await this.bookingsRepository.findOne({
+    const initial = await this.bookingsRepository.findOne({
       where: { id },
       relations: ['customer', 'operator'],
     });
-    if (!booking) throw new NotFoundException('Booking not found');
-    if (booking.status === BookingStatus.COMPLETED) {
+    if (!initial) throw new NotFoundException('Booking not found');
+    if (initial.status === BookingStatus.COMPLETED) {
       throw new BadRequestException('Completed bookings cannot be cancelled.');
     }
 
-    const freeDueToNoProgress =
-      source === 'customer' &&
-      !!booking.workerNoProgressAt &&
-      booking.status === BookingStatus.ACCEPTED;
+    const matchingStatuses = new Set([
+      BookingStatus.REQUESTED,
+      BookingStatus.PENDING,
+      BookingStatus.CUSTOM_REQUESTED,
+    ]);
+    const startedAsMatch = matchingStatuses.has(initial.status);
 
-    const applyStrike =
-      source === 'customer' &&
-      opts?.applyLateCancelStrike !== false &&
-      !freeDueToNoProgress;
     let lateCancelStrike = false;
     let strikeCount: number | undefined;
     let instantHelpBlocked = false;
     let compensationAmount: number | null = null;
     let compensationDistanceKm: number | null = null;
-
-    if (source === 'customer' && !opts?.skipStageGate) {
-      const st = booking.status;
-      if (st === BookingStatus.ARRIVED || st === BookingStatus.ACTIVE) {
-        throw new BadRequestException(
-          'This job has already started or the pro has arrived. Ask your pro to approve a cancellation instead.',
-        );
-      }
-      if (
-        st === BookingStatus.ACCEPTED &&
-        !freeDueToNoProgress &&
-        !this.isWithinCancelGrace(booking)
-      ) {
-        // Allowed with strike — applied after successful cancel below.
-        lateCancelStrike = applyStrike;
-      }
-    }
-
-    const cancelReason = freeDueToNoProgress
-      ? `${reason} [WORKER_NO_PROGRESS]`
-      : reason;
-
-    booking.status = BookingStatus.CANCELLED;
-    booking.cancellationReason = cancelReason;
-    booking.cancelRequestedAt = null as any;
-
-    // Refund policy: refund only money Gixbee actually captured.
+    let freeDueToNoProgress = false;
     let refundAmount = 0;
     let refundMethod = 'NONE';
-    if (booking.isPaid && booking.customer?.id) {
-      const paidAmount = Number(booking.totalAmount ?? booking.amount) || 0;
-      if (paidAmount > 0) {
-        if (booking.paymentMethod === 'WALLET' && booking.operator?.id) {
-          await this.walletsService.reverseBookingTransfer(
-            booking.customer.id,
-            booking.operator.id,
-            paidAmount,
-            id,
-          );
-          refundAmount = paidAmount;
-          refundMethod = 'WALLET';
-        } else {
-          refundMethod = 'DIRECT';
-        }
-      }
-    }
-
-    const shouldRefundCredit =
-      source === 'customer' &&
-      !!booking.operator?.id &&
-      opts?.refundJobCredit !== false &&
-      !freeDueToNoProgress;
+    let cancelReason = reason;
+    let operatorId: string | null = null;
+    let operatorName: string | null = null;
+    let customerId: string | null = null;
+    let outboxSource: string = source;
 
     const outbox = await this.dataSource.transaction(async (manager) => {
-      await manager.save(booking);
+      const locked = await manager
+        .createQueryBuilder(Booking, 'booking')
+        .setLock('pessimistic_write')
+        .leftJoinAndSelect('booking.customer', 'customer')
+        .leftJoinAndSelect('booking.operator', 'operator')
+        .where('booking.id = :id', { id })
+        .getOne();
 
-      if (shouldRefundCredit && booking.operator?.id) {
+      if (!locked) throw new NotFoundException('Booking not found');
+      if (locked.status === BookingStatus.COMPLETED) {
+        throw new BadRequestException('Completed bookings cannot be cancelled.');
+      }
+      if (locked.status === BookingStatus.CANCELLED) {
+        throw new BadRequestException('Booking is already cancelled.');
+      }
+
+      // Search-cancel lost the race to accept — do not silently cancel live job.
+      if (
+        source === 'customer' &&
+        !opts?.skipStageGate &&
+        startedAsMatch &&
+        !matchingStatuses.has(locked.status)
+      ) {
+        throw new BadRequestException(
+          'This request was already accepted. Refresh to continue or cancel the accepted job.',
+        );
+      }
+
+      freeDueToNoProgress =
+        source === 'customer' &&
+        !!locked.workerNoProgressAt &&
+        locked.status === BookingStatus.ACCEPTED;
+
+      const applyStrike =
+        source === 'customer' &&
+        opts?.applyLateCancelStrike !== false &&
+        !freeDueToNoProgress;
+
+      if (source === 'customer' && !opts?.skipStageGate) {
+        const st = locked.status;
+        if (st === BookingStatus.ARRIVED || st === BookingStatus.ACTIVE) {
+          throw new BadRequestException(
+            'This job has already started or the pro has arrived. Ask your pro to approve a cancellation instead.',
+          );
+        }
+        if (
+          st === BookingStatus.ACCEPTED &&
+          !freeDueToNoProgress &&
+          !this.isWithinCancelGrace(locked)
+        ) {
+          lateCancelStrike = applyStrike;
+        }
+      }
+
+      cancelReason = freeDueToNoProgress
+        ? `${reason} [WORKER_NO_PROGRESS]`
+        : reason;
+      outboxSource = freeDueToNoProgress ? 'WORKER_NO_PROGRESS' : source;
+
+      // Refund policy: refund only money Gixbee actually captured.
+      if (locked.isPaid && locked.customer?.id) {
+        const paidAmount = Number(locked.totalAmount ?? locked.amount) || 0;
+        if (paidAmount > 0) {
+          if (locked.paymentMethod === 'WALLET' && locked.operator?.id) {
+            await this.walletsService.reverseBookingTransfer(
+              locked.customer.id,
+              locked.operator.id,
+              paidAmount,
+              id,
+            );
+            refundAmount = paidAmount;
+            refundMethod = 'WALLET';
+          } else {
+            refundMethod = 'DIRECT';
+          }
+        }
+      }
+
+      const shouldRefundCredit =
+        source === 'customer' &&
+        !!locked.operator?.id &&
+        opts?.refundJobCredit !== false &&
+        !freeDueToNoProgress;
+
+      locked.status = BookingStatus.CANCELLED;
+      locked.cancellationReason = cancelReason;
+      locked.cancelRequestedAt = null as any;
+      await manager.save(locked);
+
+      if (shouldRefundCredit && locked.operator?.id) {
         console.log(
-          `[CancelBooking] Refunding 1 job credit to worker ${booking.operator.id} due to customer cancellation`,
+          `[CancelBooking] Refunding 1 job credit to worker ${locked.operator.id} due to customer cancellation`,
         );
         await this.jobCreditsService.refundCredit(
-          booking.operator.id,
+          locked.operator.id,
           id,
           CreditTransactionReason.REFUND_CUSTOMER_CANCEL,
           manager,
         );
       }
 
-      if (lateCancelStrike && booking.customer?.id) {
+      if (lateCancelStrike && locked.customer?.id) {
         const result = await this.applyLateCancelStrike(
           manager,
-          booking.customer.id,
-          booking,
+          locked.customer.id,
+          locked,
         );
         strikeCount = result.strikeCount;
         instantHelpBlocked = result.instantHelpBlocked;
         compensationAmount = result.compensationAmount;
         compensationDistanceKm = result.compensationDistanceKm;
       }
+
+      operatorId = locked.operator?.id ?? null;
+      operatorName = locked.operator?.name ?? null;
+      customerId = locked.customer?.id ?? null;
 
       return this.outboxService.append(
         manager,
@@ -228,14 +291,25 @@ export class BookingCancelService {
         {
           bookingId: id,
           reason: cancelReason,
-          source: freeDueToNoProgress ? 'WORKER_NO_PROGRESS' : source,
-          operatorId: booking.operator?.id ?? null,
-          operatorName: booking.operator?.name ?? null,
-          customerId: booking.customer?.id ?? null,
+          source: outboxSource,
+          operatorId,
+          operatorName,
+          customerId,
         },
       );
     });
     await this.outboxService.enqueueDispatch(outbox.id);
+
+    // Immediate Redis + socket — do not wait for outbox (accept path parity).
+    await this.bookingStatusService
+      .cacheAndEmitBookingStatus(id, {
+        status: 'CANCELLED',
+        operatorName,
+        operatorId,
+        customerId,
+        cancelRequested: false,
+      })
+      .catch(() => undefined);
 
     let message =
       refundMethod === 'DIRECT'
@@ -294,7 +368,6 @@ export class BookingCancelService {
       operatorName: booking.operator?.name,
       operatorId: booking.operator?.id ?? null,
       customerId: booking.customer?.id ?? null,
-      arrivalOtp: null,
       cancelRequested: true,
     });
     if (booking.operator?.id) {
@@ -348,7 +421,6 @@ export class BookingCancelService {
       operatorName: booking.operator?.name,
       operatorId: booking.operator?.id ?? null,
       customerId: booking.customer?.id ?? null,
-      arrivalOtp: null,
       cancelRequested: false,
     });
     if (booking.customer?.id) {
@@ -382,7 +454,6 @@ export class BookingCancelService {
       operatorName: booking.operator?.name,
       operatorId: booking.operator?.id ?? null,
       customerId: booking.customer?.id ?? null,
-      arrivalOtp: null,
       cancelRequested: false,
     });
     return { cancelRequested: false, message: 'Cancel request withdrawn' };

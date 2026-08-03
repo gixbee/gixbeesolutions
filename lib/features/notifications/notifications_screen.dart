@@ -7,6 +7,7 @@ import '../../shared/widgets/gx_empty.dart';
 import '../../shared/widgets/gx_pressable.dart';
 import '../../shared/widgets/gx_skeleton.dart';
 import '../../shared/widgets/gx_fade.dart';
+import '../../shared/widgets/gx_network_error.dart';
 import '../../repositories/booking_repository.dart';
 import '../../theme.dart';
 
@@ -212,7 +213,12 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
           )),
           child: notifAsync.when(
         loading: () => _buildSkeletonList(),
-        error: (err, _) => Center(child: Text('Error: $err')),
+        error: (err, _) => GxNetworkError(
+          error: err,
+          title: 'Could not load notifications',
+          accent: context.gx.accent,
+          onRetry: () => ref.invalidate(notificationsProvider),
+        ),
         data: (notifications) {
           // Filter out dismissed notifications
           final visible = notifications

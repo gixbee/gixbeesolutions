@@ -109,6 +109,7 @@ export class BookingBroadcastService {
             description: data.description,
             preferredLanguages: data.preferredLanguages,
             createdAt: (saved.createdAt ?? new Date()).toISOString(),
+            notifiedAt: new Date().toISOString(),
             arrivalOtp,
             completionOtp,
             notifiedWorkerIds,
@@ -117,6 +118,42 @@ export class BookingBroadcastService {
         );
         return { savedBooking: saved, outboxId: outbox.id };
       },
+    );
+
+    // Publish the open request inline, the same way the targeted create does,
+    // then let the outbox own the pro-side push/socket fan-out. Without this
+    // there is a window between commit and the outbox worker where the
+    // customer's status poll finds no cached state and `GET bookings/pending`
+    // shows the pros nothing. Both writes are idempotent: the status cache
+    // merges and the pending queue is a sorted-set add, so the handler
+    // repeating them a moment later is a no-op.
+    await this.bookingStatusService
+      .cacheAndEmitBookingStatus(savedBooking.id, {
+        status: 'REQUESTED',
+        operatorName: null,
+        operatorId: null,
+        customerId,
+        arrivalOtp,
+      })
+      .catch((e) =>
+        this.logger.error(
+          `inline status publish failed for ${savedBooking.id}: ${
+            (e as Error)?.message ?? e
+          }`,
+        ),
+      );
+    await Promise.all(
+      notifiedWorkerIds.map((workerId) =>
+        this.redisService
+          .addPendingBooking(workerId, savedBooking.id)
+          .catch((e) =>
+            this.logger.error(
+              `inline pending add ${workerId} failed: ${
+                (e as Error)?.message ?? e
+              }`,
+            ),
+          ),
+      ),
     );
 
     await this.outboxService.enqueueDispatch(outboxId);
@@ -212,11 +249,23 @@ export class BookingBroadcastService {
           description: booking.description,
           preferredLanguages: booking.preferredLanguages,
           createdAt: (booking.createdAt ?? new Date()).toISOString(),
+          notifiedAt: new Date().toISOString(),
           arrivalOtp: booking.arrivalOtp,
           completionOtp: booking.completionOtp,
           notifiedWorkerIds: freshIds,
           attempt: 2,
         },
+      ),
+    );
+    await Promise.all(
+      freshIds.map((workerId) =>
+        this.redisService.addPendingBooking(workerId, bookingId).catch((e) =>
+          this.logger.error(
+            `inline pending add ${workerId} failed: ${
+              (e as Error)?.message ?? e
+            }`,
+          ),
+        ),
       ),
     );
     await this.outboxService.enqueueDispatch(outbox.id);

@@ -58,6 +58,14 @@ export class BookingSettlementService {
     if (!booking.arrivalOtp || booking.arrivalOtp !== otp) {
       throw new BadRequestException('Invalid arrival OTP');
     }
+    if (
+      booking.status !== BookingStatus.ACCEPTED &&
+      booking.status !== BookingStatus.ARRIVED
+    ) {
+      throw new BadRequestException(
+        'Arrival OTP can only be verified after the pro has accepted / arrived.',
+      );
+    }
 
     this.redisService
       .deleteOtp(`otp:booking:${bookingId}:arrival`)
@@ -258,6 +266,18 @@ export class BookingSettlementService {
 
     await this.outboxService.enqueueDispatch(txResult.outboxId);
 
+    await this.bookingStatusService
+      .cacheAndEmitBookingStatus(bookingId, {
+        status: 'COMPLETED',
+        operatorName: txResult.locked.operator?.name ?? null,
+        operatorId: txResult.locked.operator?.id ?? null,
+        customerId: txResult.locked.customer?.id ?? null,
+        isPaid: !!txResult.locked.isPaid,
+        workerPaidConfirmed: !!txResult.locked.workerPaidConfirmed,
+        customerPaidConfirmed: !!txResult.locked.customerPaidConfirmed,
+      })
+      .catch(() => undefined);
+
     // First-job bonus stays in-service (wallet product side-effect).
     const completed = txResult.locked;
     if (completed.operator?.id) {
@@ -384,6 +404,18 @@ export class BookingSettlementService {
     });
 
     await this.outboxService.enqueueDispatch(txResult.outboxId);
+
+    await this.bookingStatusService
+      .cacheAndEmitBookingStatus(bookingId, {
+        status: booking.status,
+        operatorName: booking.operator?.name ?? null,
+        operatorId: booking.operator?.id ?? null,
+        customerId: booking.customer?.id ?? null,
+        isPaid: !!booking.isPaid,
+        workerPaidConfirmed: !!booking.workerPaidConfirmed,
+        customerPaidConfirmed: !!booking.customerPaidConfirmed,
+      })
+      .catch(() => undefined);
 
     return {
       message: booking.isPaid
@@ -600,13 +632,13 @@ export class BookingSettlementService {
   }
 
   /**
-   * Worker announces arrival — FCM the arrival OTP to the customer.
-   * Only the assigned operator may call this.
+   * Worker announces arrival — transition ACCEPTED → ARRIVED, then FCM the
+   * arrival OTP to the customer. Only the assigned operator may call this.
    */
   async notifyArrival(
     bookingId: string,
     workerId: string,
-  ): Promise<{ message: string }> {
+  ): Promise<{ message: string; status: string }> {
     const booking = await this.bookingsRepository.findOne({
       where: { id: bookingId },
       relations: ['customer', 'operator'],
@@ -615,13 +647,41 @@ export class BookingSettlementService {
     if (booking.operator?.id !== workerId) {
       throw new NotFoundException('Booking not found');
     }
+    if (
+      booking.status !== BookingStatus.ACCEPTED &&
+      booking.status !== BookingStatus.ARRIVED
+    ) {
+      throw new BadRequestException(
+        'Arrival can only be marked while the job is accepted.',
+      );
+    }
+
+    if (booking.status === BookingStatus.ACCEPTED) {
+      booking.status = BookingStatus.ARRIVED;
+      await this.bookingsRepository.save(booking);
+      await this.bookingStatusService
+        .cacheAndEmitBookingStatus(bookingId, {
+          status: 'ARRIVED',
+          operatorName: booking.operator?.name ?? null,
+          operatorId: workerId,
+          customerId: booking.customer?.id ?? null,
+          arrivalOtp: booking.arrivalOtp,
+        })
+        .catch(() => undefined);
+    }
+
     if (booking.customer?.id) {
       await this.notificationsService.sendToUser(booking.customer.id, {
         title: 'Worker has arrived',
         body: `Arrival OTP: ${booking.arrivalOtp}. Share this with the worker to begin.`,
+        data: {
+          type: 'booking_status_update',
+          bookingId,
+          status: 'ARRIVED',
+        },
       });
     }
-    return { message: 'Arrival OTP sent to customer.' };
+    return { message: 'Arrival OTP sent to customer.', status: 'ARRIVED' };
   }
 
   /**

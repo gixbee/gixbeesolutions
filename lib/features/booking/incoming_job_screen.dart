@@ -139,18 +139,22 @@ class _IncomingJobScreenState extends ConsumerState<IncomingJobScreen>
   void _startTimer() {
     _timer?.cancel();
 
-    // Deadline = createdAt + timeout when the server timestamp is available
-    // (so time spent locked/backgrounded counts against the window), else
-    // now + timeout.
+    // Prefer notifiedAt (fresh wave-2 offer clock) over createdAt so widened
+    // rebroadcasts get a full accept window instead of an already-expired
+    // createdAt + 90s deadline.
     var deadline = DateTime.now()
         .add(Duration(seconds: AppConfig.jobAcceptTimeoutSeconds));
     if (_requests.isNotEmpty && _currentIndex < _requests.length) {
       final currentRequest = _requests[_currentIndex];
+      final notifiedAt = DateTime.tryParse(
+              '${currentRequest['notifiedAt'] ?? ''}')
+          ?.toLocal();
       final createdAt =
           DateTime.tryParse('${currentRequest['createdAt'] ?? ''}')?.toLocal();
-      if (createdAt != null) {
+      final anchor = notifiedAt ?? createdAt;
+      if (anchor != null) {
         deadline =
-            createdAt.add(Duration(seconds: AppConfig.jobAcceptTimeoutSeconds));
+            anchor.add(Duration(seconds: AppConfig.jobAcceptTimeoutSeconds));
       }
     }
     _deadline = deadline;
@@ -378,10 +382,18 @@ class _IncomingJobScreenState extends ConsumerState<IncomingJobScreen>
 
   Future<void> _autoDeclineCurrent() async {
     if (_requests.isEmpty || _currentIndex >= _requests.length) return;
-    final bookingId = _requests[_currentIndex]['id'] as String?;
+    final current = _requests[_currentIndex];
+    final bookingId = current['id'] as String?;
+    final attempt = int.tryParse('${current['attempt'] ?? '1'}') ?? 1;
+
+    // Wave 1 soft-expire: do NOT call rejectBooking — that marks the worker
+    // rejected for this customer+skill and blocks widened wave-2 offers.
+    // Wave 2 (final) hard-rejects so Redis pending is cleared.
     try {
-      if (bookingId != null) {
+      if (bookingId != null && attempt >= 2) {
         await ref.read(bookingRepositoryProvider).rejectBooking(bookingId);
+        _declinedIds.add(bookingId);
+      } else if (bookingId != null) {
         _declinedIds.add(bookingId);
       }
     } catch (e) {

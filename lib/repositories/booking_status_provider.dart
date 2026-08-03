@@ -28,6 +28,31 @@ bool _isTerminalStatus(String? status) =>
 bool _isOpenMatchStatus(String? status) =>
     _openMatchStatuses.contains((status ?? '').toUpperCase());
 
+/// Bridge for status changes that arrive over FCM instead of the socket —
+/// background pushes, or a foreground push while the socket is down.
+///
+/// Callers publish only the booking id: the push body is a hint, so the
+/// affected stream answers with an immediate poll and keeps the server as the
+/// single source of truth.
+class BookingStatusNudge {
+  final _controller = StreamController<String>.broadcast();
+
+  Stream<String> get stream => _controller.stream;
+
+  void poke(String bookingId) {
+    if (bookingId.isEmpty || _controller.isClosed) return;
+    _controller.add(bookingId);
+  }
+
+  void dispose() => _controller.close();
+}
+
+final bookingStatusNudgeProvider = Provider<BookingStatusNudge>((ref) {
+  final nudge = BookingStatusNudge();
+  ref.onDispose(nudge.dispose);
+  return nudge;
+});
+
 /// AUDIT FIX — single source of truth for live booking status.
 ///
 /// Before: the tracking screen (5s), the home active-booking card (10s) and
@@ -89,7 +114,7 @@ final bookingStatusProvider = StreamProvider.autoDispose
     // Fast while matching (or socket down); backoff only after accept when
     // the socket is healthy.
     final seconds =
-        !socketService.isConnected || _isOpenMatchStatus(lastStatus)
+        !socketService.isLiveForPolling || _isOpenMatchStatus(lastStatus)
             ? AppConfig.bookingPollIntervalSeconds
             : AppConfig.bookingPollBackoffSeconds;
     timer = Timer.periodic(Duration(seconds: seconds), (_) => tick());
@@ -113,6 +138,13 @@ final bookingStatusProvider = StreamProvider.autoDispose
         }
       }
     }
+  });
+
+  final nudgeSub =
+      ref.watch(bookingStatusNudgeProvider).stream.listen((nudgedId) {
+    if (nudgedId != bookingId || disposed || terminal) return;
+    debugPrint('[BookingStatusProvider] FCM nudge for $bookingId — polling');
+    tick();
   });
 
   // Re-tune poll interval when socket drops/reconnects (fast when offline).
@@ -143,6 +175,7 @@ final bookingStatusProvider = StreamProvider.autoDispose
   ref.onDispose(() {
     disposed = true;
     socketSub.cancel();
+    nudgeSub.cancel();
     connectSub.cancel();
     timer?.cancel();
     lifecycleListener.dispose();

@@ -278,8 +278,8 @@ class _CancelBookingScreenState extends ConsumerState<CancelBookingScreen> {
                 const SizedBox(height: 8),
                 if (!_needsProApproval)
                   _infoBanner(
-                    'Any payment already made will be refunded to your '
-                    'original payment method.',
+                    'You settle with your pro after the job, so cancelling now '
+                    'does not charge you anything.',
                   ),
               ],
             ),

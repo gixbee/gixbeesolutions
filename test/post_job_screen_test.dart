@@ -38,7 +38,11 @@ class _FakeMasterRepo extends MasterEntriesRepository {
   final bool fail;
 
   @override
-  Future<List<MasterEntry>> getByType(String type) async {
+  Future<List<MasterEntry>> getByType(
+    String type, {
+    String? category,
+    String? cityId,
+  }) async {
     if (fail) throw 'boom';
     return labels
         .map((l) => MasterEntry(id: l, label: l, type: 'SKILL'))

@@ -12,6 +12,7 @@ import '../../shared/models/worker.dart';
 import '../../shared/widgets/glass_container.dart';
 import '../booking/collect_payment_screen.dart';
 import '../booking/customer_pay_screen.dart';
+import '../../shared/utils/api_error_message.dart';
 import '../../shared/utils/booking_flags.dart';
 import '../../theme.dart';
 
@@ -359,7 +360,9 @@ class _ActiveBookingCardState extends ConsumerState<ActiveBookingCard> {
         );
       },
       loading: () => const SizedBox.shrink(),
-      error: (_, __) => Padding(
+      // Compact inline retry — a full-page error state would shove the home
+      // feed down for what is usually a one-tick network blip.
+      error: (err, __) => Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         child: Material(
           color: context.gx.card2,
@@ -380,7 +383,10 @@ class _ActiveBookingCardState extends ConsumerState<ActiveBookingCard> {
                   const SizedBox(width: 10),
                   Expanded(
                     child: Text(
-                      'Could not load bookings. Tap to retry.',
+                      apiErrorMessage(
+                        err,
+                        fallback: 'Could not load bookings. Tap to retry.',
+                      ),
                       style: TextStyle(
                         fontSize: 13,
                         fontWeight: FontWeight.w600,

@@ -123,6 +123,24 @@ describe('RedisService (in-memory fallback)', () => {
       });
     });
 
+    it('merges partial updates without wiping prior fields', async () => {
+      await svc.cacheBookingStatus('b1', {
+        status: 'ACCEPTED',
+        arrivalOtp: '1234',
+        customerId: 'c1',
+      });
+      await svc.cacheBookingStatus('b1', {
+        status: 'ACCEPTED',
+        cancelRequested: true,
+      });
+      expect(await svc.getCachedBookingStatus('b1')).toEqual({
+        status: 'ACCEPTED',
+        arrivalOtp: '1234',
+        customerId: 'c1',
+        cancelRequested: true,
+      });
+    });
+
     it('returns null when nothing is cached', async () => {
       expect(await svc.getCachedBookingStatus('missing')).toBeNull();
     });

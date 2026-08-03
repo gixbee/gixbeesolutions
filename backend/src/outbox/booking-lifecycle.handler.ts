@@ -163,6 +163,7 @@ export class BookingLifecycleHandler {
 
     if (notifiedIds.length === 0) return;
 
+    const notifiedAt = p.notifiedAt ?? new Date().toISOString();
     const socketPayload = {
       id: p.bookingId,
       skill: p.skill,
@@ -174,7 +175,9 @@ export class BookingLifecycleHandler {
       customer_name: p.customerName || 'Customer',
       description: p.description ?? null,
       preferredLanguages: p.preferredLanguages ?? [],
-      createdAt: p.createdAt ?? new Date().toISOString(),
+      createdAt: p.createdAt ?? notifiedAt,
+      notifiedAt,
+      attempt: attempt,
     };
     for (const wid of notifiedIds) {
       try {
@@ -204,6 +207,8 @@ export class BookingLifecycleHandler {
           serviceLng: p.serviceLng != null ? String(p.serviceLng) : '',
           amount: String(p.amount ?? 0),
           createdAt: p.createdAt ?? '',
+          notifiedAt,
+          attempt: String(attempt),
         },
       })
       .catch((e) => this.logger.error(`multicast failed: ${e?.message ?? e}`));
@@ -394,15 +399,13 @@ export class BookingLifecycleHandler {
         .catch(() => undefined);
     }
 
-    await this.redisService
-      .cacheBookingStatus(p.bookingId, {
-        status: 'CANCELLED',
-        operatorName: p.operatorName,
-        operatorId: p.operatorId,
-        customerId: p.customerId,
-        arrivalOtp: null,
-      })
-      .catch(() => undefined);
+    await this.cacheAndEmitBookingStatus(p.bookingId, {
+      status: 'CANCELLED',
+      operatorName: p.operatorName,
+      operatorId: p.operatorId,
+      customerId: p.customerId,
+      cancelRequested: false,
+    });
   }
 
   private async getNotifiedWorkerIds(bookingId: string): Promise<string[]> {
@@ -455,7 +458,10 @@ export class BookingLifecycleHandler {
             ...payload,
             bookingId,
             id: bookingId,
-            arrivalOtp: status === 'ACCEPTED' ? payload.arrivalOtp : null,
+            arrivalOtp:
+              status === 'ACCEPTED' || status === 'ARRIVED'
+                ? payload.arrivalOtp
+                : null,
           },
         );
       } catch (e) {

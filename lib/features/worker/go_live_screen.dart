@@ -648,9 +648,11 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
       ),
       body: userAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (_, __) => Center(
-            child: Text('Could not load your profile',
-                style: TextStyle(color: context.gx.ink))),
+        error: (e, __) => GxNetworkError(
+          error: e,
+          title: 'Could not load your profile',
+          onRetry: () => ref.invalidate(currentUserProvider),
+        ),
         data: (user) {
           if (user == null) {
             return GoLiveNotAWorker(scheme: scheme);

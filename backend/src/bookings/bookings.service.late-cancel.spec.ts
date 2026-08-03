@@ -34,9 +34,18 @@ function makeService(booking: any, userOver: any = {}) {
     findOne: jest.fn(async () => ({ ...customer })),
     save: jest.fn(async (u: any) => u),
   };
+  // cancelBooking re-reads the row under a pessimistic lock inside the tx, so
+  // the builder must hand back the SAME booking object the tests assert on.
+  const lockedQb: any = {
+    setLock: jest.fn(() => lockedQb),
+    leftJoinAndSelect: jest.fn(() => lockedQb),
+    where: jest.fn(() => lockedQb),
+    getOne: jest.fn(async () => booking),
+  };
   const manager: any = {
     save: jest.fn(async (b: any) => b),
     getRepository: jest.fn(() => usersRepo),
+    createQueryBuilder: jest.fn(() => lockedQb),
   };
   const dataSource: any = {
     transaction: jest.fn(async (cb: any) => cb(manager)),
