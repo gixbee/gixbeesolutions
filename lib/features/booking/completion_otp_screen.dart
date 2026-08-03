@@ -580,54 +580,79 @@ class _CompletionOtpScreenState extends ConsumerState<CompletionOtpScreen> {
 
                 // OTP display OR Input
                 if (widget.isWorker)
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: List.generate(AppConfig.bookingOtpLength, (i) {
-                      return Container(
-                        width: 60,
-                        height: 68,
-                        margin: const EdgeInsets.symmetric(horizontal: 6),
-                        child: TextField(
-                          controller: _controllers[i],
-                          focusNode: _focusNodes[i],
-                          textAlign: TextAlign.center,
-                          keyboardType: TextInputType.number,
-                          maxLength: 1,
-                          style: TextStyle(
-                            fontSize: 28,
-                            fontWeight: FontWeight.bold,
-                            color: gx.ink,
-                          ),
-                          decoration: InputDecoration(
-                            counterText: '',
-                            filled: true,
-                            fillColor: _controllers[i].text.isNotEmpty
-                                ? gx.accent.withValues(alpha: 0.08)
-                                : gx.card2,
-                            border: OutlineInputBorder(
+                  // Boxes appear only once the customer has been notified —
+                  // before that there is no OTP to type.
+                  if (_hasMarkedComplete)
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: List.generate(AppConfig.bookingOtpLength, (i) {
+                        final filledBox = _controllers[i].text.isNotEmpty;
+                        // Borders are set per-state: the app's
+                        // inputDecorationTheme overrides a bare `border` with
+                        // a borderless enabled/focused state.
+                        OutlineInputBorder boxBorder(Color color, double w) =>
+                            OutlineInputBorder(
                               borderRadius: BorderRadius.circular(14),
-                              borderSide: BorderSide(
-                                color: _errorMsg != null ? err : gx.border,
-                              ),
+                              borderSide: BorderSide(color: color, width: w),
+                            );
+                        return Container(
+                          width: 60,
+                          height: 68,
+                          margin: const EdgeInsets.symmetric(horizontal: 6),
+                          child: TextField(
+                            controller: _controllers[i],
+                            focusNode: _focusNodes[i],
+                            textAlign: TextAlign.center,
+                            keyboardType: TextInputType.number,
+                            maxLength: 1,
+                            style: TextStyle(
+                              fontSize: 28,
+                              fontWeight: FontWeight.bold,
+                              color: gx.ink,
                             ),
+                            decoration: InputDecoration(
+                              counterText: '',
+                              contentPadding: EdgeInsets.zero,
+                              filled: true,
+                              fillColor: filledBox
+                                  ? gx.accent.withValues(alpha: 0.10)
+                                  : gx.card,
+                              enabledBorder: boxBorder(
+                                _errorMsg != null
+                                    ? err
+                                    : filledBox
+                                        ? gx.accent
+                                        : gx.ink.withValues(alpha: 0.25),
+                                1.5,
+                              ),
+                              focusedBorder: boxBorder(
+                                  _errorMsg != null ? err : gx.accent, 2),
+                              errorBorder: boxBorder(err, 1.5),
+                              focusedErrorBorder: boxBorder(err, 2),
+                            ),
+                            inputFormatters: [
+                              FilteringTextInputFormatter.digitsOnly
+                            ],
+                            onChanged: (value) {
+                              setState(() => _errorMsg = null);
+                              if (value.isNotEmpty &&
+                                  i < AppConfig.bookingOtpLength - 1) {
+                                _focusNodes[i + 1].requestFocus();
+                              } else if (value.isEmpty && i > 0) {
+                                _focusNodes[i - 1].requestFocus();
+                              }
+                              // No auto-submit
+                            },
                           ),
-                          inputFormatters: [
-                            FilteringTextInputFormatter.digitsOnly
-                          ],
-                          onChanged: (value) {
-                            setState(() => _errorMsg = null);
-                            if (value.isNotEmpty &&
-                                i < AppConfig.bookingOtpLength - 1) {
-                              _focusNodes[i + 1].requestFocus();
-                            } else if (value.isEmpty && i > 0) {
-                              _focusNodes[i - 1].requestFocus();
-                            }
-                            // No auto-submit
-                          },
-                        ),
-                      );
-                    }),
-                  )
+                        );
+                      }),
+                    )
+                  else
+                    Text(
+                      'The customer gets a ${AppConfig.bookingOtpLength}-digit code once you notify them.',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(color: muted, fontSize: 13),
+                    )
                 else
                   // Customer view: Show the code
                   Column(

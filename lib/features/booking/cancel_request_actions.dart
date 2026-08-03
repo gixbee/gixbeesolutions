@@ -153,8 +153,10 @@ class _CancelRequestActionsState extends ConsumerState<CancelRequestActions> {
                   label: 'Decline',
                   onTap: _anyBusy ? null : _decline,
                   loading: _busy == _CancelAction.decline,
-                  gradient: [gx.card2, gx.card2],
-                  accent: muted,
+                  // Outline: a filled pill forces the white onAccent label,
+                  // which disappears on the light card fill.
+                  filled: false,
+                  accent: gx.ink.withValues(alpha: 0.75),
                 ),
               ),
               const SizedBox(width: 10),

@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import '../../repositories/auth_repository.dart';
 import '../../repositories/booking_repository.dart';
+import '../../repositories/booking_status_provider.dart';
 import '../home/active_booking_card.dart';
 import '../booking/cancel_booking_screen.dart';
 import '../booking/cancel_request_actions.dart';
@@ -25,6 +26,19 @@ class BookingDetailScreen extends ConsumerWidget {
 
 
 
+  /// Statuses still open to change while this page is on screen — the only
+  /// ones worth a live status subscription.
+  static const _watchableStatuses = {
+    'PENDING',
+    'REQUESTED',
+    'CUSTOM_REQUESTED',
+    'ACCEPTED',
+    'CONFIRMED',
+    'ARRIVED',
+    'ACTIVE',
+    'IN_PROGRESS',
+  };
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final scheduledAtRaw = booking['scheduledAt'] != null
@@ -33,11 +47,32 @@ class BookingDetailScreen extends ConsumerWidget {
             ? (DateTime.tryParse(booking['createdAt'].toString()) ?? DateTime.now())
             : DateTime.now());
     final scheduledAt = scheduledAtRaw.toLocal();
-    final status = (booking['status'] ?? 'PENDING').toString().toUpperCase();
 
-    final isPaid = bookingFlagTrue(booking['isPaid']) ||
-        bookingFlagTrue(booking['customerPaidConfirmed']) ||
-        bookingFlagTrue(booking['workerPaidConfirmed']);
+    final bookingId = booking['id']?.toString() ?? '';
+    final snapshotStatus =
+        (booking['status'] ?? 'PENDING').toString().toUpperCase();
+
+    // The snapshot is whatever the list held when this page was pushed. Once
+    // the pro approves/declines a cancel request the booking moves on without
+    // us, so follow the live status instead of the frozen copy.
+    final live = bookingId.isNotEmpty &&
+            _watchableStatuses.contains(snapshotStatus)
+        ? ref.watch(bookingStatusProvider(bookingId)).value
+        : null;
+
+    final status =
+        live?['status']?.toString().toUpperCase() ?? snapshotStatus;
+    final cancelRequested = live != null
+        ? bookingFlagTrue(live['cancelRequested'])
+        : bookingFlagTrue(
+            booking['cancelRequested'] ?? (booking['cancelRequestedAt'] != null),
+          );
+
+    final isPaid = bookingFlagTrue(live?['isPaid'] ?? booking['isPaid']) ||
+        bookingFlagTrue(live?['customerPaidConfirmed'] ??
+            booking['customerPaidConfirmed']) ||
+        bookingFlagTrue(
+            live?['workerPaidConfirmed'] ?? booking['workerPaidConfirmed']);
     final paymentStatusText = isPaid
         ? 'Paid'
         : (status == 'CANCELLED' || status == 'REJECTED'
@@ -62,7 +97,6 @@ class BookingDetailScreen extends ConsumerWidget {
     final counterpart = isAssignedWorker ? customerMap : operatorMap;
     final counterpartName = counterpart?['name']?.toString();
 
-    final bookingId = booking['id']?.toString() ?? '';
     final shortId = '#BK-${bookingId.length > 5 ? bookingId.substring(0, 5) : bookingId}';
 
     final amount = num.tryParse('${booking['totalAmount'] ?? booking['amount'] ?? 0}') ?? 0;
@@ -125,15 +159,14 @@ class BookingDetailScreen extends ConsumerWidget {
             // Pending cancel request — the worker approves/declines here, the
             // customer can withdraw. Fed from this snapshot so opening a
             // booking never starts a status poll.
-            if (booking['id'] != null &&
-                bookingFlagTrue(booking['cancelRequested'] ??
-                    (booking['cancelRequestedAt'] != null)) &&
+            if (bookingId.isNotEmpty &&
+                cancelRequested &&
                 const {'ACCEPTED', 'ARRIVED', 'ACTIVE', 'IN_PROGRESS'}
                     .contains(status))
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16),
                 child: CancelRequestActions(
-                  bookingId: booking['id'].toString(),
+                  bookingId: bookingId,
                   isWorker: isAssignedWorker,
                   cancelRequested: true,
                   onActionCompleted: () {
@@ -149,8 +182,15 @@ class BookingDetailScreen extends ConsumerWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    if (status == 'ACCEPTED' && booking['arrivalOtp'] != null)
-                      _buildOtpCard(context, 'Arrival OTP', booking['arrivalOtp'].toString(), Icons.meeting_room, context.gx.accent),
+                    if (status == 'ACCEPTED' &&
+                        (live?['arrivalOtp'] ?? booking['arrivalOtp']) != null)
+                      _buildOtpCard(
+                          context,
+                          'Arrival OTP',
+                          (live?['arrivalOtp'] ?? booking['arrivalOtp'])
+                              .toString(),
+                          Icons.meeting_room,
+                          context.gx.accent),
                     if (status == 'ACTIVE' && booking['completionOtp'] != null)
                       _buildOtpCard(context, 'Completion OTP', booking['completionOtp'].toString(), Icons.verified, Colors.green),
                   ],
@@ -274,7 +314,8 @@ class BookingDetailScreen extends ConsumerWidget {
                     ),
                   const SizedBox(height: 12),
                   // Action buttons
-                  _buildStickyActionBar(context, ref, status, isAssignedWorker),
+                  _buildStickyActionBar(context, ref, status, isAssignedWorker,
+                      cancelRequested),
                 ],
               ),
             ),
@@ -404,7 +445,8 @@ class BookingDetailScreen extends ConsumerWidget {
   }
 
   // Action Bar Buttons
-  Widget _buildStickyActionBar(BuildContext context, WidgetRef ref, String status, bool isAssignedWorker) {
+  Widget _buildStickyActionBar(BuildContext context, WidgetRef ref,
+      String status, bool isAssignedWorker, bool cancelRequested) {
     final counterpart = isAssignedWorker ? (booking['customer'] ?? {}) : (booking['operator'] ?? {});
     final counterpartId = counterpart['id']?.toString();
     final counterpartName = (counterpart['name'] ?? 'Gixbee user').toString();
@@ -425,7 +467,10 @@ class BookingDetailScreen extends ConsumerWidget {
     }
 
     const cancellable = {'PENDING', 'REQUESTED', 'ACCEPTED', 'CONFIRMED'};
-    final canCancel = !isAssignedWorker && cancellable.contains(status);
+    // A pending request already owns the cancel flow above (withdraw /
+    // approve) — a second entry point here would re-cancel a settled booking.
+    final canCancel =
+        !isAssignedWorker && !cancelRequested && cancellable.contains(status);
     final canMessage = counterpartId != null && counterpartId.isNotEmpty;
     final showAcceptDecline = status == 'REQUESTED' && isAssignedWorker;
 

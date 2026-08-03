@@ -325,6 +325,18 @@ class _ArrivalOtpScreenState extends ConsumerState<ArrivalOtpScreen>
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: List.generate(
                           AppConfig.bookingOtpLength, (i) {
+                        final filledBox =
+                            _controllers[i].text.isNotEmpty;
+                        // Per-state borders: the app's
+                        // inputDecorationTheme overrides a bare `border`
+                        // with a borderless enabled/focused state.
+                        OutlineInputBorder boxBorder(
+                                Color color, double w) =>
+                            OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(14),
+                              borderSide:
+                                  BorderSide(color: color, width: w),
+                            );
                         return Container(
                           width: 60,
                           height: 68,
@@ -342,19 +354,25 @@ class _ArrivalOtpScreenState extends ConsumerState<ArrivalOtpScreen>
                                 color: gx.ink),
                             decoration: InputDecoration(
                               counterText: '',
+                              contentPadding: EdgeInsets.zero,
                               filled: true,
                               fillColor: _errorMsg != null
                                   ? err.withValues(alpha: 0.08)
-                                  : gx.card2,
-                              border: OutlineInputBorder(
-                                borderRadius:
-                                    BorderRadius.circular(14),
-                                borderSide: BorderSide(
-                                  color: _errorMsg != null
-                                      ? err
-                                      : gx.border,
-                                ),
+                                  : filledBox
+                                      ? gx.accent.withValues(alpha: 0.10)
+                                      : gx.card,
+                              enabledBorder: boxBorder(
+                                _errorMsg != null
+                                    ? err
+                                    : filledBox
+                                        ? gx.accent
+                                        : gx.ink.withValues(alpha: 0.25),
+                                1.5,
                               ),
+                              focusedBorder: boxBorder(
+                                  _errorMsg != null ? err : gx.accent, 2),
+                              errorBorder: boxBorder(err, 1.5),
+                              focusedErrorBorder: boxBorder(err, 2),
                             ),
                             inputFormatters: [
                               FilteringTextInputFormatter.digitsOnly
