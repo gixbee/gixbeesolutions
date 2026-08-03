@@ -790,6 +790,7 @@ class _LiveTrackingMapScreenState extends ConsumerState<LiveTrackingMapScreen> {
             : null);
 
     return LiveTrackingBottomPanel(
+      bookingId: widget.bookingId,
       worker: widget.worker,
       status: _currentStatus,
       isWorker: widget.isWorker,

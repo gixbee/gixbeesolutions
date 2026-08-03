@@ -11,6 +11,7 @@ import 'features/home/home_screen.dart';
 import 'features/home/active_booking_card.dart';
 import 'features/messages/messages_list_screen.dart';
 import 'features/profile/profile_screen.dart';
+import 'features/jobs/booking_detail_screen.dart';
 import 'features/jobs/my_bookings_screen.dart';
 import 'features/booking/incoming_job_screen.dart';
 import 'features/billing/job_pack_screen.dart';
@@ -403,6 +404,28 @@ class _MainWrapperState extends ConsumerState<MainWrapper>
         ref.read(bookingStatusNudgeProvider).poke(bookingId);
       }
       if (type == 'booking_accepted' && mounted) _goToTab(0);
+      // A cancel request needs an answer, so the tap must land on the job
+      // itself — the tray banner is the pro's only prompt.
+      if (type == 'cancel_requested' &&
+          fromUserGesture &&
+          bookingId != null &&
+          mounted) {
+        await _openBookingDetail(bookingId);
+      }
+    }
+  }
+
+  Future<void> _openBookingDetail(String bookingId) async {
+    try {
+      final booking =
+          await ref.read(bookingRepositoryProvider).getBookingById(bookingId);
+      if (!mounted || booking == null) return;
+      await Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => BookingDetailScreen(booking: booking)),
+      );
+    } catch (e) {
+      debugPrint('[FCM] Could not open booking $bookingId: $e');
     }
   }
 

@@ -47,12 +47,12 @@ function makeService(booking: any) {
     createQueryBuilder: jest.fn(() => {
       const qb: any = {
         setLock: jest.fn(() => qb),
-        leftJoinAndSelect: jest.fn(() => qb),
         where: jest.fn(() => qb),
         getOne: jest.fn(async () => booking),
       };
       return qb;
     }),
+    findOne: jest.fn(async () => booking),
     getRepository: jest.fn(() => ({
       findOne: jest.fn(async () => ({
         id: 'cust-1',

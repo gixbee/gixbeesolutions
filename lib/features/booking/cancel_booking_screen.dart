@@ -8,6 +8,8 @@ import '../../shared/widgets/gx_dialog.dart';
 import '../../shared/widgets/gx_snackbar.dart';
 import '../../shared/widgets/gx_button.dart';
 
+enum _CancelSubmit { request, cancel }
+
 /// Customer cancellation flow — pick a reason, confirm, see the refund.
 /// Handles late-cancel protection: request cancel when the pro has arrived,
 /// warn on ACCEPTED bookings, and surface strike / block messages.
@@ -32,10 +34,14 @@ class _CancelBookingScreenState extends ConsumerState<CancelBookingScreen> {
   ];
 
   String? _selected;
-  bool _submitting = false;
+
+  /// Which call is in flight — so only the tapped button spins.
+  _CancelSubmit? _submitting;
   bool _loadingBooking = true;
   String _status = '';
   bool _workerNoProgress = false;
+
+  bool get _busy => _submitting != null;
 
   bool get _needsProApproval {
     final s = _status.toUpperCase();
@@ -81,8 +87,8 @@ class _CancelBookingScreenState extends ConsumerState<CancelBookingScreen> {
   }
 
   Future<void> _confirmCancel() async {
-    if (_selected == null || _submitting) return;
-    setState(() => _submitting = true);
+    if (_selected == null || _busy) return;
+    setState(() => _submitting = _CancelSubmit.cancel);
     try {
       final result = await ref
           .read(bookingRepositoryProvider)
@@ -97,13 +103,13 @@ class _CancelBookingScreenState extends ConsumerState<CancelBookingScreen> {
             type: GxSnackType.error);
       }
     } finally {
-      if (mounted) setState(() => _submitting = false);
+      if (mounted) setState(() => _submitting = null);
     }
   }
 
   Future<void> _requestCancel() async {
-    if (_selected == null || _submitting) return;
-    setState(() => _submitting = true);
+    if (_selected == null || _busy) return;
+    setState(() => _submitting = _CancelSubmit.request);
     try {
       final result = await ref.read(bookingRepositoryProvider).requestCancel(
             widget.bookingId,
@@ -120,7 +126,7 @@ class _CancelBookingScreenState extends ConsumerState<CancelBookingScreen> {
             type: GxSnackType.error);
       }
     } finally {
-      if (mounted) setState(() => _submitting = false);
+      if (mounted) setState(() => _submitting = null);
     }
   }
 
@@ -294,46 +300,36 @@ class _CancelBookingScreenState extends ConsumerState<CancelBookingScreen> {
                   if (_needsProApproval)
                     GxButton(
                       label: 'Request cancellation',
-                      onTap: (_selected == null || _submitting)
-                          ? null
-                          : _requestCancel,
-                      loading: _submitting,
+                      onTap: (_selected == null || _busy) ? null : _requestCancel,
+                      loading: _submitting == _CancelSubmit.request,
                     )
                   else if (_freeCancelDueToNoProgress)
                     GxButton(
                       label: 'Cancel free',
-                      onTap: (_selected == null || _submitting)
-                          ? null
-                          : _confirmCancel,
-                      loading: _submitting,
+                      onTap: (_selected == null || _busy) ? null : _confirmCancel,
+                      loading: _submitting == _CancelSubmit.cancel,
                       gradient: [err, err],
                       accent: err,
                     )
                   else if (_isAccepted) ...[
                     GxButton(
                       label: 'Ask pro to cancel',
-                      onTap: (_selected == null || _submitting)
-                          ? null
-                          : _requestCancel,
-                      loading: _submitting,
+                      onTap: (_selected == null || _busy) ? null : _requestCancel,
+                      loading: _submitting == _CancelSubmit.request,
                     ),
                     const SizedBox(height: 10),
                     GxButton(
                       label: 'Cancel anyway',
-                      onTap: (_selected == null || _submitting)
-                          ? null
-                          : _confirmCancel,
-                      loading: _submitting,
+                      onTap: (_selected == null || _busy) ? null : _confirmCancel,
+                      loading: _submitting == _CancelSubmit.cancel,
                       gradient: [err, err],
                       accent: err,
                     ),
                   ] else
                     GxButton(
                       label: 'Confirm cancellation',
-                      onTap: (_selected == null || _submitting)
-                          ? null
-                          : _confirmCancel,
-                      loading: _submitting,
+                      onTap: (_selected == null || _busy) ? null : _confirmCancel,
+                      loading: _submitting == _CancelSubmit.cancel,
                       gradient: [err, err],
                       accent: err,
                     ),

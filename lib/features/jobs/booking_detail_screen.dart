@@ -5,6 +5,7 @@ import '../../repositories/auth_repository.dart';
 import '../../repositories/booking_repository.dart';
 import '../home/active_booking_card.dart';
 import '../booking/cancel_booking_screen.dart';
+import '../booking/cancel_request_actions.dart';
 import '../messages/chat_thread_screen.dart';
 import '../../theme.dart';
 import '../../shared/widgets/gx_snackbar.dart';
@@ -121,6 +122,26 @@ class BookingDetailScreen extends ConsumerWidget {
               ),
             ),
             
+            // Pending cancel request — the worker approves/declines here, the
+            // customer can withdraw. Fed from this snapshot so opening a
+            // booking never starts a status poll.
+            if (booking['id'] != null &&
+                bookingFlagTrue(booking['cancelRequested'] ??
+                    (booking['cancelRequestedAt'] != null)) &&
+                const {'ACCEPTED', 'ARRIVED', 'ACTIVE', 'IN_PROGRESS'}
+                    .contains(status))
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: CancelRequestActions(
+                  bookingId: booking['id'].toString(),
+                  isWorker: isAssignedWorker,
+                  cancelRequested: true,
+                  onActionCompleted: () {
+                    if (Navigator.canPop(context)) Navigator.pop(context);
+                  },
+                ),
+              ),
+
             // OTP Section (Only for Customers)
             if (!isAssignedWorker && (status == 'ACCEPTED' || status == 'ACTIVE'))
               Padding(

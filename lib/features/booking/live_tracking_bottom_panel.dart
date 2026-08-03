@@ -3,11 +3,13 @@ import 'package:flutter/material.dart';
 import '../../shared/models/worker.dart';
 import '../../shared/widgets/gx_button.dart';
 import '../../theme.dart';
+import 'cancel_request_actions.dart';
 import 'live_tracking_status_presentation.dart';
 
 class LiveTrackingBottomPanel extends StatelessWidget {
   const LiveTrackingBottomPanel({
     super.key,
+    required this.bookingId,
     required this.worker,
     required this.status,
     required this.isWorker,
@@ -25,6 +27,7 @@ class LiveTrackingBottomPanel extends StatelessWidget {
     this.distanceText,
   });
 
+  final String bookingId;
   final Worker worker;
   final String status;
   final bool isWorker;
@@ -294,6 +297,9 @@ class LiveTrackingBottomPanel extends StatelessWidget {
                   onTap: onWorkerArrived,
                 ),
               ],
+              // A cancel request can land as early as ACCEPTED, and this panel
+              // is where both roles sit until the job starts.
+              CancelRequestActions(bookingId: bookingId, isWorker: isWorker),
               if (!hasWorkerLocation) ...[
                 const SizedBox(height: 12),
                 _LocationWaitRow(

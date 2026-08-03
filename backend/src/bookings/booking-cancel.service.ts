@@ -167,14 +167,19 @@ export class BookingCancelService {
     let outboxSource: string = source;
 
     const outbox = await this.dataSource.transaction(async (manager) => {
-      const locked = await manager
+      // Postgres rejects FOR UPDATE on the nullable side of an outer join, so
+      // the row is locked bare and then re-read with its relations.
+      const lockedRow = await manager
         .createQueryBuilder(Booking, 'booking')
         .setLock('pessimistic_write')
-        .leftJoinAndSelect('booking.customer', 'customer')
-        .leftJoinAndSelect('booking.operator', 'operator')
         .where('booking.id = :id', { id })
         .getOne();
+      if (!lockedRow) throw new NotFoundException('Booking not found');
 
+      const locked = await manager.findOne(Booking, {
+        where: { id },
+        relations: ['customer', 'operator'],
+      });
       if (!locked) throw new NotFoundException('Booking not found');
       if (locked.status === BookingStatus.COMPLETED) {
         throw new BadRequestException('Completed bookings cannot be cancelled.');

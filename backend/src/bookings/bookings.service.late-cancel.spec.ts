@@ -35,7 +35,8 @@ function makeService(booking: any, userOver: any = {}) {
     save: jest.fn(async (u: any) => u),
   };
   // cancelBooking re-reads the row under a pessimistic lock inside the tx, so
-  // the builder must hand back the SAME booking object the tests assert on.
+  // both the lock query and the relation reload must hand back the SAME
+  // booking object the tests assert on.
   const lockedQb: any = {
     setLock: jest.fn(() => lockedQb),
     leftJoinAndSelect: jest.fn(() => lockedQb),
@@ -46,6 +47,7 @@ function makeService(booking: any, userOver: any = {}) {
     save: jest.fn(async (b: any) => b),
     getRepository: jest.fn(() => usersRepo),
     createQueryBuilder: jest.fn(() => lockedQb),
+    findOne: jest.fn(async () => booking),
   };
   const dataSource: any = {
     transaction: jest.fn(async (cb: any) => cb(manager)),
@@ -83,6 +85,8 @@ function makeService(booking: any, userOver: any = {}) {
     notificationsService,
     usersRepo,
     redisService,
+    lockedQb,
+    manager,
   };
 }
 
@@ -113,6 +117,21 @@ describe('BookingCancelService late-cancel gates', () => {
     const { service } = makeService(booking({ status: BookingStatus.ACTIVE }));
     await expect(service.cancelBooking('b1', 'nope')).rejects.toThrow(
       BadRequestException,
+    );
+  });
+
+  it('locks the booking row without joins (Postgres rejects FOR UPDATE on an outer join)', async () => {
+    const { service, lockedQb, manager } = makeService(
+      booking({ acceptedAt: new Date() }),
+    );
+
+    await service.cancelBooking('b1', 'changed mind');
+
+    expect(lockedQb.setLock).toHaveBeenCalledWith('pessimistic_write');
+    expect(lockedQb.leftJoinAndSelect).not.toHaveBeenCalled();
+    expect(manager.findOne).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ relations: ['customer', 'operator'] }),
     );
   });
 

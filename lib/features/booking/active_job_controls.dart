@@ -3,9 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../repositories/booking_repository.dart';
 import '../../repositories/booking_status_provider.dart';
-import '../../shared/widgets/gx_button.dart';
-import '../../shared/widgets/gx_snackbar.dart';
 import '../../theme.dart';
+import 'cancel_request_actions.dart';
 import 'report_issue_sheet.dart';
 
 /// Self-contained ACTIVE-job strip: live work timer, cancel-request controls,
@@ -28,7 +27,6 @@ class _ActiveJobControlsState extends ConsumerState<ActiveJobControls> {
   Timer? _ticker;
   DateTime? _startedAt;
   Duration _elapsed = Duration.zero;
-  bool _cancelBusy = false;
 
   @override
   void initState() {
@@ -67,181 +65,11 @@ class _ActiveJobControlsState extends ConsumerState<ActiveJobControls> {
     return '$h:$m:$s';
   }
 
-  Future<void> _requestCancel() async {
-    if (_cancelBusy) return;
-    setState(() => _cancelBusy = true);
-    try {
-      await ref
-          .read(bookingRepositoryProvider)
-          .requestCancel(widget.bookingId);
-      ref.invalidate(bookingStatusProvider(widget.bookingId));
-      if (mounted) {
-        showGxSnack(context, 'Cancel request sent to your pro.',
-            type: GxSnackType.success);
-      }
-    } catch (_) {
-      if (mounted) {
-        showGxSnack(context, 'Could not send cancel request.',
-            type: GxSnackType.error);
-      }
-    } finally {
-      if (mounted) setState(() => _cancelBusy = false);
-    }
-  }
-
-  Future<void> _withdrawCancel() async {
-    if (_cancelBusy) return;
-    setState(() => _cancelBusy = true);
-    try {
-      await ref
-          .read(bookingRepositoryProvider)
-          .withdrawCancelRequest(widget.bookingId);
-      ref.invalidate(bookingStatusProvider(widget.bookingId));
-      if (mounted) {
-        showGxSnack(context, 'Cancel request withdrawn.',
-            type: GxSnackType.success);
-      }
-    } catch (_) {
-      if (mounted) {
-        showGxSnack(context, 'Could not withdraw request.',
-            type: GxSnackType.error);
-      }
-    } finally {
-      if (mounted) setState(() => _cancelBusy = false);
-    }
-  }
-
-  Future<void> _approveCancel() async {
-    if (_cancelBusy) return;
-    setState(() => _cancelBusy = true);
-    try {
-      await ref.read(bookingRepositoryProvider).approveCancel(widget.bookingId);
-      ref.invalidate(myBookingsProvider);
-      ref.invalidate(bookingStatusProvider(widget.bookingId));
-      if (mounted) {
-        showGxSnack(context, 'Cancellation approved.',
-            type: GxSnackType.success);
-      }
-    } catch (_) {
-      if (mounted) {
-        showGxSnack(context, 'Could not approve cancellation.',
-            type: GxSnackType.error);
-      }
-    } finally {
-      if (mounted) setState(() => _cancelBusy = false);
-    }
-  }
-
-  Future<void> _declineCancel() async {
-    if (_cancelBusy) return;
-    setState(() => _cancelBusy = true);
-    try {
-      await ref.read(bookingRepositoryProvider).declineCancel(widget.bookingId);
-      ref.invalidate(bookingStatusProvider(widget.bookingId));
-      if (mounted) {
-        showGxSnack(context, 'Cancel request declined.',
-            type: GxSnackType.info);
-      }
-    } catch (_) {
-      if (mounted) {
-        showGxSnack(context, 'Could not decline request.',
-            type: GxSnackType.error);
-      }
-    } finally {
-      if (mounted) setState(() => _cancelBusy = false);
-    }
-  }
-
-  Widget _cancelRequestSection(bool cancelRequested) {
-    final gx = context.gx;
-    final muted = gx.ink.withValues(alpha: 0.55);
-    final err = Theme.of(context).colorScheme.error;
-
-    if (widget.isWorker) {
-      if (!cancelRequested) return const SizedBox.shrink();
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          const SizedBox(height: 10),
-          Text('Customer requested cancellation',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                  fontSize: 12.5,
-                  fontWeight: FontWeight.w700,
-                  color: muted)),
-          const SizedBox(height: 8),
-          Row(
-            children: [
-              Expanded(
-                child: GxButton(
-                  label: 'Decline',
-                  onTap: _cancelBusy ? null : _declineCancel,
-                  loading: _cancelBusy,
-                  gradient: [gx.card2, gx.card2],
-                  accent: muted,
-                ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: GxButton(
-                  label: 'Approve',
-                  onTap: _cancelBusy ? null : _approveCancel,
-                  loading: _cancelBusy,
-                  gradient: [err, err],
-                  accent: err,
-                ),
-              ),
-            ],
-          ),
-        ],
-      );
-    }
-
-    if (cancelRequested) {
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          const SizedBox(height: 10),
-          Text('Waiting for your pro to approve cancellation…',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                  fontSize: 12.5,
-                  fontWeight: FontWeight.w600,
-                  color: muted)),
-          const SizedBox(height: 8),
-          GxButton(
-            label: 'Withdraw request',
-            onTap: _cancelBusy ? null : _withdrawCancel,
-            loading: _cancelBusy,
-          ),
-        ],
-      );
-    }
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        const SizedBox(height: 10),
-        GxButton(
-          label: 'Request cancellation',
-          onTap: _cancelBusy ? null : _requestCancel,
-          loading: _cancelBusy,
-          gradient: [err.withValues(alpha: 0.85), err],
-          accent: err,
-        ),
-      ],
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     final statusData =
         ref.watch(bookingStatusProvider(widget.bookingId)).value;
     final status = statusData?['status']?.toString().toUpperCase() ?? '';
-    final cancelRequested = statusData?['cancelRequested'] == true;
-    final showCancelControls = status == 'ARRIVED' ||
-        status == 'ACTIVE' ||
-        status == 'IN_PROGRESS';
 
     if (status.isNotEmpty &&
         status != 'ACTIVE' &&
@@ -287,8 +115,11 @@ class _ActiveJobControlsState extends ConsumerState<ActiveJobControls> {
                       color: accent)),
             ],
           ),
-          if (showCancelControls)
-            _cancelRequestSection(cancelRequested),
+          CancelRequestActions(
+            bookingId: widget.bookingId,
+            isWorker: widget.isWorker,
+            allowRequest: true,
+          ),
           const SizedBox(height: 2),
           Center(
             child: TextButton.icon(
