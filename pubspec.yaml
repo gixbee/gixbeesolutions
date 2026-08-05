@@ -29,6 +29,10 @@ dependencies:
   # In-app alert chimes (incoming job loop + accept confirmation)
   audioplayers: ^6.5.0
 
+  # In-app WebRTC voice (booking Call)
+  flutter_webrtc: ^0.12.1
+  permission_handler: ^11.4.0
+
   # Auth
 
   # Secure token storage

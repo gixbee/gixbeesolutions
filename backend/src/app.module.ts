@@ -38,6 +38,7 @@ import { TalentModule } from './talent/talent.module';
 import { MasterEntriesModule } from './master-entries/master-entries.module';
 import { MasterEntry } from './master-entries/master-entry.entity';
 import { MessagesModule } from './messages/messages.module';
+import { VoiceCallsModule } from './voice-calls/voice-calls.module';
 import { Message } from './messages/message.entity';
 import { PaymentsModule } from './payments/payments.module';
 import { PaymentOrder } from './payments/payment-order.entity';
@@ -204,6 +205,7 @@ import { CreditTransaction } from './billing/credit-transaction.entity';
     TalentModule,
     MasterEntriesModule,
     MessagesModule,
+    VoiceCallsModule,
     PaymentsModule,
     FavouritesModule,
     AddressesModule,

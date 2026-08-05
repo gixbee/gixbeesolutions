@@ -150,6 +150,36 @@ services:
       timeout: 5s
       retries: 5
 
+  # ── Coturn (WebRTC TURN/STUN for in-app voice) ─────────────────────────────
+  # Clients get credentials from GET /bookings/:id/webrtc-config.
+  # Set TURN_EXTERNAL_IP to the host public IP so relay candidates work.
+  # Without a public IP, STUN-only still works on many same-LAN paths.
+  coturn:
+    image: coturn/coturn:4.6.2
+    container_name: gixbee_coturn
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    # host networking so relay candidates use the EC2 public IP correctly.
+    network_mode: host
+    command:
+      - -n
+      - --log-file=stdout
+      - --listening-port=3478
+      - --fingerprint
+      - --lt-cred-mech
+      - --user=gixbee:${TURN_CREDENTIAL:-gixbee_turn_dev}
+      - --realm=gixbee.local
+      - --no-cli
+      - --no-tls
+      - --no-dtls
+      - --min-port=49160
+      - --max-port=49200
+      - --external-ip=${TURN_EXTERNAL_IP:-13.233.60.215}
+
   # ── NestJS Backend (Scaled to 2 Replicas for 2 vCPU Cores) ─────────────────
   backend:
     build:

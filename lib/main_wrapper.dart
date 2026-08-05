@@ -15,7 +15,9 @@ import 'features/profile/profile_screen.dart';
 import 'features/jobs/booking_detail_screen.dart';
 import 'features/jobs/my_bookings_screen.dart';
 import 'features/booking/incoming_job_screen.dart';
+import 'features/booking/voice_call_screen.dart';
 import 'features/billing/job_pack_screen.dart';
+import 'services/voice_call_controller.dart';
 import 'features/jobs/pro_skill_provider.dart';
 import 'features/profile/addresses/address_picker_bottom_sheet.dart';
 import 'features/worker/go_live_screen.dart';
@@ -58,6 +60,7 @@ class _MainWrapperState extends ConsumerState<MainWrapper>
     with WidgetsBindingObserver {
   int _currentIndex = 0;
   StreamSubscription? _notifSub; // AUDIT FIX: was leaked (never cancelled)
+  StreamSubscription? _voiceSub;
 
   /// One-shot guard for the first-run location prompt (Swiggy pattern).
   bool _locationPromptShown = false;
@@ -178,6 +181,7 @@ class _MainWrapperState extends ConsumerState<MainWrapper>
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _notifSub?.cancel();
+    _voiceSub?.cancel();
     super.dispose();
   }
 
@@ -297,6 +301,24 @@ class _MainWrapperState extends ConsumerState<MainWrapper>
         if (event == 'booking_accepted' && mounted) _goToTab(0);
       }
     });
+
+    _voiceSub?.cancel();
+    _voiceSub = socketService.voiceCalls.listen((data) {
+      final event = data['_event'] as String?;
+      if (event == 'voice_call_invite' && mounted) {
+        unawaited(_presentIncomingVoiceCall(data));
+      }
+    });
+  }
+
+  Future<void> _presentIncomingVoiceCall(Map<String, dynamic> invite) async {
+    if (!mounted) return;
+    final ctrl = ref.read(voiceCallControllerProvider);
+    if (ctrl.phase != VoiceCallPhase.idle &&
+        ctrl.phase != VoiceCallPhase.ended) {
+      return;
+    }
+    await VoiceCallScreen.showIncoming(context, invite: invite);
   }
 
   // ── One-shot worker queue reconciliation (FCM + Socket fallback) ────────
@@ -397,6 +419,16 @@ class _MainWrapperState extends ConsumerState<MainWrapper>
         'amount': double.tryParse(data['amount'] ?? '0') ?? 0.0,
         'description': data['description'] ?? '',
         'preferredLanguages': _parseFcmLanguages(data['preferredLanguages']),
+      });
+      return;
+    }
+
+    if (type == 'voice_call' && bookingId != null) {
+      await _presentIncomingVoiceCall({
+        'bookingId': bookingId,
+        'callId': data['callId'],
+        'callerId': data['callerId'],
+        'callerName': data['callerName'] ?? notificationTitle ?? 'Incoming call',
       });
       return;
     }

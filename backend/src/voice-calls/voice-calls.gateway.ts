@@ -1,0 +1,226 @@
+import {
+  WebSocketGateway,
+  WebSocketServer,
+  SubscribeMessage,
+  MessageBody,
+  ConnectedSocket,
+  WsException,
+} from '@nestjs/websockets';
+import { UseGuards, Logger } from '@nestjs/common';
+import { Server, Socket } from 'socket.io';
+import { WsJwtGuard } from '../auth/ws-jwt.guard';
+import { VoiceCallsService } from './voice-calls.service';
+import { NotificationsService } from '../notifications/notifications.service';
+
+@WebSocketGateway({
+  cors: { origin: '*' },
+})
+@UseGuards(WsJwtGuard)
+export class VoiceCallsGateway {
+  private readonly logger = new Logger(VoiceCallsGateway.name);
+
+  @WebSocketServer()
+  server: Server;
+
+  constructor(
+    private readonly voiceCalls: VoiceCallsService,
+    private readonly notifications: NotificationsService,
+  ) {}
+
+  private authedUserId(client: Socket): string {
+    const user =
+      (client as any).data?.user ?? (client as any).user ?? undefined;
+    const userId = user?.userId;
+    if (typeof userId !== 'string' || userId.length === 0) {
+      throw new WsException('Unauthorized');
+    }
+    return userId;
+  }
+
+  private emitToUser(
+    userId: string,
+    event: string,
+    payload: Record<string, unknown>,
+  ) {
+    this.server?.to(`user_${userId}`).emit(event, payload);
+  }
+
+  @SubscribeMessage('voice_call_invite')
+  async handleInvite(
+    @MessageBody()
+    data: { bookingId?: string; callerName?: string },
+    @ConnectedSocket() client: Socket,
+  ) {
+    const callerId = this.authedUserId(client);
+    const bookingId = data?.bookingId;
+    if (!bookingId) throw new WsException('bookingId required');
+
+    try {
+      const { booking, peerId } =
+        await this.voiceCalls.assertCallableParticipant(bookingId, callerId);
+      const session = await this.voiceCalls.startRinging({
+        bookingId,
+        callerId,
+        calleeId: peerId,
+      });
+
+      const callerName =
+        (typeof data?.callerName === 'string' && data.callerName.trim()) ||
+        'Gixbee user';
+      const skill = booking.skill || 'your booking';
+
+      const payload = {
+        callId: session.callId,
+        bookingId,
+        callerId,
+        calleeId: peerId,
+        callerName,
+        skill,
+      };
+
+      this.emitToUser(peerId, 'voice_call_invite', payload);
+
+      // Wake callee if backgrounded — no phone numbers in data.
+      this.notifications
+        .sendToUser(peerId, {
+          title: 'Incoming call',
+          body: `${callerName} is calling about ${skill}`,
+          data: {
+            type: 'voice_call',
+            bookingId,
+            callId: session.callId,
+            callerId,
+            callerName,
+          },
+        })
+        .catch((e) =>
+          this.logger.warn(`voice_call FCM failed: ${(e as Error)?.message}`),
+        );
+
+      return { ok: true, ...payload };
+    } catch (e) {
+      throw new WsException((e as Error)?.message || 'Invite failed');
+    }
+  }
+
+  @SubscribeMessage('voice_call_accept')
+  async handleAccept(
+    @MessageBody() data: { bookingId?: string; callId?: string },
+    @ConnectedSocket() client: Socket,
+  ) {
+    const userId = this.authedUserId(client);
+    const bookingId = data?.bookingId;
+    if (!bookingId) throw new WsException('bookingId required');
+
+    try {
+      const session = await this.voiceCalls.markActive(bookingId, userId);
+      if (data?.callId && data.callId !== session.callId) {
+        throw new WsException('Stale call id');
+      }
+      const payload = {
+        callId: session.callId,
+        bookingId,
+        callerId: session.callerId,
+        calleeId: session.calleeId,
+      };
+      this.emitToUser(session.callerId, 'voice_call_accept', payload);
+      return { ok: true, ...payload };
+    } catch (e) {
+      throw new WsException((e as Error)?.message || 'Accept failed');
+    }
+  }
+
+  @SubscribeMessage('voice_call_reject')
+  async handleReject(
+    @MessageBody() data: { bookingId?: string; callId?: string },
+    @ConnectedSocket() client: Socket,
+  ) {
+    const userId = this.authedUserId(client);
+    const bookingId = data?.bookingId;
+    if (!bookingId) throw new WsException('bookingId required');
+
+    try {
+      const session = await this.voiceCalls.getActiveSession(bookingId);
+      if (!session) return { ok: true };
+      if (session.calleeId !== userId && session.callerId !== userId) {
+        throw new WsException('Not a call participant');
+      }
+      await this.voiceCalls.clearSession(bookingId);
+      const peerId =
+        userId === session.callerId ? session.calleeId : session.callerId;
+      this.emitToUser(peerId, 'voice_call_reject', {
+        callId: session.callId,
+        bookingId,
+        by: userId,
+      });
+      return { ok: true };
+    } catch (e) {
+      throw new WsException((e as Error)?.message || 'Reject failed');
+    }
+  }
+
+  @SubscribeMessage('voice_call_hangup')
+  async handleHangup(
+    @MessageBody() data: { bookingId?: string; callId?: string },
+    @ConnectedSocket() client: Socket,
+  ) {
+    const userId = this.authedUserId(client);
+    const bookingId = data?.bookingId;
+    if (!bookingId) throw new WsException('bookingId required');
+
+    try {
+      const session = await this.voiceCalls.clearSession(bookingId);
+      if (session) {
+        const peerId =
+          userId === session.callerId ? session.calleeId : session.callerId;
+        this.emitToUser(peerId, 'voice_call_hangup', {
+          callId: session.callId,
+          bookingId,
+          by: userId,
+        });
+      }
+      return { ok: true };
+    } catch (e) {
+      throw new WsException((e as Error)?.message || 'Hangup failed');
+    }
+  }
+
+  /** SDP / ICE trickle between peers. */
+  @SubscribeMessage('voice_call_signal')
+  async handleSignal(
+    @MessageBody()
+    data: {
+      bookingId?: string;
+      callId?: string;
+      signal?: Record<string, unknown>;
+    },
+    @ConnectedSocket() client: Socket,
+  ) {
+    const userId = this.authedUserId(client);
+    const bookingId = data?.bookingId;
+    if (!bookingId || !data?.signal) {
+      throw new WsException('bookingId and signal required');
+    }
+
+    try {
+      const session = await this.voiceCalls.assertSignalParticipant(
+        bookingId,
+        userId,
+      );
+      if (data.callId && data.callId !== session.callId) {
+        throw new WsException('Stale call id');
+      }
+      const peerId =
+        userId === session.callerId ? session.calleeId : session.callerId;
+      this.emitToUser(peerId, 'voice_call_signal', {
+        callId: session.callId,
+        bookingId,
+        from: userId,
+        signal: data.signal,
+      });
+      return { ok: true };
+    } catch (e) {
+      throw new WsException((e as Error)?.message || 'Signal failed');
+    }
+  }
+}

@@ -9,13 +9,13 @@ import '../../repositories/job_credits_repository.dart';
 import '../home/active_booking_card.dart';
 import '../booking/cancel_booking_screen.dart';
 import '../booking/cancel_request_actions.dart';
+import '../booking/voice_call_screen.dart';
 import '../messages/chat_thread_screen.dart';
 import '../../theme.dart';
 import '../../shared/widgets/gx_snackbar.dart';
 import '../../shared/widgets/gx_sheet.dart';
 import '../../shared/widgets/gx_button.dart';
 import '../../shared/utils/booking_flags.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 /// Gixbee 2026 — booking detail: hero status header with progress dots
 /// (Requested → Accepted → In progress → Done), glass info cards, and a
@@ -559,14 +559,23 @@ class BookingDetailScreen extends ConsumerWidget {
           Expanded(
             child: GestureDetector(
               onTap: () async {
-                if (counterpartPhone == null || counterpartPhone.isEmpty) {
-                  showGxSnack(context, 'Phone number not available');
+                final bookingId = booking['id']?.toString();
+                if (bookingId == null || bookingId.isEmpty) {
+                  showGxSnack(context, 'Booking not available');
                   return;
                 }
-                final uri = Uri.parse('tel:$counterpartPhone');
-                if (await canLaunchUrl(uri)) {
-                  await launchUrl(uri, mode: LaunchMode.externalApplication);
-                }
+                final me = ref.read(currentUserProvider).value;
+                final callerName =
+                    (me?.name?.trim().isNotEmpty == true)
+                        ? me!.name!.trim()
+                        : 'Gixbee user';
+                await VoiceCallScreen.startOutgoing(
+                  context,
+                  bookingId: bookingId,
+                  callerName: callerName,
+                  peerName: counterpartName,
+                  fallbackPhone: counterpartPhone,
+                );
               },
               child: Container(
                 padding: const EdgeInsets.symmetric(vertical: 12),

@@ -20,6 +20,8 @@ class SocketService {
       StreamController<bool>.broadcast();
   StreamController<Map<String, dynamic>> _messageController =
       StreamController<Map<String, dynamic>>.broadcast();
+  StreamController<Map<String, dynamic>> _voiceCallController =
+      StreamController<Map<String, dynamic>>.broadcast();
 
   Stream<Map<String, dynamic>> get notifications =>
       _notificationController.stream;
@@ -29,6 +31,9 @@ class SocketService {
   Stream<bool> get connectionChanges => _connectionController.stream;
 
   Stream<Map<String, dynamic>> get messages => _messageController.stream;
+
+  /// WebRTC voice signaling: invite / accept / reject / hangup / signal.
+  Stream<Map<String, dynamic>> get voiceCalls => _voiceCallController.stream;
 
   /// User id used to (re)join the personal chat room after every connect.
   String? _userId;
@@ -60,6 +65,10 @@ class SocketService {
     }
     if (_messageController.isClosed) {
       _messageController = StreamController<Map<String, dynamic>>.broadcast();
+    }
+    if (_voiceCallController.isClosed) {
+      _voiceCallController =
+          StreamController<Map<String, dynamic>>.broadcast();
     }
   }
 
@@ -198,6 +207,24 @@ class SocketService {
       }
     });
 
+    void bindVoice(String event) {
+      _socket!.on(event, (data) {
+        debugPrint('[Socket] $event received');
+        if (!_voiceCallController.isClosed) {
+          _voiceCallController.add({
+            ...Map<String, dynamic>.from(data as Map),
+            '_event': event,
+          });
+        }
+      });
+    }
+
+    bindVoice('voice_call_invite');
+    bindVoice('voice_call_accept');
+    bindVoice('voice_call_reject');
+    bindVoice('voice_call_hangup');
+    bindVoice('voice_call_signal');
+
     _bindLocationUpdatedListener();
   }
 
@@ -259,6 +286,71 @@ class SocketService {
   void offLocationUpdated() {
     _locationUpdatedCallback = null;
     _socket?.off('locationUpdated');
+  }
+
+  // ── WebRTC voice signaling ───────────────────────────────────
+
+  Future<Map<String, dynamic>?> emitVoiceCallInvite({
+    required String bookingId,
+    required String callerName,
+  }) async {
+    if (!isConnected) return null;
+    final completer = Completer<Map<String, dynamic>?>();
+    _socket!.emitWithAck(
+      'voice_call_invite',
+      {'bookingId': bookingId, 'callerName': callerName},
+      ack: (dynamic data) {
+        if (data is Map) {
+          completer.complete(Map<String, dynamic>.from(data));
+        } else {
+          completer.complete(null);
+        }
+      },
+    );
+    return completer.future.timeout(
+      const Duration(seconds: 8),
+      onTimeout: () => null,
+    );
+  }
+
+  Future<void> emitVoiceCallAccept({
+    required String bookingId,
+    String? callId,
+  }) async {
+    if (!isConnected) return;
+    _socket!.emit('voice_call_accept', {
+      'bookingId': bookingId,
+      if (callId != null) 'callId': callId,
+    });
+  }
+
+  void emitVoiceCallReject({required String bookingId, String? callId}) {
+    if (!isConnected) return;
+    _socket!.emit('voice_call_reject', {
+      'bookingId': bookingId,
+      if (callId != null) 'callId': callId,
+    });
+  }
+
+  void emitVoiceCallHangup({required String bookingId, String? callId}) {
+    if (!isConnected) return;
+    _socket!.emit('voice_call_hangup', {
+      'bookingId': bookingId,
+      if (callId != null) 'callId': callId,
+    });
+  }
+
+  void emitVoiceCallSignal({
+    required String bookingId,
+    String? callId,
+    required Map<String, dynamic> signal,
+  }) {
+    if (!isConnected) return;
+    _socket!.emit('voice_call_signal', {
+      'bookingId': bookingId,
+      if (callId != null) 'callId': callId,
+      'signal': signal,
+    });
   }
 
   // ── Worker-side: stream GPS to the job room ─────────────────

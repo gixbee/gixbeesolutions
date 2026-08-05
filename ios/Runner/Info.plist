@@ -42,11 +42,14 @@
 	<string>Gixbee needs photo library access so you can upload profile photos, certificates, and listing images.</string>
 	<key>NSCameraUsageDescription</key>
 	<string>Gixbee may use the camera to capture profile or document photos.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Gixbee needs the microphone for in-app voice calls with your customer or pro during a booking.</string>
 	<!-- FCM background delivery -->
 	<key>UIBackgroundModes</key>
 	<array>
 		<string>fetch</string>
 		<string>remote-notification</string>
+		<string>audio</string>
 	</array>
 	<!-- url_launcher / maps / dial (iOS 9+ query schemes) -->
 	<key>LSApplicationQueriesSchemes</key>

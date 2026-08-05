@@ -20,6 +20,7 @@ import 'cancel_booking_screen.dart';
 import 'report_issue_sheet.dart';
 import 'live_tracking_bottom_panel.dart';
 import 'live_tracking_route_service.dart';
+import 'voice_call_screen.dart';
 
 /// Live map screen shown to the **customer** after a worker accepts their booking.
 /// Displays the worker's real-time GPS location on a Google Map with the
@@ -469,26 +470,29 @@ class _LiveTrackingMapScreenState extends ConsumerState<LiveTrackingMapScreen> {
   }
 
   Future<void> _dialCounterpart() async {
-    final phone = await _resolveCounterpartPhone();
+    final me = ref.read(currentUserProvider).value;
+    final callerName = (me?.name?.trim().isNotEmpty == true)
+        ? me!.name!.trim()
+        : 'Gixbee user';
+    final peerName = widget.isWorker
+        ? 'Customer'
+        : (widget.worker.name.trim().isNotEmpty
+            ? widget.worker.name.trim()
+            : 'Gixbee user');
+    // Prefer cached phone for tel: fallback; refresh if missing.
+    var phone = _normalizePhone(_counterpartPhone);
+    phone ??= await _resolveCounterpartPhone();
     if (!mounted) return;
-    if (phone == null) {
-      showGxSnack(context, 'Phone number not available');
-      return;
-    }
-    if (_counterpartPhone != phone) {
+    if (phone != null && phone != _counterpartPhone) {
       setState(() => _counterpartPhone = phone);
     }
-    final uri = Uri.parse('tel:$phone');
-    try {
-      if (await canLaunchUrl(uri)) {
-        await launchUrl(uri, mode: LaunchMode.externalApplication);
-      } else {
-        if (mounted) showGxSnack(context, 'Could not open the dialer');
-      }
-    } catch (e) {
-      debugPrint('Could not launch call: $e');
-      if (mounted) showGxSnack(context, 'Could not open the dialer');
-    }
+    await VoiceCallScreen.startOutgoing(
+      context,
+      bookingId: widget.bookingId,
+      callerName: callerName,
+      peerName: peerName,
+      fallbackPhone: phone,
+    );
   }
 
   void _applyStatusData(Map<String, dynamic> statusData) {
