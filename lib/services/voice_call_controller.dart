@@ -49,10 +49,14 @@ class VoiceCallController {
   bool _isCaller = false;
   Timer? _ringTimeout;
   Timer? _dropTimer;
+  Timer? _connectWatchdog;
 
   /// Must match the backend ring TTL, otherwise the caller keeps showing
   /// "Calling…" against a session Redis already dropped.
   static const _ringWindow = Duration(seconds: 45);
+
+  /// Upper bound on ICE negotiation before we call it a failure.
+  static const _connectWindow = Duration(seconds: 30);
 
   /// The remote audio track has arrived. Also keeps the stream referenced —
   /// dropping it lets the native track get collected and the call goes mute.
@@ -63,7 +67,27 @@ class VoiceCallController {
 
   void _setPhase(VoiceCallPhase next) {
     phase = next;
+    if (next == VoiceCallPhase.connecting) {
+      _armConnectWatchdog();
+    } else {
+      _connectWatchdog?.cancel();
+      _connectWatchdog = null;
+    }
     if (!_phaseController.isClosed) _phaseController.add(next);
+  }
+
+  /// ICE negotiation can stall without ever reporting `failed` — a lost answer
+  /// or an unreachable relay simply goes quiet, and onConnectionState never
+  /// fires again. The controller then stayed in `connecting` forever, which
+  /// made every later call fail: outgoing threw "You are already on a call"
+  /// and incoming invites were auto-rejected until the app restarted.
+  void _armConnectWatchdog() {
+    _connectWatchdog?.cancel();
+    _connectWatchdog = Timer(_connectWindow, () {
+      if (phase != VoiceCallPhase.connecting) return;
+      lastError = 'Could not connect the call';
+      unawaited(_teardown(endedByUs: true));
+    });
   }
 
   /// True when granted. `permanentlyDenied` is reported separately so the UI
@@ -468,6 +492,8 @@ class VoiceCallController {
     _ringTimeout = null;
     _dropTimer?.cancel();
     _dropTimer = null;
+    _connectWatchdog?.cancel();
+    _connectWatchdog = null;
     _signalSub?.cancel();
     _signalSub = null;
     _pcReady = null;

@@ -57,6 +57,28 @@ export class VoiceCallsGateway {
     this.server?.to(`user_${userId}`).emit(event, payload);
   }
 
+  /**
+   * Live sockets in the callee's personal room, counted across BOTH replicas
+   * (fetchSockets() goes through the Redis adapter).
+   *
+   * Emitting into an empty room succeeds silently, so an offline callee was
+   * indistinguishable from a broken call: the caller sat on "Calling…" for the
+   * whole ring window and then reported a generic connection error. Returns -1
+   * when the lookup itself fails, so an adapter hiccup never blocks a call —
+   * only a definite 0 does.
+   */
+  private async liveSocketCount(userId: string): Promise<number> {
+    try {
+      const sockets = await this.server.in(`user_${userId}`).fetchSockets();
+      return sockets.length;
+    } catch (e) {
+      this.logger.warn(
+        `room lookup failed for user_${userId}: ${(e as Error)?.message}`,
+      );
+      return -1;
+    }
+  }
+
   @SubscribeMessage('voice_call_invite')
   async handleInvite(
     @MessageBody()
@@ -70,16 +92,43 @@ export class VoiceCallsGateway {
     try {
       const { booking, peerId } =
         await this.voiceCalls.assertCallableParticipant(bookingId, callerId);
-      const session = await this.voiceCalls.startRinging({
-        bookingId,
-        callerId,
-        calleeId: peerId,
-      });
 
       const callerName =
         (typeof data?.callerName === 'string' && data.callerName.trim()) ||
         'Gixbee user';
       const skill = booking.skill || 'your booking';
+
+      // No live socket means nobody can answer. Reserving a ringing session
+      // here would also hold the Redis key for its full TTL and make the next
+      // retry look "already in progress", so bail out before startRinging.
+      const reachable = await this.liveSocketCount(peerId);
+      if (reachable === 0) {
+        this.logger.warn(
+          `invite booking=${bookingId} ${callerId} -> ${peerId} refused: callee has no live socket`,
+        );
+        this.notifications
+          .sendToUser(peerId, {
+            title: 'Missed call',
+            body: `${callerName} tried to call you about ${skill}`,
+            data: { type: 'voice_call_missed', bookingId, callerId, callerName },
+          })
+          .catch((e) =>
+            this.logger.warn(
+              `missed-call FCM failed: ${(e as Error)?.message}`,
+            ),
+          );
+        return {
+          ok: false as const,
+          error:
+            'They are not online right now. We sent them a notification — try again in a moment.',
+        };
+      }
+
+      const session = await this.voiceCalls.startRinging({
+        bookingId,
+        callerId,
+        calleeId: peerId,
+      });
 
       const payload = {
         callId: session.callId,
@@ -91,7 +140,7 @@ export class VoiceCallsGateway {
       };
 
       this.logger.log(
-        `invite call=${session.callId} booking=${bookingId} ${callerId} -> ${peerId}`,
+        `invite call=${session.callId} booking=${bookingId} ${callerId} -> ${peerId} calleeSockets=${reachable}`,
       );
       this.emitToUser(peerId, 'voice_call_invite', payload);
 

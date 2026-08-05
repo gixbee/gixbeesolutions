@@ -126,27 +126,15 @@ describe('BookingStatusService.getStatusForParticipant', () => {
     expect(res.operatorId).toBe('op-9');
     expect(res.operatorLat).toBe(13.1);
     expect(res.operatorLng).toBe(77.2);
-    expect(res.counterpartPhone).toBe('+919900000009');
     expect(redisService.cacheBookingStatus).toHaveBeenCalled();
   });
 
-  it('returns role-aware counterpartPhone from cache', async () => {
-    const { service } = makeService({
-      cached: {
-        status: 'ACCEPTED',
-        customerId: 'cust-1',
-        operatorId: 'op-1',
-        customerPhone: '+919911111111',
-        operatorPhone: '+919922222222',
-      },
-    });
-    const asCustomer = await service.getStatusForParticipant('b1', 'cust-1');
-    expect(asCustomer.counterpartPhone).toBe('+919922222222');
-    const asWorker = await service.getStatusForParticipant('b1', 'op-1');
-    expect(asWorker.counterpartPhone).toBe('+919911111111');
-  });
-
-  it('prefers on-site contact phone for the worker', async () => {
+  /**
+   * NUMBER MASKING — participants reach each other over in-app voice, so the
+   * status payload must never carry a dialable number for either side or for
+   * the on-site contact.
+   */
+  it('never exposes a counterpart phone number to either role', async () => {
     const { service } = makeService({
       booking: {
         status: BookingStatus.ACCEPTED,
@@ -155,26 +143,35 @@ describe('BookingStatusService.getStatusForParticipant', () => {
         onSiteContact: { name: 'Anu', relation: 'Self', phone: '9876543210' },
       },
     });
-    const res = await service.getStatusForParticipant('b1', 'op-1');
-    expect(res.counterpartPhone).toBe('9876543210');
+    const asCustomer = await service.getStatusForParticipant('b1', 'cust-1');
+    const asWorker = await service.getStatusForParticipant('b1', 'op-1');
+
+    for (const res of [asCustomer, asWorker]) {
+      const serialized = JSON.stringify(res);
+      expect(serialized).not.toContain('+919911111111');
+      expect(serialized).not.toContain('+919922222222');
+      expect(serialized).not.toContain('9876543210');
+    }
   });
 
-  it('enriches missing phones from DB when cache is stale', async () => {
+  it('repairs a stale live status from DB without leaking phones', async () => {
     const { service, redisService } = makeService({
       cached: {
         status: 'ACCEPTED',
         customerId: 'cust-1',
         operatorId: 'op-1',
-        operatorName: 'Asha',
+        operatorName: 'Stale',
       },
       booking: {
-        status: BookingStatus.ACCEPTED,
+        status: BookingStatus.COMPLETED,
         customer: { id: 'cust-1', phoneNumber: '+919911111111' },
         operator: { id: 'op-1', name: 'Asha', phoneNumber: '+919933333333' },
       },
     });
     const res = await service.getStatusForParticipant('b1', 'cust-1');
-    expect(res.counterpartPhone).toBe('+919933333333');
+    expect(res.status).toBe('COMPLETED');
+    expect(res.operatorName).toBe('Asha');
+    expect(JSON.stringify(res)).not.toContain('+919933333333');
     expect(redisService.cacheBookingStatus).toHaveBeenCalled();
   });
 
