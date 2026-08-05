@@ -26,8 +26,22 @@ class AlertSoundService {
   final Ref _ref;
   final AudioPlayer _loopPlayer = AudioPlayer();
   final AudioPlayer _oneshotPlayer = AudioPlayer();
-  bool _looping = false;
   bool _contextReady = false;
+
+  /// Bumped by every start/stop. `play()` is several awaits long, so a stop
+  /// that lands mid-flight would otherwise be overtaken by the play that
+  /// completes after it — leaving the loop ringing with nobody to stop it.
+  int _loopGeneration = 0;
+
+  /// Screens currently asking for the ring (FCM card + socket card can stack).
+  /// The loop only stops once the last one releases it.
+  int _loopHolders = 0;
+
+  Timer? _loopSafetyTimer;
+
+  /// Hard ceiling — a request expires in 90s, so the ring can never outlive
+  /// the card even if a stop is somehow missed.
+  static const _maxLoopDuration = Duration(seconds: 100);
 
   bool get _soundOn {
     try {
@@ -67,30 +81,71 @@ class AlertSoundService {
   }
 
   /// Ring until [stopIncomingJobAlert] — Swiggy delivery-partner style.
+  ///
+  /// Every caller MUST pair this with exactly one [stopIncomingJobAlert].
   Future<void> startIncomingJobAlert() async {
+    _loopHolders++;
     if (!_soundOn) return;
-    if (_looping) return;
-    _looping = true;
+    if (_loopHolders > 1) return; // already ringing for another card
+
+    final generation = ++_loopGeneration;
+    _loopSafetyTimer?.cancel();
+    _loopSafetyTimer = Timer(_maxLoopDuration, () {
+      debugPrint('[AlertSound] safety stop — loop exceeded max duration');
+      _loopHolders = 0;
+      unawaited(_hardStopLoop());
+    });
+
     await _configureAudioContext();
+    if (generation != _loopGeneration) return _hardStopLoop();
     try {
       await _loopPlayer.setReleaseMode(ReleaseMode.loop);
       await _loopPlayer.setVolume(1.0);
+      if (generation != _loopGeneration) return _hardStopLoop();
       await _loopPlayer.play(AssetSource('sounds/booking_alert.wav'));
     } catch (e) {
       debugPrint('[AlertSound] incoming loop failed: $e');
       try {
+        if (generation != _loopGeneration) return _hardStopLoop();
         await _loopPlayer.play(AssetSource('sounds/gixbee_alert.wav'));
       } catch (e2) {
         debugPrint('[AlertSound] incoming fallback failed: $e2');
-        _looping = false;
       }
     }
+    // A stop that raced ahead of the awaits above wins.
+    if (generation != _loopGeneration) await _hardStopLoop();
   }
 
   Future<void> stopIncomingJobAlert() async {
-    _looping = false;
+    if (_loopHolders > 0) _loopHolders--;
+    if (_loopHolders > 0) return; // another card is still showing
+    await _hardStopLoop();
+  }
+
+  /// Unconditional silence, ignoring holder counts. Used by the safety timer,
+  /// lifecycle teardown and anything that must guarantee quiet (voice calls).
+  Future<void> _hardStopLoop() async {
+    _loopGeneration++;
+    _loopHolders = 0;
+    _loopSafetyTimer?.cancel();
+    _loopSafetyTimer = null;
     try {
       await _loopPlayer.stop();
+    } catch (e) {
+      debugPrint('[AlertSound] stop failed: $e');
+    }
+    // audioplayers keeps the loop release mode on the native player; reset it
+    // so a stray resume can't restart the loop.
+    try {
+      await _loopPlayer.setReleaseMode(ReleaseMode.release);
+    } catch (_) {}
+  }
+
+  /// Silence everything right now (call start, logout, forced teardown).
+  Future<void> stopAll() async {
+    await _hardStopLoop();
+    try {
+      await _oneshotPlayer.stop();
     } catch (_) {}
   }
 
@@ -118,7 +173,10 @@ class AlertSoundService {
   }
 
   void unawaitedStop() {
-    _looping = false;
+    _loopGeneration++;
+    _loopHolders = 0;
+    _loopSafetyTimer?.cancel();
+    _loopSafetyTimer = null;
     unawaited(_loopPlayer.stop().catchError((_) {}));
     unawaited(_oneshotPlayer.stop().catchError((_) {}));
   }

@@ -48,6 +48,12 @@ class _IncomingJobScreenState extends ConsumerState<IncomingJobScreen>
   StreamSubscription<Map<String, dynamic>>? _socketSub;
   bool _isProcessing = false;
 
+  /// Resolved once in initState. Reading the provider from dispose() can throw
+  /// while the tree tears down, which used to swallow the stop and leave the
+  /// ring looping forever.
+  AlertSoundService? _alertSound;
+  bool _alertStopped = false;
+
   @override
   void initState() {
     super.initState();
@@ -59,7 +65,8 @@ class _IncomingJobScreenState extends ConsumerState<IncomingJobScreen>
     _socketSub =
         ref.read(socketServiceProvider).notifications.listen(_onSocketEvent);
     // Swiggy-style loop while this accept card is on screen.
-    unawaited(ref.read(alertSoundServiceProvider).startIncomingJobAlert());
+    _alertSound = ref.read(alertSoundServiceProvider);
+    unawaited(_alertSound!.startIncomingJobAlert());
     // Enrich FCM-minimal payloads immediately (language, description, etc.)
     // and again shortly after in case the pending list was still settling.
     unawaited(_refreshPendingRequests());
@@ -74,11 +81,23 @@ class _IncomingJobScreenState extends ConsumerState<IncomingJobScreen>
     WidgetsBinding.instance.removeObserver(this);
     _timer?.cancel();
     _socketSub?.cancel();
-    // Provider may already be disposed if the whole tree is tearing down.
-    try {
-      ref.read(alertSoundServiceProvider).stopIncomingJobAlert();
-    } catch (_) {}
+    _stopAlert();
     super.dispose();
+  }
+
+  /// Idempotent — accept/decline stop the ring before popping, dispose is the
+  /// backstop for every other exit (system back, tree teardown, queue empty).
+  void _stopAlert() {
+    if (_alertStopped) return;
+    _alertStopped = true;
+    unawaited(_alertSound?.stopIncomingJobAlert() ?? Future<void>.value());
+  }
+
+  /// The queue moved on to another request while the card stayed open.
+  void _resumeAlert() {
+    if (!_alertStopped || !mounted) return;
+    _alertStopped = false;
+    unawaited(_alertSound?.startIncomingJobAlert() ?? Future<void>.value());
   }
 
   @override
@@ -294,6 +313,9 @@ class _IncomingJobScreenState extends ConsumerState<IncomingJobScreen>
     if (_isProcessing || _requests.isEmpty) return;
     setState(() => _isProcessing = true);
     _timer?.cancel();
+    // Silence the ring on the tap, not after the network round-trip below —
+    // accept + GPS seed can take seconds and the loop was still audible.
+    _stopAlert();
 
     final current = _requests[_currentIndex];
     final bookingId = current['id'] as String?;
@@ -337,8 +359,6 @@ class _IncomingJobScreenState extends ConsumerState<IncomingJobScreen>
         type: GxSnackType.success,
         duration: const Duration(seconds: 4),
       );
-
-      await ref.read(alertSoundServiceProvider).stopIncomingJobAlert();
 
       // Backend auto-cancels all other pending bookings for this worker.
       Navigator.pop(context, {'accepted': true, 'bookingId': bookingId});
@@ -405,6 +425,7 @@ class _IncomingJobScreenState extends ConsumerState<IncomingJobScreen>
   Future<void> _declineCurrent() async {
     _timer?.cancel();
     setState(() => _isProcessing = true);
+    _stopAlert();
 
     final bookingId = _requests[_currentIndex]['id'] as String?;
     try {
@@ -424,6 +445,7 @@ class _IncomingJobScreenState extends ConsumerState<IncomingJobScreen>
 
   Future<void> _autoDeclineCurrent() async {
     if (_requests.isEmpty || _currentIndex >= _requests.length) return;
+    _stopAlert();
     final current = _requests[_currentIndex];
     final bookingId = current['id'] as String?;
     final attempt = int.tryParse('${current['attempt'] ?? '1'}') ?? 1;
@@ -451,6 +473,7 @@ class _IncomingJobScreenState extends ConsumerState<IncomingJobScreen>
     if (_isProcessing) return;
     _timer?.cancel();
     setState(() => _isProcessing = true);
+    _stopAlert();
     final ids = _requests
         .map((r) => r['id'] as String?)
         .whereType<String>()
@@ -498,6 +521,9 @@ class _IncomingJobScreenState extends ConsumerState<IncomingJobScreen>
 
       // Start fresh timer for the next request
       _resetTimerForNewRequest();
+      // Decline/timeout silenced the ring; the next queued request deserves
+      // its own alert.
+      _resumeAlert();
 
       if (isTimeout) {
         showGxSnack(

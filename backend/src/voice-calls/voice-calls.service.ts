@@ -17,6 +17,9 @@ const CALLABLE_STATUSES = new Set<BookingStatus>([
   BookingStatus.ACTIVE,
 ]);
 
+/** How long an unanswered invite stays reserved. Matches the client's ring. */
+const RING_TIMEOUT_SECONDS = 45;
+
 export type VoiceCallRole = 'customer' | 'operator';
 
 export interface VoiceCallSession {
@@ -123,7 +126,7 @@ export class VoiceCallsService {
 
     if (!CALLABLE_STATUSES.has(booking.status)) {
       throw new BadRequestException(
-        'Voice calls are only available while the job is in progress',
+        'In-app calling is only available while the job is active',
       );
     }
 
@@ -153,7 +156,25 @@ export class VoiceCallsService {
   }): Promise<VoiceCallSession> {
     const existing = await this.getActiveSession(opts.bookingId);
     if (existing) {
-      throw new BadRequestException('A call is already in progress for this booking');
+      // A CONNECTED call really is busy — refuse.
+      if (existing.status === 'active') {
+        throw new BadRequestException(
+          'A call is already in progress for this booking',
+        );
+      }
+      // A 'ringing' record only means somebody dialled recently. Abandoned
+      // invites (app killed, socket dropped before hangup) used to hold the
+      // key for its full TTL and every retry failed with "already in
+      // progress". The same caller may always redial, and either participant
+      // may take over an invite that is past the ring window.
+      const ageMs = Date.now() - new Date(existing.createdAt).getTime();
+      const sameCaller = existing.callerId === opts.callerId;
+      if (!sameCaller && ageMs < RING_TIMEOUT_SECONDS * 1000) {
+        throw new BadRequestException(
+          'A call is already in progress for this booking',
+        );
+      }
+      await this.redis.del(this.sessionKey(opts.bookingId));
     }
     const session: VoiceCallSession = {
       callId: randomUUID(),
@@ -166,7 +187,7 @@ export class VoiceCallsService {
     await this.redis.set(
       this.sessionKey(opts.bookingId),
       JSON.stringify(session),
-      120, // ring timeout
+      RING_TIMEOUT_SECONDS,
     );
     return session;
   }

@@ -7,6 +7,7 @@ import 'package:flutter_webrtc/flutter_webrtc.dart';
 import 'package:permission_handler/permission_handler.dart';
 
 import '../repositories/auth_repository.dart';
+import 'alert_sound_service.dart';
 import 'socket_service.dart';
 
 final voiceCallControllerProvider =
@@ -40,10 +41,20 @@ class VoiceCallController {
 
   RTCPeerConnection? _pc;
   MediaStream? _localStream;
+  MediaStream? _remoteStream;
   final List<RTCIceCandidate> _pendingRemoteIce = [];
   bool _remoteDescriptionSet = false;
   StreamSubscription<Map<String, dynamic>>? _signalSub;
   bool _isCaller = false;
+  Timer? _ringTimeout;
+
+  /// Must match the backend ring TTL, otherwise the caller keeps showing
+  /// "Calling…" against a session Redis already dropped.
+  static const _ringWindow = Duration(seconds: 45);
+
+  /// The remote audio track has arrived. Also keeps the stream referenced —
+  /// dropping it lets the native track get collected and the call goes mute.
+  bool get hasRemoteAudio => _remoteStream != null;
 
   SocketService get _socket => _ref.read(socketServiceProvider);
   Dio get _dio => _ref.read(dioProvider);
@@ -53,9 +64,14 @@ class VoiceCallController {
     if (!_phaseController.isClosed) _phaseController.add(next);
   }
 
+  /// True when granted. `permanentlyDenied` is reported separately so the UI
+  /// can send the user to app settings instead of silently dialling the SIM.
+  bool micPermanentlyDenied = false;
+
   Future<bool> ensureMicPermission() async {
     final status = await Permission.microphone.request();
-    return status.isGranted;
+    micPermanentlyDenied = status.isPermanentlyDenied || status.isRestricted;
+    return status.isGranted || status.isLimited;
   }
 
   Future<List<Map<String, dynamic>>> _loadIceServers(String bookingId) async {
@@ -86,18 +102,33 @@ class VoiceCallController {
     required String callerName,
     String? peerDisplayName,
   }) async {
-    if (phase != VoiceCallPhase.idle && phase != VoiceCallPhase.ended) {
-      throw StateError('Call already in progress');
+    if (phase == VoiceCallPhase.connecting ||
+        phase == VoiceCallPhase.connected ||
+        phase == VoiceCallPhase.incomingRinging) {
+      throw VoiceCallException('You are already on a call');
     }
+    // A previous attempt that never got torn down (killed screen, dropped
+    // socket) left the controller stuck in outgoingRinging, and every later
+    // tap threw straight into the SIM-dialer fallback. Reset first.
+    if (phase != VoiceCallPhase.idle) {
+      await _teardown(endedByUs: true, silent: true);
+    }
+
     lastError = null;
+    micPermanentlyDenied = false;
     this.bookingId = bookingId;
     peerName = peerDisplayName ?? 'Gixbee user';
     _isCaller = true;
 
     if (!await ensureMicPermission()) {
-      lastError = 'Microphone permission is required for in-app calls';
-      _setPhase(VoiceCallPhase.ended);
-      throw StateError(lastError!);
+      lastError = micPermanentlyDenied
+          ? 'Microphone access is blocked. Enable it in Settings to call in-app.'
+          : 'Microphone permission is required for in-app calls';
+      await _teardown(endedByUs: true, silent: true);
+      throw VoiceCallException(
+        lastError!,
+        needsMicSettings: micPermanentlyDenied,
+      );
     }
 
     _bindSignalListeners();
@@ -107,10 +138,27 @@ class VoiceCallController {
       bookingId: bookingId,
       callerName: callerName,
     );
-    if (ack != null) {
-      callId = ack['callId']?.toString();
-      peerId = ack['calleeId']?.toString();
+    if (ack['ok'] != true) {
+      lastError = ack['error']?.toString() ?? 'Could not reach the other side';
+      await _teardown(endedByUs: true, silent: true);
+      throw VoiceCallException(lastError!);
     }
+    callId = ack['callId']?.toString();
+    peerId = ack['calleeId']?.toString();
+
+    _armRingTimeout('No answer');
+  }
+
+  /// Ends the call if it never leaves the ringing state.
+  void _armRingTimeout(String reason) {
+    _ringTimeout?.cancel();
+    _ringTimeout = Timer(_ringWindow, () {
+      if (phase == VoiceCallPhase.outgoingRinging ||
+          phase == VoiceCallPhase.incomingRinging) {
+        lastError = reason;
+        unawaited(hangup());
+      }
+    });
   }
 
   /// Callee: show ringing UI (invite already received).
@@ -133,12 +181,16 @@ class VoiceCallController {
     _isCaller = false;
     _bindSignalListeners();
     _setPhase(VoiceCallPhase.incomingRinging);
+    _armRingTimeout('Missed call');
   }
 
   Future<void> acceptIncoming() async {
     if (bookingId == null) return;
+    _ringTimeout?.cancel();
     if (!await ensureMicPermission()) {
-      lastError = 'Microphone permission is required';
+      lastError = micPermanentlyDenied
+          ? 'Microphone access is blocked. Enable it in Settings.'
+          : 'Microphone permission is required';
       await rejectIncoming();
       return;
     }
@@ -189,10 +241,17 @@ class VoiceCallController {
         break;
       case 'voice_call_accept':
         if (!_isCaller) break;
+        _ringTimeout?.cancel();
         callId ??= data['callId']?.toString();
         _setPhase(VoiceCallPhase.connecting);
-        await _ensurePeerConnection();
-        await _createAndSendOffer();
+        try {
+          await _ensurePeerConnection();
+          await _createAndSendOffer();
+        } catch (e) {
+          debugPrint('[VoiceCall] offer failed: $e');
+          lastError = 'Could not set up audio';
+          await _teardown(endedByUs: true);
+        }
         break;
       case 'voice_call_reject':
       case 'voice_call_hangup':
@@ -213,7 +272,25 @@ class VoiceCallController {
     _pc = await createPeerConnection({
       'iceServers': iceServers,
       'sdpSemantics': 'unified-plan',
+      // Relay-only paths need the candidate pool primed before the offer.
+      'iceCandidatePoolSize': 2,
     });
+
+    // Without holding the remote stream the native audio track is garbage
+    // collected on some Android builds and the call connects but stays silent.
+    _pc!.onTrack = (RTCTrackEvent event) {
+      if (event.track.kind != 'audio') return;
+      if (event.streams.isNotEmpty) _remoteStream = event.streams.first;
+      event.track.enabled = true;
+    };
+
+    _pc!.onIceConnectionState = (RTCIceConnectionState state) {
+      debugPrint('[VoiceCall] iceConnectionState=$state');
+      if (state == RTCIceConnectionState.RTCIceConnectionStateConnected ||
+          state == RTCIceConnectionState.RTCIceConnectionStateCompleted) {
+        _setPhase(VoiceCallPhase.connected);
+      }
+    };
 
     _pc!.onIceCandidate = (RTCIceCandidate candidate) {
       if (candidate.candidate == null || candidate.candidate!.isEmpty) return;
@@ -252,6 +329,17 @@ class VoiceCallController {
     for (final track in _localStream!.getTracks()) {
       await _pc!.addTrack(track, _localStream!);
     }
+
+    // Route to the earpiece like a normal phone call, and make sure the ring
+    // loop from an incoming-job card can never bleed into the conversation.
+    try {
+      await Helper.setSpeakerphoneOn(false);
+    } catch (e) {
+      debugPrint('[VoiceCall] audio routing failed: $e');
+    }
+    try {
+      await _ref.read(alertSoundServiceProvider).stopAll();
+    } catch (_) {}
   }
 
   Future<void> _createAndSendOffer() async {
@@ -331,13 +419,25 @@ class VoiceCallController {
     _pendingRemoteIce.clear();
   }
 
-  Future<void> _teardown({required bool endedByUs}) async {
+  /// [silent] skips the ended → idle UI transition; used when a call never
+  /// actually started (permission refused, invite rejected) so the screen is
+  /// not pushed just to be popped again.
+  Future<void> _teardown({
+    required bool endedByUs,
+    bool silent = false,
+  }) async {
+    _ringTimeout?.cancel();
+    _ringTimeout = null;
     _signalSub?.cancel();
     _signalSub = null;
     try {
+      for (final t in _localStream?.getTracks() ?? <MediaStreamTrack>[]) {
+        await t.stop();
+      }
       await _localStream?.dispose();
     } catch (_) {}
     _localStream = null;
+    _remoteStream = null;
     try {
       await _pc?.close();
     } catch (_) {}
@@ -349,6 +449,11 @@ class VoiceCallController {
     bookingId = null;
     callId = null;
     peerId = null;
+    if (silent) {
+      phase = VoiceCallPhase.idle;
+      peerName = null;
+      return;
+    }
     _setPhase(VoiceCallPhase.ended);
     // Reset to idle shortly so another call can start.
     Future.delayed(const Duration(milliseconds: 400), () {
@@ -358,7 +463,19 @@ class VoiceCallController {
   }
 
   void dispose() {
-    unawaited(_teardown(endedByUs: true));
+    unawaited(_teardown(endedByUs: true, silent: true));
     _phaseController.close();
   }
+}
+
+/// Carries a user-presentable reason so the Call button can explain itself
+/// instead of dropping straight into the SIM dialer.
+class VoiceCallException implements Exception {
+  final String message;
+  final bool needsMicSettings;
+
+  VoiceCallException(this.message, {this.needsMicSettings = false});
+
+  @override
+  String toString() => message;
 }

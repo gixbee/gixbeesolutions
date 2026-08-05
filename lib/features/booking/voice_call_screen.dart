@@ -2,8 +2,10 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:permission_handler/permission_handler.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../services/alert_sound_service.dart';
 import '../../services/voice_call_controller.dart';
 import '../../shared/widgets/gx_snackbar.dart';
 import '../../theme.dart';
@@ -38,21 +40,18 @@ class VoiceCallScreen extends ConsumerStatefulWidget {
         peerDisplayName: peerName,
       );
     } catch (e) {
-      final phone = fallbackPhone?.trim();
-      if (phone != null && phone.isNotEmpty) {
-        final uri = Uri.parse('tel:$phone');
-        if (await canLaunchUrl(uri)) {
-          await launchUrl(uri, mode: LaunchMode.externalApplication);
-          return;
-        }
-      }
-      if (context.mounted) {
-        showGxSnack(
-          context,
-          ctrl.lastError ?? 'Could not start in-app call',
-          type: GxSnackType.error,
-        );
-      }
+      // Never dial the SIM behind the user's back — say why the in-app call
+      // could not start and let them choose the carrier call.
+      if (!context.mounted) return;
+      final reason = e is VoiceCallException
+          ? e.message
+          : (ctrl.lastError ?? 'Could not start the in-app call');
+      await _offerPhoneFallback(
+        context,
+        reason: reason,
+        phone: fallbackPhone,
+        needsMicSettings: e is VoiceCallException && e.needsMicSettings,
+      );
       return;
     }
     if (!context.mounted) return;
@@ -65,6 +64,64 @@ class VoiceCallScreen extends ConsumerStatefulWidget {
         ),
       ),
     );
+  }
+
+  static Future<void> _offerPhoneFallback(
+    BuildContext context, {
+    required String reason,
+    required String? phone,
+    bool needsMicSettings = false,
+  }) async {
+    final number = phone?.trim();
+    final canDial = number != null && number.isNotEmpty;
+
+    if (!canDial && !needsMicSettings) {
+      showGxSnack(context, reason, type: GxSnackType.error);
+      return;
+    }
+
+    final choice = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('In-app call unavailable'),
+        content: Text(
+          canDial
+              ? '$reason\n\nCall on your phone instead? Standard carrier '
+                  'charges apply and your number will be visible.'
+              : reason,
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Not now'),
+          ),
+          if (needsMicSettings)
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, 'settings'),
+              child: const Text('Open settings'),
+            ),
+          if (canDial)
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, 'dial'),
+              child: const Text('Call on phone'),
+            ),
+        ],
+      ),
+    );
+
+    if (choice == 'settings') {
+      await openAppSettings();
+      return;
+    }
+    if (choice == 'dial' && canDial) {
+      final uri = Uri.parse('tel:$number');
+      if (await canLaunchUrl(uri)) {
+        await launchUrl(uri, mode: LaunchMode.externalApplication);
+      } else if (context.mounted) {
+        showGxSnack(context, 'Could not open the dialer',
+            type: GxSnackType.error);
+      }
+    }
   }
 
   /// Present an incoming invite (from socket / FCM).
@@ -97,18 +154,35 @@ class VoiceCallScreen extends ConsumerStatefulWidget {
 class _VoiceCallScreenState extends ConsumerState<VoiceCallScreen> {
   StreamSubscription<VoiceCallPhase>? _sub;
   bool _popping = false;
+  AlertSoundService? _alertSound;
+  bool _ringing = false;
 
   @override
   void initState() {
     super.initState();
     final ctrl = ref.read(voiceCallControllerProvider);
+    _alertSound = ref.read(alertSoundServiceProvider);
+    if (widget.incoming) _startRing();
     _sub = ctrl.phaseChanges.listen((phase) {
       if (!mounted) return;
+      if (phase != VoiceCallPhase.incomingRinging) _stopRing();
       setState(() {});
       if (phase == VoiceCallPhase.ended || phase == VoiceCallPhase.idle) {
         _maybePop();
       }
     });
+  }
+
+  void _startRing() {
+    if (_ringing) return;
+    _ringing = true;
+    unawaited(_alertSound?.startIncomingJobAlert() ?? Future<void>.value());
+  }
+
+  void _stopRing() {
+    if (!_ringing) return;
+    _ringing = false;
+    unawaited(_alertSound?.stopIncomingJobAlert() ?? Future<void>.value());
   }
 
   void _maybePop() {
@@ -124,6 +198,14 @@ class _VoiceCallScreenState extends ConsumerState<VoiceCallScreen> {
   @override
   void dispose() {
     _sub?.cancel();
+    _stopRing();
+    // Swipe-back / system back used to leave the peer connection and the
+    // server-side session alive, which blocked the next call.
+    final ctrl = ref.read(voiceCallControllerProvider);
+    if (ctrl.phase != VoiceCallPhase.idle &&
+        ctrl.phase != VoiceCallPhase.ended) {
+      unawaited(ctrl.hangup());
+    }
     super.dispose();
   }
 
@@ -133,9 +215,37 @@ class _VoiceCallScreenState extends ConsumerState<VoiceCallScreen> {
       showGxSnack(context, 'Phone number not available');
       return;
     }
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Switch to a phone call?'),
+        content: const Text(
+          'This ends the in-app call and dials through your carrier. '
+          'Standard charges apply and your number will be visible.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Stay in app'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('Call on phone'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+
+    // Leave no half-open WebRTC session behind — it would block the next
+    // in-app call for the whole ring window.
+    await ref.read(voiceCallControllerProvider).hangup();
+
     final uri = Uri.parse('tel:$phone');
     if (await canLaunchUrl(uri)) {
       await launchUrl(uri, mode: LaunchMode.externalApplication);
+    } else if (mounted) {
+      showGxSnack(context, 'Could not open the dialer', type: GxSnackType.error);
     }
   }
 

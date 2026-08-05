@@ -37,6 +37,18 @@ export class VoiceCallsGateway {
     return userId;
   }
 
+  /**
+   * Socket.IO only invokes the client ack when the handler RETURNS. A thrown
+   * WsException emits an `exception` event instead, so the Flutter caller sat
+   * on `emitWithAck` until its timeout and showed "Calling…" forever with no
+   * reason. Every handler therefore resolves to `{ ok: false, error }`.
+   */
+  private fail(scope: string, e: unknown) {
+    const error = (e as Error)?.message || `${scope} failed`;
+    this.logger.warn(`${scope}: ${error}`);
+    return { ok: false as const, error };
+  }
+
   private emitToUser(
     userId: string,
     event: string,
@@ -53,7 +65,7 @@ export class VoiceCallsGateway {
   ) {
     const callerId = this.authedUserId(client);
     const bookingId = data?.bookingId;
-    if (!bookingId) throw new WsException('bookingId required');
+    if (!bookingId) return this.fail('voice_call_invite', 'bookingId required');
 
     try {
       const { booking, peerId } =
@@ -99,7 +111,7 @@ export class VoiceCallsGateway {
 
       return { ok: true, ...payload };
     } catch (e) {
-      throw new WsException((e as Error)?.message || 'Invite failed');
+      return this.fail('voice_call_invite', e);
     }
   }
 
@@ -110,12 +122,12 @@ export class VoiceCallsGateway {
   ) {
     const userId = this.authedUserId(client);
     const bookingId = data?.bookingId;
-    if (!bookingId) throw new WsException('bookingId required');
+    if (!bookingId) return this.fail('voice_call_accept', 'bookingId required');
 
     try {
       const session = await this.voiceCalls.markActive(bookingId, userId);
       if (data?.callId && data.callId !== session.callId) {
-        throw new WsException('Stale call id');
+        return this.fail('voice_call_accept', 'Stale call id');
       }
       const payload = {
         callId: session.callId,
@@ -126,7 +138,7 @@ export class VoiceCallsGateway {
       this.emitToUser(session.callerId, 'voice_call_accept', payload);
       return { ok: true, ...payload };
     } catch (e) {
-      throw new WsException((e as Error)?.message || 'Accept failed');
+      return this.fail('voice_call_accept', e);
     }
   }
 
@@ -137,13 +149,13 @@ export class VoiceCallsGateway {
   ) {
     const userId = this.authedUserId(client);
     const bookingId = data?.bookingId;
-    if (!bookingId) throw new WsException('bookingId required');
+    if (!bookingId) return this.fail('voice_call_reject', 'bookingId required');
 
     try {
       const session = await this.voiceCalls.getActiveSession(bookingId);
       if (!session) return { ok: true };
       if (session.calleeId !== userId && session.callerId !== userId) {
-        throw new WsException('Not a call participant');
+        return this.fail('voice_call_reject', 'Not a call participant');
       }
       await this.voiceCalls.clearSession(bookingId);
       const peerId =
@@ -155,7 +167,7 @@ export class VoiceCallsGateway {
       });
       return { ok: true };
     } catch (e) {
-      throw new WsException((e as Error)?.message || 'Reject failed');
+      return this.fail('voice_call_reject', e);
     }
   }
 
@@ -166,7 +178,7 @@ export class VoiceCallsGateway {
   ) {
     const userId = this.authedUserId(client);
     const bookingId = data?.bookingId;
-    if (!bookingId) throw new WsException('bookingId required');
+    if (!bookingId) return this.fail('voice_call_hangup', 'bookingId required');
 
     try {
       const session = await this.voiceCalls.clearSession(bookingId);
@@ -181,7 +193,7 @@ export class VoiceCallsGateway {
       }
       return { ok: true };
     } catch (e) {
-      throw new WsException((e as Error)?.message || 'Hangup failed');
+      return this.fail('voice_call_hangup', e);
     }
   }
 
@@ -199,7 +211,7 @@ export class VoiceCallsGateway {
     const userId = this.authedUserId(client);
     const bookingId = data?.bookingId;
     if (!bookingId || !data?.signal) {
-      throw new WsException('bookingId and signal required');
+      return this.fail('voice_call_signal', 'bookingId and signal required');
     }
 
     try {
@@ -208,7 +220,7 @@ export class VoiceCallsGateway {
         userId,
       );
       if (data.callId && data.callId !== session.callId) {
-        throw new WsException('Stale call id');
+        return this.fail('voice_call_signal', 'Stale call id');
       }
       const peerId =
         userId === session.callerId ? session.calleeId : session.callerId;
@@ -220,7 +232,7 @@ export class VoiceCallsGateway {
       });
       return { ok: true };
     } catch (e) {
-      throw new WsException((e as Error)?.message || 'Signal failed');
+      return this.fail('voice_call_signal', e);
     }
   }
 }

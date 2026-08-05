@@ -290,26 +290,32 @@ class SocketService {
 
   // ── WebRTC voice signaling ───────────────────────────────────
 
-  Future<Map<String, dynamic>?> emitVoiceCallInvite({
+  /// Always resolves to a map so the caller can tell "server said no" from
+  /// "nothing came back" — a null return used to leave the call UI hanging.
+  Future<Map<String, dynamic>> emitVoiceCallInvite({
     required String bookingId,
     required String callerName,
   }) async {
-    if (!isConnected) return null;
-    final completer = Completer<Map<String, dynamic>?>();
+    if (!isConnected) {
+      return {'ok': false, 'error': 'You are offline. Check your connection.'};
+    }
+    final completer = Completer<Map<String, dynamic>>();
     _socket!.emitWithAck(
       'voice_call_invite',
       {'bookingId': bookingId, 'callerName': callerName},
       ack: (dynamic data) {
+        if (completer.isCompleted) return;
         if (data is Map) {
           completer.complete(Map<String, dynamic>.from(data));
         } else {
-          completer.complete(null);
+          completer.complete({'ok': false, 'error': 'Call server unavailable'});
         }
       },
     );
     return completer.future.timeout(
-      const Duration(seconds: 8),
-      onTimeout: () => null,
+      const Duration(seconds: 10),
+      onTimeout: () =>
+          {'ok': false, 'error': 'Call server did not respond in time'},
     );
   }
 
