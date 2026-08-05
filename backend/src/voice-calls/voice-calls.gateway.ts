@@ -90,6 +90,9 @@ export class VoiceCallsGateway {
         skill,
       };
 
+      this.logger.log(
+        `invite call=${session.callId} booking=${bookingId} ${callerId} -> ${peerId}`,
+      );
       this.emitToUser(peerId, 'voice_call_invite', payload);
 
       // Wake callee if backgrounded — no phone numbers in data.
@@ -135,6 +138,9 @@ export class VoiceCallsGateway {
         callerId: session.callerId,
         calleeId: session.calleeId,
       };
+      this.logger.log(
+        `accept call=${session.callId} booking=${bookingId} by=${userId}`,
+      );
       this.emitToUser(session.callerId, 'voice_call_accept', payload);
       return { ok: true, ...payload };
     } catch (e) {
@@ -224,6 +230,13 @@ export class VoiceCallsGateway {
       }
       const peerId =
         userId === session.callerId ? session.calleeId : session.callerId;
+      // Offer/answer only — candidate trickle would flood the log.
+      const signalType = String(data.signal.type ?? '');
+      if (signalType === 'offer' || signalType === 'answer') {
+        this.logger.log(
+          `signal ${signalType} call=${session.callId} ${userId} -> ${peerId}`,
+        );
+      }
       this.emitToUser(peerId, 'voice_call_signal', {
         callId: session.callId,
         bookingId,

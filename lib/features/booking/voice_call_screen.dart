@@ -3,7 +3,6 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:permission_handler/permission_handler.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 import '../../services/alert_sound_service.dart';
 import '../../services/voice_call_controller.dart';
@@ -11,15 +10,16 @@ import '../../shared/widgets/gx_snackbar.dart';
 import '../../theme.dart';
 
 /// Full-screen in-app voice call UI (ringing → connected → hang up).
+///
+/// There is deliberately no `tel:` escape hatch anywhere in this flow. Calls
+/// stay on WebRTC so neither side ever learns the other's phone number.
 class VoiceCallScreen extends ConsumerStatefulWidget {
   final bool incoming;
-  final String? fallbackPhone;
   final Map<String, dynamic>? incomingInvite;
 
   const VoiceCallScreen({
     super.key,
     this.incoming = false,
-    this.fallbackPhone,
     this.incomingInvite,
   });
 
@@ -29,7 +29,6 @@ class VoiceCallScreen extends ConsumerStatefulWidget {
     required String bookingId,
     required String callerName,
     String? peerName,
-    String? fallbackPhone,
   }) async {
     final container = ProviderScope.containerOf(context);
     final ctrl = container.read(voiceCallControllerProvider);
@@ -40,95 +39,54 @@ class VoiceCallScreen extends ConsumerStatefulWidget {
         peerDisplayName: peerName,
       );
     } catch (e) {
-      // Never dial the SIM behind the user's back — say why the in-app call
-      // could not start and let them choose the carrier call.
       if (!context.mounted) return;
       final reason = e is VoiceCallException
           ? e.message
           : (ctrl.lastError ?? 'Could not start the in-app call');
-      await _offerPhoneFallback(
-        context,
-        reason: reason,
-        phone: fallbackPhone,
-        needsMicSettings: e is VoiceCallException && e.needsMicSettings,
-      );
+      if (e is VoiceCallException && e.needsMicSettings) {
+        await _promptMicSettings(context, reason);
+      } else {
+        showGxSnack(context, reason, type: GxSnackType.error);
+      }
       return;
     }
     if (!context.mounted) return;
     await Navigator.of(context).push(
       MaterialPageRoute(
         fullscreenDialog: true,
-        builder: (_) => VoiceCallScreen(
-          incoming: false,
-          fallbackPhone: fallbackPhone,
-        ),
+        builder: (_) => const VoiceCallScreen(incoming: false),
       ),
     );
   }
 
-  static Future<void> _offerPhoneFallback(
-    BuildContext context, {
-    required String reason,
-    required String? phone,
-    bool needsMicSettings = false,
-  }) async {
-    final number = phone?.trim();
-    final canDial = number != null && number.isNotEmpty;
-
-    if (!canDial && !needsMicSettings) {
-      showGxSnack(context, reason, type: GxSnackType.error);
-      return;
-    }
-
-    final choice = await showDialog<String>(
+  static Future<void> _promptMicSettings(
+    BuildContext context,
+    String reason,
+  ) async {
+    final open = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('In-app call unavailable'),
-        content: Text(
-          canDial
-              ? '$reason\n\nCall on your phone instead? Standard carrier '
-                  'charges apply and your number will be visible.'
-              : reason,
-        ),
+        title: const Text('Microphone needed'),
+        content: Text(reason),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(dialogContext),
+            onPressed: () => Navigator.pop(dialogContext, false),
             child: const Text('Not now'),
           ),
-          if (needsMicSettings)
-            TextButton(
-              onPressed: () => Navigator.pop(dialogContext, 'settings'),
-              child: const Text('Open settings'),
-            ),
-          if (canDial)
-            TextButton(
-              onPressed: () => Navigator.pop(dialogContext, 'dial'),
-              child: const Text('Call on phone'),
-            ),
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('Open settings'),
+          ),
         ],
       ),
     );
-
-    if (choice == 'settings') {
-      await openAppSettings();
-      return;
-    }
-    if (choice == 'dial' && canDial) {
-      final uri = Uri.parse('tel:$number');
-      if (await canLaunchUrl(uri)) {
-        await launchUrl(uri, mode: LaunchMode.externalApplication);
-      } else if (context.mounted) {
-        showGxSnack(context, 'Could not open the dialer',
-            type: GxSnackType.error);
-      }
-    }
+    if (open == true) await openAppSettings();
   }
 
   /// Present an incoming invite (from socket / FCM).
   static Future<void> showIncoming(
     BuildContext context, {
     required Map<String, dynamic> invite,
-    String? fallbackPhone,
   }) async {
     final container = ProviderScope.containerOf(context);
     final ctrl = container.read(voiceCallControllerProvider);
@@ -140,7 +98,6 @@ class VoiceCallScreen extends ConsumerStatefulWidget {
         fullscreenDialog: true,
         builder: (_) => VoiceCallScreen(
           incoming: true,
-          fallbackPhone: fallbackPhone,
           incomingInvite: invite,
         ),
       ),
@@ -155,12 +112,14 @@ class _VoiceCallScreenState extends ConsumerState<VoiceCallScreen> {
   StreamSubscription<VoiceCallPhase>? _sub;
   bool _popping = false;
   AlertSoundService? _alertSound;
+  VoiceCallController? _ctrl;
   bool _ringing = false;
 
   @override
   void initState() {
     super.initState();
     final ctrl = ref.read(voiceCallControllerProvider);
+    _ctrl = ctrl;
     _alertSound = ref.read(alertSoundServiceProvider);
     if (widget.incoming) _startRing();
     _sub = ctrl.phaseChanges.listen((phase) {
@@ -200,53 +159,17 @@ class _VoiceCallScreenState extends ConsumerState<VoiceCallScreen> {
     _sub?.cancel();
     _stopRing();
     // Swipe-back / system back used to leave the peer connection and the
-    // server-side session alive, which blocked the next call.
-    final ctrl = ref.read(voiceCallControllerProvider);
-    if (ctrl.phase != VoiceCallPhase.idle &&
+    // server-side session alive, which blocked the next call. Use the
+    // controller captured in initState — reading a provider here throws
+    // ("Using ref when a widget has been unmounted"), which aborted dispose
+    // before the hangup and crashed the frame.
+    final ctrl = _ctrl;
+    if (ctrl != null &&
+        ctrl.phase != VoiceCallPhase.idle &&
         ctrl.phase != VoiceCallPhase.ended) {
       unawaited(ctrl.hangup());
     }
     super.dispose();
-  }
-
-  Future<void> _fallbackDial() async {
-    final phone = widget.fallbackPhone?.trim();
-    if (phone == null || phone.isEmpty) {
-      showGxSnack(context, 'Phone number not available');
-      return;
-    }
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('Switch to a phone call?'),
-        content: const Text(
-          'This ends the in-app call and dials through your carrier. '
-          'Standard charges apply and your number will be visible.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext, false),
-            child: const Text('Stay in app'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext, true),
-            child: const Text('Call on phone'),
-          ),
-        ],
-      ),
-    );
-    if (confirmed != true) return;
-
-    // Leave no half-open WebRTC session behind — it would block the next
-    // in-app call for the whole ring window.
-    await ref.read(voiceCallControllerProvider).hangup();
-
-    final uri = Uri.parse('tel:$phone');
-    if (await canLaunchUrl(uri)) {
-      await launchUrl(uri, mode: LaunchMode.externalApplication);
-    } else if (mounted) {
-      showGxSnack(context, 'Could not open the dialer', type: GxSnackType.error);
-    }
   }
 
   String _statusLabel(VoiceCallPhase phase) {
@@ -362,14 +285,17 @@ class _VoiceCallScreenState extends ConsumerState<VoiceCallScreen> {
                   mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                   children: [
                     _RoundAction(
-                      color: Colors.white24,
+                      color: ctrl.muted
+                          ? Colors.white
+                          : Colors.white24,
+                      iconColor: ctrl.muted ? Colors.black87 : Colors.white,
                       icon: ctrl.muted
                           ? Icons.mic_off_rounded
                           : Icons.mic_rounded,
                       label: ctrl.muted ? 'Unmute' : 'Mute',
                       onTap: () async {
                         await ctrl.toggleMute();
-                        setState(() {});
+                        if (mounted) setState(() {});
                       },
                     ),
                     _RoundAction(
@@ -379,10 +305,17 @@ class _VoiceCallScreenState extends ConsumerState<VoiceCallScreen> {
                       onTap: () => ctrl.hangup(),
                     ),
                     _RoundAction(
-                      color: Colors.white24,
-                      icon: Icons.phone_rounded,
-                      label: 'Phone',
-                      onTap: _fallbackDial,
+                      color: ctrl.speakerOn ? Colors.white : Colors.white24,
+                      iconColor:
+                          ctrl.speakerOn ? Colors.black87 : Colors.white,
+                      icon: ctrl.speakerOn
+                          ? Icons.volume_up_rounded
+                          : Icons.hearing_rounded,
+                      label: ctrl.speakerOn ? 'Speaker' : 'Earpiece',
+                      onTap: () async {
+                        await ctrl.toggleSpeaker();
+                        if (mounted) setState(() {});
+                      },
                     ),
                   ],
                 ),
@@ -396,7 +329,7 @@ class _VoiceCallScreenState extends ConsumerState<VoiceCallScreen> {
                 ),
               ),
               Text(
-                'Audio stays in the app. Use Phone if the call fails.',
+                'Calls stay inside Gixbee. Phone numbers are never shared.',
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   color: Colors.white.withValues(alpha: 0.4),
@@ -413,6 +346,7 @@ class _VoiceCallScreenState extends ConsumerState<VoiceCallScreen> {
 
 class _RoundAction extends StatelessWidget {
   final Color color;
+  final Color iconColor;
   final IconData icon;
   final String label;
   final VoidCallback onTap;
@@ -422,6 +356,7 @@ class _RoundAction extends StatelessWidget {
     required this.icon,
     required this.label,
     required this.onTap,
+    this.iconColor = Colors.white,
   });
 
   @override
@@ -437,7 +372,7 @@ class _RoundAction extends StatelessWidget {
             child: SizedBox(
               width: 68,
               height: 68,
-              child: Icon(icon, color: Colors.white, size: 30),
+              child: Icon(icon, color: iconColor, size: 30),
             ),
           ),
         ),

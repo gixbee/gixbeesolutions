@@ -29,6 +29,10 @@ import {
   ResolveDisputeDto,
   MarkPaidDto,
 } from './dto/booking-actions.dto';
+import {
+  maskBookingContacts,
+  maskBookingContactsList,
+} from './mask-booking-contacts';
 
 @Controller('bookings')
 @UseGuards(JwtAuthGuard)
@@ -129,18 +133,22 @@ export class BookingsController {
   ) {
     const pageNum = parseInt(page || '1') || 1;
     const limitNum = parseInt(limit || '50') || 50;
-    return this.bookingsService.findMyBookings(
-      req.user.userId,
-      status,
-      pageNum,
-      limitNum,
+    return maskBookingContactsList(
+      await this.bookingsService.findMyBookings(
+        req.user.userId,
+        status,
+        pageNum,
+        limitNum,
+      ),
     );
   }
 
   // Worker polls this to discover incoming job requests (FCM fallback)
   @Get('pending')
   async getPendingBookings(@Req() req) {
-    return this.bookingsService.findPendingForWorker(req.user.userId);
+    return maskBookingContactsList(
+      await this.bookingsService.findPendingForWorker(req.user.userId),
+    );
   }
 
   @Patch(':id/status')
@@ -270,7 +278,7 @@ export class BookingsController {
       booking.customer?.id === req.user.userId ||
       booking.operator?.id === req.user.userId;
     if (!isParticipant) throw new NotFoundException('Booking not found');
-    return booking;
+    return maskBookingContacts(booking);
   }
 
   // Get booking status (for polling). SECURITY FIX: this used to be

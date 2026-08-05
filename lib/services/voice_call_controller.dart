@@ -37,6 +37,7 @@ class VoiceCallController {
   String? peerName;
   String? peerId;
   bool muted = false;
+  bool speakerOn = false;
   String? lastError;
 
   RTCPeerConnection? _pc;
@@ -47,6 +48,7 @@ class VoiceCallController {
   StreamSubscription<Map<String, dynamic>>? _signalSub;
   bool _isCaller = false;
   Timer? _ringTimeout;
+  Timer? _dropTimer;
 
   /// Must match the backend ring TTL, otherwise the caller keeps showing
   /// "Calling…" against a session Redis already dropped.
@@ -225,6 +227,20 @@ class VoiceCallController {
     if (!_phaseController.isClosed) _phaseController.add(phase);
   }
 
+  Future<void> toggleSpeaker() async {
+    await setSpeaker(!speakerOn);
+  }
+
+  Future<void> setSpeaker(bool on) async {
+    try {
+      await Helper.setSpeakerphoneOn(on);
+      speakerOn = on;
+    } catch (e) {
+      debugPrint('[VoiceCall] speaker toggle failed: $e');
+    }
+    if (!_phaseController.isClosed) _phaseController.add(phase);
+  }
+
   void _bindSignalListeners() {
     _signalSub?.cancel();
     _signalSub = _socket.voiceCalls.listen(_onVoiceEvent);
@@ -264,8 +280,17 @@ class VoiceCallController {
     }
   }
 
-  Future<void> _ensurePeerConnection() async {
-    if (_pc != null) return;
+  /// Guards against the offer arriving while setup is still awaiting
+  /// getUserMedia. `_pc` was assigned early, so a concurrent caller saw a
+  /// non-null connection, skipped setup and built an answer with no
+  /// microphone track attached — the call "connected" but carried no audio.
+  Future<void>? _pcReady;
+
+  Future<void> _ensurePeerConnection() {
+    return _pcReady ??= _buildPeerConnection();
+  }
+
+  Future<void> _buildPeerConnection() async {
     final bid = bookingId!;
     final iceServers = await _loadIceServers(bid);
 
@@ -309,16 +334,32 @@ class VoiceCallController {
     _pc!.onConnectionState = (RTCPeerConnectionState state) {
       debugPrint('[VoiceCall] connectionState=$state');
       if (state == RTCPeerConnectionState.RTCPeerConnectionStateConnected) {
+        _dropTimer?.cancel();
+        _dropTimer = null;
         _setPhase(VoiceCallPhase.connected);
+        return;
+      }
+      if (phase != VoiceCallPhase.connected &&
+          phase != VoiceCallPhase.connecting) {
+        return;
+      }
+      if (state == RTCPeerConnectionState.RTCPeerConnectionStateFailed) {
+        lastError = 'Could not connect the call';
+        unawaited(_teardown(endedByUs: false));
       } else if (state ==
-              RTCPeerConnectionState.RTCPeerConnectionStateFailed ||
-          state == RTCPeerConnectionState.RTCPeerConnectionStateDisconnected ||
-          state == RTCPeerConnectionState.RTCPeerConnectionStateClosed) {
-        if (phase == VoiceCallPhase.connected ||
-            phase == VoiceCallPhase.connecting) {
-          lastError = 'Connection lost';
-          unawaited(_teardown(endedByUs: false));
-        }
+          RTCPeerConnectionState.RTCPeerConnectionStateDisconnected) {
+        // WebRTC dips through `disconnected` routinely while ICE re-checks
+        // paths — especially switching between wifi and mobile data. Ending
+        // the call here killed sessions that would have recovered on their
+        // own a second later.
+        _dropTimer?.cancel();
+        _dropTimer = Timer(const Duration(seconds: 8), () {
+          if (phase == VoiceCallPhase.connected ||
+              phase == VoiceCallPhase.connecting) {
+            lastError = 'Connection lost';
+            unawaited(_teardown(endedByUs: false));
+          }
+        });
       }
     };
 
@@ -330,13 +371,10 @@ class VoiceCallController {
       await _pc!.addTrack(track, _localStream!);
     }
 
-    // Route to the earpiece like a normal phone call, and make sure the ring
-    // loop from an incoming-job card can never bleed into the conversation.
-    try {
-      await Helper.setSpeakerphoneOn(false);
-    } catch (e) {
-      debugPrint('[VoiceCall] audio routing failed: $e');
-    }
+    // Start on the earpiece like a normal phone call; the user can flip to
+    // speaker from the call screen. Also make sure the incoming-job ring loop
+    // can never bleed into the conversation.
+    await setSpeaker(false);
     try {
       await _ref.read(alertSoundServiceProvider).stopAll();
     } catch (_) {}
@@ -428,8 +466,11 @@ class VoiceCallController {
   }) async {
     _ringTimeout?.cancel();
     _ringTimeout = null;
+    _dropTimer?.cancel();
+    _dropTimer = null;
     _signalSub?.cancel();
     _signalSub = null;
+    _pcReady = null;
     try {
       for (final t in _localStream?.getTracks() ?? <MediaStreamTrack>[]) {
         await t.stop();
@@ -445,6 +486,7 @@ class VoiceCallController {
     _pendingRemoteIce.clear();
     _remoteDescriptionSet = false;
     muted = false;
+    speakerOn = false;
     _isCaller = false;
     bookingId = null;
     callId = null;

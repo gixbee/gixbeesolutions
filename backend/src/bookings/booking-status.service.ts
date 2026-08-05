@@ -93,25 +93,11 @@ export class BookingStatusService {
    * to DB and refreshes the cache when Redis is cold / unauthorized.
    */
   /**
-   * Role-aware dial target for Call buttons. Customer gets the assigned
-   * pro's phone; worker gets on-site contact phone when set, else customer.
+   * NUMBER MASKING: phones stay in the Redis cache entry (internal use only,
+   * e.g. operational support) but are never returned to a client. Calls go
+   * through WebRTC so neither the customer nor the pro learns the other's
+   * number. Do not reintroduce `counterpartPhone` on this response.
    */
-  private resolveCounterpartPhone(
-    isCustomer: boolean,
-    phones: {
-      customerPhone?: string | null;
-      operatorPhone?: string | null;
-      onSiteContactPhone?: string | null;
-    },
-  ): string | null {
-    const clean = (v?: string | null) => {
-      const s = (v ?? '').trim();
-      return s.length > 0 ? s : null;
-    };
-    if (isCustomer) return clean(phones.operatorPhone);
-    return clean(phones.onSiteContactPhone) ?? clean(phones.customerPhone);
-  }
-
   private extractBookingPhones(booking: {
     customer?: { phoneNumber?: string | null } | null;
     operator?: { phoneNumber?: string | null } | null;
@@ -180,8 +166,6 @@ export class BookingStatusService {
     /** Live worker GPS from Redis — for customer map poll fallback. */
     operatorLat: number | null;
     operatorLng: number | null;
-    /** Phone to dial for the other party on this booking. */
-    counterpartPhone: string | null;
     skill?: string | null;
     type?: string | null;
     hourlyRate?: number | null;
@@ -285,10 +269,6 @@ export class BookingStatusService {
               customerPaidConfirmed: payload.customerPaidConfirmed,
               operatorLat: loc.operatorLat,
               operatorLng: loc.operatorLng,
-              counterpartPhone: this.resolveCounterpartPhone(
-                isCustomer,
-                phones,
-              ),
               ...billing,
             };
           }
@@ -296,28 +276,6 @@ export class BookingStatusService {
       }
 
       const loc = await attachOperatorLocation(cached.operatorId, status);
-
-      let phones = {
-        customerPhone: (cached.customerPhone as string | null) ?? null,
-        operatorPhone: (cached.operatorPhone as string | null) ?? null,
-        onSiteContactPhone:
-          (cached.onSiteContactPhone as string | null) ?? null,
-      };
-      let counterpartPhone = this.resolveCounterpartPhone(isCustomer, phones);
-
-      // Older cache writes omit phones — enrich once from DB and merge back.
-      if (!counterpartPhone) {
-        const booking = await this.getBookingById(bookingId);
-        if (booking) {
-          phones = this.extractBookingPhones(booking);
-          counterpartPhone = this.resolveCounterpartPhone(isCustomer, phones);
-          if (counterpartPhone) {
-            await this.redisService
-              .cacheBookingStatus(bookingId, { ...cached, ...phones })
-              .catch(() => {});
-          }
-        }
-      }
 
       const billing =
         cached.hourlyRate != null || cached.acceptDistanceKm != null
@@ -355,7 +313,6 @@ export class BookingStatusService {
         customerPaidConfirmed: !!cached.customerPaidConfirmed,
         operatorLat: loc.operatorLat,
         operatorLng: loc.operatorLng,
-        counterpartPhone,
         ...billing,
       };
     }
@@ -408,7 +365,6 @@ export class BookingStatusService {
       customerPaidConfirmed: payload.customerPaidConfirmed,
       operatorLat: loc.operatorLat,
       operatorLng: loc.operatorLng,
-      counterpartPhone: this.resolveCounterpartPhone(isCustomer, phones),
       ...billing,
     };
   }

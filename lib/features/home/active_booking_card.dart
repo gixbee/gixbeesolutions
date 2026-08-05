@@ -161,31 +161,9 @@ class _ActiveBookingCardState extends ConsumerState<ActiveBookingCard> {
                 );
               } else if (bStatus == 'ACCEPTED' || bStatus == 'ARRIVED') {
                 final operatorData = activeBooking['operator'];
-                final customerData = activeBooking['customer'];
                 final workerName = operatorData?['name'] ?? 'Worker';
                 final workerId = operatorData?['id']?.toString() ?? '';
                 final otp = activeBooking['arrivalOtp']?.toString();
-                String? readPhone(dynamic user) {
-                  if (user is! Map) return null;
-                  final raw = user['phoneNumber'] ?? user['phone'];
-                  final s = raw?.toString().trim();
-                  return (s == null || s.isEmpty) ? null : s;
-                }
-
-                String? counterpartPhone;
-                if (isOperator) {
-                  final onSite = activeBooking['onSiteContact'];
-                  final onSitePhone = onSite is Map
-                      ? onSite['phone']?.toString().trim()
-                      : null;
-                  counterpartPhone =
-                      (onSitePhone != null && onSitePhone.isNotEmpty)
-                          ? onSitePhone
-                          : readPhone(customerData);
-                } else {
-                  counterpartPhone = readPhone(operatorData);
-                }
-
                 await Navigator.push(
                   context,
                   MaterialPageRoute(
@@ -211,7 +189,6 @@ class _ActiveBookingCardState extends ConsumerState<ActiveBookingCard> {
                       customerLng: readCoord(activeBooking['serviceLng']),
                       arrivalOtp: otp,
                       isWorker: isOperator,
-                      counterpartPhone: counterpartPhone,
                     ),
                   ),
                 );

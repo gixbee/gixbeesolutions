@@ -34,9 +34,6 @@ class LiveTrackingMapScreen extends ConsumerStatefulWidget {
   final String? arrivalOtp;
   final bool isWorker;
 
-  /// Role-aware dial target (pro phone for customer, customer/on-site for pro).
-  final String? counterpartPhone;
-
   const LiveTrackingMapScreen({
     super.key,
     required this.bookingId,
@@ -46,7 +43,6 @@ class LiveTrackingMapScreen extends ConsumerStatefulWidget {
     this.customerLng,
     this.arrivalOtp,
     this.isWorker = false,
-    this.counterpartPhone,
   });
 
   @override
@@ -73,7 +69,6 @@ class _LiveTrackingMapScreenState extends ConsumerState<LiveTrackingMapScreen> {
   String _currentStatus = 'ACCEPTED';
   bool _workerNoProgress = false;
   String? _arrivalOtp;
-  String? _counterpartPhone;
   bool _isMapReady = false;
 
   /// Pre-hydrated Ola style JSON (api_key on every tile URL). Null while
@@ -115,7 +110,6 @@ class _LiveTrackingMapScreenState extends ConsumerState<LiveTrackingMapScreen> {
   void initState() {
     super.initState();
     _arrivalOtp = widget.arrivalOtp;
-    _counterpartPhone = _normalizePhone(widget.counterpartPhone);
 
     // Set customer location if provided by the opener.
     if (widget.customerLat != null && widget.customerLng != null) {
@@ -432,42 +426,6 @@ class _LiveTrackingMapScreenState extends ConsumerState<LiveTrackingMapScreen> {
   /// AUDIT FIX: consume the SHARED booking-status poll (one per booking,
   /// app-wide) instead of running a private Timer here. Called from build via
   /// ref.listen, so state transitions are handled exactly once per new value.
-  String? _normalizePhone(dynamic raw) {
-    final s = raw?.toString().trim();
-    if (s == null || s.isEmpty) return null;
-    return s;
-  }
-
-  /// Prefer status/API phone; fall back to a one-shot booking fetch.
-  Future<String?> _resolveCounterpartPhone() async {
-    final cached = _normalizePhone(_counterpartPhone);
-    if (cached != null) return cached;
-
-    final booking = await ref
-        .read(bookingRepositoryProvider)
-        .getBookingById(widget.bookingId);
-    if (booking == null) return null;
-
-    if (widget.isWorker) {
-      final onSite = booking['onSiteContact'];
-      final onSitePhone =
-          onSite is Map ? _normalizePhone(onSite['phone']) : null;
-      if (onSitePhone != null) return onSitePhone;
-      final customer = booking['customer'];
-      if (customer is Map) {
-        return _normalizePhone(customer['phoneNumber']) ??
-            _normalizePhone(customer['phone']);
-      }
-      return null;
-    }
-
-    final operator = booking['operator'];
-    if (operator is Map) {
-      return _normalizePhone(operator['phoneNumber']) ??
-          _normalizePhone(operator['phone']);
-    }
-    return null;
-  }
 
   Future<void> _dialCounterpart() async {
     final me = ref.read(currentUserProvider).value;
@@ -479,19 +437,11 @@ class _LiveTrackingMapScreenState extends ConsumerState<LiveTrackingMapScreen> {
         : (widget.worker.name.trim().isNotEmpty
             ? widget.worker.name.trim()
             : 'Gixbee user');
-    // Prefer cached phone for tel: fallback; refresh if missing.
-    var phone = _normalizePhone(_counterpartPhone);
-    phone ??= await _resolveCounterpartPhone();
-    if (!mounted) return;
-    if (phone != null && phone != _counterpartPhone) {
-      setState(() => _counterpartPhone = phone);
-    }
     await VoiceCallScreen.startOutgoing(
       context,
       bookingId: widget.bookingId,
       callerName: callerName,
       peerName: peerName,
-      fallbackPhone: phone,
     );
   }
 
@@ -500,11 +450,6 @@ class _LiveTrackingMapScreenState extends ConsumerState<LiveTrackingMapScreen> {
     final newStatus = statusData['status']?.toString().toUpperCase() ?? '';
     final otp = statusData['arrivalOtp']?.toString();
     final noProgress = statusData['workerNoProgress'] == true;
-    final phoneFromStatus = _normalizePhone(statusData['counterpartPhone']);
-
-    if (phoneFromStatus != null && phoneFromStatus != _counterpartPhone) {
-      setState(() => _counterpartPhone = phoneFromStatus);
-    }
 
     if (noProgress && !_workerNoProgress && !widget.isWorker) {
       setState(() => _workerNoProgress = true);
