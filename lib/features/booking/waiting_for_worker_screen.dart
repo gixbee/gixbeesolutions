@@ -12,6 +12,7 @@ import '../../shared/models/worker.dart';
 import '../../shared/models/booking_status.dart';
 import '../../core/config/app_config.dart';
 import '../../services/socket_service.dart';
+import '../../services/alert_sound_service.dart';
 import 'live_tracking_map_screen.dart';
 import 'no_workers_screen.dart';
 
@@ -234,6 +235,8 @@ class _WaitingForWorkerScreenState extends ConsumerState<WaitingForWorkerScreen>
         _acceptedHourlyRate ??= widget.hourlyRate;
         _applyBillingHints(statusData);
       });
+      // Swiggy-style confirmation chime for the customer.
+      unawaited(ref.read(alertSoundServiceProvider).playJobAccepted());
       // Keep home / bookings lists fresh when the customer confirms.
       ref.invalidate(myBookingsProvider);
       unawaited(_loadAcceptedBilling());

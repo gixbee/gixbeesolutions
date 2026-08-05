@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -379,7 +380,11 @@ class _MainWrapperState extends ConsumerState<MainWrapper>
       await _showIncomingJobScreen({
         'id': bookingId,
         'skill': data['skill'] ?? 'General Help',
-        'customer_name': notificationTitle ?? AppStrings.fcmDefaultTitle,
+        'customer_name': () {
+          final name = data['customer_name']?.toString().trim() ?? '';
+          if (name.isNotEmpty) return name;
+          return notificationTitle ?? AppStrings.fcmDefaultTitle;
+        }(),
         'serviceLocation': data['serviceLocation'] ?? '',
         // Coords → the "· 2.3 km away" line on the incoming card. Empty
         // strings parse to null and the card just omits the distance.
@@ -388,7 +393,10 @@ class _MainWrapperState extends ConsumerState<MainWrapper>
         // Server timestamp → wall-clock accept deadline (createdAt + 90s).
         // Without it the card restarted a full window on FCM open.
         'createdAt': data['createdAt'] ?? '',
+        'notifiedAt': data['notifiedAt'] ?? '',
         'amount': double.tryParse(data['amount'] ?? '0') ?? 0.0,
+        'description': data['description'] ?? '',
+        'preferredLanguages': _parseFcmLanguages(data['preferredLanguages']),
       });
       return;
     }
@@ -427,6 +435,30 @@ class _MainWrapperState extends ConsumerState<MainWrapper>
     } catch (e) {
       debugPrint('[FCM] Could not open booking $bookingId: $e');
     }
+  }
+
+  /// FCM data values are strings — languages arrive as JSON array text.
+  List<String> _parseFcmLanguages(dynamic raw) {
+    if (raw == null) return const [];
+    if (raw is List) {
+      return raw.map((e) => e.toString()).where((s) => s.isNotEmpty).toList();
+    }
+    final text = raw.toString().trim();
+    if (text.isEmpty) return const [];
+    try {
+      final decoded = jsonDecode(text);
+      if (decoded is List) {
+        return decoded
+            .map((e) => e.toString())
+            .where((s) => s.isNotEmpty)
+            .toList();
+      }
+    } catch (_) {}
+    return text
+        .split(',')
+        .map((s) => s.trim())
+        .where((s) => s.isNotEmpty)
+        .toList();
   }
 
   // ── Incoming Job Screen ──────────────────────────────────────────────────

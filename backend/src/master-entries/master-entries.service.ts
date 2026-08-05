@@ -287,6 +287,11 @@ export class MasterEntriesService implements OnModuleInit {
       value: '10',
       note: 'Instant Help petrol charge in Rs. per one-way km from the worker accept location to the customer.',
     },
+    {
+      key: 'job_credit_per_accept',
+      value: '15',
+      note: 'Job credits deducted from the worker pack when they accept a booking. Refunded on customer cancel (same amount that was consumed). 0 = free accepts.',
+    },
   ];
 
   private async seedDefaultConfigs(): Promise<void> {
@@ -311,6 +316,24 @@ export class MasterEntriesService implements OnModuleInit {
       console.log(
         'MIGRATION: go_live_daily_limit reset from 6 to 0 (periodic fee model)',
       );
+    }
+
+    // Product default: accept cost raised from 1 → 15 (Aug 2026).
+    const existingCreditCost = await this.masterEntryRepo.findOne({
+      where: {
+        type: MasterEntryType.CONFIGURATION,
+        label: 'job_credit_per_accept',
+      },
+    });
+    if (existingCreditCost && existingCreditCost.value === '1') {
+      existingCreditCost.value = '15';
+      existingCreditCost.category =
+        'Job credits deducted from the worker pack when they accept a booking. ' +
+        'Refunded on customer cancel (same amount that was consumed). 0 = free accepts. ' +
+        'Updated from 1 to 15 (Aug 2026).';
+      await this.masterEntryRepo.save(existingCreditCost);
+      await this.clearCache();
+      console.log('MIGRATION: job_credit_per_accept updated from 1 to 15');
     }
 
     for (const cfg of MasterEntriesService.DEFAULT_CONFIGS) {

@@ -26,6 +26,9 @@ dependencies:
   # Local notifications (foreground display on Android)
   flutter_local_notifications: ^22.1.0
 
+  # In-app alert chimes (incoming job loop + accept confirmation)
+  audioplayers: ^6.5.0
+
   # Auth
 
   # Secure token storage
@@ -74,6 +77,10 @@ dependency_overrides:
 
 flutter:
   uses-material-design: true
+  assets:
+    - assets/sounds/gixbee_alert.wav
+    - assets/sounds/booking_alert.wav
+    - assets/sounds/job_accepted.wav
 
 flutter_launcher_icons:
   android: true

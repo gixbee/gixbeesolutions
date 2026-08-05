@@ -4,6 +4,7 @@ import {
   Post,
   Body,
   Query,
+  Param,
   UseGuards,
   Request,
   BadRequestException,
@@ -28,8 +29,23 @@ export class JobCreditsController {
 
   @Get('balance')
   async getBalance(@Request() req: any) {
-    const balance = await this.jobCreditsService.getBalance(req.user.userId);
-    return { balance };
+    const [balance, creditsPerAccept] = await Promise.all([
+      this.jobCreditsService.getBalance(req.user.userId),
+      this.jobCreditsService.getCreditsPerAccept(),
+    ]);
+    return { balance, creditsPerAccept };
+  }
+
+  /** Credits consumed/refunded for one booking (worker Booking Details). */
+  @Get('booking/:bookingId')
+  async getBookingCreditUsage(
+    @Request() req: any,
+    @Param('bookingId') bookingId: string,
+  ) {
+    return this.jobCreditsService.getBookingCreditUsage(
+      req.user.userId,
+      bookingId,
+    );
   }
 
   /** Credit + debit history ("where did my credits go") — newest first. */

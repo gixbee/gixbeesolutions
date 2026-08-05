@@ -48,7 +48,7 @@
         <!-- FCM: Default notification channel for background messages -->
         <meta-data
             android:name="com.google.firebase.messaging.default_notification_channel_id"
-            android:value="gixbee_high_importance" />
+            android:value="gixbee_high_importance_v2" />
         <meta-data
             android:name="com.google.firebase.messaging.default_notification_icon"
             android:resource="@mipmap/ic_launcher" />

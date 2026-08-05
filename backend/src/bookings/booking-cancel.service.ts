@@ -263,7 +263,7 @@ export class BookingCancelService {
 
       if (shouldRefundCredit && locked.operator?.id) {
         console.log(
-          `[CancelBooking] Refunding 1 job credit to worker ${locked.operator.id} due to customer cancellation`,
+          `[CancelBooking] Refunding job credit(s) to worker ${locked.operator.id} due to customer cancellation`,
         );
         await this.jobCreditsService.refundCredit(
           locked.operator.id,

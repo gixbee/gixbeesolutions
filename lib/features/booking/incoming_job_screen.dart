@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:math' as math;
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
@@ -10,6 +11,7 @@ import '../../repositories/worker_repository.dart';
 import '../../repositories/job_credits_repository.dart';
 import '../../services/socket_service.dart';
 import '../../services/location_service.dart';
+import '../../services/alert_sound_service.dart';
 import '../../theme.dart';
 import '../../shared/widgets/gx_snackbar.dart';
 import '../../shared/widgets/gx_pressable.dart';
@@ -56,8 +58,11 @@ class _IncomingJobScreenState extends ConsumerState<IncomingJobScreen>
     _startTimer();
     _socketSub =
         ref.read(socketServiceProvider).notifications.listen(_onSocketEvent);
-    // One initial reconciliation enriches FCM-minimal payloads and catches
-    // offers delivered while the socket was reconnecting.
+    // Swiggy-style loop while this accept card is on screen.
+    unawaited(ref.read(alertSoundServiceProvider).startIncomingJobAlert());
+    // Enrich FCM-minimal payloads immediately (language, description, etc.)
+    // and again shortly after in case the pending list was still settling.
+    unawaited(_refreshPendingRequests());
     Future.delayed(
       const Duration(seconds: 2),
       () => unawaited(_refreshPendingRequests()),
@@ -69,6 +74,10 @@ class _IncomingJobScreenState extends ConsumerState<IncomingJobScreen>
     WidgetsBinding.instance.removeObserver(this);
     _timer?.cancel();
     _socketSub?.cancel();
+    // Provider may already be disposed if the whole tree is tearing down.
+    try {
+      ref.read(alertSoundServiceProvider).stopIncomingJobAlert();
+    } catch (_) {}
     super.dispose();
   }
 
@@ -119,18 +128,49 @@ class _IncomingJobScreenState extends ConsumerState<IncomingJobScreen>
     return rEarth * 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a));
   }
 
-  // ── Job-credit cost ("1 credit · N left") ───────────────────────
+  // ── Job-credit cost ("N credits · remaining") ───────────────────
 
   /// Worker's current job-credit balance, fetched once when the card opens
   /// so the pro sees the COST of accepting before deciding. Null = still
   /// loading / fetch failed → the credits row is simply omitted.
   int? _creditBalance;
 
+  /// From Master Entries `job_credit_per_accept` (default 15).
+  int _creditsPerAccept = 15;
+
+  List<String> _languageList(dynamic raw) {
+    if (raw == null) return const [];
+    if (raw is List) {
+      return raw.map((e) => e.toString()).where((s) => s.isNotEmpty).toList();
+    }
+    final text = raw.toString().trim();
+    if (text.isEmpty) return const [];
+    try {
+      final decoded = jsonDecode(text);
+      if (decoded is List) {
+        return decoded
+            .map((e) => e.toString())
+            .where((s) => s.isNotEmpty)
+            .toList();
+      }
+    } catch (_) {}
+    return text
+        .split(',')
+        .map((s) => s.trim())
+        .where((s) => s.isNotEmpty)
+        .toList();
+  }
+
   Future<void> _loadCreditBalance() async {
     try {
-      final balance =
-          await ref.read(jobCreditsRepositoryProvider).getBalance();
-      if (mounted) setState(() => _creditBalance = balance);
+      final info =
+          await ref.read(jobCreditsRepositoryProvider).getBalanceInfo();
+      if (mounted) {
+        setState(() {
+          _creditBalance = info.balance;
+          _creditsPerAccept = info.creditsPerAccept;
+        });
+      }
     } catch (_) {}
   }
 
@@ -297,6 +337,8 @@ class _IncomingJobScreenState extends ConsumerState<IncomingJobScreen>
         type: GxSnackType.success,
         duration: const Duration(seconds: 4),
       );
+
+      await ref.read(alertSoundServiceProvider).stopIncomingJobAlert();
 
       // Backend auto-cancels all other pending bookings for this worker.
       Navigator.pop(context, {'accepted': true, 'bookingId': bookingId});
@@ -728,14 +770,25 @@ class _IncomingJobScreenState extends ConsumerState<IncomingJobScreen>
                             _DetailCard(
                               icon: Icons.confirmation_num_outlined,
                               label: 'Job credit',
-                              value: _creditBalance! <= 0
-                                  ? 'No credits left — buying a pack is needed to accept'
-                                  : '1 credit used on accept · ${_creditBalance! - 1} will remain',
-                              color: _creditBalance! <= 0
-                                  ? err
-                                  : _creditBalance! == 1
-                                      ? GixbeeTheme.accentGold
-                                      : GixbeeTheme.accentTeal,
+                              value: () {
+                                final bal = _creditBalance!;
+                                final cost = _creditsPerAccept;
+                                if (cost <= 0) {
+                                  return 'Accept is free (no credit charge)';
+                                }
+                                if (bal < cost) {
+                                  return 'Need $cost credit${cost == 1 ? '' : 's'} — buy a pack to accept';
+                                }
+                                final remain = bal - cost;
+                                return '$cost credit${cost == 1 ? '' : 's'} used on accept · $remain will remain';
+                              }(),
+                              color: _creditsPerAccept <= 0
+                                  ? GixbeeTheme.accentTeal
+                                  : _creditBalance! < _creditsPerAccept
+                                      ? err
+                                      : _creditBalance! == _creditsPerAccept
+                                          ? GixbeeTheme.accentGold
+                                          : GixbeeTheme.accentTeal,
                             ),
                           ],
                           // Uber-style broadcast requests carry the customer's
@@ -751,15 +804,14 @@ class _IncomingJobScreenState extends ConsumerState<IncomingJobScreen>
                             ),
                           ],
                           // v126 language step: the customer's required languages.
-                          if ((current['preferredLanguages'] as List?)
-                                  ?.isNotEmpty ??
-                              false) ...[
+                          if (_languageList(current['preferredLanguages'])
+                              .isNotEmpty) ...[
                             const SizedBox(height: 12),
                             _DetailCard(
                               icon: Icons.translate_rounded,
                               label: 'Customer speaks',
-                              value: (current['preferredLanguages'] as List)
-                                  .map((e) => e.toString())
+                              value: _languageList(
+                                      current['preferredLanguages'])
                                   .join(' · '),
                               color: GixbeeTheme.accentTeal,
                             ),

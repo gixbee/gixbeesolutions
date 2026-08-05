@@ -209,6 +209,11 @@ export class BookingLifecycleHandler {
           createdAt: p.createdAt ?? '',
           notifiedAt,
           attempt: String(attempt),
+          // Same fields as the socket payload — without these the accept
+          // card only shows language/description after a later poll enrich.
+          customer_name: p.customerName || 'Customer',
+          description: p.description ?? '',
+          preferredLanguages: JSON.stringify(p.preferredLanguages ?? []),
         },
       })
       .catch((e) => this.logger.error(`multicast failed: ${e?.message ?? e}`));

@@ -1,9 +1,11 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import '../../repositories/auth_repository.dart';
 import '../../repositories/booking_repository.dart';
 import '../../repositories/booking_status_provider.dart';
+import '../../repositories/job_credits_repository.dart';
 import '../home/active_booking_card.dart';
 import '../booking/cancel_booking_screen.dart';
 import '../booking/cancel_request_actions.dart';
@@ -207,6 +209,8 @@ class BookingDetailScreen extends ConsumerWidget {
                   _buildDetailRow(context, 'Time', DateFormat('hh:mm a').format(scheduledAt)),
                   _buildDetailRow(context, 'Total Amount', '₹${amount.toStringAsFixed(amount.truncateToDouble() == amount ? 0 : 2)}', color: GixbeeTheme.accentGold, isBig: true),
                   _buildDetailRow(context, 'Payment', paymentStatusText, color: paymentStatusColor),
+                  if (isAssignedWorker && bookingId.isNotEmpty)
+                    _WorkerCreditsUsedRow(bookingId: bookingId),
                   _buildDetailRow(context, 'Location', booking['serviceLocation'] ?? 'As specified in request'),
                 ],
               ),
@@ -650,3 +654,81 @@ class BookingDetailScreen extends ConsumerWidget {
   }
 
 }
+
+/// Worker-only row: pack credits spent on accept (from credit_transactions).
+class _WorkerCreditsUsedRow extends ConsumerStatefulWidget {
+  final String bookingId;
+
+  const _WorkerCreditsUsedRow({required this.bookingId});
+
+  @override
+  ConsumerState<_WorkerCreditsUsedRow> createState() =>
+      _WorkerCreditsUsedRowState();
+}
+
+class _WorkerCreditsUsedRowState extends ConsumerState<_WorkerCreditsUsedRow> {
+  int? _used;
+  int _refunded = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    unawaited(_load());
+  }
+
+  Future<void> _load() async {
+    final info = await ref
+        .read(jobCreditsRepositoryProvider)
+        .getBookingCreditUsage(widget.bookingId);
+    if (!mounted) return;
+    setState(() {
+      _used = (info['creditsUsed'] as num?)?.toInt() ?? 0;
+      _refunded = (info['creditsRefunded'] as num?)?.toInt() ?? 0;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_used == null || _used == 0) {
+      // Still loading, or older booking with no credit tx (don't show 0).
+      if (_used == null) return const SizedBox.shrink();
+      return const SizedBox.shrink();
+    }
+    final used = _used!;
+    final value = _refunded > 0
+        ? '$used (refunded)'
+        : '$used credit${used == 1 ? '' : 's'}';
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Credits used',
+            style: TextStyle(
+              fontSize: 14,
+              color: context.gx.ink.withValues(alpha: 0.5),
+            ),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Text(
+              value,
+              textAlign: TextAlign.right,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                color: _refunded > 0
+                    ? GixbeeTheme.accentTeal
+                    : GixbeeTheme.accentGold,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+

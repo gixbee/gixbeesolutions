@@ -8,9 +8,14 @@ import {
 } from './credit-transaction.entity';
 import { User } from '../users/user.entity';
 import { Booking } from '../bookings/booking.entity';
+import { MasterEntriesService } from '../master-entries/master-entries.service';
 
 export const CREDITS_PER_PACK = 3;
 export const PACK_PRICE_INR = 49;
+
+/** Master Entries CONFIGURATION key — admin-editable accept cost. */
+export const JOB_CREDIT_PER_ACCEPT_KEY = 'job_credit_per_accept';
+const JOB_CREDIT_PER_ACCEPT_FALLBACK = 15;
 
 @Injectable()
 export class JobCreditsService {
@@ -20,7 +25,21 @@ export class JobCreditsService {
     @InjectRepository(CreditTransaction)
     private creditTxRepo: Repository<CreditTransaction>,
     private dataSource: DataSource,
+    private masterEntriesService: MasterEntriesService,
   ) {}
+
+  /**
+   * Credits deducted on accept. From Master Entries
+   * (`job_credit_per_accept`); fallback 1. Floored at 0 (0 = free accepts).
+   */
+  async getCreditsPerAccept(): Promise<number> {
+    const raw = await this.masterEntriesService.getConfigNumber(
+      JOB_CREDIT_PER_ACCEPT_KEY,
+      JOB_CREDIT_PER_ACCEPT_FALLBACK,
+    );
+    if (!Number.isFinite(raw) || raw < 0) return JOB_CREDIT_PER_ACCEPT_FALLBACK;
+    return Math.floor(raw);
+  }
 
   async getBalance(userId: string): Promise<number> {
     return this.dataSource.transaction(async (manager) => {
@@ -39,6 +58,32 @@ export class JobCreditsService {
 
       return credit.balance;
     });
+  }
+
+  /**
+   * How many pack credits this worker spent (and got back) for one booking.
+   * Used on Booking Details — the booking entity itself does not store this.
+   */
+  async getBookingCreditUsage(
+    userId: string,
+    bookingId: string,
+  ): Promise<{ creditsUsed: number; creditsRefunded: number }> {
+    const txs = await this.creditTxRepo.find({
+      where: { user: { id: userId }, bookingId },
+    });
+    let creditsUsed = 0;
+    let creditsRefunded = 0;
+    for (const t of txs) {
+      if (t.reason === CreditTransactionReason.JOB_ACCEPTED) {
+        creditsUsed += Math.abs(t.delta);
+      } else if (
+        t.reason === CreditTransactionReason.REFUND_CUSTOMER_CANCEL ||
+        t.reason === CreditTransactionReason.REFUND_NOSHOW
+      ) {
+        creditsRefunded += Math.max(0, t.delta);
+      }
+    }
+    return { creditsUsed, creditsRefunded };
   }
 
   /**
@@ -142,25 +187,34 @@ export class JobCreditsService {
     bookingId: string,
     providedManager?: any,
   ): Promise<number> {
+    const cost = await this.getCreditsPerAccept();
+
     const execute = async (manager: any) => {
+      if (cost === 0) {
+        const credit = await manager.findOne(JobCredit, {
+          where: { user: { id: userId } },
+        });
+        return credit?.balance ?? 0;
+      }
+
       const credit = await manager.findOne(JobCredit, {
         where: { user: { id: userId } },
         lock: { mode: 'pessimistic_write' },
       });
 
-      if (!credit || credit.balance < 1) {
+      if (!credit || credit.balance < cost) {
         throw new BadRequestException(
           'No job credits left. Buy a pack to continue.',
         );
       }
 
-      credit.balance -= 1;
+      credit.balance -= cost;
       await manager.save(credit);
 
       await manager.save(
         manager.create(CreditTransaction, {
           user: { id: userId } as User,
-          delta: -1,
+          delta: -cost,
           reason: CreditTransactionReason.JOB_ACCEPTED,
           bookingId,
         }),
@@ -191,6 +245,24 @@ export class JobCreditsService {
         return; // Already refunded
       }
 
+      // Refund what was actually consumed for this booking (survives admin
+      // changing job_credit_per_accept after the accept).
+      const acceptTxs = await manager.find(CreditTransaction, {
+        where: {
+          user: { id: userId },
+          bookingId,
+          reason: CreditTransactionReason.JOB_ACCEPTED,
+        },
+        order: { createdAt: 'DESC' },
+        take: 1,
+      });
+      const acceptTx = acceptTxs[0];
+      const amount =
+        acceptTx != null
+          ? Math.abs(acceptTx.delta)
+          : await this.getCreditsPerAccept();
+      if (amount === 0) return;
+
       let credit = await manager.findOne(JobCredit, {
         where: { user: { id: userId } },
         lock: { mode: 'pessimistic_write' },
@@ -203,13 +275,13 @@ export class JobCreditsService {
         });
       }
 
-      credit.balance += 1;
+      credit.balance += amount;
       await manager.save(credit);
 
       await manager.save(
         manager.create(CreditTransaction, {
           user: { id: userId } as User,
-          delta: 1,
+          delta: amount,
           reason,
           bookingId,
         }),

@@ -13,13 +13,34 @@ class JobCreditsRepository {
 
   JobCreditsRepository(this._dio);
 
+  Future<Map<String, dynamic>> getBookingCreditUsage(String bookingId) async {
+    try {
+      final response =
+          await _dio.get('/billing/credits/booking/$bookingId');
+      return Map<String, dynamic>.from(response.data as Map);
+    } catch (e) {
+      debugPrint('JobCredits getBookingCreditUsage failed: $e');
+      return {'creditsUsed': 0, 'creditsRefunded': 0};
+    }
+  }
+
   Future<int> getBalance() async {
+    final info = await getBalanceInfo();
+    return info.balance;
+  }
+
+  /// Balance plus Master Entries accept cost (`job_credit_per_accept`).
+  Future<({int balance, int creditsPerAccept})> getBalanceInfo() async {
     try {
       final response = await _dio.get('/billing/credits/balance');
-      return response.data['balance'] as int;
+      final data = response.data as Map;
+      return (
+        balance: (data['balance'] as num?)?.toInt() ?? 0,
+        creditsPerAccept: (data['creditsPerAccept'] as num?)?.toInt() ?? 15,
+      );
     } catch (e) {
-      debugPrint('JobCredits getBalance failed: $e');
-      return 0;
+      debugPrint('JobCredits getBalanceInfo failed: $e');
+      return (balance: 0, creditsPerAccept: 15);
     }
   }
 

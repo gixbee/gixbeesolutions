@@ -261,7 +261,7 @@ class _JobPackScreenState extends ConsumerState<JobPackScreen> {
             ),
             const SizedBox(height: 24),
             Text(
-              'One job credit is consumed automatically when you accept a booking. If the customer cancels, your credit is refunded.',
+              'Job credits are consumed automatically when you accept a booking (amount set by admin). If the customer cancels, your credits are refunded.',
               style: TextStyle(
                 fontSize: 14,
                 color: context.gx.ink.withValues(alpha: 0.6),

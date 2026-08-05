@@ -16,6 +16,7 @@
  * 2. **Worker Go Live access**
  *    Job credits packs + periodic fee (`go_live_period_fee`) via **direct
  *    Razorpay** checkout (`PaymentPurpose.PERIOD_FEE`). Not a wallet hop.
+ *    Accept cost is Master Entries `job_credit_per_accept` (default 15).
  *
  * 3. **Late-cancel compensation**
  *    After 3 strikes, customer pays distance-based compensation via
