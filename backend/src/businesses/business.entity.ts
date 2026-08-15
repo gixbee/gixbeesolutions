@@ -40,12 +40,12 @@ export class Business {
   cityId: string | null;
 
   @Column({ type: 'text', nullable: true })
-  description: string;
+  description: string | null;
 
   // Optional registration / tax-ID document image uploaded during listing
   // (POST /uploads/image → URL). Persisted so admin review can see it.
   @Column({ type: 'text', nullable: true })
-  documentUrl: string;
+  documentUrl: string | null;
 
   @Column({
     type: 'enum',

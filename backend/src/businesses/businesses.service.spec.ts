@@ -27,30 +27,58 @@ function makeService(opts: { business?: any } = {}) {
     findOne: jest.fn(async () => opts.business ?? null),
   };
 
-  const service = new BusinessesService(businessRepo);
+  const redisService: any = {
+    keys: jest.fn(async () => []),
+    del: jest.fn(async () => 0),
+    get: jest.fn(async () => null),
+    set: jest.fn(async () => 'OK'),
+  };
+
+  const service = new BusinessesService(businessRepo, redisService);
   return { service, businessRepo, saved };
 }
 
 describe('BusinessesService.create', () => {
-  it('stamps the owner and forces status PENDING, then saves', async () => {
+  it('maps address → location, stamps owner, forces PENDING', async () => {
     const { service, businessRepo, saved } = makeService();
 
     const result = await service.create('owner-1', {
       name: 'Acme Halls',
-      location: 'Pune',
-      status: 'VERIFIED' as any, // caller cannot self-approve
-    });
+      type: 'SERVICE',
+      address: '  Koregaon Park, Pune  ',
+      specialty: 'Halls',
+      phone: '+919900112233',
+    } as any);
 
     expect(businessRepo.create).toHaveBeenCalledWith(
       expect.objectContaining({
         name: 'Acme Halls',
-        location: 'Pune',
+        type: 'SERVICE',
+        location: 'Koregaon Park, Pune',
         owner: { id: 'owner-1' },
         status: 'PENDING',
       }),
     );
+    expect(businessRepo.create).toHaveBeenCalledWith(
+      expect.not.objectContaining({
+        address: expect.anything(),
+        specialty: expect.anything(),
+        phone: expect.anything(),
+      }),
+    );
     expect(result.status).toBe('PENDING');
     expect(saved).toHaveLength(1);
+  });
+
+  it('rejects blank address so admin review is never empty', async () => {
+    const { service } = makeService();
+    await expect(
+      service.create('owner-1', {
+        name: 'Acme',
+        type: 'HIRING',
+        address: '   ',
+      } as any),
+    ).rejects.toMatchObject({ message: 'address is required' });
   });
 });
 
@@ -97,7 +125,7 @@ describe('BusinessesService.addOperator', () => {
     const biz: any = { id: 'b1', owner: { id: 'o1' }, operatorIds: ['u1'] };
     const { service, saved } = makeService({ business: biz });
 
-    const result = await service.addOperator('b1', 'u2');
+    const result = await service.addOperator('b1', 'u2', 'o1');
 
     expect(result.operatorIds).toEqual(['u1', 'u2']);
     expect(saved).toHaveLength(1);
@@ -107,7 +135,7 @@ describe('BusinessesService.addOperator', () => {
     const biz: any = { id: 'b1', owner: { id: 'o1' }, operatorIds: null };
     const { service, saved } = makeService({ business: biz });
 
-    const result = await service.addOperator('b1', 'u1');
+    const result = await service.addOperator('b1', 'u1', 'o1');
 
     expect(result.operatorIds).toEqual(['u1']);
     expect(saved).toHaveLength(1);
@@ -117,7 +145,7 @@ describe('BusinessesService.addOperator', () => {
     const biz: any = { id: 'b1', owner: { id: 'o1' }, operatorIds: ['u1'] };
     const { service, saved } = makeService({ business: biz });
 
-    const result = await service.addOperator('b1', 'u1');
+    const result = await service.addOperator('b1', 'u1', 'o1');
 
     expect(result.operatorIds).toEqual(['u1']);
     expect(saved).toHaveLength(0);
@@ -133,7 +161,7 @@ describe('BusinessesService.addOfflineDay', () => {
     };
     const { service, saved } = makeService({ business: biz });
 
-    const result = await service.addOfflineDay('b1', '2026-06-19');
+    const result = await service.addOfflineDay('b1', '2026-06-19', 'o1');
 
     expect(result.offlineDays).toEqual(['2026-06-18', '2026-06-19']);
     expect(saved).toHaveLength(1);
@@ -143,7 +171,7 @@ describe('BusinessesService.addOfflineDay', () => {
     const biz: any = { id: 'b1', owner: { id: 'o1' }, offlineDays: null };
     const { service, saved } = makeService({ business: biz });
 
-    const result = await service.addOfflineDay('b1', '2026-06-19');
+    const result = await service.addOfflineDay('b1', '2026-06-19', 'o1');
 
     expect(result.offlineDays).toEqual(['2026-06-19']);
     expect(saved).toHaveLength(1);
@@ -157,7 +185,7 @@ describe('BusinessesService.addOfflineDay', () => {
     };
     const { service, saved } = makeService({ business: biz });
 
-    const result = await service.addOfflineDay('b1', '2026-06-18');
+    const result = await service.addOfflineDay('b1', '2026-06-18', 'o1');
 
     expect(result.offlineDays).toEqual(['2026-06-18']);
     expect(saved).toHaveLength(0);
@@ -173,7 +201,7 @@ describe('BusinessesService.removeOfflineDay', () => {
     };
     const { service, saved } = makeService({ business: biz });
 
-    const result = await service.removeOfflineDay('b1', '2026-06-18');
+    const result = await service.removeOfflineDay('b1', '2026-06-18', 'o1');
 
     expect(result.offlineDays).toEqual(['2026-06-19']);
     expect(saved).toHaveLength(1);
@@ -187,7 +215,7 @@ describe('BusinessesService.removeOfflineDay', () => {
     };
     const { service, saved } = makeService({ business: biz });
 
-    const result = await service.removeOfflineDay('b1', '2026-06-20');
+    const result = await service.removeOfflineDay('b1', '2026-06-99', 'o1');
 
     expect(result.offlineDays).toEqual(['2026-06-18']);
     expect(saved).toHaveLength(0);
@@ -197,7 +225,7 @@ describe('BusinessesService.removeOfflineDay', () => {
     const biz: any = { id: 'b1', owner: { id: 'o1' }, offlineDays: null };
     const { service, saved } = makeService({ business: biz });
 
-    const result = await service.removeOfflineDay('b1', '2026-06-20');
+    const result = await service.removeOfflineDay('b1', '2026-06-18', 'o1');
 
     expect(result.offlineDays).toBeNull();
     expect(saved).toHaveLength(0);

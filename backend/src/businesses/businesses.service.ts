@@ -10,6 +10,7 @@ import { Business } from './business.entity';
 import { User } from '../users/user.entity';
 import { RedisService } from '../redis/redis.service';
 import { stripPrivateFields } from '../common/sanitize';
+import { CreateBusinessDto } from './dto/create-business.dto';
 
 @Injectable()
 export class BusinessesService {
@@ -32,9 +33,24 @@ export class BusinessesService {
     }
   }
 
-  async create(ownerId: string, data: Partial<Business>): Promise<Business> {
+  /**
+   * Flutter sends free-text `address`; the entity column is `location`
+   * (admin portal reads `b.location`). Client-only fields specialty/phone
+   * are intentionally dropped — they are not schema columns.
+   */
+  async create(ownerId: string, data: CreateBusinessDto): Promise<Business> {
+    const location = (data.address ?? '').trim();
+    if (!location) {
+      throw new BadRequestException('address is required');
+    }
+
     const business = this.businessRepo.create({
-      ...data,
+      name: data.name.trim(),
+      type: data.type,
+      description: data.description?.trim() || null,
+      documentUrl: data.documentUrl ?? null,
+      cityId: data.cityId ?? null,
+      location,
       owner: { id: ownerId } as User,
       status: 'PENDING',
     });

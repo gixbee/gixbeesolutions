@@ -128,7 +128,9 @@ class _ListBusinessDetailsScreenState
   }
 
   void _submit() async {
-    if (_nameCtrl.text.isEmpty || _phoneCtrl.text.isEmpty) {
+    if (_nameCtrl.text.isEmpty ||
+        _phoneCtrl.text.isEmpty ||
+        _addressCtrl.text.trim().isEmpty) {
       showGxSnack(context, 'Please fill all required fields');
       return;
     }

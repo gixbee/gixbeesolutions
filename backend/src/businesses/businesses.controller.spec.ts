@@ -33,7 +33,11 @@ function makeController() {
 describe('BusinessesController.create', () => {
   it('injects req.user.userId as the owner and forwards the body', async () => {
     const { controller, service } = makeController();
-    const body = { name: 'Acme Plumbing', type: 'SERVICE' };
+    const body = {
+      name: 'Acme Plumbing',
+      type: 'SERVICE',
+      address: 'MG Road, Pune',
+    };
     const res = await controller.create({ user: { userId: 'owner-7' } }, body);
     expect(service.create).toHaveBeenCalledWith('owner-7', body);
     expect(res).toEqual({ id: 'b1', ownerId: 'owner-7', ...body });

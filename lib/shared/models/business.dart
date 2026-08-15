@@ -49,7 +49,9 @@ class Business {
       description: json['description'],
       specialty: json['specialty'],
       phone: json['phone'],
-      address: json['address'],
+      // Backend persists free-text as `location`; create payload still uses
+      // `address`. Prefer address when present, else map location for reads.
+      address: json['address'] ?? json['location'],
       documentUrl: json['documentUrl'],
       cityId: json['cityId'],
       ownerId: json['owner']?['id'] ?? json['ownerId'] ?? '',
