@@ -3,6 +3,8 @@ import {
   BadRequestException,
   ForbiddenException,
   Logger,
+  Inject,
+  forwardRef,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -17,10 +19,12 @@ import { WalletsService } from '../wallets/wallets.service';
 import { MasterEntriesService } from '../master-entries/master-entries.service';
 import { WorkersService } from '../workers/workers.service';
 import { BookingsService } from '../bookings/bookings.service';
+import { MatchingService } from '../hiring/matching/matching.service';
 import {
   WALLET_PAYMENTS_ENABLED,
   WalletPaymentsDisabledError,
 } from '../common/money-model';
+import { NoticePeriod } from '../hiring/matching/job-preference.entity';
 
 /**
  * Razorpay wallet-recharge integration.
@@ -52,6 +56,8 @@ export class PaymentsService {
     private readonly masterEntriesService: MasterEntriesService,
     private readonly workersService: WorkersService,
     private readonly bookingsService: BookingsService,
+    @Inject(forwardRef(() => MatchingService))
+    private readonly matchingService: MatchingService,
   ) {}
 
   private get keyId(): string {
@@ -179,10 +185,151 @@ export class PaymentsService {
     );
   }
 
+  /**
+   * Employer Smart Hiring match fee — amount = fee − hiring credit.
+   * Webhook starts the 24 h matching engine.
+   */
+  async createHiringMatchOrder(
+    userId: string,
+    body: {
+      jobType: string;
+      skills?: string[];
+      location?: string;
+      salaryOffered: number;
+      experienceMinYears?: number;
+      vacancies: number;
+    },
+  ): Promise<{
+    orderId: string;
+    amount: number;
+    currency: string;
+    keyId: string;
+    fee: number;
+    creditApplied: number;
+    amountDue: number;
+  }> {
+    const jobType = (body.jobType || '').trim();
+    if (!jobType) throw new BadRequestException('jobType is required');
+    if (!(Number(body.salaryOffered) > 0)) {
+      throw new BadRequestException('salaryOffered (₹/month) is required');
+    }
+    const vacancies = Math.max(1, Math.round(Number(body.vacancies) || 1));
+    const quote = await this.matchingService.quoteMatchFee(userId, vacancies);
+    if (quote.amountDue <= 0) {
+      throw new BadRequestException(
+        'No payment due — create the hiring request directly (credit covers the fee).',
+      );
+    }
+    const order = await this.createOrder(
+      userId,
+      quote.amountDue,
+      PaymentPurpose.HIRING_MATCH_FEE,
+      {
+        jobType,
+        skills: body.skills ?? [],
+        location: body.location,
+        salaryOffered: Number(body.salaryOffered),
+        experienceMinYears: body.experienceMinYears ?? 0,
+        vacancies,
+        fee: quote.fee,
+        creditApplied: quote.creditApplied,
+      },
+    );
+    return { ...order, ...quote };
+  }
+
+  /** Candidate 3rd+ Job Type — ₹50/month. Webhook creates the preference. */
+  async createExtraJobTypeOrder(
+    userId: string,
+    body: {
+      jobType: string;
+      skills?: string[];
+      preferredLocation?: string;
+      expectedSalary?: number;
+      experienceYears?: number;
+      noticePeriod?: NoticePeriod;
+    },
+  ): Promise<{
+    orderId: string;
+    amount: number;
+    currency: string;
+    keyId: string;
+  }> {
+    const jobType = (body.jobType || '').trim();
+    if (!jobType) throw new BadRequestException('jobType is required');
+    const existing = await this.matchingService.listMyPreferences(userId);
+    if (existing.length < 2) {
+      throw new BadRequestException(
+        'Your first two Job Types are free — create them without payment.',
+      );
+    }
+    if (
+      existing.some((p) => p.jobType.toLowerCase() === jobType.toLowerCase())
+    ) {
+      throw new BadRequestException(
+        'You already have a profile for this Job Type',
+      );
+    }
+    return this.createOrder(
+      userId,
+      50,
+      PaymentPurpose.EXTRA_JOB_TYPE_FEE,
+      {
+        jobType,
+        skills: body.skills ?? [],
+        preferredLocation: body.preferredLocation,
+        expectedSalary: body.expectedSalary ?? 0,
+        experienceYears: body.experienceYears ?? 0,
+        noticePeriod: body.noticePeriod ?? NoticePeriod.IMMEDIATE,
+      },
+    );
+  }
+
+  /** Refund a captured hiring-match payment (guarantee REFUND remedy). */
+  async refundHiringMatchPayment(
+    razorpayPaymentId: string,
+    amountRupees: number,
+  ): Promise<void> {
+    if (!this.razorpayConfigured) {
+      throw new BadRequestException(
+        'Cannot refund — payment gateway is not configured.',
+      );
+    }
+    const paise = Math.round(Number(amountRupees) * 100);
+    if (!(paise > 0)) return;
+    const auth = Buffer.from(`${this.keyId}:${this.keySecret}`).toString(
+      'base64',
+    );
+    const res = await fetch(
+      `https://api.razorpay.com/v1/payments/${razorpayPaymentId}/refund`,
+      {
+        method: 'POST',
+        headers: {
+          Authorization: `Basic ${auth}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ amount: paise }),
+      },
+    );
+    if (!res.ok) {
+      const detail = await res.text().catch(() => '');
+      this.logger.error(
+        `[Razorpay] refund failed (${res.status}): ${detail.slice(0, 500)}`,
+      );
+      throw new BadRequestException(
+        'Refund could not be processed automatically — support will complete it.',
+      );
+    }
+    this.logger.log(
+      `[Razorpay] refunded ₹${amountRupees} on payment ${razorpayPaymentId}`,
+    );
+  }
+
   private async createOrder(
     userId: string,
     rupees: number,
     purpose: PaymentPurpose,
+    meta?: Record<string, unknown>,
   ): Promise<{
     orderId: string;
     amount: number;
@@ -194,6 +341,17 @@ export class PaymentsService {
         'Online payment is not available yet — payment gateway is not configured on the server.',
       );
     }
+
+    const receiptPrefix =
+      purpose === PaymentPurpose.PERIOD_FEE
+        ? 'fee'
+        : purpose === PaymentPurpose.LATE_CANCEL_COMPENSATION
+          ? 'lcc'
+          : purpose === PaymentPurpose.HIRING_MATCH_FEE
+            ? 'hmf'
+            : purpose === PaymentPurpose.EXTRA_JOB_TYPE_FEE
+              ? 'ejt'
+              : 'rcg';
 
     const auth = Buffer.from(`${this.keyId}:${this.keySecret}`).toString(
       'base64',
@@ -207,13 +365,7 @@ export class PaymentsService {
       body: JSON.stringify({
         amount: rupees * 100, // paise
         currency: 'INR',
-        receipt: `${
-          purpose === PaymentPurpose.PERIOD_FEE
-            ? 'fee'
-            : purpose === PaymentPurpose.LATE_CANCEL_COMPENSATION
-              ? 'lcc'
-              : 'rcg'
-        }_${Date.now().toString(36)}`,
+        receipt: `${receiptPrefix}_${Date.now().toString(36)}`,
         notes: { gixbeeUserId: userId, purpose },
       }),
     });
@@ -236,6 +388,7 @@ export class PaymentsService {
         razorpayOrderId: order.id,
         purpose,
         status: PaymentOrderStatus.CREATED,
+        meta: meta ?? null,
       }),
     );
 
@@ -367,6 +520,77 @@ export class PaymentsService {
           .catch(() => {});
         this.logger.error(
           `[Razorpay] ${orderId}: late-cancel compensation FAILED — claim reverted: ${
+            (e as Error)?.message ?? e
+          }`,
+        );
+        throw e;
+      }
+      return { ok: true };
+    }
+
+    if (order.purpose === PaymentPurpose.HIRING_MATCH_FEE) {
+      try {
+        const meta = (order.meta ?? {}) as Record<string, any>;
+        await this.matchingService.createRequestFromPayment(
+          order.userId,
+          {
+            jobType: String(meta.jobType ?? ''),
+            skills: Array.isArray(meta.skills) ? meta.skills : [],
+            location: meta.location,
+            salaryOffered: Number(meta.salaryOffered) || 0,
+            experienceMinYears: Number(meta.experienceMinYears) || 0,
+            vacancies: Number(meta.vacancies) || 1,
+          },
+          {
+            feeAmount: Number(meta.fee) || Number(order.amount),
+            creditApplied: Number(meta.creditApplied) || 0,
+            paymentOrderId: order.id,
+            razorpayPaymentId: order.razorpayPaymentId,
+          },
+        );
+        this.logger.log(
+          `[Razorpay] ${orderId}: hiring match fee ₹${order.amount} — request started for ${order.userId}`,
+        );
+      } catch (e) {
+        await this.ordersRepo
+          .update(
+            { razorpayOrderId: orderId },
+            { status: PaymentOrderStatus.CREATED, razorpayPaymentId: null },
+          )
+          .catch(() => {});
+        this.logger.error(
+          `[Razorpay] ${orderId}: hiring-match fulfilment FAILED — claim reverted: ${
+            (e as Error)?.message ?? e
+          }`,
+        );
+        throw e;
+      }
+      return { ok: true };
+    }
+
+    if (order.purpose === PaymentPurpose.EXTRA_JOB_TYPE_FEE) {
+      try {
+        const meta = (order.meta ?? {}) as Record<string, any>;
+        await this.matchingService.createPreferenceFromPayment(order.userId, {
+          jobType: String(meta.jobType ?? ''),
+          skills: Array.isArray(meta.skills) ? meta.skills : [],
+          preferredLocation: meta.preferredLocation,
+          expectedSalary: Number(meta.expectedSalary) || 0,
+          experienceYears: Number(meta.experienceYears) || 0,
+          noticePeriod: meta.noticePeriod as NoticePeriod | undefined,
+        });
+        this.logger.log(
+          `[Razorpay] ${orderId}: extra Job Type fee ₹${order.amount} — preference created for ${order.userId}`,
+        );
+      } catch (e) {
+        await this.ordersRepo
+          .update(
+            { razorpayOrderId: orderId },
+            { status: PaymentOrderStatus.CREATED, razorpayPaymentId: null },
+          )
+          .catch(() => {});
+        this.logger.error(
+          `[Razorpay] ${orderId}: extra-job-type fulfilment FAILED — claim reverted: ${
             (e as Error)?.message ?? e
           }`,
         );

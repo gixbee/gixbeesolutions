@@ -62,6 +62,13 @@ export class HiringController {
     return this.hiringService.getMatchedJobs(req.user.userId);
   }
 
+  /** Employer's own job posts (classic board) — for Candidates picker. */
+  @UseGuards(JwtAuthGuard)
+  @Get('my-jobs')
+  async getMyJobs(@Req() req: any) {
+    return this.hiringService.getMyJobPosts(req.user.userId);
+  }
+
   @Get('jobs/:id')
   async getJobById(@Param('id') id: string) {
     return this.hiringService.getJobById(id);

@@ -14,7 +14,10 @@ import '../../shared/widgets/gx_text_field.dart';
 import '../../theme.dart';
 import '../jobs/post_job_screen.dart';
 import 'hiring_pipeline_screen.dart';
+import 'hire_employee_screen.dart';
+import 'hiring_requests_screen.dart';
 import 'list_business_type_screen.dart';
+import '../../repositories/matching_repository.dart';
 
 /// The signed-in owner's businesses. autoDispose so it re-fetches on each visit
 /// and after add-operator / mark-offline mutations invalidate it.
@@ -181,14 +184,56 @@ class _BusinessCard extends ConsumerWidget {
             ),
             const SizedBox(height: 18),
             // Type-specific action buttons
-            Row(
-              children: [
-                if (_isHiring) ...[
+            if (_isHiring) ...[
+              Row(
+                children: [
+                  Expanded(
+                    child: _BizAction(
+                      icon: Icons.bolt_outlined,
+                      label: 'Hire Employee',
+                      primary: true,
+                      onTap: () {
+                        if (business.status != 'VERIFIED') {
+                          showGxSnack(
+                            context,
+                            'Verify your hiring business first (usually within 24h).',
+                            type: GxSnackType.error,
+                          );
+                          return;
+                        }
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const HireEmployeeScreen(),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: _BizAction(
+                      icon: Icons.inbox_outlined,
+                      label: 'Requests',
+                      primary: false,
+                      onTap: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const HiringRequestsScreen(),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 10),
+              Row(
+                children: [
                   Expanded(
                     child: _BizAction(
                       icon: Icons.add,
-                      label: 'Post Job',
-                      primary: true,
+                      label: 'Post on board',
+                      primary: false,
                       onTap: () => Navigator.push(
                         context,
                         MaterialPageRoute(
@@ -201,20 +246,16 @@ class _BusinessCard extends ConsumerWidget {
                   Expanded(
                     child: _BizAction(
                       icon: Icons.people_outline,
-                      label: 'Candidates',
+                      label: 'Board apps',
                       primary: false,
-                      onTap: () => Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => const HiringPipelineScreen(
-                            jobId: 'all',
-                            jobTitle: 'All Active Postings',
-                          ),
-                        ),
-                      ),
+                      onTap: () => _openClassicCandidates(context, ref),
                     ),
                   ),
-                ] else ...[
+                ],
+              ),
+            ] else ...[
+              Row(
+                children: [
                   Expanded(
                     child: _BizAction(
                       icon: Icons.calendar_month,
@@ -233,12 +274,72 @@ class _BusinessCard extends ConsumerWidget {
                     ),
                   ),
                 ],
-              ],
-            ),
+              ),
+            ],
           ],
         ),
       ),
     );
+  }
+
+  /// Classic job-board applications — pick a real job id (never `all`).
+  Future<void> _openClassicCandidates(
+      BuildContext context, WidgetRef ref) async {
+    try {
+      final jobs =
+          await ref.read(matchingRepositoryProvider).listMyJobPosts();
+      if (!context.mounted) return;
+      if (jobs.isEmpty) {
+        showGxSnack(
+          context,
+          'No board posts yet — use Post on board first.',
+          type: GxSnackType.error,
+        );
+        return;
+      }
+      if (jobs.length == 1) {
+        final j = jobs.first;
+        await Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => HiringPipelineScreen(
+              jobId: j['id'].toString(),
+              jobTitle: '${j['title'] ?? 'Job'}',
+            ),
+          ),
+        );
+        return;
+      }
+      final picked = await showGxSheet<Map<String, dynamic>>(
+        context,
+        title: 'Select job post',
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            for (final j in jobs)
+              ListTile(
+                title: Text('${j['title'] ?? 'Job'}'),
+                subtitle: Text('${j['jobType'] ?? ''} · ${j['location'] ?? ''}'),
+                onTap: () => Navigator.pop(context, j),
+              ),
+          ],
+        ),
+      );
+      if (picked == null || !context.mounted) return;
+      await Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => HiringPipelineScreen(
+            jobId: picked['id'].toString(),
+            jobTitle: '${picked['title'] ?? 'Job'}',
+          ),
+        ),
+      );
+    } catch (e) {
+      if (!context.mounted) return;
+      showGxSnack(context, 'Could not load posts: $e',
+          type: GxSnackType.error);
+    }
   }
 
   // ── Calendar: pick a free day to mark the unit offline. Existing offline

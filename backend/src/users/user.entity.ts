@@ -49,6 +49,14 @@ export class User {
   @Column({ type: 'decimal', precision: 10, scale: 2, default: 0 })
   walletBalance: number;
 
+  /**
+   * Smart Hiring guarantee CREDIT balance (₹). Separate from wallet — used
+   * only to pay the next match fee while WALLET_PAYMENTS_ENABLED is false.
+   */
+  @Exclude()
+  @Column({ type: 'decimal', precision: 10, scale: 2, default: 0 })
+  hiringCreditBalance: number;
+
   @Column({ default: false })
   isVerified: boolean;
 

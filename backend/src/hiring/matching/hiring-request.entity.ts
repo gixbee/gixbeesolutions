@@ -66,9 +66,21 @@ export class HiringRequest {
   @Column({ type: 'int', default: 3 })
   targetInterested: number;
 
-  /** Fee charged from the employer's wallet at creation (₹). */
+  /** Fee charged at creation (₹) — Razorpay and/or hiring credit. */
   @Column({ type: 'decimal', precision: 10, scale: 2, default: 0 })
   feeAmount: number;
+
+  /** Portion covered by hiring credit at creation (₹). */
+  @Column({ type: 'decimal', precision: 10, scale: 2, default: 0 })
+  creditApplied: number;
+
+  /** payment_orders.id when paid via Razorpay (for guarantee refunds). */
+  @Column({ type: 'uuid', nullable: true })
+  paymentOrderId: string | null;
+
+  /** Razorpay payment id captured on the order (refund target). */
+  @Column({ type: 'varchar', nullable: true })
+  razorpayPaymentId: string | null;
 
   @Column({
     type: 'enum',

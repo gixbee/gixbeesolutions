@@ -1,0 +1,588 @@
+import 'package:dio/dio.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/intl.dart';
+import 'package:razorpay_flutter/razorpay_flutter.dart';
+
+import '../../core/config/app_config.dart';
+import '../../repositories/auth_repository.dart';
+import '../../repositories/matching_repository.dart';
+import '../../shared/widgets/dribbble_background.dart';
+import '../../shared/widgets/gx_button.dart';
+import '../../shared/widgets/gx_empty.dart';
+import '../../shared/widgets/gx_snackbar.dart';
+import '../../theme.dart';
+
+/// Candidate Job Type preference profiles (FRD: first 2 free, +₹50/mo after).
+class JobTypesScreen extends ConsumerStatefulWidget {
+  const JobTypesScreen({super.key});
+
+  @override
+  ConsumerState<JobTypesScreen> createState() => _JobTypesScreenState();
+}
+
+class _JobTypesScreenState extends ConsumerState<JobTypesScreen> {
+  List<Map<String, dynamic>> _prefs = [];
+  bool _loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    setState(() => _loading = true);
+    try {
+      final list =
+          await ref.read(matchingRepositoryProvider).listPreferences();
+      if (!mounted) return;
+      setState(() {
+        _prefs = list;
+        _loading = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _loading = false);
+      showGxSnack(context, 'Could not load Job Types: $e',
+          type: GxSnackType.error);
+    }
+  }
+
+  Future<void> _openForm({Map<String, dynamic>? existing}) async {
+    final changed = await Navigator.push<bool>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => JobTypeFormScreen(
+          existing: existing,
+          freeSlotsLeft: (2 - _prefs.length).clamp(0, 2),
+        ),
+      ),
+    );
+    if (changed == true) _load();
+  }
+
+  Future<void> _delete(Map<String, dynamic> pref) async {
+    final id = pref['id']?.toString();
+    if (id == null) return;
+    try {
+      await ref.read(matchingRepositoryProvider).deletePreference(id);
+      if (!mounted) return;
+      showGxSnack(context, 'Job Type removed', type: GxSnackType.success);
+      _load();
+    } on DioException catch (e) {
+      final msg = e.response?.data is Map
+          ? (e.response!.data['message']?.toString() ?? e.message)
+          : e.message;
+      if (!mounted) return;
+      showGxSnack(context, msg ?? 'Could not delete', type: GxSnackType.error);
+    } catch (e) {
+      if (!mounted) return;
+      showGxSnack(context, '$e', type: GxSnackType.error);
+    }
+  }
+
+  int _daysUntilDeletable(Map<String, dynamic> pref) {
+    final created = DateTime.tryParse(pref['createdAt']?.toString() ?? '');
+    if (created == null) return 7;
+    final unlock = created.add(const Duration(days: 7));
+    final left = unlock.difference(DateTime.now()).inDays;
+    return left < 0 ? 0 : left + (unlock.isAfter(DateTime.now()) ? 1 : 0);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return SafeArea(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    'Job Types',
+                    style: TextStyle(
+                      fontSize: 22,
+                      fontWeight: FontWeight.w900,
+                      color: context.gx.ink,
+                    ),
+                  ),
+                ),
+                Text(
+                  '${_prefs.length}/2 free',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    color: context.gx.ink.withValues(alpha: 0.5),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            child: Text(
+              'Create profiles the matcher uses. Job Type name locks after save; delete only after 7 days. Extra profiles cost ₹50/month.',
+              style: TextStyle(
+                fontSize: 13,
+                height: 1.35,
+                color: context.gx.ink.withValues(alpha: 0.55),
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
+          Expanded(
+            child: _loading
+                ? const Center(child: CircularProgressIndicator())
+                : RefreshIndicator(
+                    onRefresh: _load,
+                    child: _prefs.isEmpty
+                        ? ListView(
+                            physics: const AlwaysScrollableScrollPhysics(),
+                            children: const [
+                              SizedBox(height: 80),
+                              GxEmptyState(
+                                icon: Icons.badge_outlined,
+                                title: 'No Job Types yet',
+                                message:
+                                    'Add up to 2 free profiles so employers can match you.',
+                                accent: GixbeeTheme.accentGreen,
+                              ),
+                            ],
+                          )
+                        : ListView.builder(
+                            padding: const EdgeInsets.fromLTRB(16, 8, 16, 96),
+                            itemCount: _prefs.length,
+                            itemBuilder: (_, i) {
+                              final p = _prefs[i];
+                              final days = _daysUntilDeletable(p);
+                              return Padding(
+                                padding: const EdgeInsets.only(bottom: 12),
+                                child: Material(
+                                  color: context.gx.card,
+                                  borderRadius: BorderRadius.circular(16),
+                                  child: InkWell(
+                                    borderRadius: BorderRadius.circular(16),
+                                    onTap: () => _openForm(existing: p),
+                                    child: Padding(
+                                      padding: const EdgeInsets.all(16),
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Row(
+                                            children: [
+                                              Expanded(
+                                                child: Text(
+                                                  '${p['jobType'] ?? ''}',
+                                                  style: TextStyle(
+                                                    fontWeight: FontWeight.w800,
+                                                    fontSize: 16,
+                                                    color: context.gx.ink,
+                                                  ),
+                                                ),
+                                              ),
+                                              if (p['isPaid'] == true)
+                                                Container(
+                                                  padding:
+                                                      const EdgeInsets.symmetric(
+                                                          horizontal: 8,
+                                                          vertical: 3),
+                                                  decoration: BoxDecoration(
+                                                    color: GixbeeTheme
+                                                        .accentGreen
+                                                        .withValues(alpha: 0.15),
+                                                    borderRadius:
+                                                        BorderRadius.circular(8),
+                                                  ),
+                                                  child: const Text(
+                                                    'PAID',
+                                                    style: TextStyle(
+                                                      fontSize: 10,
+                                                      fontWeight: FontWeight.w800,
+                                                      color: GixbeeTheme
+                                                          .accentGreen,
+                                                    ),
+                                                  ),
+                                                ),
+                                            ],
+                                          ),
+                                          const SizedBox(height: 6),
+                                          Text(
+                                            [
+                                              if ((p['preferredLocation'] ?? '')
+                                                  .toString()
+                                                  .isNotEmpty)
+                                                '${p['preferredLocation']}',
+                                              if (p['expectedSalary'] != null)
+                                                '₹${p['expectedSalary']}/mo',
+                                              '${p['experienceYears'] ?? 0} yrs',
+                                              '${p['noticePeriod'] ?? 'IMMEDIATE'}',
+                                            ].join(' · '),
+                                            style: TextStyle(
+                                              fontSize: 12,
+                                              color: context.gx.ink
+                                                  .withValues(alpha: 0.55),
+                                            ),
+                                          ),
+                                          if ((p['skills'] as List?)
+                                                  ?.isNotEmpty ==
+                                              true) ...[
+                                            const SizedBox(height: 8),
+                                            Wrap(
+                                              spacing: 6,
+                                              runSpacing: 6,
+                                              children: [
+                                                for (final s
+                                                    in (p['skills'] as List)
+                                                        .take(6))
+                                                  Chip(
+                                                    label: Text('$s'),
+                                                    visualDensity:
+                                                        VisualDensity.compact,
+                                                    materialTapTargetSize:
+                                                        MaterialTapTargetSize
+                                                            .shrinkWrap,
+                                                  ),
+                                              ],
+                                            ),
+                                          ],
+                                          const SizedBox(height: 10),
+                                          Row(
+                                            children: [
+                                              Text(
+                                                days > 0
+                                                    ? 'Delete in $days day${days == 1 ? '' : 's'}'
+                                                    : 'Can delete',
+                                                style: TextStyle(
+                                                  fontSize: 11,
+                                                  color: context.gx.ink
+                                                      .withValues(alpha: 0.4),
+                                                ),
+                                              ),
+                                              const Spacer(),
+                                              TextButton(
+                                                onPressed: days > 0
+                                                    ? null
+                                                    : () => _delete(p),
+                                                child: const Text('Delete'),
+                                              ),
+                                            ],
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
+                  ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
+            child: GxButton(
+              label: _prefs.length >= 2
+                  ? 'Add Job Type (₹50/mo)'
+                  : 'Add Job Type',
+              accent: GixbeeTheme.accentGreen,
+              onTap: () => _openForm(),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class JobTypeFormScreen extends ConsumerStatefulWidget {
+  final Map<String, dynamic>? existing;
+  final int freeSlotsLeft;
+
+  const JobTypeFormScreen({
+    super.key,
+    this.existing,
+    this.freeSlotsLeft = 2,
+  });
+
+  @override
+  ConsumerState<JobTypeFormScreen> createState() => _JobTypeFormScreenState();
+}
+
+class _JobTypeFormScreenState extends ConsumerState<JobTypeFormScreen> {
+  final _jobTypeCtrl = TextEditingController();
+  final _locationCtrl = TextEditingController();
+  final _salaryCtrl = TextEditingController();
+  final _expCtrl = TextEditingController();
+  final _skillCtrl = TextEditingController();
+  final Set<String> _skills = {};
+  String _notice = 'IMMEDIATE';
+  bool _saving = false;
+  Razorpay? _razorpay;
+  Map<String, dynamic>? _pendingPaidBody;
+
+  bool get _isEdit => widget.existing != null;
+
+  static const _noticeOptions = [
+    'IMMEDIATE',
+    'DAYS_15',
+    'DAYS_30',
+    'DAYS_60',
+    'DAYS_90',
+  ];
+
+  @override
+  void initState() {
+    super.initState();
+    final e = widget.existing;
+    if (e != null) {
+      _jobTypeCtrl.text = '${e['jobType'] ?? ''}';
+      _locationCtrl.text = '${e['preferredLocation'] ?? ''}';
+      _salaryCtrl.text = e['expectedSalary'] != null
+          ? '${e['expectedSalary']}'
+          : '';
+      _expCtrl.text = '${e['experienceYears'] ?? 0}';
+      _notice = '${e['noticePeriod'] ?? 'IMMEDIATE'}';
+      _skills.addAll(
+          (e['skills'] as List? ?? []).map((s) => s.toString()));
+    }
+  }
+
+  @override
+  void dispose() {
+    _razorpay?.clear();
+    _jobTypeCtrl.dispose();
+    _locationCtrl.dispose();
+    _salaryCtrl.dispose();
+    _expCtrl.dispose();
+    _skillCtrl.dispose();
+    super.dispose();
+  }
+
+  Map<String, dynamic> _body() => {
+        'jobType': _jobTypeCtrl.text.trim(),
+        'skills': _skills.toList(),
+        'preferredLocation': _locationCtrl.text.trim(),
+        if (int.tryParse(_salaryCtrl.text.trim()) != null)
+          'expectedSalary': int.parse(_salaryCtrl.text.trim()),
+        if (int.tryParse(_expCtrl.text.trim()) != null)
+          'experienceYears': int.parse(_expCtrl.text.trim()),
+        'noticePeriod': _notice,
+      };
+
+  Future<void> _save() async {
+    if (_jobTypeCtrl.text.trim().isEmpty) {
+      showGxSnack(context, 'Job Type is required', type: GxSnackType.error);
+      return;
+    }
+    setState(() => _saving = true);
+    final repo = ref.read(matchingRepositoryProvider);
+    try {
+      if (_isEdit) {
+        final id = widget.existing!['id'].toString();
+        final body = _body()..remove('jobType'); // immutable
+        await repo.updatePreference(id, body);
+        if (!mounted) return;
+        Navigator.pop(context, true);
+        return;
+      }
+
+      final result = await repo.createPreference(_body());
+      if (result['needsPayment'] == true) {
+        await _payExtraJobType(_body());
+        return;
+      }
+      if (!mounted) return;
+      Navigator.pop(context, true);
+    } on DioException catch (e) {
+      final msg = e.response?.data is Map
+          ? (e.response!.data['message']?.toString() ?? e.message)
+          : e.message;
+      if (!mounted) return;
+      showGxSnack(context, msg ?? 'Save failed', type: GxSnackType.error);
+      setState(() => _saving = false);
+    } catch (e) {
+      if (!mounted) return;
+      showGxSnack(context, '$e', type: GxSnackType.error);
+      setState(() => _saving = false);
+    }
+  }
+
+  Future<void> _payExtraJobType(Map<String, dynamic> body) async {
+    try {
+      final order = await ref
+          .read(matchingRepositoryProvider)
+          .createExtraJobTypeOrder(body);
+      _pendingPaidBody = body;
+      final user = ref.read(currentUserProvider).value;
+      _razorpay ??= Razorpay()
+        ..on(Razorpay.EVENT_PAYMENT_SUCCESS, _onPaid)
+        ..on(Razorpay.EVENT_PAYMENT_ERROR, _onPayFail)
+        ..on(Razorpay.EVENT_EXTERNAL_WALLET, (_) {});
+      _razorpay!.open({
+        'key': order['keyId'] ?? AppConfig.razorpayKey,
+        'amount': order['amount'],
+        'order_id': order['orderId'],
+        'currency': order['currency'] ?? 'INR',
+        'name': AppConfig.appName,
+        'description': 'Extra Job Type — ₹50/month',
+        'timeout': AppConfig.paymentTimeoutSeconds,
+        'prefill': {'contact': user?.phone ?? '', 'email': user?.email ?? ''},
+      });
+    } on DioException catch (e) {
+      final msg = e.response?.data is Map
+          ? (e.response!.data['message']?.toString() ?? e.message)
+          : e.message;
+      if (!mounted) return;
+      showGxSnack(context, msg ?? 'Payment unavailable',
+          type: GxSnackType.error);
+      setState(() => _saving = false);
+    }
+  }
+
+  void _onPaid(PaymentSuccessResponse _) {
+    if (!mounted) return;
+    showGxSnack(context, 'Payment received — creating Job Type…',
+        type: GxSnackType.success);
+    Future.delayed(const Duration(seconds: 3), () {
+      if (mounted) Navigator.pop(context, true);
+    });
+  }
+
+  void _onPayFail(PaymentFailureResponse r) {
+    if (!mounted) return;
+    setState(() => _saving = false);
+    showGxSnack(context, 'Payment failed: ${r.message ?? 'try again'}',
+        type: GxSnackType.error);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: context.gx.bg,
+      appBar: AppBar(
+        title: Text(_isEdit ? 'Edit Job Type' : 'New Job Type'),
+      ),
+      body: DribbbleBackground(
+        child: ListView(
+          padding: const EdgeInsets.fromLTRB(20, 12, 20, 40),
+          children: [
+            TextField(
+              controller: _jobTypeCtrl,
+              enabled: !_isEdit,
+              decoration: InputDecoration(
+                labelText: 'Job Type',
+                hintText: 'e.g. Cashier, Backend Engineer',
+                helperText: _isEdit
+                    ? 'Job Type cannot be changed after creation'
+                    : widget.freeSlotsLeft > 0
+                        ? '${widget.freeSlotsLeft} free slot(s) left'
+                        : 'This will cost ₹50/month',
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: _locationCtrl,
+              decoration: const InputDecoration(
+                labelText: 'Preferred location',
+                hintText: 'City / area',
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: _salaryCtrl,
+              keyboardType: TextInputType.number,
+              decoration: const InputDecoration(
+                labelText: 'Expected salary (₹/month)',
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: _expCtrl,
+              keyboardType: TextInputType.number,
+              decoration: const InputDecoration(
+                labelText: 'Experience (years)',
+              ),
+            ),
+            const SizedBox(height: 12),
+            DropdownButtonFormField<String>(
+              value: _noticeOptions.contains(_notice) ? _notice : 'IMMEDIATE',
+              decoration: const InputDecoration(labelText: 'Notice period'),
+              items: [
+                for (final n in _noticeOptions)
+                  DropdownMenuItem(value: n, child: Text(n.replaceAll('_', ' '))),
+              ],
+              onChanged: (v) => setState(() => _notice = v ?? 'IMMEDIATE'),
+            ),
+            const SizedBox(height: 16),
+            Text('Skills',
+                style: TextStyle(
+                    fontWeight: FontWeight.w800, color: context.gx.ink)),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: _skillCtrl,
+                    decoration: const InputDecoration(
+                      hintText: 'Add a skill',
+                    ),
+                    onSubmitted: (_) {
+                      final s = _skillCtrl.text.trim();
+                      if (s.isEmpty) return;
+                      setState(() {
+                        _skills.add(s);
+                        _skillCtrl.clear();
+                      });
+                    },
+                  ),
+                ),
+                IconButton(
+                  onPressed: () {
+                    final s = _skillCtrl.text.trim();
+                    if (s.isEmpty) return;
+                    setState(() {
+                      _skills.add(s);
+                      _skillCtrl.clear();
+                    });
+                  },
+                  icon: const Icon(Icons.add_circle_outline),
+                ),
+              ],
+            ),
+            Wrap(
+              spacing: 6,
+              children: [
+                for (final s in _skills)
+                  InputChip(
+                    label: Text(s),
+                    onDeleted: () => setState(() => _skills.remove(s)),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 28),
+            GxButton(
+              label: _saving ? 'Saving…' : 'Save',
+              accent: GixbeeTheme.accentGreen,
+              onTap: _saving ? null : _save,
+            ),
+            if (_pendingPaidBody != null)
+              Padding(
+                padding: const EdgeInsets.only(top: 8),
+                child: Text(
+                  'Waiting for payment confirmation… ${DateFormat.Hm().format(DateTime.now())}',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: context.gx.ink.withValues(alpha: 0.45),
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}

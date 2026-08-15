@@ -76,6 +76,14 @@ export class HiringService {
     return savedJob;
   }
 
+  async getMyJobPosts(employerId: string): Promise<JobPost[]> {
+    return this.jobPostRepo.find({
+      where: { employer: { id: employerId } },
+      order: { createdAt: 'DESC' },
+      take: 50,
+    });
+  }
+
   async getActiveJobs(): Promise<JobPost[]> {
     const cached = await this.redisService.get(HiringService.JOBS_CACHE_KEY);
     if (cached) return JSON.parse(cached) as JobPost[];

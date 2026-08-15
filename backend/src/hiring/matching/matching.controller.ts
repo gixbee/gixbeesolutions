@@ -115,7 +115,17 @@ export class MatchingController {
         { maxVacancies: 25, fee: feeForVacancies(25) },
       ],
       guaranteeHours: 24,
+      extraJobTypeFee: 50,
     };
+  }
+
+  /** Hiring credit balance (guarantee CREDIT applied to next match fee). */
+  @Get('credit')
+  async credit(@Req() req) {
+    const balance = await this.matchingService.getHiringCreditBalance(
+      req.user.userId,
+    );
+    return { balance };
   }
 
   @Post('requests')

@@ -60,6 +60,22 @@ export class PaymentsController {
     );
   }
 
+  /** Employer Smart Hiring match fee (₹49–399 minus hiring credit). */
+  @Post('hiring-match/order')
+  @UseGuards(JwtAuthGuard)
+  @Throttle({ default: { ttl: 60_000, limit: 20 } })
+  createHiringMatchOrder(@Req() req: any, @Body() body: any) {
+    return this.paymentsService.createHiringMatchOrder(req.user.userId, body);
+  }
+
+  /** Candidate 3rd+ Job Type preference (₹50/month). */
+  @Post('extra-job-type/order')
+  @UseGuards(JwtAuthGuard)
+  @Throttle({ default: { ttl: 60_000, limit: 20 } })
+  createExtraJobTypeOrder(@Req() req: any, @Body() body: any) {
+    return this.paymentsService.createExtraJobTypeOrder(req.user.userId, body);
+  }
+
   /**
    * PUBLIC Razorpay webhook (payment.captured / order.paid). Auth is the
    * HMAC signature over the RAW body — requires rawBody:true in main.ts.

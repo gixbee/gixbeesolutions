@@ -1,26 +1,35 @@
 import 'package:flutter/material.dart';
-import 'talent_profile_screen.dart';
 import 'job_alerts_screen.dart';
-import 'application_tracker_screen.dart';
+import 'hiring_offers_screen.dart';
+import 'job_types_screen.dart';
 import '../../shared/widgets/dribbble_background.dart';
 import '../../theme.dart';
 
-/// Root screen for the "Find a Job" module (mockup "job" sub-app).
-/// Bottom nav with 3 tabs: Job Alerts, Applications, Talent Bio.
+/// Root screen for the "Find a Job" module.
+/// Tabs: Jobs (board) · Offers (Smart Hiring) · Job Types (preferences).
 class FindJobModule extends StatefulWidget {
-  const FindJobModule({super.key});
+  /// Optional initial tab: 0 Jobs, 1 Offers, 2 Job Types.
+  final int initialIndex;
+
+  const FindJobModule({super.key, this.initialIndex = 0});
 
   @override
   State<FindJobModule> createState() => _FindJobModuleState();
 }
 
 class _FindJobModuleState extends State<FindJobModule> {
-  int _currentIndex = 0;
+  late int _currentIndex;
+
+  @override
+  void initState() {
+    super.initState();
+    _currentIndex = widget.initialIndex.clamp(0, 2);
+  }
 
   final _screens = const [
     JobAlertsScreen(),
-    ApplicationTrackerScreen(),
-    TalentProfileScreen(),
+    HiringOffersScreen(),
+    JobTypesScreen(),
   ];
 
   @override
@@ -37,26 +46,23 @@ class _FindJobModuleState extends State<FindJobModule> {
         onDestinationSelected: (i) => setState(() => _currentIndex = i),
         backgroundColor: cs.surface,
         surfaceTintColor: Colors.transparent,
-        // v106: Find a Job uses the green accent (home quad colour-coding).
         indicatorColor: GixbeeTheme.accentGreen.withValues(alpha: 0.18),
         destinations: const [
           NavigationDestination(
             icon: Icon(Icons.work_outline),
-            selectedIcon:
-                Icon(Icons.work, color: GixbeeTheme.accentGreen),
+            selectedIcon: Icon(Icons.work, color: GixbeeTheme.accentGreen),
             label: 'Jobs',
           ),
           NavigationDestination(
-            icon: Icon(Icons.assignment_outlined),
-            selectedIcon:
-                Icon(Icons.assignment, color: GixbeeTheme.accentGreen),
-            label: 'Applications',
+            icon: Icon(Icons.notifications_active_outlined),
+            selectedIcon: Icon(Icons.notifications_active,
+                color: GixbeeTheme.accentGreen),
+            label: 'Offers',
           ),
           NavigationDestination(
             icon: Icon(Icons.badge_outlined),
-            selectedIcon:
-                Icon(Icons.badge, color: GixbeeTheme.accentGreen),
-            label: 'Talent Bio',
+            selectedIcon: Icon(Icons.badge, color: GixbeeTheme.accentGreen),
+            label: 'Job Types',
           ),
         ],
       ),

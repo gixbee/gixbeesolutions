@@ -3,6 +3,8 @@ import {
   BadRequestException,
   NotFoundException,
   Logger,
+  Inject,
+  forwardRef,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -16,9 +18,11 @@ import {
   EmployerDecision,
 } from './hiring-interest.entity';
 import { User } from '../../users/user.entity';
+import { Business } from '../../businesses/business.entity';
 import { WalletsService } from '../../wallets/wallets.service';
 import { WALLET_PAYMENTS_ENABLED } from '../../common/money-model';
 import { NotificationsService } from '../../notifications/notifications.service';
+import { PaymentsService } from '../../payments/payments.service';
 
 // ── Business constants (FRD + pricing doc) ─────────────────────────────────
 export const FREE_PREFERENCES = 2;
@@ -50,10 +54,67 @@ export class MatchingService {
     private readonly requestRepo: Repository<HiringRequest>,
     @InjectRepository(HiringInterest)
     private readonly interestRepo: Repository<HiringInterest>,
+    @InjectRepository(User)
+    private readonly userRepo: Repository<User>,
+    @InjectRepository(Business)
+    private readonly businessRepo: Repository<Business>,
     private readonly walletsService: WalletsService,
     private readonly notificationsService: NotificationsService,
+    @Inject(forwardRef(() => PaymentsService))
+    private readonly paymentsService: PaymentsService,
     @InjectQueue('hiring') private readonly hiringQueue: Queue,
   ) {}
+
+  // ── Hiring credit (guarantee CREDIT → next match fee) ──────────────────
+
+  async getHiringCreditBalance(userId: string): Promise<number> {
+    const user = await this.userRepo.findOne({ where: { id: userId } });
+    return user ? Number(user.hiringCreditBalance) || 0 : 0;
+  }
+
+  async addHiringCredit(userId: string, amount: number): Promise<number> {
+    const rupees = Math.max(0, Math.round(Number(amount) * 100) / 100);
+    if (rupees <= 0) return this.getHiringCreditBalance(userId);
+    const user = await this.userRepo.findOne({ where: { id: userId } });
+    if (!user) throw new NotFoundException('User not found');
+    user.hiringCreditBalance =
+      Math.round((Number(user.hiringCreditBalance) + rupees) * 100) / 100;
+    await this.userRepo.save(user);
+    return Number(user.hiringCreditBalance);
+  }
+
+  /** Atomically consume up to `amount`; returns what was actually deducted. */
+  async consumeHiringCredit(
+    userId: string,
+    amount: number,
+  ): Promise<number> {
+    const want = Math.max(0, Math.round(Number(amount) * 100) / 100);
+    if (want <= 0) return 0;
+    const user = await this.userRepo.findOne({ where: { id: userId } });
+    if (!user) return 0;
+    const available = Number(user.hiringCreditBalance) || 0;
+    const take = Math.min(available, want);
+    if (take <= 0) return 0;
+    user.hiringCreditBalance = Math.round((available - take) * 100) / 100;
+    await this.userRepo.save(user);
+    return take;
+  }
+
+  /** Employer must own at least one VERIFIED HIRING business unit. */
+  async assertVerifiedHiringBusiness(employerId: string): Promise<void> {
+    const count = await this.businessRepo.count({
+      where: {
+        owner: { id: employerId },
+        type: 'HIRING' as any,
+        status: 'VERIFIED' as any,
+      },
+    });
+    if (count < 1) {
+      throw new BadRequestException(
+        'A verified Hiring business is required before you can run Smart Hiring.',
+      );
+    }
+  }
 
   // ══════════════════════════════════════════════════════════════════════
   // CANDIDATE — Job Type preference profiles
@@ -76,7 +137,7 @@ export class MatchingService {
       experienceYears?: number;
       noticePeriod?: NoticePeriod;
     },
-  ): Promise<JobPreference> {
+  ): Promise<JobPreference | { needsPayment: true; fee: number }> {
     const jobType = (dto.jobType || '').trim();
     if (!jobType) throw new BadRequestException('jobType is required');
 
@@ -89,31 +150,81 @@ export class MatchingService {
       );
     }
 
-    // First 2 are free; each extra slot is ₹50/month when wallet is on.
-    // While wallet product is off (money-model), extras are free so hiring
-    // is not blocked by a balance users cannot top up.
-    const needsPayment =
-      WALLET_PAYMENTS_ENABLED && existing.length >= FREE_PREFERENCES;
-    if (needsPayment) {
-      await this.walletsService.charge(
-        userId,
-        EXTRA_PREFERENCE_FEE,
-        `Smart Hiring — extra Job Type "${jobType}" (₹${EXTRA_PREFERENCE_FEE}/month)`,
-      );
+    // First 2 free; 3rd+ requires Razorpay EXTRA_JOB_TYPE_FEE (webhook creates).
+    // Legacy wallet path kept when WALLET_PAYMENTS_ENABLED.
+    if (existing.length >= FREE_PREFERENCES) {
+      if (WALLET_PAYMENTS_ENABLED) {
+        await this.walletsService.charge(
+          userId,
+          EXTRA_PREFERENCE_FEE,
+          `Smart Hiring — extra Job Type "${jobType}" (₹${EXTRA_PREFERENCE_FEE}/month)`,
+        );
+        return this.saveNewPreference(userId, dto, {
+          isPaid: true,
+          paidUntil: new Date(Date.now() + 30 * 24 * 3600_000),
+        });
+      }
+      return { needsPayment: true, fee: EXTRA_PREFERENCE_FEE };
     }
 
+    return this.saveNewPreference(userId, dto, {
+      isPaid: false,
+      paidUntil: null,
+    });
+  }
+
+  /** Webhook fulfilment for EXTRA_JOB_TYPE_FEE. */
+  async createPreferenceFromPayment(
+    userId: string,
+    dto: {
+      jobType: string;
+      skills?: string[];
+      preferredLocation?: string;
+      expectedSalary?: number;
+      experienceYears?: number;
+      noticePeriod?: NoticePeriod;
+    },
+  ): Promise<JobPreference> {
+    const jobType = (dto.jobType || '').trim();
+    if (!jobType) throw new BadRequestException('jobType is required');
+    const existing = await this.listMyPreferences(userId);
+    if (
+      existing.some((p) => p.jobType.toLowerCase() === jobType.toLowerCase())
+    ) {
+      // Idempotent: payment already fulfilled a duplicate create.
+      const pref = existing.find(
+        (p) => p.jobType.toLowerCase() === jobType.toLowerCase(),
+      )!;
+      return pref;
+    }
+    return this.saveNewPreference(userId, dto, {
+      isPaid: true,
+      paidUntil: new Date(Date.now() + 30 * 24 * 3600_000),
+    });
+  }
+
+  private async saveNewPreference(
+    userId: string,
+    dto: {
+      jobType: string;
+      skills?: string[];
+      preferredLocation?: string;
+      expectedSalary?: number;
+      experienceYears?: number;
+      noticePeriod?: NoticePeriod;
+    },
+    flags: { isPaid: boolean; paidUntil: Date | null },
+  ): Promise<JobPreference> {
     const pref = this.prefRepo.create({
       user: { id: userId } as User,
-      jobType,
+      jobType: dto.jobType.trim(),
       skills: (dto.skills ?? []).map((s) => s.trim()).filter(Boolean),
       preferredLocation: dto.preferredLocation?.trim(),
       expectedSalary: dto.expectedSalary ?? 0,
       experienceYears: Math.max(0, Math.round(dto.experienceYears ?? 0)),
       noticePeriod: dto.noticePeriod ?? NoticePeriod.IMMEDIATE,
-      isPaid: needsPayment,
-      paidUntil: needsPayment
-        ? new Date(Date.now() + 30 * 24 * 3600_000)
-        : null,
+      isPaid: flags.isPaid,
+      paidUntil: flags.paidUntil,
     });
     return this.prefRepo.save(pref);
   }
@@ -265,7 +376,16 @@ export class MatchingService {
       experienceMinYears?: number;
       vacancies: number;
     },
-  ): Promise<{ request: HiringRequest; estimatedCandidates: number }> {
+  ): Promise<
+    | { request: HiringRequest; estimatedCandidates: number }
+    | {
+        needsPayment: true;
+        fee: number;
+        creditApplied: number;
+        amountDue: number;
+      }
+  > {
+    await this.assertVerifiedHiringBusiness(employerId);
     const jobType = (dto.jobType || '').trim();
     if (!jobType) throw new BadRequestException('jobType is required');
     const vacancies = Math.max(1, Math.round(dto.vacancies || 1));
@@ -274,15 +394,103 @@ export class MatchingService {
       throw new BadRequestException('salaryOffered (₹/month) is required');
     }
 
-    // Employers pay for matching via wallet when the product is on.
-    // While off, matching runs without a wallet debit (see money-model.ts).
+    // Legacy wallet charge path when product is on.
     if (WALLET_PAYMENTS_ENABLED) {
       await this.walletsService.charge(
         employerId,
         fee,
         `Smart Hiring — ${jobType} × ${vacancies} vacanc${vacancies > 1 ? 'ies' : 'y'} (24 h guarantee)`,
       );
+      return this.startRequest(employerId, dto, {
+        feeAmount: fee,
+        creditApplied: 0,
+        paymentOrderId: null,
+        razorpayPaymentId: null,
+      });
     }
+
+    const credit = await this.getHiringCreditBalance(employerId);
+    const creditApplied = Math.min(credit, fee);
+    const amountDue = Math.round((fee - creditApplied) * 100) / 100;
+
+    if (amountDue > 0) {
+      return { needsPayment: true, fee, creditApplied, amountDue };
+    }
+
+    if (creditApplied > 0) {
+      await this.consumeHiringCredit(employerId, creditApplied);
+    }
+    return this.startRequest(employerId, dto, {
+      feeAmount: fee,
+      creditApplied,
+      paymentOrderId: null,
+      razorpayPaymentId: null,
+    });
+  }
+
+  /** Quote fee + credit for Razorpay order creation (does not start matching). */
+  async quoteMatchFee(
+    employerId: string,
+    vacancies: number,
+  ): Promise<{ fee: number; creditApplied: number; amountDue: number }> {
+    await this.assertVerifiedHiringBusiness(employerId);
+    const fee = feeForVacancies(Math.max(1, Math.round(vacancies || 1)));
+    const credit = await this.getHiringCreditBalance(employerId);
+    const creditApplied = Math.min(credit, fee);
+    const amountDue = Math.round((fee - creditApplied) * 100) / 100;
+    return { fee, creditApplied, amountDue };
+  }
+
+  /** Webhook fulfilment for HIRING_MATCH_FEE. */
+  async createRequestFromPayment(
+    employerId: string,
+    dto: {
+      jobType: string;
+      skills?: string[];
+      location?: string;
+      salaryOffered: number;
+      experienceMinYears?: number;
+      vacancies: number;
+    },
+    payment: {
+      feeAmount: number;
+      creditApplied: number;
+      paymentOrderId: string;
+      razorpayPaymentId: string | null;
+    },
+  ): Promise<{ request: HiringRequest; estimatedCandidates: number }> {
+    await this.assertVerifiedHiringBusiness(employerId);
+    const applied = await this.consumeHiringCredit(
+      employerId,
+      payment.creditApplied || 0,
+    );
+    return this.startRequest(employerId, dto, {
+      feeAmount: payment.feeAmount,
+      creditApplied: applied,
+      paymentOrderId: payment.paymentOrderId,
+      razorpayPaymentId: payment.razorpayPaymentId,
+    });
+  }
+
+  private async startRequest(
+    employerId: string,
+    dto: {
+      jobType: string;
+      skills?: string[];
+      location?: string;
+      salaryOffered: number;
+      experienceMinYears?: number;
+      vacancies: number;
+    },
+    payment: {
+      feeAmount: number;
+      creditApplied: number;
+      paymentOrderId: string | null;
+      razorpayPaymentId: string | null;
+    },
+  ): Promise<{ request: HiringRequest; estimatedCandidates: number }> {
+    const jobType = dto.jobType.trim();
+    const vacancies = Math.max(1, Math.round(dto.vacancies || 1));
 
     const request = await this.requestRepo.save(
       this.requestRepo.create({
@@ -297,14 +505,15 @@ export class MatchingService {
         ),
         vacancies,
         targetInterested: vacancies * TARGET_MULTIPLIER,
-        feeAmount: fee,
+        feeAmount: payment.feeAmount,
+        creditApplied: payment.creditApplied,
+        paymentOrderId: payment.paymentOrderId,
+        razorpayPaymentId: payment.razorpayPaymentId,
         status: HiringRequestStatus.COLLECTING,
         deadlineAt: new Date(Date.now() + GUARANTEE_WINDOW_HOURS * 3600_000),
       }),
     );
 
-    // Staged fan-out (Hour 0 / 8 / 18) + finalize at the 24 h deadline.
-    // Bull jobIds make re-scheduling idempotent across restarts/replicas.
     for (let i = 0; i < BATCH_DELAYS_MS.length; i++) {
       await this.hiringQueue.add(
         'batch',
@@ -474,7 +683,7 @@ export class MatchingService {
     );
   }
 
-  /** Guarantee remedy: instant Gixbee Credit, or flagged refund. */
+  /** Guarantee remedy: instant hiring credit, or Razorpay refund. */
   async resolveGuarantee(
     employerId: string,
     requestId: string,
@@ -490,17 +699,36 @@ export class MatchingService {
         'This request is not eligible for a guarantee remedy',
       );
     }
+    const fee = Number(request.feeAmount) || 0;
+    const creditApplied = Number(request.creditApplied) || 0;
+    // Only the Razorpay slice was charged at checkout (fee − hiring credit).
+    const razorpayPaid = Math.max(
+      0,
+      Math.round((fee - creditApplied) * 100) / 100,
+    );
+
     if (choice === 'CREDIT') {
+      // Full fee back as hiring credit (or wallet when that product is on).
       if (WALLET_PAYMENTS_ENABLED) {
-        await this.walletsService.addFunds(
-          employerId,
-          Number(request.feeAmount),
-        );
+        await this.walletsService.addFunds(employerId, fee);
+      } else {
+        await this.addHiringCredit(employerId, fee);
       }
       request.status = HiringRequestStatus.RESOLVED_CREDIT;
     } else {
-      // Refund to original method is processed via the payment gateway /
-      // support — recorded here so ops can act and the employer sees status.
+      if (request.razorpayPaymentId && razorpayPaid > 0) {
+        await this.paymentsService.refundHiringMatchPayment(
+          request.razorpayPaymentId,
+          razorpayPaid,
+        );
+      } else if (WALLET_PAYMENTS_ENABLED && fee > 0) {
+        await this.walletsService.addFunds(employerId, fee);
+      }
+      // Restore hiring credit consumed at request create (covers credit-only
+      // hires where creditApplied === fee, and partial-credit + Razorpay).
+      if (!WALLET_PAYMENTS_ENABLED && creditApplied > 0) {
+        await this.addHiringCredit(employerId, creditApplied);
+      }
       request.status = HiringRequestStatus.RESOLVED_REFUND;
     }
     request.resolvedAt = new Date();

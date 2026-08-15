@@ -26,6 +26,12 @@ export enum PaymentPurpose {
   /** Customer late-cancel travel compensation — unlocks Instant Help and
    *  records a payout owed to the affected worker. */
   LATE_CANCEL_COMPENSATION = 'LATE_CANCEL_COMPENSATION',
+  /** Employer Smart Hiring match fee (₹49/99/199/399) — webhook creates
+   *  the HiringRequest and starts the 24 h matching engine. */
+  HIRING_MATCH_FEE = 'HIRING_MATCH_FEE',
+  /** Candidate 3rd+ Job Type preference (₹50/month) — webhook creates
+   *  the paid JobPreference. */
+  EXTRA_JOB_TYPE_FEE = 'EXTRA_JOB_TYPE_FEE',
 }
 
 /**
@@ -69,6 +75,14 @@ export class PaymentOrder {
     default: PaymentOrderStatus.CREATED,
   })
   status: PaymentOrderStatus;
+
+  /**
+   * Draft payload for webhook fulfilment (hiring match criteria, Job Type
+   * preference fields, credit applied, etc.). JSONB so Postgres stores it
+   * without a parallel pending table.
+   */
+  @Column({ type: 'jsonb', nullable: true })
+  meta: Record<string, unknown> | null;
 
   @CreateDateColumn()
   createdAt: Date;

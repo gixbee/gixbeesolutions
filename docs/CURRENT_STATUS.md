@@ -1,8 +1,8 @@
 # Gixbee — Current Status
 
 > **Single source of truth** for what is done vs still open.  
-> Last updated: **2026-08-01**  
-> Prefer this file over older archaeology in git history (April backlog dumps were deleted from `docs/` on 2026-07-18).
+> Last updated: **2026-08-09**  
+> Prefer this file over older archaeology in git history (April backlog docs were deleted from `docs/` on 2026-07-18).
 
 ---
 
@@ -52,8 +52,8 @@ Every folder in `lib/features/` (17) is listed here, so a missing row means a mi
 | `rentals` catalog / detail / reserve (`showGxCalendar` + time picker) | Done |
 | `worker` Go Live + incoming job queue | Done |
 | `billing` job packs + credit history; period fee (Razorpay) | Done |
-| `jobs` — Find a Job / talent / post job / hiring pipeline | Done |
-| `business` list + unit dashboard + hiring pipeline | Done |
+| `jobs` — Find a Job: board + **Smart Hiring** Job Types / Offers | Done (client wired 2026-08-09) |
+| `business` list + **Hire Employee** Smart Hiring + classic board secondary | Done (client wired 2026-08-09) |
 | `messages` (list + thread) | Done |
 | `notifications` list + FCM push + badge | Done |
 | `profile` / wallet / favourites / about / support | Done (menus wired 2026-07-18) |
@@ -67,6 +67,16 @@ Every folder in `lib/features/` (17) is listed here, so a missing row means a mi
 | Admin portal staff + page ACL | Done (2026-07-18) |
 | Admin System Monitoring (Beszel + Dozzle + pgAdmin) | Done (2026-08-01) |
 | Admin disputes / strikes / verifications / logs / master entries | Done |
+
+### Shipped 2026-08-09 — Smart Hiring (Find a Job + Hire Employee)
+
+| Area | What landed |
+|---|---|
+| **Candidate Job Types** | Flutter Job Types tab → `/hiring/match/preferences` (2 free; 3rd+ Razorpay ₹50; 7-day delete lock; immutable Job Type name) |
+| **Offers** | Interested / Not Interested + Pending/Shortlisted/Rejected/Hired; FCM `hiring_offer` / `hiring_status` |
+| **Employer Hire Employee** | Estimate slider, ₹49–399 Razorpay match fee, 24 h collecting, shortlist decisions, guarantee CREDIT (hiring credit balance) / REFUND (Razorpay) |
+| **Gates** | VERIFIED HIRING business required to start matching; classic Post Job / board apps remain secondary |
+| **Money model** | `HIRING_MATCH_FEE` + `EXTRA_JOB_TYPE_FEE` purposes; wallet stays OFF |
 
 ### Shipped 2026-07-18 → 2026-08-01 (live on EC2)
 

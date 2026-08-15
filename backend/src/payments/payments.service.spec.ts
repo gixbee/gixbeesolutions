@@ -24,6 +24,7 @@ function makeService(env: Record<string, string | undefined> = {}) {
     {} as any,
     {} as any,
     {} as any,
+    {} as any, // MatchingService (forwardRef)
   );
 }
 

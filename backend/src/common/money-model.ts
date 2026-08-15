@@ -23,13 +23,20 @@
  *    **direct Razorpay** (`PaymentPurpose.LATE_CANCEL_COMPENSATION`).
  *    Unlocks Instant Help; amount is recorded for worker payout ops.
  *
+ * 4. **Smart Hiring (Find a Job / Hire Employee)**
+ *    Match fee (`HIRING_MATCH_FEE`, ₹49/99/199/399) and extra Job Type
+ *    (`EXTRA_JOB_TYPE_FEE`, ₹50) via **direct Razorpay**. Guarantee CREDIT
+ *    lands in `users.hiringCreditBalance` (applied to the next match fee),
+ *    not the dormant wallet. REFUND uses the Razorpay refund API.
+ *
  * ## Dormant paths (wallet ON only — `WALLET_PAYMENTS_ENABLED`)
  *
  * - Customer→worker wallet transfer on non-Instant completion
  * - Wallet reverse on cancel of a WALLET-settled booking
  * - Platform booking fee debit / first-job wallet bonus
  * - Wallet recharge Razorpay orders + first-recharge bonus
- * - Smart Hiring preference / request wallet `charge()`
+ * - Smart Hiring preference / request wallet `charge()` (legacy; Razorpay
+ *   is the live path above while wallet is off)
  *
  * ## Defaults
  *

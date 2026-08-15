@@ -14,6 +14,8 @@ import 'features/messages/messages_list_screen.dart';
 import 'features/profile/profile_screen.dart';
 import 'features/jobs/booking_detail_screen.dart';
 import 'features/jobs/my_bookings_screen.dart';
+import 'features/jobs/find_job_module.dart';
+import 'features/business/hiring_requests_screen.dart';
 import 'features/booking/incoming_job_screen.dart';
 import 'features/booking/voice_call_screen.dart';
 import 'features/billing/job_pack_screen.dart';
@@ -430,6 +432,39 @@ class _MainWrapperState extends ConsumerState<MainWrapper>
         'callerId': data['callerId'],
         'callerName': data['callerName'] ?? notificationTitle ?? 'Incoming call',
       });
+      return;
+    }
+
+    // Smart Hiring deep links
+    if (type == 'hiring_offer' || type == 'hiring_status') {
+      if (fromUserGesture && mounted) {
+        await Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => const FindJobModule(initialIndex: 1),
+          ),
+        );
+      }
+      return;
+    }
+    if (type == 'hiring_delivered' || type == 'hiring_guarantee_failed') {
+      if (fromUserGesture && mounted) {
+        final requestId = data['requestId'];
+        if (requestId != null && requestId.isNotEmpty) {
+          await Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) =>
+                  HiringRequestDetailScreen(requestId: requestId),
+            ),
+          );
+        } else {
+          await Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => const HiringRequestsScreen()),
+          );
+        }
+      }
       return;
     }
 
