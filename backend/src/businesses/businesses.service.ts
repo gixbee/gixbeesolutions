@@ -51,6 +51,10 @@ export class BusinessesService {
       documentUrl: data.documentUrl ?? null,
       cityId: data.cityId ?? null,
       location,
+      serviceType:
+        data.type === 'SERVICE' && data.serviceType
+          ? data.serviceType
+          : null,
       owner: { id: ownerId } as User,
       status: 'PENDING',
     });

@@ -541,7 +541,9 @@ class _TalentProfileScreenState extends ConsumerState<TalentProfileScreen> {
             ),
           ),
           Switch(
-            value: _profile?['alertsEnabled'] ?? true,
+            value: _profile?['jobAlertsEnabled'] ??
+                _profile?['alertsEnabled'] ??
+                true,
             onChanged: (val) async {
               final messenger = ScaffoldMessenger.of(context);
               try {

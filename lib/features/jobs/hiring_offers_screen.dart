@@ -10,8 +10,12 @@ import '../../shared/widgets/gx_snackbar.dart';
 import '../../theme.dart';
 
 /// Smart Hiring offers — Interested / Not Interested + employer decisions.
+/// Counterpart to List My Business → Hire Employee matching.
 class HiringOffersScreen extends ConsumerStatefulWidget {
-  const HiringOffersScreen({super.key});
+  /// Jump to Job Types tab — required before employers can match you.
+  final VoidCallback? onGoToJobTypes;
+
+  const HiringOffersScreen({super.key, this.onGoToJobTypes});
 
   @override
   ConsumerState<HiringOffersScreen> createState() => _HiringOffersScreenState();
@@ -21,6 +25,7 @@ class _HiringOffersScreenState extends ConsumerState<HiringOffersScreen> {
   List<Map<String, dynamic>> _offers = [];
   bool _loading = true;
   String _filter = 'All';
+  int _prefCount = 0;
 
   @override
   void initState() {
@@ -31,10 +36,16 @@ class _HiringOffersScreenState extends ConsumerState<HiringOffersScreen> {
   Future<void> _load() async {
     setState(() => _loading = true);
     try {
-      final list = await ref.read(matchingRepositoryProvider).listOffers();
+      final repo = ref.read(matchingRepositoryProvider);
+      final list = await repo.listOffers();
+      var prefs = <Map<String, dynamic>>[];
+      try {
+        prefs = await repo.listPreferences();
+      } catch (_) {}
       if (!mounted) return;
       setState(() {
         _offers = list;
+        _prefCount = prefs.length;
         _loading = false;
       });
     } catch (e) {
@@ -129,6 +140,18 @@ class _HiringOffersScreenState extends ConsumerState<HiringOffersScreen> {
               ),
             ),
           ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
+            child: Text(
+              'Matches from employers using Hire Employee. '
+              'Add Job Types so the matcher can find you.',
+              style: TextStyle(
+                fontSize: 13,
+                height: 1.35,
+                color: context.gx.ink.withValues(alpha: 0.55),
+              ),
+            ),
+          ),
           SizedBox(
             height: 40,
             child: ListView(
@@ -155,14 +178,24 @@ class _HiringOffersScreenState extends ConsumerState<HiringOffersScreen> {
                     child: _filtered.isEmpty
                         ? ListView(
                             physics: const AlwaysScrollableScrollPhysics(),
-                            children: const [
-                              SizedBox(height: 80),
+                            children: [
+                              const SizedBox(height: 80),
                               GxEmptyState(
                                 icon: Icons.notifications_active_outlined,
-                                title: 'No offers yet',
-                                message:
-                                    'When employers run Smart Hiring matches, offers appear here.',
+                                title: _prefCount == 0
+                                    ? 'Add a Job Type first'
+                                    : 'No offers yet',
+                                message: _prefCount == 0
+                                    ? 'Employers using Hire Employee match against your Job Types. Add one so you can receive offers here.'
+                                    : 'When a verified employer runs Smart Hiring for your Job Types, offers appear here.',
                                 accent: GixbeeTheme.accentGreen,
+                                actionLabel: _prefCount == 0 &&
+                                        widget.onGoToJobTypes != null
+                                    ? 'Add Job Type'
+                                    : null,
+                                onAction: _prefCount == 0
+                                    ? widget.onGoToJobTypes
+                                    : null,
                               ),
                             ],
                           )

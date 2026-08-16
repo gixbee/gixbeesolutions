@@ -14,8 +14,13 @@ import '../../shared/widgets/gx_snackbar.dart';
 import '../../theme.dart';
 
 /// Candidate Job Type preference profiles (FRD: first 2 free, +₹50/mo after).
+/// These prefs power Hire Employee matching — without them, employers cannot
+/// notify you on the Offers tab.
 class JobTypesScreen extends ConsumerStatefulWidget {
-  const JobTypesScreen({super.key});
+  /// Optional: after creating a Job Type, jump to Offers for the loop hint.
+  final VoidCallback? onCreatedHint;
+
+  const JobTypesScreen({super.key, this.onCreatedHint});
 
   @override
   ConsumerState<JobTypesScreen> createState() => _JobTypesScreenState();
@@ -50,6 +55,7 @@ class _JobTypesScreenState extends ConsumerState<JobTypesScreen> {
   }
 
   Future<void> _openForm({Map<String, dynamic>? existing}) async {
+    final wasEmpty = _prefs.isEmpty;
     final changed = await Navigator.push<bool>(
       context,
       MaterialPageRoute(
@@ -59,7 +65,19 @@ class _JobTypesScreenState extends ConsumerState<JobTypesScreen> {
         ),
       ),
     );
-    if (changed == true) _load();
+    if (changed == true) {
+      await _load();
+      if (wasEmpty &&
+          _prefs.isNotEmpty &&
+          widget.onCreatedHint != null &&
+          mounted) {
+        showGxSnack(
+          context,
+          'Job Type saved — employers can match you via Hire Employee. Check Offers for matches.',
+          type: GxSnackType.success,
+        );
+      }
+    }
   }
 
   Future<void> _delete(Map<String, dynamic> pref) async {
@@ -124,7 +142,9 @@ class _JobTypesScreenState extends ConsumerState<JobTypesScreen> {
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20),
             child: Text(
-              'Create profiles the matcher uses. Job Type name locks after save; delete only after 7 days. Extra profiles cost ₹50/month.',
+              'Profiles the Smart Hiring matcher uses when employers run Hire Employee. '
+              'Job Type name locks after save; delete only after 7 days. Extra profiles cost ₹50/month. '
+              'Separate from classic job-board preferences.',
               style: TextStyle(
                 fontSize: 13,
                 height: 1.35,
@@ -141,14 +161,16 @@ class _JobTypesScreenState extends ConsumerState<JobTypesScreen> {
                     child: _prefs.isEmpty
                         ? ListView(
                             physics: const AlwaysScrollableScrollPhysics(),
-                            children: const [
-                              SizedBox(height: 80),
+                            children: [
+                              const SizedBox(height: 80),
                               GxEmptyState(
                                 icon: Icons.badge_outlined,
                                 title: 'No Job Types yet',
                                 message:
-                                    'Add up to 2 free profiles so employers can match you.',
+                                    'Add up to 2 free profiles so employers using Hire Employee can match you. Offers then appear on the Offers tab.',
                                 accent: GixbeeTheme.accentGreen,
+                                actionLabel: 'Add Job Type',
+                                onAction: () => _openForm(),
                               ),
                             ],
                           )
@@ -436,8 +458,14 @@ class _JobTypeFormScreenState extends ConsumerState<JobTypeFormScreen> {
           ? (e.response!.data['message']?.toString() ?? e.message)
           : e.message;
       if (!mounted) return;
-      showGxSnack(context, msg ?? 'Payment unavailable',
-          type: GxSnackType.error);
+      final m = (msg ?? '').toLowerCase();
+      showGxSnack(
+        context,
+        m.contains('not configured') || m.contains('not available')
+            ? 'Payment gateway is not configured yet — your first 2 Job Types stay free without Razorpay.'
+            : (msg ?? 'Payment unavailable'),
+        type: GxSnackType.error,
+      );
       setState(() => _saving = false);
     }
   }

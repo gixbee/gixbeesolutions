@@ -185,7 +185,7 @@ class _ApplicationTrackerScreenState
                         ),
                       ),
                       Text(
-                        '${_applications.length} total · track every stage',
+                        'Classic board applications · Smart Hiring status is on Offers',
                         style: TextStyle(
                           color: cs.onSurfaceVariant,
                           fontSize: 12,

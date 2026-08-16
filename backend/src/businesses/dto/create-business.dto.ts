@@ -2,9 +2,9 @@ import { IsString, IsNotEmpty, IsOptional, IsUUID } from 'class-validator';
 
 // POST /businesses — mirrors Flutter Business.toJson()
 // (lib/shared/models/business.dart). Persisted columns: name, type,
-// description, documentUrl, cityId, and location (mapped from `address`).
-// specialty/phone are client-only (whitelisted so they are not stripped;
-// BusinessesService.create drops them).
+// description, documentUrl, cityId, location (from `address`), and optional
+// serviceType (SERVICE only). specialty/phone are client-only (whitelisted so
+// they are not stripped; BusinessesService.create drops them).
 export class CreateBusinessDto {
   @IsString()
   @IsNotEmpty()
@@ -42,4 +42,9 @@ export class CreateBusinessDto {
   @IsOptional()
   @IsUUID()
   cityId?: string;
+
+  /** SERVICE only — HALL | CATERING | DECORATION | PHOTOGRAPHY. */
+  @IsOptional()
+  @IsString()
+  serviceType?: string;
 }

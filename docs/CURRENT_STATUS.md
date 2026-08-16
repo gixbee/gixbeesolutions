@@ -1,7 +1,7 @@
 # Gixbee — Current Status
 
 > **Single source of truth** for what is done vs still open.  
-> Last updated: **2026-08-09**  
+> Last updated: **2026-08-17**  
 > Prefer this file over older archaeology in git history (April backlog docs were deleted from `docs/` on 2026-07-18).
 
 ---
@@ -52,8 +52,8 @@ Every folder in `lib/features/` (17) is listed here, so a missing row means a mi
 | `rentals` catalog / detail / reserve (`showGxCalendar` + time picker) | Done |
 | `worker` Go Live + incoming job queue | Done |
 | `billing` job packs + credit history; period fee (Razorpay) | Done |
-| `jobs` — Find a Job: board + **Smart Hiring** Job Types / Offers | Done (client wired 2026-08-09) |
-| `business` list + **Hire Employee** Smart Hiring + classic board secondary | Done (client wired 2026-08-09) |
+| `jobs` — Find a Job: board + **Smart Hiring** Job Types / Offers + Apps tracker | Done (loop UX 2026-08-17) |
+| `business` list + **Hire Employee** Smart Hiring + classic board + rental/service dash | Done (loop UX 2026-08-17) |
 | `messages` (list + thread) | Done |
 | `notifications` list + FCM push + badge | Done |
 | `profile` / wallet / favourites / about / support | Done (menus wired 2026-07-18) |
@@ -67,6 +67,16 @@ Every folder in `lib/features/` (17) is listed here, so a missing row means a mi
 | Admin portal staff + page ACL | Done (2026-07-18) |
 | Admin System Monitoring (Beszel + Dozzle + pgAdmin) | Done (2026-08-01) |
 | Admin disputes / strikes / verifications / logs / master entries | Done |
+
+### Shipped 2026-08-17 — Find a Job ↔ Hire Employee loop + LMB polish
+
+| Area | What landed |
+|---|---|
+| **Smart Hiring loop UX** | Job Types empty states / Offers copy explain that Hire Employee matches against Job Types; Hire Employee + Requests copy point at Find a Job |
+| **Find a Job nav** | Tabs: Jobs · Offers · Job Types · Apps; seeker wizard first-run gate; Applications tracker wired; `jobAlertsEnabled` field fix |
+| **LMB dashboards** | HIRING unchanged primary path; **RENTAL** → Owner rentals; **SERVICE** calendar add/remove offline days; `serviceType` on register (Hall/Catering/Decor/Photo) |
+| **Dead transfer stub** | Removed client call to nonexistent `/businesses/:id/transfer` |
+| **Pay messaging** | Friendly copy when Razorpay gateway is not configured (matcher vs payment) |
 
 ### Shipped 2026-08-09 — Smart Hiring (Find a Job + Hire Employee)
 

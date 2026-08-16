@@ -39,6 +39,15 @@ class _ListBusinessDetailsScreenState
   // Dynamic field for specific type requirements
   final _specialtyCtrl = TextEditingController();
 
+  /// SERVICE subtype — maps to backend Business.serviceType enum.
+  static const _serviceTypes = [
+    ('HALL', 'Hall'),
+    ('CATERING', 'Catering'),
+    ('DECORATION', 'Decoration'),
+    ('PHOTOGRAPHY', 'Photography'),
+  ];
+  String? _serviceType;
+
   bool _isSubmitting = false;
 
   // ── Optional registration/tax-ID document upload (image_picker → /uploads/image) ──
@@ -134,6 +143,10 @@ class _ListBusinessDetailsScreenState
       showGxSnack(context, 'Please fill all required fields');
       return;
     }
+    if (widget.type == BusinessType.service && _serviceType == null) {
+      showGxSnack(context, 'Select a service category (Hall, Catering, …)');
+      return;
+    }
 
     setState(() => _isSubmitting = true);
 
@@ -147,6 +160,8 @@ class _ListBusinessDetailsScreenState
         phone: _phoneCtrl.text,
         address: _addressCtrl.text,
         documentUrl: _docUrl,
+        serviceType:
+            widget.type == BusinessType.service ? _serviceType : null,
         // Structured city scope from the home-selected serviceable city
         // (nullable — legacy behaviour when no city is selected).
         cityId: ref.read(currentCityProvider)?.id,
@@ -293,12 +308,39 @@ class _ListBusinessDetailsScreenState
                     _sectionLabel(context, 'BUSINESS INFO'),
                     GxGlassCard(
                       child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           _buildTextField(
                             controller: _nameCtrl,
                             label: 'Business / Company Name *',
                             icon: Icons.business_rounded,
                           ),
+                          if (widget.type == BusinessType.service) ...[
+                            const SizedBox(height: 14),
+                            Text(
+                              'SERVICE CATEGORY *',
+                              style: TextStyle(
+                                fontSize: 10,
+                                fontWeight: FontWeight.w800,
+                                letterSpacing: 1.1,
+                                color: cs.onSurfaceVariant,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Wrap(
+                              spacing: 8,
+                              runSpacing: 8,
+                              children: [
+                                for (final (value, label) in _serviceTypes)
+                                  ChoiceChip(
+                                    label: Text(label),
+                                    selected: _serviceType == value,
+                                    onSelected: (_) =>
+                                        setState(() => _serviceType = value),
+                                  ),
+                              ],
+                            ),
+                          ],
                           const SizedBox(height: 14),
                           _buildTextField(
                             controller: _descCtrl,

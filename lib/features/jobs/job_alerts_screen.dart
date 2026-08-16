@@ -17,8 +17,13 @@ import '../../theme.dart';
 /// Browse available gig/job postings near the user (mockup "job" tab 1).
 /// Gixbee 2026 reskin: neutral header, squircle filter chips, bento job
 /// cards (logo block, pay pill, location row), apply via gx_sheet.
+///
+/// Classic board only — Smart Hiring offers live on the Offers tab.
 class JobAlertsScreen extends ConsumerStatefulWidget {
-  const JobAlertsScreen({super.key});
+  /// Opens the Applications tab in [FindJobModule] after a successful apply.
+  final VoidCallback? onOpenApplications;
+
+  const JobAlertsScreen({super.key, this.onOpenApplications});
 
   @override
   ConsumerState<JobAlertsScreen> createState() => _JobAlertsScreenState();
@@ -300,7 +305,8 @@ class _JobAlertsScreenState extends ConsumerState<JobAlertsScreen> {
           const SizedBox(height: 8),
           Text(
             'They can now view your profile and contact you. '
-            'Follow updates in the My Applications tab.',
+            'Track classic board applications under the Apps tab. '
+            'Smart Hiring matches appear under Offers (needs Job Types).',
             textAlign: TextAlign.center,
             style: TextStyle(
                 fontSize: 13,
@@ -308,10 +314,25 @@ class _JobAlertsScreenState extends ConsumerState<JobAlertsScreen> {
                 color: context.gx.ink.withValues(alpha: 0.6)),
           ),
           const SizedBox(height: 18),
+          if (widget.onOpenApplications != null) ...[
+            GxButton(
+              label: 'View my applications',
+              accent: GixbeeTheme.accentGreen,
+              gradient: const [GixbeeTheme.accentGreen, Color(0xFF047857)],
+              onTap: () {
+                Navigator.pop(context);
+                widget.onOpenApplications!();
+              },
+            ),
+            const SizedBox(height: 10),
+          ],
           GxButton(
-            label: 'Back to alerts',
+            label: 'Back to jobs',
+            filled: widget.onOpenApplications != null ? false : true,
             accent: GixbeeTheme.accentGreen,
-            gradient: const [GixbeeTheme.accentGreen, Color(0xFF047857)],
+            gradient: widget.onOpenApplications != null
+                ? null
+                : const [GixbeeTheme.accentGreen, Color(0xFF047857)],
             onTap: () => Navigator.pop(context),
           ),
           const SizedBox(height: 4),

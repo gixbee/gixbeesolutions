@@ -8,6 +8,9 @@ class Business {
   final String? address;
   final String? documentUrl;
 
+  /// SERVICE subtype: HALL / CATERING / DECORATION / PHOTOGRAPHY.
+  final String? serviceType;
+
   /// Structured city scope — City.id from the serviceable-cities master
   /// (backend `cityId`, nullable). Set from the home's selected city when
   /// listing; `address` stays the free-text display string.
@@ -33,6 +36,7 @@ class Business {
     this.phone,
     this.address,
     this.documentUrl,
+    this.serviceType,
     this.cityId,
     required this.ownerId,
     required this.status,
@@ -53,6 +57,7 @@ class Business {
       // `address`. Prefer address when present, else map location for reads.
       address: json['address'] ?? json['location'],
       documentUrl: json['documentUrl'],
+      serviceType: json['serviceType'] as String?,
       cityId: json['cityId'],
       ownerId: json['owner']?['id'] ?? json['ownerId'] ?? '',
       status: json['status'] ?? 'PENDING',
@@ -71,6 +76,7 @@ class Business {
       'phone': phone,
       'address': address,
       'documentUrl': documentUrl,
+      if (serviceType != null) 'serviceType': serviceType,
       // Only send when set — the backend DTO validates cityId as a UUID.
       if (cityId != null) 'cityId': cityId,
     };

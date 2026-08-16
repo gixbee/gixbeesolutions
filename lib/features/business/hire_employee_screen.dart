@@ -152,7 +152,7 @@ class _HireEmployeeScreenState extends ConsumerState<HireEmployeeScreen> {
           ? (e.response!.data['message']?.toString() ?? e.message)
           : e.message;
       if (!mounted) return;
-      showGxSnack(context, msg ?? 'Could not start hiring',
+      showGxSnack(context, _friendlyPayMessage(msg),
           type: GxSnackType.error);
       setState(() => _submitting = false);
     } catch (e) {
@@ -162,11 +162,36 @@ class _HireEmployeeScreenState extends ConsumerState<HireEmployeeScreen> {
     }
   }
 
+  String _friendlyPayMessage(String? msg) {
+    final m = (msg ?? '').toLowerCase();
+    if (m.contains('not configured') ||
+        m.contains('not available') ||
+        m.contains('needsapikey') ||
+        m.contains('gateway')) {
+      return 'Payment gateway is not configured yet — matching itself is fine once Razorpay keys are set on the server.';
+    }
+    if (m.contains('verif')) {
+      return msg ??
+          'Your hiring business must be verified by admin before Hire Employee.';
+    }
+    return msg ?? 'Could not start hiring';
+  }
+
   Future<void> _payAndCreate(Map<String, dynamic> draft) async {
     try {
       final order = await ref
           .read(matchingRepositoryProvider)
           .createHiringMatchOrder(draft);
+      if (order['needsApiKey'] == true) {
+        if (!mounted) return;
+        showGxSnack(
+          context,
+          'Payment gateway is not configured yet — matching itself is fine once Razorpay keys are set on the server.',
+          type: GxSnackType.error,
+        );
+        setState(() => _submitting = false);
+        return;
+      }
       final user = ref.read(currentUserProvider).value;
       _razorpay ??= Razorpay()
         ..on(Razorpay.EVENT_PAYMENT_SUCCESS, _onPaid)
@@ -188,7 +213,7 @@ class _HireEmployeeScreenState extends ConsumerState<HireEmployeeScreen> {
           ? (e.response!.data['message']?.toString() ?? e.message)
           : e.message;
       if (!mounted) return;
-      showGxSnack(context, msg ?? 'Payment unavailable',
+      showGxSnack(context, _friendlyPayMessage(msg),
           type: GxSnackType.error);
       setState(() => _submitting = false);
     }
@@ -240,7 +265,8 @@ class _HireEmployeeScreenState extends ConsumerState<HireEmployeeScreen> {
           padding: const EdgeInsets.fromLTRB(20, 12, 20, 40),
           children: [
             Text(
-              'Pay for Smart Matching — only interested candidates reach you. 24 Hour Hiring Guarantee.',
+              'Pay for Smart Matching — candidates come from Find a Job → Job Types. '
+              'Only interested candidates reach you. 24 Hour Hiring Guarantee.',
               style: TextStyle(
                 fontSize: 13,
                 height: 1.35,

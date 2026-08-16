@@ -27,12 +27,15 @@ class BusinessRepository {
     await _dio.post('/businesses/$businessId/operators', data: {'userId': userId, 'role': role});
   }
 
-  Future<void> initiateOwnershipTransfer(String businessId, String newOwnerId) async {
-    await _dio.post('/businesses/$businessId/transfer', data: {'newOwnerId': newOwnerId});
-  }
-
   Future<void> addOfflineDay(String businessId, DateTime date) async {
     await _dio.post('/businesses/$businessId/calendar/offline', data: {'date': date.toIso8601String()});
+  }
+
+  Future<void> removeOfflineDay(String businessId, DateTime date) async {
+    await _dio.delete(
+      '/businesses/$businessId/calendar/offline',
+      queryParameters: {'date': date.toIso8601String()},
+    );
   }
 
   /// Uploads document/image bytes to the backend and returns the stored URL

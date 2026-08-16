@@ -13,6 +13,7 @@ import '../../shared/widgets/gx_snackbar.dart';
 import '../../shared/widgets/gx_text_field.dart';
 import '../../theme.dart';
 import '../jobs/post_job_screen.dart';
+import '../rentals/owner_rentals_screen.dart';
 import 'hiring_pipeline_screen.dart';
 import 'hire_employee_screen.dart';
 import 'hiring_requests_screen.dart';
@@ -114,13 +115,31 @@ class BusinessUnitDashboard extends ConsumerWidget {
 }
 
 /// A single business unit card — header (icon, name, status chip) + the
-/// type-specific action row. Hiring units → Post Job / Candidates; service &
-/// rental units → Calendar (offline-day availability) / Operators.
+/// type-specific action row.
+/// Hiring → Hire Employee / Requests / board; Service → Calendar / Operators;
+/// Rental → owner items & reservation requests.
 class _BusinessCard extends ConsumerWidget {
   final Business business;
   const _BusinessCard({required this.business});
 
   bool get _isHiring => business.type == 'HIRING';
+  bool get _isRental => business.type == 'RENTAL';
+
+  String get _typeLabel {
+    if (_isHiring) return 'Hiring Unit';
+    if (_isRental) return 'Rental Unit';
+    final st = business.serviceType;
+    if (st != null && st.isNotEmpty) {
+      return 'Service · ${st[0]}${st.substring(1).toLowerCase()}';
+    }
+    return 'Service Unit';
+  }
+
+  IconData get _typeIcon {
+    if (_isHiring) return Icons.work_outline;
+    if (_isRental) return Icons.car_rental_rounded;
+    return Icons.handyman_outlined;
+  }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -138,7 +157,6 @@ class _BusinessCard extends ConsumerWidget {
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Squircle business-type icon block
                 Container(
                   width: 48,
                   height: 48,
@@ -151,7 +169,7 @@ class _BusinessCard extends ConsumerWidget {
                     ),
                   ),
                   child: Icon(
-                    _isHiring ? Icons.work_outline : Icons.handyman_outlined,
+                    _typeIcon,
                     color: GixbeeTheme.accentBlue,
                     size: 24,
                   ),
@@ -169,7 +187,7 @@ class _BusinessCard extends ConsumerWidget {
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        _isHiring ? 'Hiring Unit' : 'Service Unit',
+                        _typeLabel,
                         style: TextStyle(
                           color: colorScheme.onSurfaceVariant,
                           fontSize: 13,
@@ -183,7 +201,6 @@ class _BusinessCard extends ConsumerWidget {
               ],
             ),
             const SizedBox(height: 18),
-            // Type-specific action buttons
             if (_isHiring) ...[
               Row(
                 children: [
@@ -196,7 +213,7 @@ class _BusinessCard extends ConsumerWidget {
                         if (business.status != 'VERIFIED') {
                           showGxSnack(
                             context,
-                            'Verify your hiring business first (usually within 24h).',
+                            'Admin must verify your hiring business before Hire Employee (usually within 24h). Smart Hiring stays locked until status is VERIFIED.',
                             type: GxSnackType.error,
                           );
                           return;
@@ -253,6 +270,33 @@ class _BusinessCard extends ConsumerWidget {
                   ),
                 ],
               ),
+            ] else if (_isRental) ...[
+              Row(
+                children: [
+                  Expanded(
+                    child: _BizAction(
+                      icon: Icons.inventory_2_outlined,
+                      label: 'My rentals',
+                      primary: true,
+                      onTap: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const OwnerRentalsScreen(),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: _BizAction(
+                      icon: Icons.person_add_alt,
+                      label: 'Operators',
+                      primary: false,
+                      onTap: () => _manageOperators(context, ref, business),
+                    ),
+                  ),
+                ],
+              ),
             ] else ...[
               Row(
                 children: [
@@ -261,7 +305,7 @@ class _BusinessCard extends ConsumerWidget {
                       icon: Icons.calendar_month,
                       label: 'Calendar',
                       primary: true,
-                      onTap: () => _markOfflineDay(context, ref, business),
+                      onTap: () => _manageOfflineDays(context, ref, business),
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -342,11 +386,53 @@ class _BusinessCard extends ConsumerWidget {
     }
   }
 
-  // ── Calendar: pick a free day to mark the unit offline. Existing offline
-  // days arrive as `blockedDays` (rendered struck-through, non-selectable), so
-  // the sheet doubles as the availability view. Backend only supports ADD
-  // (POST /businesses/:id/calendar/offline) today — there is no remove yet.
-  Future<void> _markOfflineDay(
+  /// Service calendar: add offline days or remove an existing blocked day.
+  Future<void> _manageOfflineDays(
+      BuildContext context, WidgetRef ref, Business biz) async {
+    final action = await showGxSheet<String>(
+      context,
+      title: 'Unit calendar',
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(
+            biz.offlineDays.isEmpty
+                ? 'No offline days marked.'
+                : '${biz.offlineDays.length} offline day(s) marked.',
+            style: TextStyle(
+              fontSize: 13,
+              color: context.gx.ink.withValues(alpha: 0.6),
+            ),
+          ),
+          const SizedBox(height: 14),
+          GxButton(
+            label: 'Mark a day offline',
+            accent: GixbeeTheme.accentBlue,
+            gradient: const [GixbeeTheme.accentBlue, Color(0xFF1D4ED8)],
+            onTap: () => Navigator.pop(context, 'add'),
+          ),
+          if (biz.offlineDays.isNotEmpty) ...[
+            const SizedBox(height: 10),
+            GxButton(
+              label: 'Remove an offline day',
+              filled: false,
+              accent: GixbeeTheme.accentBlue,
+              onTap: () => Navigator.pop(context, 'remove'),
+            ),
+          ],
+        ],
+      ),
+    );
+    if (action == null || !context.mounted) return;
+    if (action == 'add') {
+      await _addOfflineDay(context, ref, biz);
+    } else if (action == 'remove') {
+      await _removeOfflineDay(context, ref, biz);
+    }
+  }
+
+  Future<void> _addOfflineDay(
       BuildContext context, WidgetRef ref, Business biz) async {
     final picked = await showGxCalendar(
       context,
@@ -374,8 +460,45 @@ class _BusinessCard extends ConsumerWidget {
     }
   }
 
-  // ── Operators: a glass sheet listing current operators + an add-by-id field
-  // (the backend grants access by raw user id — POST /businesses/:id/operators).
+  Future<void> _removeOfflineDay(
+      BuildContext context, WidgetRef ref, Business biz) async {
+    final days = [...biz.offlineDays]..sort();
+    final picked = await showGxSheet<DateTime>(
+      context,
+      title: 'Remove offline day',
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          for (final d in days)
+            ListTile(
+              title: Text('${d.day}/${d.month}/${d.year}'),
+              trailing: const Icon(Icons.delete_outline),
+              onTap: () => Navigator.pop(context, d),
+            ),
+        ],
+      ),
+    );
+    if (picked == null || !context.mounted) return;
+    try {
+      await ref
+          .read(businessRepositoryProvider)
+          .removeOfflineDay(biz.id, picked);
+      ref.invalidate(myBusinessesProvider);
+      if (context.mounted) {
+        showGxSnack(
+          context,
+          'Removed ${picked.day}/${picked.month}/${picked.year}',
+          type: GxSnackType.success,
+        );
+      }
+    } catch (_) {
+      if (context.mounted) {
+        showGxSnack(context, 'Could not update calendar',
+            type: GxSnackType.error);
+      }
+    }
+  }
+
   Future<void> _manageOperators(
       BuildContext context, WidgetRef ref, Business biz) async {
     await showGxSheet<void>(

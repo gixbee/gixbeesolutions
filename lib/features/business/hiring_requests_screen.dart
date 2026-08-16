@@ -53,31 +53,48 @@ class _HiringRequestsScreenState extends ConsumerState<HiringRequestsScreen> {
       backgroundColor: context.gx.bg,
       appBar: AppBar(title: const Text('Hiring requests')),
       body: DribbbleBackground(
-        child: _loading
-            ? const Center(child: CircularProgressIndicator())
-            : RefreshIndicator(
-                onRefresh: _load,
-                child: _requests.isEmpty
-                    ? ListView(
-                        physics: const AlwaysScrollableScrollPhysics(),
-                        children: const [
-                          SizedBox(height: 100),
-                          GxEmptyState(
-                            icon: Icons.work_outline,
-                            title: 'No hiring requests',
-                            message:
-                                'Start Hire Employee to run a 24 h Smart Match.',
-                            accent: GixbeeTheme.accentBlue,
-                          ),
-                        ],
-                      )
-                    : ListView.builder(
-                        padding: const EdgeInsets.fromLTRB(16, 12, 16, 40),
-                        itemCount: _requests.length,
-                        itemBuilder: (_, i) {
-                          final r = _requests[i];
-                          final status = '${r['status'] ?? ''}';
-                          final interested = r['interestedCount'] ?? 0;
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+              child: Text(
+                'Candidates come from Find a Job → Job Types. '
+                'Interested seekers appear here for shortlist / hire — their Offers tab shows your decision.',
+                style: TextStyle(
+                  fontSize: 12.5,
+                  height: 1.35,
+                  color: context.gx.ink.withValues(alpha: 0.55),
+                ),
+              ),
+            ),
+            Expanded(
+              child: _loading
+                  ? const Center(child: CircularProgressIndicator())
+                  : RefreshIndicator(
+                      onRefresh: _load,
+                      child: _requests.isEmpty
+                          ? ListView(
+                              physics: const AlwaysScrollableScrollPhysics(),
+                              children: const [
+                                SizedBox(height: 100),
+                                GxEmptyState(
+                                  icon: Icons.work_outline,
+                                  title: 'No hiring requests',
+                                  message:
+                                      'Start Hire Employee to run a 24 h Smart Match against Find a Job Job Types.',
+                                  accent: GixbeeTheme.accentBlue,
+                                ),
+                              ],
+                            )
+                          : ListView.builder(
+                              padding:
+                                  const EdgeInsets.fromLTRB(16, 12, 16, 40),
+                              itemCount: _requests.length,
+                              itemBuilder: (_, i) {
+                                final r = _requests[i];
+                                final status = '${r['status'] ?? ''}';
+                                final interested = r['interestedCount'] ?? 0;
                           final deadline = DateTime.tryParse(
                               r['deadlineAt']?.toString() ?? '');
                           return Padding(
@@ -153,7 +170,10 @@ class _HiringRequestsScreenState extends ConsumerState<HiringRequestsScreen> {
                           );
                         },
                       ),
-              ),
+                    ),
+            ),
+          ],
+        ),
       ),
     );
   }
