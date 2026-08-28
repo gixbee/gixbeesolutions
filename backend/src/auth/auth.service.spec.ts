@@ -87,7 +87,17 @@ function makeDeps(opts: { user?: any; config?: Record<string, any> } = {}) {
     effectivePages: jest.fn(() => []),
   };
 
+  const smsService: any = {
+    isConfigured: jest.fn(() => false),
+    sendOtp: jest.fn(async () => {}),
+  };
+
   const transactionsRepository: any = {
+    create: jest.fn((e) => e),
+    save: jest.fn(async (e) => e),
+  };
+
+  const jobCreditRepository: any = {
     create: jest.fn((e) => e),
     save: jest.fn(async (e) => e),
   };
@@ -95,10 +105,12 @@ function makeDeps(opts: { user?: any; config?: Record<string, any> } = {}) {
   const service = new AuthService(
     usersRepository,
     transactionsRepository,
+    jobCreditRepository,
     jwtService,
     redisService,
     configService,
     adminStaffService,
+    smsService,
   );
 
   return {
@@ -108,6 +120,7 @@ function makeDeps(opts: { user?: any; config?: Record<string, any> } = {}) {
     redisService,
     configService,
     adminStaffService,
+    smsService,
     saved,
     redisStore,
   };

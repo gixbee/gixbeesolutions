@@ -64,6 +64,16 @@ describe('PaymentsService.getGatewayStatus', () => {
     expect(status.razorpay.message).toBeNull();
   });
 
+  it('treats placeholder Razorpay keys as unconfigured', () => {
+    const status = makeService({
+      RAZORPAY_KEY_ID: 'placeholder_key_id',
+      RAZORPAY_KEY_SECRET: 'placeholder_key_secret',
+    }).getGatewayStatus();
+
+    expect(status.razorpay.available).toBe(false);
+    expect(status.razorpay.needsApiKey).toBe(true);
+  });
+
   it('keeps legacy upi field as unavailable PhonePe stub', () => {
     const status = makeService({}).getGatewayStatus();
     expect(status.upi.available).toBe(false);

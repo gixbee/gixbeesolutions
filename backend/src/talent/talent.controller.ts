@@ -16,6 +16,8 @@ import {
   ToggleAlertsDto,
   ToggleSavedJobDto,
 } from './dto/talent-skill.dto';
+import { AadhaarGenerateOtpDto } from './dto/aadhaar-generate-otp.dto';
+import { AadhaarSubmitOtpDto } from './dto/aadhaar-submit-otp.dto';
 
 @UseGuards(JwtAuthGuard)
 @Controller('talent')
@@ -32,13 +34,30 @@ export class TalentController {
   // render the "Verify with Aadhaar" tile, and initiate returns a clear
   // needs-API-key payload instead of ever faking a verified result.
   @Get('verification/status')
-  getVerificationStatus() {
-    return this.talentService.getVerificationStatus();
+  getVerificationStatus(@Req() req: any) {
+    return this.talentService.getVerificationStatus(req.user.userId);
   }
 
   @Post('verification/initiate')
   initiateVerification(@Req() req: any) {
     return this.talentService.initiateVerification(req.user.userId);
+  }
+
+  @Post('verification/generate-otp')
+  generateAadhaarOtp(@Req() req: any, @Body() body: AadhaarGenerateOtpDto) {
+    return this.talentService.generateAadhaarOtp(
+      req.user.userId,
+      body.aadhaarNumber,
+    );
+  }
+
+  @Post('verification/submit-otp')
+  submitAadhaarOtp(@Req() req: any, @Body() body: AadhaarSubmitOtpDto) {
+    return this.talentService.submitAadhaarOtp(
+      req.user.userId,
+      body.clientId,
+      body.otp,
+    );
   }
 
   @Post('profile')

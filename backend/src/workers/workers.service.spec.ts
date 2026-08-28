@@ -757,3 +757,32 @@ describe('WorkersService.setWorkerStatus', () => {
     });
   });
 });
+
+describe('WorkersService.getMyProfile', () => {
+  it('returns registered:false when no worker profile exists', async () => {
+    const { service } = setup();
+    const res = await service.getMyProfile('u1');
+    expect(res).toEqual({ registered: false });
+  });
+
+  it('includes maskedAadhaar when set after eKYC', async () => {
+    const { service, workersRepository } = setup();
+    workersRepository.findOne.mockResolvedValue({
+      id: 'wp1',
+      skills: ['Plumbing'],
+      hourlyRate: 100,
+      bio: null,
+      title: null,
+      isActive: false,
+      verificationStatus: VerificationStatus.VERIFIED,
+      maskedAadhaar: 'XXXX-XXXX-1234',
+      isFirstJobDone: false,
+      languages: [],
+      serviceRadiusKm: 10,
+    });
+    const res = await service.getMyProfile('u1');
+    expect(res.registered).toBe(true);
+    expect(res.maskedAadhaar).toBe('XXXX-XXXX-1234');
+    expect(res.verificationStatus).toBe(VerificationStatus.VERIFIED);
+  });
+});

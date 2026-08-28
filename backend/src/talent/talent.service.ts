@@ -1,13 +1,18 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { ConfigService } from '@nestjs/config';
 import { TalentProfile } from './talent-profile.entity';
 import { User } from '../users/user.entity';
 import {
   ProfessionalSkill,
   SkillApprovalStatus,
 } from './professional-skill.entity';
+import { AadhaarKycService } from './aadhaar-kyc.service';
+import { WorkersService } from '../workers/workers.service';
+import {
+  VerificationStatus,
+  WorkerProfile,
+} from '../workers/worker-profile.entity';
 
 @Injectable()
 export class TalentService {
@@ -16,54 +21,59 @@ export class TalentService {
     private readonly talentRepo: Repository<TalentProfile>,
     @InjectRepository(ProfessionalSkill)
     private readonly skillRepo: Repository<ProfessionalSkill>,
-    private readonly config: ConfigService,
+    @InjectRepository(WorkerProfile)
+    private readonly workerRepo: Repository<WorkerProfile>,
+    private readonly aadhaarKyc: AadhaarKycService,
+    private readonly workersService: WorkersService,
   ) {}
 
-  /**
-   * Aadhaar eKYC identity verification — stub (credential-blocked).
-   *
-   * Prefer Aadhaar OTP over DigiLocker: every adult in India has Aadhaar;
-   * DigiLocker is optional. Not live until a KYC provider key is configured
-   * (Cashfree / Surepass / HyperVerge / etc.). Status/initiate mirror the
-   * PhonePe gateway stub — client never sees a fake verified result.
-   *
-   * // TODO: set AADHAAR_CLIENT_ID + AADHAAR_CLIENT_SECRET (or provider
-   * //       equivalents), then implement Aadhaar OTP send/verify eKYC.
-   */
   private get aadhaarConfigured(): boolean {
-    return Boolean(
-      this.config.get<string>('AADHAAR_CLIENT_ID') &&
-      this.config.get<string>('AADHAAR_CLIENT_SECRET'),
-    );
+    return this.aadhaarKyc.isConfigured();
+  }
+
+  private async isUserAadhaarVerified(userId: string): Promise<boolean> {
+    const worker = await this.workerRepo.findOne({
+      where: { user: { id: userId } },
+    });
+    return worker?.verificationStatus === VerificationStatus.VERIFIED;
   }
 
   /**
    * Verification readiness for the Register-as-Pro "Verify" step.
-   * `verified` is always false here: with no provider configured no real
-   * verification can have happened, so this never reports a fake verified
-   * state. The Flutter app branches on `needsApiKey` to show the shell.
+   * Reports real verified state from worker_profiles — never fakes it.
    */
-  getVerificationStatus() {
+  async getVerificationStatus(userId: string) {
     const configured = this.aadhaarConfigured;
+    const verified = await this.isUserAadhaarVerified(userId);
     return {
       provider: 'AADHAAR',
       available: configured,
       needsApiKey: !configured,
-      verified: false,
-      message: configured
+      verified,
+      message: verified
         ? null
-        : 'Aadhaar verification is coming soon. Confirm with the OTP on your Aadhaar-linked mobile — no DigiLocker account needed. Verified pros rank higher and get more jobs. For now you can upload certificates as proof.',
+        : configured
+          ? 'Enter your Aadhaar and confirm with the OTP on your Aadhaar-linked mobile — no DigiLocker account needed.'
+          : 'Aadhaar verification is coming soon. Confirm with the OTP on your Aadhaar-linked mobile — no DigiLocker account needed. Verified pros rank higher and get more jobs. For now you can upload certificates as proof.',
     };
   }
 
   /**
-   * Begin Aadhaar verification — stubbed until credentials exist.
-   * Never returns a verified result: when unconfigured it returns an explicit
-   * needs-API-key payload (HTTP 200 so the client can branch cleanly).
+   * Begin Aadhaar verification — returns gateway readiness; use
+   * generateAadhaarOtp / submitAadhaarOtp for the live OTP flow.
    */
-  initiateVerification(_userId: string) {
+  async initiateVerification(userId: string) {
+    const status = await this.getVerificationStatus(userId);
+    if (status.verified) {
+      return {
+        status: 'ALREADY_VERIFIED',
+        needsApiKey: false,
+        provider: 'AADHAAR',
+        verified: true,
+        message: 'Your Aadhaar is already verified.',
+      };
+    }
     if (!this.aadhaarConfigured) {
-      // TODO: wire Aadhaar OTP eKYC once AADHAAR_CLIENT_ID/SECRET exist.
       return {
         status: 'UNAVAILABLE',
         needsApiKey: true,
@@ -73,16 +83,52 @@ export class TalentService {
           'Aadhaar verification is not live yet: the KYC provider key has not been configured. You can still upload certificates as proof for now.',
       };
     }
-
-    // Credentials exist but the real OTP/eKYC flow is still to be written —
-    // refuse rather than pretend the identity was verified.
     return {
-      status: 'NOT_IMPLEMENTED',
+      status: 'READY',
       needsApiKey: false,
       provider: 'AADHAAR',
       verified: false,
       message:
-        'Aadhaar KYC credentials detected, but the OTP verification flow is not implemented yet.',
+        'Call POST /talent/verification/generate-otp with your 12-digit Aadhaar, then submit the OTP.',
+    };
+  }
+
+  async generateAadhaarOtp(userId: string, aadhaarNumber: string) {
+    if (await this.isUserAadhaarVerified(userId)) {
+      return {
+        status: 'ALREADY_VERIFIED',
+        verified: true,
+        message: 'Your Aadhaar is already verified.',
+      };
+    }
+    const { clientId, message } = await this.aadhaarKyc.generateOtp(aadhaarNumber);
+    return {
+      status: 'OTP_SENT',
+      clientId,
+      verified: false,
+      message,
+    };
+  }
+
+  async submitAadhaarOtp(userId: string, clientId: string, otp: string) {
+    if (await this.isUserAadhaarVerified(userId)) {
+      return {
+        status: 'ALREADY_VERIFIED',
+        verified: true,
+        message: 'Your Aadhaar is already verified.',
+      };
+    }
+    const result = await this.aadhaarKyc.submitOtp(clientId, otp);
+    await this.workersService.recordAadhaarVerification(userId, {
+      maskedAadhaar: result.maskedAadhaar,
+      fullName: result.fullName,
+    });
+    return {
+      status: 'VERIFIED',
+      verified: true,
+      maskedAadhaar: result.maskedAadhaar,
+      fullName: result.fullName,
+      message: 'Aadhaar verified successfully. You can now go live after admin review if required.',
     };
   }
 

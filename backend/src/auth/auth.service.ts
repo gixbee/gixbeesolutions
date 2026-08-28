@@ -2,6 +2,7 @@ import {
   Injectable,
   UnauthorizedException,
   NotFoundException,
+  ServiceUnavailableException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
@@ -21,6 +22,7 @@ import {
   TransactionType,
 } from '../wallets/wallet-transaction.entity';
 import { JobCredit } from '../billing/job-credit.entity';
+import { SmsService } from '../sms/sms.service';
 import * as crypto from 'crypto';
 
 @Injectable()
@@ -36,6 +38,7 @@ export class AuthService {
     private redisService: RedisService,
     private configService: ConfigService,
     private adminStaffService: AdminStaffService,
+    private smsService: SmsService,
   ) {}
 
   // ── OTP Request ────────────────────────────────────────────────────────────
@@ -48,10 +51,16 @@ export class AuthService {
     // Store OTP in Redis with 5-minute TTL
     await this.redisService.saveOtp(`otp:${phoneNumber}`, otp);
 
-    // TODO: Replace with Twilio Verify or MSG91 in production
-    // await this.twilioClient.verify.v2
-    //   .services(process.env.TWILIO_VERIFY_SERVICE_SID)
-    //   .verifications.create({ to: phoneNumber, channel: 'sms' });
+    // Deliver via MSG91 when configured (Gixbee verifies OTP in Redis).
+    try {
+      await this.smsService.sendOtp(phoneNumber, otp);
+    } catch {
+      if (this.configService.get('NODE_ENV') === 'production') {
+        throw new ServiceUnavailableException(
+          'Could not send OTP SMS — please try again shortly',
+        );
+      }
+    }
 
     // SECURITY FIX: this used to return the OTP in the HTTP response whenever
     // NODE_ENV !== 'production' — and the committed .env sets
@@ -67,9 +76,11 @@ export class AuthService {
       return { message: 'OTP sent successfully', devOtp: otp };
     }
 
-    // No SMS provider is wired yet (MSG91/Twilio TODO above). Log server-side
-    // so local testing still works, but never return the code to the caller.
-    if (this.configService.get('NODE_ENV') !== 'production') {
+    // Log locally when SMS is not configured (dev only).
+    if (
+      !this.smsService.isConfigured() &&
+      this.configService.get('NODE_ENV') !== 'production'
+    ) {
       console.log(`[DEV] OTP for ${phoneNumber}: ${otp}`);
     }
 

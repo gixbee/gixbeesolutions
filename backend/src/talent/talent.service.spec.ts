@@ -22,6 +22,7 @@ function makeService(
   opts: {
     profile?: any;
     skill?: any;
+    worker?: any;
     configValues?: Record<string, string>;
   } = {},
 ) {
@@ -51,19 +52,55 @@ function makeService(
     }),
   };
 
-  const config: any = {
-    get: jest.fn((key: string) => opts.configValues?.[key]),
+  const workerRepo: any = {
+    findOne: jest.fn(async () => opts.worker ?? null),
   };
 
-  const service = new TalentService(talentRepo, skillRepo, config);
+  const aadhaarKyc: any = {
+    isConfigured: jest.fn(() =>
+      Boolean(
+        opts.configValues?.AADHAAR_CLIENT_ID &&
+          opts.configValues?.AADHAAR_CLIENT_SECRET,
+      ),
+    ),
+    generateOtp: jest.fn(async () => ({
+      clientId: 'sess-1',
+      message: 'OTP sent',
+    })),
+    submitOtp: jest.fn(async () => ({
+      maskedAadhaar: 'XXXX-1234',
+      fullName: 'Test User',
+    })),
+  };
+
+  const workersService: any = {
+    recordAadhaarVerification: jest.fn(async () => ({
+      userId: 'user-1',
+      verificationStatus: 'VERIFIED',
+    })),
+    setVerificationStatus: jest.fn(async () => ({
+      userId: 'user-1',
+      verificationStatus: 'VERIFIED',
+    })),
+  };
+
+  const service = new TalentService(
+    talentRepo,
+    skillRepo,
+    workerRepo,
+    aadhaarKyc,
+    workersService,
+  );
   return {
     service,
     talentRepo,
     skillRepo,
+    workerRepo,
     talentSaved,
     skillSaved,
     skillRemoved,
-    config,
+    aadhaarKyc,
+    workersService,
   };
 }
 
@@ -299,21 +336,17 @@ describe('TalentService.recordNoShow', () => {
 });
 
 /**
- * Aadhaar eKYC identity-verification stub (credential-blocked).
- * With no AADHAAR_* env vars the status/initiate pair must advertise
- * needsApiKey and NEVER report a verified result; with both creds present
- * (real OTP flow still unwritten) initiate must return NOT_IMPLEMENTED rather
- * than faking a verified identity. `verified` is false in every branch.
+ * Aadhaar eKYC identity verification (Surepass-backed when creds exist).
  */
-describe('TalentService — Aadhaar verification stub', () => {
+describe('TalentService — Aadhaar verification', () => {
   const bothCreds = {
-    AADHAAR_CLIENT_ID: 'cid',
-    AADHAAR_CLIENT_SECRET: 'secret',
+    AADHAAR_CLIENT_ID: 'sp_client_abc',
+    AADHAAR_CLIENT_SECRET: 'sp_bearer_token',
   };
 
-  it('getVerificationStatus reports needsApiKey when unconfigured', () => {
+  it('getVerificationStatus reports needsApiKey when unconfigured', async () => {
     const { service } = makeService();
-    const status = service.getVerificationStatus();
+    const status = await service.getVerificationStatus('user-1');
     expect(status.provider).toBe('AADHAAR');
     expect(status.available).toBe(false);
     expect(status.needsApiKey).toBe(true);
@@ -321,36 +354,41 @@ describe('TalentService — Aadhaar verification stub', () => {
     expect(status.message).toContain('coming soon');
   });
 
-  it('getVerificationStatus reports available (still not verified) when both creds exist', () => {
+  it('getVerificationStatus reports available when both creds exist', async () => {
     const { service } = makeService({ configValues: bothCreds });
-    const status = service.getVerificationStatus();
+    const status = await service.getVerificationStatus('user-1');
     expect(status.available).toBe(true);
     expect(status.needsApiKey).toBe(false);
     expect(status.verified).toBe(false);
-    expect(status.message).toBeNull();
   });
 
-  it('treats a partial credential set as unconfigured', () => {
-    const { service } = makeService({
-      configValues: { AADHAAR_CLIENT_ID: 'cid' }, // secret missing
-    });
-    expect(service.getVerificationStatus().available).toBe(false);
-  });
-
-  it('initiateVerification returns a needs-API-key payload (never verified) when unconfigured', () => {
-    const { service } = makeService();
-    const res = service.initiateVerification('user-1');
-    expect(res.status).toBe('UNAVAILABLE');
-    expect(res.needsApiKey).toBe(true);
-    expect(res.verified).toBe(false);
-    expect(res.provider).toBe('AADHAAR');
-  });
-
-  it('initiateVerification returns NOT_IMPLEMENTED (never verified) when creds exist', () => {
+  it('initiateVerification returns READY when creds exist', async () => {
     const { service } = makeService({ configValues: bothCreds });
-    const res = service.initiateVerification('user-1');
-    expect(res.status).toBe('NOT_IMPLEMENTED');
+    const res = await service.initiateVerification('user-1');
+    expect(res.status).toBe('READY');
     expect(res.needsApiKey).toBe(false);
     expect(res.verified).toBe(false);
+  });
+
+  it('generateAadhaarOtp delegates to AadhaarKycService', async () => {
+    const { service, aadhaarKyc } = makeService({ configValues: bothCreds });
+    const res = await service.generateAadhaarOtp('user-1', '123456789012');
+    expect(aadhaarKyc.generateOtp).toHaveBeenCalledWith('123456789012');
+    expect(res.status).toBe('OTP_SENT');
+    expect(res.clientId).toBe('sess-1');
+  });
+
+  it('submitAadhaarOtp records verification on the worker profile', async () => {
+    const { service, aadhaarKyc, workersService } = makeService({
+      configValues: bothCreds,
+    });
+    const res = await service.submitAadhaarOtp('user-1', 'sess-1', '654321');
+    expect(aadhaarKyc.submitOtp).toHaveBeenCalledWith('sess-1', '654321');
+    expect(workersService.recordAadhaarVerification).toHaveBeenCalledWith(
+      'user-1',
+      { maskedAadhaar: 'XXXX-1234', fullName: 'Test User' },
+    );
+    expect(res.status).toBe('VERIFIED');
+    expect(res.verified).toBe(true);
   });
 });

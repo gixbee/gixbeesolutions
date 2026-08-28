@@ -24,6 +24,7 @@ import {
   WALLET_PAYMENTS_ENABLED,
   WalletPaymentsDisabledError,
 } from '../common/money-model';
+import { isRealSecret } from '../common/env-secrets';
 import { NoticePeriod } from '../hiring/matching/job-preference.entity';
 
 /**
@@ -70,7 +71,7 @@ export class PaymentsService {
     return this.config.get<string>('RAZORPAY_WEBHOOK_SECRET') ?? '';
   }
   private get razorpayConfigured(): boolean {
-    return Boolean(this.keyId && this.keySecret);
+    return isRealSecret(this.keyId) && isRealSecret(this.keySecret);
   }
 
   /**

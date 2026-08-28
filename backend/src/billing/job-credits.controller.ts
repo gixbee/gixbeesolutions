@@ -17,6 +17,7 @@ import {
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { ConfigService } from '@nestjs/config';
 import * as crypto from 'crypto';
+import { isRealSecret } from '../common/env-secrets';
 import { CreditTransactionReason } from './credit-transaction.entity';
 
 @Controller('billing/credits')
@@ -77,7 +78,7 @@ export class JobCreditsController {
     const keyId = this.configService.get<string>('RAZORPAY_KEY_ID');
     const keySecret = this.configService.get<string>('RAZORPAY_KEY_SECRET');
 
-    if (!keyId || !keySecret) {
+    if (!isRealSecret(keyId) || !isRealSecret(keySecret)) {
       throw new BadRequestException('Payment gateway is not configured.');
     }
 

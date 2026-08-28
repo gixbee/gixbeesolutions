@@ -4,6 +4,7 @@ import { ClassSerializerInterceptor, ValidationPipe } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
 import { RedisIoAdapter } from './redis/redis-io.adapter';
+import { isRealSecret } from './common/env-secrets';
 
 /**
  * SECURITY FIX — refuse to start production with development secrets.
@@ -35,6 +36,22 @@ function assertProductionSecrets() {
   }
   if (process.env.ALLOW_OTP_ECHO === 'true') {
     problems.push('ALLOW_OTP_ECHO=true would return login OTPs to callers');
+  }
+  if (
+    !isRealSecret(process.env.MSG91_AUTH_KEY) ||
+    !isRealSecret(process.env.MSG91_TEMPLATE_ID)
+  ) {
+    problems.push(
+      'MSG91_AUTH_KEY / MSG91_TEMPLATE_ID missing — login OTP SMS will not deliver',
+    );
+  }
+  if (
+    !isRealSecret(process.env.RAZORPAY_KEY_ID) ||
+    !isRealSecret(process.env.RAZORPAY_KEY_SECRET)
+  ) {
+    problems.push(
+      'RAZORPAY_KEY_ID / RAZORPAY_KEY_SECRET missing or placeholder — period fee / late-cancel payments disabled',
+    );
   }
 
   if (problems.length > 0) {

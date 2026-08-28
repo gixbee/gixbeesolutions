@@ -60,6 +60,7 @@ import { SystemMetricsModule } from './system-metrics/system-metrics.module';
 import { BillingModule } from './billing/billing.module';
 import { JobCredit } from './billing/job-credit.entity';
 import { CreditTransaction } from './billing/credit-transaction.entity';
+import { SmsModule } from './sms/sms.module';
 
 @Module({
   imports: [
@@ -193,6 +194,7 @@ import { CreditTransaction } from './billing/credit-transaction.entity';
 
     UsersModule,
     AuthModule,
+    SmsModule,
     WorkerEngineModule,
     BookingsModule,
     WalletsModule,

@@ -343,6 +343,7 @@ export class WorkersService {
       title: profile.title,
       isActive: profile.isActive,
       verificationStatus: profile.verificationStatus,
+      maskedAadhaar: profile.maskedAadhaar ?? null,
       isFirstJobDone: profile.isFirstJobDone,
       languages: profile.languages ?? [],
       serviceRadiusKm: profile.serviceRadiusKm ?? DEFAULT_SERVICE_RADIUS_KM,
@@ -394,6 +395,46 @@ export class WorkersService {
         certificates: talent?.certificates ?? [],
       };
     });
+  }
+
+  /**
+   * Persist Aadhaar eKYC success — creates a shell worker profile when the
+   * pro verifies during Register-as-Pro before skills are submitted.
+   */
+  async recordAadhaarVerification(
+    userId: string,
+    data: { maskedAadhaar: string; fullName: string },
+  ): Promise<{ userId: string; verificationStatus: string }> {
+    let profile = await this.workersRepository.findOne({
+      where: { user: { id: userId } },
+    });
+    if (!profile) {
+      profile = this.workersRepository.create({
+        user: { id: userId } as any,
+        skills: [],
+        hourlyRate: 0,
+        isActive: false,
+        verificationStatus: VerificationStatus.VERIFIED,
+        maskedAadhaar: data.maskedAadhaar,
+      });
+    } else {
+      profile.verificationStatus = VerificationStatus.VERIFIED;
+      profile.maskedAadhaar = data.maskedAadhaar;
+    }
+    await this.workersRepository.save(profile);
+
+    const user = await this.usersRepository.findOne({ where: { id: userId } });
+    if (user) {
+      if (!user.name?.trim() && data.fullName?.trim()) {
+        user.name = data.fullName.trim();
+      }
+      user.isVerified = true;
+      user.hasWorkerProfile = true;
+      await this.usersRepository.save(user);
+    }
+
+    await this.redisService.del(WORKERS_LIST_CACHE_KEY).catch(() => {});
+    return { userId, verificationStatus: VerificationStatus.VERIFIED };
   }
 
   /// Approve/reject a worker's verification. Approval also flips the user's

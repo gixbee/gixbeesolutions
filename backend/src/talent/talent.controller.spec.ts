@@ -31,6 +31,19 @@ function makeController() {
       verified: false,
       message: 'not live yet',
     })),
+    generateAadhaarOtp: jest.fn(async () => ({
+      status: 'OTP_SENT',
+      clientId: 'sess-1',
+      verified: false,
+      message: 'OTP sent',
+    })),
+    submitAadhaarOtp: jest.fn(async () => ({
+      status: 'VERIFIED',
+      verified: true,
+      maskedAadhaar: 'XXXX-1234',
+      fullName: 'Test User',
+      message: 'verified',
+    })),
   };
   const controller = new TalentController(talentService);
   return { controller, talentService };
@@ -97,10 +110,15 @@ describe('TalentController.toggleAlerts', () => {
 });
 
 describe('TalentController.getVerificationStatus', () => {
-  it('delegates to the service (no body, no user needed) and returns the stub status', () => {
+  it('delegates to the service with the authed userId', async () => {
     const { controller, talentService } = makeController();
-    const res = controller.getVerificationStatus();
-    expect(talentService.getVerificationStatus).toHaveBeenCalled();
+    talentService.getVerificationStatus.mockResolvedValue({
+      provider: 'AADHAAR',
+      needsApiKey: true,
+      verified: false,
+    });
+    const res = await controller.getVerificationStatus(req);
+    expect(talentService.getVerificationStatus).toHaveBeenCalledWith('me-1');
     expect(res).toMatchObject({
       provider: 'AADHAAR',
       needsApiKey: true,
@@ -110,10 +128,38 @@ describe('TalentController.getVerificationStatus', () => {
 });
 
 describe('TalentController.initiateVerification', () => {
-  it('forwards the authed userId and returns the needs-API-key payload', () => {
+  it('forwards the authed userId and returns the needs-API-key payload', async () => {
     const { controller, talentService } = makeController();
-    const res = controller.initiateVerification(req);
+    const res = await controller.initiateVerification(req);
     expect(talentService.initiateVerification).toHaveBeenCalledWith('me-1');
     expect(res).toMatchObject({ status: 'UNAVAILABLE', verified: false });
+  });
+});
+
+describe('TalentController Aadhaar OTP', () => {
+  it('generateAadhaarOtp forwards userId and aadhaar number', async () => {
+    const { controller, talentService } = makeController();
+    const res = await controller.generateAadhaarOtp(req, {
+      aadhaarNumber: '123456789012',
+    });
+    expect(talentService.generateAadhaarOtp).toHaveBeenCalledWith(
+      'me-1',
+      '123456789012',
+    );
+    expect(res.status).toBe('OTP_SENT');
+  });
+
+  it('submitAadhaarOtp forwards userId, clientId, and otp', async () => {
+    const { controller, talentService } = makeController();
+    const res = await controller.submitAadhaarOtp(req, {
+      clientId: 'sess-1',
+      otp: '654321',
+    });
+    expect(talentService.submitAadhaarOtp).toHaveBeenCalledWith(
+      'me-1',
+      'sess-1',
+      '654321',
+    );
+    expect(res.verified).toBe(true);
   });
 });
