@@ -1,7 +1,7 @@
 # Gixbee — Current Status
 
 > **Single source of truth** for what is done vs still open.  
-> Last updated: **2026-08-17**  
+> Last updated: **2026-08-28**  
 > Prefer this file over older archaeology in git history (April backlog docs were deleted from `docs/` on 2026-07-18).
 
 ---
@@ -118,10 +118,10 @@ Every folder in `lib/features/` (17) is listed here, so a missing row means a mi
 
 | Item | Notes |
 |---|---|
-| **SMS OTP** | MSG91/Twilio not wired — OTP only logged server-side without a provider |
-| **Payments** | PhonePe/UPI/Razorpay return `needsApiKey` until credentials are set (period fee + late-cancel compensation need live Razorpay keys) |
-| **Aadhaar eKYC** | Pro ID verification still “coming soon” (Aadhaar OTP preferred over DigiLocker) |
-| **Secrets ops** | Rotate weak JWT/admin/DB/pgAdmin defaults if any env is shared; never commit Firebase admin JSON |
+| **SMS OTP** | **Code done** (2026-08-28) — `SmsService` + MSG91 v5 Flow in `AuthService.requestOtp`; production boot requires `MSG91_AUTH_KEY` + `MSG91_TEMPLATE_ID`. **Blocked:** live MSG91 keys + DLT template on EC2 `backend/.env`. |
+| **Payments** | **Code done** (2026-08-28) — `isRealSecret()` rejects `placeholder_*`; `getGatewayStatus()` + job-credit orders gate on real Razorpay creds. **Blocked:** `RAZORPAY_KEY_ID` / `RAZORPAY_KEY_SECRET` / `RAZORPAY_WEBHOOK_SECRET` on EC2; release APK `--dart-define=RAZORPAY_KEY=rzp_live_*`. PhonePe/UPI remain stub. |
+| **Aadhaar eKYC** | **Code done** (2026-08-28) — Surepass generate/submit OTP (`AadhaarKycService`), talent routes, `WorkersService.recordAadhaarVerification` + `maskedAadhaar` migration; Flutter Register-as-Pro OTP sheet wired. **Blocked:** `AADHAAR_CLIENT_ID` / `AADHAAR_CLIENT_SECRET` (Surepass bearer) on EC2; deploy migration `1754600000000`. |
+| **Secrets ops** | Rotate weak JWT/admin/DB/pgAdmin defaults on EC2; never commit Firebase admin JSON. `docker-compose.yml` still sets `NODE_ENV=development` — flip when going live so boot guards run. |
 
 ### P1 — Ops / infra follow-ups
 

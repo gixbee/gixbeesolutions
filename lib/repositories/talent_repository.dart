@@ -50,14 +50,33 @@ class TalentRepository {
     await _dio.post('/talent/saved-jobs/toggle', data: {'jobId': jobId});
   }
 
-  /// Aadhaar eKYC verification readiness (credential-blocked stub).
-  /// Mirrors the UPI gateway-status read: the Register-as-Pro "Verify" sheet
-  /// uses this to render live vs. "setup pending" without hard-coding the
-  /// state. Returns the backend payload
-  /// ({provider, available, needsApiKey, verified, message}); never reports a
-  /// fake verified result.
+  /// Aadhaar eKYC readiness + OTP flow (Surepass when creds exist).
   Future<Map<String, dynamic>> getVerificationStatus() async {
     final response = await _dio.get('/talent/verification/status');
+    return Map<String, dynamic>.from(response.data as Map);
+  }
+
+  Future<Map<String, dynamic>> initiateVerification() async {
+    final response = await _dio.post('/talent/verification/initiate');
+    return Map<String, dynamic>.from(response.data as Map);
+  }
+
+  Future<Map<String, dynamic>> generateAadhaarOtp(String aadhaarNumber) async {
+    final response = await _dio.post(
+      '/talent/verification/generate-otp',
+      data: {'aadhaarNumber': aadhaarNumber},
+    );
+    return Map<String, dynamic>.from(response.data as Map);
+  }
+
+  Future<Map<String, dynamic>> submitAadhaarOtp({
+    required String clientId,
+    required String otp,
+  }) async {
+    final response = await _dio.post(
+      '/talent/verification/submit-otp',
+      data: {'clientId': clientId, 'otp': otp},
+    );
     return Map<String, dynamic>.from(response.data as Map);
   }
 

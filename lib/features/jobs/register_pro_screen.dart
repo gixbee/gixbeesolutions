@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../core/config/app_config.dart';
@@ -48,6 +49,10 @@ class _RegisterProScreenState extends ConsumerState<RegisterProScreen> {
   bool _isSubmitting = false;
   bool _uploadingPhoto = false;
   bool _uploadingCert = false;
+
+  bool _aadhaarVerified = false;
+  String? _maskedAadhaar;
+  String? _aadhaarFullName;
 
   String? _approvalStatus;
   String? _photoUrl;
@@ -144,8 +149,40 @@ class _RegisterProScreenState extends ConsumerState<RegisterProScreen> {
         }
         _isLoading = false;
       });
+      await _loadAadhaarStatus();
     } catch (e) {
       if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _loadAadhaarStatus() async {
+    try {
+      final status =
+          await ref.read(talentRepositoryProvider).getVerificationStatus();
+      if (!mounted) return;
+      final verified = status['verified'] == true;
+      String? masked;
+
+      if (verified) {
+        try {
+          final worker =
+              await ref.read(workerRepositoryProvider).getMyWorkerProfile();
+          if (worker['registered'] == true) {
+            final m = worker['maskedAadhaar'];
+            if (m is String && m.trim().isNotEmpty) masked = m.trim();
+          }
+        } catch (e) {
+          debugPrint('Worker profile mask load failed: $e');
+        }
+      }
+
+      if (!mounted) return;
+      setState(() {
+        _aadhaarVerified = verified;
+        if (masked != null) _maskedAadhaar = masked;
+      });
+    } catch (e) {
+      debugPrint('Aadhaar status load failed: $e');
     }
   }
 
@@ -240,10 +277,7 @@ class _RegisterProScreenState extends ConsumerState<RegisterProScreen> {
     });
   }
 
-  // ── Aadhaar eKYC stub (credential-blocked) ───────────────────────────────
-  // Prefer Aadhaar OTP / eKYC over DigiLocker — every adult in India has an
-  // Aadhaar; DigiLocker is optional. Status copy comes from
-  // GET /talent/verification/status (same pattern as UPI gateway-status).
+  // ── Aadhaar eKYC (Surepass when backend creds exist) ─────────────────────
   static const String _aadhaarFallbackMsg =
       'Aadhaar verification is coming soon. Enter your Aadhaar and confirm '
       'with the OTP sent to your registered mobile — no DigiLocker account '
@@ -251,16 +285,101 @@ class _RegisterProScreenState extends ConsumerState<RegisterProScreen> {
       'upload certificates below as proof.';
 
   Future<void> _showAadhaarSheet() async {
-    String message = _aadhaarFallbackMsg;
+    final repo = ref.read(talentRepositoryProvider);
+    Map<String, dynamic> status;
     try {
-      final status =
-          await ref.read(talentRepositoryProvider).getVerificationStatus();
-      final m = status['message'];
-      if (m is String && m.trim().isNotEmpty) message = m;
-    } catch (_) {
-      // Offline / endpoint unavailable — keep the local fallback copy.
+      status = await repo.getVerificationStatus();
+    } catch (e) {
+      if (!mounted) return;
+      showGxSnack(context, 'Could not load verification status',
+          type: GxSnackType.error);
+      return;
     }
     if (!mounted) return;
+
+    if (status['verified'] == true || _aadhaarVerified) {
+      _showAadhaarVerifiedSheet(
+        message: (status['message'] as String?)?.trim(),
+      );
+      return;
+    }
+
+    final available = status['available'] == true;
+    final needsApiKey = status['needsApiKey'] == true;
+    if (!available || needsApiKey) {
+      _showAadhaarUnavailableSheet(status);
+      return;
+    }
+
+    await _showAadhaarOtpFlow(repo);
+  }
+
+  void _showAadhaarVerifiedSheet({String? message}) {
+    showGxSheet(
+      context,
+      title: 'Aadhaar verified',
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.verified_rounded,
+                  color: GixbeeTheme.accentGreen, size: 28),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  _maskedAadhaar != null
+                      ? 'Linked Aadhaar $_maskedAadhaar'
+                      : 'Your Aadhaar is verified.',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                    color: context.gx.ink,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          if (_aadhaarFullName != null) ...[
+            const SizedBox(height: 8),
+            Text(
+              _aadhaarFullName!,
+              style: TextStyle(
+                fontSize: 13,
+                color: context.gx.ink.withValues(alpha: 0.65),
+              ),
+            ),
+          ],
+          if (message != null && message.isNotEmpty) ...[
+            const SizedBox(height: 10),
+            Text(
+              message,
+              style: TextStyle(
+                fontSize: 13,
+                height: 1.5,
+                color: context.gx.ink.withValues(alpha: 0.7),
+              ),
+            ),
+          ],
+          const SizedBox(height: 16),
+          GxButton(
+            label: 'Done',
+            height: 48,
+            gradient: const [
+              GixbeeTheme.accentGreen,
+              GixbeeTheme.accentGreenDark,
+            ],
+            accent: GixbeeTheme.accentGreen,
+            onTap: () => Navigator.pop(context),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showAadhaarUnavailableSheet(Map<String, dynamic> status) {
+    final message = (status['message'] as String?)?.trim();
     showGxSheet(
       context,
       title: 'Aadhaar verification',
@@ -269,9 +388,13 @@ class _RegisterProScreenState extends ConsumerState<RegisterProScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            message,
+            (message != null && message.isNotEmpty)
+                ? message
+                : _aadhaarFallbackMsg,
             style: TextStyle(
-                fontSize: 13, height: 1.5, color: context.gx.ink.withValues(alpha: 0.7)),
+                fontSize: 13,
+                height: 1.5,
+                color: context.gx.ink.withValues(alpha: 0.7)),
           ),
           const SizedBox(height: 16),
           GxButton(
@@ -284,6 +407,197 @@ class _RegisterProScreenState extends ConsumerState<RegisterProScreen> {
         ],
       ),
     );
+  }
+
+  Future<void> _showAadhaarOtpFlow(TalentRepository repo) async {
+    final aadhaarCtrl = TextEditingController();
+    final otpCtrl = TextEditingController();
+    var step = 0; // 0 = Aadhaar, 1 = OTP
+    String? clientId;
+    var busy = false;
+    String? errorText;
+
+    await showGxSheet(
+      context,
+      title: 'Verify with Aadhaar',
+      child: StatefulBuilder(
+        builder: (sheetContext, setSheetState) {
+          Future<void> sendOtp() async {
+            final digits = aadhaarCtrl.text.replaceAll(RegExp(r'\D'), '');
+            if (digits.length != 12) {
+              setSheetState(() => errorText = 'Enter a valid 12-digit Aadhaar');
+              return;
+            }
+            setSheetState(() {
+              busy = true;
+              errorText = null;
+            });
+            try {
+              final res = await repo.generateAadhaarOtp(digits);
+              if (res['verified'] == true) {
+                if (!mounted) return;
+                setState(() => _aadhaarVerified = true);
+                if (!sheetContext.mounted) return;
+                Navigator.pop(sheetContext);
+                _showAadhaarVerifiedSheet(
+                  message: res['message'] as String?,
+                );
+                return;
+              }
+              final id = res['clientId'] as String?;
+              if (id == null || id.isEmpty) {
+                throw Exception(
+                    res['message'] as String? ?? 'Could not send OTP');
+              }
+              setSheetState(() {
+                clientId = id;
+                step = 1;
+                busy = false;
+                errorText = null;
+              });
+            } catch (e) {
+              setSheetState(() {
+                busy = false;
+                errorText = e.toString().replaceFirst('Exception: ', '');
+              });
+            }
+          }
+
+          Future<void> submitOtp() async {
+            final otp = otpCtrl.text.replaceAll(RegExp(r'\D'), '');
+            if (otp.length != 6) {
+              setSheetState(() => errorText = 'Enter the 6-digit OTP');
+              return;
+            }
+            if (clientId == null) {
+              setSheetState(() => errorText = 'Session expired — resend OTP');
+              return;
+            }
+            setSheetState(() {
+              busy = true;
+              errorText = null;
+            });
+            try {
+              final res = await repo.submitAadhaarOtp(
+                clientId: clientId!,
+                otp: otp,
+              );
+              if (!mounted) return;
+              setState(() {
+                _aadhaarVerified = res['verified'] == true;
+                _maskedAadhaar = res['maskedAadhaar'] as String?;
+                _aadhaarFullName = res['fullName'] as String?;
+              });
+              if (!sheetContext.mounted) return;
+              Navigator.pop(sheetContext);
+              if (!mounted) return;
+              showGxSnack(
+                context,
+                res['message'] as String? ?? 'Aadhaar verified',
+                type: GxSnackType.success,
+              );
+            } catch (e) {
+              setSheetState(() {
+                busy = false;
+                errorText = e.toString().replaceFirst('Exception: ', '');
+              });
+            }
+          }
+
+          return Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(
+                step == 0
+                    ? 'Enter your 12-digit Aadhaar. We send an OTP to your UIDAI-linked mobile — no DigiLocker needed.'
+                    : 'Enter the 6-digit OTP sent to your Aadhaar-linked mobile.',
+                style: TextStyle(
+                  fontSize: 13,
+                  height: 1.5,
+                  color: context.gx.ink.withValues(alpha: 0.7),
+                ),
+              ),
+              const SizedBox(height: 14),
+              if (step == 0)
+                GxTextField(
+                  controller: aadhaarCtrl,
+                  label: 'Aadhaar number',
+                  hint: '12 digits',
+                  keyboardType: TextInputType.number,
+                  accent: GixbeeTheme.accentGold,
+                  inputFormatters: [
+                    FilteringTextInputFormatter.digitsOnly,
+                    LengthLimitingTextInputFormatter(12),
+                  ],
+                )
+              else
+                GxTextField(
+                  controller: otpCtrl,
+                  label: 'OTP',
+                  hint: '6 digits',
+                  keyboardType: TextInputType.number,
+                  accent: GixbeeTheme.accentGold,
+                  inputFormatters: [
+                    FilteringTextInputFormatter.digitsOnly,
+                    LengthLimitingTextInputFormatter(6),
+                  ],
+                ),
+              if (errorText != null) ...[
+                const SizedBox(height: 10),
+                Text(
+                  errorText!,
+                  style: TextStyle(
+                    color: Theme.of(sheetContext).colorScheme.error,
+                    fontSize: 12,
+                  ),
+                ),
+              ],
+              const SizedBox(height: 16),
+              GxButton(
+                label: step == 0 ? 'Send OTP' : 'Verify OTP',
+                height: 48,
+                loading: busy,
+                gradient: const [
+                  GixbeeTheme.accentGreen,
+                  GixbeeTheme.accentGreenDark,
+                ],
+                accent: GixbeeTheme.accentGreen,
+                onTap: busy
+                    ? null
+                    : () {
+                        if (step == 0) {
+                          sendOtp();
+                        } else {
+                          submitOtp();
+                        }
+                      },
+              ),
+              if (step == 1) ...[
+                const SizedBox(height: 8),
+                TextButton(
+                  onPressed: busy
+                      ? null
+                      : () => setSheetState(() {
+                            step = 0;
+                            clientId = null;
+                            otpCtrl.clear();
+                            errorText = null;
+                          }),
+                  child: Text(
+                    'Change Aadhaar number',
+                    style: TextStyle(color: context.gx.accent, fontSize: 13),
+                  ),
+                ),
+              ],
+            ],
+          );
+        },
+      ),
+    );
+
+    aadhaarCtrl.dispose();
+    otpCtrl.dispose();
   }
 
   /// Advance / submit with rate validation. Leaving the skills step (or
@@ -501,13 +815,14 @@ class _RegisterProScreenState extends ConsumerState<RegisterProScreen> {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
               decoration: BoxDecoration(
-                color: Colors.green.withValues(alpha: 0.14),
+                color: GixbeeTheme.accentGreen.withValues(alpha: 0.14),
                 borderRadius: BorderRadius.circular(999),
-                border: Border.all(color: Colors.green.withValues(alpha: 0.4)),
+                border: Border.all(
+                    color: GixbeeTheme.accentGreen.withValues(alpha: 0.4)),
               ),
-              child: const Text('VERIFIED',
+              child: Text('VERIFIED',
                   style: TextStyle(
-                      color: Colors.green,
+                      color: GixbeeTheme.accentGreen,
                       fontSize: 9,
                       fontWeight: FontWeight.w800,
                       letterSpacing: 0.8)),
@@ -908,6 +1223,7 @@ class _RegisterProScreenState extends ConsumerState<RegisterProScreen> {
 
   // ── STEP 3: Verify ──────────────────────────────────────────────────────
   Widget _stepVerify(ColorScheme cs) {
+    final aadhaarDone = _aadhaarVerified;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -925,27 +1241,52 @@ class _RegisterProScreenState extends ConsumerState<RegisterProScreen> {
               Container(
                 padding: const EdgeInsets.all(11),
                 decoration: BoxDecoration(
-                  color: GixbeeTheme.accentGold.withValues(alpha: 0.12),
+                  color: (aadhaarDone
+                          ? GixbeeTheme.accentGreen
+                          : GixbeeTheme.accentGold)
+                      .withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(13),
                 ),
-                child: Icon(Icons.verified_user_outlined,
-                    color: GixbeeTheme.accentGold, size: 24),
+                child: Icon(
+                    aadhaarDone
+                        ? Icons.verified_rounded
+                        : Icons.verified_user_outlined,
+                    color: aadhaarDone
+                        ? GixbeeTheme.accentGreen
+                        : GixbeeTheme.accentGold,
+                    size: 24),
               ),
               const SizedBox(width: 14),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text('Verify with Aadhaar',
-                        style: TextStyle(
+                    Text(
+                        aadhaarDone
+                            ? 'Aadhaar verified'
+                            : 'Verify with Aadhaar',
+                        style: const TextStyle(
                             fontWeight: FontWeight.w800, fontSize: 14)),
                     const SizedBox(height: 3),
                     Text(
-                        _isVerified
-                            ? 'Your Aadhaar is verified.'
+                        aadhaarDone
+                            ? (_maskedAadhaar != null
+                                ? 'Linked Aadhaar $_maskedAadhaar'
+                                : 'Your Aadhaar is verified.')
                             : 'OTP on your Aadhaar-linked mobile. No DigiLocker needed.',
                         style: TextStyle(
                             color: cs.onSurfaceVariant, fontSize: 11)),
+                    if (aadhaarDone && _aadhaarFullName != null) ...[
+                      const SizedBox(height: 2),
+                      Text(
+                        _aadhaarFullName!,
+                        style: TextStyle(
+                          color: cs.onSurfaceVariant.withValues(alpha: 0.85),
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
                   ],
                 ),
               ),
@@ -954,10 +1295,12 @@ class _RegisterProScreenState extends ConsumerState<RegisterProScreen> {
         ),
         const SizedBox(height: 10),
         GxButton(
-          label: 'Verify with Aadhaar',
+          label: aadhaarDone ? 'View verification' : 'Verify with Aadhaar',
           icon: Icons.badge_outlined,
           filled: false,
-          accent: GixbeeTheme.accentGold,
+          accent: aadhaarDone
+              ? GixbeeTheme.accentGreen
+              : GixbeeTheme.accentGold,
           height: 46,
           onTap: _showAadhaarSheet,
         ),
