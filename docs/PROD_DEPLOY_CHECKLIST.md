@@ -16,27 +16,27 @@ See also: [HOSTING_GUIDE.md](./HOSTING_GUIDE.md) · [AWS_DEPLOYMENT.md](./AWS_DE
 | MSG91 login OTP | Done (`SmsService`) | Set `MSG91_*` on EC2 |
 | Razorpay payments | Done (`isRealSecret` guards) | Set `RAZORPAY_*` on EC2 + webhook |
 | Aadhaar eKYC | Done (`AadhaarKycService`) | Set `AADHAAR_*` + run migration |
-| `NODE_ENV=production` | **Wrong in compose today** | Change `docker-compose.yml` (below) |
+| `NODE_ENV=production` | Compose reads `${NODE_ENV:-development}` | Set `NODE_ENV=production` in EC2 `backend/.env` when creds ready |
 | Release APK Razorpay | Flutter `AppConfig.razorpayKey` | Rebuild via `gixbee_keys.bat` |
 
 ---
 
-## 1. Fix `NODE_ENV` in Docker Compose
+## 1. Set `NODE_ENV=production` on EC2
 
-**Problem:** `docker-compose.yml` hard-codes `NODE_ENV: development` on the backend service (line ~207). That disables:
-
-- TypeORM `migrationsRun` (migrations only auto-run when `NODE_ENV=production`)
-- Production boot guards in `main.ts` (weak JWT/admin/MSG91/Razorpay checks)
-- OTP echo protection semantics tied to production mode
-
-**Fix on EC2** (after pulling latest `main`):
+**Compose** passes through `NODE_ENV` from `backend/.env` (default `development` when unset):
 
 ```yaml
 # docker-compose.yml → backend.environment
-NODE_ENV: production
+NODE_ENV: ${NODE_ENV:-development}
 ```
 
-Also ensure `backend/.env` does **not** override `NODE_ENV` back to `development`.
+**On EC2** (after live MSG91 + Razorpay secrets are in `backend/.env`), add or set:
+
+```bash
+NODE_ENV=production
+```
+
+Do **not** flip to production until gateway secrets are real — `main.ts` boot guards will refuse weak JWT/admin/MSG91/Razorpay placeholders.
 
 **Verify after restart:**
 
