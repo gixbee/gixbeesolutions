@@ -188,6 +188,7 @@ Every folder in `lib/features/` (17) is listed here, so a missing row means a mi
 | **This file** | Current open/closed truth |
 | [AUDIT_2026-07-13.md](./AUDIT_2026-07-13.md) | July perf / race / leak audit |
 | [SECURITY_2026-07-13.md](./SECURITY_2026-07-13.md) | July security audit + ops secret actions |
+| [PROD_DEPLOY_CHECKLIST.md](./PROD_DEPLOY_CHECKLIST.md) | EC2 secrets, NODE_ENV, migration, APK Razorpay rebuild |
 | [HOSTING_GUIDE.md](./HOSTING_GUIDE.md) | Hosting setup |
 | [AWS_DEPLOYMENT.md](./AWS_DEPLOYMENT.md) | AWS deploy notes |
 | [.README.md](../.README.md) | Product overview + setup |
