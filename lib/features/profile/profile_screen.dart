@@ -487,7 +487,11 @@ class ProfileScreen extends ConsumerWidget {
                           const SizedBox(height: 14),
                           Padding(
                             padding: const EdgeInsets.symmetric(horizontal: 16),
-                            child: GxPressable(
+                            child: Builder(
+                              builder: (context) {
+                                final error =
+                                    Theme.of(context).colorScheme.error;
+                                return GxPressable(
                               onTap: () async {
                                 await forceLogoutToWelcomeFromWidget(ref);
                               },
@@ -495,20 +499,28 @@ class ProfileScreen extends ConsumerWidget {
                                 width: double.infinity,
                                 padding: const EdgeInsets.all(13),
                                 decoration: BoxDecoration(
-                                  color: const Color(0xFFEF4444).withValues(alpha: 0.08),
-                                  border: Border.all(color: const Color(0xFFEF4444).withValues(alpha: 0.13)),
+                                  color: error.withValues(alpha: 0.08),
+                                  border: Border.all(
+                                      color: error.withValues(alpha: 0.13)),
                                   borderRadius: BorderRadius.circular(14),
                                 ),
                                 alignment: Alignment.center,
-                                child: const Row(
+                                child: Row(
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
-                                    Icon(Icons.logout_rounded, color: Color(0xFFEF4444), size: 16),
-                                    SizedBox(width: 8),
-                                    Text('Sign Out', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: Color(0xFFEF4444))),
+                                    Icon(Icons.logout_rounded,
+                                        color: error, size: 16),
+                                    const SizedBox(width: 8),
+                                    Text('Sign Out',
+                                        style: TextStyle(
+                                            fontSize: 14,
+                                            fontWeight: FontWeight.w700,
+                                            color: error)),
                                   ],
                                 ),
                               ),
+                            );
+                              },
                             ),
                           ),
                         ],
@@ -666,7 +678,7 @@ class ProfileScreen extends ConsumerWidget {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFEF4444),
+                  color: Theme.of(context).colorScheme.error,
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: Text(

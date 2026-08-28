@@ -83,7 +83,7 @@ class BookingDetailScreen extends ConsumerWidget {
     final paymentStatusColor = isPaid
         ? GixbeeTheme.accentGreen
         : (status == 'CANCELLED' || status == 'REJECTED'
-            ? const Color(0xFFEF4444)
+            ? Theme.of(context).colorScheme.error
             : GixbeeTheme.accentGold);
 
     final currentUser = ref.watch(currentUserProvider).value;
@@ -194,7 +194,7 @@ class BookingDetailScreen extends ConsumerWidget {
                           Icons.meeting_room,
                           context.gx.accent),
                     if (status == 'ACTIVE' && booking['completionOtp'] != null)
-                      _buildOtpCard(context, 'Completion OTP', booking['completionOtp'].toString(), Icons.verified, Colors.green),
+                      _buildOtpCard(context, 'Completion OTP', booking['completionOtp'].toString(), Icons.verified, GixbeeTheme.accentGreen),
                   ],
                 ),
               ),
@@ -351,7 +351,7 @@ class BookingDetailScreen extends ConsumerWidget {
         break;
       case 'CANCELLED':
       case 'REJECTED':
-        color = const Color(0xFFEF4444);
+        color = Theme.of(context).colorScheme.error;
         break;
       default:
         color = context.gx.ink.withValues(alpha: 0.58);
@@ -466,13 +466,14 @@ class BookingDetailScreen extends ConsumerWidget {
     if (!canMessage && !canCancel && !showAcceptDecline) return const SizedBox.shrink();
 
     if (showAcceptDecline) {
+      final error = Theme.of(context).colorScheme.error;
       return Row(
         children: [
           Expanded(
             child: GxButton(
               label: 'Decline',
               filled: false,
-              accent: Colors.red,
+              accent: error,
               onTap: () async {
                 try {
                   await ref
@@ -492,8 +493,11 @@ class BookingDetailScreen extends ConsumerWidget {
             flex: 2,
             child: GxButton(
               label: 'Accept Job',
-              gradient: const [Colors.green, Colors.green],
-              accent: Colors.green,
+              gradient: const [
+                GixbeeTheme.accentGreen,
+                GixbeeTheme.accentGreenDark,
+              ],
+              accent: GixbeeTheme.accentGreen,
               onTap: () async {
                 try {
                   await ref.read(bookingRepositoryProvider).acceptBooking(booking['id']);
@@ -577,20 +581,25 @@ class BookingDetailScreen extends ConsumerWidget {
           Expanded(
             child: GestureDetector(
               onTap: () => _confirmCancel(context),
-              child: Container(
+              child: Builder(
+                builder: (context) {
+                  final error = Theme.of(context).colorScheme.error;
+                  return Container(
                 padding: const EdgeInsets.symmetric(vertical: 12),
                 decoration: BoxDecoration(
-                  color: Colors.red.withValues(alpha: 0.1),
+                  color: error.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(12),
                   border:
-                      Border.all(color: Colors.red.withValues(alpha: 0.35)),
+                      Border.all(color: error.withValues(alpha: 0.35)),
                 ),
                 alignment: Alignment.center,
-                child: const Text('Cancel',
+                child: Text('Cancel',
                     style: TextStyle(
-                        color: Colors.red,
+                        color: error,
                         fontWeight: FontWeight.w700,
                         fontSize: 14)),
+              );
+                },
               ),
             ),
           ),
@@ -622,10 +631,13 @@ class BookingDetailScreen extends ConsumerWidget {
               ),
               const SizedBox(width: 12),
               Expanded(
-                child: GxButton(
+                child: Builder(
+                  builder: (context) {
+                    final error = Theme.of(context).colorScheme.error;
+                    return GxButton(
                   label: 'Cancel booking',
-                  gradient: const [Colors.red, Colors.red],
-                  accent: Colors.red,
+                  gradient: [error, error],
+                  accent: error,
                   onTap: () {
                     Navigator.pop(context); // close the sheet
                     Navigator.push(
@@ -636,6 +648,8 @@ class BookingDetailScreen extends ConsumerWidget {
                         ),
                       ),
                     );
+                  },
+                );
                   },
                 ),
               ),

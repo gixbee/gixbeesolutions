@@ -9,6 +9,8 @@ import '../../shared/widgets/dribbble_background.dart';
 import '../../shared/widgets/glass_container.dart';
 import '../../shared/widgets/gx_network_error.dart';
 import '../../shared/widgets/gx_snackbar.dart';
+import '../../shared/widgets/gx_skeleton.dart';
+import '../../theme.dart';
 import '../profile/worker_profile_card.dart';
 
 class WorkerDirectoryScreen extends ConsumerStatefulWidget {
@@ -123,6 +125,7 @@ class _WorkerDirectoryScreenState extends ConsumerState<WorkerDirectoryScreen> {
   @override
   Widget build(BuildContext context) {
     final workersAsync = ref.watch(workersProvider);
+    final gx = context.gx;
 
     return Scaffold(
       backgroundColor: Colors.transparent,
@@ -133,6 +136,7 @@ class _WorkerDirectoryScreenState extends ConsumerState<WorkerDirectoryScreen> {
         ),
         backgroundColor: Colors.transparent,
         elevation: 0,
+        foregroundColor: gx.ink,
         actions: [
           IconButton(
             icon: const Icon(Icons.my_location),
@@ -154,7 +158,16 @@ class _WorkerDirectoryScreenState extends ConsumerState<WorkerDirectoryScreen> {
         ),
         data: (workers) {
           if (_isLoadingLocation) {
-            return const Center(child: CircularProgressIndicator());
+            return ListView.separated(
+              padding: const EdgeInsets.all(16),
+              itemCount: 4,
+              separatorBuilder: (_, __) => const SizedBox(height: 16),
+              itemBuilder: (_, __) => const GxSkeleton(
+                width: double.infinity,
+                height: 88,
+                radius: 16,
+              ),
+            );
           }
 
           // If looking for a specific job worker
@@ -210,7 +223,10 @@ class _WorkerDirectoryScreenState extends ConsumerState<WorkerDirectoryScreen> {
 
         return Padding(
           padding: const EdgeInsets.only(bottom: 16),
-          child: GlassContainer(
+          child: Semantics(
+            label: '${worker.name}, ${worker.title}, $distanceStr',
+            button: true,
+            child: GlassContainer(
             child: ListTile(
               contentPadding: const EdgeInsets.all(16),
               leading: CircleAvatar(
@@ -260,6 +276,7 @@ class _WorkerDirectoryScreenState extends ConsumerState<WorkerDirectoryScreen> {
               );
             },
             ),
+          ),
           ),
         );
       },

@@ -17,7 +17,7 @@ class GoLiveJobCreditsCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isLow = balance == 0;
-    final color = isLow ? const Color(0xFFF97316) : GixbeeTheme.accentGreen;
+    final color = isLow ? GixbeeTheme.accentGold : GixbeeTheme.accentGreen;
     return Container(
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.08),
@@ -132,13 +132,14 @@ class GoLiveVerificationBadge extends StatelessWidget {
                   fontSize: 12, color: context.gx.ink.withValues(alpha: 0.55))),
         ]);
       case 'REJECTED':
-        return const Row(children: [
-          Icon(Icons.cancel, size: 12, color: Color(0xFFDC2626)),
-          SizedBox(width: 5),
+        final error = Theme.of(context).colorScheme.error;
+        return Row(children: [
+          Icon(Icons.cancel, size: 12, color: error),
+          const SizedBox(width: 5),
           Text('Verification Rejected',
               style: TextStyle(
                   fontSize: 12,
-                  color: Color(0xFFDC2626),
+                  color: error,
                   fontWeight: FontWeight.w600)),
         ]);
       default:

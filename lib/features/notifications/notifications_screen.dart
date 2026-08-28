@@ -270,10 +270,10 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
                   alignment: Alignment.centerRight,
                   padding: const EdgeInsets.only(right: 20),
                   decoration: BoxDecoration(
-                    color: Colors.red.withValues(alpha: 0.2),
+                    color: colorScheme.error.withValues(alpha: 0.2),
                     borderRadius: BorderRadius.circular(16),
                   ),
-                  child: const Icon(Icons.delete_outline, color: Colors.red),
+                  child: Icon(Icons.delete_outline, color: colorScheme.error),
                 ),
                 child: _buildNotificationTile(context, notif, colorScheme),
               );
@@ -374,12 +374,18 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
 
   Color _getColor(String type) {
     switch (type) {
-      case 'new_booking': return Colors.orange;
-      case 'booking_accepted': return Colors.blue;
-      case 'job_started': return Colors.green;
-      case 'job_completed': return Colors.teal;
-      case 'cancelled': return Colors.red;
-      default: return Colors.grey;
+      case 'new_booking':
+        return GixbeeTheme.brandOrange;
+      case 'booking_accepted':
+        return GixbeeTheme.accentBlue;
+      case 'job_started':
+        return GixbeeTheme.accentGreen;
+      case 'job_completed':
+        return GixbeeTheme.accentTeal;
+      case 'cancelled':
+        return GixbeeTheme.brandRed;
+      default:
+        return GixbeeTheme.textMed;
     }
   }
 

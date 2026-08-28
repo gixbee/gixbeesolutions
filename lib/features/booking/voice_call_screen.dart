@@ -197,8 +197,12 @@ class _VoiceCallScreenState extends ConsumerState<VoiceCallScreen> {
     final name = ctrl.peerName ?? 'Gixbee';
     final gx = context.gx;
 
+    final cs = Theme.of(context).colorScheme;
+    // Immersive call UI stays on the dark void canvas in both themes.
+    final onDark = GixbeeTheme.textHigh;
+
     return Scaffold(
-      backgroundColor: const Color(0xFF0B1220),
+      backgroundColor: GixbeeTheme.background,
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 24),
@@ -214,7 +218,10 @@ class _VoiceCallScreenState extends ConsumerState<VoiceCallScreen> {
                       await ctrl.hangup();
                     }
                   },
-                  child: const Text('Close', style: TextStyle(color: Colors.white70)),
+                  child: Text(
+                    'Close',
+                    style: TextStyle(color: onDark.withValues(alpha: 0.7)),
+                  ),
                 ),
               ),
               const Spacer(),
@@ -223,10 +230,10 @@ class _VoiceCallScreenState extends ConsumerState<VoiceCallScreen> {
                 backgroundColor: GixbeeTheme.accentGreen.withValues(alpha: 0.25),
                 child: Text(
                   name.isNotEmpty ? name[0].toUpperCase() : 'G',
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 36,
                     fontWeight: FontWeight.w800,
-                    color: Colors.white,
+                    color: onDark,
                   ),
                 ),
               ),
@@ -234,8 +241,8 @@ class _VoiceCallScreenState extends ConsumerState<VoiceCallScreen> {
               Text(
                 name,
                 textAlign: TextAlign.center,
-                style: const TextStyle(
-                  color: Colors.white,
+                style: TextStyle(
+                  color: onDark,
                   fontSize: 26,
                   fontWeight: FontWeight.w800,
                 ),
@@ -244,7 +251,7 @@ class _VoiceCallScreenState extends ConsumerState<VoiceCallScreen> {
               Text(
                 _statusLabel(phase),
                 style: TextStyle(
-                  color: Colors.white.withValues(alpha: 0.65),
+                  color: onDark.withValues(alpha: 0.65),
                   fontSize: 15,
                   fontWeight: FontWeight.w600,
                 ),
@@ -254,7 +261,7 @@ class _VoiceCallScreenState extends ConsumerState<VoiceCallScreen> {
                 Text(
                   ctrl.lastError!,
                   textAlign: TextAlign.center,
-                  style: const TextStyle(color: Color(0xFFF87171), fontSize: 13),
+                  style: TextStyle(color: cs.error, fontSize: 13),
                 ),
               ],
               const Spacer(),
@@ -263,7 +270,7 @@ class _VoiceCallScreenState extends ConsumerState<VoiceCallScreen> {
                   children: [
                     Expanded(
                       child: _RoundAction(
-                        color: const Color(0xFFEF4444),
+                        color: cs.error,
                         icon: Icons.call_end_rounded,
                         label: 'Decline',
                         onTap: () => ctrl.rejectIncoming(),
@@ -286,9 +293,11 @@ class _VoiceCallScreenState extends ConsumerState<VoiceCallScreen> {
                   children: [
                     _RoundAction(
                       color: ctrl.muted
-                          ? Colors.white
-                          : Colors.white24,
-                      iconColor: ctrl.muted ? Colors.black87 : Colors.white,
+                          ? onDark
+                          : onDark.withValues(alpha: 0.24),
+                      iconColor: ctrl.muted
+                          ? GixbeeTheme.grabText
+                          : onDark,
                       icon: ctrl.muted
                           ? Icons.mic_off_rounded
                           : Icons.mic_rounded,
@@ -299,15 +308,18 @@ class _VoiceCallScreenState extends ConsumerState<VoiceCallScreen> {
                       },
                     ),
                     _RoundAction(
-                      color: const Color(0xFFEF4444),
+                      color: cs.error,
                       icon: Icons.call_end_rounded,
                       label: 'Hang up',
                       onTap: () => ctrl.hangup(),
                     ),
                     _RoundAction(
-                      color: ctrl.speakerOn ? Colors.white : Colors.white24,
-                      iconColor:
-                          ctrl.speakerOn ? Colors.black87 : Colors.white,
+                      color: ctrl.speakerOn
+                          ? onDark
+                          : onDark.withValues(alpha: 0.24),
+                      iconColor: ctrl.speakerOn
+                          ? GixbeeTheme.grabText
+                          : onDark,
                       icon: ctrl.speakerOn
                           ? Icons.volume_up_rounded
                           : Icons.hearing_rounded,
@@ -332,7 +344,7 @@ class _VoiceCallScreenState extends ConsumerState<VoiceCallScreen> {
                 'Calls stay inside Gixbee. Phone numbers are never shared.',
                 textAlign: TextAlign.center,
                 style: TextStyle(
-                  color: Colors.white.withValues(alpha: 0.4),
+                  color: onDark.withValues(alpha: 0.4),
                   fontSize: 12,
                 ),
               ),
@@ -356,12 +368,16 @@ class _RoundAction extends StatelessWidget {
     required this.icon,
     required this.label,
     required this.onTap,
-    this.iconColor = Colors.white,
+    this.iconColor = GixbeeTheme.textHigh,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Column(
+    final labelColor = GixbeeTheme.textHigh.withValues(alpha: 0.7);
+    return Semantics(
+      button: true,
+      label: label,
+      child: Column(
       children: [
         Material(
           color: color,
@@ -379,9 +395,10 @@ class _RoundAction extends StatelessWidget {
         const SizedBox(height: 8),
         Text(
           label,
-          style: const TextStyle(color: Colors.white70, fontSize: 13),
+          style: TextStyle(color: labelColor, fontSize: 13),
         ),
       ],
+      ),
     );
   }
 }

@@ -216,7 +216,7 @@ class _ApplicationTrackerScreenState
                 _StatBubble(
                   label: 'Selected',
                   count: _filter(ApplicationStatus.selected).length,
-                  color: Colors.green,
+                  color: GixbeeTheme.accentGreen,
                 ),
                 _StatBubble(
                   label: 'Total',
@@ -253,7 +253,10 @@ class _ApplicationTrackerScreenState
                         decoration: BoxDecoration(
                           gradient: selected
                               ? const LinearGradient(
-                                  colors: [GixbeeTheme.accentGreen, Color(0xFF047857)])
+                                  colors: [
+                                    GixbeeTheme.accentGreen,
+                                    GixbeeTheme.accentGreenDark,
+                                  ])
                               : null,
                           borderRadius: BorderRadius.circular(999),
                         ),
@@ -480,7 +483,7 @@ class _ApplicationCard extends StatelessWidget {
       ApplicationStatus.interview => ('Interview', GixbeeTheme.accentBlue),
       ApplicationStatus.selected => ('Selected', GixbeeTheme.accentGreen),
       ApplicationStatus.rejected => ('Rejected', GixbeeTheme.brandRed),
-      ApplicationStatus.withdrawn => ('Withdrawn', Colors.grey),
+      ApplicationStatus.withdrawn => ('Withdrawn', GixbeeTheme.textMed),
     };
     final progressStep = switch (app.status) {
       ApplicationStatus.applied => 0,

@@ -1009,15 +1009,15 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
               margin: const EdgeInsets.fromLTRB(16, 12, 16, 0),
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
               decoration: BoxDecoration(
-                color: const Color(0xFFF97316).withValues(alpha: 0.12),
+                color: GixbeeTheme.accentGold.withValues(alpha: 0.12),
                 borderRadius: BorderRadius.circular(14),
                 border: Border.all(
-                    color: const Color(0xFFF97316).withValues(alpha: 0.5)),
+                    color: GixbeeTheme.accentGold.withValues(alpha: 0.5)),
               ),
               child: Row(
                 children: [
-                  const Icon(Icons.gps_off_rounded,
-                      size: 20, color: Color(0xFFF97316)),
+                  Icon(Icons.gps_off_rounded,
+                      size: 20, color: GixbeeTheme.accentGold),
                   const SizedBox(width: 10),
                   Expanded(
                     child: Text(
@@ -1199,24 +1199,28 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
           ],
           GestureDetector(
             onTap: (_toggling || isDisabled) ? null : _toggle,
-            child: Container(
+            child: Builder(
+              builder: (context) {
+                final offline = Theme.of(context).colorScheme.error;
+                final online = GixbeeTheme.accentGreen;
+                final onlineDark = GixbeeTheme.accentGreenDark;
+                final gradient = isLive
+                    ? [offline, GixbeeTheme.brandRed]
+                    : [onlineDark, online];
+                final glow = (isLive ? offline : online).withValues(alpha: 0.4);
+                return Container(
               width: double.infinity,
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
                 gradient: LinearGradient(
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
-                  colors: isLive
-                      ? [const Color(0xFFDC2626), const Color(0xFF991B1B)]
-                      : [const Color(0xFF059669), const Color(0xFF10B981)],
+                  colors: gradient,
                 ),
                 borderRadius: BorderRadius.circular(16),
                 boxShadow: [
                   BoxShadow(
-                    color: (isLive
-                            ? const Color(0xFFDC2626)
-                            : const Color(0xFF10B981))
-                        .withValues(alpha: 0.4),
+                    color: glow,
                     blurRadius: 20,
                     offset: const Offset(0, 4),
                   ),
@@ -1250,6 +1254,8 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
                         ),
                       ],
                     ),
+            );
+              },
             ),
           ),
         ],

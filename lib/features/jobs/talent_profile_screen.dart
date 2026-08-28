@@ -485,7 +485,10 @@ class _TalentProfileScreenState extends ConsumerState<TalentProfileScreen> {
                 gradient: const LinearGradient(
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
-                  colors: [GixbeeTheme.accentGreen, Color(0xFF047857)],
+                  colors: [
+                    GixbeeTheme.accentGreen,
+                    GixbeeTheme.accentGreenDark,
+                  ],
                 ),
                 borderRadius: BorderRadius.circular(12),
               ),
@@ -506,12 +509,13 @@ class _TalentProfileScreenState extends ConsumerState<TalentProfileScreen> {
 
   // ── AVAILABILITY TOGGLE (logic unchanged) ──
   Widget _buildAvailabilityCard(ColorScheme cs) {
+    const green = GixbeeTheme.accentGreen;
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(16),
-        color: Colors.green.withValues(alpha: 0.06),
-        border: Border.all(color: Colors.green.withValues(alpha: 0.2)),
+        color: green.withValues(alpha: 0.06),
+        border: Border.all(color: green.withValues(alpha: 0.2)),
       ),
       child: Row(
         children: [
@@ -519,9 +523,9 @@ class _TalentProfileScreenState extends ConsumerState<TalentProfileScreen> {
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              color: Colors.green.withValues(alpha: 0.12),
+              color: green.withValues(alpha: 0.12),
             ),
-            child: const Icon(Icons.circle, size: 12, color: Colors.green),
+            child: const Icon(Icons.circle, size: 12, color: green),
           ),
           const SizedBox(width: 14),
           Expanded(
@@ -556,7 +560,7 @@ class _TalentProfileScreenState extends ConsumerState<TalentProfileScreen> {
                 }
               }
             },
-            activeThumbColor: Colors.green,
+            activeThumbColor: GixbeeTheme.accentGreen,
           ),
         ],
       ),
