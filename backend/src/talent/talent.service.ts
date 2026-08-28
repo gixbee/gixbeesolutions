@@ -31,11 +31,12 @@ export class TalentService {
     return this.aadhaarKyc.isConfigured();
   }
 
-  private async isUserAadhaarVerified(userId: string): Promise<boolean> {
+  private async getWorkerVerification(userId: string) {
     const worker = await this.workerRepo.findOne({
       where: { user: { id: userId } },
     });
-    return worker?.verificationStatus === VerificationStatus.VERIFIED;
+    const verified = worker?.verificationStatus === VerificationStatus.VERIFIED;
+    return { worker, verified };
   }
 
   /**
@@ -44,12 +45,13 @@ export class TalentService {
    */
   async getVerificationStatus(userId: string) {
     const configured = this.aadhaarConfigured;
-    const verified = await this.isUserAadhaarVerified(userId);
+    const { worker, verified } = await this.getWorkerVerification(userId);
     return {
       provider: 'AADHAAR',
       available: configured,
       needsApiKey: !configured,
       verified,
+      maskedAadhaar: verified ? (worker?.maskedAadhaar ?? null) : null,
       message: verified
         ? null
         : configured
@@ -94,7 +96,8 @@ export class TalentService {
   }
 
   async generateAadhaarOtp(userId: string, aadhaarNumber: string) {
-    if (await this.isUserAadhaarVerified(userId)) {
+    const { verified } = await this.getWorkerVerification(userId);
+    if (verified) {
       return {
         status: 'ALREADY_VERIFIED',
         verified: true,
@@ -111,7 +114,8 @@ export class TalentService {
   }
 
   async submitAadhaarOtp(userId: string, clientId: string, otp: string) {
-    if (await this.isUserAadhaarVerified(userId)) {
+    const { verified } = await this.getWorkerVerification(userId);
+    if (verified) {
       return {
         status: 'ALREADY_VERIFIED',
         verified: true,

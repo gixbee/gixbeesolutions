@@ -121,7 +121,7 @@ Every folder in `lib/features/` (17) is listed here, so a missing row means a mi
 | **SMS OTP** | **Code done** (2026-08-28) — `SmsService` + MSG91 v5 Flow in `AuthService.requestOtp`; production boot requires `MSG91_AUTH_KEY` + `MSG91_TEMPLATE_ID`. **Blocked:** live MSG91 keys + DLT template on EC2 `backend/.env`. |
 | **Payments** | **Code done** (2026-08-28) — `isRealSecret()` rejects `placeholder_*`; `getGatewayStatus()` + job-credit orders gate on real Razorpay creds. **Blocked:** `RAZORPAY_KEY_ID` / `RAZORPAY_KEY_SECRET` / `RAZORPAY_WEBHOOK_SECRET` on EC2; release APK `--dart-define=RAZORPAY_KEY=rzp_live_*`. PhonePe/UPI remain stub. |
 | **Aadhaar eKYC** | **Code done** (2026-08-28) — Surepass generate/submit OTP (`AadhaarKycService`), talent routes, `WorkersService.recordAadhaarVerification` + `maskedAadhaar` migration; Flutter Register-as-Pro OTP sheet wired. **Blocked:** `AADHAAR_CLIENT_ID` / `AADHAAR_CLIENT_SECRET` (Surepass bearer) on EC2; deploy migration `1754600000000`. |
-| **Secrets ops** | Rotate weak JWT/admin/DB/pgAdmin defaults on EC2; never commit Firebase admin JSON. `docker-compose.yml` still sets `NODE_ENV=development` — flip when going live so boot guards run. |
+| **Secrets ops** | Rotate weak JWT/admin/DB/pgAdmin defaults on EC2; never commit Firebase admin JSON. Set `NODE_ENV=production` in EC2 `backend/.env` when live creds are ready (compose reads `${NODE_ENV:-development}`). |
 
 ### P1 — Ops / infra follow-ups
 

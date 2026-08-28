@@ -370,6 +370,17 @@ describe('TalentService — Aadhaar verification', () => {
     expect(res.verified).toBe(false);
   });
 
+  it('getVerificationStatus includes maskedAadhaar when verified', async () => {
+    const { service, workerRepo } = makeService({ configValues: bothCreds });
+    workerRepo.findOne.mockResolvedValue({
+      verificationStatus: 'VERIFIED',
+      maskedAadhaar: 'XXXX-XXXX-1234',
+    });
+    const status = await service.getVerificationStatus('user-1');
+    expect(status.verified).toBe(true);
+    expect(status.maskedAadhaar).toBe('XXXX-XXXX-1234');
+  });
+
   it('generateAadhaarOtp delegates to AadhaarKycService', async () => {
     const { service, aadhaarKyc } = makeService({ configValues: bothCreds });
     const res = await service.generateAadhaarOtp('user-1', '123456789012');

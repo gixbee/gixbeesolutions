@@ -161,25 +161,13 @@ class _RegisterProScreenState extends ConsumerState<RegisterProScreen> {
           await ref.read(talentRepositoryProvider).getVerificationStatus();
       if (!mounted) return;
       final verified = status['verified'] == true;
-      String? masked;
-
-      if (verified) {
-        try {
-          final worker =
-              await ref.read(workerRepositoryProvider).getMyWorkerProfile();
-          if (worker['registered'] == true) {
-            final m = worker['maskedAadhaar'];
-            if (m is String && m.trim().isNotEmpty) masked = m.trim();
-          }
-        } catch (e) {
-          debugPrint('Worker profile mask load failed: $e');
-        }
-      }
-
+      final masked = status['maskedAadhaar'];
       if (!mounted) return;
       setState(() {
         _aadhaarVerified = verified;
-        if (masked != null) _maskedAadhaar = masked;
+        if (masked is String && masked.trim().isNotEmpty) {
+          _maskedAadhaar = masked.trim();
+        }
       });
     } catch (e) {
       debugPrint('Aadhaar status load failed: $e');

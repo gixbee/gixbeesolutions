@@ -204,7 +204,9 @@ services:
       # Fail closed if Redis is down — with replicas: 2 a process-local
       # memory store would split OTP, locks, and Socket.IO rooms.
       REDIS_ALLOW_MEMORY_FALLBACK: "false"
-      NODE_ENV: development
+      # Set NODE_ENV=production in backend/.env on EC2 when live creds are ready
+      # (boot guards in main.ts require MSG91 + Razorpay secrets in production).
+      NODE_ENV: ${NODE_ENV:-development}
       PORT: 3000
       FIREBASE_KEY_PATH: /app/firebase-service-account.json
     ulimits:
