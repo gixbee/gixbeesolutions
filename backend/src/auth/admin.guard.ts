@@ -19,8 +19,10 @@ import { ADMIN_PAGES_KEY } from './require-admin-page.decorator';
  * - Any non-ADMIN JWT is rejected.
  * - SUPER_ADMIN always allowed.
  * - OPERATOR must have at least one of the required page keys in JWT `pages`.
- * - Routes without `@RequireAdminPage` stay ADMIN-only (any admin JWT) —
- *   use that only for shared shell endpoints like `/admin-staff/me`.
+ * - Routes without `@RequireAdminPage` still require an admin-portal JWT
+ *   (`staffRole` from `/auth/admin-login`). Mobile OTP tokens carry `role`
+ *   from the DB but never `staffRole`, so a self-service role escalation
+ *   cannot reach portal routes (ARCH-001).
  */
 @Injectable()
 export class AdminGuard implements CanActivate {
@@ -30,6 +32,9 @@ export class AdminGuard implements CanActivate {
     const req = context.switchToHttp().getRequest();
     if (req.user?.role !== UserRole.ADMIN) {
       throw new ForbiddenException('Admin access required');
+    }
+    if (!req.user.staffRole) {
+      throw new ForbiddenException('Admin portal session required');
     }
 
     const requiredPages = this.reflector.getAllAndOverride<string[]>(

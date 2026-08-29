@@ -58,7 +58,11 @@ export class UsersService {
     }
   }
 
-  async updateProfile(userId: string, data: Partial<User>): Promise<User> {
+  async updateProfile(
+    userId: string,
+    data: Partial<User>,
+    opts?: { allowPrivilegedFields?: boolean },
+  ): Promise<User> {
     const user = await this.usersRepository.findOne({ where: { id: userId } });
     if (!user) throw new NotFoundException('User not found');
 
@@ -67,9 +71,11 @@ export class UsersService {
       user.profileImageUrl = data.profileImageUrl;
     if (data.isAvailableForWork !== undefined)
       user.isAvailableForWork = data.isAvailableForWork;
-    if (data.role !== undefined) user.role = data.role;
-    if (data.hasWorkerProfile !== undefined)
-      user.hasWorkerProfile = data.hasWorkerProfile;
+    if (opts?.allowPrivilegedFields) {
+      if (data.role !== undefined) user.role = data.role;
+      if (data.hasWorkerProfile !== undefined)
+        user.hasWorkerProfile = data.hasWorkerProfile;
+    }
 
     return this.usersRepository.save(user);
   }
@@ -107,18 +113,21 @@ export class UsersService {
   async searchUsers(
     query: string,
     limit = 20,
+    opts?: { includePhone?: boolean },
   ): Promise<
     Pick<User, 'id' | 'name' | 'phoneNumber' | 'role' | 'profileImageUrl'>[]
   > {
     const q = (query || '').trim();
-    if (!q) return [];
+    if (!q || q.length < 3) return [];
     const take = Math.min(Math.max(Math.trunc(limit) || 20, 1), 50);
-    return this.usersRepository.find({
+    const rows = await this.usersRepository.find({
       where: [{ name: ILike(`%${q}%`) }, { phoneNumber: ILike(`%${q}%`) }],
       select: ['id', 'name', 'phoneNumber', 'role', 'profileImageUrl'],
       take,
       order: { name: 'ASC' },
     });
+    if (opts?.includePhone) return rows;
+    return rows.map(({ phoneNumber: _phone, ...rest }) => rest);
   }
 
   async updateApprovalStatus(

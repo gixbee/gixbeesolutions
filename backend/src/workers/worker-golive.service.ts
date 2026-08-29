@@ -408,16 +408,19 @@ export class WorkerGoLiveService {
       .catch(() => {});
   }
 
-  /** Worker pays to unlock the next period of included jobs. Charged from
-   *  the wallet today (WalletsService.charge — row-locked); when Razorpay
-   *  lands, its capture webhook can drive this same reset after a direct
-   *  payment. Nothing due → no charge (safe to re-call). */
+  /** Legacy wallet period-fee path — dormant while wallet OFF (ARCH-004).
+   *  Live checkout: POST /payments/period-fee/order + Razorpay webhook. */
   async payPeriodFee(userId: string): Promise<{
     message: string;
     jobsIncluded: number;
     jobsUsed: number;
     paymentDue: boolean;
   }> {
+    if (!WALLET_PAYMENTS_ENABLED) {
+      throw new BadRequestException(
+        'Period fee is paid via Razorpay — use POST /payments/period-fee/order',
+      );
+    }
     const jobsIncluded = await this.periodicJobsPerPayment();
     if (jobsIncluded <= 0) {
       throw new BadRequestException(

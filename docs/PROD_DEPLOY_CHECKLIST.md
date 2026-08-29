@@ -3,7 +3,7 @@
 > **Purpose:** Pre-flight checklist before turning on live gateways on EC2.  
 > **Do not paste real secrets into git, Slack, or chat** — set values only in  
 > `/home/ec2-user/gixbeesolutions/backend/.env` on the server (or via a secure vault).  
-> Last updated: **2026-08-28** (P0 wiring: MSG91, Razorpay, Surepass Aadhaar).
+> Last updated: **2026-08-30** (P0 wiring: MSG91, Razorpay, Surepass Aadhaar).
 
 See also: [HOSTING_GUIDE.md](./HOSTING_GUIDE.md) · [AWS_DEPLOYMENT.md](./AWS_DEPLOYMENT.md) · [SECURITY_2026-07-13.md](./SECURITY_2026-07-13.md) · [gixbee_deploy skill](../.agents/skills/gixbee_deploy/SKILL.md).
 
@@ -18,6 +18,20 @@ See also: [HOSTING_GUIDE.md](./HOSTING_GUIDE.md) · [AWS_DEPLOYMENT.md](./AWS_DE
 | Aadhaar eKYC | Done (`AadhaarKycService`) | Set `AADHAAR_*` + run migration |
 | `NODE_ENV=production` | Compose reads `${NODE_ENV:-development}` | Set `NODE_ENV=production` in EC2 `backend/.env` when creds ready |
 | Release APK Razorpay | Flutter `AppConfig.razorpayKey` | Rebuild via `gixbee_keys.bat` |
+| ARCH-001 / ARCH-002 code fixes | Done (2026-08-30) | Pull backend before prod deploy |
+
+---
+
+## Security — code fixes before production
+
+**ARCH-001 / ARCH-002 shipped 2026-08-30** (Jim issue hunt). Before prod, smoke with a non-admin JWT:
+
+- `PATCH /admin-user-list/:id` with `role: ADMIN` → **403**
+- `GET /admin-user-list/search` → no `phoneNumber` in results (unless admin JWT)
+- `GET /admin-user-list/:other-id` → **403**
+- `POST /workers/me/pay-period-fee` when wallet OFF → **400** (use `POST /payments/period-fee/order`)
+
+Detail: [architecture/GAPS.md](./architecture/GAPS.md)
 
 ---
 
@@ -163,8 +177,9 @@ set RAZORPAY_KEY=rzp_live_XXXXXXXXXXXX
 
 ## 5. Deploy sequence (recommended order)
 
+- [ ] **ARCH-001 / ARCH-002 fixed and deployed** (section Security — do not skip)
 - [ ] Pull latest `main` on EC2 (`7bb7fda` or later — P0 backend commit)
-- [ ] Set `NODE_ENV: production` in `docker-compose.yml`
+- [ ] Set `NODE_ENV=production` in EC2 `backend/.env` (compose reads `${NODE_ENV:-development}`)
 - [ ] Rotate/set all secrets in `backend/.env` (section 3)
 - [ ] `docker compose up --build -d backend` + `docker image prune -f`
 - [ ] Confirm backend healthy + migration applied (sections 1–2)
@@ -188,5 +203,8 @@ set RAZORPAY_KEY=rzp_live_XXXXXXXXXXXX
 | Doc | Role |
 |---|---|
 | **This file** | Prod credential + NODE_ENV + migration + APK checklist |
-| [CURRENT_STATUS.md](./CURRENT_STATUS.md) | Feature open/closed truth |
+| [CURRENT_STATUS.md](./CURRENT_STATUS.md) | Feature open/closed truth + architecture risks |
+| [architecture/ARCHITECTURE.md](./architecture/ARCHITECTURE.md) | System architecture map |
+| [architecture/GAPS.md](./architecture/GAPS.md) | Gap register vs CURRENT_STATUS |
+| [architecture/PAYMENT_PATHS.md](./architecture/PAYMENT_PATHS.md) | Live vs dormant payment flows |
 | [SECURITY_2026-07-13.md](./SECURITY_2026-07-13.md) | Why JWT/admin rotation matters |

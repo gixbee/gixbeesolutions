@@ -1,7 +1,7 @@
 # Gixbee — Current Status
 
 > **Single source of truth** for what is done vs still open.  
-> Last updated: **2026-08-28**  
+> Last updated: **2026-08-30** (architecture audit folded in from [architecture/GAPS.md](./architecture/GAPS.md))  
 > Prefer this file over older archaeology in git history (April backlog docs were deleted from `docs/` on 2026-07-18).
 
 ---
@@ -41,13 +41,13 @@ See [AUDIT_2026-07-13.md](./AUDIT_2026-07-13.md) and [SECURITY_2026-07-13.md](./
 
 ### Product modules that exist in code
 
-Every folder in `lib/features/` (17) is listed here, so a missing row means a missing flow.
+Every folder in `lib/features/` (**16** domain folders) is listed here; shared `gx_*` widgets live in `lib/shared/`.
 
 | Flow (`lib/features/…`) | Status |
 |---|---|
 | `onboarding` splash / welcome, `auth` OTP login + registration | Done — Demo Skip Login **removed** (2026-07-18) |
 | `home` (intent / service quad, offers, location) | Done |
-| `booking` — Instant Help, broadcast, waiting, tracking, OTPs, pay | Done (+ late-cancel + petrol — see below) |
+| `booking` — Instant Help, broadcast, waiting, tracking, OTPs, pay, **in-app voice** | Done (+ late-cancel + petrol — see below) |
 | `booking` — Plan an Event + `showGxCalendar` | Done |
 | `rentals` catalog / detail / reserve (`showGxCalendar` + time picker) | Done |
 | `worker` Go Live + incoming job queue | Done |
@@ -56,13 +56,11 @@ Every folder in `lib/features/` (17) is listed here, so a missing row means a mi
 | `business` list + **Hire Employee** Smart Hiring + classic board + rental/service dash | Done (loop UX 2026-08-17) |
 | `messages` (list + thread) | Done |
 | `notifications` list + FCM push + badge | Done |
-| `profile` / wallet / favourites / about / support | Done (menus wired 2026-07-18) |
+| `profile` favourites / about / support / addresses | Done (menus wired 2026-07-18) |
 | `search` → `worker_detail_screen` (pro profile from search results) | Done |
 | `map` → `worker_directory_screen` (nearby pros); live tracking lives in `booking` | Done |
 | `reels` → `worker_reels_screen` | Done — “Book Now” routes to Instant Request |
 | `graph` → `skill_graph_screen` (skill relationship view) | Done |
-| `common` shared shells and `gx_*` widgets | Done |
-| Cities, addresses, favourites, support, payments module shells | Done |
 | Dual theme (Gixbee Dark / Grab Green) | Done (2026-07-18) |
 | Admin portal staff + page ACL | Done (2026-07-18) |
 | Admin System Monitoring (Beszel + Dozzle + pgAdmin) | Done (2026-08-01) |
@@ -118,10 +116,24 @@ Every folder in `lib/features/` (17) is listed here, so a missing row means a mi
 
 | Item | Notes |
 |---|---|
+| **ARCH-001 — role escalation** | **Code done** (2026-08-30) — self-service `PATCH /admin-user-list/:id` rejects `role` / `hasWorkerProfile`; admin-only via `allowPrivilegedFields`. `AdminGuard` requires `staffRole` (portal JWT). **Blocked:** EC2 creds + `NODE_ENV=production`. |
+| **ARCH-002 — user search privacy** | **Code done** (2026-08-30) — `GET /admin-user-list/:id` self-or-admin; search min 3 chars; `phoneNumber` omitted for non-admin JWT (operator picker uses name + role). |
 | **SMS OTP** | **Code done** (2026-08-28) — `SmsService` + MSG91 v5 Flow in `AuthService.requestOtp`; production boot requires `MSG91_AUTH_KEY` + `MSG91_TEMPLATE_ID`. **Blocked:** live MSG91 keys + DLT template on EC2 `backend/.env`. |
 | **Payments** | **Code done** (2026-08-28) — `isRealSecret()` rejects `placeholder_*`; `getGatewayStatus()` + job-credit orders gate on real Razorpay creds. **Blocked:** `RAZORPAY_KEY_ID` / `RAZORPAY_KEY_SECRET` / `RAZORPAY_WEBHOOK_SECRET` on EC2; release APK `--dart-define=RAZORPAY_KEY=rzp_live_*`. PhonePe/UPI remain stub. |
 | **Aadhaar eKYC** | **Code done** (2026-08-28) — Surepass generate/submit OTP (`AadhaarKycService`), talent routes, `WorkersService.recordAadhaarVerification` + `maskedAadhaar` migration; Flutter Register-as-Pro OTP sheet wired. **Blocked:** `AADHAAR_CLIENT_ID` / `AADHAAR_CLIENT_SECRET` (Surepass bearer) on EC2; deploy migration `1754600000000`. |
 | **Secrets ops** | Rotate weak JWT/admin/DB/pgAdmin defaults on EC2; never commit Firebase admin JSON. Set `NODE_ENV=production` in EC2 `backend/.env` when live creds are ready (compose reads `${NODE_ENV:-development}`). |
+
+### P1 — Contract / UX (Jim issue hunt)
+
+| ID | Notes |
+|---|---|
+| **ARCH-003** | Split `payment_repository.dart` vs `payments_repository.dart`; `GatewayStatus` parses UPI only — ignores `razorpay` / `wallet` from backend (`payment_repository.dart` L32–38). **Pam.** |
+| **ARCH-004** | Backend **done** (2026-08-30) — `POST /workers/me/pay-period-fee` 400 when wallet OFF. Flutter wallet dev fallback in `go_live_screen.dart` L494–496 still **Pam**. |
+| **ARCH-006** | `wallet_screen.dart` orphan but still shows top-up UX if re-linked; wallet OFF. **Pam.** |
+| **ARCH-005** | `payments` ↔ `hiring` `forwardRef` coupling — document only |
+| **ARCH-007** | Direct `Dio()` outside repositories (maps, crash reporter) — documented exception |
+| **ARCH-008** | Orphan `payment_method_screen.dart` defaults to WALLET |
+| **ARCH-009** | Aadhaar `generate-otp` — global 120/min only (`talent.controller.ts` L46). **Oscar.** |
 
 ### P1 — Ops / infra follow-ups
 
@@ -135,7 +147,8 @@ Every folder in `lib/features/` (17) is listed here, so a missing row means a mi
 
 | Item | Notes |
 |---|---|
-| **Call button** | **Fixed** — live tracking dials role-aware `counterpartPhone` (status API + booking fetch fallback); detail screen reads `phoneNumber` |
+| **Call button** | **Fixed** — live tracking uses in-app WebRTC (`VoiceCallScreen.startOutgoing`); phones are not exposed on status API (`booking-status.service.ts` number-masking) |
+| **Wallet screen vs wallet OFF** | Open — `wallet_screen.dart` + `wallet_repository.dart` remain in tree but **no nav route**; `WALLET_PAYMENTS_ENABLED=false` (`money-model.ts`); gate or remove dead wallet UI if re-exposed |
 | **Busy worker still offered jobs** | **Fixed** — Instant Help fan-out uses live `worker:status` (not stale snapshot); accept/arrived/active all count as busy; targeted book blocked for those too |
 | **Release APK loopback default** | **Fixed** — release/profile boot asserts non-loopback `API_BASE_URL` / `SOCKET_URL` (`AppConfig.assertReleaseNetworkConfig`) |
 
@@ -177,7 +190,30 @@ Every folder in `lib/features/` (17) is listed here, so a missing row means a mi
 | Item | Status |
 |---|---|
 | This file as status source of truth | **Done** — refresh on each shipped feature set |
+| Architecture map + ADRs 001–007 | **Done** (2026-08-30) — see [architecture/](./architecture/) |
 | April backlog / extract dumps under `docs/` | **Removed** 2026-07-18 (recoverable via git) |
+
+---
+
+## Architecture risks (plain language)
+
+Sourced from Jim's gap audit ([GAPS.md](./architecture/GAPS.md)). Code mitigations verified where cited; **residual** = ops or follow-up still needed.
+
+| Risk | What it means | Code guard | Residual |
+|---|---|---|---|
+| Weak JWT / admin on deploy | Attacker could forge admin tokens | `main.ts` `assertProductionSecrets()` exits boot in production | Rotate secrets before `NODE_ENV=production` |
+| OTP echo in prod | Login OTP returned in API body | `ALLOW_OTP_ECHO` blocked at prod boot (`main.ts`) | Never set `ALLOW_OTP_ECHO=true` on EC2 |
+| **Self-service ADMIN PATCH (ARCH-001)** | **Critical** — user sets own `role: ADMIN`, refreshes JWT | Page ACL on logs/metrics/redis | Strip `role` from self PATCH; fix unpage-gated `admin-staff/*` |
+| User phone leak via search (ARCH-002) | Any JWT can search phones | Lean projection only | Restrict search + self-or-admin on `:id` |
+| Razorpay client-only credit | App could claim payment without server proof | Webhook-only fulfilment ([ADR-006](./architecture/adr/006-payments-razorpay-webhook-only.md)) | Live webhook URL + `RAZORPAY_WEBHOOK_SECRET` |
+| WebSocket room hijack | Join another user's booking room | JWT-derived rooms ([ADR-002](./architecture/adr/002-realtime-socket-fcm-outbox.md)) | Never trust `userId` from WS body |
+| Aadhaar in logs | Full UID leaked in support logs | Masked storage only ([ADR-007](./architecture/adr/007-aadhaar-surepass-ekyc.md)) | Audit logging around Surepass calls |
+| CORS `origin: *` | Any site can call API from browser | JWT in `Authorization` header, not cookies (`main.ts`) | Revisit if cookie auth is added |
+| Global 120 req/min throttle | Burst abuse on sensitive routes | Auth routes tighter (`auth.controller.ts` `@Throttle`) | Aadhaar `generate-otp` has no dedicated limit yet |
+| PgBouncer + session features | LISTEN/NOTIFY or locks break under pool | Documented ban ([ADR-003](./architecture/adr/003-pgbouncer-transaction-pooling.md)) | Review new Postgres usage in PRs |
+| Wallet UI drift | User sees wallet top-up while wallet OFF | `getGatewayStatus()` reports `wallet.available: false` | Orphan `wallet_screen.dart` if nav is re-added |
+
+**Scalability watch (ops):** 2 backend replicas need Redis Socket.IO adapter; PgBouncer pool ~40 conns; EBS disk tight on EC2 for image builds — see GAPS § Scalability.
 
 ---
 
@@ -186,6 +222,10 @@ Every folder in `lib/features/` (17) is listed here, so a missing row means a mi
 | Doc | Role |
 |---|---|
 | **This file** | Current open/closed truth |
+| [architecture/ARCHITECTURE.md](./architecture/ARCHITECTURE.md) | System architecture map (modules, flows, contracts) |
+| [architecture/adr/](./architecture/adr/) | Architecture decision records |
+| [architecture/GAPS.md](./architecture/GAPS.md) | Architecture gaps + risk register vs this file |
+| [architecture/PAYMENT_PATHS.md](./architecture/PAYMENT_PATHS.md) | Live vs dormant payment paths (ADR-001 + ADR-006) |
 | [AUDIT_2026-07-13.md](./AUDIT_2026-07-13.md) | July perf / race / leak audit |
 | [SECURITY_2026-07-13.md](./SECURITY_2026-07-13.md) | July security audit + ops secret actions |
 | [PROD_DEPLOY_CHECKLIST.md](./PROD_DEPLOY_CHECKLIST.md) | EC2 secrets, NODE_ENV, migration, APK Razorpay rebuild |

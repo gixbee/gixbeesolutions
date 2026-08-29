@@ -1,6 +1,6 @@
 import { NotFoundException } from '@nestjs/common';
 import { UsersService } from './users.service';
-import { UserApprovalStatus } from './user.entity';
+import { UserApprovalStatus, UserRole } from './user.entity';
 
 /**
  * Unit tests for UsersService — the admin/user-management + profile surface.
@@ -165,6 +165,29 @@ describe('UsersService', () => {
       expect(result.profileImageUrl).toBe('http://img/a.png');
       expect(result.isAvailableForWork).toBe(true);
     });
+
+    it('ignores role/hasWorkerProfile unless allowPrivilegedFields is set', async () => {
+      const existing = user({ role: UserRole.CUSTOMER, hasWorkerProfile: false });
+      const { service } = makeService({ user: existing });
+      const result = await service.updateProfile('user-1', {
+        role: UserRole.ADMIN,
+        hasWorkerProfile: true,
+      });
+      expect(result.role).toBe(UserRole.CUSTOMER);
+      expect(result.hasWorkerProfile).toBe(false);
+    });
+
+    it('persists role/hasWorkerProfile when allowPrivilegedFields is true', async () => {
+      const existing = user({ role: UserRole.CUSTOMER });
+      const { service } = makeService({ user: existing });
+      const result = await service.updateProfile(
+        'user-1',
+        { role: UserRole.OWNER, hasWorkerProfile: true },
+        { allowPrivilegedFields: true },
+      );
+      expect(result.role).toBe(UserRole.OWNER);
+      expect(result.hasWorkerProfile).toBe(true);
+    });
   });
 
   describe('updateFcmToken', () => {
@@ -301,13 +324,19 @@ describe('UsersService', () => {
       expect(usersRepository.find).not.toHaveBeenCalled();
     });
 
+    it('returns [] for queries shorter than 3 characters', async () => {
+      const { service, usersRepository } = makeService();
+      await expect(service.searchUsers('ab')).resolves.toEqual([]);
+      expect(usersRepository.find).not.toHaveBeenCalled();
+    });
+
     it('returns the matched rows from the repository for a non-empty query', async () => {
       const rows = [
         user({ id: 'u1', name: 'Anu' }),
         user({ id: 'u2', name: 'Anand' }),
       ];
       const { service, usersRepository } = makeService({ users: rows });
-      const res = await service.searchUsers('an');
+      const res = await service.searchUsers('anu');
       expect(res).toEqual(rows);
       expect(usersRepository.find).toHaveBeenCalledTimes(1);
     });
@@ -333,14 +362,29 @@ describe('UsersService', () => {
 
     it('caps a huge limit at 50', async () => {
       const { service, usersRepository } = makeService();
-      await service.searchUsers('x', 9999);
+      await service.searchUsers('xxx', 9999);
       expect(usersRepository.find.mock.calls[0][0].take).toBe(50);
     });
 
     it('defaults a zero limit back to 20', async () => {
       const { service, usersRepository } = makeService();
-      await service.searchUsers('x', 0);
+      await service.searchUsers('xxx', 0);
       expect(usersRepository.find.mock.calls[0][0].take).toBe(20);
+    });
+
+    it('strips phoneNumber from results unless includePhone is true', async () => {
+      const rows = [
+        user({ id: 'u1', name: 'Anu', phoneNumber: '+919000000001' }),
+      ];
+      const { service, usersRepository } = makeService({ users: rows });
+      const without = await service.searchUsers('anu');
+      expect(without[0]).not.toHaveProperty('phoneNumber');
+      usersRepository.find.mockClear();
+      usersRepository.find.mockResolvedValueOnce(rows);
+      const withPhone = await service.searchUsers('anu', 20, {
+        includePhone: true,
+      });
+      expect(withPhone[0].phoneNumber).toBe('+919000000001');
     });
   });
 });

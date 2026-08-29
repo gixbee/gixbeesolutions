@@ -60,30 +60,53 @@ describe('UsersController.getAllUsers', () => {
 describe('UsersController.searchUsers', () => {
   it('forwards the q query param and a parsed limit to searchUsers', async () => {
     const { controller, usersService } = makeController();
-    const res = await controller.searchUsers('anu', '5');
-    expect(usersService.searchUsers).toHaveBeenCalledWith('anu', 5);
+    const req = { user: { role: UserRole.CUSTOMER } };
+    const res = await controller.searchUsers('anu', '5', req);
+    expect(usersService.searchUsers).toHaveBeenCalledWith('anu', 5, {
+      includePhone: false,
+    });
     expect(res).toEqual([{ id: 'u1', name: 'Anu' }]);
   });
 
   it('defaults limit to 20 when the limit param is omitted', async () => {
     const { controller, usersService } = makeController();
-    await controller.searchUsers('anu');
-    expect(usersService.searchUsers).toHaveBeenCalledWith('anu', 20);
+    await controller.searchUsers('anu', undefined, {
+      user: { role: UserRole.ADMIN },
+    });
+    expect(usersService.searchUsers).toHaveBeenCalledWith('anu', 20, {
+      includePhone: true,
+    });
   });
 
   it('falls back to 20 when limit is non-numeric, and coerces a missing q to ""', async () => {
     const { controller, usersService } = makeController();
-    await controller.searchUsers(undefined as any, 'abc');
-    expect(usersService.searchUsers).toHaveBeenCalledWith('', 20);
+    await controller.searchUsers(undefined as any, 'abc', {
+      user: { role: UserRole.CUSTOMER },
+    });
+    expect(usersService.searchUsers).toHaveBeenCalledWith('', 20, {
+      includePhone: false,
+    });
   });
 });
 
 describe('UsersController.getUser', () => {
-  it('forwards the URL :id to findById', async () => {
+  it('forwards the URL :id to findById for self', async () => {
     const { controller, usersService } = makeController();
-    const res = await controller.getUser('u-42');
+    const res = await controller.getUser('u-42', {
+      user: { userId: 'u-42', role: UserRole.CUSTOMER },
+    });
     expect(usersService.findById).toHaveBeenCalledWith('u-42');
     expect(res).toEqual({ id: 'u1' });
+  });
+
+  it('rejects lookup of another user for non-admin JWT', async () => {
+    const { controller, usersService } = makeController();
+    await expect(
+      controller.getUser('other', {
+        user: { userId: 'u-42', role: UserRole.CUSTOMER },
+      }),
+    ).rejects.toThrow('You can only view your own profile');
+    expect(usersService.findById).not.toHaveBeenCalled();
   });
 });
 
@@ -96,25 +119,60 @@ describe('UsersController.getUserStats', () => {
 });
 
 describe('UsersController.updateProfile', () => {
-  it('forwards the URL :id + the profile patch body', async () => {
+  it('forwards self profile fields without privileged keys', async () => {
+    const { controller, usersService } = makeController();
+    const body = { name: 'New' };
+    await controller.updateProfile('u-42', { user: { userId: 'u-42', role: UserRole.CUSTOMER } }, body);
+    expect(usersService.updateProfile).toHaveBeenCalledWith('u-42', body, {
+      allowPrivilegedFields: false,
+    });
+  });
+
+  it('rejects self-service role escalation', async () => {
+    const { controller, usersService } = makeController();
+    await expect(
+      controller.updateProfile(
+        'u-42',
+        { user: { userId: 'u-42', role: UserRole.CUSTOMER } },
+        { role: UserRole.ADMIN },
+      ),
+    ).rejects.toThrow('Only admins can change role or worker profile');
+    expect(usersService.updateProfile).not.toHaveBeenCalled();
+  });
+
+  it('allows admin to patch role on any user', async () => {
     const { controller, usersService } = makeController();
     const body = { name: 'New', role: UserRole.OWNER, hasWorkerProfile: true };
-    await controller.updateProfile('u-42', body);
-    expect(usersService.updateProfile).toHaveBeenCalledWith('u-42', body);
+    await controller.updateProfile(
+      'u-42',
+      { user: { userId: 'admin-1', role: UserRole.ADMIN } },
+      body,
+    );
+    expect(usersService.updateProfile).toHaveBeenCalledWith('u-42', body, {
+      allowPrivilegedFields: true,
+    });
   });
 });
 
 describe('UsersController.updateFcmToken', () => {
   it('forwards :id + token when present', async () => {
     const { controller, usersService } = makeController();
-    await controller.updateFcmToken('u-42', { token: 'tok-1' } as any);
+    await controller.updateFcmToken(
+      'u-42',
+      { user: { userId: 'u-42', role: UserRole.CUSTOMER } },
+      { token: 'tok-1' } as any,
+    );
     expect(usersService.updateFcmToken).toHaveBeenCalledWith('u-42', 'tok-1');
   });
 
   it('throws when the token is missing and never calls the service', async () => {
     const { controller, usersService } = makeController();
     await expect(
-      controller.updateFcmToken('u-42', { token: '' } as any),
+      controller.updateFcmToken(
+        'u-42',
+        { user: { userId: 'u-42', role: UserRole.CUSTOMER } },
+        { token: '' } as any,
+      ),
     ).rejects.toThrow('FCM token is required');
     expect(usersService.updateFcmToken).not.toHaveBeenCalled();
   });

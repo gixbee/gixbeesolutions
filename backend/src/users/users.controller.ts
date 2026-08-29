@@ -23,6 +23,7 @@ import {
   VerifyUserDto,
 } from './dto/user-admin.dto';
 import { parsePagination } from '../common/pagination';
+import { UserRole } from './user.entity';
 
 @Controller('admin-user-list')
 @UseGuards(JwtAuthGuard)
@@ -58,14 +59,22 @@ export class UsersController {
   // as an :id. Name/phone lookup for the operator picker (P106) — pass ?q= and
   // an optional ?limit=. Empty q returns [].
   @Get('search')
-  async searchUsers(@Query('q') q: string, @Query('limit') limit?: string) {
+  async searchUsers(
+    @Query('q') q: string,
+    @Query('limit') limit?: string,
+    @Req() req?: any,
+  ) {
     const parsed = limit !== undefined ? parseInt(limit, 10) : 20;
     const n = Number.isFinite(parsed) ? parsed : 20;
-    return this.usersService.searchUsers(q ?? '', n);
+    const includePhone = req?.user?.role === UserRole.ADMIN;
+    return this.usersService.searchUsers(q ?? '', n, { includePhone });
   }
 
   @Get(':id')
-  async getUser(@Param('id') id: string) {
+  async getUser(@Param('id') id: string, @Req() req: any) {
+    if (req.user.userId !== id && req.user.role !== UserRole.ADMIN) {
+      throw new ForbiddenException('You can only view your own profile');
+    }
     return this.usersService.findById(id);
   }
 
@@ -81,10 +90,21 @@ export class UsersController {
     @Body() data: UpdateUserProfileDto,
   ) {
     // Self-or-admin: a user may only edit their OWN profile.
-    if (req.user.userId !== id && req.user.role !== 'ADMIN') {
+    if (req.user.userId !== id && req.user.role !== UserRole.ADMIN) {
       throw new ForbiddenException('You can only update your own profile');
     }
-    return this.usersService.updateProfile(id, data);
+    const isAdmin = req.user.role === UserRole.ADMIN;
+    if (
+      !isAdmin &&
+      (data.role !== undefined || data.hasWorkerProfile !== undefined)
+    ) {
+      throw new ForbiddenException(
+        'Only admins can change role or worker profile',
+      );
+    }
+    return this.usersService.updateProfile(id, data, {
+      allowPrivilegedFields: isAdmin,
+    });
   }
 
   @Patch(':id/fcm-token')
@@ -95,7 +115,7 @@ export class UsersController {
   ) {
     // SECURITY FIX: was trusting the URL id — any user could overwrite another
     // user's push token and hijack their notifications (incl. OTP pushes).
-    if (req.user.userId !== id && req.user.role !== 'ADMIN') {
+    if (req.user.userId !== id && req.user.role !== UserRole.ADMIN) {
       throw new ForbiddenException('You can only update your own device token');
     }
     if (!body.token) throw new BadRequestException('FCM token is required');

@@ -24,11 +24,24 @@ function makeGuard(requiredPages?: string[] | undefined) {
 }
 
 describe('AdminGuard', () => {
-  it('allows a request whose JWT carries the ADMIN role (no page metadata)', () => {
+  it('allows an admin-portal JWT (role ADMIN + staffRole)', () => {
     const guard = makeGuard(undefined);
     expect(
-      guard.canActivate(ctx({ userId: 'admin-001', role: UserRole.ADMIN })),
+      guard.canActivate(
+        ctx({
+          userId: 'admin-001',
+          role: UserRole.ADMIN,
+          staffRole: AdminStaffRole.SUPER_ADMIN,
+        }),
+      ),
     ).toBe(true);
+  });
+
+  it('rejects a mobile JWT with ADMIN role but no staffRole (ARCH-001)', () => {
+    const guard = makeGuard(undefined);
+    expect(() =>
+      guard.canActivate(ctx({ userId: 'u1', role: UserRole.ADMIN })),
+    ).toThrow('Admin portal session required');
   });
 
   it('rejects a non-admin (e.g. CUSTOMER) token', () => {
