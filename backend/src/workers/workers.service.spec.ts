@@ -786,3 +786,27 @@ describe('WorkersService.getMyProfile', () => {
     expect(res.verificationStatus).toBe(VerificationStatus.VERIFIED);
   });
 });
+
+describe('WorkersService.getVerificationQueue', () => {
+  it('includes maskedAadhaar from worker profile for admin queue', async () => {
+    const { service, workersRepository, talentRepository } = setup();
+    workersRepository.find.mockResolvedValue([
+      {
+        id: 'wp1',
+        skills: ['Electrician'],
+        hourlyRate: 200,
+        bio: 'Pro',
+        verificationStatus: VerificationStatus.PENDING,
+        maskedAadhaar: 'XXXX-XXXX-5678',
+        languages: ['en'],
+        user: { id: 'u1', name: 'Ravi', phoneNumber: '+919000000001' },
+      },
+    ]);
+    talentRepository.find.mockResolvedValue([]);
+
+    const queue = await service.getVerificationQueue('PENDING');
+    expect(queue).toHaveLength(1);
+    expect(queue[0].maskedAadhaar).toBe('XXXX-XXXX-5678');
+    expect(queue[0].userId).toBe('u1');
+  });
+});

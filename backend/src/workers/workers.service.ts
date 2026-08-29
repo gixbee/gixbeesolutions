@@ -390,6 +390,7 @@ export class WorkersService {
         hourlyRate: p.hourlyRate,
         bio: p.bio,
         verificationStatus: p.verificationStatus,
+        maskedAadhaar: p.maskedAadhaar ?? null,
         languages: p.languages ?? [],
         photoUrl: talent?.photoUrl ?? null,
         certificates: talent?.certificates ?? [],
