@@ -190,7 +190,7 @@ describe('AuthService.verifyOtp', () => {
         phoneNumber: '+919000000005',
         role: UserRole.CUSTOMER,
         isVerified: true,
-        walletBalance: 30,
+        walletBalance: 0,
       }),
     );
     expect(saved).toHaveLength(1);
@@ -352,6 +352,10 @@ describe('AuthService.getProfile', () => {
       role: UserRole.CUSTOMER,
       hasWorkerProfile: false,
       isAvailableForWork: true,
+      instantHelpBlocked: false,
+      lateCancelStrikeCount: 0,
+      unblockCompensationAmountInr: null,
+      unblockCompensationDistanceKm: null,
     });
   });
 
