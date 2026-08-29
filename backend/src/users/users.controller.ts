@@ -25,6 +25,23 @@ import {
 import { parsePagination } from '../common/pagination';
 import { UserRole } from './user.entity';
 
+/** Portal session from `/auth/admin-login` — not a mobile JWT with orphan `role=ADMIN`. */
+function isPortalAdmin(req: {
+  user?: { role?: string; staffRole?: string };
+}): boolean {
+  return req.user?.role === UserRole.ADMIN && !!req.user?.staffRole;
+}
+
+function assertSelfOrPortalAdmin(
+  req: { user: { userId: string } },
+  id: string,
+  message: string,
+): void {
+  if (req.user.userId !== id && !isPortalAdmin(req)) {
+    throw new ForbiddenException(message);
+  }
+}
+
 @Controller('admin-user-list')
 @UseGuards(JwtAuthGuard)
 export class UsersController {
@@ -66,20 +83,27 @@ export class UsersController {
   ) {
     const parsed = limit !== undefined ? parseInt(limit, 10) : 20;
     const n = Number.isFinite(parsed) ? parsed : 20;
-    const includePhone = req?.user?.role === UserRole.ADMIN;
+    const includePhone = isPortalAdmin(req ?? {});
     return this.usersService.searchUsers(q ?? '', n, { includePhone });
   }
 
   @Get(':id')
   async getUser(@Param('id') id: string, @Req() req: any) {
-    if (req.user.userId !== id && req.user.role !== UserRole.ADMIN) {
-      throw new ForbiddenException('You can only view your own profile');
-    }
+    assertSelfOrPortalAdmin(
+      req,
+      id,
+      'You can only view your own profile',
+    );
     return this.usersService.findById(id);
   }
 
   @Get(':id/stats')
-  async getUserStats(@Param('id') id: string) {
+  async getUserStats(@Param('id') id: string, @Req() req: any) {
+    assertSelfOrPortalAdmin(
+      req,
+      id,
+      'You can only view your own stats',
+    );
     return this.usersService.getUserStats(id);
   }
 
@@ -89,13 +113,16 @@ export class UsersController {
     @Req() req: any,
     @Body() data: UpdateUserProfileDto,
   ) {
-    // Self-or-admin: a user may only edit their OWN profile.
-    if (req.user.userId !== id && req.user.role !== UserRole.ADMIN) {
-      throw new ForbiddenException('You can only update your own profile');
-    }
-    const isAdmin = req.user.role === UserRole.ADMIN;
+    // Self-or-portal-admin: mobile JWTs must not edit other users even if
+    // role=ADMIN was escalated in DB before ARCH-001 shipped.
+    assertSelfOrPortalAdmin(
+      req,
+      id,
+      'You can only update your own profile',
+    );
+    const portalAdmin = isPortalAdmin(req);
     if (
-      !isAdmin &&
+      !portalAdmin &&
       (data.role !== undefined || data.hasWorkerProfile !== undefined)
     ) {
       throw new ForbiddenException(
@@ -103,7 +130,7 @@ export class UsersController {
       );
     }
     return this.usersService.updateProfile(id, data, {
-      allowPrivilegedFields: isAdmin,
+      allowPrivilegedFields: portalAdmin,
     });
   }
 
@@ -115,7 +142,7 @@ export class UsersController {
   ) {
     // SECURITY FIX: was trusting the URL id — any user could overwrite another
     // user's push token and hijack their notifications (incl. OTP pushes).
-    if (req.user.userId !== id && req.user.role !== UserRole.ADMIN) {
+    if (req.user.userId !== id && !isPortalAdmin(req)) {
       throw new ForbiddenException('You can only update your own device token');
     }
     if (!body.token) throw new BadRequestException('FCM token is required');

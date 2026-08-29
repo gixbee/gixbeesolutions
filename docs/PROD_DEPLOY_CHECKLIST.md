@@ -29,7 +29,22 @@ See also: [HOSTING_GUIDE.md](./HOSTING_GUIDE.md) · [AWS_DEPLOYMENT.md](./AWS_DE
 - `PATCH /admin-user-list/:id` with `role: ADMIN` → **403**
 - `GET /admin-user-list/search` → no `phoneNumber` in results (unless admin JWT)
 - `GET /admin-user-list/:other-id` → **403**
+- `GET /admin-user-list/:other-id/stats` → **403**
 - `POST /workers/me/pay-period-fee` when wallet OFF → **400** (use `POST /payments/period-fee/order`)
+
+Mobile JWT with orphan `role=ADMIN` (no `staffRole`) must **not** bypass self-or-admin on profile/stats/search.
+
+### Demote orphan `role=ADMIN` rows (one-time prod SQL)
+
+Portal auth uses `admin_staff` (or env bootstrap) — mobile `users.role` should **never** be `ADMIN`. Rows escalated via the pre-2026-08-30 PATCH bug should be demoted before prod:
+
+```sql
+-- Preview
+SELECT id, "phoneNumber", name, role FROM users WHERE role = 'ADMIN';
+
+-- Demote all users-table ADMIN rows (review preview first)
+UPDATE users SET role = 'CUSTOMER' WHERE role = 'ADMIN';
+```
 
 Detail: [architecture/GAPS.md](./architecture/GAPS.md)
 
@@ -177,7 +192,7 @@ set RAZORPAY_KEY=rzp_live_XXXXXXXXXXXX
 
 ## 5. Deploy sequence (recommended order)
 
-- [ ] **ARCH-001 / ARCH-002 fixed and deployed** (section Security — do not skip)
+- [ ] Pull backend with ARCH-001/002 fixes and **smoke** (section Security — PATCH role → 403, search no phone)
 - [ ] Pull latest `main` on EC2 (`7bb7fda` or later — P0 backend commit)
 - [ ] Set `NODE_ENV=production` in EC2 `backend/.env` (compose reads `${NODE_ENV:-development}`)
 - [ ] Rotate/set all secrets in `backend/.env` (section 3)

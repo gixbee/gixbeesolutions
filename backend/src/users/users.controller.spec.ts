@@ -71,10 +71,20 @@ describe('UsersController.searchUsers', () => {
   it('defaults limit to 20 when the limit param is omitted', async () => {
     const { controller, usersService } = makeController();
     await controller.searchUsers('anu', undefined, {
-      user: { role: UserRole.ADMIN },
+      user: { role: UserRole.ADMIN, staffRole: 'SUPER_ADMIN' },
     });
     expect(usersService.searchUsers).toHaveBeenCalledWith('anu', 20, {
       includePhone: true,
+    });
+  });
+
+  it('does not include phone for mobile JWT with orphan role=ADMIN', async () => {
+    const { controller, usersService } = makeController();
+    await controller.searchUsers('anu', '5', {
+      user: { role: UserRole.ADMIN },
+    });
+    expect(usersService.searchUsers).toHaveBeenCalledWith('anu', 5, {
+      includePhone: false,
     });
   });
 
@@ -108,13 +118,47 @@ describe('UsersController.getUser', () => {
     ).rejects.toThrow('You can only view your own profile');
     expect(usersService.findById).not.toHaveBeenCalled();
   });
+
+  it('rejects orphan role=ADMIN mobile JWT reading another user', async () => {
+    const { controller, usersService } = makeController();
+    await expect(
+      controller.getUser('other', {
+        user: { userId: 'u-42', role: UserRole.ADMIN },
+      }),
+    ).rejects.toThrow('You can only view your own profile');
+    expect(usersService.findById).not.toHaveBeenCalled();
+  });
 });
 
 describe('UsersController.getUserStats', () => {
-  it('forwards the URL :id to getUserStats', async () => {
+  it('forwards the URL :id to getUserStats for self', async () => {
     const { controller, usersService } = makeController();
-    await controller.getUserStats('u-42');
+    await controller.getUserStats('u-42', {
+      user: { userId: 'u-42', role: UserRole.CUSTOMER },
+    });
     expect(usersService.getUserStats).toHaveBeenCalledWith('u-42');
+  });
+
+  it('rejects stats for another user without portal admin session', async () => {
+    const { controller, usersService } = makeController();
+    await expect(
+      controller.getUserStats('other', {
+        user: { userId: 'u-42', role: UserRole.CUSTOMER },
+      }),
+    ).rejects.toThrow('You can only view your own stats');
+    expect(usersService.getUserStats).not.toHaveBeenCalled();
+  });
+
+  it('allows portal admin to read another user stats', async () => {
+    const { controller, usersService } = makeController();
+    await controller.getUserStats('other', {
+      user: {
+        userId: 'admin-1',
+        role: UserRole.ADMIN,
+        staffRole: 'SUPER_ADMIN',
+      },
+    });
+    expect(usersService.getUserStats).toHaveBeenCalledWith('other');
   });
 });
 
@@ -140,12 +184,18 @@ describe('UsersController.updateProfile', () => {
     expect(usersService.updateProfile).not.toHaveBeenCalled();
   });
 
-  it('allows admin to patch role on any user', async () => {
+  it('allows portal admin to patch role on any user', async () => {
     const { controller, usersService } = makeController();
     const body = { name: 'New', role: UserRole.OWNER, hasWorkerProfile: true };
     await controller.updateProfile(
       'u-42',
-      { user: { userId: 'admin-1', role: UserRole.ADMIN } },
+      {
+        user: {
+          userId: 'admin-1',
+          role: UserRole.ADMIN,
+          staffRole: 'SUPER_ADMIN',
+        },
+      },
       body,
     );
     expect(usersService.updateProfile).toHaveBeenCalledWith('u-42', body, {
