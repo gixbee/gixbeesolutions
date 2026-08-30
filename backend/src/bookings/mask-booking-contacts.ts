@@ -15,9 +15,15 @@ import { Booking } from './booking.entity';
  *
  * Admin endpoints deliberately do NOT call this; support staff need the real
  * numbers to resolve disputes.
+ *
+ * SEC-013: OTPs are also stripped here. Workers must not read arrival/completion
+ * OTPs from list or detail polls — customer receives them via FCM and
+ * `GET :id/status` only.
  */
 export function maskBookingContacts<T extends Partial<Booking>>(booking: T): T {
   if (!booking) return booking;
+  booking.arrivalOtp = undefined as never;
+  booking.completionOtp = undefined as never;
   if (booking.customer) booking.customer.phoneNumber = undefined as never;
   if (booking.operator) booking.operator.phoneNumber = undefined as never;
   if (booking.onSiteContact) {
