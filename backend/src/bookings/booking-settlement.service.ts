@@ -429,7 +429,7 @@ export class BookingSettlementService {
 
   async refreshCompletionOtp(
     bookingId: string,
-  ): Promise<{ message: string; completionOtp: string }> {
+  ): Promise<{ message: string }> {
     const booking = await this.bookingsRepository.findOne({
       where: { id: bookingId },
       relations: ['customer'],
@@ -451,7 +451,7 @@ export class BookingSettlementService {
       );
     }
 
-    return { message: 'Completion OTP refreshed', completionOtp: newOtp };
+    return { message: 'Completion OTP refreshed' };
   }
 
   /**

@@ -269,8 +269,6 @@ export class BookingClaimService {
         serviceLocation: savedBooking.serviceLocation,
         serviceLat: savedBooking.serviceLat,
         serviceLng: savedBooking.serviceLng,
-        arrivalOtp: savedBooking.arrivalOtp,
-        completionOtp: savedBooking.completionOtp,
         createdAt: savedBooking.createdAt,
         customer: savedBooking.customer
           ? { id: savedBooking.customer.id }

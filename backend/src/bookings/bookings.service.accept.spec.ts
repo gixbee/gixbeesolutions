@@ -224,10 +224,10 @@ describe('BookingDispatchService.acceptBooking', () => {
         skill: 'Plumbing',
         amount: 500,
         serviceLocation: 'Indiranagar',
-        arrivalOtp: '1111',
-        completionOtp: '2222',
       }),
     );
+    expect(res.booking).not.toHaveProperty('arrivalOtp');
+    expect(res.booking).not.toHaveProperty('completionOtp');
     expect(outboxService.append).toHaveBeenCalledWith(
       manager,
       OutboxEventType.BOOKING_ACCEPTED,

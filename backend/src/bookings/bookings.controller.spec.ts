@@ -1,4 +1,4 @@
-import { NotFoundException } from '@nestjs/common';
+import { NotFoundException, BadRequestException } from '@nestjs/common';
 import { BookingsController } from './bookings.controller';
 import { BookingStatus, BookingType } from './booking.entity';
 
@@ -65,7 +65,8 @@ function makeController(
     getStatusForParticipant: jest.fn(async () => ({ status: 'REQUESTED' })),
     assertParticipant: jest.fn(async () => ({
       id: 'b1',
-      customer: { id: 'u1' },
+      customer: { id: 'cust-1' },
+      operator: { id: 'work-1' },
     })),
     notifyArrival: jest.fn(async () => ({
       message: 'Arrival OTP sent to customer.',
@@ -253,20 +254,52 @@ describe('BookingsController.cancel', () => {
 });
 
 describe('BookingsController OTP gates', () => {
-  it('confirmArrival / confirmCompletion / refreshCompletionOtp delegate', async () => {
+  it('confirmArrival delegates for the assigned worker only', async () => {
     const { controller, bookingsService } = makeController();
-    await controller.confirmArrival('b1', req(), { otp: '111111' });
-    await controller.confirmCompletion('b1', req(), { otp: '222222' });
-    await controller.refreshCompletionOtp('b1', req());
+    await controller.confirmArrival('b1', req('work-1'), { otp: '111111' });
     expect(bookingsService.verifyArrivalOtp).toHaveBeenCalledWith(
       'b1',
       '111111',
     );
+  });
+
+  it('confirmArrival rejects the customer', async () => {
+    const { controller, bookingsService } = makeController();
+    await expect(
+      controller.confirmArrival('b1', req('cust-1'), { otp: '111111' }),
+    ).rejects.toBeInstanceOf(BadRequestException);
+    expect(bookingsService.verifyArrivalOtp).not.toHaveBeenCalled();
+  });
+
+  it('confirmCompletion delegates for the customer only', async () => {
+    const { controller, bookingsService } = makeController();
+    await controller.confirmCompletion('b1', req('cust-1'), { otp: '222222' });
     expect(bookingsService.verifyCompletionOtp).toHaveBeenCalledWith(
       'b1',
       '222222',
     );
+  });
+
+  it('confirmCompletion rejects the worker', async () => {
+    const { controller, bookingsService } = makeController();
+    await expect(
+      controller.confirmCompletion('b1', req('work-1'), { otp: '222222' }),
+    ).rejects.toBeInstanceOf(BadRequestException);
+    expect(bookingsService.verifyCompletionOtp).not.toHaveBeenCalled();
+  });
+
+  it('refreshCompletionOtp delegates for the customer only', async () => {
+    const { controller, bookingsService } = makeController();
+    await controller.refreshCompletionOtp('b1', req('cust-1'));
     expect(bookingsService.refreshCompletionOtp).toHaveBeenCalledWith('b1');
+  });
+
+  it('refreshCompletionOtp rejects the worker', async () => {
+    const { controller, bookingsService } = makeController();
+    await expect(
+      controller.refreshCompletionOtp('b1', req('work-1')),
+    ).rejects.toBeInstanceOf(BadRequestException);
+    expect(bookingsService.refreshCompletionOtp).not.toHaveBeenCalled();
   });
 });
 

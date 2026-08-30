@@ -859,16 +859,16 @@ describe('BookingSettlementService.refreshCompletionOtp', () => {
 
     const res = await service.refreshCompletionOtp('b1');
 
-    expect(res.completionOtp).toMatch(/^\d{4}$/);
-    expect(booking.completionOtp).toBe(res.completionOtp);
+    expect(res).toEqual({ message: 'Completion OTP refreshed' });
+    expect(booking.completionOtp).toMatch(/^\d{4}$/);
     expect(bookingsRepository.save).toHaveBeenCalledWith(booking);
     expect(redisService.saveOtp).toHaveBeenCalledWith(
       'otp:booking:b1:completion',
-      res.completionOtp,
+      booking.completionOtp,
     );
     expect(notificationsService.notifyCustomerJobComplete).toHaveBeenCalledWith(
       'cust-1',
-      res.completionOtp,
+      booking.completionOtp,
     );
   });
 

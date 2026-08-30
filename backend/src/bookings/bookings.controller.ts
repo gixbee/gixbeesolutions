@@ -9,6 +9,7 @@ import {
   UseGuards,
   Req,
   NotFoundException,
+  BadRequestException,
 } from '@nestjs/common';
 import { BookingsService } from './bookings.service';
 import { BookingStatus } from './booking.entity';
@@ -219,9 +220,15 @@ export class BookingsController {
     @Req() req,
     @Body() body: ConfirmOtpDto,
   ) {
-    // SECURITY FIX: participants only — was open to 4-digit OTP brute force
-    // by any authenticated user.
-    await this.bookingsService.assertParticipant(id, req.user.userId);
+    const booking = await this.bookingsService.assertParticipant(
+      id,
+      req.user.userId,
+    );
+    if (booking.operator?.id !== req.user.userId) {
+      throw new BadRequestException(
+        'Only the assigned worker may verify arrival',
+      );
+    }
     return this.bookingsService.verifyArrivalOtp(id, body.otp);
   }
 
@@ -231,15 +238,29 @@ export class BookingsController {
     @Req() req,
     @Body() body: ConfirmOtpDto,
   ) {
-    // SECURITY FIX: participants only (see arrival above).
-    await this.bookingsService.assertParticipant(id, req.user.userId);
+    const booking = await this.bookingsService.assertParticipant(
+      id,
+      req.user.userId,
+    );
+    if (booking.customer?.id !== req.user.userId) {
+      throw new BadRequestException(
+        'Only the customer may verify job completion',
+      );
+    }
     return this.bookingsService.verifyCompletionOtp(id, body.otp);
   }
 
   @Patch(':id/refresh-completion-otp')
   async refreshCompletionOtp(@Param('id') id: string, @Req() req) {
-    // OTP recipient is the customer — only participants may trigger a resend.
-    await this.bookingsService.assertParticipant(id, req.user.userId);
+    const booking = await this.bookingsService.assertParticipant(
+      id,
+      req.user.userId,
+    );
+    if (booking.customer?.id !== req.user.userId) {
+      throw new BadRequestException(
+        'Only the customer may refresh the completion OTP',
+      );
+    }
     return this.bookingsService.refreshCompletionOtp(id);
   }
 
