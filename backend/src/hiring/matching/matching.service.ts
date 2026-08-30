@@ -23,6 +23,23 @@ import { WalletsService } from '../../wallets/wallets.service';
 import { WALLET_PAYMENTS_ENABLED } from '../../common/money-model';
 import { NotificationsService } from '../../notifications/notifications.service';
 import { PaymentsService } from '../../payments/payments.service';
+import {
+  EmployerSalaryCriteria,
+  EmployerSalaryInput,
+  employerSalaryFromRequest,
+  formatSalaryLabel,
+  normalizeEmployerSalary,
+  salaryRangeMatches,
+} from './salary-range';
+
+/** POST /hiring/match/requests body (+ Razorpay webhook meta). */
+export type HiringMatchRequestDto = EmployerSalaryInput & {
+  jobType: string;
+  skills?: string[];
+  location?: string;
+  experienceMinYears?: number;
+  vacancies: number;
+};
 
 // ── Business constants (FRD + pricing doc) ─────────────────────────────────
 export const FREE_PREFERENCES = 2;
@@ -134,6 +151,7 @@ export class MatchingService {
       skills?: string[];
       preferredLocation?: string;
       expectedSalary?: number;
+      salaryNegotiable?: boolean;
       experienceYears?: number;
       noticePeriod?: NoticePeriod;
     },
@@ -181,6 +199,7 @@ export class MatchingService {
       skills?: string[];
       preferredLocation?: string;
       expectedSalary?: number;
+      salaryNegotiable?: boolean;
       experienceYears?: number;
       noticePeriod?: NoticePeriod;
     },
@@ -210,6 +229,7 @@ export class MatchingService {
       skills?: string[];
       preferredLocation?: string;
       expectedSalary?: number;
+      salaryNegotiable?: boolean;
       experienceYears?: number;
       noticePeriod?: NoticePeriod;
     },
@@ -221,6 +241,7 @@ export class MatchingService {
       skills: (dto.skills ?? []).map((s) => s.trim()).filter(Boolean),
       preferredLocation: dto.preferredLocation?.trim(),
       expectedSalary: dto.expectedSalary ?? 0,
+      salaryNegotiable: dto.salaryNegotiable === true,
       experienceYears: Math.max(0, Math.round(dto.experienceYears ?? 0)),
       noticePeriod: dto.noticePeriod ?? NoticePeriod.IMMEDIATE,
       isPaid: flags.isPaid,
@@ -238,6 +259,7 @@ export class MatchingService {
       skills: string[];
       preferredLocation: string;
       expectedSalary: number;
+      salaryNegotiable: boolean;
       experienceYears: number;
       noticePeriod: NoticePeriod;
     }>,
@@ -262,6 +284,9 @@ export class MatchingService {
     }
     if (dto.expectedSalary !== undefined) {
       pref.expectedSalary = dto.expectedSalary;
+    }
+    if (dto.salaryNegotiable !== undefined) {
+      pref.salaryNegotiable = dto.salaryNegotiable === true;
     }
     if (dto.experienceYears !== undefined) {
       pref.experienceYears = Math.max(0, Math.round(dto.experienceYears));
@@ -293,7 +318,7 @@ export class MatchingService {
   // ══════════════════════════════════════════════════════════════════════
 
   /**
-   * Core matcher (FRD): jobType equality, expected salary within the offer,
+   * Core matcher (FRD + V147-03): jobType equality, salary range overlap,
    * location overlap, minimum experience, ≥1 skill overlap when both sides
    * declared skills. Notice period is delivered to the employer as data
    * rather than used as a hard filter — Indian hiring rarely rejects a good
@@ -301,7 +326,7 @@ export class MatchingService {
    */
   private async findMatchingPreferences(criteria: {
     jobType: string;
-    salaryOffered: number;
+    salary: EmployerSalaryCriteria;
     location?: string;
     experienceMinYears?: number;
     skills?: string[];
@@ -314,9 +339,6 @@ export class MatchingService {
       .where('pref.isActive = true')
       .andWhere('LOWER(pref.jobType) = LOWER(:jobType)', {
         jobType: criteria.jobType.trim(),
-      })
-      .andWhere('pref.expectedSalary <= :salary', {
-        salary: criteria.salaryOffered,
       })
       .andWhere('pref.experienceYears >= :minExp', {
         minExp: criteria.experienceMinYears ?? 0,
@@ -334,7 +356,8 @@ export class MatchingService {
     }
 
     qb.orderBy('pref.createdAt', 'ASC').take(criteria.limit ?? 200);
-    const prefs = await qb.getMany();
+    let prefs = await qb.getMany();
+    prefs = prefs.filter((p) => salaryRangeMatches(criteria.salary, p));
 
     // Skill overlap in memory (simple-array column). Lenient by design:
     // candidates with no skills listed still match — same philosophy as the
@@ -352,7 +375,7 @@ export class MatchingService {
   /** Salary-slider live estimate for the employer form. Approximate. */
   async estimateCandidates(criteria: {
     jobType: string;
-    salaryOffered: number;
+    salary: EmployerSalaryCriteria;
     location?: string;
     experienceMinYears?: number;
     skills?: string[];
@@ -368,14 +391,7 @@ export class MatchingService {
 
   async createRequest(
     employerId: string,
-    dto: {
-      jobType: string;
-      skills?: string[];
-      location?: string;
-      salaryOffered: number;
-      experienceMinYears?: number;
-      vacancies: number;
-    },
+    dto: HiringMatchRequestDto,
   ): Promise<
     | { request: HiringRequest; estimatedCandidates: number }
     | {
@@ -390,9 +406,7 @@ export class MatchingService {
     if (!jobType) throw new BadRequestException('jobType is required');
     const vacancies = Math.max(1, Math.round(dto.vacancies || 1));
     const fee = feeForVacancies(vacancies);
-    if (!(dto.salaryOffered > 0)) {
-      throw new BadRequestException('salaryOffered (₹/month) is required');
-    }
+    normalizeEmployerSalary(dto);
 
     // Legacy wallet charge path when product is on.
     if (WALLET_PAYMENTS_ENABLED) {
@@ -444,14 +458,7 @@ export class MatchingService {
   /** Webhook fulfilment for HIRING_MATCH_FEE. */
   async createRequestFromPayment(
     employerId: string,
-    dto: {
-      jobType: string;
-      skills?: string[];
-      location?: string;
-      salaryOffered: number;
-      experienceMinYears?: number;
-      vacancies: number;
-    },
+    dto: HiringMatchRequestDto,
     payment: {
       feeAmount: number;
       creditApplied: number;
@@ -474,14 +481,7 @@ export class MatchingService {
 
   private async startRequest(
     employerId: string,
-    dto: {
-      jobType: string;
-      skills?: string[];
-      location?: string;
-      salaryOffered: number;
-      experienceMinYears?: number;
-      vacancies: number;
-    },
+    dto: HiringMatchRequestDto,
     payment: {
       feeAmount: number;
       creditApplied: number;
@@ -491,6 +491,7 @@ export class MatchingService {
   ): Promise<{ request: HiringRequest; estimatedCandidates: number }> {
     const jobType = dto.jobType.trim();
     const vacancies = Math.max(1, Math.round(dto.vacancies || 1));
+    const salary = normalizeEmployerSalary(dto);
 
     const request = await this.requestRepo.save(
       this.requestRepo.create({
@@ -498,7 +499,10 @@ export class MatchingService {
         jobType,
         skills: (dto.skills ?? []).map((s) => s.trim()).filter(Boolean),
         location: dto.location?.trim(),
-        salaryOffered: dto.salaryOffered,
+        salaryOffered: salary.salaryOffered,
+        salaryMin: salary.salaryMin,
+        salaryMax: salary.salaryMax,
+        salaryNegotiable: salary.salaryNegotiable,
         experienceMinYears: Math.max(
           0,
           Math.round(dto.experienceMinYears ?? 0),
@@ -539,7 +543,7 @@ export class MatchingService {
 
     const { estimated } = await this.estimateCandidates({
       jobType,
-      salaryOffered: dto.salaryOffered,
+      salary,
       location: dto.location,
       experienceMinYears: dto.experienceMinYears,
       skills: dto.skills,
@@ -569,9 +573,10 @@ export class MatchingService {
     ];
 
     const batchSize = BATCH_SIZES[Math.min(batchIndex, BATCH_SIZES.length - 1)];
+    const salaryCriteria = employerSalaryFromRequest(request);
     const matches = await this.findMatchingPreferences({
       jobType: request.jobType,
-      salaryOffered: Number(request.salaryOffered),
+      salary: salaryCriteria,
       location: request.location,
       experienceMinYears: request.experienceMinYears,
       skills: request.skills,
@@ -601,18 +606,21 @@ export class MatchingService {
     request.batchesSent += 1;
     await this.requestRepo.save(request);
 
-    const salary = Math.round(Number(request.salaryOffered));
+    const salaryLabel = formatSalaryLabel(salaryCriteria);
     await this.notificationsService
       .sendToUsers(
         matches.map((p) => p.user.id),
         {
           title: `New ${request.jobType} opening`,
-          body: `₹${salary}/month · ${request.location || 'your area'} — tap Interested if you want this job.`,
+          body: `${salaryLabel}/month · ${request.location || 'your area'} — tap Interested if you want this job.`,
           data: {
             type: 'hiring_offer',
             requestId,
             jobType: request.jobType,
-            salary: String(salary),
+            salary: String(salaryCriteria.salaryMax),
+            salaryMin: String(salaryCriteria.salaryMin),
+            salaryMax: String(salaryCriteria.salaryMax),
+            salaryNegotiable: String(salaryCriteria.salaryNegotiable),
             location: request.location ?? '',
           },
         },
@@ -862,6 +870,9 @@ export class MatchingService {
       jobType: i.request.jobType,
       location: i.request.location,
       salaryOffered: Number(i.request.salaryOffered),
+      salaryMin: Number(i.request.salaryMin ?? 0),
+      salaryMax: Number(i.request.salaryMax ?? i.request.salaryOffered),
+      salaryNegotiable: i.request.salaryNegotiable === true,
       skills: i.request.skills ?? [],
       response: i.response,
       decision: i.decision,

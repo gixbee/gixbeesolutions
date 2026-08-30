@@ -51,9 +51,21 @@ export class HiringRequest {
   @Column({ nullable: true })
   location: string;
 
-  /** Offered salary in ₹ per month. */
+  /** Offered salary in ₹ per month (legacy ceiling — mirrors salaryMax). */
   @Column({ type: 'decimal', precision: 10, scale: 2, default: 0 })
   salaryOffered: number;
+
+  /** Employer budget floor (₹/month). 0 when negotiable-only max is set. */
+  @Column({ type: 'decimal', precision: 10, scale: 2, default: 0 })
+  salaryMin: number;
+
+  /** Employer budget ceiling (₹/month). */
+  @Column({ type: 'decimal', precision: 10, scale: 2, default: 0 })
+  salaryMax: number;
+
+  /** When true, matcher treats employer min as 0 (flexible below stated range). */
+  @Column({ default: false })
+  salaryNegotiable: boolean;
 
   /** Minimum experience required, in years (0 = freshers welcome). */
   @Column({ type: 'int', default: 0 })

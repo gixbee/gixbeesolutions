@@ -12,6 +12,7 @@ import {
 } from '@nestjs/common';
 import { JwtAuthGuard } from '../../auth/jwt-auth.guard';
 import { MatchingService, feeForVacancies } from './matching.service';
+import { normalizeEmployerSalary } from './salary-range';
 import { NoticePeriod } from './job-preference.entity';
 import { EmployerDecision } from './hiring-interest.entity';
 
@@ -41,6 +42,7 @@ export class MatchingController {
       skills?: string[];
       preferredLocation?: string;
       expectedSalary?: number;
+      salaryNegotiable?: boolean;
       experienceYears?: number;
       noticePeriod?: NoticePeriod;
     },
@@ -49,7 +51,20 @@ export class MatchingController {
   }
 
   @Patch('preferences/:id')
-  async updatePreference(@Req() req, @Param('id') id: string, @Body() body) {
+  async updatePreference(
+    @Req() req,
+    @Param('id') id: string,
+    @Body()
+    body: {
+      skills?: string[];
+      preferredLocation?: string;
+      expectedSalary?: number;
+      salaryNegotiable?: boolean;
+      experienceYears?: number;
+      noticePeriod?: NoticePeriod;
+      jobType?: string;
+    },
+  ) {
     return this.matchingService.updatePreference(req.user.userId, id, body);
   }
 
@@ -86,13 +101,22 @@ export class MatchingController {
   async estimate(
     @Query('jobType') jobType: string,
     @Query('salary') salary: string,
+    @Query('salaryMin') salaryMin?: string,
+    @Query('salaryMax') salaryMax?: string,
+    @Query('salaryNegotiable') salaryNegotiable?: string,
     @Query('location') location?: string,
     @Query('experienceMin') experienceMin?: string,
     @Query('skills') skills?: string,
   ) {
+    const salaryCriteria = normalizeEmployerSalary({
+      salaryOffered: parseFloat(salary) || 0,
+      salaryMin: salaryMin !== undefined ? parseFloat(salaryMin) : undefined,
+      salaryMax: salaryMax !== undefined ? parseFloat(salaryMax) : undefined,
+      salaryNegotiable: salaryNegotiable === 'true' || salaryNegotiable === '1',
+    });
     return this.matchingService.estimateCandidates({
       jobType: jobType ?? '',
-      salaryOffered: parseFloat(salary) || 0,
+      salary: salaryCriteria,
       location,
       experienceMinYears: experienceMin ? parseInt(experienceMin, 10) : 0,
       skills: skills
@@ -129,19 +153,18 @@ export class MatchingController {
   }
 
   @Post('requests')
-  async createRequest(
-    @Req() req,
-    @Body()
-    body: {
-      jobType: string;
-      skills?: string[];
-      location?: string;
-      salaryOffered: number;
-      experienceMinYears?: number;
-      vacancies: number;
-    },
-  ) {
-    return this.matchingService.createRequest(req.user.userId, body);
+  async createRequest(@Req() req, @Body() body: Record<string, unknown>) {
+    return this.matchingService.createRequest(req.user.userId, {
+      jobType: String(body.jobType ?? ''),
+      skills: Array.isArray(body.skills) ? (body.skills as string[]) : [],
+      location: body.location as string | undefined,
+      salaryOffered: body.salaryOffered as number | undefined,
+      salaryMin: body.salaryMin as number | undefined,
+      salaryMax: body.salaryMax as number | undefined,
+      salaryNegotiable: body.salaryNegotiable === true,
+      experienceMinYears: Number(body.experienceMinYears) || 0,
+      vacancies: Number(body.vacancies) || 1,
+    });
   }
 
   @Get('requests')

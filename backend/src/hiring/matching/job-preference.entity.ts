@@ -54,6 +54,10 @@ export class JobPreference {
   @Column({ type: 'decimal', precision: 10, scale: 2, default: 0 })
   expectedSalary: number;
 
+  /** When true, matcher accepts offers below expectedSalary if otherwise compatible. */
+  @Column({ default: false })
+  salaryNegotiable: boolean;
+
   /** Total relevant experience in years (0 = fresher). */
   @Column({ type: 'int', default: 0 })
   experienceYears: number;

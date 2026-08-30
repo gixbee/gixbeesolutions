@@ -20,6 +20,7 @@ import { MasterEntriesService } from '../master-entries/master-entries.service';
 import { WorkersService } from '../workers/workers.service';
 import { BookingsService } from '../bookings/bookings.service';
 import { MatchingService } from '../hiring/matching/matching.service';
+import { normalizeEmployerSalary } from '../hiring/matching/salary-range';
 import {
   WALLET_PAYMENTS_ENABLED,
   WalletPaymentsDisabledError,
@@ -196,7 +197,10 @@ export class PaymentsService {
       jobType: string;
       skills?: string[];
       location?: string;
-      salaryOffered: number;
+      salaryOffered?: number;
+      salaryMin?: number;
+      salaryMax?: number;
+      salaryNegotiable?: boolean;
       experienceMinYears?: number;
       vacancies: number;
     },
@@ -211,9 +215,7 @@ export class PaymentsService {
   }> {
     const jobType = (body.jobType || '').trim();
     if (!jobType) throw new BadRequestException('jobType is required');
-    if (!(Number(body.salaryOffered) > 0)) {
-      throw new BadRequestException('salaryOffered (₹/month) is required');
-    }
+    const salary = normalizeEmployerSalary(body);
     const vacancies = Math.max(1, Math.round(Number(body.vacancies) || 1));
     const quote = await this.matchingService.quoteMatchFee(userId, vacancies);
     if (quote.amountDue <= 0) {
@@ -229,7 +231,10 @@ export class PaymentsService {
         jobType,
         skills: body.skills ?? [],
         location: body.location,
-        salaryOffered: Number(body.salaryOffered),
+        salaryOffered: salary.salaryOffered,
+        salaryMin: salary.salaryMin,
+        salaryMax: salary.salaryMax,
+        salaryNegotiable: salary.salaryNegotiable,
         experienceMinYears: body.experienceMinYears ?? 0,
         vacancies,
         fee: quote.fee,
@@ -539,6 +544,9 @@ export class PaymentsService {
             skills: Array.isArray(meta.skills) ? meta.skills : [],
             location: meta.location,
             salaryOffered: Number(meta.salaryOffered) || 0,
+            salaryMin: Number(meta.salaryMin) || 0,
+            salaryMax: Number(meta.salaryMax) || Number(meta.salaryOffered) || 0,
+            salaryNegotiable: meta.salaryNegotiable === true,
             experienceMinYears: Number(meta.experienceMinYears) || 0,
             vacancies: Number(meta.vacancies) || 1,
           },
