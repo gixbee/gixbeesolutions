@@ -185,7 +185,7 @@ class _ApplicationTrackerScreenState
                         ),
                       ),
                       Text(
-                        'Classic board applications · Smart Hiring status is on Offers',
+                        'Classic board · Smart Hiring status on Alerts',
                         style: TextStyle(
                           color: cs.onSurfaceVariant,
                           fontSize: 12,
@@ -327,8 +327,7 @@ class _ApplicationTrackerScreenState
         icon: Icons.inbox_outlined,
         title: 'No applications here',
         message:
-            'Jobs you apply to will show up here so you can track their status.',
-        accent: GixbeeTheme.accentGreen,
+            'Jobs you apply to on the Board will show up here so you can track their status.',
       );
     }
 

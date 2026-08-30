@@ -7,17 +7,18 @@ import 'package:razorpay_flutter/razorpay_flutter.dart';
 import '../../core/config/app_config.dart';
 import '../../repositories/auth_repository.dart';
 import '../../repositories/matching_repository.dart';
+import 'hiring_catalog.dart';
 import '../../shared/widgets/dribbble_background.dart';
 import '../../shared/widgets/gx_button.dart';
 import '../../shared/widgets/gx_empty.dart';
 import '../../shared/widgets/gx_snackbar.dart';
 import '../../theme.dart';
 
-/// Candidate Job Type preference profiles (FRD: first 2 free, +₹50/mo after).
+/// Candidate career profiles (FRD: first 2 free Job Types, +₹50/mo after).
 /// These prefs power Hire Employee matching — without them, employers cannot
-/// notify you on the Offers tab.
+/// notify you on the Alerts tab.
 class JobTypesScreen extends ConsumerStatefulWidget {
-  /// Optional: after creating a Job Type, jump to Offers for the loop hint.
+  /// Optional: after creating a profile, jump to Alerts for the loop hint.
   final VoidCallback? onCreatedHint;
 
   const JobTypesScreen({super.key, this.onCreatedHint});
@@ -49,7 +50,7 @@ class _JobTypesScreenState extends ConsumerState<JobTypesScreen> {
     } catch (e) {
       if (!mounted) return;
       setState(() => _loading = false);
-      showGxSnack(context, 'Could not load Job Types: $e',
+      showGxSnack(context, 'Could not load profiles: $e',
           type: GxSnackType.error);
     }
   }
@@ -73,7 +74,7 @@ class _JobTypesScreenState extends ConsumerState<JobTypesScreen> {
           mounted) {
         showGxSnack(
           context,
-          'Job Type saved — employers can match you via Hire Employee. Check Offers for matches.',
+          'Profile saved — employers can match you via Hire Employee. Check Alerts for matches.',
           type: GxSnackType.success,
         );
       }
@@ -110,6 +111,8 @@ class _JobTypesScreenState extends ConsumerState<JobTypesScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final catalog =
+        ref.watch(hiringCatalogProvider).value ?? HiringCatalog.fallback;
     return SafeArea(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -120,7 +123,7 @@ class _JobTypesScreenState extends ConsumerState<JobTypesScreen> {
               children: [
                 Expanded(
                   child: Text(
-                    'Job Types',
+                    'Profiles',
                     style: TextStyle(
                       fontSize: 22,
                       fontWeight: FontWeight.w900,
@@ -142,9 +145,9 @@ class _JobTypesScreenState extends ConsumerState<JobTypesScreen> {
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20),
             child: Text(
-              'Profiles the Smart Hiring matcher uses when employers run Hire Employee. '
-              'Job Type name locks after save; delete only after 7 days. Extra profiles cost ₹50/month. '
-              'Separate from classic job-board preferences.',
+              'Career profiles the Smart Hiring matcher uses when employers run Hire Employee. '
+              'Profile name locks after save; delete only after 7 days. Extra profiles cost ₹50/month. '
+              'Separate from classic board preferences on the Board tab.',
               style: TextStyle(
                 fontSize: 13,
                 height: 1.35,
@@ -165,11 +168,10 @@ class _JobTypesScreenState extends ConsumerState<JobTypesScreen> {
                               const SizedBox(height: 80),
                               GxEmptyState(
                                 icon: Icons.badge_outlined,
-                                title: 'No Job Types yet',
+                                title: 'No profiles yet',
                                 message:
-                                    'Add up to 2 free profiles so employers using Hire Employee can match you. Offers then appear on the Offers tab.',
-                                accent: GixbeeTheme.accentGreen,
-                                actionLabel: 'Add Job Type',
+                                    'Add up to 2 free career profiles so employers using Hire Employee can match you. Alerts then appear on the Alerts tab.',
+                                actionLabel: 'Add profile',
                                 onAction: () => _openForm(),
                               ),
                             ],
@@ -234,15 +236,19 @@ class _JobTypesScreenState extends ConsumerState<JobTypesScreen> {
                                           const SizedBox(height: 6),
                                           Text(
                                             [
+                                              if (p['employmentType'] != null)
+                                                catalog.labelForCode(
+                                                    p['employmentType']
+                                                        ?.toString()),
                                               if ((p['preferredLocation'] ?? '')
                                                   .toString()
                                                   .isNotEmpty)
                                                 '${p['preferredLocation']}',
                                               if (p['expectedSalary'] != null)
-                                                '₹${p['expectedSalary']}/mo',
+                                                '₹${p['expectedSalary']}/mo${p['salaryNegotiable'] == true ? ' negotiable' : ''}',
                                               '${p['experienceYears'] ?? 0} yrs',
                                               '${p['noticePeriod'] ?? 'IMMEDIATE'}',
-                                            ].join(' · '),
+                                            ].where((s) => s.isNotEmpty).join(' · '),
                                             style: TextStyle(
                                               fontSize: 12,
                                               color: context.gx.ink
@@ -340,6 +346,8 @@ class _JobTypeFormScreenState extends ConsumerState<JobTypeFormScreen> {
   final _expCtrl = TextEditingController();
   final _skillCtrl = TextEditingController();
   final Set<String> _skills = {};
+  String? _employmentType;
+  bool _salaryNegotiable = false;
   String _notice = 'IMMEDIATE';
   bool _saving = false;
   Razorpay? _razorpay;
@@ -367,6 +375,8 @@ class _JobTypeFormScreenState extends ConsumerState<JobTypeFormScreen> {
           : '';
       _expCtrl.text = '${e['experienceYears'] ?? 0}';
       _notice = '${e['noticePeriod'] ?? 'IMMEDIATE'}';
+      _employmentType = e['employmentType']?.toString();
+      _salaryNegotiable = e['salaryNegotiable'] == true;
       _skills.addAll(
           (e['skills'] as List? ?? []).map((s) => s.toString()));
     }
@@ -389,6 +399,8 @@ class _JobTypeFormScreenState extends ConsumerState<JobTypeFormScreen> {
         'preferredLocation': _locationCtrl.text.trim(),
         if (int.tryParse(_salaryCtrl.text.trim()) != null)
           'expectedSalary': int.parse(_salaryCtrl.text.trim()),
+        'salaryNegotiable': _salaryNegotiable,
+        if (_employmentType != null) 'employmentType': _employmentType,
         if (int.tryParse(_expCtrl.text.trim()) != null)
           'experienceYears': int.parse(_expCtrl.text.trim()),
         'noticePeriod': _notice,
@@ -488,27 +500,106 @@ class _JobTypeFormScreenState extends ConsumerState<JobTypeFormScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final catalog =
+        ref.watch(hiringCatalogProvider).value ?? HiringCatalog.fallback;
     return Scaffold(
       backgroundColor: context.gx.bg,
       appBar: AppBar(
-        title: Text(_isEdit ? 'Edit Job Type' : 'New Job Type'),
+        title: Text(_isEdit ? 'Edit profile' : 'New profile'),
       ),
       body: DribbbleBackground(
         child: ListView(
           padding: const EdgeInsets.fromLTRB(20, 12, 20, 40),
           children: [
+            if (!_isEdit) ...[
+              Text(
+                'CATEGORY',
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 1.2,
+                  color: context.gx.ink.withValues(alpha: 0.45),
+                ),
+              ),
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  for (final c in catalog.categories)
+                    ChoiceChip(
+                      label: Text(c,
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                            color: _jobTypeCtrl.text == c
+                                ? context.gx.onAccent
+                                : context.gx.ink.withValues(alpha: 0.75),
+                          )),
+                      selected: _jobTypeCtrl.text == c,
+                      onSelected: (_) => setState(() => _jobTypeCtrl.text = c),
+                      selectedColor: context.gx.accent,
+                      backgroundColor: context.gx.card2,
+                      side: BorderSide(
+                        color: _jobTypeCtrl.text == c
+                            ? context.gx.accent
+                            : context.gx.border,
+                      ),
+                    ),
+                ],
+              ),
+              const SizedBox(height: 16),
+            ],
             TextField(
               controller: _jobTypeCtrl,
               enabled: !_isEdit,
               decoration: InputDecoration(
-                labelText: 'Job Type',
+                labelText: 'Profile name / job type',
                 hintText: 'e.g. Cashier, Backend Engineer',
                 helperText: _isEdit
-                    ? 'Job Type cannot be changed after creation'
+                    ? 'Profile name cannot be changed after creation'
                     : widget.freeSlotsLeft > 0
                         ? '${widget.freeSlotsLeft} free slot(s) left'
                         : 'This will cost ₹50/month',
               ),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              'EMPLOYMENT TYPE',
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+                letterSpacing: 1.2,
+                color: context.gx.ink.withValues(alpha: 0.45),
+              ),
+            ),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                for (final t in catalog.employmentTypes)
+                  ChoiceChip(
+                    label: Text(t.label,
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                          color: _employmentType == t.code
+                              ? context.gx.onAccent
+                              : context.gx.ink.withValues(alpha: 0.75),
+                        )),
+                    selected: _employmentType == t.code,
+                    onSelected: (_) =>
+                        setState(() => _employmentType = t.code),
+                    selectedColor: context.gx.accent,
+                    backgroundColor: context.gx.card2,
+                    side: BorderSide(
+                      color: _employmentType == t.code
+                          ? context.gx.accent
+                          : context.gx.border,
+                    ),
+                  ),
+              ],
             ),
             const SizedBox(height: 12),
             TextField(
@@ -525,6 +616,28 @@ class _JobTypeFormScreenState extends ConsumerState<JobTypeFormScreen> {
               decoration: const InputDecoration(
                 labelText: 'Expected salary (₹/month)',
               ),
+            ),
+            const SizedBox(height: 8),
+            SwitchListTile(
+              contentPadding: EdgeInsets.zero,
+              title: Text(
+                'Salary negotiable',
+                style: TextStyle(
+                  fontWeight: FontWeight.w600,
+                  color: context.gx.ink,
+                ),
+              ),
+              subtitle: Text(
+                'Matcher can include offers below employer minimum',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: context.gx.ink.withValues(alpha: 0.5),
+                ),
+              ),
+              value: _salaryNegotiable,
+              activeThumbColor: context.gx.onAccent,
+              activeTrackColor: context.gx.accent,
+              onChanged: (v) => setState(() => _salaryNegotiable = v),
             ),
             const SizedBox(height: 12),
             TextField(
@@ -593,7 +706,6 @@ class _JobTypeFormScreenState extends ConsumerState<JobTypeFormScreen> {
             const SizedBox(height: 28),
             GxButton(
               label: _saving ? 'Saving…' : 'Save',
-              accent: GixbeeTheme.accentGreen,
               onTap: _saving ? null : _save,
             ),
             if (_pendingPaidBody != null)

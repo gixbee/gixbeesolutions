@@ -4,18 +4,19 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
 import '../../repositories/matching_repository.dart';
+import 'hiring_catalog.dart';
 import '../../shared/widgets/gx_button.dart';
 import '../../shared/widgets/gx_empty.dart';
 import '../../shared/widgets/gx_snackbar.dart';
 import '../../theme.dart';
 
-/// Smart Hiring offers — Interested / Not Interested + employer decisions.
+/// Smart Hiring alerts — Interested / Not Interested + employer decisions.
 /// Counterpart to List My Business → Hire Employee matching.
 class HiringOffersScreen extends ConsumerStatefulWidget {
-  /// Jump to Job Types tab — required before employers can match you.
-  final VoidCallback? onGoToJobTypes;
+  /// Jump to Profiles tab — required before employers can match you.
+  final VoidCallback? onGoToProfiles;
 
-  const HiringOffersScreen({super.key, this.onGoToJobTypes});
+  const HiringOffersScreen({super.key, this.onGoToProfiles});
 
   @override
   ConsumerState<HiringOffersScreen> createState() => _HiringOffersScreenState();
@@ -124,6 +125,8 @@ class _HiringOffersScreenState extends ConsumerState<HiringOffersScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final catalog =
+        ref.watch(hiringCatalogProvider).value ?? HiringCatalog.fallback;
     final filters = ['All', 'Open', 'Interested', 'Closed'];
     return SafeArea(
       child: Column(
@@ -132,7 +135,7 @@ class _HiringOffersScreenState extends ConsumerState<HiringOffersScreen> {
           Padding(
             padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
             child: Text(
-              'Offers',
+              'Alerts',
               style: TextStyle(
                 fontSize: 22,
                 fontWeight: FontWeight.w900,
@@ -143,8 +146,8 @@ class _HiringOffersScreenState extends ConsumerState<HiringOffersScreen> {
           Padding(
             padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
             child: Text(
-              'Matches from employers using Hire Employee. '
-              'Add Job Types so the matcher can find you.',
+              'Smart matches from employers using Hire Employee. '
+              'Add Profiles so the matcher can find you.',
               style: TextStyle(
                 fontSize: 13,
                 height: 1.35,
@@ -183,18 +186,17 @@ class _HiringOffersScreenState extends ConsumerState<HiringOffersScreen> {
                               GxEmptyState(
                                 icon: Icons.notifications_active_outlined,
                                 title: _prefCount == 0
-                                    ? 'Add a Job Type first'
-                                    : 'No offers yet',
+                                    ? 'Add a Profile first'
+                                    : 'No alerts yet',
                                 message: _prefCount == 0
-                                    ? 'Employers using Hire Employee match against your Job Types. Add one so you can receive offers here.'
-                                    : 'When a verified employer runs Smart Hiring for your Job Types, offers appear here.',
-                                accent: GixbeeTheme.accentGreen,
+                                    ? 'Employers using Hire Employee match against your career profiles. Add one on the Profiles tab to receive alerts here.'
+                                    : 'When a verified employer runs Smart Hiring for your profiles, alerts appear here.',
                                 actionLabel: _prefCount == 0 &&
-                                        widget.onGoToJobTypes != null
-                                    ? 'Add Job Type'
+                                        widget.onGoToProfiles != null
+                                    ? 'Go to Profiles'
                                     : null,
                                 onAction: _prefCount == 0
-                                    ? widget.onGoToJobTypes
+                                    ? widget.onGoToProfiles
                                     : null,
                               ),
                             ],
@@ -204,7 +206,9 @@ class _HiringOffersScreenState extends ConsumerState<HiringOffersScreen> {
                             itemCount: _filtered.length,
                             itemBuilder: (_, i) {
                               final o = _filtered[i];
-                              final salary = o['salaryOffered'];
+                              final salaryLine = formatOfferSalary(o);
+                              final empLabel = catalog
+                                  .labelForCode(o['employmentType']?.toString());
                               final notified = DateTime.tryParse(
                                   o['notifiedAt']?.toString() ?? '');
                               return Padding(
@@ -243,8 +247,8 @@ class _HiringOffersScreenState extends ConsumerState<HiringOffersScreen> {
                                         const SizedBox(height: 6),
                                         Text(
                                           [
-                                            if (salary != null)
-                                              '₹${salary}/mo',
+                                            if (empLabel.isNotEmpty) empLabel,
+                                            if (salaryLine.isNotEmpty) salaryLine,
                                             if ((o['location'] ?? '')
                                                 .toString()
                                                 .isNotEmpty)
@@ -253,7 +257,7 @@ class _HiringOffersScreenState extends ConsumerState<HiringOffersScreen> {
                                               DateFormat.MMMd()
                                                   .add_jm()
                                                   .format(notified.toLocal()),
-                                          ].join(' · '),
+                                          ].where((s) => s.isNotEmpty).join(' · '),
                                           style: TextStyle(
                                             fontSize: 12,
                                             color: context.gx.ink
@@ -281,8 +285,6 @@ class _HiringOffersScreenState extends ConsumerState<HiringOffersScreen> {
                                                 child: GxButton(
                                                   label: 'Not Interested',
                                                   filled: false,
-                                                  accent:
-                                                      GixbeeTheme.accentGreen,
                                                   onTap: () =>
                                                       _respond(o, false),
                                                 ),
@@ -291,8 +293,6 @@ class _HiringOffersScreenState extends ConsumerState<HiringOffersScreen> {
                                               Expanded(
                                                 child: GxButton(
                                                   label: 'Interested',
-                                                  accent:
-                                                      GixbeeTheme.accentGreen,
                                                   onTap: () =>
                                                       _respond(o, true),
                                                 ),

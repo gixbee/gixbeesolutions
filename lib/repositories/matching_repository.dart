@@ -40,6 +40,12 @@ class MatchingRepository {
     await _dio.delete('/hiring/match/preferences/$id');
   }
 
+  /// Shared employment types + category catalog (V147-02).
+  Future<Map<String, dynamic>> catalog() async {
+    final res = await _dio.get('/hiring/match/catalog');
+    return Map<String, dynamic>.from(res.data as Map);
+  }
+
   // ── Candidate: offers ──────────────────────────────────────────────────
 
   Future<List<Map<String, dynamic>>> listOffers() async {
@@ -65,13 +71,23 @@ class MatchingRepository {
   Future<Map<String, dynamic>> estimate({
     required String jobType,
     required num salary,
+    num? salaryMin,
+    num? salaryMax,
+    bool salaryNegotiable = false,
+    String? employmentType,
     String? location,
     int experienceMin = 0,
     List<String> skills = const [],
   }) async {
+    final max = salaryMax ?? salary;
     final res = await _dio.get('/hiring/match/estimate', queryParameters: {
       'jobType': jobType,
-      'salary': salary,
+      'salary': max,
+      if (salaryMin != null && salaryMin > 0) 'salaryMin': salaryMin,
+      if (salaryMax != null && salaryMax > 0) 'salaryMax': salaryMax,
+      if (salaryNegotiable) 'salaryNegotiable': 'true',
+      if (employmentType != null && employmentType.isNotEmpty)
+        'employmentType': employmentType,
       if (location != null && location.isNotEmpty) 'location': location,
       'experienceMin': experienceMin,
       if (skills.isNotEmpty) 'skills': skills.join(','),

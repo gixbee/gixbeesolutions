@@ -14,11 +14,11 @@ import '../../shared/widgets/gx_text_field.dart';
 import '../../shared/widgets/gx_empty.dart';
 import '../../theme.dart';
 
-/// Browse available gig/job postings near the user (mockup "job" tab 1).
+/// Browse classic job board postings (v147 **Board** tab).
 /// Gixbee 2026 reskin: neutral header, squircle filter chips, bento job
 /// cards (logo block, pay pill, location row), apply via gx_sheet.
 ///
-/// Classic board only — Smart Hiring offers live on the Offers tab.
+/// Classic board only — Smart Hiring alerts live on the Alerts tab.
 class JobAlertsScreen extends ConsumerStatefulWidget {
   /// Opens the Applications tab in [FindJobModule] after a successful apply.
   final VoidCallback? onOpenApplications;
@@ -306,7 +306,7 @@ class _JobAlertsScreenState extends ConsumerState<JobAlertsScreen> {
           Text(
             'They can now view your profile and contact you. '
             'Track classic board applications under the Apps tab. '
-            'Smart Hiring matches appear under Offers (needs Job Types).',
+            'Smart Hiring matches appear under Alerts (set up Profiles first).',
             textAlign: TextAlign.center,
             style: TextStyle(
                 fontSize: 13,
@@ -327,7 +327,7 @@ class _JobAlertsScreenState extends ConsumerState<JobAlertsScreen> {
             const SizedBox(height: 10),
           ],
           GxButton(
-            label: 'Back to jobs',
+            label: 'Back to board',
             filled: widget.onOpenApplications != null ? false : true,
             accent: GixbeeTheme.accentGreen,
             gradient: widget.onOpenApplications != null
@@ -466,7 +466,7 @@ class _JobAlertsScreenState extends ConsumerState<JobAlertsScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Find a Job',
+                        'Board',
                         style: TextStyle(
                           fontWeight: FontWeight.w800,
                           fontSize: 19,
@@ -474,7 +474,7 @@ class _JobAlertsScreenState extends ConsumerState<JobAlertsScreen> {
                         ),
                       ),
                       Text(
-                        '${_jobs.length} open gigs near you',
+                        '${_jobs.length} classic postings · Smart Hiring on Alerts',
                         style: TextStyle(
                           color: context.gx.ink.withValues(alpha: 0.55),
                           fontSize: 12,
@@ -571,10 +571,9 @@ class _JobAlertsScreenState extends ConsumerState<JobAlertsScreen> {
                 : _filteredJobs.isEmpty
                     ? GxEmptyState(
                         icon: Icons.search_off,
-                        title: 'No jobs available right now',
+                        title: 'No postings on the board',
                         message:
-                            'New openings appear here as employers post them. Pull to refresh or check back soon.',
-                        accent: GixbeeTheme.accentGreen,
+                            'Classic employer posts appear here. For Smart Hiring matches from Hire Employee, set up Profiles and check Alerts.',
                         actionLabel: 'Refresh',
                         onAction: _fetchJobs,
                       )

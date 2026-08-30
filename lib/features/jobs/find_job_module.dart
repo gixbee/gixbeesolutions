@@ -10,13 +10,13 @@ import 'job_alerts_screen.dart';
 import 'job_types_screen.dart';
 import 'seeker_profile_wizard.dart';
 
-/// Root screen for the "Find a Job" module.
-/// Tabs: Jobs (board) · Offers (Smart Hiring) · Job Types · Applications (classic).
+/// Root screen for the "Find a Job" module (v147 IA).
+/// Tabs: Board (classic) · Alerts (Smart Hiring) · Profiles · Apps.
 ///
-/// Smart Hiring loop: Job Types feed Hire Employee matching → Offers tab.
-/// Classic board: Jobs apply → Applications tracker (separate pipeline).
+/// Smart Hiring loop: Profiles feed Hire Employee matching → Alerts tab.
+/// Classic board: Board apply → Apps tracker (separate pipeline).
 class FindJobModule extends ConsumerStatefulWidget {
-  /// Optional initial tab: 0 Jobs, 1 Offers, 2 Job Types, 3 Applications.
+  /// Optional initial tab: 0 Board, 1 Alerts, 2 Profiles, 3 Apps.
   final int initialIndex;
 
   const FindJobModule({super.key, this.initialIndex = 0});
@@ -37,7 +37,7 @@ class _FindJobModuleState extends ConsumerState<FindJobModule> {
   }
 
   /// First-run gate: incomplete TalentProfile → classic seeker wizard.
-  /// Job Types (Smart Hiring) are nudged separately on Offers / Job Types tabs.
+  /// Profiles (Smart Hiring) are nudged separately on Alerts / Profiles tabs.
   Future<void> _maybeOpenSeekerGate() async {
     if (_gateChecked || !mounted) return;
     _gateChecked = true;
@@ -64,10 +64,11 @@ class _FindJobModuleState extends ConsumerState<FindJobModule> {
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
+    final accent = context.gx.accent;
 
     final screens = [
       JobAlertsScreen(onOpenApplications: () => _goToTab(3)),
-      HiringOffersScreen(onGoToJobTypes: () => _goToTab(2)),
+      HiringOffersScreen(onGoToProfiles: () => _goToTab(2)),
       JobTypesScreen(onCreatedHint: () => _goToTab(1)),
       const ApplicationTrackerScreen(),
     ];
@@ -77,36 +78,37 @@ class _FindJobModuleState extends ConsumerState<FindJobModule> {
       body: DribbbleBackground(
         child: screens[_currentIndex],
       ),
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: _currentIndex,
-        onDestinationSelected: _goToTab,
-        backgroundColor: cs.surface,
-        surfaceTintColor: Colors.transparent,
-        indicatorColor: GixbeeTheme.accentGreen.withValues(alpha: 0.18),
-        destinations: const [
-          NavigationDestination(
-            icon: Icon(Icons.work_outline),
-            selectedIcon: Icon(Icons.work, color: GixbeeTheme.accentGreen),
-            label: 'Jobs',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.notifications_active_outlined),
-            selectedIcon: Icon(Icons.notifications_active,
-                color: GixbeeTheme.accentGreen),
-            label: 'Offers',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.badge_outlined),
-            selectedIcon: Icon(Icons.badge, color: GixbeeTheme.accentGreen),
-            label: 'Job Types',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.assignment_outlined),
-            selectedIcon:
-                Icon(Icons.assignment, color: GixbeeTheme.accentGreen),
-            label: 'Apps',
-          ),
-        ],
+      bottomNavigationBar: Semantics(
+        label: 'Find a Job navigation',
+        child: NavigationBar(
+          selectedIndex: _currentIndex,
+          onDestinationSelected: _goToTab,
+          backgroundColor: cs.surface,
+          surfaceTintColor: Colors.transparent,
+          indicatorColor: accent.withValues(alpha: 0.18),
+          destinations: [
+            NavigationDestination(
+              icon: const Icon(Icons.view_list_outlined),
+              selectedIcon: Icon(Icons.view_list, color: accent),
+              label: 'Board',
+            ),
+            NavigationDestination(
+              icon: const Icon(Icons.notifications_active_outlined),
+              selectedIcon: Icon(Icons.notifications_active, color: accent),
+              label: 'Alerts',
+            ),
+            NavigationDestination(
+              icon: const Icon(Icons.badge_outlined),
+              selectedIcon: Icon(Icons.badge, color: accent),
+              label: 'Profiles',
+            ),
+            NavigationDestination(
+              icon: const Icon(Icons.assignment_outlined),
+              selectedIcon: Icon(Icons.assignment, color: accent),
+              label: 'Apps',
+            ),
+          ],
+        ),
       ),
     );
   }
