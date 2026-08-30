@@ -21,7 +21,7 @@ describe('normalizeEmployerSalary', () => {
   });
 });
 
-describe('salaryRangeMatches', () => {
+describe('salaryRangeMatches (Kelly V147-03 rule)', () => {
   const range = normalizeEmployerSalary({
     salaryMin: 30000,
     salaryMax: 50000,
@@ -45,16 +45,25 @@ describe('salaryRangeMatches', () => {
     ).toBe(false);
   });
 
-  it('widens seeker floor when salaryNegotiable', () => {
+  it('matches below employer min when seeker is salaryNegotiable', () => {
     expect(
       salaryRangeMatches(range, {
-        expectedSalary: 55000,
+        expectedSalary: 25000,
         salaryNegotiable: true,
       }),
     ).toBe(true);
   });
 
-  it('widens employer floor when salaryNegotiable', () => {
+  it('rejects below employer min when seeker is not negotiable', () => {
+    expect(
+      salaryRangeMatches(range, {
+        expectedSalary: 25000,
+        salaryNegotiable: false,
+      }),
+    ).toBe(false);
+  });
+
+  it('widens employer floor when employer salaryNegotiable', () => {
     const tight = normalizeEmployerSalary({
       salaryMin: 40000,
       salaryMax: 45000,

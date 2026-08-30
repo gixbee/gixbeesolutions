@@ -21,6 +21,7 @@ import { WorkersService } from '../workers/workers.service';
 import { BookingsService } from '../bookings/bookings.service';
 import { MatchingService } from '../hiring/matching/matching.service';
 import { normalizeEmployerSalary } from '../hiring/matching/salary-range';
+import { parseEmploymentType } from '../hiring/matching/employment-type';
 import {
   WALLET_PAYMENTS_ENABLED,
   WalletPaymentsDisabledError,
@@ -201,6 +202,7 @@ export class PaymentsService {
       salaryMin?: number;
       salaryMax?: number;
       salaryNegotiable?: boolean;
+      employmentType?: string;
       experienceMinYears?: number;
       vacancies: number;
     },
@@ -216,6 +218,7 @@ export class PaymentsService {
     const jobType = (body.jobType || '').trim();
     if (!jobType) throw new BadRequestException('jobType is required');
     const salary = normalizeEmployerSalary(body);
+    const employmentType = parseEmploymentType(body.employmentType);
     const vacancies = Math.max(1, Math.round(Number(body.vacancies) || 1));
     const quote = await this.matchingService.quoteMatchFee(userId, vacancies);
     if (quote.amountDue <= 0) {
@@ -235,6 +238,7 @@ export class PaymentsService {
         salaryMin: salary.salaryMin,
         salaryMax: salary.salaryMax,
         salaryNegotiable: salary.salaryNegotiable,
+        employmentType,
         experienceMinYears: body.experienceMinYears ?? 0,
         vacancies,
         fee: quote.fee,
@@ -252,6 +256,8 @@ export class PaymentsService {
       skills?: string[];
       preferredLocation?: string;
       expectedSalary?: number;
+      salaryNegotiable?: boolean;
+      employmentType?: string;
       experienceYears?: number;
       noticePeriod?: NoticePeriod;
     },
@@ -285,6 +291,8 @@ export class PaymentsService {
         skills: body.skills ?? [],
         preferredLocation: body.preferredLocation,
         expectedSalary: body.expectedSalary ?? 0,
+        salaryNegotiable: body.salaryNegotiable === true,
+        employmentType: parseEmploymentType(body.employmentType),
         experienceYears: body.experienceYears ?? 0,
         noticePeriod: body.noticePeriod ?? NoticePeriod.IMMEDIATE,
       },
@@ -547,6 +555,7 @@ export class PaymentsService {
             salaryMin: Number(meta.salaryMin) || 0,
             salaryMax: Number(meta.salaryMax) || Number(meta.salaryOffered) || 0,
             salaryNegotiable: meta.salaryNegotiable === true,
+            employmentType: parseEmploymentType(meta.employmentType),
             experienceMinYears: Number(meta.experienceMinYears) || 0,
             vacancies: Number(meta.vacancies) || 1,
           },
@@ -585,6 +594,8 @@ export class PaymentsService {
           skills: Array.isArray(meta.skills) ? meta.skills : [],
           preferredLocation: meta.preferredLocation,
           expectedSalary: Number(meta.expectedSalary) || 0,
+          salaryNegotiable: meta.salaryNegotiable === true,
+          employmentType: parseEmploymentType(meta.employmentType),
           experienceYears: Number(meta.experienceYears) || 0,
           noticePeriod: meta.noticePeriod as NoticePeriod | undefined,
         });

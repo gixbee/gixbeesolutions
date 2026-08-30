@@ -8,6 +8,7 @@ import {
   Index,
 } from 'typeorm';
 import { User } from '../../users/user.entity';
+import { EmploymentType } from './employment-type';
 
 /** Indian-standard notice periods for the Smart Hiring matcher. */
 export enum NoticePeriod {
@@ -57,6 +58,10 @@ export class JobPreference {
   /** When true, matcher accepts offers below expectedSalary if otherwise compatible. */
   @Column({ default: false })
   salaryNegotiable: boolean;
+
+  /** FT/PT/Intern/Contract — hard-filter when employer also declares type (V147-02). */
+  @Column({ type: 'enum', enum: EmploymentType, nullable: true })
+  employmentType: EmploymentType | null;
 
   /** Total relevant experience in years (0 = fresher). */
   @Column({ type: 'int', default: 0 })

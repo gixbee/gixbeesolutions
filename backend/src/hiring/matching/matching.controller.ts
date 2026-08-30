@@ -13,6 +13,11 @@ import {
 import { JwtAuthGuard } from '../../auth/jwt-auth.guard';
 import { MatchingService, feeForVacancies } from './matching.service';
 import { normalizeEmployerSalary } from './salary-range';
+import {
+  EMPLOYMENT_TYPE_OPTIONS,
+  JOB_CATEGORY_CATALOG,
+  parseEmploymentType,
+} from './employment-type';
 import { NoticePeriod } from './job-preference.entity';
 import { EmployerDecision } from './hiring-interest.entity';
 
@@ -43,6 +48,7 @@ export class MatchingController {
       preferredLocation?: string;
       expectedSalary?: number;
       salaryNegotiable?: boolean;
+      employmentType?: string;
       experienceYears?: number;
       noticePeriod?: NoticePeriod;
     },
@@ -60,6 +66,7 @@ export class MatchingController {
       preferredLocation?: string;
       expectedSalary?: number;
       salaryNegotiable?: boolean;
+      employmentType?: string;
       experienceYears?: number;
       noticePeriod?: NoticePeriod;
       jobType?: string;
@@ -96,6 +103,15 @@ export class MatchingController {
 
   // ── Employer: estimate, create, review ───────────────────────────────────
 
+  /** Shared taxonomy for seeker + employer wizards (V147-02). */
+  @Get('catalog')
+  catalog() {
+    return {
+      employmentTypes: EMPLOYMENT_TYPE_OPTIONS,
+      categories: JOB_CATEGORY_CATALOG,
+    };
+  }
+
   /** Salary-slider live estimate. skills = comma-separated. */
   @Get('estimate')
   async estimate(
@@ -104,6 +120,7 @@ export class MatchingController {
     @Query('salaryMin') salaryMin?: string,
     @Query('salaryMax') salaryMax?: string,
     @Query('salaryNegotiable') salaryNegotiable?: string,
+    @Query('employmentType') employmentType?: string,
     @Query('location') location?: string,
     @Query('experienceMin') experienceMin?: string,
     @Query('skills') skills?: string,
@@ -117,6 +134,7 @@ export class MatchingController {
     return this.matchingService.estimateCandidates({
       jobType: jobType ?? '',
       salary: salaryCriteria,
+      employmentType: parseEmploymentType(employmentType),
       location,
       experienceMinYears: experienceMin ? parseInt(experienceMin, 10) : 0,
       skills: skills
@@ -162,6 +180,7 @@ export class MatchingController {
       salaryMin: body.salaryMin as number | undefined,
       salaryMax: body.salaryMax as number | undefined,
       salaryNegotiable: body.salaryNegotiable === true,
+      employmentType: body.employmentType as string | undefined,
       experienceMinYears: Number(body.experienceMinYears) || 0,
       vacancies: Number(body.vacancies) || 1,
     });

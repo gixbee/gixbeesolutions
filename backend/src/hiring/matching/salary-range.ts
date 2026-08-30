@@ -64,19 +64,21 @@ export function employerSalaryFromRequest(
 }
 
 /**
- * Range overlap for Smart Hiring (V147-03):
- * - Employer budget [min, max]; negotiable → min treated as 0.
- * - Seeker floor = expectedSalary; negotiable → floor treated as 0.
+ * Smart Hiring salary match (V147-03 — Kelly/Jan contract):
+ * `expectedSalary <= salaryMax` AND
+ * (`salaryNegotiable` OR `expectedSalary >= effectiveMin`).
+ * Employer negotiable treats min as 0.
  */
 export function salaryRangeMatches(
   employer: EmployerSalaryCriteria,
   pref: Pick<JobPreference, 'expectedSalary' | 'salaryNegotiable'>,
 ): boolean {
-  const empMin = employer.salaryNegotiable ? 0 : employer.salaryMin;
-  const empMax = employer.salaryMax;
-  const candMin = pref.salaryNegotiable ? 0 : Number(pref.expectedSalary ?? 0);
-  const candMax = Number(pref.expectedSalary ?? 0);
-  return empMax >= candMin && empMin <= candMax;
+  const expected = Number(pref.expectedSalary ?? 0);
+  const effectiveMin = employer.salaryNegotiable ? 0 : employer.salaryMin;
+  return (
+    expected <= employer.salaryMax &&
+    (pref.salaryNegotiable === true || expected >= effectiveMin)
+  );
 }
 
 export function formatSalaryLabel(criteria: EmployerSalaryCriteria): string {

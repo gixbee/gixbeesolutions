@@ -31,6 +31,11 @@ import {
   normalizeEmployerSalary,
   salaryRangeMatches,
 } from './salary-range';
+import {
+  EmploymentType,
+  employmentTypeMatches,
+  parseEmploymentType,
+} from './employment-type';
 
 /** POST /hiring/match/requests body (+ Razorpay webhook meta). */
 export type HiringMatchRequestDto = EmployerSalaryInput & {
@@ -39,6 +44,7 @@ export type HiringMatchRequestDto = EmployerSalaryInput & {
   location?: string;
   experienceMinYears?: number;
   vacancies: number;
+  employmentType?: EmploymentType | string | null;
 };
 
 // ── Business constants (FRD + pricing doc) ─────────────────────────────────
@@ -152,6 +158,7 @@ export class MatchingService {
       preferredLocation?: string;
       expectedSalary?: number;
       salaryNegotiable?: boolean;
+      employmentType?: EmploymentType | string | null;
       experienceYears?: number;
       noticePeriod?: NoticePeriod;
     },
@@ -200,6 +207,7 @@ export class MatchingService {
       preferredLocation?: string;
       expectedSalary?: number;
       salaryNegotiable?: boolean;
+      employmentType?: EmploymentType | string | null;
       experienceYears?: number;
       noticePeriod?: NoticePeriod;
     },
@@ -230,6 +238,7 @@ export class MatchingService {
       preferredLocation?: string;
       expectedSalary?: number;
       salaryNegotiable?: boolean;
+      employmentType?: EmploymentType | string | null;
       experienceYears?: number;
       noticePeriod?: NoticePeriod;
     },
@@ -242,6 +251,7 @@ export class MatchingService {
       preferredLocation: dto.preferredLocation?.trim(),
       expectedSalary: dto.expectedSalary ?? 0,
       salaryNegotiable: dto.salaryNegotiable === true,
+      employmentType: parseEmploymentType(dto.employmentType as string),
       experienceYears: Math.max(0, Math.round(dto.experienceYears ?? 0)),
       noticePeriod: dto.noticePeriod ?? NoticePeriod.IMMEDIATE,
       isPaid: flags.isPaid,
@@ -260,6 +270,7 @@ export class MatchingService {
       preferredLocation: string;
       expectedSalary: number;
       salaryNegotiable: boolean;
+      employmentType?: EmploymentType | string | null;
       experienceYears: number;
       noticePeriod: NoticePeriod;
     }>,
@@ -287,6 +298,9 @@ export class MatchingService {
     }
     if (dto.salaryNegotiable !== undefined) {
       pref.salaryNegotiable = dto.salaryNegotiable === true;
+    }
+    if (dto.employmentType !== undefined) {
+      pref.employmentType = parseEmploymentType(dto.employmentType as string);
     }
     if (dto.experienceYears !== undefined) {
       pref.experienceYears = Math.max(0, Math.round(dto.experienceYears));
@@ -318,15 +332,14 @@ export class MatchingService {
   // ══════════════════════════════════════════════════════════════════════
 
   /**
-   * Core matcher (FRD + V147-03): jobType equality, salary range overlap,
-   * location overlap, minimum experience, ≥1 skill overlap when both sides
-   * declared skills. Notice period is delivered to the employer as data
-   * rather than used as a hard filter — Indian hiring rarely rejects a good
-   * candidate purely on 30-day notice.
+   * Core matcher (FRD + V147-03): jobType equality, Kelly salary rule,
+   * employment type when both set, location overlap, minimum experience,
+   * ≥1 skill overlap when both sides declared skills.
    */
   private async findMatchingPreferences(criteria: {
     jobType: string;
     salary: EmployerSalaryCriteria;
+    employmentType?: EmploymentType | null;
     location?: string;
     experienceMinYears?: number;
     skills?: string[];
@@ -358,6 +371,11 @@ export class MatchingService {
     qb.orderBy('pref.createdAt', 'ASC').take(criteria.limit ?? 200);
     let prefs = await qb.getMany();
     prefs = prefs.filter((p) => salaryRangeMatches(criteria.salary, p));
+    if (criteria.employmentType) {
+      prefs = prefs.filter((p) =>
+        employmentTypeMatches(criteria.employmentType, p.employmentType),
+      );
+    }
 
     // Skill overlap in memory (simple-array column). Lenient by design:
     // candidates with no skills listed still match — same philosophy as the
@@ -376,6 +394,7 @@ export class MatchingService {
   async estimateCandidates(criteria: {
     jobType: string;
     salary: EmployerSalaryCriteria;
+    employmentType?: EmploymentType | null;
     location?: string;
     experienceMinYears?: number;
     skills?: string[];
@@ -492,6 +511,7 @@ export class MatchingService {
     const jobType = dto.jobType.trim();
     const vacancies = Math.max(1, Math.round(dto.vacancies || 1));
     const salary = normalizeEmployerSalary(dto);
+    const employmentType = parseEmploymentType(dto.employmentType as string);
 
     const request = await this.requestRepo.save(
       this.requestRepo.create({
@@ -503,6 +523,7 @@ export class MatchingService {
         salaryMin: salary.salaryMin,
         salaryMax: salary.salaryMax,
         salaryNegotiable: salary.salaryNegotiable,
+        employmentType,
         experienceMinYears: Math.max(
           0,
           Math.round(dto.experienceMinYears ?? 0),
@@ -544,6 +565,7 @@ export class MatchingService {
     const { estimated } = await this.estimateCandidates({
       jobType,
       salary,
+      employmentType,
       location: dto.location,
       experienceMinYears: dto.experienceMinYears,
       skills: dto.skills,
@@ -577,6 +599,7 @@ export class MatchingService {
     const matches = await this.findMatchingPreferences({
       jobType: request.jobType,
       salary: salaryCriteria,
+      employmentType: request.employmentType,
       location: request.location,
       experienceMinYears: request.experienceMinYears,
       skills: request.skills,
@@ -873,6 +896,7 @@ export class MatchingService {
       salaryMin: Number(i.request.salaryMin ?? 0),
       salaryMax: Number(i.request.salaryMax ?? i.request.salaryOffered),
       salaryNegotiable: i.request.salaryNegotiable === true,
+      employmentType: i.request.employmentType,
       skills: i.request.skills ?? [],
       response: i.response,
       decision: i.decision,

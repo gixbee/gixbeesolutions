@@ -8,6 +8,7 @@ import {
   Index,
 } from 'typeorm';
 import { User } from '../../users/user.entity';
+import { EmploymentType } from './employment-type';
 
 export enum HiringRequestStatus {
   /** Matching engine is collecting interested candidates (≤ 24 h). */
@@ -66,6 +67,10 @@ export class HiringRequest {
   /** When true, matcher treats employer min as 0 (flexible below stated range). */
   @Column({ default: false })
   salaryNegotiable: boolean;
+
+  /** FT/PT/Intern/Contract — hard-filter when seeker also declares type (V147-02). */
+  @Column({ type: 'enum', enum: EmploymentType, nullable: true })
+  employmentType: EmploymentType | null;
 
   /** Minimum experience required, in years (0 = freshers welcome). */
   @Column({ type: 'int', default: 0 })
