@@ -96,7 +96,7 @@ export class WorkerProfile {
   verificationStatus: VerificationStatus;
 
   /// Masked UID reference after successful Aadhaar eKYC (never store full number).
-  @Column({ nullable: true })
+  @Column({ type: 'varchar', length: 32, nullable: true })
   maskedAadhaar: string | null;
 
   @Column({ nullable: true })
