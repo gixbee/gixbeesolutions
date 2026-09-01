@@ -115,7 +115,8 @@ export class UsersService {
     limit = 20,
     opts?: { includePhone?: boolean },
   ): Promise<
-    Pick<User, 'id' | 'name' | 'phoneNumber' | 'role' | 'profileImageUrl'>[]
+    | Pick<User, 'id' | 'name' | 'role' | 'profileImageUrl'>[]
+    | Pick<User, 'id' | 'name' | 'phoneNumber' | 'role' | 'profileImageUrl'>[]
   > {
     const q = (query || '').trim();
     if (!q || q.length < 3) return [];

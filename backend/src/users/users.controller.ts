@@ -33,7 +33,9 @@ function isPortalAdmin(req: {
 }
 
 function assertSelfOrPortalAdmin(
-  req: { user: { userId: string } },
+  req: {
+    user: { userId: string; role?: string; staffRole?: string };
+  },
   id: string,
   message: string,
 ): void {

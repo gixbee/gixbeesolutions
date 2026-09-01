@@ -54,7 +54,7 @@ export class BusinessesService {
       serviceType:
         data.type === 'SERVICE' && data.serviceType
           ? data.serviceType
-          : null,
+          : undefined,
       owner: { id: ownerId } as User,
       status: 'PENDING',
     });
