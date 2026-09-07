@@ -8,6 +8,7 @@ use serde_json::{json, Value};
 use sqlx::Row;
 use uuid::Uuid;
 
+use crate::common::pg::PROFESSIONAL_SKILL_COLS;
 use crate::error::{AppError, AppResult};
 use crate::middleware::auth::AuthUser;
 use crate::state::AppState;
@@ -72,7 +73,7 @@ async fn add_skill(
     .execute(&state.db)
     .await?;
     Ok(Json(skill_json(
-        &sqlx::query(r#"SELECT * FROM professional_skills WHERE id = $1"#)
+        &sqlx::query(&format!(r#"SELECT {PROFESSIONAL_SKILL_COLS} FROM professional_skills WHERE id = $1"#))
             .bind(id)
             .fetch_one(&state.db)
             .await?,

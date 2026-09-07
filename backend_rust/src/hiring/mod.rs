@@ -8,6 +8,7 @@ use serde_json::{json, Value};
 use sqlx::Row;
 use uuid::Uuid;
 
+use crate::common::pg::{JOB_APPLICATION_COLS, JOB_POST_COLS};
 use crate::error::{AppError, AppResult};
 use crate::middleware::auth::AuthUser;
 use crate::state::AppState;
@@ -26,22 +27,26 @@ pub fn routes() -> Router<AppState> {
 }
 
 async fn list_jobs(State(state): State<AppState>) -> AppResult<Json<Vec<Value>>> {
-    let rows = sqlx::query(r#"SELECT * FROM job_posts WHERE status = 'OPEN' ORDER BY "createdAt" DESC"#)
-        .fetch_all(&state.db)
-        .await?;
+    let rows = sqlx::query(&format!(
+        r#"SELECT {JOB_POST_COLS} FROM job_posts WHERE "isActive" = true ORDER BY "createdAt" DESC LIMIT 100"#
+    ))
+    .fetch_all(&state.db)
+    .await?;
     Ok(Json(rows.iter().map(post_json).collect()))
 }
 
-async fn matched_jobs(State(state): State<AppState>, user: AuthUser) -> AppResult<Json<Vec<Value>>> {
+async fn matched_jobs(State(state): State<AppState>, _user: AuthUser) -> AppResult<Json<Vec<Value>>> {
     list_jobs(State(state)).await
 }
 
 async fn my_jobs(State(state): State<AppState>, user: AuthUser) -> AppResult<Json<Vec<Value>>> {
     let uid = Uuid::parse_str(&user.user_id)?;
-    let rows = sqlx::query(r#"SELECT * FROM job_posts WHERE "employerId" = $1 ORDER BY "createdAt" DESC"#)
-        .bind(uid)
-        .fetch_all(&state.db)
-        .await?;
+    let rows = sqlx::query(&format!(
+        r#"SELECT {JOB_POST_COLS} FROM job_posts WHERE "employerId" = $1 ORDER BY "createdAt" DESC LIMIT 50"#
+    ))
+    .bind(uid)
+    .fetch_all(&state.db)
+    .await?;
     Ok(Json(rows.iter().map(post_json).collect()))
 }
 
@@ -52,13 +57,29 @@ async fn create_job(
 ) -> AppResult<Json<Value>> {
     let uid = Uuid::parse_str(&user.user_id)?;
     let id = Uuid::new_v4();
+    let skills: Vec<String> = body
+        .get("requiredSkills")
+        .and_then(|v| v.as_array())
+        .map(|arr| {
+            arr.iter()
+                .filter_map(|s| s.as_str().map(String::from))
+                .collect()
+        })
+        .unwrap_or_default();
     sqlx::query(
-        r#"INSERT INTO job_posts (id, "employerId", title, description, status) VALUES ($1, $2, $3, $4, 'OPEN')"#,
+        r#"INSERT INTO job_posts (id, "employerId", title, description, "requiredSkills", "jobType", experience, location, "salaryMin", "salaryMax", "isActive")
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, true)"#,
     )
     .bind(id)
     .bind(uid)
     .bind(body.get("title").and_then(|v| v.as_str()).unwrap_or(""))
-    .bind(body.get("description").and_then(|v| v.as_str()))
+    .bind(body.get("description").and_then(|v| v.as_str()).unwrap_or(""))
+    .bind(&skills)
+    .bind(body.get("jobType").and_then(|v| v.as_str()))
+    .bind(body.get("experience").and_then(|v| v.as_str()))
+    .bind(body.get("location").and_then(|v| v.as_str()))
+    .bind(body.get("salaryMin").and_then(|v| v.as_f64()))
+    .bind(body.get("salaryMax").and_then(|v| v.as_f64()))
     .execute(&state.db)
     .await?;
     get_job(State(state), Path(id.to_string())).await
@@ -66,11 +87,13 @@ async fn create_job(
 
 async fn get_job(State(state): State<AppState>, Path(id): Path<String>) -> AppResult<Json<Value>> {
     let pid = Uuid::parse_str(&id)?;
-    let row = sqlx::query(r#"SELECT * FROM job_posts WHERE id = $1"#)
-        .bind(pid)
-        .fetch_optional(&state.db)
-        .await?
-        .ok_or_else(|| AppError::NotFound("Job post not found".into()))?;
+    let row = sqlx::query(&format!(
+        r#"SELECT {JOB_POST_COLS} FROM job_posts WHERE id = $1"#
+    ))
+    .bind(pid)
+    .fetch_optional(&state.db)
+    .await?
+    .ok_or_else(|| AppError::NotFound("Job post not found".into()))?;
     Ok(Json(post_json(&row)))
 }
 
@@ -84,23 +107,26 @@ async fn apply(
     let pid = Uuid::parse_str(&id)?;
     let app_id = Uuid::new_v4();
     sqlx::query(
-        r#"INSERT INTO job_applications (id, "jobPostId", "applicantId", status, "coverLetter") VALUES ($1, $2, $3, 'PENDING', $4)"#,
+        r#"INSERT INTO job_applications (id, "jobPostId", "applicantId", status, "coverLetter", "resumeUrl") VALUES ($1, $2, $3, 'APPLIED', $4, $5)"#,
     )
     .bind(app_id)
     .bind(pid)
     .bind(uid)
     .bind(body.get("coverLetter").and_then(|v| v.as_str()))
+    .bind(body.get("resumeUrl").and_then(|v| v.as_str()))
     .execute(&state.db)
     .await?;
-    Ok(Json(json!({ "id": app_id.to_string(), "status": "PENDING" })))
+    Ok(Json(json!({ "id": app_id.to_string(), "status": "APPLIED" })))
 }
 
 async fn my_applications(State(state): State<AppState>, user: AuthUser) -> AppResult<Json<Vec<Value>>> {
     let uid = Uuid::parse_str(&user.user_id)?;
-    let rows = sqlx::query(r#"SELECT * FROM job_applications WHERE "applicantId" = $1 ORDER BY "createdAt" DESC"#)
-        .bind(uid)
-        .fetch_all(&state.db)
-        .await?;
+    let rows = sqlx::query(&format!(
+        r#"SELECT {JOB_APPLICATION_COLS} FROM job_applications WHERE "applicantId" = $1 ORDER BY "createdAt" DESC LIMIT 50"#
+    ))
+    .bind(uid)
+    .fetch_all(&state.db)
+    .await?;
     Ok(Json(rows.iter().map(app_json).collect()))
 }
 
@@ -116,10 +142,12 @@ async fn job_applications(
     Query(_q): Query<PageQuery>,
 ) -> AppResult<Json<Vec<Value>>> {
     let pid = Uuid::parse_str(&id)?;
-    let rows = sqlx::query(r#"SELECT * FROM job_applications WHERE "jobPostId" = $1"#)
-        .bind(pid)
-        .fetch_all(&state.db)
-        .await?;
+    let rows = sqlx::query(&format!(
+        r#"SELECT {JOB_APPLICATION_COLS} FROM job_applications WHERE "jobPostId" = $1 ORDER BY "createdAt" DESC LIMIT 50"#
+    ))
+    .bind(pid)
+    .fetch_all(&state.db)
+    .await?;
     Ok(Json(rows.iter().map(app_json).collect()))
 }
 
@@ -156,8 +184,16 @@ fn post_json(row: &sqlx::postgres::PgRow) -> Value {
         "id": row.get::<Uuid, _>("id").to_string(),
         "employerId": row.get::<Uuid, _>("employerId").to_string(),
         "title": row.get::<String, _>("title"),
-        "description": row.get::<Option<String>, _>("description"),
-        "status": row.get::<String, _>("status"),
+        "description": row.get::<String, _>("description"),
+        "requiredSkills": row.try_get::<Option<Vec<String>>, _>("requiredSkills").ok().flatten(),
+        "jobType": row.get::<Option<String>, _>("jobType"),
+        "experience": row.get::<Option<String>, _>("experience"),
+        "location": row.get::<Option<String>, _>("location"),
+        "salaryMin": row.try_get::<Option<rust_decimal::Decimal>, _>("salaryMin").ok().flatten(),
+        "salaryMax": row.try_get::<Option<rust_decimal::Decimal>, _>("salaryMax").ok().flatten(),
+        "isActive": row.get::<bool, _>("isActive"),
+        "createdAt": row.try_get::<chrono::DateTime<chrono::Utc>, _>("createdAt").ok(),
+        "updatedAt": row.try_get::<chrono::DateTime<chrono::Utc>, _>("updatedAt").ok(),
     })
 }
 
@@ -167,5 +203,8 @@ fn app_json(row: &sqlx::postgres::PgRow) -> Value {
         "jobPostId": row.get::<Uuid, _>("jobPostId").to_string(),
         "applicantId": row.get::<Uuid, _>("applicantId").to_string(),
         "status": row.get::<String, _>("status"),
+        "coverLetter": row.get::<Option<String>, _>("coverLetter"),
+        "resumeUrl": row.get::<Option<String>, _>("resumeUrl"),
+        "createdAt": row.try_get::<chrono::DateTime<chrono::Utc>, _>("createdAt").ok(),
     })
 }

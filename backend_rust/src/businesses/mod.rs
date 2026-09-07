@@ -7,23 +7,25 @@ use serde_json::{json, Value};
 use sqlx::Row;
 use uuid::Uuid;
 
+use crate::common::pg::BUSINESS_COLS;
 use crate::error::{AppError, AppResult};
 use crate::middleware::auth::AuthUser;
 use crate::state::AppState;
 
 pub fn routes() -> Router<AppState> {
     Router::new()
-        .route("/", get(list).post(create))
+        .route("/", post(create))
+        .route("/my", get(list))
         .route("/{id}", get(get_one).patch(update).delete(remove))
         .route("/{id}/operators", post(add_operator))
-        .route("/{id}/offline-days", post(add_offline_day).delete(remove_offline_day))
+        .route("/{id}/calendar/offline", post(add_offline_day).delete(remove_offline_day))
 }
 
 async fn list(State(state): State<AppState>, user: AuthUser) -> AppResult<Json<Vec<Value>>> {
     let uid = Uuid::parse_str(&user.user_id)?;
-    let rows = sqlx::query(
-        r#"SELECT * FROM businesses WHERE "ownerId" = $1 OR id IN (SELECT "businessId" FROM business_operators WHERE "userId" = $1)"#,
-    )
+    let rows = sqlx::query(&format!(
+        r#"SELECT {BUSINESS_COLS} FROM businesses WHERE "ownerId" = $1 OR id IN (SELECT "businessId" FROM business_operators WHERE "userId" = $1)"#
+    ))
     .bind(uid)
     .fetch_all(&state.db)
     .await?;
@@ -57,7 +59,7 @@ async fn get_one(
     Path(id): Path<String>,
 ) -> AppResult<Json<Value>> {
     let bid = Uuid::parse_str(&id)?;
-    let row = sqlx::query(r#"SELECT * FROM businesses WHERE id = $1"#)
+    let row = sqlx::query(&format!(r#"SELECT {BUSINESS_COLS} FROM businesses WHERE id = $1"#))
         .bind(bid)
         .fetch_optional(&state.db)
         .await?

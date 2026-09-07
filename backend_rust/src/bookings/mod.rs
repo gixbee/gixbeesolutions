@@ -9,6 +9,7 @@ use sqlx::Row;
 use uuid::Uuid;
 
 use crate::common::money::DEFAULT_BOOKING_PAYMENT_METHOD;
+use crate::common::pg::BOOKING_COLS;
 use crate::error::{AppError, AppResult};
 use crate::middleware::auth::{require_admin_page, AuthUser};
 use crate::state::AppState;
@@ -147,17 +148,17 @@ async fn list_my(
     let uid = Uuid::parse_str(&user.user_id)?;
     let status = q.get("status").and_then(|v| v.as_str());
     let rows = if let Some(s) = status {
-        sqlx::query(
-            r#"SELECT * FROM bookings WHERE ("customerId" = $1 OR "operatorId" = $1) AND status = $2 ORDER BY "createdAt" DESC"#,
-        )
+        sqlx::query(&format!(
+            r#"SELECT {BOOKING_COLS} FROM bookings WHERE ("customerId" = $1 OR "operatorId" = $1) AND status = $2 ORDER BY "createdAt" DESC"#
+        ))
         .bind(uid)
         .bind(s)
         .fetch_all(&state.db)
         .await?
     } else {
-        sqlx::query(
-            r#"SELECT * FROM bookings WHERE "customerId" = $1 OR "operatorId" = $1 ORDER BY "createdAt" DESC"#,
-        )
+        sqlx::query(&format!(
+            r#"SELECT {BOOKING_COLS} FROM bookings WHERE "customerId" = $1 OR "operatorId" = $1 ORDER BY "createdAt" DESC"#
+        ))
         .bind(uid)
         .fetch_all(&state.db)
         .await?
@@ -167,9 +168,9 @@ async fn list_my(
 
 async fn list_pending(State(state): State<AppState>, user: AuthUser) -> AppResult<Json<Vec<Value>>> {
     let uid = Uuid::parse_str(&user.user_id)?;
-    let rows = sqlx::query(
-        r#"SELECT * FROM bookings WHERE "operatorId" = $1 AND status IN ('REQUESTED', 'PENDING') ORDER BY "createdAt" DESC"#,
-    )
+    let rows = sqlx::query(&format!(
+        r#"SELECT {BOOKING_COLS} FROM bookings WHERE "operatorId" = $1 AND status IN ('REQUESTED', 'PENDING') ORDER BY "createdAt" DESC"#
+    ))
     .bind(uid)
     .fetch_all(&state.db)
     .await?;
@@ -302,12 +303,12 @@ async fn admin_list(
     require_admin_page(&user, "bookings")?;
     let status = q.get("status").and_then(|v| v.as_str());
     let rows = if let Some(s) = status {
-        sqlx::query(r#"SELECT * FROM bookings WHERE status = $1 ORDER BY "createdAt" DESC LIMIT 50"#)
+        sqlx::query(&format!(r#"SELECT {BOOKING_COLS} FROM bookings WHERE status = $1 ORDER BY "createdAt" DESC LIMIT 50"#))
             .bind(s)
             .fetch_all(&state.db)
             .await?
     } else {
-        sqlx::query(r#"SELECT * FROM bookings ORDER BY "createdAt" DESC LIMIT 50"#)
+        sqlx::query(&format!(r#"SELECT {BOOKING_COLS} FROM bookings ORDER BY "createdAt" DESC LIMIT 50"#))
             .fetch_all(&state.db)
             .await?
     };
@@ -332,7 +333,7 @@ async fn get_one(
 
 async fn get_one_inner(state: &AppState, id: &str) -> AppResult<Value> {
     let bid = Uuid::parse_str(id)?;
-    let row = sqlx::query(r#"SELECT * FROM bookings WHERE id = $1"#)
+    let row = sqlx::query(&format!(r#"SELECT {BOOKING_COLS} FROM bookings WHERE id = $1"#))
         .bind(bid)
         .fetch_optional(&state.db)
         .await?

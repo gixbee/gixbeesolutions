@@ -8,6 +8,7 @@ use serde_json::{json, Value};
 use sqlx::Row;
 use uuid::Uuid;
 
+use crate::common::pg::{HIRING_INTEREST_COLS, HIRING_REQUEST_COLS, JOB_PREFERENCE_COLS};
 use crate::error::{AppError, AppResult};
 use crate::middleware::auth::AuthUser;
 use crate::state::AppState;
@@ -30,7 +31,9 @@ pub fn routes() -> Router<AppState> {
 
 async fn list_preferences(State(state): State<AppState>, user: AuthUser) -> AppResult<Json<Vec<Value>>> {
     let uid = Uuid::parse_str(&user.user_id)?;
-    let rows = sqlx::query(r#"SELECT * FROM job_preferences WHERE "userId" = $1"#)
+    let rows = sqlx::query(&format!(
+        r#"SELECT {JOB_PREFERENCE_COLS} FROM job_preferences WHERE "userId" = $1"#
+    ))
         .bind(uid)
         .fetch_all(&state.db)
         .await?;
@@ -53,7 +56,7 @@ async fn create_preference(
     .execute(&state.db)
     .await?;
     Ok(Json(pref_json(
-        &sqlx::query(r#"SELECT * FROM job_preferences WHERE id = $1"#)
+        &sqlx::query(&format!(r#"SELECT {JOB_PREFERENCE_COLS} FROM job_preferences WHERE id = $1"#))
             .bind(id)
             .fetch_one(&state.db)
             .await?,
@@ -74,7 +77,7 @@ async fn update_preference(
             .execute(&state.db)
             .await?;
     }
-    let row = sqlx::query(r#"SELECT * FROM job_preferences WHERE id = $1"#)
+    let row = sqlx::query(&format!(r#"SELECT {JOB_PREFERENCE_COLS} FROM job_preferences WHERE id = $1"#))
         .bind(pid)
         .fetch_one(&state.db)
         .await?;
@@ -136,9 +139,9 @@ async fn estimate(Query(q): Query<EstimateQuery>) -> Json<Value> {
 
 async fn list_offers(State(state): State<AppState>, user: AuthUser) -> AppResult<Json<Vec<Value>>> {
     let uid = Uuid::parse_str(&user.user_id)?;
-    let rows = sqlx::query(
-        r#"SELECT * FROM hiring_interests WHERE "candidateId" = $1"#,
-    )
+    let rows = sqlx::query(&format!(
+        r#"SELECT {HIRING_INTEREST_COLS} FROM hiring_interests WHERE "candidateId" = $1"#
+    ))
     .bind(uid)
     .fetch_all(&state.db)
     .await?;
@@ -177,7 +180,9 @@ async fn respond_offer(
 
 async fn list_requests(State(state): State<AppState>, user: AuthUser) -> AppResult<Json<Vec<Value>>> {
     let uid = Uuid::parse_str(&user.user_id)?;
-    let rows = sqlx::query(r#"SELECT * FROM hiring_requests WHERE "employerId" = $1"#)
+    let rows = sqlx::query(&format!(
+        r#"SELECT {HIRING_REQUEST_COLS} FROM hiring_requests WHERE "employerId" = $1"#
+    ))
         .bind(uid)
         .fetch_all(&state.db)
         .await?;
@@ -204,7 +209,7 @@ async fn create_request(
 
 async fn get_request(State(state): State<AppState>, Path(id): Path<String>) -> AppResult<Json<Value>> {
     let rid = Uuid::parse_str(&id)?;
-    let row = sqlx::query(r#"SELECT * FROM hiring_requests WHERE id = $1"#)
+    let row = sqlx::query(&format!(r#"SELECT {HIRING_REQUEST_COLS} FROM hiring_requests WHERE id = $1"#))
         .bind(rid)
         .fetch_optional(&state.db)
         .await?

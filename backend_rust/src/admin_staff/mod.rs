@@ -8,6 +8,7 @@ use serde_json::{json, Value};
 use sqlx::Row;
 use uuid::Uuid;
 
+use crate::common::pg::ADMIN_STAFF_COLS;
 use crate::error::{AppError, AppResult};
 use crate::middleware::auth::{require_admin, require_admin_page, AuthUser};
 use crate::state::AppState;
@@ -20,7 +21,7 @@ pub fn routes() -> Router<AppState> {
 
 async fn list(State(state): State<AppState>, user: AuthUser) -> AppResult<Json<Vec<Value>>> {
     require_admin(&user)?;
-    let rows = sqlx::query(r#"SELECT id, username, "displayName", "staffRole", "allowedPages", "isActive" FROM admin_staff"#)
+    let rows = sqlx::query(&format!(r#"SELECT {ADMIN_STAFF_COLS} FROM admin_staff"#))
         .fetch_all(&state.db)
         .await?;
     Ok(Json(rows.iter().map(staff_json).collect()))
@@ -55,7 +56,7 @@ async fn create(
     .execute(&state.db)
     .await?;
     Ok(Json(staff_json(
-        &sqlx::query(r#"SELECT id, username, "displayName", "staffRole", "allowedPages", "isActive" FROM admin_staff WHERE id = $1"#)
+        &sqlx::query(&format!(r#"SELECT {ADMIN_STAFF_COLS} FROM admin_staff WHERE id = $1"#))
             .bind(id)
             .fetch_one(&state.db)
             .await?,
