@@ -16,8 +16,10 @@ pub const BOOKING_COLS: &str = r#"
     amount, type::text AS type, status::text AS status, "paymentMethod", description
 "#;
 
-pub const BUSINESS_COLS: &str =
-    r#"id, "ownerId", name, type::text AS type, status::text AS status, "createdAt", "updatedAt""#;
+pub const BUSINESS_COLS: &str = r#"
+    id, "ownerId", name, type::text AS type, "serviceType"::text AS "serviceType", location, "cityId",
+    description, "documentUrl", status::text AS status, "operatorIds", "offlineDays", "createdAt", "updatedAt"
+"#;
 
 pub const RENTAL_ITEM_COLS: &str = r#"
     id, "ownerId", name, description, "imageUrl", "hourlyRate", "dailyRate", "minHoursToRent",
@@ -32,11 +34,17 @@ pub const RENTAL_RESERVATION_COLS: &str = r#"
 pub const PROFESSIONAL_SKILL_COLS: &str =
     r#"id, "userId", skill, status::text AS status, "createdAt", "updatedAt""#;
 
-pub const JOB_PREFERENCE_COLS: &str =
-    r#"id, "userId", "jobType"::text AS "jobType", status::text AS status, "createdAt", "updatedAt""#;
+pub const JOB_PREFERENCE_COLS: &str = r#"
+    id, "userId", "jobType", skills, "preferredLocation", "expectedSalary", "salaryNegotiable",
+    "employmentType"::text AS "employmentType", "experienceYears", "noticePeriod"::text AS "noticePeriod",
+    "isActive", "isPaid", "paidUntil", "createdAt", "updatedAt"
+"#;
 
-pub const HIRING_REQUEST_COLS: &str =
-    r#"id, "employerId", "jobType"::text AS "jobType", status::text AS status, "matchFeeInr", "createdAt", "updatedAt""#;
+pub const HIRING_REQUEST_COLS: &str = r#"
+    id, "employerId", "jobType", skills, location, "salaryOffered", "salaryMin", "salaryMax",
+    "salaryNegotiable", "employmentType"::text AS "employmentType", "experienceMinYears", vacancies,
+    "targetInterested", "feeAmount", "creditApplied", status::text AS status, "deadlineAt", "createdAt", "updatedAt"
+"#;
 
 pub const HIRING_INTEREST_COLS: &str =
     r#"id, "requestId", "candidateId", status::text AS status, "createdAt", "updatedAt""#;

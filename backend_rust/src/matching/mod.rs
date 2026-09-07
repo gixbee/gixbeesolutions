@@ -48,7 +48,7 @@ async fn create_preference(
     let uid = Uuid::parse_str(&user.user_id)?;
     let id = Uuid::new_v4();
     sqlx::query(
-        r#"INSERT INTO job_preferences (id, "userId", "jobType", status) VALUES ($1, $2, $3, 'ACTIVE')"#,
+        r#"INSERT INTO job_preferences (id, "userId", "jobType", "isActive") VALUES ($1, $2, $3, true)"#,
     )
     .bind(id)
     .bind(uid)
@@ -197,7 +197,8 @@ async fn create_request(
     let uid = Uuid::parse_str(&user.user_id)?;
     let id = Uuid::new_v4();
     sqlx::query(
-        r#"INSERT INTO hiring_requests (id, "employerId", "jobType", status, "matchFeeInr") VALUES ($1, $2, $3, 'PENDING', 49)"#,
+        r#"INSERT INTO hiring_requests (id, "employerId", "jobType", status, "feeAmount", "deadlineAt")
+           VALUES ($1, $2, $3, 'COLLECTING', 49, NOW() + INTERVAL '24 hours')"#,
     )
     .bind(id)
     .bind(uid)
@@ -259,15 +260,28 @@ fn pref_json(row: &sqlx::postgres::PgRow) -> Value {
     json!({
         "id": row.get::<Uuid, _>("id").to_string(),
         "jobType": row.get::<String, _>("jobType"),
-        "status": row.get::<String, _>("status"),
+        "skills": row.try_get::<Option<Vec<String>>, _>("skills").ok().flatten(),
+        "preferredLocation": row.get::<Option<String>, _>("preferredLocation"),
+        "expectedSalary": row.try_get::<rust_decimal::Decimal, _>("expectedSalary").ok(),
+        "salaryNegotiable": row.get::<bool, _>("salaryNegotiable"),
+        "employmentType": row.get::<Option<String>, _>("employmentType"),
+        "experienceYears": row.get::<i32, _>("experienceYears"),
+        "noticePeriod": row.get::<String, _>("noticePeriod"),
+        "isActive": row.get::<bool, _>("isActive"),
+        "isPaid": row.get::<bool, _>("isPaid"),
+        "paidUntil": row.try_get::<Option<chrono::DateTime<chrono::Utc>>, _>("paidUntil").ok().flatten(),
+        "createdAt": row.try_get::<chrono::DateTime<chrono::Utc>, _>("createdAt").ok(),
     })
 }
 
 fn request_json(row: &sqlx::postgres::PgRow) -> Value {
     json!({
         "id": row.get::<Uuid, _>("id").to_string(),
+        "jobType": row.get::<String, _>("jobType"),
         "status": row.get::<String, _>("status"),
-        "matchFeeInr": row.get::<i32, _>("matchFeeInr"),
-        "jobType": row.get::<Option<String>, _>("jobType"),
+        "feeAmount": row.try_get::<rust_decimal::Decimal, _>("feeAmount").ok(),
+        "deadlineAt": row.try_get::<chrono::DateTime<chrono::Utc>, _>("deadlineAt").ok(),
+        "vacancies": row.get::<i32, _>("vacancies"),
+        "location": row.get::<Option<String>, _>("location"),
     })
 }

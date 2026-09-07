@@ -24,7 +24,7 @@ pub fn routes() -> Router<AppState> {
 async fn list(State(state): State<AppState>, user: AuthUser) -> AppResult<Json<Vec<Value>>> {
     let uid = Uuid::parse_str(&user.user_id)?;
     let rows = sqlx::query(&format!(
-        r#"SELECT {BUSINESS_COLS} FROM businesses WHERE "ownerId" = $1 OR id IN (SELECT "businessId" FROM business_operators WHERE "userId" = $1)"#
+        r#"SELECT {BUSINESS_COLS} FROM businesses WHERE "ownerId" = $1 ORDER BY "createdAt" DESC"#
     ))
     .bind(uid)
     .fetch_all(&state.db)
@@ -42,12 +42,13 @@ async fn create(
     let name = body.get("name").and_then(|v| v.as_str()).unwrap_or("");
     let biz_type = body.get("type").and_then(|v| v.as_str()).unwrap_or("SERVICE");
     sqlx::query(
-        r#"INSERT INTO businesses (id, "ownerId", name, type, status) VALUES ($1, $2, $3, $4, 'ACTIVE')"#,
+        r#"INSERT INTO businesses (id, "ownerId", name, type, location, status) VALUES ($1, $2, $3, $4, $5, 'PENDING')"#,
     )
     .bind(id)
     .bind(uid)
     .bind(name)
     .bind(biz_type)
+    .bind(body.get("location").and_then(|v| v.as_str()).unwrap_or(""))
     .execute(&state.db)
     .await?;
     get_one(State(state), user, Path(id.to_string())).await
@@ -108,15 +109,23 @@ async fn add_operator(
         .get("userId")
         .and_then(|v| v.as_str())
         .ok_or_else(|| AppError::BadRequest("userId required".into()))?;
-    let uid = Uuid::parse_str(operator_id)?;
-    sqlx::query(
-        r#"INSERT INTO business_operators (id, "businessId", "userId") VALUES ($1, $2, $3) ON CONFLICT DO NOTHING"#,
+    let _uid = Uuid::parse_str(operator_id)?;
+    let row = sqlx::query_scalar::<_, Option<Vec<String>>>(
+        r#"SELECT "operatorIds" FROM businesses WHERE id = $1"#,
     )
-    .bind(Uuid::new_v4())
     .bind(bid)
-    .bind(uid)
-    .execute(&state.db)
-    .await?;
+    .fetch_optional(&state.db)
+    .await?
+    .ok_or_else(|| AppError::NotFound("Business not found".into()))?;
+    let mut ops = row.unwrap_or_default();
+    if !ops.iter().any(|o| o == operator_id) {
+        ops.push(operator_id.clone());
+        sqlx::query(r#"UPDATE businesses SET "operatorIds" = $1 WHERE id = $2"#)
+            .bind(&ops)
+            .bind(bid)
+            .execute(&state.db)
+            .await?;
+    }
     Ok(Json(json!({ "message": "Operator added" })))
 }
 
@@ -143,6 +152,15 @@ fn business_json(row: &sqlx::postgres::PgRow) -> Value {
         "ownerId": row.get::<Uuid, _>("ownerId").to_string(),
         "name": row.get::<String, _>("name"),
         "type": row.get::<String, _>("type"),
+        "serviceType": row.get::<Option<String>, _>("serviceType"),
+        "location": row.get::<String, _>("location"),
+        "cityId": row.try_get::<Option<Uuid>, _>("cityId").ok().flatten().map(|u| u.to_string()),
+        "description": row.get::<Option<String>, _>("description"),
+        "documentUrl": row.get::<Option<String>, _>("documentUrl"),
         "status": row.get::<String, _>("status"),
+        "operatorIds": row.try_get::<Option<Vec<String>>, _>("operatorIds").ok().flatten(),
+        "offlineDays": row.try_get::<Option<serde_json::Value>, _>("offlineDays").ok().flatten(),
+        "createdAt": row.try_get::<chrono::DateTime<chrono::Utc>, _>("createdAt").ok(),
+        "updatedAt": row.try_get::<chrono::DateTime<chrono::Utc>, _>("updatedAt").ok(),
     })
 }
