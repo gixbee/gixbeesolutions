@@ -28,6 +28,10 @@ pub struct JwtClaims {
     pub displayName: Option<String>,
     #[serde(default)]
     pub r#type: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub exp: Option<i64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub iat: Option<i64>,
 }
 
 #[derive(Debug, Clone)]
@@ -55,10 +59,23 @@ impl From<JwtClaims> for AuthUser {
     }
 }
 
+const ACCESS_TOKEN_TTL_SECS: i64 = 3600;
+const REFRESH_TOKEN_TTL_SECS: i64 = 30 * 24 * 3600;
+
+fn with_token_times(claims: JwtClaims, ttl_secs: i64) -> JwtClaims {
+    let now = chrono::Utc::now().timestamp();
+    JwtClaims {
+        exp: Some(now + ttl_secs),
+        iat: Some(now),
+        ..claims
+    }
+}
+
 pub fn sign_access(state: &AppState, claims: &JwtClaims) -> AppResult<String> {
+    let signed = with_token_times(claims.clone(), ACCESS_TOKEN_TTL_SECS);
     encode(
         &Header::default(),
-        claims,
+        &signed,
         &EncodingKey::from_secret(state.config.jwt_secret.as_bytes()),
     )
     .map_err(|e| AppError::Internal(e.to_string()))
@@ -74,10 +91,13 @@ pub fn sign_refresh(state: &AppState, user_id: &str) -> AppResult<String> {
         username: None,
         displayName: None,
         r#type: Some("refresh".into()),
+        exp: None,
+        iat: None,
     };
+    let signed = with_token_times(claims, REFRESH_TOKEN_TTL_SECS);
     encode(
         &Header::default(),
-        &claims,
+        &signed,
         &EncodingKey::from_secret(state.config.refresh_secret().as_bytes()),
     )
     .map_err(|e| AppError::Internal(e.to_string()))

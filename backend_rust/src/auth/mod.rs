@@ -193,6 +193,8 @@ async fn generate_token_pair(
         username: None,
         displayName: None,
         r#type: None,
+        exp: None,
+        iat: None,
     };
     let access = sign_access(state, &claims)?;
     let refresh = sign_refresh(state, user_id)?;
@@ -248,6 +250,8 @@ async fn refresh_token(
         username: None,
         displayName: None,
         r#type: None,
+        exp: None,
+        iat: None,
     };
     Ok(Json(AccessOnly {
         accessToken: sign_access(&state, &access_claims)?,
@@ -384,6 +388,8 @@ async fn admin_login(
             username: Some(staff.username.clone()),
             displayName: Some(staff.display_name.clone()),
             r#type: None,
+            exp: None,
+            iat: None,
         };
         return Ok(Json(AdminLoginResponse {
             accessToken: sign_access(&state, &claims)?,
@@ -413,6 +419,8 @@ async fn admin_login(
         username: admin_user.map(|s| s.to_string()),
         displayName: Some("SuperAdmin".into()),
         r#type: None,
+        exp: None,
+        iat: None,
     };
     Ok(Json(AdminLoginResponse {
         accessToken: sign_access(&state, &claims)?,
