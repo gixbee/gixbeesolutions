@@ -119,7 +119,7 @@ async fn add_operator(
     .ok_or_else(|| AppError::NotFound("Business not found".into()))?;
     let mut ops = row.unwrap_or_default();
     if !ops.iter().any(|o| o == operator_id) {
-        ops.push(operator_id.clone());
+        ops.push(operator_id.to_string());
         sqlx::query(r#"UPDATE businesses SET "operatorIds" = $1 WHERE id = $2"#)
             .bind(&ops)
             .bind(bid)
