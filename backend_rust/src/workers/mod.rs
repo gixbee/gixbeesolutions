@@ -38,7 +38,7 @@ pub fn routes() -> Router<AppState> {
 fn parse_skills(raw: Option<String>) -> Vec<String> {
     raw.map(|s| {
         s.split(',')
-            .map(|p| p.trim())
+            .map(|p| p.trim().to_string())
             .filter(|p| !p.is_empty())
             .collect()
     })
