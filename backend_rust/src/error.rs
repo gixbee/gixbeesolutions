@@ -148,15 +148,3 @@ impl From<uuid::Error> for AppError {
         AppError::BadRequest("Invalid id".into())
     }
 }
-
-impl<T> axum::response::IntoResponse for AppResult<T>
-where
-    T: axum::response::IntoResponse,
-{
-    fn into_response(self) -> Response {
-        match self {
-            Ok(value) => value.into_response(),
-            Err(err) => err.into_response(),
-        }
-    }
-}

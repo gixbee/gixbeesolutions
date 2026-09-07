@@ -300,13 +300,13 @@ async fn get_by_id(
 
 fn worker_json(row: &sqlx::postgres::PgRow) -> Value {
     json!({
-        "userId": row.try_get::<Uuid, _>("userId").map(|u| u.to_string()),
-        "skills": row.try_get::<serde_json::Value, _>("skills"),
-        "hourlyRate": row.try_get::<rust_decimal::Decimal, _>("hourlyRate"),
-        "isLive": row.try_get::<bool, _>("isLive"),
-        "verificationStatus": row.try_get::<String, _>("verificationStatus"),
-        "lat": row.try_get::<Option<f64>, _>("lat"),
-        "lng": row.try_get::<Option<f64>, _>("lng"),
-        "name": row.try_get::<Option<String>, _>("name"),
+        "userId": row.try_get::<Uuid, _>("userId").ok().map(|u| u.to_string()),
+        "skills": row.try_get::<serde_json::Value, _>("skills").ok(),
+        "hourlyRate": row.try_get::<rust_decimal::Decimal, _>("hourlyRate").ok(),
+        "isLive": row.try_get::<bool, _>("isLive").ok(),
+        "verificationStatus": row.try_get::<String, _>("verificationStatus").ok(),
+        "lat": row.try_get::<Option<f64>, _>("lat").ok().flatten(),
+        "lng": row.try_get::<Option<f64>, _>("lng").ok().flatten(),
+        "name": row.try_get::<Option<String>, _>("name").ok().flatten(),
     })
 }

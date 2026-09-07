@@ -119,11 +119,11 @@ async fn remove(
 
 fn row_to_json(row: &sqlx::postgres::PgRow) -> Value {
     json!({
-        "id": row.try_get::<Uuid, _>("id").map(|u| u.to_string()),
-        "name": row.try_get::<String, _>("name"),
-        "state": row.try_get::<String, _>("state"),
-        "isActive": row.try_get::<bool, _>("isActive"),
-        "createdAt": row.try_get::<chrono::DateTime<chrono::Utc>, _>("createdAt"),
-        "updatedAt": row.try_get::<chrono::DateTime<chrono::Utc>, _>("updatedAt"),
+        "id": row.try_get::<Uuid, _>("id").ok().map(|u| u.to_string()),
+        "name": row.try_get::<String, _>("name").ok(),
+        "state": row.try_get::<String, _>("state").ok(),
+        "isActive": row.try_get::<bool, _>("isActive").ok(),
+        "createdAt": row.try_get::<chrono::DateTime<chrono::Utc>, _>("createdAt").ok(),
+        "updatedAt": row.try_get::<chrono::DateTime<chrono::Utc>, _>("updatedAt").ok(),
     })
 }

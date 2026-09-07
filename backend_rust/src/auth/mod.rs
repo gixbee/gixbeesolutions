@@ -42,7 +42,7 @@ async fn request_otp(
     State(state): State<AppState>,
     Json(body): Json<RequestOtpBody>,
 ) -> AppResult<Json<RequestOtpResponse>> {
-    let otp = format!("{:06}", rand::thread_rng().gen_range(100000..999999));
+    let otp = format!("{:06}", rand::random::<u32>() % 900_000 + 100_000);
     let key = format!("otp:{}", body.phone);
     state.redis.save_otp(&key, &otp).await?;
 
