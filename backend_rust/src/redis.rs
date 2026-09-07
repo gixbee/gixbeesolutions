@@ -75,9 +75,9 @@ impl RedisStore {
         } else {
             let mut m = self.mem_kv.lock().unwrap();
             m.insert(
-                key.clone(),
+                key.to_string(),
                 (
-                    value.clone(),
+                    value.to_string(),
                     Some(std::time::Instant::now() + std::time::Duration::from_secs(ttl_secs)),
                 ),
             );
@@ -163,9 +163,9 @@ impl RedisStore {
             self.mem_sets
                 .lock()
                 .unwrap()
-                .entry(key.clone())
+                .entry(key.to_string())
                 .or_default()
-                .insert(member.clone());
+                .insert(member.to_string());
         }
         Ok(())
     }

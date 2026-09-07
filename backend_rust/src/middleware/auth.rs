@@ -66,7 +66,7 @@ pub fn sign_access(state: &AppState, claims: &JwtClaims) -> AppResult<String> {
 
 pub fn sign_refresh(state: &AppState, user_id: &str) -> AppResult<String> {
     let claims = JwtClaims {
-        sub: user_id.clone(),
+        sub: user_id.to_string(),
         phoneNumber: None,
         role: None,
         staffRole: None,

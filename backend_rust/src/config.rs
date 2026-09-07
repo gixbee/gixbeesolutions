@@ -110,31 +110,20 @@ impl Config {
 }
 
 pub fn is_real_secret(value: Option<&str>) -> bool {
-    let value = value?.trim();
-    if value.is_none() || value.unwrap().len() < 4 {
+    let value = match value.map(str::trim).filter(|v| !v.is_empty()) {
+        Some(v) => v,
+        None => return false,
+    };
+    if value.len() < 4 {
         return false;
     }
-    let v = value.unwrap();
-    let patterns = [
-        regex_like_placeholder(r"^placeholder"),
-        regex_like_placeholder(r"^your[-_]"),
-        regex_like_placeholder(r"^changeme$"),
-        regex_like_placeholder(r"^replace-with"),
-        regex_like_placeholder(r"^super-secret-key-for-gixbee$"),
-    ];
-    !patterns.iter().any(|p| p(v))
-}
-
-fn regex_like_placeholder(_pattern: &str) -> impl Fn(&str) -> bool {
-    move |v: &str| {
-        let lower = v.to_lowercase();
-        lower.starts_with("placeholder")
-            || lower.starts_with("your-")
-            || lower.starts_with("your_")
-            || lower == "changeme"
-            || lower.starts_with("replace-with")
-            || lower == "super-secret-key-for-gixbee"
-    }
+    let lower = value.to_lowercase();
+    !lower.starts_with("placeholder")
+        && !lower.starts_with("your-")
+        && !lower.starts_with("your_")
+        && lower != "changeme"
+        && !lower.starts_with("replace-with")
+        && lower != "super-secret-key-for-gixbee"
 }
 
 pub fn assert_production_secrets(config: &Config) -> Result<()> {

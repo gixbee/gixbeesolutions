@@ -1,32 +1,30 @@
-pub mod addresses;
-pub mod admin_staff;
-pub mod auth;
-pub mod billing;
-pub mod bookings;
-pub mod businesses;
-pub mod cities;
-pub mod favourites;
-pub mod hiring;
-pub mod master_entries;
-pub mod matching;
-pub mod messages;
-pub mod notifications;
-pub mod payments;
-pub mod redis_admin;
-pub mod rentals;
-pub mod support;
-pub mod system_logs;
-pub mod system_metrics;
-pub mod talent;
-pub mod uploads;
-pub mod users;
-pub mod voice_calls;
-pub mod wallets;
-pub mod worker_engine;
-pub mod workers;
-
 use axum::Router;
 
+use crate::addresses;
+use crate::admin_staff;
+use crate::auth;
+use crate::billing;
+use crate::bookings;
+use crate::businesses;
+use crate::cities;
+use crate::favourites;
+use crate::hiring;
+use crate::master_entries;
+use crate::matching;
+use crate::messages;
+use crate::notifications;
+use crate::payments;
+use crate::redis_admin;
+use crate::rentals;
+use crate::support;
+use crate::system_logs;
+use crate::system_metrics;
+use crate::talent;
+use crate::uploads;
+use crate::users;
+use crate::voice_calls;
+use crate::wallets;
+use crate::workers;
 use crate::state::AppState;
 
 pub fn api_router() -> Router<AppState> {

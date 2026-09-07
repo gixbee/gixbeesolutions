@@ -4,6 +4,7 @@ pub const WALLET_PAYMENTS_ENABLED: bool = false;
 pub const DEFAULT_BOOKING_PAYMENT_METHOD: &str = "CASH";
 pub const NEW_USER_WALLET_BONUS: f64 = if WALLET_PAYMENTS_ENABLED { 30.0 } else { 0.0 };
 
+#[derive(Debug)]
 pub struct WalletPaymentsDisabledError {
     pub action: String,
 }
