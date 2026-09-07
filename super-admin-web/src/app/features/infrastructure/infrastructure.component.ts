@@ -15,7 +15,7 @@ import { RedisViewerComponent } from './redis-viewer.component';
           <div class="text-secondary small d-flex align-items-center gap-2">
             <span>Live container resources & real-time log streaming</span>
             <span class="badge bg-success-subtle text-success border border-success-subtle">
-              <i class="bi bi-shield-check me-1"></i>Super Admin Access
+              <i class="bi bi-shield-check me-1"></i>Admin Access
             </span>
           </div>
         </div>

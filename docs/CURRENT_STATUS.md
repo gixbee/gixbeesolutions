@@ -203,8 +203,8 @@ Sourced from Jim's gap audit ([GAPS.md](./architecture/GAPS.md)). Code mitigatio
 |---|---|---|---|
 | Weak JWT / admin on deploy | Attacker could forge admin tokens | `main.ts` `assertProductionSecrets()` exits boot in production | Rotate secrets before `NODE_ENV=production` |
 | OTP echo in prod | Login OTP returned in API body | `ALLOW_OTP_ECHO` blocked at prod boot (`main.ts`) | Never set `ALLOW_OTP_ECHO=true` on EC2 |
-| **Self-service ADMIN PATCH (ARCH-001)** | **Critical** — user sets own `role: ADMIN`, refreshes JWT | Page ACL on logs/metrics/redis | Strip `role` from self PATCH; fix unpage-gated `admin-staff/*` |
-| User phone leak via search (ARCH-002) | Any JWT can search phones | Lean projection only | Restrict search + self-or-admin on `:id` |
+| **Self-service ADMIN PATCH (ARCH-001)** | User could set own `role: ADMIN` via PATCH | **Fixed** (2026-08-30) — controller rejects `role`/`hasWorkerProfile` for non-admin (`users.controller.ts` L96–107); service ignores unless `allowPrivilegedFields` (`users.service.ts` L74–78); `AdminGuard` requires portal `staffRole` (`admin.guard.ts` L36–38) | Smoke on deploy (PROD_DEPLOY § Security) |
+| User phone leak via search (ARCH-002) | Any JWT could read arbitrary phones | **Fixed** (2026-08-30) — `:id` self-or-admin (`users.controller.ts` L73–78); search min 3 chars + `phoneNumber` stripped for non-admin (`users.service.ts` L121, L129–130) | Smoke on deploy |
 | Razorpay client-only credit | App could claim payment without server proof | Webhook-only fulfilment ([ADR-006](./architecture/adr/006-payments-razorpay-webhook-only.md)) | Live webhook URL + `RAZORPAY_WEBHOOK_SECRET` |
 | WebSocket room hijack | Join another user's booking room | JWT-derived rooms ([ADR-002](./architecture/adr/002-realtime-socket-fcm-outbox.md)) | Never trust `userId` from WS body |
 | Aadhaar in logs | Full UID leaked in support logs | Masked storage only ([ADR-007](./architecture/adr/007-aadhaar-surepass-ekyc.md)) | Audit logging around Surepass calls |
@@ -225,6 +225,7 @@ Sourced from Jim's gap audit ([GAPS.md](./architecture/GAPS.md)). Code mitigatio
 | [architecture/ARCHITECTURE.md](./architecture/ARCHITECTURE.md) | System architecture map (modules, flows, contracts) |
 | [architecture/adr/](./architecture/adr/) | Architecture decision records |
 | [architecture/GAPS.md](./architecture/GAPS.md) | Architecture gaps + risk register vs this file |
+| [architecture/PROTOTYPE_v147_HIRING_FLOWS.md](./architecture/PROTOTYPE_v147_HIRING_FLOWS.md) | v147 prototype vs shipped hiring flows |
 | [architecture/PAYMENT_PATHS.md](./architecture/PAYMENT_PATHS.md) | Live vs dormant payment paths (ADR-001 + ADR-006) |
 | [AUDIT_2026-07-13.md](./AUDIT_2026-07-13.md) | July perf / race / leak audit |
 | [SECURITY_2026-07-13.md](./SECURITY_2026-07-13.md) | July security audit + ops secret actions |

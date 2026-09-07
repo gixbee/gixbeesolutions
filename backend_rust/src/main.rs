@@ -1,0 +1,97 @@
+mod common;
+mod config;
+mod error;
+mod middleware;
+mod redis;
+mod routes;
+mod state;
+
+use std::net::SocketAddr;
+use std::sync::Arc;
+
+use axum::{routing::get, Router};
+use tower_http::cors::{Any, CorsLayer};
+use tower_http::services::ServeDir;
+use tower_http::trace::TraceLayer;
+
+use uuid::Uuid;
+
+use crate::config::{assert_production_secrets, connect_db, Config};
+use crate::redis::RedisStore;
+use crate::routes::api_router;
+use crate::state::AppState;
+
+#[tokio::main]
+async fn main() -> anyhow::Result<()> {
+    tracing_subscriber::fmt()
+        .with_env_filter(
+            tracing_subscriber::EnvFilter::try_from_default_env()
+                .unwrap_or_else(|_| "gixbee_backend=info,tower_http=info".into()),
+        )
+        .init();
+
+    let config = Config::from_env()?;
+    assert_production_secrets(&config)?;
+
+    let db = connect_db(&config.database_url).await?;
+    let redis = Arc::new(RedisStore::connect(&config).await?);
+
+    if !redis.is_ready() && !config.redis_allow_memory_fallback {
+        anyhow::bail!(
+            "Redis is required for Socket.IO across backend replicas. Start Redis or set REDIS_ALLOW_MEMORY_FALLBACK=true for single-process local dev."
+        );
+    }
+
+    let state = AppState {
+        config: config.clone(),
+        db,
+        redis,
+        http: reqwest::Client::new(),
+    };
+
+    let poller_state = state.clone();
+    tokio::spawn(async move {
+        outbox_poller(poller_state).await;
+    });
+
+    let uploads = ServeDir::new(&config.uploads_dir);
+    let app = Router::new()
+        .route("/", get(|| async { "Hello World!" }))
+        .nest_service("/uploads", uploads)
+        .merge(api_router())
+        .layer(
+            CorsLayer::new()
+                .allow_origin(Any)
+                .allow_methods(Any)
+                .allow_headers(Any),
+        )
+        .layer(TraceLayer::new_for_http())
+        .with_state(state);
+
+    let addr = SocketAddr::from(([0, 0, 0, 0], config.port));
+    tracing::info!("Gixbee Rust backend running on http://{}", addr);
+    let listener = tokio::net::TcpListener::bind(addr).await?;
+    axum::serve(listener, app).await?;
+    Ok(())
+}
+
+async fn outbox_poller(state: AppState) {
+    let mut interval = tokio::time::interval(std::time::Duration::from_secs(5));
+    loop {
+        interval.tick().await;
+        let rows = sqlx::query(
+            r#"SELECT id, type, payload FROM outbox_events WHERE status = 'PENDING' ORDER BY "createdAt" LIMIT 10"#,
+        )
+        .fetch_all(&state.db)
+        .await;
+        if let Ok(rows) = rows {
+            for row in rows {
+                let id: Uuid = row.get("id");
+                let _ = sqlx::query(r#"UPDATE outbox_events SET status = 'DISPATCHED' WHERE id = $1"#)
+                    .bind(id)
+                    .execute(&state.db)
+                    .await;
+            }
+        }
+    }
+}
