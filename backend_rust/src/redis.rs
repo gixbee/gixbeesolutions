@@ -1,8 +1,7 @@
-use std::sync::Mutex;
-
 use anyhow::{Context, Result};
 use redis::aio::ConnectionManager;
 use redis::AsyncCommands;
+use tokio::sync::Mutex;
 
 use crate::config::Config;
 
@@ -43,11 +42,11 @@ impl RedisStore {
     }
 
     pub fn is_ready(&self) -> bool {
-        self.client.lock().unwrap().is_some()
+        self.client.blocking_lock().is_some()
     }
 
     pub async fn ping(&self) -> bool {
-        let mut guard = self.client.lock().unwrap();
+        let mut guard = self.client.lock().await;
         if let Some(ref mut c) = *guard {
             redis::cmd("PING")
                 .query_async::<String>(c)
@@ -60,7 +59,7 @@ impl RedisStore {
     }
 
     fn assert_fallback(&self, op: &str) -> Result<()> {
-        if self.client.lock().unwrap().is_some() || self.allow_memory_fallback {
+        if self.client.blocking_lock().is_some() || self.allow_memory_fallback {
             Ok(())
         } else {
             anyhow::bail!("Redis unavailable for {op} (in-memory fallback disabled)")
@@ -69,11 +68,11 @@ impl RedisStore {
 
     pub async fn set(&self, key: &str, value: &str, ttl_secs: u64) -> Result<()> {
         self.assert_fallback("set")?;
-        let mut guard = self.client.lock().unwrap();
+        let mut guard = self.client.lock().await;
         if let Some(ref mut c) = *guard {
             let _: () = c.set_ex(key, value, ttl_secs).await?;
         } else {
-            let mut m = self.mem_kv.lock().unwrap();
+            let mut m = self.mem_kv.lock().await;
             m.insert(
                 key.to_string(),
                 (
@@ -87,12 +86,12 @@ impl RedisStore {
 
     pub async fn get(&self, key: &str) -> Result<Option<String>> {
         self.assert_fallback("get")?;
-        let mut guard = self.client.lock().unwrap();
+        let mut guard = self.client.lock().await;
         if let Some(ref mut c) = *guard {
             let v: Option<String> = c.get(key).await?;
             Ok(v)
         } else {
-            let mut m = self.mem_kv.lock().unwrap();
+            let mut m = self.mem_kv.lock().await;
             if let Some((val, exp)) = m.get(key) {
                 if let Some(e) = exp {
                     if std::time::Instant::now() > *e {
@@ -109,11 +108,11 @@ impl RedisStore {
 
     pub async fn del(&self, key: &str) -> Result<()> {
         self.assert_fallback("del")?;
-        let mut guard = self.client.lock().unwrap();
+        let mut guard = self.client.lock().await;
         if let Some(ref mut c) = *guard {
             let _: () = c.del(key).await?;
         } else {
-            self.mem_kv.lock().unwrap().remove(key);
+            self.mem_kv.lock().await.remove(key);
         }
         Ok(())
     }
@@ -124,7 +123,7 @@ impl RedisStore {
 
     pub async fn consume_otp(&self, key: &str) -> Result<Option<String>> {
         self.assert_fallback("consumeOtp")?;
-        let mut guard = self.client.lock().unwrap();
+        let mut guard = self.client.lock().await;
         if let Some(ref mut c) = *guard {
             let script = redis::Script::new(
                 "local v = redis.call('GET', KEYS[1]); if v then redis.call('DEL', KEYS[1]); end; return v",
@@ -132,7 +131,7 @@ impl RedisStore {
             let val: Option<String> = script.key(key).invoke_async(c).await?;
             Ok(val)
         } else {
-            let mut m = self.mem_kv.lock().unwrap();
+            let mut m = self.mem_kv.lock().await;
             if let Some((val, exp)) = m.remove(key) {
                 if let Some(e) = exp {
                     if std::time::Instant::now() > e {
@@ -147,7 +146,8 @@ impl RedisStore {
     }
 
     pub async fn cache_fcm_token(&self, user_id: &str, token: &str) -> Result<()> {
-        self.set(&format!("fcm:{user_id}"), token, 30 * 24 * 60 * 60).await
+        self.set(&format!("fcm:{user_id}"), token, 30 * 24 * 60 * 60)
+            .await
     }
 
     pub async fn get_fcm_token(&self, user_id: &str) -> Result<Option<String>> {
@@ -156,13 +156,13 @@ impl RedisStore {
 
     pub async fn sadd(&self, key: &str, member: &str) -> Result<()> {
         self.assert_fallback("sadd")?;
-        let mut guard = self.client.lock().unwrap();
+        let mut guard = self.client.lock().await;
         if let Some(ref mut c) = *guard {
             let _: () = c.sadd(key, member).await?;
         } else {
             self.mem_sets
                 .lock()
-                .unwrap()
+                .await
                 .entry(key.to_string())
                 .or_default()
                 .insert(member.to_string());
@@ -172,10 +172,10 @@ impl RedisStore {
 
     pub async fn srem(&self, key: &str, member: &str) -> Result<()> {
         self.assert_fallback("srem")?;
-        let mut guard = self.client.lock().unwrap();
+        let mut guard = self.client.lock().await;
         if let Some(ref mut c) = *guard {
             let _: () = c.srem(key, member).await?;
-        } else if let Some(set) = self.mem_sets.lock().unwrap().get_mut(key) {
+        } else if let Some(set) = self.mem_sets.lock().await.get_mut(key) {
             set.remove(member);
         }
         Ok(())
@@ -183,7 +183,7 @@ impl RedisStore {
 
     pub async fn smembers(&self, key: &str) -> Result<Vec<String>> {
         self.assert_fallback("smembers")?;
-        let mut guard = self.client.lock().unwrap();
+        let mut guard = self.client.lock().await;
         if let Some(ref mut c) = *guard {
             let members: Vec<String> = c.smembers(key).await?;
             Ok(members)
@@ -191,7 +191,7 @@ impl RedisStore {
             Ok(self
                 .mem_sets
                 .lock()
-                .unwrap()
+                .await
                 .get(key)
                 .map(|s| s.iter().cloned().collect())
                 .unwrap_or_default())
