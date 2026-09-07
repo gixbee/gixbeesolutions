@@ -4,6 +4,7 @@ use axum::{
     Json, Router,
 };
 use serde_json::{json, Value};
+use sqlx::Row;
 use uuid::Uuid;
 
 use crate::common::money::WALLET_PAYMENTS_ENABLED;

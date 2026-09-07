@@ -135,7 +135,7 @@ async fn create_instant(
     .fetch_one(&state.db)
     .await?;
 
-    let booking = get_one_inner(&state, &id.to_string())?;
+    let booking = get_one_inner(&state, &id.to_string()).await?;
     Ok(Json(json!({ "booking": booking, "notified": notified })))
 }
 
@@ -327,10 +327,10 @@ async fn get_one(
     _user: AuthUser,
     Path(id): Path<String>,
 ) -> AppResult<Json<Value>> {
-    Ok(Json(get_one_inner(&state, &id)?))
+    Ok(Json(get_one_inner(&state, &id).await?))
 }
 
-fn get_one_inner(state: &AppState, id: &str) -> AppResult<Value> {
+async fn get_one_inner(state: &AppState, id: &str) -> AppResult<Value> {
     let bid = Uuid::parse_str(id)?;
     let row = sqlx::query(r#"SELECT * FROM bookings WHERE id = $1"#)
         .bind(bid)
@@ -437,7 +437,7 @@ async fn get_status(
     if let Some(v) = cached {
         return Ok(Json(serde_json::from_str(&v).unwrap_or(json!({}))));
     }
-    Ok(Json(get_one_inner(&state, &id)?))
+    Ok(Json(get_one_inner(&state, &id).await?))
 }
 
 fn booking_json(row: &sqlx::postgres::PgRow) -> Value {

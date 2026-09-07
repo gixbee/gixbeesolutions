@@ -185,9 +185,9 @@ async fn generate_token_pair(
     role: &str,
 ) -> AppResult<Json<TokenPair>> {
     let claims = JwtClaims {
-        sub: user_id.clone(),
-        phoneNumber: Some(phone.clone()),
-        role: Some(role.clone()),
+        sub: user_id.to_string(),
+        phoneNumber: Some(phone.to_string()),
+        role: Some(role.to_string()),
         staffRole: None,
         pages: vec![],
         username: None,
@@ -448,9 +448,11 @@ async fn validate_staff(state: &AppState, username: &str, password: &str) -> App
                 .unwrap_or_default();
             return Ok(Some(StaffRow {
                 id: r.get::<Uuid, _>("id").to_string(),
-                username: r.get("username"),
-                display_name: r.get::<Option<String>, _>("displayName").unwrap_or_else(|| username.clone()),
-                staff_role: r.get("staffRole"),
+                username: r.get::<String, _>("username"),
+                display_name: r
+                    .get::<Option<String>, _>("displayName")
+                    .unwrap_or_else(|| username.to_string()),
+                staff_role: r.get::<String, _>("staffRole"),
                 pages: Some(page_list),
             }));
         }

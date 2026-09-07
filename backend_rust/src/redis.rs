@@ -71,7 +71,7 @@ impl RedisStore {
         self.assert_fallback("set")?;
         let mut guard = self.client.lock().unwrap();
         if let Some(ref mut c) = *guard {
-            c.set_ex(key, value, ttl_secs).await?;
+            let _: () = c.set_ex(key, value, ttl_secs).await?;
         } else {
             let mut m = self.mem_kv.lock().unwrap();
             m.insert(
@@ -111,7 +111,7 @@ impl RedisStore {
         self.assert_fallback("del")?;
         let mut guard = self.client.lock().unwrap();
         if let Some(ref mut c) = *guard {
-            c.del(key).await?;
+            let _: () = c.del(key).await?;
         } else {
             self.mem_kv.lock().unwrap().remove(key);
         }
@@ -158,7 +158,7 @@ impl RedisStore {
         self.assert_fallback("sadd")?;
         let mut guard = self.client.lock().unwrap();
         if let Some(ref mut c) = *guard {
-            c.sadd(key, member).await?;
+            let _: () = c.sadd(key, member).await?;
         } else {
             self.mem_sets
                 .lock()
@@ -174,7 +174,7 @@ impl RedisStore {
         self.assert_fallback("srem")?;
         let mut guard = self.client.lock().unwrap();
         if let Some(ref mut c) = *guard {
-            c.srem(key, member).await?;
+            let _: () = c.srem(key, member).await?;
         } else if let Some(set) = self.mem_sets.lock().unwrap().get_mut(key) {
             set.remove(member);
         }

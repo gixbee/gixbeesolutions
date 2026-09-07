@@ -21,9 +21,10 @@ async fn upload_image(
 ) -> AppResult<Json<Value>> {
     while let Some(field) = multipart.next_field().await.map_err(|e| AppError::BadRequest(e.to_string()))? {
         if field.name() == Some("file") {
+            let file_name = field.file_name().map(|n| n.to_string());
             let data = field.bytes().await.map_err(|e| AppError::BadRequest(e.to_string()))?;
-            let ext = field
-                .file_name()
+            let ext = file_name
+                .as_deref()
                 .and_then(|n| n.rsplit('.').next())
                 .filter(|e| ["jpg", "jpeg", "png", "webp"].contains(e))
                 .unwrap_or("jpg");

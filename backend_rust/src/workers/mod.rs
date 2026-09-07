@@ -90,9 +90,12 @@ async fn get_my_dashboard(State(state): State<AppState>, user: AuthUser) -> AppR
         .await?
         .unwrap_or(0);
     Ok(Json(json!({
-        "profile": profile.map(|p| worker_json(&p)),
+        "profile": profile.as_ref().map(worker_json),
         "jobCredits": credits,
-        "isLive": profile.map(|p| p.get::<bool, _>("isLive")).unwrap_or(false),
+        "isLive": profile
+            .as_ref()
+            .map(|p| p.get::<bool, _>("isLive"))
+            .unwrap_or(false),
     })))
 }
 
