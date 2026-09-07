@@ -32,7 +32,7 @@ pub const RENTAL_RESERVATION_COLS: &str = r#"
 "#;
 
 pub const PROFESSIONAL_SKILL_COLS: &str =
-    r#"id, "userId", skill, status::text AS status, "createdAt", "updatedAt""#;
+    r#"id, "talentProfileId", name, "hourlyRate", bio, "rateChart", status::text AS status, "createdAt", "updatedAt""#;
 
 pub const JOB_PREFERENCE_COLS: &str = r#"
     id, "userId", "jobType", skills, "preferredLocation", "expectedSalary", "salaryNegotiable",
@@ -53,6 +53,9 @@ pub const ADMIN_STAFF_COLS: &str =
     r#"id, username, "displayName", "staffRole"::text AS "staffRole", "allowedPages", "isActive""#;
 
 pub const WORKER_PROFILE_COLS: &str = r#"
-    w.id, w."userId", w.skills, w."hourlyRate", w."serviceRadiusKm", w."isLive", w.lat, w.lng,
-    w."verificationStatus"::text AS "verificationStatus", w."createdAt", w."updatedAt"
+    id, "userId", skills, "activeSkills", languages, "serviceRadiusKm", "hourlyRate",
+    "isActive", "goLiveToggleCountToday", "goLiveToggleDate", "jobsSincePayment",
+    "strikeCount", "verificationStatus"::text AS "verificationStatus",
+    bio, title, rating, "completedJobs", "reviewCount", "lastLat", "lastLng",
+    "createdAt", "updatedAt"
 "#;

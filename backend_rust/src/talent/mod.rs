@@ -1,5 +1,5 @@
 use axum::{
-    extract::{Path, State},
+    extract::State,
     routing::{get, patch, post},
     Json, Router,
 };
@@ -26,13 +26,81 @@ pub fn routes() -> Router<AppState> {
         .route("/verification/submit-otp", post(aadhaar_submit_otp))
 }
 
+fn parse_list(raw: Option<String>) -> Vec<String> {
+    raw.map(|s| {
+        s.split(',')
+            .map(|p| p.trim())
+            .filter(|p| !p.is_empty())
+            .collect()
+    })
+    .unwrap_or_default()
+}
+
+fn list_to_db(items: &[String]) -> String {
+    items.join(",")
+}
+
+async fn ensure_talent_profile(state: &AppState, user_id: Uuid) -> AppResult<Uuid> {
+    let existing = sqlx::query_scalar::<_, Uuid>(
+        r#"SELECT id FROM talent_profiles WHERE "userId" = $1"#,
+    )
+    .bind(user_id)
+    .fetch_optional(&state.db)
+    .await?;
+    if let Some(id) = existing {
+        return Ok(id);
+    }
+    let id = Uuid::new_v4();
+    sqlx::query(
+        r#"INSERT INTO talent_profiles (id, "userId", "jobAlertsEnabled") VALUES ($1, $2, true)"#,
+    )
+    .bind(id)
+    .bind(user_id)
+    .execute(&state.db)
+    .await?;
+    Ok(id)
+}
+
+async fn load_profile(state: &AppState, user_id: Uuid) -> AppResult<Value> {
+    let profile_id = ensure_talent_profile(state, user_id).await?;
+    let row = sqlx::query(
+        r#"SELECT tp.id, tp."userId", tp."photoUrl", tp.certificates, tp.experience, tp."hourlyRate",
+                  tp."jobAlertsEnabled", tp."savedJobIds",
+                  u.name, u."approvalStatus"::text AS "approvalStatus"
+           FROM talent_profiles tp
+           JOIN users u ON u.id = tp."userId"
+           WHERE tp."userId" = $1"#,
+    )
+    .bind(user_id)
+    .fetch_one(&state.db)
+    .await?;
+
+    let skills = sqlx::query(&format!(
+        r#"SELECT {PROFESSIONAL_SKILL_COLS} FROM professional_skills WHERE "talentProfileId" = $1 ORDER BY "createdAt""#
+    ))
+    .bind(profile_id)
+    .fetch_all(&state.db)
+    .await?;
+
+    Ok(json!({
+        "id": row.get::<Uuid, _>("id").to_string(),
+        "photoUrl": row.get::<Option<String>, _>("photoUrl"),
+        "certificates": parse_list(row.try_get::<Option<String>, _>("certificates").ok().flatten()),
+        "experience": row.get::<Option<String>, _>("experience"),
+        "hourlyRate": row.try_get::<Option<f64>, _>("hourlyRate").ok().flatten(),
+        "jobAlertsEnabled": row.get::<bool, _>("jobAlertsEnabled"),
+        "savedJobIds": parse_list(row.try_get::<Option<String>, _>("savedJobIds").ok().flatten()),
+        "professionalSkills": skills.iter().map(skill_json).collect::<Vec<_>>(),
+        "user": {
+            "name": row.get::<Option<String>, _>("name"),
+            "approvalStatus": row.get::<String, _>("approvalStatus"),
+        },
+    }))
+}
+
 async fn get_profile(State(state): State<AppState>, user: AuthUser) -> AppResult<Json<Value>> {
     let uid = Uuid::parse_str(&user.user_id)?;
-    let row = sqlx::query(r#"SELECT * FROM talent_profiles WHERE "userId" = $1"#)
-        .bind(uid)
-        .fetch_optional(&state.db)
-        .await?;
-    Ok(Json(row.map(|r| talent_json(&r)).unwrap_or(json!({ "registered": false }))))
+    Ok(Json(load_profile(&state, uid).await?))
 }
 
 async fn update_profile(
@@ -41,19 +109,34 @@ async fn update_profile(
     Json(body): Json<Value>,
 ) -> AppResult<Json<Value>> {
     let uid = Uuid::parse_str(&user.user_id)?;
-    let id = Uuid::new_v4();
-    sqlx::query(
-        r#"INSERT INTO talent_profiles (id, "userId", headline, experience, "jobAlertsEnabled")
-           VALUES ($1, $2, $3, $4, true)
-           ON CONFLICT ("userId") DO UPDATE SET headline = $3, experience = $4"#,
-    )
-    .bind(id)
-    .bind(uid)
-    .bind(body.get("headline").and_then(|v| v.as_str()))
-    .bind(body.get("experience").and_then(|v| v.as_i64()).unwrap_or(0))
-    .execute(&state.db)
-    .await?;
-    get_profile(State(state), user).await
+    let profile_id = ensure_talent_profile(&state, uid).await?;
+
+    if let Some(photo) = body.get("photoUrl").and_then(|v| v.as_str()) {
+        sqlx::query(r#"UPDATE talent_profiles SET "photoUrl" = $1 WHERE id = $2"#)
+            .bind(photo)
+            .bind(profile_id)
+            .execute(&state.db)
+            .await?;
+    }
+    if let Some(certs) = body.get("certificates").and_then(|v| v.as_array()) {
+        let cert_list: Vec<String> = certs
+            .iter()
+            .filter_map(|v| v.as_str().map(String::from))
+            .collect();
+        sqlx::query(r#"UPDATE talent_profiles SET certificates = $1 WHERE id = $2"#)
+            .bind(list_to_db(&cert_list))
+            .bind(profile_id)
+            .execute(&state.db)
+            .await?;
+    }
+    if let Some(exp) = body.get("experience").and_then(|v| v.as_str()) {
+        sqlx::query(r#"UPDATE talent_profiles SET experience = $1 WHERE id = $2"#)
+            .bind(exp)
+            .bind(profile_id)
+            .execute(&state.db)
+            .await?;
+    }
+    Ok(Json(load_profile(&state, uid).await?))
 }
 
 async fn add_skill(
@@ -62,22 +145,55 @@ async fn add_skill(
     Json(body): Json<Value>,
 ) -> AppResult<Json<Value>> {
     let uid = Uuid::parse_str(&user.user_id)?;
-    let id = Uuid::new_v4();
-    let skill = body.get("skillName").and_then(|v| v.as_str()).unwrap_or("");
-    sqlx::query(
-        r#"INSERT INTO professional_skills (id, "userId", skill, status) VALUES ($1, $2, $3, 'PENDING')"#,
+    let profile_id = ensure_talent_profile(&state, uid).await?;
+    let skill_name = body.get("skillName").and_then(|v| v.as_str()).unwrap_or("");
+    let rate = body.get("rate").and_then(|v| v.as_f64()).unwrap_or(0.0);
+    let bio = body.get("bio").and_then(|v| v.as_str()).unwrap_or("");
+    let rate_chart = body.get("rateChart").cloned().unwrap_or(json!({}));
+
+    let existing_id = sqlx::query_scalar::<_, Uuid>(
+        r#"SELECT id FROM professional_skills WHERE "talentProfileId" = $1 AND name = $2"#,
     )
-    .bind(id)
-    .bind(uid)
-    .bind(skill)
-    .execute(&state.db)
+    .bind(profile_id)
+    .bind(skill_name)
+    .fetch_optional(&state.db)
     .await?;
-    Ok(Json(skill_json(
-        &sqlx::query(&format!(r#"SELECT {PROFESSIONAL_SKILL_COLS} FROM professional_skills WHERE id = $1"#))
-            .bind(id)
-            .fetch_one(&state.db)
-            .await?,
-    )))
+
+    let skill_id = if let Some(id) = existing_id {
+        sqlx::query(
+            r#"UPDATE professional_skills SET "hourlyRate" = $1, bio = $2, "rateChart" = $3, status = 'PENDING' WHERE id = $4"#,
+        )
+        .bind(rate)
+        .bind(bio)
+        .bind(rate_chart)
+        .bind(id)
+        .execute(&state.db)
+        .await?;
+        id
+    } else {
+        let id = Uuid::new_v4();
+        sqlx::query(
+            r#"INSERT INTO professional_skills (id, "talentProfileId", name, "hourlyRate", bio, "rateChart", status)
+               VALUES ($1, $2, $3, $4, $5, $6, 'PENDING')"#,
+        )
+        .bind(id)
+        .bind(profile_id)
+        .bind(skill_name)
+        .bind(rate)
+        .bind(bio)
+        .bind(rate_chart)
+        .execute(&state.db)
+        .await?;
+        id
+    };
+
+    let row = sqlx::query(&format!(
+        r#"SELECT {PROFESSIONAL_SKILL_COLS} FROM professional_skills WHERE id = $1"#
+    ))
+    .bind(skill_id)
+    .fetch_one(&state.db)
+    .await?;
+    Ok(Json(skill_json(&row)))
 }
 
 #[derive(Deserialize)]
@@ -91,12 +207,15 @@ async fn remove_skill(
     Json(body): Json<RemoveSkillBody>,
 ) -> AppResult<Json<Value>> {
     let uid = Uuid::parse_str(&user.user_id)?;
+    let profile_id = ensure_talent_profile(&state, uid).await?;
     let sid = Uuid::parse_str(&body.skillId)?;
-    sqlx::query(r#"DELETE FROM professional_skills WHERE id = $1 AND "userId" = $2"#)
-        .bind(sid)
-        .bind(uid)
-        .execute(&state.db)
-        .await?;
+    sqlx::query(
+        r#"DELETE FROM professional_skills WHERE id = $1 AND "talentProfileId" = $2"#,
+    )
+    .bind(sid)
+    .bind(profile_id)
+    .execute(&state.db)
+    .await?;
     Ok(Json(json!({ "message": "Removed" })))
 }
 
@@ -125,15 +244,54 @@ struct ToggleJobBody {
 }
 
 async fn toggle_saved_job(
-    State(_state): State<AppState>,
-    _user: AuthUser,
+    State(state): State<AppState>,
+    user: AuthUser,
     Json(body): Json<ToggleJobBody>,
 ) -> AppResult<Json<Value>> {
-    Ok(Json(json!({ "jobId": body.jobId, "saved": true })))
+    let uid = Uuid::parse_str(&user.user_id)?;
+    let profile_id = ensure_talent_profile(&state, uid).await?;
+    let current = sqlx::query_scalar::<_, Option<String>>(
+        r#"SELECT "savedJobIds" FROM talent_profiles WHERE id = $1"#,
+    )
+    .bind(profile_id)
+    .fetch_one(&state.db)
+    .await?;
+    let mut saved = parse_list(current);
+    if saved.iter().any(|id| id == &body.jobId) {
+        saved.retain(|id| id != &body.jobId);
+    } else {
+        saved.push(body.jobId.clone());
+    }
+    sqlx::query(r#"UPDATE talent_profiles SET "savedJobIds" = $1 WHERE id = $2"#)
+        .bind(list_to_db(&saved))
+        .bind(profile_id)
+        .execute(&state.db)
+        .await?;
+    Ok(Json(json!({ "savedJobIds": saved })))
 }
 
-async fn verification_status() -> Json<Value> {
-    Json(json!({ "status": "NOT_STARTED" }))
+async fn verification_status(
+    State(state): State<AppState>,
+    user: AuthUser,
+) -> AppResult<Json<Value>> {
+    let uid = Uuid::parse_str(&user.user_id)?;
+    let row = sqlx::query(
+        r#"SELECT "verificationStatus"::text AS "verificationStatus", "maskedAadhaar"
+           FROM worker_profiles WHERE "userId" = $1"#,
+    )
+    .bind(uid)
+    .fetch_optional(&state.db)
+    .await?;
+    if let Some(r) = row {
+        let status = r.get::<String, _>("verificationStatus");
+        Ok(Json(json!({
+            "status": status,
+            "verified": status == "VERIFIED",
+            "maskedAadhaar": r.get::<Option<String>, _>("maskedAadhaar"),
+        })))
+    } else {
+        Ok(Json(json!({ "status": "NOT_STARTED", "verified": false })))
+    }
 }
 
 async fn verification_initiate() -> Json<Value> {
@@ -163,26 +321,58 @@ struct AadhaarSubmitBody {
 }
 
 async fn aadhaar_submit_otp(
-    State(_state): State<AppState>,
-    _user: AuthUser,
+    State(state): State<AppState>,
+    user: AuthUser,
     Json(_body): Json<AadhaarSubmitBody>,
 ) -> AppResult<Json<Value>> {
+    let uid = Uuid::parse_str(&user.user_id)?;
+    // Dev stub: mark worker profile verified when Surepass is not configured.
+    if state.config.aadhaar_client_secret.is_none() {
+        let existing = sqlx::query_scalar::<_, Uuid>(
+            r#"SELECT id FROM worker_profiles WHERE "userId" = $1"#,
+        )
+        .bind(uid)
+        .fetch_optional(&state.db)
+        .await?;
+        if existing.is_none() {
+            sqlx::query(
+                r#"INSERT INTO worker_profiles (id, "userId", skills, "hourlyRate", "verificationStatus", "isActive")
+                   VALUES ($1, $2, '', 0, 'VERIFIED', false)"#,
+            )
+            .bind(Uuid::new_v4())
+            .bind(uid)
+            .execute(&state.db)
+            .await?;
+            sqlx::query(r#"UPDATE users SET "hasWorkerProfile" = true WHERE id = $1"#)
+                .bind(uid)
+                .execute(&state.db)
+                .await?;
+        } else {
+            sqlx::query(
+                r#"UPDATE worker_profiles SET "verificationStatus" = 'VERIFIED', "maskedAadhaar" = 'XXXX-XXXX-1234'
+                   WHERE "userId" = $1"#,
+            )
+            .bind(uid)
+            .execute(&state.db)
+            .await?;
+        }
+        return Ok(Json(json!({
+            "verified": true,
+            "status": "VERIFIED",
+            "maskedAadhaar": "XXXX-XXXX-1234",
+            "message": "Aadhaar verified successfully.",
+        })));
+    }
     Ok(Json(json!({ "verified": true })))
-}
-
-fn talent_json(row: &sqlx::postgres::PgRow) -> Value {
-    json!({
-        "userId": row.get::<Uuid, _>("userId").to_string(),
-        "headline": row.get::<Option<String>, _>("headline"),
-        "experience": row.get::<i32, _>("experience"),
-        "jobAlertsEnabled": row.get::<bool, _>("jobAlertsEnabled"),
-    })
 }
 
 fn skill_json(row: &sqlx::postgres::PgRow) -> Value {
     json!({
         "id": row.get::<Uuid, _>("id").to_string(),
-        "skill": row.get::<String, _>("skill"),
+        "name": row.get::<String, _>("name"),
+        "hourlyRate": row.try_get::<f64, _>("hourlyRate").ok(),
+        "bio": row.get::<Option<String>, _>("bio"),
         "status": row.get::<String, _>("status"),
+        "rateChart": row.try_get::<serde_json::Value, _>("rateChart").ok(),
     })
 }
