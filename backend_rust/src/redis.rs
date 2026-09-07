@@ -6,6 +6,7 @@ use tokio::sync::Mutex;
 use crate::config::Config;
 
 pub struct RedisStore {
+    ready: bool,
     client: Mutex<Option<ConnectionManager>>,
     allow_memory_fallback: bool,
     mem_kv: Mutex<std::collections::HashMap<String, (String, Option<std::time::Instant>)>>,
@@ -34,6 +35,7 @@ impl RedisStore {
         };
 
         Ok(Self {
+            ready: client.is_some(),
             client: Mutex::new(client),
             allow_memory_fallback: config.redis_allow_memory_fallback,
             mem_kv: Mutex::new(std::collections::HashMap::new()),
@@ -42,7 +44,7 @@ impl RedisStore {
     }
 
     pub fn is_ready(&self) -> bool {
-        self.client.blocking_lock().is_some()
+        self.ready
     }
 
     pub async fn ping(&self) -> bool {
@@ -59,7 +61,7 @@ impl RedisStore {
     }
 
     fn assert_fallback(&self, op: &str) -> Result<()> {
-        if self.client.blocking_lock().is_some() || self.allow_memory_fallback {
+        if self.ready || self.allow_memory_fallback {
             Ok(())
         } else {
             anyhow::bail!("Redis unavailable for {op} (in-memory fallback disabled)")
