@@ -233,7 +233,7 @@ async fn refresh_token(
         return Err(AppError::Unauthorized("Refresh token revoked or expired".into()));
     }
 
-    let row = sqlx::query(r#"SELECT "phoneNumber", role FROM users WHERE id = $1"#)
+    let row = sqlx::query(r#"SELECT "phoneNumber", role::text AS role FROM users WHERE id = $1"#)
         .bind(Uuid::parse_str(&claims.sub).map_err(|_| AppError::Unauthorized("User not found".into()))?)
         .fetch_optional(&state.db)
         .await?;
@@ -278,7 +278,7 @@ async fn get_profile(State(state): State<AppState>, user: AuthUser) -> AppResult
     let uid = Uuid::parse_str(&user.user_id).map_err(|_| AppError::NotFound("User not found".into()))?;
     let row = sqlx::query(
         r#"
-        SELECT id, "phoneNumber", name, "profileImageUrl", role, "hasWorkerProfile",
+        SELECT id, "phoneNumber", name, "profileImageUrl", role::text AS role, "hasWorkerProfile",
                "isAvailableForWork", "instantHelpBlocked", "lateCancelStrikeCount",
                "unblockCompensationAmountInr", "unblockCompensationDistanceKm"
         FROM users WHERE id = $1

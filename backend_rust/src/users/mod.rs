@@ -62,7 +62,7 @@ async fn get_all_users(
     let (page, limit) = parse_pagination(q.page.as_deref(), q.limit.as_deref());
     let offset = pagination_offset(page, limit);
     let rows = sqlx::query(
-        r#"SELECT id, "phoneNumber", name, role, "isVerified", "hasWorkerProfile", "approvalStatus", "createdAt" FROM users ORDER BY "createdAt" DESC LIMIT $1 OFFSET $2"#,
+        r#"SELECT id, "phoneNumber", name, role::text AS role, "isVerified", "hasWorkerProfile", "approvalStatus"::text AS "approvalStatus", "createdAt" FROM users ORDER BY "createdAt" DESC LIMIT $1 OFFSET $2"#,
     )
     .bind(limit)
     .bind(offset)
@@ -122,7 +122,9 @@ async fn get_user(
 ) -> AppResult<Json<Value>> {
     assert_self_or_admin(&user, &id)?;
     let uid = Uuid::parse_str(&id)?;
-    let row = sqlx::query(r#"SELECT * FROM users WHERE id = $1"#)
+    let row = sqlx::query(
+        r#"SELECT id, name, role::text AS role, "isVerified", "hasWorkerProfile", "profileImageUrl", "approvalStatus"::text AS "approvalStatus", "phoneNumber" FROM users WHERE id = $1"#,
+    )
         .bind(uid)
         .fetch_optional(&state.db)
         .await?
