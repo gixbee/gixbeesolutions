@@ -198,7 +198,7 @@ async fn get_my_dashboard(State(state): State<AppState>, user: AuthUser) -> AppR
     let jobs_since_payment = profile.get::<i32, _>("jobsSincePayment");
 
     let completed = sqlx::query(
-        r#"SELECT id, skill, amount, "totalAmount", "updatedAt", u.name AS "customerName"
+        r#"SELECT b.id, b.skill, b.amount, b."totalAmount", b."updatedAt", u.name AS "customerName"
            FROM bookings b
            LEFT JOIN users u ON u.id = b."customerId"
            WHERE b."operatorId" = $1 AND b.status::text = 'COMPLETED'
