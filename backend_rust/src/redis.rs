@@ -18,7 +18,8 @@ pub struct WorkerLocationSnapshot {
 
 pub struct RedisStore {
     ready: bool,
-    client: Mutex<Option<ConnectionManager>>,
+    /// Cheap to clone; multiplexes commands without a process-wide lock.
+    client: Option<ConnectionManager>,
     allow_memory_fallback: bool,
     mem_kv: Mutex<std::collections::HashMap<String, (String, Option<std::time::Instant>)>>,
     mem_sets: Mutex<std::collections::HashMap<String, std::collections::HashSet<String>>>,
@@ -49,13 +50,17 @@ impl RedisStore {
 
         Ok(Self {
             ready: client.is_some(),
-            client: Mutex::new(client),
+            client,
             allow_memory_fallback: config.redis_allow_memory_fallback,
             mem_kv: Mutex::new(std::collections::HashMap::new()),
             mem_sets: Mutex::new(std::collections::HashMap::new()),
             mem_zsets: Mutex::new(std::collections::HashMap::new()),
             mem_geo: Mutex::new(std::collections::HashMap::new()),
         })
+    }
+
+    fn conn(&self) -> Option<ConnectionManager> {
+        self.client.clone()
     }
 
     fn skill_key(skill: &str) -> String {
@@ -77,16 +82,14 @@ impl RedisStore {
     }
 
     pub async fn ping(&self) -> bool {
-        let mut guard = self.client.lock().await;
-        if let Some(ref mut c) = *guard {
-            redis::cmd("PING")
-                .query_async::<String>(c)
-                .await
-                .map(|r| r == "PONG")
-                .unwrap_or(false)
-        } else {
-            false
-        }
+        let Some(mut c) = self.conn() else {
+            return false;
+        };
+        redis::cmd("PING")
+            .query_async::<String>(&mut c)
+            .await
+            .map(|r| r == "PONG")
+            .unwrap_or(false)
     }
 
     fn assert_fallback(&self, op: &str) -> Result<()> {
@@ -99,8 +102,7 @@ impl RedisStore {
 
     pub async fn set(&self, key: &str, value: &str, ttl_secs: u64) -> Result<()> {
         self.assert_fallback("set")?;
-        let mut guard = self.client.lock().await;
-        if let Some(ref mut c) = *guard {
+        if let Some(mut c) = self.conn() {
             let _: () = c.set_ex(key, value, ttl_secs).await?;
         } else {
             let mut m = self.mem_kv.lock().await;
@@ -117,8 +119,7 @@ impl RedisStore {
 
     pub async fn get(&self, key: &str) -> Result<Option<String>> {
         self.assert_fallback("get")?;
-        let mut guard = self.client.lock().await;
-        if let Some(ref mut c) = *guard {
+        if let Some(mut c) = self.conn() {
             let v: Option<String> = c.get(key).await?;
             Ok(v)
         } else {
@@ -139,8 +140,7 @@ impl RedisStore {
 
     pub async fn del(&self, key: &str) -> Result<()> {
         self.assert_fallback("del")?;
-        let mut guard = self.client.lock().await;
-        if let Some(ref mut c) = *guard {
+        if let Some(mut c) = self.conn() {
             let _: () = c.del(key).await?;
         } else {
             self.mem_kv.lock().await.remove(key);
@@ -154,12 +154,11 @@ impl RedisStore {
 
     pub async fn consume_otp(&self, key: &str) -> Result<Option<String>> {
         self.assert_fallback("consumeOtp")?;
-        let mut guard = self.client.lock().await;
-        if let Some(ref mut c) = *guard {
+        if let Some(mut c) = self.conn() {
             let script = redis::Script::new(
                 "local v = redis.call('GET', KEYS[1]); if v then redis.call('DEL', KEYS[1]); end; return v",
             );
-            let val: Option<String> = script.key(key).invoke_async(c).await?;
+            let val: Option<String> = script.key(key).invoke_async(&mut c).await?;
             Ok(val)
         } else {
             let mut m = self.mem_kv.lock().await;
@@ -191,8 +190,7 @@ impl RedisStore {
 
     pub async fn sadd_with_ttl(&self, key: &str, member: &str, ttl_secs: Option<u64>) -> Result<()> {
         self.assert_fallback("sadd")?;
-        let mut guard = self.client.lock().await;
-        if let Some(ref mut c) = *guard {
+        if let Some(mut c) = self.conn() {
             let _: () = c.sadd(key, member).await?;
             if let Some(ttl) = ttl_secs {
                 let _: () = c.expire(key, ttl as i64).await?;
@@ -210,8 +208,7 @@ impl RedisStore {
 
     pub async fn srem(&self, key: &str, member: &str) -> Result<()> {
         self.assert_fallback("srem")?;
-        let mut guard = self.client.lock().await;
-        if let Some(ref mut c) = *guard {
+        if let Some(mut c) = self.conn() {
             let _: () = c.srem(key, member).await?;
         } else if let Some(set) = self.mem_sets.lock().await.get_mut(key) {
             set.remove(member);
@@ -221,8 +218,7 @@ impl RedisStore {
 
     pub async fn smembers(&self, key: &str) -> Result<Vec<String>> {
         self.assert_fallback("smembers")?;
-        let mut guard = self.client.lock().await;
-        if let Some(ref mut c) = *guard {
+        if let Some(mut c) = self.conn() {
             let members: Vec<String> = c.smembers(key).await?;
             Ok(members)
         } else {
@@ -238,13 +234,12 @@ impl RedisStore {
 
     pub async fn zadd(&self, key: &str, score: f64, member: &str, ttl_secs: u64) -> Result<()> {
         self.assert_fallback("zadd")?;
-        let mut guard = self.client.lock().await;
-        if let Some(ref mut c) = *guard {
+        if let Some(mut c) = self.conn() {
             let _: () = redis::cmd("ZADD")
                 .arg(key)
                 .arg(score)
                 .arg(member)
-                .query_async(c)
+                .query_async(&mut c)
                 .await?;
             let _: () = c.expire(key, ttl_secs as i64).await?;
         } else {
@@ -258,8 +253,7 @@ impl RedisStore {
 
     pub async fn zrem(&self, key: &str, member: &str) -> Result<()> {
         self.assert_fallback("zrem")?;
-        let mut guard = self.client.lock().await;
-        if let Some(ref mut c) = *guard {
+        if let Some(mut c) = self.conn() {
             let _: () = c.zrem(key, member).await?;
         } else if let Some(set) = self.mem_zsets.lock().await.get_mut(key) {
             set.remove(member);
@@ -269,13 +263,12 @@ impl RedisStore {
 
     pub async fn zrange_rev(&self, key: &str) -> Result<Vec<String>> {
         self.assert_fallback("zrange")?;
-        let mut guard = self.client.lock().await;
-        if let Some(ref mut c) = *guard {
+        if let Some(mut c) = self.conn() {
             let members: Vec<String> = redis::cmd("ZREVRANGE")
                 .arg(key)
                 .arg(0)
                 .arg(-1)
-                .query_async(c)
+                .query_async(&mut c)
                 .await?;
             Ok(members)
         } else {
@@ -395,14 +388,12 @@ impl RedisStore {
                     let lat = v.get("lat").and_then(|x| x.as_f64());
                     let lng = v.get("lng").and_then(|x| x.as_f64());
                     if let (Some(lat), Some(lng)) = (lat, lng) {
-                        let timestamp_ms = v
-                            .get("timestamp")
-                            .and_then(|ts| {
-                                ts.as_str()
-                                    .and_then(|s| chrono::DateTime::parse_from_rfc3339(s).ok())
-                                    .map(|dt| dt.timestamp_millis())
-                                    .or_else(|| ts.as_i64())
-                            });
+                        let timestamp_ms = v.get("timestamp").and_then(|ts| {
+                            ts.as_str()
+                                .and_then(|s| chrono::DateTime::parse_from_rfc3339(s).ok())
+                                .map(|dt| dt.timestamp_millis())
+                                .or_else(|| ts.as_i64())
+                        });
                         return Ok(Some(WorkerLocationSnapshot {
                             lat,
                             lng,
@@ -429,14 +420,13 @@ impl RedisStore {
 
     pub async fn geo_add(&self, member: &str, lat: f64, lng: f64) -> Result<()> {
         self.assert_fallback("geoAdd")?;
-        let mut guard = self.client.lock().await;
-        if let Some(ref mut c) = *guard {
+        if let Some(mut c) = self.conn() {
             let _: () = redis::cmd("GEOADD")
                 .arg(GEO_INDEX)
                 .arg(lng)
                 .arg(lat)
                 .arg(member)
-                .query_async(c)
+                .query_async(&mut c)
                 .await?;
         } else {
             self.mem_geo
@@ -449,8 +439,7 @@ impl RedisStore {
 
     pub async fn geo_rem(&self, member: &str) -> Result<()> {
         self.assert_fallback("geoRem")?;
-        let mut guard = self.client.lock().await;
-        if let Some(ref mut c) = *guard {
+        if let Some(mut c) = self.conn() {
             let _: () = c.zrem(GEO_INDEX, member).await?;
         } else {
             self.mem_geo.lock().await.remove(member);
@@ -467,8 +456,7 @@ impl RedisStore {
         radius_km: f64,
     ) -> Result<Option<Vec<String>>> {
         self.assert_fallback("geoSearch")?;
-        let mut guard = self.client.lock().await;
-        if let Some(ref mut c) = *guard {
+        if let Some(mut c) = self.conn() {
             let members: Result<Vec<String>, redis::RedisError> = redis::cmd("GEOSEARCH")
                 .arg(GEO_INDEX)
                 .arg("FROMLONLAT")
@@ -477,7 +465,7 @@ impl RedisStore {
                 .arg("BYRADIUS")
                 .arg(radius_km)
                 .arg("km")
-                .query_async(c)
+                .query_async(&mut c)
                 .await;
             match members {
                 Ok(ids) => Ok(Some(ids)),
@@ -531,15 +519,14 @@ impl RedisStore {
 
     pub async fn acquire_lock(&self, key: &str, ttl_secs: u64) -> Result<bool> {
         self.assert_fallback("acquireLock")?;
-        let mut guard = self.client.lock().await;
-        if let Some(ref mut c) = *guard {
+        if let Some(mut c) = self.conn() {
             let ok: Option<String> = redis::cmd("SET")
                 .arg(key)
                 .arg("1")
                 .arg("NX")
                 .arg("EX")
                 .arg(ttl_secs)
-                .query_async(c)
+                .query_async(&mut c)
                 .await?;
             Ok(ok.is_some())
         } else {

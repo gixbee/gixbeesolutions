@@ -163,14 +163,13 @@ pub async fn api_logging_middleware(
 
     let response = next.run(request).await;
     let status = response.status().as_u16() as i32;
+    // Persist failures only — successes are noise for the admin Logs page
+    // and flood Postgres under live-worker load.
+    if status < 400 {
+        return response;
+    }
     let duration_ms = started.elapsed().as_millis().min(i32::MAX as u128) as i32;
-    let level = if status >= 500 {
-        "ERROR"
-    } else if status >= 400 {
-        "WARN"
-    } else {
-        "INFO"
-    };
+    let level = if status >= 500 { "ERROR" } else { "WARN" };
 
     let state = state.clone();
     let path = clip(Some(uri), 500);

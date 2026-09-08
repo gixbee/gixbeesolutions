@@ -8,8 +8,8 @@ import {
 
 /**
  * Severity of a log entry.
- * INFO  — successful requests (2xx/3xx)
- * WARN  — expected client errors (4xx)
+ * INFO  — rare (boot/jobs) or client crash ingest; HTTP 2xx is not stored
+ * WARN  — client errors (4xx) so you can see bad requests
  * ERROR — server faults (5xx) and unhandled exceptions
  */
 export enum SystemLogLevel {
@@ -35,9 +35,9 @@ export enum SystemLogType {
 }
 
 /**
- * One row per API call / error, persisted by ApiLoggingInterceptor so the
- * super-admin portal can browse & filter production traffic without SSHing
- * into the box. High-churn table — see SystemLogsService.purge() for retention.
+ * One row per failure (or Flutter crash), persisted so the super-admin
+ * Logs page can show what to fix without SSHing into the box.
+ * High-churn table — see SystemLogsService.purge() for retention.
  */
 @Entity('system_logs')
 export class SystemLog {

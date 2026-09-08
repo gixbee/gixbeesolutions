@@ -171,9 +171,13 @@ pub fn assert_production_secrets(config: &Config) -> Result<()> {
 }
 
 pub async fn connect_db(database_url: &str) -> Result<sqlx::PgPool> {
+    // Per replica. Two replicas × 15 = 30 client conns to PgBouncer
+    // (DEFAULT_POOL_SIZE=40 real Postgres backends). 50/replica was
+    // oversized for a 2GB host and queued work in sqlx under load.
     let pool = sqlx::postgres::PgPoolOptions::new()
-        .max_connections(50)
+        .max_connections(15)
         .acquire_timeout(std::time::Duration::from_secs(10))
+        .idle_timeout(std::time::Duration::from_secs(30))
         .connect(database_url)
         .await
         .context("failed to connect to postgres")?;

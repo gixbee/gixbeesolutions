@@ -124,9 +124,8 @@ import { SmsModule } from './sms/sms.module';
           logging: !isProduction,
           // App-side pg pool. With PgBouncer in front (transaction pooling),
           // these are cheap client connections to the pooler — not real
-          // Postgres backends — so it's safe to raise above the pg default
-          // of 10. PgBouncer multiplexes them onto DEFAULT_POOL_SIZE real
-          // server connections.
+          // Postgres backends. Keep this modest on a 2GB host: two replicas
+          // × 15 = 30 clients vs PgBouncer DEFAULT_POOL_SIZE=40.
           //
           // TRANSACTION pooling means each checkout may land on a different
           // server backend. Do NOT use session-scoped Postgres features:
@@ -138,7 +137,7 @@ import { SmsModule } from './sms/sms.module';
           // rejects that startup parameter. Timeout is enforced on Postgres
           // itself via docker-compose (`postgres -c statement_timeout=60s`).
           extra: {
-            max: 50,
+            max: 15,
             idleTimeoutMillis: 30_000,
             connectionTimeoutMillis: 10_000,
             application_name: 'gixbee-backend',

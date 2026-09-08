@@ -7,9 +7,11 @@
   "scripts": {
     "test:100": "node step_test.js --target 100 --step 10 --delay 2000",
     "test:step-by-step": "node step_test.js --target 100 --step 1 --delay 1000",
-    "test:500": "node step_test.js --target 500 --step 25 --delay 2000"
+    "test:500": "node step_test.js --target 500 --step 25 --delay 2000",
+    "test:live": "node go_live_test.js --tokens-file tokens.json --target 50 --step 5"
   },
   "dependencies": {
+    "jsonwebtoken": "^9.0.2",
     "socket.io-client": "^4.8.1"
   }
 }

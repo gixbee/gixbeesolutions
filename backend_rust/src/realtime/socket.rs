@@ -81,9 +81,12 @@ pub async fn build_socket_layer(
     Ok((layer, io))
 }
 
-pub fn register_handlers(io: &Io) {
-    io.ns("/", on_connect);
+pub async fn register_handlers(io: &Io) -> anyhow::Result<()> {
+    // With the Redis adapter, namespace registration is async (subscribes Redis channels).
+    io.ns("/", on_connect).await?;
     RealtimeHub::bind(io.clone());
+    tracing::info!("Socket.IO namespace / registered");
+    Ok(())
 }
 
 async fn on_connect<A: Adapter>(

@@ -14,11 +14,11 @@ import { SystemLogsService } from './system-logs.service';
 import { SystemLogLevel, SystemLogType } from './system-log.entity';
 
 /**
- * Global HTTP interceptor that persists one SystemLog row per request:
- *  - successes  → level INFO, actual status + duration
+ * Global HTTP interceptor that persists failures for the admin Logs page:
  *  - HttpException (4xx) → level WARN
- *  - DB failures (QueryFailedError) → type DB, level ERROR, driver detail
- *  - anything else → level ERROR with stack trace
+ *  - 5xx / DB failures (QueryFailedError) → level ERROR with driver detail
+ *  - anything else thrown → level ERROR with stack trace
+ * Successful 2xx/3xx are not written — they hid real errors and flooded Postgres.
  *
  * Runs BEFORE AllExceptionsFilter in the error path (interceptors wrap the
  * handler), so the filter's client-facing envelope is untouched — this only
@@ -66,8 +66,12 @@ export class ApiLoggingInterceptor implements NestInterceptor {
     return next.handle().pipe(
       tap(() => {
         const res = context.switchToHttp().getResponse<Response>();
+        if (res.statusCode < 400) return;
         this.logs.record({
-          level: SystemLogLevel.INFO,
+          level:
+            res.statusCode >= 500
+              ? SystemLogLevel.ERROR
+              : SystemLogLevel.WARN,
           type: baseType,
           method,
           path: url,
