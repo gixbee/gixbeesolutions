@@ -497,7 +497,7 @@ const MY_BOOKING_COLS: &str = r#"
     b."isPaid", b."workerPaidConfirmed", b."customerPaidConfirmed",
     b."paymentCollectionMethod", b."workerHonestyCheck", b."customerSafetyCheck",
     b."billingHours", b."workedMinutes", b."petrolDistanceKm", b."petrolRatePerKm", b."petrolAmount",
-    b."scheduledAt", b."createdAt", b."completedAt", b."acceptedAt", b."arrivalOtp",
+    b."scheduledAt", b."createdAt", b."completedAt", b."acceptedAt", b."startedAt", b."arrivalOtp",
     cu.name AS "customerName", cu."profileImageUrl" AS "customerProfileImageUrl",
     op.name AS "operatorName", op."profileImageUrl" AS "operatorProfileImageUrl"
 "#;
@@ -1357,7 +1357,8 @@ async fn get_status(
 
     let row = sqlx::query(
         r#"SELECT status::text AS status, "isPaid", "workerPaidConfirmed", "customerPaidConfirmed",
-                  "customerId", "operatorId", "arrivalOtp", "cancelRequestedAt", "workerNoProgressAt"
+                  "customerId", "operatorId", "arrivalOtp", "cancelRequestedAt", "workerNoProgressAt",
+                  "startedAt"
            FROM bookings WHERE id = $1"#,
     )
     .bind(bid)
@@ -1409,6 +1410,13 @@ async fn get_status(
         );
         obj.insert("bookingId".into(), json!(id));
         obj.insert("id".into(), json!(id));
+        obj.insert(
+            "startedAt".into(),
+            json!(row
+                .try_get::<Option<chrono::DateTime<chrono::Utc>>, _>("startedAt")
+                .ok()
+                .flatten()),
+        );
 
         let show_otp = is_customer
             && (status_upper == "ACCEPTED" || status_upper == "ARRIVED");
@@ -1551,5 +1559,6 @@ fn booking_json(row: &sqlx::postgres::PgRow) -> Value {
         "createdAt": row.try_get::<chrono::DateTime<chrono::Utc>, _>("createdAt").ok(),
         "completedAt": row.try_get::<chrono::DateTime<chrono::Utc>, _>("completedAt").ok(),
         "acceptedAt": row.try_get::<chrono::DateTime<chrono::Utc>, _>("acceptedAt").ok(),
+        "startedAt": row.try_get::<chrono::DateTime<chrono::Utc>, _>("startedAt").ok(),
     })
 }

@@ -40,17 +40,27 @@ class _ActiveJobControlsState extends ConsumerState<ActiveJobControls> {
     super.dispose();
   }
 
-  Future<void> _init() async {
+  Future<void> _loadStartedAt() async {
     try {
       final booking = await ref
           .read(bookingRepositoryProvider)
           .getBookingById(widget.bookingId);
       final raw = booking?['startedAt']?.toString();
-      if (raw != null) _startedAt = DateTime.tryParse(raw);
+      if (raw != null && raw.isNotEmpty) {
+        final parsed = DateTime.tryParse(raw);
+        if (parsed != null && mounted) {
+          setState(() => _startedAt = parsed);
+        }
+      }
     } catch (e) {
       debugPrint('ActiveJobControls startedAt fetch failed: $e');
     }
+  }
+
+  Future<void> _init() async {
+    await _loadStartedAt();
     if (!mounted) return;
+    _ticker?.cancel();
     _ticker = Timer.periodic(const Duration(seconds: 1), (_) {
       if (!mounted || _startedAt == null) return;
       final worked = DateTime.now().difference(_startedAt!);
@@ -70,6 +80,24 @@ class _ActiveJobControlsState extends ConsumerState<ActiveJobControls> {
     final statusData =
         ref.watch(bookingStatusProvider(widget.bookingId)).value;
     final status = statusData?['status']?.toString().toUpperCase() ?? '';
+
+    // Status poll may carry startedAt before GET /bookings/:id is refreshed.
+    if (_startedAt == null) {
+      final fromPoll = statusData?['startedAt']?.toString();
+      if (fromPoll != null && fromPoll.isNotEmpty) {
+        final parsed = DateTime.tryParse(fromPoll);
+        if (parsed != null) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (!mounted) return;
+            setState(() => _startedAt = parsed);
+          });
+        }
+      } else if (status == 'ACTIVE' || status == 'IN_PROGRESS') {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          unawaited(_loadStartedAt());
+        });
+      }
+    }
 
     if (status.isNotEmpty &&
         status != 'ACTIVE' &&

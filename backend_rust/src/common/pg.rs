@@ -17,7 +17,7 @@ pub const BOOKING_COLS: &str = r#"
     "isPaid", "workerPaidConfirmed", "customerPaidConfirmed",
     "paymentCollectionMethod", "workerHonestyCheck", "customerSafetyCheck",
     "billingHours", "workedMinutes", "petrolDistanceKm", "petrolRatePerKm", "petrolAmount",
-    "scheduledAt", "createdAt", "completedAt", "acceptedAt"
+    "scheduledAt", "createdAt", "completedAt", "acceptedAt", "startedAt"
 "#;
 
 pub const BUSINESS_COLS: &str = r#"
