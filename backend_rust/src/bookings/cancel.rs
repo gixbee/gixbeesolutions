@@ -553,7 +553,7 @@ pub async fn cancel_booking(
         "message": message,
         "lateCancelStrike": late_cancel_strike,
         "strikeCount": strike_count,
-        "instantHelpBlocked": if instant_help_blocked { true } else { Value::Null },
+        "instantHelpBlocked": if instant_help_blocked { json!(true) } else { Value::Null },
         "compensationAmount": compensation_amount,
         "compensationDistanceKm": compensation_distance,
         "workerNoProgress": free_due_to_no_progress,

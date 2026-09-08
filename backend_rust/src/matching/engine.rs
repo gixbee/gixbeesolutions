@@ -577,12 +577,12 @@ pub async fn resolve_guarantee(
     .execute(&state.db)
     .await?;
 
-    sqlx::query(&format!(
+    Ok(sqlx::query(&format!(
         r#"SELECT {HIRING_REQUEST_COLS} FROM hiring_requests WHERE id = $1"#
     ))
     .bind(rid)
     .fetch_one(&state.db)
-    .await
+    .await?)
 }
 
 async fn add_hiring_credit(
