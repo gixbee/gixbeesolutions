@@ -45,6 +45,7 @@ async fn config_number(state: &AppState, key: &str, fallback: i32) -> i32 {
         Some(s) => s
             .trim()
             .parse::<i32>()
+            .ok()
             .filter(|n| *n >= 0)
             .unwrap_or(fallback),
         None => fallback,
@@ -164,9 +165,9 @@ async fn compute_distance_compensation(
     service_lat: Option<rust_decimal::Decimal>,
     service_lng: Option<rust_decimal::Decimal>,
 ) -> Compensation {
-    let per_km = config_number(state, "late_cancel_compensation_per_km", COMP_PER_KM_DEFAULT);
-    let min_inr = config_number(state, "late_cancel_compensation_min_inr", COMP_MIN_INR_DEFAULT);
-    let max_inr = config_number(state, "late_cancel_compensation_max_inr", COMP_MAX_INR_DEFAULT);
+    let per_km = config_number(state, "late_cancel_compensation_per_km", COMP_PER_KM_DEFAULT).await;
+    let min_inr = config_number(state, "late_cancel_compensation_min_inr", COMP_MIN_INR_DEFAULT).await;
+    let max_inr = config_number(state, "late_cancel_compensation_max_inr", COMP_MAX_INR_DEFAULT).await;
 
     let job_lat = service_lat.and_then(|d| d.to_f64());
     let job_lng = service_lng.and_then(|d| d.to_f64());
@@ -232,7 +233,7 @@ async fn apply_late_cancel_strike(
         r#"SELECT "lateCancelStrikeCount" FROM users WHERE id = $1 FOR UPDATE"#,
     )
     .bind(customer_id)
-    .fetch_optional(&mut *tx)
+    .fetch_optional(&mut tx)
     .await?
     .unwrap_or(0);
 
@@ -264,7 +265,7 @@ async fn apply_late_cancel_strike(
             .bind(comp.amount_inr)
             .bind(comp.distance_km)
             .bind(booking_id)
-            .execute(&mut *tx)
+            .execute(&mut tx)
             .await?;
 
             sqlx::query(
@@ -281,7 +282,7 @@ async fn apply_late_cancel_strike(
             .bind(comp.amount_inr)
             .bind(comp.distance_km)
             .bind(customer_id)
-            .execute(&mut *tx)
+            .execute(&mut tx)
             .await?;
 
             let bid_str = booking_id.to_string();
@@ -305,14 +306,14 @@ async fn apply_late_cancel_strike(
             sqlx::query(r#"UPDATE users SET "lateCancelStrikeCount" = $1 WHERE id = $2"#)
                 .bind(new_strike)
                 .bind(customer_id)
-                .execute(&mut *tx)
+                .execute(&mut tx)
                 .await?;
         }
     } else {
         sqlx::query(r#"UPDATE users SET "lateCancelStrikeCount" = $1 WHERE id = $2"#)
             .bind(new_strike)
             .bind(customer_id)
-            .execute(&mut *tx)
+            .execute(&mut tx)
             .await?;
     }
 
@@ -371,7 +372,7 @@ pub async fn cancel_booking(
            FROM bookings WHERE id = $1 FOR UPDATE"#,
     )
     .bind(bid)
-    .fetch_optional(&mut *tx)
+    .fetch_optional(&mut tx)
     .await?
     .ok_or_else(|| AppError::NotFound("Booking not found".into()))?;
 
@@ -449,7 +450,7 @@ pub async fn cancel_booking(
     if let Some(op) = operator_id {
         operator_name = sqlx::query_scalar(r#"SELECT name FROM users WHERE id = $1"#)
             .bind(op)
-            .fetch_optional(&mut *tx)
+            .fetch_optional(&mut tx)
             .await?;
     }
 
@@ -463,7 +464,7 @@ pub async fn cancel_booking(
     )
     .bind(&cancel_reason)
     .bind(bid)
-    .execute(&mut *tx)
+    .execute(&mut tx)
     .await?;
 
     if should_refund_credit {
@@ -512,7 +513,7 @@ pub async fn cancel_booking(
     .bind("booking.cancelled")
     .bind(bid)
     .bind(outbox_payload)
-    .execute(&mut *tx)
+    .execute(&mut tx)
     .await?;
 
     tx.commit().await?;
@@ -568,7 +569,7 @@ pub async fn timeout_cancel_booking(state: &AppState, booking_id: &str) -> Resul
            WHERE id = $1 AND status = 'REQUESTED'"#,
     )
     .bind(bid)
-    .execute(&mut *tx)
+    .execute(&mut tx)
     .await
     .map_err(|e| e.to_string())?;
 
@@ -581,7 +582,7 @@ pub async fn timeout_cancel_booking(state: &AppState, booking_id: &str) -> Resul
         r#"SELECT "customerId", "operatorId" FROM bookings WHERE id = $1"#,
     )
     .bind(bid)
-    .fetch_one(&mut *tx)
+    .fetch_one(&mut tx)
     .await
     .map_err(|e| e.to_string())?;
 
@@ -607,7 +608,7 @@ pub async fn timeout_cancel_booking(state: &AppState, booking_id: &str) -> Resul
     .bind("booking.cancelled")
     .bind(bid)
     .bind(outbox_payload)
-    .execute(&mut *tx)
+    .execute(&mut tx)
     .await
     .map_err(|e| e.to_string())?;
 

@@ -31,6 +31,7 @@ async fn config_number(state: &AppState, key: &str, fallback: i32) -> i32 {
         Some(s) => s
             .trim()
             .parse::<i32>()
+            .ok()
             .filter(|n| *n >= 0)
             .unwrap_or(fallback),
         None => fallback,
@@ -325,7 +326,7 @@ pub async fn verify_completion_otp(
 
     let booking_type = booking.get::<String, _>("type");
     let configured_petrol_rate = if booking_type == "INSTANT" {
-        config_number(state, "instant_petrol_per_km", INSTANT_PETROL_PER_KM_DEFAULT)
+        config_number(state, "instant_petrol_per_km", INSTANT_PETROL_PER_KM_DEFAULT).await
     } else {
         0
     };
@@ -337,7 +338,7 @@ pub async fn verify_completion_otp(
            WHERE id = $1 AND status = 'ACTIVE'"#,
     )
     .bind(bid)
-    .execute(&mut *tx)
+    .execute(&mut tx)
     .await?;
 
     if claim.rows_affected() == 0 {
@@ -351,7 +352,7 @@ pub async fn verify_completion_otp(
            FROM bookings WHERE id = $1"#,
     )
     .bind(bid)
-    .fetch_one(&mut *tx)
+    .fetch_one(&mut tx)
     .await?;
 
     let started_at: Option<DateTime<Utc>> = locked
@@ -453,7 +454,7 @@ pub async fn verify_completion_otp(
     .bind(total_dec)
     .bind(is_paid)
     .bind(bid)
-    .execute(&mut *tx)
+    .execute(&mut tx)
     .await?;
 
     let customer_id = locked.get::<Uuid, _>("customerId");
@@ -464,14 +465,14 @@ pub async fn verify_completion_otp(
     let operator_name: Option<String> = if let Some(op) = operator_id {
         sqlx::query_scalar(r#"SELECT name FROM users WHERE id = $1"#)
             .bind(op)
-            .fetch_optional(&mut *tx)
+            .fetch_optional(&mut tx)
             .await?
     } else {
         None
     };
     let customer_name: Option<String> = sqlx::query_scalar(r#"SELECT name FROM users WHERE id = $1"#)
         .bind(customer_id)
-        .fetch_optional(&mut *tx)
+        .fetch_optional(&mut tx)
         .await?;
 
     let outbox_payload = json!({
@@ -490,7 +491,7 @@ pub async fn verify_completion_otp(
     .bind("booking.completed")
     .bind(bid)
     .bind(outbox_payload)
-    .execute(&mut *tx)
+    .execute(&mut tx)
     .await?;
 
     if let Some(op) = operator_id {
@@ -545,7 +546,7 @@ async fn mark_first_job_done(
         r#"SELECT "isFirstJobDone" FROM worker_profiles WHERE "userId" = $1"#,
     )
     .bind(operator_id)
-    .fetch_optional(&mut *tx)
+    .fetch_optional(&mut tx)
     .await?
     .unwrap_or(false);
     if !is_done {
@@ -553,7 +554,7 @@ async fn mark_first_job_done(
             r#"UPDATE worker_profiles SET "isFirstJobDone" = true WHERE "userId" = $1"#,
         )
         .bind(operator_id)
-        .execute(&mut *tx)
+        .execute(&mut tx)
         .await?;
     }
     Ok(())

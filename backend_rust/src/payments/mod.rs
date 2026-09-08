@@ -362,6 +362,7 @@ async fn config_number(state: &AppState, key: &str, fallback: i32) -> i32 {
         Some(s) => s
             .trim()
             .parse::<i32>()
+            .ok()
             .filter(|n| *n >= 0)
             .unwrap_or(fallback),
         None => fallback,

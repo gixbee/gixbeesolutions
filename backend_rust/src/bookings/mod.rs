@@ -8,8 +8,8 @@ use serde_json::{json, Value};
 use sqlx::Row;
 use uuid::Uuid;
 
-mod cancel;
-mod progress;
+pub mod cancel;
+pub mod progress;
 mod ratings;
 mod settlement;
 
@@ -59,7 +59,7 @@ pub async fn rebroadcast_booking(
     );
 
     let already_notified: std::collections::HashSet<String> =
-        get_notified_worker_ids(state, booking_id).into_iter().collect();
+        get_notified_worker_ids(state, booking_id).await.into_iter().collect();
     let nearby_ids = workers::find_broadcast_target_ids(
         state,
         &customer_id,
@@ -85,7 +85,7 @@ pub async fn rebroadcast_booking(
         .emit_to_user(&customer_id, "booking_search_expanded", &search_payload)
         .await;
     let body = if fresh_ids.is_empty() {
-        "We expanded the search area — still looking for an available pro."
+        "We expanded the search area — still looking for an available pro.".to_string()
     } else {
         format!(
             "We expanded the search area and notified {} more {} pro{}.",
@@ -831,7 +831,7 @@ async fn accept(
            FROM bookings WHERE id = $1 FOR UPDATE"#,
     )
     .bind(bid)
-    .fetch_optional(&mut *tx)
+    .fetch_optional(&mut tx)
     .await?;
 
     let locked = locked.ok_or_else(|| AppError::NotFound("Booking not found".into()))?;
@@ -923,7 +923,7 @@ async fn accept(
     .bind(accept_lng)
     .bind(accept_distance_km)
     .bind(bid)
-    .execute(&mut *tx)
+    .execute(&mut tx)
     .await?;
 
     let other_pending = sqlx::query(
@@ -932,7 +932,7 @@ async fn accept(
     )
     .bind(worker_id)
     .bind(bid)
-    .fetch_all(&mut *tx)
+    .fetch_all(&mut tx)
     .await?;
 
     let cancelled_booking_ids: Vec<String> = other_pending
@@ -951,13 +951,13 @@ async fn accept(
         )
         .bind(worker_id)
         .bind(bid)
-        .execute(&mut *tx)
+        .execute(&mut tx)
         .await?;
     }
 
     let operator_name: Option<String> = sqlx::query_scalar(r#"SELECT name FROM users WHERE id = $1"#)
         .bind(worker_id)
-        .fetch_optional(&mut *tx)
+        .fetch_optional(&mut tx)
         .await?;
 
     let outbox_payload = json!({
@@ -976,7 +976,7 @@ async fn accept(
     .bind("booking.accepted")
     .bind(bid)
     .bind(outbox_payload)
-    .execute(&mut *tx)
+    .execute(&mut tx)
     .await?;
 
     tx.commit().await?;

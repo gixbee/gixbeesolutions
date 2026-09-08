@@ -27,6 +27,7 @@ pub async fn get_credits_per_accept(state: &AppState) -> i32 {
             }
             trimmed
                 .parse::<i32>()
+                .ok()
                 .filter(|n| *n >= 0)
                 .unwrap_or(JOB_CREDIT_PER_ACCEPT_FALLBACK)
         }
@@ -47,7 +48,7 @@ pub async fn consume_credit(
             r#"SELECT balance FROM job_credits WHERE "userId" = $1"#,
         )
         .bind(user_id)
-        .fetch_optional(&mut *tx)
+        .fetch_optional(&mut tx)
         .await?
         .unwrap_or(0);
         return Ok(balance);
@@ -57,7 +58,7 @@ pub async fn consume_credit(
         r#"SELECT balance FROM job_credits WHERE "userId" = $1 FOR UPDATE"#,
     )
     .bind(user_id)
-    .fetch_optional(&mut *tx)
+    .fetch_optional(&mut tx)
     .await?
     .unwrap_or(0);
 
@@ -71,7 +72,7 @@ pub async fn consume_credit(
     sqlx::query(r#"UPDATE job_credits SET balance = $1 WHERE "userId" = $2"#)
         .bind(new_balance)
         .bind(user_id)
-        .execute(&mut *tx)
+        .execute(&mut tx)
         .await?;
 
     sqlx::query(
@@ -82,7 +83,7 @@ pub async fn consume_credit(
     .bind(user_id)
     .bind(-cost)
     .bind(booking_id)
-    .execute(&mut *tx)
+    .execute(&mut tx)
     .await?;
 
     Ok(new_balance)
@@ -102,7 +103,7 @@ pub async fn refund_credit(
     .bind(user_id)
     .bind(booking_id)
     .bind(reason)
-    .fetch_optional(&mut *tx)
+    .fetch_optional(&mut tx)
     .await?;
     if existing.is_some() {
         return Ok(());
@@ -115,7 +116,7 @@ pub async fn refund_credit(
     )
     .bind(user_id)
     .bind(booking_id)
-    .fetch_optional(&mut *tx)
+    .fetch_optional(&mut tx)
     .await?;
 
     let amount = accept_delta
@@ -129,14 +130,14 @@ pub async fn refund_credit(
         r#"SELECT balance FROM job_credits WHERE "userId" = $1 FOR UPDATE"#,
     )
     .bind(user_id)
-    .fetch_optional(&mut *tx)
+    .fetch_optional(&mut tx)
     .await?
     .unwrap_or(0);
 
     sqlx::query(r#"UPDATE job_credits SET balance = $1 WHERE "userId" = $2"#)
         .bind(balance + amount)
         .bind(user_id)
-        .execute(&mut *tx)
+        .execute(&mut tx)
         .await?;
 
     sqlx::query(
@@ -148,7 +149,7 @@ pub async fn refund_credit(
     .bind(amount)
     .bind(reason)
     .bind(booking_id)
-    .execute(&mut *tx)
+    .execute(&mut tx)
     .await?;
 
     Ok(())

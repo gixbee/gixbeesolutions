@@ -29,6 +29,7 @@ mod system_logs;
 mod system_metrics;
 mod talent;
 mod uploads;
+mod users;
 mod wallets;
 mod workers;
 

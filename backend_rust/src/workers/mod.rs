@@ -1146,6 +1146,7 @@ async fn config_number(state: &AppState, key: &str, fallback: i32) -> i32 {
         Some(s) => s
             .trim()
             .parse::<i32>()
+            .ok()
             .filter(|n| *n >= 0)
             .unwrap_or(fallback),
         None => fallback,
@@ -1161,7 +1162,7 @@ pub async fn refresh_worker_snapshot(state: &AppState, user_id: &str) -> AppResu
 }
 
 pub async fn periodic_jobs_per_payment(state: &AppState) -> i32 {
-    config_number(state, "go_live_jobs_per_payment", 0)
+    config_number(state, "go_live_jobs_per_payment", 0).await
 }
 
 const SUSPENSION_STRIKE_THRESHOLD: i32 = 3;

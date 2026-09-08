@@ -76,7 +76,7 @@ pub async fn send_batch(
 
     let interested = count_interested(state, rid).await?;
     let target = request.get::<i32, _>("targetInterested");
-    if interested >= target {
+    if interested >= i64::from(target) {
         return Ok(());
     }
 
@@ -200,7 +200,7 @@ pub async fn finalize_request(state: &AppState, request_id: &str) -> AppResult<(
 
     let interested = count_interested(state, rid).await?;
     let vacancies = request.get::<i32, _>("vacancies").max(1);
-    if interested >= vacancies {
+    if interested >= i64::from(vacancies) {
         deliver_request(state, rid, interested).await?;
         return Ok(());
     }
@@ -304,7 +304,7 @@ pub async fn maybe_deliver_on_response(state: &AppState, request_id: Uuid) -> Ap
     }
 
     let interested = count_interested(state, request_id).await?;
-    if interested >= row.get::<i32, _>("targetInterested") {
+    if interested >= i64::from(row.get::<i32, _>("targetInterested")) {
         deliver_request(state, request_id, interested).await?;
     }
     Ok(())
@@ -582,7 +582,7 @@ pub async fn resolve_guarantee(
     ))
     .bind(rid)
     .fetch_one(&state.db)
-    .await
+    .await?
 }
 
 async fn add_hiring_credit(
