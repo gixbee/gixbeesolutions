@@ -132,8 +132,10 @@ class _ActiveBookingCardState extends ConsumerState<ActiveBookingCard> {
           return const SizedBox.shrink();
         }
 
-        final isOperator = user.id ==
-            (activeBooking['operator']?['id'] ?? activeBooking['operator']);
+        final operatorId = activeBooking['operator']?['id'] ??
+            activeBooking['operatorId'];
+        final isOperator =
+            user.id == operatorId?.toString();
         final workerConfirmed = bookingFlagTrue(polled?['workerPaidConfirmed']) ||
             bookingFlagTrue(activeBooking['workerPaidConfirmed']);
         final customerConfirmed =
@@ -161,8 +163,16 @@ class _ActiveBookingCardState extends ConsumerState<ActiveBookingCard> {
                 );
               } else if (bStatus == 'ACCEPTED' || bStatus == 'ARRIVED') {
                 final operatorData = activeBooking['operator'];
-                final workerName = operatorData?['name'] ?? 'Worker';
-                final workerId = operatorData?['id']?.toString() ?? '';
+                final workerName = operatorData?['name'] ??
+                    activeBooking['operatorName'] ??
+                    'Worker';
+                final workerId = operatorData?['id']?.toString() ??
+                    activeBooking['operatorId']?.toString() ??
+                    '';
+                final customerData = activeBooking['customer'];
+                final customerName = customerData?['name'] ??
+                    activeBooking['customerName'] ??
+                    'Customer';
                 final otp = activeBooking['arrivalOtp']?.toString();
                 await Navigator.push(
                   context,
@@ -189,6 +199,7 @@ class _ActiveBookingCardState extends ConsumerState<ActiveBookingCard> {
                       customerLng: readCoord(activeBooking['serviceLng']),
                       arrivalOtp: otp,
                       isWorker: isOperator,
+                      customerName: customerName,
                     ),
                   ),
                 );

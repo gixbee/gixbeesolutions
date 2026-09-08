@@ -23,6 +23,7 @@ class LiveTrackingBottomPanel extends StatelessWidget {
     required this.onWorkerArrived,
     required this.onCancelFree,
     required this.onReportIssue,
+    this.customerName,
     this.etaText,
     this.distanceText,
   });
@@ -43,6 +44,7 @@ class LiveTrackingBottomPanel extends StatelessWidget {
   final VoidCallback onWorkerArrived;
   final Future<void> Function() onCancelFree;
   final VoidCallback onReportIssue;
+  final String? customerName;
 
   bool get _workActive =>
       status == 'ACTIVE' ||
@@ -55,6 +57,10 @@ class LiveTrackingBottomPanel extends StatelessWidget {
     final muted = gx.ink.withValues(alpha: 0.55);
     final error = Theme.of(context).colorScheme.error;
     final statusColor = liveTrackingStatusColor(status);
+    final displayName =
+        isWorker ? (customerName ?? 'Customer') : worker.name;
+    final displayTitle =
+        isWorker ? (worker.title.isNotEmpty ? worker.title : 'Service location') : worker.title;
 
     return Container(
       decoration: BoxDecoration(
@@ -100,7 +106,7 @@ class LiveTrackingBottomPanel extends StatelessWidget {
                     Semantics(
                       liveRegion: true,
                       child: Text(
-                        liveTrackingStatusText(status),
+                        liveTrackingStatusText(status, isWorker: isWorker),
                         style: TextStyle(
                           color: statusColor,
                           fontWeight: FontWeight.w700,
@@ -119,7 +125,7 @@ class LiveTrackingBottomPanel extends StatelessWidget {
                     backgroundImage: NetworkImage(worker.imageUrl),
                     onBackgroundImageError: (_, __) {},
                     child: worker.imageUrl.isEmpty
-                        ? Text(worker.name.isNotEmpty ? worker.name[0] : '?')
+                        ? Text(displayName.isNotEmpty ? displayName[0] : '?')
                         : null,
                   ),
                   const SizedBox(width: 12),
@@ -128,14 +134,14 @@ class LiveTrackingBottomPanel extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          worker.name,
+                          displayName,
                           style: TextStyle(
                             fontWeight: FontWeight.bold,
                             fontSize: 16,
                             color: gx.ink,
                           ),
                         ),
-                        Text(worker.title,
+                        Text(displayTitle,
                             style: TextStyle(color: muted, fontSize: 12)),
                       ],
                     ),

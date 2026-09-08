@@ -33,6 +33,7 @@ class LiveTrackingMapScreen extends ConsumerStatefulWidget {
   final double? customerLng;
   final String? arrivalOtp;
   final bool isWorker;
+  final String? customerName;
 
   const LiveTrackingMapScreen({
     super.key,
@@ -43,6 +44,7 @@ class LiveTrackingMapScreen extends ConsumerStatefulWidget {
     this.customerLng,
     this.arrivalOtp,
     this.isWorker = false,
+    this.customerName,
   });
 
   @override
@@ -784,6 +786,7 @@ class _LiveTrackingMapScreenState extends ConsumerState<LiveTrackingMapScreen> {
               : (_arrivalOtp != null ? _goToOtpScreen : null),
       onWorkerArrived: _goToWorkerArrivalScreen,
       onCancelFree: _cancelFree,
+      customerName: widget.customerName,
       onReportIssue: () => showReportIssueSheet(
         context,
         ref,

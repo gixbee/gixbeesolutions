@@ -28,7 +28,19 @@ IconData liveTrackingStatusIcon(String status) {
   }
 }
 
-String liveTrackingStatusText(String status) {
+String liveTrackingStatusText(String status, {bool isWorker = false}) {
+  if (isWorker) {
+    switch (status) {
+      case 'ARRIVED':
+        return 'You have arrived';
+      case 'ACTIVE':
+      case 'IN_PROGRESS':
+        return 'Job in progress';
+      case 'ACCEPTED':
+      default:
+        return 'Head to customer';
+    }
+  }
   switch (status) {
     case 'ARRIVED':
       return 'Worker has arrived';

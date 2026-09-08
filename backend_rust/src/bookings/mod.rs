@@ -413,7 +413,7 @@ async fn create_instant(
     .execute(&state.db)
     .await?;
 
-    let booking = get_one_inner(&state, &id.to_string()).await?;
+    let booking = get_one_inner(&state, &id.to_string(), &user.user_id).await?;
     Ok(Json(json!({
         "booking": booking,
         "notified": notified_worker_ids.len(),
@@ -453,9 +453,12 @@ async fn list_my(
 
     let rows = if statuses.is_empty() {
         sqlx::query(&format!(
-            r#"SELECT {BOOKING_COLS} FROM bookings
-               WHERE "customerId" = $1 OR "operatorId" = $1
-               ORDER BY "scheduledAt" DESC NULLS LAST, "createdAt" DESC, id DESC
+            r#"SELECT {MY_BOOKING_COLS}
+               FROM bookings b
+               LEFT JOIN users cu ON cu.id = b."customerId"
+               LEFT JOIN users op ON op.id = b."operatorId"
+               WHERE b."customerId" = $1 OR b."operatorId" = $1
+               ORDER BY b."scheduledAt" DESC NULLS LAST, b."createdAt" DESC, b.id DESC
                LIMIT $2 OFFSET $3"#
         ))
         .bind(uid)
@@ -465,9 +468,12 @@ async fn list_my(
         .await?
     } else {
         sqlx::query(&format!(
-            r#"SELECT {BOOKING_COLS} FROM bookings
-               WHERE ("customerId" = $1 OR "operatorId" = $1) AND status::text = ANY($2)
-               ORDER BY "scheduledAt" DESC NULLS LAST, "createdAt" DESC, id DESC
+            r#"SELECT {MY_BOOKING_COLS}
+               FROM bookings b
+               LEFT JOIN users cu ON cu.id = b."customerId"
+               LEFT JOIN users op ON op.id = b."operatorId"
+               WHERE (b."customerId" = $1 OR b."operatorId" = $1) AND b.status::text = ANY($2)
+               ORDER BY b."scheduledAt" DESC NULLS LAST, b."createdAt" DESC, b.id DESC
                LIMIT $3 OFFSET $4"#
         ))
         .bind(uid)
@@ -477,8 +483,23 @@ async fn list_my(
         .fetch_all(&state.db)
         .await?
     };
-    Ok(Json(rows.iter().map(booking_json).collect()))
+    Ok(Json(
+        rows
+            .iter()
+            .map(|row| my_booking_json(row, &user.user_id))
+            .collect(),
+    ))
 }
+
+const MY_BOOKING_COLS: &str = r#"
+    b.id, b."customerId", b."operatorId", b.skill, b."serviceLocation", b."serviceLat", b."serviceLng",
+    b.amount, b.type::text AS type, b.status::text AS status, b."paymentMethod", b.description,
+    b."isPaid", b."workerPaidConfirmed", b."customerPaidConfirmed",
+    b."paymentCollectionMethod", b."workerHonestyCheck", b."customerSafetyCheck",
+    b."scheduledAt", b."createdAt", b."completedAt", b."acceptedAt", b."arrivalOtp",
+    cu.name AS "customerName", cu."profileImageUrl" AS "customerProfileImageUrl",
+    op.name AS "operatorName", op."profileImageUrl" AS "operatorProfileImageUrl"
+"#;
 
 async fn list_pending(State(state): State<AppState>, user: AuthUser) -> AppResult<Json<Vec<Value>>> {
     let worker_id = user.user_id.clone();
@@ -758,20 +779,26 @@ async fn admin_resolve_dispute(
 
 async fn get_one(
     State(state): State<AppState>,
-    _user: AuthUser,
+    user: AuthUser,
     Path(id): Path<String>,
 ) -> AppResult<Json<Value>> {
-    Ok(Json(get_one_inner(&state, &id).await?))
+    Ok(Json(get_one_inner(&state, &id, &user.user_id).await?))
 }
 
-async fn get_one_inner(state: &AppState, id: &str) -> AppResult<Value> {
+async fn get_one_inner(state: &AppState, id: &str, viewer_id: &str) -> AppResult<Value> {
     let bid = Uuid::parse_str(id)?;
-    let row = sqlx::query(&format!(r#"SELECT {BOOKING_COLS} FROM bookings WHERE id = $1"#))
-        .bind(bid)
-        .fetch_optional(&state.db)
-        .await?
-        .ok_or_else(|| AppError::NotFound("Booking not found".into()))?;
-    Ok(booking_json(&row))
+    let row = sqlx::query(&format!(
+        r#"SELECT {MY_BOOKING_COLS}
+           FROM bookings b
+           LEFT JOIN users cu ON cu.id = b."customerId"
+           LEFT JOIN users op ON op.id = b."operatorId"
+           WHERE b.id = $1"#
+    ))
+    .bind(bid)
+    .fetch_optional(&state.db)
+    .await?
+    .ok_or_else(|| AppError::NotFound("Booking not found".into()))?;
+    Ok(my_booking_json(&row, viewer_id))
 }
 
 async fn get_notified_worker_ids(state: &AppState, booking_id: &str) -> Vec<String> {
@@ -1317,41 +1344,150 @@ async fn mark_paid(
 
 async fn get_status(
     State(state): State<AppState>,
+    user: AuthUser,
     Path(id): Path<String>,
 ) -> AppResult<Json<Value>> {
     let bid = Uuid::parse_str(&id)?;
     let mut payload = if let Some(v) = state.redis.get(&format!("booking:status:{id}")).await? {
         serde_json::from_str(&v).unwrap_or(json!({}))
     } else {
-        get_one_inner(&state, &id).await?
+        get_one_inner(&state, &id, &user.user_id).await?
     };
 
-    // Payment flags always come from DB — Redis cache can lag behind mark-paid.
-    if let Some(row) = sqlx::query(
-        r#"SELECT status::text AS status, "isPaid", "workerPaidConfirmed", "customerPaidConfirmed"
+    let row = sqlx::query(
+        r#"SELECT status::text AS status, "isPaid", "workerPaidConfirmed", "customerPaidConfirmed",
+                  "customerId", "operatorId", "arrivalOtp", "cancelRequestedAt", "workerNoProgressAt"
            FROM bookings WHERE id = $1"#,
     )
     .bind(bid)
     .fetch_optional(&state.db)
     .await?
-    {
-        if let Some(obj) = payload.as_object_mut() {
-            obj.insert("status".into(), json!(row.get::<String, _>("status")));
-            obj.insert("isPaid".into(), json!(row.get::<bool, _>("isPaid")));
-            obj.insert(
-                "workerPaidConfirmed".into(),
-                json!(row.get::<bool, _>("workerPaidConfirmed")),
-            );
-            obj.insert(
-                "customerPaidConfirmed".into(),
-                json!(row.get::<bool, _>("customerPaidConfirmed")),
-            );
-            obj.insert("bookingId".into(), json!(id));
-            obj.insert("id".into(), json!(id));
+    .ok_or_else(|| AppError::NotFound("Booking not found".into()))?;
+
+    let customer_id = row.get::<Uuid, _>("customerId").to_string();
+    let operator_id = row
+        .try_get::<Option<Uuid>, _>("operatorId")
+        .ok()
+        .flatten()
+        .map(|u| u.to_string());
+    if user.user_id != customer_id && operator_id.as_deref() != Some(user.user_id.as_str()) {
+        return Err(AppError::Forbidden("Not a participant on this booking".into()));
+    }
+    let is_customer = user.user_id == customer_id;
+    let status = row.get::<String, _>("status");
+    let status_upper = status.to_uppercase();
+
+    if let Some(obj) = payload.as_object_mut() {
+        obj.insert("status".into(), json!(status));
+        obj.insert("isPaid".into(), json!(row.get::<bool, _>("isPaid")));
+        obj.insert(
+            "workerPaidConfirmed".into(),
+            json!(row.get::<bool, _>("workerPaidConfirmed")),
+        );
+        obj.insert(
+            "customerPaidConfirmed".into(),
+            json!(row.get::<bool, _>("customerPaidConfirmed")),
+        );
+        obj.insert("customerId".into(), json!(customer_id));
+        obj.insert("operatorId".into(), json!(operator_id));
+        obj.insert(
+            "cancelRequested".into(),
+            json!(row
+                .try_get::<Option<chrono::DateTime<chrono::Utc>>, _>("cancelRequestedAt")
+                .ok()
+                .flatten()
+                .is_some()),
+        );
+        obj.insert(
+            "workerNoProgress".into(),
+            json!(row
+                .try_get::<Option<chrono::DateTime<chrono::Utc>>, _>("workerNoProgressAt")
+                .ok()
+                .flatten()
+                .is_some()),
+        );
+        obj.insert("bookingId".into(), json!(id));
+        obj.insert("id".into(), json!(id));
+
+        let show_otp = is_customer
+            && (status_upper == "ACCEPTED" || status_upper == "ARRIVED");
+        obj.insert(
+            "arrivalOtp".into(),
+            if show_otp {
+                json!(row.get::<Option<String>, _>("arrivalOtp"))
+            } else {
+                Value::Null
+            },
+        );
+
+        if matches!(
+            status_upper.as_str(),
+            "ACCEPTED" | "ARRIVED" | "ACTIVE" | "IN_PROGRESS"
+        ) {
+            if let Some(op) = operator_id.as_deref() {
+                if let Some((lat, lng)) = state.redis.get_worker_location(op).await? {
+                    obj.insert("operatorLat".into(), json!(lat));
+                    obj.insert("operatorLng".into(), json!(lng));
+                }
+            }
         }
     }
 
     Ok(Json(payload))
+}
+
+fn my_booking_json(row: &sqlx::postgres::PgRow, viewer_id: &str) -> Value {
+    let mut value = booking_json(row);
+    let customer_id = row.get::<Uuid, _>("customerId").to_string();
+    let operator_id = row
+        .try_get::<Option<Uuid>, _>("operatorId")
+        .ok()
+        .flatten()
+        .map(|u| u.to_string());
+    let is_operator = operator_id.as_deref() == Some(viewer_id);
+    let customer_name = row
+        .try_get::<Option<String>, _>("customerName")
+        .ok()
+        .flatten();
+    let customer_image = row
+        .try_get::<Option<String>, _>("customerProfileImageUrl")
+        .ok()
+        .flatten();
+    let operator_name = row
+        .try_get::<Option<String>, _>("operatorName")
+        .ok()
+        .flatten();
+    let operator_image = row
+        .try_get::<Option<String>, _>("operatorProfileImageUrl")
+        .ok()
+        .flatten();
+
+    if let Some(obj) = value.as_object_mut() {
+        obj.insert(
+            "customer".into(),
+            json!({
+                "id": customer_id,
+                "name": customer_name,
+                "profileImageUrl": customer_image,
+            }),
+        );
+        if let Some(op_id) = operator_id.as_ref() {
+            obj.insert(
+                "operator".into(),
+                json!({
+                    "id": op_id,
+                    "name": operator_name,
+                    "profileImageUrl": operator_image,
+                }),
+            );
+        }
+        if is_operator {
+            obj.insert("arrivalOtp".into(), Value::Null);
+        } else if let Ok(otp) = row.try_get::<Option<String>, _>("arrivalOtp") {
+            obj.insert("arrivalOtp".into(), json!(otp));
+        }
+    }
+    value
 }
 
 fn booking_json(row: &sqlx::postgres::PgRow) -> Value {
