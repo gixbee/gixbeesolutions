@@ -35,7 +35,7 @@ mod workers;
 use std::net::SocketAddr;
 use std::sync::Arc;
 
-use axum::{routing::get, Router};
+use axum::{middleware::from_fn_with_state, routing::get, Router};
 use sqlx::Row;
 use tower_http::cors::{Any, CorsLayer};
 use tower_http::services::ServeDir;
@@ -81,11 +81,16 @@ async fn main() -> anyhow::Result<()> {
         outbox_poller(poller_state).await;
     });
 
+    let logging_state = state.clone();
     let uploads = ServeDir::new(&config.uploads_dir);
     let app = Router::new()
         .route("/", get(|| async { "Hello World!" }))
         .nest_service("/uploads", uploads)
         .merge(api_router())
+        .layer(from_fn_with_state(
+            logging_state,
+            system_logs::api_logging_middleware,
+        ))
         .layer(
             CorsLayer::new()
                 .allow_origin(Any)

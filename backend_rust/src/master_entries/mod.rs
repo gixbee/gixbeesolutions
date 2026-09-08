@@ -43,7 +43,7 @@ async fn find_all(
             if let Some(active) = is_active {
                 if let Some(cat) = &q.category {
                     sqlx::query(&format!(
-                        r#"SELECT {MASTER_ENTRY_COLS} FROM master_entries WHERE type = $1 AND "isActive" = $2 AND category = $3 AND ("cityId" IS NULL OR "cityId" = $4) ORDER BY "createdAt" DESC LIMIT 2000"#
+                        r#"SELECT {MASTER_ENTRY_COLS} FROM master_entries WHERE type::text = $1 AND "isActive" = $2 AND category = $3 AND ("cityId" IS NULL OR "cityId" = $4) ORDER BY "createdAt" DESC LIMIT 2000"#
                     ))
                     .bind(t)
                     .bind(active)
@@ -53,7 +53,7 @@ async fn find_all(
                     .await?
                 } else {
                     sqlx::query(&format!(
-                        r#"SELECT {MASTER_ENTRY_COLS} FROM master_entries WHERE type = $1 AND "isActive" = $2 AND ("cityId" IS NULL OR "cityId" = $3) ORDER BY "createdAt" DESC LIMIT 2000"#
+                        r#"SELECT {MASTER_ENTRY_COLS} FROM master_entries WHERE type::text = $1 AND "isActive" = $2 AND ("cityId" IS NULL OR "cityId" = $3) ORDER BY "createdAt" DESC LIMIT 2000"#
                     ))
                     .bind(t)
                     .bind(active)
@@ -63,7 +63,7 @@ async fn find_all(
                 }
             } else if let Some(cat) = &q.category {
                 sqlx::query(&format!(
-                    r#"SELECT {MASTER_ENTRY_COLS} FROM master_entries WHERE type = $1 AND category = $2 AND ("cityId" IS NULL OR "cityId" = $3) ORDER BY "createdAt" DESC LIMIT 2000"#
+                    r#"SELECT {MASTER_ENTRY_COLS} FROM master_entries WHERE type::text = $1 AND category = $2 AND ("cityId" IS NULL OR "cityId" = $3) ORDER BY "createdAt" DESC LIMIT 2000"#
                 ))
                 .bind(t)
                 .bind(cat)
@@ -72,7 +72,7 @@ async fn find_all(
                 .await?
             } else {
                 sqlx::query(&format!(
-                    r#"SELECT {MASTER_ENTRY_COLS} FROM master_entries WHERE type = $1 AND ("cityId" IS NULL OR "cityId" = $2) ORDER BY "createdAt" DESC LIMIT 2000"#
+                    r#"SELECT {MASTER_ENTRY_COLS} FROM master_entries WHERE type::text = $1 AND ("cityId" IS NULL OR "cityId" = $2) ORDER BY "createdAt" DESC LIMIT 2000"#
                 ))
                 .bind(t)
                 .bind(cid)
@@ -118,7 +118,7 @@ async fn find_all(
         if let Some(active) = is_active {
             if let Some(cat) = &q.category {
                 sqlx::query(&format!(
-                    r#"SELECT {MASTER_ENTRY_COLS} FROM master_entries WHERE type = $1 AND "isActive" = $2 AND category = $3 ORDER BY "createdAt" DESC LIMIT 2000"#
+                    r#"SELECT {MASTER_ENTRY_COLS} FROM master_entries WHERE type::text = $1 AND "isActive" = $2 AND category = $3 ORDER BY "createdAt" DESC LIMIT 2000"#
                 ))
                 .bind(t)
                 .bind(active)
@@ -127,7 +127,7 @@ async fn find_all(
                 .await?
             } else {
                 sqlx::query(&format!(
-                    r#"SELECT {MASTER_ENTRY_COLS} FROM master_entries WHERE type = $1 AND "isActive" = $2 ORDER BY "createdAt" DESC LIMIT 2000"#
+                    r#"SELECT {MASTER_ENTRY_COLS} FROM master_entries WHERE type::text = $1 AND "isActive" = $2 ORDER BY "createdAt" DESC LIMIT 2000"#
                 ))
                 .bind(t)
                 .bind(active)
@@ -136,7 +136,7 @@ async fn find_all(
             }
         } else if let Some(cat) = &q.category {
             sqlx::query(&format!(
-                r#"SELECT {MASTER_ENTRY_COLS} FROM master_entries WHERE type = $1 AND category = $2 ORDER BY "createdAt" DESC LIMIT 2000"#
+                r#"SELECT {MASTER_ENTRY_COLS} FROM master_entries WHERE type::text = $1 AND category = $2 ORDER BY "createdAt" DESC LIMIT 2000"#
             ))
             .bind(t)
             .bind(cat)
@@ -144,7 +144,7 @@ async fn find_all(
             .await?
         } else {
             sqlx::query(&format!(
-                r#"SELECT {MASTER_ENTRY_COLS} FROM master_entries WHERE type = $1 ORDER BY "createdAt" DESC LIMIT 2000"#
+                r#"SELECT {MASTER_ENTRY_COLS} FROM master_entries WHERE type::text = $1 ORDER BY "createdAt" DESC LIMIT 2000"#
             ))
             .bind(t)
             .fetch_all(&state.db)
