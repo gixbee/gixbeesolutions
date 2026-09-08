@@ -98,8 +98,13 @@ struct InstantBody {
     serviceLng: f64,
     amount: f64,
     description: Option<String>,
+    preferredLanguages: Option<Vec<String>>,
     addressId: Option<String>,
     paymentMethod: Option<String>,
+}
+
+fn generate_otp() -> String {
+    format!("{:04}", rand::random::<u16>() % 9000 + 1000)
 }
 
 async fn create_instant(
@@ -108,12 +113,62 @@ async fn create_instant(
     Json(body): Json<InstantBody>,
 ) -> AppResult<Json<Value>> {
     let uid = Uuid::parse_str(&user.user_id)?;
+    let blocked = sqlx::query_scalar::<_, bool>(
+        r#"SELECT COALESCE("instantHelpBlocked", false) FROM users WHERE id = $1"#,
+    )
+    .bind(uid)
+    .fetch_optional(&state.db)
+    .await?
+    .unwrap_or(false);
+    if blocked {
+        return Err(AppError::Forbidden(
+            "Instant Help is blocked on your account".into(),
+        ));
+    }
+
+    let worker_rows = sqlx::query(
+        r#"
+        SELECT w."userId"
+        FROM worker_profiles w
+        JOIN users u ON u.id = w."userId"
+        WHERE w."isActive" = true
+          AND w."verificationStatus" = 'VERIFIED'
+          AND u."approvalStatus"::text = 'APPROVED'
+          AND position(lower($1) in lower(w.skills)) > 0
+          AND w."userId" != $2
+        "#,
+    )
+    .bind(&body.skill)
+    .bind(uid)
+    .fetch_all(&state.db)
+    .await?;
+
+    let notified_worker_ids: Vec<String> = worker_rows
+        .iter()
+        .filter_map(|r| r.try_get::<Uuid, _>("userId").ok().map(|u| u.to_string()))
+        .collect();
+
+    let customer_name: Option<String> = sqlx::query_scalar(
+        r#"SELECT split_part(trim(name), ' ', 1) FROM users WHERE id = $1"#,
+    )
+    .bind(uid)
+    .fetch_optional(&state.db)
+    .await?
+    .flatten();
+
     let id = Uuid::new_v4();
+    let arrival_otp = generate_otp();
+    let completion_otp = generate_otp();
+    let notified_at = chrono::Utc::now().to_rfc3339();
+
     sqlx::query(
         r#"
-        INSERT INTO bookings (id, "customerId", skill, "serviceLocation", "serviceLat", "serviceLng",
-            amount, type, status, description, "paymentMethod", "addressId")
-        VALUES ($1, $2, $3, $4, $5, $6, $7, 'INSTANT', 'REQUESTED', $8, $9, $10)
+        INSERT INTO bookings (
+            id, "customerId", skill, "serviceLocation", "serviceLat", "serviceLng",
+            amount, type, status, description, "paymentMethod", "addressId",
+            "arrivalOtp", "completionOtp", "preferredLanguages", "scheduledAt"
+        )
+        VALUES ($1, $2, $3, $4, $5, $6, $7, 'INSTANT', 'REQUESTED', $8, $9, $10, $11, $12, $13, NOW())
         "#,
     )
     .bind(id)
@@ -126,18 +181,44 @@ async fn create_instant(
     .bind(body.description.as_deref())
     .bind(body.paymentMethod.as_deref().unwrap_or(DEFAULT_BOOKING_PAYMENT_METHOD))
     .bind(body.addressId.as_deref())
+    .bind(&arrival_otp)
+    .bind(&completion_otp)
+    .bind(body.preferredLanguages.as_ref().map(|langs| langs.join(",")))
     .execute(&state.db)
     .await?;
 
-    let notified = sqlx::query_scalar::<_, i64>(
-        r#"SELECT COUNT(*) FROM worker_profiles WHERE "isLive" = true AND $1 = ANY(skills)"#,
+    let outbox_payload = json!({
+        "bookingId": id.to_string(),
+        "customerId": user.user_id,
+        "customerName": customer_name,
+        "skill": body.skill,
+        "serviceLocation": body.serviceLocation,
+        "serviceLat": body.serviceLat,
+        "serviceLng": body.serviceLng,
+        "amount": body.amount,
+        "description": body.description,
+        "preferredLanguages": body.preferredLanguages.clone().unwrap_or_default(),
+        "createdAt": notified_at,
+        "notifiedAt": notified_at,
+        "arrivalOtp": arrival_otp,
+        "completionOtp": completion_otp,
+        "notifiedWorkerIds": notified_worker_ids,
+        "attempt": 1,
+    });
+    sqlx::query(
+        r#"INSERT INTO outbox_events (type, "aggregateId", payload, status, attempts) VALUES ($1, $2, $3, 'pending', 0)"#,
     )
-    .bind(&body.skill)
-    .fetch_one(&state.db)
+    .bind("booking.broadcast_created")
+    .bind(id)
+    .bind(outbox_payload)
+    .execute(&state.db)
     .await?;
 
     let booking = get_one_inner(&state, &id.to_string()).await?;
-    Ok(Json(json!({ "booking": booking, "notified": notified })))
+    Ok(Json(json!({
+        "booking": booking,
+        "notified": notified_worker_ids.len(),
+    })))
 }
 
 async fn list_my(
