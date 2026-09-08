@@ -82,7 +82,6 @@ async fn main() -> anyhow::Result<()> {
     };
 
     let (socket_layer, io) = realtime::build_socket_layer(&config.redis_url, state.clone()).await?;
-    RealtimeHub::bind(io.clone());
     realtime::register_handlers(&io);
 
     let poller_state = state.clone();

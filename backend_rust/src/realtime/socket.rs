@@ -8,6 +8,7 @@ use sqlx::Row;
 use uuid::Uuid;
 
 use crate::middleware::auth::verify_access;
+use crate::realtime::RealtimeHub;
 use crate::state::AppState;
 
 type Io = SocketIo<RedisAdapter<socketioxide::adapter::Emitter>>;
@@ -82,6 +83,7 @@ pub async fn build_socket_layer(
 
 pub fn register_handlers(io: &Io) {
     io.ns("/", on_connect);
+    RealtimeHub::bind(io.clone());
 }
 
 async fn on_connect<A: Adapter>(
