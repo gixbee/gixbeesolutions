@@ -227,20 +227,54 @@ async fn list_my(
     Query(q): Query<Value>,
 ) -> AppResult<Json<Vec<Value>>> {
     let uid = Uuid::parse_str(&user.user_id)?;
-    let status = q.get("status").and_then(|v| v.as_str());
-    let rows = if let Some(s) = status {
+    let page = q
+        .get("page")
+        .and_then(|v| v.as_str())
+        .and_then(|s| s.parse::<i64>().ok())
+        .unwrap_or(1)
+        .max(1);
+    let limit = q
+        .get("limit")
+        .and_then(|v| v.as_str())
+        .and_then(|s| s.parse::<i64>().ok())
+        .unwrap_or(50)
+        .clamp(1, 100);
+    let offset = (page - 1) * limit;
+
+    let statuses: Vec<String> = q
+        .get("status")
+        .and_then(|v| v.as_str())
+        .map(|raw| {
+            raw.split(',')
+                .map(|s| s.trim().to_uppercase())
+                .filter(|s| !s.is_empty())
+                .collect()
+        })
+        .unwrap_or_default();
+
+    let rows = if statuses.is_empty() {
         sqlx::query(&format!(
-            r#"SELECT {BOOKING_COLS} FROM bookings WHERE ("customerId" = $1 OR "operatorId" = $1) AND status = $2 ORDER BY "createdAt" DESC"#
+            r#"SELECT {BOOKING_COLS} FROM bookings
+               WHERE "customerId" = $1 OR "operatorId" = $1
+               ORDER BY "scheduledAt" DESC NULLS LAST, "createdAt" DESC, id DESC
+               LIMIT $2 OFFSET $3"#
         ))
         .bind(uid)
-        .bind(s)
+        .bind(limit)
+        .bind(offset)
         .fetch_all(&state.db)
         .await?
     } else {
         sqlx::query(&format!(
-            r#"SELECT {BOOKING_COLS} FROM bookings WHERE "customerId" = $1 OR "operatorId" = $1 ORDER BY "createdAt" DESC"#
+            r#"SELECT {BOOKING_COLS} FROM bookings
+               WHERE ("customerId" = $1 OR "operatorId" = $1) AND status::text = ANY($2)
+               ORDER BY "scheduledAt" DESC NULLS LAST, "createdAt" DESC, id DESC
+               LIMIT $3 OFFSET $4"#
         ))
         .bind(uid)
+        .bind(&statuses)
+        .bind(limit)
+        .bind(offset)
         .fetch_all(&state.db)
         .await?
     };
@@ -384,10 +418,25 @@ async fn admin_list(
     require_admin_page(&user, "bookings")?;
     let status = q.get("status").and_then(|v| v.as_str());
     let rows = if let Some(s) = status {
-        sqlx::query(&format!(r#"SELECT {BOOKING_COLS} FROM bookings WHERE status = $1 ORDER BY "createdAt" DESC LIMIT 50"#))
-            .bind(s)
+        let statuses: Vec<String> = s
+            .split(',')
+            .map(|part| part.trim().to_uppercase())
+            .filter(|part| !part.is_empty())
+            .collect();
+        if statuses.is_empty() {
+            sqlx::query(&format!(
+                r#"SELECT {BOOKING_COLS} FROM bookings ORDER BY "createdAt" DESC LIMIT 50"#
+            ))
             .fetch_all(&state.db)
             .await?
+        } else {
+            sqlx::query(&format!(
+                r#"SELECT {BOOKING_COLS} FROM bookings WHERE status::text = ANY($1) ORDER BY "createdAt" DESC LIMIT 50"#
+            ))
+            .bind(&statuses)
+            .fetch_all(&state.db)
+            .await?
+        }
     } else {
         sqlx::query(&format!(r#"SELECT {BOOKING_COLS} FROM bookings ORDER BY "createdAt" DESC LIMIT 50"#))
             .fetch_all(&state.db)
@@ -490,9 +539,11 @@ async fn complete(
     get_one(State(state), user, Path(id)).await
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Default)]
 struct MarkPaidBody {
-    confirmed: bool,
+    collectionMethod: Option<String>,
+    honestyCheck: Option<String>,
+    safetyCheck: Option<String>,
 }
 
 async fn mark_paid(
@@ -502,13 +553,112 @@ async fn mark_paid(
     Json(body): Json<MarkPaidBody>,
 ) -> AppResult<Json<Value>> {
     let bid = Uuid::parse_str(&id)?;
-    if body.confirmed {
-        sqlx::query(r#"UPDATE bookings SET "customerPaidConfirmed" = true WHERE id = $1"#)
-            .bind(bid)
-            .execute(&state.db)
-            .await?;
+    let uid = Uuid::parse_str(&user.user_id)?;
+
+    let row = sqlx::query(
+        r#"SELECT status::text AS status, "customerId", "operatorId", "isPaid",
+                  "workerPaidConfirmed", "customerPaidConfirmed"
+           FROM bookings WHERE id = $1"#,
+    )
+    .bind(bid)
+    .fetch_optional(&state.db)
+    .await?
+    .ok_or_else(|| AppError::NotFound("Booking not found".into()))?;
+
+    let customer_id = row.get::<Uuid, _>("customerId");
+    let operator_id = row
+        .try_get::<Option<Uuid>, _>("operatorId")
+        .ok()
+        .flatten();
+    let is_worker = operator_id == Some(uid);
+    let is_customer = customer_id == uid;
+    if !is_worker && !is_customer {
+        return Err(AppError::BadRequest(
+            "Only participants of this booking can mark it paid".into(),
+        ));
     }
-    get_one(State(state), user, Path(id)).await
+    if row.get::<String, _>("status") != "COMPLETED" {
+        return Err(AppError::BadRequest(
+            "Only completed bookings can be marked paid".into(),
+        ));
+    }
+
+    let mut worker_confirmed = row.get::<bool, _>("workerPaidConfirmed");
+    let mut customer_confirmed = row.get::<bool, _>("customerPaidConfirmed");
+    let mut is_paid = row.get::<bool, _>("isPaid");
+
+    if is_worker {
+        worker_confirmed = true;
+    }
+    if is_customer {
+        customer_confirmed = true;
+    }
+
+    let both_confirmed = worker_confirmed && customer_confirmed;
+    let other_missing = is_customer && operator_id.is_none();
+
+    if both_confirmed || other_missing || is_paid {
+        is_paid = true;
+    }
+
+    sqlx::query(
+        r#"UPDATE bookings SET
+            "isPaid" = $1,
+            "workerPaidConfirmed" = $2,
+            "customerPaidConfirmed" = $3,
+            "workerHonestyCheck" = COALESCE($4, "workerHonestyCheck"),
+            "paymentCollectionMethod" = COALESCE($5, "paymentCollectionMethod"),
+            "customerSafetyCheck" = COALESCE($6, "customerSafetyCheck")
+           WHERE id = $7"#,
+    )
+    .bind(is_paid)
+    .bind(worker_confirmed)
+    .bind(customer_confirmed)
+    .bind(body.honestyCheck.as_deref())
+    .bind(body.collectionMethod.as_deref())
+    .bind(body.safetyCheck.as_deref())
+    .bind(bid)
+    .execute(&state.db)
+    .await?;
+
+    let operator_name: Option<String> = if let Some(op) = operator_id {
+        sqlx::query_scalar(r#"SELECT name FROM users WHERE id = $1"#)
+            .bind(op)
+            .fetch_optional(&state.db)
+            .await?
+    } else {
+        None
+    };
+
+    let outbox_payload = json!({
+        "bookingId": id,
+        "customerId": customer_id.to_string(),
+        "operatorId": operator_id.map(|u| u.to_string()),
+        "operatorName": operator_name,
+        "status": "COMPLETED",
+        "isPaid": is_paid,
+        "workerPaidConfirmed": worker_confirmed,
+        "customerPaidConfirmed": customer_confirmed,
+    });
+    sqlx::query(
+        r#"INSERT INTO outbox_events (type, "aggregateId", payload, status, attempts) VALUES ($1, $2, $3, 'pending', 0)"#,
+    )
+    .bind("booking.payment_confirmed")
+    .bind(bid)
+    .bind(outbox_payload)
+    .execute(&state.db)
+    .await?;
+
+    Ok(Json(json!({
+        "message": if is_paid {
+            "Booking marked as paid."
+        } else {
+            "Payment confirmation recorded. Waiting for the other party."
+        },
+        "isPaid": is_paid,
+        "workerPaidConfirmed": worker_confirmed,
+        "customerPaidConfirmed": customer_confirmed,
+    })))
 }
 
 async fn get_status(
