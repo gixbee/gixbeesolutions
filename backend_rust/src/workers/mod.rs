@@ -653,3 +653,10 @@ fn worker_list_json(row: &sqlx::postgres::PgRow) -> Value {
         "status": if row.get::<bool, _>("isActive") { "available" } else { "offline" },
     })
 }
+
+pub async fn set_worker_status(state: &AppState, user_id: &str, status: &str) {
+    let _ = state
+        .redis
+        .set(&format!("worker:status:{user_id}"), status, 3600)
+        .await;
+}

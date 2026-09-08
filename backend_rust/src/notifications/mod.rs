@@ -9,6 +9,9 @@ use crate::error::AppResult;
 use crate::middleware::auth::AuthUser;
 use crate::state::AppState;
 
+mod fcm;
+pub use fcm::FcmService;
+
 pub fn routes() -> Router<AppState> {
     Router::new()
         .route("/health", get(health))
@@ -16,20 +19,14 @@ pub fn routes() -> Router<AppState> {
 }
 
 async fn health(State(state): State<AppState>) -> Json<Value> {
-    let firebase = state.config.firebase_key_path.is_some()
-        || state.config.firebase_project_id.is_some();
     Json(json!({
-        "firebaseInitialized": firebase,
-        "ready": firebase,
+        "firebaseInitialized": state.fcm.is_ready(),
+        "ready": state.fcm.is_ready(),
+        "credentials": state.fcm.diagnostics(&state.config).get("credentials"),
     }))
 }
 
-async fn test_self(
-    State(_state): State<AppState>,
-    user: AuthUser,
-) -> AppResult<Json<Value>> {
-    Ok(Json(json!({
-        "message": "Test push queued",
-        "userId": user.user_id,
-    })))
+async fn test_self(State(state): State<AppState>, user: AuthUser) -> AppResult<Json<Value>> {
+    let result = state.fcm.test_push(&state, &user.user_id).await;
+    Ok(Json(result))
 }

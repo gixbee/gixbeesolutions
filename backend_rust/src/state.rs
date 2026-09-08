@@ -3,6 +3,8 @@ use std::sync::Arc;
 use sqlx::PgPool;
 
 use crate::config::Config;
+use crate::notifications::FcmService;
+use crate::realtime::RealtimeHub;
 use crate::redis::RedisStore;
 
 #[derive(Clone)]
@@ -11,4 +13,6 @@ pub struct AppState {
     pub db: PgPool,
     pub redis: Arc<RedisStore>,
     pub http: reqwest::Client,
+    pub realtime: Arc<RealtimeHub>,
+    pub fcm: Arc<FcmService>,
 }

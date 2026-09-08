@@ -15,8 +15,30 @@ use crate::state::AppState;
 
 pub fn routes() -> Router<AppState> {
     Router::new()
+        .route("/pages", get(list_pages))
+        .route("/me", get(me))
         .route("/", get(list).post(create))
         .route("/{id}", patch(update).delete(remove))
+}
+
+async fn list_pages(_user: AuthUser) -> AppResult<Json<Value>> {
+    Ok(Json(json!({
+        "pages": [
+            "dashboard", "users", "bookings", "disputes", "verifications",
+            "businesses", "support", "cities", "master-entries", "staff", "logs", "monitoring"
+        ]
+    })))
+}
+
+async fn me(user: AuthUser) -> AppResult<Json<Value>> {
+    require_admin(&user)?;
+    Ok(Json(json!({
+        "userId": user.user_id,
+        "username": user.username.as_deref().unwrap_or("admin"),
+        "displayName": user.display_name.as_deref().unwrap_or("Admin"),
+        "staffRole": user.staff_role.as_deref().unwrap_or("SUPER_ADMIN"),
+        "pages": user.pages,
+    })))
 }
 
 async fn list(State(state): State<AppState>, user: AuthUser) -> AppResult<Json<Vec<Value>>> {

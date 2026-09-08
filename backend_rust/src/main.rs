@@ -10,15 +10,18 @@ mod config;
 mod error;
 mod favourites;
 mod hiring;
+mod jobs;
 mod master_entries;
 mod matching;
 mod messages;
 mod middleware;
 mod notifications;
+mod outbox;
 mod payments;
 mod redis;
 mod redis_admin;
 mod rentals;
+mod realtime;
 mod routes;
 mod state;
 mod support;
@@ -29,21 +32,19 @@ mod uploads;
 mod users;
 mod voice_calls;
 mod wallets;
-mod worker_engine;
 mod workers;
 
 use std::net::SocketAddr;
 use std::sync::Arc;
 
 use axum::{middleware::from_fn_with_state, routing::get, Router};
-use sqlx::Row;
 use tower_http::cors::{Any, CorsLayer};
 use tower_http::services::ServeDir;
 use tower_http::trace::TraceLayer;
 
-use uuid::Uuid;
-
 use crate::config::{assert_production_secrets, connect_db, Config};
+use crate::notifications::FcmService;
+use crate::realtime::RealtimeHub;
 use crate::redis::RedisStore;
 use crate::routes::api_router;
 use crate::state::AppState;
@@ -69,16 +70,25 @@ async fn main() -> anyhow::Result<()> {
         );
     }
 
+    let http = reqwest::Client::new();
+    let fcm = Arc::new(FcmService::from_config(&config, http.clone()));
+
     let state = AppState {
         config: config.clone(),
         db,
         redis,
-        http: reqwest::Client::new(),
+        http,
+        realtime: Arc::new(RealtimeHub),
+        fcm,
     };
+
+    let (socket_layer, io) = realtime::build_socket_layer(&config.redis_url, state.clone()).await?;
+    RealtimeHub::bind(io.clone());
+    realtime::register_handlers(&io);
 
     let poller_state = state.clone();
     tokio::spawn(async move {
-        outbox_poller(poller_state).await;
+        outbox::run_poller(poller_state).await;
     });
 
     let logging_state = state.clone();
@@ -87,6 +97,7 @@ async fn main() -> anyhow::Result<()> {
         .route("/", get(|| async { "Hello World!" }))
         .nest_service("/uploads", uploads)
         .merge(api_router())
+        .layer(socket_layer)
         .layer(from_fn_with_state(
             logging_state,
             system_logs::api_logging_middleware,
@@ -105,25 +116,4 @@ async fn main() -> anyhow::Result<()> {
     let listener = tokio::net::TcpListener::bind(addr).await?;
     axum::serve(listener, app).await?;
     Ok(())
-}
-
-async fn outbox_poller(state: AppState) {
-    let mut interval = tokio::time::interval(std::time::Duration::from_secs(5));
-    loop {
-        interval.tick().await;
-        let rows = sqlx::query(
-            r#"SELECT id, type, payload FROM outbox_events WHERE status = 'PENDING' ORDER BY "createdAt" LIMIT 10"#,
-        )
-        .fetch_all(&state.db)
-        .await;
-        if let Ok(rows) = rows {
-            for row in rows {
-                let id: Uuid = row.get("id");
-                let _ = sqlx::query(r#"UPDATE outbox_events SET status = 'DISPATCHED' WHERE id = $1"#)
-                    .bind(id)
-                    .execute(&state.db)
-                    .await;
-            }
-        }
-    }
 }

@@ -1,6 +1,7 @@
 use anyhow::{Context, Result};
 use redis::aio::ConnectionManager;
 use redis::AsyncCommands;
+use serde_json::json;
 use tokio::sync::Mutex;
 
 use crate::config::Config;
@@ -11,6 +12,7 @@ pub struct RedisStore {
     allow_memory_fallback: bool,
     mem_kv: Mutex<std::collections::HashMap<String, (String, Option<std::time::Instant>)>>,
     mem_sets: Mutex<std::collections::HashMap<String, std::collections::HashSet<String>>>,
+    mem_zsets: Mutex<std::collections::HashMap<String, std::collections::HashMap<String, f64>>>,
 }
 
 impl RedisStore {
@@ -40,6 +42,7 @@ impl RedisStore {
             allow_memory_fallback: config.redis_allow_memory_fallback,
             mem_kv: Mutex::new(std::collections::HashMap::new()),
             mem_sets: Mutex::new(std::collections::HashMap::new()),
+            mem_zsets: Mutex::new(std::collections::HashMap::new()),
         })
     }
 
@@ -148,12 +151,12 @@ impl RedisStore {
     }
 
     pub async fn cache_fcm_token(&self, user_id: &str, token: &str) -> Result<()> {
-        self.set(&format!("fcm:{user_id}"), token, 30 * 24 * 60 * 60)
+        self.set(&format!("user:fcm:{user_id}"), token, 7 * 24 * 60 * 60)
             .await
     }
 
     pub async fn get_fcm_token(&self, user_id: &str) -> Result<Option<String>> {
-        self.get(&format!("fcm:{user_id}")).await
+        self.get(&format!("user:fcm:{user_id}")).await
     }
 
     pub async fn sadd(&self, key: &str, member: &str) -> Result<()> {
@@ -197,6 +200,142 @@ impl RedisStore {
                 .get(key)
                 .map(|s| s.iter().cloned().collect())
                 .unwrap_or_default())
+        }
+    }
+
+    pub async fn zadd(&self, key: &str, score: f64, member: &str, ttl_secs: u64) -> Result<()> {
+        self.assert_fallback("zadd")?;
+        let mut guard = self.client.lock().await;
+        if let Some(ref mut c) = *guard {
+            let _: () = redis::cmd("ZADD")
+                .arg(key)
+                .arg(score)
+                .arg(member)
+                .query_async(c)
+                .await?;
+            let _: () = c.expire(key, ttl_secs as i64).await?;
+        } else {
+            let mut m = self.mem_zsets.lock().await;
+            m.entry(key.to_string())
+                .or_default()
+                .insert(member.to_string(), score);
+        }
+        Ok(())
+    }
+
+    pub async fn zrem(&self, key: &str, member: &str) -> Result<()> {
+        self.assert_fallback("zrem")?;
+        let mut guard = self.client.lock().await;
+        if let Some(ref mut c) = *guard {
+            let _: () = c.zrem(key, member).await?;
+        } else if let Some(set) = self.mem_zsets.lock().await.get_mut(key) {
+            set.remove(member);
+        }
+        Ok(())
+    }
+
+    pub async fn zrange_rev(&self, key: &str) -> Result<Vec<String>> {
+        self.assert_fallback("zrange")?;
+        let mut guard = self.client.lock().await;
+        if let Some(ref mut c) = *guard {
+            let members: Vec<String> = redis::cmd("ZREVRANGE")
+                .arg(key)
+                .arg(0)
+                .arg(-1)
+                .query_async(c)
+                .await?;
+            Ok(members)
+        } else {
+            let mut members: Vec<(String, f64)> = self
+                .mem_zsets
+                .lock()
+                .await
+                .get(key)
+                .map(|m| m.iter().map(|(k, v)| (k.clone(), *v)).collect())
+                .unwrap_or_default();
+            members.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
+            Ok(members.into_iter().map(|(k, _)| k).collect())
+        }
+    }
+
+    pub async fn add_pending_booking(&self, worker_id: &str, booking_id: &str) -> Result<()> {
+        let key = format!("worker:pending:{worker_id}");
+        self.zadd(&key, chrono::Utc::now().timestamp_millis() as f64, booking_id, 120)
+            .await
+    }
+
+    pub async fn remove_pending_booking(&self, worker_id: &str, booking_id: &str) -> Result<()> {
+        self.zrem(&format!("worker:pending:{worker_id}"), booking_id)
+            .await
+    }
+
+    pub async fn cache_booking_status(
+        &self,
+        booking_id: &str,
+        patch: &serde_json::Value,
+    ) -> Result<()> {
+        let key = format!("booking:status:{booking_id}");
+        let existing = self
+            .get(&key)
+            .await?
+            .and_then(|s| serde_json::from_str::<serde_json::Value>(&s).ok())
+            .unwrap_or(json!({}));
+        let mut merged = existing;
+        if let Some(obj) = patch.as_object() {
+            for (k, v) in obj {
+                if v.is_null() {
+                    if let Some(m) = merged.as_object_mut() {
+                        m.remove(k);
+                    }
+                } else {
+                    merged[k] = v.clone();
+                }
+            }
+        }
+        self.set(&key, &merged.to_string(), 24 * 60 * 60).await
+    }
+
+    pub async fn update_worker_location(
+        &self,
+        user_id: &str,
+        lat: f64,
+        lng: f64,
+    ) -> Result<()> {
+        let payload = serde_json::json!({ "lat": lat, "lng": lng, "updatedAt": chrono::Utc::now().to_rfc3339() });
+        self.set(
+            &format!("worker:loc:{user_id}"),
+            &payload.to_string(),
+            3600,
+        )
+        .await
+    }
+
+    pub async fn acquire_lock(&self, key: &str, ttl_secs: u64) -> Result<bool> {
+        self.assert_fallback("acquireLock")?;
+        let mut guard = self.client.lock().await;
+        if let Some(ref mut c) = *guard {
+            let ok: Option<String> = redis::cmd("SET")
+                .arg(key)
+                .arg("1")
+                .arg("NX")
+                .arg("EX")
+                .arg(ttl_secs)
+                .query_async(c)
+                .await?;
+            Ok(ok.is_some())
+        } else {
+            let mut m = self.mem_kv.lock().await;
+            if m.contains_key(key) {
+                return Ok(false);
+            }
+            m.insert(
+                key.to_string(),
+                (
+                    "1".to_string(),
+                    Some(std::time::Instant::now() + std::time::Duration::from_secs(ttl_secs)),
+                ),
+            );
+            Ok(true)
         }
     }
 }
