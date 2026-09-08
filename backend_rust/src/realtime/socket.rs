@@ -9,7 +9,6 @@ use uuid::Uuid;
 
 use crate::middleware::auth::verify_access;
 use crate::state::AppState;
-use crate::voice_calls;
 
 type Io = SocketIo<RedisAdapter<socketioxide::adapter::Emitter>>;
 
@@ -98,11 +97,6 @@ async fn on_connect<A: Adapter>(
     socket.on("updateLocation", on_update_location::<A>);
     socket.on("joinJobRoom", on_join_job_room::<A>);
     socket.on("leaveJobRoom", on_leave_job_room::<A>);
-    socket.on("voice_call_invite", on_voice_invite::<A>);
-    socket.on("voice_call_accept", on_voice_accept::<A>);
-    socket.on("voice_call_reject", on_voice_reject::<A>);
-    socket.on("voice_call_hangup", on_voice_hangup::<A>);
-    socket.on("voice_call_signal", on_voice_signal::<A>);
 }
 
 async fn on_join_user_room<A: Adapter>(socket: SocketRef<A>, ack: AckSender<A>) {
@@ -201,139 +195,6 @@ async fn on_leave_job_room<A: Adapter>(socket: SocketRef<A>, data: Data<Value>, 
     } else {
         ack.send(&json!({ "event": "left", "data": null })).ok();
     }
-}
-
-async fn on_voice_invite<A: Adapter>(
-    socket: SocketRef<A>,
-    data: Data<Value>,
-    ack: AckSender<A>,
-    State(state): State<AppState>,
-) {
-    let caller_id = match authed_user_id(&socket) {
-        Some(id) => id,
-        None => {
-            ack.send(&voice_fail("Unauthorized")).ok();
-            return;
-        }
-    };
-    let booking_id = data.get("bookingId").and_then(|v| v.as_str()).unwrap_or("");
-    if booking_id.is_empty() {
-        ack.send(&voice_fail("bookingId required")).ok();
-        return;
-    }
-    match voice_calls::invite_call(&state, booking_id, &caller_id, &data).await {
-        Ok(resp) => {
-            ack.send(&resp).ok();
-        }
-        Err(e) => {
-            ack.send(&voice_fail(e)).ok();
-        }
-    }
-}
-
-async fn on_voice_accept<A: Adapter>(
-    socket: SocketRef<A>,
-    data: Data<Value>,
-    ack: AckSender<A>,
-    State(state): State<AppState>,
-) {
-    let user_id = match authed_user_id(&socket) {
-        Some(id) => id,
-        None => {
-            ack.send(&voice_fail("Unauthorized")).ok();
-            return;
-        }
-    };
-    let booking_id = data.get("bookingId").and_then(|v| v.as_str()).unwrap_or("");
-    match voice_calls::accept_call(&state, booking_id, &user_id, &data).await {
-        Ok(resp) => {
-            ack.send(&resp).ok();
-        }
-        Err(e) => {
-            ack.send(&voice_fail(e)).ok();
-        }
-    }
-}
-
-async fn on_voice_reject<A: Adapter>(
-    socket: SocketRef<A>,
-    data: Data<Value>,
-    ack: AckSender<A>,
-    State(state): State<AppState>,
-) {
-    let user_id = match authed_user_id(&socket) {
-        Some(id) => id,
-        None => {
-            ack.send(&voice_fail("Unauthorized")).ok();
-            return;
-        }
-    };
-    let booking_id = data.get("bookingId").and_then(|v| v.as_str()).unwrap_or("");
-    match voice_calls::reject_call(&state, booking_id, &user_id).await {
-        Ok(resp) => {
-            ack.send(&resp).ok();
-        }
-        Err(e) => {
-            ack.send(&voice_fail(e)).ok();
-        }
-    }
-}
-
-async fn on_voice_hangup<A: Adapter>(
-    socket: SocketRef<A>,
-    data: Data<Value>,
-    ack: AckSender<A>,
-    State(state): State<AppState>,
-) {
-    let user_id = match authed_user_id(&socket) {
-        Some(id) => id,
-        None => {
-            ack.send(&voice_fail("Unauthorized")).ok();
-            return;
-        }
-    };
-    let booking_id = data.get("bookingId").and_then(|v| v.as_str()).unwrap_or("");
-    match voice_calls::hangup_call(&state, booking_id, &user_id).await {
-        Ok(resp) => {
-            ack.send(&resp).ok();
-        }
-        Err(e) => {
-            ack.send(&voice_fail(e)).ok();
-        }
-    }
-}
-
-async fn on_voice_signal<A: Adapter>(
-    socket: SocketRef<A>,
-    data: Data<Value>,
-    ack: AckSender<A>,
-    State(state): State<AppState>,
-) {
-    let user_id = match authed_user_id(&socket) {
-        Some(id) => id,
-        None => {
-            ack.send(&voice_fail("Unauthorized")).ok();
-            return;
-        }
-    };
-    let booking_id = data.get("bookingId").and_then(|v| v.as_str()).unwrap_or("");
-    let signal = data.get("signal");
-    if booking_id.is_empty() || signal.is_none() {
-        ack.send(&voice_fail("bookingId and signal required")).ok();
-        return;
-    }
-    match voice_calls::relay_signal(&state, booking_id, &user_id, &data).await {
-        Ok(resp) => {
-            ack.send(&resp).ok();
-        }
-        Err(e) => {
-            ack.send(&voice_fail(e)).ok();
-        }
-    }
-}
-
-fn voice_fail(error: impl Into<String>) -> Value {
-    json!({ "ok": false, "error": error.into() })
 }
 
 async fn booking_participant(

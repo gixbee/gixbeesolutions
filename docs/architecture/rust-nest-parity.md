@@ -40,8 +40,8 @@ Goal: **every** Nest capability available on `BACKEND_IMPL=rust` with identical 
 | Gateway | Client → Server | Server → Client | Rust |
 |---------|-----------------|-----------------|------|
 | Messages | `joinUserRoom` | `joinedUserRoom`, `new_message`, `new_booking_request`, `booking_accepted`, `booking_status_update` | ❌ |
-| Worker | `updateLocation`, `joinJobRoom`, `leaveJobRoom` | `locationUpdated`, `joined`, `left` | ❌ |
-| Voice | `voice_call_*` (5 events) | same 5 events | ❌ |
+| Worker | `updateLocation`, `joinJobRoom`, `leaveJobRoom` | `locationUpdated`, `joined`, `left` | ✅ |
+| Voice | — | — | ⏭️ Not required (intentionally excluded from Rust backend) |
 
 ---
 
@@ -83,8 +83,8 @@ No FCM send.
 ### messages 🟡
 Wrong paths (`/threads` vs `/conversations`). No socket push on send.
 
-### voice-calls 🟡
-`webrtc-config` only; no signaling gateway.
+### voice-calls ⏭️
+Intentionally not ported to Rust (product decision).
 
 ### hiring 🟡
 `jobs/matched` returns all jobs (no matching).

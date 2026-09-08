@@ -22,7 +22,6 @@ use crate::system_metrics;
 use crate::talent;
 use crate::uploads;
 use crate::users;
-use crate::voice_calls;
 use crate::wallets;
 use crate::workers;
 use crate::state::AppState;
@@ -54,5 +53,4 @@ pub fn api_router() -> Router<AppState> {
         .nest("/wallets", wallets::routes())
         .nest("/workers", workers::routes())
         .merge(uploads::routes())
-        .merge(voice_calls::routes())
 }
