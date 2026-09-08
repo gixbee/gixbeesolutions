@@ -22,7 +22,11 @@ impl RealtimeHub {
             return;
         };
         let room = format!("user_{}", user_id);
-        if let Err(e) = io.within("/").to(room).emit(event, &payload).await {
+        let Some(ns) = io.of("/") else {
+            warn!("socket namespace / not registered; skip emit {event} -> {user_id}");
+            return;
+        };
+        if let Err(e) = ns.to(room).emit(event, &payload).await {
             warn!("socket emit {event} -> {user_id}: {e}");
         }
     }
@@ -35,7 +39,11 @@ impl RealtimeHub {
             return;
         };
         let room = format!("job_{}", job_id);
-        if let Err(e) = io.within("/").to(room).emit(event, &payload).await {
+        let Some(ns) = io.of("/") else {
+            warn!("socket namespace / not registered; skip emit {event} -> job {job_id}");
+            return;
+        };
+        if let Err(e) = ns.to(room).emit(event, &payload).await {
             warn!("socket emit {event} -> job {job_id}: {e}");
         }
     }

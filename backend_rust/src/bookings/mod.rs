@@ -184,6 +184,7 @@ use crate::billing::consume_credit;
 use crate::common::money::DEFAULT_BOOKING_PAYMENT_METHOD;
 use crate::common::pg::BOOKING_COLS;
 use crate::error::{AppError, AppResult};
+use crate::jobs;
 use crate::middleware::auth::{require_admin_page, AuthUser};
 use crate::state::AppState;
 use crate::workers;
@@ -266,6 +267,13 @@ async fn create(
 }
 
 #[derive(Deserialize)]
+struct OnSiteContact {
+    name: String,
+    relation: String,
+    phone: String,
+}
+
+#[derive(Deserialize)]
 struct InstantBody {
     skill: String,
     serviceLocation: String,
@@ -276,6 +284,7 @@ struct InstantBody {
     preferredLanguages: Option<Vec<String>>,
     addressId: Option<String>,
     paymentMethod: Option<String>,
+    onSiteContact: Option<OnSiteContact>,
 }
 
 fn generate_otp() -> String {
@@ -331,9 +340,9 @@ async fn create_instant(
         INSERT INTO bookings (
             id, "customerId", skill, "serviceLocation", "serviceLat", "serviceLng",
             amount, type, status, description, "paymentMethod", "addressId",
-            "arrivalOtp", "completionOtp", "preferredLanguages", "scheduledAt"
+            "arrivalOtp", "completionOtp", "preferredLanguages", "onSiteContact", "scheduledAt"
         )
-        VALUES ($1, $2, $3, $4, $5, $6, $7, 'INSTANT', 'REQUESTED', $8, $9, $10, $11, $12, $13, NOW())
+        VALUES ($1, $2, $3, $4, $5, $6, $7, 'INSTANT', 'REQUESTED', $8, $9, $10, $11, $12, $13, $14, NOW())
         "#,
     )
     .bind(id)
@@ -349,10 +358,16 @@ async fn create_instant(
     .bind(&arrival_otp)
     .bind(&completion_otp)
     .bind(body.preferredLanguages.as_ref().map(|langs| langs.join(",")))
+    .bind(
+        body.onSiteContact
+            .as_ref()
+            .map(|c| json!({ "name": c.name, "relation": c.relation, "phone": c.phone })),
+    )
     .execute(&state.db)
     .await?;
 
     let booking_id = id.to_string();
+    jobs::schedule_request_timeout(state.clone(), booking_id.clone(), 1);
     let status_patch = json!({
         "status": "REQUESTED",
         "operatorName": null,

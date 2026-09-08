@@ -45,7 +45,7 @@ pub fn schedule_gps_recheck(state: AppState, booking_id: String) {
 
 async fn handle_seven_minute_reminder(state: &AppState, booking_id: &str) -> Result<(), String> {
     let bid = Uuid::parse_str(booking_id).map_err(|e| e.to_string())?;
-    let row = sqlx::query(r#"SELECT status, "operatorId" FROM bookings WHERE id = $1"#)
+    let row = sqlx::query(r#"SELECT status::text AS status, "operatorId" FROM bookings WHERE id = $1"#)
         .bind(bid)
         .fetch_optional(&state.db)
         .await
@@ -135,7 +135,7 @@ async fn handle_request_timeout(
     attempt: u32,
 ) -> Result<(), String> {
     let bid = Uuid::parse_str(booking_id).map_err(|e| e.to_string())?;
-    let row = sqlx::query(r#"SELECT status, "operatorId" FROM bookings WHERE id = $1"#)
+    let row = sqlx::query(r#"SELECT status::text AS status, "operatorId" FROM bookings WHERE id = $1"#)
         .bind(bid)
         .fetch_optional(&state.db)
         .await
