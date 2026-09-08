@@ -4,15 +4,30 @@ use axum::{
     Json, Router,
 };
 use chrono::{Datelike, Utc};
+use rust_decimal::prelude::ToPrimitive;
 use serde::Deserialize;
 use serde_json::{json, Value};
 use sqlx::Row;
+use std::collections::HashSet;
 use uuid::Uuid;
 
 use crate::common::pg::WORKER_PROFILE_COLS;
 use crate::error::{AppError, AppResult};
 use crate::middleware::auth::{require_admin_page, AuthUser};
 use crate::state::AppState;
+
+const MAX_DISPATCH_RADIUS_KM: f64 = 50.0;
+const DEFAULT_SERVICE_RADIUS_KM: f64 = 10.0;
+const MAX_NEARBY_CANDIDATES: usize = 40;
+const MAX_BROADCAST_FANOUT: usize = 15;
+pub const REBROADCAST_RADIUS_STRETCH: f64 = 1.3;
+
+pub struct DispatchWorker {
+    pub id: String,
+    pub distance_km: f64,
+    pub rating: f64,
+    pub languages: Vec<String>,
+}
 
 pub fn routes() -> Router<AppState> {
     Router::new()
@@ -148,23 +163,342 @@ struct NearbyQuery {
     lng: String,
 }
 
-async fn get_nearby(
-    State(state): State<AppState>,
-    _user: AuthUser,
-    Query(q): Query<NearbyQuery>,
-) -> AppResult<Json<Vec<Value>>> {
+fn parse_coords(lat: &str, lng: &str) -> AppResult<(f64, f64)> {
+    let lat = lat
+        .parse::<f64>()
+        .map_err(|_| AppError::BadRequest("lat must be a number".into()))?;
+    let lng = lng
+        .parse::<f64>()
+        .map_err(|_| AppError::BadRequest("lng must be a number".into()))?;
+    if !lat.is_finite() || !lng.is_finite() {
+        return Err(AppError::BadRequest("lat and lng are required".into()));
+    }
+    Ok((lat, lng))
+}
+
+fn haversine_km(lat1: f64, lng1: f64, lat2: f64, lng2: f64) -> f64 {
+    let r = 6371.0;
+    let d_lat = (lat2 - lat1).to_radians();
+    let d_lng = (lng2 - lng1).to_radians();
+    let a = (d_lat / 2.0).sin().powi(2)
+        + lat1.to_radians().cos() * lat2.to_radians().cos() * (d_lng / 2.0).sin().powi(2);
+    let c = 2.0 * a.sqrt().atan2((1.0 - a).sqrt());
+    r * c
+}
+
+fn decimal_f64(d: rust_decimal::Decimal) -> f64 {
+    d.to_f64().unwrap_or(0.0)
+}
+
+fn dispatchable_skills(all_skills: &[String], active_skills: &[String]) -> Vec<String> {
+    let active = active_skills
+        .iter()
+        .filter(|s| all_skills.iter().any(|a| a.eq_ignore_ascii_case(s)))
+        .cloned()
+        .collect::<Vec<_>>();
+    if active.is_empty() {
+        all_skills.to_vec()
+    } else {
+        active
+    }
+}
+
+fn skill_matches(profile_skills: &[String], skill: &str) -> bool {
+    let needle = skill.to_lowercase();
+    profile_skills
+        .iter()
+        .any(|s| s.to_lowercase().contains(&needle) || needle.contains(&s.to_lowercase()))
+}
+
+async fn skill_worker_ids_from_db(state: &AppState, skill: &str) -> AppResult<Vec<String>> {
     let rows = sqlx::query(
-        r#"SELECT w.id, w.skills, w."hourlyRate", w."isActive", w.rating, w."completedJobs",
-                  w."reviewCount", w.bio, w.title, u.name, u."profileImageUrl"
+        r#"SELECT w."userId", w.skills, w."activeSkills"
            FROM worker_profiles w
            JOIN users u ON u.id = w."userId"
            WHERE w."isActive" = true
-             AND position(lower($1) in lower(w.skills)) > 0"#,
+             AND u."approvalStatus"::text = 'APPROVED'"#,
     )
-    .bind(&q.skill)
     .fetch_all(&state.db)
     .await?;
-    Ok(Json(rows.iter().map(worker_list_json).collect()))
+    Ok(rows
+        .iter()
+        .filter_map(|r| {
+            let all = parse_skills(r.try_get::<Option<String>, _>("skills").ok().flatten());
+            let active =
+                parse_skills(r.try_get::<Option<String>, _>("activeSkills").ok().flatten());
+            let dispatch = dispatchable_skills(&all, &active);
+            if dispatch.iter().any(|s| s.eq_ignore_ascii_case(skill))
+                || skill_matches(&all, skill)
+            {
+                r.try_get::<Uuid, _>("userId").ok().map(|u| u.to_string())
+            } else {
+                None
+            }
+        })
+        .collect())
+}
+
+async fn find_nearby_for_dispatch(
+    state: &AppState,
+    requester_id: &str,
+    skill: &str,
+    lat: f64,
+    lng: f64,
+    radius_stretch: f64,
+) -> AppResult<Vec<DispatchWorker>> {
+    let skill = skill.trim();
+    if skill.is_empty() {
+        return Ok(vec![]);
+    }
+
+    let mut skill_ids = state.redis.get_worker_ids_by_skill(skill).await?;
+    if skill_ids.is_empty() {
+        skill_ids = skill_worker_ids_from_db(state, skill).await?;
+    }
+    if skill_ids.is_empty() {
+        return Ok(vec![]);
+    }
+
+    let rejected: HashSet<String> = state
+        .redis
+        .get_rejected_workers_for_job(requester_id, skill)
+        .await?
+        .into_iter()
+        .collect();
+
+    let nearby_ids = state
+        .redis
+        .search_nearby_worker_ids(lat, lng, MAX_DISPATCH_RADIUS_KM)
+        .await?;
+    if let Some(ids) = nearby_ids {
+        if !ids.is_empty() {
+            let near_set: HashSet<String> = ids.into_iter().collect();
+            let narrowed = skill_ids
+                .iter()
+                .filter(|id| near_set.contains(*id))
+                .cloned()
+                .collect::<Vec<_>>();
+            if !narrowed.is_empty() {
+                skill_ids = narrowed;
+            }
+        }
+    }
+
+    skill_ids.retain(|id| id != requester_id && !rejected.contains(id));
+    if skill_ids.is_empty() {
+        return Ok(vec![]);
+    }
+
+    let uuids: Vec<Uuid> = skill_ids
+        .iter()
+        .filter_map(|id| Uuid::parse_str(id).ok())
+        .collect();
+    if uuids.is_empty() {
+        return Ok(vec![]);
+    }
+
+    let rows = sqlx::query(
+        r#"SELECT w."userId", w.skills, w."activeSkills", w.languages, w.rating,
+                  w."serviceRadiusKm", w."lastLat", w."lastLng"
+           FROM worker_profiles w
+           JOIN users u ON u.id = w."userId"
+           WHERE w."userId" = ANY($1)
+             AND w."isActive" = true
+             AND w."verificationStatus"::text = 'VERIFIED'
+             AND u."approvalStatus"::text = 'APPROVED'"#,
+    )
+    .bind(&uuids)
+    .fetch_all(&state.db)
+    .await?;
+
+    let stretch = radius_stretch.max(1.0);
+    let mut in_radius = Vec::new();
+    for row in &rows {
+        let worker_id = row.get::<Uuid, _>("userId").to_string();
+        let coords = if let Some(loc) = state.redis.get_worker_location(&worker_id).await? {
+            loc
+        } else {
+            let lat_dec = row
+                .try_get::<Option<rust_decimal::Decimal>, _>("lastLat")
+                .ok()
+                .flatten();
+            let lng_dec = row
+                .try_get::<Option<rust_decimal::Decimal>, _>("lastLng")
+                .ok()
+                .flatten();
+            match (lat_dec, lng_dec) {
+                (Some(la), Some(lo)) => (decimal_f64(la), decimal_f64(lo)),
+                _ => continue,
+            }
+        };
+        let distance = haversine_km(lat, lng, coords.0, coords.1);
+        if distance > MAX_DISPATCH_RADIUS_KM {
+            continue;
+        }
+        let status = state.redis.get_worker_status(&worker_id).await?;
+        if status == "busy" {
+            continue;
+        }
+        let limit = row
+            .try_get::<i32, _>("serviceRadiusKm")
+            .ok()
+            .map(|r| r as f64)
+            .unwrap_or(DEFAULT_SERVICE_RADIUS_KM)
+            * stretch;
+        let limit = limit.min(MAX_DISPATCH_RADIUS_KM);
+        if distance > limit {
+            continue;
+        }
+        let rating = row
+            .try_get::<rust_decimal::Decimal, _>("rating")
+            .ok()
+            .map(decimal_f64)
+            .unwrap_or(0.0);
+        let languages = parse_skills(row.try_get::<Option<String>, _>("languages").ok().flatten());
+        in_radius.push(DispatchWorker {
+            id: worker_id,
+            distance_km: (distance * 10.0).round() / 10.0,
+            rating,
+            languages,
+        });
+    }
+
+    in_radius.sort_by(|a, b| {
+        a.distance_km
+            .partial_cmp(&b.distance_km)
+            .unwrap_or(std::cmp::Ordering::Equal)
+    });
+    in_radius.truncate(MAX_NEARBY_CANDIDATES);
+
+    in_radius.sort_by(|a, b| {
+        let dist = a
+            .distance_km
+            .partial_cmp(&b.distance_km)
+            .unwrap_or(std::cmp::Ordering::Equal);
+        if dist != std::cmp::Ordering::Equal {
+            return dist;
+        }
+        b.rating.partial_cmp(&a.rating).unwrap_or(std::cmp::Ordering::Equal)
+    });
+
+    Ok(in_radius)
+}
+
+pub fn select_broadcast_targets(
+    nearby: Vec<DispatchWorker>,
+    preferred_languages: &[String],
+) -> Vec<String> {
+    let wanted: Vec<String> = preferred_languages
+        .iter()
+        .map(|l| l.to_lowercase())
+        .collect();
+    let mut eligible: Vec<DispatchWorker> = if wanted.is_empty() {
+        nearby
+    } else {
+        nearby
+            .into_iter()
+            .filter(|w| {
+                if w.languages.is_empty() {
+                    return true;
+                }
+                w.languages
+                    .iter()
+                    .any(|lang| wanted.contains(&lang.to_lowercase()))
+            })
+            .collect()
+    };
+
+    eligible.sort_by(|a, b| {
+        let dist = a
+            .distance_km
+            .partial_cmp(&b.distance_km)
+            .unwrap_or(std::cmp::Ordering::Equal);
+        if dist != std::cmp::Ordering::Equal {
+            return dist;
+        }
+        b.rating
+            .partial_cmp(&a.rating)
+            .unwrap_or(std::cmp::Ordering::Equal)
+    });
+
+    eligible
+        .into_iter()
+        .take(MAX_BROADCAST_FANOUT)
+        .map(|w| w.id)
+        .collect()
+}
+
+pub async fn find_broadcast_target_ids(
+    state: &AppState,
+    requester_id: &str,
+    skill: &str,
+    lat: f64,
+    lng: f64,
+    preferred_languages: &[String],
+    radius_stretch: f64,
+) -> AppResult<Vec<String>> {
+    let nearby =
+        find_nearby_for_dispatch(state, requester_id, skill, lat, lng, radius_stretch).await?;
+    Ok(select_broadcast_targets(nearby, preferred_languages))
+}
+
+async fn get_nearby(
+    State(state): State<AppState>,
+    user: AuthUser,
+    Query(q): Query<NearbyQuery>,
+) -> AppResult<Json<Vec<Value>>> {
+    let (lat, lng) = parse_coords(&q.lat, &q.lng)?;
+    let skill = q.skill.trim();
+    if skill.is_empty() {
+        return Err(AppError::BadRequest("skill is required".into()));
+    }
+
+    let candidates =
+        find_nearby_for_dispatch(&state, &user.user_id, skill, lat, lng, 1.0).await?;
+    if candidates.is_empty() {
+        return Ok(Json(vec![]));
+    }
+
+    let ids: Vec<Uuid> = candidates
+        .iter()
+        .filter_map(|w| Uuid::parse_str(&w.id).ok())
+        .collect();
+    let rows = sqlx::query(
+        r#"SELECT w."userId", w.skills, w."hourlyRate", w."isActive", w.rating, w."completedJobs",
+                  w."reviewCount", w.bio, w.title, u.name, u."profileImageUrl"
+           FROM worker_profiles w
+           JOIN users u ON u.id = w."userId"
+           WHERE w."userId" = ANY($1)"#,
+    )
+    .bind(&ids)
+    .fetch_all(&state.db)
+    .await?;
+
+    let distance_by_id: std::collections::HashMap<String, f64> = candidates
+        .iter()
+        .map(|w| (w.id.clone(), w.distance_km))
+        .collect();
+
+    let mut result = Vec::new();
+    for row in &rows {
+        let worker_id = row.get::<Uuid, _>("userId").to_string();
+        let distance = distance_by_id.get(&worker_id).copied().unwrap_or(0.0);
+        let status = state.redis.get_worker_status(&worker_id).await?;
+        result.push(worker_nearby_json(row, distance, &status));
+    }
+
+    result.sort_by(|a, b| {
+        let da = a.get("distance_km").and_then(|v| v.as_f64()).unwrap_or(0.0);
+        let db = b.get("distance_km").and_then(|v| v.as_f64()).unwrap_or(0.0);
+        if da != db {
+            return da.partial_cmp(&db).unwrap_or(std::cmp::Ordering::Equal);
+        }
+        let ra = a.get("rating").and_then(|v| v.as_f64()).unwrap_or(0.0);
+        let rb = b.get("rating").and_then(|v| v.as_f64()).unwrap_or(0.0);
+        rb.partial_cmp(&ra).unwrap_or(std::cmp::Ordering::Equal)
+    });
+
+    Ok(Json(result))
 }
 
 #[derive(Deserialize)]
@@ -174,10 +508,56 @@ struct CountsQuery {
 }
 
 async fn get_nearby_counts(
-    State(_state): State<AppState>,
-    Query(_q): Query<CountsQuery>,
+    State(state): State<AppState>,
+    Query(q): Query<CountsQuery>,
 ) -> AppResult<Json<Value>> {
-    Ok(Json(json!({})))
+    let (lat, lng) = parse_coords(&q.lat, &q.lng)?;
+    let cache_key = format!("nearby:counts:{:.2}:{:.2}", lat, lng);
+    if let Some(cached) = state.redis.get(&cache_key).await? {
+        if let Ok(v) = serde_json::from_str::<Value>(&cached) {
+            return Ok(Json(v));
+        }
+    }
+
+    let trade_rows = sqlx::query(
+        r#"SELECT label FROM master_entries
+           WHERE type::text = 'PRO_TRADE' AND "isActive" = true
+           ORDER BY "createdAt" DESC LIMIT 2000"#,
+    )
+    .fetch_all(&state.db)
+    .await?;
+
+    let labels: Vec<String> = trade_rows
+        .iter()
+        .filter_map(|r| r.try_get::<String, _>("label").ok())
+        .filter(|l| !l.is_empty())
+        .collect();
+    if labels.is_empty() {
+        return Ok(Json(json!({})));
+    }
+
+    let nearby_ids = state
+        .redis
+        .search_nearby_worker_ids(lat, lng, MAX_DISPATCH_RADIUS_KM)
+        .await?;
+    let near_set = nearby_ids.map(|ids| ids.into_iter().collect::<HashSet<_>>());
+
+    let mut counts = serde_json::Map::new();
+    for label in &labels {
+        let ids = state.redis.get_worker_ids_by_skill(label).await.unwrap_or_default();
+        let count = match &near_set {
+            None => ids.len(),
+            Some(set) => ids.iter().filter(|id| set.contains(*id)).count(),
+        };
+        counts.insert(label.clone(), json!(count));
+    }
+
+    let payload = Value::Object(counts);
+    let _ = state
+        .redis
+        .set(&cache_key, &payload.to_string(), 45)
+        .await;
+    Ok(Json(payload))
 }
 
 async fn get_my_dashboard(State(state): State<AppState>, user: AuthUser) -> AppResult<Json<Value>> {
@@ -427,6 +807,44 @@ async fn live_toggle(
     .execute(&state.db)
     .await?;
 
+    let all_skills = parse_skills(profile.try_get::<Option<String>, _>("skills").ok().flatten());
+    let active_skills =
+        parse_skills(profile.try_get::<Option<String>, _>("activeSkills").ok().flatten());
+    let dispatch_skills = dispatchable_skills(&all_skills, &active_skills);
+
+    if target {
+        let _ = state
+            .redis
+            .set_worker_status(&user.user_id, "available")
+            .await;
+        let lat = body.lat.or_else(|| {
+            profile
+                .try_get::<Option<rust_decimal::Decimal>, _>("lastLat")
+                .ok()
+                .flatten()
+                .map(decimal_f64)
+        });
+        let lng = body.lng.or_else(|| {
+            profile
+                .try_get::<Option<rust_decimal::Decimal>, _>("lastLng")
+                .ok()
+                .flatten()
+                .map(decimal_f64)
+        });
+        if let (Some(lat), Some(lng)) = (lat, lng) {
+            let _ = state.redis.update_worker_location(&user.user_id, lat, lng).await;
+        }
+        let _ = state
+            .redis
+            .index_worker_skills(&user.user_id, &dispatch_skills)
+            .await;
+    } else {
+        let _ = state
+            .redis
+            .clear_worker_live_state(&user.user_id, &all_skills)
+            .await;
+    }
+
     Ok(Json(json!({
         "isActive": target,
         "message": if target {
@@ -570,6 +988,10 @@ async fn update_location(
         .bind(uid)
         .execute(&state.db)
         .await?;
+    let _ = state
+        .redis
+        .update_worker_location(&user.user_id, body.lat, body.lng)
+        .await;
     Ok(Json(json!({ "message": "Location updated" })))
 }
 
@@ -638,25 +1060,216 @@ fn worker_json(row: &sqlx::postgres::PgRow) -> Value {
 }
 
 fn worker_list_json(row: &sqlx::postgres::PgRow) -> Value {
+    let user_id = row
+        .try_get::<Uuid, _>("userId")
+        .ok()
+        .map(|u| u.to_string())
+        .or_else(|| row.try_get::<Uuid, _>("id").ok().map(|u| u.to_string()))
+        .unwrap_or_default();
+    let rating = row
+        .try_get::<rust_decimal::Decimal, _>("rating")
+        .ok()
+        .map(decimal_f64)
+        .unwrap_or(0.0);
+    let hourly_rate = row
+        .try_get::<rust_decimal::Decimal, _>("hourlyRate")
+        .ok()
+        .map(decimal_f64)
+        .unwrap_or(0.0);
     json!({
-        "id": row.get::<Uuid, _>("id").to_string(),
+        "id": user_id,
         "name": row.try_get::<Option<String>, _>("name").ok().flatten().unwrap_or_default(),
         "title": row.try_get::<Option<String>, _>("title").ok().flatten().unwrap_or_default(),
         "bio": row.try_get::<Option<String>, _>("bio").ok().flatten().unwrap_or_default(),
-        "image_url": row.try_get::<Option<String>, _>("profileImageUrl").ok().flatten(),
-        "rating": row.try_get::<rust_decimal::Decimal, _>("rating").ok().unwrap_or_default(),
-        "completed_jobs": row.get::<i32, _>("completedJobs"),
-        "review_count": row.get::<i32, _>("reviewCount"),
-        "hourly_rate": row.try_get::<rust_decimal::Decimal, _>("hourlyRate").ok().unwrap_or_default(),
+        "image_url": row.try_get::<Option<String>, _>("profileImageUrl").ok().flatten().unwrap_or_else(|| "https://i.pravatar.cc/150".into()),
+        "rating": rating,
+        "completed_jobs": row.try_get::<i32, _>("completedJobs").ok().unwrap_or(0),
+        "review_count": row.try_get::<i32, _>("reviewCount").ok().unwrap_or(0),
+        "is_featured": false,
+        "hourly_rate": hourly_rate,
         "skills": parse_skills(row.try_get::<Option<String>, _>("skills").ok().flatten()),
         "availability_tags": [],
-        "status": if row.get::<bool, _>("isActive") { "available" } else { "offline" },
+        "primary_type": "manual",
+        "status": if row.try_get::<bool, _>("isActive").ok().unwrap_or(false) { "available" } else { "offline" },
     })
 }
 
+fn worker_nearby_json(row: &sqlx::postgres::PgRow, distance_km: f64, status: &str) -> Value {
+    let mut dto = worker_list_json(row);
+    if let Some(obj) = dto.as_object_mut() {
+        obj.insert(
+            "distance_km".into(),
+            json!((distance_km * 10.0).round() / 10.0),
+        );
+        obj.insert("status".into(), json!(status));
+    }
+    dto
+}
+
+pub async fn force_offline(state: &AppState, user_id: &str) -> AppResult<()> {
+    let uid = Uuid::parse_str(user_id)?;
+    let profile = load_profile(state, uid).await?;
+    if profile.is_none() {
+        return Ok(());
+    }
+    let profile = profile.unwrap();
+    if !profile.get::<bool, _>("isActive") {
+        return Ok(());
+    }
+
+    let all_skills = parse_skills(profile.try_get::<Option<String>, _>("skills").ok().flatten());
+
+    sqlx::query(r#"UPDATE worker_profiles SET "isActive" = false WHERE "userId" = $1"#)
+        .bind(uid)
+        .execute(&state.db)
+        .await?;
+
+    let _ = state.redis.clear_worker_live_state(user_id, &all_skills).await;
+    Ok(())
+}
+
 pub async fn set_worker_status(state: &AppState, user_id: &str, status: &str) {
+    let _ = state.redis.set_worker_status(user_id, status).await;
+}
+
+async fn config_number(state: &AppState, key: &str, fallback: i32) -> i32 {
+    let raw: Option<String> = sqlx::query_scalar(
+        r#"SELECT value FROM master_entries
+           WHERE type::text = 'CONFIGURATION' AND label = $1 AND "isActive" = true LIMIT 1"#,
+    )
+    .bind(key)
+    .fetch_optional(&state.db)
+    .await
+    .ok()
+    .flatten();
+    match raw {
+        Some(s) => s
+            .trim()
+            .parse::<i32>()
+            .filter(|n| *n >= 0)
+            .unwrap_or(fallback),
+        None => fallback,
+    }
+}
+
+pub async fn refresh_worker_snapshot(state: &AppState, user_id: &str) -> AppResult<()> {
     let _ = state
         .redis
-        .set(&format!("worker:status:{user_id}"), status, 3600)
+        .del(&format!("worker:snapshot:{user_id}"))
         .await;
+    Ok(())
+}
+
+pub async fn periodic_jobs_per_payment(state: &AppState) -> i32 {
+    config_number(state, "go_live_jobs_per_payment", 0)
+}
+
+const SUSPENSION_STRIKE_THRESHOLD: i32 = 3;
+
+pub async fn record_strike(
+    state: &AppState,
+    user_id: &str,
+    strike_type: &str,
+    booking_id: &str,
+    reason: &str,
+) -> AppResult<()> {
+    let uid = Uuid::parse_str(user_id)?;
+    let bid = Uuid::parse_str(booking_id)?;
+
+    let profile = load_profile(state, uid).await?;
+    if profile.is_none() {
+        return Ok(());
+    }
+    let profile = profile.unwrap();
+    let skills = parse_skills(profile.try_get::<Option<String>, _>("skills").ok().flatten());
+
+    sqlx::query(
+        r#"INSERT INTO worker_strikes (id, "workerUserId", "bookingId", type, reason, status)
+           VALUES ($1, $2, $3, $4, $5, 'ACTIVE')"#,
+    )
+    .bind(Uuid::new_v4())
+    .bind(uid)
+    .bind(bid)
+    .bind(strike_type)
+    .bind(reason)
+    .execute(&state.db)
+    .await?;
+
+    let strike_count: i32 = sqlx::query_scalar(
+        r#"UPDATE worker_profiles SET "strikeCount" = COALESCE("strikeCount", 0) + 1
+           WHERE "userId" = $1 RETURNING "strikeCount""#,
+    )
+    .bind(uid)
+    .fetch_one(&state.db)
+    .await?;
+
+    let suspended = strike_count >= SUSPENSION_STRIKE_THRESHOLD;
+    if suspended {
+        sqlx::query(r#"UPDATE worker_profiles SET "isActive" = false WHERE "userId" = $1"#)
+            .bind(uid)
+            .execute(&state.db)
+            .await?;
+        let _ = state.redis.clear_worker_live_state(user_id, &skills).await;
+    }
+
+    let (title, body) = if suspended {
+        (
+            "Account suspended — you can appeal".to_string(),
+            format!(
+                "{} You now have {} strikes and cannot go live. Open Profile → Strikes to appeal — our team reviews every appeal.",
+                reason,
+                strike_count
+            ),
+        )
+    } else {
+        (
+            format!("Strike {} of {}", strike_count, SUSPENSION_STRIKE_THRESHOLD),
+            format!(
+                "{} At {} strikes you will be suspended. You can view or appeal this in Profile → Strikes.",
+                reason,
+                SUSPENSION_STRIKE_THRESHOLD
+            ),
+        )
+    };
+    let strike_count_str = strike_count.to_string();
+    let suspended_str = suspended.to_string();
+    state
+        .fcm
+        .send_to_user(
+            state,
+            user_id,
+            &title,
+            &body,
+            Some(&[
+                ("type", "worker_strike"),
+                ("strikeCount", &strike_count_str),
+                ("suspended", &suspended_str),
+            ]),
+        )
+        .await;
+
+    Ok(())
+}
+
+pub async fn mark_period_fee_paid(state: &AppState, user_id: &str) -> AppResult<()> {
+    let uid = Uuid::parse_str(user_id)?;
+    sqlx::query(r#"UPDATE worker_profiles SET "jobsSincePayment" = 0 WHERE "userId" = $1"#)
+        .bind(uid)
+        .execute(&state.db)
+        .await?;
+    let jobs_included = periodic_jobs_per_payment(state).await;
+    state
+        .fcm
+        .send_to_user(
+            state,
+            user_id,
+            "Payment received",
+            &format!(
+                "Your next {} jobs are unlocked — go live when ready!",
+                jobs_included
+            ),
+            Some(&[("type", "period_fee_paid")]),
+        )
+        .await;
+    Ok(())
 }

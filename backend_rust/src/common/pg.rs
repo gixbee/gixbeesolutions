@@ -13,7 +13,10 @@ pub const JOB_APPLICATION_COLS: &str =
 
 pub const BOOKING_COLS: &str = r#"
     id, "customerId", "operatorId", skill, "serviceLocation", "serviceLat", "serviceLng",
-    amount, type::text AS type, status::text AS status, "paymentMethod", description
+    amount, type::text AS type, status::text AS status, "paymentMethod", description,
+    "isPaid", "workerPaidConfirmed", "customerPaidConfirmed",
+    "paymentCollectionMethod", "workerHonestyCheck", "customerSafetyCheck",
+    "scheduledAt", "createdAt", "completedAt", "acceptedAt"
 "#;
 
 pub const BUSINESS_COLS: &str = r#"
@@ -46,8 +49,7 @@ pub const HIRING_REQUEST_COLS: &str = r#"
     "targetInterested", "feeAmount", "creditApplied", status::text AS status, "deadlineAt", "createdAt", "updatedAt"
 "#;
 
-pub const HIRING_INTEREST_COLS: &str =
-    r#"id, "requestId", "candidateId", status::text AS status, "createdAt", "updatedAt""#;
+pub const HIRING_INTEREST_COLS: &str = r#"id, "requestId", "candidateId", "preferenceId", response::text AS response, decision::text AS decision, "notifiedAt", "respondedAt", "createdAt", "updatedAt""#;
 
 pub const ADMIN_STAFF_COLS: &str =
     r#"id, username, "displayName", "staffRole"::text AS "staffRole", "allowedPages", "isActive""#;

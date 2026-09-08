@@ -3,6 +3,7 @@ use axum::{
     routing::get,
     Json, Router,
 };
+use rust_decimal::Decimal;
 use serde_json::{json, Value};
 use sqlx::Row;
 use uuid::Uuid;
@@ -11,6 +12,34 @@ use crate::common::money::WALLET_PAYMENTS_ENABLED;
 use crate::error::{AppError, AppResult};
 use crate::middleware::auth::AuthUser;
 use crate::state::AppState;
+
+pub async fn add_funds(state: &AppState, user_id: &str, amount_inr: i32, description: &str) -> AppResult<()> {
+    if amount_inr <= 0 {
+        return Ok(());
+    }
+    let uid = Uuid::parse_str(user_id)?;
+    let amount = Decimal::from(amount_inr);
+    let mut tx = state.db.begin().await?;
+    sqlx::query(
+        r#"UPDATE users SET "walletBalance" = "walletBalance" + $1 WHERE id = $2"#,
+    )
+    .bind(amount)
+    .bind(uid)
+    .execute(&mut *tx)
+    .await?;
+    sqlx::query(
+        r#"INSERT INTO wallet_transactions (id, "userId", amount, type, description)
+           VALUES ($1, $2, $3, 'CREDIT', $4)"#,
+    )
+    .bind(Uuid::new_v4())
+    .bind(uid)
+    .bind(amount)
+    .bind(description)
+    .execute(&mut *tx)
+    .await?;
+    tx.commit().await?;
+    Ok(())
+}
 
 pub fn routes() -> Router<AppState> {
     Router::new()

@@ -1,10 +1,10 @@
 use std::time::Duration;
 
-use serde_json::json;
 use sqlx::Row;
 use tracing::{info, warn};
 use uuid::Uuid;
 
+use crate::bookings::{progress, rebroadcast_booking, timeout_cancel_booking};
 use crate::state::AppState;
 
 pub fn schedule_request_timeout(state: AppState, booking_id: String, attempt: u32) {
@@ -30,6 +30,15 @@ pub fn schedule_ten_minute_gps_check(state: AppState, booking_id: String) {
         tokio::time::sleep(Duration::from_secs(7 * 60)).await;
         if let Err(e) = handle_ten_minute_gps_check(&state, &booking_id).await {
             warn!("tenMinuteGpsCheck {}: {}", booking_id, e);
+        }
+    });
+}
+
+pub fn schedule_gps_recheck(state: AppState, booking_id: String) {
+    tokio::spawn(async move {
+        tokio::time::sleep(Duration::from_secs(3 * 60)).await;
+        if let Err(e) = handle_ten_minute_gps_check(&state, &booking_id).await {
+            warn!("gpsRecheck {}: {}", booking_id, e);
         }
     });
 }
@@ -61,20 +70,62 @@ async fn handle_seven_minute_reminder(state: &AppState, booking_id: &str) -> Res
 }
 
 async fn handle_ten_minute_gps_check(state: &AppState, booking_id: &str) -> Result<(), String> {
-    let bid = Uuid::parse_str(booking_id).map_err(|e| e.to_string())?;
-    let row = sqlx::query(r#"SELECT status FROM bookings WHERE id = $1"#)
-        .bind(bid)
-        .fetch_optional(&state.db)
+    let ctx = progress::load_progress_context(state, booking_id)
         .await
         .map_err(|e| e.to_string())?;
-    let row = row.ok_or_else(|| "booking not found".to_string())?;
-    if row.get::<String, _>("status") != "ACCEPTED" {
+    let (worker_id, location, service_lat, service_lng, accept_distance) = match ctx {
+        Some(c) => c,
+        None => return Ok(()),
+    };
+
+    let now_ms = chrono::Utc::now().timestamp_millis();
+    let evaluation = progress::evaluate_worker_progress(
+        service_lat,
+        service_lng,
+        accept_distance,
+        location.as_ref(),
+        now_ms,
+    );
+
+    if evaluation.progressing {
+        info!(
+            "Worker {} progress verified for {}: {}",
+            worker_id,
+            booking_id,
+            evaluation.reason
+        );
         return Ok(());
     }
-    info!(
-        "GPS progress check for {} — full strike logic not yet ported",
-        booking_id
+
+    warn!(
+        "GPS progress violation for booking {}: {}",
+        booking_id,
+        evaluation.reason
     );
+
+    let result = progress::add_gps_strike(state, booking_id)
+        .await
+        .map_err(|e| e.to_string())?;
+
+    match result {
+        Some(r) if r.free_cancel_enabled => {
+            info!(
+                "Booking {}: customer free cancel enabled after strike {}",
+                booking_id,
+                r.strikes
+            );
+        }
+        Some(r) => {
+            schedule_gps_recheck(state.clone(), booking_id.to_string());
+            info!(
+                "Booking {}: strike {} issued, recheck in 3m",
+                booking_id,
+                r.strikes
+            );
+        }
+        None => {}
+    }
+
     Ok(())
 }
 
@@ -99,50 +150,27 @@ async fn handle_request_timeout(
         .flatten()
         .is_none();
     if attempt < 2 && is_broadcast {
+        let (still_open, notified) = rebroadcast_booking(state, booking_id)
+            .await
+            .map_err(|e| e.to_string())?;
+        if !still_open {
+            return Ok(());
+        }
         info!(
-            "Booking {} wave-1 timeout — rebroadcast not ported; scheduling final window",
+            "Booking {} rebroadcast — {} new pros notified; final window running",
+            booking_id,
+            notified
+        );
+        return Ok(());
+    }
+
+    let cancelled = timeout_cancel_booking(state, booking_id)
+        .await?;
+    if cancelled {
+        warn!(
+            "Booking {} auto-cancelled — no worker accepted after the widened search",
             booking_id
         );
-        schedule_request_timeout(state.clone(), booking_id.to_string(), 2);
-        return Ok(());
     }
-
-    let result = sqlx::query(
-        r#"UPDATE bookings SET status = 'CANCELLED', "cancellationReason" = 'timeout' WHERE id = $1 AND status = 'REQUESTED'"#,
-    )
-    .bind(bid)
-    .execute(&state.db)
-    .await
-    .map_err(|e| e.to_string())?;
-    if result.rows_affected() == 0 {
-        return Ok(());
-    }
-
-    let customer_id: Option<Uuid> =
-        sqlx::query(r#"SELECT "customerId" FROM bookings WHERE id = $1"#)
-            .bind(bid)
-            .fetch_optional(&state.db)
-            .await
-            .map_err(|e| e.to_string())?
-            .and_then(|r| r.try_get("customerId").ok());
-
-    let payload = json!({
-        "bookingId": booking_id,
-        "reason": "timeout",
-        "source": "timeout",
-        "operatorId": null,
-        "operatorName": null,
-        "customerId": customer_id.map(|u| u.to_string()),
-    });
-    sqlx::query(
-        r#"INSERT INTO outbox_events (type, "aggregateId", payload, status, attempts) VALUES ($1, $2, $3, 'pending', 0)"#,
-    )
-    .bind("booking.cancelled")
-    .bind(bid)
-    .bind(payload)
-    .execute(&state.db)
-    .await
-    .map_err(|e| e.to_string())?;
-
     Ok(())
 }

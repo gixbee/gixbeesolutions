@@ -9,9 +9,13 @@ use sqlx::Row;
 use uuid::Uuid;
 
 use crate::common::pg::{HIRING_INTEREST_COLS, HIRING_REQUEST_COLS, JOB_PREFERENCE_COLS};
+
+use rust_decimal::prelude::ToPrimitive;
 use crate::error::{AppError, AppResult};
 use crate::middleware::auth::AuthUser;
 use crate::state::AppState;
+
+mod engine;
 
 pub fn routes() -> Router<AppState> {
     Router::new()
@@ -148,7 +152,9 @@ async fn list_offers(State(state): State<AppState>, user: AuthUser) -> AppResult
     Ok(Json(rows.iter().map(|r| json!({
         "id": r.get::<Uuid, _>("id").to_string(),
         "requestId": r.get::<Uuid, _>("requestId").to_string(),
-        "status": r.get::<String, _>("status"),
+        "response": r.get::<String, _>("response"),
+        "decision": r.get::<String, _>("decision"),
+        "notifiedAt": r.try_get::<Option<chrono::DateTime<chrono::Utc>>, _>("notifiedAt").ok().flatten(),
     })).collect()))
 }
 
@@ -165,17 +171,50 @@ async fn respond_offer(
 ) -> AppResult<Json<Value>> {
     let uid = Uuid::parse_str(&user.user_id)?;
     let rid = Uuid::parse_str(&request_id)?;
-    let status = if body.interested { "INTERESTED" } else { "DECLINED" };
-    sqlx::query(
-        r#"INSERT INTO hiring_interests (id, "requestId", "candidateId", status) VALUES ($1, $2, $3, $4)"#,
+
+    let interest = sqlx::query(
+        r#"SELECT hi.id, hi.response::text AS response, hr.status::text AS request_status
+           FROM hiring_interests hi
+           JOIN hiring_requests hr ON hr.id = hi."requestId"
+           WHERE hi."requestId" = $1 AND hi."candidateId" = $2"#,
     )
-    .bind(Uuid::new_v4())
     .bind(rid)
     .bind(uid)
-    .bind(status)
+    .fetch_optional(&state.db)
+    .await?
+    .ok_or_else(|| AppError::NotFound("This offer was not sent to you".into()))?;
+
+    if interest.get::<String, _>("response") != "PENDING" {
+        return Err(AppError::BadRequest(
+            "You have already responded to this offer".into(),
+        ));
+    }
+    if interest.get::<String, _>("request_status") != "COLLECTING" {
+        return Err(AppError::BadRequest(
+            "This opening is no longer accepting responses".into(),
+        ));
+    }
+
+    let response = if body.interested {
+        "INTERESTED"
+    } else {
+        "NOT_INTERESTED"
+    };
+    sqlx::query(
+        r#"UPDATE hiring_interests SET response = $1, "respondedAt" = NOW()
+           WHERE "requestId" = $2 AND "candidateId" = $3"#,
+    )
+    .bind(response)
+    .bind(rid)
+    .bind(uid)
     .execute(&state.db)
     .await?;
-    Ok(Json(json!({ "status": status })))
+
+    if body.interested {
+        engine::maybe_deliver_on_response(&state, rid).await?;
+    }
+
+    Ok(Json(json!({ "response": response })))
 }
 
 async fn list_requests(State(state): State<AppState>, user: AuthUser) -> AppResult<Json<Vec<Value>>> {
@@ -205,6 +244,7 @@ async fn create_request(
     .bind(body.get("jobType").and_then(|v| v.as_str()).unwrap_or(""))
     .execute(&state.db)
     .await?;
+    engine::schedule_hiring_engine(state.clone(), id.to_string());
     get_request(State(state), Path(id.to_string())).await
 }
 
@@ -225,16 +265,17 @@ struct ResolveBody {
 
 async fn resolve_request(
     State(state): State<AppState>,
+    user: AuthUser,
     Path(id): Path<String>,
     Json(body): Json<ResolveBody>,
 ) -> AppResult<Json<Value>> {
-    let rid = Uuid::parse_str(&id)?;
-    sqlx::query(r#"UPDATE hiring_requests SET status = $1 WHERE id = $2"#)
-        .bind(format!("RESOLVED_{}", body.choice))
-        .bind(rid)
-        .execute(&state.db)
-        .await?;
-    Ok(Json(json!({ "message": "Resolved" })))
+    let choice = if body.choice.to_uppercase() == "REFUND" {
+        "REFUND"
+    } else {
+        "CREDIT"
+    };
+    let row = engine::resolve_guarantee(&state, &user.user_id, &id, choice).await?;
+    Ok(Json(request_json(&row)))
 }
 
 #[derive(Deserialize)]
@@ -248,7 +289,7 @@ async fn interest_decision(
     Json(body): Json<DecisionBody>,
 ) -> AppResult<Json<Value>> {
     let iid = Uuid::parse_str(&id)?;
-    sqlx::query(r#"UPDATE hiring_interests SET status = $1 WHERE id = $2"#)
+    sqlx::query(r#"UPDATE hiring_interests SET decision = $1 WHERE id = $2"#)
         .bind(&body.decision)
         .bind(iid)
         .execute(&state.db)
@@ -284,4 +325,265 @@ fn request_json(row: &sqlx::postgres::PgRow) -> Value {
         "vacancies": row.get::<i32, _>("vacancies"),
         "location": row.get::<Option<String>, _>("location"),
     })
+}
+
+pub fn fee_for_vacancies(vacancies: i32) -> AppResult<i32> {
+    let v = vacancies.max(1);
+    if v <= 1 {
+        Ok(49)
+    } else if v <= 5 {
+        Ok(99)
+    } else if v <= 10 {
+        Ok(199)
+    } else if v <= 25 {
+        Ok(399)
+    } else {
+        Err(AppError::BadRequest(
+            "Maximum 25 vacancies per hiring request".into(),
+        ))
+    }
+}
+
+async fn assert_verified_hiring_business(state: &AppState, employer_id: &str) -> AppResult<()> {
+    let uid = Uuid::parse_str(employer_id)?;
+    let count: i64 = sqlx::query_scalar(
+        r#"SELECT COUNT(*)::bigint FROM businesses
+           WHERE "ownerId" = $1 AND type::text = 'HIRING' AND status::text = 'VERIFIED'"#,
+    )
+    .bind(uid)
+    .fetch_one(&state.db)
+    .await?;
+    if count < 1 {
+        return Err(AppError::BadRequest(
+            "A verified Hiring business is required before you can run Smart Hiring.".into(),
+        ));
+    }
+    Ok(())
+}
+
+pub async fn quote_match_fee(
+    state: &AppState,
+    employer_id: &str,
+    vacancies: i32,
+) -> AppResult<(i32, i32, i32)> {
+    assert_verified_hiring_business(state, employer_id).await?;
+    let fee = fee_for_vacancies(vacancies.max(1))?;
+    let uid = Uuid::parse_str(employer_id)?;
+    let credit: rust_decimal::Decimal = sqlx::query_scalar(
+        r#"SELECT "hiringCreditBalance" FROM users WHERE id = $1"#,
+    )
+    .bind(uid)
+    .fetch_one(&state.db)
+    .await?;
+    let credit_i = credit
+        .to_i32()
+        .unwrap_or(0)
+        .max(0);
+    let credit_applied = credit_i.min(fee);
+    let amount_due = fee - credit_applied;
+    Ok((fee, credit_applied, amount_due))
+}
+
+pub async fn preference_count(state: &AppState, user_id: &str) -> AppResult<i64> {
+    let uid = Uuid::parse_str(user_id)?;
+    let count: i64 = sqlx::query_scalar(
+        r#"SELECT COUNT(*)::bigint FROM job_preferences WHERE "userId" = $1 AND "isActive" = true"#,
+    )
+    .bind(uid)
+    .fetch_one(&state.db)
+    .await?;
+    Ok(count)
+}
+
+pub async fn create_request_from_payment(
+    state: &AppState,
+    employer_id: &str,
+    meta: &Value,
+    payment_order_id: Uuid,
+    razorpay_payment_id: Option<&str>,
+) -> AppResult<()> {
+    assert_verified_hiring_business(state, employer_id).await?;
+    let employer = Uuid::parse_str(employer_id)?;
+    let job_type = meta
+        .get("jobType")
+        .and_then(|v| v.as_str())
+        .unwrap_or("")
+        .trim();
+    if job_type.is_empty() {
+        return Err(AppError::BadRequest("jobType is required".into()));
+    }
+    let vacancies = meta
+        .get("vacancies")
+        .and_then(|v| v.as_i64())
+        .unwrap_or(1)
+        .max(1) as i32;
+    let fee = meta.get("fee").and_then(|v| v.as_i64()).unwrap_or(0) as i32;
+    let credit_applied = meta
+        .get("creditApplied")
+        .and_then(|v| v.as_i64())
+        .unwrap_or(0) as i32;
+    let skills: Vec<String> = meta
+        .get("skills")
+        .and_then(|v| v.as_array())
+        .map(|arr| {
+            arr.iter()
+                .filter_map(|v| v.as_str().map(|s| s.trim().to_string()))
+                .filter(|s| !s.is_empty())
+                .collect()
+        })
+        .unwrap_or_default();
+    let location = meta.get("location").and_then(|v| v.as_str());
+    let salary_offered = meta
+        .get("salaryOffered")
+        .and_then(|v| v.as_f64())
+        .unwrap_or(0.0);
+    let salary_min = meta.get("salaryMin").and_then(|v| v.as_f64()).unwrap_or(0.0);
+    let salary_max = meta
+        .get("salaryMax")
+        .and_then(|v| v.as_f64())
+        .unwrap_or(salary_offered);
+    let salary_negotiable = meta
+        .get("salaryNegotiable")
+        .and_then(|v| v.as_bool())
+        .unwrap_or(false);
+    let employment_type = meta
+        .get("employmentType")
+        .and_then(|v| v.as_str())
+        .unwrap_or("FULL_TIME");
+    let experience_min = meta
+        .get("experienceMinYears")
+        .and_then(|v| v.as_i64())
+        .unwrap_or(0)
+        .max(0) as i32;
+    let target_interested = vacancies * 3;
+    let fee_dec = rust_decimal::Decimal::from(fee);
+    let credit_dec = rust_decimal::Decimal::from(credit_applied);
+
+    let mut tx = state.db.begin().await?;
+    if credit_applied > 0 {
+        sqlx::query(
+            r#"UPDATE users SET "hiringCreditBalance" = GREATEST("hiringCreditBalance" - $1, 0)
+               WHERE id = $2"#,
+        )
+        .bind(credit_dec)
+        .bind(employer)
+        .execute(&mut *tx)
+        .await?;
+    }
+
+    let request_id = Uuid::new_v4();
+    sqlx::query(
+        r#"INSERT INTO hiring_requests (
+            id, "employerId", "jobType", skills, location, "salaryOffered", "salaryMin", "salaryMax",
+            "salaryNegotiable", "employmentType", "experienceMinYears", vacancies, "targetInterested",
+            "feeAmount", "creditApplied", "paymentOrderId", "razorpayPaymentId", status, "deadlineAt"
+        ) VALUES (
+            $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, 'COLLECTING',
+            NOW() + INTERVAL '24 hours'
+        )"#,
+    )
+    .bind(request_id)
+    .bind(employer)
+    .bind(job_type)
+    .bind(&skills)
+    .bind(location)
+    .bind(salary_offered)
+    .bind(salary_min)
+    .bind(salary_max)
+    .bind(salary_negotiable)
+    .bind(employment_type)
+    .bind(experience_min)
+    .bind(vacancies)
+    .bind(target_interested)
+    .bind(fee_dec)
+    .bind(credit_dec)
+    .bind(payment_order_id)
+    .bind(razorpay_payment_id)
+    .execute(&mut *tx)
+    .await?;
+    tx.commit().await?;
+    engine::schedule_hiring_engine(state.clone(), request_id.to_string());
+    Ok(())
+}
+
+pub async fn create_preference_from_payment(
+    state: &AppState,
+    user_id: &str,
+    meta: &Value,
+) -> AppResult<()> {
+    let uid = Uuid::parse_str(user_id)?;
+    let job_type = meta
+        .get("jobType")
+        .and_then(|v| v.as_str())
+        .unwrap_or("")
+        .trim();
+    if job_type.is_empty() {
+        return Err(AppError::BadRequest("jobType is required".into()));
+    }
+
+    let existing: Option<Uuid> = sqlx::query_scalar(
+        r#"SELECT id FROM job_preferences
+           WHERE "userId" = $1 AND LOWER("jobType") = LOWER($2) AND "isActive" = true LIMIT 1"#,
+    )
+    .bind(uid)
+    .bind(job_type)
+    .fetch_optional(&state.db)
+    .await?;
+    if existing.is_some() {
+        return Ok(());
+    }
+
+    let skills: Vec<String> = meta
+        .get("skills")
+        .and_then(|v| v.as_array())
+        .map(|arr| {
+            arr.iter()
+                .filter_map(|v| v.as_str().map(|s| s.trim().to_string()))
+                .filter(|s| !s.is_empty())
+                .collect()
+        })
+        .unwrap_or_default();
+    let preferred_location = meta.get("preferredLocation").and_then(|v| v.as_str());
+    let expected_salary = meta
+        .get("expectedSalary")
+        .and_then(|v| v.as_f64())
+        .unwrap_or(0.0);
+    let salary_negotiable = meta
+        .get("salaryNegotiable")
+        .and_then(|v| v.as_bool())
+        .unwrap_or(false);
+    let employment_type = meta
+        .get("employmentType")
+        .and_then(|v| v.as_str())
+        .unwrap_or("FULL_TIME");
+    let experience_years = meta
+        .get("experienceYears")
+        .and_then(|v| v.as_i64())
+        .unwrap_or(0)
+        .max(0) as i32;
+    let notice_period = meta
+        .get("noticePeriod")
+        .and_then(|v| v.as_str())
+        .unwrap_or("IMMEDIATE");
+
+    sqlx::query(
+        r#"INSERT INTO job_preferences (
+            id, "userId", "jobType", skills, "preferredLocation", "expectedSalary",
+            "salaryNegotiable", "employmentType", "experienceYears", "noticePeriod",
+            "isActive", "isPaid", "paidUntil"
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, true, true, NOW() + INTERVAL '30 days')"#,
+    )
+    .bind(Uuid::new_v4())
+    .bind(uid)
+    .bind(job_type)
+    .bind(&skills)
+    .bind(preferred_location)
+    .bind(expected_salary)
+    .bind(salary_negotiable)
+    .bind(employment_type)
+    .bind(experience_years)
+    .bind(notice_period)
+    .execute(&state.db)
+    .await?;
+    Ok(())
 }

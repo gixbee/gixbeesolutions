@@ -12,6 +12,9 @@ use crate::error::{AppError, AppResult};
 use crate::middleware::auth::AuthUser;
 use crate::state::AppState;
 
+mod credits;
+pub use credits::{consume_credit, get_credits_per_accept, refund_credit};
+
 pub fn routes() -> Router<AppState> {
     Router::new()
         .route("/balance", get(get_balance))
@@ -29,7 +32,7 @@ async fn get_balance(State(state): State<AppState>, user: AuthUser) -> AppResult
         .fetch_optional(&state.db)
         .await?
         .unwrap_or(0);
-    Ok(Json(json!({ "balance": balance, "creditsPerAccept": 15 })))
+    Ok(Json(json!({ "balance": balance, "creditsPerAccept": get_credits_per_accept(&state).await })))
 }
 
 async fn get_booking_usage(
@@ -47,7 +50,7 @@ async fn get_booking_usage(
     .fetch_optional(&state.db)
     .await?;
     Ok(Json(row.map(|r| json!({
-        "amount": r.get::<i32, _>("amount"),
+        "amount": r.try_get::<i32, _>("delta").ok().unwrap_or(0),
         "reason": r.get::<String, _>("reason"),
     })).unwrap_or(json!({ "amount": 0 }))))
 }
@@ -72,7 +75,7 @@ async fn get_transactions(
     .await?;
     Ok(Json(rows.iter().map(|r| json!({
         "id": r.get::<Uuid, _>("id").to_string(),
-        "amount": r.get::<i32, _>("amount"),
+        "amount": r.try_get::<i32, _>("delta").ok().unwrap_or(0),
         "reason": r.get::<String, _>("reason"),
     })).collect()))
 }
