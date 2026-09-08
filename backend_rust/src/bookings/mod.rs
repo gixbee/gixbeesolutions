@@ -493,9 +493,10 @@ async fn list_my(
 
 const MY_BOOKING_COLS: &str = r#"
     b.id, b."customerId", b."operatorId", b.skill, b."serviceLocation", b."serviceLat", b."serviceLng",
-    b.amount, b.type::text AS type, b.status::text AS status, b."paymentMethod", b.description,
+    b.amount, b."totalAmount", b.type::text AS type, b.status::text AS status, b."paymentMethod", b.description,
     b."isPaid", b."workerPaidConfirmed", b."customerPaidConfirmed",
     b."paymentCollectionMethod", b."workerHonestyCheck", b."customerSafetyCheck",
+    b."billingHours", b."workedMinutes", b."petrolDistanceKm", b."petrolRatePerKm", b."petrolAmount",
     b."scheduledAt", b."createdAt", b."completedAt", b."acceptedAt", b."arrivalOtp",
     cu.name AS "customerName", cu."profileImageUrl" AS "customerProfileImageUrl",
     op.name AS "operatorName", op."profileImageUrl" AS "operatorProfileImageUrl"
@@ -1492,6 +1493,30 @@ fn my_booking_json(row: &sqlx::postgres::PgRow, viewer_id: &str) -> Value {
 
 fn booking_json(row: &sqlx::postgres::PgRow) -> Value {
     let id = row.get::<Uuid, _>("id").to_string();
+    let hourly_rate = row
+        .try_get::<Option<rust_decimal::Decimal>, _>("amount")
+        .ok()
+        .flatten();
+    let stored_total = row
+        .try_get::<Option<rust_decimal::Decimal>, _>("totalAmount")
+        .ok()
+        .flatten();
+    let petrol_amount = row
+        .try_get::<Option<i32>, _>("petrolAmount")
+        .ok()
+        .flatten();
+    let petrol_distance = row
+        .try_get::<Option<rust_decimal::Decimal>, _>("petrolDistanceKm")
+        .ok()
+        .flatten();
+    let petrol_rate = row
+        .try_get::<Option<rust_decimal::Decimal>, _>("petrolRatePerKm")
+        .ok()
+        .flatten();
+    let billing_hours = row.try_get::<Option<i32>, _>("billingHours").ok().flatten();
+    let worked_minutes = row.try_get::<Option<i32>, _>("workedMinutes").ok().flatten();
+    let booking_type = row.get::<String, _>("type");
+    let total_amount = stored_total.or(hourly_rate);
     json!({
         "id": id,
         "bookingId": id,
@@ -1501,9 +1526,18 @@ fn booking_json(row: &sqlx::postgres::PgRow) -> Value {
         "serviceLocation": row.get::<Option<String>, _>("serviceLocation"),
         "serviceLat": row.try_get::<Option<rust_decimal::Decimal>, _>("serviceLat").ok().flatten().map(|d| d.to_string().parse::<f64>().unwrap_or(0.0)),
         "serviceLng": row.try_get::<Option<rust_decimal::Decimal>, _>("serviceLng").ok().flatten().map(|d| d.to_string().parse::<f64>().unwrap_or(0.0)),
-        "totalAmount": row.get::<Option<rust_decimal::Decimal>, _>("amount"),
-        "amount": row.get::<Option<rust_decimal::Decimal>, _>("amount"),
-        "type": row.get::<String, _>("type"),
+        "amount": hourly_rate,
+        "hourlyRate": match (booking_type.as_str(), hourly_rate) {
+            ("INSTANT", Some(d)) => json!(d.to_string().parse::<f64>().unwrap_or(0.0)),
+            _ => Value::Null,
+        },
+        "totalAmount": total_amount,
+        "petrolAmount": petrol_amount,
+        "petrolDistanceKm": petrol_distance,
+        "petrolRatePerKm": petrol_rate,
+        "billingHours": billing_hours,
+        "workedMinutes": worked_minutes,
+        "type": booking_type,
         "status": row.get::<String, _>("status"),
         "paymentMethod": row.get::<Option<String>, _>("paymentMethod"),
         "description": row.get::<Option<String>, _>("description"),

@@ -13,9 +13,10 @@ pub const JOB_APPLICATION_COLS: &str =
 
 pub const BOOKING_COLS: &str = r#"
     id, "customerId", "operatorId", skill, "serviceLocation", "serviceLat", "serviceLng",
-    amount, type::text AS type, status::text AS status, "paymentMethod", description,
+    amount, "totalAmount", type::text AS type, status::text AS status, "paymentMethod", description,
     "isPaid", "workerPaidConfirmed", "customerPaidConfirmed",
     "paymentCollectionMethod", "workerHonestyCheck", "customerSafetyCheck",
+    "billingHours", "workedMinutes", "petrolDistanceKm", "petrolRatePerKm", "petrolAmount",
     "scheduledAt", "createdAt", "completedAt", "acceptedAt"
 "#;
 

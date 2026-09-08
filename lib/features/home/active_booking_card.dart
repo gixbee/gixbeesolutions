@@ -228,6 +228,18 @@ class _ActiveBookingCardState extends ConsumerState<ActiveBookingCard> {
                             '${activeBooking['workedMinutes'] ?? ((activeBooking['billingHours'] != null) ? (num.tryParse('${activeBooking['billingHours']}') ?? 1) * 60 : 60)}') ??
                         60)
                     .round();
+                final petrolAmount = (num.tryParse(
+                            '${activeBooking['petrolAmount'] ?? 0}') ??
+                        0)
+                    .toDouble();
+                final petrolDistanceKm = (num.tryParse(
+                            '${activeBooking['petrolDistanceKm'] ?? 0}') ??
+                        0)
+                    .toDouble();
+                final petrolRatePerKm = (num.tryParse(
+                            '${activeBooking['petrolRatePerKm'] ?? 0}') ??
+                        0)
+                    .toDouble();
 
                 if (isOperator) {
                   await Navigator.push(
@@ -240,6 +252,11 @@ class _ActiveBookingCardState extends ConsumerState<ActiveBookingCard> {
                             activeBooking['customer']?['name'] ?? 'Customer',
                         hourlyRate: hourlyRate > 0 ? hourlyRate : null,
                         workedMinutes: workedMinutes,
+                        petrolAmount: petrolAmount > 0 ? petrolAmount : null,
+                        petrolDistanceKm:
+                            petrolDistanceKm > 0 ? petrolDistanceKm : null,
+                        petrolRatePerKm:
+                            petrolRatePerKm > 0 ? petrolRatePerKm : null,
                         initiallyWaiting: iConfirmed,
                       ),
                     ),
@@ -255,6 +272,11 @@ class _ActiveBookingCardState extends ConsumerState<ActiveBookingCard> {
                             activeBooking['operator']?['name'] ?? 'Worker',
                         hourlyRate: hourlyRate > 0 ? hourlyRate : null,
                         workedMinutes: workedMinutes,
+                        petrolAmount: petrolAmount > 0 ? petrolAmount : null,
+                        petrolDistanceKm:
+                            petrolDistanceKm > 0 ? petrolDistanceKm : null,
+                        petrolRatePerKm:
+                            petrolRatePerKm > 0 ? petrolRatePerKm : null,
                         initiallyWaiting: iConfirmed,
                       ),
                     ),
