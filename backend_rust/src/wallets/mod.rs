@@ -25,7 +25,7 @@ pub async fn add_funds(state: &AppState, user_id: &str, amount_inr: i32, descrip
     )
     .bind(amount)
     .bind(uid)
-    .execute(&mut tx)
+    .execute(&mut *tx)
     .await?;
     sqlx::query(
         r#"INSERT INTO wallet_transactions (id, "userId", amount, type, description)
@@ -35,7 +35,7 @@ pub async fn add_funds(state: &AppState, user_id: &str, amount_inr: i32, descrip
     .bind(uid)
     .bind(amount)
     .bind(description)
-    .execute(&mut tx)
+    .execute(&mut *tx)
     .await?;
     tx.commit().await?;
     Ok(())

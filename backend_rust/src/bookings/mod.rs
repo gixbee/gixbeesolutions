@@ -831,7 +831,7 @@ async fn accept(
            FROM bookings WHERE id = $1 FOR UPDATE"#,
     )
     .bind(bid)
-    .fetch_optional(&mut tx)
+    .fetch_optional(&mut *tx)
     .await?;
 
     let locked = locked.ok_or_else(|| AppError::NotFound("Booking not found".into()))?;
@@ -923,7 +923,7 @@ async fn accept(
     .bind(accept_lng)
     .bind(accept_distance_km)
     .bind(bid)
-    .execute(&mut tx)
+    .execute(&mut *tx)
     .await?;
 
     let other_pending = sqlx::query(
@@ -932,7 +932,7 @@ async fn accept(
     )
     .bind(worker_id)
     .bind(bid)
-    .fetch_all(&mut tx)
+    .fetch_all(&mut *tx)
     .await?;
 
     let cancelled_booking_ids: Vec<String> = other_pending
@@ -951,13 +951,13 @@ async fn accept(
         )
         .bind(worker_id)
         .bind(bid)
-        .execute(&mut tx)
+        .execute(&mut *tx)
         .await?;
     }
 
     let operator_name: Option<String> = sqlx::query_scalar(r#"SELECT name FROM users WHERE id = $1"#)
         .bind(worker_id)
-        .fetch_optional(&mut tx)
+        .fetch_optional(&mut *tx)
         .await?;
 
     let outbox_payload = json!({
@@ -976,7 +976,7 @@ async fn accept(
     .bind("booking.accepted")
     .bind(bid)
     .bind(outbox_payload)
-    .execute(&mut tx)
+    .execute(&mut *tx)
     .await?;
 
     tx.commit().await?;

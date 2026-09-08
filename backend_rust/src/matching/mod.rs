@@ -467,7 +467,7 @@ pub async fn create_request_from_payment(
         )
         .bind(credit_dec)
         .bind(employer)
-        .execute(&mut tx)
+        .execute(&mut *tx)
         .await?;
     }
 
@@ -499,7 +499,7 @@ pub async fn create_request_from_payment(
     .bind(credit_dec)
     .bind(payment_order_id)
     .bind(razorpay_payment_id)
-    .execute(&mut tx)
+    .execute(&mut *tx)
     .await?;
     tx.commit().await?;
     engine::schedule_hiring_engine(state.clone(), request_id.to_string());

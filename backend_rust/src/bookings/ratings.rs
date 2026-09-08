@@ -31,7 +31,7 @@ pub async fn submit_worker_rating(
            FROM bookings WHERE id = $1 FOR UPDATE"#,
     )
     .bind(bid)
-    .fetch_optional(&mut tx)
+    .fetch_optional(&mut *tx)
     .await?
     .ok_or_else(|| AppError::NotFound("Booking not found".into()))?;
 
@@ -49,7 +49,7 @@ pub async fn submit_worker_rating(
     sqlx::query(r#"UPDATE bookings SET rating = $1 WHERE id = $2"#)
         .bind(rating)
         .bind(bid)
-        .execute(&mut tx)
+        .execute(&mut *tx)
         .await?;
 
     let operator_id = row
@@ -79,7 +79,7 @@ async fn update_worker_rating_average(
         r#"SELECT id FROM worker_profiles WHERE "userId" = $1 FOR UPDATE"#,
     )
     .bind(operator_id)
-    .fetch_optional(&mut tx)
+    .fetch_optional(&mut **tx)
     .await?;
 
     let profile_id = match profile_id {
@@ -91,7 +91,7 @@ async fn update_worker_rating_average(
         r#"SELECT rating, "reviewCount" FROM worker_profiles WHERE id = $1"#,
     )
     .bind(profile_id)
-    .fetch_one(&mut tx)
+    .fetch_one(&mut **tx)
     .await?;
 
     let current_rating = row
@@ -114,7 +114,7 @@ async fn update_worker_rating_average(
     .bind(new_rating)
     .bind(new_count)
     .bind(profile_id)
-    .execute(&mut tx)
+    .execute(&mut **tx)
     .await?;
 
     Ok(())
