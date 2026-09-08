@@ -481,13 +481,57 @@ async fn list_my(
 }
 
 async fn list_pending(State(state): State<AppState>, user: AuthUser) -> AppResult<Json<Vec<Value>>> {
-    let uid = Uuid::parse_str(&user.user_id)?;
+    let worker_id = user.user_id.clone();
+    let pending_ids = state.redis.get_pending_booking_ids(&worker_id).await?;
+
+    if !pending_ids.is_empty() {
+        let uuids: Vec<Uuid> = pending_ids
+            .iter()
+            .filter_map(|id| Uuid::parse_str(id).ok())
+            .collect();
+        if uuids.is_empty() {
+            return Ok(Json(vec![]));
+        }
+
+        let rows = sqlx::query(&format!(
+            r#"SELECT {BOOKING_COLS} FROM bookings WHERE id = ANY($1)"#
+        ))
+        .bind(&uuids)
+        .fetch_all(&state.db)
+        .await?;
+
+        let mut open: Vec<(usize, Value)> = Vec::new();
+        for row in rows {
+            let id = row.get::<Uuid, _>("id").to_string();
+            let status = row.get::<String, _>("status");
+            if status == "REQUESTED" {
+                let order = pending_ids
+                    .iter()
+                    .position(|p| p == &id)
+                    .unwrap_or(usize::MAX);
+                open.push((order, booking_json(&row)));
+            } else {
+                let _ = state.redis.remove_pending_booking(&worker_id, &id).await;
+            }
+        }
+        open.sort_by_key(|(order, _)| *order);
+        return Ok(Json(open.into_iter().map(|(_, v)| v).collect()));
+    }
+
+    // Targeted offers already assigned to this worker (operatorId set).
+    let uid = Uuid::parse_str(&worker_id)?;
     let rows = sqlx::query(&format!(
-        r#"SELECT {BOOKING_COLS} FROM bookings WHERE "operatorId" = $1 AND status IN ('REQUESTED', 'PENDING') ORDER BY "createdAt" DESC"#
+        r#"SELECT {BOOKING_COLS} FROM bookings WHERE "operatorId" = $1 AND status = 'REQUESTED' ORDER BY "createdAt" DESC"#
     ))
     .bind(uid)
     .fetch_all(&state.db)
     .await?;
+
+    for row in &rows {
+        let id = row.get::<Uuid, _>("id").to_string();
+        let _ = state.redis.add_pending_booking(&worker_id, &id).await;
+    }
+
     Ok(Json(rows.iter().map(booking_json).collect()))
 }
 
