@@ -582,7 +582,7 @@ pub async fn resolve_guarantee(
     ))
     .bind(rid)
     .fetch_one(&state.db)
-    .await?
+    .await
 }
 
 async fn add_hiring_credit(
