@@ -11,8 +11,9 @@ import { OutboxService } from '../outbox/outbox.service';
 import { OutboxEventType } from '../outbox/outbox.types';
 import { RedisService } from '../redis/redis.service';
 import { WorkersService } from '../workers/workers.service';
-import { Booking, BookingStatus } from './booking.entity';
+import { Booking, BookingStatus, BookingType } from './booking.entity';
 import { BookingStatusService } from './booking-status.service';
+import { MasterEntriesService } from '../master-entries/master-entries.service';
 
 @Injectable()
 export class BookingClaimService {
@@ -26,6 +27,7 @@ export class BookingClaimService {
     private readonly outboxService: OutboxService,
     private readonly jobCreditsService: JobCreditsService,
     private readonly bookingStatusService: BookingStatusService,
+    private readonly masterEntriesService: MasterEntriesService,
   ) {}
 
   private calculateDistance(
@@ -162,6 +164,22 @@ export class BookingClaimService {
           }
         }
 
+        if (booking.type === BookingType.INSTANT) {
+          const configured = await this.masterEntriesService.getConfigNumber(
+            'instant_petrol_per_km',
+            10,
+          );
+          booking.petrolRatePerKm = Number.isFinite(configured)
+            ? Math.max(0, configured)
+            : 10;
+          booking.petrolDistanceKm = Math.max(
+            0,
+            Number(booking.acceptDistanceKm) || 0,
+          );
+          booking.petrolAmount = Math.round(
+            booking.petrolDistanceKm * booking.petrolRatePerKm,
+          );
+        }
         await manager.save(booking);
         const saved =
           (await manager.findOne(Booking, {

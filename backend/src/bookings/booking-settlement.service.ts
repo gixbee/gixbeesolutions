@@ -15,9 +15,7 @@ import { WorkersService } from '../workers/workers.service';
 import { OutboxService } from '../outbox/outbox.service';
 import { OutboxEventType } from '../outbox/outbox.types';
 import { MasterEntriesService } from '../master-entries/master-entries.service';
-import {
-  WALLET_PAYMENTS_ENABLED,
-} from '../common/money-model';
+import { WALLET_PAYMENTS_ENABLED } from '../common/money-model';
 import { BookingStatusService } from './booking-status.service';
 
 @Injectable()
@@ -186,7 +184,9 @@ export class BookingSettlementService {
           ? rawPetrolDistance
           : 0;
       const petrolRatePerKm =
-        locked.type === BookingType.INSTANT ? configuredPetrolRate : 0;
+        locked.type === BookingType.INSTANT
+          ? Number(locked.petrolRatePerKm ?? configuredPetrolRate)
+          : 0;
       const petrolAmount =
         locked.type === BookingType.INSTANT
           ? Math.round(petrolDistanceKm * petrolRatePerKm)
@@ -336,54 +336,58 @@ export class BookingSettlementService {
     workerPaidConfirmed: boolean;
     customerPaidConfirmed: boolean;
   }> {
-    const booking = await this.bookingsRepository.findOne({
-      where: { id: bookingId },
-      relations: ['customer', 'operator'],
-    });
-    if (!booking) throw new NotFoundException('Booking not found');
-    const isWorker = booking.operator?.id === userId;
-    const isCustomer = booking.customer?.id === userId;
-    if (!isWorker && !isCustomer) {
-      throw new BadRequestException(
-        'Only participants of this booking can mark it paid',
-      );
-    }
-    if (booking.status !== BookingStatus.COMPLETED) {
-      throw new BadRequestException(
-        'Only completed bookings can be marked paid',
-      );
-    }
-
-    if (isWorker) {
-      booking.workerPaidConfirmed = true;
-      if (body.honestyCheck) {
-        booking.workerHonestyCheck = body.honestyCheck;
-      }
-    }
-    if (isCustomer) {
-      booking.customerPaidConfirmed = true;
-      if (body.collectionMethod) {
-        booking.paymentCollectionMethod = body.collectionMethod;
-      }
-      if (body.safetyCheck) {
-        booking.customerSafetyCheck = body.safetyCheck;
-      }
-    }
-
-    // Fully paid once both sides confirm. A single-sided confirm (e.g. older
-    // client that only had the worker button) still marks paid if the other
-    // side already confirmed, or if this is the first confirm and the other
-    // role is missing from the booking.
-    const bothConfirmed =
-      !!booking.workerPaidConfirmed && !!booking.customerPaidConfirmed;
-    const otherMissing =
-      (isWorker && !booking.customer?.id) ||
-      (isCustomer && !booking.operator?.id);
-    if (bothConfirmed || otherMissing || booking.isPaid) {
-      booking.isPaid = true;
-    }
-
     const txResult = await this.dataSource.transaction(async (manager) => {
+      const bookings = manager.getRepository(Booking);
+      const booking = await bookings
+        .createQueryBuilder('booking')
+        .innerJoinAndSelect('booking.customer', 'customer')
+        .leftJoinAndSelect('booking.operator', 'operator')
+        .setLock('pessimistic_write', undefined, ['booking'])
+        .where('booking.id = :bookingId', { bookingId })
+        .getOne();
+      if (!booking) throw new NotFoundException('Booking not found');
+      const isWorker = booking.operator?.id === userId;
+      const isCustomer = booking.customer?.id === userId;
+      if (!isWorker && !isCustomer) {
+        throw new BadRequestException(
+          'Only participants of this booking can mark it paid',
+        );
+      }
+      if (booking.status !== BookingStatus.COMPLETED) {
+        throw new BadRequestException(
+          'Only completed bookings can be marked paid',
+        );
+      }
+
+      if (isWorker) {
+        booking.workerPaidConfirmed = true;
+        if (body.honestyCheck) {
+          booking.workerHonestyCheck = body.honestyCheck;
+        }
+      }
+      if (isCustomer) {
+        booking.customerPaidConfirmed = true;
+        if (body.collectionMethod) {
+          booking.paymentCollectionMethod = body.collectionMethod;
+        }
+        if (body.safetyCheck) {
+          booking.customerSafetyCheck = body.safetyCheck;
+        }
+      }
+
+      // Fully paid once both sides confirm. A single-sided confirm (e.g. older
+      // client that only had the worker button) still marks paid if the other
+      // side already confirmed, or if this is the first confirm and the other
+      // role is missing from the booking.
+      const bothConfirmed =
+        !!booking.workerPaidConfirmed && !!booking.customerPaidConfirmed;
+      const otherMissing =
+        (isWorker && !booking.customer?.id) ||
+        (isCustomer && !booking.operator?.id);
+      if (bothConfirmed || otherMissing || booking.isPaid) {
+        booking.isPaid = true;
+      }
+
       await manager.save(booking);
       const outbox = await this.outboxService.append(
         manager,
@@ -400,9 +404,10 @@ export class BookingSettlementService {
           customerPaidConfirmed: !!booking.customerPaidConfirmed,
         },
       );
-      return { outboxId: outbox.id };
+      return { outboxId: outbox.id, booking };
     });
 
+    const { booking } = txResult;
     await this.outboxService.enqueueDispatch(txResult.outboxId);
 
     await this.bookingStatusService
@@ -427,9 +432,7 @@ export class BookingSettlementService {
     };
   }
 
-  async refreshCompletionOtp(
-    bookingId: string,
-  ): Promise<{ message: string }> {
+  async refreshCompletionOtp(bookingId: string): Promise<{ message: string }> {
     const booking = await this.bookingsRepository.findOne({
       where: { id: bookingId },
       relations: ['customer'],

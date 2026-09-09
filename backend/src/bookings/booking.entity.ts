@@ -150,7 +150,7 @@ export class Booking {
   @Column({ type: 'decimal', precision: 8, scale: 2, nullable: true })
   acceptDistanceKm: number | null;
 
-  /** Frozen Instant Help petrol billing values, set when the job completes. */
+  /** Instant Help travel quote frozen at acceptance; legacy rows freeze at completion. */
   @Column({ type: 'decimal', precision: 8, scale: 2, nullable: true })
   petrolDistanceKm: number | null;
 

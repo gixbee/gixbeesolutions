@@ -21,6 +21,7 @@ import { WorkerProfile } from '../workers/worker-profile.entity';
  */
 function makeService() {
   const queryBuilder: any = {
+    innerJoinAndSelect: jest.fn(() => queryBuilder),
     leftJoinAndSelect: jest.fn(() => queryBuilder),
     where: jest.fn(() => queryBuilder),
     andWhere: jest.fn(() => queryBuilder),
@@ -136,6 +137,7 @@ function makeService() {
     outboxService,
     jobCreditsService,
     bookingStatusService,
+    { getConfigNumber: jest.fn(async (_key: string, fallback: number) => fallback) } as any,
   );
   const dispatchService = new BookingDispatchService(
     bookingsRepository,
@@ -784,9 +786,10 @@ describe('BookingSettlementService.markPaid', () => {
     const {
       settlementService: service,
       bookingsRepository,
+      queryBuilder,
       outboxService,
     } = makeService();
-    bookingsRepository.findOne.mockResolvedValueOnce(booking);
+    queryBuilder.getOne.mockResolvedValueOnce(booking);
 
     const res = await service.markPaid('b1', 'work-1', {
       honestyCheck: 'EXACT',
@@ -796,6 +799,11 @@ describe('BookingSettlementService.markPaid', () => {
     expect(booking.workerHonestyCheck).toBe('EXACT');
     expect(booking.isPaid).toBe(false);
     expect(res.isPaid).toBe(false);
+    expect(queryBuilder.setLock).toHaveBeenCalledWith(
+      'pessimistic_write',
+      undefined,
+      ['booking'],
+    );
     expect(bookingsRepository.save).toHaveBeenCalledWith(booking);
     expect(outboxService.append).toHaveBeenCalledWith(
       expect.anything(),
@@ -816,8 +824,8 @@ describe('BookingSettlementService.markPaid', () => {
       workerPaidConfirmed: false,
       customerPaidConfirmed: false,
     };
-    const { settlementService: service, bookingsRepository } = makeService();
-    bookingsRepository.findOne.mockResolvedValue(booking);
+    const { settlementService: service, queryBuilder } = makeService();
+    queryBuilder.getOne.mockResolvedValue(booking);
 
     await service.markPaid('b1', 'work-1', { honestyCheck: 'TIP' });
     const res = await service.markPaid('b1', 'cust-1', {

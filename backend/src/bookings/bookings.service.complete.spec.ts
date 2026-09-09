@@ -82,8 +82,7 @@ function makeService(
     outboxService,
     {
       getConfigNumber: jest.fn(
-        async (key: string, fallback: number) =>
-          configValues[key] ?? fallback,
+        async (key: string, fallback: number) => configValues[key] ?? fallback,
       ),
     } as any,
     { cacheAndEmitBookingStatus: jest.fn(async () => undefined) } as any,
@@ -290,6 +289,23 @@ describe('BookingSettlementService.verifyCompletionOtp', () => {
     expect(res.petrolDistanceKm).toBe(0);
     expect(res.petrolAmount).toBe(0);
     expect(res.totalAmount).toBe(200);
+  });
+
+  it('keeps the accepted travel rate when the admin changes pricing during work', async () => {
+    const booking = {
+      ...baseBooking(),
+      type: 'INSTANT',
+      amount: 200,
+      acceptDistanceKm: 2,
+      petrolRatePerKm: 10,
+    };
+    const { service } = makeService(booking, undefined, {
+      instant_petrol_per_km: 25,
+    });
+    const result = await service.verifyCompletionOtp('b1', '1234');
+    expect(result.petrolRatePerKm).toBe(10);
+    expect(result.petrolAmount).toBe(20);
+    expect(result.totalAmount).toBe(220);
   });
 
   it('does not add petrol to non-Instant bookings', async () => {

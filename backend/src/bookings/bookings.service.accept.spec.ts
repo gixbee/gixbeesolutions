@@ -102,6 +102,7 @@ function makeService(opts: {
     outboxService,
     jobCreditsService,
     bookingStatusService,
+    { getConfigNumber: jest.fn(async (_key: string, fallback: number) => fallback) } as any,
   );
   const service = new BookingDispatchService(
     bookingsRepository,

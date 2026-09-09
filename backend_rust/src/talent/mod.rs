@@ -294,76 +294,26 @@ async fn verification_status(
     }
 }
 
-async fn verification_initiate() -> Json<Value> {
-    Json(json!({ "message": "Initiated" }))
+// Automated KYC is unavailable until this runtime verifies a real provider response.
+// Manual document review remains a separate admin workflow; never mint VERIFIED here.
+async fn verification_initiate(_user: AuthUser) -> Json<Value> {
+    Json(json!({
+        "status": "UNAVAILABLE", "verified": false, "needsApiKey": true,
+        "provider": "AADHAAR",
+        "message": "Automated identity verification is unavailable. Use document review from your professional profile."
+    }))
 }
 
-#[derive(Deserialize)]
-struct AadhaarOtpBody {
-    aadhaarNumber: String,
+fn automated_verification_unavailable() -> AppError {
+    AppError::ServiceUnavailable("Automated identity verification is unavailable. Use document review from your professional profile.".into())
 }
 
-async fn aadhaar_generate_otp(
-    State(state): State<AppState>,
-    user: AuthUser,
-    Json(_body): Json<AadhaarOtpBody>,
-) -> AppResult<Json<Value>> {
-    if state.config.aadhaar_client_secret.is_none() {
-        return Err(AppError::ServiceUnavailable("Aadhaar eKYC not configured".into()));
-    }
-    Ok(Json(json!({ "clientId": format!("dev-{}", user.user_id) })))
+async fn aadhaar_generate_otp(_user: AuthUser) -> AppResult<Json<Value>> {
+    Err(automated_verification_unavailable())
 }
 
-#[derive(Deserialize)]
-struct AadhaarSubmitBody {
-    clientId: String,
-    otp: String,
-}
-
-async fn aadhaar_submit_otp(
-    State(state): State<AppState>,
-    user: AuthUser,
-    Json(_body): Json<AadhaarSubmitBody>,
-) -> AppResult<Json<Value>> {
-    let uid = Uuid::parse_str(&user.user_id)?;
-    // Dev stub: mark worker profile verified when Surepass is not configured.
-    if state.config.aadhaar_client_secret.is_none() {
-        let existing = sqlx::query_scalar::<_, Uuid>(
-            r#"SELECT id FROM worker_profiles WHERE "userId" = $1"#,
-        )
-        .bind(uid)
-        .fetch_optional(&state.db)
-        .await?;
-        if existing.is_none() {
-            sqlx::query(
-                r#"INSERT INTO worker_profiles (id, "userId", skills, "hourlyRate", "verificationStatus", "isActive")
-                   VALUES ($1, $2, '', 0, 'VERIFIED', false)"#,
-            )
-            .bind(Uuid::new_v4())
-            .bind(uid)
-            .execute(&state.db)
-            .await?;
-            sqlx::query(r#"UPDATE users SET "hasWorkerProfile" = true WHERE id = $1"#)
-                .bind(uid)
-                .execute(&state.db)
-                .await?;
-        } else {
-            sqlx::query(
-                r#"UPDATE worker_profiles SET "verificationStatus" = 'VERIFIED', "maskedAadhaar" = 'XXXX-XXXX-1234'
-                   WHERE "userId" = $1"#,
-            )
-            .bind(uid)
-            .execute(&state.db)
-            .await?;
-        }
-        return Ok(Json(json!({
-            "verified": true,
-            "status": "VERIFIED",
-            "maskedAadhaar": "XXXX-XXXX-1234",
-            "message": "Aadhaar verified successfully.",
-        })));
-    }
-    Ok(Json(json!({ "verified": true })))
+async fn aadhaar_submit_otp(_user: AuthUser) -> AppResult<Json<Value>> {
+    Err(automated_verification_unavailable())
 }
 
 fn skill_json(row: &sqlx::postgres::PgRow) -> Value {

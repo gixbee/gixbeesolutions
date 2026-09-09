@@ -108,6 +108,34 @@ describe('BookingStatusService.getStatusForParticipant', () => {
     expect(res.customerPaidConfirmed).toBe(false);
   });
 
+  it('repairs a stale single-party confirmation after both participants have paid', async () => {
+    const { service, redisService } = makeService({
+      cached: {
+        status: 'COMPLETED',
+        customerId: 'cust-1',
+        operatorId: 'op-1',
+        isPaid: false,
+        workerPaidConfirmed: true,
+        customerPaidConfirmed: false,
+      },
+      booking: {
+        status: BookingStatus.COMPLETED,
+        customer: { id: 'cust-1' },
+        operator: { id: 'op-1' },
+        isPaid: true,
+        workerPaidConfirmed: true,
+        customerPaidConfirmed: true,
+      },
+    });
+    const result = await service.getStatusForParticipant('b1', 'cust-1');
+    expect(result.isPaid).toBe(true);
+    expect(result.customerPaidConfirmed).toBe(true);
+    expect(redisService.cacheBookingStatus).toHaveBeenCalledWith(
+      'b1',
+      expect.objectContaining({ isPaid: true }),
+    );
+  });
+
   it('falls back to DB and still attaches Redis coords', async () => {
     const { service, redisService } = makeService({
       booking: {

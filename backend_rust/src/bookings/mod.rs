@@ -995,6 +995,7 @@ async fn accept(
             (None, None, None)
         };
 
+    let travel_rate = settlement::config_number(&state, "instant_petrol_per_km", 10.0).await;
     sqlx::query(
         r#"UPDATE bookings
            SET status = 'ACCEPTED',
@@ -1002,7 +1003,10 @@ async fn accept(
                "acceptedAt" = NOW(),
                "acceptLat" = $2,
                "acceptLng" = $3,
-               "acceptDistanceKm" = $4
+               "acceptDistanceKm" = $4,
+               "petrolRatePerKm" = CASE WHEN type::text = 'INSTANT' THEN $6 ELSE NULL END,
+               "petrolDistanceKm" = CASE WHEN type::text = 'INSTANT' THEN COALESCE($4, 0) ELSE NULL END,
+               "petrolAmount" = CASE WHEN type::text = 'INSTANT' THEN ROUND(COALESCE($4, 0)::numeric * $6) ELSE NULL END
            WHERE id = $5"#,
     )
     .bind(worker_id)
@@ -1010,6 +1014,7 @@ async fn accept(
     .bind(accept_lng)
     .bind(accept_distance_km)
     .bind(bid)
+    .bind(travel_rate)
     .execute(&mut *tx)
     .await?;
 
@@ -1212,13 +1217,14 @@ async fn mark_paid(
     let bid = Uuid::parse_str(&id)?;
     let uid = Uuid::parse_str(&user.user_id)?;
 
+    let mut tx = state.db.begin().await?;
     let row = sqlx::query(
         r#"SELECT status::text AS status, "customerId", "operatorId", "isPaid",
                   "workerPaidConfirmed", "customerPaidConfirmed"
-           FROM bookings WHERE id = $1"#,
+           FROM bookings WHERE id = $1 FOR UPDATE"#,
     )
     .bind(bid)
-    .fetch_optional(&state.db)
+    .fetch_optional(&mut *tx)
     .await?
     .ok_or_else(|| AppError::NotFound("Booking not found".into()))?;
 
@@ -1271,17 +1277,17 @@ async fn mark_paid(
     .bind(is_paid)
     .bind(worker_confirmed)
     .bind(customer_confirmed)
-    .bind(body.honestyCheck.as_deref())
-    .bind(body.collectionMethod.as_deref())
-    .bind(body.safetyCheck.as_deref())
+    .bind(if is_worker { body.honestyCheck.as_deref() } else { None })
+    .bind(if is_customer { body.collectionMethod.as_deref() } else { None })
+    .bind(if is_customer { body.safetyCheck.as_deref() } else { None })
     .bind(bid)
-    .execute(&state.db)
+    .execute(&mut *tx)
     .await?;
 
     let operator_name: Option<String> = if let Some(op) = operator_id {
         sqlx::query_scalar(r#"SELECT name FROM users WHERE id = $1"#)
             .bind(op)
-            .fetch_optional(&state.db)
+            .fetch_optional(&mut *tx)
             .await?
     } else {
         None
@@ -1303,8 +1309,10 @@ async fn mark_paid(
     .bind("booking.payment_confirmed")
     .bind(bid)
     .bind(outbox_payload)
-    .execute(&state.db)
+    .execute(&mut *tx)
     .await?;
+
+    tx.commit().await?;
 
     let status_patch = json!({
         "status": "COMPLETED",
@@ -1358,7 +1366,8 @@ async fn get_status(
     let row = sqlx::query(
         r#"SELECT status::text AS status, "isPaid", "workerPaidConfirmed", "customerPaidConfirmed",
                   "customerId", "operatorId", "arrivalOtp", "cancelRequestedAt", "workerNoProgressAt",
-                  "startedAt"
+                  "startedAt", type::text AS type, skill, amount,
+                  "acceptDistanceKm", "petrolRatePerKm", "petrolAmount"
            FROM bookings WHERE id = $1"#,
     )
     .bind(bid)
@@ -1408,6 +1417,14 @@ async fn get_status(
                 .flatten()
                 .is_some()),
         );
+        obj.insert("type".into(), json!(row.get::<String, _>("type")));
+        obj.insert("skill".into(), json!(row.get::<Option<String>, _>("skill")));
+        for (column, field) in [("amount", "hourlyRate"), ("acceptDistanceKm", "acceptDistanceKm"), ("petrolRatePerKm", "petrolRatePerKm")] {
+            let number = row.try_get::<Option<rust_decimal::Decimal>, _>(column).ok().flatten()
+                .and_then(|d| d.to_string().parse::<f64>().ok());
+            obj.insert(field.into(), json!(number));
+        }
+        obj.insert("estimatedPetrolAmount".into(), json!(row.get::<Option<i32>, _>("petrolAmount")));
         obj.insert("bookingId".into(), json!(id));
         obj.insert("id".into(), json!(id));
         obj.insert(

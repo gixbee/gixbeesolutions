@@ -1,8 +1,4 @@
-import {
-  Injectable,
-  NotFoundException,
-  Logger,
-} from '@nestjs/common';
+import { Injectable, NotFoundException, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Booking, BookingStatus, BookingType } from './booking.entity';
@@ -134,10 +130,13 @@ export class BookingStatusService {
     let petrolRatePerKm: number | null = null;
     let estimatedPetrolAmount: number | null = null;
     if (isInstant && acceptDistanceKm != null) {
-      petrolRatePerKm = await this.masterEntriesService.getConfigNumber(
-        'instant_petrol_per_km',
-        10,
-      );
+      petrolRatePerKm =
+        booking.petrolRatePerKm != null
+          ? Number(booking.petrolRatePerKm)
+          : await this.masterEntriesService.getConfigNumber(
+              'instant_petrol_per_km',
+              10,
+            );
       estimatedPetrolAmount = Math.round(acceptDistanceKm * petrolRatePerKm);
     }
     return {
@@ -213,11 +212,7 @@ export class BookingStatusService {
       let status = String(cached.status || '').toUpperCase();
 
       // Stale cache repair: open statuses lag accept; live statuses lag cancel.
-      const openCached = new Set([
-        'REQUESTED',
-        'PENDING',
-        'CUSTOM_REQUESTED',
-      ]);
+      const openCached = new Set(['REQUESTED', 'PENDING', 'CUSTOM_REQUESTED']);
       const liveCached = new Set([
         'ACCEPTED',
         'CONFIRMED',
@@ -225,11 +220,21 @@ export class BookingStatusService {
         'ACTIVE',
         'IN_PROGRESS',
       ]);
-      if (openCached.has(status) || liveCached.has(status)) {
+      if (
+        openCached.has(status) ||
+        liveCached.has(status) ||
+        (status === 'COMPLETED' && !cached.isPaid)
+      ) {
         const fresh = await this.getBookingById(bookingId);
         if (fresh) {
           const dbStatus = String(fresh.status || '').toUpperCase();
-          if (dbStatus && dbStatus !== status) {
+          if (
+            dbStatus &&
+            (dbStatus !== status ||
+              !!fresh.isPaid !== !!cached.isPaid ||
+              !!fresh.workerPaidConfirmed !== !!cached.workerPaidConfirmed ||
+              !!fresh.customerPaidConfirmed !== !!cached.customerPaidConfirmed)
+          ) {
             const phones = this.extractBookingPhones(fresh);
             const billing = await this.billingExtras(fresh);
             const payload = {
@@ -288,14 +293,16 @@ export class BookingStatusService {
               estimatedPetrolAmount: cached.estimatedPetrolAmount ?? null,
             }
           : await this.getBookingById(bookingId).then((b) =>
-              b ? this.billingExtras(b) : Promise.resolve({
-                skill: null,
-                type: null,
-                hourlyRate: null,
-                acceptDistanceKm: null,
-                petrolRatePerKm: null,
-                estimatedPetrolAmount: null,
-              }),
+              b
+                ? this.billingExtras(b)
+                : Promise.resolve({
+                    skill: null,
+                    type: null,
+                    hourlyRate: null,
+                    acceptDistanceKm: null,
+                    petrolRatePerKm: null,
+                    estimatedPetrolAmount: null,
+                  }),
             );
 
       return {

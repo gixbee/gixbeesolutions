@@ -10,14 +10,14 @@ use crate::error::{AppError, AppResult};
 use crate::state::AppState;
 use crate::workers;
 
-const INSTANT_PETROL_PER_KM_DEFAULT: i32 = 10;
+const INSTANT_PETROL_PER_KM_DEFAULT: f64 = 10.0;
 const PLATFORM_FEE: i32 = 12;
 
 fn generate_otp() -> String {
     format!("{:04}", rand::random::<u16>() % 9000 + 1000)
 }
 
-async fn config_number(state: &AppState, key: &str, fallback: i32) -> i32 {
+pub(super) async fn config_number(state: &AppState, key: &str, fallback: f64) -> f64 {
     let raw: Option<String> = sqlx::query_scalar(
         r#"SELECT value FROM master_entries
            WHERE type::text = 'CONFIGURATION' AND label = $1 AND "isActive" = true LIMIT 1"#,
@@ -30,9 +30,9 @@ async fn config_number(state: &AppState, key: &str, fallback: i32) -> i32 {
     match raw {
         Some(s) => s
             .trim()
-            .parse::<i32>()
+            .parse::<f64>()
             .ok()
-            .filter(|n| *n >= 0)
+            .filter(|n| n.is_finite() && *n >= 0.0)
             .unwrap_or(fallback),
         None => fallback,
     }
@@ -328,7 +328,7 @@ pub async fn verify_completion_otp(
     let configured_petrol_rate = if booking_type == "INSTANT" {
         config_number(state, "instant_petrol_per_km", INSTANT_PETROL_PER_KM_DEFAULT).await
     } else {
-        0
+        0.0
     };
 
     let mut tx = state.db.begin().await?;
@@ -347,7 +347,7 @@ pub async fn verify_completion_otp(
     }
 
     let locked = sqlx::query(
-        r#"SELECT type::text AS type, amount, "acceptDistanceKm", "startedAt", "paymentMethod",
+        r#"SELECT type::text AS type, amount, "acceptDistanceKm", "petrolRatePerKm", "startedAt", "paymentMethod",
                   "customerId", "operatorId", "workerPaidConfirmed", "customerPaidConfirmed", "isPaid"
            FROM bookings WHERE id = $1"#,
     )
@@ -392,12 +392,13 @@ pub async fn verify_completion_otp(
         0.0
     };
     let petrol_rate_per_km = if booking_type == "INSTANT" {
-        configured_petrol_rate
+        locked.try_get::<Option<Decimal>, _>("petrolRatePerKm").ok().flatten()
+            .and_then(|rate| rate.to_f64()).unwrap_or(configured_petrol_rate)
     } else {
-        0
+        0.0
     };
     let petrol_amount = if booking_type == "INSTANT" {
-        (petrol_distance_km * petrol_rate_per_km as f64).round() as i32
+        (petrol_distance_km * petrol_rate_per_km).round() as i32
     } else {
         0
     };
@@ -406,7 +407,7 @@ pub async fn verify_completion_otp(
     let petrol_distance_dec = Decimal::from_f64_retain(petrol_distance_km)
         .unwrap_or(Decimal::ZERO);
     let petrol_rate_dec =
-        Decimal::from_i32(petrol_rate_per_km).unwrap_or(Decimal::ZERO);
+        Decimal::from_f64_retain(petrol_rate_per_km).unwrap_or(Decimal::ZERO);
     let total_dec = Decimal::from_i32(total_amount).unwrap_or(Decimal::ZERO);
 
     let payment_method = locked
