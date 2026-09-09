@@ -5,14 +5,15 @@ import { CreditTransaction } from './credit-transaction.entity';
 import { JobCreditsService } from './job-credits.service';
 import { JobCreditsController } from './job-credits.controller';
 import { MasterEntriesModule } from '../master-entries/master-entries.module';
+import { JobPackPaymentsService } from './job-pack-payments.service';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([JobCredit, CreditTransaction]),
     MasterEntriesModule,
   ],
-  providers: [JobCreditsService],
+  providers: [JobCreditsService, JobPackPaymentsService],
   controllers: [JobCreditsController],
-  exports: [JobCreditsService],
+  exports: [JobCreditsService, JobPackPaymentsService],
 })
 export class BillingModule {}

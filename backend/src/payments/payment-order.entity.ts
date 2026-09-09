@@ -17,6 +17,8 @@ export enum PaymentOrderStatus {
 }
 
 export enum PaymentPurpose {
+  /** Purchased acceptance credits; entitlement is frozen in meta. */
+  JOB_CREDITS = 'JOB_CREDITS',
   /** Customer wallet top-up — fulfilment credits the wallet. */
   WALLET_RECHARGE = 'WALLET_RECHARGE',
   /** Worker periodic platform fee ("N jobs, then pay") — fulfilment
@@ -37,10 +39,9 @@ export enum PaymentPurpose {
 /**
  * Server-side ledger of Razorpay recharge orders.
  *
- * WEBHOOK-ONLY CREDITING: the app's payment-success callback never credits
- * anything — only the signature-verified Razorpay webhook flips
- * CREATED → CREDITED (atomic claim in PaymentsService.handleWebhook), which
- * makes duplicate webhook deliveries and client-side spoofing harmless.
+ * Platform fees are fulfilled by signed webhooks. Credit packs also support
+ * an authenticated checkout callback, verified against the provider's captured
+ * payment API; their order, balance and credit receipt commit atomically.
  */
 @Entity('payment_orders')
 export class PaymentOrder {

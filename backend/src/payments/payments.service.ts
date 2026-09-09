@@ -8,7 +8,7 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Not, Repository } from 'typeorm';
 import * as crypto from 'crypto';
 import {
   PaymentOrder,
@@ -28,6 +28,7 @@ import {
 } from '../common/money-model';
 import { isRealSecret } from '../common/env-secrets';
 import { NoticePeriod } from '../hiring/matching/job-preference.entity';
+import { JobPackPaymentsService } from '../billing/job-pack-payments.service';
 
 /**
  * Razorpay wallet-recharge integration.
@@ -61,6 +62,7 @@ export class PaymentsService {
     private readonly bookingsService: BookingsService,
     @Inject(forwardRef(() => MatchingService))
     private readonly matchingService: MatchingService,
+    private readonly jobPacks: JobPackPaymentsService,
   ) {}
 
   private get keyId(): string {
@@ -282,21 +284,16 @@ export class PaymentsService {
         'You already have a profile for this Job Type',
       );
     }
-    return this.createOrder(
-      userId,
-      50,
-      PaymentPurpose.EXTRA_JOB_TYPE_FEE,
-      {
-        jobType,
-        skills: body.skills ?? [],
-        preferredLocation: body.preferredLocation,
-        expectedSalary: body.expectedSalary ?? 0,
-        salaryNegotiable: body.salaryNegotiable === true,
-        employmentType: parseEmploymentType(body.employmentType),
-        experienceYears: body.experienceYears ?? 0,
-        noticePeriod: body.noticePeriod ?? NoticePeriod.IMMEDIATE,
-      },
-    );
+    return this.createOrder(userId, 50, PaymentPurpose.EXTRA_JOB_TYPE_FEE, {
+      jobType,
+      skills: body.skills ?? [],
+      preferredLocation: body.preferredLocation,
+      expectedSalary: body.expectedSalary ?? 0,
+      salaryNegotiable: body.salaryNegotiable === true,
+      employmentType: parseEmploymentType(body.employmentType),
+      experienceYears: body.experienceYears ?? 0,
+      noticePeriod: body.noticePeriod ?? NoticePeriod.IMMEDIATE,
+    });
   }
 
   /** Refund a captured hiring-match payment (guarantee REFUND remedy). */
@@ -474,9 +471,18 @@ export class PaymentsService {
     const paymentId: string | null = payment?.id ?? null;
     if (!orderId) return { ok: true, ignored: 'no order id' };
 
+    // Credit packs commit the order receipt and balance in one transaction.
+    if (await this.jobPacks.handleCaptured(payment)) {
+      return { ok: true };
+    }
+
     // Atomic idempotent claim.
     const claim = await this.ordersRepo.update(
-      { razorpayOrderId: orderId, status: PaymentOrderStatus.CREATED },
+      {
+        razorpayOrderId: orderId,
+        status: PaymentOrderStatus.CREATED,
+        purpose: Not(PaymentPurpose.JOB_CREDITS),
+      },
       { status: PaymentOrderStatus.CREDITED, razorpayPaymentId: paymentId },
     );
     if (!claim.affected) {
@@ -519,9 +525,7 @@ export class PaymentsService {
 
     if (order.purpose === PaymentPurpose.LATE_CANCEL_COMPENSATION) {
       try {
-        await this.bookingsService.markLateCancelCompensationPaid(
-          order.userId,
-        );
+        await this.bookingsService.markLateCancelCompensationPaid(order.userId);
         this.logger.log(
           `[Razorpay] ${orderId}: late-cancel compensation ₹${order.amount} — Instant Help unlocked for ${order.userId}`,
         );
@@ -553,7 +557,8 @@ export class PaymentsService {
             location: meta.location,
             salaryOffered: Number(meta.salaryOffered) || 0,
             salaryMin: Number(meta.salaryMin) || 0,
-            salaryMax: Number(meta.salaryMax) || Number(meta.salaryOffered) || 0,
+            salaryMax:
+              Number(meta.salaryMax) || Number(meta.salaryOffered) || 0,
             salaryNegotiable: meta.salaryNegotiable === true,
             employmentType: parseEmploymentType(meta.employmentType),
             experienceMinYears: Number(meta.experienceMinYears) || 0,

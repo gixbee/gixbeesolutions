@@ -10,7 +10,7 @@ import { User } from '../users/user.entity';
 import { Booking } from '../bookings/booking.entity';
 import { MasterEntriesService } from '../master-entries/master-entries.service';
 
-export const CREDITS_PER_PACK = 3;
+export const JOBS_PER_PACK = 3;
 export const PACK_PRICE_INR = 49;
 
 /** Master Entries CONFIGURATION key — admin-editable accept cost. */
@@ -30,7 +30,7 @@ export class JobCreditsService {
 
   /**
    * Credits deducted on accept. From Master Entries
-   * (`job_credit_per_accept`); fallback 1. Floored at 0 (0 = free accepts).
+   * (`job_credit_per_accept`); fallback 15. Floored at 0 (0 = free accepts).
    */
   async getCreditsPerAccept(): Promise<number> {
     const raw = await this.masterEntriesService.getConfigNumber(
@@ -41,23 +41,23 @@ export class JobCreditsService {
     return Math.floor(raw);
   }
 
+  async getPackInfo() {
+    const creditsPerAccept = await this.getCreditsPerAccept();
+    return {
+      credits: creditsPerAccept * JOBS_PER_PACK,
+      jobs: JOBS_PER_PACK,
+      creditsPerAccept,
+      price: PACK_PRICE_INR,
+      currency: 'INR',
+    };
+  }
+
   async getBalance(userId: string): Promise<number> {
-    return this.dataSource.transaction(async (manager) => {
-      let credit = await manager.findOne(JobCredit, {
-        where: { user: { id: userId } },
-        lock: { mode: 'pessimistic_write' },
-      });
-
-      if (!credit) {
-        credit = manager.create(JobCredit, {
-          user: { id: userId } as User,
-          balance: 0,
-        });
-        await manager.save(credit);
-      }
-
-      return credit.balance;
-    });
+    const credit = await this.jobCreditsRepo
+      .createQueryBuilder('credit')
+      .where('credit.userId = :userId', { userId })
+      .getOne();
+    return credit?.balance ?? 0;
   }
 
   /**

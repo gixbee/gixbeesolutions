@@ -10,13 +10,15 @@
  * 1. **Job settlement (Instant Help + most bookings)**
  *    Customer pays the pro directly (cash / UPI outside the app).
  *    Worker + customer dual-confirm via `markPaid`. Gixbee never holds the
- *    job amount. Instant completion also freezes a one-way petrol charge
- *    (`acceptDistanceKm × instant_petrol_per_km`).
+ *    job amount. Instant acceptance freezes the one-way travel quote
+ *    (`acceptDistanceKm × instant_petrol_per_km`); legacy jobs freeze at completion.
  *
  * 2. **Worker Go Live access**
  *    Job credits packs + periodic fee (`go_live_period_fee`) via **direct
- *    Razorpay** checkout (`PaymentPurpose.PERIOD_FEE`). Not a wallet hop.
+ *    Razorpay** checkout (`JOB_CREDITS` / `PERIOD_FEE`). Not a wallet hop.
  *    Accept cost is Master Entries `job_credit_per_accept` (default 15).
+ *    New packs buy three accepts at the current credit cost for ₹49; the
+ *    credit entitlement is frozen on the order. Existing balances are unchanged.
  *
  * 3. **Late-cancel compensation**
  *    After 3 strikes, customer pays distance-based compensation via

@@ -8,9 +8,11 @@ import { MasterEntriesModule } from '../master-entries/master-entries.module';
 import { WorkersModule } from '../workers/workers.module';
 import { BookingsModule } from '../bookings/bookings.module';
 import { HiringModule } from '../hiring/hiring.module';
+import { BillingModule } from '../billing/billing.module';
 
 @Module({
   imports: [
+    BillingModule,
     TypeOrmModule.forFeature([PaymentOrder]),
     WalletsModule,
     MasterEntriesModule,

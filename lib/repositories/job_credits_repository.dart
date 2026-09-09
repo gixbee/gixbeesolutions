@@ -15,8 +15,7 @@ class JobCreditsRepository {
 
   Future<Map<String, dynamic>> getBookingCreditUsage(String bookingId) async {
     try {
-      final response =
-          await _dio.get('/billing/credits/booking/$bookingId');
+      final response = await _dio.get('/billing/credits/booking/$bookingId');
       return Map<String, dynamic>.from(response.data as Map);
     } catch (e) {
       debugPrint('JobCredits getBookingCreditUsage failed: $e');
@@ -40,7 +39,7 @@ class JobCreditsRepository {
       );
     } catch (e) {
       debugPrint('JobCredits getBalanceInfo failed: $e');
-      return (balance: 0, creditsPerAccept: 15);
+      rethrow;
     }
   }
 
@@ -60,13 +59,27 @@ class JobCreditsRepository {
   }
 
   Future<Map<String, dynamic>> getPackInfo() async {
-    try {
-      final response = await _dio.get('/billing/credits/pack-info');
-      return response.data as Map<String, dynamic>;
-    } catch (e) {
-      debugPrint('JobCredits getPackInfo failed: $e');
-      return {'credits': 3, 'price': 49, 'currency': 'INR'};
+    final response = await _dio.get('/billing/credits/pack-info');
+    final pack = Map<String, dynamic>.from(response.data as Map);
+    final credits = pack['credits'];
+    final cost = pack['creditsPerAccept'];
+    final price = pack['price'];
+    if (credits is! num ||
+        cost is! num ||
+        price is! num ||
+        !credits.isFinite ||
+        !cost.isFinite ||
+        !price.isFinite ||
+        credits < 0 ||
+        cost < 0 ||
+        price <= 0 ||
+        credits != credits.toInt() ||
+        cost != cost.toInt() ||
+        (cost > 0 && credits < cost) ||
+        pack['currency'] != 'INR') {
+      throw const FormatException('Credit pack details are unavailable.');
     }
+    return pack;
   }
 
   Future<Map<String, dynamic>> createOrder() async {

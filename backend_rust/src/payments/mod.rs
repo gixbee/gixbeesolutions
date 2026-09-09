@@ -256,7 +256,7 @@ async fn create_extra_job_type_order(
     create_razorpay_order(&state, &user.user_id, PURPOSE_EXTRA_JOB_TYPE, 50, Some(meta)).await
 }
 
-async fn create_razorpay_order(
+pub(crate) async fn create_razorpay_order(
     state: &AppState,
     user_id: &str,
     purpose: &str,
@@ -272,13 +272,14 @@ async fn create_razorpay_order(
     let key_id = state.config.razorpay_key_id.as_deref().unwrap_or("");
     let key_secret = state.config.razorpay_key_secret.as_deref().unwrap_or("");
     let receipt_prefix = match purpose {
+        "JOB_CREDITS" => "pack",
         PURPOSE_PERIOD_FEE => "fee",
         PURPOSE_LATE_CANCEL => "lcc",
         PURPOSE_HIRING_MATCH => "hmf",
         PURPOSE_EXTRA_JOB_TYPE => "ejt",
         _ => "rcg",
     };
-    let receipt = format!("{}_{}", receipt_prefix, chrono::Utc::now().timestamp_millis());
+    let receipt = format!("{}_{}", receipt_prefix, Uuid::new_v4().simple());
 
     let auth = STANDARD.encode(format!("{}:{}", key_id, key_secret));
     let res = state
@@ -321,7 +322,7 @@ async fn create_razorpay_order(
     let uid = Uuid::parse_str(user_id)?;
     sqlx::query(
         r#"INSERT INTO payment_orders (id, "userId", purpose, amount, status, "razorpayOrderId", meta)
-           VALUES ($1, $2, $3, $4, 'CREATED', $5, $6)"#,
+           VALUES ($1, $2, $3::payment_orders_purpose_enum, $4, 'CREATED', $5, $6)"#,
     )
     .bind(id)
     .bind(uid)
@@ -438,10 +439,30 @@ async fn webhook(
         None => return Ok(Json(json!({ "ok": true, "ignored": "no order id" }))),
     };
 
+    if let Some(payment) = payment {
+        if crate::billing::purchases::fulfil(&state, payment, None)
+            .await?
+            .is_some()
+        {
+            return Ok(Json(json!({ "ok": true })));
+        }
+        // Razorpay can fire payment.captured before our INSERT commits.
+        // 503 asks them to retry instead of treating a missing pack row as a duplicate.
+        if payment
+            .pointer("/notes/purpose")
+            .and_then(|v| v.as_str())
+            == Some("JOB_CREDITS")
+        {
+            return Err(AppError::ServiceUnavailable(
+                "credit pack order not persisted yet".into(),
+            ));
+        }
+    }
+
     let claim = sqlx::query(
         r#"UPDATE payment_orders
            SET status = 'CREDITED', "razorpayPaymentId" = $2
-           WHERE "razorpayOrderId" = $1 AND status = 'CREATED'"#,
+           WHERE "razorpayOrderId" = $1 AND status = 'CREATED' AND purpose::text != 'JOB_CREDITS'"#,
     )
     .bind(order_id)
     .bind(payment_id)

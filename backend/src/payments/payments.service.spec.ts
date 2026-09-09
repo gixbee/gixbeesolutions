@@ -25,6 +25,7 @@ function makeService(env: Record<string, string | undefined> = {}) {
     {} as any,
     {} as any,
     {} as any, // MatchingService (forwardRef)
+    { handleCaptured: jest.fn(async () => false) } as any,
   );
 }
 

@@ -1,7 +1,7 @@
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:razorpay_flutter/razorpay_flutter.dart';
-import 'package:dio/dio.dart';
 import '../../repositories/job_credits_repository.dart';
 import '../../repositories/auth_repository.dart';
 import '../../core/config/app_config.dart';
@@ -10,6 +10,14 @@ import '../../shared/widgets/gx_button.dart';
 import '../../theme.dart';
 import 'credit_history_screen.dart';
 
+final jobPackDetailsProvider =
+    FutureProvider<({int balance, Map<String, dynamic> pack})>((ref) async {
+  final repo = ref.watch(jobCreditsRepositoryProvider);
+  final balance = await repo.getBalanceInfo();
+  final pack = await repo.getPackInfo();
+  return (balance: balance.balance, pack: pack);
+});
+
 class JobPackScreen extends ConsumerStatefulWidget {
   const JobPackScreen({super.key});
 
@@ -17,261 +25,235 @@ class JobPackScreen extends ConsumerStatefulWidget {
   ConsumerState<JobPackScreen> createState() => _JobPackScreenState();
 }
 
-class _JobPackScreenState extends ConsumerState<JobPackScreen> {
-  late Razorpay _razorpay;
-  int _balance = 0;
-  bool _isLoading = true;
+class _JobPackScreenState extends ConsumerState<JobPackScreen>
+    with WidgetsBindingObserver {
+  late final Razorpay _razorpay;
   bool _isPurchasing = false;
-  Map<String, dynamic>? _packInfo;
+  ({String orderId, String paymentId, String signature})? _pendingVerification;
 
   @override
   void initState() {
     super.initState();
-    _razorpay = Razorpay();
-    _razorpay.on(Razorpay.EVENT_PAYMENT_SUCCESS, _handlePaymentSuccess);
-    _razorpay.on(Razorpay.EVENT_PAYMENT_ERROR, _handlePaymentError);
-    _fetchData();
+    WidgetsBinding.instance.addObserver(this);
+    _razorpay = Razorpay()
+      ..on(Razorpay.EVENT_PAYMENT_SUCCESS, _handlePaymentSuccess)
+      ..on(Razorpay.EVENT_PAYMENT_ERROR, _handlePaymentError);
   }
 
-  Future<void> _fetchData() async {
-    try {
-      final repo = ref.read(jobCreditsRepositoryProvider);
-      final balance = await repo.getBalance();
-      final packInfo = await repo.getPackInfo();
-      if (mounted) {
-        setState(() {
-          _balance = balance;
-          _packInfo = packInfo;
-          _isLoading = false;
-        });
-      }
-    } catch (e) {
-      if (mounted) {
-        setState(() => _isLoading = false);
-        showGxSnack(context, 'Failed to load job credits', type: GxSnackType.error);
-      }
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      ref.invalidate(jobPackDetailsProvider);
     }
   }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _razorpay.clear();
     super.dispose();
   }
 
-  void _handlePaymentSuccess(PaymentSuccessResponse response) async {
+  void _handlePaymentSuccess(PaymentSuccessResponse response) {
     if (!mounted) return;
-    
-    // Client-side verification
     final orderId = response.orderId;
     final paymentId = response.paymentId;
     final signature = response.signature;
-
     if (orderId == null || paymentId == null || signature == null) {
       setState(() => _isPurchasing = false);
-      showGxSnack(context, 'Payment verification details missing.', type: GxSnackType.error);
+      ref.invalidate(jobPackDetailsProvider);
+      showGxSnack(context,
+          'Waiting for payment confirmation. Refresh credits before trying another purchase.');
       return;
     }
+    _pendingVerification =
+        (orderId: orderId, paymentId: paymentId, signature: signature);
+    _verifyPendingPayment();
+  }
 
+  Future<void> _verifyPendingPayment() async {
+    final pending = _pendingVerification;
+    if (pending == null) return;
+    setState(() => _isPurchasing = true);
     try {
-      final repo = ref.read(jobCreditsRepositoryProvider);
-      final newBalance = await repo.verifyPayment(
-        orderId: orderId,
-        paymentId: paymentId,
-        signature: signature,
-      );
-      if (mounted) {
-        setState(() {
-          _balance = newBalance;
-          _isPurchasing = false;
-        });
-        showGxSnack(context, 'Success! You received ${_packInfo?['credits']} job credits.', type: GxSnackType.success);
-      }
-    } catch (e) {
-      if (mounted) {
-        setState(() => _isPurchasing = false);
-        showGxSnack(context, 'Failed to verify payment. If you were charged, please contact support.', type: GxSnackType.error);
-      }
+      await ref.read(jobCreditsRepositoryProvider).verifyPayment(
+            orderId: pending.orderId,
+            paymentId: pending.paymentId,
+            signature: pending.signature,
+          );
+      if (!mounted) return;
+      setState(() {
+        _pendingVerification = null;
+        _isPurchasing = false;
+      });
+      ref.invalidate(jobPackDetailsProvider);
+      showGxSnack(context, 'Payment confirmed. Your credits have been updated.',
+          type: GxSnackType.success);
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _isPurchasing = false);
+      ref.invalidate(jobPackDetailsProvider);
+      showGxSnack(
+          context,
+          'Payment confirmation is pending. Use Check payment or refresh credits. '
+          'If you were charged, avoid another purchase and contact support if it stays pending.');
     }
   }
 
   void _handlePaymentError(PaymentFailureResponse response) {
-    if (mounted) {
-      setState(() => _isPurchasing = false);
-      showGxSnack(context, 'Payment failed: ${response.message}', type: GxSnackType.error);
-    }
+    if (!mounted) return;
+    setState(() => _isPurchasing = false);
+    ref.invalidate(jobPackDetailsProvider);
+    showGxSnack(context,
+        'Checkout did not complete. Refresh credits if you were charged.',
+        type: GxSnackType.error);
   }
 
-  Future<void> _startPurchase() async {
-    final userState = ref.read(currentUserProvider);
-    if (userState.isLoading) {
-      showGxSnack(context, 'Loading profile, please wait...');
+  Future<void> _startPurchase(Map<String, dynamic> pack) async {
+    if (_isPurchasing) return;
+    final user = ref.read(currentUserProvider).asData?.value;
+    if (user == null) {
+      showGxSnack(context, 'Your profile is unavailable. Please try again.');
       return;
     }
-    final user = userState.value;
-
     setState(() => _isPurchasing = true);
-
-    Map<String, dynamic> order;
     try {
-      order = await ref.read(jobCreditsRepositoryProvider).createOrder();
-    } on DioException catch (e) {
-      final msg = e.response?.data is Map
-          ? (e.response?.data['message']?.toString() ?? 'Could not start the payment')
-          : 'Could not start the payment';
-      if (mounted) {
+      final order = await ref.read(jobCreditsRepositoryProvider).createOrder();
+      if (!mounted) return;
+      if (order['amount'] != (pack['price'] as num) * 100 ||
+          order['credits'] != pack['credits']) {
         setState(() => _isPurchasing = false);
-        showGxSnack(context, msg, type: GxSnackType.error);
+        ref.invalidate(jobPackDetailsProvider);
+        showGxSnack(context,
+            'Pack details changed. Review the updated pack before purchasing.');
+        return;
       }
-      return;
-    } catch (_) {
-      if (mounted) {
-        setState(() => _isPurchasing = false);
-        showGxSnack(context, 'Could not start the payment', type: GxSnackType.error);
+      if (order['keyId'] is! String || order['orderId'] is! String) {
+        throw StateError('Payment details unavailable');
       }
-      return;
-    }
-
-    var options = {
-      'key': order['keyId'] ?? AppConfig.razorpayKey,
-      'amount': order['amount'],
-      'order_id': order['orderId'],
-      'currency': order['currency'] ?? 'INR',
-      'name': AppConfig.appName,
-      'description': 'Buy Job Pack',
-      'timeout': AppConfig.paymentTimeoutSeconds,
-      'prefill': {
-        'contact': user?.phone ?? '',
-        'email': user?.email ?? '',
-      }
-    };
-
-    try {
-      _razorpay.open(options);
+      _razorpay.open({
+        'key': order['keyId'],
+        'amount': order['amount'],
+        'order_id': order['orderId'],
+        'currency': order['currency'],
+        'name': AppConfig.appName,
+        'description': '${order['credits']} acceptance credits',
+        'timeout': AppConfig.paymentTimeoutSeconds,
+        'prefill': {'contact': user.phone, 'email': user.email ?? ''},
+      });
     } catch (e) {
-      if (mounted) {
-        setState(() => _isPurchasing = false);
-        showGxSnack(context, 'Could not launch Razorpay', type: GxSnackType.error);
-      }
+      if (!mounted) return;
+      setState(() => _isPurchasing = false);
+      final data = e is DioException ? e.response?.data : null;
+      final message = data is Map && data['message'] is String
+          ? data['message'] as String
+          : 'Could not start checkout. Please try again.';
+      showGxSnack(context, message, type: GxSnackType.error);
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    if (_isLoading) {
-      return const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
-      );
-    }
-
-    final credits = _packInfo?['credits'] ?? 3;
-    final price = _packInfo?['price'] ?? 49;
-
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Job Credits', style: TextStyle(fontWeight: FontWeight.bold)),
-        backgroundColor: context.gx.card,
-        elevation: 0,
+        title: const Text('Job credits'),
         actions: [
+          IconButton(
+            tooltip: 'Refresh credits',
+            onPressed: () => ref.invalidate(jobPackDetailsProvider),
+            icon: const Icon(Icons.refresh),
+          ),
           IconButton(
             tooltip: 'Credit history',
             icon: const Icon(Icons.history_rounded),
-            onPressed: () => Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => const CreditHistoryScreen()),
-            ),
+            onPressed: () => Navigator.push(context,
+                MaterialPageRoute(builder: (_) => const CreditHistoryScreen())),
           ),
         ],
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(24.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(24),
-              decoration: BoxDecoration(
-                color: context.gx.accent.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: context.gx.accent.withValues(alpha: 0.2)),
-              ),
-              child: Column(
-                children: [
-                  Text(
-                    '$_balance',
-                    style: TextStyle(
-                      fontSize: 48,
-                      fontWeight: FontWeight.bold,
-                      color: context.gx.accent,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Credits Remaining',
-                    style: TextStyle(
-                      fontSize: 16,
-                      color: context.gx.ink.withValues(alpha: 0.7),
-                    ),
-                  ),
-                ],
+      body: ref.watch(jobPackDetailsProvider).when(
+            loading: () => const Center(child: CircularProgressIndicator()),
+            error: (error, stack) => Center(
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: Column(mainAxisSize: MainAxisSize.min, children: [
+                  const Text(
+                      'Credit balance and pack details are unavailable.'),
+                  const SizedBox(height: 12),
+                  TextButton(
+                      onPressed: () => ref.invalidate(jobPackDetailsProvider),
+                      child: const Text('Try again')),
+                ]),
               ),
             ),
-            const SizedBox(height: 32),
-            Text(
-              'Buy Job Pack',
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: context.gx.ink),
-            ),
-            const SizedBox(height: 16),
-            Container(
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                color: context.gx.card,
-                borderRadius: BorderRadius.circular(12),
-                boxShadow: [
-                  BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 10, offset: const Offset(0, 4)),
-                ],
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+            data: (details) {
+              final pack = details.pack;
+              final credits = (pack['credits'] as num).toInt();
+              final cost = (pack['creditsPerAccept'] as num).toInt();
+              final price = pack['price'];
+              final free = cost == 0;
+              return SingleChildScrollView(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
+                      Text('${details.balance} credits',
+                          style: TextStyle(
+                              fontSize: 32,
+                              fontWeight: FontWeight.w800,
+                              color: context.gx.accent)),
+                      const SizedBox(height: 8),
                       Text(
-                        '$credits Jobs',
-                        style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600, color: context.gx.ink),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        '₹$price',
-                        style: TextStyle(fontSize: 16, color: context.gx.accent, fontWeight: FontWeight.w500),
-                      ),
-                    ],
-                  ),
-                  _isPurchasing
-                      ? const CircularProgressIndicator()
-                      : GxButton(
-                          label: 'Buy Now',
-                          expand: false,
-                          height: 40,
-                          onTap: _startPurchase,
+                          free
+                              ? 'Accepting jobs is currently free.'
+                              : 'Enough for ${details.balance ~/ cost} job accepts at $cost credits each.',
+                          style: TextStyle(color: context.gx.ink, height: 1.5)),
+                      const SizedBox(height: 28),
+                      if (!free) ...[
+                        Text('$credits credits · ₹$price',
+                            style: TextStyle(
+                                fontSize: 22,
+                                fontWeight: FontWeight.w700,
+                                color: context.gx.ink)),
+                        const SizedBox(height: 8),
+                        Text(
+                            'Enough for ${credits ~/ cost} accepts at the current rate. '
+                            'Credits are deducted when you accept a job.',
+                            style:
+                                TextStyle(color: context.gx.ink, height: 1.5)),
+                        const SizedBox(height: 18),
+                        GxButton(
+                          label: _isPurchasing
+                              ? 'Checking payment…'
+                              : _pendingVerification != null
+                                  ? 'Check payment'
+                                  : 'Buy for ₹$price',
+                          onTap: _isPurchasing
+                              ? null
+                              : _pendingVerification != null
+                                  ? _verifyPendingPayment
+                                  : () => _startPurchase(pack),
                         ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 24),
-            Text(
-              'Job credits are consumed automatically when you accept a booking (amount set by admin). If the customer cancels, your credits are refunded.',
-              style: TextStyle(
-                fontSize: 14,
-                color: context.gx.ink.withValues(alpha: 0.6),
-                height: 1.4,
-              ),
-              textAlign: TextAlign.center,
-            ),
-          ],
-        ),
-      ),
+                        const SizedBox(height: 20),
+                      ],
+                      Text(
+                          'Credits pay for access to job requests. Customers pay your service bill '
+                          'directly to you by cash or UPI. A separate Go Live period fee may be due; '
+                          'check your Go Live dashboard before buying.',
+                          style: TextStyle(
+                              color: context.gx.ink.withValues(alpha: 0.7),
+                              height: 1.5)),
+                      const SizedBox(height: 16),
+                      Text(
+                          'Eligible customer cancellations and no-shows return the credits used '
+                          'for that booking. View Credit history for purchases, usage and refunds.',
+                          style: TextStyle(
+                              color: context.gx.ink.withValues(alpha: 0.7),
+                              height: 1.5)),
+                    ]),
+              );
+            },
+          ),
     );
   }
 }
