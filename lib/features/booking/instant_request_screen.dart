@@ -23,6 +23,7 @@ import 'waiting_for_worker_screen.dart';
 import 'location_pin_screen.dart';
 import '../profile/addresses/save_address_bottom_sheet.dart';
 import 'instant_help_unblock_screen.dart';
+import 'instant_booking_review.dart';
 
 /// Uber/Grab-style instant request — stepped exactly like the client's v126
 /// demo (ih module c2–c6): LOCATION → PRESENCE (who receives the arrival
@@ -56,7 +57,8 @@ class _InstantRequestScreenState extends ConsumerState<InstantRequestScreen> {
     'Presence',
     'Issues',
     'Language',
-    'Budget'
+    'Budget',
+    'Review',
   ];
 
   // v126 c5 language list.
@@ -171,7 +173,7 @@ class _InstantRequestScreenState extends ConsumerState<InstantRequestScreen> {
             (_contactNameCtrl.text.trim().isNotEmpty &&
                 _contactPhoneCtrl.text.trim().length >= 10);
       case 2:
-        return true; // issues optional (note covers "Other")
+        return _issues.isNotEmpty || _noteCtrl.text.trim().isNotEmpty;
       case 3:
         return _selectedLanguages.isNotEmpty; // demo: select at least one
       case 4:
@@ -341,6 +343,7 @@ class _InstantRequestScreenState extends ConsumerState<InstantRequestScreen> {
   }
 
   Future<void> _submit() async {
+    if (_submitting) return;
     final coords = await _resolveCoords();
     if (coords == null) {
       if (mounted) {
@@ -856,7 +859,7 @@ class _InstantRequestScreenState extends ConsumerState<InstantRequestScreen> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         _title(context, 'Who will be present?',
-            'The arrival OTP is sent to whoever is at the location — it confirms the pro really arrived.'),
+            'The booking owner receives the OTP. If someone else is present, coordinate the code with them only after the pro arrives.'),
         _optionCard(
           context: context,
           selected: _selfPresent,
@@ -919,9 +922,11 @@ class _InstantRequestScreenState extends ConsumerState<InstantRequestScreen> {
         ],
         TextField(
           controller: _noteCtrl,
+          onChanged: (_) => setState(() {}),
           maxLines: 3,
           style: TextStyle(color: context.gx.ink, fontSize: 14),
-          decoration: _dec(context, 'Add details (optional)…'),
+          decoration:
+              _dec(context, 'Describe the task, access or tools needed…'),
         ),
       ],
     );
@@ -1241,7 +1246,7 @@ class _InstantRequestScreenState extends ConsumerState<InstantRequestScreen> {
     if (!mounted) return;
     final nextStep = _step + 1;
     setState(() => _step = nextStep);
-    if (nextStep == _steps.length - 1 && _nearbyBudgetPros == null) {
+    if (nextStep == 4) {
       unawaited(_loadBudgetPros());
     }
   }
@@ -1314,7 +1319,23 @@ class _InstantRequestScreenState extends ConsumerState<InstantRequestScreen> {
                     1 => _stepPresence(),
                     2 => _stepIssues(),
                     3 => _stepLanguage(),
-                    _ => _stepBudget(),
+                    4 => _stepBudget(),
+                    _ => InstantBookingReview(
+                        skill: widget.skill,
+                        address: _useCurrentLocation
+                            ? _currentAddress
+                            : _addressCtrl.text.trim(),
+                        description: [
+                          if (_issues.isNotEmpty) _issues.join(', '),
+                          if (_noteCtrl.text.trim().isNotEmpty)
+                            _noteCtrl.text.trim()
+                        ].join(' — '),
+                        contact: _selfPresent
+                            ? 'Myself'
+                            : '${_contactNameCtrl.text.trim()} · ${_contactPhoneCtrl.text.trim()}',
+                        languages: _selectedLanguages.toList(),
+                        hourlyRate: _budgetAmount,
+                      ),
                   },
                 ),
               ),
@@ -1324,8 +1345,8 @@ class _InstantRequestScreenState extends ConsumerState<InstantRequestScreen> {
                   label: isLast
                       ? (_submitting
                           ? 'Notifying nearby pros…'
-                          : 'Notify all nearby pros')
-                      : 'Continue',
+                          : 'Confirm and find a professional')
+                      : (_step == 4 ? 'Review request' : 'Continue'),
                   icon: isLast ? Icons.bolt_rounded : null,
                   onTap: !_canContinue || _submitting
                       ? null

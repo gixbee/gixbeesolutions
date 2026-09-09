@@ -919,7 +919,7 @@ class _HireEmployeeScreenState extends ConsumerState<HireEmployeeScreen> {
                   runSpacing: 6,
                   children: [
                     if (exp.isNotEmpty && exp != '0')
-                      _previewTag('${exp}+ yrs exp'),
+                      _previewTag('$exp+ yrs exp'),
                     _previewTag('$_vacancies position${_vacancies > 1 ? 's' : ''}'),
                     for (final s in _skills.take(4)) _previewTag(s),
                     if (_skills.length > 4)

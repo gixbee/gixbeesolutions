@@ -6,6 +6,7 @@ import 'package:razorpay_flutter/razorpay_flutter.dart';
 
 import '../../core/config/app_config.dart';
 import '../../repositories/auth_repository.dart';
+import '../../repositories/cities_repository.dart';
 import '../../repositories/matching_repository.dart';
 import 'hiring_catalog.dart';
 import '../../shared/widgets/dribbble_background.dart';
@@ -342,6 +343,7 @@ class JobTypeFormScreen extends ConsumerStatefulWidget {
 class _JobTypeFormScreenState extends ConsumerState<JobTypeFormScreen> {
   final _jobTypeCtrl = TextEditingController();
   final _locationCtrl = TextEditingController();
+  final _locationFocus = FocusNode();
   final _salaryCtrl = TextEditingController();
   final _expCtrl = TextEditingController();
   final _skillCtrl = TextEditingController();
@@ -387,10 +389,90 @@ class _JobTypeFormScreenState extends ConsumerState<JobTypeFormScreen> {
     _razorpay?.clear();
     _jobTypeCtrl.dispose();
     _locationCtrl.dispose();
+    _locationFocus.dispose();
     _salaryCtrl.dispose();
     _expCtrl.dispose();
     _skillCtrl.dispose();
     super.dispose();
+  }
+
+  Widget _preferredLocationField() {
+    final citiesAsync = ref.watch(citiesProvider);
+    final cities = citiesAsync.value ?? const <CityEntry>[];
+
+    return RawAutocomplete<CityEntry>(
+      textEditingController: _locationCtrl,
+      focusNode: _locationFocus,
+      displayStringForOption: (c) => c.name,
+      optionsBuilder: (value) {
+        final q = value.text.trim().toLowerCase();
+        if (q.isEmpty || cities.isEmpty) {
+          return const Iterable<CityEntry>.empty();
+        }
+        return cities.where((c) =>
+            c.name.toLowerCase().contains(q) ||
+            c.state.toLowerCase().contains(q) ||
+            c.displayName.toLowerCase().contains(q));
+      },
+      onSelected: (c) {
+        _locationCtrl.text = c.name;
+        _locationCtrl.selection =
+            TextSelection.collapsed(offset: c.name.length);
+      },
+      fieldViewBuilder: (context, controller, focusNode, onFieldSubmitted) {
+        return TextField(
+          controller: controller,
+          focusNode: focusNode,
+          textCapitalization: TextCapitalization.words,
+          decoration: InputDecoration(
+            labelText: 'Preferred location',
+            hintText: citiesAsync.isLoading
+                ? 'Loading cities…'
+                : 'Search city from list',
+            helperText: cities.isEmpty && !citiesAsync.isLoading
+                ? 'City list unavailable — type a city name'
+                : null,
+          ),
+          onSubmitted: (_) => onFieldSubmitted(),
+        );
+      },
+      optionsViewBuilder: (context, onSelected, options) {
+        final opts = options.toList();
+        return Align(
+          alignment: Alignment.topLeft,
+          child: Material(
+            elevation: 6,
+            borderRadius: BorderRadius.circular(12),
+            color: context.gx.card,
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxHeight: 220, minWidth: 280),
+              child: ListView.builder(
+                padding: EdgeInsets.zero,
+                shrinkWrap: true,
+                itemCount: opts.length,
+                itemBuilder: (context, i) {
+                  final c = opts[i];
+                  return ListTile(
+                    dense: true,
+                    title: Text(c.name,
+                        style: TextStyle(
+                          fontWeight: FontWeight.w700,
+                          color: context.gx.ink,
+                        )),
+                    subtitle: Text(c.state,
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: context.gx.ink.withValues(alpha: 0.5),
+                        )),
+                    onTap: () => onSelected(c),
+                  );
+                },
+              ),
+            ),
+          ),
+        );
+      },
+    );
   }
 
   Map<String, dynamic> _body() => {
@@ -602,13 +684,7 @@ class _JobTypeFormScreenState extends ConsumerState<JobTypeFormScreen> {
               ],
             ),
             const SizedBox(height: 12),
-            TextField(
-              controller: _locationCtrl,
-              decoration: const InputDecoration(
-                labelText: 'Preferred location',
-                hintText: 'City / area',
-              ),
-            ),
+            _preferredLocationField(),
             const SizedBox(height: 12),
             TextField(
               controller: _salaryCtrl,
@@ -649,7 +725,7 @@ class _JobTypeFormScreenState extends ConsumerState<JobTypeFormScreen> {
             ),
             const SizedBox(height: 12),
             DropdownButtonFormField<String>(
-              value: _noticeOptions.contains(_notice) ? _notice : 'IMMEDIATE',
+              initialValue: _noticeOptions.contains(_notice) ? _notice : 'IMMEDIATE',
               decoration: const InputDecoration(labelText: 'Notice period'),
               items: [
                 for (final n in _noticeOptions)

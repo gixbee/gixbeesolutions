@@ -54,7 +54,7 @@ class NoWorkersScreen extends StatelessWidget {
                 const SizedBox(height: 10),
                 Text(
                   'Nobody could take your $skill request in time. '
-                  'This usually clears up in a few minutes.',
+                  'No service charge is due. You can try again or choose another service.',
                   textAlign: TextAlign.center,
                   style: TextStyle(
                       fontSize: 14,
