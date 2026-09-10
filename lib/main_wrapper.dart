@@ -225,6 +225,7 @@ class _MainWrapperState extends ConsumerState<MainWrapper>
 
     // STEP 3 — Listen for token rotation by FCM (happens ~monthly)
     notifService.onTokenRefresh((newToken) async {
+      if (_sessionExitStarted || !mounted) return;
       try {
         await ref.read(authRepositoryProvider).registerFcmToken(newToken);
         debugPrint('[FCM] Token refreshed and re-registered with backend');
@@ -255,10 +256,13 @@ class _MainWrapperState extends ConsumerState<MainWrapper>
 
   Future<void> _syncFcmToken(NotificationService notifService) async {
     for (int attempt = 1; attempt <= 3; attempt++) {
+      if (_sessionExitStarted || !mounted) return;
       try {
         final token = await notifService.getDeviceToken();
         if (token == null) return;
+        if (_sessionExitStarted || !mounted) return;
         await ref.read(authRepositoryProvider).registerFcmToken(token);
+        if (_sessionExitStarted || !mounted) return;
         ref.read(debugLogProvider.notifier).log('FCM token synced on start');
         return;
       } catch (e) {

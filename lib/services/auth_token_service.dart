@@ -40,8 +40,12 @@ class AuthTokenService {
   }
 
   Future<void> deleteToken() async {
+    // Mark caches as read *before* touching disk so a concurrent getToken()
+    // cannot reload the old JWT from storage and resurrect the session.
     _cachedAccessToken = null;
     _cachedRefreshToken = null;
+    _hasReadAccess = true;
+    _hasReadRefresh = true;
     await _storage.delete(key: _accessKey);
     await _storage.delete(key: _refreshKey);
   }

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -8,6 +10,19 @@ import '../features/onboarding/welcome_screen.dart';
 import '../services/auth_token_service.dart';
 import '../services/socket_service.dart';
 import '../shared/models/user.dart';
+
+/// OTP / refresh / admin-login are public. A leftover Bearer token must not
+/// trigger silent refresh or a stack reset back to Welcome.
+@visibleForTesting
+bool isPublicAuthPath(String path) {
+  final p = path.toLowerCase();
+  return p.contains('auth/request-otp') ||
+      p.contains('auth/verify-otp') ||
+      p.contains('auth/refresh') ||
+      p.contains('auth/admin-login');
+}
+
+Completer<void>? _logoutGate;
 
 // ── Dio provider ─────────────────────────────────────────────────────────────
 
@@ -22,6 +37,11 @@ final dioProvider = Provider<Dio>((ref) {
 
   dio.interceptors.add(InterceptorsWrapper(
     onRequest: (options, handler) async {
+      if (isPublicAuthPath(options.path) ||
+          isPublicAuthPath(options.uri.path)) {
+        options.headers.remove('Authorization');
+        return handler.next(options);
+      }
       final token = await tokenService.getToken();
       if (token != null) {
         options.headers['Authorization'] = 'Bearer $token';
@@ -29,9 +49,11 @@ final dioProvider = Provider<Dio>((ref) {
       return handler.next(options);
     },
     onError: (e, handler) async {
+      final path = e.requestOptions.path;
+      final uriPath = e.requestOptions.uri.path;
       if (e.response?.statusCode == 401 &&
-          !e.requestOptions.path.contains('/auth/refresh') &&
-          !e.requestOptions.path.contains('/auth/verify-otp')) {
+          !isPublicAuthPath(path) &&
+          !isPublicAuthPath(uriPath)) {
         // Attempt silent token refresh
         debugPrint('[DIO] 401 — attempting token refresh');
         final refreshToken = await tokenService.getRefreshToken();
@@ -105,17 +127,32 @@ Future<void> _forceLogoutToWelcome(
   AuthTokenService tokenService,
   void Function() invalidateSession,
 ) async {
+  if (_logoutGate != null) {
+    await _logoutGate!.future;
+    return;
+  }
+  final gate = Completer<void>();
+  _logoutGate = gate;
   try {
-    socketService.disconnect();
-  } catch (_) {}
-  await tokenService.deleteToken();
-  invalidateSession();
-  final nav = rootNavigatorKey.currentState;
-  if (nav == null) return;
-  nav.pushAndRemoveUntil(
-    MaterialPageRoute(builder: (_) => const WelcomeScreen()),
-    (route) => false,
-  );
+    try {
+      socketService.disconnect();
+    } catch (_) {}
+    // Late 401s (FCM, polls) after the user already signed out must not
+    // pushAndRemoveUntil(Welcome) — that wipes Login → OTP.
+    final hadToken = await tokenService.hasToken();
+    await tokenService.deleteToken();
+    invalidateSession();
+    if (!hadToken) return;
+    final nav = rootNavigatorKey.currentState;
+    if (nav == null || !nav.mounted) return;
+    nav.pushAndRemoveUntil(
+      MaterialPageRoute(builder: (_) => const WelcomeScreen()),
+      (route) => false,
+    );
+  } finally {
+    if (!gate.isCompleted) gate.complete();
+    if (identical(_logoutGate, gate)) _logoutGate = null;
+  }
 }
 
 // ── Providers ─────────────────────────────────────────────────────────────────
