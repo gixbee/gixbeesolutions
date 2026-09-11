@@ -60,7 +60,7 @@ class _EventBusinessSettingsScreenState extends ConsumerState<EventBusinessSetti
       const SizedBox(height: 20),
       ref.watch(citiesProvider).when(
         loading: () => const LinearProgressIndicator(),
-        error: (_, _) => TextButton(onPressed: () => ref.invalidate(citiesProvider), child: const Text('Reload cities')),
+        error: (_, __) => TextButton(onPressed: () => ref.invalidate(citiesProvider), child: const Text('Reload cities')),
         data: (cities) => cities.isEmpty
           ? TextButton(onPressed: () => ref.invalidate(citiesProvider), child: const Text('Reload serviceable cities'))
           : DropdownButtonFormField<String>(initialValue: cities.any((c) => c.id == _cityId) ? _cityId : null,

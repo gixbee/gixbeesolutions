@@ -106,7 +106,7 @@ class _EventPlanCreateScreenState extends ConsumerState<EventPlanCreateScreen> {
         const SizedBox(height: 16),
         cities.when(
           loading: () => const LinearProgressIndicator(),
-          error: (_, _) => TextButton(onPressed: () => ref.invalidate(citiesProvider), child: const Text('Reload cities')),
+          error: (_, __) => TextButton(onPressed: () => ref.invalidate(citiesProvider), child: const Text('Reload cities')),
           data: (items) => items.isEmpty
             ? TextButton(onPressed: () => ref.invalidate(citiesProvider), child: const Text('No event cities available. Reload'))
             : DropdownButtonFormField<String>(

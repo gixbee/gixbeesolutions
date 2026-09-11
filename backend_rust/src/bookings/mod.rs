@@ -1426,10 +1426,7 @@ async fn get_status(
         obj.insert("id".into(), json!(id));
         obj.insert(
             "startedAt".into(),
-            json!(row
-                .try_get::<Option<chrono::DateTime<chrono::Utc>>, _>("startedAt")
-                .ok()
-                .flatten()),
+            crate::common::pg::date_json(&row, "startedAt"),
         );
 
         let show_otp = is_customer
@@ -1569,10 +1566,10 @@ fn booking_json(row: &sqlx::postgres::PgRow) -> Value {
         "paymentCollectionMethod": row.try_get::<Option<String>, _>("paymentCollectionMethod").ok().flatten(),
         "workerHonestyCheck": row.try_get::<Option<String>, _>("workerHonestyCheck").ok().flatten(),
         "customerSafetyCheck": row.try_get::<Option<String>, _>("customerSafetyCheck").ok().flatten(),
-        "scheduledAt": row.try_get::<chrono::DateTime<chrono::Utc>, _>("scheduledAt").ok(),
-        "createdAt": row.try_get::<chrono::DateTime<chrono::Utc>, _>("createdAt").ok(),
-        "completedAt": row.try_get::<chrono::DateTime<chrono::Utc>, _>("completedAt").ok(),
-        "acceptedAt": row.try_get::<chrono::DateTime<chrono::Utc>, _>("acceptedAt").ok(),
-        "startedAt": row.try_get::<chrono::DateTime<chrono::Utc>, _>("startedAt").ok(),
+        "scheduledAt": crate::common::pg::date_json(row, "scheduledAt"),
+        "createdAt": crate::common::pg::date_json(row, "createdAt"),
+        "completedAt": crate::common::pg::date_json(row, "completedAt"),
+        "acceptedAt": crate::common::pg::date_json(row, "acceptedAt"),
+        "startedAt": crate::common::pg::date_json(row, "startedAt"),
     })
 }

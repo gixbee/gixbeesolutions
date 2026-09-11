@@ -10,6 +10,7 @@ import '../../services/location_service.dart';
 import '../../services/ola_maps_style_service.dart';
 import '../../repositories/auth_repository.dart';
 import '../../shared/models/worker.dart';
+import '../../core/utils/api_datetime.dart';
 import '../../repositories/booking_repository.dart';
 import '../../repositories/booking_status_provider.dart';
 import '../../repositories/worker_repository.dart';
@@ -403,9 +404,8 @@ class _LiveTrackingMapScreenState extends ConsumerState<LiveTrackingMapScreen> {
       final booking = await ref
           .read(bookingRepositoryProvider)
           .getBookingById(widget.bookingId);
-      final raw = booking?['startedAt']?.toString();
-      if (raw == null) return;
-      _startedAt = DateTime.tryParse(raw);
+      _startedAt = parseApiDateTime(booking?['startedAt']) ??
+          parseApiDateTime(booking?['acceptedAt']);
       if (_startedAt == null) return;
       _jobTicker?.cancel();
       _jobTicker = Timer.periodic(const Duration(seconds: 1), (_) {

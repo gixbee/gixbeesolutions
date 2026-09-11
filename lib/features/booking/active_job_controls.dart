@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../core/utils/api_datetime.dart';
 import '../../repositories/booking_repository.dart';
 import '../../repositories/booking_status_provider.dart';
 import '../../theme.dart';
@@ -40,32 +41,43 @@ class _ActiveJobControlsState extends ConsumerState<ActiveJobControls> {
     super.dispose();
   }
 
+  void _applyStartTime(DateTime? started, {DateTime? fallback}) {
+    final effective = started ?? fallback;
+    if (effective == null || !mounted) return;
+    setState(() {
+      _startedAt = effective;
+      _elapsed = DateTime.now().difference(effective);
+      if (_elapsed.isNegative) _elapsed = Duration.zero;
+    });
+  }
+
   Future<void> _loadStartedAt() async {
     try {
       final booking = await ref
           .read(bookingRepositoryProvider)
           .getBookingById(widget.bookingId);
-      final raw = booking?['startedAt']?.toString();
-      if (raw != null && raw.isNotEmpty) {
-        final parsed = DateTime.tryParse(raw);
-        if (parsed != null && mounted) {
-          setState(() => _startedAt = parsed);
-        }
-      }
+      if (booking == null || !mounted) return;
+      _applyStartTime(
+        parseApiDateTime(booking['startedAt']),
+        fallback: parseApiDateTime(booking['acceptedAt']),
+      );
     } catch (e) {
       debugPrint('ActiveJobControls startedAt fetch failed: $e');
     }
   }
 
-  Future<void> _init() async {
-    await _loadStartedAt();
-    if (!mounted) return;
+  void _initTicker() {
     _ticker?.cancel();
     _ticker = Timer.periodic(const Duration(seconds: 1), (_) {
       if (!mounted || _startedAt == null) return;
       final worked = DateTime.now().difference(_startedAt!);
       setState(() => _elapsed = worked.isNegative ? Duration.zero : worked);
     });
+  }
+
+  Future<void> _init() async {
+    _initTicker();
+    await _loadStartedAt();
   }
 
   String get _label {
@@ -77,21 +89,28 @@ class _ActiveJobControlsState extends ConsumerState<ActiveJobControls> {
 
   @override
   Widget build(BuildContext context) {
+    ref.listen<AsyncValue<Map<String, dynamic>>>(
+      bookingStatusProvider(widget.bookingId),
+      (prev, next) {
+        if (_startedAt != null) return;
+        final parsed = parseApiDateTime(next.value?['startedAt']);
+        if (parsed != null) {
+          _applyStartTime(parsed);
+        }
+      },
+    );
+
     final statusData =
         ref.watch(bookingStatusProvider(widget.bookingId)).value;
     final status = statusData?['status']?.toString().toUpperCase() ?? '';
 
     // Status poll may carry startedAt before GET /bookings/:id is refreshed.
     if (_startedAt == null) {
-      final fromPoll = statusData?['startedAt']?.toString();
-      if (fromPoll != null && fromPoll.isNotEmpty) {
-        final parsed = DateTime.tryParse(fromPoll);
-        if (parsed != null) {
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            if (!mounted) return;
-            setState(() => _startedAt = parsed);
-          });
-        }
+      final parsed = parseApiDateTime(statusData?['startedAt']);
+      if (parsed != null) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          _applyStartTime(parsed);
+        });
       } else if (status == 'ACTIVE' || status == 'IN_PROGRESS') {
         WidgetsBinding.instance.addPostFrameCallback((_) {
           unawaited(_loadStartedAt());
