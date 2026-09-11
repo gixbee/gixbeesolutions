@@ -7,6 +7,16 @@ use serde::Serialize;
 use serde_json::json;
 use thiserror::Error;
 
+/// Attached to failed HTTP responses so api_logging_middleware can persist the
+/// real server error without logging every successful request.
+#[derive(Clone, Debug)]
+pub struct ApiFailureLog {
+    pub message: String,
+    pub detail: Option<String>,
+    /// Overrides the default API/AUTH type when set (e.g. DB for sqlx failures).
+    pub log_type: Option<String>,
+}
+
 #[derive(Debug, Error)]
 pub enum AppError {
     #[error("{0}")]
@@ -58,6 +68,51 @@ impl AppError {
                 "Internal Server Error".into(),
                 json!("Internal server error"),
             ),
+        }
+    }
+
+    /// Admin Logs: capture message/detail for 5xx only (4xx stay metadata-only).
+    pub fn failure_log(&self) -> Option<ApiFailureLog> {
+        let (status, _, _) = self.status_and_error();
+        if !status.is_server_error() {
+            return None;
+        }
+        match self {
+            AppError::Sqlx(e) => {
+                let mut detail = vec![format!("{e:?}")];
+                if let sqlx::Error::Database(db) = e {
+                    if let Some(code) = db.code() {
+                        detail.insert(0, format!("SQLSTATE {}", code));
+                    }
+                    detail.push(db.message().to_string());
+                }
+                Some(ApiFailureLog {
+                    message: e.to_string(),
+                    detail: Some(detail.join("\n")),
+                    log_type: Some("DB".into()),
+                })
+            }
+            AppError::Internal(m) | AppError::ServiceUnavailable(m) => Some(ApiFailureLog {
+                message: m.clone(),
+                detail: None,
+                log_type: None,
+            }),
+            AppError::Anyhow(e) => Some(ApiFailureLog {
+                message: "Internal server error".into(),
+                detail: Some(format!("{:#}", e)),
+                log_type: None,
+            }),
+            other => Some(ApiFailureLog {
+                message: other.to_string(),
+                detail: None,
+                log_type: None,
+            }),
+        }
+    }
+
+    fn attach_failure_log(response: &mut Response, err: &Self) {
+        if let Some(log) = err.failure_log() {
+            response.extensions_mut().insert(log);
         }
     }
 }
@@ -120,7 +175,9 @@ impl IntoResponse for AppError {
             path,
             timestamp: chrono::Utc::now().to_rfc3339(),
         };
-        (status, Json(body)).into_response()
+        let mut response = (status, Json(body)).into_response();
+        Self::attach_failure_log(&mut response, &self);
+        response
     }
 }
 
@@ -138,7 +195,9 @@ pub fn with_path(err: AppError, path: &str) -> Response {
         path: path.to_string(),
         timestamp: chrono::Utc::now().to_rfc3339(),
     };
-    (status, Json(body)).into_response()
+    let mut response = (status, Json(body)).into_response();
+    AppError::attach_failure_log(&mut response, &err);
+    response
 }
 
 pub type AppResult<T> = Result<T, AppError>;

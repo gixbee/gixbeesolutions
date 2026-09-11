@@ -12,7 +12,7 @@ use serde_json::{json, Value};
 use sqlx::Row;
 use uuid::Uuid;
 
-use crate::error::AppResult;
+use crate::error::{ApiFailureLog, AppResult};
 use crate::middleware::auth::{require_admin_page, verify_access, AuthUser};
 use crate::state::AppState;
 
@@ -170,6 +170,9 @@ pub async fn api_logging_middleware(
     }
     let duration_ms = started.elapsed().as_millis().min(i32::MAX as u128) as i32;
     let level = if status >= 500 { "ERROR" } else { "WARN" };
+    let failure = response.extensions().get<ApiFailureLog>().cloned();
+    let log_message = failure.as_ref().map(|f| f.message.clone());
+    let log_detail = failure.as_ref().and_then(|f| f.detail.clone());
 
     let state = state.clone();
     let path = clip(Some(uri), 500);
@@ -178,15 +181,18 @@ pub async fn api_logging_middleware(
             &state,
             RecordInput {
                 level: level.to_string(),
-                log_type: log_type.to_string(),
+                log_type: failure
+                    .as_ref()
+                    .and_then(|f| f.log_type.clone())
+                    .unwrap_or_else(|| log_type.to_string()),
                 method: Some(method),
                 path,
                 status_code: Some(status),
                 duration_ms: Some(duration_ms),
                 user_id,
                 ip,
-                message: None,
-                detail: None,
+                message: clip(log_message, 500),
+                detail: clip(log_detail, 8000),
             },
         )
         .await;
