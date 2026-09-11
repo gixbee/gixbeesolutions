@@ -170,7 +170,7 @@ pub async fn api_logging_middleware(
     }
     let duration_ms = started.elapsed().as_millis().min(i32::MAX as u128) as i32;
     let level = if status >= 500 { "ERROR" } else { "WARN" };
-    let failure = response.extensions().get<ApiFailureLog>().cloned();
+    let failure = response.extensions().get::<ApiFailureLog>().cloned();
     let log_message = failure.as_ref().map(|f| f.message.clone());
     let log_detail = failure.as_ref().and_then(|f| f.detail.clone());
 
