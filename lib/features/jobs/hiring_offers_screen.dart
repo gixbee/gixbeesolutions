@@ -1,5 +1,6 @@
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
+import 'hiring_progress_screen.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
@@ -276,6 +277,13 @@ class _HiringOffersScreenState extends ConsumerState<HiringOffersScreen> {
                                                   .withValues(alpha: 0.5),
                                             ),
                                           ),
+                                        ],
+                                        if (o['response'] == 'INTERESTED') ...[
+                                          const SizedBox(height: 12),
+                                          GxButton(label: 'Application progress', filled: false, onTap: () async {
+                                            await Navigator.push(context, MaterialPageRoute(builder: (_) => HiringProgressScreen(interestId: '${o['id']}')));
+                                            if (mounted) _load();
+                                          }),
                                         ],
                                         if (o['open'] == true) ...[
                                           const SizedBox(height: 14),

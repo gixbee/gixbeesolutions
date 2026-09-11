@@ -16,6 +16,10 @@ import 'features/jobs/booking_detail_screen.dart';
 import 'features/jobs/my_bookings_screen.dart';
 import 'features/jobs/find_job_module.dart';
 import 'features/business/hiring_requests_screen.dart';
+import 'features/events/event_plan_detail_screen.dart';
+import 'features/jobs/hiring_progress_screen.dart';
+import 'features/rentals/my_rentals_screen.dart';
+import 'features/rentals/owner_rentals_screen.dart';
 import 'features/booking/incoming_job_screen.dart';
 import 'features/booking/voice_call_screen.dart';
 import 'features/billing/job_pack_screen.dart';
@@ -440,6 +444,28 @@ class _MainWrapperState extends ConsumerState<MainWrapper>
     }
 
     // Smart Hiring deep links
+    if (type == 'rental_request' || type == 'rental_status') {
+      if (fromUserGesture && mounted) {
+        await Navigator.push(context, MaterialPageRoute(builder: (_) =>
+          data['audience'] == 'owner' || type == 'rental_request' ? const OwnerRentalsScreen() : const MyRentalsScreen()));
+      }
+      return;
+    }
+    if (type == 'hiring_progress') {
+      final interestId = data['interestId'];
+      if (fromUserGesture && mounted && interestId != null && interestId.isNotEmpty) {
+        await Navigator.push(context, MaterialPageRoute(builder: (_) => HiringProgressScreen(interestId: interestId)));
+      }
+      return;
+    }
+    if (type == 'event_enquiry' || type == 'event_quote' || type == 'event_update') {
+      final planId = data['planId'];
+      if (fromUserGesture && mounted && planId != null && planId.isNotEmpty) {
+        await Navigator.push(context, MaterialPageRoute(
+          builder: (_) => EventPlanDetailScreen(planId: planId)));
+      }
+      return;
+    }
     if (type == 'hiring_offer' || type == 'hiring_status') {
       if (fromUserGesture && mounted) {
         await Navigator.push(

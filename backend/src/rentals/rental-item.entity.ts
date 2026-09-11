@@ -8,6 +8,7 @@ import {
   Index,
 } from 'typeorm';
 import { User } from '../users/user.entity';
+import { Business } from '../businesses/business.entity';
 
 // AUDIT FIX (missing indexes): catalog reads filter isAvailable + recency;
 // the owner's "my items" filters by owner.
@@ -20,6 +21,15 @@ export class RentalItem {
   @Index()
   @ManyToOne(() => User)
   owner: User;
+
+  @ManyToOne(() => Business, { nullable: true })
+  business: Business | null;
+
+  @Column({ type: 'integer', default: 1 }) quantity: number;
+  @Column({ type: 'text', default: '' }) pickupAddress: string;
+  @Column({ default: false }) deliveryAvailable: boolean;
+  @Column({ type: 'numeric', precision: 10, scale: 2, default: 0 }) deliveryFee: number;
+  @Column({ type: 'numeric', precision: 10, scale: 2, default: 0 }) depositPerUnit: number;
 
   @Column()
   name: string;

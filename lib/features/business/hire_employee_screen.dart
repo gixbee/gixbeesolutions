@@ -19,7 +19,8 @@ import 'hiring_requests_screen.dart';
 ///
 /// Steps mirror the prototype — same POST body to `/hiring/match/requests`.
 class HireEmployeeScreen extends ConsumerStatefulWidget {
-  const HireEmployeeScreen({super.key});
+  const HireEmployeeScreen({super.key, this.businessId});
+  final String? businessId;
 
   @override
   ConsumerState<HireEmployeeScreen> createState() => _HireEmployeeScreenState();
@@ -147,6 +148,7 @@ class _HireEmployeeScreenState extends ConsumerState<HireEmployeeScreen> {
         (minParsed != null && minParsed > 0 && minParsed < max) ? minParsed : null;
     return {
       'jobType': _resolvedJobType,
+      if (widget.businessId != null) 'businessId': widget.businessId,
       'skills': _skills.toList(),
       'location': _locationCtrl.text.trim(),
       'salaryOffered': max,
@@ -255,17 +257,16 @@ class _HireEmployeeScreenState extends ConsumerState<HireEmployeeScreen> {
     }
   }
 
-  void _onPaid(PaymentSuccessResponse _) {
+  Future<void> _onPaid(PaymentSuccessResponse payment) async {
     if (!mounted) return;
-    showGxSnack(context, 'Payment received — starting matching…',
-        type: GxSnackType.success);
-    Future.delayed(const Duration(seconds: 3), () {
-      if (!mounted) return;
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (_) => const HiringRequestsScreen()),
-      );
-    });
+    try {
+      if (payment.orderId == null || payment.paymentId == null) throw StateError('Missing payment reference');
+      await ref.read(matchingRepositoryProvider).verifyPayment(payment.orderId!, payment.paymentId!);
+      if (mounted) showGxSnack(context, 'Payment confirmed — matching started', type: GxSnackType.success);
+    } catch (_) {
+      if (mounted) showGxSnack(context, 'Payment confirmation is pending. Open Pending payments to check it.');
+    }
+    if (mounted) Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => HiringRequestsScreen(businessId: widget.businessId)));
   }
 
   void _onPayFail(PaymentFailureResponse r) {

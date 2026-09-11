@@ -13,6 +13,11 @@ class BusinessRepository {
 
   BusinessRepository(this._dio);
 
+  Future<Business> updateBusiness(String id, Map<String, dynamic> data) async {
+    final response = await _dio.patch('/businesses/$id', data: data);
+    return Business.fromJson(response.data);
+  }
+
   Future<Business> registerBusiness(Business business) async {
     final res = await _dio.post('/businesses', data: business.toJson());
     return Business.fromJson(res.data);

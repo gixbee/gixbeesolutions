@@ -1177,23 +1177,33 @@ pub async fn record_strike(
     let uid = Uuid::parse_str(user_id)?;
     let bid = Uuid::parse_str(booking_id)?;
 
-    let profile = load_profile(state, uid).await?;
+    let mut tx=state.db.begin().await?;
+    let profile = sqlx::query(&format!(r#"SELECT {WORKER_PROFILE_COLS} FROM worker_profiles WHERE "userId"=$1 FOR UPDATE"#))
+        .bind(uid).fetch_optional(&mut *tx).await?;
     if profile.is_none() {
         return Ok(());
     }
     let profile = profile.unwrap();
     let skills = parse_skills(profile.try_get::<Option<String>, _>("skills").ok().flatten());
+    let duplicate:bool=sqlx::query_scalar(r#"SELECT EXISTS(SELECT 1 FROM worker_strikes WHERE "workerUserId"=$1 AND "bookingId"=$2 AND type::text=$3)"#)
+        .bind(user_id).bind(bid).bind(strike_type).fetch_one(&mut *tx).await?;
+    if duplicate {
+        let suspended=profile.get::<i32,_>("strikeCount")>=SUSPENSION_STRIKE_THRESHOLD;
+        tx.commit().await?;
+        if suspended {state.redis.clear_worker_live_state(user_id,&skills).await.map_err(|e|AppError::Internal(e.to_string()))?;}
+        return Ok(());
+    }
 
     sqlx::query(
         r#"INSERT INTO worker_strikes (id, "workerUserId", "bookingId", type, reason, status)
-           VALUES ($1, $2, $3, $4, $5, 'ACTIVE')"#,
+           VALUES ($1, $2, $3, $4::worker_strikes_type_enum, $5, 'ACTIVE')"#,
     )
     .bind(Uuid::new_v4())
-    .bind(uid)
+    .bind(user_id)
     .bind(bid)
     .bind(strike_type)
     .bind(reason)
-    .execute(&state.db)
+    .execute(&mut *tx)
     .await?;
 
     let strike_count: i32 = sqlx::query_scalar(
@@ -1201,16 +1211,15 @@ pub async fn record_strike(
            WHERE "userId" = $1 RETURNING "strikeCount""#,
     )
     .bind(uid)
-    .fetch_one(&state.db)
+    .fetch_one(&mut *tx)
     .await?;
 
     let suspended = strike_count >= SUSPENSION_STRIKE_THRESHOLD;
     if suspended {
         sqlx::query(r#"UPDATE worker_profiles SET "isActive" = false WHERE "userId" = $1"#)
             .bind(uid)
-            .execute(&state.db)
+            .execute(&mut *tx)
             .await?;
-        let _ = state.redis.clear_worker_live_state(user_id, &skills).await;
     }
 
     let (title, body) = if suspended {
@@ -1232,22 +1241,10 @@ pub async fn record_strike(
             ),
         )
     };
-    let strike_count_str = strike_count.to_string();
-    let suspended_str = suspended.to_string();
-    state
-        .fcm
-        .send_to_user(
-            state,
-            user_id,
-            &title,
-            &body,
-            Some(&[
-                ("type", "worker_strike"),
-                ("strikeCount", &strike_count_str),
-                ("suspended", &suspended_str),
-            ]),
-        )
-        .await;
+    crate::outbox::notify(&mut tx,bid,uid,&title,&body,json!({"type":"worker_strike",
+        "strikeCount":strike_count.to_string(),"suspended":suspended.to_string()})).await?;
+    tx.commit().await?;
+    if suspended {state.redis.clear_worker_live_state(user_id,&skills).await.map_err(|e|AppError::Internal(e.to_string()))?;}
 
     Ok(())
 }

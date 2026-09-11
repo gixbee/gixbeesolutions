@@ -8,6 +8,7 @@ import {
   Index,
 } from 'typeorm';
 import { User } from '../users/user.entity';
+import { Business } from '../businesses/business.entity';
 
 // AUDIT FIX (missing indexes): the seeker feed reads active posts ordered by
 // recency on every open; the employer's dashboard filters by employer.
@@ -20,6 +21,8 @@ export class JobPost {
   @Index()
   @ManyToOne(() => User)
   employer: User;
+
+  @ManyToOne(() => Business, { nullable: true }) business: Business | null;
 
   @Column()
   title: string;

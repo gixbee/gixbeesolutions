@@ -37,6 +37,7 @@ pub fn api_router() -> Router<AppState> {
         .nest("/cities", cities::routes())
         .nest("/client-logs", system_logs::client_routes())
         .nest("/favourites", favourites::routes())
+        .nest("/events", crate::events::routes())
         .nest("/hiring", hiring::routes())
         .nest("/hiring/match", matching::routes())
         .nest("/master-entries", master_entries::routes())

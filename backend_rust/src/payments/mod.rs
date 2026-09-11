@@ -30,6 +30,7 @@ use crate::wallets::add_funds;
 use crate::workers::{mark_period_fee_paid, periodic_jobs_per_payment};
 
 type HmacSha256 = Hmac<Sha256>;
+mod recovery;
 
 const PURPOSE_WALLET_RECHARGE: &str = "WALLET_RECHARGE";
 const PURPOSE_PERIOD_FEE: &str = "PERIOD_FEE";
@@ -45,6 +46,9 @@ pub fn routes() -> Router<AppState> {
         .route("/late-cancel-compensation/order", post(create_late_cancel_order))
         .route("/hiring-match/order", post(create_hiring_match_order))
         .route("/extra-job-type/order", post(create_extra_job_type_order))
+        .route("/pending", get(recovery::pending))
+        .route("/orders/{id}", get(recovery::status))
+        .route("/orders/{id}/verify", post(recovery::verify))
         .route("/webhook", post(webhook))
 }
 
@@ -82,6 +86,7 @@ struct AmountBody {
 
 #[derive(Deserialize)]
 struct HiringMatchBody {
+    businessId: Option<Uuid>,
     jobType: String,
     skills: Option<Vec<String>>,
     location: Option<String>,
@@ -96,6 +101,7 @@ struct HiringMatchBody {
 
 #[derive(Deserialize)]
 struct ExtraJobTypeBody {
+    renewPreferenceId:Option<Uuid>,
     jobType: String,
     skills: Option<Vec<String>>,
     preferredLocation: Option<String>,
@@ -184,7 +190,8 @@ async fn create_hiring_match_order(
     let salary_offered = body.salaryOffered.unwrap_or(0.0);
     let salary_min = body.salaryMin.unwrap_or(0.0);
     let salary_max = body.salaryMax.unwrap_or(salary_offered);
-    let meta = json!({
+    let mut meta = json!({
+        "businessId":body.businessId,
         "jobType": job_type,
         "skills": body.skills.unwrap_or_default(),
         "location": body.location,
@@ -198,6 +205,8 @@ async fn create_hiring_match_order(
         "fee": fee,
         "creditApplied": credit_applied,
     });
+    crate::matching::validate_request(&meta)?;
+    meta["businessId"]=json!(crate::matching::resolve_business(&state,&user.user_id,&meta).await?);
     let Json(mut response) = create_razorpay_order(
         &state,
         &user.user_id,
@@ -208,8 +217,8 @@ async fn create_hiring_match_order(
     .await?;
     if let Some(obj) = response.as_object_mut() {
         obj.insert("fee".into(), json!(fee));
-        obj.insert("creditApplied".into(), json!(credit_applied));
-        obj.insert("amountDue".into(), json!(amount_due));
+        obj.entry("creditApplied").or_insert(json!(credit_applied));
+        obj.entry("amountDue").or_insert(json!(amount_due));
     }
     Ok(Json(response))
 }
@@ -224,7 +233,7 @@ async fn create_extra_job_type_order(
         return Err(AppError::BadRequest("jobType is required".into()));
     }
     let existing = preference_count(&state, &user.user_id).await?;
-    if existing < 2 {
+    if existing < 2 && body.renewPreferenceId.is_none() {
         return Err(AppError::BadRequest(
             "Your first two Job Types are free — create them without payment.".into(),
         ));
@@ -238,12 +247,18 @@ async fn create_extra_job_type_order(
     .bind(job_type)
     .fetch_optional(&state.db)
     .await?;
-    if duplicate.is_some() {
+    if duplicate.is_some() && duplicate!=body.renewPreferenceId {
         return Err(AppError::BadRequest(
             "You already have a profile for this Job Type".into(),
         ));
     }
+    if let Some(profile)=body.renewPreferenceId {
+        let renew:bool=sqlx::query_scalar(r#"SELECT EXISTS(SELECT 1 FROM job_preferences WHERE id=$1 AND "userId"=$2 AND "isActive"=true AND "isPaid"=true AND LOWER("jobType")=LOWER($3))"#)
+            .bind(profile).bind(uid).bind(job_type).fetch_one(&state.db).await?;
+        if !renew {return Err(AppError::BadRequest("Select your paid career profile to renew".into()));}
+    }
     let meta = json!({
+        "renewPreferenceId":body.renewPreferenceId,
         "jobType": job_type,
         "skills": body.skills.unwrap_or_default(),
         "preferredLocation": body.preferredLocation,
@@ -253,6 +268,7 @@ async fn create_extra_job_type_order(
         "experienceYears": body.experienceYears.unwrap_or(0),
         "noticePeriod": body.noticePeriod.as_deref().unwrap_or("IMMEDIATE"),
     });
+    crate::matching::validate_preference(&meta)?;
     create_razorpay_order(&state, &user.user_id, PURPOSE_EXTRA_JOB_TYPE, 50, Some(meta)).await
 }
 
@@ -281,10 +297,36 @@ pub(crate) async fn create_razorpay_order(
     };
     let receipt = format!("{}_{}", receipt_prefix, Uuid::new_v4().simple());
 
+    let uid = Uuid::parse_str(user_id)?;
+    let mut tx = state.db.begin().await?;
+    if [PURPOSE_HIRING_MATCH,PURPOSE_EXTRA_JOB_TYPE].contains(&purpose) {
+        sqlx::query("SELECT id FROM users WHERE id=$1 FOR UPDATE").bind(uid).fetch_one(&mut *tx).await?;
+        let existing=sqlx::query(r#"SELECT "razorpayOrderId",amount,meta FROM payment_orders WHERE "userId"=$1
+            AND purpose::text=$2 AND status='CREATED' AND (meta-'fee'-'creditApplied')=($3::jsonb-'fee'-'creditApplied')
+            ORDER BY "createdAt" DESC LIMIT 1"#).bind(uid).bind(purpose).bind(&meta).fetch_optional(&mut *tx).await?;
+        if let Some(existing)=existing {
+            let due=existing.get::<rust_decimal::Decimal,_>("amount");let saved:Value=existing.get("meta");
+            return Ok(Json(json!({"orderId":existing.get::<String,_>("razorpayOrderId"),
+                "amount":rust_decimal::prelude::ToPrimitive::to_i64(&(due*rust_decimal::Decimal::from(100))),
+                "amountDue":rust_decimal::prelude::ToPrimitive::to_i32(&due),"creditApplied":saved["creditApplied"],
+                "currency":"INR","keyId":key_id,"resumed":true})));
+        }
+    }
+    if purpose == PURPOSE_HIRING_MATCH {
+        let balance: rust_decimal::Decimal = sqlx::query_scalar(r#"SELECT "hiringCreditBalance" FROM users WHERE id=$1 FOR UPDATE"#)
+            .bind(uid).fetch_one(&mut *tx).await?;
+        let reserved = crate::matching::reserved_hiring_credit(&mut *tx, uid, None).await?;
+        let applied = meta.as_ref().and_then(|v|v.get("creditApplied")).and_then(Value::as_i64).unwrap_or(0);
+        if balance - reserved < rust_decimal::Decimal::from(applied) {
+            return Err(AppError::Conflict("Hiring credit changed. Refresh the payment quote.".into()));
+        }
+    }
+
     let auth = STANDARD.encode(format!("{}:{}", key_id, key_secret));
     let res = state
         .http
         .post("https://api.razorpay.com/v1/orders")
+        .timeout(std::time::Duration::from_secs(20))
         .header("Authorization", format!("Basic {}", auth))
         .json(&json!({
             "amount": rupees * 100,
@@ -319,7 +361,6 @@ pub(crate) async fn create_razorpay_order(
         .ok_or_else(|| AppError::Internal("Razorpay order id missing".into()))?;
 
     let id = Uuid::new_v4();
-    let uid = Uuid::parse_str(user_id)?;
     sqlx::query(
         r#"INSERT INTO payment_orders (id, "userId", purpose, amount, status, "razorpayOrderId", meta)
            VALUES ($1, $2, $3::payment_orders_purpose_enum, $4, 'CREATED', $5, $6)"#,
@@ -330,8 +371,9 @@ pub(crate) async fn create_razorpay_order(
     .bind(rupees)
     .bind(razorpay_order_id)
     .bind(meta)
-    .execute(&state.db)
+    .execute(&mut *tx)
     .await?;
+    tx.commit().await?;
 
     info!(
         "[Razorpay] order {} created — ₹{} {} for {}",
@@ -459,6 +501,34 @@ async fn webhook(
         }
     }
 
+    // Hiring fulfillment is independently idempotent. Keep CREATED until its
+    // database effects commit, so a crash is retryable and reserved credit is
+    // never briefly exposed to another request while fulfillment is in flight.
+    let hiring_order = sqlx::query(r#"SELECT id,"userId",amount,purpose::text AS purpose,meta,status::text AS status
+        FROM payment_orders WHERE "razorpayOrderId"=$1 AND purpose::text IN ('HIRING_MATCH_FEE','EXTRA_JOB_TYPE_FEE')"#)
+        .bind(order_id).fetch_optional(&state.db).await?;
+    if let Some(order) = hiring_order {
+        if order.get::<String,_>("status") == "CREDITED" { return Ok(Json(json!({"ok":true,"duplicate":true}))); }
+        if order.get::<String,_>("status") != "CREATED" { return Err(AppError::Conflict("Payment order is not payable".into())); }
+        let payment = payment.ok_or_else(||AppError::ServiceUnavailable("Captured payment details are required".into()))?;
+        let amount = order.get::<rust_decimal::Decimal,_>("amount");
+        if payment.get("status").and_then(Value::as_str) != Some("captured")
+            || payment.get("currency").and_then(Value::as_str) != Some("INR")
+            || payment.get("amount").and_then(Value::as_i64).map(rust_decimal::Decimal::from) != Some(amount * rust_decimal::Decimal::from(100)) {
+            return Err(AppError::BadRequest("Captured payment does not match the order".into()));
+        }
+        let purpose = order.get::<String,_>("purpose");
+        let meta = order.get::<Option<Value>,_>("meta");
+        fulfil_order(&state,order_id,&order.get::<Uuid,_>("userId").to_string(),
+            rust_decimal::prelude::ToPrimitive::to_i32(&amount).unwrap_or(0),&purpose,meta.as_ref(),order.get("id"),payment_id).await?;
+        sqlx::query(r#"UPDATE payment_orders SET status='CREDITED',"razorpayPaymentId"=$2 WHERE id=$1 AND status='CREATED'"#)
+            .bind(order.get::<Uuid,_>("id")).bind(payment_id).execute(&state.db).await?;
+        return Ok(Json(json!({"ok":true})));
+    }
+    if matches!(payment.and_then(|p|p.pointer("/notes/purpose")).and_then(Value::as_str),Some("HIRING_MATCH_FEE"|"EXTRA_JOB_TYPE_FEE")) {
+        return Err(AppError::ServiceUnavailable("Payment order not persisted yet".into()));
+    }
+
     let claim = sqlx::query(
         r#"UPDATE payment_orders
            SET status = 'CREDITED', "razorpayPaymentId" = $2
@@ -574,7 +644,7 @@ async fn fulfil_order(
             );
         }
         PURPOSE_EXTRA_JOB_TYPE => {
-            create_preference_from_payment(state, user_id, meta.unwrap_or(&json!({}))).await?;
+            create_preference_from_payment(state, user_id, meta.unwrap_or(&json!({})),payment_order_id).await?;
             info!(
                 "[Razorpay] {}: extra Job Type fee ₹{} — preference created for {}",
                 razorpay_order_id,
@@ -614,6 +684,7 @@ pub async fn refund_hiring_match_payment(
     state: &AppState,
     razorpay_payment_id: &str,
     amount_inr: i32,
+    request_id: &str,
 ) -> AppResult<()> {
     if amount_inr <= 0 {
         return Ok(());
@@ -634,7 +705,9 @@ pub async fn refund_hiring_match_payment(
             razorpay_payment_id
         ))
         .header("Authorization", format!("Basic {}", auth))
-        .json(&json!({ "amount": paise }))
+        .header("X-Refund-Idempotency", format!("gixbee-hiring-{request_id}"))
+        .timeout(std::time::Duration::from_secs(20))
+        .json(&json!({ "amount": paise, "speed":"normal" }))
         .send()
         .await
         .map_err(|e| AppError::Internal(format!("Razorpay refund failed: {}", e)))?;

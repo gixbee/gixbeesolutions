@@ -47,6 +47,19 @@ export class RentalReservation {
   @Column({ type: 'decimal', precision: 10, scale: 2 })
   totalPrice: number;
 
+  @Column({ type: 'integer', default: 1 }) quantity: number;
+  @Column({ type: 'varchar', length: 20, default: 'PICKUP' }) fulfillment: string;
+  @Column({ type: 'text', default: '' }) fulfillmentAddress: string;
+  @Column({ type: 'jsonb', default: () => "'{}'::jsonb" }) priceBreakdown: Record<string, unknown>;
+  @Column({ type: 'timestamptz', nullable: true }) ownerHandedOverAt: Date | null;
+  @Column({ type: 'timestamptz', nullable: true }) renterCollectedAt: Date | null;
+  @Column({ type: 'timestamptz', nullable: true }) ownerReturnedAt: Date | null;
+  @Column({ type: 'timestamptz', nullable: true }) renterReturnedAt: Date | null;
+  @Column({ type: 'timestamptz', nullable: true }) ownerPaidAt: Date | null;
+  @Column({ type: 'timestamptz', nullable: true }) renterPaidAt: Date | null;
+  @Column({ type: 'timestamptz', nullable: true }) ownerRefundedAt: Date | null;
+  @Column({ type: 'timestamptz', nullable: true }) renterRefundedAt: Date | null;
+
   @Column({
     type: 'enum',
     enum: RentalStatus,

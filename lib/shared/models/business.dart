@@ -10,6 +10,7 @@ class Business {
 
   /// SERVICE subtype: HALL / CATERING / DECORATION / PHOTOGRAPHY.
   final String? serviceType;
+  final List<String> eventServices;
 
   /// Structured city scope — City.id from the serviceable-cities master
   /// (backend `cityId`, nullable). Set from the home's selected city when
@@ -37,6 +38,7 @@ class Business {
     this.address,
     this.documentUrl,
     this.serviceType,
+    this.eventServices = const [],
     this.cityId,
     required this.ownerId,
     required this.status,
@@ -58,6 +60,7 @@ class Business {
       address: json['address'] ?? json['location'],
       documentUrl: json['documentUrl'],
       serviceType: json['serviceType'] as String?,
+      eventServices: _parseStringList(json['eventServices']),
       cityId: json['cityId'],
       ownerId: json['owner']?['id'] ?? json['ownerId'] ?? '',
       status: json['status'] ?? 'PENDING',
@@ -77,6 +80,7 @@ class Business {
       'address': address,
       'documentUrl': documentUrl,
       if (serviceType != null) 'serviceType': serviceType,
+      'eventServices': eventServices,
       // Only send when set — the backend DTO validates cityId as a UUID.
       if (cityId != null) 'cityId': cityId,
     };

@@ -36,8 +36,8 @@ class RentalsRepository {
     return Map<String, dynamic>.from(res.data as Map);
   }
 
-  Future<List<Map<String, dynamic>>> getMyItems() async {
-    final res = await _dio.get('/rentals/my-items');
+  Future<List<Map<String, dynamic>>> getMyItems({String? businessId}) async {
+    final res = await _dio.get('/rentals/my-items', queryParameters: {if (businessId != null) 'businessId': businessId});
     return _asList(res.data);
   }
 
@@ -48,9 +48,17 @@ class RentalsRepository {
     int minHoursToRent = 1,
     String? description,
     String? imageUrl,
+    required String businessId,
+    int quantity = 1,
+    required String pickupAddress,
+    bool deliveryAvailable = false,
+    double deliveryFee = 0,
+    double depositPerUnit = 0,
   }) async {
     await _dio.post('/rentals', data: {
       'name': name,
+      'businessId': businessId, 'quantity': quantity, 'pickupAddress': pickupAddress,
+      'deliveryAvailable': deliveryAvailable, 'deliveryFee': deliveryFee, 'depositPerUnit': depositPerUnit,
       'hourlyRate': hourlyRate,
       if (dailyRate != null) 'dailyRate': dailyRate,
       'minHoursToRent': minHoursToRent,
@@ -79,10 +87,14 @@ class RentalsRepository {
     required String itemId,
     required DateTime start,
     required DateTime end,
+    int quantity = 1,
+    String fulfillment = 'PICKUP',
+    String deliveryAddress = '',
   }) async {
     final res = await _dio.post('/rentals/$itemId/reserve', data: {
-      'startTime': start.toIso8601String(),
-      'endTime': end.toIso8601String(),
+      'startTime': start.toUtc().toIso8601String(),
+      'endTime': end.toUtc().toIso8601String(),
+      'quantity': quantity, 'fulfillment': fulfillment, 'deliveryAddress': deliveryAddress,
     });
     return Map<String, dynamic>.from(res.data as Map);
   }
@@ -92,8 +104,8 @@ class RentalsRepository {
     return _asList(res.data);
   }
 
-  Future<List<Map<String, dynamic>>> ownerReservations() async {
-    final res = await _dio.get('/rentals/reservations/owner');
+  Future<List<Map<String, dynamic>>> ownerReservations({String? businessId}) async {
+    final res = await _dio.get('/rentals/reservations/owner', queryParameters: {if (businessId != null) 'businessId': businessId});
     return _asList(res.data);
   }
 
@@ -105,5 +117,9 @@ class RentalsRepository {
       debugPrint('Reservation $action failed: $e');
       rethrow;
     }
+  }
+
+  Future<void> acknowledge(String id, String action) async {
+    await _dio.patch('/rentals/reservations/$id/ack/$action');
   }
 }

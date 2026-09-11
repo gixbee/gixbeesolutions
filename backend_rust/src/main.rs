@@ -8,6 +8,7 @@ mod cities;
 mod common;
 mod config;
 mod error;
+mod events;
 mod favourites;
 mod hiring;
 mod jobs;
@@ -32,6 +33,8 @@ mod uploads;
 mod users;
 mod wallets;
 mod workers;
+#[cfg(test)]
+mod marketplace_tests;
 
 use std::net::SocketAddr;
 use std::sync::Arc;
@@ -88,6 +91,8 @@ async fn main() -> anyhow::Result<()> {
     tokio::spawn(async move {
         outbox::run_poller(poller_state).await;
     });
+    tokio::spawn(matching::run_scheduler(state.clone()));
+    tokio::spawn(jobs::run_scheduler(state.clone()));
 
     let logging_state = state.clone();
     let uploads = ServeDir::new(&config.uploads_dir);

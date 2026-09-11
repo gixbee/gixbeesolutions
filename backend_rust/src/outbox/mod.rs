@@ -39,15 +39,18 @@ async fn poll_once(state: &AppState) -> Result<(), String> {
 }
 
 async fn dispatch_one(state: &AppState, event_id: Uuid) -> Result<(), String> {
+    let mut tx = state.db.begin().await.map_err(|e| e.to_string())?;
     let row = sqlx::query(
-        r#"SELECT id, type, "aggregateId", payload, status, attempts FROM outbox_events WHERE id = $1"#,
+        r#"SELECT id, type, "aggregateId", payload, status, attempts FROM outbox_events WHERE id = $1 FOR UPDATE SKIP LOCKED"#,
     )
     .bind(event_id)
-    .fetch_optional(&state.db)
+    .fetch_optional(&mut *tx)
     .await
     .map_err(|e| e.to_string())?;
 
-    let row = row.ok_or_else(|| "event not found".to_string())?;
+    let Some(row) = row else {
+        return Ok(());
+    };
     let status: String = row.get("status");
     if status == "processed" {
         return Ok(());
@@ -65,7 +68,7 @@ async fn dispatch_one(state: &AppState, event_id: Uuid) -> Result<(), String> {
     )
     .bind(event_id)
     .bind(attempts)
-    .execute(&state.db)
+    .execute(&mut *tx)
     .await
     .map_err(|e| e.to_string())?;
     if claimed.rows_affected() == 0 {
@@ -81,7 +84,7 @@ async fn dispatch_one(state: &AppState, event_id: Uuid) -> Result<(), String> {
                 r#"UPDATE outbox_events SET status = 'processed', "processedAt" = NOW(), "lastError" = NULL WHERE id = $1"#,
             )
             .bind(event_id)
-            .execute(&state.db)
+            .execute(&mut *tx)
             .await
             .map_err(|e| e.to_string())?;
         }
@@ -97,10 +100,26 @@ async fn dispatch_one(state: &AppState, event_id: Uuid) -> Result<(), String> {
             .bind(e.chars().take(2000).collect::<String>())
             .bind(terminal)
             .bind(event_id)
-            .execute(&state.db)
+            .execute(&mut *tx)
             .await
             .map_err(|e| e.to_string())?;
         }
     }
+    tx.commit().await.map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+pub async fn notify(
+    tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
+    aggregate_id: Uuid,
+    user_id: Uuid,
+    title: &str,
+    body: &str,
+    data: serde_json::Value,
+) -> Result<(), sqlx::Error> {
+    sqlx::query(r#"INSERT INTO outbox_events (id,type,"aggregateId",payload) VALUES ($1,'marketplace.notify',$2,$3)"#)
+        .bind(Uuid::new_v4()).bind(aggregate_id)
+        .bind(serde_json::json!({"userId":user_id,"title":title,"body":body,"data":data}))
+        .execute(&mut **tx).await?;
     Ok(())
 }

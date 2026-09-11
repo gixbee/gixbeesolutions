@@ -64,6 +64,12 @@ export class HiringInterest {
   })
   decision: EmployerDecision;
 
+  @Column({ type: 'jsonb', default: () => "'{}'::jsonb" })
+  progress: Record<string, unknown>;
+
+  @Column({ type: 'integer', default: 0 })
+  revision: number;
+
   @Column({ type: 'timestamptz', nullable: true })
   notifiedAt: Date | null;
 

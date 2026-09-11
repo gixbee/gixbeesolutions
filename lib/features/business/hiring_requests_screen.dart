@@ -10,10 +10,13 @@ import '../../shared/widgets/gx_empty.dart';
 import '../../shared/widgets/gx_sheet.dart';
 import '../../shared/widgets/gx_snackbar.dart';
 import '../../theme.dart';
+import '../jobs/hiring_progress_screen.dart';
+import '../jobs/pending_payments_screen.dart';
 
 /// Employer's Smart Hiring requests list.
 class HiringRequestsScreen extends ConsumerStatefulWidget {
-  const HiringRequestsScreen({super.key});
+  const HiringRequestsScreen({super.key, this.businessId});
+  final String? businessId;
 
   @override
   ConsumerState<HiringRequestsScreen> createState() =>
@@ -33,7 +36,7 @@ class _HiringRequestsScreenState extends ConsumerState<HiringRequestsScreen> {
   Future<void> _load() async {
     setState(() => _loading = true);
     try {
-      final list = await ref.read(matchingRepositoryProvider).listRequests();
+      final list = await ref.read(matchingRepositoryProvider).listRequests(businessId: widget.businessId);
       if (!mounted) return;
       setState(() {
         _requests = list;
@@ -51,7 +54,8 @@ class _HiringRequestsScreenState extends ConsumerState<HiringRequestsScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: context.gx.bg,
-      appBar: AppBar(title: const Text('Hiring requests')),
+      appBar: AppBar(title: const Text('Hiring requests'), actions: [IconButton(tooltip: 'Pending payments', icon: const Icon(Icons.receipt_long),
+        onPressed: () async { await Navigator.push(context, MaterialPageRoute(builder: (_) => const PendingPaymentsScreen())); if (mounted) _load(); })]),
       body: DribbbleBackground(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -247,7 +251,7 @@ class _HiringRequestDetailScreenState
         context,
         choice == 'CREDIT'
             ? 'Gixbee Credit added for your next hire'
-            : 'Refund initiated',
+            : 'Refund requested',
         type: GxSnackType.success,
       );
       _load();
@@ -327,7 +331,15 @@ class _HiringRequestDetailScreenState
                         color: context.gx.ink.withValues(alpha: 0.55),
                       ),
                     ),
-                    if (status == 'GUARANTEE_FAILED') ...[
+                    if (status == 'GUARANTEE_FAILED' && d['refundStatus'] != null) ...[
+                      const SizedBox(height: 14),
+                      Text(
+                        d['refundStatus'] == 'failed'
+                            ? 'The refund could not be completed. Contact support with this hiring request.'
+                            : 'Your refund is being processed. Pull down to check its status.',
+                        style: TextStyle(color: context.gx.ink),
+                      ),
+                    ] else if (status == 'GUARANTEE_FAILED') ...[
                       const SizedBox(height: 14),
                       GxButton(
                         label: 'Choose credit or refund',
@@ -478,22 +490,16 @@ class _CandidateCard extends StatelessWidget {
                         onTap: () => onDecision(interestId, 'SHORTLISTED'),
                       ),
                     ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: GxButton(
-                        label: 'Hire',
-                        accent: GixbeeTheme.accentGreen,
-                        onTap: () => onDecision(interestId, 'HIRED'),
-                      ),
-                    ),
                   ],
                 ),
-              ] else if (decision == 'SHORTLISTED') ...[
+              ],
+              if (decision != 'PENDING') ...[
                 const SizedBox(height: 10),
                 GxButton(
-                  label: 'Mark Hired',
+                  label: 'Interview, offer & joining',
                   accent: GixbeeTheme.accentGreen,
-                  onTap: () => onDecision(interestId, 'HIRED'),
+                  onTap: () => Navigator.push(context, MaterialPageRoute(
+                    builder: (_) => HiringProgressScreen(interestId: interestId))),
                 ),
               ],
             ],

@@ -8,6 +8,7 @@ import '../../shared/widgets/gx_button.dart';
 import '../../shared/widgets/gx_calendar.dart';
 import '../../shared/widgets/gx_snackbar.dart';
 import '../../shared/widgets/gx_time_picker.dart';
+import '../../shared/widgets/gx_text_field.dart';
 import '../../theme.dart';
 import 'my_rentals_screen.dart';
 
@@ -30,6 +31,12 @@ class _RentalItemDetailScreenState
   DateTime? _start;
   DateTime? _end;
   bool _submitting = false;
+  int _quantity = 1;
+  bool _delivery = false;
+  final _deliveryAddress = TextEditingController();
+
+  @override
+  void dispose() { _deliveryAddress.dispose(); super.dispose(); }
 
   @override
   void initState() {
@@ -81,11 +88,14 @@ class _RentalItemDetailScreenState
     if (hours <= 0) return null;
     final daily = num.tryParse('${_item!['dailyRate'] ?? ''}');
     final hourly = num.tryParse('${_item!['hourlyRate'] ?? 0}') ?? 0;
-    if (daily != null && hours >= 24) return (hours / 24).ceil() * daily.toDouble();
-    return hours.ceil() * hourly.toDouble();
+    final rent = daily != null && hours >= 24 ? (hours / 24).ceil() * daily.toDouble() : hours * hourly.toDouble();
+    final deposit = num.tryParse('${_item!['depositPerUnit'] ?? 0}') ?? 0;
+    final delivery = _delivery ? num.tryParse('${_item!['deliveryFee'] ?? 0}') ?? 0 : 0;
+    return (rent + deposit) * _quantity + delivery;
   }
 
   Future<void> _reserve() async {
+    if (_submitting) return;
     if (_start == null || _end == null) {
       showGxSnack(context, 'Pick a start and end time',
           type: GxSnackType.error);
@@ -95,12 +105,21 @@ class _RentalItemDetailScreenState
       showGxSnack(context, 'End must be after start', type: GxSnackType.error);
       return;
     }
+    final minimum = int.tryParse('${_item?['minHoursToRent'] ?? 1}') ?? 1;
+    if (_end!.difference(_start!).inMinutes < minimum * 60) {
+      showGxSnack(context, 'Minimum rental period is $minimum hours'); return;
+    }
+    if (_delivery && _deliveryAddress.text.trim().isEmpty) {
+      showGxSnack(context, 'Enter your delivery address'); return;
+    }
     setState(() => _submitting = true);
     try {
       await ref.read(rentalsRepositoryProvider).reserve(
             itemId: widget.itemId,
             start: _start!,
             end: _end!,
+            quantity: _quantity, fulfillment: _delivery ? 'DELIVERY' : 'PICKUP',
+            deliveryAddress: _deliveryAddress.text.trim(),
           );
       if (!mounted) return;
       showGxSnack(context, 'Request sent — the owner will confirm.',
@@ -255,6 +274,21 @@ class _RentalItemDetailScreenState
                                         ),
                                     ],
                                     const SizedBox(height: 20),
+                                    Row(children: [
+                                      const Expanded(child: Text('Quantity')),
+                                      IconButton(onPressed: _quantity <= 1 ? null : () => setState(() => _quantity--), icon: const Icon(Icons.remove)),
+                                      Text('$_quantity'),
+                                      IconButton(onPressed: _quantity >= (int.tryParse('${_item!['quantity'] ?? 1}') ?? 1) ? null : () => setState(() => _quantity++), icon: const Icon(Icons.add)),
+                                    ]),
+                                    Text('Pickup: ${_item!['pickupAddress'] ?? 'Coordinate with the owner'}'),
+                                    if (_item!['deliveryAvailable'] == true)
+                                      SwitchListTile(contentPadding: EdgeInsets.zero, title: const Text('Request delivery'),
+                                        subtitle: Text('₹${_item!['deliveryFee'] ?? 0} per reservation'), value: _delivery,
+                                        onChanged: (value) => setState(() => _delivery = value)),
+                                    if (_delivery) GxTextField(controller: _deliveryAddress, label: 'Delivery address', maxLines: 2, maxLength: 2000),
+                                    const SizedBox(height: 12),
+                                    Text('Refundable deposit: ₹${_item!['depositPerUnit'] ?? 0} per unit. Included in the total. Fully refundable after return; cancel before handover for a refund of amounts paid.'),
+                                    const SizedBox(height: 20),
                                     Text('WHEN DO YOU NEED IT?',
                                         style: TextStyle(
                                             fontSize: 11,
@@ -302,7 +336,7 @@ class _RentalItemDetailScreenState
                                                       .withValues(
                                                           alpha: 0.6))),
                                           Text(
-                                              '₹${_estimatedPrice!.round()}',
+                                              '₹${_estimatedPrice!.toStringAsFixed(2)}',
                                               style: const TextStyle(
                                                   fontSize: 18,
                                                   fontWeight: FontWeight.w900,

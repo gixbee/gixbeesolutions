@@ -38,7 +38,6 @@ pub async fn rebroadcast_booking(
         return Ok((false, 0));
     }
 
-    crate::jobs::schedule_request_timeout(state.clone(), booking_id.to_string(), 2);
 
     let customer_id = row.get::<Uuid, _>("customerId").to_string();
     let skill = row.get::<String, _>("skill");
@@ -184,7 +183,6 @@ use crate::billing::consume_credit;
 use crate::common::money::DEFAULT_BOOKING_PAYMENT_METHOD;
 use crate::common::pg::BOOKING_COLS;
 use crate::error::{AppError, AppResult};
-use crate::jobs;
 use crate::middleware::auth::{require_admin_page, AuthUser};
 use crate::state::AppState;
 use crate::workers;
@@ -367,7 +365,6 @@ async fn create_instant(
     .await?;
 
     let booking_id = id.to_string();
-    jobs::schedule_request_timeout(state.clone(), booking_id.clone(), 1);
     let status_patch = json!({
         "status": "REQUESTED",
         "operatorName": null,

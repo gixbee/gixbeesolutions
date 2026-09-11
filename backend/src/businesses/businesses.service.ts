@@ -48,6 +48,8 @@ export class BusinessesService {
       name: data.name.trim(),
       type: data.type,
       description: data.description?.trim() || null,
+      phone: data.phone?.trim() || null,
+      eventServices: data.type === 'SERVICE' ? (data.eventServices ?? []) : [],
       documentUrl: data.documentUrl ?? null,
       cityId: data.cityId ?? null,
       location,

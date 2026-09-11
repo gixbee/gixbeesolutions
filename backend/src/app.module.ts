@@ -10,6 +10,7 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { User } from './users/user.entity';
 import { Booking } from './bookings/booking.entity';
+import { BookingDeadline } from './bookings/booking-deadline.entity';
 import { WalletTransaction } from './wallets/wallet-transaction.entity';
 import { WorkerProfile } from './workers/worker-profile.entity';
 import { WorkerStrike } from './workers/worker-strike.entity';
@@ -18,9 +19,12 @@ import { RentalReservation } from './rentals/rental-reservation.entity';
 import { JobPost } from './hiring/job-post.entity';
 import { JobApplication } from './hiring/job-application.entity';
 import { JobPreference } from './hiring/matching/job-preference.entity';
+import { CareerProfileReceipt } from './hiring/matching/career-profile-receipt.entity';
 import { HiringRequest } from './hiring/matching/hiring-request.entity';
 import { HiringInterest } from './hiring/matching/hiring-interest.entity';
 import { Business } from './businesses/business.entity';
+import { EventPlan } from './events/event-plan.entity';
+import { EventQuote } from './events/event-quote.entity';
 import { TalentProfile } from './talent/talent-profile.entity';
 import { ProfessionalSkill } from './talent/professional-skill.entity';
 import { UsersModule } from './users/users.module';
@@ -92,6 +96,7 @@ import { SmsModule } from './sms/sms.module';
           entities: [
             User,
             Booking,
+            BookingDeadline,
             WalletTransaction,
             WorkerProfile,
             WorkerStrike,
@@ -100,9 +105,12 @@ import { SmsModule } from './sms/sms.module';
             JobPost,
             JobApplication,
             JobPreference,
+            CareerProfileReceipt,
             HiringRequest,
             HiringInterest,
             Business,
+            EventPlan,
+            EventQuote,
             TalentProfile,
             ProfessionalSkill,
             MasterEntry,

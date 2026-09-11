@@ -1,0 +1,53 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../repositories/events_repository.dart';
+import '../../shared/models/business.dart';
+import 'event_plan_detail_screen.dart';
+
+class EventPlansScreen extends ConsumerStatefulWidget {
+  const EventPlansScreen({super.key, this.business});
+  final Business? business;
+  @override
+  ConsumerState<EventPlansScreen> createState() => _EventPlansScreenState();
+}
+
+class _EventPlansScreenState extends ConsumerState<EventPlansScreen> {
+  late Future<List<Map<String, dynamic>>> _plans;
+  @override
+  void initState() { super.initState(); _plans = _load(); }
+  Future<List<Map<String, dynamic>>> _load() =>
+      ref.read(eventsRepositoryProvider).plans(businessId: widget.business?.id);
+  Future<void> _refresh() async {
+    final next = _load(); setState(() => _plans = next);
+    try { await next; } catch (_) { /* FutureBuilder displays the error. */ }
+  }
+
+  @override
+  Widget build(BuildContext context) => Scaffold(
+    appBar: AppBar(title: Text(widget.business == null ? 'My events' : 'Event enquiries'),
+      actions: [IconButton(onPressed: _refresh, icon: const Icon(Icons.refresh))]),
+    body: FutureBuilder<List<Map<String, dynamic>>>(future: _plans, builder: (context, snapshot) {
+      if (snapshot.connectionState != ConnectionState.done) return const Center(child: CircularProgressIndicator());
+      if (snapshot.hasError) return Center(child: Padding(padding: const EdgeInsets.all(24), child: Column(
+        mainAxisSize: MainAxisSize.min, children: [Text(eventError(snapshot.error!)),
+        TextButton(onPressed: _refresh, child: const Text('Try again'))])));
+      final plans = snapshot.data ?? [];
+      return RefreshIndicator(onRefresh: _refresh, child: ListView(
+        physics: const AlwaysScrollableScrollPhysics(), padding: const EdgeInsets.all(16),
+        children: plans.isEmpty ? [Padding(padding: const EdgeInsets.all(24), child: Text(
+          widget.business == null ? 'Your published events will appear here.' : 'No matching enquiries yet. Your supported services and city determine which events appear here.'))]
+          : plans.map((p) => Card(child: ListTile(
+            title: Text(p['eventType']?.toString() ?? 'Event'),
+            subtitle: Text('${eventDate(p['startTime'])}\n${p['guestCount']} guests · ${p['location']}\n'
+              '${p['cancelledAt'] != null ? 'Cancelled' : widget.business == null ? '${p['confirmedServices'] ?? 0}/${(p['services'] as List).length} services confirmed' : 'View enquiry and quotes'}'),
+            isThreeLine: true, trailing: const Icon(Icons.chevron_right),
+            onTap: () async {
+              await Navigator.push(context, MaterialPageRoute<void>(builder: (_) =>
+                EventPlanDetailScreen(planId: p['id'] as String, business: widget.business)));
+              if (mounted) await _refresh();
+            },
+          ))).toList(),
+      ));
+    }),
+  );
+}

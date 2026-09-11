@@ -1,12 +1,27 @@
 use serde_json::{json, Value};
 use tracing::error;
 
-use crate::jobs;
 use crate::state::AppState;
 use crate::workers;
 
 pub async fn handle(state: &AppState, event_type: &str, payload: &Value) -> Result<(), String> {
     match event_type {
+        "booking.gps_progress" => crate::bookings::progress::dispatch_gps_progress(state,payload).await.map_err(|e|e.to_string()),
+        "hiring.refund" => crate::matching::process_refund(state, &str_field(payload,"requestId")?).await.map_err(|e|e.to_string()),
+        "marketplace.notify" => {
+            let uid = str_field(payload, "userId")?;
+            // An account without a registered device still sees the durable offer/status in the app.
+            let token: Option<String> = sqlx::query_scalar(r#"SELECT "fcmToken" FROM users WHERE id=$1"#)
+                .bind(uuid::Uuid::parse_str(&uid).map_err(|e|e.to_string())?)
+                .fetch_optional(&state.db).await.map_err(|e|e.to_string())?.flatten();
+            if token.as_deref().unwrap_or("").is_empty() { return Ok(()); }
+            let title = str_field(payload,"title")?;
+            let body = str_field(payload,"body")?;
+            let data = payload.get("data").and_then(Value::as_object).map(|o|o.iter()
+                .filter_map(|(k,v)|v.as_str().map(|v|(k.as_str(),v))).collect::<Vec<_>>()).unwrap_or_default();
+            if state.fcm.send_to_user(state,&uid,&title,&body,Some(&data)).await { Ok(()) }
+            else { Err("Marketplace push delivery failed".into()) }
+        },
         "booking.broadcast_created" => on_broadcast_created(state, payload).await,
         "booking.accepted" => on_accepted(state, payload).await,
         "booking.cancelled" => on_cancelled(state, payload).await,
@@ -38,7 +53,6 @@ async fn on_broadcast_created(state: &AppState, p: &Value) -> Result<(), String>
         .map_err(|e| e.to_string())?;
 
     if attempt == 1 {
-        jobs::schedule_request_timeout(state.clone(), booking_id.clone(), 1);
         cache_and_emit(
             state,
             &booking_id,
@@ -260,8 +274,6 @@ async fn on_accepted(state: &AppState, p: &Value) -> Result<(), String> {
         .await;
     }
 
-    jobs::schedule_seven_minute_reminder(state.clone(), booking_id.clone());
-    jobs::schedule_ten_minute_gps_check(state.clone(), booking_id.clone());
 
     if let Some(cid) = customer_id {
         let accept_payload = json!({

@@ -107,8 +107,8 @@ class MatchingRepository {
     return Map<String, dynamic>.from(res.data as Map);
   }
 
-  Future<List<Map<String, dynamic>>> listRequests() async {
-    final res = await _dio.get('/hiring/match/requests');
+  Future<List<Map<String, dynamic>>> listRequests({String? businessId}) async {
+    final res = await _dio.get('/hiring/match/requests', queryParameters: {if (businessId != null) 'businessId': businessId});
     return (res.data as List)
         .map((e) => Map<String, dynamic>.from(e as Map))
         .toList();
@@ -117,6 +117,29 @@ class MatchingRepository {
   Future<Map<String, dynamic>> getRequestDetail(String id) async {
     final res = await _dio.get('/hiring/match/requests/$id');
     return Map<String, dynamic>.from(res.data as Map);
+  }
+
+  Future<Map<String, dynamic>> applicationProgress(String interestId) async {
+    final res = await _dio.get('/hiring/match/interests/$interestId/progress');
+    return Map<String, dynamic>.from(res.data as Map);
+  }
+
+  Future<void> updateApplication(String interestId, String action, Map<String, dynamic> body) async {
+    await _dio.post('/hiring/match/interests/$interestId/progress/$action', data: body);
+  }
+
+  Future<List<Map<String, dynamic>>> pendingPayments() async {
+    final response = await _dio.get('/payments/pending');
+    return (response.data as List).map((v) => Map<String, dynamic>.from(v as Map)).toList();
+  }
+
+  Future<void> verifyPayment(String orderId, String paymentId) async {
+    await _dio.post('/payments/orders/$orderId/verify', data: {'paymentId': paymentId});
+  }
+
+  Future<String> paymentStatus(String orderId) async {
+    final response = await _dio.get('/payments/orders/$orderId');
+    return '${response.data['status']}';
   }
 
   Future<Map<String, dynamic>> resolveGuarantee(

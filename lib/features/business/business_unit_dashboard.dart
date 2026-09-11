@@ -14,6 +14,8 @@ import '../../shared/widgets/gx_text_field.dart';
 import '../../theme.dart';
 import '../jobs/post_job_screen.dart';
 import '../rentals/owner_rentals_screen.dart';
+import '../events/event_plans_screen.dart';
+import 'event_business_settings_screen.dart';
 import 'hiring_pipeline_screen.dart';
 import 'hire_employee_screen.dart';
 import 'hiring_requests_screen.dart';
@@ -221,7 +223,7 @@ class _BusinessCard extends ConsumerWidget {
                         Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (_) => const HireEmployeeScreen(),
+                            builder: (_) => HireEmployeeScreen(businessId: business.id),
                           ),
                         );
                       },
@@ -236,7 +238,7 @@ class _BusinessCard extends ConsumerWidget {
                       onTap: () => Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (_) => const HiringRequestsScreen(),
+                          builder: (_) => HiringRequestsScreen(businessId: business.id),
                         ),
                       ),
                     ),
@@ -281,7 +283,7 @@ class _BusinessCard extends ConsumerWidget {
                       onTap: () => Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (_) => const OwnerRentalsScreen(),
+                          builder: (_) => OwnerRentalsScreen(businessId: business.id),
                         ),
                       ),
                     ),
@@ -298,6 +300,17 @@ class _BusinessCard extends ConsumerWidget {
                 ],
               ),
             ] else ...[
+              _BizAction(icon: Icons.celebration_outlined, label: 'Event enquiries & bookings', primary: true,
+                onTap: () {
+                  Navigator.push(context, MaterialPageRoute(builder: (_) => EventPlansScreen(business: business)));
+                }),
+              const SizedBox(height: 10),
+              _BizAction(icon: Icons.tune, label: 'Services & contact', primary: false,
+                onTap: () async {
+                  await Navigator.push(context, MaterialPageRoute(builder: (_) => EventBusinessSettingsScreen(business: business)));
+                  ref.invalidate(myBusinessesProvider);
+                }),
+              const SizedBox(height: 10),
               Row(
                 children: [
                   Expanded(

@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import '../../theme.dart';
 import '../../shared/widgets/gx_snackbar.dart';
-import 'instant_request_screen.dart';
+import '../events/event_plan_create_screen.dart';
+import '../events/event_plans_screen.dart';
+import '../../repositories/events_repository.dart';
 import '../../shared/widgets/dribbble_background.dart';
 import '../../shared/widgets/gx_glass_card.dart';
 import '../../shared/widgets/gx_pressable.dart';
@@ -77,12 +79,18 @@ class _BookServicesSplitScreenState extends State<BookServicesSplitScreen> {
       showGxSnack(context, 'Select at least one service to continue');
       return;
     }
-    // Uber/Grab model (user decision 2026-07-04): no pros list here either —
-    // go straight to the broadcast request for the first selected service.
+    if (_eventDate == null) {
+      showGxSnack(context, 'Choose your event date');
+      return;
+    }
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (_) => InstantRequestScreen(skill: _selectedServices.first),
+        builder: (_) => EventPlanCreateScreen(
+          eventType: _eventTypes[_eventTypeIndex].label,
+          date: _eventDate!, guests: _guests,
+          services: eventServices.entries.where((e) => _selectedServices.contains(e.value)).map((e) => e.key).toList(),
+        ),
       ),
     );
   }
@@ -151,6 +159,8 @@ class _BookServicesSplitScreenState extends State<BookServicesSplitScreen> {
                 ),
               ),
               const Spacer(),
+              TextButton(onPressed: () => Navigator.push(context,
+                MaterialPageRoute(builder: (_) => const EventPlansScreen())), child: const Text('My events')),
               Container(
                 padding:
                     const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
@@ -473,8 +483,8 @@ class _BookServicesSplitScreenState extends State<BookServicesSplitScreen> {
               const SizedBox(width: 8),
               Text(
                 count == 0
-                    ? 'Find pros for my event'
-                    : 'Find pros · $count service${count == 1 ? '' : 's'} selected',
+                    ? 'Review my event'
+                    : 'Review event · $count service${count == 1 ? '' : 's'} selected',
                 style: TextStyle(
                     color: context.gx.onAccent,
                     fontSize: 15,

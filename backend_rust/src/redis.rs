@@ -28,6 +28,15 @@ pub struct RedisStore {
 }
 
 impl RedisStore {
+    #[cfg(test)]
+    pub fn for_tests() -> Self {
+        Self {
+            ready: false, client: None, allow_memory_fallback: true,
+            mem_kv: Mutex::new(Default::default()), mem_sets: Mutex::new(Default::default()),
+            mem_zsets: Mutex::new(Default::default()), mem_geo: Mutex::new(Default::default()),
+        }
+    }
+
     pub async fn connect(config: &Config) -> Result<Self> {
         let client = match ConnectionManager::new(
             redis::Client::open(config.redis_url.as_str()).context("invalid redis url")?,

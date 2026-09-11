@@ -9,6 +9,7 @@ import {
 } from 'typeorm';
 import { User } from '../../users/user.entity';
 import { EmploymentType } from './employment-type';
+import { Business } from '../../businesses/business.entity';
 
 export enum HiringRequestStatus {
   /** Matching engine is collecting interested candidates (≤ 24 h). */
@@ -42,6 +43,9 @@ export class HiringRequest {
   @Index()
   @ManyToOne(() => User)
   employer: User;
+
+  @ManyToOne(() => Business, { nullable: true })
+  business: Business | null;
 
   @Column()
   jobType: string;

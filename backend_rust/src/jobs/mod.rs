@@ -7,40 +7,54 @@ use uuid::Uuid;
 use crate::bookings::{progress, rebroadcast_booking, timeout_cancel_booking};
 use crate::state::AppState;
 
-pub fn schedule_request_timeout(state: AppState, booking_id: String, attempt: u32) {
-    tokio::spawn(async move {
-        tokio::time::sleep(Duration::from_secs(90)).await;
-        if let Err(e) = handle_request_timeout(&state, &booking_id, attempt).await {
-            warn!("requestTimeout {} attempt {}: {}", booking_id, attempt, e);
-        }
-    });
+pub async fn run_scheduler(state:AppState) {
+    let mut interval=tokio::time::interval(Duration::from_secs(5));
+    loop {
+        interval.tick().await;
+        if let Err(e)=poll(&state).await {warn!("booking deadlines: {}",e);}
+    }
 }
 
-pub fn schedule_seven_minute_reminder(state: AppState, booking_id: String) {
-    tokio::spawn(async move {
-        tokio::time::sleep(Duration::from_secs(7 * 60)).await;
-        if let Err(e) = handle_seven_minute_reminder(&state, &booking_id).await {
-            warn!("sevenMinuteReminder {}: {}", booking_id, e);
+async fn poll(state:&AppState)->Result<(),String> {
+    // Reconstruct missing work from committed booking state on every poll.
+    // No process timer or post-commit enqueue is required for correctness.
+    sqlx::query(r#"INSERT INTO booking_deadlines ("bookingId",kind,sequence,"dueAt")
+        SELECT b.id,'TIMEOUT',s.n,(b."createdAt" AT TIME ZONE 'UTC')+s.n*INTERVAL '90 seconds'
+        FROM bookings b CROSS JOIN (VALUES (1),(2)) s(n) WHERE b.status='REQUESTED' AND b.type='INSTANT'
+        ON CONFLICT ("bookingId",kind,sequence) DO NOTHING"#).execute(&state.db).await.map_err(|e|e.to_string())?;
+    sqlx::query(r#"INSERT INTO booking_deadlines ("bookingId",kind,sequence,"dueAt")
+        SELECT id,'REMINDER',1,("acceptedAt" AT TIME ZONE 'UTC')+INTERVAL '7 minutes'
+        FROM bookings WHERE status='ACCEPTED' AND "acceptedAt" IS NOT NULL
+        ON CONFLICT ("bookingId",kind,sequence) DO NOTHING"#).execute(&state.db).await.map_err(|e|e.to_string())?;
+    sqlx::query(r#"INSERT INTO booking_deadlines ("bookingId",kind,sequence,"dueAt")
+        SELECT b.id,'GPS',b."gpsStrikes"+1,CASE WHEN b."gpsStrikes"=0 THEN (b."acceptedAt" AT TIME ZONE 'UTC')+INTERVAL '10 minutes'
+          ELSE COALESCE((SELECT d."processedAt" FROM booking_deadlines d WHERE d."bookingId"=b.id AND d.kind='GPS'
+            AND d.sequence=b."gpsStrikes"),NOW())+INTERVAL '3 minutes' END
+        FROM bookings b WHERE b.status='ACCEPTED' AND b."acceptedAt" IS NOT NULL AND b."workerNoProgressAt" IS NULL AND b."gpsStrikes"<3
+        ON CONFLICT ("bookingId",kind,sequence) DO NOTHING"#).execute(&state.db).await.map_err(|e|e.to_string())?;
+    for _ in 0..25 {
+        let mut tx=state.db.begin().await.map_err(|e|e.to_string())?;
+        let job=sqlx::query(r#"SELECT id,"bookingId",kind,sequence,attempts FROM booking_deadlines
+            WHERE "processedAt" IS NULL AND "dueAt"<=NOW() ORDER BY "dueAt" LIMIT 1 FOR UPDATE SKIP LOCKED"#)
+            .fetch_optional(&mut *tx).await.map_err(|e|e.to_string())?;
+        let Some(job)=job else {break};
+        let id:Uuid=job.get("id");let bid=job.get::<Uuid,_>("bookingId").to_string();let sequence=job.get::<i32,_>("sequence");
+        let result=match job.get::<String,_>("kind").as_str() {
+            "TIMEOUT"=>handle_request_timeout(state,&bid,sequence as u32).await,
+            "REMINDER"=>handle_seven_minute_reminder(state,&bid).await,
+            "GPS"=>handle_ten_minute_gps_check(state,&bid,sequence-1).await,
+            _=>Err("Unknown deadline kind".to_string()),
+        };
+        match result {
+            Ok(())=>{sqlx::query(r#"UPDATE booking_deadlines SET "processedAt"=NOW(),attempts=attempts+1,"lastError"=NULL WHERE id=$1"#)
+                .bind(id).execute(&mut *tx).await.map_err(|e|e.to_string())?;},
+            Err(e)=>{warn!("booking deadline {}: {}",id,e);
+                sqlx::query(r#"UPDATE booking_deadlines SET attempts=attempts+1,"lastError"=$2,"dueAt"=NOW()+INTERVAL '30 seconds' WHERE id=$1"#)
+                    .bind(id).bind(e.chars().take(2000).collect::<String>()).execute(&mut *tx).await.map_err(|e|e.to_string())?;},
         }
-    });
-}
-
-pub fn schedule_ten_minute_gps_check(state: AppState, booking_id: String) {
-    tokio::spawn(async move {
-        tokio::time::sleep(Duration::from_secs(7 * 60)).await;
-        if let Err(e) = handle_ten_minute_gps_check(&state, &booking_id).await {
-            warn!("tenMinuteGpsCheck {}: {}", booking_id, e);
-        }
-    });
-}
-
-pub fn schedule_gps_recheck(state: AppState, booking_id: String) {
-    tokio::spawn(async move {
-        tokio::time::sleep(Duration::from_secs(3 * 60)).await;
-        if let Err(e) = handle_ten_minute_gps_check(&state, &booking_id).await {
-            warn!("gpsRecheck {}: {}", booking_id, e);
-        }
-    });
+        tx.commit().await.map_err(|e|e.to_string())?;
+    }
+    Ok(())
 }
 
 async fn handle_seven_minute_reminder(state: &AppState, booking_id: &str) -> Result<(), String> {
@@ -69,7 +83,7 @@ async fn handle_seven_minute_reminder(state: &AppState, booking_id: &str) -> Res
     Ok(())
 }
 
-async fn handle_ten_minute_gps_check(state: &AppState, booking_id: &str) -> Result<(), String> {
+async fn handle_ten_minute_gps_check(state: &AppState, booking_id: &str, expected_strikes:i32) -> Result<(), String> {
     let ctx = progress::load_progress_context(state, booking_id)
         .await
         .map_err(|e| e.to_string())?;
@@ -103,7 +117,7 @@ async fn handle_ten_minute_gps_check(state: &AppState, booking_id: &str) -> Resu
         evaluation.reason
     );
 
-    let result = progress::add_gps_strike(state, booking_id)
+    let result = progress::add_gps_strike(state, booking_id,expected_strikes)
         .await
         .map_err(|e| e.to_string())?;
 
@@ -116,7 +130,6 @@ async fn handle_ten_minute_gps_check(state: &AppState, booking_id: &str) -> Resu
             );
         }
         Some(r) => {
-            schedule_gps_recheck(state.clone(), booking_id.to_string());
             info!(
                 "Booking {}: strike {} issued, recheck in 3m",
                 booking_id,

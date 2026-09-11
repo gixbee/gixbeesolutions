@@ -32,6 +32,12 @@ export class Business {
   @Column()
   location: string;
 
+  @Column({ type: 'varchar', length: 30, nullable: true })
+  phone: string | null;
+
+  @Column({ type: 'jsonb', default: () => "'[]'::jsonb" })
+  eventServices: string[];
+
   // Structured location scope: City.id from the cities master (nullable —
   // legacy rows and listings created before a city was chosen have null).
   // `location` above stays as the free-text display string; cityId is what

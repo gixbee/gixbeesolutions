@@ -1,5 +1,7 @@
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
+import 'pending_payments_screen.dart';
+import '../../repositories/events_repository.dart' show eventDate;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:razorpay_flutter/razorpay_flutter.dart';
@@ -133,13 +135,17 @@ class _JobTypesScreenState extends ConsumerState<JobTypesScreen> {
                   ),
                 ),
                 Text(
-                  '${_prefs.length}/2 free',
+                  '${_prefs.where((p) => p['isPaid'] != true).length}/2 free',
                   style: TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.w700,
                     color: context.gx.ink.withValues(alpha: 0.5),
                   ),
                 ),
+                IconButton(tooltip: 'Pending payments', icon: const Icon(Icons.receipt_long), onPressed: () async {
+                  await Navigator.push(context, MaterialPageRoute(builder: (_) => const PendingPaymentsScreen()));
+                  if (mounted) _load();
+                }),
               ],
             ),
           ),
@@ -235,6 +241,8 @@ class _JobTypesScreenState extends ConsumerState<JobTypesScreen> {
                                             ],
                                           ),
                                           const SizedBox(height: 6),
+                                          if (p['isPaid'] == true) Text(
+                                            '${DateTime.tryParse('${p['paidUntil']}')?.isAfter(DateTime.now()) == true ? 'Active until' : 'Matching paused · expired'} ${eventDate(p['paidUntil'])}. Tap to renew.'),
                                           Text(
                                             [
                                               if (p['employmentType'] != null)
@@ -564,13 +572,16 @@ class _JobTypeFormScreenState extends ConsumerState<JobTypeFormScreen> {
     }
   }
 
-  void _onPaid(PaymentSuccessResponse _) {
+  Future<void> _onPaid(PaymentSuccessResponse payment) async {
     if (!mounted) return;
-    showGxSnack(context, 'Payment received — creating Job Type…',
-        type: GxSnackType.success);
-    Future.delayed(const Duration(seconds: 3), () {
-      if (mounted) Navigator.pop(context, true);
-    });
+    try {
+      if (payment.orderId == null || payment.paymentId == null) throw StateError('Missing payment reference');
+      await ref.read(matchingRepositoryProvider).verifyPayment(payment.orderId!, payment.paymentId!);
+      if (mounted) showGxSnack(context, 'Payment confirmed — profile access updated', type: GxSnackType.success);
+    } catch (_) {
+      if (mounted) showGxSnack(context, 'Payment confirmation is pending. Open Pending payments to check it.');
+    }
+    if (mounted) Navigator.pop(context, true);
   }
 
   void _onPayFail(PaymentFailureResponse r) {
@@ -593,6 +604,16 @@ class _JobTypeFormScreenState extends ConsumerState<JobTypeFormScreen> {
         child: ListView(
           padding: const EdgeInsets.fromLTRB(20, 12, 20, 40),
           children: [
+            if (_isEdit && widget.existing!['isPaid'] == true) ...[
+              Text('Matching access until ${eventDate(widget.existing!['paidUntil'])}'),
+              const SizedBox(height: 8),
+              GxButton(label: 'Renew access · ₹50 / 30 days', loading: _saving, filled: false, onTap: () async {
+                if (_saving) return;
+                setState(() => _saving = true);
+                await _payExtraJobType({..._body(), 'renewPreferenceId': widget.existing!['id']});
+              }),
+              const SizedBox(height: 20),
+            ],
             if (!_isEdit) ...[
               Text(
                 'CATEGORY',

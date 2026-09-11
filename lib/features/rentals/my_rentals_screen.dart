@@ -5,6 +5,7 @@ import '../../repositories/rentals_repository.dart';
 import '../../shared/widgets/dribbble_background.dart';
 import '../../shared/widgets/gx_snackbar.dart';
 import '../../theme.dart';
+import 'rental_fulfillment_card.dart';
 
 /// Customer's rental reservations: status timeline + cancel while
 /// PENDING/CONFIRMED.
@@ -41,6 +42,13 @@ class _MyRentalsScreenState extends ConsumerState<MyRentalsScreen> {
   }
 
   Future<void> _cancel(Map<String, dynamic> r) async {
+    final confirmed = await showDialog<bool>(context: context, builder: (context) => AlertDialog(
+      title: const Text('Cancel reservation?'),
+      content: const Text('This releases your reserved units. Any amount already paid must be refunded directly by the owner and acknowledged by both participants.'),
+      actions: [TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Keep rental')),
+        TextButton(onPressed: () => Navigator.pop(context, true), child: const Text('Cancel rental'))],
+    ));
+    if (confirmed != true || !mounted) return;
     try {
       await ref
           .read(rentalsRepositoryProvider)
@@ -128,8 +136,8 @@ class _MyRentalsScreenState extends ConsumerState<MyRentalsScreen> {
                                 final status = '${r['status'] ?? ''}';
                                 final (color, label) = _statusStyle(status);
                                 final item = r['item'] as Map? ?? {};
-                                final canCancel = status == 'PENDING' ||
-                                    status == 'CONFIRMED';
+                                final canCancel = (status == 'PENDING' || status == 'CONFIRMED') &&
+                                    r['ownerHandedOverAt'] == null && r['renterCollectedAt'] == null;
                                 return Container(
                                   padding: const EdgeInsets.all(14),
                                   decoration: BoxDecoration(
@@ -202,6 +210,7 @@ class _MyRentalsScreenState extends ConsumerState<MyRentalsScreen> {
                                             ),
                                         ],
                                       ),
+                                      RentalFulfillmentCard(key: ValueKey(r['id']), reservation: r, isOwner: false, onChanged: _load),
                                     ],
                                   ),
                                 );

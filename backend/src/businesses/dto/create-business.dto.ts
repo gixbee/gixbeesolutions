@@ -1,4 +1,4 @@
-import { IsString, IsNotEmpty, IsOptional, IsUUID } from 'class-validator';
+import { IsString, IsNotEmpty, IsOptional, IsUUID, IsArray, IsIn, ArrayUnique, MaxLength } from 'class-validator';
 
 // POST /businesses — mirrors Flutter Business.toJson()
 // (lib/shared/models/business.dart). Persisted columns: name, type,
@@ -24,7 +24,14 @@ export class CreateBusinessDto {
 
   @IsOptional()
   @IsString()
+  @MaxLength(30)
   phone?: string;
+
+  @IsOptional()
+  @IsArray()
+  @ArrayUnique()
+  @IsIn(['HALL', 'CATERING', 'DECORATION', 'PHOTOGRAPHY', 'DJ', 'MAKEUP', 'MEHENDI', 'INVITATIONS'], { each: true })
+  eventServices?: string[];
 
   /** Free-text address → persisted as Business.location for admin review. */
   @IsString()

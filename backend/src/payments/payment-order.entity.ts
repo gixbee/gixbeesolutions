@@ -49,7 +49,7 @@ export class PaymentOrder {
   id: string;
 
   @Index()
-  @Column()
+  @Column({ type: 'uuid' })
   userId: string;
 
   /** Rupees (what the wallet is credited). Razorpay speaks paise: ×100. */

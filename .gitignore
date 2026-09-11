@@ -37,6 +37,7 @@ migrate_working_dir/
 .pub-cache/
 .pub/
 /build/
+/backend_rust/target/
 
 # Symbolication related
 app.*.symbols
@@ -64,3 +65,6 @@ gixbee-fcd03-firebase-adminsdk-fbsvc-971124e7c1.json
 # Local build secrets used by the .bat launchers (Ola Maps key, LAN backend URL).
 # Never commit — the launchers read the key from here at build time.
 gixbee_keys.bat
+
+# Load-test tooling deps — install with npm in load-tests/
+load-tests/node_modules/

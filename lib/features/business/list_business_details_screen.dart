@@ -45,6 +45,10 @@ class _ListBusinessDetailsScreenState
     ('CATERING', 'Catering'),
     ('DECORATION', 'Decoration'),
     ('PHOTOGRAPHY', 'Photography'),
+    ('DJ', 'Music / DJ'),
+    ('MAKEUP', 'Makeup'),
+    ('MEHENDI', 'Mehendi'),
+    ('INVITATIONS', 'Invitations'),
   ];
   String? _serviceType;
 
@@ -161,7 +165,8 @@ class _ListBusinessDetailsScreenState
         address: _addressCtrl.text,
         documentUrl: _docUrl,
         serviceType:
-            widget.type == BusinessType.service ? _serviceType : null,
+            widget.type == BusinessType.service && ['HALL', 'CATERING', 'DECORATION', 'PHOTOGRAPHY'].contains(_serviceType) ? _serviceType : null,
+        eventServices: widget.type == BusinessType.service && _serviceType != null ? [_serviceType!] : const [],
         // Structured city scope from the home-selected serviceable city
         // (nullable — legacy behaviour when no city is selected).
         cityId: ref.read(currentCityProvider)?.id,

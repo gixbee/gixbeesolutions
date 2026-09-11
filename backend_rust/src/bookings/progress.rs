@@ -110,139 +110,53 @@ pub struct GpsStrikeResult {
     pub free_cancel_enabled: bool,
 }
 
-pub async fn add_gps_strike(state: &AppState, booking_id: &str) -> AppResult<Option<GpsStrikeResult>> {
+pub async fn add_gps_strike(state: &AppState, booking_id: &str, expected_strikes: i32) -> AppResult<Option<GpsStrikeResult>> {
     let bid = Uuid::parse_str(booking_id)?;
-    let row = sqlx::query(
-        r#"SELECT status::text AS status, "gpsStrikes", "workerNoProgressAt",
-                  "customerId", "operatorId", skill
-           FROM bookings WHERE id = $1"#,
-    )
-    .bind(bid)
-    .fetch_optional(&state.db)
-    .await?;
-
-    let row = match row {
-        Some(r) => r,
-        None => return Ok(None),
-    };
-
-    if row.get::<String, _>("status") != "ACCEPTED" {
-        return Ok(None);
-    }
-
-    let strikes = row.get::<i32, _>("gpsStrikes");
-    if row
-        .try_get::<Option<chrono::DateTime<chrono::Utc>>, _>("workerNoProgressAt")
-        .ok()
-        .flatten()
-        .is_some()
-    {
-        return Ok(Some(GpsStrikeResult {
-            strikes,
-            free_cancel_enabled: true,
-        }));
-    }
-
-    let new_strikes = strikes + 1;
-    if new_strikes >= PROGRESS_STRIKE_THRESHOLD {
-        sqlx::query(
-            r#"UPDATE bookings SET "gpsStrikes" = $1, "workerNoProgressAt" = NOW() WHERE id = $2"#,
-        )
-        .bind(new_strikes)
-        .bind(bid)
-        .execute(&state.db)
-        .await?;
-
-        let customer_id = row.get::<Uuid, _>("customerId").to_string();
-        let operator_id = row
-            .try_get::<Option<Uuid>, _>("operatorId")
-            .ok()
-            .flatten()
-            .map(|u| u.to_string());
-        let skill = row.get::<String, _>("skill");
-        let operator_name: Option<String> = if let Some(op) = operator_id.as_ref() {
-            sqlx::query_scalar(r#"SELECT name FROM users WHERE id = $1"#)
-                .bind(Uuid::parse_str(op)?)
-                .fetch_optional(&state.db)
-                .await?
-        } else {
-            None
-        };
-
-        emit_worker_no_progress(
-            state,
-            booking_id,
-            &customer_id,
-            operator_id.as_deref(),
-            operator_name.as_deref(),
-        )
-        .await;
-
-        state
-            .fcm
-            .send_to_user(
-                state,
-                &customer_id,
-                "Pro not moving",
-                "Your pro does not appear to be heading your way. You can cancel this booking at no cost.",
-                Some(&[("type", "worker_no_progress"), ("bookingId", booking_id)]),
-            )
-            .await;
-
-        if let Some(op) = operator_id.as_ref() {
-            state
-                .fcm
-                .send_to_user(
-                    state,
-                    op,
-                    "No progress detected",
-                    "GPS shows you have not moved toward the customer. They can now cancel free, and a strike was recorded.",
-                    Some(&[("type", "worker_no_progress"), ("bookingId", booking_id)]),
-                )
-                .await;
-
-            let reason = format!(
-                "A {} job showed no GPS progress toward the customer; customer may cancel free.",
-                skill
-            );
-            let _ = workers::record_strike(state, op, "GPS_FORFEIT", booking_id, &reason).await;
-        }
-
-        return Ok(Some(GpsStrikeResult {
-            strikes: new_strikes,
-            free_cancel_enabled: true,
-        }));
-    }
-
-    sqlx::query(r#"UPDATE bookings SET "gpsStrikes" = $1 WHERE id = $2"#)
-        .bind(new_strikes)
-        .bind(bid)
-        .execute(&state.db)
-        .await?;
-
-    if let Some(op) = row.try_get::<Option<Uuid>, _>("operatorId").ok().flatten() {
-        let strike_str = new_strikes.to_string();
-        state
-            .fcm
-            .send_to_user(
-                state,
-                &op.to_string(),
-                "GPS Warning",
-                &format!(
-                    "Strike {}/3: Please head to the service location or the job will be forfeited.",
-                    new_strikes
-                ),
-                Some(&[("type", "gps_strike"), ("strike", &strike_str)]),
-            )
-            .await;
-    }
-
-    Ok(Some(GpsStrikeResult {
-        strikes: new_strikes,
-        free_cancel_enabled: false,
-    }))
+    let mut tx = state.db.begin().await?;
+    let row = sqlx::query(r#"SELECT "customerId", "operatorId", skill, "gpsStrikes" FROM bookings
+        WHERE id=$1 AND status='ACCEPTED' AND "gpsStrikes"=$2 AND "workerNoProgressAt" IS NULL FOR UPDATE"#)
+        .bind(bid).bind(expected_strikes).fetch_optional(&mut *tx).await?;
+    let Some(row) = row else { return Ok(None); };
+    let strikes = expected_strikes + 1;
+    let free = strikes >= PROGRESS_STRIKE_THRESHOLD;
+    sqlx::query(r#"UPDATE bookings SET "gpsStrikes"=$2,"workerNoProgressAt"=CASE WHEN $3 THEN NOW() ELSE NULL END WHERE id=$1"#)
+        .bind(bid).bind(strikes).bind(free).execute(&mut *tx).await?;
+    sqlx::query(r#"INSERT INTO outbox_events (id,type,"aggregateId",payload) VALUES ($1,'booking.gps_progress',$2,$3)"#)
+        .bind(Uuid::new_v4()).bind(bid).bind(json!({"bookingId":bid,"customerId":row.get::<Uuid,_>("customerId"),
+            "operatorId":row.get::<Option<Uuid>,_>("operatorId"),"skill":row.get::<String,_>("skill"),"strikes":strikes,"freeCancel":free}))
+        .execute(&mut *tx).await?;
+    tx.commit().await?;
+    Ok(Some(GpsStrikeResult {strikes,free_cancel_enabled:free}))
 }
 
+pub async fn dispatch_gps_progress(state: &AppState, payload: &serde_json::Value) -> AppResult<()> {
+    let booking_id = payload["bookingId"].as_str().ok_or_else(|| AppError::BadRequest("Missing booking ID".into()))?;
+    let customer = payload["customerId"].as_str().ok_or_else(|| AppError::BadRequest("Missing customer ID".into()))?;
+    let operator = payload["operatorId"].as_str();
+    let strikes = payload["strikes"].as_i64().unwrap_or(0);
+    if payload["freeCancel"].as_bool() == Some(true) {
+        if let Some(operator) = operator {
+            let reason = format!("A {} job showed no GPS progress toward the customer; customer may cancel free.", payload["skill"].as_str().unwrap_or("service"));
+            workers::record_strike(state, operator, "GPS_FORFEIT", booking_id, &reason).await?;
+        }
+        // A delayed notification must not regress a completed/cancelled booking's cache.
+        let still_accepted: bool = sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM bookings WHERE id=$1 AND status='ACCEPTED')")
+            .bind(Uuid::parse_str(booking_id)?).fetch_one(&state.db).await?;
+        if still_accepted {
+            let name: Option<String> = if let Some(operator) = operator {
+                sqlx::query_scalar("SELECT name FROM users WHERE id=$1").bind(Uuid::parse_str(operator)?).fetch_optional(&state.db).await?
+            } else {None};
+            emit_worker_no_progress(state, booking_id, customer, operator, name.as_deref()).await;
+            state.fcm.send_to_user(state, customer, "Pro not moving", "Your pro does not appear to be heading your way. You can cancel this booking at no cost.",
+                Some(&[("type","worker_no_progress"),("bookingId",booking_id)])).await;
+        }
+    } else if let Some(operator) = operator {
+        state.fcm.send_to_user(state, operator, "GPS warning",
+            &format!("Progress warning {strikes}/{PROGRESS_STRIKE_THRESHOLD}: please head to the service location."),
+            Some(&[("type","gps_strike"),("bookingId",booking_id)])).await;
+    }
+    Ok(())
+}
 async fn emit_worker_no_progress(
     state: &AppState,
     booking_id: &str,

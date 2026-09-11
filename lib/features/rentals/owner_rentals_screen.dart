@@ -9,12 +9,16 @@ import '../../shared/widgets/gx_pressable.dart';
 import '../../shared/widgets/gx_sheet.dart';
 import '../../shared/widgets/gx_snackbar.dart';
 import '../../theme.dart';
+import '../../repositories/business_repository.dart';
+import '../../shared/models/business.dart';
+import 'rental_fulfillment_card.dart';
 
 /// Owner side of rentals: manage listed items (add/edit/toggle availability,
 /// photo upload) and act on incoming reservation requests
 /// (confirm → handover → returned; or reject).
 class OwnerRentalsScreen extends ConsumerStatefulWidget {
-  const OwnerRentalsScreen({super.key});
+  const OwnerRentalsScreen({super.key, this.businessId});
+  final String? businessId;
 
   @override
   ConsumerState<OwnerRentalsScreen> createState() => _OwnerRentalsScreenState();
@@ -35,8 +39,8 @@ class _OwnerRentalsScreenState extends ConsumerState<OwnerRentalsScreen> {
   Future<void> _load() async {
     try {
       final repo = ref.read(rentalsRepositoryProvider);
-      final items = await repo.getMyItems();
-      final reservations = await repo.ownerReservations();
+      final items = await repo.getMyItems(businessId: widget.businessId);
+      final reservations = await repo.ownerReservations(businessId: widget.businessId);
       if (mounted) {
         setState(() {
           _items = items;
@@ -53,15 +57,36 @@ class _OwnerRentalsScreenState extends ConsumerState<OwnerRentalsScreen> {
   // ── Add / edit item sheet ──────────────────────────────────────────────────
 
   Future<void> _openItemSheet({Map<String, dynamic>? existing}) async {
+    List<Business> businesses;
+    try {
+      businesses = (await ref.read(businessRepositoryProvider).getMyBusinesses())
+          .where((b) => b.type == 'RENTAL' && b.status == 'VERIFIED').toList();
+    } catch (_) {
+      if (mounted) showGxSnack(context, 'Unable to load your rental businesses');
+      return;
+    }
+    if (!mounted) return;
+    if (businesses.isEmpty && existing == null) {
+      showGxSnack(context, 'Add and verify a rental business in My Businesses before listing inventory'); return;
+    }
+    String? businessId = existing?['businessId'] as String? ?? widget.businessId;
+    if (businessId == null && businesses.length == 1) businessId = businesses.first.id;
+    final quantityCtrl = TextEditingController(text: '${existing?['quantity'] ?? 1}');
+    final pickupCtrl = TextEditingController(text: existing?['pickupAddress'] ??
+      businesses.where((b) => b.id == businessId).firstOrNull?.address ?? '');
+    final deliveryCtrl = TextEditingController(text: '${existing?['deliveryFee'] ?? 0}');
+    final depositCtrl = TextEditingController(text: '${existing?['depositPerUnit'] ?? 0}');
+    final minimumCtrl = TextEditingController(text: '${existing?['minHoursToRent'] ?? 1}');
+    bool deliveryAvailable = existing?['deliveryAvailable'] == true;
     final nameCtrl = TextEditingController(text: existing?['name'] ?? '');
     final hourlyCtrl = TextEditingController(
         text: existing == null
             ? ''
-            : '${num.tryParse('${existing['hourlyRate']}')?.round() ?? ''}');
+            : '${existing['hourlyRate'] ?? ''}');
     final dailyCtrl = TextEditingController(
         text: existing?['dailyRate'] == null
             ? ''
-            : '${num.tryParse('${existing?['dailyRate']}')?.round() ?? ''}');
+            : '${existing?['dailyRate'] ?? ''}');
     final descCtrl =
         TextEditingController(text: existing?['description'] ?? '');
     String? imageUrl = existing?['imageUrl'] as String?;
@@ -110,10 +135,18 @@ class _OwnerRentalsScreenState extends ConsumerState<OwnerRentalsScreen> {
         }
 
         Future<void> save() async {
+          if (saving || uploading) return;
           final name = nameCtrl.text.trim();
           final hourly = double.tryParse(hourlyCtrl.text.trim());
-          if (name.isEmpty || hourly == null || hourly <= 0) {
-            showGxSnack(ctx, 'Name and hourly rate are required',
+          final quantity = int.tryParse(quantityCtrl.text);
+          final minimum = int.tryParse(minimumCtrl.text);
+          final delivery = double.tryParse(deliveryCtrl.text);
+          final deposit = double.tryParse(depositCtrl.text);
+          if (name.isEmpty || hourly == null || !hourly.isFinite || hourly <= 0 ||
+              businessId == null || pickupCtrl.text.trim().isEmpty || quantity == null || quantity < 1 || quantity > 100000 ||
+              minimum == null || minimum < 1 || minimum > 8784 || delivery == null || !delivery.isFinite || delivery < 0 ||
+              deposit == null || !deposit.isFinite || deposit < 0) {
+            showGxSnack(ctx, 'Choose a business and enter valid rates, quantity and pickup details',
                 type: GxSnackType.error);
             return;
           }
@@ -128,12 +161,18 @@ class _OwnerRentalsScreenState extends ConsumerState<OwnerRentalsScreen> {
                 dailyRate: daily,
                 description: descCtrl.text.trim(),
                 imageUrl: imageUrl,
+                businessId: businessId!, quantity: quantity, minHoursToRent: minimum,
+                pickupAddress: pickupCtrl.text.trim(), deliveryAvailable: deliveryAvailable,
+                deliveryFee: delivery, depositPerUnit: deposit,
               );
             } else {
               await repo.updateItem(existing['id'].toString(), {
                 'name': name,
                 'hourlyRate': hourly,
-                if (daily != null) 'dailyRate': daily,
+                'dailyRate': daily,
+                'businessId': businessId, 'quantity': quantity, 'minHoursToRent': minimum,
+                'pickupAddress': pickupCtrl.text.trim(), 'deliveryAvailable': deliveryAvailable,
+                'deliveryFee': delivery, 'depositPerUnit': deposit,
                 'description': descCtrl.text.trim(),
                 if (imageUrl != null) 'imageUrl': imageUrl,
               });
@@ -152,6 +191,12 @@ class _OwnerRentalsScreenState extends ConsumerState<OwnerRentalsScreen> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
+            if (existing?['businessId'] == null) ...[
+              DropdownButtonFormField<String>(initialValue: businesses.any((b) => b.id == businessId) ? businessId : null,
+                decoration: dec('Rental business'), items: businesses.map((b) => DropdownMenuItem(value: b.id, child: Text(b.name))).toList(),
+                onChanged: saving ? null : (value) => setSheet(() => businessId = value)),
+              const SizedBox(height: 8),
+            ],
             TextField(
                 controller: nameCtrl,
                 style: TextStyle(color: ctx.gx.ink, fontSize: 14),
@@ -180,6 +225,19 @@ class _OwnerRentalsScreenState extends ConsumerState<OwnerRentalsScreen> {
                 maxLines: 2,
                 style: TextStyle(color: ctx.gx.ink, fontSize: 14),
                 decoration: dec('Description (optional)')),
+            const SizedBox(height: 8),
+            TextField(controller: quantityCtrl, keyboardType: TextInputType.number, decoration: dec('Units in stock')),
+            const SizedBox(height: 8),
+            TextField(controller: minimumCtrl, keyboardType: TextInputType.number, decoration: dec('Minimum rental hours')),
+            const SizedBox(height: 8),
+            TextField(controller: pickupCtrl, maxLines: 2, decoration: dec('Pickup address')),
+            SwitchListTile(contentPadding: EdgeInsets.zero, title: const Text('Offer delivery'), value: deliveryAvailable,
+              onChanged: (value) => setSheet(() => deliveryAvailable = value)),
+            if (deliveryAvailable) TextField(controller: deliveryCtrl, keyboardType: const TextInputType.numberWithOptions(decimal: true), decoration: dec('Delivery fee per reservation (₹)')),
+            const SizedBox(height: 8),
+            TextField(controller: depositCtrl, keyboardType: const TextInputType.numberWithOptions(decimal: true), decoration: dec('Refundable deposit per unit (₹)')),
+            const SizedBox(height: 8),
+            const Text('Deposits are fully refundable after return. Cancellation before handover refunds amounts paid. Confirm only requests you can fulfill at the saved price.'),
             const SizedBox(height: 10),
             GxButton(
               label: uploading
@@ -208,6 +266,7 @@ class _OwnerRentalsScreenState extends ConsumerState<OwnerRentalsScreen> {
     hourlyCtrl.dispose();
     dailyCtrl.dispose();
     descCtrl.dispose();
+    quantityCtrl.dispose(); pickupCtrl.dispose(); deliveryCtrl.dispose(); depositCtrl.dispose(); minimumCtrl.dispose();
   }
 
   Future<void> _decide(Map<String, dynamic> r, String action) async {
@@ -449,26 +508,13 @@ class _OwnerRentalsScreenState extends ConsumerState<OwnerRentalsScreen> {
                         onTap: () => _decide(r, 'reject')),
                   ),
                 ])
-              else if (status == 'CONFIRMED')
-                GxButton(
-                    label: 'Mark handed over',
-                    height: 40,
-                    radius: 10,
-                    fontSize: 12.5,
-                    onTap: () => _decide(r, 'start'))
-              else if (status == 'ACTIVE')
-                GxButton(
-                    label: 'Mark returned · complete',
-                    height: 40,
-                    radius: 10,
-                    fontSize: 12.5,
-                    onTap: () => _decide(r, 'complete'))
               else
                 Text(status,
                     style: TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.w700,
                         color: context.gx.ink.withValues(alpha: 0.45))),
+              RentalFulfillmentCard(key: ValueKey(r['id']), reservation: r, isOwner: true, onChanged: _load),
             ],
           ),
         );
