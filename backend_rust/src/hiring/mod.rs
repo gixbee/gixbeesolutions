@@ -29,7 +29,10 @@ pub fn routes() -> Router<AppState> {
 async fn list_jobs(State(state): State<AppState>) -> AppResult<Json<Vec<Value>>> {
     let rows = sqlx::query(&format!(
         r#"SELECT {JOB_POST_COLS} FROM job_posts WHERE "isActive" = true
-        AND ("businessId" IS NULL OR EXISTS(SELECT 1 FROM businesses b WHERE b.id="businessId" AND b.status='VERIFIED')) ORDER BY "createdAt" DESC LIMIT 100"#
+        AND (job_posts."businessId" IS NULL OR EXISTS(
+            SELECT 1 FROM businesses b
+            WHERE b.id = job_posts."businessId" AND b.status::text = 'VERIFIED'))
+        ORDER BY "createdAt" DESC LIMIT 100"#
     ))
     .fetch_all(&state.db)
     .await?;
@@ -38,7 +41,9 @@ async fn list_jobs(State(state): State<AppState>) -> AppResult<Json<Vec<Value>>>
 
 async fn matched_jobs(State(state): State<AppState>, user: AuthUser) -> AppResult<Json<Vec<Value>>> {
     let rows=sqlx::query(&format!(r#"SELECT {JOB_POST_COLS} FROM job_posts j WHERE "isActive"=true AND "employerId"<>$1
-        AND ("businessId" IS NULL OR EXISTS(SELECT 1 FROM businesses b WHERE b.id=j."businessId" AND b.status='VERIFIED'))
+        AND (j."businessId" IS NULL OR EXISTS(
+            SELECT 1 FROM businesses b
+            WHERE b.id = j."businessId" AND b.status::text = 'VERIFIED'))
         ORDER BY EXISTS(SELECT 1 FROM job_preferences p WHERE p."userId"=$1 AND p."isActive"=true
           AND (NOT p."isPaid" OR p."paidUntil">NOW())
           AND (LOWER(j.title) LIKE '%'||LOWER(p."jobType")||'%' OR string_to_array(LOWER(j."requiredSkills"),',') && string_to_array(LOWER(p.skills),','))) DESC,

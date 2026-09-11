@@ -39,7 +39,9 @@ pub fn routes() -> Router<AppState> {
 async fn list_items(State(state): State<AppState>) -> AppResult<Json<Vec<Value>>> {
     let rows = sqlx::query(&format!(
         r#"SELECT {RENTAL_ITEM_COLS} FROM rental_items WHERE "isAvailable" = true
-        AND ("businessId" IS NULL OR EXISTS(SELECT 1 FROM businesses b WHERE b.id="businessId" AND b.status='VERIFIED'))
+        AND (rental_items."businessId" IS NULL OR EXISTS(
+            SELECT 1 FROM businesses b
+            WHERE b.id = rental_items."businessId" AND b.status::text = 'VERIFIED'))
         ORDER BY "createdAt" DESC LIMIT 100"#
     ))
     .fetch_all(&state.db)
