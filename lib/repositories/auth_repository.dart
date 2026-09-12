@@ -46,6 +46,9 @@ final dioProvider = Provider<Dio>((ref) {
       if (token != null) {
         options.headers['Authorization'] = 'Bearer $token';
       }
+      // Remember which token this request was signed with so a late 401 from a
+      // previous session cannot tear down a session that has since re-logged in.
+      options.extra['authToken'] = token;
       return handler.next(options);
     },
     onError: (e, handler) async {
@@ -54,6 +57,15 @@ final dioProvider = Provider<Dio>((ref) {
       if (e.response?.statusCode == 401 &&
           !isPublicAuthPath(path) &&
           !isPublicAuthPath(uriPath)) {
+        // Stale-session guard: if the current stored token differs from the one
+        // this request used, a new login already replaced it (e.g. logout →
+        // re-login). Ignore this late 401 so we don't wipe the fresh session.
+        final currentToken = await tokenService.getToken();
+        final usedToken = e.requestOptions.extra['authToken'] as String?;
+        if (currentToken == null || usedToken != currentToken) {
+          debugPrint('[DIO] Ignoring stale 401 from a previous session');
+          return handler.next(e);
+        }
         // Attempt silent token refresh
         debugPrint('[DIO] 401 — attempting token refresh');
         final refreshToken = await tokenService.getRefreshToken();
