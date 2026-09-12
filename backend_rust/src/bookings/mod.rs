@@ -494,7 +494,7 @@ const MY_BOOKING_COLS: &str = r#"
     b."isPaid", b."workerPaidConfirmed", b."customerPaidConfirmed",
     b."paymentCollectionMethod", b."workerHonestyCheck", b."customerSafetyCheck",
     b."billingHours", b."workedMinutes", b."petrolDistanceKm", b."petrolRatePerKm", b."petrolAmount",
-    b."scheduledAt", b."createdAt", b."completedAt", b."acceptedAt", b."startedAt", b."arrivalOtp",
+    b."scheduledAt", b."createdAt", b."completedAt", b."acceptedAt", b."startedAt", b."arrivalOtp", b."completionOtp",
     cu.name AS "customerName", cu."profileImageUrl" AS "customerProfileImageUrl",
     op.name AS "operatorName", op."profileImageUrl" AS "operatorProfileImageUrl"
 "#;
@@ -1505,6 +1505,12 @@ fn my_booking_json(row: &sqlx::postgres::PgRow, viewer_id: &str) -> Value {
             obj.insert("arrivalOtp".into(), Value::Null);
         } else if let Ok(otp) = row.try_get::<Option<String>, _>("arrivalOtp") {
             obj.insert("arrivalOtp".into(), json!(otp));
+        }
+        // Completion OTP is the customer's to share; the operator never sees it.
+        if is_operator {
+            obj.insert("completionOtp".into(), Value::Null);
+        } else if let Ok(otp) = row.try_get::<Option<String>, _>("completionOtp") {
+            obj.insert("completionOtp".into(), json!(otp));
         }
     }
     value

@@ -377,12 +377,18 @@ class _CollectPaymentScreenState extends ConsumerState<CollectPaymentScreen> {
                           subtitle: 'Collect this from $name now.',
                           rows: [
                             _BreakdownRow(
-                              label:
-                                  '${billing.compactDurationLabel} × ₹${billing.rateInt}/hr',
+                              label: 'Time worked',
+                              value: billing.durationLabel,
+                              valueColor: gx.ink,
+                            ),
+                            _BreakdownRow(
+                              label: billing.isInstant
+                                  ? '${billing.billedHoursLabel} × ₹${billing.rateInt}/hr'
+                                  : 'Service charge (fixed)',
                               value: '₹${billing.serviceAmountInt}',
                               valueColor: gx.ink,
                             ),
-                            if (billing.hasPetrol)
+                            if (billing.showPetrol)
                               _BreakdownRow(
                                 label:
                                     'Petrol · ${billing.petrolDistanceLabel} × ₹${billing.petrolRateInt}/km',

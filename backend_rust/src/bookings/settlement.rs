@@ -606,5 +606,5 @@ pub async fn refresh_completion_otp(
         )
         .await;
 
-    Ok(json!({ "message": "Completion OTP refreshed" }))
+    Ok(json!({ "message": "Completion OTP refreshed", "completionOtp": new_otp }))
 }

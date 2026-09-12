@@ -419,13 +419,19 @@ class _CustomerPayScreenState extends ConsumerState<CustomerPayScreen> {
                               const SizedBox(height: 16),
                               Divider(height: 1, color: gx.border),
                               const SizedBox(height: 10),
-                              _row('Active work time', billing.durationLabel,
+                              _row('Time worked', billing.durationLabel,
                                   green, gx),
+                              if (billing.isInstant)
+                                _row('Rate', '₹${billing.rateInt}/hr', gx.ink,
+                                    gx),
                               _row(
-                                  'Rate', '₹${billing.rateInt}/hr', gx.ink, gx),
-                              _row('Work charge',
-                                  '₹${billing.serviceAmountInt}', gx.ink, gx),
-                              if (billing.hasPetrol)
+                                  billing.isInstant
+                                      ? 'Work charge (${billing.billedHoursLabel})'
+                                      : 'Service charge (fixed)',
+                                  '₹${billing.serviceAmountInt}',
+                                  gx.ink,
+                                  gx),
+                              if (billing.showPetrol)
                                 _row(
                                   'Petrol · ${billing.petrolDistanceLabel} × ₹${billing.petrolRateInt}/km',
                                   '₹${billing.petrolAmountInt}',

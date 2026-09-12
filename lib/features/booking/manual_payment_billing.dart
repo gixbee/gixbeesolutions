@@ -7,8 +7,10 @@ class ManualPaymentBilling {
   final double petrolRatePerKm;
   final double hourlyRate;
   final int workedMinutes;
+  final int billingHours;
   final double platformFee;
   final String counterpartName;
+  final String bookingType;
 
   const ManualPaymentBilling({
     required this.amount,
@@ -18,8 +20,10 @@ class ManualPaymentBilling {
     this.petrolRatePerKm = 0,
     required this.hourlyRate,
     required this.workedMinutes,
+    this.billingHours = 1,
     required this.platformFee,
     required this.counterpartName,
+    this.bookingType = 'INSTANT',
   });
 
   int get amountInt => amount.round();
@@ -29,7 +33,17 @@ class ManualPaymentBilling {
   int get petrolRateInt => petrolRatePerKm.round();
   int get rateInt => hourlyRate.round();
   int get feeInt => platformFee.round();
+  bool get isInstant => bookingType.toUpperCase() == 'INSTANT';
+  // Petrol is an INSTANT-only line; show it there even at ₹0 for transparency.
+  bool get showPetrol => isInstant || petrolAmount > 0;
   bool get hasPetrol => petrolAmount > 0;
+
+  /// Whole hours actually charged (minimum 1). INSTANT bills per elapsed hour;
+  /// scheduled jobs are a fixed quote.
+  int get billedHours => billingHours > 0 ? billingHours : 1;
+
+  /// `1 hr` / `2 hr` — the number of hours actually charged.
+  String get billedHoursLabel => billedHours == 1 ? '1 hr' : '$billedHours hr';
 
   String get petrolDistanceLabel {
     if (petrolDistanceKm <= 0) return '0 km';
@@ -88,6 +102,12 @@ class ManualPaymentBilling {
               ? (_num(src['billingHours']) * 60).round()
               : 60),
     );
+    final billingHours = _int(
+      src['billingHours'] ?? ((worked > 0 ? worked : 1) / 60).ceil(),
+    );
+    final bookingType = (src['type'] ?? src['bookingType'] ?? 'INSTANT')
+        .toString()
+        .toUpperCase();
     final fee = _num(src['platformFee'] ?? 12);
     String name = fallbackName;
     if (counterpartIsCustomer) {
@@ -107,8 +127,10 @@ class ManualPaymentBilling {
       petrolRatePerKm: _num(src['petrolRatePerKm'] ?? 0),
       hourlyRate: rate > 0 ? rate : amount,
       workedMinutes: worked > 0 ? worked : 1,
+      billingHours: billingHours > 0 ? billingHours : 1,
       platformFee: fee,
       counterpartName: name,
+      bookingType: bookingType,
     );
   }
 
