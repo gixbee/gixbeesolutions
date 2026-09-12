@@ -1080,6 +1080,10 @@ async fn accept(
     )
     .await;
     workers::set_worker_status(&state, &worker_id_str, "busy").await;
+    // The worker just committed to a job. Drop every other broadcast request
+    // they were notified about so `list_pending` returns nothing and the
+    // incoming-job card (and its ringtone) can't reappear on the next resume.
+    let _ = state.redis.clear_pending_bookings(&worker_id_str).await;
 
     if force_offline {
         let _ = workers::force_offline(&state, &worker_id_str).await;

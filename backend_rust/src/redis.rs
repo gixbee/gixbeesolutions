@@ -308,6 +308,20 @@ impl RedisStore {
         self.zrange_rev(&format!("worker:pending:{worker_id}")).await
     }
 
+    /// Drop every pending broadcast request for a worker. Called when the worker
+    /// accepts a job (they're now busy) so leftover broadcasts they were merely
+    /// notified about can't re-ring the incoming-job card on the next resume.
+    pub async fn clear_pending_bookings(&self, worker_id: &str) -> Result<()> {
+        let ids = self
+            .get_pending_booking_ids(worker_id)
+            .await
+            .unwrap_or_default();
+        for id in ids {
+            let _ = self.remove_pending_booking(worker_id, &id).await;
+        }
+        Ok(())
+    }
+
     pub async fn get_rejected_workers_for_job(
         &self,
         customer_id: &str,
