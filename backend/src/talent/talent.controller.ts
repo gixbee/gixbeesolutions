@@ -29,10 +29,9 @@ export class TalentController {
     return this.talentService.getProfile(req.user.userId);
   }
 
-  // Aadhaar eKYC identity verification (credential-blocked stub).
-  // Mirrors the PhonePe gateway-status pattern: the client reads status to
-  // render the "Verify with Aadhaar" tile, and initiate returns a clear
-  // needs-API-key payload instead of ever faking a verified result.
+  // Aadhaar eKYC identity verification (Surepass OTP; credential-gated).
+  // Client reads verification/status; generate-otp / submit-otp call Surepass
+  // when AADHAAR_CLIENT_ID/SECRET are set — never fakes a verified result.
   @Get('verification/status')
   getVerificationStatus(@Req() req: any) {
     return this.talentService.getVerificationStatus(req.user.userId);
