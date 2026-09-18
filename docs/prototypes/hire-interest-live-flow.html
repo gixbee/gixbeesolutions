@@ -197,7 +197,7 @@
   </section>
 
   <section class="screen" id="campaign">
-    <div class="top"><button class="back">←</button><div><div class="eyebrow">LIVE NOW</div><h1 id="campaignRole">Electrician</h1></div></div>
+    <div class="top"><button class="back" onclick="go('roles')">←</button><div><div class="eyebrow">LIVE NOW</div><h1 id="campaignRole">Electrician</h1><small style="color:var(--muted);font-size:11px">Keeps running if you go back</small></div></div>
     <div class="campaignTop">
       <div class="ring">
         <svg width="190" height="190"><circle class="track" cx="95" cy="95" r="80"></circle><circle class="progress" id="progressRing" cx="95" cy="95" r="80"></circle></svg>
@@ -208,7 +208,6 @@
     </div>
     <div class="sectionTitle">INTERESTED CANDIDATES</div>
     <div class="card" id="candidateList"><p class="center">Responses will appear here live.</p></div>
-    <div class="sticky"><button class="secondary" onclick="finishCampaign()">End campaign now</button></div>
   </section>
 
   <section class="screen" id="result">

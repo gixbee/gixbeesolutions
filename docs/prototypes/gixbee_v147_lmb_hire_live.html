@@ -1,0 +1,501 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Gixbee v147 — List My Business · Hire (live interest)</title>
+<!--
+  v147 module: lmb / hiring branch.
+  Screen ids follow the prototype: h5 (hiring dashboard), hj1..hj8.
+  Namespace: hire.*  (same pattern as lmb.* / pa.* / job.* in Gixbee_v147.html)
+
+  hj6 (live matching) has NO "end campaign" action by design.
+  The header back arrow leaves the screen; matching keeps running and is
+  re-entered from the h5 dashboard strip.
+-->
+<style>
+  :root{
+    --bg:#08080f; --cd:#111118; --c2:#1a1a26; --br:#1e1e2e;
+    --ink:#fff; --mut:#9a9aac; --pu:#6c3fdb; --pu2:#8b5cf6;
+    --gn:#10b981; --gd:#f59e0b; --bl:#3b82f6; --rd:#e8173a;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:#0b0b12;font-family:Inter,system-ui,-apple-system,Segoe UI,sans-serif;color:var(--ink)}
+  .phone{width:min(100%,430px);margin:auto;min-height:100vh;background:var(--bg);position:relative;overflow:hidden}
+  .scr{display:none;min-height:100vh;padding:0 0 96px}
+  .scr.on{display:block}
+  .hdr{display:flex;align-items:center;gap:12px;padding:16px 16px 12px}
+  .back{width:36px;height:36px;flex:none;border:1px solid var(--br);border-radius:50%;background:var(--c2);color:var(--ink);font-size:15px}
+  .eyebrow{color:#c4b5fd;font-size:10px;font-weight:900;letter-spacing:1.2px}
+  .hdr h1{margin:2px 0 0;font-size:20px;letter-spacing:-.4px}
+  .hdr .sub{color:var(--mut);font-size:11px;margin-top:3px}
+  .pad{padding:0 16px}
+  .card{background:var(--cd);border:1px solid var(--br);border-radius:18px;padding:16px;margin:0 16px 12px}
+  .card.tint{background:linear-gradient(145deg,rgba(108,63,219,.18),rgba(17,17,24,.9))}
+  .lbl{color:var(--mut);font-size:10px;font-weight:900;letter-spacing:1.1px;margin:20px 18px 9px}
+  h2{margin:0 0 6px;font-size:17px}
+  p{margin:0;color:var(--mut);font-size:12.5px;line-height:1.5}
+  .biz{display:flex;gap:12px;align-items:flex-start}
+  .bico{width:44px;height:44px;flex:none;border-radius:13px;display:grid;place-items:center;background:rgba(59,130,246,.14);border:1px solid rgba(59,130,246,.3);color:#93c5fd;font-size:18px}
+  .bname{font-size:14px;font-weight:900}
+  .btype{color:var(--mut);font-size:11px;margin-top:3px;font-weight:600}
+  .vtag{margin-left:auto;padding:3px 8px;border-radius:99px;background:rgba(16,185,129,.16);color:#6ee7b7;font-size:8.5px;font-weight:900}
+  .tiles{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-top:14px}
+  .tile{padding:12px 10px;border:1px solid var(--br);border-radius:13px;background:var(--c2);color:#dcdce8;font-size:11.5px;font-weight:800;text-align:center}
+  .tile.pri{background:rgba(108,63,219,.22);border-color:rgba(139,92,246,.5);color:#fff}
+  .live{display:flex;align-items:center;gap:10px;margin:0 16px 12px;padding:13px;border-radius:15px;background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.36);color:#fcd34d;font-size:12px;font-weight:800}
+  .live .dot{width:9px;height:9px;flex:none;border-radius:50%;background:var(--gd);animation:pulse 1.2s infinite}
+  @keyframes pulse{50%{opacity:.25}}
+  .live small{display:block;color:var(--mut);font-weight:600;margin-top:3px}
+  .live .open{margin-left:auto;padding:7px 11px;border-radius:10px;background:var(--gd);color:#241701;font-size:11px;font-weight:900;border:0}
+  .srch{width:calc(100% - 32px);margin:0 16px;padding:14px 15px;border-radius:14px;background:var(--cd);border:1px solid var(--br);color:var(--ink);outline:none;font:inherit}
+  .srch:focus{border-color:var(--pu2)}
+  .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:9px;padding:12px 16px 0}
+  .job{min-height:90px;padding:11px 6px;border-radius:15px;background:var(--cd);border:1px solid var(--br);color:var(--ink);text-align:center}
+  .job.on{border-color:var(--pu2);background:rgba(108,63,219,.16)}
+  .job b{display:block;font-size:11.5px;font-weight:800;margin-top:6px}
+  .job i{font-style:normal;font-size:23px}
+  .fld{margin:0 16px 12px}
+  .fld label{display:block;color:var(--mut);font-size:10px;font-weight:900;letter-spacing:.6px;margin:0 0 7px 3px}
+  .fld input,.fld select,.fld textarea{width:100%;padding:13px;border-radius:13px;background:var(--cd);border:1px solid var(--br);color:var(--ink);outline:none;font:inherit}
+  .fld textarea{min-height:76px;resize:vertical}
+  .fld input:focus,.fld select:focus,.fld textarea:focus{border-color:var(--pu2)}
+  .two{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:0 16px 12px}
+  .two .fld{margin:0}
+  .chips{display:flex;flex-wrap:wrap;gap:7px}
+  .chip{padding:8px 12px;border-radius:99px;background:var(--c2);border:1px solid var(--br);color:#d6d6e2;font-size:11.5px;font-weight:600}
+  .chip.on{background:rgba(108,63,219,.2);border-color:var(--pu2);color:#d8ccff;font-weight:800}
+  .line{display:flex;justify-content:space-between;gap:12px;padding:9px 0;border-bottom:1px solid var(--br);font-size:12.5px}
+  .line:last-child{border:0}
+  .line span{color:var(--mut)}
+  .line b{text-align:right}
+  .pk{position:relative;width:calc(100% - 32px);margin:0 16px 11px;padding:17px;border-radius:18px;background:var(--cd);border:1.5px solid var(--br);color:var(--ink);text-align:left}
+  .pk.on{border-color:var(--gn);background:rgba(16,185,129,.09)}
+  .pk .n{font-size:19px;font-weight:900}
+  .pk .amt{position:absolute;top:17px;right:17px;color:#6ee7b7;font-size:21px;font-weight:900}
+  .pk small{display:block;margin-top:6px;color:var(--mut);line-height:1.45}
+  .info{display:flex;gap:9px;margin:0 16px 12px;padding:12px;border-radius:13px;font-size:11.5px;line-height:1.5}
+  .info.warn{background:rgba(245,158,11,.09);border:1px solid rgba(245,158,11,.32);color:#fcd34d}
+  .info.ok{background:rgba(16,185,129,.09);border:1px solid rgba(16,185,129,.3);color:#6ee7b7}
+  .cta{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:min(100%,430px);padding:12px 16px 18px;background:linear-gradient(transparent,var(--bg) 22%);z-index:8}
+  .btn{width:100%;min-height:52px;border:0;border-radius:15px;font-size:14px;font-weight:900;background:linear-gradient(90deg,var(--pu),var(--pu2));color:#fff}
+  .btn.gn{background:linear-gradient(90deg,var(--gn),#059669);color:#04120c}
+  .btn.gh{background:var(--c2);border:1px solid var(--br);color:var(--ink)}
+  .ring{width:196px;height:196px;position:relative;margin:14px auto 6px}
+  .ring svg{transform:rotate(-90deg)}
+  .ring circle{fill:none;stroke-width:9}
+  .ring .tr{stroke:var(--c2)}
+  .ring .pr{stroke:var(--gn);stroke-linecap:round;transition:stroke-dashoffset .9s linear}
+  .ring .txt{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center}
+  .ring .txt b{font-size:37px;letter-spacing:-1.4px}
+  .ring .txt span{color:var(--mut);font-size:10.5px;font-weight:900;letter-spacing:.6px}
+  .cnt{text-align:center;color:#6ee7b7;font-size:17px;font-weight:900}
+  .cnt em{font-style:normal;color:var(--mut);font-weight:700}
+  .cand{display:flex;gap:11px;align-items:center;padding:12px 0;border-bottom:1px solid var(--br)}
+  .cand:last-child{border:0}
+  .av{width:40px;height:40px;flex:none;border-radius:12px;display:grid;place-items:center;background:rgba(108,63,219,.2);color:#c4b5fd;font-weight:900;font-size:13px}
+  .cand b{display:block;font-size:13px}
+  .cand small{color:var(--mut);font-size:11px}
+  .cand .yes{margin-left:auto;color:#6ee7b7;font-size:9.5px;font-weight:900}
+  .big{width:78px;height:78px;margin:38px auto 16px;border-radius:50%;display:grid;place-items:center;font-size:34px;background:rgba(16,185,129,.14)}
+  .credit{text-align:center;color:#6ee7b7;font-size:34px;font-weight:900;margin:14px 0 4px}
+  .mid{text-align:center}
+  .sim{position:absolute;top:8px;right:8px;display:flex;gap:5px;z-index:30}
+  .sim button{padding:6px 8px;border-radius:9px;background:#1a1a26;border:1px solid #45455b;color:#ccc;font-size:9.5px}
+  .sheet{display:none;position:fixed;inset:0;z-index:40;background:rgba(0,0,0,.82);padding:18px;align-items:center;justify-content:center}
+  .sheet.on{display:flex}
+  .alert{width:min(100%,390px);background:#121219;border:1px solid var(--br);border-radius:24px;padding:20px}
+  .alert .ico{width:60px;height:60px;margin:auto;border-radius:19px;display:grid;place-items:center;font-size:28px;background:rgba(16,185,129,.15)}
+  .alert .beep{text-align:center;color:#6ee7b7;font-size:10.5px;font-weight:900;margin-top:11px;letter-spacing:.8px}
+  .alert h2{text-align:center;margin-top:8px}
+  .row2{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-top:15px}
+  .row2 button{min-height:48px;border-radius:14px;font-size:12.5px;font-weight:900;border:0}
+  .row2 .no{background:var(--c2);border:1px solid var(--br);color:var(--ink)}
+  .row2 .ok{background:linear-gradient(90deg,var(--gn),#059669);color:#04120c}
+</style>
+</head>
+<body>
+<div class="phone">
+  <div class="sim">
+    <button data-sim="alert">Simulate alert</button>
+    <button data-sim="one">+1 interest</button>
+    <button data-sim="four">End 4/5</button>
+  </div>
+
+  <!-- h5 · hiring business dashboard -->
+  <section class="scr on" id="h5">
+    <div class="hdr">
+      <button class="back" data-go="h5">&#8592;</button>
+      <div><div class="eyebrow">LIST MY BUSINESS</div><h1>My Businesses</h1></div>
+    </div>
+    <div class="card">
+      <div class="biz">
+        <div class="bico">&#128188;</div>
+        <div style="flex:1"><div class="bname">Ambadi Enterprises</div><div class="btype">Hiring business · Thrissur</div></div>
+        <div class="vtag">VERIFIED</div>
+      </div>
+      <div class="tiles">
+        <button class="tile pri" data-go="hj1">Post a Job</button>
+        <button class="tile" data-go="hj8">Candidates</button>
+        <button class="tile">Openings</button>
+        <button class="tile">Activity</button>
+      </div>
+    </div>
+    <div class="live" id="liveStrip" style="display:none">
+      <span class="dot"></span>
+      <div>Matching running<small id="liveMeta">Electrician · 0/5 interested</small></div>
+      <button class="open" data-go="hj6">Open</button>
+    </div>
+    <div class="lbl">HIRING</div>
+    <div class="card"><h2>Live interest matching</h2><p>Post an opening and matching candidates nearby are alerted immediately. You pay for interested candidates only.</p></div>
+  </section>
+
+  <!-- hj1 · choose the job -->
+  <section class="scr" id="hj1">
+    <div class="hdr">
+      <button class="back" data-go="h5">&#8592;</button>
+      <div><div class="eyebrow">POST A JOB · 1 OF 4</div><h1>Which job?</h1></div>
+    </div>
+    <div class="card tint"><h2>Who do you want to hire?</h2><p>Choose the role. Candidates with that job profile nearby will get a live alert with sound.</p></div>
+    <input class="srch" id="jobSearch" placeholder="Electrician, nurse, driver…">
+    <div class="grid" id="jobGrid"></div>
+  </section>
+
+  <!-- hj2 · requirement -->
+  <section class="scr" id="hj2">
+    <div class="hdr">
+      <button class="back" data-go="hj1">&#8592;</button>
+      <div><div class="eyebrow">POST A JOB · 2 OF 4</div><h1 id="hj2Title">Electrician</h1><div class="sub">Requirement details</div></div>
+    </div>
+    <div class="two">
+      <div class="fld"><label>MIN EXPERIENCE</label><select id="exp"><option>0 years</option><option>1 year</option><option selected>2 years</option><option>3 years</option><option>5+ years</option></select></div>
+      <div class="fld"><label>JOINING</label><select id="join"><option selected>Immediate</option><option>Within 7 days</option><option>Within 30 days</option></select></div>
+    </div>
+    <div class="fld"><label>EXPERTISE NEEDED</label><div class="chips" id="skills"></div></div>
+    <div class="two">
+      <div class="fld"><label>SALARY FROM / MONTH</label><input id="salMin" type="number" value="18000"></div>
+      <div class="fld"><label>SALARY TO / MONTH</label><input id="salMax" type="number" value="25000"></div>
+    </div>
+    <div class="fld"><label>EMPLOYMENT TYPE</label><div class="chips" id="etype"></div></div>
+    <div class="fld"><label>WORK LOCATION</label><input id="loc" value="Thrissur town"></div>
+    <div class="fld"><label>SHORT DESCRIPTION</label><textarea id="desc">Electrical maintenance and fault repair at our auditorium.</textarea></div>
+    <div class="cta"><button class="btn" data-act="review">Proceed</button></div>
+  </section>
+
+  <!-- hj3 · preview -->
+  <section class="scr" id="hj3">
+    <div class="hdr">
+      <button class="back" data-go="hj2">&#8592;</button>
+      <div><div class="eyebrow">POST A JOB · 3 OF 4</div><h1>Preview</h1><div class="sub">What candidates will see</div></div>
+    </div>
+    <div class="card" id="previewCard"></div>
+    <div class="info ok"><span>&#10003;</span><span>Candidates see the role, pay range, location and joining need. Your phone number is not shown in the alert.</span></div>
+    <div class="cta"><button class="btn" data-go="hj4">Choose interest target</button></div>
+  </section>
+
+  <!-- hj4 · interest packages -->
+  <section class="scr" id="hj4">
+    <div class="hdr">
+      <button class="back" data-go="hj3">&#8592;</button>
+      <div><div class="eyebrow">POST A JOB · 4 OF 4</div><h1>Interest target</h1><div class="sub">30-minute live matching</div></div>
+    </div>
+    <div class="pad"><p style="margin:0 0 12px">You pay for candidates who press <b style="color:#fff">I'm interested</b> — not for alerts delivered or profiles viewed.</p></div>
+    <button class="pk on" data-target="5" data-price="29"><div class="n">Up to 5 interested</div><div class="amt">&#8377;29</div><small>&#8377;5.80 per interested candidate · one urgent opening</small></button>
+    <button class="pk" data-target="10" data-price="49"><div class="n">Up to 10 interested</div><div class="amt">&#8377;49</div><small>&#8377;4.90 per interested candidate · wider shortlist</small></button>
+    <button class="pk" data-target="20" data-price="79"><div class="n">Up to 20 interested</div><div class="amt">&#8377;79</div><small>&#8377;3.95 per interested candidate · several openings</small></button>
+    <div class="info warn"><span>&#8617;</span><span id="creditNote">If only 4 of 5 respond in 30 minutes, &#8377;5.80 returns as Hiring Credit.</span></div>
+    <div class="cta"><button class="btn" id="toPay" data-go="hj5">Continue · &#8377;29</button></div>
+  </section>
+
+  <!-- hj5 · payment -->
+  <section class="scr" id="hj5">
+    <div class="hdr">
+      <button class="back" data-go="hj4">&#8592;</button>
+      <div><div class="eyebrow">CHECKOUT</div><h1>Pay &amp; start</h1></div>
+    </div>
+    <div class="card tint mid">
+      <p>30-minute campaign</p>
+      <div id="payAmt" style="font-size:40px;font-weight:900;margin:8px 0">&#8377;29</div>
+      <div id="payTarget" style="color:#6ee7b7;font-weight:800;font-size:12.5px">Target: 5 interested candidates</div>
+    </div>
+    <div class="lbl">PAYMENT METHOD</div>
+    <div class="card" style="display:flex;gap:12px;align-items:center"><div style="width:18px;height:18px;flex:none;border:5px solid var(--gn);border-radius:50%"></div><div><b style="font-size:13px">UPI</b><p>GPay · PhonePe · Paytm</p></div></div>
+    <div class="card" style="display:flex;gap:12px;align-items:center"><div style="width:18px;height:18px;flex:none;border:2px solid #555;border-radius:50%"></div><div><b style="font-size:13px">Card</b><p>Credit or debit card</p></div></div>
+    <div class="info warn"><span>&#128274;</span><span>Matching starts only after payment is confirmed. Unused candidate value returns as Hiring Credit.</span></div>
+    <div class="cta"><button class="btn gn" data-act="start">Pay &amp; start matching</button></div>
+  </section>
+
+  <!-- hj6 · live matching (no end-campaign action; back only) -->
+  <section class="scr" id="hj6">
+    <div class="hdr">
+      <button class="back" data-go="h5">&#8592;</button>
+      <div><div class="eyebrow">MATCHING LIVE</div><h1 id="hj6Title">Electrician</h1><div class="sub">Runs in background if you go back</div></div>
+    </div>
+    <div class="ring">
+      <svg width="196" height="196"><circle class="tr" cx="98" cy="98" r="82"></circle><circle class="pr" id="ringPr" cx="98" cy="98" r="82"></circle></svg>
+      <div class="txt"><b id="clock">30:00</b><span>REMAINING</span></div>
+    </div>
+    <div class="cnt"><span id="have">0</span><em> / <span id="need">5</span> interested</em></div>
+    <div class="pad mid" style="margin-top:8px"><p id="hj6Msg">Alerting matching candidates nearby…</p></div>
+    <div class="lbl">INTERESTED CANDIDATES</div>
+    <div class="card" id="candList"><p class="mid">Responses appear here live.</p></div>
+  </section>
+
+  <!-- hj7 · outcome -->
+  <section class="scr" id="hj7">
+    <div class="big">&#10003;</div>
+    <h1 class="mid" style="margin:0 16px;font-size:21px">Matching complete</h1>
+    <div class="pad mid" style="margin-top:8px"><p id="hj7Sum"></p></div>
+    <div class="credit" id="hj7Credit">&#8377;0.00</div>
+    <div class="mid" style="color:var(--mut);font-size:10.5px;font-weight:900;letter-spacing:1px">HIRING CREDIT ADDED</div>
+    <div class="card" style="margin-top:22px" id="hj7Math"></div>
+    <div class="info warn"><span>i</span><span>Hiring Credit is not cash and cannot be withdrawn. It applies to your next Gixbee hiring campaign.</span></div>
+    <div class="cta"><button class="btn" data-go="hj8">View interested candidates</button></div>
+  </section>
+
+  <!-- hj8 · candidates -->
+  <section class="scr" id="hj8">
+    <div class="hdr">
+      <button class="back" data-go="h5">&#8592;</button>
+      <div><div class="eyebrow">CANDIDATES</div><h1 id="hj8Title">Electrician</h1><div class="sub">Interested · phone unlocks on shortlist</div></div>
+    </div>
+    <div class="card" id="candList2"><p class="mid">No interested candidates yet.</p></div>
+    <div class="info ok"><span>&#10003;</span><span>Shortlist a candidate to unlock the phone number and continue on call.</span></div>
+    <div class="cta"><button class="btn gh" data-go="h5">Back to My Businesses</button></div>
+  </section>
+</div>
+
+<!-- candidate side alert -->
+<div class="sheet" id="alertSheet">
+  <div class="alert">
+    <div class="ico">&#9889;</div>
+    <div class="beep">BEEP · NEW JOB MATCH NEAR YOU</div>
+    <h2 id="alertRole">Electrician wanted</h2>
+    <div class="card" style="margin:14px 0 0">
+      <div class="line"><span>Pay</span><b id="alertPay">&#8377;18,000–&#8377;25,000/month</b></div>
+      <div class="line"><span>Location</span><b id="alertLoc">Thrissur town</b></div>
+      <div class="line"><span>Experience</span><b id="alertExp">2 years minimum</b></div>
+      <div class="line"><span>Joining</span><b id="alertJoin">Immediate</b></div>
+    </div>
+    <div class="row2"><button class="no" data-ans="no">Not interested</button><button class="ok" data-ans="yes">I'm interested</button></div>
+  </div>
+</div>
+
+<script>
+const hire = (() => {
+  const JOBS = [
+    ['\u26A1','Electrician'],['\uD83D\uDD27','Plumber'],['\uD83D\uDE97','Driver'],['\uD83D\uDED7','Lift Operator'],
+    ['\uD83E\uDE7A','Nurse'],['\uD83E\uDDD1\u200D\u2695\uFE0F','Doctor'],['\uD83C\uDF73','Cook'],['\uD83D\uDEE1\uFE0F','Security'],
+    ['\uD83E\uDDF9','Cleaner'],['\uD83D\uDCE6','Delivery'],['\uD83D\uDCBB','IT Support'],['\uD83E\uDDFE','Accountant'],
+    ['\uD83C\uDFEA','Sales Staff'],['\u2744\uFE0F','AC Technician'],['\uD83D\uDCF8','Photographer']
+  ];
+  const SKILLS = {
+    'Electrician':['Wiring','Fault repair','Panel board','Generator','Maintenance'],
+    'Plumber':['Pipe fitting','Leak repair','Sanitary work','Motor & pump'],
+    'Driver':['LMV licence','Badge licence','Night driving','Long trips'],
+    'Lift Operator':['Lift operation','Safety checks','Basic maintenance'],
+    'Nurse':['GNM / BSc','Ward care','ICU','Home care','Injections'],
+    'Doctor':['MBBS','General medicine','Emergency','OP consultation']
+  };
+  const POOL = [
+    ['AJ','Aju Joseph','4 yrs · Wiring, maintenance'],
+    ['MR','Manu Raj','3 yrs · Panel board, fault repair'],
+    ['SK','Sreekumar K.','6 yrs · Generator, industrial wiring'],
+    ['FN','Faisal N.','2 yrs · Wiring, safety checks'],
+    ['TB','Thomas B.','5 yrs · Maintenance, fault repair'],
+    ['VP','Vishnu P.','3 yrs · Wiring, AC points']
+  ];
+  const TOTAL = 1800, CIRC = 2 * Math.PI * 82;
+
+  let job = 'Electrician', chosenSkills = new Set(), etype = 'Full Time';
+  let pack = { target: 5, price: 29 }, have = 0, left = TOTAL;
+  let tick = null, firstAlert = null, live = false;
+
+  const $ = id => document.getElementById(id);
+
+  function go(id) {
+    document.querySelectorAll('.scr').forEach(s => s.classList.toggle('on', s.id === id));
+    window.scrollTo(0, 0);
+  }
+
+  function jobs(list) {
+    const items = list || JOBS;
+    $('jobGrid').innerHTML = items.map(pair =>
+      '<button class="job' + (pair[1] === job ? ' on' : '') + '" data-job="' + pair[1] + '">' +
+      '<i>' + pair[0] + '</i><b>' + pair[1] + '</b></button>').join('');
+  }
+
+  function requirement() {
+    const items = SKILLS[job] || ['Relevant certificate','Customer handling','Safety','Team work'];
+    chosenSkills = new Set(items.slice(0, 2));
+    $('skills').innerHTML = items.map(s =>
+      '<button class="chip' + (chosenSkills.has(s) ? ' on' : '') + '" data-skill="' + s + '">' + s + '</button>').join('');
+    $('etype').innerHTML = ['Full Time','Part Time','Contract','Intern'].map(t =>
+      '<button class="chip' + (t === etype ? ' on' : '') + '" data-etype="' + t + '">' + t + '</button>').join('');
+    $('hj2Title').textContent = job;
+  }
+
+  function money(v) { return '\u20B9' + Number(v).toLocaleString('en-IN'); }
+  function payRange() { return money($('salMin').value) + '\u2013' + money($('salMax').value) + '/month'; }
+
+  function review() {
+    if (+$('salMin').value > +$('salMax').value) {
+      window.alert('Maximum salary must be higher than the minimum salary.');
+      return;
+    }
+    const rows = [
+      ['Role', job],
+      ['Employment', etype],
+      ['Experience', $('exp').value + ' minimum'],
+      ['Expertise', [...chosenSkills].join(', ') || 'Any'],
+      ['Pay', payRange()],
+      ['Joining', $('join').value],
+      ['Location', $('loc').value]
+    ];
+    $('previewCard').innerHTML = rows.map(r =>
+      '<div class="line"><span>' + r[0] + '</span><b>' + r[1] + '</b></div>').join('');
+    go('hj3');
+  }
+
+  function choose(el) {
+    document.querySelectorAll('.pk').forEach(p => p.classList.remove('on'));
+    el.classList.add('on');
+    pack = { target: +el.dataset.target, price: +el.dataset.price };
+    const per = pack.price / pack.target;
+    $('toPay').textContent = 'Continue \u00B7 \u20B9' + pack.price;
+    $('payAmt').textContent = '\u20B9' + pack.price;
+    $('payTarget').textContent = 'Target: ' + pack.target + ' interested candidates';
+    $('creditNote').textContent = 'If only ' + (pack.target - 1) + ' of ' + pack.target +
+      ' respond in 30 minutes, \u20B9' + per.toFixed(2) + ' returns as Hiring Credit.';
+  }
+
+  function beep() {
+    try {
+      const ac = new (window.AudioContext || window.webkitAudioContext)();
+      const o = ac.createOscillator(), g = ac.createGain();
+      o.connect(g); g.connect(ac.destination);
+      o.frequency.value = 880;
+      g.gain.setValueAtTime(0.12, ac.currentTime);
+      g.gain.exponentialRampToValueAtTime(0.001, ac.currentTime + 0.5);
+      o.start(); o.stop(ac.currentTime + 0.5);
+    } catch (e) {}
+  }
+
+  function clock() {
+    $('clock').textContent =
+      String(Math.floor(left / 60)).padStart(2, '0') + ':' + String(left % 60).padStart(2, '0');
+    $('ringPr').style.strokeDashoffset = CIRC * (1 - left / TOTAL);
+    $('liveMeta').textContent = job + ' \u00B7 ' + have + '/' + pack.target + ' interested';
+  }
+
+  function start() {
+    have = 0; left = TOTAL; live = true;
+    $('hj6Title').textContent = job;
+    $('hj8Title').textContent = job;
+    $('have').textContent = '0';
+    $('need').textContent = pack.target;
+    $('hj6Msg').textContent = 'Alerting matching candidates nearby\u2026';
+    $('candList').innerHTML = '<p class="mid">Responses appear here live.</p>';
+    $('ringPr').style.strokeDasharray = CIRC;
+    $('liveStrip').style.display = 'flex';
+    clock();
+    clearInterval(tick);
+    tick = setInterval(() => { left--; clock(); if (left <= 0) finish(); }, 1000);
+    clearTimeout(firstAlert);
+    firstAlert = setTimeout(showAlert, 1400);
+    go('hj6');
+  }
+
+  function showAlert() {
+    if (!live) return;
+    beep();
+    $('alertRole').textContent = job + ' wanted';
+    $('alertPay').textContent = payRange();
+    $('alertLoc').textContent = $('loc').value;
+    $('alertExp').textContent = $('exp').value + ' minimum';
+    $('alertJoin').textContent = $('join').value;
+    $('alertSheet').classList.add('on');
+  }
+
+  function answer(yes) {
+    $('alertSheet').classList.remove('on');
+    if (yes) interest();
+  }
+
+  function interest() {
+    if (!live || have >= pack.target) return;
+    const c = POOL[have % POOL.length];
+    have++;
+    if (have === 1) $('candList').innerHTML = '';
+    $('candList').insertAdjacentHTML('beforeend',
+      '<div class="cand"><div class="av">' + c[0] + '</div><div><b>' + c[1] +
+      '</b><small>' + c[2] + '</small></div><span class="yes">INTERESTED</span></div>');
+    $('have').textContent = have;
+    $('hj6Msg').textContent = have + ' candidate' + (have === 1 ? '' : 's') + ' interested so far.';
+    clock(); beep();
+    if (have >= pack.target) finish();
+  }
+
+  function finish() {
+    if (!live) return;
+    live = false;
+    clearInterval(tick); clearTimeout(firstAlert);
+    $('liveStrip').style.display = 'none';
+    const got = Math.min(have, pack.target);
+    const short = pack.target - got;
+    const per = pack.price / pack.target;
+    const credit = short * per;
+    $('hj7Sum').textContent = got + ' of ' + pack.target + ' target candidates became interested.';
+    $('hj7Credit').textContent = '\u20B9' + credit.toFixed(2);
+    const rows = [
+      ['Package paid', '\u20B9' + pack.price.toFixed(2)],
+      ['Used (' + got + ' \u00D7 \u20B9' + per.toFixed(2) + ')', '\u20B9' + (got * per).toFixed(2)],
+      ['Short of target', String(short)],
+      ['Hiring Credit', '\u20B9' + credit.toFixed(2)]
+    ];
+    $('hj7Math').innerHTML = rows.map(r =>
+      '<div class="line"><span>' + r[0] + '</span><b>' + r[1] + '</b></div>').join('');
+    $('candList2').innerHTML = got ? $('candList').innerHTML : '<p class="mid">No interested candidates yet.</p>';
+    go('hj7');
+  }
+
+  document.addEventListener('click', e => {
+    const t = e.target.closest('[data-go],[data-act],[data-job],[data-skill],[data-etype],.pk,[data-ans],[data-sim]');
+    if (!t) return;
+    if (t.dataset.go) return go(t.dataset.go);
+    if (t.dataset.act === 'review') return review();
+    if (t.dataset.act === 'start') return start();
+    if (t.dataset.job) { job = t.dataset.job; jobs(); requirement(); return go('hj2'); }
+    if (t.dataset.skill) {
+      const s = t.dataset.skill;
+      if (chosenSkills.has(s)) chosenSkills.delete(s); else chosenSkills.add(s);
+      return t.classList.toggle('on');
+    }
+    if (t.dataset.etype) {
+      etype = t.dataset.etype;
+      return document.querySelectorAll('[data-etype]').forEach(c => c.classList.toggle('on', c === t));
+    }
+    if (t.classList.contains('pk')) return choose(t);
+    if (t.dataset.ans) return answer(t.dataset.ans === 'yes');
+    if (t.dataset.sim === 'alert') return live ? showAlert() : start();
+    if (t.dataset.sim === 'one') return live ? interest() : start();
+    if (t.dataset.sim === 'four') {
+      if (!live) start();
+      while (live && have < Math.min(4, pack.target)) interest();
+      return finish();
+    }
+  });
+
+  document.addEventListener('input', e => {
+    if (e.target.id === 'jobSearch') {
+      const q = e.target.value.toLowerCase();
+      jobs(JOBS.filter(j => j[1].toLowerCase().includes(q)));
+    }
+  });
+
+  jobs(); requirement();
+  return { go: go, start: start, interest: interest, finish: finish, showAlert: showAlert };
+})();
+</script>
+</body>
+</html>
