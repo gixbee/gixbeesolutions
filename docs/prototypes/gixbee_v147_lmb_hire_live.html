@@ -126,18 +126,18 @@
   <section class="scr on" id="h5">
     <div class="hdr">
       <button class="back" data-go="h5">&#8592;</button>
-      <div><div class="eyebrow">LIST MY BUSINESS</div><h1>My Businesses</h1></div>
+      <div><div class="eyebrow">HIRING BUSINESS</div><h1>Hiring Dashboard</h1><div class="sub">Ambadi Enterprises · Thrissur</div></div>
     </div>
     <div class="card">
       <div class="biz">
         <div class="bico">&#128188;</div>
-        <div style="flex:1"><div class="bname">Ambadi Enterprises</div><div class="btype">Hiring business · Thrissur</div></div>
+        <div style="flex:1"><div class="bname">Ambadi Enterprises</div><div class="btype">Hiring business · verified 12 Sep</div></div>
         <div class="vtag">VERIFIED</div>
       </div>
       <div class="tiles">
         <button class="tile pri" data-go="hj1">Post a Job</button>
+        <button class="tile" data-go="h6">Openings</button>
         <button class="tile" data-go="hj8">Candidates</button>
-        <button class="tile">Openings</button>
         <button class="tile">Activity</button>
       </div>
     </div>
@@ -146,8 +146,24 @@
       <div>Matching running<small id="liveMeta">Electrician · 0/5 interested</small></div>
       <button class="open" data-go="hj6">Open</button>
     </div>
-    <div class="lbl">HIRING</div>
-    <div class="card"><h2>Live interest matching</h2><p>Post an opening and matching candidates nearby are alerted immediately. You pay for interested candidates only.</p></div>
+    <div class="lbl">THIS MONTH</div>
+    <div class="card">
+      <div class="line"><span>Jobs posted</span><b>3</b></div>
+      <div class="line"><span>Interested candidates</span><b>11</b></div>
+      <div class="line"><span>Hiring Credit balance</span><b style="color:#6ee7b7" id="creditBalance">&#8377;0.00</b></div>
+    </div>
+    <div class="lbl">HOW IT WORKS</div>
+    <div class="card"><h2>Live interest matching</h2><p>Post an opening and matching candidates nearby are alerted immediately. You pay for interested candidates only — unused value returns as Hiring Credit.</p></div>
+  </section>
+
+  <!-- h6 · openings -->
+  <section class="scr" id="h6">
+    <div class="hdr">
+      <button class="back" data-go="h5">&#8592;</button>
+      <div><div class="eyebrow">HIRING BUSINESS</div><h1>Openings</h1><div class="sub">Ambadi Enterprises</div></div>
+    </div>
+    <div class="card" id="openingsList"><p class="mid">No openings posted yet.</p></div>
+    <div class="cta"><button class="btn" data-go="hj1">Post a Job</button></div>
   </section>
 
   <!-- hj1 · choose the job -->
@@ -310,6 +326,7 @@ const hire = (() => {
   let job = 'Electrician', chosenSkills = new Set(), etype = 'Full Time';
   let pack = { target: 5, price: 29 }, have = 0, left = TOTAL;
   let tick = null, firstAlert = null, live = false;
+  let credit = 0, openings = [];
 
   const $ = id => document.getElementById(id);
 
@@ -388,8 +405,19 @@ const hire = (() => {
     $('liveMeta').textContent = job + ' \u00B7 ' + have + '/' + pack.target + ' interested';
   }
 
+  function openingsView() {
+    $('openingsList').innerHTML = openings.length
+      ? openings.map(o =>
+          '<div class="cand"><div class="av">' + o.role.slice(0, 2).toUpperCase() + '</div>' +
+          '<div><b>' + o.role + '</b><small>' + o.got + '/' + o.target + ' interested \u00B7 ' + o.state + '</small></div>' +
+          '<span class="yes">' + (o.state === 'Live' ? 'LIVE' : 'CLOSED') + '</span></div>').join('')
+      : '<p class="mid">No openings posted yet.</p>';
+  }
+
   function start() {
     have = 0; left = TOTAL; live = true;
+    openings.unshift({ role: job, target: pack.target, got: 0, state: 'Live' });
+    openingsView();
     $('hj6Title').textContent = job;
     $('hj8Title').textContent = job;
     $('have').textContent = '0';
@@ -432,6 +460,7 @@ const hire = (() => {
       '</b><small>' + c[2] + '</small></div><span class="yes">INTERESTED</span></div>');
     $('have').textContent = have;
     $('hj6Msg').textContent = have + ' candidate' + (have === 1 ? '' : 's') + ' interested so far.';
+    if (openings.length) { openings[0].got = have; openingsView(); }
     clock(); beep();
     if (have >= pack.target) finish();
   }
@@ -444,14 +473,17 @@ const hire = (() => {
     const got = Math.min(have, pack.target);
     const short = pack.target - got;
     const per = pack.price / pack.target;
-    const credit = short * per;
+    const earned = short * per;
+    credit += earned;
+    if (openings.length) { openings[0].got = got; openings[0].state = 'Closed'; openingsView(); }
+    $('creditBalance').textContent = '\u20B9' + credit.toFixed(2);
     $('hj7Sum').textContent = got + ' of ' + pack.target + ' target candidates became interested.';
-    $('hj7Credit').textContent = '\u20B9' + credit.toFixed(2);
+    $('hj7Credit').textContent = '\u20B9' + earned.toFixed(2);
     const rows = [
       ['Package paid', '\u20B9' + pack.price.toFixed(2)],
       ['Used (' + got + ' \u00D7 \u20B9' + per.toFixed(2) + ')', '\u20B9' + (got * per).toFixed(2)],
       ['Short of target', String(short)],
-      ['Hiring Credit', '\u20B9' + credit.toFixed(2)]
+      ['Hiring Credit', '\u20B9' + earned.toFixed(2)]
     ];
     $('hj7Math').innerHTML = rows.map(r =>
       '<div class="line"><span>' + r[0] + '</span><b>' + r[1] + '</b></div>').join('');
@@ -493,7 +525,7 @@ const hire = (() => {
     }
   });
 
-  jobs(); requirement();
+  jobs(); requirement(); openingsView();
   return { go: go, start: start, interest: interest, finish: finish, showAlert: showAlert };
 })();
 </script>
