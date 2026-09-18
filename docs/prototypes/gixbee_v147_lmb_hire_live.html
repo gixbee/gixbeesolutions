@@ -162,23 +162,14 @@
     <button data-sim="four">End 4/5</button>
   </div>
 
-  <!-- h5 · hiring business dashboard -->
+  <!-- h5 · start: pick the work type -->
   <section class="scr on" id="h5">
     <div class="hdr">
       <button class="back" data-go="h5">&#8592;</button>
-      <div><div class="eyebrow">HIRING BUSINESS</div><h1>Hiring Dashboard</h1><div class="sub">Ambadi Enterprises · Thrissur</div></div>
-    </div>
-    <div class="card">
-      <div class="biz">
-        <div class="bico">&#128188;</div>
-        <div style="flex:1"><div class="bname">Ambadi Enterprises</div><div class="btype">Hiring business · verified 12 Sep</div></div>
-        <div class="vtag">VERIFIED</div>
-      </div>
-      <div class="tiles">
-        <button class="tile pri" data-go="hj1">Post a Job</button>
-        <button class="tile" data-go="h6">Openings</button>
-        <button class="tile" data-go="hj8">Candidates</button>
-        <button class="tile">Activity</button>
+      <div>
+        <div class="eyebrow">POST A JOB</div>
+        <h1>Who do you want to hire?</h1>
+        <div class="sub">Select a work type to post the opening.</div>
       </div>
     </div>
     <div class="live" id="liveStrip" style="display:none">
@@ -186,17 +177,8 @@
       <div>Matching running<small id="liveMeta">Electrician · 0/5 interested</small></div>
       <button class="open" data-go="hj6">Open</button>
     </div>
-    <div class="lbl">WHO DO YOU WANT TO HIRE?</div>
-    <div class="pad"><p>Select a work type to post the opening.</p></div>
     <div class="grid startjobs" id="dashboardJobGrid"></div>
-    <div class="lbl">THIS MONTH</div>
-    <div class="card">
-      <div class="line"><span>Jobs posted</span><b>3</b></div>
-      <div class="line"><span>Interested candidates</span><b>11</b></div>
-      <div class="line"><span>Hiring Credit balance</span><b style="color:#6ee7b7" id="creditBalance">&#8377;0.00</b></div>
-    </div>
-    <div class="lbl">HOW IT WORKS</div>
-    <div class="card"><h2>Live interest matching</h2><p>Post an opening and matching candidates nearby are alerted immediately. You pay for interested candidates only — unused value returns as Hiring Credit.</p></div>
+    <span id="creditBalance" hidden>&#8377;0.00</span>
   </section>
 
   <!-- h6 · openings -->
