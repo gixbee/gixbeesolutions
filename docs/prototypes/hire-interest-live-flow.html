@@ -1,0 +1,352 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Gixbee — Live Hire Interest</title>
+  <style>
+    :root {
+      --bg:#08080f; --surface:#111118; --surface2:#1a1a26; --line:#262638;
+      --ink:#fff; --muted:#9898aa; --blue:#3b82f6; --green:#10b981;
+      --orange:#f59e0b; --red:#e8173a; --violet:#8b5cf6;
+    }
+    * { box-sizing:border-box }
+    body {
+      margin:0; min-height:100vh; color:var(--ink);
+      background:radial-gradient(circle at 50% -20%,#1e2854 0,transparent 38%),var(--bg);
+      font-family:Inter,system-ui,-apple-system,Segoe UI,sans-serif;
+    }
+    button,input,select,textarea { font:inherit }
+    button { cursor:pointer }
+    .app { width:min(100%,430px); min-height:100vh; margin:auto; background:rgba(8,8,15,.96); position:relative }
+    .screen { display:none; min-height:100vh; padding:58px 18px 104px }
+    .screen.active { display:block }
+    .top { display:flex; align-items:center; gap:12px; margin-bottom:22px }
+    .back,.iconBtn {
+      width:40px; height:40px; border:1px solid var(--line); border-radius:50%;
+      color:var(--ink); background:var(--surface2);
+    }
+    h1 { margin:0; font-size:23px; letter-spacing:-.5px }
+    h2 { margin:0 0 6px; font-size:18px }
+    p { color:var(--muted); line-height:1.45 }
+    .eyebrow { color:#93c5fd; font-size:11px; font-weight:850; letter-spacing:1.3px; margin-bottom:7px }
+    .hero,.card {
+      background:var(--surface); border:1px solid var(--line); border-radius:20px; padding:18px;
+    }
+    .hero { background:linear-gradient(145deg,rgba(59,130,246,.17),rgba(17,17,24,.85)) }
+    .sectionTitle { margin:24px 2px 11px; color:var(--muted); font-size:11px; font-weight:850; letter-spacing:1.1px }
+    .search {
+      width:100%; color:var(--ink); background:var(--surface); border:1px solid var(--line);
+      border-radius:15px; padding:15px 16px; outline:none;
+    }
+    .search:focus,.field input:focus,.field textarea:focus,.field select:focus { border-color:var(--blue) }
+    .roles { display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin-top:13px }
+    .role {
+      min-height:94px; padding:12px 7px; color:var(--ink); background:var(--surface);
+      border:1px solid var(--line); border-radius:16px; text-align:center;
+    }
+    .role.selected { border-color:var(--blue); background:rgba(59,130,246,.14) }
+    .role .emoji { display:block; font-size:25px; margin-bottom:7px }
+    .role .name { font-size:12px; font-weight:800 }
+    .field { margin-bottom:15px }
+    .field label { display:block; color:var(--muted); font-size:11px; font-weight:800; margin:0 0 7px 3px }
+    .field input,.field textarea,.field select {
+      width:100%; color:var(--ink); background:var(--surface); border:1px solid var(--line);
+      border-radius:14px; padding:14px; outline:none;
+    }
+    .field textarea { min-height:84px; resize:vertical }
+    .row { display:grid; grid-template-columns:1fr 1fr; gap:11px }
+    .chips { display:flex; flex-wrap:wrap; gap:8px }
+    .chip {
+      padding:9px 12px; border-radius:999px; border:1px solid var(--line);
+      background:var(--surface2); color:#d8d8e4; font-size:12px;
+    }
+    .chip.on { color:#bfdbfe; border-color:var(--blue); background:rgba(59,130,246,.16) }
+    .summaryLine { display:flex; justify-content:space-between; gap:14px; padding:10px 0; border-bottom:1px solid var(--line) }
+    .summaryLine:last-child { border:0 }
+    .summaryLine span:first-child { color:var(--muted) }
+    .summaryLine b { text-align:right }
+    .packages { display:grid; gap:12px }
+    .package {
+      position:relative; width:100%; color:var(--ink); text-align:left; padding:18px;
+      background:var(--surface); border:1.5px solid var(--line); border-radius:19px;
+    }
+    .package.on { border-color:var(--green); background:rgba(16,185,129,.09) }
+    .package .count { font-size:21px; font-weight:900 }
+    .package .price { position:absolute; top:18px; right:18px; color:#6ee7b7; font-size:22px; font-weight:900 }
+    .package small { display:block; margin-top:7px; color:var(--muted); line-height:1.4 }
+    .guarantee {
+      display:flex; gap:10px; margin-top:15px; padding:13px; color:#fcd34d;
+      border:1px solid rgba(245,158,11,.35); background:rgba(245,158,11,.09); border-radius:14px;
+      font-size:12px; line-height:1.45;
+    }
+    .paymentChoice { display:flex; align-items:center; gap:12px; margin-bottom:10px }
+    .radio { width:18px; height:18px; border:5px solid var(--green); border-radius:50% }
+    .sticky {
+      position:fixed; z-index:10; bottom:0; left:50%; transform:translateX(-50%);
+      width:min(100%,430px); padding:13px 18px 18px; background:linear-gradient(transparent,#08080f 20%);
+    }
+    .primary,.secondary,.danger {
+      width:100%; min-height:53px; border-radius:16px; border:0; font-weight:900;
+    }
+    .primary { color:#04120c; background:linear-gradient(90deg,var(--green),#059669) }
+    .secondary { color:var(--ink); background:var(--surface2); border:1px solid var(--line) }
+    .danger { color:#fda4af; background:rgba(232,23,58,.08); border:1px solid rgba(232,23,58,.35) }
+    .primary:disabled { opacity:.35; cursor:not-allowed }
+    .campaignTop { text-align:center }
+    .ring { width:190px; height:190px; position:relative; margin:18px auto }
+    .ring svg { transform:rotate(-90deg) }
+    .ring circle { fill:none; stroke-width:9 }
+    .ring .track { stroke:var(--surface2) }
+    .ring .progress { stroke:var(--green); stroke-linecap:round; transition:stroke-dashoffset .8s linear }
+    .ringText { position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center }
+    .ringText strong { font-size:36px; letter-spacing:-1px }
+    .ringText span { color:var(--muted); font-size:11px; font-weight:800 }
+    .interestCount { color:#6ee7b7; font-size:18px; font-weight:900 }
+    .candidate {
+      display:flex; gap:12px; align-items:center; padding:13px 0; border-bottom:1px solid var(--line);
+    }
+    .candidate:last-child { border:0 }
+    .avatar {
+      width:42px; height:42px; border-radius:13px; display:grid; place-items:center;
+      background:rgba(59,130,246,.15); color:#93c5fd; font-weight:900;
+    }
+    .candidate b { display:block }
+    .candidate small { color:var(--muted) }
+    .new { margin-left:auto; color:#6ee7b7; font-size:10px; font-weight:900 }
+    .demoBar {
+      position:fixed; z-index:30; top:8px; right:8px; display:flex; gap:5px;
+    }
+    .demoBar button { padding:7px 9px; border:1px solid #45455b; color:#ddd; background:#1a1a26; border-radius:9px; font-size:10px }
+    .modal {
+      display:none; position:fixed; z-index:20; inset:0; padding:20px;
+      background:rgba(0,0,0,.82); align-items:center; justify-content:center;
+    }
+    .modal.open { display:flex }
+    .notification { width:min(100%,390px); background:#121219; border:1px solid var(--line); border-radius:25px; padding:22px }
+    .offerIcon { width:62px; height:62px; margin:auto; border-radius:20px; display:grid; place-items:center; font-size:29px; background:rgba(16,185,129,.15) }
+    .notification h2 { text-align:center; margin-top:15px }
+    .notification .beep { text-align:center; color:#6ee7b7; font-size:11px; font-weight:800 }
+    .actions { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:17px }
+    .resultIcon { width:76px; height:76px; margin:45px auto 18px; display:grid; place-items:center; border-radius:50%; font-size:35px; background:rgba(16,185,129,.14) }
+    .credit { color:#6ee7b7; font-size:35px; font-weight:900; text-align:center; margin:18px 0 5px }
+    .center { text-align:center }
+    .hidden { display:none!important }
+  </style>
+</head>
+<body>
+<main class="app">
+  <div class="demoBar">
+    <button onclick="showCandidateOffer()">Candidate alert</button>
+    <button onclick="demoInterest()">+ Interest</button>
+    <button onclick="finishDemo()">Finish 4/5</button>
+  </div>
+
+  <section class="screen active" id="roles">
+    <div class="top"><button class="back">←</button><div><div class="eyebrow">GIXBEE FOR BUSINESS</div><h1>Post a Job</h1></div></div>
+    <div class="hero"><h2>Who do you want to hire?</h2><p>Choose a role. Matching candidates nearby will receive a live alert.</p></div>
+    <div class="sectionTitle">SEARCH JOB NAMES</div>
+    <input class="search" id="roleSearch" placeholder="Electrician, nurse, driver…" oninput="filterRoles()">
+    <div class="roles" id="roleGrid"></div>
+  </section>
+
+  <section class="screen" id="details">
+    <div class="top"><button class="back" onclick="go('roles')">←</button><div><div class="eyebrow">JOB DETAILS</div><h1 id="detailsTitle">Electrician</h1></div></div>
+    <div class="row">
+      <div class="field"><label>MIN EXPERIENCE</label><select id="experience"><option>0 years</option><option>1 year</option><option selected>2 years</option><option>3 years</option><option>5+ years</option></select></div>
+      <div class="field"><label>JOINING</label><select id="joining"><option selected>Immediate</option><option>Within 7 days</option><option>Within 30 days</option></select></div>
+    </div>
+    <div class="field"><label>EXPERTISE NEEDED</label><div class="chips" id="expertise"></div></div>
+    <div class="row">
+      <div class="field"><label>SALARY FROM / MONTH</label><input id="salaryMin" type="number" value="18000"></div>
+      <div class="field"><label>SALARY TO / MONTH</label><input id="salaryMax" type="number" value="25000"></div>
+    </div>
+    <div class="field"><label>JOB LOCATION</label><input id="location" value="Thrissur town"></div>
+    <div class="field"><label>EMPLOYMENT TYPE</label><div class="chips"><button class="chip on">Full Time</button><button class="chip">Part Time</button><button class="chip">Contract</button><button class="chip">Intern</button></div></div>
+    <div class="field"><label>SHORT DESCRIPTION</label><textarea id="description">Electrical maintenance and fault repair for our auditorium.</textarea></div>
+    <div class="sticky"><button class="primary" onclick="openReview()">Proceed</button></div>
+  </section>
+
+  <section class="screen" id="review">
+    <div class="top"><button class="back" onclick="go('details')">←</button><div><div class="eyebrow">REVIEW</div><h1>Your requirement</h1></div></div>
+    <div class="card" id="reviewCard"></div>
+    <div class="guarantee"><span>✓</span><span>You only pay for the target value. If fewer candidates become interested in 30 minutes, unused value returns as Hiring Credit.</span></div>
+    <div class="sticky"><button class="primary" onclick="go('packages')">Choose interest package</button></div>
+  </section>
+
+  <section class="screen" id="packages">
+    <div class="top"><button class="back" onclick="go('review')">←</button><div><div class="eyebrow">30-MINUTE LIVE MATCH</div><h1>Choose your target</h1></div></div>
+    <p>Interested candidates only — not views or notification deliveries.</p>
+    <div class="packages">
+      <button class="package on" data-target="5" data-price="29" onclick="choosePackage(this)"><div class="count">Up to 5 interested</div><div class="price">₹29</div><small>₹5.80 per interested candidate<br>Good for one urgent position</small></button>
+      <button class="package" data-target="10" data-price="49" onclick="choosePackage(this)"><div class="count">Up to 10 interested</div><div class="price">₹49</div><small>₹4.90 per interested candidate<br>More choice for shortlist</small></button>
+      <button class="package" data-target="20" data-price="79" onclick="choosePackage(this)"><div class="count">Up to 20 interested</div><div class="price">₹79</div><small>₹3.95 per interested candidate<br>For multiple openings</small></button>
+    </div>
+    <div class="guarantee"><span>↩</span><span id="creditRule">Example: target 5, receive 4 → ₹5.80 Hiring Credit automatically.</span></div>
+    <div class="sticky"><button class="primary" id="payButton" onclick="openPayment()">Continue · ₹29</button></div>
+  </section>
+
+  <section class="screen" id="payment">
+    <div class="top"><button class="back" onclick="go('packages')">←</button><div><div class="eyebrow">SECURE CHECKOUT</div><h1>Pay and start</h1></div></div>
+    <div class="hero center"><div style="font-size:13px;color:var(--muted)">30-minute campaign</div><div id="paymentAmount" style="font-size:42px;font-weight:950;margin:7px">₹29</div><div id="paymentTarget" style="color:#6ee7b7;font-weight:800">Target: 5 interested candidates</div></div>
+    <div class="sectionTitle">PAYMENT METHOD</div>
+    <div class="card paymentChoice"><div class="radio"></div><div><b>UPI</b><small style="display:block;color:var(--muted)">GPay, PhonePe, Paytm or any UPI app</small></div></div>
+    <div class="card paymentChoice"><div style="width:18px;height:18px;border:2px solid #555;border-radius:50%"></div><div><b>Card</b><small style="display:block;color:var(--muted)">Credit or debit card</small></div></div>
+    <div class="guarantee"><span>🔒</span><span>Campaign starts only after verified payment. Unfilled candidate value becomes Hiring Credit.</span></div>
+    <div class="sticky"><button class="primary" onclick="startCampaign()">Pay securely & start matching</button></div>
+  </section>
+
+  <section class="screen" id="campaign">
+    <div class="top"><button class="back">←</button><div><div class="eyebrow">LIVE NOW</div><h1 id="campaignRole">Electrician</h1></div></div>
+    <div class="campaignTop">
+      <div class="ring">
+        <svg width="190" height="190"><circle class="track" cx="95" cy="95" r="80"></circle><circle class="progress" id="progressRing" cx="95" cy="95" r="80"></circle></svg>
+        <div class="ringText"><strong id="clock">30:00</strong><span>REMAINING</span></div>
+      </div>
+      <div class="interestCount"><span id="interestCount">0</span> / <span id="targetCount">5</span> interested</div>
+      <p id="campaignMessage">Alerting matching candidates nearby with sound…</p>
+    </div>
+    <div class="sectionTitle">INTERESTED CANDIDATES</div>
+    <div class="card" id="candidateList"><p class="center">Responses will appear here live.</p></div>
+    <div class="sticky"><button class="secondary" onclick="finishCampaign()">End campaign now</button></div>
+  </section>
+
+  <section class="screen" id="result">
+    <div class="resultIcon">✓</div><h1 class="center">Campaign complete</h1>
+    <p class="center" id="resultSummary"></p>
+    <div class="credit" id="creditAmount">₹0.00</div><div class="center" style="color:var(--muted);font-weight:800">HIRING CREDIT ADDED</div>
+    <div class="card" style="margin-top:28px" id="resultMath"></div>
+    <div class="guarantee"><span>i</span><span>Hiring Credit is not cash and cannot be withdrawn. Use it on your next Gixbee hiring campaign.</span></div>
+    <div class="sticky"><button class="primary" onclick="resetDemo()">View interested candidates</button></div>
+  </section>
+</main>
+
+<div class="modal" id="candidateModal">
+  <div class="notification">
+    <div class="offerIcon">⚡</div><div class="beep">BEEP · NEW JOB MATCH</div>
+    <h2 id="offerRole">Electrician wanted</h2>
+    <p class="center">Thrissur town · ₹18,000–₹25,000/month · Immediate joining</p>
+    <div class="card">
+      <div class="summaryLine"><span>Experience</span><b>2+ years</b></div>
+      <div class="summaryLine"><span>Expertise</span><b>Wiring, Fault repair</b></div>
+      <div class="summaryLine"><span>Employer</span><b>Verified business</b></div>
+    </div>
+    <div class="actions"><button class="secondary" onclick="respondCandidate(false)">Not interested</button><button class="primary" onclick="respondCandidate(true)">I'm interested</button></div>
+  </div>
+</div>
+
+<script>
+  const roles = [
+    ['⚡','Electrician'],['🔧','Plumber'],['🚗','Driver'],['🛗','Lift Operator'],
+    ['🩺','Nurse'],['👨‍⚕️','Doctor'],['🍳','Cook'],['🛡️','Security'],
+    ['🧹','Cleaner'],['📦','Delivery'],['💻','IT Support'],['🧾','Accountant'],
+    ['🏪','Sales Staff'],['❄️','AC Technician'],['📸','Photographer']
+  ];
+  const expertiseByRole = {
+    Electrician:['Wiring','Fault repair','Panel board','Generator','Maintenance'],
+    Plumber:['Pipe fitting','Leak repair','Sanitary work','Motor & pump'],
+    Driver:['LMV licence','Commercial licence','Automatic car','Night driving'],
+    Nurse:['GNM / BSc','Ward care','ICU','Home care','Injections'],
+    Doctor:['MBBS','General medicine','Emergency','OP consultation'],
+    'Lift Operator':['Lift operation','Basic maintenance','Safety checks']
+  };
+  const candidates = [
+    ['AJ','Aju Joseph','4 yrs · Wiring, maintenance'],
+    ['MR','Manu Raj','3 yrs · Panel board, fault repair'],
+    ['SK','Sreekumar K.','6 yrs · Generator, industrial wiring'],
+    ['FN','Faisal N.','2 yrs · Wiring, safety checks'],
+    ['TB','Thomas B.','5 yrs · Maintenance, fault repair']
+  ];
+  let role='Electrician', selectedExpertise=new Set(['Wiring','Fault repair']);
+  let pkg={target:5,price:29}, interests=0, seconds=1800, timer=null, offerTimeout=null, running=false;
+  const circumference=2*Math.PI*80;
+
+  function go(id){
+    document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+    document.getElementById(id).classList.add('active');
+    window.scrollTo(0,0);
+  }
+  function renderRoles(list=roles){
+    roleGrid.innerHTML=list.map(([e,n])=>`<button class="role ${n===role?'selected':''}" onclick="selectRole(decodeURIComponent('${encodeURIComponent(n)}'))"><span class="emoji">${e}</span><span class="name">${n}</span></button>`).join('');
+  }
+  function filterRoles(){
+    const q=roleSearch.value.toLowerCase();
+    renderRoles(roles.filter(x=>x[1].toLowerCase().includes(q)));
+  }
+  function selectRole(n){ role=n; renderRoles(); renderExpertise(); detailsTitle.textContent=n; go('details') }
+  function renderExpertise(){
+    const items=expertiseByRole[role]||['Relevant certification','Customer handling','Safety','Team work'];
+    selectedExpertise=new Set(items.slice(0,2));
+    expertise.innerHTML=items.map(x=>`<button class="chip ${selectedExpertise.has(x)?'on':''}" onclick="toggleExpertise(this,'${x}')">${x}</button>`).join('');
+  }
+  function toggleExpertise(el,x){ selectedExpertise.has(x)?selectedExpertise.delete(x):selectedExpertise.add(x); el.classList.toggle('on') }
+  function openReview(){
+    if(+salaryMin.value>+salaryMax.value){ alert('Maximum salary must be higher than minimum salary.'); return }
+    reviewCard.innerHTML=[
+      ['Role',role],['Experience',experience.value+' minimum'],['Expertise',[...selectedExpertise].join(', ')||'Any'],
+      ['Salary','₹'+Number(salaryMin.value).toLocaleString('en-IN')+'–₹'+Number(salaryMax.value).toLocaleString('en-IN')+'/month'],
+      ['Joining',joining.value],['Location',location.value],['Employment','Full Time']
+    ].map(x=>`<div class="summaryLine"><span>${x[0]}</span><b>${x[1]}</b></div>`).join('');
+    go('review');
+  }
+  function choosePackage(el){
+    document.querySelectorAll('.package').forEach(x=>x.classList.remove('on')); el.classList.add('on');
+    pkg={target:+el.dataset.target,price:+el.dataset.price};
+    payButton.textContent='Continue · ₹'+pkg.price;
+    const per=pkg.price/pkg.target;
+    creditRule.textContent=`Example: target ${pkg.target}, receive ${pkg.target-1} → ₹${per.toFixed(2)} Hiring Credit automatically.`;
+  }
+  function openPayment(){
+    paymentAmount.textContent='₹'+pkg.price;
+    paymentTarget.textContent='Target: '+pkg.target+' interested candidates';
+    go('payment');
+  }
+  function beep(){
+    try{
+      const a=new (window.AudioContext||window.webkitAudioContext)(),o=a.createOscillator(),g=a.createGain();
+      o.connect(g);g.connect(a.destination);o.frequency.value=880;g.gain.setValueAtTime(.12,a.currentTime);
+      g.gain.exponentialRampToValueAtTime(.001,a.currentTime+.5);o.start();o.stop(a.currentTime+.5);
+    }catch(_){}
+  }
+  function startCampaign(){
+    interests=0;seconds=1800;running=true;candidateList.innerHTML='<p class="center">Responses will appear here live.</p>';
+    interestCount.textContent=0;targetCount.textContent=pkg.target;campaignRole.textContent=role;
+    progressRing.style.strokeDasharray=circumference;progressRing.style.strokeDashoffset=0;
+    go('campaign'); updateClock(); clearInterval(timer); timer=setInterval(()=>{seconds--;updateClock();if(seconds<=0)finishCampaign()},1000);
+    clearTimeout(offerTimeout);
+    offerTimeout=setTimeout(showCandidateOffer,1300);
+  }
+  function updateClock(){
+    clock.textContent=String(Math.floor(seconds/60)).padStart(2,'0')+':'+String(seconds%60).padStart(2,'0');
+    progressRing.style.strokeDashoffset=circumference*(1-seconds/1800);
+  }
+  function showCandidateOffer(){
+    beep();offerRole.textContent=role+' wanted';candidateModal.classList.add('open');
+  }
+  function respondCandidate(yes){ candidateModal.classList.remove('open'); if(yes)addInterest() }
+  function addInterest(){
+    if(!running||interests>=pkg.target)return;
+    const c=candidates[interests%candidates.length];interests++;interestCount.textContent=interests;
+    if(interests===1)candidateList.innerHTML='';
+    candidateList.insertAdjacentHTML('beforeend',`<div class="candidate"><div class="avatar">${c[0]}</div><div><b>${c[1]}</b><small>${c[2]}</small></div><span class="new">INTERESTED</span></div>`);
+    beep();campaignMessage.textContent=`${interests} candidate${interests===1?' has':'s have'} shown interest.`;
+    if(interests>=pkg.target)finishCampaign();
+  }
+  function demoInterest(){ if(!running){startCampaign();setTimeout(addInterest,300)}else addInterest() }
+  function finishDemo(){
+    if(!running){startCampaign();setTimeout(()=>{while(interests<Math.min(4,pkg.target))addInterest();finishCampaign()},300)}
+    else {while(interests<Math.min(4,pkg.target))addInterest();finishCampaign()}
+  }
+  function finishCampaign(){
+    if(!running)return; running=false;clearInterval(timer);clearTimeout(offerTimeout);
+    const delivered=Math.min(interests,pkg.target),missing=pkg.target-delivered,per=pkg.price/pkg.target,credit=missing*per;
+    resultSummary.textContent=`${delivered} of ${pkg.target} target candidates became interested.`;
+    creditAmount.textContent='₹'+credit.toFixed(2);
+    resultMath.innerHTML=`<div class="summaryLine"><span>Package paid</span><b>₹${pkg.price.toFixed(2)}</b></div><div class="summaryLine"><span>Value used (${delivered} × ₹${per.toFixed(2)})</span><b>₹${(delivered*per).toFixed(2)}</b></div><div class="summaryLine"><span>Missing target</span><b>${missing}</b></div><div class="summaryLine"><span>Hiring Credit</span><b style="color:#6ee7b7">₹${credit.toFixed(2)}</b></div>`;
+    go('result');
+  }
+  function resetDemo(){ go('campaign') }
+  renderRoles();renderExpertise();
+</script>
+</body>
+</html>
