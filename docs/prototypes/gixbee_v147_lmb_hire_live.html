@@ -97,6 +97,44 @@
   .cand b{display:block;font-size:13px}
   .cand small{color:var(--mut);font-size:11px}
   .cand .yes{margin-left:auto;color:#6ee7b7;font-size:9.5px;font-weight:900}
+  /* interested candidate decision card (hj6 live list + hj8) */
+  .ccard{border:1px solid var(--br);border-radius:16px;background:var(--c2);padding:13px;margin-bottom:10px;animation:slidein .32s ease}
+  .ccard:last-child{margin-bottom:0}
+  .ccard.flagged{border-color:rgba(232,23,58,.45);background:rgba(232,23,58,.06)}
+  @keyframes slidein{from{transform:translateY(12px) scale(.98)}}
+  .ctop{display:flex;gap:11px;align-items:flex-start}
+  .ctop .av{width:42px;height:42px;border-radius:13px}
+  .cmain{flex:1;min-width:0}
+  .cname{font-size:13.5px;font-weight:900;display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+  .ver{padding:2px 6px;border-radius:99px;background:rgba(16,185,129,.16);color:#6ee7b7;font-size:8px;font-weight:900;letter-spacing:.4px}
+  .ver.part{background:rgba(245,158,11,.16);color:#fcd34d}
+  .cmeta{color:var(--mut);font-size:11px;margin-top:3px;font-weight:600}
+  .ctags{display:flex;flex-wrap:wrap;gap:5px;margin-top:7px}
+  .ctags span{padding:3px 8px;border-radius:99px;background:rgba(108,63,219,.16);border:1px solid rgba(139,92,246,.28);color:#d8ccff;font-size:9.5px;font-weight:700}
+  .cwhen{flex:none;text-align:right;color:#6ee7b7;font-size:8.5px;font-weight:900;letter-spacing:.4px}
+  .cwhen small{display:block;color:var(--mut);font-size:9.5px;font-weight:700;margin-top:3px;letter-spacing:0}
+  .cfacts{display:grid;grid-template-columns:repeat(3,1fr);gap:7px;margin-top:11px}
+  .cfacts div{padding:8px 6px;border-radius:11px;background:var(--cd);border:1px solid var(--br);text-align:center}
+  .cfacts span{display:block;color:var(--mut);font-size:8.5px;font-weight:900;letter-spacing:.5px}
+  .cfacts b{display:block;font-size:11px;margin-top:4px}
+  .cfacts b.warn{color:#fcd34d}
+  .cacts{display:grid;grid-template-columns:1fr 1fr 1fr;gap:7px;margin-top:11px}
+  .ca{min-height:42px;border-radius:12px;border:1px solid var(--br);background:var(--cd);color:#dcdce8;font-size:10.5px;font-weight:800;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;line-height:1.1;padding:4px}
+  .ca i{font-style:normal;font-size:14px}
+  .ca.call{background:rgba(16,185,129,.14);border-color:rgba(16,185,129,.4);color:#6ee7b7}
+  .ca.flag{background:rgba(232,23,58,.1);border-color:rgba(232,23,58,.34);color:#ff8ba3}
+  .ca:disabled{opacity:.45}
+  .cbanner{display:flex;gap:8px;margin-top:10px;padding:10px;border-radius:11px;background:rgba(232,23,58,.1);border:1px solid rgba(232,23,58,.3);color:#ff8ba3;font-size:10.5px;line-height:1.45;font-weight:700}
+  .cbanner button{margin-left:auto;flex:none;align-self:center;background:none;border:0;color:#ff8ba3;font-size:10px;font-weight:900;text-decoration:underline}
+  .rs{width:min(100%,390px);max-height:86vh;overflow:auto;background:#121219;border:1px solid var(--br);border-radius:24px;padding:20px}
+  .rs h2{font-size:17px;margin:0 0 4px}
+  .rs .lbl{margin:16px 0 8px}
+  .cert{display:flex;gap:9px;align-items:center;padding:9px 0;border-bottom:1px solid var(--br);font-size:12px}
+  .cert:last-child{border:0}
+  .cert .st{margin-left:auto;flex:none;font-size:8.5px;font-weight:900;padding:3px 7px;border-radius:99px}
+  .cert .st.ok{background:rgba(16,185,129,.16);color:#6ee7b7}
+  .cert .st.no{background:rgba(245,158,11,.16);color:#fcd34d}
+  .dial{text-align:center;font-size:23px;font-weight:900;letter-spacing:.5px;margin:6px 0 2px}
   .big{width:78px;height:78px;margin:38px auto 16px;border-radius:50%;display:grid;place-items:center;font-size:34px;background:rgba(16,185,129,.14)}
   .credit{text-align:center;color:#6ee7b7;font-size:34px;font-weight:900;margin:14px 0 4px}
   .mid{text-align:center}
@@ -273,10 +311,10 @@
   <section class="scr" id="hj8">
     <div class="hdr">
       <button class="back" data-go="h5">&#8592;</button>
-      <div><div class="eyebrow">CANDIDATES</div><h1 id="hj8Title">Electrician</h1><div class="sub">Interested · phone unlocks on shortlist</div></div>
+      <div><div class="eyebrow">CANDIDATES</div><h1 id="hj8Title">Electrician</h1><div class="sub">Interested · calling is already paid for</div></div>
     </div>
     <div class="card" id="candList2"><p class="mid">No interested candidates yet.</p></div>
-    <div class="info ok"><span>&#10003;</span><span>Shortlist a candidate to unlock the phone number and continue on call.</span></div>
+    <div class="info ok"><span>&#10003;</span><span>You already paid for these responses, so calling is free. Found fake experience or a fake certificate? Report it — a confirmed fake returns that seat as Hiring Credit.</span></div>
     <div class="cta"><button class="btn gh" data-go="h5">Back to My Businesses</button></div>
   </section>
 </div>
@@ -297,6 +335,57 @@
   </div>
 </div>
 
+<!-- candidate details -->
+<div class="sheet" id="detailSheet">
+  <div class="rs">
+    <div class="ctop">
+      <div class="av" id="dAv">AJ</div>
+      <div class="cmain"><div class="cname" id="dName">Aju Joseph</div><div class="cmeta" id="dMeta">4 yrs · 2.4 km away</div></div>
+    </div>
+    <div class="cfacts" style="margin-top:13px">
+      <div><span>EXPECTED</span><b id="dPay">&#8377;22,000</b></div>
+      <div><span>JOINING</span><b id="dJoin">Immediate</b></div>
+      <div><span>GIXBEE JOBS</span><b id="dGigs">11</b></div>
+    </div>
+    <div class="lbl" style="margin-left:0;margin-right:0">CLAIMED EXPERIENCE</div>
+    <div id="dJobs"></div>
+    <div class="lbl" style="margin-left:0;margin-right:0">CERTIFICATES</div>
+    <div id="dCerts"></div>
+    <div class="info warn" style="margin:14px 0 0"><span>i</span><span>Unverified means the candidate uploaded it but Gixbee has not checked the original. Ask for the original before you hire.</span></div>
+    <div class="row2">
+      <button class="no" data-sheet="close">Close</button>
+      <button class="ok" data-cact="call" data-from="detail">Call candidate</button>
+    </div>
+  </div>
+</div>
+
+<!-- call -->
+<div class="sheet" id="callSheet">
+  <div class="alert">
+    <div class="ico" style="background:rgba(16,185,129,.15)">&#128222;</div>
+    <div class="beep" id="callName">AJU JOSEPH</div>
+    <div class="dial" id="callNum">+91 98470 11xxx</div>
+    <p class="mid" style="margin-top:8px">Number unlocked — this response was part of your paid package. Gixbee does not record the call.</p>
+    <div class="row2"><button class="no" data-sheet="close">Close</button><button class="ok" data-sheet="close">Call now</button></div>
+  </div>
+</div>
+
+<!-- report fake experience / certificate -->
+<div class="sheet" id="reportSheet">
+  <div class="rs">
+    <h2>Report this candidate</h2>
+    <p id="rpWho">Aju Joseph · Electrician</p>
+    <div class="lbl" style="margin-left:0;margin-right:0">WHAT IS WRONG?</div>
+    <div class="chips" id="rpReasons"></div>
+    <div class="fld" style="margin:16px 0 0"><label>DETAIL (OPTIONAL)</label><textarea id="rpNote" placeholder="Said 4 years wiring, could not answer basic panel work."></textarea></div>
+    <div class="info warn" style="margin:14px 0 0"><span>&#9873;</span><span>Gixbee checks the claim. If the fake is confirmed, that candidate seat returns to you as Hiring Credit and the profile loses its verified badge.</span></div>
+    <div class="row2">
+      <button class="no" data-sheet="close">Cancel</button>
+      <button class="ok" id="rpSubmit" style="background:linear-gradient(90deg,#e8173a,#b8102e);color:#fff">Submit report</button>
+    </div>
+  </div>
+</div>
+
 <script>
 const hire = (() => {
   const JOBS = [
@@ -314,19 +403,32 @@ const hire = (() => {
     'Doctor':['MBBS','General medicine','Emergency','OP consultation']
   };
   const POOL = [
-    ['AJ','Aju Joseph','4 yrs · Wiring, maintenance'],
-    ['MR','Manu Raj','3 yrs · Panel board, fault repair'],
-    ['SK','Sreekumar K.','6 yrs · Generator, industrial wiring'],
-    ['FN','Faisal N.','2 yrs · Wiring, safety checks'],
-    ['TB','Thomas B.','5 yrs · Maintenance, fault repair'],
-    ['VP','Vishnu P.','3 yrs · Wiring, AC points']
+    { ini:'AJ', name:'Aju Joseph', yrs:4, km:2.4, id:true, tags:['Wiring','Maintenance'], pay:'22,000',
+      join:'Immediate', gigs:11, phone:'+91 98470 11xxx', jobs:['Anand Electricals, Thrissur \u00B7 2 yrs','KSEB contract work \u00B7 1.5 yrs'],
+      certs:[['ITI Electrician \u00B7 Govt ITI Thrissur', true], ['Wireman licence', false]] },
+    { ini:'MR', name:'Manu Raj', yrs:3, km:4.1, id:true, tags:['Panel board','Fault repair'], pay:'20,000',
+      join:'In 3 days', gigs:6, phone:'+91 99465 22xxx', jobs:['Sree Electricals \u00B7 3 yrs'],
+      certs:[['ITI Electrician', true]] },
+    { ini:'SK', name:'Sreekumar K.', yrs:6, km:1.2, id:true, tags:['Generator','Industrial wiring'], pay:'26,000',
+      join:'Immediate', gigs:19, phone:'+91 94470 33xxx', jobs:['Kerala Power Works \u00B7 4 yrs','Self employed \u00B7 2 yrs'],
+      certs:[['ITI Electrician', true], ['Diploma Electrical', true], ['Generator maintenance', false]] },
+    { ini:'FN', name:'Faisal N.', yrs:2, km:6.8, id:false, tags:['Wiring','Safety checks'], pay:'17,500',
+      join:'Immediate', gigs:2, phone:'+91 97440 44xxx', jobs:['Helper, local contractor \u00B7 2 yrs'],
+      certs:[['Electrician course certificate', false]] },
+    { ini:'TB', name:'Thomas B.', yrs:5, km:3.3, id:true, tags:['Maintenance','Fault repair'], pay:'24,000',
+      join:'In 7 days', gigs:9, phone:'+91 98950 55xxx', jobs:['Hotel maintenance team \u00B7 5 yrs'],
+      certs:[['ITI Electrician', true], ['Fire safety basic', false]] },
+    { ini:'VP', name:'Vishnu P.', yrs:3, km:5.0, id:false, tags:['Wiring','AC points'], pay:'19,000',
+      join:'Immediate', gigs:4, phone:'+91 90480 66xxx', jobs:['AC service unit \u00B7 1.5 yrs','Site wiring work \u00B7 1.5 yrs'],
+      certs:[['AC technician certificate', false]] }
   ];
+  const REASONS = ['Fake experience claim','Fake or edited certificate','Skills do not match','Different person came','Number not reachable'];
   const TOTAL = 1800, CIRC = 2 * Math.PI * 82;
 
   let job = 'Electrician', chosenSkills = new Set(), etype = 'Full Time';
   let pack = { target: 5, price: 29 }, have = 0, left = TOTAL;
   let tick = null, firstAlert = null, live = false;
-  let credit = 0, openings = [];
+  let credit = 0, openings = [], interested = [], activeCand = 0, rpReason = REASONS[0];
 
   const $ = id => document.getElementById(id);
 
@@ -415,7 +517,7 @@ const hire = (() => {
   }
 
   function start() {
-    have = 0; left = TOTAL; live = true;
+    have = 0; left = TOTAL; live = true; interested = [];
     openings.unshift({ role: job, target: pack.target, got: 0, state: 'Live' });
     openingsView();
     $('hj6Title').textContent = job;
@@ -423,7 +525,7 @@ const hire = (() => {
     $('have').textContent = '0';
     $('need').textContent = pack.target;
     $('hj6Msg').textContent = 'Alerting matching candidates nearby\u2026';
-    $('candList').innerHTML = '<p class="mid">Responses appear here live.</p>';
+    renderCands();
     $('ringPr').style.strokeDasharray = CIRC;
     $('liveStrip').style.display = 'flex';
     clock();
@@ -450,14 +552,84 @@ const hire = (() => {
     if (yes) interest();
   }
 
+  function mmss(s) { return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0'); }
+
+  function certLine(c) {
+    const bad = c.certs.filter(x => !x[1]).length;
+    return c.certs.length + (bad ? ' \u00B7 ' + bad + ' unverified' : ' verified');
+  }
+
+  function candCard(c, i) {
+    const bad = c.certs.some(x => !x[1]);
+    const badge = c.id
+      ? '<span class="ver">ID VERIFIED</span>'
+      : '<span class="ver part">ID NOT VERIFIED</span>';
+    const tags = c.tags.map(t => '<span>' + t + '</span>').join('');
+    const acts = c.reported
+      ? '<button class="ca" data-cact="view"><i>&#128100;</i>Details</button>' +
+        '<button class="ca call" data-cact="call"><i>&#128222;</i>Call</button>' +
+        '<button class="ca flag" disabled><i>&#9873;</i>Reported</button>'
+      : '<button class="ca" data-cact="view"><i>&#128100;</i>Details</button>' +
+        '<button class="ca call" data-cact="call"><i>&#128222;</i>Call</button>' +
+        '<button class="ca flag" data-cact="flag"><i>&#9873;</i>Report fake</button>';
+    const banner = c.reported
+      ? '<div class="cbanner"><span>&#9873;</span><span>Reported: ' + c.reported +
+        ' \u00B7 under review. If confirmed, this seat returns as Hiring Credit.</span>' +
+        '<button data-cact="undo">Undo</button></div>'
+      : '';
+    return '<div class="ccard' + (c.reported ? ' flagged' : '') + '" data-cid="' + i + '">' +
+      '<div class="ctop"><div class="av">' + c.ini + '</div>' +
+      '<div class="cmain"><div class="cname">' + c.name + badge + '</div>' +
+      '<div class="cmeta">' + c.yrs + ' yrs experience \u00B7 ' + c.km + ' km away \u00B7 ' + c.gigs + ' Gixbee jobs</div>' +
+      '<div class="ctags">' + tags + '</div></div>' +
+      '<div class="cwhen">INTERESTED<small>at ' + c.at + '</small></div></div>' +
+      '<div class="cfacts"><div><span>EXPECTED</span><b>\u20B9' + c.pay + '</b></div>' +
+      '<div><span>JOINING</span><b>' + c.join + '</b></div>' +
+      '<div><span>CERTIFICATES</span><b class="' + (bad ? 'warn' : '') + '">' + certLine(c) + '</b></div></div>' +
+      '<div class="cacts">' + acts + '</div>' + banner + '</div>';
+  }
+
+  function renderCands() {
+    const html = interested.map(candCard).join('');
+    $('candList').innerHTML = html || '<p class="mid">Responses appear here live.</p>';
+    $('candList2').innerHTML = html || '<p class="mid">No interested candidates yet.</p>';
+  }
+
+  function sheet(id) {
+    document.querySelectorAll('.sheet').forEach(s => s.classList.toggle('on', s.id === id));
+  }
+
+  function details(c) {
+    $('dAv').textContent = c.ini;
+    $('dName').innerHTML = c.name +
+      (c.id ? '<span class="ver">ID VERIFIED</span>' : '<span class="ver part">ID NOT VERIFIED</span>');
+    $('dMeta').textContent = c.yrs + ' yrs experience \u00B7 ' + c.km + ' km away';
+    $('dPay').textContent = '\u20B9' + c.pay;
+    $('dJoin').textContent = c.join;
+    $('dGigs').textContent = c.gigs;
+    $('dJobs').innerHTML = c.jobs.map(j =>
+      '<div class="cert"><span>&#128188;</span><span>' + j + '</span><span class="st no">CLAIMED</span></div>').join('');
+    $('dCerts').innerHTML = c.certs.map(x =>
+      '<div class="cert"><span>&#128196;</span><span>' + x[0] + '</span><span class="st ' +
+      (x[1] ? 'ok">VERIFIED' : 'no">UNVERIFIED') + '</span></div>').join('');
+    sheet('detailSheet');
+  }
+
+  function report(c) {
+    rpReason = REASONS[0];
+    $('rpWho').textContent = c.name + ' \u00B7 ' + job;
+    $('rpNote').value = '';
+    $('rpReasons').innerHTML = REASONS.map(r =>
+      '<button class="chip' + (r === rpReason ? ' on' : '') + '" data-rp="' + r + '">' + r + '</button>').join('');
+    sheet('reportSheet');
+  }
+
   function interest() {
     if (!live || have >= pack.target) return;
-    const c = POOL[have % POOL.length];
+    const c = Object.assign({}, POOL[have % POOL.length], { at: mmss(TOTAL - left), reported: null });
     have++;
-    if (have === 1) $('candList').innerHTML = '';
-    $('candList').insertAdjacentHTML('beforeend',
-      '<div class="cand"><div class="av">' + c[0] + '</div><div><b>' + c[1] +
-      '</b><small>' + c[2] + '</small></div><span class="yes">INTERESTED</span></div>');
+    interested.push(c);
+    renderCands();
     $('have').textContent = have;
     $('hj6Msg').textContent = have + ' candidate' + (have === 1 ? '' : 's') + ' interested so far.';
     if (openings.length) { openings[0].got = have; openingsView(); }
@@ -487,13 +659,38 @@ const hire = (() => {
     ];
     $('hj7Math').innerHTML = rows.map(r =>
       '<div class="line"><span>' + r[0] + '</span><b>' + r[1] + '</b></div>').join('');
-    $('candList2').innerHTML = got ? $('candList').innerHTML : '<p class="mid">No interested candidates yet.</p>';
+    renderCands();
     go('hj7');
   }
 
   document.addEventListener('click', e => {
-    const t = e.target.closest('[data-go],[data-act],[data-job],[data-skill],[data-etype],.pk,[data-ans],[data-sim]');
+    const t = e.target.closest('[data-go],[data-act],[data-job],[data-skill],[data-etype],.pk,[data-ans],[data-sim],[data-cact],[data-sheet],[data-rp],#rpSubmit');
     if (!t) return;
+    if (t.dataset.cact) {
+      const card = t.closest('.ccard');
+      if (card) activeCand = +card.dataset.cid;
+      const c = interested[activeCand];
+      if (!c) return;
+      if (t.dataset.cact === 'view') return details(c);
+      if (t.dataset.cact === 'call') {
+        $('callName').textContent = c.name.toUpperCase();
+        $('callNum').textContent = c.phone;
+        return sheet('callSheet');
+      }
+      if (t.dataset.cact === 'flag') return report(c);
+      if (t.dataset.cact === 'undo') { c.reported = null; return renderCands(); }
+      return;
+    }
+    if (t.dataset.sheet === 'close') return sheet('');
+    if (t.dataset.rp) {
+      rpReason = t.dataset.rp;
+      return document.querySelectorAll('[data-rp]').forEach(c => c.classList.toggle('on', c === t));
+    }
+    if (t.id === 'rpSubmit') {
+      if (interested[activeCand]) interested[activeCand].reported = rpReason;
+      sheet('');
+      return renderCands();
+    }
     if (t.dataset.go) return go(t.dataset.go);
     if (t.dataset.act === 'review') return review();
     if (t.dataset.act === 'start') return start();
