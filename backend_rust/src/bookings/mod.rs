@@ -1404,19 +1404,11 @@ async fn get_status(
         obj.insert("operatorId".into(), json!(operator_id));
         obj.insert(
             "cancelRequested".into(),
-            json!(row
-                .try_get::<Option<chrono::DateTime<chrono::Utc>>, _>("cancelRequestedAt")
-                .ok()
-                .flatten()
-                .is_some()),
+            json!(crate::common::pg::timestamp_utc(&row, "cancelRequestedAt").is_some()),
         );
         obj.insert(
             "workerNoProgress".into(),
-            json!(row
-                .try_get::<Option<chrono::DateTime<chrono::Utc>>, _>("workerNoProgressAt")
-                .ok()
-                .flatten()
-                .is_some()),
+            json!(crate::common::pg::timestamp_utc(&row, "workerNoProgressAt").is_some()),
         );
         obj.insert("type".into(), json!(row.get::<String, _>("type")));
         obj.insert("skill".into(), json!(row.get::<Option<String>, _>("skill")));

@@ -356,7 +356,8 @@ export class BookingCancelService {
     if (
       st !== BookingStatus.ACCEPTED &&
       st !== BookingStatus.ARRIVED &&
-      st !== BookingStatus.ACTIVE
+      st !== BookingStatus.ACTIVE &&
+      st !== 'IN_PROGRESS'
     ) {
       throw new BadRequestException(
         'Cancel request is only available after a pro has accepted the job',

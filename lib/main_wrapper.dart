@@ -96,14 +96,7 @@ class _MainWrapperState extends ConsumerState<MainWrapper>
 
   void _goToTab(int index) {
     if (_sessionExitStarted) return;
-    // Block tab switches once the session is gone (Profile may still be
-    // painting "Session Expired" for a frame before Welcome replaces us).
     unawaited(() async {
-      final userAsync = ref.read(currentUserProvider);
-      if (userAsync is AsyncData<User?> && userAsync.value == null) {
-        _forceSessionEnd();
-        return;
-      }
       final authed = await ref.read(authTokenServiceProvider).hasToken();
       if (!authed) {
         _forceSessionEnd();
@@ -117,21 +110,23 @@ class _MainWrapperState extends ConsumerState<MainWrapper>
 
   void _openGoLive() {
     if (_sessionExitStarted) return;
-    final userAsync = ref.read(currentUserProvider);
-    if (userAsync is AsyncData<User?> && userAsync.value == null) {
-      _forceSessionEnd();
-      return;
-    }
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (_) => const GoLiveScreen()),
-    );
+    unawaited(() async {
+      final authed = await ref.read(authTokenServiceProvider).hasToken();
+      if (!authed) {
+        _forceSessionEnd();
+        return;
+      }
+      if (!mounted) return;
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => const GoLiveScreen()),
+      );
+    }());
   }
 
   bool _sessionExitStarted = false;
 
-  /// Leave the shell entirely (no bottom nav / Go Live). Clears tokens even
-  /// if a stale access token is still on disk — profile null means logged out.
+  /// Leave the shell entirely (no bottom nav / Go Live) when the JWT is gone.
   void _forceSessionEnd() {
     if (_sessionExitStarted) return;
     _sessionExitStarted = true;
@@ -657,15 +652,9 @@ class _MainWrapperState extends ConsumerState<MainWrapper>
       if (becameWorker) {
         unawaited(_reconcilePendingBookings());
       }
-      // Profile resolved to null ⇒ session dead — tear down shell + nav.
-      if (next is AsyncData<User?> && next.value == null) {
-        _forceSessionEnd();
-      }
     });
     ref.listen(authStateProvider, (prev, next) {
-      next.whenData((authed) {
-        if (!authed) _forceSessionEnd();
-      });
+      if (authSessionIsGone(next)) _forceSessionEnd();
     });
     // Profile back / Home avatar write [mainTabIndexProvider]; keep the
     // bottom bar body in sync without Navigator.pop on the shell.
@@ -675,11 +664,11 @@ class _MainWrapperState extends ConsumerState<MainWrapper>
       }
     });
 
-    final userAsync = ref.watch(currentUserProvider);
-    // Never paint bottom nav / Go Live while logged out — even for one frame
-    // before Welcome replaces this route.
-    final sessionGone = _sessionExitStarted ||
-        (userAsync is AsyncData<User?> && userAsync.value == null);
+    final authAsync = ref.watch(authStateProvider);
+    // JWT gone ⇒ leave the shell. A null profile after logout must not do that
+    // on re-login (it is still visible while the new /auth/profile loads).
+    final sessionGone =
+        _sessionExitStarted || authSessionIsGone(authAsync);
     if (sessionGone) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) _forceSessionEnd();

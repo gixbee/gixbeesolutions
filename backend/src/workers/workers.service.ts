@@ -472,7 +472,15 @@ export class WorkersService {
       relations: ['user'],
     });
     if (!profile) throw new NotFoundException('Worker profile not found');
-    profile.languages = languages;
+    const cleaned = (languages || [])
+      .filter((l) => typeof l === 'string' && l.trim().length > 0)
+      .map((l) => l.trim());
+    if (cleaned.length === 0 && profile.isActive) {
+      throw new BadRequestException(
+        'Select at least one language you speak, or go offline first.',
+      );
+    }
+    profile.languages = cleaned;
     await this.workersRepository.save(profile);
     await this.redisService.del(WORKERS_LIST_CACHE_KEY).catch(() => {});
     try {
@@ -484,7 +492,7 @@ export class WorkersService {
     } catch (e) {
       console.error('[SetLanguages] snapshot refresh failed:', e);
     }
-    return { languages };
+    return { languages: cleaned };
   }
 
   /// The pro sets how far they'll travel for instant jobs. Clamped to

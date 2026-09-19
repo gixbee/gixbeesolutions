@@ -60,6 +60,7 @@ ios/Runner/GoogleService-Info.plist
 .env
 .env.local
 .env.production
+scripts/azure_backend.env
 gixbee-fcd03-firebase-adminsdk-fbsvc-971124e7c1.json
 
 # Local build secrets used by the .bat launchers (Ola Maps key, LAN backend URL).

@@ -72,6 +72,7 @@ class GoLiveScreen extends ConsumerStatefulWidget {
 
 class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
   bool _toggling = false;
+  final _languagesSectionKey = GlobalKey();
 
   /// One-shot heal of the cached user when the server proves worker status
   /// (see the registration gate in build) — guards an invalidate loop.
@@ -274,6 +275,38 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
       double? lng;
       final dash = ref.read(goLiveDashboardProvider).asData?.value;
       if (wantLive) {
+        var langs = ref.read(workerSpokenLanguagesProvider);
+        if (langs == null) {
+          try {
+            final me =
+                await ref.read(workerRepositoryProvider).getMyWorkerProfile();
+            langs = _spokenLanguages(me['languages']);
+            if (mounted) {
+              ref.read(workerSpokenLanguagesProvider.notifier).state = langs;
+            }
+          } catch (_) {
+            langs = dash == null ? null : _spokenLanguages(dash['languages']);
+            if (langs != null && langs.isEmpty) langs = null;
+          }
+        }
+        if (langs != null && langs.isEmpty) {
+          if (!mounted) return;
+          _toast(
+            'Select at least one language you speak before going live.',
+            error: true,
+          );
+          setState(() => _toggling = false);
+          final ctx = _languagesSectionKey.currentContext;
+          if (ctx != null && ctx.mounted) {
+            await Scrollable.ensureVisible(
+              ctx,
+              duration: const Duration(milliseconds: 280),
+              alignment: 0.12,
+            );
+          }
+          return;
+        }
+
         if (dash != null) {
           final credits = (dash['jobCredits'] as num?)?.toInt() ?? 0;
           if (credits <= 0) {
@@ -456,6 +489,14 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
       msg,
       type: error ? GxSnackType.error : GxSnackType.success,
     );
+  }
+
+  List<String> _spokenLanguages(dynamic raw) {
+    if (raw is! List) return const [];
+    return raw
+        .map((e) => e.toString().trim())
+        .where((s) => s.isNotEmpty)
+        .toList();
   }
 
   /// Pay the period fee — DIRECT Razorpay checkout (production path): the
@@ -916,8 +957,8 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
           ],
 
           const SizedBox(height: 14),
-          // v126 language matching: customers can require languages; only
-          // pros with an overlap get those broadcasts.
+          // v126 language matching: going live requires at least one language;
+          // customers with a language preference only notify overlapping pros.
           Text('LANGUAGES I SPEAK',
               style: TextStyle(
                   fontSize: 13,
@@ -925,7 +966,10 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
                   color: context.gx.ink.withValues(alpha: 0.55),
                   letterSpacing: 1.2)),
           const SizedBox(height: 10),
-          const WorkerLanguagesCard(),
+          KeyedSubtree(
+            key: _languagesSectionKey,
+            child: const WorkerLanguagesCard(),
+          ),
 
           const SizedBox(height: 14),
           // How far this pro will travel — jobs outside it are never broadcast
@@ -1155,7 +1199,13 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
     final credits = (dash['jobCredits'] as num?)?.toInt() ?? 0;
     final verStatus = (dash['verificationStatus'] as String?) ?? 'PENDING';
     final isVerified = verStatus == 'VERIFIED';
-    final isDisabled = !isLive && (credits <= 0 || !isVerified);
+    final fromCard = ref.watch(workerSpokenLanguagesProvider);
+    final missingLanguages = fromCard != null
+        ? fromCard.isEmpty
+        : dash['languages'] is List &&
+            _spokenLanguages(dash['languages']).isEmpty;
+    final isDisabled =
+        !isLive && (credits <= 0 || !isVerified || missingLanguages);
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -1188,6 +1238,34 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
                           ? 'Verification rejected. Please re-upload your documents.'
                           : 'Your profile is under review. You can go live once verified.',
                       style: const TextStyle(
+                          fontSize: 12,
+                          color: GixbeeTheme.accentGold,
+                          fontWeight: FontWeight.w600),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+          if (!isLive && missingLanguages) ...[
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              margin: const EdgeInsets.only(bottom: 10),
+              decoration: BoxDecoration(
+                color: GixbeeTheme.accentGold.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(
+                    color: GixbeeTheme.accentGold.withValues(alpha: 0.4)),
+              ),
+              child: const Row(
+                children: [
+                  Icon(Icons.translate, size: 14, color: GixbeeTheme.accentGold),
+                  SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Select at least one language you speak before going live.',
+                      style: TextStyle(
                           fontSize: 12,
                           color: GixbeeTheme.accentGold,
                           fontWeight: FontWeight.w600),

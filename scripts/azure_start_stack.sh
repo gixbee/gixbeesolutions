@@ -7,6 +7,8 @@ tar -xzf /tmp/gixbee-slim.tgz -C gixbeesolutions
 mkdir -p /home/azureuser/gixbeesolutions/backend
 cp /tmp/azure_backend.env /home/azureuser/gixbeesolutions/backend/.env
 cp /tmp/azure_firebase.json /home/azureuser/gixbeesolutions/backend/firebase-service-account.json
+# Container process runs as `gixbee`, not the host user — must be world-readable.
+chmod 644 /home/azureuser/gixbeesolutions/backend/firebase-service-account.json
 # Keep the Rust compile from OOM-killing this 4GB box.
 if ! grep -q CARGO_BUILD_JOBS /home/azureuser/gixbeesolutions/backend_rust/Dockerfile; then
   sed -i 's/FROM rust:bookworm AS builder/FROM rust:bookworm AS builder\nENV CARGO_BUILD_JOBS=1 CARGO_INCREMENTAL=0/' /home/azureuser/gixbeesolutions/backend_rust/Dockerfile

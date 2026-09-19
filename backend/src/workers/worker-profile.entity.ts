@@ -38,9 +38,9 @@ export class WorkerProfile {
   @Column('simple-array', { nullable: true })
   activeSkills: string[];
 
-  /// Languages the pro speaks (v126 language matching). Null/empty =
-  /// unknown — such pros are still notified (lenient matching) so legacy
-  /// profiles aren't starved of jobs until they set this in Go Live.
+  /// Languages the pro speaks (v126 language matching). Going live requires
+  /// at least one. Null/empty on a legacy live pro is still matched
+  /// leniently so they are not starved of jobs until they go offline.
   @Column('simple-array', { nullable: true })
   languages: string[];
 

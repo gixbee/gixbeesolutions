@@ -148,6 +148,7 @@ function workerProfile(over: any = {}): any {
     skills: ['plumber'],
     availabilityTags: ['Weekdays'],
     activeSkills: [],
+    languages: ['English'],
     isActive: false,
     isFirstJobDone: false,
     verificationStatus: VerificationStatus.VERIFIED,
@@ -320,6 +321,24 @@ describe('WorkersService.toggleGoLive', () => {
     expect(workersRepository.save).not.toHaveBeenCalled();
   });
 
+  it('blocks going live when no languages are selected', async () => {
+    const { service, workersRepository } = setup();
+    workersRepository.findOne.mockResolvedValue(
+      workerProfile({
+        isActive: false,
+        isFirstJobDone: false,
+        languages: [],
+        lastLat: 12.9,
+        lastLng: 77.5,
+      }),
+    );
+
+    await expect(service.toggleGoLive('wp1')).rejects.toThrow(
+      BadRequestException,
+    );
+    expect(workersRepository.save).not.toHaveBeenCalled();
+  });
+
   it('goes live: toggles active, warms Redis location, snapshot, and skill index', async () => {
     const { service, workersRepository, redisService } = setup();
     const profile = workerProfile({
@@ -426,6 +445,37 @@ describe('WorkersService.toggleGoLive', () => {
     expect(res.isActive).toBe(true);
     expect(profile.goLiveToggleDate).toBe(today());
     expect(profile.goLiveToggleCountToday).toBe(1); // reset to 0 then +1
+  });
+});
+
+describe('WorkersService.setLanguages', () => {
+  it('rejects clearing languages while the worker is live', async () => {
+    const { service, workersRepository } = setup();
+    workersRepository.findOne.mockResolvedValue(
+      workerProfile({ isActive: true, languages: ['English'] }),
+    );
+
+    await expect(service.setLanguages('u1', [])).rejects.toThrow(
+      BadRequestException,
+    );
+    expect(workersRepository.save).not.toHaveBeenCalled();
+  });
+
+  it('saves trimmed languages while offline, including clearing them', async () => {
+    const { service, workersRepository } = setup();
+    const profile = workerProfile({
+      isActive: false,
+      languages: ['English'],
+    });
+    workersRepository.findOne.mockResolvedValue(profile);
+
+    const cleared = await service.setLanguages('u1', []);
+    expect(cleared.languages).toEqual([]);
+    expect(profile.languages).toEqual([]);
+
+    const saved = await service.setLanguages('u1', ['  Tamil  ', '']);
+    expect(saved.languages).toEqual(['Tamil']);
+    expect(profile.languages).toEqual(['Tamil']);
   });
 });
 

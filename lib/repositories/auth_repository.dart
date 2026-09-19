@@ -22,6 +22,20 @@ bool isPublicAuthPath(String path) {
       p.contains('auth/admin-login');
 }
 
+/// True when the shell should tear down to Welcome.
+///
+/// After Sign Out, [currentUserProvider] stays `AsyncData(null)`. Re-login
+/// invalidates it, but the previous null can still be visible for a frame.
+/// Treating that as logged-out bounces OTP back to "Continue with phone".
+/// A missing JWT is the only definitive sign-out; a null profile with a token
+/// is loading/error, not logout.
+@visibleForTesting
+bool authSessionIsGone(AsyncValue<bool> auth, {bool sessionExitStarted = false}) {
+  if (sessionExitStarted) return true;
+  if (auth.isLoading || auth.isRefreshing) return false;
+  return auth.asData?.value == false;
+}
+
 Completer<void>? _logoutGate;
 
 // ── Dio provider ─────────────────────────────────────────────────────────────

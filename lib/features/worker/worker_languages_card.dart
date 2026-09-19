@@ -1,3 +1,4 @@
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../repositories/worker_repository.dart';
@@ -7,9 +8,8 @@ import '../../theme.dart';
 /// Go Live setup card: languages the pro speaks (v126 language matching).
 /// Self-contained — loads GET /workers/me on mount, toggling a chip PATCHes
 /// /workers/me/languages immediately (optimistic, reverts on failure).
-/// Customers' broadcast requests with a language preference only notify pros
-/// with an overlap; pros with NOTHING selected still get all jobs (lenient),
-/// which the caption explains.
+/// Going live requires at least one language; customers with a language
+/// preference only notify overlapping pros.
 class WorkerLanguagesCard extends ConsumerStatefulWidget {
   const WorkerLanguagesCard({super.key});
 
@@ -34,16 +34,23 @@ class _WorkerLanguagesCardState extends ConsumerState<WorkerLanguagesCard> {
     _load();
   }
 
+  void _publish() {
+    ref.read(workerSpokenLanguagesProvider.notifier).state =
+        _selected.toList();
+  }
+
   Future<void> _load() async {
     try {
       final me =
           await ref.read(workerRepositoryProvider).getMyWorkerProfile();
       if (!mounted) return;
       setState(() {
-        _selected.addAll(
-            (me['languages'] as List? ?? []).map((e) => e.toString()));
+        _selected
+          ..clear()
+          ..addAll((me['languages'] as List? ?? []).map((e) => e.toString()));
         _loading = false;
       });
+      _publish();
     } catch (e) {
       debugPrint('Languages load failed: $e');
       if (mounted) setState(() => _loading = false);
@@ -52,8 +59,19 @@ class _WorkerLanguagesCardState extends ConsumerState<WorkerLanguagesCard> {
 
   Future<void> _toggle(String lang) async {
     final wasSelected = _selected.contains(lang);
+    if (wasSelected &&
+        _selected.length == 1 &&
+        ref.read(workerLiveStateProvider)) {
+      showGxSnack(
+        context,
+        'Select at least one language you speak, or go offline first.',
+        type: GxSnackType.error,
+      );
+      return;
+    }
     setState(() =>
         wasSelected ? _selected.remove(lang) : _selected.add(lang));
+    _publish();
     try {
       await ref
           .read(workerRepositoryProvider)
@@ -62,9 +80,21 @@ class _WorkerLanguagesCardState extends ConsumerState<WorkerLanguagesCard> {
       if (!mounted) return;
       setState(() =>
           wasSelected ? _selected.add(lang) : _selected.remove(lang));
-      showGxSnack(context, 'Could not save languages: $e',
-          type: GxSnackType.error);
+      _publish();
+      showGxSnack(context, _saveError(e), type: GxSnackType.error);
     }
+  }
+
+  String _saveError(Object e) {
+    if (e is DioException) {
+      final data = e.response?.data;
+      if (data is Map && data['message'] != null) {
+        final m = data['message'];
+        if (m is List && m.isNotEmpty) return m.first.toString();
+        return m.toString();
+      }
+    }
+    return 'Could not save languages. Please try again.';
   }
 
   @override
@@ -116,8 +146,8 @@ class _WorkerLanguagesCardState extends ConsumerState<WorkerLanguagesCard> {
                 const SizedBox(height: 8),
                 Text(
                   _selected.isEmpty
-                      ? 'Nothing selected — you receive ALL job requests. '
-                        'Selecting languages filters out customers you can\'t talk to.'
+                      ? 'Select at least one language before going live. '
+                        'Customers are matched to pros who can talk to them.'
                       : 'You\'ll get jobs from customers speaking: ${_selected.join(', ')}',
                   style: TextStyle(
                       fontSize: 11,

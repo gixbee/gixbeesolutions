@@ -5,6 +5,7 @@ use sqlx::{Postgres, Row, Transaction};
 use uuid::Uuid;
 
 use crate::billing::refund_credit;
+use crate::common::pg::timestamp_utc;
 use crate::error::{AppError, AppResult};
 use crate::state::AppState;
 use crate::workers;
@@ -400,10 +401,7 @@ pub async fn cancel_booking(
         ));
     }
 
-    let worker_no_progress_at = locked
-        .try_get::<Option<DateTime<Utc>>, _>("workerNoProgressAt")
-        .ok()
-        .flatten();
+    let worker_no_progress_at = timestamp_utc(&locked, "workerNoProgressAt");
     free_due_to_no_progress =
         source == "customer" && worker_no_progress_at.is_some() && status == "ACCEPTED";
 
@@ -412,7 +410,7 @@ pub async fn cancel_booking(
         && !free_due_to_no_progress;
 
     if source == "customer" && !opts.skip_stage_gate {
-        if status == "ARRIVED" || status == "ACTIVE" {
+        if status == "ARRIVED" || status == "ACTIVE" || status == "IN_PROGRESS" {
             tx.rollback().await?;
             return Err(AppError::BadRequest(
                 "This job has already started or the pro has arrived. Ask your pro to approve a cancellation instead.".into(),
@@ -420,12 +418,7 @@ pub async fn cancel_booking(
         }
         if status == "ACCEPTED"
             && !free_due_to_no_progress
-            && !is_within_cancel_grace(
-                locked
-                    .try_get::<Option<DateTime<Utc>>, _>("acceptedAt")
-                    .ok()
-                    .flatten(),
-            )
+            && !is_within_cancel_grace(timestamp_utc(&locked, "acceptedAt"))
         {
             late_cancel_strike = apply_strike;
         }
@@ -651,18 +644,16 @@ pub async fn request_cancel(
     }
 
     let status = row.get::<String, _>("status");
-    if !matches!(status.as_str(), "ACCEPTED" | "ARRIVED" | "ACTIVE") {
+    if !matches!(
+        status.as_str(),
+        "ACCEPTED" | "ARRIVED" | "ACTIVE" | "IN_PROGRESS"
+    ) {
         return Err(AppError::BadRequest(
             "Cancel request is only available after a pro has accepted the job".into(),
         ));
     }
 
-    if row
-        .try_get::<Option<DateTime<Utc>>, _>("cancelRequestedAt")
-        .ok()
-        .flatten()
-        .is_some()
-    {
+    if timestamp_utc(&row, "cancelRequestedAt").is_some() {
         return Ok(json!({
             "cancelRequested": true,
             "message": "Cancel request already pending",
@@ -742,12 +733,7 @@ pub async fn approve_cancel_request(
             "Only the assigned worker can approve cancellation".into(),
         ));
     }
-    if row
-        .try_get::<Option<DateTime<Utc>>, _>("cancelRequestedAt")
-        .ok()
-        .flatten()
-        .is_none()
-    {
+    if timestamp_utc(&row, "cancelRequestedAt").is_none() {
         return Err(AppError::BadRequest("No pending cancel request".into()));
     }
 
@@ -790,12 +776,7 @@ pub async fn decline_cancel_request(
             "Only the assigned worker can decline cancellation".into(),
         ));
     }
-    if row
-        .try_get::<Option<DateTime<Utc>>, _>("cancelRequestedAt")
-        .ok()
-        .flatten()
-        .is_none()
-    {
+    if timestamp_utc(&row, "cancelRequestedAt").is_none() {
         return Err(AppError::BadRequest("No pending cancel request".into()));
     }
 
@@ -860,12 +841,7 @@ pub async fn withdraw_cancel_request(
             "Only the customer can withdraw a cancel request".into(),
         ));
     }
-    if row
-        .try_get::<Option<DateTime<Utc>>, _>("cancelRequestedAt")
-        .ok()
-        .flatten()
-        .is_none()
-    {
+    if timestamp_utc(&row, "cancelRequestedAt").is_none() {
         return Ok(json!({
             "cancelRequested": false,
             "message": "No pending cancel request",

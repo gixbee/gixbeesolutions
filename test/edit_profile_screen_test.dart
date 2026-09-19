@@ -5,9 +5,9 @@
 // wallet/tracker screens — which own their `_isLoading` state and read a
 // `Repository` in `initState` — this screen's data seam IS a real Riverpod
 // `FutureProvider`: `currentUserProvider` (FutureProvider<User?> from
-// auth_repository). The screen `ref.listen`s it in `build` and, exactly once,
-// seeds the name field (`_nameController.text = user.name`) and the avatar
-// (`_photoUrl = user.avatar`) via `whenData`.
+// auth_repository). The screen seeds name + photo from the current value
+// (already-resolved profile) and also `ref.listen`s later updates.
+// (`_nameController.text = user.name`, avatar from `user.avatar`).
 //
 // So the whole suite drives off `currentUserProvider.overrideWith(...)` — no
 // fake repository, no mock package, no Dio, no network. Because the override
@@ -31,6 +31,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:gixbee/features/profile/edit_profile_screen.dart';
 import 'package:gixbee/repositories/auth_repository.dart';
 import 'package:gixbee/shared/models/user.dart';
+import 'package:gixbee/shared/widgets/gx_profile_avatar.dart';
 import 'package:gixbee/shared/widgets/gx_text_field.dart';
 
 /// Builds a [User] with just the fields `EditProfileScreen` seeds from
@@ -128,6 +129,19 @@ void main() {
       expect(_nameFieldText(tester), isEmpty);
       expect(find.text('Edit Profile'), findsOneWidget);
       expect(find.byType(GxTextField), findsOneWidget);
+    });
+
+    testWidgets('already-resolved profile seeds name and existing photo',
+        (tester) async {
+      _phoneView(tester);
+      await tester.pumpWidget(_host(
+        (ref) => _user(name: 'Gowtham', avatar: '/uploads/gowtham.jpg'),
+      ));
+      await tester.pump(); // post-frame seed
+
+      expect(_nameFieldText(tester), 'Gowtham');
+      final avatar = tester.widget<GxProfileAvatar>(find.byType(GxProfileAvatar));
+      expect(avatar.imageUrl, '/uploads/gowtham.jpg');
     });
 
     testWidgets('typing into the empty field updates it', (tester) async {

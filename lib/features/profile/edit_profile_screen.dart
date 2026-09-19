@@ -6,6 +6,7 @@ import '../../shared/widgets/gx_pressable.dart';
 import '../../shared/widgets/gx_snackbar.dart';
 import '../../repositories/profile_repository.dart';
 import '../../repositories/auth_repository.dart';
+import '../../shared/models/user.dart';
 import '../../shared/media/profile_photo.dart';
 import '../../shared/widgets/gx_profile_avatar.dart';
 
@@ -59,6 +60,21 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
     }
   }
 
+  void _seedFrom(User user) {
+    if (!mounted || _seeded) return;
+    final name = user.name?.trim();
+    final avatar = user.avatar?.trim();
+    setState(() {
+      _seeded = true;
+      if (name != null && name.isNotEmpty && _nameController.text.isEmpty) {
+        _nameController.text = name;
+      }
+      if (_photoUrl == null && avatar != null && avatar.isNotEmpty) {
+        _photoUrl = avatar;
+      }
+    });
+  }
+
   Future<void> _save() async {
     if (!_formKey.currentState!.validate()) return;
 
@@ -75,13 +91,16 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
         return;
       }
 
+      final name = _nameController.text.trim().isNotEmpty
+          ? _nameController.text.trim()
+          : (user.name ?? '');
       await ref.read(profileRepositoryProvider).updateProfile(
         userId: user.id,
         data: {
-          'name': _nameController.text,
-          // Persist the new avatar only if one was picked this session
-          // (backend UsersService.updateProfile saves profileImageUrl).
-          if (_photoUrl != null) 'profileImageUrl': _photoUrl,
+          if (name.isNotEmpty) 'name': name,
+          // Keep the current avatar (seeded or newly uploaded).
+          if (_photoUrl != null && _photoUrl!.trim().isNotEmpty)
+            'profileImageUrl': _photoUrl,
         },
       );
 
@@ -105,19 +124,24 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // Pre-fill the name field once the live profile resolves.
+    // `ref.listen` only fires on *changes*. Profile is already loaded when
+    // this screen is pushed, so seed from the current value as well.
     ref.listen(currentUserProvider, (prev, next) {
-      next.whenData((user) {
-        if (!_seeded && user != null) {
-          final name = user.name;
-          if (name != null && name.isNotEmpty) _nameController.text = name;
-          // Seed the existing avatar so the picker shows current photo.
-          final avatar = user.avatar;
-          if (avatar != null && avatar.isNotEmpty) _photoUrl = avatar;
-          if (name != null && name.isNotEmpty) _seeded = true;
-        }
-      });
+      final user = next.asData?.value;
+      if (user != null) _seedFrom(user);
     });
+    final user = ref.watch(currentUserProvider).value;
+    if (!_seeded && user != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _seedFrom(user);
+      });
+    }
+    final photoUrl = (_photoUrl != null && _photoUrl!.trim().isNotEmpty)
+        ? _photoUrl
+        : user?.avatar;
+    final avatarName = _nameController.text.trim().isNotEmpty
+        ? _nameController.text.trim()
+        : (user?.name?.trim().isNotEmpty == true ? user!.name!.trim() : 'Gixbee User');
     return Scaffold(
       backgroundColor: Theme.of(context).colorScheme.surface,
       appBar: AppBar(
@@ -151,10 +175,8 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                             border: Border.all(color: context.gx.accent, width: 2),
                           ),
                           child: GxProfileAvatar(
-                            imageUrl: _photoUrl,
-                            name: _nameController.text.isNotEmpty
-                                ? _nameController.text
-                                : 'Gixbee User',
+                            imageUrl: photoUrl,
+                            name: avatarName,
                             size: 120,
                             fontSize: 40,
                           ),
@@ -190,9 +212,11 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                     hint: 'Enter your full name',
                     controller: _nameController,
                     textInputAction: TextInputAction.done,
-                    validator: (value) => (value == null || value.isEmpty)
-                        ? 'Please enter your name'
-                        : null,
+                    validator: (value) {
+                      if ((value ?? '').trim().isNotEmpty) return null;
+                      if (user?.name?.trim().isNotEmpty == true) return null;
+                      return 'Please enter your name';
+                    },
                   ),
                   const Spacer(),
                   GxPressable(

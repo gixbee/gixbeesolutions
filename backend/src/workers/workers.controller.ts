@@ -145,9 +145,9 @@ export class WorkersController {
     );
   }
 
-  /// v126 language matching: the languages this pro speaks. Broadcast
-  /// requests with a language preference only notify overlapping pros
-  /// (pros with no languages set are still included, leniently).
+  /// v126 language matching: the languages this pro speaks. Going live
+  /// requires at least one. Broadcasts with a language preference only
+  /// notify overlapping pros (legacy live pros with none still match).
   @Patch('me/languages')
   async setLanguages(@Req() req, @Body() body: UpdateLanguagesDto) {
     return this.workersService.setLanguages(

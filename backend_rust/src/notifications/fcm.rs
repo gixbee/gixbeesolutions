@@ -279,16 +279,35 @@ struct ServiceAccountJson {
 
 fn load_credentials(config: &Config) -> Option<FcmCredentials> {
     if let Some(path) = &config.firebase_key_path {
-        if let Ok(raw) = std::fs::read_to_string(path) {
-            if let Ok(sa) = serde_json::from_str::<ServiceAccountJson>(&raw) {
-                return build_credentials(&sa.project_id, &sa.client_email, &sa.private_key);
-            }
+        match std::fs::read_to_string(path) {
+            Ok(raw) => match serde_json::from_str::<ServiceAccountJson>(&raw) {
+                Ok(sa) => {
+                    if let Some(creds) =
+                        build_credentials(&sa.project_id, &sa.client_email, &sa.private_key)
+                    {
+                        return Some(creds);
+                    }
+                    warn!("Firebase key file at {path} has an unreadable private key");
+                }
+                Err(e) => warn!("Firebase key file at {path} is not a service account JSON: {e}"),
+            },
+            Err(e) => warn!("Firebase key file at {path} could not be read: {e}"),
         }
     }
-    let project_id = config.firebase_project_id.as_deref()?;
-    let client_email = config.firebase_client_email.as_deref()?;
-    let private_key = config.firebase_private_key.as_deref()?;
-    build_credentials(project_id, client_email, private_key)
+    match (
+        config.firebase_project_id.as_deref(),
+        config.firebase_client_email.as_deref(),
+        config.firebase_private_key.as_deref(),
+    ) {
+        (Some(project_id), Some(client_email), Some(private_key)) => {
+            if let Some(creds) = build_credentials(project_id, client_email, private_key) {
+                return Some(creds);
+            }
+            warn!("FIREBASE_PRIVATE_KEY env var is not a valid PEM key");
+        }
+        _ => {}
+    }
+    None
 }
 
 fn build_credentials(
@@ -296,8 +315,18 @@ fn build_credentials(
     client_email: &str,
     private_key: &str,
 ) -> Option<FcmCredentials> {
+    if project_id.trim().is_empty() || project_id.contains("placeholder") {
+        warn!("Firebase project_id is missing or a placeholder");
+        return None;
+    }
     let pem = private_key.replace("\\n", "\n");
-    let key = EncodingKey::from_rsa_pem(pem.as_bytes()).ok()?;
+    let key = match EncodingKey::from_rsa_pem(pem.as_bytes()) {
+        Ok(k) => k,
+        Err(e) => {
+            warn!("Firebase private key PEM parse failed: {e}");
+            return None;
+        }
+    };
     Some(FcmCredentials {
         project_id: project_id.to_string(),
         client_email: client_email.to_string(),

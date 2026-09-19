@@ -51,7 +51,7 @@ export class UpdateRateDto {
 }
 
 // PATCH /workers/me/languages — languages the pro speaks (v126 language
-// matching). Empty array is allowed (= clear back to "unknown").
+// matching). Empty array is allowed only while offline.
 export class UpdateLanguagesDto {
   @IsArray()
   @IsString({ each: true })

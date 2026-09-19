@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../repositories/booking_repository.dart';
 import '../../repositories/booking_status_provider.dart';
 import '../../shared/utils/api_error_message.dart';
+import '../../shared/utils/booking_flags.dart';
 import '../../shared/widgets/gx_button.dart';
 import '../../shared/widgets/gx_snackbar.dart';
 import '../../theme.dart';
@@ -133,7 +134,7 @@ class _CancelRequestActionsState extends ConsumerState<CancelRequestActions> {
           ref.watch(bookingStatusProvider(widget.bookingId)).value;
       final status = statusData?['status']?.toString().toUpperCase() ?? '';
       if (!_liveStatuses.contains(status)) return const SizedBox.shrink();
-      cancelRequested = statusData?['cancelRequested'] == true;
+      cancelRequested = bookingFlagTrue(statusData?['cancelRequested']);
     }
 
     final gx = context.gx;

@@ -194,6 +194,15 @@ export class WorkerGoLiveService {
         );
       }
 
+      const languages = (profile.languages || []).filter(
+        (l) => typeof l === 'string' && l.trim().length > 0,
+      );
+      if (languages.length === 0) {
+        throw new BadRequestException(
+          'Select at least one language you speak before going live.',
+        );
+      }
+
       // ── Strike suspension gate ──
       // 3+ counting strikes (ACTIVE / APPEALED / UPHELD) = suspended from
       // going live until an appeal is overturned or an admin clears it.

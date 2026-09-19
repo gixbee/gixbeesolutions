@@ -11,6 +11,7 @@ import 'auth_chrome.dart';
 import 'registration_screen.dart';
 import '../../repositories/auth_repository.dart';
 import '../../services/notification_service.dart';
+import '../../shared/models/user.dart';
 
 /// OTP verification — grab-green auth look (theme-aware via AuthPalette):
 /// branded digit boxes with green fill state, green resend link, green
@@ -78,13 +79,20 @@ class _OtpScreenState extends ConsumerState<OtpScreen> {
           );
 
       ref.invalidate(authStateProvider);
-      ref.invalidate(currentUserProvider);
+      final authed = await ref.read(authStateProvider.future);
+      if (!authed) {
+        throw Exception('Login did not persist. Try again.');
+      }
 
-      // 2. Register FCM token — gives the backend a device to push to
       await _registerFcmToken();
 
-      // 3. Check profile to decide where to navigate
-      final user = await ref.read(authRepositoryProvider).getProfile();
+      ref.invalidate(currentUserProvider);
+      User? user;
+      try {
+        user = await ref.read(currentUserProvider.future);
+      } catch (_) {
+        user = await ref.read(authRepositoryProvider).getProfile();
+      }
       final isNewUser = user == null || (user.name?.isEmpty ?? true);
 
       if (!mounted) return;

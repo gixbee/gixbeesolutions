@@ -61,7 +61,23 @@ class GxProfileAvatar extends StatelessWidget {
         errorBuilder: (_, __, ___) => fallback,
         loadingBuilder: (context, child, progress) {
           if (progress == null) return child;
-          return fallback;
+          return Container(
+            width: size,
+            height: size,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: context.gx.ink.withValues(alpha: 0.06),
+            ),
+            alignment: Alignment.center,
+            child: SizedBox(
+              width: size * 0.28,
+              height: size * 0.28,
+              child: CircularProgressIndicator(
+                strokeWidth: 2.4,
+                color: context.gx.accent,
+              ),
+            ),
+          );
         },
       ),
     );

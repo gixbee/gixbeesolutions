@@ -26,6 +26,10 @@ final selectedLocationProvider =
 /// bottom-nav indicator stays in sync without an extra round-trip.
 final workerLiveStateProvider = StateProvider<bool>((ref) => false);
 
+/// Spoken languages last saved from the Go Live languages card.
+/// `null` until that card loads GET /workers/me.
+final workerSpokenLanguagesProvider = StateProvider<List<String>?>((ref) => null);
+
 /// Fetches nearby workers based on the selected location
 final nearbyWorkersProvider =
     FutureProvider.autoDispose<List<Worker>>((ref) async {

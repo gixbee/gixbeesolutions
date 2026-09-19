@@ -634,6 +634,7 @@ async fn get_my_dashboard(State(state): State<AppState>, user: AuthUser) -> AppR
         "verificationStatus": verification,
         "rating": rating,
         "serviceRadiusKm": service_radius,
+        "languages": parse_skills(profile.try_get::<Option<String>, _>("languages").ok().flatten()),
         "jobCredits": credits,
         "feeModel": {
             "enabled": false,
@@ -760,6 +761,13 @@ async fn live_toggle(
                 "Your profile is not verified yet. Please complete the verification process to go live.".into(),
             ));
         }
+        let languages =
+            parse_skills(profile.try_get::<Option<String>, _>("languages").ok().flatten());
+        if languages.is_empty() {
+            return Err(AppError::BadRequest(
+                "Select at least one language you speak before going live.".into(),
+            ));
+        }
         let credits = job_credits(&state, uid).await?;
         if credits <= 0 {
             return Err(AppError::BadRequest(
@@ -867,10 +875,18 @@ async fn set_languages(
         .and_then(|v| v.as_array())
         .map(|arr| {
             arr.iter()
-                .filter_map(|s| s.as_str().map(String::from))
+                .filter_map(|s| s.as_str().map(|v| v.trim().to_string()))
+                .filter(|s| !s.is_empty())
                 .collect()
         })
         .unwrap_or_default();
+    let profile = ensure_profile(&state, uid).await?;
+    let is_active = profile.get::<bool, _>("isActive");
+    if langs.is_empty() && is_active {
+        return Err(AppError::BadRequest(
+            "Select at least one language you speak, or go offline first.".into(),
+        ));
+    }
     sqlx::query(r#"UPDATE worker_profiles SET languages = $1 WHERE "userId" = $2"#)
         .bind(skills_to_db(&langs))
         .bind(uid)
