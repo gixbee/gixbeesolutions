@@ -156,11 +156,20 @@ async fn update_profile(
     assert_self_or_admin(&user, &id)?;
     let uid = Uuid::parse_str(&id)?;
     if let Some(name) = body.get("name").and_then(|v| v.as_str()) {
-        sqlx::query(r#"UPDATE users SET name = $1 WHERE id = $2"#)
+        sqlx::query(r#"UPDATE users SET name = $1, "updatedAt" = NOW() WHERE id = $2"#)
             .bind(name)
             .bind(uid)
             .execute(&state.db)
             .await?;
+    }
+    if let Some(url) = body.get("profileImageUrl").and_then(|v| v.as_str()) {
+        sqlx::query(
+            r#"UPDATE users SET "profileImageUrl" = $1, "updatedAt" = NOW() WHERE id = $2"#,
+        )
+        .bind(url)
+        .bind(uid)
+        .execute(&state.db)
+        .await?;
     }
     if is_portal_admin(&user) {
         if let Some(role) = body.get("role").and_then(|v| v.as_str()) {

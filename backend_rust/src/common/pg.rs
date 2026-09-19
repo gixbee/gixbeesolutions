@@ -1,12 +1,31 @@
 //! Shared SELECT fragments — PostgreSQL enums must be cast to `text` for sqlx `String` reads.
 
 pub fn date_json(row: &sqlx::postgres::PgRow, column: &str) -> serde_json::Value {
-    use sqlx::Row;
-    if let Ok(date) = row.try_get::<chrono::DateTime<chrono::Utc>, _>(column) {
-        return serde_json::json!(date);
-    }
-    row.try_get::<chrono::NaiveDateTime, _>(column).map(|d| serde_json::json!(d.and_utc()))
+    timestamp_utc(row, column)
+        .map(|d| serde_json::json!(d))
         .unwrap_or(serde_json::Value::Null)
+}
+
+/// Read a timestamp column that may be `timestamptz` or naive `timestamp`.
+/// Azure bookings."startedAt" is `timestamp` without time zone; sqlx DateTime<Utc>
+/// fails on that type and must not be treated as missing.
+pub fn timestamp_utc(
+    row: &sqlx::postgres::PgRow,
+    column: &str,
+) -> Option<chrono::DateTime<chrono::Utc>> {
+    use sqlx::Row;
+    if let Ok(Some(d)) = row.try_get::<Option<chrono::DateTime<chrono::Utc>>, _>(column) {
+        return Some(d);
+    }
+    if let Ok(d) = row.try_get::<chrono::DateTime<chrono::Utc>, _>(column) {
+        return Some(d);
+    }
+    if let Ok(Some(d)) = row.try_get::<Option<chrono::NaiveDateTime>, _>(column) {
+        return Some(d.and_utc());
+    }
+    row.try_get::<chrono::NaiveDateTime, _>(column)
+        .ok()
+        .map(|d| d.and_utc())
 }
 
 pub fn string_list(row: &sqlx::postgres::PgRow, column: &str) -> Vec<String> {

@@ -19,6 +19,7 @@ import 'strikes_screen.dart';
 import '../../core/theme_provider.dart';
 import '../../core/main_tab_provider.dart';
 import '../../shared/widgets/gx_sheet.dart';
+import '../../shared/widgets/gx_profile_avatar.dart';
 
 class ProfileScreen extends ConsumerWidget {
   const ProfileScreen({super.key});
@@ -146,7 +147,6 @@ class ProfileScreen extends ConsumerWidget {
                         }
 
                         final name = (user.name ?? '').isNotEmpty ? user.name! : 'Gixbee User';
-                        final initial = name.characters.first.toUpperCase();
                         return Container(
                           padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
                           decoration: BoxDecoration(
@@ -155,39 +155,38 @@ class ProfileScreen extends ConsumerWidget {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.center,
                             children: [
-                              Stack(
-                                children: [
-                                  Container(
-                                    width: 80,
-                                    height: 80,
-                                    decoration: BoxDecoration(
-                                      shape: BoxShape.circle,
-                                      gradient: LinearGradient(
-                                        colors: [context.gx.accentSoft, Color(0xFFEC4899)],
-                                        begin: Alignment.topLeft,
-                                        end: Alignment.bottomRight,
+                              GxPressable(
+                                onTap: () => Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                      builder: (_) => const EditProfileScreen()),
+                                ),
+                                child: Stack(
+                                  children: [
+                                    GxProfileAvatar(
+                                      imageUrl: user.avatar,
+                                      name: name,
+                                      size: 80,
+                                      fontSize: 32,
+                                    ),
+                                    Positioned(
+                                      bottom: 0,
+                                      right: 0,
+                                      child: Container(
+                                        padding: const EdgeInsets.all(6),
+                                        decoration: BoxDecoration(
+                                          color: context.gx.accent,
+                                          shape: BoxShape.circle,
+                                          border: Border.all(
+                                              color: context.gx.bg, width: 2),
+                                        ),
+                                        child: Icon(Icons.camera_alt,
+                                            size: 14,
+                                            color: context.gx.onAccent),
                                       ),
                                     ),
-                                    alignment: Alignment.center,
-                                    child: Text(
-                                      initial,
-                                      style: TextStyle(fontSize: 32, fontWeight: FontWeight.w900, color: context.gx.onAccent),
-                                    ),
-                                  ),
-                                  Positioned(
-                                    bottom: 0,
-                                    right: 0,
-                                    child: Container(
-                                      padding: const EdgeInsets.all(2),
-                                      decoration: BoxDecoration(
-                                        color: const Color(0xFF22C55E),
-                                        shape: BoxShape.circle,
-                                        border: Border.all(color: context.gx.bg, width: 3),
-                                      ),
-                                      child: Icon(Icons.check, size: 12, color: context.gx.onAccent),
-                                    ),
-                                  ),
-                                ],
+                                  ],
+                                ),
                               ),
                               SizedBox(height: 12),
                               Row(

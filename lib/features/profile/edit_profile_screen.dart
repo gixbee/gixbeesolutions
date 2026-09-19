@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../core/config/app_config.dart';
 import '../../theme.dart';
 import '../../shared/widgets/gx_text_field.dart';
 import '../../shared/widgets/gx_pressable.dart';
@@ -8,6 +7,7 @@ import '../../shared/widgets/gx_snackbar.dart';
 import '../../repositories/profile_repository.dart';
 import '../../repositories/auth_repository.dart';
 import '../../shared/media/profile_photo.dart';
+import '../../shared/widgets/gx_profile_avatar.dart';
 
 class EditProfileScreen extends ConsumerStatefulWidget {
   const EditProfileScreen({super.key});
@@ -39,12 +39,6 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
     super.dispose();
   }
 
-  // Uploaded files come back as a relative `/uploads/...` path; prefix the API
-  // base so NetworkImage can resolve it (mirrors register_pro._fullUrl).
-  String _fullUrl(String path) =>
-      path.startsWith('http') ? path : '${AppConfig.baseUrl}$path';
-
-  // Pick → upload → stash the returned URL (persisted on Save Changes).
   Future<void> _pickPhoto() async {
     try {
       final jpeg = await pickWhatsAppProfilePhoto(context);
@@ -156,12 +150,13 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                             shape: BoxShape.circle,
                             border: Border.all(color: context.gx.accent, width: 2),
                           ),
-                          child: CircleAvatar(
-                            radius: 60,
-                            backgroundImage: NetworkImage(
-                                (_photoUrl != null && _photoUrl!.isNotEmpty)
-                                    ? _fullUrl(_photoUrl!)
-                                    : 'https://ui-avatars.com/api/?name=Gixbee+User&background=6200EE&color=fff'),
+                          child: GxProfileAvatar(
+                            imageUrl: _photoUrl,
+                            name: _nameController.text.isNotEmpty
+                                ? _nameController.text
+                                : 'Gixbee User',
+                            size: 120,
+                            fontSize: 40,
                           ),
                         ),
                         Positioned(

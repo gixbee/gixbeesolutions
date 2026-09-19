@@ -1,4 +1,4 @@
-use chrono::{DateTime, Utc};
+use chrono::Utc;
 use rust_decimal::prelude::{FromPrimitive, ToPrimitive};
 use rust_decimal::Decimal;
 use serde_json::{json, Value};
@@ -347,7 +347,8 @@ pub async fn verify_completion_otp(
     }
 
     let locked = sqlx::query(
-        r#"SELECT type::text AS type, amount, "acceptDistanceKm", "petrolRatePerKm", "startedAt", "paymentMethod",
+        r#"SELECT type::text AS type, amount, "acceptDistanceKm", "petrolRatePerKm", "startedAt",
+                  "acceptedAt", "createdAt", "paymentMethod",
                   "customerId", "operatorId", "workerPaidConfirmed", "customerPaidConfirmed", "isPaid"
            FROM bookings WHERE id = $1"#,
     )
@@ -355,11 +356,9 @@ pub async fn verify_completion_otp(
     .fetch_one(&mut *tx)
     .await?;
 
-    let started_at: Option<DateTime<Utc>> = locked
-        .try_get::<Option<DateTime<Utc>>, _>("startedAt")
-        .ok()
-        .flatten();
-    let start_ms = started_at
+    let start_ms = crate::common::pg::timestamp_utc(&locked, "startedAt")
+        .or_else(|| crate::common::pg::timestamp_utc(&locked, "acceptedAt"))
+        .or_else(|| crate::common::pg::timestamp_utc(&locked, "createdAt"))
         .map(|t| t.timestamp_millis())
         .unwrap_or_else(|| Utc::now().timestamp_millis());
     let elapsed_ms = (Utc::now().timestamp_millis() - start_ms).max(0);

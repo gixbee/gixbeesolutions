@@ -92,21 +92,6 @@ class _CustomerPayScreenState extends ConsumerState<CustomerPayScreen> {
       if (b != null) {
         billing = ManualPaymentBilling.fromMaps(
           booking: b,
-          completion: {
-            if (widget.hourlyRate != null) 'hourlyRate': widget.hourlyRate,
-            if (widget.serviceAmount != null)
-              'serviceAmount': widget.serviceAmount,
-            if (widget.petrolAmount != null)
-              'petrolAmount': widget.petrolAmount,
-            if (widget.petrolDistanceKm != null)
-              'petrolDistanceKm': widget.petrolDistanceKm,
-            if (widget.petrolRatePerKm != null)
-              'petrolRatePerKm': widget.petrolRatePerKm,
-            if (widget.workedMinutes != null)
-              'workedMinutes': widget.workedMinutes,
-            if (widget.platformFee != null) 'platformFee': widget.platformFee,
-            'totalAmount': widget.amount,
-          },
           fallbackName: widget.workerName,
           counterpartIsCustomer: false,
         );
@@ -424,13 +409,8 @@ class _CustomerPayScreenState extends ConsumerState<CustomerPayScreen> {
                               if (billing.isInstant)
                                 _row('Rate', '₹${billing.rateInt}/hr', gx.ink,
                                     gx),
-                              _row(
-                                  billing.isInstant
-                                      ? 'Work charge (${billing.billedHoursLabel})'
-                                      : 'Service charge (fixed)',
-                                  '₹${billing.serviceAmountInt}',
-                                  gx.ink,
-                                  gx),
+                              _row(billing.serviceRateLabel,
+                                  '₹${billing.serviceAmountInt}', gx.ink, gx),
                               if (billing.showPetrol)
                                 _row(
                                   'Petrol · ${billing.petrolDistanceLabel} × ₹${billing.petrolRateInt}/km',

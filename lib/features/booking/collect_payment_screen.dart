@@ -90,21 +90,6 @@ class _CollectPaymentScreenState extends ConsumerState<CollectPaymentScreen> {
       if (b != null) {
         billing = ManualPaymentBilling.fromMaps(
           booking: b,
-          completion: {
-            if (widget.hourlyRate != null) 'hourlyRate': widget.hourlyRate,
-            if (widget.serviceAmount != null)
-              'serviceAmount': widget.serviceAmount,
-            if (widget.petrolAmount != null)
-              'petrolAmount': widget.petrolAmount,
-            if (widget.petrolDistanceKm != null)
-              'petrolDistanceKm': widget.petrolDistanceKm,
-            if (widget.petrolRatePerKm != null)
-              'petrolRatePerKm': widget.petrolRatePerKm,
-            if (widget.workedMinutes != null)
-              'workedMinutes': widget.workedMinutes,
-            if (widget.platformFee != null) 'platformFee': widget.platformFee,
-            'totalAmount': widget.amount,
-          },
           fallbackName: widget.customerName,
           counterpartIsCustomer: true,
         );
@@ -382,9 +367,7 @@ class _CollectPaymentScreenState extends ConsumerState<CollectPaymentScreen> {
                               valueColor: gx.ink,
                             ),
                             _BreakdownRow(
-                              label: billing.isInstant
-                                  ? '${billing.billedHoursLabel} × ₹${billing.rateInt}/hr'
-                                  : 'Service charge (fixed)',
+                              label: billing.serviceRateLabel,
                               value: '₹${billing.serviceAmountInt}',
                               valueColor: gx.ink,
                             ),

@@ -42,8 +42,15 @@ class ManualPaymentBilling {
   /// scheduled jobs are a fixed quote.
   int get billedHours => billingHours > 0 ? billingHours : 1;
 
-  /// `1 hr` / `2 hr` — the number of hours actually charged.
+  /// `1 hr` / `2 hr` — ceil hours (legacy). Prefer [serviceRateLabel] on receipts.
   String get billedHoursLabel => billedHours == 1 ? '1 hr' : '$billedHours hr';
+
+  /// Charge line for INSTANT jobs: 1-hour minimum, then actual worked time.
+  String get serviceRateLabel {
+    if (!isInstant) return 'Service charge (fixed)';
+    if (workedMinutes <= 60) return '1 hr × ₹$rateInt/hr';
+    return '$durationLabel × ₹$rateInt/hr';
+  }
 
   String get petrolDistanceLabel {
     if (petrolDistanceKm <= 0) return '0 km';

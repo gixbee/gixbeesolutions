@@ -7,7 +7,18 @@ import 'package:image_picker/image_picker.dart';
 
 import '../widgets/gx_profile_photo_crop.dart';
 import '../widgets/gx_sheet.dart';
+import '../../core/config/app_config.dart';
 import '../../theme.dart';
+
+/// Prefix relative `/uploads/...` paths with the API host so Image.network works.
+String? resolveProfileImageUrl(String? path) {
+  if (path == null) return null;
+  final p = path.trim();
+  if (p.isEmpty) return null;
+  if (p.startsWith('http://') || p.startsWith('https://')) return p;
+  final base = AppConfig.baseUrl;
+  return p.startsWith('/') ? '$base$p' : '$base/$p';
+}
 
 /// WhatsApp-style profile photo output size (square JPEG).
 const kProfilePhotoSize = 640;

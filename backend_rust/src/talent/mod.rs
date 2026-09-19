@@ -117,6 +117,13 @@ async fn update_profile(
             .bind(profile_id)
             .execute(&state.db)
             .await?;
+        sqlx::query(
+            r#"UPDATE users SET "profileImageUrl" = $1, "updatedAt" = NOW() WHERE id = $2"#,
+        )
+        .bind(photo)
+        .bind(uid)
+        .execute(&state.db)
+        .await?;
     }
     if let Some(certs) = body.get("certificates").and_then(|v| v.as_array()) {
         let cert_list: Vec<String> = certs

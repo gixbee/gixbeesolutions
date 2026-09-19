@@ -81,7 +81,20 @@ void main() {
       );
       expect(b.compactDurationLabel, '1hr 12min');
       expect(b.durationLabel, '1 hr 12 min');
+      expect(b.serviceRateLabel, '1 hr 12 min × ₹130/hr');
       expect(b.amountInt, 156);
+    });
+
+    test('under one hour still charges the 1 hr minimum on the label', () {
+      const b = ManualPaymentBilling(
+        amount: 250,
+        hourlyRate: 250,
+        workedMinutes: 18,
+        platformFee: 12,
+        counterpartName: 'Suresh',
+      );
+      expect(b.durationLabel, '18 min');
+      expect(b.serviceRateLabel, '1 hr × ₹250/hr');
     });
   });
 

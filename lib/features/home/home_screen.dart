@@ -20,6 +20,7 @@ import '../rentals/rentals_catalog_screen.dart';
 import 'active_booking_card.dart';
 import '../notifications/notifications_screen.dart';
 import '../../core/main_tab_provider.dart';
+import '../../shared/widgets/gx_profile_avatar.dart';
 
 /// Home — rebuilt to match the user's `Gixbee_home_v106.html` mockup:
 /// orange wordmark + location bar, search, a 2×2 colour-coded service quad,
@@ -78,8 +79,8 @@ class HomeScreen extends ConsumerWidget {
     final address = ref.watch(currentAddressProvider);
     final user = ref.watch(currentUserProvider).value;
     final hasUnreadNotifs = ref.watch(hasUnreadNotificationsProvider).value ?? false;
-    final initial = (user?.name?.trim().isNotEmpty ?? false)
-        ? user!.name!.trim()[0].toUpperCase()
+    final avatarName = (user?.name?.trim().isNotEmpty ?? false)
+        ? user!.name!.trim()
         : 'G';
 
     return Padding(
@@ -192,27 +193,20 @@ class HomeScreen extends ConsumerWidget {
           GxPressable(
             onTap: () =>
                 ref.read(mainTabIndexProvider.notifier).state = 3, // Profile tab
-            child: Container(
+            child: SizedBox(
               width: 36,
               height: 36,
-              alignment: Alignment.center,
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [context.gx.accentSoft, GixbeeTheme.accentPink],
-                ),
-                shape: BoxShape.circle,
-              ),
               child: Stack(
                 alignment: Alignment.center,
                 clipBehavior: Clip.none,
                 children: [
-                  Text(initial,
-                      style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w800,
-                          color: context.gx.onAccent)),
+                  GxProfileAvatar(
+                    imageUrl: user?.avatar,
+                    name: avatarName,
+                    size: 36,
+                    fontSize: 14,
+                    colors: [context.gx.accentSoft, GixbeeTheme.accentPink],
+                  ),
                   Positioned(
                     bottom: -1,
                     right: -1,

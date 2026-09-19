@@ -278,10 +278,14 @@ async fn get_profile(State(state): State<AppState>, user: AuthUser) -> AppResult
     let uid = Uuid::parse_str(&user.user_id).map_err(|_| AppError::NotFound("User not found".into()))?;
     let row = sqlx::query(
         r#"
-        SELECT id, "phoneNumber", name, "profileImageUrl", role::text AS role, "hasWorkerProfile",
-               "isAvailableForWork", "instantHelpBlocked", "lateCancelStrikeCount",
-               "unblockCompensationAmountInr", "unblockCompensationDistanceKm"
-        FROM users WHERE id = $1
+        SELECT u.id, u."phoneNumber", u.name,
+               COALESCE(NULLIF(u."profileImageUrl", ''), tp."photoUrl") AS "profileImageUrl",
+               u.role::text AS role, u."hasWorkerProfile",
+               u."isAvailableForWork", u."instantHelpBlocked", u."lateCancelStrikeCount",
+               u."unblockCompensationAmountInr", u."unblockCompensationDistanceKm"
+        FROM users u
+        LEFT JOIN talent_profiles tp ON tp."userId" = u.id
+        WHERE u.id = $1
         "#,
     )
     .bind(uid)
