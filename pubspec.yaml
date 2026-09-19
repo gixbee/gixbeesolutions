@@ -52,6 +52,9 @@ dependencies:
 
   # Photo / certificate capture (web-safe; no native config needed)
   image_picker: ^1.1.2
+  # Decode/resize/JPEG-encode profile photos (WhatsApp-style 640px)
+  image: ^4.5.4
+  crop_your_image: ^1.1.0
 
   # UI & Design
   google_fonts: ^8.2.0

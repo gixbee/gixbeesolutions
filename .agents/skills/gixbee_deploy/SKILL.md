@@ -24,8 +24,10 @@ git push origin main
 ## Step 2: Execute Automated Deployment via EC2 Instance Connect
 Do NOT attempt standard SSH without pushing the public key first, as EC2 Instance Connect manages ephemeral key authorization. Execute this one-line command in PowerShell:
 
+**Note:** Since ADR-009, `backend` (Nest) and `backend_rust` (Rust) are Compose profiles. Set `BACKEND_IMPL` in root `.env` and export `COMPOSE_PROFILES`. Default rollback path is **nest** until Rust is signed off for prod.
+
 ```powershell
-aws ec2-instance-connect send-ssh-public-key --instance-id i-0263e6862a2e32e59 --instance-os-user ec2-user --ssh-public-key file://C:\Users\gkv00\.ssh\gixbee-ec2.pub ; ssh -i C:\Users\gkv00\.ssh\gixbee-ec2 -o StrictHostKeyChecking=no ec2-user@13.233.60.215 "cd /home/ec2-user/gixbeesolutions && git pull origin main && docker compose up --build -d backend && docker image prune -f && docker compose ps"
+aws ec2-instance-connect send-ssh-public-key --instance-id i-0263e6862a2e32e59 --instance-os-user ec2-user --ssh-public-key file://C:\Users\gkv00\.ssh\gixbee-ec2.pub ; ssh -i C:\Users\gkv00\.ssh\gixbee-ec2 -o StrictHostKeyChecking=no ec2-user@13.233.60.215 "cd /home/ec2-user/gixbeesolutions && git pull origin main && echo 'BACKEND_IMPL=nest' > .env && COMPOSE_PROFILES=nest docker compose up --build -d && docker image prune -f && docker compose ps"
 ```
 
 The `docker image prune -f` is not optional. Each `--build` retags `gixbee-backend`

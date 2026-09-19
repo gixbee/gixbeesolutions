@@ -15,6 +15,7 @@ import '../../shared/widgets/gx_skeleton.dart';
 import '../../shared/widgets/gx_text_field.dart';
 import '../../theme.dart';
 import '../worker/go_live_screen.dart';
+import '../../shared/media/profile_photo.dart';
 import 'pro_skill_provider.dart';
 import 'pro_skill_taxonomy.dart';
 
@@ -204,16 +205,12 @@ class _RegisterProScreenState extends ConsumerState<RegisterProScreen> {
   Future<void> _pickPhoto() async {
     final messenger = ScaffoldMessenger.of(context);
     try {
-      final x = await ImagePicker().pickImage(
-        source: ImageSource.gallery,
-        maxWidth: 1024,
-        imageQuality: 80,
-      );
-      if (x == null) return;
+      final jpeg = await pickWhatsAppProfilePhoto(context);
+      if (jpeg == null) return;
       setState(() => _uploadingPhoto = true);
-      final bytes = await x.readAsBytes();
-      final url =
-          await ref.read(talentRepositoryProvider).uploadImage(bytes, x.name);
+      final url = await ref
+          .read(talentRepositoryProvider)
+          .uploadImage(jpeg, 'profile.jpg');
       if (!mounted) return;
       setState(() {
         _photoUrl = url;

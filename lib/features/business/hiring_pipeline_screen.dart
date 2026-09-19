@@ -5,6 +5,7 @@ import '../../shared/models/job_post.dart';
 import '../../shared/widgets/gx_pressable.dart';
 import '../../shared/widgets/gx_skeleton.dart';
 import '../../shared/widgets/gx_fade.dart';
+import '../../shared/widgets/gx_sheet.dart';
 import '../../shared/widgets/gx_snackbar.dart';
 import '../../theme.dart';
 import 'candidate_profile_screen.dart';
@@ -56,14 +57,15 @@ class _HiringPipelineScreenState extends ConsumerState<HiringPipelineScreen> {
     }
   }
 
-  Color _getStageColor(ApplicationStatus stage, BuildContext context) {
-    switch (stage) {
-      case ApplicationStatus.applied: return Colors.blue.shade100;
-      case ApplicationStatus.interview: return Colors.amber.shade100;
-      case ApplicationStatus.selected: return Colors.green.shade100;
-      case ApplicationStatus.rejected: return Colors.red.shade100;
-      case ApplicationStatus.withdrawn: return Colors.grey.shade300;
-    }
+  /// Semantic pipeline stage accent — matches application_tracker_screen.
+  Color _stageAccent(ApplicationStatus stage) {
+    return switch (stage) {
+      ApplicationStatus.applied => GixbeeTheme.accentGold,
+      ApplicationStatus.interview => GixbeeTheme.accentBlue,
+      ApplicationStatus.selected => GixbeeTheme.accentGreen,
+      ApplicationStatus.rejected => GixbeeTheme.brandRed,
+      ApplicationStatus.withdrawn => GixbeeTheme.textMed,
+    };
   }
 
   Future<void> _updateStatus(String appId, ApplicationStatus newStatus) async {
@@ -84,70 +86,82 @@ class _HiringPipelineScreenState extends ConsumerState<HiringPipelineScreen> {
   }
 
   void _showStatusUpdateDialog(JobApplication candidate) {
-    showModalBottomSheet(
-      context: context,
-      builder: (ctx) {
-        return SafeArea(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              ListTile(
-                title: Text('Move ${candidate.applicantName ?? 'Candidate'} to:'),
-                titleTextStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.black),
-              ),
-              const Divider(),
-              ..._stages.map((stage) {
-                return ListTile(
-                  title: Text(stage.name.toUpperCase()),
-                  trailing: candidate.status == stage ? const Icon(Icons.check, color: Colors.green) : null,
-                  onTap: () {
-                    Navigator.pop(ctx);
-                    _updateStatus(candidate.id, stage);
-                  },
-                );
-              }),
-            ],
-          ),
-        );
-      },
+    showGxSheet(
+      context,
+      title: 'Move ${candidate.applicantName ?? 'Candidate'} to',
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: _stages.map((stage) {
+          final accent = _stageAccent(stage);
+          return Semantics(
+            button: true,
+            label: 'Move to ${stage.name}',
+            selected: candidate.status == stage,
+            child: ListTile(
+              leading: Icon(Icons.circle, size: 12, color: accent),
+              title: Text(stage.name.toUpperCase()),
+              trailing: candidate.status == stage
+                  ? Icon(Icons.check, color: GixbeeTheme.accentGreen)
+                  : null,
+              onTap: () {
+                Navigator.pop(context);
+                _updateStatus(candidate.id, stage);
+              },
+            ),
+          );
+        }).toList(),
+      ),
     );
   }
 
-  Widget _buildKanbanColumn(ApplicationStatus stage, ColorScheme colorScheme) {
+  Widget _buildKanbanColumn(ApplicationStatus stage) {
+    final gx = context.gx;
+    final stageAccent = _stageAccent(stage);
     final candidatesInStage = _applications.where((a) => a.status == stage).toList();
 
     return Container(
       width: 280,
       margin: const EdgeInsets.only(right: 16),
       decoration: BoxDecoration(
-        color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
+        color: gx.card2,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: colorScheme.outlineVariant.withValues(alpha: 0.5)),
+        border: Border.all(color: gx.border),
       ),
       child: Column(
         children: [
           Container(
             padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
             decoration: BoxDecoration(
-              color: _getStageColor(stage, context).withValues(alpha: 0.8),
+              color: stageAccent.withValues(alpha: 0.18),
               borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
+              border: Border(bottom: BorderSide(color: stageAccent.withValues(alpha: 0.35))),
             ),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
                   stage.name.toUpperCase(),
-                  style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.black87),
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: stageAccent,
+                    fontSize: 13,
+                    letterSpacing: 0.4,
+                  ),
                 ),
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                   decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.5),
+                    color: gx.card.withValues(alpha: 0.7),
                     borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: gx.border),
                   ),
                   child: Text(
                     '${candidatesInStage.length}',
-                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: Colors.black87),
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 12,
+                      color: gx.ink.withValues(alpha: 0.75),
+                    ),
                   ),
                 ),
               ],
@@ -172,10 +186,10 @@ class _HiringPipelineScreenState extends ConsumerState<HiringPipelineScreen> {
                           children: [
                             CircleAvatar(
                               radius: 16,
-                              backgroundColor: GixbeeTheme.accentBlue,
+                              backgroundColor: gx.accent.withValues(alpha: 0.18),
                               child: Text(
                                 candidate.applicantName != null ? candidate.applicantName![0] : 'U',
-                                style: TextStyle(color: context.gx.onAccent, fontSize: 12),
+                                style: TextStyle(color: gx.accent, fontSize: 12, fontWeight: FontWeight.w700),
                               ),
                             ),
                             const SizedBox(width: 8),
@@ -191,40 +205,48 @@ class _HiringPipelineScreenState extends ConsumerState<HiringPipelineScreen> {
                         const SizedBox(height: 8),
                         Text(
                           'Applied on: ${candidate.createdAt != null ? candidate.createdAt!.toLocal().toString().split(' ')[0] : 'N/A'}',
-                          style: TextStyle(color: colorScheme.onSurfaceVariant, fontSize: 12),
+                          style: TextStyle(color: gx.ink.withValues(alpha: 0.55), fontSize: 12),
                         ),
                         const Divider(height: 16),
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            GxPressable(
-                              onTap: () {
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (_) => CandidateProfileScreen(application: candidate),
-                                  ),
-                                );
-                              },
-                              child: const Padding(
-                                padding: EdgeInsets.symmetric(vertical: 4),
-                                child: Text(
-                                  'View Profile',
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w700,
-                                    color: GixbeeTheme.accentBlue,
+                            Semantics(
+                              button: true,
+                              label: 'View ${candidate.applicantName ?? 'candidate'} profile',
+                              child: GxPressable(
+                                onTap: () {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (_) => CandidateProfileScreen(application: candidate),
+                                    ),
+                                  );
+                                },
+                                child: Padding(
+                                  padding: const EdgeInsets.symmetric(vertical: 4),
+                                  child: Text(
+                                    'View Profile',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w700,
+                                      color: gx.accent,
+                                    ),
                                   ),
                                 ),
                               ),
                             ),
-                            IconButton(
-                              constraints: const BoxConstraints(),
-                              padding: EdgeInsets.zero,
-                              tooltip: 'Move candidate stage',
-                              icon: const Icon(Icons.swap_horiz, size: 20),
-                              onPressed: () => _showStatusUpdateDialog(candidate),
-                            )
+                            Semantics(
+                              button: true,
+                              label: 'Move ${candidate.applicantName ?? 'candidate'} to another stage',
+                              child: IconButton(
+                                constraints: const BoxConstraints(),
+                                padding: EdgeInsets.zero,
+                                tooltip: 'Move candidate stage',
+                                icon: Icon(Icons.swap_horiz, size: 20, color: gx.ink.withValues(alpha: 0.7)),
+                                onPressed: () => _showStatusUpdateDialog(candidate),
+                              ),
+                            ),
                           ],
                         ),
                       ],
@@ -241,8 +263,6 @@ class _HiringPipelineScreenState extends ConsumerState<HiringPipelineScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-
     return Scaffold(
       appBar: AppBar(
         title: Column(
@@ -263,7 +283,7 @@ class _HiringPipelineScreenState extends ConsumerState<HiringPipelineScreen> {
             padding: const EdgeInsets.all(16),
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
-              children: _stages.map((stage) => _buildKanbanColumn(stage, colorScheme)).toList(),
+              children: _stages.map(_buildKanbanColumn).toList(),
             ),
           ),
         ),

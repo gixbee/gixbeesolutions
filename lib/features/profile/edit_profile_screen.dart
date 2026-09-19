@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:image_picker/image_picker.dart';
 import '../../core/config/app_config.dart';
 import '../../theme.dart';
 import '../../shared/widgets/gx_text_field.dart';
@@ -8,6 +7,7 @@ import '../../shared/widgets/gx_pressable.dart';
 import '../../shared/widgets/gx_snackbar.dart';
 import '../../repositories/profile_repository.dart';
 import '../../repositories/auth_repository.dart';
+import '../../shared/media/profile_photo.dart';
 
 class EditProfileScreen extends ConsumerStatefulWidget {
   const EditProfileScreen({super.key});
@@ -45,20 +45,14 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
       path.startsWith('http') ? path : '${AppConfig.baseUrl}$path';
 
   // Pick → upload → stash the returned URL (persisted on Save Changes).
-  // Mirrors register_pro._pickPhoto: same picker args, same /uploads/image
-  // endpoint, mounted-guarded, error → snackbar.
   Future<void> _pickPhoto() async {
     try {
-      final x = await ImagePicker().pickImage(
-        source: ImageSource.gallery,
-        maxWidth: 1024,
-        imageQuality: 80,
-      );
-      if (x == null) return;
+      final jpeg = await pickWhatsAppProfilePhoto(context);
+      if (jpeg == null) return;
       setState(() => _uploadingPhoto = true);
-      final bytes = await x.readAsBytes();
-      final url =
-          await ref.read(profileRepositoryProvider).uploadImage(bytes, x.name);
+      final url = await ref
+          .read(profileRepositoryProvider)
+          .uploadImage(jpeg, 'profile.jpg');
       if (!mounted) return;
       setState(() {
         _photoUrl = url;

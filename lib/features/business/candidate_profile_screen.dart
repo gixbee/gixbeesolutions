@@ -16,6 +16,7 @@ class CandidateProfileScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final gx = context.gx;
     return Scaffold(
       appBar: AppBar(
         title: const Text('Candidate Profile'),
@@ -33,19 +34,19 @@ class CandidateProfileScreen extends StatelessWidget {
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
                       border: Border.all(
-                        color: GixbeeTheme.accentBlue.withValues(alpha: 0.4),
+                        color: gx.accent.withValues(alpha: 0.4),
                         width: 2,
                       ),
                     ),
                     child: CircleAvatar(
                       radius: 50,
-                      backgroundColor: GixbeeTheme.accentBlue.withValues(alpha: 0.18),
+                      backgroundColor: gx.accent.withValues(alpha: 0.18),
                       child: Text(
                         application.applicantName != null ? application.applicantName![0] : 'U',
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 40,
                           fontWeight: FontWeight.w800,
-                          color: GixbeeTheme.accentBlue,
+                          color: gx.accent,
                         ),
                       ),
                     ),
@@ -106,7 +107,7 @@ class CandidateProfileScreen extends StatelessWidget {
                     icon: Icons.download,
                     onTap: () => _downloadResume(context),
                     filled: false,
-                    accent: GixbeeTheme.accentBlue,
+                    accent: gx.accent,
                   ),
                 ),
                 const SizedBox(width: 16),
@@ -117,9 +118,7 @@ class CandidateProfileScreen extends StatelessWidget {
                       height: 54,
                       alignment: Alignment.center,
                       decoration: BoxDecoration(
-                        gradient: const LinearGradient(
-                          colors: [GixbeeTheme.accentBlue, Color(0xFF1D4ED8)],
-                        ),
+                        gradient: LinearGradient(colors: gx.accentGradient),
                         borderRadius: BorderRadius.circular(14),
                       ),
                       child: Row(
@@ -199,7 +198,11 @@ class CandidateProfileScreen extends StatelessWidget {
       children: [
         Text(
           title,
-          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Colors.grey),
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            fontSize: 14,
+            color: context.gx.ink.withValues(alpha: 0.55),
+          ),
         ),
         const SizedBox(height: 12),
         GlassContainer(
@@ -225,13 +228,14 @@ class CandidateProfileScreen extends StatelessWidget {
     );
   }
 
+  /// Semantic status accent — matches application_tracker_screen.
   Color _getStatusColor(ApplicationStatus status) {
-    switch (status) {
-      case ApplicationStatus.applied: return Colors.blue;
-      case ApplicationStatus.interview: return Colors.amber;
-      case ApplicationStatus.selected: return Colors.green;
-      case ApplicationStatus.rejected: return Colors.red;
-      case ApplicationStatus.withdrawn: return Colors.grey;
-    }
+    return switch (status) {
+      ApplicationStatus.applied => GixbeeTheme.accentGold,
+      ApplicationStatus.interview => GixbeeTheme.accentBlue,
+      ApplicationStatus.selected => GixbeeTheme.accentGreen,
+      ApplicationStatus.rejected => GixbeeTheme.brandRed,
+      ApplicationStatus.withdrawn => GixbeeTheme.textMed,
+    };
   }
 }

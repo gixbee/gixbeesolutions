@@ -81,3 +81,16 @@ pub const WORKER_PROFILE_COLS: &str = r#"
     bio, title, rating, "completedJobs", "reviewCount", "lastLat", "lastLng",
     "createdAt", "updatedAt"
 "#;
+
+/// Qualify worker_profiles columns so JOINs with users/talent_profiles
+/// do not hit Postgres "column reference id is ambiguous".
+pub fn worker_profile_cols(alias: &str) -> String {
+    format!(
+        r#"{a}.id, {a}."userId", {a}.skills, {a}."activeSkills", {a}.languages, {a}."serviceRadiusKm", {a}."hourlyRate",
+    {a}."isActive", {a}."goLiveToggleCountToday", {a}."goLiveToggleDate", {a}."jobsSincePayment",
+    {a}."strikeCount", {a}."verificationStatus"::text AS "verificationStatus",
+    {a}.bio, {a}.title, {a}.rating, {a}."completedJobs", {a}."reviewCount", {a}."lastLat", {a}."lastLng",
+    {a}."createdAt", {a}."updatedAt""#,
+        a = alias
+    )
+}

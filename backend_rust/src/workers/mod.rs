@@ -11,7 +11,7 @@ use sqlx::Row;
 use std::collections::HashSet;
 use uuid::Uuid;
 
-use crate::common::pg::WORKER_PROFILE_COLS;
+use crate::common::pg::{worker_profile_cols, WORKER_PROFILE_COLS};
 use crate::error::{AppError, AppResult};
 use crate::middleware::auth::{require_admin_page, AuthUser};
 use crate::state::AppState;
@@ -46,6 +46,7 @@ pub fn routes() -> Router<AppState> {
         .route("/me/strikes", get(get_my_strikes))
         .route("/me/strikes/{strike_id}/appeal", post(appeal_strike))
         .route("/admin/verification-queue", get(verification_queue))
+        .route("/admin/{user_id}/verification", patch(set_verification))
         .route("/{id}/packages", get(get_packages))
         .route("/{id}", get(get_by_id))
 }
@@ -995,20 +996,81 @@ async fn update_location(
     Ok(Json(json!({ "message": "Location updated" })))
 }
 
+#[derive(Deserialize)]
+struct VerificationQueueQuery {
+    status: Option<String>,
+}
+
 async fn verification_queue(
     State(state): State<AppState>,
     user: AuthUser,
+    Query(q): Query<VerificationQueueQuery>,
 ) -> AppResult<Json<Vec<Value>>> {
     require_admin_page(&user, "verifications")?;
+    let status = q
+        .status
+        .map(|s| s.trim().to_string())
+        .filter(|s| !s.is_empty());
+    let cols = worker_profile_cols("w");
     let rows = sqlx::query(&format!(
-        r#"SELECT {WORKER_PROFILE_COLS}, u.name, u."phoneNumber"
+        r#"SELECT {cols}, u.name, u."phoneNumber", tp."photoUrl", tp.certificates
            FROM worker_profiles w
            JOIN users u ON u.id = w."userId"
-           WHERE w."verificationStatus"::text = 'PENDING'"#
+           LEFT JOIN talent_profiles tp ON tp."userId" = w."userId"
+           WHERE ($1::text IS NULL OR w."verificationStatus"::text = $1)
+           ORDER BY w.id DESC"#
     ))
+    .bind(status)
     .fetch_all(&state.db)
     .await?;
     Ok(Json(rows.iter().map(worker_json).collect()))
+}
+
+#[derive(Deserialize)]
+struct VerificationBody {
+    status: String,
+}
+
+async fn set_verification(
+    State(state): State<AppState>,
+    user: AuthUser,
+    Path(user_id): Path<String>,
+    Json(body): Json<VerificationBody>,
+) -> AppResult<Json<Value>> {
+    require_admin_page(&user, "verifications")?;
+    let uid = Uuid::parse_str(&user_id)?;
+    let status = body.status.trim().to_uppercase();
+    if status != "VERIFIED" && status != "REJECTED" {
+        return Err(AppError::BadRequest(
+            "status must be VERIFIED or REJECTED".into(),
+        ));
+    }
+    let updated = sqlx::query(
+        r#"UPDATE worker_profiles SET "verificationStatus" = $1::worker_profiles_verificationstatus_enum, "updatedAt" = NOW()
+           WHERE "userId" = $2"#,
+    )
+    .bind(&status)
+    .bind(uid)
+    .execute(&state.db)
+    .await?
+    .rows_affected();
+    if updated == 0 {
+        return Err(AppError::NotFound("Worker profile not found".into()));
+    }
+    if status == "VERIFIED" {
+        sqlx::query(
+            r#"UPDATE users SET "isVerified" = true, "hasWorkerProfile" = true,
+                   "approvalStatus" = 'APPROVED'::users_approvalstatus_enum, "updatedAt" = NOW()
+               WHERE id = $1"#,
+        )
+        .bind(uid)
+        .execute(&state.db)
+        .await?;
+    }
+    Ok(Json(json!({
+        "userId": uid.to_string(),
+        "verificationStatus": status,
+    })))
 }
 
 async fn get_by_id(
@@ -1016,8 +1078,9 @@ async fn get_by_id(
     Path(id): Path<String>,
 ) -> AppResult<Json<Value>> {
     let uid = Uuid::parse_str(&id)?;
+    let cols = worker_profile_cols("w");
     let row = sqlx::query(&format!(
-        r#"SELECT {WORKER_PROFILE_COLS}, u.name, u."profileImageUrl"
+        r#"SELECT {cols}, u.name, u."profileImageUrl"
            FROM worker_profiles w
            JOIN users u ON u.id = w."userId"
            WHERE w."userId" = $1"#
@@ -1049,13 +1112,18 @@ fn my_profile_json(row: &sqlx::postgres::PgRow) -> Value {
 fn worker_json(row: &sqlx::postgres::PgRow) -> Value {
     json!({
         "userId": row.try_get::<Uuid, _>("userId").ok().map(|u| u.to_string()),
+        "name": row.try_get::<Option<String>, _>("name").ok().flatten(),
+        "phone": row.try_get::<Option<String>, _>("phoneNumber").ok().flatten().unwrap_or_default(),
         "skills": parse_skills(row.try_get::<Option<String>, _>("skills").ok().flatten()),
-        "hourlyRate": row.try_get::<rust_decimal::Decimal, _>("hourlyRate").ok(),
+        "hourlyRate": row.try_get::<rust_decimal::Decimal, _>("hourlyRate").ok().and_then(|d| d.to_f64()).unwrap_or(0.0),
+        "bio": row.try_get::<Option<String>, _>("bio").ok().flatten().unwrap_or_default(),
         "isActive": row.try_get::<bool, _>("isActive").ok(),
-        "verificationStatus": row.try_get::<String, _>("verificationStatus").ok(),
+        "verificationStatus": row.try_get::<String, _>("verificationStatus").ok().unwrap_or_else(|| "PENDING".into()),
+        "languages": parse_skills(row.try_get::<Option<String>, _>("languages").ok().flatten()),
+        "photoUrl": row.try_get::<Option<String>, _>("photoUrl").ok().flatten(),
+        "certificates": parse_skills(row.try_get::<Option<String>, _>("certificates").ok().flatten()),
         "lastLat": row.try_get::<Option<rust_decimal::Decimal>, _>("lastLat").ok().flatten(),
         "lastLng": row.try_get::<Option<rust_decimal::Decimal>, _>("lastLng").ok().flatten(),
-        "name": row.try_get::<Option<String>, _>("name").ok().flatten(),
     })
 }
 

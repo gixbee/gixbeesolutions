@@ -8,6 +8,7 @@ use serde_json::{json, Value};
 use sqlx::Row;
 use uuid::Uuid;
 
+use crate::common::pg::{date_json, string_list, PROFESSIONAL_SKILL_COLS};
 use crate::common::pagination::{pagination_offset, parse_pagination};
 use crate::error::{AppError, AppResult};
 use crate::middleware::auth::{require_admin_page, AuthUser};
@@ -57,7 +58,7 @@ async fn get_all_users(
     State(state): State<AppState>,
     user: AuthUser,
     Query(q): Query<PageQuery>,
-) -> AppResult<Json<Value>> {
+) -> AppResult<Json<Vec<Value>>> {
     require_admin_page(&user, "users")?;
     let (page, limit) = parse_pagination(q.page.as_deref(), q.limit.as_deref());
     let offset = pagination_offset(page, limit);
@@ -68,11 +69,9 @@ async fn get_all_users(
     .bind(offset)
     .fetch_all(&state.db)
     .await?;
-    Ok(Json(json!({
-        "data": rows.iter().map(user_list_json).collect::<Vec<_>>(),
-        "page": page,
-        "limit": limit,
-    })))
+    let mut users: Vec<Value> = rows.iter().map(user_list_json).collect();
+    attach_talent_profiles(&state, &mut users).await?;
+    Ok(Json(users))
 }
 
 #[derive(Deserialize)]
@@ -266,7 +265,86 @@ fn user_list_json(row: &sqlx::postgres::PgRow) -> Value {
         "isVerified": row.get::<bool, _>("isVerified"),
         "hasWorkerProfile": row.get::<bool, _>("hasWorkerProfile"),
         "approvalStatus": row.get::<String, _>("approvalStatus"),
+        "createdAt": date_json(row, "createdAt"),
     })
+}
+
+async fn attach_talent_profiles(state: &AppState, users: &mut [Value]) -> AppResult<()> {
+    if users.is_empty() {
+        return Ok(());
+    }
+    let ids: Vec<Uuid> = users
+        .iter()
+        .filter_map(|u| u.get("id").and_then(|v| v.as_str()))
+        .filter_map(|s| Uuid::parse_str(s).ok())
+        .collect();
+    if ids.is_empty() {
+        return Ok(());
+    }
+
+    let talents = sqlx::query(
+        r#"SELECT id, "userId", skills, experience, "hourlyRate", "currentStatus"::text AS "currentStatus",
+                  "preferredRoles", "preferredLocations", "jobAlertsEnabled", "createdAt"
+           FROM talent_profiles WHERE "userId" = ANY($1)"#,
+    )
+    .bind(&ids)
+    .fetch_all(&state.db)
+    .await?;
+    if talents.is_empty() {
+        return Ok(());
+    }
+
+    let talent_ids: Vec<Uuid> = talents.iter().filter_map(|r| r.try_get("id").ok()).collect();
+    let skills = sqlx::query(&format!(
+        r#"SELECT {PROFESSIONAL_SKILL_COLS} FROM professional_skills WHERE "talentProfileId" = ANY($1) ORDER BY "createdAt""#
+    ))
+    .bind(&talent_ids)
+    .fetch_all(&state.db)
+    .await?;
+
+    let mut skills_by_talent: std::collections::HashMap<String, Vec<Value>> =
+        std::collections::HashMap::new();
+    for row in &skills {
+        let tid = row.get::<Uuid, _>("talentProfileId").to_string();
+        skills_by_talent.entry(tid).or_default().push(json!({
+            "id": row.get::<Uuid, _>("id").to_string(),
+            "name": row.get::<String, _>("name"),
+            "hourlyRate": row.try_get::<f64, _>("hourlyRate").ok(),
+            "status": row.get::<String, _>("status"),
+            "updatedAt": date_json(row, "updatedAt"),
+        }));
+    }
+
+    let mut talent_by_user: std::collections::HashMap<String, Value> =
+        std::collections::HashMap::new();
+    for row in &talents {
+        let talent_id = row.get::<Uuid, _>("id").to_string();
+        let user_id = row.get::<Uuid, _>("userId").to_string();
+        talent_by_user.insert(
+            user_id,
+            json!({
+                "id": talent_id,
+                "skills": string_list(row, "skills"),
+                "experience": row.get::<Option<String>, _>("experience"),
+                "hourlyRate": row.try_get::<Option<f64>, _>("hourlyRate").ok().flatten(),
+                "currentStatus": row.get::<Option<String>, _>("currentStatus"),
+                "preferredRoles": string_list(row, "preferredRoles"),
+                "preferredLocations": string_list(row, "preferredLocations"),
+                "jobAlertsEnabled": row.get::<bool, _>("jobAlertsEnabled"),
+                "createdAt": date_json(row, "createdAt"),
+                "professionalSkills": skills_by_talent.get(&talent_id).cloned().unwrap_or_default(),
+            }),
+        );
+    }
+
+    for user in users.iter_mut() {
+        if let Some(id) = user.get("id").and_then(|v| v.as_str()) {
+            if let Some(talent) = talent_by_user.get(id) {
+                user["talentProfile"] = talent.clone();
+            }
+        }
+    }
+    Ok(())
 }
 
 fn user_detail_json(row: &sqlx::postgres::PgRow, admin: bool) -> Value {
