@@ -72,14 +72,14 @@ pub fn gateway_configured(state: &AppState) -> bool {
 }
 
 #[derive(Deserialize)]
-struct OtpBody {
+pub(super) struct OtpBody {
     kind: String,
     code: String,
 }
 
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
-struct SettleBody {
+pub(super) struct SettleBody {
     #[serde(default)]
     late_fee: f64,
     #[serde(default)]
