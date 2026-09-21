@@ -425,11 +425,65 @@ fn event_services(value:Option<&Value>)->AppResult<Vec<String>> {
     Ok(services)
 }
 
-fn phone(value:Option<&Value>)->AppResult<Option<String>> {
-    let Some(value)=value.and_then(Value::as_str).map(str::trim).filter(|s|!s.is_empty()) else {return Ok(None);};
-    let digits=value.chars().filter(char::is_ascii_digit).count();
-    if !(10..=15).contains(&digits) || value.len()>30 || value.chars().any(|c|!c.is_ascii_digit()&&!['+',' ','-','(',')'].contains(&c)) {
-        return Err(AppError::BadRequest("Enter a valid business phone number".into()));
+fn phone(value: Option<&Value>) -> AppResult<Option<String>> {
+    let Some(raw) = value
+        .and_then(Value::as_str)
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+    else {
+        return Ok(None);
+    };
+    // Phone keyboards insert `.` `/` `,` `#` `*` and unicode dashes; count
+    // digits only so a real 10-digit mobile is not rejected as 400.
+    if raw.chars().count() > 40 {
+        return Err(AppError::BadRequest(
+            "Enter a valid 10-digit business phone number".into(),
+        ));
     }
-    Ok(Some(value.into()))
+    let mut digits: String = raw.chars().filter(|c| c.is_ascii_digit()).collect();
+    if digits.len() == 11 && digits.starts_with('0') {
+        digits = digits[1..].to_string();
+    }
+    if !(10..=15).contains(&digits.len()) {
+        return Err(AppError::BadRequest(
+            "Enter a valid 10-digit business phone number".into(),
+        ));
+    }
+    Ok(Some(if raw.contains('+') || digits.len() > 10 {
+        format!("+{digits}")
+    } else {
+        digits
+    }))
+}
+
+#[cfg(test)]
+mod phone_tests {
+    use super::phone;
+    use serde_json::json;
+
+    fn ok(v: &str) -> String {
+        phone(Some(&json!(v))).unwrap().unwrap()
+    }
+
+    #[test]
+    fn accepts_plain_indian_mobile() {
+        assert_eq!(ok("9876543210"), "9876543210");
+    }
+
+    #[test]
+    fn accepts_plus_91_and_spaces() {
+        assert_eq!(ok("+91 98765 43210"), "+919876543210");
+    }
+
+    #[test]
+    fn accepts_keyboard_punctuation() {
+        assert_eq!(ok("98765.43210"), "9876543210");
+        assert_eq!(ok("tel:+91-9876543210"), "+919876543210");
+        assert_eq!(ok("09876543210"), "9876543210");
+    }
+
+    #[test]
+    fn rejects_too_short() {
+        assert!(phone(Some(&json!("98765"))).is_err());
+    }
 }

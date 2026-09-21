@@ -121,3 +121,31 @@ Future<void> ensureLocationInitialized(WidgetRef ref) async {
     debugPrint('Location auto-detect failed: $e');
   }
 }
+
+/// Refresh the live GPS pin after the user turns location back on.
+Future<void> refreshLiveLocationFromGps(WidgetRef ref) async {
+  try {
+    final pos = await ref
+        .read(locationServiceProvider)
+        .getCurrentPosition(fallbackToLastKnown: true);
+    if (pos == null) return;
+    final address = await ref
+        .read(locationServiceProvider)
+        .getAddressFromLatLng(pos)
+        .timeout(const Duration(seconds: 8));
+    List<CityEntry> cities = const [];
+    try {
+      cities = await ref.read(citiesProvider.future);
+    } catch (_) {}
+    await applyLocation(
+      ref,
+      address: address,
+      lat: pos.latitude,
+      lng: pos.longitude,
+      city: nearestCity(cities, pos.latitude, pos.longitude) ??
+          ref.read(currentCityProvider),
+    );
+  } catch (e) {
+    debugPrint('Live location refresh failed: $e');
+  }
+}

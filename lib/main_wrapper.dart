@@ -71,7 +71,6 @@ class _MainWrapperState extends ConsumerState<MainWrapper>
   /// One-shot guard for the first-run location prompt (Swiggy pattern).
   bool _locationPromptShown = false;
 
-  /// Non-null while GPS is blocked ('service_off' | 'denied_forever' |
   /// Tracks booking IDs already shown — prevents duplicate popups from
   /// FCM, socket, and HTTP reconciliation firing for the same booking.
   final Set<String> _shownBookingIds = {};
@@ -153,21 +152,16 @@ class _MainWrapperState extends ConsumerState<MainWrapper>
       _initNotifications();
       _checkWorkerPendingOnce();
       // Location chain: restore last pick, else GPS auto-detect + nearest
-      // serviceable city — so the home bar and city-scoped feeds are correct
-      // without the user opening the picker.
-      // If NEITHER resolves (fresh install with device location off or the
-      // permission denied), prompt IMMEDIATELY with the address picker —
-      // Swiggy-style — instead of leaving a blank "Select Location" the
-      // user has to discover on their own. The sheet offers all three exits:
-      // use live location, pick a saved address, or pin on the map.
-      ensureLocationInitialized(ref).then((_) {
+      // serviceable city. Device GPS is gated app-wide by LocationRequiredHost;
+      // this picker is only a fallback when GPS is on but no pin was saved.
+      ensureLocationInitialized(ref).then((_) async {
         if (!mounted) return;
+        final blocked =
+            await ref.read(locationServiceProvider).gpsBlockReason();
+        if (!mounted || blocked != null) return;
         if (ref.read(selectedLocationProvider) == null) {
           _promptLocationPicker();
         }
-        // Swiggy pattern part 2: ASK for device location on app open when
-        // it's merely un-granted.
-        unawaited(_checkGpsAccess());
       });
       // CACHE WARM (client bug: Instant Help showed a ~4s blank grid on
       // first open): kick the trades-master fetch NOW, at app start. The
@@ -621,26 +615,7 @@ class _MainWrapperState extends ConsumerState<MainWrapper>
       backgroundColor: Colors.transparent,
       builder: (_) => const AddressPickerBottomSheet(),
     );
-  }
-
-  // ── GPS access banner (Swiggy "Location Permission is Off") ──────────
-
-  /// Evaluate GPS availability. When [promptIfAskable] and the permission is
-  /// merely 'denied' (re-promptable), trigger the OS dialog once by
-  /// requesting a position — that IS the ask-on-open.
-  Future<void> _checkGpsAccess() async {
-    try {
-      final svc = ref.read(locationServiceProvider);
-      final reason = await svc.gpsBlockReason();
-      if (reason == 'denied') {
-        await svc.getCurrentPosition(); // surfaces the OS permission dialog
-      }
-    } catch (_) {}
-  }
-
-
-
-  @override
+  }  @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     final isLive = ref.watch(workerLiveStateProvider);

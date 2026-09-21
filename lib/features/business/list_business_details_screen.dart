@@ -1,4 +1,6 @@
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 import 'list_business_type_screen.dart';
@@ -10,6 +12,7 @@ import '../../shared/widgets/gx_text_field.dart';
 import '../../shared/widgets/gx_sheet.dart';
 import '../../shared/widgets/gx_snackbar.dart';
 import '../../theme.dart';
+import '../../repositories/auth_repository.dart';
 import '../../repositories/business_repository.dart';
 import '../../repositories/cities_repository.dart'; // currentCityProvider
 
@@ -87,6 +90,15 @@ class _ListBusinessDetailsScreenState
   }
 
   @override
+  void initState() {
+    super.initState();
+    final existing = ref.read(currentUserProvider).value?.phone;
+    if (existing != null && existing.isNotEmpty) {
+      _phoneCtrl.text = existing;
+    }
+  }
+
+  @override
   void dispose() {
     _nameCtrl.dispose();
     _descCtrl.dispose();
@@ -141,10 +153,13 @@ class _ListBusinessDetailsScreenState
   }
 
   void _submit() async {
-    if (_nameCtrl.text.isEmpty ||
-        _phoneCtrl.text.isEmpty ||
-        _addressCtrl.text.trim().isEmpty) {
+    final phoneDigits = _phoneCtrl.text.replaceAll(RegExp(r'\D'), '');
+    if (_nameCtrl.text.trim().isEmpty || _addressCtrl.text.trim().isEmpty) {
       showGxSnack(context, 'Please fill all required fields');
+      return;
+    }
+    if (phoneDigits.length < 10 || phoneDigits.length > 15) {
+      showGxSnack(context, 'Enter a valid 10-digit business phone number');
       return;
     }
     if (widget.type == BusinessType.service && _serviceType == null) {
@@ -157,12 +172,12 @@ class _ListBusinessDetailsScreenState
     try {
       final business = Business(
         id: '', // Backend generates this
-        name: _nameCtrl.text,
+        name: _nameCtrl.text.trim(),
         type: widget.type.name.toUpperCase(),
         description: _descCtrl.text,
         specialty: _specialtyCtrl.text,
-        phone: _phoneCtrl.text,
-        address: _addressCtrl.text,
+        phone: phoneDigits.length == 10 ? phoneDigits : '+$phoneDigits',
+        address: _addressCtrl.text.trim(),
         documentUrl: _docUrl,
         serviceType:
             widget.type == BusinessType.service && ['HALL', 'CATERING', 'DECORATION', 'PHOTOGRAPHY'].contains(_serviceType) ? _serviceType : null,
@@ -180,7 +195,14 @@ class _ListBusinessDetailsScreenState
       await _showSuccessSheet();
     } catch (e) {
       if (!mounted) return;
-      showGxSnack(context, 'Error: ${e.toString()}', type: GxSnackType.error);
+      String msg = 'Could not save the business. Please try again.';
+      if (e is DioException) {
+        final data = e.response?.data;
+        if (data is Map && data['message'] != null) {
+          msg = data['message'].toString();
+        }
+      }
+      showGxSnack(context, msg, type: GxSnackType.error);
     } finally {
       if (mounted) setState(() => _isSubmitting = false);
     }
@@ -375,6 +397,11 @@ class _ListBusinessDetailsScreenState
                             label: 'Business Phone Number *',
                             icon: Icons.phone_outlined,
                             keyboardType: TextInputType.phone,
+                            inputFormatters: [
+                              FilteringTextInputFormatter.allow(
+                                  RegExp(r'[0-9+\s\-()]')),
+                              LengthLimitingTextInputFormatter(18),
+                            ],
                           ),
                           const SizedBox(height: 14),
                           _buildTextField(
@@ -558,6 +585,7 @@ class _ListBusinessDetailsScreenState
     required IconData icon,
     int maxLines = 1,
     TextInputType keyboardType = TextInputType.text,
+    List<TextInputFormatter>? inputFormatters,
   }) {
     return GxTextField(
       controller: controller,
@@ -565,6 +593,7 @@ class _ListBusinessDetailsScreenState
       prefixIcon: icon,
       maxLines: maxLines,
       keyboardType: keyboardType,
+      inputFormatters: inputFormatters,
       accent: GixbeeTheme.accentBlue,
     );
   }

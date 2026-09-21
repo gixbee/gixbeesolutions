@@ -59,7 +59,11 @@ ALTER TABLE rental_items
   ADD COLUMN IF NOT EXISTS "pickupAddress" text NOT NULL DEFAULT '',
   ADD COLUMN IF NOT EXISTS "deliveryAvailable" boolean NOT NULL DEFAULT false,
   ADD COLUMN IF NOT EXISTS "deliveryFee" numeric(10,2) NOT NULL DEFAULT 0 CHECK ("deliveryFee" >= 0),
-  ADD COLUMN IF NOT EXISTS "depositPerUnit" numeric(10,2) NOT NULL DEFAULT 0 CHECK ("depositPerUnit" >= 0);
+  ADD COLUMN IF NOT EXISTS "depositPerUnit" numeric(10,2) NOT NULL DEFAULT 0 CHECK ("depositPerUnit" >= 0),
+  ADD COLUMN IF NOT EXISTS "imageUrls" jsonb NOT NULL DEFAULT '[]'::jsonb,
+  ADD COLUMN IF NOT EXISTS "pickupLat" double precision,
+  ADD COLUMN IF NOT EXISTS "pickupLng" double precision,
+  ADD COLUMN IF NOT EXISTS "advanceAmount" numeric(10,2) NOT NULL DEFAULT 0 CHECK ("advanceAmount" >= 0);
 
 ALTER TABLE rental_reservations
   ADD COLUMN IF NOT EXISTS quantity integer NOT NULL DEFAULT 1 CHECK (quantity BETWEEN 1 AND 100000),
@@ -73,6 +77,28 @@ ALTER TABLE rental_reservations
   ADD COLUMN IF NOT EXISTS "ownerPaidAt" timestamptz NULL,
   ADD COLUMN IF NOT EXISTS "renterPaidAt" timestamptz NULL,
   ADD COLUMN IF NOT EXISTS "ownerRefundedAt" timestamptz NULL,
-  ADD COLUMN IF NOT EXISTS "renterRefundedAt" timestamptz NULL;
+  ADD COLUMN IF NOT EXISTS "renterRefundedAt" timestamptz NULL,
+  ADD COLUMN IF NOT EXISTS "paymentStatus" varchar(32) NOT NULL DEFAULT 'NONE',
+  ADD COLUMN IF NOT EXISTS "holdExpiresAt" timestamptz NULL,
+  ADD COLUMN IF NOT EXISTS "advanceAmount" numeric(10,2) NOT NULL DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS "remainingAmount" numeric(10,2) NOT NULL DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS "lateFee" numeric(10,2) NOT NULL DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS "damageAmount" numeric(10,2) NOT NULL DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS "handoverOtp" varchar(8) NULL,
+  ADD COLUMN IF NOT EXISTS "returnOtp" varchar(8) NULL;
+
+ALTER TYPE "rental_reservations_status_enum" ADD VALUE IF NOT EXISTS 'TEMP_HOLD';
+ALTER TYPE "rental_reservations_status_enum" ADD VALUE IF NOT EXISTS 'PAYMENT_PENDING';
+ALTER TYPE "rental_reservations_status_enum" ADD VALUE IF NOT EXISTS 'PENDING_OWNER_CONFIRMATION';
+ALTER TYPE "rental_reservations_status_enum" ADD VALUE IF NOT EXISTS 'RETURN_PENDING';
+ALTER TYPE "payment_orders_purpose_enum" ADD VALUE IF NOT EXISTS 'RENTAL_ADVANCE';
+ALTER TYPE "payment_orders_purpose_enum" ADD VALUE IF NOT EXISTS 'RENTAL_SETTLEMENT';
 
 CREATE INDEX IF NOT EXISTS rental_items_business ON rental_items ("businessId");
+
+UPDATE rental_items r
+SET "pickupLat" = c.lat, "pickupLng" = c.lng
+FROM businesses b
+JOIN cities c ON c.id = b."cityId"
+WHERE r."businessId" = b.id AND r."pickupLat" IS NULL AND c.lat IS NOT NULL;
+

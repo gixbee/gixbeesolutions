@@ -1,6 +1,8 @@
 use std::env;
+use std::str::FromStr;
 
 use anyhow::{anyhow, Context, Result};
+use sqlx::postgres::PgConnectOptions;
 
 #[derive(Clone, Debug)]
 pub struct Config {
@@ -174,11 +176,22 @@ pub async fn connect_db(database_url: &str) -> Result<sqlx::PgPool> {
     // Per replica. Two replicas × 15 = 30 client conns to PgBouncer
     // (DEFAULT_POOL_SIZE=40 real Postgres backends). 50/replica was
     // oversized for a 2GB host and queued work in sqlx under load.
+    //
+    // sqlx 0.8 keeps the prepared-statement cache on PgConnectOptions.
+    // Capacity 0 is required with PgBouncer transaction pooling: named
+    // prepared statements pin a plan on one Postgres backend, then the next
+    // checkout hits a different backend (or a plan whose result types
+    // changed after ALTER). That surfaces as
+    // `cached plan must not change result type` on GET /bookings/:id/status
+    // and leaves the post-accept screen black.
+    let options = PgConnectOptions::from_str(database_url)
+        .context("invalid DATABASE_URL")?
+        .statement_cache_capacity(0);
     let pool = sqlx::postgres::PgPoolOptions::new()
         .max_connections(15)
         .acquire_timeout(std::time::Duration::from_secs(10))
         .idle_timeout(std::time::Duration::from_secs(30))
-        .connect(database_url)
+        .connect_with(options)
         .await
         .context("failed to connect to postgres")?;
     Ok(pool)

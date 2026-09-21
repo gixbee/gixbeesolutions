@@ -13,6 +13,7 @@ import 'core/navigator_key.dart';
 import 'core/plugins/default_plugins.dart';
 import 'core/theme_provider.dart';
 import 'features/onboarding/animated_splash_screen.dart';
+import 'shared/widgets/location_required_host.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -116,7 +117,9 @@ class GixbeeApp extends ConsumerWidget {
     return LayoutBuilder(
       builder: (context, constraints) {
         const maxW = 430.0;
-        if (constraints.maxWidth <= 520) return child;
+        if (constraints.maxWidth <= 520) {
+          return LocationRequiredHost(child: child);
+        }
         final mq = MediaQuery.of(context);
         // Gutter follows the active theme — a hardcoded near-black frame
         // around a Grab-Light app read as "different theming" on web.
@@ -132,7 +135,7 @@ class GixbeeApp extends ConsumerWidget {
               child: MediaQuery(
                 data: mq.copyWith(
                     size: Size(maxW, constraints.maxHeight)),
-                child: child,
+                child: LocationRequiredHost(child: child),
               ),
             ),
           ),

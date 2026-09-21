@@ -17,6 +17,14 @@ class RentalFulfillmentCard extends ConsumerStatefulWidget {
 
 class _RentalFulfillmentCardState extends ConsumerState<RentalFulfillmentCard> {
   bool _busy = false;
+  final _otpCtrl = TextEditingController();
+
+  @override
+  void dispose() {
+    _otpCtrl.dispose();
+    super.dispose();
+  }
+
   Future<void> _ack(String action, String label, String message) async {
     if (_busy) return;
     final confirmed = await showDialog<bool>(context: context, builder: (context) => AlertDialog(
@@ -38,13 +46,33 @@ class _RentalFulfillmentCardState extends ConsumerState<RentalFulfillmentCard> {
     padding: const EdgeInsets.only(top: 8), child: GxButton(label: label, filled: false,
       loading: _busy, onTap: () => _ack(action, label, message)));
 
+  Future<void> _verifyOtp(String kind) async {
+    final code = _otpCtrl.text.trim();
+    if (code.length != 4) {
+      showGxSnack(context, 'Enter the 4-digit OTP');
+      return;
+    }
+    if (_busy) return;
+    setState(() => _busy = true);
+    try {
+      await ref.read(rentalsRepositoryProvider).verifyOtp('${widget.reservation['id']}', kind, code);
+      _otpCtrl.clear();
+      await widget.onChanged();
+    } catch (e) {
+      if (!mounted) return;
+      showGxSnack(context, eventError(e));
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final r = widget.reservation;
     final p = r['priceBreakdown'] as Map? ?? {};
     final owner = widget.isOwner;
     final status = '${r['status']}';
-    final active = status == 'CONFIRMED' || status == 'ACTIVE';
+    final active = status == 'CONFIRMED' || status == 'ACTIVE' || status == 'RETURN_PENDING';
     final handed = r['ownerHandedOverAt'] != null || r['renterCollectedAt'] != null;
     final returned = r['ownerReturnedAt'] != null && r['renterReturnedAt'] != null;
     final paid = r['ownerPaidAt'] != null || r['renterPaidAt'] != null;
@@ -61,7 +89,29 @@ class _RentalFulfillmentCardState extends ConsumerState<RentalFulfillmentCard> {
         const SizedBox(height: 8),
         Text('Rental ${eventMoney(p['rent'])} · Delivery ${eventMoney(p['delivery'])}'),
         Text('Refundable deposit ${eventMoney(p['deposit'])}'),
+        if (r['advanceAmount'] != null) Text('Advance ${eventMoney(r['advanceAmount'])}'),
         Text('${p['depositTerms'] ?? ''}'),
+      ],
+      if (owner && (status == 'CONFIRMED' || status == 'ACTIVE')) ...[
+        const SizedBox(height: 10),
+        TextField(
+          controller: _otpCtrl,
+          keyboardType: TextInputType.number,
+          maxLength: 4,
+          decoration: InputDecoration(
+            counterText: '',
+            hintText: status == 'CONFIRMED' ? 'Customer pickup OTP' : 'Customer return OTP',
+          ),
+        ),
+        GxButton(
+          label: status == 'CONFIRMED' ? 'Verify pickup OTP' : 'Verify return OTP',
+          filled: false,
+          height: 40,
+          loading: _busy,
+          onTap: _busy
+              ? null
+              : () => _verifyOtp(status == 'CONFIRMED' ? 'handover' : 'return'),
+        ),
       ],
       if (active || status == 'COMPLETED' || (status == 'CANCELLED' && paid)) ...[
         const SizedBox(height: 10),

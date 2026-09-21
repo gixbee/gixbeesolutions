@@ -3,13 +3,16 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 import '../../repositories/rentals_repository.dart';
+import '../../shared/media/profile_photo.dart';
 import '../../shared/widgets/dribbble_background.dart';
+import 'rental_images.dart';
 import '../../shared/widgets/gx_button.dart';
 import '../../shared/widgets/gx_pressable.dart';
 import '../../shared/widgets/gx_sheet.dart';
 import '../../shared/widgets/gx_snackbar.dart';
 import '../../theme.dart';
 import '../../repositories/business_repository.dart';
+import '../../repositories/worker_repository.dart';
 import '../../shared/models/business.dart';
 import 'rental_fulfillment_card.dart';
 
@@ -76,6 +79,7 @@ class _OwnerRentalsScreenState extends ConsumerState<OwnerRentalsScreen> {
       businesses.where((b) => b.id == businessId).firstOrNull?.address ?? '');
     final deliveryCtrl = TextEditingController(text: '${existing?['deliveryFee'] ?? 0}');
     final depositCtrl = TextEditingController(text: '${existing?['depositPerUnit'] ?? 0}');
+    final advanceCtrl = TextEditingController(text: '${existing?['advanceAmount'] ?? 0}');
     final minimumCtrl = TextEditingController(text: '${existing?['minHoursToRent'] ?? 1}');
     bool deliveryAvailable = existing?['deliveryAvailable'] == true;
     final nameCtrl = TextEditingController(text: existing?['name'] ?? '');
@@ -89,7 +93,7 @@ class _OwnerRentalsScreenState extends ConsumerState<OwnerRentalsScreen> {
             : '${existing?['dailyRate'] ?? ''}');
     final descCtrl =
         TextEditingController(text: existing?['description'] ?? '');
-    String? imageUrl = existing?['imageUrl'] as String?;
+    var photos = rentalImageUrls(existing);
     var uploading = false;
     var saving = false;
 
@@ -112,18 +116,32 @@ class _OwnerRentalsScreenState extends ConsumerState<OwnerRentalsScreen> {
               ),
             );
 
-        Future<void> pickImage() async {
+        const fieldPad = EdgeInsets.fromLTRB(20, 20, 20, 96);
+
+        Future<void> pickImages() async {
+          if (photos.length >= kMaxRentalPhotos) {
+            showGxSnack(ctx, 'You can add up to $kMaxRentalPhotos photos');
+            return;
+          }
           try {
-            final picked = await ImagePicker()
-                .pickImage(source: ImageSource.gallery, imageQuality: 80);
-            if (picked == null) return;
+            final picked = await ImagePicker().pickMultiImage(
+              maxWidth: kPhotoMaxEdge.toDouble(),
+              maxHeight: kPhotoMaxEdge.toDouble(),
+              imageQuality: 90,
+              limit: kMaxRentalPhotos - photos.length,
+            );
+            if (picked.isEmpty) return;
             setSheet(() => uploading = true);
-            final bytes = await picked.readAsBytes();
-            final url = await ref
-                .read(rentalsRepositoryProvider)
-                .uploadImage(bytes, picked.name);
+            final next = [...photos];
+            for (final file in picked) {
+              if (next.length >= kMaxRentalPhotos) break;
+              final bytes = encodeWhatsAppPhotoJpeg(await file.readAsBytes());
+              next.add(await ref
+                  .read(rentalsRepositoryProvider)
+                  .uploadImage(bytes, 'rental.jpg'));
+            }
             setSheet(() {
-              imageUrl = url;
+              photos = next;
               uploading = false;
             });
           } catch (e) {
@@ -142,28 +160,43 @@ class _OwnerRentalsScreenState extends ConsumerState<OwnerRentalsScreen> {
           final minimum = int.tryParse(minimumCtrl.text);
           final delivery = double.tryParse(deliveryCtrl.text);
           final deposit = double.tryParse(depositCtrl.text);
+          final advance = double.tryParse(advanceCtrl.text);
           if (name.isEmpty || hourly == null || !hourly.isFinite || hourly <= 0 ||
               businessId == null || pickupCtrl.text.trim().isEmpty || quantity == null || quantity < 1 || quantity > 100000 ||
               minimum == null || minimum < 1 || minimum > 8784 || delivery == null || !delivery.isFinite || delivery < 0 ||
-              deposit == null || !deposit.isFinite || deposit < 0) {
+              deposit == null || !deposit.isFinite || deposit < 0 ||
+              advance == null || !advance.isFinite || advance < 0) {
             showGxSnack(ctx, 'Choose a business and enter valid rates, quantity and pickup details',
                 type: GxSnackType.error);
             return;
           }
           setSheet(() => saving = true);
           final daily = double.tryParse(dailyCtrl.text.trim());
+          final loc = ref.read(selectedLocationProvider);
+          final pickupLat = (existing?['pickupLat'] as num?)?.toDouble() ?? loc?.lat;
+          final pickupLng = (existing?['pickupLng'] as num?)?.toDouble() ?? loc?.lng;
           try {
             final repo = ref.read(rentalsRepositoryProvider);
             if (existing == null) {
+              if (pickupLat == null || pickupLng == null) {
+                setSheet(() => saving = false);
+                showGxSnack(ctx, 'Turn on location so nearby customers can find this item',
+                    type: GxSnackType.error);
+                return;
+              }
               await repo.createItem(
                 name: name,
                 hourlyRate: hourly,
                 dailyRate: daily,
                 description: descCtrl.text.trim(),
-                imageUrl: imageUrl,
+                imageUrl: photos.isEmpty ? null : photos.first,
+                imageUrls: photos,
                 businessId: businessId!, quantity: quantity, minHoursToRent: minimum,
-                pickupAddress: pickupCtrl.text.trim(), deliveryAvailable: deliveryAvailable,
+                pickupAddress: pickupCtrl.text.trim(),
+                pickupLat: pickupLat, pickupLng: pickupLng,
+                deliveryAvailable: deliveryAvailable,
                 deliveryFee: delivery, depositPerUnit: deposit,
+                advanceAmount: advance,
               );
             } else {
               await repo.updateItem(existing['id'].toString(), {
@@ -171,10 +204,15 @@ class _OwnerRentalsScreenState extends ConsumerState<OwnerRentalsScreen> {
                 'hourlyRate': hourly,
                 'dailyRate': daily,
                 'businessId': businessId, 'quantity': quantity, 'minHoursToRent': minimum,
-                'pickupAddress': pickupCtrl.text.trim(), 'deliveryAvailable': deliveryAvailable,
+                'pickupAddress': pickupCtrl.text.trim(),
+                if (pickupLat != null) 'pickupLat': pickupLat,
+                if (pickupLng != null) 'pickupLng': pickupLng,
+                'deliveryAvailable': deliveryAvailable,
                 'deliveryFee': delivery, 'depositPerUnit': deposit,
+                'advanceAmount': advance,
                 'description': descCtrl.text.trim(),
-                if (imageUrl != null) 'imageUrl': imageUrl,
+                'imageUrl': photos.isEmpty ? null : photos.first,
+                'imageUrls': photos,
               });
             }
             if (ctx.mounted) Navigator.pop(ctx);
@@ -187,10 +225,26 @@ class _OwnerRentalsScreenState extends ConsumerState<OwnerRentalsScreen> {
           }
         }
 
-        return Column(
-          mainAxisSize: MainAxisSize.min,
+        return LayoutBuilder(builder: (_, constraints) {
+          final mq = MediaQuery.of(ctx);
+          final available = mq.size.height - mq.viewInsets.bottom;
+          final maxH = constraints.maxHeight.isFinite
+              ? constraints.maxHeight
+              : available * 0.72;
+          return SizedBox(
+            height: maxH,
+            child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
+            Expanded(
+              child: SingleChildScrollView(
+                keyboardDismissBehavior:
+                    ScrollViewKeyboardDismissBehavior.onDrag,
+                padding: const EdgeInsets.only(bottom: 8),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
             if (existing?['businessId'] == null) ...[
               DropdownButtonFormField<String>(initialValue: businesses.any((b) => b.id == businessId) ? businessId : null,
                 decoration: dec('Rental business'), items: businesses.map((b) => DropdownMenuItem(value: b.id, child: Text(b.name))).toList(),
@@ -199,6 +253,7 @@ class _OwnerRentalsScreenState extends ConsumerState<OwnerRentalsScreen> {
             ],
             TextField(
                 controller: nameCtrl,
+                scrollPadding: fieldPad,
                 style: TextStyle(color: ctx.gx.ink, fontSize: 14),
                 decoration: dec('Item name — e.g. Bosch drill machine')),
             const SizedBox(height: 8),
@@ -207,6 +262,7 @@ class _OwnerRentalsScreenState extends ConsumerState<OwnerRentalsScreen> {
                 child: TextField(
                     controller: hourlyCtrl,
                     keyboardType: TextInputType.number,
+                    scrollPadding: fieldPad,
                     style: TextStyle(color: ctx.gx.ink, fontSize: 14),
                     decoration: dec('₹ / hour')),
               ),
@@ -215,6 +271,7 @@ class _OwnerRentalsScreenState extends ConsumerState<OwnerRentalsScreen> {
                 child: TextField(
                     controller: dailyCtrl,
                     keyboardType: TextInputType.number,
+                    scrollPadding: fieldPad,
                     style: TextStyle(color: ctx.gx.ink, fontSize: 14),
                     decoration: dec('₹ / day (optional)')),
               ),
@@ -223,42 +280,128 @@ class _OwnerRentalsScreenState extends ConsumerState<OwnerRentalsScreen> {
             TextField(
                 controller: descCtrl,
                 maxLines: 2,
+                scrollPadding: fieldPad,
                 style: TextStyle(color: ctx.gx.ink, fontSize: 14),
                 decoration: dec('Description (optional)')),
             const SizedBox(height: 8),
-            TextField(controller: quantityCtrl, keyboardType: TextInputType.number, decoration: dec('Units in stock')),
+            TextField(controller: quantityCtrl, keyboardType: TextInputType.number, scrollPadding: fieldPad, decoration: dec('Units in stock')),
             const SizedBox(height: 8),
-            TextField(controller: minimumCtrl, keyboardType: TextInputType.number, decoration: dec('Minimum rental hours')),
+            TextField(controller: minimumCtrl, keyboardType: TextInputType.number, scrollPadding: fieldPad, decoration: dec('Minimum rental hours')),
             const SizedBox(height: 8),
-            TextField(controller: pickupCtrl, maxLines: 2, decoration: dec('Pickup address')),
+            TextField(controller: pickupCtrl, maxLines: 2, scrollPadding: fieldPad, decoration: dec('Pickup address')),
             SwitchListTile(contentPadding: EdgeInsets.zero, title: const Text('Offer delivery'), value: deliveryAvailable,
               onChanged: (value) => setSheet(() => deliveryAvailable = value)),
-            if (deliveryAvailable) TextField(controller: deliveryCtrl, keyboardType: const TextInputType.numberWithOptions(decimal: true), decoration: dec('Delivery fee per reservation (₹)')),
+            if (deliveryAvailable) TextField(controller: deliveryCtrl, keyboardType: const TextInputType.numberWithOptions(decimal: true), scrollPadding: fieldPad, decoration: dec('Delivery fee per reservation (₹)')),
             const SizedBox(height: 8),
-            TextField(controller: depositCtrl, keyboardType: const TextInputType.numberWithOptions(decimal: true), decoration: dec('Refundable deposit per unit (₹)')),
+            TextField(controller: depositCtrl, keyboardType: const TextInputType.numberWithOptions(decimal: true), scrollPadding: fieldPad, decoration: dec('Refundable deposit per unit (₹)')),
+            const SizedBox(height: 8),
+            TextField(controller: advanceCtrl, keyboardType: const TextInputType.numberWithOptions(decimal: true), scrollPadding: fieldPad, decoration: dec('Min advance to hold a booking (₹, 0 = 20%)')),
             const SizedBox(height: 8),
             const Text('Deposits are fully refundable after return. Cancellation before handover refunds amounts paid. Confirm only requests you can fulfill at the saved price.'),
             const SizedBox(height: 10),
-            GxButton(
-              label: uploading
-                  ? 'Uploading…'
-                  : imageUrl == null
-                      ? 'Add photo'
-                      : 'Change photo ✓',
-              filled: false,
-              height: 44,
-              radius: 12,
-              fontSize: 13,
-              onTap: uploading ? null : pickImage,
+            SizedBox(
+              height: 76,
+              child: ListView(
+                scrollDirection: Axis.horizontal,
+                children: [
+                  for (var i = 0; i < photos.length; i++)
+                    Padding(
+                      padding: const EdgeInsets.only(right: 8),
+                      child: Stack(
+                        children: [
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(12),
+                            child: Image.network(
+                              resolveProfileImageUrl(photos[i]) ?? photos[i],
+                              width: 76,
+                              height: 76,
+                              fit: BoxFit.cover,
+                              errorBuilder: (_, __, ___) => Container(
+                                width: 76,
+                                height: 76,
+                                color: ctx.gx.card2,
+                                child: Icon(Icons.image_outlined,
+                                    color: ctx.gx.ink.withValues(alpha: 0.35)),
+                              ),
+                            ),
+                          ),
+                          Positioned(
+                            top: 2,
+                            right: 2,
+                            child: GestureDetector(
+                              onTap: uploading
+                                  ? null
+                                  : () => setSheet(() => photos.removeAt(i)),
+                              child: const CircleAvatar(
+                                radius: 11,
+                                backgroundColor: Colors.black54,
+                                child: Icon(Icons.close,
+                                    size: 14, color: Colors.white),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  if (photos.length < kMaxRentalPhotos)
+                    GxPressable(
+                      onTap: uploading ? null : pickImages,
+                      child: Container(
+                        width: 76,
+                        height: 76,
+                        decoration: BoxDecoration(
+                          color: ctx.gx.card2,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: ctx.gx.border),
+                        ),
+                        child: uploading
+                            ? const Center(
+                                child: SizedBox(
+                                    width: 18,
+                                    height: 18,
+                                    child: CircularProgressIndicator(
+                                        strokeWidth: 2)))
+                            : Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(Icons.add_photo_alternate_outlined,
+                                      color: ctx.gx.ink.withValues(alpha: 0.55)),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    photos.isEmpty ? 'Add photos' : 'Add',
+                                    style: TextStyle(
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.w700,
+                                        color: ctx.gx.ink
+                                            .withValues(alpha: 0.55)),
+                                  ),
+                                ],
+                              ),
+                      ),
+                    ),
+                ],
+              ),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 6),
+            Text(
+              'Up to $kMaxRentalPhotos photos. First photo is the cover.',
+              style: TextStyle(
+                  fontSize: 11.5,
+                  color: ctx.gx.ink.withValues(alpha: 0.45)),
+            ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 10),
             GxButton(
               label: saving ? 'Saving…' : 'Save item',
-              onTap: saving ? null : save,
+              onTap: saving || uploading ? null : save,
             ),
-            const SizedBox(height: 4),
           ],
-        );
+        ),
+          );
+        });
       }),
     );
 
@@ -266,7 +409,7 @@ class _OwnerRentalsScreenState extends ConsumerState<OwnerRentalsScreen> {
     hourlyCtrl.dispose();
     dailyCtrl.dispose();
     descCtrl.dispose();
-    quantityCtrl.dispose(); pickupCtrl.dispose(); deliveryCtrl.dispose(); depositCtrl.dispose(); minimumCtrl.dispose();
+    quantityCtrl.dispose(); pickupCtrl.dispose(); deliveryCtrl.dispose(); depositCtrl.dispose(); advanceCtrl.dispose(); minimumCtrl.dispose();
   }
 
   Future<void> _decide(Map<String, dynamic> r, String action) async {
@@ -347,7 +490,9 @@ class _OwnerRentalsScreenState extends ConsumerState<OwnerRentalsScreen> {
   }
 
   int _pendingCount() =>
-      _reservations.where((r) => r['status'] == 'PENDING').length;
+      _reservations.where((r) =>
+          r['status'] == 'PENDING' ||
+          r['status'] == 'PENDING_OWNER_CONFIRMATION').length;
 
   Widget _tabPill(String label, int index) {
     final selected = _tab == index;
@@ -487,7 +632,7 @@ class _OwnerRentalsScreenState extends ConsumerState<OwnerRentalsScreen> {
                     fontSize: 12.5, color: context.gx.ink.withValues(alpha: 0.6)),
               ),
               const SizedBox(height: 10),
-              if (status == 'PENDING')
+              if (status == 'PENDING' || status == 'PENDING_OWNER_CONFIRMATION')
                 Row(children: [
                   Expanded(
                     child: GxButton(

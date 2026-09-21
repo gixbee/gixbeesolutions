@@ -61,8 +61,9 @@ pub const BUSINESS_COLS: &str = r#"
 "#;
 
 pub const RENTAL_ITEM_COLS: &str = r#"
-    id, "ownerId", name, description, "imageUrl", "hourlyRate", "dailyRate", "minHoursToRent",
+    id, "ownerId", name, description, "imageUrl", "imageUrls", "hourlyRate", "dailyRate", "minHoursToRent",
     "businessId", quantity, "pickupAddress", "deliveryAvailable", "deliveryFee", "depositPerUnit",
+    "pickupLat", "pickupLng", "advanceAmount",
     "isAvailable", "createdAt", "updatedAt"
 "#;
 
@@ -70,6 +71,8 @@ pub const RENTAL_RESERVATION_COLS: &str = r#"
     id, "itemId", "renterId", "startTime", "endTime", "totalPrice", status::text AS status,
     quantity, fulfillment, "fulfillmentAddress", "priceBreakdown", "ownerHandedOverAt", "renterCollectedAt",
     "ownerReturnedAt", "renterReturnedAt", "ownerPaidAt", "renterPaidAt", "ownerRefundedAt", "renterRefundedAt",
+    "paymentStatus", "holdExpiresAt", "advanceAmount", "remainingAmount", "lateFee", "damageAmount",
+    "handoverOtp", "returnOtp",
     "createdAt", "updatedAt"
 "#;
 

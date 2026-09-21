@@ -31,6 +31,9 @@ export class RentalItem {
   @Column({ type: 'numeric', precision: 10, scale: 2, default: 0 }) deliveryFee: number;
   @Column({ type: 'numeric', precision: 10, scale: 2, default: 0 }) depositPerUnit: number;
 
+  @Column({ type: 'float', nullable: true }) pickupLat: number | null;
+  @Column({ type: 'float', nullable: true }) pickupLng: number | null;
+
   @Column()
   name: string;
 
@@ -39,6 +42,9 @@ export class RentalItem {
 
   @Column({ nullable: true })
   imageUrl: string;
+
+  @Column({ type: 'jsonb', default: [] })
+  imageUrls: string[];
 
   @Column({ type: 'decimal', precision: 10, scale: 2 })
   hourlyRate: number;

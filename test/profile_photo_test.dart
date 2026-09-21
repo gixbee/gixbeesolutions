@@ -62,4 +62,36 @@ void main() {
       expect(decoded.height, kProfilePhotoThumbSize);
     });
   });
+
+  group('encodeWhatsAppPhotoJpeg', () {
+    test('keeps aspect ratio and caps the long edge at 1600', () {
+      final src = img.Image(width: 2400, height: 1600);
+      img.fill(src, color: img.ColorRgb8(40, 120, 200));
+      final bytes = Uint8List.fromList(img.encodePng(src));
+
+      final decoded = img.decodeJpg(encodeWhatsAppPhotoJpeg(bytes))!;
+      expect(decoded.width, kPhotoMaxEdge);
+      expect(decoded.height, 1067);
+    });
+
+    test('does not upscale a smaller photo', () {
+      final src = img.Image(width: 800, height: 600);
+      img.fill(src, color: img.ColorRgb8(20, 80, 40));
+      final bytes = Uint8List.fromList(img.encodePng(src));
+
+      final decoded = img.decodeJpg(encodeWhatsAppPhotoJpeg(bytes))!;
+      expect(decoded.width, 800);
+      expect(decoded.height, 600);
+    });
+
+    test('caps a tall portrait on height', () {
+      final src = img.Image(width: 1200, height: 2400);
+      img.fill(src, color: img.ColorRgb8(180, 90, 20));
+      final bytes = Uint8List.fromList(img.encodePng(src));
+
+      final decoded = img.decodeJpg(encodeWhatsAppPhotoJpeg(bytes))!;
+      expect(decoded.width, 800);
+      expect(decoded.height, kPhotoMaxEdge);
+    });
+  });
 }

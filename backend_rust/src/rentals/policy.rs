@@ -85,9 +85,11 @@ pub fn transition(current: &str, next: &str, is_owner: bool, is_renter: bool) ->
     }
     let valid = matches!(
         (current, next),
-        ("PENDING", "CONFIRMED" | "REJECTED" | "CANCELLED")
+        ("PENDING" | "PENDING_OWNER_CONFIRMATION", "CONFIRMED" | "REJECTED" | "CANCELLED")
+            | ("TEMP_HOLD" | "PAYMENT_PENDING", "CANCELLED" | "REJECTED")
             | ("CONFIRMED", "ACTIVE" | "CANCELLED")
-            | ("ACTIVE", "COMPLETED")
+            | ("ACTIVE", "COMPLETED" | "RETURN_PENDING")
+            | ("RETURN_PENDING", "COMPLETED")
     );
     if !valid {
         return Err(AppError::Conflict(format!(
@@ -175,5 +177,10 @@ mod tests {
         assert!(transition("COMPLETED", "ACTIVE", true, false).is_err());
         assert!(transition("PENDING", "CANCELLED", false, true).is_ok());
         assert!(transition("ACTIVE", "COMPLETED", true, false).is_ok());
+        assert!(transition("PENDING_OWNER_CONFIRMATION", "CONFIRMED", true, false).is_ok());
+        assert!(transition("TEMP_HOLD", "CONFIRMED", true, false).is_err());
+        assert!(transition("TEMP_HOLD", "CANCELLED", false, true).is_ok());
+        assert!(transition("PAYMENT_PENDING", "REJECTED", true, false).is_ok());
+        assert!(transition("RETURN_PENDING", "COMPLETED", true, false).is_ok());
     }
 }

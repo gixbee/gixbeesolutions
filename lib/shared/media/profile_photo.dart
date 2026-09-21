@@ -68,6 +68,28 @@ Uint8List encodeProfileThumb(Uint8List jpeg) {
   return Uint8List.fromList(img.encodeJpg(thumb, quality: 80));
 }
 
+/// WhatsApp "send a photo" (not HD, not document): keep aspect ratio, cap the
+/// long edge, JPEG ~80. Used for rental listings and other full-frame shots.
+const kPhotoMaxEdge = 1600;
+const kPhotoJpegQuality = 80;
+
+Uint8List encodeWhatsAppPhotoJpeg(Uint8List input) {
+  final decoded = img.decodeImage(input);
+  if (decoded == null) return input;
+  var src = decoded;
+  final longest = math.max(src.width, src.height);
+  if (longest > kPhotoMaxEdge) {
+    final scale = kPhotoMaxEdge / longest;
+    src = img.copyResize(
+      src,
+      width: math.max(1, (src.width * scale).round()),
+      height: math.max(1, (src.height * scale).round()),
+      interpolation: img.Interpolation.cubic,
+    );
+  }
+  return Uint8List.fromList(img.encodeJpg(src, quality: kPhotoJpegQuality));
+}
+
 Future<ImageSource?> choosePhotoSource(BuildContext context) {
   return showGxSheet<ImageSource>(
     context,

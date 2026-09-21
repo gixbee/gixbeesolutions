@@ -37,6 +37,8 @@ const PURPOSE_PERIOD_FEE: &str = "PERIOD_FEE";
 const PURPOSE_LATE_CANCEL: &str = "LATE_CANCEL_COMPENSATION";
 const PURPOSE_HIRING_MATCH: &str = "HIRING_MATCH_FEE";
 const PURPOSE_EXTRA_JOB_TYPE: &str = "EXTRA_JOB_TYPE_FEE";
+pub(crate) const PURPOSE_RENTAL_ADVANCE: &str = "RENTAL_ADVANCE";
+pub(crate) const PURPOSE_RENTAL_SETTLEMENT: &str = "RENTAL_SETTLEMENT";
 
 pub fn routes() -> Router<AppState> {
     Router::new()
@@ -293,6 +295,8 @@ pub(crate) async fn create_razorpay_order(
         PURPOSE_LATE_CANCEL => "lcc",
         PURPOSE_HIRING_MATCH => "hmf",
         PURPOSE_EXTRA_JOB_TYPE => "ejt",
+        PURPOSE_RENTAL_ADVANCE => "rad",
+        PURPOSE_RENTAL_SETTLEMENT => "rst",
         _ => "rcg",
     };
     let receipt = format!("{}_{}", receipt_prefix, Uuid::new_v4().simple());
@@ -598,6 +602,108 @@ async fn webhook(
     Ok(Json(json!({ "ok": true })))
 }
 
+async fn apply_rental_advance(
+    state: &AppState,
+    user_id: &str,
+    meta: Option<&Value>,
+    razorpay_payment_id: Option<&str>,
+) -> AppResult<()> {
+    let reservation_id = meta
+        .and_then(|m| m.get("reservationId"))
+        .and_then(Value::as_str)
+        .ok_or_else(|| AppError::BadRequest("Rental payment is missing its booking".into()))?;
+    let rid = Uuid::parse_str(reservation_id)?;
+    let uid = Uuid::parse_str(user_id)?;
+    let mut tx = state.db.begin().await?;
+    let status: Option<String> = sqlx::query_scalar(
+        r#"SELECT status::text FROM rental_reservations WHERE id=$1 AND "renterId"=$2 FOR UPDATE"#,
+    )
+    .bind(rid)
+    .bind(uid)
+    .fetch_optional(&mut *tx)
+    .await?;
+    let Some(status) = status else {
+        return Err(AppError::NotFound("Reservation not found".into()));
+    };
+    if !matches!(status.as_str(), "TEMP_HOLD" | "PAYMENT_PENDING") {
+        tx.commit().await?;
+        return Ok(());
+    }
+    sqlx::query(
+        r#"UPDATE rental_reservations
+           SET status = 'PENDING_OWNER_CONFIRMATION'::rental_reservations_status_enum,
+               "paymentStatus" = 'ADVANCE_PAID',
+               "holdExpiresAt" = NULL,
+               "priceBreakdown" = jsonb_set(COALESCE("priceBreakdown", '{}'::jsonb), '{razorpayPaymentId}', to_jsonb($3::text), true),
+               "updatedAt" = NOW()
+           WHERE id = $1 AND "renterId" = $2"#,
+    )
+    .bind(rid)
+    .bind(uid)
+    .bind(razorpay_payment_id.unwrap_or(""))
+    .execute(&mut *tx)
+    .await?;
+    let owner: Option<Uuid> = sqlx::query_scalar(
+        r#"SELECT i."ownerId" FROM rental_items i JOIN rental_reservations r ON r."itemId"=i.id WHERE r.id=$1"#,
+    )
+    .bind(rid)
+    .fetch_optional(&mut *tx)
+    .await?;
+    if let Some(owner) = owner {
+        crate::outbox::notify(
+            &mut tx,
+            rid,
+            owner,
+            "New rental request",
+            "Advance paid. Confirm or reject this rental request.",
+            json!({"type":"rental_request","reservationId":rid,"audience":"owner"}),
+        )
+        .await?;
+    }
+    tx.commit().await?;
+    Ok(())
+}
+
+async fn apply_rental_settlement(
+    state: &AppState,
+    user_id: &str,
+    meta: Option<&Value>,
+    razorpay_payment_id: Option<&str>,
+) -> AppResult<()> {
+    let reservation_id = meta
+        .and_then(|m| m.get("reservationId"))
+        .and_then(Value::as_str)
+        .ok_or_else(|| AppError::BadRequest("Rental payment is missing its booking".into()))?;
+    let rid = Uuid::parse_str(reservation_id)?;
+    let uid = Uuid::parse_str(user_id)?;
+    let mut tx = state.db.begin().await?;
+    sqlx::query(
+        r#"UPDATE rental_reservations
+           SET "paymentStatus" = 'SETTLED',
+               "remainingAmount" = 0,
+               "renterPaidAt" = COALESCE("renterPaidAt", NOW()),
+               "ownerPaidAt" = COALESCE("ownerPaidAt", NOW()),
+               "priceBreakdown" = jsonb_set(COALESCE("priceBreakdown", '{}'::jsonb), '{settlementPaymentId}', to_jsonb($3::text), true),
+               "updatedAt" = NOW()
+           WHERE id = $1 AND "renterId" = $2 AND status::text IN ('ACTIVE','RETURN_PENDING')"#,
+    )
+    .bind(rid)
+    .bind(uid)
+    .bind(razorpay_payment_id.unwrap_or(""))
+    .execute(&mut *tx)
+    .await?;
+    sqlx::query(
+        r#"UPDATE rental_reservations SET status = 'COMPLETED'::rental_reservations_status_enum
+           WHERE id = $1 AND status::text = 'RETURN_PENDING'
+             AND "ownerReturnedAt" IS NOT NULL AND "renterReturnedAt" IS NOT NULL"#,
+    )
+    .bind(rid)
+    .execute(&mut *tx)
+    .await?;
+    tx.commit().await?;
+    Ok(())
+}
+
 async fn fulfil_order(
     state: &AppState,
     razorpay_order_id: &str,
@@ -668,6 +774,20 @@ async fn fulfil_order(
                 user_id
             );
             apply_first_recharge_bonus(state, user_id).await;
+        }
+        PURPOSE_RENTAL_ADVANCE => {
+            apply_rental_advance(state, user_id, meta, razorpay_payment_id).await?;
+            info!(
+                "[Razorpay] {}: rental advance ₹{} for {}",
+                razorpay_order_id, amount_inr, user_id
+            );
+        }
+        PURPOSE_RENTAL_SETTLEMENT => {
+            apply_rental_settlement(state, user_id, meta, razorpay_payment_id).await?;
+            info!(
+                "[Razorpay] {}: rental settlement ₹{} for {}",
+                razorpay_order_id, amount_inr, user_id
+            );
         }
         other => {
             warn!(
