@@ -137,25 +137,112 @@ Gixbee is an app for nearby household jobs. The customer pays you directly by ca
 
 ## 7. Instagram and short video (support channel, not the community)
 
-Use video to make the waitlist feel real. Do not try to recruit India. Geo and language should match the launch city.
+Use video and Story questions to make the waitlist feel real. Do not try to recruit India. Geo and language should match the launch city.
 
 **Who should appear:** actual local professionals (with consent), the city lead, short clips of a test booking flow. Avoid actor-heavy ads that look like a national brand the product cannot support.
 
-**Formats that convert tradespeople**
+A Reel that only gets likes is a failed post. The job of every video and every Story sticker is a **reply we can put on the waitlist**: trade + neighborhood + WhatsApp number.
 
-| Format | Length | Hook | End card |
-| --- | --- | --- | --- |
-| "I got a nearby fan-repair job and the customer paid me on UPI" (after test jobs exist) | 20–30s | Face + neighborhood name | QR / WhatsApp |
-| Tool-shop standup: "If you work in [ward], join this list" | 15s | Local landmark | WhatsApp |
-| Screen recording: request → accept → OTP → bill (no fake 5-minute promise) | 25s | "How a Gixbee job works" | Waitlist |
-| Captain Q&A in local language | 45s | "Is this a company job?" Answer: no | WhatsApp |
-| Myth clip: "We do not take your job money" | 15s | Direct cash/UPI | Waitlist |
+### 7.1 Question stickers (this is the hourly-work funnel)
 
-Post the same file to Instagram Reels, YouTube Shorts, and WhatsApp Status of captains. Status and WhatsApp forwards will outperform Instagram for this audience.
+Instagram Stories reach people who will never comment on a Reel. Use **poll / quiz / question** stickers every day. The pitch is Instant Help: nearby household tasks, **hourly**, customer pays you directly.
 
-**Do not claim** in any video: guaranteed daily income, Urban Company-style arrival SLAs, platform insurance, escrow, or "we pay your salary." Gixbee currently settles job money customer-to-professional. Platform revenue is access credits and period fees, explained at Go Live, not in a hype reel.
+Run this three-story sequence. Post it in the launch-city language. Repeat 4–5 days a week.
 
-**Profile hygiene:** one Instagram account named Gixbee, city in bio, WhatsApp link, waitlist link, highlight "For professionals" vs "For households." Household content stays off until supply gates pass.
+**Story 1 — filter (poll)**
+
+- On-screen: photo of tools or a local street, not a stock office.
+- Text: `Electrician / plumber / AC / cleaner in [city]?`
+- Poll: `I do this work` | `Not me`
+
+If they tap "Not me", next Story can be a household waitlist later. Do not mix them into worker onboarding.
+
+**Story 2 — hourly interest (this is the one you asked for)**
+
+- Text: `Nearby house work, paid by the hour. Customer pays you cash/UPI. Interested?`
+- Poll: `Yes, tell me` | `Not now`
+- Alternate wording (rotate so it does not look like spam):
+  - `Hourly local jobs in [ward]. Want early access?`
+  - `Fan repair, tap leak, AC service — hourly. Join the list?`
+  - `Not a company salary. Your own work, nearby requests. Interested?`
+
+**Story 3 — capture (question box)**
+
+- Sticker type: **Questions** (open text).
+- Prompt: `Reply: trade + area + WhatsApp number`
+- Example helper text on the same frame: `Ex: Plumber, [Ward], 98xxxxxxxx`
+- Also put the WhatsApp Business link in the Story link sticker.
+
+**Story 4 (optional) — quiz that teaches the product**
+
+- Quiz: `On Gixbee, who pays you for the job?`
+- Options: `The house owner (cash/UPI)` (correct) | `Gixbee salary`
+- Follow-up frame: `Correct. We do not hold your job money.`
+
+DM everyone who taps **Yes, tell me** the same day with this copy (local language):
+
+> Thanks. Gixbee is opening hourly nearby house work in [neighborhoods] first. Not a salary job. Household pays you directly. Reply with: 1) electrician / plumber / AC / cleaner 2) which area you work 3) this WhatsApp number. We will add you to the local list. No guarantee of daily jobs.
+
+If they reply with those three fields, add a CRM row with source `ig-question` and invite them to the **neighborhood WhatsApp cell**, not a public comment thread.
+
+Do not use "Are you interested in hourly work?" as a public Reel comment bait with no DM follow-up. Public comments will be from other cities and from people collecting free leads.
+
+### 7.2 Ready-to-shoot Reels (15–30 seconds)
+
+Shoot vertical, noisy real locations, captions burned in (many people watch muted). End card: WhatsApp number + `Story: answer the hourly poll`. Post the same file to Reels, YouTube Shorts, and captains' WhatsApp Status.
+
+**Reel A — the hourly question (worker-facing)**
+
+| Time | On screen | Voice |
+| --- | --- | --- |
+| 0–3s | Face or tools. Text: `Hourly house work in [city]?` | "If you already fix homes near [landmark]…" |
+| 3–12s | Three cuts: switch, tap, AC. | "Electrician, plumber, AC, cleaning. Customer calls nearby. You accept. They pay you by the hour, cash or UPI." |
+| 12–20s | Text: `Not a company job` | "Gixbee is the app. We do not take your job money. We do not pay a salary." |
+| 20–28s | QR + WhatsApp | "Interested? Answer the question in our Story today: trade, area, WhatsApp." |
+
+**Reel B — tool-shop standup**
+
+Film in a spare-part shop with the owner's consent. Hook: name the junction. CTA: Story poll.
+
+**Reel C — myth**
+
+Hook: `Does Gixbee keep my money?` Answer: no. Household pays you. CTA: hourly poll.
+
+**Reel D — how a job works** (only after a test booking exists)
+
+Screen recording: request → accept → arrival OTP → bill. No fake 5-minute promise. CTA: "Captains in [ward] already tested this. Story poll if you want in."
+
+**Reel E — captain Q&A**
+
+Hook: `Is this a company job?` Answer: no. `When do jobs start?` Answer: after we fill this area and test the app. Honest dates only.
+
+Caption template for every Reel:
+
+> Hourly nearby house work in [city]. Electricians, plumbers, AC, cleaners. Customer pays you directly. Not a salary. Early list only for [wards]. Answer the Story question: Yes + trade + area.
+
+Hashtags: local area tags plus trade tags (`#ThrissurElectrician` style). Skip generic `#earnfromhome` / `#workfromhome`. Wrong audience.
+
+### 7.3 Weekly posting rhythm (one phone, one person)
+
+| Day | Feed / Reels | Stories (must do) |
+| --- | --- | --- |
+| Mon | Reel A or E (hourly question) | Poll sequence §7.1 |
+| Tue | — | Poll sequence + reply to yesterday's DMs |
+| Wed | Reel B (shop) or photo of QR card on a counter | Poll sequence |
+| Thu | — | Quiz: who pays you? Then question box |
+| Fri | Reel C (myth) | Poll sequence |
+| Sat | Field selfie / document-camp clip | "We are at [shop] until 1pm. Same Story question." |
+| Sun | — | Recap: "This week N people in [ward] joined the list" (real number only) |
+
+Batch-shoot Saturday: 4 talking-head clips + 1 shop clip is a full week.
+
+### 7.4 What never to put in a video or sticker
+
+- Guaranteed daily income, "₹500/hour for everyone," Urban Company-style arrival SLAs, platform insurance, escrow, or "we pay your salary."
+- "Jobs available now" before test bookings exist. Say **early list / hourly work when we open this area**.
+- Asking people to comment their phone number on the Reel. Phones go to DMs or WhatsApp only.
+
+**Profile hygiene:** one Instagram account named Gixbee, city in bio, WhatsApp link, waitlist link, highlight "For professionals" vs "For households." Household content stays off until supply gates pass. Record Story question replies into the CRM the same day; Instagram expires them in 24 hours.
 
 ## 8. Referral mechanic (workers bring workers)
 
@@ -173,7 +260,7 @@ Weeks assume the APK and verification ops can actually onboard. If product gates
 | Week | Supply work | Demand / content | Exit check |
 | --- | --- | --- | --- |
 | 1 | Freeze launch city, 2–3 neighborhoods, 3–4 trades. Print QR. Open form. | Zero customer ads. | Map polygons and pick-list neighborhoods exist |
-| 2–3 | Field every day. Seed 3 neighborhood WhatsApp cells. Appoint captains. | 3 local-language reels pointing at WhatsApp | ≥40 waitlist rows with neighborhood + trade filled |
+| 2–3 | Field every day. Seed 3 neighborhood WhatsApp cells. Appoint captains. | Daily Story poll "hourly work — interested?" plus 3 local-language Reels; DM every Yes the same day | ≥40 waitlist rows with neighborhood + trade filled |
 | 4 | Saturday document camp. Start identity/capability review for the densest trade | Reels using real waitlist faces (consent) | First trade has 8+ complete profiles in one polygon |
 | 5 | Repeat camp for remaining launch trades. Drop people outside the polygon from cells (move to "later city" broadcast) | Shop posters in the polygon only | Density table started for each trade |
 | 6 | Closed APK: captains + 10 volunteers complete Register as Pro, languages, radius | No public Play Store push | Captains can Go Live in staging/prod as designed |
@@ -204,7 +291,7 @@ Travel on Instant Help is a one-way petrol component at the configured per-km ra
 
 ## 12. Lightweight CRM (before building product)
 
-A single sheet (or Airtable) with columns matching §4, plus: verification status, APK installed, test job done, neighborhood cell, captain, drop reason. Tag every row with a source code (`field`, `referral`, `reel`, `shop-qr`). Review twice a week: **usable density**, not total rows.
+A single sheet (or Airtable) with columns matching §4, plus: verification status, APK installed, test job done, neighborhood cell, captain, drop reason. Tag every row with a source code (`field`, `referral`, `reel`, `ig-question`, `shop-qr`). Review twice a week: **usable density**, not total rows. Treat Instagram poll taps as interest only; a row counts when trade + area + WhatsApp are on the sheet.
 
 When the app launches, this sheet is the call list for "install, verify, Go Live." It is not a substitute for `worker_profiles` in production.
 
