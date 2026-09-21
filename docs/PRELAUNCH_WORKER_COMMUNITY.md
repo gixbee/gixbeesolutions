@@ -187,6 +187,12 @@ If they reply with those three fields, add a CRM row with source `ig-question` a
 
 Do not use "Are you interested in hourly work?" as a public Reel comment bait with no DM follow-up. Public comments will be from other cities and from people collecting free leads.
 
+Visual layout reference (copy the structure, replace city/ward and shoot your own photos):
+
+| Story 1 filter | Story 2 hourly poll | Story 3 capture | Reel hook |
+| --- | --- | --- | --- |
+| ![Filter poll](prelaunch-community/gixbee-ig-story-1-filter-poll.png) | ![Hourly poll](prelaunch-community/gixbee-ig-story-2-hourly-poll.png) | ![Question box](prelaunch-community/gixbee-ig-story-3-question-box.png) | ![Reel end card](prelaunch-community/gixbee-ig-reel-hourly-hook.png) |
+
 ### 7.2 Ready-to-shoot Reels (15–30 seconds)
 
 Shoot vertical, noisy real locations, captions burned in (many people watch muted). End card: WhatsApp number + `Story: answer the hourly poll`. Post the same file to Reels, YouTube Shorts, and captains' WhatsApp Status.
