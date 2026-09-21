@@ -24,11 +24,6 @@
               {
                 "glob": "**/*",
                 "input": "public"
-              },
-              {
-                "glob": "gixbee-rentals-booking-flow.html",
-                "input": "../docs/architecture",
-                "output": "/architecture"
               }
             ],
             "styles": [

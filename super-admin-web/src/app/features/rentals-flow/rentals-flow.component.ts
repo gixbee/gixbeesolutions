@@ -11,8 +11,9 @@ import { CommonModule } from '@angular/common';
         <div>
           <div class="gx-page-title mb-1">Rental booking flow</div>
           <div class="gx-page-sub mb-0">
-            Target architecture: customer Flutter, Rust API, PostgreSQL, verified rental store.
-            Nearby stores use city or GPS radius.
+            This is a map of how Rentals works in the phone app: nearby store,
+            hold, advance payment, store confirm, OTP handover and return.
+            It is not a live list of bookings.
           </div>
         </div>
         <a
