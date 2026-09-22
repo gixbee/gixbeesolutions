@@ -54,18 +54,15 @@ Do not build Telegram, Discord, or a public Facebook "community" as the primary 
 
 ## 4. Community architecture (WhatsApp)
 
-Never put all professionals in one group. Split by **place** first, then **trade**. One person may sit in a neighborhood group and a trade group. Broadcast (WhatsApp Business) is for announcements. Groups are for questions and local coordination.
+Start with **one** professional group. Split by neighborhood only after that group is actually in use. Broadcast (WhatsApp Business) is for announcements. Groups are for questions and local coordination.
 
 ```
 City ops (internal staff only)
-  └── Launch city hub (staff + 8–12 worker captains)
-        ├── Neighborhood A cell (all launch trades in that polygon)
-        ├── Neighborhood B cell
-        ├── Neighborhood C cell (only if A and B are dense)
-        ├── Trade: Electrician (city-launch, optional)
-        ├── Trade: Plumber
-        ├── Trade: AC technician
-        └── Trade: Household cleaning
+  └── Phase 0: one worker group  Gixbee Pros · [City]
+        └── Later split, only when the group is actually full:
+              ├── Neighborhood A cell
+              ├── Neighborhood B cell
+              └── Optional trade cells
 ```
 
 ### Rules that keep groups alive
@@ -170,26 +167,43 @@ We will reply soon. To join the local list send: 1) name  2) trade  3) area  4) 
 
 Do not write income numbers, “jobs available now,” “company hiring,” or “we pay salary” in any of these fields.
 
-**Which groups to create (in this order, not all at once)**
+**Which groups to create (start with one worker group)**
 
-| Order | Group | Who is in it | When to create |
+A single professional group is the right first step. Do not open ward and trade groups on day one; empty extra groups die.
+
+| Order | Group name | Who is in it | When |
 | --- | --- | --- | --- |
-| 1 | `Gixbee [City] Ops` | Staff only (2–4 people) | Day 0 |
-| 2 | `Gixbee [Ward A] Pros` | Staff + professionals who work Ward A | When the first 3 waitlist rows for that ward exist |
-| 3 | `Gixbee [Ward B] Pros` | Same for Ward B | Same rule |
-| 4 | `Gixbee [City] Captains` | Staff + 1 captain per cell | After you have named captains |
-| 5 | Trade groups (`Gixbee [City] Electricians`, …) | Optional. Only if a neighborhood cell is noisy | Later, not day 0 |
+| 1 | `Gixbee [City] Ops` | Staff only (2–4 people) | Day 0. Workers never join this. |
+| 2 | `Gixbee Pros · [City]` | Staff + every launch-area professional | Day 0, as soon as the Business number is live. This is the only worker group at the start. |
+| 3 | Ward groups (`Gixbee Pros · [Ward A]`) | Split from the city group | Only when the city group is past ~40 people **and** two neighborhoods both have a cluster |
+| 4 | `Gixbee [City] Captains` | Staff + captains | After you have named captains |
+| 5 | Trade groups | Optional | Only if one trade is drowning the city group |
 
-Do **not** create one `Gixbee All India` or `Gixbee [City] Everyone` group.
+**Name for the first worker group:** use `Gixbee Pros · [City]`, not `GIXBEE PROS`.
 
-**Create one neighborhood group (repeat for Ward B)**
+| Name | Use it? | Why |
+| --- | --- | --- |
+| `Gixbee Pros · [City]` | **Yes — default** | Reads as a local list, not a spam blast. City tag still works when you open a second city. |
+| `Gixbee Pros` | Yes if the city is not chosen yet | Rename to add the city as soon as it is frozen. |
+| `GIXBEE PROS` | Avoid | All-caps looks like a forwarded promo group. Same words, worse trust. |
+| `Gixbee Jobs` / `Gixbee Work` | Avoid | Sounds like a salary/vacancy group. Wrong promise. |
+| `Gixbee Official` / `Gixbee India` | Avoid | Too big. People from everywhere will join. |
+| `Gixbee Electricians` | Not first | You still need plumber / AC / cleaner in the same launch. |
+
+Group photo: Gixbee logo. Description: same paste as the Business profile, plus `This group is the early professional list. Send name + trade + area.`
+
+**Split rule:** keep one `Gixbee Pros · [City]` group until either (a) more than about 40 members, or (b) you cannot tell who works which ward from the chat. Then clone the welcome messages into `Gixbee Pros · [Ward A]` and move people; keep the original group as a read-only announcement list or close it.
+
+Do **not** create `Gixbee All India` or a public invite link on Instagram.
+
+**Create the first worker group (`Gixbee Pros · [City]`)**
 
 1. Open WhatsApp Business → **Chats**.
 2. Tap the new-chat icon → **New group**.
 3. Select only staff numbers first (city lead + coordinator). You can add workers later. Tap the check mark.
-4. Group subject (name): `Gixbee [Ward A] Pros`  
-   Example: `Gixbee Ramanattukara Pros`. Keep it under ~25 characters so phones show the full name.
-5. Group photo: Gixbee logo, or a photo of that ward's landmark with the logo in the corner.
+4. Group subject (name): `Gixbee Pros · [City]`  
+   If the city is not frozen yet, use `Gixbee Pros` and rename later. Keep it under ~25 characters so phones show the full name. Do not use all-caps `GIXBEE PROS`.
+5. Group photo: Gixbee logo.
 6. Create the group.
 7. Tap the group name at the top → **Group settings**:
    - **Edit group settings:** Admins only (so random members cannot rename it).
@@ -200,9 +214,9 @@ Do **not** create one `Gixbee All India` or `Gixbee [City] Everyone` group.
 8. **Add group description** (paste, then fill brackets):
 
 ```
-Gixbee early list for professionals who already work in [Ward A], [City].
+Gixbee early list for local professionals in [City] (electrician, plumber, AC, cleaning).
 Hourly nearby house work. Customer pays you cash or UPI. Not a company salary. No daily job promise.
-Open trades: electrician, plumber, AC, household cleaning.
+This group is Gixbee Pros. Send name + trade + area.
 Rules: no sharing customer numbers, no other-app ads, no ID photos in this chat.
 Admin: [city lead name] [Gixbee SIM number]
 ```
@@ -218,11 +232,11 @@ Send these as soon as the group exists, before adding workers. Star or pin the f
 Message 1 — welcome:
 
 ```
-Welcome to Gixbee [Ward A] professionals.
-This group is only for people who work in [Ward A].
+Welcome to Gixbee Pros ([City]).
+This group is the early list for local professionals (electrician, plumber, AC, cleaning).
 Gixbee is an app for nearby hourly house jobs. The household pays you directly (cash/UPI). Gixbee is not a contractor and does not hold your job money.
 We are collecting the local list and will test a few jobs before public launch. No salary. No guarantee of daily work.
-If this is the wrong area, tell admin and we will move you.
+If you do not work in [City], tell admin.
 ```
 
 Message 2 — how to stay:
@@ -231,7 +245,7 @@ Message 2 — how to stay:
 Please send one message with:
 1) Name
 2) Trade (electrician / plumber / AC / cleaner)
-3) Area inside [Ward A]
+3) Area / ward in [City]
 4) Languages
 We will add this to the waitlist. Documents and ID only through the app later, not here.
 ```
@@ -247,16 +261,16 @@ Questions: message [Gixbee SIM].
 
 1. They come from field QR, Instagram Story, or a referral.
 2. Staff already has their **trade + area + WhatsApp** on the sheet.
-3. If the area is Ward A: city lead opens `Gixbee [Ward A] Pros` → Add members → search that number (they must have WhatsApp, and it helps if they have messaged you first so they appear). Or send the **invite link** in a 1:1 chat: `This is the [Ward A] group only. Please join and send your name + trade.`
-4. If they live in another city: do not add. Reply: `We are only opening [wards] first. We will keep your number for later.`
-5. Update the sheet: neighborhood cell = Ward A.
+3. If they work in the launch city: city lead opens `Gixbee Pros · [City]` → Add members → search that number (they must have WhatsApp, and it helps if they have messaged you first so they appear). Or send the **invite link** in a 1:1 chat: `This is the Gixbee Pros group. Please join and send your name + trade + area.`
+4. If they live in another city: do not add. Reply: `We are only opening [City] first. We will keep your number for later.`
+5. Update the sheet: group = Gixbee Pros; still record their neighborhood for later split.
 
 **Daily admin (10 minutes)**
 
 - Reply to 1:1 DMs on the Business number first (that is where Instagram "Yes" people land).
 - Add yesterday's waitlist people to the correct ward group.
 - Mute or remove anyone posting other-app ads or customer numbers.
-- Once a week in the group: honest status, for example `Still filling [Ward A]. App test not public yet. N people on the local list.` Use a real number.
+- Once a week in the group: honest status, for example `Still filling Gixbee Pros in [City]. App test not public yet. N people on the local list.` Use a real number.
 
 **What not to do**
 
@@ -297,7 +311,7 @@ Gixbee is an app for nearby household jobs. The customer pays you directly by ca
 **What to do on the spot**
 
 1. Scan QR → form, or fill it on the coordinator's phone.  
-2. Add them to the **neighborhood cell**, not a giant city group.  
+2. Add them to **Gixbee Pros · [City]** (the single starter group). Record their neighborhood on the sheet for a later split.  
 3. Photograph tools only with consent, for later capability review.  
 4. Give a printed card: "Gixbee [City] professionals — WhatsApp [number]".  
 5. Ask: "Who else in this ward does the same work?" Capture two referrals.
