@@ -105,13 +105,70 @@ Do this on **WhatsApp Business** on one dedicated Gixbee SIM (city lead's work p
 1. Buy a local prepaid SIM. Name the contact line something ops can recognize, for example `Gixbee [City] Pros`.
 2. Install **WhatsApp Business** (not the personal app) on that phone.
 3. Register with the new SIM. Skip catalog and shopping. This is for groups and replies, not a store.
-4. Profile:
-   - Name: `Gixbee [City]`
-   - Photo: Gixbee logo
-   - About: `Nearby hourly house work. Early professional list for [neighborhoods]. Not a salary job. Household pays you cash/UPI.`
-   - Business category: Professional services / Application
-5. Settings → Business tools → **Away message** (optional): `Send: 1) trade 2) area 3) this number. We add local professionals only.`
+4. Profile: see **WhatsApp Business profile copy** below.
+5. Settings → Business tools → **Greeting** and **Away** messages from the same copy block.
 6. Save these contacts before creating groups: city lead personal phone, second coordinator, and later each captain.
+
+#### WhatsApp Business profile copy (paste as-is, fill brackets)
+
+Limits: **About** 139 characters. **Business description** 512 characters. Count after you replace `[City]` and ward names.
+
+**Business name**
+
+```
+Gixbee [City]
+```
+
+**Category:** Professional services (or Application / Professional services). Not a shop. Leave catalog empty.
+
+**About** (profile status, 139 max). Use this if city + two wards are short:
+
+```
+Gixbee [City]: nearby hourly house work. Early pro list. Not a salary. Household pays you cash/UPI.
+```
+
+Shorter fallback if that overflows:
+
+```
+Gixbee: hourly nearby house work. Early pro list. Not a salary. Paid cash/UPI by the household.
+```
+
+**Description** (Business profile → Edit → Description). Paste, then replace wards:
+
+```
+Gixbee is an app for nearby hourly house work (electrician, plumber, AC, cleaning).
+
+This number is the early professional list for [Ward A] and [Ward B], [City], before public launch.
+
+Not a company job. No salary. The household pays you directly by cash or UPI. Gixbee does not hold your job money. No promise of daily jobs.
+
+To join, send:
+1) Name
+2) Trade
+3) Area you already work
+4) This WhatsApp number
+
+We add people in the launch area only. ID check is later in the app, not in this chat.
+```
+
+**Greeting message** (Business tools → Greeting message → On). Sent once when someone first messages you:
+
+```
+Hi, this is Gixbee [City].
+We are listing local professionals for nearby hourly house work. Household pays you cash/UPI. Not a salary. No daily job promise.
+Reply with: 1) name  2) electrician / plumber / AC / cleaner  3) your area  4) this number.
+Only [Ward A] and [Ward B] for now.
+```
+
+**Away message** (when you cannot reply):
+
+```
+We will reply soon. To join the local list send: 1) name  2) trade  3) area  4) this number. Launch area: [Ward A], [Ward B] only.
+```
+
+**Address:** launch-city area or ops office, not a fake shop. **Website / Instagram:** the Gixbee Instagram. **Email:** city ops email if you have one. **Hours:** the hours a human actually answers this phone (example 9:00–18:00). Do not set 24 hours unless staffed.
+
+Do not write income numbers, “jobs available now,” “company hiring,” or “we pay salary” in any of these fields.
 
 **Which groups to create (in this order, not all at once)**
 
