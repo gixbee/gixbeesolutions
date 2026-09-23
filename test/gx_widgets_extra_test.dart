@@ -158,6 +158,53 @@ void main() {
       await tester.pump(); // schedule the snackbar
       await tester.pump(const Duration(milliseconds: 400)); // entrance frame
       expect(find.text('Saved!'), findsOneWidget);
+      await tester.pump(const Duration(seconds: 3));
+      await tester.pump(const Duration(milliseconds: 50));
+    });
+
+    testWidgets('toast stays hit-testable above a modal bottom sheet',
+        (tester) async {
+      await tester.pumpWidget(MaterialApp(
+        home: Scaffold(
+          body: Builder(
+            builder: (context) => Center(
+              child: ElevatedButton(
+                onPressed: () {
+                  showModalBottomSheet<void>(
+                    context: context,
+                    isScrollControlled: true,
+                    builder: (ctx) => SizedBox(
+                      height: 420,
+                      child: Center(
+                        child: ElevatedButton(
+                          onPressed: () => showGxSnack(
+                            ctx,
+                            'Please enter Flat / House No.',
+                            type: GxSnackType.error,
+                          ),
+                          child: const Text('validate'),
+                        ),
+                      ),
+                    ),
+                  );
+                },
+                child: const Text('open'),
+              ),
+            ),
+          ),
+        ),
+      ));
+
+      await tester.tap(find.text('open'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('validate'));
+      await tester.pump();
+      expect(
+        find.text('Please enter Flat / House No.').hitTestable(),
+        findsOneWidget,
+      );
+      await tester.pump(const Duration(seconds: 4));
+      await tester.pump(const Duration(milliseconds: 50));
     });
   });
 }

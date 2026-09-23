@@ -13,6 +13,8 @@ import '../../shared/widgets/gx_skeleton.dart';
 import '../../shared/widgets/gx_text_field.dart';
 import '../../shared/widgets/gx_empty.dart';
 import '../../theme.dart';
+import 'match_explanation.dart';
+import 'matched_job_detail_screen.dart';
 
 /// Browse classic job board postings (v147 **Board** tab).
 /// Gixbee 2026 reskin: neutral header, squircle filter chips, bento job
@@ -97,6 +99,42 @@ class _JobAlertsScreenState extends ConsumerState<JobAlertsScreen> {
             : _savedJobIds.remove(job.id));
         showGxSnack(context, 'Could not update: $e', type: GxSnackType.error);
       }
+    }
+  }
+
+  Future<void> _notInterested(JobPost job) async {
+    const reasons = {
+      'SALARY_TOO_LOW': 'Salary too low',
+      'TOO_FAR': 'Too far',
+      'WRONG_ROLE': 'Wrong role',
+      'WRONG_SCHEDULE': 'Wrong schedule',
+      'COMPANY': 'Company',
+      'ALREADY_FOUND_WORK': 'Already found work',
+      'OTHER': 'Other',
+    };
+    final picked = await showGxSheet<String>(
+      context,
+      title: 'Not interested',
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          for (final entry in reasons.entries)
+            ListTile(
+              title: Text(entry.value),
+              onTap: () => Navigator.pop(context, entry.key),
+            ),
+        ],
+      ),
+    );
+    if (picked == null) return;
+    setState(() => _skippedJobIds.add(job.id));
+    try {
+      await ref.read(hiringRepositoryProvider).notInterested(job.id, picked);
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _skippedJobIds.remove(job.id));
+      showGxSnack(context, 'Could not save feedback: $e',
+          type: GxSnackType.error);
     }
   }
 
@@ -589,12 +627,20 @@ class _JobAlertsScreenState extends ConsumerState<JobAlertsScreen> {
                                 .contains(_filteredJobs[i].id),
                             saved: _savedJobIds
                                 .contains(_filteredJobs[i].id),
-                            onApply: () =>
-                                _applyToJob(_filteredJobs[i]),
+                            onApply: () async {
+                              final applied = await Navigator.push<bool>(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => MatchedJobDetailScreen(
+                                      job: _filteredJobs[i]),
+                                ),
+                              );
+                              if (applied == true) _fetchJobs();
+                            },
                             onSave: () =>
                                 _toggleSaved(_filteredJobs[i]),
-                            onSkip: () => setState(() =>
-                                _skippedJobIds.add(_filteredJobs[i].id)),
+                            onSkip: () =>
+                                _notInterested(_filteredJobs[i]),
                           ),
                         ),
                       ),
@@ -719,7 +765,7 @@ class _JobBentoCard extends StatelessWidget {
                       ),
                       const SizedBox(height: 2),
                       Text(
-                        job.employerName ?? 'Business Owner',
+                        job.businessName ?? job.employerName ?? 'Business',
                         style: TextStyle(
                           color: cs.onSurfaceVariant,
                           fontSize: 12,
@@ -727,6 +773,12 @@ class _JobBentoCard extends StatelessWidget {
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
+                      if (job.businessVerified)
+                        const Text('Verified',
+                            style: TextStyle(
+                                color: GixbeeTheme.accentGreen,
+                                fontSize: 11,
+                                fontWeight: FontWeight.w800)),
                     ],
                   ),
                 ),
@@ -763,6 +815,22 @@ class _JobBentoCard extends StatelessWidget {
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
             ),
+            if (job.distanceExact && job.distanceKm != null)
+              Padding(
+                padding: const EdgeInsets.only(top: 6),
+                child: Text(
+                  '${job.distanceKm!.toStringAsFixed(1)} km away',
+                  style: TextStyle(fontSize: 12, color: cs.onSurfaceVariant),
+                ),
+              ),
+            if (job.matchScore != null) ...[
+              const SizedBox(height: 8),
+              MatchExplanationBlock(
+                score: job.matchScore,
+                reasons: job.matchReasons,
+                warnings: job.matchWarnings,
+              ),
+            ],
             const SizedBox(height: 12),
 
             // Location row
@@ -773,7 +841,7 @@ class _JobBentoCard extends StatelessWidget {
                 const SizedBox(width: 4),
                 Expanded(
                   child: Text(
-                    job.location.isEmpty ? 'Kochi' : job.location,
+                    job.location.isEmpty ? 'Location not set' : job.location,
                     style: TextStyle(
                         fontSize: 11, color: cs.onSurfaceVariant),
                     maxLines: 1,
@@ -892,8 +960,8 @@ class _JobBentoCard extends StatelessWidget {
                         ),
                       )
                     : GxButton(
-                        label: 'Interested',
-                        icon: Icons.send_rounded,
+                        label: 'View Job',
+                        icon: Icons.arrow_forward_rounded,
                         onTap: onApply,
                         gradient: const [
                           GixbeeTheme.accentGreen,

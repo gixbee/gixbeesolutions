@@ -3,6 +3,7 @@ import '../../shared/widgets/dribbble_background.dart';
 import '../../shared/widgets/gx_button.dart';
 import '../../shared/widgets/gx_pressable.dart';
 import '../../theme.dart';
+import 'hiring_employer_type_screen.dart';
 import 'list_business_details_screen.dart';
 
 /// "List My Business" module (mockup `lmb`).
@@ -23,6 +24,15 @@ class _ListBusinessTypeScreenState extends State<ListBusinessTypeScreen> {
 
   void _proceed() {
     if (_selectedType == null) return;
+    if (_selectedType == BusinessType.hiring) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => const HiringEmployerTypeScreen(),
+        ),
+      );
+      return;
+    }
     Navigator.push(
       context,
       MaterialPageRoute(
@@ -74,8 +84,8 @@ class _ListBusinessTypeScreenState extends State<ListBusinessTypeScreen> {
                     _TypeCard(
                       type: BusinessType.hiring,
                       icon: Icons.work_outline_rounded,
-                      title: 'Hiring Agency',
-                      subtitle: 'Recruiters, Staffing, Event Organisers',
+                      title: 'Hiring Business',
+                      subtitle: 'Employers, Recruiters, Staffing Agencies',
                       isSelected: _selectedType == BusinessType.hiring,
                       onTap: () =>
                           setState(() => _selectedType = BusinessType.hiring),

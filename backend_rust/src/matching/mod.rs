@@ -16,6 +16,7 @@ use crate::state::AppState;
 use rust_decimal::prelude::ToPrimitive;
 
 mod engine;
+mod flow;
 mod profiles;
 mod progress;
 pub use engine::{process_refund, run_scheduler};
@@ -42,6 +43,7 @@ pub fn routes() -> Router<AppState> {
         .route("/offers/{request_id}/respond", post(respond_offer))
         .route("/requests", get(list_requests).post(create_request))
         .route("/requests/{id}", get(get_request))
+        .route("/requests/{id}/close", post(close_request))
         .route("/requests/{id}/resolve", post(resolve_request))
         .route("/interests/{id}/decision", patch(interest_decision))
         .route("/interests/{id}/progress", get(progress::detail))
@@ -185,27 +187,39 @@ async fn estimate(
 async fn list_offers(State(state): State<AppState>, user: AuthUser) -> AppResult<Json<Vec<Value>>> {
     let uid = Uuid::parse_str(&user.user_id)?;
     let rows = sqlx::query(r#"SELECT hi.id, hi."requestId", hi.response::text AS response, hi.decision::text AS decision, hi."notifiedAt",
-        hr."jobType", hr.location, hr."salaryOffered", hr."salaryMin", hr."salaryMax", hr."salaryNegotiable",
-        hr."employmentType"::text AS "employmentType", hr.skills,
+        hi.progress, hr."employerId", hr."jobType", hr.location, hr."salaryOffered", hr."salaryMin", hr."salaryMax", hr."salaryNegotiable",
+        hr."employmentType"::text AS "employmentType", hr.skills, b.name AS "businessName",
         (hr.status::text = 'COLLECTING' AND hr."deadlineAt" > NOW() AND hi.response::text = 'PENDING') AS open
         FROM hiring_interests hi JOIN hiring_requests hr ON hr.id = hi."requestId"
+        LEFT JOIN businesses b ON b.id = hr."businessId"
         WHERE hi."candidateId" = $1 ORDER BY hi."notifiedAt" DESC"#)
     .bind(uid)
     .fetch_all(&state.db)
     .await?;
-    Ok(Json(rows.iter().map(|r| json!({
+    Ok(Json(rows.iter().map(|r| {
+        let progress: Value = r.try_get("progress").ok().unwrap_or(json!({}));
+        let response = r.get::<String, _>("response");
+        let decision = r.get::<String, _>("decision");
+        json!({
         "id": r.get::<Uuid, _>("id").to_string(),
         "requestId": r.get::<Uuid, _>("requestId").to_string(),
-        "response": r.get::<String, _>("response"),
-        "decision": r.get::<String, _>("decision"),
+        "employerId": r.get::<Uuid, _>("employerId").to_string(),
+        "response": response,
+        "decision": decision,
+        "pipelineStage": flow::pipeline_label(&response, &decision, &progress),
+        "canChat": flow::can_chat(&response, &decision),
+        "invited": progress.get("invited").and_then(Value::as_bool).unwrap_or(false),
+        "contactRequested": progress.get("contactRequested").and_then(Value::as_bool).unwrap_or(false),
+        "contactShared": progress.get("contactShared").and_then(Value::as_bool).unwrap_or(false),
         "notifiedAt": crate::common::pg::date_json(r, "notifiedAt"),
         "jobType": r.get::<String, _>("jobType"), "location": r.get::<Option<String>, _>("location"),
+        "businessName": r.get::<Option<String>, _>("businessName"),
         "salaryOffered": r.get::<rust_decimal::Decimal, _>("salaryOffered").to_f64(),
         "salaryMin": r.get::<rust_decimal::Decimal, _>("salaryMin").to_f64(),
         "salaryMax": r.get::<rust_decimal::Decimal, _>("salaryMax").to_f64(),
         "salaryNegotiable": r.get::<bool, _>("salaryNegotiable"), "employmentType": r.get::<Option<String>, _>("employmentType"),
         "skills": crate::common::pg::string_list(r, "skills"), "open": r.get::<bool, _>("open"),
-    })).collect()))
+    })}).collect()))
 }
 
 #[derive(Deserialize)]
@@ -254,7 +268,10 @@ async fn respond_offer(
         "NOT_INTERESTED"
     };
     sqlx::query(
-        r#"UPDATE hiring_interests SET response = $1::hiring_interests_response_enum, "respondedAt" = NOW(), "updatedAt" = NOW()
+        r#"UPDATE hiring_interests SET response = $1::hiring_interests_response_enum, "respondedAt" = NOW(), "updatedAt" = NOW(),
+           progress = COALESCE(progress, '{}'::jsonb) || CASE WHEN $1 = 'INTERESTED'
+             THEN jsonb_build_object('mutualInterest', true, 'stage', 'CHATTING')
+             ELSE '{}'::jsonb END
            WHERE "requestId" = $2 AND "candidateId" = $3"#,
     )
     .bind(response)
@@ -326,34 +343,136 @@ async fn get_request(
     .await?
     .ok_or_else(|| AppError::NotFound("Request not found".into()))?;
     let mut result = request_json(&row);
-    let candidates = sqlx::query(r#"SELECT hi.id, hi.decision::text AS decision, hi."respondedAt",
-        u.name, CASE WHEN hi.decision::text IN ('SHORTLISTED', 'HIRED') THEN u."phoneNumber" ELSE NULL END AS phone,
-        p.skills, p."expectedSalary", p."experienceYears", p."noticePeriod"::text AS "noticePeriod", p."preferredLocation"
+    let job_skills = crate::common::pg::string_list(&row, "skills");
+    let job_loc = row
+        .get::<Option<String>, _>("location")
+        .unwrap_or_default()
+        .to_lowercase();
+    let job_emp = row.get::<Option<String>, _>("employmentType");
+    let job_exp = row.get::<i32, _>("experienceMinYears");
+    let salary_offered = row.get::<rust_decimal::Decimal, _>("salaryOffered");
+    let salary_max_raw = row.get::<rust_decimal::Decimal, _>("salaryMax");
+    let salary_max = if salary_max_raw > rust_decimal::Decimal::ZERO {
+        salary_max_raw
+    } else {
+        salary_offered
+    };
+    let candidates = sqlx::query(r#"SELECT hi.id, hi."candidateId", hi.response::text AS response, hi.decision::text AS decision,
+        hi."respondedAt", hi.progress, u.name, u."phoneNumber" AS phone,
+        p.skills, p."expectedSalary", p."experienceYears", p."noticePeriod"::text AS "noticePeriod",
+        p."preferredLocation", p."employmentType"::text AS "prefEmployment"
         FROM hiring_interests hi JOIN users u ON u.id = hi."candidateId"
         LEFT JOIN job_preferences p ON p.id = hi."preferenceId"
-        WHERE hi."requestId" = $1 AND hi.response::text = 'INTERESTED' ORDER BY hi."respondedAt" ASC"#)
+        WHERE hi."requestId" = $1 ORDER BY hi."notifiedAt" ASC"#)
         .bind(rid).fetch_all(&state.db).await?;
     let notified: i64 =
         sqlx::query_scalar(r#"SELECT COUNT(*) FROM hiring_interests WHERE "requestId" = $1"#)
             .bind(rid)
             .fetch_one(&state.db)
             .await?;
+    let hired: i64 = sqlx::query_scalar(
+        r#"SELECT COUNT(*) FROM hiring_interests WHERE "requestId"=$1 AND decision='HIRED'"#,
+    )
+    .bind(rid)
+    .fetch_one(&state.db)
+    .await?;
+    let vacancies = row.get::<i32, _>("vacancies");
+    let filled = hired >= i64::from(vacancies.max(1));
+    let status = row.get::<String, _>("status");
     result["notifiedCount"] = json!(notified);
     let refund_status: Option<String> = sqlx::query_scalar(r#"SELECT status FROM outbox_events WHERE "aggregateId"=$1 AND type='hiring.refund' LIMIT 1"#)
         .bind(rid).fetch_optional(&state.db).await?;
     result["refundStatus"] = json!(refund_status);
-    result["interestedCount"] = json!(candidates.len());
-    result["candidates"] = json!(candidates.iter().map(|r| json!({
-        "interestId": r.get::<Uuid, _>("id"), "name": r.get::<Option<String>, _>("name"),
-        "phone": r.get::<Option<String>, _>("phone"), "decision": r.get::<String, _>("decision"),
-        "respondedAt": crate::common::pg::date_json(r, "respondedAt"),
-        "skills": crate::common::pg::string_list(r, "skills"),
-        "expectedSalary": r.get::<Option<rust_decimal::Decimal>, _>("expectedSalary"),
-        "experienceYears": r.get::<Option<i32>, _>("experienceYears"),
-        "noticePeriod": r.get::<Option<String>, _>("noticePeriod"),
-        "preferredLocation": r.get::<Option<String>, _>("preferredLocation")
-    })).collect::<Vec<_>>());
+    result["filled"] = json!(filled);
+    result["jobStatus"] = json!(if status == "CLOSED" {
+        "CLOSED"
+    } else if filled {
+        "FILLED"
+    } else if status == "COLLECTING" {
+        "LIVE"
+    } else {
+        status.as_str()
+    });
+    let mapped: Vec<Value> = candidates
+        .iter()
+        .map(|r| {
+            let progress: Value = r.try_get("progress").ok().unwrap_or(json!({}));
+            let response = r.get::<String, _>("response");
+            let decision = r.get::<String, _>("decision");
+            let unlocked = flow::contact_unlocked(&progress, &decision);
+            let cand_skills = crate::common::pg::string_list(r, "skills");
+            let overlap = flow::skill_overlap(&job_skills, &cand_skills);
+            let loc = r
+                .get::<Option<String>, _>("preferredLocation")
+                .unwrap_or_default()
+                .to_lowercase();
+            let salary_hit = r
+                .get::<Option<rust_decimal::Decimal>, _>("expectedSalary")
+                .map(|s| s <= salary_max)
+                .unwrap_or(true);
+            let exp_hit = r
+                .get::<Option<i32>, _>("experienceYears")
+                .map(|y| y >= job_exp)
+                .unwrap_or(true);
+            let emp = r.get::<Option<String>, _>("prefEmployment");
+            json!({
+                "interestId": r.get::<Uuid, _>("id").to_string(),
+                "candidateId": r.get::<Uuid, _>("candidateId").to_string(),
+                "name": r.get::<Option<String>, _>("name"),
+                "phone": if unlocked { json!(r.get::<Option<String>, _>("phone")) } else { Value::Null },
+                "phoneLocked": !unlocked,
+                "emailLocked": !unlocked,
+                "response": response,
+                "decision": decision,
+                "pipelineStage": flow::pipeline_label(&response, &decision, &progress),
+                "canChat": flow::can_chat(&response, &decision),
+                "invited": progress.get("invited").and_then(Value::as_bool).unwrap_or(false),
+                "contactRequested": progress.get("contactRequested").and_then(Value::as_bool).unwrap_or(false),
+                "contactShared": progress.get("contactShared").and_then(Value::as_bool).unwrap_or(false),
+                "respondedAt": crate::common::pg::date_json(r, "respondedAt"),
+                "skills": cand_skills,
+                "expectedSalary": r.get::<Option<rust_decimal::Decimal>, _>("expectedSalary"),
+                "experienceYears": r.get::<Option<i32>, _>("experienceYears"),
+                "noticePeriod": r.get::<Option<String>, _>("noticePeriod"),
+                "preferredLocation": r.get::<Option<String>, _>("preferredLocation"),
+                "matchReasons": flow::match_reasons(
+                    true,
+                    &overlap,
+                    !job_loc.is_empty() && loc.contains(&job_loc),
+                    salary_hit,
+                    job_emp.is_some() && emp == job_emp,
+                    exp_hit,
+                ),
+            })
+        })
+        .collect();
+    result["interestedCount"] = json!(mapped.iter().filter(|c| c["response"] == "INTERESTED").count());
+    result["candidates"] = json!(mapped);
     Ok(Json(result))
+}
+
+async fn close_request(
+    State(state): State<AppState>,
+    user: AuthUser,
+    Path(id): Path<String>,
+) -> AppResult<Json<Value>> {
+    let rid = Uuid::parse_str(&id)?;
+    let uid = Uuid::parse_str(&user.user_id)?;
+    let updated = sqlx::query(
+        r#"UPDATE hiring_requests SET status='CLOSED'::hiring_requests_status_enum, "updatedAt"=NOW()
+           WHERE id=$1 AND "employerId"=$2 AND status::text IN ('COLLECTING','DELIVERED')
+           RETURNING id"#,
+    )
+    .bind(rid)
+    .bind(uid)
+    .fetch_optional(&state.db)
+    .await?;
+    if updated.is_none() {
+        return Err(AppError::BadRequest(
+            "This job cannot be closed in its current status".into(),
+        ));
+    }
+    get_request(State(state), user, Path(id)).await
 }
 
 #[derive(Deserialize)]
@@ -392,7 +511,11 @@ async fn interest_decision(
         ));
     }
     let mut tx = state.db.begin().await?;
-    let changed = sqlx::query(r#"UPDATE hiring_interests hi SET decision = $1::hiring_interests_decision_enum, "updatedAt" = NOW()
+    let changed = sqlx::query(r#"UPDATE hiring_interests hi SET decision = $1::hiring_interests_decision_enum, "updatedAt" = NOW(),
+        progress = COALESCE(hi.progress, '{}'::jsonb) || CASE
+            WHEN $1 = 'SHORTLISTED' THEN jsonb_build_object('stage', 'SHORTLISTED')
+            WHEN $1 = 'REJECTED' THEN jsonb_build_object('stage', 'NOT_SELECTED')
+            ELSE '{}'::jsonb END
         FROM hiring_requests hr WHERE hi.id = $2 AND hr.id = hi."requestId" AND hr."employerId" = $3
         AND hi.response::text = 'INTERESTED' AND hr.status::text IN ('COLLECTING', 'DELIVERED')
         AND (hi.decision::text = $1 OR hi.decision::text = 'PENDING' AND $1 IN ('SHORTLISTED','REJECTED')

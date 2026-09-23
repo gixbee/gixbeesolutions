@@ -36,6 +36,10 @@ export class AddOfflineDayDto {
 
 // PATCH /businesses/admin/:id/status — portal moderation verdict.
 export class SetBusinessStatusDto {
-  @IsIn(['VERIFIED', 'REJECTED', 'PENDING'])
-  status: 'VERIFIED' | 'REJECTED' | 'PENDING';
+  @IsIn(['VERIFIED', 'REJECTED', 'PENDING', 'NEEDS_CHANGES'])
+  status: 'VERIFIED' | 'REJECTED' | 'PENDING' | 'NEEDS_CHANGES';
+
+  @IsOptional()
+  @IsString()
+  reviewNote?: string;
 }

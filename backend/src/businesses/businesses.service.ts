@@ -52,6 +52,7 @@ export class BusinessesService {
       eventServices: data.type === 'SERVICE' ? (data.eventServices ?? []) : [],
       documentUrl: data.documentUrl ?? null,
       cityId: data.cityId ?? null,
+      hiringProfile: data.type === 'HIRING' ? (data.hiringProfile ?? {}) : {},
       location,
       serviceType:
         data.type === 'SERVICE' && data.serviceType
@@ -106,7 +107,7 @@ export class BusinessesService {
 
   async adminSetStatus(
     id: string,
-    status: 'VERIFIED' | 'REJECTED' | 'PENDING',
+    status: 'VERIFIED' | 'REJECTED' | 'PENDING' | 'NEEDS_CHANGES',
   ): Promise<Business> {
     const business = await this.getById(id);
     business.status = status;

@@ -26,8 +26,12 @@ async fn upload_image(
             let ext = file_name
                 .as_deref()
                 .and_then(|n| n.rsplit('.').next())
-                .filter(|e| ["jpg", "jpeg", "png", "webp"].contains(e))
-                .unwrap_or("jpg");
+                .map(|e| e.to_ascii_lowercase())
+                .filter(|e| ["jpg", "jpeg", "png", "webp", "pdf"].contains(&e.as_str()))
+                .ok_or_else(|| AppError::BadRequest("JPG, PNG or PDF only".into()))?;
+            if data.len() > 5 * 1024 * 1024 {
+                return Err(AppError::BadRequest("File must be 5MB or smaller".into()));
+            }
             let filename = format!("{}.{}", Uuid::new_v4(), ext);
             let path = format!("{}/{}", state.config.uploads_dir, filename);
             tokio::fs::create_dir_all(&state.config.uploads_dir)

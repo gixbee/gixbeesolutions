@@ -47,10 +47,11 @@ class _FindJobModuleState extends ConsumerState<FindJobModule> {
       final salary = p['expectedSalary'];
       final incomplete = roles.isEmpty && salary == null;
       if (!incomplete || !mounted) return;
-      await Navigator.push<void>(
+      final opened = await Navigator.push<bool>(
         context,
         MaterialPageRoute(builder: (_) => const SeekerProfileWizard()),
       );
+      if (opened == true && mounted) _goToTab(0);
     } catch (_) {
       // Soft-fail — user can still browse tabs.
     }

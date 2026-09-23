@@ -64,9 +64,14 @@ async fn ensure_talent_profile(state: &AppState, user_id: Uuid) -> AppResult<Uui
 async fn load_profile(state: &AppState, user_id: Uuid) -> AppResult<Value> {
     let profile_id = ensure_talent_profile(state, user_id).await?;
     let row = sqlx::query(
-        r#"SELECT tp.id, tp."userId", tp."photoUrl", tp.certificates, tp.experience, tp."hourlyRate",
+        r#"SELECT tp.id, tp."userId",
+                  COALESCE(NULLIF(tp."photoUrl", ''), NULLIF(u."profileImageUrl", '')) AS "photoUrl",
+                  tp.certificates, tp.experience, tp."hourlyRate",
                   tp."jobAlertsEnabled", tp."savedJobIds",
-                  u.name, u."approvalStatus"::text AS "approvalStatus"
+                  tp.skills, tp."preferredRoles", tp."preferredLocations", tp."expectedSalary",
+                  tp."currentStatus"::text AS "currentStatus",
+                  tp.lat, tp.lng, tp."travelRadiusKm", tp.availability, tp."profileStatus",
+                  u.name, u."profileImageUrl", u."approvalStatus"::text AS "approvalStatus"
            FROM talent_profiles tp
            JOIN users u ON u.id = tp."userId"
            WHERE tp."userId" = $1"#,
@@ -90,9 +95,20 @@ async fn load_profile(state: &AppState, user_id: Uuid) -> AppResult<Value> {
         "hourlyRate": row.try_get::<Option<f64>, _>("hourlyRate").ok().flatten(),
         "jobAlertsEnabled": row.get::<bool, _>("jobAlertsEnabled"),
         "savedJobIds": parse_list(row.try_get::<Option<String>, _>("savedJobIds").ok().flatten()),
+        "skills": parse_list(row.try_get::<Option<String>, _>("skills").ok().flatten()),
+        "preferredRoles": parse_list(row.try_get::<Option<String>, _>("preferredRoles").ok().flatten()),
+        "preferredLocations": parse_list(row.try_get::<Option<String>, _>("preferredLocations").ok().flatten()),
+        "expectedSalary": row.try_get::<Option<i32>, _>("expectedSalary").ok().flatten(),
+        "currentStatus": row.try_get::<Option<String>, _>("currentStatus").ok().flatten(),
+        "lat": row.try_get::<Option<f64>, _>("lat").ok().flatten(),
+        "lng": row.try_get::<Option<f64>, _>("lng").ok().flatten(),
+        "travelRadiusKm": row.try_get::<f64, _>("travelRadiusKm").unwrap_or(25.0),
+        "availability": row.try_get::<String, _>("availability").unwrap_or_else(|_| "IMMEDIATE".into()),
+        "profileStatus": row.try_get::<String, _>("profileStatus").unwrap_or_else(|_| "ACTIVE".into()),
         "professionalSkills": skills.iter().map(skill_json).collect::<Vec<_>>(),
         "user": {
             "name": row.get::<Option<String>, _>("name"),
+            "profileImageUrl": row.get::<Option<String>, _>("profileImageUrl"),
             "approvalStatus": row.get::<String, _>("approvalStatus"),
         },
     }))
@@ -143,7 +159,89 @@ async fn update_profile(
             .execute(&state.db)
             .await?;
     }
+    if let Some(roles) = string_array(body.get("preferredRoles")) {
+        sqlx::query(r#"UPDATE talent_profiles SET "preferredRoles" = $1 WHERE id = $2"#)
+            .bind(list_to_db(&roles))
+            .bind(profile_id)
+            .execute(&state.db)
+            .await?;
+    }
+    if let Some(skills) = string_array(body.get("skills")) {
+        sqlx::query(r#"UPDATE talent_profiles SET skills = $1 WHERE id = $2"#)
+            .bind(list_to_db(&skills))
+            .bind(profile_id)
+            .execute(&state.db)
+            .await?;
+        crate::match_engine::persist::sync_candidate_skills(&state, profile_id, &skills).await;
+        let roles = string_array(body.get("preferredRoles")).unwrap_or_default();
+        let text = crate::match_engine::embeddings::candidate_text(
+            &roles,
+            &skills,
+            body.get("experience").and_then(|v| v.as_str()).unwrap_or(""),
+        );
+        crate::match_engine::persist::save_candidate_embedding(&state, profile_id, &text).await;
+    }
+    if let Some(places) = string_array(body.get("preferredLocations")) {
+        sqlx::query(r#"UPDATE talent_profiles SET "preferredLocations" = $1 WHERE id = $2"#)
+            .bind(list_to_db(&places))
+            .bind(profile_id)
+            .execute(&state.db)
+            .await?;
+    }
+    if let Some(salary) = body.get("expectedSalary").and_then(|v| v.as_i64()) {
+        sqlx::query(r#"UPDATE talent_profiles SET "expectedSalary" = $1 WHERE id = $2"#)
+            .bind(salary as i32)
+            .bind(profile_id)
+            .execute(&state.db)
+            .await?;
+    }
+    if let Some(status) = body.get("currentStatus").and_then(|v| v.as_str()) {
+        if ["FINAL_YEAR", "GRADUATE", "EXPERIENCED"].contains(&status) {
+            sqlx::query(
+                r#"UPDATE talent_profiles SET "currentStatus" = $1::talent_profiles_currentstatus_enum WHERE id = $2"#,
+            )
+            .bind(status)
+            .bind(profile_id)
+            .execute(&state.db)
+            .await?;
+        }
+    }
+    if body.get("lat").is_some() || body.get("lng").is_some() {
+        sqlx::query(r#"UPDATE talent_profiles SET lat = $1, lng = $2 WHERE id = $3"#)
+            .bind(body.get("lat").and_then(|v| v.as_f64()))
+            .bind(body.get("lng").and_then(|v| v.as_f64()))
+            .bind(profile_id)
+            .execute(&state.db)
+            .await?;
+    }
+    if let Some(radius) = body.get("travelRadiusKm").and_then(|v| v.as_f64()) {
+        sqlx::query(r#"UPDATE talent_profiles SET "travelRadiusKm" = $1 WHERE id = $2"#)
+            .bind(radius)
+            .bind(profile_id)
+            .execute(&state.db)
+            .await?;
+    }
+    if let Some(mode) = body.get("preferredWorkMode").and_then(|v| v.as_str()) {
+        sqlx::query(r#"UPDATE talent_profiles SET "preferredWorkMode" = $1 WHERE id = $2"#)
+            .bind(mode)
+            .bind(profile_id)
+            .execute(&state.db)
+            .await?;
+    }
+    sqlx::query(r#"UPDATE talent_profiles SET "lastActiveAt" = NOW(), "updatedAt" = NOW() WHERE id = $1"#)
+        .bind(profile_id)
+        .execute(&state.db)
+        .await?;
     Ok(Json(load_profile(&state, uid).await?))
+}
+
+fn string_array(value: Option<&Value>) -> Option<Vec<String>> {
+    value.and_then(|v| v.as_array()).map(|items| {
+        items
+            .iter()
+            .filter_map(|v| v.as_str().map(str::trim).filter(|s| !s.is_empty()).map(str::to_owned))
+            .collect()
+    })
 }
 
 async fn add_skill(

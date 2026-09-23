@@ -114,6 +114,13 @@ Widget _pushHost(List<dynamic> overrides) => ProviderScope(
       ),
     );
 
+/// Scrolls the long post form so off-screen controls can be tapped.
+Future<void> _tap(WidgetTester tester, Finder finder) async {
+  await tester.ensureVisible(finder);
+  await tester.pump();
+  await tester.tap(finder);
+}
+
 /// Fills the four required text fields (order: title, salary, location,
 /// description) so `_formKey.validate()` passes.
 Future<void> _fillForm(WidgetTester tester) async {
@@ -172,7 +179,7 @@ void main() {
       ]));
       await tester.pump();
 
-      await tester.tap(find.widgetWithText(GxButton, 'Post Job'));
+      await _tap(tester, find.widgetWithText(GxButton, 'Post Job'));
       await tester.pump();
 
       // Form.validate() fails first → four 'Required' errors, and the code
@@ -190,7 +197,7 @@ void main() {
       await tester.pump();
 
       await _fillForm(tester);
-      await tester.tap(find.widgetWithText(GxButton, 'Post Job'));
+      await _tap(tester, find.widgetWithText(GxButton, 'Post Job'));
       await tester.pump(); // run _submitJob to the synchronous skill check
       await tester.pump(); // enqueue the toast
       await tester.pump(const Duration(milliseconds: 400)); // animate in
@@ -213,9 +220,9 @@ void main() {
       await tester.pump();
 
       await _fillForm(tester);
-      await tester.tap(find.widgetWithText(FilterChip, 'Plumbing'));
+      await _tap(tester, find.widgetWithText(FilterChip, 'Plumbing'));
       await tester.pump();
-      await tester.tap(find.widgetWithText(GxButton, 'Post Job'));
+      await _tap(tester, find.widgetWithText(GxButton, 'Post Job'));
       await tester.pump(); // isLoading=true
       await tester.pump(); // await getMyBusinesses → throws → catch
       await tester.pump(const Duration(milliseconds: 400)); // error toast in
@@ -244,14 +251,14 @@ void main() {
       await tester.pump(); // skill fetch microtask
 
       await _fillForm(tester);
-      await tester.tap(find.widgetWithText(FilterChip, 'Plumbing'));
+      await _tap(tester, find.widgetWithText(FilterChip, 'Plumbing'));
       await tester.pump();
 
-      await tester.tap(find.widgetWithText(GxButton, 'Post Job'));
+      await _tap(tester, find.widgetWithText(GxButton, 'Post Job'));
       await tester.pump(); // isLoading=true
       await tester.pump(); // await getMyBusinesses
       await tester.pump(); // await postJob → success snack + pop
-      await tester.pump(const Duration(milliseconds: 400)); // toast + pop anim
+      await tester.pump(const Duration(seconds: 1));
 
       // postJob got the right payload.
       expect(hiring.posted, isNotNull);

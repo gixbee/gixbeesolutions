@@ -91,11 +91,10 @@ void main() {
       expect(find.text('Grand Banquet Hall'), findsOneWidget);
       // Type-specific sub-labels.
       expect(find.text('Hiring Unit'), findsOneWidget);
-      expect(find.text('Service Unit'), findsOneWidget);
-      // Hiring unit shows Post Job / Candidates; service unit Calendar / Operators.
-      expect(find.text('Post Job'), findsOneWidget);
-      expect(find.text('Candidates'), findsOneWidget);
-      expect(find.text('Calendar'), findsOneWidget);
+      expect(find.text('Rental Unit'), findsOneWidget);
+      expect(find.text('Hire Employee'), findsOneWidget);
+      expect(find.text('Requests'), findsOneWidget);
+      expect(find.text('My rentals'), findsOneWidget);
       expect(find.text('Operators'), findsOneWidget);
       // No empty state when there is data.
       expect(find.byType(GxEmptyState), findsNothing);
@@ -147,8 +146,9 @@ void main() {
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 200));
 
-      expect(find.text('My Businesses'), findsOneWidget);
+      expect(find.text('List My Business'), findsOneWidget);
       expect(find.text('Add Business'), findsOneWidget);
+      expect(find.text('Add a business'), findsOneWidget);
       expect(find.byType(FloatingActionButton), findsOneWidget);
     });
   });

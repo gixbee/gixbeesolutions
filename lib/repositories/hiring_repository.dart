@@ -59,16 +59,57 @@ class HiringRepository {
   }
 
   Future<List<JobPost>> getMatchingJobs() async {
-    // Preference-matched feed: the server scores jobs against the seeker's
-    // profile (preferred roles / skills / expected salary) and sorts matches
-    // first. Falls back to the plain public list if the matched route fails.
     try {
-      final res = await _dio.get('/hiring/jobs/matched');
-      return (res.data as List).map((json) => JobPost.fromJson(json)).toList();
+      final res = await _dio.get('/hiring/jobs/matched', queryParameters: {
+        'page': 1,
+        'limit': 20,
+      });
+      return _jobList(res.data);
     } catch (_) {
       final res = await _dio.get('/hiring/jobs');
-      return (res.data as List).map((json) => JobPost.fromJson(json)).toList();
+      return _jobList(res.data);
     }
+  }
+
+  Future<List<JobPost>> getMyJobs({String? businessId}) async {
+    final res = await _dio.get('/hiring/my-jobs', queryParameters: {
+      if (businessId != null) 'businessId': businessId,
+    });
+    return _jobList(res.data);
+  }
+
+  Future<List<CandidateMatch>> recommendedCandidates(String jobId) async {
+    final res = await _dio.get('/hiring/jobs/$jobId/matches');
+    final data = res.data;
+    final raw = data is Map ? data['items'] : data;
+    if (raw is! List) return const [];
+    return raw
+        .whereType<Map>()
+        .map((json) => CandidateMatch.fromJson(Map<String, dynamic>.from(json)))
+        .toList();
+  }
+
+  Future<void> expressInterest(String jobId) async {
+    await _dio.post('/hiring/jobs/$jobId/interest', data: {});
+  }
+
+  Future<void> notInterested(String jobId, String reason) async {
+    await _dio.post('/hiring/jobs/$jobId/not-interested', data: {'reason': reason});
+  }
+
+  Future<void> inviteCandidate(String jobId, String candidateId) async {
+    await _dio.post('/hiring/jobs/$jobId/matches/$candidateId/invite');
+  }
+
+  List<JobPost> _jobList(dynamic data) {
+    final raw = data is List
+        ? data
+        : (data is Map ? data['items'] : null);
+    if (raw is! List) return const [];
+    return raw
+        .whereType<Map>()
+        .map((json) => JobPost.fromJson(Map<String, dynamic>.from(json)))
+        .toList();
   }
 
   Future<void> toggleJobAlerts(bool enabled) async {

@@ -78,6 +78,11 @@ class _RegisterProScreenState extends ConsumerState<RegisterProScreen> {
   void initState() {
     super.initState();
     _step = widget.initialStep;
+    // Home / Edit Profile already store the photo on the user. Show it
+    // immediately so step 1 does not look like a blank "upload again".
+    _photoUrl = firstNonEmptyPhoto([
+      ref.read(currentUserProvider).value?.avatar,
+    ]);
     _fetchProfile();
   }
 
@@ -101,9 +106,18 @@ class _RegisterProScreenState extends ConsumerState<RegisterProScreen> {
       
       if (!mounted) return;
       
+      final userMap = profile['user'];
+      final nestedAvatar = userMap is Map
+          ? (userMap['profileImageUrl'] ?? userMap['avatar']) as String?
+          : null;
       setState(() {
         _professionalSkills = profile['professionalSkills'] as List? ?? [];
-        _photoUrl = profile['photoUrl'] as String?;
+        _photoUrl = firstNonEmptyPhoto([
+          profile['photoUrl'] as String?,
+          nestedAvatar,
+          _photoUrl,
+          ref.read(currentUserProvider).value?.avatar,
+        ]);
         _certificates
           ..clear()
           ..addAll((profile['certificates'] as List? ?? []).cast<String>());
@@ -962,7 +976,7 @@ class _RegisterProScreenState extends ConsumerState<RegisterProScreen> {
         ),
         const SizedBox(height: 10),
         Center(
-          child: Text('Tap to upload a profile photo',
+          child: Text(registerProPhotoHint(_photoUrl),
               style: TextStyle(color: cs.onSurfaceVariant, fontSize: 12)),
         ),
         const SizedBox(height: 24),

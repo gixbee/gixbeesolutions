@@ -19,7 +19,7 @@ use crate::state::AppState;
 
 pub const HOLD_MINUTES: i64 = 10;
 
-pub fn advance_due(listed: Decimal, total: Decimal) -> Decimal {
+pub fn advance_due(listed: Decimal, percent: Decimal, total: Decimal) -> Decimal {
     if total <= Decimal::ZERO {
         return Decimal::ZERO;
     }
@@ -30,6 +30,15 @@ pub fn advance_due(listed: Decimal, total: Decimal) -> Decimal {
     };
     if listed > Decimal::ZERO {
         return listed.min(total);
+    }
+    let percent = if percent < Decimal::ZERO {
+        Decimal::ZERO
+    } else {
+        percent.min(Decimal::from(100))
+    };
+    if percent > Decimal::ZERO {
+        let cut = (total * percent / Decimal::from(100)).round_dp(2);
+        return cut.max(Decimal::ONE.min(total)).min(total);
     }
     let twenty = (total * Decimal::new(2, 1)).round_dp(2);
     let floor = if twenty < Decimal::ONE {
@@ -350,19 +359,23 @@ mod tests {
     #[test]
     fn twenty_percent_floor_when_the_store_did_not_set_an_advance() {
         assert_eq!(
-            advance_due(Decimal::ZERO, Decimal::from(1000)),
+            advance_due(Decimal::ZERO, Decimal::ZERO, Decimal::from(1000)),
             Decimal::from(200)
         );
         assert_eq!(
-            advance_due(Decimal::from(50), Decimal::from(1000)),
+            advance_due(Decimal::from(50), Decimal::ZERO, Decimal::from(1000)),
             Decimal::from(50)
         );
         assert_eq!(
-            advance_due(Decimal::from(5000), Decimal::from(1000)),
+            advance_due(Decimal::from(5000), Decimal::ZERO, Decimal::from(1000)),
             Decimal::from(1000)
         );
-        assert_eq!(advance_due(Decimal::ZERO, Decimal::ZERO), Decimal::ZERO);
-        assert_eq!(advance_due(Decimal::ZERO, Decimal::new(4, 0)), Decimal::ONE);
+        assert_eq!(advance_due(Decimal::ZERO, Decimal::ZERO, Decimal::ZERO), Decimal::ZERO);
+        assert_eq!(advance_due(Decimal::ZERO, Decimal::ZERO, Decimal::new(4, 0)), Decimal::ONE);
+        assert_eq!(
+            advance_due(Decimal::ZERO, Decimal::from(10), Decimal::from(1000)),
+            Decimal::from(100)
+        );
     }
 
     #[test]

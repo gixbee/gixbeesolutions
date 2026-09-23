@@ -12,6 +12,7 @@ import '../../shared/widgets/gx_time_picker.dart';
 import '../../shared/widgets/gx_text_field.dart';
 import '../../theme.dart';
 import 'my_rentals_screen.dart';
+import 'rental_listing_options.dart';
 
 /// Rental item detail: photo, rates, description, already-booked windows,
 /// and a start/end picker → reserve (owner then confirms; both get pushes).
@@ -64,12 +65,25 @@ class _RentalItemDetailScreenState
   }
 
   Future<DateTime?> _pickDateTime(DateTime initial) async {
+    final now = DateTime.now();
+    final from = parseYmd(_item?['availableFrom']);
+    final until = parseYmd(_item?['availableUntil']);
+    final first = from != null && from.isAfter(now) ? from : now;
+    final last = until ?? now.add(const Duration(days: 90));
+    final weekdays = parseWeekdays(_item?['availableWeekdays']);
+    final blocked = <DateTime>{};
+    for (var d = DateTime(first.year, first.month, first.day);
+        !d.isAfter(last);
+        d = d.add(const Duration(days: 1))) {
+      if (!weekdays.contains(d.weekday)) blocked.add(d);
+    }
     final date = await showGxCalendar(
       context,
       title: 'Rental date',
-      initialDate: initial,
-      firstDate: DateTime.now(),
-      lastDate: DateTime.now().add(const Duration(days: 90)),
+      initialDate: initial.isBefore(first) ? first : initial,
+      firstDate: first,
+      lastDate: last.isBefore(first) ? first : last,
+      blockedDays: blocked,
       accent: GixbeeTheme.accentTeal,
       accentGradient: const [GixbeeTheme.accentTeal, Color(0xFF0F766E)],
     );
@@ -300,6 +314,27 @@ class _RentalItemDetailScreenState
                                               color: context.gx.ink
                                                   .withValues(alpha: 0.65))),
                                     ],
+                                    const SizedBox(height: 10),
+                                    Text(
+                                      '${rentalCategoryLabel('${_item!['category']}')} · ${rentalConditionLabel('${_item!['condition']}')}',
+                                      style: TextStyle(
+                                          fontSize: 13,
+                                          fontWeight: FontWeight.w700,
+                                          color: context.gx.ink.withValues(alpha: 0.55)),
+                                    ),
+                                    const SizedBox(height: 8),
+                                    Text(
+                                      rentalAvailabilitySummary(
+                                        availableFrom: '${_item!['availableFrom'] ?? ''}',
+                                        availableUntil: '${_item!['availableUntil'] ?? ''}',
+                                        weekdays: parseWeekdays(_item!['availableWeekdays']),
+                                        slotStart: int.tryParse('${_item!['slotStartMinute'] ?? ''}'),
+                                        slotEnd: int.tryParse('${_item!['slotEndMinute'] ?? ''}'),
+                                      ),
+                                      style: TextStyle(
+                                          fontSize: 12.5,
+                                          color: context.gx.ink.withValues(alpha: 0.5)),
+                                    ),
                                     if (booked.isNotEmpty) ...[
                                       const SizedBox(height: 16),
                                       Text('ALREADY BOOKED',
@@ -330,16 +365,25 @@ class _RentalItemDetailScreenState
                                       IconButton(onPressed: _quantity >= (int.tryParse('${_item!['quantity'] ?? 1}') ?? 1) ? null : () => setState(() => _quantity++), icon: const Icon(Icons.add)),
                                     ]),
                                     Text('Pickup: ${_item!['pickupAddress'] ?? 'Coordinate with the owner'}'),
+                                    if ('${_item!['pickupInstructions'] ?? ''}'.trim().isNotEmpty)
+                                      Text('${_item!['pickupInstructions']}'),
                                     if (_item!['deliveryAvailable'] == true)
                                       SwitchListTile(contentPadding: EdgeInsets.zero, title: const Text('Request delivery'),
-                                        subtitle: Text('₹${_item!['deliveryFee'] ?? 0} per reservation'), value: _delivery,
+                                        subtitle: Text('Delivery charge ₹${_item!['deliveryFee'] ?? 0} per reservation'), value: _delivery,
                                         onChanged: (value) => setState(() => _delivery = value)),
                                     if (_delivery) GxTextField(controller: _deliveryAddress, label: 'Delivery address', maxLines: 2, maxLength: 2000),
                                     const SizedBox(height: 12),
-                                    Text('Refundable deposit: ₹${_item!['depositPerUnit'] ?? 0} per unit. Included in the total. Fully refundable after return; cancel before handover for a refund of amounts paid.'),
-                                    if (num.tryParse('${_item!['advanceAmount'] ?? 0}') != null &&
-                                        (num.tryParse('${_item!['advanceAmount'] ?? 0}') ?? 0) > 0)
-                                      Text('Store advance to hold: ₹${_item!['advanceAmount']}'),
+                                    Text('Refundable deposit ₹${_item!['depositPerUnit'] ?? 0} per unit. Included in the total and returned after a good return.'),
+                                    Builder(builder: (_) {
+                                      final rupees = num.tryParse('${_item!['advanceAmount'] ?? 0}') ?? 0;
+                                      final percent = num.tryParse('${_item!['advancePercent'] ?? 0}') ?? 0;
+                                      if (rupees > 0) return Text('Booking advance ₹$rupees to hold the reservation.');
+                                      if (percent > 0) return Text('Booking advance $percent% of the total to hold the reservation.');
+                                      return const Text('Booking advance 20% of the total to hold the reservation.');
+                                    }),
+                                    if ((num.tryParse('${_item!['lateFeePerHour'] ?? 0}') ?? 0) > 0)
+                                      Text('Late fee ₹${_item!['lateFeePerHour']} per extra hour after the booked time.'),
+                                    Text('Cancellation: ${rentalCancelPolicyCopy('${_item!['cancellationPolicy']}').$2}'),
                                     const SizedBox(height: 20),
                                     Text('WHEN DO YOU NEED IT?',
                                         style: TextStyle(

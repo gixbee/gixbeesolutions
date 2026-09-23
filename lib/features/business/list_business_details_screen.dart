@@ -3,18 +3,22 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
-import 'list_business_type_screen.dart';
+import '../../repositories/auth_repository.dart';
+import '../../repositories/business_repository.dart';
+import '../../repositories/cities_repository.dart';
+import '../../repositories/worker_repository.dart';
 import '../../shared/models/business.dart';
 import '../../shared/widgets/gx_button.dart';
+import '../../shared/widgets/gx_city_field.dart';
 import '../../shared/widgets/gx_glass_card.dart';
 import '../../shared/widgets/gx_pressable.dart';
 import '../../shared/widgets/gx_text_field.dart';
 import '../../shared/widgets/gx_sheet.dart';
 import '../../shared/widgets/gx_snackbar.dart';
 import '../../theme.dart';
-import '../../repositories/auth_repository.dart';
-import '../../repositories/business_repository.dart';
-import '../../repositories/cities_repository.dart'; // currentCityProvider
+import '../booking/location_pin_screen.dart';
+import '../profile/addresses/address_line.dart';
+import 'list_business_type_screen.dart';
 
 /// Step 2 of the Business Listing flow.
 /// Adapts its form fields based on the selected business type.
@@ -54,6 +58,12 @@ class _ListBusinessDetailsScreenState
     ('INVITATIONS', 'Invitations'),
   ];
   String? _serviceType;
+  String? _cityId;
+  bool _citySeeded = false;
+  double? _pinLat;
+  double? _pinLng;
+  final _cityCtrl = TextEditingController();
+  final _cityFocus = FocusNode();
 
   bool _isSubmitting = false;
 
@@ -105,6 +115,8 @@ class _ListBusinessDetailsScreenState
     _phoneCtrl.dispose();
     _addressCtrl.dispose();
     _specialtyCtrl.dispose();
+    _cityCtrl.dispose();
+    _cityFocus.dispose();
     super.dispose();
   }
 
@@ -113,7 +125,7 @@ class _ListBusinessDetailsScreenState
       case BusinessType.service:
         return 'Service Business';
       case BusinessType.hiring:
-        return 'Hiring Agency';
+        return 'Hiring Business';
       case BusinessType.rental:
         return 'Rental Business';
     }
@@ -154,7 +166,9 @@ class _ListBusinessDetailsScreenState
 
   void _submit() async {
     final phoneDigits = _phoneCtrl.text.replaceAll(RegExp(r'\D'), '');
-    if (_nameCtrl.text.trim().isEmpty || _addressCtrl.text.trim().isEmpty) {
+    if (_nameCtrl.text.trim().isEmpty ||
+        _addressCtrl.text.trim().isEmpty ||
+        _cityCtrl.text.trim().isEmpty) {
       showGxSnack(context, 'Please fill all required fields');
       return;
     }
@@ -170,6 +184,62 @@ class _ListBusinessDetailsScreenState
     setState(() => _isSubmitting = true);
 
     try {
+      final hiring = widget.type == BusinessType.hiring;
+      final typedCity = _cityCtrl.text.trim();
+      List<CityEntry> cities = const [];
+      try {
+        if (!hiring) ref.invalidate(citiesProvider);
+        cities = await ref.read(citiesProvider.future);
+      } catch (_) {}
+      final loc = ref.read(selectedLocationProvider);
+      CityEntry? city = matchTypedCity(cities, typedCity);
+      if (!hiring) {
+        if (city == null && _cityId != null) {
+          for (final c in cities) {
+            if (c.id == _cityId) {
+              city = c;
+              break;
+            }
+          }
+        }
+        city ??= resolveLiveCity(
+          cities,
+          ref.read(currentCityProvider),
+          lat: loc?.lat,
+          lng: loc?.lng,
+        );
+        if (cities.isEmpty) {
+          if (mounted) {
+            setState(() => _isSubmitting = false);
+            showGxSnack(
+              context,
+              'Could not load cities. Check your connection and try again.',
+              type: GxSnackType.error,
+            );
+          }
+          return;
+        }
+        if (city == null) {
+          if (mounted) {
+            setState(() => _isSubmitting = false);
+            showGxSnack(
+              context,
+              'Pick the city from the list — type Thiruvananthapuram and tap the suggestion',
+              type: GxSnackType.error,
+            );
+          }
+          return;
+        }
+      }
+      _cityId = city?.id;
+      var address = _addressCtrl.text.trim();
+      final cityLabel = city?.displayName ?? typedCity;
+      if (!address.toLowerCase().contains(typedCity.toLowerCase()) &&
+          (city == null ||
+              !address.toLowerCase().contains(city.name.toLowerCase()))) {
+        address = '$address, $cityLabel';
+      }
+
       final business = Business(
         id: '', // Backend generates this
         name: _nameCtrl.text.trim(),
@@ -177,14 +247,12 @@ class _ListBusinessDetailsScreenState
         description: _descCtrl.text,
         specialty: _specialtyCtrl.text,
         phone: phoneDigits.length == 10 ? phoneDigits : '+$phoneDigits',
-        address: _addressCtrl.text.trim(),
+        address: address,
         documentUrl: _docUrl,
         serviceType:
             widget.type == BusinessType.service && ['HALL', 'CATERING', 'DECORATION', 'PHOTOGRAPHY'].contains(_serviceType) ? _serviceType : null,
         eventServices: widget.type == BusinessType.service && _serviceType != null ? [_serviceType!] : const [],
-        // Structured city scope from the home-selected serviceable city
-        // (nullable — legacy behaviour when no city is selected).
-        cityId: ref.read(currentCityProvider)?.id,
+        cityId: city?.id,
         ownerId: '', // Backend extracts this from JWT
         status: 'PENDING',
       );
@@ -208,9 +276,8 @@ class _ListBusinessDetailsScreenState
     }
   }
 
-  /// Glass success sheet (replaces the old AlertDialog). Whether dismissed
-  /// via the CTA or a drag-down, we always return to the home tab — the
-  /// application has already been submitted at this point.
+  /// Glass success sheet. After dismiss, drop the type/details routes so
+  /// the owner lands on List My Business (the dashboard they added from).
   Future<void> _showSuccessSheet() async {
     final cs = Theme.of(context).colorScheme;
     await showGxSheet<void>(
@@ -249,8 +316,9 @@ class _ListBusinessDetailsScreenState
           ),
           const SizedBox(height: 22),
           GxButton(
-            label: 'Back to Home',
-            // Pops the sheet (topmost route); navigation home happens below.
+            label: 'View my businesses',
+            // Pops the sheet; then we drop the type/details routes so the
+            // owner lands on the dashboard (or home if they never opened it).
             onTap: () => Navigator.of(context).pop(),
             gradient: const [GixbeeTheme.accentBlue, Color(0xFF1D4ED8)],
             accent: GixbeeTheme.accentBlue,
@@ -260,7 +328,12 @@ class _ListBusinessDetailsScreenState
       ),
     );
     if (!mounted) return;
-    Navigator.of(context).popUntil((r) => r.isFirst);
+    // Details + type picker sit on top of List My Business. Two pops land
+    // on that dashboard; if the stack is shallower, stop at the first route.
+    Navigator.of(context).pop();
+    if (mounted && Navigator.of(context).canPop()) {
+      Navigator.of(context).pop();
+    }
   }
 
   @override
@@ -406,10 +479,12 @@ class _ListBusinessDetailsScreenState
                           const SizedBox(height: 14),
                           _buildTextField(
                             controller: _addressCtrl,
-                            label: 'Headquarters / Main Address',
-                            icon: Icons.location_city_outlined,
+                            label: 'Headquarters / Main Address *',
+                            icon: Icons.location_on_outlined,
                             maxLines: 2,
                           ),
+                          const SizedBox(height: 14),
+                          _cityField(context),
                         ],
                       ),
                     ),
@@ -576,6 +651,110 @@ class _ListBusinessDetailsScreenState
           color: cs.onSurfaceVariant,
         ),
       ),
+    );
+  }
+
+  Future<void> _pickOnMap() async {
+    if (_isSubmitting) return;
+    final loc = ref.read(selectedLocationProvider);
+    final current = ref.read(currentCityProvider);
+    CityEntry? selected;
+    if (_cityId != null) {
+      for (final c in ref.read(citiesProvider).value ?? const <CityEntry>[]) {
+        if (c.id == _cityId) {
+          selected = c;
+          break;
+        }
+      }
+    }
+    final result = await Navigator.push<PinnedLocation>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => LocationPinScreen(
+          initialLat: _pinLat ?? loc?.lat ?? selected?.lat ?? current?.lat ?? 8.5241,
+          initialLng: _pinLng ?? loc?.lng ?? selected?.lng ?? current?.lng ?? 76.9366,
+          initialAddress: _addressCtrl.text.trim().isEmpty
+              ? null
+              : _addressCtrl.text.trim(),
+        ),
+      ),
+    );
+    if (result == null || !mounted) return;
+    final live = ref.read(citiesProvider).value ?? const <CityEntry>[];
+    final matched = matchTypedCity(live, result.locality ?? '') ??
+        nearestCity(live, result.lat, result.lng);
+    setState(() {
+      _pinLat = result.lat;
+      _pinLng = result.lng;
+      _cityId = matched?.id;
+      if (matched != null) {
+        _cityCtrl.text = matched.displayName;
+      } else if ((result.locality ?? '').trim().isNotEmpty) {
+        _cityCtrl.text = result.locality!.trim();
+      }
+      final line = result.address.trim().isNotEmpty
+          ? result.address.trim()
+          : _addressCtrl.text.trim();
+      _addressCtrl.text = ensureCityInAddress(
+        line,
+        matched?.displayName ?? result.locality ?? _cityCtrl.text,
+      );
+    });
+  }
+
+  Widget _cityField(BuildContext context) {
+    final citiesAsync = ref.watch(citiesProvider);
+    final cities = citiesAsync.value ?? const <CityEntry>[];
+    if (!_citySeeded && cities.isNotEmpty) {
+      _citySeeded = true;
+      final loc = ref.read(selectedLocationProvider);
+      final city = resolveLiveCity(
+        cities,
+        ref.read(currentCityProvider),
+        lat: loc?.lat,
+        lng: loc?.lng,
+      );
+      if (city != null && city.id != _cityId) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (!mounted) return;
+          setState(() {
+            _cityId = city.id;
+            if (_cityCtrl.text.trim().isEmpty) {
+              _cityCtrl.text = city.displayName;
+            }
+          });
+        });
+      }
+    }
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        GxCityField(
+          cities: cities,
+          controller: _cityCtrl,
+          focusNode: _cityFocus,
+          label: 'City *',
+          hint: widget.type == BusinessType.hiring
+              ? 'Search any city — Trivandrum or Thiruvananthapuram'
+              : 'Search a listed city — e.g. Thiruvananthapuram',
+          enabled: !_isSubmitting,
+          loading: widget.type != BusinessType.hiring && citiesAsync.isLoading,
+          onSelected: (c) => setState(() => _cityId = c?.id),
+        ),
+        const SizedBox(height: 10),
+        OutlinedButton.icon(
+          onPressed: _isSubmitting ? null : _pickOnMap,
+          icon: Icon(
+            _pinLat == null
+                ? Icons.add_location_alt_outlined
+                : Icons.edit_location_alt_outlined,
+            size: 18,
+          ),
+          label: Text(
+            _pinLat == null ? 'Pick city on map' : 'Location pinned · tap to change',
+          ),
+        ),
+      ],
     );
   }
 

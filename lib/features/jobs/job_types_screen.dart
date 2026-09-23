@@ -417,10 +417,7 @@ class _JobTypeFormScreenState extends ConsumerState<JobTypeFormScreen> {
         if (q.isEmpty || cities.isEmpty) {
           return const Iterable<CityEntry>.empty();
         }
-        return cities.where((c) =>
-            c.name.toLowerCase().contains(q) ||
-            c.state.toLowerCase().contains(q) ||
-            c.displayName.toLowerCase().contains(q));
+        return cities.where((c) => cityMatchesQuery(c, value.text));
       },
       onSelected: (c) {
         _locationCtrl.text = c.name;

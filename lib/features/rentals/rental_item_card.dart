@@ -4,6 +4,7 @@ import '../../shared/widgets/gx_pressable.dart';
 import '../../theme.dart';
 import 'rental_images.dart';
 import 'rental_item_detail_screen.dart';
+import 'rental_listing_options.dart';
 
 class RentalItemCard extends StatelessWidget {
   const RentalItemCard({super.key, required this.item});
@@ -70,6 +71,14 @@ class RentalItemCard extends StatelessWidget {
                           fontSize: 13.5,
                           fontWeight: FontWeight.w800,
                           color: context.gx.ink)),
+                  const SizedBox(height: 3),
+                  Text(
+                      '${rentalCategoryLabel('${item['category']}')} · ${rentalConditionLabel('${item['condition']}')}',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                          fontSize: 11,
+                          color: context.gx.ink.withValues(alpha: 0.45))),
                   const SizedBox(height: 3),
                   Text(_rateLabel,
                       style: const TextStyle(

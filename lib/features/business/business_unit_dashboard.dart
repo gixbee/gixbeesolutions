@@ -18,7 +18,11 @@ import '../events/event_plans_screen.dart';
 import 'event_business_settings_screen.dart';
 import 'hiring_pipeline_screen.dart';
 import 'hire_employee_screen.dart';
+import 'hiring_application_status_screen.dart';
+import 'hiring_business_verification_screen.dart';
+import 'hiring_listing.dart';
 import 'hiring_requests_screen.dart';
+import 'recommended_candidates_screen.dart';
 import 'list_business_type_screen.dart';
 import '../../repositories/matching_repository.dart';
 
@@ -38,7 +42,7 @@ class BusinessUnitDashboard extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('My Businesses'),
+        title: const Text('List My Business'),
         centerTitle: true,
       ),
       body: businessesAsync.when(
@@ -74,12 +78,22 @@ class BusinessUnitDashboard extends ConsumerWidget {
                 children: [
                   SizedBox(
                       height: MediaQuery.of(context).size.height * 0.16),
-                  const GxEmptyState(
+                  GxEmptyState(
                     icon: Icons.storefront_outlined,
                     title: 'No businesses yet',
                     message:
                         'List your shop, hall, or hiring unit to manage it here.',
                     accent: GixbeeTheme.accentBlue,
+                    actionLabel: 'Add a business',
+                    onAction: () async {
+                      await Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const ListBusinessTypeScreen(),
+                        ),
+                      );
+                      ref.invalidate(myBusinessesProvider);
+                    },
                   ),
                 ],
               ),
@@ -199,31 +213,99 @@ class _BusinessCard extends ConsumerWidget {
                     ],
                   ),
                 ),
-                _StatusChip(status: business.status),
+                  _StatusChip(
+                    status: !_isHiring
+                        ? business.status
+                        : switch (business.status) {
+                            'PENDING' => 'UNDER_REVIEW',
+                            'NEEDS_CHANGES' => 'NEEDS_CHANGES',
+                            _ => business.status,
+                          },
+                  ),
               ],
             ),
             const SizedBox(height: 18),
             if (_isHiring) ...[
+              if (business.status == 'NEEDS_CHANGES') ...[
+                Container(
+                  width: double.infinity,
+                  margin: const EdgeInsets.only(bottom: 12),
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF59E0B).withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(
+                        color: const Color(0xFFF59E0B).withValues(alpha: 0.35)),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Verification Needs Changes',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w800,
+                          fontSize: 13,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        () {
+                          final note =
+                              hiringReviewNote(business.hiringProfile);
+                          return note.isEmpty
+                              ? 'Business registration document is unclear.'
+                              : note;
+                        }(),
+                        style: TextStyle(
+                          fontSize: 12.5,
+                          height: 1.35,
+                          color: colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
               Row(
                 children: [
                   Expanded(
                     child: _BizAction(
                       icon: Icons.bolt_outlined,
-                      label: 'Hire Employee',
+                      label: business.status == 'VERIFIED'
+                          ? 'Hire Employee'
+                          : business.status == 'NEEDS_CHANGES'
+                              ? 'Update & Resubmit'
+                              : 'View application',
                       primary: true,
                       onTap: () {
-                        if (business.status != 'VERIFIED') {
-                          showGxSnack(
+                        if (business.status == 'VERIFIED') {
+                          Navigator.push(
                             context,
-                            'Admin must verify your hiring business before Hire Employee (usually within 24h). Smart Hiring stays locked until status is VERIFIED.',
-                            type: GxSnackType.error,
+                            MaterialPageRoute(
+                              builder: (_) =>
+                                  HireEmployeeScreen(businessId: business.id),
+                            ),
+                          );
+                          return;
+                        }
+                        if (business.status == 'NEEDS_CHANGES') {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) =>
+                                  HiringBusinessVerificationScreen(
+                                draft: HiringListingDraft.fromBusiness(
+                                    business),
+                              ),
+                            ),
                           );
                           return;
                         }
                         Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (_) => HireEmployeeScreen(businessId: business.id),
+                            builder: (_) => HiringApplicationStatusScreen(
+                                business: business),
                           ),
                         );
                       },
@@ -238,7 +320,8 @@ class _BusinessCard extends ConsumerWidget {
                       onTap: () => Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (_) => HiringRequestsScreen(businessId: business.id),
+                          builder: (_) =>
+                              HiringRequestsScreen(businessId: business.id),
                         ),
                       ),
                     ),
@@ -253,12 +336,22 @@ class _BusinessCard extends ConsumerWidget {
                       icon: Icons.add,
                       label: 'Post on board',
                       primary: false,
-                      onTap: () => Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => const PostJobScreen(),
-                        ),
-                      ),
+                      onTap: () {
+                        if (business.status != 'VERIFIED') {
+                          showGxSnack(
+                            context,
+                            'Admin must verify your hiring business before you can post jobs.',
+                            type: GxSnackType.error,
+                          );
+                          return;
+                        }
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const PostJobScreen(),
+                          ),
+                        );
+                      },
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -271,6 +364,29 @@ class _BusinessCard extends ConsumerWidget {
                     ),
                   ),
                 ],
+              ),
+              const SizedBox(height: 10),
+              _BizAction(
+                icon: Icons.recommend_outlined,
+                label: 'Recommended',
+                primary: false,
+                onTap: () {
+                  if (business.status != 'VERIFIED') {
+                    showGxSnack(
+                      context,
+                      'Admin must verify your hiring business before candidates are recommended.',
+                      type: GxSnackType.error,
+                    );
+                    return;
+                  }
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => RecommendedCandidatesScreen(
+                          businessId: business.id),
+                    ),
+                  );
+                },
               ),
             ] else if (_isRental) ...[
               Row(
@@ -532,6 +648,16 @@ class _StatusChip extends StatelessWidget {
     final (color, icon, label) = switch (status) {
       'VERIFIED' => (Colors.green, Icons.verified, 'VERIFIED'),
       'REJECTED' => (Colors.redAccent, Icons.cancel_outlined, 'REJECTED'),
+      'UNDER_REVIEW' => (
+          const Color(0xFFFBBF24),
+          Icons.schedule_rounded,
+          'UNDER REVIEW'
+        ),
+      'NEEDS_CHANGES' => (
+          const Color(0xFFF59E0B),
+          Icons.edit_note_rounded,
+          'NEEDS CHANGES'
+        ),
       _ => (const Color(0xFFFBBF24), Icons.schedule_rounded, 'PENDING'),
     };
     return Container(

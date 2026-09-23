@@ -93,10 +93,7 @@ class _SeekerProfileWizardState extends ConsumerState<SeekerProfileWizard> {
       });
       ref.invalidate(talentProfileProvider);
       if (!mounted) return;
-      setState(() {
-        _submitting = false;
-        _step = 3; // done state
-      });
+      Navigator.pop(context, true);
     } catch (e) {
       if (!mounted) return;
       setState(() => _submitting = false);

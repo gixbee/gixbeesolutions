@@ -122,6 +122,8 @@ fn row_to_json(row: &sqlx::postgres::PgRow) -> Value {
         "id": row.try_get::<Uuid, _>("id").ok().map(|u| u.to_string()),
         "name": row.try_get::<String, _>("name").ok(),
         "state": row.try_get::<String, _>("state").ok(),
+        "lat": row.try_get::<f64, _>("lat").ok(),
+        "lng": row.try_get::<f64, _>("lng").ok(),
         "isActive": row.try_get::<bool, _>("isActive").ok(),
         "createdAt": row.try_get::<chrono::DateTime<chrono::Utc>, _>("createdAt").ok(),
         "updatedAt": row.try_get::<chrono::DateTime<chrono::Utc>, _>("updatedAt").ok(),

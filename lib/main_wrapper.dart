@@ -34,9 +34,10 @@ import 'repositories/booking_status_provider.dart';
 import 'services/auth_token_service.dart';
 import 'services/notification_service.dart';
 import 'services/socket_service.dart';
-import 'shared/models/user.dart';
 import 'shared/widgets/dribbble_background.dart';
 import 'core/main_tab_provider.dart';
+import 'core/navigator_key.dart';
+import 'features/onboarding/welcome_screen.dart';
 
 /// Push `data.type` values that mean "this booking changed" — every one of
 /// them should refresh the booking lists and the live status stream.
@@ -125,11 +126,23 @@ class _MainWrapperState extends ConsumerState<MainWrapper>
 
   bool _sessionExitStarted = false;
 
-  /// Leave the shell entirely (no bottom nav / Go Live) when the JWT is gone.
+  /// Leave the shell entirely (no bottom nav / Go Live) on sign-out or expiry.
   void _forceSessionEnd() {
     if (_sessionExitStarted) return;
     _sessionExitStarted = true;
-    unawaited(forceLogoutToWelcomeFromWidget(ref));
+    unawaited(() async {
+      await forceLogoutToWelcomeFromWidget(ref);
+      // forceLogout skips nav when the JWT was already deleted. Still replace
+      // the shell so Home / Bookings stay unreachable after Profile expiry.
+      if (!mounted) return;
+      final nav = rootNavigatorKey.currentState ??
+          Navigator.of(context, rootNavigator: true);
+      if (!nav.mounted) return;
+      nav.pushAndRemoveUntil(
+        MaterialPageRoute(builder: (_) => const WelcomeScreen()),
+        (route) => false,
+      );
+    }());
   }
 
   /// Soft check used on resume/tab — only exit when there is truly no token.
@@ -627,9 +640,14 @@ class _MainWrapperState extends ConsumerState<MainWrapper>
       if (becameWorker) {
         unawaited(_reconcilePendingBookings());
       }
+      if (shouldLeaveAppShell(ref.read(authStateProvider), next)) {
+        _forceSessionEnd();
+      }
     });
     ref.listen(authStateProvider, (prev, next) {
-      if (authSessionIsGone(next)) _forceSessionEnd();
+      if (shouldLeaveAppShell(next, ref.read(currentUserProvider))) {
+        _forceSessionEnd();
+      }
     });
     // Profile back / Home avatar write [mainTabIndexProvider]; keep the
     // bottom bar body in sync without Navigator.pop on the shell.
@@ -640,14 +658,24 @@ class _MainWrapperState extends ConsumerState<MainWrapper>
     });
 
     final authAsync = ref.watch(authStateProvider);
-    // JWT gone ⇒ leave the shell. A null profile after logout must not do that
-    // on re-login (it is still visible while the new /auth/profile loads).
+    final userAsync = ref.watch(currentUserProvider);
+    // JWT gone or profile 401/null while "authed" ⇒ leave the whole shell.
+    // A refreshing null profile after OTP must not bounce back to Welcome.
     final sessionGone =
-        _sessionExitStarted || authSessionIsGone(authAsync);
-    if (sessionGone) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) _forceSessionEnd();
-      });
+        _sessionExitStarted || shouldLeaveAppShell(authAsync, userAsync);
+    // Don't paint Home / bottom nav until /auth/profile resolves. An expired
+    // JWT still counts as "hasToken" while the 401 is in flight — that's how
+    // Profile could show Session Expired while Home stayed fully usable.
+    final confirmingSession = !sessionGone &&
+        authAsync.asData?.value == true &&
+        (userAsync.isLoading || userAsync.isRefreshing) &&
+        userAsync.asData?.value == null;
+    if (sessionGone || confirmingSession) {
+      if (sessionGone) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) _forceSessionEnd();
+        });
+      }
       return Scaffold(
         backgroundColor: context.gx.bg,
         body: Center(

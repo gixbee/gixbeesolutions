@@ -40,7 +40,8 @@ pub const MASTER_ENTRY_COLS: &str =
 
 pub const JOB_POST_COLS: &str = r#"
     id, "employerId", "businessId", title, description, "requiredSkills", "jobType", experience, location,
-    "salaryMin", "salaryMax", "isActive", "createdAt", "updatedAt"
+    "salaryMin", "salaryMax", "isActive", "workMode", "salaryPeriod", "experienceMin", "experienceMax",
+    lat, lng, openings, "joiningType", status, "createdAt", "updatedAt"
 "#;
 
 pub const JOB_APPLICATION_COLS: &str =
@@ -57,13 +58,16 @@ pub const BOOKING_COLS: &str = r#"
 
 pub const BUSINESS_COLS: &str = r#"
     id, "ownerId", name, type::text AS type, "serviceType"::text AS "serviceType", location, "cityId",
-    description, phone, "eventServices", "documentUrl", status::text AS status, "operatorIds", "offlineDays", "createdAt", "updatedAt"
+    description, phone, "eventServices", "documentUrl", status::text AS status, "operatorIds", "offlineDays",
+    "hiringProfile", "createdAt", "updatedAt"
 "#;
 
 pub const RENTAL_ITEM_COLS: &str = r#"
     id, "ownerId", name, description, "imageUrl", "imageUrls", "hourlyRate", "dailyRate", "minHoursToRent",
     "businessId", quantity, "pickupAddress", "deliveryAvailable", "deliveryFee", "depositPerUnit",
-    "pickupLat", "pickupLng", "advanceAmount",
+    "pickupLat", "pickupLng", "advanceAmount", "advancePercent", "pickupInstructions", "lateFeePerHour",
+    condition, category, "cancellationPolicy", "availableFrom", "availableUntil", "availableWeekdays",
+    "slotStartMinute", "slotEndMinute",
     "isAvailable", "createdAt", "updatedAt"
 "#;
 

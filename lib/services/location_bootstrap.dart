@@ -78,14 +78,29 @@ Future<void> ensureLocationInitialized(WidgetRef ref) async {
               lat: (cityData['lat'] as num).toDouble(),
               lng: (cityData['lng'] as num).toDouble(),
             );
-      ref.read(currentAddressProvider.notifier).state =
-          data['address'] as String;
-      ref.read(selectedLocationProvider.notifier).state = (
-        lat: (data['lat'] as num).toDouble(),
-        lng: (data['lng'] as num).toDouble(),
-        address: data['address'] as String,
-      );
+      final lat = (data['lat'] as num).toDouble();
+      final lng = (data['lng'] as num).toDouble();
+      final address = data['address'] as String;
+      ref.read(currentAddressProvider.notifier).state = address;
+      ref.read(selectedLocationProvider.notifier).state =
+          (lat: lat, lng: lng, address: address);
       ref.read(currentCityProvider.notifier).state = city;
+      List<CityEntry> cities = const [];
+      try {
+        cities = await ref.read(citiesProvider.future);
+      } catch (e) {
+        debugPrint('Cities load for saved location rematch failed: $e');
+      }
+      final resolved = resolveLiveCity(cities, city, lat: lat, lng: lng);
+      if (resolved?.id != city?.id) {
+        await applyLocation(
+          ref,
+          address: address,
+          lat: lat,
+          lng: lng,
+          city: resolved,
+        );
+      }
       return;
     }
   } catch (e) {

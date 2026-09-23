@@ -77,6 +77,27 @@ export class TalentProfile {
   @Column({ type: 'float', default: 100 })
   searchRank: number;
 
+  @Column({ type: 'float', nullable: true })
+  lat: number | null;
+
+  @Column({ type: 'float', nullable: true })
+  lng: number | null;
+
+  @Column({ type: 'float', default: 25 })
+  travelRadiusKm: number;
+
+  @Column({ default: 'IMMEDIATE' })
+  availability: string;
+
+  @Column({ type: 'timestamptz', nullable: true })
+  lastActiveAt: Date | null;
+
+  @Column({ default: 'ACTIVE' })
+  profileStatus: string;
+
+  @Column({ nullable: true })
+  preferredWorkMode: string | null;
+
   @CreateDateColumn()
   createdAt: Date;
 

@@ -52,6 +52,9 @@ class GxTextField extends StatefulWidget {
   final void Function(String)? onSubmitted;
   final VoidCallback? onTap;
 
+  /// Off for long forms so Android scroll-capture is not blocked by blur layers.
+  final bool blur;
+
   /// Focus-ring + cursor colour. Null → theme shell [GxColors.accent].
   final Color? accent;
 
@@ -78,6 +81,7 @@ class GxTextField extends StatefulWidget {
     this.onChanged,
     this.onSubmitted,
     this.onTap,
+    this.blur = true,
     this.accent,
   });
 
@@ -182,20 +186,33 @@ class _GxTextFieldState extends State<GxTextField> {
       ),
     );
 
+    // Blur sits *behind* the field. Wrapping TextField in BackdropFilter
+    // swallows keystrokes on some Android Impeller builds ("field not taking").
+    // Long forms pass blur:false so OEM scroll-capture can stitch the page.
+    final fieldChrome = AnimatedContainer(
+      duration: const Duration(milliseconds: 160),
+      decoration: BoxDecoration(
+        color: context.gx.ink.withValues(alpha: 0.04),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: borderColor),
+      ),
+      child: field,
+    );
     final glass = ClipRRect(
       borderRadius: BorderRadius.circular(14),
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 6, sigmaY: 6),
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 160),
-          decoration: BoxDecoration(
-            color: context.gx.ink.withValues(alpha: 0.04),
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: borderColor),
-          ),
-          child: field,
-        ),
-      ),
+      child: widget.blur
+          ? Stack(
+              children: [
+                Positioned.fill(
+                  child: BackdropFilter(
+                    filter: ImageFilter.blur(sigmaX: 6, sigmaY: 6),
+                    child: const SizedBox.expand(),
+                  ),
+                ),
+                fieldChrome,
+              ],
+            )
+          : fieldChrome,
     );
 
     if (widget.label == null) return glass;

@@ -27,6 +27,35 @@ void main() {
     });
   });
 
+  group('firstNonEmptyPhoto', () {
+    test('skips null and blank talent photoUrl and uses the account avatar', () {
+      expect(
+        firstNonEmptyPhoto([null, '', '  ', '/uploads/me.jpg']),
+        '/uploads/me.jpg',
+      );
+    });
+
+    test('prefers an existing talent photo over the account avatar', () {
+      expect(
+        firstNonEmptyPhoto(['/uploads/pro.jpg', '/uploads/me.jpg']),
+        '/uploads/pro.jpg',
+      );
+    });
+  });
+
+  group('registerProPhotoHint', () {
+    test('does not ask to upload again when a photo is already set', () {
+      expect(
+        registerProPhotoHint('/uploads/me.jpg'),
+        'This is your profile photo. Tap to change it.',
+      );
+      expect(
+        registerProPhotoHint(null),
+        'Tap to upload a profile photo',
+      );
+    });
+  });
+
   group('encodeWhatsAppProfileJpeg', () {
     test('center-crops a rectangle and resizes to 640 square JPEG', () {
       final src = img.Image(width: 1200, height: 800);

@@ -20,6 +20,26 @@ String? resolveProfileImageUrl(String? path) {
   return p.startsWith('/') ? '$base$p' : '$base/$p';
 }
 
+/// First non-blank photo path. Register-as-Pro should reuse the account
+/// avatar (`users.profileImageUrl`) instead of asking for a second upload
+/// when `talent_profiles.photoUrl` is still empty.
+String? firstNonEmptyPhoto(Iterable<String?> candidates) {
+  for (final c in candidates) {
+    if (c == null) continue;
+    final t = c.trim();
+    if (t.isNotEmpty) return t;
+  }
+  return null;
+}
+
+/// Step-1 hint: do not ask to "upload" when the account photo is already set.
+String registerProPhotoHint(String? photoUrl) {
+  final has = firstNonEmptyPhoto([photoUrl]) != null;
+  return has
+      ? 'This is your profile photo. Tap to change it.'
+      : 'Tap to upload a profile photo';
+}
+
 /// WhatsApp-style profile photo output size (square JPEG).
 const kProfilePhotoSize = 640;
 

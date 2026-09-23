@@ -7,6 +7,7 @@ use serde::Deserialize;
 use serde_json::{json, Value};
 use sqlx::Row;
 use uuid::Uuid;
+use chrono::NaiveDate;
 
 use crate::common::pg::{RENTAL_ITEM_COLS, RENTAL_RESERVATION_COLS};
 use crate::error::{AppError, AppResult};
@@ -239,19 +240,28 @@ async fn list_stores(
     };
     let rows = sqlx::query(
         r#"SELECT b.id, b.name, b.location, b."cityId", b.phone, b.status::text AS status,
-            c.lat::float8 AS pin_lat,
-            c.lng::float8 AS pin_lng,
+            COALESCE(c.lat::float8, p.lat) AS pin_lat,
+            COALESCE(c.lng::float8, p.lng) AS pin_lng,
             (SELECT COUNT(*)::int FROM rental_items i
               WHERE i."businessId" = b.id AND i."isAvailable" = true) AS "itemCount"
            FROM businesses b
            LEFT JOIN cities c ON c.id = b."cityId"
+           LEFT JOIN LATERAL (
+             SELECT i."pickupLat" AS lat, i."pickupLng" AS lng
+             FROM rental_items i
+             WHERE i."businessId" = b.id
+               AND i."pickupLat" IS NOT NULL
+               AND i."pickupLng" IS NOT NULL
+             ORDER BY i."createdAt" DESC
+             LIMIT 1
+           ) p ON true
            WHERE b.type = 'RENTAL' AND b.status::text = 'VERIFIED'
            AND (
              ($1::uuid IS NOT NULL AND b."cityId" = $1)
              OR (
                $2::float8 IS NOT NULL
-               AND c.lat::float8 BETWEEN $3 AND $4
-               AND c.lng::float8 BETWEEN $5 AND $6
+               AND COALESCE(c.lat::float8, p.lat) BETWEEN $3 AND $4
+               AND COALESCE(c.lng::float8, p.lng) BETWEEN $5 AND $6
              )
            )
            ORDER BY b."createdAt" DESC
@@ -379,8 +389,10 @@ async fn create_item(
     let (pickup_lat, pickup_lng) = resolve_pickup_pin(&mut tx, input.business_id, pin).await?;
     sqlx::query(
         r#"INSERT INTO rental_items (id, "ownerId", name, description, "imageUrl", "imageUrls", "hourlyRate", "dailyRate", "minHoursToRent", "isAvailable",
-          "businessId",quantity,"pickupAddress","deliveryAvailable","deliveryFee","depositPerUnit","pickupLat","pickupLng","advanceAmount")
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, true,$10,$11,$12,$13,$14,$15,$16,$17,$18)"#,
+          "businessId",quantity,"pickupAddress","deliveryAvailable","deliveryFee","depositPerUnit","pickupLat","pickupLng","advanceAmount",
+          "advancePercent","pickupInstructions","lateFeePerHour",condition,category,"cancellationPolicy","availableFrom","availableUntil",
+          "availableWeekdays","slotStartMinute","slotEndMinute")
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, true,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29)"#,
     )
     .bind(id)
     .bind(uid)
@@ -394,8 +406,13 @@ async fn create_item(
     .bind(input.business_id).bind(input.quantity).bind(input.pickup_address.trim())
     .bind(input.delivery_available).bind(input.delivery()).bind(input.deposit())
     .bind(pickup_lat).bind(pickup_lng).bind(input.advance())
+    .bind(input.percent()).bind(input.pickup_instructions.trim()).bind(input.late_fee())
+    .bind(&input.condition).bind(&input.category).bind(&input.cancellation_policy)
+    .bind(input.available_from).bind(input.available_until).bind(&input.available_weekdays)
+    .bind(input.slot_start_minute).bind(input.slot_end_minute)
     .execute(&mut *tx)
     .await?;
+    fill_business_city_from_pin(&mut tx, input.business_id, pickup_lat, pickup_lng).await?;
     tx.commit().await?;
     get_item(State(state), Path(id.to_string())).await
 }
@@ -418,7 +435,7 @@ async fn update_item(
     .await?
     .ok_or_else(|| AppError::NotFound("Item not found".into()))?;
     let mut merged = item_json(&row);
-    for key in ["hourlyRate", "dailyRate", "deliveryFee", "depositPerUnit"] {
+    for key in ["hourlyRate", "dailyRate", "deliveryFee", "depositPerUnit", "advanceAmount", "advancePercent", "lateFeePerHour"] {
         if let Some(number) = merged[key].as_str().and_then(|s| s.parse::<f64>().ok()) {
             merged[key] = json!(number);
         }
@@ -457,7 +474,9 @@ async fn update_item(
         r#"UPDATE rental_items SET name=$1,description=$2,"imageUrl"=$3,"imageUrls"=$4,"hourlyRate"=$5,
         "dailyRate"=$6,"minHoursToRent"=$7,"isAvailable"=$8,"updatedAt"=NOW(),"businessId"=$10,
         quantity=$11,"pickupAddress"=$12,"deliveryAvailable"=$13,"deliveryFee"=$14,"depositPerUnit"=$15,
-        "pickupLat"=$16,"pickupLng"=$17,"advanceAmount"=$18 WHERE id=$9"#,
+        "pickupLat"=$16,"pickupLng"=$17,"advanceAmount"=$18,"advancePercent"=$19,"pickupInstructions"=$20,
+        "lateFeePerHour"=$21,condition=$22,category=$23,"cancellationPolicy"=$24,"availableFrom"=$25,
+        "availableUntil"=$26,"availableWeekdays"=$27,"slotStartMinute"=$28,"slotEndMinute"=$29 WHERE id=$9"#,
     )
     .bind(&input.name)
     .bind(&input.description)
@@ -471,8 +490,13 @@ async fn update_item(
     .bind(input.business_id).bind(input.quantity).bind(input.pickup_address.trim())
     .bind(input.delivery_available).bind(input.delivery()).bind(input.deposit())
     .bind(pickup_lat).bind(pickup_lng).bind(input.advance())
+    .bind(input.percent()).bind(input.pickup_instructions.trim()).bind(input.late_fee())
+    .bind(&input.condition).bind(&input.category).bind(&input.cancellation_policy)
+    .bind(input.available_from).bind(input.available_until).bind(&input.available_weekdays)
+    .bind(input.slot_start_minute).bind(input.slot_end_minute)
     .execute(&mut *tx)
     .await?;
+    fill_business_city_from_pin(&mut tx, input.business_id, pickup_lat, pickup_lng).await?;
     tx.commit().await?;
     get_item(State(state), Path(id)).await
 }
@@ -523,6 +547,25 @@ async fn create_reservation(
             "This item is currently listed as unavailable.".into(),
         ));
     }
+    listing::listing_window_ok(
+        item.try_get::<Option<NaiveDate>, _>("availableFrom")
+            .ok()
+            .flatten(),
+        item.try_get::<Option<NaiveDate>, _>("availableUntil")
+            .ok()
+            .flatten(),
+        &item
+            .try_get::<Vec<i16>, _>("availableWeekdays")
+            .unwrap_or_else(|_| vec![1, 2, 3, 4, 5, 6, 7]),
+        item.try_get::<Option<i32>, _>("slotStartMinute")
+            .ok()
+            .flatten(),
+        item.try_get::<Option<i32>, _>("slotEndMinute")
+            .ok()
+            .flatten(),
+        start,
+        end,
+    )?;
 
     let hourly = item
         .try_get::<rust_decimal::Decimal, _>("hourlyRate")
@@ -545,8 +588,13 @@ async fn create_reservation(
     let total=rent+deposit+delivery;
     if total>rust_decimal::Decimal::from(99_999_999) {return Err(AppError::BadRequest("Rental total is outside the supported range".into()));}
     let address=if body.fulfillment=="DELIVERY" {body.deliveryAddress.trim().to_string()} else {item.get::<String,_>("pickupAddress")};
+    let cancel_policy = item
+        .try_get::<String, _>("cancellationPolicy")
+        .unwrap_or_else(|_| "FLEXIBLE".into());
     let breakdown=json!({"unitRental":unit,"rent":rent,"delivery":delivery,"deposit":deposit,"total":total,
-        "itemName":item.get::<String,_>("name"),"depositTerms":"Full refundable deposit; no automatic deductions. Cancel before handover for a full refund of amounts paid."});
+        "itemName":item.get::<String,_>("name"),"depositTerms":policy::deposit_terms(&cancel_policy),
+        "cancellationPolicy":cancel_policy,
+        "lateFeePerHour":item.try_get::<rust_decimal::Decimal,_>("lateFeePerHour").unwrap_or_default()});
     booking::expire_holds(&mut tx).await?;
     ensure_available(&mut tx, item_id, start.naive_utc(), end.naive_utc(),body.quantity,item.get("quantity"), None).await?;
 
@@ -554,7 +602,10 @@ async fn create_reservation(
         .try_get::<rust_decimal::Decimal, _>("advanceAmount")
         .unwrap_or(rust_decimal::Decimal::ZERO)
         * rust_decimal::Decimal::from(body.quantity);
-    let advance = booking::advance_due(listed, total);
+    let percent = item
+        .try_get::<rust_decimal::Decimal, _>("advancePercent")
+        .unwrap_or(rust_decimal::Decimal::ZERO);
+    let advance = booking::advance_due(listed, percent, total);
     let remaining = (total - advance).max(rust_decimal::Decimal::ZERO);
     let pay_now = advance >= rust_decimal::Decimal::ONE && booking::gateway_configured(&state);
     let (status, payment_status, hold_expires) = if pay_now {
@@ -707,7 +758,7 @@ async fn update_reservation_status(
     // Every decision takes the item lock before the reservation lock. This
     // serializes confirm/cancel/start/return with reserve and competing confirms.
     let item = sqlx::query(
-        r#"SELECT i.id, i."ownerId", i."isAvailable",i.quantity,i."businessId" FROM rental_items i
+        r#"SELECT i.id, i."ownerId", i."isAvailable",i.quantity,i."businessId",i."cancellationPolicy" FROM rental_items i
         JOIN rental_reservations r ON r."itemId" = i.id WHERE r.id = $1 FOR UPDATE OF i"#,
     )
     .bind(rid)
@@ -759,6 +810,40 @@ async fn update_reservation_status(
         .bind(rid)
         .bind(booking::otp())
         .bind(booking::otp())
+        .execute(&mut *tx)
+        .await?;
+    } else if status == "CANCELLED" {
+        let policy = item
+            .try_get::<String, _>("cancellationPolicy")
+            .unwrap_or_else(|_| "FLEXIBLE".into());
+        let start = reservation
+            .get::<chrono::NaiveDateTime, _>("startTime")
+            .and_utc();
+        let advance = reservation
+            .try_get::<rust_decimal::Decimal, _>("advanceAmount")
+            .unwrap_or(rust_decimal::Decimal::ZERO);
+        let refund = policy::cancel_refund(
+            &policy,
+            &reservation.get::<String, _>("status"),
+            start,
+            chrono::Utc::now(),
+            advance,
+        );
+        let mut breakdown = reservation.get::<Value, _>("priceBreakdown");
+        if let Some(obj) = breakdown.as_object_mut() {
+            obj.insert("cancellationRefund".into(), json!(refund));
+            obj.insert("cancellationPolicy".into(), json!(policy));
+        }
+        sqlx::query(
+            r#"UPDATE rental_reservations
+               SET status = $1::rental_reservations_status_enum,
+                   "priceBreakdown" = $3,
+                   "updatedAt" = NOW()
+               WHERE id = $2"#,
+        )
+        .bind(status)
+        .bind(rid)
+        .bind(breakdown)
         .execute(&mut *tx)
         .await?;
     } else {
@@ -839,6 +924,17 @@ fn item_json(row: &sqlx::postgres::PgRow) -> Value {
         "deliveryFee": row.get::<rust_decimal::Decimal,_>("deliveryFee"),
         "depositPerUnit": row.get::<rust_decimal::Decimal,_>("depositPerUnit"),
         "advanceAmount": row.try_get::<rust_decimal::Decimal,_>("advanceAmount").unwrap_or(rust_decimal::Decimal::ZERO),
+        "advancePercent": row.try_get::<rust_decimal::Decimal,_>("advancePercent").unwrap_or(rust_decimal::Decimal::ZERO),
+        "pickupInstructions": row.try_get::<String,_>("pickupInstructions").unwrap_or_default(),
+        "lateFeePerHour": row.try_get::<rust_decimal::Decimal,_>("lateFeePerHour").unwrap_or(rust_decimal::Decimal::ZERO),
+        "condition": row.try_get::<String,_>("condition").unwrap_or_else(|_| "GOOD".into()),
+        "category": row.try_get::<String,_>("category").unwrap_or_else(|_| "OTHER".into()),
+        "cancellationPolicy": row.try_get::<String,_>("cancellationPolicy").unwrap_or_else(|_| "FLEXIBLE".into()),
+        "availableFrom": row.try_get::<Option<NaiveDate>,_>("availableFrom").ok().flatten().map(|d| d.to_string()),
+        "availableUntil": row.try_get::<Option<NaiveDate>,_>("availableUntil").ok().flatten().map(|d| d.to_string()),
+        "availableWeekdays": row.try_get::<Vec<i16>,_>("availableWeekdays").unwrap_or_else(|_| vec![1, 2, 3, 4, 5, 6, 7]),
+        "slotStartMinute": row.try_get::<Option<i32>,_>("slotStartMinute").ok().flatten(),
+        "slotEndMinute": row.try_get::<Option<i32>,_>("slotEndMinute").ok().flatten(),
         "pickupLat": row.try_get::<Option<f64>, _>("pickupLat").ok().flatten(),
         "pickupLng": row.try_get::<Option<f64>, _>("pickupLng").ok().flatten(),
         "name": row.get::<String, _>("name"),
@@ -895,6 +991,46 @@ pub(super) fn reservation_json_view(row: &sqlx::postgres::PgRow, view: Option<Re
         value["returnOtp"] = json!(row.try_get::<Option<String>,_>("returnOtp").ok().flatten());
     }
     value
+}
+
+/// When a rental store was saved without a city (stale UUID dropped, or omitted),
+/// pin it to the nearest live city so city-or-25km catalog matching can find it.
+async fn fill_business_city_from_pin(
+    tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
+    business_id: Option<Uuid>,
+    lat: f64,
+    lng: f64,
+) -> AppResult<()> {
+    let Some(bid) = business_id else {
+        return Ok(());
+    };
+    let rows = sqlx::query(
+        r#"SELECT id, lat::float8 AS lat, lng::float8 AS lng FROM cities WHERE "isActive" = true"#,
+    )
+    .fetch_all(&mut **tx)
+    .await?;
+    let mut best: Option<(Uuid, f64)> = None;
+    for row in &rows {
+        let id = row.get::<Uuid, _>("id");
+        let clat = row.get::<f64, _>("lat");
+        let clng = row.get::<f64, _>("lng");
+        if !clat.is_finite() || !clng.is_finite() {
+            continue;
+        }
+        let d = listing::haversine_km(lat, lng, clat, clng);
+        if d <= listing::MAX_RENTAL_RADIUS_KM && best.map(|(_, bd)| d < bd).unwrap_or(true) {
+            best = Some((id, d));
+        }
+    }
+    let Some((city, _)) = best else {
+        return Ok(());
+    };
+    sqlx::query(r#"UPDATE businesses SET "cityId" = $1 WHERE id = $2 AND "cityId" IS NULL"#)
+        .bind(city)
+        .bind(bid)
+        .execute(&mut **tx)
+        .await?;
+    Ok(())
 }
 
 async fn resolve_pickup_pin(

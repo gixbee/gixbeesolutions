@@ -445,6 +445,16 @@ async fn profiles_and_hiring_require_ownership_and_funding() {
         200
     );
     let (_, detail) = api(&app, &owner, "GET", &path, Value::Null).await;
+    assert!(detail["candidates"][0]["phone"].is_null(), "{detail}");
+    let share = format!(
+        "/hiring/match/interests/{}/progress/share-contact",
+        detail["candidates"][0]["interestId"].as_str().unwrap()
+    );
+    assert_eq!(
+        api(&app, &stranger, "POST", &share, json!({})).await.0,
+        200
+    );
+    let (_, detail) = api(&app, &owner, "GET", &path, Value::Null).await;
     assert!(detail["candidates"][0]["phone"].is_string(), "{detail}");
 }
 

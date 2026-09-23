@@ -46,6 +46,7 @@ CREATE TABLE IF NOT EXISTS businesses (
   status "businesses_status_enum" NOT NULL DEFAULT 'PENDING',
   "operatorIds" text,
   "offlineDays" jsonb,
+  "hiringProfile" jsonb NOT NULL DEFAULT '{}'::jsonb,
   "createdAt" timestamptz NOT NULL DEFAULT now(),
   "updatedAt" timestamptz NOT NULL DEFAULT now()
 );

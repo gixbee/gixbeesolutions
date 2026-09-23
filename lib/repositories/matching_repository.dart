@@ -164,6 +164,11 @@ class MatchingRepository {
     return Map<String, dynamic>.from(res.data as Map);
   }
 
+  Future<Map<String, dynamic>> closeRequest(String requestId) async {
+    final res = await _dio.post('/hiring/match/requests/$requestId/close');
+    return Map<String, dynamic>.from(res.data as Map);
+  }
+
   Future<Map<String, dynamic>> hiringCreditBalance() async {
     final res = await _dio.get('/hiring/match/credit');
     return Map<String, dynamic>.from(res.data as Map);

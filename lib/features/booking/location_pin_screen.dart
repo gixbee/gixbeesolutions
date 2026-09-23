@@ -9,15 +9,19 @@ import '../../shared/widgets/gx_button.dart';
 import '../profile/addresses/location_search_delegate.dart';
 
 /// Result of a pin-drop: the exact coordinates the user confirmed, plus a
-/// best-effort reverse-geocoded address label.
+/// best-effort reverse-geocoded address label and city/PIN parts.
 class PinnedLocation {
   final double lat;
   final double lng;
   final String address;
+  final String? locality;
+  final String? postalCode;
   const PinnedLocation({
     required this.lat,
     required this.lng,
     required this.address,
+    this.locality,
+    this.postalCode,
   });
 }
 
@@ -71,6 +75,8 @@ class _LocationPinScreenState extends State<LocationPinScreen>
   late LatLng _center = LatLng(widget.initialLat, widget.initialLng);
 
   String _address = '';
+  String? _locality;
+  String? _postalCode;
   bool _geocoding = false;
   int _geocodeSeq = 0; // guards against out-of-order reverse-geocode results
 
@@ -134,16 +140,25 @@ class _LocationPinScreenState extends State<LocationPinScreen>
       if (placemarks.isNotEmpty) {
         final p = placemarks.first;
         final parts = <String?>[
-          p.name,
+          p.street,
           p.subLocality,
           p.locality,
           p.administrativeArea,
+          p.postalCode,
         ];
+        final seen = <String>{};
         final label = parts
-            .where((s) => s != null && s.trim().isNotEmpty)
-            .toSet() // de-dupe (name often repeats locality)
+            .whereType<String>()
+            .map((s) => s.trim())
+            .where((s) => s.isNotEmpty && seen.add(s.toLowerCase()))
             .join(', ');
-        if (label.isNotEmpty) setState(() => _address = label);
+        setState(() {
+          if (label.isNotEmpty) _address = label;
+          final loc = p.locality?.trim();
+          if (loc != null && loc.isNotEmpty) _locality = loc;
+          final pin = p.postalCode?.trim();
+          if (pin != null && pin.isNotEmpty) _postalCode = pin;
+        });
       }
     } catch (_) {
       // keep last good label; coordinate is what matters
@@ -170,6 +185,8 @@ class _LocationPinScreenState extends State<LocationPinScreen>
         address: _address.trim().isNotEmpty
             ? _address.trim()
             : (widget.initialAddress?.trim() ?? ''),
+        locality: _locality,
+        postalCode: _postalCode,
       ),
     );
   }
