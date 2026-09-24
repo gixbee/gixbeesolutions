@@ -9,19 +9,46 @@ final hiringRepositoryProvider = Provider<HiringRepository>((ref) {
   return HiringRepository(dio);
 });
 
+class MatchedJobsPage {
+  final List<JobPost> items;
+  final int total;
+  final int page;
+  const MatchedJobsPage({required this.items, required this.total, required this.page});
+}
+
 class HiringRepository {
   final Dio _dio;
 
   HiringRepository(this._dio);
 
   // Employer methods
-  Future<void> postJob(JobPost jobData) async {
-    await _dio.post('/hiring/jobs', data: jobData.toJson());
+  Future<void> postJob(JobPost jobData, {String? businessId}) async {
+    final data = jobData.toJson();
+    if (businessId != null) data['businessId'] = businessId;
+    await _dio.post('/hiring/jobs', data: data);
+  }
+
+  Future<void> closeJob(String jobId) async {
+    await _dio.patch('/hiring/jobs/$jobId');
+  }
+
+  Future<JobPost> getJob(String jobId) async {
+    final res = await _dio.get('/hiring/jobs/$jobId');
+    return JobPost.fromJson(Map<String, dynamic>.from(res.data as Map));
+  }
+
+  Future<MatchedJobsPage> getMatchedJobsPage({int page = 1, int limit = 20}) async {
+    final res = await _dio.get('/hiring/jobs/matched', queryParameters: {
+      'page': page,
+      'limit': limit,
+    });
+    final data = res.data;
+    final total = data is Map ? (data['total'] as num?)?.toInt() ?? 0 : 0;
+    return MatchedJobsPage(items: _jobList(data), total: total, page: page);
   }
 
   Future<List<JobApplication>> getApplicationsForJob(String jobId) async {
-    final res = await _dio.get('/hiring/jobs/$jobId/applications');
-    return (res.data as List).map((json) => JobApplication.fromJson(json)).toList();
+    return _allApplications('/hiring/jobs/$jobId/applications');
   }
 
   Future<void> updateApplicationStatus(String applicationId, ApplicationStatus status) async {
@@ -44,8 +71,27 @@ class HiringRepository {
   }
 
   Future<List<JobApplication>> getMyApplications() async {
-    final res = await _dio.get('/hiring/my-applications'); 
-    return (res.data as List).map((json) => JobApplication.fromJson(json)).toList();
+    return _allApplications('/hiring/my-applications');
+  }
+
+  Future<List<JobApplication>> _allApplications(String path) async {
+    const pageSize = 100;
+    final applications = <String, JobApplication>{};
+    for (var page = 1; ; page++) {
+      final res = await _dio.get(path, queryParameters: {
+        'page': page,
+        'limit': pageSize,
+      });
+      final rows = res.data as List;
+      var added = 0;
+      for (final row in rows) {
+        final application = JobApplication.fromJson(Map<String, dynamic>.from(row as Map));
+        if (!applications.containsKey(application.id)) added++;
+        applications[application.id] = application;
+      }
+      if (rows.length < pageSize || added == 0) break;
+    }
+    return applications.values.toList();
   }
 
   // Talent Profile endpoints
@@ -59,16 +105,7 @@ class HiringRepository {
   }
 
   Future<List<JobPost>> getMatchingJobs() async {
-    try {
-      final res = await _dio.get('/hiring/jobs/matched', queryParameters: {
-        'page': 1,
-        'limit': 20,
-      });
-      return _jobList(res.data);
-    } catch (_) {
-      final res = await _dio.get('/hiring/jobs');
-      return _jobList(res.data);
-    }
+    return (await getMatchedJobsPage()).items;
   }
 
   Future<List<JobPost>> getMyJobs({String? businessId}) async {
@@ -89,8 +126,13 @@ class HiringRepository {
         .toList();
   }
 
-  Future<void> expressInterest(String jobId) async {
-    await _dio.post('/hiring/jobs/$jobId/interest', data: {});
+  Future<String> expressInterest(String jobId, {String? resumeUrl}) async {
+    final res = await _dio.post('/hiring/jobs/$jobId/interest', data: {
+      if (resumeUrl != null && resumeUrl.isNotEmpty) 'resumeUrl': resumeUrl,
+    });
+    final data = res.data;
+    if (data is Map && data['status'] != null) return data['status'].toString();
+    return 'APPLIED';
   }
 
   Future<void> notInterested(String jobId, String reason) async {

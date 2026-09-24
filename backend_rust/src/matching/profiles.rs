@@ -26,6 +26,8 @@ pub(super) struct Preference {
     #[serde(default)]
     pub experience_years: i32,
     pub notice_period: Option<String>,
+    #[serde(default)]
+    pub expected_salary_period: Option<String>,
 }
 
 pub(super) fn employment_type(value: Option<&str>) -> AppResult<Option<String>> {
@@ -77,9 +79,29 @@ impl Preference {
         let notice = input
             .notice_period
             .get_or_insert_with(|| "IMMEDIATE".into());
-        if !["IMMEDIATE", "DAYS_15", "DAYS_30", "DAYS_60", "DAYS_90"].contains(&notice.as_str()) {
+        if ![
+            "IMMEDIATE",
+            "DAYS_7",
+            "DAYS_15",
+            "DAYS_30",
+            "DAYS_60",
+            "DAYS_90",
+            "CUSTOM_DATE",
+        ]
+        .contains(&notice.as_str())
+        {
             return Err(AppError::BadRequest("Unsupported notice period".into()));
         }
+        let period = input
+            .expected_salary_period
+            .as_deref()
+            .unwrap_or("MONTHLY")
+            .trim()
+            .to_ascii_uppercase();
+        if !["HOURLY", "DAILY", "WEEKLY", "MONTHLY", "PER_JOB"].contains(&period.as_str()) {
+            return Err(AppError::BadRequest("Unsupported salary period".into()));
+        }
+        input.expected_salary_period = Some(period);
         Ok(input)
     }
 
@@ -141,12 +163,13 @@ pub(super) async fn create(
     }
     let id = Uuid::new_v4();
     sqlx::query(r#"INSERT INTO job_preferences (id, "userId", "jobType", skills, "preferredLocation",
-        "expectedSalary", "salaryNegotiable", "employmentType", "experienceYears", "noticePeriod", "isActive", "isPaid", "paidUntil")
-        VALUES ($1,$2,$3,$4,$5,$6,$7,$8::job_preferences_employmenttype_enum,$9,$10::job_preferences_noticeperiod_enum,
-        true,$11,CASE WHEN $11 THEN NOW() + INTERVAL '30 days' ELSE NULL END)"#)
+        "expectedSalary", "salaryNegotiable", "employmentType", "experienceYears", "noticePeriod", "expectedSalaryPeriod", "isActive", "isPaid", "paidUntil")
+        VALUES ($1,$2,$3,$4,$5,$6,$7,$8::job_preferences_employmenttype_enum,$9,$10::job_preferences_noticeperiod_enum,$11,
+        true,$12,CASE WHEN $12 THEN NOW() + INTERVAL '30 days' ELSE NULL END)"#)
         .bind(id).bind(uid).bind(&input.job_type).bind(input.skills.join(","))
         .bind(&input.preferred_location).bind(input.salary()).bind(input.salary_negotiable)
-        .bind(&input.employment_type).bind(input.experience_years).bind(&input.notice_period).bind(paid)
+        .bind(&input.employment_type).bind(input.experience_years).bind(&input.notice_period)
+        .bind(input.expected_salary_period.as_deref().unwrap_or("MONTHLY")).bind(paid)
         .execute(&mut *tx).await?;
     if let Some(payment_id)=payment_id {record_receipt(&mut tx,payment_id,id).await?;}
     let row = sqlx::query(&format!(
@@ -190,20 +213,28 @@ pub(super) async fn update(
         merged[key] = value.clone();
     }
     let input = Preference::parse(&merged)?;
-    if !input
-        .job_type
-        .eq_ignore_ascii_case(&row.get::<String, _>("jobType"))
-    {
-        return Err(AppError::BadRequest(
-            "Job type cannot be changed after creation".into(),
+    let uid = Uuid::parse_str(user_id)?;
+    let clash: bool = sqlx::query_scalar(
+        r#"SELECT EXISTS(SELECT 1 FROM job_preferences WHERE "userId"=$1 AND "isActive"=true AND id<>$2 AND LOWER("jobType")=LOWER($3))"#,
+    )
+    .bind(uid)
+    .bind(pid)
+    .bind(&input.job_type)
+    .fetch_one(&mut *tx)
+    .await?;
+    if clash {
+        return Err(AppError::Conflict(
+            "You already have a profile for this job type".into(),
         ));
     }
-    sqlx::query(r#"UPDATE job_preferences SET skills = $1, "preferredLocation" = $2, "expectedSalary" = $3,
-        "salaryNegotiable" = $4, "employmentType" = $5::job_preferences_employmenttype_enum,
-        "experienceYears" = $6, "noticePeriod" = $7::job_preferences_noticeperiod_enum, "updatedAt" = NOW() WHERE id = $8"#)
-        .bind(input.skills.join(",")).bind(&input.preferred_location).bind(input.salary())
+    sqlx::query(r#"UPDATE job_preferences SET "jobType"=$1, skills = $2, "preferredLocation" = $3, "expectedSalary" = $4,
+        "salaryNegotiable" = $5, "employmentType" = $6::job_preferences_employmenttype_enum,
+        "experienceYears" = $7, "noticePeriod" = $8::job_preferences_noticeperiod_enum,
+        "expectedSalaryPeriod" = $9, "updatedAt" = NOW() WHERE id = $10"#)
+        .bind(&input.job_type).bind(input.skills.join(",")).bind(&input.preferred_location).bind(input.salary())
         .bind(input.salary_negotiable).bind(&input.employment_type).bind(input.experience_years)
-        .bind(&input.notice_period).bind(pid).execute(&mut *tx).await?;
+        .bind(&input.notice_period).bind(input.expected_salary_period.as_deref().unwrap_or("MONTHLY"))
+        .bind(pid).execute(&mut *tx).await?;
     let row = sqlx::query(&format!(
         "SELECT {JOB_PREFERENCE_COLS} FROM job_preferences WHERE id = $1"
     ))

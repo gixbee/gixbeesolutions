@@ -24,6 +24,7 @@ struct Seeker {
     roles: Vec<String>,
     employment: Option<String>,
     expected_salary: f32,
+    expected_period: String,
     years: f32,
     lat: Option<f64>,
     lng: Option<f64>,
@@ -55,6 +56,7 @@ struct JobView {
     business_ok: bool,
     published: bool,
     openings: i32,
+    created_at: Option<chrono::DateTime<chrono::Utc>>,
 }
 
 pub async fn jobs_for_seeker(
@@ -75,6 +77,7 @@ pub async fn jobs_for_seeker(
         r#"SELECT j.id, j.title, j.description, j."requiredSkills", j."jobType", j.experience,
                   j.location, j."salaryMin", j."salaryMax", j."isActive", j."employerId", j."businessId",
                   j."workMode", j."salaryPeriod", j."experienceMin", j.lat, j.lng, j.openings, j.status,
+                  j."createdAt",
                   b.name AS "businessName",
                   (j."businessId" IS NOT NULL AND b.status::text = 'VERIFIED') AS business_ok
            FROM job_posts j
@@ -152,6 +155,7 @@ pub async fn candidates_for_job(state: &AppState, employer_id: Uuid, job_id: Uui
         r#"SELECT j.id, j.title, j.description, j."requiredSkills", j."jobType", j.experience,
                   j.location, j."salaryMin", j."salaryMax", j."isActive", j."employerId", j."businessId",
                   j."workMode", j."salaryPeriod", j."experienceMin", j.lat, j.lng, j.openings, j.status,
+                  j."createdAt",
                   b.name AS "businessName",
                   (j."businessId" IS NOT NULL AND b.status::text = 'VERIFIED') AS business_ok
            FROM job_posts j
@@ -169,7 +173,7 @@ pub async fn candidates_for_job(state: &AppState, employer_id: Uuid, job_id: Uui
     let people = sqlx::query(
         r#"SELECT t.id, t."userId", u.name, t.skills, t."preferredRoles", t."expectedSalary",
                   t.experience, t.lat, t.lng, t."travelRadiusKm", t.availability, t."profileStatus",
-                  t."preferredWorkMode"
+                  t."preferredWorkMode", t."employmentTypes", t."expectedSalaryPeriod"
            FROM talent_profiles t
            JOIN users u ON u.id = t."userId"
            WHERE t."userId" <> $1
@@ -226,6 +230,7 @@ pub async fn annotate_job(state: &AppState, user_id: Uuid, job_id: Uuid) -> AppR
         r#"SELECT j.id, j.title, j.description, j."requiredSkills", j."jobType", j.experience,
                   j.location, j."salaryMin", j."salaryMax", j."isActive", j."employerId", j."businessId",
                   j."workMode", j."salaryPeriod", j."experienceMin", j.lat, j.lng, j.openings, j.status,
+                  j."createdAt",
                   b.name AS "businessName",
                   (j."businessId" IS NOT NULL AND b.status::text = 'VERIFIED') AS business_ok
            FROM job_posts j LEFT JOIN businesses b ON b.id = j."businessId"
@@ -292,7 +297,7 @@ fn score_pair(
         job_salary_max: job.salary_max,
         job_salary_period: job.salary_period.clone(),
         expected_salary: seeker.expected_salary,
-        expected_period: "MONTHLY".into(),
+        expected_period: seeker.expected_period.clone(),
         candidate_years: seeker.years,
         preferred_years: job.experience_min,
         availability: seeker.availability.clone(),
@@ -351,6 +356,7 @@ fn job_card(job: &JobView, card: &Card) -> Value {
         "workMode": job.work_mode,
         "openings": job.openings,
         "isActive": job.published,
+        "createdAt": job.created_at.map(|value| value.to_rfc3339()),
         "matchScore": card.score.round() as i32,
         "reasons": card.reasons,
         "warnings": card.warnings,
@@ -392,7 +398,8 @@ pub fn public_name(full: &str) -> String {
 
 async fn load_seeker(state: &AppState, user_id: Uuid) -> AppResult<Seeker> {
     let row = sqlx::query(
-        r#"SELECT id, skills, "preferredRoles", "expectedSalary", experience, lat, lng,
+        r#"SELECT id, skills, "preferredRoles", "expectedSalary", "expectedSalaryPeriod",
+                  "employmentTypes", experience, lat, lng,
                   "travelRadiusKm", availability, "profileStatus", "preferredWorkMode"
            FROM talent_profiles WHERE "userId" = $1"#,
     )
@@ -412,8 +419,11 @@ async fn load_seeker(state: &AppState, user_id: Uuid) -> AppResult<Seeker> {
             profile_id: Some(row.get("id")),
             skills: crate::common::pg::string_list(&row, "skills"),
             roles: crate::common::pg::string_list(&row, "preferredRoles"),
-            employment: None,
+            employment: employment_list(&row),
             expected_salary: num(&row, "expectedSalary"),
+            expected_period: row
+                .try_get::<String, _>("expectedSalaryPeriod")
+                .unwrap_or_else(|_| "MONTHLY".into()),
             years: skills::parse_years(row.try_get::<Option<String>, _>("experience").ok().flatten().as_deref().unwrap_or("")),
             lat: row.try_get::<Option<f64>, _>("lat").ok().flatten(),
             lng: row.try_get::<Option<f64>, _>("lng").ok().flatten(),
@@ -429,6 +439,7 @@ async fn load_seeker(state: &AppState, user_id: Uuid) -> AppResult<Seeker> {
             roles: vec![],
             employment: None,
             expected_salary: 0.0,
+            expected_period: "MONTHLY".into(),
             years: 0.0,
             lat: None,
             lng: None,
@@ -447,10 +458,12 @@ async fn load_seeker(state: &AppState, user_id: Uuid) -> AppResult<Seeker> {
         if seeker.skills.is_empty() {
             seeker.skills = crate::common::pg::string_list(&pref, "skills");
         }
-        seeker.employment = pref
-            .try_get::<Option<String>, _>("employmentType")
-            .ok()
-            .flatten();
+        if seeker.employment.is_none() {
+            seeker.employment = pref
+                .try_get::<Option<String>, _>("employmentType")
+                .ok()
+                .flatten();
+        }
         if seeker.years <= 0.0 {
             seeker.years = pref.try_get::<i32, _>("experienceYears").unwrap_or(0) as f32;
         }
@@ -461,13 +474,25 @@ async fn load_seeker(state: &AppState, user_id: Uuid) -> AppResult<Seeker> {
     Ok(seeker)
 }
 
+fn employment_list(row: &sqlx::postgres::PgRow) -> Option<String> {
+    let types = crate::common::pg::string_list(row, "employmentTypes");
+    if types.is_empty() {
+        None
+    } else {
+        Some(types.join(","))
+    }
+}
+
 fn seeker_from_candidate_row(row: &sqlx::postgres::PgRow) -> Seeker {
     Seeker {
         profile_id: Some(row.get("id")),
         skills: crate::common::pg::string_list(row, "skills"),
         roles: crate::common::pg::string_list(row, "preferredRoles"),
-        employment: None,
+        employment: employment_list(row),
         expected_salary: num(row, "expectedSalary"),
+        expected_period: row
+            .try_get::<String, _>("expectedSalaryPeriod")
+            .unwrap_or_else(|_| "MONTHLY".into()),
         years: skills::parse_years(row.try_get::<Option<String>, _>("experience").ok().flatten().as_deref().unwrap_or("")),
         lat: row.try_get::<Option<f64>, _>("lat").ok().flatten(),
         lng: row.try_get::<Option<f64>, _>("lng").ok().flatten(),
@@ -509,6 +534,9 @@ fn job_from_row(row: &sqlx::postgres::PgRow) -> JobView {
         business_ok: row.try_get::<bool, _>("business_ok").unwrap_or(false),
         published: active && status == "PUBLISHED",
         openings: row.try_get::<i32, _>("openings").unwrap_or(1),
+        created_at: row
+            .try_get::<chrono::DateTime<chrono::Utc>, _>("createdAt")
+            .ok(),
     }
 }
 

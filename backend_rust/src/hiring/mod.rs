@@ -183,15 +183,35 @@ async fn apply(
     let pid = Uuid::parse_str(&id)?;
     let app_id = Uuid::new_v4();
     let mut tx=state.db.begin().await?;
-    let employer=sqlx::query_scalar::<_,Uuid>(r#"SELECT "employerId" FROM job_posts WHERE id=$1 AND "isActive"=true FOR UPDATE"#)
+    let employer=sqlx::query_scalar::<_,Uuid>(r#"SELECT j."employerId" FROM job_posts j
+        WHERE j.id=$1 AND j."isActive"=true
+          AND (j."businessId" IS NULL OR EXISTS (
+            SELECT 1 FROM businesses b WHERE b.id = j."businessId" AND b.status::text = 'VERIFIED'
+          ))
+        FOR UPDATE"#)
         .bind(pid).fetch_optional(&mut *tx).await?.ok_or_else(||AppError::NotFound("This job is no longer accepting applications".into()))?;
     if employer==uid {return Err(AppError::BadRequest("You cannot apply to your own job".into()));}
     let existing=sqlx::query(r#"SELECT id,status::text AS status FROM job_applications WHERE "jobPostId"=$1 AND "applicantId"=$2 ORDER BY "createdAt" DESC LIMIT 1"#)
         .bind(pid).bind(uid).fetch_optional(&mut *tx).await?;
-    if let Some(existing)=existing {return Ok(Json(json!({"id":existing.get::<Uuid,_>("id"),"status":existing.get::<String,_>("status")})));}
     if body.get("coverLetter").and_then(Value::as_str).is_some_and(|s|s.len()>10000)
         || body.get("resumeUrl").and_then(Value::as_str).is_some_and(|s|s.len()>2000) {
         return Err(AppError::BadRequest("Application text or document reference is too long".into()));
+    }
+    let cover = body.get("coverLetter").and_then(|v| v.as_str());
+    let resume = body.get("resumeUrl").and_then(|v| v.as_str());
+    if let Some(existing)=existing {
+        let status: String = existing.get("status");
+        if status == "WITHDRAWN" {
+            sqlx::query(r#"UPDATE job_applications SET status='APPLIED',
+                "coverLetter"=CASE WHEN $2::text IS NULL THEN "coverLetter" ELSE $2 END,
+                "resumeUrl"=CASE WHEN $3::text IS NULL THEN "resumeUrl" ELSE $3 END,
+                "updatedAt"=NOW() WHERE id=$1"#)
+                .bind(existing.get::<Uuid,_>("id")).bind(cover).bind(resume).execute(&mut *tx).await?;
+            crate::outbox::notify(&mut tx,pid,employer,"New job application","A candidate applied to your job post.",json!({"type":"board_application","jobId":pid,"audience":"employer"})).await?;
+            tx.commit().await?;
+            return Ok(Json(json!({"id":existing.get::<Uuid,_>("id"),"status":"APPLIED"})));
+        }
+        return Ok(Json(json!({"id":existing.get::<Uuid,_>("id"),"status":status})));
     }
     sqlx::query(
         r#"INSERT INTO job_applications (id, "jobPostId", "applicantId", status, "coverLetter", "resumeUrl") VALUES ($1, $2, $3, 'APPLIED', $4, $5)"#,
@@ -209,13 +229,16 @@ async fn apply(
     Ok(Json(json!({ "id": app_id.to_string(), "status": "APPLIED" })))
 }
 
-async fn my_applications(State(state): State<AppState>, user: AuthUser) -> AppResult<Json<Vec<Value>>> {
+async fn my_applications(State(state): State<AppState>, user: AuthUser, Query(q): Query<PageQuery>) -> AppResult<Json<Vec<Value>>> {
     let uid = Uuid::parse_str(&user.user_id)?;
+    let (limit, offset) = q.bounds();
     let rows = sqlx::query(&format!(
         r#"SELECT a.*,a.status::text AS status,to_jsonb(j) AS "jobPost" FROM job_applications a
-            JOIN job_posts j ON j.id=a."jobPostId" WHERE a."applicantId"=$1 ORDER BY a."createdAt" DESC LIMIT 100"#
+            JOIN job_posts j ON j.id=a."jobPostId" WHERE a."applicantId"=$1 ORDER BY a."createdAt" DESC, a.id DESC LIMIT $2 OFFSET $3"#
     ))
     .bind(uid)
+    .bind(limit)
+    .bind(offset)
     .fetch_all(&state.db)
     .await?;
     Ok(Json(rows.iter().map(app_json).collect()))
@@ -223,26 +246,37 @@ async fn my_applications(State(state): State<AppState>, user: AuthUser) -> AppRe
 
 #[derive(Deserialize)]
 struct PageQuery {
-    page: Option<String>,
-    limit: Option<String>,
+    page: Option<i64>,
+    limit: Option<i64>,
+}
+
+impl PageQuery {
+    fn bounds(&self) -> (i64, i64) {
+        let limit = self.limit.unwrap_or(100).clamp(1, 100);
+        let offset = self.page.unwrap_or(1).max(1).saturating_sub(1).saturating_mul(limit);
+        (limit, offset)
+    }
 }
 
 async fn job_applications(
     State(state): State<AppState>,
     user:AuthUser,
     Path(id): Path<String>,
-    Query(_q): Query<PageQuery>,
+    Query(q): Query<PageQuery>,
 ) -> AppResult<Json<Vec<Value>>> {
     let pid = Uuid::parse_str(&id)?;
+    let (limit, offset) = q.bounds();
     let owns:bool=sqlx::query_scalar(r#"SELECT EXISTS(SELECT 1 FROM job_posts WHERE id=$1 AND "employerId"=$2)"#)
         .bind(pid).bind(Uuid::parse_str(&user.user_id)?).fetch_one(&state.db).await?;
     if !owns {return Err(AppError::NotFound("Job post not found on your account".into()));}
     let rows = sqlx::query(&format!(
         r#"SELECT a.*,a.status::text AS status,to_jsonb(j) AS "jobPost",jsonb_build_object('id',u.id,'fullName',u.name) AS applicant
             FROM job_applications a JOIN job_posts j ON j.id=a."jobPostId" JOIN users u ON u.id=a."applicantId"
-            WHERE a."jobPostId"=$1 ORDER BY a."createdAt" DESC LIMIT 100"#
+            WHERE a."jobPostId"=$1 ORDER BY a."createdAt" DESC, a.id DESC LIMIT $2 OFFSET $3"#
     ))
     .bind(pid)
+    .bind(limit)
+    .bind(offset)
     .fetch_all(&state.db)
     .await?;
     Ok(Json(rows.iter().map(app_json).collect()))
@@ -340,8 +374,29 @@ fn app_json(row: &sqlx::postgres::PgRow) -> Value {
         "coverLetter": row.get::<Option<String>, _>("coverLetter"),
         "resumeUrl": row.get::<Option<String>, _>("resumeUrl"),
         "createdAt": crate::common::pg::date_json(row,"createdAt"),
-        "jobPost":row.try_get::<Value,_>("jobPost").ok(),"applicant":row.try_get::<Value,_>("applicant").ok(),
+        "jobPost": row.try_get::<Value,_>("jobPost").ok().map(normalize_job_value),
+        "applicant": row.try_get::<Value,_>("applicant").ok(),
     })
+}
+
+fn normalize_job_value(mut job: Value) -> Value {
+    let skills = match job.get("requiredSkills") {
+        Some(Value::String(raw)) => raw.split(',').map(|s| s.trim().to_string()).filter(|s| !s.is_empty()).collect::<Vec<_>>(),
+        Some(Value::Array(items)) => items.iter().filter_map(|v| v.as_str().map(str::to_string)).collect(),
+        _ => Vec::new(),
+    };
+    job["requiredSkills"] = json!(skills);
+    for key in ["salaryMin", "salaryMax"] {
+        let parsed = match job.get(key) {
+            Some(Value::Number(n)) => n.as_f64(),
+            Some(Value::String(s)) => s.parse::<f64>().ok(),
+            _ => None,
+        };
+        if let Some(amount) = parsed {
+            job[key] = json!(amount);
+        }
+    }
+    job
 }
 
 async fn close_job(State(state):State<AppState>,user:AuthUser,Path(id):Path<String>)->AppResult<Json<Value>> {
@@ -399,24 +454,59 @@ async fn invite_candidate(
     let uid = Uuid::parse_str(&user.user_id)?;
     let job_id = Uuid::parse_str(&id)?;
     let candidate = Uuid::parse_str(&candidate_id)?;
-    let owns: bool = sqlx::query_scalar(
-        r#"SELECT EXISTS(SELECT 1 FROM job_posts WHERE id=$1 AND "employerId"=$2)"#,
+    let mut tx = state.db.begin().await?;
+    // Serialize invitations for this job across replicas. The subsequent
+    // existence check sees the previous transaction's committed invitation.
+    let job = sqlx::query(
+        r#"SELECT j.title, b.name AS "businessName" FROM job_posts j
+           LEFT JOIN businesses b ON b.id = j."businessId"
+           WHERE j.id = $1 AND j."employerId" = $2
+             AND j."isActive" = true AND j.status = 'PUBLISHED'
+             AND (j."businessId" IS NULL OR b.status::text = 'VERIFIED')
+           FOR UPDATE OF j"#,
     )
     .bind(job_id)
     .bind(uid)
-    .fetch_one(&state.db)
-    .await?;
-    if !owns {
-        return Err(AppError::NotFound("Job post not found on your account".into()));
-    }
+    .fetch_optional(&mut *tx)
+    .await?
+    .ok_or_else(|| AppError::NotFound("Job post not found on your account".into()))?;
     let mutual: bool = sqlx::query_scalar(
         r#"SELECT EXISTS(SELECT 1 FROM job_applications WHERE "jobPostId"=$1 AND "applicantId"=$2 AND status::text <> 'WITHDRAWN')"#,
     )
     .bind(job_id)
     .bind(candidate)
-    .fetch_one(&state.db)
+    .fetch_one(&mut *tx)
     .await?;
-    crate::match_engine::events::record(&state, Some(uid), Some(job_id), Some(candidate), None, "EMPLOYER_INVITE", None).await?;
+    let title = job.try_get::<String, _>("title").unwrap_or_default();
+    let business = job.try_get::<Option<String>, _>("businessName").ok().flatten().unwrap_or_else(|| "An employer".into());
+    let inserted = sqlx::query(
+        r#"INSERT INTO matching_events
+           (id, "userId", "jobPostId", "candidateId", "businessId", "eventType")
+           SELECT $1,$2,$3,$4,$5,'EMPLOYER_INVITE'
+           WHERE NOT EXISTS (
+             SELECT 1 FROM matching_events
+             WHERE "eventType" = 'EMPLOYER_INVITE' AND "jobPostId" = $3 AND "candidateId" = $4
+           )"#,
+    )
+    .bind(Uuid::new_v4())
+    .bind(uid)
+    .bind(job_id)
+    .bind(candidate)
+    .bind(Option::<Uuid>::None)
+    .execute(&mut *tx)
+    .await?;
+    if inserted.rows_affected() > 0 {
+        crate::outbox::notify(
+            &mut tx,
+            job_id,
+            candidate,
+            "Job invite",
+            &format!("{business} invited you to discuss {title}"),
+            json!({"type":"board_invite","jobId":job_id,"audience":"candidate"}),
+        )
+        .await?;
+    }
+    tx.commit().await?;
     Ok(Json(json!({
         "invited": true,
         "mutualInterest": mutual,

@@ -53,12 +53,12 @@ class JobPost {
 
   factory JobPost.fromJson(Map<String, dynamic> json) {
     return JobPost(
-      id: json['id'],
-      title: json['title'],
-      description: json['description'],
-      requiredSkills: List<String>.from(json['requiredSkills'] ?? []),
-      salaryMin: json['salaryMin']?.toDouble(),
-      salaryMax: json['salaryMax']?.toDouble(),
+      id: json['id']?.toString() ?? '',
+      title: json['title']?.toString() ?? '',
+      description: json['description']?.toString() ?? '',
+      requiredSkills: _stringList(json['requiredSkills']),
+      salaryMin: _num(json['salaryMin']),
+      salaryMax: _num(json['salaryMax']),
       jobType: json['jobType'] ?? 'Full Time',
       experience: json['experience'] ?? 'Fresher',
       location: json['location'] ?? '',
@@ -87,9 +87,18 @@ class JobPost {
 
   static List<String> _stringList(dynamic raw) {
     if (raw is List) {
-      return raw.map((e) => e.toString()).where((s) => s.isNotEmpty).toList();
+      return raw.map((e) => e.toString().trim()).where((s) => s.isNotEmpty).toList();
+    }
+    if (raw is String && raw.trim().isNotEmpty) {
+      return raw.split(',').map((s) => s.trim()).where((s) => s.isNotEmpty).toList();
     }
     return const [];
+  }
+
+  static double? _num(dynamic raw) {
+    if (raw is num) return raw.toDouble();
+    if (raw is String) return double.tryParse(raw);
+    return null;
   }
 
   Map<String, dynamic> toJson() {
@@ -180,7 +189,9 @@ class JobApplication {
   factory JobApplication.fromJson(Map<String, dynamic> json) {
     return JobApplication(
       id: json['id'],
-      jobPost: JobPost.fromJson(json['jobPost']),
+      jobPost: JobPost.fromJson(json['jobPost'] is Map
+          ? Map<String, dynamic>.from(json['jobPost'] as Map)
+          : const {}),
       applicantId: json['applicant']?['id'] ?? '',
       applicantName: json['applicant']?['fullName'],
       coverLetter: json['coverLetter'],

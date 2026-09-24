@@ -42,6 +42,15 @@ class _FakeHiringRepo extends HiringRepository {
 
   @override
   Future<List<JobPost>> getMatchingJobs() => _getMatchingJobs();
+
+  @override
+  Future<MatchedJobsPage> getMatchedJobsPage({int page = 1, int limit = 20}) async {
+    final items = await _getMatchingJobs();
+    return MatchedJobsPage(items: items, total: items.length, page: page);
+  }
+
+  @override
+  Future<JobPost> getJob(String jobId) => Future.error(StateError('unused'));
 }
 
 /// Builds a `JobPost` shaped like the objects `getMatchingJobs` yields from
@@ -105,7 +114,8 @@ void main() {
       expect(find.byType(GxEmptyState), findsNothing);
       expect(find.text('No jobs available right now'), findsNothing);
       // The neutral header is always present.
-      expect(find.text('Find a Job'), findsOneWidget);
+      expect(find.text('Find a Job'), findsNothing);
+      expect(find.text('Jobs'), findsOneWidget);
     });
 
     testWidgets('data → renders a bento card per job with title + type badge',
@@ -127,7 +137,7 @@ void main() {
       // Pay pill renders the ₹min–₹max range.
       expect(find.text('₹200–₹500'), findsOneWidget);
       // Header count reflects the loaded jobs; no empty state.
-      expect(find.text('2 open gigs near you'), findsOneWidget);
+      expect(find.text('Jobs matched to your profile'), findsOneWidget);
       expect(find.byType(GxEmptyState), findsNothing);
       expect(find.byType(GxSkeleton), findsNothing);
     });
@@ -139,8 +149,8 @@ void main() {
       await tester.pump(const Duration(milliseconds: 100));
 
       expect(find.byType(GxEmptyState), findsOneWidget);
-      expect(find.text('No jobs available right now'), findsOneWidget);
-      expect(find.text('0 open gigs near you'), findsOneWidget);
+      expect(find.text('No jobs match yet'), findsOneWidget);
+      expect(find.text('Recommended jobs for you'), findsOneWidget);
       // Skeletons are gone once loading finished.
       expect(find.byType(GxSkeleton), findsNothing);
     });
@@ -157,7 +167,7 @@ void main() {
       // screen shows its empty state (plus a snackbar the ScaffoldMessenger
       // hosts). No skeletons remain.
       expect(find.byType(GxEmptyState), findsOneWidget);
-      expect(find.text('No jobs available right now'), findsOneWidget);
+      expect(find.text('Unable to load matches'), findsOneWidget);
       expect(find.byType(GxSkeleton), findsNothing);
     });
 
@@ -169,8 +179,8 @@ void main() {
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 100));
 
-      expect(find.text('Find a Job'), findsOneWidget);
-      expect(find.text('1 open gigs near you'), findsOneWidget);
+      expect(find.text('Jobs'), findsOneWidget);
+      expect(find.text('Jobs matched to your profile'), findsOneWidget);
     });
   });
 }

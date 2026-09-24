@@ -187,7 +187,7 @@ async fn estimate(
 async fn list_offers(State(state): State<AppState>, user: AuthUser) -> AppResult<Json<Vec<Value>>> {
     let uid = Uuid::parse_str(&user.user_id)?;
     let rows = sqlx::query(r#"SELECT hi.id, hi."requestId", hi.response::text AS response, hi.decision::text AS decision, hi."notifiedAt",
-        hi.progress, hr."employerId", hr."jobType", hr.location, hr."salaryOffered", hr."salaryMin", hr."salaryMax", hr."salaryNegotiable",
+        hi.progress, hr."employerId", hr."jobType", hr.description, hr.location, hr."salaryOffered", hr."salaryMin", hr."salaryMax", hr."salaryNegotiable",
         hr."employmentType"::text AS "employmentType", hr.skills, b.name AS "businessName",
         (hr.status::text = 'COLLECTING' AND hr."deadlineAt" > NOW() AND hi.response::text = 'PENDING') AS open
         FROM hiring_interests hi JOIN hiring_requests hr ON hr.id = hi."requestId"
@@ -196,7 +196,7 @@ async fn list_offers(State(state): State<AppState>, user: AuthUser) -> AppResult
     .bind(uid)
     .fetch_all(&state.db)
     .await?;
-    Ok(Json(rows.iter().map(|r| {
+    let mut offers: Vec<Value> = rows.iter().map(|r| {
         let progress: Value = r.try_get("progress").ok().unwrap_or(json!({}));
         let response = r.get::<String, _>("response");
         let decision = r.get::<String, _>("decision");
@@ -212,14 +212,62 @@ async fn list_offers(State(state): State<AppState>, user: AuthUser) -> AppResult
         "contactRequested": progress.get("contactRequested").and_then(Value::as_bool).unwrap_or(false),
         "contactShared": progress.get("contactShared").and_then(Value::as_bool).unwrap_or(false),
         "notifiedAt": crate::common::pg::date_json(r, "notifiedAt"),
-        "jobType": r.get::<String, _>("jobType"), "location": r.get::<Option<String>, _>("location"),
+        "jobType": r.get::<String, _>("jobType"),
+        "description": r.try_get::<Option<String>, _>("description").ok().flatten(),
+        "location": r.get::<Option<String>, _>("location"),
         "businessName": r.get::<Option<String>, _>("businessName"),
         "salaryOffered": r.get::<rust_decimal::Decimal, _>("salaryOffered").to_f64(),
         "salaryMin": r.get::<rust_decimal::Decimal, _>("salaryMin").to_f64(),
         "salaryMax": r.get::<rust_decimal::Decimal, _>("salaryMax").to_f64(),
         "salaryNegotiable": r.get::<bool, _>("salaryNegotiable"), "employmentType": r.get::<Option<String>, _>("employmentType"),
         "skills": crate::common::pg::string_list(r, "skills"), "open": r.get::<bool, _>("open"),
-    })}).collect()))
+        "boardInvite": false,
+    })}).collect();
+    let board = sqlx::query(
+        r#"SELECT e."jobPostId", e."createdAt", j.title, j."jobType", j.location, j."salaryMin", j."salaryMax",
+                  j."employerId", j."isActive", b.name AS "businessName",
+                  (
+                    j."isActive" = true
+                    AND NOT EXISTS (
+                      SELECT 1 FROM job_applications a
+                      WHERE a."jobPostId" = j.id AND a."applicantId" = $1
+                        AND a.status::text <> 'WITHDRAWN'
+                    )
+                    AND NOT EXISTS (
+                      SELECT 1 FROM matching_events n
+                      WHERE n."eventType" = 'JOB_NOT_INTERESTED'
+                        AND n."jobPostId" = j.id AND n."candidateId" = $1
+                    )
+                  ) AS open
+           FROM matching_events e
+           JOIN job_posts j ON j.id = e."jobPostId"
+           LEFT JOIN businesses b ON b.id = j."businessId"
+           WHERE e."eventType" = 'EMPLOYER_INVITE' AND e."candidateId" = $1
+           ORDER BY e."createdAt" DESC"#,
+    )
+    .bind(uid)
+    .fetch_all(&state.db)
+    .await?;
+    for row in board {
+        let job_id = row.get::<Uuid, _>("jobPostId");
+        offers.insert(0, json!({
+            "id": format!("board-{}", job_id),
+            "jobId": job_id.to_string(),
+            "requestId": Value::Null,
+            "employerId": row.get::<Uuid, _>("employerId").to_string(),
+            "response": Value::Null,
+            "decision": Value::Null,
+            "boardInvite": true,
+            "invited": true,
+            "open": row.try_get::<bool, _>("open").unwrap_or(false),
+            "canChat": true,
+            "jobType": row.try_get::<String, _>("title").unwrap_or_else(|_| row.try_get::<Option<String>, _>("jobType").ok().flatten().unwrap_or_default()),
+            "businessName": row.try_get::<Option<String>, _>("businessName").ok().flatten(),
+            "location": row.try_get::<Option<String>, _>("location").ok().flatten(),
+            "notifiedAt": crate::common::pg::date_json(&row, "createdAt"),
+        }));
+    }
+    Ok(Json(offers))
 }
 
 #[derive(Deserialize)]
@@ -544,6 +592,7 @@ fn pref_json(row: &sqlx::postgres::PgRow) -> Value {
         "preferredLocation": row.get::<Option<String>, _>("preferredLocation"),
         "expectedSalary": row.try_get::<rust_decimal::Decimal, _>("expectedSalary").ok(),
         "salaryNegotiable": row.get::<bool, _>("salaryNegotiable"),
+        "expectedSalaryPeriod": row.try_get::<String, _>("expectedSalaryPeriod").unwrap_or_else(|_| "MONTHLY".into()),
         "employmentType": row.get::<Option<String>, _>("employmentType"),
         "experienceYears": row.get::<i32, _>("experienceYears"),
         "noticePeriod": row.get::<String, _>("noticePeriod"),
@@ -559,6 +608,7 @@ fn request_json(row: &sqlx::postgres::PgRow) -> Value {
         "businessId":row.get::<Option<Uuid>,_>("businessId"),
         "id": row.get::<Uuid, _>("id").to_string(),
         "jobType": row.get::<String, _>("jobType"),
+        "description": row.try_get::<Option<String>, _>("description").ok().flatten(),
         "status": row.get::<String, _>("status"),
         "feeAmount": row.try_get::<rust_decimal::Decimal, _>("feeAmount").ok(),
         "deadlineAt": row.try_get::<chrono::DateTime<chrono::Utc>, _>("deadlineAt").ok(),
@@ -777,6 +827,15 @@ async fn start_request(
         .and_then(|v| v.as_i64())
         .unwrap_or(0)
         .max(0) as i32;
+    let description = meta
+        .get("description")
+        .and_then(|v| v.as_str())
+        .unwrap_or("")
+        .trim()
+        .to_string();
+    if description.len() > 10000 {
+        return Err(AppError::BadRequest("Description is too long".into()));
+    }
     let target_interested = vacancies * 3;
     let fee_dec = rust_decimal::Decimal::from(fee);
     let credit_dec = rust_decimal::Decimal::from(credit_applied);
@@ -830,10 +889,10 @@ async fn start_request(
         r#"INSERT INTO hiring_requests (
             id, "employerId", "jobType", skills, location, "salaryOffered", "salaryMin", "salaryMax",
             "salaryNegotiable", "employmentType", "experienceMinYears", vacancies, "targetInterested",
-            "feeAmount", "creditApplied", "paymentOrderId", "razorpayPaymentId", status, "deadlineAt", "businessId"
+            "feeAmount", "creditApplied", "paymentOrderId", "razorpayPaymentId", status, "deadlineAt", "businessId", description
         ) VALUES (
             $1, $2, $3, $4, $5, $6, $7, $8, $9, $10::hiring_requests_employmenttype_enum, $11, $12, $13, $14, $15, $16, $17, 'COLLECTING',
-            NOW() + INTERVAL '24 hours', $18
+            NOW() + INTERVAL '24 hours', $18, $19
         )"#,
     )
     .bind(request_id)
@@ -854,6 +913,7 @@ async fn start_request(
     .bind(payment_order_id)
     .bind(razorpay_payment_id)
     .bind(business)
+    .bind(description)
     .execute(&mut *tx)
     .await?;
     tx.commit().await?;

@@ -85,12 +85,13 @@ pub const PROFESSIONAL_SKILL_COLS: &str =
 
 pub const JOB_PREFERENCE_COLS: &str = r#"
     id, "userId", "jobType", skills, "preferredLocation", "expectedSalary", "salaryNegotiable",
+    "expectedSalaryPeriod",
     "employmentType"::text AS "employmentType", "experienceYears", "noticePeriod"::text AS "noticePeriod",
     "isActive", "isPaid", "paidUntil", "createdAt", "updatedAt"
 "#;
 
 pub const HIRING_REQUEST_COLS: &str = r#"
-    id, "employerId", "businessId", "jobType", skills, location, "salaryOffered", "salaryMin", "salaryMax",
+    id, "employerId", "businessId", "jobType", skills, location, description, "salaryOffered", "salaryMin", "salaryMax",
     "salaryNegotiable", "employmentType"::text AS "employmentType", "experienceMinYears", vacancies,
     "targetInterested", "feeAmount", "creditApplied", status::text AS status, "deadlineAt", "createdAt", "updatedAt"
 "#;

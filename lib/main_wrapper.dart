@@ -16,6 +16,7 @@ import 'features/jobs/booking_detail_screen.dart';
 import 'features/jobs/my_bookings_screen.dart';
 import 'features/jobs/find_job_module.dart';
 import 'features/business/hiring_requests_screen.dart';
+import 'features/business/hiring_pipeline_screen.dart';
 import 'features/events/event_plan_detail_screen.dart';
 import 'features/jobs/hiring_progress_screen.dart';
 import 'features/rentals/my_rentals_screen.dart';
@@ -465,6 +466,28 @@ class _MainWrapperState extends ConsumerState<MainWrapper>
       if (fromUserGesture && mounted && planId != null && planId.isNotEmpty) {
         await Navigator.push(context, MaterialPageRoute(
           builder: (_) => EventPlanDetailScreen(planId: planId)));
+      }
+      return;
+    }
+    if (type == 'board_application' || type == 'board_invite') {
+      final jobId = data['jobId']?.toString() ?? '';
+      final audience = data['audience']?.toString() ?? '';
+      if (fromUserGesture && mounted) {
+        if (audience == 'employer' && jobId.isNotEmpty) {
+          await Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => HiringPipelineScreen(jobId: jobId, jobTitle: 'Applications'),
+            ),
+          );
+        } else {
+          await Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => FindJobModule(initialIndex: type == 'board_invite' ? 1 : 3),
+            ),
+          );
+        }
       }
       return;
     }

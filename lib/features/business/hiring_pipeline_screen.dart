@@ -10,6 +10,32 @@ import '../../shared/widgets/gx_snackbar.dart';
 import '../../theme.dart';
 import 'candidate_profile_screen.dart';
 
+List<ApplicationStatus> nextApplicationStages(ApplicationStatus current) {
+  switch (current) {
+    case ApplicationStatus.applied:
+      return const [ApplicationStatus.interview, ApplicationStatus.rejected];
+    case ApplicationStatus.interview:
+      return const [ApplicationStatus.selected, ApplicationStatus.rejected];
+    default:
+      return const [];
+  }
+}
+
+String applicationStageLabel(ApplicationStatus stage) {
+  switch (stage) {
+    case ApplicationStatus.applied:
+      return 'Applied';
+    case ApplicationStatus.interview:
+      return 'Interview';
+    case ApplicationStatus.selected:
+      return 'Hired';
+    case ApplicationStatus.rejected:
+      return 'Not Selected';
+    case ApplicationStatus.withdrawn:
+      return 'Withdrawn';
+  }
+}
+
 class HiringPipelineScreen extends ConsumerStatefulWidget {
   final String jobId;
   final String jobTitle;
@@ -68,6 +94,29 @@ class _HiringPipelineScreenState extends ConsumerState<HiringPipelineScreen> {
     };
   }
 
+  Future<void> _closeJob() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Close this job?'),
+        content: const Text('New candidates will no longer see this posting.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Keep open')),
+          TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Close')),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    try {
+      await ref.read(hiringRepositoryProvider).closeJob(widget.jobId);
+      if (!mounted) return;
+      showGxSnack(context, 'Job closed', type: GxSnackType.success);
+      Navigator.pop(context);
+    } catch (e) {
+      if (mounted) showGxSnack(context, 'Could not close job: $e', type: GxSnackType.error);
+    }
+  }
+
   Future<void> _updateStatus(String appId, ApplicationStatus newStatus) async {
     try {
       await ref.read(hiringRepositoryProvider).updateApplicationStatus(appId, newStatus);
@@ -91,15 +140,15 @@ class _HiringPipelineScreenState extends ConsumerState<HiringPipelineScreen> {
       title: 'Move ${candidate.applicantName ?? 'Candidate'} to',
       child: Column(
         mainAxisSize: MainAxisSize.min,
-        children: _stages.map((stage) {
+        children: nextApplicationStages(candidate.status).map((stage) {
           final accent = _stageAccent(stage);
           return Semantics(
             button: true,
-            label: 'Move to ${stage.name}',
+            label: 'Move to ${applicationStageLabel(stage)}',
             selected: candidate.status == stage,
             child: ListTile(
               leading: Icon(Icons.circle, size: 12, color: accent),
-              title: Text(stage.name.toUpperCase()),
+              title: Text(applicationStageLabel(stage)),
               trailing: candidate.status == stage
                   ? Icon(Icons.check, color: GixbeeTheme.accentGreen)
                   : null,
@@ -265,6 +314,12 @@ class _HiringPipelineScreenState extends ConsumerState<HiringPipelineScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
+        actions: [
+          TextButton(
+            onPressed: _closeJob,
+            child: const Text('Close'),
+          ),
+        ],
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [

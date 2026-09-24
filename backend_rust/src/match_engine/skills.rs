@@ -107,7 +107,17 @@ pub fn employment_feature(job_type: &str, seeker_type: Option<&str>) -> f32 {
     let Some(seeker) = seeker_type.map(|s| s.trim()).filter(|s| !s.is_empty()) else {
         return 1.0;
     };
-    if normalize_employment(job_type) == normalize_employment(seeker) {
+    let job_code = normalize_employment(job_type);
+    let known = |code: &str| matches!(code, "ft" | "pt" | "intern" | "contract");
+    let selected: Vec<String> = seeker
+        .split(',')
+        .map(|part| normalize_employment(part.trim()))
+        .filter(|code| known(code))
+        .collect();
+    if selected.is_empty() || !known(&job_code) {
+        return 1.0;
+    }
+    if selected.iter().any(|code| code == &job_code) {
         1.0
     } else {
         0.2
@@ -132,8 +142,10 @@ pub fn normalize_employment(raw: &str) -> String {
 pub fn availability_feature(code: &str) -> f32 {
     match code.trim().to_ascii_uppercase().as_str() {
         "IMMEDIATE" | "" => 1.0,
+        "DAYS_7" => 0.95,
         "DAYS_15" => 0.85,
-        "DAYS_30" => 0.7,
+        "DAYS_30" | "CUSTOM_DATE" => 0.7,
+        "DAYS_60" => 0.6,
         _ => 0.55,
     }
 }

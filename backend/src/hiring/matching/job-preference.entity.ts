@@ -13,10 +13,12 @@ import { EmploymentType } from './employment-type';
 /** Indian-standard notice periods for the Smart Hiring matcher. */
 export enum NoticePeriod {
   IMMEDIATE = 'IMMEDIATE',
+  DAYS_7 = 'DAYS_7',
   DAYS_15 = 'DAYS_15',
   DAYS_30 = 'DAYS_30',
   DAYS_60 = 'DAYS_60',
   DAYS_90 = 'DAYS_90',
+  CUSTOM_DATE = 'CUSTOM_DATE',
 }
 
 /**
@@ -51,9 +53,12 @@ export class JobPreference {
   @Column({ nullable: true })
   preferredLocation: string;
 
-  /** Expected salary in ₹ per month. */
+  /** Amount in expectedSalaryPeriod units. Compared as monthly only when the period is MONTHLY. */
   @Column({ type: 'decimal', precision: 10, scale: 2, default: 0 })
   expectedSalary: number;
+
+  @Column({ default: 'MONTHLY' })
+  expectedSalaryPeriod: string;
 
   /** When true, matcher accepts offers below expectedSalary if otherwise compatible. */
   @Column({ default: false })

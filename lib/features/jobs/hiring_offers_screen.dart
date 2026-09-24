@@ -4,7 +4,9 @@ import 'hiring_progress_screen.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
+import '../../repositories/hiring_repository.dart';
 import '../../repositories/matching_repository.dart';
+import 'matched_job_detail_screen.dart';
 import 'hiring_catalog.dart';
 import 'hiring_flow.dart';
 import '../../shared/widgets/gx_button.dart';
@@ -62,8 +64,8 @@ class _HiringOffersScreenState extends ConsumerState<HiringOffersScreen> {
 
   List<Map<String, dynamic>> get _filtered {
     switch (_filter) {
-      case 'Open':
-        return _offers.where((o) => o['open'] == true).toList();
+      case 'New':
+        return _offers.where(_isNewInvite).toList();
       case 'Interested':
         return _offers
             .where((o) => o['response'] == 'INTERESTED')
@@ -78,6 +80,13 @@ class _HiringOffersScreenState extends ConsumerState<HiringOffersScreen> {
       default:
         return _offers;
     }
+  }
+
+  bool _isNewInvite(Map<String, dynamic> offer) {
+    final response = offer['response']?.toString() ?? '';
+    if (response == 'INTERESTED' || response == 'NOT_INTERESTED') return false;
+    if (offer['decision'] == 'REJECTED' || offer['decision'] == 'HIRED') return false;
+    return offer['open'] == true;
   }
 
   Future<void> _respond(Map<String, dynamic> offer, bool interested) async {
@@ -149,7 +158,7 @@ class _HiringOffersScreenState extends ConsumerState<HiringOffersScreen> {
   Widget build(BuildContext context) {
     final catalog =
         ref.watch(hiringCatalogProvider).value ?? HiringCatalog.fallback;
-    final filters = ['All', 'Open', 'Interested', 'Closed'];
+    final filters = ['All', 'New', 'Interested', 'Closed'];
     return SafeArea(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -157,7 +166,7 @@ class _HiringOffersScreenState extends ConsumerState<HiringOffersScreen> {
           Padding(
             padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
             child: Text(
-              'Alerts',
+              'Invites',
               style: TextStyle(
                 fontSize: 22,
                 fontWeight: FontWeight.w900,
@@ -168,9 +177,7 @@ class _HiringOffersScreenState extends ConsumerState<HiringOffersScreen> {
           Padding(
             padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
             child: Text(
-              'Smart matches from employers using Hire Employee. '
-              'Invite to Chat or mark Interested to open in-app chat. '
-              'Phone stays locked until you share it.',
+              'Employers interested in your profile will appear here.',
               style: TextStyle(
                 fontSize: 13,
                 height: 1.35,
@@ -209,14 +216,14 @@ class _HiringOffersScreenState extends ConsumerState<HiringOffersScreen> {
                               GxEmptyState(
                                 icon: Icons.notifications_active_outlined,
                                 title: _prefCount == 0
-                                    ? 'Add a Profile first'
-                                    : 'No alerts yet',
+                                    ? 'No job profile yet'
+                                    : 'No invites yet',
                                 message: _prefCount == 0
-                                    ? 'Employers using Hire Employee match against your career profiles. Add one on the Profiles tab to receive alerts here.'
-                                    : 'When a verified employer runs Smart Hiring for your profiles, alerts appear here.',
+                                    ? 'Create a profile so employers can invite you.'
+                                    : 'Employers interested in your profile will appear here.',
                                 actionLabel: _prefCount == 0 &&
                                         widget.onGoToProfiles != null
-                                    ? 'Go to Profiles'
+                                    ? 'Go to Profile'
                                     : null,
                                 onAction: _prefCount == 0
                                     ? widget.onGoToProfiles
@@ -268,6 +275,17 @@ class _HiringOffersScreenState extends ConsumerState<HiringOffersScreen> {
                                           ],
                                         ),
                                         const SizedBox(height: 6),
+                                        if ((o['description'] ?? '').toString().trim().isNotEmpty) ...[
+                                          Text(
+                                            '${o['description']}',
+                                            style: TextStyle(
+                                              fontSize: 13,
+                                              height: 1.35,
+                                              color: context.gx.ink.withValues(alpha: 0.75),
+                                            ),
+                                          ),
+                                          const SizedBox(height: 6),
+                                        ],
                                         Text(
                                           [
                                             if ((o['businessName'] ?? '')
@@ -304,7 +322,41 @@ class _HiringOffersScreenState extends ConsumerState<HiringOffersScreen> {
                                             ),
                                           ),
                                         ],
-                                        if (o['invited'] == true &&
+                                        if (o['boardInvite'] == true) ...[
+                                          const SizedBox(height: 12),
+                                          GxButton(
+                                            label: 'View job',
+                                            filled: false,
+                                            accent: GixbeeTheme.accentGreen,
+                                            onTap: () async {
+                                              final jobId = o['jobId']?.toString();
+                                              if (jobId == null || jobId.isEmpty) return;
+                                              final job = await ref.read(hiringRepositoryProvider).getJob(jobId);
+                                              if (!context.mounted) return;
+                                              await Navigator.push(
+                                                context,
+                                                MaterialPageRoute(builder: (_) => MatchedJobDetailScreen(job: job)),
+                                              );
+                                            },
+                                          ),
+                                          const SizedBox(height: 8),
+                                          GxButton(
+                                            label: 'Open chat',
+                                            accent: GixbeeTheme.accentGreen,
+                                            onTap: (o['employerId'] ?? '').toString().isEmpty
+                                                ? null
+                                                : () => Navigator.push(
+                                                      context,
+                                                      MaterialPageRoute(
+                                                        builder: (_) => ChatThreadScreen(
+                                                          otherUserId: '${o['employerId']}',
+                                                          otherUserName: '${o['businessName'] ?? 'Employer'}',
+                                                        ),
+                                                      ),
+                                                    ),
+                                          ),
+                                        ],
+                                        if (o['boardInvite'] != true && o['invited'] == true &&
                                             o['response'] == 'PENDING') ...[
                                           const SizedBox(height: 8),
                                           Text(

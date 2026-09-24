@@ -348,7 +348,7 @@ class _BusinessCard extends ConsumerWidget {
                         Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (_) => const PostJobScreen(),
+                            builder: (_) => PostJobScreen(businessId: business.id),
                           ),
                         );
                       },
@@ -360,7 +360,7 @@ class _BusinessCard extends ConsumerWidget {
                       icon: Icons.people_outline,
                       label: 'Board apps',
                       primary: false,
-                      onTap: () => _openClassicCandidates(context, ref),
+                      onTap: () => _openClassicCandidates(context, ref, business.id),
                     ),
                   ),
                 ],
@@ -457,10 +457,10 @@ class _BusinessCard extends ConsumerWidget {
 
   /// Classic job-board applications — pick a real job id (never `all`).
   Future<void> _openClassicCandidates(
-      BuildContext context, WidgetRef ref) async {
+      BuildContext context, WidgetRef ref, String businessId) async {
     try {
       final jobs =
-          await ref.read(matchingRepositoryProvider).listMyJobPosts();
+          await ref.read(matchingRepositoryProvider).listMyJobPosts(businessId: businessId);
       if (!context.mounted) return;
       if (jobs.isEmpty) {
         showGxSnack(

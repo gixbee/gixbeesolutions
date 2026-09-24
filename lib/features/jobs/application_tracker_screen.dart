@@ -28,7 +28,7 @@ class _ApplicationTrackerScreenState
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
 
-  static const _segments = ['All', 'Active', 'Selected', 'Closed'];
+  static const _segments = ['All', 'Active', 'Hired', 'Closed'];
 
   List<JobApplication> _applications = [];
   bool _isLoading = true;
@@ -185,7 +185,7 @@ class _ApplicationTrackerScreenState
                         ),
                       ),
                       Text(
-                        'Classic board · Smart Hiring status on Alerts',
+                        'Track applications you send from Jobs.',
                         style: TextStyle(
                           color: cs.onSurfaceVariant,
                           fontSize: 12,
@@ -214,7 +214,7 @@ class _ApplicationTrackerScreenState
                   color: GixbeeTheme.accentGreen,
                 ),
                 _StatBubble(
-                  label: 'Selected',
+                  label: 'Hired',
                   count: _filter(ApplicationStatus.selected).length,
                   color: GixbeeTheme.accentGreen,
                 ),
@@ -327,7 +327,7 @@ class _ApplicationTrackerScreenState
         icon: Icons.inbox_outlined,
         title: 'No applications here',
         message:
-            'Jobs you apply to on the Board will show up here so you can track their status.',
+            'Jobs you show interest in will show up here so you can track their status.',
       );
     }
 
@@ -400,7 +400,7 @@ class _ProgressDots extends StatelessWidget {
   final int step; // 0 = applied, 1 = interview, 2 = selected
   const _ProgressDots({required this.step});
 
-  static const _labels = ['Applied', 'Interview', 'Selected'];
+  static const _labels = ['Applied', 'Interview', 'Hired'];
 
   @override
   Widget build(BuildContext context) {
@@ -480,8 +480,8 @@ class _ApplicationCard extends StatelessWidget {
     final (statusLabel, statusColor) = switch (app.status) {
       ApplicationStatus.applied => ('Applied', GixbeeTheme.accentGold),
       ApplicationStatus.interview => ('Interview', GixbeeTheme.accentBlue),
-      ApplicationStatus.selected => ('Selected', GixbeeTheme.accentGreen),
-      ApplicationStatus.rejected => ('Rejected', GixbeeTheme.brandRed),
+      ApplicationStatus.selected => ('Hired', GixbeeTheme.accentGreen),
+      ApplicationStatus.rejected => ('Not Selected', GixbeeTheme.brandRed),
       ApplicationStatus.withdrawn => ('Withdrawn', GixbeeTheme.textMed),
     };
     final progressStep = switch (app.status) {

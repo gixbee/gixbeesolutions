@@ -11,7 +11,8 @@ import '../../shared/models/job_post.dart';
 import '../booking/location_pin_screen.dart';
 
 class PostJobScreen extends ConsumerStatefulWidget {
-  const PostJobScreen({super.key});
+  final String? businessId;
+  const PostJobScreen({super.key, this.businessId});
 
   @override
   ConsumerState<PostJobScreen> createState() => _PostJobScreenState();
@@ -76,10 +77,35 @@ class _PostJobScreenState extends ConsumerState<PostJobScreen> {
     try {
       // 1. Get user's business
       final businesses = await ref.read(businessRepositoryProvider).getMyBusinesses();
-      if (businesses.isEmpty) {
-        throw 'You must list a business before you can post a job.';
+      final hiring = businesses
+          .where((b) => b.type == 'HIRING' && b.status == 'VERIFIED')
+          .toList();
+      var businessId = widget.businessId;
+      if (businessId == null && hiring.length == 1) {
+        businessId = hiring.first.id;
+      } else if (businessId == null && hiring.length > 1) {
+        if (!mounted) return;
+        businessId = await showDialog<String>(
+          context: context,
+          builder: (ctx) => SimpleDialog(
+            title: const Text('Which business is posting?'),
+            children: [
+              for (final business in hiring)
+                SimpleDialogOption(
+                  onPressed: () => Navigator.pop(ctx, business.id),
+                  child: Text(business.name),
+                ),
+            ],
+          ),
+        );
+        if (businessId == null) {
+          if (mounted) setState(() => _isLoading = false);
+          return;
+        }
       }
-      final myBusiness = businesses.first;
+      if (businessId == null) {
+        throw 'A verified hiring business is required before you can post a job.';
+      }
 
       // 2. Create JobPost model
       final jobPost = JobPost(
@@ -92,14 +118,14 @@ class _PostJobScreenState extends ConsumerState<PostJobScreen> {
         experience: _selectedExperience,
         location: _locationController.text,
         isActive: true,
-        employerId: myBusiness.id,
+        employerId: '',
         workMode: _workMode,
         salaryPeriod: _salaryPeriod,
         lat: _lat,
         lng: _lng,
       );
 
-      await ref.read(hiringRepositoryProvider).postJob(jobPost);
+      await ref.read(hiringRepositoryProvider).postJob(jobPost, businessId: businessId);
 
       if (!mounted) return;
       showGxSnack(context, 'Job Posted Successfully',

@@ -10,13 +10,10 @@ import 'job_alerts_screen.dart';
 import 'job_types_screen.dart';
 import 'seeker_profile_wizard.dart';
 
-/// Root screen for the "Find a Job" module (v147 IA).
-/// Tabs: Board (classic) · Alerts (Smart Hiring) · Profiles · Apps.
-///
-/// Smart Hiring loop: Profiles feed Hire Employee matching → Alerts tab.
-/// Classic board: Board apply → Apps tracker (separate pipeline).
+/// Root screen for Find a Job.
+/// Tabs: Jobs · Invites · Profile · Applications.
 class FindJobModule extends ConsumerStatefulWidget {
-  /// Optional initial tab: 0 Board, 1 Alerts, 2 Profiles, 3 Apps.
+  /// Optional initial tab: 0 Jobs, 1 Invites, 2 Profile, 3 Applications.
   final int initialIndex;
 
   const FindJobModule({super.key, this.initialIndex = 0});
@@ -28,6 +25,7 @@ class FindJobModule extends ConsumerStatefulWidget {
 class _FindJobModuleState extends ConsumerState<FindJobModule> {
   late int _currentIndex;
   bool _gateChecked = false;
+  int _jobsReload = 0;
 
   @override
   void initState() {
@@ -36,24 +34,27 @@ class _FindJobModuleState extends ConsumerState<FindJobModule> {
     WidgetsBinding.instance.addPostFrameCallback((_) => _maybeOpenSeekerGate());
   }
 
-  /// First-run gate: incomplete TalentProfile → classic seeker wizard.
-  /// Profiles (Smart Hiring) are nudged separately on Alerts / Profiles tabs.
+  /// Opens the job profile wizard when the seeker profile is missing or incomplete.
   Future<void> _maybeOpenSeekerGate() async {
     if (_gateChecked || !mounted) return;
     _gateChecked = true;
     try {
-      final p = await ref.read(talentRepositoryProvider).getProfile();
-      final roles = (p['preferredRoles'] as List? ?? []);
-      final salary = p['expectedSalary'];
-      final incomplete = roles.isEmpty && salary == null;
-      if (!incomplete || !mounted) return;
-      final opened = await Navigator.push<bool>(
-        context,
-        MaterialPageRoute(builder: (_) => const SeekerProfileWizard()),
-      );
-      if (opened == true && mounted) _goToTab(0);
+      final profile = await ref.read(talentRepositoryProvider).getProfile();
+      if (!jobProfileNeedsWizard(profile) || !mounted) return;
+      await _openWizard();
     } catch (_) {
-      // Soft-fail — user can still browse tabs.
+      // Soft-fail — user can still open the tabs.
+    }
+  }
+
+  Future<void> _openWizard() async {
+    final opened = await Navigator.push<bool>(
+      context,
+      MaterialPageRoute(builder: (_) => const SeekerProfileWizard()),
+    );
+    if (opened == true && mounted) {
+      setState(() => _jobsReload++);
+      _goToTab(0);
     }
   }
 
@@ -68,9 +69,17 @@ class _FindJobModuleState extends ConsumerState<FindJobModule> {
     final accent = context.gx.accent;
 
     final screens = [
-      JobAlertsScreen(onOpenApplications: () => _goToTab(3)),
+      JobAlertsScreen(
+        reloadToken: _jobsReload,
+        onOpenApplications: () => _goToTab(3),
+        onCreateProfile: _openWizard,
+        onEditProfile: () => _goToTab(2),
+      ),
       HiringOffersScreen(onGoToProfiles: () => _goToTab(2)),
-      JobTypesScreen(onCreatedHint: () => _goToTab(1)),
+      JobTypesScreen(
+        onCreatedHint: () => _goToTab(0),
+        onCreateProfile: _openWizard,
+      ),
       const ApplicationTrackerScreen(),
     ];
 
@@ -89,24 +98,24 @@ class _FindJobModuleState extends ConsumerState<FindJobModule> {
           indicatorColor: accent.withValues(alpha: 0.18),
           destinations: [
             NavigationDestination(
-              icon: const Icon(Icons.view_list_outlined),
-              selectedIcon: Icon(Icons.view_list, color: accent),
-              label: 'Board',
+              icon: const Icon(Icons.work_outline),
+              selectedIcon: Icon(Icons.work, color: accent),
+              label: 'Jobs',
             ),
             NavigationDestination(
-              icon: const Icon(Icons.notifications_active_outlined),
-              selectedIcon: Icon(Icons.notifications_active, color: accent),
-              label: 'Alerts',
+              icon: const Icon(Icons.notifications_outlined),
+              selectedIcon: Icon(Icons.notifications, color: accent),
+              label: 'Invites',
             ),
             NavigationDestination(
               icon: const Icon(Icons.badge_outlined),
               selectedIcon: Icon(Icons.badge, color: accent),
-              label: 'Profiles',
+              label: 'Profile',
             ),
             NavigationDestination(
               icon: const Icon(Icons.assignment_outlined),
               selectedIcon: Icon(Icons.assignment, color: accent),
-              label: 'Apps',
+              label: 'Applications',
             ),
           ],
         ),

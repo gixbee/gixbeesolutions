@@ -98,6 +98,27 @@ export class TalentProfile {
   @Column({ nullable: true })
   preferredWorkMode: string | null;
 
+  @Column({ default: 'MONTHLY' })
+  expectedSalaryPeriod: string;
+
+  @Column('simple-array', { nullable: true })
+  employmentTypes: string[];
+
+  @Column({ type: 'date', nullable: true })
+  availableOn: string | null;
+
+  @Column({ nullable: true })
+  resumeUrl: string | null;
+
+  @Column({ nullable: true })
+  resumeFileName: string | null;
+
+  @Column({ nullable: true })
+  resumeMimeType: string | null;
+
+  @Column({ type: 'timestamptz', nullable: true })
+  resumeUploadedAt: Date | null;
+
   @CreateDateColumn()
   createdAt: Date;
 

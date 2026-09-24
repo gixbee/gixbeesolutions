@@ -12,7 +12,36 @@ pub async fn record(
     event_type: &str,
     score: Option<f32>,
 ) -> AppResult<()> {
-    if let Err(err) = sqlx::query(
+    if let Err(err) = insert_event(state, user_id, job_id, candidate_id, business_id, event_type, score).await {
+        tracing::warn!(%event_type, "matching event skipped: {err}");
+    }
+    Ok(())
+}
+
+pub async fn record_required(
+    state: &AppState,
+    user_id: Option<Uuid>,
+    job_id: Option<Uuid>,
+    candidate_id: Option<Uuid>,
+    business_id: Option<Uuid>,
+    event_type: &str,
+    score: Option<f32>,
+) -> AppResult<()> {
+    insert_event(state, user_id, job_id, candidate_id, business_id, event_type, score)
+        .await
+        .map_err(|err| crate::error::AppError::Internal(err.to_string()))
+}
+
+async fn insert_event(
+    state: &AppState,
+    user_id: Option<Uuid>,
+    job_id: Option<Uuid>,
+    candidate_id: Option<Uuid>,
+    business_id: Option<Uuid>,
+    event_type: &str,
+    score: Option<f32>,
+) -> Result<(), sqlx::Error> {
+    sqlx::query(
         r#"INSERT INTO matching_events
            (id, "userId", "jobPostId", "candidateId", "businessId", "eventType", "matchScoreAtTime")
            VALUES ($1,$2,$3,$4,$5,$6,$7)"#,
@@ -25,10 +54,7 @@ pub async fn record(
     .bind(event_type)
     .bind(score)
     .execute(&state.db)
-    .await
-    {
-        tracing::warn!(%event_type, "matching event skipped: {err}");
-    }
+    .await?;
     Ok(())
 }
 

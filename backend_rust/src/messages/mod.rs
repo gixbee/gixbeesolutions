@@ -52,20 +52,46 @@ async fn list_conversations(
     .fetch_all(&state.db)
     .await?;
 
-    Ok(Json(
-        rows.iter()
-            .map(|r| {
-                json!({
-                    "userId": r.get::<Uuid, _>("partner_id").to_string(),
-                    "name": r.get::<Option<String>, _>("partner_name"),
-                    "phoneNumber": r.get::<Option<String>, _>("partner_phone"),
-                    "lastMessage": r.get::<String, _>("body"),
-                    "lastAt": r.try_get::<chrono::DateTime<chrono::Utc>, _>("createdAt").ok(),
-                    "unread": r.get::<i32, _>("unread"),
-                })
-            })
-            .collect(),
-    ))
+    let mut out = Vec::with_capacity(rows.len());
+    for r in &rows {
+        let partner = r.get::<Uuid, _>("partner_id");
+        let shared = contact_shared(&state, uid, partner).await;
+        out.push(json!({
+            "userId": partner.to_string(),
+            "name": r.get::<Option<String>, _>("partner_name"),
+            "phoneNumber": phone_if_shared(r.get::<Option<String>, _>("partner_phone"), shared),
+            "lastMessage": r.get::<String, _>("body"),
+            "lastAt": r.try_get::<chrono::DateTime<chrono::Utc>, _>("createdAt").ok(),
+            "unread": r.get::<i32, _>("unread"),
+        }));
+    }
+    Ok(Json(out))
+}
+
+fn phone_if_shared(phone: Option<String>, unlocked: bool) -> Option<String> {
+    if unlocked { phone.filter(|value| !value.is_empty()) } else { None }
+}
+
+async fn contact_shared(state: &AppState, left: Uuid, right: Uuid) -> bool {
+    sqlx::query_scalar(
+        r#"SELECT EXISTS(
+            SELECT 1 FROM hiring_interests hi
+            JOIN hiring_requests hr ON hr.id = hi."requestId"
+            WHERE (
+              (hi."candidateId" = $1 AND hr."employerId" = $2)
+              OR (hi."candidateId" = $2 AND hr."employerId" = $1)
+            )
+            AND (
+              hi.decision::text = 'HIRED'
+              OR COALESCE(hi.progress->>'contactShared', 'false') = 'true'
+            )
+        )"#,
+    )
+    .bind(left)
+    .bind(right)
+    .fetch_one(&state.db)
+    .await
+    .unwrap_or(false)
 }
 
 async fn get_thread(
@@ -117,6 +143,36 @@ async fn send_message(
     if exists == 0 {
         return Err(AppError::NotFound("Recipient not found".into()));
     }
+    let allowed: bool = sqlx::query_scalar(
+        r#"SELECT
+            EXISTS(SELECT 1 FROM messages WHERE ("senderId"=$1 AND "recipientId"=$2) OR ("senderId"=$2 AND "recipientId"=$1))
+            OR EXISTS(SELECT 1 FROM bookings WHERE ("customerId"=$1 AND "operatorId"=$2) OR ("customerId"=$2 AND "operatorId"=$1))
+            OR EXISTS(
+              SELECT 1 FROM hiring_interests hi
+              JOIN hiring_requests hr ON hr.id = hi."requestId"
+              WHERE hi.response::text = 'INTERESTED' AND hi.decision::text <> 'REJECTED'
+                AND ((hi."candidateId"=$1 AND hr."employerId"=$2) OR (hi."candidateId"=$2 AND hr."employerId"=$1))
+            )
+            OR EXISTS(
+              SELECT 1 FROM job_applications a
+              JOIN job_posts j ON j.id = a."jobPostId"
+              WHERE a.status::text <> 'WITHDRAWN'
+                AND ((a."applicantId"=$1 AND j."employerId"=$2) OR (a."applicantId"=$2 AND j."employerId"=$1))
+            )
+            OR EXISTS(
+              SELECT 1 FROM matching_events e
+              JOIN job_posts j ON j.id = e."jobPostId"
+              WHERE e."eventType" = 'EMPLOYER_INVITE'
+                AND ((e."candidateId"=$1 AND j."employerId"=$2) OR (e."candidateId"=$2 AND j."employerId"=$1))
+            )"#,
+    )
+    .bind(uid)
+    .bind(rid)
+    .fetch_one(&state.db)
+    .await?;
+    if !allowed {
+        return Err(AppError::Forbidden("You can only message someone you already work with".into()));
+    }
 
     let id = Uuid::new_v4();
     let booking_id = body.bookingId.as_ref().and_then(|b| Uuid::parse_str(b).ok());
@@ -159,4 +215,13 @@ fn message_dto(row: &sqlx::postgres::PgRow) -> Value {
         "senderId": row.get::<Uuid, _>("senderId").to_string(),
         "recipientId": row.get::<Uuid, _>("recipientId").to_string(),
     })
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn phone_stays_hidden_until_contact_is_shared() {
+        assert!(super::phone_if_shared(Some("999".into()), false).is_none());
+        assert_eq!(super::phone_if_shared(Some("999".into()), true).as_deref(), Some("999"));
+    }
 }

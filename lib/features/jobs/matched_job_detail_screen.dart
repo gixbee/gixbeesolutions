@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../repositories/hiring_repository.dart';
+import '../../repositories/talent_repository.dart';
 import '../../shared/models/job_post.dart';
 import '../../shared/widgets/gx_button.dart';
 import '../../shared/widgets/gx_snackbar.dart';
@@ -72,9 +73,29 @@ class MatchedJobDetailScreen extends ConsumerWidget {
             label: "I'm Interested",
             onTap: () async {
               try {
-                await ref.read(hiringRepositoryProvider).expressInterest(job.id);
+                String? resume;
+                try {
+                  final profile = await ref.read(talentRepositoryProvider).getProfile();
+                  resume = profile['resumeUrl']?.toString();
+                } catch (_) {}
+                final status = await ref.read(hiringRepositoryProvider).expressInterest(
+                      job.id,
+                      resumeUrl: resume,
+                    );
                 if (!context.mounted) return;
-                showGxSnack(context, 'Interest sent', type: GxSnackType.success);
+                if (status != 'APPLIED') {
+                  showGxSnack(
+                    context,
+                    'This application was not shared again.',
+                    type: GxSnackType.error,
+                  );
+                  return;
+                }
+                showGxSnack(
+                  context,
+                  'Your profile has been shared with the employer.',
+                  type: GxSnackType.success,
+                );
                 Navigator.pop(context, true);
               } catch (e) {
                 if (!context.mounted) return;

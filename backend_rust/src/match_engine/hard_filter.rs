@@ -34,9 +34,13 @@ pub fn admit(gate: &GateInput) -> Result<(), &'static str> {
         .filter(|s| !s.is_empty())
     {
         let job_code = super::skills::normalize_employment(&gate.job_employment);
-        let seeker_code = super::skills::normalize_employment(seeker_type);
         let known = |code: &str| matches!(code, "ft" | "pt" | "intern" | "contract");
-        if known(&job_code) && known(&seeker_code) && job_code != seeker_code {
+        let selected: Vec<String> = seeker_type
+            .split(',')
+            .map(|part| super::skills::normalize_employment(part.trim()))
+            .filter(|code| known(code))
+            .collect();
+        if known(&job_code) && !selected.is_empty() && !selected.iter().any(|code| code == &job_code) {
             return Err("employment type");
         }
     }
@@ -86,6 +90,16 @@ mod tests {
         let mut gate = open();
         gate.seeker_employment = Some("Part Time".into());
         assert_eq!(admit(&gate), Err("employment type"));
+    }
+
+    #[test]
+    fn any_selected_employment_type_is_admitted() {
+        let mut gate = open();
+        gate.job_employment = "Contract".into();
+        gate.seeker_employment = Some("FT,CONTRACT".into());
+        assert!(admit(&gate).is_ok());
+        gate.seeker_employment = Some("GIG".into());
+        assert!(admit(&gate).is_ok());
     }
 
     #[test]

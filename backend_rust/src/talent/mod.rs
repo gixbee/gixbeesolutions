@@ -52,7 +52,8 @@ async fn ensure_talent_profile(state: &AppState, user_id: Uuid) -> AppResult<Uui
     }
     let id = Uuid::new_v4();
     sqlx::query(
-        r#"INSERT INTO talent_profiles (id, "userId", "jobAlertsEnabled") VALUES ($1, $2, true)"#,
+        r#"INSERT INTO talent_profiles (id, "userId", "jobAlertsEnabled", "profileStatus")
+           VALUES ($1, $2, true, 'INCOMPLETE')"#,
     )
     .bind(id)
     .bind(user_id)
@@ -69,8 +70,11 @@ async fn load_profile(state: &AppState, user_id: Uuid) -> AppResult<Value> {
                   tp.certificates, tp.experience, tp."hourlyRate",
                   tp."jobAlertsEnabled", tp."savedJobIds",
                   tp.skills, tp."preferredRoles", tp."preferredLocations", tp."expectedSalary",
+                  tp."expectedSalaryPeriod", tp."employmentTypes", tp.education,
                   tp."currentStatus"::text AS "currentStatus",
-                  tp.lat, tp.lng, tp."travelRadiusKm", tp.availability, tp."profileStatus",
+                  tp.lat, tp.lng, tp."travelRadiusKm", tp.availability, tp."availableOn",
+                  tp."profileStatus", tp."preferredWorkMode",
+                  tp."resumeUrl", tp."resumeFileName", tp."resumeMimeType", tp."resumeUploadedAt",
                   u.name, u."profileImageUrl", u."approvalStatus"::text AS "approvalStatus"
            FROM talent_profiles tp
            JOIN users u ON u.id = tp."userId"
@@ -99,12 +103,21 @@ async fn load_profile(state: &AppState, user_id: Uuid) -> AppResult<Value> {
         "preferredRoles": parse_list(row.try_get::<Option<String>, _>("preferredRoles").ok().flatten()),
         "preferredLocations": parse_list(row.try_get::<Option<String>, _>("preferredLocations").ok().flatten()),
         "expectedSalary": row.try_get::<Option<i32>, _>("expectedSalary").ok().flatten(),
+        "expectedSalaryPeriod": row.try_get::<String, _>("expectedSalaryPeriod").unwrap_or_else(|_| "MONTHLY".into()),
+        "employmentTypes": parse_list(row.try_get::<Option<String>, _>("employmentTypes").ok().flatten()),
+        "education": parse_list(row.try_get::<Option<String>, _>("education").ok().flatten()),
         "currentStatus": row.try_get::<Option<String>, _>("currentStatus").ok().flatten(),
         "lat": row.try_get::<Option<f64>, _>("lat").ok().flatten(),
         "lng": row.try_get::<Option<f64>, _>("lng").ok().flatten(),
         "travelRadiusKm": row.try_get::<f64, _>("travelRadiusKm").unwrap_or(25.0),
         "availability": row.try_get::<String, _>("availability").unwrap_or_else(|_| "IMMEDIATE".into()),
+        "availableOn": row.try_get::<Option<chrono::NaiveDate>, _>("availableOn").ok().flatten().map(|d| d.to_string()),
         "profileStatus": row.try_get::<String, _>("profileStatus").unwrap_or_else(|_| "ACTIVE".into()),
+        "preferredWorkMode": row.try_get::<Option<String>, _>("preferredWorkMode").ok().flatten(),
+        "resumeUrl": row.try_get::<Option<String>, _>("resumeUrl").ok().flatten(),
+        "resumeFileName": row.try_get::<Option<String>, _>("resumeFileName").ok().flatten(),
+        "resumeMimeType": row.try_get::<Option<String>, _>("resumeMimeType").ok().flatten(),
+        "resumeUploadedAt": row.try_get::<Option<chrono::DateTime<chrono::Utc>>, _>("resumeUploadedAt").ok().flatten().map(|d| d.to_rfc3339()),
         "professionalSkills": skills.iter().map(skill_json).collect::<Vec<_>>(),
         "user": {
             "name": row.get::<Option<String>, _>("name"),
@@ -222,11 +235,111 @@ async fn update_profile(
             .await?;
     }
     if let Some(mode) = body.get("preferredWorkMode").and_then(|v| v.as_str()) {
+        let mode = mode.trim().to_ascii_uppercase();
+        if !["ONSITE", "REMOTE", "HYBRID"].contains(&mode.as_str()) {
+            return Err(AppError::BadRequest("Unsupported work preference".into()));
+        }
         sqlx::query(r#"UPDATE talent_profiles SET "preferredWorkMode" = $1 WHERE id = $2"#)
             .bind(mode)
             .bind(profile_id)
             .execute(&state.db)
             .await?;
+    }
+    if let Some(period) = body.get("expectedSalaryPeriod").and_then(|v| v.as_str()) {
+        let period = period.trim().to_ascii_uppercase();
+        if !["HOURLY", "DAILY", "WEEKLY", "MONTHLY", "PER_JOB"].contains(&period.as_str()) {
+            return Err(AppError::BadRequest("Unsupported salary period".into()));
+        }
+        sqlx::query(r#"UPDATE talent_profiles SET "expectedSalaryPeriod" = $1 WHERE id = $2"#)
+            .bind(period)
+            .bind(profile_id)
+            .execute(&state.db)
+            .await?;
+    }
+    if let Some(types) = string_array(body.get("employmentTypes")) {
+        let allowed = ["FT", "PT", "INTERN", "CONTRACT", "GIG"];
+        if types.iter().any(|code| !allowed.contains(&code.as_str())) {
+            return Err(AppError::BadRequest("Unsupported employment type".into()));
+        }
+        sqlx::query(r#"UPDATE talent_profiles SET "employmentTypes" = $1 WHERE id = $2"#)
+            .bind(list_to_db(&types))
+            .bind(profile_id)
+            .execute(&state.db)
+            .await?;
+    }
+    if let Some(education) = string_array(body.get("education")) {
+        sqlx::query(r#"UPDATE talent_profiles SET education = $1 WHERE id = $2"#)
+            .bind(list_to_db(&education))
+            .bind(profile_id)
+            .execute(&state.db)
+            .await?;
+    }
+    if let Some(status) = body.get("profileStatus").and_then(|v| v.as_str()) {
+        if !["ACTIVE", "PAUSED", "INCOMPLETE"].contains(&status) {
+            return Err(AppError::BadRequest("Unsupported profile status".into()));
+        }
+        sqlx::query(r#"UPDATE talent_profiles SET "profileStatus" = $1 WHERE id = $2"#)
+            .bind(status)
+            .bind(profile_id)
+            .execute(&state.db)
+            .await?;
+    }
+    if body.get("availability").is_some() || body.get("availableOn").is_some() {
+        let availability = body
+            .get("availability")
+            .and_then(|v| v.as_str())
+            .unwrap_or("IMMEDIATE")
+            .trim()
+            .to_ascii_uppercase();
+        if !["IMMEDIATE", "DAYS_7", "DAYS_15", "DAYS_30", "DAYS_60", "DAYS_90", "CUSTOM_DATE"]
+            .contains(&availability.as_str())
+        {
+            return Err(AppError::BadRequest("Unsupported availability".into()));
+        }
+        let available_on = if availability == "CUSTOM_DATE" {
+            let raw = body.get("availableOn").and_then(|v| v.as_str()).unwrap_or("");
+            Some(
+                chrono::NaiveDate::parse_from_str(raw, "%Y-%m-%d")
+                    .map_err(|_| AppError::BadRequest("Choose the date you can join".into()))?,
+            )
+        } else {
+            None
+        };
+        sqlx::query(r#"UPDATE talent_profiles SET availability = $1, "availableOn" = $2 WHERE id = $3"#)
+            .bind(availability)
+            .bind(available_on)
+            .bind(profile_id)
+            .execute(&state.db)
+            .await?;
+    }
+    if body.get("resumeUrl").is_some()
+        || body.get("resumeFileName").is_some()
+        || body.get("resumeMimeType").is_some()
+    {
+        let url = body.get("resumeUrl").and_then(|v| v.as_str()).filter(|s| !s.is_empty());
+        let name = body.get("resumeFileName").and_then(|v| v.as_str()).filter(|s| !s.is_empty());
+        let mime = body.get("resumeMimeType").and_then(|v| v.as_str()).filter(|s| !s.is_empty());
+        let uploaded = if url.is_none() {
+            None
+        } else if let Some(raw) = body.get("resumeUploadedAt").and_then(|v| v.as_str()) {
+            chrono::DateTime::parse_from_rfc3339(raw)
+                .ok()
+                .map(|value| value.with_timezone(&chrono::Utc))
+        } else {
+            Some(chrono::Utc::now())
+        };
+        sqlx::query(
+            r#"UPDATE talent_profiles
+               SET "resumeUrl" = $1, "resumeFileName" = $2, "resumeMimeType" = $3, "resumeUploadedAt" = $4
+               WHERE id = $5"#,
+        )
+        .bind(url)
+        .bind(name)
+        .bind(mime)
+        .bind(uploaded)
+        .bind(profile_id)
+        .execute(&state.db)
+        .await?;
     }
     sqlx::query(r#"UPDATE talent_profiles SET "lastActiveAt" = NOW(), "updatedAt" = NOW() WHERE id = $1"#)
         .bind(profile_id)

@@ -54,7 +54,7 @@ export const PREFERENCE_DELETE_LOCK_DAYS = 7;
 export const TARGET_MULTIPLIER = 3; // interested target ≈ 3× vacancies
 export const GUARANTEE_WINDOW_HOURS = 24;
 /** Batch sizes for the staged fan-out (Hour 0 / 8 / 18 per the pricing doc). */
-export const BATCH_SIZES = [40, 20, 10];
+export const BATCH_SIZES = [40, 20, 15];
 export const BATCH_DELAYS_MS = [0, 8 * 3600_000, 18 * 3600_000];
 
 /** ₹ fee tiers by vacancy count (24 Hour Hiring Guarantee doc). */

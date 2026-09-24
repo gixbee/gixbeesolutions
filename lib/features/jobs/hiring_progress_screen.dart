@@ -112,6 +112,10 @@ class _HiringProgressScreenState extends ConsumerState<HiringProgressScreen> {
           if (_busy) const LinearProgressIndicator(),
           if (_error != null) Text(_error!),
           Text('${data['jobType']}', style: TextStyle(fontSize: 24, fontWeight: FontWeight.w800, color: context.gx.ink)),
+          if ((data['description'] ?? '').toString().trim().isNotEmpty) ...[
+            const SizedBox(height: 8),
+            Text('${data['description']}', style: TextStyle(height: 1.4, color: context.gx.ink.withValues(alpha: 0.8))),
+          ],
           const SizedBox(height: 8),
           Text(employer ? '${data['candidateName'] ?? 'Candidate'}' : '${data['businessName'] ?? 'Employer'}'),
           Text('${data['location'] ?? ''}'),

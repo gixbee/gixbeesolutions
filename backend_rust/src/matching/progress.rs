@@ -9,7 +9,7 @@ pub(super) async fn detail(
 ) -> AppResult<Json<Value>> {
     let row = sqlx::query(
         r#"SELECT hi.progress, hi.revision, hi.decision::text AS decision, hi.response::text AS response,
-        hi."requestId", hi."candidateId", hr."jobType", hr.location, hr."employerId",
+        hi."requestId", hi."candidateId", hr."jobType", hr.description, hr.location, hr."employerId",
         u.name AS "candidateName", b.name AS "businessName", b.phone AS "businessPhoneRaw",
         cand."phoneNumber" AS "candidatePhoneRaw"
         FROM hiring_interests hi JOIN hiring_requests hr ON hr.id=hi."requestId"
@@ -43,6 +43,7 @@ pub(super) async fn detail(
         "phoneLocked": !unlocked,
         "emailLocked": !unlocked,
         "jobType": row.get::<String, _>("jobType"),
+        "description": row.try_get::<Option<String>, _>("description").ok().flatten(),
         "location": row.get::<Option<String>, _>("location"),
         "candidateName": row.get::<Option<String>, _>("candidateName"),
         "businessName": row.get::<Option<String>, _>("businessName"),
