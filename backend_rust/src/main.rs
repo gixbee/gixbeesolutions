@@ -11,6 +11,7 @@ mod error;
 mod events;
 mod favourites;
 mod hiring;
+mod hiring_catalogue;
 mod jobs;
 mod master_entries;
 mod matching;

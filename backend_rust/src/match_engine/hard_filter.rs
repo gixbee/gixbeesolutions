@@ -9,6 +9,8 @@ pub struct GateInput {
     pub seeker_employment: Option<String>,
     pub distance_km: Option<f64>,
     pub travel_radius_km: f64,
+    pub job_position_id: Option<String>,
+    pub seeker_position_ids: Option<String>,
 }
 
 pub fn admit(gate: &GateInput) -> Result<(), &'static str> {
@@ -44,6 +46,15 @@ pub fn admit(gate: &GateInput) -> Result<(), &'static str> {
             return Err("employment type");
         }
     }
+    if let (Some(job_position), Some(seeker_positions)) = (
+        gate.job_position_id.as_deref().map(str::trim).filter(|s| !s.is_empty()),
+        gate.seeker_position_ids.as_deref().map(str::trim).filter(|s| !s.is_empty()),
+    ) {
+        let matches = seeker_positions.split(',').any(|id| id.trim() == job_position);
+        if !matches {
+            return Err("position");
+        }
+    }
     if job_mode != "REMOTE" {
         if let Some(km) = gate.distance_km {
             if km > gate.travel_radius_km {
@@ -69,6 +80,8 @@ mod tests {
             seeker_employment: None,
             distance_km: Some(4.0),
             travel_radius_km: 25.0,
+            job_position_id: None,
+            seeker_position_ids: None,
         }
     }
 

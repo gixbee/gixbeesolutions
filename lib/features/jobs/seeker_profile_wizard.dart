@@ -11,6 +11,7 @@ import '../../shared/widgets/gx_button.dart';
 import '../../shared/widgets/gx_snackbar.dart';
 import '../../theme.dart';
 import '../booking/location_pin_screen.dart';
+import 'hiring_master_picker.dart';
 import 'job_types_screen.dart';
 
 /// A talent profile is ready for Jobs when it is not incomplete and has a
@@ -120,6 +121,16 @@ class _SeekerProfileWizardState extends ConsumerState<SeekerProfileWizard> {
   bool _saving = false;
   bool _loading = true;
 
+  String? _positionId;
+  String? _sectorId;
+  String? _qualificationId;
+  String? _locationId;
+  List<String> _specializationIds = [];
+  List<String> _skillIds = [];
+  List<Map<String, dynamic>> _specChoices = [];
+  List<Map<String, dynamic>> _catalogueSkills = [];
+  List<Map<String, dynamic>> _qualifications = [];
+  String _typeLabel = 'Specialization';
   final _categories = <String>{};
   final _roles = <String>{};
   final _employment = <String>[];
@@ -189,6 +200,29 @@ class _SeekerProfileWizardState extends ConsumerState<SeekerProfileWizard> {
       if (period != null && period.isNotEmpty) _salaryPeriod = period;
       final places = _strings(profile['preferredLocations']);
       if (places.isNotEmpty) _place = places.first;
+      _positionId = _strings(profile['positionIds']).firstOrNull;
+      _qualificationId = profile['qualificationId']?.toString();
+      _locationId = profile['locationId']?.toString();
+      _specializationIds = _strings(profile['specializationIds']);
+      _skillIds = _strings(profile['skillIds']);
+      final prefs = await ref.read(matchingRepositoryProvider).listPreferences();
+      if (prefs.isNotEmpty) {
+        final pref = prefs.firstWhere(
+          (row) => '${row['positionId'] ?? ''}' == (_positionId ?? '') || '${row['jobType'] ?? ''}' == _roleName,
+          orElse: () => prefs.first,
+        );
+        _positionId ??= pref['positionId']?.toString();
+        _sectorId ??= pref['sectorId']?.toString();
+        _qualificationId ??= pref['qualificationId']?.toString();
+        _locationId ??= pref['locationId']?.toString();
+        if (_specializationIds.isEmpty) _specializationIds = _strings(pref['specializationIds']);
+        if (_skillIds.isEmpty) _skillIds = _strings(pref['skillIds']);
+      }
+      final catalogue = await ref.read(matchingRepositoryProvider).hiringCatalogue();
+      _qualifications = ((catalogue['qualifications'] as List?) ?? [])
+          .map((row) => Map<String, dynamic>.from(row as Map))
+          .toList();
+      if (_positionId != null) await _loadPosition(_positionId!);
       _lat = (profile['lat'] as num?)?.toDouble();
       _lng = (profile['lng'] as num?)?.toDouble();
       _radius = (profile['travelRadiusKm'] as num?)?.toDouble() ?? 25;
@@ -231,6 +265,7 @@ class _SeekerProfileWizardState extends ConsumerState<SeekerProfileWizard> {
   }
 
   String? get _primaryEmployment {
+    if (_employment.length == 1 && _employment.contains('GIG')) return 'GIG';
     for (final code in _employment) {
       if (code != 'GIG') return code;
     }
@@ -320,6 +355,12 @@ class _SeekerProfileWizardState extends ConsumerState<SeekerProfileWizard> {
       await _savePreference(salary);
       await ref.read(talentRepositoryProvider).updateProfile({
         'preferredRoles': roles,
+        'positionIds': [if (_positionId != null) _positionId],
+        'specializationIds': _specializationIds,
+        'skillIds': _skillIds,
+        'qualificationId': _qualificationId,
+        'locationId': _locationId,
+        if (_place != null) 'addressText': _place,
         'skills': _skills.toList(),
         'employmentTypes': _employment,
         'preferredWorkMode': _workMode,
@@ -363,6 +404,13 @@ class _SeekerProfileWizardState extends ConsumerState<SeekerProfileWizard> {
       'employmentType': _primaryEmployment,
       'experienceYears': _experienceYears,
       'noticePeriod': _availability,
+      'positionId': _positionId,
+      'sectorId': _sectorId,
+      'qualificationId': _qualificationId,
+      'locationId': _locationId,
+      if (_place != null) 'addressText': _place,
+      'specializationIds': _specializationIds,
+      'skillIds': _skillIds,
     };
     final role = _roleName.toLowerCase();
     final match = prefs.where((pref) {
@@ -421,6 +469,7 @@ class _SeekerProfileWizardState extends ConsumerState<SeekerProfileWizard> {
       _lat = position.latitude;
       _lng = position.longitude;
       _place = _place ?? 'Current location';
+      _locationId = null;
     });
   }
 
@@ -440,6 +489,7 @@ class _SeekerProfileWizardState extends ConsumerState<SeekerProfileWizard> {
       _lat = pin.lat;
       _lng = pin.lng;
       _place = pin.address.isNotEmpty ? pin.address : _place;
+      _locationId = null;
     });
   }
 
@@ -526,6 +576,25 @@ class _SeekerProfileWizardState extends ConsumerState<SeekerProfileWizard> {
 
   List<Widget> _stepWork() {
     return [
+      _label('Position from the hiring catalogue'),
+      HiringPositionSearch(
+        sectorId: _sectorId,
+        selectedLabel: _roles.isEmpty ? null : _roles.first,
+        onPick: (pick) async {
+          setState(() {
+            _positionId = pick.id;
+            _roles
+              ..clear()
+              ..add(pick.label);
+            _specializationIds.clear();
+            _skillIds.clear();
+            _skills.clear();
+            _specChoices = [];
+            _catalogueSkills = [];
+          });
+          await _loadPosition(pick.id);
+        },
+      ),
       _label('Categories'),
       _chips(
         jobCategories,
@@ -588,8 +657,83 @@ class _SeekerProfileWizardState extends ConsumerState<SeekerProfileWizard> {
     ];
   }
 
+  Future<void> _loadPosition(String positionId) async {
+    try {
+      final detail = await ref.read(matchingRepositoryProvider).hiringPosition(positionId);
+      if (!mounted || _positionId != positionId) return;
+      setState(() {
+        _typeLabel = '${detail['typeLabel'] ?? 'Specialization'}';
+        _specChoices = ((detail['specializations'] as List?) ?? [])
+            .map((row) => Map<String, dynamic>.from(row as Map))
+            .where((row) => row['isActive'] != false)
+            .toList();
+        _catalogueSkills = ((detail['skills'] as List?) ?? [])
+            .map((row) => Map<String, dynamic>.from(row as Map))
+            .where((row) => row['isActive'] != false)
+            .toList();
+      });
+    } catch (_) {
+      if (!mounted || _positionId != positionId) return;
+    }
+  }
+
   List<Widget> _stepSkills() {
     return [
+      _label(_typeLabel),
+      if (_positionId == null) const Text('Choose a catalogue position first.'),
+      _chips(
+        [for (final spec in _specChoices) '${spec['label']}'],
+        selected: (label) => _specChoices.any((spec) => spec['label'] == label && _specializationIds.contains(spec['id'])),
+        onTap: (label) {
+          final spec = _specChoices.cast<Map<String, dynamic>?>().firstWhere(
+            (row) => row!['label'] == label,
+            orElse: () => null,
+          );
+          if (spec == null) return;
+          final id = '${spec['id']}';
+          setState(() {
+            _specializationIds.contains(id) ? _specializationIds.remove(id) : _specializationIds.add(id);
+          });
+        },
+      ),
+      _label('Catalogue skills'),
+      _chips(
+        [for (final skill in _catalogueSkills) '${skill['label']}'],
+        selected: (label) => _catalogueSkills.any((skill) => skill['label'] == label && _skillIds.contains(skill['id'])),
+        onTap: (label) {
+          final skill = _catalogueSkills.cast<Map<String, dynamic>?>().firstWhere(
+            (row) => row!['label'] == label,
+            orElse: () => null,
+          );
+          if (skill == null) return;
+          final id = '${skill['id']}';
+          final name = '${skill['label']}';
+          setState(() {
+            if (_skillIds.contains(id)) {
+              _skillIds.remove(id);
+              _skills.remove(name);
+            } else {
+              _skillIds.add(id);
+              _skills.add(name);
+            }
+          });
+        },
+      ),
+      _label('Qualification'),
+      _chips(
+        [for (final qual in _qualifications) '${qual['label']}'],
+        selected: (label) => _qualifications.any((qual) => qual['label'] == label && _qualificationId == qual['id']),
+        onTap: (label) {
+          final qual = _qualifications.cast<Map<String, dynamic>?>().firstWhere(
+            (row) => row!['label'] == label,
+            orElse: () => null,
+          );
+          if (qual == null) return;
+          final id = '${qual['id']}';
+          setState(() => _qualificationId = _qualificationId == id ? null : id);
+        },
+        single: true,
+      ),
       _label('Suggested skills'),
       TextField(
         controller: _skillSearch,
@@ -692,7 +836,18 @@ class _SeekerProfileWizardState extends ConsumerState<SeekerProfileWizard> {
         activeTrackColor: context.gx.accent,
         onChanged: (value) => setState(() => _negotiable = value),
       ),
-      _label('Preferred work location'),
+      _label('Work location from the India location master'),
+      HiringLocationSearch(
+        selectedLabel: _place,
+        onPick: (pick) => setState(() {
+          _locationId = pick.id;
+          _place = pick.label;
+          if (pick.lat != null && pick.lng != null) {
+            _lat = pick.lat;
+            _lng = pick.lng;
+          }
+        }),
+      ),
       Text(_place ?? 'Location not set'),
       if (_lat != null && _lng != null)
         Text('${_lat!.toStringAsFixed(4)}, ${_lng!.toStringAsFixed(4)}',
@@ -716,6 +871,7 @@ class _SeekerProfileWizardState extends ConsumerState<SeekerProfileWizard> {
               _place = match.displayName;
               _lat = match.lat;
               _lng = match.lng;
+              _locationId = null;
             });
           }
         },
@@ -733,6 +889,7 @@ class _SeekerProfileWizardState extends ConsumerState<SeekerProfileWizard> {
                 _place = city.displayName;
                 _lat = city.lat;
                 _lng = city.lng;
+                _locationId = null;
               }),
             ),
         ],

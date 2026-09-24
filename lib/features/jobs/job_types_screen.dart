@@ -12,6 +12,7 @@ import '../../repositories/cities_repository.dart';
 import '../../repositories/matching_repository.dart';
 import '../../repositories/talent_repository.dart';
 import 'hiring_catalog.dart';
+import 'hiring_master_picker.dart';
 import '../../shared/widgets/dribbble_background.dart';
 import '../../shared/widgets/gx_button.dart';
 import '../../shared/widgets/gx_empty.dart';
@@ -420,6 +421,13 @@ class JobTypeFormScreen extends ConsumerStatefulWidget {
 
 class _JobTypeFormScreenState extends ConsumerState<JobTypeFormScreen> {
   final _jobTypeCtrl = TextEditingController();
+  String? _positionId;
+  String? _sectorId;
+  String? _qualificationId;
+  String? _locationId;
+  String? _locationLockedLabel;
+  List<String> _specializationIds = [];
+  List<String> _skillIds = [];
   final _locationCtrl = TextEditingController();
   final _locationFocus = FocusNode();
   final _salaryCtrl = TextEditingController();
@@ -465,6 +473,12 @@ class _JobTypeFormScreenState extends ConsumerState<JobTypeFormScreen> {
       _employmentType = seed['employmentType']?.toString();
       _salaryNegotiable = seed['salaryNegotiable'] == true;
       _salaryPeriod = '${seed['expectedSalaryPeriod'] ?? 'MONTHLY'}';
+      _positionId = seed['positionId']?.toString();
+      _sectorId = seed['sectorId']?.toString();
+      _qualificationId = seed['qualificationId']?.toString();
+      _locationId = seed['locationId']?.toString();
+      _specializationIds = _idList(seed['specializationIds']);
+      _skillIds = _idList(seed['skillIds']);
       final skills = seed['skills'];
       if (skills is List) {
         _skills.addAll(skills.map((skill) => skill.toString()).where((skill) => skill.isNotEmpty));
@@ -483,9 +497,16 @@ class _JobTypeFormScreenState extends ConsumerState<JobTypeFormScreen> {
       _salaryPeriod = '${e['expectedSalaryPeriod'] ?? 'MONTHLY'}';
       _employmentType = e['employmentType']?.toString();
       _salaryNegotiable = e['salaryNegotiable'] == true;
+      _positionId = e['positionId']?.toString();
+      _sectorId = e['sectorId']?.toString();
+      _qualificationId = e['qualificationId']?.toString();
+      _locationId = e['locationId']?.toString();
+      _specializationIds = _idList(e['specializationIds']);
+      _skillIds = _idList(e['skillIds']);
       _skills.addAll(
           (e['skills'] as List? ?? []).map((s) => s.toString()));
     }
+    if (_locationId != null) _locationLockedLabel = _locationCtrl.text;
   }
 
   @override
@@ -504,7 +525,22 @@ class _JobTypeFormScreenState extends ConsumerState<JobTypeFormScreen> {
     final citiesAsync = ref.watch(citiesProvider);
     final cities = citiesAsync.value ?? const <CityEntry>[];
 
-    return RawAutocomplete<CityEntry>(
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        HiringLocationSearch(
+          selectedLabel: _locationId == null ? null : _locationCtrl.text,
+          onPick: (pick) {
+            setState(() {
+              _locationId = pick.id;
+              _locationLockedLabel = pick.label;
+              _locationCtrl.text = pick.label;
+            });
+          },
+        ),
+        const SizedBox(height: 8),
+        const Text('A serviceable-city shortcut clears the hiring location id.'),
+        RawAutocomplete<CityEntry>(
       textEditingController: _locationCtrl,
       focusNode: _locationFocus,
       displayStringForOption: (c) => c.name,
@@ -519,6 +555,10 @@ class _JobTypeFormScreenState extends ConsumerState<JobTypeFormScreen> {
         _locationCtrl.text = c.name;
         _locationCtrl.selection =
             TextSelection.collapsed(offset: c.name.length);
+        setState(() {
+          _locationId = null;
+          _locationLockedLabel = null;
+        });
       },
       fieldViewBuilder: (context, controller, focusNode, onFieldSubmitted) {
         return TextField(
@@ -534,6 +574,14 @@ class _JobTypeFormScreenState extends ConsumerState<JobTypeFormScreen> {
                 ? 'City list unavailable — type a city name'
                 : null,
           ),
+          onChanged: (text) {
+            if (_locationLockedLabel != null && text.trim() != _locationLockedLabel) {
+              setState(() {
+                _locationId = null;
+                _locationLockedLabel = null;
+              });
+            }
+          },
           onSubmitted: (_) => onFieldSubmitted(),
         );
       },
@@ -573,7 +621,19 @@ class _JobTypeFormScreenState extends ConsumerState<JobTypeFormScreen> {
           ),
         );
       },
+    ),
+      ],
     );
+  }
+
+  List<String> _idList(Object? value) {
+    if (value is List) {
+      return value.map((item) => item.toString()).where((item) => item.isNotEmpty).toList();
+    }
+    if (value is String && value.isNotEmpty) {
+      return value.split(',').map((item) => item.trim()).where((item) => item.isNotEmpty).toList();
+    }
+    return [];
   }
 
   Map<String, dynamic> _body() {
@@ -590,6 +650,12 @@ class _JobTypeFormScreenState extends ConsumerState<JobTypeFormScreen> {
       if (int.tryParse(_expCtrl.text.trim()) != null)
         'experienceYears': int.parse(_expCtrl.text.trim()),
       'noticePeriod': _notice,
+      'positionId': _positionId,
+      'sectorId': _sectorId,
+      'qualificationId': _qualificationId,
+      'locationId': _locationId,
+      'specializationIds': _specializationIds,
+      'skillIds': _skillIds,
     };
   }
 

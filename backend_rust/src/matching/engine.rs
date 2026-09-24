@@ -72,7 +72,9 @@ pub async fn send_batch(state: &AppState, request_id: &str, batch_index: usize) 
         r#"SELECT status::text AS status, "employerId", "jobType", skills, location,
                   "salaryOffered", "salaryMin", "salaryMax", "salaryNegotiable",
                   "employmentType"::text AS "employmentType", "experienceMinYears",
-                  "targetInterested", "batchesSent", "deadlineAt" > NOW() AS open
+                  "targetInterested", "batchesSent", "deadlineAt" > NOW() AS open,
+                  "positionId", "specializationIds", "skillIds", "qualificationId",
+                  "qualificationRequired", "salaryPeriod", "locationId", "workMode"
            FROM hiring_requests WHERE id = $1 FOR UPDATE SKIP LOCKED"#,
     )
     .bind(rid)
@@ -115,14 +117,32 @@ pub async fn send_batch(state: &AppState, request_id: &str, batch_index: usize) 
     let experience_min = request.get::<i32, _>("experienceMinYears");
     let location = request.get::<Option<String>, _>("location");
 
+    let position_id = request.try_get::<Option<String>, _>("positionId").ok().flatten();
+    let specialization_ids = split_ids(request.try_get::<String, _>("specializationIds").unwrap_or_default());
+    let skill_ids = split_ids(request.try_get::<String, _>("skillIds").unwrap_or_default());
+    let qualification_id = request.try_get::<Option<String>, _>("qualificationId").ok().flatten();
+    let qualification_required = request.try_get::<bool, _>("qualificationRequired").unwrap_or(false);
+    let salary_period = request.try_get::<String, _>("salaryPeriod").unwrap_or_else(|_| "MONTHLY".into());
+    let location_id = request.try_get::<Option<String>, _>("locationId").ok().flatten();
+    let work_mode = request.try_get::<String, _>("workMode").unwrap_or_else(|_| "ONSITE".into());
+    let query = MatchQuery {
+        position_id: position_id.as_deref(),
+        job_type: &request.get::<String, _>("jobType"),
+        specialization_ids: &specialization_ids,
+        skill_ids: &skill_ids,
+        qualification_id: qualification_id.as_deref(),
+        qualification_required,
+        salary_period: &salary_period,
+        salary: &salary,
+        employment_type: employment_type.as_deref(),
+        location_id: location_id.as_deref(),
+        location_text: location.as_deref(),
+        experience_min,
+        work_mode: &work_mode,
+    };
     let matches = find_matching_preferences(
         state,
-        &request.get::<String, _>("jobType"),
-        &salary,
-        employment_type.as_deref(),
-        location.as_deref(),
-        experience_min,
-        &skills,
+        &query,
         employer_id,
         &already_notified,
         batch_size,
@@ -254,14 +274,34 @@ async fn count_interested(state: &AppState, request_id: Uuid) -> AppResult<i64> 
     Ok(count)
 }
 
+pub struct MatchQuery<'a> {
+    pub position_id: Option<&'a str>,
+    pub job_type: &'a str,
+    pub specialization_ids: &'a [String],
+    pub skill_ids: &'a [String],
+    pub qualification_id: Option<&'a str>,
+    pub qualification_required: bool,
+    pub salary_period: &'a str,
+    pub salary: &'a EmployerSalary,
+    pub employment_type: Option<&'a str>,
+    pub location_id: Option<&'a str>,
+    pub location_text: Option<&'a str>,
+    pub experience_min: i32,
+    pub work_mode: &'a str,
+}
+
+fn split_ids(value: String) -> Vec<String> {
+    value
+        .split(',')
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+        .map(str::to_owned)
+        .collect()
+}
+
 pub(super) async fn find_matching_preferences(
     state: &AppState,
-    job_type: &str,
-    salary: &EmployerSalary,
-    employment_type: Option<&str>,
-    location: Option<&str>,
-    experience_min: i32,
-    skills: &[String],
+    query: &MatchQuery<'_>,
     employer_id: Uuid,
     exclude_user_ids: &[Uuid],
     limit: i32,
@@ -271,48 +311,115 @@ pub(super) async fn find_matching_preferences(
         .copied()
         .chain(std::iter::once(employer_id))
         .collect::<Vec<_>>();
-    let wanted = skills
-        .iter()
-        .map(|s| s.trim().to_lowercase())
-        .filter(|s| !s.is_empty())
-        .collect::<Vec<_>>();
-    // Apply all criteria before LIMIT: early non-matches must not hide later candidates.
-    // Nest stores simple-array skills as comma-separated text.
+    let salary_floor = if query.salary.salary_negotiable {
+        0.0
+    } else {
+        query.salary.salary_min
+    };
+    let specialization_ids = query.specialization_ids.to_vec();
+    let skill_ids = query.skill_ids.to_vec();
     let rows = sqlx::query(
         r#"SELECT p.id, p."userId" FROM job_preferences p
-        WHERE p."isActive" = true AND LOWER(p."jobType") = LOWER($1)
-          AND p."experienceYears" >= $2 AND NOT (p."userId" = ANY($3))
-          AND ($4 = '' OR POSITION($4 IN LOWER(COALESCE(p."preferredLocation",''))) > 0)
-          AND COALESCE(p."expectedSalaryPeriod", 'MONTHLY') = 'MONTHLY'
-          AND p."expectedSalary" <= $5 AND (p."salaryNegotiable" OR p."expectedSalary" >= $6)
+        LEFT JOIN talent_profiles t ON t."userId" = p."userId"
+        WHERE p."isActive" = true
+          AND p."experienceYears" >= $1 AND NOT (p."userId" = ANY($2))
+          AND COALESCE(p."expectedSalaryPeriod", 'MONTHLY') = $3
+          AND p."expectedSalary" <= $4 AND (p."salaryNegotiable" OR p."expectedSalary" >= $5)
           AND (NOT p."isPaid" OR p."paidUntil" IS NULL OR p."paidUntil" > NOW())
-          AND NOT EXISTS (
-            SELECT 1 FROM talent_profiles t
-            WHERE t."userId" = p."userId"
-              AND (t."profileStatus" = 'PAUSED' OR t."jobAlertsEnabled" = false)
+          AND (t.id IS NULL OR (t."profileStatus" <> 'PAUSED' AND t."jobAlertsEnabled" = true))
+          AND ($6::text IS NULL OR p."employmentType" IS NULL OR p."employmentType"::text = $6
+               OR (t."employmentTypes" IS NOT NULL AND POSITION($6 IN t."employmentTypes") > 0))
+          AND (
+            ($7::text IS NOT NULL AND p."positionId" = $7)
+            OR ($7::text IS NOT NULL AND p."positionId" IS NULL AND (
+                 LOWER(p."jobType") = LOWER($8)
+                 OR EXISTS (
+                   SELECT 1 FROM hiring_aliases a
+                   WHERE a."isActive" AND a."entityType" = 'position' AND a."entityId" = $7
+                     AND LOWER(a.alias) = LOWER(p."jobType")
+                 )
+               ))
+            OR ($7::text IS NULL AND LOWER(p."jobType") = LOWER($8))
           )
-          AND ($7::text IS NULL OR p."employmentType" IS NULL OR p."employmentType"::text = $7)
-          AND (cardinality($8::text[]) = 0 OR COALESCE(p.skills,'') = '' OR EXISTS (
-              SELECT 1 FROM unnest(string_to_array(LOWER(p.skills),',')) AS skill
-              WHERE btrim(skill) = ANY($8)))
-        ORDER BY p."createdAt" ASC, p.id ASC LIMIT $9"#,
+          AND (
+            cardinality($9::text[]) = 0
+            OR (
+              COALESCE(p."specializationIds", '') = ''
+              AND COALESCE(t."specializationIds", '') = ''
+            )
+            OR EXISTS (
+              SELECT 1 FROM unnest(string_to_array(COALESCE(p."specializationIds",'') || ',' || COALESCE(t."specializationIds",''), ',')) AS spec
+              WHERE btrim(spec) <> '' AND btrim(spec) = ANY($9)
+            )
+          )
+          AND (
+            NOT $10
+            OR $11::text IS NULL
+            OR p."qualificationId" = $11
+            OR t."qualificationId" = $11
+            OR (
+              (SELECT rank FROM hiring_qualifications WHERE id = COALESCE(p."qualificationId", t."qualificationId"))
+              >= (SELECT rank FROM hiring_qualifications WHERE id = $11)
+              AND (SELECT rank FROM hiring_qualifications WHERE id = $11) IS NOT NULL
+              AND (SELECT rank FROM hiring_qualifications WHERE id = COALESCE(p."qualificationId", t."qualificationId")) IS NOT NULL
+            )
+          )
+          AND (
+            $16 = 'REMOTE'
+            OR (
+              $12::text IS NOT NULL AND (
+                p."locationId" = $12 OR t."locationId" = $12
+                OR EXISTS (
+                  SELECT 1 FROM hiring_locations req
+                  JOIN hiring_locations cand ON cand.id = COALESCE(p."locationId", t."locationId")
+                  WHERE req.id = $12 AND req."districtId" IS NOT NULL AND req."districtId" = cand."districtId"
+                )
+                OR EXISTS (
+                  SELECT 1 FROM hiring_locations req
+                  JOIN hiring_locations cand ON cand.id = COALESCE(p."locationId", t."locationId")
+                  WHERE req.id = $12 AND req.lat IS NOT NULL AND req.lng IS NOT NULL
+                    AND cand.lat IS NOT NULL AND cand.lng IS NOT NULL
+                    AND ST_DWithin(
+                      ST_SetSRID(ST_MakePoint(req.lng, req.lat), 4326)::geography,
+                      ST_SetSRID(ST_MakePoint(cand.lng, cand.lat), 4326)::geography,
+                      COALESCE(t."travelRadiusKm", 25) * 1000
+                    )
+                )
+              )
+            )
+            OR (
+              $12::text IS NULL AND (
+                $13 = ''
+                OR POSITION($13 IN LOWER(COALESCE(p."preferredLocation",''))) > 0
+                OR POSITION($13 IN LOWER(COALESCE(t."addressText",''))) > 0
+              )
+            )
+          )
+        ORDER BY (
+            SELECT COUNT(*) FROM unnest(string_to_array(COALESCE(p."skillIds",'') || ',' || COALESCE(t."skillIds",''), ',')) AS skill
+            WHERE btrim(skill) <> '' AND btrim(skill) = ANY($14)
+          ) DESC,
+          CASE COALESCE(t.availability, 'IMMEDIATE')
+            WHEN 'IMMEDIATE' THEN 0 WHEN 'DAYS_7' THEN 1 ELSE 2 END,
+          p."createdAt" ASC, p.id ASC
+        LIMIT $15"#,
     )
-    .bind(job_type.trim())
-    .bind(experience_min.max(0))
+    .bind(query.experience_min.max(0))
     .bind(excluded)
-    .bind(location.unwrap_or("").trim().to_lowercase())
-    .bind(rust_decimal::Decimal::from_f64_retain(salary.salary_max).unwrap_or_default())
-    .bind(
-        rust_decimal::Decimal::from_f64_retain(if salary.salary_negotiable {
-            0.0
-        } else {
-            salary.salary_min
-        })
-        .unwrap_or_default(),
-    )
-    .bind(employment_type)
-    .bind(wanted)
+    .bind(query.salary_period)
+    .bind(rust_decimal::Decimal::from_f64_retain(query.salary.salary_max).unwrap_or_default())
+    .bind(rust_decimal::Decimal::from_f64_retain(salary_floor).unwrap_or_default())
+    .bind(query.employment_type)
+    .bind(query.position_id)
+    .bind(query.job_type.trim())
+    .bind(&specialization_ids)
+    .bind(query.qualification_required)
+    .bind(query.qualification_id)
+    .bind(query.location_id)
+    .bind(query.location_text.unwrap_or("").trim().to_lowercase())
+    .bind(&skill_ids)
     .bind(i64::from(limit.max(1)))
+    .bind(query.work_mode)
     .fetch_all(&state.db)
     .await?;
     Ok(rows

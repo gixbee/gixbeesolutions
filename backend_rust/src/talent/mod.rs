@@ -74,6 +74,8 @@ async fn load_profile(state: &AppState, user_id: Uuid) -> AppResult<Value> {
                   tp."currentStatus"::text AS "currentStatus",
                   tp.lat, tp.lng, tp."travelRadiusKm", tp.availability, tp."availableOn",
                   tp."profileStatus", tp."preferredWorkMode",
+                  tp."positionIds", tp."specializationIds", tp."skillIds", tp."qualificationId",
+                  tp."locationId", tp."addressText", tp."locationMatchStatus",
                   tp."resumeUrl", tp."resumeFileName", tp."resumeMimeType", tp."resumeUploadedAt",
                   u.name, u."profileImageUrl", u."approvalStatus"::text AS "approvalStatus"
            FROM talent_profiles tp
@@ -114,6 +116,13 @@ async fn load_profile(state: &AppState, user_id: Uuid) -> AppResult<Value> {
         "availableOn": row.try_get::<Option<chrono::NaiveDate>, _>("availableOn").ok().flatten().map(|d| d.to_string()),
         "profileStatus": row.try_get::<String, _>("profileStatus").unwrap_or_else(|_| "ACTIVE".into()),
         "preferredWorkMode": row.try_get::<Option<String>, _>("preferredWorkMode").ok().flatten(),
+        "positionIds": parse_list(row.try_get::<Option<String>, _>("positionIds").ok().flatten()),
+        "specializationIds": parse_list(row.try_get::<Option<String>, _>("specializationIds").ok().flatten()),
+        "skillIds": parse_list(row.try_get::<Option<String>, _>("skillIds").ok().flatten()),
+        "qualificationId": row.try_get::<Option<String>, _>("qualificationId").ok().flatten(),
+        "locationId": row.try_get::<Option<String>, _>("locationId").ok().flatten(),
+        "addressText": row.try_get::<Option<String>, _>("addressText").ok().flatten(),
+        "locationMatchStatus": row.try_get::<String, _>("locationMatchStatus").unwrap_or_else(|_| "UNRESOLVED".into()),
         "resumeUrl": row.try_get::<Option<String>, _>("resumeUrl").ok().flatten(),
         "resumeFileName": row.try_get::<Option<String>, _>("resumeFileName").ok().flatten(),
         "resumeMimeType": row.try_get::<Option<String>, _>("resumeMimeType").ok().flatten(),
@@ -139,6 +148,41 @@ async fn update_profile(
 ) -> AppResult<Json<Value>> {
     let uid = Uuid::parse_str(&user.user_id)?;
     let profile_id = ensure_talent_profile(&state, uid).await?;
+    let catalogue_keys = [
+        "positionIds",
+        "specializationIds",
+        "skillIds",
+        "qualificationId",
+        "locationId",
+    ];
+    if body
+        .as_object()
+        .is_some_and(|fields| catalogue_keys.iter().any(|key| fields.contains_key(*key)))
+    {
+        let current = sqlx::query(
+            r#"SELECT "positionIds", "specializationIds", "skillIds", "qualificationId", "locationId"
+               FROM talent_profiles WHERE id = $1"#,
+        )
+        .bind(profile_id)
+        .fetch_one(&state.db)
+        .await?;
+        let previous = json!({
+            "positionIds": crate::common::pg::string_list(&current, "positionIds"),
+            "specializationIds": crate::common::pg::string_list(&current, "specializationIds"),
+            "skillIds": crate::common::pg::string_list(&current, "skillIds"),
+            "qualificationId": current.try_get::<Option<String>, _>("qualificationId").ok().flatten(),
+            "locationId": current.try_get::<Option<String>, _>("locationId").ok().flatten(),
+        });
+        let mut merged = previous.clone();
+        if let Some(fields) = body.as_object() {
+            for key in catalogue_keys {
+                if let Some(value) = fields.get(key) {
+                    merged[key] = value.clone();
+                }
+            }
+        }
+        crate::matching::validate_merged_talent(&state, &merged, &previous).await?;
+    }
 
     if let Some(photo) = body.get("photoUrl").and_then(|v| v.as_str()) {
         sqlx::query(r#"UPDATE talent_profiles SET "photoUrl" = $1 WHERE id = $2"#)
@@ -171,6 +215,33 @@ async fn update_profile(
             .bind(profile_id)
             .execute(&state.db)
             .await?;
+    }
+    if let Some(ids) = string_array(body.get("positionIds")) {
+        sqlx::query(r#"UPDATE talent_profiles SET "positionIds" = $1 WHERE id = $2"#)
+            .bind(list_to_db(&ids)).bind(profile_id).execute(&state.db).await?;
+    }
+    if let Some(ids) = string_array(body.get("specializationIds")) {
+        sqlx::query(r#"UPDATE talent_profiles SET "specializationIds" = $1 WHERE id = $2"#)
+            .bind(list_to_db(&ids)).bind(profile_id).execute(&state.db).await?;
+    }
+    if let Some(ids) = string_array(body.get("skillIds")) {
+        sqlx::query(r#"UPDATE talent_profiles SET "skillIds" = $1 WHERE id = $2"#)
+            .bind(list_to_db(&ids)).bind(profile_id).execute(&state.db).await?;
+    }
+    if body.get("qualificationId").is_some() {
+        let id = body.get("qualificationId").and_then(|v| v.as_str()).filter(|s| !s.is_empty());
+        sqlx::query(r#"UPDATE talent_profiles SET "qualificationId" = $1 WHERE id = $2"#)
+            .bind(id).bind(profile_id).execute(&state.db).await?;
+    }
+    if body.get("locationId").is_some() {
+        let id = body.get("locationId").and_then(|v| v.as_str()).filter(|s| !s.is_empty());
+        let status = if id.is_some() { "MAPPED" } else { "UNRESOLVED" };
+        sqlx::query(r#"UPDATE talent_profiles SET "locationId" = $1, "locationMatchStatus" = $2 WHERE id = $3"#)
+            .bind(id).bind(status).bind(profile_id).execute(&state.db).await?;
+    }
+    if let Some(address) = body.get("addressText").and_then(|v| v.as_str()) {
+        sqlx::query(r#"UPDATE talent_profiles SET "addressText" = $1 WHERE id = $2"#)
+            .bind(address).bind(profile_id).execute(&state.db).await?;
     }
     if let Some(roles) = string_array(body.get("preferredRoles")) {
         sqlx::query(r#"UPDATE talent_profiles SET "preferredRoles" = $1 WHERE id = $2"#)

@@ -41,7 +41,9 @@ pub const MASTER_ENTRY_COLS: &str =
 pub const JOB_POST_COLS: &str = r#"
     id, "employerId", "businessId", title, description, "requiredSkills", "jobType", experience, location,
     "salaryMin", "salaryMax", "isActive", "workMode", "salaryPeriod", "experienceMin", "experienceMax",
-    lat, lng, openings, "joiningType", status, "createdAt", "updatedAt"
+    lat, lng, openings, "joiningType", status, "createdAt", "updatedAt",
+    "sectorId", "positionId", "specializationIds", "skillIds", "qualificationId", "qualificationRequired",
+    "locationId", "addressText", "locationMatchStatus"
 "#;
 
 pub const JOB_APPLICATION_COLS: &str =
@@ -87,13 +89,17 @@ pub const JOB_PREFERENCE_COLS: &str = r#"
     id, "userId", "jobType", skills, "preferredLocation", "expectedSalary", "salaryNegotiable",
     "expectedSalaryPeriod",
     "employmentType"::text AS "employmentType", "experienceYears", "noticePeriod"::text AS "noticePeriod",
-    "isActive", "isPaid", "paidUntil", "createdAt", "updatedAt"
+    "isActive", "isPaid", "paidUntil", "createdAt", "updatedAt",
+    "sectorId", "positionId", "specializationIds", "skillIds", "qualificationId", "locationId",
+    "addressText", "locationMatchStatus"
 "#;
 
 pub const HIRING_REQUEST_COLS: &str = r#"
     id, "employerId", "businessId", "jobType", skills, location, description, "salaryOffered", "salaryMin", "salaryMax",
     "salaryNegotiable", "employmentType"::text AS "employmentType", "experienceMinYears", vacancies,
-    "targetInterested", "feeAmount", "creditApplied", status::text AS status, "deadlineAt", "createdAt", "updatedAt"
+    "targetInterested", "feeAmount", "creditApplied", status::text AS status, "deadlineAt", "createdAt", "updatedAt",
+    "sectorId", "positionId", "specializationIds", "skillIds", "qualificationId", "qualificationRequired",
+    "salaryPeriod", "locationId", "addressText", "locationMatchStatus", "workMode"
 "#;
 
 pub const HIRING_INTEREST_COLS: &str = r#"id, "requestId", "candidateId", "preferenceId", response::text AS response, decision::text AS decision, "notifiedAt", "respondedAt", "createdAt", "updatedAt""#;

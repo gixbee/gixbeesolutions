@@ -70,10 +70,26 @@ String formatOfferSalary(Map<String, dynamic> offer) {
       (offer['salaryOffered'] as num?)?.toInt();
   final negotiable = offer['salaryNegotiable'] == true;
   if (max == null || max <= 0) return '';
+  final period = _salaryPeriodSuffix(offer['salaryPeriod']?.toString());
   final range = min != null && min > 0 && min < max
-      ? '₹$min–₹$max/mo'
-      : '₹$max/mo';
+      ? '₹$min–₹$max/$period'
+      : '₹$max/$period';
   return negotiable ? '$range · negotiable' : range;
+}
+
+String _salaryPeriodSuffix(String? period) {
+  switch (period) {
+    case 'HOURLY':
+      return 'hour';
+    case 'DAILY':
+      return 'day';
+    case 'WEEKLY':
+      return 'week';
+    case 'PER_JOB':
+      return 'job';
+    default:
+      return 'month';
+  }
 }
 
 final hiringCatalogProvider = FutureProvider<HiringCatalog>((ref) async {

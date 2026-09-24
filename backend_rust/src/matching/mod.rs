@@ -124,6 +124,13 @@ async fn credit(State(state): State<AppState>, user: AuthUser) -> AppResult<Json
 #[serde(rename_all = "camelCase")]
 struct EstimateQuery {
     job_type: Option<String>,
+    position_id: Option<String>,
+    specialization_ids: Option<String>,
+    skill_ids: Option<String>,
+    qualification_id: Option<String>,
+    qualification_required: Option<String>,
+    salary_period: Option<String>,
+    location_id: Option<String>,
     salary: Option<String>,
     salary_min: Option<String>,
     salary_max: Option<String>,
@@ -132,6 +139,25 @@ struct EstimateQuery {
     location: Option<String>,
     experience_min: Option<i32>,
     skills: Option<String>,
+    work_mode: Option<String>,
+}
+
+fn id_list(value: Option<&Value>) -> String {
+    match value {
+        Some(Value::Array(items)) => items.iter().filter_map(|v| v.as_str()).collect::<Vec<_>>().join(","),
+        Some(Value::String(text)) => text.clone(),
+        _ => String::new(),
+    }
+}
+
+fn split_csv(value: Option<&str>) -> Vec<String> {
+    value
+        .unwrap_or("")
+        .split(',')
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+        .map(str::to_owned)
+        .collect()
 }
 
 async fn estimate(
@@ -168,14 +194,30 @@ async fn estimate(
         .filter(|s| !s.is_empty())
         .map(str::to_owned)
         .collect::<Vec<_>>();
+    let specialization_ids = split_csv(q.specialization_ids.as_deref());
+    let skill_ids = if q.skill_ids.as_deref().unwrap_or("").is_empty() {
+        skills
+    } else {
+        split_csv(q.skill_ids.as_deref())
+    };
+    let query = engine::MatchQuery {
+        position_id: q.position_id.as_deref(),
+        job_type: q.job_type.as_deref().unwrap_or(""),
+        specialization_ids: &specialization_ids,
+        skill_ids: &skill_ids,
+        qualification_id: q.qualification_id.as_deref(),
+        qualification_required: matches!(q.qualification_required.as_deref(), Some("true" | "1")),
+        salary_period: q.salary_period.as_deref().unwrap_or("MONTHLY"),
+        salary: &salary,
+        employment_type: employment.as_deref(),
+        location_id: q.location_id.as_deref(),
+        location_text: q.location.as_deref(),
+        experience_min: q.experience_min.unwrap_or(0),
+        work_mode: q.work_mode.as_deref().unwrap_or("ONSITE"),
+    };
     let matches = engine::find_matching_preferences(
         &state,
-        q.job_type.as_deref().unwrap_or(""),
-        &salary,
-        employment.as_deref(),
-        q.location.as_deref(),
-        q.experience_min.unwrap_or(0),
-        &skills,
+        &query,
         Uuid::parse_str(&user.user_id)?,
         &[],
         i32::MAX,
@@ -187,7 +229,7 @@ async fn estimate(
 async fn list_offers(State(state): State<AppState>, user: AuthUser) -> AppResult<Json<Vec<Value>>> {
     let uid = Uuid::parse_str(&user.user_id)?;
     let rows = sqlx::query(r#"SELECT hi.id, hi."requestId", hi.response::text AS response, hi.decision::text AS decision, hi."notifiedAt",
-        hi.progress, hr."employerId", hr."jobType", hr.description, hr.location, hr."salaryOffered", hr."salaryMin", hr."salaryMax", hr."salaryNegotiable",
+        hi.progress, hr."employerId", hr."jobType", hr.description, hr.location, hr."salaryOffered", hr."salaryMin", hr."salaryMax", hr."salaryNegotiable", hr."salaryPeriod",
         hr."employmentType"::text AS "employmentType", hr.skills, b.name AS "businessName",
         (hr.status::text = 'COLLECTING' AND hr."deadlineAt" > NOW() AND hi.response::text = 'PENDING') AS open
         FROM hiring_interests hi JOIN hiring_requests hr ON hr.id = hi."requestId"
@@ -219,12 +261,14 @@ async fn list_offers(State(state): State<AppState>, user: AuthUser) -> AppResult
         "salaryOffered": r.get::<rust_decimal::Decimal, _>("salaryOffered").to_f64(),
         "salaryMin": r.get::<rust_decimal::Decimal, _>("salaryMin").to_f64(),
         "salaryMax": r.get::<rust_decimal::Decimal, _>("salaryMax").to_f64(),
-        "salaryNegotiable": r.get::<bool, _>("salaryNegotiable"), "employmentType": r.get::<Option<String>, _>("employmentType"),
+        "salaryNegotiable": r.get::<bool, _>("salaryNegotiable"),
+        "salaryPeriod": r.try_get::<String, _>("salaryPeriod").unwrap_or_else(|_| "MONTHLY".into()),
+        "employmentType": r.get::<Option<String>, _>("employmentType"),
         "skills": crate::common::pg::string_list(r, "skills"), "open": r.get::<bool, _>("open"),
         "boardInvite": false,
     })}).collect();
     let board = sqlx::query(
-        r#"SELECT e."jobPostId", e."createdAt", j.title, j."jobType", j.location, j."salaryMin", j."salaryMax",
+        r#"SELECT e."jobPostId", e."createdAt", j.title, j."jobType", j.location, j."salaryMin", j."salaryMax", j."salaryPeriod",
                   j."employerId", j."isActive", b.name AS "businessName",
                   (
                     j."isActive" = true
@@ -264,6 +308,9 @@ async fn list_offers(State(state): State<AppState>, user: AuthUser) -> AppResult
             "jobType": row.try_get::<String, _>("title").unwrap_or_else(|_| row.try_get::<Option<String>, _>("jobType").ok().flatten().unwrap_or_default()),
             "businessName": row.try_get::<Option<String>, _>("businessName").ok().flatten(),
             "location": row.try_get::<Option<String>, _>("location").ok().flatten(),
+            "salaryMin": row.try_get::<Option<f64>, _>("salaryMin").ok().flatten(),
+            "salaryMax": row.try_get::<Option<f64>, _>("salaryMax").ok().flatten(),
+            "salaryPeriod": row.try_get::<String, _>("salaryPeriod").unwrap_or_else(|_| "MONTHLY".into()),
             "notifiedAt": crate::common::pg::date_json(&row, "createdAt"),
         }));
     }
@@ -358,6 +405,7 @@ async fn create_request(
     Json(body): Json<Value>,
 ) -> AppResult<Json<Value>> {
     validate_request(&body)?;
+    validate_catalogue(&state, &body).await?;
     let business=resolve_business(&state,&user.user_id,&body).await?;
     let vacancies = body.get("vacancies").and_then(Value::as_i64).unwrap_or(1) as i32;
     let (fee, credit_applied, amount_due) =
@@ -596,6 +644,14 @@ fn pref_json(row: &sqlx::postgres::PgRow) -> Value {
         "employmentType": row.get::<Option<String>, _>("employmentType"),
         "experienceYears": row.get::<i32, _>("experienceYears"),
         "noticePeriod": row.get::<String, _>("noticePeriod"),
+        "sectorId": row.try_get::<Option<String>, _>("sectorId").ok().flatten(),
+        "positionId": row.try_get::<Option<String>, _>("positionId").ok().flatten(),
+        "specializationIds": crate::common::pg::string_list(row, "specializationIds"),
+        "skillIds": crate::common::pg::string_list(row, "skillIds"),
+        "qualificationId": row.try_get::<Option<String>, _>("qualificationId").ok().flatten(),
+        "locationId": row.try_get::<Option<String>, _>("locationId").ok().flatten(),
+        "addressText": row.try_get::<Option<String>, _>("addressText").ok().flatten(),
+        "locationMatchStatus": row.try_get::<String, _>("locationMatchStatus").unwrap_or_else(|_| "UNRESOLVED".into()),
         "isActive": row.get::<bool, _>("isActive"),
         "isPaid": row.get::<bool, _>("isPaid"),
         "paidUntil": row.try_get::<Option<chrono::DateTime<chrono::Utc>>, _>("paidUntil").ok().flatten(),
@@ -621,6 +677,16 @@ fn request_json(row: &sqlx::postgres::PgRow) -> Value {
         "salaryNegotiable": row.get::<bool, _>("salaryNegotiable"),
         "employmentType": row.get::<Option<String>, _>("employmentType"),
         "experienceMinYears": row.get::<i32, _>("experienceMinYears"),
+        "sectorId": row.try_get::<Option<String>, _>("sectorId").ok().flatten(),
+        "positionId": row.try_get::<Option<String>, _>("positionId").ok().flatten(),
+        "specializationIds": crate::common::pg::string_list(row, "specializationIds"),
+        "skillIds": crate::common::pg::string_list(row, "skillIds"),
+        "qualificationId": row.try_get::<Option<String>, _>("qualificationId").ok().flatten(),
+        "qualificationRequired": row.try_get::<bool, _>("qualificationRequired").unwrap_or(false),
+        "salaryPeriod": row.try_get::<String, _>("salaryPeriod").unwrap_or_else(|_| "MONTHLY".into()),
+        "locationId": row.try_get::<Option<String>, _>("locationId").ok().flatten(),
+        "addressText": row.try_get::<Option<String>, _>("addressText").ok().flatten(),
+        "locationMatchStatus": row.try_get::<String, _>("locationMatchStatus").unwrap_or_else(|_| "UNRESOLVED".into()),
         "targetInterested": row.get::<i32, _>("targetInterested"),
         "creditApplied": row.get::<rust_decimal::Decimal, _>("creditApplied").to_f64(),
         "createdAt": crate::common::pg::date_json(row, "createdAt"),
@@ -766,6 +832,326 @@ pub fn validate_request(meta: &Value) -> AppResult<()> {
     Ok(())
 }
 
+pub async fn validate_catalogue(state: &AppState, meta: &Value) -> AppResult<()> {
+    validate_catalogue_ids(state, meta, true).await
+}
+
+/// `required` is for a new Hire Employee request. Candidate profiles only
+/// check the ids they actually send, including an explicit clear.
+pub async fn validate_profile_catalogue(state: &AppState, meta: &Value) -> AppResult<()> {
+    validate_catalogue_ids(state, meta, false).await
+}
+
+/// Check the profile that will be stored. Ids already saved may stay after
+/// deactivation. A new id, or a skill kept after the position changes, must
+/// still be an active catalogue row for that position.
+pub async fn validate_merged_catalogue(
+    state: &AppState,
+    merged: &Value,
+    previous: &Value,
+) -> AppResult<()> {
+    if merged.get("positionIds").is_some() || previous.get("positionIds").is_some() {
+        return Err(AppError::BadRequest(
+            "Job preferences use positionId, not positionIds".into(),
+        ));
+    }
+    validate_position_set(
+        state,
+        merged,
+        previous,
+        &preference_position(merged),
+        &preference_position(previous),
+    )
+    .await
+}
+
+async fn validate_position_set(
+    state: &AppState,
+    merged: &Value,
+    previous: &Value,
+    positions: &[String],
+    prev_positions: &[String],
+) -> AppResult<()> {
+    let positions_same = same_ids(positions, prev_positions);
+    let sector_id = text_field(merged, "sectorId");
+    let prev_sector = text_field(previous, "sectorId");
+    let sector_same = sector_id == prev_sector;
+    let specs = id_values(merged.get("specializationIds"));
+    let skills = id_values(merged.get("skillIds"));
+    let prev_specs = id_values(previous.get("specializationIds"));
+    let prev_skills = id_values(previous.get("skillIds"));
+    if positions.is_empty() && (!specs.is_empty() || !skills.is_empty()) {
+        return Err(AppError::BadRequest(
+            "Choose a position before saving specializations or skills".into(),
+        ));
+    }
+    for position_id in positions {
+        let kept = prev_positions.iter().any(|id| id == position_id);
+        if kept && positions_same && sector_same {
+            continue;
+        }
+        if !kept || !sector_same {
+            if sector_id.is_empty() {
+                let active: bool = sqlx::query_scalar(
+                    r#"SELECT EXISTS(SELECT 1 FROM hiring_positions WHERE id = $1 AND "isActive")"#,
+                )
+                .bind(position_id)
+                .fetch_one(&state.db)
+                .await?;
+                if !active && !kept {
+                    return Err(AppError::BadRequest("That position is not active".into()));
+                }
+            } else {
+                let linked: bool = sqlx::query_scalar(
+                    r#"SELECT EXISTS(
+                         SELECT 1 FROM hiring_positions p
+                         JOIN hiring_sector_positions sp ON sp."positionId" = p.id
+                         JOIN hiring_sectors s ON s.id = sp."sectorId"
+                         WHERE p.id = $1 AND p."isActive" AND s.id = $2 AND s."isActive"
+                       )"#,
+                )
+                .bind(position_id)
+                .bind(&sector_id)
+                .fetch_one(&state.db)
+                .await?;
+                if !linked {
+                    return Err(AppError::BadRequest(
+                        "That position is not an active choice in the selected sector".into(),
+                    ));
+                }
+            }
+        }
+    }
+    for spec_id in &specs {
+        if positions_same && prev_specs.iter().any(|id| id == spec_id) {
+            continue;
+        }
+        let ok: bool = sqlx::query_scalar(
+            r#"SELECT EXISTS(
+                 SELECT 1 FROM hiring_specializations
+                 WHERE id = $1 AND "isActive" AND "positionId" = ANY($2)
+               )"#,
+        )
+        .bind(spec_id)
+        .bind(positions)
+        .fetch_one(&state.db)
+        .await?;
+        if !ok {
+            return Err(AppError::BadRequest(
+                "A specialization does not belong to the selected position".into(),
+            ));
+        }
+    }
+    for skill_id in &skills {
+        if positions_same && prev_skills.iter().any(|id| id == skill_id) {
+            continue;
+        }
+        let ok: bool = sqlx::query_scalar(
+            r#"SELECT EXISTS(
+                 SELECT 1 FROM hiring_position_skills ps
+                 JOIN hiring_skills s ON s.id = ps."skillId"
+                 WHERE s.id = $1 AND s."isActive" AND ps."positionId" = ANY($2)
+               )"#,
+        )
+        .bind(skill_id)
+        .bind(positions)
+        .fetch_one(&state.db)
+        .await?;
+        if !ok {
+            return Err(AppError::BadRequest(
+                "A skill is not on the selected position".into(),
+            ));
+        }
+    }
+    let qualification_id = text_field(merged, "qualificationId");
+    let prev_qualification = text_field(previous, "qualificationId");
+    if !qualification_id.is_empty() && qualification_id != prev_qualification {
+        let ok: bool = sqlx::query_scalar(
+            r#"SELECT EXISTS(SELECT 1 FROM hiring_qualifications WHERE id = $1 AND "isActive")"#,
+        )
+        .bind(&qualification_id)
+        .fetch_one(&state.db)
+        .await?;
+        if !ok {
+            return Err(AppError::BadRequest("That qualification is not active".into()));
+        }
+    }
+    let location_id = text_field(merged, "locationId");
+    let prev_location = text_field(previous, "locationId");
+    if !location_id.is_empty() && location_id != prev_location {
+        let ok: bool = sqlx::query_scalar(
+            r#"SELECT EXISTS(SELECT 1 FROM hiring_locations WHERE id = $1 AND "isActive")"#,
+        )
+        .bind(&location_id)
+        .fetch_one(&state.db)
+        .await?;
+        if !ok {
+            return Err(AppError::BadRequest("That work location is not active".into()));
+        }
+    }
+    Ok(())
+}
+
+fn preference_position(meta: &Value) -> Vec<String> {
+    let one = text_field(meta, "positionId");
+    if one.is_empty() {
+        Vec::new()
+    } else {
+        vec![one]
+    }
+}
+
+pub async fn validate_merged_talent(
+    state: &AppState,
+    merged: &Value,
+    previous: &Value,
+) -> AppResult<()> {
+    let positions = id_values(merged.get("positionIds"));
+    let prev_positions = id_values(previous.get("positionIds"));
+    validate_position_set(state, merged, previous, &positions, &prev_positions).await
+}
+
+fn same_ids(left: &[String], right: &[String]) -> bool {
+    let mut left = left.to_vec();
+    let mut right = right.to_vec();
+    left.sort();
+    right.sort();
+    left == right
+}
+
+async fn validate_catalogue_ids(state: &AppState, meta: &Value, required: bool) -> AppResult<()> {
+    let sector_id = text_field(meta, "sectorId");
+    let position_id = text_field(meta, "positionId");
+    let location_id = text_field(meta, "locationId");
+    if required && (position_id.is_empty() || sector_id.is_empty() || location_id.is_empty()) {
+        return Err(AppError::BadRequest(
+            "Choose a sector, position and work location from the catalogue".into(),
+        ));
+    }
+    if position_id.is_empty() {
+        let specs = id_values(meta.get("specializationIds"));
+        let skills = id_values(meta.get("skillIds"));
+        if !specs.is_empty() || !skills.is_empty() {
+            return Err(AppError::BadRequest(
+                "Choose a position before saving specializations or skills".into(),
+            ));
+        }
+    } else if sector_id.is_empty() {
+        let position_only: bool = sqlx::query_scalar(
+            r#"SELECT EXISTS(SELECT 1 FROM hiring_positions WHERE id = $1 AND "isActive")"#,
+        )
+        .bind(&position_id)
+        .fetch_one(&state.db)
+        .await?;
+        if !position_only {
+            return Err(AppError::BadRequest("That position is not active".into()));
+        }
+    } else {
+        let position_ok: bool = sqlx::query_scalar(
+            r#"SELECT EXISTS(
+                 SELECT 1 FROM hiring_positions p
+                 JOIN hiring_sector_positions sp ON sp."positionId" = p.id
+                 JOIN hiring_sectors s ON s.id = sp."sectorId"
+                 WHERE p.id = $1 AND p."isActive" AND s.id = $2 AND s."isActive"
+               )"#,
+        )
+        .bind(&position_id)
+        .bind(&sector_id)
+        .fetch_one(&state.db)
+        .await?;
+        if !position_ok {
+            return Err(AppError::BadRequest(
+                "That position is not an active choice in the selected sector".into(),
+            ));
+        }
+    }
+    let spec_ids = id_values(meta.get("specializationIds"));
+    if !spec_ids.is_empty() {
+        let found: i64 = sqlx::query_scalar(
+            r#"SELECT COUNT(*) FROM hiring_specializations
+               WHERE "positionId" = $1 AND "isActive" AND id = ANY($2)"#,
+        )
+        .bind(&position_id)
+        .bind(&spec_ids)
+        .fetch_one(&state.db)
+        .await?;
+        if found != spec_ids.len() as i64 {
+            return Err(AppError::BadRequest(
+                "A specialization does not belong to the selected position".into(),
+            ));
+        }
+    }
+    let skill_ids = id_values(meta.get("skillIds"));
+    if !skill_ids.is_empty() {
+        let found: i64 = sqlx::query_scalar(
+            r#"SELECT COUNT(*) FROM hiring_position_skills ps
+               JOIN hiring_skills s ON s.id = ps."skillId"
+               WHERE ps."positionId" = $1 AND s."isActive" AND s.id = ANY($2)"#,
+        )
+        .bind(&position_id)
+        .bind(&skill_ids)
+        .fetch_one(&state.db)
+        .await?;
+        if found != skill_ids.len() as i64 {
+            return Err(AppError::BadRequest(
+                "A skill is not on the selected position".into(),
+            ));
+        }
+    }
+    let qualification_id = text_field(meta, "qualificationId");
+    if !qualification_id.is_empty() {
+        let ok: bool = sqlx::query_scalar(
+            r#"SELECT EXISTS(SELECT 1 FROM hiring_qualifications WHERE id = $1 AND "isActive")"#,
+        )
+        .bind(&qualification_id)
+        .fetch_one(&state.db)
+        .await?;
+        if !ok {
+            return Err(AppError::BadRequest(
+                "That qualification is not active".into(),
+            ));
+        }
+    }
+    if !location_id.is_empty() {
+        let location_ok: bool = sqlx::query_scalar(
+            r#"SELECT EXISTS(SELECT 1 FROM hiring_locations WHERE id = $1 AND "isActive")"#,
+        )
+        .bind(&location_id)
+        .fetch_one(&state.db)
+        .await?;
+        if !location_ok {
+            return Err(AppError::BadRequest(
+                "That work location is not active".into(),
+            ));
+        }
+    } else if required {
+        return Err(AppError::BadRequest(
+            "Choose a work location from the catalogue".into(),
+        ));
+    }
+    Ok(())
+}
+
+fn id_values(value: Option<&Value>) -> Vec<String> {
+    match value {
+        Some(Value::Array(items)) => items
+            .iter()
+            .filter_map(|v| v.as_str().map(str::trim).filter(|s| !s.is_empty()).map(str::to_owned))
+            .collect(),
+        Some(Value::String(text)) => text
+            .split(',')
+            .map(str::trim)
+            .filter(|s| !s.is_empty())
+            .map(str::to_owned)
+            .collect(),
+        _ => Vec::new(),
+    }
+}
+
+fn text_field(meta: &Value, key: &str) -> String {
+    meta.get(key).and_then(|v| v.as_str()).unwrap_or("").trim().to_string()
+}
+
 async fn start_request(
     state: &AppState,
     employer_id: &str,
@@ -773,7 +1159,23 @@ async fn start_request(
     payment_order_id: Option<Uuid>,
     razorpay_payment_id: Option<&str>,
 ) -> AppResult<Uuid> {
+    if let Some(payment_id) = payment_order_id {
+        if let Some(existing) = sqlx::query_scalar::<_, Uuid>(
+            r#"SELECT id FROM hiring_requests WHERE "paymentOrderId" = $1"#,
+        )
+        .bind(payment_id)
+        .fetch_optional(&state.db)
+        .await?
+        {
+            return Ok(existing);
+        }
+    }
     validate_request(meta)?;
+    // The order was checked before Razorpay opened. A later catalogue
+    // deactivation must not strand a captured payment.
+    if payment_order_id.is_none() {
+        validate_catalogue(state, meta).await?;
+    }
     let employer = Uuid::parse_str(employer_id)?;
     let job_type = meta
         .get("jobType")
@@ -884,15 +1286,33 @@ async fn start_request(
         .await?;
     }
 
+    let sector_id = meta.get("sectorId").and_then(|v| v.as_str()).map(str::to_owned);
+    let position_id = meta.get("positionId").and_then(|v| v.as_str()).map(str::to_owned);
+    let specialization_ids = id_list(meta.get("specializationIds"));
+    let skill_ids = id_list(meta.get("skillIds"));
+    let qualification_id = meta.get("qualificationId").and_then(|v| v.as_str()).map(str::to_owned);
+    let qualification_required = meta.get("qualificationRequired").and_then(|v| v.as_bool()).unwrap_or(false);
+    let salary_period = meta.get("salaryPeriod").and_then(|v| v.as_str()).unwrap_or("MONTHLY");
+    let location_id = meta.get("locationId").and_then(|v| v.as_str()).map(str::to_owned);
+    let address_text = meta.get("addressText").and_then(|v| v.as_str()).map(str::to_owned);
+    let location_status = if location_id.is_some() { "MAPPED" } else { "UNRESOLVED" };
+    let work_mode = match meta.get("workMode").and_then(|v| v.as_str()).unwrap_or("ONSITE") {
+        "REMOTE" => "REMOTE",
+        "HYBRID" => "HYBRID",
+        _ => "ONSITE",
+    };
     let request_id = Uuid::new_v4();
     sqlx::query(
         r#"INSERT INTO hiring_requests (
             id, "employerId", "jobType", skills, location, "salaryOffered", "salaryMin", "salaryMax",
             "salaryNegotiable", "employmentType", "experienceMinYears", vacancies, "targetInterested",
-            "feeAmount", "creditApplied", "paymentOrderId", "razorpayPaymentId", status, "deadlineAt", "businessId", description
+            "feeAmount", "creditApplied", "paymentOrderId", "razorpayPaymentId", status, "deadlineAt", "businessId", description,
+            "sectorId", "positionId", "specializationIds", "skillIds", "qualificationId", "qualificationRequired",
+            "salaryPeriod", "locationId", "addressText", "locationMatchStatus", "workMode"
         ) VALUES (
             $1, $2, $3, $4, $5, $6, $7, $8, $9, $10::hiring_requests_employmenttype_enum, $11, $12, $13, $14, $15, $16, $17, 'COLLECTING',
-            NOW() + INTERVAL '24 hours', $18, $19
+            NOW() + INTERVAL '24 hours', $18, $19,
+            $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30
         )"#,
     )
     .bind(request_id)
@@ -914,6 +1334,17 @@ async fn start_request(
     .bind(razorpay_payment_id)
     .bind(business)
     .bind(description)
+    .bind(sector_id)
+    .bind(position_id)
+    .bind(specialization_ids)
+    .bind(skill_ids)
+    .bind(qualification_id)
+    .bind(qualification_required)
+    .bind(salary_period)
+    .bind(location_id)
+    .bind(address_text)
+    .bind(location_status)
+    .bind(work_mode)
     .execute(&mut *tx)
     .await?;
     tx.commit().await?;

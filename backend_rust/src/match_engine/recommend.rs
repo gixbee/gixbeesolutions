@@ -32,6 +32,7 @@ struct Seeker {
     availability: String,
     active: bool,
     work_mode: Option<String>,
+    position_ids: String,
 }
 
 struct JobView {
@@ -57,6 +58,7 @@ struct JobView {
     published: bool,
     openings: i32,
     created_at: Option<chrono::DateTime<chrono::Utc>>,
+    position_id: Option<String>,
 }
 
 pub async fn jobs_for_seeker(
@@ -77,7 +79,7 @@ pub async fn jobs_for_seeker(
         r#"SELECT j.id, j.title, j.description, j."requiredSkills", j."jobType", j.experience,
                   j.location, j."salaryMin", j."salaryMax", j."isActive", j."employerId", j."businessId",
                   j."workMode", j."salaryPeriod", j."experienceMin", j.lat, j.lng, j.openings, j.status,
-                  j."createdAt",
+                  j."createdAt", j."positionId",
                   b.name AS "businessName",
                   (j."businessId" IS NOT NULL AND b.status::text = 'VERIFIED') AS business_ok
            FROM job_posts j
@@ -155,7 +157,7 @@ pub async fn candidates_for_job(state: &AppState, employer_id: Uuid, job_id: Uui
         r#"SELECT j.id, j.title, j.description, j."requiredSkills", j."jobType", j.experience,
                   j.location, j."salaryMin", j."salaryMax", j."isActive", j."employerId", j."businessId",
                   j."workMode", j."salaryPeriod", j."experienceMin", j.lat, j.lng, j.openings, j.status,
-                  j."createdAt",
+                  j."createdAt", j."positionId",
                   b.name AS "businessName",
                   (j."businessId" IS NOT NULL AND b.status::text = 'VERIFIED') AS business_ok
            FROM job_posts j
@@ -173,7 +175,7 @@ pub async fn candidates_for_job(state: &AppState, employer_id: Uuid, job_id: Uui
     let people = sqlx::query(
         r#"SELECT t.id, t."userId", u.name, t.skills, t."preferredRoles", t."expectedSalary",
                   t.experience, t.lat, t.lng, t."travelRadiusKm", t.availability, t."profileStatus",
-                  t."preferredWorkMode", t."employmentTypes", t."expectedSalaryPeriod"
+                  t."preferredWorkMode", t."employmentTypes", t."expectedSalaryPeriod", t."positionIds"
            FROM talent_profiles t
            JOIN users u ON u.id = t."userId"
            WHERE t."userId" <> $1
@@ -230,7 +232,7 @@ pub async fn annotate_job(state: &AppState, user_id: Uuid, job_id: Uuid) -> AppR
         r#"SELECT j.id, j.title, j.description, j."requiredSkills", j."jobType", j.experience,
                   j.location, j."salaryMin", j."salaryMax", j."isActive", j."employerId", j."businessId",
                   j."workMode", j."salaryPeriod", j."experienceMin", j.lat, j.lng, j.openings, j.status,
-                  j."createdAt",
+                  j."createdAt", j."positionId",
                   b.name AS "businessName",
                   (j."businessId" IS NOT NULL AND b.status::text = 'VERIFIED') AS business_ok
            FROM job_posts j LEFT JOIN businesses b ON b.id = j."businessId"
@@ -334,6 +336,8 @@ fn gate(seeker: &Seeker, job: &JobView, seeker_side: bool) -> GateInput {
         seeker_employment: seeker.employment.clone(),
         distance_km,
         travel_radius_km: seeker.radius,
+        job_position_id: job.position_id.clone(),
+        seeker_position_ids: Some(seeker.position_ids.clone()),
     }
 }
 
@@ -400,7 +404,8 @@ async fn load_seeker(state: &AppState, user_id: Uuid) -> AppResult<Seeker> {
     let row = sqlx::query(
         r#"SELECT id, skills, "preferredRoles", "expectedSalary", "expectedSalaryPeriod",
                   "employmentTypes", experience, lat, lng,
-                  "travelRadiusKm", availability, "profileStatus", "preferredWorkMode"
+                  "travelRadiusKm", availability, "profileStatus", "preferredWorkMode",
+                  "positionIds"
            FROM talent_profiles WHERE "userId" = $1"#,
     )
     .bind(user_id)
@@ -431,6 +436,7 @@ async fn load_seeker(state: &AppState, user_id: Uuid) -> AppResult<Seeker> {
             availability: row.try_get::<String, _>("availability").unwrap_or_else(|_| "IMMEDIATE".into()),
             active: row.try_get::<String, _>("profileStatus").unwrap_or_else(|_| "ACTIVE".into()) == "ACTIVE",
             work_mode: row.try_get::<Option<String>, _>("preferredWorkMode").ok().flatten(),
+            position_ids: row.try_get::<String, _>("positionIds").unwrap_or_default(),
         }
     } else {
         Seeker {
@@ -447,6 +453,7 @@ async fn load_seeker(state: &AppState, user_id: Uuid) -> AppResult<Seeker> {
             availability: "IMMEDIATE".into(),
             active: true,
             work_mode: None,
+            position_ids: String::new(),
         }
     };
     if let Some(pref) = pref {
@@ -500,6 +507,7 @@ fn seeker_from_candidate_row(row: &sqlx::postgres::PgRow) -> Seeker {
         availability: row.try_get::<String, _>("availability").unwrap_or_else(|_| "IMMEDIATE".into()),
         active: true,
         work_mode: row.try_get::<Option<String>, _>("preferredWorkMode").ok().flatten(),
+        position_ids: row.try_get::<String, _>("positionIds").unwrap_or_default(),
     }
 }
 
@@ -537,6 +545,7 @@ fn job_from_row(row: &sqlx::postgres::PgRow) -> JobView {
         created_at: row
             .try_get::<chrono::DateTime<chrono::Utc>, _>("createdAt")
             .ok(),
+        position_id: row.try_get::<Option<String>, _>("positionId").ok().flatten(),
     }
 }
 

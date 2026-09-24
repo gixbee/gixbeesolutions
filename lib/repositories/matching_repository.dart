@@ -78,6 +78,14 @@ class MatchingRepository {
     String? location,
     int experienceMin = 0,
     List<String> skills = const [],
+    String? positionId,
+    List<String> specializationIds = const [],
+    List<String> skillIds = const [],
+    String? qualificationId,
+    bool qualificationRequired = false,
+    String? salaryPeriod,
+    String? locationId,
+    String? workMode,
   }) async {
     final max = salaryMax ?? salary;
     final res = await _dio.get('/hiring/match/estimate', queryParameters: {
@@ -91,6 +99,14 @@ class MatchingRepository {
       if (location != null && location.isNotEmpty) 'location': location,
       'experienceMin': experienceMin,
       if (skills.isNotEmpty) 'skills': skills.join(','),
+      if (positionId != null && positionId.isNotEmpty) 'positionId': positionId,
+      if (specializationIds.isNotEmpty) 'specializationIds': specializationIds.join(','),
+      if (skillIds.isNotEmpty) 'skillIds': skillIds.join(','),
+      if (qualificationId != null && qualificationId.isNotEmpty) 'qualificationId': qualificationId,
+      if (qualificationRequired) 'qualificationRequired': 'true',
+      if (salaryPeriod != null && salaryPeriod.isNotEmpty) 'salaryPeriod': salaryPeriod,
+      if (locationId != null && locationId.isNotEmpty) 'locationId': locationId,
+      if (workMode != null && workMode.isNotEmpty) 'workMode': workMode,
     });
     return Map<String, dynamic>.from(res.data as Map);
   }
@@ -191,6 +207,41 @@ class MatchingRepository {
   }
 
   /// Classic employer job posts (for Candidates picker).
+  Future<Map<String, dynamic>> hiringCatalogue() async {
+    final res = await _dio.get('/hiring/catalogue');
+    return Map<String, dynamic>.from(res.data as Map);
+  }
+
+  Future<List<Map<String, dynamic>>> searchHiringPositions({
+    String query = '',
+    String? sectorId,
+  }) async {
+    final res = await _dio.get('/hiring/catalogue/positions', queryParameters: {
+      if (query.isNotEmpty) 'q': query,
+      if (sectorId != null && sectorId.isNotEmpty) 'sectorId': sectorId,
+      'limit': 30,
+    });
+    return ((res.data['items'] as List?) ?? [])
+        .map((e) => Map<String, dynamic>.from(e as Map))
+        .toList();
+  }
+
+  Future<Map<String, dynamic>> hiringPosition(String id) async {
+    final res = await _dio.get('/hiring/catalogue/positions/$id');
+    return Map<String, dynamic>.from(res.data as Map);
+  }
+
+  Future<List<Map<String, dynamic>>> searchHiringLocations(String query, {int offset = 0}) async {
+    final res = await _dio.get('/hiring/locations/search', queryParameters: {
+      'q': query,
+      'limit': 20,
+      'offset': offset,
+    });
+    return ((res.data['items'] as List?) ?? [])
+        .map((e) => Map<String, dynamic>.from(e as Map))
+        .toList();
+  }
+
   Future<List<Map<String, dynamic>>> listMyJobPosts({String? businessId}) async {
     final res = await _dio.get('/hiring/my-jobs', queryParameters: {
       if (businessId != null) 'businessId': businessId,

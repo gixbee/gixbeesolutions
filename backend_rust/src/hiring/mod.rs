@@ -82,6 +82,14 @@ async fn my_jobs(State(state): State<AppState>, user: AuthUser,Query(filter):Que
     Ok(Json(rows.iter().map(post_json).collect()))
 }
 
+fn csv_ids(value: Option<&Value>) -> String {
+    match value {
+        Some(Value::Array(items)) => items.iter().filter_map(|v| v.as_str()).collect::<Vec<_>>().join(","),
+        Some(Value::String(text)) => text.clone(),
+        _ => String::new(),
+    }
+}
+
 async fn create_job(
     State(state): State<AppState>,
     user: AuthUser,
@@ -111,8 +119,10 @@ async fn create_job(
         })
         .unwrap_or_default();
     sqlx::query(
-        r#"INSERT INTO job_posts (id, "employerId", title, description, "requiredSkills", "jobType", experience, location, "salaryMin", "salaryMax", "isActive","businessId","workMode","salaryPeriod",lat,lng,"experienceMin",status,openings)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, true,$11,$12,$13,$14,$15,$16,'PUBLISHED',1)"#,
+        r#"INSERT INTO job_posts (id, "employerId", title, description, "requiredSkills", "jobType", experience, location, "salaryMin", "salaryMax", "isActive","businessId","workMode","salaryPeriod",lat,lng,"experienceMin",status,openings,
+              "sectorId","positionId","specializationIds","skillIds","qualificationId","qualificationRequired","locationId","addressText","locationMatchStatus")
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, true,$11,$12,$13,$14,$15,$16,'PUBLISHED',1,
+              $17,$18,$19,$20,$21,$22,$23,$24,CASE WHEN $23 IS NULL THEN 'UNRESOLVED' ELSE 'MAPPED' END)"#,
     )
     .bind(id)
     .bind(uid)
@@ -134,6 +144,14 @@ async fn create_job(
             crate::match_engine::skills::parse_years(label) as f64
         })
     }))
+    .bind(body.get("sectorId").and_then(|v| v.as_str()))
+    .bind(body.get("positionId").and_then(|v| v.as_str()))
+    .bind(csv_ids(body.get("specializationIds")))
+    .bind(csv_ids(body.get("skillIds")))
+    .bind(body.get("qualificationId").and_then(|v| v.as_str()))
+    .bind(body.get("qualificationRequired").and_then(|v| v.as_bool()).unwrap_or(false))
+    .bind(body.get("locationId").and_then(|v| v.as_str()))
+    .bind(body.get("addressText").and_then(|v| v.as_str()))
     .execute(&state.db)
     .await?;
     crate::match_engine::persist::sync_job_skills(&state, id, &skills).await;

@@ -115,6 +115,7 @@ export class LayoutComponent {
       items: [
         { page: 'master-entries', path: '/master-entries', label: 'Master Entries', icon: 'bi-list-columns-reverse' },
         { page: 'cities', path: '/cities', label: 'Cities', icon: 'bi-geo-alt' },
+        { page: 'master-entries', path: '/hiring-catalogue', label: 'Hiring catalogue', icon: 'bi-diagram-2' },
         { page: 'businesses', path: '/rentals-flow', label: 'Rental flow', icon: 'bi-diagram-3' },
       ],
     },

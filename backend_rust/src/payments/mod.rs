@@ -99,6 +99,17 @@ struct HiringMatchBody {
     employmentType: Option<String>,
     experienceMinYears: Option<i32>,
     vacancies: Option<i32>,
+    sectorId: Option<String>,
+    positionId: Option<String>,
+    specializationIds: Option<Vec<String>>,
+    skillIds: Option<Vec<String>>,
+    qualificationId: Option<String>,
+    qualificationRequired: Option<bool>,
+    salaryPeriod: Option<String>,
+    locationId: Option<String>,
+    addressText: Option<String>,
+    workMode: Option<String>,
+    description: Option<String>,
 }
 
 #[derive(Deserialize)]
@@ -206,8 +217,20 @@ async fn create_hiring_match_order(
         "vacancies": vacancies,
         "fee": fee,
         "creditApplied": credit_applied,
+        "sectorId": body.sectorId,
+        "positionId": body.positionId,
+        "specializationIds": body.specializationIds,
+        "skillIds": body.skillIds,
+        "qualificationId": body.qualificationId,
+        "qualificationRequired": body.qualificationRequired.unwrap_or(false),
+        "salaryPeriod": body.salaryPeriod,
+        "locationId": body.locationId,
+        "addressText": body.addressText,
+        "workMode": body.workMode,
+        "description": body.description,
     });
     crate::matching::validate_request(&meta)?;
+    crate::matching::validate_catalogue(&state, &meta).await?;
     meta["businessId"]=json!(crate::matching::resolve_business(&state,&user.user_id,&meta).await?);
     let Json(mut response) = create_razorpay_order(
         &state,

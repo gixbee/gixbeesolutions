@@ -28,6 +28,20 @@ pub(super) struct Preference {
     pub notice_period: Option<String>,
     #[serde(default)]
     pub expected_salary_period: Option<String>,
+    #[serde(default)]
+    pub sector_id: Option<String>,
+    #[serde(default)]
+    pub position_id: Option<String>,
+    #[serde(default)]
+    pub specialization_ids: Vec<String>,
+    #[serde(default)]
+    pub skill_ids: Vec<String>,
+    #[serde(default)]
+    pub qualification_id: Option<String>,
+    #[serde(default)]
+    pub location_id: Option<String>,
+    #[serde(default)]
+    pub address_text: Option<String>,
 }
 
 pub(super) fn employment_type(value: Option<&str>) -> AppResult<Option<String>> {
@@ -39,6 +53,7 @@ pub(super) fn employment_type(value: Option<&str>) -> AppResult<Option<String>> 
         "PT" | "PART_TIME" | "PART TIME" | "PART-TIME" => "PT",
         "INTERN" | "INTERNSHIP" => "INTERN",
         "CONTRACT" => "CONTRACT",
+        "GIG" => "GIG",
         _ => return Err(AppError::BadRequest("Unsupported employment type".into())),
     };
     Ok(Some(normalized.into()))
@@ -119,6 +134,14 @@ pub(super) async fn create(
     paid: bool,
     payment_id:Option<Uuid>,
 ) -> AppResult<Value> {
+    if body.get("positionIds").is_some() {
+        return Err(AppError::BadRequest(
+            "Job preferences use positionId, not positionIds".into(),
+        ));
+    }
+    if payment_id.is_none() {
+        super::validate_profile_catalogue(state, body).await?;
+    }
     let input = Preference::parse(body)?;
     let uid = Uuid::parse_str(user_id)?;
     let mut tx = state.db.begin().await?;
@@ -163,13 +186,18 @@ pub(super) async fn create(
     }
     let id = Uuid::new_v4();
     sqlx::query(r#"INSERT INTO job_preferences (id, "userId", "jobType", skills, "preferredLocation",
-        "expectedSalary", "salaryNegotiable", "employmentType", "experienceYears", "noticePeriod", "expectedSalaryPeriod", "isActive", "isPaid", "paidUntil")
+        "expectedSalary", "salaryNegotiable", "employmentType", "experienceYears", "noticePeriod", "expectedSalaryPeriod", "isActive", "isPaid", "paidUntil",
+        "sectorId", "positionId", "specializationIds", "skillIds", "qualificationId", "locationId", "addressText", "locationMatchStatus")
         VALUES ($1,$2,$3,$4,$5,$6,$7,$8::job_preferences_employmenttype_enum,$9,$10::job_preferences_noticeperiod_enum,$11,
-        true,$12,CASE WHEN $12 THEN NOW() + INTERVAL '30 days' ELSE NULL END)"#)
+        true,$12,CASE WHEN $12 THEN NOW() + INTERVAL '30 days' ELSE NULL END,
+        $13,$14,$15,$16,$17,$18,$19,CASE WHEN $18 IS NULL THEN 'UNRESOLVED' ELSE 'MAPPED' END)"#)
         .bind(id).bind(uid).bind(&input.job_type).bind(input.skills.join(","))
         .bind(&input.preferred_location).bind(input.salary()).bind(input.salary_negotiable)
         .bind(&input.employment_type).bind(input.experience_years).bind(&input.notice_period)
         .bind(input.expected_salary_period.as_deref().unwrap_or("MONTHLY")).bind(paid)
+        .bind(&input.sector_id).bind(&input.position_id).bind(input.specialization_ids.join(","))
+        .bind(input.skill_ids.join(",")).bind(&input.qualification_id).bind(&input.location_id)
+        .bind(&input.address_text)
         .execute(&mut *tx).await?;
     if let Some(payment_id)=payment_id {record_receipt(&mut tx,payment_id,id).await?;}
     let row = sqlx::query(&format!(
@@ -193,6 +221,11 @@ pub(super) async fn update(
     id: &str,
     body: &Value,
 ) -> AppResult<Value> {
+    if body.get("positionIds").is_some() {
+        return Err(AppError::BadRequest(
+            "Job preferences use positionId, not positionIds".into(),
+        ));
+    }
     let pid = Uuid::parse_str(id)?;
     let mut tx = state.db.begin().await?;
     let row = sqlx::query(&format!(r#"SELECT {JOB_PREFERENCE_COLS} FROM job_preferences WHERE id = $1 AND "userId" = $2 AND "isActive" = true FOR UPDATE"#))
@@ -209,9 +242,26 @@ pub(super) async fn update(
     let fields = body
         .as_object()
         .ok_or_else(|| AppError::BadRequest("Expected profile object".into()))?;
+    let preserved = merged.clone();
     for (key, value) in fields {
         merged[key] = value.clone();
     }
+    for key in [
+        "sectorId",
+        "positionId",
+        "specializationIds",
+        "skillIds",
+        "qualificationId",
+        "locationId",
+        "addressText",
+    ] {
+        if !fields.contains_key(key) {
+            if let Some(value) = preserved.get(key) {
+                merged[key] = value.clone();
+            }
+        }
+    }
+    super::validate_merged_catalogue(state, &merged, &preserved).await?;
     let input = Preference::parse(&merged)?;
     let uid = Uuid::parse_str(user_id)?;
     let clash: bool = sqlx::query_scalar(
@@ -230,11 +280,16 @@ pub(super) async fn update(
     sqlx::query(r#"UPDATE job_preferences SET "jobType"=$1, skills = $2, "preferredLocation" = $3, "expectedSalary" = $4,
         "salaryNegotiable" = $5, "employmentType" = $6::job_preferences_employmenttype_enum,
         "experienceYears" = $7, "noticePeriod" = $8::job_preferences_noticeperiod_enum,
-        "expectedSalaryPeriod" = $9, "updatedAt" = NOW() WHERE id = $10"#)
+        "expectedSalaryPeriod" = $9, "sectorId"=$10, "positionId"=$11, "specializationIds"=$12,
+        "skillIds"=$13, "qualificationId"=$14, "locationId"=$15, "addressText"=$16,
+        "locationMatchStatus"=CASE WHEN $15 IS NULL THEN 'UNRESOLVED' ELSE 'MAPPED' END,
+        "updatedAt" = NOW() WHERE id = $17"#)
         .bind(&input.job_type).bind(input.skills.join(",")).bind(&input.preferred_location).bind(input.salary())
         .bind(input.salary_negotiable).bind(&input.employment_type).bind(input.experience_years)
         .bind(&input.notice_period).bind(input.expected_salary_period.as_deref().unwrap_or("MONTHLY"))
-        .bind(pid).execute(&mut *tx).await?;
+        .bind(&input.sector_id).bind(&input.position_id).bind(input.specialization_ids.join(","))
+        .bind(input.skill_ids.join(",")).bind(&input.qualification_id).bind(&input.location_id)
+        .bind(&input.address_text).bind(pid).execute(&mut *tx).await?;
     let row = sqlx::query(&format!(
         "SELECT {JOB_PREFERENCE_COLS} FROM job_preferences WHERE id = $1"
     ))

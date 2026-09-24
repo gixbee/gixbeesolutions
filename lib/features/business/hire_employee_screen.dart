@@ -9,11 +9,16 @@ import '../../core/config/app_config.dart';
 import '../../repositories/auth_repository.dart';
 import '../../repositories/matching_repository.dart';
 import '../jobs/hiring_catalog.dart';
+import '../jobs/hiring_master_picker.dart';
 import '../../shared/widgets/dribbble_background.dart';
 import '../../shared/widgets/gx_button.dart';
 import '../../shared/widgets/gx_snackbar.dart';
 import '../../theme.dart';
 import 'hiring_requests_screen.dart';
+
+final _catalogueProvider = FutureProvider<Map<String, dynamic>>((ref) async {
+  return ref.read(matchingRepositoryProvider).hiringCatalogue();
+});
 
 /// Employer Smart Hiring wizard (v147 `hj1`–`hj4`): estimate → pay → 24 h match.
 ///
@@ -27,18 +32,33 @@ class HireEmployeeScreen extends ConsumerStatefulWidget {
 }
 
 class _HireEmployeeScreenState extends ConsumerState<HireEmployeeScreen> {
-  static const _stepLabels = ['Role', 'Details', 'Compensation', 'Preview'];
+  static const _stepLabels = ['Type & sector', 'Position', 'Requirements', 'Location & pay', 'Review'];
 
-  int _step = 0; // hj1=0 … hj4=3
+  int _step = 0;
 
   String? _employmentType; // FT | PT | INTERN | CONTRACT
+  String? _sectorId;
+  String? _positionId;
+  String? _positionLabel;
+  String? _qualificationId;
+  String _salaryPeriod = 'MONTHLY';
+  String _workMode = 'ONSITE';
+  String _typeLabel = 'Type';
+  String _fieldPattern = 'typeChips';
+  List<Map<String, dynamic>> _specializationChoices = [];
+  List<Map<String, dynamic>> _skillChoices = [];
+  bool _showMoreSkills = false;
+  String? _locationId;
+  String? _locationLabel;
+  final List<String> _specializationIds = [];
+  final List<String> _skillIds = [];
+  bool _qualificationRequired = false;
   String? _category;
   final _jobTypeCtrl = TextEditingController();
   final _locationCtrl = TextEditingController();
   final _salaryMinCtrl = TextEditingController();
   final _salaryCtrl = TextEditingController(text: '25000');
   final _expCtrl = TextEditingController(text: '0');
-  final _skillCtrl = TextEditingController();
   final _descriptionCtrl = TextEditingController();
   final Set<String> _skills = {};
   int _vacancies = 1;
@@ -48,6 +68,7 @@ class _HireEmployeeScreenState extends ConsumerState<HireEmployeeScreen> {
   int? _fee;
   int _creditBalance = 0;
   bool _estimating = false;
+  String? _estimateError;
   bool _submitting = false;
   Timer? _debounce;
   Razorpay? _razorpay;
@@ -69,7 +90,6 @@ class _HireEmployeeScreenState extends ConsumerState<HireEmployeeScreen> {
     _salaryCtrl.dispose();
     _salaryMinCtrl.dispose();
     _expCtrl.dispose();
-    _skillCtrl.dispose();
     _descriptionCtrl.dispose();
     super.dispose();
   }
@@ -105,7 +125,10 @@ class _HireEmployeeScreenState extends ConsumerState<HireEmployeeScreen> {
       return;
     }
     final salaryMin = num.tryParse(_salaryMinCtrl.text.trim());
-    setState(() => _estimating = true);
+    setState(() {
+      _estimating = true;
+      _estimateError = null;
+    });
     try {
       final repo = ref.read(matchingRepositoryProvider);
       final est = await repo.estimate(
@@ -118,6 +141,14 @@ class _HireEmployeeScreenState extends ConsumerState<HireEmployeeScreen> {
         location: _locationCtrl.text.trim(),
         experienceMin: int.tryParse(_expCtrl.text.trim()) ?? 0,
         skills: _skills.toList(),
+        positionId: _positionId,
+        specializationIds: _specializationIds,
+        skillIds: _skillIds,
+        qualificationId: _qualificationId,
+        qualificationRequired: _qualificationRequired,
+        salaryPeriod: _salaryPeriod,
+        locationId: _locationId,
+        workMode: _workMode,
       );
       final pricing = await repo.pricing();
       final tiers = (pricing['tiers'] as List?) ?? [];
@@ -137,7 +168,11 @@ class _HireEmployeeScreenState extends ConsumerState<HireEmployeeScreen> {
       });
     } catch (_) {
       if (!mounted) return;
-      setState(() => _estimating = false);
+      setState(() {
+        _estimating = false;
+        _estimateError = 'Unable to estimate candidates';
+        _estimated = null;
+      });
     }
   }
 
@@ -150,7 +185,11 @@ class _HireEmployeeScreenState extends ConsumerState<HireEmployeeScreen> {
       'jobType': _resolvedJobType,
       if (widget.businessId != null) 'businessId': widget.businessId,
       'skills': _skills.toList(),
-      'location': _locationCtrl.text.trim(),
+      'location': [
+        if (_locationLabel != null && _locationLabel!.isNotEmpty) _locationLabel!,
+        if (_locationCtrl.text.trim().isNotEmpty) _locationCtrl.text.trim(),
+      ].join(' · '),
+      'workMode': _workMode,
       'salaryOffered': max,
       if (min != null) 'salaryMin': min,
       'salaryMax': max,
@@ -158,6 +197,15 @@ class _HireEmployeeScreenState extends ConsumerState<HireEmployeeScreen> {
       if (_employmentType != null) 'employmentType': _employmentType,
       'experienceMinYears': int.tryParse(_expCtrl.text.trim()) ?? 0,
       'vacancies': _vacancies,
+      'salaryPeriod': _salaryPeriod,
+      if (_sectorId != null) 'sectorId': _sectorId,
+      if (_positionId != null) 'positionId': _positionId,
+      if (_specializationIds.isNotEmpty) 'specializationIds': _specializationIds,
+      if (_skillIds.isNotEmpty) 'skillIds': _skillIds,
+      if (_qualificationId != null) 'qualificationId': _qualificationId,
+      'qualificationRequired': _qualificationRequired,
+      if (_locationId != null) 'locationId': _locationId,
+      if (_locationCtrl.text.trim().isNotEmpty) 'addressText': _locationCtrl.text.trim(),
       if (_descriptionCtrl.text.trim().isNotEmpty)
         'description': _descriptionCtrl.text.trim(),
     };
@@ -281,13 +329,15 @@ class _HireEmployeeScreenState extends ConsumerState<HireEmployeeScreen> {
   bool get _canContinue {
     switch (_step) {
       case 0:
-        return _resolvedJobType.isNotEmpty && _employmentType != null;
+        return _employmentType != null && _sectorId != null;
       case 1:
-        return true;
+        return _positionId != null;
       case 2:
-        final salary = num.tryParse(_salaryCtrl.text.trim());
-        return salary != null && salary > 0;
+        return true;
       case 3:
+        final salary = num.tryParse(_salaryCtrl.text.trim());
+        return salary != null && salary > 0 && _locationId != null;
+      case 4:
         return true;
       default:
         return false;
@@ -295,9 +345,9 @@ class _HireEmployeeScreenState extends ConsumerState<HireEmployeeScreen> {
   }
 
   void _onContinue() {
-    if (_step < 3) {
+    if (_step < 4) {
       setState(() => _step++);
-      if (_step == 2) _scheduleEstimate();
+      if (_step == 3) _scheduleEstimate();
       return;
     }
     _submit();
@@ -332,9 +382,10 @@ class _HireEmployeeScreenState extends ConsumerState<HireEmployeeScreen> {
                 child: SingleChildScrollView(
                   padding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
                   child: switch (_step) {
-                    0 => _hj1Role(catalog),
-                    1 => _hj2Details(),
-                    2 => _hj3Compensation(due, creditApplied),
+                    0 => _stepSector(),
+                    1 => _stepPosition(),
+                    2 => _hj2Details(),
+                    3 => _hj3Compensation(due, creditApplied),
                     _ => _hj4Preview(due, creditApplied, catalog),
                   },
                 ),
@@ -378,7 +429,7 @@ class _HireEmployeeScreenState extends ConsumerState<HireEmployeeScreen> {
             child: const Text('My requests'),
           ),
           Text(
-            '${_step + 1}/4',
+            '${_step + 1}/5',
             style: TextStyle(
               fontSize: 13,
               fontWeight: FontWeight.w700,
@@ -398,7 +449,7 @@ class _HireEmployeeScreenState extends ConsumerState<HireEmployeeScreen> {
         children: [
           Row(
             children: [
-              for (var i = 0; i < 4; i++) ...[
+              for (var i = 0; i < 5; i++) ...[
                 Expanded(
                   child: Semantics(
                     label: 'Step ${i + 1}: ${_stepLabels[i]}',
@@ -482,6 +533,99 @@ class _HireEmployeeScreenState extends ConsumerState<HireEmployeeScreen> {
   }
 
   // ── hj1: employment type + category catalog ─────────────────────────────
+  Widget _stepSector() {
+    final catalogue = ref.watch(_catalogueProvider);
+    return catalogue.when(
+      loading: () => const Center(child: CircularProgressIndicator()),
+      error: (error, _) => Text('Unable to load sectors. $error'),
+      data: (data) {
+        final sectors = (data['sectors'] as List?) ?? [];
+        final types = (data['employmentTypes'] as List?) ?? [];
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _sectionTitle('Employment type', 'Full time, part time, intern, contract, or gig.'),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                for (final type in types)
+                  _chip('${type['label']}', _employmentType == type['code'], () {
+                    setState(() => _employmentType = '${type['code']}');
+                  }),
+              ],
+            ),
+            _sectionTitle('Sector', 'Changing sector clears the position and skills.'),
+            if (sectors.isEmpty) const Text('No sectors yet. Import the hiring catalogue from admin.'),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                for (final sector in sectors)
+                  _chip('${sector['label']}', _sectorId == sector['id'], () {
+                    setState(() {
+                      _sectorId = '${sector['id']}';
+                      _positionId = null;
+                      _positionLabel = null;
+                      _specializationIds.clear();
+                      _skillIds.clear();
+                      _skills.clear();
+                      _jobTypeCtrl.clear();
+                    });
+                  }),
+              ],
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _stepPosition() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _sectionTitle('Position', 'Search the shared catalogue. The same id is used for candidates.'),
+        if (_positionLabel != null) Text('Selected: $_positionLabel', style: const TextStyle(fontWeight: FontWeight.w800)),
+        HiringPositionSearch(
+          sectorId: _sectorId,
+          selectedLabel: _positionLabel,
+          onPick: (pick) async {
+            setState(() {
+              _positionId = pick.id;
+              _positionLabel = pick.label;
+              _jobTypeCtrl.text = pick.label;
+              _specializationIds.clear();
+              _skillIds.clear();
+              _skills.clear();
+              _specializationChoices = [];
+              _skillChoices = [];
+            });
+            try {
+              final detail = await ref.read(matchingRepositoryProvider).hiringPosition(pick.id);
+              if (!mounted || _positionId != pick.id) return;
+              setState(() {
+                _typeLabel = '${detail['typeLabel'] ?? 'Type'}';
+                _fieldPattern = '${detail['fieldPattern'] ?? 'typeChips'}';
+                _specializationChoices = ((detail['specializations'] as List?) ?? [])
+                    .map((e) => Map<String, dynamic>.from(e as Map))
+                    .where((row) => row['isActive'] != false)
+                    .toList();
+                _skillChoices = ((detail['skills'] as List?) ?? [])
+                    .map((e) => Map<String, dynamic>.from(e as Map))
+                    .where((row) => row['isActive'] != false)
+                    .toList();
+              });
+            } catch (_) {
+              if (!mounted || _positionId != pick.id) return;
+              setState(() => _estimateError = 'Unable to load position details');
+            }
+          },
+        ),
+      ],
+    );
+  }
+
   Widget _hj1Role(HiringCatalog catalog) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -557,89 +701,108 @@ class _HireEmployeeScreenState extends ConsumerState<HireEmployeeScreen> {
 
   // ── hj2: skills, experience, description ────────────────────────────────
   Widget _hj2Details() {
+    final catalogue = ref.watch(_catalogueProvider).value;
+    final qualifications = ((catalogue?['qualifications'] as List?) ?? [])
+        .map((e) => Map<String, dynamic>.from(e as Map))
+        .toList();
+    final visibleSkills = _skillChoices.where((skill) {
+      if (_showMoreSkills) return true;
+      return skill['tier'] != 'more';
+    }).toList();
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _sectionTitle(
-          'Role details',
-          'Skills and experience filter who gets notified on Find a Job.',
+        _sectionTitle(_typeLabel, 'Choices come from the selected position.'),
+        if (_positionId == null) const Text('Select a position first.'),
+        if (_specializationChoices.isEmpty && _positionId != null)
+          const Text('This position has no specializations.'),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            for (final spec in _specializationChoices)
+              _chip('${spec['label']}', _specializationIds.contains(spec['id']), () {
+                final id = '${spec['id']}';
+                setState(() {
+                  if (_fieldPattern == 'specializationMulti') {
+                    _specializationIds.contains(id)
+                        ? _specializationIds.remove(id)
+                        : _specializationIds.add(id);
+                  } else {
+                    _specializationIds
+                      ..clear()
+                      ..add(id);
+                  }
+                });
+              }),
+          ],
+        ),
+        const SizedBox(height: 12),
+        DropdownButtonFormField<String>(
+          initialValue: _qualificationId,
+          decoration: const InputDecoration(labelText: 'Qualification (optional)'),
+          items: [
+            const DropdownMenuItem(value: null, child: Text('No qualification')),
+            for (final qual in qualifications)
+              DropdownMenuItem(value: '${qual['id']}', child: Text('${qual['label']}')),
+          ],
+          onChanged: (value) => setState(() => _qualificationId = value),
+        ),
+        SwitchListTile(
+          contentPadding: EdgeInsets.zero,
+          title: const Text('Qualification is required'),
+          value: _qualificationRequired,
+          onChanged: _qualificationId == null
+              ? null
+              : (value) => setState(() => _qualificationRequired = value),
         ),
         TextField(
           controller: _expCtrl,
           keyboardType: TextInputType.number,
-          decoration: const InputDecoration(
-            labelText: 'Min experience (years)',
-          ),
+          decoration: const InputDecoration(labelText: 'Minimum experience (years)'),
           onChanged: (_) => _scheduleEstimate(),
         ),
-        const SizedBox(height: 16),
-        Text(
-          'SKILLS',
-          style: TextStyle(
-            fontWeight: FontWeight.w800,
-            color: context.gx.ink,
-          ),
-        ),
+        const SizedBox(height: 12),
+        Text('Skills', style: TextStyle(fontWeight: FontWeight.w800, color: context.gx.ink)),
         const SizedBox(height: 8),
-        Row(
-          children: [
-            Expanded(
-              child: Semantics(
-                label: 'Add skill',
-                textField: true,
-                child: TextField(
-                  controller: _skillCtrl,
-                  decoration: const InputDecoration(hintText: 'Add skill'),
-                  onSubmitted: (_) => _addSkill(),
-                ),
-              ),
-            ),
-            Semantics(
-              label: 'Add skill button',
-              button: true,
-              child: IconButton(
-                onPressed: _addSkill,
-                icon: const Icon(Icons.add_circle_outline),
-              ),
-            ),
-          ],
-        ),
+        if (_skillChoices.isEmpty) const Text('This position has no catalogue skills.'),
         Wrap(
-          spacing: 6,
-          runSpacing: 6,
+          spacing: 8,
+          runSpacing: 8,
           children: [
-            for (final s in _skills)
-              InputChip(
-                label: Text(s),
-                onDeleted: () {
-                  setState(() => _skills.remove(s));
-                  _scheduleEstimate();
-                },
-              ),
+            for (final skill in visibleSkills)
+              _chip('${skill['label']}', _skillIds.contains(skill['id']), () {
+                final id = '${skill['id']}';
+                final label = '${skill['label']}';
+                setState(() {
+                  if (_skillIds.contains(id)) {
+                    _skillIds.remove(id);
+                    _skills.remove(label);
+                  } else {
+                    _skillIds.add(id);
+                    _skills.add(label);
+                  }
+                });
+                _scheduleEstimate();
+              }),
           ],
         ),
-        const SizedBox(height: 16),
+        if (_skillChoices.any((skill) => skill['tier'] == 'more'))
+          TextButton(
+            onPressed: () => setState(() => _showMoreSkills = !_showMoreSkills),
+            child: Text(_showMoreSkills ? 'Fewer skills' : 'More skills'),
+          ),
+        const SizedBox(height: 8),
         TextField(
           controller: _descriptionCtrl,
           maxLines: 3,
           decoration: const InputDecoration(
-            labelText: 'Description (optional)',
-            hintText: 'Shown on preview only until backend supports it',
+            labelText: 'Job description (optional)',
             alignLabelWithHint: true,
           ),
         ),
       ],
     );
-  }
-
-  void _addSkill() {
-    final s = _skillCtrl.text.trim();
-    if (s.isEmpty) return;
-    setState(() {
-      _skills.add(s);
-      _skillCtrl.clear();
-    });
-    _scheduleEstimate();
   }
 
   // ── hj3: location, salary, vacancies, live estimate ─────────────────────
@@ -651,13 +814,47 @@ class _HireEmployeeScreenState extends ConsumerState<HireEmployeeScreen> {
           'Location & compensation',
           'Salary drives matching — live candidate count updates as you type.',
         ),
+        HiringLocationSearch(
+          selectedLabel: _locationLabel,
+          onPick: (pick) {
+            setState(() {
+              _locationId = pick.id;
+              _locationLabel = pick.label;
+            });
+            _scheduleEstimate();
+          },
+        ),
+        if (_locationLabel != null)
+          Padding(
+            padding: const EdgeInsets.only(top: 6),
+            child: Text(_locationLabel!, style: const TextStyle(fontWeight: FontWeight.w700)),
+          ),
+        const SizedBox(height: 12),
         TextField(
           controller: _locationCtrl,
           decoration: const InputDecoration(
-            labelText: 'Location',
-            hintText: 'City / area',
+            labelText: 'Street address (optional)',
+            hintText: 'Building, area, landmark',
           ),
-          onChanged: (_) => _scheduleEstimate(),
+        ),
+        const SizedBox(height: 12),
+        Wrap(
+          spacing: 8,
+          children: [
+            for (final mode in ['ONSITE', 'HYBRID', 'REMOTE'])
+              _chip(mode, _workMode == mode, () => setState(() => _workMode = mode)),
+          ],
+        ),
+        const SizedBox(height: 12),
+        Wrap(
+          spacing: 8,
+          children: [
+            for (final period in ['HOURLY', 'DAILY', 'WEEKLY', 'MONTHLY', 'PER_JOB'])
+              _chip(period, _salaryPeriod == period, () {
+                setState(() => _salaryPeriod = period);
+                _scheduleEstimate();
+              }),
+          ],
         ),
         const SizedBox(height: 12),
         Semantics(
@@ -667,7 +864,7 @@ class _HireEmployeeScreenState extends ConsumerState<HireEmployeeScreen> {
             controller: _salaryMinCtrl,
             keyboardType: TextInputType.number,
             decoration: const InputDecoration(
-              labelText: 'Salary min (₹/month, optional)',
+              labelText: 'Salary min (₹/$_salaryPeriod, optional)',
               helperText: 'Leave blank for a single offered amount',
             ),
             onChanged: (_) => _scheduleEstimate(),
@@ -675,13 +872,13 @@ class _HireEmployeeScreenState extends ConsumerState<HireEmployeeScreen> {
         ),
         const SizedBox(height: 12),
         Semantics(
-          label: 'Salary maximum per month',
+          label: 'Salary maximum per $_salaryPeriod',
           textField: true,
           child: TextField(
             controller: _salaryCtrl,
             keyboardType: TextInputType.number,
             decoration: const InputDecoration(
-              labelText: 'Salary max (₹/month)',
+              labelText: 'Salary max (₹/$_salaryPeriod)',
             ),
           ),
         ),
@@ -760,9 +957,13 @@ class _HireEmployeeScreenState extends ConsumerState<HireEmployeeScreen> {
           Text(
             _estimating
                 ? 'Estimating matches…'
-                : _estimated == null
-                    ? 'Enter job type + salary for an estimate'
-                    : '≈ $_estimated matching candidates',
+                : _estimateError != null
+                    ? _estimateError!
+                    : _estimated == null
+                    ? 'Enter position, location and salary for an estimate'
+                    : _estimated == 0
+                        ? 'No candidates match these requirements yet'
+                        : '≈ $_estimated matching candidates',
             style: TextStyle(
               fontWeight: FontWeight.w800,
               color: context.gx.ink,
@@ -773,7 +974,7 @@ class _HireEmployeeScreenState extends ConsumerState<HireEmployeeScreen> {
             Text(
               creditApplied > 0
                   ? 'Fee ₹$_fee · credit −₹$creditApplied · pay ₹$due'
-                  : 'Match fee: ₹$_fee (24 h guarantee)',
+                  : 'Match fee: ₹$_fee (24 h guarantee). Fee follows vacancies, not a per-candidate package.',
               style: TextStyle(
                 fontSize: 13,
                 color: context.gx.ink.withValues(alpha: 0.6),
@@ -796,16 +997,19 @@ class _HireEmployeeScreenState extends ConsumerState<HireEmployeeScreen> {
   Widget _hj4Preview(int? due, int creditApplied, HiringCatalog catalog) {
     final salaryMax = _salaryCtrl.text.trim();
     final salaryMin = _salaryMinCtrl.text.trim();
-    final location = _locationCtrl.text.trim();
+    final location = [
+      if (_locationLabel != null && _locationLabel!.isNotEmpty) _locationLabel!,
+      if (_locationCtrl.text.trim().isNotEmpty) _locationCtrl.text.trim(),
+    ].join(' · ');
     final exp = _expCtrl.text.trim();
     final minParsed = num.tryParse(salaryMin);
     final maxParsed = num.tryParse(salaryMax);
     final salaryLabel = () {
       if (maxParsed == null || maxParsed <= 0) return 'Salary TBD';
       if (minParsed != null && minParsed > 0 && minParsed < maxParsed) {
-        return '₹$salaryMin–₹$salaryMax / month';
+        return '₹$salaryMin–₹$salaryMax / ${_salaryPeriod.toLowerCase()}';
       }
-      return '₹$salaryMax / month';
+      return '₹$salaryMax / ${_salaryPeriod.toLowerCase()}';
     }();
     final empLabel = catalog.labelForCode(_employmentType);
 
@@ -980,7 +1184,7 @@ class _HireEmployeeScreenState extends ConsumerState<HireEmployeeScreen> {
   }
 
   Widget _footer(int? due) {
-    final isLast = _step == 3;
+    final isLast = _step == 4;
     String label;
     if (isLast) {
       if (_submitting) {
