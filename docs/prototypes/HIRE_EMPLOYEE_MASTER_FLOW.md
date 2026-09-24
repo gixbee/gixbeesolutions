@@ -2,7 +2,7 @@
 
 Source: `GIXBEE_SkillsHire_FinalMaster.pdf` (18 pages) plus the Hire Employee mock screenshots. Existing repo HTML (`docs/prototypes/gixbee_v147_lmb_hire_live.html`) is the **old dark 4-step post**. It is not this flow. No new HTML file was in the upload; the mocks are the visual spec.
 
-**Build target:** one light/green phone HTML prototype that is driven by the PDF catalogue: Sector → Position → Type / Specialization → Skills → Qualification → Experience → Description → Location/Pay → Review/Pay.
+**Build target:** `docs/prototypes/hire-employee-skills-master.html` (light/green phone demo) plus `hire-employee-skills-catalog.js` (18 sectors, 326 positions from the PDF). Open the HTML next to the JS file (or via a local static server). The older dark file `gixbee_v147_lmb_hire_live.html` is not this flow.
 
 ## 1. What the PDF is
 
@@ -278,6 +278,6 @@ Do not implement Flutter in this HTML pass.
 - No “42 candidates will apply” as a guarantee. Label it **matching candidates (live count)** as in the mock, prototype-only.
 - Wallet line on Step 5 is mock-only until product turns wallet on.
 
-## 8. Blocked on
+## 8. Status
 
-The SkillsHire **HTML file itself was not uploaded** — only the PDF and PNG/JPG mocks. This document is the analysis and the contract for that HTML. Next step is to encode the full 18-page catalogue into `CATALOG` and wire the 5 screens + two overlays.
+Clickable demo is in `hire-employee-skills-master.html`. Catalogue source: `_gen_hire_catalog.py` → `hire-employee-skills-catalog.js`. Flutter/API not changed.
