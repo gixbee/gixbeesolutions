@@ -2,7 +2,7 @@
 
 Source: `GIXBEE_SkillsHire_FinalMaster.pdf` (18 pages) plus the Hire Employee mock screenshots. Existing repo HTML (`docs/prototypes/gixbee_v147_lmb_hire_live.html`) is the **old dark 4-step post**. It is not this flow. No new HTML file was in the upload; the mocks are the visual spec.
 
-**Build target:** `docs/prototypes/hire-employee-skills-master.html` (light/green phone demo) plus `hire-employee-skills-catalog.js` (18 sectors, 326 positions from the PDF). Open the HTML next to the JS file (or via a local static server). The older dark file `gixbee_v147_lmb_hire_live.html` is not this flow.
+**Build target:** `docs/prototypes/hire-employee-skills-master.html` is a **single file** (catalogue JS is inlined). Download only that HTML and open it; no extra `.js` file. `hire-employee-skills-catalog.js` is a copy for regeneration via `_gen_hire_catalog.py`.
 
 ## 1. What the PDF is
 

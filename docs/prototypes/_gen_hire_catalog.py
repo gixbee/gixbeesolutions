@@ -5,7 +5,8 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-OUT = Path(__file__).with_name("hire-employee-skills-catalog.js")
+OUT_JS = Path(__file__).with_name("hire-employee-skills-catalog.js")
+OUT_HTML = Path(__file__).with_name("hire-employee-skills-master.html")
 
 
 def split_semi(s: str) -> list[str]:
@@ -579,8 +580,21 @@ def main() -> None:
     }
     npos = sum(len(s["positions"]) for s in SECTORS)
     js = "window.GIXBEE_HIRE_CATALOG = " + json.dumps(catalog, ensure_ascii=False, indent=2) + ";\n"
-    OUT.write_text(js, encoding="utf-8")
-    print(f"Wrote {OUT.name}: {len(SECTORS)} sectors, {npos} positions")
+    OUT_JS.write_text(js, encoding="utf-8")
+    html = OUT_HTML.read_text(encoding="utf-8")
+    start, end = "<!-- CATALOG_START -->", "<!-- CATALOG_END -->"
+    i, j = html.find(start), html.find(end)
+    if i < 0 or j < 0:
+        raise SystemExit("HTML missing CATALOG_START/END markers")
+    injected = (
+        start
+        + "\n<script>\n/* Inlined catalogue: this HTML is self-contained for file:// */\n"
+        + js
+        + "</script>\n"
+        + end
+    )
+    OUT_HTML.write_text(html[:i] + injected + html[j + len(end) :], encoding="utf-8")
+    print(f"Wrote {OUT_JS.name} and inlined into {OUT_HTML.name}: {len(SECTORS)} sectors, {npos} positions")
 
 
 if __name__ == "__main__":
