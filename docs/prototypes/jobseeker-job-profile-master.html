@@ -3981,7 +3981,6 @@ const state = {
   specDraft: [],
   exp: 2,
   neg: true,
-  relocate: false,
   posLimit: 8,
   skillFull: false,
   languages: ['English', 'Malayalam'],
@@ -3990,6 +3989,7 @@ const state = {
   resume: null,
   locValue: 'Kochi, Kerala',
   salValue: '25000',
+  alsoLocValue: '',
 };
 const LANG_QUICK = ['English', 'Malayalam', 'Hindi', 'Tamil'];
 const LANGUAGE_LIST = [
@@ -4010,6 +4010,13 @@ const JOIN_AVAILABILITY = [
   { code: 'd90', label: 'Within 90 days' },
 ];
 const RESUME_DEMO_MAX_BYTES = 350000;
+
+function parseLocationList(text) {
+  return String(text || '')
+    .split(/[,;]/)
+    .map((x) => x.trim())
+    .filter(Boolean);
+}
 
 function uid() {
   return 'jp_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 8);
@@ -4150,7 +4157,9 @@ function buildPayload() {
   const p = position();
   const emp = C.employmentTypes.find((e) => e.code === state.emp);
   const salExpected = readExpectedSalaryValue();
-  const loc = document.getElementById('loc').value.trim();
+  const loc = el('loc')?.value.trim() || state.locValue || '';
+  const alsoRaw = el('alsoLoc')?.value ?? state.alsoLocValue ?? '';
+  const alsoPreferred = parseLocationList(alsoRaw);
   const qual = document.getElementById('qual').value;
   const bio = document.getElementById('desc').value.trim();
   const nameInput = document.getElementById('profileName').value.trim();
@@ -4181,11 +4190,11 @@ function buildPayload() {
     languages: [...state.languages],
     bio: bio || null,
     location: loc,
+    alsoPreferredLocations: alsoPreferred,
     salary: {
       expectedMonthly: salExpected ? Number(salExpected) : null,
       negotiable: state.neg,
     },
-    openToRelocate: state.relocate,
     availableToJoin: { code: joinCode, label: joinLabel(joinCode) },
     resume: resumeOut,
     catalogueVersion: C.version,
@@ -4201,16 +4210,15 @@ function applyPayload(profile) {
   state.skills = [...(profile.skills || [])];
   state.exp = profile.experienceYears ?? 2;
   state.neg = profile.salary?.negotiable !== false;
-  state.relocate = !!profile.openToRelocate;
   state.languages = profile.languages?.length ? [...profile.languages] : ['English', 'Malayalam'];
   document.getElementById('qual').value = profile.qualification || '';
   document.getElementById('desc').value = profile.bio || '';
   state.locValue = profile.location || 'Kochi, Kerala';
+  state.alsoLocValue = (profile.alsoPreferredLocations || []).join(', ');
   state.salValue = String(profile.salary?.expectedMonthly ?? profile.salary?.minMonthly ?? '25000');
   writeExpectedSalaryValue(state.salValue);
   document.getElementById('profileName').value = profile.displayName || '';
   document.getElementById('neg').classList.toggle('on', state.neg);
-  document.getElementById('reloc').classList.toggle('on', state.relocate);
   const joinCode = profile.availableToJoin?.code || 'immediate';
   state.availableToJoin = joinCode;
   const joinSel = document.getElementById('joinAvail');
@@ -4240,7 +4248,6 @@ function resetWizard(keepEmp) {
   state.skills = [];
   state.exp = 2;
   state.neg = true;
-  state.relocate = false;
   state.languages = ['English', 'Malayalam'];
   state.availableToJoin = 'immediate';
   state.resume = null;
@@ -4248,13 +4255,14 @@ function resetWizard(keepEmp) {
   document.getElementById('qual').value = '';
   document.getElementById('desc').value = '';
   state.locValue = 'Kochi, Kerala';
+  state.alsoLocValue = '';
   state.salValue = '25000';
   writeExpectedSalaryValue('25000');
   document.getElementById('profileName').value = '';
   document.getElementById('posSearch').value = '';
-  document.getElementById('neg').classList.add('on');
-  document.getElementById('reloc').classList.remove('on');
-  const joinSel = document.getElementById('joinAvail');
+  const negEl = el('neg');
+  if (negEl) negEl.classList.add('on');
+  const joinSel = el('joinAvail');
   if (joinSel) joinSel.value = 'immediate';
   renderResumeUi();
 }
@@ -4360,15 +4368,14 @@ function captureS4Draft() {
   if (sal !== '') state.salValue = sal;
   const join = el('joinAvail');
   if (join) state.availableToJoin = join.value;
+  const also = el('alsoLoc');
+  if (also) state.alsoLocValue = also.value;
 }
 
 function bindStep4Events() {
   const body = el('s4Body');
   if (!body || body.dataset.bound === '1') return;
   body.dataset.bound = '1';
-  body.addEventListener('input', (e) => {
-    if (e.target.id === 'loc' || e.target.id === 'salExpected') matchCount();
-  });
   body.addEventListener('change', (e) => {
     if (e.target.id === 'joinAvail') state.availableToJoin = e.target.value;
     if (e.target.id === 'resumeFile' && e.target.files && e.target.files[0]) {
@@ -4382,17 +4389,10 @@ function bindStep4Events() {
       negBtn.classList.toggle('on', state.neg);
       return;
     }
-    const relocBtn = e.target.closest('#reloc');
-    if (relocBtn) {
-      state.relocate = !state.relocate;
-      relocBtn.classList.toggle('on', state.relocate);
-      return;
-    }
     if (e.target.id === 'clrLoc') {
       const loc = el('loc');
       if (loc) loc.value = '';
       state.locValue = '';
-      matchCount();
       return;
     }
     if (e.target.id === 'resumeClear') clearResume();
@@ -4404,17 +4404,23 @@ function renderS4() {
   const body = el('s4Body');
   if (!body) return;
   const locValue = escapeHtml(state.locValue || 'Kochi, Kerala');
+  const alsoValue = escapeHtml(state.alsoLocValue || '');
   const salValue = escapeHtml(String(state.salValue ?? '25000'));
   const joinOpts = JOIN_AVAILABILITY.map(
     (o) =>
       `<option value="${o.code}"${state.availableToJoin === o.code ? ' selected' : ''}>${o.label}</option>`,
   ).join('');
   const negOn = state.neg ? ' on' : '';
-  const relocOn = state.relocate ? ' on' : '';
   body.innerHTML = `
         <div class="fld">
-          <label>Preferred work location</label>
+          <label>Primary preferred work location</label>
+          <p class="hint">City/area where you want to work (can differ from where you live). Employers match on <b>job work location</b>, not your home address.</p>
           <div class="loc">📍 <input id="loc" value="${locValue}"><button type="button" id="clrLoc" style="border:0;background:none;cursor:pointer">✕</button></div>
+        </div>
+        <div class="fld">
+          <label>Also willing to work in (optional)</label>
+          <input id="alsoLoc" value="${alsoValue}" placeholder="e.g. Thiruvananthapuram, Kochi — comma separated">
+          <p class="hint">Add other cities/areas. You get alerts only for jobs whose <b>work location</b> matches one of these places.</p>
         </div>
         <div class="fld">
           <label>Expected salary (₹/month)</label>
@@ -4436,15 +4442,9 @@ function renderS4() {
             </div>
           </div>
         </div>
-        <div class="tog"><div><b>Salary negotiable</b><div class="s">You are open to discuss pay for the right role.</div></div><button class="sw${negOn}" type="button" id="neg"><i></i></button></div>
-        <div class="tog"><div><b>Open to relocate</b><div class="s">Within Kerala or nearby districts.</div></div><button class="sw${relocOn}" type="button" id="reloc"><i></i></button></div>
-        <div class="match">
-          <div class="pdot">💼</div>
-          <div><div class="n" id="matchN">38</div><div class="s">open roles may match this profile (demo estimate)</div></div>
-        </div>`;
+        <div class="tog"><div><b>Salary negotiable</b><div class="s">You are open to discuss pay for the right role.</div></div><button class="sw${negOn}" type="button" id="neg"><i></i></button></div>`;
   bindStep4Events();
   renderResumeUi();
-  matchCount();
 }
 
 function renderS5() {
@@ -4452,7 +4452,8 @@ function renderS5() {
   const p = position();
   const emp = C.employmentTypes.find((e) => e.code === state.emp)?.label;
   const salExpected = readExpectedSalaryValue();
-  const loc = document.getElementById('loc').value;
+  const loc = el('loc')?.value || state.locValue || '';
+  const also = parseLocationList(el('alsoLoc')?.value ?? state.alsoLocValue);
   const qual = document.getElementById('qual').value;
   const bio = document.getElementById('desc').value.trim();
   if (!document.getElementById('profileName').value.trim()) {
@@ -4467,19 +4468,14 @@ function renderS5() {
     ['Skills', state.skills.join(', ') || '—'],
     ['Languages', state.languages.join(', ') || '—'],
     ['Bio', bio || '—'],
-    ['Location', loc || '—'],
+    ['Primary work location', loc || '—'],
+    ['Also willing to work in', also.length ? also.join(', ') : '—'],
     ['Expected salary', (salExpected ? '₹' + salExpected : '—') + (state.neg ? ' (Negotiable)' : '')],
-    ['Relocate', state.relocate ? 'Yes' : 'No'],
-    ['Available to join', joinLabel(document.getElementById('joinAvail')?.value || state.availableToJoin)],
+    ['Available to join', joinLabel(el('joinAvail')?.value || state.availableToJoin)],
     ['Resume', state.resume?.fileName || '—'],
   ]
     .map(([k, v]) => `<div class="line"><span>${k}</span><b>${v}</b></div>`)
     .join('');
-}
-function matchCount() {
-  const loc = document.getElementById('loc').value.length;
-  const n = 10 + state.skills.length * 3 + state.types.length * 2 + state.languages.length * 2 + Math.min(18, loc);
-  document.getElementById('matchN').textContent = n;
 }
 
 function renderProfiles() {
@@ -4494,9 +4490,11 @@ function renderProfiles() {
       const when = pr.savedAt ? new Date(pr.savedAt).toLocaleString() : '';
       const sal = pr.salary?.expectedMonthly ?? pr.salary?.minMonthly;
       const salLine = sal ? '<br>Expected: ₹' + escapeHtml(String(sal)) + '/mo' : '';
+      const also = (pr.alsoPreferredLocations || []).join(', ');
+      const alsoLine = also ? '<br>Also: ' + escapeHtml(also) : '';
       return `<div class="prof-card" data-id="${pr.id}">
         <b>${escapeHtml(pr.displayName || 'Untitled')}</b>
-        <div class="meta">${escapeHtml(pr.position?.label || '')} · ${escapeHtml(pr.sector?.label || '')}<br>${escapeHtml(pr.employmentType?.label || '')} · ${escapeHtml(pr.location || '')}${salLine}${pr.availableToJoin?.label ? '<br>Join: ' + escapeHtml(pr.availableToJoin.label) : ''}${pr.resume?.fileName ? '<br>Resume: ' + escapeHtml(pr.resume.fileName) : ''}<br><small>Saved ${escapeHtml(when)}</small></div>
+        <div class="meta">${escapeHtml(pr.position?.label || '')} · ${escapeHtml(pr.sector?.label || '')}<br>${escapeHtml(pr.employmentType?.label || '')} · Work: ${escapeHtml(pr.location || '')}${alsoLine}${salLine}${pr.availableToJoin?.label ? '<br>Join: ' + escapeHtml(pr.availableToJoin.label) : ''}${pr.resume?.fileName ? '<br>Resume: ' + escapeHtml(pr.resume.fileName) : ''}<br><small>Saved ${escapeHtml(when)}</small></div>
         <div class="acts">
           <button type="button" data-open="${pr.id}">Edit</button>
           <button type="button" class="del" data-del="${pr.id}">Delete</button>
