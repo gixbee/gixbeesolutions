@@ -8931,7 +8931,6 @@ function selectedCountLabel(base, count){
 function typeFieldLabel(p){
   const n = state.types.length;
   if(n < 2) return p.typeLabel;
-  // First type stays green; label counts extra picks only (2 total → "1 selected", 3 → "2 selected").
   return selectedCountLabel(p.typeLabel, n - 1);
 }
 function ensureDefaultType(p){
@@ -8996,10 +8995,15 @@ function renderS3(){
   document.getElementById('skillLbl').textContent = selectedCountLabel('Skills', state.skills.length);
   document.getElementById('langLbl').textContent = selectedCountLabel('Languages required', state.languages.length);
   const vis = visibleTypes(p);
-  document.getElementById('typeChips').innerHTML = vis.map(t =>
-    `<button class="chip ${state.types.includes(t)?'on':''}" data-t="${t.replace(/"/g,'&quot;')}">${t}</button>`
-  ).join('');
-  const extraTypes = state.types.filter(t => !vis.includes(t));
+  const primary = state.types[0] || null;
+  const multi = state.types.length >= 2;
+  document.getElementById('typeChips').innerHTML = vis.map(t => {
+    const on = multi ? t === primary : state.types.includes(t);
+    return `<button class="chip ${on?'on':''}" data-t="${t.replace(/"/g,'&quot;')}">${t}</button>`;
+  }).join('');
+  const extraTypes = multi
+    ? state.types.filter(t => t !== primary || !vis.includes(t))
+    : state.types.filter(t => !vis.includes(t));
   document.getElementById('typeExtra').innerHTML = extraTypes.map(t =>
     `<span class="chip sk">${t}<button type="button" data-tx="${t.replace(/"/g,'&quot;')}">×</button></span>`
   ).join('');
