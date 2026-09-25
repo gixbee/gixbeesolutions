@@ -1,6 +1,13 @@
 # Employee job profile HTML flow (seeker / worker)
 
-**Build target:** `docs/prototypes/seeker-job-profile-master.html` — **one self-contained file** (markup + inlined catalogue script + inlined app script). Download **only this file** and open it in a browser. No `hire-employee-skills-catalog.js`, no `_seeker_profile_app.js`, and no server required.
+**Build target (job seeker / employee):**
+
+| File | Use |
+| --- | --- |
+| **`jobseeker-job-profile-master.html`** | Same as below — easy name for “jobseeker” |
+| `seeker-job-profile-master.html` | Identical single-file demo |
+
+One self-contained file (markup + inlined catalogue + inlined app). Download **either** file and open in a browser. No extra `.js`.
 
 **Regenerate after edits:** `python3 docs/prototypes/_gen_seeker_profile_html.py` (runs `_gen_hire_catalog.py`, then inlines everything into `seeker-job-profile-master.html`).
 

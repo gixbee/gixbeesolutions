@@ -11,6 +11,7 @@ DIR = Path(__file__).resolve().parent
 SHELL = DIR / "seeker-job-profile-shell.html"
 APP_JS = DIR / "_seeker_profile_app.js"
 OUT_HTML = DIR / "seeker-job-profile-master.html"
+OUT_HTML_JOBSEEKER = DIR / "jobseeker-job-profile-master.html"
 GEN_CATALOG = DIR / "_gen_hire_catalog.py"
 
 
@@ -50,6 +51,7 @@ def main() -> None:
         + shell
     )
     OUT_HTML.write_text(shell, encoding="utf-8")
+    OUT_HTML_JOBSEEKER.write_text(shell, encoding="utf-8")
     text = OUT_HTML.read_text(encoding="utf-8")
     if "<script src=" in text:
         raise SystemExit("Single-file output must not reference external script src")
@@ -57,7 +59,10 @@ def main() -> None:
         raise SystemExit("Generated HTML missing inlined catalogue or app JS")
     if "function renderS4(" not in text:
         raise SystemExit("Generated HTML missing step-4 JS renderer")
-    print(f"Wrote {OUT_HTML.name} ({OUT_HTML.stat().st_size // 1024} KB) — open this file only")
+    print(
+        f"Wrote {OUT_HTML.name} and {OUT_HTML_JOBSEEKER.name} "
+        f"({OUT_HTML.stat().st_size // 1024} KB each) — open either file; no extra .js"
+    )
 
 
 if __name__ == "__main__":
