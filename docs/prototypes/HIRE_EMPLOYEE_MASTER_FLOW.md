@@ -91,7 +91,6 @@ This is the important HTML rule. **Do not** use one static Step 3. Read `fieldPa
 - Minimum experience (years) stepper, default 0 or 2 as in mock.
 - Skills: chips already chosen + **+ Add skills**.
 - **Languages required:** quick chips (English, Malayalam, Hindi, Tamil) + **+ Add languages** sheet (16 languages). At least one required before Continue.
-- **Resume & documents:** toggle **Resume required on profile**; optional **Attach job brief** upload (PDF/DOC, demo only, max 5 MB).
 - Job description optional textarea.
 
 **Add skills overlay (mock 3A/3B):**

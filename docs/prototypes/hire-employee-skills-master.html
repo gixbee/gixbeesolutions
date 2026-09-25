@@ -89,12 +89,6 @@
   .ok{background:#ECFDF3;border-radius:12px;padding:12px;font-size:12.5px;color:#065F46;margin:10px 0}
   .chip.lang{background:#FFF7ED;border-color:#FDBA74;color:#9A3412}
   .hint{font-size:12px;color:#9CA3AF;margin:-6px 0 10px;line-height:1.4}
-  .drop{border:1.5px dashed #CBD5E1;border-radius:14px;padding:16px 14px;text-align:center;background:#F9FAFB;cursor:pointer;transition:border-color .15s,background .15s}
-  .drop.on{border-color:var(--gn);background:#F0FDF4}
-  .drop b{display:block;font-size:14px;margin-bottom:4px}
-  .drop small{color:var(--mut);font-size:12px}
-  .filecard{display:flex;align-items:center;gap:10px;text-align:left;padding:10px 12px;border-radius:12px;background:#fff;border:1px solid #E5E7EB;margin-top:8px}
-  .filecard .rm{margin-left:auto;border:0;background:none;color:#DC2626;font-weight:800;cursor:pointer;font-size:12px}
 </style>
 </head>
 <body>
@@ -170,22 +164,6 @@
           <div class="chips" id="langQuick"></div>
           <div class="chips" id="langChips" style="margin-top:8px"></div>
           <button class="addsk" type="button" id="addLangs" style="margin-top:8px">+ Add languages</button>
-        </div>
-        <div class="fld">
-          <label>Resume &amp; documents</label>
-          <p class="hint">Tell candidates what to share when they tap Interested.</p>
-          <div class="tog" style="margin:0 0 12px;padding:10px 12px;border:1px solid #E5E7EB;border-radius:12px;background:#fff">
-            <div><b>Resume required on profile</b><div class="s">Only show candidates who uploaded a resume.</div></div>
-            <button class="sw on" type="button" id="needResume"><i></i></button>
-          </div>
-          <div class="drop" id="resumeDrop">
-            <input type="file" id="resumeFile" accept=".pdf,.doc,.docx,image/*" hidden>
-            <div id="resumeEmpty">
-              <b>📎 Attach job brief (optional)</b>
-              <small>PDF, Word, or photo · Max 5 MB · Shown to interested candidates</small>
-            </div>
-            <div id="resumeFilled" hidden></div>
-          </div>
         </div>
         <div class="fld">
           <label>Job description (optional)</label>
@@ -8921,8 +8899,6 @@ const state = {
   skillFull: false,
   languages: ['English', 'Malayalam'],
   langDraft: [],
-  needResume: true,
-  resumeFile: null,
 };
 const LANG_QUICK = ['English', 'Malayalam', 'Hindi', 'Tamil'];
 const LANGUAGE_LIST = [
@@ -8996,27 +8972,7 @@ function renderS3(){
   document.getElementById('langChips').innerHTML = state.languages.filter(l => !LANG_QUICK.includes(l)).map(l =>
     `<span class="chip lang">${l}<button type="button" data-lx="${l}">×</button></span>`
   ).join('');
-  document.getElementById('needResume').classList.toggle('on', state.needResume);
-  renderResumeCard();
   document.getElementById('expV').textContent = state.exp;
-}
-function renderResumeCard(){
-  const drop = document.getElementById('resumeDrop');
-  const empty = document.getElementById('resumeEmpty');
-  const filled = document.getElementById('resumeFilled');
-  if(!state.resumeFile){
-    empty.hidden = false;
-    filled.hidden = true;
-    drop.classList.remove('on');
-    return;
-  }
-  empty.hidden = true;
-  filled.hidden = false;
-  drop.classList.add('on');
-  const f = state.resumeFile;
-  const kb = Math.max(1, Math.round(f.size / 1024));
-  filled.innerHTML = `<div class="filecard"><span style="font-size:22px">📄</span><div><b>${f.name}</b><div class="s">${kb} KB · attached</div></div><button type="button" class="rm" id="rmResume">Remove</button></div>`;
-  document.getElementById('rmResume').onclick = (e) => { e.stopPropagation(); state.resumeFile=null; document.getElementById('resumeFile').value=''; renderResumeCard(); };
 }
 function renderS5(){
   const s=sector(), p=position();
@@ -9031,7 +8987,6 @@ function renderS5(){
     ['Experience', state.exp+'+ years'],
     ['Skills', state.skills.join(', ')||'—'],
     ['Languages', state.languages.join(', ')||'—'],
-    ['Resume', (state.needResume?'Required on profile':'Optional') + (state.resumeFile?' · JD: '+state.resumeFile.name:'')],
     ['Location', loc],
     ['Salary', '₹'+salMin+(salMax?' – ₹'+salMax:'')+(state.neg?' (Negotiable)':'')],
     ['Vacancies', state.vac],
@@ -9144,15 +9099,6 @@ document.getElementById('langChips').addEventListener('click', e => {
   state.languages=state.languages.filter(l=>l!==x); renderS3();
 });
 document.getElementById('addLangs').onclick = openLangs;
-document.getElementById('needResume').onclick = function(){ state.needResume=!state.needResume; this.classList.toggle('on', state.needResume); };
-document.getElementById('resumeDrop').onclick = () => document.getElementById('resumeFile').click();
-document.getElementById('resumeFile').onchange = (e) => {
-  const f = e.target.files && e.target.files[0];
-  if(!f){ return; }
-  if(f.size > 5*1024*1024){ toast('File must be under 5 MB.'); e.target.value=''; return; }
-  state.resumeFile = { name: f.name, size: f.size };
-  renderResumeCard();
-};
 document.getElementById('skillChips').addEventListener('click', e => {
   const x=e.target.dataset.x; if(!x) return;
   state.skills=state.skills.filter(s=>s!==x); renderS3();
