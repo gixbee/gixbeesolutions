@@ -1,0 +1,5083 @@
+<!-- GIXBEE SEEKER JOB PROFILE — single self-contained HTML (catalogue + app JS inlined). -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Gixbee — Job Profile (Employee demo)</title>
+<!-- SINGLE FILE: open seeker-job-profile-master.html only. Catalogue + app JavaScript are inlined below — no external .js -->
+<style>
+  :root{
+    --navy:#1B2559; --ink:#111827; --mut:#6B7280; --line:#E5E7EB;
+    --bg:#F8FAFC; --card:#fff; --gn:#12B76A; --gn2:#099250; --soft:#ECFDF3;
+    --chip:#F3F4F6; --shadow:0 8px 28px rgba(15,23,42,.08);
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:#E8EDF5;font-family:Inter,system-ui,-apple-system,Segoe UI,sans-serif;color:var(--ink)}
+  .stage{min-height:100vh;display:flex;align-items:flex-start;justify-content:center;padding:24px 12px}
+  .phone{width:min(100%,430px);background:#fff;min-height:860px;border-radius:36px;box-shadow:var(--shadow);overflow:hidden;position:relative;border:8px solid #111}
+  .notch{height:28px;display:flex;align-items:center;justify-content:space-between;padding:8px 18px 0;font-size:12px;font-weight:700;color:#111}
+  .scr{display:none;padding:0 0 92px;min-height:800px}
+  .scr.on{display:block}
+  .top{display:flex;align-items:center;gap:10px;padding:8px 16px 6px}
+  .back{width:36px;height:36px;border:0;background:none;font-size:22px;color:var(--navy);cursor:pointer}
+  .top h1{margin:0;font-size:20px;color:var(--navy);flex:1}
+  .req{color:var(--gn);font-size:13px;font-weight:700;background:none;border:0;cursor:pointer;white-space:nowrap}
+  .prog{display:flex;align-items:center;gap:8px;padding:4px 16px 12px}
+  .bar{flex:1;height:6px;background:#E5E7EB;border-radius:99px;overflow:hidden}
+  .bar>i{display:block;height:100%;background:var(--gn);width:20%;border-radius:99px}
+  .frac{font-size:12px;color:#9CA3AF;font-weight:700}
+  .pad{padding:0 16px}
+  h2{margin:0 0 10px;font-size:18px}
+  .sub{color:var(--mut);font-size:13px;line-height:1.45;margin:0 0 14px}
+  .pills{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px}
+  .pill{border:1px solid #D1D5DB;background:#fff;border-radius:10px;padding:8px 12px;font-size:13px;font-weight:700;color:#374151;cursor:pointer}
+  .pill.on{background:var(--gn);border-color:var(--gn);color:#fff}
+  .row{display:flex;justify-content:space-between;align-items:baseline;margin:6px 0 10px}
+  .see{background:none;border:0;color:#2563EB;font-weight:700;font-size:13px;cursor:pointer}
+  .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+  .tile{border:1.5px solid #E5E7EB;border-radius:16px;background:#fff;padding:12px 8px 10px;text-align:center;cursor:pointer;min-height:108px}
+  .tile.on{border-color:var(--gn);background:#F0FDF4;box-shadow:0 0 0 3px #D1FADF}
+  .ico{width:44px;height:44px;border-radius:50%;margin:0 auto 8px;display:grid;place-items:center}
+  .tile b{display:block;font-size:11px;line-height:1.25;font-weight:700;color:#1F2937}
+  .cta{position:sticky;bottom:0;padding:12px 16px 18px;background:linear-gradient(transparent, #fff 18%); }
+  .btn{width:100%;border:0;border-radius:12px;background:var(--gn);color:#fff;font-weight:800;font-size:16px;padding:14px;cursor:pointer}
+  .btn:disabled{opacity:.45;cursor:not-allowed}
+  .btn.ghost{background:#fff;color:var(--gn);border:1.5px solid var(--gn);margin-top:8px}
+  .search{width:100%;padding:12px 14px 12px 38px;border:1px solid #E5E7EB;border-radius:12px;background:#F9FAFB url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='18' height='18' fill='none' stroke='%239CA3AF' stroke-width='2'%3E%3Ccircle cx='8' cy='8' r='6'/%3E%3Cpath d='M13 13l3 3'/%3E%3C/svg%3E") 12px 50% no-repeat;font:inherit;margin:10px 0 12px}
+  .plist{display:flex;flex-direction:column;gap:8px}
+  .prow{display:flex;gap:12px;align-items:center;padding:10px;border-radius:14px;border:1.5px solid transparent;cursor:pointer;background:#fff}
+  .prow.on{border-color:var(--gn);background:#F0FDF4}
+  .pdot{width:42px;height:42px;border-radius:50%;display:grid;place-items:center;flex:none;background:#ECFDF3}
+  .prow .t{font-weight:800;font-size:14px}
+  .prow .s{font-size:12px;color:var(--mut);margin-top:2px}
+  .crumb{display:flex;align-items:flex-start;gap:10px;padding:10px 12px;border-radius:14px;background:#ECFDF3;margin-bottom:12px}
+  .crumb .chg{margin-left:auto;color:var(--gn);font-weight:800;font-size:13px;background:none;border:0;cursor:pointer}
+  .chips{display:flex;flex-wrap:wrap;gap:8px;margin:8px 0 14px}
+  .chip{padding:8px 12px;border-radius:10px;border:1px solid #D1D5DB;background:#fff;font-size:12.5px;font-weight:700;cursor:pointer;color:#374151}
+  .chip.on{background:var(--gn);border-color:var(--gn);color:#fff}
+  .chip.on{display:inline-flex;align-items:center;gap:6px}
+  .chip.on .chip-x{border:0;background:none;cursor:pointer;color:#fff;font-size:14px;font-weight:800;line-height:1;padding:0 2px}
+  .chip.sk{background:#EEF2FF;border-color:#C7D2FE;color:#3730A3;display:inline-flex;align-items:center;gap:6px}
+  .chip.sk.on{background:var(--gn);border-color:var(--gn);color:#fff}
+  .chip.sk.on button{color:#fff}
+  .chip.sk button{border:0;background:none;cursor:pointer;color:#4338CA;font-size:14px}
+  .addsk{border:1.5px dashed var(--gn);color:var(--gn);background:#fff;border-radius:10px;padding:8px 12px;font-weight:800;cursor:pointer}
+  .fld{margin:0 0 14px}
+  .fld label{display:block;font-size:13px;font-weight:800;margin:0 0 6px}
+  .fld input,.fld select,.fld textarea{width:100%;padding:12px;border:1px solid #E5E7EB;border-radius:12px;font:inherit;background:#fff}
+  .fld textarea{min-height:72px}
+  .stepper{display:flex;align-items:center;gap:14px}
+  .stepper button{width:36px;height:36px;border-radius:10px;border:1px solid #E5E7EB;background:#fff;font-size:18px;cursor:pointer}
+  .stepper b{min-width:24px;text-align:center}
+  .sal{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .loc{display:flex;gap:8px;align-items:center;border:1px solid #E5E7EB;border-radius:12px;padding:10px 12px}
+  .loc input{border:0;flex:1;font:inherit;outline:none}
+  .tog{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:8px 0 16px}
+  .sw{width:44px;height:26px;border-radius:99px;background:#D1D5DB;position:relative;border:0;cursor:pointer}
+  .sw.on{background:var(--gn)}
+  .sw i{position:absolute;top:3px;left:3px;width:20px;height:20px;border-radius:50%;background:#fff;transition:left .15s}
+  .sw.on i{left:21px}
+  .match{background:var(--soft);border-radius:16px;padding:14px;display:flex;align-items:center;gap:12px;margin:8px 0 14px}
+  .match .n{font-size:28px;font-weight:900;color:var(--gn2)}
+  .sum{border:1px solid #E5E7EB;border-radius:16px;padding:14px;margin-bottom:14px}
+  .sum .line{display:flex;justify-content:space-between;gap:10px;font-size:13px;padding:5px 0;color:#4B5563}
+  .sum .line b{color:#111;text-align:right;font-weight:700;max-width:58%;text-align:right}
+  .sheet{position:absolute;inset:0;background:rgba(15,23,42,.45);display:none;align-items:flex-end;z-index:5}
+  .sheet.on{display:flex}
+  .sheet .box{background:#fff;width:100%;max-height:88%;border-radius:20px 20px 0 0;padding:14px 16px 20px;overflow:auto}
+  .sheet h3{margin:0;font-size:18px}
+  .ck{display:flex;gap:10px;align-items:flex-start;padding:8px 0;border-bottom:1px solid #F3F4F6;font-size:14px;cursor:pointer}
+  .toast{position:absolute;left:16px;right:16px;bottom:88px;background:#111827;color:#fff;padding:12px 14px;border-radius:12px;font-size:13px;display:none;z-index:6}
+  .ok{background:#ECFDF3;border-radius:12px;padding:12px;font-size:12.5px;color:#065F46;margin:10px 0}
+  .chip.lang{background:#FFF7ED;border-color:#FDBA74;color:#9A3412}
+  .chip.lang.on{background:var(--gn);border-color:var(--gn);color:#fff}
+  .chip.lang.sk{display:inline-flex;align-items:center;gap:6px;cursor:default}
+  .chip.lang button{border:0;background:none;cursor:pointer;color:#9A3412;font-size:15px;font-weight:800;line-height:1;padding:0 2px}
+  .hint{font-size:12px;color:#9CA3AF;margin:-6px 0 10px;line-height:1.4}
+  .prof-card{border:1.5px solid #E5E7EB;border-radius:16px;padding:14px;margin:0 0 10px;background:#fff}
+  .prof-card b{display:block;font-size:15px;margin-bottom:4px}
+  .prof-card .meta{font-size:12px;color:var(--mut);line-height:1.4}
+  .prof-card .acts{display:flex;gap:12px;margin-top:10px}
+  .prof-card .acts button{font-size:13px;font-weight:800;border:0;background:none;color:#2563EB;cursor:pointer;padding:0}
+  .prof-card .acts .del{color:#DC2626}
+  .empty{text-align:center;padding:32px 12px;color:var(--mut);font-size:14px}
+  .upload{border:1.5px dashed #D1D5DB;border-radius:12px;padding:14px;background:#F9FAFB}
+  .upload input[type=file]{display:none}
+  .upload .up-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+  .upload .up-btn{display:inline-block;padding:10px 14px;border-radius:10px;background:#fff;border:1px solid #D1D5DB;font-size:13px;font-weight:800;color:var(--navy);cursor:pointer}
+  .upload .fname{font-size:13px;color:#374151;font-weight:700;flex:1;min-width:120px}
+  .upload .rm{border:0;background:none;color:#DC2626;font-weight:800;font-size:13px;cursor:pointer}
+  .also-box{border:1px solid #E5E7EB;border-radius:14px;padding:12px;background:#FAFAFA}
+  .also-count{font-size:12px;font-weight:800;color:var(--gn2);background:var(--soft);padding:4px 10px;border-radius:99px}
+  .also-add-row{display:flex;gap:8px;margin-top:10px}
+  .also-add-row input{flex:1;margin:0}
+  .also-add-row button{border:0;border-radius:10px;background:var(--navy);color:#fff;font-weight:800;font-size:13px;padding:10px 16px;cursor:pointer;white-space:nowrap}
+  .also-add-row button:disabled{opacity:.4;cursor:not-allowed}
+  .also-empty{font-size:12.5px;color:#9CA3AF;padding:8px 0 4px;font-style:italic}
+  .chip.also{background:#F0FDF4;border-color:#86EFAC;color:#166534;display:inline-flex;align-items:center;gap:6px}
+  .chip.also button{border:0;background:none;cursor:pointer;color:#166534;font-size:15px;font-weight:800;line-height:1;padding:0 2px}
+  .also-quick .chip{font-size:12px;padding:6px 10px}
+  .prio-list{display:flex;flex-direction:column;gap:8px;margin:10px 0}
+  .prio-row{display:flex;align-items:center;gap:8px;padding:10px 12px;border:1.5px solid #E5E7EB;border-radius:12px;background:#fff}
+  .prio-row.vacant{background:#F9FAFB;border-style:dashed}
+  .prio-badge{flex:none;width:32px;height:32px;border-radius:10px;background:#E5E7EB;color:#374151;font-size:12px;font-weight:900;display:grid;place-items:center}
+  .prio-row.filled .prio-badge{background:var(--gn);color:#fff}
+  .prio-name{flex:1;font-size:14px;font-weight:700;color:#111827}
+  .prio-vacant{flex:1;font-size:13px;color:#9CA3AF;font-style:italic}
+  .prio-act{border:0;background:#F3F4F6;width:34px;height:34px;border-radius:10px;font-size:16px;font-weight:800;cursor:pointer;color:var(--navy)}
+  .prio-act:disabled{opacity:.35;cursor:not-allowed}
+  .prio-act.rm{color:#DC2626;background:#FEE2E2}
+</style>
+</head>
+<body>
+<noscript>
+  <div style="font:16px/1.5 sans-serif;padding:24px;max-width:480px;margin:0 auto">
+    <h1 style="font-size:20px">JavaScript required</h1>
+    <p>Enable JavaScript, then open <b>jobseeker-job-profile-master.html</b> (not the shell file).</p>
+  </div>
+</noscript>
+<div id="bootError" hidden aria-live="assertive"></div>
+<div class="stage">
+  <div class="phone" id="phone">
+    <div class="notch"><span>9:41</span><span>●●●</span></div>
+
+    <section class="scr on" id="s1">
+      <div class="top"><button class="back" type="button" id="s1Back">←</button><h1>Job Profile</h1><button class="req" type="button" id="myProfiles">My profiles</button></div>
+      <div class="prog"><div class="bar"><i id="p1"></i></div><span class="frac">1/5</span></div>
+      <div class="pad">
+        <h2>Select Job Type</h2>
+        <p class="sub">Same categories as hiring — tell employers how you want to work.</p>
+        <p class="hint" id="buildTag">Loading demo… open <b>jobseeker-job-profile-master.html</b> if this stays empty.</p>
+        <div class="pills" id="empTypes"><span class="hint" style="margin:0">Loading job types…</span></div>
+        <div class="row"><h2 style="margin:0">Sector / Category</h2></div>
+        <div class="grid" id="sectors"><span class="hint" style="grid-column:1/-1">Loading 18 sectors…</span></div>
+      </div>
+      <div class="cta"><button class="btn" id="c1" disabled>Continue</button></div>
+    </section>
+
+    <section class="scr" id="s2">
+      <div class="top"><button class="back" type="button" data-to="s1">←</button><h1>Job Profile</h1><button class="req" type="button" id="myProfiles2">My profiles</button></div>
+      <div class="prog"><div class="bar"><i style="width:40%"></i></div><span class="frac">2/5</span></div>
+      <div class="pad">
+        <div class="crumb">
+          <div class="pdot" id="s2ico"></div>
+          <div><b id="s2sec"></b><div class="s" id="s2sub"></div></div>
+          <button class="chg" type="button" data-to="s1">Change</button>
+        </div>
+        <h2>Select Position</h2>
+        <input class="search" id="posSearch" placeholder="Search position (e.g. Nurse, Electrician)">
+        <div class="plist" id="posList"></div>
+        <button class="see" type="button" id="morePos" style="margin:8px 0">Show more positions</button>
+      </div>
+      <div class="cta"><button class="btn" id="c2" disabled>Continue</button></div>
+    </section>
+
+    <section class="scr" id="s3">
+      <div class="top"><button class="back" type="button" data-to="s2">←</button><h1>Job Profile</h1><button class="req" type="button" id="myProfiles3">My profiles</button></div>
+      <div class="prog"><div class="bar"><i style="width:60%"></i></div><span class="frac">3/5</span></div>
+      <div class="pad">
+        <div class="crumb">
+          <div class="pdot" id="s3ico"></div>
+          <div><b id="s3crumb"></b><div class="s" id="s3sub"></div></div>
+          <button class="chg" type="button" data-to="s2">Change</button>
+        </div>
+        <div class="fld" id="typeBlock">
+          <label id="typeLbl">Type</label>
+          <div class="chips" id="typeChips"></div>
+          <div class="chips" id="typeExtra" style="margin-top:8px"></div>
+          <button class="see" type="button" id="moreTypes" hidden>Show more</button>
+        </div>
+        <div class="fld">
+          <label>Your qualification (optional)</label>
+          <select id="qual">
+            <option value="">Select qualification</option>
+            <option>10th</option><option>12th</option><option>ITI / Diploma</option>
+            <option>Graduate</option><option>Post graduate</option>
+            <option>MBBS</option><option>MD / MS</option><option>B.Sc Nursing</option>
+            <option>Other</option>
+          </select>
+        </div>
+        <div class="fld">
+          <label>Your experience (years)</label>
+          <div class="stepper"><button type="button" id="expM">−</button><b id="expV">2</b><button type="button" id="expP">+</button></div>
+        </div>
+        <div class="fld">
+          <label id="skillLbl">Skills</label>
+          <div class="chips" id="skillChips"></div>
+          <button class="addsk" type="button" id="addSkills">+ Add skills</button>
+        </div>
+        <div class="fld">
+          <label id="langLbl">Languages you speak</label>
+          <p class="hint">Employers filter by language — add everything you are comfortable with.</p>
+          <div class="chips" id="langQuick"></div>
+          <div class="chips" id="langChips" style="margin-top:8px"></div>
+          <button class="addsk" type="button" id="addLangs" style="margin-top:8px">+ Add languages</button>
+        </div>
+        <div class="fld">
+          <label>Short bio (optional)</label>
+          <textarea id="desc" placeholder="e.g. ICU nurse, night shifts OK, Kerala Nursing Council registered…"></textarea>
+        </div>
+      </div>
+      <div class="cta"><button class="btn" id="c3">Continue →</button></div>
+    </section>
+
+    <section class="scr" id="s4">
+      <div class="top"><button class="back" type="button" data-to="s3">←</button><h1>Job Profile</h1><button class="req" type="button" id="myProfiles4">My profiles</button></div>
+      <div class="prog"><div class="bar"><i style="width:80%"></i></div><span class="frac">4/5</span></div>
+      <div class="pad">
+        <h2>Location &amp; Pay Expectations</h2>
+        <p class="sub">Where you can work and your expected monthly pay — used for job matching.</p>
+        <div id="s4Body"></div>
+      </div>
+      <div class="cta"><button class="btn" id="c4">Continue</button></div>
+    </section>
+
+    <section class="scr" id="s5">
+      <div class="top"><button class="back" type="button" data-to="s4">←</button><h1>Job Profile</h1><button class="req" type="button" id="myProfiles5">My profiles</button></div>
+      <div class="prog"><div class="bar"><i style="width:100%"></i></div><span class="frac">5/5</span></div>
+      <div class="pad">
+        <h2>Review &amp; Save Profile</h2>
+        <p class="sub">This is saved on this device (demo). The live app syncs to your Gixbee account and matches you to hiring posts.</p>
+        <div class="fld">
+          <label>Profile name</label>
+          <input id="profileName" placeholder="e.g. Nurse — ICU Kochi">
+        </div>
+        <div class="sum">
+          <div style="display:flex;justify-content:space-between"><b>Profile summary</b><button class="see" type="button" data-to="s3">Edit</button></div>
+          <div id="summary"></div>
+        </div>
+        <p class="ok">Demo: profiles are stored in browser localStorage under <code>GIXBEE_JOB_PROFILES</code>. Export JSON from My profiles for API integration tests.</p>
+      </div>
+      <div class="cta"><button class="btn" id="c5">Save profile</button></div>
+    </section>
+
+    <section class="scr" id="s6">
+      <div class="top"><button class="back" type="button" data-to="s1">←</button><h1>Saved</h1></div>
+      <div class="pad" style="padding-top:24px">
+        <div class="match"><div><div class="n">✓</div><div>Your job profile is saved. Employers with matching Smart Hiring posts can discover you.</div></div></div>
+        <p class="sub" id="doneTxt"></p>
+        <button class="btn" type="button" id="viewSaved">View My profiles</button>
+        <button class="btn ghost" type="button" id="another">Create another profile</button>
+      </div>
+    </section>
+
+    <section class="scr" id="s7">
+      <div class="top"><button class="back" type="button" data-to="s1">←</button><h1>My profiles</h1></div>
+      <div class="pad">
+        <p class="sub">Tap a profile to load it into the wizard, or delete it.</p>
+        <div id="profileList"></div>
+        <button class="btn ghost" type="button" id="exportProfiles">Copy all profiles (JSON)</button>
+      </div>
+    </section>
+
+    <div class="sheet" id="skillSheet">
+      <div class="box">
+        <div class="row"><h3 id="skTitle">Add Skills</h3><button class="see" type="button" id="skClose">✕</button></div>
+        <input class="search" id="skSearch" placeholder="Search skills">
+        <div id="skList"></div>
+        <button class="see" type="button" id="skMore">Show more skills</button>
+        <div class="cta" style="position:static;padding:12px 0 0"><button class="btn" type="button" id="skOk">OK</button></div>
+      </div>
+    </div>
+    <div class="sheet" id="specSheet">
+      <div class="box">
+        <div class="row"><h3>Select Specialization</h3><button class="see" type="button" id="spClose">✕</button></div>
+        <input class="search" id="spSearch" placeholder="Search specializations">
+        <div id="spList"></div>
+        <div class="cta" style="position:static;padding:12px 0 0"><button class="btn" type="button" id="spOk">OK</button></div>
+      </div>
+    </div>
+    <div class="sheet" id="langSheet">
+      <div class="box">
+        <div class="row"><h3>Select languages</h3><button class="see" type="button" id="lgClose">✕</button></div>
+        <input class="search" id="lgSearch" placeholder="Search languages">
+        <div id="lgList"></div>
+        <div class="cta" style="position:static;padding:12px 0 0"><button class="btn" type="button" id="lgOk">OK</button></div>
+      </div>
+    </div>
+    <div class="toast" id="toast"></div>
+  </div>
+</div>
+<!-- CATALOG_START -->
+<script>
+/* Same SkillsHire catalogue as Hire Employee — shared taxonomy */
+window.GIXBEE_HIRE_CATALOG = {
+  "version": "skills-hire-final-master",
+  "employmentTypes": [
+    {
+      "code": "FT",
+      "label": "Full Time"
+    },
+    {
+      "code": "PT",
+      "label": "Part Time"
+    },
+    {
+      "code": "INTERN",
+      "label": "Intern"
+    },
+    {
+      "code": "CONTRACT",
+      "label": "Contract"
+    }
+  ],
+  "sectors": [
+    {
+      "id": "electrical",
+      "label": "Electrical & Electronics",
+      "subtitle": "Wiring, panels, solar, ELV and electrical engineering",
+      "icon": "bolt",
+      "color": "#F5C400",
+      "positions": [
+        {
+          "id": "electrician",
+          "label": "Electrician",
+          "subtitle": "Homes, shops and sites",
+          "fieldPattern": "typeChips",
+          "typeLabel": "Work type",
+          "types": [
+            "Domestic",
+            "Commercial",
+            "Industrial",
+            "Residential wiring",
+            "Maintenance"
+          ],
+          "suggestedSkills": [
+            "Switches & sockets",
+            "DB installation",
+            "Fault finding",
+            "Earthing",
+            "Testing"
+          ],
+          "moreSkills": [
+            "Kerala wireman licence",
+            "Electrical safety (LOTO)",
+            "Megger / insulation testing",
+            "Single-line diagram reading",
+            "BIS wiring practices",
+            "Solar net-metering basics"
+          ]
+        },
+        {
+          "id": "industrial-electrician",
+          "label": "Industrial Electrician",
+          "subtitle": "Factories and plants",
+          "fieldPattern": "typeChips",
+          "typeLabel": "Setting",
+          "types": [
+            "Factory",
+            "Plant maintenance",
+            "Motors & MCC"
+          ],
+          "suggestedSkills": [
+            "Motor wiring",
+            "MCC",
+            "Contactors",
+            "Industrial fault finding",
+            "Preventive maintenance"
+          ],
+          "moreSkills": [
+            "Kerala wireman licence",
+            "Electrical safety (LOTO)",
+            "Megger / insulation testing",
+            "Single-line diagram reading",
+            "BIS wiring practices",
+            "Solar net-metering basics"
+          ]
+        },
+        {
+          "id": "panel-and-control-technician",
+          "label": "Panel & Control Technician",
+          "subtitle": "Switchboards and controls",
+          "fieldPattern": "typeChips",
+          "typeLabel": "Panel type",
+          "types": [
+            "LT panel",
+            "MCC",
+            "APFC",
+            "Control panel wiring"
+          ],
+          "suggestedSkills": [
+            "Panel assembly",
+            "Busbar work",
+            "Control wiring",
+            "Testing",
+            "Termination"
+          ],
+          "moreSkills": [
+            "Kerala wireman licence",
+            "Electrical safety (LOTO)",
+            "Megger / insulation testing",
+            "Single-line diagram reading",
+            "BIS wiring practices",
+            "Solar net-metering basics"
+          ]
+        },
+        {
+          "id": "plc---automation-technician",
+          "label": "PLC / Automation Technician",
+          "subtitle": "Automation and controls",
+          "fieldPattern": "typeChips",
+          "typeLabel": "System",
+          "types": [
+            "PLC",
+            "HMI",
+            "VFD",
+            "Industrial automation"
+          ],
+          "suggestedSkills": [
+            "PLC programming",
+            "HMI",
+            "Sensors",
+            "VFD",
+            "Troubleshooting"
+          ],
+          "moreSkills": [
+            "Kerala wireman licence",
+            "Electrical safety (LOTO)",
+            "Megger / insulation testing",
+            "Single-line diagram reading",
+            "BIS wiring practices",
+            "Solar net-metering basics"
+          ]
+        },
+        {
+          "id": "solar-technician",
+          "label": "Solar Technician",
+          "subtitle": "Solar PV",
+          "fieldPattern": "typeChips",
+          "typeLabel": "System type",
+          "types": [
+            "Rooftop solar",
+            "Solar O&M",
+            "Inverter systems"
+          ],
+          "suggestedSkills": [
+            "PV installation",
+            "Inverter",
+            "DC/AC wiring",
+            "Testing",
+            "Maintenance"
+          ],
+          "moreSkills": [
+            "Kerala wireman licence",
+            "Electrical safety (LOTO)",
+            "Megger / insulation testing",
+            "Single-line diagram reading",
+            "BIS wiring practices",
+            "Solar net-metering basics"
+          ]
+        },
+        {
+          "id": "generator---ups-technician",
+          "label": "Generator / UPS Technician",
+          "subtitle": "Backup power",
+          "fieldPattern": "typeChips",
+          "typeLabel": "Equipment",
+          "types": [
+            "DG set",
+            "UPS",
+            "Inverter battery"
+          ],
+          "suggestedSkills": [
+            "Generator service",
+            "UPS installation",
+            "Battery testing",
+            "Troubleshooting"
+          ],
+          "moreSkills": [
+            "Kerala wireman licence",
+            "Electrical safety (LOTO)",
+            "Megger / insulation testing",
+            "Single-line diagram reading",
+            "BIS wiring practices",
+            "Solar net-metering basics"
+          ]
+        },
+        {
+          "id": "elv-technician",
+          "label": "ELV Technician",
+          "subtitle": "Low-voltage systems",
+          "fieldPattern": "typeChips",
+          "typeLabel": "System",
+          "types": [
+            "CCTV",
+            "Access control",
+            "Fire alarm",
+            "Structured cabling"
+          ],
+          "suggestedSkills": [
+            "CCTV",
+            "Access control",
+            "Fire alarm loops",
+            "Cabling",
+            "Configuration"
+          ],
+          "moreSkills": [
+            "Kerala wireman licence",
+            "Electrical safety (LOTO)",
+            "Megger / insulation testing",
+            "Single-line diagram reading",
+            "BIS wiring practices",
+            "Solar net-metering basics"
+          ]
+        },
+        {
+          "id": "electrical-supervisor",
+          "label": "Electrical Supervisor",
+          "subtitle": "Supervision",
+          "fieldPattern": "typeChips",
+          "typeLabel": "Setting",
+          "types": [
+            "Site",
+            "Industrial",
+            "Facility"
+          ],
+          "suggestedSkills": [
+            "Work supervision",
+            "Drawings",
+            "Safety",
+            "Inspection",
+            "Team coordination"
+          ],
+          "moreSkills": [
+            "Kerala wireman licence",
+            "Electrical safety (LOTO)",
+            "Megger / insulation testing",
+            "Single-line diagram reading",
+            "BIS wiring practices",
+            "Solar net-metering basics"
+          ]
+        },
+        {
+          "id": "electrical-engineer",
+          "label": "Electrical Engineer",
+          "subtitle": "Design and projects",
+          "fieldPattern": "typeChips",
+          "typeLabel": "Specialization",
+          "types": [
+            "Electrical design",
+            "Power systems",
+            "Projects",
+            "Renewable energy"
+          ],
+          "suggestedSkills": [
+            "Electrical design",
+            "Load calculation",
+            "Drawings",
+            "Testing",
+            "Commissioning"
+          ],
+          "moreSkills": [
+            "Kerala wireman licence",
+            "Electrical safety (LOTO)",
+            "Megger / insulation testing",
+            "Single-line diagram reading",
+            "BIS wiring practices",
+            "Solar net-metering basics"
+          ]
+        },
+        {
+          "id": "electronics---instrumentation-engineer",
+          "label": "Electronics / Instrumentation Engineer",
+          "subtitle": "Engineering roles",
+          "fieldPattern": "typeChips",
+          "typeLabel": "Specialization",
+          "types": [
+            "Embedded systems",
+            "PCB design",
+            "Instrumentation",
+            "IoT",
+            "Industrial electronics"
+          ],
+          "suggestedSkills": [
+            "Circuit design",
+            "Microcontrollers",
+            "Calibration",
+            "PLC/SCADA",
+            "Troubleshooting"
+          ],
+          "moreSkills": [
+            "Kerala wireman licence",
+            "Electrical safety (LOTO)",
+            "Megger / insulation testing",
+            "Single-line diagram reading",
+            "BIS wiring practices",
+            "Solar net-metering basics"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "plumbing",
+      "label": "Plumbing",
+      "subtitle": "Pipes, sanitary, pumps and water systems",
+      "icon": "pipe",
+      "color": "#3B82F6",
+      "positions": [
+        {
+          "id": "plumber",
+          "label": "Plumber",
+          "subtitle": "General plumbing",
+          "fieldPattern": "typeChips",
+          "typeLabel": "Work type",
+          "types": [
+            "Domestic",
+            "Commercial",
+            "Industrial",
+            "Building maintenance"
+          ],
+          "suggestedSkills": [
+            "Pipe installation",
+            "Leak repair",
+            "Fixtures",
+            "Sanitary fittings",
+            "Pressure testing"
+          ],
+          "moreSkills": [
+            "CPVC / UPVC piping",
+            "Pump troubleshooting",
+            "Blueprint reading",
+            "Pressure testing procedures"
+          ]
+        },
+        {
+          "id": "sanitary-and-bathroom-specialist",
+          "label": "Sanitary & Bathroom Specialist",
+          "subtitle": "Sanitary work",
+          "fieldPattern": "typeChips",
+          "typeLabel": "Area",
+          "types": [
+            "Bathroom",
+            "Kitchen",
+            "Sanitary installation"
+          ],
+          "suggestedSkills": [
+            "WC",
+            "Wash basin",
+            "Faucets",
+            "Drainage",
+            "Waterproofing coordination"
+          ],
+          "moreSkills": [
+            "CPVC / UPVC piping",
+            "Pump troubleshooting",
+            "Blueprint reading",
+            "Pressure testing procedures"
+          ]
+        },
+        {
+          "id": "ro---water-treatment-technician",
+          "label": "RO / Water Treatment Technician",
+          "subtitle": "Water purification",
+          "fieldPattern": "typeChips",
+          "typeLabel": "System",
+          "types": [
+            "RO",
+            "Water treatment",
+            "Filtration"
+          ],
+          "suggestedSkills": [
+            "RO systems",
+            "Filters",
+            "Pumps",
+            "Membrane maintenance",
+            "Water testing"
+          ],
+          "moreSkills": [
+            "CPVC / UPVC piping",
+            "Pump troubleshooting",
+            "Blueprint reading",
+            "Pressure testing procedures"
+          ]
+        },
+        {
+          "id": "fire-fighting-pipe-fitter",
+          "label": "Fire Fighting Pipe Fitter",
+          "subtitle": "Fire protection piping",
+          "fieldPattern": "typeChips",
+          "typeLabel": "System",
+          "types": [
+            "Hydrant",
+            "Sprinkler",
+            "Fire piping"
+          ],
+          "suggestedSkills": [
+            "Fire piping",
+            "Hydrants",
+            "Sprinkler lines",
+            "Pressure testing"
+          ],
+          "moreSkills": [
+            "CPVC / UPVC piping",
+            "Pump troubleshooting",
+            "Blueprint reading",
+            "Pressure testing procedures"
+          ]
+        },
+        {
+          "id": "drainage---sewer-technician",
+          "label": "Drainage / Sewer Technician",
+          "subtitle": "Drainage",
+          "fieldPattern": "typeChips",
+          "typeLabel": "Service",
+          "types": [
+            "Drainage",
+            "Sewer",
+            "Blockage removal"
+          ],
+          "suggestedSkills": [
+            "Drain cleaning",
+            "Sewer lines",
+            "Inspection",
+            "Blockage removal"
+          ],
+          "moreSkills": [
+            "CPVC / UPVC piping",
+            "Pump troubleshooting",
+            "Blueprint reading",
+            "Pressure testing procedures"
+          ]
+        },
+        {
+          "id": "plumbing-supervisor---engineer",
+          "label": "Plumbing Supervisor / Engineer",
+          "subtitle": "Lead roles",
+          "fieldPattern": "typeChips",
+          "typeLabel": "Role",
+          "types": [
+            "Site supervision",
+            "MEP design",
+            "Building services"
+          ],
+          "suggestedSkills": [
+            "Team supervision",
+            "Plumbing design",
+            "BOQ",
+            "Drawings",
+            "Site coordination"
+          ],
+          "moreSkills": [
+            "CPVC / UPVC piping",
+            "Pump troubleshooting",
+            "Blueprint reading",
+            "Pressure testing procedures"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "cleaning",
+      "label": "Cleaning & Housekeeping",
+      "subtitle": "Home, hotel, hospital and facility cleaning",
+      "icon": "broom",
+      "color": "#22C55E",
+      "positions": [
+        {
+          "id": "cleaner",
+          "label": "Cleaner",
+          "subtitle": "Residential and office",
+          "fieldPattern": "typeChips",
+          "typeLabel": "Setting",
+          "types": [
+            "Home",
+            "Apartment",
+            "Office",
+            "Deep cleaning"
+          ],
+          "suggestedSkills": [
+            "Dusting",
+            "Mopping",
+            "Sanitization",
+            "Bathroom/kitchen cleaning",
+            "Hygiene"
+          ],
+          "moreSkills": [
+            "Chemical handling (MSDS)",
+            "Infection-control cleaning",
+            "Equipment operation (scrubber/extractor)",
+            "Guest privacy standards"
+          ]
+        },
+        {
+          "id": "housekeeping-staff",
+          "label": "Housekeeping Staff",
+          "subtitle": "Hotels and facilities",
+          "fieldPattern": "typeChips",
+          "typeLabel": "Setting",
+          "types": [
+            "Hotel",
+            "Resort",
+            "Hospital",
+            "Facility",
+            "Room attendant"
+          ],
+          "suggestedSkills": [
+            "Room cleaning",
+            "Linen",
+            "Infection-control cleaning",
+            "Waste handling",
+            "Guest standards"
+          ],
+          "moreSkills": [
+            "Chemical handling (MSDS)",
+            "Equipment operation (scrubber/extractor)",
+            "Guest privacy standards"
+          ]
+        },
+        {
+          "id": "specialist-cleaner",
+          "label": "Specialist Cleaner",
+          "subtitle": "Specialist cleaning",
+          "fieldPattern": "typeChips",
+          "typeLabel": "Service",
+          "types": [
+            "Carpet",
+            "Sofa",
+            "Upholstery",
+            "Kitchen degreasing"
+          ],
+          "suggestedSkills": [
+            "Shampooing",
+            "Stain treatment",
+            "Equipment use",
+            "Kitchen hygiene"
+          ],
+          "moreSkills": [
+            "Chemical handling (MSDS)",
+            "Infection-control cleaning",
+            "Equipment operation (scrubber/extractor)",
+            "Guest privacy standards"
+          ]
+        },
+        {
+          "id": "housekeeping-supervisor",
+          "label": "Housekeeping Supervisor",
+          "subtitle": "Supervision",
+          "fieldPattern": "typeChips",
+          "typeLabel": "Setting",
+          "types": [
+            "Hotel",
+            "Hospital",
+            "Facility"
+          ],
+          "suggestedSkills": [
+            "Team scheduling",
+            "Inspection",
+            "Supplies",
+            "Quality control"
+          ],
+          "moreSkills": [
+            "Chemical handling (MSDS)",
+            "Infection-control cleaning",
+            "Equipment operation (scrubber/extractor)",
+            "Guest privacy standards"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "painting",
+      "label": "Painting",
+      "subtitle": "Interior, exterior, texture and waterproofing",
+      "icon": "roller",
+      "color": "#EC4899",
+      "positions": [
+        {
+          "id": "painter",
+          "label": "Painter",
+          "subtitle": "All painting work",
+          "fieldPattern": "typeChips",
+          "typeLabel": "Work type",
+          "types": [
+            "Interior",
+            "Exterior",
+            "Residential",
+            "Industrial",
+            "Texture",
+            "Waterproofing",
+            "Wood polish"
+          ],
+          "suggestedSkills": [
+            "Surface preparation",
+            "Primer",
+            "Painting",
+            "Finishing",
+            "Crack treatment"
+          ],
+          "moreSkills": [
+            "Putty and surface prep",
+            "Spray booth safety",
+            "Colour matching",
+            "Scaffolding safety"
+          ]
+        },
+        {
+          "id": "spray-painter",
+          "label": "Spray Painter",
+          "subtitle": "Spray application",
+          "fieldPattern": "typeChips",
+          "typeLabel": "Surface",
+          "types": [
+            "Automotive",
+            "Industrial",
+            "Furniture spray"
+          ],
+          "suggestedSkills": [
+            "Spray gun",
+            "Mixing",
+            "Masking",
+            "Industrial coatings",
+            "PPE"
+          ],
+          "moreSkills": [
+            "Putty and surface prep",
+            "Spray booth safety",
+            "Colour matching",
+            "Scaffolding safety"
+          ]
+        },
+        {
+          "id": "painting-supervisor",
+          "label": "Painting Supervisor",
+          "subtitle": "Site supervision",
+          "fieldPattern": "typeChips",
+          "typeLabel": "Project type",
+          "types": [
+            "Site",
+            "Project"
+          ],
+          "suggestedSkills": [
+            "Crew supervision",
+            "Material planning",
+            "Quality inspection"
+          ],
+          "moreSkills": [
+            "Putty and surface prep",
+            "Spray booth safety",
+            "Colour matching",
+            "Scaffolding safety"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "construction",
+      "label": "Construction, Carpentry & Woodwork",
+      "subtitle": "Carpentry, site work and design professionals",
+      "icon": "hammer",
+      "color": "#B45309",
+      "positions": [
+        {
+          "id": "carpenter",
+          "label": "Carpenter",
+          "subtitle": "Carpentry trades",
+          "fieldPattern": "typeChips",
+          "typeLabel": "Specialization",
+          "types": [
+            "General",
+            "Furniture",
+            "Interior fit-out",
+            "Modular kitchen",
+            "Site",
+            "Shuttering",
+            "Cabinet making"
+          ],
+          "suggestedSkills": [
+            "Measurement",
+            "Cutting",
+            "Joinery",
+            "Assembly",
+            "Installation"
+          ],
+          "moreSkills": [
+            "AutoCAD / Revit basics",
+            "Site safety (PPE)",
+            "Measurement and marking",
+            "Formwork alignment",
+            "BOQ / quantity basics"
+          ]
+        },
+        {
+          "id": "furniture-installer---cnc-operator",
+          "label": "Furniture Installer / CNC Operator",
+          "subtitle": "Install and CNC",
+          "fieldPattern": "typeChips",
+          "typeLabel": "Work type",
+          "types": [
+            "Furniture assembly",
+            "Modular install",
+            "CNC woodworking"
+          ],
+          "suggestedSkills": [
+            "Assembly",
+            "Alignment",
+            "CNC operation",
+            "Hardware fitting"
+          ],
+          "moreSkills": [
+            "AutoCAD / Revit basics",
+            "Site safety (PPE)",
+            "Measurement and marking",
+            "Formwork alignment",
+            "BOQ / quantity basics"
+          ]
+        },
+        {
+          "id": "carpenter-supervisor",
+          "label": "Carpenter Supervisor",
+          "subtitle": "Supervision",
+          "fieldPattern": "typeChips",
+          "typeLabel": "Setting",
+          "types": [
+            "Site",
+            "Factory"
+          ],
+          "suggestedSkills": [
+            "Team management",
+            "Measurements",
+            "Quality",
+            "Material planning"
+          ],
+          "moreSkills": [
+            "AutoCAD / Revit basics",
+            "Site safety (PPE)",
+            "Measurement and marking",
+            "Formwork alignment",
+            "BOQ / quantity basics"
+          ]
+        },
+        {
+          "id": "site---construction-engineer",
+          "label": "Site / Construction Engineer",
+          "subtitle": "Site engineering",
+          "fieldPattern": "typeChips",
+          "typeLabel": "Focus",
+          "types": [
+            "Site execution",
+            "Construction projects",
+            "Contractor coordination"
+          ],
+          "suggestedSkills": [
+            "Site supervision",
+            "Drawings",
+            "Measurements",
+            "Quality",
+            "Reporting"
+          ],
+          "moreSkills": [
+            "AutoCAD / Revit basics",
+            "Site safety (PPE)",
+            "Measurement and marking",
+            "Formwork alignment",
+            "BOQ / quantity basics"
+          ]
+        },
+        {
+          "id": "civil---structural-engineer",
+          "label": "Civil / Structural Engineer",
+          "subtitle": "Civil engineering",
+          "fieldPattern": "typeChips",
+          "typeLabel": "Specialization",
+          "types": [
+            "Civil design",
+            "Structural design",
+            "Infrastructure"
+          ],
+          "suggestedSkills": [
+            "Civil design",
+            "Structural analysis",
+            "Drawings",
+            "Site inspection"
+          ],
+          "moreSkills": [
+            "AutoCAD / Revit basics",
+            "Site safety (PPE)",
+            "Measurement and marking",
+            "Formwork alignment",
+            "BOQ / quantity basics"
+          ]
+        },
+        {
+          "id": "architect---interior-designer",
+          "label": "Architect / Interior Designer",
+          "subtitle": "Design professionals",
+          "fieldPattern": "typeChips",
+          "typeLabel": "Specialization",
+          "types": [
+            "Residential",
+            "Commercial",
+            "Office",
+            "Retail interior"
+          ],
+          "suggestedSkills": [
+            "Architectural planning",
+            "Space planning",
+            "AutoCAD",
+            "Revit",
+            "3D design"
+          ],
+          "moreSkills": [
+            "AutoCAD / Revit basics",
+            "Site safety (PPE)",
+            "Measurement and marking",
+            "Formwork alignment",
+            "BOQ / quantity basics"
+          ]
+        },
+        {
+          "id": "quantity-surveyor---estimation-engineer",
+          "label": "Quantity Surveyor / Estimation Engineer",
+          "subtitle": "Cost and estimation",
+          "fieldPattern": "typeChips",
+          "typeLabel": "Role",
+          "types": [
+            "QS",
+            "Cost estimation",
+            "Tendering"
+          ],
+          "suggestedSkills": [
+            "Quantity take-off",
+            "BOQ",
+            "Estimation",
+            "Rate analysis",
+            "Cost control"
+          ],
+          "moreSkills": [
+            "AutoCAD / Revit basics",
+            "Site safety (PPE)",
+            "Measurement and marking",
+            "Formwork alignment",
+            "BOQ / quantity basics"
+          ]
+        },
+        {
+          "id": "planning---project-engineer",
+          "label": "Planning / Project Engineer",
+          "subtitle": "Project office",
+          "fieldPattern": "typeChips",
+          "typeLabel": "Role",
+          "types": [
+            "Planning",
+            "Project controls",
+            "Project coordination"
+          ],
+          "suggestedSkills": [
+            "Scheduling",
+            "Planning",
+            "Progress tracking",
+            "Technical documentation"
+          ],
+          "moreSkills": [
+            "AutoCAD / Revit basics",
+            "Site safety (PPE)",
+            "Measurement and marking",
+            "Formwork alignment",
+            "BOQ / quantity basics"
+          ]
+        },
+        {
+          "id": "specialist-civil-engineer",
+          "label": "Specialist Civil Engineer",
+          "subtitle": "Specialist engineering",
+          "fieldPattern": "typeChips",
+          "typeLabel": "Field",
+          "types": [
+            "Safety (HSE)",
+            "Environmental",
+            "Geotechnical",
+            "Transportation",
+            "Water resources"
+          ],
+          "suggestedSkills": [
+            "Risk assessment",
+            "Environmental compliance",
+            "Soil/foundation",
+            "Road/traffic",
+            "Hydrology"
+          ],
+          "moreSkills": [
+            "AutoCAD / Revit basics",
+            "Site safety (PPE)",
+            "Measurement and marking",
+            "Formwork alignment",
+            "BOQ / quantity basics"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "hvac",
+      "label": "Mechanical, HVAC & Appliances",
+      "subtitle": "AC, refrigeration, home appliances and mechanical engineering",
+      "icon": "fan",
+      "color": "#06B6D4",
+      "positions": [
+        {
+          "id": "ac-technician",
+          "label": "AC Technician",
+          "subtitle": "Air conditioning",
+          "fieldPattern": "typeChips",
+          "typeLabel": "AC type",
+          "types": [
+            "Split",
+            "Window",
+            "Inverter",
+            "Cassette",
+            "VRF"
+          ],
+          "suggestedSkills": [
+            "Installation",
+            "Gas charging",
+            "Leak testing",
+            "Servicing",
+            "Commissioning"
+          ],
+          "moreSkills": [
+            "F-gas / refrigerant handling",
+            "Vacuum and leak testing",
+            "Copper flaring and brazing",
+            "VRF commissioning basics",
+            "Appliance PCB diagnosis"
+          ]
+        },
+        {
+          "id": "hvac---refrigeration-technician",
+          "label": "HVAC / Refrigeration Technician",
+          "subtitle": "Commercial HVAC",
+          "fieldPattern": "typeChips",
+          "typeLabel": "System",
+          "types": [
+            "Commercial HVAC",
+            "AHU",
+            "Ducting",
+            "Cold room",
+            "Display chiller"
+          ],
+          "suggestedSkills": [
+            "AHU",
+            "FCU",
+            "Refrigeration",
+            "Leak testing",
+            "Troubleshooting"
+          ],
+          "moreSkills": [
+            "F-gas / refrigerant handling",
+            "Vacuum and leak testing",
+            "Copper flaring and brazing",
+            "VRF commissioning basics",
+            "Appliance PCB diagnosis"
+          ]
+        },
+        {
+          "id": "home-appliance-technician",
+          "label": "Home Appliance Technician",
+          "subtitle": "Home appliances",
+          "fieldPattern": "typeChips",
+          "typeLabel": "Appliance",
+          "types": [
+            "Refrigerator",
+            "Washing machine",
+            "TV",
+            "Microwave",
+            "Geyser",
+            "Multi-brand"
+          ],
+          "suggestedSkills": [
+            "Diagnosis",
+            "Repair",
+            "Installation",
+            "PCB",
+            "Customer service"
+          ],
+          "moreSkills": [
+            "F-gas / refrigerant handling",
+            "Vacuum and leak testing",
+            "Copper flaring and brazing",
+            "VRF commissioning basics",
+            "Appliance PCB diagnosis"
+          ]
+        },
+        {
+          "id": "commercial-refrigeration-technician",
+          "label": "Commercial Refrigeration Technician",
+          "subtitle": "Commercial cooling",
+          "fieldPattern": "typeChips",
+          "typeLabel": "System",
+          "types": [
+            "Cold room",
+            "Display chiller",
+            "Commercial freezer"
+          ],
+          "suggestedSkills": [
+            "Refrigeration",
+            "Compressor",
+            "Controls",
+            "Leak testing"
+          ],
+          "moreSkills": [
+            "F-gas / refrigerant handling",
+            "Vacuum and leak testing",
+            "Copper flaring and brazing",
+            "VRF commissioning basics",
+            "Appliance PCB diagnosis"
+          ]
+        },
+        {
+          "id": "mechanical---hvac-engineer",
+          "label": "Mechanical / HVAC Engineer",
+          "subtitle": "Mechanical engineering",
+          "fieldPattern": "typeChips",
+          "typeLabel": "Specialization",
+          "types": [
+            "HVAC design",
+            "Mechanical design",
+            "Refrigeration engineering"
+          ],
+          "suggestedSkills": [
+            "HVAC design",
+            "Load calculation",
+            "CAD",
+            "Commissioning",
+            "MEP coordination"
+          ],
+          "moreSkills": [
+            "F-gas / refrigerant handling",
+            "Vacuum and leak testing",
+            "Copper flaring and brazing",
+            "VRF commissioning basics",
+            "Appliance PCB diagnosis"
+          ]
+        },
+        {
+          "id": "manufacturing---quality-engineer",
+          "label": "Manufacturing / Quality Engineer",
+          "subtitle": "Factory engineering",
+          "fieldPattern": "typeChips",
+          "typeLabel": "Focus",
+          "types": [
+            "Manufacturing",
+            "Production",
+            "QA/QC",
+            "Industrial engineering"
+          ],
+          "suggestedSkills": [
+            "Process improvement",
+            "Quality inspection",
+            "ISO",
+            "Production planning",
+            "Lean"
+          ],
+          "moreSkills": [
+            "F-gas / refrigerant handling",
+            "Vacuum and leak testing",
+            "Copper flaring and brazing",
+            "VRF commissioning basics",
+            "Appliance PCB diagnosis"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "driving",
+      "label": "Driving",
+      "subtitle": "Personal, commercial and emergency drivers",
+      "icon": "car",
+      "color": "#8B5CF6",
+      "positions": [
+        {
+          "id": "personal---company-driver",
+          "label": "Personal / Company Driver",
+          "subtitle": "Private driving",
+          "fieldPattern": "typeChips",
+          "typeLabel": "Setting",
+          "types": [
+            "Executive driver",
+            "Family driver",
+            "Company car"
+          ],
+          "suggestedSkills": [
+            "Safe driving",
+            "Route planning",
+            "Vehicle care",
+            "Navigation"
+          ],
+          "moreSkills": [
+            "Valid LMV driving licence",
+            "Valid HMV / heavy licence",
+            "Commercial permit / badge (if applicable)",
+            "Defensive driving",
+            "Local route knowledge",
+            "Vehicle pre-trip inspection"
+          ]
+        },
+        {
+          "id": "taxi---cab-driver",
+          "label": "Taxi / Cab Driver",
+          "subtitle": "Passenger service",
+          "fieldPattern": "typeChips",
+          "typeLabel": "Service type",
+          "types": [
+            "Taxi",
+            "Ride-hailing",
+            "City service"
+          ],
+          "suggestedSkills": [
+            "Navigation",
+            "Passenger service",
+            "Safe driving",
+            "Local routes"
+          ],
+          "moreSkills": [
+            "Valid LMV driving licence",
+            "Valid HMV / heavy licence",
+            "Commercial permit / badge (if applicable)",
+            "Defensive driving",
+            "Local route knowledge",
+            "Vehicle pre-trip inspection"
+          ]
+        },
+        {
+          "id": "light-commercial-driver",
+          "label": "Light Commercial Driver",
+          "subtitle": "Light commercial",
+          "fieldPattern": "typeChips",
+          "typeLabel": "Vehicle",
+          "types": [
+            "LCV",
+            "Local delivery vehicle",
+            "Tempo"
+          ],
+          "suggestedSkills": [
+            "Commercial driving",
+            "Loading safety",
+            "Vehicle inspection"
+          ],
+          "moreSkills": [
+            "Valid LMV driving licence",
+            "Valid HMV / heavy licence",
+            "Commercial permit / badge (if applicable)",
+            "Defensive driving",
+            "Local route knowledge",
+            "Vehicle pre-trip inspection"
+          ]
+        },
+        {
+          "id": "heavy-vehicle-driver",
+          "label": "Heavy Vehicle Driver",
+          "subtitle": "Heavy transport",
+          "fieldPattern": "typeChips",
+          "typeLabel": "Vehicle class",
+          "types": [
+            "HMV",
+            "Lorry",
+            "Long-distance freight"
+          ],
+          "suggestedSkills": [
+            "Heavy vehicle operation",
+            "Route planning",
+            "Cargo safety"
+          ],
+          "moreSkills": [
+            "Valid LMV driving licence",
+            "Valid HMV / heavy licence",
+            "Commercial permit / badge (if applicable)",
+            "Defensive driving",
+            "Local route knowledge",
+            "Vehicle pre-trip inspection"
+          ]
+        },
+        {
+          "id": "bus-driver",
+          "label": "Bus Driver",
+          "subtitle": "Bus operations",
+          "fieldPattern": "typeChips",
+          "typeLabel": "Bus type",
+          "types": [
+            "School bus",
+            "Tourist bus",
+            "Private bus"
+          ],
+          "suggestedSkills": [
+            "Passenger safety",
+            "Route knowledge",
+            "Student safety (school)"
+          ],
+          "moreSkills": [
+            "Valid LMV driving licence",
+            "Valid HMV / heavy licence",
+            "Commercial permit / badge (if applicable)",
+            "Defensive driving",
+            "Local route knowledge",
+            "Vehicle pre-trip inspection"
+          ]
+        },
+        {
+          "id": "ambulance-driver",
+          "label": "Ambulance Driver",
+          "subtitle": "Medical transport",
+          "fieldPattern": "typeChips",
+          "typeLabel": "Service",
+          "types": [
+            "Emergency",
+            "Patient transport"
+          ],
+          "suggestedSkills": [
+            "Emergency driving",
+            "Patient safety",
+            "Basic response coordination"
+          ],
+          "moreSkills": [
+            "Valid LMV driving licence",
+            "Valid HMV / heavy licence",
+            "Commercial permit / badge (if applicable)",
+            "Defensive driving",
+            "Local route knowledge",
+            "Vehicle pre-trip inspection"
+          ]
+        },
+        {
+          "id": "driving-instructor---valet",
+          "label": "Driving Instructor / Valet",
+          "subtitle": "Instruction or valet",
+          "fieldPattern": "typeChips",
+          "typeLabel": "Role",
+          "types": [
+            "LMV instruction",
+            "HMV instruction",
+            "Hotel valet"
+          ],
+          "suggestedSkills": [
+            "Driving instruction",
+            "Road safety",
+            "Parking",
+            "Customer service"
+          ],
+          "moreSkills": [
+            "Valid LMV driving licence",
+            "Valid HMV / heavy licence",
+            "Commercial permit / badge (if applicable)",
+            "Defensive driving",
+            "Local route knowledge",
+            "Vehicle pre-trip inspection"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "delivery",
+      "label": "Delivery & Logistics",
+      "subtitle": "Couriers, warehouse and dispatch",
+      "icon": "box",
+      "color": "#F59E0B",
+      "positions": [
+        {
+          "id": "delivery-executive",
+          "label": "Delivery Executive",
+          "subtitle": "Last-mile delivery",
+          "fieldPattern": "typeChips",
+          "typeLabel": "Delivery type",
+          "types": [
+            "Food delivery",
+            "Grocery",
+            "Pharmacy",
+            "E-commerce",
+            "Courier parcel",
+            "Local delivery"
+          ],
+          "suggestedSkills": [
+            "Navigation",
+            "Order handling",
+            "Proof of delivery",
+            "Customer service"
+          ],
+          "moreSkills": [
+            "Valid two-wheeler licence",
+            "Valid LMV licence",
+            "GPS / map navigation apps",
+            "Cold chain handling (pharmacy/grocery)",
+            "Proof-of-delivery apps"
+          ]
+        },
+        {
+          "id": "warehouse-staff",
+          "label": "Warehouse Staff",
+          "subtitle": "Warehouse floor",
+          "fieldPattern": "typeChips",
+          "typeLabel": "Role",
+          "types": [
+            "Warehouse assistant",
+            "Picker",
+            "Packer",
+            "Material handling"
+          ],
+          "suggestedSkills": [
+            "Picking",
+            "Packing",
+            "Labeling",
+            "Inventory support",
+            "Order accuracy"
+          ],
+          "moreSkills": [
+            "Valid two-wheeler licence",
+            "Valid LMV licence",
+            "GPS / map navigation apps",
+            "Cold chain handling (pharmacy/grocery)",
+            "Proof-of-delivery apps"
+          ]
+        },
+        {
+          "id": "inventory---logistics-assistant",
+          "label": "Inventory / Logistics Assistant",
+          "subtitle": "Back-office logistics",
+          "fieldPattern": "typeChips",
+          "typeLabel": "Function",
+          "types": [
+            "Inventory",
+            "Stock counting",
+            "Logistics documentation"
+          ],
+          "suggestedSkills": [
+            "Stock counting",
+            "Data entry",
+            "Shipment coordination",
+            "Tracking"
+          ],
+          "moreSkills": [
+            "Valid two-wheeler licence",
+            "Valid LMV licence",
+            "GPS / map navigation apps",
+            "Cold chain handling (pharmacy/grocery)",
+            "Proof-of-delivery apps"
+          ]
+        },
+        {
+          "id": "dispatch---fleet-coordinator",
+          "label": "Dispatch / Fleet Coordinator",
+          "subtitle": "Control tower",
+          "fieldPattern": "typeChips",
+          "typeLabel": "Role",
+          "types": [
+            "Dispatch",
+            "Fleet scheduling",
+            "Route planning"
+          ],
+          "suggestedSkills": [
+            "Dispatch planning",
+            "Driver coordination",
+            "Fleet records",
+            "Documentation"
+          ],
+          "moreSkills": [
+            "Valid two-wheeler licence",
+            "Valid LMV licence",
+            "GPS / map navigation apps",
+            "Cold chain handling (pharmacy/grocery)",
+            "Proof-of-delivery apps"
+          ]
+        },
+        {
+          "id": "delivery-supervisor",
+          "label": "Delivery Supervisor",
+          "subtitle": "Supervision",
+          "fieldPattern": "typeChips",
+          "typeLabel": "Setting",
+          "types": [
+            "Delivery hub",
+            "Last-mile team"
+          ],
+          "suggestedSkills": [
+            "Team supervision",
+            "Route planning",
+            "Performance tracking"
+          ],
+          "moreSkills": [
+            "Valid two-wheeler licence",
+            "Valid LMV licence",
+            "GPS / map navigation apps",
+            "Cold chain handling (pharmacy/grocery)",
+            "Proof-of-delivery apps"
+          ]
+        },
+        {
+          "id": "logistics-engineer",
+          "label": "Logistics Engineer",
+          "subtitle": "Engineering",
+          "fieldPattern": "typeChips",
+          "typeLabel": "Focus",
+          "types": [
+            "Supply chain",
+            "Process optimization",
+            "Warehouse systems"
+          ],
+          "suggestedSkills": [
+            "Logistics planning",
+            "Process optimization",
+            "Data analysis",
+            "Systems"
+          ],
+          "moreSkills": [
+            "Valid two-wheeler licence",
+            "Valid LMV licence",
+            "GPS / map navigation apps",
+            "Cold chain handling (pharmacy/grocery)",
+            "Proof-of-delivery apps"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "cooking",
+      "label": "Cooking & Hospitality",
+      "subtitle": "Kitchen, restaurant and service staff",
+      "icon": "chef",
+      "color": "#F97316",
+      "positions": [
+        {
+          "id": "cook",
+          "label": "Cook",
+          "subtitle": "Kitchen cooking",
+          "fieldPattern": "typeChips",
+          "typeLabel": "Cuisine & setting",
+          "types": [
+            "General",
+            "Home cook",
+            "South Indian",
+            "North Indian",
+            "Chinese/Indo-Chinese",
+            "Catering"
+          ],
+          "suggestedSkills": [
+            "Food preparation",
+            "Regional cooking",
+            "Hygiene",
+            "Bulk cooking (catering)"
+          ],
+          "moreSkills": [
+            "FSSAI hygiene practices",
+            "Knife skills",
+            "Bulk quantity estimation",
+            "HACCP basics",
+            "Kitchen inventory"
+          ]
+        },
+        {
+          "id": "chef",
+          "label": "Chef",
+          "subtitle": "Chef roles",
+          "fieldPattern": "typeChips",
+          "typeLabel": "Kitchen section",
+          "types": [
+            "Restaurant",
+            "Hotel",
+            "Bakery",
+            "Pastry",
+            "Tandoor"
+          ],
+          "suggestedSkills": [
+            "Menu preparation",
+            "Kitchen operations",
+            "Baking",
+            "Tandoor",
+            "Food quality"
+          ],
+          "moreSkills": [
+            "FSSAI hygiene practices",
+            "Knife skills",
+            "Bulk quantity estimation",
+            "HACCP basics",
+            "Kitchen inventory"
+          ]
+        },
+        {
+          "id": "kitchen-helper---steward",
+          "label": "Kitchen Helper / Steward",
+          "subtitle": "Kitchen support",
+          "fieldPattern": "typeChips",
+          "typeLabel": "Role",
+          "types": [
+            "Kitchen helper",
+            "Kitchen steward",
+            "Dishwashing"
+          ],
+          "suggestedSkills": [
+            "Mise en place",
+            "Cleaning",
+            "Sanitation",
+            "Kitchen support"
+          ],
+          "moreSkills": [
+            "FSSAI hygiene practices",
+            "Knife skills",
+            "Bulk quantity estimation",
+            "HACCP basics",
+            "Kitchen inventory"
+          ]
+        },
+        {
+          "id": "restaurant-service-staff",
+          "label": "Restaurant Service Staff",
+          "subtitle": "Front of house",
+          "fieldPattern": "typeChips",
+          "typeLabel": "Role",
+          "types": [
+            "Waiter",
+            "Steward",
+            "Table service"
+          ],
+          "suggestedSkills": [
+            "Table service",
+            "Order taking",
+            "Guest service",
+            "Billing support"
+          ],
+          "moreSkills": [
+            "FSSAI hygiene practices",
+            "Knife skills",
+            "Bulk quantity estimation",
+            "HACCP basics",
+            "Kitchen inventory"
+          ]
+        },
+        {
+          "id": "kitchen-supervisor",
+          "label": "Kitchen Supervisor",
+          "subtitle": "Kitchen leadership",
+          "fieldPattern": "typeChips",
+          "typeLabel": "Setting",
+          "types": [
+            "Restaurant",
+            "Hotel",
+            "Catering kitchen"
+          ],
+          "suggestedSkills": [
+            "Team coordination",
+            "Inventory",
+            "Hygiene",
+            "Quality control"
+          ],
+          "moreSkills": [
+            "FSSAI hygiene practices",
+            "Knife skills",
+            "Bulk quantity estimation",
+            "HACCP basics",
+            "Kitchen inventory"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "security",
+      "label": "Security",
+      "subtitle": "Guards, CCTV and security operations",
+      "icon": "shield",
+      "color": "#334155",
+      "positions": [
+        {
+          "id": "security-guard",
+          "label": "Security Guard",
+          "subtitle": "Guarding",
+          "fieldPattern": "typeChips",
+          "typeLabel": "Venue type",
+          "types": [
+            "Residential",
+            "Commercial",
+            "Hospital",
+            "School",
+            "Event",
+            "Gate/ gatekeeper"
+          ],
+          "suggestedSkills": [
+            "Access control",
+            "Patrolling",
+            "Incident reporting",
+            "Visitor management"
+          ],
+          "moreSkills": [
+            "PSARA / guard training certificate",
+            "Fire extinguisher use",
+            "First aid basics",
+            "Incident report writing",
+            "Access control SOP"
+          ]
+        },
+        {
+          "id": "cctv---control-room-operator",
+          "label": "CCTV / Control Room Operator",
+          "subtitle": "Monitoring",
+          "fieldPattern": "typeChips",
+          "typeLabel": "Role",
+          "types": [
+            "CCTV monitoring",
+            "Control room",
+            "Surveillance"
+          ],
+          "suggestedSkills": [
+            "CCTV monitoring",
+            "Incident detection",
+            "Communication",
+            "Logging"
+          ],
+          "moreSkills": [
+            "PSARA / guard training certificate",
+            "Fire extinguisher use",
+            "First aid basics",
+            "Incident report writing",
+            "Access control SOP"
+          ]
+        },
+        {
+          "id": "security-supervisor---manager",
+          "label": "Security Supervisor / Manager",
+          "subtitle": "Leadership",
+          "fieldPattern": "typeChips",
+          "typeLabel": "Level",
+          "types": [
+            "Site supervisor",
+            "Facility manager",
+            "Corporate security"
+          ],
+          "suggestedSkills": [
+            "Team supervision",
+            "Shift planning",
+            "Risk management",
+            "Reporting"
+          ],
+          "moreSkills": [
+            "PSARA / guard training certificate",
+            "Fire extinguisher use",
+            "First aid basics",
+            "Incident report writing",
+            "Access control SOP"
+          ]
+        },
+        {
+          "id": "fire-and-security-guard",
+          "label": "Fire & Security Guard",
+          "subtitle": "Fire and security",
+          "fieldPattern": "typeChips",
+          "typeLabel": "Role",
+          "types": [
+            "Fire watch",
+            "Fire and security combined"
+          ],
+          "suggestedSkills": [
+            "Fire watch",
+            "Emergency response",
+            "Access control",
+            "Patrolling"
+          ],
+          "moreSkills": [
+            "PSARA / guard training certificate",
+            "Fire extinguisher use",
+            "First aid basics",
+            "Incident report writing",
+            "Access control SOP"
+          ]
+        },
+        {
+          "id": "security-systems-engineer",
+          "label": "Security Systems Engineer",
+          "subtitle": "Systems",
+          "fieldPattern": "typeChips",
+          "typeLabel": "System type",
+          "types": [
+            "CCTV design",
+            "Access control",
+            "Integrated security"
+          ],
+          "suggestedSkills": [
+            "System design",
+            "CCTV",
+            "Access control",
+            "Integration",
+            "Commissioning"
+          ],
+          "moreSkills": [
+            "PSARA / guard training certificate",
+            "Fire extinguisher use",
+            "First aid basics",
+            "Incident report writing",
+            "Access control SOP"
+          ]
+        },
+        {
+          "id": "security-trainer",
+          "label": "Security Trainer",
+          "subtitle": "Training",
+          "fieldPattern": "typeChips",
+          "typeLabel": "Focus",
+          "types": [
+            "Security training",
+            "Drills"
+          ],
+          "suggestedSkills": [
+            "Training delivery",
+            "Drills",
+            "Assessment",
+            "SOP training"
+          ],
+          "moreSkills": [
+            "PSARA / guard training certificate",
+            "Fire extinguisher use",
+            "First aid basics",
+            "Incident report writing",
+            "Access control SOP"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "retail",
+      "label": "Retail & Sales",
+      "subtitle": "Store, field sales and merchandising",
+      "icon": "store",
+      "color": "#EF4444",
+      "positions": [
+        {
+          "id": "retail---showroom-sales",
+          "label": "Retail / Showroom Sales",
+          "subtitle": "In-store sales",
+          "fieldPattern": "typeChips",
+          "typeLabel": "Channel",
+          "types": [
+            "Retail store",
+            "Showroom",
+            "Counter sales",
+            "B2C"
+          ],
+          "suggestedSkills": [
+            "Customer handling",
+            "Product demonstration",
+            "Billing support",
+            "Sales"
+          ],
+          "moreSkills": [
+            "POS / billing software",
+            "Upselling techniques",
+            "Stock replenishment",
+            "Visual merchandising",
+            "CRM / lead tracking"
+          ]
+        },
+        {
+          "id": "field-sales-executive",
+          "label": "Field Sales Executive",
+          "subtitle": "Field sales",
+          "fieldPattern": "typeChips",
+          "typeLabel": "Market",
+          "types": [
+            "Field sales",
+            "Territory sales",
+            "B2B visits"
+          ],
+          "suggestedSkills": [
+            "Lead generation",
+            "Customer visits",
+            "Sales",
+            "Relationship building"
+          ],
+          "moreSkills": [
+            "POS / billing software",
+            "Upselling techniques",
+            "Stock replenishment",
+            "Visual merchandising",
+            "CRM / lead tracking"
+          ]
+        },
+        {
+          "id": "business-development-executive",
+          "label": "Business Development Executive",
+          "subtitle": "BD",
+          "fieldPattern": "typeChips",
+          "typeLabel": "Segment",
+          "types": [
+            "B2B",
+            "B2C business development"
+          ],
+          "suggestedSkills": [
+            "Lead generation",
+            "Pipeline",
+            "Relationship management",
+            "Sales"
+          ],
+          "moreSkills": [
+            "POS / billing software",
+            "Upselling techniques",
+            "Stock replenishment",
+            "Visual merchandising",
+            "CRM / lead tracking"
+          ]
+        },
+        {
+          "id": "cashier---billing-executive",
+          "label": "Cashier / Billing Executive",
+          "subtitle": "Checkout and billing",
+          "fieldPattern": "typeChips",
+          "typeLabel": "Setting",
+          "types": [
+            "Retail cashier",
+            "Supermarket",
+            "Billing desk"
+          ],
+          "suggestedSkills": [
+            "Billing",
+            "Cash handling",
+            "Invoicing",
+            "Customer service"
+          ],
+          "moreSkills": [
+            "POS / billing software",
+            "Upselling techniques",
+            "Stock replenishment",
+            "Visual merchandising",
+            "CRM / lead tracking"
+          ]
+        },
+        {
+          "id": "store-assistant---manager",
+          "label": "Store Assistant / Manager",
+          "subtitle": "Store operations",
+          "fieldPattern": "typeChips",
+          "typeLabel": "Level",
+          "types": [
+            "Store assistant",
+            "Store manager",
+            "Showroom manager"
+          ],
+          "suggestedSkills": [
+            "Stock handling",
+            "Shelf management",
+            "Team management",
+            "Sales operations"
+          ],
+          "moreSkills": [
+            "POS / billing software",
+            "Upselling techniques",
+            "Stock replenishment",
+            "Visual merchandising",
+            "CRM / lead tracking"
+          ]
+        },
+        {
+          "id": "merchandiser",
+          "label": "Merchandiser",
+          "subtitle": "Merchandising",
+          "fieldPattern": "typeChips",
+          "typeLabel": "Category",
+          "types": [
+            "FMCG",
+            "Retail merchandising",
+            "Display"
+          ],
+          "suggestedSkills": [
+            "Display planning",
+            "Stock on shelf",
+            "Merchandising",
+            "Reporting"
+          ],
+          "moreSkills": [
+            "POS / billing software",
+            "Upselling techniques",
+            "Stock replenishment",
+            "Visual merchandising",
+            "CRM / lead tracking"
+          ]
+        },
+        {
+          "id": "customer-service-executive",
+          "label": "Customer Service Executive",
+          "subtitle": "Customer service",
+          "fieldPattern": "typeChips",
+          "typeLabel": "Channel",
+          "types": [
+            "Retail support",
+            "Customer care"
+          ],
+          "suggestedSkills": [
+            "Customer handling",
+            "Complaint resolution",
+            "Communication"
+          ],
+          "moreSkills": [
+            "POS / billing software",
+            "Upselling techniques",
+            "Stock replenishment",
+            "Visual merchandising",
+            "CRM / lead tracking"
+          ]
+        },
+        {
+          "id": "technical-sales-engineer",
+          "label": "Technical Sales Engineer",
+          "subtitle": "Technical sales",
+          "fieldPattern": "typeChips",
+          "typeLabel": "Industry",
+          "types": [
+            "Technical sales",
+            "B2B equipment",
+            "Industrial sales"
+          ],
+          "suggestedSkills": [
+            "Technical consultation",
+            "Quotations",
+            "Product knowledge",
+            "Sales"
+          ],
+          "moreSkills": [
+            "POS / billing software",
+            "Upselling techniques",
+            "Stock replenishment",
+            "Visual merchandising",
+            "CRM / lead tracking"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "office",
+      "label": "Office & Administration",
+      "subtitle": "Front desk, HR, accounts and back office",
+      "icon": "briefcase",
+      "color": "#A16207",
+      "positions": [
+        {
+          "id": "reception---front-office",
+          "label": "Reception / Front Office",
+          "subtitle": "Front office",
+          "fieldPattern": "typeChips",
+          "typeLabel": "Setting",
+          "types": [
+            "Corporate reception",
+            "Hotel front office",
+            "Clinic front desk"
+          ],
+          "suggestedSkills": [
+            "Front desk",
+            "Calls",
+            "Visitor handling",
+            "Appointments"
+          ],
+          "moreSkills": [
+            "MS Office / Google Workspace",
+            "Email and calendar management",
+            "Tally / accounting software",
+            "Documentation and filing",
+            "Customer phone etiquette"
+          ]
+        },
+        {
+          "id": "back-office---data-entry",
+          "label": "Back Office / Data Entry",
+          "subtitle": "Back office",
+          "fieldPattern": "typeChips",
+          "typeLabel": "Function",
+          "types": [
+            "Data entry",
+            "Computer operator",
+            "Documentation"
+          ],
+          "suggestedSkills": [
+            "Data entry",
+            "Accuracy",
+            "Documentation",
+            "Back-office processing"
+          ],
+          "moreSkills": [
+            "MS Office / Google Workspace",
+            "Email and calendar management",
+            "Tally / accounting software",
+            "Documentation and filing",
+            "Customer phone etiquette"
+          ]
+        },
+        {
+          "id": "hr---recruitment",
+          "label": "HR / Recruitment",
+          "subtitle": "Human resources",
+          "fieldPattern": "typeChips",
+          "typeLabel": "Role",
+          "types": [
+            "HR assistant",
+            "HR executive",
+            "Recruiter",
+            "Talent acquisition"
+          ],
+          "suggestedSkills": [
+            "Recruitment support",
+            "Employee records",
+            "HR operations",
+            "Screening"
+          ],
+          "moreSkills": [
+            "MS Office / Google Workspace",
+            "Email and calendar management",
+            "Tally / accounting software",
+            "Documentation and filing",
+            "Customer phone etiquette"
+          ]
+        },
+        {
+          "id": "accountant---accounts-assistant",
+          "label": "Accountant / Accounts Assistant",
+          "subtitle": "Finance",
+          "fieldPattern": "typeChips",
+          "typeLabel": "Role",
+          "types": [
+            "Accountant",
+            "Accounts assistant",
+            "Bookkeeping"
+          ],
+          "suggestedSkills": [
+            "Bookkeeping",
+            "Reconciliation",
+            "Invoices",
+            "Financial records"
+          ],
+          "moreSkills": [
+            "MS Office / Google Workspace",
+            "Email and calendar management",
+            "Tally / accounting software",
+            "Documentation and filing",
+            "Customer phone etiquette"
+          ]
+        },
+        {
+          "id": "office-manager---administrator",
+          "label": "Office Manager / Administrator",
+          "subtitle": "Administration",
+          "fieldPattern": "typeChips",
+          "typeLabel": "Role",
+          "types": [
+            "Office manager",
+            "Office administrator",
+            "Executive assistant"
+          ],
+          "suggestedSkills": [
+            "Office operations",
+            "Vendor coordination",
+            "Calendar",
+            "Administration"
+          ],
+          "moreSkills": [
+            "MS Office / Google Workspace",
+            "Email and calendar management",
+            "Tally / accounting software",
+            "Documentation and filing",
+            "Customer phone etiquette"
+          ]
+        },
+        {
+          "id": "customer-support-executive",
+          "label": "Customer Support Executive",
+          "subtitle": "Support",
+          "fieldPattern": "typeChips",
+          "typeLabel": "Channel",
+          "types": [
+            "Call support",
+            "Email support",
+            "Customer care"
+          ],
+          "suggestedSkills": [
+            "Issue resolution",
+            "Communication",
+            "Customer handling"
+          ],
+          "moreSkills": [
+            "MS Office / Google Workspace",
+            "Email and calendar management",
+            "Tally / accounting software",
+            "Documentation and filing",
+            "Customer phone etiquette"
+          ]
+        },
+        {
+          "id": "medical-receptionist",
+          "label": "Medical Receptionist",
+          "subtitle": "Healthcare front desk",
+          "fieldPattern": "typeChips",
+          "typeLabel": "Setting",
+          "types": [
+            "Clinic",
+            "Hospital registration"
+          ],
+          "suggestedSkills": [
+            "Patient registration",
+            "Appointments",
+            "Front desk",
+            "Insurance coordination"
+          ],
+          "moreSkills": [
+            "MS Office / Google Workspace",
+            "Email and calendar management",
+            "Tally / accounting software",
+            "Documentation and filing",
+            "Customer phone etiquette"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "tech",
+      "label": "Technology & IT",
+      "subtitle": "Software, infrastructure, data and digital roles",
+      "icon": "laptop",
+      "color": "#14B8A6",
+      "positions": [
+        {
+          "id": "software-developer",
+          "label": "Software Developer",
+          "subtitle": "Software development",
+          "fieldPattern": "typeChips",
+          "typeLabel": "Stack",
+          "types": [
+            "Frontend",
+            "Backend",
+            "Full stack",
+            "Java",
+            "Python",
+            ".NET",
+            "PHP"
+          ],
+          "suggestedSkills": [
+            "Programming",
+            "APIs",
+            "Databases",
+            "Debugging",
+            "Git"
+          ],
+          "moreSkills": [
+            "Git / version control",
+            "Agile / Scrum basics",
+            "REST API design",
+            "Cloud certification (AWS/Azure)",
+            "Technical documentation"
+          ]
+        },
+        {
+          "id": "mobile-app-developer",
+          "label": "Mobile App Developer",
+          "subtitle": "Mobile apps",
+          "fieldPattern": "typeChips",
+          "typeLabel": "Platform",
+          "types": [
+            "Android",
+            "iOS",
+            "Flutter",
+            "React Native"
+          ],
+          "suggestedSkills": [
+            "Mobile development",
+            "APIs",
+            "UI integration",
+            "Publishing"
+          ],
+          "moreSkills": [
+            "Git / version control",
+            "Agile / Scrum basics",
+            "REST API design",
+            "Cloud certification (AWS/Azure)",
+            "Technical documentation"
+          ]
+        },
+        {
+          "id": "ui-ux---graphic-designer",
+          "label": "UI/UX / Graphic Designer",
+          "subtitle": "Design",
+          "fieldPattern": "typeChips",
+          "typeLabel": "Discipline",
+          "types": [
+            "UI design",
+            "UX research",
+            "Graphic design",
+            "Branding"
+          ],
+          "suggestedSkills": [
+            "Wireframing",
+            "Prototyping",
+            "Figma",
+            "Graphic design",
+            "User research"
+          ],
+          "moreSkills": [
+            "Git / version control",
+            "Agile / Scrum basics",
+            "REST API design",
+            "Cloud certification (AWS/Azure)",
+            "Technical documentation"
+          ]
+        },
+        {
+          "id": "it-support---hardware-technician",
+          "label": "IT Support / Hardware Technician",
+          "subtitle": "IT support",
+          "fieldPattern": "typeChips",
+          "typeLabel": "Focus",
+          "types": [
+            "Helpdesk",
+            "Desktop support",
+            "Computer hardware"
+          ],
+          "suggestedSkills": [
+            "Troubleshooting",
+            "OS installation",
+            "Hardware repair",
+            "User support"
+          ],
+          "moreSkills": [
+            "Git / version control",
+            "Agile / Scrum basics",
+            "REST API design",
+            "Cloud certification (AWS/Azure)",
+            "Technical documentation"
+          ]
+        },
+        {
+          "id": "network---systems-engineer",
+          "label": "Network / Systems Engineer",
+          "subtitle": "Infrastructure",
+          "fieldPattern": "typeChips",
+          "typeLabel": "Specialization",
+          "types": [
+            "Network engineer",
+            "System administrator",
+            "Telecom networks"
+          ],
+          "suggestedSkills": [
+            "Routing",
+            "Switching",
+            "Linux/Windows admin",
+            "Monitoring",
+            "Firewalls"
+          ],
+          "moreSkills": [
+            "Git / version control",
+            "Agile / Scrum basics",
+            "REST API design",
+            "Cloud certification (AWS/Azure)",
+            "Technical documentation"
+          ]
+        },
+        {
+          "id": "devops---cloud-engineer",
+          "label": "DevOps / Cloud Engineer",
+          "subtitle": "Cloud and DevOps",
+          "fieldPattern": "typeChips",
+          "typeLabel": "Platform",
+          "types": [
+            "DevOps",
+            "AWS",
+            "Azure",
+            "GCP",
+            "CI/CD"
+          ],
+          "suggestedSkills": [
+            "CI/CD",
+            "Cloud deployment",
+            "Automation",
+            "Monitoring",
+            "Containers"
+          ],
+          "moreSkills": [
+            "Git / version control",
+            "Agile / Scrum basics",
+            "REST API design",
+            "Cloud certification (AWS/Azure)",
+            "Technical documentation"
+          ]
+        },
+        {
+          "id": "database-administrator",
+          "label": "Database Administrator",
+          "subtitle": "Databases",
+          "fieldPattern": "typeChips",
+          "typeLabel": "System",
+          "types": [
+            "SQL",
+            "MySQL",
+            "PostgreSQL",
+            "Oracle"
+          ],
+          "suggestedSkills": [
+            "Database admin",
+            "Backup",
+            "Performance tuning",
+            "Security"
+          ],
+          "moreSkills": [
+            "Git / version control",
+            "Agile / Scrum basics",
+            "REST API design",
+            "Cloud certification (AWS/Azure)",
+            "Technical documentation"
+          ]
+        },
+        {
+          "id": "qa---test-engineer",
+          "label": "QA / Test Engineer",
+          "subtitle": "Quality assurance",
+          "fieldPattern": "typeChips",
+          "typeLabel": "Type",
+          "types": [
+            "Manual testing",
+            "Automation testing",
+            "Selenium"
+          ],
+          "suggestedSkills": [
+            "Test planning",
+            "Functional testing",
+            "Automation",
+            "Defect reporting"
+          ],
+          "moreSkills": [
+            "Git / version control",
+            "Agile / Scrum basics",
+            "REST API design",
+            "Cloud certification (AWS/Azure)",
+            "Technical documentation"
+          ]
+        },
+        {
+          "id": "data-analyst---data-engineer",
+          "label": "Data Analyst / Data Engineer",
+          "subtitle": "Data",
+          "fieldPattern": "typeChips",
+          "typeLabel": "Role",
+          "types": [
+            "Data analyst",
+            "BI",
+            "ETL",
+            "Data pipelines"
+          ],
+          "suggestedSkills": [
+            "SQL",
+            "Dashboards",
+            "ETL",
+            "Data pipelines",
+            "Reporting"
+          ],
+          "moreSkills": [
+            "Git / version control",
+            "Agile / Scrum basics",
+            "REST API design",
+            "Cloud certification (AWS/Azure)",
+            "Technical documentation"
+          ]
+        },
+        {
+          "id": "ai---ml-engineer",
+          "label": "AI / ML Engineer",
+          "subtitle": "AI/ML",
+          "fieldPattern": "typeChips",
+          "typeLabel": "Focus",
+          "types": [
+            "Machine learning",
+            "AI",
+            "Data science deployment"
+          ],
+          "suggestedSkills": [
+            "Python",
+            "ML models",
+            "Data processing",
+            "Model deployment"
+          ],
+          "moreSkills": [
+            "Git / version control",
+            "Agile / Scrum basics",
+            "REST API design",
+            "Cloud certification (AWS/Azure)",
+            "Technical documentation"
+          ]
+        },
+        {
+          "id": "cybersecurity-specialist",
+          "label": "Cybersecurity Specialist",
+          "subtitle": "Security",
+          "fieldPattern": "typeChips",
+          "typeLabel": "Role",
+          "types": [
+            "SOC analyst",
+            "Security engineer",
+            "App security"
+          ],
+          "suggestedSkills": [
+            "Security monitoring",
+            "Incident response",
+            "Vulnerability management"
+          ],
+          "moreSkills": [
+            "Git / version control",
+            "Agile / Scrum basics",
+            "REST API design",
+            "Cloud certification (AWS/Azure)",
+            "Technical documentation"
+          ]
+        },
+        {
+          "id": "digital-marketing-specialist",
+          "label": "Digital Marketing Specialist",
+          "subtitle": "Marketing",
+          "fieldPattern": "typeChips",
+          "typeLabel": "Channel",
+          "types": [
+            "SEO",
+            "Social media",
+            "Performance ads",
+            "Content"
+          ],
+          "suggestedSkills": [
+            "Campaigns",
+            "Analytics",
+            "Content",
+            "Social media",
+            "SEO"
+          ],
+          "moreSkills": [
+            "Git / version control",
+            "Agile / Scrum basics",
+            "REST API design",
+            "Cloud certification (AWS/Azure)",
+            "Technical documentation"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "teaching",
+      "label": "Teaching & Education",
+      "subtitle": "Schools, colleges, tuition and training",
+      "icon": "book",
+      "color": "#7C3AED",
+      "positions": [
+        {
+          "id": "school-teacher",
+          "label": "School Teacher",
+          "subtitle": "Primary to higher secondary",
+          "fieldPattern": "specializationMulti",
+          "typeLabel": "Level & subject",
+          "types": [
+            "Primary (LP–UKG)",
+            "Secondary (8–10)",
+            "Higher Secondary (+1/+2)",
+            "All subjects (primary)",
+            "English",
+            "Malayalam",
+            "Hindi",
+            "Mathematics",
+            "Science",
+            "Social Science",
+            "Physics",
+            "Chemistry",
+            "Biology",
+            "Computer Science",
+            "Commerce",
+            "Accountancy",
+            "Economics",
+            "History",
+            "Geography",
+            "Arabic",
+            "Sanskrit",
+            "Informatics Practices"
+          ],
+          "suggestedSkills": [
+            "Lesson planning",
+            "Classroom management",
+            "Assessment",
+            "Parent communication"
+          ],
+          "moreSkills": [
+            "Kerala state syllabus",
+            "CBSE / ICSE experience",
+            "Smart classroom tools",
+            "Exam evaluation (SSLC/plus two)",
+            "Parent-teacher communication",
+            "Spoken English support"
+          ]
+        },
+        {
+          "id": "early-childhood---montessori-teacher",
+          "label": "Early Childhood / Montessori Teacher",
+          "subtitle": "Pre-primary, nursery, LKG–UKG",
+          "fieldPattern": "typeChips",
+          "typeLabel": "Setting",
+          "types": [
+            "Montessori",
+            "Play school",
+            "Nursery",
+            "LKG–UKG",
+            "ECCE",
+            "Play-based learning"
+          ],
+          "suggestedSkills": [
+            "Child development",
+            "Play-based learning",
+            "Classroom routines",
+            "Child safety"
+          ],
+          "moreSkills": [
+            "Kerala state syllabus",
+            "CBSE / ICSE experience",
+            "Smart classroom tools",
+            "Exam evaluation (SSLC/plus two)",
+            "Parent-teacher communication",
+            "Spoken English support"
+          ]
+        },
+        {
+          "id": "college-lecturer",
+          "label": "College Lecturer",
+          "subtitle": "Degree and PG colleges",
+          "fieldPattern": "specializationMulti",
+          "typeLabel": "Stream & subject",
+          "types": [
+            "Arts",
+            "Science",
+            "Commerce",
+            "Law",
+            "Management",
+            "English",
+            "Malayalam",
+            "Hindi",
+            "Economics",
+            "History",
+            "Political Science",
+            "Sociology",
+            "Physics",
+            "Chemistry",
+            "Mathematics",
+            "Botany",
+            "Zoology",
+            "Accountancy",
+            "Business Administration",
+            "Computer Applications",
+            "UG teaching",
+            "PG teaching"
+          ],
+          "suggestedSkills": [
+            "Lecturing",
+            "Curriculum design",
+            "Assessment",
+            "Research support"
+          ],
+          "moreSkills": [
+            "Kerala state syllabus",
+            "CBSE / ICSE experience",
+            "Smart classroom tools",
+            "Exam evaluation (SSLC/plus two)",
+            "Parent-teacher communication",
+            "Spoken English support"
+          ]
+        },
+        {
+          "id": "engineering---polytechnic-faculty",
+          "label": "Engineering / Polytechnic Faculty",
+          "subtitle": "Diploma and B.Tech colleges",
+          "fieldPattern": "specializationMulti",
+          "typeLabel": "Department & subject",
+          "types": [
+            "Engineering college",
+            "Polytechnic",
+            "Computer Science",
+            "Electronics",
+            "Electrical",
+            "Mechanical",
+            "Civil",
+            "Mathematics",
+            "Physics",
+            "Chemistry",
+            "Information Technology"
+          ],
+          "suggestedSkills": [
+            "Laboratory instruction",
+            "Engineering subjects",
+            "Assessment",
+            "Curriculum"
+          ],
+          "moreSkills": [
+            "Kerala state syllabus",
+            "CBSE / ICSE experience",
+            "Smart classroom tools",
+            "Exam evaluation (SSLC/plus two)",
+            "Parent-teacher communication",
+            "Spoken English support"
+          ]
+        },
+        {
+          "id": "iti---vocational-instructor",
+          "label": "ITI / Vocational Instructor",
+          "subtitle": "ITI and skill centres",
+          "fieldPattern": "specializationMulti",
+          "typeLabel": "Trade",
+          "types": [
+            "Electrician",
+            "Fitter",
+            "Welder",
+            "Mechanic (Motor Vehicle)",
+            "COPA",
+            "Draughtsman",
+            "Plumber",
+            "Refrigeration",
+            "NCVT",
+            "SCVT"
+          ],
+          "suggestedSkills": [
+            "Trade instruction",
+            "Workshop safety",
+            "Practical assessment",
+            "Tool handling"
+          ],
+          "moreSkills": [
+            "Kerala state syllabus",
+            "CBSE / ICSE experience",
+            "Smart classroom tools",
+            "Exam evaluation (SSLC/plus two)",
+            "Parent-teacher communication",
+            "Spoken English support"
+          ]
+        },
+        {
+          "id": "private-tutor",
+          "label": "Private Tutor",
+          "subtitle": "Home, online or centre",
+          "fieldPattern": "specializationMulti",
+          "typeLabel": "Mode, class & subject",
+          "types": [
+            "Home tuition",
+            "Online tuition",
+            "Tuition centre",
+            "Primary",
+            "Class 8–10",
+            "Plus One",
+            "Plus Two",
+            "Degree",
+            "Entrance exam prep",
+            "Mathematics",
+            "Science",
+            "Physics",
+            "Chemistry",
+            "Biology",
+            "English",
+            "Malayalam",
+            "Hindi",
+            "Computer Science",
+            "Commerce",
+            "Accountancy",
+            "Economics",
+            "Social Science"
+          ],
+          "suggestedSkills": [
+            "One-to-one teaching",
+            "Lesson planning",
+            "Assessment",
+            "Student mentoring"
+          ],
+          "moreSkills": [
+            "Kerala state syllabus",
+            "CBSE / ICSE experience",
+            "Smart classroom tools",
+            "Exam evaluation (SSLC/plus two)",
+            "Parent-teacher communication",
+            "Spoken English support"
+          ]
+        },
+        {
+          "id": "special-education-teacher",
+          "label": "Special Education Teacher",
+          "subtitle": "Special and inclusive education",
+          "fieldPattern": "typeChips",
+          "typeLabel": "Specialization",
+          "types": [
+            "Learning disability",
+            "Autism support",
+            "Remedial teaching",
+            "Inclusive classroom"
+          ],
+          "suggestedSkills": [
+            "Individualized education",
+            "Student support",
+            "Assessment",
+            "Patience and empathy"
+          ],
+          "moreSkills": [
+            "Kerala state syllabus",
+            "CBSE / ICSE experience",
+            "Smart classroom tools",
+            "Exam evaluation (SSLC/plus two)",
+            "Parent-teacher communication",
+            "Spoken English support"
+          ]
+        },
+        {
+          "id": "co-curricular-teacher",
+          "label": "Co-curricular Teacher",
+          "subtitle": "PE, music, dance and art",
+          "fieldPattern": "typeChips",
+          "typeLabel": "Activity",
+          "types": [
+            "Physical education",
+            "Music",
+            "Dance",
+            "Art and craft",
+            "Yoga"
+          ],
+          "suggestedSkills": [
+            "Activity planning",
+            "Student engagement",
+            "Performance",
+            "Safety"
+          ],
+          "moreSkills": [
+            "Kerala state syllabus",
+            "CBSE / ICSE experience",
+            "Smart classroom tools",
+            "Exam evaluation (SSLC/plus two)",
+            "Parent-teacher communication",
+            "Spoken English support"
+          ]
+        },
+        {
+          "id": "teaching-assistant",
+          "label": "Teaching Assistant",
+          "subtitle": "School or college support",
+          "fieldPattern": "typeChips",
+          "typeLabel": "Setting",
+          "types": [
+            "Primary school",
+            "Secondary school",
+            "Higher secondary",
+            "College"
+          ],
+          "suggestedSkills": [
+            "Classroom support",
+            "Student assistance",
+            "Material preparation"
+          ],
+          "moreSkills": [
+            "Kerala state syllabus",
+            "CBSE / ICSE experience",
+            "Smart classroom tools",
+            "Exam evaluation (SSLC/plus two)",
+            "Parent-teacher communication",
+            "Spoken English support"
+          ]
+        },
+        {
+          "id": "academic-coordinator",
+          "label": "Academic Coordinator",
+          "subtitle": "Academic administration",
+          "fieldPattern": "typeChips",
+          "typeLabel": "Institution",
+          "types": [
+            "School",
+            "College",
+            "Training institute"
+          ],
+          "suggestedSkills": [
+            "Academic planning",
+            "Timetable",
+            "Staff coordination",
+            "Reporting"
+          ],
+          "moreSkills": [
+            "Kerala state syllabus",
+            "CBSE / ICSE experience",
+            "Smart classroom tools",
+            "Exam evaluation (SSLC/plus two)",
+            "Parent-teacher communication",
+            "Spoken English support"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "healthcare",
+      "label": "Healthcare",
+      "subtitle": "Hospitals, clinics, labs and home care",
+      "icon": "health",
+      "color": "#10B981",
+      "positions": [
+        {
+          "id": "doctor",
+          "label": "Doctor",
+          "subtitle": "Medical doctors and specialists",
+          "fieldPattern": "specializationMulti",
+          "typeLabel": "Specialization",
+          "types": [
+            "General Practice",
+            "Family Medicine",
+            "Cardiology",
+            "Pediatrics",
+            "Dermatology",
+            "Orthopedics",
+            "Obstetrics & Gynecology",
+            "ENT",
+            "Ophthalmology",
+            "Psychiatry",
+            "Anesthesiology",
+            "Radiology",
+            "Pathology",
+            "General Surgery",
+            "Emergency Medicine",
+            "Neurology",
+            "Nephrology",
+            "Gastroenterology",
+            "Pulmonology",
+            "Endocrinology",
+            "Oncology",
+            "Urology",
+            "Rheumatology",
+            "Geriatrics"
+          ],
+          "suggestedSkills": [
+            "Clinical assessment",
+            "Diagnosis",
+            "Treatment",
+            "Patient counseling"
+          ],
+          "moreSkills": [
+            "Kerala nursing council registration",
+            "Medical council registration (doctors)",
+            "Pharmacy council registration",
+            "BLS certification",
+            "ACLS (where applicable)",
+            "Infection control bundle",
+            "NABH awareness",
+            "Medical coding (ICD)"
+          ]
+        },
+        {
+          "id": "nurse",
+          "label": "Nurse",
+          "subtitle": "Nursing and patient care",
+          "fieldPattern": "specializationMulti",
+          "typeLabel": "Nursing type",
+          "types": [
+            "General Nurse",
+            "ICU Nurse",
+            "OT Nurse",
+            "Emergency Nurse",
+            "Pediatric Nurse",
+            "Maternity Nurse",
+            "Home Care Nurse",
+            "NICU Nurse",
+            "Dialysis Nurse",
+            "Psychiatric Nurse",
+            "Community Nurse"
+          ],
+          "suggestedSkills": [
+            "Patient care",
+            "Vital signs",
+            "Medication administration",
+            "Infection control",
+            "BLS"
+          ],
+          "moreSkills": [
+            "Kerala nursing council registration",
+            "Medical council registration (doctors)",
+            "Pharmacy council registration",
+            "BLS certification",
+            "ACLS (where applicable)",
+            "Infection control bundle",
+            "NABH awareness",
+            "Medical coding (ICD)"
+          ]
+        },
+        {
+          "id": "pharmacist---pharmacy-staff",
+          "label": "Pharmacist / Pharmacy Staff",
+          "subtitle": "Pharmacy",
+          "fieldPattern": "typeChips",
+          "typeLabel": "Setting",
+          "types": [
+            "Hospital pharmacy",
+            "Retail pharmacy",
+            "Clinical pharmacy",
+            "Pharmacy technician"
+          ],
+          "suggestedSkills": [
+            "Dispensing",
+            "Inventory",
+            "Patient counseling",
+            "Documentation"
+          ],
+          "moreSkills": [
+            "Kerala nursing council registration",
+            "Medical council registration (doctors)",
+            "Pharmacy council registration",
+            "BLS certification",
+            "ACLS (where applicable)",
+            "Infection control bundle",
+            "NABH awareness",
+            "Medical coding (ICD)"
+          ]
+        },
+        {
+          "id": "lab-and-imaging-technician",
+          "label": "Lab & Imaging Technician",
+          "subtitle": "Diagnostics",
+          "fieldPattern": "specializationMulti",
+          "typeLabel": "Department",
+          "types": [
+            "Clinical lab",
+            "Pathology",
+            "X-ray",
+            "Radiology",
+            "Ultrasound",
+            "CT/MRI support",
+            "ECG",
+            "Dialysis",
+            "OT technician",
+            "Nuclear medicine"
+          ],
+          "suggestedSkills": [
+            "Sample collection",
+            "Lab testing",
+            "Imaging",
+            "Equipment handling",
+            "Sterilization"
+          ],
+          "moreSkills": [
+            "Kerala nursing council registration",
+            "Medical council registration (doctors)",
+            "Pharmacy council registration",
+            "BLS certification",
+            "ACLS (where applicable)",
+            "Infection control bundle",
+            "NABH awareness",
+            "Medical coding (ICD)"
+          ]
+        },
+        {
+          "id": "allied-health-professional",
+          "label": "Allied Health Professional",
+          "subtitle": "Allied health",
+          "fieldPattern": "typeChips",
+          "typeLabel": "Profession",
+          "types": [
+            "Physiotherapist",
+            "Occupational therapist",
+            "Speech therapist",
+            "Audiologist",
+            "Optometrist",
+            "Respiratory therapist",
+            "Dietitian"
+          ],
+          "suggestedSkills": [
+            "Assessment",
+            "Therapy",
+            "Rehabilitation",
+            "Counseling",
+            "Patient education"
+          ],
+          "moreSkills": [
+            "Kerala nursing council registration",
+            "Medical council registration (doctors)",
+            "Pharmacy council registration",
+            "BLS certification",
+            "ACLS (where applicable)",
+            "Infection control bundle",
+            "NABH awareness",
+            "Medical coding (ICD)"
+          ]
+        },
+        {
+          "id": "dental-professional",
+          "label": "Dental Professional",
+          "subtitle": "Dental clinic",
+          "fieldPattern": "typeChips",
+          "typeLabel": "Role",
+          "types": [
+            "Dentist",
+            "Dental hygienist",
+            "Dental assistant"
+          ],
+          "suggestedSkills": [
+            "Dental examination",
+            "Cleaning",
+            "Chairside assistance",
+            "Patient care"
+          ],
+          "moreSkills": [
+            "Kerala nursing council registration",
+            "Medical council registration (doctors)",
+            "Pharmacy council registration",
+            "BLS certification",
+            "ACLS (where applicable)",
+            "Infection control bundle",
+            "NABH awareness",
+            "Medical coding (ICD)"
+          ]
+        },
+        {
+          "id": "care-and-clinical-support",
+          "label": "Care & Clinical Support",
+          "subtitle": "Support care",
+          "fieldPattern": "typeChips",
+          "typeLabel": "Role",
+          "types": [
+            "Medical assistant",
+            "Phlebotomist",
+            "Patient care assistant",
+            "Caregiver",
+            "Ward attendant"
+          ],
+          "suggestedSkills": [
+            "Patient support",
+            "Venipuncture",
+            "Personal care",
+            "Ward assistance"
+          ],
+          "moreSkills": [
+            "Kerala nursing council registration",
+            "Medical council registration (doctors)",
+            "Pharmacy council registration",
+            "BLS certification",
+            "ACLS (where applicable)",
+            "Infection control bundle",
+            "NABH awareness",
+            "Medical coding (ICD)"
+          ]
+        },
+        {
+          "id": "healthcare-admin---records",
+          "label": "Healthcare Admin / Records",
+          "subtitle": "Administration",
+          "fieldPattern": "typeChips",
+          "typeLabel": "Function",
+          "types": [
+            "Medical coder",
+            "Medical transcription",
+            "Health information",
+            "Hospital receptionist"
+          ],
+          "suggestedSkills": [
+            "Medical coding",
+            "Transcription",
+            "Records",
+            "Registration",
+            "Appointments"
+          ],
+          "moreSkills": [
+            "Kerala nursing council registration",
+            "Medical council registration (doctors)",
+            "Pharmacy council registration",
+            "BLS certification",
+            "ACLS (where applicable)",
+            "Infection control bundle",
+            "NABH awareness",
+            "Medical coding (ICD)"
+          ]
+        },
+        {
+          "id": "ambulance-driver",
+          "label": "Ambulance Driver",
+          "subtitle": "Transport",
+          "fieldPattern": "typeChips",
+          "typeLabel": "Service",
+          "types": [
+            "Emergency transport",
+            "Patient transfer"
+          ],
+          "suggestedSkills": [
+            "Emergency driving",
+            "Patient transport",
+            "Vehicle safety"
+          ],
+          "moreSkills": [
+            "Kerala nursing council registration",
+            "Medical council registration (doctors)",
+            "Pharmacy council registration",
+            "BLS certification",
+            "ACLS (where applicable)",
+            "Infection control bundle",
+            "NABH awareness",
+            "Medical coding (ICD)"
+          ]
+        },
+        {
+          "id": "biomedical-engineer",
+          "label": "Biomedical Engineer",
+          "subtitle": "Clinical engineering",
+          "fieldPattern": "typeChips",
+          "typeLabel": "Focus",
+          "types": [
+            "Biomedical equipment",
+            "Clinical engineering"
+          ],
+          "suggestedSkills": [
+            "Equipment maintenance",
+            "Calibration",
+            "Troubleshooting",
+            "Compliance"
+          ],
+          "moreSkills": [
+            "Kerala nursing council registration",
+            "Medical council registration (doctors)",
+            "Pharmacy council registration",
+            "BLS certification",
+            "ACLS (where applicable)",
+            "Infection control bundle",
+            "NABH awareness",
+            "Medical coding (ICD)"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "events",
+      "label": "Events & Wedding",
+      "subtitle": "Weddings, corporate events and production",
+      "icon": "cal",
+      "color": "#F472B6",
+      "positions": [
+        {
+          "id": "event---wedding-planner",
+          "label": "Event / Wedding Planner",
+          "subtitle": "Planning",
+          "fieldPattern": "typeChips",
+          "typeLabel": "Event type",
+          "types": [
+            "Corporate events",
+            "Social events",
+            "Destination wedding"
+          ],
+          "suggestedSkills": [
+            "Planning",
+            "Budgeting",
+            "Vendor coordination",
+            "Timeline"
+          ],
+          "moreSkills": [
+            "Timeline / run-sheet planning",
+            "Stage safety",
+            "Client briefing"
+          ]
+        },
+        {
+          "id": "event---wedding-coordinator",
+          "label": "Event / Wedding Coordinator",
+          "subtitle": "Day-of coordination",
+          "fieldPattern": "typeChips",
+          "typeLabel": "Event type",
+          "types": [
+            "On-site coordination",
+            "Wedding day coordination"
+          ],
+          "suggestedSkills": [
+            "On-site management",
+            "Vendor liaison",
+            "Guest coordination"
+          ],
+          "moreSkills": [
+            "Vendor coordination",
+            "Timeline / run-sheet planning",
+            "Stage safety",
+            "Client briefing"
+          ]
+        },
+        {
+          "id": "host---anchor---emcee",
+          "label": "Host / Anchor / Emcee",
+          "subtitle": "Stage presence",
+          "fieldPattern": "typeChips",
+          "typeLabel": "Role",
+          "types": [
+            "Corporate host",
+            "Wedding anchor",
+            "Stage presenter"
+          ],
+          "suggestedSkills": [
+            "Hosting",
+            "Stage management",
+            "Audience engagement"
+          ],
+          "moreSkills": [
+            "Vendor coordination",
+            "Timeline / run-sheet planning",
+            "Stage safety",
+            "Client briefing"
+          ]
+        },
+        {
+          "id": "photographer---videographer",
+          "label": "Photographer / Videographer",
+          "subtitle": "Photo and video",
+          "fieldPattern": "typeChips",
+          "typeLabel": "Genre",
+          "types": [
+            "Wedding",
+            "Events",
+            "Portrait",
+            "Corporate"
+          ],
+          "suggestedSkills": [
+            "Photography",
+            "Videography",
+            "Lighting",
+            "Editing"
+          ],
+          "moreSkills": [
+            "Vendor coordination",
+            "Timeline / run-sheet planning",
+            "Stage safety",
+            "Client briefing"
+          ]
+        },
+        {
+          "id": "dj---sound---lighting---stage",
+          "label": "DJ / Sound / Lighting / Stage",
+          "subtitle": "Production crew",
+          "fieldPattern": "typeChips",
+          "typeLabel": "Role",
+          "types": [
+            "DJ",
+            "Sound technician",
+            "Lighting technician",
+            "Stage technician"
+          ],
+          "suggestedSkills": [
+            "Audio mixing",
+            "Lighting control",
+            "Stage setup",
+            "Troubleshooting"
+          ],
+          "moreSkills": [
+            "Vendor coordination",
+            "Timeline / run-sheet planning",
+            "Stage safety",
+            "Client briefing"
+          ]
+        },
+        {
+          "id": "event-decor---florist",
+          "label": "Event Decor / Florist",
+          "subtitle": "Decor",
+          "fieldPattern": "typeChips",
+          "typeLabel": "Service",
+          "types": [
+            "Event decor",
+            "Floral design",
+            "Wedding decor"
+          ],
+          "suggestedSkills": [
+            "Decoration",
+            "Floral arrangements",
+            "Setup",
+            "Design"
+          ],
+          "moreSkills": [
+            "Vendor coordination",
+            "Timeline / run-sheet planning",
+            "Stage safety",
+            "Client briefing"
+          ]
+        },
+        {
+          "id": "event-catering---support-staff",
+          "label": "Event Catering / Support Staff",
+          "subtitle": "Operations",
+          "fieldPattern": "typeChips",
+          "typeLabel": "Role",
+          "types": [
+            "Catering staff",
+            "Event helper",
+            "Setup crew"
+          ],
+          "suggestedSkills": [
+            "Food service",
+            "Setup",
+            "Support",
+            "Material handling"
+          ],
+          "moreSkills": [
+            "Vendor coordination",
+            "Timeline / run-sheet planning",
+            "Stage safety",
+            "Client briefing"
+          ]
+        },
+        {
+          "id": "bridal---event-artist",
+          "label": "Bridal / Event Artist",
+          "subtitle": "Artists",
+          "fieldPattern": "typeChips",
+          "typeLabel": "Service",
+          "types": [
+            "Makeup artist",
+            "Mehndi artist",
+            "Bridal styling"
+          ],
+          "suggestedSkills": [
+            "Makeup",
+            "Mehndi",
+            "Client consultation",
+            "Styling"
+          ],
+          "moreSkills": [
+            "Vendor coordination",
+            "Timeline / run-sheet planning",
+            "Stage safety",
+            "Client briefing"
+          ]
+        },
+        {
+          "id": "event-production-engineer",
+          "label": "Event Production Engineer",
+          "subtitle": "Technical production",
+          "fieldPattern": "typeChips",
+          "typeLabel": "Focus",
+          "types": [
+            "AV production",
+            "Stage technology",
+            "Power and rigging"
+          ],
+          "suggestedSkills": [
+            "AV systems",
+            "Technical production",
+            "Power",
+            "Troubleshooting"
+          ],
+          "moreSkills": [
+            "Vendor coordination",
+            "Timeline / run-sheet planning",
+            "Stage safety",
+            "Client briefing"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "fitness",
+      "label": "Fitness & Wellness",
+      "subtitle": "Gym, yoga, coaching and wellness",
+      "icon": "dumbbell",
+      "color": "#6366F1",
+      "positions": [
+        {
+          "id": "fitness-trainer---coach",
+          "label": "Fitness Trainer / Coach",
+          "subtitle": "Training",
+          "fieldPattern": "typeChips",
+          "typeLabel": "Coaching type",
+          "types": [
+            "Gym trainer",
+            "Personal trainer",
+            "Strength coach",
+            "Sports coach"
+          ],
+          "suggestedSkills": [
+            "Exercise instruction",
+            "Program planning",
+            "Technique",
+            "Progress tracking"
+          ],
+          "moreSkills": [
+            "CPR / first aid",
+            "Fitness assessment",
+            "Injury prevention",
+            "Gym equipment maintenance basics"
+          ]
+        },
+        {
+          "id": "group-fitness-instructor",
+          "label": "Group Fitness Instructor",
+          "subtitle": "Group classes",
+          "fieldPattern": "typeChips",
+          "typeLabel": "Format",
+          "types": [
+            "Yoga",
+            "Zumba",
+            "Aerobics",
+            "Dance fitness"
+          ],
+          "suggestedSkills": [
+            "Class instruction",
+            "Choreography",
+            "Posture",
+            "Safety"
+          ],
+          "moreSkills": [
+            "CPR / first aid",
+            "Fitness assessment",
+            "Injury prevention",
+            "Gym equipment maintenance basics"
+          ]
+        },
+        {
+          "id": "nutrition---wellness-coach",
+          "label": "Nutrition / Wellness Coach",
+          "subtitle": "Wellness",
+          "fieldPattern": "typeChips",
+          "typeLabel": "Focus",
+          "types": [
+            "Nutrition coach",
+            "Wellness coach",
+            "Lifestyle coaching"
+          ],
+          "suggestedSkills": [
+            "Nutrition guidance",
+            "Habit coaching",
+            "Meal planning"
+          ],
+          "moreSkills": [
+            "CPR / first aid",
+            "Fitness assessment",
+            "Injury prevention",
+            "Gym equipment maintenance basics"
+          ]
+        },
+        {
+          "id": "physique---bodybuilding-coach",
+          "label": "Physique / Bodybuilding Coach",
+          "subtitle": "Advanced coaching",
+          "fieldPattern": "typeChips",
+          "typeLabel": "Focus",
+          "types": [
+            "Bodybuilding",
+            "Physique competition prep"
+          ],
+          "suggestedSkills": [
+            "Training",
+            "Nutrition planning",
+            "Progress tracking"
+          ],
+          "moreSkills": [
+            "CPR / first aid",
+            "Fitness assessment",
+            "Injury prevention",
+            "Gym equipment maintenance basics"
+          ]
+        },
+        {
+          "id": "gym-manager---reception",
+          "label": "Gym Manager / Reception",
+          "subtitle": "Gym operations",
+          "fieldPattern": "typeChips",
+          "typeLabel": "Role",
+          "types": [
+            "Gym manager",
+            "Gym reception",
+            "Membership desk"
+          ],
+          "suggestedSkills": [
+            "Operations",
+            "Staff management",
+            "Front desk",
+            "Member services"
+          ],
+          "moreSkills": [
+            "CPR / first aid",
+            "Fitness assessment",
+            "Injury prevention",
+            "Gym equipment maintenance basics"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "beauty",
+      "label": "Beauty & Personal Care",
+      "subtitle": "Salon, spa, hair and bridal services",
+      "icon": "lotus",
+      "color": "#FB7185",
+      "positions": [
+        {
+          "id": "hair-professional",
+          "label": "Hair Professional",
+          "subtitle": "Hair salon",
+          "fieldPattern": "typeChips",
+          "typeLabel": "Service",
+          "types": [
+            "Barber",
+            "Hair stylist",
+            "Hairdresser",
+            "Coloring specialist"
+          ],
+          "suggestedSkills": [
+            "Haircut",
+            "Styling",
+            "Coloring",
+            "Grooming",
+            "Client consultation"
+          ],
+          "moreSkills": [
+            "Salon hygiene and sterilization",
+            "Skin type consultation",
+            "Product allergy patch test",
+            "Bridal trial consultation"
+          ]
+        },
+        {
+          "id": "beauty---skin-therapist",
+          "label": "Beauty / Skin Therapist",
+          "subtitle": "Beauty services",
+          "fieldPattern": "typeChips",
+          "typeLabel": "Service",
+          "types": [
+            "Beautician",
+            "Beauty therapist",
+            "Skin therapist",
+            "Facial specialist"
+          ],
+          "suggestedSkills": [
+            "Facials",
+            "Waxing",
+            "Threading",
+            "Skincare",
+            "Consultation"
+          ],
+          "moreSkills": [
+            "Salon hygiene and sterilization",
+            "Skin type consultation",
+            "Product allergy patch test",
+            "Bridal trial consultation"
+          ]
+        },
+        {
+          "id": "nail-technician",
+          "label": "Nail Technician",
+          "subtitle": "Nails",
+          "fieldPattern": "typeChips",
+          "typeLabel": "Service",
+          "types": [
+            "Manicure",
+            "Pedicure",
+            "Nail art",
+            "Extensions"
+          ],
+          "suggestedSkills": [
+            "Nail care",
+            "Hygiene",
+            "Nail art",
+            "Client service"
+          ],
+          "moreSkills": [
+            "Salon hygiene and sterilization",
+            "Skin type consultation",
+            "Product allergy patch test",
+            "Bridal trial consultation"
+          ]
+        },
+        {
+          "id": "spa---massage-therapist",
+          "label": "Spa / Massage Therapist",
+          "subtitle": "Spa",
+          "fieldPattern": "typeChips",
+          "typeLabel": "Treatment",
+          "types": [
+            "Spa therapist",
+            "Massage",
+            "Wellness spa"
+          ],
+          "suggestedSkills": [
+            "Massage",
+            "Spa treatments",
+            "Client care",
+            "Hygiene"
+          ],
+          "moreSkills": [
+            "Salon hygiene and sterilization",
+            "Skin type consultation",
+            "Product allergy patch test",
+            "Bridal trial consultation"
+          ]
+        },
+        {
+          "id": "bridal---event-makeup-and-mehndi",
+          "label": "Bridal / Event Makeup & Mehndi",
+          "subtitle": "Bridal and events",
+          "fieldPattern": "typeChips",
+          "typeLabel": "Service",
+          "types": [
+            "Bridal makeup",
+            "Event makeup",
+            "Mehndi artist"
+          ],
+          "suggestedSkills": [
+            "Makeup application",
+            "Mehndi design",
+            "Bridal styling"
+          ],
+          "moreSkills": [
+            "Salon hygiene and sterilization",
+            "Skin type consultation",
+            "Product allergy patch test",
+            "Bridal trial consultation"
+          ]
+        },
+        {
+          "id": "lash---brow-technician",
+          "label": "Lash / Brow Technician",
+          "subtitle": "Lash and brow",
+          "fieldPattern": "typeChips",
+          "typeLabel": "Service",
+          "types": [
+            "Lash extensions",
+            "Brow shaping",
+            "Brow tint"
+          ],
+          "suggestedSkills": [
+            "Lash services",
+            "Brow shaping",
+            "Hygiene"
+          ],
+          "moreSkills": [
+            "Salon hygiene and sterilization",
+            "Skin type consultation",
+            "Product allergy patch test",
+            "Bridal trial consultation"
+          ]
+        },
+        {
+          "id": "salon-manager---reception",
+          "label": "Salon Manager / Reception",
+          "subtitle": "Salon front desk",
+          "fieldPattern": "typeChips",
+          "typeLabel": "Role",
+          "types": [
+            "Salon manager",
+            "Salon reception"
+          ],
+          "suggestedSkills": [
+            "Appointments",
+            "Operations",
+            "Staff management",
+            "Customer service"
+          ],
+          "moreSkills": [
+            "Salon hygiene and sterilization",
+            "Skin type consultation",
+            "Product allergy patch test",
+            "Bridal trial consultation"
+          ]
+        }
+      ]
+    }
+  ]
+};
+</script>
+<!-- CATALOG_END -->
+<!-- APP_START -->
+<script>
+const C = window.GIXBEE_HIRE_CATALOG;
+const STORAGE_KEY = 'GIXBEE_JOB_PROFILES';
+const SEEKER_BUILD = '2026-09-25-bootfix';
+const DEMO_FILE = 'jobseeker-job-profile-master.html';
+
+function el(id) {
+  return document.getElementById(id);
+}
+function readExpectedSalaryValue() {
+  const primary = el('salExpected');
+  if (primary) return primary.value;
+  const smin = el('smin');
+  if (smin) return smin.value;
+  return '';
+}
+function writeExpectedSalaryValue(value) {
+  const v = value ?? '';
+  const primary = el('salExpected');
+  if (primary) {
+    primary.value = v;
+    return;
+  }
+  const smin = el('smin');
+  if (smin) smin.value = v;
+}
+function bindInput(id, fn) {
+  const node = el(id);
+  if (node) node.addEventListener('input', fn);
+}
+function bindClick(id, fn) {
+  const node = el(id);
+  if (node) node.onclick = fn;
+}
+if (!C || !C.employmentTypes) {
+  document.body.innerHTML =
+    '<div style="font:16px/1.5 sans-serif;padding:24px;max-width:520px;margin:0 auto">' +
+    '<h1 style="color:#DC2626;font-size:20px">Catalogue missing</h1>' +
+    '<p>Open <b>' +
+    DEMO_FILE +
+    '</b> (generated single file). Do not open <code>seeker-job-profile-shell.html</code>.</p>' +
+    '<p>Regenerate: <code>python3 docs/prototypes/_gen_seeker_profile_html.py</code></p></div>';
+  throw new Error('GIXBEE_HIRE_CATALOG missing');
+}
+
+const state = {
+  editId: null,
+  emp: 'FT',
+  sectorId: null,
+  positionId: null,
+  types: [],
+  skills: [],
+  skillDraft: [],
+  specDraft: [],
+  exp: 2,
+  neg: true,
+  posLimit: 8,
+  skillFull: false,
+  languages: ['English', 'Malayalam'],
+  langDraft: [],
+  availableToJoin: 'immediate',
+  resume: null,
+  locationPriorities: ['Kochi, Kerala', '', '', '', ''],
+  salValue: '25000',
+};
+const LANG_QUICK = ['English', 'Malayalam', 'Hindi', 'Tamil'];
+const LANGUAGE_LIST = [
+  'English', 'Malayalam', 'Hindi', 'Tamil', 'Kannada', 'Telugu', 'Marathi', 'Bengali',
+  'Gujarati', 'Punjabi', 'Odia', 'Assamese', 'Urdu', 'Arabic', 'Konkani', 'Tulu',
+];
+const ICONS = {
+  bolt: '⚡', pipe: '🔧', broom: '🧹', roller: '🎨', hammer: '🔨', fan: '❄️', car: '🚗', box: '📦',
+  chef: '🍳', shield: '🛡️', store: '🏪', briefcase: '💼', laptop: '💻', book: '📘', health: '💚',
+  cal: '📅', dumbbell: '🏋️', lotus: '🌸',
+};
+const JOIN_AVAILABILITY = [
+  { code: 'immediate', label: 'Immediately' },
+  { code: 'd7', label: 'Within 7 days' },
+  { code: 'd15', label: 'Within 15 days' },
+  { code: 'd30', label: 'Within 30 days' },
+  { code: 'd60', label: 'Within 60 days' },
+  { code: 'd90', label: 'Within 90 days' },
+];
+const RESUME_DEMO_MAX_BYTES = 350000;
+const MAX_LOCATION_PRIORITIES = 5;
+const LOC_QUICK_PICKS = [
+  'Kochi',
+  'Thiruvananthapuram',
+  'Kozhikode',
+  'Thrissur',
+  'Kottayam',
+  'Alappuzha',
+  'Kannur',
+  'Palakkad',
+  'Malappuram',
+  'Ernakulam',
+];
+
+function parseLocationList(text) {
+  return String(text || '')
+    .split(/[,;]/)
+    .map((x) => x.trim())
+    .filter(Boolean);
+}
+
+function normalizeLocName(s) {
+  return String(s || '')
+    .trim()
+    .replace(/\s+/g, ' ');
+}
+function compactPriorities(list) {
+  const filled = (list || []).map(normalizeLocName).filter(Boolean);
+  const out = filled.slice(0, MAX_LOCATION_PRIORITIES);
+  while (out.length < MAX_LOCATION_PRIORITIES) out.push('');
+  return out;
+}
+function filledPriorityCount() {
+  return state.locationPriorities.filter((x) => normalizeLocName(x)).length;
+}
+function prioritiesFilledList() {
+  return compactPriorities(state.locationPriorities).filter(Boolean);
+}
+function priorityAt(i) {
+  return normalizeLocName(state.locationPriorities[i] || '');
+}
+function hasPriorityName(name) {
+  const key = normalizeLocName(name).toLowerCase();
+  return prioritiesFilledList().some((x) => x.toLowerCase() === key);
+}
+function addPriorityLocation(raw) {
+  const name = normalizeLocName(raw);
+  if (!name) {
+    toast('Enter a city or area name.');
+    return false;
+  }
+  const p = compactPriorities(state.locationPriorities);
+  if (filledPriorityCount() >= MAX_LOCATION_PRIORITIES) {
+    toast(`All ${MAX_LOCATION_PRIORITIES} priority slots are filled. Remove or reorder one first.`);
+    return false;
+  }
+  if (hasPriorityName(name)) {
+    toast('This area is already in your priority list.');
+    return false;
+  }
+  const idx = p.findIndex((x) => !normalizeLocName(x));
+  if (idx < 0) return false;
+  p[idx] = name;
+  state.locationPriorities = compactPriorities(p);
+  refreshPriorityLocUi();
+  return true;
+}
+function removePriorityAt(index) {
+  const p = compactPriorities(state.locationPriorities);
+  if (index < 0 || index >= MAX_LOCATION_PRIORITIES || !p[index]) return;
+  p[index] = '';
+  state.locationPriorities = compactPriorities(p);
+  refreshPriorityLocUi();
+}
+function movePriority(index, direction) {
+  const p = compactPriorities(state.locationPriorities);
+  const n = p.filter((x) => normalizeLocName(x)).length;
+  if (!p[index] || index >= n) return;
+  const target = index + direction;
+  if (target < 0 || target >= n) return;
+  const tmp = p[index];
+  p[index] = p[target];
+  p[target] = tmp;
+  state.locationPriorities = compactPriorities(p);
+  refreshPriorityLocUi();
+}
+function refreshPriorityLocUi() {
+  const list = el('priorityLocList');
+  const count = el('priorityLocCount');
+  const addBtn = el('priorityLocAdd');
+  const input = el('priorityLocInput');
+  const p = compactPriorities(state.locationPriorities);
+  const n = p.filter((x) => normalizeLocName(x)).length;
+  if (count) count.textContent = `${n} / ${MAX_LOCATION_PRIORITIES} filled`;
+  if (addBtn) addBtn.disabled = n >= MAX_LOCATION_PRIORITIES;
+  if (input) input.disabled = n >= MAX_LOCATION_PRIORITIES;
+  if (!list) return;
+  list.innerHTML = p
+    .map((place, i) => {
+      const filled = !!normalizeLocName(place);
+      const label = `Priority ${i + 1}`;
+      if (!filled) {
+        return `<div class="prio-row vacant" data-prio-row="${i}">
+          <span class="prio-badge">${i + 1}</span>
+          <span class="prio-vacant">Vacant — add below to use this slot</span>
+        </div>`;
+      }
+      const upDisabled = i === 0 ? ' disabled' : '';
+      const downDisabled = i >= n - 1 ? ' disabled' : '';
+      return `<div class="prio-row filled" data-prio-row="${i}">
+        <span class="prio-badge">${i + 1}</span>
+        <span class="prio-name">${escapeHtml(place)}</span>
+        <button type="button" class="prio-act" data-prio-up="${i}" title="Move up"${upDisabled}>↑</button>
+        <button type="button" class="prio-act" data-prio-down="${i}" title="Move down"${downDisabled}>↓</button>
+        <button type="button" class="prio-act rm" data-prio-rm="${i}" title="Remove">×</button>
+      </div>`;
+    })
+    .join('');
+  document.querySelectorAll('[data-prio-quick]').forEach((btn) => {
+    const q = btn.getAttribute('data-prio-quick');
+    const used = hasPriorityName(q);
+    btn.disabled = used || n >= MAX_LOCATION_PRIORITIES;
+    btn.classList.toggle('on', used);
+  });
+}
+function migrateLegacyLocations(profile) {
+  if (Array.isArray(profile.locationPriorities) && profile.locationPriorities.length) {
+    return compactPriorities(profile.locationPriorities);
+  }
+  const parts = [];
+  if (profile.location) parts.push(profile.location);
+  if (Array.isArray(profile.alsoPreferredLocations)) {
+    parts.push(...profile.alsoPreferredLocations);
+  }
+  return compactPriorities(parts);
+}
+
+function uid() {
+  return 'jp_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 8);
+}
+function loadProfiles() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch (_err) {
+    return [];
+  }
+}
+function saveProfiles(list) {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
+}
+function show(id) {
+  document.querySelectorAll('.scr').forEach((s) => s.classList.toggle('on', s.id === id));
+}
+function toast(m) {
+  const t = document.getElementById('toast');
+  t.textContent = m;
+  t.style.display = 'block';
+  setTimeout(() => (t.style.display = 'none'), 2400);
+}
+function sector() {
+  return C.sectors.find((s) => s.id === state.sectorId);
+}
+function position() {
+  return sector()?.positions.find((p) => p.id === state.positionId);
+}
+
+function selectedCountLabel(base, count) {
+  return `${base} (${count} selected)`;
+}
+function typeFieldLabel(p) {
+  const options = p.types?.length || 0;
+  const n = state.types.length;
+  if (options <= 1) return p.typeLabel;
+  if (n < 1) return p.typeLabel;
+  return selectedCountLabel(p.typeLabel, n);
+}
+function ensureDefaultType(p) {
+  if (!state.types.length && p.types && p.types.length) {
+    state.types = [p.types[0]];
+  }
+}
+function toggleType(t) {
+  const p = position();
+  if (!p) return;
+  if (state.types.includes(t)) {
+    if (state.types.length <= 1) {
+      toast('Select at least one type or specialization.');
+      return;
+    }
+    state.types = state.types.filter((x) => x !== t);
+  } else {
+    state.types = [...state.types, t];
+  }
+  renderS3();
+}
+function syncSheetOkLabels() {
+  const sp = document.getElementById('spOk');
+  if (sp) sp.textContent = state.specDraft.length ? `OK (${state.specDraft.length} selected)` : 'OK';
+  const lg = document.getElementById('lgOk');
+  if (lg) lg.textContent = state.langDraft.length ? `OK (${state.langDraft.length} selected)` : 'OK';
+  const sk = document.getElementById('skOk');
+  if (sk) sk.textContent = state.skillDraft.length ? `OK (${state.skillDraft.length} selected)` : 'OK';
+}
+
+function joinLabel(code) {
+  return JOIN_AVAILABILITY.find((x) => x.code === code)?.label || code || '—';
+}
+function renderResumeUi() {
+  const nameEl = document.getElementById('resumeName');
+  const clearBtn = document.getElementById('resumeClear');
+  const input = document.getElementById('resumeFile');
+  if (!nameEl) return;
+  if (state.resume?.fileName) {
+    const kb = state.resume.sizeBytes ? ` (${Math.round(state.resume.sizeBytes / 1024)} KB)` : '';
+    nameEl.textContent = state.resume.fileName + kb;
+    if (clearBtn) clearBtn.hidden = false;
+  } else {
+    nameEl.textContent = 'No file chosen';
+    if (clearBtn) clearBtn.hidden = true;
+    if (input) input.value = '';
+  }
+}
+function clearResume() {
+  state.resume = null;
+  renderResumeUi();
+}
+function setResumeFromFile(file) {
+  if (!file) {
+    clearResume();
+    return;
+  }
+  const allowed = /\.(pdf|doc|docx)$/i.test(file.name) || file.type.startsWith('image/');
+  if (!allowed) {
+    toast('Use PDF, Word (.doc/.docx), or an image.');
+    clearResume();
+    return;
+  }
+  const base = {
+    fileName: file.name,
+    sizeBytes: file.size,
+    mimeType: file.type || 'application/octet-stream',
+    storedInline: false,
+  };
+  if (file.size > RESUME_DEMO_MAX_BYTES) {
+    state.resume = base;
+    renderResumeUi();
+    toast('Resume saved as reference only (file too large for demo storage). Live app uploads to server.');
+    return;
+  }
+  const reader = new FileReader();
+  reader.onload = () => {
+    state.resume = { ...base, storedInline: true, dataUrl: reader.result };
+    renderResumeUi();
+  };
+  reader.onerror = () => {
+    state.resume = base;
+    renderResumeUi();
+    toast('Could not read file — name saved for demo only.');
+  };
+  reader.readAsDataURL(file);
+}
+
+function defaultProfileName() {
+  const p = position();
+  const s = sector();
+  if (!p || !s) return '';
+  const t = state.types.length ? ' — ' + state.types.slice(0, 2).join(', ') : '';
+  return `${p.label}${t} · ${s.label}`.slice(0, 80);
+}
+
+function buildPayload() {
+  const s = sector();
+  const p = position();
+  const emp = C.employmentTypes.find((e) => e.code === state.emp);
+  const salExpected = readExpectedSalaryValue();
+  const priorities = prioritiesFilledList();
+  const qual = document.getElementById('qual').value;
+  const bio = document.getElementById('desc').value.trim();
+  const nameInput = document.getElementById('profileName').value.trim();
+  const name = nameInput || defaultProfileName();
+  const joinCode = document.getElementById('joinAvail')?.value || state.availableToJoin || 'immediate';
+  state.availableToJoin = joinCode;
+  const resumeOut = state.resume
+    ? {
+        fileName: state.resume.fileName,
+        sizeBytes: state.resume.sizeBytes,
+        mimeType: state.resume.mimeType,
+        storedInline: !!state.resume.storedInline,
+        dataUrl: state.resume.storedInline ? state.resume.dataUrl : undefined,
+      }
+    : null;
+  return {
+    id: state.editId || uid(),
+    schemaVersion: 3,
+    savedAt: new Date().toISOString(),
+    displayName: name,
+    employmentType: { code: state.emp, label: emp?.label || state.emp },
+    sector: s ? { id: s.id, label: s.label } : null,
+    position: p ? { id: p.id, label: p.label, subtitle: p.subtitle || '' } : null,
+    types: [...state.types],
+    qualification: qual || null,
+    experienceYears: state.exp,
+    skills: [...state.skills],
+    languages: [...state.languages],
+    bio: bio || null,
+    locationPriorities: compactPriorities(state.locationPriorities),
+    location: priorities[0] || null,
+    alsoPreferredLocations: priorities.slice(1),
+    salary: {
+      expectedMonthly: salExpected ? Number(salExpected) : null,
+      negotiable: state.neg,
+    },
+    availableToJoin: { code: joinCode, label: joinLabel(joinCode) },
+    resume: resumeOut,
+    catalogueVersion: C.version,
+  };
+}
+
+function applyPayload(profile) {
+  state.editId = profile.id;
+  state.emp = profile.employmentType?.code || 'FT';
+  state.sectorId = profile.sector?.id || null;
+  state.positionId = profile.position?.id || null;
+  state.types = [...(profile.types || [])];
+  state.skills = [...(profile.skills || [])];
+  state.exp = profile.experienceYears ?? 2;
+  state.neg = profile.salary?.negotiable !== false;
+  state.languages = profile.languages?.length ? [...profile.languages] : ['English', 'Malayalam'];
+  document.getElementById('qual').value = profile.qualification || '';
+  document.getElementById('desc').value = profile.bio || '';
+  state.locationPriorities = migrateLegacyLocations(profile);
+  state.salValue = String(profile.salary?.expectedMonthly ?? profile.salary?.minMonthly ?? '25000');
+  writeExpectedSalaryValue(state.salValue);
+  document.getElementById('profileName').value = profile.displayName || '';
+  document.getElementById('neg').classList.toggle('on', state.neg);
+  const joinCode = profile.availableToJoin?.code || 'immediate';
+  state.availableToJoin = joinCode;
+  const joinSel = document.getElementById('joinAvail');
+  if (joinSel) joinSel.value = joinCode;
+  if (profile.resume?.fileName) {
+    state.resume = {
+      fileName: profile.resume.fileName,
+      sizeBytes: profile.resume.sizeBytes,
+      mimeType: profile.resume.mimeType,
+      storedInline: !!profile.resume.storedInline,
+      dataUrl: profile.resume.dataUrl,
+    };
+  } else {
+    state.resume = null;
+  }
+  renderResumeUi();
+  renderS4();
+}
+
+function resetWizard(keepEmp) {
+  const emp = keepEmp ? state.emp : 'FT';
+  state.editId = null;
+  state.emp = emp;
+  state.sectorId = null;
+  state.positionId = null;
+  state.types = [];
+  state.skills = [];
+  state.exp = 2;
+  state.neg = true;
+  state.languages = ['English', 'Malayalam'];
+  state.availableToJoin = 'immediate';
+  state.resume = null;
+  state.posLimit = 8;
+  document.getElementById('qual').value = '';
+  document.getElementById('desc').value = '';
+  state.locationPriorities = ['Kochi, Kerala', '', '', '', ''];
+  state.salValue = '25000';
+  writeExpectedSalaryValue('25000');
+  document.getElementById('profileName').value = '';
+  document.getElementById('posSearch').value = '';
+  const negEl = el('neg');
+  if (negEl) negEl.classList.add('on');
+  const joinSel = el('joinAvail');
+  if (joinSel) joinSel.value = 'immediate';
+  renderResumeUi();
+}
+
+function renderS1() {
+  document.getElementById('empTypes').innerHTML = C.employmentTypes
+    .map(
+      (e) =>
+        `<button class="pill ${state.emp === e.code ? 'on' : ''}" data-e="${e.code}">${state.emp === e.code ? '✓ ' : ''}${e.label}</button>`,
+    )
+    .join('');
+  document.getElementById('sectors').innerHTML = C.sectors
+    .map(
+      (s) =>
+        `<button class="tile ${state.sectorId === s.id ? 'on' : ''}" data-s="${s.id}">
+      <div class="ico" style="background:${s.color}22">${ICONS[s.icon] || '•'}</div><b>${s.label}</b>
+    </button>`,
+    )
+    .join('');
+  document.getElementById('c1').disabled = !state.sectorId;
+}
+function renderS2() {
+  const s = sector();
+  if (!s) return;
+  document.getElementById('s2sec').textContent = s.label;
+  document.getElementById('s2sub').textContent = s.subtitle;
+  document.getElementById('s2ico').textContent = ICONS[s.icon] || '•';
+  const q = document.getElementById('posSearch').value.trim().toLowerCase();
+  let list = s.positions.filter(
+    (p) => !q || p.label.toLowerCase().includes(q) || (p.subtitle || '').toLowerCase().includes(q),
+  );
+  const more = document.getElementById('morePos');
+  more.style.display = !q && list.length > state.posLimit ? 'inline' : 'none';
+  if (!q) list = list.slice(0, state.posLimit);
+  document.getElementById('posList').innerHTML = list
+    .map(
+      (p) =>
+        `<div class="prow ${state.positionId === p.id ? 'on' : ''}" data-p="${p.id}">
+      <div class="pdot">${ICONS[s.icon] || '•'}</div>
+      <div><div class="t">${p.label}</div><div class="s">${p.subtitle || p.types.slice(0, 2).join(', ')}</div></div>
+    </div>`,
+    )
+    .join('');
+  document.getElementById('c2').disabled = !state.positionId;
+}
+function visibleTypes(p) {
+  const maxVisible = 6;
+  if (!p.types || p.types.length <= maxVisible) return p.types || [];
+  return p.types.slice(0, maxVisible);
+}
+function ensureDefaultLanguages() {
+  if (!state.languages.length) state.languages = ['English', 'Malayalam'];
+}
+function renderS3() {
+  const s = sector();
+  const p = position();
+  if (!p) return;
+  ensureDefaultLanguages();
+  ensureDefaultType(p);
+  document.getElementById('s3crumb').textContent = s.label + ' › ' + p.label;
+  document.getElementById('s3sub').textContent = p.subtitle || '';
+  document.getElementById('s3ico').textContent = ICONS[s.icon] || '•';
+  document.getElementById('typeLbl').textContent = typeFieldLabel(p);
+  document.getElementById('skillLbl').textContent = selectedCountLabel('Skills', state.skills.length);
+  document.getElementById('langLbl').textContent = selectedCountLabel('Languages you speak', state.languages.length);
+  const vis = visibleTypes(p);
+  document.getElementById('typeChips').innerHTML = vis
+    .map(
+      (t) =>
+        `<button type="button" class="chip ${state.types.includes(t) ? 'on' : ''}" data-t="${t.replace(/"/g, '&quot;')}">${t}</button>`,
+    )
+    .join('');
+  document.getElementById('typeExtra').innerHTML = state.types
+    .filter((t) => !vis.includes(t))
+    .map(
+      (t) =>
+        `<span class="chip on">${t}<button type="button" class="chip-x" data-tx="${t.replace(/"/g, '&quot;')}">×</button></span>`,
+    )
+    .join('');
+  const more = document.getElementById('moreTypes');
+  more.hidden = p.types.length <= vis.length;
+  document.getElementById('skillChips').innerHTML = state.skills
+    .map((sk) => `<span class="chip sk">${sk}<button type="button" data-x="${sk}">×</button></span>`)
+    .join('');
+  document.getElementById('langQuick').innerHTML = LANG_QUICK.map(
+    (l) =>
+      `<button type="button" class="chip lang ${state.languages.includes(l) ? 'on' : ''}" data-lq="${l}">${l}</button>`,
+  ).join('');
+  document.getElementById('langChips').innerHTML = state.languages
+    .filter((l) => !LANG_QUICK.includes(l))
+    .map(
+      (l) =>
+        `<span class="chip lang sk">${l}<button type="button" aria-label="Remove ${l}" data-lx="${l}">×</button></span>`,
+    )
+    .join('');
+  document.getElementById('expV').textContent = state.exp;
+}
+
+function captureS4Draft() {
+  const sal = readExpectedSalaryValue();
+  if (sal !== '') state.salValue = sal;
+  const join = el('joinAvail');
+  if (join) state.availableToJoin = join.value;
+}
+
+function bindStep4Events() {
+  const body = el('s4Body');
+  if (!body || body.dataset.bound === '1') return;
+  body.dataset.bound = '1';
+  body.addEventListener('change', (e) => {
+    if (e.target.id === 'joinAvail') state.availableToJoin = e.target.value;
+    if (e.target.id === 'resumeFile' && e.target.files && e.target.files[0]) {
+      setResumeFromFile(e.target.files[0]);
+    }
+  });
+  body.addEventListener('click', (e) => {
+    if (e.target.id === 'priorityLocAdd') {
+      const input = el('priorityLocInput');
+      if (input && addPriorityLocation(input.value)) input.value = '';
+      return;
+    }
+    const up = e.target.closest('[data-prio-up]');
+    if (up && !up.disabled) {
+      movePriority(+up.getAttribute('data-prio-up'), -1);
+      return;
+    }
+    const down = e.target.closest('[data-prio-down]');
+    if (down && !down.disabled) {
+      movePriority(+down.getAttribute('data-prio-down'), 1);
+      return;
+    }
+    const rm = e.target.closest('[data-prio-rm]');
+    if (rm) {
+      removePriorityAt(+rm.getAttribute('data-prio-rm'));
+      return;
+    }
+    const quick = e.target.closest('[data-prio-quick]');
+    if (quick && !quick.disabled) {
+      addPriorityLocation(quick.getAttribute('data-prio-quick'));
+      return;
+    }
+    const negBtn = e.target.closest('#neg');
+    if (negBtn) {
+      state.neg = !state.neg;
+      negBtn.classList.toggle('on', state.neg);
+      return;
+    }
+    if (e.target.id === 'resumeClear') clearResume();
+  });
+  body.addEventListener('keydown', (e) => {
+    if (e.target.id === 'priorityLocInput' && e.key === 'Enter') {
+      e.preventDefault();
+      if (addPriorityLocation(e.target.value)) e.target.value = '';
+    }
+  });
+}
+
+function renderS4() {
+  captureS4Draft();
+  const body = el('s4Body');
+  if (!body) return;
+  const salValue = escapeHtml(String(state.salValue ?? '25000'));
+  const quickPrio = LOC_QUICK_PICKS.map(
+    (q) =>
+      `<button type="button" class="chip also-quick" data-prio-quick="${escapeHtml(q)}">${escapeHtml(q)}</button>`,
+  ).join('');
+  const joinOpts = JOIN_AVAILABILITY.map(
+    (o) =>
+      `<option value="${o.code}"${state.availableToJoin === o.code ? ' selected' : ''}>${o.label}</option>`,
+  ).join('');
+  const negOn = state.neg ? ' on' : '';
+  body.innerHTML = `
+        <div class="fld">
+          <div class="row" style="align-items:center;margin-bottom:6px">
+            <label style="margin:0">Preferred work locations (Priority 1 → 5)</label>
+            <span class="also-count" id="priorityLocCount">0 / ${MAX_LOCATION_PRIORITIES} filled</span>
+          </div>
+          <p class="hint"><b>Priority 1</b> is matched first, then 2, 3… Vacant slots stay last. Reorder filled rows with ↑ ↓.</p>
+          <div class="also-box">
+            <div class="prio-list" id="priorityLocList"></div>
+            <div class="also-add-row">
+              <input id="priorityLocInput" type="text" placeholder="Add to next vacant slot" autocomplete="off">
+              <button type="button" id="priorityLocAdd">Add</button>
+            </div>
+            <p class="hint" style="margin:12px 0 6px">Quick add (Kerala)</p>
+            <div class="chips also-quick">${quickPrio}</div>
+          </div>
+        </div>
+        <div class="fld">
+          <label>Expected salary (₹/month)</label>
+          <input id="salExpected" type="number" value="${salValue}" placeholder="e.g. 25000">
+        </div>
+        <div class="fld">
+          <label>Available to join</label>
+          <select id="joinAvail">${joinOpts}</select>
+        </div>
+        <div class="fld">
+          <label>Resume (optional)</label>
+          <p class="hint">PDF or Word — live app uploads to secure storage; demo keeps small files in this browser.</p>
+          <div class="upload">
+            <div class="up-row">
+              <label class="up-btn" for="resumeFile">Upload resume</label>
+              <input type="file" id="resumeFile" accept=".pdf,.doc,.docx,application/pdf,application/msword,image/*">
+              <span class="fname" id="resumeName">No file chosen</span>
+              <button type="button" class="rm" id="resumeClear" hidden>Remove</button>
+            </div>
+          </div>
+        </div>
+        <div class="tog"><div><b>Salary negotiable</b><div class="s">You are open to discuss pay for the right role.</div></div><button class="sw${negOn}" type="button" id="neg"><i></i></button></div>`;
+  bindStep4Events();
+  renderResumeUi();
+  refreshPriorityLocUi();
+}
+
+function renderS5() {
+  const s = sector();
+  const p = position();
+  const emp = C.employmentTypes.find((e) => e.code === state.emp)?.label;
+  const salExpected = readExpectedSalaryValue();
+  const priorities = prioritiesFilledList();
+  const qual = document.getElementById('qual').value;
+  const bio = document.getElementById('desc').value.trim();
+  if (!document.getElementById('profileName').value.trim()) {
+    document.getElementById('profileName').placeholder = defaultProfileName();
+  }
+  document.getElementById('summary').innerHTML = [
+    ['Job type', emp],
+    ['Sector', s?.label],
+    ['Position', p?.label + (state.types.length ? ' (' + state.types.join(', ') + ')' : '')],
+    ['Qualification', qual || '—'],
+    ['Experience', state.exp + ' years'],
+    ['Skills', state.skills.join(', ') || '—'],
+    ['Languages', state.languages.join(', ') || '—'],
+    ['Bio', bio || '—'],
+    ['Work locations (priority)', priorities.length ? priorities.map((p, i) => `${i + 1}. ${p}`).join(' · ') : '—'],
+    ['Expected salary', (salExpected ? '₹' + salExpected : '—') + (state.neg ? ' (Negotiable)' : '')],
+    ['Available to join', joinLabel(el('joinAvail')?.value || state.availableToJoin)],
+    ['Resume', state.resume?.fileName || '—'],
+  ]
+    .map(([k, v]) => `<div class="line"><span>${k}</span><b>${v}</b></div>`)
+    .join('');
+}
+
+function renderProfiles() {
+  const list = loadProfiles().sort((a, b) => (b.savedAt || '').localeCompare(a.savedAt || ''));
+  const el = document.getElementById('profileList');
+  if (!list.length) {
+    el.innerHTML = '<div class="empty">No saved profiles yet.<br>Complete the wizard and tap Save profile.</div>';
+    return;
+  }
+  el.innerHTML = list
+    .map((pr) => {
+      const when = pr.savedAt ? new Date(pr.savedAt).toLocaleString() : '';
+      const sal = pr.salary?.expectedMonthly ?? pr.salary?.minMonthly;
+      const salLine = sal ? '<br>Expected: ₹' + escapeHtml(String(sal)) + '/mo' : '';
+      const prio = (pr.locationPriorities || migrateLegacyLocations(pr)).filter(Boolean);
+      const prioLine = prio.length
+        ? '<br>Locations: ' + escapeHtml(prio.map((p, i) => `${i + 1}.${p}`).join(' · '))
+        : '';
+      return `<div class="prof-card" data-id="${pr.id}">
+        <b>${escapeHtml(pr.displayName || 'Untitled')}</b>
+        <div class="meta">${escapeHtml(pr.position?.label || '')} · ${escapeHtml(pr.sector?.label || '')}<br>${escapeHtml(pr.employmentType?.label || '')}${prioLine}${salLine}${pr.availableToJoin?.label ? '<br>Join: ' + escapeHtml(pr.availableToJoin.label) : ''}${pr.resume?.fileName ? '<br>Resume: ' + escapeHtml(pr.resume.fileName) : ''}<br><small>Saved ${escapeHtml(when)}</small></div>
+        <div class="acts">
+          <button type="button" data-open="${pr.id}">Edit</button>
+          <button type="button" class="del" data-del="${pr.id}">Delete</button>
+        </div>
+      </div>`;
+    })
+    .join('');
+}
+function escapeHtml(s) {
+  return String(s)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+function persistProfile() {
+  const payload = buildPayload();
+  if (!payload.sector?.id || !payload.position?.id) {
+    toast('Complete sector and position before saving.');
+    return;
+  }
+  if (!payload.languages.length) {
+    toast('Select at least one language.');
+    return;
+  }
+  const list = loadProfiles();
+  const idx = list.findIndex((x) => x.id === payload.id);
+  if (idx >= 0) list[idx] = payload;
+  else list.push(payload);
+  saveProfiles(list);
+  state.editId = payload.id;
+  const sal = payload.salary?.expectedMonthly;
+  document.getElementById('doneTxt').textContent =
+    'Saved “' +
+    payload.displayName +
+    '” · ' +
+    payload.position.label +
+    ' in ' +
+    payload.sector.label +
+    (sal ? ' · ₹' + sal + '/mo expected' : '') +
+    (payload.availableToJoin?.label ? ' · Join: ' + payload.availableToJoin.label : '') +
+    (payload.resume?.fileName ? ' · Resume: ' + payload.resume.fileName : '') +
+    '.';
+  show('s6');
+}
+
+function openSkills() {
+  state.skillDraft = [...state.skills];
+  state.skillFull = false;
+  document.getElementById('skTitle').textContent = 'Add Skills';
+  drawSkills();
+  document.getElementById('skillSheet').classList.add('on');
+}
+function skillUniverse(full) {
+  const p = position();
+  const all = full ? [...p.suggestedSkills, ...p.moreSkills] : p.suggestedSkills;
+  const q = document.getElementById('skSearch').value.trim().toLowerCase();
+  return all.filter((x) => !q || x.toLowerCase().includes(q));
+}
+function drawSkills() {
+  const full = state.skillFull;
+  document.getElementById('skTitle').textContent = full ? 'All Skills' : 'Add Skills';
+  document.getElementById('skMore').style.display = full ? 'none' : 'inline';
+  const list = skillUniverse(full);
+  document.getElementById('skList').innerHTML =
+    list
+      .map(
+        (x) =>
+          `<label class="ck"><input type="checkbox" ${state.skillDraft.includes(x) ? 'checked' : ''} data-sk="${x}"> ${x}</label>`,
+      )
+      .join('') || '<p class="sub">No skills match.</p>';
+  syncSheetOkLabels();
+}
+function openSpec() {
+  state.specDraft = [...state.types];
+  drawSpec();
+  document.getElementById('specSheet').classList.add('on');
+}
+function drawSpec() {
+  const p = position();
+  const q = document.getElementById('spSearch').value.trim().toLowerCase();
+  const list = p.types.filter((t) => !q || t.toLowerCase().includes(q));
+  document.getElementById('spList').innerHTML = list
+    .map(
+      (t) =>
+        `<label class="ck"><input type="checkbox" ${state.specDraft.includes(t) ? 'checked' : ''} data-sp="${t}"> ${t}</label>`,
+    )
+    .join('');
+  syncSheetOkLabels();
+}
+function openLangs() {
+  state.langDraft = [...state.languages];
+  drawLangs();
+  document.getElementById('langSheet').classList.add('on');
+}
+function drawLangs() {
+  const q = document.getElementById('lgSearch').value.trim().toLowerCase();
+  const list = LANGUAGE_LIST.filter((l) => !q || l.toLowerCase().includes(q));
+  document.getElementById('lgList').innerHTML =
+    list
+      .map(
+        (l) =>
+          `<label class="ck"><input type="checkbox" ${state.langDraft.includes(l) ? 'checked' : ''} data-lg="${l}"> ${l}</label>`,
+      )
+      .join('') || '<p class="sub">No language match.</p>';
+  syncSheetOkLabels();
+}
+function toggleLang(l) {
+  if (state.languages.includes(l)) state.languages = state.languages.filter((x) => x !== l);
+  else state.languages = [...state.languages, l];
+  renderS3();
+}
+
+function openMyProfiles() {
+  renderProfiles();
+  show('s7');
+}
+
+document.getElementById('empTypes').addEventListener('click', (e) => {
+  const b = e.target.closest('[data-e]');
+  if (!b) return;
+  state.emp = b.dataset.e;
+  renderS1();
+});
+document.getElementById('sectors').addEventListener('click', (e) => {
+  const b = e.target.closest('[data-s]');
+  if (!b) return;
+  state.sectorId = b.dataset.s;
+  state.positionId = null;
+  state.types = [];
+  state.skills = [];
+  state.posLimit = 8;
+  renderS1();
+});
+document.getElementById('c1').onclick = () => {
+  show('s2');
+  renderS2();
+};
+document.getElementById('posList').addEventListener('click', (e) => {
+  const b = e.target.closest('[data-p]');
+  if (!b) return;
+  state.positionId = b.dataset.p;
+  state.types = [];
+  state.skills = [];
+  renderS2();
+});
+document.getElementById('posSearch').oninput = () => {
+  state.posLimit = 99;
+  renderS2();
+};
+document.getElementById('morePos').onclick = () => {
+  state.posLimit = 99;
+  renderS2();
+};
+document.getElementById('c2').onclick = () => {
+  show('s3');
+  renderS3();
+};
+document.getElementById('typeChips').addEventListener('click', (e) => {
+  const b = e.target.closest('[data-t]');
+  if (!b) return;
+  toggleType(b.getAttribute('data-t'));
+});
+document.getElementById('typeExtra').addEventListener('click', (e) => {
+  const x = e.target.closest('[data-tx]');
+  if (!x) return;
+  toggleType(x.getAttribute('data-tx'));
+});
+document.getElementById('moreTypes').onclick = openSpec;
+document.getElementById('expM').onclick = () => {
+  state.exp = Math.max(0, state.exp - 1);
+  renderS3();
+};
+document.getElementById('expP').onclick = () => {
+  state.exp = Math.min(40, state.exp + 1);
+  renderS3();
+};
+document.getElementById('addSkills').onclick = openSkills;
+document.getElementById('langQuick').addEventListener('click', (e) => {
+  const b = e.target.closest('[data-lq]');
+  if (!b) return;
+  toggleLang(b.dataset.lq);
+});
+document.getElementById('langChips').addEventListener('click', (e) => {
+  const btn = e.target.closest('[data-lx]');
+  if (!btn) return;
+  toggleLang(btn.getAttribute('data-lx'));
+});
+document.getElementById('addLangs').onclick = openLangs;
+document.getElementById('skillChips').addEventListener('click', (e) => {
+  const x = e.target.dataset.x;
+  if (!x) return;
+  state.skills = state.skills.filter((s) => s !== x);
+  renderS3();
+});
+document.getElementById('c3').onclick = () => {
+  const p = position();
+  if (p?.types?.length && !state.types.length) {
+    toast('Select at least one type or specialization.');
+    return;
+  }
+  if (!state.languages.length) {
+    toast('Select at least one language.');
+    return;
+  }
+  renderS4();
+  show('s4');
+};
+bindClick('c4', () => {
+  captureS4Draft();
+  if (!prioritiesFilledList().length) {
+    toast('Add at least Priority 1 work location.');
+    return;
+  }
+  state.availableToJoin = el('joinAvail')?.value || state.availableToJoin || 'immediate';
+  show('s5');
+  renderS5();
+});
+document.getElementById('c5').onclick = () => persistProfile();
+
+document.getElementById('skMore').onclick = () => {
+  state.skillFull = true;
+  drawSkills();
+};
+document.getElementById('skSearch').oninput = drawSkills;
+document.getElementById('skList').addEventListener('change', (e) => {
+  const sk = e.target.dataset.sk;
+  if (!sk) return;
+  if (e.target.checked) {
+    if (!state.skillDraft.includes(sk)) state.skillDraft.push(sk);
+  } else state.skillDraft = state.skillDraft.filter((x) => x !== sk);
+  syncSheetOkLabels();
+});
+document.getElementById('skOk').onclick = () => {
+  state.skills = [...state.skillDraft];
+  document.getElementById('skillSheet').classList.remove('on');
+  renderS3();
+};
+document.getElementById('skClose').onclick = () => document.getElementById('skillSheet').classList.remove('on');
+document.getElementById('spSearch').oninput = drawSpec;
+document.getElementById('spList').addEventListener('change', (e) => {
+  const sp = e.target.dataset.sp;
+  if (!sp) return;
+  if (e.target.checked) {
+    if (!state.specDraft.includes(sp)) state.specDraft.push(sp);
+  } else state.specDraft = state.specDraft.filter((x) => x !== sp);
+  syncSheetOkLabels();
+});
+document.getElementById('spOk').onclick = () => {
+  if (!state.specDraft.length) {
+    toast('Select at least one type or specialization.');
+    return;
+  }
+  state.types = [...state.specDraft];
+  document.getElementById('specSheet').classList.remove('on');
+  renderS3();
+};
+document.getElementById('spClose').onclick = () => document.getElementById('specSheet').classList.remove('on');
+document.getElementById('lgSearch').oninput = drawLangs;
+document.getElementById('lgList').addEventListener('change', (e) => {
+  const lg = e.target.dataset.lg;
+  if (!lg) return;
+  if (e.target.checked) {
+    if (!state.langDraft.includes(lg)) state.langDraft.push(lg);
+  } else state.langDraft = state.langDraft.filter((x) => x !== lg);
+  syncSheetOkLabels();
+});
+document.getElementById('lgOk').onclick = () => {
+  state.languages = [...state.langDraft];
+  ensureDefaultLanguages();
+  document.getElementById('langSheet').classList.remove('on');
+  renderS3();
+};
+document.getElementById('lgClose').onclick = () => document.getElementById('langSheet').classList.remove('on');
+
+document.querySelectorAll('[data-to]').forEach((b) =>
+  b.addEventListener('click', () => {
+    const id = b.getAttribute('data-to');
+    show(id);
+    if (id === 's1') renderS1();
+    if (id === 's2') renderS2();
+    if (id === 's3') renderS3();
+    if (id === 's4') renderS4();
+    if (id === 's5') renderS5();
+  }),
+);
+
+['myProfiles', 'myProfiles2', 'myProfiles3', 'myProfiles4', 'myProfiles5'].forEach((id) => {
+  const el = document.getElementById(id);
+  if (el) el.onclick = openMyProfiles;
+});
+document.getElementById('viewSaved').onclick = openMyProfiles;
+document.getElementById('another').onclick = () => {
+  resetWizard(true);
+  show('s1');
+  renderS1();
+};
+document.getElementById('s1Back').onclick = () => toast('In the app this returns to Home / Jobs tab.');
+document.getElementById('profileList').addEventListener('click', (e) => {
+  const del = e.target.closest('[data-del]');
+  if (del) {
+    const id = del.getAttribute('data-del');
+    saveProfiles(loadProfiles().filter((x) => x.id !== id));
+    renderProfiles();
+    toast('Profile deleted.');
+    return;
+  }
+  const open = e.target.closest('[data-open]');
+  if (!open) return;
+  const pr = loadProfiles().find((x) => x.id === open.getAttribute('data-open'));
+  if (!pr) return;
+  applyPayload(pr);
+  show('s1');
+  renderS1();
+  toast('Profile loaded — review steps or save again to update.');
+});
+document.getElementById('exportProfiles').onclick = () => {
+  const json = JSON.stringify(loadProfiles(), null, 2);
+  const done = () => toast('Copied ' + loadProfiles().length + ' profile(s) to clipboard.');
+  const fail = () =>
+    toast(json.slice(0, 120) + '… (clipboard blocked — use devtools Application → localStorage)');
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(json).then(done).catch(fail);
+  } else {
+    fail();
+  }
+};
+
+function showBootError(message) {
+  const safe = String(message || 'Unknown error').replace(/&/g, '&amp;').replace(/</g, '&lt;');
+  let box = el('bootError');
+  if (!box) {
+    box = document.createElement('div');
+    box.id = 'bootError';
+    box.setAttribute('role', 'alert');
+    document.body.prepend(box);
+  }
+  box.hidden = false;
+  box.style.cssText =
+    'position:fixed;inset:0;z-index:99999;background:#fff;padding:24px 20px;overflow:auto;font:15px/1.55 Inter,system-ui,sans-serif;color:#111827';
+  box.innerHTML =
+    '<h1 style="margin:0 0 12px;font-size:22px;color:#DC2626">Job profile demo did not start</h1>' +
+    '<p style="margin:0 0 16px"><b>Reason:</b> ' +
+    safe +
+    '</p>' +
+    '<ol style="margin:0 0 16px;padding-left:22px">' +
+    '<li>In the repo, open <b>docs/prototypes/' +
+    DEMO_FILE +
+    '</b> (branch <code>cursor/hire-employee-html-flow-b579</code>).</li>' +
+    '<li>Do <b>not</b> open <code>seeker-job-profile-shell.html</code> — it has no inlined JavaScript until you regenerate.</li>' +
+    '<li>Hard refresh: Ctrl+Shift+R (Cmd+Shift+R on Mac).</li>' +
+    '<li>If preview is blank, serve locally: <code>cd docs/prototypes && python3 -m http.server 8765</code> then visit <code>http://localhost:8765/' +
+    DEMO_FILE +
+    '</code></li>' +
+    '</ol>' +
+    '<p style="margin:0;color:#6B7280">Regenerate: <code>python3 docs/prototypes/_gen_seeker_profile_html.py</code></p>';
+}
+
+function boot() {
+  try {
+    if (!el('sectors') || !el('empTypes')) {
+      throw new Error(
+        'Wrong HTML file — open ' +
+          DEMO_FILE +
+          ' (full generated file). Shell-only HTML has empty scripts until you run _gen_seeker_profile_html.py',
+      );
+    }
+    renderS1();
+    renderS4();
+    const tag = el('buildTag');
+    if (tag) {
+      tag.textContent =
+        'Open ' +
+        DEMO_FILE +
+        ' · build ' +
+        SEEKER_BUILD +
+        ' · all JS is inside this file (hard refresh if sectors look empty).';
+    }
+    const errBox = el('bootError');
+    if (errBox) errBox.hidden = true;
+  } catch (err) {
+    console.error('[Gixbee seeker profile]', err);
+    showBootError(err.message || String(err));
+    toast(err.message || String(err));
+  }
+}
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', boot);
+} else {
+  boot();
+}
+
+</script>
+<!-- APP_END -->
+</body>
+</html>
