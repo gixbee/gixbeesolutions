@@ -130,6 +130,13 @@
 </style>
 </head>
 <body>
+<noscript>
+  <div style="font:16px/1.5 sans-serif;padding:24px;max-width:480px;margin:0 auto">
+    <h1 style="font-size:20px">JavaScript required</h1>
+    <p>Enable JavaScript, then open <b>jobseeker-job-profile-master.html</b> (not the shell file).</p>
+  </div>
+</noscript>
+<div id="bootError" hidden aria-live="assertive"></div>
 <div class="stage">
   <div class="phone" id="phone">
     <div class="notch"><span>9:41</span><span>●●●</span></div>
@@ -140,10 +147,10 @@
       <div class="pad">
         <h2>Select Job Type</h2>
         <p class="sub">Same categories as hiring — tell employers how you want to work.</p>
-        <p class="hint" id="buildTag">Demo build · open <b>seeker-job-profile-master.html</b></p>
-        <div class="pills" id="empTypes"></div>
+        <p class="hint" id="buildTag">Loading demo… open <b>jobseeker-job-profile-master.html</b> if this stays empty.</p>
+        <div class="pills" id="empTypes"><span class="hint" style="margin:0">Loading job types…</span></div>
         <div class="row"><h2 style="margin:0">Sector / Category</h2></div>
-        <div class="grid" id="sectors"></div>
+        <div class="grid" id="sectors"><span class="hint" style="grid-column:1/-1">Loading 18 sectors…</span></div>
       </div>
       <div class="cta"><button class="btn" id="c1" disabled>Continue</button></div>
     </section>

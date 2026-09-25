@@ -1,6 +1,7 @@
 const C = window.GIXBEE_HIRE_CATALOG;
 const STORAGE_KEY = 'GIXBEE_JOB_PROFILES';
-const SEEKER_BUILD = '2026-09-25-prio5';
+const SEEKER_BUILD = '2026-09-25-bootfix';
+const DEMO_FILE = 'jobseeker-job-profile-master.html';
 
 function el(id) {
   return document.getElementById(id);
@@ -31,7 +32,13 @@ function bindClick(id, fn) {
   if (node) node.onclick = fn;
 }
 if (!C || !C.employmentTypes) {
-  document.body.innerHTML = '<p style="font:16px sans-serif;padding:24px">Catalogue missing. Regenerate with python3 docs/prototypes/_gen_seeker_profile_html.py</p>';
+  document.body.innerHTML =
+    '<div style="font:16px/1.5 sans-serif;padding:24px;max-width:520px;margin:0 auto">' +
+    '<h1 style="color:#DC2626;font-size:20px">Catalogue missing</h1>' +
+    '<p>Open <b>' +
+    DEMO_FILE +
+    '</b> (generated single file). Do not open <code>seeker-job-profile-shell.html</code>.</p>' +
+    '<p>Regenerate: <code>python3 docs/prototypes/_gen_seeker_profile_html.py</code></p></div>';
   throw new Error('GIXBEE_HIRE_CATALOG missing');
 }
 
@@ -1044,25 +1051,66 @@ document.getElementById('exportProfiles').onclick = () => {
   }
 };
 
+function showBootError(message) {
+  const safe = String(message || 'Unknown error').replace(/&/g, '&amp;').replace(/</g, '&lt;');
+  let box = el('bootError');
+  if (!box) {
+    box = document.createElement('div');
+    box.id = 'bootError';
+    box.setAttribute('role', 'alert');
+    document.body.prepend(box);
+  }
+  box.hidden = false;
+  box.style.cssText =
+    'position:fixed;inset:0;z-index:99999;background:#fff;padding:24px 20px;overflow:auto;font:15px/1.55 Inter,system-ui,sans-serif;color:#111827';
+  box.innerHTML =
+    '<h1 style="margin:0 0 12px;font-size:22px;color:#DC2626">Job profile demo did not start</h1>' +
+    '<p style="margin:0 0 16px"><b>Reason:</b> ' +
+    safe +
+    '</p>' +
+    '<ol style="margin:0 0 16px;padding-left:22px">' +
+    '<li>In the repo, open <b>docs/prototypes/' +
+    DEMO_FILE +
+    '</b> (branch <code>cursor/hire-employee-html-flow-b579</code>).</li>' +
+    '<li>Do <b>not</b> open <code>seeker-job-profile-shell.html</code> — it has no inlined JavaScript until you regenerate.</li>' +
+    '<li>Hard refresh: Ctrl+Shift+R (Cmd+Shift+R on Mac).</li>' +
+    '<li>If preview is blank, serve locally: <code>cd docs/prototypes && python3 -m http.server 8765</code> then visit <code>http://localhost:8765/' +
+    DEMO_FILE +
+    '</code></li>' +
+    '</ol>' +
+    '<p style="margin:0;color:#6B7280">Regenerate: <code>python3 docs/prototypes/_gen_seeker_profile_html.py</code></p>';
+}
+
 function boot() {
   try {
     if (!el('sectors') || !el('empTypes')) {
       throw new Error(
-        'Open seeker-job-profile-master.html (full file). If you edited the shell only, run: python3 docs/prototypes/_gen_seeker_profile_html.py',
+        'Wrong HTML file — open ' +
+          DEMO_FILE +
+          ' (full generated file). Shell-only HTML has empty scripts until you run _gen_seeker_profile_html.py',
       );
     }
-    renderS4();
     renderS1();
+    renderS4();
     const tag = el('buildTag');
     if (tag) {
       tag.textContent =
-        'Single-file demo ' +
+        'Open ' +
+        DEMO_FILE +
+        ' · build ' +
         SEEKER_BUILD +
-        ' — catalogue + app JS are inside this .html (no extra .js file).';
+        ' · all JS is inside this file (hard refresh if sectors look empty).';
     }
+    const errBox = el('bootError');
+    if (errBox) errBox.hidden = true;
   } catch (err) {
     console.error('[Gixbee seeker profile]', err);
+    showBootError(err.message || String(err));
     toast(err.message || String(err));
   }
 }
-boot();
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', boot);
+} else {
+  boot();
+}
