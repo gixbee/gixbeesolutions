@@ -55,6 +55,7 @@
   .chips{display:flex;flex-wrap:wrap;gap:8px;margin:8px 0 14px}
   .chip{padding:8px 12px;border-radius:10px;border:1px solid #D1D5DB;background:#fff;font-size:12.5px;font-weight:700;cursor:pointer;color:#374151}
   .chip.on{background:var(--gn);border-color:var(--gn);color:#fff}
+  .chip.sel{border-color:var(--gn);color:var(--gn2);background:#F0FDF4}
   .chip.sk{background:#EEF2FF;border-color:#C7D2FE;color:#3730A3;display:inline-flex;align-items:center;gap:6px}
   .chip.sk.on{background:var(--gn);border-color:var(--gn);color:#fff}
   .chip.sk.on button{color:#fff}
@@ -8929,9 +8930,11 @@ function selectedCountLabel(base, count){
   return `${base} (${count} selected)`;
 }
 function typeFieldLabel(p){
+  const options = p.types?.length || 0;
   const n = state.types.length;
-  if(n < 2) return p.typeLabel;
-  return selectedCountLabel(p.typeLabel, n - 1);
+  if(options <= 1) return p.typeLabel;
+  if(n < 1) return p.typeLabel;
+  return selectedCountLabel(p.typeLabel, n);
 }
 function ensureDefaultType(p){
   if(!state.types.length && p.types && p.types.length){
@@ -8999,12 +9002,10 @@ function renderS3(){
   const multi = state.types.length >= 2;
   document.getElementById('typeChips').innerHTML = vis.map(t => {
     const on = multi ? t === primary : state.types.includes(t);
-    return `<button class="chip ${on?'on':''}" data-t="${t.replace(/"/g,'&quot;')}">${t}</button>`;
+    const sel = !on && state.types.includes(t);
+    return `<button class="chip ${on?'on':''}${sel?' sel':''}" data-t="${t.replace(/"/g,'&quot;')}">${t}</button>`;
   }).join('');
-  const extraTypes = multi
-    ? state.types.filter(t => t !== primary || !vis.includes(t))
-    : state.types.filter(t => !vis.includes(t));
-  document.getElementById('typeExtra').innerHTML = extraTypes.map(t =>
+  document.getElementById('typeExtra').innerHTML = state.types.filter(t => !vis.includes(t)).map(t =>
     `<span class="chip sk">${t}<button type="button" data-tx="${t.replace(/"/g,'&quot;')}">×</button></span>`
   ).join('');
   const more = document.getElementById('moreTypes');
