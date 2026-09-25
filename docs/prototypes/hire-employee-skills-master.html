@@ -8930,7 +8930,8 @@ function selectedCountLabel(base, count){
 }
 function typeFieldLabel(p){
   const n = state.types.length;
-  if(n <= 1) return p.typeLabel;
+  if(n < 2) return p.typeLabel;
+  // First type stays green; label counts extra picks only (2 total → "1 selected", 3 → "2 selected").
   return selectedCountLabel(p.typeLabel, n - 1);
 }
 function ensureDefaultType(p){
