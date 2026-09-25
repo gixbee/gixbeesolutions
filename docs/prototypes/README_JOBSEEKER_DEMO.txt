@@ -20,5 +20,14 @@ If the screen is blank or sectors never load
 Regenerate after editing JS/shell:
   python3 docs/prototypes/_gen_seeker_profile_html.py
 
+18-sector detailed PDF (jobseeker, same positions as HTML):
+  docs/prototypes/GIXBEE_Jobseeker_Job_Profile_Catalog_18_Sectors.pdf
+
+Regenerate PDF:
+  python3 docs/prototypes/_gen_hire_catalog_pdf.py
+
 Employer (hire) demo:
   docs/prototypes/hire-employee-skills-master.html
+
+Employer PDF (same catalogue data):
+  docs/prototypes/GIXBEE_Hire_Employee_Catalog_18_Sectors.pdf
