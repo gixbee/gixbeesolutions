@@ -110,6 +110,7 @@ struct HiringMatchBody {
     addressText: Option<String>,
     workMode: Option<String>,
     description: Option<String>,
+    languageIds: Option<Vec<String>>,
 }
 
 #[derive(Deserialize)]
@@ -123,6 +124,15 @@ struct ExtraJobTypeBody {
     employmentType: Option<String>,
     experienceYears: Option<i32>,
     noticePeriod: Option<String>,
+    sectorId: Option<String>,
+    positionId: Option<String>,
+    specializationIds: Option<Vec<String>>,
+    skillIds: Option<Vec<String>>,
+    qualificationId: Option<String>,
+    locationId: Option<String>,
+    addressText: Option<String>,
+    expectedSalaryPeriod: Option<String>,
+    languageIds: Option<Vec<String>>,
 }
 
 async fn create_recharge_order(
@@ -219,8 +229,8 @@ async fn create_hiring_match_order(
         "creditApplied": credit_applied,
         "sectorId": body.sectorId,
         "positionId": body.positionId,
-        "specializationIds": body.specializationIds,
-        "skillIds": body.skillIds,
+        "specializationIds": body.specializationIds.unwrap_or_default(),
+        "skillIds": body.skillIds.unwrap_or_default(),
         "qualificationId": body.qualificationId,
         "qualificationRequired": body.qualificationRequired.unwrap_or(false),
         "salaryPeriod": body.salaryPeriod,
@@ -228,6 +238,7 @@ async fn create_hiring_match_order(
         "addressText": body.addressText,
         "workMode": body.workMode,
         "description": body.description,
+        "languageIds": body.languageIds.unwrap_or_default(),
     });
     crate::matching::validate_request(&meta)?;
     crate::matching::validate_catalogue(&state, &meta).await?;
@@ -292,8 +303,23 @@ async fn create_extra_job_type_order(
         "employmentType": body.employmentType.as_deref().unwrap_or("FULL_TIME"),
         "experienceYears": body.experienceYears.unwrap_or(0),
         "noticePeriod": body.noticePeriod.as_deref().unwrap_or("IMMEDIATE"),
+        "sectorId": body.sectorId,
+        "positionId": body.positionId,
+        "specializationIds": body.specializationIds.unwrap_or_default(),
+        "skillIds": body.skillIds.unwrap_or_default(),
+        "qualificationId": body.qualificationId,
+        "locationId": body.locationId,
+        "addressText": body.addressText,
+        "expectedSalaryPeriod": body.expectedSalaryPeriod,
+        "languageIds": body.languageIds.unwrap_or_default(),
     });
     crate::matching::validate_preference(&meta)?;
+    if let Some(profile_id) = body.renewPreferenceId {
+        crate::matching::validate_renewal_profile_catalogue(&state, &meta, profile_id, uid)
+            .await?;
+    } else {
+        crate::matching::validate_profile_catalogue(&state, &meta).await?;
+    }
     create_razorpay_order(&state, &user.user_id, PURPOSE_EXTRA_JOB_TYPE, 50, Some(meta)).await
 }
 

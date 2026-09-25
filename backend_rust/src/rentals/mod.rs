@@ -1,5 +1,7 @@
 use axum::{
     extract::{Path, Query, State},
+    http::HeaderMap,
+    response::Response,
     routing::{get, patch, post},
     Json, Router,
 };
@@ -42,7 +44,7 @@ pub fn routes() -> Router<AppState> {
         .route("/{id}", get(get_item).patch(update_item))
 }
 
-#[derive(Deserialize, Default)]
+#[derive(Clone, Deserialize, Default)]
 struct CatalogQuery {
     lat: Option<String>,
     lng: Option<String>,
@@ -64,8 +66,52 @@ fn aliased_rental_cols() -> String {
 
 async fn list_items(
     State(state): State<AppState>,
+    headers: HeaderMap,
     Query(q): Query<CatalogQuery>,
-) -> AppResult<Json<Vec<Value>>> {
+) -> AppResult<Response> {
+    let suffix = format!(
+        "items:{}:{}:{}:{}:{}",
+        q.city_id.as_deref().unwrap_or("-"),
+        q.business_id.as_deref().unwrap_or("-"),
+        q.lat.as_deref().unwrap_or("-"),
+        q.lng.as_deref().unwrap_or("-"),
+        q.radius_km.as_deref().unwrap_or("-"),
+    );
+    let if_none = headers
+        .get(axum::http::header::IF_NONE_MATCH)
+        .and_then(|v| v.to_str().ok());
+    let db_state = state.clone();
+    let query = q;
+    let cached = crate::cache::read_through(
+        &state,
+        crate::cache::versions::Domain::PublicListings,
+        &suffix,
+        state.cache.public_listing_ttl_secs,
+        None,
+        if_none,
+        || {
+            let state = db_state.clone();
+            Box::pin(async move {
+                let items = load_list_items_uncached(&state, &query).await?;
+                Ok(serde_json::Value::Array(items))
+            })
+        },
+    )
+    .await?;
+    if cached.json.is_null() {
+        return Ok(crate::cache::http::not_modified(&cached.etag));
+    }
+    Ok(crate::cache::http::json_cached(
+        cached.json,
+        &cached.etag,
+        cached.outcome,
+    ))
+}
+
+async fn load_list_items_uncached(
+    state: &AppState,
+    q: &CatalogQuery,
+) -> AppResult<Vec<Value>> {
     let coords = match (&q.lat, &q.lng) {
         (None, None) => None,
         (Some(lat), Some(lng)) => {
@@ -100,11 +146,11 @@ async fn list_items(
     };
 
     if let Some(store_id) = store_id {
-        return list_store_items(state, store_id).await;
+        return list_store_items_vec(state.clone(), store_id).await;
     }
 
     if coords.is_none() && city_id.is_none() {
-        return Ok(Json(vec![]));
+        return Ok(vec![]);
     }
 
     let has_gps = coords.is_some();
@@ -175,10 +221,10 @@ async fn list_items(
         scored.push((distance.unwrap_or(f64::MAX), value));
     }
     scored.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap_or(std::cmp::Ordering::Equal));
-    Ok(Json(scored.into_iter().take(100).map(|(_, v)| v).collect()))
+    Ok(scored.into_iter().take(100).map(|(_, v)| v).collect())
 }
 
-async fn list_store_items(state: AppState, store_id: Uuid) -> AppResult<Json<Vec<Value>>> {
+async fn list_store_items_vec(state: AppState, store_id: Uuid) -> AppResult<Vec<Value>> {
     let cols = aliased_rental_cols();
     let rows = sqlx::query(&format!(
         r#"SELECT {cols}
@@ -194,7 +240,11 @@ async fn list_store_items(state: AppState, store_id: Uuid) -> AppResult<Json<Vec
     .bind(store_id)
     .fetch_all(&state.db)
     .await?;
-    Ok(Json(rows.iter().map(item_json).collect()))
+    Ok(rows.iter().map(item_json).collect())
+}
+
+async fn list_store_items(state: AppState, store_id: Uuid) -> AppResult<Json<Vec<Value>>> {
+    Ok(Json(list_store_items_vec(state, store_id).await?))
 }
 
 async fn list_stores(
@@ -413,6 +463,11 @@ async fn create_item(
     .execute(&mut *tx)
     .await?;
     fill_business_city_from_pin(&mut tx, input.business_id, pickup_lat, pickup_lng).await?;
+    crate::cache::versions::bump_in_tx(
+        &mut tx,
+        crate::cache::versions::Domain::PublicListings,
+    )
+    .await?;
     tx.commit().await?;
     get_item(State(state), Path(id.to_string())).await
 }
@@ -497,6 +552,11 @@ async fn update_item(
     .execute(&mut *tx)
     .await?;
     fill_business_city_from_pin(&mut tx, input.business_id, pickup_lat, pickup_lng).await?;
+    crate::cache::versions::bump_in_tx(
+        &mut tx,
+        crate::cache::versions::Domain::PublicListings,
+    )
+    .await?;
     tx.commit().await?;
     get_item(State(state), Path(id)).await
 }

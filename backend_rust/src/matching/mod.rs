@@ -140,6 +140,7 @@ struct EstimateQuery {
     experience_min: Option<i32>,
     skills: Option<String>,
     work_mode: Option<String>,
+    language_ids: Option<String>,
 }
 
 fn id_list(value: Option<&Value>) -> String {
@@ -200,6 +201,7 @@ async fn estimate(
     } else {
         split_csv(q.skill_ids.as_deref())
     };
+    let language_ids = split_csv(q.language_ids.as_deref());
     let query = engine::MatchQuery {
         position_id: q.position_id.as_deref(),
         job_type: q.job_type.as_deref().unwrap_or(""),
@@ -214,16 +216,78 @@ async fn estimate(
         location_text: q.location.as_deref(),
         experience_min: q.experience_min.unwrap_or(0),
         work_mode: q.work_mode.as_deref().unwrap_or("ONSITE"),
+        language_ids: &language_ids,
     };
-    let matches = engine::find_matching_preferences(
-        &state,
-        &query,
-        Uuid::parse_str(&user.user_id)?,
-        &[],
-        i32::MAX,
-    )
+    let user_id = user.user_id.clone();
+    let cache_key = format!(
+        "gx:v1:est:{}:{}",
+        user_id,
+        crate::cache::cache_key_hash(&[
+            query.job_type,
+            query.position_id.unwrap_or(""),
+            &specialization_ids.join(","),
+            &skill_ids.join(","),
+            query.qualification_id.unwrap_or(""),
+            if query.qualification_required { "1" } else { "0" },
+            query.salary_period,
+            &format!("{}:{}:{}", salary.salary_min, salary.salary_max, salary.salary_negotiable),
+            query.employment_type.unwrap_or(""),
+            query.location_id.unwrap_or(""),
+            query.location_text.unwrap_or(""),
+            &query.experience_min.to_string(),
+            query.work_mode,
+            &language_ids.join(","),
+        ])
+    );
+    let state = state.clone();
+    let ttl = state.cache.hiring_estimate_ttl_secs;
+    let body = crate::cache::read_ephemeral(&state.redis, &cache_key, ttl, || {
+        let state = state.clone();
+        let user_id = user_id.clone();
+        let job_type = query.job_type.to_string();
+        let position_id = query.position_id.map(str::to_owned);
+        let specialization_ids = specialization_ids.clone();
+        let skill_ids = skill_ids.clone();
+        let qualification_id = query.qualification_id.map(str::to_owned);
+        let qualification_required = query.qualification_required;
+        let salary_period = query.salary_period.to_string();
+        let salary = salary.clone();
+        let employment_type = query.employment_type.map(str::to_owned);
+        let location_id = query.location_id.map(str::to_owned);
+        let location_text = query.location_text.map(str::to_owned);
+        let experience_min = query.experience_min;
+        let work_mode = query.work_mode.to_string();
+        let language_ids = language_ids.clone();
+        Box::pin(async move {
+            let query = engine::MatchQuery {
+                position_id: position_id.as_deref(),
+                job_type: &job_type,
+                specialization_ids: &specialization_ids,
+                skill_ids: &skill_ids,
+                qualification_id: qualification_id.as_deref(),
+                qualification_required,
+                salary_period: &salary_period,
+                salary: &salary,
+                employment_type: employment_type.as_deref(),
+                location_id: location_id.as_deref(),
+                location_text: location_text.as_deref(),
+                experience_min,
+                work_mode: &work_mode,
+                language_ids: &language_ids,
+            };
+            let matches = engine::find_matching_preferences(
+                &state,
+                &query,
+                Uuid::parse_str(&user_id)?,
+                &[],
+                i32::MAX,
+            )
+            .await?;
+            Ok(json!({"estimated": matches.len()}))
+        })
+    })
     .await?;
-    Ok(Json(json!({"estimated":matches.len()})))
+    Ok(Json(body))
 }
 
 async fn list_offers(State(state): State<AppState>, user: AuthUser) -> AppResult<Json<Vec<Value>>> {
@@ -652,6 +716,7 @@ fn pref_json(row: &sqlx::postgres::PgRow) -> Value {
         "locationId": row.try_get::<Option<String>, _>("locationId").ok().flatten(),
         "addressText": row.try_get::<Option<String>, _>("addressText").ok().flatten(),
         "locationMatchStatus": row.try_get::<String, _>("locationMatchStatus").unwrap_or_else(|_| "UNRESOLVED".into()),
+        "languageIds": crate::common::pg::string_list(row, "languageIds"),
         "isActive": row.get::<bool, _>("isActive"),
         "matchingPaused": row.try_get::<bool, _>("matchingPaused").unwrap_or(false),
         "isPaid": row.get::<bool, _>("isPaid"),
@@ -688,6 +753,8 @@ fn request_json(row: &sqlx::postgres::PgRow) -> Value {
         "locationId": row.try_get::<Option<String>, _>("locationId").ok().flatten(),
         "addressText": row.try_get::<Option<String>, _>("addressText").ok().flatten(),
         "locationMatchStatus": row.try_get::<String, _>("locationMatchStatus").unwrap_or_else(|_| "UNRESOLVED".into()),
+        "languageIds": crate::common::pg::string_list(row, "languageIds"),
+        "workMode": row.try_get::<String, _>("workMode").unwrap_or_else(|_| "ONSITE".into()),
         "targetInterested": row.get::<i32, _>("targetInterested"),
         "creditApplied": row.get::<rust_decimal::Decimal, _>("creditApplied").to_f64(),
         "createdAt": crate::common::pg::date_json(row, "createdAt"),
@@ -843,6 +910,25 @@ pub async fn validate_profile_catalogue(state: &AppState, meta: &Value) -> AppRe
     validate_catalogue_ids(state, meta, false).await
 }
 
+/// Paid renewal: catalogue rows may have been deactivated since the profile was saved.
+pub async fn validate_renewal_profile_catalogue(
+    state: &AppState,
+    meta: &Value,
+    preference_id: Uuid,
+    user_id: Uuid,
+) -> AppResult<()> {
+    let row = sqlx::query(&format!(
+        r#"SELECT {JOB_PREFERENCE_COLS} FROM job_preferences WHERE id = $1 AND "userId" = $2 AND "isActive" = true"#
+    ))
+    .bind(preference_id)
+    .bind(user_id)
+    .fetch_optional(&state.db)
+    .await?
+    .ok_or_else(|| AppError::BadRequest("Profile to renew was not found".into()))?;
+    let previous = pref_json(&row);
+    validate_merged_catalogue(state, meta, &previous).await
+}
+
 /// Check the profile that will be stored. Ids already saved may stay after
 /// deactivation. A new id, or a skill kept after the position changes, must
 /// still be an active catalogue row for that position.
@@ -990,6 +1076,24 @@ async fn validate_position_set(
             return Err(AppError::BadRequest("That work location is not active".into()));
         }
     }
+    let language_ids = id_values(merged.get("languageIds"));
+    let prev_languages = id_values(previous.get("languageIds"));
+    for lang_id in &language_ids {
+        if prev_languages.iter().any(|id| id == lang_id) {
+            continue;
+        }
+        let ok: bool = sqlx::query_scalar(
+            r#"SELECT EXISTS(SELECT 1 FROM hiring_languages WHERE id = $1 AND "isActive")"#,
+        )
+        .bind(lang_id)
+        .fetch_one(&state.db)
+        .await?;
+        if !ok {
+            return Err(AppError::BadRequest(
+                "A language selection is not in the hiring language master".into(),
+            ));
+        }
+    }
     Ok(())
 }
 
@@ -1129,6 +1233,20 @@ async fn validate_catalogue_ids(state: &AppState, meta: &Value, required: bool) 
         return Err(AppError::BadRequest(
             "Choose a work location from the catalogue".into(),
         ));
+    }
+    let language_ids = id_values(meta.get("languageIds"));
+    if !language_ids.is_empty() {
+        let found: i64 = sqlx::query_scalar(
+            r#"SELECT COUNT(*) FROM hiring_languages WHERE id = ANY($1) AND "isActive""#,
+        )
+        .bind(&language_ids)
+        .fetch_one(&state.db)
+        .await?;
+        if found != language_ids.len() as i64 {
+            return Err(AppError::BadRequest(
+                "A language selection is not in the hiring language master".into(),
+            ));
+        }
     }
     Ok(())
 }
@@ -1302,6 +1420,7 @@ async fn start_request(
         "HYBRID" => "HYBRID",
         _ => "ONSITE",
     };
+    let language_ids = id_list(meta.get("languageIds"));
     let request_id = Uuid::new_v4();
     sqlx::query(
         r#"INSERT INTO hiring_requests (
@@ -1309,11 +1428,11 @@ async fn start_request(
             "salaryNegotiable", "employmentType", "experienceMinYears", vacancies, "targetInterested",
             "feeAmount", "creditApplied", "paymentOrderId", "razorpayPaymentId", status, "deadlineAt", "businessId", description,
             "sectorId", "positionId", "specializationIds", "skillIds", "qualificationId", "qualificationRequired",
-            "salaryPeriod", "locationId", "addressText", "locationMatchStatus", "workMode"
+            "salaryPeriod", "locationId", "addressText", "locationMatchStatus", "workMode", "languageIds"
         ) VALUES (
             $1, $2, $3, $4, $5, $6, $7, $8, $9, $10::hiring_requests_employmenttype_enum, $11, $12, $13, $14, $15, $16, $17, 'COLLECTING',
             NOW() + INTERVAL '24 hours', $18, $19,
-            $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30
+            $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31
         )"#,
     )
     .bind(request_id)
@@ -1346,6 +1465,7 @@ async fn start_request(
     .bind(address_text)
     .bind(location_status)
     .bind(work_mode)
+    .bind(language_ids)
     .execute(&mut *tx)
     .await?;
     tx.commit().await?;

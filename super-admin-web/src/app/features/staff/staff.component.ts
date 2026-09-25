@@ -15,6 +15,8 @@ const PAGE_LABELS: Record<string, string> = {
   support: 'Support',
   businesses: 'Businesses',
   'master-entries': 'Master Entries',
+  'pricing-policies': 'Pricing & policies',
+  'operational-settings': 'Operational settings',
   cities: 'Cities',
   users: 'Users',
   staff: 'Staff (admins)',

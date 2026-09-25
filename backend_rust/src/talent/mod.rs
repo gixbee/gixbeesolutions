@@ -75,7 +75,7 @@ async fn load_profile(state: &AppState, user_id: Uuid) -> AppResult<Value> {
                   tp.lat, tp.lng, tp."travelRadiusKm", tp.availability, tp."availableOn",
                   tp."profileStatus", tp."preferredWorkMode",
                   tp."positionIds", tp."specializationIds", tp."skillIds", tp."qualificationId",
-                  tp."locationId", tp."addressText", tp."locationMatchStatus",
+                  tp."locationId", tp."addressText", tp."locationMatchStatus", tp."languageIds",
                   tp."resumeUrl", tp."resumeFileName", tp."resumeMimeType", tp."resumeUploadedAt",
                   u.name, u."profileImageUrl", u."approvalStatus"::text AS "approvalStatus"
            FROM talent_profiles tp
@@ -123,6 +123,7 @@ async fn load_profile(state: &AppState, user_id: Uuid) -> AppResult<Value> {
         "locationId": row.try_get::<Option<String>, _>("locationId").ok().flatten(),
         "addressText": row.try_get::<Option<String>, _>("addressText").ok().flatten(),
         "locationMatchStatus": row.try_get::<String, _>("locationMatchStatus").unwrap_or_else(|_| "UNRESOLVED".into()),
+        "languageIds": parse_list(row.try_get::<Option<String>, _>("languageIds").ok().flatten()),
         "resumeUrl": row.try_get::<Option<String>, _>("resumeUrl").ok().flatten(),
         "resumeFileName": row.try_get::<Option<String>, _>("resumeFileName").ok().flatten(),
         "resumeMimeType": row.try_get::<Option<String>, _>("resumeMimeType").ok().flatten(),
@@ -154,13 +155,14 @@ async fn update_profile(
         "skillIds",
         "qualificationId",
         "locationId",
+        "languageIds",
     ];
     if body
         .as_object()
         .is_some_and(|fields| catalogue_keys.iter().any(|key| fields.contains_key(*key)))
     {
         let current = sqlx::query(
-            r#"SELECT "positionIds", "specializationIds", "skillIds", "qualificationId", "locationId"
+            r#"SELECT "positionIds", "specializationIds", "skillIds", "qualificationId", "locationId", "languageIds"
                FROM talent_profiles WHERE id = $1"#,
         )
         .bind(profile_id)
@@ -172,6 +174,7 @@ async fn update_profile(
             "skillIds": crate::common::pg::string_list(&current, "skillIds"),
             "qualificationId": current.try_get::<Option<String>, _>("qualificationId").ok().flatten(),
             "locationId": current.try_get::<Option<String>, _>("locationId").ok().flatten(),
+            "languageIds": parse_list(current.try_get::<Option<String>, _>("languageIds").ok().flatten()),
         });
         let mut merged = previous.clone();
         if let Some(fields) = body.as_object() {
@@ -232,6 +235,13 @@ async fn update_profile(
         let id = body.get("qualificationId").and_then(|v| v.as_str()).filter(|s| !s.is_empty());
         sqlx::query(r#"UPDATE talent_profiles SET "qualificationId" = $1 WHERE id = $2"#)
             .bind(id).bind(profile_id).execute(&state.db).await?;
+    }
+    if let Some(ids) = string_array(body.get("languageIds")) {
+        sqlx::query(r#"UPDATE talent_profiles SET "languageIds" = $1 WHERE id = $2"#)
+            .bind(list_to_db(&ids))
+            .bind(profile_id)
+            .execute(&state.db)
+            .await?;
     }
     if body.get("locationId").is_some() {
         let id = body.get("locationId").and_then(|v| v.as_str()).filter(|s| !s.is_empty());

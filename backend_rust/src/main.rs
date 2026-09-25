@@ -4,6 +4,7 @@ mod auth;
 mod billing;
 mod bookings;
 mod businesses;
+mod cache;
 mod cities;
 mod common;
 mod config;
@@ -13,6 +14,8 @@ mod favourites;
 mod hiring;
 mod hiring_catalogue;
 mod jobs;
+mod master_admin;
+mod master_audit;
 mod master_entries;
 mod matching;
 mod match_engine;
@@ -66,6 +69,9 @@ async fn main() -> anyhow::Result<()> {
     assert_production_secrets(&config)?;
 
     let db = connect_db(&config.database_url).await?;
+    if let Err(e) = cache::versions::ensure_table(&db).await {
+        tracing::warn!("cache_versions table ensure failed (run migration): {e}");
+    }
     let redis = Arc::new(RedisStore::connect(&config).await?);
 
     if !redis.is_ready() && !config.redis_allow_memory_fallback {
@@ -79,6 +85,7 @@ async fn main() -> anyhow::Result<()> {
 
     let state = AppState {
         config: config.clone(),
+        cache: cache::CacheConfig::from_env(),
         db,
         redis,
         http,

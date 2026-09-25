@@ -114,7 +114,23 @@ def main() -> None:
                        ON CONFLICT DO NOTHING""",
                     (ids[0], alias),
                 )
-    print("Imported GeoNames India places, states and districts")
+        cur.execute(
+            """
+            UPDATE cache_versions
+            SET version = version + 1, "updatedAt" = NOW()
+            WHERE domain = 'location_master'
+            """
+        )
+        if cur.rowcount == 0:
+            cur.execute(
+                """
+                INSERT INTO cache_versions (domain, version)
+                VALUES ('location_master', 2)
+                ON CONFLICT (domain) DO UPDATE
+                SET version = cache_versions.version + 1, "updatedAt" = NOW()
+                """
+            )
+    print("Imported GeoNames India places, states and districts (location_master cache version bumped)")
 
 
 if __name__ == "__main__":

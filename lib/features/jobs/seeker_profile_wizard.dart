@@ -13,6 +13,7 @@ import '../../theme.dart';
 import '../booking/location_pin_screen.dart';
 import 'hiring_master_picker.dart';
 import 'job_types_screen.dart';
+import '../business/hiring_language_picker.dart';
 
 /// A talent profile is ready for Jobs when it is not incomplete and has a
 /// role, an employment preference, and a map pin.
@@ -127,6 +128,8 @@ class _SeekerProfileWizardState extends ConsumerState<SeekerProfileWizard> {
   String? _locationId;
   List<String> _specializationIds = [];
   List<String> _skillIds = [];
+  final List<String> _languageIds = [];
+  List<Map<String, dynamic>> _catalogueLanguages = [];
   List<Map<String, dynamic>> _specChoices = [];
   List<Map<String, dynamic>> _catalogueSkills = [];
   List<Map<String, dynamic>> _qualifications = [];
@@ -205,6 +208,7 @@ class _SeekerProfileWizardState extends ConsumerState<SeekerProfileWizard> {
       _locationId = profile['locationId']?.toString();
       _specializationIds = _strings(profile['specializationIds']);
       _skillIds = _strings(profile['skillIds']);
+      _languageIds.addAll(_strings(profile['languageIds']));
       final prefs = await ref.read(matchingRepositoryProvider).listPreferences();
       if (prefs.isNotEmpty) {
         final pref = prefs.firstWhere(
@@ -217,8 +221,12 @@ class _SeekerProfileWizardState extends ConsumerState<SeekerProfileWizard> {
         _locationId ??= pref['locationId']?.toString();
         if (_specializationIds.isEmpty) _specializationIds = _strings(pref['specializationIds']);
         if (_skillIds.isEmpty) _skillIds = _strings(pref['skillIds']);
+        if (_languageIds.isEmpty) _languageIds.addAll(_strings(pref['languageIds']));
       }
       final catalogue = await ref.read(matchingRepositoryProvider).hiringCatalogue();
+      _catalogueLanguages = ((catalogue['languages'] as List?) ?? [])
+          .map((row) => Map<String, dynamic>.from(row as Map))
+          .toList();
       _qualifications = ((catalogue['qualifications'] as List?) ?? [])
           .map((row) => Map<String, dynamic>.from(row as Map))
           .toList();
@@ -358,6 +366,7 @@ class _SeekerProfileWizardState extends ConsumerState<SeekerProfileWizard> {
         'positionIds': [if (_positionId != null) _positionId],
         'specializationIds': _specializationIds,
         'skillIds': _skillIds,
+        'languageIds': _languageIds,
         'qualificationId': _qualificationId,
         'locationId': _locationId,
         if (_place != null) 'addressText': _place,
@@ -410,7 +419,8 @@ class _SeekerProfileWizardState extends ConsumerState<SeekerProfileWizard> {
       'locationId': _locationId,
       if (_place != null) 'addressText': _place,
       'specializationIds': _specializationIds,
-      'skillIds': _skillIds,
+        'skillIds': _skillIds,
+        'languageIds': _languageIds,
     };
     final role = _roleName.toLowerCase();
     final match = prefs.where((pref) {
@@ -679,6 +689,19 @@ class _SeekerProfileWizardState extends ConsumerState<SeekerProfileWizard> {
 
   List<Widget> _stepSkills() {
     return [
+      HiringLanguageSection(
+        selectedIds: _languageIds,
+        catalogRows: _catalogueLanguages,
+        applyEmployerDefaults: false,
+        minSelection: 0,
+        restoredDraft: _languageIds.isNotEmpty,
+        onChanged: (ids) => setState(() {
+          _languageIds
+            ..clear()
+            ..addAll(ids);
+        }),
+      ),
+      const SizedBox(height: 16),
       _label(_typeLabel),
       if (_positionId == null) const Text('Choose a catalogue position first.'),
       _chips(

@@ -10,6 +10,7 @@ use crate::state::AppState;
 
 pub const BATCH_SIZES: [i32; 3] = [40, 20, 15];
 
+#[derive(Clone)]
 pub(super) struct EmployerSalary {
     pub salary_min: f64,
     pub salary_max: f64,
@@ -74,7 +75,7 @@ pub async fn send_batch(state: &AppState, request_id: &str, batch_index: usize) 
                   "employmentType"::text AS "employmentType", "experienceMinYears",
                   "targetInterested", "batchesSent", "deadlineAt" > NOW() AS open,
                   "positionId", "specializationIds", "skillIds", "qualificationId",
-                  "qualificationRequired", "salaryPeriod", "locationId", "workMode"
+                  "qualificationRequired", "salaryPeriod", "locationId", "workMode", "languageIds"
            FROM hiring_requests WHERE id = $1 FOR UPDATE SKIP LOCKED"#,
     )
     .bind(rid)
@@ -125,6 +126,7 @@ pub async fn send_batch(state: &AppState, request_id: &str, batch_index: usize) 
     let salary_period = request.try_get::<String, _>("salaryPeriod").unwrap_or_else(|_| "MONTHLY".into());
     let location_id = request.try_get::<Option<String>, _>("locationId").ok().flatten();
     let work_mode = request.try_get::<String, _>("workMode").unwrap_or_else(|_| "ONSITE".into());
+    let language_ids = split_ids(request.try_get::<String, _>("languageIds").unwrap_or_default());
     let query = MatchQuery {
         position_id: position_id.as_deref(),
         job_type: &request.get::<String, _>("jobType"),
@@ -139,6 +141,7 @@ pub async fn send_batch(state: &AppState, request_id: &str, batch_index: usize) 
         location_text: location.as_deref(),
         experience_min,
         work_mode: &work_mode,
+        language_ids: &language_ids,
     };
     let matches = find_matching_preferences(
         state,
@@ -175,7 +178,7 @@ pub async fn send_batch(state: &AppState, request_id: &str, batch_index: usize) 
             &format!("New {} opening", request.get::<String, _>("jobType")),
             &format!(
                 "{} · {} — tap Interested if you want this job.",
-                format_salary_label(&salary),
+                format_salary_label(&salary, &salary_period),
                 location.as_deref().unwrap_or("your area")
             ),
             serde_json::json!({"type":"hiring_offer","requestId":request_id}),
@@ -288,6 +291,7 @@ pub struct MatchQuery<'a> {
     pub location_text: Option<&'a str>,
     pub experience_min: i32,
     pub work_mode: &'a str,
+    pub language_ids: &'a [String],
 }
 
 fn split_ids(value: String) -> Vec<String> {
@@ -318,9 +322,34 @@ pub(super) async fn find_matching_preferences(
     };
     let specialization_ids = query.specialization_ids.to_vec();
     let skill_ids = query.skill_ids.to_vec();
+    let language_ids = query.language_ids.to_vec();
     let rows = sqlx::query(
-        r#"SELECT p.id, p."userId" FROM job_preferences p
+        r#"SELECT id, "userId" FROM (
+        SELECT DISTINCT ON (p."userId")
+          p.id,
+          p."userId",
+          (
+            SELECT COUNT(*) FROM unnest(string_to_array(COALESCE(p."skillIds",''), ',')) AS skill
+            WHERE btrim(skill) <> '' AND btrim(skill) = ANY($14)
+          ) AS skill_score,
+          (
+            SELECT COUNT(*) FROM unnest($17::text[]) AS want
+            WHERE btrim(want) <> '' AND (
+              btrim(want) = ANY(string_to_array(COALESCE(p."languageIds", ''), ','))
+              OR btrim(want) = ANY(string_to_array(COALESCE(t."languageIds", ''), ','))
+              OR EXISTS (
+                SELECT 1 FROM hiring_languages hl
+                WHERE hl.id = btrim(want) AND hl."isActive"
+                  AND POSITION(LOWER(hl.label) IN LOWER(COALESCE(w.languages, ''))) > 0
+              )
+            )
+          ) AS lang_score,
+          CASE COALESCE(t.availability, 'IMMEDIATE')
+            WHEN 'IMMEDIATE' THEN 0 WHEN 'DAYS_7' THEN 1 ELSE 2 END AS avail_rank,
+          p."createdAt" AS pref_created
+        FROM job_preferences p
         LEFT JOIN talent_profiles t ON t."userId" = p."userId"
+        LEFT JOIN worker_profiles w ON w."userId" = p."userId"
         WHERE p."isActive" = true
           AND COALESCE(p."matchingPaused", false) = false
           AND p."experienceYears" >= $1 AND NOT (p."userId" = ANY($2))
@@ -332,6 +361,11 @@ pub(super) async fn find_matching_preferences(
                OR (t."employmentTypes" IS NOT NULL AND POSITION($6 IN t."employmentTypes") > 0))
           AND (
             ($7::text IS NOT NULL AND p."positionId" = $7)
+            OR ($7::text IS NOT NULL AND EXISTS (
+                   SELECT 1 FROM hiring_aliases a
+                   WHERE a."isActive" AND a."entityType" = 'position' AND a."entityId" = $7
+                     AND a.alias = p."positionId"
+                 ))
             OR ($7::text IS NOT NULL AND p."positionId" IS NULL AND (
                  LOWER(p."jobType") = LOWER($8)
                  OR EXISTS (
@@ -344,13 +378,19 @@ pub(super) async fn find_matching_preferences(
           )
           AND (
             cardinality($9::text[]) = 0
-            OR (
-              COALESCE(p."specializationIds", '') = ''
-              AND COALESCE(t."specializationIds", '') = ''
-            )
+            OR COALESCE(p."specializationIds", '') = ''
             OR EXISTS (
-              SELECT 1 FROM unnest(string_to_array(COALESCE(p."specializationIds",'') || ',' || COALESCE(t."specializationIds",''), ',')) AS spec
-              WHERE btrim(spec) <> '' AND btrim(spec) = ANY($9)
+              SELECT 1
+              FROM unnest(string_to_array(p."specializationIds", ',')) AS cand_spec
+              CROSS JOIN unnest($9::text[]) AS req_spec
+              WHERE btrim(cand_spec) <> '' AND btrim(req_spec) <> '' AND (
+                btrim(cand_spec) = btrim(req_spec)
+                OR EXISTS (
+                  SELECT 1 FROM hiring_aliases sa
+                  WHERE sa."entityType" = 'specialization' AND sa."isActive"
+                    AND sa."entityId" = btrim(req_spec) AND sa.alias = btrim(cand_spec)
+                )
+              )
             )
           )
           AND (
@@ -396,13 +436,14 @@ pub(super) async fn find_matching_preferences(
               )
             )
           )
-        ORDER BY (
-            SELECT COUNT(*) FROM unnest(string_to_array(COALESCE(p."skillIds",'') || ',' || COALESCE(t."skillIds",''), ',')) AS skill
-            WHERE btrim(skill) <> '' AND btrim(skill) = ANY($14)
-          ) DESC,
-          CASE COALESCE(t.availability, 'IMMEDIATE')
-            WHEN 'IMMEDIATE' THEN 0 WHEN 'DAYS_7' THEN 1 ELSE 2 END,
-          p."createdAt" ASC, p.id ASC
+        ORDER BY p."userId",
+          skill_score DESC,
+          lang_score DESC,
+          avail_rank ASC,
+          pref_created ASC,
+          p.id ASC
+        ) best
+        ORDER BY skill_score DESC, lang_score DESC, avail_rank ASC, pref_created ASC, id ASC
         LIMIT $15"#,
     )
     .bind(query.experience_min.max(0))
@@ -421,6 +462,7 @@ pub(super) async fn find_matching_preferences(
     .bind(&skill_ids)
     .bind(i64::from(limit.max(1)))
     .bind(query.work_mode)
+    .bind(&language_ids)
     .fetch_all(&state.db)
     .await?;
     Ok(rows
@@ -463,15 +505,22 @@ fn employer_salary_from_row(row: &sqlx::postgres::PgRow) -> EmployerSalary {
     }
 }
 
-fn format_salary_label(salary: &EmployerSalary) -> String {
+fn format_salary_label(salary: &EmployerSalary, salary_period: &str) -> String {
+    let suffix = match salary_period.trim().to_ascii_uppercase().as_str() {
+        "HOURLY" => "/hour",
+        "DAILY" => "/day",
+        "WEEKLY" => "/week",
+        "PER_JOB" => "/job",
+        _ => "/month",
+    };
     if salary.salary_min > 0.0 && salary.salary_min < salary.salary_max {
         format!(
-            "₹{}–₹{}/month",
+            "₹{}–₹{}{suffix}",
             salary.salary_min.round(),
             salary.salary_max.round()
         )
     } else {
-        format!("₹{}/month", salary.salary_max.round())
+        format!("₹{}{suffix}", salary.salary_max.round())
     }
 }
 

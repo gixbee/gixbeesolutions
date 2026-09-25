@@ -1,6 +1,7 @@
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../services/app_data_cache.dart';
 import 'auth_repository.dart';
 
 final matchingRepositoryProvider = Provider<MatchingRepository>((ref) {
@@ -86,6 +87,7 @@ class MatchingRepository {
     String? salaryPeriod,
     String? locationId,
     String? workMode,
+    List<String> languageIds = const [],
   }) async {
     final max = salaryMax ?? salary;
     final res = await _dio.get('/hiring/match/estimate', queryParameters: {
@@ -107,6 +109,7 @@ class MatchingRepository {
       if (salaryPeriod != null && salaryPeriod.isNotEmpty) 'salaryPeriod': salaryPeriod,
       if (locationId != null && locationId.isNotEmpty) 'locationId': locationId,
       if (workMode != null && workMode.isNotEmpty) 'workMode': workMode,
+      if (languageIds.isNotEmpty) 'languageIds': languageIds.join(','),
     });
     return Map<String, dynamic>.from(res.data as Map);
   }
@@ -212,14 +215,31 @@ class MatchingRepository {
     return Map<String, dynamic>.from(res.data as Map);
   }
 
+  /// Server-side cache invalidation counters (`GET /cache/versions`).
+  Future<Map<String, int>> fetchCacheVersions() async {
+    final res = await _dio.get('/cache/versions');
+    final list = (res.data['versions'] as List?) ?? [];
+    final out = <String, int>{};
+    for (final row in list) {
+      if (row is! Map) continue;
+      final domain = row['domain']?.toString();
+      final version = row['version'];
+      if (domain != null && domain.isNotEmpty && version is num) {
+        out[domain] = version.toInt();
+      }
+    }
+    return out;
+  }
+
   Future<List<Map<String, dynamic>>> searchHiringPositions({
     String query = '',
     String? sectorId,
+    int limit = 30,
   }) async {
     final res = await _dio.get('/hiring/catalogue/positions', queryParameters: {
       if (query.isNotEmpty) 'q': query,
       if (sectorId != null && sectorId.isNotEmpty) 'sectorId': sectorId,
-      'limit': 30,
+      'limit': limit,
     });
     return ((res.data['items'] as List?) ?? [])
         .map((e) => Map<String, dynamic>.from(e as Map))
@@ -232,14 +252,37 @@ class MatchingRepository {
   }
 
   Future<List<Map<String, dynamic>>> searchHiringLocations(String query, {int offset = 0}) async {
+    final normalized = query.trim().toLowerCase().replaceAll(RegExp(r'\s+'), ' ');
+    if (normalized.length > 80) {
+      throw StateError('Location search query is too long');
+    }
+    var mayUseAppCache = false;
+    try {
+      final versions = await fetchCacheVersions();
+      final locV = versions['location_master'];
+      if (locV != null) {
+        AppDataCache.instance.setServerVersions(locationMaster: locV);
+        mayUseAppCache = true;
+      }
+    } catch (_) {
+      // Version unknown — do not reuse app cache; still hit network.
+    }
+    final cacheKey = '$normalized:$offset';
+    if (mayUseAppCache) {
+      final hit = AppDataCache.instance.locationPage(cacheKey);
+      if (hit != null) return hit;
+    }
+
     final res = await _dio.get('/hiring/locations/search', queryParameters: {
       'q': query,
       'limit': 20,
       'offset': offset,
     });
-    return ((res.data['items'] as List?) ?? [])
+    final items = ((res.data['items'] as List?) ?? [])
         .map((e) => Map<String, dynamic>.from(e as Map))
         .toList();
+    AppDataCache.instance.putLocationPage(cacheKey, items);
+    return items;
   }
 
   Future<List<Map<String, dynamic>>> listMyJobPosts({String? businessId}) async {

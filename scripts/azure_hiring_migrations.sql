@@ -152,3 +152,18 @@ ALTER TABLE job_posts ADD COLUMN IF NOT EXISTS "locationMatchStatus" varchar NOT
 
 ALTER TYPE hiring_requests_employmenttype_enum ADD VALUE IF NOT EXISTS 'GIG';
 ALTER TYPE job_preferences_employmenttype_enum ADD VALUE IF NOT EXISTS 'GIG';
+
+ALTER TABLE job_preferences ADD COLUMN IF NOT EXISTS "matchingPaused" boolean NOT NULL DEFAULT false;
+
+CREATE TABLE IF NOT EXISTS hiring_languages (
+  id varchar PRIMARY KEY,
+  label varchar NOT NULL,
+  "quickPick" boolean NOT NULL DEFAULT false,
+  "sortOrder" int NOT NULL DEFAULT 0,
+  "isActive" boolean NOT NULL DEFAULT true,
+  "updatedAt" timestamptz NOT NULL DEFAULT NOW()
+);
+ALTER TABLE hiring_requests ADD COLUMN IF NOT EXISTS "languageIds" text NOT NULL DEFAULT '';
+ALTER TABLE job_preferences ADD COLUMN IF NOT EXISTS "languageIds" text NOT NULL DEFAULT '';
+ALTER TABLE talent_profiles ADD COLUMN IF NOT EXISTS "languageIds" text NOT NULL DEFAULT '';
+ALTER TABLE job_posts ADD COLUMN IF NOT EXISTS "languageIds" text NOT NULL DEFAULT '';

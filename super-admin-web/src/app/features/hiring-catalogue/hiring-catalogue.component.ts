@@ -2,14 +2,16 @@ import { Component, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { HttpClient } from '@angular/common/http';
+import { RouterLink } from '@angular/router';
 
 @Component({
   selector: 'app-hiring-catalogue',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, RouterLink],
   template: `
     <div class="gx-page-title">Hiring catalogue</div>
     <div class="gx-page-sub">Manage sectors, positions, specializations, skills, qualifications and aliases. Serviceable cities stay separate.</div>
+    <div *ngIf="error" class="alert alert-danger">{{ error }}</div>
     <div class="card mb-3">
       <div class="card-header d-flex justify-content-between">
         <span>Import</span>
@@ -124,14 +126,35 @@ import { HttpClient } from '@angular/common/http';
       </div>
     </div>
 
-    <div class="card">
-      <div class="card-header">Hiring locations</div>
+    <div class="card mb-3">
+      <div class="card-header">Languages</div>
       <div class="card-body">
-        <input class="form-control mb-2" placeholder="Search place, district or state" [(ngModel)]="locationQuery" (ngModelChange)="searchLocations()">
-        <ul>
-          <li *ngFor="let place of places">{{ place.name }}, {{ place.districtName }}, {{ place.stateName }} ({{ place.matchKind }})</li>
-        </ul>
-        <button class="btn btn-sm btn-outline-secondary" *ngIf="places.length === 20" (click)="searchLocations(true)">Load more</button>
+        <div *ngFor="let lang of languages" class="d-flex justify-content-between mb-1">
+          <span>{{ lang.label }} <span class="text-muted">{{ lang.id }}</span></span>
+          <button class="btn btn-sm btn-outline-secondary" (click)="patch('/api/hiring/catalogue/admin/languages/' + lang.id, { isActive: !lang.isActive })">
+            {{ lang.isActive ? 'Deactivate' : 'Reactivate' }}
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div class="card mb-3">
+      <div class="card-header">Employment types</div>
+      <div class="card-body">
+        <div *ngFor="let emp of employmentTypes" class="d-flex justify-content-between mb-1">
+          <span>{{ emp.label }} <code>{{ emp.code }}</code></span>
+          <button class="btn btn-sm btn-outline-secondary" (click)="patch('/api/hiring/catalogue/admin/employment-types/' + emp.code, { isActive: !emp.isActive })">
+            {{ emp.isActive ? 'Deactivate' : 'Reactivate' }}
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-body">
+        <p class="mb-0">Geographic places are managed on <a routerLink="/location-master">Location master</a>.
+        Legacy ID map: <button class="btn btn-link p-0" (click)="loadLegacy()">view JSON</button></p>
+        <pre *ngIf="legacyMap" class="small mt-2 bg-light p-2">{{ legacyMap | json }}</pre>
       </div>
     </div>
   `,
@@ -141,7 +164,10 @@ export class HiringCatalogueComponent implements OnInit {
   sectors: any[] = [];
   positions: any[] = [];
   qualifications: any[] = [];
-  places: any[] = [];
+  languages: any[] = [];
+  employmentTypes: any[] = [];
+  legacyMap: any = null;
+  error = '';
   detail: any = null;
   message = '';
   busy = false;
@@ -159,15 +185,22 @@ export class HiringCatalogueComponent implements OnInit {
   alias = '';
   qualId = '';
   qualLabel = '';
-  locationQuery = '';
-
-  ngOnInit() { this.load(); }
+  ngOnInit() { this.load(); this.searchPositions(); }
 
   load() {
-    this.http.get<any>('/api/hiring/catalogue', { params: { includeInactive: 'true' } }).subscribe((res) => {
-      this.sectors = res.sectors ?? [];
-      this.qualifications = res.qualifications ?? [];
+    this.http.get<any>('/api/hiring/catalogue', { params: { includeInactive: 'true' } }).subscribe({
+      next: (res) => {
+        this.sectors = res.sectors ?? [];
+        this.qualifications = res.qualifications ?? [];
+        this.languages = res.languages ?? [];
+        this.employmentTypes = res.employmentTypes ?? [];
+      },
+      error: () => (this.error = 'Failed to load catalogue snapshot'),
     });
+  }
+
+  loadLegacy() {
+    this.http.get<any>('/api/hiring/catalogue/admin/legacy-map').subscribe((m) => (this.legacyMap = m));
   }
 
   importBundled() {
@@ -247,14 +280,6 @@ export class HiringCatalogueComponent implements OnInit {
       this.qualId = '';
       this.qualLabel = '';
       this.load();
-    });
-  }
-
-  searchLocations(more = false) {
-    const offset = more ? this.places.length : 0;
-    this.http.get<any>('/api/hiring/locations/search', { params: { q: this.locationQuery, limit: 20, offset } }).subscribe((res) => {
-      const items = res.items ?? [];
-      this.places = more ? [...this.places, ...items] : items;
     });
   }
 

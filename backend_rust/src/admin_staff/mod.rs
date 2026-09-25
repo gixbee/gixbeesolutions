@@ -25,7 +25,8 @@ async fn list_pages(_user: AuthUser) -> AppResult<Json<Value>> {
     Ok(Json(json!({
         "pages": [
             "dashboard", "users", "bookings", "disputes", "verifications",
-            "businesses", "support", "cities", "master-entries", "staff", "logs", "monitoring"
+            "businesses", "support", "cities", "master-entries", "pricing-policies",
+            "operational-settings", "staff", "logs", "monitoring"
         ]
     })))
 }

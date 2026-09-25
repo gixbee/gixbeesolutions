@@ -410,7 +410,8 @@ async fn admin_status(
     .fetch_optional(&mut *tx)
     .await?
     .ok_or_else(|| AppError::NotFound("Business not found".into()))?;
-    if row.get::<String, _>("status") != status {
+    let status_changed = row.get::<String, _>("status") != status;
+    if status_changed {
         sqlx::query(r#"UPDATE businesses SET status=$1::businesses_status_enum,"updatedAt"=NOW() WHERE id=$2"#)
             .bind(status).bind(bid).execute(&mut *tx).await?;
         let notify_body = match status {
@@ -443,6 +444,13 @@ async fn admin_status(
         )
         .bind(bid)
         .execute(&mut *tx)
+        .await?;
+    }
+    if status_changed {
+        crate::cache::versions::bump_in_tx(
+            &mut tx,
+            crate::cache::versions::Domain::PublicListings,
+        )
         .await?;
     }
     tx.commit().await?;

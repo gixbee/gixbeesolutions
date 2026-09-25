@@ -13,6 +13,7 @@ import '../../repositories/matching_repository.dart';
 import '../../repositories/talent_repository.dart';
 import 'hiring_catalog.dart';
 import 'hiring_master_picker.dart';
+import '../business/hiring_language_picker.dart';
 import '../../shared/widgets/dribbble_background.dart';
 import '../../shared/widgets/gx_button.dart';
 import '../../shared/widgets/gx_empty.dart';
@@ -541,6 +542,7 @@ class _JobTypeFormScreenState extends ConsumerState<JobTypeFormScreen> {
   String? _locationLockedLabel;
   List<String> _specializationIds = [];
   List<String> _skillIds = [];
+  final List<String> _languageIds = [];
   final _locationCtrl = TextEditingController();
   final _locationFocus = FocusNode();
   final _salaryCtrl = TextEditingController();
@@ -592,6 +594,7 @@ class _JobTypeFormScreenState extends ConsumerState<JobTypeFormScreen> {
       _locationId = seed['locationId']?.toString();
       _specializationIds = _idList(seed['specializationIds']);
       _skillIds = _idList(seed['skillIds']);
+      _languageIds.addAll(_idList(seed['languageIds']));
       final skills = seed['skills'];
       if (skills is List) {
         _skills.addAll(skills.map((skill) => skill.toString()).where((skill) => skill.isNotEmpty));
@@ -616,6 +619,7 @@ class _JobTypeFormScreenState extends ConsumerState<JobTypeFormScreen> {
       _locationId = e['locationId']?.toString();
       _specializationIds = _idList(e['specializationIds']);
       _skillIds = _idList(e['skillIds']);
+      _languageIds.addAll(_idList(e['languageIds']));
       _skills.addAll(
           (e['skills'] as List? ?? []).map((s) => s.toString()));
     }
@@ -769,6 +773,7 @@ class _JobTypeFormScreenState extends ConsumerState<JobTypeFormScreen> {
       'locationId': _locationId,
       'specializationIds': _specializationIds,
       'skillIds': _skillIds,
+      'languageIds': _languageIds,
     };
   }
 
@@ -1074,6 +1079,18 @@ class _JobTypeFormScreenState extends ConsumerState<JobTypeFormScreen> {
                 padding: const EdgeInsets.only(top: 8),
                 child: Text('Joining ${_dateOnly(_joinDate!)}'),
               ),
+            const SizedBox(height: 16),
+            HiringLanguageSection(
+              selectedIds: _languageIds,
+              applyEmployerDefaults: false,
+              minSelection: 0,
+              restoredDraft: _isEdit || widget.initialPreference != null || _languageIds.isNotEmpty,
+              onChanged: (ids) => setState(() {
+                _languageIds
+                  ..clear()
+                  ..addAll(ids);
+              }),
+            ),
             const SizedBox(height: 16),
             Text('Skills',
                 style: TextStyle(

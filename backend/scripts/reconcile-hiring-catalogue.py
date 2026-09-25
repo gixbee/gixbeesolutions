@@ -12,8 +12,9 @@ import zlib
 import base64
 from pathlib import Path
 
-HTML = Path(r"C:\Users\gkv00\Downloads\hire-employee-skills-master.html")
-PDF = Path(r"C:\Users\gkv00\Downloads\GIXBEE_SkillsHire_FinalMaster.pdf")
+HTML = Path(r"C:\Users\gkv00\Downloads\GIXBEE_hire-employee-skills-master_finalfix.html")
+PDF = Path(r"C:\Users\gkv00\Downloads\GIXBEE_Hire_Employee_Catalog_final.pdf")
+LEGACY_MAP = Path(__file__).resolve().parents[1] / "data" / "hiring-catalogue-legacy-map.json"
 OUT_JSON = Path(__file__).resolve().parents[1] / "data" / "hiring-catalogue.json"
 # Rust image build context is backend_rust, so the bundled copy lives there.
 OUT_JSON_RUST = Path(__file__).resolve().parents[2] / "backend_rust" / "data" / "hiring-catalogue.json"
@@ -37,7 +38,29 @@ def load_html() -> dict:
     return json.loads(raw[start:end])
 
 
+HIRING_LANGUAGES = [
+    {"id": "en", "label": "English", "quickPick": True, "sortOrder": 0},
+    {"id": "ml", "label": "Malayalam", "quickPick": True, "sortOrder": 1},
+    {"id": "hi", "label": "Hindi", "quickPick": True, "sortOrder": 2},
+    {"id": "ta", "label": "Tamil", "quickPick": True, "sortOrder": 3},
+    {"id": "kn", "label": "Kannada", "quickPick": False, "sortOrder": 4},
+    {"id": "te", "label": "Telugu", "quickPick": False, "sortOrder": 5},
+    {"id": "mr", "label": "Marathi", "quickPick": False, "sortOrder": 6},
+    {"id": "bn", "label": "Bengali", "quickPick": False, "sortOrder": 7},
+    {"id": "gu", "label": "Gujarati", "quickPick": False, "sortOrder": 8},
+    {"id": "pa", "label": "Punjabi", "quickPick": False, "sortOrder": 9},
+    {"id": "or", "label": "Odia", "quickPick": False, "sortOrder": 10},
+    {"id": "as", "label": "Assamese", "quickPick": False, "sortOrder": 11},
+    {"id": "ur", "label": "Urdu", "quickPick": False, "sortOrder": 12},
+    {"id": "ar", "label": "Arabic", "quickPick": False, "sortOrder": 13},
+    {"id": "kok", "label": "Konkani", "quickPick": False, "sortOrder": 14},
+    {"id": "tcy", "label": "Tulu", "quickPick": False, "sortOrder": 15},
+]
+
+
 def load_pdf_text() -> str:
+    if not PDF.is_file():
+        return ""
     data = PDF.read_bytes()
     pages = []
     for match in re.finditer(rb"stream\r?\n", data):
@@ -270,7 +293,9 @@ def main() -> None:
         )
 
     payload = {
-        "version": catalog.get("version", "skills-hire-final-master"),
+        "version": "skills-hire-final-master-130",
+        "sourceHtml": HTML.name,
+        "sourcePdf": PDF.name if PDF.is_file() else None,
         "employmentTypes": employment,
         "salaryPeriods": [
             {"code": "HOURLY", "label": "Hourly"},
@@ -293,6 +318,7 @@ def main() -> None:
         ],
         "positions": positions,
         "aliases": aliases,
+        "languages": HIRING_LANGUAGES,
     }
 
     # Collapse duplicate aliases.
@@ -306,11 +332,22 @@ def main() -> None:
         unique_aliases.append(alias)
     payload["aliases"] = unique_aliases
 
+    previous_catalog: dict = {}
+    if OUT_JSON.is_file():
+        try:
+            previous_catalog = json.loads(OUT_JSON.read_text(encoding="utf-8"))
+        except json.JSONDecodeError:
+            previous_catalog = {}
+
     OUT_JSON.parent.mkdir(parents=True, exist_ok=True)
     OUT_JSON_RUST.parent.mkdir(parents=True, exist_ok=True)
     text = json.dumps(payload, ensure_ascii=False, indent=2)
     OUT_JSON.write_text(text, encoding="utf-8")
     OUT_JSON_RUST.write_text(text, encoding="utf-8")
+    if LEGACY_MAP.is_file():
+        OUT_JSON_RUST.parent.joinpath("hiring-catalogue-legacy-map.json").write_text(
+            LEGACY_MAP.read_text(encoding="utf-8"), encoding="utf-8"
+        )
 
     lines = [
         "# Hiring catalogue reconciliation",
@@ -337,6 +374,35 @@ def main() -> None:
         lines.append("- No material label, type, or skill discrepancies.")
     lines.append("")
     OUT_MD.write_text("\n".join(lines), encoding="utf-8")
+
+    legacy: dict = {"version": payload["version"], "mappings": [], "unresolved": []}
+    if previous_catalog:
+        old_positions = {p["id"]: p for p in previous_catalog.get("positions", [])}
+        new_positions = {p["id"]: p for p in payload["positions"]}
+        for old_id, old_row in old_positions.items():
+            if old_id in new_positions:
+                legacy["mappings"].append(
+                    {"fromPositionId": old_id, "toPositionId": old_id, "kind": "unchanged"}
+                )
+                continue
+            label_key = norm(old_row.get("label", ""))
+            candidates = [
+                p for p in payload["positions"] if norm(p["label"]) == label_key
+            ]
+            if len(candidates) == 1:
+                legacy["mappings"].append(
+                    {
+                        "fromPositionId": old_id,
+                        "toPositionId": candidates[0]["id"],
+                        "kind": "label",
+                    }
+                )
+            else:
+                legacy["unresolved"].append(
+                    {"fromPositionId": old_id, "label": old_row.get("label"), "candidates": len(candidates)}
+                )
+    LEGACY_MAP.parent.mkdir(parents=True, exist_ok=True)
+    LEGACY_MAP.write_text(json.dumps(legacy, ensure_ascii=False, indent=2), encoding="utf-8")
     print(f"positions {len(payload['positions'])} discrepancies {len(discrepancies)}")
 
 

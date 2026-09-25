@@ -24,8 +24,9 @@ import { CitiesService, City, INDIAN_STATES } from '../../core/services/cities.s
       <div class="card-body">
 
         <p class="text-muted small">
-          Active cities appear in the mobile app's location picker. Banners, deals and
-          businesses can be scoped to a city — users in other cities won't see them.
+          Serviceable coverage for on-demand services, rentals discovery and events — linked by canonical
+          <code>cities.id</code> on businesses. This is separate from the hiring location master (states/districts/places).
+          Deactivating a city hides it from new selections; existing business links remain readable.
         </p>
 
         <!-- Table -->

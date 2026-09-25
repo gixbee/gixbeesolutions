@@ -1,5 +1,7 @@
 use axum::{
     extract::{Path, Query, State},
+    http::HeaderMap,
+    response::Response,
     routing::{get, patch, post},
     Json, Router,
 };
@@ -12,6 +14,14 @@ use crate::middleware::auth::AuthUser;
 use crate::state::AppState;
 
 const BUNDLED: &str = include_str!("../../data/hiring-catalogue.json");
+const LEGACY_MAP: &str = include_str!("../../data/hiring-catalogue-legacy-map.json");
+
+fn bundled_version() -> String {
+    serde_json::from_str::<Value>(BUNDLED)
+        .ok()
+        .and_then(|v| v.get("version").and_then(|s| s.as_str()).map(String::from))
+        .unwrap_or_else(|| "unknown".into())
+}
 
 pub fn routes() -> Router<AppState> {
     Router::new()
@@ -33,11 +43,21 @@ pub fn routes() -> Router<AppState> {
         .route("/admin/employment-types/{code}", patch(patch_employment))
         .route("/admin/aliases", post(create_alias))
         .route("/admin/aliases/{id}", patch(patch_alias))
+        .route("/admin/languages", post(create_language))
+        .route("/admin/languages/{id}", patch(patch_language))
+        .route("/admin/legacy-map", get(admin_legacy_map))
+}
+
+async fn admin_legacy_map(user: AuthUser) -> AppResult<Json<Value>> {
+    crate::middleware::auth::require_admin_page(&user, "master-entries")?;
+    let map: Value = serde_json::from_str(LEGACY_MAP).unwrap_or(json!({}));
+    Ok(Json(map))
 }
 
 pub fn location_routes() -> Router<AppState> {
     Router::new()
         .route("/search", get(search_locations))
+        .route("/admin/list", get(admin_list_locations))
         .route("/{id}", get(location_detail))
         .route("/admin", post(create_location))
         .route("/admin/{id}", patch(patch_location))
@@ -59,8 +79,51 @@ struct PageQuery {
     include_inactive: Option<bool>,
 }
 
-async fn snapshot(State(state): State<AppState>, Query(q): Query<PageQuery>) -> AppResult<Json<Value>> {
+async fn snapshot(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    Query(q): Query<PageQuery>,
+) -> AppResult<Response> {
     let include_inactive = q.include_inactive.unwrap_or(false);
+    let suffix = if include_inactive {
+        "snapshot:inactive"
+    } else {
+        "snapshot:active"
+    };
+    let if_none = headers
+        .get(axum::http::header::IF_NONE_MATCH)
+        .and_then(|v| v.to_str().ok());
+    let ttl = state.cache.hiring_master_ttl_secs;
+    let db_state = state.clone();
+    let cached = crate::cache::read_through(
+        &state,
+        crate::cache::versions::Domain::HiringMaster,
+        suffix,
+        ttl,
+        None,
+        if_none,
+        || {
+            let state = db_state.clone();
+            Box::pin(async move {
+                load_hiring_snapshot(&state, include_inactive).await
+            })
+        },
+    )
+    .await?;
+    if cached.json.is_null() {
+        return Ok(crate::cache::http::not_modified(&cached.etag));
+    }
+    Ok(crate::cache::http::json_cached(
+        cached.json,
+        &cached.etag,
+        cached.outcome,
+    ))
+}
+
+async fn load_hiring_snapshot(state: &AppState, include_inactive: bool) -> AppResult<Value> {
+    let cache_version =
+        crate::cache::versions::current_version(&state.db, crate::cache::versions::Domain::HiringMaster)
+            .await?;
     let sectors = sqlx::query(
         r#"SELECT id, label, subtitle, icon, color, "sortOrder", "isActive" FROM hiring_sectors WHERE ($1::bool OR "isActive") ORDER BY "sortOrder", label"#,
     )
@@ -85,7 +148,16 @@ async fn snapshot(State(state): State<AppState>, Query(q): Query<PageQuery>) -> 
     .bind(include_inactive)
     .fetch_all(&state.db)
     .await?;
-    Ok(Json(json!({
+    let languages = sqlx::query(
+        r#"SELECT id, label, "quickPick", "sortOrder", "isActive" FROM hiring_languages WHERE ($1::bool OR "isActive") ORDER BY "sortOrder", label"#,
+    )
+    .bind(include_inactive)
+    .fetch_all(&state.db)
+    .await
+    .unwrap_or_default();
+    Ok(json!({
+        "bundledVersion": bundled_version(),
+        "cacheVersion": cache_version,
         "sectors": sectors.iter().map(|r| json!({
             "id": r.get::<String,_>("id"),
             "label": r.get::<String,_>("label"),
@@ -111,17 +183,73 @@ async fn snapshot(State(state): State<AppState>, Query(q): Query<PageQuery>) -> 
             "professional": r.get::<bool,_>("professional"),
             "isActive": r.get::<bool,_>("isActive"),
         })).collect::<Vec<_>>(),
-    })))
+        "languages": languages.iter().map(|r| json!({
+            "id": r.get::<String,_>("id"),
+            "label": r.get::<String,_>("label"),
+            "quickPick": r.get::<bool,_>("quickPick"),
+            "isActive": r.get::<bool,_>("isActive"),
+        })).collect::<Vec<_>>(),
+    }))
 }
 
 async fn search_positions(
     State(state): State<AppState>,
+    headers: HeaderMap,
     Query(q): Query<PageQuery>,
-) -> AppResult<Json<Value>> {
+) -> AppResult<Response> {
     let limit = q.limit.unwrap_or(30).clamp(1, 100);
     let offset = q.offset.unwrap_or(0).max(0);
     let term = q.q.unwrap_or_default().trim().to_string();
+    if term.chars().count() > 80 {
+        return Err(AppError::BadRequest("Search query is too long".into()));
+    }
     let sector = q.sector_id.unwrap_or_default();
+    let include_inactive = q.include_inactive.unwrap_or(false);
+    let suffix = format!(
+        "pos:{sector}:{include_inactive}:{}:{limit}:{offset}",
+        crate::cache::normalize_search_query(&term)
+    );
+    let if_none = headers
+        .get(axum::http::header::IF_NONE_MATCH)
+        .and_then(|v| v.to_str().ok());
+    let db_state = state.clone();
+    let sector_key = sector.clone();
+    let term_key = term.clone();
+    let cached = crate::cache::read_through(
+        &state,
+        crate::cache::versions::Domain::HiringMaster,
+        &suffix,
+        state.cache.hiring_master_ttl_secs,
+        None,
+        if_none,
+        || {
+            let state = db_state.clone();
+            let sector = sector_key.clone();
+            let term = term_key.clone();
+            Box::pin(async move {
+                load_position_search(&state, &sector, &term, limit, offset, include_inactive).await
+            })
+        },
+    )
+    .await?;
+    if cached.json.is_null() {
+        return Ok(crate::cache::http::not_modified(&cached.etag));
+    }
+    Ok(crate::cache::http::json_cached(
+        cached.json,
+        &cached.etag,
+        cached.outcome,
+    ))
+}
+
+async fn load_position_search(
+    state: &AppState,
+    sector: &str,
+    term: &str,
+    limit: i64,
+    offset: i64,
+    include_inactive: bool,
+) -> AppResult<Value> {
     let rows = sqlx::query(
         r#"SELECT p.id, p.label, p.subtitle, p."fieldPattern", p."typeLabel", p.shared, p."isActive"
            FROM hiring_positions p
@@ -143,7 +271,7 @@ async fn search_positions(
     .bind(&term)
     .bind(limit)
     .bind(offset)
-    .bind(q.include_inactive.unwrap_or(false))
+    .bind(include_inactive)
     .fetch_all(&state.db)
     .await?;
     let total: i64 = sqlx::query_scalar(
@@ -157,15 +285,15 @@ async fn search_positions(
     )
     .bind(&sector)
     .bind(&term)
-    .bind(q.include_inactive.unwrap_or(false))
+    .bind(include_inactive)
     .fetch_one(&state.db)
     .await?;
-    Ok(Json(json!({
+    Ok(json!({
         "items": rows.iter().map(position_summary).collect::<Vec<_>>(),
         "total": total,
         "limit": limit,
         "offset": offset,
-    })))
+    }))
 }
 
 fn position_summary(row: &sqlx::postgres::PgRow) -> Value {
@@ -182,8 +310,40 @@ fn position_summary(row: &sqlx::postgres::PgRow) -> Value {
 
 async fn position_detail(
     State(state): State<AppState>,
+    headers: HeaderMap,
     Path(id): Path<String>,
-) -> AppResult<Json<Value>> {
+) -> AppResult<Response> {
+    let suffix = format!("posdetail:{id}");
+    let if_none = headers
+        .get(axum::http::header::IF_NONE_MATCH)
+        .and_then(|v| v.to_str().ok());
+    let db_state = state.clone();
+    let pid = id.clone();
+    let cached = crate::cache::read_through(
+        &state,
+        crate::cache::versions::Domain::HiringMaster,
+        &suffix,
+        state.cache.hiring_master_ttl_secs,
+        None,
+        if_none,
+        || {
+            let state = db_state.clone();
+            let pid = pid.clone();
+            Box::pin(async move { load_position_detail(&state, &pid).await })
+        },
+    )
+    .await?;
+    if cached.json.is_null() {
+        return Ok(crate::cache::http::not_modified(&cached.etag));
+    }
+    Ok(crate::cache::http::json_cached(
+        cached.json,
+        &cached.etag,
+        cached.outcome,
+    ))
+}
+
+async fn load_position_detail(state: &AppState, id: &str) -> AppResult<Value> {
     let row = sqlx::query(
         r#"SELECT id, label, subtitle, "fieldPattern", "typeLabel", shared, "isActive"
            FROM hiring_positions WHERE id = $1"#,
@@ -216,7 +376,7 @@ async fn position_detail(
     .bind(&id)
     .fetch_all(&state.db)
     .await?;
-    Ok(Json(json!({
+    Ok(json!({
         "id": row.get::<String,_>("id"),
         "label": row.get::<String,_>("label"),
         "subtitle": row.get::<String,_>("subtitle"),
@@ -227,7 +387,50 @@ async fn position_detail(
         "sectors": sectors.iter().map(|r| json!({"id": r.get::<String,_>("id"), "label": r.get::<String,_>("label")})).collect::<Vec<_>>(),
         "specializations": types.iter().map(|r| json!({"id": r.get::<String,_>("id"), "label": r.get::<String,_>("label"), "isActive": r.get::<bool,_>("isActive")})).collect::<Vec<_>>(),
         "skills": skills.iter().map(|r| json!({"id": r.get::<String,_>("id"), "label": r.get::<String,_>("label"), "tier": r.get::<String,_>("tier"), "isActive": r.get::<bool,_>("isActive")})).collect::<Vec<_>>(),
-    })))
+    }))
+}
+
+fn hiring_audit(
+    user: &AuthUser,
+    section: &'static str,
+    entity_type: &'static str,
+    entity_id: &str,
+    action: &'static str,
+    detail: Value,
+) -> crate::master_audit::AuditEvent {
+    crate::master_audit::AuditEvent {
+        section,
+        entity_type,
+        entity_id: entity_id.to_string(),
+        action,
+        actor_user_id: user.user_id.clone(),
+        before: None,
+        after: Some(crate::master_audit::redact_secrets(detail)),
+    }
+}
+
+async fn commit_hiring_cache_tx(
+    tx: sqlx::Transaction<'_, sqlx::Postgres>,
+    audit: crate::master_audit::AuditEvent,
+) -> AppResult<()> {
+    crate::master_audit::commit_with_audit(
+        tx,
+        audit,
+        crate::cache::versions::Domain::HiringMaster,
+    )
+    .await
+}
+
+async fn commit_location_cache_tx(
+    tx: sqlx::Transaction<'_, sqlx::Postgres>,
+    audit: crate::master_audit::AuditEvent,
+) -> AppResult<()> {
+    crate::master_audit::commit_with_audit(
+        tx,
+        audit,
+        crate::cache::versions::Domain::LocationMaster,
+    )
+    .await
 }
 
 async fn import_bundled(State(state): State<AppState>, user: AuthUser) -> AppResult<Json<Value>> {
@@ -237,6 +440,7 @@ async fn import_bundled(State(state): State<AppState>, user: AuthUser) -> AppRes
     let mut tx = state.db.begin().await?;
     let mut sectors = 0i64;
     let mut positions = 0i64;
+    let mut bundled_position_ids = std::collections::HashSet::new();
     for (index, sector) in catalog["sectors"].as_array().into_iter().flatten().enumerate() {
         sqlx::query(
             r#"INSERT INTO hiring_sectors (id, label, subtitle, icon, color, "sortOrder")
@@ -296,12 +500,15 @@ async fn import_bundled(State(state): State<AppState>, user: AuthUser) -> AppRes
     }
     for position in catalog["positions"].as_array().into_iter().flatten() {
         let id = text(position, "id");
+        if !id.is_empty() {
+            bundled_position_ids.insert(id.clone());
+        }
         sqlx::query(
-            r#"INSERT INTO hiring_positions (id, label, subtitle, "fieldPattern", "typeLabel", shared)
-               VALUES ($1,$2,$3,$4,$5,$6)
+            r#"INSERT INTO hiring_positions (id, label, subtitle, "fieldPattern", "typeLabel", shared, "isActive")
+               VALUES ($1,$2,$3,$4,$5,$6,true)
                ON CONFLICT (id) DO UPDATE SET label=EXCLUDED.label, subtitle=EXCLUDED.subtitle,
                  "fieldPattern"=EXCLUDED."fieldPattern", "typeLabel"=EXCLUDED."typeLabel",
-                 shared=EXCLUDED.shared, "updatedAt"=NOW()"#,
+                 shared=EXCLUDED.shared, "isActive"=true, "updatedAt"=NOW()"#,
         )
         .bind(&id)
         .bind(text(position, "label"))
@@ -369,8 +576,195 @@ async fn import_bundled(State(state): State<AppState>, user: AuthUser) -> AppRes
         .execute(&mut *tx)
         .await?;
     }
+    for item in catalog
+        .get("languages")
+        .and_then(|v| v.as_array())
+        .into_iter()
+        .flatten()
+        .enumerate()
+    {
+        let (index, row) = item;
+        sqlx::query(
+            r#"INSERT INTO hiring_languages (id, label, "quickPick", "sortOrder")
+               VALUES ($1,$2,$3,$4)
+               ON CONFLICT (id) DO UPDATE SET label=EXCLUDED.label, "quickPick"=EXCLUDED."quickPick",
+                 "sortOrder"=EXCLUDED."sortOrder", "updatedAt"=NOW()"#,
+        )
+        .bind(text(row, "id"))
+        .bind(text(row, "label"))
+        .bind(row.get("quickPick").and_then(|v| v.as_bool()).unwrap_or(false))
+        .bind(row.get("sortOrder").and_then(|v| v.as_i64()).unwrap_or(index as i64) as i32)
+        .execute(&mut *tx)
+        .await?;
+    }
+    let (legacy_aliases, legacy_retired) =
+        apply_legacy_catalogue(&mut tx, &bundled_position_ids).await?;
+    let version = catalog
+        .get("version")
+        .and_then(|v| v.as_str())
+        .map(String::from)
+        .unwrap_or_else(bundled_version);
+    crate::master_audit::insert_in_tx(
+        &mut tx,
+        &hiring_audit(
+            &user,
+            "hiring_catalogue",
+            "catalogue",
+            "bundled",
+            "import",
+            json!({"sectors": sectors, "positions": positions, "version": version}),
+        ),
+    )
+    .await?;
+    let cache_version = crate::cache::versions::bump_in_tx(
+        &mut tx,
+        crate::cache::versions::Domain::HiringMaster,
+    )
+    .await?;
     tx.commit().await?;
-    Ok(Json(json!({"imported": true, "sectors": sectors, "positions": positions})))
+    Ok(Json(json!({
+        "imported": true,
+        "sectors": sectors,
+        "positions": positions,
+        "version": version,
+        "cacheVersion": cache_version,
+        "legacyAliases": legacy_aliases,
+        "legacyRetired": legacy_retired,
+    })))
+}
+
+async fn apply_legacy_catalogue(
+    tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
+    bundled_ids: &std::collections::HashSet<String>,
+) -> AppResult<(i64, i64)> {
+    let legacy: Value =
+        serde_json::from_str(LEGACY_MAP).unwrap_or_else(|_| json!({"mappings": []}));
+    let mut aliases_written = 0i64;
+    let mut retired = 0i64;
+    for item in legacy
+        .get("mappings")
+        .and_then(|v| v.as_array())
+        .into_iter()
+        .flatten()
+    {
+        let from = item
+            .get("fromPositionId")
+            .and_then(|v| v.as_str())
+            .unwrap_or("")
+            .trim();
+        let to = item
+            .get("toPositionId")
+            .and_then(|v| v.as_str())
+            .unwrap_or("")
+            .trim();
+        if from.is_empty() || to.is_empty() {
+            continue;
+        }
+        if from != to {
+            let result = sqlx::query(
+                r#"INSERT INTO hiring_aliases ("entityType","entityId",alias) VALUES ('position',$1,$2)
+                   ON CONFLICT ("entityType","entityId",alias) DO NOTHING"#,
+            )
+            .bind(to)
+            .bind(from)
+            .execute(&mut **tx)
+            .await?;
+            aliases_written += result.rows_affected() as i64;
+
+            let prefix = format!("{from}--");
+            let new_prefix = format!("{to}--");
+            let old_specs = sqlx::query(
+                r#"SELECT id FROM hiring_specializations WHERE "positionId" = $1"#,
+            )
+            .bind(from)
+            .fetch_all(&mut **tx)
+            .await?;
+            for row in old_specs {
+                let old_id: String = row.get("id");
+                let Some(suffix) = old_id.strip_prefix(&prefix) else {
+                    continue;
+                };
+                let new_id = format!("{new_prefix}{suffix}");
+                let mapped: bool = sqlx::query_scalar(
+                    r#"SELECT EXISTS(SELECT 1 FROM hiring_specializations WHERE id = $1)"#,
+                )
+                .bind(&new_id)
+                .fetch_one(&mut **tx)
+                .await?;
+                if !mapped {
+                    continue;
+                }
+                let result = sqlx::query(
+                    r#"INSERT INTO hiring_aliases ("entityType","entityId",alias) VALUES ('specialization',$1,$2)
+                       ON CONFLICT ("entityType","entityId",alias) DO NOTHING"#,
+                )
+                .bind(&new_id)
+                .bind(&old_id)
+                .execute(&mut **tx)
+                .await?;
+                aliases_written += result.rows_affected() as i64;
+            }
+        }
+        if !bundled_ids.contains(from) {
+            let result = sqlx::query(
+                r#"UPDATE hiring_positions SET "isActive" = false, "updatedAt" = NOW() WHERE id = $1"#,
+            )
+            .bind(from)
+            .execute(&mut **tx)
+            .await?;
+            if result.rows_affected() > 0 {
+                retired += 1;
+            }
+        }
+    }
+    Ok((aliases_written, retired))
+}
+
+async fn create_language(
+    State(state): State<AppState>,
+    user: AuthUser,
+    Json(body): Json<Value>,
+) -> AppResult<Json<Value>> {
+    crate::middleware::auth::require_admin_page(&user, "master-entries")?;
+    let id = text(&body, "id");
+    if id.is_empty() {
+        return Err(AppError::BadRequest("Language id is required".into()));
+    }
+    let mut tx = state.db.begin().await?;
+    sqlx::query(
+        r#"INSERT INTO hiring_languages (id, label, "quickPick", "sortOrder") VALUES ($1,$2,$3,$4)"#,
+    )
+    .bind(&id)
+    .bind(text(&body, "label"))
+    .bind(body.get("quickPick").and_then(|v| v.as_bool()).unwrap_or(false))
+    .bind(body.get("sortOrder").and_then(|v| v.as_i64()).unwrap_or(0) as i32)
+    .execute(&mut *tx)
+    .await?;
+    commit_hiring_cache_tx(tx, hiring_audit(&user, "hiring_catalogue", "language", &id, "create", body.clone())).await?;
+    Ok(Json(json!({"id": id})))
+}
+
+async fn patch_language(
+    State(state): State<AppState>,
+    user: AuthUser,
+    Path(id): Path<String>,
+    Json(body): Json<Value>,
+) -> AppResult<Json<Value>> {
+    crate::middleware::auth::require_admin_page(&user, "master-entries")?;
+    let mut tx = state.db.begin().await?;
+    sqlx::query(
+        r#"UPDATE hiring_languages SET label = COALESCE($2, label),
+           "quickPick" = COALESCE($3, "quickPick"), "isActive" = COALESCE($4, "isActive"), "updatedAt" = NOW()
+           WHERE id = $1"#,
+    )
+    .bind(&id)
+    .bind(body.get("label").and_then(|v| v.as_str()))
+    .bind(body.get("quickPick").and_then(|v| v.as_bool()))
+    .bind(body.get("isActive").and_then(|v| v.as_bool()))
+    .execute(&mut *tx)
+    .await?;
+    commit_hiring_cache_tx(tx, hiring_audit(&user, "hiring_catalogue", "language", &id, "update", body.clone())).await?;
+    Ok(Json(json!({"id": id})))
 }
 
 fn text(value: &Value, key: &str) -> String {
@@ -388,6 +782,7 @@ async fn create_sector(
     if id.is_empty() || label.is_empty() {
         return Err(AppError::BadRequest("Sector id and label are required".into()));
     }
+    let mut tx = state.db.begin().await?;
     sqlx::query(
         r#"INSERT INTO hiring_sectors (id, label, subtitle, icon, color) VALUES ($1,$2,$3,$4,$5)"#,
     )
@@ -396,8 +791,9 @@ async fn create_sector(
     .bind(text(&body, "subtitle"))
     .bind(text(&body, "icon"))
     .bind(text(&body, "color"))
-    .execute(&state.db)
+    .execute(&mut *tx)
     .await?;
+    commit_hiring_cache_tx(tx, hiring_audit(&user, "hiring_catalogue", "sector", &id, "create", body.clone())).await?;
     Ok(Json(json!({"id": id})))
 }
 
@@ -408,6 +804,7 @@ async fn patch_sector(
     Json(body): Json<Value>,
 ) -> AppResult<Json<Value>> {
     crate::middleware::auth::require_admin_page(&user, "master-entries")?;
+    let mut tx = state.db.begin().await?;
     sqlx::query(
         r#"UPDATE hiring_sectors SET
              label = COALESCE($2, label),
@@ -420,8 +817,10 @@ async fn patch_sector(
     .bind(body.get("label").and_then(|v| v.as_str()))
     .bind(body.get("subtitle").and_then(|v| v.as_str()))
     .bind(body.get("isActive").and_then(|v| v.as_bool()))
-    .execute(&state.db)
+    .execute(&mut *tx)
     .await?;
+    
+    commit_hiring_cache_tx(tx, hiring_audit(&user, "hiring_catalogue", "sector", &id, "update", body.clone())).await?;
     Ok(Json(json!({"id": id})))
 }
 
@@ -436,6 +835,7 @@ async fn create_position(
     if id.is_empty() || label.is_empty() {
         return Err(AppError::BadRequest("Position id and label are required".into()));
     }
+    let mut tx = state.db.begin().await?;
     sqlx::query(
         r#"INSERT INTO hiring_positions (id, label, subtitle, "fieldPattern", "typeLabel", shared)
            VALUES ($1,$2,$3,$4,$5,$6)"#,
@@ -446,7 +846,7 @@ async fn create_position(
     .bind(body.get("fieldPattern").and_then(|v| v.as_str()).unwrap_or("typeChips"))
     .bind(body.get("typeLabel").and_then(|v| v.as_str()).unwrap_or("Type"))
     .bind(body.get("shared").and_then(|v| v.as_bool()).unwrap_or(false))
-    .execute(&state.db)
+    .execute(&mut *tx)
     .await?;
     if let Some(sector_id) = body.get("sectorId").and_then(|v| v.as_str()) {
         sqlx::query(
@@ -454,9 +854,11 @@ async fn create_position(
         )
         .bind(sector_id)
         .bind(&id)
-        .execute(&state.db)
+        .execute(&mut *tx)
         .await?;
     }
+    
+    commit_hiring_cache_tx(tx, hiring_audit(&user, "hiring_catalogue", "position", &id, "create", body.clone())).await?;
     Ok(Json(json!({"id": id})))
 }
 
@@ -467,6 +869,7 @@ async fn patch_position(
     Json(body): Json<Value>,
 ) -> AppResult<Json<Value>> {
     crate::middleware::auth::require_admin_page(&user, "master-entries")?;
+    let mut tx = state.db.begin().await?;
     sqlx::query(
         r#"UPDATE hiring_positions SET
              label = COALESCE($2, label),
@@ -479,8 +882,10 @@ async fn patch_position(
     .bind(body.get("label").and_then(|v| v.as_str()))
     .bind(body.get("subtitle").and_then(|v| v.as_str()))
     .bind(body.get("isActive").and_then(|v| v.as_bool()))
-    .execute(&state.db)
+    .execute(&mut *tx)
     .await?;
+    
+    commit_hiring_cache_tx(tx, hiring_audit(&user, "hiring_catalogue", "position", &id, "update", body.clone())).await?;
     Ok(Json(json!({"id": id})))
 }
 
@@ -494,14 +899,17 @@ async fn create_specialization(
     if id.is_empty() {
         return Err(AppError::BadRequest("Specialization id is required".into()));
     }
+    let mut tx = state.db.begin().await?;
     sqlx::query(
         r#"INSERT INTO hiring_specializations (id, "positionId", label) VALUES ($1,$2,$3)"#,
     )
     .bind(&id)
     .bind(text(&body, "positionId"))
     .bind(text(&body, "label"))
-    .execute(&state.db)
+    .execute(&mut *tx)
     .await?;
+    
+    commit_hiring_cache_tx(tx, hiring_audit(&user, "hiring_catalogue", "specialization", &id, "create", body.clone())).await?;
     Ok(Json(json!({"id": id})))
 }
 
@@ -512,11 +920,14 @@ async fn patch_active_specialization(
     Json(body): Json<Value>,
 ) -> AppResult<Json<Value>> {
     crate::middleware::auth::require_admin_page(&user, "master-entries")?;
+    let mut tx = state.db.begin().await?;
     sqlx::query(r#"UPDATE hiring_specializations SET label = COALESCE($2, label), "isActive" = COALESCE($3, "isActive") WHERE id = $1"#)
         .bind(&id)
         .bind(body.get("label").and_then(|v| v.as_str()))
         .bind(body.get("isActive").and_then(|v| v.as_bool()))
-        .execute(&state.db).await?;
+        .execute(&mut *tx).await?;
+    
+    commit_hiring_cache_tx(tx, hiring_audit(&user, "hiring_catalogue", "specialization", &id, "update", body.clone())).await?;
     Ok(Json(json!({"id": id})))
 }
 
@@ -530,8 +941,11 @@ async fn create_skill(
     if id.is_empty() {
         return Err(AppError::BadRequest("Skill id is required".into()));
     }
+    let mut tx = state.db.begin().await?;
     sqlx::query(r#"INSERT INTO hiring_skills (id, label) VALUES ($1,$2) ON CONFLICT (id) DO UPDATE SET label=EXCLUDED.label"#)
-        .bind(&id).bind(text(&body, "label")).execute(&state.db).await?;
+        .bind(&id).bind(text(&body, "label")).execute(&mut *tx).await?;
+    
+    commit_hiring_cache_tx(tx, hiring_audit(&user, "hiring_catalogue", "skill", &id, "create", body.clone())).await?;
     Ok(Json(json!({"id": id})))
 }
 
@@ -542,11 +956,14 @@ async fn patch_skill(
     Json(body): Json<Value>,
 ) -> AppResult<Json<Value>> {
     crate::middleware::auth::require_admin_page(&user, "master-entries")?;
+    let mut tx = state.db.begin().await?;
     sqlx::query(r#"UPDATE hiring_skills SET label = COALESCE($2, label), "isActive" = COALESCE($3, "isActive") WHERE id = $1"#)
         .bind(&id)
         .bind(body.get("label").and_then(|v| v.as_str()))
         .bind(body.get("isActive").and_then(|v| v.as_bool()))
-        .execute(&state.db).await?;
+        .execute(&mut *tx).await?;
+    
+    commit_hiring_cache_tx(tx, hiring_audit(&user, "hiring_catalogue", "skill", &id, "update", body.clone())).await?;
     Ok(Json(json!({"id": id})))
 }
 
@@ -556,6 +973,7 @@ async fn link_skill(
     Json(body): Json<Value>,
 ) -> AppResult<Json<Value>> {
     crate::middleware::auth::require_admin_page(&user, "master-entries")?;
+    let mut tx = state.db.begin().await?;
     sqlx::query(
         r#"INSERT INTO hiring_position_skills ("positionId","skillId",tier) VALUES ($1,$2,$3)
            ON CONFLICT ("positionId","skillId") DO UPDATE SET tier=EXCLUDED.tier"#,
@@ -563,8 +981,11 @@ async fn link_skill(
     .bind(text(&body, "positionId"))
     .bind(text(&body, "skillId"))
     .bind(body.get("tier").and_then(|v| v.as_str()).unwrap_or("suggested"))
-    .execute(&state.db)
+    .execute(&mut *tx)
     .await?;
+    
+    let position_id = text(&body, "positionId");
+    commit_hiring_cache_tx(tx, hiring_audit(&user, "hiring_catalogue", "position_skill", &position_id, "link", body.clone())).await?;
     Ok(Json(json!({"linked": true})))
 }
 
@@ -578,6 +999,7 @@ async fn create_qualification(
     if id.is_empty() {
         return Err(AppError::BadRequest("Qualification id is required".into()));
     }
+    let mut tx = state.db.begin().await?;
     sqlx::query(
         r#"INSERT INTO hiring_qualifications (id, label, rank, professional) VALUES ($1,$2,$3,$4)"#,
     )
@@ -585,8 +1007,10 @@ async fn create_qualification(
     .bind(text(&body, "label"))
     .bind(body.get("rank").and_then(|v| v.as_i64()).map(|n| n as i32))
     .bind(body.get("professional").and_then(|v| v.as_bool()).unwrap_or(false))
-    .execute(&state.db)
+    .execute(&mut *tx)
     .await?;
+    
+    commit_hiring_cache_tx(tx, hiring_audit(&user, "hiring_catalogue", "qualification", &id, "create", body.clone())).await?;
     Ok(Json(json!({"id": id})))
 }
 
@@ -597,11 +1021,14 @@ async fn patch_qualification(
     Json(body): Json<Value>,
 ) -> AppResult<Json<Value>> {
     crate::middleware::auth::require_admin_page(&user, "master-entries")?;
+    let mut tx = state.db.begin().await?;
     sqlx::query(r#"UPDATE hiring_qualifications SET label=COALESCE($2,label), "isActive"=COALESCE($3,"isActive") WHERE id=$1"#)
         .bind(&id)
         .bind(body.get("label").and_then(|v| v.as_str()))
         .bind(body.get("isActive").and_then(|v| v.as_bool()))
-        .execute(&state.db).await?;
+        .execute(&mut *tx).await?;
+    
+    commit_hiring_cache_tx(tx, hiring_audit(&user, "hiring_catalogue", "qualification", &id, "update", body.clone())).await?;
     Ok(Json(json!({"id": id})))
 }
 
@@ -612,11 +1039,14 @@ async fn patch_employment(
     Json(body): Json<Value>,
 ) -> AppResult<Json<Value>> {
     crate::middleware::auth::require_admin_page(&user, "master-entries")?;
+    let mut tx = state.db.begin().await?;
     sqlx::query(r#"UPDATE hiring_employment_types SET label=COALESCE($2,label), "isActive"=COALESCE($3,"isActive") WHERE code=$1"#)
         .bind(&code)
         .bind(body.get("label").and_then(|v| v.as_str()))
         .bind(body.get("isActive").and_then(|v| v.as_bool()))
-        .execute(&state.db).await?;
+        .execute(&mut *tx).await?;
+    
+    commit_hiring_cache_tx(tx, hiring_audit(&user, "hiring_catalogue", "employment_type", &code, "update", body.clone())).await?;
     Ok(Json(json!({"code": code})))
 }
 
@@ -626,14 +1056,17 @@ async fn create_alias(
     Json(body): Json<Value>,
 ) -> AppResult<Json<Value>> {
     crate::middleware::auth::require_admin_page(&user, "master-entries")?;
+    let mut tx = state.db.begin().await?;
     let id: uuid::Uuid = sqlx::query_scalar(
         r#"INSERT INTO hiring_aliases ("entityType","entityId",alias) VALUES ($1,$2,$3) RETURNING id"#,
     )
     .bind(text(&body, "entityType"))
     .bind(text(&body, "entityId"))
     .bind(text(&body, "alias"))
-    .fetch_one(&state.db)
+    .fetch_one(&mut *tx)
     .await?;
+    
+    commit_hiring_cache_tx(tx, hiring_audit(&user, "hiring_catalogue", "alias", &id.to_string(), "create", body.clone())).await?;
     Ok(Json(json!({"id": id})))
 }
 
@@ -644,23 +1077,133 @@ async fn patch_alias(
     Json(body): Json<Value>,
 ) -> AppResult<Json<Value>> {
     crate::middleware::auth::require_admin_page(&user, "master-entries")?;
+    let mut tx = state.db.begin().await?;
     sqlx::query(r#"UPDATE hiring_aliases SET "isActive"=COALESCE($2,"isActive") WHERE id=$1"#)
         .bind(uuid::Uuid::parse_str(&id)?)
         .bind(body.get("isActive").and_then(|v| v.as_bool()))
-        .execute(&state.db).await?;
+        .execute(&mut *tx).await?;
+    
+    commit_hiring_cache_tx(tx, hiring_audit(&user, "hiring_catalogue", "alias", &id, "update", body.clone())).await?;
     Ok(Json(json!({"id": id})))
+}
+
+async fn admin_list_locations(
+    State(state): State<AppState>,
+    user: AuthUser,
+    Query(q): Query<PageQuery>,
+) -> AppResult<Json<Value>> {
+    crate::middleware::auth::require_admin_page(&user, "master-entries")?;
+    let limit = q.limit.unwrap_or(30).clamp(1, 100);
+    let offset = q.offset.unwrap_or(0).max(0);
+    let term = q.q.unwrap_or_default().trim().to_string();
+    let include_inactive = q.include_inactive.unwrap_or(true);
+    let rows = if term.chars().count() >= 2 {
+        sqlx::query(
+            r#"SELECT id, name, kind, "stateName", "districtName", source, "isActive", lat, lng
+               FROM hiring_locations
+               WHERE ($4::bool OR "isActive")
+                 AND (
+                   name ILIKE '%' || $1 || '%'
+                   OR "districtName" ILIKE '%' || $1 || '%'
+                   OR "stateName" ILIKE '%' || $1 || '%'
+                 )
+               ORDER BY "stateName", "districtName", name
+               LIMIT $2 OFFSET $3"#,
+        )
+        .bind(&term)
+        .bind(limit)
+        .bind(offset)
+        .bind(include_inactive)
+        .fetch_all(&state.db)
+        .await?
+    } else {
+        sqlx::query(
+            r#"SELECT id, name, kind, "stateName", "districtName", source, "isActive", lat, lng
+               FROM hiring_locations
+               WHERE ($3::bool OR "isActive") AND kind = 'PLACE'
+               ORDER BY "updatedAt" DESC
+               LIMIT $1 OFFSET $2"#,
+        )
+        .bind(limit)
+        .bind(offset)
+        .bind(include_inactive)
+        .fetch_all(&state.db)
+        .await?
+    };
+    Ok(Json(json!({
+        "items": rows.iter().map(|r| json!({
+            "id": r.get::<String,_>("id"),
+            "name": r.get::<String,_>("name"),
+            "kind": r.get::<String,_>("kind"),
+            "stateName": r.get::<String,_>("stateName"),
+            "districtName": r.get::<String,_>("districtName"),
+            "source": r.get::<String,_>("source"),
+            "isActive": r.get::<bool,_>("isActive"),
+            "lat": r.get::<Option<f64>,_>("lat"),
+            "lng": r.get::<Option<f64>,_>("lng"),
+        })).collect::<Vec<_>>(),
+        "limit": limit,
+        "offset": offset,
+    })))
 }
 
 async fn search_locations(
     State(state): State<AppState>,
+    headers: HeaderMap,
     Query(q): Query<PageQuery>,
-) -> AppResult<Json<Value>> {
+) -> AppResult<Response> {
     let limit = q.limit.unwrap_or(20).clamp(1, 40);
     let offset = q.offset.unwrap_or(0).max(0);
     let term = q.q.unwrap_or_default().trim().to_string();
     if term.chars().count() < 2 {
-        return Ok(Json(json!({"items": [], "total": 0, "limit": limit, "offset": offset})));
+        return Ok(crate::cache::http::json_cached(
+            json!({"items": [], "total": 0, "limit": limit, "offset": offset}),
+            ""empty"",
+            crate::cache::CacheOutcome::Miss,
+        ));
     }
+    if term.chars().count() > 80 {
+        return Err(AppError::BadRequest("Search query is too long".into()));
+    }
+    let state_filter = q.sector_id.as_deref().unwrap_or("");
+    let district_filter = q.include_inactive.map(|v| if v { "1" } else { "0" }).unwrap_or("0");
+    let norm = crate::cache::normalize_search_query(&term);
+    let suffix = format!("loc:{state_filter}:{district_filter}:{norm}:{limit}:{offset}");
+    let if_none = headers
+        .get(axum::http::header::IF_NONE_MATCH)
+        .and_then(|v| v.to_str().ok());
+    let db_state = state.clone();
+    let term_key = term.clone();
+    let cached = crate::cache::read_through(
+        &state,
+        crate::cache::versions::Domain::LocationMaster,
+        &suffix,
+        state.cache.location_search_ttl_secs,
+        Some(state.cache.location_empty_ttl_secs),
+        if_none,
+        || {
+            let state = db_state.clone();
+            let term = term_key.clone();
+            Box::pin(async move { load_location_search(&state, &term, limit, offset).await })
+        },
+    )
+    .await?;
+    if cached.json.is_null() {
+        return Ok(crate::cache::http::not_modified(&cached.etag));
+    }
+    Ok(crate::cache::http::json_cached(
+        cached.json,
+        &cached.etag,
+        cached.outcome,
+    ))
+}
+
+async fn load_location_search(
+    state: &AppState,
+    term: &str,
+    limit: i64,
+    offset: i64,
+) -> AppResult<Value> {
     let rows = sqlx::query(
         r#"SELECT l.id, l.name, l.kind, l."stateName", l."districtName", l.lat, l.lng,
                   CASE
@@ -697,7 +1240,7 @@ async fn search_locations(
     .bind(offset)
     .fetch_all(&state.db)
     .await?;
-    Ok(Json(json!({
+    Ok(json!({
         "items": rows.iter().map(|r| json!({
             "id": r.get::<String,_>("id"),
             "name": r.get::<String,_>("name"),
@@ -711,7 +1254,7 @@ async fn search_locations(
         })).collect::<Vec<_>>(),
         "limit": limit,
         "offset": offset,
-    })))
+    }))
 }
 
 async fn location_detail(
@@ -750,6 +1293,7 @@ async fn create_location(
     if id.is_empty() || text(&body, "name").is_empty() {
         return Err(AppError::BadRequest("Location id and name are required".into()));
     }
+    let mut tx = state.db.begin().await?;
     sqlx::query(
         r#"INSERT INTO hiring_locations (id, kind, name, "parentId", "stateId", "districtId", "stateName", "districtName", lat, lng, source, "sourceKey")
            VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)"#,
@@ -766,8 +1310,10 @@ async fn create_location(
     .bind(body.get("lng").and_then(|v| v.as_f64()))
     .bind(text(&body, "source"))
     .bind(text(&body, "sourceKey"))
-    .execute(&state.db)
+    .execute(&mut *tx)
     .await?;
+    
+    commit_location_cache_tx(tx, hiring_audit(&user, "location_master", "location", &id, "create", body.clone())).await?;
     Ok(Json(json!({"id": id})))
 }
 
@@ -778,14 +1324,17 @@ async fn patch_location(
     Json(body): Json<Value>,
 ) -> AppResult<Json<Value>> {
     crate::middleware::auth::require_admin_page(&user, "master-entries")?;
+    let mut tx = state.db.begin().await?;
     sqlx::query(
         r#"UPDATE hiring_locations SET name=COALESCE($2,name), "isActive"=COALESCE($3,"isActive"), "updatedAt"=NOW() WHERE id=$1"#,
     )
     .bind(&id)
     .bind(body.get("name").and_then(|v| v.as_str()))
     .bind(body.get("isActive").and_then(|v| v.as_bool()))
-    .execute(&state.db)
+    .execute(&mut *tx)
     .await?;
+    
+    commit_location_cache_tx(tx, hiring_audit(&user, "location_master", "location", &id, "update", body.clone())).await?;
     Ok(Json(json!({"id": id})))
 }
 
@@ -796,12 +1345,15 @@ async fn create_location_alias(
     Json(body): Json<Value>,
 ) -> AppResult<Json<Value>> {
     crate::middleware::auth::require_admin_page(&user, "master-entries")?;
+    let mut tx = state.db.begin().await?;
     sqlx::query(
         r#"INSERT INTO hiring_location_aliases ("locationId", alias) VALUES ($1,$2) ON CONFLICT DO NOTHING"#,
     )
     .bind(&id)
     .bind(text(&body, "alias"))
-    .execute(&state.db)
+    .execute(&mut *tx)
     .await?;
+    
+    commit_location_cache_tx(tx, hiring_audit(&user, "location_master", "location_alias", &id, "create", body.clone())).await?;
     Ok(Json(json!({"locationId": id})))
 }

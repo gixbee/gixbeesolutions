@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../core/config/app_config.dart';
 import '../core/navigator_key.dart';
 import '../features/onboarding/welcome_screen.dart';
+import '../services/app_data_cache.dart';
 import '../services/auth_token_service.dart';
 import '../services/socket_service.dart';
 import '../shared/models/user.dart';
@@ -199,6 +200,7 @@ Future<void> _forceLogoutToWelcome(
     // pushAndRemoveUntil(Welcome) — that wipes Login → OTP.
     final hadToken = await tokenService.hasToken();
     await tokenService.deleteToken();
+    AppDataCache.instance.clearAll();
     invalidateSession();
     if (!hadToken) return;
     final nav = rootNavigatorKey.currentState;

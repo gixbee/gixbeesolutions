@@ -16,6 +16,13 @@ import { LogsComponent } from './features/logs/logs.component';
 import { InfrastructureComponent } from './features/infrastructure/infrastructure.component';
 import { RentalsFlowComponent } from './features/rentals-flow/rentals-flow.component';
 import { HiringCatalogueComponent } from './features/hiring-catalogue/hiring-catalogue.component';
+import { LocationMasterComponent } from './features/location-master/location-master.component';
+import { ServiceCatalogueComponent } from './features/service-catalogue/service-catalogue.component';
+import { RentalCatalogueComponent } from './features/rental-catalogue/rental-catalogue.component';
+import { EventCatalogueComponent } from './features/event-catalogue/event-catalogue.component';
+import { PricingPoliciesComponent } from './features/pricing-policies/pricing-policies.component';
+import { OperationalSettingsComponent } from './features/operational-settings/operational-settings.component';
+import { ContentReasonsComponent } from './features/content-reasons/content-reasons.component';
 import { authGuard } from './core/guards/auth.guard';
 import { pageGuard } from './core/guards/page.guard';
 
@@ -37,6 +44,13 @@ export const routes: Routes = [
       { path: 'master-entries', component: MasterEntriesComponent, canActivate: [pageGuard], data: { page: 'master-entries' } },
       { path: 'cities', component: CitiesComponent, canActivate: [pageGuard], data: { page: 'cities' } },
       { path: 'hiring-catalogue', component: HiringCatalogueComponent, canActivate: [pageGuard], data: { page: 'master-entries' } },
+      { path: 'location-master', component: LocationMasterComponent, canActivate: [pageGuard], data: { page: 'master-entries' } },
+      { path: 'service-catalogue', component: ServiceCatalogueComponent, canActivate: [pageGuard], data: { page: 'master-entries' } },
+      { path: 'rental-catalogue', component: RentalCatalogueComponent, canActivate: [pageGuard], data: { page: 'master-entries' } },
+      { path: 'event-catalogue', component: EventCatalogueComponent, canActivate: [pageGuard], data: { page: 'master-entries' } },
+      { path: 'pricing-policies', component: PricingPoliciesComponent, canActivate: [pageGuard], data: { page: 'pricing-policies' } },
+      { path: 'operational-settings', component: OperationalSettingsComponent, canActivate: [pageGuard], data: { page: 'operational-settings' } },
+      { path: 'content-reasons', component: ContentReasonsComponent, canActivate: [pageGuard], data: { page: 'master-entries' } },
       { path: 'users', component: UsersComponent, canActivate: [pageGuard], data: { page: 'users' } },
       { path: 'businesses', component: BusinessesComponent, canActivate: [pageGuard], data: { page: 'businesses' } },
       { path: 'rentals-flow', component: RentalsFlowComponent, canActivate: [pageGuard], data: { page: 'businesses' } },

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart';
@@ -70,6 +71,9 @@ class CitiesRepository {
 /// their own defaults (the picker keeps a small hardcoded list) so the picker
 /// never renders blank when the backend is unreachable.
 final citiesProvider = FutureProvider<List<CityEntry>>((ref) async {
+  final link = ref.keepAlive();
+  final timer = Timer(const Duration(hours: 6), link.close);
+  ref.onDispose(timer.cancel);
   try {
     return await ref.watch(citiesRepositoryProvider).getActive();
   } catch (e) {

@@ -91,7 +91,7 @@ pub const JOB_PREFERENCE_COLS: &str = r#"
     "employmentType"::text AS "employmentType", "experienceYears", "noticePeriod"::text AS "noticePeriod",
     "isActive", "matchingPaused", "isPaid", "paidUntil", "createdAt", "updatedAt",
     "sectorId", "positionId", "specializationIds", "skillIds", "qualificationId", "locationId",
-    "addressText", "locationMatchStatus"
+    "addressText", "locationMatchStatus", "languageIds"
 "#;
 
 pub const HIRING_REQUEST_COLS: &str = r#"
@@ -99,7 +99,7 @@ pub const HIRING_REQUEST_COLS: &str = r#"
     "salaryNegotiable", "employmentType"::text AS "employmentType", "experienceMinYears", vacancies,
     "targetInterested", "feeAmount", "creditApplied", status::text AS status, "deadlineAt", "createdAt", "updatedAt",
     "sectorId", "positionId", "specializationIds", "skillIds", "qualificationId", "qualificationRequired",
-    "salaryPeriod", "locationId", "addressText", "locationMatchStatus", "workMode"
+    "salaryPeriod", "locationId", "addressText", "locationMatchStatus", "workMode", "languageIds"
 "#;
 
 pub const HIRING_INTEREST_COLS: &str = r#"id, "requestId", "candidateId", "preferenceId", response::text AS response, decision::text AS decision, "notifiedAt", "respondedAt", "createdAt", "updatedAt""#;

@@ -58,6 +58,8 @@ class _HiringLocationSearchState extends ConsumerState<HiringLocationSearch> {
   bool _hasMore = false;
   String? _error;
   String _query = '';
+  int _loadSeq = 0;
+  bool _showNoMatches = false;
 
   @override
   void initState() {
@@ -84,21 +86,41 @@ class _HiringLocationSearchState extends ConsumerState<HiringLocationSearch> {
         )).toList();
   }
 
-  void _search(String value) {
+  /// Drop in-flight HTTP responses and any scheduled debounced search.
+  void _invalidatePendingLoads({String? query}) {
     _debounce?.cancel();
-    _debounce = Timer(const Duration(milliseconds: 300), () => _load(value.trim(), reset: true));
+    _debounce = null;
+    _loadSeq++;
+    setState(() {
+      if (query != null) _query = query;
+      _items = [];
+      _hasMore = false;
+      _error = null;
+      _loading = false;
+      _loadingMore = false;
+      _showNoMatches = false;
+    });
+  }
+
+  void _search(String value) {
+    final trimmed = value.trim();
+    _invalidatePendingLoads(query: trimmed);
+    if (trimmed.length < 2) return;
+    setState(() => _loading = true);
+    _debounce = Timer(
+      const Duration(milliseconds: 300),
+      () => _load(trimmed, reset: true),
+    );
   }
 
   Future<void> _load(String value, {required bool reset}) async {
     if (value.length < 2) {
-      setState(() {
-        _items = [];
-        _hasMore = false;
-        _error = null;
-        _query = value;
-      });
+      _invalidatePendingLoads(query: value);
       return;
     }
+    final seq = ++_loadSeq;
+    final requestQuery = value;
+    final offset = reset ? 0 : _items.length;
     setState(() {
       if (reset) {
         _loading = true;
@@ -111,19 +133,22 @@ class _HiringLocationSearchState extends ConsumerState<HiringLocationSearch> {
     });
     try {
       final page = await ref.read(matchingRepositoryProvider).searchHiringLocations(
-            value,
-            offset: reset ? 0 : _items.length,
+            requestQuery,
+            offset: offset,
           );
-      if (!mounted) return;
+      if (!mounted || seq != _loadSeq) return;
+      if (requestQuery != _query) return;
       final parsed = _parse(page);
       setState(() {
         _items = reset ? parsed : [..._items, ...parsed];
         _hasMore = parsed.length == 20;
         _loading = false;
         _loadingMore = false;
+        if (reset) _showNoMatches = parsed.isEmpty;
       });
     } catch (_) {
-      if (!mounted) return;
+      if (!mounted || seq != _loadSeq) return;
+      if (requestQuery != _query) return;
       setState(() {
         _loading = false;
         _loadingMore = false;
@@ -148,7 +173,7 @@ class _HiringLocationSearchState extends ConsumerState<HiringLocationSearch> {
         ),
         if (_loading) const Padding(padding: EdgeInsets.all(8), child: LinearProgressIndicator()),
         if (_error != null) Text(_error!, style: const TextStyle(color: Colors.red)),
-        if (!_loading && _ctrl.text.trim().length >= 2 && _items.isEmpty && _error == null)
+        if (!_loading && _showNoMatches && _error == null)
           const Padding(padding: EdgeInsets.only(top: 8), child: Text('No locations match')),
         if (_hasMore)
           TextButton(
@@ -162,11 +187,9 @@ class _HiringLocationSearchState extends ConsumerState<HiringLocationSearch> {
             subtitle: Text([item.districtName, item.stateName].where((p) => p.isNotEmpty).join(', ')),
             trailing: item.needsConfirmation ? const Text('Confirm') : null,
             onTap: () {
+              _invalidatePendingLoads(query: item.label);
               widget.onPick(item);
-              setState(() {
-                _ctrl.text = item.label;
-                _items = [];
-              });
+              setState(() => _ctrl.text = item.label);
             },
           ),
       ],
@@ -178,7 +201,14 @@ class HiringPositionSearch extends ConsumerStatefulWidget {
   final String? sectorId;
   final String? selectedLabel;
   final ValueChanged<HiringPositionPick> onPick;
-  const HiringPositionSearch({super.key, this.sectorId, this.selectedLabel, required this.onPick});
+  final int initialVisible;
+  const HiringPositionSearch({
+    super.key,
+    this.sectorId,
+    this.selectedLabel,
+    required this.onPick,
+    this.initialVisible = 8,
+  });
 
   @override
   ConsumerState<HiringPositionSearch> createState() => _HiringPositionSearchState();
@@ -188,8 +218,17 @@ class _HiringPositionSearchState extends ConsumerState<HiringPositionSearch> {
   final _ctrl = TextEditingController();
   Timer? _debounce;
   List<HiringPositionPick> _items = [];
+  List<HiringPositionPick> _sectorPool = [];
   bool _loading = false;
+  bool _showAll = false;
   String? _error;
+  int _loadGen = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadSectorPositions();
+  }
 
   @override
   void dispose() {
@@ -203,39 +242,90 @@ class _HiringPositionSearchState extends ConsumerState<HiringPositionSearch> {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.sectorId != widget.sectorId) {
       _items = [];
+      _sectorPool = [];
+      _showAll = false;
       _ctrl.clear();
+      _loadSectorPositions();
+    }
+  }
+
+  Future<void> _loadSectorPositions() async {
+    if (widget.sectorId == null || widget.sectorId!.isEmpty) return;
+    final gen = ++_loadGen;
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+    try {
+      final page = await ref.read(matchingRepositoryProvider).searchHiringPositions(
+            query: '',
+            sectorId: widget.sectorId,
+            limit: 200,
+          );
+      if (!mounted || gen != _loadGen) return;
+      setState(() {
+        _sectorPool = page
+            .map((row) => HiringPositionPick(
+                  id: '${row['id']}',
+                  label: '${row['label'] ?? ''}',
+                  subtitle: '${row['subtitle'] ?? ''}',
+                ))
+            .toList();
+        _loading = false;
+      });
+    } catch (_) {
+      if (!mounted || gen != _loadGen) return;
+      setState(() {
+        _loading = false;
+        _error = 'Unable to load positions';
+      });
     }
   }
 
   void _search(String value) {
     _debounce?.cancel();
     _debounce = Timer(const Duration(milliseconds: 300), () async {
+      final q = value.trim();
+      if (q.isEmpty) {
+        setState(() => _items = []);
+        return;
+      }
+      final gen = ++_loadGen;
       setState(() {
         _loading = true;
         _error = null;
       });
       try {
         final page = await ref.read(matchingRepositoryProvider).searchHiringPositions(
-              query: value.trim(),
+              query: q,
               sectorId: widget.sectorId,
             );
-        if (!mounted) return;
+        if (!mounted || gen != _loadGen) return;
         setState(() {
-          _items = page.map((row) => HiringPositionPick(
-                id: '${row['id']}',
-                label: '${row['label'] ?? ''}',
-                subtitle: '${row['subtitle'] ?? ''}',
-              )).toList();
+          _items = page
+              .map((row) => HiringPositionPick(
+                    id: '${row['id']}',
+                    label: '${row['label'] ?? ''}',
+                    subtitle: '${row['subtitle'] ?? ''}',
+                  ))
+              .toList();
           _loading = false;
         });
       } catch (_) {
-        if (!mounted) return;
+        if (!mounted || gen != _loadGen) return;
         setState(() {
           _loading = false;
           _error = 'Unable to search positions';
         });
       }
     });
+  }
+
+  List<HiringPositionPick> get _visible {
+    if (_ctrl.text.trim().isNotEmpty) return _items;
+    final pool = _sectorPool;
+    if (_showAll || pool.length <= widget.initialVisible) return pool;
+    return pool.take(widget.initialVisible).toList();
   }
 
   @override
@@ -254,15 +344,25 @@ class _HiringPositionSearchState extends ConsumerState<HiringPositionSearch> {
         ),
         if (_loading) const LinearProgressIndicator(),
         if (_error != null) Text(_error!, style: const TextStyle(color: Colors.red)),
-        for (final item in _items)
+        for (final item in _visible)
           ListTile(
             contentPadding: EdgeInsets.zero,
             title: Text(item.label, style: const TextStyle(color: GixbeeTheme.accentBlue, fontWeight: FontWeight.w700)),
             subtitle: Text(item.subtitle),
             onTap: () {
               widget.onPick(item);
-              setState(() => _items = []);
+              setState(() {
+                _items = [];
+                _ctrl.clear();
+              });
             },
+          ),
+        if (_ctrl.text.trim().isEmpty &&
+            !_showAll &&
+            _sectorPool.length > widget.initialVisible)
+          TextButton(
+            onPressed: () => setState(() => _showAll = true),
+            child: const Text('Show more positions'),
           ),
       ],
     );

@@ -7,6 +7,7 @@ import 'package:razorpay_flutter/razorpay_flutter.dart';
 
 import '../../core/config/app_config.dart';
 import '../../repositories/auth_repository.dart';
+import '../../providers/hiring_catalogue_provider.dart';
 import '../../repositories/matching_repository.dart';
 import '../jobs/hiring_catalog.dart';
 import '../jobs/hiring_master_picker.dart';
@@ -14,11 +15,9 @@ import '../../shared/widgets/dribbble_background.dart';
 import '../../shared/widgets/gx_button.dart';
 import '../../shared/widgets/gx_snackbar.dart';
 import '../../theme.dart';
+import 'hiring_language_picker.dart';
 import 'hiring_requests_screen.dart';
-
-final _catalogueProvider = FutureProvider<Map<String, dynamic>>((ref) async {
-  return ref.read(matchingRepositoryProvider).hiringCatalogue();
-});
+import 'hiring_sector_grid.dart';
 
 /// Employer Smart Hiring wizard: estimate → pay → match.
 ///
@@ -47,7 +46,7 @@ class _HireEmployeeScreenState extends ConsumerState<HireEmployeeScreen> {
   String _fieldPattern = 'typeChips';
   List<Map<String, dynamic>> _specializationChoices = [];
   List<Map<String, dynamic>> _skillChoices = [];
-  bool _showMoreSkills = false;
+  bool _skillSheetShowAll = false;
   String? _locationId;
   String? _locationLabel;
   final List<String> _specializationIds = [];
@@ -63,6 +62,10 @@ class _HireEmployeeScreenState extends ConsumerState<HireEmployeeScreen> {
   final Set<String> _skills = {};
   int _vacancies = 1;
   bool _salaryNegotiable = false;
+  final List<String> _languageIds = ['en', 'ml'];
+  int _experienceYears = 0;
+  int _positionDetailGen = 0;
+  int _estimateGen = 0;
 
   int? _estimated;
   int? _fee;
@@ -125,6 +128,7 @@ class _HireEmployeeScreenState extends ConsumerState<HireEmployeeScreen> {
       return;
     }
     final salaryMin = num.tryParse(_salaryMinCtrl.text.trim());
+    final gen = ++_estimateGen;
     setState(() {
       _estimating = true;
       _estimateError = null;
@@ -149,7 +153,9 @@ class _HireEmployeeScreenState extends ConsumerState<HireEmployeeScreen> {
         salaryPeriod: _salaryPeriod,
         locationId: _locationId,
         workMode: _workMode,
+        languageIds: _languageIds,
       );
+      if (!mounted || gen != _estimateGen) return;
       final pricing = await repo.pricing();
       final tiers = (pricing['tiers'] as List?) ?? [];
       var fee = 49;
@@ -208,6 +214,7 @@ class _HireEmployeeScreenState extends ConsumerState<HireEmployeeScreen> {
       if (_locationCtrl.text.trim().isNotEmpty) 'addressText': _locationCtrl.text.trim(),
       if (_descriptionCtrl.text.trim().isNotEmpty)
         'description': _descriptionCtrl.text.trim(),
+      if (_languageIds.isNotEmpty) 'languageIds': _languageIds,
     };
   }
 
@@ -332,6 +339,10 @@ class _HireEmployeeScreenState extends ConsumerState<HireEmployeeScreen> {
       case 1:
         return _positionId != null;
       case 2:
+        if (_languageIds.isEmpty) return false;
+        if (_specializationChoices.isNotEmpty && _specializationIds.isEmpty) {
+          return false;
+        }
         return true;
       case 3:
         final salary = num.tryParse(_salaryCtrl.text.trim());
@@ -533,7 +544,7 @@ class _HireEmployeeScreenState extends ConsumerState<HireEmployeeScreen> {
 
   // ── hj1: employment type + category catalog ─────────────────────────────
   Widget _stepSector() {
-    final catalogue = ref.watch(_catalogueProvider);
+    final catalogue = ref.watch(hiringCatalogueSnapshotProvider);
     return catalogue.when(
       loading: () => const Center(child: CircularProgressIndicator()),
       error: (error, _) => Text('Unable to load sectors. $error'),
@@ -556,23 +567,22 @@ class _HireEmployeeScreenState extends ConsumerState<HireEmployeeScreen> {
             ),
             _sectionTitle('Sector', 'Changing sector clears the position and skills.'),
             if (sectors.isEmpty) const Text('No sectors yet. Import the hiring catalogue from admin.'),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: [
-                for (final sector in sectors)
-                  _chip('${sector['label']}', _sectorId == sector['id'], () {
-                    setState(() {
-                      _sectorId = '${sector['id']}';
-                      _positionId = null;
-                      _positionLabel = null;
-                      _specializationIds.clear();
-                      _skillIds.clear();
-                      _skills.clear();
-                      _jobTypeCtrl.clear();
-                    });
-                  }),
-              ],
+            HiringSectorGrid(
+              sectors: sectors.cast<Map<String, dynamic>>(),
+              selectedId: _sectorId,
+              onSelect: (sector) {
+                setState(() {
+                  _sectorId = '${sector['id']}';
+                  _positionId = null;
+                  _positionLabel = null;
+                  _specializationIds.clear();
+                  _skillIds.clear();
+                  _skills.clear();
+                  _specializationChoices = [];
+                  _skillChoices = [];
+                  _jobTypeCtrl.clear();
+                });
+              },
             ),
           ],
         );
@@ -600,24 +610,33 @@ class _HireEmployeeScreenState extends ConsumerState<HireEmployeeScreen> {
               _specializationChoices = [];
               _skillChoices = [];
             });
+            final detailGen = ++_positionDetailGen;
             try {
               final detail = await ref.read(matchingRepositoryProvider).hiringPosition(pick.id);
-              if (!mounted || _positionId != pick.id) return;
+              if (!mounted || _positionId != pick.id || detailGen != _positionDetailGen) return;
+              final specs = ((detail['specializations'] as List?) ?? [])
+                  .map((e) => Map<String, dynamic>.from(e as Map))
+                  .where((row) => row['isActive'] != false)
+                  .toList();
               setState(() {
                 _typeLabel = '${detail['typeLabel'] ?? 'Type'}';
                 _fieldPattern = '${detail['fieldPattern'] ?? 'typeChips'}';
-                _specializationChoices = ((detail['specializations'] as List?) ?? [])
-                    .map((e) => Map<String, dynamic>.from(e as Map))
-                    .where((row) => row['isActive'] != false)
-                    .toList();
+                _specializationChoices = specs;
                 _skillChoices = ((detail['skills'] as List?) ?? [])
                     .map((e) => Map<String, dynamic>.from(e as Map))
                     .where((row) => row['isActive'] != false)
                     .toList();
+                if (specs.isNotEmpty && _specializationIds.isEmpty) {
+                  _specializationIds.add('${specs.first['id']}');
+                }
               });
             } catch (_) {
-              if (!mounted || _positionId != pick.id) return;
-              setState(() => _estimateError = 'Unable to load position details');
+              if (!mounted || _positionId != pick.id || detailGen != _positionDetailGen) return;
+              setState(() {
+                _specializationChoices = [];
+                _skillChoices = [];
+              });
+              showGxSnack(context, 'Unable to load position details', type: GxSnackType.error);
             }
           },
         ),
@@ -700,42 +719,57 @@ class _HireEmployeeScreenState extends ConsumerState<HireEmployeeScreen> {
 
   // ── hj2: skills, experience, description ────────────────────────────────
   Widget _hj2Details() {
-    final catalogue = ref.watch(_catalogueProvider).value;
+    final catalogue = ref.watch(hiringCatalogueSnapshotProvider).value;
     final qualifications = ((catalogue?['qualifications'] as List?) ?? [])
         .map((e) => Map<String, dynamic>.from(e as Map))
         .toList();
-    final visibleSkills = _skillChoices.where((skill) {
-      if (_showMoreSkills) return true;
-      return skill['tier'] != 'more';
-    }).toList();
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         _sectionTitle(_typeLabel, 'Choices come from the selected position.'),
         if (_positionId == null) const Text('Select a position first.'),
-        if (_specializationChoices.isEmpty && _positionId != null)
-          const Text('This position has no specializations.'),
-        Wrap(
-          spacing: 8,
-          runSpacing: 8,
-          children: [
-            for (final spec in _specializationChoices)
-              _chip('${spec['label']}', _specializationIds.contains(spec['id']), () {
-                final id = '${spec['id']}';
-                setState(() {
-                  if (_fieldPattern == 'specializationMulti') {
-                    _specializationIds.contains(id)
-                        ? _specializationIds.remove(id)
-                        : _specializationIds.add(id);
-                  } else {
-                    _specializationIds
-                      ..clear()
-                      ..add(id);
-                  }
-                });
-              }),
-          ],
-        ),
+        if (_positionDetailGen > 0 &&
+            _specializationChoices.isEmpty &&
+            _positionId != null &&
+            _skillChoices.isEmpty)
+          const Text('Loading position details…'),
+        if (_specializationChoices.isNotEmpty) ...[
+          Text(
+            '${_typeLabel}${_specializationIds.isNotEmpty ? ' (${_specializationIds.length} selected)' : ''}',
+            style: TextStyle(fontWeight: FontWeight.w800, color: context.gx.ink),
+          ),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              for (final spec in _specializationChoices.take(6))
+                _chip('${spec['label']}', _specializationIds.contains(spec['id']), () {
+                  final id = '${spec['id']}';
+                  setState(() {
+                    if (_specializationIds.contains(id)) {
+                      if (_specializationIds.length <= 1) return;
+                      _specializationIds.remove(id);
+                    } else {
+                      _specializationIds.add(id);
+                    }
+                  });
+                  _scheduleEstimate();
+                }),
+              for (final spec in _specializationChoices.skip(6))
+                if (_specializationIds.contains('${spec['id']}'))
+                  InputChip(
+                    label: Text('${spec['label']}'),
+                    onDeleted: () {
+                      setState(() => _specializationIds.remove('${spec['id']}'));
+                      _scheduleEstimate();
+                    },
+                  ),
+            ],
+          ),
+          if (_specializationChoices.length > 6)
+            TextButton(onPressed: _openSpecializationSheet, child: const Text('Show more')),
+        ],
         const SizedBox(height: 12),
         DropdownButtonFormField<String>(
           initialValue: _qualificationId,
@@ -755,43 +789,79 @@ class _HireEmployeeScreenState extends ConsumerState<HireEmployeeScreen> {
               ? null
               : (value) => setState(() => _qualificationRequired = value),
         ),
-        TextField(
-          controller: _expCtrl,
-          keyboardType: TextInputType.number,
-          decoration: const InputDecoration(labelText: 'Minimum experience (years)'),
-          onChanged: (_) => _scheduleEstimate(),
+        Row(
+          children: [
+            Text('Minimum experience (years)', style: TextStyle(fontWeight: FontWeight.w800, color: context.gx.ink)),
+            const Spacer(),
+            IconButton(
+              onPressed: _experienceYears > 0
+                  ? () {
+                      setState(() => _experienceYears -= 1);
+                      _expCtrl.text = '$_experienceYears';
+                      _scheduleEstimate();
+                    }
+                  : null,
+              icon: const Icon(Icons.remove),
+            ),
+            Text('$_experienceYears', style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 16)),
+            IconButton(
+              onPressed: () {
+                setState(() => _experienceYears += 1);
+                _expCtrl.text = '$_experienceYears';
+                _scheduleEstimate();
+              },
+              icon: const Icon(Icons.add),
+            ),
+          ],
         ),
         const SizedBox(height: 12),
-        Text('Skills', style: TextStyle(fontWeight: FontWeight.w800, color: context.gx.ink)),
+        Text(
+          'Skills (${_skillIds.length} selected)',
+          style: TextStyle(fontWeight: FontWeight.w800, color: context.gx.ink),
+        ),
         const SizedBox(height: 8),
-        if (_skillChoices.isEmpty) const Text('This position has no catalogue skills.'),
+        if (_skillChoices.isEmpty && _positionId != null)
+          const Text('This position has no catalogue skills yet.'),
         Wrap(
           spacing: 8,
           runSpacing: 8,
           children: [
-            for (final skill in visibleSkills)
-              _chip('${skill['label']}', _skillIds.contains(skill['id']), () {
-                final id = '${skill['id']}';
-                final label = '${skill['label']}';
-                setState(() {
-                  if (_skillIds.contains(id)) {
+            for (final id in _skillIds)
+              InputChip(
+                label: Text(_skillLabel(id)),
+                onDeleted: () {
+                  setState(() {
                     _skillIds.remove(id);
-                    _skills.remove(label);
-                  } else {
-                    _skillIds.add(id);
-                    _skills.add(label);
-                  }
-                });
-                _scheduleEstimate();
-              }),
+                    _skills.remove(_skillLabel(id));
+                  });
+                  _scheduleEstimate();
+                },
+              ),
           ],
         ),
-        if (_skillChoices.any((skill) => skill['tier'] == 'more'))
-          TextButton(
-            onPressed: () => setState(() => _showMoreSkills = !_showMoreSkills),
-            child: Text(_showMoreSkills ? 'Fewer skills' : 'More skills'),
-          ),
+        OutlinedButton.icon(
+          onPressed: _skillChoices.isEmpty ? null : _openSkillsSheet,
+          icon: const Icon(Icons.add),
+          label: const Text('+ Add skills'),
+        ),
         const SizedBox(height: 8),
+        HiringLanguageSection(
+          selectedIds: _languageIds,
+          applyEmployerDefaults: true,
+          minSelection: 1,
+          catalogRows: ((catalogue?['languages'] as List?) ?? [])
+              .map((e) => Map<String, dynamic>.from(e as Map))
+              .toList(),
+          onChanged: (ids) {
+            setState(() {
+              _languageIds
+                ..clear()
+                ..addAll(ids);
+            });
+            _scheduleEstimate();
+          },
+        ),
+        const SizedBox(height: 12),
         TextField(
           controller: _descriptionCtrl,
           maxLines: 3,
@@ -801,6 +871,192 @@ class _HireEmployeeScreenState extends ConsumerState<HireEmployeeScreen> {
           ),
         ),
       ],
+    );
+  }
+
+  String _skillLabel(String id) {
+    for (final skill in _skillChoices) {
+      if ('${skill['id']}' == id) return '${skill['label']}';
+    }
+    return id;
+  }
+
+  String _specLabel(String id) {
+    for (final spec in _specializationChoices) {
+      if ('${spec['id']}' == id) return '${spec['label']}';
+    }
+    return id;
+  }
+
+  Future<void> _openSkillsSheet() async {
+    final draftIds = {..._skillIds};
+    final qCtrl = TextEditingController();
+    var showAll = _skillSheetShowAll;
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (ctx, setSheet) {
+            final q = qCtrl.text.trim().toLowerCase();
+            var list = _skillChoices.where((skill) {
+              if (q.isNotEmpty) {
+                return '${skill['label']}'.toLowerCase().contains(q);
+              }
+              if (showAll) return true;
+              return skill['tier'] != 'more';
+            }).toList();
+            return Padding(
+              padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(ctx).bottom),
+              child: SafeArea(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              'Add skills (${draftIds.length} selected)',
+                              style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 17),
+                            ),
+                          ),
+                          IconButton(onPressed: () => Navigator.pop(ctx), icon: const Icon(Icons.close)),
+                        ],
+                      ),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      child: TextField(
+                        controller: qCtrl,
+                        decoration: const InputDecoration(hintText: 'Search skills'),
+                        onChanged: (_) => setSheet(() {}),
+                      ),
+                    ),
+                    Flexible(
+                      child: ListView(
+                        shrinkWrap: true,
+                        children: [
+                          for (final skill in list)
+                            CheckboxListTile(
+                              value: draftIds.contains('${skill['id']}'),
+                              title: Text('${skill['label']}'),
+                              subtitle: skill['tier'] == 'more' ? const Text('Additional skill') : null,
+                              onChanged: (v) {
+                                setSheet(() {
+                                  final id = '${skill['id']}';
+                                  if (v == true) {
+                                    draftIds.add(id);
+                                  } else {
+                                    draftIds.remove(id);
+                                  }
+                                });
+                              },
+                            ),
+                        ],
+                      ),
+                    ),
+                    if (_skillChoices.any((s) => s['tier'] == 'more') && q.isEmpty)
+                      TextButton(
+                        onPressed: () => setSheet(() => showAll = !showAll),
+                        child: Text(showAll ? 'Fewer skills' : 'Show more skills'),
+                      ),
+                    Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: SizedBox(
+                        width: double.infinity,
+                        child: FilledButton(
+                          onPressed: () {
+                            setState(() {
+                              _skillIds
+                                ..clear()
+                                ..addAll(draftIds);
+                              _skills
+                                ..clear()
+                                ..addAll(_skillIds.map(_skillLabel));
+                              _skillSheetShowAll = showAll;
+                            });
+                            _scheduleEstimate();
+                            Navigator.pop(ctx);
+                          },
+                          child: Text('OK (${draftIds.length} selected)'),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+    qCtrl.dispose();
+  }
+
+  Future<void> _openSpecializationSheet() async {
+    final draft = {..._specializationIds};
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (ctx, setSheet) {
+            return SafeArea(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Text(
+                      '${_typeLabel} (${draft.length} selected)',
+                      style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 17),
+                    ),
+                  ),
+                  Flexible(
+                    child: ListView(
+                      shrinkWrap: true,
+                      children: [
+                        for (final spec in _specializationChoices)
+                          CheckboxListTile(
+                            value: draft.contains('${spec['id']}'),
+                            title: Text('${spec['label']}'),
+                            onChanged: (v) {
+                              setSheet(() {
+                                final id = '${spec['id']}';
+                                if (v == true) {
+                                  draft.add(id);
+                                } else if (draft.length > 1) {
+                                  draft.remove(id);
+                                }
+                              });
+                            },
+                          ),
+                      ],
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: FilledButton(
+                      onPressed: () {
+                        setState(() {
+                          _specializationIds
+                            ..clear()
+                            ..addAll(draft);
+                        });
+                        _scheduleEstimate();
+                        Navigator.pop(ctx);
+                      },
+                      child: Text('OK (${draft.length} selected)'),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
     );
   }
 
@@ -907,24 +1163,30 @@ class _HireEmployeeScreenState extends ConsumerState<HireEmployeeScreen> {
           },
         ),
         const SizedBox(height: 8),
-        Text(
-          'Vacancies: $_vacancies',
-          style: TextStyle(fontWeight: FontWeight.w700, color: context.gx.ink),
-        ),
-        Semantics(
-          label: 'Number of vacancies',
-          slider: true,
-          child: Slider(
-            value: _vacancies.toDouble(),
-            min: 1,
-            max: 25,
-            divisions: 24,
-            label: '$_vacancies',
-            onChanged: (v) {
-              setState(() => _vacancies = v.round());
-              _scheduleEstimate();
-            },
-          ),
+        Row(
+          children: [
+            Text('Number of vacancies', style: TextStyle(fontWeight: FontWeight.w800, color: context.gx.ink)),
+            const Spacer(),
+            IconButton(
+              onPressed: _vacancies > 1
+                  ? () {
+                      setState(() => _vacancies -= 1);
+                      _scheduleEstimate();
+                    }
+                  : null,
+              icon: const Icon(Icons.remove),
+            ),
+            Text('$_vacancies', style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 16)),
+            IconButton(
+              onPressed: _vacancies < 25
+                  ? () {
+                      setState(() => _vacancies += 1);
+                      _scheduleEstimate();
+                    }
+                  : null,
+              icon: const Icon(Icons.add),
+            ),
+          ],
         ),
         if (_creditBalance > 0) ...[
           const SizedBox(height: 4),
@@ -1011,12 +1273,66 @@ class _HireEmployeeScreenState extends ConsumerState<HireEmployeeScreen> {
       return '₹$salaryMax / ${_salaryPeriod.toLowerCase()}';
     }();
     final empLabel = catalog.labelForCode(_employmentType);
+    final catalogue = ref.watch(hiringCatalogueSnapshotProvider).value;
+    final qualifications = ((catalogue?['qualifications'] as List?) ?? [])
+        .map((e) => Map<String, dynamic>.from(e as Map))
+        .toList();
+    final qualLabel = qualifications
+        .where((q) => '${q['id']}' == _qualificationId)
+        .map((q) => '${q['label']}')
+        .firstOrNull;
+    final sectorLabel = ((catalogue?['sectors'] as List?) ?? [])
+        .cast<Map>()
+        .where((s) => '${s['id']}' == _sectorId)
+        .map((s) => '${s['label']}')
+        .firstOrNull;
+    final specText = _specializationIds.map(_specLabel).join(', ');
+    final langText = _languageIds.map(HiringLanguageCatalog.labelFor).join(', ');
+    final skillsText = _skills.join(', ');
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        _sectionTitle('Review & publish', 'Confirm details and pay the Smart Hiring fee.'),
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: context.gx.card,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: context.gx.border),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Text('Job summary', style: TextStyle(fontWeight: FontWeight.w900, color: context.gx.ink)),
+                  const Spacer(),
+                  TextButton(onPressed: () => setState(() => _step = 2), child: const Text('Edit')),
+                ],
+              ),
+              const SizedBox(height: 8),
+              _summaryRow('Employment type', empLabel.isNotEmpty ? empLabel : '—'),
+              _summaryRow('Sector', sectorLabel ?? '—'),
+              _summaryRow('Position', _positionLabel ?? _resolvedJobType),
+              if (specText.isNotEmpty) _summaryRow('Types / specializations', specText),
+              if (qualLabel != null) _summaryRow('Qualification', qualLabel),
+              _summaryRow('Experience', '${exp.isEmpty ? '0' : exp}+ years'),
+              if (skillsText.isNotEmpty) _summaryRow('Skills', skillsText),
+              if (langText.isNotEmpty) _summaryRow('Languages', langText),
+              if (_descriptionCtrl.text.trim().isNotEmpty)
+                _summaryRow('Description', _descriptionCtrl.text.trim()),
+              _summaryRow('Work mode', _workMode),
+              if (location.isNotEmpty) _summaryRow('Location', location),
+              _summaryRow('Salary', '$salaryLabel${_salaryNegotiable ? ' (negotiable)' : ''}'),
+              _summaryRow('Vacancies', '$_vacancies'),
+            ],
+          ),
+        ),
+        const SizedBox(height: 20),
         _sectionTitle(
-          'Preview',
+          'Candidate preview',
           'This is what interested candidates see before they tap Interested.',
         ),
         Semantics(
@@ -1124,12 +1440,10 @@ class _HireEmployeeScreenState extends ConsumerState<HireEmployeeScreen> {
                   spacing: 6,
                   runSpacing: 6,
                   children: [
-                    if (exp.isNotEmpty && exp != '0')
-                      _previewTag('$exp+ yrs exp'),
-                    _previewTag('$_vacancies position${_vacancies > 1 ? 's' : ''}'),
-                    for (final s in _skills.take(4)) _previewTag(s),
-                    if (_skills.length > 4)
-                      _previewTag('+${_skills.length - 4} more'),
+                    if (exp.isNotEmpty && exp != '0') _previewTag('$exp+ yrs exp'),
+                    _previewTag(_workMode),
+                    _previewTag('$_vacancies vacancy${_vacancies > 1 ? 'ies' : ''}'),
+                    for (final s in _skills) _previewTag(s),
                   ],
                 ),
                 if (_descriptionCtrl.text.trim().isNotEmpty) ...[
@@ -1159,6 +1473,25 @@ class _HireEmployeeScreenState extends ConsumerState<HireEmployeeScreen> {
         const SizedBox(height: 16),
         _estimateCard(due, creditApplied),
       ],
+    );
+  }
+
+  Widget _summaryRow(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(
+            flex: 2,
+            child: Text(label, style: TextStyle(fontSize: 13, color: context.gx.ink.withValues(alpha: 0.55))),
+          ),
+          Expanded(
+            flex: 3,
+            child: Text(value, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: context.gx.ink)),
+          ),
+        ],
+      ),
     );
   }
 

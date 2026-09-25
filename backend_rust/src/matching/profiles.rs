@@ -42,6 +42,8 @@ pub(super) struct Preference {
     pub location_id: Option<String>,
     #[serde(default)]
     pub address_text: Option<String>,
+    #[serde(default)]
+    pub language_ids: Vec<String>,
 }
 
 pub(super) fn employment_type(value: Option<&str>) -> AppResult<Option<String>> {
@@ -187,17 +189,17 @@ pub(super) async fn create(
     let id = Uuid::new_v4();
     sqlx::query(r#"INSERT INTO job_preferences (id, "userId", "jobType", skills, "preferredLocation",
         "expectedSalary", "salaryNegotiable", "employmentType", "experienceYears", "noticePeriod", "expectedSalaryPeriod", "isActive", "isPaid", "paidUntil",
-        "sectorId", "positionId", "specializationIds", "skillIds", "qualificationId", "locationId", "addressText", "locationMatchStatus")
+        "sectorId", "positionId", "specializationIds", "skillIds", "qualificationId", "locationId", "addressText", "locationMatchStatus", "languageIds")
         VALUES ($1,$2,$3,$4,$5,$6,$7,$8::job_preferences_employmenttype_enum,$9,$10::job_preferences_noticeperiod_enum,$11,
         true,$12,CASE WHEN $12 THEN NOW() + INTERVAL '30 days' ELSE NULL END,
-        $13,$14,$15,$16,$17,$18,$19,CASE WHEN $18 IS NULL THEN 'UNRESOLVED' ELSE 'MAPPED' END)"#)
+        $13,$14,$15,$16,$17,$18,$19,CASE WHEN $18 IS NULL THEN 'UNRESOLVED' ELSE 'MAPPED' END,$20)"#)
         .bind(id).bind(uid).bind(&input.job_type).bind(input.skills.join(","))
         .bind(&input.preferred_location).bind(input.salary()).bind(input.salary_negotiable)
         .bind(&input.employment_type).bind(input.experience_years).bind(&input.notice_period)
         .bind(input.expected_salary_period.as_deref().unwrap_or("MONTHLY")).bind(paid)
         .bind(&input.sector_id).bind(&input.position_id).bind(input.specialization_ids.join(","))
         .bind(input.skill_ids.join(",")).bind(&input.qualification_id).bind(&input.location_id)
-        .bind(&input.address_text)
+        .bind(&input.address_text).bind(input.language_ids.join(","))
         .execute(&mut *tx).await?;
     if let Some(payment_id)=payment_id {record_receipt(&mut tx,payment_id,id).await?;}
     let row = sqlx::query(&format!(
@@ -207,6 +209,7 @@ pub(super) async fn create(
     .fetch_one(&mut *tx)
     .await?;
     tx.commit().await?;
+    let _ = crate::cache::invalidate_user_scope(&state.redis, user_id).await;
     Ok(super::pref_json(&row))
 }
 
@@ -279,6 +282,7 @@ pub(super) async fn update(
         "qualificationId",
         "locationId",
         "addressText",
+        "languageIds",
     ] {
         if !fields.contains_key(key) {
             if let Some(value) = preserved.get(key) {
@@ -306,15 +310,15 @@ pub(super) async fn update(
         "salaryNegotiable" = $5, "employmentType" = $6::job_preferences_employmenttype_enum,
         "experienceYears" = $7, "noticePeriod" = $8::job_preferences_noticeperiod_enum,
         "expectedSalaryPeriod" = $9, "sectorId"=$10, "positionId"=$11, "specializationIds"=$12,
-        "skillIds"=$13, "qualificationId"=$14, "locationId"=$15, "addressText"=$16,
+        "skillIds"=$13, "qualificationId"=$14, "locationId"=$15, "addressText"=$16, "languageIds"=$17,
         "locationMatchStatus"=CASE WHEN $15 IS NULL THEN 'UNRESOLVED' ELSE 'MAPPED' END,
-        "updatedAt" = NOW() WHERE id = $17"#)
+        "updatedAt" = NOW() WHERE id = $18"#)
         .bind(&input.job_type).bind(input.skills.join(",")).bind(&input.preferred_location).bind(input.salary())
         .bind(input.salary_negotiable).bind(&input.employment_type).bind(input.experience_years)
         .bind(&input.notice_period).bind(input.expected_salary_period.as_deref().unwrap_or("MONTHLY"))
         .bind(&input.sector_id).bind(&input.position_id).bind(input.specialization_ids.join(","))
         .bind(input.skill_ids.join(",")).bind(&input.qualification_id).bind(&input.location_id)
-        .bind(&input.address_text).bind(pid).execute(&mut *tx).await?;
+        .bind(&input.address_text).bind(input.language_ids.join(",")).bind(pid).execute(&mut *tx).await?;
     let row = sqlx::query(&format!(
         "SELECT {JOB_PREFERENCE_COLS} FROM job_preferences WHERE id = $1"
     ))
@@ -322,6 +326,7 @@ pub(super) async fn update(
     .fetch_one(&mut *tx)
     .await?;
     tx.commit().await?;
+    let _ = crate::cache::invalidate_user_scope(&state.redis, user_id).await;
     Ok(super::pref_json(&row))
 }
 

@@ -9,6 +9,7 @@ use crate::businesses;
 use crate::cities;
 use crate::favourites;
 use crate::hiring;
+use crate::master_admin;
 use crate::master_entries;
 use crate::matching;
 use crate::messages;
@@ -34,6 +35,7 @@ pub fn api_router() -> Router<AppState> {
         .nest("/billing/credits", billing::routes())
         .nest("/bookings", bookings::routes())
         .nest("/businesses", businesses::routes())
+        .nest("/cache", crate::cache::http::routes())
         .nest("/cities", cities::routes())
         .nest("/client-logs", system_logs::client_routes())
         .nest("/favourites", favourites::routes())
@@ -42,6 +44,7 @@ pub fn api_router() -> Router<AppState> {
         .nest("/hiring/catalogue", crate::hiring_catalogue::routes())
         .nest("/hiring/locations", crate::hiring_catalogue::location_routes())
         .nest("/hiring/match", matching::routes())
+        .nest("/master-admin", master_admin::routes())
         .nest("/master-entries", master_entries::routes())
         .nest("/messages", messages::routes())
         .nest("/notifications", notifications::routes())

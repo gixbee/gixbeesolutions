@@ -1,20 +1,5 @@
 # Hiring catalogue reconciliation
 
-Reviewed against both references:
-
-- 18 sectors and 324 positions are taken from the HTML catalogue, which is the structured source.
-- Makeup Artist and Mehndi Artist are shared across Events and Beauty because their skills match.
-- Ambulance Driver stays as two positions (`driving` and `healthcare`) because the skill lists differ.
-- PDF line wraps made some titles look missing (Recruiter/Talent Acquisition Executive, Health Information/Medical Records Executive, Nurse specializations). Those roles are in both documents.
-- HTML Electrician types are Domestic and Residential Wiring. The PDF collapses that to Domestic/Residential. The catalogue keeps the HTML types.
-- HTML includes Commercial Refrigeration Technician as well as Refrigerator Technician. The PDF table shows Refrigerator Technician.
-- Gig is not in the HTML employment list. The existing GIG code is kept so current profiles still load.
-- Demo prices ₹29/₹49/₹79 are not imported. Hire Employee still uses the vacancy fee (₹49 to ₹399) and hiring credit.
-
-Parser notes from the automatic compare follow. Several of those lines are PDF line-wrap artifacts, not missing roles.
-
-# Hiring catalogue reconciliation
-
 Sources:
 
 - `hire-employee-skills-master.html` (`window.GIXBEE_HIRE_CATALOG`, version `skills-hire-final-master`).
@@ -25,24 +10,139 @@ HTML ids are kept when a role appears once. A repeated label is one shared posit
 Suggested skills come from the HTML list. PDF skill wording that does not overlap is recorded below and also kept when it only exists on one side via the HTML `suggestedSkills` and `moreSkills` lists.
 Deactivating a row later does not delete profiles that already stored its id.
 
-Sectors: 18. Positions: 324. Shared positions: 2.
+Sectors: 18. Positions: 130. Shared positions: 0.
 
 ## Discrepancies
 
-- Electrical & Electronics / Electrician types differ. HTML only: ['domestic', 'residential wiring']. PDF only: ['domestic residential'].
-- Electrical & Electronics / Solar Technician types differ. HTML only: ['o m']. PDF only: ['o'].
-- Electrical & Electronics / Solar Technician suggested skills differ substantially (overlap 0%). Catalogue keeps both lists.
-- Electrical & Electronics / Generator Technician types differ. HTML only: ['generator o m']. PDF only: ['generator o'].
-- Electrical & Electronics / Generator Technician suggested skills differ substantially (overlap 0%). Catalogue keeps both lists.
-- Electrical & Electronics / Electronics Engineer types differ. HTML only: ['analog electronics', 'consumer electronics', 'industrial electronics', 'iot embedded', 'pcb design']. PDF only: ['analog'].
-- Electrical & Electronics / Instrumentation Engineer types differ. HTML only: ['calibration testing', 'control instrumentation']. PDF only: —.
-- Construction, Carpentry & Woodwork / Environmental Engineer types differ. HTML only: ['waste management']. PDF only: ['waste'].
+- PDF section 'Electrical & Electronics' does not contain HTML position 'Electrician'.
+- PDF section 'Electrical & Electronics' does not contain HTML position 'Industrial Electrician'.
+- PDF section 'Electrical & Electronics' does not contain HTML position 'Panel & Control Technician'.
+- PDF section 'Electrical & Electronics' does not contain HTML position 'PLC / Automation Technician'.
+- PDF section 'Electrical & Electronics' does not contain HTML position 'Solar Technician'.
+- PDF section 'Electrical & Electronics' does not contain HTML position 'Generator / UPS Technician'.
+- PDF section 'Electrical & Electronics' does not contain HTML position 'ELV Technician'.
+- PDF section 'Electrical & Electronics' does not contain HTML position 'Electrical Supervisor'.
+- PDF section 'Electrical & Electronics' does not contain HTML position 'Electrical Engineer'.
+- PDF section 'Electrical & Electronics' does not contain HTML position 'Electronics / Instrumentation Engineer'.
+- PDF section 'Plumbing' does not contain HTML position 'Plumber'.
+- PDF section 'Plumbing' does not contain HTML position 'Sanitary & Bathroom Specialist'.
+- PDF section 'Plumbing' does not contain HTML position 'RO / Water Treatment Technician'.
+- PDF section 'Plumbing' does not contain HTML position 'Fire Fighting Pipe Fitter'.
+- PDF section 'Plumbing' does not contain HTML position 'Drainage / Sewer Technician'.
+- PDF section 'Plumbing' does not contain HTML position 'Plumbing Supervisor / Engineer'.
+- PDF section 'Cleaning & Housekeeping' does not contain HTML position 'Cleaner'.
+- PDF section 'Cleaning & Housekeeping' does not contain HTML position 'Housekeeping Staff'.
+- PDF section 'Cleaning & Housekeeping' does not contain HTML position 'Specialist Cleaner'.
+- PDF section 'Cleaning & Housekeeping' does not contain HTML position 'Housekeeping Supervisor'.
+- PDF section 'Painting' does not contain HTML position 'Painter'.
+- PDF section 'Painting' does not contain HTML position 'Spray Painter'.
+- PDF section 'Painting' does not contain HTML position 'Painting Supervisor'.
+- PDF section 'Construction, Carpentry & Woodwork' does not contain HTML position 'Carpenter'.
+- PDF section 'Construction, Carpentry & Woodwork' does not contain HTML position 'Furniture Installer / CNC Operator'.
+- PDF section 'Construction, Carpentry & Woodwork' does not contain HTML position 'Carpenter Supervisor'.
+- PDF section 'Construction, Carpentry & Woodwork' does not contain HTML position 'Site / Construction Engineer'.
+- PDF section 'Construction, Carpentry & Woodwork' does not contain HTML position 'Civil / Structural Engineer'.
+- PDF section 'Construction, Carpentry & Woodwork' does not contain HTML position 'Architect / Interior Designer'.
+- PDF section 'Construction, Carpentry & Woodwork' does not contain HTML position 'Quantity Surveyor / Estimation Engineer'.
+- PDF section 'Construction, Carpentry & Woodwork' does not contain HTML position 'Planning / Project Engineer'.
+- PDF section 'Construction, Carpentry & Woodwork' does not contain HTML position 'Specialist Civil Engineer'.
+- PDF section 'Mechanical, HVAC & Appliances' does not contain HTML position 'AC Technician'.
+- PDF section 'Mechanical, HVAC & Appliances' does not contain HTML position 'HVAC / Refrigeration Technician'.
+- PDF section 'Mechanical, HVAC & Appliances' does not contain HTML position 'Home Appliance Technician'.
 - PDF section 'Mechanical, HVAC & Appliances' does not contain HTML position 'Commercial Refrigeration Technician'.
-- PDF section 'Office & Administration' does not contain HTML position 'Recruiter/Talent Acquisition Executive'.
-- Teaching & Education / English Teacher types differ. HTML only: ['higher secondary']. PDF only: ['higher'].
-- Healthcare / Doctor types differ. HTML only: ['anesthesiology', 'dermatology', 'emergency medicine', 'endocrinology', 'ent', 'gastroenterology', 'general surgery', 'geriatrics', 'nephrology', 'neurology', 'obstetrics gynecology', 'oncology', 'ophthalmology', 'orthopedics', 'pathology', 'pediatrics', 'psychiatry', 'pulmonology', 'radiology', 'rheumatology', 'urology']. PDF only: —.
-- Healthcare / Nurse types differ. HTML only: ['community nurse', 'dialysis nurse', 'emergency nurse', 'general nurse', 'home care nurse', 'icu nurse', 'maternity nurse', 'nicu nurse', 'ot nurse', 'pediatric nurse', 'psychiatric nurse']. PDF only: ['general staff', 'icu critical care'].
-- Healthcare / Pharmacist types differ. HTML only: ['regulatory qa']. PDF only: —.
-- PDF section 'Healthcare' does not contain HTML position 'Health Information/Medical Records Executive'.
+- PDF section 'Mechanical, HVAC & Appliances' does not contain HTML position 'Mechanical / HVAC Engineer'.
+- PDF section 'Mechanical, HVAC & Appliances' does not contain HTML position 'Manufacturing / Quality Engineer'.
+- PDF section 'Driving' does not contain HTML position 'Personal / Company Driver'.
+- PDF section 'Driving' does not contain HTML position 'Taxi / Cab Driver'.
+- PDF section 'Driving' does not contain HTML position 'Light Commercial Driver'.
+- PDF section 'Driving' does not contain HTML position 'Heavy Vehicle Driver'.
+- PDF section 'Driving' does not contain HTML position 'Bus Driver'.
+- PDF section 'Driving' does not contain HTML position 'Ambulance Driver'.
+- PDF section 'Driving' does not contain HTML position 'Driving Instructor / Valet'.
+- PDF section 'Delivery & Logistics' does not contain HTML position 'Delivery Executive'.
+- PDF section 'Delivery & Logistics' does not contain HTML position 'Warehouse Staff'.
+- PDF section 'Delivery & Logistics' does not contain HTML position 'Inventory / Logistics Assistant'.
+- PDF section 'Delivery & Logistics' does not contain HTML position 'Dispatch / Fleet Coordinator'.
+- PDF section 'Delivery & Logistics' does not contain HTML position 'Delivery Supervisor'.
+- PDF section 'Delivery & Logistics' does not contain HTML position 'Logistics Engineer'.
+- PDF section 'Cooking & Hospitality' does not contain HTML position 'Cook'.
+- PDF section 'Cooking & Hospitality' does not contain HTML position 'Chef'.
+- PDF section 'Cooking & Hospitality' does not contain HTML position 'Kitchen Helper / Steward'.
+- PDF section 'Cooking & Hospitality' does not contain HTML position 'Restaurant Service Staff'.
+- PDF section 'Cooking & Hospitality' does not contain HTML position 'Kitchen Supervisor'.
+- PDF section 'Security' does not contain HTML position 'Security Guard'.
+- PDF section 'Security' does not contain HTML position 'CCTV / Control Room Operator'.
+- PDF section 'Security' does not contain HTML position 'Security Supervisor / Manager'.
+- PDF section 'Security' does not contain HTML position 'Fire & Security Guard'.
+- PDF section 'Security' does not contain HTML position 'Security Systems Engineer'.
+- PDF section 'Security' does not contain HTML position 'Security Trainer'.
+- PDF section 'Retail & Sales' does not contain HTML position 'Retail / Showroom Sales'.
+- PDF section 'Retail & Sales' does not contain HTML position 'Field Sales Executive'.
+- PDF section 'Retail & Sales' does not contain HTML position 'Business Development Executive'.
+- PDF section 'Retail & Sales' does not contain HTML position 'Cashier / Billing Executive'.
+- PDF section 'Retail & Sales' does not contain HTML position 'Store Assistant / Manager'.
+- PDF section 'Retail & Sales' does not contain HTML position 'Merchandiser'.
+- PDF section 'Retail & Sales' does not contain HTML position 'Customer Service Executive'.
+- PDF section 'Retail & Sales' does not contain HTML position 'Technical Sales Engineer'.
+- PDF section 'Office & Administration' does not contain HTML position 'Reception / Front Office'.
+- PDF section 'Office & Administration' does not contain HTML position 'Back Office / Data Entry'.
+- PDF section 'Office & Administration' does not contain HTML position 'HR / Recruitment'.
+- PDF section 'Office & Administration' does not contain HTML position 'Accountant / Accounts Assistant'.
+- PDF section 'Office & Administration' does not contain HTML position 'Office Manager / Administrator'.
+- PDF section 'Office & Administration' does not contain HTML position 'Customer Support Executive'.
+- PDF section 'Office & Administration' does not contain HTML position 'Medical Receptionist'.
+- PDF section 'Technology & IT' does not contain HTML position 'Software Developer'.
+- PDF section 'Technology & IT' does not contain HTML position 'Mobile App Developer'.
+- PDF section 'Technology & IT' does not contain HTML position 'UI/UX / Graphic Designer'.
+- PDF section 'Technology & IT' does not contain HTML position 'IT Support / Hardware Technician'.
+- PDF section 'Technology & IT' does not contain HTML position 'Network / Systems Engineer'.
+- PDF section 'Technology & IT' does not contain HTML position 'DevOps / Cloud Engineer'.
+- PDF section 'Technology & IT' does not contain HTML position 'Database Administrator'.
+- PDF section 'Technology & IT' does not contain HTML position 'QA / Test Engineer'.
+- PDF section 'Technology & IT' does not contain HTML position 'Data Analyst / Data Engineer'.
+- PDF section 'Technology & IT' does not contain HTML position 'AI / ML Engineer'.
+- PDF section 'Technology & IT' does not contain HTML position 'Cybersecurity Specialist'.
+- PDF section 'Technology & IT' does not contain HTML position 'Digital Marketing Specialist'.
+- PDF section 'Teaching & Education' does not contain HTML position 'School Teacher'.
+- PDF section 'Teaching & Education' does not contain HTML position 'Early Childhood / Montessori Teacher'.
+- PDF section 'Teaching & Education' does not contain HTML position 'College Lecturer'.
+- PDF section 'Teaching & Education' does not contain HTML position 'Engineering / Polytechnic Faculty'.
+- PDF section 'Teaching & Education' does not contain HTML position 'ITI / Vocational Instructor'.
+- PDF section 'Teaching & Education' does not contain HTML position 'Private Tutor'.
+- PDF section 'Teaching & Education' does not contain HTML position 'Special Education Teacher'.
+- PDF section 'Teaching & Education' does not contain HTML position 'Co-curricular Teacher'.
+- PDF section 'Teaching & Education' does not contain HTML position 'Teaching Assistant'.
+- PDF section 'Teaching & Education' does not contain HTML position 'Academic Coordinator'.
+- PDF section 'Healthcare' does not contain HTML position 'Doctor'.
+- PDF section 'Healthcare' does not contain HTML position 'Nurse'.
+- PDF section 'Healthcare' does not contain HTML position 'Pharmacist / Pharmacy Staff'.
+- PDF section 'Healthcare' does not contain HTML position 'Lab & Imaging Technician'.
+- PDF section 'Healthcare' does not contain HTML position 'Allied Health Professional'.
+- PDF section 'Healthcare' does not contain HTML position 'Dental Professional'.
+- PDF section 'Healthcare' does not contain HTML position 'Care & Clinical Support'.
+- PDF section 'Healthcare' does not contain HTML position 'Healthcare Admin / Records'.
+- PDF section 'Healthcare' does not contain HTML position 'Ambulance Driver'.
+- PDF section 'Healthcare' does not contain HTML position 'Biomedical Engineer'.
+- PDF section 'Events & Wedding' does not contain HTML position 'Event / Wedding Planner'.
+- PDF section 'Events & Wedding' does not contain HTML position 'Event / Wedding Coordinator'.
+- PDF section 'Events & Wedding' does not contain HTML position 'Host / Anchor / Emcee'.
+- PDF section 'Events & Wedding' does not contain HTML position 'Photographer / Videographer'.
+- PDF section 'Events & Wedding' does not contain HTML position 'DJ / Sound / Lighting / Stage'.
+- PDF section 'Events & Wedding' does not contain HTML position 'Event Decor / Florist'.
+- PDF section 'Events & Wedding' does not contain HTML position 'Event Catering / Support Staff'.
+- PDF section 'Events & Wedding' does not contain HTML position 'Bridal / Event Artist'.
+- PDF section 'Events & Wedding' does not contain HTML position 'Event Production Engineer'.
+- PDF section 'Fitness & Wellness' does not contain HTML position 'Fitness Trainer / Coach'.
+- PDF section 'Fitness & Wellness' does not contain HTML position 'Group Fitness Instructor'.
+- PDF section 'Fitness & Wellness' does not contain HTML position 'Nutrition / Wellness Coach'.
+- PDF section 'Fitness & Wellness' does not contain HTML position 'Physique / Bodybuilding Coach'.
+- PDF section 'Fitness & Wellness' does not contain HTML position 'Gym Manager / Reception'.
+- PDF section 'Beauty & Personal Care' does not contain HTML position 'Hair Professional'.
+- PDF section 'Beauty & Personal Care' does not contain HTML position 'Beauty / Skin Therapist'.
+- PDF section 'Beauty & Personal Care' does not contain HTML position 'Nail Technician'.
+- PDF section 'Beauty & Personal Care' does not contain HTML position 'Spa / Massage Therapist'.
+- PDF section 'Beauty & Personal Care' does not contain HTML position 'Bridal / Event Makeup & Mehndi'.
+- PDF section 'Beauty & Personal Care' does not contain HTML position 'Lash / Brow Technician'.
+- PDF section 'Beauty & Personal Care' does not contain HTML position 'Salon Manager / Reception'.
 - Role 'Ambulance Driver' appears in Driving, Healthcare with different skills, so each sector keeps its own position id.
 - HTML employment types omit Gig. Kept the existing GIG code so current profiles still load.

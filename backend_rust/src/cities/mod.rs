@@ -1,5 +1,7 @@
 use axum::{
     extract::{Path, Query, State},
+    http::HeaderMap,
+    response::Response,
     routing::{delete, get, patch, post},
     Json, Router,
 };
@@ -25,18 +27,57 @@ struct ActiveQuery {
 
 async fn find_all(
     State(state): State<AppState>,
+    headers: HeaderMap,
     Query(q): Query<ActiveQuery>,
-) -> AppResult<Json<Vec<Value>>> {
-    let rows = match q.isActive.as_deref() {
-        Some("true") => sqlx::query(r#"SELECT * FROM cities WHERE "isActive" = true ORDER BY name"#)
-            .fetch_all(&state.db)
-            .await?,
-        Some("false") => sqlx::query(r#"SELECT * FROM cities WHERE "isActive" = false ORDER BY name"#)
-            .fetch_all(&state.db)
-            .await?,
-        _ => sqlx::query(r#"SELECT * FROM cities ORDER BY name"#).fetch_all(&state.db).await?,
-    };
-    Ok(Json(rows.iter().map(row_to_json).collect()))
+) -> AppResult<Response> {
+    let active_key = q.isActive.as_deref().unwrap_or("all");
+    let suffix = format!("cities:{active_key}");
+    let if_none = headers
+        .get(axum::http::header::IF_NONE_MATCH)
+        .and_then(|v| v.to_str().ok());
+    let filter = q.isActive.clone();
+    let db_state = state.clone();
+    let cached = crate::cache::read_through(
+        &state,
+        crate::cache::versions::Domain::ServiceMaster,
+        &suffix,
+        state.cache.service_master_ttl_secs,
+        None,
+        if_none,
+        || {
+            let state = db_state.clone();
+            let filter = filter.clone();
+            Box::pin(async move {
+                let rows = match filter.as_deref() {
+                    Some("true") => {
+                        sqlx::query(r#"SELECT * FROM cities WHERE "isActive" = true ORDER BY name"#)
+                            .fetch_all(&state.db)
+                            .await?
+                    }
+                    Some("false") => {
+                        sqlx::query(r#"SELECT * FROM cities WHERE "isActive" = false ORDER BY name"#)
+                            .fetch_all(&state.db)
+                            .await?
+                    }
+                    _ => sqlx::query(r#"SELECT * FROM cities ORDER BY name"#)
+                        .fetch_all(&state.db)
+                        .await?,
+                };
+                Ok(serde_json::Value::Array(
+                    rows.iter().map(row_to_json).collect(),
+                ))
+            })
+        },
+    )
+    .await?;
+    if cached.json.is_null() {
+        return Ok(crate::cache::http::not_modified(&cached.etag));
+    }
+    Ok(crate::cache::http::json_cached(
+        cached.json,
+        &cached.etag,
+        cached.outcome,
+    ))
 }
 
 async fn find_one(State(state): State<AppState>, Path(id): Path<String>) -> AppResult<Json<Value>> {
@@ -59,6 +100,7 @@ async fn create(
     let name = body.get("name").and_then(|v| v.as_str()).unwrap_or("");
     let state_name = body.get("state").and_then(|v| v.as_str()).unwrap_or("");
     let is_active = body.get("isActive").and_then(|v| v.as_bool()).unwrap_or(true);
+    let mut tx = state.db.begin().await?;
     sqlx::query(
         r#"INSERT INTO cities (id, name, state, "isActive") VALUES ($1, $2, $3, $4)"#,
     )
@@ -66,7 +108,21 @@ async fn create(
     .bind(name)
     .bind(state_name)
     .bind(is_active)
-    .execute(&state.db)
+    .execute(&mut *tx)
+    .await?;
+    master_audit::commit_with_audit(
+        tx,
+        master_audit::AuditEvent {
+            section: "serviceable_areas",
+            entity_type: "city",
+            entity_id: id.to_string(),
+            action: "create",
+            actor_user_id: user.user_id.clone(),
+            before: None,
+            after: Some(json!({"name": name, "state": state_name, "isActive": is_active})),
+        },
+        crate::cache::versions::Domain::ServiceMaster,
+    )
     .await?;
     find_one(State(state), Path(id.to_string())).await
 }
@@ -79,27 +135,42 @@ async fn update(
 ) -> AppResult<Json<Value>> {
     require_admin_page(&user, "cities")?;
     let uid = Uuid::parse_str(&id).map_err(|_| AppError::NotFound("City not found".into()))?;
+    let mut tx = state.db.begin().await?;
     if let Some(name) = body.get("name").and_then(|v| v.as_str()) {
         sqlx::query(r#"UPDATE cities SET name = $1 WHERE id = $2"#)
             .bind(name)
             .bind(uid)
-            .execute(&state.db)
+            .execute(&mut *tx)
             .await?;
     }
     if let Some(state_name) = body.get("state").and_then(|v| v.as_str()) {
         sqlx::query(r#"UPDATE cities SET state = $1 WHERE id = $2"#)
             .bind(state_name)
             .bind(uid)
-            .execute(&state.db)
+            .execute(&mut *tx)
             .await?;
     }
     if let Some(active) = body.get("isActive").and_then(|v| v.as_bool()) {
         sqlx::query(r#"UPDATE cities SET "isActive" = $1 WHERE id = $2"#)
             .bind(active)
             .bind(uid)
-            .execute(&state.db)
+            .execute(&mut *tx)
             .await?;
     }
+    master_audit::commit_with_audit(
+        tx,
+        master_audit::AuditEvent {
+            section: "serviceable_areas",
+            entity_type: "city",
+            entity_id: id.clone(),
+            action: "update",
+            actor_user_id: user.user_id.clone(),
+            before: None,
+            after: Some(body.clone()),
+        },
+        crate::cache::versions::Domain::ServiceMaster,
+    )
+    .await?;
     find_one(State(state), Path(id)).await
 }
 
@@ -110,11 +181,26 @@ async fn remove(
 ) -> AppResult<Json<Value>> {
     require_admin_page(&user, "cities")?;
     let uid = Uuid::parse_str(&id).map_err(|_| AppError::NotFound("City not found".into()))?;
-    sqlx::query(r#"DELETE FROM cities WHERE id = $1"#)
+    let mut tx = state.db.begin().await?;
+    sqlx::query(r#"UPDATE cities SET "isActive" = false, "updatedAt" = NOW() WHERE id = $1"#)
         .bind(uid)
-        .execute(&state.db)
+        .execute(&mut *tx)
         .await?;
-    Ok(Json(json!({ "message": "Deleted" })))
+    master_audit::commit_with_audit(
+        tx,
+        master_audit::AuditEvent {
+            section: "serviceable_areas",
+            entity_type: "city",
+            entity_id: id,
+            action: "deactivate",
+            actor_user_id: user.user_id.clone(),
+            before: None,
+            after: Some(json!({"isActive": false})),
+        },
+        crate::cache::versions::Domain::ServiceMaster,
+    )
+    .await?;
+    Ok(Json(json!({ "message": "Deactivated" })))
 }
 
 fn row_to_json(row: &sqlx::postgres::PgRow) -> Value {

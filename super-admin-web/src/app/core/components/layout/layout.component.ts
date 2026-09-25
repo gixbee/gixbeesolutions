@@ -111,12 +111,19 @@ export class LayoutComponent {
       ],
     },
     {
-      title: 'Catalog',
+      title: 'Master data',
       items: [
-        { page: 'master-entries', path: '/master-entries', label: 'Master Entries', icon: 'bi-list-columns-reverse' },
-        { page: 'cities', path: '/cities', label: 'Cities', icon: 'bi-geo-alt' },
         { page: 'master-entries', path: '/hiring-catalogue', label: 'Hiring catalogue', icon: 'bi-diagram-2' },
-        { page: 'businesses', path: '/rentals-flow', label: 'Rental flow', icon: 'bi-diagram-3' },
+        { page: 'master-entries', path: '/service-catalogue', label: 'Service catalogue', icon: 'bi-tools' },
+        { page: 'master-entries', path: '/location-master', label: 'Location master', icon: 'bi-map' },
+        { page: 'cities', path: '/cities', label: 'Serviceable areas', icon: 'bi-geo-alt' },
+        { page: 'master-entries', path: '/rental-catalogue', label: 'Rental catalogue', icon: 'bi-box-seam' },
+        { page: 'master-entries', path: '/event-catalogue', label: 'Event catalogue', icon: 'bi-calendar-event' },
+        { page: 'pricing-policies', path: '/pricing-policies', label: 'Pricing & policies', icon: 'bi-currency-rupee' },
+        { page: 'operational-settings', path: '/operational-settings', label: 'Operational settings', icon: 'bi-sliders' },
+        { page: 'master-entries', path: '/content-reasons', label: 'Content & reasons', icon: 'bi-chat-left-text' },
+        { page: 'master-entries', path: '/master-entries', label: 'Master entries (all)', icon: 'bi-list-columns-reverse' },
+        { page: 'businesses', path: '/rentals-flow', label: 'Rental flow (ops)', icon: 'bi-diagram-3' },
       ],
     },
     {
