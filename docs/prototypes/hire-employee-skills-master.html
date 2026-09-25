@@ -55,7 +55,8 @@
   .chips{display:flex;flex-wrap:wrap;gap:8px;margin:8px 0 14px}
   .chip{padding:8px 12px;border-radius:10px;border:1px solid #D1D5DB;background:#fff;font-size:12.5px;font-weight:700;cursor:pointer;color:#374151}
   .chip.on{background:var(--gn);border-color:var(--gn);color:#fff}
-  .chip.sel{border-color:var(--gn);color:var(--gn2);background:#F0FDF4}
+  .chip.on{display:inline-flex;align-items:center;gap:6px}
+  .chip.on .chip-x{border:0;background:none;cursor:pointer;color:#fff;font-size:14px;font-weight:800;line-height:1;padding:0 2px}
   .chip.sk{background:#EEF2FF;border-color:#C7D2FE;color:#3730A3;display:inline-flex;align-items:center;gap:6px}
   .chip.sk.on{background:var(--gn);border-color:var(--gn);color:#fff}
   .chip.sk.on button{color:#fff}
@@ -8941,6 +8942,19 @@ function ensureDefaultType(p){
     state.types = [p.types[0]];
   }
 }
+function toggleType(t){
+  const p=position(); if(!p) return;
+  if(state.types.includes(t)){
+    if(state.types.length <= 1){
+      toast('Select at least one type or specialization.');
+      return;
+    }
+    state.types=state.types.filter(x=>x!==t);
+  } else {
+    state.types=[...state.types, t];
+  }
+  renderS3();
+}
 function syncSheetOkLabels(){
   const sp = document.getElementById('spOk');
   if (sp) sp.textContent = state.specDraft.length ? `OK (${state.specDraft.length} selected)` : 'OK';
@@ -8998,15 +9012,11 @@ function renderS3(){
   document.getElementById('skillLbl').textContent = selectedCountLabel('Skills', state.skills.length);
   document.getElementById('langLbl').textContent = selectedCountLabel('Languages required', state.languages.length);
   const vis = visibleTypes(p);
-  const primary = state.types[0] || null;
-  const multi = state.types.length >= 2;
-  document.getElementById('typeChips').innerHTML = vis.map(t => {
-    const on = multi ? t === primary : state.types.includes(t);
-    const sel = !on && state.types.includes(t);
-    return `<button class="chip ${on?'on':''}${sel?' sel':''}" data-t="${t.replace(/"/g,'&quot;')}">${t}</button>`;
-  }).join('');
+  document.getElementById('typeChips').innerHTML = vis.map(t =>
+    `<button type="button" class="chip ${state.types.includes(t)?'on':''}" data-t="${t.replace(/"/g,'&quot;')}">${t}</button>`
+  ).join('');
   document.getElementById('typeExtra').innerHTML = state.types.filter(t => !vis.includes(t)).map(t =>
-    `<span class="chip sk">${t}<button type="button" data-tx="${t.replace(/"/g,'&quot;')}">×</button></span>`
+    `<span class="chip on">${t}<button type="button" class="chip-x" data-tx="${t.replace(/"/g,'&quot;')}">×</button></span>`
   ).join('');
   const more = document.getElementById('moreTypes');
   more.hidden = p.types.length <= vis.length;
@@ -9126,19 +9136,11 @@ document.getElementById('morePos').onclick = () => { state.posLimit=99; renderS2
 document.getElementById('c2').onclick = () => { show('s3'); renderS3(); };
 document.getElementById('typeChips').addEventListener('click', e => {
   const b=e.target.closest('[data-t]'); if(!b) return;
-  const t=b.getAttribute('data-t');
-  const p=position(); if(!p) return;
-  if(state.types.includes(t)) state.types=state.types.filter(x=>x!==t);
-  else state.types=[...state.types, t];
-  if(!state.types.length) ensureDefaultType(p);
-  renderS3();
+  toggleType(b.getAttribute('data-t'));
 });
 document.getElementById('typeExtra').addEventListener('click', e => {
-  const x=e.target.dataset.tx; if(!x) return;
-  const p=position();
-  state.types=state.types.filter(t=>t!==x);
-  if(p && !state.types.length) ensureDefaultType(p);
-  renderS3();
+  const x=e.target.closest('[data-tx]'); if(!x) return;
+  toggleType(x.getAttribute('data-tx'));
 });
 document.getElementById('moreTypes').onclick = openSpec;
 document.getElementById('expM').onclick = () => { state.exp=Math.max(0,state.exp-1); renderS3(); };
@@ -9158,6 +9160,11 @@ document.getElementById('skillChips').addEventListener('click', e => {
   state.skills=state.skills.filter(s=>s!==x); renderS3();
 });
 document.getElementById('c3').onclick = () => {
+  const p=position();
+  if(p?.types?.length && !state.types.length){
+    toast('Select at least one type or specialization.');
+    return;
+  }
   if(!state.languages.length){ toast('Select at least one language.'); return; }
   show('s4'); matchCount();
 };
@@ -9202,9 +9209,11 @@ document.getElementById('spList').addEventListener('change', e => {
   syncSheetOkLabels();
 });
 document.getElementById('spOk').onclick = () => {
+  if(!state.specDraft.length){
+    toast('Select at least one type or specialization.');
+    return;
+  }
   state.types=[...state.specDraft];
-  const p=position();
-  if(p && !state.types.length) ensureDefaultType(p);
   document.getElementById('specSheet').classList.remove('on');
   renderS3();
 };
