@@ -1,10 +1,11 @@
+<!-- GIXBEE SEEKER JOB PROFILE — single self-contained HTML (catalogue + app JS inlined). -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Gixbee — Job Profile (Employee demo)</title>
-<!-- Single file: catalogue + app JavaScript are embedded below. Save this .html only. -->
+<!-- SINGLE FILE: open seeker-job-profile-master.html only. Catalogue + app JavaScript are inlined below — no external .js -->
 <style>
   :root{
     --navy:#1B2559; --ink:#111827; --mut:#6B7280; --line:#E5E7EB;
@@ -200,43 +201,7 @@
       <div class="pad">
         <h2>Location &amp; Pay Expectations</h2>
         <p class="sub">Where you can work and your expected monthly pay — used for job matching.</p>
-        <div class="fld">
-          <label>Preferred work location</label>
-          <div class="loc">📍 <input id="loc" value="Kochi, Kerala"><button type="button" id="clrLoc" style="border:0;background:none;cursor:pointer">✕</button></div>
-        </div>
-        <div class="fld">
-          <label>Expected salary (₹/month)</label>
-          <input id="salExpected" type="number" value="25000" placeholder="e.g. 25000">
-        </div>
-        <div class="fld">
-          <label>Available to join</label>
-          <select id="joinAvail">
-            <option value="immediate">Immediately</option>
-            <option value="d7">Within 7 days</option>
-            <option value="d15">Within 15 days</option>
-            <option value="d30">Within 30 days</option>
-            <option value="d60">Within 60 days</option>
-            <option value="d90">Within 90 days</option>
-          </select>
-        </div>
-        <div class="fld">
-          <label>Resume (optional)</label>
-          <p class="hint">PDF or Word — live app uploads to secure storage; demo keeps small files in this browser.</p>
-          <div class="upload">
-            <div class="up-row">
-              <label class="up-btn" for="resumeFile">Upload resume</label>
-              <input type="file" id="resumeFile" accept=".pdf,.doc,.docx,application/pdf,application/msword,image/*">
-              <span class="fname" id="resumeName">No file chosen</span>
-              <button type="button" class="rm" id="resumeClear" hidden>Remove</button>
-            </div>
-          </div>
-        </div>
-        <div class="tog"><div><b>Salary negotiable</b><div class="s">You are open to discuss pay for the right role.</div></div><button class="sw on" type="button" id="neg"><i></i></button></div>
-        <div class="tog"><div><b>Open to relocate</b><div class="s">Within Kerala or nearby districts.</div></div><button class="sw" type="button" id="reloc"><i></i></button></div>
-        <div class="match">
-          <div class="pdot">💼</div>
-          <div><div class="n" id="matchN">38</div><div class="s">open roles may match this profile (demo estimate)</div></div>
-        </div>
+        <div id="s4Body"></div>
       </div>
       <div class="cta"><button class="btn" id="c4">Continue</button></div>
     </section>
@@ -3970,7 +3935,7 @@ window.GIXBEE_HIRE_CATALOG = {
 <script>
 const C = window.GIXBEE_HIRE_CATALOG;
 const STORAGE_KEY = 'GIXBEE_JOB_PROFILES';
-const SEEKER_BUILD = '2026-09-25-fix1';
+const SEEKER_BUILD = '2026-09-25-single';
 
 function el(id) {
   return document.getElementById(id);
@@ -4023,6 +3988,8 @@ const state = {
   langDraft: [],
   availableToJoin: 'immediate',
   resume: null,
+  locValue: 'Kochi, Kerala',
+  salValue: '25000',
 };
 const LANG_QUICK = ['English', 'Malayalam', 'Hindi', 'Tamil'];
 const LANGUAGE_LIST = [
@@ -4238,10 +4205,9 @@ function applyPayload(profile) {
   state.languages = profile.languages?.length ? [...profile.languages] : ['English', 'Malayalam'];
   document.getElementById('qual').value = profile.qualification || '';
   document.getElementById('desc').value = profile.bio || '';
-  document.getElementById('loc').value = profile.location || '';
-  writeExpectedSalaryValue(
-    profile.salary?.expectedMonthly ?? profile.salary?.minMonthly ?? '',
-  );
+  state.locValue = profile.location || 'Kochi, Kerala';
+  state.salValue = String(profile.salary?.expectedMonthly ?? profile.salary?.minMonthly ?? '25000');
+  writeExpectedSalaryValue(state.salValue);
   document.getElementById('profileName').value = profile.displayName || '';
   document.getElementById('neg').classList.toggle('on', state.neg);
   document.getElementById('reloc').classList.toggle('on', state.relocate);
@@ -4261,6 +4227,7 @@ function applyPayload(profile) {
     state.resume = null;
   }
   renderResumeUi();
+  renderS4();
 }
 
 function resetWizard(keepEmp) {
@@ -4280,7 +4247,8 @@ function resetWizard(keepEmp) {
   state.posLimit = 8;
   document.getElementById('qual').value = '';
   document.getElementById('desc').value = '';
-  document.getElementById('loc').value = 'Kochi, Kerala';
+  state.locValue = 'Kochi, Kerala';
+  state.salValue = '25000';
   writeExpectedSalaryValue('25000');
   document.getElementById('profileName').value = '';
   document.getElementById('posSearch').value = '';
@@ -4384,6 +4352,101 @@ function renderS3() {
     .join('');
   document.getElementById('expV').textContent = state.exp;
 }
+
+function captureS4Draft() {
+  const loc = el('loc');
+  if (loc) state.locValue = loc.value;
+  const sal = readExpectedSalaryValue();
+  if (sal !== '') state.salValue = sal;
+  const join = el('joinAvail');
+  if (join) state.availableToJoin = join.value;
+}
+
+function bindStep4Events() {
+  const body = el('s4Body');
+  if (!body || body.dataset.bound === '1') return;
+  body.dataset.bound = '1';
+  body.addEventListener('input', (e) => {
+    if (e.target.id === 'loc' || e.target.id === 'salExpected') matchCount();
+  });
+  body.addEventListener('change', (e) => {
+    if (e.target.id === 'joinAvail') state.availableToJoin = e.target.value;
+    if (e.target.id === 'resumeFile' && e.target.files && e.target.files[0]) {
+      setResumeFromFile(e.target.files[0]);
+    }
+  });
+  body.addEventListener('click', (e) => {
+    const negBtn = e.target.closest('#neg');
+    if (negBtn) {
+      state.neg = !state.neg;
+      negBtn.classList.toggle('on', state.neg);
+      return;
+    }
+    const relocBtn = e.target.closest('#reloc');
+    if (relocBtn) {
+      state.relocate = !state.relocate;
+      relocBtn.classList.toggle('on', state.relocate);
+      return;
+    }
+    if (e.target.id === 'clrLoc') {
+      const loc = el('loc');
+      if (loc) loc.value = '';
+      state.locValue = '';
+      matchCount();
+      return;
+    }
+    if (e.target.id === 'resumeClear') clearResume();
+  });
+}
+
+function renderS4() {
+  captureS4Draft();
+  const body = el('s4Body');
+  if (!body) return;
+  const locValue = escapeHtml(state.locValue || 'Kochi, Kerala');
+  const salValue = escapeHtml(String(state.salValue ?? '25000'));
+  const joinOpts = JOIN_AVAILABILITY.map(
+    (o) =>
+      `<option value="${o.code}"${state.availableToJoin === o.code ? ' selected' : ''}>${o.label}</option>`,
+  ).join('');
+  const negOn = state.neg ? ' on' : '';
+  const relocOn = state.relocate ? ' on' : '';
+  body.innerHTML = `
+        <div class="fld">
+          <label>Preferred work location</label>
+          <div class="loc">📍 <input id="loc" value="${locValue}"><button type="button" id="clrLoc" style="border:0;background:none;cursor:pointer">✕</button></div>
+        </div>
+        <div class="fld">
+          <label>Expected salary (₹/month)</label>
+          <input id="salExpected" type="number" value="${salValue}" placeholder="e.g. 25000">
+        </div>
+        <div class="fld">
+          <label>Available to join</label>
+          <select id="joinAvail">${joinOpts}</select>
+        </div>
+        <div class="fld">
+          <label>Resume (optional)</label>
+          <p class="hint">PDF or Word — live app uploads to secure storage; demo keeps small files in this browser.</p>
+          <div class="upload">
+            <div class="up-row">
+              <label class="up-btn" for="resumeFile">Upload resume</label>
+              <input type="file" id="resumeFile" accept=".pdf,.doc,.docx,application/pdf,application/msword,image/*">
+              <span class="fname" id="resumeName">No file chosen</span>
+              <button type="button" class="rm" id="resumeClear" hidden>Remove</button>
+            </div>
+          </div>
+        </div>
+        <div class="tog"><div><b>Salary negotiable</b><div class="s">You are open to discuss pay for the right role.</div></div><button class="sw${negOn}" type="button" id="neg"><i></i></button></div>
+        <div class="tog"><div><b>Open to relocate</b><div class="s">Within Kerala or nearby districts.</div></div><button class="sw${relocOn}" type="button" id="reloc"><i></i></button></div>
+        <div class="match">
+          <div class="pdot">💼</div>
+          <div><div class="n" id="matchN">38</div><div class="s">open roles may match this profile (demo estimate)</div></div>
+        </div>`;
+  bindStep4Events();
+  renderResumeUi();
+  matchCount();
+}
+
 function renderS5() {
   const s = sector();
   const p = position();
@@ -4429,9 +4492,11 @@ function renderProfiles() {
   el.innerHTML = list
     .map((pr) => {
       const when = pr.savedAt ? new Date(pr.savedAt).toLocaleString() : '';
+      const sal = pr.salary?.expectedMonthly ?? pr.salary?.minMonthly;
+      const salLine = sal ? '<br>Expected: ₹' + escapeHtml(String(sal)) + '/mo' : '';
       return `<div class="prof-card" data-id="${pr.id}">
         <b>${escapeHtml(pr.displayName || 'Untitled')}</b>
-        <div class="meta">${escapeHtml(pr.position?.label || '')} · ${escapeHtml(pr.sector?.label || '')}<br>${escapeHtml(pr.employmentType?.label || '')} · ${escapeHtml(pr.location || '')}${pr.availableToJoin?.label ? '<br>Join: ' + escapeHtml(pr.availableToJoin.label) : ''}${pr.resume?.fileName ? '<br>Resume: ' + escapeHtml(pr.resume.fileName) : ''}<br><small>Saved ${escapeHtml(when)}</small></div>
+        <div class="meta">${escapeHtml(pr.position?.label || '')} · ${escapeHtml(pr.sector?.label || '')}<br>${escapeHtml(pr.employmentType?.label || '')} · ${escapeHtml(pr.location || '')}${salLine}${pr.availableToJoin?.label ? '<br>Join: ' + escapeHtml(pr.availableToJoin.label) : ''}${pr.resume?.fileName ? '<br>Resume: ' + escapeHtml(pr.resume.fileName) : ''}<br><small>Saved ${escapeHtml(when)}</small></div>
         <div class="acts">
           <button type="button" data-open="${pr.id}">Edit</button>
           <button type="button" class="del" data-del="${pr.id}">Delete</button>
@@ -4464,8 +4529,18 @@ function persistProfile() {
   else list.push(payload);
   saveProfiles(list);
   state.editId = payload.id;
+  const sal = payload.salary?.expectedMonthly;
   document.getElementById('doneTxt').textContent =
-    'Saved “' + payload.displayName + '” · ' + payload.position.label + ' in ' + payload.sector.label + '.';
+    'Saved “' +
+    payload.displayName +
+    '” · ' +
+    payload.position.label +
+    ' in ' +
+    payload.sector.label +
+    (sal ? ' · ₹' + sal + '/mo expected' : '') +
+    (payload.availableToJoin?.label ? ' · Join: ' + payload.availableToJoin.label : '') +
+    (payload.resume?.fileName ? ' · Resume: ' + payload.resume.fileName : '') +
+    '.';
   show('s6');
 }
 
@@ -4628,38 +4703,15 @@ document.getElementById('c3').onclick = () => {
     toast('Select at least one language.');
     return;
   }
+  renderS4();
   show('s4');
-  matchCount();
-  const joinSel = document.getElementById('joinAvail');
-  if (joinSel) joinSel.value = state.availableToJoin || 'immediate';
-  renderResumeUi();
 };
-document.getElementById('neg').onclick = function () {
-  state.neg = !state.neg;
-  this.classList.toggle('on', state.neg);
-};
-document.getElementById('reloc').onclick = function () {
-  state.relocate = !state.relocate;
-  this.classList.toggle('on', state.relocate);
-};
-document.getElementById('clrLoc').onclick = () => {
-  document.getElementById('loc').value = '';
-  matchCount();
-};
-['loc', 'salExpected', 'smin', 'smax'].forEach((id) => bindInput(id, matchCount));
-document.getElementById('c4').onclick = () => {
-  state.availableToJoin = document.getElementById('joinAvail')?.value || 'immediate';
+bindClick('c4', () => {
+  captureS4Draft();
+  state.availableToJoin = el('joinAvail')?.value || state.availableToJoin || 'immediate';
   show('s5');
   renderS5();
-};
-document.getElementById('joinAvail')?.addEventListener('change', (e) => {
-  state.availableToJoin = e.target.value;
 });
-document.getElementById('resumeFile')?.addEventListener('change', (e) => {
-  const file = e.target.files?.[0];
-  if (file) setResumeFromFile(file);
-});
-document.getElementById('resumeClear')?.addEventListener('click', clearResume);
 document.getElementById('c5').onclick = () => persistProfile();
 
 document.getElementById('skMore').onclick = () => {
@@ -4724,11 +4776,7 @@ document.querySelectorAll('[data-to]').forEach((b) =>
     if (id === 's1') renderS1();
     if (id === 's2') renderS2();
     if (id === 's3') renderS3();
-    if (id === 's4') {
-      const joinSel = document.getElementById('joinAvail');
-      if (joinSel) joinSel.value = state.availableToJoin || 'immediate';
-      renderResumeUi();
-    }
+    if (id === 's4') renderS4();
     if (id === 's5') renderS5();
   }),
 );
@@ -4781,8 +4829,15 @@ function boot() {
         'Open seeker-job-profile-master.html (full file). If you edited the shell only, run: python3 docs/prototypes/_gen_seeker_profile_html.py',
       );
     }
-    renderResumeUi();
+    renderS4();
     renderS1();
+    const tag = el('buildTag');
+    if (tag) {
+      tag.textContent =
+        'Single-file demo ' +
+        SEEKER_BUILD +
+        ' — catalogue + app JS are inside this .html (no extra .js file).';
+    }
   } catch (err) {
     console.error('[Gixbee seeker profile]', err);
     toast(err.message || String(err));

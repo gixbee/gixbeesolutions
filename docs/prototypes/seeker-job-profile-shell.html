@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Gixbee — Job Profile (Employee demo)</title>
-<!-- Single file: catalogue + app JavaScript are embedded below. Save this .html only. -->
+<!-- SINGLE FILE: open seeker-job-profile-master.html only. Catalogue + app JavaScript are inlined below — no external .js -->
 <style>
   :root{
     --navy:#1B2559; --ink:#111827; --mut:#6B7280; --line:#E5E7EB;
@@ -200,43 +200,7 @@
       <div class="pad">
         <h2>Location &amp; Pay Expectations</h2>
         <p class="sub">Where you can work and your expected monthly pay — used for job matching.</p>
-        <div class="fld">
-          <label>Preferred work location</label>
-          <div class="loc">📍 <input id="loc" value="Kochi, Kerala"><button type="button" id="clrLoc" style="border:0;background:none;cursor:pointer">✕</button></div>
-        </div>
-        <div class="fld">
-          <label>Expected salary (₹/month)</label>
-          <input id="salExpected" type="number" value="25000" placeholder="e.g. 25000">
-        </div>
-        <div class="fld">
-          <label>Available to join</label>
-          <select id="joinAvail">
-            <option value="immediate">Immediately</option>
-            <option value="d7">Within 7 days</option>
-            <option value="d15">Within 15 days</option>
-            <option value="d30">Within 30 days</option>
-            <option value="d60">Within 60 days</option>
-            <option value="d90">Within 90 days</option>
-          </select>
-        </div>
-        <div class="fld">
-          <label>Resume (optional)</label>
-          <p class="hint">PDF or Word — live app uploads to secure storage; demo keeps small files in this browser.</p>
-          <div class="upload">
-            <div class="up-row">
-              <label class="up-btn" for="resumeFile">Upload resume</label>
-              <input type="file" id="resumeFile" accept=".pdf,.doc,.docx,application/pdf,application/msword,image/*">
-              <span class="fname" id="resumeName">No file chosen</span>
-              <button type="button" class="rm" id="resumeClear" hidden>Remove</button>
-            </div>
-          </div>
-        </div>
-        <div class="tog"><div><b>Salary negotiable</b><div class="s">You are open to discuss pay for the right role.</div></div><button class="sw on" type="button" id="neg"><i></i></button></div>
-        <div class="tog"><div><b>Open to relocate</b><div class="s">Within Kerala or nearby districts.</div></div><button class="sw" type="button" id="reloc"><i></i></button></div>
-        <div class="match">
-          <div class="pdot">💼</div>
-          <div><div class="n" id="matchN">38</div><div class="s">open roles may match this profile (demo estimate)</div></div>
-        </div>
+        <div id="s4Body"></div>
       </div>
       <div class="cta"><button class="btn" id="c4">Continue</button></div>
     </section>

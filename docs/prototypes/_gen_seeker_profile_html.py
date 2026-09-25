@@ -45,8 +45,19 @@ def main() -> None:
             raise SystemExit(f"Shell missing {start}/{end}")
         shell = shell[:i] + block + shell[j + len(end) :]
 
+    shell = (
+        "<!-- GIXBEE SEEKER JOB PROFILE — single self-contained HTML (catalogue + app JS inlined). -->\n"
+        + shell
+    )
     OUT_HTML.write_text(shell, encoding="utf-8")
-    print(f"Wrote {OUT_HTML.name} ({OUT_HTML.stat().st_size // 1024} KB)")
+    text = OUT_HTML.read_text(encoding="utf-8")
+    if "<script src=" in text:
+        raise SystemExit("Single-file output must not reference external script src")
+    if "function boot(" not in text or "window.GIXBEE_HIRE_CATALOG" not in text:
+        raise SystemExit("Generated HTML missing inlined catalogue or app JS")
+    if "function renderS4(" not in text:
+        raise SystemExit("Generated HTML missing step-4 JS renderer")
+    print(f"Wrote {OUT_HTML.name} ({OUT_HTML.stat().st_size // 1024} KB) — open this file only")
 
 
 if __name__ == "__main__":
