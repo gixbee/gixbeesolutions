@@ -8996,13 +8996,12 @@ function renderS3(){
   document.getElementById('skillLbl').textContent = selectedCountLabel('Skills', state.skills.length);
   document.getElementById('langLbl').textContent = selectedCountLabel('Languages required', state.languages.length);
   const vis = visibleTypes(p);
-  const primary = state.types[0] || null;
   document.getElementById('typeChips').innerHTML = vis.map(t =>
-    `<button class="chip ${t===primary?'on':''}" data-t="${t.replace(/"/g,'&quot;')}">${t}</button>`
+    `<button class="chip ${state.types.includes(t)?'on':''}" data-t="${t.replace(/"/g,'&quot;')}">${t}</button>`
   ).join('');
-  const extraTypes = state.types.filter(t => t !== primary || !vis.includes(t));
+  const extraTypes = state.types.filter(t => !vis.includes(t));
   document.getElementById('typeExtra').innerHTML = extraTypes.map(t =>
-    `<span class="chip sk ${t===primary?'on':''}">${t}<button type="button" data-tx="${t.replace(/"/g,'&quot;')}">×</button></span>`
+    `<span class="chip sk">${t}<button type="button" data-tx="${t.replace(/"/g,'&quot;')}">×</button></span>`
   ).join('');
   const more = document.getElementById('moreTypes');
   more.hidden = p.types.length <= vis.length;
