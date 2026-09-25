@@ -47,13 +47,12 @@ window.GIXBEE_HIRE_CATALOG = {
             "Testing"
           ],
           "moreSkills": [
-            "Team coordination",
-            "Customer communication",
-            "Safety compliance",
-            "Time management",
-            "Basic computer skills",
-            "Shift work",
-            "Quality inspection"
+            "Kerala wireman licence",
+            "Electrical safety (LOTO)",
+            "Megger / insulation testing",
+            "Single-line diagram reading",
+            "BIS wiring practices",
+            "Solar net-metering basics"
           ]
         },
         {
@@ -75,13 +74,12 @@ window.GIXBEE_HIRE_CATALOG = {
             "Preventive maintenance"
           ],
           "moreSkills": [
-            "Team coordination",
-            "Customer communication",
-            "Safety compliance",
-            "Time management",
-            "Basic computer skills",
-            "Shift work",
-            "Quality inspection"
+            "Kerala wireman licence",
+            "Electrical safety (LOTO)",
+            "Megger / insulation testing",
+            "Single-line diagram reading",
+            "BIS wiring practices",
+            "Solar net-metering basics"
           ]
         },
         {
@@ -104,13 +102,12 @@ window.GIXBEE_HIRE_CATALOG = {
             "Termination"
           ],
           "moreSkills": [
-            "Team coordination",
-            "Customer communication",
-            "Safety compliance",
-            "Time management",
-            "Basic computer skills",
-            "Shift work",
-            "Quality inspection"
+            "Kerala wireman licence",
+            "Electrical safety (LOTO)",
+            "Megger / insulation testing",
+            "Single-line diagram reading",
+            "BIS wiring practices",
+            "Solar net-metering basics"
           ]
         },
         {
@@ -133,13 +130,12 @@ window.GIXBEE_HIRE_CATALOG = {
             "Troubleshooting"
           ],
           "moreSkills": [
-            "Team coordination",
-            "Customer communication",
-            "Safety compliance",
-            "Time management",
-            "Basic computer skills",
-            "Shift work",
-            "Quality inspection"
+            "Kerala wireman licence",
+            "Electrical safety (LOTO)",
+            "Megger / insulation testing",
+            "Single-line diagram reading",
+            "BIS wiring practices",
+            "Solar net-metering basics"
           ]
         },
         {
@@ -161,13 +157,12 @@ window.GIXBEE_HIRE_CATALOG = {
             "Maintenance"
           ],
           "moreSkills": [
-            "Team coordination",
-            "Customer communication",
-            "Safety compliance",
-            "Time management",
-            "Basic computer skills",
-            "Shift work",
-            "Quality inspection"
+            "Kerala wireman licence",
+            "Electrical safety (LOTO)",
+            "Megger / insulation testing",
+            "Single-line diagram reading",
+            "BIS wiring practices",
+            "Solar net-metering basics"
           ]
         },
         {
@@ -188,13 +183,12 @@ window.GIXBEE_HIRE_CATALOG = {
             "Troubleshooting"
           ],
           "moreSkills": [
-            "Team coordination",
-            "Customer communication",
-            "Safety compliance",
-            "Time management",
-            "Basic computer skills",
-            "Shift work",
-            "Quality inspection"
+            "Kerala wireman licence",
+            "Electrical safety (LOTO)",
+            "Megger / insulation testing",
+            "Single-line diagram reading",
+            "BIS wiring practices",
+            "Solar net-metering basics"
           ]
         },
         {
@@ -217,13 +211,12 @@ window.GIXBEE_HIRE_CATALOG = {
             "Configuration"
           ],
           "moreSkills": [
-            "Team coordination",
-            "Customer communication",
-            "Safety compliance",
-            "Time management",
-            "Basic computer skills",
-            "Shift work",
-            "Quality inspection"
+            "Kerala wireman licence",
+            "Electrical safety (LOTO)",
+            "Megger / insulation testing",
+            "Single-line diagram reading",
+            "BIS wiring practices",
+            "Solar net-metering basics"
           ]
         },
         {
@@ -245,12 +238,12 @@ window.GIXBEE_HIRE_CATALOG = {
             "Team coordination"
           ],
           "moreSkills": [
-            "Customer communication",
-            "Safety compliance",
-            "Time management",
-            "Basic computer skills",
-            "Shift work",
-            "Quality inspection"
+            "Kerala wireman licence",
+            "Electrical safety (LOTO)",
+            "Megger / insulation testing",
+            "Single-line diagram reading",
+            "BIS wiring practices",
+            "Solar net-metering basics"
           ]
         },
         {
@@ -273,13 +266,12 @@ window.GIXBEE_HIRE_CATALOG = {
             "Commissioning"
           ],
           "moreSkills": [
-            "Team coordination",
-            "Customer communication",
-            "Safety compliance",
-            "Time management",
-            "Basic computer skills",
-            "Shift work",
-            "Quality inspection"
+            "Kerala wireman licence",
+            "Electrical safety (LOTO)",
+            "Megger / insulation testing",
+            "Single-line diagram reading",
+            "BIS wiring practices",
+            "Solar net-metering basics"
           ]
         },
         {
@@ -303,13 +295,12 @@ window.GIXBEE_HIRE_CATALOG = {
             "Troubleshooting"
           ],
           "moreSkills": [
-            "Team coordination",
-            "Customer communication",
-            "Safety compliance",
-            "Time management",
-            "Basic computer skills",
-            "Shift work",
-            "Quality inspection"
+            "Kerala wireman licence",
+            "Electrical safety (LOTO)",
+            "Megger / insulation testing",
+            "Single-line diagram reading",
+            "BIS wiring practices",
+            "Solar net-metering basics"
           ]
         }
       ]
@@ -341,13 +332,10 @@ window.GIXBEE_HIRE_CATALOG = {
             "Pressure testing"
           ],
           "moreSkills": [
-            "Team coordination",
-            "Customer communication",
-            "Safety compliance",
-            "Time management",
-            "Basic computer skills",
-            "Shift work",
-            "Quality inspection"
+            "CPVC / UPVC piping",
+            "Pump troubleshooting",
+            "Blueprint reading",
+            "Pressure testing procedures"
           ]
         },
         {
@@ -369,13 +357,10 @@ window.GIXBEE_HIRE_CATALOG = {
             "Waterproofing coordination"
           ],
           "moreSkills": [
-            "Team coordination",
-            "Customer communication",
-            "Safety compliance",
-            "Time management",
-            "Basic computer skills",
-            "Shift work",
-            "Quality inspection"
+            "CPVC / UPVC piping",
+            "Pump troubleshooting",
+            "Blueprint reading",
+            "Pressure testing procedures"
           ]
         },
         {
@@ -397,13 +382,10 @@ window.GIXBEE_HIRE_CATALOG = {
             "Water testing"
           ],
           "moreSkills": [
-            "Team coordination",
-            "Customer communication",
-            "Safety compliance",
-            "Time management",
-            "Basic computer skills",
-            "Shift work",
-            "Quality inspection"
+            "CPVC / UPVC piping",
+            "Pump troubleshooting",
+            "Blueprint reading",
+            "Pressure testing procedures"
           ]
         },
         {
@@ -424,13 +406,10 @@ window.GIXBEE_HIRE_CATALOG = {
             "Pressure testing"
           ],
           "moreSkills": [
-            "Team coordination",
-            "Customer communication",
-            "Safety compliance",
-            "Time management",
-            "Basic computer skills",
-            "Shift work",
-            "Quality inspection"
+            "CPVC / UPVC piping",
+            "Pump troubleshooting",
+            "Blueprint reading",
+            "Pressure testing procedures"
           ]
         },
         {
@@ -451,13 +430,10 @@ window.GIXBEE_HIRE_CATALOG = {
             "Blockage removal"
           ],
           "moreSkills": [
-            "Team coordination",
-            "Customer communication",
-            "Safety compliance",
-            "Time management",
-            "Basic computer skills",
-            "Shift work",
-            "Quality inspection"
+            "CPVC / UPVC piping",
+            "Pump troubleshooting",
+            "Blueprint reading",
+            "Pressure testing procedures"
           ]
         },
         {
@@ -479,13 +455,10 @@ window.GIXBEE_HIRE_CATALOG = {
             "Site coordination"
           ],
           "moreSkills": [
-            "Team coordination",
-            "Customer communication",
-            "Safety compliance",
-            "Time management",
-            "Basic computer skills",
-            "Shift work",
-            "Quality inspection"
+            "CPVC / UPVC piping",
+            "Pump troubleshooting",
+            "Blueprint reading",
+            "Pressure testing procedures"
           ]
         }
       ]
@@ -517,13 +490,10 @@ window.GIXBEE_HIRE_CATALOG = {
             "Hygiene"
           ],
           "moreSkills": [
-            "Team coordination",
-            "Customer communication",
-            "Safety compliance",
-            "Time management",
-            "Basic computer skills",
-            "Shift work",
-            "Quality inspection"
+            "Chemical handling (MSDS)",
+            "Infection-control cleaning",
+            "Equipment operation (scrubber/extractor)",
+            "Guest privacy standards"
           ]
         },
         {
@@ -547,13 +517,9 @@ window.GIXBEE_HIRE_CATALOG = {
             "Guest standards"
           ],
           "moreSkills": [
-            "Team coordination",
-            "Customer communication",
-            "Safety compliance",
-            "Time management",
-            "Basic computer skills",
-            "Shift work",
-            "Quality inspection"
+            "Chemical handling (MSDS)",
+            "Equipment operation (scrubber/extractor)",
+            "Guest privacy standards"
           ]
         },
         {
@@ -575,13 +541,10 @@ window.GIXBEE_HIRE_CATALOG = {
             "Kitchen hygiene"
           ],
           "moreSkills": [
-            "Team coordination",
-            "Customer communication",
-            "Safety compliance",
-            "Time management",
-            "Basic computer skills",
-            "Shift work",
-            "Quality inspection"
+            "Chemical handling (MSDS)",
+            "Infection-control cleaning",
+            "Equipment operation (scrubber/extractor)",
+            "Guest privacy standards"
           ]
         },
         {
@@ -602,13 +565,10 @@ window.GIXBEE_HIRE_CATALOG = {
             "Quality control"
           ],
           "moreSkills": [
-            "Team coordination",
-            "Customer communication",
-            "Safety compliance",
-            "Time management",
-            "Basic computer skills",
-            "Shift work",
-            "Quality inspection"
+            "Chemical handling (MSDS)",
+            "Infection-control cleaning",
+            "Equipment operation (scrubber/extractor)",
+            "Guest privacy standards"
           ]
         }
       ]
@@ -643,13 +603,10 @@ window.GIXBEE_HIRE_CATALOG = {
             "Crack treatment"
           ],
           "moreSkills": [
-            "Team coordination",
-            "Customer communication",
-            "Safety compliance",
-            "Time management",
-            "Basic computer skills",
-            "Shift work",
-            "Quality inspection"
+            "Putty and surface prep",
+            "Spray booth safety",
+            "Colour matching",
+            "Scaffolding safety"
           ]
         },
         {
@@ -671,13 +628,10 @@ window.GIXBEE_HIRE_CATALOG = {
             "PPE"
           ],
           "moreSkills": [
-            "Team coordination",
-            "Customer communication",
-            "Safety compliance",
-            "Time management",
-            "Basic computer skills",
-            "Shift work",
-            "Quality inspection"
+            "Putty and surface prep",
+            "Spray booth safety",
+            "Colour matching",
+            "Scaffolding safety"
           ]
         },
         {
@@ -696,12 +650,10 @@ window.GIXBEE_HIRE_CATALOG = {
             "Quality inspection"
           ],
           "moreSkills": [
-            "Team coordination",
-            "Customer communication",
-            "Safety compliance",
-            "Time management",
-            "Basic computer skills",
-            "Shift work"
+            "Putty and surface prep",
+            "Spray booth safety",
+            "Colour matching",
+            "Scaffolding safety"
           ]
         }
       ]
@@ -736,13 +688,11 @@ window.GIXBEE_HIRE_CATALOG = {
             "Installation"
           ],
           "moreSkills": [
-            "Team coordination",
-            "Customer communication",
-            "Safety compliance",
-            "Time management",
-            "Basic computer skills",
-            "Shift work",
-            "Quality inspection"
+            "AutoCAD / Revit basics",
+            "Site safety (PPE)",
+            "Measurement and marking",
+            "Formwork alignment",
+            "BOQ / quantity basics"
           ]
         },
         {
@@ -763,13 +713,11 @@ window.GIXBEE_HIRE_CATALOG = {
             "Hardware fitting"
           ],
           "moreSkills": [
-            "Team coordination",
-            "Customer communication",
-            "Safety compliance",
-            "Time management",
-            "Basic computer skills",
-            "Shift work",
-            "Quality inspection"
+            "AutoCAD / Revit basics",
+            "Site safety (PPE)",
+            "Measurement and marking",
+            "Formwork alignment",
+            "BOQ / quantity basics"
           ]
         },
         {
@@ -789,13 +737,11 @@ window.GIXBEE_HIRE_CATALOG = {
             "Material planning"
           ],
           "moreSkills": [
-            "Team coordination",
-            "Customer communication",
-            "Safety compliance",
-            "Time management",
-            "Basic computer skills",
-            "Shift work",
-            "Quality inspection"
+            "AutoCAD / Revit basics",
+            "Site safety (PPE)",
+            "Measurement and marking",
+            "Formwork alignment",
+            "BOQ / quantity basics"
           ]
         },
         {
@@ -817,13 +763,11 @@ window.GIXBEE_HIRE_CATALOG = {
             "Reporting"
           ],
           "moreSkills": [
-            "Team coordination",
-            "Customer communication",
-            "Safety compliance",
-            "Time management",
-            "Basic computer skills",
-            "Shift work",
-            "Quality inspection"
+            "AutoCAD / Revit basics",
+            "Site safety (PPE)",
+            "Measurement and marking",
+            "Formwork alignment",
+            "BOQ / quantity basics"
           ]
         },
         {
@@ -844,13 +788,11 @@ window.GIXBEE_HIRE_CATALOG = {
             "Site inspection"
           ],
           "moreSkills": [
-            "Team coordination",
-            "Customer communication",
-            "Safety compliance",
-            "Time management",
-            "Basic computer skills",
-            "Shift work",
-            "Quality inspection"
+            "AutoCAD / Revit basics",
+            "Site safety (PPE)",
+            "Measurement and marking",
+            "Formwork alignment",
+            "BOQ / quantity basics"
           ]
         },
         {
@@ -873,13 +815,11 @@ window.GIXBEE_HIRE_CATALOG = {
             "3D design"
           ],
           "moreSkills": [
-            "Team coordination",
-            "Customer communication",
-            "Safety compliance",
-            "Time management",
-            "Basic computer skills",
-            "Shift work",
-            "Quality inspection"
+            "AutoCAD / Revit basics",
+            "Site safety (PPE)",
+            "Measurement and marking",
+            "Formwork alignment",
+            "BOQ / quantity basics"
           ]
         },
         {
@@ -901,13 +841,11 @@ window.GIXBEE_HIRE_CATALOG = {
             "Cost control"
           ],
           "moreSkills": [
-            "Team coordination",
-            "Customer communication",
-            "Safety compliance",
-            "Time management",
-            "Basic computer skills",
-            "Shift work",
-            "Quality inspection"
+            "AutoCAD / Revit basics",
+            "Site safety (PPE)",
+            "Measurement and marking",
+            "Formwork alignment",
+            "BOQ / quantity basics"
           ]
         },
         {
@@ -928,13 +866,11 @@ window.GIXBEE_HIRE_CATALOG = {
             "Technical documentation"
           ],
           "moreSkills": [
-            "Team coordination",
-            "Customer communication",
-            "Safety compliance",
-            "Time management",
-            "Basic computer skills",
-            "Shift work",
-            "Quality inspection"
+            "AutoCAD / Revit basics",
+            "Site safety (PPE)",
+            "Measurement and marking",
+            "Formwork alignment",
+            "BOQ / quantity basics"
           ]
         },
         {
@@ -958,13 +894,11 @@ window.GIXBEE_HIRE_CATALOG = {
             "Hydrology"
           ],
           "moreSkills": [
-            "Team coordination",
-            "Customer communication",
-            "Safety compliance",
-            "Time management",
-            "Basic computer skills",
-            "Shift work",
-            "Quality inspection"
+            "AutoCAD / Revit basics",
+            "Site safety (PPE)",
+            "Measurement and marking",
+            "Formwork alignment",
+            "BOQ / quantity basics"
           ]
         }
       ]
@@ -997,13 +931,11 @@ window.GIXBEE_HIRE_CATALOG = {
             "Commissioning"
           ],
           "moreSkills": [
-            "Team coordination",
-            "Customer communication",
-            "Safety compliance",
-            "Time management",
-            "Basic computer skills",
-            "Shift work",
-            "Quality inspection"
+            "F-gas / refrigerant handling",
+            "Vacuum and leak testing",
+            "Copper flaring and brazing",
+            "VRF commissioning basics",
+            "Appliance PCB diagnosis"
           ]
         },
         {
@@ -1027,13 +959,11 @@ window.GIXBEE_HIRE_CATALOG = {
             "Troubleshooting"
           ],
           "moreSkills": [
-            "Team coordination",
-            "Customer communication",
-            "Safety compliance",
-            "Time management",
-            "Basic computer skills",
-            "Shift work",
-            "Quality inspection"
+            "F-gas / refrigerant handling",
+            "Vacuum and leak testing",
+            "Copper flaring and brazing",
+            "VRF commissioning basics",
+            "Appliance PCB diagnosis"
           ]
         },
         {
@@ -1058,13 +988,11 @@ window.GIXBEE_HIRE_CATALOG = {
             "Customer service"
           ],
           "moreSkills": [
-            "Team coordination",
-            "Customer communication",
-            "Safety compliance",
-            "Time management",
-            "Basic computer skills",
-            "Shift work",
-            "Quality inspection"
+            "F-gas / refrigerant handling",
+            "Vacuum and leak testing",
+            "Copper flaring and brazing",
+            "VRF commissioning basics",
+            "Appliance PCB diagnosis"
           ]
         },
         {
@@ -1085,13 +1013,11 @@ window.GIXBEE_HIRE_CATALOG = {
             "Leak testing"
           ],
           "moreSkills": [
-            "Team coordination",
-            "Customer communication",
-            "Safety compliance",
-            "Time management",
-            "Basic computer skills",
-            "Shift work",
-            "Quality inspection"
+            "F-gas / refrigerant handling",
+            "Vacuum and leak testing",
+            "Copper flaring and brazing",
+            "VRF commissioning basics",
+            "Appliance PCB diagnosis"
           ]
         },
         {
@@ -1113,13 +1039,11 @@ window.GIXBEE_HIRE_CATALOG = {
             "MEP coordination"
           ],
           "moreSkills": [
-            "Team coordination",
-            "Customer communication",
-            "Safety compliance",
-            "Time management",
-            "Basic computer skills",
-            "Shift work",
-            "Quality inspection"
+            "F-gas / refrigerant handling",
+            "Vacuum and leak testing",
+            "Copper flaring and brazing",
+            "VRF commissioning basics",
+            "Appliance PCB diagnosis"
           ]
         },
         {
@@ -1142,12 +1066,11 @@ window.GIXBEE_HIRE_CATALOG = {
             "Lean"
           ],
           "moreSkills": [
-            "Team coordination",
-            "Customer communication",
-            "Safety compliance",
-            "Time management",
-            "Basic computer skills",
-            "Shift work"
+            "F-gas / refrigerant handling",
+            "Vacuum and leak testing",
+            "Copper flaring and brazing",
+            "VRF commissioning basics",
+            "Appliance PCB diagnosis"
           ]
         }
       ]
@@ -1177,13 +1100,12 @@ window.GIXBEE_HIRE_CATALOG = {
             "Navigation"
           ],
           "moreSkills": [
-            "Team coordination",
-            "Customer communication",
-            "Safety compliance",
-            "Time management",
-            "Basic computer skills",
-            "Shift work",
-            "Quality inspection"
+            "Valid LMV driving licence",
+            "Valid HMV / heavy licence",
+            "Commercial permit / badge (if applicable)",
+            "Defensive driving",
+            "Local route knowledge",
+            "Vehicle pre-trip inspection"
           ]
         },
         {
@@ -1204,13 +1126,12 @@ window.GIXBEE_HIRE_CATALOG = {
             "Local routes"
           ],
           "moreSkills": [
-            "Team coordination",
-            "Customer communication",
-            "Safety compliance",
-            "Time management",
-            "Basic computer skills",
-            "Shift work",
-            "Quality inspection"
+            "Valid LMV driving licence",
+            "Valid HMV / heavy licence",
+            "Commercial permit / badge (if applicable)",
+            "Defensive driving",
+            "Local route knowledge",
+            "Vehicle pre-trip inspection"
           ]
         },
         {
@@ -1230,13 +1151,12 @@ window.GIXBEE_HIRE_CATALOG = {
             "Vehicle inspection"
           ],
           "moreSkills": [
-            "Team coordination",
-            "Customer communication",
-            "Safety compliance",
-            "Time management",
-            "Basic computer skills",
-            "Shift work",
-            "Quality inspection"
+            "Valid LMV driving licence",
+            "Valid HMV / heavy licence",
+            "Commercial permit / badge (if applicable)",
+            "Defensive driving",
+            "Local route knowledge",
+            "Vehicle pre-trip inspection"
           ]
         },
         {
@@ -1256,13 +1176,12 @@ window.GIXBEE_HIRE_CATALOG = {
             "Cargo safety"
           ],
           "moreSkills": [
-            "Team coordination",
-            "Customer communication",
-            "Safety compliance",
-            "Time management",
-            "Basic computer skills",
-            "Shift work",
-            "Quality inspection"
+            "Valid LMV driving licence",
+            "Valid HMV / heavy licence",
+            "Commercial permit / badge (if applicable)",
+            "Defensive driving",
+            "Local route knowledge",
+            "Vehicle pre-trip inspection"
           ]
         },
         {
@@ -1282,13 +1201,12 @@ window.GIXBEE_HIRE_CATALOG = {
             "Student safety (school)"
           ],
           "moreSkills": [
-            "Team coordination",
-            "Customer communication",
-            "Safety compliance",
-            "Time management",
-            "Basic computer skills",
-            "Shift work",
-            "Quality inspection"
+            "Valid LMV driving licence",
+            "Valid HMV / heavy licence",
+            "Commercial permit / badge (if applicable)",
+            "Defensive driving",
+            "Local route knowledge",
+            "Vehicle pre-trip inspection"
           ]
         },
         {
@@ -1307,13 +1225,12 @@ window.GIXBEE_HIRE_CATALOG = {
             "Basic response coordination"
           ],
           "moreSkills": [
-            "Team coordination",
-            "Customer communication",
-            "Safety compliance",
-            "Time management",
-            "Basic computer skills",
-            "Shift work",
-            "Quality inspection"
+            "Valid LMV driving licence",
+            "Valid HMV / heavy licence",
+            "Commercial permit / badge (if applicable)",
+            "Defensive driving",
+            "Local route knowledge",
+            "Vehicle pre-trip inspection"
           ]
         },
         {
@@ -1334,13 +1251,12 @@ window.GIXBEE_HIRE_CATALOG = {
             "Customer service"
           ],
           "moreSkills": [
-            "Team coordination",
-            "Customer communication",
-            "Safety compliance",
-            "Time management",
-            "Basic computer skills",
-            "Shift work",
-            "Quality inspection"
+            "Valid LMV driving licence",
+            "Valid HMV / heavy licence",
+            "Commercial permit / badge (if applicable)",
+            "Defensive driving",
+            "Local route knowledge",
+            "Vehicle pre-trip inspection"
           ]
         }
       ]
@@ -1373,13 +1289,11 @@ window.GIXBEE_HIRE_CATALOG = {
             "Customer service"
           ],
           "moreSkills": [
-            "Team coordination",
-            "Customer communication",
-            "Safety compliance",
-            "Time management",
-            "Basic computer skills",
-            "Shift work",
-            "Quality inspection"
+            "Valid two-wheeler licence",
+            "Valid LMV licence",
+            "GPS / map navigation apps",
+            "Cold chain handling (pharmacy/grocery)",
+            "Proof-of-delivery apps"
           ]
         },
         {
@@ -1402,13 +1316,11 @@ window.GIXBEE_HIRE_CATALOG = {
             "Order accuracy"
           ],
           "moreSkills": [
-            "Team coordination",
-            "Customer communication",
-            "Safety compliance",
-            "Time management",
-            "Basic computer skills",
-            "Shift work",
-            "Quality inspection"
+            "Valid two-wheeler licence",
+            "Valid LMV licence",
+            "GPS / map navigation apps",
+            "Cold chain handling (pharmacy/grocery)",
+            "Proof-of-delivery apps"
           ]
         },
         {
@@ -1429,13 +1341,11 @@ window.GIXBEE_HIRE_CATALOG = {
             "Tracking"
           ],
           "moreSkills": [
-            "Team coordination",
-            "Customer communication",
-            "Safety compliance",
-            "Time management",
-            "Basic computer skills",
-            "Shift work",
-            "Quality inspection"
+            "Valid two-wheeler licence",
+            "Valid LMV licence",
+            "GPS / map navigation apps",
+            "Cold chain handling (pharmacy/grocery)",
+            "Proof-of-delivery apps"
           ]
         },
         {
@@ -1456,13 +1366,11 @@ window.GIXBEE_HIRE_CATALOG = {
             "Documentation"
           ],
           "moreSkills": [
-            "Team coordination",
-            "Customer communication",
-            "Safety compliance",
-            "Time management",
-            "Basic computer skills",
-            "Shift work",
-            "Quality inspection"
+            "Valid two-wheeler licence",
+            "Valid LMV licence",
+            "GPS / map navigation apps",
+            "Cold chain handling (pharmacy/grocery)",
+            "Proof-of-delivery apps"
           ]
         },
         {
@@ -1481,13 +1389,11 @@ window.GIXBEE_HIRE_CATALOG = {
             "Performance tracking"
           ],
           "moreSkills": [
-            "Team coordination",
-            "Customer communication",
-            "Safety compliance",
-            "Time management",
-            "Basic computer skills",
-            "Shift work",
-            "Quality inspection"
+            "Valid two-wheeler licence",
+            "Valid LMV licence",
+            "GPS / map navigation apps",
+            "Cold chain handling (pharmacy/grocery)",
+            "Proof-of-delivery apps"
           ]
         },
         {
@@ -1508,13 +1414,11 @@ window.GIXBEE_HIRE_CATALOG = {
             "Systems"
           ],
           "moreSkills": [
-            "Team coordination",
-            "Customer communication",
-            "Safety compliance",
-            "Time management",
-            "Basic computer skills",
-            "Shift work",
-            "Quality inspection"
+            "Valid two-wheeler licence",
+            "Valid LMV licence",
+            "GPS / map navigation apps",
+            "Cold chain handling (pharmacy/grocery)",
+            "Proof-of-delivery apps"
           ]
         }
       ]
@@ -1547,13 +1451,11 @@ window.GIXBEE_HIRE_CATALOG = {
             "Bulk cooking (catering)"
           ],
           "moreSkills": [
-            "Team coordination",
-            "Customer communication",
-            "Safety compliance",
-            "Time management",
-            "Basic computer skills",
-            "Shift work",
-            "Quality inspection"
+            "FSSAI hygiene practices",
+            "Knife skills",
+            "Bulk quantity estimation",
+            "HACCP basics",
+            "Kitchen inventory"
           ]
         },
         {
@@ -1577,13 +1479,11 @@ window.GIXBEE_HIRE_CATALOG = {
             "Food quality"
           ],
           "moreSkills": [
-            "Team coordination",
-            "Customer communication",
-            "Safety compliance",
-            "Time management",
-            "Basic computer skills",
-            "Shift work",
-            "Quality inspection"
+            "FSSAI hygiene practices",
+            "Knife skills",
+            "Bulk quantity estimation",
+            "HACCP basics",
+            "Kitchen inventory"
           ]
         },
         {
@@ -1604,13 +1504,11 @@ window.GIXBEE_HIRE_CATALOG = {
             "Kitchen support"
           ],
           "moreSkills": [
-            "Team coordination",
-            "Customer communication",
-            "Safety compliance",
-            "Time management",
-            "Basic computer skills",
-            "Shift work",
-            "Quality inspection"
+            "FSSAI hygiene practices",
+            "Knife skills",
+            "Bulk quantity estimation",
+            "HACCP basics",
+            "Kitchen inventory"
           ]
         },
         {
@@ -1631,13 +1529,11 @@ window.GIXBEE_HIRE_CATALOG = {
             "Billing support"
           ],
           "moreSkills": [
-            "Team coordination",
-            "Customer communication",
-            "Safety compliance",
-            "Time management",
-            "Basic computer skills",
-            "Shift work",
-            "Quality inspection"
+            "FSSAI hygiene practices",
+            "Knife skills",
+            "Bulk quantity estimation",
+            "HACCP basics",
+            "Kitchen inventory"
           ]
         },
         {
@@ -1658,12 +1554,11 @@ window.GIXBEE_HIRE_CATALOG = {
             "Quality control"
           ],
           "moreSkills": [
-            "Customer communication",
-            "Safety compliance",
-            "Time management",
-            "Basic computer skills",
-            "Shift work",
-            "Quality inspection"
+            "FSSAI hygiene practices",
+            "Knife skills",
+            "Bulk quantity estimation",
+            "HACCP basics",
+            "Kitchen inventory"
           ]
         }
       ]
@@ -1696,13 +1591,11 @@ window.GIXBEE_HIRE_CATALOG = {
             "Visitor management"
           ],
           "moreSkills": [
-            "Team coordination",
-            "Customer communication",
-            "Safety compliance",
-            "Time management",
-            "Basic computer skills",
-            "Shift work",
-            "Quality inspection"
+            "PSARA / guard training certificate",
+            "Fire extinguisher use",
+            "First aid basics",
+            "Incident report writing",
+            "Access control SOP"
           ]
         },
         {
@@ -1723,13 +1616,11 @@ window.GIXBEE_HIRE_CATALOG = {
             "Logging"
           ],
           "moreSkills": [
-            "Team coordination",
-            "Customer communication",
-            "Safety compliance",
-            "Time management",
-            "Basic computer skills",
-            "Shift work",
-            "Quality inspection"
+            "PSARA / guard training certificate",
+            "Fire extinguisher use",
+            "First aid basics",
+            "Incident report writing",
+            "Access control SOP"
           ]
         },
         {
@@ -1750,13 +1641,11 @@ window.GIXBEE_HIRE_CATALOG = {
             "Reporting"
           ],
           "moreSkills": [
-            "Team coordination",
-            "Customer communication",
-            "Safety compliance",
-            "Time management",
-            "Basic computer skills",
-            "Shift work",
-            "Quality inspection"
+            "PSARA / guard training certificate",
+            "Fire extinguisher use",
+            "First aid basics",
+            "Incident report writing",
+            "Access control SOP"
           ]
         },
         {
@@ -1776,13 +1665,11 @@ window.GIXBEE_HIRE_CATALOG = {
             "Patrolling"
           ],
           "moreSkills": [
-            "Team coordination",
-            "Customer communication",
-            "Safety compliance",
-            "Time management",
-            "Basic computer skills",
-            "Shift work",
-            "Quality inspection"
+            "PSARA / guard training certificate",
+            "Fire extinguisher use",
+            "First aid basics",
+            "Incident report writing",
+            "Access control SOP"
           ]
         },
         {
@@ -1804,13 +1691,11 @@ window.GIXBEE_HIRE_CATALOG = {
             "Commissioning"
           ],
           "moreSkills": [
-            "Team coordination",
-            "Customer communication",
-            "Safety compliance",
-            "Time management",
-            "Basic computer skills",
-            "Shift work",
-            "Quality inspection"
+            "PSARA / guard training certificate",
+            "Fire extinguisher use",
+            "First aid basics",
+            "Incident report writing",
+            "Access control SOP"
           ]
         },
         {
@@ -1830,13 +1715,11 @@ window.GIXBEE_HIRE_CATALOG = {
             "SOP training"
           ],
           "moreSkills": [
-            "Team coordination",
-            "Customer communication",
-            "Safety compliance",
-            "Time management",
-            "Basic computer skills",
-            "Shift work",
-            "Quality inspection"
+            "PSARA / guard training certificate",
+            "Fire extinguisher use",
+            "First aid basics",
+            "Incident report writing",
+            "Access control SOP"
           ]
         }
       ]
@@ -1867,13 +1750,11 @@ window.GIXBEE_HIRE_CATALOG = {
             "Sales"
           ],
           "moreSkills": [
-            "Team coordination",
-            "Customer communication",
-            "Safety compliance",
-            "Time management",
-            "Basic computer skills",
-            "Shift work",
-            "Quality inspection"
+            "POS / billing software",
+            "Upselling techniques",
+            "Stock replenishment",
+            "Visual merchandising",
+            "CRM / lead tracking"
           ]
         },
         {
@@ -1894,13 +1775,11 @@ window.GIXBEE_HIRE_CATALOG = {
             "Relationship building"
           ],
           "moreSkills": [
-            "Team coordination",
-            "Customer communication",
-            "Safety compliance",
-            "Time management",
-            "Basic computer skills",
-            "Shift work",
-            "Quality inspection"
+            "POS / billing software",
+            "Upselling techniques",
+            "Stock replenishment",
+            "Visual merchandising",
+            "CRM / lead tracking"
           ]
         },
         {
@@ -1920,13 +1799,11 @@ window.GIXBEE_HIRE_CATALOG = {
             "Sales"
           ],
           "moreSkills": [
-            "Team coordination",
-            "Customer communication",
-            "Safety compliance",
-            "Time management",
-            "Basic computer skills",
-            "Shift work",
-            "Quality inspection"
+            "POS / billing software",
+            "Upselling techniques",
+            "Stock replenishment",
+            "Visual merchandising",
+            "CRM / lead tracking"
           ]
         },
         {
@@ -1947,13 +1824,11 @@ window.GIXBEE_HIRE_CATALOG = {
             "Customer service"
           ],
           "moreSkills": [
-            "Team coordination",
-            "Customer communication",
-            "Safety compliance",
-            "Time management",
-            "Basic computer skills",
-            "Shift work",
-            "Quality inspection"
+            "POS / billing software",
+            "Upselling techniques",
+            "Stock replenishment",
+            "Visual merchandising",
+            "CRM / lead tracking"
           ]
         },
         {
@@ -1974,13 +1849,11 @@ window.GIXBEE_HIRE_CATALOG = {
             "Sales operations"
           ],
           "moreSkills": [
-            "Team coordination",
-            "Customer communication",
-            "Safety compliance",
-            "Time management",
-            "Basic computer skills",
-            "Shift work",
-            "Quality inspection"
+            "POS / billing software",
+            "Upselling techniques",
+            "Stock replenishment",
+            "Visual merchandising",
+            "CRM / lead tracking"
           ]
         },
         {
@@ -2001,13 +1874,11 @@ window.GIXBEE_HIRE_CATALOG = {
             "Reporting"
           ],
           "moreSkills": [
-            "Team coordination",
-            "Customer communication",
-            "Safety compliance",
-            "Time management",
-            "Basic computer skills",
-            "Shift work",
-            "Quality inspection"
+            "POS / billing software",
+            "Upselling techniques",
+            "Stock replenishment",
+            "Visual merchandising",
+            "CRM / lead tracking"
           ]
         },
         {
@@ -2026,13 +1897,11 @@ window.GIXBEE_HIRE_CATALOG = {
             "Communication"
           ],
           "moreSkills": [
-            "Team coordination",
-            "Customer communication",
-            "Safety compliance",
-            "Time management",
-            "Basic computer skills",
-            "Shift work",
-            "Quality inspection"
+            "POS / billing software",
+            "Upselling techniques",
+            "Stock replenishment",
+            "Visual merchandising",
+            "CRM / lead tracking"
           ]
         },
         {
@@ -2053,13 +1922,11 @@ window.GIXBEE_HIRE_CATALOG = {
             "Sales"
           ],
           "moreSkills": [
-            "Team coordination",
-            "Customer communication",
-            "Safety compliance",
-            "Time management",
-            "Basic computer skills",
-            "Shift work",
-            "Quality inspection"
+            "POS / billing software",
+            "Upselling techniques",
+            "Stock replenishment",
+            "Visual merchandising",
+            "CRM / lead tracking"
           ]
         }
       ]
@@ -2089,13 +1956,11 @@ window.GIXBEE_HIRE_CATALOG = {
             "Appointments"
           ],
           "moreSkills": [
-            "Team coordination",
-            "Customer communication",
-            "Safety compliance",
-            "Time management",
-            "Basic computer skills",
-            "Shift work",
-            "Quality inspection"
+            "MS Office / Google Workspace",
+            "Email and calendar management",
+            "Tally / accounting software",
+            "Documentation and filing",
+            "Customer phone etiquette"
           ]
         },
         {
@@ -2116,13 +1981,11 @@ window.GIXBEE_HIRE_CATALOG = {
             "Back-office processing"
           ],
           "moreSkills": [
-            "Team coordination",
-            "Customer communication",
-            "Safety compliance",
-            "Time management",
-            "Basic computer skills",
-            "Shift work",
-            "Quality inspection"
+            "MS Office / Google Workspace",
+            "Email and calendar management",
+            "Tally / accounting software",
+            "Documentation and filing",
+            "Customer phone etiquette"
           ]
         },
         {
@@ -2144,13 +2007,11 @@ window.GIXBEE_HIRE_CATALOG = {
             "Screening"
           ],
           "moreSkills": [
-            "Team coordination",
-            "Customer communication",
-            "Safety compliance",
-            "Time management",
-            "Basic computer skills",
-            "Shift work",
-            "Quality inspection"
+            "MS Office / Google Workspace",
+            "Email and calendar management",
+            "Tally / accounting software",
+            "Documentation and filing",
+            "Customer phone etiquette"
           ]
         },
         {
@@ -2171,13 +2032,11 @@ window.GIXBEE_HIRE_CATALOG = {
             "Financial records"
           ],
           "moreSkills": [
-            "Team coordination",
-            "Customer communication",
-            "Safety compliance",
-            "Time management",
-            "Basic computer skills",
-            "Shift work",
-            "Quality inspection"
+            "MS Office / Google Workspace",
+            "Email and calendar management",
+            "Tally / accounting software",
+            "Documentation and filing",
+            "Customer phone etiquette"
           ]
         },
         {
@@ -2198,13 +2057,11 @@ window.GIXBEE_HIRE_CATALOG = {
             "Administration"
           ],
           "moreSkills": [
-            "Team coordination",
-            "Customer communication",
-            "Safety compliance",
-            "Time management",
-            "Basic computer skills",
-            "Shift work",
-            "Quality inspection"
+            "MS Office / Google Workspace",
+            "Email and calendar management",
+            "Tally / accounting software",
+            "Documentation and filing",
+            "Customer phone etiquette"
           ]
         },
         {
@@ -2224,13 +2081,11 @@ window.GIXBEE_HIRE_CATALOG = {
             "Customer handling"
           ],
           "moreSkills": [
-            "Team coordination",
-            "Customer communication",
-            "Safety compliance",
-            "Time management",
-            "Basic computer skills",
-            "Shift work",
-            "Quality inspection"
+            "MS Office / Google Workspace",
+            "Email and calendar management",
+            "Tally / accounting software",
+            "Documentation and filing",
+            "Customer phone etiquette"
           ]
         },
         {
@@ -2250,13 +2105,11 @@ window.GIXBEE_HIRE_CATALOG = {
             "Insurance coordination"
           ],
           "moreSkills": [
-            "Team coordination",
-            "Customer communication",
-            "Safety compliance",
-            "Time management",
-            "Basic computer skills",
-            "Shift work",
-            "Quality inspection"
+            "MS Office / Google Workspace",
+            "Email and calendar management",
+            "Tally / accounting software",
+            "Documentation and filing",
+            "Customer phone etiquette"
           ]
         }
       ]
@@ -2291,13 +2144,11 @@ window.GIXBEE_HIRE_CATALOG = {
             "Git"
           ],
           "moreSkills": [
-            "Team coordination",
-            "Customer communication",
-            "Safety compliance",
-            "Time management",
-            "Basic computer skills",
-            "Shift work",
-            "Quality inspection"
+            "Git / version control",
+            "Agile / Scrum basics",
+            "REST API design",
+            "Cloud certification (AWS/Azure)",
+            "Technical documentation"
           ]
         },
         {
@@ -2319,13 +2170,11 @@ window.GIXBEE_HIRE_CATALOG = {
             "Publishing"
           ],
           "moreSkills": [
-            "Team coordination",
-            "Customer communication",
-            "Safety compliance",
-            "Time management",
-            "Basic computer skills",
-            "Shift work",
-            "Quality inspection"
+            "Git / version control",
+            "Agile / Scrum basics",
+            "REST API design",
+            "Cloud certification (AWS/Azure)",
+            "Technical documentation"
           ]
         },
         {
@@ -2348,13 +2197,11 @@ window.GIXBEE_HIRE_CATALOG = {
             "User research"
           ],
           "moreSkills": [
-            "Team coordination",
-            "Customer communication",
-            "Safety compliance",
-            "Time management",
-            "Basic computer skills",
-            "Shift work",
-            "Quality inspection"
+            "Git / version control",
+            "Agile / Scrum basics",
+            "REST API design",
+            "Cloud certification (AWS/Azure)",
+            "Technical documentation"
           ]
         },
         {
@@ -2375,13 +2222,11 @@ window.GIXBEE_HIRE_CATALOG = {
             "User support"
           ],
           "moreSkills": [
-            "Team coordination",
-            "Customer communication",
-            "Safety compliance",
-            "Time management",
-            "Basic computer skills",
-            "Shift work",
-            "Quality inspection"
+            "Git / version control",
+            "Agile / Scrum basics",
+            "REST API design",
+            "Cloud certification (AWS/Azure)",
+            "Technical documentation"
           ]
         },
         {
@@ -2403,13 +2248,11 @@ window.GIXBEE_HIRE_CATALOG = {
             "Firewalls"
           ],
           "moreSkills": [
-            "Team coordination",
-            "Customer communication",
-            "Safety compliance",
-            "Time management",
-            "Basic computer skills",
-            "Shift work",
-            "Quality inspection"
+            "Git / version control",
+            "Agile / Scrum basics",
+            "REST API design",
+            "Cloud certification (AWS/Azure)",
+            "Technical documentation"
           ]
         },
         {
@@ -2433,13 +2276,11 @@ window.GIXBEE_HIRE_CATALOG = {
             "Containers"
           ],
           "moreSkills": [
-            "Team coordination",
-            "Customer communication",
-            "Safety compliance",
-            "Time management",
-            "Basic computer skills",
-            "Shift work",
-            "Quality inspection"
+            "Git / version control",
+            "Agile / Scrum basics",
+            "REST API design",
+            "Cloud certification (AWS/Azure)",
+            "Technical documentation"
           ]
         },
         {
@@ -2461,13 +2302,11 @@ window.GIXBEE_HIRE_CATALOG = {
             "Security"
           ],
           "moreSkills": [
-            "Team coordination",
-            "Customer communication",
-            "Safety compliance",
-            "Time management",
-            "Basic computer skills",
-            "Shift work",
-            "Quality inspection"
+            "Git / version control",
+            "Agile / Scrum basics",
+            "REST API design",
+            "Cloud certification (AWS/Azure)",
+            "Technical documentation"
           ]
         },
         {
@@ -2488,13 +2327,11 @@ window.GIXBEE_HIRE_CATALOG = {
             "Defect reporting"
           ],
           "moreSkills": [
-            "Team coordination",
-            "Customer communication",
-            "Safety compliance",
-            "Time management",
-            "Basic computer skills",
-            "Shift work",
-            "Quality inspection"
+            "Git / version control",
+            "Agile / Scrum basics",
+            "REST API design",
+            "Cloud certification (AWS/Azure)",
+            "Technical documentation"
           ]
         },
         {
@@ -2517,13 +2354,11 @@ window.GIXBEE_HIRE_CATALOG = {
             "Reporting"
           ],
           "moreSkills": [
-            "Team coordination",
-            "Customer communication",
-            "Safety compliance",
-            "Time management",
-            "Basic computer skills",
-            "Shift work",
-            "Quality inspection"
+            "Git / version control",
+            "Agile / Scrum basics",
+            "REST API design",
+            "Cloud certification (AWS/Azure)",
+            "Technical documentation"
           ]
         },
         {
@@ -2544,13 +2379,11 @@ window.GIXBEE_HIRE_CATALOG = {
             "Model deployment"
           ],
           "moreSkills": [
-            "Team coordination",
-            "Customer communication",
-            "Safety compliance",
-            "Time management",
-            "Basic computer skills",
-            "Shift work",
-            "Quality inspection"
+            "Git / version control",
+            "Agile / Scrum basics",
+            "REST API design",
+            "Cloud certification (AWS/Azure)",
+            "Technical documentation"
           ]
         },
         {
@@ -2570,13 +2403,11 @@ window.GIXBEE_HIRE_CATALOG = {
             "Vulnerability management"
           ],
           "moreSkills": [
-            "Team coordination",
-            "Customer communication",
-            "Safety compliance",
-            "Time management",
-            "Basic computer skills",
-            "Shift work",
-            "Quality inspection"
+            "Git / version control",
+            "Agile / Scrum basics",
+            "REST API design",
+            "Cloud certification (AWS/Azure)",
+            "Technical documentation"
           ]
         },
         {
@@ -2599,13 +2430,11 @@ window.GIXBEE_HIRE_CATALOG = {
             "SEO"
           ],
           "moreSkills": [
-            "Team coordination",
-            "Customer communication",
-            "Safety compliance",
-            "Time management",
-            "Basic computer skills",
-            "Shift work",
-            "Quality inspection"
+            "Git / version control",
+            "Agile / Scrum basics",
+            "REST API design",
+            "Cloud certification (AWS/Azure)",
+            "Technical documentation"
           ]
         }
       ]
@@ -2654,13 +2483,12 @@ window.GIXBEE_HIRE_CATALOG = {
             "Parent communication"
           ],
           "moreSkills": [
-            "Team coordination",
-            "Customer communication",
-            "Safety compliance",
-            "Time management",
-            "Basic computer skills",
-            "Shift work",
-            "Quality inspection"
+            "Kerala state syllabus",
+            "CBSE / ICSE experience",
+            "Smart classroom tools",
+            "Exam evaluation (SSLC/plus two)",
+            "Parent-teacher communication",
+            "Spoken English support"
           ]
         },
         {
@@ -2684,13 +2512,12 @@ window.GIXBEE_HIRE_CATALOG = {
             "Child safety"
           ],
           "moreSkills": [
-            "Team coordination",
-            "Customer communication",
-            "Safety compliance",
-            "Time management",
-            "Basic computer skills",
-            "Shift work",
-            "Quality inspection"
+            "Kerala state syllabus",
+            "CBSE / ICSE experience",
+            "Smart classroom tools",
+            "Exam evaluation (SSLC/plus two)",
+            "Parent-teacher communication",
+            "Spoken English support"
           ]
         },
         {
@@ -2730,13 +2557,12 @@ window.GIXBEE_HIRE_CATALOG = {
             "Research support"
           ],
           "moreSkills": [
-            "Team coordination",
-            "Customer communication",
-            "Safety compliance",
-            "Time management",
-            "Basic computer skills",
-            "Shift work",
-            "Quality inspection"
+            "Kerala state syllabus",
+            "CBSE / ICSE experience",
+            "Smart classroom tools",
+            "Exam evaluation (SSLC/plus two)",
+            "Parent-teacher communication",
+            "Spoken English support"
           ]
         },
         {
@@ -2765,13 +2591,12 @@ window.GIXBEE_HIRE_CATALOG = {
             "Curriculum"
           ],
           "moreSkills": [
-            "Team coordination",
-            "Customer communication",
-            "Safety compliance",
-            "Time management",
-            "Basic computer skills",
-            "Shift work",
-            "Quality inspection"
+            "Kerala state syllabus",
+            "CBSE / ICSE experience",
+            "Smart classroom tools",
+            "Exam evaluation (SSLC/plus two)",
+            "Parent-teacher communication",
+            "Spoken English support"
           ]
         },
         {
@@ -2799,13 +2624,12 @@ window.GIXBEE_HIRE_CATALOG = {
             "Tool handling"
           ],
           "moreSkills": [
-            "Team coordination",
-            "Customer communication",
-            "Safety compliance",
-            "Time management",
-            "Basic computer skills",
-            "Shift work",
-            "Quality inspection"
+            "Kerala state syllabus",
+            "CBSE / ICSE experience",
+            "Smart classroom tools",
+            "Exam evaluation (SSLC/plus two)",
+            "Parent-teacher communication",
+            "Spoken English support"
           ]
         },
         {
@@ -2845,13 +2669,12 @@ window.GIXBEE_HIRE_CATALOG = {
             "Student mentoring"
           ],
           "moreSkills": [
-            "Team coordination",
-            "Customer communication",
-            "Safety compliance",
-            "Time management",
-            "Basic computer skills",
-            "Shift work",
-            "Quality inspection"
+            "Kerala state syllabus",
+            "CBSE / ICSE experience",
+            "Smart classroom tools",
+            "Exam evaluation (SSLC/plus two)",
+            "Parent-teacher communication",
+            "Spoken English support"
           ]
         },
         {
@@ -2873,13 +2696,12 @@ window.GIXBEE_HIRE_CATALOG = {
             "Patience and empathy"
           ],
           "moreSkills": [
-            "Team coordination",
-            "Customer communication",
-            "Safety compliance",
-            "Time management",
-            "Basic computer skills",
-            "Shift work",
-            "Quality inspection"
+            "Kerala state syllabus",
+            "CBSE / ICSE experience",
+            "Smart classroom tools",
+            "Exam evaluation (SSLC/plus two)",
+            "Parent-teacher communication",
+            "Spoken English support"
           ]
         },
         {
@@ -2902,13 +2724,12 @@ window.GIXBEE_HIRE_CATALOG = {
             "Safety"
           ],
           "moreSkills": [
-            "Team coordination",
-            "Customer communication",
-            "Safety compliance",
-            "Time management",
-            "Basic computer skills",
-            "Shift work",
-            "Quality inspection"
+            "Kerala state syllabus",
+            "CBSE / ICSE experience",
+            "Smart classroom tools",
+            "Exam evaluation (SSLC/plus two)",
+            "Parent-teacher communication",
+            "Spoken English support"
           ]
         },
         {
@@ -2929,13 +2750,12 @@ window.GIXBEE_HIRE_CATALOG = {
             "Material preparation"
           ],
           "moreSkills": [
-            "Team coordination",
-            "Customer communication",
-            "Safety compliance",
-            "Time management",
-            "Basic computer skills",
-            "Shift work",
-            "Quality inspection"
+            "Kerala state syllabus",
+            "CBSE / ICSE experience",
+            "Smart classroom tools",
+            "Exam evaluation (SSLC/plus two)",
+            "Parent-teacher communication",
+            "Spoken English support"
           ]
         },
         {
@@ -2956,13 +2776,12 @@ window.GIXBEE_HIRE_CATALOG = {
             "Reporting"
           ],
           "moreSkills": [
-            "Team coordination",
-            "Customer communication",
-            "Safety compliance",
-            "Time management",
-            "Basic computer skills",
-            "Shift work",
-            "Quality inspection"
+            "Kerala state syllabus",
+            "CBSE / ICSE experience",
+            "Smart classroom tools",
+            "Exam evaluation (SSLC/plus two)",
+            "Parent-teacher communication",
+            "Spoken English support"
           ]
         }
       ]
@@ -3013,13 +2832,14 @@ window.GIXBEE_HIRE_CATALOG = {
             "Patient counseling"
           ],
           "moreSkills": [
-            "Team coordination",
-            "Customer communication",
-            "Safety compliance",
-            "Time management",
-            "Basic computer skills",
-            "Shift work",
-            "Quality inspection"
+            "Kerala nursing council registration",
+            "Medical council registration (doctors)",
+            "Pharmacy council registration",
+            "BLS certification",
+            "ACLS (where applicable)",
+            "Infection control bundle",
+            "NABH awareness",
+            "Medical coding (ICD)"
           ]
         },
         {
@@ -3049,13 +2869,14 @@ window.GIXBEE_HIRE_CATALOG = {
             "BLS"
           ],
           "moreSkills": [
-            "Team coordination",
-            "Customer communication",
-            "Safety compliance",
-            "Time management",
-            "Basic computer skills",
-            "Shift work",
-            "Quality inspection"
+            "Kerala nursing council registration",
+            "Medical council registration (doctors)",
+            "Pharmacy council registration",
+            "BLS certification",
+            "ACLS (where applicable)",
+            "Infection control bundle",
+            "NABH awareness",
+            "Medical coding (ICD)"
           ]
         },
         {
@@ -3077,13 +2898,14 @@ window.GIXBEE_HIRE_CATALOG = {
             "Documentation"
           ],
           "moreSkills": [
-            "Team coordination",
-            "Customer communication",
-            "Safety compliance",
-            "Time management",
-            "Basic computer skills",
-            "Shift work",
-            "Quality inspection"
+            "Kerala nursing council registration",
+            "Medical council registration (doctors)",
+            "Pharmacy council registration",
+            "BLS certification",
+            "ACLS (where applicable)",
+            "Infection control bundle",
+            "NABH awareness",
+            "Medical coding (ICD)"
           ]
         },
         {
@@ -3112,13 +2934,14 @@ window.GIXBEE_HIRE_CATALOG = {
             "Sterilization"
           ],
           "moreSkills": [
-            "Team coordination",
-            "Customer communication",
-            "Safety compliance",
-            "Time management",
-            "Basic computer skills",
-            "Shift work",
-            "Quality inspection"
+            "Kerala nursing council registration",
+            "Medical council registration (doctors)",
+            "Pharmacy council registration",
+            "BLS certification",
+            "ACLS (where applicable)",
+            "Infection control bundle",
+            "NABH awareness",
+            "Medical coding (ICD)"
           ]
         },
         {
@@ -3144,13 +2967,14 @@ window.GIXBEE_HIRE_CATALOG = {
             "Patient education"
           ],
           "moreSkills": [
-            "Team coordination",
-            "Customer communication",
-            "Safety compliance",
-            "Time management",
-            "Basic computer skills",
-            "Shift work",
-            "Quality inspection"
+            "Kerala nursing council registration",
+            "Medical council registration (doctors)",
+            "Pharmacy council registration",
+            "BLS certification",
+            "ACLS (where applicable)",
+            "Infection control bundle",
+            "NABH awareness",
+            "Medical coding (ICD)"
           ]
         },
         {
@@ -3171,13 +2995,14 @@ window.GIXBEE_HIRE_CATALOG = {
             "Patient care"
           ],
           "moreSkills": [
-            "Team coordination",
-            "Customer communication",
-            "Safety compliance",
-            "Time management",
-            "Basic computer skills",
-            "Shift work",
-            "Quality inspection"
+            "Kerala nursing council registration",
+            "Medical council registration (doctors)",
+            "Pharmacy council registration",
+            "BLS certification",
+            "ACLS (where applicable)",
+            "Infection control bundle",
+            "NABH awareness",
+            "Medical coding (ICD)"
           ]
         },
         {
@@ -3200,13 +3025,14 @@ window.GIXBEE_HIRE_CATALOG = {
             "Ward assistance"
           ],
           "moreSkills": [
-            "Team coordination",
-            "Customer communication",
-            "Safety compliance",
-            "Time management",
-            "Basic computer skills",
-            "Shift work",
-            "Quality inspection"
+            "Kerala nursing council registration",
+            "Medical council registration (doctors)",
+            "Pharmacy council registration",
+            "BLS certification",
+            "ACLS (where applicable)",
+            "Infection control bundle",
+            "NABH awareness",
+            "Medical coding (ICD)"
           ]
         },
         {
@@ -3229,13 +3055,14 @@ window.GIXBEE_HIRE_CATALOG = {
             "Appointments"
           ],
           "moreSkills": [
-            "Team coordination",
-            "Customer communication",
-            "Safety compliance",
-            "Time management",
-            "Basic computer skills",
-            "Shift work",
-            "Quality inspection"
+            "Kerala nursing council registration",
+            "Medical council registration (doctors)",
+            "Pharmacy council registration",
+            "BLS certification",
+            "ACLS (where applicable)",
+            "Infection control bundle",
+            "NABH awareness",
+            "Medical coding (ICD)"
           ]
         },
         {
@@ -3254,13 +3081,14 @@ window.GIXBEE_HIRE_CATALOG = {
             "Vehicle safety"
           ],
           "moreSkills": [
-            "Team coordination",
-            "Customer communication",
-            "Safety compliance",
-            "Time management",
-            "Basic computer skills",
-            "Shift work",
-            "Quality inspection"
+            "Kerala nursing council registration",
+            "Medical council registration (doctors)",
+            "Pharmacy council registration",
+            "BLS certification",
+            "ACLS (where applicable)",
+            "Infection control bundle",
+            "NABH awareness",
+            "Medical coding (ICD)"
           ]
         },
         {
@@ -3280,13 +3108,14 @@ window.GIXBEE_HIRE_CATALOG = {
             "Compliance"
           ],
           "moreSkills": [
-            "Team coordination",
-            "Customer communication",
-            "Safety compliance",
-            "Time management",
-            "Basic computer skills",
-            "Shift work",
-            "Quality inspection"
+            "Kerala nursing council registration",
+            "Medical council registration (doctors)",
+            "Pharmacy council registration",
+            "BLS certification",
+            "ACLS (where applicable)",
+            "Infection control bundle",
+            "NABH awareness",
+            "Medical coding (ICD)"
           ]
         }
       ]
@@ -3316,13 +3145,9 @@ window.GIXBEE_HIRE_CATALOG = {
             "Timeline"
           ],
           "moreSkills": [
-            "Team coordination",
-            "Customer communication",
-            "Safety compliance",
-            "Time management",
-            "Basic computer skills",
-            "Shift work",
-            "Quality inspection"
+            "Timeline / run-sheet planning",
+            "Stage safety",
+            "Client briefing"
           ]
         },
         {
@@ -3341,13 +3166,10 @@ window.GIXBEE_HIRE_CATALOG = {
             "Guest coordination"
           ],
           "moreSkills": [
-            "Team coordination",
-            "Customer communication",
-            "Safety compliance",
-            "Time management",
-            "Basic computer skills",
-            "Shift work",
-            "Quality inspection"
+            "Vendor coordination",
+            "Timeline / run-sheet planning",
+            "Stage safety",
+            "Client briefing"
           ]
         },
         {
@@ -3367,13 +3189,10 @@ window.GIXBEE_HIRE_CATALOG = {
             "Audience engagement"
           ],
           "moreSkills": [
-            "Team coordination",
-            "Customer communication",
-            "Safety compliance",
-            "Time management",
-            "Basic computer skills",
-            "Shift work",
-            "Quality inspection"
+            "Vendor coordination",
+            "Timeline / run-sheet planning",
+            "Stage safety",
+            "Client briefing"
           ]
         },
         {
@@ -3395,13 +3214,10 @@ window.GIXBEE_HIRE_CATALOG = {
             "Editing"
           ],
           "moreSkills": [
-            "Team coordination",
-            "Customer communication",
-            "Safety compliance",
-            "Time management",
-            "Basic computer skills",
-            "Shift work",
-            "Quality inspection"
+            "Vendor coordination",
+            "Timeline / run-sheet planning",
+            "Stage safety",
+            "Client briefing"
           ]
         },
         {
@@ -3423,13 +3239,10 @@ window.GIXBEE_HIRE_CATALOG = {
             "Troubleshooting"
           ],
           "moreSkills": [
-            "Team coordination",
-            "Customer communication",
-            "Safety compliance",
-            "Time management",
-            "Basic computer skills",
-            "Shift work",
-            "Quality inspection"
+            "Vendor coordination",
+            "Timeline / run-sheet planning",
+            "Stage safety",
+            "Client briefing"
           ]
         },
         {
@@ -3450,13 +3263,10 @@ window.GIXBEE_HIRE_CATALOG = {
             "Design"
           ],
           "moreSkills": [
-            "Team coordination",
-            "Customer communication",
-            "Safety compliance",
-            "Time management",
-            "Basic computer skills",
-            "Shift work",
-            "Quality inspection"
+            "Vendor coordination",
+            "Timeline / run-sheet planning",
+            "Stage safety",
+            "Client briefing"
           ]
         },
         {
@@ -3477,13 +3287,10 @@ window.GIXBEE_HIRE_CATALOG = {
             "Material handling"
           ],
           "moreSkills": [
-            "Team coordination",
-            "Customer communication",
-            "Safety compliance",
-            "Time management",
-            "Basic computer skills",
-            "Shift work",
-            "Quality inspection"
+            "Vendor coordination",
+            "Timeline / run-sheet planning",
+            "Stage safety",
+            "Client briefing"
           ]
         },
         {
@@ -3504,13 +3311,10 @@ window.GIXBEE_HIRE_CATALOG = {
             "Styling"
           ],
           "moreSkills": [
-            "Team coordination",
-            "Customer communication",
-            "Safety compliance",
-            "Time management",
-            "Basic computer skills",
-            "Shift work",
-            "Quality inspection"
+            "Vendor coordination",
+            "Timeline / run-sheet planning",
+            "Stage safety",
+            "Client briefing"
           ]
         },
         {
@@ -3531,13 +3335,10 @@ window.GIXBEE_HIRE_CATALOG = {
             "Troubleshooting"
           ],
           "moreSkills": [
-            "Team coordination",
-            "Customer communication",
-            "Safety compliance",
-            "Time management",
-            "Basic computer skills",
-            "Shift work",
-            "Quality inspection"
+            "Vendor coordination",
+            "Timeline / run-sheet planning",
+            "Stage safety",
+            "Client briefing"
           ]
         }
       ]
@@ -3568,13 +3369,10 @@ window.GIXBEE_HIRE_CATALOG = {
             "Progress tracking"
           ],
           "moreSkills": [
-            "Team coordination",
-            "Customer communication",
-            "Safety compliance",
-            "Time management",
-            "Basic computer skills",
-            "Shift work",
-            "Quality inspection"
+            "CPR / first aid",
+            "Fitness assessment",
+            "Injury prevention",
+            "Gym equipment maintenance basics"
           ]
         },
         {
@@ -3596,13 +3394,10 @@ window.GIXBEE_HIRE_CATALOG = {
             "Safety"
           ],
           "moreSkills": [
-            "Team coordination",
-            "Customer communication",
-            "Safety compliance",
-            "Time management",
-            "Basic computer skills",
-            "Shift work",
-            "Quality inspection"
+            "CPR / first aid",
+            "Fitness assessment",
+            "Injury prevention",
+            "Gym equipment maintenance basics"
           ]
         },
         {
@@ -3622,13 +3417,10 @@ window.GIXBEE_HIRE_CATALOG = {
             "Meal planning"
           ],
           "moreSkills": [
-            "Team coordination",
-            "Customer communication",
-            "Safety compliance",
-            "Time management",
-            "Basic computer skills",
-            "Shift work",
-            "Quality inspection"
+            "CPR / first aid",
+            "Fitness assessment",
+            "Injury prevention",
+            "Gym equipment maintenance basics"
           ]
         },
         {
@@ -3647,13 +3439,10 @@ window.GIXBEE_HIRE_CATALOG = {
             "Progress tracking"
           ],
           "moreSkills": [
-            "Team coordination",
-            "Customer communication",
-            "Safety compliance",
-            "Time management",
-            "Basic computer skills",
-            "Shift work",
-            "Quality inspection"
+            "CPR / first aid",
+            "Fitness assessment",
+            "Injury prevention",
+            "Gym equipment maintenance basics"
           ]
         },
         {
@@ -3674,13 +3463,10 @@ window.GIXBEE_HIRE_CATALOG = {
             "Member services"
           ],
           "moreSkills": [
-            "Team coordination",
-            "Customer communication",
-            "Safety compliance",
-            "Time management",
-            "Basic computer skills",
-            "Shift work",
-            "Quality inspection"
+            "CPR / first aid",
+            "Fitness assessment",
+            "Injury prevention",
+            "Gym equipment maintenance basics"
           ]
         }
       ]
@@ -3712,13 +3498,10 @@ window.GIXBEE_HIRE_CATALOG = {
             "Client consultation"
           ],
           "moreSkills": [
-            "Team coordination",
-            "Customer communication",
-            "Safety compliance",
-            "Time management",
-            "Basic computer skills",
-            "Shift work",
-            "Quality inspection"
+            "Salon hygiene and sterilization",
+            "Skin type consultation",
+            "Product allergy patch test",
+            "Bridal trial consultation"
           ]
         },
         {
@@ -3741,13 +3524,10 @@ window.GIXBEE_HIRE_CATALOG = {
             "Consultation"
           ],
           "moreSkills": [
-            "Team coordination",
-            "Customer communication",
-            "Safety compliance",
-            "Time management",
-            "Basic computer skills",
-            "Shift work",
-            "Quality inspection"
+            "Salon hygiene and sterilization",
+            "Skin type consultation",
+            "Product allergy patch test",
+            "Bridal trial consultation"
           ]
         },
         {
@@ -3769,13 +3549,10 @@ window.GIXBEE_HIRE_CATALOG = {
             "Client service"
           ],
           "moreSkills": [
-            "Team coordination",
-            "Customer communication",
-            "Safety compliance",
-            "Time management",
-            "Basic computer skills",
-            "Shift work",
-            "Quality inspection"
+            "Salon hygiene and sterilization",
+            "Skin type consultation",
+            "Product allergy patch test",
+            "Bridal trial consultation"
           ]
         },
         {
@@ -3796,13 +3573,10 @@ window.GIXBEE_HIRE_CATALOG = {
             "Hygiene"
           ],
           "moreSkills": [
-            "Team coordination",
-            "Customer communication",
-            "Safety compliance",
-            "Time management",
-            "Basic computer skills",
-            "Shift work",
-            "Quality inspection"
+            "Salon hygiene and sterilization",
+            "Skin type consultation",
+            "Product allergy patch test",
+            "Bridal trial consultation"
           ]
         },
         {
@@ -3822,13 +3596,10 @@ window.GIXBEE_HIRE_CATALOG = {
             "Bridal styling"
           ],
           "moreSkills": [
-            "Team coordination",
-            "Customer communication",
-            "Safety compliance",
-            "Time management",
-            "Basic computer skills",
-            "Shift work",
-            "Quality inspection"
+            "Salon hygiene and sterilization",
+            "Skin type consultation",
+            "Product allergy patch test",
+            "Bridal trial consultation"
           ]
         },
         {
@@ -3848,13 +3619,10 @@ window.GIXBEE_HIRE_CATALOG = {
             "Hygiene"
           ],
           "moreSkills": [
-            "Team coordination",
-            "Customer communication",
-            "Safety compliance",
-            "Time management",
-            "Basic computer skills",
-            "Shift work",
-            "Quality inspection"
+            "Salon hygiene and sterilization",
+            "Skin type consultation",
+            "Product allergy patch test",
+            "Bridal trial consultation"
           ]
         },
         {
@@ -3874,13 +3642,10 @@ window.GIXBEE_HIRE_CATALOG = {
             "Customer service"
           ],
           "moreSkills": [
-            "Team coordination",
-            "Customer communication",
-            "Safety compliance",
-            "Time management",
-            "Basic computer skills",
-            "Shift work",
-            "Quality inspection"
+            "Salon hygiene and sterilization",
+            "Skin type consultation",
+            "Product allergy patch test",
+            "Bridal trial consultation"
           ]
         }
       ]

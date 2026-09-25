@@ -259,6 +259,8 @@ Rule of thumb for HTML: if `types.length > 8`, use `specializationMulti` (Show m
 
 Regenerate after edits: `python3 docs/prototypes/_gen_hire_catalog.py` (loads `_catalog_sectors.py`).
 
+**Skills (v2):** `moreSkills` in Add Skills are **sector-specific** (licences, compliance, tools) — not the same generic seven on every job.
+
 ## 5. Gap vs what is already in the repo
 
 | Surface | What it has today | vs this HTML/PDF |

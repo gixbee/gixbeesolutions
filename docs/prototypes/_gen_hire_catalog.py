@@ -115,22 +115,147 @@ _TEACH = {
 SECTORS = build_sectors(role_pos, _TEACH)
 
 
-GENERIC_MORE = [
-    "Team coordination",
-    "Customer communication",
-    "Safety compliance",
-    "Time management",
-    "Basic computer skills",
-    "Shift work",
-    "Quality inspection",
-]
+# Sector-specific Add Skills sheet (no generic filler on every row).
+SECTOR_MORE_SKILLS: dict[str, list[str]] = {
+    "electrical": [
+        "Kerala wireman licence",
+        "Electrical safety (LOTO)",
+        "Megger / insulation testing",
+        "Single-line diagram reading",
+        "BIS wiring practices",
+        "Solar net-metering basics",
+    ],
+    "plumbing": [
+        "CPVC / UPVC piping",
+        "Pump troubleshooting",
+        "Blueprint reading",
+        "Pressure testing procedures",
+    ],
+    "cleaning": [
+        "Chemical handling (MSDS)",
+        "Infection-control cleaning",
+        "Equipment operation (scrubber/extractor)",
+        "Guest privacy standards",
+    ],
+    "painting": [
+        "Putty and surface prep",
+        "Spray booth safety",
+        "Colour matching",
+        "Scaffolding safety",
+    ],
+    "construction": [
+        "AutoCAD / Revit basics",
+        "Site safety (PPE)",
+        "Measurement and marking",
+        "Formwork alignment",
+        "BOQ / quantity basics",
+    ],
+    "hvac": [
+        "F-gas / refrigerant handling",
+        "Vacuum and leak testing",
+        "Copper flaring and brazing",
+        "VRF commissioning basics",
+        "Appliance PCB diagnosis",
+    ],
+    "driving": [
+        "Valid LMV driving licence",
+        "Valid HMV / heavy licence",
+        "Commercial permit / badge (if applicable)",
+        "Defensive driving",
+        "Local route knowledge",
+        "Vehicle pre-trip inspection",
+    ],
+    "delivery": [
+        "Valid two-wheeler licence",
+        "Valid LMV licence",
+        "GPS / map navigation apps",
+        "Cold chain handling (pharmacy/grocery)",
+        "Proof-of-delivery apps",
+    ],
+    "cooking": [
+        "FSSAI hygiene practices",
+        "Knife skills",
+        "Bulk quantity estimation",
+        "HACCP basics",
+        "Kitchen inventory",
+    ],
+    "security": [
+        "PSARA / guard training certificate",
+        "Fire extinguisher use",
+        "First aid basics",
+        "Incident report writing",
+        "Access control SOP",
+    ],
+    "retail": [
+        "POS / billing software",
+        "Upselling techniques",
+        "Stock replenishment",
+        "Visual merchandising",
+        "CRM / lead tracking",
+    ],
+    "office": [
+        "MS Office / Google Workspace",
+        "Email and calendar management",
+        "Tally / accounting software",
+        "Documentation and filing",
+        "Customer phone etiquette",
+    ],
+    "tech": [
+        "Git / version control",
+        "Agile / Scrum basics",
+        "REST API design",
+        "Cloud certification (AWS/Azure)",
+        "Technical documentation",
+    ],
+    "teaching": [
+        "Kerala state syllabus",
+        "CBSE / ICSE experience",
+        "Smart classroom tools",
+        "Exam evaluation (SSLC/plus two)",
+        "Parent-teacher communication",
+        "Spoken English support",
+    ],
+    "healthcare": [
+        "Kerala nursing council registration",
+        "Medical council registration (doctors)",
+        "Pharmacy council registration",
+        "BLS certification",
+        "ACLS (where applicable)",
+        "Infection control bundle",
+        "NABH awareness",
+        "Medical coding (ICD)",
+    ],
+    "events": [
+        "Vendor coordination",
+        "Timeline / run-sheet planning",
+        "Stage safety",
+        "Client briefing",
+    ],
+    "fitness": [
+        "CPR / first aid",
+        "Fitness assessment",
+        "Injury prevention",
+        "Gym equipment maintenance basics",
+    ],
+    "beauty": [
+        "Salon hygiene and sterilization",
+        "Skin type consultation",
+        "Product allergy patch test",
+        "Bridal trial consultation",
+    ],
+}
+
+
+def _merge_more_skills(position: dict, pool: list[str]) -> None:
+    have = {k.lower() for k in position["suggestedSkills"]}
+    position["moreSkills"] = [x for x in pool if x.lower() not in have]
 
 
 def main() -> None:
     for s in SECTORS:
+        pool = SECTOR_MORE_SKILLS.get(s["id"], [])
         for p in s["positions"]:
-            extra = [x for x in GENERIC_MORE if x.lower() not in {k.lower() for k in p["suggestedSkills"]}]
-            p["moreSkills"] = extra
+            _merge_more_skills(p, pool)
             if not p.get("subtitle"):
                 p["subtitle"] = p["types"][0] if p["types"] else ""
     catalog = {
