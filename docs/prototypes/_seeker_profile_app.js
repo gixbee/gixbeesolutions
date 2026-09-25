@@ -1,5 +1,35 @@
 const C = window.GIXBEE_HIRE_CATALOG;
 const STORAGE_KEY = 'GIXBEE_JOB_PROFILES';
+const SEEKER_BUILD = '2026-09-25-fix1';
+
+function el(id) {
+  return document.getElementById(id);
+}
+function readExpectedSalaryValue() {
+  const primary = el('salExpected');
+  if (primary) return primary.value;
+  const smin = el('smin');
+  if (smin) return smin.value;
+  return '';
+}
+function writeExpectedSalaryValue(value) {
+  const v = value ?? '';
+  const primary = el('salExpected');
+  if (primary) {
+    primary.value = v;
+    return;
+  }
+  const smin = el('smin');
+  if (smin) smin.value = v;
+}
+function bindInput(id, fn) {
+  const node = el(id);
+  if (node) node.addEventListener('input', fn);
+}
+function bindClick(id, fn) {
+  const node = el(id);
+  if (node) node.onclick = fn;
+}
 if (!C || !C.employmentTypes) {
   document.body.innerHTML = '<p style="font:16px sans-serif;padding:24px">Catalogue missing. Regenerate with python3 docs/prototypes/_gen_seeker_profile_html.py</p>';
   throw new Error('GIXBEE_HIRE_CATALOG missing');
@@ -51,7 +81,7 @@ function loadProfiles() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     return raw ? JSON.parse(raw) : [];
-  } catch {
+  } catch (_err) {
     return [];
   }
 }
@@ -182,7 +212,7 @@ function buildPayload() {
   const s = sector();
   const p = position();
   const emp = C.employmentTypes.find((e) => e.code === state.emp);
-  const salExpected = document.getElementById('salExpected').value;
+  const salExpected = readExpectedSalaryValue();
   const loc = document.getElementById('loc').value.trim();
   const qual = document.getElementById('qual').value;
   const bio = document.getElementById('desc').value.trim();
@@ -239,8 +269,9 @@ function applyPayload(profile) {
   document.getElementById('qual').value = profile.qualification || '';
   document.getElementById('desc').value = profile.bio || '';
   document.getElementById('loc').value = profile.location || '';
-  document.getElementById('salExpected').value =
-    profile.salary?.expectedMonthly ?? profile.salary?.minMonthly ?? '';
+  writeExpectedSalaryValue(
+    profile.salary?.expectedMonthly ?? profile.salary?.minMonthly ?? '',
+  );
   document.getElementById('profileName').value = profile.displayName || '';
   document.getElementById('neg').classList.toggle('on', state.neg);
   document.getElementById('reloc').classList.toggle('on', state.relocate);
@@ -280,7 +311,7 @@ function resetWizard(keepEmp) {
   document.getElementById('qual').value = '';
   document.getElementById('desc').value = '';
   document.getElementById('loc').value = 'Kochi, Kerala';
-  document.getElementById('salExpected').value = '25000';
+  writeExpectedSalaryValue('25000');
   document.getElementById('profileName').value = '';
   document.getElementById('posSearch').value = '';
   document.getElementById('neg').classList.add('on');
@@ -387,7 +418,7 @@ function renderS5() {
   const s = sector();
   const p = position();
   const emp = C.employmentTypes.find((e) => e.code === state.emp)?.label;
-  const salExpected = document.getElementById('salExpected').value;
+  const salExpected = readExpectedSalaryValue();
   const loc = document.getElementById('loc').value;
   const qual = document.getElementById('qual').value;
   const bio = document.getElementById('desc').value.trim();
@@ -645,7 +676,7 @@ document.getElementById('clrLoc').onclick = () => {
   document.getElementById('loc').value = '';
   matchCount();
 };
-['loc', 'salExpected'].forEach((id) => document.getElementById(id).addEventListener('input', matchCount));
+['loc', 'salExpected', 'smin', 'smax'].forEach((id) => bindInput(id, matchCount));
 document.getElementById('c4').onclick = () => {
   state.availableToJoin = document.getElementById('joinAvail')?.value || 'immediate';
   show('s5');
@@ -761,15 +792,30 @@ document.getElementById('profileList').addEventListener('click', (e) => {
   renderS1();
   toast('Profile loaded — review steps or save again to update.');
 });
-document.getElementById('exportProfiles').onclick = async () => {
+document.getElementById('exportProfiles').onclick = () => {
   const json = JSON.stringify(loadProfiles(), null, 2);
-  try {
-    await navigator.clipboard.writeText(json);
-    toast('Copied ' + loadProfiles().length + ' profile(s) to clipboard.');
-  } catch {
+  const done = () => toast('Copied ' + loadProfiles().length + ' profile(s) to clipboard.');
+  const fail = () =>
     toast(json.slice(0, 120) + '… (clipboard blocked — use devtools Application → localStorage)');
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(json).then(done).catch(fail);
+  } else {
+    fail();
   }
 };
 
-renderResumeUi();
-renderS1();
+function boot() {
+  try {
+    if (!el('sectors') || !el('empTypes')) {
+      throw new Error(
+        'Open seeker-job-profile-master.html (full file). If you edited the shell only, run: python3 docs/prototypes/_gen_seeker_profile_html.py',
+      );
+    }
+    renderResumeUi();
+    renderS1();
+  } catch (err) {
+    console.error('[Gixbee seeker profile]', err);
+    toast(err.message || String(err));
+  }
+}
+boot();

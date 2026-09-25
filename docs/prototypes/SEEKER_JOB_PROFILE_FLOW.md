@@ -4,6 +4,12 @@
 
 **Regenerate:** `python3 docs/prototypes/_gen_seeker_profile_html.py` (runs `_gen_hire_catalog.py` first so taxonomy matches Hire Employee).
 
+### Troubleshooting (blank page or console error)
+
+1. Open **`seeker-job-profile-master.html`** only — not `seeker-job-profile-shell.html` (shell has no catalogue/scripts until regenerated).
+2. Hard refresh after pull (Ctrl+Shift+R) so step 4 shows **Expected salary (₹/month)** — not old Min/Max fields. Old HTML + new script causes `Cannot read properties of null (addEventListener)` on load.
+3. In Cursor/IDE preview, prefer a local server: `cd docs/prototypes && python3 -m http.server 8765` then open `http://localhost:8765/seeker-job-profile-master.html` (avoids some `file://` iframe warnings).
+
 ## Purpose
 
 When a **employee / job seeker** opens Gixbee Smart Hiring, they should pick the **same job type and 18-sector category** as an employer, then complete skills, languages, location, and pay expectations — and **save a job profile** (not post a vacancy or pay for leads).
