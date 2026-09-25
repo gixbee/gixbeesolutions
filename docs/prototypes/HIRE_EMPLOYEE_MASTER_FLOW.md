@@ -90,6 +90,8 @@ This is the important HTML rule. **Do not** use one static Step 3. Read `fieldPa
 - Qualification (optional) dropdown — values are **not** in the PDF. HTML can use a small generic list (10th / 12th / Diploma / ITI / B.Sc / B.Tech / MBBS / MD / Other) and later specialize per sector.
 - Minimum experience (years) stepper, default 0 or 2 as in mock.
 - Skills: chips already chosen + **+ Add skills**.
+- **Languages required:** quick chips (English, Malayalam, Hindi, Tamil) + **+ Add languages** sheet (16 languages). At least one required before Continue.
+- **Resume & documents:** toggle **Resume required on profile**; optional **Attach job brief** upload (PDF/DOC, demo only, max 5 MB).
 - Job description optional textarea.
 
 **Add skills overlay (mock 3A/3B):**
