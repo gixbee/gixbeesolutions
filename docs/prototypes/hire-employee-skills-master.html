@@ -154,12 +154,12 @@
           <div class="stepper"><button type="button" id="expM">−</button><b id="expV">2</b><button type="button" id="expP">+</button></div>
         </div>
         <div class="fld">
-          <label>Skills (select relevant skills)</label>
+          <label id="skillLbl">Skills</label>
           <div class="chips" id="skillChips"></div>
           <button class="addsk" type="button" id="addSkills">+ Add skills</button>
         </div>
         <div class="fld">
-          <label>Languages required</label>
+          <label id="langLbl">Languages required</label>
           <p class="hint">Candidates who speak these languages rank higher in matching.</p>
           <div class="chips" id="langQuick"></div>
           <div class="chips" id="langChips" style="margin-top:8px"></div>
@@ -8918,6 +8918,18 @@ function toast(m){ const t=document.getElementById('toast'); t.textContent=m; t.
 function sector(){ return C.sectors.find(s => s.id===state.sectorId); }
 function position(){ return sector()?.positions.find(p => p.id===state.positionId); }
 
+function selectedCountLabel(base, count){
+  return `${base} (${count} selected)`;
+}
+function syncSheetOkLabels(){
+  const sp = document.getElementById('spOk');
+  if (sp) sp.textContent = state.specDraft.length ? `OK (${state.specDraft.length} selected)` : 'OK';
+  const lg = document.getElementById('lgOk');
+  if (lg) lg.textContent = state.langDraft.length ? `OK (${state.langDraft.length} selected)` : 'OK';
+  const sk = document.getElementById('skOk');
+  if (sk) sk.textContent = state.skillDraft.length ? `OK (${state.skillDraft.length} selected)` : 'OK';
+}
+
 function renderS1(){
   document.getElementById('empTypes').innerHTML = C.employmentTypes.map(e =>
     `<button class="pill ${state.emp===e.code?'on':''}" data-e="${e.code}">${state.emp===e.code?'✓ ':''}${e.label}</button>`
@@ -8956,7 +8968,9 @@ function renderS3(){
   document.getElementById('s3crumb').textContent = s.label+' › '+p.label;
   document.getElementById('s3sub').textContent = p.subtitle||'';
   document.getElementById('s3ico').textContent = ICONS[s.icon]||'•';
-  document.getElementById('typeLbl').textContent = p.typeLabel;
+  document.getElementById('typeLbl').textContent = selectedCountLabel(p.typeLabel, state.types.length);
+  document.getElementById('skillLbl').textContent = selectedCountLabel('Skills', state.skills.length);
+  document.getElementById('langLbl').textContent = selectedCountLabel('Languages required', state.languages.length);
   const vis = visibleTypes(p);
   document.getElementById('typeChips').innerHTML = vis.map(t =>
     `<button class="chip ${state.types.includes(t)?'on':''}" data-t="${t.replace(/"/g,'&quot;')}">${t}</button>`
@@ -9024,6 +9038,7 @@ function drawSkills(){
   document.getElementById('skList').innerHTML = list.map(x =>
     `<label class="ck"><input type="checkbox" ${state.skillDraft.includes(x)?'checked':''} data-sk="${x}"> ${x}</label>`
   ).join('') || '<p class="sub">No skills match.</p>';
+  syncSheetOkLabels();
 }
 function openSpec(){
   const p=position();
@@ -9038,6 +9053,7 @@ function drawSpec(){
   document.getElementById('spList').innerHTML = list.map(t =>
     `<label class="ck"><input type="checkbox" ${state.specDraft.includes(t)?'checked':''} data-sp="${t}"> ${t}</label>`
   ).join('');
+  syncSheetOkLabels();
 }
 function openLangs(){
   state.langDraft = [...state.languages];
@@ -9050,6 +9066,7 @@ function drawLangs(){
   document.getElementById('lgList').innerHTML = list.map(l =>
     `<label class="ck"><input type="checkbox" ${state.langDraft.includes(l)?'checked':''} data-lg="${l}"> ${l}</label>`
   ).join('') || '<p class="sub">No language match.</p>';
+  syncSheetOkLabels();
 }
 function toggleLang(l){
   if(state.languages.includes(l)) state.languages = state.languages.filter(x => x !== l);
@@ -9132,6 +9149,7 @@ document.getElementById('skList').addEventListener('change', e => {
   const sk=e.target.dataset.sk; if(!sk) return;
   if(e.target.checked){ if(!state.skillDraft.includes(sk)) state.skillDraft.push(sk); }
   else state.skillDraft=state.skillDraft.filter(x=>x!==sk);
+  syncSheetOkLabels();
 });
 document.getElementById('skOk').onclick = () => {
   state.skills=[...state.skillDraft];
@@ -9148,8 +9166,6 @@ document.getElementById('spList').addEventListener('change', e => {
 document.getElementById('spOk').onclick = () => {
   state.types=[...state.specDraft];
   document.getElementById('specSheet').classList.remove('on');
-  const btn=document.getElementById('spOk');
-  btn.textContent = 'OK ('+state.types.length+' selected)';
   renderS3();
 };
 document.getElementById('spClose').onclick = () => document.getElementById('specSheet').classList.remove('on');
