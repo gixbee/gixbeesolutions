@@ -32,7 +32,7 @@ Each item includes:
 - `id`, `schemaVersion`, `savedAt`, `displayName`
 - `employmentType`, `sector`, `position`, `types[]`
 - `qualification`, `experienceYears`, `skills[]`, `languages[]`, `bio`
-- `location`, `salary` (`minMonthly`, `maxMonthly`, `negotiable`), `openToRelocate`
+- `location`, `salary` (`expectedMonthly`, `negotiable`), `openToRelocate`
 - `availableToJoin` (`code`, `label`) — Immediately · Within 7 / 15 / 30 / 60 / 90 days
 - `resume` (optional) — `fileName`, `sizeBytes`, `mimeType`; small files may include `dataUrl` in demo
 - `catalogueVersion` (matches hire catalogue)

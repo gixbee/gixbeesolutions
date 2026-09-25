@@ -182,8 +182,7 @@ function buildPayload() {
   const s = sector();
   const p = position();
   const emp = C.employmentTypes.find((e) => e.code === state.emp);
-  const salMin = document.getElementById('smin').value;
-  const salMax = document.getElementById('smax').value;
+  const salExpected = document.getElementById('salExpected').value;
   const loc = document.getElementById('loc').value.trim();
   const qual = document.getElementById('qual').value;
   const bio = document.getElementById('desc').value.trim();
@@ -216,8 +215,7 @@ function buildPayload() {
     bio: bio || null,
     location: loc,
     salary: {
-      minMonthly: salMin ? Number(salMin) : null,
-      maxMonthly: salMax ? Number(salMax) : null,
+      expectedMonthly: salExpected ? Number(salExpected) : null,
       negotiable: state.neg,
     },
     openToRelocate: state.relocate,
@@ -241,8 +239,8 @@ function applyPayload(profile) {
   document.getElementById('qual').value = profile.qualification || '';
   document.getElementById('desc').value = profile.bio || '';
   document.getElementById('loc').value = profile.location || '';
-  document.getElementById('smin').value = profile.salary?.minMonthly ?? '';
-  document.getElementById('smax').value = profile.salary?.maxMonthly ?? '';
+  document.getElementById('salExpected').value =
+    profile.salary?.expectedMonthly ?? profile.salary?.minMonthly ?? '';
   document.getElementById('profileName').value = profile.displayName || '';
   document.getElementById('neg').classList.toggle('on', state.neg);
   document.getElementById('reloc').classList.toggle('on', state.relocate);
@@ -282,8 +280,7 @@ function resetWizard(keepEmp) {
   document.getElementById('qual').value = '';
   document.getElementById('desc').value = '';
   document.getElementById('loc').value = 'Kochi, Kerala';
-  document.getElementById('smin').value = '25000';
-  document.getElementById('smax').value = '30000';
+  document.getElementById('salExpected').value = '25000';
   document.getElementById('profileName').value = '';
   document.getElementById('posSearch').value = '';
   document.getElementById('neg').classList.add('on');
@@ -390,8 +387,7 @@ function renderS5() {
   const s = sector();
   const p = position();
   const emp = C.employmentTypes.find((e) => e.code === state.emp)?.label;
-  const salMin = document.getElementById('smin').value;
-  const salMax = document.getElementById('smax').value;
+  const salExpected = document.getElementById('salExpected').value;
   const loc = document.getElementById('loc').value;
   const qual = document.getElementById('qual').value;
   const bio = document.getElementById('desc').value.trim();
@@ -408,7 +404,7 @@ function renderS5() {
     ['Languages', state.languages.join(', ') || '—'],
     ['Bio', bio || '—'],
     ['Location', loc || '—'],
-    ['Expected salary', '₹' + salMin + (salMax ? ' – ₹' + salMax : '') + (state.neg ? ' (Negotiable)' : '')],
+    ['Expected salary', (salExpected ? '₹' + salExpected : '—') + (state.neg ? ' (Negotiable)' : '')],
     ['Relocate', state.relocate ? 'Yes' : 'No'],
     ['Available to join', joinLabel(document.getElementById('joinAvail')?.value || state.availableToJoin)],
     ['Resume', state.resume?.fileName || '—'],
@@ -649,7 +645,7 @@ document.getElementById('clrLoc').onclick = () => {
   document.getElementById('loc').value = '';
   matchCount();
 };
-['loc', 'smin', 'smax'].forEach((id) => document.getElementById(id).addEventListener('input', matchCount));
+['loc', 'salExpected'].forEach((id) => document.getElementById(id).addEventListener('input', matchCount));
 document.getElementById('c4').onclick = () => {
   state.availableToJoin = document.getElementById('joinAvail')?.value || 'immediate';
   show('s5');
