@@ -5543,73 +5543,45 @@ window.GIXBEE_HIRE_CATALOG = {
     {
       "id": "teaching",
       "label": "Teaching & Education",
-      "subtitle": "Schools, tuition and subject teachers",
+      "subtitle": "Schools, colleges, tuition and training",
       "icon": "book",
       "color": "#7C3AED",
       "positions": [
         {
           "id": "school-teacher",
           "label": "School Teacher",
-          "subtitle": "Primary",
-          "fieldPattern": "typeChips",
-          "typeLabel": "Type",
+          "subtitle": "Primary to higher secondary",
+          "fieldPattern": "specializationMulti",
+          "typeLabel": "Level & subject",
           "types": [
-            "Primary",
-            "Secondary",
-            "Higher Secondary"
+            "Primary (LP–UKG)",
+            "Secondary (8–10)",
+            "Higher Secondary (+1/+2)",
+            "All subjects (primary)",
+            "English",
+            "Malayalam",
+            "Hindi",
+            "Mathematics",
+            "Science",
+            "Social Science",
+            "Physics",
+            "Chemistry",
+            "Biology",
+            "Computer Science",
+            "Commerce",
+            "Accountancy",
+            "Economics",
+            "History",
+            "Geography",
+            "Arabic",
+            "Sanskrit",
+            "Informatics Practices"
           ],
           "suggestedSkills": [
             "Lesson planning",
             "Classroom management",
-            "Assessment"
-          ],
-          "moreSkills": [
-            "Team coordination",
-            "Customer communication",
-            "Safety compliance",
-            "Time management",
-            "Basic computer skills",
-            "Shift work",
-            "Quality inspection"
-          ]
-        },
-        {
-          "id": "primary-teacher",
-          "label": "Primary Teacher",
-          "subtitle": "Primary Education",
-          "fieldPattern": "typeChips",
-          "typeLabel": "Type",
-          "types": [
-            "Primary Education"
-          ],
-          "suggestedSkills": [
-            "Teaching",
-            "Classroom management",
-            "Child development"
-          ],
-          "moreSkills": [
-            "Team coordination",
-            "Customer communication",
-            "Safety compliance",
-            "Time management",
-            "Basic computer skills",
-            "Shift work",
-            "Quality inspection"
-          ]
-        },
-        {
-          "id": "high-school-teacher",
-          "label": "High School Teacher",
-          "subtitle": "Secondary Education",
-          "fieldPattern": "typeChips",
-          "typeLabel": "Type",
-          "types": [
-            "Secondary Education"
-          ],
-          "suggestedSkills": [
-            "Subject teaching",
             "Assessment",
-            "Classroom management"
+            "Parent communication"
           ],
           "moreSkills": [
             "Team coordination",
@@ -5622,18 +5594,24 @@ window.GIXBEE_HIRE_CATALOG = {
           ]
         },
         {
-          "id": "higher-secondary-teacher",
-          "label": "Higher Secondary Teacher",
-          "subtitle": "Higher Secondary",
+          "id": "early-childhood---montessori-teacher",
+          "label": "Early Childhood / Montessori Teacher",
+          "subtitle": "Pre-primary, nursery, LKG–UKG",
           "fieldPattern": "typeChips",
-          "typeLabel": "Type",
+          "typeLabel": "Setting",
           "types": [
-            "Higher Secondary"
+            "Montessori",
+            "Play school",
+            "Nursery",
+            "LKG–UKG",
+            "ECCE",
+            "Play-based learning"
           ],
           "suggestedSkills": [
-            "Subject teaching",
-            "Lesson planning",
-            "Assessment"
+            "Child development",
+            "Play-based learning",
+            "Classroom routines",
+            "Child safety"
           ],
           "moreSkills": [
             "Team coordination",
@@ -5648,16 +5626,38 @@ window.GIXBEE_HIRE_CATALOG = {
         {
           "id": "college-lecturer",
           "label": "College Lecturer",
-          "subtitle": "Higher Education",
-          "fieldPattern": "typeChips",
-          "typeLabel": "Type",
+          "subtitle": "Degree and PG colleges",
+          "fieldPattern": "specializationMulti",
+          "typeLabel": "Stream & subject",
           "types": [
-            "Higher Education"
+            "Arts",
+            "Science",
+            "Commerce",
+            "Law",
+            "Management",
+            "English",
+            "Malayalam",
+            "Hindi",
+            "Economics",
+            "History",
+            "Political Science",
+            "Sociology",
+            "Physics",
+            "Chemistry",
+            "Mathematics",
+            "Botany",
+            "Zoology",
+            "Accountancy",
+            "Business Administration",
+            "Computer Applications",
+            "UG teaching",
+            "PG teaching"
           ],
           "suggestedSkills": [
             "Lecturing",
-            "Curriculum",
-            "Assessment"
+            "Curriculum design",
+            "Assessment",
+            "Research support"
           ],
           "moreSkills": [
             "Team coordination",
@@ -5670,19 +5670,29 @@ window.GIXBEE_HIRE_CATALOG = {
           ]
         },
         {
-          "id": "tutor",
-          "label": "Tutor",
-          "subtitle": "Academic",
-          "fieldPattern": "typeChips",
-          "typeLabel": "Type",
+          "id": "engineering---polytechnic-faculty",
+          "label": "Engineering / Polytechnic Faculty",
+          "subtitle": "Diploma and B.Tech colleges",
+          "fieldPattern": "specializationMulti",
+          "typeLabel": "Department & subject",
           "types": [
-            "Academic",
-            "Private"
+            "Engineering college",
+            "Polytechnic",
+            "Computer Science",
+            "Electronics",
+            "Electrical",
+            "Mechanical",
+            "Civil",
+            "Mathematics",
+            "Physics",
+            "Chemistry",
+            "Information Technology"
           ],
           "suggestedSkills": [
-            "Subject teaching",
+            "Laboratory instruction",
+            "Engineering subjects",
             "Assessment",
-            "Student support"
+            "Curriculum"
           ],
           "moreSkills": [
             "Team coordination",
@@ -5695,186 +5705,74 @@ window.GIXBEE_HIRE_CATALOG = {
           ]
         },
         {
-          "id": "home-tutor",
-          "label": "Home Tutor",
-          "subtitle": "Home Tuition",
-          "fieldPattern": "typeChips",
-          "typeLabel": "Type",
+          "id": "iti---vocational-instructor",
+          "label": "ITI / Vocational Instructor",
+          "subtitle": "ITI and skill centres",
+          "fieldPattern": "specializationMulti",
+          "typeLabel": "Trade",
           "types": [
-            "Home Tuition"
+            "Electrician",
+            "Fitter",
+            "Welder",
+            "Mechanic (Motor Vehicle)",
+            "COPA",
+            "Draughtsman",
+            "Plumber",
+            "Refrigeration",
+            "NCVT",
+            "SCVT"
+          ],
+          "suggestedSkills": [
+            "Trade instruction",
+            "Workshop safety",
+            "Practical assessment",
+            "Tool handling"
+          ],
+          "moreSkills": [
+            "Team coordination",
+            "Customer communication",
+            "Safety compliance",
+            "Time management",
+            "Basic computer skills",
+            "Shift work",
+            "Quality inspection"
+          ]
+        },
+        {
+          "id": "private-tutor",
+          "label": "Private Tutor",
+          "subtitle": "Home, online or centre",
+          "fieldPattern": "specializationMulti",
+          "typeLabel": "Mode, class & subject",
+          "types": [
+            "Home tuition",
+            "Online tuition",
+            "Tuition centre",
+            "Primary",
+            "Class 8–10",
+            "Plus One",
+            "Plus Two",
+            "Degree",
+            "Entrance exam prep",
+            "Mathematics",
+            "Science",
+            "Physics",
+            "Chemistry",
+            "Biology",
+            "English",
+            "Malayalam",
+            "Hindi",
+            "Computer Science",
+            "Commerce",
+            "Accountancy",
+            "Economics",
+            "Social Science"
           ],
           "suggestedSkills": [
             "One-to-one teaching",
-            "Lesson planning"
-          ],
-          "moreSkills": [
-            "Team coordination",
-            "Customer communication",
-            "Safety compliance",
-            "Time management",
-            "Basic computer skills",
-            "Shift work",
-            "Quality inspection"
-          ]
-        },
-        {
-          "id": "online-tutor",
-          "label": "Online Tutor",
-          "subtitle": "Online Education",
-          "fieldPattern": "typeChips",
-          "typeLabel": "Type",
-          "types": [
-            "Online Education"
-          ],
-          "suggestedSkills": [
-            "Online teaching",
-            "Digital tools",
-            "Assessment"
-          ],
-          "moreSkills": [
-            "Team coordination",
-            "Customer communication",
-            "Safety compliance",
-            "Time management",
-            "Basic computer skills",
-            "Shift work",
-            "Quality inspection"
-          ]
-        },
-        {
-          "id": "language-teacher",
-          "label": "Language Teacher",
-          "subtitle": "Languages",
-          "fieldPattern": "typeChips",
-          "typeLabel": "Type",
-          "types": [
-            "Languages"
-          ],
-          "suggestedSkills": [
-            "Language teaching",
-            "Communication",
-            "Assessment"
-          ],
-          "moreSkills": [
-            "Team coordination",
-            "Customer communication",
-            "Safety compliance",
-            "Time management",
-            "Basic computer skills",
-            "Shift work",
-            "Quality inspection"
-          ]
-        },
-        {
-          "id": "mathematics-teacher",
-          "label": "Mathematics Teacher",
-          "subtitle": "Mathematics",
-          "fieldPattern": "typeChips",
-          "typeLabel": "Type",
-          "types": [
-            "Mathematics"
-          ],
-          "suggestedSkills": [
-            "Mathematics teaching",
-            "Problem solving",
-            "Assessment"
-          ],
-          "moreSkills": [
-            "Team coordination",
-            "Customer communication",
-            "Safety compliance",
-            "Time management",
-            "Basic computer skills",
-            "Shift work",
-            "Quality inspection"
-          ]
-        },
-        {
-          "id": "science-teacher",
-          "label": "Science Teacher",
-          "subtitle": "Science",
-          "fieldPattern": "typeChips",
-          "typeLabel": "Type",
-          "types": [
-            "Science"
-          ],
-          "suggestedSkills": [
-            "Science teaching",
-            "Experiments",
-            "Assessment"
-          ],
-          "moreSkills": [
-            "Team coordination",
-            "Customer communication",
-            "Safety compliance",
-            "Time management",
-            "Basic computer skills",
-            "Shift work",
-            "Quality inspection"
-          ]
-        },
-        {
-          "id": "computer-teacher",
-          "label": "Computer Teacher",
-          "subtitle": "Computer Science",
-          "fieldPattern": "typeChips",
-          "typeLabel": "Type",
-          "types": [
-            "Computer Science",
-            "IT"
-          ],
-          "suggestedSkills": [
-            "Programming",
-            "Computer education",
-            "Digital skills"
-          ],
-          "moreSkills": [
-            "Team coordination",
-            "Customer communication",
-            "Safety compliance",
-            "Time management",
-            "Basic computer skills",
-            "Shift work",
-            "Quality inspection"
-          ]
-        },
-        {
-          "id": "music-teacher",
-          "label": "Music Teacher",
-          "subtitle": "Music",
-          "fieldPattern": "typeChips",
-          "typeLabel": "Type",
-          "types": [
-            "Music"
-          ],
-          "suggestedSkills": [
-            "Music instruction",
-            "Performance",
-            "Assessment"
-          ],
-          "moreSkills": [
-            "Team coordination",
-            "Customer communication",
-            "Safety compliance",
-            "Time management",
-            "Basic computer skills",
-            "Shift work",
-            "Quality inspection"
-          ]
-        },
-        {
-          "id": "dance-teacher",
-          "label": "Dance Teacher",
-          "subtitle": "Dance",
-          "fieldPattern": "typeChips",
-          "typeLabel": "Type",
-          "types": [
-            "Dance"
-          ],
-          "suggestedSkills": [
-            "Dance instruction",
-            "Choreography",
-            "Performance"
+            "Lesson planning",
+            "Assessment",
+            "Student mentoring"
           ],
           "moreSkills": [
             "Team coordination",
@@ -5889,16 +5787,49 @@ window.GIXBEE_HIRE_CATALOG = {
         {
           "id": "special-education-teacher",
           "label": "Special Education Teacher",
-          "subtitle": "Special Education",
+          "subtitle": "Special and inclusive education",
           "fieldPattern": "typeChips",
-          "typeLabel": "Type",
+          "typeLabel": "Specialization",
           "types": [
-            "Special Education"
+            "Learning disability",
+            "Autism support",
+            "Remedial teaching",
+            "Inclusive classroom"
           ],
           "suggestedSkills": [
-            "Individualized teaching",
+            "Individualized education",
             "Student support",
-            "Assessment"
+            "Assessment",
+            "Patience and empathy"
+          ],
+          "moreSkills": [
+            "Team coordination",
+            "Customer communication",
+            "Safety compliance",
+            "Time management",
+            "Basic computer skills",
+            "Shift work",
+            "Quality inspection"
+          ]
+        },
+        {
+          "id": "co-curricular-teacher",
+          "label": "Co-curricular Teacher",
+          "subtitle": "PE, music, dance and art",
+          "fieldPattern": "typeChips",
+          "typeLabel": "Activity",
+          "types": [
+            "Physical education",
+            "Music",
+            "Dance",
+            "Art and craft",
+            "Yoga"
+          ],
+          "suggestedSkills": [
+            "Activity planning",
+            "Student engagement",
+            "Performance",
+            "Safety"
           ],
           "moreSkills": [
             "Team coordination",
@@ -5913,16 +5844,19 @@ window.GIXBEE_HIRE_CATALOG = {
         {
           "id": "teaching-assistant",
           "label": "Teaching Assistant",
-          "subtitle": "School",
+          "subtitle": "School or college support",
           "fieldPattern": "typeChips",
-          "typeLabel": "Type",
+          "typeLabel": "Setting",
           "types": [
-            "School",
+            "Primary school",
+            "Secondary school",
+            "Higher secondary",
             "College"
           ],
           "suggestedSkills": [
             "Classroom support",
-            "Student assistance"
+            "Student assistance",
+            "Material preparation"
           ],
           "moreSkills": [
             "Team coordination",
@@ -5937,464 +5871,19 @@ window.GIXBEE_HIRE_CATALOG = {
         {
           "id": "academic-coordinator",
           "label": "Academic Coordinator",
-          "subtitle": "School",
+          "subtitle": "Academic administration",
           "fieldPattern": "typeChips",
-          "typeLabel": "Type",
+          "typeLabel": "Institution",
           "types": [
             "School",
-            "College"
+            "College",
+            "Training institute"
           ],
           "suggestedSkills": [
             "Academic planning",
-            "Coordination",
+            "Timetable",
+            "Staff coordination",
             "Reporting"
-          ],
-          "moreSkills": [
-            "Team coordination",
-            "Customer communication",
-            "Safety compliance",
-            "Time management",
-            "Basic computer skills",
-            "Shift work",
-            "Quality inspection"
-          ]
-        },
-        {
-          "id": "engineering-lecturer",
-          "label": "Engineering Lecturer",
-          "subtitle": "Engineering Education",
-          "fieldPattern": "typeChips",
-          "typeLabel": "Type",
-          "types": [
-            "Engineering Education"
-          ],
-          "suggestedSkills": [
-            "Engineering subjects",
-            "Laboratory instruction",
-            "Assessment"
-          ],
-          "moreSkills": [
-            "Team coordination",
-            "Customer communication",
-            "Safety compliance",
-            "Time management",
-            "Basic computer skills",
-            "Shift work",
-            "Quality inspection"
-          ]
-        },
-        {
-          "id": "english-teacher",
-          "label": "English Teacher",
-          "subtitle": "English Language",
-          "fieldPattern": "typeChips",
-          "typeLabel": "Type",
-          "types": [
-            "English Language",
-            "Primary",
-            "Secondary",
-            "Higher Secondary"
-          ],
-          "suggestedSkills": [
-            "English grammar",
-            "Reading",
-            "Writing",
-            "Speaking",
-            "Lesson planning",
-            "Assessment"
-          ],
-          "moreSkills": [
-            "Team coordination",
-            "Customer communication",
-            "Safety compliance",
-            "Time management",
-            "Basic computer skills",
-            "Shift work",
-            "Quality inspection"
-          ]
-        },
-        {
-          "id": "physics-teacher",
-          "label": "Physics Teacher",
-          "subtitle": "Physics",
-          "fieldPattern": "typeChips",
-          "typeLabel": "Type",
-          "types": [
-            "Physics",
-            "Secondary",
-            "Higher Secondary"
-          ],
-          "suggestedSkills": [
-            "Physics concepts",
-            "Problem solving",
-            "Experiments",
-            "Lesson planning",
-            "Assessment"
-          ],
-          "moreSkills": [
-            "Team coordination",
-            "Customer communication",
-            "Safety compliance",
-            "Time management",
-            "Basic computer skills",
-            "Shift work",
-            "Quality inspection"
-          ]
-        },
-        {
-          "id": "chemistry-teacher",
-          "label": "Chemistry Teacher",
-          "subtitle": "Chemistry",
-          "fieldPattern": "typeChips",
-          "typeLabel": "Type",
-          "types": [
-            "Chemistry",
-            "Secondary",
-            "Higher Secondary"
-          ],
-          "suggestedSkills": [
-            "Chemistry concepts",
-            "Laboratory work",
-            "Experiments",
-            "Lesson planning",
-            "Assessment"
-          ],
-          "moreSkills": [
-            "Team coordination",
-            "Customer communication",
-            "Safety compliance",
-            "Time management",
-            "Basic computer skills",
-            "Shift work",
-            "Quality inspection"
-          ]
-        },
-        {
-          "id": "biology-teacher",
-          "label": "Biology Teacher",
-          "subtitle": "Biology",
-          "fieldPattern": "typeChips",
-          "typeLabel": "Type",
-          "types": [
-            "Biology",
-            "Secondary",
-            "Higher Secondary"
-          ],
-          "suggestedSkills": [
-            "Biology concepts",
-            "Laboratory work",
-            "Experiments",
-            "Lesson planning",
-            "Assessment"
-          ],
-          "moreSkills": [
-            "Team coordination",
-            "Customer communication",
-            "Safety compliance",
-            "Time management",
-            "Basic computer skills",
-            "Shift work",
-            "Quality inspection"
-          ]
-        },
-        {
-          "id": "computer-science-teacher",
-          "label": "Computer Science Teacher",
-          "subtitle": "Computer Science",
-          "fieldPattern": "typeChips",
-          "typeLabel": "Type",
-          "types": [
-            "Computer Science",
-            "Secondary",
-            "Higher Secondary"
-          ],
-          "suggestedSkills": [
-            "Programming",
-            "Algorithms",
-            "Computer science concepts",
-            "Practical instruction",
-            "Assessment"
-          ],
-          "moreSkills": [
-            "Team coordination",
-            "Customer communication",
-            "Safety compliance",
-            "Time management",
-            "Basic computer skills",
-            "Shift work",
-            "Quality inspection"
-          ]
-        },
-        {
-          "id": "social-science-teacher",
-          "label": "Social Science Teacher",
-          "subtitle": "Social Science",
-          "fieldPattern": "typeChips",
-          "typeLabel": "Type",
-          "types": [
-            "Social Science",
-            "Secondary"
-          ],
-          "suggestedSkills": [
-            "History",
-            "Geography",
-            "Civics",
-            "Lesson planning",
-            "Classroom management",
-            "Assessment"
-          ],
-          "moreSkills": [
-            "Team coordination",
-            "Customer communication",
-            "Safety compliance",
-            "Time management",
-            "Basic computer skills",
-            "Shift work",
-            "Quality inspection"
-          ]
-        },
-        {
-          "id": "history-teacher",
-          "label": "History Teacher",
-          "subtitle": "History",
-          "fieldPattern": "typeChips",
-          "typeLabel": "Type",
-          "types": [
-            "History",
-            "Secondary",
-            "Higher Secondary"
-          ],
-          "suggestedSkills": [
-            "History teaching",
-            "Source analysis",
-            "Lesson planning",
-            "Assessment"
-          ],
-          "moreSkills": [
-            "Team coordination",
-            "Customer communication",
-            "Safety compliance",
-            "Time management",
-            "Basic computer skills",
-            "Shift work",
-            "Quality inspection"
-          ]
-        },
-        {
-          "id": "geography-teacher",
-          "label": "Geography Teacher",
-          "subtitle": "Geography",
-          "fieldPattern": "typeChips",
-          "typeLabel": "Type",
-          "types": [
-            "Geography",
-            "Secondary",
-            "Higher Secondary"
-          ],
-          "suggestedSkills": [
-            "Geography teaching",
-            "Map skills",
-            "Fieldwork",
-            "Lesson planning",
-            "Assessment"
-          ],
-          "moreSkills": [
-            "Team coordination",
-            "Customer communication",
-            "Safety compliance",
-            "Time management",
-            "Basic computer skills",
-            "Shift work",
-            "Quality inspection"
-          ]
-        },
-        {
-          "id": "economics-teacher",
-          "label": "Economics Teacher",
-          "subtitle": "Economics",
-          "fieldPattern": "typeChips",
-          "typeLabel": "Type",
-          "types": [
-            "Economics",
-            "Higher Secondary",
-            "College"
-          ],
-          "suggestedSkills": [
-            "Economic theory",
-            "Data interpretation",
-            "Lesson planning",
-            "Assessment"
-          ],
-          "moreSkills": [
-            "Team coordination",
-            "Customer communication",
-            "Safety compliance",
-            "Time management",
-            "Basic computer skills",
-            "Shift work",
-            "Quality inspection"
-          ]
-        },
-        {
-          "id": "commerce-teacher",
-          "label": "Commerce Teacher",
-          "subtitle": "Commerce",
-          "fieldPattern": "typeChips",
-          "typeLabel": "Type",
-          "types": [
-            "Commerce",
-            "Higher Secondary",
-            "College"
-          ],
-          "suggestedSkills": [
-            "Commerce concepts",
-            "Business studies",
-            "Accounting basics",
-            "Assessment"
-          ],
-          "moreSkills": [
-            "Team coordination",
-            "Customer communication",
-            "Safety compliance",
-            "Time management",
-            "Basic computer skills",
-            "Shift work",
-            "Quality inspection"
-          ]
-        },
-        {
-          "id": "accountancy-teacher",
-          "label": "Accountancy Teacher",
-          "subtitle": "Accountancy",
-          "fieldPattern": "typeChips",
-          "typeLabel": "Type",
-          "types": [
-            "Accountancy",
-            "Higher Secondary",
-            "College"
-          ],
-          "suggestedSkills": [
-            "Accounting principles",
-            "Financial statements",
-            "Problem solving",
-            "Assessment"
-          ],
-          "moreSkills": [
-            "Team coordination",
-            "Customer communication",
-            "Safety compliance",
-            "Time management",
-            "Basic computer skills",
-            "Shift work",
-            "Quality inspection"
-          ]
-        },
-        {
-          "id": "malayalam-teacher",
-          "label": "Malayalam Teacher",
-          "subtitle": "Malayalam",
-          "fieldPattern": "typeChips",
-          "typeLabel": "Type",
-          "types": [
-            "Malayalam",
-            "Primary",
-            "Secondary",
-            "Higher Secondary"
-          ],
-          "suggestedSkills": [
-            "Malayalam language",
-            "Literature",
-            "Grammar",
-            "Reading",
-            "Writing",
-            "Assessment"
-          ],
-          "moreSkills": [
-            "Team coordination",
-            "Customer communication",
-            "Safety compliance",
-            "Time management",
-            "Basic computer skills",
-            "Shift work",
-            "Quality inspection"
-          ]
-        },
-        {
-          "id": "hindi-teacher",
-          "label": "Hindi Teacher",
-          "subtitle": "Hindi",
-          "fieldPattern": "typeChips",
-          "typeLabel": "Type",
-          "types": [
-            "Hindi",
-            "Primary",
-            "Secondary",
-            "Higher Secondary"
-          ],
-          "suggestedSkills": [
-            "Hindi language",
-            "Literature",
-            "Grammar",
-            "Reading",
-            "Writing",
-            "Assessment"
-          ],
-          "moreSkills": [
-            "Team coordination",
-            "Customer communication",
-            "Safety compliance",
-            "Time management",
-            "Basic computer skills",
-            "Shift work",
-            "Quality inspection"
-          ]
-        },
-        {
-          "id": "arabic-teacher",
-          "label": "Arabic Teacher",
-          "subtitle": "Arabic",
-          "fieldPattern": "typeChips",
-          "typeLabel": "Type",
-          "types": [
-            "Arabic",
-            "Primary",
-            "Secondary",
-            "Higher Secondary"
-          ],
-          "suggestedSkills": [
-            "Arabic language",
-            "Reading",
-            "Writing",
-            "Grammar",
-            "Communication",
-            "Assessment"
-          ],
-          "moreSkills": [
-            "Team coordination",
-            "Customer communication",
-            "Safety compliance",
-            "Time management",
-            "Basic computer skills",
-            "Shift work",
-            "Quality inspection"
-          ]
-        },
-        {
-          "id": "physical-education-teacher",
-          "label": "Physical Education Teacher",
-          "subtitle": "Physical Education",
-          "fieldPattern": "typeChips",
-          "typeLabel": "Type",
-          "types": [
-            "Physical Education",
-            "School"
-          ],
-          "suggestedSkills": [
-            "Physical training",
-            "Sports instruction",
-            "Fitness",
-            "Safety",
-            "Assessment"
           ],
           "moreSkills": [
             "Team coordination",

@@ -241,13 +241,23 @@ Counts are PDF rows (one position each). HTML Step 2 must list all of them, not 
 | 11 | Retail & Sales | 17 | `typeChips` (Retail, B2B, Field, …) |
 | 12 | Office & Administration | 20 | `typeChips` |
 | 13 | Technology & IT | ~27 | Developers/engineers: `specializationMulti` (Web, Backend, AWS, …) |
-| 14 | Teaching & Education | ~36 | Subject + level: mix of type chips and Show more |
+| 14 | Teaching & Education | 10 | **Role-first:** School teacher, Early childhood, College, Engineering/ITI, Private tutor, Special ed, Co-curricular, TA, Coordinator. Level/subject/mode on step 3 (`Level & subject`, Show more). |
 | 15 | Healthcare | ~40 | Nurse `typeChips`; Doctor `specializationMulti`; others usually type chips |
 | 16 | Events & Wedding | 19 | `typeChips` |
 | 17 | Fitness & Wellness | 14 | `typeChips` |
 | 18 | Beauty & Personal Care | 17 | `typeChips` |
 
 Rule of thumb for HTML: if `types.length > 8`, use `specializationMulti` (Show more sheet). Else `typeChips` on the page.
+
+### Teaching & Education (employer path)
+
+1. Sector **Teaching & Education** → pick one of **10 positions** (not per-subject job titles).
+2. **School teacher:** step 3 **Level & subject** — levels (Primary / Secondary / Higher secondary) plus subjects (multi-select, Show more).
+3. **Private tutor:** mode, class band, and subjects on one type field.
+4. **College / Engineering / ITI:** stream or department subjects via Show more.
+5. **Early childhood / Montessori**, **Special ed**, **Co-curricular**, **TA**, **Coordinator:** short type chip lists.
+
+Regenerate after edits: `python3 docs/prototypes/_gen_hire_catalog.py`.
 
 ## 5. Gap vs what is already in the repo
 

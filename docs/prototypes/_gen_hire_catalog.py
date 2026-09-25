@@ -58,6 +58,43 @@ def pos(label, types, skills, subtitle=""):
     }
 
 
+def teach_pos(label, types, skills, subtitle="", type_label="Type"):
+    """Teaching sector positions with explicit subtitles and type field labels."""
+    p = pos(label, types, skills, subtitle)
+    p["typeLabel"] = type_label
+    if len(p["types"]) > 8:
+        p["fieldPattern"] = "specializationMulti"
+    return p
+
+
+# Shared lists for Teaching & Education (level + subject on step 3)
+_SCHOOL_LEVELS = "Primary (LP–UKG); Secondary (8–10); Higher Secondary (+1/+2)"
+_SCHOOL_SUBJECTS = (
+    "All subjects (primary); English; Malayalam; Hindi; Mathematics; Science; Social Science; "
+    "Physics; Chemistry; Biology; Computer Science; Commerce; Accountancy; Economics; "
+    "History; Geography; Arabic; Sanskrit; Informatics Practices"
+)
+_COLLEGE_STREAMS = "Arts; Science; Commerce; Law; Management"
+_COLLEGE_SUBJECTS = (
+    "English; Malayalam; Hindi; Economics; History; Political Science; Sociology; "
+    "Physics; Chemistry; Mathematics; Botany; Zoology; Commerce; Accountancy; "
+    "Business Administration; Computer Applications"
+)
+_ENGINEERING = (
+    "Engineering college; Polytechnic; Computer Science; Electronics; Electrical; "
+    "Mechanical; Civil; Mathematics; Physics; Chemistry; Information Technology"
+)
+_ITI_TRADES = (
+    "Electrician; Fitter; Welder; Mechanic (Motor Vehicle); COPA; Draughtsman; "
+    "Plumber; Refrigeration; NCVT; SCVT"
+)
+_TUTOR_MODES = "Home tuition; Online tuition; Tuition centre"
+_TUTOR_LEVELS = "Primary; Class 8–10; Plus One; Plus Two; Degree; Entrance exam prep"
+_TUTOR_SUBJECTS = (
+    "Mathematics; Science; Physics; Chemistry; Biology; English; Malayalam; Hindi; "
+    "Computer Science; Commerce; Accountancy; Economics; Social Science"
+)
+
 SECTORS = [
     {
         "id": "electrical",
@@ -388,43 +425,80 @@ SECTORS = [
     {
         "id": "teaching",
         "label": "Teaching & Education",
-        "subtitle": "Schools, tuition and subject teachers",
+        "subtitle": "Schools, colleges, tuition and training",
         "icon": "book",
         "color": "#7C3AED",
         "positions": [
-            pos("School Teacher", "Primary; Secondary; Higher Secondary", "Lesson planning; Classroom management; Assessment"),
-            pos("Primary Teacher", "Primary Education", "Teaching; Classroom management; Child development"),
-            pos("High School Teacher", "Secondary Education", "Subject teaching; Assessment; Classroom management"),
-            pos("Higher Secondary Teacher", "Higher Secondary", "Subject teaching; Lesson planning; Assessment"),
-            pos("College Lecturer", "Higher Education", "Lecturing; Curriculum; Assessment"),
-            pos("Tutor", "Academic; Private", "Subject teaching; Assessment; Student support"),
-            pos("Home Tutor", "Home Tuition", "One-to-one teaching; Lesson planning"),
-            pos("Online Tutor", "Online Education", "Online teaching; Digital tools; Assessment"),
-            pos("Language Teacher", "Languages", "Language teaching; Communication; Assessment"),
-            pos("Mathematics Teacher", "Mathematics", "Mathematics teaching; Problem solving; Assessment"),
-            pos("Science Teacher", "Science", "Science teaching; Experiments; Assessment"),
-            pos("Computer Teacher", "Computer Science; IT", "Programming; Computer education; Digital skills"),
-            pos("Music Teacher", "Music", "Music instruction; Performance; Assessment"),
-            pos("Dance Teacher", "Dance", "Dance instruction; Choreography; Performance"),
-            pos("Special Education Teacher", "Special Education", "Individualized teaching; Student support; Assessment"),
-            pos("Teaching Assistant", "School; College", "Classroom support; Student assistance"),
-            pos("Academic Coordinator", "School; College", "Academic planning; Coordination; Reporting"),
-            pos("Engineering Lecturer", "Engineering Education", "Engineering subjects; Laboratory instruction; Assessment"),
-            pos("English Teacher", "English Language; Primary; Secondary; Higher Secondary", "English grammar; Reading; Writing; Speaking; Lesson planning; Assessment"),
-            pos("Physics Teacher", "Physics; Secondary; Higher Secondary", "Physics concepts; Problem solving; Experiments; Lesson planning; Assessment"),
-            pos("Chemistry Teacher", "Chemistry; Secondary; Higher Secondary", "Chemistry concepts; Laboratory work; Experiments; Lesson planning; Assessment"),
-            pos("Biology Teacher", "Biology; Secondary; Higher Secondary", "Biology concepts; Laboratory work; Experiments; Lesson planning; Assessment"),
-            pos("Computer Science Teacher", "Computer Science; Secondary; Higher Secondary", "Programming; Algorithms; Computer science concepts; Practical instruction; Assessment"),
-            pos("Social Science Teacher", "Social Science; Secondary", "History; Geography; Civics; Lesson planning; Classroom management; Assessment"),
-            pos("History Teacher", "History; Secondary; Higher Secondary", "History teaching; Source analysis; Lesson planning; Assessment"),
-            pos("Geography Teacher", "Geography; Secondary; Higher Secondary", "Geography teaching; Map skills; Fieldwork; Lesson planning; Assessment"),
-            pos("Economics Teacher", "Economics; Higher Secondary; College", "Economic theory; Data interpretation; Lesson planning; Assessment"),
-            pos("Commerce Teacher", "Commerce; Higher Secondary; College", "Commerce concepts; Business studies; Accounting basics; Assessment"),
-            pos("Accountancy Teacher", "Accountancy; Higher Secondary; College", "Accounting principles; Financial statements; Problem solving; Assessment"),
-            pos("Malayalam Teacher", "Malayalam; Primary; Secondary; Higher Secondary", "Malayalam language; Literature; Grammar; Reading; Writing; Assessment"),
-            pos("Hindi Teacher", "Hindi; Primary; Secondary; Higher Secondary", "Hindi language; Literature; Grammar; Reading; Writing; Assessment"),
-            pos("Arabic Teacher", "Arabic; Primary; Secondary; Higher Secondary", "Arabic language; Reading; Writing; Grammar; Communication; Assessment"),
-            pos("Physical Education Teacher", "Physical Education; School", "Physical training; Sports instruction; Fitness; Safety; Assessment"),
+            teach_pos(
+                "School Teacher",
+                f"{_SCHOOL_LEVELS}; {_SCHOOL_SUBJECTS}",
+                "Lesson planning; Classroom management; Assessment; Parent communication",
+                "Primary to higher secondary",
+                "Level & subject",
+            ),
+            teach_pos(
+                "Early Childhood / Montessori Teacher",
+                "Montessori; Play school; Nursery; LKG–UKG; ECCE; Play-based learning",
+                "Child development; Play-based learning; Classroom routines; Child safety",
+                "Pre-primary, nursery, LKG–UKG",
+                "Setting",
+            ),
+            teach_pos(
+                "College Lecturer",
+                f"{_COLLEGE_STREAMS}; {_COLLEGE_SUBJECTS}; UG teaching; PG teaching",
+                "Lecturing; Curriculum design; Assessment; Research support",
+                "Degree and PG colleges",
+                "Stream & subject",
+            ),
+            teach_pos(
+                "Engineering / Polytechnic Faculty",
+                _ENGINEERING,
+                "Laboratory instruction; Engineering subjects; Assessment; Curriculum",
+                "Diploma and B.Tech colleges",
+                "Department & subject",
+            ),
+            teach_pos(
+                "ITI / Vocational Instructor",
+                _ITI_TRADES,
+                "Trade instruction; Workshop safety; Practical assessment; Tool handling",
+                "ITI and skill centres",
+                "Trade",
+            ),
+            teach_pos(
+                "Private Tutor",
+                f"{_TUTOR_MODES}; {_TUTOR_LEVELS}; {_TUTOR_SUBJECTS}",
+                "One-to-one teaching; Lesson planning; Assessment; Student mentoring",
+                "Home, online or centre",
+                "Mode, class & subject",
+            ),
+            teach_pos(
+                "Special Education Teacher",
+                "Learning disability; Autism support; Remedial teaching; Inclusive classroom",
+                "Individualized education; Student support; Assessment; Patience and empathy",
+                "Special and inclusive education",
+                "Specialization",
+            ),
+            teach_pos(
+                "Co-curricular Teacher",
+                "Physical education; Music; Dance; Art and craft; Yoga",
+                "Activity planning; Student engagement; Performance; Safety",
+                "PE, music, dance and art",
+                "Activity",
+            ),
+            teach_pos(
+                "Teaching Assistant",
+                "Primary school; Secondary school; Higher secondary; College",
+                "Classroom support; Student assistance; Material preparation",
+                "School or college support",
+                "Setting",
+            ),
+            teach_pos(
+                "Academic Coordinator",
+                "School; College; Training institute",
+                "Academic planning; Timetable; Staff coordination; Reporting",
+                "Academic administration",
+                "Institution",
+            ),
         ],
     },
     {
