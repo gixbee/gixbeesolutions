@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Gixbee — Job Profile (Employee demo)</title>
+<!-- Single file: catalogue + app JavaScript are embedded below. Save this .html only. -->
+<style>
+  :root{
+    --navy:#1B2559; --ink:#111827; --mut:#6B7280; --line:#E5E7EB;
+    --bg:#F8FAFC; --card:#fff; --gn:#12B76A; --gn2:#099250; --soft:#ECFDF3;
+    --chip:#F3F4F6; --shadow:0 8px 28px rgba(15,23,42,.08);
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:#E8EDF5;font-family:Inter,system-ui,-apple-system,Segoe UI,sans-serif;color:var(--ink)}
+  .stage{min-height:100vh;display:flex;align-items:flex-start;justify-content:center;padding:24px 12px}
+  .phone{width:min(100%,430px);background:#fff;min-height:860px;border-radius:36px;box-shadow:var(--shadow);overflow:hidden;position:relative;border:8px solid #111}
+  .notch{height:28px;display:flex;align-items:center;justify-content:space-between;padding:8px 18px 0;font-size:12px;font-weight:700;color:#111}
+  .scr{display:none;padding:0 0 92px;min-height:800px}
+  .scr.on{display:block}
+  .top{display:flex;align-items:center;gap:10px;padding:8px 16px 6px}
+  .back{width:36px;height:36px;border:0;background:none;font-size:22px;color:var(--navy);cursor:pointer}
+  .top h1{margin:0;font-size:20px;color:var(--navy);flex:1}
+  .req{color:var(--gn);font-size:13px;font-weight:700;background:none;border:0;cursor:pointer;white-space:nowrap}
+  .prog{display:flex;align-items:center;gap:8px;padding:4px 16px 12px}
+  .bar{flex:1;height:6px;background:#E5E7EB;border-radius:99px;overflow:hidden}
+  .bar>i{display:block;height:100%;background:var(--gn);width:20%;border-radius:99px}
+  .frac{font-size:12px;color:#9CA3AF;font-weight:700}
+  .pad{padding:0 16px}
+  h2{margin:0 0 10px;font-size:18px}
+  .sub{color:var(--mut);font-size:13px;line-height:1.45;margin:0 0 14px}
+  .pills{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px}
+  .pill{border:1px solid #D1D5DB;background:#fff;border-radius:10px;padding:8px 12px;font-size:13px;font-weight:700;color:#374151;cursor:pointer}
+  .pill.on{background:var(--gn);border-color:var(--gn);color:#fff}
+  .row{display:flex;justify-content:space-between;align-items:baseline;margin:6px 0 10px}
+  .see{background:none;border:0;color:#2563EB;font-weight:700;font-size:13px;cursor:pointer}
+  .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+  .tile{border:1.5px solid #E5E7EB;border-radius:16px;background:#fff;padding:12px 8px 10px;text-align:center;cursor:pointer;min-height:108px}
+  .tile.on{border-color:var(--gn);background:#F0FDF4;box-shadow:0 0 0 3px #D1FADF}
+  .ico{width:44px;height:44px;border-radius:50%;margin:0 auto 8px;display:grid;place-items:center}
+  .tile b{display:block;font-size:11px;line-height:1.25;font-weight:700;color:#1F2937}
+  .cta{position:sticky;bottom:0;padding:12px 16px 18px;background:linear-gradient(transparent, #fff 18%); }
+  .btn{width:100%;border:0;border-radius:12px;background:var(--gn);color:#fff;font-weight:800;font-size:16px;padding:14px;cursor:pointer}
+  .btn:disabled{opacity:.45;cursor:not-allowed}
+  .btn.ghost{background:#fff;color:var(--gn);border:1.5px solid var(--gn);margin-top:8px}
+  .search{width:100%;padding:12px 14px 12px 38px;border:1px solid #E5E7EB;border-radius:12px;background:#F9FAFB url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='18' height='18' fill='none' stroke='%239CA3AF' stroke-width='2'%3E%3Ccircle cx='8' cy='8' r='6'/%3E%3Cpath d='M13 13l3 3'/%3E%3C/svg%3E") 12px 50% no-repeat;font:inherit;margin:10px 0 12px}
+  .plist{display:flex;flex-direction:column;gap:8px}
+  .prow{display:flex;gap:12px;align-items:center;padding:10px;border-radius:14px;border:1.5px solid transparent;cursor:pointer;background:#fff}
+  .prow.on{border-color:var(--gn);background:#F0FDF4}
+  .pdot{width:42px;height:42px;border-radius:50%;display:grid;place-items:center;flex:none;background:#ECFDF3}
+  .prow .t{font-weight:800;font-size:14px}
+  .prow .s{font-size:12px;color:var(--mut);margin-top:2px}
+  .crumb{display:flex;align-items:flex-start;gap:10px;padding:10px 12px;border-radius:14px;background:#ECFDF3;margin-bottom:12px}
+  .crumb .chg{margin-left:auto;color:var(--gn);font-weight:800;font-size:13px;background:none;border:0;cursor:pointer}
+  .chips{display:flex;flex-wrap:wrap;gap:8px;margin:8px 0 14px}
+  .chip{padding:8px 12px;border-radius:10px;border:1px solid #D1D5DB;background:#fff;font-size:12.5px;font-weight:700;cursor:pointer;color:#374151}
+  .chip.on{background:var(--gn);border-color:var(--gn);color:#fff}
+  .chip.on{display:inline-flex;align-items:center;gap:6px}
+  .chip.on .chip-x{border:0;background:none;cursor:pointer;color:#fff;font-size:14px;font-weight:800;line-height:1;padding:0 2px}
+  .chip.sk{background:#EEF2FF;border-color:#C7D2FE;color:#3730A3;display:inline-flex;align-items:center;gap:6px}
+  .chip.sk.on{background:var(--gn);border-color:var(--gn);color:#fff}
+  .chip.sk.on button{color:#fff}
+  .chip.sk button{border:0;background:none;cursor:pointer;color:#4338CA;font-size:14px}
+  .addsk{border:1.5px dashed var(--gn);color:var(--gn);background:#fff;border-radius:10px;padding:8px 12px;font-weight:800;cursor:pointer}
+  .fld{margin:0 0 14px}
+  .fld label{display:block;font-size:13px;font-weight:800;margin:0 0 6px}
+  .fld input,.fld select,.fld textarea{width:100%;padding:12px;border:1px solid #E5E7EB;border-radius:12px;font:inherit;background:#fff}
+  .fld textarea{min-height:72px}
+  .stepper{display:flex;align-items:center;gap:14px}
+  .stepper button{width:36px;height:36px;border-radius:10px;border:1px solid #E5E7EB;background:#fff;font-size:18px;cursor:pointer}
+  .stepper b{min-width:24px;text-align:center}
+  .sal{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .loc{display:flex;gap:8px;align-items:center;border:1px solid #E5E7EB;border-radius:12px;padding:10px 12px}
+  .loc input{border:0;flex:1;font:inherit;outline:none}
+  .tog{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:8px 0 16px}
+  .sw{width:44px;height:26px;border-radius:99px;background:#D1D5DB;position:relative;border:0;cursor:pointer}
+  .sw.on{background:var(--gn)}
+  .sw i{position:absolute;top:3px;left:3px;width:20px;height:20px;border-radius:50%;background:#fff;transition:left .15s}
+  .sw.on i{left:21px}
+  .match{background:var(--soft);border-radius:16px;padding:14px;display:flex;align-items:center;gap:12px;margin:8px 0 14px}
+  .match .n{font-size:28px;font-weight:900;color:var(--gn2)}
+  .sum{border:1px solid #E5E7EB;border-radius:16px;padding:14px;margin-bottom:14px}
+  .sum .line{display:flex;justify-content:space-between;gap:10px;font-size:13px;padding:5px 0;color:#4B5563}
+  .sum .line b{color:#111;text-align:right;font-weight:700;max-width:58%;text-align:right}
+  .sheet{position:absolute;inset:0;background:rgba(15,23,42,.45);display:none;align-items:flex-end;z-index:5}
+  .sheet.on{display:flex}
+  .sheet .box{background:#fff;width:100%;max-height:88%;border-radius:20px 20px 0 0;padding:14px 16px 20px;overflow:auto}
+  .sheet h3{margin:0;font-size:18px}
+  .ck{display:flex;gap:10px;align-items:flex-start;padding:8px 0;border-bottom:1px solid #F3F4F6;font-size:14px;cursor:pointer}
+  .toast{position:absolute;left:16px;right:16px;bottom:88px;background:#111827;color:#fff;padding:12px 14px;border-radius:12px;font-size:13px;display:none;z-index:6}
+  .ok{background:#ECFDF3;border-radius:12px;padding:12px;font-size:12.5px;color:#065F46;margin:10px 0}
+  .chip.lang{background:#FFF7ED;border-color:#FDBA74;color:#9A3412}
+  .chip.lang.on{background:var(--gn);border-color:var(--gn);color:#fff}
+  .chip.lang.sk{display:inline-flex;align-items:center;gap:6px;cursor:default}
+  .chip.lang button{border:0;background:none;cursor:pointer;color:#9A3412;font-size:15px;font-weight:800;line-height:1;padding:0 2px}
+  .hint{font-size:12px;color:#9CA3AF;margin:-6px 0 10px;line-height:1.4}
+  .prof-card{border:1.5px solid #E5E7EB;border-radius:16px;padding:14px;margin:0 0 10px;background:#fff}
+  .prof-card b{display:block;font-size:15px;margin-bottom:4px}
+  .prof-card .meta{font-size:12px;color:var(--mut);line-height:1.4}
+  .prof-card .acts{display:flex;gap:12px;margin-top:10px}
+  .prof-card .acts button{font-size:13px;font-weight:800;border:0;background:none;color:#2563EB;cursor:pointer;padding:0}
+  .prof-card .acts .del{color:#DC2626}
+  .empty{text-align:center;padding:32px 12px;color:var(--mut);font-size:14px}
+</style>
+</head>
+<body>
+<div class="stage">
+  <div class="phone" id="phone">
+    <div class="notch"><span>9:41</span><span>●●●</span></div>
+
+    <section class="scr on" id="s1">
+      <div class="top"><button class="back" type="button" id="s1Back">←</button><h1>Job Profile</h1><button class="req" type="button" id="myProfiles">My profiles</button></div>
+      <div class="prog"><div class="bar"><i id="p1"></i></div><span class="frac">1/5</span></div>
+      <div class="pad">
+        <h2>Select Job Type</h2>
+        <p class="sub">Same categories as hiring — tell employers how you want to work.</p>
+        <div class="pills" id="empTypes"></div>
+        <div class="row"><h2 style="margin:0">Sector / Category</h2></div>
+        <div class="grid" id="sectors"></div>
+      </div>
+      <div class="cta"><button class="btn" id="c1" disabled>Continue</button></div>
+    </section>
+
+    <section class="scr" id="s2">
+      <div class="top"><button class="back" type="button" data-to="s1">←</button><h1>Job Profile</h1><button class="req" type="button" id="myProfiles2">My profiles</button></div>
+      <div class="prog"><div class="bar"><i style="width:40%"></i></div><span class="frac">2/5</span></div>
+      <div class="pad">
+        <div class="crumb">
+          <div class="pdot" id="s2ico"></div>
+          <div><b id="s2sec"></b><div class="s" id="s2sub"></div></div>
+          <button class="chg" type="button" data-to="s1">Change</button>
+        </div>
+        <h2>Select Position</h2>
+        <input class="search" id="posSearch" placeholder="Search position (e.g. Nurse, Electrician)">
+        <div class="plist" id="posList"></div>
+        <button class="see" type="button" id="morePos" style="margin:8px 0">Show more positions</button>
+      </div>
+      <div class="cta"><button class="btn" id="c2" disabled>Continue</button></div>
+    </section>
+
+    <section class="scr" id="s3">
+      <div class="top"><button class="back" type="button" data-to="s2">←</button><h1>Job Profile</h1><button class="req" type="button" id="myProfiles3">My profiles</button></div>
+      <div class="prog"><div class="bar"><i style="width:60%"></i></div><span class="frac">3/5</span></div>
+      <div class="pad">
+        <div class="crumb">
+          <div class="pdot" id="s3ico"></div>
+          <div><b id="s3crumb"></b><div class="s" id="s3sub"></div></div>
+          <button class="chg" type="button" data-to="s2">Change</button>
+        </div>
+        <div class="fld" id="typeBlock">
+          <label id="typeLbl">Type</label>
+          <div class="chips" id="typeChips"></div>
+          <div class="chips" id="typeExtra" style="margin-top:8px"></div>
+          <button class="see" type="button" id="moreTypes" hidden>Show more</button>
+        </div>
+        <div class="fld">
+          <label>Your qualification (optional)</label>
+          <select id="qual">
+            <option value="">Select qualification</option>
+            <option>10th</option><option>12th</option><option>ITI / Diploma</option>
+            <option>Graduate</option><option>Post graduate</option>
+            <option>MBBS</option><option>MD / MS</option><option>B.Sc Nursing</option>
+            <option>Other</option>
+          </select>
+        </div>
+        <div class="fld">
+          <label>Your experience (years)</label>
+          <div class="stepper"><button type="button" id="expM">−</button><b id="expV">2</b><button type="button" id="expP">+</button></div>
+        </div>
+        <div class="fld">
+          <label id="skillLbl">Skills</label>
+          <div class="chips" id="skillChips"></div>
+          <button class="addsk" type="button" id="addSkills">+ Add skills</button>
+        </div>
+        <div class="fld">
+          <label id="langLbl">Languages you speak</label>
+          <p class="hint">Employers filter by language — add everything you are comfortable with.</p>
+          <div class="chips" id="langQuick"></div>
+          <div class="chips" id="langChips" style="margin-top:8px"></div>
+          <button class="addsk" type="button" id="addLangs" style="margin-top:8px">+ Add languages</button>
+        </div>
+        <div class="fld">
+          <label>Short bio (optional)</label>
+          <textarea id="desc" placeholder="e.g. ICU nurse, night shifts OK, Kerala Nursing Council registered…"></textarea>
+        </div>
+      </div>
+      <div class="cta"><button class="btn" id="c3">Continue →</button></div>
+    </section>
+
+    <section class="scr" id="s4">
+      <div class="top"><button class="back" type="button" data-to="s3">←</button><h1>Job Profile</h1><button class="req" type="button" id="myProfiles4">My profiles</button></div>
+      <div class="prog"><div class="bar"><i style="width:80%"></i></div><span class="frac">4/5</span></div>
+      <div class="pad">
+        <h2>Location &amp; Pay Expectations</h2>
+        <p class="sub">Where you can work and the salary range you expect — used for job matching.</p>
+        <div class="fld">
+          <label>Preferred work location</label>
+          <div class="loc">📍 <input id="loc" value="Kochi, Kerala"><button type="button" id="clrLoc" style="border:0;background:none;cursor:pointer">✕</button></div>
+        </div>
+        <div class="fld">
+          <label>Expected salary</label>
+          <div class="sal">
+            <div><small style="color:#9CA3AF">Min (₹/month)</small><input id="smin" type="number" value="25000"></div>
+            <div><small style="color:#9CA3AF">Max (₹/month) (Optional)</small><input id="smax" type="number" value="30000"></div>
+          </div>
+        </div>
+        <div class="tog"><div><b>Salary negotiable</b><div class="s">You are open to discuss pay for the right role.</div></div><button class="sw on" type="button" id="neg"><i></i></button></div>
+        <div class="tog"><div><b>Open to relocate</b><div class="s">Within Kerala or nearby districts.</div></div><button class="sw" type="button" id="reloc"><i></i></button></div>
+        <div class="match">
+          <div class="pdot">💼</div>
+          <div><div class="n" id="matchN">38</div><div class="s">open roles may match this profile (demo estimate)</div></div>
+        </div>
+      </div>
+      <div class="cta"><button class="btn" id="c4">Continue</button></div>
+    </section>
+
+    <section class="scr" id="s5">
+      <div class="top"><button class="back" type="button" data-to="s4">←</button><h1>Job Profile</h1><button class="req" type="button" id="myProfiles5">My profiles</button></div>
+      <div class="prog"><div class="bar"><i style="width:100%"></i></div><span class="frac">5/5</span></div>
+      <div class="pad">
+        <h2>Review &amp; Save Profile</h2>
+        <p class="sub">This is saved on this device (demo). The live app syncs to your Gixbee account and matches you to hiring posts.</p>
+        <div class="fld">
+          <label>Profile name</label>
+          <input id="profileName" placeholder="e.g. Nurse — ICU Kochi">
+        </div>
+        <div class="sum">
+          <div style="display:flex;justify-content:space-between"><b>Profile summary</b><button class="see" type="button" data-to="s3">Edit</button></div>
+          <div id="summary"></div>
+        </div>
+        <p class="ok">Demo: profiles are stored in browser localStorage under <code>GIXBEE_JOB_PROFILES</code>. Export JSON from My profiles for API integration tests.</p>
+      </div>
+      <div class="cta"><button class="btn" id="c5">Save profile</button></div>
+    </section>
+
+    <section class="scr" id="s6">
+      <div class="top"><button class="back" type="button" data-to="s1">←</button><h1>Saved</h1></div>
+      <div class="pad" style="padding-top:24px">
+        <div class="match"><div><div class="n">✓</div><div>Your job profile is saved. Employers with matching Smart Hiring posts can discover you.</div></div></div>
+        <p class="sub" id="doneTxt"></p>
+        <button class="btn" type="button" id="viewSaved">View My profiles</button>
+        <button class="btn ghost" type="button" id="another">Create another profile</button>
+      </div>
+    </section>
+
+    <section class="scr" id="s7">
+      <div class="top"><button class="back" type="button" data-to="s1">←</button><h1>My profiles</h1></div>
+      <div class="pad">
+        <p class="sub">Tap a profile to load it into the wizard, or delete it.</p>
+        <div id="profileList"></div>
+        <button class="btn ghost" type="button" id="exportProfiles">Copy all profiles (JSON)</button>
+      </div>
+    </section>
+
+    <div class="sheet" id="skillSheet">
+      <div class="box">
+        <div class="row"><h3 id="skTitle">Add Skills</h3><button class="see" type="button" id="skClose">✕</button></div>
+        <input class="search" id="skSearch" placeholder="Search skills">
+        <div id="skList"></div>
+        <button class="see" type="button" id="skMore">Show more skills</button>
+        <div class="cta" style="position:static;padding:12px 0 0"><button class="btn" type="button" id="skOk">OK</button></div>
+      </div>
+    </div>
+    <div class="sheet" id="specSheet">
+      <div class="box">
+        <div class="row"><h3>Select Specialization</h3><button class="see" type="button" id="spClose">✕</button></div>
+        <input class="search" id="spSearch" placeholder="Search specializations">
+        <div id="spList"></div>
+        <div class="cta" style="position:static;padding:12px 0 0"><button class="btn" type="button" id="spOk">OK</button></div>
+      </div>
+    </div>
+    <div class="sheet" id="langSheet">
+      <div class="box">
+        <div class="row"><h3>Select languages</h3><button class="see" type="button" id="lgClose">✕</button></div>
+        <input class="search" id="lgSearch" placeholder="Search languages">
+        <div id="lgList"></div>
+        <div class="cta" style="position:static;padding:12px 0 0"><button class="btn" type="button" id="lgOk">OK</button></div>
+      </div>
+    </div>
+    <div class="toast" id="toast"></div>
+  </div>
+</div>
+<!-- CATALOG_START -->
+<!-- CATALOG_END -->
+<!-- APP_START -->
+<!-- APP_END -->
+</body>
+</html>
