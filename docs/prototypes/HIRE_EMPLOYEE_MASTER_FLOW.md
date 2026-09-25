@@ -222,30 +222,30 @@ Split PDF “Type / Specialization” on `;`. Split “Suggested Skills” on `;
 
 **Nurse types in the mock** rename PDF tokens (`General/Staff` → `General Nurse`, `ICU/Critical Care` → `ICU Nurse`). HTML should use the **mock labels** where they exist, and PDF labels for every other position.
 
-## 4. Sector → position inventory (PDF)
+## 4. Sector → position inventory (catalog v2 — role-first)
 
-Counts are PDF rows (one position each). HTML Step 2 must list all of them, not only the mock’s first eight healthcare rows.
+**Total: 130 positions** across 18 sectors (consolidated from ~303 PDF-style rows). Source: `_catalog_sectors.py` + `_gen_hire_catalog.py`. Every position has **≥2 type chips** so step 3 is always meaningful.
 
-| # | Sector (HTML tile) | Positions (approx.) | Step 3 pattern notes |
-| --- | --- | --- | --- |
-| 1 | Electrical & Electronics | 21 | Short types for Electrician; `specializationMulti` for Electronics Engineer, Instrumentation Engineer |
-| 2 | Plumbing | 11 | `typeChips` (Domestic, Residential, Building, …) |
-| 3 | Cleaning & Housekeeping | 11 | `typeChips` (Home, Hotel, Hospital, …) |
-| 4 | Painting | 11 | `typeChips` (Interior, Exterior, …) |
-| 5 | Construction, Carpentry & Woodwork | 22 | Trades = type chips; Civil/Structural/Architect = specialization lists |
-| 6 | Mechanical, HVAC & Appliances | 19 | AC Technician: Split / Window / Inverter chips |
-| 7 | Driving | 12 | `typeChips` (Personal, Taxi, HMV, …) |
-| 8 | Delivery & Logistics | 12 | `typeChips` |
-| 9 | Cooking & Hospitality | 16 | Cuisine as types (South Indian, Tandoor, …) |
-| 10 | Security | 13 | `typeChips` |
-| 11 | Retail & Sales | 17 | `typeChips` (Retail, B2B, Field, …) |
-| 12 | Office & Administration | 20 | `typeChips` |
-| 13 | Technology & IT | ~27 | Developers/engineers: `specializationMulti` (Web, Backend, AWS, …) |
-| 14 | Teaching & Education | 10 | **Role-first:** School teacher, Early childhood, College, Engineering/ITI, Private tutor, Special ed, Co-curricular, TA, Coordinator. Level/subject/mode on step 3 (`Level & subject`, Show more). |
-| 15 | Healthcare | ~40 | Nurse `typeChips`; Doctor `specializationMulti`; others usually type chips |
-| 16 | Events & Wedding | 19 | `typeChips` |
-| 17 | Fitness & Wellness | 14 | `typeChips` |
-| 18 | Beauty & Personal Care | 17 | `typeChips` |
+| # | Sector | Positions | Step 3 pattern |
+| --- | --- | ---: | --- |
+| 1 | Electrical & Electronics | 10 | Work type / setting / specialization |
+| 2 | Plumbing | 6 | Work type, system |
+| 3 | Cleaning & Housekeeping | 4 | Setting |
+| 4 | Painting | 3 | Work type |
+| 5 | Construction, Carpentry & Woodwork | 9 | Trade vs design/engineering bands |
+| 6 | Mechanical, HVAC & Appliances | 6 | AC type, appliance, engineering |
+| 7 | Driving | 7 | Vehicle / service type |
+| 8 | Delivery & Logistics | 6 | Delivery type, warehouse, dispatch |
+| 9 | Cooking & Hospitality | 5 | Cuisine, kitchen section, service |
+| 10 | Security | 6 | Venue type, role |
+| 11 | Retail & Sales | 8 | Channel, level |
+| 12 | Office & Administration | 7 | Function, setting |
+| 13 | Technology & IT | 12 | Stack, platform, discipline |
+| 14 | Teaching & Education | 10 | Level & subject, mode, trade (see below) |
+| 15 | Healthcare | 10 | Specialization, department, profession |
+| 16 | Events & Wedding | 9 | Event type, production role |
+| 17 | Fitness & Wellness | 5 | Coaching type, format |
+| 18 | Beauty & Personal Care | 7 | Service type |
 
 Rule of thumb for HTML: if `types.length > 8`, use `specializationMulti` (Show more sheet). Else `typeChips` on the page.
 
@@ -257,7 +257,7 @@ Rule of thumb for HTML: if `types.length > 8`, use `specializationMulti` (Show m
 4. **College / Engineering / ITI:** stream or department subjects via Show more.
 5. **Early childhood / Montessori**, **Special ed**, **Co-curricular**, **TA**, **Coordinator:** short type chip lists.
 
-Regenerate after edits: `python3 docs/prototypes/_gen_hire_catalog.py`.
+Regenerate after edits: `python3 docs/prototypes/_gen_hire_catalog.py` (loads `_catalog_sectors.py`).
 
 ## 5. Gap vs what is already in the repo
 
