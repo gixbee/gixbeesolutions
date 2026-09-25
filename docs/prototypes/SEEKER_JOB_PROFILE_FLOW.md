@@ -17,7 +17,7 @@ This prototype mirrors `hire-employee-skills-master.html` with seeker copy and p
 | 1/5 | Job type pills + sector grid | Same catalogue as hire |
 | 2/5 | Position in sector | Same positions (130 role-first rows) |
 | 3/5 | Type, qualification, experience, skills, languages, bio | “Your” wording; languages = languages you speak |
-| 4/5 | Location + expected salary + negotiable + relocate | No vacancies; demo “open roles” estimate |
+| 4/5 | Location + expected salary + **available to join** + **resume (optional)** + negotiable + relocate | No vacancies; demo “open roles” estimate |
 | 5/5 | Review + profile name + **Save profile** | No Razorpay / interest packages |
 
 After save:
@@ -33,6 +33,8 @@ Each item includes:
 - `employmentType`, `sector`, `position`, `types[]`
 - `qualification`, `experienceYears`, `skills[]`, `languages[]`, `bio`
 - `location`, `salary` (`minMonthly`, `maxMonthly`, `negotiable`), `openToRelocate`
+- `availableToJoin` (`code`, `label`) — Immediately · Within 7 / 15 / 30 / 60 / 90 days
+- `resume` (optional) — `fileName`, `sizeBytes`, `mimeType`; small files may include `dataUrl` in demo
 - `catalogueVersion` (matches hire catalogue)
 
 ## Source files

@@ -101,6 +101,12 @@
   .prof-card .acts button{font-size:13px;font-weight:800;border:0;background:none;color:#2563EB;cursor:pointer;padding:0}
   .prof-card .acts .del{color:#DC2626}
   .empty{text-align:center;padding:32px 12px;color:var(--mut);font-size:14px}
+  .upload{border:1.5px dashed #D1D5DB;border-radius:12px;padding:14px;background:#F9FAFB}
+  .upload input[type=file]{display:none}
+  .upload .up-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+  .upload .up-btn{display:inline-block;padding:10px 14px;border-radius:10px;background:#fff;border:1px solid #D1D5DB;font-size:13px;font-weight:800;color:var(--navy);cursor:pointer}
+  .upload .fname{font-size:13px;color:#374151;font-weight:700;flex:1;min-width:120px}
+  .upload .rm{border:0;background:none;color:#DC2626;font-weight:800;font-size:13px;cursor:pointer}
 </style>
 </head>
 <body>
@@ -202,6 +208,29 @@
           <div class="sal">
             <div><small style="color:#9CA3AF">Min (₹/month)</small><input id="smin" type="number" value="25000"></div>
             <div><small style="color:#9CA3AF">Max (₹/month) (Optional)</small><input id="smax" type="number" value="30000"></div>
+          </div>
+        </div>
+        <div class="fld">
+          <label>Available to join</label>
+          <select id="joinAvail">
+            <option value="immediate">Immediately</option>
+            <option value="d7">Within 7 days</option>
+            <option value="d15">Within 15 days</option>
+            <option value="d30">Within 30 days</option>
+            <option value="d60">Within 60 days</option>
+            <option value="d90">Within 90 days</option>
+          </select>
+        </div>
+        <div class="fld">
+          <label>Resume (optional)</label>
+          <p class="hint">PDF or Word — live app uploads to secure storage; demo keeps small files in this browser.</p>
+          <div class="upload">
+            <div class="up-row">
+              <label class="up-btn" for="resumeFile">Upload resume</label>
+              <input type="file" id="resumeFile" accept=".pdf,.doc,.docx,application/pdf,application/msword,image/*">
+              <span class="fname" id="resumeName">No file chosen</span>
+              <button type="button" class="rm" id="resumeClear" hidden>Remove</button>
+            </div>
           </div>
         </div>
         <div class="tog"><div><b>Salary negotiable</b><div class="s">You are open to discuss pay for the right role.</div></div><button class="sw on" type="button" id="neg"><i></i></button></div>

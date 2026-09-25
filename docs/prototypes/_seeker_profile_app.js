@@ -21,6 +21,8 @@ const state = {
   skillFull: false,
   languages: ['English', 'Malayalam'],
   langDraft: [],
+  availableToJoin: 'immediate',
+  resume: null,
 };
 const LANG_QUICK = ['English', 'Malayalam', 'Hindi', 'Tamil'];
 const LANGUAGE_LIST = [
@@ -32,6 +34,15 @@ const ICONS = {
   chef: '🍳', shield: '🛡️', store: '🏪', briefcase: '💼', laptop: '💻', book: '📘', health: '💚',
   cal: '📅', dumbbell: '🏋️', lotus: '🌸',
 };
+const JOIN_AVAILABILITY = [
+  { code: 'immediate', label: 'Immediately' },
+  { code: 'd7', label: 'Within 7 days' },
+  { code: 'd15', label: 'Within 15 days' },
+  { code: 'd30', label: 'Within 30 days' },
+  { code: 'd60', label: 'Within 60 days' },
+  { code: 'd90', label: 'Within 90 days' },
+];
+const RESUME_DEMO_MAX_BYTES = 350000;
 
 function uid() {
   return 'jp_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 8);
@@ -101,6 +112,64 @@ function syncSheetOkLabels() {
   if (sk) sk.textContent = state.skillDraft.length ? `OK (${state.skillDraft.length} selected)` : 'OK';
 }
 
+function joinLabel(code) {
+  return JOIN_AVAILABILITY.find((x) => x.code === code)?.label || code || '—';
+}
+function renderResumeUi() {
+  const nameEl = document.getElementById('resumeName');
+  const clearBtn = document.getElementById('resumeClear');
+  const input = document.getElementById('resumeFile');
+  if (!nameEl) return;
+  if (state.resume?.fileName) {
+    const kb = state.resume.sizeBytes ? ` (${Math.round(state.resume.sizeBytes / 1024)} KB)` : '';
+    nameEl.textContent = state.resume.fileName + kb;
+    if (clearBtn) clearBtn.hidden = false;
+  } else {
+    nameEl.textContent = 'No file chosen';
+    if (clearBtn) clearBtn.hidden = true;
+    if (input) input.value = '';
+  }
+}
+function clearResume() {
+  state.resume = null;
+  renderResumeUi();
+}
+function setResumeFromFile(file) {
+  if (!file) {
+    clearResume();
+    return;
+  }
+  const allowed = /\.(pdf|doc|docx)$/i.test(file.name) || file.type.startsWith('image/');
+  if (!allowed) {
+    toast('Use PDF, Word (.doc/.docx), or an image.');
+    clearResume();
+    return;
+  }
+  const base = {
+    fileName: file.name,
+    sizeBytes: file.size,
+    mimeType: file.type || 'application/octet-stream',
+    storedInline: false,
+  };
+  if (file.size > RESUME_DEMO_MAX_BYTES) {
+    state.resume = base;
+    renderResumeUi();
+    toast('Resume saved as reference only (file too large for demo storage). Live app uploads to server.');
+    return;
+  }
+  const reader = new FileReader();
+  reader.onload = () => {
+    state.resume = { ...base, storedInline: true, dataUrl: reader.result };
+    renderResumeUi();
+  };
+  reader.onerror = () => {
+    state.resume = base;
+    renderResumeUi();
+    toast('Could not read file — name saved for demo only.');
+  };
+  reader.readAsDataURL(file);
+}
+
 function defaultProfileName() {
   const p = position();
   const s = sector();
@@ -120,9 +189,20 @@ function buildPayload() {
   const bio = document.getElementById('desc').value.trim();
   const nameInput = document.getElementById('profileName').value.trim();
   const name = nameInput || defaultProfileName();
+  const joinCode = document.getElementById('joinAvail')?.value || state.availableToJoin || 'immediate';
+  state.availableToJoin = joinCode;
+  const resumeOut = state.resume
+    ? {
+        fileName: state.resume.fileName,
+        sizeBytes: state.resume.sizeBytes,
+        mimeType: state.resume.mimeType,
+        storedInline: !!state.resume.storedInline,
+        dataUrl: state.resume.storedInline ? state.resume.dataUrl : undefined,
+      }
+    : null;
   return {
     id: state.editId || uid(),
-    schemaVersion: 1,
+    schemaVersion: 2,
     savedAt: new Date().toISOString(),
     displayName: name,
     employmentType: { code: state.emp, label: emp?.label || state.emp },
@@ -141,6 +221,8 @@ function buildPayload() {
       negotiable: state.neg,
     },
     openToRelocate: state.relocate,
+    availableToJoin: { code: joinCode, label: joinLabel(joinCode) },
+    resume: resumeOut,
     catalogueVersion: C.version,
   };
 }
@@ -164,6 +246,22 @@ function applyPayload(profile) {
   document.getElementById('profileName').value = profile.displayName || '';
   document.getElementById('neg').classList.toggle('on', state.neg);
   document.getElementById('reloc').classList.toggle('on', state.relocate);
+  const joinCode = profile.availableToJoin?.code || 'immediate';
+  state.availableToJoin = joinCode;
+  const joinSel = document.getElementById('joinAvail');
+  if (joinSel) joinSel.value = joinCode;
+  if (profile.resume?.fileName) {
+    state.resume = {
+      fileName: profile.resume.fileName,
+      sizeBytes: profile.resume.sizeBytes,
+      mimeType: profile.resume.mimeType,
+      storedInline: !!profile.resume.storedInline,
+      dataUrl: profile.resume.dataUrl,
+    };
+  } else {
+    state.resume = null;
+  }
+  renderResumeUi();
 }
 
 function resetWizard(keepEmp) {
@@ -178,6 +276,8 @@ function resetWizard(keepEmp) {
   state.neg = true;
   state.relocate = false;
   state.languages = ['English', 'Malayalam'];
+  state.availableToJoin = 'immediate';
+  state.resume = null;
   state.posLimit = 8;
   document.getElementById('qual').value = '';
   document.getElementById('desc').value = '';
@@ -188,6 +288,9 @@ function resetWizard(keepEmp) {
   document.getElementById('posSearch').value = '';
   document.getElementById('neg').classList.add('on');
   document.getElementById('reloc').classList.remove('on');
+  const joinSel = document.getElementById('joinAvail');
+  if (joinSel) joinSel.value = 'immediate';
+  renderResumeUi();
 }
 
 function renderS1() {
@@ -307,6 +410,8 @@ function renderS5() {
     ['Location', loc || '—'],
     ['Expected salary', '₹' + salMin + (salMax ? ' – ₹' + salMax : '') + (state.neg ? ' (Negotiable)' : '')],
     ['Relocate', state.relocate ? 'Yes' : 'No'],
+    ['Available to join', joinLabel(document.getElementById('joinAvail')?.value || state.availableToJoin)],
+    ['Resume', state.resume?.fileName || '—'],
   ]
     .map(([k, v]) => `<div class="line"><span>${k}</span><b>${v}</b></div>`)
     .join('');
@@ -329,7 +434,7 @@ function renderProfiles() {
       const when = pr.savedAt ? new Date(pr.savedAt).toLocaleString() : '';
       return `<div class="prof-card" data-id="${pr.id}">
         <b>${escapeHtml(pr.displayName || 'Untitled')}</b>
-        <div class="meta">${escapeHtml(pr.position?.label || '')} · ${escapeHtml(pr.sector?.label || '')}<br>${escapeHtml(pr.employmentType?.label || '')} · ${escapeHtml(pr.location || '')}<br><small>Saved ${escapeHtml(when)}</small></div>
+        <div class="meta">${escapeHtml(pr.position?.label || '')} · ${escapeHtml(pr.sector?.label || '')}<br>${escapeHtml(pr.employmentType?.label || '')} · ${escapeHtml(pr.location || '')}${pr.availableToJoin?.label ? '<br>Join: ' + escapeHtml(pr.availableToJoin.label) : ''}${pr.resume?.fileName ? '<br>Resume: ' + escapeHtml(pr.resume.fileName) : ''}<br><small>Saved ${escapeHtml(when)}</small></div>
         <div class="acts">
           <button type="button" data-open="${pr.id}">Edit</button>
           <button type="button" class="del" data-del="${pr.id}">Delete</button>
@@ -528,6 +633,9 @@ document.getElementById('c3').onclick = () => {
   }
   show('s4');
   matchCount();
+  const joinSel = document.getElementById('joinAvail');
+  if (joinSel) joinSel.value = state.availableToJoin || 'immediate';
+  renderResumeUi();
 };
 document.getElementById('neg').onclick = function () {
   state.neg = !state.neg;
@@ -543,9 +651,18 @@ document.getElementById('clrLoc').onclick = () => {
 };
 ['loc', 'smin', 'smax'].forEach((id) => document.getElementById(id).addEventListener('input', matchCount));
 document.getElementById('c4').onclick = () => {
+  state.availableToJoin = document.getElementById('joinAvail')?.value || 'immediate';
   show('s5');
   renderS5();
 };
+document.getElementById('joinAvail')?.addEventListener('change', (e) => {
+  state.availableToJoin = e.target.value;
+});
+document.getElementById('resumeFile')?.addEventListener('change', (e) => {
+  const file = e.target.files?.[0];
+  if (file) setResumeFromFile(file);
+});
+document.getElementById('resumeClear')?.addEventListener('click', clearResume);
 document.getElementById('c5').onclick = () => persistProfile();
 
 document.getElementById('skMore').onclick = () => {
@@ -610,6 +727,11 @@ document.querySelectorAll('[data-to]').forEach((b) =>
     if (id === 's1') renderS1();
     if (id === 's2') renderS2();
     if (id === 's3') renderS3();
+    if (id === 's4') {
+      const joinSel = document.getElementById('joinAvail');
+      if (joinSel) joinSel.value = state.availableToJoin || 'immediate';
+      renderResumeUi();
+    }
     if (id === 's5') renderS5();
   }),
 );
@@ -653,4 +775,5 @@ document.getElementById('exportProfiles').onclick = async () => {
   }
 };
 
+renderResumeUi();
 renderS1();
