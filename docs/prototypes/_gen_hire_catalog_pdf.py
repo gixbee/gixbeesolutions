@@ -9,7 +9,8 @@ from pathlib import Path
 from fpdf import FPDF
 
 HERE = Path(__file__).resolve().parent
-OUT_PDF = HERE / "GIXBEE_Hire_Employee_Catalog_18_Sectors.pdf"
+OUT_PDF_HIRE = HERE / "GIXBEE_Hire_Employee_Catalog_18_Sectors.pdf"
+OUT_PDF_JOBSEEKER = HERE / "GIXBEE_Jobseeker_Job_Profile_Catalog_18_Sectors.pdf"
 
 
 def load_catalog():
@@ -36,11 +37,13 @@ def load_catalog():
 
 
 class CatalogPDF(FPDF):
+    footer_label = "Gixbee Catalogue"
+
     def footer(self):
         self.set_y(-15)
         self.set_font("Helvetica", "I", 8)
         self.set_text_color(100, 100, 100)
-        self.cell(0, 10, f"Gixbee Hire Employee Catalogue  |  Page {self.page_no()}", align="C")
+        self.cell(0, 10, f"{self.footer_label}  |  Page {self.page_no()}", align="C")
 
 
 def _safe(text: str) -> str:
@@ -54,8 +57,14 @@ def _safe(text: str) -> str:
     )
 
 
-def build_pdf(catalog: dict) -> None:
+def build_pdf(catalog: dict, *, audience: str, out_path: Path) -> None:
+    is_seeker = audience == "jobseeker"
     pdf = CatalogPDF()
+    pdf.footer_label = (
+        "Gixbee Jobseeker Job Profile Catalogue"
+        if is_seeker
+        else "Gixbee Hire Employee Catalogue"
+    )
     pdf.set_auto_page_break(auto=True, margin=18)
     w = pdf.epw
     pdf.add_page()
@@ -64,18 +73,27 @@ def build_pdf(catalog: dict) -> None:
     npos = sum(len(s["positions"]) for s in sectors)
 
     pdf.set_font("Helvetica", "B", 20)
-    pdf.multi_cell(w, 10, _safe("Gixbee Hire Employee - Master Catalogue"))
+    title = (
+        "Gixbee Jobseeker - Job Profile Master Catalogue"
+        if is_seeker
+        else "Gixbee Hire Employee - Master Catalogue"
+    )
+    pdf.multi_cell(w, 10, _safe(title))
     pdf.ln(2)
     pdf.set_font("Helvetica", "", 11)
-    pdf.multi_cell(
-        0,
-        6,
-        _safe(
+    intro = (
+        f"18 sectors / categories, {npos} positions (same SkillsHire taxonomy as employers). "
+        "Jobseekers pick job type + sector, then position, then profile details. "
+        "Each position lists step-3 types, suggested skills, and additional skills "
+        "(jobseeker-job-profile-master.html)."
+        if is_seeker
+        else (
             f"18 sectors / categories, {npos} positions (role-first UX aligned with "
             "hire-employee-skills-master.html). Each position lists step-3 types, "
             "suggested skills, and additional skills for the Add Skills sheet."
-        ),
+        )
     )
+    pdf.multi_cell(0, 6, _safe(intro))
     pdf.ln(2)
     pdf.set_font("Helvetica", "I", 9)
     pdf.cell(0, 6, f"Generated: {date.today().isoformat()}  |  Source: _catalog_sectors.py + _gen_hire_catalog.py")
@@ -163,29 +181,44 @@ def build_pdf(catalog: dict) -> None:
     pdf.cell(0, 8, "HTML wizard mapping (reference)")
     pdf.ln(8)
     pdf.set_font("Helvetica", "", 9)
-    ref = [
-        "Step 1: Employment type + sector (this PDF sections 1-18).",
-        "Step 2: One position from the sector list.",
-        "Step 3: Type/specialization chips (multi-select where shown); qualification;",
-        "        experience; skills; languages; job description.",
-        "Step 4: Location, salary, vacancies.",
-        "Step 5: Review, package, pay (prototype).",
-        "",
-        "Demo file: docs/prototypes/hire-employee-skills-master.html",
-        "Regenerate data: python3 docs/prototypes/_gen_hire_catalog.py",
-        "Regenerate PDF: python3 docs/prototypes/_gen_hire_catalog_pdf.py",
-    ]
+    if is_seeker:
+        ref = [
+            "Step 1: Job type + sector (this PDF sections 1-18).",
+            "Step 2: One position from the sector list.",
+            "Step 3: Type/specialization; qualification; experience; skills; languages; bio.",
+            "Step 4: Priority 1-5 work locations; expected salary; available to join; resume (optional).",
+            "Step 5: Review and save profile (demo: localStorage).",
+            "",
+            "Demo HTML: docs/prototypes/jobseeker-job-profile-master.html",
+            "Regenerate data: python3 docs/prototypes/_gen_hire_catalog.py",
+            "Regenerate PDFs: python3 docs/prototypes/_gen_hire_catalog_pdf.py",
+        ]
+    else:
+        ref = [
+            "Step 1: Employment type + sector (this PDF sections 1-18).",
+            "Step 2: One position from the sector list.",
+            "Step 3: Type/specialization chips (multi-select where shown); qualification;",
+            "        experience; skills; languages; job description.",
+            "Step 4: Location, salary, vacancies.",
+            "Step 5: Review, package, pay (prototype).",
+            "",
+            "Demo file: docs/prototypes/hire-employee-skills-master.html",
+            "Regenerate data: python3 docs/prototypes/_gen_hire_catalog.py",
+            "Regenerate PDF: python3 docs/prototypes/_gen_hire_catalog_pdf.py",
+        ]
     for line in ref:
         pdf.multi_cell(w, 4.5, _safe(line))
         pdf.ln(1)
 
-    pdf.output(str(OUT_PDF))
+    pdf.output(str(out_path))
 
 
 def main() -> None:
     catalog = load_catalog()
-    build_pdf(catalog)
-    print(f"Wrote {OUT_PDF.name} ({OUT_PDF.stat().st_size // 1024} KB)")
+    build_pdf(catalog, audience="hire", out_path=OUT_PDF_HIRE)
+    build_pdf(catalog, audience="jobseeker", out_path=OUT_PDF_JOBSEEKER)
+    for path in (OUT_PDF_HIRE, OUT_PDF_JOBSEEKER):
+        print(f"Wrote {path.name} ({path.stat().st_size // 1024} KB)")
 
 
 if __name__ == "__main__":
