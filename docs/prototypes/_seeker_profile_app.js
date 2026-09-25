@@ -1,6 +1,6 @@
 const C = window.GIXBEE_HIRE_CATALOG;
 const STORAGE_KEY = 'GIXBEE_JOB_PROFILES';
-const SEEKER_BUILD = '2026-09-25-single';
+const SEEKER_BUILD = '2026-09-25-also5';
 
 function el(id) {
   return document.getElementById(id);
@@ -54,7 +54,7 @@ const state = {
   resume: null,
   locValue: 'Kochi, Kerala',
   salValue: '25000',
-  alsoLocValue: '',
+  alsoLocations: [],
 };
 const LANG_QUICK = ['English', 'Malayalam', 'Hindi', 'Tamil'];
 const LANGUAGE_LIST = [
@@ -75,12 +75,99 @@ const JOIN_AVAILABILITY = [
   { code: 'd90', label: 'Within 90 days' },
 ];
 const RESUME_DEMO_MAX_BYTES = 350000;
+const MAX_ALSO_LOCATIONS = 5;
+const ALSO_LOC_QUICK = [
+  'Kochi',
+  'Thiruvananthapuram',
+  'Kozhikode',
+  'Thrissur',
+  'Kottayam',
+  'Alappuzha',
+  'Kannur',
+  'Palakkad',
+  'Malappuram',
+  'Ernakulam',
+];
 
 function parseLocationList(text) {
   return String(text || '')
     .split(/[,;]/)
     .map((x) => x.trim())
     .filter(Boolean);
+}
+
+function normalizeLocName(s) {
+  return String(s || '')
+    .trim()
+    .replace(/\s+/g, ' ');
+}
+function alsoLocationsList() {
+  return [...state.alsoLocations];
+}
+function primaryLocNormalized() {
+  return normalizeLocName(el('loc')?.value || state.locValue).toLowerCase();
+}
+function addAlsoLocation(raw) {
+  const name = normalizeLocName(raw);
+  if (!name) {
+    toast('Enter a city or area name.');
+    return false;
+  }
+  if (state.alsoLocations.length >= MAX_ALSO_LOCATIONS) {
+    toast(`You can add up to ${MAX_ALSO_LOCATIONS} extra areas.`);
+    return false;
+  }
+  const key = name.toLowerCase();
+  if (primaryLocNormalized() === key) {
+    toast('This area is already your primary preferred location.');
+    return false;
+  }
+  if (state.alsoLocations.some((x) => x.toLowerCase() === key)) {
+    toast('This area is already in your list.');
+    return false;
+  }
+  state.alsoLocations = [...state.alsoLocations, name];
+  refreshAlsoLocUi();
+  return true;
+}
+function removeAlsoLocation(raw) {
+  const key = normalizeLocName(raw).toLowerCase();
+  state.alsoLocations = state.alsoLocations.filter((x) => x.toLowerCase() !== key);
+  refreshAlsoLocUi();
+}
+function refreshAlsoLocUi() {
+  const chips = el('alsoLocChips');
+  const empty = el('alsoLocEmpty');
+  const count = el('alsoLocCount');
+  const addBtn = el('alsoLocAdd');
+  const input = el('alsoLocInput');
+  const slots = el('alsoLocSlots');
+  const n = state.alsoLocations.length;
+  if (count) count.textContent = `${n} / ${MAX_ALSO_LOCATIONS}`;
+  if (chips) {
+    chips.innerHTML = state.alsoLocations
+      .map(
+        (place) =>
+          `<span class="chip also">${escapeHtml(place)}<button type="button" aria-label="Remove ${escapeHtml(place)}" data-also-rm="${escapeHtml(place)}">×</button></span>`,
+      )
+      .join('');
+  }
+  if (empty) empty.style.display = n ? 'none' : 'block';
+  if (addBtn) addBtn.disabled = n >= MAX_ALSO_LOCATIONS;
+  if (input) input.disabled = n >= MAX_ALSO_LOCATIONS;
+  if (slots) {
+    slots.innerHTML = Array.from({ length: MAX_ALSO_LOCATIONS }, (_, i) =>
+      `<div class="also-slot${i < n ? ' on' : ''}" aria-hidden="true"></div>`,
+    ).join('');
+  }
+  document.querySelectorAll('[data-also-quick]').forEach((btn) => {
+    const q = btn.getAttribute('data-also-quick');
+    const used =
+      state.alsoLocations.some((x) => x.toLowerCase() === q.toLowerCase()) ||
+      primaryLocNormalized() === q.toLowerCase();
+    btn.disabled = used || n >= MAX_ALSO_LOCATIONS;
+    btn.classList.toggle('on', state.alsoLocations.some((x) => x.toLowerCase() === q.toLowerCase()));
+  });
 }
 
 function uid() {
@@ -223,8 +310,7 @@ function buildPayload() {
   const emp = C.employmentTypes.find((e) => e.code === state.emp);
   const salExpected = readExpectedSalaryValue();
   const loc = el('loc')?.value.trim() || state.locValue || '';
-  const alsoRaw = el('alsoLoc')?.value ?? state.alsoLocValue ?? '';
-  const alsoPreferred = parseLocationList(alsoRaw);
+  const alsoPreferred = alsoLocationsList();
   const qual = document.getElementById('qual').value;
   const bio = document.getElementById('desc').value.trim();
   const nameInput = document.getElementById('profileName').value.trim();
@@ -279,7 +365,9 @@ function applyPayload(profile) {
   document.getElementById('qual').value = profile.qualification || '';
   document.getElementById('desc').value = profile.bio || '';
   state.locValue = profile.location || 'Kochi, Kerala';
-  state.alsoLocValue = (profile.alsoPreferredLocations || []).join(', ');
+  state.alsoLocations = Array.isArray(profile.alsoPreferredLocations)
+    ? profile.alsoPreferredLocations.map(normalizeLocName).filter(Boolean)
+    : [];
   state.salValue = String(profile.salary?.expectedMonthly ?? profile.salary?.minMonthly ?? '25000');
   writeExpectedSalaryValue(state.salValue);
   document.getElementById('profileName').value = profile.displayName || '';
@@ -320,7 +408,7 @@ function resetWizard(keepEmp) {
   document.getElementById('qual').value = '';
   document.getElementById('desc').value = '';
   state.locValue = 'Kochi, Kerala';
-  state.alsoLocValue = '';
+  state.alsoLocations = [];
   state.salValue = '25000';
   writeExpectedSalaryValue('25000');
   document.getElementById('profileName').value = '';
@@ -433,8 +521,6 @@ function captureS4Draft() {
   if (sal !== '') state.salValue = sal;
   const join = el('joinAvail');
   if (join) state.availableToJoin = join.value;
-  const also = el('alsoLoc');
-  if (also) state.alsoLocValue = also.value;
 }
 
 function bindStep4Events() {
@@ -448,6 +534,21 @@ function bindStep4Events() {
     }
   });
   body.addEventListener('click', (e) => {
+    if (e.target.id === 'alsoLocAdd') {
+      const input = el('alsoLocInput');
+      if (input && addAlsoLocation(input.value)) input.value = '';
+      return;
+    }
+    const rm = e.target.closest('[data-also-rm]');
+    if (rm) {
+      removeAlsoLocation(rm.getAttribute('data-also-rm'));
+      return;
+    }
+    const quick = e.target.closest('[data-also-quick]');
+    if (quick && !quick.disabled) {
+      addAlsoLocation(quick.getAttribute('data-also-quick'));
+      return;
+    }
     const negBtn = e.target.closest('#neg');
     if (negBtn) {
       state.neg = !state.neg;
@@ -462,6 +563,12 @@ function bindStep4Events() {
     }
     if (e.target.id === 'resumeClear') clearResume();
   });
+  body.addEventListener('keydown', (e) => {
+    if (e.target.id === 'alsoLocInput' && e.key === 'Enter') {
+      e.preventDefault();
+      if (addAlsoLocation(e.target.value)) e.target.value = '';
+    }
+  });
 }
 
 function renderS4() {
@@ -469,8 +576,11 @@ function renderS4() {
   const body = el('s4Body');
   if (!body) return;
   const locValue = escapeHtml(state.locValue || 'Kochi, Kerala');
-  const alsoValue = escapeHtml(state.alsoLocValue || '');
   const salValue = escapeHtml(String(state.salValue ?? '25000'));
+  const quickAlso = ALSO_LOC_QUICK.map(
+    (q) =>
+      `<button type="button" class="chip also-quick" data-also-quick="${escapeHtml(q)}">${escapeHtml(q)}</button>`,
+  ).join('');
   const joinOpts = JOIN_AVAILABILITY.map(
     (o) =>
       `<option value="${o.code}"${state.availableToJoin === o.code ? ' selected' : ''}>${o.label}</option>`,
@@ -483,9 +593,22 @@ function renderS4() {
           <div class="loc">📍 <input id="loc" value="${locValue}"><button type="button" id="clrLoc" style="border:0;background:none;cursor:pointer">✕</button></div>
         </div>
         <div class="fld">
-          <label>Also willing to work in (optional)</label>
-          <input id="alsoLoc" value="${alsoValue}" placeholder="e.g. Thiruvananthapuram, Kochi — comma separated">
-          <p class="hint">Add other cities/areas. You get alerts only for jobs whose <b>work location</b> matches one of these places.</p>
+          <div class="row" style="align-items:center;margin-bottom:6px">
+            <label style="margin:0">Also willing to work in (optional)</label>
+            <span class="also-count" id="alsoLocCount">0 / ${MAX_ALSO_LOCATIONS}</span>
+          </div>
+          <p class="hint">Add up to <b>${MAX_ALSO_LOCATIONS}</b> extra cities or areas. Job alerts use employer <b>work location</b>, not where you live.</p>
+          <div class="also-box">
+            <div class="also-slots" id="alsoLocSlots"></div>
+            <div class="chips" id="alsoLocChips" style="margin:8px 0 0"></div>
+            <div class="also-empty" id="alsoLocEmpty">No extra areas yet — add places you would commute to.</div>
+            <div class="also-add-row">
+              <input id="alsoLocInput" type="text" placeholder="Type city or area" autocomplete="off">
+              <button type="button" id="alsoLocAdd">Add</button>
+            </div>
+            <p class="hint" style="margin:12px 0 6px">Quick add (Kerala)</p>
+            <div class="chips also-quick" id="alsoLocQuick">${quickAlso}</div>
+          </div>
         </div>
         <div class="fld">
           <label>Expected salary (₹/month)</label>
@@ -510,6 +633,7 @@ function renderS4() {
         <div class="tog"><div><b>Salary negotiable</b><div class="s">You are open to discuss pay for the right role.</div></div><button class="sw${negOn}" type="button" id="neg"><i></i></button></div>`;
   bindStep4Events();
   renderResumeUi();
+  refreshAlsoLocUi();
 }
 
 function renderS5() {
@@ -518,7 +642,7 @@ function renderS5() {
   const emp = C.employmentTypes.find((e) => e.code === state.emp)?.label;
   const salExpected = readExpectedSalaryValue();
   const loc = el('loc')?.value || state.locValue || '';
-  const also = parseLocationList(el('alsoLoc')?.value ?? state.alsoLocValue);
+  const also = alsoLocationsList();
   const qual = document.getElementById('qual').value;
   const bio = document.getElementById('desc').value.trim();
   if (!document.getElementById('profileName').value.trim()) {

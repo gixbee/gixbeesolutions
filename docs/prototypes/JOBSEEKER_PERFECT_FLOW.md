@@ -95,7 +95,7 @@ Rendered in the demo by JavaScript (`renderS4`) so fields always appear in the s
 | Field | Required? | Notes |
 | --- | --- | --- |
 | **Primary preferred work location** | Yes (text city/area) | Where they **want to work** — may differ from home |
-| **Also willing to work in** | Optional | Comma-separated extra cities/areas |
+| **Also willing to work in** | Optional | Up to **5** areas — chips, Add button, Kerala quick picks, progress dots |
 | **Expected salary (₹/month)** | Recommended | Single amount; not min/max range |
 | **Salary negotiable** | Toggle | Default on |
 | **Available to join** | Yes | Immediately · Within 7 / 15 / 30 / 60 / 90 days |
