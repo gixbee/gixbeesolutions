@@ -56,6 +56,8 @@
   .chip{padding:8px 12px;border-radius:10px;border:1px solid #D1D5DB;background:#fff;font-size:12.5px;font-weight:700;cursor:pointer;color:#374151}
   .chip.on{background:var(--gn);border-color:var(--gn);color:#fff}
   .chip.sk{background:#EEF2FF;border-color:#C7D2FE;color:#3730A3;display:inline-flex;align-items:center;gap:6px}
+  .chip.sk.on{background:var(--gn);border-color:var(--gn);color:#fff}
+  .chip.sk.on button{color:#fff}
   .chip.sk button{border:0;background:none;cursor:pointer;color:#4338CA;font-size:14px}
   .addsk{border:1.5px dashed var(--gn);color:var(--gn);background:#fff;border-radius:10px;padding:8px 12px;font-weight:800;cursor:pointer}
   .fld{margin:0 0 14px}
@@ -8926,6 +8928,19 @@ function position(){ return sector()?.positions.find(p => p.id===state.positionI
 function selectedCountLabel(base, count){
   return `${base} (${count} selected)`;
 }
+function typeFieldLabel(p){
+  const n = state.types.length;
+  if(n <= 1) return p.typeLabel;
+  return selectedCountLabel(p.typeLabel, n);
+}
+function ensureDefaultType(p){
+  if(!state.types.length && p.types && p.types.length){
+    state.types = [p.types[0]];
+  }
+}
+function isTypeMulti(p){
+  return p.fieldPattern === 'specializationMulti';
+}
 function syncSheetOkLabels(){
   const sp = document.getElementById('spOk');
   if (sp) sp.textContent = state.specDraft.length ? `OK (${state.specDraft.length} selected)` : 'OK';
@@ -8974,19 +8989,21 @@ function ensureDefaultLanguages(){
 function renderS3(){
   const s=sector(), p=position(); if(!p) return;
   ensureDefaultLanguages();
+  ensureDefaultType(p);
   document.getElementById('s3crumb').textContent = s.label+' › '+p.label;
   document.getElementById('s3sub').textContent = p.subtitle||'';
   document.getElementById('s3ico').textContent = ICONS[s.icon]||'•';
-  document.getElementById('typeLbl').textContent = selectedCountLabel(p.typeLabel, state.types.length);
+  document.getElementById('typeLbl').textContent = typeFieldLabel(p);
   document.getElementById('skillLbl').textContent = selectedCountLabel('Skills', state.skills.length);
   document.getElementById('langLbl').textContent = selectedCountLabel('Languages required', state.languages.length);
   const vis = visibleTypes(p);
+  const primary = state.types[0] || null;
   document.getElementById('typeChips').innerHTML = vis.map(t =>
-    `<button class="chip ${state.types.includes(t)?'on':''}" data-t="${t.replace(/"/g,'&quot;')}">${t}</button>`
+    `<button class="chip ${t===primary?'on':''}" data-t="${t.replace(/"/g,'&quot;')}">${t}</button>`
   ).join('');
-  const extraTypes = state.types.filter(t => !vis.includes(t));
+  const extraTypes = state.types.filter(t => t !== primary || !vis.includes(t));
   document.getElementById('typeExtra').innerHTML = extraTypes.map(t =>
-    `<span class="chip sk">${t}<button type="button" data-tx="${t.replace(/"/g,'&quot;')}">×</button></span>`
+    `<span class="chip sk ${t===primary?'on':''}">${t}<button type="button" data-tx="${t.replace(/"/g,'&quot;')}">×</button></span>`
   ).join('');
   const more = document.getElementById('moreTypes');
   more.hidden = p.types.length <= vis.length;
@@ -9107,8 +9124,13 @@ document.getElementById('c2').onclick = () => { show('s3'); renderS3(); };
 document.getElementById('typeChips').addEventListener('click', e => {
   const b=e.target.closest('[data-t]'); if(!b) return;
   const t=b.getAttribute('data-t');
-  if(state.types.includes(t)) state.types=state.types.filter(x=>x!==t);
-  else state.types=[...state.types, t];
+  const p=position(); if(!p) return;
+  if(isTypeMulti(p)){
+    if(state.types.includes(t)) state.types=state.types.filter(x=>x!==t);
+    else state.types=[...state.types, t];
+  } else {
+    state.types=[t];
+  }
   renderS3();
 });
 document.getElementById('typeExtra').addEventListener('click', e => {
