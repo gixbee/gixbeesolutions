@@ -89,7 +89,8 @@
   .toast{position:absolute;left:16px;right:16px;bottom:88px;background:#111827;color:#fff;padding:12px 14px;border-radius:12px;font-size:13px;display:none;z-index:6}
   .ok{background:#ECFDF3;border-radius:12px;padding:12px;font-size:12.5px;color:#065F46;margin:10px 0}
   .chip.lang{background:#FFF7ED;border-color:#FDBA74;color:#9A3412}
-  .chip.lang.sk,.chip.lang:has(button){display:inline-flex;align-items:center;gap:6px;cursor:default}
+  .chip.lang.on{background:var(--gn);border-color:var(--gn);color:#fff}
+  .chip.lang.sk{display:inline-flex;align-items:center;gap:6px;cursor:default}
   .chip.lang button{border:0;background:none;cursor:pointer;color:#9A3412;font-size:15px;font-weight:800;line-height:1;padding:0 2px}
   .hint{font-size:12px;color:#9CA3AF;margin:-6px 0 10px;line-height:1.4}
 </style>
@@ -165,8 +166,8 @@
         <div class="fld">
           <label id="langLbl">Languages required</label>
           <p class="hint">Candidates who speak these languages rank higher in matching.</p>
-          <div class="chips" id="langChips"></div>
-          <div class="chips" id="langQuick" style="margin-top:8px"></div>
+          <div class="chips" id="langQuick"></div>
+          <div class="chips" id="langChips" style="margin-top:8px"></div>
           <button class="addsk" type="button" id="addLangs" style="margin-top:8px">+ Add languages</button>
         </div>
         <div class="fld">
@@ -8992,12 +8993,11 @@ function renderS3(){
   document.getElementById('skillChips').innerHTML = state.skills.map(sk =>
     `<span class="chip sk">${sk}<button type="button" data-x="${sk}">×</button></span>`
   ).join('');
-  document.getElementById('langChips').innerHTML = state.languages.map(l =>
-    `<span class="chip lang sk">${l}<button type="button" aria-label="Remove ${l}" data-lx="${l}">×</button></span>`
+  document.getElementById('langQuick').innerHTML = LANG_QUICK.map(l =>
+    `<button type="button" class="chip lang ${state.languages.includes(l)?'on':''}" data-lq="${l}">${l}</button>`
   ).join('');
-  const langQuickLeft = LANG_QUICK.filter(l => !state.languages.includes(l));
-  document.getElementById('langQuick').innerHTML = langQuickLeft.map(l =>
-    `<button type="button" class="chip lang" data-lq="${l}">${l}</button>`
+  document.getElementById('langChips').innerHTML = state.languages.filter(l => !LANG_QUICK.includes(l)).map(l =>
+    `<span class="chip lang sk">${l}<button type="button" aria-label="Remove ${l}" data-lx="${l}">×</button></span>`
   ).join('');
   document.getElementById('expV').textContent = state.exp;
 }
