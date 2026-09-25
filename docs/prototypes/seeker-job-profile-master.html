@@ -118,9 +118,16 @@
   .chip.also{background:#F0FDF4;border-color:#86EFAC;color:#166534;display:inline-flex;align-items:center;gap:6px}
   .chip.also button{border:0;background:none;cursor:pointer;color:#166534;font-size:15px;font-weight:800;line-height:1;padding:0 2px}
   .also-quick .chip{font-size:12px;padding:6px 10px}
-  .also-slots{display:grid;grid-template-columns:repeat(5,1fr);gap:6px;margin:10px 0 4px}
-  .also-slot{height:6px;border-radius:99px;background:#E5E7EB}
-  .also-slot.on{background:var(--gn)}
+  .prio-list{display:flex;flex-direction:column;gap:8px;margin:10px 0}
+  .prio-row{display:flex;align-items:center;gap:8px;padding:10px 12px;border:1.5px solid #E5E7EB;border-radius:12px;background:#fff}
+  .prio-row.vacant{background:#F9FAFB;border-style:dashed}
+  .prio-badge{flex:none;width:32px;height:32px;border-radius:10px;background:#E5E7EB;color:#374151;font-size:12px;font-weight:900;display:grid;place-items:center}
+  .prio-row.filled .prio-badge{background:var(--gn);color:#fff}
+  .prio-name{flex:1;font-size:14px;font-weight:700;color:#111827}
+  .prio-vacant{flex:1;font-size:13px;color:#9CA3AF;font-style:italic}
+  .prio-act{border:0;background:#F3F4F6;width:34px;height:34px;border-radius:10px;font-size:16px;font-weight:800;cursor:pointer;color:var(--navy)}
+  .prio-act:disabled{opacity:.35;cursor:not-allowed}
+  .prio-act.rm{color:#DC2626;background:#FEE2E2}
 </style>
 </head>
 <body>
@@ -3948,7 +3955,7 @@ window.GIXBEE_HIRE_CATALOG = {
 <script>
 const C = window.GIXBEE_HIRE_CATALOG;
 const STORAGE_KEY = 'GIXBEE_JOB_PROFILES';
-const SEEKER_BUILD = '2026-09-25-also5';
+const SEEKER_BUILD = '2026-09-25-prio5';
 
 function el(id) {
   return document.getElementById(id);
@@ -4000,9 +4007,8 @@ const state = {
   langDraft: [],
   availableToJoin: 'immediate',
   resume: null,
-  locValue: 'Kochi, Kerala',
+  locationPriorities: ['Kochi, Kerala', '', '', '', ''],
   salValue: '25000',
-  alsoLocations: [],
 };
 const LANG_QUICK = ['English', 'Malayalam', 'Hindi', 'Tamil'];
 const LANGUAGE_LIST = [
@@ -4023,8 +4029,8 @@ const JOIN_AVAILABILITY = [
   { code: 'd90', label: 'Within 90 days' },
 ];
 const RESUME_DEMO_MAX_BYTES = 350000;
-const MAX_ALSO_LOCATIONS = 5;
-const ALSO_LOC_QUICK = [
+const MAX_LOCATION_PRIORITIES = 5;
+const LOC_QUICK_PICKS = [
   'Kochi',
   'Thiruvananthapuram',
   'Kozhikode',
@@ -4049,73 +4055,115 @@ function normalizeLocName(s) {
     .trim()
     .replace(/\s+/g, ' ');
 }
-function alsoLocationsList() {
-  return [...state.alsoLocations];
+function compactPriorities(list) {
+  const filled = (list || []).map(normalizeLocName).filter(Boolean);
+  const out = filled.slice(0, MAX_LOCATION_PRIORITIES);
+  while (out.length < MAX_LOCATION_PRIORITIES) out.push('');
+  return out;
 }
-function primaryLocNormalized() {
-  return normalizeLocName(el('loc')?.value || state.locValue).toLowerCase();
+function filledPriorityCount() {
+  return state.locationPriorities.filter((x) => normalizeLocName(x)).length;
 }
-function addAlsoLocation(raw) {
+function prioritiesFilledList() {
+  return compactPriorities(state.locationPriorities).filter(Boolean);
+}
+function priorityAt(i) {
+  return normalizeLocName(state.locationPriorities[i] || '');
+}
+function hasPriorityName(name) {
+  const key = normalizeLocName(name).toLowerCase();
+  return prioritiesFilledList().some((x) => x.toLowerCase() === key);
+}
+function addPriorityLocation(raw) {
   const name = normalizeLocName(raw);
   if (!name) {
     toast('Enter a city or area name.');
     return false;
   }
-  if (state.alsoLocations.length >= MAX_ALSO_LOCATIONS) {
-    toast(`You can add up to ${MAX_ALSO_LOCATIONS} extra areas.`);
+  const p = compactPriorities(state.locationPriorities);
+  if (filledPriorityCount() >= MAX_LOCATION_PRIORITIES) {
+    toast(`All ${MAX_LOCATION_PRIORITIES} priority slots are filled. Remove or reorder one first.`);
     return false;
   }
-  const key = name.toLowerCase();
-  if (primaryLocNormalized() === key) {
-    toast('This area is already your primary preferred location.');
+  if (hasPriorityName(name)) {
+    toast('This area is already in your priority list.');
     return false;
   }
-  if (state.alsoLocations.some((x) => x.toLowerCase() === key)) {
-    toast('This area is already in your list.');
-    return false;
-  }
-  state.alsoLocations = [...state.alsoLocations, name];
-  refreshAlsoLocUi();
+  const idx = p.findIndex((x) => !normalizeLocName(x));
+  if (idx < 0) return false;
+  p[idx] = name;
+  state.locationPriorities = compactPriorities(p);
+  refreshPriorityLocUi();
   return true;
 }
-function removeAlsoLocation(raw) {
-  const key = normalizeLocName(raw).toLowerCase();
-  state.alsoLocations = state.alsoLocations.filter((x) => x.toLowerCase() !== key);
-  refreshAlsoLocUi();
+function removePriorityAt(index) {
+  const p = compactPriorities(state.locationPriorities);
+  if (index < 0 || index >= MAX_LOCATION_PRIORITIES || !p[index]) return;
+  p[index] = '';
+  state.locationPriorities = compactPriorities(p);
+  refreshPriorityLocUi();
 }
-function refreshAlsoLocUi() {
-  const chips = el('alsoLocChips');
-  const empty = el('alsoLocEmpty');
-  const count = el('alsoLocCount');
-  const addBtn = el('alsoLocAdd');
-  const input = el('alsoLocInput');
-  const slots = el('alsoLocSlots');
-  const n = state.alsoLocations.length;
-  if (count) count.textContent = `${n} / ${MAX_ALSO_LOCATIONS}`;
-  if (chips) {
-    chips.innerHTML = state.alsoLocations
-      .map(
-        (place) =>
-          `<span class="chip also">${escapeHtml(place)}<button type="button" aria-label="Remove ${escapeHtml(place)}" data-also-rm="${escapeHtml(place)}">×</button></span>`,
-      )
-      .join('');
-  }
-  if (empty) empty.style.display = n ? 'none' : 'block';
-  if (addBtn) addBtn.disabled = n >= MAX_ALSO_LOCATIONS;
-  if (input) input.disabled = n >= MAX_ALSO_LOCATIONS;
-  if (slots) {
-    slots.innerHTML = Array.from({ length: MAX_ALSO_LOCATIONS }, (_, i) =>
-      `<div class="also-slot${i < n ? ' on' : ''}" aria-hidden="true"></div>`,
-    ).join('');
-  }
-  document.querySelectorAll('[data-also-quick]').forEach((btn) => {
-    const q = btn.getAttribute('data-also-quick');
-    const used =
-      state.alsoLocations.some((x) => x.toLowerCase() === q.toLowerCase()) ||
-      primaryLocNormalized() === q.toLowerCase();
-    btn.disabled = used || n >= MAX_ALSO_LOCATIONS;
-    btn.classList.toggle('on', state.alsoLocations.some((x) => x.toLowerCase() === q.toLowerCase()));
+function movePriority(index, direction) {
+  const p = compactPriorities(state.locationPriorities);
+  const n = p.filter((x) => normalizeLocName(x)).length;
+  if (!p[index] || index >= n) return;
+  const target = index + direction;
+  if (target < 0 || target >= n) return;
+  const tmp = p[index];
+  p[index] = p[target];
+  p[target] = tmp;
+  state.locationPriorities = compactPriorities(p);
+  refreshPriorityLocUi();
+}
+function refreshPriorityLocUi() {
+  const list = el('priorityLocList');
+  const count = el('priorityLocCount');
+  const addBtn = el('priorityLocAdd');
+  const input = el('priorityLocInput');
+  const p = compactPriorities(state.locationPriorities);
+  const n = p.filter((x) => normalizeLocName(x)).length;
+  if (count) count.textContent = `${n} / ${MAX_LOCATION_PRIORITIES} filled`;
+  if (addBtn) addBtn.disabled = n >= MAX_LOCATION_PRIORITIES;
+  if (input) input.disabled = n >= MAX_LOCATION_PRIORITIES;
+  if (!list) return;
+  list.innerHTML = p
+    .map((place, i) => {
+      const filled = !!normalizeLocName(place);
+      const label = `Priority ${i + 1}`;
+      if (!filled) {
+        return `<div class="prio-row vacant" data-prio-row="${i}">
+          <span class="prio-badge">${i + 1}</span>
+          <span class="prio-vacant">Vacant — add below to use this slot</span>
+        </div>`;
+      }
+      const upDisabled = i === 0 ? ' disabled' : '';
+      const downDisabled = i >= n - 1 ? ' disabled' : '';
+      return `<div class="prio-row filled" data-prio-row="${i}">
+        <span class="prio-badge">${i + 1}</span>
+        <span class="prio-name">${escapeHtml(place)}</span>
+        <button type="button" class="prio-act" data-prio-up="${i}" title="Move up"${upDisabled}>↑</button>
+        <button type="button" class="prio-act" data-prio-down="${i}" title="Move down"${downDisabled}>↓</button>
+        <button type="button" class="prio-act rm" data-prio-rm="${i}" title="Remove">×</button>
+      </div>`;
+    })
+    .join('');
+  document.querySelectorAll('[data-prio-quick]').forEach((btn) => {
+    const q = btn.getAttribute('data-prio-quick');
+    const used = hasPriorityName(q);
+    btn.disabled = used || n >= MAX_LOCATION_PRIORITIES;
+    btn.classList.toggle('on', used);
   });
+}
+function migrateLegacyLocations(profile) {
+  if (Array.isArray(profile.locationPriorities) && profile.locationPriorities.length) {
+    return compactPriorities(profile.locationPriorities);
+  }
+  const parts = [];
+  if (profile.location) parts.push(profile.location);
+  if (Array.isArray(profile.alsoPreferredLocations)) {
+    parts.push(...profile.alsoPreferredLocations);
+  }
+  return compactPriorities(parts);
 }
 
 function uid() {
@@ -4257,8 +4305,7 @@ function buildPayload() {
   const p = position();
   const emp = C.employmentTypes.find((e) => e.code === state.emp);
   const salExpected = readExpectedSalaryValue();
-  const loc = el('loc')?.value.trim() || state.locValue || '';
-  const alsoPreferred = alsoLocationsList();
+  const priorities = prioritiesFilledList();
   const qual = document.getElementById('qual').value;
   const bio = document.getElementById('desc').value.trim();
   const nameInput = document.getElementById('profileName').value.trim();
@@ -4276,7 +4323,7 @@ function buildPayload() {
     : null;
   return {
     id: state.editId || uid(),
-    schemaVersion: 2,
+    schemaVersion: 3,
     savedAt: new Date().toISOString(),
     displayName: name,
     employmentType: { code: state.emp, label: emp?.label || state.emp },
@@ -4288,8 +4335,9 @@ function buildPayload() {
     skills: [...state.skills],
     languages: [...state.languages],
     bio: bio || null,
-    location: loc,
-    alsoPreferredLocations: alsoPreferred,
+    locationPriorities: compactPriorities(state.locationPriorities),
+    location: priorities[0] || null,
+    alsoPreferredLocations: priorities.slice(1),
     salary: {
       expectedMonthly: salExpected ? Number(salExpected) : null,
       negotiable: state.neg,
@@ -4312,10 +4360,7 @@ function applyPayload(profile) {
   state.languages = profile.languages?.length ? [...profile.languages] : ['English', 'Malayalam'];
   document.getElementById('qual').value = profile.qualification || '';
   document.getElementById('desc').value = profile.bio || '';
-  state.locValue = profile.location || 'Kochi, Kerala';
-  state.alsoLocations = Array.isArray(profile.alsoPreferredLocations)
-    ? profile.alsoPreferredLocations.map(normalizeLocName).filter(Boolean)
-    : [];
+  state.locationPriorities = migrateLegacyLocations(profile);
   state.salValue = String(profile.salary?.expectedMonthly ?? profile.salary?.minMonthly ?? '25000');
   writeExpectedSalaryValue(state.salValue);
   document.getElementById('profileName').value = profile.displayName || '';
@@ -4355,8 +4400,7 @@ function resetWizard(keepEmp) {
   state.posLimit = 8;
   document.getElementById('qual').value = '';
   document.getElementById('desc').value = '';
-  state.locValue = 'Kochi, Kerala';
-  state.alsoLocations = [];
+  state.locationPriorities = ['Kochi, Kerala', '', '', '', ''];
   state.salValue = '25000';
   writeExpectedSalaryValue('25000');
   document.getElementById('profileName').value = '';
@@ -4463,8 +4507,6 @@ function renderS3() {
 }
 
 function captureS4Draft() {
-  const loc = el('loc');
-  if (loc) state.locValue = loc.value;
   const sal = readExpectedSalaryValue();
   if (sal !== '') state.salValue = sal;
   const join = el('joinAvail');
@@ -4482,19 +4524,29 @@ function bindStep4Events() {
     }
   });
   body.addEventListener('click', (e) => {
-    if (e.target.id === 'alsoLocAdd') {
-      const input = el('alsoLocInput');
-      if (input && addAlsoLocation(input.value)) input.value = '';
+    if (e.target.id === 'priorityLocAdd') {
+      const input = el('priorityLocInput');
+      if (input && addPriorityLocation(input.value)) input.value = '';
       return;
     }
-    const rm = e.target.closest('[data-also-rm]');
+    const up = e.target.closest('[data-prio-up]');
+    if (up && !up.disabled) {
+      movePriority(+up.getAttribute('data-prio-up'), -1);
+      return;
+    }
+    const down = e.target.closest('[data-prio-down]');
+    if (down && !down.disabled) {
+      movePriority(+down.getAttribute('data-prio-down'), 1);
+      return;
+    }
+    const rm = e.target.closest('[data-prio-rm]');
     if (rm) {
-      removeAlsoLocation(rm.getAttribute('data-also-rm'));
+      removePriorityAt(+rm.getAttribute('data-prio-rm'));
       return;
     }
-    const quick = e.target.closest('[data-also-quick]');
+    const quick = e.target.closest('[data-prio-quick]');
     if (quick && !quick.disabled) {
-      addAlsoLocation(quick.getAttribute('data-also-quick'));
+      addPriorityLocation(quick.getAttribute('data-prio-quick'));
       return;
     }
     const negBtn = e.target.closest('#neg');
@@ -4503,18 +4555,12 @@ function bindStep4Events() {
       negBtn.classList.toggle('on', state.neg);
       return;
     }
-    if (e.target.id === 'clrLoc') {
-      const loc = el('loc');
-      if (loc) loc.value = '';
-      state.locValue = '';
-      return;
-    }
     if (e.target.id === 'resumeClear') clearResume();
   });
   body.addEventListener('keydown', (e) => {
-    if (e.target.id === 'alsoLocInput' && e.key === 'Enter') {
+    if (e.target.id === 'priorityLocInput' && e.key === 'Enter') {
       e.preventDefault();
-      if (addAlsoLocation(e.target.value)) e.target.value = '';
+      if (addPriorityLocation(e.target.value)) e.target.value = '';
     }
   });
 }
@@ -4523,11 +4569,10 @@ function renderS4() {
   captureS4Draft();
   const body = el('s4Body');
   if (!body) return;
-  const locValue = escapeHtml(state.locValue || 'Kochi, Kerala');
   const salValue = escapeHtml(String(state.salValue ?? '25000'));
-  const quickAlso = ALSO_LOC_QUICK.map(
+  const quickPrio = LOC_QUICK_PICKS.map(
     (q) =>
-      `<button type="button" class="chip also-quick" data-also-quick="${escapeHtml(q)}">${escapeHtml(q)}</button>`,
+      `<button type="button" class="chip also-quick" data-prio-quick="${escapeHtml(q)}">${escapeHtml(q)}</button>`,
   ).join('');
   const joinOpts = JOIN_AVAILABILITY.map(
     (o) =>
@@ -4536,26 +4581,19 @@ function renderS4() {
   const negOn = state.neg ? ' on' : '';
   body.innerHTML = `
         <div class="fld">
-          <label>Primary preferred work location</label>
-          <p class="hint">City/area where you want to work (can differ from where you live). Employers match on <b>job work location</b>, not your home address.</p>
-          <div class="loc">📍 <input id="loc" value="${locValue}"><button type="button" id="clrLoc" style="border:0;background:none;cursor:pointer">✕</button></div>
-        </div>
-        <div class="fld">
           <div class="row" style="align-items:center;margin-bottom:6px">
-            <label style="margin:0">Also willing to work in (optional)</label>
-            <span class="also-count" id="alsoLocCount">0 / ${MAX_ALSO_LOCATIONS}</span>
+            <label style="margin:0">Preferred work locations (Priority 1 → 5)</label>
+            <span class="also-count" id="priorityLocCount">0 / ${MAX_LOCATION_PRIORITIES} filled</span>
           </div>
-          <p class="hint">Add up to <b>${MAX_ALSO_LOCATIONS}</b> extra cities or areas. Job alerts use employer <b>work location</b>, not where you live.</p>
+          <p class="hint"><b>Priority 1</b> is matched first, then 2, 3… Vacant slots stay last. Reorder filled rows with ↑ ↓.</p>
           <div class="also-box">
-            <div class="also-slots" id="alsoLocSlots"></div>
-            <div class="chips" id="alsoLocChips" style="margin:8px 0 0"></div>
-            <div class="also-empty" id="alsoLocEmpty">No extra areas yet — add places you would commute to.</div>
+            <div class="prio-list" id="priorityLocList"></div>
             <div class="also-add-row">
-              <input id="alsoLocInput" type="text" placeholder="Type city or area" autocomplete="off">
-              <button type="button" id="alsoLocAdd">Add</button>
+              <input id="priorityLocInput" type="text" placeholder="Add to next vacant slot" autocomplete="off">
+              <button type="button" id="priorityLocAdd">Add</button>
             </div>
             <p class="hint" style="margin:12px 0 6px">Quick add (Kerala)</p>
-            <div class="chips also-quick" id="alsoLocQuick">${quickAlso}</div>
+            <div class="chips also-quick">${quickPrio}</div>
           </div>
         </div>
         <div class="fld">
@@ -4581,7 +4619,7 @@ function renderS4() {
         <div class="tog"><div><b>Salary negotiable</b><div class="s">You are open to discuss pay for the right role.</div></div><button class="sw${negOn}" type="button" id="neg"><i></i></button></div>`;
   bindStep4Events();
   renderResumeUi();
-  refreshAlsoLocUi();
+  refreshPriorityLocUi();
 }
 
 function renderS5() {
@@ -4589,8 +4627,7 @@ function renderS5() {
   const p = position();
   const emp = C.employmentTypes.find((e) => e.code === state.emp)?.label;
   const salExpected = readExpectedSalaryValue();
-  const loc = el('loc')?.value || state.locValue || '';
-  const also = alsoLocationsList();
+  const priorities = prioritiesFilledList();
   const qual = document.getElementById('qual').value;
   const bio = document.getElementById('desc').value.trim();
   if (!document.getElementById('profileName').value.trim()) {
@@ -4605,8 +4642,7 @@ function renderS5() {
     ['Skills', state.skills.join(', ') || '—'],
     ['Languages', state.languages.join(', ') || '—'],
     ['Bio', bio || '—'],
-    ['Primary work location', loc || '—'],
-    ['Also willing to work in', also.length ? also.join(', ') : '—'],
+    ['Work locations (priority)', priorities.length ? priorities.map((p, i) => `${i + 1}. ${p}`).join(' · ') : '—'],
     ['Expected salary', (salExpected ? '₹' + salExpected : '—') + (state.neg ? ' (Negotiable)' : '')],
     ['Available to join', joinLabel(el('joinAvail')?.value || state.availableToJoin)],
     ['Resume', state.resume?.fileName || '—'],
@@ -4627,11 +4663,13 @@ function renderProfiles() {
       const when = pr.savedAt ? new Date(pr.savedAt).toLocaleString() : '';
       const sal = pr.salary?.expectedMonthly ?? pr.salary?.minMonthly;
       const salLine = sal ? '<br>Expected: ₹' + escapeHtml(String(sal)) + '/mo' : '';
-      const also = (pr.alsoPreferredLocations || []).join(', ');
-      const alsoLine = also ? '<br>Also: ' + escapeHtml(also) : '';
+      const prio = (pr.locationPriorities || migrateLegacyLocations(pr)).filter(Boolean);
+      const prioLine = prio.length
+        ? '<br>Locations: ' + escapeHtml(prio.map((p, i) => `${i + 1}.${p}`).join(' · '))
+        : '';
       return `<div class="prof-card" data-id="${pr.id}">
         <b>${escapeHtml(pr.displayName || 'Untitled')}</b>
-        <div class="meta">${escapeHtml(pr.position?.label || '')} · ${escapeHtml(pr.sector?.label || '')}<br>${escapeHtml(pr.employmentType?.label || '')} · Work: ${escapeHtml(pr.location || '')}${alsoLine}${salLine}${pr.availableToJoin?.label ? '<br>Join: ' + escapeHtml(pr.availableToJoin.label) : ''}${pr.resume?.fileName ? '<br>Resume: ' + escapeHtml(pr.resume.fileName) : ''}<br><small>Saved ${escapeHtml(when)}</small></div>
+        <div class="meta">${escapeHtml(pr.position?.label || '')} · ${escapeHtml(pr.sector?.label || '')}<br>${escapeHtml(pr.employmentType?.label || '')}${prioLine}${salLine}${pr.availableToJoin?.label ? '<br>Join: ' + escapeHtml(pr.availableToJoin.label) : ''}${pr.resume?.fileName ? '<br>Resume: ' + escapeHtml(pr.resume.fileName) : ''}<br><small>Saved ${escapeHtml(when)}</small></div>
         <div class="acts">
           <button type="button" data-open="${pr.id}">Edit</button>
           <button type="button" class="del" data-del="${pr.id}">Delete</button>
