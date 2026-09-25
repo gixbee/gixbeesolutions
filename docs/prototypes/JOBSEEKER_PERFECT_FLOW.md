@@ -94,8 +94,7 @@ Rendered in the demo by JavaScript (`renderS4`) so fields always appear in the s
 
 | Field | Required? | Notes |
 | --- | --- | --- |
-| **Primary preferred work location** | Yes (text city/area) | Where they **want to work** — may differ from home |
-| **Also willing to work in** | Optional | Up to **5** areas — chips, Add button, Kerala quick picks, progress dots |
+| **Priority 1–5 work locations** | P1 required | Ranked slots; vacants at bottom; ↑↓ reorder filled rows only |
 | **Expected salary (₹/month)** | Recommended | Single amount; not min/max range |
 | **Salary negotiable** | Toggle | Default on |
 | **Available to join** | Yes | Immediately · Within 7 / 15 / 30 / 60 / 90 days |
@@ -130,7 +129,7 @@ Demo storage key: `GIXBEE_JOB_PROFILES` in browser `localStorage`. Production: s
 | Preference | `employmentType` (code + label) |
 | Taxonomy | `sector`, `position`, `types[]` |
 | Person | `qualification`, `experienceYears`, `skills[]`, `languages[]`, `bio` |
-| Location | `location` (primary work preference), `alsoPreferredLocations[]` |
+| Location | `locationPriorities[]` (P1…P5); legacy `location` + `alsoPreferredLocations[]` |
 | Pay | `salary.expectedMonthly`, `salary.negotiable` |
 | Timing | `availableToJoin` (code + label) |
 | Document | `resume` (optional file metadata + URL in production) |
@@ -144,13 +143,13 @@ Employee can save **multiple profiles** (different sector/position lines).
 | Party | Location field | Meaning |
 | --- | --- | --- |
 | **Employer** | Work location on vacancy | Shop, office, site — where work happens |
-| **Employee** | Primary + also willing | Cities/areas where they accept jobs |
+| **Employee** | Priority 1 → 5 | Ranked work areas; match P1 first, then P2… |
 
 **Notify employee when:**
 
 1. Employment type compatible (FT job vs FT profile, etc.).
 2. Sector / position / types / skills / languages satisfy employer filters (same rules as employer post).
-3. **Employer work location** matches employee **primary** OR any **also willing** entry (same city/area, or within app radius e.g. 15–25 km for on-site roles).
+3. **Employer work location** matches employee **P1**, else **P2**, … (skip empty slots). Same city/area or within radius.
 4. Salary expectations overlap or negotiable (product rule).
 5. Join availability acceptable.
 

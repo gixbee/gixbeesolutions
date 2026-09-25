@@ -926,6 +926,10 @@ document.getElementById('c3').onclick = () => {
 };
 bindClick('c4', () => {
   captureS4Draft();
+  if (!prioritiesFilledList().length) {
+    toast('Add at least Priority 1 work location.');
+    return;
+  }
   state.availableToJoin = el('joinAvail')?.value || state.availableToJoin || 'immediate';
   show('s5');
   renderS5();
