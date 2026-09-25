@@ -137,6 +137,7 @@
         <div class="fld" id="typeBlock">
           <label id="typeLbl">Type</label>
           <div class="chips" id="typeChips"></div>
+          <div class="chips" id="typeExtra" style="margin-top:8px"></div>
           <button class="see" type="button" id="moreTypes" hidden>Show more</button>
         </div>
         <div class="fld">
@@ -161,8 +162,9 @@
         <div class="fld">
           <label id="langLbl">Languages required</label>
           <p class="hint">Candidates who speak these languages rank higher in matching.</p>
+          <div class="chips" id="langChips"></div>
+          <p class="hint" id="langQuickLbl" style="margin-top:10px">Quick add:</p>
           <div class="chips" id="langQuick"></div>
-          <div class="chips" id="langChips" style="margin-top:8px"></div>
           <button class="addsk" type="button" id="addLangs" style="margin-top:8px">+ Add languages</button>
         </div>
         <div class="fld">
@@ -8975,17 +8977,23 @@ function renderS3(){
   document.getElementById('typeChips').innerHTML = vis.map(t =>
     `<button class="chip ${state.types.includes(t)?'on':''}" data-t="${t.replace(/"/g,'&quot;')}">${t}</button>`
   ).join('');
+  const extraTypes = state.types.filter(t => !vis.includes(t));
+  document.getElementById('typeExtra').innerHTML = extraTypes.map(t =>
+    `<span class="chip sk">${t}<button type="button" data-tx="${t.replace(/"/g,'&quot;')}">×</button></span>`
+  ).join('');
   const more = document.getElementById('moreTypes');
-  more.hidden = p.fieldPattern !== 'specializationMulti' && p.types.length <= vis.length;
+  more.hidden = p.types.length <= vis.length;
   document.getElementById('skillChips').innerHTML = state.skills.map(sk =>
     `<span class="chip sk">${sk}<button type="button" data-x="${sk}">×</button></span>`
   ).join('');
-  document.getElementById('langQuick').innerHTML = LANG_QUICK.map(l =>
-    `<button type="button" class="chip lang ${state.languages.includes(l)?'on':''}" data-lq="${l}">${l}</button>`
-  ).join('');
-  document.getElementById('langChips').innerHTML = state.languages.filter(l => !LANG_QUICK.includes(l)).map(l =>
+  document.getElementById('langChips').innerHTML = state.languages.map(l =>
     `<span class="chip lang">${l}<button type="button" data-lx="${l}">×</button></span>`
+  ).join('') || '<span class="sub">No language selected.</span>';
+  const quickLeft = LANG_QUICK.filter(l => !state.languages.includes(l));
+  document.getElementById('langQuick').innerHTML = quickLeft.map(l =>
+    `<button type="button" class="chip lang" data-lq="${l}">+ ${l}</button>`
   ).join('');
+  document.getElementById('langQuickLbl').hidden = quickLeft.length === 0;
   document.getElementById('expV').textContent = state.exp;
 }
 function renderS5(){
@@ -9094,25 +9102,29 @@ document.getElementById('c2').onclick = () => { show('s3'); renderS3(); };
 document.getElementById('typeChips').addEventListener('click', e => {
   const b=e.target.closest('[data-t]'); if(!b) return;
   const t=b.getAttribute('data-t');
-  const p=position();
-  if(p.fieldPattern==='specializationMulti'){
-    if(state.types.includes(t)) state.types=state.types.filter(x=>x!==t);
-    else state.types=[...state.types, t];
-  } else {
-    state.types = state.types[0]===t ? [] : [t];
-  }
+  if(state.types.includes(t)) state.types=state.types.filter(x=>x!==t);
+  else state.types=[...state.types, t];
+  renderS3();
+});
+document.getElementById('typeExtra').addEventListener('click', e => {
+  const x=e.target.dataset.tx; if(!x) return;
+  state.types=state.types.filter(t=>t!==x);
   renderS3();
 });
 document.getElementById('moreTypes').onclick = openSpec;
+document.getElementById('moreTypes').hidden = false;
 document.getElementById('expM').onclick = () => { state.exp=Math.max(0,state.exp-1); renderS3(); };
 document.getElementById('expP').onclick = () => { state.exp=Math.min(30,state.exp+1); renderS3(); };
 document.getElementById('addSkills').onclick = openSkills;
 document.getElementById('langQuick').addEventListener('click', e => {
   const b=e.target.closest('[data-lq]'); if(!b) return;
-  toggleLang(b.dataset.lq);
+  const l=b.dataset.lq;
+  if(!state.languages.includes(l)) state.languages=[...state.languages, l];
+  renderS3();
 });
 document.getElementById('langChips').addEventListener('click', e => {
-  const x=e.target.dataset.lx; if(!x) return;
+  const btn=e.target.closest('[data-lx]'); if(!btn) return;
+  const x=btn.getAttribute('data-lx');
   state.languages=state.languages.filter(l=>l!==x); renderS3();
 });
 document.getElementById('addLangs').onclick = openLangs;
@@ -9162,6 +9174,7 @@ document.getElementById('spList').addEventListener('change', e => {
   const sp=e.target.dataset.sp; if(!sp) return;
   if(e.target.checked){ if(!state.specDraft.includes(sp)) state.specDraft.push(sp); }
   else state.specDraft=state.specDraft.filter(x=>x!==sp);
+  syncSheetOkLabels();
 });
 document.getElementById('spOk').onclick = () => {
   state.types=[...state.specDraft];
@@ -9174,6 +9187,7 @@ document.getElementById('lgList').addEventListener('change', e => {
   const lg=e.target.dataset.lg; if(!lg) return;
   if(e.target.checked){ if(!state.langDraft.includes(lg)) state.langDraft.push(lg); }
   else state.langDraft=state.langDraft.filter(x=>x!==lg);
+  syncSheetOkLabels();
 });
 document.getElementById('lgOk').onclick = () => {
   state.languages=[...state.langDraft];
