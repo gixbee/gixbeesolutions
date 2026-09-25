@@ -9076,11 +9076,6 @@ function drawLangs(){
   ).join('') || '<p class="sub">No language match.</p>';
   syncSheetOkLabels();
 }
-function toggleLang(l){
-  if(state.languages.includes(l)) state.languages = state.languages.filter(x => x !== l);
-  else state.languages = [...state.languages, l];
-  renderS3();
-}
 
 document.getElementById('empTypes').addEventListener('click', e => {
   const b=e.target.closest('[data-e]'); if(!b) return; state.emp=b.dataset.e; renderS1();
@@ -9112,7 +9107,6 @@ document.getElementById('typeExtra').addEventListener('click', e => {
   renderS3();
 });
 document.getElementById('moreTypes').onclick = openSpec;
-document.getElementById('moreTypes').hidden = false;
 document.getElementById('expM').onclick = () => { state.exp=Math.max(0,state.exp-1); renderS3(); };
 document.getElementById('expP').onclick = () => { state.exp=Math.min(30,state.exp+1); renderS3(); };
 document.getElementById('addSkills').onclick = openSkills;
