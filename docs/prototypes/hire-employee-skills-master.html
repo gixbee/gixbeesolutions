@@ -165,8 +165,8 @@
         <div class="fld">
           <label id="langLbl">Languages required</label>
           <p class="hint">Candidates who speak these languages rank higher in matching.</p>
-          <div class="chips" id="langQuick"></div>
-          <div class="chips" id="langChips" style="margin-top:8px"></div>
+          <div class="chips" id="langChips"></div>
+          <div class="chips" id="langQuick" style="margin-top:8px"></div>
           <button class="addsk" type="button" id="addLangs" style="margin-top:8px">+ Add languages</button>
         </div>
         <div class="fld">
@@ -8967,8 +8967,12 @@ function visibleTypes(p){
   if(p.fieldPattern==='specializationMulti') return p.types.slice(0,6);
   return p.types;
 }
+function ensureDefaultLanguages(){
+  if(!state.languages.length) state.languages = ['English', 'Malayalam'];
+}
 function renderS3(){
   const s=sector(), p=position(); if(!p) return;
+  ensureDefaultLanguages();
   document.getElementById('s3crumb').textContent = s.label+' › '+p.label;
   document.getElementById('s3sub').textContent = p.subtitle||'';
   document.getElementById('s3ico').textContent = ICONS[s.icon]||'•';
@@ -8988,11 +8992,12 @@ function renderS3(){
   document.getElementById('skillChips').innerHTML = state.skills.map(sk =>
     `<span class="chip sk">${sk}<button type="button" data-x="${sk}">×</button></span>`
   ).join('');
-  document.getElementById('langQuick').innerHTML = LANG_QUICK.map(l =>
-    `<button type="button" class="chip lang ${state.languages.includes(l)?'on':''}" data-lq="${l}">${l}</button>`
-  ).join('');
   document.getElementById('langChips').innerHTML = state.languages.map(l =>
     `<span class="chip lang sk">${l}<button type="button" aria-label="Remove ${l}" data-lx="${l}">×</button></span>`
+  ).join('');
+  const langQuickLeft = LANG_QUICK.filter(l => !state.languages.includes(l));
+  document.getElementById('langQuick').innerHTML = langQuickLeft.map(l =>
+    `<button type="button" class="chip lang" data-lq="${l}">${l}</button>`
   ).join('');
   document.getElementById('expV').textContent = state.exp;
 }
@@ -9187,6 +9192,7 @@ document.getElementById('lgList').addEventListener('change', e => {
 });
 document.getElementById('lgOk').onclick = () => {
   state.languages=[...state.langDraft];
+  ensureDefaultLanguages();
   document.getElementById('langSheet').classList.remove('on');
   renderS3();
 };
