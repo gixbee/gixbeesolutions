@@ -23,6 +23,11 @@ class JobPost {
   final String salaryPeriod;
   final double? lat;
   final double? lng;
+  final String? sectorId;
+  final String? positionId;
+  final List<String> skillIds;
+  final String? locationId;
+  final String? addressText;
 
   JobPost({
     required this.id,
@@ -49,6 +54,11 @@ class JobPost {
     this.salaryPeriod = 'MONTHLY',
     this.lat,
     this.lng,
+    this.sectorId,
+    this.positionId,
+    this.skillIds = const [],
+    this.locationId,
+    this.addressText,
   });
 
   factory JobPost.fromJson(Map<String, dynamic> json) {
@@ -115,6 +125,11 @@ class JobPost {
       'salaryPeriod': salaryPeriod,
       if (lat != null) 'lat': lat,
       if (lng != null) 'lng': lng,
+      if (sectorId != null && sectorId!.isNotEmpty) 'sectorId': sectorId,
+      if (positionId != null && positionId!.isNotEmpty) 'positionId': positionId,
+      if (skillIds.isNotEmpty) 'skillIds': skillIds,
+      if (locationId != null && locationId!.isNotEmpty) 'locationId': locationId,
+      if (addressText != null && addressText!.isNotEmpty) 'addressText': addressText,
     };
   }
 }

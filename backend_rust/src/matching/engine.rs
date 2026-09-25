@@ -322,6 +322,7 @@ pub(super) async fn find_matching_preferences(
         r#"SELECT p.id, p."userId" FROM job_preferences p
         LEFT JOIN talent_profiles t ON t."userId" = p."userId"
         WHERE p."isActive" = true
+          AND COALESCE(p."matchingPaused", false) = false
           AND p."experienceYears" >= $1 AND NOT (p."userId" = ANY($2))
           AND COALESCE(p."expectedSalaryPeriod", 'MONTHLY') = $3
           AND p."expectedSalary" <= $4 AND (p."salaryNegotiable" OR p."expectedSalary" >= $5)

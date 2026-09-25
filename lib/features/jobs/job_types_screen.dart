@@ -115,16 +115,71 @@ class _JobTypesScreenState extends ConsumerState<JobTypesScreen> {
     }
   }
 
-  Future<void> _setOpen(bool open) async {
+  Future<void> _setOpenToWork(bool open) async {
     try {
       await ref.read(talentRepositoryProvider).updateProfile({
         'profileStatus': open ? 'ACTIVE' : 'PAUSED',
       });
       await _load();
+      if (!mounted) return;
+      showGxSnack(
+        context,
+        open
+            ? 'You are open to work — all active profiles can match'
+            : 'Open to work is off — no profiles will match until you turn it back on',
+        type: GxSnackType.success,
+      );
     } catch (e) {
       if (!mounted) return;
       showGxSnack(context, 'Could not update profile: $e', type: GxSnackType.error);
     }
+  }
+
+  Future<void> _setPreferencePaused(Map<String, dynamic> pref, bool paused) async {
+    final id = pref['id']?.toString();
+    if (id == null) return;
+    try {
+      await ref.read(matchingRepositoryProvider).updatePreference(id, {
+        'matchingPaused': paused,
+      });
+      await _load();
+      if (!mounted) return;
+      showGxSnack(
+        context,
+        paused
+            ? '${pref['jobType']} paused — other profiles stay active'
+            : '${pref['jobType']} is active for matching again',
+        type: GxSnackType.success,
+      );
+    } catch (e) {
+      if (!mounted) return;
+      showGxSnack(context, 'Could not update profile: $e', type: GxSnackType.error);
+    }
+  }
+
+  Future<void> _confirmDelete(Map<String, dynamic> pref) async {
+    final days = _daysUntilDeletable(pref);
+    if (days > 0) {
+      showGxSnack(
+        context,
+        'Profiles can be deleted $days day${days == 1 ? '' : 's'} after creation (anti-spam rule).',
+      );
+      return;
+    }
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Delete this profile?'),
+        content: Text(
+          'Remove "${pref['jobType']}" from your account? This cannot be undone.',
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+          TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Delete')),
+        ],
+      ),
+    );
+    if (ok == true) await _delete(pref);
   }
 
   int get _strength {
@@ -205,6 +260,27 @@ class _JobTypesScreenState extends ConsumerState<JobTypesScreen> {
             ),
           ),
           const SizedBox(height: 12),
+          if (_talent != null)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: SwitchListTile(
+                contentPadding: EdgeInsets.zero,
+                title: const Text('Open to work'),
+                subtitle: Text(
+                  _talent?['profileStatus'] == 'PAUSED'
+                      ? 'Off — employers cannot match any of your profiles'
+                      : 'On — active profiles can receive matches and invites',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: context.gx.ink.withValues(alpha: 0.55),
+                  ),
+                ),
+                value: _talent?['profileStatus'] != 'PAUSED',
+                activeThumbColor: GixbeeTheme.accentGreen,
+                onChanged: _setOpenToWork,
+              ),
+            ),
+          const SizedBox(height: 8),
           Expanded(
             child: _loading
                 ? const Center(child: CircularProgressIndicator())
@@ -231,6 +307,7 @@ class _JobTypesScreenState extends ConsumerState<JobTypesScreen> {
                             itemBuilder: (_, i) {
                               final p = _prefs[i];
                               final days = _daysUntilDeletable(p);
+                              final prefPaused = p['matchingPaused'] == true;
                               return Padding(
                                 padding: const EdgeInsets.only(bottom: 12),
                                 child: Material(
@@ -257,6 +334,25 @@ class _JobTypesScreenState extends ConsumerState<JobTypesScreen> {
                                                   ),
                                                 ),
                                               ),
+                                              if (prefPaused)
+                                                Container(
+                                                  padding: const EdgeInsets.symmetric(
+                                                      horizontal: 8, vertical: 3),
+                                                  decoration: BoxDecoration(
+                                                    color: context.gx.ink
+                                                        .withValues(alpha: 0.08),
+                                                    borderRadius: BorderRadius.circular(8),
+                                                  ),
+                                                  child: Text(
+                                                    'PAUSED',
+                                                    style: TextStyle(
+                                                      fontSize: 10,
+                                                      fontWeight: FontWeight.w800,
+                                                      color: context.gx.ink
+                                                          .withValues(alpha: 0.55),
+                                                    ),
+                                                  ),
+                                                ),
                                               if (p['isPaid'] == true)
                                                 Container(
                                                   padding:
@@ -344,38 +440,55 @@ class _JobTypesScreenState extends ConsumerState<JobTypesScreen> {
                                             ),
                                           ],
                                           const SizedBox(height: 10),
-                                          Row(
+                                          Wrap(
+                                            spacing: 4,
+                                            runSpacing: 0,
+                                            crossAxisAlignment: WrapCrossAlignment.center,
                                             children: [
-                                              Text(
-                                                days > 0
-                                                    ? 'Delete in $days day${days == 1 ? '' : 's'}'
-                                                    : 'Can delete',
-                                                style: TextStyle(
-                                                  fontSize: 11,
-                                                  color: context.gx.ink
-                                                      .withValues(alpha: 0.4),
-                                                ),
-                                              ),
-                                              const Spacer(),
                                               TextButton(
                                                 onPressed: () => _openForm(existing: p),
-                                                child: const Text('Edit Profile'),
+                                                child: const Text('Edit'),
                                               ),
                                               TextButton(
-                                                onPressed: () => _setOpen(
-                                                    _talent?['profileStatus'] == 'PAUSED'),
-                                                child: Text(_talent?['profileStatus'] == 'PAUSED'
-                                                    ? 'Open to Work'
-                                                    : 'Pause Profile'),
+                                                onPressed: () => _setPreferencePaused(
+                                                  p,
+                                                  !prefPaused,
+                                                ),
+                                                child: Text(
+                                                  prefPaused ? 'Resume' : 'Pause',
+                                                ),
                                               ),
-                                              TextButton(
-                                                onPressed: days > 0
-                                                    ? null
-                                                    : () => _delete(p),
-                                                child: const Text('Delete'),
+                                              TextButton.icon(
+                                                onPressed: () => _confirmDelete(p),
+                                                icon: Icon(
+                                                  Icons.delete_outline,
+                                                  size: 18,
+                                                  color: days > 0
+                                                      ? context.gx.ink.withValues(alpha: 0.35)
+                                                      : Colors.red.shade700,
+                                                ),
+                                                label: Text(
+                                                  days > 0 ? 'Delete ($days d)' : 'Delete',
+                                                  style: TextStyle(
+                                                    color: days > 0
+                                                        ? context.gx.ink.withValues(alpha: 0.45)
+                                                        : Colors.red.shade700,
+                                                  ),
+                                                ),
                                               ),
                                             ],
                                           ),
+                                          if (days > 0)
+                                            Padding(
+                                              padding: const EdgeInsets.only(top: 4),
+                                              child: Text(
+                                                'Delete unlocks $days day${days == 1 ? '' : 's'} after this profile was created.',
+                                                style: TextStyle(
+                                                  fontSize: 11,
+                                                  color: context.gx.ink.withValues(alpha: 0.45),
+                                                ),
+                                              ),
+                                            ),
                                         ],
                                       ),
                                     ),

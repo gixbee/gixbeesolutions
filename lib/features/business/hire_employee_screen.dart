@@ -20,7 +20,7 @@ final _catalogueProvider = FutureProvider<Map<String, dynamic>>((ref) async {
   return ref.read(matchingRepositoryProvider).hiringCatalogue();
 });
 
-/// Employer Smart Hiring wizard (v147 `hj1`–`hj4`): estimate → pay → 24 h match.
+/// Employer Smart Hiring wizard: estimate → pay → match.
 ///
 /// Steps mirror the prototype — same POST body to `/hiring/match/requests`.
 class HireEmployeeScreen extends ConsumerStatefulWidget {
@@ -229,7 +229,7 @@ class _HireEmployeeScreenState extends ConsumerState<HireEmployeeScreen> {
         return;
       }
       if (!mounted) return;
-      showGxSnack(context, 'Matching started — 24 h guarantee',
+      showGxSnack(context, 'Matching started',
           type: GxSnackType.success);
       Navigator.pushReplacement(
         context,
@@ -291,8 +291,7 @@ class _HireEmployeeScreenState extends ConsumerState<HireEmployeeScreen> {
         'order_id': order['orderId'],
         'currency': order['currency'] ?? 'INR',
         'name': AppConfig.appName,
-        'description':
-            'Smart Hiring — 24 h guarantee (₹${order['amountDue'] ?? ''})',
+        'description': 'Smart Hiring match fee (₹${order['amountDue'] ?? ''})',
         'timeout': AppConfig.paymentTimeoutSeconds,
         'prefill': {'contact': user?.phone ?? '', 'email': user?.email ?? ''},
       });
@@ -863,7 +862,7 @@ class _HireEmployeeScreenState extends ConsumerState<HireEmployeeScreen> {
           child: TextField(
             controller: _salaryMinCtrl,
             keyboardType: TextInputType.number,
-            decoration: const InputDecoration(
+            decoration: InputDecoration(
               labelText: 'Salary min (₹/$_salaryPeriod, optional)',
               helperText: 'Leave blank for a single offered amount',
             ),
@@ -877,7 +876,7 @@ class _HireEmployeeScreenState extends ConsumerState<HireEmployeeScreen> {
           child: TextField(
             controller: _salaryCtrl,
             keyboardType: TextInputType.number,
-            decoration: const InputDecoration(
+            decoration: InputDecoration(
               labelText: 'Salary max (₹/$_salaryPeriod)',
             ),
           ),
@@ -974,7 +973,7 @@ class _HireEmployeeScreenState extends ConsumerState<HireEmployeeScreen> {
             Text(
               creditApplied > 0
                   ? 'Fee ₹$_fee · credit −₹$creditApplied · pay ₹$due'
-                  : 'Match fee: ₹$_fee (24 h guarantee). Fee follows vacancies, not a per-candidate package.',
+                  : 'Match fee: ₹$_fee. Fee follows vacancies, not a per-candidate package.',
               style: TextStyle(
                 fontSize: 13,
                 color: context.gx.ink.withValues(alpha: 0.6),
@@ -1150,8 +1149,7 @@ class _HireEmployeeScreenState extends ConsumerState<HireEmployeeScreen> {
         ),
         const SizedBox(height: 20),
         Text(
-          'Pay for Smart Matching — only interested candidates reach you. '
-          '24 Hour Hiring Guarantee.',
+          'Pay for Smart Matching — only interested candidates reach you.',
           style: TextStyle(
             fontSize: 13,
             height: 1.35,

@@ -653,6 +653,7 @@ fn pref_json(row: &sqlx::postgres::PgRow) -> Value {
         "addressText": row.try_get::<Option<String>, _>("addressText").ok().flatten(),
         "locationMatchStatus": row.try_get::<String, _>("locationMatchStatus").unwrap_or_else(|_| "UNRESOLVED".into()),
         "isActive": row.get::<bool, _>("isActive"),
+        "matchingPaused": row.try_get::<bool, _>("matchingPaused").unwrap_or(false),
         "isPaid": row.get::<bool, _>("isPaid"),
         "paidUntil": row.try_get::<Option<chrono::DateTime<chrono::Utc>>, _>("paidUntil").ok().flatten(),
         "createdAt": crate::common::pg::date_json(row, "createdAt"),

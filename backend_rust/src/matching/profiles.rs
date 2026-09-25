@@ -227,6 +227,34 @@ pub(super) async fn update(
         ));
     }
     let pid = Uuid::parse_str(id)?;
+    let fields = body
+        .as_object()
+        .ok_or_else(|| AppError::BadRequest("Expected profile object".into()))?;
+    if fields.len() == 1 && fields.contains_key("matchingPaused") {
+        let paused = fields["matchingPaused"].as_bool().unwrap_or(false);
+        let uid = Uuid::parse_str(user_id)?;
+        let result = sqlx::query(
+            r#"UPDATE job_preferences SET "matchingPaused" = $1, "updatedAt" = NOW()
+               WHERE id = $2 AND "userId" = $3 AND "isActive" = true"#,
+        )
+        .bind(paused)
+        .bind(pid)
+        .bind(uid)
+        .execute(&state.db)
+        .await?;
+        if result.rows_affected() == 0 {
+            return Err(AppError::NotFound(
+                "Career profile not found on your account".into(),
+            ));
+        }
+        let row = sqlx::query(&format!(
+            "SELECT {JOB_PREFERENCE_COLS} FROM job_preferences WHERE id = $1"
+        ))
+        .bind(pid)
+        .fetch_one(&state.db)
+        .await?;
+        return Ok(super::pref_json(&row));
+    }
     let mut tx = state.db.begin().await?;
     let row = sqlx::query(&format!(r#"SELECT {JOB_PREFERENCE_COLS} FROM job_preferences WHERE id = $1 AND "userId" = $2 AND "isActive" = true FOR UPDATE"#))
         .bind(pid).bind(Uuid::parse_str(user_id)?).fetch_optional(&mut *tx).await?
@@ -239,9 +267,6 @@ pub(super) async fn update(
         .to_string()
         .parse::<f64>()
         .unwrap_or(0.0));
-    let fields = body
-        .as_object()
-        .ok_or_else(|| AppError::BadRequest("Expected profile object".into()))?;
     let preserved = merged.clone();
     for (key, value) in fields {
         merged[key] = value.clone();
