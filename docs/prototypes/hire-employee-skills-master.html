@@ -8931,15 +8931,12 @@ function selectedCountLabel(base, count){
 function typeFieldLabel(p){
   const n = state.types.length;
   if(n <= 1) return p.typeLabel;
-  return selectedCountLabel(p.typeLabel, n);
+  return selectedCountLabel(p.typeLabel, n - 1);
 }
 function ensureDefaultType(p){
   if(!state.types.length && p.types && p.types.length){
     state.types = [p.types[0]];
   }
-}
-function isTypeMulti(p){
-  return p.fieldPattern === 'specializationMulti';
 }
 function syncSheetOkLabels(){
   const sp = document.getElementById('spOk');
@@ -8980,8 +8977,9 @@ function renderS2(){
   document.getElementById('c2').disabled = !state.positionId;
 }
 function visibleTypes(p){
-  if(p.fieldPattern==='specializationMulti') return p.types.slice(0,6);
-  return p.types;
+  const maxVisible = 6;
+  if(!p.types || p.types.length <= maxVisible) return p.types || [];
+  return p.types.slice(0, maxVisible);
 }
 function ensureDefaultLanguages(){
   if(!state.languages.length) state.languages = ['English', 'Malayalam'];
@@ -9125,17 +9123,16 @@ document.getElementById('typeChips').addEventListener('click', e => {
   const b=e.target.closest('[data-t]'); if(!b) return;
   const t=b.getAttribute('data-t');
   const p=position(); if(!p) return;
-  if(isTypeMulti(p)){
-    if(state.types.includes(t)) state.types=state.types.filter(x=>x!==t);
-    else state.types=[...state.types, t];
-  } else {
-    state.types=[t];
-  }
+  if(state.types.includes(t)) state.types=state.types.filter(x=>x!==t);
+  else state.types=[...state.types, t];
+  if(!state.types.length) ensureDefaultType(p);
   renderS3();
 });
 document.getElementById('typeExtra').addEventListener('click', e => {
   const x=e.target.dataset.tx; if(!x) return;
+  const p=position();
   state.types=state.types.filter(t=>t!==x);
+  if(p && !state.types.length) ensureDefaultType(p);
   renderS3();
 });
 document.getElementById('moreTypes').onclick = openSpec;
@@ -9201,6 +9198,8 @@ document.getElementById('spList').addEventListener('change', e => {
 });
 document.getElementById('spOk').onclick = () => {
   state.types=[...state.specDraft];
+  const p=position();
+  if(p && !state.types.length) ensureDefaultType(p);
   document.getElementById('specSheet').classList.remove('on');
   renderS3();
 };
