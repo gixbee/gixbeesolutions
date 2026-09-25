@@ -87,6 +87,14 @@
   .ck{display:flex;gap:10px;align-items:flex-start;padding:8px 0;border-bottom:1px solid #F3F4F6;font-size:14px;cursor:pointer}
   .toast{position:absolute;left:16px;right:16px;bottom:88px;background:#111827;color:#fff;padding:12px 14px;border-radius:12px;font-size:13px;display:none;z-index:6}
   .ok{background:#ECFDF3;border-radius:12px;padding:12px;font-size:12.5px;color:#065F46;margin:10px 0}
+  .chip.lang{background:#FFF7ED;border-color:#FDBA74;color:#9A3412}
+  .hint{font-size:12px;color:#9CA3AF;margin:-6px 0 10px;line-height:1.4}
+  .drop{border:1.5px dashed #CBD5E1;border-radius:14px;padding:16px 14px;text-align:center;background:#F9FAFB;cursor:pointer;transition:border-color .15s,background .15s}
+  .drop.on{border-color:var(--gn);background:#F0FDF4}
+  .drop b{display:block;font-size:14px;margin-bottom:4px}
+  .drop small{color:var(--mut);font-size:12px}
+  .filecard{display:flex;align-items:center;gap:10px;text-align:left;padding:10px 12px;border-radius:12px;background:#fff;border:1px solid #E5E7EB;margin-top:8px}
+  .filecard .rm{margin-left:auto;border:0;background:none;color:#DC2626;font-weight:800;cursor:pointer;font-size:12px}
 </style>
 </head>
 <body>
@@ -155,6 +163,29 @@
           <label>Skills (select relevant skills)</label>
           <div class="chips" id="skillChips"></div>
           <button class="addsk" type="button" id="addSkills">+ Add skills</button>
+        </div>
+        <div class="fld">
+          <label>Languages required</label>
+          <p class="hint">Candidates who speak these languages rank higher in matching.</p>
+          <div class="chips" id="langQuick"></div>
+          <div class="chips" id="langChips" style="margin-top:8px"></div>
+          <button class="addsk" type="button" id="addLangs" style="margin-top:8px">+ Add languages</button>
+        </div>
+        <div class="fld">
+          <label>Resume &amp; documents</label>
+          <p class="hint">Tell candidates what to share when they tap Interested.</p>
+          <div class="tog" style="margin:0 0 12px;padding:10px 12px;border:1px solid #E5E7EB;border-radius:12px;background:#fff">
+            <div><b>Resume required on profile</b><div class="s">Only show candidates who uploaded a resume.</div></div>
+            <button class="sw on" type="button" id="needResume"><i></i></button>
+          </div>
+          <div class="drop" id="resumeDrop">
+            <input type="file" id="resumeFile" accept=".pdf,.doc,.docx,image/*" hidden>
+            <div id="resumeEmpty">
+              <b>📎 Attach job brief (optional)</b>
+              <small>PDF, Word, or photo · Max 5 MB · Shown to interested candidates</small>
+            </div>
+            <div id="resumeFilled" hidden></div>
+          </div>
         </div>
         <div class="fld">
           <label>Job description (optional)</label>
@@ -245,6 +276,14 @@
         <input class="search" id="spSearch" placeholder="Search (e.g. Cardiology, Pediatrics)">
         <div id="spList"></div>
         <div class="cta" style="position:static;padding:12px 0 0"><button class="btn" type="button" id="spOk">OK</button></div>
+      </div>
+    </div>
+    <div class="sheet" id="langSheet">
+      <div class="box">
+        <div class="row"><h3>Select languages</h3><button class="see" type="button" id="lgClose">✕</button></div>
+        <input class="search" id="lgSearch" placeholder="Search (e.g. Malayalam, Hindi, English)">
+        <div id="lgList"></div>
+        <div class="cta" style="position:static;padding:12px 0 0"><button class="btn" type="button" id="lgOk">OK</button></div>
       </div>
     </div>
     <div class="toast" id="toast"></div>
@@ -8880,7 +8919,16 @@ const state = {
   pkg: {n:5,p:29},
   posLimit: 8,
   skillFull: false,
+  languages: ['English', 'Malayalam'],
+  langDraft: [],
+  needResume: true,
+  resumeFile: null,
 };
+const LANG_QUICK = ['English', 'Malayalam', 'Hindi', 'Tamil'];
+const LANGUAGE_LIST = [
+  'English', 'Malayalam', 'Hindi', 'Tamil', 'Kannada', 'Telugu', 'Marathi', 'Bengali',
+  'Gujarati', 'Punjabi', 'Odia', 'Assamese', 'Urdu', 'Arabic', 'Konkani', 'Tulu',
+];
 const ICONS = {
   bolt:'⚡', pipe:'🔧', broom:'🧹', roller:'🎨', hammer:'🔨', fan:'❄️', car:'🚗', box:'📦',
   chef:'🍳', shield:'🛡️', store:'🏪', briefcase:'💼', laptop:'💻', book:'📘', health:'💚',
@@ -8942,7 +8990,33 @@ function renderS3(){
   document.getElementById('skillChips').innerHTML = state.skills.map(sk =>
     `<span class="chip sk">${sk}<button type="button" data-x="${sk}">×</button></span>`
   ).join('');
+  document.getElementById('langQuick').innerHTML = LANG_QUICK.map(l =>
+    `<button type="button" class="chip lang ${state.languages.includes(l)?'on':''}" data-lq="${l}">${l}</button>`
+  ).join('');
+  document.getElementById('langChips').innerHTML = state.languages.filter(l => !LANG_QUICK.includes(l)).map(l =>
+    `<span class="chip lang">${l}<button type="button" data-lx="${l}">×</button></span>`
+  ).join('');
+  document.getElementById('needResume').classList.toggle('on', state.needResume);
+  renderResumeCard();
   document.getElementById('expV').textContent = state.exp;
+}
+function renderResumeCard(){
+  const drop = document.getElementById('resumeDrop');
+  const empty = document.getElementById('resumeEmpty');
+  const filled = document.getElementById('resumeFilled');
+  if(!state.resumeFile){
+    empty.hidden = false;
+    filled.hidden = true;
+    drop.classList.remove('on');
+    return;
+  }
+  empty.hidden = true;
+  filled.hidden = false;
+  drop.classList.add('on');
+  const f = state.resumeFile;
+  const kb = Math.max(1, Math.round(f.size / 1024));
+  filled.innerHTML = `<div class="filecard"><span style="font-size:22px">📄</span><div><b>${f.name}</b><div class="s">${kb} KB · attached</div></div><button type="button" class="rm" id="rmResume">Remove</button></div>`;
+  document.getElementById('rmResume').onclick = (e) => { e.stopPropagation(); state.resumeFile=null; document.getElementById('resumeFile').value=''; renderResumeCard(); };
 }
 function renderS5(){
   const s=sector(), p=position();
@@ -8956,6 +9030,8 @@ function renderS5(){
     ['Position', p.label + (state.types[0]? ' ('+state.types.join(', ')+')':'')],
     ['Experience', state.exp+'+ years'],
     ['Skills', state.skills.join(', ')||'—'],
+    ['Languages', state.languages.join(', ')||'—'],
+    ['Resume', (state.needResume?'Required on profile':'Optional') + (state.resumeFile?' · JD: '+state.resumeFile.name:'')],
     ['Location', loc],
     ['Salary', '₹'+salMin+(salMax?' – ₹'+salMax:'')+(state.neg?' (Negotiable)':'')],
     ['Vacancies', state.vac],
@@ -8967,7 +9043,7 @@ function renderS5(){
 }
 function matchCount(){
   const loc = document.getElementById('loc').value.length;
-  const n = 12 + (state.skills.length*3) + (state.types.length*2) + Math.min(20, loc);
+  const n = 12 + (state.skills.length*3) + (state.types.length*2) + (state.languages.length*2) + Math.min(20, loc);
   document.getElementById('matchN').textContent = n;
 }
 
@@ -9008,6 +9084,23 @@ function drawSpec(){
     `<label class="ck"><input type="checkbox" ${state.specDraft.includes(t)?'checked':''} data-sp="${t}"> ${t}</label>`
   ).join('');
 }
+function openLangs(){
+  state.langDraft = [...state.languages];
+  drawLangs();
+  document.getElementById('langSheet').classList.add('on');
+}
+function drawLangs(){
+  const q = document.getElementById('lgSearch').value.trim().toLowerCase();
+  const list = LANGUAGE_LIST.filter(l => !q || l.toLowerCase().includes(q));
+  document.getElementById('lgList').innerHTML = list.map(l =>
+    `<label class="ck"><input type="checkbox" ${state.langDraft.includes(l)?'checked':''} data-lg="${l}"> ${l}</label>`
+  ).join('') || '<p class="sub">No language match.</p>';
+}
+function toggleLang(l){
+  if(state.languages.includes(l)) state.languages = state.languages.filter(x => x !== l);
+  else state.languages = [...state.languages, l];
+  renderS3();
+}
 
 document.getElementById('empTypes').addEventListener('click', e => {
   const b=e.target.closest('[data-e]'); if(!b) return; state.emp=b.dataset.e; renderS1();
@@ -9042,11 +9135,32 @@ document.getElementById('moreTypes').onclick = openSpec;
 document.getElementById('expM').onclick = () => { state.exp=Math.max(0,state.exp-1); renderS3(); };
 document.getElementById('expP').onclick = () => { state.exp=Math.min(30,state.exp+1); renderS3(); };
 document.getElementById('addSkills').onclick = openSkills;
+document.getElementById('langQuick').addEventListener('click', e => {
+  const b=e.target.closest('[data-lq]'); if(!b) return;
+  toggleLang(b.dataset.lq);
+});
+document.getElementById('langChips').addEventListener('click', e => {
+  const x=e.target.dataset.lx; if(!x) return;
+  state.languages=state.languages.filter(l=>l!==x); renderS3();
+});
+document.getElementById('addLangs').onclick = openLangs;
+document.getElementById('needResume').onclick = function(){ state.needResume=!state.needResume; this.classList.toggle('on', state.needResume); };
+document.getElementById('resumeDrop').onclick = () => document.getElementById('resumeFile').click();
+document.getElementById('resumeFile').onchange = (e) => {
+  const f = e.target.files && e.target.files[0];
+  if(!f){ return; }
+  if(f.size > 5*1024*1024){ toast('File must be under 5 MB.'); e.target.value=''; return; }
+  state.resumeFile = { name: f.name, size: f.size };
+  renderResumeCard();
+};
 document.getElementById('skillChips').addEventListener('click', e => {
   const x=e.target.dataset.x; if(!x) return;
   state.skills=state.skills.filter(s=>s!==x); renderS3();
 });
-document.getElementById('c3').onclick = () => { show('s4'); matchCount(); };
+document.getElementById('c3').onclick = () => {
+  if(!state.languages.length){ toast('Select at least one language.'); return; }
+  show('s4'); matchCount();
+};
 document.getElementById('expV');
 document.getElementById('vacM').onclick = () => { state.vac=Math.max(1,state.vac-1); document.getElementById('vacV').textContent=state.vac; matchCount(); };
 document.getElementById('vacP').onclick = () => { state.vac=Math.min(20,state.vac+1); document.getElementById('vacV').textContent=state.vac; matchCount(); };
@@ -9093,6 +9207,18 @@ document.getElementById('spOk').onclick = () => {
   renderS3();
 };
 document.getElementById('spClose').onclick = () => document.getElementById('specSheet').classList.remove('on');
+document.getElementById('lgSearch').oninput = drawLangs;
+document.getElementById('lgList').addEventListener('change', e => {
+  const lg=e.target.dataset.lg; if(!lg) return;
+  if(e.target.checked){ if(!state.langDraft.includes(lg)) state.langDraft.push(lg); }
+  else state.langDraft=state.langDraft.filter(x=>x!==lg);
+});
+document.getElementById('lgOk').onclick = () => {
+  state.languages=[...state.langDraft];
+  document.getElementById('langSheet').classList.remove('on');
+  renderS3();
+};
+document.getElementById('lgClose').onclick = () => document.getElementById('langSheet').classList.remove('on');
 
 document.querySelectorAll('[data-to]').forEach(b => b.addEventListener('click', () => {
   const id=b.getAttribute('data-to'); show(id);
