@@ -4,6 +4,8 @@ Source: `GIXBEE_SkillsHire_FinalMaster.pdf` (18 pages) plus the Hire Employee mo
 
 **Build target:** `docs/prototypes/hire-employee-skills-master.html` is a **single file** (catalogue JS is inlined). Download only that HTML and open it; no extra `.js` file. `hire-employee-skills-catalog.js` is a copy for regeneration via `_gen_hire_catalog.py`.
 
+**PDF master (18 sectors, full lookup detail):** `docs/prototypes/GIXBEE_Hire_Employee_Catalog_18_Sectors.pdf` — generated from the same catalogue as the HTML (`python3 docs/prototypes/_gen_hire_catalog_pdf.py`). Use for lookups, QA, and sharing with non-dev stakeholders.
+
 ## 1. What the PDF is
 
 The PDF is not a screen. It is the **taxonomy**. Every row is:
