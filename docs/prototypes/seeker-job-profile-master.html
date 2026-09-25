@@ -4104,10 +4104,9 @@ function refreshAlsoLocUi() {
   if (addBtn) addBtn.disabled = n >= MAX_ALSO_LOCATIONS;
   if (input) input.disabled = n >= MAX_ALSO_LOCATIONS;
   if (slots) {
-    slots.innerHTML = Array.from({ length: MAX_ALSO_LOCATIONS }, (_, i) => {
-      const on = i < n ? ' also-slot on' : ' also-slot';
-      return `<div class="${on.trim()}" aria-hidden="true"></div>`;
-    }).join('');
+    slots.innerHTML = Array.from({ length: MAX_ALSO_LOCATIONS }, (_, i) =>
+      `<div class="also-slot${i < n ? ' on' : ''}" aria-hidden="true"></div>`,
+    ).join('');
   }
   document.querySelectorAll('[data-also-quick]').forEach((btn) => {
     const q = btn.getAttribute('data-also-quick');
@@ -4315,8 +4314,8 @@ function applyPayload(profile) {
   document.getElementById('desc').value = profile.bio || '';
   state.locValue = profile.location || 'Kochi, Kerala';
   state.alsoLocations = Array.isArray(profile.alsoPreferredLocations)
-    ? [...profile.alsoPreferredLocations]
-    : parseLocationList((profile.alsoPreferredLocations || []).join?.(', ') || '');
+    ? profile.alsoPreferredLocations.map(normalizeLocName).filter(Boolean)
+    : [];
   state.salValue = String(profile.salary?.expectedMonthly ?? profile.salary?.minMonthly ?? '25000');
   writeExpectedSalaryValue(state.salValue);
   document.getElementById('profileName').value = profile.displayName || '';
