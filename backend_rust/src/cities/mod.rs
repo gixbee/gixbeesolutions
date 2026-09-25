@@ -110,9 +110,9 @@ async fn create(
     .bind(is_active)
     .execute(&mut *tx)
     .await?;
-    master_audit::commit_with_audit(
+    crate::master_audit::commit_with_audit(
         tx,
-        master_audit::AuditEvent {
+        crate::master_audit::AuditEvent {
             section: "serviceable_areas",
             entity_type: "city",
             entity_id: id.to_string(),
@@ -157,9 +157,9 @@ async fn update(
             .execute(&mut *tx)
             .await?;
     }
-    master_audit::commit_with_audit(
+    crate::master_audit::commit_with_audit(
         tx,
-        master_audit::AuditEvent {
+        crate::master_audit::AuditEvent {
             section: "serviceable_areas",
             entity_type: "city",
             entity_id: id.clone(),
@@ -186,9 +186,9 @@ async fn remove(
         .bind(uid)
         .execute(&mut *tx)
         .await?;
-    master_audit::commit_with_audit(
+    crate::master_audit::commit_with_audit(
         tx,
-        master_audit::AuditEvent {
+        crate::master_audit::AuditEvent {
             section: "serviceable_areas",
             entity_type: "city",
             entity_id: id,

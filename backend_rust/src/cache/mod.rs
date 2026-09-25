@@ -21,8 +21,12 @@ const REDIS_OP_TIMEOUT: Duration = Duration::from_millis(250);
 const COALESCE_WAIT: Duration = Duration::from_millis(80);
 const MAX_COALESCE_ROUNDS: u32 = 12;
 
-static INFLIGHT: Mutex<std::collections::HashSet<String>> = Mutex::new(std::collections::HashSet::new());
+lazy_static::lazy_static! {
+    static ref INFLIGHT: Mutex<std::collections::HashSet<String>> =
+        Mutex::new(std::collections::HashSet::new());
+}
 
+#[derive(Clone)]
 pub struct CacheConfig {
     pub hiring_master_ttl_secs: u64,
     pub service_master_ttl_secs: u64,
@@ -88,7 +92,7 @@ fn envelope(version: i64, body: &Value) -> Value {
 fn parse_envelope(raw: &str) -> Option<(i64, Value)> {
     let parsed: Value = serde_json::from_str(raw).ok()?;
     let version = parsed.get("v")?.as_i64()?;
-    let body = parsed.get("body")?.cloned()?;
+    let body = parsed.get("body")?.clone();
     Some((version, body))
 }
 

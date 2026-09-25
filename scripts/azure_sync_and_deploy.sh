@@ -19,8 +19,10 @@ if [[ -d "$ROOT" ]]; then mv "$ROOT" "/home/azureuser/gixbeesolutions.bak.$(date
 mv /home/azureuser/gixbeesolutions_new "$ROOT"
 cd "$ROOT"
 
-sed -i 's/\r$//' scripts/azure_hiring_migrations.sql 2>/dev/null || true
+sed -i 's/\r$//' scripts/azure_hiring_migrations.sql scripts/cache_versions.sql scripts/master_data_audit.sql 2>/dev/null || true
 docker exec -i gixbee_postgres psql -U postgres -d gixbee_db -v ON_ERROR_STOP=1 -f - < scripts/azure_hiring_migrations.sql
+docker exec -i gixbee_postgres psql -U postgres -d gixbee_db -v ON_ERROR_STOP=1 -f - < scripts/cache_versions.sql
+docker exec -i gixbee_postgres psql -U postgres -d gixbee_db -v ON_ERROR_STOP=1 -f - < scripts/master_data_audit.sql
 echo SCHEMA_OK
 
 if ! grep -q CARGO_BUILD_JOBS "$ROOT/backend_rust/Dockerfile"; then

@@ -1158,7 +1158,7 @@ async fn search_locations(
     if term.chars().count() < 2 {
         return Ok(crate::cache::http::json_cached(
             json!({"items": [], "total": 0, "limit": limit, "offset": offset}),
-            ""empty"",
+            "\"empty\"",
             crate::cache::CacheOutcome::Miss,
         ));
     }
