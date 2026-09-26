@@ -1,56 +1,72 @@
 ---
 name: gixbee_deploy
-description: Automated workflow for deploying Gixbee backend changes to AWS EC2 or checking live server Docker container health.
+description: Deploy Gixbee to production on Azure VM (Rust backend) or verify container health. Do NOT use AWS EC2 unless explicitly requested.
 ---
 
-# Gixbee Automated EC2 Deployment Skill
+# Gixbee Azure Production Deployment
 
-Use this skill whenever asked to deploy backend code, publish changes to the live server, or verify production container health on AWS EC2.
+**Production host:** Azure VM `20.106.171.188`  
+**SSH user:** `azureuser`  
+**SSH key:** `C:\Users\gkv00\.ssh\gixbee-ec2`  
+**Remote app path:** `/home/azureuser/gixbeesolutions`  
+**API (public):** `http://20.106.171.188:3000`  
+**Admin (when deployed):** `http://20.106.171.188/`
 
-## Target Environment Constants
-- **AWS Instance ID**: `i-0263e6862a2e32e59` (ap-south-1)
-- **Public IP**: `13.233.60.215`
-- **OS User**: `ec2-user` (Amazon Linux 2023)
-- **Local SSH Public Key**: `C:\Users\gkv00\.ssh\gixbee-ec2.pub`
-- **Local SSH Private Key**: `C:\Users\gkv00\.ssh\gixbee-ec2`
-- **Remote Repository Path**: `/home/ec2-user/gixbeesolutions`
+Legacy AWS EC2 (`13.233.60.215`) is **deprecated** — do not deploy there by default.
 
-## Step 1: Ensure Local Code is Pushed
-Before deploying, make sure all local backend changes are committed and pushed to `main`:
+## Step 1: Push to GitHub
+
 ```powershell
 git push origin main
 ```
 
-## Step 2: Execute Automated Deployment via EC2 Instance Connect
-Do NOT attempt standard SSH without pushing the public key first, as EC2 Instance Connect manages ephemeral key authorization. Execute this one-line command in PowerShell:
+## Step 2: Pack and upload source
 
-**Note:** Since ADR-009, `backend` (Nest) and `backend_rust` (Rust) are Compose profiles. Set `BACKEND_IMPL` in root `.env` and export `COMPOSE_PROFILES`. Default rollback path is **nest** until Rust is signed off for prod.
-
-```powershell
-aws ec2-instance-connect send-ssh-public-key --instance-id i-0263e6862a2e32e59 --instance-os-user ec2-user --ssh-public-key file://C:\Users\gkv00\.ssh\gixbee-ec2.pub ; ssh -i C:\Users\gkv00\.ssh\gixbee-ec2 -o StrictHostKeyChecking=no ec2-user@13.233.60.215 "cd /home/ec2-user/gixbeesolutions && git pull origin main && echo 'BACKEND_IMPL=nest' > .env && COMPOSE_PROFILES=nest docker compose up --build -d && docker image prune -f && docker compose ps"
-```
-
-The `docker image prune -f` is not optional. Each `--build` retags `gixbee-backend`
-and orphans the previous ~443MB image; on an 8GB root volume roughly six deploys
-fill the disk. Pruning only removes untagged images no container references, so it
-never touches anything running. A `docker-prune.timer` on the host runs the same
-cleanup weekly as a backstop.
-
-## Step 3: Verify Container Health
-After `docker compose up --build -d backend` completes, wait 5–10 seconds and verify that the `gixbee_backend` container transitions from `(health: starting)` to `(healthy)`:
+From repo root on Windows:
 
 ```powershell
-aws ec2-instance-connect send-ssh-public-key --instance-id i-0263e6862a2e32e59 --instance-os-user ec2-user --ssh-public-key file://C:\Users\gkv00\.ssh\gixbee-ec2.pub ; ssh -i C:\Users\gkv00\.ssh\gixbee-ec2 -o StrictHostKeyChecking=no ec2-user@13.233.60.215 "cd /home/ec2-user/gixbeesolutions && docker compose ps"
+cd C:\Users\gkv00\Music\gixbee
+tar -czf "$env:TEMP\gixbee-azure.tgz" `
+  --exclude=node_modules --exclude=.git --exclude=tmp `
+  --exclude=backend/node_modules --exclude=super-admin-web/node_modules `
+  --exclude=backend_rust/target --exclude=.dart_tool --exclude=build `
+  --exclude=android --exclude=ios --exclude="*.apk" .
+
+scp -i C:\Users\gkv00\.ssh\gixbee-ec2 -o StrictHostKeyChecking=no `
+  "$env:TEMP\gixbee-azure.tgz" `
+  C:\Users\gkv00\Music\gixbee\scripts\azure_sync_and_deploy.sh `
+  azureuser@20.106.171.188:/tmp/
 ```
 
-## Step 4: Check Free Disk
-The root volume is only 8GB and a full disk breaks both Postgres writes and the
-next build. Confirm usage stays under ~85%:
+## Step 3: Migrate schema + build + restart (on VM)
+
+Runs SQL bundles, sets `BACKEND_IMPL=rust`, builds `backend_rust` + `admin`, starts stack:
 
 ```powershell
-aws ec2-instance-connect send-ssh-public-key --instance-id i-0263e6862a2e32e59 --instance-os-user ec2-user --ssh-public-key file://C:\Users\gkv00\.ssh\gixbee-ec2.pub ; ssh -i C:\Users\gkv00\.ssh\gixbee-ec2 -o StrictHostKeyChecking=no ec2-user@13.233.60.215 "df -h / && docker system df"
+ssh -i C:\Users\gkv00\.ssh\gixbee-ec2 -o StrictHostKeyChecking=no azureuser@20.106.171.188 `
+  "sed -i 's/\r$//' /tmp/azure_sync_and_deploy.sh; nohup bash /tmp/azure_sync_and_deploy.sh > /tmp/deploy.log 2>&1 & echo DEPLOY_STARTED"
 ```
 
-If it is still tight after pruning, the durable fix is growing the EBS volume
-(`aws ec2 modify-volume --size 16`) followed by `sudo growpart /dev/nvme0n1 1`
-and `sudo xfs_growfs /`.
+Rust Docker build can take **15–30+ minutes** on the VM. Monitor:
+
+```powershell
+ssh -i C:\Users\gkv00\.ssh\gixbee-ec2 -o StrictHostKeyChecking=no azureuser@20.106.171.188 "tail -30 /tmp/deploy.log; docker compose ps"
+```
+
+Success line: `DEPLOY_OK`
+
+## Step 4: Verify
+
+```powershell
+Invoke-WebRequest -Uri "http://20.106.171.188:3000/" -UseBasicParsing
+```
+
+## Step 5: Flutter APK (optional)
+
+Use project defines pointing at Azure (see `gixbee_keys.bat` or `--dart-define=API_BASE_URL=http://20.106.171.188:3000`).
+
+## Notes
+
+- Preserves `backend/.env` and Firebase JSON on deploy (script backs up before replacing tree).
+- `docker image prune -f` runs after build — keep it.
+- See `docs/MASTER_DATA_ADMIN.md` for optional catalogue/location imports after deploy.

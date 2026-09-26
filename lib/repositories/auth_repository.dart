@@ -179,7 +179,7 @@ Future<void> forceLogoutToWelcomeFromWidget(WidgetRef ref) =>
       ref.read(socketServiceProvider),
       ref.read(authTokenServiceProvider),
       () {
-        clearWorkerAvailabilitySessionState(ref);
+        clearWorkerAvailabilitySessionStateWidget(ref);
         ref.invalidate(authStateProvider);
         ref.invalidate(currentUserProvider);
       },

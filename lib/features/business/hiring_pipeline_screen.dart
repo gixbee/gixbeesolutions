@@ -33,6 +33,8 @@ String applicationStageLabel(ApplicationStatus stage) {
       return 'Not Selected';
     case ApplicationStatus.withdrawn:
       return 'Withdrawn';
+    case ApplicationStatus.noShow:
+      return 'No-show';
   }
 }
 
@@ -91,6 +93,7 @@ class _HiringPipelineScreenState extends ConsumerState<HiringPipelineScreen> {
       ApplicationStatus.selected => GixbeeTheme.accentGreen,
       ApplicationStatus.rejected => GixbeeTheme.brandRed,
       ApplicationStatus.withdrawn => GixbeeTheme.textMed,
+      ApplicationStatus.noShow => GixbeeTheme.brandRed,
     };
   }
 

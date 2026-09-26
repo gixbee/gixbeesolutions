@@ -236,6 +236,7 @@ class CandidateProfileScreen extends StatelessWidget {
       ApplicationStatus.selected => GixbeeTheme.accentGreen,
       ApplicationStatus.rejected => GixbeeTheme.brandRed,
       ApplicationStatus.withdrawn => GixbeeTheme.textMed,
+      ApplicationStatus.noShow => GixbeeTheme.brandRed,
     };
   }
 }

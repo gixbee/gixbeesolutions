@@ -2,9 +2,8 @@ import 'dart:async';
 
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:riverpod/riverpod.dart' show Ref;
-
 import '../../repositories/auth_repository.dart';
+import '../../services/auth_token_service.dart';
 import '../../repositories/worker_repository.dart';
 import 'worker_live_presence.dart';
 
@@ -85,17 +84,14 @@ final workerShowAvailabilityControlProvider = Provider<bool>((ref) {
   );
 });
 
-typedef _RiverpodRead = T Function<T>(ProviderListenable<T> provider);
-typedef _RiverpodInvalidate = void Function(ProviderOrFamily provider);
-
-void _syncWorkerLiveFromDashboardCore(
-  _RiverpodRead read,
+void _applyDashboardToLiveState(
+  dynamic ref,
   Map<String, dynamic>? dash,
 ) {
   if (dash == null || !dash.containsKey('isActive')) return;
   final serverLive = dash['isActive'] == true;
-  read(workerLiveStateProvider.notifier).state = serverLive;
-  final presence = read(workerLivePresenceProvider);
+  ref.read(workerLiveStateProvider.notifier).state = serverLive;
+  final presence = ref.read(workerLivePresenceProvider);
   if (serverLive) {
     unawaited(presence.start());
   } else {
@@ -103,42 +99,39 @@ void _syncWorkerLiveFromDashboardCore(
   }
 }
 
-void _clearWorkerAvailabilitySessionStateCore(
-  _RiverpodRead read,
-  _RiverpodInvalidate invalidate,
-) {
-  read(workerLiveStateProvider.notifier).state = false;
-  read(workerSpokenLanguagesProvider.notifier).state = null;
-  read(workerLiveToggleBusyProvider.notifier).state = false;
-  read(workerLivePresenceProvider).stop();
-  invalidate(workerShellDashboardProvider);
-  invalidate(goLiveDashboardProvider);
+void _clearAvailabilitySession(dynamic ref) {
+  ref.read(workerLiveStateProvider.notifier).state = false;
+  ref.read(workerSpokenLanguagesProvider.notifier).state = null;
+  ref.read(workerLiveToggleBusyProvider.notifier).state = false;
+  ref.read(workerLivePresenceProvider).stop();
+  ref.invalidate(workerShellDashboardProvider);
+  ref.invalidate(goLiveDashboardProvider);
 }
 
 void syncWorkerLiveFromDashboard(Ref ref, Map<String, dynamic>? dash) {
-  _syncWorkerLiveFromDashboardCore(ref.read, dash);
+  _applyDashboardToLiveState(ref, dash);
 }
 
 void syncWorkerLiveFromDashboardWidget(
   WidgetRef ref,
   Map<String, dynamic>? dash,
 ) {
-  _syncWorkerLiveFromDashboardCore(ref.read, dash);
+  _applyDashboardToLiveState(ref, dash);
 }
 
 void clearWorkerAvailabilitySessionState(Ref ref) {
-  _clearWorkerAvailabilitySessionStateCore(ref.read, ref.invalidate);
+  _clearAvailabilitySession(ref);
 }
 
 void clearWorkerAvailabilitySessionStateWidget(WidgetRef ref) {
-  _clearWorkerAvailabilitySessionStateCore(ref.read, ref.invalidate);
+  _clearAvailabilitySession(ref);
 }
 
 Future<void> refreshWorkerAvailabilityFromServer(Ref ref) async {
   ref.invalidate(workerShellDashboardProvider);
   try {
     final dash = await ref.read(workerShellDashboardProvider.future);
-    _syncWorkerLiveFromDashboardCore(ref.read, dash);
+    _applyDashboardToLiveState(ref, dash);
     final presence = ref.read(workerLivePresenceProvider);
     if (dash != null && dash['isActive'] == true) {
       await presence.start();
@@ -152,7 +145,7 @@ Future<void> refreshWorkerAvailabilityFromServerWidget(WidgetRef ref) async {
   ref.invalidate(workerShellDashboardProvider);
   try {
     final dash = await ref.read(workerShellDashboardProvider.future);
-    _syncWorkerLiveFromDashboardCore(ref.read, dash);
+    _applyDashboardToLiveState(ref, dash);
     final presence = ref.read(workerLivePresenceProvider);
     if (dash != null && dash['isActive'] == true) {
       await presence.start();
