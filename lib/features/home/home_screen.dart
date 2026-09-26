@@ -333,7 +333,7 @@ class HomeScreen extends ConsumerWidget {
       ),
       _QuadData(
         title: 'Plan an Event',
-        tag: 'Venues & rentals',
+        tag: 'Venues, catering & more',
         icon: Icons.calendar_month_rounded,
         accent: GixbeeTheme.accentPink,
         onTap: () => _go(context, const BookServicesSplitScreen()),

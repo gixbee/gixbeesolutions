@@ -2,21 +2,37 @@ use axum::{
     extract::State,
     http::{header, HeaderMap, StatusCode},
     response::{IntoResponse, Response},
-    routing::get,
+    routing::{get, post},
     Json, Router,
 };
 
 use crate::error::AppResult;
+use crate::middleware::auth::{require_admin_page, AuthUser};
 use crate::state::AppState;
 
+use super::stats;
 use super::versions;
 
 pub fn routes() -> Router<AppState> {
-    Router::new().route("/versions", get(list_versions))
+    Router::new()
+        .route("/versions", get(list_versions))
+        .route("/admin/stats", get(admin_stats))
+        .route("/admin/stats/reset", post(admin_stats_reset))
 }
 
 async fn list_versions(State(state): State<AppState>) -> AppResult<Json<serde_json::Value>> {
     Ok(Json(versions::all_versions(&state.db).await?))
+}
+
+async fn admin_stats(State(state): State<AppState>, user: AuthUser) -> AppResult<Json<serde_json::Value>> {
+    require_admin_page(&user, "monitoring")?;
+    Ok(Json(stats::snapshot(state.redis.as_ref(), state.redis.is_ready()).await))
+}
+
+async fn admin_stats_reset(State(state): State<AppState>, user: AuthUser) -> AppResult<Json<serde_json::Value>> {
+    require_admin_page(&user, "monitoring")?;
+    stats::reset_all(state.redis.as_ref()).await?;
+    Ok(Json(serde_json::json!({ "ok": true })))
 }
 
 pub fn apply_cache_headers(headers: &mut HeaderMap, etag: &str, outcome: super::CacheOutcome) {

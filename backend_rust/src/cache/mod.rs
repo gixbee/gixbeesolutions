@@ -13,6 +13,7 @@ use crate::redis::RedisStore;
 use crate::state::AppState;
 
 pub mod http;
+pub mod stats;
 pub mod versions;
 
 pub use versions::{bump_in_tx, bump_now, commit_bump_tx, current_version, Domain};
@@ -163,12 +164,14 @@ pub async fn read_through<'a, F>(
 where
     F: FnOnce() -> LoaderFut<'a>,
 {
+    stats::record_read_through_request(state.redis.clone(), domain);
     let version = current_version(&state.db, domain).await?;
     let redis_key = format!("gx:v1:{}:{}:{}", domain.as_str(), version, fnv1a64(key_suffix));
     let etag = etag_for(domain, version, key_suffix);
 
     if let Some(client) = if_none_match {
         if client.trim_matches('"') == etag.trim_matches('"') {
+            stats::record_read_through_not_modified(state.redis.clone(), domain);
             tracing::debug!(target: "cache", domain = domain.as_str(), outcome = "not_modified");
             return Ok(CachedBody {
                 json: Value::Null,
@@ -181,6 +184,7 @@ where
     if let Some(raw) = redis_get(&state.redis, &redis_key).await {
         if let Some((cached_v, body)) = parse_envelope(&raw) {
             if cached_v == version {
+                stats::record_read_through_cache_hit(state.redis.clone(), domain);
                 tracing::debug!(target: "cache", domain = domain.as_str(), outcome = "hit");
                 return Ok(CachedBody {
                     json: body,
@@ -226,6 +230,7 @@ where
         if let Some(raw) = redis_get(&state.redis, &redis_key).await {
             if let Some((cached_v, body)) = parse_envelope(&raw) {
                 if cached_v == version {
+                    stats::record_read_through_cache_hit(state.redis.clone(), domain);
                     tracing::debug!(target: "cache", domain = domain.as_str(), outcome = "hit_coalesced");
                     return Ok(CachedBody {
                         json: body,
@@ -245,6 +250,7 @@ where
     }
 
     let load_version = version;
+    stats::record_read_through_db_load(state.redis.clone(), domain);
     let body = loader().await?;
     let _ = INFLIGHT.lock().await.remove(&redis_key);
 
@@ -256,6 +262,7 @@ where
             outcome = "version_changed_during_load"
         );
         // Return loaded body without a reusable validator; do not cache under a new ETag.
+        stats::record_read_through_fallback(state.redis.clone(), domain);
         return Ok(CachedBody {
             json: body,
             etag: String::new(),
@@ -301,12 +308,15 @@ pub async fn read_through_user_scoped<'a, F>(
 where
     F: FnOnce() -> LoaderFut<'a>,
 {
+    stats::record_user_scoped_request(state.redis.clone());
     let redis_key = format!("gx:v1:user:{user_id}:{}", fnv1a64(key_suffix));
     if let Some(raw) = redis_get(&state.redis, &redis_key).await {
         if let Ok(v) = serde_json::from_str::<Value>(&raw) {
+            stats::record_user_scoped_cache_hit(state.redis.clone());
             return Ok(v);
         }
     }
+    stats::record_user_scoped_db_load(state.redis.clone());
     let body = loader().await?;
     if let Ok(text) = serde_json::to_string(&body) {
         let _ = redis_set(&state.redis, &redis_key, &text, ttl_secs).await;
@@ -321,7 +331,7 @@ pub async fn invalidate_user_scope(redis: &RedisStore, user_id: &str) -> AppResu
 
 /// Short-lived display cache (e.g. hiring estimate). Not used for authorization.
 pub async fn read_ephemeral<'a, F>(
-    redis: &RedisStore,
+    redis: std::sync::Arc<RedisStore>,
     key: &str,
     ttl_secs: u64,
     loader: F,
@@ -329,15 +339,18 @@ pub async fn read_ephemeral<'a, F>(
 where
     F: FnOnce() -> LoaderFut<'a>,
 {
-    if let Some(raw) = redis_get(redis, key).await {
+    stats::record_ephemeral_request(redis.clone());
+    if let Some(raw) = redis_get(redis.as_ref(), key).await {
         if let Ok(v) = serde_json::from_str::<Value>(&raw) {
+            stats::record_ephemeral_cache_hit(redis.clone());
             tracing::debug!(target: "cache", op = "ephemeral_hit");
             return Ok(v);
         }
     }
+    stats::record_ephemeral_db_load(redis.clone());
     let body = loader().await?;
     if let Ok(text) = serde_json::to_string(&body) {
-        let _ = redis_set(redis, key, &text, ttl_secs).await;
+        let _ = redis_set(redis.as_ref(), key, &text, ttl_secs).await;
     }
     Ok(body)
 }

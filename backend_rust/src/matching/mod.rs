@@ -19,7 +19,7 @@ mod engine;
 mod flow;
 mod profiles;
 mod progress;
-pub use engine::{process_refund, run_scheduler};
+pub use engine::run_scheduler;
 #[cfg(test)]
 pub async fn poll_for_tests(state: &AppState) -> AppResult<()> {
     engine::poll_due(state).await
@@ -44,7 +44,6 @@ pub fn routes() -> Router<AppState> {
         .route("/requests", get(list_requests).post(create_request))
         .route("/requests/{id}", get(get_request))
         .route("/requests/{id}/close", post(close_request))
-        .route("/requests/{id}/resolve", post(resolve_request))
         .route("/interests/{id}/decision", patch(interest_decision))
         .route("/interests/{id}/progress", get(progress::detail))
         .route("/interests/{id}/progress/{action}", post(progress::action))
@@ -241,7 +240,7 @@ async fn estimate(
     );
     let state = state.clone();
     let ttl = state.cache.hiring_estimate_ttl_secs;
-    let body = crate::cache::read_ephemeral(&state.redis, &cache_key, ttl, || {
+    let body = crate::cache::read_ephemeral(state.redis.clone(), &cache_key, ttl, || {
         let state = state.clone();
         let user_id = user_id.clone();
         let job_type = query.job_type.to_string();
@@ -540,9 +539,6 @@ async fn get_request(
     let filled = hired >= i64::from(vacancies.max(1));
     let status = row.get::<String, _>("status");
     result["notifiedCount"] = json!(notified);
-    let refund_status: Option<String> = sqlx::query_scalar(r#"SELECT status FROM outbox_events WHERE "aggregateId"=$1 AND type='hiring.refund' LIMIT 1"#)
-        .bind(rid).fetch_optional(&state.db).await?;
-    result["refundStatus"] = json!(refund_status);
     result["filled"] = json!(filled);
     result["jobStatus"] = json!(if status == "CLOSED" {
         "CLOSED"
@@ -633,21 +629,6 @@ async fn close_request(
         ));
     }
     get_request(State(state), user, Path(id)).await
-}
-
-#[derive(Deserialize)]
-struct ResolveBody {
-    choice: String,
-}
-
-async fn resolve_request(
-    State(state): State<AppState>,
-    user: AuthUser,
-    Path(id): Path<String>,
-    Json(body): Json<ResolveBody>,
-) -> AppResult<Json<Value>> {
-    let row = engine::resolve_guarantee(&state, &user.user_id, &id, &body.choice).await?;
-    Ok(Json(request_json(&row)))
 }
 
 #[derive(Deserialize)]

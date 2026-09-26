@@ -178,7 +178,14 @@ class CandidateMatch {
   }
 }
 
-enum ApplicationStatus { applied, interview, selected, rejected, withdrawn }
+enum ApplicationStatus {
+  applied,
+  interview,
+  selected,
+  rejected,
+  withdrawn,
+  noShow,
+}
 
 class JobApplication {
   final String id;
@@ -223,6 +230,7 @@ class JobApplication {
       case 'SELECTED': return ApplicationStatus.selected;
       case 'REJECTED': return ApplicationStatus.rejected;
       case 'WITHDRAWN': return ApplicationStatus.withdrawn;
+      case 'NO_SHOW': return ApplicationStatus.noShow;
       default: return ApplicationStatus.applied;
     }
   }

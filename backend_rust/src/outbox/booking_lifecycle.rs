@@ -7,7 +7,7 @@ use crate::workers;
 pub async fn handle(state: &AppState, event_type: &str, payload: &Value) -> Result<(), String> {
     match event_type {
         "booking.gps_progress" => crate::bookings::progress::dispatch_gps_progress(state,payload).await.map_err(|e|e.to_string()),
-        "hiring.refund" => crate::matching::process_refund(state, &str_field(payload,"requestId")?).await.map_err(|e|e.to_string()),
+        "hiring.refund" => Ok(()),
         "marketplace.notify" => {
             let uid = str_field(payload, "userId")?;
             // An account without a registered device still sees the durable offer/status in the app.

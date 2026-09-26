@@ -51,13 +51,14 @@ Write-after-load compares DB version at start vs end; if version changed, **skip
 - `GET /hiring/catalogue/positions` — sector, query, limit, offset, include_inactive
 - `GET /hiring/catalogue/positions/:id`
 
-### Location search
+### Location master
 
-- `GET /hiring/locations/search` — normalized query, limit, offset, location-master version (query max 80 chars; limit max 40)
+- `GET /hiring/locations/geography` — **whole** active `STATE` + `DISTRICT` rows in one Redis blob (`bulk:geography`); includes `cacheVersion`
+- `GET /hiring/locations/search` — per-query PLACE search (normalized query, limit, offset; max 80 chars; limit max 40)
 
 ### Service master
 
-- `GET /cities?isActive=…`
+- `GET /cities?isActive=…` — **whole** serviceable city list (name + state + pin) per filter (`bulk:serviceable:true` / `…:all`)
 - `GET /master-entries?type&isActive&category&cityId`
 
 ### Public listings (display only)
@@ -114,7 +115,7 @@ Observability: `tracing` target `cache` at **debug** (hit/miss/fallback/stale_ve
 | Data | Mechanism |
 |------|-----------|
 | Hiring snapshot | `hiringCatalogueSnapshotProvider` — keepAlive 24h; invalidates on `cacheVersion` change |
-| Pro trades / master entries | Existing `proTradesProvider` keepAlive 10m; cities `citiesProvider` keepAlive 6h |
+| Pro trades / master entries | Existing `proTradesProvider` keepAlive 10m; cities `citiesProvider` keepAlive 6h (API Redis serves `GET /cities`) |
 | Location search pages | `AppDataCache` LRU (max 32 keys); stale UI guard remains in `HiringLocationSearch` |
 | Logout / forced logout | `AppDataCache.clearAll()` |
 

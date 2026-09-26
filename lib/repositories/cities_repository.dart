@@ -67,9 +67,7 @@ class CitiesRepository {
   }
 }
 
-/// Active serviceable cities. Empty list on failure — callers fall back to
-/// their own defaults (the picker keeps a small hardcoded list) so the picker
-/// never renders blank when the backend is unreachable.
+/// Active serviceable cities. List is small; Redis caches `GET /cities` on the API.
 final citiesProvider = FutureProvider<List<CityEntry>>((ref) async {
   final link = ref.keepAlive();
   final timer = Timer(const Duration(hours: 6), link.close);

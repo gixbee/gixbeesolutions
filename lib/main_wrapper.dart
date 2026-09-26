@@ -13,6 +13,7 @@ import 'features/home/active_booking_card.dart';
 import 'features/messages/messages_list_screen.dart';
 import 'features/profile/profile_screen.dart';
 import 'features/jobs/booking_detail_screen.dart';
+import 'features/activity/activity_screen.dart';
 import 'features/jobs/my_bookings_screen.dart';
 import 'features/jobs/find_job_module.dart';
 import 'features/business/hiring_requests_screen.dart';
@@ -27,7 +28,10 @@ import 'features/billing/job_pack_screen.dart';
 import 'services/voice_call_controller.dart';
 import 'features/jobs/pro_skill_provider.dart';
 import 'features/profile/addresses/address_picker_bottom_sheet.dart';
-import 'features/worker/go_live_screen.dart';
+import 'features/worker/worker_availability_fab.dart';
+import 'features/worker/worker_instant_eligibility.dart';
+import 'features/worker/worker_live_presence.dart';
+import 'features/worker/worker_live_toggle.dart';
 import 'repositories/worker_repository.dart';
 import 'repositories/auth_repository.dart';
 import 'repositories/booking_repository.dart';
@@ -85,12 +89,12 @@ class _MainWrapperState extends ConsumerState<MainWrapper>
   /// duplicate pushes from socket + FCM racing.
   bool _incomingJobOpen = false;
 
-  /// Body screens, indexed by [_currentIndex]. Go Live is NOT a body tab —
-  /// it is the center FAB that pushes [GoLiveScreen] as an overlay, matching
-  /// the mockup. Tab order: Home · Bookings · Messages · Profile.
+  /// Body screens, indexed by [_currentIndex]. Eligible workers get a center
+  /// availability FAB (online/offline toggle); others see four even tabs.
+  /// Tab order: Home · Activity · Messages · Profile.
   final List<Widget> _screens = [
     const HomeScreen(),
-    const MyBookingsScreen(),
+    const ActivityScreen(),
     const MessagesListScreen(),
     const ProfileScreen(),
   ];
@@ -109,28 +113,13 @@ class _MainWrapperState extends ConsumerState<MainWrapper>
     }());
   }
 
-  void _openGoLive() {
-    if (_sessionExitStarted) return;
-    unawaited(() async {
-      final authed = await ref.read(authTokenServiceProvider).hasToken();
-      if (!authed) {
-        _forceSessionEnd();
-        return;
-      }
-      if (!mounted) return;
-      Navigator.push(
-        context,
-        MaterialPageRoute(builder: (_) => const GoLiveScreen()),
-      );
-    }());
-  }
-
   bool _sessionExitStarted = false;
 
   /// Leave the shell entirely (no bottom nav / Go Live) on sign-out or expiry.
   void _forceSessionEnd() {
     if (_sessionExitStarted) return;
     _sessionExitStarted = true;
+    clearWorkerAvailabilitySessionStateWidget(ref);
     unawaited(() async {
       await forceLogoutToWelcomeFromWidget(ref);
       // forceLogout skips nav when the JWT was already deleted. Still replace
@@ -183,6 +172,7 @@ class _MainWrapperState extends ConsumerState<MainWrapper>
       // when the user reaches it — the skeleton only ever shows on a truly
       // cold cache with a slow connection.
       ref.read(proTradesProvider);
+      unawaited(refreshWorkerAvailabilityFromServerWidget(ref));
     });
   }
 
@@ -202,6 +192,7 @@ class _MainWrapperState extends ConsumerState<MainWrapper>
     if (state == AppLifecycleState.resumed) {
       _kickToWelcomeIfLoggedOut();
       unawaited(_reconcilePendingBookings());
+      unawaited(refreshWorkerAvailabilityFromServerWidget(ref));
       ref.invalidate(myBookingsProvider);
     }
   }
@@ -503,6 +494,7 @@ class _MainWrapperState extends ConsumerState<MainWrapper>
       return;
     }
     if (type == 'hiring_delivered' || type == 'hiring_guarantee_failed') {
+      // Legacy push type: guarantee flow removed; open shortlist like delivered.
       if (fromUserGesture && mounted) {
         final requestId = data['requestId'];
         if (requestId != null && requestId.isNotEmpty) {
@@ -651,23 +643,46 @@ class _MainWrapperState extends ConsumerState<MainWrapper>
       backgroundColor: Colors.transparent,
       builder: (_) => const AddressPickerBottomSheet(),
     );
-  }  @override
+  }
+
+  @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    final isLive = ref.watch(workerLiveStateProvider);
+    final showAvailabilityControl =
+        ref.watch(workerShowAvailabilityControlProvider);
+    ref.listen(workerShellDashboardProvider, (prev, next) {
+      next.whenData((dash) {
+        syncWorkerLiveFromDashboardWidget(ref, dash);
+        if (dash != null && dash['isActive'] == true) {
+          unawaited(ref.read(workerLivePresenceProvider).start());
+        } else if (dash != null) {
+          ref.read(workerLivePresenceProvider).stop();
+        }
+      });
+    });
     // If worker status is discovered mid-session, reconcile the queue once.
     // Future offers arrive through Socket.IO / FCM.
     ref.listen(currentUserProvider, (prev, next) {
+      final prevId = prev?.asData?.value?.id;
+      final nextId = next.asData?.value?.id;
+      if (prevId != null && nextId != null && prevId != nextId) {
+        clearWorkerAvailabilitySessionStateWidget(ref);
+        unawaited(ref.read(workerShellDashboardProvider.future));
+      }
       final wasWorker = prev?.asData?.value?.isWorker == true;
       final becameWorker = !wasWorker && next.asData?.value?.isWorker == true;
       if (becameWorker) {
         unawaited(_reconcilePendingBookings());
+        ref.invalidate(workerShellDashboardProvider);
       }
       if (shouldLeaveAppShell(ref.read(authStateProvider), next)) {
         _forceSessionEnd();
       }
     });
     ref.listen(authStateProvider, (prev, next) {
+      if (next.asData?.value == false) {
+        clearWorkerAvailabilitySessionStateWidget(ref);
+      }
       if (shouldLeaveAppShell(next, ref.read(currentUserProvider))) {
         _forceSessionEnd();
       }
@@ -731,25 +746,33 @@ class _MainWrapperState extends ConsumerState<MainWrapper>
           ],
         ),
       ),
-      floatingActionButton: _GoLiveFab(isLive: isLive, onTap: _openGoLive),
-      floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
+      floatingActionButton: showAvailabilityControl
+          ? WorkerAvailabilityFab(
+              onToggle: () => unawaited(runWorkerLiveToggle(context, ref)),
+            )
+          : null,
+      floatingActionButtonLocation: showAvailabilityControl
+          ? FloatingActionButtonLocation.centerDocked
+          : null,
       bottomNavigationBar: BottomAppBar(
         height: 64,
         color: scheme.surface,
         elevation: 0,
         shadowColor: Colors.transparent,
         surfaceTintColor: Colors.transparent,
-        shape: const CircularNotchedRectangle(),
-        notchMargin: 10,
+        shape: showAvailabilityControl
+            ? const CircularNotchedRectangle()
+            : null,
+        notchMargin: showAvailabilityControl ? 10 : 0,
         padding: EdgeInsets.zero,
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceAround,
           children: [
             _navItem(scheme, index: 0, icon: Icons.home_outlined,
                 activeIcon: Icons.home, label: 'Home'),
-            _navItem(scheme, index: 1, icon: Icons.receipt_long_outlined,
-                activeIcon: Icons.receipt_long, label: 'Bookings'),
-            const SizedBox(width: 56), // gap for the center Go Live FAB
+            _navItem(scheme, index: 1, icon: Icons.timeline_outlined,
+                activeIcon: Icons.timeline, label: 'Activity'),
+            if (showAvailabilityControl) const SizedBox(width: 72),
             _navItem(scheme, index: 2, icon: Icons.chat_bubble_outline,
                 activeIcon: Icons.chat_bubble, label: 'Messages'),
             _navItem(scheme, index: 3, icon: Icons.person_outline,
@@ -795,60 +818,3 @@ class _MainWrapperState extends ConsumerState<MainWrapper>
   }
 }
 
-/// Center bottom-nav action that launches the worker Go-Live engine.
-/// Turns green while the worker is live so the state is visible from any tab.
-class _GoLiveFab extends StatelessWidget {
-  final bool isLive;
-  final VoidCallback onTap;
-  const _GoLiveFab({required this.isLive, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    final gx = context.gx;
-    // Live = functional green; idle FAB uses theme shell gradient.
-    return SizedBox(
-      width: 58,
-      height: 58,
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          gradient: isLive
-              ? const LinearGradient(
-                  colors: [
-                    GixbeeTheme.accentGreen,
-                    GixbeeTheme.accentGreenDark,
-                  ])
-              : LinearGradient(colors: gx.accentGradient),
-          boxShadow: [
-            BoxShadow(
-              color: (isLive ? GixbeeTheme.accentGreen : gx.accent)
-                  .withValues(alpha: 0.28),
-              blurRadius: 10,
-              offset: const Offset(0, 3),
-            ),
-          ],
-        ),
-        child: Material(
-          color: Colors.transparent,
-          shape: const CircleBorder(),
-          child: InkWell(
-            customBorder: const CircleBorder(),
-            onTap: onTap,
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(isLive ? Icons.podcasts : Icons.bolt,
-                    color: gx.onAccent, size: 22),
-                Text('Go Live',
-                    style: TextStyle(
-                        color: gx.onAccent,
-                        fontSize: 7,
-                        fontWeight: FontWeight.w800)),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}

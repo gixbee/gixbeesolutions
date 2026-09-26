@@ -161,17 +161,6 @@ class MatchingRepository {
     return '${response.data['status']}';
   }
 
-  Future<Map<String, dynamic>> resolveGuarantee(
-    String requestId, {
-    required String choice, // CREDIT | REFUND
-  }) async {
-    final res = await _dio.post(
-      '/hiring/match/requests/$requestId/resolve',
-      data: {'choice': choice},
-    );
-    return Map<String, dynamic>.from(res.data as Map);
-  }
-
   Future<Map<String, dynamic>> setDecision(
     String interestId, {
     required String decision, // SHORTLISTED | REJECTED | HIRED

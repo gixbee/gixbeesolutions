@@ -11,6 +11,8 @@ import '../services/app_data_cache.dart';
 import '../services/auth_token_service.dart';
 import '../services/socket_service.dart';
 import '../shared/models/user.dart';
+import '../features/worker/worker_instant_eligibility.dart';
+import 'worker_repository.dart';
 
 /// OTP / refresh / admin-login are public. A leftover Bearer token must not
 /// trigger silent refresh or a stack reset back to Welcome.
@@ -163,6 +165,7 @@ Future<void> forceLogoutToWelcome(Ref ref) => _forceLogoutToWelcome(
       ref.read(socketServiceProvider),
       ref.read(authTokenServiceProvider),
       () {
+        clearWorkerAvailabilitySessionState(ref);
         ref.invalidate(authStateProvider);
         ref.invalidate(currentUserProvider);
       },
@@ -176,6 +179,7 @@ Future<void> forceLogoutToWelcomeFromWidget(WidgetRef ref) =>
       ref.read(socketServiceProvider),
       ref.read(authTokenServiceProvider),
       () {
+        clearWorkerAvailabilitySessionState(ref);
         ref.invalidate(authStateProvider);
         ref.invalidate(currentUserProvider);
       },

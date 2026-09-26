@@ -24,36 +24,11 @@ import 'worker_languages_card.dart';
 import 'service_radius_card.dart';
 import 'go_live_job_feed.dart';
 import 'go_live_screen_widgets.dart';
+import 'worker_instant_eligibility.dart';
+import 'worker_live_presence.dart';
+import 'worker_live_toggle.dart';
 
-/// Go-Live dashboard: skills + per-service activation + earnings summary.
-/// `GET /workers/me/dashboard` — refreshed after every live toggle.
-///
-/// Riverpod 3 retries a failed future 10 times with exponential backoff
-/// (~38s total). This endpoint 404s for anyone who has not registered as a
-/// pro, so the tab sat spinning through the whole retry ladder before finally
-/// showing "Register as Pro". Only transient transport failures are worth a
-/// retry here, and only twice.
-final goLiveDashboardProvider =
-    FutureProvider.autoDispose<Map<String, dynamic>>(
-  (ref) async {
-    return ref.watch(workerRepositoryProvider).getGoLiveDashboard();
-  },
-  retry: (retryCount, error) {
-    if (retryCount >= 2) return null;
-    if (error is DioException) {
-      switch (error.type) {
-        case DioExceptionType.connectionError:
-        case DioExceptionType.connectionTimeout:
-        case DioExceptionType.receiveTimeout:
-        case DioExceptionType.sendTimeout:
-          return Duration(milliseconds: 300 * (retryCount + 1));
-        default:
-          return null;
-      }
-    }
-    return null;
-  },
-);
+export 'worker_instant_eligibility.dart' show goLiveDashboardProvider;
 
 /// Worker "Go Live" engine.
 ///
@@ -71,7 +46,6 @@ class GoLiveScreen extends ConsumerStatefulWidget {
 }
 
 class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
-  bool _toggling = false;
   final _languagesSectionKey = GlobalKey();
 
   /// One-shot heal of the cached user when the server proves worker status
@@ -89,8 +63,6 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
   /// Incoming job requests received while live (newest first).
   final List<Map<String, dynamic>> _jobFeed = [];
   StreamSubscription<Map<String, dynamic>>? _socketSub;
-  Timer? _locationHeartbeat;
-  bool _presenceStarted = false;
 
   /// True when the live-mode heartbeat can't get a GPS fix any more — the
   /// pro is drifting out of dispatch and must be told, not left "waiting".
@@ -113,7 +85,7 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
       if (!mounted) return;
       if (ref.read(workerLiveStateProvider)) {
         unawaited(_startTicker(reset: false));
-        unawaited(_ensureLivePresence());
+        unawaited(ref.read(workerLivePresenceProvider).start());
         unawaited(_refreshPendingFeed());
       }
     });
@@ -122,7 +94,6 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
   @override
   void dispose() {
     _ticker?.cancel();
-    _locationHeartbeat?.cancel();
     _socketSub?.cancel();
     _razorpay?.clear();
     super.dispose();
@@ -214,273 +185,25 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
     if (mounted) setState(() => _elapsed = Duration.zero);
   }
 
-  Future<void> _ensureLivePresence() async {
-    if (_presenceStarted) return;
-    final user = await ref.read(currentUserProvider.future);
-    if (user == null || !mounted) return;
-    _presenceStarted = true;
-
-    final socket = ref.read(socketServiceProvider);
-    // Socket is already connected in MainWrapper with the JWT — do not
-    // reconnect with the user id (that would break auth).
-    socket.joinUserRoom(user.id);
-    socket.startLivePresenceStream(user.id);
-
-    // HTTP heartbeat so Instant Help still matches if the socket is down.
-    _locationHeartbeat?.cancel();
-    Future<void> pushLoc() async {
-      try {
-        final pos = await ref.read(locationServiceProvider).getCurrentPosition(
-              fallbackToLastKnown: true,
-            );
-        if (pos == null) {
-          // GPS died mid-session — surface it (banner in the live view)
-          // instead of silently letting the pro fall out of dispatch.
-          if (mounted && !_gpsLost) setState(() => _gpsLost = true);
-          return;
-        }
-        if (mounted && _gpsLost) setState(() => _gpsLost = false);
-        await ref.read(workerRepositoryProvider).updateMyLocation(
-              lat: pos.latitude,
-              lng: pos.longitude,
-            );
-      } catch (_) {}
-    }
-
-    unawaited(pushLoc());
-    _locationHeartbeat = Timer.periodic(
-      const Duration(seconds: 30),
-      (_) => unawaited(pushLoc()),
-    );
-  }
-
-  void _stopLivePresence() {
-    _presenceStarted = false;
-    _locationHeartbeat?.cancel();
-    _locationHeartbeat = null;
-    ref.read(socketServiceProvider).stopLocationStream();
-  }
-
   Future<void> _toggle() async {
-    if (_toggling) return;
-    setState(() => _toggling = true);
-    final currentlyLive = ref.read(workerLiveStateProvider);
-    final wantLive = !currentlyLive;
-    try {
-      // HARD GATE: going live REQUIRES a GPS fix. Without one the pro never
-      // enters the dispatch geo index — they'd sit "live", burning their
-      // daily session, receiving zero jobs, and blaming the app. (The old
-      // flow went live anyway and just showed an apologetic red toast.)
-      double? lat;
-      double? lng;
-      final dash = ref.read(goLiveDashboardProvider).asData?.value;
-      if (wantLive) {
-        var langs = ref.read(workerSpokenLanguagesProvider);
-        if (langs == null) {
-          try {
-            final me =
-                await ref.read(workerRepositoryProvider).getMyWorkerProfile();
-            langs = _spokenLanguages(me['languages']);
-            if (mounted) {
-              ref.read(workerSpokenLanguagesProvider.notifier).state = langs;
-            }
-          } catch (_) {
-            langs = dash == null ? null : _spokenLanguages(dash['languages']);
-            if (langs != null && langs.isEmpty) langs = null;
-          }
-        }
-        if (langs != null && langs.isEmpty) {
-          if (!mounted) return;
-          _toast(
-            'Select at least one language you speak before going live.',
-            error: true,
-          );
-          setState(() => _toggling = false);
-          final ctx = _languagesSectionKey.currentContext;
-          if (ctx != null && ctx.mounted) {
-            await Scrollable.ensureVisible(
-              ctx,
-              duration: const Duration(milliseconds: 280),
-              alignment: 0.12,
-            );
-          }
-          return;
-        }
-
-        if (dash != null) {
-          final credits = (dash['jobCredits'] as num?)?.toInt() ?? 0;
-          if (credits <= 0) {
-            if (mounted) {
-              _toast(
-                  'You need job credits to accept new bookings. Buy a pack now.',
-                  error: true);
-              setState(() => _toggling = false);
-            }
-            return;
-          }
-        }
-
-        // fallbackToLastKnown: live fix often times out indoors / on cold
-        // start; last-known keeps the toggle from failing with a generic
-        // error when the server was never even called.
-        final pos = await ref
-            .read(locationServiceProvider)
-            .getCurrentPosition(fallbackToLastKnown: true);
-        if (pos == null) {
-          if (mounted) {
-            setState(() => _toggling = false);
-            await _showGpsRequiredSheet();
-          }
-          return;
-        }
-        lat = pos.latitude;
-        lng = pos.longitude;
-      }
-
-      // Desired-state body — safe to retry if the response is lost after
-      // the server already flipped the row.
-      final result = await ref.read(workerRepositoryProvider).goLiveToggle(
-            lat: lat,
-            lng: lng,
-            active: wantLive,
-          );
-      ref.read(workerLiveStateProvider.notifier).state = result.isActive;
-      ref.invalidate(goLiveDashboardProvider);
-
-      if (result.isActive) {
-        unawaited(_startTicker(reset: true));
-        await _ensureLivePresence();
-        unawaited(_refreshPendingFeed());
-      } else {
-        unawaited(_stopTicker());
-        _jobFeed.clear();
-        _stopLivePresence();
-        if (_gpsLost) setState(() => _gpsLost = false);
-      }
-      if (mounted) {
-        _toast(result.message, error: false);
-      }
-    } on DioException catch (e) {
-      await _resyncLiveAfterToggleFailure();
-      if (!mounted) return;
-      // Response lost after a successful save: UI now matches intent — treat
-      // as success so the pro isn't told it failed while already live.
-      if (ref.read(workerLiveStateProvider) == wantLive) {
-        _toast(
-          wantLive
-              ? 'You are now LIVE on the map and accepting jobs.'
-              : 'You are now OFFLINE. Customers cannot dispatch you instantly.',
-          error: false,
-        );
-        return;
-      }
-      _toast(_goLiveErrorMessage(e), error: true);
-    } catch (_) {
-      await _resyncLiveAfterToggleFailure();
-      if (!mounted) return;
-      if (ref.read(workerLiveStateProvider) == wantLive) {
-        _toast(
-          wantLive
-              ? 'You are now LIVE on the map and accepting jobs.'
-              : 'You are now OFFLINE. Customers cannot dispatch you instantly.',
-          error: false,
-        );
-        return;
-      }
-      _toast('Could not update Go-Live status. Please try again.', error: true);
-    } finally {
-      if (mounted) setState(() => _toggling = false);
-    }
-  }
-
-  /// Map Dio failures to actionable toasts (timeout ≠ "server rejected").
-  String _goLiveErrorMessage(DioException e) {
-    if (e.type == DioExceptionType.connectionTimeout ||
-        e.type == DioExceptionType.sendTimeout ||
-        e.type == DioExceptionType.receiveTimeout) {
-      return 'Network timed out while updating Go-Live. Check your connection and try again.';
-    }
-    if (e.type == DioExceptionType.connectionError) {
-      return 'No network connection. Check your signal and try again.';
-    }
-    final data = e.response?.data;
-    if (data is Map && data['message'] != null) {
-      final m = data['message'];
-      if (m is List && m.isNotEmpty) return m.first.toString();
-      return m.toString();
-    }
-    return 'Could not update Go-Live status. Please try again.';
-  }
-
-  /// After a failed toggle, re-read server truth so a lost 200 after DB
-  /// save does not leave the button showing the wrong state.
-  Future<void> _resyncLiveAfterToggleFailure() async {
-    try {
-      final dash =
-          await ref.read(workerRepositoryProvider).getGoLiveDashboard();
-      if (!mounted) return;
-      ref.invalidate(goLiveDashboardProvider);
-      _syncLiveFromServer(dash);
-    } catch (_) {
-      // Best-effort — leave local state as-is if dashboard also fails.
-    }
-  }
-
-  /// GPS-required sheet shown instead of going live without a fix. The
-  /// action button is REASON-AWARE: device location off → location settings;
-  /// permission permanently denied → app settings; plain denied → retry
-  /// (which re-triggers the OS prompt via getCurrentPosition).
-  Future<void> _showGpsRequiredSheet() async {
-    final reason = await ref.read(locationServiceProvider).gpsBlockReason();
-    if (!mounted) return;
-    final isServiceOff = reason == 'service_off';
-    final isDeniedForever = reason == 'denied_forever';
-    await showGxSheet<void>(
+    if (ref.read(workerLiveToggleBusyProvider)) return;
+    final wasLive = ref.read(workerLiveStateProvider);
+    await runWorkerLiveToggle(
       context,
-      title: 'Location needed to go live',
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Text(
-            'Customers are matched to pros by live location. Without GPS you '
-            'would appear online but never receive a single job — so Go Live '
-            'stays off until location is available.',
-            style: TextStyle(
-                fontSize: 13,
-                height: 1.5,
-                color: context.gx.ink.withValues(alpha: 0.65)),
-          ),
-          const SizedBox(height: 16),
-          if (isServiceOff || isDeniedForever)
-            GxButton(
-              label: isServiceOff
-                  ? 'Turn on device location'
-                  : 'Open app settings',
-              icon: Icons.settings_rounded,
-              onTap: () {
-                final svc = ref.read(locationServiceProvider);
-                if (isServiceOff) {
-                  svc.openLocationSettings();
-                } else {
-                  svc.openAppSettings();
-                }
-                Navigator.pop(context);
-              },
-            )
-          else
-            GxButton(
-              label: 'Allow location & go live',
-              icon: Icons.my_location_rounded,
-              onTap: () {
-                Navigator.pop(context);
-                _toggle();
-              },
-            ),
-          const SizedBox(height: 8),
-        ],
-      ),
+      ref,
+      scrollToLanguagesKey: _languagesSectionKey,
+      dashboard: ref.read(goLiveDashboardProvider).asData?.value,
     );
+    if (!mounted) return;
+    final nowLive = ref.read(workerLiveStateProvider);
+    if (nowLive && !wasLive) {
+      unawaited(_startTicker(reset: true));
+      unawaited(_refreshPendingFeed());
+    } else if (!nowLive && wasLive) {
+      unawaited(_stopTicker());
+      _jobFeed.clear();
+      if (_gpsLost) setState(() => _gpsLost = false);
+    }
   }
 
   void _toast(String msg, {required bool error}) {
@@ -491,13 +214,7 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
     );
   }
 
-  List<String> _spokenLanguages(dynamic raw) {
-    if (raw is! List) return const [];
-    return raw
-        .map((e) => e.toString().trim())
-        .where((s) => s.isNotEmpty)
-        .toList();
-  }
+  List<String> _spokenLanguages(dynamic raw) => parseSpokenLanguages(raw);
 
   /// Pay the period fee — DIRECT Razorpay checkout (production path): the
   /// server creates the order at the Master-Entries price, the user pays in
@@ -633,14 +350,15 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
     final localLive = ref.read(workerLiveStateProvider);
     if (serverLive == localLive) return;
     ref.read(workerLiveStateProvider.notifier).state = serverLive;
+    final presence = ref.read(workerLivePresenceProvider);
     if (serverLive) {
       if (_liveSince == null) unawaited(_startTicker(reset: false));
-      unawaited(_ensureLivePresence());
+      unawaited(presence.start());
       unawaited(_refreshPendingFeed());
     } else {
       unawaited(_stopTicker());
       _jobFeed.clear();
-      _stopLivePresence();
+      presence.stop();
     }
   }
 
@@ -1196,6 +914,7 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
   }
 
   Widget _buildStickyFooter(bool isLive, Map<String, dynamic> dash) {
+    final toggleBusy = ref.watch(workerLiveToggleBusyProvider);
     final credits = (dash['jobCredits'] as num?)?.toInt() ?? 0;
     final verStatus = (dash['verificationStatus'] as String?) ?? 'PENDING';
     final isVerified = verStatus == 'VERIFIED';
@@ -1216,6 +935,17 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
+          Text(
+            isLive ? 'Online' : 'Offline',
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w800,
+              color: isLive
+                  ? GixbeeTheme.accentGreen
+                  : Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
+          ),
+          const SizedBox(height: 8),
           if (!isLive && !isVerified) ...[
             Container(
               width: double.infinity,
@@ -1276,7 +1006,7 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
             ),
           ],
           GestureDetector(
-            onTap: (_toggling || isDisabled) ? null : _toggle,
+            onTap: (toggleBusy || isDisabled) ? null : _toggle,
             child: Builder(
               builder: (context) {
                 final offline = Theme.of(context).colorScheme.error;
@@ -1311,7 +1041,7 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
                       borderRadius: BorderRadius.circular(16),
                     )
                   : null,
-              child: _toggling
+              child: toggleBusy
                   ? SizedBox(
                       width: 24,
                       height: 24,
@@ -1324,7 +1054,7 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
                             color: context.gx.onAccent, size: 20),
                         const SizedBox(width: 10),
                         Text(
-                          isLive ? 'Go Offline' : 'Go Live Now',
+                          isLive ? 'Go Offline' : 'Go Online',
                           style: TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.w900,

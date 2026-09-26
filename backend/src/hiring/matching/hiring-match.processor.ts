@@ -8,7 +8,7 @@ import { MatchingService } from './matching.service';
  * Jobs are scheduled with fixed jobIds at request creation, so Redis
  * deduplicates them across backend replicas and restarts.
  *   - 'batch'    → staged candidate fan-out (Hour 0 / 8 / 18)
- *   - 'finalize' → 24 h deadline: deliver or trip the guarantee
+ *   - 'finalize' → 24 h deadline: deliver shortlist to employer
  */
 @Processor('hiring')
 export class HiringMatchProcessor {

@@ -16,7 +16,10 @@ import '../messages/chat_thread_screen.dart';
 /// Gixbee 2026 reskin: neutral header, segmented pill tabs, tracker cards
 /// with status progress dots, withdraw via glass sheet.
 class ApplicationTrackerScreen extends ConsumerStatefulWidget {
-  const ApplicationTrackerScreen({super.key});
+  const ApplicationTrackerScreen({super.key, this.focusApplicationId});
+
+  /// When set (e.g. from Activity), scrolls to that application on the All tab.
+  final String? focusApplicationId;
 
   @override
   ConsumerState<ApplicationTrackerScreen> createState() =>
@@ -32,6 +35,7 @@ class _ApplicationTrackerScreenState
 
   List<JobApplication> _applications = [];
   bool _isLoading = true;
+  bool _focusApplicationPending = true;
 
   @override
   void initState() {
@@ -52,6 +56,7 @@ class _ApplicationTrackerScreenState
           _applications = apps;
           _isLoading = false;
         });
+        _openFocusedApplication();
       }
     } catch (e) {
       if (mounted) {
@@ -60,6 +65,43 @@ class _ApplicationTrackerScreenState
             type: GxSnackType.error);
       }
     }
+  }
+
+  void _openFocusedApplication() {
+    final id = widget.focusApplicationId?.trim();
+    if (id == null || id.isEmpty || !_focusApplicationPending) return;
+    JobApplication? app;
+    for (final a in _applications) {
+      if (a.id == id) {
+        app = a;
+        break;
+      }
+    }
+    if (app == null) return;
+    _focusApplicationPending = false;
+    final focused = app;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      _showApplicationDetail(focused);
+    });
+  }
+
+  Future<void> _showApplicationDetail(JobApplication app) {
+    return showGxSheet<void>(
+      context,
+      title: app.jobPost.title,
+      child: _ApplicationCard(
+        app: app,
+        onWithdraw: () async {
+          Navigator.pop(context);
+          await _withdraw(app);
+        },
+        onMessage: () {
+          Navigator.pop(context);
+          _openChat(app);
+        },
+      ),
+    );
   }
 
   Future<void> _withdraw(JobApplication app) async {
@@ -311,7 +353,8 @@ class _ApplicationTrackerScreenState
                       _buildList(_applications
                           .where((a) =>
                               a.status == ApplicationStatus.rejected ||
-                              a.status == ApplicationStatus.withdrawn)
+                              a.status == ApplicationStatus.withdrawn ||
+                              a.status == ApplicationStatus.noShow)
                           .toList()),
                     ],
                   ),
@@ -336,11 +379,14 @@ class _ApplicationTrackerScreenState
       child: ListView.builder(
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
         itemCount: apps.length,
-        itemBuilder: (context, i) => _ApplicationCard(
-          app: apps[i],
-          onWithdraw: () => _withdraw(apps[i]),
-          onMessage: () => _openChat(apps[i]),
-        ),
+        itemBuilder: (context, i) {
+          final app = apps[i];
+          return _ApplicationCard(
+            app: app,
+            onWithdraw: () => _withdraw(app),
+            onMessage: () => _openChat(app),
+          );
+        },
       ),
     );
   }
@@ -483,6 +529,7 @@ class _ApplicationCard extends StatelessWidget {
       ApplicationStatus.selected => ('Hired', GixbeeTheme.accentGreen),
       ApplicationStatus.rejected => ('Not Selected', GixbeeTheme.brandRed),
       ApplicationStatus.withdrawn => ('Withdrawn', GixbeeTheme.textMed),
+      ApplicationStatus.noShow => ('No-show', GixbeeTheme.brandRed),
     };
     final progressStep = switch (app.status) {
       ApplicationStatus.applied => 0,

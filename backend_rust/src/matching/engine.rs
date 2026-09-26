@@ -239,29 +239,29 @@ async fn finish_request(state: &AppState, request_id: Uuid, at_deadline: bool) -
     if !expired && count < i64::from(row.get::<i32, _>("targetInterested")) {
         return Ok(());
     }
-    let delivered = count >= i64::from(row.get::<i32, _>("vacancies"));
-    let status = if delivered {
-        "DELIVERED"
-    } else {
-        "GUARANTEE_FAILED"
-    };
-    sqlx::query(r#"UPDATE hiring_requests SET status=$1::hiring_requests_status_enum,
-        "deliveredAt"=CASE WHEN $2 THEN NOW() ELSE "deliveredAt" END,"updatedAt"=NOW() WHERE id=$3"#)
-        .bind(status).bind(delivered).bind(request_id).execute(&mut *tx).await?;
-    let (title, body) = if delivered {
-        (
-            "Your candidate shortlist is ready",
-            format!(
-                "{} interested candidates for {} — review and shortlist in the app.",
-                count,
-                row.get::<String, _>("jobType")
-            ),
-        )
-    } else {
-        ("Hiring guarantee — action needed","The minimum interested candidates were not collected within 24 hours. Choose hiring credit or a refund in the app.".into())
-    };
-    crate::outbox::notify(&mut tx,request_id,row.get("employerId"),title,&body,
-        serde_json::json!({"type":if delivered {"hiring_delivered"} else {"hiring_guarantee_failed"},"requestId":request_id})).await?;
+    sqlx::query(
+        r#"UPDATE hiring_requests SET status='DELIVERED'::hiring_requests_status_enum,
+        "deliveredAt"=NOW(),"updatedAt"=NOW() WHERE id=$1"#,
+    )
+    .bind(request_id)
+    .execute(&mut *tx)
+    .await?;
+    let title = "Your candidate shortlist is ready";
+    let body = format!(
+        "{} interested candidate{} for {} — review and shortlist in the app.",
+        count,
+        if count == 1 { "" } else { "s" },
+        row.get::<String, _>("jobType")
+    );
+    crate::outbox::notify(
+        &mut tx,
+        request_id,
+        row.get("employerId"),
+        title,
+        &body,
+        serde_json::json!({"type":"hiring_delivered","requestId":request_id}),
+    )
+    .await?;
     tx.commit().await?;
     Ok(())
 }
@@ -524,112 +524,3 @@ fn format_salary_label(salary: &EmployerSalary, salary_period: &str) -> String {
     }
 }
 
-pub async fn resolve_guarantee(
-    state: &AppState,
-    employer_id: &str,
-    request_id: &str,
-    choice: &str,
-) -> AppResult<sqlx::postgres::PgRow> {
-    use crate::common::pg::HIRING_REQUEST_COLS;
-    if !matches!(choice, "CREDIT" | "REFUND") {
-        return Err(AppError::BadRequest("Choose CREDIT or REFUND".into()));
-    }
-    let rid = Uuid::parse_str(request_id)?;
-    let employer = Uuid::parse_str(employer_id)?;
-    let mut tx = state.db.begin().await?;
-    let row=sqlx::query(&format!(r#"SELECT {HIRING_REQUEST_COLS} FROM hiring_requests WHERE id=$1 AND "employerId"=$2 FOR UPDATE"#))
-        .bind(rid).bind(employer).fetch_optional(&mut *tx).await?
-        .ok_or_else(||AppError::NotFound("Hiring request not found".into()))?;
-    let status = row.get::<String, _>("status");
-    if status == format!("RESOLVED_{choice}") {
-        return Ok(row);
-    }
-    if status != "GUARANTEE_FAILED" {
-        return Err(AppError::BadRequest(
-            "This request is not eligible for a guarantee remedy".into(),
-        ));
-    }
-    let pending:bool=sqlx::query_scalar(r#"SELECT EXISTS(SELECT 1 FROM outbox_events WHERE "aggregateId"=$1 AND type='hiring.refund')"#)
-        .bind(rid).fetch_one(&mut *tx).await?;
-    if pending {
-        if choice == "REFUND" {
-            return Ok(row);
-        }
-        return Err(AppError::Conflict(
-            "A refund has already been requested".into(),
-        ));
-    }
-    if choice == "CREDIT" {
-        sqlx::query(
-            r#"UPDATE users SET "hiringCreditBalance"="hiringCreditBalance"+$1 WHERE id=$2"#,
-        )
-        .bind(row.get::<rust_decimal::Decimal, _>("feeAmount"))
-        .bind(employer)
-        .execute(&mut *tx)
-        .await?;
-        sqlx::query(r#"UPDATE hiring_requests SET status='RESOLVED_CREDIT',"resolvedAt"=NOW(),"updatedAt"=NOW() WHERE id=$1"#)
-            .bind(rid).execute(&mut *tx).await?;
-    } else {
-        // Persist the immutable remedy before calling Razorpay. A timeout must never
-        // let a later CREDIT request grant a second remedy for the same fee.
-        sqlx::query(r#"INSERT INTO outbox_events (id,type,"aggregateId",payload) VALUES ($1,'hiring.refund',$2,$3)"#)
-            .bind(Uuid::new_v4()).bind(rid).bind(serde_json::json!({"requestId":rid})).execute(&mut *tx).await?;
-    }
-    let result = sqlx::query(&format!(
-        "SELECT {HIRING_REQUEST_COLS} FROM hiring_requests WHERE id=$1"
-    ))
-    .bind(rid)
-    .fetch_one(&mut *tx)
-    .await?;
-    tx.commit().await?;
-    Ok(result)
-}
-
-pub async fn process_refund(state: &AppState, request_id: &str) -> AppResult<()> {
-    let rid = Uuid::parse_str(request_id)?;
-    let mut tx = state.db.begin().await?;
-    let row=sqlx::query(r#"SELECT status::text AS status,"employerId","feeAmount","creditApplied","razorpayPaymentId"
-        FROM hiring_requests WHERE id=$1 FOR UPDATE"#).bind(rid).fetch_one(&mut *tx).await?;
-    if row.get::<String, _>("status") == "RESOLVED_REFUND" {
-        return Ok(());
-    }
-    if row.get::<String, _>("status") != "GUARANTEE_FAILED" {
-        return Err(AppError::Conflict(
-            "Refund request has an unexpected status".into(),
-        ));
-    }
-    let fee = row.get::<rust_decimal::Decimal, _>("feeAmount");
-    let credit = row.get::<rust_decimal::Decimal, _>("creditApplied");
-    let cash = fee - credit;
-    if cash > rust_decimal::Decimal::ZERO {
-        let payment_id = row
-            .get::<Option<String>, _>("razorpayPaymentId")
-            .ok_or_else(|| AppError::Conflict("Captured payment reference is missing".into()))?;
-        crate::payments::refund_hiring_match_payment(
-            state,
-            &payment_id,
-            cash.to_i32()
-                .ok_or_else(|| AppError::Internal("Invalid refund amount".into()))?,
-            request_id,
-        )
-        .await?;
-    }
-    sqlx::query(r#"UPDATE users SET "hiringCreditBalance"="hiringCreditBalance"+$1 WHERE id=$2"#)
-        .bind(credit)
-        .bind(row.get::<Uuid, _>("employerId"))
-        .execute(&mut *tx)
-        .await?;
-    sqlx::query(r#"UPDATE hiring_requests SET status='RESOLVED_REFUND',"resolvedAt"=NOW(),"updatedAt"=NOW() WHERE id=$1"#)
-        .bind(rid).execute(&mut *tx).await?;
-    crate::outbox::notify(
-        &mut tx,
-        rid,
-        row.get("employerId"),
-        "Hiring refund initiated",
-        "Your hiring fee refund was accepted. Any hiring credit used has been restored.",
-        serde_json::json!({"type":"hiring_refund","requestId":rid}),
-    )
-    .await?;
-    tx.commit().await?;
-    Ok(())
-}

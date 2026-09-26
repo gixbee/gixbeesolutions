@@ -666,7 +666,7 @@ export class MatchingService {
     });
   }
 
-  /** Processor entry: 24 h deadline — deliver or trip the guarantee. */
+  /** Processor entry: 24 h deadline — deliver shortlist to employer. */
   async finalize(requestId: string): Promise<void> {
     const request = await this.requestRepo.findOne({
       where: { id: requestId },
@@ -675,24 +675,7 @@ export class MatchingService {
     if (!request || request.status !== HiringRequestStatus.COLLECTING) return;
 
     const interested = await this.countInterested(requestId);
-    // Guaranteed minimum: at least one interested candidate per vacancy.
-    if (interested >= request.vacancies) {
-      await this.deliver(request, interested);
-      return;
-    }
-
-    request.status = HiringRequestStatus.GUARANTEE_FAILED;
-    await this.requestRepo.save(request);
-    await this.notificationsService
-      .sendToUser(request.employer.id, {
-        title: 'Hiring guarantee — action needed',
-        body: `We couldn't collect the minimum interested candidates for ${request.jobType} within 24 hours. Choose instant Gixbee Credit or a refund in the app.`,
-        data: { type: 'hiring_guarantee_failed', requestId },
-      })
-      .catch(() => {});
-    this.logger.log(
-      `[Hiring ${requestId}] guarantee FAILED (${interested}/${request.vacancies} minimum)`,
-    );
+    await this.deliver(request, interested);
   }
 
   private async deliver(
@@ -712,58 +695,6 @@ export class MatchingService {
     this.logger.log(
       `[Hiring ${request.id}] DELIVERED with ${interestedCount} interested`,
     );
-  }
-
-  /** Guarantee remedy: instant hiring credit, or Razorpay refund. */
-  async resolveGuarantee(
-    employerId: string,
-    requestId: string,
-    choice: 'CREDIT' | 'REFUND',
-  ): Promise<HiringRequest> {
-    const request = await this.requestRepo.findOne({
-      where: { id: requestId, employer: { id: employerId } },
-      relations: ['employer'],
-    });
-    if (!request) throw new NotFoundException('Hiring request not found');
-    if (request.status !== HiringRequestStatus.GUARANTEE_FAILED) {
-      throw new BadRequestException(
-        'This request is not eligible for a guarantee remedy',
-      );
-    }
-    const fee = Number(request.feeAmount) || 0;
-    const creditApplied = Number(request.creditApplied) || 0;
-    // Only the Razorpay slice was charged at checkout (fee − hiring credit).
-    const razorpayPaid = Math.max(
-      0,
-      Math.round((fee - creditApplied) * 100) / 100,
-    );
-
-    if (choice === 'CREDIT') {
-      // Full fee back as hiring credit (or wallet when that product is on).
-      if (WALLET_PAYMENTS_ENABLED) {
-        await this.walletsService.addFunds(employerId, fee);
-      } else {
-        await this.addHiringCredit(employerId, fee);
-      }
-      request.status = HiringRequestStatus.RESOLVED_CREDIT;
-    } else {
-      if (request.razorpayPaymentId && razorpayPaid > 0) {
-        await this.paymentsService.refundHiringMatchPayment(
-          request.razorpayPaymentId,
-          razorpayPaid,
-        );
-      } else if (WALLET_PAYMENTS_ENABLED && fee > 0) {
-        await this.walletsService.addFunds(employerId, fee);
-      }
-      // Restore hiring credit consumed at request create (covers credit-only
-      // hires where creditApplied === fee, and partial-credit + Razorpay).
-      if (!WALLET_PAYMENTS_ENABLED && creditApplied > 0) {
-        await this.addHiringCredit(employerId, creditApplied);
-      }
-      request.status = HiringRequestStatus.RESOLVED_REFUND;
-    }
-    request.resolvedAt = new Date();
-    return this.requestRepo.save(request);
   }
 
   async listMyRequests(employerId: string): Promise<any[]> {

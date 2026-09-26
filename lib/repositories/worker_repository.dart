@@ -26,6 +26,9 @@ final selectedLocationProvider =
 /// bottom-nav indicator stays in sync without an extra round-trip.
 final workerLiveStateProvider = StateProvider<bool>((ref) => false);
 
+/// True while `POST /workers/live-toggle` is in flight (bottom nav + Go Live).
+final workerLiveToggleBusyProvider = StateProvider<bool>((ref) => false);
+
 /// Spoken languages last saved from the Go Live languages card.
 /// `null` until that card loads GET /workers/me.
 final workerSpokenLanguagesProvider = StateProvider<List<String>?>((ref) => null);

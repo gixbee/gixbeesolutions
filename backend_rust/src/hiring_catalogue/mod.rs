@@ -56,6 +56,7 @@ async fn admin_legacy_map(user: AuthUser) -> AppResult<Json<Value>> {
 
 pub fn location_routes() -> Router<AppState> {
     Router::new()
+        .route("/geography", get(geography_snapshot))
         .route("/search", get(search_locations))
         .route("/admin/list", get(admin_list_locations))
         .route("/{id}", get(location_detail))
@@ -1145,6 +1146,76 @@ async fn admin_list_locations(
         "limit": limit,
         "offset": offset,
     })))
+}
+
+/// Whole active **state + district** master in one Redis entry (`bulk:geography`).
+/// PLACE rows stay on `/search` (too large for one blob); pick state/district from here.
+async fn geography_snapshot(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+) -> AppResult<Response> {
+    let if_none = headers
+        .get(axum::http::header::IF_NONE_MATCH)
+        .and_then(|v| v.to_str().ok());
+    let db_state = state.clone();
+    let cached = crate::cache::read_through(
+        &state,
+        crate::cache::versions::Domain::LocationMaster,
+        "bulk:geography",
+        state.cache.location_search_ttl_secs,
+        None,
+        if_none,
+        || {
+            let state = db_state.clone();
+            Box::pin(async move { load_geography_bulk(&state).await })
+        },
+    )
+    .await?;
+    if cached.json.is_null() {
+        return Ok(crate::cache::http::not_modified(&cached.etag));
+    }
+    Ok(crate::cache::http::json_cached(
+        cached.json,
+        &cached.etag,
+        cached.outcome,
+    ))
+}
+
+async fn load_geography_bulk(state: &AppState) -> AppResult<Value> {
+    let version =
+        crate::cache::versions::current_version(&state.db, crate::cache::versions::Domain::LocationMaster)
+            .await?;
+    let rows = sqlx::query(
+        r#"SELECT id, kind, name, "stateId", "stateName", "districtId", "districtName"
+           FROM hiring_locations
+           WHERE "isActive" AND kind IN ('STATE', 'DISTRICT')
+           ORDER BY "stateName", kind, name"#,
+    )
+    .fetch_all(&state.db)
+    .await?;
+    let mut states = Vec::new();
+    let mut districts = Vec::new();
+    for r in &rows {
+        let kind = r.get::<String, _>("kind");
+        let item = json!({
+            "id": r.get::<String,_>("id"),
+            "name": r.get::<String,_>("name"),
+            "stateId": r.get::<Option<String>,_>("stateId"),
+            "stateName": r.get::<String,_>("stateName"),
+            "districtId": r.get::<Option<String>,_>("districtId"),
+            "districtName": r.get::<String,_>("districtName"),
+        });
+        if kind == "STATE" {
+            states.push(item);
+        } else {
+            districts.push(item);
+        }
+    }
+    Ok(json!({
+        "cacheVersion": version,
+        "states": states,
+        "districts": districts,
+    }))
 }
 
 async fn search_locations(

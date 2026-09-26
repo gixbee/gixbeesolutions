@@ -20,6 +20,7 @@ const MAX_DISPATCH_RADIUS_KM: f64 = 50.0;
 const DEFAULT_SERVICE_RADIUS_KM: f64 = 10.0;
 const MAX_NEARBY_CANDIDATES: usize = 40;
 const MAX_BROADCAST_FANOUT: usize = 15;
+const SUSPENSION_STRIKE_THRESHOLD: i32 = 3;
 pub const REBROADCAST_RADIUS_STRETCH: f64 = 1.3;
 
 pub struct DispatchWorker {
@@ -63,6 +64,53 @@ fn parse_skills(raw: Option<String>) -> Vec<String> {
 
 fn skills_to_db(skills: &[String]) -> String {
     skills.join(",")
+}
+
+/// Registered pro (not a ghost shell) and not strike-suspended.
+fn profile_is_registered_pro(profile: &sqlx::postgres::PgRow) -> bool {
+    let skills = parse_skills(
+        profile
+            .try_get::<Option<String>, _>("skills")
+            .ok()
+            .flatten(),
+    );
+    let verification = profile.get::<String, _>("verificationStatus");
+    if skills.is_empty() && verification == "PENDING" {
+        return false;
+    }
+    if skills.is_empty() {
+        return false;
+    }
+    let strike_count = profile.try_get::<i32, _>("strikeCount").unwrap_or(0);
+    strike_count < SUSPENSION_STRIKE_THRESHOLD
+}
+
+/// Same gates as going live (except live GPS in this request).
+fn profile_can_go_online(profile: &sqlx::postgres::PgRow, credits: i32) -> bool {
+    if !profile_is_registered_pro(profile) {
+        return false;
+    }
+    if profile.get::<String, _>("verificationStatus") != "VERIFIED" {
+        return false;
+    }
+    let languages =
+        parse_skills(profile.try_get::<Option<String>, _>("languages").ok().flatten());
+    if languages.is_empty() {
+        return false;
+    }
+    credits > 0
+}
+
+/// Show availability control: online workers can go offline; otherwise must pass go-live gates.
+fn profile_show_availability_control(
+    profile: &sqlx::postgres::PgRow,
+    credits: i32,
+    is_active: bool,
+) -> bool {
+    if is_active {
+        return true;
+    }
+    profile_can_go_online(profile, credits)
 }
 
 fn ist_today() -> String {
@@ -627,6 +675,11 @@ async fn get_my_dashboard(State(state): State<AppState>, user: AuthUser) -> AppR
         .take(10)
         .collect();
 
+    let strike_count = profile.try_get::<i32, _>("strikeCount").unwrap_or(0);
+    let suspended = strike_count >= SUSPENSION_STRIKE_THRESHOLD;
+    let can_accept_instant =
+        profile_show_availability_control(&profile, credits, is_active);
+
     Ok(Json(json!({
         "skills": skills,
         "activeSkills": active_skills,
@@ -636,6 +689,9 @@ async fn get_my_dashboard(State(state): State<AppState>, user: AuthUser) -> AppR
         "serviceRadiusKm": service_radius,
         "languages": parse_skills(profile.try_get::<Option<String>, _>("languages").ok().flatten()),
         "jobCredits": credits,
+        "strikeCount": strike_count,
+        "suspended": suspended,
+        "canAcceptInstantJobs": can_accept_instant,
         "feeModel": {
             "enabled": false,
             "jobsIncluded": 0,
@@ -755,21 +811,32 @@ async fn live_toggle(
     }
 
     if target {
-        let verification = profile.get::<String, _>("verificationStatus");
-        if verification != "VERIFIED" {
-            return Err(AppError::BadRequest(
-                "Your profile is not verified yet. Please complete the verification process to go live.".into(),
-            ));
-        }
-        let languages =
-            parse_skills(profile.try_get::<Option<String>, _>("languages").ok().flatten());
-        if languages.is_empty() {
-            return Err(AppError::BadRequest(
-                "Select at least one language you speak before going live.".into(),
-            ));
-        }
         let credits = job_credits(&state, uid).await?;
-        if credits <= 0 {
+        if !profile_can_go_online(&profile, credits) {
+            let strike_count = profile.try_get::<i32, _>("strikeCount").unwrap_or(0);
+            if strike_count >= SUSPENSION_STRIKE_THRESHOLD {
+                return Err(AppError::BadRequest(
+                    "Your account is suspended after repeated job violations. Open Profile → Strikes to see the reasons and file an appeal — our team reviews every appeal.".into(),
+                ));
+            }
+            if !profile_is_registered_pro(&profile) {
+                return Err(AppError::BadRequest(
+                    "Complete your pro registration before going online for instant jobs.".into(),
+                ));
+            }
+            let verification = profile.get::<String, _>("verificationStatus");
+            if verification != "VERIFIED" {
+                return Err(AppError::BadRequest(
+                    "Your profile is not verified yet. Please complete the verification process to go live.".into(),
+                ));
+            }
+            let languages =
+                parse_skills(profile.try_get::<Option<String>, _>("languages").ok().flatten());
+            if languages.is_empty() {
+                return Err(AppError::BadRequest(
+                    "Select at least one language you speak before going live.".into(),
+                ));
+            }
             return Err(AppError::BadRequest(
                 "You need job credits to go live and accept new bookings. Please buy a job pack to continue.".into(),
             ));
@@ -1248,8 +1315,6 @@ pub async fn refresh_worker_snapshot(state: &AppState, user_id: &str) -> AppResu
 pub async fn periodic_jobs_per_payment(state: &AppState) -> i32 {
     config_number(state, "go_live_jobs_per_payment", 0).await
 }
-
-const SUSPENSION_STRIKE_THRESHOLD: i32 = 3;
 
 pub async fn record_strike(
     state: &AppState,

@@ -1,3 +1,4 @@
+mod activity;
 mod addresses;
 mod admin_staff;
 mod auth;

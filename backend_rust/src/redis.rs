@@ -157,6 +157,71 @@ impl RedisStore {
         Ok(())
     }
 
+    pub async fn hincr(&self, key: &str, field: &str, delta: i64) -> Result<i64> {
+        self.assert_fallback("hincr")?;
+        if let Some(mut c) = self.conn() {
+            let v: i64 = redis::cmd("HINCRBY")
+                .arg(key)
+                .arg(field)
+                .arg(delta)
+                .query_async(&mut c)
+                .await?;
+            Ok(v)
+        } else {
+            let composite = format!("{key}\x1f{field}");
+            let mut m = self.mem_kv.lock().await;
+            let cur = m
+                .get(&composite)
+                .and_then(|(s, _)| s.parse::<i64>().ok())
+                .unwrap_or(0);
+            let next = cur + delta;
+            m.insert(composite, (next.to_string(), None));
+            Ok(next)
+        }
+    }
+
+    pub async fn hset_nx(&self, key: &str, field: &str, value: &str) -> Result<bool> {
+        self.assert_fallback("hsetnx")?;
+        if let Some(mut c) = self.conn() {
+            let created: bool = redis::cmd("HSETNX")
+                .arg(key)
+                .arg(field)
+                .arg(value)
+                .query_async(&mut c)
+                .await?;
+            Ok(created)
+        } else {
+            let composite = format!("{key}\x1f{field}");
+            let mut m = self.mem_kv.lock().await;
+            if m.contains_key(&composite) {
+                return Ok(false);
+            }
+            m.insert(composite, (value.to_string(), None));
+            Ok(true)
+        }
+    }
+
+    pub async fn hgetall_u64(&self, key: &str) -> Result<std::collections::HashMap<String, u64>> {
+        self.assert_fallback("hgetall")?;
+        if let Some(mut c) = self.conn() {
+            let map: std::collections::HashMap<String, String> =
+                redis::cmd("HGETALL").arg(key).query_async(&mut c).await?;
+            Ok(map
+                .into_iter()
+                .filter_map(|(k, v)| v.parse::<u64>().ok().map(|n| (k, n)))
+                .collect())
+        } else {
+            let prefix = format!("{key}\x1f");
+            let m = self.mem_kv.lock().await;
+            Ok(m.iter()
+                .filter_map(|(k, (v, _))| {
+                    k.strip_prefix(&prefix)
+                        .and_then(|field| v.parse::<u64>().ok().map(|n| (field.to_string(), n)))
+                })
+                .collect())
+        }
+    }
+
     pub async fn save_otp(&self, key: &str, otp: &str) -> Result<()> {
         self.set(key, otp, 300).await
     }

@@ -196,20 +196,6 @@ export class MatchingController {
     return this.matchingService.getRequestDetail(req.user.userId, id);
   }
 
-  /** Guarantee remedy after a failed 24 h window: CREDIT (instant) or REFUND. */
-  @Post('requests/:id/resolve')
-  async resolveGuarantee(
-    @Req() req,
-    @Param('id') id: string,
-    @Body() body: { choice: 'CREDIT' | 'REFUND' },
-  ) {
-    return this.matchingService.resolveGuarantee(
-      req.user.userId,
-      id,
-      body?.choice === 'REFUND' ? 'REFUND' : 'CREDIT',
-    );
-  }
-
   @Patch('interests/:id/decision')
   async setDecision(
     @Req() req,

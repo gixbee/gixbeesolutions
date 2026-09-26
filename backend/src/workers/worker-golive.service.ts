@@ -681,14 +681,25 @@ export class WorkerGoLiveService {
       if (doneAt(b) >= startOfWeek) thisWeek += amt;
     }
 
+    const skills = healed.skills || [];
+    const verPending =
+      healed.verificationStatus === VerificationStatus.PENDING;
+    const canAcceptInstantJobs =
+      skills.length > 0 &&
+      !(skills.length === 0 && verPending) &&
+      (healed.strikeCount || 0) < SUSPENSION_STRIKE_THRESHOLD;
+
     return {
-      skills: healed.skills || [],
+      skills,
       activeSkills: healed.activeSkills || [],
       isActive: healed.isActive,
       verificationStatus: healed.verificationStatus,
       rating: healed.rating || 0,
       serviceRadiusKm: healed.serviceRadiusKm ?? DEFAULT_SERVICE_RADIUS_KM,
       jobCredits,
+      strikeCount: healed.strikeCount || 0,
+      suspended: (healed.strikeCount || 0) >= SUSPENSION_STRIKE_THRESHOLD,
+      canAcceptInstantJobs,
       feeModel: {
         enabled: feeJobsIncluded > 0,
         jobsIncluded: feeJobsIncluded,

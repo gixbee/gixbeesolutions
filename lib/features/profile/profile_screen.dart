@@ -9,7 +9,7 @@ import '../../theme.dart';
 import 'edit_profile_screen.dart';
 import '../business/business_unit_dashboard.dart';
 import '../jobs/post_job_screen.dart';
-import '../jobs/my_bookings_screen.dart';
+import '../activity/activity_screen.dart';
 import 'profile_subscreens.dart';
 import 'addresses/address_picker_bottom_sheet.dart';
 import 'strikes_screen.dart';
@@ -39,7 +39,16 @@ class ProfileScreen extends ConsumerWidget {
     final bookingsCount = stats['bookings'] ?? 0;
     final savedCount = stats['saved'] ?? 0;
 
-    return Scaffold(
+    final canPopRoute = Navigator.of(context).canPop();
+
+    return PopScope(
+      // Profile tab root: system back → Home, not exit app. Pushed profile: pop.
+      canPop: canPopRoute,
+      onPopInvokedWithResult: (didPop, _) {
+        if (didPop) return;
+        ref.read(mainTabIndexProvider.notifier).state = 0;
+      },
+      child: Scaffold(
       backgroundColor: context.gx.bg,
       body: SafeArea(
         child: Column(
@@ -201,7 +210,7 @@ class ProfileScreen extends ConsumerWidget {
                                                   fontWeight: FontWeight.w900,
                                                   color: context.gx.accentSoft)),
                                           const SizedBox(height: 2),
-                                          Text('Bookings',
+                                          Text('Services',
                                               style: TextStyle(
                                                   fontSize: 11,
                                                   color: context.gx.ink
@@ -279,12 +288,14 @@ class ProfileScreen extends ConsumerWidget {
                             context,
                             icon: Icons.calendar_today_rounded,
                             color: context.gx.accentSoft,
-                            title: 'My Bookings',
+                            title: 'Activity',
                             trailingText: '$bookingsCount',
                             onTap: () => Navigator.push(
                               context,
                               MaterialPageRoute(
-                                  builder: (_) => const MyBookingsScreen()),
+                                  builder: (_) => const ActivityScreen(
+                                        initialCategory: 'services',
+                                      )),
                             ),
                           ),
                           _buildMenuItem(
@@ -474,6 +485,7 @@ class ProfileScreen extends ConsumerWidget {
           ],
         ),
       ),
+    ),
     );
   }
 

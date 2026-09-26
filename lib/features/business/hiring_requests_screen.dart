@@ -148,10 +148,7 @@ class _HiringRequestsScreenState extends ConsumerState<HiringRequestsScreen> {
                                               fontWeight: FontWeight.w800,
                                               color: status == 'DELIVERED'
                                                   ? GixbeeTheme.accentGreen
-                                                  : status ==
-                                                          'GUARANTEE_FAILED'
-                                                      ? GixbeeTheme.brandRed
-                                                      : GixbeeTheme.accentBlue,
+                                                  : GixbeeTheme.accentBlue,
                                             ),
                                           ),
                                         ],
@@ -244,66 +241,6 @@ class _HiringRequestDetailScreenState
     }
   }
 
-  Future<void> _resolve(String choice) async {
-    try {
-      await ref.read(matchingRepositoryProvider).resolveGuarantee(
-            widget.requestId,
-            choice: choice,
-          );
-      if (!mounted) return;
-      showGxSnack(
-        context,
-        choice == 'CREDIT'
-            ? 'Gixbee Credit added for your next hire'
-            : 'Refund requested',
-        type: GxSnackType.success,
-      );
-      _load();
-    } on DioException catch (e) {
-      final msg = e.response?.data is Map
-          ? (e.response!.data['message']?.toString() ?? e.message)
-          : e.message;
-      if (!mounted) return;
-      showGxSnack(context, msg ?? 'Could not resolve',
-          type: GxSnackType.error);
-    }
-  }
-
-  Future<void> _showGuaranteeSheet() async {
-    final choice = await showGxSheet<String>(
-      context,
-      title: 'Hiring guarantee',
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Text(
-            'We couldn\'t deliver the minimum interested candidates in 24 hours. Choose a remedy:',
-            style: TextStyle(
-              fontSize: 13,
-              height: 1.4,
-              color: context.gx.ink.withValues(alpha: 0.65),
-            ),
-          ),
-          const SizedBox(height: 16),
-          GxButton(
-            label: 'Gixbee Credit (instant)',
-            accent: GixbeeTheme.accentBlue,
-            onTap: () => Navigator.pop(context, 'CREDIT'),
-          ),
-          const SizedBox(height: 10),
-          GxButton(
-            label: 'Full refund',
-            filled: false,
-            accent: GixbeeTheme.accentBlue,
-            onTap: () => Navigator.pop(context, 'REFUND'),
-          ),
-        ],
-      ),
-    );
-    if (choice != null) await _resolve(choice);
-  }
-
   @override
   Widget build(BuildContext context) {
     final d = _detail;
@@ -335,23 +272,11 @@ class _HiringRequestDetailScreenState
                         color: context.gx.ink.withValues(alpha: 0.55),
                       ),
                     ),
-                    if (status == 'GUARANTEE_FAILED' && d['refundStatus'] != null) ...[
-                      const SizedBox(height: 14),
-                      Text(
-                        d['refundStatus'] == 'failed'
-                            ? 'The refund could not be completed. Contact support with this hiring request.'
-                            : 'Your refund is being processed. Pull down to check its status.',
-                        style: TextStyle(color: context.gx.ink),
-                      ),
-                    ] else if (status == 'GUARANTEE_FAILED') ...[
-                      const SizedBox(height: 14),
-                      GxButton(
-                        label: 'Choose credit or refund',
-                        accent: GixbeeTheme.brandRed,
-                        onTap: _showGuaranteeSheet,
-                      ),
-                    ],
-                    if (status == 'COLLECTING' || status == 'DELIVERED') ...[
+                    if (status == 'COLLECTING' ||
+                        status == 'DELIVERED' ||
+                        status == 'GUARANTEE_FAILED' ||
+                        status == 'RESOLVED_CREDIT' ||
+                        status == 'RESOLVED_REFUND') ...[
                       const SizedBox(height: 14),
                       GxButton(
                         label: 'Close this job',

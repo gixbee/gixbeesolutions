@@ -31,7 +31,8 @@ async fn find_all(
     Query(q): Query<ActiveQuery>,
 ) -> AppResult<Response> {
     let active_key = q.isActive.as_deref().unwrap_or("all");
-    let suffix = format!("cities:{active_key}");
+    // One Redis blob per filter — full city+state master (not per-row keys).
+    let suffix = format!("bulk:serviceable:{active_key}");
     let if_none = headers
         .get(axum::http::header::IF_NONE_MATCH)
         .and_then(|v| v.to_str().ok());

@@ -2,11 +2,12 @@ import { Component, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
 import { RedisViewerComponent } from './redis-viewer.component';
+import { CacheStatsComponent } from './cache-stats.component';
 
 @Component({
   selector: 'app-infrastructure',
   standalone: true,
-  imports: [CommonModule, RedisViewerComponent],
+  imports: [CommonModule, RedisViewerComponent, CacheStatsComponent],
   template: `
     <div class="gx-full-screen-view d-flex flex-column flex-grow-1 w-100">
       <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
@@ -79,6 +80,18 @@ import { RedisViewerComponent } from './redis-viewer.component';
         <li class="nav-item" role="presentation">
           <button
             class="nav-link d-flex align-items-center gap-2"
+            [class.active]="activeTab === 'cache'"
+            (click)="activeTab = 'cache'"
+            type="button"
+            role="tab"
+          >
+            <i class="bi bi-speedometer2"></i>
+            <span>Cache / DB ratio</span>
+          </button>
+        </li>
+        <li class="nav-item" role="presentation">
+          <button
+            class="nav-link d-flex align-items-center gap-2"
             [class.active]="activeTab === 'redis'"
             (click)="activeTab = 'redis'"
             type="button"
@@ -124,6 +137,11 @@ import { RedisViewerComponent } from './redis-viewer.component';
             title="pgAdmin Postgres Console"
             allow="clipboard-read; clipboard-write"
           ></iframe>
+        </div>
+
+        <!-- Cache stats -->
+        <div *ngIf="activeTab === 'cache'" class="w-100 flex-grow-1 d-flex flex-column h-100" style="min-height: calc(100vh - 190px);">
+          <app-cache-stats class="flex-grow-1"></app-cache-stats>
         </div>
 
         <!-- Redis Tab -->
@@ -186,7 +204,7 @@ import { RedisViewerComponent } from './redis-viewer.component';
 export class InfrastructureComponent {
   private sanitizer = inject(DomSanitizer);
 
-  activeTab: 'beszel' | 'dozzle' | 'pgadmin' | 'redis' = 'beszel';
+  activeTab: 'beszel' | 'dozzle' | 'pgadmin' | 'cache' | 'redis' = 'cache';
 
   readonly rawBeszelUrl = '/infra/beszel/';
   readonly rawPgAdminUrl = '/infra/pgadmin/';

@@ -11,6 +11,6 @@ On Windows, `scripts/test-contracts.ps1 -DatabaseUrl <local-test-url>` runs step
 
 Database tests are explicitly ignored in a plain `cargo test` run. Do not treat a run that skipped them as evidence that database contracts passed. Setup never loads `.env`, rejects remote hosts and rejects database names outside `gixbee_contract_*`.
 
-Coverage includes owner permissions, persistent business calendars and moderation, multi-day rental billing, competing confirmations, career-profile criteria, hiring fee enforcement, candidate-contact privacy, deadline recovery and duplicate guarantee remedies.
+Coverage includes owner permissions, persistent business calendars and moderation, multi-day rental billing, competing confirmations, career-profile criteria, hiring fee enforcement, candidate-contact privacy, and deadline recovery.
 
 Live payment delivery, real devices, deployment migrations and the remaining event/inventory/interview features require separate release verification.

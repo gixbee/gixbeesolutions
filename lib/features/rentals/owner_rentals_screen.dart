@@ -27,8 +27,13 @@ import '../profile/addresses/address_line.dart';
 /// photo upload) and act on incoming reservation requests
 /// (confirm → handover → returned; or reject).
 class OwnerRentalsScreen extends ConsumerStatefulWidget {
-  const OwnerRentalsScreen({super.key, this.businessId});
+  const OwnerRentalsScreen({
+    super.key,
+    this.businessId,
+    this.initialReservationId,
+  });
   final String? businessId;
+  final String? initialReservationId;
 
   @override
   ConsumerState<OwnerRentalsScreen> createState() => _OwnerRentalsScreenState();
@@ -39,11 +44,115 @@ class _OwnerRentalsScreenState extends ConsumerState<OwnerRentalsScreen> {
   List<Map<String, dynamic>> _items = [];
   List<Map<String, dynamic>> _reservations = [];
   bool _loading = true;
+  bool _focusReservationPending = true;
+  final _requestsScrollController = ScrollController();
 
   @override
   void initState() {
     super.initState();
     _load();
+  }
+
+  @override
+  void dispose() {
+    _requestsScrollController.dispose();
+    super.dispose();
+  }
+
+  void _openInitialReservation() {
+    final id = widget.initialReservationId?.trim();
+    if (id == null || id.isEmpty || !_focusReservationPending) return;
+    Map<String, dynamic>? match;
+    for (final r in _reservations) {
+      if (r['id']?.toString() == id) {
+        match = r;
+        break;
+      }
+    }
+    if (match == null) return;
+    _focusReservationPending = false;
+    final row = match;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _showReservationDetailSheet(row);
+    });
+  }
+
+  Future<void> _showReservationDetailSheet(Map<String, dynamic> r) {
+    final fmt = DateFormat('d MMM, h:mm a');
+    final item = r['item'] as Map? ?? {};
+    final renter = r['renter'] as Map? ?? {};
+    return showGxSheet<void>(
+      context,
+      title: '${item['name'] ?? 'Reservation'}',
+      child: SingleChildScrollView(
+        child: _ownerReservationBody(r, fmt, item, renter),
+      ),
+    );
+  }
+
+  Widget _ownerReservationBody(
+    Map<String, dynamic> r,
+    DateFormat fmt,
+    Map? item,
+    Map? renter,
+  ) {
+    final status = '${r['status'] ?? ''}';
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('${item?['name'] ?? ''} — ${renter?['name'] ?? 'Customer'}',
+            style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w800,
+                color: context.gx.ink)),
+        const SizedBox(height: 4),
+        Text(
+          '${fmt.format(DateTime.parse('${r['startTime']}').toLocal())}  →  ${fmt.format(DateTime.parse('${r['endTime']}').toLocal())}'
+          '   ·   ₹${num.tryParse('${r['totalPrice']}')?.round() ?? r['totalPrice']}',
+          style: TextStyle(
+              fontSize: 12.5, color: context.gx.ink.withValues(alpha: 0.6)),
+        ),
+        const SizedBox(height: 10),
+        if (status == 'PENDING' || status == 'PENDING_OWNER_CONFIRMATION')
+          Row(children: [
+            Expanded(
+              child: GxButton(
+                  label: 'Confirm',
+                  height: 40,
+                  radius: 10,
+                  fontSize: 12.5,
+                  onTap: () async {
+                    Navigator.pop(context);
+                    await _decide(r, 'confirm');
+                  }),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: GxButton(
+                  label: 'Reject',
+                  filled: false,
+                  height: 40,
+                  radius: 10,
+                  fontSize: 12.5,
+                  onTap: () async {
+                    Navigator.pop(context);
+                    await _decide(r, 'reject');
+                  }),
+            ),
+          ])
+        else
+          Text(status,
+              style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                  color: context.gx.ink.withValues(alpha: 0.45))),
+        RentalFulfillmentCard(
+            key: ValueKey(r['id']),
+            reservation: r,
+            isOwner: true,
+            onChanged: _load),
+      ],
+    );
   }
 
   Future<void> _load() async {
@@ -52,11 +161,17 @@ class _OwnerRentalsScreenState extends ConsumerState<OwnerRentalsScreen> {
       final items = await repo.getMyItems(businessId: widget.businessId);
       final reservations = await repo.ownerReservations(businessId: widget.businessId);
       if (mounted) {
+        final focusId = widget.initialReservationId?.trim();
+        final openRequests = focusId != null &&
+            focusId.isNotEmpty &&
+            reservations.any((r) => r['id']?.toString() == focusId);
         setState(() {
           _items = items;
           _reservations = reservations;
           _loading = false;
+          if (openRequests) _tab = 1;
         });
+        _openInitialReservation();
       }
     } catch (e) {
       debugPrint('Owner rentals load failed: $e');
@@ -882,67 +997,25 @@ class _OwnerRentalsScreenState extends ConsumerState<OwnerRentalsScreen> {
     }
     final fmt = DateFormat('d MMM, h:mm a');
     return ListView.separated(
+      controller: _requestsScrollController,
       physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.fromLTRB(20, 4, 20, 20),
       itemCount: _reservations.length,
       separatorBuilder: (_, __) => const SizedBox(height: 10),
       itemBuilder: (context, i) {
         final r = _reservations[i];
-        final status = '${r['status'] ?? ''}';
         final item = r['item'] as Map? ?? {};
         final renter = r['renter'] as Map? ?? {};
-        return Container(
-          padding: const EdgeInsets.all(14),
-          decoration: BoxDecoration(
-            color: context.gx.card,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: context.gx.border, width: 1.5),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('${item['name'] ?? ''} — ${renter['name'] ?? 'Customer'}',
-                  style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w800,
-                      color: context.gx.ink)),
-              const SizedBox(height: 4),
-              Text(
-                '${fmt.format(DateTime.parse('${r['startTime']}').toLocal())}  →  ${fmt.format(DateTime.parse('${r['endTime']}').toLocal())}'
-                '   ·   ₹${num.tryParse('${r['totalPrice']}')?.round() ?? r['totalPrice']}',
-                style: TextStyle(
-                    fontSize: 12.5, color: context.gx.ink.withValues(alpha: 0.6)),
-              ),
-              const SizedBox(height: 10),
-              if (status == 'PENDING' || status == 'PENDING_OWNER_CONFIRMATION')
-                Row(children: [
-                  Expanded(
-                    child: GxButton(
-                        label: 'Confirm',
-                        height: 40,
-                        radius: 10,
-                        fontSize: 12.5,
-                        onTap: () => _decide(r, 'confirm')),
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: GxButton(
-                        label: 'Reject',
-                        filled: false,
-                        height: 40,
-                        radius: 10,
-                        fontSize: 12.5,
-                        onTap: () => _decide(r, 'reject')),
-                  ),
-                ])
-              else
-                Text(status,
-                    style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w700,
-                        color: context.gx.ink.withValues(alpha: 0.45))),
-              RentalFulfillmentCard(key: ValueKey(r['id']), reservation: r, isOwner: true, onChanged: _load),
-            ],
+        return GxPressable(
+          onTap: () => _showReservationDetailSheet(r),
+          child: Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: context.gx.card,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: context.gx.border, width: 1.5),
+            ),
+            child: _ownerReservationBody(r, fmt, item, renter),
           ),
         );
       },

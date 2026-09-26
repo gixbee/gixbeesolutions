@@ -11,7 +11,6 @@ class AppDataCache {
 
   int? _hiringMasterVersion;
   int? _locationMasterVersion;
-  int? _serviceMasterVersion;
 
   Map<String, dynamic>? _hiringSnapshotActive;
   DateTime? _hiringSnapshotAt;
@@ -22,7 +21,6 @@ class AppDataCache {
   void setServerVersions({
     int? hiringMaster,
     int? locationMaster,
-    int? serviceMaster,
   }) {
     if (hiringMaster != null && hiringMaster != _hiringMasterVersion) {
       _hiringMasterVersion = hiringMaster;
@@ -32,9 +30,6 @@ class AppDataCache {
     if (locationMaster != null && locationMaster != _locationMasterVersion) {
       _locationMasterVersion = locationMaster;
       _locationPages.clear();
-    }
-    if (serviceMaster != null && serviceMaster != _serviceMasterVersion) {
-      _serviceMasterVersion = serviceMaster;
     }
   }
 
@@ -96,7 +91,6 @@ class AppDataCache {
     _locationPages.clear();
     _hiringMasterVersion = null;
     _locationMasterVersion = null;
-    _serviceMasterVersion = null;
   }
 }
 

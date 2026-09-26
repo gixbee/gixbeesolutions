@@ -460,9 +460,9 @@ async fn profiles_and_hiring_require_ownership_and_funding() {
 
 #[tokio::test]
 #[ignore = "Requires the isolated PostgreSQL contract schema"]
-async fn hiring_deadline_and_guarantee_remedies_are_idempotent() {
+async fn hiring_deadline_delivers_shortlist_idempotently() {
     let (state, app) = fixture().await;
-    let (employer, token) = user(&state).await;
+    let (employer, _token) = user(&state).await;
     let request_id = Uuid::new_v4();
     sqlx::query(r#"INSERT INTO hiring_requests (id,"employerId","jobType","feeAmount","creditApplied","deadlineAt")
         VALUES ($1,$2,'Expired Contract Role',49,49,NOW()-INTERVAL '1 minute')"#)
@@ -478,7 +478,7 @@ async fn hiring_deadline_and_guarantee_remedies_are_idempotent() {
         .fetch_one(&state.db)
         .await
         .unwrap();
-    assert_eq!(status, "GUARANTEE_FAILED");
+    assert_eq!(status, "DELIVERED");
     let events: i64 =
         sqlx::query_scalar(r#"SELECT COUNT(*) FROM outbox_events WHERE "aggregateId"=$1"#)
             .bind(request_id)
@@ -486,49 +486,5 @@ async fn hiring_deadline_and_guarantee_remedies_are_idempotent() {
             .await
             .unwrap();
     assert_eq!(events, 1);
-    let path = format!("/hiring/match/requests/{request_id}/resolve");
-    let (a, b) = tokio::join!(
-        api(&app, &token, "POST", &path, json!({"choice":"CREDIT"})),
-        api(&app, &token, "POST", &path, json!({"choice":"CREDIT"}))
-    );
-    assert_eq!(a.0, 200, "{a:?}");
-    assert_eq!(b.0, 200, "{b:?}");
-    let balance: rust_decimal::Decimal =
-        sqlx::query_scalar(r#"SELECT "hiringCreditBalance" FROM users WHERE id=$1"#)
-            .bind(employer)
-            .fetch_one(&state.db)
-            .await
-            .unwrap();
-    assert_eq!(balance, rust_decimal::Decimal::from(49));
-    let refund_id = Uuid::new_v4();
-    sqlx::query(r#"INSERT INTO hiring_requests (id,"employerId","jobType","feeAmount","creditApplied",status,"deadlineAt")
-        VALUES ($1,$2,'Refund Contract Role',49,49,'GUARANTEE_FAILED',NOW()-INTERVAL '1 minute')"#)
-        .bind(refund_id).bind(employer).execute(&state.db).await.unwrap();
-    let path = format!("/hiring/match/requests/{refund_id}/resolve");
-    assert_eq!(
-        api(&app, &token, "POST", &path, json!({"choice":"REFUND"}))
-            .await
-            .0,
-        200
-    );
-    assert_eq!(
-        api(&app, &token, "POST", &path, json!({"choice":"CREDIT"}))
-            .await
-            .0,
-        409
-    );
-    let rid = refund_id.to_string();
-    let (a, b) = tokio::join!(
-        crate::matching::process_refund(&state, &rid),
-        crate::matching::process_refund(&state, &rid)
-    );
-    a.unwrap();
-    b.unwrap();
-    let balance: rust_decimal::Decimal =
-        sqlx::query_scalar(r#"SELECT "hiringCreditBalance" FROM users WHERE id=$1"#)
-            .bind(employer)
-            .fetch_one(&state.db)
-            .await
-            .unwrap();
-    assert_eq!(balance, rust_decimal::Decimal::from(98));
+    let _ = app;
 }

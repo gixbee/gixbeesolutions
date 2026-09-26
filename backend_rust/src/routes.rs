@@ -1,5 +1,6 @@
 use axum::Router;
 
+use crate::activity;
 use crate::addresses;
 use crate::admin_staff;
 use crate::auth;
@@ -29,6 +30,7 @@ use crate::state::AppState;
 
 pub fn api_router() -> Router<AppState> {
     Router::new()
+        .nest("/activity", activity::routes())
         .nest("/auth", auth::routes())
         .nest("/addresses", addresses::routes())
         .nest("/admin-staff", admin_staff::routes())
