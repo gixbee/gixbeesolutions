@@ -1,17 +1,19 @@
 const C = window.GIXBEE_HIRE_CATALOG;
 const STORAGE_KEY = 'GIXBEE_JOB_PROFILES';
-const SEEKER_BUILD = '2026-09-25-bootfix';
+const SEEKER_BUILD = '2026-09-27-mock-pay';
 const DEMO_FILE = 'jobseeker-job-profile-master.html';
 
 function el(id) {
   return document.getElementById(id);
 }
 function readExpectedSalaryValue() {
+  capturePayDraft();
+  if (state.payAmounts.monthly) return state.payAmounts.monthly;
   const primary = el('salExpected');
   if (primary) return primary.value;
   const smin = el('smin');
   if (smin) return smin.value;
-  return '';
+  return state.salValue || '';
 }
 function writeExpectedSalaryValue(value) {
   const v = value ?? '';
@@ -60,8 +62,25 @@ const state = {
   availableToJoin: 'immediate',
   resume: null,
   locationPriorities: ['Kochi, Kerala', '', '', '', ''],
-  salValue: '25000',
+  payTypes: ['hourly', 'weekly', 'monthly'],
+  payAmounts: { hourly: '300', daily: '', weekly: '5000', monthly: '20000', project: '' },
+  fullName: '',
+  salValue: '20000',
 };
+const PAY_TYPE_DEFS = [
+  { code: 'hourly', label: 'Hourly', icon: '⏱', suffix: 'per hour', fieldLabel: 'Hourly rate' },
+  { code: 'daily', label: 'Daily', icon: '📅', suffix: 'per day', fieldLabel: 'Daily pay' },
+  { code: 'weekly', label: 'Weekly', icon: '📆', suffix: 'per week', fieldLabel: 'Weekly pay' },
+  { code: 'monthly', label: 'Monthly', icon: '🗓', suffix: 'per month', fieldLabel: 'Monthly salary' },
+  {
+    code: 'project',
+    label: 'Per Job / Project',
+    icon: '📋',
+    suffix: 'per job',
+    fieldLabel: 'Per job / project',
+    wide: true,
+  },
+];
 const LANG_QUICK = ['English', 'Malayalam', 'Hindi', 'Tamil'];
 const LANGUAGE_LIST = [
   'English', 'Malayalam', 'Hindi', 'Tamil', 'Kannada', 'Telugu', 'Marathi', 'Bengali',
@@ -95,10 +114,57 @@ const LOC_QUICK_PICKS = [
   'Ernakulam',
 ];
 
-function parseLocationList(text) {
-  return String(text || '')
-    .split(/[,;]/)
-    .map((x) => x.trim())
+function formatLocLabel(raw) {
+  const n = normalizeLocName(raw);
+  if (!n) return '';
+  if (/kerala/i.test(n)) return n;
+  const short = n.split(',')[0].trim();
+  if (LOC_QUICK_PICKS.some((q) => q.toLowerCase() === short.toLowerCase())) {
+    return short + ', Kerala';
+  }
+  return n;
+}
+function payDef(code) {
+  return PAY_TYPE_DEFS.find((p) => p.code === code);
+}
+function capturePayDraft() {
+  state.payTypes.forEach((code) => {
+    const input = el('payAmt_' + code);
+    if (input) state.payAmounts[code] = input.value;
+  });
+  const join = el('joinAvail');
+  if (join) state.availableToJoin = join.value;
+}
+function togglePayType(code) {
+  if (state.payTypes.includes(code)) {
+    if (state.payTypes.length <= 1) {
+      toast('Select at least one pay type.');
+      return;
+    }
+    state.payTypes = state.payTypes.filter((c) => c !== code);
+  } else {
+    state.payTypes = [...state.payTypes, code];
+    if (!state.payAmounts[code]) {
+      const defaults = { hourly: '300', daily: '800', weekly: '5000', monthly: '20000', project: '5000' };
+      state.payAmounts[code] = defaults[code] || '';
+    }
+  }
+  renderS4Pay();
+}
+function removePayType(code) {
+  state.payTypes = state.payTypes.filter((c) => c !== code);
+  if (!state.payTypes.length) state.payTypes = ['monthly'];
+  renderS4Pay();
+}
+function paySummaryLines() {
+  capturePayDraft();
+  return state.payTypes
+    .map((code, i) => {
+      const d = payDef(code);
+      const amt = state.payAmounts[code];
+      if (!d || !amt) return null;
+      return `${d.label}: ₹ ${Number(amt).toLocaleString('en-IN')} / ${d.suffix.replace(/^per /, '')}`;
+    })
     .filter(Boolean);
 }
 
@@ -127,7 +193,7 @@ function hasPriorityName(name) {
   return prioritiesFilledList().some((x) => x.toLowerCase() === key);
 }
 function addPriorityLocation(raw) {
-  const name = normalizeLocName(raw);
+  const name = formatLocLabel(raw);
   if (!name) {
     toast('Enter a city or area name.');
     return false;
@@ -185,7 +251,7 @@ function refreshPriorityLocUi() {
       if (!filled) {
         return `<div class="prio-row vacant" data-prio-row="${i}">
           <span class="prio-badge">${i + 1}</span>
-          <span class="prio-vacant">Vacant — add below to use this slot</span>
+          <span class="prio-vacant">Vacant — add location</span>
         </div>`;
       }
       const upDisabled = i === 0 ? ' disabled' : '';
@@ -360,9 +426,11 @@ function buildPayload() {
   const priorities = prioritiesFilledList();
   const qual = document.getElementById('qual').value;
   const bio = document.getElementById('desc').value.trim();
+  const reviewName = el('reviewFullName')?.value?.trim();
   const nameInput = document.getElementById('profileName').value.trim();
-  const name = nameInput || defaultProfileName();
-  const joinCode = document.getElementById('joinAvail')?.value || state.availableToJoin || 'immediate';
+  const name = reviewName || nameInput || state.fullName || defaultProfileName();
+  capturePayDraft();
+  const joinCode = el('joinAvail')?.value || state.availableToJoin || 'immediate';
   state.availableToJoin = joinCode;
   const resumeOut = state.resume
     ? {
@@ -375,7 +443,7 @@ function buildPayload() {
     : null;
   return {
     id: state.editId || uid(),
-    schemaVersion: 3,
+    schemaVersion: 4,
     savedAt: new Date().toISOString(),
     displayName: name,
     employmentType: { code: state.emp, label: emp?.label || state.emp },
@@ -391,7 +459,9 @@ function buildPayload() {
     location: priorities[0] || null,
     alsoPreferredLocations: priorities.slice(1),
     salary: {
-      expectedMonthly: salExpected ? Number(salExpected) : null,
+      payTypes: [...state.payTypes],
+      amounts: { ...state.payAmounts },
+      expectedMonthly: state.payAmounts.monthly ? Number(state.payAmounts.monthly) : salExpected ? Number(salExpected) : null,
       negotiable: state.neg,
     },
     availableToJoin: { code: joinCode, label: joinLabel(joinCode) },
@@ -413,10 +483,22 @@ function applyPayload(profile) {
   document.getElementById('qual').value = profile.qualification || '';
   document.getElementById('desc').value = profile.bio || '';
   state.locationPriorities = migrateLegacyLocations(profile);
-  state.salValue = String(profile.salary?.expectedMonthly ?? profile.salary?.minMonthly ?? '25000');
-  writeExpectedSalaryValue(state.salValue);
+  if (profile.salary?.payTypes?.length) {
+    state.payTypes = [...profile.salary.payTypes];
+    state.payAmounts = { hourly: '', daily: '', weekly: '', monthly: '', project: '', ...(profile.salary.amounts || {}) };
+  } else {
+    state.payTypes = ['monthly'];
+    state.payAmounts = {
+      hourly: '300',
+      daily: '',
+      weekly: '5000',
+      monthly: String(profile.salary?.expectedMonthly ?? profile.salary?.minMonthly ?? '20000'),
+      project: '',
+    };
+  }
+  state.salValue = state.payAmounts.monthly || '20000';
+  state.fullName = profile.displayName || '';
   document.getElementById('profileName').value = profile.displayName || '';
-  document.getElementById('neg').classList.toggle('on', state.neg);
   const joinCode = profile.availableToJoin?.code || 'immediate';
   state.availableToJoin = joinCode;
   const joinSel = document.getElementById('joinAvail');
@@ -433,7 +515,8 @@ function applyPayload(profile) {
     state.resume = null;
   }
   renderResumeUi();
-  renderS4();
+  renderS4Loc();
+  renderS4Pay();
 }
 
 function resetWizard(keepEmp) {
@@ -453,12 +536,12 @@ function resetWizard(keepEmp) {
   document.getElementById('qual').value = '';
   document.getElementById('desc').value = '';
   state.locationPriorities = ['Kochi, Kerala', '', '', '', ''];
-  state.salValue = '25000';
-  writeExpectedSalaryValue('25000');
+  state.payTypes = ['hourly', 'weekly', 'monthly'];
+  state.payAmounts = { hourly: '300', daily: '', weekly: '5000', monthly: '20000', project: '' };
+  state.salValue = '20000';
+  state.fullName = '';
   document.getElementById('profileName').value = '';
   document.getElementById('posSearch').value = '';
-  const negEl = el('neg');
-  if (negEl) negEl.classList.add('on');
   const joinSel = el('joinAvail');
   if (joinSel) joinSel.value = 'immediate';
   renderResumeUi();
@@ -559,22 +642,13 @@ function renderS3() {
 }
 
 function captureS4Draft() {
-  const sal = readExpectedSalaryValue();
-  if (sal !== '') state.salValue = sal;
-  const join = el('joinAvail');
-  if (join) state.availableToJoin = join.value;
+  capturePayDraft();
 }
 
-function bindStep4Events() {
-  const body = el('s4Body');
+function bindStep4LocEvents() {
+  const body = el('s4LocBody');
   if (!body || body.dataset.bound === '1') return;
   body.dataset.bound = '1';
-  body.addEventListener('change', (e) => {
-    if (e.target.id === 'joinAvail') state.availableToJoin = e.target.value;
-    if (e.target.id === 'resumeFile' && e.target.files && e.target.files[0]) {
-      setResumeFromFile(e.target.files[0]);
-    }
-  });
   body.addEventListener('click', (e) => {
     if (e.target.id === 'priorityLocAdd') {
       const input = el('priorityLocInput');
@@ -601,13 +675,6 @@ function bindStep4Events() {
       addPriorityLocation(quick.getAttribute('data-prio-quick'));
       return;
     }
-    const negBtn = e.target.closest('#neg');
-    if (negBtn) {
-      state.neg = !state.neg;
-      negBtn.classList.toggle('on', state.neg);
-      return;
-    }
-    if (e.target.id === 'resumeClear') clearResume();
   });
   body.addEventListener('keydown', (e) => {
     if (e.target.id === 'priorityLocInput' && e.key === 'Enter') {
@@ -617,15 +684,92 @@ function bindStep4Events() {
   });
 }
 
-function renderS4() {
-  captureS4Draft();
-  const body = el('s4Body');
+function bindStep4PayEvents() {
+  const body = el('s4PayBody');
+  if (!body || body.dataset.bound === '1') return;
+  body.dataset.bound = '1';
+  body.addEventListener('change', (e) => {
+    if (e.target.id === 'joinAvail') state.availableToJoin = e.target.value;
+    if (e.target.id === 'resumeFile' && e.target.files && e.target.files[0]) {
+      setResumeFromFile(e.target.files[0]);
+    }
+    if (e.target.id && e.target.id.startsWith('payAmt_')) {
+      const code = e.target.id.slice('payAmt_'.length);
+      state.payAmounts[code] = e.target.value;
+    }
+  });
+  body.addEventListener('click', (e) => {
+    const tile = e.target.closest('[data-pay-type]');
+    if (tile) {
+      togglePayType(tile.getAttribute('data-pay-type'));
+      return;
+    }
+    const rmPay = e.target.closest('[data-rm-pay]');
+    if (rmPay) {
+      removePayType(rmPay.getAttribute('data-rm-pay'));
+      return;
+    }
+    const negBtn = e.target.closest('#neg');
+    if (negBtn) {
+      state.neg = !state.neg;
+      negBtn.classList.toggle('on', state.neg);
+      return;
+    }
+    if (e.target.id === 'resumeClear') clearResume();
+  });
+}
+
+function renderS4Loc() {
+  const body = el('s4LocBody');
   if (!body) return;
-  const salValue = escapeHtml(String(state.salValue ?? '25000'));
   const quickPrio = LOC_QUICK_PICKS.map(
     (q) =>
       `<button type="button" class="chip also-quick" data-prio-quick="${escapeHtml(q)}">${escapeHtml(q)}</button>`,
   ).join('');
+  body.innerHTML = `
+        <div class="fld">
+          <div class="row" style="align-items:center;margin-bottom:6px">
+            <label style="margin:0">Preferred work locations (Priority 1 → 5)</label>
+            <span class="also-count" id="priorityLocCount">0 / ${MAX_LOCATION_PRIORITIES} filled</span>
+          </div>
+          <p class="hint"><b>Priority 1</b> is matched first, then 2, 3… Vacant slots stay last. Reorder using ↑ ↓.</p>
+          <div class="also-box">
+            <div class="prio-list" id="priorityLocList"></div>
+            <div class="also-add-row">
+              <input id="priorityLocInput" type="text" placeholder="Add another location" autocomplete="off">
+              <button type="button" id="priorityLocAdd">Add</button>
+            </div>
+            <p class="hint" style="margin:12px 0 6px">Quick add (Kerala)</p>
+            <div class="chips also-quick">${quickPrio}</div>
+          </div>
+        </div>`;
+  bindStep4LocEvents();
+  refreshPriorityLocUi();
+}
+
+function renderS4Pay() {
+  capturePayDraft();
+  const body = el('s4PayBody');
+  if (!body) return;
+  const payTiles = PAY_TYPE_DEFS.map((d) => {
+    const on = state.payTypes.includes(d.code) ? ' on' : '';
+    const wide = d.wide ? ' wide' : '';
+    return `<button type="button" class="pay-tile${on}${wide}" data-pay-type="${d.code}"><span class="pi">${d.icon}</span><b>${escapeHtml(d.label)}</b></button>`;
+  }).join('');
+  const amtCards = state.payTypes
+    .map((code) => {
+      const d = payDef(code);
+      if (!d) return '';
+      const val = escapeHtml(String(state.payAmounts[code] ?? ''));
+      return `<div class="pay-amt-card">
+        <button type="button" class="rm-pay" data-rm-pay="${code}" aria-label="Remove">×</button>
+        <div class="lbl"><span>${d.icon}</span> ${escapeHtml(d.fieldLabel)}</div>
+        <div class="pay-amt-row"><span class="ru">₹</span>
+          <input id="payAmt_${code}" type="number" inputmode="numeric" value="${val}" placeholder="0">
+          <span class="suf">${escapeHtml(d.suffix)}</span></div>
+      </div>`;
+    })
+    .join('');
   const joinOpts = JOIN_AVAILABILITY.map(
     (o) =>
       `<option value="${o.code}"${state.availableToJoin === o.code ? ' selected' : ''}>${o.label}</option>`,
@@ -633,24 +777,14 @@ function renderS4() {
   const negOn = state.neg ? ' on' : '';
   body.innerHTML = `
         <div class="fld">
-          <div class="row" style="align-items:center;margin-bottom:6px">
-            <label style="margin:0">Preferred work locations (Priority 1 → 5)</label>
-            <span class="also-count" id="priorityLocCount">0 / ${MAX_LOCATION_PRIORITIES} filled</span>
-          </div>
-          <p class="hint"><b>Priority 1</b> is matched first, then 2, 3… Vacant slots stay last. Reorder filled rows with ↑ ↓.</p>
-          <div class="also-box">
-            <div class="prio-list" id="priorityLocList"></div>
-            <div class="also-add-row">
-              <input id="priorityLocInput" type="text" placeholder="Add to next vacant slot" autocomplete="off">
-              <button type="button" id="priorityLocAdd">Add</button>
-            </div>
-            <p class="hint" style="margin:12px 0 6px">Quick add (Kerala)</p>
-            <div class="chips also-quick">${quickPrio}</div>
-          </div>
+          <label>How do you want to get paid?</label>
+          <p class="hint">Select all that apply. You can add expected amount for each selected option.</p>
+          <div class="pay-grid">${payTiles}</div>
         </div>
         <div class="fld">
-          <label>Expected salary (₹/month)</label>
-          <input id="salExpected" type="number" value="${salValue}" placeholder="e.g. 25000">
+          <label>Your expected pay <span class="info-i" title="Enter one amount per selected pay type">i</span></label>
+          <p class="hint">Enter only one amount for each selected type.</p>
+          <div class="pay-amt-list">${amtCards || '<p class="hint">Select at least one pay type above.</p>'}</div>
         </div>
         <div class="fld">
           <label>Available to join</label>
@@ -658,7 +792,6 @@ function renderS4() {
         </div>
         <div class="fld">
           <label>Resume (optional)</label>
-          <p class="hint">PDF or Word — live app uploads to secure storage; demo keeps small files in this browser.</p>
           <div class="upload">
             <div class="up-row">
               <label class="up-btn" for="resumeFile">Upload resume</label>
@@ -669,38 +802,76 @@ function renderS4() {
           </div>
         </div>
         <div class="tog"><div><b>Salary negotiable</b><div class="s">You are open to discuss pay for the right role.</div></div><button class="sw${negOn}" type="button" id="neg"><i></i></button></div>`;
-  bindStep4Events();
+  bindStep4PayEvents();
   renderResumeUi();
-  refreshPriorityLocUi();
+}
+
+function renderS4() {
+  renderS4Loc();
+  renderS4Pay();
 }
 
 function renderS5() {
+  capturePayDraft();
   const s = sector();
   const p = position();
-  const emp = C.employmentTypes.find((e) => e.code === state.emp)?.label;
-  const salExpected = readExpectedSalaryValue();
   const priorities = prioritiesFilledList();
   const qual = document.getElementById('qual').value;
   const bio = document.getElementById('desc').value.trim();
-  if (!document.getElementById('profileName').value.trim()) {
-    document.getElementById('profileName').placeholder = defaultProfileName();
+  const body = el('reviewBody');
+  if (!body) return;
+  const defaultName = state.fullName || defaultProfileName() || '';
+  const payLines = paySummaryLines();
+  const resumeLabel = state.resume?.fileName
+    ? 'Uploaded (' + escapeHtml(state.resume.fileName) + ')'
+    : 'Not uploaded';
+  const sectorIcon = s ? ICONS[s.icon] || '📦' : '📦';
+  body.innerHTML = `
+    <div class="review-head">
+      <h2>Review Your Profile</h2>
+      <button class="see" type="button" data-to="s3">✎ Edit</button>
+    </div>
+    <div class="fld review-name-fld">
+      <label>Full name (shown on profile)</label>
+      <input id="reviewFullName" type="text" value="${escapeHtml(defaultName)}" placeholder="e.g. Arun Kumar">
+    </div>
+    <div class="review-hero">
+      <div class="review-avatar" aria-hidden="true">👤</div>
+      <div>
+        <p class="review-name">${escapeHtml(defaultName || 'Your name')} <span class="verified">✓ Verified</span></p>
+        <p class="review-role">${escapeHtml(p?.label || 'Position')}</p>
+        <p class="review-cat">${sectorIcon} ${escapeHtml(s?.label || 'Sector')}</p>
+      </div>
+    </div>
+    <table class="review-table">
+      <tr><td>Functions</td><td>${escapeHtml(state.types.join(', ') || '—')}</td></tr>
+      <tr><td>Qualification</td><td>${escapeHtml(qual || '—')}</td></tr>
+      <tr><td>Experience</td><td>${escapeHtml(String(state.exp))} years</td></tr>
+      <tr><td>Skills</td><td>${escapeHtml(state.skills.join(', ') || '—')}</td></tr>
+      <tr><td>Languages</td><td>${escapeHtml(state.languages.join(', ') || '—')}</td></tr>
+      <tr><td>Bio</td><td>${escapeHtml(bio || '—')}</td></tr>
+    </table>
+    <div class="review-sec">
+      <h3>📍 Preferred locations (${priorities.length})</h3>
+      <ol>${priorities.map((loc) => `<li>${escapeHtml(loc)}</li>`).join('') || '<li>—</li>'}</ol>
+    </div>
+    <div class="review-sec">
+      <h3>₹ Pay type &amp; expected salary</h3>
+      <ol>${payLines.map((line) => `<li>${escapeHtml(line)}</li>`).join('') || '<li>—</li>'}</ol>
+    </div>
+    <div class="review-meta">
+      <div class="row"><span class="ico">📅</span> Available to join: ${escapeHtml(joinLabel(state.availableToJoin))}</div>
+      <div class="row"><span class="ico">🤝</span> Salary negotiable: ${state.neg ? 'Yes' : 'No'}</div>
+      <div class="row"><span class="ico">📄</span> Resume: ${resumeLabel}</div>
+    </div>`;
+  const nameInput = el('reviewFullName');
+  if (nameInput) {
+    nameInput.addEventListener('input', () => {
+      state.fullName = nameInput.value;
+      document.getElementById('profileName').value = nameInput.value.trim() || defaultProfileName();
+    });
   }
-  document.getElementById('summary').innerHTML = [
-    ['Job type', emp],
-    ['Sector', s?.label],
-    ['Position', p?.label + (state.types.length ? ' (' + state.types.join(', ') + ')' : '')],
-    ['Qualification', qual || '—'],
-    ['Experience', state.exp + ' years'],
-    ['Skills', state.skills.join(', ') || '—'],
-    ['Languages', state.languages.join(', ') || '—'],
-    ['Bio', bio || '—'],
-    ['Work locations (priority)', priorities.length ? priorities.map((p, i) => `${i + 1}. ${p}`).join(' · ') : '—'],
-    ['Expected salary', (salExpected ? '₹' + salExpected : '—') + (state.neg ? ' (Negotiable)' : '')],
-    ['Available to join', joinLabel(el('joinAvail')?.value || state.availableToJoin)],
-    ['Resume', state.resume?.fileName || '—'],
-  ]
-    .map(([k, v]) => `<div class="line"><span>${k}</span><b>${v}</b></div>`)
-    .join('');
+  document.getElementById('profileName').value = defaultName || defaultProfileName();
 }
 
 function renderProfiles() {
@@ -928,19 +1099,38 @@ document.getElementById('c3').onclick = () => {
     toast('Select at least one language.');
     return;
   }
-  renderS4();
+  renderS4Loc();
   show('s4');
 };
 bindClick('c4', () => {
-  captureS4Draft();
   if (!prioritiesFilledList().length) {
     toast('Add at least Priority 1 work location.');
     return;
+  }
+  renderS4Pay();
+  show('s4pay');
+});
+bindClick('c4pay', () => {
+  capturePayDraft();
+  if (!state.payTypes.length) {
+    toast('Select at least one pay type.');
+    return;
+  }
+  for (const code of state.payTypes) {
+    if (!String(state.payAmounts[code] || '').trim()) {
+      toast('Enter expected pay for each selected type.');
+      return;
+    }
   }
   state.availableToJoin = el('joinAvail')?.value || state.availableToJoin || 'immediate';
   show('s5');
   renderS5();
 });
+el('s4payBack') &&
+  (el('s4payBack').onclick = () => {
+    show('s4');
+    renderS4Loc();
+  });
 document.getElementById('c5').onclick = () => persistProfile();
 
 document.getElementById('skMore').onclick = () => {
@@ -1005,12 +1195,13 @@ document.querySelectorAll('[data-to]').forEach((b) =>
     if (id === 's1') renderS1();
     if (id === 's2') renderS2();
     if (id === 's3') renderS3();
-    if (id === 's4') renderS4();
+    if (id === 's4') renderS4Loc();
+    if (id === 's4pay') renderS4Pay();
     if (id === 's5') renderS5();
   }),
 );
 
-['myProfiles', 'myProfiles2', 'myProfiles3', 'myProfiles4', 'myProfiles5'].forEach((id) => {
+['myProfiles', 'myProfiles2', 'myProfiles3', 'myProfiles4', 'myProfiles4pay', 'myProfiles5'].forEach((id) => {
   const el = document.getElementById(id);
   if (el) el.onclick = openMyProfiles;
 });
@@ -1091,7 +1282,8 @@ function boot() {
       );
     }
     renderS1();
-    renderS4();
+    renderS4Loc();
+    renderS4Pay();
     const tag = el('buildTag');
     if (tag) {
       tag.textContent =
