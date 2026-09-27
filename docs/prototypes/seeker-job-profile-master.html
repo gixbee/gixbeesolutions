@@ -3996,7 +3996,7 @@ window.GIXBEE_HIRE_CATALOG = {
 <script>
 const C = window.GIXBEE_HIRE_CATALOG;
 const STORAGE_KEY = 'GIXBEE_JOB_PROFILES';
-const SEEKER_BUILD = '2026-09-27-mock-pay';
+const SEEKER_BUILD = '2026-09-27-pay-monthly-default';
 const DEMO_FILE = 'jobseeker-job-profile-master.html';
 
 function el(id) {
@@ -4058,8 +4058,8 @@ const state = {
   availableToJoin: 'immediate',
   resume: null,
   locationPriorities: ['Kochi, Kerala', '', '', '', ''],
-  payTypes: ['hourly', 'weekly', 'monthly'],
-  payAmounts: { hourly: '300', daily: '', weekly: '5000', monthly: '20000', project: '' },
+  payTypes: ['monthly'],
+  payAmounts: { hourly: '', daily: '', weekly: '', monthly: '20000', project: '' },
   fullName: '',
   salValue: '20000',
 };
@@ -4532,8 +4532,8 @@ function resetWizard(keepEmp) {
   document.getElementById('qual').value = '';
   document.getElementById('desc').value = '';
   state.locationPriorities = ['Kochi, Kerala', '', '', '', ''];
-  state.payTypes = ['hourly', 'weekly', 'monthly'];
-  state.payAmounts = { hourly: '300', daily: '', weekly: '5000', monthly: '20000', project: '' };
+  state.payTypes = ['monthly'];
+  state.payAmounts = { hourly: '', daily: '', weekly: '', monthly: '20000', project: '' };
   state.salValue = '20000';
   state.fullName = '';
   document.getElementById('profileName').value = '';
