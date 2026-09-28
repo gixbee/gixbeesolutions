@@ -1,4 +1,4 @@
-const OWNER_BUILD = '2026-09-28-hall-owner-v20';
+const OWNER_BUILD = '2026-09-28-hall-owner-v21';
 const DEMO_FILE = 'hall-owner-lmb-master.html';
 const PKG_KEY = 'GIXBEE_HALL_PACKAGE';
 
@@ -207,44 +207,90 @@ function ensurePolicyRules() {
 
 function policyRulesHtml(kind) {
   const rules = kind === 'cancel' ? state.cancelRules : state.rescheduleRules;
-  return rules
-    .map(function (r, i) {
+  const rows = rules
+    .map(function (r) {
       return (
         '<div class="policy-row">' +
-        '<input type="text" class="policy-days-inp" data-policy="' +
-        kind +
-        '" data-field="days" data-idx="' +
-        i +
-        '" value="' +
+        '<input type="text" class="policy-days-inp" data-field="days" value="' +
         esc(r.days) +
         '">' +
-        '<span class="policy-pct-wrap"><input type="number" class="policy-pct-inp" min="0" max="100" data-policy="' +
-        kind +
-        '" data-field="pct" data-idx="' +
-        i +
-        '" value="' +
+        '<span class="policy-pct-wrap"><input type="number" class="policy-pct-inp" min="0" max="100" data-field="pct" value="' +
         r.pct +
-        '"> %</span></div>'
+        '"> %</span>' +
+        '<button type="button" class="policy-row-remove" title="Remove tier">✕</button></div>'
       );
     })
     .join('');
+  return (
+    '<div class="policy-rows" data-policy-kind="' +
+    kind +
+    '">' +
+    rows +
+    '</div>' +
+    '<button type="button" class="btn ghost policy-add-tier" data-policy="' +
+    kind +
+    '" style="margin-top:10px;width:100%">+ Add tier</button>'
+  );
 }
 
 function capturePolicyRulesFromDom() {
   if (!el('payPolicy')) return;
-  el('payPolicy').querySelectorAll('[data-policy][data-idx]').forEach(function (inp) {
-    const kind = inp.getAttribute('data-policy');
-    const idx = +inp.getAttribute('data-idx');
-    const field = inp.getAttribute('data-field');
-    const arr = kind === 'cancel' ? state.cancelRules : state.rescheduleRules;
-    if (!arr[idx]) return;
-    if (field === 'days') arr[idx].days = inp.value.trim() || arr[idx].days;
-    if (field === 'pct') arr[idx].pct = +inp.value || 0;
-  });
+  const box = el('payPolicy').querySelector('.policy-rows[data-policy-kind]');
+  if (box) {
+    const kind = box.getAttribute('data-policy-kind');
+    const rules = [];
+    box.querySelectorAll('.policy-row').forEach(function (row) {
+      const daysIn = row.querySelector('[data-field=days]');
+      const pctIn = row.querySelector('[data-field=pct]');
+      if (!daysIn || !pctIn) return;
+      rules.push({
+        days: daysIn.value.trim() || 'Days before event',
+        pct: +pctIn.value || 0,
+      });
+    });
+    if (kind === 'cancel') {
+      state.cancelRules = rules.length ? rules : [{ days: 'Days before event', pct: 0 }];
+    } else {
+      state.rescheduleRules = rules.length ? rules : [{ days: 'Days before event', pct: 0 }];
+    }
+  }
   const cn = el('cancelPolicyNote');
   const rn = el('reschedulePolicyNote');
   if (cn) state.cancelPolicyNote = cn.value.trim();
   if (rn) state.reschedulePolicyNote = rn.value.trim();
+}
+
+function attachPolicyRowHandlers() {
+  const root = el('payPolicy');
+  if (!root) return;
+  root.querySelectorAll('.policy-row-remove').forEach(function (btn) {
+    btn.onclick = function () {
+      capturePolicyRulesFromDom();
+      capturePkg4PaymentOnly();
+      const kind = pkg4PolicyTab === 'reschedule' ? 'reschedule' : 'cancel';
+      const arr = kind === 'cancel' ? state.cancelRules : state.rescheduleRules;
+      const row = btn.closest('.policy-row');
+      const box = row && row.parentElement;
+      if (!row || !box) return;
+      const idx = Array.prototype.indexOf.call(box.querySelectorAll('.policy-row'), row);
+      if (arr.length <= 1) {
+        toast('Keep at least one tier in this policy.');
+        return;
+      }
+      if (idx >= 0) arr.splice(idx, 1);
+      renderPkg4();
+    };
+  });
+  root.querySelectorAll('.policy-add-tier').forEach(function (btn) {
+    btn.onclick = function () {
+      capturePolicyRulesFromDom();
+      capturePkg4PaymentOnly();
+      const kind = btn.getAttribute('data-policy');
+      const arr = kind === 'cancel' ? state.cancelRules : state.rescheduleRules;
+      arr.push({ days: 'Days before event', pct: 10 });
+      renderPkg4();
+    };
+  });
 }
 
 function policySummaryLines(rules, note) {
@@ -899,7 +945,6 @@ function capturePkg3() {
 
 function renderPkg4() {
   renderPkgSteps(4);
-  capturePolicyRulesFromDom();
   ensurePolicyRules();
   const p = state.payment;
   const tab = pkg4PolicyTab === 'reschedule' ? 'reschedule' : 'cancel';
@@ -924,7 +969,7 @@ function renderPkg4() {
     '"></div>' +
     '<hr style="border:0;border-top:1px solid var(--line);margin:20px 0">' +
     '<h2 style="margin:0 0 4px;font-size:17px">Cancellation &amp; Rescheduling Policy</h2>' +
-    '<p class="sub" style="margin:0 0 12px">Set the deduction percentage based on the number of days before the event. Deducted from the advance amount.</p>' +
+    '<p class="sub" style="margin:0 0 12px">Set deduction % by days before the event (from advance). Default tiers shown — remove ✕ or use + Add tier. Cancellation and rescheduling lists are separate.</p>' +
     '<div class="policy-tabs">' +
     '<button type="button" class="' +
     (cancelOn ? 'on' : '') +
@@ -945,6 +990,7 @@ function renderPkg4() {
         '<textarea id="reschedulePolicyNote" rows="3" placeholder="e.g. New date must be within 6 months; one free reschedule if 30+ days notice.">' +
         esc(state.reschedulePolicyNote) +
         '</textarea></div>');
+  attachPolicyRowHandlers();
   const tc = el('policyTabCancel');
   const tr = el('policyTabResched');
   if (tc) {
