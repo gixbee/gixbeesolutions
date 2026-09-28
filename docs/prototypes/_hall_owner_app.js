@@ -1,4 +1,4 @@
-const OWNER_BUILD = '2026-09-28-hall-owner-v6';
+const OWNER_BUILD = '2026-09-28-hall-owner-v7';
 const DEMO_FILE = 'hall-owner-lmb-master.html';
 const PKG_KEY = 'GIXBEE_HALL_PACKAGE';
 
@@ -203,21 +203,13 @@ function renderPkg2() {
       'In-house catering available?',
       'If Yes, customers see that you offer catering. Catering is an add-on — not included in hall rent.',
     ) +
-    q(
-      'outside',
-      'Outside catering allowed?',
-      'If Yes, customers may bring their own caterer. Hall slot rent does not include catering.',
-    ) +
+    q('outside', 'Outside catering allowed?', 'If Yes, customers may bring their own caterer.') +
     q(
       'decorHall',
       'Decoration provided by hall?',
       'If Yes, customers see that you offer decoration. Decoration is an add-on — not included in hall rent.',
     ) +
-    q(
-      'decorOutside',
-      'Outside decorators allowed?',
-      'If Yes, customers may hire their own decorators. Hall slot rent does not include decoration.',
-    );
+    q('decorOutside', 'Outside decorators allowed?', 'If Yes, customers may hire their own decorators.');
   el('caterDec').querySelectorAll('input[type=radio]').forEach((r) => {
     r.onchange = () => {
       state.catering[r.name] = r.value;
