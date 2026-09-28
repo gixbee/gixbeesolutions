@@ -174,9 +174,9 @@ h2{margin:0 0 6px;font-size:18px}
   <div class="top"><button type="button" class="back" id="setupBackDash">←</button><h1>Hall setup</h1></div>
   <div class="pad">
     <h2 id="setupBizTitle">Vijaya Convention Center</h2>
-    <p class="sub">How many halls at this business? Tap OK. Common parking appears only if you enter 2 or more.</p>
+    <p class="sub">Enter how many halls, then tap OK.</p>
     <div class="fld"><label>Number of halls</label><input type="number" id="hallCountInput" min="1" max="20" value="2"><small class="sub">Example: 1 hall, or 2–3 halls under one convention center.</small></div>
-    <button type="button" class="btn ghost" id="hallCountOk">OK</button>
+    <button type="button" class="btn" id="hallCountOk" style="margin-top:8px">OK</button>
     <div id="setupParkingSection" hidden style="margin-top:16px">
       <p class="lbl" id="setupParkingLbl">COMMON PARKING</p>
       <p class="sub" id="setupParkingHint">Shared car and bike capacity for all halls.</p>
@@ -186,9 +186,9 @@ h2{margin:0 0 6px;font-size:18px}
       </div>
     </div>
   </div>
-  <div class="cta two" style="display:grid;grid-template-columns:1fr 1fr;gap:10px;padding-top:0">
+  <div class="cta two" id="setupActionsWrap" hidden style="display:none;grid-template-columns:1fr 1fr;gap:10px;padding-top:0">
     <button type="button" class="btn ghost" id="setupCancel">Cancel</button>
-    <button type="button" class="btn" id="setupSave" disabled>Save</button>
+    <button type="button" class="btn" id="setupSave">Save</button>
   </div>
 </section>
 
@@ -561,29 +561,34 @@ function renderSetupScreen() {
   const countIn = el('hallCountInput');
   if (countIn) countIn.value = state.plannedHallCount || 2;
   const sec = el('setupParkingSection');
-  const saveBtn = el('setupSave');
+  const actions = el('setupActionsWrap');
   if (sec) sec.hidden = true;
-  if (saveBtn) saveBtn.disabled = true;
+  if (actions) {
+    actions.hidden = true;
+    actions.style.display = 'none';
+  }
 }
 
 function revealSetupParking() {
   const count = Math.max(1, +(el('hallCountInput') && el('hallCountInput').value) || 1);
   state.plannedHallCount = count;
   const sec = el('setupParkingSection');
-  if (count <= 1) {
-    if (sec) sec.hidden = true;
-    if (el('setupSave')) el('setupSave').disabled = false;
-    toast('One hall — set car/bike parking inside each hall (Price & packages → venue details).');
-    return;
+  if (count > 1) {
+    const lbl = el('setupParkingLbl');
+    const hint = el('setupParkingHint');
+    if (sec) sec.hidden = false;
+    if (lbl) lbl.textContent = 'COMMON PARKING';
+    if (hint) hint.textContent = 'Shared car and bike parking for all ' + count + ' halls.';
+    if (el('setupParkCar')) el('setupParkCar').value = state.commonParking.car;
+    if (el('setupParkBike')) el('setupParkBike').value = state.commonParking.bike;
+  } else if (sec) {
+    sec.hidden = true;
   }
-  const lbl = el('setupParkingLbl');
-  const hint = el('setupParkingHint');
-  if (sec) sec.hidden = false;
-  if (lbl) lbl.textContent = 'COMMON PARKING';
-  if (hint) hint.textContent = 'Shared car and bike parking for all ' + count + ' halls.';
-  if (el('setupParkCar')) el('setupParkCar').value = state.commonParking.car;
-  if (el('setupParkBike')) el('setupParkBike').value = state.commonParking.bike;
-  if (el('setupSave')) el('setupSave').disabled = false;
+  const actions = el('setupActionsWrap');
+  if (actions) {
+    actions.hidden = false;
+    actions.style.display = 'grid';
+  }
 }
 
 function initHallsFromSetup(count) {

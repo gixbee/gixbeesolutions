@@ -202,29 +202,34 @@ function renderSetupScreen() {
   const countIn = el('hallCountInput');
   if (countIn) countIn.value = state.plannedHallCount || 2;
   const sec = el('setupParkingSection');
-  const saveBtn = el('setupSave');
+  const actions = el('setupActionsWrap');
   if (sec) sec.hidden = true;
-  if (saveBtn) saveBtn.disabled = true;
+  if (actions) {
+    actions.hidden = true;
+    actions.style.display = 'none';
+  }
 }
 
 function revealSetupParking() {
   const count = Math.max(1, +(el('hallCountInput') && el('hallCountInput').value) || 1);
   state.plannedHallCount = count;
   const sec = el('setupParkingSection');
-  if (count <= 1) {
-    if (sec) sec.hidden = true;
-    if (el('setupSave')) el('setupSave').disabled = false;
-    toast('One hall — set car/bike parking inside each hall (Price & packages → venue details).');
-    return;
+  if (count > 1) {
+    const lbl = el('setupParkingLbl');
+    const hint = el('setupParkingHint');
+    if (sec) sec.hidden = false;
+    if (lbl) lbl.textContent = 'COMMON PARKING';
+    if (hint) hint.textContent = 'Shared car and bike parking for all ' + count + ' halls.';
+    if (el('setupParkCar')) el('setupParkCar').value = state.commonParking.car;
+    if (el('setupParkBike')) el('setupParkBike').value = state.commonParking.bike;
+  } else if (sec) {
+    sec.hidden = true;
   }
-  const lbl = el('setupParkingLbl');
-  const hint = el('setupParkingHint');
-  if (sec) sec.hidden = false;
-  if (lbl) lbl.textContent = 'COMMON PARKING';
-  if (hint) hint.textContent = 'Shared car and bike parking for all ' + count + ' halls.';
-  if (el('setupParkCar')) el('setupParkCar').value = state.commonParking.car;
-  if (el('setupParkBike')) el('setupParkBike').value = state.commonParking.bike;
-  if (el('setupSave')) el('setupSave').disabled = false;
+  const actions = el('setupActionsWrap');
+  if (actions) {
+    actions.hidden = false;
+    actions.style.display = 'grid';
+  }
 }
 
 function initHallsFromSetup(count) {
