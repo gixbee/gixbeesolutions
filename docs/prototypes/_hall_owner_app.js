@@ -1,4 +1,4 @@
-const OWNER_BUILD = '2026-09-28-hall-owner-v31';
+const OWNER_BUILD = '2026-09-28-hall-owner-v32';
 const DEMO_FILE = 'hall-owner-lmb-master.html';
 const PKG_KEY = 'GIXBEE_HALL_PACKAGE';
 
@@ -179,6 +179,528 @@ const state = {
   minNoticeDays: 3,
   calDay: 25,
 };
+
+let calPendingBlock = null;
+let calPendingUnblock = null;
+
+const MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+
+function inr(n) {
+  return '₹ ' + (n || 0).toLocaleString('en-IN');
+}
+
+function calDateKey(y, m, d) {
+  return y + '-' + String(m).padStart(2, '0') + '-' + String(d).padStart(2, '0');
+}
+
+function parseCalDateKey(key) {
+  const p = String(key).split('-');
+  return { y: +p[0], m: +p[1], d: +p[2] };
+}
+
+function getHallCalendar(h) {
+  if (!h) return null;
+  if (!h.calendar) {
+    h.calendar = {
+      viewYear: 2026,
+      viewMonth: 12,
+      selectedKey: '2026-12-25',
+      days: {},
+    };
+    seedHallCalendarDemo(h.calendar);
+  }
+  if (!h.calendar.selectedKey) h.calendar.selectedKey = calDateKey(h.calendar.viewYear, h.calendar.viewMonth, 25);
+  return h.calendar;
+}
+
+function seedHallCalendarDemo(cal) {
+  if (Object.keys(cal.days).length) return;
+  cal.days['2026-12-25'] = { morning: 'available', evening: 'booked_gixbee' };
+  cal.days['2026-12-26'] = {
+    morning: 'offline',
+    evening: 'available',
+    morningBlock: { reason: 'offline', notes: 'Phone booking' },
+  };
+  cal.days['2026-12-27'] = { morning: 'blocked', evening: 'available', morningBlock: { reason: 'temp', notes: '' } };
+  cal.days['2026-12-28'] = { morning: 'available', evening: 'offline', eveningBlock: { reason: 'offline', notes: '' } };
+  cal.days['2026-12-29'] = { morning: 'booked_gixbee', evening: 'booked_gixbee' };
+}
+
+function ensureDayRecord(cal, key) {
+  if (!cal.days[key]) cal.days[key] = {};
+  return cal.days[key];
+}
+
+function rawSlotStatus(cal, key, slotId) {
+  const day = cal.days[key];
+  if (!day || !day[slotId]) return 'available';
+  return day[slotId];
+}
+
+function slotOfferById(id) {
+  ensureSlotOffers();
+  return state.slotOffers.find(function (o) {
+    return o.id === id;
+  });
+}
+
+function fulldayComputed(cal, key) {
+  const m = rawSlotStatus(cal, key, 'morning');
+  const e = rawSlotStatus(cal, key, 'evening');
+  const mOk = m === 'available';
+  const eOk = e === 'available';
+  if (mOk && eOk) return { status: 'available', reason: '' };
+  if (!mOk && !eOk) {
+    var parts = [];
+    if (m !== 'available') parts.push('Morning');
+    if (e !== 'available') parts.push('Evening');
+    return { status: 'unavailable', reason: parts.join(' and ') + ' occupied' };
+  }
+  if (!eOk) return { status: 'unavailable', reason: 'Evening occupied' };
+  return { status: 'unavailable', reason: 'Morning occupied' };
+}
+
+function dayDotKind(cal, key) {
+  const m = rawSlotStatus(cal, key, 'morning');
+  const e = rawSlotStatus(cal, key, 'evening');
+  if (m === 'booked_gixbee' || e === 'booked_gixbee') return 'bk';
+  if (m === 'offline' || e === 'offline') return 'off';
+  if (m === 'blocked' || e === 'blocked') return 'blk';
+  if (m !== 'available' || e !== 'available') return 'na';
+  return 'av';
+}
+
+function monthLabel(y, m) {
+  return MONTH_NAMES[m - 1] + ' ' + y;
+}
+
+function formatCalDayTitle(key) {
+  const p = parseCalDateKey(key);
+  const dt = new Date(p.y, p.m - 1, p.d);
+  return p.d + ' ' + MONTH_NAMES[p.m - 1].slice(0, 3) + ' ' + p.y + ', ' + DAY_NAMES[dt.getDay()];
+}
+
+function daysInMonth(y, m) {
+  return new Date(y, m, 0).getDate();
+}
+
+function openOverlay(id) {
+  const o = el(id);
+  if (o) {
+    o.classList.add('on');
+    o.setAttribute('aria-hidden', 'false');
+  }
+}
+
+function closeOverlay(id) {
+  const o = el(id);
+  if (o) {
+    o.classList.remove('on');
+    o.setAttribute('aria-hidden', 'true');
+  }
+}
+
+function persistCalendarDay(h, key, slotId, status, blockMeta) {
+  const cal = getHallCalendar(h);
+  const day = ensureDayRecord(cal, key);
+  day[slotId] = status;
+  const metaKey = slotId + 'Block';
+  if (blockMeta) day[metaKey] = blockMeta;
+  else delete day[metaKey];
+  savePkg();
+}
+
+function renderCalendar() {
+  const h = activeHall();
+  const cal = getHallCalendar(h);
+  if (!cal) return;
+  const y = cal.viewYear;
+  const m = cal.viewMonth;
+  const ml = el('calMonthLabel');
+  const mpl = el('calMonthPickLabel');
+  if (ml) ml.textContent = monthLabel(y, m);
+  if (mpl) mpl.textContent = monthLabel(y, m);
+  const firstDow = new Date(y, m - 1, 1).getDay();
+  const dim = daysInMonth(y, m);
+  const cells = [];
+  for (let i = 0; i < firstDow; i++) cells.push('<span class="cal-pad"></span>');
+  for (let d = 1; d <= dim; d++) {
+    const key = calDateKey(y, m, d);
+    const dot = dayDotKind(cal, key);
+    const on = cal.selectedKey === key ? ' on' : '';
+    cells.push(
+      '<button type="button" class="cal-day-cell' +
+        on +
+        '" data-cal-day="' +
+        d +
+        '" data-cal-key="' +
+        key +
+        '"><span>' +
+        d +
+        '</span><i class="cal-dot ' +
+        dot +
+        '"></i></button>',
+    );
+  }
+  el('calGrid').innerHTML = cells.join('');
+  el('calGrid').querySelectorAll('[data-cal-day]').forEach(function (btn) {
+    btn.onclick = function () {
+      cal.selectedKey = btn.getAttribute('data-cal-key');
+      savePkg();
+      renderCalDay();
+      show('calDay');
+    };
+  });
+}
+
+function slotStatusLabel(status, slotId, cal, key) {
+  if (slotId === 'fullday') {
+    const fd = fulldayComputed(cal, key);
+    if (fd.status === 'available') return { pill: 'ok', text: 'Available' };
+    return { pill: 'muted', text: 'Unavailable (' + fd.reason + ')' };
+  }
+  const st = rawSlotStatus(cal, key, slotId);
+  if (st === 'available') return { pill: 'ok', text: 'Available' };
+  if (st === 'booked_gixbee') return { pill: 'bad', text: 'Booked (Gixbee)' };
+  if (st === 'offline') return { pill: 'off', text: 'Offline Booked' };
+  if (st === 'blocked') return { pill: 'blk', text: 'Blocked' };
+  return { pill: 'muted', text: 'Not Available' };
+}
+
+function renderSlotPriceChips(offer) {
+  if (!offer || !offer.enabled) return '';
+  let html = '<div class="price-chips">';
+  if (offer.offerAc) html += '<span class="price-chip ac">With AC ' + inr(offer.priceAc) + '</span>';
+  if (offer.offerNoAc) html += '<span class="price-chip noac">Without AC ' + inr(offer.priceNoAc) + '</span>';
+  html += '</div>';
+  return html;
+}
+
+function renderCalDay() {
+  const h = activeHall();
+  const cal = getHallCalendar(h);
+  if (!cal) return;
+  const key = cal.selectedKey;
+  const title = el('calDayTitle');
+  if (title) title.textContent = formatCalDayTitle(key);
+  const slots = ['morning', 'evening', 'fullday'];
+  const html = slots
+    .map(function (slotId) {
+      const offer = slotOfferById(slotId);
+      if (!offer || !offer.enabled) return '';
+      const label = offer.label + ' (' + formatTimeRange(offer.hallFrom, offer.hallTo) + ')';
+      const st = slotStatusLabel(null, slotId, cal, key);
+      const fd = slotId === 'fullday' ? fulldayComputed(cal, key) : null;
+      const raw = slotId === 'fullday' ? fd.status : rawSlotStatus(cal, key, slotId);
+      const disabled = slotId === 'fullday' && raw !== 'available';
+      let actions = '';
+      if (slotId === 'fullday') {
+        if (raw !== 'available') {
+          actions = '<p class="sub" style="margin:8px 0 0">Full day is offered only when Morning and Evening are both free.</p>';
+        }
+      } else if (raw === 'available') {
+        actions =
+          '<div class="slot-actions"><button type="button" class="btn" data-cal-block="' +
+          slotId +
+          '">Block Slot</button></div>';
+      } else if (raw === 'offline' || raw === 'blocked') {
+        actions =
+          '<div class="slot-actions"><button type="button" class="btn ghost" data-cal-unblock="' +
+          slotId +
+          '">Unblock</button></div>';
+      } else if (raw === 'booked_gixbee') {
+        actions =
+          '<div class="slot-actions"><button type="button" class="btn ghost" data-cal-manage="' +
+          slotId +
+          '">Manage Booking</button></div>';
+      }
+      return (
+        '<div class="slot' +
+        (disabled ? ' slot-disabled' : '') +
+        '"><span class="pill ' +
+        st.pill +
+        '">' +
+        esc(st.text) +
+        '</span><h3>' +
+        esc(label) +
+        '</h3>' +
+        renderSlotPriceChips(offer) +
+        actions +
+        '</div>'
+      );
+    })
+    .join('');
+  el('daySlots').innerHTML = html || '<p class="sub">No time slots enabled — turn slots on in Price &amp; packages.</p>';
+  el('daySlots').querySelectorAll('[data-cal-block]').forEach(function (btn) {
+    btn.onclick = function () {
+      openBlockSheet(btn.getAttribute('data-cal-block'));
+    };
+  });
+  el('daySlots').querySelectorAll('[data-cal-unblock]').forEach(function (btn) {
+    btn.onclick = function () {
+      openUnblockModal(btn.getAttribute('data-cal-unblock'));
+    };
+  });
+  el('daySlots').querySelectorAll('[data-cal-manage]').forEach(function () {
+    btn.onclick = function () {
+      toast('Open Booking requests to accept or manage this Gixbee booking.');
+      renderOwnerReq();
+      show('ownerReq');
+    };
+  });
+}
+
+function openBlockSheet(slotId) {
+  const h = activeHall();
+  const cal = getHallCalendar(h);
+  const offer = slotOfferById(slotId);
+  if (!offer) return;
+  calPendingBlock = { slotId: slotId, reason: 'offline', notes: '' };
+  const key = cal.selectedKey;
+  const sum = el('blockSheetSummary');
+  if (sum) {
+    sum.innerHTML =
+      '<b>' +
+      esc(offer.label) +
+      '</b><br>' +
+      esc(formatTimeRange(offer.hallFrom, offer.hallTo)) +
+      '<br>' +
+      esc(formatCalDayTitle(key));
+  }
+  document.querySelectorAll('.block-reason').forEach(function (lab) {
+    lab.classList.toggle('on', lab.getAttribute('data-block-reason') === 'offline');
+    const inp = lab.querySelector('input');
+    if (inp) inp.checked = lab.getAttribute('data-block-reason') === 'offline';
+  });
+  if (el('blockNotes')) el('blockNotes').value = '';
+  openOverlay('blockSheetOverlay');
+}
+
+function openConfirmBlockModal() {
+  if (!calPendingBlock) return;
+  const offer = slotOfferById(calPendingBlock.slotId);
+  const title = el('confirmBlockTitle');
+  const body = el('confirmBlockBody');
+  const reason = calPendingBlock.reason;
+  const statusWord = reason === 'temp' ? 'Blocked' : 'Offline Booking';
+  if (title) title.textContent = 'Block ' + (offer ? offer.label : 'Slot') + ' Slot?';
+  if (body) {
+    body.textContent =
+      'This will mark the ' +
+      (offer ? offer.label : '') +
+      ' slot as ' +
+      statusWord +
+      ' and it will be unavailable for customers. Full Day slot will also become unavailable automatically.';
+  }
+  closeOverlay('blockSheetOverlay');
+  openOverlay('confirmBlockOverlay');
+}
+
+function applyBlockConfirm() {
+  if (!calPendingBlock) return;
+  const h = activeHall();
+  const cal = getHallCalendar(h);
+  const key = cal.selectedKey;
+  const slotId = calPendingBlock.slotId;
+  const reason = calPendingBlock.reason;
+  const status = reason === 'temp' ? 'blocked' : 'offline';
+  persistCalendarDay(h, key, slotId, status, {
+    reason: reason,
+    notes: calPendingBlock.notes || '',
+  });
+  closeOverlay('confirmBlockOverlay');
+  calPendingBlock = null;
+  renderCalendar();
+  renderCalDay();
+  toast('Slot blocked.');
+}
+
+function openUnblockModal(slotId) {
+  const offer = slotOfferById(slotId);
+  const h = activeHall();
+  const cal = getHallCalendar(h);
+  calPendingUnblock = { slotId: slotId, key: cal.selectedKey };
+  const sum = el('unblockSlotSum');
+  if (sum && offer) {
+    sum.textContent = offer.label + ' · ' + formatTimeRange(offer.hallFrom, offer.hallTo);
+  }
+  const body = el('unblockBody');
+  if (body) {
+    body.textContent =
+      'Unblock ' +
+      (offer ? offer.label : 'this') +
+      ' slot? This will make it available to customers again. Full Day slot will be available if the other half-day slot is also free.';
+  }
+  openOverlay('unblockOverlay');
+}
+
+function applyUnblockConfirm() {
+  if (!calPendingUnblock) return;
+  const h = activeHall();
+  persistCalendarDay(h, calPendingUnblock.key, calPendingUnblock.slotId, 'available', null);
+  closeOverlay('unblockOverlay');
+  calPendingUnblock = null;
+  renderCalendar();
+  renderCalDay();
+  toast('Slot unblocked.');
+}
+
+function bindCalendarUi() {
+  const tabBs = el('tabBookSettings');
+  if (tabBs) {
+    tabBs.onclick = function () {
+      renderBookSettings();
+      show('bookSettings');
+    };
+  }
+  const prevM = el('calPrevMonth');
+  const nextM = el('calNextMonth');
+  if (prevM) {
+    prevM.onclick = function () {
+      const h = activeHall();
+      const cal = getHallCalendar(h);
+      cal.viewMonth -= 1;
+      if (cal.viewMonth < 1) {
+        cal.viewMonth = 12;
+        cal.viewYear -= 1;
+      }
+      savePkg();
+      renderCalendar();
+    };
+  }
+  if (nextM) {
+    nextM.onclick = function () {
+      const h = activeHall();
+      const cal = getHallCalendar(h);
+      cal.viewMonth += 1;
+      if (cal.viewMonth > 12) {
+        cal.viewMonth = 1;
+        cal.viewYear += 1;
+      }
+      savePkg();
+      renderCalendar();
+    };
+  }
+  const openMp = el('openMonthPicker');
+  if (openMp) {
+    openMp.onclick = function () {
+      renderMonthPickerList();
+      openOverlay('monthPickerOverlay');
+    };
+  }
+  ['closeMonthPicker', 'cancelMonthPicker'].forEach(function (id) {
+    const b = el(id);
+    if (b) b.onclick = function () { closeOverlay('monthPickerOverlay'); };
+  });
+  const backDay = el('backFromCalDay');
+  if (backDay) {
+    backDay.onclick = function () {
+      renderCalendar();
+      show('calendar');
+    };
+  }
+  const prevD = el('calPrevDay');
+  const nextD = el('calNextDay');
+  if (prevD) {
+    prevD.onclick = function () { shiftCalDay(-1); };
+  }
+  if (nextD) {
+    nextD.onclick = function () { shiftCalDay(1); };
+  }
+  document.querySelectorAll('.block-reason').forEach(function (lab) {
+    lab.onclick = function () {
+      document.querySelectorAll('.block-reason').forEach(function (x) { x.classList.remove('on'); });
+      lab.classList.add('on');
+      const inp = lab.querySelector('input');
+      if (inp) inp.checked = true;
+      if (calPendingBlock) calPendingBlock.reason = lab.getAttribute('data-block-reason');
+    };
+  });
+  const closeBs = el('closeBlockSheet');
+  const cancelBs = el('cancelBlockSheet');
+  if (closeBs) closeBs.onclick = function () { closeOverlay('blockSheetOverlay'); calPendingBlock = null; };
+  if (cancelBs) cancelBs.onclick = function () { closeOverlay('blockSheetOverlay'); calPendingBlock = null; };
+  const submitBs = el('submitBlockSheet');
+  if (submitBs) {
+    submitBs.onclick = function () {
+      if (!calPendingBlock) return;
+      const sel = document.querySelector('input[name=blockReason]:checked');
+      calPendingBlock.reason = sel ? sel.value : 'offline';
+      calPendingBlock.notes = el('blockNotes') ? el('blockNotes').value.trim() : '';
+      openConfirmBlockModal();
+    };
+  }
+  const cancelCb = el('cancelConfirmBlock');
+  const doCb = el('doConfirmBlock');
+  if (cancelCb) {
+    cancelCb.onclick = function () {
+      closeOverlay('confirmBlockOverlay');
+      openBlockSheet(calPendingBlock ? calPendingBlock.slotId : 'morning');
+    };
+  }
+  if (doCb) doCb.onclick = applyBlockConfirm;
+  const cancelUb = el('cancelUnblock');
+  const doUb = el('doUnblock');
+  if (cancelUb) cancelUb.onclick = function () { closeOverlay('unblockOverlay'); calPendingUnblock = null; };
+  if (doUb) doUb.onclick = applyUnblockConfirm;
+}
+
+function shiftCalDay(delta) {
+  const h = activeHall();
+  const cal = getHallCalendar(h);
+  const p = parseCalDateKey(cal.selectedKey);
+  const dt = new Date(p.y, p.m - 1, p.d + delta);
+  cal.viewYear = dt.getFullYear();
+  cal.viewMonth = dt.getMonth() + 1;
+  cal.selectedKey = calDateKey(cal.viewYear, cal.viewMonth, dt.getDate());
+  savePkg();
+  renderCalDay();
+}
+
+function renderMonthPickerList() {
+  const h = activeHall();
+  const cal = getHallCalendar(h);
+  const list = el('monthPickerList');
+  if (!list) return;
+  const items = [];
+  for (let i = 0; i < 11; i++) {
+    const dt = new Date(2026, 9 + i, 1);
+    const y = dt.getFullYear();
+    const m = dt.getMonth() + 1;
+    const on = y === cal.viewYear && m === cal.viewMonth;
+    items.push(
+      '<button type="button" class="' +
+        (on ? 'on' : '') +
+        '" data-pick-y="' +
+        y +
+        '" data-pick-m="' +
+        m +
+        '">' +
+        monthLabel(y, m) +
+        '</button>',
+    );
+  }
+  list.innerHTML = items.join('');
+  list.querySelectorAll('[data-pick-y]').forEach(function (btn) {
+    btn.onclick = function () {
+      cal.viewYear = +btn.getAttribute('data-pick-y');
+      cal.viewMonth = +btn.getAttribute('data-pick-m');
+      savePkg();
+      closeOverlay('monthPickerOverlay');
+      renderCalendar();
+    };
+  });
+}
+
+function openCalendarFlow() {
+  ensureSlotOffers();
+  const h = activeHall();
+  getHallCalendar(h);
+  renderCalendar();
+  show('calendar');
+  syncHallInactiveLock();
+}
 
 let pkg4PolicyTab = 'cancel';
 let manageNameSnapshot = { useHallName: false, hallName: '' };
@@ -522,7 +1044,7 @@ function normalizeHallRecords() {
 
 function syncHallInactiveLock() {
   const locked = activeHall() && !hallListingOn(activeHall());
-  ['manage', 'pkg1', 'pkg2', 'pkg3', 'pkg4', 'pkg5', 'calendar', 'ownerReq', 'bookSettings', 'placeholder'].forEach(
+  ['manage', 'pkg1', 'pkg2', 'pkg3', 'pkg4', 'pkg5', 'calendar', 'calDay', 'ownerReq', 'bookSettings', 'placeholder'].forEach(
     function (id) {
       const scr = el(id);
       if (scr) scr.classList.toggle('hall-inactive-lock', !!locked);
@@ -756,9 +1278,7 @@ function renderHallCards() {
         if (!requireHallPackageSaved(h)) return;
       }
       if (act === 'cal') {
-        renderCalendar();
-        show('calendar');
-        syncHallInactiveLock();
+        openCalendarFlow();
         return;
       }
       if (act === 'req') {
@@ -858,11 +1378,15 @@ function renderManage() {
       if (id === 'placeholder') {
         el('phTitle').textContent = btn.querySelector('b').textContent.replace(/\u200b/g, '');
         show('placeholder');
+        syncHallInactiveLock();
+        return;
+      }
+      if (id === 'calendar') {
+        openCalendarFlow();
         return;
       }
       show(id);
       if (id === 'pkg1') renderPkg1();
-      if (id === 'calendar') renderCalendar();
       if (id === 'ownerReq') renderOwnerReq();
       syncHallInactiveLock();
     };
@@ -1306,29 +1830,6 @@ function renderPkg5() {
   };
 }
 
-function renderCalendar() {
-  const days = [];
-  for (let d = 1; d <= 31; d++) days.push(d);
-  el('calGrid').innerHTML = days
-    .map(
-      (d) =>
-        `<button type="button" class="${d === state.calDay ? 'on' : ''}" data-day="${d}">${d}</button>`,
-    )
-    .join('');
-  el('calGrid').querySelectorAll('[data-day]').forEach((b) => {
-    b.onclick = () => {
-      state.calDay = +b.getAttribute('data-day');
-      renderCalendar();
-    };
-  });
-  el('daySlots').innerHTML = `
-    <h2>${state.calDay} Dec 2026</h2>
-    <div class="slot"><span class="pill ok">Available</span><h3>Morning (10:00 AM – 3:00 PM)</h3>
-      <p class="sub">With AC ₹75,000 · Without AC ₹55,000</p><button class="btn ghost" type="button">Block Slot</button></div>
-    <div class="slot"><span class="pill bad">Booked (Gixbee)</span><h3>Evening (5:00 PM – 11:00 PM)</h3>
-      <p class="sub">Manage booking in Requests</p></div>`;
-}
-
 function renderBookSettings() {
   const windows = [3, 6, 9, 12, 18, 24];
   const notices = [
@@ -1404,6 +1905,8 @@ function bindOwnerEvents() {
         renderPkg5();
       }
       if (id === 'bookSettings') renderBookSettings();
+      if (id === 'calendar') renderCalendar();
+      if (id === 'calDay') renderCalDay();
       show(id);
     });
   });
@@ -1412,9 +1915,11 @@ function bindOwnerEvents() {
     saveBs.onclick = () => {
       savePkg();
       toast('Booking settings saved.');
-      show('manage');
+      renderCalendar();
+      show('calendar');
     };
   }
+  bindCalendarUi();
   const editPark = el('editParkingBtn');
   if (editPark) {
     editPark.onclick = function () {
