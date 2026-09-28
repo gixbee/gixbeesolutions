@@ -1,4 +1,4 @@
-const OWNER_BUILD = '2026-09-28-hall-owner-v37';
+const OWNER_BUILD = '2026-09-28-hall-owner-v38';
 const DEMO_FILE = 'hall-owner-lmb-master.html';
 const PKG_KEY = 'GIXBEE_HALL_PACKAGE';
 
@@ -129,11 +129,11 @@ function slotReviewLines() {
 }
 
 const MANAGE_MENU = [
-  { id: 'calendar', title: 'Calendar', sub: 'Availability and blocked dates' },
-  { id: 'pkg1', title: 'Price & packages', sub: 'Slots, pricing, cancellation policy' },
-  { id: 'ownerReq', title: 'Booking requests', sub: 'Accept or decline customer bookings', dot: true },
-  { id: 'operators', title: 'Operators', sub: 'Who can manage this hall' },
-  { id: 'deleteHall', title: 'Delete hall', sub: 'Remove this hall from the business', cls: 'danger' },
+  { id: 'calendar', title: 'Calendar', sub: 'Availability and blocked dates', icon: '📅', ico: 'cal' },
+  { id: 'pkg1', title: 'Price & packages', sub: 'Slots, pricing, cancellation policy', icon: '₹', ico: 'pkg' },
+  { id: 'ownerReq', title: 'Booking requests', sub: 'Accept or decline customer bookings', dot: true, icon: '💬', ico: 'req' },
+  { id: 'operators', title: 'Operators', sub: 'Who can manage this hall', icon: '👥', ico: 'ops' },
+  { id: 'deleteHall', title: 'Delete hall', sub: 'Remove this hall from the business', cls: 'danger', icon: '🗑', ico: 'del' },
 ];
 
 const state = {
@@ -1130,65 +1130,42 @@ function hallHasSavedOwnName(h) {
 }
 
 function renderManageNameMode() {
-  const manageScr = el('manage');
-  const isAdd = !!state.openedFromAddHall;
-  const addBlock = el('manageNameAddBlock');
+  const panel = el('manageHallNamePanel');
   const checkboxRow = el('manageNameCheckboxRow');
-  const viewBlock = el('manageNameViewBlock');
-  const editBlock = el('manageNameEditBlock');
-  const editBtn = el('editManageName');
-  const addWrap = el('manageHallNameWrap');
-  const addCb = el('manageUseHallName');
-  const addIn = el('addHallNameInput');
-  const display = el('manageHallNameDisplay');
-  const editIn = el('manageHallNameEdit');
+  const cb = el('manageUseHallName');
+  const inp = el('manageHallNameInput');
   const listingOn = hallListingOn(activeHall());
   const h = activeHall();
-  const savedOwnName = hallHasSavedOwnName(h);
+  const isAdd = !!state.openedFromAddHall;
 
-  if (manageScr) manageScr.classList.remove('manage-name-editing');
-
-  if (addCb) {
-    if (isAdd) {
-      addCb.checked = !!state.useHallName;
-      addCb.disabled = false;
-    } else if (manageNameEditing) {
-      addCb.checked = !!state.useHallName;
-      addCb.disabled = !listingOn;
-    } else {
-      addCb.checked = savedOwnName;
-      addCb.disabled = !listingOn;
-    }
-  }
-
-  if (isAdd) {
-    manageNameEditing = false;
-    if (checkboxRow) checkboxRow.hidden = false;
-    if (addBlock) addBlock.hidden = false;
-    if (viewBlock) viewBlock.hidden = true;
-    if (editBlock) editBlock.hidden = true;
-    if (addWrap) addWrap.hidden = !state.useHallName;
-    if (addIn && document.activeElement !== addIn) addIn.value = state.hallName;
-    return;
-  }
-
-  if (addBlock) addBlock.hidden = true;
   if (checkboxRow) checkboxRow.hidden = false;
 
-  if (manageNameEditing && listingOn) {
-    if (viewBlock) viewBlock.hidden = true;
-    if (editBlock) editBlock.hidden = false;
-    if (editIn && document.activeElement !== editIn) {
-      editIn.value = state.useHallName ? String(state.hallName || manageNameSnapshot.hallName || '').trim() : '';
+  if (cb) {
+    if (isAdd || (el('manage') && el('manage').classList.contains('on'))) {
+      cb.checked = !!state.useHallName;
+    } else if (h) {
+      cb.checked = !!h.useHallName;
     }
-    if (manageScr) manageScr.classList.add('manage-name-editing');
-    return;
+    cb.disabled = !listingOn && !isAdd;
   }
 
-  if (viewBlock) viewBlock.hidden = !savedOwnName;
-  if (editBlock) editBlock.hidden = true;
-  if (savedOwnName && display) display.textContent = String(h.hallName || '').trim();
-  if (editBtn) editBtn.hidden = !savedOwnName || !listingOn;
+  const showPanel = cb && cb.checked;
+  if (panel) panel.hidden = !showPanel;
+
+  if (inp) {
+    inp.disabled = !listingOn && !isAdd;
+    if (document.activeElement !== inp) {
+      if (state.useHallName) {
+        inp.value = String(state.hallName || (h && h.hallName) || '').trim();
+      } else {
+        inp.value = '';
+      }
+    }
+  }
+
+  manageNameEditing = false;
+  const manageScr = el('manage');
+  if (manageScr) manageScr.classList.remove('manage-name-editing');
 }
 
 function snapshotManageNameFromHall() {
@@ -1220,7 +1197,7 @@ function captureNameFields() {
     state.useHallName = pkgCb.checked;
   } else if (pkgCb && document.activeElement === pkgCb) {
     state.useHallName = pkgCb.checked;
-  } else if (manageCb && (manageNameEditing || state.openedFromAddHall)) {
+  } else if (manageCb && (el('manage') && el('manage').classList.contains('on'))) {
     state.useHallName = manageCb.checked;
   }
   if (!state.useHallName) {
@@ -1229,14 +1206,11 @@ function captureNameFields() {
     return;
   }
   const hallIn = el('hallNameInput');
-  const addIn = el('addHallNameInput');
-  const editIn = el('manageHallNameEdit');
+  const manageIn = el('manageHallNameInput');
   if (hallIn && (el('pkg2') && el('pkg2').classList.contains('on') || document.activeElement === hallIn)) {
     state.hallName = hallIn.value.trim();
-  } else if (editIn && manageNameEditing) {
-    state.hallName = editIn.value.trim();
-  } else if (addIn && state.openedFromAddHall) {
-    state.hallName = addIn.value.trim();
+  } else if (manageIn && (state.openedFromAddHall || (el('manage') && el('manage').classList.contains('on')))) {
+    state.hallName = manageIn.value.trim();
   }
   syncHallNameUi();
 }
@@ -1250,6 +1224,8 @@ function renderManageHeader() {
   }
   const bizRo = el('bizNameRo');
   if (bizRo) bizRo.value = state.businessName;
+  const bizDisplay = el('manageBizNameDisplay');
+  if (bizDisplay) bizDisplay.textContent = state.businessName;
   const bizPkg = el('bizNamePkg');
   if (bizPkg) bizPkg.value = state.businessName;
   syncHallNameUi();
@@ -1618,7 +1594,7 @@ function openManageScreen(fromAddHall) {
 
 function renderManageFooter() {
   const foot = el('manageSaveFooter');
-  if (foot) foot.hidden = !state.openedFromAddHall;
+  if (foot) foot.hidden = false;
 }
 
 function yesNoLabel(key, yes) {
@@ -1647,16 +1623,33 @@ function renderManage() {
   el('manageMenu').innerHTML = MANAGE_MENU.map((m) => {
     const cls = m.cls ? ' ' + m.cls.split(' ').join(' ') : '';
     const dot = m.dot ? '<span class="dot"></span>' : '';
-    return `<button type="button" class="mrow${cls}" data-go="${m.id}"><b>${esc(m.title)}${dot}</b><span>${esc(m.sub)}</span></button>`;
+    const mDot = m.dot ? '<span class="m-dot"></span>' : '';
+    const ico = m.ico || 'cal';
+    return (
+      '<button type="button" class="mrow mrow-rich' +
+      cls +
+      '" data-go="' +
+      m.id +
+      '">' +
+      '<span class="mico mico-' +
+      ico +
+      '">' +
+      esc(m.icon || '•') +
+      mDot +
+      '</span>' +
+      '<span class="mrow-text"><b>' +
+      esc(m.title) +
+      dot +
+      '</b><span>' +
+      esc(m.sub) +
+      '</span></span>' +
+      '<span class="mrow-chev" aria-hidden="true">›</span></button>'
+    );
   }).join('');
   el('manageMenu').querySelectorAll('[data-go]').forEach((btn) => {
     btn.onclick = () => {
       if (!hallListingOn(activeHall())) {
         toast('This hall is Off. Turn it On from the Halls list to edit.');
-        return;
-      }
-      if (manageNameEditing && !state.openedFromAddHall) {
-        toast('Save or cancel hall name changes first.');
         return;
       }
       const id = btn.getAttribute('data-go');
@@ -2516,11 +2509,16 @@ function bindOwnerEvents() {
         return;
       }
       syncActiveHallFromState();
+      const fromAdd = state.openedFromAddHall;
       state.openedFromAddHall = false;
       savePkg();
       renderManageFooter();
       renderHallBizHome();
-      show('hallBizHome');
+      renderManageNameMode();
+      renderManageHeader();
+      if (fromAdd) {
+        show('hallBizHome');
+      }
       toast('Hall saved.');
     };
   }
@@ -2542,30 +2540,17 @@ function bindOwnerEvents() {
     const cb = el(id);
     if (!cb) return;
     cb.onchange = function () {
-      if (state.openedFromAddHall) {
-        state.useHallName = cb.checked;
-        if (!state.useHallName) {
-          state.hallName = '';
-          if (el('addHallNameInput')) el('addHallNameInput').value = '';
-        }
-        if (el('manageHallNameWrap')) el('manageHallNameWrap').hidden = !cb.checked;
-        syncHallNameUi();
-        return;
-      }
-      if (!hallListingOn(activeHall())) {
+      if (!hallListingOn(activeHall()) && !state.openedFromAddHall) {
         cb.checked = hallHasSavedOwnName(activeHall());
         return;
       }
-      snapshotManageNameFromHall();
-      if (cb.checked) {
-        state.useHallName = true;
-        manageNameEditing = true;
-      } else {
-        state.useHallName = false;
+      state.useHallName = cb.checked;
+      if (!state.useHallName) {
         state.hallName = '';
-        manageNameEditing = !!manageNameSnapshot.useHallName;
+        if (el('manageHallNameInput')) el('manageHallNameInput').value = '';
       }
       syncHallNameUi();
+      renderManageNameMode();
     };
   });
   const pkgCbOnly = el('useHallNamePkg');
@@ -2576,46 +2561,16 @@ function bindOwnerEvents() {
       syncHallNameUi();
       const other = el('manageUseHallName');
       if (other) other.checked = state.useHallName;
-    };
-  }
-  const editManageName = el('editManageName');
-  if (editManageName) {
-    editManageName.onclick = function () {
-      if (!hallListingOn(activeHall())) return;
-      snapshotManageNameFromHall();
-      manageNameEditing = true;
-      syncHallNameUi();
       renderManageNameMode();
     };
   }
-  const saveManageName = el('saveManageName');
-  if (saveManageName) {
-    saveManageName.onclick = function () {
-      if (!hallListingOn(activeHall())) return;
-      const manageCb = el('manageUseHallName');
-      if (manageCb) state.useHallName = manageCb.checked;
-      if (!state.useHallName) {
-        state.hallName = '';
-      } else if (el('manageHallNameEdit')) {
-        state.hallName = el('manageHallNameEdit').value.trim();
-        if (!state.hallName) {
-          toast('Enter a hall name.');
-          return;
-        }
+  const manageNameIn = el('manageHallNameInput');
+  if (manageNameIn) {
+    manageNameIn.oninput = function () {
+      if (state.openedFromAddHall || (el('manage') && el('manage').classList.contains('on'))) {
+        state.useHallName = !!(el('manageUseHallName') && el('manageUseHallName').checked);
+        if (state.useHallName) state.hallName = manageNameIn.value;
       }
-      syncActiveHallFromState();
-      savePkg();
-      renderManageHeader();
-      renderHallCards();
-      finishManageNameEdit();
-      toast('Hall name saved.');
-    };
-  }
-  const cancelManageName = el('cancelManageName');
-  if (cancelManageName) {
-    cancelManageName.onclick = function () {
-      applyManageNameSnapshot();
-      toast('Changes discarded.');
     };
   }
 }
