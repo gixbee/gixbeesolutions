@@ -31,10 +31,35 @@ h2{margin:0 0 6px;font-size:18px}
 .mrow{text-align:left;border:1px solid var(--line);border-radius:14px;padding:14px;background:#fff;cursor:pointer;width:100%}
 .mrow b{display:block;font-size:15px;margin-bottom:4px}
 .mrow span{font-size:12px;color:var(--mut);line-height:1.35}
+.mrow.danger{background:#FEF2F2;border-color:#FECACA}
 .mrow.danger b,.mrow.danger span{color:var(--rd)}
-.mrow .dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--rd);margin-left:6px}
+.mrow .dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--rd);margin-left:6px;vertical-align:middle}
 .mrow.green b{color:var(--gn2)}
 .mrow.muted span{color:#9CA3AF}
+.mrow-rich{display:flex;align-items:center;gap:12px;padding:12px 14px}
+.mrow-rich .mrow-text{flex:1;min-width:0;text-align:left}
+.mrow-rich .mrow-text b{margin-bottom:2px;color:var(--navy)}
+.mrow-chev{color:#9CA3AF;font-size:22px;line-height:1;flex-shrink:0;font-weight:300}
+.mico{width:44px;height:44px;border-radius:12px;display:grid;place-items:center;font-size:20px;flex-shrink:0;font-weight:800;position:relative}
+.mico-cal{background:#DCFCE7;color:#15803D}
+.mico-pkg{background:#EDE9FE;color:#6D28D9;font-size:22px}
+.mico-req{background:#FEF9C3;color:#A16207}
+.mico-ops{background:#DBEAFE;color:#1D4ED8;font-size:18px}
+.mico-del{background:#FEE2E2;color:var(--rd);font-size:18px}
+.mico-req .m-dot{position:absolute;top:8px;right:8px;width:8px;height:8px;border-radius:50%;background:var(--rd);border:2px solid #FEF9C3}
+.manage-biz-card{background:#EFF6FF;border:1px solid #BFDBFE;border-radius:16px;padding:14px;margin-bottom:14px}
+.manage-biz-photo{height:118px;border-radius:12px;margin-bottom:12px;background:linear-gradient(145deg,#64748B 0%,#94A3B8 40%,#CBD5E1 100%) center/cover}
+.manage-field-lbl{font-size:13px;font-weight:800;color:var(--navy);margin:0 0 6px}
+.manage-biz-card .biz-ro-display{font-size:17px;font-weight:900;color:var(--navy);margin:0 0 8px;line-height:1.3}
+.manage-check-row{display:flex;align-items:flex-start;gap:10px;font-size:14px;font-weight:600;color:#374151;margin:4px 0 12px;cursor:pointer}
+.manage-check-row input{width:18px;height:18px;margin-top:2px;accent-color:var(--gn);flex-shrink:0}
+.manage-name-panel{background:linear-gradient(135deg,#ECFDF3 0%,#D1FAE5 100%);border:1px solid #A7F3D0;border-radius:14px;padding:14px;margin-bottom:8px}
+.manage-name-panel-hd{display:flex;align-items:center;gap:8px;font-weight:800;font-size:14px;color:var(--navy);margin-bottom:10px}
+.manage-name-panel-hd .tag-ico{font-size:18px}
+.manage-name-panel input{width:100%;border:1px solid #86EFAC;border-radius:10px;padding:12px 14px;font-weight:700;font-size:15px;color:var(--navy);background:#fff}
+.manage-name-panel input:disabled{background:#F3F4F6;color:#9CA3AF}
+.btn-save-hall{display:flex;align-items:center;justify-content:center;gap:8px}
+.btn-save-hall .save-ico{display:inline-grid;place-items:center;width:22px;height:22px;border-radius:50%;background:rgba(255,255,255,.28);font-size:14px;font-weight:900}
 .cta{position:sticky;bottom:0;padding:12px 16px 18px;background:linear-gradient(transparent,#fff 20%)}
 .btn{width:100%;border:0;border-radius:12px;background:var(--gn);color:#fff;font-weight:800;font-size:16px;padding:14px;cursor:pointer}
 .btn.ghost{background:#fff;color:var(--gn);border:1.5px solid var(--gn);margin-top:8px}
@@ -113,8 +138,9 @@ textarea{width:100%;border:1px solid var(--line);border-radius:10px;padding:10px
 .hall-toggle input:checked + .hall-toggle-ui::after{transform:translateX(20px)}
 .hall-toggle-lbl{min-width:22px;color:#374151}
 .hall-inactive-banner{padding:10px 12px;border-radius:10px;background:#FEF3C7;color:#92400E;font-size:13px;line-height:1.45;margin-bottom:12px}
-.hall-inactive-lock input:not([readonly]):not([data-hall-toggle]),.hall-inactive-lock textarea,.hall-inactive-lock select,.hall-inactive-lock .menu .mrow,.hall-inactive-lock .cta .btn,.hall-inactive-lock #manageSaveFooter,.hall-inactive-lock .btn:not(.back):not(#backToBizHalls):not(#cancelManageName):not(#saveManageName),.hall-inactive-lock label.ev,.hall-inactive-lock .policy-row input,.hall-inactive-lock .slot input,.hall-inactive-lock #manageUseHallName{pointer-events:none;opacity:.45}
-.hall-inactive-lock .manage-name-actions,.hall-inactive-lock #manageNameActions{pointer-events:none;opacity:.45}
+.hall-inactive-lock input:not([readonly]):not([data-hall-toggle]),.hall-inactive-lock textarea,.hall-inactive-lock select,.hall-inactive-lock .menu .mrow,.hall-inactive-lock .cta .btn:not(#saveNewHallBtn),.hall-inactive-lock .btn:not(.back):not(#backToBizHalls):not(#saveNewHallBtn),.hall-inactive-lock label.ev,.hall-inactive-lock .policy-row input,.hall-inactive-lock .slot input,.hall-inactive-lock #manageUseHallName{pointer-events:none;opacity:.45}
+.hall-inactive-lock #manageHallNameInput,.hall-inactive-lock #manageUseHallName{pointer-events:none;opacity:.45}
+.hall-inactive-lock #saveNewHallBtn{pointer-events:auto!important;opacity:1!important}
 .hall-inactive-lock #backToBizHalls,.hall-inactive-lock .top .back{pointer-events:auto!important;opacity:1!important}
 .manage-name-actions{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px}
 .manage-name-actions .btn{margin:0}
@@ -400,32 +426,20 @@ textarea{width:100%;border:1px solid var(--line);border-radius:10px;padding:10px
   </div>
   <div class="pad" style="padding-top:4px">
     <div id="hallInactiveBanner" hidden class="hall-inactive-banner">This hall is <b>Off</b> on your Halls list. Turn the toggle <b>On</b> on the hall card to edit names, pricing, and calendar again.</div>
-    <p class="lbl">NAMES (CUSTOMER VIEW)</p>
-    <div class="fld"><label>Business name</label><input id="bizNameRo" type="text" readonly style="background:#F9FAFB;color:#374151" value="Vijaya Convention Center"><small class="sub">Set when you listed on Gixbee — cannot be changed here. Shown on search cards.</small></div>
-    <div id="manageNameCheckboxRow" hidden>
-      <label class="radio-row" style="margin:8px 0"><input type="checkbox" id="manageUseHallName"> This hall has its own name (optional)</label>
+    <div class="manage-biz-card">
+      <div class="manage-biz-photo" aria-hidden="true"></div>
+      <p class="manage-field-lbl">Business name</p>
+      <p class="biz-ro-display" id="manageBizNameDisplay">Vijaya Convention Center</p>
+      <input id="bizNameRo" type="text" readonly hidden value="Vijaya Convention Center">
+      <p class="sub" style="margin:0;font-size:12px">Set when you listed on Gixbee — cannot be changed here. Shown on search cards.</p>
     </div>
-    <div id="manageNameAddBlock" hidden>
-      <div id="manageHallNameWrap" class="fld" hidden>
-        <label>Hall name</label><input id="addHallNameInput" type="text" value="" placeholder="e.g. Koinonia"><small class="sub">Only if different from the business name. Shown when customers book this hall.</small>
-      </div>
+    <div id="manageNameCheckboxRow">
+      <label class="manage-check-row"><input type="checkbox" id="manageUseHallName"> This hall has its own name (optional)</label>
     </div>
-    <div id="manageNameViewBlock" hidden>
-      <div class="fld">
-        <label>Hall name</label>
-        <div id="manageHallNameDisplay" class="hall-name-display">—</div>
-        <small class="sub">Shown when customers book this hall.</small>
-      </div>
-      <button type="button" class="see" id="editManageName" style="display:block;margin:4px 0 12px;font-size:13px">Edit</button>
-    </div>
-    <div id="manageNameEditBlock" hidden>
-      <div class="fld">
-        <label>Hall name</label><input id="manageHallNameEdit" type="text" value="" placeholder="e.g. Koinonia">
-      </div>
-      <div id="manageNameActions" class="manage-name-actions">
-        <button type="button" class="btn ghost" id="cancelManageName">Cancel</button>
-        <button type="button" class="btn" id="saveManageName">Save</button>
-      </div>
+    <div id="manageHallNamePanel" class="manage-name-panel" hidden>
+      <div class="manage-name-panel-hd"><span class="tag-ico" aria-hidden="true">🏷</span> Hall name</div>
+      <input id="manageHallNameInput" type="text" value="" placeholder="e.g. Koinonia">
+      <p class="sub" style="margin:8px 0 0;font-size:12px">Shown when customers book this hall.</p>
     </div>
   </div>
   <div id="manageRestBlock">
@@ -433,8 +447,8 @@ textarea{width:100%;border:1px solid var(--line);border-radius:10px;padding:10px
     <p class="lbl">MANAGE</p>
     <div class="menu" id="manageMenu"><p class="sub" id="jsWait">Loading menu…</p></div>
   </div>
-  <div class="cta" id="manageSaveFooter" hidden>
-    <button type="button" class="btn" id="saveNewHallBtn">Save hall</button>
+  <div class="cta" id="manageSaveFooter">
+    <button type="button" class="btn btn-save-hall" id="saveNewHallBtn"><span class="save-ico" aria-hidden="true">✓</span> Save hall</button>
   </div>
   </div>
 </section>
@@ -660,7 +674,7 @@ textarea{width:100%;border:1px solid var(--line);border-radius:10px;padding:10px
 </div></div>
 <!-- APP_START -->
 <script>
-const OWNER_BUILD = '2026-09-28-hall-owner-v37';
+const OWNER_BUILD = '2026-09-28-hall-owner-v38';
 const DEMO_FILE = 'hall-owner-lmb-master.html';
 const PKG_KEY = 'GIXBEE_HALL_PACKAGE';
 
@@ -791,11 +805,11 @@ function slotReviewLines() {
 }
 
 const MANAGE_MENU = [
-  { id: 'calendar', title: 'Calendar', sub: 'Availability and blocked dates' },
-  { id: 'pkg1', title: 'Price & packages', sub: 'Slots, pricing, cancellation policy' },
-  { id: 'ownerReq', title: 'Booking requests', sub: 'Accept or decline customer bookings', dot: true },
-  { id: 'operators', title: 'Operators', sub: 'Who can manage this hall' },
-  { id: 'deleteHall', title: 'Delete hall', sub: 'Remove this hall from the business', cls: 'danger' },
+  { id: 'calendar', title: 'Calendar', sub: 'Availability and blocked dates', icon: '📅', ico: 'cal' },
+  { id: 'pkg1', title: 'Price & packages', sub: 'Slots, pricing, cancellation policy', icon: '₹', ico: 'pkg' },
+  { id: 'ownerReq', title: 'Booking requests', sub: 'Accept or decline customer bookings', dot: true, icon: '💬', ico: 'req' },
+  { id: 'operators', title: 'Operators', sub: 'Who can manage this hall', icon: '👥', ico: 'ops' },
+  { id: 'deleteHall', title: 'Delete hall', sub: 'Remove this hall from the business', cls: 'danger', icon: '🗑', ico: 'del' },
 ];
 
 const state = {
@@ -1792,65 +1806,42 @@ function hallHasSavedOwnName(h) {
 }
 
 function renderManageNameMode() {
-  const manageScr = el('manage');
-  const isAdd = !!state.openedFromAddHall;
-  const addBlock = el('manageNameAddBlock');
+  const panel = el('manageHallNamePanel');
   const checkboxRow = el('manageNameCheckboxRow');
-  const viewBlock = el('manageNameViewBlock');
-  const editBlock = el('manageNameEditBlock');
-  const editBtn = el('editManageName');
-  const addWrap = el('manageHallNameWrap');
-  const addCb = el('manageUseHallName');
-  const addIn = el('addHallNameInput');
-  const display = el('manageHallNameDisplay');
-  const editIn = el('manageHallNameEdit');
+  const cb = el('manageUseHallName');
+  const inp = el('manageHallNameInput');
   const listingOn = hallListingOn(activeHall());
   const h = activeHall();
-  const savedOwnName = hallHasSavedOwnName(h);
+  const isAdd = !!state.openedFromAddHall;
 
-  if (manageScr) manageScr.classList.remove('manage-name-editing');
-
-  if (addCb) {
-    if (isAdd) {
-      addCb.checked = !!state.useHallName;
-      addCb.disabled = false;
-    } else if (manageNameEditing) {
-      addCb.checked = !!state.useHallName;
-      addCb.disabled = !listingOn;
-    } else {
-      addCb.checked = savedOwnName;
-      addCb.disabled = !listingOn;
-    }
-  }
-
-  if (isAdd) {
-    manageNameEditing = false;
-    if (checkboxRow) checkboxRow.hidden = false;
-    if (addBlock) addBlock.hidden = false;
-    if (viewBlock) viewBlock.hidden = true;
-    if (editBlock) editBlock.hidden = true;
-    if (addWrap) addWrap.hidden = !state.useHallName;
-    if (addIn && document.activeElement !== addIn) addIn.value = state.hallName;
-    return;
-  }
-
-  if (addBlock) addBlock.hidden = true;
   if (checkboxRow) checkboxRow.hidden = false;
 
-  if (manageNameEditing && listingOn) {
-    if (viewBlock) viewBlock.hidden = true;
-    if (editBlock) editBlock.hidden = false;
-    if (editIn && document.activeElement !== editIn) {
-      editIn.value = state.useHallName ? String(state.hallName || manageNameSnapshot.hallName || '').trim() : '';
+  if (cb) {
+    if (isAdd || (el('manage') && el('manage').classList.contains('on'))) {
+      cb.checked = !!state.useHallName;
+    } else if (h) {
+      cb.checked = !!h.useHallName;
     }
-    if (manageScr) manageScr.classList.add('manage-name-editing');
-    return;
+    cb.disabled = !listingOn && !isAdd;
   }
 
-  if (viewBlock) viewBlock.hidden = !savedOwnName;
-  if (editBlock) editBlock.hidden = true;
-  if (savedOwnName && display) display.textContent = String(h.hallName || '').trim();
-  if (editBtn) editBtn.hidden = !savedOwnName || !listingOn;
+  const showPanel = cb && cb.checked;
+  if (panel) panel.hidden = !showPanel;
+
+  if (inp) {
+    inp.disabled = !listingOn && !isAdd;
+    if (document.activeElement !== inp) {
+      if (state.useHallName) {
+        inp.value = String(state.hallName || (h && h.hallName) || '').trim();
+      } else {
+        inp.value = '';
+      }
+    }
+  }
+
+  manageNameEditing = false;
+  const manageScr = el('manage');
+  if (manageScr) manageScr.classList.remove('manage-name-editing');
 }
 
 function snapshotManageNameFromHall() {
@@ -1882,7 +1873,7 @@ function captureNameFields() {
     state.useHallName = pkgCb.checked;
   } else if (pkgCb && document.activeElement === pkgCb) {
     state.useHallName = pkgCb.checked;
-  } else if (manageCb && (manageNameEditing || state.openedFromAddHall)) {
+  } else if (manageCb && (el('manage') && el('manage').classList.contains('on'))) {
     state.useHallName = manageCb.checked;
   }
   if (!state.useHallName) {
@@ -1891,14 +1882,11 @@ function captureNameFields() {
     return;
   }
   const hallIn = el('hallNameInput');
-  const addIn = el('addHallNameInput');
-  const editIn = el('manageHallNameEdit');
+  const manageIn = el('manageHallNameInput');
   if (hallIn && (el('pkg2') && el('pkg2').classList.contains('on') || document.activeElement === hallIn)) {
     state.hallName = hallIn.value.trim();
-  } else if (editIn && manageNameEditing) {
-    state.hallName = editIn.value.trim();
-  } else if (addIn && state.openedFromAddHall) {
-    state.hallName = addIn.value.trim();
+  } else if (manageIn && (state.openedFromAddHall || (el('manage') && el('manage').classList.contains('on')))) {
+    state.hallName = manageIn.value.trim();
   }
   syncHallNameUi();
 }
@@ -1912,6 +1900,8 @@ function renderManageHeader() {
   }
   const bizRo = el('bizNameRo');
   if (bizRo) bizRo.value = state.businessName;
+  const bizDisplay = el('manageBizNameDisplay');
+  if (bizDisplay) bizDisplay.textContent = state.businessName;
   const bizPkg = el('bizNamePkg');
   if (bizPkg) bizPkg.value = state.businessName;
   syncHallNameUi();
@@ -2142,7 +2132,6 @@ function renderHallCards() {
   root.innerHTML = state.halls
     .map(function (h) {
       const on = hallListingOn(h);
-      const pkgOk = hallPackageSaved(h);
       const title = hallCardDisplayName(h);
       const guests = hallCardGuestCount(h);
       const hasAc = hallCardHasAc(h);
@@ -2281,7 +2270,7 @@ function openManageScreen(fromAddHall) {
 
 function renderManageFooter() {
   const foot = el('manageSaveFooter');
-  if (foot) foot.hidden = !state.openedFromAddHall;
+  if (foot) foot.hidden = false;
 }
 
 function yesNoLabel(key, yes) {
@@ -2310,16 +2299,33 @@ function renderManage() {
   el('manageMenu').innerHTML = MANAGE_MENU.map((m) => {
     const cls = m.cls ? ' ' + m.cls.split(' ').join(' ') : '';
     const dot = m.dot ? '<span class="dot"></span>' : '';
-    return `<button type="button" class="mrow${cls}" data-go="${m.id}"><b>${esc(m.title)}${dot}</b><span>${esc(m.sub)}</span></button>`;
+    const mDot = m.dot ? '<span class="m-dot"></span>' : '';
+    const ico = m.ico || 'cal';
+    return (
+      '<button type="button" class="mrow mrow-rich' +
+      cls +
+      '" data-go="' +
+      m.id +
+      '">' +
+      '<span class="mico mico-' +
+      ico +
+      '">' +
+      esc(m.icon || '•') +
+      mDot +
+      '</span>' +
+      '<span class="mrow-text"><b>' +
+      esc(m.title) +
+      dot +
+      '</b><span>' +
+      esc(m.sub) +
+      '</span></span>' +
+      '<span class="mrow-chev" aria-hidden="true">›</span></button>'
+    );
   }).join('');
   el('manageMenu').querySelectorAll('[data-go]').forEach((btn) => {
     btn.onclick = () => {
       if (!hallListingOn(activeHall())) {
         toast('This hall is Off. Turn it On from the Halls list to edit.');
-        return;
-      }
-      if (manageNameEditing && !state.openedFromAddHall) {
-        toast('Save or cancel hall name changes first.');
         return;
       }
       const id = btn.getAttribute('data-go');
@@ -3179,11 +3185,16 @@ function bindOwnerEvents() {
         return;
       }
       syncActiveHallFromState();
+      const fromAdd = state.openedFromAddHall;
       state.openedFromAddHall = false;
       savePkg();
       renderManageFooter();
       renderHallBizHome();
-      show('hallBizHome');
+      renderManageNameMode();
+      renderManageHeader();
+      if (fromAdd) {
+        show('hallBizHome');
+      }
       toast('Hall saved.');
     };
   }
@@ -3205,30 +3216,17 @@ function bindOwnerEvents() {
     const cb = el(id);
     if (!cb) return;
     cb.onchange = function () {
-      if (state.openedFromAddHall) {
-        state.useHallName = cb.checked;
-        if (!state.useHallName) {
-          state.hallName = '';
-          if (el('addHallNameInput')) el('addHallNameInput').value = '';
-        }
-        if (el('manageHallNameWrap')) el('manageHallNameWrap').hidden = !cb.checked;
-        syncHallNameUi();
-        return;
-      }
-      if (!hallListingOn(activeHall())) {
+      if (!hallListingOn(activeHall()) && !state.openedFromAddHall) {
         cb.checked = hallHasSavedOwnName(activeHall());
         return;
       }
-      snapshotManageNameFromHall();
-      if (cb.checked) {
-        state.useHallName = true;
-        manageNameEditing = true;
-      } else {
-        state.useHallName = false;
+      state.useHallName = cb.checked;
+      if (!state.useHallName) {
         state.hallName = '';
-        manageNameEditing = !!manageNameSnapshot.useHallName;
+        if (el('manageHallNameInput')) el('manageHallNameInput').value = '';
       }
       syncHallNameUi();
+      renderManageNameMode();
     };
   });
   const pkgCbOnly = el('useHallNamePkg');
@@ -3239,46 +3237,16 @@ function bindOwnerEvents() {
       syncHallNameUi();
       const other = el('manageUseHallName');
       if (other) other.checked = state.useHallName;
-    };
-  }
-  const editManageName = el('editManageName');
-  if (editManageName) {
-    editManageName.onclick = function () {
-      if (!hallListingOn(activeHall())) return;
-      snapshotManageNameFromHall();
-      manageNameEditing = true;
-      syncHallNameUi();
       renderManageNameMode();
     };
   }
-  const saveManageName = el('saveManageName');
-  if (saveManageName) {
-    saveManageName.onclick = function () {
-      if (!hallListingOn(activeHall())) return;
-      const manageCb = el('manageUseHallName');
-      if (manageCb) state.useHallName = manageCb.checked;
-      if (!state.useHallName) {
-        state.hallName = '';
-      } else if (el('manageHallNameEdit')) {
-        state.hallName = el('manageHallNameEdit').value.trim();
-        if (!state.hallName) {
-          toast('Enter a hall name.');
-          return;
-        }
+  const manageNameIn = el('manageHallNameInput');
+  if (manageNameIn) {
+    manageNameIn.oninput = function () {
+      if (state.openedFromAddHall || (el('manage') && el('manage').classList.contains('on'))) {
+        state.useHallName = !!(el('manageUseHallName') && el('manageUseHallName').checked);
+        if (state.useHallName) state.hallName = manageNameIn.value;
       }
-      syncActiveHallFromState();
-      savePkg();
-      renderManageHeader();
-      renderHallCards();
-      finishManageNameEdit();
-      toast('Hall name saved.');
-    };
-  }
-  const cancelManageName = el('cancelManageName');
-  if (cancelManageName) {
-    cancelManageName.onclick = function () {
-      applyManageNameSnapshot();
-      toast('Changes discarded.');
     };
   }
 }

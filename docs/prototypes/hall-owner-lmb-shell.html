@@ -29,10 +29,35 @@ h2{margin:0 0 6px;font-size:18px}
 .mrow{text-align:left;border:1px solid var(--line);border-radius:14px;padding:14px;background:#fff;cursor:pointer;width:100%}
 .mrow b{display:block;font-size:15px;margin-bottom:4px}
 .mrow span{font-size:12px;color:var(--mut);line-height:1.35}
+.mrow.danger{background:#FEF2F2;border-color:#FECACA}
 .mrow.danger b,.mrow.danger span{color:var(--rd)}
-.mrow .dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--rd);margin-left:6px}
+.mrow .dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--rd);margin-left:6px;vertical-align:middle}
 .mrow.green b{color:var(--gn2)}
 .mrow.muted span{color:#9CA3AF}
+.mrow-rich{display:flex;align-items:center;gap:12px;padding:12px 14px}
+.mrow-rich .mrow-text{flex:1;min-width:0;text-align:left}
+.mrow-rich .mrow-text b{margin-bottom:2px;color:var(--navy)}
+.mrow-chev{color:#9CA3AF;font-size:22px;line-height:1;flex-shrink:0;font-weight:300}
+.mico{width:44px;height:44px;border-radius:12px;display:grid;place-items:center;font-size:20px;flex-shrink:0;font-weight:800;position:relative}
+.mico-cal{background:#DCFCE7;color:#15803D}
+.mico-pkg{background:#EDE9FE;color:#6D28D9;font-size:22px}
+.mico-req{background:#FEF9C3;color:#A16207}
+.mico-ops{background:#DBEAFE;color:#1D4ED8;font-size:18px}
+.mico-del{background:#FEE2E2;color:var(--rd);font-size:18px}
+.mico-req .m-dot{position:absolute;top:8px;right:8px;width:8px;height:8px;border-radius:50%;background:var(--rd);border:2px solid #FEF9C3}
+.manage-biz-card{background:#EFF6FF;border:1px solid #BFDBFE;border-radius:16px;padding:14px;margin-bottom:14px}
+.manage-biz-photo{height:118px;border-radius:12px;margin-bottom:12px;background:linear-gradient(145deg,#64748B 0%,#94A3B8 40%,#CBD5E1 100%) center/cover}
+.manage-field-lbl{font-size:13px;font-weight:800;color:var(--navy);margin:0 0 6px}
+.manage-biz-card .biz-ro-display{font-size:17px;font-weight:900;color:var(--navy);margin:0 0 8px;line-height:1.3}
+.manage-check-row{display:flex;align-items:flex-start;gap:10px;font-size:14px;font-weight:600;color:#374151;margin:4px 0 12px;cursor:pointer}
+.manage-check-row input{width:18px;height:18px;margin-top:2px;accent-color:var(--gn);flex-shrink:0}
+.manage-name-panel{background:linear-gradient(135deg,#ECFDF3 0%,#D1FAE5 100%);border:1px solid #A7F3D0;border-radius:14px;padding:14px;margin-bottom:8px}
+.manage-name-panel-hd{display:flex;align-items:center;gap:8px;font-weight:800;font-size:14px;color:var(--navy);margin-bottom:10px}
+.manage-name-panel-hd .tag-ico{font-size:18px}
+.manage-name-panel input{width:100%;border:1px solid #86EFAC;border-radius:10px;padding:12px 14px;font-weight:700;font-size:15px;color:var(--navy);background:#fff}
+.manage-name-panel input:disabled{background:#F3F4F6;color:#9CA3AF}
+.btn-save-hall{display:flex;align-items:center;justify-content:center;gap:8px}
+.btn-save-hall .save-ico{display:inline-grid;place-items:center;width:22px;height:22px;border-radius:50%;background:rgba(255,255,255,.28);font-size:14px;font-weight:900}
 .cta{position:sticky;bottom:0;padding:12px 16px 18px;background:linear-gradient(transparent,#fff 20%)}
 .btn{width:100%;border:0;border-radius:12px;background:var(--gn);color:#fff;font-weight:800;font-size:16px;padding:14px;cursor:pointer}
 .btn.ghost{background:#fff;color:var(--gn);border:1.5px solid var(--gn);margin-top:8px}
@@ -111,8 +136,9 @@ textarea{width:100%;border:1px solid var(--line);border-radius:10px;padding:10px
 .hall-toggle input:checked + .hall-toggle-ui::after{transform:translateX(20px)}
 .hall-toggle-lbl{min-width:22px;color:#374151}
 .hall-inactive-banner{padding:10px 12px;border-radius:10px;background:#FEF3C7;color:#92400E;font-size:13px;line-height:1.45;margin-bottom:12px}
-.hall-inactive-lock input:not([readonly]):not([data-hall-toggle]),.hall-inactive-lock textarea,.hall-inactive-lock select,.hall-inactive-lock .menu .mrow,.hall-inactive-lock .cta .btn,.hall-inactive-lock #manageSaveFooter,.hall-inactive-lock .btn:not(.back):not(#backToBizHalls):not(#cancelManageName):not(#saveManageName),.hall-inactive-lock label.ev,.hall-inactive-lock .policy-row input,.hall-inactive-lock .slot input,.hall-inactive-lock #manageUseHallName{pointer-events:none;opacity:.45}
-.hall-inactive-lock .manage-name-actions,.hall-inactive-lock #manageNameActions{pointer-events:none;opacity:.45}
+.hall-inactive-lock input:not([readonly]):not([data-hall-toggle]),.hall-inactive-lock textarea,.hall-inactive-lock select,.hall-inactive-lock .menu .mrow,.hall-inactive-lock .cta .btn:not(#saveNewHallBtn),.hall-inactive-lock .btn:not(.back):not(#backToBizHalls):not(#saveNewHallBtn),.hall-inactive-lock label.ev,.hall-inactive-lock .policy-row input,.hall-inactive-lock .slot input,.hall-inactive-lock #manageUseHallName{pointer-events:none;opacity:.45}
+.hall-inactive-lock #manageHallNameInput,.hall-inactive-lock #manageUseHallName{pointer-events:none;opacity:.45}
+.hall-inactive-lock #saveNewHallBtn{pointer-events:auto!important;opacity:1!important}
 .hall-inactive-lock #backToBizHalls,.hall-inactive-lock .top .back{pointer-events:auto!important;opacity:1!important}
 .manage-name-actions{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px}
 .manage-name-actions .btn{margin:0}
@@ -398,32 +424,20 @@ textarea{width:100%;border:1px solid var(--line);border-radius:10px;padding:10px
   </div>
   <div class="pad" style="padding-top:4px">
     <div id="hallInactiveBanner" hidden class="hall-inactive-banner">This hall is <b>Off</b> on your Halls list. Turn the toggle <b>On</b> on the hall card to edit names, pricing, and calendar again.</div>
-    <p class="lbl">NAMES (CUSTOMER VIEW)</p>
-    <div class="fld"><label>Business name</label><input id="bizNameRo" type="text" readonly style="background:#F9FAFB;color:#374151" value="Vijaya Convention Center"><small class="sub">Set when you listed on Gixbee — cannot be changed here. Shown on search cards.</small></div>
-    <div id="manageNameCheckboxRow" hidden>
-      <label class="radio-row" style="margin:8px 0"><input type="checkbox" id="manageUseHallName"> This hall has its own name (optional)</label>
+    <div class="manage-biz-card">
+      <div class="manage-biz-photo" aria-hidden="true"></div>
+      <p class="manage-field-lbl">Business name</p>
+      <p class="biz-ro-display" id="manageBizNameDisplay">Vijaya Convention Center</p>
+      <input id="bizNameRo" type="text" readonly hidden value="Vijaya Convention Center">
+      <p class="sub" style="margin:0;font-size:12px">Set when you listed on Gixbee — cannot be changed here. Shown on search cards.</p>
     </div>
-    <div id="manageNameAddBlock" hidden>
-      <div id="manageHallNameWrap" class="fld" hidden>
-        <label>Hall name</label><input id="addHallNameInput" type="text" value="" placeholder="e.g. Koinonia"><small class="sub">Only if different from the business name. Shown when customers book this hall.</small>
-      </div>
+    <div id="manageNameCheckboxRow">
+      <label class="manage-check-row"><input type="checkbox" id="manageUseHallName"> This hall has its own name (optional)</label>
     </div>
-    <div id="manageNameViewBlock" hidden>
-      <div class="fld">
-        <label>Hall name</label>
-        <div id="manageHallNameDisplay" class="hall-name-display">—</div>
-        <small class="sub">Shown when customers book this hall.</small>
-      </div>
-      <button type="button" class="see" id="editManageName" style="display:block;margin:4px 0 12px;font-size:13px">Edit</button>
-    </div>
-    <div id="manageNameEditBlock" hidden>
-      <div class="fld">
-        <label>Hall name</label><input id="manageHallNameEdit" type="text" value="" placeholder="e.g. Koinonia">
-      </div>
-      <div id="manageNameActions" class="manage-name-actions">
-        <button type="button" class="btn ghost" id="cancelManageName">Cancel</button>
-        <button type="button" class="btn" id="saveManageName">Save</button>
-      </div>
+    <div id="manageHallNamePanel" class="manage-name-panel" hidden>
+      <div class="manage-name-panel-hd"><span class="tag-ico" aria-hidden="true">🏷</span> Hall name</div>
+      <input id="manageHallNameInput" type="text" value="" placeholder="e.g. Koinonia">
+      <p class="sub" style="margin:8px 0 0;font-size:12px">Shown when customers book this hall.</p>
     </div>
   </div>
   <div id="manageRestBlock">
@@ -431,8 +445,8 @@ textarea{width:100%;border:1px solid var(--line);border-radius:10px;padding:10px
     <p class="lbl">MANAGE</p>
     <div class="menu" id="manageMenu"><p class="sub" id="jsWait">Loading menu…</p></div>
   </div>
-  <div class="cta" id="manageSaveFooter" hidden>
-    <button type="button" class="btn" id="saveNewHallBtn">Save hall</button>
+  <div class="cta" id="manageSaveFooter">
+    <button type="button" class="btn btn-save-hall" id="saveNewHallBtn"><span class="save-ico" aria-hidden="true">✓</span> Save hall</button>
   </div>
   </div>
 </section>
