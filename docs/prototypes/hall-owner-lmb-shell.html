@@ -95,8 +95,14 @@ h2{margin:0 0 6px;font-size:18px}
       <div class="biz-title">List My Business</div>
       <span class="manage-pill">Manage &amp; grow</span>
     </div>
-    <p class="sub" style="margin:8px 0 0">Royal Convention Centre · Service · Hall</p>
+    <p class="sub" style="margin:8px 0 0" id="manageSubLine">Vijaya Convention Center · Hall: Tiffle · Service · Hall</p>
     <p class="hint" id="buildTag" style="margin:8px 0 0;font-size:11px">Single-file demo — all JavaScript is inside this .html</p>
+  </div>
+  <div class="pad" style="padding-top:4px">
+    <p class="lbl">NAMES (CUSTOMER VIEW)</p>
+    <div class="fld"><label>Business name</label><input id="bizNameRo" type="text" readonly style="background:#F9FAFB;color:#374151" value="Vijaya Convention Center"><small class="sub">From List My Business — shown on search cards.</small></div>
+    <div class="fld"><label>Hall name</label><input id="manageHallName" type="text" value="Tiffle"><small class="sub">Booking screens show this hall name (e.g. Tiffle). Default = business name for one hall.</small></div>
+    <button type="button" class="btn ghost" id="saveHallName" style="margin-bottom:4px">Save hall name</button>
   </div>
   <div class="pad">
     <p class="lbl">MANAGE</p>
@@ -116,7 +122,9 @@ h2{margin:0 0 6px;font-size:18px}
   <div class="top"><button class="back" type="button" data-to="pkg1">←</button><h1>Pricing &amp; Packages</h1><span class="chip-h">2/5</span></div>
   <div class="prog"><div class="bar"><i style="width:40%"></i></div><span class="frac">2/5</span></div>
   <div class="pad">
-    <h2>Venue Details</h2><p class="sub">Enter hall details, facilities and services.</p>
+    <h2>Venue Details</h2><p class="sub">Hall name and capacity — pricing is in the next step.</p>
+    <div class="fld"><label>Business name</label><input id="bizNamePkg" type="text" readonly style="background:#F9FAFB;color:#374151"></div>
+    <div class="fld"><label>Hall name (shown to customers when booking)</label><input id="hallNameInput" type="text"><small class="sub">Example: Tiffle. Search cards still show the business name above.</small></div>
     <div class="two">
       <div class="fld"><label>Seating Capacity</label><input id="seatCap" type="number" value="700"><small>guests</small></div>
       <div class="fld"><label>Dining Capacity</label><input id="dineCap" type="number" value="550"><small>guests</small></div>
