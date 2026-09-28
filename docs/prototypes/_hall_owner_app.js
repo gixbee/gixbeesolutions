@@ -1,4 +1,4 @@
-const OWNER_BUILD = '2026-09-28-hall-owner-v33';
+const OWNER_BUILD = '2026-09-28-hall-owner-v34';
 const DEMO_FILE = 'hall-owner-lmb-master.html';
 const PKG_KEY = 'GIXBEE_HALL_PACKAGE';
 
@@ -417,9 +417,16 @@ function fulldayComputed(cal, key, h) {
 
   const m = morningOn ? rawSlotStatus(cal, key, 'morning') : 'available';
   const e = eveningOn ? rawSlotStatus(cal, key, 'evening') : 'available';
+  const f = rawSlotStatus(cal, key, 'fullday');
   const mOk = m === 'available';
   const eOk = e === 'available';
-  if (mOk && eOk) return { status: 'available', reason: '' };
+  if (mOk && eOk) {
+    if (f === 'available') return { status: 'available', reason: '' };
+    if (f === 'booked_gixbee') return { status: 'unavailable', reason: 'Booked (full day)' };
+    if (f === 'offline') return { status: 'unavailable', reason: 'Full day offline booked' };
+    if (f === 'blocked') return { status: 'unavailable', reason: 'Full day blocked' };
+    return { status: 'available', reason: '' };
+  }
   if (!mOk && !eOk) {
     return { status: 'unavailable', reason: mName + ' and ' + eName + ' occupied' };
   }
@@ -536,6 +543,10 @@ function renderCalendar() {
 
 function slotStatusLabel(status, slotId, cal, key, h) {
   if (slotId === 'fullday') {
+    const rawFd = rawSlotStatus(cal, key, 'fullday');
+    if (rawFd === 'offline') return { pill: 'off', text: 'Offline Booked' };
+    if (rawFd === 'blocked') return { pill: 'blk', text: 'Blocked' };
+    if (rawFd === 'booked_gixbee') return { pill: 'bad', text: 'Booked (Gixbee)' };
     const fd = fulldayComputed(cal, key, h);
     if (fd.status === 'available') return { pill: 'ok', text: 'Available' };
     return { pill: 'muted', text: 'Unavailable (' + fd.reason + ')' };
@@ -572,46 +583,39 @@ function renderCalDay() {
     .sort(function (a, b) {
       return (order[a.id] != null ? order[a.id] : 9) - (order[b.id] != null ? order[b.id] : 9);
     });
-  const offersRef = calendarSlotOffers(h);
-  const morningOn = offerEnabledInList(offersRef, 'morning');
-  const eveningOn = offerEnabledInList(offersRef, 'evening');
-  const fulldayStandalone = offerEnabledInList(offersRef, 'fullday') && !morningOn && !eveningOn;
   const html = offers
     .map(function (offer) {
       const slotId = offer.id;
       const label = offer.label + ' (' + formatTimeRange(offer.hallFrom, offer.hallTo) + ')';
       const st = slotStatusLabel(null, slotId, cal, key, h);
+      const rawFd = slotId === 'fullday' ? rawSlotStatus(cal, key, 'fullday') : null;
       const fd = slotId === 'fullday' ? fulldayComputed(cal, key, h) : null;
-      let raw =
-        slotId === 'fullday'
-          ? fulldayStandalone
-            ? rawSlotStatus(cal, key, 'fullday')
-            : fd.status
-          : rawSlotStatus(cal, key, slotId);
-      if (slotId === 'fullday' && !fulldayStandalone && fd.status !== 'available') raw = 'unavailable';
-      const disabled = slotId === 'fullday' && raw !== 'available';
+      let raw = slotId === 'fullday' ? rawFd : rawSlotStatus(cal, key, slotId);
+      if (slotId === 'fullday' && raw === 'available' && fd && fd.status !== 'available') {
+        raw = 'unavailable';
+      }
+      const fulldayCanBlock = slotId === 'fullday' && rawFd === 'available' && fd && fd.status === 'available';
+      const disabled = slotId === 'fullday' && raw === 'unavailable';
       let actions = '';
       if (slotId === 'fullday') {
-        if (fulldayStandalone) {
-          if (raw === 'available') {
-            actions =
-              '<div class="slot-actions"><button type="button" class="btn" data-cal-block="' +
-              slotId +
-              '">Block Slot</button></div>';
-          } else if (raw === 'offline' || raw === 'blocked') {
-            actions =
-              '<div class="slot-actions"><button type="button" class="btn ghost" data-cal-unblock="' +
-              slotId +
-              '">Unblock</button></div>';
-          } else if (raw === 'booked_gixbee') {
-            actions =
-              '<div class="slot-actions"><button type="button" class="btn ghost" data-cal-manage="' +
-              slotId +
-              '">Manage Booking</button></div>';
-          }
-        } else if (raw !== 'available') {
+        if (fulldayCanBlock) {
           actions =
-            '<p class="sub" style="margin:8px 0 0">Full day is offered only when all required part-day slots are free (see your package).</p>';
+            '<div class="slot-actions"><button type="button" class="btn" data-cal-block="' +
+            slotId +
+            '">Block Slot</button></div>';
+        } else if (rawFd === 'offline' || rawFd === 'blocked') {
+          actions =
+            '<div class="slot-actions"><button type="button" class="btn ghost" data-cal-unblock="' +
+            slotId +
+            '">Unblock</button></div>';
+        } else if (rawFd === 'booked_gixbee') {
+          actions =
+            '<div class="slot-actions"><button type="button" class="btn ghost" data-cal-manage="' +
+            slotId +
+            '">Manage Booking</button></div>';
+        } else if (raw === 'unavailable') {
+          actions =
+            '<p class="sub" style="margin:8px 0 0">Full day needs Morning and Evening free (or unblock them first).</p>';
         }
       } else if (raw === 'available') {
         actions =
@@ -703,12 +707,17 @@ function openConfirmBlockModal() {
   const statusWord = reason === 'temp' ? 'Blocked' : 'Offline Booking';
   if (title) title.textContent = 'Block ' + (offer ? offer.label : 'Slot') + ' Slot?';
   if (body) {
+    var extra =
+      calPendingBlock.slotId === 'fullday'
+        ? ' Blocking full day also marks Morning and Evening offline for this date (one full-day booking).'
+        : ' Full Day slot will also become unavailable automatically.';
     body.textContent =
       'This will mark the ' +
       (offer ? offer.label : '') +
       ' slot as ' +
       statusWord +
-      ' and it will be unavailable for customers. Full Day slot will also become unavailable automatically.';
+      ' and it will be unavailable for customers.' +
+      extra;
   }
   closeOverlay('blockSheetOverlay');
   openOverlay('confirmBlockOverlay');
@@ -722,10 +731,22 @@ function applyBlockConfirm() {
   const slotId = calPendingBlock.slotId;
   const reason = calPendingBlock.reason;
   const status = reason === 'temp' ? 'blocked' : 'offline';
-  persistCalendarDay(h, key, slotId, status, {
+  const blockMeta = {
     reason: reason,
     notes: calPendingBlock.notes || '',
-  });
+  };
+  const offers = calendarSlotOffers(h);
+  if (slotId === 'fullday') {
+    persistCalendarDay(h, key, 'fullday', status, blockMeta);
+    if (offerEnabledInList(offers, 'morning') && offerEnabledInList(offers, 'evening')) {
+      const day = ensureDayRecord(cal, key);
+      day.fullDayLinkedBlock = true;
+      persistCalendarDay(h, key, 'morning', status, blockMeta);
+      persistCalendarDay(h, key, 'evening', status, blockMeta);
+    }
+  } else {
+    persistCalendarDay(h, key, slotId, status, blockMeta);
+  }
   closeOverlay('confirmBlockOverlay');
   calPendingBlock = null;
   renderCalendar();
@@ -755,7 +776,18 @@ function openUnblockModal(slotId) {
 function applyUnblockConfirm() {
   if (!calPendingUnblock) return;
   const h = activeHall();
-  persistCalendarDay(h, calPendingUnblock.key, calPendingUnblock.slotId, 'available', null);
+  const cal = getHallCalendar(h);
+  const key = calPendingUnblock.key;
+  const slotId = calPendingUnblock.slotId;
+  const day = cal && cal.days ? cal.days[key] : null;
+  if (slotId === 'fullday' && day && day.fullDayLinkedBlock) {
+    persistCalendarDay(h, key, 'fullday', 'available', null);
+    persistCalendarDay(h, key, 'morning', 'available', null);
+    persistCalendarDay(h, key, 'evening', 'available', null);
+    delete day.fullDayLinkedBlock;
+  } else {
+    persistCalendarDay(h, key, slotId, 'available', null);
+  }
   closeOverlay('unblockOverlay');
   calPendingUnblock = null;
   renderCalendar();
