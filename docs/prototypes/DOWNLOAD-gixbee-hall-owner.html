@@ -47,7 +47,6 @@ h2{margin:0 0 6px;font-size:18px}
 .mico-ops{background:#DBEAFE;color:#1D4ED8;font-size:18px}
 .mico-del{background:#FEE2E2;color:var(--rd);font-size:18px}
 .mico-photo{background:#FCE7F3;color:#BE185D;font-size:18px}
-.mico-port{background:#FFEDD5;color:#C2410C;font-size:18px}
 .mico-req .m-dot{position:absolute;top:8px;right:8px;width:8px;height:8px;border-radius:50%;background:var(--rd);border:2px solid #FEF9C3}
 .media-cover{height:160px;border-radius:14px;background:linear-gradient(145deg,#64748B,#94A3B8);margin-bottom:12px;position:relative;overflow:hidden;border:1px solid var(--line)}
 .media-cover .cover-lbl{position:absolute;left:10px;bottom:10px;background:rgba(15,23,42,.72);color:#fff;font-size:11px;font-weight:800;padding:4px 10px;border-radius:99px}
@@ -55,12 +54,6 @@ h2{margin:0 0 6px;font-size:18px}
 .photo-tile{aspect-ratio:1.15;border-radius:12px;background:linear-gradient(145deg,#CBD5E1,#64748B);position:relative;border:1px solid var(--line)}
 .photo-tile .tile-cap{position:absolute;left:8px;right:8px;bottom:8px;font-size:10px;font-weight:800;color:#fff;text-shadow:0 1px 2px rgba(0,0,0,.45)}
 .photo-tile.add{display:grid;place-items:center;background:#F8FAFC;border:2px dashed #BFDBFE;color:#1D4ED8;font-size:12px;font-weight:800;cursor:pointer}
-.portfolio-list{display:flex;flex-direction:column;gap:10px;margin-top:8px}
-.portfolio-row{display:flex;gap:12px;align-items:center;padding:12px;border:1px solid var(--line);border-radius:14px;background:#fff;cursor:pointer;text-align:left;width:100%}
-.portfolio-thumb{width:64px;height:64px;border-radius:10px;background:linear-gradient(145deg,#E2E8F0,#64748B);flex-shrink:0}
-.portfolio-row b{display:block;font-size:14px;color:var(--navy);margin-bottom:2px}
-.portfolio-row span{font-size:12px;color:var(--mut);font-weight:600}
-.media-panel[hidden]{display:none!important}
 .manage-biz-card{background:#EFF6FF;border:1px solid #BFDBFE;border-radius:16px;padding:14px;margin-bottom:14px}
 .manage-biz-photo{height:118px;border-radius:12px;margin-bottom:12px;background:linear-gradient(145deg,#64748B 0%,#94A3B8 40%,#CBD5E1 100%) center/cover}
 .manage-field-lbl{font-size:13px;font-weight:800;color:var(--navy);margin:0 0 6px}
@@ -604,26 +597,16 @@ textarea{width:100%;border:1px solid var(--line);border-radius:10px;padding:10px
       <div class="biz-title">List My Business</div>
       <span class="manage-pill">Manage &amp; grow</span>
     </div>
-    <p class="sub" style="margin:8px 0 0" id="hallMediaSub">Hall photos and portfolio</p>
+    <p class="sub" style="margin:8px 0 0" id="hallMediaSub">Hall photos</p>
   </div>
   <div class="pad" style="padding-top:8px">
-    <div class="cal-tabs" id="hallMediaTabs">
-      <button type="button" class="pick on" id="tabHallPhotos" data-media-tab="photos">Photos</button>
-      <button type="button" class="pick" id="tabHallPortfolio" data-media-tab="portfolio">Portfolio</button>
-    </div>
-    <div class="media-panel" id="hallPhotosPanel">
-      <p class="lbl" style="margin-top:0">COVER PHOTO</p>
-      <div class="media-cover" id="hallCoverPhoto"><span class="cover-lbl">Cover</span></div>
-      <button type="button" class="btn ghost" id="changeCoverBtn" style="margin-bottom:4px">Change cover</button>
-      <p class="lbl">GALLERY</p>
-      <p class="sub" style="margin-top:-4px">Shown on your hall profile and search cards.</p>
-      <div class="photo-grid" id="hallPhotoGrid"></div>
-    </div>
-    <div class="media-panel" id="hallPortfolioPanel" hidden>
-      <p class="lbl" style="margin-top:0">EVENT PORTFOLIO</p>
-      <p class="sub" style="margin-top:-4px">Group photos by event so customers see your past work.</p>
-      <div class="portfolio-list" id="hallPortfolioList"></div>
-    </div>
+    <h2 style="margin:0 0 4px;font-size:20px;color:var(--navy)">Photos</h2>
+    <p class="lbl" style="margin-top:12px">COVER PHOTO</p>
+    <div class="media-cover" id="hallCoverPhoto"><span class="cover-lbl">Cover</span></div>
+    <button type="button" class="btn ghost" id="changeCoverBtn" style="margin-bottom:4px">Change cover</button>
+    <p class="lbl">GALLERY</p>
+    <p class="sub" style="margin-top:-4px">Shown on your hall profile and search cards.</p>
+    <div class="photo-grid" id="hallPhotoGrid"></div>
   </div>
   <div class="cta"><button type="button" class="btn" id="hallMediaAddBtn">Add photo</button></div>
 </section>
@@ -719,7 +702,7 @@ textarea{width:100%;border:1px solid var(--line);border-radius:10px;padding:10px
 </div></div>
 <!-- APP_START -->
 <script>
-const OWNER_BUILD = '2026-09-28-hall-owner-v39';
+const OWNER_BUILD = '2026-09-28-hall-owner-v40';
 const DEMO_FILE = 'hall-owner-lmb-master.html';
 const PKG_KEY = 'GIXBEE_HALL_PACKAGE';
 
@@ -855,7 +838,6 @@ const MANAGE_MENU = [
   { id: 'ownerReq', title: 'Booking requests', sub: 'Accept or decline customer bookings', dot: true, icon: '💬', ico: 'req' },
   { id: 'operators', title: 'Operators', sub: 'Who can manage this hall', icon: '👥', ico: 'ops' },
   { id: 'hallPhotos', title: 'Photos', sub: 'Cover image and gallery for this hall', icon: '📷', ico: 'photo' },
-  { id: 'hallPortfolio', title: 'Portfolio', sub: 'Past events and highlight albums', icon: '🖼', ico: 'port' },
   { id: 'deleteHall', title: 'Delete hall', sub: 'Remove this hall from the business', cls: 'danger', icon: '🗑', ico: 'del' },
 ];
 
@@ -905,7 +887,6 @@ const state = {
 
 let calPendingBlock = null;
 let calPendingUnblock = null;
-let hallMediaTab = 'photos';
 
 const MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
@@ -2403,11 +2384,7 @@ function renderManage() {
         return;
       }
       if (id === 'hallPhotos') {
-        openHallMediaScreen('photos');
-        return;
-      }
-      if (id === 'hallPortfolio') {
-        openHallMediaScreen('portfolio');
+        openHallMediaScreen();
         return;
       }
       if (id === 'placeholder') {
@@ -2890,13 +2867,6 @@ function defaultHallGallery() {
   ];
 }
 
-function defaultHallPortfolioItems() {
-  return [
-    { id: 'pf1', title: 'Wedding reception', date: 'Dec 2025', count: 12 },
-    { id: 'pf2', title: 'Corporate conference', date: 'Oct 2025', count: 8 },
-  ];
-}
-
 function getHallGallery(h) {
   if (!h) return [];
   if (!h.hallGallery || !h.hallGallery.length) {
@@ -2905,32 +2875,6 @@ function getHallGallery(h) {
     });
   }
   return h.hallGallery;
-}
-
-function getHallPortfolio(h) {
-  if (!h) return [];
-  if (!h.hallPortfolio || !h.hallPortfolio.length) {
-    h.hallPortfolio = defaultHallPortfolioItems().map(function (p) {
-      return JSON.parse(JSON.stringify(p));
-    });
-  }
-  return h.hallPortfolio;
-}
-
-function setHallMediaTab(tab) {
-  hallMediaTab = tab === 'portfolio' ? 'portfolio' : 'photos';
-  const photosBtn = el('tabHallPhotos');
-  const portBtn = el('tabHallPortfolio');
-  if (photosBtn) photosBtn.classList.toggle('on', hallMediaTab === 'photos');
-  if (portBtn) portBtn.classList.toggle('on', hallMediaTab === 'portfolio');
-  const photosPanel = el('hallPhotosPanel');
-  const portPanel = el('hallPortfolioPanel');
-  if (photosPanel) photosPanel.hidden = hallMediaTab !== 'photos';
-  if (portPanel) portPanel.hidden = hallMediaTab !== 'portfolio';
-  const addBtn = el('hallMediaAddBtn');
-  if (addBtn) {
-    addBtn.textContent = hallMediaTab === 'portfolio' ? 'Add portfolio album' : 'Add photo';
-  }
 }
 
 function renderHallMedia() {
@@ -2970,35 +2914,9 @@ function renderHallMedia() {
       };
     }
   }
-  const list = el('hallPortfolioList');
-  const items = getHallPortfolio(h);
-  if (list) {
-    list.innerHTML = items
-      .map(function (p) {
-        return (
-          '<button type="button" class="portfolio-row" data-pf-id="' +
-          esc(p.id) +
-          '"><span class="portfolio-thumb" aria-hidden="true"></span><span><b>' +
-          esc(p.title) +
-          '</b><span>' +
-          esc(p.date) +
-          ' · ' +
-          esc(String(p.count)) +
-          ' photos</span></span></button>'
-        );
-      })
-      .join('');
-    list.querySelectorAll('[data-pf-id]').forEach(function (btn) {
-      btn.onclick = function () {
-        toast('Portfolio album — full viewer in production app.');
-      };
-    });
-  }
-  setHallMediaTab(hallMediaTab);
 }
 
-function openHallMediaScreen(tab) {
-  hallMediaTab = tab === 'portfolio' ? 'portfolio' : 'photos';
+function openHallMediaScreen() {
   renderHallMedia();
   show('hallMedia');
   syncHallInactiveLock();
@@ -3012,13 +2930,6 @@ function bindHallMediaUi() {
       syncHallInactiveLock();
     };
   }
-  ['tabHallPhotos', 'tabHallPortfolio'].forEach(function (id) {
-    const btn = el(id);
-    if (!btn) return;
-    btn.onclick = function () {
-      setHallMediaTab(btn.getAttribute('data-media-tab'));
-    };
-  });
   const changeCover = el('changeCoverBtn');
   if (changeCover) {
     changeCover.onclick = function () {
@@ -3034,20 +2945,7 @@ function bindHallMediaUi() {
     addBtn.onclick = function () {
       const h = activeHall();
       if (!hallListingOn(h)) {
-        toast('Turn this hall On to add media.');
-        return;
-      }
-      if (hallMediaTab === 'portfolio') {
-        const items = getHallPortfolio(h);
-        items.unshift({
-          id: 'pf' + Date.now(),
-          title: 'New event album',
-          date: 'Draft',
-          count: 0,
-        });
-        savePkg();
-        renderHallMedia();
-        toast('Portfolio album added.');
+        toast('Turn this hall On to add photos.');
         return;
       }
       const gallery = getHallGallery(h);
