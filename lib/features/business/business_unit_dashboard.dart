@@ -24,6 +24,7 @@ import 'hiring_listing.dart';
 import 'hiring_requests_screen.dart';
 import 'recommended_candidates_screen.dart';
 import 'list_business_type_screen.dart';
+import '../hall/hall_owner_demo_screen.dart';
 import '../../repositories/matching_repository.dart';
 
 /// The signed-in owner's businesses. autoDispose so it re-fetches on each visit
@@ -140,6 +141,8 @@ class _BusinessCard extends ConsumerWidget {
 
   bool get _isHiring => business.type == 'HIRING';
   bool get _isRental => business.type == 'RENTAL';
+  bool get _isHall =>
+      (business.serviceType ?? '').toUpperCase() == 'HALL';
 
   String get _typeLabel {
     if (_isHiring) return 'Hiring Unit';
@@ -411,6 +414,74 @@ class _BusinessCard extends ConsumerWidget {
                       label: 'Operators',
                       primary: false,
                       onTap: () => _manageOperators(context, ref, business),
+                    ),
+                  ),
+                ],
+              ),
+            ] else if (_isHall) ...[
+              Row(
+                children: [
+                  Expanded(
+                    child: _BizAction(
+                      icon: Icons.storefront_outlined,
+                      label: 'Manage',
+                      primary: true,
+                      onTap: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => HallOwnerDemoScreen(
+                            businessName: business.name,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: _BizAction(
+                      icon: Icons.calendar_month,
+                      label: 'Calendar',
+                      primary: false,
+                      onTap: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => HallOwnerDemoScreen(
+                            businessName: business.name,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 10),
+              Row(
+                children: [
+                  Expanded(
+                    child: _BizAction(
+                      icon: Icons.inbox_outlined,
+                      label: 'Requests',
+                      primary: false,
+                      onTap: () => showGxSnack(
+                        context,
+                        'Open Manage → Booking requests in hall flow.',
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: _BizAction(
+                      icon: Icons.person_add_alt,
+                      label: 'Operators',
+                      primary: false,
+                      onTap: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => HallOwnerDemoScreen(
+                            businessName: business.name,
+                          ),
+                        ),
+                      ),
                     ),
                   ),
                 ],
