@@ -1,4 +1,4 @@
-const OWNER_BUILD = '2026-09-28-hall-owner-v5';
+const OWNER_BUILD = '2026-09-28-hall-owner-v6';
 const DEMO_FILE = 'hall-owner-lmb-master.html';
 const PKG_KEY = 'GIXBEE_HALL_PACKAGE';
 
@@ -201,15 +201,23 @@ function renderPkg2() {
     q(
       'inHouse',
       'In-house catering available?',
-      'If Yes, customers see that you can arrange catering. Price is quoted separately — not part of the hall package in step 3.',
+      'If Yes, customers see that you offer catering. Catering is an add-on — not included in hall rent.',
     ) +
-    q('outside', 'Outside catering allowed?', 'If Yes, customers may bring their own caterer.') +
+    q(
+      'outside',
+      'Outside catering allowed?',
+      'If Yes, customers may bring their own caterer. Hall slot rent does not include catering.',
+    ) +
     q(
       'decorHall',
       'Decoration provided by hall?',
-      'If Yes, customers see that you offer décor help. Decoration is an add-on — not included in hall rent.',
+      'If Yes, customers see that you offer decoration. Decoration is an add-on — not included in hall rent.',
     ) +
-    q('decorOutside', 'Outside decorators allowed?', 'If Yes, customers may hire their own decorators.');
+    q(
+      'decorOutside',
+      'Outside decorators allowed?',
+      'If Yes, customers may hire their own decorators. Hall slot rent does not include decoration.',
+    );
   el('caterDec').querySelectorAll('input[type=radio]').forEach((r) => {
     r.onchange = () => {
       state.catering[r.name] = r.value;
@@ -291,7 +299,7 @@ function renderPkg5() {
       .join('')}</div></div>
     <div class="sum"><div class="hd"><b>Venue Details</b><button type="button" class="see" data-to="pkg2">Edit</button></div>
       <p class="sub">Seating ${state.capacity.seat} · Dining ${state.capacity.dine} · Parking ${state.capacity.car} cars</p>
-      <p class="sub" style="margin-top:8px"><b>Catering &amp; decoration (shown to customers — not in hall package):</b><br>${cateringReviewLines()
+      <p class="sub" style="margin-top:8px"><b>Catering &amp; decoration (on your profile — add-ons, not in hall slot rent):</b><br>${cateringReviewLines()
         .map((line) => esc(line))
         .join('<br>')}</p></div>
     <div class="sum"><div class="hd"><b>Pricing &amp; Time Slots</b><button type="button" class="see" data-to="pkg3">Edit</button></div>
