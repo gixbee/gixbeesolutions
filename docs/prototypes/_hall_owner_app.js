@@ -1,4 +1,4 @@
-const OWNER_BUILD = '2026-09-28-hall-owner-v28';
+const OWNER_BUILD = '2026-09-28-hall-owner-v29';
 const DEMO_FILE = 'hall-owner-lmb-master.html';
 const PKG_KEY = 'GIXBEE_HALL_PACKAGE';
 
@@ -663,11 +663,8 @@ function renderHallCards() {
         '<div><b>' +
         esc(state.businessName) +
         '</b>' +
-        '<div class="hall-sub"><span class="hall-sub-kicker">Hall</span> <span class="hall-sub-name">' +
-        sub +
-        '</span>' +
-        req +
-        '</div></div>' +
+        hallSubHtml +
+        '</div>' +
         '<label class="hall-toggle" title="When off, this hall cannot be edited or booked">' +
         '<input type="checkbox" data-hall-toggle data-hid="' +
         esc(h.id) +
