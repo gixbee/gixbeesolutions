@@ -1,4 +1,4 @@
-const OWNER_BUILD = '2026-09-28-hall-owner-v8';
+const OWNER_BUILD = '2026-09-28-hall-owner-v9';
 const DEMO_FILE = 'hall-owner-lmb-master.html';
 const PKG_KEY = 'GIXBEE_HALL_PACKAGE';
 
@@ -29,12 +29,13 @@ const MANAGE_MENU = [
   { id: 'placeholder', title: "Update Today's Prices", sub: 'Price window closed after 8:30 AM — opens tomorrow morning', cls: 'green muted' },
   { id: 'placeholder', title: 'Operators', sub: 'Who can manage this business' },
   { id: 'placeholder', title: 'Photos & Portfolio', sub: 'Add and manage business photos' },
-  { id: 'placeholder', title: 'Edit Business Details', sub: 'Update name, description, location' },
+  { id: 'placeholder', title: 'Edit Business Details', sub: 'Description, location (business name is fixed at listing)' },
   { id: 'placeholder', title: 'Delete Business', sub: 'Remove permanently from Gixbee', cls: 'danger' },
 ];
 
 const state = {
   businessName: 'Vijaya Convention Center',
+  useHallName: true,
   hallName: 'Tiffle',
   events: ['wedding', 'reception', 'engagement', 'birthday', 'baptism', 'anniversary', 'religious'],
   facilities: ['AC', 'Generator / Power Backup', 'Chairs & Tables', 'Stage', 'Sound System', 'Restrooms'],
@@ -86,24 +87,71 @@ function loadPkg() {
 }
 function normalizeNames() {
   if (!state.businessName) state.businessName = 'Vijaya Convention Center';
-  if (!state.hallName || !String(state.hallName).trim()) {
-    state.hallName = state.businessName;
+  state.useHallName = !!state.useHallName;
+  if (!state.useHallName) {
+    state.hallName = '';
+    return;
   }
+  state.hallName = String(state.hallName || '').trim();
+}
+function customerHallName() {
+  if (!state.useHallName || !state.hallName) return '';
+  return state.hallName;
+}
+function syncHallNameUi() {
+  const show = !!state.useHallName;
+  ['manageHallNameWrap', 'hallNamePkgWrap'].forEach(function (id) {
+    const w = el(id);
+    if (w) w.style.display = show ? 'block' : 'none';
+  });
+  ['manageUseHallName', 'useHallNamePkg'].forEach(function (id) {
+    const cb = el(id);
+    if (cb) cb.checked = show;
+  });
+  const hallIn = el('manageHallName');
+  if (hallIn && document.activeElement !== hallIn) hallIn.value = state.hallName;
+  const pkgIn = el('hallNameInput');
+  if (pkgIn && document.activeElement !== pkgIn) pkgIn.value = state.hallName;
+}
+function captureNameFields() {
+  const manageCb = el('manageUseHallName');
+  const pkgCb = el('useHallNamePkg');
+  if (manageCb && document.activeElement === manageCb) {
+    state.useHallName = manageCb.checked;
+  } else if (pkgCb && document.activeElement === pkgCb) {
+    state.useHallName = pkgCb.checked;
+  } else if (manageCb) {
+    state.useHallName = manageCb.checked;
+  } else if (pkgCb) {
+    state.useHallName = pkgCb.checked;
+  }
+  if (!state.useHallName) {
+    state.hallName = '';
+    syncHallNameUi();
+    return;
+  }
+  const hallIn = el('hallNameInput');
+  const manageIn = el('manageHallName');
+  if (hallIn && (el('pkg2').classList.contains('on') || document.activeElement === hallIn)) {
+    state.hallName = hallIn.value.trim();
+  } else if (manageIn) {
+    state.hallName = manageIn.value.trim();
+  }
+  syncHallNameUi();
 }
 function renderManageHeader() {
   const sub = el('manageSubLine');
   if (sub) {
-    sub.textContent =
-      state.businessName + ' · Hall: ' + state.hallName + ' · Service · Hall';
+    var hallPart = customerHallName();
+    sub.textContent = hallPart
+      ? state.businessName + ' · Hall: ' + hallPart + ' · Service · Hall'
+      : state.businessName + ' · Service · Hall';
   }
   const bizRo = el('bizNameRo');
   if (bizRo) bizRo.value = state.businessName;
-  const hallIn = el('manageHallName');
-  if (hallIn && document.activeElement !== hallIn) {
-    hallIn.value = state.hallName;
-  }
   const bizPkg = el('bizNamePkg');
   if (bizPkg) bizPkg.value = state.businessName;
+  syncHallNameUi();
 }
 function savePkg() {
   localStorage.setItem(PKG_KEY, JSON.stringify(state));
@@ -191,7 +239,6 @@ function renderPkg1() {
 function renderPkg2() {
   renderPkgSteps(2);
   renderManageHeader();
-  if (el('hallNameInput')) el('hallNameInput').value = state.hallName;
   el('seatCap').value = state.capacity.seat;
   el('dineCap').value = state.capacity.dine;
   el('parkCar').value = state.capacity.car;
@@ -286,16 +333,7 @@ function renderPkg4() {
 }
 
 function capturePkg2() {
-  const hallIn = el('hallNameInput');
-  if (hallIn) {
-    const v = hallIn.value.trim();
-    state.hallName = v || state.businessName;
-  }
-  const manageIn = el('manageHallName');
-  if (manageIn && document.activeElement === manageIn) {
-    const v = manageIn.value.trim();
-    state.hallName = v || state.businessName;
-  }
+  captureNameFields();
   state.capacity = {
     seat: +el('seatCap').value || 0,
     dine: +el('dineCap').value || 0,
@@ -327,7 +365,11 @@ function renderPkg5() {
       .map((t) => `<span class="tag">${esc(t)}</span>`)
       .join('')}</div></div>
     <div class="sum"><div class="hd"><b>Venue Details</b><button type="button" class="see" data-to="pkg2">Edit</button></div>
-      <p class="sub"><b>${esc(state.businessName)}</b> · Hall: <b>${esc(state.hallName)}</b></p>
+      <p class="sub"><b>${esc(state.businessName)}</b>${
+        customerHallName()
+          ? ' · Hall: <b>' + esc(customerHallName()) + '</b>'
+          : ' · <span class="sub">No separate hall name</span>'
+      }</p>
       <p class="sub">Seating ${state.capacity.seat} · Dining ${state.capacity.dine} · Parking ${state.capacity.car} cars</p>
       <p class="sub" style="margin-top:8px"><b>Catering &amp; decoration (on your profile — add-ons, not in hall slot rent):</b><br>${cateringReviewLines()
         .map((line) => esc(line))
@@ -467,16 +509,23 @@ function bindOwnerEvents() {
   const saveHall = el('saveHallName');
   if (saveHall) {
     saveHall.onclick = () => {
-      const manageIn = el('manageHallName');
-      if (manageIn) {
-        const v = manageIn.value.trim();
-        state.hallName = v || state.businessName;
-      }
+      captureNameFields();
       savePkg();
       renderManageHeader();
-      toast('Hall name saved — customers see this when booking.');
+      toast('Saved — customers see business name' + (customerHallName() ? ' and hall name ' + customerHallName() : ' only') + '.');
     };
   }
+  ['manageUseHallName', 'useHallNamePkg'].forEach(function (id) {
+    const cb = el(id);
+    if (!cb) return;
+    cb.onchange = function () {
+      state.useHallName = cb.checked;
+      if (!state.useHallName) state.hallName = '';
+      syncHallNameUi();
+      var other = id === 'manageUseHallName' ? el('useHallNamePkg') : el('manageUseHallName');
+      if (other) other.checked = state.useHallName;
+    };
+  });
 }
 
 function boot() {

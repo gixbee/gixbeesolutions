@@ -1,4 +1,4 @@
-const CUSTOMER_BUILD = '2026-09-28-hall-customer-v6';
+const CUSTOMER_BUILD = '2026-09-28-hall-customer-v7';
 const DEMO_FILE = 'hall-customer-book-master.html';
 const OWNER_PKG_KEY = 'GIXBEE_HALL_PACKAGE';
 
@@ -6,6 +6,7 @@ const HALLS = [
   {
     id: 'royal',
     businessName: 'Vijaya Convention Center',
+    useHallName: true,
     hallName: 'Tiffle',
     area: 'Kottayam, Kerala',
     rating: 4.8,
@@ -26,7 +27,8 @@ const HALLS = [
   {
     id: 'grace',
     businessName: 'Grace Auditorium',
-    hallName: 'Main Hall',
+    useHallName: false,
+    hallName: '',
     area: 'Kottayam, Kerala',
     rating: 4.6,
     reviews: 98,
@@ -78,7 +80,13 @@ function businessLabel(h) {
   return h.businessName || h.name || '';
 }
 function hallLabel(h) {
-  return h.hallName || h.businessName || h.name || '';
+  if (h.useHallName === false) return businessLabel(h);
+  const n = String(h.hallName || '').trim();
+  if (n) return n;
+  return businessLabel(h);
+}
+function showHallSubline(h) {
+  return !!(h.useHallName && String(h.hallName || '').trim());
 }
 function syncFromOwnerPackage() {
   try {
@@ -88,7 +96,9 @@ function syncFromOwnerPackage() {
     const h = HALLS.find((x) => x.id === 'royal');
     if (!h) return;
     if (pkg.businessName) h.businessName = pkg.businessName;
-    if (pkg.hallName) h.hallName = pkg.hallName;
+    if (typeof pkg.useHallName === 'boolean') h.useHallName = pkg.useHallName;
+    if (pkg.useHallName && pkg.hallName) h.hallName = String(pkg.hallName).trim();
+    else if (!pkg.useHallName) h.hallName = '';
   } catch (_e) {
     /* ignore */
   }
@@ -170,9 +180,8 @@ function renderResults() {
   el('resList').innerHTML = list
     .map((h) => {
       const biz = esc(businessLabel(h));
-      const hallLine =
-        hallLabel(h) !== businessLabel(h)
-          ? `<div class="meta">Hall: ${esc(hallLabel(h))}</div>`
+      const hallLine = showHallSubline(h)
+          ? `<div class="meta">Hall: ${esc(h.hallName)}</div>`
           : '';
       return `<article class="card" data-hall="${h.id}">
       <div style="height:140px;background:linear-gradient(135deg,#A7F3D0,#BFDBFE);display:grid;place-items:center;font-size:40px">🏛️</div>
