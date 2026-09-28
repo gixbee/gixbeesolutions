@@ -1,4 +1,4 @@
-const OWNER_BUILD = '2026-09-28-hall-owner-v11';
+const OWNER_BUILD = '2026-09-28-hall-owner-v12';
 const DEMO_FILE = 'hall-owner-lmb-master.html';
 const PKG_KEY = 'GIXBEE_HALL_PACKAGE';
 
@@ -23,14 +23,11 @@ const SLOTS = [
 ];
 
 const MANAGE_MENU = [
-  { id: 'calendar', title: 'Calendar & Availability', sub: 'Block dates and manage slots' },
-  { id: 'ownerReq', title: 'Booking Requests', sub: 'Accept or decline customer requests', dot: true },
-  { id: 'pkg1', title: 'Packages & Pricing', sub: 'Set slot prices and cancellation policy' },
-  { id: 'placeholder', title: "Update Today's Prices", sub: 'Price window closed after 8:30 AM — opens tomorrow morning', cls: 'green muted' },
-  { id: 'placeholder', title: 'Operators', sub: 'Who can manage this business' },
-  { id: 'placeholder', title: 'Photos & Portfolio', sub: 'Add and manage business photos' },
-  { id: 'placeholder', title: 'Edit Business Details', sub: 'Description, location (business name is fixed at listing)' },
-  { id: 'placeholder', title: 'Delete Business', sub: 'Remove permanently from Gixbee', cls: 'danger' },
+  { id: 'calendar', title: 'Calendar', sub: 'Availability and blocked dates' },
+  { id: 'pkg1', title: 'Price & packages', sub: 'Slots, pricing, cancellation policy' },
+  { id: 'ownerReq', title: 'Booking requests', sub: 'Accept or decline customer bookings', dot: true },
+  { id: 'placeholder', title: 'Operators', sub: 'Who can manage this hall' },
+  { id: 'deleteHall', title: 'Delete hall', sub: 'Remove this hall from the business', cls: 'danger' },
 ];
 
 const state = {
@@ -41,6 +38,7 @@ const state = {
   hallSetupComplete: false,
   plannedHallCount: 2,
   parkingEditOpen: false,
+  openedFromAddHall: false,
   commonParking: { car: 80, bike: 120 },
   halls: [],
   events: ['wedding', 'reception', 'engagement', 'birthday', 'baptism', 'anniversary', 'religious'],
@@ -213,23 +211,19 @@ function revealSetupParking() {
   const count = Math.max(1, +(el('hallCountInput') && el('hallCountInput').value) || 1);
   state.plannedHallCount = count;
   const sec = el('setupParkingSection');
+  if (count <= 1) {
+    if (sec) sec.hidden = true;
+    if (el('setupSave')) el('setupSave').disabled = false;
+    toast('One hall — set car/bike parking inside each hall (Price & packages → venue details).');
+    return;
+  }
   const lbl = el('setupParkingLbl');
   const hint = el('setupParkingHint');
   if (sec) sec.hidden = false;
-  if (lbl) lbl.textContent = count > 1 ? 'COMMON PARKING' : 'PARKING (SINGLE HALL)';
-  if (hint) {
-    hint.textContent =
-      count > 1
-        ? 'One shared car and bike count for all ' + count + ' halls.'
-        : 'Fixed parking for this hall only (not shared).';
-  }
-  if (count > 1) {
-    if (el('setupParkCar')) el('setupParkCar').value = state.commonParking.car;
-    if (el('setupParkBike')) el('setupParkBike').value = state.commonParking.bike;
-  } else {
-    if (el('setupParkCar')) el('setupParkCar').value = state.capacity.car;
-    if (el('setupParkBike')) el('setupParkBike').value = state.capacity.bike;
-  }
+  if (lbl) lbl.textContent = 'COMMON PARKING';
+  if (hint) hint.textContent = 'Shared car and bike parking for all ' + count + ' halls.';
+  if (el('setupParkCar')) el('setupParkCar').value = state.commonParking.car;
+  if (el('setupParkBike')) el('setupParkBike').value = state.commonParking.bike;
   if (el('setupSave')) el('setupSave').disabled = false;
 }
 
@@ -313,9 +307,7 @@ function renderHallCards() {
       loadActiveHallIntoState();
       const act = btn.getAttribute('data-hall-act');
       if (act === 'mgr') {
-        renderManageHeader();
-        renderManage();
-        show('manage');
+        openManageScreen(false);
         return;
       }
       if (act === 'cal') {
@@ -334,8 +326,23 @@ function renderHallCards() {
 function renderHallBizHome() {
   const bizTitle = el('bizHomeTitle');
   if (bizTitle) bizTitle.textContent = state.businessName;
+  const parkWrap = el('parkingBlockWrap');
+  const multi = state.plannedHallCount > 1 || state.halls.length > 1;
+  if (parkWrap) parkWrap.hidden = !multi;
   renderParkingSummary();
   renderHallCards();
+}
+
+function openManageScreen(fromAddHall) {
+  state.openedFromAddHall = !!fromAddHall;
+  renderManageHeader();
+  renderManage();
+  show('manage');
+}
+
+function renderManageFooter() {
+  const foot = el('manageSaveFooter');
+  if (foot) foot.hidden = !state.openedFromAddHall;
 }
 
 function yesNoLabel(key, yes) {
@@ -360,8 +367,7 @@ function cateringReviewLines() {
 
 function renderManage() {
   renderManageHeader();
-  renderHallCards();
-  renderParkingSummary();
+  renderManageFooter();
   el('manageMenu').innerHTML = MANAGE_MENU.map((m) => {
     const cls = m.cls ? ' ' + m.cls.split(' ').join(' ') : '';
     const dot = m.dot ? '<span class="dot"></span>' : '';
@@ -370,6 +376,21 @@ function renderManage() {
   el('manageMenu').querySelectorAll('[data-go]').forEach((btn) => {
     btn.onclick = () => {
       const id = btn.getAttribute('data-go');
+      if (id === 'deleteHall') {
+        if (state.halls.length <= 1) {
+          toast('Keep at least one hall on this business.');
+          return;
+        }
+        state.halls = state.halls.filter(function (h) { return h.id !== state.activeHallId; });
+        state.activeHallId = state.halls[0].id;
+        loadActiveHallIntoState();
+        state.openedFromAddHall = false;
+        savePkg();
+        renderHallBizHome();
+        show('hallBizHome');
+        toast('Hall deleted.');
+        return;
+      }
       if (id === 'placeholder') {
         el('phTitle').textContent = btn.querySelector('b').textContent.replace(/\u200b/g, '');
         show('placeholder');
@@ -748,16 +769,18 @@ function bindOwnerEvents() {
   if (addHall) {
     addHall.onclick = function () {
       if (state.parkingEditOpen) return;
+      const id = 'h' + Date.now();
       state.halls.push({
-        id: 'h' + Date.now(),
+        id: id,
         useHallName: false,
         hallName: '',
         requests: 0,
       });
-      state.plannedHallCount = state.halls.length;
-      savePkg();
-      renderHallBizHome();
-      toast('Hall added — open Manage to set pricing.');
+      state.activeHallId = id;
+      state.useHallName = false;
+      state.hallName = '';
+      loadActiveHallIntoState();
+      openManageScreen(true);
     };
   }
   const dashHall = el('dashHallManage');
@@ -776,21 +799,32 @@ function bindOwnerEvents() {
   if (setupSave) {
     setupSave.onclick = function () {
       const count = Math.max(1, +(el('hallCountInput') && el('hallCountInput').value) || 1);
-      const car = +(el('setupParkCar') && el('setupParkCar').value) || 0;
-      const bike = +(el('setupParkBike') && el('setupParkBike').value) || 0;
       state.plannedHallCount = count;
       if (count > 1) {
-        state.commonParking = { car: car, bike: bike };
-      } else {
-        state.capacity.car = car;
-        state.capacity.bike = bike;
+        state.commonParking = {
+          car: +(el('setupParkCar') && el('setupParkCar').value) || 0,
+          bike: +(el('setupParkBike') && el('setupParkBike').value) || 0,
+        };
       }
       initHallsFromSetup(count);
       state.hallSetupComplete = true;
       savePkg();
       renderHallBizHome();
       show('hallBizHome');
-      toast('Saved — add hall names and open Manage on each hall.');
+      toast(count > 1 ? 'Saved — common parking set. Use + Add hall for each hall.' : 'Saved — use + Add hall to set up your hall.');
+    };
+  }
+  const saveNewHall = el('saveNewHallBtn');
+  if (saveNewHall) {
+    saveNewHall.onclick = function () {
+      captureNameFields();
+      syncActiveHallFromState();
+      state.openedFromAddHall = false;
+      savePkg();
+      renderManageFooter();
+      renderHallBizHome();
+      show('hallBizHome');
+      toast('Hall saved.');
     };
   }
   const bizHomeToDash = el('bizHomeToDash');
@@ -800,7 +834,9 @@ function bindOwnerEvents() {
     backBiz.onclick = function () {
       captureNameFields();
       syncActiveHallFromState();
+      state.openedFromAddHall = false;
       savePkg();
+      renderManageFooter();
       renderHallBizHome();
       show('hallBizHome');
     };

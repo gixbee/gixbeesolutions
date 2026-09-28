@@ -172,9 +172,9 @@ h2{margin:0 0 6px;font-size:18px}
   <div class="top"><button type="button" class="back" id="setupBackDash">←</button><h1>Hall setup</h1></div>
   <div class="pad">
     <h2 id="setupBizTitle">Vijaya Convention Center</h2>
-    <p class="sub">How many halls does this business have? Then add common parking (shared when more than one hall).</p>
-    <div class="fld"><label>Number of halls</label><input type="number" id="hallCountInput" min="1" max="20" value="2"><small class="sub">Example: 2 or 3 halls under one convention center.</small></div>
-    <button type="button" class="btn ghost" id="hallCountOk">OK — continue to parking</button>
+    <p class="sub">How many halls at this business? Tap OK. Common parking appears only if you enter 2 or more.</p>
+    <div class="fld"><label>Number of halls</label><input type="number" id="hallCountInput" min="1" max="20" value="2"><small class="sub">Example: 1 hall, or 2–3 halls under one convention center.</small></div>
+    <button type="button" class="btn ghost" id="hallCountOk">OK</button>
     <div id="setupParkingSection" hidden style="margin-top:16px">
       <p class="lbl" id="setupParkingLbl">COMMON PARKING</p>
       <p class="sub" id="setupParkingHint">Shared car and bike capacity for all halls.</p>
@@ -201,6 +201,7 @@ h2{margin:0 0 6px;font-size:18px}
     <p class="hint" id="buildTagHub" style="margin:8px 0 0;font-size:11px">Halls hub — add halls, then Manage each hall</p>
   </div>
   <div class="pad" id="hallBizBody">
+    <div id="parkingBlockWrap">
     <p class="lbl">PARKING</p>
     <div class="sum" id="parkingSummaryBox">
       <div class="hd"><b id="parkingSummaryTitle">Common parking (shared by all halls)</b><button type="button" class="see" id="editParkingBtn">Edit</button></div>
@@ -214,6 +215,7 @@ h2{margin:0 0 6px;font-size:18px}
       </div>
       <button type="button" class="btn" id="saveParkingBtn" style="margin-bottom:8px">Save parking</button>
       <button type="button" class="btn ghost" id="cancelParkingBtn">Cancel</button>
+    </div>
     </div>
     <div id="hallBizDisabledZone">
     <button type="button" class="btn" id="addHallBtn" style="margin:14px 0 10px">+ Add hall</button>
@@ -245,6 +247,10 @@ h2{margin:0 0 6px;font-size:18px}
   <div class="pad">
     <p class="lbl">MANAGE</p>
     <div class="menu" id="manageMenu"><p class="sub" id="jsWait">Loading menu…</p></div>
+  </div>
+  <div class="cta" id="manageSaveFooter" hidden>
+    <button type="button" class="btn" id="saveNewHallBtn">Save hall</button>
+    <p class="sub" style="text-align:center;margin:8px 0 0">Shown when you open this screen from + Add hall</p>
   </div>
 </section>
 
