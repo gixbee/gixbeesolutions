@@ -22,18 +22,45 @@ bool isPublicAuthPath(String path) {
       p.contains('auth/admin-login');
 }
 
-/// True when the shell should tear down to Welcome.
+/// True when the JWT is known missing (or teardown already started).
 ///
 /// After Sign Out, [currentUserProvider] stays `AsyncData(null)`. Re-login
 /// invalidates it, but the previous null can still be visible for a frame.
 /// Treating that as logged-out bounces OTP back to "Continue with phone".
-/// A missing JWT is the only definitive sign-out; a null profile with a token
-/// is loading/error, not logout.
+/// Use [shouldLeaveAppShell] for the real gate — JWT gone *or* profile 401.
 @visibleForTesting
 bool authSessionIsGone(AsyncValue<bool> auth, {bool sessionExitStarted = false}) {
   if (sessionExitStarted) return true;
   if (auth.isLoading || auth.isRefreshing) return false;
   return auth.asData?.value == false;
+}
+
+bool _isUnauthorized(Object? error) =>
+    error is DioException && error.response?.statusCode == 401;
+
+/// True when the logged-in shell must go to Welcome.
+///
+/// A missing JWT is sign-out. A settled null profile or 401 *while a token
+/// is still marked present* is expiry — Profile used to paint
+/// "Session Expired" in-tab and leave Home / Bookings / Messages usable.
+///
+/// Loading or refreshing profile must not count: after OTP we invalidate
+/// [currentUserProvider] and the previous `AsyncData(null)` is still
+/// visible with [AsyncValue.isRefreshing] until `/auth/profile` returns.
+@visibleForTesting
+bool shouldLeaveAppShell(
+  AsyncValue<bool> auth,
+  AsyncValue<User?> user, {
+  bool sessionExitStarted = false,
+}) {
+  if (authSessionIsGone(auth, sessionExitStarted: sessionExitStarted)) {
+    return true;
+  }
+  if (auth.isLoading || auth.isRefreshing) return false;
+  if (user.isLoading || user.isRefreshing) return false;
+  if (auth.asData?.value != true) return false;
+  if (user.hasError) return _isUnauthorized(user.error);
+  return user.hasValue && user.value == null;
 }
 
 Completer<void>? _logoutGate;
@@ -78,6 +105,11 @@ final dioProvider = Provider<Dio>((ref) {
         final usedToken = e.requestOptions.extra['authToken'] as String?;
         if (currentToken == null || usedToken != currentToken) {
           debugPrint('[DIO] Ignoring stale 401 from a previous session');
+          if (currentToken == null) {
+            // Token already cleared — do not leave authState stuck true
+            // so Home / bottom nav stay usable after Profile 401.
+            ref.invalidate(authStateProvider);
+          }
           return handler.next(e);
         }
         // Attempt silent token refresh
@@ -198,12 +230,9 @@ final authStateProvider = FutureProvider<bool>((ref) async {
 final currentUserProvider = FutureProvider<User?>((ref) async {
   final hasToken = await ref.read(authTokenServiceProvider).hasToken();
   if (!hasToken) return null;
-  try {
-    return await ref.read(authRepositoryProvider).getProfile();
-  } on DioException catch (e) {
-    if (e.response?.statusCode == 401) return null;
-    rethrow;
-  }
+  // 401 is not swallowed as null — that painted Profile "Session Expired"
+  // while the interceptor/shell still treated the JWT as a live session.
+  return ref.read(authRepositoryProvider).getProfile();
 });
 
 // ── Repository ────────────────────────────────────────────────────────────────
@@ -263,6 +292,17 @@ class AuthRepository {
       debugPrint('[AUTH] verifyOtp failed: $e');
       rethrow;
     }
+  }
+
+  /// Confirms an OTP for a business phone without swapping the session.
+  Future<void> confirmOtp({
+    required String phoneNumber,
+    required String token,
+  }) async {
+    await _dio.post(
+      '/auth/confirm-otp',
+      data: {'phone': phoneNumber, 'otp': token},
+    );
   }
 
   // ── Profile ───────────────────────────────────────────────────

@@ -41,7 +41,7 @@ void main() {
       );
       await tester.pump();
       expect(find.text('Email'), findsOneWidget);
-      // Wraps a TextFormField (→ TextField) behind a glass BackdropFilter.
+      // Wraps a TextFormField (→ TextField) with a glass BackdropFilter.
       expect(find.byType(TextField), findsOneWidget);
       expect(find.byType(BackdropFilter), findsOneWidget);
     });

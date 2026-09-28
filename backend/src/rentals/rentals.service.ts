@@ -14,6 +14,48 @@ import { NotificationsService } from '../notifications/notifications.service';
 import { RedisService } from '../redis/redis.service';
 import { stripPrivateFields } from '../common/sanitize';
 
+const DEFAULT_RENTAL_RADIUS_KM = 25;
+
+function haversineKm(
+  lat1: number,
+  lng1: number,
+  lat2: number,
+  lng2: number,
+): number {
+  const r = 6371;
+  const dLat = ((lat2 - lat1) * Math.PI) / 180;
+  const dLng = ((lng2 - lng1) * Math.PI) / 180;
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos((lat1 * Math.PI) / 180) *
+      Math.cos((lat2 * Math.PI) / 180) *
+      Math.sin(dLng / 2) ** 2;
+  return 2 * r * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+export function nearbyRentals(
+  items: RentalItem[],
+  lat?: number,
+  lng?: number,
+  cityId?: string,
+): RentalItem[] {
+  const city = cityId?.trim() || '';
+  const hasGps =
+    lat != null && lng != null && Number.isFinite(lat) && Number.isFinite(lng);
+  if (!hasGps && !city) return items;
+  return items.filter((item) => {
+    const itemCity = (item as { business?: { cityId?: string | null } }).business
+      ?.cityId;
+    if (city && itemCity && city === itemCity) return true;
+    if (!hasGps || lat == null || lng == null) return false;
+    if (item.pickupLat == null || item.pickupLng == null) return false;
+    return (
+      haversineKm(lat, lng, Number(item.pickupLat), Number(item.pickupLng)) <=
+      DEFAULT_RENTAL_RADIUS_KM
+    );
+  });
+}
+
 @Injectable()
 export class RentalsService {
   // AUDIT FIX: the public catalog hit Postgres on every request. 60s cache,
@@ -73,27 +115,30 @@ export class RentalsService {
   }
 
   /** Public catalog: available items only (Redis-cached, 60s, capped). */
-  async getItems(): Promise<RentalItem[]> {
+  async getItems(
+    lat?: number,
+    lng?: number,
+    cityId?: string,
+  ): Promise<RentalItem[]> {
     const cached = await this.redisService.get(
       RentalsService.CATALOG_CACHE_KEY,
     );
-    if (cached) return JSON.parse(cached) as RentalItem[];
-
-    // AUDIT FIX: hard take — catalog must not load every row into Redis/memory.
-    const rows = await this.rentalItemRepo.find({
-      where: { isAvailable: true },
-      relations: ['owner'],
-      order: { createdAt: 'DESC' },
-      take: 100,
-    });
-
-    // Cached payloads are plain objects the ClassSerializerInterceptor can't
-    // sanitize — strip the owner's private fields before caching.
-    const items = stripPrivateFields(rows);
-    await this.redisService
-      .set(RentalsService.CATALOG_CACHE_KEY, JSON.stringify(items), 60)
-      .catch(() => {});
-    return items;
+    let items: RentalItem[];
+    if (cached) {
+      items = JSON.parse(cached) as RentalItem[];
+    } else {
+      const rows = await this.rentalItemRepo.find({
+        where: { isAvailable: true },
+        relations: ['owner'],
+        order: { createdAt: 'DESC' },
+        take: 100,
+      });
+      items = stripPrivateFields(rows);
+      await this.redisService
+        .set(RentalsService.CATALOG_CACHE_KEY, JSON.stringify(items), 60)
+        .catch(() => {});
+    }
+    return nearbyRentals(items, lat, lng, cityId);
   }
 
   /** Owner's own items (any availability). */

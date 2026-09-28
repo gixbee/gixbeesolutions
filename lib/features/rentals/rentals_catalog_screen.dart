@@ -1,34 +1,26 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../core/config/app_config.dart';
 import '../../repositories/rentals_repository.dart';
+import '../../repositories/cities_repository.dart';
+import '../../repositories/worker_repository.dart';
 import '../../shared/widgets/dribbble_background.dart';
 import '../../shared/widgets/gx_pressable.dart';
 import '../../shared/widgets/gx_skeleton.dart';
 import '../../theme.dart';
 import 'my_rentals_screen.dart';
 import 'owner_rentals_screen.dart';
-import 'rental_item_detail_screen.dart';
+import 'rental_images.dart';
+import 'rental_store_screen.dart';
 
-/// Rentals catalog — its own module beside Plan an Event (per client:
-/// "don't drop Plan an Event, I need new as rental"). Customers browse and
-/// reserve; the header links to My Rentals (reservations) and Owner mode
-/// (list your own items).
+/// Nearby verified rental stores (city or GPS radius), then items inside a store.
 class RentalsCatalogScreen extends ConsumerWidget {
   const RentalsCatalogScreen({super.key});
 
-  String _rateLabel(Map<String, dynamic> item) {
-    final daily = item['dailyRate'];
-    if (daily != null) {
-      return '₹${num.tryParse('$daily')?.round() ?? daily}/day';
-    }
-    final hourly = item['hourlyRate'];
-    return '₹${num.tryParse('$hourly')?.round() ?? hourly}/hr';
-  }
-
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final itemsAsync = ref.watch(rentalItemsProvider);
+    final storesAsync = ref.watch(rentalStoresProvider);
+    final hasFix = ref.watch(selectedLocationProvider) != null ||
+        ref.watch(currentCityProvider) != null;
 
     return Scaffold(
       backgroundColor: context.gx.bg,
@@ -75,47 +67,49 @@ class RentalsCatalogScreen extends ConsumerWidget {
               ),
               Padding(
                 padding: const EdgeInsets.fromLTRB(20, 2, 20, 12),
-                child: Text('Tools, gear & event supplies near you',
+                child: Text('Rental stores near you — city or 25 km',
                     style: TextStyle(
                         fontSize: 13,
                         color: context.gx.ink.withValues(alpha: 0.5))),
               ),
               Expanded(
-                child: itemsAsync.when(
-                  loading: () => GridView.builder(
+                child: storesAsync.when(
+                  loading: () => ListView.builder(
                     padding: const EdgeInsets.fromLTRB(20, 4, 20, 20),
-                    gridDelegate:
-                        const SliverGridDelegateWithFixedCrossAxisCount(
-                            crossAxisCount: 2,
-                            mainAxisSpacing: 12,
-                            crossAxisSpacing: 12,
-                            childAspectRatio: 0.8),
                     itemCount: 6,
-                    itemBuilder: (_, __) => const GxSkeleton(
-                        width: double.infinity,
-                        height: double.infinity,
-                        radius: 18),
+                    itemBuilder: (_, __) => const Padding(
+                      padding: EdgeInsets.only(bottom: 12),
+                      child: GxSkeleton(
+                          width: double.infinity, height: 88, radius: 18),
+                    ),
                   ),
                   error: (e, _) => Center(
-                    child: Text('Could not load rentals: $e',
-                        style: TextStyle(color: context.gx.ink.withValues(alpha: 0.54))),
+                    child: Text('Could not load rental stores: $e',
+                        style: TextStyle(
+                            color: context.gx.ink.withValues(alpha: 0.54))),
                   ),
-                  data: (items) => items.isEmpty
+                  data: (stores) => stores.isEmpty
                       ? Center(
                           child: Column(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              Icon(Icons.inventory_2_outlined,
+                              Icon(Icons.storefront_outlined,
                                   size: 44,
                                   color: context.gx.ink.withValues(alpha: 0.25)),
                               const SizedBox(height: 12),
-                              Text('No items listed yet',
+                              Text(
+                                  hasFix
+                                      ? 'No rental stores near you yet'
+                                      : 'Turn on location to see stores near you',
                                   style: TextStyle(
                                       fontSize: 14,
                                       color: context.gx.ink
                                           .withValues(alpha: 0.5))),
                               const SizedBox(height: 4),
-                              Text('Be the first — tap the shop icon above',
+                              Text(
+                                  hasFix
+                                      ? 'Stores in your city or within 25 km will show here'
+                                      : 'Rentals are shown around your current city',
                                   style: TextStyle(
                                       fontSize: 12,
                                       color: context.gx.ink
@@ -125,20 +119,16 @@ class RentalsCatalogScreen extends ConsumerWidget {
                         )
                       : RefreshIndicator(
                           onRefresh: () async =>
-                              ref.refresh(rentalItemsProvider.future),
-                          child: GridView.builder(
+                              ref.refresh(rentalStoresProvider.future),
+                          child: ListView.separated(
                             physics: const AlwaysScrollableScrollPhysics(),
                             padding:
                                 const EdgeInsets.fromLTRB(20, 4, 20, 20),
-                            gridDelegate:
-                                const SliverGridDelegateWithFixedCrossAxisCount(
-                                    crossAxisCount: 2,
-                                    mainAxisSpacing: 12,
-                                    crossAxisSpacing: 12,
-                                    childAspectRatio: 0.8),
-                            itemCount: items.length,
+                            itemCount: stores.length,
+                            separatorBuilder: (_, __) =>
+                                const SizedBox(height: 10),
                             itemBuilder: (context, i) =>
-                                _itemCard(context, items[i]),
+                                _storeCard(context, stores[i]),
                           ),
                         ),
                 ),
@@ -150,66 +140,64 @@ class RentalsCatalogScreen extends ConsumerWidget {
     );
   }
 
-  Widget _itemCard(BuildContext context, Map<String, dynamic> item) {
-    final imageUrl = item['imageUrl'] as String?;
+  Widget _storeCard(BuildContext context, Map<String, dynamic> store) {
+    final count = int.tryParse('${store['itemCount'] ?? 0}') ?? 0;
+    final location = '${store['location'] ?? ''}'.trim();
+    final distance = rentalDistanceLabel(store);
     return GxPressable(
       onTap: () => Navigator.push(
         context,
-        MaterialPageRoute(
-            builder: (_) =>
-                RentalItemDetailScreen(itemId: item['id'].toString())),
+        MaterialPageRoute(builder: (_) => RentalStoreScreen(store: store)),
       ),
       child: Container(
+        padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
           color: context.gx.card,
           borderRadius: BorderRadius.circular(18),
           border: Border.all(color: context.gx.border, width: 1.5),
         ),
-        clipBehavior: Clip.antiAlias,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+        child: Row(
           children: [
-            Expanded(
-              child: Container(
-                width: double.infinity,
+            Container(
+              width: 44,
+              height: 44,
+              decoration: BoxDecoration(
                 color: context.gx.card2,
-                child: imageUrl != null && imageUrl.isNotEmpty
-                    ? Image.network(
-                        imageUrl.startsWith('http')
-                            ? imageUrl
-                            : '${AppConfig.baseUrl}$imageUrl',
-                        fit: BoxFit.cover,
-                        cacheWidth: 400,
-                        errorBuilder: (_, __, ___) => Icon(
-                            Icons.inventory_2_outlined,
-                            color: context.gx.ink.withValues(alpha: 0.24),
-                            size: 36),
-                      )
-                    : Icon(Icons.inventory_2_outlined,
-                        color: context.gx.ink.withValues(alpha: 0.24), size: 36),
+                borderRadius: BorderRadius.circular(14),
               ),
+              child: const Icon(Icons.storefront_rounded,
+                  color: GixbeeTheme.accentTeal, size: 22),
             ),
-            Padding(
-              padding: const EdgeInsets.all(10),
+            const SizedBox(width: 12),
+            Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('${item['name'] ?? ''}',
+                  Text('${store['name'] ?? 'Rental store'}',
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
-                          fontSize: 13.5,
+                          fontSize: 14.5,
                           fontWeight: FontWeight.w800,
                           color: context.gx.ink)),
                   const SizedBox(height: 3),
-                  Text(_rateLabel(item),
-                      style: const TextStyle(
-                          fontSize: 12.5,
-                          fontWeight: FontWeight.w700,
-                          color: GixbeeTheme.accentTeal)),
+                  Text(
+                    [
+                      if (location.isNotEmpty) location,
+                      if (distance != null) distance,
+                      '$count item${count == 1 ? '' : 's'}',
+                    ].join(' · '),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                        fontSize: 12,
+                        color: context.gx.ink.withValues(alpha: 0.5)),
+                  ),
                 ],
               ),
             ),
+            Icon(Icons.chevron_right_rounded,
+                color: context.gx.ink.withValues(alpha: 0.35)),
           ],
         ),
       ),

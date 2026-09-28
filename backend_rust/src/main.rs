@@ -14,6 +14,7 @@ mod hiring;
 mod jobs;
 mod master_entries;
 mod matching;
+mod match_engine;
 mod messages;
 mod middleware;
 mod notifications;
@@ -93,6 +94,10 @@ async fn main() -> anyhow::Result<()> {
     });
     tokio::spawn(matching::run_scheduler(state.clone()));
     tokio::spawn(jobs::run_scheduler(state.clone()));
+    let embed_state = state.clone();
+    tokio::spawn(async move {
+        crate::match_engine::persist::backfill_embeddings(&embed_state).await;
+    });
 
     let logging_state = state.clone();
     let uploads = ServeDir::new(&config.uploads_dir);

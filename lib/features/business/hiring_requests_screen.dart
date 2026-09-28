@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -11,7 +13,9 @@ import '../../shared/widgets/gx_sheet.dart';
 import '../../shared/widgets/gx_snackbar.dart';
 import '../../theme.dart';
 import '../jobs/hiring_progress_screen.dart';
+import '../jobs/hiring_flow.dart';
 import '../jobs/pending_payments_screen.dart';
+import '../messages/chat_thread_screen.dart';
 
 /// Employer's Smart Hiring requests list.
 class HiringRequestsScreen extends ConsumerStatefulWidget {
@@ -64,7 +68,7 @@ class _HiringRequestsScreenState extends ConsumerState<HiringRequestsScreen> {
               padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
               child: Text(
                 'Candidates come from Find a Job → Job Types. '
-                'Interested seekers appear here for shortlist / hire — their Offers tab shows your decision.',
+                'Matching recommends people both ways. Invite to chat, or wait for Interested — phone stays locked until they share.',
                 style: TextStyle(
                   fontSize: 12.5,
                   height: 1.35,
@@ -321,9 +325,9 @@ class _HiringRequestDetailScreenState
                   children: [
                     Text(
                       [
-                        status.replaceAll('_', ' '),
+                        '${d['jobStatus'] ?? status}'.replaceAll('_', ' '),
                         '${d['interestedCount'] ?? 0} interested',
-                        '${d['notifiedCount'] ?? 0} notified',
+                        '${d['notifiedCount'] ?? 0} recommended',
                         '₹${d['salaryOffered']}/mo',
                       ].join(' · '),
                       style: TextStyle(
@@ -347,9 +351,32 @@ class _HiringRequestDetailScreenState
                         onTap: _showGuaranteeSheet,
                       ),
                     ],
+                    if (status == 'COLLECTING' || status == 'DELIVERED') ...[
+                      const SizedBox(height: 14),
+                      GxButton(
+                        label: 'Close this job',
+                        filled: false,
+                        accent: GixbeeTheme.brandRed,
+                        onTap: () async {
+                          try {
+                            await ref
+                                .read(matchingRepositoryProvider)
+                                .closeRequest(widget.requestId);
+                            if (mounted) _load();
+                          } on DioException catch (e) {
+                            if (!context.mounted) return;
+                            showGxSnack(
+                              context,
+                              '${e.response?.data is Map ? e.response!.data['message'] : e.message}',
+                              type: GxSnackType.error,
+                            );
+                          }
+                        },
+                      ),
+                    ],
                     const SizedBox(height: 18),
                     Text(
-                      'Interested candidates',
+                      'Recommended candidates',
                       style: TextStyle(
                         fontWeight: FontWeight.w900,
                         fontSize: 16,
@@ -362,8 +389,8 @@ class _HiringRequestDetailScreenState
                         padding: const EdgeInsets.only(top: 24),
                         child: Text(
                           status == 'COLLECTING'
-                              ? 'Collecting interest… check back soon.'
-                              : 'No interested candidates on this request.',
+                              ? 'Matching nearby profiles… check back soon.'
+                              : 'No recommended candidates on this job.',
                           style: TextStyle(
                             color: context.gx.ink.withValues(alpha: 0.5),
                           ),
@@ -373,7 +400,26 @@ class _HiringRequestDetailScreenState
                       for (final c in candidates)
                         _CandidateCard(
                           candidate: Map<String, dynamic>.from(c as Map),
+                          jobClosed: d['jobStatus'] == 'CLOSED' ||
+                              d['filled'] == true,
                           onDecision: _setDecision,
+                          onInvite: (id) async {
+                            await ref
+                                .read(matchingRepositoryProvider)
+                                .updateApplication(id, 'invite', {});
+                            if (mounted) _load();
+                          },
+                          onRequestContact: (id) async {
+                            await ref
+                                .read(matchingRepositoryProvider)
+                                .updateApplication(id, 'request-contact', {});
+                            if (mounted) _load();
+                          },
+                          onView: (id) {
+                            unawaited(ref
+                                .read(matchingRepositoryProvider)
+                                .updateApplication(id, 'view', {}));
+                          },
                         ),
                   ],
                 ),
@@ -385,18 +431,43 @@ class _HiringRequestDetailScreenState
 
 class _CandidateCard extends StatelessWidget {
   final Map<String, dynamic> candidate;
+  final bool jobClosed;
   final Future<void> Function(String interestId, String decision) onDecision;
+  final Future<void> Function(String interestId) onInvite;
+  final Future<void> Function(String interestId) onRequestContact;
+  final void Function(String interestId) onView;
 
   const _CandidateCard({
     required this.candidate,
+    required this.jobClosed,
     required this.onDecision,
+    required this.onInvite,
+    required this.onRequestContact,
+    required this.onView,
   });
 
   @override
   Widget build(BuildContext context) {
     final decision = candidate['decision']?.toString() ?? 'PENDING';
+    final response = candidate['response']?.toString() ?? 'PENDING';
     final interestId = candidate['interestId']?.toString() ?? '';
+    final candidateId = candidate['candidateId']?.toString() ?? '';
     final phone = candidate['phone']?.toString();
+    final invited = candidate['invited'] == true;
+    final canChat = hiringCanChat(response: response, decision: decision);
+    final stage = hiringPipelineLabel(
+      response: response,
+      decision: decision,
+      progress: {
+        'invited': invited,
+        'stage': candidate['pipelineStage'],
+        'contactShared': candidate['contactShared'] == true,
+      },
+    );
+    final reasons = (candidate['matchReasons'] as List?)
+            ?.map((e) => e.toString())
+            .toList() ??
+        const <String>[];
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
@@ -420,13 +491,13 @@ class _CandidateCard extends StatelessWidget {
                     ),
                   ),
                   Text(
-                    decision,
+                    stage,
                     style: TextStyle(
                       fontSize: 11,
                       fontWeight: FontWeight.w800,
                       color: decision == 'HIRED'
                           ? GixbeeTheme.accentGreen
-                          : decision == 'SHORTLISTED'
+                          : decision == 'SHORTLISTED' || canChat
                               ? GixbeeTheme.accentBlue
                               : context.gx.ink.withValues(alpha: 0.45),
                     ),
@@ -462,44 +533,114 @@ class _CandidateCard extends StatelessWidget {
                   ),
                 ),
               ],
-              if (phone != null && phone.isNotEmpty) ...[
+              if (reasons.isNotEmpty) ...[
                 const SizedBox(height: 6),
-                Text('Phone: $phone',
-                    style: const TextStyle(
-                      fontWeight: FontWeight.w700,
-                      color: GixbeeTheme.accentBlue,
-                    )),
-              ],
-              if (decision == 'PENDING') ...[
-                const SizedBox(height: 12),
-                Row(
-                  children: [
-                    Expanded(
-                      child: GxButton(
-                        label: 'Reject',
-                        filled: false,
-                        accent: GixbeeTheme.accentBlue,
-                        onTap: () => onDecision(interestId, 'REJECTED'),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: GxButton(
-                        label: 'Shortlist',
-                        accent: GixbeeTheme.accentBlue,
-                        onTap: () => onDecision(interestId, 'SHORTLISTED'),
-                      ),
-                    ),
-                  ],
+                Text(
+                  'Why they match: ${reasons.join(' · ')}',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: context.gx.ink.withValues(alpha: 0.55),
+                  ),
                 ),
               ],
-              if (decision != 'PENDING') ...[
-                const SizedBox(height: 10),
+              const SizedBox(height: 6),
+              Text(
+                phone != null && phone.isNotEmpty
+                    ? 'Phone: $phone'
+                    : 'Phone locked  ·  Email locked',
+                style: TextStyle(
+                  fontWeight: FontWeight.w700,
+                  fontSize: 12,
+                  color: phone != null && phone.isNotEmpty
+                      ? GixbeeTheme.accentBlue
+                      : context.gx.ink.withValues(alpha: 0.45),
+                ),
+              ),
+              if (response == 'PENDING' && !jobClosed) ...[
+                const SizedBox(height: 12),
+                GxButton(
+                  label: invited ? 'Invite sent' : 'Invite to Chat',
+                  accent: GixbeeTheme.brandOrange,
+                  onTap: invited
+                      ? null
+                      : () {
+                          onView(interestId);
+                          onInvite(interestId);
+                        },
+                ),
+              ],
+              if (canChat) ...[
+                if (!jobClosed) ...[
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: GxButton(
+                          label: 'Reject',
+                          filled: false,
+                          accent: GixbeeTheme.accentBlue,
+                          onTap: () => onDecision(interestId, 'REJECTED'),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: GxButton(
+                          label: decision == 'SHORTLISTED'
+                              ? 'Shortlisted'
+                              : 'Shortlist',
+                          accent: GixbeeTheme.accentBlue,
+                          onTap: decision == 'SHORTLISTED'
+                              ? null
+                              : () => onDecision(interestId, 'SHORTLISTED'),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+                const SizedBox(height: 8),
+                GxButton(
+                  label: 'Open chat',
+                  filled: false,
+                  accent: GixbeeTheme.accentGreen,
+                  onTap: candidateId.isEmpty
+                      ? null
+                      : () => Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => ChatThreadScreen(
+                                otherUserId: candidateId,
+                                otherUserName:
+                                    '${candidate['name'] ?? 'Candidate'}',
+                              ),
+                            ),
+                          ),
+                ),
+                if (candidate['contactShared'] != true) ...[
+                  const SizedBox(height: 8),
+                  GxButton(
+                    label: candidate['contactRequested'] == true
+                        ? 'Contact requested'
+                        : 'Request contact',
+                    filled: false,
+                    accent: GixbeeTheme.accentBlue,
+                    onTap: candidate['contactRequested'] == true
+                        ? null
+                        : () => onRequestContact(interestId),
+                  ),
+                ],
+              ],
+              if (decision == 'SHORTLISTED' || decision == 'HIRED') ...[
+                const SizedBox(height: 8),
                 GxButton(
                   label: 'Interview, offer & joining',
                   accent: GixbeeTheme.accentGreen,
-                  onTap: () => Navigator.push(context, MaterialPageRoute(
-                    builder: (_) => HiringProgressScreen(interestId: interestId))),
+                  onTap: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) =>
+                          HiringProgressScreen(interestId: interestId),
+                    ),
+                  ),
                 ),
               ],
             ],

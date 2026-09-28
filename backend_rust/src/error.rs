@@ -71,11 +71,20 @@ impl AppError {
         }
     }
 
-    /// Admin Logs: capture message/detail for 5xx only (4xx stay metadata-only).
+    /// Admin Logs: 5xx keep sqlx detail; 4xx store the public message so
+    /// POST /businesses (etc.) is not a blank WARN row.
     pub fn failure_log(&self) -> Option<ApiFailureLog> {
-        let (status, _, _) = self.status_and_error();
+        let (status, _, message) = self.status_and_error();
         if !status.is_server_error() {
-            return None;
+            let text = message
+                .as_str()
+                .map(str::to_owned)
+                .unwrap_or_else(|| message.to_string());
+            return Some(ApiFailureLog {
+                message: text,
+                detail: None,
+                log_type: None,
+            });
         }
         match self {
             AppError::Sqlx(e) => {

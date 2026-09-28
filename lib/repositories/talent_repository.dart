@@ -90,4 +90,12 @@ class TalentRepository {
     final response = await _dio.post('/uploads/image', data: form);
     return response.data['url'] as String;
   }
+
+  Future<Map<String, dynamic>> uploadResume(List<int> bytes, String filename) async {
+    final form = FormData.fromMap({
+      'file': MultipartFile.fromBytes(bytes, filename: filename),
+    });
+    final response = await _dio.post('/uploads/resume', data: form);
+    return Map<String, dynamic>.from(response.data as Map);
+  }
 }

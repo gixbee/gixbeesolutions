@@ -4,12 +4,16 @@ import 'hiring_progress_screen.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
+import '../../repositories/hiring_repository.dart';
 import '../../repositories/matching_repository.dart';
+import 'matched_job_detail_screen.dart';
 import 'hiring_catalog.dart';
+import 'hiring_flow.dart';
 import '../../shared/widgets/gx_button.dart';
 import '../../shared/widgets/gx_empty.dart';
 import '../../shared/widgets/gx_snackbar.dart';
 import '../../theme.dart';
+import '../messages/chat_thread_screen.dart';
 
 /// Smart Hiring alerts — Interested / Not Interested + employer decisions.
 /// Counterpart to List My Business → Hire Employee matching.
@@ -60,8 +64,8 @@ class _HiringOffersScreenState extends ConsumerState<HiringOffersScreen> {
 
   List<Map<String, dynamic>> get _filtered {
     switch (_filter) {
-      case 'Open':
-        return _offers.where((o) => o['open'] == true).toList();
+      case 'New':
+        return _offers.where(_isNewInvite).toList();
       case 'Interested':
         return _offers
             .where((o) => o['response'] == 'INTERESTED')
@@ -76,6 +80,13 @@ class _HiringOffersScreenState extends ConsumerState<HiringOffersScreen> {
       default:
         return _offers;
     }
+  }
+
+  bool _isNewInvite(Map<String, dynamic> offer) {
+    final response = offer['response']?.toString() ?? '';
+    if (response == 'INTERESTED' || response == 'NOT_INTERESTED') return false;
+    if (offer['decision'] == 'REJECTED' || offer['decision'] == 'HIRED') return false;
+    return offer['open'] == true;
   }
 
   Future<void> _respond(Map<String, dynamic> offer, bool interested) async {
@@ -103,16 +114,35 @@ class _HiringOffersScreenState extends ConsumerState<HiringOffersScreen> {
     }
   }
 
+  Future<void> _progressAction(Map<String, dynamic> offer, String action) async {
+    final interestId = offer['id']?.toString();
+    if (interestId == null || interestId.isEmpty) return;
+    try {
+      await ref
+          .read(matchingRepositoryProvider)
+          .updateApplication(interestId, action, {});
+      if (!mounted) return;
+      showGxSnack(context, 'Updated', type: GxSnackType.success);
+      _load();
+    } on DioException catch (e) {
+      final msg = e.response?.data is Map
+          ? (e.response!.data['message']?.toString() ?? e.message)
+          : e.message;
+      if (!mounted) return;
+      showGxSnack(context, msg ?? 'Could not update', type: GxSnackType.error);
+    }
+  }
+
   String _statusLabel(Map<String, dynamic> o) {
-    final decision = o['decision']?.toString();
-    if (decision == 'SHORTLISTED') return 'Shortlisted';
-    if (decision == 'REJECTED') return 'Rejected';
-    if (decision == 'HIRED') return 'Hired';
-    final response = o['response']?.toString();
-    if (response == 'INTERESTED') return 'Pending';
-    if (response == 'NOT_INTERESTED') return 'Passed';
-    if (o['open'] == true) return 'New offer';
-    return 'Closed';
+    return hiringPipelineLabel(
+      response: o['response']?.toString() ?? 'PENDING',
+      decision: o['decision']?.toString() ?? 'PENDING',
+      progress: {
+        'invited': o['invited'] == true,
+        'stage': o['pipelineStage'],
+        'contactShared': o['contactShared'] == true,
+      },
+    ).replaceAll('_', ' ');
   }
 
   Color _statusColor(Map<String, dynamic> o) {
@@ -128,7 +158,7 @@ class _HiringOffersScreenState extends ConsumerState<HiringOffersScreen> {
   Widget build(BuildContext context) {
     final catalog =
         ref.watch(hiringCatalogProvider).value ?? HiringCatalog.fallback;
-    final filters = ['All', 'Open', 'Interested', 'Closed'];
+    final filters = ['All', 'New', 'Interested', 'Closed'];
     return SafeArea(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -136,7 +166,7 @@ class _HiringOffersScreenState extends ConsumerState<HiringOffersScreen> {
           Padding(
             padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
             child: Text(
-              'Alerts',
+              'Invites',
               style: TextStyle(
                 fontSize: 22,
                 fontWeight: FontWeight.w900,
@@ -147,8 +177,7 @@ class _HiringOffersScreenState extends ConsumerState<HiringOffersScreen> {
           Padding(
             padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
             child: Text(
-              'Smart matches from employers using Hire Employee. '
-              'Add Profiles so the matcher can find you.',
+              'Employers interested in your profile will appear here.',
               style: TextStyle(
                 fontSize: 13,
                 height: 1.35,
@@ -187,14 +216,14 @@ class _HiringOffersScreenState extends ConsumerState<HiringOffersScreen> {
                               GxEmptyState(
                                 icon: Icons.notifications_active_outlined,
                                 title: _prefCount == 0
-                                    ? 'Add a Profile first'
-                                    : 'No alerts yet',
+                                    ? 'No job profile yet'
+                                    : 'No invites yet',
                                 message: _prefCount == 0
-                                    ? 'Employers using Hire Employee match against your career profiles. Add one on the Profiles tab to receive alerts here.'
-                                    : 'When a verified employer runs Smart Hiring for your profiles, alerts appear here.',
+                                    ? 'Create a profile so employers can invite you.'
+                                    : 'Employers interested in your profile will appear here.',
                                 actionLabel: _prefCount == 0 &&
                                         widget.onGoToProfiles != null
-                                    ? 'Go to Profiles'
+                                    ? 'Go to Profile'
                                     : null,
                                 onAction: _prefCount == 0
                                     ? widget.onGoToProfiles
@@ -246,8 +275,23 @@ class _HiringOffersScreenState extends ConsumerState<HiringOffersScreen> {
                                           ],
                                         ),
                                         const SizedBox(height: 6),
+                                        if ((o['description'] ?? '').toString().trim().isNotEmpty) ...[
+                                          Text(
+                                            '${o['description']}',
+                                            style: TextStyle(
+                                              fontSize: 13,
+                                              height: 1.35,
+                                              color: context.gx.ink.withValues(alpha: 0.75),
+                                            ),
+                                          ),
+                                          const SizedBox(height: 6),
+                                        ],
                                         Text(
                                           [
+                                            if ((o['businessName'] ?? '')
+                                                .toString()
+                                                .isNotEmpty)
+                                              '${o['businessName']}',
                                             if (empLabel.isNotEmpty) empLabel,
                                             if (salaryLine.isNotEmpty) salaryLine,
                                             if ((o['location'] ?? '')
@@ -278,14 +322,142 @@ class _HiringOffersScreenState extends ConsumerState<HiringOffersScreen> {
                                             ),
                                           ),
                                         ],
-                                        if (o['response'] == 'INTERESTED') ...[
+                                        if (o['boardInvite'] == true) ...[
                                           const SizedBox(height: 12),
-                                          GxButton(label: 'Application progress', filled: false, onTap: () async {
-                                            await Navigator.push(context, MaterialPageRoute(builder: (_) => HiringProgressScreen(interestId: '${o['id']}')));
-                                            if (mounted) _load();
-                                          }),
+                                          GxButton(
+                                            label: 'View job',
+                                            filled: false,
+                                            accent: GixbeeTheme.accentGreen,
+                                            onTap: () async {
+                                              final jobId = o['jobId']?.toString();
+                                              if (jobId == null || jobId.isEmpty) return;
+                                              final job = await ref.read(hiringRepositoryProvider).getJob(jobId);
+                                              if (!context.mounted) return;
+                                              await Navigator.push(
+                                                context,
+                                                MaterialPageRoute(builder: (_) => MatchedJobDetailScreen(job: job)),
+                                              );
+                                            },
+                                          ),
+                                          const SizedBox(height: 8),
+                                          GxButton(
+                                            label: 'Open chat',
+                                            accent: GixbeeTheme.accentGreen,
+                                            onTap: (o['employerId'] ?? '').toString().isEmpty
+                                                ? null
+                                                : () => Navigator.push(
+                                                      context,
+                                                      MaterialPageRoute(
+                                                        builder: (_) => ChatThreadScreen(
+                                                          otherUserId: '${o['employerId']}',
+                                                          otherUserName: '${o['businessName'] ?? 'Employer'}',
+                                                        ),
+                                                      ),
+                                                    ),
+                                          ),
                                         ],
-                                        if (o['open'] == true) ...[
+                                        if (o['boardInvite'] != true && o['invited'] == true &&
+                                            o['response'] == 'PENDING') ...[
+                                          const SizedBox(height: 8),
+                                          Text(
+                                            'This employer invited you to chat.',
+                                            style: TextStyle(
+                                              fontSize: 12,
+                                              color: context.gx.ink
+                                                  .withValues(alpha: 0.6),
+                                            ),
+                                          ),
+                                        ],
+                                        if (hiringCanChat(
+                                          response:
+                                              o['response']?.toString() ??
+                                                  'PENDING',
+                                          decision:
+                                              o['decision']?.toString() ??
+                                                  'PENDING',
+                                        )) ...[
+                                          const SizedBox(height: 12),
+                                          GxButton(
+                                            label: 'Open chat',
+                                            filled: false,
+                                            accent: GixbeeTheme.accentGreen,
+                                            onTap: (o['employerId'] ?? '')
+                                                    .toString()
+                                                    .isEmpty
+                                                ? null
+                                                : () => Navigator.push(
+                                                      context,
+                                                      MaterialPageRoute(
+                                                        builder: (_) =>
+                                                            ChatThreadScreen(
+                                                          otherUserId:
+                                                              '${o['employerId']}',
+                                                          otherUserName:
+                                                              '${o['businessName'] ?? 'Employer'}',
+                                                        ),
+                                                      ),
+                                                    ),
+                                          ),
+                                          const SizedBox(height: 8),
+                                          GxButton(
+                                            label: 'Application progress',
+                                            filled: false,
+                                            onTap: () async {
+                                              await Navigator.push(
+                                                context,
+                                                MaterialPageRoute(
+                                                  builder: (_) =>
+                                                      HiringProgressScreen(
+                                                    interestId: '${o['id']}',
+                                                  ),
+                                                ),
+                                              );
+                                              if (mounted) _load();
+                                            },
+                                          ),
+                                          if (o['contactRequested'] == true &&
+                                              o['contactShared'] != true) ...[
+                                            const SizedBox(height: 8),
+                                            GxButton(
+                                              label: 'Share my contact',
+                                              onTap: () => _progressAction(
+                                                  o, 'share-contact'),
+                                            ),
+                                            const SizedBox(height: 8),
+                                            GxButton(
+                                              label: 'Keep contact locked',
+                                              filled: false,
+                                              onTap: () => _progressAction(
+                                                  o, 'decline-contact'),
+                                            ),
+                                          ],
+                                        ],
+                                        if (o['response'] == 'PENDING' &&
+                                            o['invited'] == true) ...[
+                                          const SizedBox(height: 14),
+                                          Row(
+                                            children: [
+                                              if (o['open'] == true) ...[
+                                                Expanded(
+                                                  child: GxButton(
+                                                    label: 'Not Interested',
+                                                    filled: false,
+                                                    onTap: () =>
+                                                        _respond(o, false),
+                                                  ),
+                                                ),
+                                                const SizedBox(width: 10),
+                                              ],
+                                              Expanded(
+                                                child: GxButton(
+                                                  label: 'Accept invite',
+                                                  onTap: () => _progressAction(
+                                                      o, 'accept-invite'),
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ] else if (o['open'] == true) ...[
                                           const SizedBox(height: 14),
                                           Row(
                                             children: [
@@ -300,7 +472,7 @@ class _HiringOffersScreenState extends ConsumerState<HiringOffersScreen> {
                                               const SizedBox(width: 10),
                                               Expanded(
                                                 child: GxButton(
-                                                  label: 'Interested',
+                                                  label: "I'm Interested",
                                                   onTap: () =>
                                                       _respond(o, true),
                                                 ),

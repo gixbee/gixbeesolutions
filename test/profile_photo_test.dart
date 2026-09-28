@@ -27,6 +27,35 @@ void main() {
     });
   });
 
+  group('firstNonEmptyPhoto', () {
+    test('skips null and blank talent photoUrl and uses the account avatar', () {
+      expect(
+        firstNonEmptyPhoto([null, '', '  ', '/uploads/me.jpg']),
+        '/uploads/me.jpg',
+      );
+    });
+
+    test('prefers an existing talent photo over the account avatar', () {
+      expect(
+        firstNonEmptyPhoto(['/uploads/pro.jpg', '/uploads/me.jpg']),
+        '/uploads/pro.jpg',
+      );
+    });
+  });
+
+  group('registerProPhotoHint', () {
+    test('does not ask to upload again when a photo is already set', () {
+      expect(
+        registerProPhotoHint('/uploads/me.jpg'),
+        'This is your profile photo. Tap to change it.',
+      );
+      expect(
+        registerProPhotoHint(null),
+        'Tap to upload a profile photo',
+      );
+    });
+  });
+
   group('encodeWhatsAppProfileJpeg', () {
     test('center-crops a rectangle and resizes to 640 square JPEG', () {
       final src = img.Image(width: 1200, height: 800);
@@ -60,6 +89,38 @@ void main() {
       final decoded = img.decodeJpg(thumb)!;
       expect(decoded.width, kProfilePhotoThumbSize);
       expect(decoded.height, kProfilePhotoThumbSize);
+    });
+  });
+
+  group('encodeWhatsAppPhotoJpeg', () {
+    test('keeps aspect ratio and caps the long edge at 1600', () {
+      final src = img.Image(width: 2400, height: 1600);
+      img.fill(src, color: img.ColorRgb8(40, 120, 200));
+      final bytes = Uint8List.fromList(img.encodePng(src));
+
+      final decoded = img.decodeJpg(encodeWhatsAppPhotoJpeg(bytes))!;
+      expect(decoded.width, kPhotoMaxEdge);
+      expect(decoded.height, 1067);
+    });
+
+    test('does not upscale a smaller photo', () {
+      final src = img.Image(width: 800, height: 600);
+      img.fill(src, color: img.ColorRgb8(20, 80, 40));
+      final bytes = Uint8List.fromList(img.encodePng(src));
+
+      final decoded = img.decodeJpg(encodeWhatsAppPhotoJpeg(bytes))!;
+      expect(decoded.width, 800);
+      expect(decoded.height, 600);
+    });
+
+    test('caps a tall portrait on height', () {
+      final src = img.Image(width: 1200, height: 2400);
+      img.fill(src, color: img.ColorRgb8(180, 90, 20));
+      final bytes = Uint8List.fromList(img.encodePng(src));
+
+      final decoded = img.decodeJpg(encodeWhatsAppPhotoJpeg(bytes))!;
+      expect(decoded.width, 800);
+      expect(decoded.height, kPhotoMaxEdge);
     });
   });
 }

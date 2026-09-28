@@ -28,6 +28,9 @@ class Business {
   /// a simple-json array of ISO date strings). Empty when none.
   final List<DateTime> offlineDays;
 
+  /// Hiring registration extras (employer kind, industries, pin, role).
+  final Map<String, dynamic>? hiringProfile;
+
   Business({
     required this.id,
     required this.name,
@@ -45,6 +48,7 @@ class Business {
     this.createdAt,
     this.operatorIds = const [],
     this.offlineDays = const [],
+    this.hiringProfile,
   });
 
   factory Business.fromJson(Map<String, dynamic> json) {
@@ -67,6 +71,9 @@ class Business {
       createdAt: json['createdAt'] != null ? DateTime.parse(json['createdAt']) : null,
       operatorIds: _parseStringList(json['operatorIds']),
       offlineDays: _parseDateList(json['offlineDays']),
+      hiringProfile: json['hiringProfile'] is Map
+          ? Map<String, dynamic>.from(json['hiringProfile'] as Map)
+          : null,
     );
   }
 
@@ -83,6 +90,8 @@ class Business {
       'eventServices': eventServices,
       // Only send when set — the backend DTO validates cityId as a UUID.
       if (cityId != null) 'cityId': cityId,
+      if (hiringProfile != null && hiringProfile!.isNotEmpty)
+        'hiringProfile': hiringProfile,
     };
   }
 }

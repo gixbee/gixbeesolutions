@@ -4,7 +4,7 @@ CREATE EXTENSION IF NOT EXISTS pgcrypto;
 DO $$ BEGIN CREATE TYPE "businesses_type_enum" AS ENUM ('SERVICE','HIRING','RENTAL'); EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 DO $$ BEGIN CREATE TYPE "businesses_servicetype_enum" AS ENUM ('HALL','CATERING','DECORATION','PHOTOGRAPHY'); EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 DO $$ BEGIN CREATE TYPE "businesses_status_enum" AS ENUM ('PENDING','VERIFIED','REJECTED'); EXCEPTION WHEN duplicate_object THEN NULL; END $$;
-DO $$ BEGIN CREATE TYPE "rental_reservations_status_enum" AS ENUM ('PENDING','CONFIRMED','ACTIVE','COMPLETED','CANCELLED','REJECTED'); EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+DO $$ BEGIN CREATE TYPE "rental_reservations_status_enum" AS ENUM ('PENDING','TEMP_HOLD','PAYMENT_PENDING','PENDING_OWNER_CONFIRMATION','CONFIRMED','ACTIVE','RETURN_PENDING','COMPLETED','CANCELLED','REJECTED'); EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 DO $$ BEGIN CREATE TYPE "job_applications_status_enum" AS ENUM ('APPLIED','INTERVIEW','SELECTED','REJECTED','NO_SHOW','WITHDRAWN'); EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 DO $$ BEGIN CREATE TYPE "hiring_requests_status_enum" AS ENUM ('COLLECTING','DELIVERED','GUARANTEE_FAILED','RESOLVED_CREDIT','RESOLVED_REFUND','CLOSED'); EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 DO $$ BEGIN CREATE TYPE "job_preferences_employmenttype_enum" AS ENUM ('FT','PT','INTERN','CONTRACT'); EXCEPTION WHEN duplicate_object THEN NULL; END $$;
@@ -12,7 +12,7 @@ DO $$ BEGIN CREATE TYPE "hiring_requests_employmenttype_enum" AS ENUM ('FT','PT'
 DO $$ BEGIN CREATE TYPE "job_preferences_noticeperiod_enum" AS ENUM ('IMMEDIATE','DAYS_15','DAYS_30','DAYS_60','DAYS_90'); EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 DO $$ BEGIN CREATE TYPE "hiring_interests_response_enum" AS ENUM ('PENDING','INTERESTED','NOT_INTERESTED'); EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 DO $$ BEGIN CREATE TYPE "hiring_interests_decision_enum" AS ENUM ('PENDING','SHORTLISTED','REJECTED','HIRED'); EXCEPTION WHEN duplicate_object THEN NULL; END $$;
-DO $$ BEGIN CREATE TYPE "payment_orders_purpose_enum" AS ENUM ('WALLET_RECHARGE','JOB_CREDITS','PERIOD_FEE','LATE_CANCEL_COMPENSATION','HIRING_MATCH_FEE','EXTRA_JOB_TYPE_FEE'); EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+DO $$ BEGIN CREATE TYPE "payment_orders_purpose_enum" AS ENUM ('WALLET_RECHARGE','JOB_CREDITS','PERIOD_FEE','LATE_CANCEL_COMPENSATION','HIRING_MATCH_FEE','EXTRA_JOB_TYPE_FEE','RENTAL_ADVANCE','RENTAL_SETTLEMENT'); EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 DO $$ BEGIN CREATE TYPE "payment_orders_status_enum" AS ENUM ('CREATED','CREDITED','FAILED'); EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 DO $$ BEGIN CREATE TYPE "worker_strikes_type_enum" AS ENUM ('GPS_FORFEIT','NO_SHOW','ADMIN'); EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 DO $$ BEGIN CREATE TYPE "worker_strikes_status_enum" AS ENUM ('ACTIVE','APPEALED','OVERTURNED','UPHELD'); EXCEPTION WHEN duplicate_object THEN NULL; END $$;
@@ -46,6 +46,7 @@ CREATE TABLE IF NOT EXISTS businesses (
   status "businesses_status_enum" NOT NULL DEFAULT 'PENDING',
   "operatorIds" text,
   "offlineDays" jsonb,
+  "hiringProfile" jsonb NOT NULL DEFAULT '{}'::jsonb,
   "createdAt" timestamptz NOT NULL DEFAULT now(),
   "updatedAt" timestamptz NOT NULL DEFAULT now()
 );
@@ -60,9 +61,12 @@ CREATE TABLE IF NOT EXISTS rental_items (
   "deliveryAvailable" boolean NOT NULL DEFAULT false,
   "deliveryFee" numeric(10,2) NOT NULL DEFAULT 0,
   "depositPerUnit" numeric(10,2) NOT NULL DEFAULT 0,
+  "pickupLat" double precision,
+  "pickupLng" double precision,
   name varchar NOT NULL,
   description text,
   "imageUrl" varchar,
+  "imageUrls" jsonb NOT NULL DEFAULT '[]'::jsonb,
   "hourlyRate" numeric(10,2) NOT NULL,
   "dailyRate" numeric(10,2),
   "minHoursToRent" integer NOT NULL DEFAULT 1,

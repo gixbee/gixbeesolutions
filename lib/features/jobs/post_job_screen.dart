@@ -8,9 +8,11 @@ import '../../repositories/hiring_repository.dart';
 import '../../repositories/business_repository.dart';
 import '../../repositories/master_entries_repository.dart';
 import '../../shared/models/job_post.dart';
+import '../booking/location_pin_screen.dart';
 
 class PostJobScreen extends ConsumerStatefulWidget {
-  const PostJobScreen({super.key});
+  final String? businessId;
+  const PostJobScreen({super.key, this.businessId});
 
   @override
   ConsumerState<PostJobScreen> createState() => _PostJobScreenState();
@@ -32,6 +34,10 @@ class _PostJobScreenState extends ConsumerState<PostJobScreen> {
 
   String _selectedJobType = 'Full Time';
   final List<String> _jobTypeOptions = ['Full Time', 'Part Time', 'Contract'];
+  String _workMode = 'ONSITE';
+  String _salaryPeriod = 'MONTHLY';
+  double? _lat;
+  double? _lng;
 
   bool _isLoading = false;
 
@@ -71,10 +77,35 @@ class _PostJobScreenState extends ConsumerState<PostJobScreen> {
     try {
       // 1. Get user's business
       final businesses = await ref.read(businessRepositoryProvider).getMyBusinesses();
-      if (businesses.isEmpty) {
-        throw 'You must list a business before you can post a job.';
+      final hiring = businesses
+          .where((b) => b.type == 'HIRING' && b.status == 'VERIFIED')
+          .toList();
+      var businessId = widget.businessId;
+      if (businessId == null && hiring.length == 1) {
+        businessId = hiring.first.id;
+      } else if (businessId == null && hiring.length > 1) {
+        if (!mounted) return;
+        businessId = await showDialog<String>(
+          context: context,
+          builder: (ctx) => SimpleDialog(
+            title: const Text('Which business is posting?'),
+            children: [
+              for (final business in hiring)
+                SimpleDialogOption(
+                  onPressed: () => Navigator.pop(ctx, business.id),
+                  child: Text(business.name),
+                ),
+            ],
+          ),
+        );
+        if (businessId == null) {
+          if (mounted) setState(() => _isLoading = false);
+          return;
+        }
       }
-      final myBusiness = businesses.first;
+      if (businessId == null) {
+        throw 'A verified hiring business is required before you can post a job.';
+      }
 
       // 2. Create JobPost model
       final jobPost = JobPost(
@@ -87,10 +118,14 @@ class _PostJobScreenState extends ConsumerState<PostJobScreen> {
         experience: _selectedExperience,
         location: _locationController.text,
         isActive: true,
-        employerId: myBusiness.id,
+        employerId: '',
+        workMode: _workMode,
+        salaryPeriod: _salaryPeriod,
+        lat: _lat,
+        lng: _lng,
       );
 
-      await ref.read(hiringRepositoryProvider).postJob(jobPost);
+      await ref.read(hiringRepositoryProvider).postJob(jobPost, businessId: businessId);
 
       if (!mounted) return;
       showGxSnack(context, 'Job Posted Successfully',
@@ -191,6 +226,42 @@ class _PostJobScreenState extends ConsumerState<PostJobScreen> {
                 },
               ),
               const SizedBox(height: 16),
+              Text('Work mode', style: theme.textTheme.titleSmall),
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 8,
+                children: [
+                  for (final mode in const ['ONSITE', 'HYBRID', 'REMOTE'])
+                    ChoiceChip(
+                      label: Text(mode == 'ONSITE'
+                          ? 'On-site'
+                          : mode == 'HYBRID'
+                              ? 'Hybrid'
+                              : 'Remote'),
+                      selected: _workMode == mode,
+                      onSelected: (_) => setState(() => _workMode = mode),
+                    ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              DropdownButtonFormField<String>(
+                initialValue: _salaryPeriod,
+                decoration: const InputDecoration(
+                  labelText: 'Salary period',
+                  border: OutlineInputBorder(),
+                ),
+                items: const [
+                  DropdownMenuItem(value: 'MONTHLY', child: Text('Monthly')),
+                  DropdownMenuItem(value: 'DAILY', child: Text('Daily')),
+                  DropdownMenuItem(value: 'WEEKLY', child: Text('Weekly')),
+                  DropdownMenuItem(value: 'HOURLY', child: Text('Hourly')),
+                  DropdownMenuItem(value: 'PER_JOB', child: Text('Per job')),
+                ],
+                onChanged: (val) {
+                  if (val != null) setState(() => _salaryPeriod = val);
+                },
+              ),
+              const SizedBox(height: 16),
 
               Row(
                 children: [
@@ -217,6 +288,35 @@ class _PostJobScreenState extends ConsumerState<PostJobScreen> {
                     ),
                   ),
                 ],
+              ),
+              const SizedBox(height: 12),
+              GxButton(
+                label: _lat == null ? 'Pin exact location' : 'Location pinned',
+                filled: false,
+                accent: GixbeeTheme.accentBlue,
+                height: 46,
+                onTap: () async {
+                  final result = await Navigator.push<PinnedLocation>(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => LocationPinScreen(
+                        initialLat: _lat ?? 8.5241,
+                        initialLng: _lng ?? 76.9366,
+                        initialAddress: _locationController.text.trim().isEmpty
+                            ? null
+                            : _locationController.text.trim(),
+                      ),
+                    ),
+                  );
+                  if (result == null || !mounted) return;
+                  setState(() {
+                    _lat = result.lat;
+                    _lng = result.lng;
+                    if (result.address.trim().isNotEmpty) {
+                      _locationController.text = result.address.trim();
+                    }
+                  });
+                },
               ),
               const SizedBox(height: 16),
 

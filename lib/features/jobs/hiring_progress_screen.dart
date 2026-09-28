@@ -7,6 +7,8 @@ import '../../shared/widgets/gx_calendar.dart';
 import '../../shared/widgets/gx_text_field.dart';
 import '../../shared/widgets/gx_snackbar.dart';
 import '../../theme.dart';
+import '../messages/chat_thread_screen.dart';
+import 'hiring_flow.dart';
 
 class HiringProgressScreen extends ConsumerStatefulWidget {
   const HiringProgressScreen({super.key, required this.interestId});
@@ -56,23 +58,52 @@ class _HiringProgressScreenState extends ConsumerState<HiringProgressScreen> {
     if (result != null && mounted) await _send(action, result);
   }
 
-  Widget _button(String label, VoidCallback action) => Padding(padding: const EdgeInsets.only(top: 12),
+  Widget _button(String label, VoidCallback? action) => Padding(padding: const EdgeInsets.only(top: 12),
     child: GxButton(label: label, onTap: _busy ? null : action, filled: false));
+
+  void _openChat() {
+    final data = _data;
+    if (data == null) return;
+    final employer = data['isEmployer'] == true;
+    final otherId = employer
+        ? '${data['candidateId'] ?? ''}'
+        : '${data['employerId'] ?? ''}';
+    final otherName = employer
+        ? '${data['candidateName'] ?? 'Candidate'}'
+        : '${data['businessName'] ?? 'Employer'}';
+    if (otherId.isEmpty) return;
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => ChatThreadScreen(
+          otherUserId: otherId,
+          otherUserName: otherName,
+        ),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
     final data = _data;
     final p = data?['progress'] as Map? ?? {};
     final employer = data?['isEmployer'] == true;
-    final stage = '${p['stage'] ?? data?['decision'] ?? 'PENDING'}';
-    final editable = data?['decision'] == 'SHORTLISTED';
-    const labels = {'PENDING': 'Awaiting shortlist', 'SHORTLISTED': 'Shortlisted',
-      'INTERVIEW_PROPOSED': 'Interview invitation', 'INTERVIEW_ACCEPTED': 'Interview confirmed',
-      'INTERVIEW_DECLINED': 'Interview declined', 'INTERVIEW_COMPLETED': 'Interview completed',
-      'OFFERED': 'Offer awaiting response', 'ACCEPTED': 'Offer accepted · joining next',
-      'OFFER_DECLINED': 'Offer declined', 'JOINED': 'Joining confirmed', 'WITHDRAWN': 'Application closed',
-      'HIRED': 'Hired', 'REJECTED': 'Not selected'};
+    final response = '${data?['response'] ?? 'PENDING'}';
+    final decision = '${data?['decision'] ?? 'PENDING'}';
+    final pipeline = hiringPipelineLabel(
+      response: response,
+      decision: decision,
+      progress: Map<String, dynamic>.from(p),
+    ).replaceAll('_', ' ');
+    final canChat = hiringCanChat(response: response, decision: decision);
+    final contactUnlocked = hiringContactUnlocked(
+      decision: decision,
+      progress: Map<String, dynamic>.from(p),
+    );
+    final stage = '${p['stage'] ?? decision}';
+    final editable = decision == 'SHORTLISTED';
     final history = (p['history'] as List? ?? []).reversed;
+    final phone = data?[employer ? 'candidatePhone' : 'businessPhone'];
     return Scaffold(
       appBar: AppBar(title: const Text('Application progress'), actions: [IconButton(onPressed: _busy ? null : _load, icon: const Icon(Icons.refresh))]),
       body: data == null ? Center(child: _error == null ? const CircularProgressIndicator()
@@ -81,16 +112,49 @@ class _HiringProgressScreenState extends ConsumerState<HiringProgressScreen> {
           if (_busy) const LinearProgressIndicator(),
           if (_error != null) Text(_error!),
           Text('${data['jobType']}', style: TextStyle(fontSize: 24, fontWeight: FontWeight.w800, color: context.gx.ink)),
+          if ((data['description'] ?? '').toString().trim().isNotEmpty) ...[
+            const SizedBox(height: 8),
+            Text('${data['description']}', style: TextStyle(height: 1.4, color: context.gx.ink.withValues(alpha: 0.8))),
+          ],
           const SizedBox(height: 8),
           Text(employer ? '${data['candidateName'] ?? 'Candidate'}' : '${data['businessName'] ?? 'Employer'}'),
           Text('${data['location'] ?? ''}'),
           const SizedBox(height: 12),
-          Text(data['decision'] == 'REJECTED' && stage != 'WITHDRAWN' ? 'Not selected' : labels[stage] ?? stage,
-            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
-          if (!employer && data['businessPhone'] != null) Padding(padding: const EdgeInsets.only(top: 12),
-            child: SelectableText('Employer contact: ${data['businessPhone']}')),
+          Text(pipeline, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
+          const SizedBox(height: 8),
+          Text(
+            contactUnlocked && phone != null
+                ? 'Contact: $phone'
+                : 'Phone locked  ·  Email locked until the candidate shares contact',
+            style: TextStyle(
+              fontWeight: FontWeight.w700,
+              color: contactUnlocked
+                  ? GixbeeTheme.accentBlue
+                  : context.gx.ink.withValues(alpha: 0.5),
+            ),
+          ),
+          if (canChat) _button('Open in-app chat', _openChat),
+          if (canChat && employer && p['contactShared'] != true)
+            _button(
+              p['contactRequested'] == true ? 'Contact requested' : 'Request contact',
+              p['contactRequested'] == true ? null : () => _send('request-contact', {}),
+            ),
+          if (canChat && !employer && p['contactShared'] != true) ...[
+            if (p['contactRequested'] == true)
+              const Padding(
+                padding: EdgeInsets.only(top: 12),
+                child: Text('The employer asked to see your phone and email.'),
+              ),
+            _button('Share my contact', () => _confirm(
+              'share-contact',
+              'Share your phone and email?',
+              'The employer will see the contact details on your account. Chat stays available either way.',
+            )),
+            _button('Keep contact locked', () => _send('decline-contact', {})),
+          ],
           if (p['interviewAt'] != null) ...[
             const Divider(height: 32), const Text('Interview', style: TextStyle(fontWeight: FontWeight.w800)),
+            Text(hiringInterviewTypeLabels[p['interviewType']?.toString() ?? 'IN_PERSON'] ?? 'Interview'),
             Text(eventDate(p['interviewAt'])), SelectableText('${p['interviewPlace'] ?? ''}'),
           ],
           if (p['offerTerms'] != null) ...[
@@ -159,11 +223,16 @@ class _ApplicationFormState extends State<_ApplicationForm> {
   late final TextEditingController _text;
   late final TextEditingController _salary;
   DateTime _date = DateTime.now().add(const Duration(days: 2));
+  String _interviewType = 'IN_PERSON';
   @override
   void initState() {
     super.initState();
     _text = TextEditingController(text: '${widget.initial[widget.action == 'offer' ? 'offerTerms' : widget.action == 'interview' ? 'interviewPlace' : 'unused'] ?? ''}');
     _salary = TextEditingController(text: '${widget.initial['salary'] ?? ''}');
+    final existing = widget.initial['interviewType']?.toString();
+    if (hiringInterviewTypeLabels.containsKey(existing)) {
+      _interviewType = existing!;
+    }
   }
   @override
   void dispose() { _text.dispose(); _salary.dispose(); super.dispose(); }
@@ -181,12 +250,29 @@ class _ApplicationFormState extends State<_ApplicationForm> {
   Widget build(BuildContext context) {
     final offer = widget.action == 'offer';
     final withdraw = widget.action == 'withdraw';
+    final interview = widget.action == 'interview';
     return Scaffold(appBar: AppBar(title: Text(withdraw ? 'Close application' : offer ? 'Employment offer' : 'Schedule interview')),
       body: Form(key: _key, child: ListView(padding: const EdgeInsets.all(20), children: [
         if (!withdraw) ...[
           ListTile(contentPadding: EdgeInsets.zero, title: Text(offer ? 'Joining date and time' : 'Interview date and time'),
             subtitle: Text(eventDate(_date.toIso8601String())), trailing: const Icon(Icons.calendar_month), onTap: _pickDate),
           const Text('Times are shown in your device timezone.'), const SizedBox(height: 20),
+        ],
+        if (interview) ...[
+          Text('Interview type', style: TextStyle(fontWeight: FontWeight.w800, color: context.gx.ink)),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 8,
+            children: [
+              for (final entry in hiringInterviewTypeLabels.entries)
+                ChoiceChip(
+                  label: Text(entry.value),
+                  selected: _interviewType == entry.key,
+                  onSelected: (_) => setState(() => _interviewType = entry.key),
+                ),
+            ],
+          ),
+          const SizedBox(height: 20),
         ],
         if (offer) ...[
           GxTextField(controller: _salary, label: 'Monthly salary (₹)', keyboardType: const TextInputType.numberWithOptions(decimal: true),
@@ -202,7 +288,11 @@ class _ApplicationFormState extends State<_ApplicationForm> {
           Navigator.pop(context, <String, dynamic>{
             if (withdraw) 'reason': _text.text.trim()
             else if (offer) ...{'salary': double.parse(_salary.text), 'joiningAt': _date.toUtc().toIso8601String(), 'offerTerms': _text.text.trim()}
-            else ...{'interviewAt': _date.toUtc().toIso8601String(), 'interviewPlace': _text.text.trim()},
+            else ...{
+              'interviewAt': _date.toUtc().toIso8601String(),
+              'interviewPlace': _text.text.trim(),
+              'interviewType': _interviewType,
+            },
           });
         }),
       ])),

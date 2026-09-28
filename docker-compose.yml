@@ -8,6 +8,10 @@ networks:
 # ─── Named volumes ───────────────────────────────────────────────────────────
 volumes:
   postgres_data:
+  # PostgreSQL 18+ stores the cluster under /var/lib/postgresql/18/docker.
+  # This volume is separate from the PostgreSQL 16 data volume so a failed
+  # upgrade can roll back to that volume.
+  postgres_data_18:
   uploads_data:
   redis_data:
   beszel_data:
@@ -18,7 +22,9 @@ services:
 
   # ── PostgreSQL ─────────────────────────────────────────────────────────────
   postgres:
-    image: postgres:16-alpine
+    build:
+      context: ./postgres
+    image: gixbee-postgres:18
     container_name: gixbee_postgres
     restart: unless-stopped
     logging:
@@ -44,7 +50,7 @@ services:
         soft: 65535
         hard: 65535
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - postgres_data_18:/var/lib/postgresql
     networks:
       - gixbee_net
     healthcheck:

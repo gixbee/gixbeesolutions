@@ -30,8 +30,16 @@ export class RentalsController {
   // ── Catalog / items ── (static segments before ':id')
 
   @Get()
-  async getItems() {
-    return this.rentalsService.getItems();
+  async getItems(
+    @Query('lat') lat?: string,
+    @Query('lng') lng?: string,
+    @Query('cityId') cityId?: string,
+  ) {
+    return this.rentalsService.getItems(
+      lat != null && lat !== '' ? Number(lat) : undefined,
+      lng != null && lng !== '' ? Number(lng) : undefined,
+      cityId,
+    );
   }
 
   @Get('my-items')
@@ -77,6 +85,7 @@ export class RentalsController {
       minHoursToRent: body.minHoursToRent || 1,
       description: body.description,
       imageUrl: body.imageUrl,
+      imageUrls: body.imageUrls,
     });
   }
 

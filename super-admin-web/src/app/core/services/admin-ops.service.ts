@@ -48,7 +48,8 @@ export interface AdminBusiness {
   location: string;
   description: string | null;
   documentUrl: string | null;
-  status: 'PENDING' | 'VERIFIED' | 'REJECTED';
+  hiringProfile?: Record<string, unknown> | null;
+  status: 'PENDING' | 'VERIFIED' | 'REJECTED' | 'NEEDS_CHANGES';
   createdAt: string;
   owner?: { id: string; name: string; phoneNumber?: string };
 }
@@ -122,7 +123,14 @@ export class AdminOpsService {
     return this.http.get<AdminBusiness[]>('/api/businesses/admin/all', { params });
   }
 
-  setBusinessStatus(id: string, status: 'VERIFIED' | 'REJECTED' | 'PENDING'): Observable<any> {
-    return this.http.patch(`/api/businesses/admin/${id}/status`, { status });
+  setBusinessStatus(
+    id: string,
+    status: 'VERIFIED' | 'REJECTED' | 'PENDING' | 'NEEDS_CHANGES',
+    reviewNote?: string,
+  ): Observable<any> {
+    return this.http.patch(`/api/businesses/admin/${id}/status`, {
+      status,
+      ...(reviewNote ? { reviewNote } : {}),
+    });
   }
 }

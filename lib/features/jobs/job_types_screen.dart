@@ -10,6 +10,7 @@ import '../../core/config/app_config.dart';
 import '../../repositories/auth_repository.dart';
 import '../../repositories/cities_repository.dart';
 import '../../repositories/matching_repository.dart';
+import '../../repositories/talent_repository.dart';
 import 'hiring_catalog.dart';
 import '../../shared/widgets/dribbble_background.dart';
 import '../../shared/widgets/gx_button.dart';
@@ -21,10 +22,10 @@ import '../../theme.dart';
 /// These prefs power Hire Employee matching — without them, employers cannot
 /// notify you on the Alerts tab.
 class JobTypesScreen extends ConsumerStatefulWidget {
-  /// Optional: after creating a profile, jump to Alerts for the loop hint.
   final VoidCallback? onCreatedHint;
+  final VoidCallback? onCreateProfile;
 
-  const JobTypesScreen({super.key, this.onCreatedHint});
+  const JobTypesScreen({super.key, this.onCreatedHint, this.onCreateProfile});
 
   @override
   ConsumerState<JobTypesScreen> createState() => _JobTypesScreenState();
@@ -32,6 +33,7 @@ class JobTypesScreen extends ConsumerStatefulWidget {
 
 class _JobTypesScreenState extends ConsumerState<JobTypesScreen> {
   List<Map<String, dynamic>> _prefs = [];
+  Map<String, dynamic>? _talent;
   bool _loading = true;
 
   @override
@@ -45,9 +47,14 @@ class _JobTypesScreenState extends ConsumerState<JobTypesScreen> {
     try {
       final list =
           await ref.read(matchingRepositoryProvider).listPreferences();
+      Map<String, dynamic>? talent;
+      try {
+        talent = await ref.read(talentRepositoryProvider).getProfile();
+      } catch (_) {}
       if (!mounted) return;
       setState(() {
         _prefs = list;
+        _talent = talent;
         _loading = false;
       });
     } catch (e) {
@@ -64,7 +71,10 @@ class _JobTypesScreenState extends ConsumerState<JobTypesScreen> {
       context,
       MaterialPageRoute(
         builder: (_) => JobTypeFormScreen(
-          existing: existing,
+          existing: existing == null ? null : {
+            ...existing,
+            'availableOn': _talent?['availableOn'],
+          },
           freeSlotsLeft: (2 - _prefs.length).clamp(0, 2),
         ),
       ),
@@ -77,7 +87,7 @@ class _JobTypesScreenState extends ConsumerState<JobTypesScreen> {
           mounted) {
         showGxSnack(
           context,
-          'Profile saved — employers can match you via Hire Employee. Check Alerts for matches.',
+          'Profile saved. Matching jobs are on the Jobs tab.',
           type: GxSnackType.success,
         );
       }
@@ -90,7 +100,7 @@ class _JobTypesScreenState extends ConsumerState<JobTypesScreen> {
     try {
       await ref.read(matchingRepositoryProvider).deletePreference(id);
       if (!mounted) return;
-      showGxSnack(context, 'Job Type removed', type: GxSnackType.success);
+      showGxSnack(context, 'Profile removed', type: GxSnackType.success);
       _load();
     } on DioException catch (e) {
       final msg = e.response?.data is Map
@@ -102,6 +112,39 @@ class _JobTypesScreenState extends ConsumerState<JobTypesScreen> {
       if (!mounted) return;
       showGxSnack(context, '$e', type: GxSnackType.error);
     }
+  }
+
+  Future<void> _setOpen(bool open) async {
+    try {
+      await ref.read(talentRepositoryProvider).updateProfile({
+        'profileStatus': open ? 'ACTIVE' : 'PAUSED',
+      });
+      await _load();
+    } catch (e) {
+      if (!mounted) return;
+      showGxSnack(context, 'Could not update profile: $e', type: GxSnackType.error);
+    }
+  }
+
+  int get _strength {
+    final talent = _talent;
+    if (talent == null) return 0;
+    var filled = 0;
+    const total = 8;
+    if (_stringsOf(talent['preferredRoles']).isNotEmpty) filled++;
+    if (_stringsOf(talent['employmentTypes']).isNotEmpty || _prefs.isNotEmpty) filled++;
+    if (_stringsOf(talent['skills']).isNotEmpty) filled++;
+    if ((talent['experience']?.toString() ?? '').isNotEmpty) filled++;
+    if (talent['expectedSalary'] != null) filled++;
+    if (talent['lat'] != null && talent['lng'] != null) filled++;
+    if ((talent['travelRadiusKm'] as num?) != null) filled++;
+    if ((talent['availability']?.toString() ?? '').isNotEmpty) filled++;
+    return ((filled / total) * 100).round();
+  }
+
+  List<String> _stringsOf(dynamic raw) {
+    if (raw is! List) return const [];
+    return raw.map((e) => e.toString()).where((e) => e.isNotEmpty).toList();
   }
 
   int _daysUntilDeletable(Map<String, dynamic> pref) {
@@ -126,7 +169,7 @@ class _JobTypesScreenState extends ConsumerState<JobTypesScreen> {
               children: [
                 Expanded(
                   child: Text(
-                    'Profiles',
+                    'Job Profiles',
                     style: TextStyle(
                       fontSize: 22,
                       fontWeight: FontWeight.w900,
@@ -152,9 +195,7 @@ class _JobTypesScreenState extends ConsumerState<JobTypesScreen> {
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20),
             child: Text(
-              'Career profiles the Smart Hiring matcher uses when employers run Hire Employee. '
-              'Profile name locks after save; delete only after 7 days. Extra profiles cost ₹50/month. '
-              'Separate from classic board preferences on the Board tab.',
+              'Create different profiles for different kinds of work.',
               style: TextStyle(
                 fontSize: 13,
                 height: 1.35,
@@ -175,11 +216,11 @@ class _JobTypesScreenState extends ConsumerState<JobTypesScreen> {
                               const SizedBox(height: 80),
                               GxEmptyState(
                                 icon: Icons.badge_outlined,
-                                title: 'No profiles yet',
+                                title: 'No job profile yet',
                                 message:
-                                    'Add up to 2 free career profiles so employers using Hire Employee can match you. Alerts then appear on the Alerts tab.',
-                                actionLabel: 'Add profile',
-                                onAction: () => _openForm(),
+                                    'Create a profile so Gixbee can match you with suitable jobs.',
+                                actionLabel: 'Create Profile',
+                                onAction: widget.onCreateProfile ?? () => _openForm(),
                               ),
                             ],
                           )
@@ -244,19 +285,34 @@ class _JobTypesScreenState extends ConsumerState<JobTypesScreen> {
                                           if (p['isPaid'] == true) Text(
                                             '${DateTime.tryParse('${p['paidUntil']}')?.isAfter(DateTime.now()) == true ? 'Active until' : 'Matching paused · expired'} ${eventDate(p['paidUntil'])}. Tap to renew.'),
                                           Text(
+                                            'Profile strength $_strength%',
+                                            style: TextStyle(
+                                              fontSize: 12,
+                                              fontWeight: FontWeight.w700,
+                                              color: GixbeeTheme.accentGreen,
+                                            ),
+                                          ),
+                                          const SizedBox(height: 6),
+                                          Text(
                                             [
-                                              if (p['employmentType'] != null)
-                                                catalog.labelForCode(
-                                                    p['employmentType']
-                                                        ?.toString()),
-                                              if ((p['preferredLocation'] ?? '')
-                                                  .toString()
-                                                  .isNotEmpty)
-                                                '${p['preferredLocation']}',
+                                              if (_stringsOf(_talent?['employmentTypes']).isNotEmpty)
+                                                _stringsOf(_talent?['employmentTypes']).join(', ')
+                                              else if (p['employmentType'] != null)
+                                                catalog.labelForCode(p['employmentType']?.toString()),
+                                              if ((_talent?['preferredLocations'] is List &&
+                                                      (_talent!['preferredLocations'] as List).isNotEmpty)
+                                                  || (p['preferredLocation'] ?? '').toString().isNotEmpty)
+                                                (_talent?['preferredLocations'] is List &&
+                                                        (_talent!['preferredLocations'] as List).isNotEmpty)
+                                                    ? '${(_talent!['preferredLocations'] as List).first}'
+                                                    : '${p['preferredLocation']}',
                                               if (p['expectedSalary'] != null)
-                                                '₹${p['expectedSalary']}/mo${p['salaryNegotiable'] == true ? ' negotiable' : ''}',
+                                                '₹${p['expectedSalary']} ${_talent?['expectedSalaryPeriod'] ?? 'MONTHLY'}${p['salaryNegotiable'] == true ? ' negotiable' : ''}',
+                                              if (_talent?['travelRadiusKm'] != null)
+                                                '${_talent!['travelRadiusKm']} km',
+                                              '${_talent?['availability'] ?? p['noticePeriod'] ?? 'IMMEDIATE'}'
+                                                  '${_talent?['availableOn'] != null ? ' · ${_talent!['availableOn']}' : ''}',
                                               '${p['experienceYears'] ?? 0} yrs',
-                                              '${p['noticePeriod'] ?? 'IMMEDIATE'}',
                                             ].where((s) => s.isNotEmpty).join(' · '),
                                             style: TextStyle(
                                               fontSize: 12,
@@ -301,6 +357,17 @@ class _JobTypesScreenState extends ConsumerState<JobTypesScreen> {
                                               ),
                                               const Spacer(),
                                               TextButton(
+                                                onPressed: () => _openForm(existing: p),
+                                                child: const Text('Edit Profile'),
+                                              ),
+                                              TextButton(
+                                                onPressed: () => _setOpen(
+                                                    _talent?['profileStatus'] == 'PAUSED'),
+                                                child: Text(_talent?['profileStatus'] == 'PAUSED'
+                                                    ? 'Open to Work'
+                                                    : 'Pause Profile'),
+                                              ),
+                                              TextButton(
                                                 onPressed: days > 0
                                                     ? null
                                                     : () => _delete(p),
@@ -321,9 +388,7 @@ class _JobTypesScreenState extends ConsumerState<JobTypesScreen> {
           Padding(
             padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
             child: GxButton(
-              label: _prefs.length >= 2
-                  ? 'Add Job Type (₹50/mo)'
-                  : 'Add Job Type',
+              label: '+ Add another job profile',
               accent: GixbeeTheme.accentGreen,
               onTap: () => _openForm(),
             ),
@@ -338,10 +403,15 @@ class JobTypeFormScreen extends ConsumerStatefulWidget {
   final Map<String, dynamic>? existing;
   final int freeSlotsLeft;
 
+  final String? initialJobType;
+  final Map<String, dynamic>? initialPreference;
+
   const JobTypeFormScreen({
     super.key,
     this.existing,
     this.freeSlotsLeft = 2,
+    this.initialJobType,
+    this.initialPreference,
   });
 
   @override
@@ -359,6 +429,8 @@ class _JobTypeFormScreenState extends ConsumerState<JobTypeFormScreen> {
   String? _employmentType;
   bool _salaryNegotiable = false;
   String _notice = 'IMMEDIATE';
+  String _salaryPeriod = 'MONTHLY';
+  DateTime? _joinDate;
   bool _saving = false;
   Razorpay? _razorpay;
   Map<String, dynamic>? _pendingPaidBody;
@@ -367,15 +439,37 @@ class _JobTypeFormScreenState extends ConsumerState<JobTypeFormScreen> {
 
   static const _noticeOptions = [
     'IMMEDIATE',
+    'DAYS_7',
     'DAYS_15',
     'DAYS_30',
     'DAYS_60',
     'DAYS_90',
+    'CUSTOM_DATE',
   ];
 
   @override
   void initState() {
     super.initState();
+    final seed = widget.initialPreference;
+    if (widget.initialJobType != null && widget.initialJobType!.isNotEmpty) {
+      _jobTypeCtrl.text = widget.initialJobType!;
+    }
+    if (seed != null) {
+      final role = '${seed['jobType'] ?? ''}';
+      if (role.isNotEmpty) _jobTypeCtrl.text = role;
+      _locationCtrl.text = '${seed['preferredLocation'] ?? ''}';
+      if (seed['expectedSalary'] != null) _salaryCtrl.text = '${seed['expectedSalary']}';
+      _expCtrl.text = '${seed['experienceYears'] ?? 0}';
+      _notice = '${seed['noticePeriod'] ?? 'IMMEDIATE'}';
+      _joinDate = DateTime.tryParse('${seed['availableOn'] ?? ''}');
+      _employmentType = seed['employmentType']?.toString();
+      _salaryNegotiable = seed['salaryNegotiable'] == true;
+      _salaryPeriod = '${seed['expectedSalaryPeriod'] ?? 'MONTHLY'}';
+      final skills = seed['skills'];
+      if (skills is List) {
+        _skills.addAll(skills.map((skill) => skill.toString()).where((skill) => skill.isNotEmpty));
+      }
+    }
     final e = widget.existing;
     if (e != null) {
       _jobTypeCtrl.text = '${e['jobType'] ?? ''}';
@@ -385,6 +479,8 @@ class _JobTypeFormScreenState extends ConsumerState<JobTypeFormScreen> {
           : '';
       _expCtrl.text = '${e['experienceYears'] ?? 0}';
       _notice = '${e['noticePeriod'] ?? 'IMMEDIATE'}';
+      _joinDate = DateTime.tryParse('${e['availableOn'] ?? ''}');
+      _salaryPeriod = '${e['expectedSalaryPeriod'] ?? 'MONTHLY'}';
       _employmentType = e['employmentType']?.toString();
       _salaryNegotiable = e['salaryNegotiable'] == true;
       _skills.addAll(
@@ -417,10 +513,7 @@ class _JobTypeFormScreenState extends ConsumerState<JobTypeFormScreen> {
         if (q.isEmpty || cities.isEmpty) {
           return const Iterable<CityEntry>.empty();
         }
-        return cities.where((c) =>
-            c.name.toLowerCase().contains(q) ||
-            c.state.toLowerCase().contains(q) ||
-            c.displayName.toLowerCase().contains(q));
+        return cities.where((c) => cityMatchesQuery(c, value.text));
       },
       onSelected: (c) {
         _locationCtrl.text = c.name;
@@ -483,39 +576,52 @@ class _JobTypeFormScreenState extends ConsumerState<JobTypeFormScreen> {
     );
   }
 
-  Map<String, dynamic> _body() => {
-        'jobType': _jobTypeCtrl.text.trim(),
-        'skills': _skills.toList(),
-        'preferredLocation': _locationCtrl.text.trim(),
-        if (int.tryParse(_salaryCtrl.text.trim()) != null)
-          'expectedSalary': int.parse(_salaryCtrl.text.trim()),
-        'salaryNegotiable': _salaryNegotiable,
-        if (_employmentType != null) 'employmentType': _employmentType,
-        if (int.tryParse(_expCtrl.text.trim()) != null)
-          'experienceYears': int.parse(_expCtrl.text.trim()),
-        'noticePeriod': _notice,
-      };
+  Map<String, dynamic> _body() {
+    final role = _jobTypeCtrl.text.trim();
+    return {
+      'jobType': role,
+      'skills': _skills.toList(),
+      'preferredLocation': _locationCtrl.text.trim(),
+      if (int.tryParse(_salaryCtrl.text.trim()) != null)
+        'expectedSalary': int.parse(_salaryCtrl.text.trim()),
+      'salaryNegotiable': _salaryNegotiable,
+      'expectedSalaryPeriod': _salaryPeriod,
+      if (_employmentType != null) 'employmentType': _employmentType,
+      if (int.tryParse(_expCtrl.text.trim()) != null)
+        'experienceYears': int.parse(_expCtrl.text.trim()),
+      'noticePeriod': _notice,
+    };
+  }
 
   Future<void> _save() async {
     if (_jobTypeCtrl.text.trim().isEmpty) {
-      showGxSnack(context, 'Job Type is required', type: GxSnackType.error);
+      showGxSnack(context, 'Choose the kind of work', type: GxSnackType.error);
+      return;
+    }
+    if (_notice == 'CUSTOM_DATE' && _joinDate == null) {
+      showGxSnack(context, 'Choose the date you can join', type: GxSnackType.error);
       return;
     }
     setState(() => _saving = true);
     final repo = ref.read(matchingRepositoryProvider);
+    final body = _body();
     try {
+      await ref.read(talentRepositoryProvider).updateProfile({
+        'availability': _notice,
+        'availableOn': _notice == 'CUSTOM_DATE' ? _dateOnly(_joinDate!) : null,
+      });
       if (_isEdit) {
         final id = widget.existing!['id'].toString();
-        final body = _body()..remove('jobType'); // immutable
+        final body = _body()..remove('jobType');
         await repo.updatePreference(id, body);
         if (!mounted) return;
         Navigator.pop(context, true);
         return;
       }
 
-      final result = await repo.createPreference(_body());
+      final result = await repo.createPreference(body);
       if (result['needsPayment'] == true) {
-        await _payExtraJobType(_body());
+        await _payExtraJobType(body);
         return;
       }
       if (!mounted) return;
@@ -577,11 +683,14 @@ class _JobTypeFormScreenState extends ConsumerState<JobTypeFormScreen> {
     try {
       if (payment.orderId == null || payment.paymentId == null) throw StateError('Missing payment reference');
       await ref.read(matchingRepositoryProvider).verifyPayment(payment.orderId!, payment.paymentId!);
-      if (mounted) showGxSnack(context, 'Payment confirmed — profile access updated', type: GxSnackType.success);
+      if (!mounted) return;
+      showGxSnack(context, 'Payment confirmed — profile access updated', type: GxSnackType.success);
+      Navigator.pop(context, true);
     } catch (_) {
-      if (mounted) showGxSnack(context, 'Payment confirmation is pending. Open Pending payments to check it.');
+      if (!mounted) return;
+      showGxSnack(context, 'Payment confirmation is pending. Open Pending payments to check it.');
+      Navigator.pop(context, false);
     }
-    if (mounted) Navigator.pop(context, true);
   }
 
   void _onPayFail(PaymentFailureResponse r) {
@@ -653,19 +762,19 @@ class _JobTypeFormScreenState extends ConsumerState<JobTypeFormScreen> {
               ),
               const SizedBox(height: 16),
             ],
-            TextField(
-              controller: _jobTypeCtrl,
-              enabled: !_isEdit,
-              decoration: InputDecoration(
-                labelText: 'Profile name / job type',
-                hintText: 'e.g. Cashier, Backend Engineer',
-                helperText: _isEdit
-                    ? 'Profile name cannot be changed after creation'
-                    : widget.freeSlotsLeft > 0
-                        ? '${widget.freeSlotsLeft} free slot(s) left'
-                        : 'This will cost ₹50/month',
+            if (_isEdit)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: Text(
+                  '${widget.existing!['jobType'] ?? ''}',
+                  style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
+                ),
+              )
+            else if (widget.freeSlotsLeft <= 0)
+              const Padding(
+                padding: EdgeInsets.only(bottom: 12),
+                child: Text('Adding another profile costs ₹50/month.'),
               ),
-            ),
             const SizedBox(height: 12),
             Text(
               'EMPLOYMENT TYPE',
@@ -711,7 +820,7 @@ class _JobTypeFormScreenState extends ConsumerState<JobTypeFormScreen> {
               controller: _salaryCtrl,
               keyboardType: TextInputType.number,
               decoration: const InputDecoration(
-                labelText: 'Expected salary (₹/month)',
+                labelText: 'Expected pay (₹)',
               ),
             ),
             const SizedBox(height: 8),
@@ -725,7 +834,7 @@ class _JobTypeFormScreenState extends ConsumerState<JobTypeFormScreen> {
                 ),
               ),
               subtitle: Text(
-                'Matcher can include offers below employer minimum',
+                'Employers can still contact you if pay is flexible.',
                 style: TextStyle(
                   fontSize: 12,
                   color: context.gx.ink.withValues(alpha: 0.5),
@@ -747,13 +856,45 @@ class _JobTypeFormScreenState extends ConsumerState<JobTypeFormScreen> {
             const SizedBox(height: 12),
             DropdownButtonFormField<String>(
               initialValue: _noticeOptions.contains(_notice) ? _notice : 'IMMEDIATE',
-              decoration: const InputDecoration(labelText: 'Notice period'),
+              decoration: const InputDecoration(labelText: 'Available to Join'),
               items: [
                 for (final n in _noticeOptions)
-                  DropdownMenuItem(value: n, child: Text(n.replaceAll('_', ' '))),
+                  DropdownMenuItem(value: n, child: Text(_joinLabel(n))),
               ],
-              onChanged: (v) => setState(() => _notice = v ?? 'IMMEDIATE'),
+              onChanged: (v) async {
+                final next = v ?? 'IMMEDIATE';
+                if (next == 'CUSTOM_DATE') {
+                  final now = DateTime.now();
+                  final today = DateTime(now.year, now.month, now.day);
+                  final lastDay = today.add(const Duration(days: 365 * 2));
+                  final savedDate = _joinDate ?? today;
+                  final initialDate = savedDate.isBefore(today)
+                      ? today
+                      : savedDate.isAfter(lastDay) ? lastDay : savedDate;
+                  final picked = await showDatePicker(
+                    context: context,
+                    firstDate: today,
+                    lastDate: lastDay,
+                    initialDate: initialDate,
+                  );
+                  if (picked == null) return;
+                  setState(() {
+                    _notice = next;
+                    _joinDate = picked;
+                  });
+                  return;
+                }
+                setState(() {
+                  _notice = next;
+                  _joinDate = null;
+                });
+              },
             ),
+            if (_notice == 'CUSTOM_DATE' && _joinDate != null)
+              Padding(
+                padding: const EdgeInsets.only(top: 8),
+                child: Text('Joining ${_dateOnly(_joinDate!)}'),
+              ),
             const SizedBox(height: 16),
             Text('Skills',
                 style: TextStyle(
@@ -822,4 +963,21 @@ class _JobTypeFormScreenState extends ConsumerState<JobTypeFormScreen> {
       ),
     );
   }
+}
+
+String _joinLabel(String code) => switch (code) {
+      'IMMEDIATE' => 'Immediately',
+      'DAYS_7' => 'Within 7 days',
+      'DAYS_15' => 'Within 15 days',
+      'DAYS_30' => 'Within 30 days',
+      'DAYS_60' => 'Within 60 days',
+      'DAYS_90' => 'Within 90 days',
+      'CUSTOM_DATE' => 'Custom Date',
+      _ => code,
+    };
+
+String _dateOnly(DateTime date) {
+  final month = date.month.toString().padLeft(2, '0');
+  final day = date.day.toString().padLeft(2, '0');
+  return '${date.year}-$month-$day';
 }

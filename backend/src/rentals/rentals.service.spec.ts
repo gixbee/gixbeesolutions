@@ -4,7 +4,10 @@ import {
   ForbiddenException,
   NotFoundException,
 } from '@nestjs/common';
-import { RentalsService } from './rentals.service';
+import {
+  RentalsService,
+  nearbyRentals,
+} from './rentals.service';
 import { RentalItem } from './rental-item.entity';
 import { RentalReservation, RentalStatus } from './rental-reservation.entity';
 
@@ -302,5 +305,20 @@ describe('RentalsService.confirmReservation', () => {
       service.confirmReservation('res-1', 'owner-1'),
     ).rejects.toThrow(ConflictException);
     expect(saved).toHaveLength(0);
+  });
+});
+
+describe('nearbyRentals', () => {
+  const near = { id: 'a', pickupLat: 17.4, pickupLng: 78.5 } as any;
+  const far = { id: 'b', pickupLat: 28.6, pickupLng: 77.2 } as any;
+
+  it('returns every item when the customer has no location', () => {
+    expect(nearbyRentals([near, far])).toEqual([near, far]);
+  });
+
+  it('keeps only listings within 25 km of the customer', () => {
+    expect(nearbyRentals([near, far], 17.41, 78.49).map((i) => i.id)).toEqual([
+      'a',
+    ]);
   });
 });

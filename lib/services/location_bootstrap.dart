@@ -78,14 +78,29 @@ Future<void> ensureLocationInitialized(WidgetRef ref) async {
               lat: (cityData['lat'] as num).toDouble(),
               lng: (cityData['lng'] as num).toDouble(),
             );
-      ref.read(currentAddressProvider.notifier).state =
-          data['address'] as String;
-      ref.read(selectedLocationProvider.notifier).state = (
-        lat: (data['lat'] as num).toDouble(),
-        lng: (data['lng'] as num).toDouble(),
-        address: data['address'] as String,
-      );
+      final lat = (data['lat'] as num).toDouble();
+      final lng = (data['lng'] as num).toDouble();
+      final address = data['address'] as String;
+      ref.read(currentAddressProvider.notifier).state = address;
+      ref.read(selectedLocationProvider.notifier).state =
+          (lat: lat, lng: lng, address: address);
       ref.read(currentCityProvider.notifier).state = city;
+      List<CityEntry> cities = const [];
+      try {
+        cities = await ref.read(citiesProvider.future);
+      } catch (e) {
+        debugPrint('Cities load for saved location rematch failed: $e');
+      }
+      final resolved = resolveLiveCity(cities, city, lat: lat, lng: lng);
+      if (resolved?.id != city?.id) {
+        await applyLocation(
+          ref,
+          address: address,
+          lat: lat,
+          lng: lng,
+          city: resolved,
+        );
+      }
       return;
     }
   } catch (e) {
@@ -119,5 +134,33 @@ Future<void> ensureLocationInitialized(WidgetRef ref) async {
     );
   } catch (e) {
     debugPrint('Location auto-detect failed: $e');
+  }
+}
+
+/// Refresh the live GPS pin after the user turns location back on.
+Future<void> refreshLiveLocationFromGps(WidgetRef ref) async {
+  try {
+    final pos = await ref
+        .read(locationServiceProvider)
+        .getCurrentPosition(fallbackToLastKnown: true);
+    if (pos == null) return;
+    final address = await ref
+        .read(locationServiceProvider)
+        .getAddressFromLatLng(pos)
+        .timeout(const Duration(seconds: 8));
+    List<CityEntry> cities = const [];
+    try {
+      cities = await ref.read(citiesProvider.future);
+    } catch (_) {}
+    await applyLocation(
+      ref,
+      address: address,
+      lat: pos.latitude,
+      lng: pos.longitude,
+      city: nearestCity(cities, pos.latitude, pos.longitude) ??
+          ref.read(currentCityProvider),
+    );
+  } catch (e) {
+    debugPrint('Live location refresh failed: $e');
   }
 }

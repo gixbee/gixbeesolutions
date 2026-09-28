@@ -4,6 +4,7 @@ import {
   IsOptional,
   IsNumber,
   IsBoolean,
+  IsArray,
 } from 'class-validator';
 
 // DTOs for the rentals endpoints. Owner/renter identity comes from the JWT
@@ -36,6 +37,19 @@ export class CreateRentalItemDto {
   @IsOptional()
   @IsString()
   imageUrl?: string;
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  imageUrls?: string[];
+
+  @IsOptional()
+  @IsNumber()
+  pickupLat?: number;
+
+  @IsOptional()
+  @IsNumber()
+  pickupLng?: number;
 }
 
 // PATCH /rentals/:id — owner edits their item (partial; also used for the
@@ -65,6 +79,19 @@ export class UpdateRentalItemDto {
   @IsOptional()
   @IsString()
   imageUrl?: string;
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  imageUrls?: string[];
+
+  @IsOptional()
+  @IsNumber()
+  pickupLat?: number;
+
+  @IsOptional()
+  @IsNumber()
+  pickupLng?: number;
 
   @IsOptional()
   @IsBoolean()

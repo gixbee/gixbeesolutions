@@ -100,6 +100,12 @@ class LocationService {
   /// Opens this app's settings page (for 'denied_forever').
   Future<bool> openAppSettings() => Geolocator.openAppSettings();
 
+  /// Fires when the user toggles the device location switch.
+  Stream<ServiceStatus> serviceStatusStream() {
+    if (kIsWeb) return const Stream.empty();
+    return Geolocator.getServiceStatusStream();
+  }
+
   Future<String> getAddressFromLatLng(Position position) async {
     // The 'geocoding' package does not support Flutter Web
     if (kIsWeb) {

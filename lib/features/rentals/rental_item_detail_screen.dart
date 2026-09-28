@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
-import '../../core/config/app_config.dart';
 import '../../repositories/rentals_repository.dart';
+import '../../shared/media/profile_photo.dart';
+import 'rental_images.dart';
 import '../../shared/widgets/dribbble_background.dart';
 import '../../shared/widgets/gx_button.dart';
 import '../../shared/widgets/gx_calendar.dart';
@@ -11,6 +12,7 @@ import '../../shared/widgets/gx_time_picker.dart';
 import '../../shared/widgets/gx_text_field.dart';
 import '../../theme.dart';
 import 'my_rentals_screen.dart';
+import 'rental_listing_options.dart';
 
 /// Rental item detail: photo, rates, description, already-booked windows,
 /// and a start/end picker → reserve (owner then confirms; both get pushes).
@@ -34,6 +36,7 @@ class _RentalItemDetailScreenState
   int _quantity = 1;
   bool _delivery = false;
   final _deliveryAddress = TextEditingController();
+  int _photoPage = 0;
 
   @override
   void dispose() { _deliveryAddress.dispose(); super.dispose(); }
@@ -52,6 +55,7 @@ class _RentalItemDetailScreenState
         setState(() {
           _item = item;
           _loading = false;
+          _photoPage = 0;
         });
       }
     } catch (e) {
@@ -61,12 +65,25 @@ class _RentalItemDetailScreenState
   }
 
   Future<DateTime?> _pickDateTime(DateTime initial) async {
+    final now = DateTime.now();
+    final from = parseYmd(_item?['availableFrom']);
+    final until = parseYmd(_item?['availableUntil']);
+    final first = from != null && from.isAfter(now) ? from : now;
+    final last = until ?? now.add(const Duration(days: 90));
+    final weekdays = parseWeekdays(_item?['availableWeekdays']);
+    final blocked = <DateTime>{};
+    for (var d = DateTime(first.year, first.month, first.day);
+        !d.isAfter(last);
+        d = d.add(const Duration(days: 1))) {
+      if (!weekdays.contains(d.weekday)) blocked.add(d);
+    }
     final date = await showGxCalendar(
       context,
       title: 'Rental date',
-      initialDate: initial,
-      firstDate: DateTime.now(),
-      lastDate: DateTime.now().add(const Duration(days: 90)),
+      initialDate: initial.isBefore(first) ? first : initial,
+      firstDate: first,
+      lastDate: last.isBefore(first) ? first : last,
+      blockedDays: blocked,
       accent: GixbeeTheme.accentTeal,
       accentGradient: const [GixbeeTheme.accentTeal, Color(0xFF0F766E)],
     );
@@ -114,7 +131,7 @@ class _RentalItemDetailScreenState
     }
     setState(() => _submitting = true);
     try {
-      await ref.read(rentalsRepositoryProvider).reserve(
+      final booked = await ref.read(rentalsRepositoryProvider).reserve(
             itemId: widget.itemId,
             start: _start!,
             end: _end!,
@@ -122,7 +139,12 @@ class _RentalItemDetailScreenState
             deliveryAddress: _deliveryAddress.text.trim(),
           );
       if (!mounted) return;
-      showGxSnack(context, 'Request sent — the owner will confirm.',
+      final status = '${booked['status'] ?? ''}';
+      showGxSnack(
+          context,
+          status == 'TEMP_HOLD' || status == 'PAYMENT_PENDING'
+              ? 'Item held for 10 minutes — pay the advance in My rentals'
+              : 'Request sent — the store will confirm.',
           type: GxSnackType.success);
       Navigator.pushReplacement(
         context,
@@ -138,7 +160,7 @@ class _RentalItemDetailScreenState
   @override
   Widget build(BuildContext context) {
     final fmt = DateFormat('EEE, d MMM · h:mm a');
-    final imageUrl = _item?['imageUrl'] as String?;
+    final photos = rentalImageUrls(_item);
     final booked = (_item?['bookedRanges'] as List? ?? []);
 
     return Scaffold(
@@ -164,26 +186,67 @@ class _RentalItemDetailScreenState
                                     height: 220,
                                     width: double.infinity,
                                     color: context.gx.card2,
-                                    child: imageUrl != null &&
-                                            imageUrl.isNotEmpty
-                                        ? Image.network(
-                                            imageUrl.startsWith('http')
-                                                ? imageUrl
-                                                : '${AppConfig.baseUrl}$imageUrl',
-                                            fit: BoxFit.cover,
-                                            cacheWidth: 800,
-                                            errorBuilder: (_, __, ___) =>
-                                                Icon(
-                                                    Icons
-                                                        .inventory_2_outlined,
-                                                    color: context.gx.ink.withValues(alpha: 0.24),
-                                                    size: 48),
-                                          )
-                                        : Icon(
+                                    child: photos.isEmpty
+                                        ? Icon(
                                             Icons.inventory_2_outlined,
-                                            color: context.gx.ink.withValues(alpha: 0.24),
-                                            size: 48),
+                                            color: context.gx.ink
+                                                .withValues(alpha: 0.24),
+                                            size: 48)
+                                        : PageView.builder(
+                                            itemCount: photos.length,
+                                            onPageChanged: (i) =>
+                                                setState(() => _photoPage = i),
+                                            itemBuilder: (_, i) {
+                                              final url =
+                                                  resolveProfileImageUrl(
+                                                          photos[i]) ??
+                                                      photos[i];
+                                              return Image.network(
+                                                url,
+                                                fit: BoxFit.cover,
+                                                cacheWidth: 800,
+                                                errorBuilder: (_, __, ___) =>
+                                                    Icon(
+                                                        Icons
+                                                            .inventory_2_outlined,
+                                                        color: context.gx.ink
+                                                            .withValues(
+                                                                alpha: 0.24),
+                                                        size: 48),
+                                              );
+                                            },
+                                          ),
                                   ),
+                                  if (photos.length > 1)
+                                    Positioned(
+                                      bottom: 10,
+                                      left: 0,
+                                      right: 0,
+                                      child: Row(
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.center,
+                                        children: [
+                                          for (var i = 0;
+                                              i < photos.length;
+                                              i++)
+                                            Container(
+                                              width: i == _photoPage ? 16 : 6,
+                                              height: 6,
+                                              margin:
+                                                  const EdgeInsets.symmetric(
+                                                      horizontal: 2),
+                                              decoration: BoxDecoration(
+                                                color: Colors.white.withValues(
+                                                    alpha: i == _photoPage
+                                                        ? 0.95
+                                                        : 0.45),
+                                                borderRadius:
+                                                    BorderRadius.circular(3),
+                                              ),
+                                            ),
+                                        ],
+                                      ),
+                                    ),
                                   Positioned(
                                     top: 8,
                                     left: 8,
@@ -251,6 +314,27 @@ class _RentalItemDetailScreenState
                                               color: context.gx.ink
                                                   .withValues(alpha: 0.65))),
                                     ],
+                                    const SizedBox(height: 10),
+                                    Text(
+                                      '${rentalCategoryLabel('${_item!['category']}')} · ${rentalConditionLabel('${_item!['condition']}')}',
+                                      style: TextStyle(
+                                          fontSize: 13,
+                                          fontWeight: FontWeight.w700,
+                                          color: context.gx.ink.withValues(alpha: 0.55)),
+                                    ),
+                                    const SizedBox(height: 8),
+                                    Text(
+                                      rentalAvailabilitySummary(
+                                        availableFrom: '${_item!['availableFrom'] ?? ''}',
+                                        availableUntil: '${_item!['availableUntil'] ?? ''}',
+                                        weekdays: parseWeekdays(_item!['availableWeekdays']),
+                                        slotStart: int.tryParse('${_item!['slotStartMinute'] ?? ''}'),
+                                        slotEnd: int.tryParse('${_item!['slotEndMinute'] ?? ''}'),
+                                      ),
+                                      style: TextStyle(
+                                          fontSize: 12.5,
+                                          color: context.gx.ink.withValues(alpha: 0.5)),
+                                    ),
                                     if (booked.isNotEmpty) ...[
                                       const SizedBox(height: 16),
                                       Text('ALREADY BOOKED',
@@ -281,13 +365,25 @@ class _RentalItemDetailScreenState
                                       IconButton(onPressed: _quantity >= (int.tryParse('${_item!['quantity'] ?? 1}') ?? 1) ? null : () => setState(() => _quantity++), icon: const Icon(Icons.add)),
                                     ]),
                                     Text('Pickup: ${_item!['pickupAddress'] ?? 'Coordinate with the owner'}'),
+                                    if ('${_item!['pickupInstructions'] ?? ''}'.trim().isNotEmpty)
+                                      Text('${_item!['pickupInstructions']}'),
                                     if (_item!['deliveryAvailable'] == true)
                                       SwitchListTile(contentPadding: EdgeInsets.zero, title: const Text('Request delivery'),
-                                        subtitle: Text('₹${_item!['deliveryFee'] ?? 0} per reservation'), value: _delivery,
+                                        subtitle: Text('Delivery charge ₹${_item!['deliveryFee'] ?? 0} per reservation'), value: _delivery,
                                         onChanged: (value) => setState(() => _delivery = value)),
                                     if (_delivery) GxTextField(controller: _deliveryAddress, label: 'Delivery address', maxLines: 2, maxLength: 2000),
                                     const SizedBox(height: 12),
-                                    Text('Refundable deposit: ₹${_item!['depositPerUnit'] ?? 0} per unit. Included in the total. Fully refundable after return; cancel before handover for a refund of amounts paid.'),
+                                    Text('Refundable deposit ₹${_item!['depositPerUnit'] ?? 0} per unit. Included in the total and returned after a good return.'),
+                                    Builder(builder: (_) {
+                                      final rupees = num.tryParse('${_item!['advanceAmount'] ?? 0}') ?? 0;
+                                      final percent = num.tryParse('${_item!['advancePercent'] ?? 0}') ?? 0;
+                                      if (rupees > 0) return Text('Booking advance ₹$rupees to hold the reservation.');
+                                      if (percent > 0) return Text('Booking advance $percent% of the total to hold the reservation.');
+                                      return const Text('Booking advance 20% of the total to hold the reservation.');
+                                    }),
+                                    if ((num.tryParse('${_item!['lateFeePerHour'] ?? 0}') ?? 0) > 0)
+                                      Text('Late fee ₹${_item!['lateFeePerHour']} per extra hour after the booked time.'),
+                                    Text('Cancellation: ${rentalCancelPolicyCopy('${_item!['cancellationPolicy']}').$2}'),
                                     const SizedBox(height: 20),
                                     Text('WHEN DO YOU NEED IT?',
                                         style: TextStyle(

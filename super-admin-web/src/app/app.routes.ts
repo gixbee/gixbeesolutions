@@ -14,6 +14,7 @@ import { DashboardComponent } from './features/dashboard/dashboard.component';
 import { StaffComponent } from './features/staff/staff.component';
 import { LogsComponent } from './features/logs/logs.component';
 import { InfrastructureComponent } from './features/infrastructure/infrastructure.component';
+import { RentalsFlowComponent } from './features/rentals-flow/rentals-flow.component';
 import { authGuard } from './core/guards/auth.guard';
 import { pageGuard } from './core/guards/page.guard';
 
@@ -36,6 +37,7 @@ export const routes: Routes = [
       { path: 'cities', component: CitiesComponent, canActivate: [pageGuard], data: { page: 'cities' } },
       { path: 'users', component: UsersComponent, canActivate: [pageGuard], data: { page: 'users' } },
       { path: 'businesses', component: BusinessesComponent, canActivate: [pageGuard], data: { page: 'businesses' } },
+      { path: 'rentals-flow', component: RentalsFlowComponent, canActivate: [pageGuard], data: { page: 'businesses' } },
       { path: 'staff', component: StaffComponent, canActivate: [pageGuard], data: { page: 'staff' } },
       { path: 'logs', component: LogsComponent, canActivate: [pageGuard], data: { page: 'logs' } },
       { path: 'monitoring', component: InfrastructureComponent, canActivate: [pageGuard], data: { page: 'monitoring' } },

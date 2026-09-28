@@ -56,6 +56,9 @@ export class HiringRequest {
   @Column({ nullable: true })
   location: string;
 
+  @Column({ type: 'text', nullable: true })
+  description: string | null;
+
   /** Offered salary in ₹ per month (legacy ceiling — mirrors salaryMax). */
   @Column({ type: 'decimal', precision: 10, scale: 2, default: 0 })
   salaryOffered: number;

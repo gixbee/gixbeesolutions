@@ -3,6 +3,66 @@ use rust_decimal::Decimal;
 
 use crate::error::{AppError, AppResult};
 
+pub fn deposit_terms(policy: &str) -> &'static str {
+    match policy {
+        "MODERATE" => {
+            "Refundable deposit after return. Advance: full refund until 24 hours before start, then 50% until handover."
+        }
+        "STRICT" => {
+            "Refundable deposit after return. Advance is refundable only before the store confirms."
+        }
+        "NON_REFUNDABLE" => {
+            "Refundable deposit after return. Booking advance is kept once paid."
+        }
+        _ => "Refundable deposit after return. Cancel before handover for a full refund of amounts paid.",
+    }
+}
+
+pub fn cancel_refund(
+    policy: &str,
+    status: &str,
+    start: DateTime<Utc>,
+    now: DateTime<Utc>,
+    advance: Decimal,
+) -> Decimal {
+    if advance <= Decimal::ZERO {
+        return Decimal::ZERO;
+    }
+    let unpaid = matches!(status, "TEMP_HOLD" | "PAYMENT_PENDING");
+    match policy {
+        "NON_REFUNDABLE" => {
+            if unpaid {
+                advance
+            } else {
+                Decimal::ZERO
+            }
+        }
+        "STRICT" => {
+            if matches!(
+                status,
+                "PENDING" | "PENDING_OWNER_CONFIRMATION" | "TEMP_HOLD" | "PAYMENT_PENDING"
+            ) {
+                advance
+            } else {
+                Decimal::ZERO
+            }
+        }
+        "MODERATE" => {
+            if now <= start - chrono::Duration::hours(24)
+                || matches!(
+                    status,
+                    "PENDING" | "PENDING_OWNER_CONFIRMATION" | "TEMP_HOLD" | "PAYMENT_PENDING"
+                )
+            {
+                advance
+            } else {
+                (advance * Decimal::new(5, 1)).round_dp(2)
+            }
+        }
+        _ => advance,
+    }
+}
+
 pub fn parse_window(
     start: &str,
     end: &str,
@@ -85,9 +145,11 @@ pub fn transition(current: &str, next: &str, is_owner: bool, is_renter: bool) ->
     }
     let valid = matches!(
         (current, next),
-        ("PENDING", "CONFIRMED" | "REJECTED" | "CANCELLED")
+        ("PENDING" | "PENDING_OWNER_CONFIRMATION", "CONFIRMED" | "REJECTED" | "CANCELLED")
+            | ("TEMP_HOLD" | "PAYMENT_PENDING", "CANCELLED" | "REJECTED")
             | ("CONFIRMED", "ACTIVE" | "CANCELLED")
-            | ("ACTIVE", "COMPLETED")
+            | ("ACTIVE", "COMPLETED" | "RETURN_PENDING")
+            | ("RETURN_PENDING", "COMPLETED")
     );
     if !valid {
         return Err(AppError::Conflict(format!(
@@ -175,5 +237,48 @@ mod tests {
         assert!(transition("COMPLETED", "ACTIVE", true, false).is_err());
         assert!(transition("PENDING", "CANCELLED", false, true).is_ok());
         assert!(transition("ACTIVE", "COMPLETED", true, false).is_ok());
+        assert!(transition("PENDING_OWNER_CONFIRMATION", "CONFIRMED", true, false).is_ok());
+        assert!(transition("TEMP_HOLD", "CONFIRMED", true, false).is_err());
+        assert!(transition("TEMP_HOLD", "CANCELLED", false, true).is_ok());
+        assert!(transition("PAYMENT_PENDING", "REJECTED", true, false).is_ok());
+        assert!(transition("RETURN_PENDING", "COMPLETED", true, false).is_ok());
+    }
+
+    #[test]
+    fn cancel_refund_follows_the_listed_policy() {
+        let start = DateTime::parse_from_rfc3339("2026-10-10T10:00:00Z")
+            .unwrap()
+            .with_timezone(&Utc);
+        let early = start - chrono::Duration::hours(30);
+        let late = start - chrono::Duration::hours(2);
+        let advance = Decimal::from(200);
+        assert_eq!(
+            cancel_refund("FLEXIBLE", "CONFIRMED", start, late, advance),
+            advance
+        );
+        assert_eq!(
+            cancel_refund("STRICT", "CONFIRMED", start, late, advance),
+            Decimal::ZERO
+        );
+        assert_eq!(
+            cancel_refund("STRICT", "PENDING_OWNER_CONFIRMATION", start, late, advance),
+            advance
+        );
+        assert_eq!(
+            cancel_refund("MODERATE", "CONFIRMED", start, early, advance),
+            advance
+        );
+        assert_eq!(
+            cancel_refund("MODERATE", "CONFIRMED", start, late, advance),
+            Decimal::from(100)
+        );
+        assert_eq!(
+            cancel_refund("NON_REFUNDABLE", "CONFIRMED", start, late, advance),
+            Decimal::ZERO
+        );
+        assert_eq!(
+            cancel_refund("NON_REFUNDABLE", "TEMP_HOLD", start, late, advance),
+            advance
+        );
     }
 }

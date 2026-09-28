@@ -64,6 +64,8 @@ WITH expected(table_name, column_name) AS (
     ('rental_items','id'),('rental_items','ownerId'),('rental_items','businessId'),('rental_items','quantity'),
     ('rental_items','pickupAddress'),('rental_items','deliveryAvailable'),('rental_items','deliveryFee'),
     ('rental_items','depositPerUnit'),('rental_items','name'),('rental_items','description'),('rental_items','imageUrl'),
+    ('rental_items','imageUrls'),
+    ('rental_items','pickupLat'),('rental_items','pickupLng'),
     ('rental_items','hourlyRate'),('rental_items','dailyRate'),('rental_items','minHoursToRent'),('rental_items','isAvailable'),
     ('rental_items','createdAt'),('rental_items','updatedAt'),
     ('rental_reservations','id'),('rental_reservations','itemId'),('rental_reservations','renterId'),

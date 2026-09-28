@@ -173,11 +173,16 @@ async fn update_profile(
     }
     if is_portal_admin(&user) {
         if let Some(role) = body.get("role").and_then(|v| v.as_str()) {
-            sqlx::query(r#"UPDATE users SET role = $1 WHERE id = $2"#)
-                .bind(role)
-                .bind(uid)
-                .execute(&state.db)
-                .await?;
+            if !["CUSTOMER", "OWNER", "OPERATOR", "ADMIN"].contains(&role) {
+                return Err(AppError::BadRequest("Invalid role".into()));
+            }
+            sqlx::query(
+                r#"UPDATE users SET role = $1::users_role_enum, "updatedAt" = NOW() WHERE id = $2"#,
+            )
+            .bind(role)
+            .bind(uid)
+            .execute(&state.db)
+            .await?;
         }
     }
     get_user(State(state), user, Path(id)).await
@@ -219,12 +224,17 @@ async fn update_status(
     Json(body): Json<StatusBody>,
 ) -> AppResult<Json<Value>> {
     require_admin_page(&user, "users")?;
+    if !["PENDING", "APPROVED", "REJECTED"].contains(&body.status.as_str()) {
+        return Err(AppError::BadRequest("Invalid approval status".into()));
+    }
     let uid = Uuid::parse_str(&id)?;
-    sqlx::query(r#"UPDATE users SET "approvalStatus" = $1 WHERE id = $2"#)
-        .bind(&body.status)
-        .bind(uid)
-        .execute(&state.db)
-        .await?;
+    sqlx::query(
+        r#"UPDATE users SET "approvalStatus" = $1::users_approvalstatus_enum, "updatedAt" = NOW() WHERE id = $2"#,
+    )
+    .bind(&body.status)
+    .bind(uid)
+    .execute(&state.db)
+    .await?;
     get_user(State(state), user, Path(id)).await
 }
 
@@ -256,12 +266,17 @@ async fn update_skill_status(
     Json(body): Json<StatusBody>,
 ) -> AppResult<Json<Value>> {
     require_admin_page(&user, "verifications")?;
+    if !["PENDING", "APPROVED", "REJECTED"].contains(&body.status.as_str()) {
+        return Err(AppError::BadRequest("Invalid skill status".into()));
+    }
     let sid = Uuid::parse_str(&skill_id)?;
-    sqlx::query(r#"UPDATE professional_skills SET status = $1 WHERE id = $2"#)
-        .bind(&body.status)
-        .bind(sid)
-        .execute(&state.db)
-        .await?;
+    sqlx::query(
+        r#"UPDATE professional_skills SET status = $1::professional_skills_status_enum WHERE id = $2"#,
+    )
+    .bind(&body.status)
+    .bind(sid)
+    .execute(&state.db)
+    .await?;
     Ok(Json(json!({ "message": "Updated" })))
 }
 

@@ -53,9 +53,12 @@ export class Business {
   @Column({ type: 'text', nullable: true })
   documentUrl: string | null;
 
+  @Column({ type: 'jsonb', default: () => "'{}'::jsonb" })
+  hiringProfile: Record<string, unknown>;
+
   @Column({
     type: 'enum',
-    enum: ['PENDING', 'VERIFIED', 'REJECTED'],
+    enum: ['PENDING', 'VERIFIED', 'REJECTED', 'NEEDS_CHANGES'],
     default: 'PENDING',
   })
   status: string;

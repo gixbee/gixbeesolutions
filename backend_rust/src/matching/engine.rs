@@ -8,7 +8,7 @@ use uuid::Uuid;
 use crate::error::{AppError, AppResult};
 use crate::state::AppState;
 
-pub const BATCH_SIZES: [i32; 3] = [40, 20, 10];
+pub const BATCH_SIZES: [i32; 3] = [40, 20, 15];
 
 pub(super) struct EmployerSalary {
     pub salary_min: f64,
@@ -279,16 +279,23 @@ pub(super) async fn find_matching_preferences(
     // Apply all criteria before LIMIT: early non-matches must not hide later candidates.
     // Nest stores simple-array skills as comma-separated text.
     let rows = sqlx::query(
-        r#"SELECT id, "userId" FROM job_preferences
-        WHERE "isActive" = true AND LOWER("jobType") = LOWER($1)
-          AND "experienceYears" >= $2 AND NOT ("userId" = ANY($3))
-          AND ($4 = '' OR POSITION($4 IN LOWER(COALESCE("preferredLocation",''))) > 0)
-          AND "expectedSalary" <= $5 AND ("salaryNegotiable" OR "expectedSalary" >= $6)
-          AND ($7::text IS NULL OR "employmentType" IS NULL OR "employmentType"::text = $7)
-          AND (cardinality($8::text[]) = 0 OR COALESCE(skills,'') = '' OR EXISTS (
-              SELECT 1 FROM unnest(string_to_array(LOWER(skills),',')) AS skill
+        r#"SELECT p.id, p."userId" FROM job_preferences p
+        WHERE p."isActive" = true AND LOWER(p."jobType") = LOWER($1)
+          AND p."experienceYears" >= $2 AND NOT (p."userId" = ANY($3))
+          AND ($4 = '' OR POSITION($4 IN LOWER(COALESCE(p."preferredLocation",''))) > 0)
+          AND COALESCE(p."expectedSalaryPeriod", 'MONTHLY') = 'MONTHLY'
+          AND p."expectedSalary" <= $5 AND (p."salaryNegotiable" OR p."expectedSalary" >= $6)
+          AND (NOT p."isPaid" OR p."paidUntil" IS NULL OR p."paidUntil" > NOW())
+          AND NOT EXISTS (
+            SELECT 1 FROM talent_profiles t
+            WHERE t."userId" = p."userId"
+              AND (t."profileStatus" = 'PAUSED' OR t."jobAlertsEnabled" = false)
+          )
+          AND ($7::text IS NULL OR p."employmentType" IS NULL OR p."employmentType"::text = $7)
+          AND (cardinality($8::text[]) = 0 OR COALESCE(p.skills,'') = '' OR EXISTS (
+              SELECT 1 FROM unnest(string_to_array(LOWER(p.skills),',')) AS skill
               WHERE btrim(skill) = ANY($8)))
-        ORDER BY "createdAt" ASC, id ASC LIMIT $9"#,
+        ORDER BY p."createdAt" ASC, p.id ASC LIMIT $9"#,
     )
     .bind(job_type.trim())
     .bind(experience_min.max(0))

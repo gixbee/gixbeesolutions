@@ -8,7 +8,7 @@ import '../../repositories/auth_repository.dart'; // currentUserProvider
 import '../booking/book_services_split_screen.dart';
 import 'home_location_picker_screen.dart';
 import '../jobs/find_job_module.dart';
-import '../business/list_business_type_screen.dart';
+import '../business/business_unit_dashboard.dart';
 import '../../shared/widgets/dribbble_background.dart';
 import '../../shared/widgets/gx_pressable.dart';
 import 'home_sections.dart';
@@ -459,7 +459,7 @@ class HomeScreen extends ConsumerWidget {
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 0, 16, 9),
       child: GxPressable(
-        onTap: () => _go(context, const ListBusinessTypeScreen()),
+        onTap: () => _go(context, const BusinessUnitDashboard()),
         child: Container(
           padding: const EdgeInsets.fromLTRB(14, 12, 12, 12),
           decoration: BoxDecoration(

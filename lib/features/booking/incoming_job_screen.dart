@@ -326,25 +326,16 @@ class _IncomingJobScreenState extends ConsumerState<IncomingJobScreen>
 
       if (!mounted) return;
 
-      // Start streaming worker's location to the customer
-      final user = await ref.read(currentUserProvider.future);
-      if (!mounted) return;
-      if (user != null) {
-        ref.read(socketServiceProvider).startLocationStream(user.id, bookingId);
-        // Seed Redis immediately so customer status-poll can show a pin
-        // before the first GPS stream tick arrives.
-        try {
-          final pos =
-              await ref.read(locationServiceProvider).getCurrentPosition();
-          if (pos != null && mounted) {
-            await ref.read(workerRepositoryProvider).updateMyLocation(
-                  lat: pos.latitude,
-                  lng: pos.longitude,
-                );
-          }
-        } catch (_) {}
+      // Capture services before pop — do not await GPS or currentUser.future
+      // on this route. A permission dialog behind the processing overlay,
+      // or a hung profile future, used to leave a black fullscreen hang.
+      final userId = ref.read(currentUserProvider).value?.id;
+      final socket = ref.read(socketServiceProvider);
+      final locService = ref.read(locationServiceProvider);
+      final workerRepo = ref.read(workerRepositoryProvider);
+      if (userId != null) {
+        socket.startLocationStream(userId, bookingId);
       }
-      if (!mounted) return;
 
       ref.invalidate(myBookingsProvider);
 
@@ -362,6 +353,20 @@ class _IncomingJobScreenState extends ConsumerState<IncomingJobScreen>
 
       // Backend auto-cancels all other pending bookings for this worker.
       Navigator.pop(context, {'accepted': true, 'bookingId': bookingId});
+
+      if (userId != null) {
+        unawaited(() async {
+          try {
+            final pos = await locService.getCurrentPosition();
+            if (pos != null) {
+              await workerRepo.updateMyLocation(
+                lat: pos.latitude,
+                lng: pos.longitude,
+              );
+            }
+          } catch (_) {}
+        }());
+      }
     } catch (e) {
       if (!mounted) return;
       setState(() => _isProcessing = false);

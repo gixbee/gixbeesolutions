@@ -73,18 +73,22 @@ async fn create(
     {
         return Err(AppError::BadRequest("Unsupported service type".into()));
     }
-    let city_id = body
-        .get("cityId")
-        .and_then(Value::as_str)
-        .map(Uuid::parse_str)
-        .transpose()?;
+    let city_id = resolve_city_id(
+        &state.db,
+        body.get("cityId")
+            .and_then(Value::as_str)
+            .map(Uuid::parse_str)
+            .transpose()?,
+    )
+    .await?;
     let event_services = event_services(body.get("eventServices"))?;
     let phone = phone(body.get("phone"))?;
+    let hiring_profile = hiring_profile(body.get("hiringProfile"), biz_type)?;
     sqlx::query(
         r#"INSERT INTO businesses (id, "ownerId", name, type, location, status,
-           "serviceType", "cityId", description, "documentUrl",phone,"eventServices")
+           "serviceType", "cityId", description, "documentUrl",phone,"eventServices","hiringProfile")
            VALUES ($1, $2, $3, $4::businesses_type_enum, $5, 'PENDING',
-           $6::businesses_servicetype_enum, $7, $8, $9,$10,$11)"#,
+           $6::businesses_servicetype_enum, $7, $8, $9,$10,$11,$12)"#,
     )
     .bind(id)
     .bind(uid)
@@ -101,9 +105,33 @@ async fn create(
     .bind(body.get("documentUrl").and_then(Value::as_str))
     .bind(phone)
     .bind(json!(if biz_type=="SERVICE" {event_services} else {vec![]}))
+    .bind(hiring_profile)
     .execute(&state.db)
     .await?;
     get_one(State(state), user, Path(id.to_string())).await
+}
+
+/// Accept a live city, or drop a stale cached UUID so POST /businesses does
+/// not 400 on `businesses_cityId_fkey` after cities are re-seeded.
+async fn resolve_city_id(
+    db: &sqlx::PgPool,
+    city_id: Option<Uuid>,
+) -> AppResult<Option<Uuid>> {
+    let Some(id) = city_id else {
+        return Ok(None);
+    };
+    let active: bool = sqlx::query_scalar(
+        r#"SELECT EXISTS(SELECT 1 FROM cities WHERE id = $1 AND "isActive" = true)"#,
+    )
+    .bind(id)
+    .fetch_one(db)
+    .await?;
+    if active {
+        Ok(Some(id))
+    } else {
+        tracing::warn!(%id, "dropping unknown or inactive cityId on POST /businesses");
+        Ok(None)
+    }
 }
 
 async fn get_one(
@@ -126,6 +154,7 @@ async fn get_one(
         if row.get::<String,_>("status")!="VERIFIED" {return Err(AppError::NotFound("Business not found".into()));}
         result.as_object_mut().unwrap().remove("documentUrl");
         result.as_object_mut().unwrap().remove("operatorIds");
+        result.as_object_mut().unwrap().remove("hiringProfile");
     }
     Ok(Json(result))
 }
@@ -139,7 +168,7 @@ async fn update(
     let bid = Uuid::parse_str(&id)?;
     let uid = Uuid::parse_str(&user.user_id)?;
     let mut tx = state.db.begin().await?;
-    let owned = sqlx::query(r#"SELECT name, status::text AS status FROM businesses WHERE id = $1 AND "ownerId" = $2 FOR UPDATE"#)
+    let owned = sqlx::query(r#"SELECT name, type::text AS type, status::text AS status FROM businesses WHERE id = $1 AND "ownerId" = $2 FOR UPDATE"#)
         .bind(bid).bind(uid).fetch_optional(&mut *tx).await?
         .ok_or_else(|| AppError::NotFound("Business not found on your account".into()))?;
     if let Some(name) = body.get("name").and_then(|v| v.as_str()) {
@@ -190,6 +219,60 @@ async fn update(
             .bind(city).fetch_one(&mut *tx).await?;
         if !active {return Err(AppError::BadRequest("Select an active serviceable city".into()));}
         sqlx::query(r#"UPDATE businesses SET "cityId"=$1 WHERE id=$2"#).bind(city).bind(bid).execute(&mut *tx).await?;
+    }
+    let current_status = owned.get::<String, _>("status");
+    let biz_type = owned.get::<String, _>("type");
+    let mut resubmit = false;
+    if body.get("documentUrl").is_some() {
+        if current_status == "VERIFIED" {
+            return Err(AppError::BadRequest(
+                "Contact support to change documents on a verified business".into(),
+            ));
+        }
+        sqlx::query(r#"UPDATE businesses SET "documentUrl"=$1 WHERE id=$2"#)
+            .bind(body.get("documentUrl").and_then(Value::as_str))
+            .bind(bid)
+            .execute(&mut *tx)
+            .await?;
+        resubmit = true;
+    }
+    if body.get("hiringProfile").is_some() {
+        if biz_type != "HIRING" {
+            return Err(AppError::BadRequest(
+                "Hiring profile is only for hiring businesses".into(),
+            ));
+        }
+        if current_status == "VERIFIED" {
+            return Err(AppError::BadRequest(
+                "Contact support to change a verified hiring profile".into(),
+            ));
+        }
+        let cleaned = hiring_profile(body.get("hiringProfile"), "HIRING")?;
+        if cleaned
+            .as_object()
+            .map(|o| o.is_empty())
+            .unwrap_or(true)
+        {
+            return Err(AppError::BadRequest(
+                "Hiring verification details are required".into(),
+            ));
+        }
+        sqlx::query(r#"UPDATE businesses SET "hiringProfile"=$1 WHERE id=$2"#)
+            .bind(cleaned)
+            .bind(bid)
+            .execute(&mut *tx)
+            .await?;
+        resubmit = true;
+    }
+    if resubmit && current_status == "NEEDS_CHANGES" {
+        sqlx::query(
+            r#"UPDATE businesses SET status='PENDING'::businesses_status_enum,
+               "hiringProfile" = COALESCE("hiringProfile", '{}'::jsonb) - 'reviewNote'
+               WHERE id=$1"#,
+        )
+        .bind(bid)
+        .execute(&mut *tx)
+        .await?;
     }
     sqlx::query(r#"UPDATE businesses SET "updatedAt" = NOW() WHERE id = $1"#)
         .bind(bid)
@@ -277,7 +360,7 @@ async fn admin_list(
     crate::middleware::auth::require_admin_page(&user, "businesses")?;
     if q.status
         .as_deref()
-        .is_some_and(|s| !["PENDING", "VERIFIED", "REJECTED"].contains(&s))
+        .is_some_and(|s| !["PENDING", "VERIFIED", "REJECTED", "NEEDS_CHANGES"].contains(&s))
     {
         return Err(AppError::BadRequest("Invalid moderation status".into()));
     }
@@ -304,8 +387,19 @@ async fn admin_status(
 ) -> AppResult<Json<Value>> {
     crate::middleware::auth::require_admin_page(&user, "businesses")?;
     let status = body.get("status").and_then(Value::as_str).unwrap_or("");
-    if !["PENDING", "VERIFIED", "REJECTED"].contains(&status) {
+    if !["PENDING", "VERIFIED", "REJECTED", "NEEDS_CHANGES"].contains(&status) {
         return Err(AppError::BadRequest("Invalid moderation status".into()));
+    }
+    let review_note = body
+        .get("reviewNote")
+        .and_then(Value::as_str)
+        .unwrap_or("")
+        .trim()
+        .to_string();
+    if status == "NEEDS_CHANGES" && review_note.is_empty() {
+        return Err(AppError::BadRequest(
+            "Describe the changes needed".into(),
+        ));
     }
     let bid = Uuid::parse_str(&id)?;
     let mut tx = state.db.begin().await?;
@@ -319,14 +413,36 @@ async fn admin_status(
     if row.get::<String, _>("status") != status {
         sqlx::query(r#"UPDATE businesses SET status=$1::businesses_status_enum,"updatedAt"=NOW() WHERE id=$2"#)
             .bind(status).bind(bid).execute(&mut *tx).await?;
+        let notify_body = match status {
+            "VERIFIED" => "Your business is now verified. You can start posting jobs.",
+            "NEEDS_CHANGES" => "Your hiring business needs changes.",
+            "REJECTED" => "Your business was not verified.",
+            _ => "Your business is under review.",
+        };
         crate::outbox::notify(
             &mut tx,
             bid,
             row.get("ownerId"),
             "Business verification update",
-            &format!("Your business status is now {}.", status.to_lowercase()),
+            notify_body,
             json!({"type":"business_status","businessId":bid,"status":status}),
         )
+        .await?;
+    }
+    if status == "NEEDS_CHANGES" {
+        sqlx::query(
+            r#"UPDATE businesses SET "hiringProfile" = COALESCE("hiringProfile", '{}'::jsonb) || jsonb_build_object('reviewNote', $1::text) WHERE id=$2"#,
+        )
+        .bind(&review_note)
+        .bind(bid)
+        .execute(&mut *tx)
+        .await?;
+    } else if status == "VERIFIED" || status == "PENDING" {
+        sqlx::query(
+            r#"UPDATE businesses SET "hiringProfile" = COALESCE("hiringProfile", '{}'::jsonb) - 'reviewNote' WHERE id=$1"#,
+        )
+        .bind(bid)
+        .execute(&mut *tx)
         .await?;
     }
     tx.commit().await?;
@@ -413,9 +529,120 @@ fn business_json(row: &sqlx::postgres::PgRow) -> Value {
         "status": row.get::<String, _>("status"),
         "operatorIds": row.try_get::<Option<String>, _>("operatorIds").ok().flatten().unwrap_or_default().split(',').filter(|s| !s.is_empty()).collect::<Vec<_>>(),
         "offlineDays": row.try_get::<Option<String>, _>("offlineDays").ok().flatten().and_then(|v| serde_json::from_str::<Value>(&v).ok()).unwrap_or(json!([])),
+        "hiringProfile": row.try_get::<Value, _>("hiringProfile").ok().unwrap_or(json!({})),
         "createdAt": crate::common::pg::date_json(row,"createdAt"),
         "updatedAt": crate::common::pg::date_json(row,"updatedAt"),
     })
+}
+
+fn hiring_profile(value: Option<&Value>, biz_type: &str) -> AppResult<Value> {
+    if biz_type != "HIRING" {
+        return Ok(json!({}));
+    }
+    let src = value.cloned().unwrap_or(json!({}));
+    if src.as_object().map(|o| o.is_empty()).unwrap_or(true) {
+        return Ok(json!({}));
+    }
+    let kind = src
+        .get("employerKind")
+        .and_then(Value::as_str)
+        .unwrap_or("")
+        .trim();
+    if !["DIRECT", "STAFFING"].contains(&kind) {
+        return Err(AppError::BadRequest(
+            "Choose Direct Employer or Staffing Agency".into(),
+        ));
+    }
+    let industries: Vec<String> = src
+        .get("industries")
+        .and_then(Value::as_array)
+        .map(|arr| {
+            arr.iter()
+                .filter_map(Value::as_str)
+                .map(str::trim)
+                .filter(|s| !s.is_empty() && s.len() <= 80)
+                .map(str::to_owned)
+                .collect()
+        })
+        .unwrap_or_default();
+    if industries.is_empty() {
+        return Err(AppError::BadRequest("Select at least one industry".into()));
+    }
+    let role = src
+        .get("roleInBusiness")
+        .and_then(Value::as_str)
+        .unwrap_or("")
+        .trim();
+    if ![
+        "Owner",
+        "HR",
+        "Manager",
+        "Recruiter",
+        "Authorised Representative",
+    ]
+    .contains(&role)
+    {
+        return Err(AppError::BadRequest(
+            "Select your role in the business".into(),
+        ));
+    }
+    if src.get("authorised").and_then(Value::as_bool) != Some(true) {
+        return Err(AppError::BadRequest(
+            "Confirm you are authorised to represent this business".into(),
+        ));
+    }
+    if let Some(reg) = src
+        .get("registrationType")
+        .and_then(Value::as_str)
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+    {
+        if ![
+            "GST Certificate",
+            "Udyam Registration",
+            "CIN / Company Registration",
+            "Business Licence",
+            "Other",
+        ]
+        .contains(&reg)
+        {
+            return Err(AppError::BadRequest(
+                "Unsupported registration type".into(),
+            ));
+        }
+    }
+    let mut out = json!({
+        "employerKind": kind,
+        "industries": industries,
+        "roleInBusiness": role,
+        "authorised": true,
+        "phoneVerified": src.get("phoneVerified").and_then(Value::as_bool).unwrap_or(false),
+    });
+    if let Some(obj) = out.as_object_mut() {
+        for key in [
+            "companySize",
+            "email",
+            "logoUrl",
+            "pinLabel",
+            "pinSub",
+            "registrationType",
+            "registrationNumber",
+            "otherDocumentType",
+            "documentName",
+            "workEmail",
+        ] {
+            if let Some(s) = src.get(key).and_then(Value::as_str).map(str::trim).filter(|s| !s.is_empty()) {
+                obj.insert(key.to_string(), json!(s));
+            }
+        }
+        if let Some(lat) = src.get("lat").and_then(Value::as_f64) {
+            obj.insert("lat".into(), json!(lat));
+        }
+        if let Some(lng) = src.get("lng").and_then(Value::as_f64) {
+            obj.insert("lng".into(), json!(lng));
+        }
+    }
+    Ok(out)
 }
 
 fn event_services(value:Option<&Value>)->AppResult<Vec<String>> {
@@ -425,11 +652,136 @@ fn event_services(value:Option<&Value>)->AppResult<Vec<String>> {
     Ok(services)
 }
 
-fn phone(value:Option<&Value>)->AppResult<Option<String>> {
-    let Some(value)=value.and_then(Value::as_str).map(str::trim).filter(|s|!s.is_empty()) else {return Ok(None);};
-    let digits=value.chars().filter(char::is_ascii_digit).count();
-    if !(10..=15).contains(&digits) || value.len()>30 || value.chars().any(|c|!c.is_ascii_digit()&&!['+',' ','-','(',')'].contains(&c)) {
-        return Err(AppError::BadRequest("Enter a valid business phone number".into()));
+fn phone(value: Option<&Value>) -> AppResult<Option<String>> {
+    let Some(raw) = value
+        .and_then(Value::as_str)
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+    else {
+        return Ok(None);
+    };
+    // Phone keyboards insert `.` `/` `,` `#` `*` and unicode dashes; count
+    // digits only so a real 10-digit mobile is not rejected as 400.
+    if raw.chars().count() > 40 {
+        return Err(AppError::BadRequest(
+            "Enter a valid 10-digit business phone number".into(),
+        ));
     }
-    Ok(Some(value.into()))
+    let mut digits: String = raw.chars().filter(|c| c.is_ascii_digit()).collect();
+    if digits.len() == 11 && digits.starts_with('0') {
+        digits = digits[1..].to_string();
+    }
+    if !(10..=15).contains(&digits.len()) {
+        return Err(AppError::BadRequest(
+            "Enter a valid 10-digit business phone number".into(),
+        ));
+    }
+    Ok(Some(if raw.contains('+') || digits.len() > 10 {
+        format!("+{digits}")
+    } else {
+        digits
+    }))
+}
+
+#[cfg(test)]
+mod phone_tests {
+    use super::phone;
+    use serde_json::json;
+
+    fn ok(v: &str) -> String {
+        phone(Some(&json!(v))).unwrap().unwrap()
+    }
+
+    #[test]
+    fn accepts_plain_indian_mobile() {
+        assert_eq!(ok("9876543210"), "9876543210");
+    }
+
+    #[test]
+    fn accepts_plus_91_and_spaces() {
+        assert_eq!(ok("+91 98765 43210"), "+919876543210");
+    }
+
+    #[test]
+    fn accepts_keyboard_punctuation() {
+        assert_eq!(ok("98765.43210"), "9876543210");
+        assert_eq!(ok("tel:+91-9876543210"), "+919876543210");
+        assert_eq!(ok("09876543210"), "9876543210");
+    }
+
+    #[test]
+    fn rejects_too_short() {
+        assert!(phone(Some(&json!("98765"))).is_err());
+    }
+}
+
+#[cfg(test)]
+mod hiring_profile_tests {
+    use super::hiring_profile;
+    use serde_json::json;
+
+    #[test]
+    fn non_hiring_drops_profile() {
+        assert_eq!(
+            hiring_profile(Some(&json!({"employerKind": "DIRECT"})), "RENTAL").unwrap(),
+            json!({})
+        );
+    }
+
+    #[test]
+    fn empty_hiring_profile_is_legacy_ok() {
+        assert_eq!(hiring_profile(None, "HIRING").unwrap(), json!({}));
+    }
+
+    #[test]
+    fn hiring_requires_role_and_authorisation() {
+        assert!(hiring_profile(
+            Some(&json!({
+                "employerKind": "DIRECT",
+                "industries": ["Retail"]
+            })),
+            "HIRING"
+        )
+        .is_err());
+    }
+
+    #[test]
+    fn hiring_accepts_direct_employer() {
+        let v = hiring_profile(
+            Some(&json!({
+                "employerKind": "DIRECT",
+                "industries": ["Retail", "Events"],
+                "roleInBusiness": "Owner",
+                "authorised": true,
+                "lat": 8.52,
+                "lng": 76.94
+            })),
+            "HIRING",
+        )
+        .unwrap();
+        assert_eq!(v["employerKind"], "DIRECT");
+        assert_eq!(v["industries"], json!(["Retail", "Events"]));
+        assert_eq!(v["lat"], 8.52);
+    }
+
+    #[test]
+    fn hiring_keeps_optional_registration_and_strips_review_note() {
+        let v = hiring_profile(
+            Some(&json!({
+                "employerKind": "DIRECT",
+                "industries": ["Retail"],
+                "roleInBusiness": "HR",
+                "authorised": true,
+                "registrationType": "Other",
+                "otherDocumentType": "Shop licence",
+                "documentName": "licence.pdf",
+                "reviewNote": "client should not set this"
+            })),
+            "HIRING",
+        )
+        .unwrap();
+        assert_eq!(v["otherDocumentType"], "Shop licence");
+        assert_eq!(v["documentName"], "licence.pdf");
+        assert!(v.get("reviewNote").is_none());
+    }
 }

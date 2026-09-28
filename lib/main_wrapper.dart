@@ -16,6 +16,7 @@ import 'features/jobs/booking_detail_screen.dart';
 import 'features/jobs/my_bookings_screen.dart';
 import 'features/jobs/find_job_module.dart';
 import 'features/business/hiring_requests_screen.dart';
+import 'features/business/hiring_pipeline_screen.dart';
 import 'features/events/event_plan_detail_screen.dart';
 import 'features/jobs/hiring_progress_screen.dart';
 import 'features/rentals/my_rentals_screen.dart';
@@ -34,9 +35,10 @@ import 'repositories/booking_status_provider.dart';
 import 'services/auth_token_service.dart';
 import 'services/notification_service.dart';
 import 'services/socket_service.dart';
-import 'shared/models/user.dart';
 import 'shared/widgets/dribbble_background.dart';
 import 'core/main_tab_provider.dart';
+import 'core/navigator_key.dart';
+import 'features/onboarding/welcome_screen.dart';
 
 /// Push `data.type` values that mean "this booking changed" — every one of
 /// them should refresh the booking lists and the live status stream.
@@ -71,7 +73,6 @@ class _MainWrapperState extends ConsumerState<MainWrapper>
   /// One-shot guard for the first-run location prompt (Swiggy pattern).
   bool _locationPromptShown = false;
 
-  /// Non-null while GPS is blocked ('service_off' | 'denied_forever' |
   /// Tracks booking IDs already shown — prevents duplicate popups from
   /// FCM, socket, and HTTP reconciliation firing for the same booking.
   final Set<String> _shownBookingIds = {};
@@ -126,11 +127,23 @@ class _MainWrapperState extends ConsumerState<MainWrapper>
 
   bool _sessionExitStarted = false;
 
-  /// Leave the shell entirely (no bottom nav / Go Live) when the JWT is gone.
+  /// Leave the shell entirely (no bottom nav / Go Live) on sign-out or expiry.
   void _forceSessionEnd() {
     if (_sessionExitStarted) return;
     _sessionExitStarted = true;
-    unawaited(forceLogoutToWelcomeFromWidget(ref));
+    unawaited(() async {
+      await forceLogoutToWelcomeFromWidget(ref);
+      // forceLogout skips nav when the JWT was already deleted. Still replace
+      // the shell so Home / Bookings stay unreachable after Profile expiry.
+      if (!mounted) return;
+      final nav = rootNavigatorKey.currentState ??
+          Navigator.of(context, rootNavigator: true);
+      if (!nav.mounted) return;
+      nav.pushAndRemoveUntil(
+        MaterialPageRoute(builder: (_) => const WelcomeScreen()),
+        (route) => false,
+      );
+    }());
   }
 
   /// Soft check used on resume/tab — only exit when there is truly no token.
@@ -153,21 +166,16 @@ class _MainWrapperState extends ConsumerState<MainWrapper>
       _initNotifications();
       _checkWorkerPendingOnce();
       // Location chain: restore last pick, else GPS auto-detect + nearest
-      // serviceable city — so the home bar and city-scoped feeds are correct
-      // without the user opening the picker.
-      // If NEITHER resolves (fresh install with device location off or the
-      // permission denied), prompt IMMEDIATELY with the address picker —
-      // Swiggy-style — instead of leaving a blank "Select Location" the
-      // user has to discover on their own. The sheet offers all three exits:
-      // use live location, pick a saved address, or pin on the map.
-      ensureLocationInitialized(ref).then((_) {
+      // serviceable city. Device GPS is gated app-wide by LocationRequiredHost;
+      // this picker is only a fallback when GPS is on but no pin was saved.
+      ensureLocationInitialized(ref).then((_) async {
         if (!mounted) return;
+        final blocked =
+            await ref.read(locationServiceProvider).gpsBlockReason();
+        if (!mounted || blocked != null) return;
         if (ref.read(selectedLocationProvider) == null) {
           _promptLocationPicker();
         }
-        // Swiggy pattern part 2: ASK for device location on app open when
-        // it's merely un-granted.
-        unawaited(_checkGpsAccess());
       });
       // CACHE WARM (client bug: Instant Help showed a ~4s blank grid on
       // first open): kick the trades-master fetch NOW, at app start. The
@@ -461,6 +469,28 @@ class _MainWrapperState extends ConsumerState<MainWrapper>
       }
       return;
     }
+    if (type == 'board_application' || type == 'board_invite') {
+      final jobId = data['jobId']?.toString() ?? '';
+      final audience = data['audience']?.toString() ?? '';
+      if (fromUserGesture && mounted) {
+        if (audience == 'employer' && jobId.isNotEmpty) {
+          await Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => HiringPipelineScreen(jobId: jobId, jobTitle: 'Applications'),
+            ),
+          );
+        } else {
+          await Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => FindJobModule(initialIndex: type == 'board_invite' ? 1 : 3),
+            ),
+          );
+        }
+      }
+      return;
+    }
     if (type == 'hiring_offer' || type == 'hiring_status') {
       if (fromUserGesture && mounted) {
         await Navigator.push(
@@ -621,26 +651,7 @@ class _MainWrapperState extends ConsumerState<MainWrapper>
       backgroundColor: Colors.transparent,
       builder: (_) => const AddressPickerBottomSheet(),
     );
-  }
-
-  // ── GPS access banner (Swiggy "Location Permission is Off") ──────────
-
-  /// Evaluate GPS availability. When [promptIfAskable] and the permission is
-  /// merely 'denied' (re-promptable), trigger the OS dialog once by
-  /// requesting a position — that IS the ask-on-open.
-  Future<void> _checkGpsAccess() async {
-    try {
-      final svc = ref.read(locationServiceProvider);
-      final reason = await svc.gpsBlockReason();
-      if (reason == 'denied') {
-        await svc.getCurrentPosition(); // surfaces the OS permission dialog
-      }
-    } catch (_) {}
-  }
-
-
-
-  @override
+  }  @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     final isLive = ref.watch(workerLiveStateProvider);
@@ -652,9 +663,14 @@ class _MainWrapperState extends ConsumerState<MainWrapper>
       if (becameWorker) {
         unawaited(_reconcilePendingBookings());
       }
+      if (shouldLeaveAppShell(ref.read(authStateProvider), next)) {
+        _forceSessionEnd();
+      }
     });
     ref.listen(authStateProvider, (prev, next) {
-      if (authSessionIsGone(next)) _forceSessionEnd();
+      if (shouldLeaveAppShell(next, ref.read(currentUserProvider))) {
+        _forceSessionEnd();
+      }
     });
     // Profile back / Home avatar write [mainTabIndexProvider]; keep the
     // bottom bar body in sync without Navigator.pop on the shell.
@@ -665,14 +681,24 @@ class _MainWrapperState extends ConsumerState<MainWrapper>
     });
 
     final authAsync = ref.watch(authStateProvider);
-    // JWT gone ⇒ leave the shell. A null profile after logout must not do that
-    // on re-login (it is still visible while the new /auth/profile loads).
+    final userAsync = ref.watch(currentUserProvider);
+    // JWT gone or profile 401/null while "authed" ⇒ leave the whole shell.
+    // A refreshing null profile after OTP must not bounce back to Welcome.
     final sessionGone =
-        _sessionExitStarted || authSessionIsGone(authAsync);
-    if (sessionGone) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) _forceSessionEnd();
-      });
+        _sessionExitStarted || shouldLeaveAppShell(authAsync, userAsync);
+    // Don't paint Home / bottom nav until /auth/profile resolves. An expired
+    // JWT still counts as "hasToken" while the 401 is in flight — that's how
+    // Profile could show Session Expired while Home stayed fully usable.
+    final confirmingSession = !sessionGone &&
+        authAsync.asData?.value == true &&
+        (userAsync.isLoading || userAsync.isRefreshing) &&
+        userAsync.asData?.value == null;
+    if (sessionGone || confirmingSession) {
+      if (sessionGone) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) _forceSessionEnd();
+        });
+      }
       return Scaffold(
         backgroundColor: context.gx.bg,
         body: Center(

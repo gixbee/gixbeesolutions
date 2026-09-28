@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import 'package:razorpay_flutter/razorpay_flutter.dart';
+import '../../core/config/app_config.dart';
 import '../../repositories/rentals_repository.dart';
 import '../../shared/widgets/dribbble_background.dart';
+import '../../shared/widgets/gx_button.dart';
 import '../../shared/widgets/gx_snackbar.dart';
 import '../../theme.dart';
 import 'rental_fulfillment_card.dart';
@@ -19,11 +22,19 @@ class MyRentalsScreen extends ConsumerStatefulWidget {
 class _MyRentalsScreenState extends ConsumerState<MyRentalsScreen> {
   List<Map<String, dynamic>> _reservations = [];
   bool _loading = true;
+  bool _paying = false;
+  Razorpay? _razorpay;
 
   @override
   void initState() {
     super.initState();
     _load();
+  }
+
+  @override
+  void dispose() {
+    _razorpay?.clear();
+    super.dispose();
   }
 
   Future<void> _load() async {
@@ -65,14 +76,57 @@ class _MyRentalsScreenState extends ConsumerState<MyRentalsScreen> {
     }
   }
 
+  Future<void> _payAdvance(Map<String, dynamic> r) async {
+    if (_paying) return;
+    setState(() => _paying = true);
+    try {
+      final order = await ref
+          .read(rentalsRepositoryProvider)
+          .createAdvanceOrder(r['id'].toString());
+      _razorpay ??= Razorpay()
+        ..on(Razorpay.EVENT_PAYMENT_SUCCESS, (PaymentSuccessResponse _) {
+          if (!mounted) return;
+          showGxSnack(context, 'Advance received — waiting for the store',
+              type: GxSnackType.success);
+          _load();
+        })
+        ..on(Razorpay.EVENT_PAYMENT_ERROR, (PaymentFailureResponse response) {
+          if (!mounted) return;
+          showGxSnack(context, response.message ?? 'Payment failed',
+              type: GxSnackType.error);
+        })
+        ..on(Razorpay.EVENT_EXTERNAL_WALLET, (_) {});
+      _razorpay!.open({
+        'key': order['keyId'] ?? AppConfig.razorpayKey,
+        'order_id': order['orderId'],
+        'amount': order['amount'],
+        'currency': order['currency'] ?? 'INR',
+        'name': 'Gixbee Rentals',
+      });
+    } catch (e) {
+      if (mounted) {
+        showGxSnack(context, 'Could not start advance payment: $e',
+            type: GxSnackType.error);
+      }
+    } finally {
+      if (mounted) setState(() => _paying = false);
+    }
+  }
+
   (Color, String) _statusStyle(String status) {
     switch (status) {
+      case 'TEMP_HOLD':
+      case 'PAYMENT_PENDING':
+        return (GixbeeTheme.accentGold, 'Pay advance to hold');
       case 'PENDING':
-        return (GixbeeTheme.accentGold, 'Awaiting owner');
+      case 'PENDING_OWNER_CONFIRMATION':
+        return (GixbeeTheme.accentGold, 'Awaiting store');
       case 'CONFIRMED':
         return (GixbeeTheme.accentTeal, 'Confirmed');
       case 'ACTIVE':
         return (GixbeeTheme.accentViolet, 'With you now');
+      case 'RETURN_PENDING':
+        return (GixbeeTheme.accentViolet, 'Returned — settling');
       case 'COMPLETED':
         return (GixbeeTheme.accentGreen, 'Completed');
       case 'REJECTED':
@@ -136,7 +190,11 @@ class _MyRentalsScreenState extends ConsumerState<MyRentalsScreen> {
                                 final status = '${r['status'] ?? ''}';
                                 final (color, label) = _statusStyle(status);
                                 final item = r['item'] as Map? ?? {};
-                                final canCancel = (status == 'PENDING' || status == 'CONFIRMED') &&
+                                final canCancel = (status == 'PENDING' ||
+                                        status == 'PENDING_OWNER_CONFIRMATION' ||
+                                        status == 'TEMP_HOLD' ||
+                                        status == 'PAYMENT_PENDING' ||
+                                        status == 'CONFIRMED') &&
                                     r['ownerHandedOverAt'] == null && r['renterCollectedAt'] == null;
                                 return Container(
                                   padding: const EdgeInsets.all(14),
@@ -210,6 +268,44 @@ class _MyRentalsScreenState extends ConsumerState<MyRentalsScreen> {
                                             ),
                                         ],
                                       ),
+                                      if (status == 'TEMP_HOLD' ||
+                                          status == 'PAYMENT_PENDING') ...[
+                                        const SizedBox(height: 8),
+                                        GxButton(
+                                          label:
+                                              'Pay advance ₹${num.tryParse('${r['advanceAmount']}')?.round() ?? r['advanceAmount']}',
+                                          height: 40,
+                                          radius: 10,
+                                          fontSize: 12.5,
+                                          loading: _paying,
+                                          onTap: _paying
+                                              ? null
+                                              : () => _payAdvance(r),
+                                        ),
+                                      ],
+                                      if ('${r['handoverOtp'] ?? ''}'.isNotEmpty &&
+                                          status == 'CONFIRMED') ...[
+                                        const SizedBox(height: 8),
+                                        Text(
+                                          'Pickup OTP ${r['handoverOtp']} — show this at the store',
+                                          style: const TextStyle(
+                                              fontSize: 12.5,
+                                              fontWeight: FontWeight.w700,
+                                              color: GixbeeTheme.accentTeal),
+                                        ),
+                                      ],
+                                      if ('${r['returnOtp'] ?? ''}'.isNotEmpty &&
+                                          (status == 'ACTIVE' ||
+                                              status == 'RETURN_PENDING')) ...[
+                                        const SizedBox(height: 8),
+                                        Text(
+                                          'Return OTP ${r['returnOtp']}',
+                                          style: const TextStyle(
+                                              fontSize: 12.5,
+                                              fontWeight: FontWeight.w700,
+                                              color: GixbeeTheme.accentTeal),
+                                        ),
+                                      ],
                                       RentalFulfillmentCard(key: ValueKey(r['id']), reservation: r, isOwner: false, onChanged: _load),
                                     ],
                                   ),

@@ -4,11 +4,8 @@ import '../../shared/widgets/gx_pressable.dart';
 import '../../shared/widgets/gx_network_error.dart';
 import '../../repositories/auth_repository.dart';
 import '../../repositories/profile_repository.dart';
-import '../../services/auth_token_service.dart';
 import '../../core/config/app_config.dart';
-import '../../core/navigator_key.dart';
 import '../../theme.dart';
-import '../onboarding/welcome_screen.dart';
 import 'edit_profile_screen.dart';
 import '../business/business_unit_dashboard.dart';
 import '../jobs/post_job_screen.dart';
@@ -82,67 +79,11 @@ class ProfileScreen extends ConsumerWidget {
                     userAsync.when(
                       data: (user) {
                         if (user == null) {
-                          return Container(
-                            padding: const EdgeInsets.symmetric(vertical: 40, horizontal: 20),
-                            decoration: BoxDecoration(
-                              border: Border(bottom: BorderSide(color: context.gx.border)),
-                            ),
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Container(
-                                  width: 72,
-                                  height: 72,
-                                  decoration: BoxDecoration(
-                                    shape: BoxShape.circle,
-                                    color: context.gx.ink.withValues(alpha: 0.05),
-                                  ),
-                                  alignment: Alignment.center,
-                                  child: Icon(Icons.person_outline, size: 36, color: context.gx.ink.withValues(alpha: 0.4)),
-                                ),
-                                const SizedBox(height: 16),
-                                Text(
-                                  'Session Expired',
-                                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: context.gx.ink),
-                                ),
-                                const SizedBox(height: 6),
-                                Text(
-                                  'Please log in again to view your profile and manage your bookings.',
-                                  textAlign: TextAlign.center,
-                                  style: TextStyle(fontSize: 13, color: context.gx.ink.withValues(alpha: 0.55)),
-                                ),
-                                const SizedBox(height: 20),
-                                GxPressable(
-                                  onTap: () async {
-                                    await ref
-                                        .read(authTokenServiceProvider)
-                                        .deleteToken();
-                                    ref.invalidate(authStateProvider);
-                                    ref.invalidate(currentUserProvider);
-                                    rootNavigatorKey.currentState
-                                        ?.pushAndRemoveUntil(
-                                      MaterialPageRoute(
-                                        builder: (_) => const WelcomeScreen(),
-                                      ),
-                                      (r) => false,
-                                    );
-                                  },
-                                  child: Container(
-                                    padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 28),
-                                    decoration: BoxDecoration(
-                                      gradient: LinearGradient(
-                                        colors: [context.gx.accentSoft, const Color(0xFFEC4899)],
-                                      ),
-                                      borderRadius: BorderRadius.circular(10),
-                                    ),
-                                    child: Text(
-                                      'Log In Again',
-                                      style: TextStyle(color: context.gx.onAccent, fontWeight: FontWeight.w700, fontSize: 14),
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
+                          // In-tab "Session Expired" left Home / bottom nav live.
+                          // MainWrapper tears the shell down; keep this tab empty.
+                          return const Padding(
+                            padding: EdgeInsets.symmetric(vertical: 48),
+                            child: Center(child: CircularProgressIndicator()),
                           );
                         }
 

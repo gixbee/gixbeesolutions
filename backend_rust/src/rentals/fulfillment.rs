@@ -36,7 +36,7 @@ pub(super) async fn change(state:&AppState,user:&AuthUser,id:&str,action:&str)->
             if is_owner {"ownerReturnedAt"} else {"renterReturnedAt"}
         },
         "payment"=>{
-            if !["CONFIRMED","ACTIVE"].contains(&status.as_str()) {return Err(AppError::Conflict("Payment acknowledgement requires a confirmed rental".into()));}
+            if !["CONFIRMED","ACTIVE","RETURN_PENDING"].contains(&status.as_str()) {return Err(AppError::Conflict("Payment acknowledgement requires a confirmed rental".into()));}
             if is_owner {"ownerPaidAt"} else {"renterPaidAt"}
         },
         "refund"=>{
@@ -55,10 +55,12 @@ pub(super) async fn change(state:&AppState,user:&AuthUser,id:&str,action:&str)->
     sqlx::query(&format!(r#"UPDATE rental_reservations SET "{column}"=COALESCE("{column}",NOW()),"updatedAt"=NOW() WHERE id=$1"#))
         .bind(id).execute(&mut *tx).await?;
     sqlx::query(r#"UPDATE rental_reservations SET status='ACTIVE' WHERE id=$1 AND status='CONFIRMED'
-        AND (("ownerHandedOverAt" IS NOT NULL AND "renterCollectedAt" IS NOT NULL)
-          OR ("ownerReturnedAt" IS NOT NULL AND "renterReturnedAt" IS NOT NULL))"#)
+        AND "ownerHandedOverAt" IS NOT NULL AND "renterCollectedAt" IS NOT NULL"#)
         .bind(id).execute(&mut *tx).await?;
-    sqlx::query(r#"UPDATE rental_reservations SET status='COMPLETED' WHERE id=$1 AND status='ACTIVE'
+    sqlx::query(r#"UPDATE rental_reservations SET status='RETURN_PENDING' WHERE id=$1 AND status IN ('CONFIRMED','ACTIVE')
+        AND "ownerReturnedAt" IS NOT NULL AND "renterReturnedAt" IS NOT NULL"#)
+        .bind(id).execute(&mut *tx).await?;
+    sqlx::query(r#"UPDATE rental_reservations SET status='COMPLETED' WHERE id=$1 AND status IN ('ACTIVE','RETURN_PENDING')
         AND "ownerReturnedAt" IS NOT NULL AND "renterReturnedAt" IS NOT NULL
         AND "ownerPaidAt" IS NOT NULL AND "renterPaidAt" IS NOT NULL
         AND (COALESCE(("priceBreakdown"->>'deposit')::numeric,0)=0 OR ("ownerRefundedAt" IS NOT NULL AND "renterRefundedAt" IS NOT NULL))"#)

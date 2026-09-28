@@ -5,6 +5,7 @@ use axum::{
 };
 use rand::Rng;
 use serde::{Deserialize, Serialize};
+use serde_json::{json, Value};
 use sqlx::Row;
 use uuid::Uuid;
 
@@ -19,6 +20,7 @@ pub fn routes() -> Router<AppState> {
     Router::new()
         .route("/request-otp", post(request_otp))
         .route("/verify-otp", post(verify_otp))
+        .route("/confirm-otp", post(confirm_otp))
         .route("/refresh", post(refresh_token))
         .route("/profile", get(get_profile))
         .route("/push-token", patch(update_push_token))
@@ -176,6 +178,20 @@ async fn verify_otp(
     };
 
     generate_token_pair(&state, &user_id, &body.phone, "CUSTOMER").await
+}
+
+/// Proves possession of a phone (business listing) without logging into it.
+async fn confirm_otp(
+    State(state): State<AppState>,
+    _user: AuthUser,
+    Json(body): Json<VerifyOtpBody>,
+) -> AppResult<Json<Value>> {
+    let key = format!("otp:{}", body.phone);
+    let stored = state.redis.consume_otp(&key).await?;
+    if stored.as_deref() != Some(body.otp.as_str()) {
+        return Err(AppError::Unauthorized("Invalid or expired OTP".into()));
+    }
+    Ok(Json(json!({ "verified": true })))
 }
 
 async fn generate_token_pair(

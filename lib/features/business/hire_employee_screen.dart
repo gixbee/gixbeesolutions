@@ -158,6 +158,8 @@ class _HireEmployeeScreenState extends ConsumerState<HireEmployeeScreen> {
       if (_employmentType != null) 'employmentType': _employmentType,
       'experienceMinYears': int.tryParse(_expCtrl.text.trim()) ?? 0,
       'vacancies': _vacancies,
+      if (_descriptionCtrl.text.trim().isNotEmpty)
+        'description': _descriptionCtrl.text.trim(),
     };
   }
 

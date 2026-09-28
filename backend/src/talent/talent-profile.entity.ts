@@ -77,6 +77,48 @@ export class TalentProfile {
   @Column({ type: 'float', default: 100 })
   searchRank: number;
 
+  @Column({ type: 'float', nullable: true })
+  lat: number | null;
+
+  @Column({ type: 'float', nullable: true })
+  lng: number | null;
+
+  @Column({ type: 'float', default: 25 })
+  travelRadiusKm: number;
+
+  @Column({ default: 'IMMEDIATE' })
+  availability: string;
+
+  @Column({ type: 'timestamptz', nullable: true })
+  lastActiveAt: Date | null;
+
+  @Column({ default: 'ACTIVE' })
+  profileStatus: string;
+
+  @Column({ nullable: true })
+  preferredWorkMode: string | null;
+
+  @Column({ default: 'MONTHLY' })
+  expectedSalaryPeriod: string;
+
+  @Column('simple-array', { nullable: true })
+  employmentTypes: string[];
+
+  @Column({ type: 'date', nullable: true })
+  availableOn: string | null;
+
+  @Column({ nullable: true })
+  resumeUrl: string | null;
+
+  @Column({ nullable: true })
+  resumeFileName: string | null;
+
+  @Column({ nullable: true })
+  resumeMimeType: string | null;
+
+  @Column({ type: 'timestamptz', nullable: true })
+  resumeUploadedAt: Date | null;
+
   @CreateDateColumn()
   createdAt: Date;
 

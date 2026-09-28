@@ -53,6 +53,36 @@ export class JobPost {
   @Column({ default: true })
   isActive: boolean;
 
+  @Column({ default: 'ONSITE' })
+  workMode: string;
+
+  @Column({ default: 'MONTHLY' })
+  salaryPeriod: string;
+
+  @Column({ type: 'float', nullable: true })
+  experienceMin: number | null;
+
+  @Column({ type: 'float', nullable: true })
+  experienceMax: number | null;
+
+  @Column({ type: 'float', nullable: true })
+  lat: number | null;
+
+  @Column({ type: 'float', nullable: true })
+  lng: number | null;
+
+  @Column({ type: 'int', default: 1 })
+  openings: number;
+
+  @Column({ nullable: true })
+  joiningType: string | null;
+
+  @Column({ type: 'timestamptz', nullable: true })
+  joiningDate: Date | null;
+
+  @Column({ default: 'PUBLISHED' })
+  status: string;
+
   @CreateDateColumn()
   createdAt: Date;
 

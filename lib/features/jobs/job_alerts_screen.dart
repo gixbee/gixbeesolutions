@@ -13,6 +13,9 @@ import '../../shared/widgets/gx_skeleton.dart';
 import '../../shared/widgets/gx_text_field.dart';
 import '../../shared/widgets/gx_empty.dart';
 import '../../theme.dart';
+import 'match_explanation.dart';
+import 'matched_job_detail_screen.dart';
+import 'seeker_profile_wizard.dart';
 
 /// Browse classic job board postings (v147 **Board** tab).
 /// Gixbee 2026 reskin: neutral header, squircle filter chips, bento job
@@ -20,22 +23,30 @@ import '../../theme.dart';
 ///
 /// Classic board only — Smart Hiring alerts live on the Alerts tab.
 class JobAlertsScreen extends ConsumerStatefulWidget {
-  /// Opens the Applications tab in [FindJobModule] after a successful apply.
+  /// Opens the Applications tab after a successful interest.
   final VoidCallback? onOpenApplications;
+  final VoidCallback? onCreateProfile;
+  final VoidCallback? onEditProfile;
+  final int reloadToken;
 
-  const JobAlertsScreen({super.key, this.onOpenApplications});
+  const JobAlertsScreen({
+    super.key,
+    this.onOpenApplications,
+    this.onCreateProfile,
+    this.onEditProfile,
+    this.reloadToken = 0,
+  });
 
   @override
   ConsumerState<JobAlertsScreen> createState() => _JobAlertsScreenState();
 }
 
 class _JobAlertsScreenState extends ConsumerState<JobAlertsScreen> {
-  String _selectedFilter = 'All';
+  String _rank = 'All';
+  String? _category;
 
-  final _filters = [
-    'All',
-    'Saved',
-    'Nearby',
+  static const _ranks = ['All', 'Best Match', 'Nearby', 'New', 'Saved'];
+  static const _categories = [
     'Electrician',
     'Plumbing',
     'Cleaning',
@@ -45,7 +56,15 @@ class _JobAlertsScreenState extends ConsumerState<JobAlertsScreen> {
   ];
 
   List<JobPost> _jobs = [];
+  List<JobPost> _savedJobs = [];
+  int _page = 1;
+  int _total = 0;
+  bool _loadingMore = false;
   bool _isLoading = true;
+  bool _loadFailed = false;
+  bool _profileReady = true;
+  bool _openToWork = true;
+  int _seenReload = 0;
   final Set<String> _appliedJobIds = {};
 
   // v126 alert actions: "Later" bookmarks persist on the talent profile
@@ -68,6 +87,14 @@ class _JobAlertsScreenState extends ConsumerState<JobAlertsScreen> {
     _fetchSavedJobs();
   }
 
+  @override
+  void didUpdateWidget(JobAlertsScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.reloadToken != widget.reloadToken) {
+      _fetchJobs();
+    }
+  }
+
   Future<void> _fetchSavedJobs() async {
     try {
       final profile = await ref.read(talentRepositoryProvider).getProfile();
@@ -75,16 +102,52 @@ class _JobAlertsScreenState extends ConsumerState<JobAlertsScreen> {
           .map((e) => e.toString())
           .toSet();
       if (mounted) setState(() => _savedJobIds.addAll(saved));
+      await _loadSavedJobs();
     } catch (e) {
       debugPrint('Fetching saved jobs failed: $e');
     }
   }
 
+  Future<void> _loadMore() async {
+    if (_loadingMore || _jobs.length >= _total) return;
+    setState(() => _loadingMore = true);
+    try {
+      final page = await ref.read(hiringRepositoryProvider).getMatchedJobsPage(page: _page + 1);
+      if (!mounted) return;
+      setState(() {
+        _jobs = [..._jobs, ...page.items];
+        _page = page.page;
+        _total = page.total;
+        _loadingMore = false;
+      });
+    } catch (_) {
+      if (mounted) setState(() => _loadingMore = false);
+    }
+  }
+
+  Future<void> _loadSavedJobs() async {
+    final ids = _savedJobIds.toList();
+    final loaded = <JobPost>[];
+    for (final id in ids) {
+      try {
+        loaded.add(await ref.read(hiringRepositoryProvider).getJob(id));
+      } catch (_) {}
+    }
+    if (mounted) setState(() => _savedJobs = loaded);
+  }
+
   Future<void> _toggleSaved(JobPost job) async {
     // Optimistic toggle; revert on failure.
     final wasSaved = _savedJobIds.contains(job.id);
-    setState(() =>
-        wasSaved ? _savedJobIds.remove(job.id) : _savedJobIds.add(job.id));
+    setState(() {
+      if (wasSaved) {
+        _savedJobIds.remove(job.id);
+        _savedJobs.removeWhere((item) => item.id == job.id);
+      } else {
+        _savedJobIds.add(job.id);
+        _savedJobs = [..._savedJobs.where((item) => item.id != job.id), job];
+      }
+    });
     try {
       await ref.read(talentRepositoryProvider).toggleSavedJob(job.id);
       if (mounted && !wasSaved) {
@@ -92,55 +155,136 @@ class _JobAlertsScreenState extends ConsumerState<JobAlertsScreen> {
       }
     } catch (e) {
       if (mounted) {
-        setState(() => wasSaved
-            ? _savedJobIds.add(job.id)
-            : _savedJobIds.remove(job.id));
+        setState(() {
+          if (wasSaved) {
+            _savedJobIds.add(job.id);
+            _savedJobs = [..._savedJobs.where((item) => item.id != job.id), job];
+          } else {
+            _savedJobIds.remove(job.id);
+            _savedJobs.removeWhere((item) => item.id == job.id);
+          }
+        });
         showGxSnack(context, 'Could not update: $e', type: GxSnackType.error);
       }
     }
   }
 
-  Future<void> _fetchJobs() async {
+  Future<void> _notInterested(JobPost job) async {
+    const reasons = {
+      'SALARY_TOO_LOW': 'Salary too low',
+      'TOO_FAR': 'Too far',
+      'WRONG_ROLE': 'Wrong role',
+      'WRONG_SCHEDULE': 'Wrong schedule',
+      'COMPANY': 'Company',
+      'ALREADY_FOUND_WORK': 'Already found work',
+      'OTHER': 'Other',
+    };
+    final picked = await showGxSheet<String>(
+      context,
+      title: 'Not interested',
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          for (final entry in reasons.entries)
+            ListTile(
+              title: Text(entry.value),
+              onTap: () => Navigator.pop(context, entry.key),
+            ),
+        ],
+      ),
+    );
+    if (picked == null) return;
+    setState(() => _skippedJobIds.add(job.id));
     try {
-      final jobs = await ref.read(hiringRepositoryProvider).getMatchingJobs();
+      await ref.read(hiringRepositoryProvider).notInterested(job.id, picked);
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _skippedJobIds.remove(job.id));
+      showGxSnack(context, 'Could not save feedback: $e',
+          type: GxSnackType.error);
+    }
+  }
+
+  Future<void> _fetchJobs() async {
+    setState(() {
+      _isLoading = true;
+      _loadFailed = false;
+    });
+    var ready = _profileReady;
+    try {
+      final page = await ref.read(hiringRepositoryProvider).getMatchedJobsPage(page: 1);
+      if (!mounted) return;
+      setState(() {
+        _jobs = page.items;
+        _page = 1;
+        _total = page.total;
+        _isLoading = false;
+      });
+      if (widget.reloadToken > 0 && widget.reloadToken != _seenReload) {
+        _seenReload = widget.reloadToken;
+        showGxSnack(
+          context,
+          '${page.total} jobs match your profile',
+          type: GxSnackType.success,
+        );
+      }
+    } catch (_) {
       if (mounted) {
         setState(() {
-          _jobs = jobs;
           _isLoading = false;
+          _loadFailed = true;
         });
       }
-    } catch (e) {
-      if (mounted) {
-        setState(() => _isLoading = false);
-        showGxSnack(context, 'Error loading jobs: $e',
-            type: GxSnackType.error);
-      }
+      return;
     }
+    try {
+      final profile = await ref.read(talentRepositoryProvider).getProfile();
+      ready = !jobProfileNeedsWizard(profile);
+      final open = profile['profileStatus']?.toString() != 'PAUSED';
+      if (mounted) {
+        setState(() {
+          _profileReady = ready;
+          _openToWork = open;
+        });
+      }
+    } catch (_) {}
   }
 
   List<JobPost> get _filteredJobs {
     Iterable<JobPost> out = _jobs;
-    if (_selectedFilter == 'Saved') {
-      out = out.where((j) => _savedJobIds.contains(j.id));
+    if (_rank == 'Saved') {
+      out = _savedJobs;
     } else {
-      // Session-skipped alerts stay hidden everywhere except the Saved view.
       out = out.where((j) => !_skippedJobIds.contains(j.id));
-      if (_selectedFilter != 'All' && _selectedFilter != 'Nearby') {
-        out = out.where((j) => j.jobType == _selectedFilter);
-      }
     }
-    if (_payRange != const RangeValues(0, 2000)) {
-      out = out.where((j) {
-        final min = j.salaryMin;
-        final max = j.salaryMax ?? j.salaryMin;
-        if (min == null) return true; // "Competitive Pay" — keep visible
-        return max! >= _payRange.start && min <= _payRange.end;
+    if (_category != null) {
+      out = out.where((j) =>
+          j.jobType.toLowerCase().contains(_category!.toLowerCase()) ||
+          j.title.toLowerCase().contains(_category!.toLowerCase()));
+    }
+    final list = out.toList();
+    if (_rank == 'Nearby') {
+      list.sort((a, b) {
+        final ad = a.distanceExact ? a.distanceKm : null;
+        final bd = b.distanceExact ? b.distanceKm : null;
+        if (ad == null && bd == null) return 0;
+        if (ad == null) return 1;
+        if (bd == null) return -1;
+        return ad.compareTo(bd);
       });
+    } else if (_rank == 'New') {
+      list.sort((a, b) {
+        final ad = a.createdAt;
+        final bd = b.createdAt;
+        if (ad == null && bd == null) return 0;
+        if (ad == null) return 1;
+        if (bd == null) return -1;
+        return bd.compareTo(ad);
+      });
+    } else if (_rank == 'Best Match') {
+      list.sort((a, b) => (b.matchScore ?? 0).compareTo(a.matchScore ?? 0));
     }
-    if (_selectedExp != null) {
-      out = out.where((j) => j.experience == _selectedExp);
-    }
-    return out.toList();
+    return list;
   }
 
   /// Optional-note + optional-résumé glass sheet, then POST the application.
@@ -304,9 +448,7 @@ class _JobAlertsScreenState extends ConsumerState<JobAlertsScreen> {
           ),
           const SizedBox(height: 8),
           Text(
-            'They can now view your profile and contact you. '
-            'Track classic board applications under the Apps tab. '
-            'Smart Hiring matches appear under Alerts (set up Profiles first).',
+            'Your profile has been shared with the employer.',
             textAlign: TextAlign.center,
             style: TextStyle(
                 fontSize: 13,
@@ -327,7 +469,7 @@ class _JobAlertsScreenState extends ConsumerState<JobAlertsScreen> {
             const SizedBox(height: 10),
           ],
           GxButton(
-            label: 'Back to board',
+            label: 'Back to jobs',
             filled: widget.onOpenApplications != null ? false : true,
             accent: GixbeeTheme.accentGreen,
             gradient: widget.onOpenApplications != null
@@ -466,7 +608,7 @@ class _JobAlertsScreenState extends ConsumerState<JobAlertsScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Board',
+                        'Jobs',
                         style: TextStyle(
                           fontWeight: FontWeight.w800,
                           fontSize: 19,
@@ -474,7 +616,9 @@ class _JobAlertsScreenState extends ConsumerState<JobAlertsScreen> {
                         ),
                       ),
                       Text(
-                        '${_jobs.length} classic postings · Smart Hiring on Alerts',
+                        _jobs.isEmpty
+                            ? 'Recommended jobs for you'
+                            : 'Jobs matched to your profile',
                         style: TextStyle(
                           color: context.gx.ink.withValues(alpha: 0.55),
                           fontSize: 12,
@@ -515,13 +659,13 @@ class _JobAlertsScreenState extends ConsumerState<JobAlertsScreen> {
             child: ListView.separated(
               scrollDirection: Axis.horizontal,
               padding: const EdgeInsets.symmetric(horizontal: 20),
-              itemCount: _filters.length,
+              itemCount: _ranks.length,
               separatorBuilder: (_, __) => const SizedBox(width: 8),
               itemBuilder: (context, i) {
-                final f = _filters[i];
-                final selected = _selectedFilter == f;
+                final f = _ranks[i];
+                final selected = _rank == f;
                 return GxPressable(
-                  onTap: () => setState(() => _selectedFilter = f),
+                  onTap: () => setState(() => _rank = f),
                   child: AnimatedContainer(
                     duration: const Duration(milliseconds: 150),
                     padding: const EdgeInsets.symmetric(
@@ -554,6 +698,31 @@ class _JobAlertsScreenState extends ConsumerState<JobAlertsScreen> {
               },
             ),
           ),
+          const SizedBox(height: 8),
+          SizedBox(
+            height: 36,
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              itemCount: _categories.length,
+              separatorBuilder: (_, __) => const SizedBox(width: 8),
+              itemBuilder: (context, i) {
+                final f = _categories[i];
+                final selected = _category == f;
+                return GxPressable(
+                  onTap: () => setState(() => _category = selected ? null : f),
+                  child: Text(
+                    f,
+                    style: TextStyle(
+                      color: selected ? GixbeeTheme.accentGreen : cs.onSurface,
+                      fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+                      fontSize: 12,
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
 
           const SizedBox(height: 12),
 
@@ -568,34 +737,84 @@ class _JobAlertsScreenState extends ConsumerState<JobAlertsScreen> {
                     itemBuilder: (_, __) => const GxSkeleton(
                         width: double.infinity, height: 150, radius: 16),
                   )
-                : _filteredJobs.isEmpty
+                : _loadFailed
                     ? GxEmptyState(
-                        icon: Icons.search_off,
-                        title: 'No postings on the board',
-                        message:
-                            'Classic employer posts appear here. For Smart Hiring matches from Hire Employee, set up Profiles and check Alerts.',
-                        actionLabel: 'Refresh',
+                        icon: Icons.cloud_off_outlined,
+                        title: 'Unable to load matches',
+                        actionLabel: 'Refresh Matches',
                         onAction: _fetchJobs,
+                      )
+                    : !_profileReady
+                    ? GxEmptyState(
+                        icon: Icons.badge_outlined,
+                        title: 'Create your job profile',
+                        message:
+                            'Tell us what work you’re looking for so Gixbee can find matching jobs near you.',
+                        actionLabel: 'Create Profile',
+                        onAction: widget.onCreateProfile,
+                      )
+                    : _filteredJobs.isEmpty
+                    ? Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          GxEmptyState(
+                            icon: Icons.search_off,
+                            title: 'No jobs match yet',
+                            message: _openToWork
+                                ? 'We’ll show jobs here when they match your profile, skills and preferred location.'
+                                : 'Open to work is off, so your profile is not being matched.',
+                            actionLabel: 'Refresh Matches',
+                            onAction: _fetchJobs,
+                          ),
+                          TextButton(
+                            onPressed: widget.onEditProfile,
+                            child: const Text('Edit Profile'),
+                          ),
+                          if (_rank != 'Saved' && _jobs.length < _total)
+                            TextButton(
+                              onPressed: _loadingMore ? null : _loadMore,
+                              child: Text(_loadingMore ? 'Loading…' : 'Load more'),
+                            ),
+                        ],
                       )
                     : RefreshIndicator(
                         onRefresh: _fetchJobs,
                         child: ListView.builder(
                           padding:
                               const EdgeInsets.symmetric(horizontal: 20),
-                          itemCount: _filteredJobs.length,
-                          itemBuilder: (context, i) => _JobBentoCard(
+                          itemCount: _filteredJobs.length + (_rank != 'Saved' && _jobs.length < _total ? 1 : 0),
+                          itemBuilder: (context, i) {
+                            if (i >= _filteredJobs.length) {
+                              return Padding(
+                                padding: const EdgeInsets.symmetric(vertical: 12),
+                                child: TextButton(
+                                  onPressed: _loadingMore ? null : _loadMore,
+                                  child: Text(_loadingMore ? 'Loading…' : 'Load more'),
+                                ),
+                              );
+                            }
+                            return _JobBentoCard(
                             job: _filteredJobs[i],
                             applied: _appliedJobIds
                                 .contains(_filteredJobs[i].id),
                             saved: _savedJobIds
                                 .contains(_filteredJobs[i].id),
-                            onApply: () =>
-                                _applyToJob(_filteredJobs[i]),
+                            onApply: () async {
+                              final applied = await Navigator.push<bool>(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => MatchedJobDetailScreen(
+                                      job: _filteredJobs[i]),
+                                ),
+                              );
+                              if (applied == true) _fetchJobs();
+                            },
                             onSave: () =>
                                 _toggleSaved(_filteredJobs[i]),
-                            onSkip: () => setState(() =>
-                                _skippedJobIds.add(_filteredJobs[i].id)),
-                          ),
+                            onSkip: () =>
+                                _notInterested(_filteredJobs[i]),
+                          );
+                            },
                         ),
                       ),
           ),
@@ -719,7 +938,7 @@ class _JobBentoCard extends StatelessWidget {
                       ),
                       const SizedBox(height: 2),
                       Text(
-                        job.employerName ?? 'Business Owner',
+                        job.businessName ?? job.employerName ?? 'Business',
                         style: TextStyle(
                           color: cs.onSurfaceVariant,
                           fontSize: 12,
@@ -727,6 +946,12 @@ class _JobBentoCard extends StatelessWidget {
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
+                      if (job.businessVerified)
+                        const Text('Verified',
+                            style: TextStyle(
+                                color: GixbeeTheme.accentGreen,
+                                fontSize: 11,
+                                fontWeight: FontWeight.w800)),
                     ],
                   ),
                 ),
@@ -763,6 +988,22 @@ class _JobBentoCard extends StatelessWidget {
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
             ),
+            if (job.distanceExact && job.distanceKm != null)
+              Padding(
+                padding: const EdgeInsets.only(top: 6),
+                child: Text(
+                  '${job.distanceKm!.toStringAsFixed(1)} km away',
+                  style: TextStyle(fontSize: 12, color: cs.onSurfaceVariant),
+                ),
+              ),
+            if (job.matchScore != null) ...[
+              const SizedBox(height: 8),
+              MatchExplanationBlock(
+                score: job.matchScore,
+                reasons: job.matchReasons,
+                warnings: job.matchWarnings,
+              ),
+            ],
             const SizedBox(height: 12),
 
             // Location row
@@ -773,7 +1014,7 @@ class _JobBentoCard extends StatelessWidget {
                 const SizedBox(width: 4),
                 Expanded(
                   child: Text(
-                    job.location.isEmpty ? 'Kochi' : job.location,
+                    job.location.isEmpty ? 'Location not set' : job.location,
                     style: TextStyle(
                         fontSize: 11, color: cs.onSurfaceVariant),
                     maxLines: 1,
@@ -892,8 +1133,8 @@ class _JobBentoCard extends StatelessWidget {
                         ),
                       )
                     : GxButton(
-                        label: 'Interested',
-                        icon: Icons.send_rounded,
+                        label: 'View Job',
+                        icon: Icons.arrow_forward_rounded,
                         onTap: onApply,
                         gradient: const [
                           GixbeeTheme.accentGreen,
