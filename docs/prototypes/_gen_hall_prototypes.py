@@ -22,6 +22,14 @@ def build(shell_name: str, js_name: str, out_name: str) -> None:
     out = shell[:i] + block + shell[j + len("<!-- APP_END -->") :]
     if "<script src=" in out:
         raise SystemExit(f"{out_name} must not use external script src")
+    if "<script>" not in out or "</script>" not in out:
+        raise SystemExit(f"{out_name} missing inlined script block")
+    if "CUSTOMER_BUILD" in out_name or "customer" in out_name:
+        if "CUSTOMER_BUILD" not in out:
+            raise SystemExit(f"{out_name} missing customer JS")
+    else:
+        if "OWNER_BUILD" not in out or "function boot(" not in out:
+            raise SystemExit(f"{out_name} missing owner JS")
     banner = (
         f"<!-- GIXBEE HALL DEMO — single self-contained file (CSS + HTML + JS inlined). "
         f"Open {out_name} only; do not open {shell_name} until regenerated. -->\n"

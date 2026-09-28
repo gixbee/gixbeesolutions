@@ -1,4 +1,4 @@
-const CUSTOMER_BUILD = '2026-09-28-hall-customer';
+const CUSTOMER_BUILD = '2026-09-28-hall-customer-inlined';
 
 const HALLS = [
   {
@@ -208,4 +208,8 @@ el('reqBook').onclick = () => {
   show('sent');
 };
 
-console.log('[Gixbee hall customer demo]', CUSTOMER_BUILD);
+(function bootCustomer() {
+  const tag = el('buildTag');
+  if (tag) tag.textContent = 'Hall customer demo ' + CUSTOMER_BUILD + ' — JS is inside this HTML file (no .js needed).';
+  console.log('[Gixbee hall customer demo]', CUSTOMER_BUILD);
+})();

@@ -1,4 +1,6 @@
 <!DOCTYPE html>
+<!-- GIXBEE HALL DEMO — single self-contained file (CSS + HTML + JS inlined). Open hall-customer-book-master.html only; do not open hall-customer-book-shell.html until regenerated. -->
+
 <html lang="en">
 <head>
 <meta charset="utf-8">
@@ -59,6 +61,7 @@ body{margin:0;background:#E8EDF5;font-family:Inter,system-ui,sans-serif;color:va
     <p style="font-size:12px;font-weight:800;color:var(--gn);margin:0 0 6px">📍 Kottayam, Kerala</p>
     <h2>Find the Perfect Hall for Your Special Event</h2>
     <p>Weddings, receptions, baptisms, birthdays and more.</p>
+    <p id="buildTag" style="font-size:11px;margin:10px 0 0;color:var(--mut)">Single-file demo — all JavaScript is inside this .html</p>
   </div>
   <div class="pad" style="padding-top:16px">
     <div class="fld"><label>Location</label><select id="fLoc"><option>Kottayam, Kerala</option><option>Kochi, Kerala</option></select></div>
@@ -107,7 +110,7 @@ body{margin:0;background:#E8EDF5;font-family:Inter,system-ui,sans-serif;color:va
 </div></div>
 <!-- APP_START -->
 <script>
-const CUSTOMER_BUILD = '2026-09-28-hall-customer';
+const CUSTOMER_BUILD = '2026-09-28-hall-customer-inlined';
 
 const HALLS = [
   {
@@ -317,7 +320,11 @@ el('reqBook').onclick = () => {
   show('sent');
 };
 
-console.log('[Gixbee hall customer demo]', CUSTOMER_BUILD);
+(function bootCustomer() {
+  const tag = el('buildTag');
+  if (tag) tag.textContent = 'Hall customer demo ' + CUSTOMER_BUILD + ' — JS is inside this HTML file (no .js needed).';
+  console.log('[Gixbee hall customer demo]', CUSTOMER_BUILD);
+})();
 </script>
 <!-- APP_END -->
 </body>

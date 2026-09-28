@@ -1,4 +1,4 @@
-const OWNER_BUILD = '2026-09-28-hall-owner';
+const OWNER_BUILD = '2026-09-28-hall-owner-inlined';
 const PKG_KEY = 'GIXBEE_HALL_PACKAGE';
 
 const EVENT_CATS = [
@@ -377,6 +377,6 @@ function boot() {
   renderPkg4();
   renderBookSettings();
   const tag = el('buildTag');
-  if (tag) tag.textContent = 'Hall owner demo ' + OWNER_BUILD;
+  if (tag) tag.textContent = 'Hall owner demo ' + OWNER_BUILD + ' — JS is inside this HTML file (no .js needed).';
 }
 boot();

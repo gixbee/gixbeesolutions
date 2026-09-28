@@ -1,4 +1,6 @@
 <!DOCTYPE html>
+<!-- GIXBEE HALL DEMO — single self-contained file (CSS + HTML + JS inlined). Open hall-owner-lmb-master.html only; do not open hall-owner-lmb-shell.html until regenerated. -->
+
 <html lang="en">
 <head>
 <meta charset="utf-8">
@@ -94,6 +96,7 @@ h2{margin:0 0 6px;font-size:18px}
       <span class="manage-pill">Manage &amp; grow</span>
     </div>
     <p class="sub" style="margin:8px 0 0">Royal Convention Centre · Service · Hall</p>
+    <p class="hint" id="buildTag" style="margin:8px 0 0;font-size:11px">Single-file demo — all JavaScript is inside this .html</p>
   </div>
   <div class="pad">
     <p class="lbl">MANAGE</p>
@@ -196,7 +199,7 @@ h2{margin:0 0 6px;font-size:18px}
 </div></div>
 <!-- APP_START -->
 <script>
-const OWNER_BUILD = '2026-09-28-hall-owner';
+const OWNER_BUILD = '2026-09-28-hall-owner-inlined';
 const PKG_KEY = 'GIXBEE_HALL_PACKAGE';
 
 const EVENT_CATS = [
@@ -575,7 +578,7 @@ function boot() {
   renderPkg4();
   renderBookSettings();
   const tag = el('buildTag');
-  if (tag) tag.textContent = 'Hall owner demo ' + OWNER_BUILD;
+  if (tag) tag.textContent = 'Hall owner demo ' + OWNER_BUILD + ' — JS is inside this HTML file (no .js needed).';
 }
 boot();
 
