@@ -1,4 +1,4 @@
-const OWNER_BUILD = '2026-09-28-hall-owner-v26';
+const OWNER_BUILD = '2026-09-28-hall-owner-v27';
 const DEMO_FILE = 'hall-owner-lmb-master.html';
 const PKG_KEY = 'GIXBEE_HALL_PACKAGE';
 
@@ -138,9 +138,9 @@ const MANAGE_MENU = [
 
 const state = {
   businessName: 'Vijaya Convention Center',
-  useHallName: true,
-  hallName: 'Tiffle',
-  activeHallId: 'h1',
+  useHallName: false,
+  hallName: '',
+  activeHallId: '',
   hallSetupComplete: false,
   plannedHallCount: 2,
   parkingEditOpen: false,
@@ -630,6 +630,11 @@ function renderParkingSummary() {
 function renderHallCards() {
   const root = el('hallListCards');
   if (!root) return;
+  if (!state.halls.length) {
+    root.innerHTML =
+      '<p class="sub" style="margin:8px 0 12px;padding:12px;border:1px dashed var(--line);border-radius:12px;text-align:center">No halls yet. Tap <b>+ Add hall</b> to create your first hall.</p>';
+    return;
+  }
   root.innerHTML = state.halls
     .map(function (h) {
       const sub = h.useHallName && h.hallName ? esc(h.hallName) : esc(state.businessName);
@@ -1562,11 +1567,14 @@ function boot() {
     ensurePolicyRules();
     if (!state.commonParking) state.commonParking = { car: 80, bike: 120 };
     if (state.hallSetupComplete && (!state.halls || !state.halls.length)) {
-      initHallsFromSetup(state.plannedHallCount || 2);
+      /* halls stay empty until owner uses + Add hall */
     }
     if (!state.halls) state.halls = [];
     normalizeHallRecords();
     if (!state.activeHallId && state.halls[0]) state.activeHallId = state.halls[0].id;
+    if (state.activeHallId && !state.halls.find(function (h) { return h.id === state.activeHallId; })) {
+      state.activeHallId = state.halls[0] ? state.halls[0].id : '';
+    }
     if (state.halls.length) loadActiveHallIntoState();
     renderSetupScreen();
     renderHallBizHome();
