@@ -112,7 +112,7 @@ body{margin:0;background:#E8EDF5;font-family:Inter,system-ui,sans-serif;color:va
 </div></div>
 <!-- APP_START -->
 <script>
-const CUSTOMER_BUILD = '2026-09-28-hall-customer-v9';
+const CUSTOMER_BUILD = '2026-09-28-hall-customer-v10';
 const DEMO_FILE = 'hall-customer-book-master.html';
 const OWNER_PKG_KEY = 'GIXBEE_HALL_PACKAGE';
 
@@ -333,7 +333,7 @@ function defaultSlotOffers(h) {
       priceNoAc: h.priceFrom + 20000,
       priceAc: h.priceAc + 15000,
       acMode: 'limited',
-      acLimitKind: 'hours',
+      acLimitKind: 'flexible',
       acHours: 5,
       acFrom: '',
       acTo: '',
@@ -355,11 +355,22 @@ function selectedSlotOffer(h) {
 }
 function acUsageCustomerLine(o) {
   if (!o || !o.offerAc || o.acMode === 'full') return '';
+  if (o.acLimitKind === 'hours') o.acLimitKind = 'flexible';
   if (o.acLimitKind === 'fixed' && o.acFrom && o.acTo) {
-    return 'Hall runs AC ' + formatTimeRange(o.acFrom, o.acTo) + ' (fixed schedule set by hall).';
+    return (
+      'Includes ' +
+      o.acHours +
+      ' hours of AC, fixed schedule ' +
+      formatTimeRange(o.acFrom, o.acTo) +
+      ' (set by hall).'
+    );
   }
   if (o.acHours) {
-    return 'Includes ' + o.acHours + ' hours of AC in this booking window (set by hall — you do not pick AC times).';
+    return (
+      'Includes ' +
+      o.acHours +
+      ' hours of AC in this slot. Confirm when AC will run with hall management (not chosen in the app).'
+    );
   }
   return '';
 }

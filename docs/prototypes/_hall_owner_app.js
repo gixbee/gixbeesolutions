@@ -1,4 +1,4 @@
-const OWNER_BUILD = '2026-09-28-hall-owner-v18';
+const OWNER_BUILD = '2026-09-28-hall-owner-v19';
 const DEMO_FILE = 'hall-owner-lmb-master.html';
 const PKG_KEY = 'GIXBEE_HALL_PACKAGE';
 
@@ -19,7 +19,7 @@ const FACILITIES = ['AC', 'Generator / Power Backup', 'Chairs & Tables', 'Stage'
 const SLOT_TEMPLATES = [
   { id: 'morning', label: 'Morning', hallFrom: '10:00', hallTo: '15:00' },
   { id: 'evening', label: 'Evening', hallFrom: '17:00', hallTo: '23:00' },
-  { id: 'fullday', label: 'Full Day', hallFrom: '09:00', hallTo: '21:00', acMode: 'limited', acLimitKind: 'hours', acHours: 5 },
+  { id: 'fullday', label: 'Full Day', hallFrom: '09:00', hallTo: '21:00', acMode: 'limited', acLimitKind: 'flexible', acHours: 5 },
 ];
 
 function ensureSlotOffers() {
@@ -38,7 +38,7 @@ function ensureSlotOffers() {
         priceNoAc: p.noAc != null ? p.noAc : 55000,
         priceAc: p.ac != null ? p.ac : t.id === 'fullday' ? 200000 : 75000,
         acMode: t.acMode || 'full',
-        acLimitKind: t.acLimitKind || 'hours',
+        acLimitKind: t.acLimitKind || 'flexible',
         acFrom: '',
         acTo: '',
         acHours: t.acHours || 0,
@@ -65,7 +65,7 @@ function ensureSlotOffers() {
       priceNoAc: p.noAc || 55000,
       priceAc: p.ac || 75000,
       acMode: 'full',
-      acLimitKind: 'hours',
+      acLimitKind: 'flexible',
       acFrom: '',
       acTo: '',
       acHours: 0,
@@ -78,10 +78,10 @@ function ensureSlotOffers() {
     if (!o.hallTo) o.hallTo = '17:00';
     if (o.acFrom == null) o.acFrom = '';
     if (o.acTo == null) o.acTo = '';
+    if (o.acLimitKind === 'hours') o.acLimitKind = 'flexible';
     if (o.acLimitKind == null) {
-      if (o.acFrom && o.acTo && o.acHours) o.acLimitKind = 'hours';
-      else if (o.acFrom && o.acTo) o.acLimitKind = 'fixed';
-      else o.acLimitKind = 'hours';
+      if (o.acFrom && o.acTo) o.acLimitKind = 'fixed';
+      else o.acLimitKind = 'flexible';
     }
     if (o.offerNoAc == null) o.offerNoAc = true;
     if (o.offerAc == null) o.offerAc = true;
@@ -107,9 +107,9 @@ function acUsageSummary(o) {
   if (!o.offerAc) return '';
   if (o.acMode === 'full') return ' · AC for full hall window';
   if (o.acLimitKind === 'fixed' && o.acFrom && o.acTo) {
-    return ' · Fixed AC ' + formatTimeRange(o.acFrom, o.acTo);
+    return ' · ' + (o.acHours || '?') + 'h AC, fixed ' + formatTimeRange(o.acFrom, o.acTo);
   }
-  if (o.acHours) return ' · ' + o.acHours + ' hours AC included';
+  if (o.acHours) return ' · ' + o.acHours + 'h AC included (timing with hall management)';
   return ' · AC limited';
 }
 
@@ -616,7 +616,7 @@ function renderPkg2() {
 
 function renderSlotOfferRow(o) {
   const acFull = o.acMode !== 'limited';
-  const acHoursKind = o.acLimitKind !== 'fixed';
+  const isFlexible = o.acLimitKind !== 'fixed';
   return (
     '<div class="slot' +
     (o.enabled ? '' : ' slot-disabled') +
@@ -658,7 +658,7 @@ function renderSlotOfferRow(o) {
     (o.offerAc ? '' : ' hidden') +
     '>' +
     '<p class="lbl" style="margin-top:0">AC usage (With AC package)</p>' +
-    '<p class="sub" style="margin:0 0 8px">You define AC rules here. Customers only see what you set — they do not pick AC times.</p>' +
+    '<p class="sub" style="margin:0 0 8px">Type how many AC hours are included in your price. Customers do not enter this number — they see what you set.</p>' +
     '<label class="radio-row"><input type="radio" name="acMode_' +
     esc(o.id) +
     '" value="full"' +
@@ -672,24 +672,22 @@ function renderSlotOfferRow(o) {
     '<div class="ac-limited-fields"' +
     (acFull || !o.offerAc ? ' hidden' : '') +
     '>' +
-    '<label class="radio-row"><input type="radio" name="acLimit_' +
-    esc(o.id) +
-    '" value="hours"' +
-    (acHoursKind ? ' checked' : '') +
-    '> <b>AC hours included</b> <span class="sub" style="font-weight:600">(flexible — e.g. 5 hours AC in a 12-hour hire)</span></label>' +
-    '<div class="ac-hours-fields"' +
-    (!acHoursKind ? ' hidden' : '') +
-    '><div class="fld"><label>Hours of AC in this package</label><input type="number" data-field="acHours" min="0" step="0.5" value="' +
+    '<div class="fld ac-hours-shared"><label>AC hours included in With AC price</label><input type="number" data-field="acHours" min="0" step="0.5" value="' +
     (o.acHours || '') +
-    '" placeholder="e.g. 5"></div></div>' +
+    '" placeholder="e.g. 5"><small class="sub">Example: 5 hours AC in a 12-hour hall hire — you type the included hours here.</small></div>' +
     '<label class="radio-row" style="margin-top:10px"><input type="radio" name="acLimit_' +
     esc(o.id) +
+    '" value="flexible"' +
+    (isFlexible ? ' checked' : '') +
+    '> <b>Flexible timing</b><br><span class="sub" style="font-weight:600">Customer sees included hours only. They consult your hall management to agree when AC runs (not chosen in the app).</span></label>' +
+    '<label class="radio-row" style="margin-top:8px"><input type="radio" name="acLimit_' +
+    esc(o.id) +
     '" value="fixed"' +
-    (!acHoursKind ? ' checked' : '') +
-    '> <b>Fixed AC clock times</b> <span class="sub" style="font-weight:600">(only if your hall always runs AC at the same times)</span></label>' +
+    (!isFlexible ? ' checked' : '') +
+    '> <b>Fixed AC schedule</b><br><span class="sub" style="font-weight:600">Same included hours above, plus exact clock times when your hall always runs AC.</span></label>' +
     '<div class="ac-fixed-fields"' +
-    (acHoursKind ? ' hidden' : '') +
-    '><p class="sub" style="margin:0 0 6px">Set once here. Shown on the customer booking page — not chosen by the customer.</p>' +
+    (isFlexible ? ' hidden' : '') +
+    '><p class="lbl" style="margin:10px 0 6px">Exact AC clock times (with hours included above)</p>' +
     '<div class="two">' +
     '<div class="fld"><label>AC from</label><input type="time" data-field="acFrom" value="' +
     esc(o.acFrom || '') +
@@ -722,10 +720,8 @@ function attachSlotPricingHandlers() {
       const limWrap = row.querySelector('.ac-limited-fields');
       if (limWrap && limited) limWrap.hidden = !offerAc || !limited.checked;
       const limitFixed = row.querySelector('input[name=acLimit_' + id + '][value=fixed]');
-      const hoursWrap = row.querySelector('.ac-hours-fields');
       const fixedWrap = row.querySelector('.ac-fixed-fields');
       const useFixed = limitFixed && limitFixed.checked;
-      if (hoursWrap) hoursWrap.hidden = !offerAc || !limited || !limited.checked || useFixed;
       if (fixedWrap) fixedWrap.hidden = !offerAc || !limited || !limited.checked || !useFixed;
     }
     row.querySelectorAll('input').forEach(function (inp) {
@@ -751,13 +747,12 @@ function validateSlotOffers() {
       return false;
     }
     if (o.offerAc && o.acMode === 'limited') {
-      if (o.acLimitKind === 'fixed') {
-        if (!o.acFrom || !o.acTo) {
-          toast(o.label + ': set fixed AC from and to times (hall schedule).');
-          return false;
-        }
-      } else if (!o.acHours) {
-        toast(o.label + ': set how many AC hours are included in the package.');
+      if (!o.acHours) {
+        toast(o.label + ': enter AC hours included in the With AC price (e.g. 5).');
+        return false;
+      }
+      if (o.acLimitKind === 'fixed' && (!o.acFrom || !o.acTo)) {
+        toast(o.label + ': fixed schedule needs AC from and AC to times as well as included hours.');
         return false;
       }
     }
@@ -800,7 +795,7 @@ function capturePkg3() {
     const modeEl = row.querySelector('input[name=acMode_' + id + ']:checked');
     o.acMode = modeEl && modeEl.value === 'limited' ? 'limited' : 'full';
     const limitEl = row.querySelector('input[name=acLimit_' + id + ']:checked');
-    o.acLimitKind = limitEl && limitEl.value === 'fixed' ? 'fixed' : 'hours';
+    o.acLimitKind = limitEl && limitEl.value === 'fixed' ? 'fixed' : 'flexible';
     o.acHours = +row.querySelector('[data-field=acHours]').value || 0;
     if (o.acLimitKind === 'fixed') {
       o.acFrom = row.querySelector('[data-field=acFrom]').value || '';
