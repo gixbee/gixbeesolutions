@@ -1460,6 +1460,10 @@ function bindOwnerEvents() {
   if (saveNewHall) {
     saveNewHall.onclick = function () {
       captureNameFields();
+      if (state.useHallName && !String(state.hallName || '').trim()) {
+        toast('Enter a hall name or turn off the checkbox.');
+        return;
+      }
       syncActiveHallFromState();
       state.openedFromAddHall = false;
       savePkg();
