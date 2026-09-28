@@ -54,6 +54,7 @@ body{margin:0;background:#E8EDF5;font-family:Inter,system-ui,sans-serif;color:va
 </style>
 </head>
 <body>
+<noscript><div style="padding:24px;font:16px sans-serif;color:#b91c1c"><b>JavaScript is off.</b> Turn it on, then reopen this file.</div></noscript>
 <div id="bootError" hidden style="position:fixed;inset:0;z-index:99999;background:#fff;padding:24px;font:15px sans-serif;overflow:auto"></div>
 <div class="stage"><div class="phone">
 
@@ -111,7 +112,7 @@ body{margin:0;background:#E8EDF5;font-family:Inter,system-ui,sans-serif;color:va
 </div></div>
 <!-- APP_START -->
 <script>
-const CUSTOMER_BUILD = '2026-09-28-hall-customer-v2';
+const CUSTOMER_BUILD = '2026-09-28-hall-customer-v3';
 const DEMO_FILE = 'hall-customer-book-master.html';
 
 const HALLS = [
@@ -343,6 +344,7 @@ function bindCustomerEvents() {
 
 function bootCustomer() {
   try {
+    window.GIXBEE_HALL_BOOTED = true;
     if (!el('goSearch')) {
       throw new Error('Missing search screen — open ' + DEMO_FILE + ', not the empty shell file.');
     }
@@ -350,7 +352,7 @@ function bootCustomer() {
     const tag = el('buildTag');
     if (tag) {
       tag.textContent =
-        'Hall customer demo ' + CUSTOMER_BUILD + ' — JS is inside this HTML file (no .js needed).';
+        'Working demo ' + CUSTOMER_BUILD + ' — if Search fails, use Chrome or: python3 -m http.server 8765';
     }
     const err = el('bootError');
     if (err) err.hidden = true;
@@ -367,5 +369,35 @@ if (document.readyState === 'loading') {
 }
 </script>
 <!-- APP_END -->
+<script>
+(function () {
+  var MASTER = 'hall-customer-book-master.html';
+  var DOWNLOAD = 'DOWNLOAD-gixbee-hall-customer.html';
+  function warn() {
+    if (window.GIXBEE_HALL_BOOTED) return;
+    var box = document.getElementById('bootError');
+    var msg =
+      'This file has no JavaScript (developer shell). Open <b>' +
+      DOWNLOAD +
+      '</b> or <b>' +
+      MASTER +
+      '</b>, then hard-refresh (Ctrl+Shift+R). Regenerate: python3 docs/prototypes/_gen_hall_prototypes.py';
+    if (box) {
+      box.hidden = false;
+      box.innerHTML =
+        '<h1 style="color:#DC2626;font-size:20px">Hall customer demo did not start</h1><p>' + msg + '</p>';
+    } else {
+      alert('Open ' + DOWNLOAD + ' — not the shell file.');
+    }
+  }
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', function () {
+      setTimeout(warn, 200);
+    });
+  } else {
+    setTimeout(warn, 200);
+  }
+})();
+</script>
 </body>
 </html>

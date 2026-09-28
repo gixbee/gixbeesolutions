@@ -1,4 +1,4 @@
-const OWNER_BUILD = '2026-09-28-hall-owner-v2';
+const OWNER_BUILD = '2026-09-28-hall-owner-v3';
 const DEMO_FILE = 'hall-owner-lmb-master.html';
 const PKG_KEY = 'GIXBEE_HALL_PACKAGE';
 
@@ -207,8 +207,8 @@ function capturePkg3() {
   el('slotPricing').querySelectorAll('[data-slot]').forEach((inp) => {
     state.prices[inp.getAttribute('data-slot')][inp.getAttribute('data-ac')] = +inp.value || 0;
   });
-  state.prices.extraNoAc = +el('extraNoAc')?.value || 0;
-  state.prices.extraAc = +el('extraAc')?.value || 0;
+  state.prices.extraNoAc = +(el('extraNoAc') && el('extraNoAc').value) || 0;
+  state.prices.extraAc = +(el('extraAc') && el('extraAc').value) || 0;
 }
 
 function renderPkg4() {
@@ -240,7 +240,7 @@ function capturePkg2() {
 
 function capturePkg4() {
   const adv = document.querySelector('input[name=adv]:checked');
-  state.payment.advanceType = adv?.value || 'fixed';
+  state.payment.advanceType = adv && adv.value ? adv.value : 'fixed';
   state.payment.advanceFixed = +el('advFixed').value || 0;
   state.payment.advancePct = +el('advPct').value || 0;
   state.payment.fullDueDays = +el('fullDue').value || 7;
@@ -251,7 +251,10 @@ function renderPkg5() {
   capturePkg2();
   capturePkg3();
   capturePkg4();
-  const tags = state.events.map((id) => EVENT_CATS.find((c) => c.id === id)?.label || id);
+  const tags = state.events.map(function (id) {
+    var c = EVENT_CATS.find(function (x) { return x.id === id; });
+    return c ? c.label : id;
+  });
   el('pkgReview').innerHTML = `
     <div class="sum"><div class="hd"><b>Event Categories</b><button type="button" class="see" data-to="pkg1">Edit</button></div><div class="tags">${tags
       .map((t) => `<span class="tag">${esc(t)}</span>`)
@@ -392,23 +395,19 @@ function bindOwnerEvents() {
 
 function boot() {
   try {
+    window.GIXBEE_HALL_BOOTED = true;
     if (!el('manageMenu')) {
-      throw new Error('Missing #manageMenu — open ' + DEMO_FILE + ', not the empty shell file.');
+      throw new Error('Missing #manageMenu — download DOWNLOAD-gixbee-hall-owner.html (full file).');
     }
     loadPkg();
     renderManage();
-    renderPkg1();
-    renderPkg2();
-    renderPkg3();
-    renderPkg4();
     bindOwnerEvents();
-    renderBookSettings();
-    const tag = el('buildTag');
+    var tag = el('buildTag');
     if (tag) {
       tag.textContent =
-        'Hall owner demo ' + OWNER_BUILD + ' — JS is inside this HTML file (no .js needed).';
+        'Working demo ' + OWNER_BUILD + ' — if menu is empty, open via Chrome or run: python3 -m http.server 8765';
     }
-    const err = el('bootError');
+    var err = el('bootError');
     if (err) err.hidden = true;
   } catch (err) {
     console.error(err);

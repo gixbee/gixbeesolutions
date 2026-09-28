@@ -1,4 +1,4 @@
-const CUSTOMER_BUILD = '2026-09-28-hall-customer-v2';
+const CUSTOMER_BUILD = '2026-09-28-hall-customer-v3';
 const DEMO_FILE = 'hall-customer-book-master.html';
 
 const HALLS = [
@@ -230,6 +230,7 @@ function bindCustomerEvents() {
 
 function bootCustomer() {
   try {
+    window.GIXBEE_HALL_BOOTED = true;
     if (!el('goSearch')) {
       throw new Error('Missing search screen — open ' + DEMO_FILE + ', not the empty shell file.');
     }
@@ -237,7 +238,7 @@ function bootCustomer() {
     const tag = el('buildTag');
     if (tag) {
       tag.textContent =
-        'Hall customer demo ' + CUSTOMER_BUILD + ' — JS is inside this HTML file (no .js needed).';
+        'Working demo ' + CUSTOMER_BUILD + ' — if Search fails, use Chrome or: python3 -m http.server 8765';
     }
     const err = el('bootError');
     if (err) err.hidden = true;
