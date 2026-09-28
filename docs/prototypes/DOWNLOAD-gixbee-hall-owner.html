@@ -76,8 +76,10 @@ h2{margin:0 0 6px;font-size:18px}
 .lmb-top{background:#F8FAFC;border-bottom:1px solid var(--line);padding:10px 16px 12px}
 .lmb-top .row{display:flex;align-items:center;gap:10px}
 .home-pill{padding:8px 14px;border-radius:99px;background:var(--gn);color:#fff;font-weight:800;font-size:12px;border:0}
-.biz-title{font-size:17px;font-weight:900;color:var(--navy);flex:1}
-.manage-pill{font-size:11px;font-weight:800;color:var(--mut);border:1px solid var(--line);padding:6px 10px;border-radius:99px;background:#fff}
+.biz-title{font-size:17px;font-weight:900;color:var(--navy);flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.manage-pill{font-size:11px;font-weight:800;color:var(--mut);border:1px solid var(--line);padding:6px 10px;border-radius:99px;background:#fff;flex-shrink:0;white-space:nowrap}
+.lmb-top .row{align-items:center;gap:8px;flex-wrap:nowrap}
+.home-pill{flex-shrink:0;white-space:nowrap}
 .steps{display:flex;gap:6px;padding:12px 16px;overflow:auto;font-size:10px;color:var(--mut)}
 .step{flex:none;padding:6px 10px;border-radius:10px;background:#F3F4F6;font-weight:700}
 .step.on{background:#ECFDF3;color:#065F46}
@@ -122,7 +124,9 @@ textarea{width:100%;border:1px solid var(--line);border-radius:10px;padding:10px
 .manage-name-editing #manageRestBlock{opacity:.42;pointer-events:none;user-select:none;filter:grayscale(.15);background:#F3F4F6;border-radius:0 0 16px 16px;margin:0 -16px;padding:0 16px 8px}
 #manageHallNameWrap input:disabled{background:#F3F4F6;color:#9CA3AF}
 .hall-actions{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px}
-.hall-actions .pick{padding:10px 4px;font-size:11px}
+.hall-actions.hall-actions-minimal{grid-template-columns:1fr}
+.hall-actions.hall-actions-minimal .pick{grid-column:1/-1}
+.hall-actions .pick{padding:10px 4px;font-size:11px;min-height:40px;display:flex;align-items:center;justify-content:center}
 .biz-dash-card{border:1px solid var(--line);border-radius:16px;padding:14px;margin-bottom:14px;background:#fff;box-shadow:0 2px 8px rgba(15,23,42,.04)}
 .biz-dash-card .biz-row{display:flex;gap:12px;align-items:flex-start}
 .biz-dash-card .biz-ico{width:44px;height:44px;border-radius:12px;background:#F3F4F6;display:grid;place-items:center;font-size:22px;flex:none}
@@ -197,16 +201,20 @@ textarea{width:100%;border:1px solid var(--line);border-radius:10px;padding:10px
 .op-remove{border:0;background:none;color:var(--rd);font-weight:800;font-size:13px;cursor:pointer;padding:8px 4px}
 .op-owner-tag{color:var(--gn2);font-weight:800;font-size:13px;padding:8px 4px}
 .op-card{display:flex;align-items:center;gap:12px;border:1px solid var(--line);border-radius:14px;padding:12px 14px;margin-bottom:10px;background:#fff}
+.op-meta{flex:1;min-width:0}
+.op-meta b{display:block;font-size:15px;margin-bottom:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.op-meta span{font-size:12px;color:var(--mut);line-height:1.4;display:block;word-break:break-word}
+.op-actions{flex-shrink:0;align-self:center}
 .op-avatar{width:44px;height:44px;border-radius:50%;display:grid;place-items:center;font-weight:900;font-size:17px;color:#fff;flex-shrink:0}
 .op-avatar.a0{background:#12B76A}
 .op-avatar.a1{background:#2563EB}
 .op-avatar.a2{background:#7C3AED}
 .op-avatar.a3{background:#EA580C}
-.op-meta{flex:1;min-width:0}
-.op-meta b{display:block;font-size:15px;margin-bottom:2px}
-.op-meta span{font-size:12px;color:var(--mut);line-height:1.4}
-.op-actions{flex-shrink:0}
 .operators-info{background:#F3F4F6;border-radius:12px;padding:12px 14px;font-size:13px;line-height:1.45;color:#374151;margin:12px 0 4px;border:1px solid var(--line)}
+.phone{display:flex;flex-direction:column}
+.scr.on{overflow-y:auto;-webkit-overflow-scrolling:touch}
+.overlay{z-index:30}
+.toast.on{display:block}
 </style>
 </head>
 <body>
@@ -607,7 +615,7 @@ textarea{width:100%;border:1px solid var(--line);border-radius:10px;padding:10px
 </div></div>
 <!-- APP_START -->
 <script>
-const OWNER_BUILD = '2026-09-28-hall-owner-v35';
+const OWNER_BUILD = '2026-09-28-hall-owner-v36';
 const DEMO_FILE = 'hall-owner-lmb-master.html';
 const PKG_KEY = 'GIXBEE_HALL_PACKAGE';
 

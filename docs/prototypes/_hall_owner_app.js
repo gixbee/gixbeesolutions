@@ -1,4 +1,4 @@
-const OWNER_BUILD = '2026-09-28-hall-owner-v35';
+const OWNER_BUILD = '2026-09-28-hall-owner-v36';
 const DEMO_FILE = 'hall-owner-lmb-master.html';
 const PKG_KEY = 'GIXBEE_HALL_PACKAGE';
 
