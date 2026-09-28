@@ -80,6 +80,10 @@ h2{margin:0 0 6px;font-size:18px}
 .radio-row{display:flex;gap:12px;align-items:center;margin:8px 0;font-size:13px}
 .cancel-table{width:100%;font-size:12px;border-collapse:collapse}
 .cancel-table td,.cancel-table th{padding:8px 4px;border-bottom:1px solid #F3F4F6}
+.hall-card{border:1px solid var(--line);border-radius:14px;padding:12px;margin-bottom:10px;background:#fff}
+.hall-card .hall-sub{font-size:12px;color:var(--mut);margin:6px 0 10px}
+.hall-actions{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px}
+.hall-actions .pick{padding:10px 4px;font-size:11px}
 </style>
 </head>
 <body>
@@ -88,15 +92,46 @@ h2{margin:0 0 6px;font-size:18px}
 <div class="stage"><div class="phone">
 <div class="notch"><span>9:41</span><span>●●●</span></div>
 
-<section class="scr on" id="manage">
+<section class="scr on" id="hallBizHome">
   <div class="lmb-top">
     <div class="row">
       <button type="button" class="home-pill">🏠 Home</button>
+      <div class="biz-title" id="bizHomeTitle">Vijaya Convention Center</div>
+      <span class="manage-pill">Manage &amp; grow</span>
+    </div>
+    <p class="sub" style="margin:8px 0 0">Marriage Hall · Service · Hall</p>
+    <p class="hint" id="buildTag" style="margin:8px 0 0;font-size:11px">Single-file demo — all JavaScript is inside this .html</p>
+  </div>
+  <div class="pad">
+    <p class="lbl">PARKING</p>
+    <div class="sum" id="parkingSummaryBox">
+      <div class="hd"><b id="parkingSummaryTitle">Common parking (shared by all halls)</b><button type="button" class="see" id="editParkingBtn">Edit</button></div>
+      <p class="sub" style="margin:0" id="parkingSummaryText">🚗 Cars: 80 · 🏍 Bikes: 120</p>
+    </div>
+    <div id="parkingEditWrap" hidden class="sum" style="background:#F9FAFB">
+      <p class="lbl" style="margin-top:0">EDIT PARKING</p>
+      <div class="two">
+        <div class="fld"><label>Cars</label><input type="number" id="editParkCar" min="0" value="80"></div>
+        <div class="fld"><label>Bikes</label><input type="number" id="editParkBike" min="0" value="120"></div>
+      </div>
+      <button type="button" class="btn" id="saveParkingBtn" style="margin-bottom:8px">Save parking</button>
+      <button type="button" class="btn ghost" id="cancelParkingBtn">Cancel</button>
+    </div>
+    <button type="button" class="btn" id="addHallBtn" style="margin:14px 0 10px">+ Add hall</button>
+    <p class="lbl" style="margin-top:4px">YOUR HALLS</p>
+    <div id="hallListCards"></div>
+  </div>
+</section>
+
+<section class="scr" id="manage">
+  <div class="lmb-top">
+    <div class="row">
+      <button type="button" class="back" id="backToBizHalls" style="width:auto;padding:0 8px;font-size:13px;font-weight:800">← Halls</button>
       <div class="biz-title">List My Business</div>
       <span class="manage-pill">Manage &amp; grow</span>
     </div>
     <p class="sub" style="margin:8px 0 0" id="manageSubLine">Vijaya Convention Center · Hall: Tiffle · Service · Hall</p>
-    <p class="hint" id="buildTag" style="margin:8px 0 0;font-size:11px">Single-file demo — all JavaScript is inside this .html</p>
+    <p class="hint" id="buildTagManage" style="margin:8px 0 0;font-size:11px">Hall manage — pricing, calendar, requests</p>
   </div>
   <div class="pad" style="padding-top:4px">
     <p class="lbl">NAMES (CUSTOMER VIEW)</p>
