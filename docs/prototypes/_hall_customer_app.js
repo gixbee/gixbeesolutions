@@ -1,4 +1,4 @@
-const CUSTOMER_BUILD = '2026-09-28-hall-customer-v10';
+const CUSTOMER_BUILD = '2026-09-28-hall-customer-v11';
 const DEMO_FILE = 'hall-customer-book-master.html';
 const OWNER_PKG_KEY = 'GIXBEE_HALL_PACKAGE';
 
@@ -56,6 +56,10 @@ const state = {
   hallId: 'royal',
   slot: 'morning',
   acChoice: 'noac',
+  cancelRules: null,
+  rescheduleRules: null,
+  cancelPolicyNote: '',
+  reschedulePolicyNote: '',
 };
 
 function el(id) {
@@ -107,6 +111,10 @@ function syncFromOwnerPackage() {
       if (o.offerAc) min = min == null ? o.priceAc : Math.min(min, o.priceAc);
     });
     if (min != null) h.priceFrom = min;
+    if (pkg.cancelRules && pkg.cancelRules.length) state.cancelRules = pkg.cancelRules;
+    if (pkg.rescheduleRules && pkg.rescheduleRules.length) state.rescheduleRules = pkg.rescheduleRules;
+    if (pkg.cancelPolicyNote != null) state.cancelPolicyNote = String(pkg.cancelPolicyNote);
+    if (pkg.reschedulePolicyNote != null) state.reschedulePolicyNote = String(pkg.reschedulePolicyNote);
   } catch (_e) {
     /* ignore */
   }
@@ -274,6 +282,30 @@ function hallAcProfileLine(h) {
   return '🌬 Non-AC packages';
 }
 
+function defaultPolicyRules() {
+  return [
+    { days: '30 days or more', pct: 10 },
+    { days: '15 – 29 days', pct: 25 },
+    { days: '7 – 14 days', pct: 50 },
+    { days: '3 – 6 days', pct: 75 },
+    { days: 'Less than 1 day', pct: 100 },
+  ];
+}
+function policyRulesForDisplay() {
+  return state.cancelRules && state.cancelRules.length ? state.cancelRules : defaultPolicyRules();
+}
+function rescheduleRulesForDisplay() {
+  return state.rescheduleRules && state.rescheduleRules.length ? state.rescheduleRules : defaultPolicyRules();
+}
+function policyBlockHtml(title, rules, note) {
+  const lines = rules.map(function (r) {
+    return esc(r.days) + ': ' + r.pct + '%';
+  });
+  let html = '<div class="box am"><b>' + esc(title) + '</b> (deducted from advance)<br>' + lines.join(' · ');
+  if (note) html += '<br><span class="sub">' + esc(note) + '</span>';
+  return html + '</div>';
+}
+
 function captureFilters() {
   state.loc = el('fLoc').value;
   state.event = el('fEvent').value;
@@ -429,7 +461,8 @@ function renderEnquiry() {
     <div class="box gn"><b>Hall charge (venue only): ₹ ${total.toLocaleString('en-IN')}</b><br><span class="sub">GST included · Catering &amp; decoration not included — arrange separately with the hall if needed.</span></div>
     <div class="box pk"><b>Advance payment: ₹ ${advance.toLocaleString('en-IN')}</b><br>Paid directly to hall owner after acceptance.</div>
     <div class="box bl"><b>Full payment</b> due 7 days before the event.</div>
-    <div class="box am"><b>Cancellation policy</b><br>30+ days: 10% · 15–29 days: 25% · 7–14 days: 50% · &lt;1 day: 100%</div>
+    ${policyBlockHtml('Cancellation policy', policyRulesForDisplay(), state.cancelPolicyNote)}
+    ${policyBlockHtml('Rescheduling policy', rescheduleRulesForDisplay(), state.reschedulePolicyNote)}
     <p class="sub">1. Request → 2. Hall accepts → 3. Pay advance (24h) → 4. Booked</p>`;
 }
 

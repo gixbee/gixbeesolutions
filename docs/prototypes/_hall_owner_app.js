@@ -1,4 +1,4 @@
-const OWNER_BUILD = '2026-09-28-hall-owner-v19';
+const OWNER_BUILD = '2026-09-28-hall-owner-v20';
 const DEMO_FILE = 'hall-owner-lmb-master.html';
 const PKG_KEY = 'GIXBEE_HALL_PACKAGE';
 
@@ -166,10 +166,94 @@ const state = {
     { days: '3 – 6 days', pct: 75 },
     { days: 'Less than 1 day', pct: 100 },
   ],
+  rescheduleRules: [
+    { days: '30 days or more', pct: 10 },
+    { days: '15 – 29 days', pct: 25 },
+    { days: '7 – 14 days', pct: 50 },
+    { days: '3 – 6 days', pct: 75 },
+    { days: 'Less than 1 day', pct: 100 },
+  ],
+  cancelPolicyNote: '',
+  reschedulePolicyNote: '',
   bookWindowMonths: 6,
   minNoticeDays: 3,
   calDay: 25,
 };
+
+let pkg4PolicyTab = 'cancel';
+
+const POLICY_DEFAULTS = [
+  { days: '30 days or more', pct: 10 },
+  { days: '15 – 29 days', pct: 25 },
+  { days: '7 – 14 days', pct: 50 },
+  { days: '3 – 6 days', pct: 75 },
+  { days: 'Less than 1 day', pct: 100 },
+];
+
+function ensurePolicyRules() {
+  if (!state.cancelRules || !state.cancelRules.length) {
+    state.cancelRules = POLICY_DEFAULTS.map(function (r) {
+      return { days: r.days, pct: r.pct };
+    });
+  }
+  if (!state.rescheduleRules || !state.rescheduleRules.length) {
+    state.rescheduleRules = state.cancelRules.map(function (r) {
+      return { days: r.days, pct: r.pct };
+    });
+  }
+  if (state.cancelPolicyNote == null) state.cancelPolicyNote = '';
+  if (state.reschedulePolicyNote == null) state.reschedulePolicyNote = '';
+}
+
+function policyRulesHtml(kind) {
+  const rules = kind === 'cancel' ? state.cancelRules : state.rescheduleRules;
+  return rules
+    .map(function (r, i) {
+      return (
+        '<div class="policy-row">' +
+        '<input type="text" class="policy-days-inp" data-policy="' +
+        kind +
+        '" data-field="days" data-idx="' +
+        i +
+        '" value="' +
+        esc(r.days) +
+        '">' +
+        '<span class="policy-pct-wrap"><input type="number" class="policy-pct-inp" min="0" max="100" data-policy="' +
+        kind +
+        '" data-field="pct" data-idx="' +
+        i +
+        '" value="' +
+        r.pct +
+        '"> %</span></div>'
+      );
+    })
+    .join('');
+}
+
+function capturePolicyRulesFromDom() {
+  if (!el('payPolicy')) return;
+  el('payPolicy').querySelectorAll('[data-policy][data-idx]').forEach(function (inp) {
+    const kind = inp.getAttribute('data-policy');
+    const idx = +inp.getAttribute('data-idx');
+    const field = inp.getAttribute('data-field');
+    const arr = kind === 'cancel' ? state.cancelRules : state.rescheduleRules;
+    if (!arr[idx]) return;
+    if (field === 'days') arr[idx].days = inp.value.trim() || arr[idx].days;
+    if (field === 'pct') arr[idx].pct = +inp.value || 0;
+  });
+  const cn = el('cancelPolicyNote');
+  const rn = el('reschedulePolicyNote');
+  if (cn) state.cancelPolicyNote = cn.value.trim();
+  if (rn) state.reschedulePolicyNote = rn.value.trim();
+}
+
+function policySummaryLines(rules, note) {
+  const lines = rules.map(function (r) {
+    return r.days + ': ' + r.pct + '%';
+  });
+  if (note) lines.push('Note: ' + note);
+  return lines.join(' · ');
+}
 
 function el(id) {
   return document.getElementById(id);
@@ -195,6 +279,7 @@ function loadPkg() {
   }
   normalizeNames();
   ensureSlotOffers();
+  ensurePolicyRules();
 }
 function normalizeNames() {
   if (!state.businessName) state.businessName = 'Vijaya Convention Center';
@@ -814,19 +899,78 @@ function capturePkg3() {
 
 function renderPkg4() {
   renderPkgSteps(4);
+  capturePolicyRulesFromDom();
+  ensurePolicyRules();
   const p = state.payment;
-  el('payPolicy').innerHTML = `
-    <p class="lbl">ADVANCE PAYMENT</p>
-    <label class="radio-row"><input type="radio" name="adv" value="fixed"${p.advanceType === 'fixed' ? ' checked' : ''}> Fixed amount</label>
-    <div class="fld"><input type="number" id="advFixed" value="${p.advanceFixed}"></div>
-    <label class="radio-row"><input type="radio" name="adv" value="pct"${p.advanceType === 'pct' ? ' checked' : ''}> Percentage of total</label>
-    <div class="fld"><input type="number" id="advPct" value="${p.advancePct}"> %</div>
-    <p class="lbl">FULL PAYMENT DUE</p>
-    <div class="fld"><label>Days before event</label><input type="number" id="fullDue" value="${p.fullDueDays}"></div>
-    <p class="lbl">CANCELLATION POLICY</p>
-    <table class="cancel-table"><tr><th>If cancelled before</th><th>Deduct</th></tr>
-    ${state.cancelRules.map((r) => `<tr><td>${esc(r.days)}</td><td>${r.pct}%</td></tr>`).join('')}
-    </table>`;
+  const tab = pkg4PolicyTab === 'reschedule' ? 'reschedule' : 'cancel';
+  const cancelOn = tab === 'cancel';
+  el('payPolicy').innerHTML =
+    '<p class="lbl">ADVANCE PAYMENT</p>' +
+    '<label class="radio-row"><input type="radio" name="adv" value="fixed"' +
+    (p.advanceType === 'fixed' ? ' checked' : '') +
+    '> Fixed amount</label>' +
+    '<div class="fld"><input type="number" id="advFixed" value="' +
+    p.advanceFixed +
+    '"></div>' +
+    '<label class="radio-row"><input type="radio" name="adv" value="pct"' +
+    (p.advanceType === 'pct' ? ' checked' : '') +
+    '> Percentage of total</label>' +
+    '<div class="fld"><input type="number" id="advPct" value="' +
+    p.advancePct +
+    '"> %</div>' +
+    '<p class="lbl">FULL PAYMENT DUE</p>' +
+    '<div class="fld"><label>Days before event</label><input type="number" id="fullDue" value="' +
+    p.fullDueDays +
+    '"></div>' +
+    '<hr style="border:0;border-top:1px solid var(--line);margin:20px 0">' +
+    '<h2 style="margin:0 0 4px;font-size:17px">Cancellation &amp; Rescheduling Policy</h2>' +
+    '<p class="sub" style="margin:0 0 12px">Set the deduction percentage based on the number of days before the event. Deducted from the advance amount.</p>' +
+    '<div class="policy-tabs">' +
+    '<button type="button" class="' +
+    (cancelOn ? 'on' : '') +
+    '" id="policyTabCancel">Cancellation Policy</button>' +
+    '<button type="button" class="' +
+    (!cancelOn ? 'on' : '') +
+    '" id="policyTabResched">Rescheduling Policy</button></div>' +
+    (cancelOn
+      ? '<div class="policy-banner cancel"><span aria-hidden="true">ℹ️</span><span>Enter the deduction percentage for <b>cancellations</b>. This will be deducted from the advance amount.</span></div>' +
+        policyRulesHtml('cancel') +
+        '<div class="fld" style="margin-top:14px"><label>Additional notes (shown to customers)</label>' +
+        '<textarea id="cancelPolicyNote" rows="3" placeholder="e.g. Refund balance after deduction within 7 working days.">' +
+        esc(state.cancelPolicyNote) +
+        '</textarea></div>'
+      : '<div class="policy-banner resched"><span aria-hidden="true">ℹ️</span><span>Enter the deduction percentage for <b>rescheduling</b>. This will be deducted from the advance amount.</span></div>' +
+        policyRulesHtml('reschedule') +
+        '<div class="fld" style="margin-top:14px"><label>Additional notes (shown to customers)</label>' +
+        '<textarea id="reschedulePolicyNote" rows="3" placeholder="e.g. New date must be within 6 months; one free reschedule if 30+ days notice.">' +
+        esc(state.reschedulePolicyNote) +
+        '</textarea></div>');
+  const tc = el('policyTabCancel');
+  const tr = el('policyTabResched');
+  if (tc) {
+    tc.onclick = function () {
+      capturePolicyRulesFromDom();
+      capturePkg4PaymentOnly();
+      pkg4PolicyTab = 'cancel';
+      renderPkg4();
+    };
+  }
+  if (tr) {
+    tr.onclick = function () {
+      capturePolicyRulesFromDom();
+      capturePkg4PaymentOnly();
+      pkg4PolicyTab = 'reschedule';
+      renderPkg4();
+    };
+  }
+}
+
+function capturePkg4PaymentOnly() {
+  const adv = document.querySelector('input[name=adv]:checked');
+  state.payment.advanceType = adv && adv.value ? adv.value : 'fixed';
+  if (el('advFixed')) state.payment.advanceFixed = +el('advFixed').value || 0;
+  if (el('advPct')) state.payment.advancePct = +el('advPct').value || 0;
+  if (el('fullDue')) state.payment.fullDueDays = +el('fullDue').value || 7;
 }
 
 function capturePkg2() {
@@ -841,11 +985,8 @@ function capturePkg2() {
 }
 
 function capturePkg4() {
-  const adv = document.querySelector('input[name=adv]:checked');
-  state.payment.advanceType = adv && adv.value ? adv.value : 'fixed';
-  state.payment.advanceFixed = +el('advFixed').value || 0;
-  state.payment.advancePct = +el('advPct').value || 0;
-  state.payment.fullDueDays = +el('fullDue').value || 7;
+  capturePolicyRulesFromDom();
+  capturePkg4PaymentOnly();
 }
 
 function renderPkg5() {
@@ -878,8 +1019,10 @@ function renderPkg5() {
           return '<p class="sub">' + esc(line) + '</p>';
         })
         .join('')}</div>
-    <div class="sum"><div class="hd"><b>Payment &amp; Cancellation</b><button type="button" class="see" data-to="pkg4">Edit</button></div>
-      <p class="sub">Advance ₹${state.payment.advanceFixed.toLocaleString('en-IN')} · Full due ${state.payment.fullDueDays} days before</p></div>`;
+    <div class="sum"><div class="hd"><b>Payment &amp; Policies</b><button type="button" class="see" data-to="pkg4">Edit</button></div>
+      <p class="sub">Advance ₹${state.payment.advanceFixed.toLocaleString('en-IN')} · Full due ${state.payment.fullDueDays} days before</p>
+      <p class="sub" style="margin-top:8px"><b>Cancellation</b> (from advance)<br>${esc(policySummaryLines(state.cancelRules, state.cancelPolicyNote))}</p>
+      <p class="sub" style="margin-top:8px"><b>Rescheduling</b> (from advance)<br>${esc(policySummaryLines(state.rescheduleRules, state.reschedulePolicyNote))}</p></div>`;
   el('pkgReview').querySelectorAll('[data-to]').forEach((b) => {
     b.onclick = () => {
       show(b.getAttribute('data-to'));
@@ -891,6 +1034,8 @@ function renderPkg5() {
   });
   el('savePkg').onclick = () => {
     capturePkg2();
+    capturePkg3();
+    capturePkg4();
     savePkg();
     renderManageHeader();
     toast('Package saved on this device.');
@@ -1145,6 +1290,7 @@ function boot() {
     }
     loadPkg();
     ensureSlotOffers();
+    ensurePolicyRules();
     if (!state.commonParking) state.commonParking = { car: 80, bike: 120 };
     if (state.hallSetupComplete && (!state.halls || !state.halls.length)) {
       initHallsFromSetup(state.plannedHallCount || 2);
