@@ -192,7 +192,19 @@ textarea{width:100%;border:1px solid var(--line);border-radius:10px;padding:10px
 .month-list{max-height:320px;overflow:auto;margin:0 -4px}
 .month-list button{display:flex;width:100%;align-items:center;justify-content:space-between;border:0;background:#fff;padding:14px 12px;border-radius:10px;font-weight:800;font-size:14px;cursor:pointer;color:var(--ink)}
 .month-list button.on{background:#EFF6FF;color:#1D4ED8}
-.month-list button.on::after{content:'✓';font-weight:900}
+.op-remove{border:0;background:none;color:var(--rd);font-weight:800;font-size:13px;cursor:pointer;padding:8px 4px}
+.op-owner-tag{color:var(--gn2);font-weight:800;font-size:13px;padding:8px 4px}
+.op-card{display:flex;align-items:center;gap:12px;border:1px solid var(--line);border-radius:14px;padding:12px 14px;margin-bottom:10px;background:#fff}
+.op-avatar{width:44px;height:44px;border-radius:50%;display:grid;place-items:center;font-weight:900;font-size:17px;color:#fff;flex-shrink:0}
+.op-avatar.a0{background:#12B76A}
+.op-avatar.a1{background:#2563EB}
+.op-avatar.a2{background:#7C3AED}
+.op-avatar.a3{background:#EA580C}
+.op-meta{flex:1;min-width:0}
+.op-meta b{display:block;font-size:15px;margin-bottom:2px}
+.op-meta span{font-size:12px;color:var(--mut);line-height:1.4}
+.op-actions{flex-shrink:0}
+.operators-info{background:#F3F4F6;border-radius:12px;padding:12px 14px;font-size:13px;line-height:1.45;color:#374151;margin:12px 0 4px;border:1px solid var(--line)}
 </style>
 </head>
 <body>
@@ -484,10 +496,60 @@ textarea{width:100%;border:1px solid var(--line);border-radius:10px;padding:10px
   </div>
 </section>
 
-<section class="scr" id="placeholder">
-  <div class="top"><button class="back" type="button" data-to="manage">←</button><h1 id="phTitle">Coming soon</h1></div>
-  <div class="pad"><p class="sub" id="phBody">This screen is a stub in the HTML demo. Wire to Flutter/API in production.</p></div>
+<section class="scr" id="operators">
+  <div class="lmb-top">
+    <div class="row">
+      <button type="button" class="home-pill" id="backFromOperators" style="font-size:12px">← Back</button>
+      <div class="biz-title">List My Business</div>
+      <span class="manage-pill">Manage &amp; grow</span>
+    </div>
+  </div>
+  <div class="pad" style="padding-top:8px">
+    <h2 style="margin:0 0 4px;font-size:20px;color:var(--navy)">Operators</h2>
+    <p class="sub" id="operatorsSub" style="margin-top:0">Who can manage this business</p>
+    <div class="operators-info">Operators can manage bookings and calendar but cannot delete the business or change billing.</div>
+    <p class="lbl" style="margin-top:16px">CURRENT OPERATORS</p>
+    <div id="operatorsList"></div>
+  </div>
+  <div class="cta"><button type="button" class="btn" id="addOperatorBtn">Add Operator</button></div>
 </section>
+
+<section class="scr" id="placeholder" hidden style="display:none!important">
+  <div class="top"><button class="back" type="button" data-to="manage">←</button><h1 id="phTitle">Coming soon</h1></div>
+  <div class="pad"><p class="sub" id="phBody"></p></div>
+</section>
+
+<div class="overlay center" id="removeOperatorOverlay" aria-hidden="true">
+  <div class="modal-card">
+    <div class="modal-ico">👤</div>
+    <h3>Remove operator?</h3>
+    <p id="removeOperatorBody">This person will no longer be able to manage bookings or calendar for this hall.</p>
+    <div class="sheet-actions">
+      <button type="button" class="btn ghost" id="cancelRemoveOperator">Cancel</button>
+      <button type="button" class="btn red" id="confirmRemoveOperator">Remove</button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="addOperatorOverlay" aria-hidden="true">
+  <div class="sheet">
+    <div class="sheet-head"><h2>Add Operator</h2><button type="button" class="sheet-close" id="closeAddOperator">×</button></div>
+    <p class="sub" style="margin-top:0">They can manage calendar and booking requests for this hall.</p>
+    <div class="fld"><label>Full name</label><input id="addOpName" type="text" placeholder="e.g. John Kurian" autocomplete="name"></div>
+    <div class="fld"><label>Mobile number</label><input id="addOpPhone" type="tel" placeholder="e.g. +91 98765 43210" autocomplete="tel"></div>
+    <div class="fld"><label>Role</label>
+      <select id="addOpRole">
+        <option value="manager">Manager</option>
+        <option value="staff">Staff</option>
+      </select>
+      <small class="sub">Owner is set when you list on Gixbee — add managers or staff here.</small>
+    </div>
+    <div class="sheet-actions">
+      <button type="button" class="btn ghost" id="cancelAddOperator">Cancel</button>
+      <button type="button" class="btn" id="saveAddOperator">Add Operator</button>
+    </div>
+  </div>
+</div>
 
 <div class="overlay" id="monthPickerOverlay" aria-hidden="true">
   <div class="sheet">
