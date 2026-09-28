@@ -100,7 +100,10 @@ textarea{width:100%;border:1px solid var(--line);border-radius:10px;padding:10px
 .hall-card{border:1px solid var(--line);border-radius:14px;padding:12px;margin-bottom:10px;background:#fff}
 .hall-card-top{display:flex;justify-content:space-between;align-items:flex-start;gap:10px}
 .hall-card-inactive{border-color:#E5E7EB;background:#FAFAFA}
-.hall-card .hall-sub{font-size:12px;color:var(--mut);margin:6px 0 10px}
+.hall-card .hall-sub{font-size:12px;margin:6px 0 10px;line-height:1.45;display:flex;flex-wrap:wrap;align-items:center;gap:6px}
+.hall-sub-kicker{font-size:10px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:#64748B}
+.hall-sub-name{display:inline-block;font-weight:800;font-size:13px;padding:4px 10px;border-radius:999px;color:#5B21B6;background:linear-gradient(135deg,#EDE9FE 0%,#D1FAE5 100%);border:1px solid rgba(91,33,182,.12);box-shadow:0 1px 0 rgba(255,255,255,.8) inset}
+.hall-card-inactive .hall-sub-name{color:#6B7280;background:#F3F4F6;border-color:#E5E7EB}
 .hall-toggle{display:inline-flex;align-items:center;gap:8px;font-size:11px;font-weight:800;cursor:pointer;flex-shrink:0;margin-top:2px}
 .hall-toggle input{position:absolute;opacity:0;width:0;height:0;pointer-events:none}
 .hall-toggle-ui{width:46px;height:26px;background:#D1D5DB;border-radius:999px;position:relative;transition:background .2s;flex-shrink:0}
