@@ -172,9 +172,9 @@ h2{margin:0 0 6px;font-size:18px}
   <div class="top"><button type="button" class="back" id="setupBackDash">←</button><h1>Hall setup</h1></div>
   <div class="pad">
     <h2 id="setupBizTitle">Vijaya Convention Center</h2>
-    <p class="sub">Enter how many halls, then tap OK.</p>
+    <p class="sub">How many halls at this business? Tap OK. Common parking appears only if you enter 2 or more.</p>
     <div class="fld"><label>Number of halls</label><input type="number" id="hallCountInput" min="1" max="20" value="2"><small class="sub">Example: 1 hall, or 2–3 halls under one convention center.</small></div>
-    <button type="button" class="btn" id="hallCountOk" style="margin-top:8px">OK</button>
+    <button type="button" class="btn ghost" id="hallCountOk">OK</button>
     <div id="setupParkingSection" hidden style="margin-top:16px">
       <p class="lbl" id="setupParkingLbl">COMMON PARKING</p>
       <p class="sub" id="setupParkingHint">Shared car and bike capacity for all halls.</p>
@@ -184,9 +184,9 @@ h2{margin:0 0 6px;font-size:18px}
       </div>
     </div>
   </div>
-  <div class="cta two" id="setupActionsWrap" hidden style="display:none;grid-template-columns:1fr 1fr;gap:10px;padding-top:0">
+  <div class="cta two" style="display:grid;grid-template-columns:1fr 1fr;gap:10px;padding-top:0">
     <button type="button" class="btn ghost" id="setupCancel">Cancel</button>
-    <button type="button" class="btn" id="setupSave">Save</button>
+    <button type="button" class="btn" id="setupSave" disabled>Save</button>
   </div>
 </section>
 

@@ -1,4 +1,4 @@
-const OWNER_BUILD = '2026-09-28-hall-owner-v13';
+const OWNER_BUILD = '2026-09-28-hall-owner-v12';
 const DEMO_FILE = 'hall-owner-lmb-master.html';
 const PKG_KEY = 'GIXBEE_HALL_PACKAGE';
 
@@ -202,34 +202,29 @@ function renderSetupScreen() {
   const countIn = el('hallCountInput');
   if (countIn) countIn.value = state.plannedHallCount || 2;
   const sec = el('setupParkingSection');
-  const actions = el('setupActionsWrap');
+  const saveBtn = el('setupSave');
   if (sec) sec.hidden = true;
-  if (actions) {
-    actions.hidden = true;
-    actions.style.display = 'none';
-  }
+  if (saveBtn) saveBtn.disabled = true;
 }
 
 function revealSetupParking() {
   const count = Math.max(1, +(el('hallCountInput') && el('hallCountInput').value) || 1);
   state.plannedHallCount = count;
   const sec = el('setupParkingSection');
-  if (count > 1) {
-    const lbl = el('setupParkingLbl');
-    const hint = el('setupParkingHint');
-    if (sec) sec.hidden = false;
-    if (lbl) lbl.textContent = 'COMMON PARKING';
-    if (hint) hint.textContent = 'Shared car and bike parking for all ' + count + ' halls.';
-    if (el('setupParkCar')) el('setupParkCar').value = state.commonParking.car;
-    if (el('setupParkBike')) el('setupParkBike').value = state.commonParking.bike;
-  } else if (sec) {
-    sec.hidden = true;
+  if (count <= 1) {
+    if (sec) sec.hidden = true;
+    if (el('setupSave')) el('setupSave').disabled = false;
+    toast('One hall — set car/bike parking inside each hall (Price & packages → venue details).');
+    return;
   }
-  const actions = el('setupActionsWrap');
-  if (actions) {
-    actions.hidden = false;
-    actions.style.display = 'grid';
-  }
+  const lbl = el('setupParkingLbl');
+  const hint = el('setupParkingHint');
+  if (sec) sec.hidden = false;
+  if (lbl) lbl.textContent = 'COMMON PARKING';
+  if (hint) hint.textContent = 'Shared car and bike parking for all ' + count + ' halls.';
+  if (el('setupParkCar')) el('setupParkCar').value = state.commonParking.car;
+  if (el('setupParkBike')) el('setupParkBike').value = state.commonParking.bike;
+  if (el('setupSave')) el('setupSave').disabled = false;
 }
 
 function initHallsFromSetup(count) {
