@@ -109,36 +109,26 @@ body{margin:0;background:#E8EDF5;font-family:Inter,system-ui,sans-serif;color:va
 <div class="toast" id="toast"></div>
 </div></div>
 <!-- APP_START -->
+<div id="shellOnlyNotice" style="margin:16px;padding:20px;border:2px solid #DC2626;border-radius:12px;background:#FEE2E2;font:15px sans-serif">
+  <p style="margin:0 0 8px;font-weight:800;color:#991B1B">This is not the working demo file.</p>
+  <p style="margin:0 0 12px;line-height:1.5">Open the single-file demo (JavaScript is inside that file only):</p>
+  <p style="margin:0"><a href="DOWNLOAD-gixbee-hall-customer.html" style="font-weight:800;color:#1D4ED8">DOWNLOAD-gixbee-hall-customer.html</a></p>
+</div>
 <!-- APP_END -->
+<!-- SHELL_ONLY_START -->
 <script>
 (function () {
-  var MASTER = 'hall-customer-book-master.html';
-  var DOWNLOAD = 'DOWNLOAD-gixbee-hall-customer.html';
-  function warn() {
-    if (window.GIXBEE_HALL_BOOTED) return;
-    var box = document.getElementById('bootError');
-    var msg =
-      'This file has no JavaScript (developer shell). Open <b>' +
-      DOWNLOAD +
-      '</b> or <b>' +
-      MASTER +
-      '</b>, then hard-refresh (Ctrl+Shift+R). Regenerate: python3 docs/prototypes/_gen_hall_prototypes.py';
-    if (box) {
-      box.hidden = false;
-      box.innerHTML =
-        '<h1 style="color:#DC2626;font-size:20px">Hall customer demo did not start</h1><p>' + msg + '</p>';
-    } else {
-      alert('Open ' + DOWNLOAD + ' — not the shell file.');
-    }
-  }
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', function () {
-      setTimeout(warn, 200);
-    });
-  } else {
-    setTimeout(warn, 200);
+  var dl = 'DOWNLOAD-gixbee-hall-customer.html';
+  var box = document.getElementById('bootError');
+  if (box) {
+    box.hidden = false;
+    box.innerHTML =
+      '<h1 style="color:#DC2626">Wrong file</h1><p>Open <b>' +
+      dl +
+      '</b> or <b>OPEN-gixbee-hall-customer-demo.html</b> (same demo).</p>';
   }
 })();
 </script>
+<!-- SHELL_ONLY_END -->
 </body>
 </html>
