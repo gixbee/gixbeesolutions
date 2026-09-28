@@ -119,7 +119,12 @@ textarea{width:100%;border:1px solid var(--line);border-radius:10px;padding:10px
 .hall-inactive-lock #backToBizHalls,.hall-inactive-lock .top .back{pointer-events:auto!important;opacity:1!important}
 .manage-name-actions{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px}
 .manage-name-actions .btn{margin:0}
-#manageHallNameWrap input:disabled{background:#F3F4F6;color:#9CA3AF;cursor:not-allowed}
+.hall-name-display{font-weight:800;font-size:15px;padding:10px 12px;border-radius:12px;background:linear-gradient(135deg,#EDE9FE 0%,#D1FAE5 100%);color:#5B21B6;border:1px solid rgba(91,33,182,.12)}
+.hall-name-display.muted{color:#6B7280;background:#F3F4F6;border-color:#E5E7EB;font-weight:700;font-size:13px}
+#manageRestBlock{transition:opacity .2s}
+.manage-name-editing #manageRestBlock{opacity:.42;pointer-events:none;user-select:none;filter:grayscale(.15);background:#F3F4F6;border-radius:0 0 16px 16px;margin:0 -16px;padding:0 16px 8px}
+.manage-name-editing-add #manageRestBlock{opacity:1;pointer-events:auto;filter:none;background:transparent}
+#manageHallNameWrap input:disabled{background:#F3F4F6;color:#9CA3AF}
 .hall-actions{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px}
 .hall-actions .pick{padding:10px 4px;font-size:11px}
 .biz-dash-card{border:1px solid var(--line);border-radius:16px;padding:14px;margin-bottom:14px;background:#fff;box-shadow:0 2px 8px rgba(15,23,42,.04)}
@@ -279,21 +284,33 @@ textarea{width:100%;border:1px solid var(--line);border-radius:10px;padding:10px
     <div id="hallInactiveBanner" hidden class="hall-inactive-banner">This hall is <b>Off</b> on your Halls list. Turn the toggle <b>On</b> on the hall card to edit names, pricing, and calendar again.</div>
     <p class="lbl">NAMES (CUSTOMER VIEW)</p>
     <div class="fld"><label>Business name</label><input id="bizNameRo" type="text" readonly style="background:#F9FAFB;color:#374151" value="Vijaya Convention Center"><small class="sub">Set when you listed on Gixbee — cannot be changed here. Shown on search cards.</small></div>
-    <label class="radio-row" style="margin:8px 0"><input type="checkbox" id="manageUseHallName"> This hall has its own name (optional)</label>
-    <div id="manageHallNameWrap" class="fld">
-      <label>Hall name</label><input id="manageHallName" type="text" value="" placeholder="e.g. Koinonia" disabled><small class="sub">Only if different from the business name. Shown when customers book this hall. Check the box above to enable, then Save.</small>
+    <div id="manageNameViewBlock">
+      <div class="fld">
+        <label>Hall name</label>
+        <div id="manageHallNameDisplay" class="hall-name-display">—</div>
+        <small class="sub" id="manageHallNameDisplayHint">Shown when customers book this hall.</small>
+      </div>
+      <button type="button" class="see" id="editManageName" style="display:block;margin:4px 0 12px;font-size:13px">Edit</button>
     </div>
-    <div id="manageNameActions" class="manage-name-actions" hidden>
-      <button type="button" class="btn ghost" id="cancelManageName">Cancel</button>
-      <button type="button" class="btn" id="saveManageName">Save</button>
+    <div id="manageNameEditBlock" hidden>
+      <label class="radio-row" style="margin:8px 0"><input type="checkbox" id="manageUseHallName"> This hall has its own name (optional)</label>
+      <div id="manageHallNameWrap" class="fld">
+        <label>Hall name</label><input id="manageHallName" type="text" value="" placeholder="e.g. Koinonia"><small class="sub">Only if different from the business name.</small>
+      </div>
+      <div id="manageNameActions" class="manage-name-actions">
+        <button type="button" class="btn ghost" id="cancelManageName">Cancel</button>
+        <button type="button" class="btn" id="saveManageName">Save</button>
+      </div>
     </div>
   </div>
+  <div id="manageRestBlock">
   <div class="pad">
     <p class="lbl">MANAGE</p>
     <div class="menu" id="manageMenu"><p class="sub" id="jsWait">Loading menu…</p></div>
   </div>
   <div class="cta" id="manageSaveFooter" hidden>
     <button type="button" class="btn" id="saveNewHallBtn">Save hall</button>
+  </div>
   </div>
 </section>
 
@@ -396,7 +413,7 @@ textarea{width:100%;border:1px solid var(--line);border-radius:10px;padding:10px
 </div></div>
 <!-- APP_START -->
 <script>
-const OWNER_BUILD = '2026-09-28-hall-owner-v24';
+const OWNER_BUILD = '2026-09-28-hall-owner-v25';
 const DEMO_FILE = 'hall-owner-lmb-master.html';
 const PKG_KEY = 'GIXBEE_HALL_PACKAGE';
 
@@ -580,6 +597,7 @@ const state = {
 
 let pkg4PolicyTab = 'cancel';
 let manageNameSnapshot = { useHallName: false, hallName: '' };
+let manageNameEditing = false;
 
 const POLICY_DEFAULTS = [
   { days: '30 days or more', pct: 10 },
@@ -754,7 +772,67 @@ function syncHallNameUi() {
   if (hallIn && document.activeElement !== hallIn) hallIn.value = state.hallName;
   const pkgIn = el('hallNameInput');
   if (pkgIn && document.activeElement !== pkgIn) pkgIn.value = state.hallName;
-  renderManageNameActions();
+  renderManageNameMode();
+}
+
+function renderManageNameMode() {
+  const manageScr = el('manage');
+  const isAdd = !!state.openedFromAddHall;
+  const viewBlock = el('manageNameViewBlock');
+  const editBlock = el('manageNameEditBlock');
+  const editBtn = el('editManageName');
+  const display = el('manageHallNameDisplay');
+  const hint = el('manageHallNameDisplayHint');
+  const hallIn = el('manageHallName');
+  const cb = el('manageUseHallName');
+  const listingOn = hallListingOn(activeHall());
+  const hasName = !!(state.useHallName && customerHallName());
+
+  if (display) {
+    if (hasName) {
+      display.textContent = customerHallName();
+      display.classList.remove('muted');
+    } else {
+      display.textContent = 'Uses business name only (no separate hall name)';
+      display.classList.add('muted');
+    }
+  }
+  if (hint) {
+    hint.textContent = hasName
+      ? 'Shown when customers book this hall.'
+      : 'Tap Edit to add a separate hall name for customers.';
+  }
+
+  if (isAdd) {
+    manageNameEditing = false;
+    if (viewBlock) viewBlock.hidden = true;
+    if (editBlock) editBlock.hidden = false;
+    if (editBtn) editBtn.hidden = true;
+    if (manageScr) {
+      manageScr.classList.remove('manage-name-editing');
+      manageScr.classList.add('manage-name-editing-add');
+    }
+    if (hallIn) hallIn.disabled = !listingOn;
+    if (cb) cb.disabled = !listingOn;
+    return;
+  }
+
+  if (manageScr) manageScr.classList.remove('manage-name-editing-add');
+
+  if (manageNameEditing && listingOn) {
+    if (viewBlock) viewBlock.hidden = true;
+    if (editBlock) editBlock.hidden = false;
+    if (editBtn) editBtn.hidden = true;
+    if (manageScr) manageScr.classList.add('manage-name-editing');
+    if (cb) cb.disabled = false;
+    if (hallIn) hallIn.disabled = !cb || !cb.checked;
+  } else {
+    manageNameEditing = false;
+    if (viewBlock) viewBlock.hidden = false;
+    if (editBlock) editBlock.hidden = true;
+    if (editBtn) editBtn.hidden = !listingOn;
+    if (manageScr) manageScr.classList.remove('manage-name-editing');
+  }
 }
 
 function snapshotManageNameFromHall() {
@@ -768,19 +846,14 @@ function snapshotManageNameFromHall() {
 function applyManageNameSnapshot() {
   state.useHallName = manageNameSnapshot.useHallName;
   state.hallName = manageNameSnapshot.hallName;
+  manageNameEditing = false;
   syncHallNameUi();
 }
 
-function renderManageNameActions() {
-  const actions = el('manageNameActions');
-  const hallIn = el('manageHallName');
-  const cb = el('manageUseHallName');
-  const listingOn = hallListingOn(activeHall());
-  const useName = !!(cb && cb.checked);
-  if (hallIn) {
-    hallIn.disabled = !useName || !listingOn;
-  }
-  if (actions) actions.hidden = !useName || !listingOn;
+function finishManageNameEdit() {
+  manageNameEditing = false;
+  snapshotManageNameFromHall();
+  renderManageNameMode();
 }
 function captureNameFields() {
   const manageCb = el('manageUseHallName');
@@ -803,7 +876,7 @@ function captureNameFields() {
   const manageIn = el('manageHallName');
   if (hallIn && (el('pkg2').classList.contains('on') || document.activeElement === hallIn)) {
     state.hallName = hallIn.value.trim();
-  } else if (manageIn) {
+  } else if (manageIn && manageNameEditing) {
     state.hallName = manageIn.value.trim();
   }
   syncHallNameUi();
@@ -1087,6 +1160,7 @@ function renderHallBizHome() {
 
 function openManageScreen(fromAddHall) {
   state.openedFromAddHall = !!fromAddHall;
+  manageNameEditing = !!fromAddHall;
   loadActiveHallIntoState();
   snapshotManageNameFromHall();
   renderManageHeader();
@@ -1836,6 +1910,7 @@ function bindOwnerEvents() {
           state.hallName = '';
           if (el('manageHallName')) el('manageHallName').value = '';
         }
+        if (el('manageHallName')) el('manageHallName').disabled = !cb.checked;
         syncHallNameUi();
         const other = el('useHallNamePkg');
         if (other) other.checked = state.useHallName;
@@ -1848,6 +1923,16 @@ function bindOwnerEvents() {
       if (other) other.checked = state.useHallName;
     };
   });
+  const editManageName = el('editManageName');
+  if (editManageName) {
+    editManageName.onclick = function () {
+      if (!hallListingOn(activeHall())) return;
+      snapshotManageNameFromHall();
+      manageNameEditing = true;
+      syncHallNameUi();
+      renderManageNameMode();
+    };
+  }
   const saveManageName = el('saveManageName');
   if (saveManageName) {
     saveManageName.onclick = function () {
@@ -1865,9 +1950,9 @@ function bindOwnerEvents() {
       }
       syncActiveHallFromState();
       savePkg();
-      snapshotManageNameFromHall();
       renderManageHeader();
       renderHallCards();
+      finishManageNameEdit();
       toast('Hall name saved.');
     };
   }
