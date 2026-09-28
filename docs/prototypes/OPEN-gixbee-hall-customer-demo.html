@@ -112,13 +112,15 @@ body{margin:0;background:#E8EDF5;font-family:Inter,system-ui,sans-serif;color:va
 </div></div>
 <!-- APP_START -->
 <script>
-const CUSTOMER_BUILD = '2026-09-28-hall-customer-v5';
+const CUSTOMER_BUILD = '2026-09-28-hall-customer-v6';
 const DEMO_FILE = 'hall-customer-book-master.html';
+const OWNER_PKG_KEY = 'GIXBEE_HALL_PACKAGE';
 
 const HALLS = [
   {
     id: 'royal',
-    name: 'Royal Convention Centre',
+    businessName: 'Vijaya Convention Center',
+    hallName: 'Tiffle',
     area: 'Kottayam, Kerala',
     rating: 4.8,
     reviews: 120,
@@ -137,7 +139,8 @@ const HALLS = [
   },
   {
     id: 'grace',
-    name: 'Grace Auditorium',
+    businessName: 'Grace Auditorium',
+    hallName: 'Main Hall',
     area: 'Kottayam, Kerala',
     rating: 4.6,
     reviews: 98,
@@ -181,6 +184,28 @@ function toast(m) {
 }
 function hall() {
   return HALLS.find((h) => h.id === state.hallId) || HALLS[0];
+}
+function esc(s) {
+  return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;');
+}
+function businessLabel(h) {
+  return h.businessName || h.name || '';
+}
+function hallLabel(h) {
+  return h.hallName || h.businessName || h.name || '';
+}
+function syncFromOwnerPackage() {
+  try {
+    const raw = localStorage.getItem(OWNER_PKG_KEY);
+    if (!raw) return;
+    const pkg = JSON.parse(raw);
+    const h = HALLS.find((x) => x.id === 'royal');
+    if (!h) return;
+    if (pkg.businessName) h.businessName = pkg.businessName;
+    if (pkg.hallName) h.hallName = pkg.hallName;
+  } catch (_e) {
+    /* ignore */
+  }
 }
 function priceForHall(h, acChoice) {
   if (acChoice === 'ac') return h.priceAc;
@@ -243,6 +268,7 @@ function captureFilters() {
 }
 
 function renderResults() {
+  syncFromOwnerPackage();
   captureFilters();
   el('resTitle').textContent = 'Halls in ' + state.loc.split(',')[0];
   el('resChips').innerHTML = [
@@ -256,15 +282,21 @@ function renderResults() {
   const list = HALLS.filter((h) => h.area === state.loc || state.loc.startsWith('Kottayam'));
   el('resCount').textContent = list.length + ' halls found';
   el('resList').innerHTML = list
-    .map(
-      (h) => `<article class="card" data-hall="${h.id}">
+    .map((h) => {
+      const biz = esc(businessLabel(h));
+      const hallLine =
+        hallLabel(h) !== businessLabel(h)
+          ? `<div class="meta">Hall: ${esc(hallLabel(h))}</div>`
+          : '';
+      return `<article class="card" data-hall="${h.id}">
       <div style="height:140px;background:linear-gradient(135deg,#A7F3D0,#BFDBFE);display:grid;place-items:center;font-size:40px">🏛️</div>
-      <div class="bd"><span class="badge">Verified Business</span><b>${h.name}</b>
+      <div class="bd"><span class="badge">Verified Business</span><b>${biz}</b>
+      ${hallLine}
       <div class="meta">${h.area} · ★ ${h.rating} (${h.reviews})</div>
       <div class="meta">👥 ${h.seat} seat · 🍽 ${h.dine} dine · 🅿 ${h.park} cars</div>
       <div class="price">From ₹ ${h.priceFrom.toLocaleString('en-IN')} hall rent (GST incl.)</div>
-      <div class="meta" style="margin-top:4px">Catering &amp; decoration quoted separately</div></div></article>`,
-    )
+      <div class="meta" style="margin-top:4px">Catering &amp; decoration quoted separately</div></div></article>`;
+    })
     .join('');
   el('resList').querySelectorAll('[data-hall]').forEach((c) => {
     c.onclick = () => {
@@ -278,8 +310,8 @@ function renderResults() {
 function renderDetail() {
   const h = hall();
   el('detailBody').innerHTML = `
-    <h2 style="margin:8px 0 4px">${h.name}</h2>
-    <p class="sub">${h.area} · ★ ${h.rating} (${h.reviews} reviews)</p>
+    <h2 style="margin:8px 0 4px">${esc(hallLabel(h))}</h2>
+    <p class="sub">${esc(businessLabel(h))} · ${h.area} · ★ ${h.rating} (${h.reviews} reviews)</p>
     <div class="chips">${h.tags.map((t) => `<span class="chip">${t}</span>`).join('')}</div>
     <p class="sub" style="margin-top:12px">Spacious hall with stage, green room, and ample parking. Ideal for ${state.event.toLowerCase()} events in Kottayam.</p>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px;font-size:12px;font-weight:800">
@@ -329,7 +361,7 @@ function renderEnquiry() {
   const total = priceForHall(h, state.acChoice);
   const advance = 20000;
   el('enquiryBody').innerHTML = `
-    <div class="card" style="cursor:default"><div class="bd"><b>${h.name}</b><div class="meta">${h.area}</div></div></div>
+    <div class="card" style="cursor:default"><div class="bd"><b>${esc(hallLabel(h))}</b><div class="meta">${esc(businessLabel(h))} · ${h.area}</div></div></div>
     <div class="kv"><span>Event Type</span><b>${state.event}</b></div>
     <div class="kv"><span>Event Date</span><b>${formatDate(state.date)}</b></div>
     <div class="kv"><span>Time Slot</span><b>${slotLabel()}</b></div>
@@ -392,6 +424,7 @@ function bootCustomer() {
     if (!el('goSearch')) {
       throw new Error('Missing search screen — open ' + DEMO_FILE + ', not the empty shell file.');
     }
+    syncFromOwnerPackage();
     bindCustomerEvents();
     const tag = el('buildTag');
     if (tag) {
