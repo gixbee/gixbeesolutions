@@ -1,4 +1,4 @@
-const OWNER_BUILD = '2026-09-28-hall-owner-v38';
+const OWNER_BUILD = '2026-09-28-hall-owner-v39';
 const DEMO_FILE = 'hall-owner-lmb-master.html';
 const PKG_KEY = 'GIXBEE_HALL_PACKAGE';
 
@@ -133,6 +133,8 @@ const MANAGE_MENU = [
   { id: 'pkg1', title: 'Price & packages', sub: 'Slots, pricing, cancellation policy', icon: '₹', ico: 'pkg' },
   { id: 'ownerReq', title: 'Booking requests', sub: 'Accept or decline customer bookings', dot: true, icon: '💬', ico: 'req' },
   { id: 'operators', title: 'Operators', sub: 'Who can manage this hall', icon: '👥', ico: 'ops' },
+  { id: 'hallPhotos', title: 'Photos', sub: 'Cover image and gallery for this hall', icon: '📷', ico: 'photo' },
+  { id: 'hallPortfolio', title: 'Portfolio', sub: 'Past events and highlight albums', icon: '🖼', ico: 'port' },
   { id: 'deleteHall', title: 'Delete hall', sub: 'Remove this hall from the business', cls: 'danger', icon: '🗑', ico: 'del' },
 ];
 
@@ -182,6 +184,7 @@ const state = {
 
 let calPendingBlock = null;
 let calPendingUnblock = null;
+let hallMediaTab = 'photos';
 
 const MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
@@ -1272,7 +1275,7 @@ function normalizeHallRecords() {
 
 function syncHallInactiveLock() {
   const locked = activeHall() && !hallListingOn(activeHall());
-  ['manage', 'pkg1', 'pkg2', 'pkg3', 'pkg4', 'pkg5', 'calendar', 'calDay', 'ownerReq', 'bookSettings', 'operators', 'placeholder'].forEach(
+  ['manage', 'pkg1', 'pkg2', 'pkg3', 'pkg4', 'pkg5', 'calendar', 'calDay', 'ownerReq', 'bookSettings', 'operators', 'hallMedia', 'placeholder'].forEach(
     function (id) {
       const scr = el(id);
       if (scr) scr.classList.toggle('hall-inactive-lock', !!locked);
@@ -1676,6 +1679,14 @@ function renderManage() {
       }
       if (id === 'operators') {
         openOperatorsScreen();
+        return;
+      }
+      if (id === 'hallPhotos') {
+        openHallMediaScreen('photos');
+        return;
+      }
+      if (id === 'hallPortfolio') {
+        openHallMediaScreen('portfolio');
         return;
       }
       if (id === 'placeholder') {
@@ -2151,6 +2162,182 @@ function getHallOperators(h) {
   return h.operators;
 }
 
+function defaultHallGallery() {
+  return [
+    { id: 'g1', label: 'Main hall' },
+    { id: 'g2', label: 'Stage & lighting' },
+  ];
+}
+
+function defaultHallPortfolioItems() {
+  return [
+    { id: 'pf1', title: 'Wedding reception', date: 'Dec 2025', count: 12 },
+    { id: 'pf2', title: 'Corporate conference', date: 'Oct 2025', count: 8 },
+  ];
+}
+
+function getHallGallery(h) {
+  if (!h) return [];
+  if (!h.hallGallery || !h.hallGallery.length) {
+    h.hallGallery = defaultHallGallery().map(function (p) {
+      return JSON.parse(JSON.stringify(p));
+    });
+  }
+  return h.hallGallery;
+}
+
+function getHallPortfolio(h) {
+  if (!h) return [];
+  if (!h.hallPortfolio || !h.hallPortfolio.length) {
+    h.hallPortfolio = defaultHallPortfolioItems().map(function (p) {
+      return JSON.parse(JSON.stringify(p));
+    });
+  }
+  return h.hallPortfolio;
+}
+
+function setHallMediaTab(tab) {
+  hallMediaTab = tab === 'portfolio' ? 'portfolio' : 'photos';
+  const photosBtn = el('tabHallPhotos');
+  const portBtn = el('tabHallPortfolio');
+  if (photosBtn) photosBtn.classList.toggle('on', hallMediaTab === 'photos');
+  if (portBtn) portBtn.classList.toggle('on', hallMediaTab === 'portfolio');
+  const photosPanel = el('hallPhotosPanel');
+  const portPanel = el('hallPortfolioPanel');
+  if (photosPanel) photosPanel.hidden = hallMediaTab !== 'photos';
+  if (portPanel) portPanel.hidden = hallMediaTab !== 'portfolio';
+  const addBtn = el('hallMediaAddBtn');
+  if (addBtn) {
+    addBtn.textContent = hallMediaTab === 'portfolio' ? 'Add portfolio album' : 'Add photo';
+  }
+}
+
+function renderHallMedia() {
+  const h = activeHall();
+  const sub = el('hallMediaSub');
+  const hallLabel = customerHallName() || state.businessName;
+  if (sub) {
+    sub.textContent = hallLabel + ' — photos customers see before they book';
+  }
+  const grid = el('hallPhotoGrid');
+  const gallery = getHallGallery(h);
+  if (grid) {
+    grid.innerHTML =
+      gallery
+        .map(function (p) {
+          return (
+            '<div class="photo-tile" data-photo-id="' +
+            esc(p.id) +
+            '"><span class="tile-cap">' +
+            esc(p.label) +
+            '</span></div>'
+          );
+        })
+        .join('') + '<button type="button" class="photo-tile add" id="addGalleryTile">+ Add photo</button>';
+    const addTile = el('addGalleryTile');
+    if (addTile) {
+      addTile.onclick = function () {
+        if (!hallListingOn(h)) {
+          toast('Turn this hall On to add photos.');
+          return;
+        }
+        const id = 'g' + Date.now();
+        gallery.push({ id: id, label: 'New photo' });
+        savePkg();
+        renderHallMedia();
+        toast('Photo added (demo — upload in full app).');
+      };
+    }
+  }
+  const list = el('hallPortfolioList');
+  const items = getHallPortfolio(h);
+  if (list) {
+    list.innerHTML = items
+      .map(function (p) {
+        return (
+          '<button type="button" class="portfolio-row" data-pf-id="' +
+          esc(p.id) +
+          '"><span class="portfolio-thumb" aria-hidden="true"></span><span><b>' +
+          esc(p.title) +
+          '</b><span>' +
+          esc(p.date) +
+          ' · ' +
+          esc(String(p.count)) +
+          ' photos</span></span></button>'
+        );
+      })
+      .join('');
+    list.querySelectorAll('[data-pf-id]').forEach(function (btn) {
+      btn.onclick = function () {
+        toast('Portfolio album — full viewer in production app.');
+      };
+    });
+  }
+  setHallMediaTab(hallMediaTab);
+}
+
+function openHallMediaScreen(tab) {
+  hallMediaTab = tab === 'portfolio' ? 'portfolio' : 'photos';
+  renderHallMedia();
+  show('hallMedia');
+  syncHallInactiveLock();
+}
+
+function bindHallMediaUi() {
+  const back = el('backFromHallMedia');
+  if (back) {
+    back.onclick = function () {
+      show('manage');
+      syncHallInactiveLock();
+    };
+  }
+  ['tabHallPhotos', 'tabHallPortfolio'].forEach(function (id) {
+    const btn = el(id);
+    if (!btn) return;
+    btn.onclick = function () {
+      setHallMediaTab(btn.getAttribute('data-media-tab'));
+    };
+  });
+  const changeCover = el('changeCoverBtn');
+  if (changeCover) {
+    changeCover.onclick = function () {
+      if (!hallListingOn(activeHall())) {
+        toast('Turn this hall On to change the cover photo.');
+        return;
+      }
+      toast('Cover photo picker — camera / gallery in full app.');
+    };
+  }
+  const addBtn = el('hallMediaAddBtn');
+  if (addBtn) {
+    addBtn.onclick = function () {
+      const h = activeHall();
+      if (!hallListingOn(h)) {
+        toast('Turn this hall On to add media.');
+        return;
+      }
+      if (hallMediaTab === 'portfolio') {
+        const items = getHallPortfolio(h);
+        items.unshift({
+          id: 'pf' + Date.now(),
+          title: 'New event album',
+          date: 'Draft',
+          count: 0,
+        });
+        savePkg();
+        renderHallMedia();
+        toast('Portfolio album added.');
+        return;
+      }
+      const gallery = getHallGallery(h);
+      gallery.push({ id: 'g' + Date.now(), label: 'New photo' });
+      savePkg();
+      renderHallMedia();
+      toast('Photo added (demo).');
+    };
+  }
+}
+
 function operatorInitial(name) {
   const p = String(name || '?').trim().split(/\s+/);
   return (p[0][0] || '?').toUpperCase();
@@ -2407,6 +2594,7 @@ function bindOwnerEvents() {
   }
   bindCalendarUi();
   bindOperatorsUi();
+  bindHallMediaUi();
   const editPark = el('editParkingBtn');
   if (editPark) {
     editPark.onclick = function () {
