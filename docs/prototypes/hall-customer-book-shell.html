@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Gixbee — Find a Hall (Customer)</title>
+<style>
+:root{--navy:#1B2559;--ink:#111827;--mut:#6B7280;--line:#E5E7EB;--gn:#12B76A;--soft:#ECFDF3;--shadow:0 8px 28px rgba(15,23,42,.08)}
+*{box-sizing:border-box}
+body{margin:0;background:#E8EDF5;font-family:Inter,system-ui,sans-serif;color:var(--ink)}
+.stage{min-height:100vh;display:flex;justify-content:center;padding:20px 10px}
+.phone{width:min(100%,430px);background:#fff;min-height:860px;border-radius:36px;box-shadow:var(--shadow);overflow:hidden;position:relative;border:8px solid #111}
+.scr{display:none;padding:0 0 92px}
+.scr.on{display:block}
+.top{display:flex;align-items:center;gap:10px;padding:12px 16px}
+.back{border:0;background:none;font-size:22px;color:var(--navy);cursor:pointer}
+.top h1{margin:0;font-size:18px;flex:1;color:var(--navy)}
+.pad{padding:0 16px}
+.hero{background:linear-gradient(135deg,#ECFDF3,#fff);padding:20px 16px;border-bottom:1px solid var(--line)}
+.hero h2{margin:0 0 8px;font-size:22px;line-height:1.25;color:var(--navy)}
+.hero p{margin:0;color:var(--mut);font-size:13px;line-height:1.45}
+.fld{margin:0 0 12px}
+.fld label{display:block;font-size:12px;font-weight:800;margin:0 0 6px;color:#374151}
+.fld input,.fld select{width:100%;padding:12px;border:1px solid var(--line);border-radius:12px;font:inherit;background:#fff}
+.seg{display:flex;border:1px solid var(--line);border-radius:12px;overflow:hidden}
+.seg button{flex:1;border:0;padding:11px;font-weight:800;font-size:12px;background:#fff;cursor:pointer;color:#374151}
+.seg button.on{background:var(--gn);color:#fff}
+.cta{padding:12px 16px 20px}
+.btn{width:100%;border:0;border-radius:12px;background:var(--gn);color:#fff;font-weight:800;font-size:16px;padding:14px;cursor:pointer}
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin:10px 0}
+.chip{padding:8px 12px;border-radius:99px;border:1px solid var(--line);font-size:12px;font-weight:700;background:#fff}
+.card{border:1px solid var(--line);border-radius:16px;overflow:hidden;margin-bottom:12px;cursor:pointer;background:#fff}
+.card img{width:100%;height:140px;object-fit:cover;background:linear-gradient(135deg,#C7D2FE,#E0E7FF)}
+.card .bd{padding:12px}
+.card b{font-size:15px}
+.card .meta{font-size:12px;color:var(--mut);margin-top:4px}
+.card .price{margin-top:8px;font-weight:900;color:var(--navy)}
+.badge{display:inline-block;font-size:10px;font-weight:800;background:#ECFDF3;color:#059669;padding:3px 8px;border-radius:99px;margin-bottom:6px}
+.hero-img{height:180px;background:linear-gradient(135deg,#DDD6FE,#BFDBFE);display:grid;place-items:center;font-size:48px}
+.kv{display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid #F3F4F6;font-size:13px}
+.kv span{color:var(--mut)}
+.slot-opt{border:1.5px solid var(--line);border-radius:14px;padding:12px;margin-bottom:10px;cursor:pointer}
+.slot-opt.on{border-color:var(--gn);background:#F0FDF4}
+.slot-opt b{display:block;margin-bottom:6px}
+.sub{font-size:12px;color:var(--mut);line-height:1.4}
+.box{margin:10px 0;padding:12px;border-radius:12px;font-size:12.5px;line-height:1.45}
+.box.gn{background:#ECFDF3;color:#065F46}
+.box.pk{background:#FDF2F8;color:#9D174D}
+.box.bl{background:#EFF6FF;color:#1E40AF}
+.box.am{background:#FFFBEB;color:#92400E}
+.toast{position:absolute;left:16px;right:16px;bottom:88px;background:#111;color:#fff;padding:12px;border-radius:12px;display:none;z-index:9;font-size:13px}
+</style>
+</head>
+<body>
+<noscript><div style="padding:24px;font:16px sans-serif;color:#b91c1c"><b>JavaScript is off.</b> Turn it on, then reopen this file.</div></noscript>
+<div id="bootError" hidden style="position:fixed;inset:0;z-index:99999;background:#fff;padding:24px;font:15px sans-serif;overflow:auto"></div>
+<div class="stage"><div class="phone">
+
+<section class="scr on" id="home">
+  <div class="hero">
+    <p style="font-size:12px;font-weight:800;color:var(--gn);margin:0 0 6px">📍 Kottayam, Kerala</p>
+    <h2>Find the Perfect Hall for Your Special Event</h2>
+    <p>Weddings, receptions, baptisms, birthdays and more.</p>
+    <p id="buildTag" style="font-size:11px;margin:10px 0 0;color:var(--mut)">Single-file demo — all JavaScript is inside this .html</p>
+  </div>
+  <div class="pad" style="padding-top:16px">
+    <div class="fld"><label>Location</label><select id="fLoc"><option>Kottayam, Kerala</option><option>Kochi, Kerala</option></select></div>
+    <div class="fld"><label>Event Type</label><select id="fEvent"><option>Baptism</option><option>Wedding</option><option>Reception</option><option>Birthday</option></select></div>
+    <div class="fld"><label>Event Date</label><input type="date" id="fDate" value="2026-12-25"></div>
+    <div class="fld"><label>Number of Guests</label><select id="fGuests"><option>200</option><option>300</option><option>500</option><option>700</option></select></div>
+    <div class="fld"><label>AC Preference</label><div class="seg" id="fAc"><button type="button" class="on" data-ac="any">Any</button><button type="button" data-ac="ac">With AC</button><button type="button" data-ac="noac">Without AC</button></div></div>
+  </div>
+  <div class="cta"><button class="btn" type="button" id="goSearch">Search Halls</button></div>
+</section>
+
+<section class="scr" id="results">
+  <div class="top"><button class="back" type="button" data-to="home">←</button><h1 id="resTitle">Halls in Kottayam</h1></div>
+  <div class="pad"><div class="chips" id="resChips"></div><p class="sub" id="resCount"></p><div id="resList"></div></div>
+</section>
+
+<section class="scr" id="detail">
+  <div class="top"><button class="back" type="button" data-to="results">←</button><h1>Hall Details</h1></div>
+  <div class="hero-img">🏛️</div>
+  <div class="pad" id="detailBody"></div>
+  <div class="cta"><button class="btn" type="button" data-to="slots">Continue</button></div>
+</section>
+
+<section class="scr" id="slots">
+  <div class="top"><button class="back" type="button" data-to="detail">←</button><h1>Select Date &amp; Time</h1></div>
+  <div class="pad"><p class="sub">December 2026 — tap a slot and AC option</p><div id="slotPick"></div></div>
+  <div class="cta"><button class="btn" type="button" data-to="enquiry">Continue</button></div>
+</section>
+
+<section class="scr" id="enquiry">
+  <div class="top"><button class="back" type="button" data-to="slots">←</button><h1>Booking Details</h1></div>
+  <div class="pad" id="enquiryBody"></div>
+  <div class="cta"><button class="btn" type="button" id="reqBook">Request Booking</button></div>
+</section>
+
+<section class="scr" id="sent">
+  <div class="pad" style="padding-top:40px;text-align:center">
+    <div style="font-size:48px">✈️</div>
+    <h2>Request sent</h2>
+    <p class="sub">Waiting for the hall owner to accept (90 sec demo window in full app).</p>
+    <button class="btn" type="button" data-to="home" style="margin-top:20px">Back to search</button>
+  </div>
+</section>
+
+<div class="toast" id="toast"></div>
+</div></div>
+<!-- APP_START -->
+<!-- APP_END -->
+<script>
+(function () {
+  var MASTER = 'hall-customer-book-master.html';
+  var DOWNLOAD = 'DOWNLOAD-gixbee-hall-customer.html';
+  function warn() {
+    if (window.GIXBEE_HALL_BOOTED) return;
+    var box = document.getElementById('bootError');
+    var msg =
+      'This file has no JavaScript (developer shell). Open <b>' +
+      DOWNLOAD +
+      '</b> or <b>' +
+      MASTER +
+      '</b>, then hard-refresh (Ctrl+Shift+R). Regenerate: python3 docs/prototypes/_gen_hall_prototypes.py';
+    if (box) {
+      box.hidden = false;
+      box.innerHTML =
+        '<h1 style="color:#DC2626;font-size:20px">Hall customer demo did not start</h1><p>' + msg + '</p>';
+    } else {
+      alert('Open ' + DOWNLOAD + ' — not the shell file.');
+    }
+  }
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', function () {
+      setTimeout(warn, 200);
+    });
+  } else {
+    setTimeout(warn, 200);
+  }
+})();
+</script>
+</body>
+</html>
