@@ -112,7 +112,7 @@ body{margin:0;background:#E8EDF5;font-family:Inter,system-ui,sans-serif;color:va
 </div></div>
 <!-- APP_START -->
 <script>
-const CUSTOMER_BUILD = '2026-09-28-hall-customer-v8';
+const CUSTOMER_BUILD = '2026-09-28-hall-customer-v9';
 const DEMO_FILE = 'hall-customer-book-master.html';
 const OWNER_PKG_KEY = 'GIXBEE_HALL_PACKAGE';
 
@@ -333,9 +333,10 @@ function defaultSlotOffers(h) {
       priceNoAc: h.priceFrom + 20000,
       priceAc: h.priceAc + 15000,
       acMode: 'limited',
+      acLimitKind: 'hours',
       acHours: 5,
-      acFrom: '12:00',
-      acTo: '17:00',
+      acFrom: '',
+      acTo: '',
     },
   ];
 }
@@ -354,8 +355,12 @@ function selectedSlotOffer(h) {
 }
 function acUsageCustomerLine(o) {
   if (!o || !o.offerAc || o.acMode === 'full') return '';
-  if (o.acHours) return 'Includes ' + o.acHours + ' hours of AC in this booking window.';
-  if (o.acFrom && o.acTo) return 'AC window: ' + formatTimeRange(o.acFrom, o.acTo) + '.';
+  if (o.acLimitKind === 'fixed' && o.acFrom && o.acTo) {
+    return 'Hall runs AC ' + formatTimeRange(o.acFrom, o.acTo) + ' (fixed schedule set by hall).';
+  }
+  if (o.acHours) {
+    return 'Includes ' + o.acHours + ' hours of AC in this booking window (set by hall — you do not pick AC times).';
+  }
   return '';
 }
 function hallAcProfileLine(h) {
@@ -522,7 +527,7 @@ function renderEnquiry() {
     <div class="kv"><span>Event Date</span><b>${formatDate(state.date)}</b></div>
     <div class="kv"><span>Time Slot</span><b>${slotLabel()}</b></div>
     <div class="kv"><span>AC Option</span><b>${state.acChoice === 'ac' ? 'With AC' : 'Without AC'}</b></div>
-    ${acExtra ? '<div class="kv"><span>AC usage</span><b>' + esc(acExtra) + '</b></div>' : ''}
+    ${acExtra ? '<div class="kv"><span>AC (hall rules)</span><b>' + esc(acExtra) + '</b></div>' : ''}
     <div class="kv"><span>Guests</span><b>${state.guests}</b></div>
     <div class="box gn"><b>Hall charge (venue only): ₹ ${total.toLocaleString('en-IN')}</b><br><span class="sub">GST included · Catering &amp; decoration not included — arrange separately with the hall if needed.</span></div>
     <div class="box pk"><b>Advance payment: ₹ ${advance.toLocaleString('en-IN')}</b><br>Paid directly to hall owner after acceptance.</div>
