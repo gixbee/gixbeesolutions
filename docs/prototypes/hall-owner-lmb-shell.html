@@ -100,9 +100,12 @@ h2{margin:0 0 6px;font-size:18px}
   </div>
   <div class="pad" style="padding-top:4px">
     <p class="lbl">NAMES (CUSTOMER VIEW)</p>
-    <div class="fld"><label>Business name</label><input id="bizNameRo" type="text" readonly style="background:#F9FAFB;color:#374151" value="Vijaya Convention Center"><small class="sub">From List My Business — shown on search cards.</small></div>
-    <div class="fld"><label>Hall name</label><input id="manageHallName" type="text" value="Tiffle"><small class="sub">Booking screens show this hall name (e.g. Tiffle). Default = business name for one hall.</small></div>
-    <button type="button" class="btn ghost" id="saveHallName" style="margin-bottom:4px">Save hall name</button>
+    <div class="fld"><label>Business name</label><input id="bizNameRo" type="text" readonly style="background:#F9FAFB;color:#374151" value="Vijaya Convention Center"><small class="sub">Set when you listed on Gixbee — cannot be changed here. Shown on search cards.</small></div>
+    <label class="radio-row" style="margin:8px 0"><input type="checkbox" id="manageUseHallName" checked> This hall has its own name (optional)</label>
+    <div id="manageHallNameWrap" class="fld">
+      <label>Hall name</label><input id="manageHallName" type="text" value="Tiffle" placeholder="e.g. Koinonia"><small class="sub">Only if different from the business name. Shown when customers book this hall.</small>
+    </div>
+    <button type="button" class="btn ghost" id="saveHallName" style="margin-bottom:4px">Save</button>
   </div>
   <div class="pad">
     <p class="lbl">MANAGE</p>
@@ -123,8 +126,11 @@ h2{margin:0 0 6px;font-size:18px}
   <div class="prog"><div class="bar"><i style="width:40%"></i></div><span class="frac">2/5</span></div>
   <div class="pad">
     <h2>Venue Details</h2><p class="sub">Hall name and capacity — pricing is in the next step.</p>
-    <div class="fld"><label>Business name</label><input id="bizNamePkg" type="text" readonly style="background:#F9FAFB;color:#374151"></div>
-    <div class="fld"><label>Hall name (shown to customers when booking)</label><input id="hallNameInput" type="text"><small class="sub">Example: Tiffle. Search cards still show the business name above.</small></div>
+    <div class="fld"><label>Business name</label><input id="bizNamePkg" type="text" readonly style="background:#F9FAFB;color:#374151"><small class="sub">Cannot be changed — from List My Business.</small></div>
+    <label class="radio-row" style="margin:0 0 8px"><input type="checkbox" id="useHallNamePkg" checked> This hall has its own name (optional)</label>
+    <div id="hallNamePkgWrap" class="fld">
+      <label>Hall name</label><input id="hallNameInput" type="text" placeholder="e.g. Koinonia"><small class="sub">Customers see this on booking when provided. Cards still show the business name.</small>
+    </div>
     <div class="two">
       <div class="fld"><label>Seating Capacity</label><input id="seatCap" type="number" value="700"><small>guests</small></div>
       <div class="fld"><label>Dining Capacity</label><input id="dineCap" type="number" value="550"><small>guests</small></div>
