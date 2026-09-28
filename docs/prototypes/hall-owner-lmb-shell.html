@@ -121,7 +121,6 @@ textarea{width:100%;border:1px solid var(--line);border-radius:10px;padding:10px
 .hall-name-display.muted{color:#6B7280;background:#F3F4F6;border-color:#E5E7EB;font-weight:700;font-size:13px}
 #manageRestBlock{transition:opacity .2s}
 .manage-name-editing #manageRestBlock{opacity:.42;pointer-events:none;user-select:none;filter:grayscale(.15);background:#F3F4F6;border-radius:0 0 16px 16px;margin:0 -16px;padding:0 16px 8px}
-.manage-name-editing-add #manageRestBlock{opacity:1;pointer-events:auto;filter:none;background:transparent}
 #manageHallNameWrap input:disabled{background:#F3F4F6;color:#9CA3AF}
 .hall-actions{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px}
 .hall-actions .pick{padding:10px 4px;font-size:11px}
@@ -282,18 +281,23 @@ textarea{width:100%;border:1px solid var(--line);border-radius:10px;padding:10px
     <div id="hallInactiveBanner" hidden class="hall-inactive-banner">This hall is <b>Off</b> on your Halls list. Turn the toggle <b>On</b> on the hall card to edit names, pricing, and calendar again.</div>
     <p class="lbl">NAMES (CUSTOMER VIEW)</p>
     <div class="fld"><label>Business name</label><input id="bizNameRo" type="text" readonly style="background:#F9FAFB;color:#374151" value="Vijaya Convention Center"><small class="sub">Set when you listed on Gixbee — cannot be changed here. Shown on search cards.</small></div>
-    <div id="manageNameViewBlock">
+    <div id="manageNameAddBlock" hidden>
+      <label class="radio-row" style="margin:8px 0"><input type="checkbox" id="manageUseHallName"> This hall has its own name (optional)</label>
+      <div id="manageHallNameWrap" class="fld" hidden>
+        <label>Hall name</label><input id="addHallNameInput" type="text" value="" placeholder="e.g. Koinonia"><small class="sub">Only if different from the business name. Shown when customers book this hall.</small>
+      </div>
+    </div>
+    <div id="manageNameViewBlock" hidden>
       <div class="fld">
         <label>Hall name</label>
         <div id="manageHallNameDisplay" class="hall-name-display">—</div>
-        <small class="sub" id="manageHallNameDisplayHint">Shown when customers book this hall.</small>
+        <small class="sub">Shown when customers book this hall.</small>
       </div>
       <button type="button" class="see" id="editManageName" style="display:block;margin:4px 0 12px;font-size:13px">Edit</button>
     </div>
     <div id="manageNameEditBlock" hidden>
-      <label class="radio-row" style="margin:8px 0"><input type="checkbox" id="manageUseHallName"> This hall has its own name (optional)</label>
-      <div id="manageHallNameWrap" class="fld">
-        <label>Hall name</label><input id="manageHallName" type="text" value="" placeholder="e.g. Koinonia"><small class="sub">Only if different from the business name.</small>
+      <div class="fld">
+        <label>Hall name</label><input id="manageHallNameEdit" type="text" value="" placeholder="e.g. Koinonia">
       </div>
       <div id="manageNameActions" class="manage-name-actions">
         <button type="button" class="btn ghost" id="cancelManageName">Cancel</button>
