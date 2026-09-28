@@ -545,7 +545,7 @@ textarea{width:100%;border:1px solid var(--line);border-radius:10px;padding:10px
 </div></div>
 <!-- APP_START -->
 <script>
-const OWNER_BUILD = '2026-09-28-hall-owner-v32';
+const OWNER_BUILD = '2026-09-28-hall-owner-v33';
 const DEMO_FILE = 'hall-owner-lmb-master.html';
 const PKG_KEY = 'GIXBEE_HALL_PACKAGE';
 
@@ -792,30 +792,210 @@ function slotOfferById(id) {
   });
 }
 
-function fulldayComputed(cal, key) {
-  const m = rawSlotStatus(cal, key, 'morning');
-  const e = rawSlotStatus(cal, key, 'evening');
+/** Saved package slots for calendar (not in-progress wizard edits). */
+function calendarSlotOffers(h) {
+  if (h && h.packageSaved && h.package && h.package.slotOffers && h.package.slotOffers.length) {
+    return h.package.slotOffers;
+  }
+  ensureSlotOffers();
+  return state.slotOffers;
+}
+
+function calendarSlotOfferById(h, id) {
+  return calendarSlotOffers(h).find(function (o) {
+    return o.id === id;
+  });
+}
+
+function offerEnabledInList(offers, id) {
+  const o = offers.find(function (x) {
+    return x.id === id;
+  });
+  return !!(o && o.enabled);
+}
+
+function clonePackageSlice(src) {
+  const s = src || state;
+  ensureSlotOffers();
+  return {
+    events: (s.events || []).slice(),
+    facilities: (s.facilities || []).slice(),
+    catering: JSON.parse(JSON.stringify(s.catering || {})),
+    capacity: JSON.parse(JSON.stringify(s.capacity || {})),
+    slotOffers: (s.slotOffers || state.slotOffers).map(function (o) {
+      return JSON.parse(JSON.stringify(o));
+    }),
+    prices: JSON.parse(JSON.stringify(s.prices || {})),
+    payment: JSON.parse(JSON.stringify(s.payment || {})),
+    cancelRules: (s.cancelRules || []).map(function (r) {
+      return JSON.parse(JSON.stringify(r));
+    }),
+    rescheduleRules: (s.rescheduleRules || []).map(function (r) {
+      return JSON.parse(JSON.stringify(r));
+    }),
+    cancelPolicyNote: s.cancelPolicyNote || '',
+    reschedulePolicyNote: s.reschedulePolicyNote || '',
+    bookWindowMonths: s.bookWindowMonths != null ? s.bookWindowMonths : 6,
+    minNoticeDays: s.minNoticeDays != null ? s.minNoticeDays : 3,
+  };
+}
+
+function applyDefaultPackageToState() {
+  state.events = ['wedding', 'reception', 'engagement', 'birthday', 'baptism', 'anniversary', 'religious'];
+  state.facilities = ['AC', 'Generator / Power Backup', 'Chairs & Tables', 'Stage', 'Sound System', 'Restrooms'];
+  state.catering = { inHouse: 'yes', outside: 'yes', decorHall: 'no', decorOutside: 'yes' };
+  state.capacity = { seat: 700, dine: 550, car: 50, bike: 100, rooms: 2 };
+  state.prices = {
+    morning: { noAc: 55000, ac: 75000 },
+    evening: { noAc: 55000, ac: 75000 },
+    fullday: { noAc: 75000, ac: 90000 },
+    extraNoAc: 5000,
+    extraAc: 7000,
+  };
+  state.payment = { advanceType: 'fixed', advanceFixed: 20000, advancePct: 30, fullDueDays: 7 };
+  state.cancelRules = POLICY_DEFAULTS.map(function (r) {
+    return { days: r.days, pct: r.pct };
+  });
+  state.rescheduleRules = POLICY_DEFAULTS.map(function (r) {
+    return { days: r.days, pct: r.pct };
+  });
+  state.cancelPolicyNote = '';
+  state.reschedulePolicyNote = '';
+  state.bookWindowMonths = 6;
+  state.minNoticeDays = 3;
+  state.slotOffers = null;
+  ensureSlotOffers();
+}
+
+function applyPackageSlice(pkg) {
+  if (!pkg) return;
+  state.events = (pkg.events || []).slice();
+  state.facilities = (pkg.facilities || []).slice();
+  state.catering = JSON.parse(JSON.stringify(pkg.catering || {}));
+  state.capacity = JSON.parse(JSON.stringify(pkg.capacity || {}));
+  state.prices = JSON.parse(JSON.stringify(pkg.prices || {}));
+  state.payment = JSON.parse(JSON.stringify(pkg.payment || {}));
+  state.cancelRules = (pkg.cancelRules || []).map(function (r) {
+    return JSON.parse(JSON.stringify(r));
+  });
+  state.rescheduleRules = (pkg.rescheduleRules || []).map(function (r) {
+    return JSON.parse(JSON.stringify(r));
+  });
+  state.cancelPolicyNote = pkg.cancelPolicyNote || '';
+  state.reschedulePolicyNote = pkg.reschedulePolicyNote || '';
+  state.bookWindowMonths = pkg.bookWindowMonths != null ? pkg.bookWindowMonths : 6;
+  state.minNoticeDays = pkg.minNoticeDays != null ? pkg.minNoticeDays : 3;
+  state.slotOffers = (pkg.slotOffers || []).map(function (o) {
+    return JSON.parse(JSON.stringify(o));
+  });
+  ensureSlotOffers();
+}
+
+function commitHallPackageFromState() {
+  const h = activeHall();
+  if (!h) return;
+  capturePkg2();
+  capturePkg3();
+  capturePkg4();
+  ensureSlotOffers();
+  h.package = clonePackageSlice();
+  h.packageSaved = true;
+  h.packageRevision = (h.packageRevision || 0) + 1;
+  reconcileCalendarAfterPackageChange(h);
+  savePkg();
+}
+
+function reconcileCalendarAfterPackageChange(h) {
+  const cal = getHallCalendar(h);
+  if (!cal || !cal.days) return;
+  const enabledIds = calendarSlotOffers(h)
+    .filter(function (o) {
+      return o.enabled;
+    })
+    .map(function (o) {
+      return o.id;
+    });
+  const allIds = ['morning', 'evening', 'fullday'];
+  Object.keys(cal.days).forEach(function (key) {
+    const day = cal.days[key];
+    allIds.forEach(function (sid) {
+      if (enabledIds.indexOf(sid) === -1) {
+        delete day[sid];
+        delete day[sid + 'Block'];
+      }
+    });
+  });
+}
+
+function statusToDotKind(st) {
+  if (st === 'booked_gixbee') return 'bk';
+  if (st === 'offline') return 'off';
+  if (st === 'blocked') return 'blk';
+  if (st === 'available') return 'av';
+  return 'na';
+}
+
+function fulldayComputed(cal, key, h) {
+  const offers = calendarSlotOffers(h);
+  const morningOn = offerEnabledInList(offers, 'morning');
+  const eveningOn = offerEnabledInList(offers, 'evening');
+  const fulldayOn = offerEnabledInList(offers, 'fullday');
+  const mOffer = offers.find(function (o) {
+    return o.id === 'morning';
+  });
+  const eOffer = offers.find(function (o) {
+    return o.id === 'evening';
+  });
+  const mName = mOffer ? mOffer.label : 'Morning';
+  const eName = eOffer ? eOffer.label : 'Evening';
+
+  if (fulldayOn && !morningOn && !eveningOn) {
+    const st = rawSlotStatus(cal, key, 'fullday');
+    if (st === 'available') return { status: 'available', reason: '' };
+    if (st === 'booked_gixbee') return { status: 'unavailable', reason: 'Booked' };
+    if (st === 'offline') return { status: 'unavailable', reason: 'Offline booked' };
+    if (st === 'blocked') return { status: 'unavailable', reason: 'Blocked' };
+    return { status: 'unavailable', reason: 'Not available' };
+  }
+
+  if (!fulldayOn) {
+    return { status: 'unavailable', reason: 'Full day slot not offered' };
+  }
+
+  const m = morningOn ? rawSlotStatus(cal, key, 'morning') : 'available';
+  const e = eveningOn ? rawSlotStatus(cal, key, 'evening') : 'available';
   const mOk = m === 'available';
   const eOk = e === 'available';
   if (mOk && eOk) return { status: 'available', reason: '' };
   if (!mOk && !eOk) {
-    var parts = [];
-    if (m !== 'available') parts.push('Morning');
-    if (e !== 'available') parts.push('Evening');
-    return { status: 'unavailable', reason: parts.join(' and ') + ' occupied' };
+    return { status: 'unavailable', reason: mName + ' and ' + eName + ' occupied' };
   }
-  if (!eOk) return { status: 'unavailable', reason: 'Evening occupied' };
-  return { status: 'unavailable', reason: 'Morning occupied' };
+  if (!eOk) return { status: 'unavailable', reason: eName + ' occupied' };
+  return { status: 'unavailable', reason: mName + ' occupied' };
 }
 
-function dayDotKind(cal, key) {
-  const m = rawSlotStatus(cal, key, 'morning');
-  const e = rawSlotStatus(cal, key, 'evening');
-  if (m === 'booked_gixbee' || e === 'booked_gixbee') return 'bk';
-  if (m === 'offline' || e === 'offline') return 'off';
-  if (m === 'blocked' || e === 'blocked') return 'blk';
-  if (m !== 'available' || e !== 'available') return 'na';
-  return 'av';
+function dayDotKind(cal, key, h) {
+  const offers = calendarSlotOffers(h).filter(function (o) {
+    return o.enabled;
+  });
+  const rank = { av: 0, bk: 1, off: 2, blk: 3, na: 4 };
+  let worst = 'av';
+  offers.forEach(function (o) {
+    let kind;
+    if (o.id === 'fullday') {
+      const fd = fulldayComputed(cal, key, h);
+      if (fd.status === 'available') kind = 'av';
+      else kind = 'na';
+      const rawFd = rawSlotStatus(cal, key, 'fullday');
+      if (!offerEnabledInList(offers, 'morning') && !offerEnabledInList(offers, 'evening')) {
+        kind = statusToDotKind(rawFd);
+      }
+    } else {
+      kind = statusToDotKind(rawSlotStatus(cal, key, o.id));
+    }
+    if (rank[kind] > rank[worst]) worst = kind;
+  });
+  return worst || 'av';
 }
 
 function monthLabel(y, m) {
@@ -874,7 +1054,7 @@ function renderCalendar() {
   for (let i = 0; i < firstDow; i++) cells.push('<span class="cal-pad"></span>');
   for (let d = 1; d <= dim; d++) {
     const key = calDateKey(y, m, d);
-    const dot = dayDotKind(cal, key);
+    const dot = dayDotKind(cal, key, h);
     const on = cal.selectedKey === key ? ' on' : '';
     cells.push(
       '<button type="button" class="cal-day-cell' +
@@ -901,9 +1081,9 @@ function renderCalendar() {
   });
 }
 
-function slotStatusLabel(status, slotId, cal, key) {
+function slotStatusLabel(status, slotId, cal, key, h) {
   if (slotId === 'fullday') {
-    const fd = fulldayComputed(cal, key);
+    const fd = fulldayComputed(cal, key, h);
     if (fd.status === 'available') return { pill: 'ok', text: 'Available' };
     return { pill: 'muted', text: 'Unavailable (' + fd.reason + ')' };
   }
@@ -931,20 +1111,54 @@ function renderCalDay() {
   const key = cal.selectedKey;
   const title = el('calDayTitle');
   if (title) title.textContent = formatCalDayTitle(key);
-  const slots = ['morning', 'evening', 'fullday'];
-  const html = slots
-    .map(function (slotId) {
-      const offer = slotOfferById(slotId);
-      if (!offer || !offer.enabled) return '';
+  const order = { morning: 0, evening: 1, fullday: 2 };
+  const offers = calendarSlotOffers(h)
+    .filter(function (o) {
+      return o.enabled;
+    })
+    .sort(function (a, b) {
+      return (order[a.id] != null ? order[a.id] : 9) - (order[b.id] != null ? order[b.id] : 9);
+    });
+  const offersRef = calendarSlotOffers(h);
+  const morningOn = offerEnabledInList(offersRef, 'morning');
+  const eveningOn = offerEnabledInList(offersRef, 'evening');
+  const fulldayStandalone = offerEnabledInList(offersRef, 'fullday') && !morningOn && !eveningOn;
+  const html = offers
+    .map(function (offer) {
+      const slotId = offer.id;
       const label = offer.label + ' (' + formatTimeRange(offer.hallFrom, offer.hallTo) + ')';
-      const st = slotStatusLabel(null, slotId, cal, key);
-      const fd = slotId === 'fullday' ? fulldayComputed(cal, key) : null;
-      const raw = slotId === 'fullday' ? fd.status : rawSlotStatus(cal, key, slotId);
+      const st = slotStatusLabel(null, slotId, cal, key, h);
+      const fd = slotId === 'fullday' ? fulldayComputed(cal, key, h) : null;
+      let raw =
+        slotId === 'fullday'
+          ? fulldayStandalone
+            ? rawSlotStatus(cal, key, 'fullday')
+            : fd.status
+          : rawSlotStatus(cal, key, slotId);
+      if (slotId === 'fullday' && !fulldayStandalone && fd.status !== 'available') raw = 'unavailable';
       const disabled = slotId === 'fullday' && raw !== 'available';
       let actions = '';
       if (slotId === 'fullday') {
-        if (raw !== 'available') {
-          actions = '<p class="sub" style="margin:8px 0 0">Full day is offered only when Morning and Evening are both free.</p>';
+        if (fulldayStandalone) {
+          if (raw === 'available') {
+            actions =
+              '<div class="slot-actions"><button type="button" class="btn" data-cal-block="' +
+              slotId +
+              '">Block Slot</button></div>';
+          } else if (raw === 'offline' || raw === 'blocked') {
+            actions =
+              '<div class="slot-actions"><button type="button" class="btn ghost" data-cal-unblock="' +
+              slotId +
+              '">Unblock</button></div>';
+          } else if (raw === 'booked_gixbee') {
+            actions =
+              '<div class="slot-actions"><button type="button" class="btn ghost" data-cal-manage="' +
+              slotId +
+              '">Manage Booking</button></div>';
+          }
+        } else if (raw !== 'available') {
+          actions =
+            '<p class="sub" style="margin:8px 0 0">Full day is offered only when all required part-day slots are free (see your package).</p>';
         }
       } else if (raw === 'available') {
         actions =
@@ -978,7 +1192,9 @@ function renderCalDay() {
       );
     })
     .join('');
-  el('daySlots').innerHTML = html || '<p class="sub">No time slots enabled — turn slots on in Price &amp; packages.</p>';
+  el('daySlots').innerHTML =
+    html ||
+    '<p class="sub">No time slots enabled — set slots in <b>Price &amp; packages</b> step 3 and tap <b>Save Package</b> on Review.</p>';
   el('daySlots').querySelectorAll('[data-cal-block]').forEach(function (btn) {
     btn.onclick = function () {
       openBlockSheet(btn.getAttribute('data-cal-block'));
@@ -1001,7 +1217,7 @@ function renderCalDay() {
 function openBlockSheet(slotId) {
   const h = activeHall();
   const cal = getHallCalendar(h);
-  const offer = slotOfferById(slotId);
+  const offer = calendarSlotOfferById(h, slotId);
   if (!offer) return;
   calPendingBlock = { slotId: slotId, reason: 'offline', notes: '' };
   const key = cal.selectedKey;
@@ -1026,7 +1242,8 @@ function openBlockSheet(slotId) {
 
 function openConfirmBlockModal() {
   if (!calPendingBlock) return;
-  const offer = slotOfferById(calPendingBlock.slotId);
+  const h = activeHall();
+  const offer = calendarSlotOfferById(h, calPendingBlock.slotId);
   const title = el('confirmBlockTitle');
   const body = el('confirmBlockBody');
   const reason = calPendingBlock.reason;
@@ -1064,8 +1281,8 @@ function applyBlockConfirm() {
 }
 
 function openUnblockModal(slotId) {
-  const offer = slotOfferById(slotId);
   const h = activeHall();
+  const offer = calendarSlotOfferById(h, slotId);
   const cal = getHallCalendar(h);
   calPendingUnblock = { slotId: slotId, key: cal.selectedKey };
   const sum = el('unblockSlotSum');
@@ -1586,6 +1803,9 @@ function normalizeHallRecords() {
   state.halls.forEach(function (h) {
     if (h.hallActive == null) h.hallActive = true;
     if (h.packageSaved == null) h.packageSaved = false;
+    if (h.packageSaved && !h.package && state.halls.length === 1) {
+      h.package = clonePackageSlice();
+    }
   });
 }
 
@@ -1606,6 +1826,11 @@ function loadActiveHallIntoState() {
   if (!h) return;
   state.useHallName = !!h.useHallName;
   state.hallName = h.useHallName ? String(h.hallName || '').trim() : '';
+  if (h.package) {
+    applyPackageSlice(h.package);
+  } else {
+    applyDefaultPackageToState();
+  }
 }
 
 function syncActiveHallFromState() {
@@ -2364,15 +2589,12 @@ function renderPkg5() {
     };
   });
   el('savePkg').onclick = () => {
-    capturePkg2();
-    capturePkg3();
-    capturePkg4();
     const h = activeHall();
-    if (h) h.packageSaved = true;
-    savePkg();
+    const wasSaved = h && h.packageSaved;
+    commitHallPackageFromState();
     renderManageHeader();
     renderHallCards();
-    toast('Package saved on this device.');
+    toast(wasSaved ? 'Package updated — calendar uses your new slot times.' : 'Package saved on this device.');
     show('manage');
   };
 }
