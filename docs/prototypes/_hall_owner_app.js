@@ -1,4 +1,4 @@
-const OWNER_BUILD = '2026-09-28-hall-owner-v9';
+const OWNER_BUILD = '2026-09-28-hall-owner-v10';
 const DEMO_FILE = 'hall-owner-lmb-master.html';
 const PKG_KEY = 'GIXBEE_HALL_PACKAGE';
 
@@ -37,6 +37,12 @@ const state = {
   businessName: 'Vijaya Convention Center',
   useHallName: true,
   hallName: 'Tiffle',
+  activeHallId: 'h1',
+  commonParking: { car: 80, bike: 120 },
+  halls: [
+    { id: 'h1', useHallName: true, hallName: 'Tiffle', requests: 2 },
+    { id: 'h2', useHallName: true, hallName: 'Koinonia', requests: 0 },
+  ],
   events: ['wedding', 'reception', 'engagement', 'birthday', 'baptism', 'anniversary', 'religious'],
   facilities: ['AC', 'Generator / Power Backup', 'Chairs & Tables', 'Stage', 'Sound System', 'Restrooms'],
   catering: { inHouse: 'yes', outside: 'yes', decorHall: 'no', decorOutside: 'yes' },
@@ -155,6 +161,110 @@ function renderManageHeader() {
 }
 function savePkg() {
   localStorage.setItem(PKG_KEY, JSON.stringify(state));
+  syncActiveHallFromState();
+}
+
+function activeHall() {
+  return state.halls.find(function (h) { return h.id === state.activeHallId; }) || state.halls[0];
+}
+
+function loadActiveHallIntoState() {
+  const h = activeHall();
+  if (!h) return;
+  state.useHallName = !!h.useHallName;
+  state.hallName = h.useHallName ? String(h.hallName || '').trim() : '';
+}
+
+function syncActiveHallFromState() {
+  const h = activeHall();
+  if (!h) return;
+  h.useHallName = !!state.useHallName;
+  h.hallName = state.useHallName ? String(state.hallName || '').trim() : '';
+}
+
+function parkingDisplay() {
+  if (state.halls.length > 1) {
+    return { title: 'Common parking (shared by all halls)', car: state.commonParking.car, bike: state.commonParking.bike, common: true };
+  }
+  return { title: 'Parking (this hall)', car: state.capacity.car, bike: state.capacity.bike, common: false };
+}
+
+function renderParkingSummary() {
+  const p = parkingDisplay();
+  const title = el('parkingSummaryTitle');
+  const text = el('parkingSummaryText');
+  if (title) title.textContent = p.title;
+  if (text) text.textContent = '🚗 Cars: ' + p.car + ' · 🏍 Bikes: ' + p.bike;
+  const editWrap = el('parkingEditWrap');
+  if (editWrap && editWrap.hidden) {
+    const carIn = el('editParkCar');
+    const bikeIn = el('editParkBike');
+    if (carIn) carIn.value = p.car;
+    if (bikeIn) bikeIn.value = p.bike;
+  }
+}
+
+function renderHallCards() {
+  const root = el('hallListCards');
+  if (!root) return;
+  root.innerHTML = state.halls
+    .map(function (h) {
+      const sub = h.useHallName && h.hallName ? esc(h.hallName) : esc(state.businessName);
+      const req = h.requests
+        ? '<span class="pill bad" style="margin-left:6px">' + h.requests + ' requests</span>'
+        : '';
+      return (
+        '<div class="hall-card">' +
+        '<b>' +
+        esc(state.businessName) +
+        '</b>' +
+        '<div class="hall-sub">Hall: ' +
+        sub +
+        req +
+        '</div>' +
+        '<div class="hall-actions">' +
+        '<button type="button" class="pick" data-hall-act="cal" data-hid="' +
+        h.id +
+        '">Calendar</button>' +
+        '<button type="button" class="pick" data-hall-act="req" data-hid="' +
+        h.id +
+        '">Requests</button>' +
+        '<button type="button" class="pick on" data-hall-act="mgr" data-hid="' +
+        h.id +
+        '">Manage</button>' +
+        '</div></div>'
+      );
+    })
+    .join('');
+  root.querySelectorAll('[data-hall-act]').forEach(function (btn) {
+    btn.onclick = function () {
+      state.activeHallId = btn.getAttribute('data-hid');
+      loadActiveHallIntoState();
+      const act = btn.getAttribute('data-hall-act');
+      if (act === 'mgr') {
+        renderManageHeader();
+        renderManage();
+        show('manage');
+        return;
+      }
+      if (act === 'cal') {
+        renderCalendar();
+        show('calendar');
+        return;
+      }
+      if (act === 'req') {
+        renderOwnerReq();
+        show('ownerReq');
+      }
+    };
+  });
+}
+
+function renderHallBizHome() {
+  const bizTitle = el('bizHomeTitle');
+  if (bizTitle) bizTitle.textContent = state.businessName;
+  renderParkingSummary();
+  renderHallCards();
 }
 
 function yesNoLabel(key, yes) {
@@ -179,6 +289,8 @@ function cateringReviewLines() {
 
 function renderManage() {
   renderManageHeader();
+  renderHallCards();
+  renderParkingSummary();
   el('manageMenu').innerHTML = MANAGE_MENU.map((m) => {
     const cls = m.cls ? ' ' + m.cls.split(' ').join(' ') : '';
     const dot = m.dot ? '<span class="dot"></span>' : '';
@@ -510,9 +622,79 @@ function bindOwnerEvents() {
   if (saveHall) {
     saveHall.onclick = () => {
       captureNameFields();
+      syncActiveHallFromState();
       savePkg();
       renderManageHeader();
+      renderHallCards();
       toast('Saved — customers see business name' + (customerHallName() ? ' and hall name ' + customerHallName() : ' only') + '.');
+    };
+  }
+  const editPark = el('editParkingBtn');
+  if (editPark) {
+    editPark.onclick = function () {
+      const wrap = el('parkingEditWrap');
+      if (!wrap) return;
+      wrap.hidden = !wrap.hidden;
+      if (!wrap.hidden) {
+        const p = parkingDisplay();
+        if (el('editParkCar')) el('editParkCar').value = p.car;
+        if (el('editParkBike')) el('editParkBike').value = p.bike;
+      }
+    };
+  }
+  const savePark = el('saveParkingBtn');
+  if (savePark) {
+    savePark.onclick = function () {
+      const car = +(el('editParkCar') && el('editParkCar').value) || 0;
+      const bike = +(el('editParkBike') && el('editParkBike').value) || 0;
+      const p = parkingDisplay();
+      if (p.common) {
+        state.commonParking.car = car;
+        state.commonParking.bike = bike;
+      } else {
+        state.capacity.car = car;
+        state.capacity.bike = bike;
+      }
+      savePkg();
+      if (el('parkingEditWrap')) el('parkingEditWrap').hidden = true;
+      renderParkingSummary();
+      renderHallBizHome();
+      toast('Parking updated.');
+    };
+  }
+  const cancelPark = el('cancelParkingBtn');
+  if (cancelPark) {
+    cancelPark.onclick = function () {
+      if (el('parkingEditWrap')) el('parkingEditWrap').hidden = true;
+      renderParkingSummary();
+    };
+  }
+  const addHall = el('addHallBtn');
+  if (addHall) {
+    addHall.onclick = function () {
+      const n = state.halls.length + 1;
+      state.halls.push({
+        id: 'h' + n + Date.now(),
+        useHallName: false,
+        hallName: '',
+        requests: 0,
+      });
+      if (state.halls.length === 2 && state.commonParking.car === 80) {
+        /* demo: keep common parking visible once multi-hall */
+      }
+      savePkg();
+      renderHallBizHome();
+      toast('Hall added — set optional name and open Manage for pricing.');
+    };
+  }
+  const backBiz = el('backToBizHalls');
+  if (backBiz) {
+    backBiz.onclick = function () {
+      captureNameFields();
+      syncActiveHallFromState();
+      savePkg();
+      renderHallBizHome();
+      show('hallBizHome');
     };
   }
   ['manageUseHallName', 'useHallNamePkg'].forEach(function (id) {
@@ -534,8 +716,16 @@ function boot() {
       throw new Error('Missing #manageMenu — download DOWNLOAD-gixbee-hall-owner.html (full file).');
     }
     loadPkg();
+    if (!state.halls || !state.halls.length) {
+      state.halls = [{ id: 'h1', useHallName: state.useHallName, hallName: state.hallName, requests: 0 }];
+    }
+    if (!state.commonParking) state.commonParking = { car: state.capacity.car, bike: state.capacity.bike };
+    if (!state.activeHallId) state.activeHallId = state.halls[0].id;
+    loadActiveHallIntoState();
+    renderHallBizHome();
     renderManage();
     bindOwnerEvents();
+    show('hallBizHome');
     var tag = el('buildTag');
     if (tag) {
       tag.textContent =
