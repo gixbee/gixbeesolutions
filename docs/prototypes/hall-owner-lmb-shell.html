@@ -121,7 +121,40 @@ textarea{width:100%;border:1px solid var(--line);border-radius:10px;padding:10px
 #manageRestBlock{transition:opacity .2s}
 .manage-name-editing #manageRestBlock{opacity:.42;pointer-events:none;user-select:none;filter:grayscale(.15);background:#F3F4F6;border-radius:0 0 16px 16px;margin:0 -16px;padding:0 16px 8px}
 #manageHallNameWrap input:disabled{background:#F3F4F6;color:#9CA3AF}
-.hall-actions{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px}
+.venue-hero{display:flex;gap:12px;padding:14px;background:#fff;border:1px solid var(--line);border-radius:16px;margin:0 0 12px;align-items:flex-start}
+.venue-thumb{width:88px;height:76px;border-radius:12px;background:linear-gradient(145deg,#94A3B8 0%,#64748B 50%,#CBD5E1 100%);flex-shrink:0}
+.venue-hero h2{margin:0 0 4px;font-size:17px;color:var(--navy);line-height:1.25}
+.venue-hero .venue-meta{font-size:12px;color:#475569;line-height:1.45;margin:0}
+.venue-loc{display:flex;align-items:center;gap:4px;margin-top:6px;font-size:12px;color:var(--mut);font-weight:600}
+.parking-hub-card{background:#EFF6FF;border:1px solid #BFDBFE;border-radius:14px;padding:14px;margin-bottom:14px}
+.parking-hub-card .hd{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;margin-bottom:10px}
+.parking-hub-card .hd b{font-size:14px;color:var(--navy);line-height:1.35;flex:1}
+.edit-park-btn{display:inline-flex;align-items:center;gap:6px;padding:8px 12px;border-radius:10px;background:#DBEAFE;border:0;color:var(--navy);font-weight:800;font-size:12px;cursor:pointer;flex-shrink:0;white-space:nowrap}
+.parking-stats{display:flex;flex-wrap:wrap;gap:14px;font-size:13px;font-weight:700;color:#1E3A8A}
+.btn-add-hall{display:flex;align-items:center;justify-content:center;gap:8px;margin:4px 0 16px}
+.btn-add-hall::before{content:'+';font-size:20px;font-weight:900;line-height:1}
+.halls-section-lbl{display:flex;align-items:baseline;justify-content:space-between;margin:0 0 10px}
+.halls-section-lbl .lbl{margin:0}
+.hall-card-rich{border:1px solid var(--line);border-radius:16px;padding:12px;margin-bottom:12px;background:#fff}
+.hall-card-rich.inactive{background:#FAFAFA;border-color:#E5E7EB}
+.hall-rich-top{display:flex;gap:10px;align-items:flex-start}
+.hall-thumb{width:76px;height:68px;border-radius:10px;background:linear-gradient(145deg,#E2E8F0,#64748B);flex-shrink:0}
+.hall-rich-meta{flex:1;min-width:0}
+.hall-rich-meta b{display:block;font-size:16px;color:var(--navy);margin-bottom:6px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.hall-rich-tags{display:flex;flex-wrap:wrap;gap:10px;font-size:11px;font-weight:700;color:var(--mut)}
+.hall-rich-price{font-weight:900;color:var(--navy);font-size:17px;margin-top:8px}
+.hall-rich-price.muted{font-size:13px;color:var(--mut);font-weight:700}
+.hall-rich-toggle{display:flex;flex-direction:column;align-items:center;gap:6px;flex-shrink:0}
+.hall-rich-toggle .hall-toggle input:checked + .hall-toggle-ui{background:var(--gn)}
+.hall-status-badge{font-size:10px;font-weight:800;padding:4px 10px;border-radius:99px;text-align:center;min-width:64px}
+.hall-status-badge.on{background:#ECFDF3;color:#059669}
+.hall-status-badge.off{background:#F3F4F6;color:#6B7280}
+.hall-actions-rich{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-top:12px;padding-top:12px;border-top:1px solid var(--line)}
+.hall-act-btn{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;min-height:52px;padding:8px 4px;border:1.5px solid #BFDBFE;border-radius:12px;background:#F8FAFC;font-size:11px;font-weight:800;color:#1D4ED8;cursor:pointer;width:100%}
+.hall-act-btn:disabled{opacity:.45;cursor:not-allowed}
+.hall-act-btn .ico{font-size:18px;line-height:1}
+.hall-act-btn.manage{flex-direction:row;gap:4px}
+.hall-act-btn.manage .chev{font-size:14px;margin-left:2px}
 .hall-actions.hall-actions-minimal{grid-template-columns:1fr}
 .hall-actions.hall-actions-minimal .pick{grid-column:1/-1}
 .hall-actions .pick{padding:10px 4px;font-size:11px;min-height:40px;display:flex;align-items:center;justify-content:center}
@@ -313,17 +346,26 @@ textarea{width:100%;border:1px solid var(--line);border-radius:10px;padding:10px
       <div class="biz-title" id="bizHomeTitle">Vijaya Convention Center</div>
       <span class="manage-pill">Manage &amp; grow</span>
     </div>
-    <p class="sub" style="margin:8px 0 0">Marriage Hall · Service · Hall</p>
     <p class="hint" id="buildTagHub" style="margin:8px 0 0;font-size:11px">Halls hub — add halls, then Manage each hall</p>
   </div>
   <div class="pad" id="hallBizBody">
-    <div id="parkingBlockWrap">
-    <p class="lbl">PARKING</p>
-    <div class="sum" id="parkingSummaryBox">
-      <div class="hd"><b id="parkingSummaryTitle">Common parking (shared by all halls)</b><button type="button" class="see" id="editParkingBtn">Edit</button></div>
-      <p class="sub" style="margin:0" id="parkingSummaryText">🚗 Cars: 80 · 🏍 Bikes: 120</p>
+    <div class="venue-hero">
+      <div class="venue-thumb" aria-hidden="true"></div>
+      <div style="min-width:0;flex:1">
+        <h2 id="venueHeroTitle">Vijaya Convention Center</h2>
+        <p class="venue-meta">Marriage Hall · Service · Hall</p>
+        <p class="venue-loc"><span aria-hidden="true">📍</span> <span id="venueHeroLoc">Kottayam, Kerala</span></p>
+      </div>
     </div>
-    <div id="parkingEditWrap" hidden class="sum" style="background:#F9FAFB">
+    <div id="parkingBlockWrap">
+    <div class="parking-hub-card" id="parkingSummaryBox">
+      <div class="hd">
+        <b id="parkingSummaryTitle">Common parking (shared by all halls)</b>
+        <button type="button" class="edit-park-btn" id="editParkingBtn">✎ Edit</button>
+      </div>
+      <div class="parking-stats" id="parkingSummaryText"><span>🚗 Cars: 80</span><span>🏍 Bikes: 120</span></div>
+    </div>
+    <div id="parkingEditWrap" hidden class="sum" style="background:#F9FAFB;margin-bottom:14px">
       <p class="lbl" style="margin-top:0">EDIT PARKING</p>
       <div class="two">
         <div class="fld"><label>Cars</label><input type="number" id="editParkCar" min="0" value="80"></div>
@@ -334,8 +376,11 @@ textarea{width:100%;border:1px solid var(--line);border-radius:10px;padding:10px
     </div>
     </div>
     <div id="hallBizDisabledZone">
-    <button type="button" class="btn" id="addHallBtn" style="margin:14px 0 10px">+ Add hall</button>
-    <p class="lbl" style="margin-top:4px">YOUR HALLS</p>
+    <button type="button" class="btn btn-add-hall" id="addHallBtn">Add Hall</button>
+    <div class="halls-section-lbl">
+      <p class="lbl">YOUR HALLS</p>
+      <span class="sub" id="hallCountLbl" style="margin:0;font-weight:800">(0)</span>
+    </div>
     <div id="hallListCards"></div>
     </div>
   </div>

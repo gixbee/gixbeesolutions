@@ -1,4 +1,4 @@
-const OWNER_BUILD = '2026-09-28-hall-owner-v36';
+const OWNER_BUILD = '2026-09-28-hall-owner-v37';
 const DEMO_FILE = 'hall-owner-lmb-master.html';
 const PKG_KEY = 'GIXBEE_HALL_PACKAGE';
 
@@ -1343,6 +1343,40 @@ function parkingDisplay() {
   };
 }
 
+function hallCardDisplayName(h) {
+  if (h && h.useHallName && String(h.hallName || '').trim()) {
+    return String(h.hallName).trim();
+  }
+  return state.businessName || 'Your hall';
+}
+
+function hallCardGuestCount(h) {
+  const cap = h && h.package && h.package.capacity;
+  if (cap && cap.seat != null) return cap.seat;
+  return 700;
+}
+
+function hallCardHasAc(h) {
+  const fac = h && h.package && h.package.facilities;
+  if (fac && fac.length) return fac.indexOf('AC') >= 0;
+  return true;
+}
+
+function hallCardMinPrice(h) {
+  if (!h || !h.package || !h.package.slotOffers) return null;
+  let min = null;
+  h.package.slotOffers.forEach(function (o) {
+    if (!o.enabled) return;
+    if (o.offerNoAc && o.priceNoAc != null) {
+      min = min == null ? o.priceNoAc : Math.min(min, o.priceNoAc);
+    }
+    if (o.offerAc && o.priceAc != null) {
+      min = min == null ? o.priceAc : Math.min(min, o.priceAc);
+    }
+  });
+  return min;
+}
+
 function setHallBizDisabled(disabled) {
   state.parkingEditOpen = !!disabled;
   const zone = el('hallBizDisabledZone');
@@ -1417,7 +1451,14 @@ function renderParkingSummary() {
   const title = el('parkingSummaryTitle');
   const text = el('parkingSummaryText');
   if (title) title.textContent = p.title;
-  if (text) text.textContent = '🚗 Cars: ' + p.car + ' · 🏍 Bikes: ' + p.bike;
+  if (text) {
+    text.innerHTML =
+      '<span>🚗 Cars: ' +
+      esc(String(p.car)) +
+      '</span><span>🏍 Bikes: ' +
+      esc(String(p.bike)) +
+      '</span>';
+  }
   const editWrap = el('parkingEditWrap');
   if (editWrap && editWrap.hidden) {
     const carIn = el('editParkCar');
@@ -1433,66 +1474,70 @@ function renderHallCards() {
   if (!root) return;
   if (!state.halls.length) {
     root.innerHTML =
-      '<p class="sub" style="margin:8px 0 12px;padding:12px;border:1px dashed var(--line);border-radius:12px;text-align:center">No halls yet. Tap <b>+ Add hall</b> to create your first hall.</p>';
+      '<p class="sub" style="margin:8px 0 12px;padding:12px;border:1px dashed var(--line);border-radius:12px;text-align:center">No halls yet. Tap <b>Add Hall</b> to create your first hall.</p>';
     return;
   }
   root.innerHTML = state.halls
     .map(function (h) {
-      const ownName = !!(h.useHallName && String(h.hallName || '').trim());
-      const req = h.requests
-        ? '<span class="pill bad" style="margin-left:6px">' + h.requests + ' requests</span>'
-        : '';
-      let hallSubHtml = '';
-      if (ownName) {
-        hallSubHtml =
-          '<div class="hall-sub"><span class="hall-sub-kicker">Hall</span> <span class="hall-sub-name">' +
-          esc(h.hallName.trim()) +
-          '</span>' +
-          req +
-          '</div>';
-      } else if (req) {
-        hallSubHtml = '<div class="hall-sub">' + req + '</div>';
-      }
       const on = hallListingOn(h);
-      const pkgOk = hallPackageSaved(h);
-      const calReqBtns = pkgOk
-        ? '<button type="button" class="pick" data-hall-act="cal" data-hid="' +
-          h.id +
-          '"' +
-          (on ? '' : ' disabled') +
-          '>Calendar</button>' +
-          '<button type="button" class="pick" data-hall-act="req" data-hid="' +
-          h.id +
-          '"' +
-          (on ? '' : ' disabled') +
-          '>Requests</button>'
+      const title = hallCardDisplayName(h);
+      const guests = hallCardGuestCount(h);
+      const hasAc = hallCardHasAc(h);
+      const minPrice = hallCardMinPrice(h);
+      const reqBadge = h.requests
+        ? ' · <span style="color:var(--rd)">' + esc(String(h.requests)) + ' requests</span>'
         : '';
+      const priceHtml = minPrice != null
+        ? '<div class="hall-rich-price">' + inr(minPrice) + ' onwards</div>'
+        : '<div class="hall-rich-price muted">Set pricing in Manage</div>';
+      const calDisabled = !on;
+      const reqDisabled = !on;
       return (
-        '<div class="hall-card' +
-        (on ? '' : ' hall-card-inactive') +
+        '<div class="hall-card-rich' +
+        (on ? '' : ' inactive') +
         '" data-hid="' +
         esc(h.id) +
         '">' +
-        '<div class="hall-card-top">' +
-        '<div><b>' +
-        esc(state.businessName) +
+        '<div class="hall-rich-top">' +
+        '<div class="hall-thumb" aria-hidden="true"></div>' +
+        '<div class="hall-rich-meta">' +
+        '<b>' +
+        esc(title) +
         '</b>' +
-        hallSubHtml +
+        '<div class="hall-rich-tags">' +
+        '<span>👥 ' +
+        esc(String(guests)) +
+        ' guests</span>' +
+        (hasAc ? '<span>❄ AC</span>' : '<span>No AC</span>') +
+        reqBadge +
         '</div>' +
-        '<label class="hall-toggle" title="When off, this hall cannot be edited or booked">' +
+        priceHtml +
+        '</div>' +
+        '<label class="hall-rich-toggle hall-toggle" title="When off, this hall cannot be edited or booked">' +
         '<input type="checkbox" data-hall-toggle data-hid="' +
         esc(h.id) +
         '"' +
         (on ? ' checked' : '') +
-        '><span class="hall-toggle-ui"></span><span class="hall-toggle-lbl">' +
-        (on ? 'On' : 'Off') +
+        '><span class="hall-toggle-ui"></span>' +
+        '<span class="hall-status-badge ' +
+        (on ? 'on' : 'off') +
+        '">' +
+        (on ? 'Active' : 'Inactive') +
         '</span></label></div>' +
-        (pkgOk ? '<div class="hall-actions">' + calReqBtns : '<div class="hall-actions hall-actions-minimal">') +
-        '<button type="button" class="pick' +
-        (pkgOk ? ' on' : '') +
-        '" data-hall-act="mgr" data-hid="' +
-        h.id +
-        '">Manage</button>' +
+        '<div class="hall-actions-rich">' +
+        '<button type="button" class="hall-act-btn" data-hall-act="cal" data-hid="' +
+        esc(h.id) +
+        '"' +
+        (calDisabled ? ' disabled' : '') +
+        '><span class="ico" aria-hidden="true">📅</span>Calendar</button>' +
+        '<button type="button" class="hall-act-btn" data-hall-act="req" data-hid="' +
+        esc(h.id) +
+        '"' +
+        (reqDisabled ? ' disabled' : '') +
+        '><span class="ico" aria-hidden="true">📋</span>Requests</button>' +
+        '<button type="button" class="hall-act-btn manage" data-hall-act="mgr" data-hid="' +
+        esc(h.id) +
+        '"><span class="ico" aria-hidden="true">⚙</span>Manage<span class="chev" aria-hidden="true">›</span></button>' +
         '</div></div>'
       );
     })
@@ -1550,6 +1595,10 @@ function renderHallCards() {
 function renderHallBizHome() {
   const bizTitle = el('bizHomeTitle');
   if (bizTitle) bizTitle.textContent = state.businessName;
+  const heroTitle = el('venueHeroTitle');
+  if (heroTitle) heroTitle.textContent = state.businessName;
+  const countLbl = el('hallCountLbl');
+  if (countLbl) countLbl.textContent = '(' + state.halls.length + ')';
   const parkWrap = el('parkingBlockWrap');
   if (parkWrap) parkWrap.hidden = !state.hallSetupComplete;
   renderParkingSummary();
