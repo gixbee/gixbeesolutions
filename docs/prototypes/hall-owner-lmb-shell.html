@@ -48,7 +48,12 @@ h2{margin:0 0 6px;font-size:18px}
 .fac label{display:flex;align-items:center;gap:8px;padding:10px;border:1px solid var(--line);border-radius:12px;font-size:12px;font-weight:700;cursor:pointer}
 .fac label.on{border-color:var(--gn);background:#F0FDF4}
 .slot{border:1px solid var(--line);border-radius:14px;padding:12px;margin-bottom:10px}
+.slot.slot-disabled{opacity:.65}
 .slot h3{margin:0 0 8px;font-size:14px}
+.slot .slot-body{margin-top:6px}
+.slot .ac-usage{margin-top:10px;padding:10px;border-radius:10px;background:#F9FAFB;border:1px solid var(--line)}
+.slot .price-row{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:8px 0;font-size:13px;font-weight:700}
+.slot .price-row input[type=number]{width:120px;font-weight:600}
 .pill{display:inline-block;padding:4px 10px;border-radius:99px;font-size:11px;font-weight:800;margin-bottom:8px}
 .pill.ok{background:#ECFDF3;color:#059669}
 .pill.bad{background:#FEE2E2;color:#B91C1C}
@@ -80,8 +85,43 @@ h2{margin:0 0 6px;font-size:18px}
 .radio-row{display:flex;gap:12px;align-items:center;margin:8px 0;font-size:13px}
 .cancel-table{width:100%;font-size:12px;border-collapse:collapse}
 .cancel-table td,.cancel-table th{padding:8px 4px;border-bottom:1px solid #F3F4F6}
+.policy-tabs{display:flex;border:1px solid var(--line);border-radius:12px;overflow:hidden;margin:0 0 14px}
+.policy-tabs button{flex:1;padding:11px 8px;border:0;background:#F3F4F6;font-weight:800;font-size:12px;color:#374151;cursor:pointer}
+.policy-tabs button.on{background:#2563EB;color:#fff}
+.policy-banner{display:flex;gap:10px;align-items:flex-start;padding:12px;border-radius:12px;font-size:13px;line-height:1.45;margin-bottom:8px}
+.policy-banner.cancel{background:#EFF6FF;color:#1E3A8A}
+.policy-banner.resched{background:#ECFDF5;color:#065F46}
+.policy-row{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:14px 0;border-bottom:1px solid #F3F4F6}
+.policy-row-remove{flex-shrink:0;width:36px;height:36px;border:1px solid #FECACA;border-radius:10px;background:#FEF2F2;color:#B91C1C;font-weight:800;cursor:pointer;font-size:14px;line-height:1}
+.policy-days-inp{flex:1;border:1px solid var(--line);border-radius:10px;padding:10px;font-weight:700;font-size:13px;min-width:0}
+.policy-pct-wrap{font-weight:800;font-size:14px;white-space:nowrap}
+.policy-pct-inp{width:64px;border:1px solid var(--line);border-radius:10px;padding:10px;text-align:center;font-weight:800;margin-right:4px}
+textarea{width:100%;border:1px solid var(--line);border-radius:10px;padding:10px;font:inherit;resize:vertical}
 .hall-card{border:1px solid var(--line);border-radius:14px;padding:12px;margin-bottom:10px;background:#fff}
-.hall-card .hall-sub{font-size:12px;color:var(--mut);margin:6px 0 10px}
+.hall-card-top{display:flex;justify-content:space-between;align-items:flex-start;gap:10px}
+.hall-card-inactive{border-color:#E5E7EB;background:#FAFAFA}
+.hall-card .hall-sub{font-size:12px;margin:6px 0 10px;line-height:1.45;display:flex;flex-wrap:wrap;align-items:center;gap:6px}
+.hall-sub-kicker{font-size:10px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:#64748B}
+.hall-sub-name{display:inline-block;font-weight:800;font-size:13px;padding:4px 10px;border-radius:999px;color:#5B21B6;background:linear-gradient(135deg,#EDE9FE 0%,#D1FAE5 100%);border:1px solid rgba(91,33,182,.12);box-shadow:0 1px 0 rgba(255,255,255,.8) inset}
+.hall-card-inactive .hall-sub-name{color:#6B7280;background:#F3F4F6;border-color:#E5E7EB}
+.hall-toggle{display:inline-flex;align-items:center;gap:8px;font-size:11px;font-weight:800;cursor:pointer;flex-shrink:0;margin-top:2px}
+.hall-toggle input{position:absolute;opacity:0;width:0;height:0;pointer-events:none}
+.hall-toggle-ui{width:46px;height:26px;background:#D1D5DB;border-radius:999px;position:relative;transition:background .2s;flex-shrink:0}
+.hall-toggle-ui::after{content:'';position:absolute;top:3px;left:3px;width:20px;height:20px;background:#fff;border-radius:50%;box-shadow:0 1px 2px rgba(0,0,0,.15);transition:transform .2s}
+.hall-toggle input:checked + .hall-toggle-ui{background:#2563EB}
+.hall-toggle input:checked + .hall-toggle-ui::after{transform:translateX(20px)}
+.hall-toggle-lbl{min-width:22px;color:#374151}
+.hall-inactive-banner{padding:10px 12px;border-radius:10px;background:#FEF3C7;color:#92400E;font-size:13px;line-height:1.45;margin-bottom:12px}
+.hall-inactive-lock input:not([readonly]):not([data-hall-toggle]),.hall-inactive-lock textarea,.hall-inactive-lock select,.hall-inactive-lock .menu .mrow,.hall-inactive-lock .cta .btn,.hall-inactive-lock #manageSaveFooter,.hall-inactive-lock .btn:not(.back):not(#backToBizHalls):not(#cancelManageName):not(#saveManageName),.hall-inactive-lock label.ev,.hall-inactive-lock .policy-row input,.hall-inactive-lock .slot input,.hall-inactive-lock #manageUseHallName{pointer-events:none;opacity:.45}
+.hall-inactive-lock .manage-name-actions,.hall-inactive-lock #manageNameActions{pointer-events:none;opacity:.45}
+.hall-inactive-lock #backToBizHalls,.hall-inactive-lock .top .back{pointer-events:auto!important;opacity:1!important}
+.manage-name-actions{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px}
+.manage-name-actions .btn{margin:0}
+.hall-name-display{font-weight:800;font-size:15px;padding:10px 12px;border-radius:12px;background:linear-gradient(135deg,#EDE9FE 0%,#D1FAE5 100%);color:#5B21B6;border:1px solid rgba(91,33,182,.12)}
+.hall-name-display.muted{color:#6B7280;background:#F3F4F6;border-color:#E5E7EB;font-weight:700;font-size:13px}
+#manageRestBlock{transition:opacity .2s}
+.manage-name-editing #manageRestBlock{opacity:.42;pointer-events:none;user-select:none;filter:grayscale(.15);background:#F3F4F6;border-radius:0 0 16px 16px;margin:0 -16px;padding:0 16px 8px}
+#manageHallNameWrap input:disabled{background:#F3F4F6;color:#9CA3AF}
 .hall-actions{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px}
 .hall-actions .pick{padding:10px 4px;font-size:11px}
 .biz-dash-card{border:1px solid var(--line);border-radius:16px;padding:14px;margin-bottom:14px;background:#fff;box-shadow:0 2px 8px rgba(15,23,42,.04)}
@@ -172,9 +212,11 @@ h2{margin:0 0 6px;font-size:18px}
   <div class="top"><button type="button" class="back" id="setupBackDash">←</button><h1>Hall setup</h1></div>
   <div class="pad">
     <h2 id="setupBizTitle">Vijaya Convention Center</h2>
-    <p class="sub">Enter how many halls, then tap OK.</p>
-    <div class="fld"><label>Number of halls</label><input type="number" id="hallCountInput" min="1" max="20" value="2"><small class="sub">Example: 1 hall, or 2–3 halls under one convention center.</small></div>
-    <button type="button" class="btn" id="hallCountOk" style="margin-top:8px">OK</button>
+    <p class="sub" id="setupIntroSub">Enter how many halls, then tap OK.</p>
+    <div id="setupHallCountBlock">
+      <div class="fld"><label>Number of halls</label><input type="number" id="hallCountInput" min="1" max="20" value="2"><small class="sub">Example: 1 hall, or 2–3 halls under one convention center.</small></div>
+      <button type="button" class="btn" id="hallCountOk" style="margin-top:8px">OK</button>
+    </div>
     <div id="setupParkingSection" hidden style="margin-top:16px">
       <p class="lbl" id="setupParkingLbl">COMMON PARKING</p>
       <p class="sub" id="setupParkingHint">Shared car and bike capacity for all halls.</p>
@@ -236,21 +278,41 @@ h2{margin:0 0 6px;font-size:18px}
     <p class="hint" id="buildTagManage" style="margin:8px 0 0;font-size:11px">Hall manage — pricing, calendar, requests</p>
   </div>
   <div class="pad" style="padding-top:4px">
+    <div id="hallInactiveBanner" hidden class="hall-inactive-banner">This hall is <b>Off</b> on your Halls list. Turn the toggle <b>On</b> on the hall card to edit names, pricing, and calendar again.</div>
     <p class="lbl">NAMES (CUSTOMER VIEW)</p>
     <div class="fld"><label>Business name</label><input id="bizNameRo" type="text" readonly style="background:#F9FAFB;color:#374151" value="Vijaya Convention Center"><small class="sub">Set when you listed on Gixbee — cannot be changed here. Shown on search cards.</small></div>
-    <label class="radio-row" style="margin:8px 0"><input type="checkbox" id="manageUseHallName" checked> This hall has its own name (optional)</label>
-    <div id="manageHallNameWrap" class="fld">
-      <label>Hall name</label><input id="manageHallName" type="text" value="Tiffle" placeholder="e.g. Koinonia"><small class="sub">Only if different from the business name. Shown when customers book this hall.</small>
+    <div id="manageNameAddBlock" hidden>
+      <label class="radio-row" style="margin:8px 0"><input type="checkbox" id="manageUseHallName"> This hall has its own name (optional)</label>
+      <div id="manageHallNameWrap" class="fld" hidden>
+        <label>Hall name</label><input id="addHallNameInput" type="text" value="" placeholder="e.g. Koinonia"><small class="sub">Only if different from the business name. Shown when customers book this hall.</small>
+      </div>
     </div>
-    <button type="button" class="btn ghost" id="saveHallName" style="margin-bottom:4px">Save</button>
+    <div id="manageNameViewBlock" hidden>
+      <div class="fld">
+        <label>Hall name</label>
+        <div id="manageHallNameDisplay" class="hall-name-display">—</div>
+        <small class="sub">Shown when customers book this hall.</small>
+      </div>
+      <button type="button" class="see" id="editManageName" style="display:block;margin:4px 0 12px;font-size:13px">Edit</button>
+    </div>
+    <div id="manageNameEditBlock" hidden>
+      <div class="fld">
+        <label>Hall name</label><input id="manageHallNameEdit" type="text" value="" placeholder="e.g. Koinonia">
+      </div>
+      <div id="manageNameActions" class="manage-name-actions">
+        <button type="button" class="btn ghost" id="cancelManageName">Cancel</button>
+        <button type="button" class="btn" id="saveManageName">Save</button>
+      </div>
+    </div>
   </div>
+  <div id="manageRestBlock">
   <div class="pad">
     <p class="lbl">MANAGE</p>
     <div class="menu" id="manageMenu"><p class="sub" id="jsWait">Loading menu…</p></div>
   </div>
   <div class="cta" id="manageSaveFooter" hidden>
     <button type="button" class="btn" id="saveNewHallBtn">Save hall</button>
-    <p class="sub" style="text-align:center;margin:8px 0 0">Shown when you open this screen from + Add hall</p>
+  </div>
   </div>
 </section>
 
@@ -266,7 +328,7 @@ h2{margin:0 0 6px;font-size:18px}
   <div class="top"><button class="back" type="button" data-to="pkg1">←</button><h1>Pricing &amp; Packages</h1><span class="chip-h">2/5</span></div>
   <div class="prog"><div class="bar"><i style="width:40%"></i></div><span class="frac">2/5</span></div>
   <div class="pad">
-    <h2>Venue Details</h2><p class="sub">Hall name and capacity — pricing is in the next step.</p>
+    <h2>Venue Details</h2><p class="sub">Hall name, seating, dining, and facilities. Car and bike parking are set on the Halls page (shared parking).</p>
     <div class="fld"><label>Business name</label><input id="bizNamePkg" type="text" readonly style="background:#F9FAFB;color:#374151"><small class="sub">Cannot be changed — from List My Business.</small></div>
     <label class="radio-row" style="margin:0 0 8px"><input type="checkbox" id="useHallNamePkg" checked> This hall has its own name (optional)</label>
     <div id="hallNamePkgWrap" class="fld">
@@ -275,8 +337,6 @@ h2{margin:0 0 6px;font-size:18px}
     <div class="two">
       <div class="fld"><label>Seating Capacity</label><input id="seatCap" type="number" value="700"><small>guests</small></div>
       <div class="fld"><label>Dining Capacity</label><input id="dineCap" type="number" value="550"><small>guests</small></div>
-      <div class="fld"><label>Parking (Cars)</label><input id="parkCar" type="number" value="50"></div>
-      <div class="fld"><label>Parking (Bikes)</label><input id="parkBike" type="number" value="100"></div>
     </div>
     <div class="fld"><label>Private / Changing Room</label><input id="rooms" type="number" value="2"><small>rooms</small></div>
     <p class="lbl">FACILITIES (SELECT AVAILABLE)</p>
@@ -291,14 +351,14 @@ h2{margin:0 0 6px;font-size:18px}
 <section class="scr" id="pkg3">
   <div class="top"><button class="back" type="button" data-to="pkg2">←</button><h1>Pricing &amp; Packages</h1><span class="chip-h">3/5</span></div>
   <div class="prog"><div class="bar"><i style="width:60%"></i></div><span class="frac">3/5</span></div>
-  <div class="pad"><h2>Pricing &amp; Time Slots</h2><p class="sub">Set your standard prices for each time slot.</p><div id="slotPricing"></div></div>
+  <div class="pad"><h2>Pricing &amp; Time Slots</h2><p class="sub">Turn each slot on or off, set your hall hours (from–to), choose whether customers see Without AC and/or With AC pricing, and define AC usage hours when AC is not for the full booking window.</p><div id="slotPricing"></div></div>
   <div class="cta"><button class="btn" type="button" data-to="pkg4">Continue</button></div>
 </section>
 
 <section class="scr" id="pkg4">
   <div class="top"><button class="back" type="button" data-to="pkg3">←</button><h1>Pricing &amp; Packages</h1><span class="chip-h">4/5</span></div>
   <div class="prog"><div class="bar"><i style="width:80%"></i></div><span class="frac">4/5</span></div>
-  <div class="pad"><h2>Payment &amp; Policies</h2><p class="sub">Advance payment, full payment timeline and cancellation refund policy.</p><div id="payPolicy"></div></div>
+  <div class="pad"><h2>Payment &amp; Policies</h2><p class="sub">Advance, full payment due date, and editable cancellation / rescheduling rules (deducted from advance).</p><div id="payPolicy"></div></div>
   <div class="cta"><button class="btn" type="button" data-to="pkg5">Continue</button></div>
 </section>
 

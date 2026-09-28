@@ -1,4 +1,4 @@
-const OWNER_BUILD = '2026-09-28-hall-owner-v13';
+const OWNER_BUILD = '2026-09-28-hall-owner-v29';
 const DEMO_FILE = 'hall-owner-lmb-master.html';
 const PKG_KEY = 'GIXBEE_HALL_PACKAGE';
 
@@ -16,11 +16,117 @@ const EVENT_CATS = [
 
 const FACILITIES = ['AC', 'Generator / Power Backup', 'Chairs & Tables', 'Stage', 'Sound System', 'Restrooms', 'Lift'];
 
-const SLOTS = [
-  { id: 'morning', label: 'Morning', time: '10:00 AM – 3:00 PM' },
-  { id: 'evening', label: 'Evening', time: '5:00 PM – 11:00 PM' },
-  { id: 'fullday', label: 'Full Day', time: '9:00 AM – 5:00 PM' },
+const SLOT_TEMPLATES = [
+  { id: 'morning', label: 'Morning', hallFrom: '10:00', hallTo: '15:00' },
+  { id: 'evening', label: 'Evening', hallFrom: '17:00', hallTo: '23:00' },
+  { id: 'fullday', label: 'Full Day', hallFrom: '09:00', hallTo: '21:00', acMode: 'limited', acLimitKind: 'flexible', acHours: 5 },
 ];
+
+function ensureSlotOffers() {
+  const prices = state.prices || {};
+  if (!state.slotOffers || !state.slotOffers.length) {
+    state.slotOffers = SLOT_TEMPLATES.map(function (t) {
+      const p = prices[t.id] || {};
+      return {
+        id: t.id,
+        label: t.label,
+        enabled: true,
+        hallFrom: t.hallFrom,
+        hallTo: t.hallTo,
+        offerNoAc: true,
+        offerAc: true,
+        priceNoAc: p.noAc != null ? p.noAc : 55000,
+        priceAc: p.ac != null ? p.ac : t.id === 'fullday' ? 200000 : 75000,
+        acMode: t.acMode || 'full',
+        acLimitKind: t.acLimitKind || 'flexible',
+        acFrom: '',
+        acTo: '',
+        acHours: t.acHours || 0,
+      };
+    });
+  }
+  SLOT_TEMPLATES.forEach(function (t) {
+    if (
+      state.slotOffers.find(function (o) {
+        return o.id === t.id;
+      })
+    ) {
+      return;
+    }
+    const p = prices[t.id] || {};
+    state.slotOffers.push({
+      id: t.id,
+      label: t.label,
+      enabled: false,
+      hallFrom: t.hallFrom,
+      hallTo: t.hallTo,
+      offerNoAc: true,
+      offerAc: true,
+      priceNoAc: p.noAc || 55000,
+      priceAc: p.ac || 75000,
+      acMode: 'full',
+      acLimitKind: 'flexible',
+      acFrom: '',
+      acTo: '',
+      acHours: 0,
+    });
+  });
+  state.slotOffers.forEach(function (o) {
+    if (o.acMode == null) o.acMode = 'full';
+    if (o.acHours == null) o.acHours = 0;
+    if (!o.hallFrom) o.hallFrom = '09:00';
+    if (!o.hallTo) o.hallTo = '17:00';
+    if (o.acFrom == null) o.acFrom = '';
+    if (o.acTo == null) o.acTo = '';
+    if (o.acLimitKind === 'hours') o.acLimitKind = 'flexible';
+    if (o.acLimitKind == null) {
+      if (o.acFrom && o.acTo) o.acLimitKind = 'fixed';
+      else o.acLimitKind = 'flexible';
+    }
+    if (o.offerNoAc == null) o.offerNoAc = true;
+    if (o.offerAc == null) o.offerAc = true;
+    if (o.enabled == null) o.enabled = true;
+  });
+}
+
+function formatTime12(hhmm) {
+  if (!hhmm) return '';
+  const parts = String(hhmm).split(':');
+  const h = +parts[0] || 0;
+  const m = +parts[1] || 0;
+  const ampm = h >= 12 ? 'PM' : 'AM';
+  const h12 = h % 12 || 12;
+  return h12 + ':' + String(m).padStart(2, '0') + ' ' + ampm;
+}
+
+function formatTimeRange(from, to) {
+  return formatTime12(from) + ' – ' + formatTime12(to);
+}
+
+function acUsageSummary(o) {
+  if (!o.offerAc) return '';
+  if (o.acMode === 'full') return ' · AC for full hall window';
+  if (o.acLimitKind === 'fixed' && o.acFrom && o.acTo) {
+    return ' · ' + (o.acHours || '?') + 'h AC, fixed ' + formatTimeRange(o.acFrom, o.acTo);
+  }
+  if (o.acHours) return ' · ' + o.acHours + 'h AC included (timing with hall management)';
+  return ' · AC limited';
+}
+
+function slotReviewLines() {
+  ensureSlotOffers();
+  return state.slotOffers
+    .filter(function (o) {
+      return o.enabled;
+    })
+    .map(function (o) {
+      const win = formatTimeRange(o.hallFrom, o.hallTo);
+      const parts = [];
+      if (o.offerNoAc) parts.push('Without AC ₹' + o.priceNoAc.toLocaleString('en-IN'));
+      if (o.offerAc) parts.push('With AC ₹' + o.priceAc.toLocaleString('en-IN') + acUsageSummary(o));
+      return o.label + ' (' + win + '): ' + parts.join(' · ');
+    });
+}
 
 const MANAGE_MENU = [
   { id: 'calendar', title: 'Calendar', sub: 'Availability and blocked dates' },
@@ -32,9 +138,9 @@ const MANAGE_MENU = [
 
 const state = {
   businessName: 'Vijaya Convention Center',
-  useHallName: true,
-  hallName: 'Tiffle',
-  activeHallId: 'h1',
+  useHallName: false,
+  hallName: '',
+  activeHallId: '',
   hallSetupComplete: false,
   plannedHallCount: 2,
   parkingEditOpen: false,
@@ -60,10 +166,142 @@ const state = {
     { days: '3 – 6 days', pct: 75 },
     { days: 'Less than 1 day', pct: 100 },
   ],
+  rescheduleRules: [
+    { days: '30 days or more', pct: 10 },
+    { days: '15 – 29 days', pct: 25 },
+    { days: '7 – 14 days', pct: 50 },
+    { days: '3 – 6 days', pct: 75 },
+    { days: 'Less than 1 day', pct: 100 },
+  ],
+  cancelPolicyNote: '',
+  reschedulePolicyNote: '',
   bookWindowMonths: 6,
   minNoticeDays: 3,
   calDay: 25,
 };
+
+let pkg4PolicyTab = 'cancel';
+let manageNameSnapshot = { useHallName: false, hallName: '' };
+let manageNameEditing = false;
+
+const POLICY_DEFAULTS = [
+  { days: '30 days or more', pct: 10 },
+  { days: '15 – 29 days', pct: 25 },
+  { days: '7 – 14 days', pct: 50 },
+  { days: '3 – 6 days', pct: 75 },
+  { days: 'Less than 1 day', pct: 100 },
+];
+
+function ensurePolicyRules() {
+  if (!state.cancelRules || !state.cancelRules.length) {
+    state.cancelRules = POLICY_DEFAULTS.map(function (r) {
+      return { days: r.days, pct: r.pct };
+    });
+  }
+  if (!state.rescheduleRules || !state.rescheduleRules.length) {
+    state.rescheduleRules = state.cancelRules.map(function (r) {
+      return { days: r.days, pct: r.pct };
+    });
+  }
+  if (state.cancelPolicyNote == null) state.cancelPolicyNote = '';
+  if (state.reschedulePolicyNote == null) state.reschedulePolicyNote = '';
+}
+
+function policyRulesHtml(kind) {
+  const rules = kind === 'cancel' ? state.cancelRules : state.rescheduleRules;
+  const rows = rules
+    .map(function (r) {
+      return (
+        '<div class="policy-row">' +
+        '<input type="text" class="policy-days-inp" data-field="days" value="' +
+        esc(r.days) +
+        '">' +
+        '<span class="policy-pct-wrap"><input type="number" class="policy-pct-inp" min="0" max="100" data-field="pct" value="' +
+        r.pct +
+        '"> %</span>' +
+        '<button type="button" class="policy-row-remove" title="Remove tier">✕</button></div>'
+      );
+    })
+    .join('');
+  return (
+    '<div class="policy-rows" data-policy-kind="' +
+    kind +
+    '">' +
+    rows +
+    '</div>' +
+    '<button type="button" class="btn ghost policy-add-tier" data-policy="' +
+    kind +
+    '" style="margin-top:10px;width:100%">+ Add tier</button>'
+  );
+}
+
+function capturePolicyRulesFromDom() {
+  if (!el('payPolicy')) return;
+  const box = el('payPolicy').querySelector('.policy-rows[data-policy-kind]');
+  if (box) {
+    const kind = box.getAttribute('data-policy-kind');
+    const rules = [];
+    box.querySelectorAll('.policy-row').forEach(function (row) {
+      const daysIn = row.querySelector('[data-field=days]');
+      const pctIn = row.querySelector('[data-field=pct]');
+      if (!daysIn || !pctIn) return;
+      rules.push({
+        days: daysIn.value.trim() || 'Days before event',
+        pct: +pctIn.value || 0,
+      });
+    });
+    if (kind === 'cancel') {
+      state.cancelRules = rules.length ? rules : [{ days: 'Days before event', pct: 0 }];
+    } else {
+      state.rescheduleRules = rules.length ? rules : [{ days: 'Days before event', pct: 0 }];
+    }
+  }
+  const cn = el('cancelPolicyNote');
+  const rn = el('reschedulePolicyNote');
+  if (cn) state.cancelPolicyNote = cn.value.trim();
+  if (rn) state.reschedulePolicyNote = rn.value.trim();
+}
+
+function attachPolicyRowHandlers() {
+  const root = el('payPolicy');
+  if (!root) return;
+  root.querySelectorAll('.policy-row-remove').forEach(function (btn) {
+    btn.onclick = function () {
+      capturePolicyRulesFromDom();
+      capturePkg4PaymentOnly();
+      const kind = pkg4PolicyTab === 'reschedule' ? 'reschedule' : 'cancel';
+      const arr = kind === 'cancel' ? state.cancelRules : state.rescheduleRules;
+      const row = btn.closest('.policy-row');
+      const box = row && row.parentElement;
+      if (!row || !box) return;
+      const idx = Array.prototype.indexOf.call(box.querySelectorAll('.policy-row'), row);
+      if (arr.length <= 1) {
+        toast('Keep at least one tier in this policy.');
+        return;
+      }
+      if (idx >= 0) arr.splice(idx, 1);
+      renderPkg4();
+    };
+  });
+  root.querySelectorAll('.policy-add-tier').forEach(function (btn) {
+    btn.onclick = function () {
+      capturePolicyRulesFromDom();
+      capturePkg4PaymentOnly();
+      const kind = btn.getAttribute('data-policy');
+      const arr = kind === 'cancel' ? state.cancelRules : state.rescheduleRules;
+      arr.push({ days: 'Days before event', pct: 10 });
+      renderPkg4();
+    };
+  });
+}
+
+function policySummaryLines(rules, note) {
+  const lines = rules.map(function (r) {
+    return r.days + ': ' + r.pct + '%';
+  });
+  if (note) lines.push('Note: ' + note);
+  return lines.join(' · ');
+}
 
 function el(id) {
   return document.getElementById(id);
@@ -88,6 +326,9 @@ function loadPkg() {
     /* ignore */
   }
   normalizeNames();
+  ensureSlotOffers();
+  ensurePolicyRules();
+  normalizeHallRecords();
 }
 function normalizeNames() {
   if (!state.businessName) state.businessName = 'Vijaya Convention Center';
@@ -104,30 +345,103 @@ function customerHallName() {
 }
 function syncHallNameUi() {
   const show = !!state.useHallName;
-  ['manageHallNameWrap', 'hallNamePkgWrap'].forEach(function (id) {
-    const w = el(id);
-    if (w) w.style.display = show ? 'block' : 'none';
-  });
-  ['manageUseHallName', 'useHallNamePkg'].forEach(function (id) {
-    const cb = el(id);
-    if (cb) cb.checked = show;
-  });
-  const hallIn = el('manageHallName');
-  if (hallIn && document.activeElement !== hallIn) hallIn.value = state.hallName;
+  const pkgWrap = el('hallNamePkgWrap');
+  if (pkgWrap) pkgWrap.style.display = show ? 'block' : 'none';
+  const pkgCb = el('useHallNamePkg');
+  if (pkgCb) pkgCb.checked = show;
   const pkgIn = el('hallNameInput');
   if (pkgIn && document.activeElement !== pkgIn) pkgIn.value = state.hallName;
+  renderManageNameMode();
+}
+
+function renderManageNameMode() {
+  const manageScr = el('manage');
+  const isAdd = !!state.openedFromAddHall;
+  const addBlock = el('manageNameAddBlock');
+  const viewBlock = el('manageNameViewBlock');
+  const editBlock = el('manageNameEditBlock');
+  const editBtn = el('editManageName');
+  const addWrap = el('manageHallNameWrap');
+  const addCb = el('manageUseHallName');
+  const addIn = el('addHallNameInput');
+  const display = el('manageHallNameDisplay');
+  const editIn = el('manageHallNameEdit');
+  const listingOn = hallListingOn(activeHall());
+  const savedOwnName = !!(activeHall() && activeHall().useHallName);
+
+  if (manageScr) manageScr.classList.remove('manage-name-editing');
+
+  if (isAdd) {
+    manageNameEditing = false;
+    if (addBlock) addBlock.hidden = false;
+    if (viewBlock) viewBlock.hidden = true;
+    if (editBlock) editBlock.hidden = true;
+    if (addCb) {
+      addCb.checked = !!state.useHallName;
+      addCb.disabled = !listingOn;
+    }
+    if (addWrap) addWrap.hidden = !state.useHallName;
+    if (addIn && document.activeElement !== addIn) addIn.value = state.hallName;
+    return;
+  }
+
+  if (addBlock) addBlock.hidden = true;
+
+  if (!savedOwnName) {
+    manageNameEditing = false;
+    if (viewBlock) viewBlock.hidden = true;
+    if (editBlock) editBlock.hidden = true;
+    return;
+  }
+
+  if (manageNameEditing && listingOn) {
+    if (viewBlock) viewBlock.hidden = true;
+    if (editBlock) editBlock.hidden = false;
+    if (editIn && document.activeElement !== editIn) {
+      editIn.value = customerHallName() || state.hallName || '';
+    }
+    if (manageScr) manageScr.classList.add('manage-name-editing');
+    return;
+  }
+
+  manageNameEditing = false;
+  if (viewBlock) viewBlock.hidden = false;
+  if (editBlock) editBlock.hidden = true;
+  if (display) display.textContent = customerHallName() || state.hallName;
+  if (editBtn) editBtn.hidden = !listingOn;
+}
+
+function snapshotManageNameFromHall() {
+  const h = activeHall();
+  manageNameSnapshot = {
+    useHallName: h ? !!h.useHallName : !!state.useHallName,
+    hallName: h && h.useHallName ? String(h.hallName || '').trim() : '',
+  };
+}
+
+function applyManageNameSnapshot() {
+  state.useHallName = manageNameSnapshot.useHallName;
+  state.hallName = manageNameSnapshot.hallName;
+  manageNameEditing = false;
+  syncHallNameUi();
+}
+
+function finishManageNameEdit() {
+  manageNameEditing = false;
+  snapshotManageNameFromHall();
+  renderManageNameMode();
 }
 function captureNameFields() {
-  const manageCb = el('manageUseHallName');
   const pkgCb = el('useHallNamePkg');
-  if (manageCb && document.activeElement === manageCb) {
+  const manageCb = el('manageUseHallName');
+  if (state.openedFromAddHall && manageCb) {
     state.useHallName = manageCb.checked;
+  } else if (pkgCb && (el('pkg2') && el('pkg2').classList.contains('on'))) {
+    state.useHallName = pkgCb.checked;
   } else if (pkgCb && document.activeElement === pkgCb) {
     state.useHallName = pkgCb.checked;
-  } else if (manageCb) {
+  } else if (manageCb && el('manageNameAddBlock') && !el('manageNameAddBlock').hidden) {
     state.useHallName = manageCb.checked;
-  } else if (pkgCb) {
-    state.useHallName = pkgCb.checked;
   }
   if (!state.useHallName) {
     state.hallName = '';
@@ -135,11 +449,14 @@ function captureNameFields() {
     return;
   }
   const hallIn = el('hallNameInput');
-  const manageIn = el('manageHallName');
-  if (hallIn && (el('pkg2').classList.contains('on') || document.activeElement === hallIn)) {
+  const addIn = el('addHallNameInput');
+  const editIn = el('manageHallNameEdit');
+  if (hallIn && (el('pkg2') && el('pkg2').classList.contains('on') || document.activeElement === hallIn)) {
     state.hallName = hallIn.value.trim();
-  } else if (manageIn) {
-    state.hallName = manageIn.value.trim();
+  } else if (editIn && manageNameEditing) {
+    state.hallName = editIn.value.trim();
+  } else if (addIn && state.openedFromAddHall) {
+    state.hallName = addIn.value.trim();
   }
   syncHallNameUi();
 }
@@ -156,6 +473,9 @@ function renderManageHeader() {
   const bizPkg = el('bizNamePkg');
   if (bizPkg) bizPkg.value = state.businessName;
   syncHallNameUi();
+  const banner = el('hallInactiveBanner');
+  if (banner) banner.hidden = hallListingOn(activeHall());
+  syncHallInactiveLock();
 }
 function savePkg() {
   localStorage.setItem(PKG_KEY, JSON.stringify(state));
@@ -164,6 +484,30 @@ function savePkg() {
 
 function activeHall() {
   return state.halls.find(function (h) { return h.id === state.activeHallId; }) || state.halls[0];
+}
+
+function hallListingOn(h) {
+  if (!h) return true;
+  return h.hallActive !== false;
+}
+
+function normalizeHallRecords() {
+  if (!state.halls) state.halls = [];
+  state.halls.forEach(function (h) {
+    if (h.hallActive == null) h.hallActive = true;
+  });
+}
+
+function syncHallInactiveLock() {
+  const locked = activeHall() && !hallListingOn(activeHall());
+  ['manage', 'pkg1', 'pkg2', 'pkg3', 'pkg4', 'pkg5', 'calendar', 'ownerReq', 'bookSettings', 'placeholder'].forEach(
+    function (id) {
+      const scr = el(id);
+      if (scr) scr.classList.toggle('hall-inactive-lock', !!locked);
+    },
+  );
+  const banner = el('hallInactiveBanner');
+  if (banner) banner.hidden = !locked;
 }
 
 function loadActiveHallIntoState() {
@@ -182,10 +526,20 @@ function syncActiveHallFromState() {
 
 function parkingDisplay() {
   const multi = state.plannedHallCount > 1 || state.halls.length > 1;
-  if (multi) {
-    return { title: 'Common parking (shared by all halls)', car: state.commonParking.car, bike: state.commonParking.bike, common: true };
+  if (state.hallSetupComplete) {
+    return {
+      title: multi ? 'Common parking (shared by all halls)' : 'Shared parking',
+      car: state.commonParking.car,
+      bike: state.commonParking.bike,
+      common: true,
+    };
   }
-  return { title: 'Parking (this hall)', car: state.capacity.car, bike: state.capacity.bike, common: false };
+  return {
+    title: multi ? 'Common parking (shared by all halls)' : 'Shared parking',
+    car: state.commonParking.car,
+    bike: state.commonParking.bike,
+    common: true,
+  };
 }
 
 function setHallBizDisabled(disabled) {
@@ -201,8 +555,12 @@ function renderSetupScreen() {
   if (t) t.textContent = state.businessName;
   const countIn = el('hallCountInput');
   if (countIn) countIn.value = state.plannedHallCount || 2;
+  const countBlock = el('setupHallCountBlock');
+  const intro = el('setupIntroSub');
   const sec = el('setupParkingSection');
   const actions = el('setupActionsWrap');
+  if (countBlock) countBlock.hidden = false;
+  if (intro) intro.hidden = false;
   if (sec) sec.hidden = true;
   if (actions) {
     actions.hidden = true;
@@ -213,18 +571,23 @@ function renderSetupScreen() {
 function revealSetupParking() {
   const count = Math.max(1, +(el('hallCountInput') && el('hallCountInput').value) || 1);
   state.plannedHallCount = count;
+  const countBlock = el('setupHallCountBlock');
+  const intro = el('setupIntroSub');
+  if (countBlock) countBlock.hidden = true;
+  if (intro) intro.hidden = true;
   const sec = el('setupParkingSection');
+  const lbl = el('setupParkingLbl');
+  const hint = el('setupParkingHint');
+  if (sec) sec.hidden = false;
   if (count > 1) {
-    const lbl = el('setupParkingLbl');
-    const hint = el('setupParkingHint');
-    if (sec) sec.hidden = false;
-    if (lbl) lbl.textContent = 'COMMON PARKING';
-    if (hint) hint.textContent = 'Shared car and bike parking for all ' + count + ' halls.';
-    if (el('setupParkCar')) el('setupParkCar').value = state.commonParking.car;
-    if (el('setupParkBike')) el('setupParkBike').value = state.commonParking.bike;
-  } else if (sec) {
-    sec.hidden = true;
+    if (lbl) lbl.textContent = 'COMMON PARKING (SHARED)';
+    if (hint) hint.textContent = 'One shared car and bike count for all ' + count + ' halls.';
+  } else {
+    if (lbl) lbl.textContent = 'SHARED PARKING';
+    if (hint) hint.textContent = 'Car and bike parking for your hall (shown to customers).';
   }
+  if (el('setupParkCar')) el('setupParkCar').value = state.commonParking.car;
+  if (el('setupParkBike')) el('setupParkBike').value = state.commonParking.bike;
   const actions = el('setupActionsWrap');
   if (actions) {
     actions.hidden = false;
@@ -233,17 +596,8 @@ function revealSetupParking() {
 }
 
 function initHallsFromSetup(count) {
+  state.plannedHallCount = count;
   state.halls = [];
-  for (var i = 0; i < count; i++) {
-    state.halls.push({
-      id: 'h' + (i + 1),
-      useHallName: i === 0 && state.useHallName,
-      hallName: i === 0 ? state.hallName : '',
-      requests: i === 0 ? 2 : 0,
-    });
-  }
-  state.activeHallId = state.halls[0].id;
-  loadActiveHallIntoState();
 }
 
 function openHallFromDashboard() {
@@ -276,28 +630,60 @@ function renderParkingSummary() {
 function renderHallCards() {
   const root = el('hallListCards');
   if (!root) return;
+  if (!state.halls.length) {
+    root.innerHTML =
+      '<p class="sub" style="margin:8px 0 12px;padding:12px;border:1px dashed var(--line);border-radius:12px;text-align:center">No halls yet. Tap <b>+ Add hall</b> to create your first hall.</p>';
+    return;
+  }
   root.innerHTML = state.halls
     .map(function (h) {
-      const sub = h.useHallName && h.hallName ? esc(h.hallName) : esc(state.businessName);
+      const ownName = !!(h.useHallName && String(h.hallName || '').trim());
       const req = h.requests
         ? '<span class="pill bad" style="margin-left:6px">' + h.requests + ' requests</span>'
         : '';
+      let hallSubHtml = '';
+      if (ownName) {
+        hallSubHtml =
+          '<div class="hall-sub"><span class="hall-sub-kicker">Hall</span> <span class="hall-sub-name">' +
+          esc(h.hallName.trim()) +
+          '</span>' +
+          req +
+          '</div>';
+      } else if (req) {
+        hallSubHtml = '<div class="hall-sub">' + req + '</div>';
+      }
+      const on = hallListingOn(h);
       return (
-        '<div class="hall-card">' +
-        '<b>' +
+        '<div class="hall-card' +
+        (on ? '' : ' hall-card-inactive') +
+        '" data-hid="' +
+        esc(h.id) +
+        '">' +
+        '<div class="hall-card-top">' +
+        '<div><b>' +
         esc(state.businessName) +
         '</b>' +
-        '<div class="hall-sub">Hall: ' +
-        sub +
-        req +
+        hallSubHtml +
         '</div>' +
+        '<label class="hall-toggle" title="When off, this hall cannot be edited or booked">' +
+        '<input type="checkbox" data-hall-toggle data-hid="' +
+        esc(h.id) +
+        '"' +
+        (on ? ' checked' : '') +
+        '><span class="hall-toggle-ui"></span><span class="hall-toggle-lbl">' +
+        (on ? 'On' : 'Off') +
+        '</span></label></div>' +
         '<div class="hall-actions">' +
         '<button type="button" class="pick" data-hall-act="cal" data-hid="' +
         h.id +
-        '">Calendar</button>' +
+        '"' +
+        (on ? '' : ' disabled') +
+        '>Calendar</button>' +
         '<button type="button" class="pick" data-hall-act="req" data-hid="' +
         h.id +
-        '">Requests</button>' +
+        '"' +
+        (on ? '' : ' disabled') +
+        '>Requests</button>' +
         '<button type="button" class="pick on" data-hall-act="mgr" data-hid="' +
         h.id +
         '">Manage</button>' +
@@ -305,10 +691,35 @@ function renderHallCards() {
       );
     })
     .join('');
+  root.querySelectorAll('[data-hall-toggle]').forEach(function (inp) {
+    inp.onchange = function (e) {
+      e.stopPropagation();
+      const id = inp.getAttribute('data-hid');
+      const h = state.halls.find(function (x) {
+        return x.id === id;
+      });
+      if (!h) return;
+      h.hallActive = !!inp.checked;
+      savePkg();
+      renderHallCards();
+      if (state.activeHallId === id) syncHallInactiveLock();
+    };
+  });
   root.querySelectorAll('[data-hall-act]').forEach(function (btn) {
     btn.onclick = function () {
       if (state.parkingEditOpen) return;
-      state.activeHallId = btn.getAttribute('data-hid');
+      const hid = btn.getAttribute('data-hid');
+      const h = state.halls.find(function (x) {
+        return x.id === hid;
+      });
+      if (!hallListingOn(h)) {
+        const actEarly = btn.getAttribute('data-hall-act');
+        if (actEarly !== 'mgr') {
+          toast('Turn this hall On using the toggle to use Calendar or Requests.');
+          return;
+        }
+      }
+      state.activeHallId = hid;
       loadActiveHallIntoState();
       const act = btn.getAttribute('data-hall-act');
       if (act === 'mgr') {
@@ -318,11 +729,13 @@ function renderHallCards() {
       if (act === 'cal') {
         renderCalendar();
         show('calendar');
+        syncHallInactiveLock();
         return;
       }
       if (act === 'req') {
         renderOwnerReq();
         show('ownerReq');
+        syncHallInactiveLock();
       }
     };
   });
@@ -332,17 +745,20 @@ function renderHallBizHome() {
   const bizTitle = el('bizHomeTitle');
   if (bizTitle) bizTitle.textContent = state.businessName;
   const parkWrap = el('parkingBlockWrap');
-  const multi = state.plannedHallCount > 1 || state.halls.length > 1;
-  if (parkWrap) parkWrap.hidden = !multi;
+  if (parkWrap) parkWrap.hidden = !state.hallSetupComplete;
   renderParkingSummary();
   renderHallCards();
 }
 
 function openManageScreen(fromAddHall) {
   state.openedFromAddHall = !!fromAddHall;
+  manageNameEditing = false;
+  loadActiveHallIntoState();
+  snapshotManageNameFromHall();
   renderManageHeader();
   renderManage();
   show('manage');
+  syncHallInactiveLock();
 }
 
 function renderManageFooter() {
@@ -380,6 +796,14 @@ function renderManage() {
   }).join('');
   el('manageMenu').querySelectorAll('[data-go]').forEach((btn) => {
     btn.onclick = () => {
+      if (!hallListingOn(activeHall())) {
+        toast('This hall is Off. Turn it On from the Halls list to edit.');
+        return;
+      }
+      if (manageNameEditing && !state.openedFromAddHall) {
+        toast('Save or cancel hall name changes first.');
+        return;
+      }
       const id = btn.getAttribute('data-go');
       if (id === 'deleteHall') {
         if (state.halls.length <= 1) {
@@ -405,8 +829,10 @@ function renderManage() {
       if (id === 'pkg1') renderPkg1();
       if (id === 'calendar') renderCalendar();
       if (id === 'ownerReq') renderOwnerReq();
+      syncHallInactiveLock();
     };
   });
+  syncHallInactiveLock();
 }
 
 function renderPkgSteps(n) {
@@ -450,8 +876,6 @@ function renderPkg2() {
   renderManageHeader();
   el('seatCap').value = state.capacity.seat;
   el('dineCap').value = state.capacity.dine;
-  el('parkCar').value = state.capacity.car;
-  el('parkBike').value = state.capacity.bike;
   el('rooms').value = state.capacity.rooms;
   el('facGrid').innerHTML = FACILITIES.map(
     (f) =>
@@ -500,25 +924,199 @@ function renderPkg2() {
   });
 }
 
+function renderSlotOfferRow(o) {
+  const acFull = o.acMode !== 'limited';
+  const isFlexible = o.acLimitKind !== 'fixed';
+  return (
+    '<div class="slot' +
+    (o.enabled ? '' : ' slot-disabled') +
+    '" data-offer-id="' +
+    esc(o.id) +
+    '">' +
+    '<label class="radio-row" style="margin:0"><input type="checkbox" data-field="enabled"' +
+    (o.enabled ? ' checked' : '') +
+    '> <b>Offer ' +
+    esc(o.label) +
+    ' slot</b></label>' +
+    '<div class="slot-body"' +
+    (o.enabled ? '' : ' style="display:none"') +
+    '>' +
+    '<p class="lbl" style="margin-top:10px">Hall booking window</p>' +
+    '<div class="two">' +
+    '<div class="fld"><label>From</label><input type="time" data-field="hallFrom" value="' +
+    esc(o.hallFrom) +
+    '"></div>' +
+    '<div class="fld"><label>To</label><input type="time" data-field="hallTo" value="' +
+    esc(o.hallTo) +
+    '"></div></div>' +
+    '<p class="lbl">Pricing options for customers</p>' +
+    '<div class="price-row"><label><input type="checkbox" data-field="offerNoAc"' +
+    (o.offerNoAc ? ' checked' : '') +
+    '> Without AC ₹</label><input type="number" data-field="priceNoAc" min="0" value="' +
+    o.priceNoAc +
+    '"' +
+    (o.offerNoAc ? '' : ' disabled') +
+    '></div>' +
+    '<div class="price-row"><label><input type="checkbox" data-field="offerAc"' +
+    (o.offerAc ? ' checked' : '') +
+    '> With AC ₹</label><input type="number" data-field="priceAc" min="0" value="' +
+    o.priceAc +
+    '"' +
+    (o.offerAc ? '' : ' disabled') +
+    '></div>' +
+    '<div class="ac-usage"' +
+    (o.offerAc ? '' : ' hidden') +
+    '>' +
+    '<p class="lbl" style="margin-top:0">AC usage (With AC package)</p>' +
+    '<p class="sub" style="margin:0 0 8px">Type how many AC hours are included in your price. Customers do not enter this number — they see what you set.</p>' +
+    '<label class="radio-row"><input type="radio" name="acMode_' +
+    esc(o.id) +
+    '" value="full"' +
+    (acFull ? ' checked' : '') +
+    '> AC for full hall window</label>' +
+    '<label class="radio-row"><input type="radio" name="acMode_' +
+    esc(o.id) +
+    '" value="limited"' +
+    (!acFull ? ' checked' : '') +
+    '> AC for part of the hall window</label>' +
+    '<div class="ac-limited-fields"' +
+    (acFull || !o.offerAc ? ' hidden' : '') +
+    '>' +
+    '<div class="fld ac-hours-shared"><label>AC hours included in With AC price</label><input type="number" data-field="acHours" min="0" step="0.5" value="' +
+    (o.acHours || '') +
+    '" placeholder="e.g. 5"><small class="sub">Example: 5 hours AC in a 12-hour hall hire — you type the included hours here.</small></div>' +
+    '<label class="radio-row" style="margin-top:10px"><input type="radio" name="acLimit_' +
+    esc(o.id) +
+    '" value="flexible"' +
+    (isFlexible ? ' checked' : '') +
+    '> <b>Flexible timing</b><br><span class="sub" style="font-weight:600">Customer sees included hours only. They consult your hall management to agree when AC runs (not chosen in the app).</span></label>' +
+    '<label class="radio-row" style="margin-top:8px"><input type="radio" name="acLimit_' +
+    esc(o.id) +
+    '" value="fixed"' +
+    (!isFlexible ? ' checked' : '') +
+    '> <b>Fixed AC schedule</b><br><span class="sub" style="font-weight:600">Same included hours above, plus exact clock times when your hall always runs AC.</span></label>' +
+    '<div class="ac-fixed-fields"' +
+    (isFlexible ? ' hidden' : '') +
+    '><p class="lbl" style="margin:10px 0 6px">Exact AC clock times (with hours included above)</p>' +
+    '<div class="two">' +
+    '<div class="fld"><label>AC from</label><input type="time" data-field="acFrom" value="' +
+    esc(o.acFrom || '') +
+    '"></div>' +
+    '<div class="fld"><label>AC to</label><input type="time" data-field="acTo" value="' +
+    esc(o.acTo || '') +
+    '"></div></div></div></div></div></div></div>'
+  );
+}
+
+function attachSlotPricingHandlers() {
+  const root = el('slotPricing');
+  if (!root) return;
+  root.querySelectorAll('.slot[data-offer-id]').forEach(function (row) {
+    const id = row.getAttribute('data-offer-id');
+    function refresh() {
+      const enabled = row.querySelector('[data-field=enabled]').checked;
+      row.classList.toggle('slot-disabled', !enabled);
+      const body = row.querySelector('.slot-body');
+      if (body) body.style.display = enabled ? 'block' : 'none';
+      const offerAc = row.querySelector('[data-field=offerAc]').checked;
+      const offerNoAc = row.querySelector('[data-field=offerNoAc]').checked;
+      const acWrap = row.querySelector('.ac-usage');
+      if (acWrap) acWrap.hidden = !offerAc;
+      const noIn = row.querySelector('[data-field=priceNoAc]');
+      const acIn = row.querySelector('[data-field=priceAc]');
+      if (noIn) noIn.disabled = !offerNoAc;
+      if (acIn) acIn.disabled = !offerAc;
+      const limited = row.querySelector('input[name=acMode_' + id + '][value=limited]');
+      const limWrap = row.querySelector('.ac-limited-fields');
+      if (limWrap && limited) limWrap.hidden = !offerAc || !limited.checked;
+      const limitFixed = row.querySelector('input[name=acLimit_' + id + '][value=fixed]');
+      const fixedWrap = row.querySelector('.ac-fixed-fields');
+      const useFixed = limitFixed && limitFixed.checked;
+      if (fixedWrap) fixedWrap.hidden = !offerAc || !limited || !limited.checked || !useFixed;
+    }
+    row.querySelectorAll('input').forEach(function (inp) {
+      inp.addEventListener('change', refresh);
+    });
+    refresh();
+  });
+}
+
+function validateSlotOffers() {
+  ensureSlotOffers();
+  const enabled = state.slotOffers.filter(function (o) {
+    return o.enabled;
+  });
+  if (!enabled.length) {
+    toast('Enable at least one time slot (Morning, Evening, or Full Day).');
+    return false;
+  }
+  for (let i = 0; i < enabled.length; i++) {
+    const o = enabled[i];
+    if (!o.offerNoAc && !o.offerAc) {
+      toast(o.label + ': turn on Without AC and/or With AC pricing.');
+      return false;
+    }
+    if (o.offerAc && o.acMode === 'limited') {
+      if (!o.acHours) {
+        toast(o.label + ': enter AC hours included in the With AC price (e.g. 5).');
+        return false;
+      }
+      if (o.acLimitKind === 'fixed' && (!o.acFrom || !o.acTo)) {
+        toast(o.label + ': fixed schedule needs AC from and AC to times as well as included hours.');
+        return false;
+      }
+    }
+  }
+  return true;
+}
+
 function renderPkg3() {
   renderPkgSteps(3);
+  ensureSlotOffers();
   el('slotPricing').innerHTML =
-    SLOTS.map((sl) => {
-      const p = state.prices[sl.id];
-      return `<div class="slot"><h3>${esc(sl.label)} <span style="font-weight:600;color:var(--mut);font-size:12px">(${esc(
-        sl.time,
-      )})</span></h3><div class="two">
-      <div class="fld"><label>Without AC (₹)</label><input type="number" data-slot="${sl.id}" data-ac="noAc" value="${p.noAc}"></div>
-      <div class="fld"><label>With AC (₹)</label><input type="number" data-slot="${sl.id}" data-ac="ac" value="${p.ac}"></div></div></div>`;
-    }).join('') +
-    `<div class="slot"><h3>Additional Hours Charge</h3><div class="two">
-      <div class="fld"><label>Without AC / hour</label><input type="number" id="extraNoAc" value="${state.prices.extraNoAc}"></div>
-      <div class="fld"><label>With AC / hour</label><input type="number" id="extraAc" value="${state.prices.extraAc}"></div></div></div>`;
+    state.slotOffers.map(renderSlotOfferRow).join('') +
+    '<div class="slot"><h3>Additional hours charge</h3><p class="sub" style="margin:0 0 10px">If a booking runs longer than the slot window.</p><div class="two">' +
+    '<div class="fld"><label>Without AC / hour</label><input type="number" id="extraNoAc" value="' +
+    (state.prices.extraNoAc || 0) +
+    '"></div>' +
+    '<div class="fld"><label>With AC / hour</label><input type="number" id="extraAc" value="' +
+    (state.prices.extraAc || 0) +
+    '"></div></div></div>';
+  attachSlotPricingHandlers();
 }
 
 function capturePkg3() {
-  el('slotPricing').querySelectorAll('[data-slot]').forEach((inp) => {
-    state.prices[inp.getAttribute('data-slot')][inp.getAttribute('data-ac')] = +inp.value || 0;
+  ensureSlotOffers();
+  const root = el('slotPricing');
+  if (!root) return;
+  root.querySelectorAll('.slot[data-offer-id]').forEach(function (row) {
+    const id = row.getAttribute('data-offer-id');
+    const o = state.slotOffers.find(function (x) {
+      return x.id === id;
+    });
+    if (!o) return;
+    o.enabled = !!row.querySelector('[data-field=enabled]').checked;
+    o.hallFrom = row.querySelector('[data-field=hallFrom]').value || '09:00';
+    o.hallTo = row.querySelector('[data-field=hallTo]').value || '17:00';
+    o.offerNoAc = !!row.querySelector('[data-field=offerNoAc]').checked;
+    o.offerAc = !!row.querySelector('[data-field=offerAc]').checked;
+    o.priceNoAc = +row.querySelector('[data-field=priceNoAc]').value || 0;
+    o.priceAc = +row.querySelector('[data-field=priceAc]').value || 0;
+    const modeEl = row.querySelector('input[name=acMode_' + id + ']:checked');
+    o.acMode = modeEl && modeEl.value === 'limited' ? 'limited' : 'full';
+    const limitEl = row.querySelector('input[name=acLimit_' + id + ']:checked');
+    o.acLimitKind = limitEl && limitEl.value === 'fixed' ? 'fixed' : 'flexible';
+    o.acHours = +row.querySelector('[data-field=acHours]').value || 0;
+    if (o.acLimitKind === 'fixed') {
+      o.acFrom = row.querySelector('[data-field=acFrom]').value || '';
+      o.acTo = row.querySelector('[data-field=acTo]').value || '';
+    } else {
+      o.acFrom = '';
+      o.acTo = '';
+    }
+    if (!state.prices[o.id]) state.prices[o.id] = {};
+    state.prices[o.id].noAc = o.priceNoAc;
+    state.prices[o.id].ac = o.priceAc;
   });
   state.prices.extraNoAc = +(el('extraNoAc') && el('extraNoAc').value) || 0;
   state.prices.extraAc = +(el('extraAc') && el('extraAc').value) || 0;
@@ -526,19 +1124,78 @@ function capturePkg3() {
 
 function renderPkg4() {
   renderPkgSteps(4);
+  ensurePolicyRules();
   const p = state.payment;
-  el('payPolicy').innerHTML = `
-    <p class="lbl">ADVANCE PAYMENT</p>
-    <label class="radio-row"><input type="radio" name="adv" value="fixed"${p.advanceType === 'fixed' ? ' checked' : ''}> Fixed amount</label>
-    <div class="fld"><input type="number" id="advFixed" value="${p.advanceFixed}"></div>
-    <label class="radio-row"><input type="radio" name="adv" value="pct"${p.advanceType === 'pct' ? ' checked' : ''}> Percentage of total</label>
-    <div class="fld"><input type="number" id="advPct" value="${p.advancePct}"> %</div>
-    <p class="lbl">FULL PAYMENT DUE</p>
-    <div class="fld"><label>Days before event</label><input type="number" id="fullDue" value="${p.fullDueDays}"></div>
-    <p class="lbl">CANCELLATION POLICY</p>
-    <table class="cancel-table"><tr><th>If cancelled before</th><th>Deduct</th></tr>
-    ${state.cancelRules.map((r) => `<tr><td>${esc(r.days)}</td><td>${r.pct}%</td></tr>`).join('')}
-    </table>`;
+  const tab = pkg4PolicyTab === 'reschedule' ? 'reschedule' : 'cancel';
+  const cancelOn = tab === 'cancel';
+  el('payPolicy').innerHTML =
+    '<p class="lbl">ADVANCE PAYMENT</p>' +
+    '<label class="radio-row"><input type="radio" name="adv" value="fixed"' +
+    (p.advanceType === 'fixed' ? ' checked' : '') +
+    '> Fixed amount</label>' +
+    '<div class="fld"><input type="number" id="advFixed" value="' +
+    p.advanceFixed +
+    '"></div>' +
+    '<label class="radio-row"><input type="radio" name="adv" value="pct"' +
+    (p.advanceType === 'pct' ? ' checked' : '') +
+    '> Percentage of total</label>' +
+    '<div class="fld"><input type="number" id="advPct" value="' +
+    p.advancePct +
+    '"> %</div>' +
+    '<p class="lbl">FULL PAYMENT DUE</p>' +
+    '<div class="fld"><label>Days before event</label><input type="number" id="fullDue" value="' +
+    p.fullDueDays +
+    '"></div>' +
+    '<hr style="border:0;border-top:1px solid var(--line);margin:20px 0">' +
+    '<h2 style="margin:0 0 4px;font-size:17px">Cancellation &amp; Rescheduling Policy</h2>' +
+    '<p class="sub" style="margin:0 0 12px">Set deduction % by days before the event (from advance). Default tiers shown — remove ✕ or use + Add tier. Cancellation and rescheduling lists are separate.</p>' +
+    '<div class="policy-tabs">' +
+    '<button type="button" class="' +
+    (cancelOn ? 'on' : '') +
+    '" id="policyTabCancel">Cancellation Policy</button>' +
+    '<button type="button" class="' +
+    (!cancelOn ? 'on' : '') +
+    '" id="policyTabResched">Rescheduling Policy</button></div>' +
+    (cancelOn
+      ? '<div class="policy-banner cancel"><span aria-hidden="true">ℹ️</span><span>Enter the deduction percentage for <b>cancellations</b>. This will be deducted from the advance amount.</span></div>' +
+        policyRulesHtml('cancel') +
+        '<div class="fld" style="margin-top:14px"><label>Additional notes (shown to customers)</label>' +
+        '<textarea id="cancelPolicyNote" rows="3" placeholder="e.g. Refund balance after deduction within 7 working days.">' +
+        esc(state.cancelPolicyNote) +
+        '</textarea></div>'
+      : '<div class="policy-banner resched"><span aria-hidden="true">ℹ️</span><span>Enter the deduction percentage for <b>rescheduling</b>. This will be deducted from the advance amount.</span></div>' +
+        policyRulesHtml('reschedule') +
+        '<div class="fld" style="margin-top:14px"><label>Additional notes (shown to customers)</label>' +
+        '<textarea id="reschedulePolicyNote" rows="3" placeholder="e.g. New date must be within 6 months; one free reschedule if 30+ days notice.">' +
+        esc(state.reschedulePolicyNote) +
+        '</textarea></div>');
+  attachPolicyRowHandlers();
+  const tc = el('policyTabCancel');
+  const tr = el('policyTabResched');
+  if (tc) {
+    tc.onclick = function () {
+      capturePolicyRulesFromDom();
+      capturePkg4PaymentOnly();
+      pkg4PolicyTab = 'cancel';
+      renderPkg4();
+    };
+  }
+  if (tr) {
+    tr.onclick = function () {
+      capturePolicyRulesFromDom();
+      capturePkg4PaymentOnly();
+      pkg4PolicyTab = 'reschedule';
+      renderPkg4();
+    };
+  }
+}
+
+function capturePkg4PaymentOnly() {
+  const adv = document.querySelector('input[name=adv]:checked');
+  state.payment.advanceType = adv && adv.value ? adv.value : 'fixed';
+  if (el('advFixed')) state.payment.advanceFixed = +el('advFixed').value || 0;
+  if (el('advPct')) state.payment.advancePct = +el('advPct').value || 0;
+  if (el('fullDue')) state.payment.fullDueDays = +el('fullDue').value || 7;
 }
 
 function capturePkg2() {
@@ -546,18 +1203,15 @@ function capturePkg2() {
   state.capacity = {
     seat: +el('seatCap').value || 0,
     dine: +el('dineCap').value || 0,
-    car: +el('parkCar').value || 0,
-    bike: +el('parkBike').value || 0,
+    car: state.capacity.car,
+    bike: state.capacity.bike,
     rooms: +el('rooms').value || 0,
   };
 }
 
 function capturePkg4() {
-  const adv = document.querySelector('input[name=adv]:checked');
-  state.payment.advanceType = adv && adv.value ? adv.value : 'fixed';
-  state.payment.advanceFixed = +el('advFixed').value || 0;
-  state.payment.advancePct = +el('advPct').value || 0;
-  state.payment.fullDueDays = +el('fullDue').value || 7;
+  capturePolicyRulesFromDom();
+  capturePkg4PaymentOnly();
 }
 
 function renderPkg5() {
@@ -579,16 +1233,21 @@ function renderPkg5() {
           ? ' · Hall: <b>' + esc(customerHallName()) + '</b>'
           : ' · <span class="sub">No separate hall name</span>'
       }</p>
-      <p class="sub">Seating ${state.capacity.seat} · Dining ${state.capacity.dine} · Parking ${state.capacity.car} cars</p>
+      <p class="sub">Seating ${state.capacity.seat} · Dining ${state.capacity.dine}</p>
+      <p class="sub">Parking: 🚗 ${state.commonParking.car} cars · 🏍 ${state.commonParking.bike} bikes (shared — edit on Halls page)</p>
       <p class="sub" style="margin-top:8px"><b>Catering &amp; decoration (on your profile — add-ons, not in hall slot rent):</b><br>${cateringReviewLines()
         .map((line) => esc(line))
         .join('<br>')}</p></div>
     <div class="sum"><div class="hd"><b>Pricing &amp; Time Slots</b><button type="button" class="see" data-to="pkg3">Edit</button></div>
-      <p class="sub">Morning ₹${state.prices.morning.noAc.toLocaleString('en-IN')} / ₹${state.prices.morning.ac.toLocaleString(
-    'en-IN',
-  )} (AC)</p></div>
-    <div class="sum"><div class="hd"><b>Payment &amp; Cancellation</b><button type="button" class="see" data-to="pkg4">Edit</button></div>
-      <p class="sub">Advance ₹${state.payment.advanceFixed.toLocaleString('en-IN')} · Full due ${state.payment.fullDueDays} days before</p></div>`;
+      ${slotReviewLines()
+        .map(function (line) {
+          return '<p class="sub">' + esc(line) + '</p>';
+        })
+        .join('')}</div>
+    <div class="sum"><div class="hd"><b>Payment &amp; Policies</b><button type="button" class="see" data-to="pkg4">Edit</button></div>
+      <p class="sub">Advance ₹${state.payment.advanceFixed.toLocaleString('en-IN')} · Full due ${state.payment.fullDueDays} days before</p>
+      <p class="sub" style="margin-top:8px"><b>Cancellation</b> (from advance)<br>${esc(policySummaryLines(state.cancelRules, state.cancelPolicyNote))}</p>
+      <p class="sub" style="margin-top:8px"><b>Rescheduling</b> (from advance)<br>${esc(policySummaryLines(state.rescheduleRules, state.reschedulePolicyNote))}</p></div>`;
   el('pkgReview').querySelectorAll('[data-to]').forEach((b) => {
     b.onclick = () => {
       show(b.getAttribute('data-to'));
@@ -600,6 +1259,8 @@ function renderPkg5() {
   });
   el('savePkg').onclick = () => {
     capturePkg2();
+    capturePkg3();
+    capturePkg4();
     savePkg();
     renderManageHeader();
     toast('Package saved on this device.');
@@ -697,6 +1358,7 @@ function bindOwnerEvents() {
       }
       if (id === 'pkg4') {
         capturePkg3();
+        if (!validateSlotOffers()) return;
         renderPkg4();
       }
       if (id === 'pkg5') {
@@ -713,17 +1375,6 @@ function bindOwnerEvents() {
       savePkg();
       toast('Booking settings saved.');
       show('manage');
-    };
-  }
-  const saveHall = el('saveHallName');
-  if (saveHall) {
-    saveHall.onclick = () => {
-      captureNameFields();
-      syncActiveHallFromState();
-      savePkg();
-      renderManageHeader();
-      renderHallCards();
-      toast('Saved — customers see business name' + (customerHallName() ? ' and hall name ' + customerHallName() : ' only') + '.');
     };
   }
   const editPark = el('editParkingBtn');
@@ -780,6 +1431,7 @@ function bindOwnerEvents() {
         useHallName: false,
         hallName: '',
         requests: 0,
+        hallActive: true,
       });
       state.activeHallId = id;
       state.useHallName = false;
@@ -805,12 +1457,10 @@ function bindOwnerEvents() {
     setupSave.onclick = function () {
       const count = Math.max(1, +(el('hallCountInput') && el('hallCountInput').value) || 1);
       state.plannedHallCount = count;
-      if (count > 1) {
-        state.commonParking = {
-          car: +(el('setupParkCar') && el('setupParkCar').value) || 0,
-          bike: +(el('setupParkBike') && el('setupParkBike').value) || 0,
-        };
-      }
+      state.commonParking = {
+        car: +(el('setupParkCar') && el('setupParkCar').value) || 0,
+        bike: +(el('setupParkBike') && el('setupParkBike').value) || 0,
+      };
       initHallsFromSetup(count);
       state.hallSetupComplete = true;
       savePkg();
@@ -823,6 +1473,10 @@ function bindOwnerEvents() {
   if (saveNewHall) {
     saveNewHall.onclick = function () {
       captureNameFields();
+      if (state.useHallName && !String(state.hallName || '').trim()) {
+        toast('Enter a hall name or turn off the checkbox.');
+        return;
+      }
       syncActiveHallFromState();
       state.openedFromAddHall = false;
       savePkg();
@@ -846,17 +1500,69 @@ function bindOwnerEvents() {
       show('hallBizHome');
     };
   }
-  ['manageUseHallName', 'useHallNamePkg'].forEach(function (id) {
+  ['manageUseHallName'].forEach(function (id) {
     const cb = el(id);
     if (!cb) return;
     cb.onchange = function () {
       state.useHallName = cb.checked;
-      if (!state.useHallName) state.hallName = '';
+      if (!state.useHallName) {
+        state.hallName = '';
+        if (el('addHallNameInput')) el('addHallNameInput').value = '';
+      }
+      if (el('manageHallNameWrap')) el('manageHallNameWrap').hidden = !cb.checked;
       syncHallNameUi();
-      var other = id === 'manageUseHallName' ? el('useHallNamePkg') : el('manageUseHallName');
-      if (other) other.checked = state.useHallName;
     };
   });
+  const pkgCbOnly = el('useHallNamePkg');
+  if (pkgCbOnly) {
+    pkgCbOnly.onchange = function () {
+      state.useHallName = pkgCbOnly.checked;
+      if (!state.useHallName) state.hallName = '';
+      syncHallNameUi();
+      const other = el('manageUseHallName');
+      if (other) other.checked = state.useHallName;
+    };
+  }
+  const editManageName = el('editManageName');
+  if (editManageName) {
+    editManageName.onclick = function () {
+      if (!hallListingOn(activeHall())) return;
+      snapshotManageNameFromHall();
+      manageNameEditing = true;
+      syncHallNameUi();
+      renderManageNameMode();
+    };
+  }
+  const saveManageName = el('saveManageName');
+  if (saveManageName) {
+    saveManageName.onclick = function () {
+      if (!hallListingOn(activeHall())) return;
+      const manageCb = el('manageUseHallName');
+      if (manageCb) state.useHallName = manageCb.checked;
+      if (!state.useHallName) {
+        state.hallName = '';
+      } else if (el('manageHallNameEdit')) {
+        state.hallName = el('manageHallNameEdit').value.trim();
+        if (!state.hallName) {
+          toast('Enter a hall name.');
+          return;
+        }
+      }
+      syncActiveHallFromState();
+      savePkg();
+      renderManageHeader();
+      renderHallCards();
+      finishManageNameEdit();
+      toast('Hall name saved.');
+    };
+  }
+  const cancelManageName = el('cancelManageName');
+  if (cancelManageName) {
+    cancelManageName.onclick = function () {
+      applyManageNameSnapshot();
+      toast('Changes discarded.');
+    };
+  }
 }
 
 function boot() {
@@ -865,12 +1571,18 @@ function boot() {
       throw new Error('Missing #manageMenu — download DOWNLOAD-gixbee-hall-owner.html (full file).');
     }
     loadPkg();
+    ensureSlotOffers();
+    ensurePolicyRules();
     if (!state.commonParking) state.commonParking = { car: 80, bike: 120 };
     if (state.hallSetupComplete && (!state.halls || !state.halls.length)) {
-      initHallsFromSetup(state.plannedHallCount || 2);
+      /* halls stay empty until owner uses + Add hall */
     }
     if (!state.halls) state.halls = [];
+    normalizeHallRecords();
     if (!state.activeHallId && state.halls[0]) state.activeHallId = state.halls[0].id;
+    if (state.activeHallId && !state.halls.find(function (h) { return h.id === state.activeHallId; })) {
+      state.activeHallId = state.halls[0] ? state.halls[0].id : '';
+    }
     if (state.halls.length) loadActiveHallIntoState();
     renderSetupScreen();
     renderHallBizHome();
