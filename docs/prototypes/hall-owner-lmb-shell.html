@@ -45,7 +45,6 @@ h2{margin:0 0 6px;font-size:18px}
 .mico-ops{background:#DBEAFE;color:#1D4ED8;font-size:18px}
 .mico-del{background:#FEE2E2;color:var(--rd);font-size:18px}
 .mico-photo{background:#FCE7F3;color:#BE185D;font-size:18px}
-.mico-port{background:#FFEDD5;color:#C2410C;font-size:18px}
 .mico-req .m-dot{position:absolute;top:8px;right:8px;width:8px;height:8px;border-radius:50%;background:var(--rd);border:2px solid #FEF9C3}
 .media-cover{height:160px;border-radius:14px;background:linear-gradient(145deg,#64748B,#94A3B8);margin-bottom:12px;position:relative;overflow:hidden;border:1px solid var(--line)}
 .media-cover .cover-lbl{position:absolute;left:10px;bottom:10px;background:rgba(15,23,42,.72);color:#fff;font-size:11px;font-weight:800;padding:4px 10px;border-radius:99px}
@@ -53,12 +52,6 @@ h2{margin:0 0 6px;font-size:18px}
 .photo-tile{aspect-ratio:1.15;border-radius:12px;background:linear-gradient(145deg,#CBD5E1,#64748B);position:relative;border:1px solid var(--line)}
 .photo-tile .tile-cap{position:absolute;left:8px;right:8px;bottom:8px;font-size:10px;font-weight:800;color:#fff;text-shadow:0 1px 2px rgba(0,0,0,.45)}
 .photo-tile.add{display:grid;place-items:center;background:#F8FAFC;border:2px dashed #BFDBFE;color:#1D4ED8;font-size:12px;font-weight:800;cursor:pointer}
-.portfolio-list{display:flex;flex-direction:column;gap:10px;margin-top:8px}
-.portfolio-row{display:flex;gap:12px;align-items:center;padding:12px;border:1px solid var(--line);border-radius:14px;background:#fff;cursor:pointer;text-align:left;width:100%}
-.portfolio-thumb{width:64px;height:64px;border-radius:10px;background:linear-gradient(145deg,#E2E8F0,#64748B);flex-shrink:0}
-.portfolio-row b{display:block;font-size:14px;color:var(--navy);margin-bottom:2px}
-.portfolio-row span{font-size:12px;color:var(--mut);font-weight:600}
-.media-panel[hidden]{display:none!important}
 .manage-biz-card{background:#EFF6FF;border:1px solid #BFDBFE;border-radius:16px;padding:14px;margin-bottom:14px}
 .manage-biz-photo{height:118px;border-radius:12px;margin-bottom:12px;background:linear-gradient(145deg,#64748B 0%,#94A3B8 40%,#CBD5E1 100%) center/cover}
 .manage-field-lbl{font-size:13px;font-weight:800;color:var(--navy);margin:0 0 6px}
@@ -602,26 +595,16 @@ textarea{width:100%;border:1px solid var(--line);border-radius:10px;padding:10px
       <div class="biz-title">List My Business</div>
       <span class="manage-pill">Manage &amp; grow</span>
     </div>
-    <p class="sub" style="margin:8px 0 0" id="hallMediaSub">Hall photos and portfolio</p>
+    <p class="sub" style="margin:8px 0 0" id="hallMediaSub">Hall photos</p>
   </div>
   <div class="pad" style="padding-top:8px">
-    <div class="cal-tabs" id="hallMediaTabs">
-      <button type="button" class="pick on" id="tabHallPhotos" data-media-tab="photos">Photos</button>
-      <button type="button" class="pick" id="tabHallPortfolio" data-media-tab="portfolio">Portfolio</button>
-    </div>
-    <div class="media-panel" id="hallPhotosPanel">
-      <p class="lbl" style="margin-top:0">COVER PHOTO</p>
-      <div class="media-cover" id="hallCoverPhoto"><span class="cover-lbl">Cover</span></div>
-      <button type="button" class="btn ghost" id="changeCoverBtn" style="margin-bottom:4px">Change cover</button>
-      <p class="lbl">GALLERY</p>
-      <p class="sub" style="margin-top:-4px">Shown on your hall profile and search cards.</p>
-      <div class="photo-grid" id="hallPhotoGrid"></div>
-    </div>
-    <div class="media-panel" id="hallPortfolioPanel" hidden>
-      <p class="lbl" style="margin-top:0">EVENT PORTFOLIO</p>
-      <p class="sub" style="margin-top:-4px">Group photos by event so customers see your past work.</p>
-      <div class="portfolio-list" id="hallPortfolioList"></div>
-    </div>
+    <h2 style="margin:0 0 4px;font-size:20px;color:var(--navy)">Photos</h2>
+    <p class="lbl" style="margin-top:12px">COVER PHOTO</p>
+    <div class="media-cover" id="hallCoverPhoto"><span class="cover-lbl">Cover</span></div>
+    <button type="button" class="btn ghost" id="changeCoverBtn" style="margin-bottom:4px">Change cover</button>
+    <p class="lbl">GALLERY</p>
+    <p class="sub" style="margin-top:-4px">Shown on your hall profile and search cards.</p>
+    <div class="photo-grid" id="hallPhotoGrid"></div>
   </div>
   <div class="cta"><button type="button" class="btn" id="hallMediaAddBtn">Add photo</button></div>
 </section>

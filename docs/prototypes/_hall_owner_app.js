@@ -1,4 +1,4 @@
-const OWNER_BUILD = '2026-09-28-hall-owner-v39';
+const OWNER_BUILD = '2026-09-28-hall-owner-v40';
 const DEMO_FILE = 'hall-owner-lmb-master.html';
 const PKG_KEY = 'GIXBEE_HALL_PACKAGE';
 
@@ -134,7 +134,6 @@ const MANAGE_MENU = [
   { id: 'ownerReq', title: 'Booking requests', sub: 'Accept or decline customer bookings', dot: true, icon: '💬', ico: 'req' },
   { id: 'operators', title: 'Operators', sub: 'Who can manage this hall', icon: '👥', ico: 'ops' },
   { id: 'hallPhotos', title: 'Photos', sub: 'Cover image and gallery for this hall', icon: '📷', ico: 'photo' },
-  { id: 'hallPortfolio', title: 'Portfolio', sub: 'Past events and highlight albums', icon: '🖼', ico: 'port' },
   { id: 'deleteHall', title: 'Delete hall', sub: 'Remove this hall from the business', cls: 'danger', icon: '🗑', ico: 'del' },
 ];
 
@@ -184,7 +183,6 @@ const state = {
 
 let calPendingBlock = null;
 let calPendingUnblock = null;
-let hallMediaTab = 'photos';
 
 const MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
@@ -1682,11 +1680,7 @@ function renderManage() {
         return;
       }
       if (id === 'hallPhotos') {
-        openHallMediaScreen('photos');
-        return;
-      }
-      if (id === 'hallPortfolio') {
-        openHallMediaScreen('portfolio');
+        openHallMediaScreen();
         return;
       }
       if (id === 'placeholder') {
@@ -2169,13 +2163,6 @@ function defaultHallGallery() {
   ];
 }
 
-function defaultHallPortfolioItems() {
-  return [
-    { id: 'pf1', title: 'Wedding reception', date: 'Dec 2025', count: 12 },
-    { id: 'pf2', title: 'Corporate conference', date: 'Oct 2025', count: 8 },
-  ];
-}
-
 function getHallGallery(h) {
   if (!h) return [];
   if (!h.hallGallery || !h.hallGallery.length) {
@@ -2184,32 +2171,6 @@ function getHallGallery(h) {
     });
   }
   return h.hallGallery;
-}
-
-function getHallPortfolio(h) {
-  if (!h) return [];
-  if (!h.hallPortfolio || !h.hallPortfolio.length) {
-    h.hallPortfolio = defaultHallPortfolioItems().map(function (p) {
-      return JSON.parse(JSON.stringify(p));
-    });
-  }
-  return h.hallPortfolio;
-}
-
-function setHallMediaTab(tab) {
-  hallMediaTab = tab === 'portfolio' ? 'portfolio' : 'photos';
-  const photosBtn = el('tabHallPhotos');
-  const portBtn = el('tabHallPortfolio');
-  if (photosBtn) photosBtn.classList.toggle('on', hallMediaTab === 'photos');
-  if (portBtn) portBtn.classList.toggle('on', hallMediaTab === 'portfolio');
-  const photosPanel = el('hallPhotosPanel');
-  const portPanel = el('hallPortfolioPanel');
-  if (photosPanel) photosPanel.hidden = hallMediaTab !== 'photos';
-  if (portPanel) portPanel.hidden = hallMediaTab !== 'portfolio';
-  const addBtn = el('hallMediaAddBtn');
-  if (addBtn) {
-    addBtn.textContent = hallMediaTab === 'portfolio' ? 'Add portfolio album' : 'Add photo';
-  }
 }
 
 function renderHallMedia() {
@@ -2249,35 +2210,9 @@ function renderHallMedia() {
       };
     }
   }
-  const list = el('hallPortfolioList');
-  const items = getHallPortfolio(h);
-  if (list) {
-    list.innerHTML = items
-      .map(function (p) {
-        return (
-          '<button type="button" class="portfolio-row" data-pf-id="' +
-          esc(p.id) +
-          '"><span class="portfolio-thumb" aria-hidden="true"></span><span><b>' +
-          esc(p.title) +
-          '</b><span>' +
-          esc(p.date) +
-          ' · ' +
-          esc(String(p.count)) +
-          ' photos</span></span></button>'
-        );
-      })
-      .join('');
-    list.querySelectorAll('[data-pf-id]').forEach(function (btn) {
-      btn.onclick = function () {
-        toast('Portfolio album — full viewer in production app.');
-      };
-    });
-  }
-  setHallMediaTab(hallMediaTab);
 }
 
-function openHallMediaScreen(tab) {
-  hallMediaTab = tab === 'portfolio' ? 'portfolio' : 'photos';
+function openHallMediaScreen() {
   renderHallMedia();
   show('hallMedia');
   syncHallInactiveLock();
@@ -2291,13 +2226,6 @@ function bindHallMediaUi() {
       syncHallInactiveLock();
     };
   }
-  ['tabHallPhotos', 'tabHallPortfolio'].forEach(function (id) {
-    const btn = el(id);
-    if (!btn) return;
-    btn.onclick = function () {
-      setHallMediaTab(btn.getAttribute('data-media-tab'));
-    };
-  });
   const changeCover = el('changeCoverBtn');
   if (changeCover) {
     changeCover.onclick = function () {
@@ -2313,20 +2241,7 @@ function bindHallMediaUi() {
     addBtn.onclick = function () {
       const h = activeHall();
       if (!hallListingOn(h)) {
-        toast('Turn this hall On to add media.');
-        return;
-      }
-      if (hallMediaTab === 'portfolio') {
-        const items = getHallPortfolio(h);
-        items.unshift({
-          id: 'pf' + Date.now(),
-          title: 'New event album',
-          date: 'Draft',
-          count: 0,
-        });
-        savePkg();
-        renderHallMedia();
-        toast('Portfolio album added.');
+        toast('Turn this hall On to add photos.');
         return;
       }
       const gallery = getHallGallery(h);
