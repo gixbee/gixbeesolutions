@@ -1,4 +1,4 @@
-const OWNER_BUILD = '2026-09-28-hall-owner-v4';
+const OWNER_BUILD = '2026-09-28-hall-owner-v5';
 const DEMO_FILE = 'hall-owner-lmb-master.html';
 const PKG_KEY = 'GIXBEE_HALL_PACKAGE';
 
@@ -85,6 +85,26 @@ function savePkg() {
   localStorage.setItem(PKG_KEY, JSON.stringify(state));
 }
 
+function yesNoLabel(key, yes) {
+  const labels = {
+    inHouse: yes ? 'In-house catering offered (separate charge)' : 'No in-house catering',
+    outside: yes ? 'Outside catering allowed' : 'Outside catering not allowed',
+    decorHall: yes ? 'Hall decoration service offered (separate charge)' : 'No hall decoration service',
+    decorOutside: yes ? 'Outside decorators allowed' : 'Outside decorators not allowed',
+  };
+  return labels[key] || (yes ? 'Yes' : 'No');
+}
+
+function cateringReviewLines() {
+  const c = state.catering;
+  return [
+    yesNoLabel('inHouse', c.inHouse === 'yes'),
+    yesNoLabel('outside', c.outside === 'yes'),
+    yesNoLabel('decorHall', c.decorHall === 'yes'),
+    yesNoLabel('decorOutside', c.decorOutside === 'yes'),
+  ];
+}
+
 function renderManage() {
   el('manageMenu').innerHTML = MANAGE_MENU.map((m) => {
     const cls = m.cls ? ' ' + m.cls.split(' ').join(' ') : '';
@@ -165,8 +185,9 @@ function renderPkg2() {
       renderPkg2();
     };
   });
-  const q = (key, label) =>
-    `<p style="font-weight:800;font-size:13px;margin:12px 0 6px">${label}</p>` +
+  const q = (key, label, hint) =>
+    `<div style="margin:12px 0 8px"><p style="font-weight:800;font-size:13px;margin:0 0 4px">${label}</p>` +
+    (hint ? `<p class="sub" style="margin:0 0 6px">${hint}</p>` : '') +
     ['yes', 'no']
       .map(
         (v) =>
@@ -174,12 +195,21 @@ function renderPkg2() {
             state.catering[key] === v ? ' checked' : ''
           }> ${v === 'yes' ? 'Yes' : 'No'}</label>`,
       )
-      .join('');
+      .join('') +
+    '</div>';
   el('caterDec').innerHTML =
-    q('inHouse', 'In-house catering available?') +
-    q('outside', 'Outside catering allowed?') +
-    q('decorHall', 'Decoration provided by hall?') +
-    q('decorOutside', 'Outside decorators allowed?');
+    q(
+      'inHouse',
+      'In-house catering available?',
+      'If Yes, customers see that you can arrange catering. Price is quoted separately — not part of the hall package in step 3.',
+    ) +
+    q('outside', 'Outside catering allowed?', 'If Yes, customers may bring their own caterer.') +
+    q(
+      'decorHall',
+      'Decoration provided by hall?',
+      'If Yes, customers see that you offer décor help. Decoration is an add-on — not included in hall rent.',
+    ) +
+    q('decorOutside', 'Outside decorators allowed?', 'If Yes, customers may hire their own decorators.');
   el('caterDec').querySelectorAll('input[type=radio]').forEach((r) => {
     r.onchange = () => {
       state.catering[r.name] = r.value;
@@ -260,7 +290,10 @@ function renderPkg5() {
       .map((t) => `<span class="tag">${esc(t)}</span>`)
       .join('')}</div></div>
     <div class="sum"><div class="hd"><b>Venue Details</b><button type="button" class="see" data-to="pkg2">Edit</button></div>
-      <p class="sub">Seating ${state.capacity.seat} · Dining ${state.capacity.dine} · Parking ${state.capacity.car} cars</p></div>
+      <p class="sub">Seating ${state.capacity.seat} · Dining ${state.capacity.dine} · Parking ${state.capacity.car} cars</p>
+      <p class="sub" style="margin-top:8px"><b>Catering &amp; decoration (shown to customers — not in hall package):</b><br>${cateringReviewLines()
+        .map((line) => esc(line))
+        .join('<br>')}</p></div>
     <div class="sum"><div class="hd"><b>Pricing &amp; Time Slots</b><button type="button" class="see" data-to="pkg3">Edit</button></div>
       <p class="sub">Morning ₹${state.prices.morning.noAc.toLocaleString('en-IN')} / ₹${state.prices.morning.ac.toLocaleString(
     'en-IN',
