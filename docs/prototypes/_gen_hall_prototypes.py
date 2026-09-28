@@ -22,6 +22,14 @@ def build(shell_name: str, js_name: str, out_name: str) -> None:
     out = shell[:i] + block + shell[j + len("<!-- APP_END -->") :]
     if "<script src=" in out:
         raise SystemExit(f"{out_name} must not use external script src")
+    banner = (
+        f"<!-- GIXBEE HALL DEMO — single self-contained file (CSS + HTML + JS inlined). "
+        f"Open {out_name} only; do not open {shell_name} until regenerated. -->\n"
+    )
+    if not out.startswith("<!DOCTYPE"):
+        out = banner + out
+    else:
+        out = out.replace("<!DOCTYPE html>", "<!DOCTYPE html>\n" + banner, 1)
     (DIR / out_name).write_text(out, encoding="utf-8")
     print(f"Wrote {out_name} ({(DIR / out_name).stat().st_size // 1024} KB)")
 

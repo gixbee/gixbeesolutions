@@ -1,26 +1,19 @@
 Gixbee Hall / Service booking — HTML prototypes (2 files)
 ============================================================
 
-OWNER (List My Business — hall service unit)
-  docs/prototypes/hall-owner-lmb-master.html
+IMPORTANT — USE THESE SINGLE FILES (all JavaScript is INSIDE the .html):
 
-  Manage menu: Calendar, Booking Requests, Packages & Pricing, etc.
-  Full 5-step Packages wizard (event categories → venue → slots/prices →
-  payment/cancellation → review). Calendar stub + Booking Settings.
-  Demo storage: localStorage key GIXBEE_HALL_PACKAGE
+  OWNER:    docs/prototypes/hall-owner-lmb-master.html
+  CUSTOMER: docs/prototypes/hall-customer-book-master.html
 
-CUSTOMER (Find a hall)
-  docs/prototypes/hall-customer-book-master.html
+Do NOT open for demo:
+  hall-owner-lmb-shell.html
+  hall-customer-book-shell.html
+  _hall_owner_app.js / _hall_customer_app.js
+Those are source files for developers; run the generator to refresh the master HTML.
 
-  Search filters → results → hall detail → date/time + AC → booking enquiry
-  → request sent.
-
-Regenerate both from shell + JS:
+Regenerate (inlines JS into both masters):
   python3 docs/prototypes/_gen_hall_prototypes.py
-
-Source (edit these, then regenerate):
-  hall-owner-lmb-shell.html + _hall_owner_app.js
-  hall-customer-book-shell.html + _hall_customer_app.js
 
 Serve locally:
   cd docs/prototypes && python3 -m http.server 8765
