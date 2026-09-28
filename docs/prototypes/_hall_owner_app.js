@@ -1,4 +1,4 @@
-const OWNER_BUILD = '2026-09-28-hall-owner-v27';
+const OWNER_BUILD = '2026-09-28-hall-owner-v28';
 const DEMO_FILE = 'hall-owner-lmb-master.html';
 const PKG_KEY = 'GIXBEE_HALL_PACKAGE';
 
@@ -637,10 +637,21 @@ function renderHallCards() {
   }
   root.innerHTML = state.halls
     .map(function (h) {
-      const sub = h.useHallName && h.hallName ? esc(h.hallName) : esc(state.businessName);
+      const ownName = !!(h.useHallName && String(h.hallName || '').trim());
       const req = h.requests
         ? '<span class="pill bad" style="margin-left:6px">' + h.requests + ' requests</span>'
         : '';
+      let hallSubHtml = '';
+      if (ownName) {
+        hallSubHtml =
+          '<div class="hall-sub"><span class="hall-sub-kicker">Hall</span> <span class="hall-sub-name">' +
+          esc(h.hallName.trim()) +
+          '</span>' +
+          req +
+          '</div>';
+      } else if (req) {
+        hallSubHtml = '<div class="hall-sub">' + req + '</div>';
+      }
       const on = hallListingOn(h);
       return (
         '<div class="hall-card' +
