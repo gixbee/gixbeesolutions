@@ -1,4 +1,4 @@
-const OWNER_BUILD = '2026-09-28-hall-owner-v10';
+const OWNER_BUILD = '2026-09-28-hall-owner-v11';
 const DEMO_FILE = 'hall-owner-lmb-master.html';
 const PKG_KEY = 'GIXBEE_HALL_PACKAGE';
 
@@ -38,11 +38,11 @@ const state = {
   useHallName: true,
   hallName: 'Tiffle',
   activeHallId: 'h1',
+  hallSetupComplete: false,
+  plannedHallCount: 2,
+  parkingEditOpen: false,
   commonParking: { car: 80, bike: 120 },
-  halls: [
-    { id: 'h1', useHallName: true, hallName: 'Tiffle', requests: 2 },
-    { id: 'h2', useHallName: true, hallName: 'Koinonia', requests: 0 },
-  ],
+  halls: [],
   events: ['wedding', 'reception', 'engagement', 'birthday', 'baptism', 'anniversary', 'religious'],
   facilities: ['AC', 'Generator / Power Backup', 'Chairs & Tables', 'Stage', 'Sound System', 'Restrooms'],
   catering: { inHouse: 'yes', outside: 'yes', decorHall: 'no', decorOutside: 'yes' },
@@ -183,10 +183,79 @@ function syncActiveHallFromState() {
 }
 
 function parkingDisplay() {
-  if (state.halls.length > 1) {
+  const multi = state.plannedHallCount > 1 || state.halls.length > 1;
+  if (multi) {
     return { title: 'Common parking (shared by all halls)', car: state.commonParking.car, bike: state.commonParking.bike, common: true };
   }
   return { title: 'Parking (this hall)', car: state.capacity.car, bike: state.capacity.bike, common: false };
+}
+
+function setHallBizDisabled(disabled) {
+  state.parkingEditOpen = !!disabled;
+  const zone = el('hallBizDisabledZone');
+  if (zone) zone.classList.toggle('biz-home-disabled', !!disabled);
+  const addBtn = el('addHallBtn');
+  if (addBtn) addBtn.disabled = !!disabled;
+}
+
+function renderSetupScreen() {
+  const t = el('setupBizTitle');
+  if (t) t.textContent = state.businessName;
+  const countIn = el('hallCountInput');
+  if (countIn) countIn.value = state.plannedHallCount || 2;
+  const sec = el('setupParkingSection');
+  const saveBtn = el('setupSave');
+  if (sec) sec.hidden = true;
+  if (saveBtn) saveBtn.disabled = true;
+}
+
+function revealSetupParking() {
+  const count = Math.max(1, +(el('hallCountInput') && el('hallCountInput').value) || 1);
+  state.plannedHallCount = count;
+  const sec = el('setupParkingSection');
+  const lbl = el('setupParkingLbl');
+  const hint = el('setupParkingHint');
+  if (sec) sec.hidden = false;
+  if (lbl) lbl.textContent = count > 1 ? 'COMMON PARKING' : 'PARKING (SINGLE HALL)';
+  if (hint) {
+    hint.textContent =
+      count > 1
+        ? 'One shared car and bike count for all ' + count + ' halls.'
+        : 'Fixed parking for this hall only (not shared).';
+  }
+  if (count > 1) {
+    if (el('setupParkCar')) el('setupParkCar').value = state.commonParking.car;
+    if (el('setupParkBike')) el('setupParkBike').value = state.commonParking.bike;
+  } else {
+    if (el('setupParkCar')) el('setupParkCar').value = state.capacity.car;
+    if (el('setupParkBike')) el('setupParkBike').value = state.capacity.bike;
+  }
+  if (el('setupSave')) el('setupSave').disabled = false;
+}
+
+function initHallsFromSetup(count) {
+  state.halls = [];
+  for (var i = 0; i < count; i++) {
+    state.halls.push({
+      id: 'h' + (i + 1),
+      useHallName: i === 0 && state.useHallName,
+      hallName: i === 0 ? state.hallName : '',
+      requests: i === 0 ? 2 : 0,
+    });
+  }
+  state.activeHallId = state.halls[0].id;
+  loadActiveHallIntoState();
+}
+
+function openHallFromDashboard() {
+  state.businessName = 'Vijaya Convention Center';
+  if (state.hallSetupComplete && state.halls.length) {
+    renderHallBizHome();
+    show('hallBizHome');
+    return;
+  }
+  renderSetupScreen();
+  show('hallSetup');
 }
 
 function renderParkingSummary() {
@@ -202,6 +271,7 @@ function renderParkingSummary() {
     if (carIn) carIn.value = p.car;
     if (bikeIn) bikeIn.value = p.bike;
   }
+  setHallBizDisabled(editWrap && !editWrap.hidden);
 }
 
 function renderHallCards() {
@@ -238,6 +308,7 @@ function renderHallCards() {
     .join('');
   root.querySelectorAll('[data-hall-act]').forEach(function (btn) {
     btn.onclick = function () {
+      if (state.parkingEditOpen) return;
       state.activeHallId = btn.getAttribute('data-hid');
       loadActiveHallIntoState();
       const act = btn.getAttribute('data-hall-act');
@@ -633,13 +704,13 @@ function bindOwnerEvents() {
   if (editPark) {
     editPark.onclick = function () {
       const wrap = el('parkingEditWrap');
-      if (!wrap) return;
-      wrap.hidden = !wrap.hidden;
-      if (!wrap.hidden) {
-        const p = parkingDisplay();
-        if (el('editParkCar')) el('editParkCar').value = p.car;
-        if (el('editParkBike')) el('editParkBike').value = p.bike;
-      }
+      if (!wrap || state.parkingEditOpen) return;
+      wrap.hidden = false;
+      const p = parkingDisplay();
+      if (el('editParkCar')) el('editParkCar').value = p.car;
+      if (el('editParkBike')) el('editParkBike').value = p.bike;
+      editPark.disabled = true;
+      setHallBizDisabled(true);
     };
   }
   const savePark = el('saveParkingBtn');
@@ -657,6 +728,8 @@ function bindOwnerEvents() {
       }
       savePkg();
       if (el('parkingEditWrap')) el('parkingEditWrap').hidden = true;
+      if (el('editParkingBtn')) el('editParkingBtn').disabled = false;
+      setHallBizDisabled(false);
       renderParkingSummary();
       renderHallBizHome();
       toast('Parking updated.');
@@ -666,27 +739,62 @@ function bindOwnerEvents() {
   if (cancelPark) {
     cancelPark.onclick = function () {
       if (el('parkingEditWrap')) el('parkingEditWrap').hidden = true;
+      if (el('editParkingBtn')) el('editParkingBtn').disabled = false;
+      setHallBizDisabled(false);
       renderParkingSummary();
     };
   }
   const addHall = el('addHallBtn');
   if (addHall) {
     addHall.onclick = function () {
-      const n = state.halls.length + 1;
+      if (state.parkingEditOpen) return;
       state.halls.push({
-        id: 'h' + n + Date.now(),
+        id: 'h' + Date.now(),
         useHallName: false,
         hallName: '',
         requests: 0,
       });
-      if (state.halls.length === 2 && state.commonParking.car === 80) {
-        /* demo: keep common parking visible once multi-hall */
-      }
+      state.plannedHallCount = state.halls.length;
       savePkg();
       renderHallBizHome();
-      toast('Hall added — set optional name and open Manage for pricing.');
+      toast('Hall added — open Manage to set pricing.');
     };
   }
+  const dashHall = el('dashHallManage');
+  if (dashHall) dashHall.onclick = function () { openHallFromDashboard(); };
+  const dashCat = el('dashCatManage');
+  if (dashCat) dashCat.onclick = function () { toast('Catering manage — separate module in full app.'); };
+  const dashRent = el('dashRentManage');
+  if (dashRent) dashRent.onclick = function () { toast('Rental manage — separate module in full app.'); };
+  const hallCountOk = el('hallCountOk');
+  if (hallCountOk) hallCountOk.onclick = function () { revealSetupParking(); };
+  const setupCancel = el('setupCancel');
+  if (setupCancel) setupCancel.onclick = function () { show('lmbDashboard'); };
+  const setupBack = el('setupBackDash');
+  if (setupBack) setupBack.onclick = function () { show('lmbDashboard'); };
+  const setupSave = el('setupSave');
+  if (setupSave) {
+    setupSave.onclick = function () {
+      const count = Math.max(1, +(el('hallCountInput') && el('hallCountInput').value) || 1);
+      const car = +(el('setupParkCar') && el('setupParkCar').value) || 0;
+      const bike = +(el('setupParkBike') && el('setupParkBike').value) || 0;
+      state.plannedHallCount = count;
+      if (count > 1) {
+        state.commonParking = { car: car, bike: bike };
+      } else {
+        state.capacity.car = car;
+        state.capacity.bike = bike;
+      }
+      initHallsFromSetup(count);
+      state.hallSetupComplete = true;
+      savePkg();
+      renderHallBizHome();
+      show('hallBizHome');
+      toast('Saved — add hall names and open Manage on each hall.');
+    };
+  }
+  const bizHomeToDash = el('bizHomeToDash');
+  if (bizHomeToDash) bizHomeToDash.onclick = function () { show('lmbDashboard'); };
   const backBiz = el('backToBizHalls');
   if (backBiz) {
     backBiz.onclick = function () {
@@ -716,20 +824,22 @@ function boot() {
       throw new Error('Missing #manageMenu — download DOWNLOAD-gixbee-hall-owner.html (full file).');
     }
     loadPkg();
-    if (!state.halls || !state.halls.length) {
-      state.halls = [{ id: 'h1', useHallName: state.useHallName, hallName: state.hallName, requests: 0 }];
+    if (!state.commonParking) state.commonParking = { car: 80, bike: 120 };
+    if (state.hallSetupComplete && (!state.halls || !state.halls.length)) {
+      initHallsFromSetup(state.plannedHallCount || 2);
     }
-    if (!state.commonParking) state.commonParking = { car: state.capacity.car, bike: state.capacity.bike };
-    if (!state.activeHallId) state.activeHallId = state.halls[0].id;
-    loadActiveHallIntoState();
+    if (!state.halls) state.halls = [];
+    if (!state.activeHallId && state.halls[0]) state.activeHallId = state.halls[0].id;
+    if (state.halls.length) loadActiveHallIntoState();
+    renderSetupScreen();
     renderHallBizHome();
     renderManage();
     bindOwnerEvents();
-    show('hallBizHome');
+    show('lmbDashboard');
     var tag = el('buildTag');
     if (tag) {
       tag.textContent =
-        'Working demo ' + OWNER_BUILD + ' — if menu is empty, open via Chrome or run: python3 -m http.server 8765';
+        'Working demo ' + OWNER_BUILD + ' — tap Vijaya Convention Center → Manage';
     }
     var err = el('bootError');
     if (err) err.hidden = true;
