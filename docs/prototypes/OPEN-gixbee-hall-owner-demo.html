@@ -100,7 +100,19 @@ h2{margin:0 0 6px;font-size:18px}
 .policy-pct-inp{width:64px;border:1px solid var(--line);border-radius:10px;padding:10px;text-align:center;font-weight:800;margin-right:4px}
 textarea{width:100%;border:1px solid var(--line);border-radius:10px;padding:10px;font:inherit;resize:vertical}
 .hall-card{border:1px solid var(--line);border-radius:14px;padding:12px;margin-bottom:10px;background:#fff}
+.hall-card-top{display:flex;justify-content:space-between;align-items:flex-start;gap:10px}
+.hall-card-inactive{border-color:#E5E7EB;background:#FAFAFA}
 .hall-card .hall-sub{font-size:12px;color:var(--mut);margin:6px 0 10px}
+.hall-toggle{display:inline-flex;align-items:center;gap:8px;font-size:11px;font-weight:800;cursor:pointer;flex-shrink:0;margin-top:2px}
+.hall-toggle input{position:absolute;opacity:0;width:0;height:0;pointer-events:none}
+.hall-toggle-ui{width:46px;height:26px;background:#D1D5DB;border-radius:999px;position:relative;transition:background .2s;flex-shrink:0}
+.hall-toggle-ui::after{content:'';position:absolute;top:3px;left:3px;width:20px;height:20px;background:#fff;border-radius:50%;box-shadow:0 1px 2px rgba(0,0,0,.15);transition:transform .2s}
+.hall-toggle input:checked + .hall-toggle-ui{background:#2563EB}
+.hall-toggle input:checked + .hall-toggle-ui::after{transform:translateX(20px)}
+.hall-toggle-lbl{min-width:22px;color:#374151}
+.hall-inactive-banner{padding:10px 12px;border-radius:10px;background:#FEF3C7;color:#92400E;font-size:13px;line-height:1.45;margin-bottom:12px}
+.hall-inactive-lock input:not([readonly]):not([data-hall-toggle]),.hall-inactive-lock textarea,.hall-inactive-lock select,.hall-inactive-lock .menu .mrow,.hall-inactive-lock .cta .btn,.hall-inactive-lock #manageSaveFooter,.hall-inactive-lock .btn:not(.back):not(#backToBizHalls),.hall-inactive-lock label.ev,.hall-inactive-lock .policy-row input,.hall-inactive-lock .slot input{pointer-events:none;opacity:.45}
+.hall-inactive-lock #backToBizHalls,.hall-inactive-lock .top .back{pointer-events:auto!important;opacity:1!important}
 .hall-actions{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px}
 .hall-actions .pick{padding:10px 4px;font-size:11px}
 .biz-dash-card{border:1px solid var(--line);border-radius:16px;padding:14px;margin-bottom:14px;background:#fff;box-shadow:0 2px 8px rgba(15,23,42,.04)}
@@ -257,6 +269,7 @@ textarea{width:100%;border:1px solid var(--line);border-radius:10px;padding:10px
     <p class="hint" id="buildTagManage" style="margin:8px 0 0;font-size:11px">Hall manage — pricing, calendar, requests</p>
   </div>
   <div class="pad" style="padding-top:4px">
+    <div id="hallInactiveBanner" hidden class="hall-inactive-banner">This hall is <b>Off</b> on your Halls list. Turn the toggle <b>On</b> on the hall card to edit names, pricing, and calendar again.</div>
     <p class="lbl">NAMES (CUSTOMER VIEW)</p>
     <div class="fld"><label>Business name</label><input id="bizNameRo" type="text" readonly style="background:#F9FAFB;color:#374151" value="Vijaya Convention Center"><small class="sub">Set when you listed on Gixbee — cannot be changed here. Shown on search cards.</small></div>
     <label class="radio-row" style="margin:8px 0"><input type="checkbox" id="manageUseHallName" checked> This hall has its own name (optional)</label>
@@ -372,7 +385,7 @@ textarea{width:100%;border:1px solid var(--line);border-radius:10px;padding:10px
 </div></div>
 <!-- APP_START -->
 <script>
-const OWNER_BUILD = '2026-09-28-hall-owner-v21';
+const OWNER_BUILD = '2026-09-28-hall-owner-v22';
 const DEMO_FILE = 'hall-owner-lmb-master.html';
 const PKG_KEY = 'GIXBEE_HALL_PACKAGE';
 
@@ -700,6 +713,7 @@ function loadPkg() {
   normalizeNames();
   ensureSlotOffers();
   ensurePolicyRules();
+  normalizeHallRecords();
 }
 function normalizeNames() {
   if (!state.businessName) state.businessName = 'Vijaya Convention Center';
@@ -768,6 +782,9 @@ function renderManageHeader() {
   const bizPkg = el('bizNamePkg');
   if (bizPkg) bizPkg.value = state.businessName;
   syncHallNameUi();
+  const banner = el('hallInactiveBanner');
+  if (banner) banner.hidden = hallListingOn(activeHall());
+  syncHallInactiveLock();
 }
 function savePkg() {
   localStorage.setItem(PKG_KEY, JSON.stringify(state));
@@ -776,6 +793,30 @@ function savePkg() {
 
 function activeHall() {
   return state.halls.find(function (h) { return h.id === state.activeHallId; }) || state.halls[0];
+}
+
+function hallListingOn(h) {
+  if (!h) return true;
+  return h.hallActive !== false;
+}
+
+function normalizeHallRecords() {
+  if (!state.halls) state.halls = [];
+  state.halls.forEach(function (h) {
+    if (h.hallActive == null) h.hallActive = true;
+  });
+}
+
+function syncHallInactiveLock() {
+  const locked = activeHall() && !hallListingOn(activeHall());
+  ['manage', 'pkg1', 'pkg2', 'pkg3', 'pkg4', 'pkg5', 'calendar', 'ownerReq', 'bookSettings', 'placeholder'].forEach(
+    function (id) {
+      const scr = el(id);
+      if (scr) scr.classList.toggle('hall-inactive-lock', !!locked);
+    },
+  );
+  const banner = el('hallInactiveBanner');
+  if (banner) banner.hidden = !locked;
 }
 
 function loadActiveHallIntoState() {
@@ -904,22 +945,40 @@ function renderHallCards() {
       const req = h.requests
         ? '<span class="pill bad" style="margin-left:6px">' + h.requests + ' requests</span>'
         : '';
+      const on = hallListingOn(h);
       return (
-        '<div class="hall-card">' +
-        '<b>' +
+        '<div class="hall-card' +
+        (on ? '' : ' hall-card-inactive') +
+        '" data-hid="' +
+        esc(h.id) +
+        '">' +
+        '<div class="hall-card-top">' +
+        '<div><b>' +
         esc(state.businessName) +
         '</b>' +
         '<div class="hall-sub">Hall: ' +
         sub +
         req +
-        '</div>' +
+        '</div></div>' +
+        '<label class="hall-toggle" title="When off, this hall cannot be edited or booked">' +
+        '<input type="checkbox" data-hall-toggle data-hid="' +
+        esc(h.id) +
+        '"' +
+        (on ? ' checked' : '') +
+        '><span class="hall-toggle-ui"></span><span class="hall-toggle-lbl">' +
+        (on ? 'On' : 'Off') +
+        '</span></label></div>' +
         '<div class="hall-actions">' +
         '<button type="button" class="pick" data-hall-act="cal" data-hid="' +
         h.id +
-        '">Calendar</button>' +
+        '"' +
+        (on ? '' : ' disabled') +
+        '>Calendar</button>' +
         '<button type="button" class="pick" data-hall-act="req" data-hid="' +
         h.id +
-        '">Requests</button>' +
+        '"' +
+        (on ? '' : ' disabled') +
+        '>Requests</button>' +
         '<button type="button" class="pick on" data-hall-act="mgr" data-hid="' +
         h.id +
         '">Manage</button>' +
@@ -927,10 +986,35 @@ function renderHallCards() {
       );
     })
     .join('');
+  root.querySelectorAll('[data-hall-toggle]').forEach(function (inp) {
+    inp.onchange = function (e) {
+      e.stopPropagation();
+      const id = inp.getAttribute('data-hid');
+      const h = state.halls.find(function (x) {
+        return x.id === id;
+      });
+      if (!h) return;
+      h.hallActive = !!inp.checked;
+      savePkg();
+      renderHallCards();
+      if (state.activeHallId === id) syncHallInactiveLock();
+    };
+  });
   root.querySelectorAll('[data-hall-act]').forEach(function (btn) {
     btn.onclick = function () {
       if (state.parkingEditOpen) return;
-      state.activeHallId = btn.getAttribute('data-hid');
+      const hid = btn.getAttribute('data-hid');
+      const h = state.halls.find(function (x) {
+        return x.id === hid;
+      });
+      if (!hallListingOn(h)) {
+        const actEarly = btn.getAttribute('data-hall-act');
+        if (actEarly !== 'mgr') {
+          toast('Turn this hall On using the toggle to use Calendar or Requests.');
+          return;
+        }
+      }
+      state.activeHallId = hid;
       loadActiveHallIntoState();
       const act = btn.getAttribute('data-hall-act');
       if (act === 'mgr') {
@@ -940,11 +1024,13 @@ function renderHallCards() {
       if (act === 'cal') {
         renderCalendar();
         show('calendar');
+        syncHallInactiveLock();
         return;
       }
       if (act === 'req') {
         renderOwnerReq();
         show('ownerReq');
+        syncHallInactiveLock();
       }
     };
   });
@@ -964,6 +1050,7 @@ function openManageScreen(fromAddHall) {
   renderManageHeader();
   renderManage();
   show('manage');
+  syncHallInactiveLock();
 }
 
 function renderManageFooter() {
@@ -1001,6 +1088,10 @@ function renderManage() {
   }).join('');
   el('manageMenu').querySelectorAll('[data-go]').forEach((btn) => {
     btn.onclick = () => {
+      if (!hallListingOn(activeHall())) {
+        toast('This hall is Off. Turn it On from the Halls list to edit.');
+        return;
+      }
       const id = btn.getAttribute('data-go');
       if (id === 'deleteHall') {
         if (state.halls.length <= 1) {
@@ -1026,8 +1117,10 @@ function renderManage() {
       if (id === 'pkg1') renderPkg1();
       if (id === 'calendar') renderCalendar();
       if (id === 'ownerReq') renderOwnerReq();
+      syncHallInactiveLock();
     };
   });
+  syncHallInactiveLock();
 }
 
 function renderPkgSteps(n) {
@@ -1626,6 +1719,7 @@ function bindOwnerEvents() {
         useHallName: false,
         hallName: '',
         requests: 0,
+        hallActive: true,
       });
       state.activeHallId = id;
       state.useHallName = false;
@@ -1716,6 +1810,7 @@ function boot() {
       initHallsFromSetup(state.plannedHallCount || 2);
     }
     if (!state.halls) state.halls = [];
+    normalizeHallRecords();
     if (!state.activeHallId && state.halls[0]) state.activeHallId = state.halls[0].id;
     if (state.halls.length) loadActiveHallIntoState();
     renderSetupScreen();

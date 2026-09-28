@@ -1,4 +1,4 @@
-const OWNER_BUILD = '2026-09-28-hall-owner-v21';
+const OWNER_BUILD = '2026-09-28-hall-owner-v22';
 const DEMO_FILE = 'hall-owner-lmb-master.html';
 const PKG_KEY = 'GIXBEE_HALL_PACKAGE';
 
@@ -326,6 +326,7 @@ function loadPkg() {
   normalizeNames();
   ensureSlotOffers();
   ensurePolicyRules();
+  normalizeHallRecords();
 }
 function normalizeNames() {
   if (!state.businessName) state.businessName = 'Vijaya Convention Center';
@@ -394,6 +395,9 @@ function renderManageHeader() {
   const bizPkg = el('bizNamePkg');
   if (bizPkg) bizPkg.value = state.businessName;
   syncHallNameUi();
+  const banner = el('hallInactiveBanner');
+  if (banner) banner.hidden = hallListingOn(activeHall());
+  syncHallInactiveLock();
 }
 function savePkg() {
   localStorage.setItem(PKG_KEY, JSON.stringify(state));
@@ -402,6 +406,30 @@ function savePkg() {
 
 function activeHall() {
   return state.halls.find(function (h) { return h.id === state.activeHallId; }) || state.halls[0];
+}
+
+function hallListingOn(h) {
+  if (!h) return true;
+  return h.hallActive !== false;
+}
+
+function normalizeHallRecords() {
+  if (!state.halls) state.halls = [];
+  state.halls.forEach(function (h) {
+    if (h.hallActive == null) h.hallActive = true;
+  });
+}
+
+function syncHallInactiveLock() {
+  const locked = activeHall() && !hallListingOn(activeHall());
+  ['manage', 'pkg1', 'pkg2', 'pkg3', 'pkg4', 'pkg5', 'calendar', 'ownerReq', 'bookSettings', 'placeholder'].forEach(
+    function (id) {
+      const scr = el(id);
+      if (scr) scr.classList.toggle('hall-inactive-lock', !!locked);
+    },
+  );
+  const banner = el('hallInactiveBanner');
+  if (banner) banner.hidden = !locked;
 }
 
 function loadActiveHallIntoState() {
@@ -530,22 +558,40 @@ function renderHallCards() {
       const req = h.requests
         ? '<span class="pill bad" style="margin-left:6px">' + h.requests + ' requests</span>'
         : '';
+      const on = hallListingOn(h);
       return (
-        '<div class="hall-card">' +
-        '<b>' +
+        '<div class="hall-card' +
+        (on ? '' : ' hall-card-inactive') +
+        '" data-hid="' +
+        esc(h.id) +
+        '">' +
+        '<div class="hall-card-top">' +
+        '<div><b>' +
         esc(state.businessName) +
         '</b>' +
         '<div class="hall-sub">Hall: ' +
         sub +
         req +
-        '</div>' +
+        '</div></div>' +
+        '<label class="hall-toggle" title="When off, this hall cannot be edited or booked">' +
+        '<input type="checkbox" data-hall-toggle data-hid="' +
+        esc(h.id) +
+        '"' +
+        (on ? ' checked' : '') +
+        '><span class="hall-toggle-ui"></span><span class="hall-toggle-lbl">' +
+        (on ? 'On' : 'Off') +
+        '</span></label></div>' +
         '<div class="hall-actions">' +
         '<button type="button" class="pick" data-hall-act="cal" data-hid="' +
         h.id +
-        '">Calendar</button>' +
+        '"' +
+        (on ? '' : ' disabled') +
+        '>Calendar</button>' +
         '<button type="button" class="pick" data-hall-act="req" data-hid="' +
         h.id +
-        '">Requests</button>' +
+        '"' +
+        (on ? '' : ' disabled') +
+        '>Requests</button>' +
         '<button type="button" class="pick on" data-hall-act="mgr" data-hid="' +
         h.id +
         '">Manage</button>' +
@@ -553,10 +599,35 @@ function renderHallCards() {
       );
     })
     .join('');
+  root.querySelectorAll('[data-hall-toggle]').forEach(function (inp) {
+    inp.onchange = function (e) {
+      e.stopPropagation();
+      const id = inp.getAttribute('data-hid');
+      const h = state.halls.find(function (x) {
+        return x.id === id;
+      });
+      if (!h) return;
+      h.hallActive = !!inp.checked;
+      savePkg();
+      renderHallCards();
+      if (state.activeHallId === id) syncHallInactiveLock();
+    };
+  });
   root.querySelectorAll('[data-hall-act]').forEach(function (btn) {
     btn.onclick = function () {
       if (state.parkingEditOpen) return;
-      state.activeHallId = btn.getAttribute('data-hid');
+      const hid = btn.getAttribute('data-hid');
+      const h = state.halls.find(function (x) {
+        return x.id === hid;
+      });
+      if (!hallListingOn(h)) {
+        const actEarly = btn.getAttribute('data-hall-act');
+        if (actEarly !== 'mgr') {
+          toast('Turn this hall On using the toggle to use Calendar or Requests.');
+          return;
+        }
+      }
+      state.activeHallId = hid;
       loadActiveHallIntoState();
       const act = btn.getAttribute('data-hall-act');
       if (act === 'mgr') {
@@ -566,11 +637,13 @@ function renderHallCards() {
       if (act === 'cal') {
         renderCalendar();
         show('calendar');
+        syncHallInactiveLock();
         return;
       }
       if (act === 'req') {
         renderOwnerReq();
         show('ownerReq');
+        syncHallInactiveLock();
       }
     };
   });
@@ -590,6 +663,7 @@ function openManageScreen(fromAddHall) {
   renderManageHeader();
   renderManage();
   show('manage');
+  syncHallInactiveLock();
 }
 
 function renderManageFooter() {
@@ -627,6 +701,10 @@ function renderManage() {
   }).join('');
   el('manageMenu').querySelectorAll('[data-go]').forEach((btn) => {
     btn.onclick = () => {
+      if (!hallListingOn(activeHall())) {
+        toast('This hall is Off. Turn it On from the Halls list to edit.');
+        return;
+      }
       const id = btn.getAttribute('data-go');
       if (id === 'deleteHall') {
         if (state.halls.length <= 1) {
@@ -652,8 +730,10 @@ function renderManage() {
       if (id === 'pkg1') renderPkg1();
       if (id === 'calendar') renderCalendar();
       if (id === 'ownerReq') renderOwnerReq();
+      syncHallInactiveLock();
     };
   });
+  syncHallInactiveLock();
 }
 
 function renderPkgSteps(n) {
@@ -1252,6 +1332,7 @@ function bindOwnerEvents() {
         useHallName: false,
         hallName: '',
         requests: 0,
+        hallActive: true,
       });
       state.activeHallId = id;
       state.useHallName = false;
@@ -1342,6 +1423,7 @@ function boot() {
       initHallsFromSetup(state.plannedHallCount || 2);
     }
     if (!state.halls) state.halls = [];
+    normalizeHallRecords();
     if (!state.activeHallId && state.halls[0]) state.activeHallId = state.halls[0].id;
     if (state.halls.length) loadActiveHallIntoState();
     renderSetupScreen();
