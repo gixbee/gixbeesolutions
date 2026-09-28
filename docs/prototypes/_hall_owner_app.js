@@ -1,4 +1,4 @@
-const OWNER_BUILD = '2026-09-28-hall-owner-v40';
+const OWNER_BUILD = '2026-09-28-hall-owner-v41';
 const DEMO_FILE = 'hall-owner-lmb-master.html';
 const PKG_KEY = 'GIXBEE_HALL_PACKAGE';
 
@@ -15,6 +15,16 @@ const EVENT_CATS = [
 ];
 
 const FACILITIES = ['AC', 'Generator / Power Backup', 'Chairs & Tables', 'Stage', 'Sound System', 'Restrooms', 'Lift'];
+
+const FACILITY_ICONS = {
+  AC: '❄',
+  'Generator / Power Backup': '⚡',
+  'Chairs & Tables': '🪑',
+  Stage: '🎭',
+  'Sound System': '🔊',
+  Restrooms: '🚻',
+  Lift: '🛗',
+};
 
 const SLOT_TEMPLATES = [
   { id: 'morning', label: 'Morning', hallFrom: '10:00', hallTo: '15:00' },
@@ -139,6 +149,7 @@ const MANAGE_MENU = [
 
 const state = {
   businessName: 'Vijaya Convention Center',
+  businessLocation: 'Kottayam, Kerala',
   useHallName: false,
   hallName: '',
   activeHallId: '',
@@ -1118,7 +1129,7 @@ function customerHallName() {
 function syncHallNameUi() {
   const show = !!state.useHallName;
   const pkgWrap = el('hallNamePkgWrap');
-  if (pkgWrap) pkgWrap.style.display = show ? 'block' : 'none';
+  if (pkgWrap) pkgWrap.hidden = !show;
   const pkgCb = el('useHallNamePkg');
   if (pkgCb) pkgCb.checked = show;
   const pkgIn = el('hallNameInput');
@@ -1229,6 +1240,10 @@ function renderManageHeader() {
   if (bizDisplay) bizDisplay.textContent = state.businessName;
   const bizPkg = el('bizNamePkg');
   if (bizPkg) bizPkg.value = state.businessName;
+  const pkg2Title = el('pkg2BizTitle');
+  if (pkg2Title) pkg2Title.textContent = state.businessName;
+  const pkg2Loc = el('pkg2BizLoc');
+  if (pkg2Loc) pkg2Loc.textContent = state.businessLocation || 'Kottayam, Kerala';
   syncHallNameUi();
   const banner = el('hallInactiveBanner');
   if (banner) banner.hidden = hallListingOn(activeHall());
@@ -1744,12 +1759,24 @@ function renderPkg2() {
   el('seatCap').value = state.capacity.seat;
   el('dineCap').value = state.capacity.dine;
   el('rooms').value = state.capacity.rooms;
-  el('facGrid').innerHTML = FACILITIES.map(
-    (f) =>
-      `<label class="${state.facilities.includes(f) ? 'on' : ''}"><input type="checkbox" data-fac="${esc(f)}"${
-        state.facilities.includes(f) ? ' checked' : ''
-      }> ${esc(f)}</label>`,
-  ).join('');
+  syncHallNameUi();
+  el('facGrid').innerHTML = FACILITIES.map(function (f) {
+    const on = state.facilities.includes(f);
+    const icon = FACILITY_ICONS[f] || '•';
+    return (
+      '<label class="fac-tile' +
+      (on ? ' on' : '') +
+      '"><input type="checkbox" data-fac="' +
+      esc(f) +
+      '"' +
+      (on ? ' checked' : '') +
+      '><span class="fac-ico" aria-hidden="true">' +
+      icon +
+      '</span><span>' +
+      esc(f) +
+      '</span></label>'
+    );
+  }).join('');
   el('facGrid').querySelectorAll('[data-fac]').forEach((cb) => {
     cb.onchange = () => {
       const f = cb.getAttribute('data-fac');
@@ -1759,34 +1786,38 @@ function renderPkg2() {
       renderPkg2();
     };
   });
-  const q = (key, label, hint) =>
-    `<div style="margin:12px 0 8px"><p style="font-weight:800;font-size:13px;margin:0 0 4px">${label}</p>` +
-    (hint ? `<p class="sub" style="margin:0 0 6px">${hint}</p>` : '') +
-    ['yes', 'no']
-      .map(
-        (v) =>
-          `<label class="radio-row"><input type="radio" name="${key}" value="${v}"${
-            state.catering[key] === v ? ' checked' : ''
-          }> ${v === 'yes' ? 'Yes' : 'No'}</label>`,
-      )
-      .join('') +
-    '</div>';
+  const q = function (key, label) {
+    const yesOn = state.catering[key] === 'yes';
+    const noOn = state.catering[key] === 'no';
+    return (
+      '<div class="cater-q"><p>' +
+      esc(label) +
+      '</p><div class="cater-yn">' +
+      '<label class="' +
+      (yesOn ? 'on' : '') +
+      '"><input type="radio" name="' +
+      key +
+      '" value="yes"' +
+      (yesOn ? ' checked' : '') +
+      '> Yes</label>' +
+      '<label class="' +
+      (noOn ? 'on' : '') +
+      '"><input type="radio" name="' +
+      key +
+      '" value="no"' +
+      (noOn ? ' checked' : '') +
+      '> No</label></div></div>'
+    );
+  };
   el('caterDec').innerHTML =
-    q(
-      'inHouse',
-      'In-house catering available?',
-      'If Yes, customers see that you offer catering. Catering is an add-on — not included in hall rent.',
-    ) +
-    q('outside', 'Outside catering allowed?', 'If Yes, customers may bring their own caterer.') +
-    q(
-      'decorHall',
-      'Decoration provided by hall?',
-      'If Yes, customers see that you offer decoration. Decoration is an add-on — not included in hall rent.',
-    ) +
-    q('decorOutside', 'Outside decorators allowed?', 'If Yes, customers may hire their own decorators.');
+    q('inHouse', 'In-house catering available?') +
+    q('outside', 'Outside catering allowed?') +
+    q('decorHall', 'Decoration provided by hall?') +
+    q('decorOutside', 'Outside decorators allowed?');
   el('caterDec').querySelectorAll('input[type=radio]').forEach((r) => {
     r.onchange = () => {
       state.catering[r.name] = r.value;
+      renderPkg2();
     };
   });
 }
