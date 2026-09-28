@@ -268,7 +268,7 @@ h2{margin:0 0 6px;font-size:18px}
   <div class="top"><button class="back" type="button" data-to="pkg1">←</button><h1>Pricing &amp; Packages</h1><span class="chip-h">2/5</span></div>
   <div class="prog"><div class="bar"><i style="width:40%"></i></div><span class="frac">2/5</span></div>
   <div class="pad">
-    <h2>Venue Details</h2><p class="sub">Hall name and capacity — pricing is in the next step.</p>
+    <h2>Venue Details</h2><p class="sub">Hall name, seating, dining, and facilities. Car and bike parking are set on the Halls page (shared parking).</p>
     <div class="fld"><label>Business name</label><input id="bizNamePkg" type="text" readonly style="background:#F9FAFB;color:#374151"><small class="sub">Cannot be changed — from List My Business.</small></div>
     <label class="radio-row" style="margin:0 0 8px"><input type="checkbox" id="useHallNamePkg" checked> This hall has its own name (optional)</label>
     <div id="hallNamePkgWrap" class="fld">
@@ -277,8 +277,6 @@ h2{margin:0 0 6px;font-size:18px}
     <div class="two">
       <div class="fld"><label>Seating Capacity</label><input id="seatCap" type="number" value="700"><small>guests</small></div>
       <div class="fld"><label>Dining Capacity</label><input id="dineCap" type="number" value="550"><small>guests</small></div>
-      <div class="fld"><label>Parking (Cars)</label><input id="parkCar" type="number" value="50"></div>
-      <div class="fld"><label>Parking (Bikes)</label><input id="parkBike" type="number" value="100"></div>
     </div>
     <div class="fld"><label>Private / Changing Room</label><input id="rooms" type="number" value="2"><small>rooms</small></div>
     <p class="lbl">FACILITIES (SELECT AVAILABLE)</p>
@@ -357,7 +355,7 @@ h2{margin:0 0 6px;font-size:18px}
 </div></div>
 <!-- APP_START -->
 <script>
-const OWNER_BUILD = '2026-09-28-hall-owner-v15';
+const OWNER_BUILD = '2026-09-28-hall-owner-v16';
 const DEMO_FILE = 'hall-owner-lmb-master.html';
 const PKG_KEY = 'GIXBEE_HALL_PACKAGE';
 
@@ -818,8 +816,6 @@ function renderPkg2() {
   renderManageHeader();
   el('seatCap').value = state.capacity.seat;
   el('dineCap').value = state.capacity.dine;
-  el('parkCar').value = state.capacity.car;
-  el('parkBike').value = state.capacity.bike;
   el('rooms').value = state.capacity.rooms;
   el('facGrid').innerHTML = FACILITIES.map(
     (f) =>
@@ -914,8 +910,8 @@ function capturePkg2() {
   state.capacity = {
     seat: +el('seatCap').value || 0,
     dine: +el('dineCap').value || 0,
-    car: +el('parkCar').value || 0,
-    bike: +el('parkBike').value || 0,
+    car: state.capacity.car,
+    bike: state.capacity.bike,
     rooms: +el('rooms').value || 0,
   };
 }
@@ -947,7 +943,8 @@ function renderPkg5() {
           ? ' · Hall: <b>' + esc(customerHallName()) + '</b>'
           : ' · <span class="sub">No separate hall name</span>'
       }</p>
-      <p class="sub">Seating ${state.capacity.seat} · Dining ${state.capacity.dine} · Parking ${state.capacity.car} cars</p>
+      <p class="sub">Seating ${state.capacity.seat} · Dining ${state.capacity.dine}</p>
+      <p class="sub">Parking: 🚗 ${state.commonParking.car} cars · 🏍 ${state.commonParking.bike} bikes (shared — edit on Halls page)</p>
       <p class="sub" style="margin-top:8px"><b>Catering &amp; decoration (on your profile — add-ons, not in hall slot rent):</b><br>${cateringReviewLines()
         .map((line) => esc(line))
         .join('<br>')}</p></div>

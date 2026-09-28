@@ -1,4 +1,4 @@
-const OWNER_BUILD = '2026-09-28-hall-owner-v15';
+const OWNER_BUILD = '2026-09-28-hall-owner-v16';
 const DEMO_FILE = 'hall-owner-lmb-master.html';
 const PKG_KEY = 'GIXBEE_HALL_PACKAGE';
 
@@ -459,8 +459,6 @@ function renderPkg2() {
   renderManageHeader();
   el('seatCap').value = state.capacity.seat;
   el('dineCap').value = state.capacity.dine;
-  el('parkCar').value = state.capacity.car;
-  el('parkBike').value = state.capacity.bike;
   el('rooms').value = state.capacity.rooms;
   el('facGrid').innerHTML = FACILITIES.map(
     (f) =>
@@ -555,8 +553,8 @@ function capturePkg2() {
   state.capacity = {
     seat: +el('seatCap').value || 0,
     dine: +el('dineCap').value || 0,
-    car: +el('parkCar').value || 0,
-    bike: +el('parkBike').value || 0,
+    car: state.capacity.car,
+    bike: state.capacity.bike,
     rooms: +el('rooms').value || 0,
   };
 }
@@ -588,7 +586,8 @@ function renderPkg5() {
           ? ' · Hall: <b>' + esc(customerHallName()) + '</b>'
           : ' · <span class="sub">No separate hall name</span>'
       }</p>
-      <p class="sub">Seating ${state.capacity.seat} · Dining ${state.capacity.dine} · Parking ${state.capacity.car} cars</p>
+      <p class="sub">Seating ${state.capacity.seat} · Dining ${state.capacity.dine}</p>
+      <p class="sub">Parking: 🚗 ${state.commonParking.car} cars · 🏍 ${state.commonParking.bike} bikes (shared — edit on Halls page)</p>
       <p class="sub" style="margin-top:8px"><b>Catering &amp; decoration (on your profile — add-ons, not in hall slot rent):</b><br>${cateringReviewLines()
         .map((line) => esc(line))
         .join('<br>')}</p></div>
