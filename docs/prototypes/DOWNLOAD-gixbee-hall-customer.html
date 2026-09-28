@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- GIXBEE HALL DEMO — single self-contained file (CSS + HTML + JS inlined). Open hall-customer-book-master.html only; do not open hall-customer-book-shell.html until regenerated. -->
+<!-- GIXBEE HALL DEMO — single self-contained file (CSS + HTML + JS inlined). Open hall-customer-book-master.html only; do not open hall-customer-book-shell.html. -->
 
 <html lang="en">
 <head>
@@ -112,7 +112,7 @@ body{margin:0;background:#E8EDF5;font-family:Inter,system-ui,sans-serif;color:va
 </div></div>
 <!-- APP_START -->
 <script>
-const CUSTOMER_BUILD = '2026-09-28-hall-customer-v3';
+const CUSTOMER_BUILD = '2026-09-28-hall-customer-v4';
 const DEMO_FILE = 'hall-customer-book-master.html';
 
 const HALLS = [
@@ -344,7 +344,6 @@ function bindCustomerEvents() {
 
 function bootCustomer() {
   try {
-    window.GIXBEE_HALL_BOOTED = true;
     if (!el('goSearch')) {
       throw new Error('Missing search screen — open ' + DEMO_FILE + ', not the empty shell file.');
     }
@@ -369,35 +368,6 @@ if (document.readyState === 'loading') {
 }
 </script>
 <!-- APP_END -->
-<script>
-(function () {
-  var MASTER = 'hall-customer-book-master.html';
-  var DOWNLOAD = 'DOWNLOAD-gixbee-hall-customer.html';
-  function warn() {
-    if (window.GIXBEE_HALL_BOOTED) return;
-    var box = document.getElementById('bootError');
-    var msg =
-      'This file has no JavaScript (developer shell). Open <b>' +
-      DOWNLOAD +
-      '</b> or <b>' +
-      MASTER +
-      '</b>, then hard-refresh (Ctrl+Shift+R). Regenerate: python3 docs/prototypes/_gen_hall_prototypes.py';
-    if (box) {
-      box.hidden = false;
-      box.innerHTML =
-        '<h1 style="color:#DC2626;font-size:20px">Hall customer demo did not start</h1><p>' + msg + '</p>';
-    } else {
-      alert('Open ' + DOWNLOAD + ' — not the shell file.');
-    }
-  }
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', function () {
-      setTimeout(warn, 200);
-    });
-  } else {
-    setTimeout(warn, 200);
-  }
-})();
-</script>
+
 </body>
 </html>

@@ -1,4 +1,4 @@
-const CUSTOMER_BUILD = '2026-09-28-hall-customer-v3';
+const CUSTOMER_BUILD = '2026-09-28-hall-customer-v4';
 const DEMO_FILE = 'hall-customer-book-master.html';
 
 const HALLS = [
@@ -230,7 +230,6 @@ function bindCustomerEvents() {
 
 function bootCustomer() {
   try {
-    window.GIXBEE_HALL_BOOTED = true;
     if (!el('goSearch')) {
       throw new Error('Missing search screen — open ' + DEMO_FILE + ', not the empty shell file.');
     }

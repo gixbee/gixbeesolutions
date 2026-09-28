@@ -1,4 +1,4 @@
-const OWNER_BUILD = '2026-09-28-hall-owner-v3';
+const OWNER_BUILD = '2026-09-28-hall-owner-v4';
 const DEMO_FILE = 'hall-owner-lmb-master.html';
 const PKG_KEY = 'GIXBEE_HALL_PACKAGE';
 
@@ -395,7 +395,6 @@ function bindOwnerEvents() {
 
 function boot() {
   try {
-    window.GIXBEE_HALL_BOOTED = true;
     if (!el('manageMenu')) {
       throw new Error('Missing #manageMenu — download DOWNLOAD-gixbee-hall-owner.html (full file).');
     }

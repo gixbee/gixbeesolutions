@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- GIXBEE HALL DEMO — single self-contained file (CSS + HTML + JS inlined). Open hall-owner-lmb-master.html only; do not open hall-owner-lmb-shell.html until regenerated. -->
+<!-- GIXBEE HALL DEMO — single self-contained file (CSS + HTML + JS inlined). Open hall-owner-lmb-master.html only; do not open hall-owner-lmb-shell.html. -->
 
 <html lang="en">
 <head>
@@ -201,7 +201,7 @@ h2{margin:0 0 6px;font-size:18px}
 </div></div>
 <!-- APP_START -->
 <script>
-const OWNER_BUILD = '2026-09-28-hall-owner-v3';
+const OWNER_BUILD = '2026-09-28-hall-owner-v4';
 const DEMO_FILE = 'hall-owner-lmb-master.html';
 const PKG_KEY = 'GIXBEE_HALL_PACKAGE';
 
@@ -598,7 +598,6 @@ function bindOwnerEvents() {
 
 function boot() {
   try {
-    window.GIXBEE_HALL_BOOTED = true;
     if (!el('manageMenu')) {
       throw new Error('Missing #manageMenu — download DOWNLOAD-gixbee-hall-owner.html (full file).');
     }
@@ -626,37 +625,6 @@ if (document.readyState === 'loading') {
 
 </script>
 <!-- APP_END -->
-<script>
-(function () {
-  var MASTER = 'hall-owner-lmb-master.html';
-  var DOWNLOAD = 'DOWNLOAD-gixbee-hall-owner.html';
-  function warn() {
-    if (window.GIXBEE_HALL_BOOTED) return;
-    var box = document.getElementById('bootError');
-    var msg =
-      'This file has no JavaScript (developer shell). Open <b>' +
-      DOWNLOAD +
-      '</b> or <b>' +
-      MASTER +
-      '</b>, then hard-refresh (Ctrl+Shift+R). Regenerate: python3 docs/prototypes/_gen_hall_prototypes.py';
-    if (box) {
-      box.hidden = false;
-      box.innerHTML =
-        '<h1 style="color:#DC2626;font-size:20px">Hall owner demo did not start</h1><p>' + msg + '</p>';
-    } else {
-      alert('Open ' + DOWNLOAD + ' — not the shell file.');
-    }
-    var wait = document.getElementById('jsWait');
-    if (wait) wait.textContent = 'Open DOWNLOAD-gixbee-hall-owner.html (see red message).';
-  }
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', function () {
-      setTimeout(warn, 200);
-    });
-  } else {
-    setTimeout(warn, 200);
-  }
-})();
-</script>
+
 </body>
 </html>
