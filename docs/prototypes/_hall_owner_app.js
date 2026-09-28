@@ -1,4 +1,4 @@
-const OWNER_BUILD = '2026-09-28-hall-owner-v30';
+const OWNER_BUILD = '2026-09-28-hall-owner-v31';
 const DEMO_FILE = 'hall-owner-lmb-master.html';
 const PKG_KEY = 'GIXBEE_HALL_PACKAGE';
 
@@ -500,10 +500,23 @@ function hallListingOn(h) {
   return h.hallActive !== false;
 }
 
+function hallPackageSaved(h) {
+  return !!(h && h.packageSaved);
+}
+
+const PKG_SAVE_TOAST = 'Save Price & packages first (complete all steps and tap Save on Review).';
+
+function requireHallPackageSaved(h) {
+  if (hallPackageSaved(h)) return true;
+  toast(PKG_SAVE_TOAST);
+  return false;
+}
+
 function normalizeHallRecords() {
   if (!state.halls) state.halls = [];
   state.halls.forEach(function (h) {
     if (h.hallActive == null) h.hallActive = true;
+    if (h.packageSaved == null) h.packageSaved = false;
   });
 }
 
@@ -662,6 +675,19 @@ function renderHallCards() {
         hallSubHtml = '<div class="hall-sub">' + req + '</div>';
       }
       const on = hallListingOn(h);
+      const pkgOk = hallPackageSaved(h);
+      const calReqBtns = pkgOk
+        ? '<button type="button" class="pick" data-hall-act="cal" data-hid="' +
+          h.id +
+          '"' +
+          (on ? '' : ' disabled') +
+          '>Calendar</button>' +
+          '<button type="button" class="pick" data-hall-act="req" data-hid="' +
+          h.id +
+          '"' +
+          (on ? '' : ' disabled') +
+          '>Requests</button>'
+        : '';
       return (
         '<div class="hall-card' +
         (on ? '' : ' hall-card-inactive') +
@@ -682,18 +708,10 @@ function renderHallCards() {
         '><span class="hall-toggle-ui"></span><span class="hall-toggle-lbl">' +
         (on ? 'On' : 'Off') +
         '</span></label></div>' +
-        '<div class="hall-actions">' +
-        '<button type="button" class="pick" data-hall-act="cal" data-hid="' +
-        h.id +
-        '"' +
-        (on ? '' : ' disabled') +
-        '>Calendar</button>' +
-        '<button type="button" class="pick" data-hall-act="req" data-hid="' +
-        h.id +
-        '"' +
-        (on ? '' : ' disabled') +
-        '>Requests</button>' +
-        '<button type="button" class="pick on" data-hall-act="mgr" data-hid="' +
+        (pkgOk ? '<div class="hall-actions">' + calReqBtns : '<div class="hall-actions hall-actions-minimal">') +
+        '<button type="button" class="pick' +
+        (pkgOk ? ' on' : '') +
+        '" data-hall-act="mgr" data-hid="' +
         h.id +
         '">Manage</button>' +
         '</div></div>'
@@ -721,19 +739,21 @@ function renderHallCards() {
       const h = state.halls.find(function (x) {
         return x.id === hid;
       });
+      const act = btn.getAttribute('data-hall-act');
       if (!hallListingOn(h)) {
-        const actEarly = btn.getAttribute('data-hall-act');
-        if (actEarly !== 'mgr') {
+        if (act !== 'mgr') {
           toast('Turn this hall On using the toggle to use Calendar or Requests.');
           return;
         }
       }
       state.activeHallId = hid;
       loadActiveHallIntoState();
-      const act = btn.getAttribute('data-hall-act');
       if (act === 'mgr') {
         openManageScreen(false);
         return;
+      }
+      if (act === 'cal' || act === 'req') {
+        if (!requireHallPackageSaved(h)) return;
       }
       if (act === 'cal') {
         renderCalendar();
@@ -814,6 +834,12 @@ function renderManage() {
         return;
       }
       const id = btn.getAttribute('data-go');
+      if ((id === 'calendar' || id === 'placeholder') && !requireHallPackageSaved(activeHall())) {
+        return;
+      }
+      if (id === 'ownerReq' && !requireHallPackageSaved(activeHall())) {
+        return;
+      }
       if (id === 'deleteHall') {
         if (state.halls.length <= 1) {
           toast('Keep at least one hall on this business.');
@@ -1270,8 +1296,11 @@ function renderPkg5() {
     capturePkg2();
     capturePkg3();
     capturePkg4();
+    const h = activeHall();
+    if (h) h.packageSaved = true;
     savePkg();
     renderManageHeader();
+    renderHallCards();
     toast('Package saved on this device.');
     show('manage');
   };
@@ -1441,6 +1470,7 @@ function bindOwnerEvents() {
         hallName: '',
         requests: 0,
         hallActive: true,
+        packageSaved: false,
       });
       state.activeHallId = id;
       state.useHallName = false;
