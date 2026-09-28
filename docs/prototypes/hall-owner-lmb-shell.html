@@ -112,8 +112,12 @@ textarea{width:100%;border:1px solid var(--line);border-radius:10px;padding:10px
 .hall-toggle input:checked + .hall-toggle-ui::after{transform:translateX(20px)}
 .hall-toggle-lbl{min-width:22px;color:#374151}
 .hall-inactive-banner{padding:10px 12px;border-radius:10px;background:#FEF3C7;color:#92400E;font-size:13px;line-height:1.45;margin-bottom:12px}
-.hall-inactive-lock input:not([readonly]):not([data-hall-toggle]),.hall-inactive-lock textarea,.hall-inactive-lock select,.hall-inactive-lock .menu .mrow,.hall-inactive-lock .cta .btn,.hall-inactive-lock #manageSaveFooter,.hall-inactive-lock .btn:not(.back):not(#backToBizHalls),.hall-inactive-lock label.ev,.hall-inactive-lock .policy-row input,.hall-inactive-lock .slot input{pointer-events:none;opacity:.45}
+.hall-inactive-lock input:not([readonly]):not([data-hall-toggle]),.hall-inactive-lock textarea,.hall-inactive-lock select,.hall-inactive-lock .menu .mrow,.hall-inactive-lock .cta .btn,.hall-inactive-lock #manageSaveFooter,.hall-inactive-lock .btn:not(.back):not(#backToBizHalls):not(#cancelManageName):not(#saveManageName),.hall-inactive-lock label.ev,.hall-inactive-lock .policy-row input,.hall-inactive-lock .slot input,.hall-inactive-lock #manageUseHallName{pointer-events:none;opacity:.45}
+.hall-inactive-lock .manage-name-actions,.hall-inactive-lock #manageNameActions{pointer-events:none;opacity:.45}
 .hall-inactive-lock #backToBizHalls,.hall-inactive-lock .top .back{pointer-events:auto!important;opacity:1!important}
+.manage-name-actions{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px}
+.manage-name-actions .btn{margin:0}
+#manageHallNameWrap input:disabled{background:#F3F4F6;color:#9CA3AF;cursor:not-allowed}
 .hall-actions{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px}
 .hall-actions .pick{padding:10px 4px;font-size:11px}
 .biz-dash-card{border:1px solid var(--line);border-radius:16px;padding:14px;margin-bottom:14px;background:#fff;box-shadow:0 2px 8px rgba(15,23,42,.04)}
@@ -273,9 +277,13 @@ textarea{width:100%;border:1px solid var(--line);border-radius:10px;padding:10px
     <div id="hallInactiveBanner" hidden class="hall-inactive-banner">This hall is <b>Off</b> on your Halls list. Turn the toggle <b>On</b> on the hall card to edit names, pricing, and calendar again.</div>
     <p class="lbl">NAMES (CUSTOMER VIEW)</p>
     <div class="fld"><label>Business name</label><input id="bizNameRo" type="text" readonly style="background:#F9FAFB;color:#374151" value="Vijaya Convention Center"><small class="sub">Set when you listed on Gixbee — cannot be changed here. Shown on search cards.</small></div>
-    <label class="radio-row" style="margin:8px 0"><input type="checkbox" id="manageUseHallName" checked> This hall has its own name (optional)</label>
+    <label class="radio-row" style="margin:8px 0"><input type="checkbox" id="manageUseHallName"> This hall has its own name (optional)</label>
     <div id="manageHallNameWrap" class="fld">
-      <label>Hall name</label><input id="manageHallName" type="text" value="Tiffle" placeholder="e.g. Koinonia"><small class="sub">Only if different from the business name. Shown when customers book this hall.</small>
+      <label>Hall name</label><input id="manageHallName" type="text" value="" placeholder="e.g. Koinonia" disabled><small class="sub">Only if different from the business name. Shown when customers book this hall. Check the box above to enable, then Save.</small>
+    </div>
+    <div id="manageNameActions" class="manage-name-actions" hidden>
+      <button type="button" class="btn ghost" id="cancelManageName">Cancel</button>
+      <button type="button" class="btn" id="saveManageName">Save</button>
     </div>
   </div>
   <div class="pad">

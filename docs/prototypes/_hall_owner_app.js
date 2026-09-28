@@ -1,4 +1,4 @@
-const OWNER_BUILD = '2026-09-28-hall-owner-v23';
+const OWNER_BUILD = '2026-09-28-hall-owner-v24';
 const DEMO_FILE = 'hall-owner-lmb-master.html';
 const PKG_KEY = 'GIXBEE_HALL_PACKAGE';
 
@@ -181,6 +181,7 @@ const state = {
 };
 
 let pkg4PolicyTab = 'cancel';
+let manageNameSnapshot = { useHallName: false, hallName: '' };
 
 const POLICY_DEFAULTS = [
   { days: '30 days or more', pct: 10 },
@@ -343,10 +344,10 @@ function customerHallName() {
 }
 function syncHallNameUi() {
   const show = !!state.useHallName;
-  ['manageHallNameWrap', 'hallNamePkgWrap'].forEach(function (id) {
-    const w = el(id);
-    if (w) w.style.display = show ? 'block' : 'none';
-  });
+  const manageWrap = el('manageHallNameWrap');
+  if (manageWrap) manageWrap.style.display = 'block';
+  const pkgWrap = el('hallNamePkgWrap');
+  if (pkgWrap) pkgWrap.style.display = show ? 'block' : 'none';
   ['manageUseHallName', 'useHallNamePkg'].forEach(function (id) {
     const cb = el(id);
     if (cb) cb.checked = show;
@@ -355,6 +356,33 @@ function syncHallNameUi() {
   if (hallIn && document.activeElement !== hallIn) hallIn.value = state.hallName;
   const pkgIn = el('hallNameInput');
   if (pkgIn && document.activeElement !== pkgIn) pkgIn.value = state.hallName;
+  renderManageNameActions();
+}
+
+function snapshotManageNameFromHall() {
+  const h = activeHall();
+  manageNameSnapshot = {
+    useHallName: h ? !!h.useHallName : !!state.useHallName,
+    hallName: h && h.useHallName ? String(h.hallName || '').trim() : '',
+  };
+}
+
+function applyManageNameSnapshot() {
+  state.useHallName = manageNameSnapshot.useHallName;
+  state.hallName = manageNameSnapshot.hallName;
+  syncHallNameUi();
+}
+
+function renderManageNameActions() {
+  const actions = el('manageNameActions');
+  const hallIn = el('manageHallName');
+  const cb = el('manageUseHallName');
+  const listingOn = hallListingOn(activeHall());
+  const useName = !!(cb && cb.checked);
+  if (hallIn) {
+    hallIn.disabled = !useName || !listingOn;
+  }
+  if (actions) actions.hidden = !useName || !listingOn;
 }
 function captureNameFields() {
   const manageCb = el('manageUseHallName');
@@ -661,6 +689,8 @@ function renderHallBizHome() {
 
 function openManageScreen(fromAddHall) {
   state.openedFromAddHall = !!fromAddHall;
+  loadActiveHallIntoState();
+  snapshotManageNameFromHall();
   renderManageHeader();
   renderManage();
   show('manage');
@@ -1402,13 +1432,54 @@ function bindOwnerEvents() {
     const cb = el(id);
     if (!cb) return;
     cb.onchange = function () {
+      if (id === 'manageUseHallName') {
+        state.useHallName = cb.checked;
+        if (!state.useHallName) {
+          state.hallName = '';
+          if (el('manageHallName')) el('manageHallName').value = '';
+        }
+        syncHallNameUi();
+        const other = el('useHallNamePkg');
+        if (other) other.checked = state.useHallName;
+        return;
+      }
       state.useHallName = cb.checked;
       if (!state.useHallName) state.hallName = '';
       syncHallNameUi();
-      var other = id === 'manageUseHallName' ? el('useHallNamePkg') : el('manageUseHallName');
+      var other = el('manageUseHallName');
       if (other) other.checked = state.useHallName;
     };
   });
+  const saveManageName = el('saveManageName');
+  if (saveManageName) {
+    saveManageName.onclick = function () {
+      if (!hallListingOn(activeHall())) return;
+      const manageCb = el('manageUseHallName');
+      if (manageCb) state.useHallName = manageCb.checked;
+      if (!state.useHallName) {
+        state.hallName = '';
+      } else if (el('manageHallName')) {
+        state.hallName = el('manageHallName').value.trim();
+        if (!state.hallName) {
+          toast('Enter a hall name or turn off the checkbox.');
+          return;
+        }
+      }
+      syncActiveHallFromState();
+      savePkg();
+      snapshotManageNameFromHall();
+      renderManageHeader();
+      renderHallCards();
+      toast('Hall name saved.');
+    };
+  }
+  const cancelManageName = el('cancelManageName');
+  if (cancelManageName) {
+    cancelManageName.onclick = function () {
+      applyManageNameSnapshot();
+      toast('Changes discarded.');
+    };
+  }
 }
 
 function boot() {
