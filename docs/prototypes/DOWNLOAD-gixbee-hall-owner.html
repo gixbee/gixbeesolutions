@@ -1,0 +1,630 @@
+<!DOCTYPE html>
+<!-- GIXBEE HALL DEMO — single self-contained file (CSS + HTML + JS inlined). Open hall-owner-lmb-master.html only; do not open hall-owner-lmb-shell.html until regenerated. -->
+
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Gixbee — Hall Owner (List My Business)</title>
+<style>
+:root{--navy:#1B2559;--ink:#111827;--mut:#6B7280;--line:#E5E7EB;--gn:#12B76A;--gn2:#099250;--soft:#ECFDF3;--shadow:0 8px 28px rgba(15,23,42,.08);--rd:#DC2626}
+*{box-sizing:border-box}
+body{margin:0;background:#E8EDF5;font-family:Inter,system-ui,sans-serif;color:var(--ink)}
+.stage{min-height:100vh;display:flex;justify-content:center;padding:20px 10px}
+.phone{width:min(100%,430px);background:#fff;min-height:860px;border-radius:36px;box-shadow:var(--shadow);overflow:hidden;position:relative;border:8px solid #111}
+.notch{height:28px;display:flex;justify-content:space-between;padding:8px 18px 0;font-size:12px;font-weight:700}
+.scr{display:none;padding:0 0 92px;min-height:800px}
+.scr.on{display:block}
+.top{display:flex;align-items:center;gap:10px;padding:8px 16px 6px}
+.back{width:36px;height:36px;border:0;background:none;font-size:22px;color:var(--navy);cursor:pointer}
+.top h1{margin:0;font-size:18px;color:var(--navy);flex:1}
+.chip-h{padding:6px 12px;border-radius:99px;background:var(--soft);color:var(--gn2);font-size:11px;font-weight:800}
+.prog{display:flex;align-items:center;gap:8px;padding:4px 16px 12px}
+.bar{flex:1;height:6px;background:#E5E7EB;border-radius:99px;overflow:hidden}
+.bar>i{display:block;height:100%;background:var(--gn);border-radius:99px}
+.frac{font-size:12px;color:#9CA3AF;font-weight:700}
+.pad{padding:0 16px}
+h2{margin:0 0 6px;font-size:18px}
+.sub{color:var(--mut);font-size:13px;line-height:1.45;margin:0 0 14px}
+.lbl{font-size:11px;font-weight:800;color:#9CA3AF;letter-spacing:.6px;margin:16px 0 8px}
+.menu{display:flex;flex-direction:column;gap:10px}
+.mrow{text-align:left;border:1px solid var(--line);border-radius:14px;padding:14px;background:#fff;cursor:pointer;width:100%}
+.mrow b{display:block;font-size:15px;margin-bottom:4px}
+.mrow span{font-size:12px;color:var(--mut);line-height:1.35}
+.mrow.danger b,.mrow.danger span{color:var(--rd)}
+.mrow .dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--rd);margin-left:6px}
+.mrow.green b{color:var(--gn2)}
+.mrow.muted span{color:#9CA3AF}
+.cta{position:sticky;bottom:0;padding:12px 16px 18px;background:linear-gradient(transparent,#fff 20%)}
+.btn{width:100%;border:0;border-radius:12px;background:var(--gn);color:#fff;font-weight:800;font-size:16px;padding:14px;cursor:pointer}
+.btn.ghost{background:#fff;color:var(--gn);border:1.5px solid var(--gn);margin-top:8px}
+.btn.red{background:var(--rd)}
+.fld{margin:0 0 12px}
+.fld label{display:block;font-size:13px;font-weight:800;margin:0 0 6px}
+.fld input,.fld select,.fld textarea{width:100%;padding:12px;border:1px solid var(--line);border-radius:12px;font:inherit}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.ev{display:flex;align-items:center;gap:12px;padding:12px;border:1px solid var(--line);border-radius:14px;margin-bottom:8px;cursor:pointer}
+.ev.on{border-color:var(--gn);background:#F0FDF4}
+.ev input{flex:none;width:20px;height:20px}
+.fac{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.fac label{display:flex;align-items:center;gap:8px;padding:10px;border:1px solid var(--line);border-radius:12px;font-size:12px;font-weight:700;cursor:pointer}
+.fac label.on{border-color:var(--gn);background:#F0FDF4}
+.slot{border:1px solid var(--line);border-radius:14px;padding:12px;margin-bottom:10px}
+.slot h3{margin:0 0 8px;font-size:14px}
+.pill{display:inline-block;padding:4px 10px;border-radius:99px;font-size:11px;font-weight:800;margin-bottom:8px}
+.pill.ok{background:#ECFDF3;color:#059669}
+.pill.bad{background:#FEE2E2;color:#B91C1C}
+.pill.wait{background:#FEF3C7;color:#B45309}
+.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.pick{border:1.5px solid var(--line);border-radius:12px;padding:12px 8px;text-align:center;font-size:12px;font-weight:800;cursor:pointer;background:#fff}
+.pick.on{border-color:var(--gn);background:#ECFDF3;color:#065F46}
+.info{margin:10px 0;padding:12px;border-radius:12px;font-size:12.5px;line-height:1.45;display:flex;gap:10px;align-items:flex-start}
+.info.gn{background:#ECFDF3;color:#065F46}
+.info.bl{background:#EFF6FF;color:#1D4ED8}
+.sum{border:1px solid var(--line);border-radius:14px;padding:12px;margin-bottom:10px}
+.sum .hd{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+.sum .hd b{font-size:14px}
+.see{border:0;background:none;color:#2563EB;font-weight:800;font-size:12px;cursor:pointer}
+.tags{display:flex;flex-wrap:wrap;gap:6px}
+.tag{padding:6px 10px;border-radius:99px;background:#F3F4F6;font-size:11px;font-weight:700}
+.toast{position:absolute;left:16px;right:16px;bottom:88px;background:#111827;color:#fff;padding:12px;border-radius:12px;font-size:13px;display:none;z-index:9}
+.lmb-top{background:#F8FAFC;border-bottom:1px solid var(--line);padding:10px 16px 12px}
+.lmb-top .row{display:flex;align-items:center;gap:10px}
+.home-pill{padding:8px 14px;border-radius:99px;background:var(--gn);color:#fff;font-weight:800;font-size:12px;border:0}
+.biz-title{font-size:17px;font-weight:900;color:var(--navy);flex:1}
+.manage-pill{font-size:11px;font-weight:800;color:var(--mut);border:1px solid var(--line);padding:6px 10px;border-radius:99px;background:#fff}
+.steps{display:flex;gap:6px;padding:12px 16px;overflow:auto;font-size:10px;color:var(--mut)}
+.step{flex:none;padding:6px 10px;border-radius:10px;background:#F3F4F6;font-weight:700}
+.step.on{background:#ECFDF3;color:#065F46}
+.cal-mini{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;font-size:11px;text-align:center;margin:12px 0}
+.cal-mini button{border:0;background:#F9FAFB;border-radius:8px;padding:8px 0;cursor:pointer;font-weight:700}
+.cal-mini button.on{background:var(--gn);color:#fff}
+.radio-row{display:flex;gap:12px;align-items:center;margin:8px 0;font-size:13px}
+.cancel-table{width:100%;font-size:12px;border-collapse:collapse}
+.cancel-table td,.cancel-table th{padding:8px 4px;border-bottom:1px solid #F3F4F6}
+</style>
+</head>
+<body>
+<div id="bootError" hidden style="position:fixed;inset:0;z-index:99999;background:#fff;padding:24px;font:15px sans-serif;overflow:auto"></div>
+<div class="stage"><div class="phone">
+<div class="notch"><span>9:41</span><span>●●●</span></div>
+
+<section class="scr on" id="manage">
+  <div class="lmb-top">
+    <div class="row">
+      <button type="button" class="home-pill">🏠 Home</button>
+      <div class="biz-title">List My Business</div>
+      <span class="manage-pill">Manage &amp; grow</span>
+    </div>
+    <p class="sub" style="margin:8px 0 0">Royal Convention Centre · Service · Hall</p>
+    <p class="hint" id="buildTag" style="margin:8px 0 0;font-size:11px">Single-file demo — all JavaScript is inside this .html</p>
+  </div>
+  <div class="pad">
+    <p class="lbl">MANAGE</p>
+    <div class="menu" id="manageMenu"></div>
+  </div>
+</section>
+
+<section class="scr" id="pkg1">
+  <div class="top"><button class="back" type="button" data-to="manage">←</button><h1>Pricing &amp; Packages</h1><span class="chip-h">1/5</span></div>
+  <div class="prog"><div class="bar"><i style="width:20%"></i></div><span class="frac">1/5</span></div>
+  <div class="steps" id="pkgSteps"></div>
+  <div class="pad"><h2>Event Categories</h2><p class="sub">Select the functions you accept at your hall.</p><div id="eventCats"></div></div>
+  <div class="cta"><button class="btn" type="button" id="pkg1Next">Continue</button></div>
+</section>
+
+<section class="scr" id="pkg2">
+  <div class="top"><button class="back" type="button" data-to="pkg1">←</button><h1>Pricing &amp; Packages</h1><span class="chip-h">2/5</span></div>
+  <div class="prog"><div class="bar"><i style="width:40%"></i></div><span class="frac">2/5</span></div>
+  <div class="pad">
+    <h2>Venue Details</h2><p class="sub">Enter hall details, facilities and services.</p>
+    <div class="two">
+      <div class="fld"><label>Seating Capacity</label><input id="seatCap" type="number" value="700"><small>guests</small></div>
+      <div class="fld"><label>Dining Capacity</label><input id="dineCap" type="number" value="550"><small>guests</small></div>
+      <div class="fld"><label>Parking (Cars)</label><input id="parkCar" type="number" value="50"></div>
+      <div class="fld"><label>Parking (Bikes)</label><input id="parkBike" type="number" value="100"></div>
+    </div>
+    <div class="fld"><label>Private / Changing Room</label><input id="rooms" type="number" value="2"><small>rooms</small></div>
+    <p class="lbl">FACILITIES (SELECT AVAILABLE)</p>
+    <div class="fac" id="facGrid"></div>
+    <p class="lbl">CATERING &amp; DECORATION</p>
+    <div id="caterDec"></div>
+  </div>
+  <div class="cta"><button class="btn" type="button" data-to="pkg3">Continue</button></div>
+</section>
+
+<section class="scr" id="pkg3">
+  <div class="top"><button class="back" type="button" data-to="pkg2">←</button><h1>Pricing &amp; Packages</h1><span class="chip-h">3/5</span></div>
+  <div class="prog"><div class="bar"><i style="width:60%"></i></div><span class="frac">3/5</span></div>
+  <div class="pad"><h2>Pricing &amp; Time Slots</h2><p class="sub">Set your standard prices for each time slot.</p><div id="slotPricing"></div></div>
+  <div class="cta"><button class="btn" type="button" data-to="pkg4">Continue</button></div>
+</section>
+
+<section class="scr" id="pkg4">
+  <div class="top"><button class="back" type="button" data-to="pkg3">←</button><h1>Pricing &amp; Packages</h1><span class="chip-h">4/5</span></div>
+  <div class="prog"><div class="bar"><i style="width:80%"></i></div><span class="frac">4/5</span></div>
+  <div class="pad"><h2>Payment &amp; Policies</h2><p class="sub">Advance payment, full payment timeline and cancellation refund policy.</p><div id="payPolicy"></div></div>
+  <div class="cta"><button class="btn" type="button" data-to="pkg5">Continue</button></div>
+</section>
+
+<section class="scr" id="pkg5">
+  <div class="top"><button class="back" type="button" data-to="pkg4">←</button><h1>Pricing &amp; Packages</h1><span class="chip-h">5/5</span></div>
+  <div class="prog"><div class="bar"><i style="width:100%"></i></div><span class="frac">5/5</span></div>
+  <div class="pad"><h2>Review &amp; Save</h2><p class="sub">Check your package details and save.</p><div id="pkgReview"></div></div>
+  <div class="cta"><button class="btn" type="button" id="savePkg">Save Package</button></div>
+</section>
+
+<section class="scr" id="calendar">
+  <div class="top"><button class="back" type="button" data-to="manage">←</button><h1>Calendar &amp; Availability</h1></div>
+  <div class="pad">
+    <div class="grid3" style="margin-bottom:12px">
+      <button type="button" class="pick on" id="tabCal">Calendar</button>
+      <button type="button" class="pick" data-to="bookSettings">Booking Settings</button>
+      <button type="button" class="pick" disabled style="opacity:.5">Offline</button>
+    </div>
+    <h2>December 2026</h2>
+    <div class="cal-mini" id="calGrid"></div>
+    <p class="sub"><span style="color:var(--gn)">●</span> Available · <span style="color:var(--rd)">●</span> Booked · <span style="color:#2563EB">●</span> Blocked</p>
+    <div id="daySlots"></div>
+  </div>
+</section>
+
+<section class="scr" id="bookSettings">
+  <div class="top"><button class="back" type="button" data-to="calendar">←</button><h1>Booking Settings</h1></div>
+  <div class="pad">
+    <h2>Customer Booking Window</h2><p class="sub">How far in advance can customers book?</p>
+    <div class="grid3" id="bookWindow"></div>
+    <div class="info gn" id="windowInfo"></div>
+    <h2 style="margin-top:20px">Minimum Booking Notice</h2><p class="sub">How soon can customers book?</p>
+    <div class="grid3" id="minNotice"></div>
+    <div class="info bl" id="noticeInfo"></div>
+  </div>
+  <div class="cta"><button class="btn" type="button" id="saveBookSettings">Save Settings</button></div>
+</section>
+
+<section class="scr" id="ownerReq">
+  <div class="top"><button class="back" type="button" data-to="manage">←</button><h1>Booking Request</h1><span class="pill wait">New</span></div>
+  <div class="pad" id="ownerReqBody"></div>
+  <div class="cta two" style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+    <button class="btn ghost red" type="button" id="rejectReq">Reject</button>
+    <button class="btn" type="button" id="acceptReq">Accept Request</button>
+  </div>
+</section>
+
+<section class="scr" id="placeholder">
+  <div class="top"><button class="back" type="button" data-to="manage">←</button><h1 id="phTitle">Coming soon</h1></div>
+  <div class="pad"><p class="sub" id="phBody">This screen is a stub in the HTML demo. Wire to Flutter/API in production.</p></div>
+</section>
+
+<div class="toast" id="toast"></div>
+</div></div>
+<!-- APP_START -->
+<script>
+const OWNER_BUILD = '2026-09-28-hall-owner-v2';
+const DEMO_FILE = 'hall-owner-lmb-master.html';
+const PKG_KEY = 'GIXBEE_HALL_PACKAGE';
+
+const EVENT_CATS = [
+  { id: 'wedding', label: 'Wedding', icon: '💒' },
+  { id: 'reception', label: 'Reception', icon: '🥂' },
+  { id: 'engagement', label: 'Engagement', icon: '💍' },
+  { id: 'birthday', label: 'Birthday', icon: '🎂' },
+  { id: 'baptism', label: 'Baptism', icon: '⛪' },
+  { id: 'anniversary', label: 'Anniversary', icon: '🎉' },
+  { id: 'corporate', label: 'Corporate Event', icon: '🏢' },
+  { id: 'conference', label: 'Conference', icon: '🎤' },
+  { id: 'religious', label: 'Religious Function', icon: '🕯️' },
+];
+
+const FACILITIES = ['AC', 'Generator / Power Backup', 'Chairs & Tables', 'Stage', 'Sound System', 'Restrooms', 'Lift'];
+
+const SLOTS = [
+  { id: 'morning', label: 'Morning', time: '10:00 AM – 3:00 PM' },
+  { id: 'evening', label: 'Evening', time: '5:00 PM – 11:00 PM' },
+  { id: 'fullday', label: 'Full Day', time: '9:00 AM – 5:00 PM' },
+];
+
+const MANAGE_MENU = [
+  { id: 'calendar', title: 'Calendar & Availability', sub: 'Block dates and manage slots' },
+  { id: 'ownerReq', title: 'Booking Requests', sub: 'Accept or decline customer requests', dot: true },
+  { id: 'pkg1', title: 'Packages & Pricing', sub: 'Set slot prices and cancellation policy' },
+  { id: 'placeholder', title: "Update Today's Prices", sub: 'Price window closed after 8:30 AM — opens tomorrow morning', cls: 'green muted' },
+  { id: 'placeholder', title: 'Operators', sub: 'Who can manage this business' },
+  { id: 'placeholder', title: 'Photos & Portfolio', sub: 'Add and manage business photos' },
+  { id: 'placeholder', title: 'Edit Business Details', sub: 'Update name, description, location' },
+  { id: 'placeholder', title: 'Delete Business', sub: 'Remove permanently from Gixbee', cls: 'danger' },
+];
+
+const state = {
+  events: ['wedding', 'reception', 'engagement', 'birthday', 'baptism', 'anniversary', 'religious'],
+  facilities: ['AC', 'Generator / Power Backup', 'Chairs & Tables', 'Stage', 'Sound System', 'Restrooms'],
+  catering: { inHouse: 'yes', outside: 'yes', decorHall: 'no', decorOutside: 'yes' },
+  capacity: { seat: 700, dine: 550, car: 50, bike: 100, rooms: 2 },
+  prices: {
+    morning: { noAc: 55000, ac: 75000 },
+    evening: { noAc: 55000, ac: 75000 },
+    fullday: { noAc: 75000, ac: 90000 },
+    extraNoAc: 5000,
+    extraAc: 7000,
+  },
+  payment: { advanceType: 'fixed', advanceFixed: 20000, advancePct: 30, fullDueDays: 7 },
+  cancelRules: [
+    { days: '30 days or more', pct: 10 },
+    { days: '15 – 29 days', pct: 25 },
+    { days: '7 – 14 days', pct: 50 },
+    { days: '3 – 6 days', pct: 75 },
+    { days: 'Less than 1 day', pct: 100 },
+  ],
+  bookWindowMonths: 6,
+  minNoticeDays: 3,
+  calDay: 25,
+};
+
+function el(id) {
+  return document.getElementById(id);
+}
+function show(id) {
+  document.querySelectorAll('.scr').forEach((s) => s.classList.toggle('on', s.id === id));
+}
+function toast(m) {
+  const t = el('toast');
+  t.textContent = m;
+  t.style.display = 'block';
+  setTimeout(() => (t.style.display = 'none'), 2600);
+}
+function esc(s) {
+  return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;');
+}
+function loadPkg() {
+  try {
+    const raw = localStorage.getItem(PKG_KEY);
+    if (raw) Object.assign(state, JSON.parse(raw));
+  } catch (_e) {
+    /* ignore */
+  }
+}
+function savePkg() {
+  localStorage.setItem(PKG_KEY, JSON.stringify(state));
+}
+
+function renderManage() {
+  el('manageMenu').innerHTML = MANAGE_MENU.map((m) => {
+    const cls = m.cls ? ' ' + m.cls.split(' ').join(' ') : '';
+    const dot = m.dot ? '<span class="dot"></span>' : '';
+    return `<button type="button" class="mrow${cls}" data-go="${m.id}"><b>${esc(m.title)}${dot}</b><span>${esc(m.sub)}</span></button>`;
+  }).join('');
+  el('manageMenu').querySelectorAll('[data-go]').forEach((btn) => {
+    btn.onclick = () => {
+      const id = btn.getAttribute('data-go');
+      if (id === 'placeholder') {
+        el('phTitle').textContent = btn.querySelector('b').textContent.replace(/\u200b/g, '');
+        show('placeholder');
+        return;
+      }
+      show(id);
+      if (id === 'pkg1') renderPkg1();
+      if (id === 'calendar') renderCalendar();
+      if (id === 'ownerReq') renderOwnerReq();
+    };
+  });
+}
+
+function renderPkgSteps(n) {
+  const stepsEl = el('pkgSteps');
+  if (!stepsEl) return;
+  const steps = ['Event Categories', 'Venue Details', 'Pricing & Time Slots', 'Payment & Policies', 'Review & Save'];
+  stepsEl.innerHTML = steps
+    .map((s, i) => `<span class="step${i + 1 === n ? ' on' : ''}">${i + 1}. ${s}</span>`)
+    .join('');
+}
+
+function renderPkg1() {
+  renderPkgSteps(1);
+  el('eventCats').innerHTML = EVENT_CATS.map(
+    (c) =>
+      `<label class="ev${state.events.includes(c.id) ? ' on' : ''}"><span>${c.icon}</span><span style="flex:1;font-weight:800">${esc(
+        c.label,
+      )}</span><input type="checkbox" data-ev="${c.id}"${state.events.includes(c.id) ? ' checked' : ''}></label>`,
+  ).join('');
+  el('eventCats').querySelectorAll('[data-ev]').forEach((cb) => {
+    cb.onchange = () => {
+      const id = cb.getAttribute('data-ev');
+      if (cb.checked) {
+        if (!state.events.includes(id)) state.events.push(id);
+      } else state.events = state.events.filter((x) => x !== id);
+      renderPkg1();
+    };
+  });
+  el('pkg1Next').onclick = () => {
+    if (!state.events.length) {
+      toast('Select at least one event category.');
+      return;
+    }
+    renderPkg2();
+    show('pkg2');
+  };
+}
+
+function renderPkg2() {
+  renderPkgSteps(2);
+  el('seatCap').value = state.capacity.seat;
+  el('dineCap').value = state.capacity.dine;
+  el('parkCar').value = state.capacity.car;
+  el('parkBike').value = state.capacity.bike;
+  el('rooms').value = state.capacity.rooms;
+  el('facGrid').innerHTML = FACILITIES.map(
+    (f) =>
+      `<label class="${state.facilities.includes(f) ? 'on' : ''}"><input type="checkbox" data-fac="${esc(f)}"${
+        state.facilities.includes(f) ? ' checked' : ''
+      }> ${esc(f)}</label>`,
+  ).join('');
+  el('facGrid').querySelectorAll('[data-fac]').forEach((cb) => {
+    cb.onchange = () => {
+      const f = cb.getAttribute('data-fac');
+      if (cb.checked) {
+        if (!state.facilities.includes(f)) state.facilities.push(f);
+      } else state.facilities = state.facilities.filter((x) => x !== f);
+      renderPkg2();
+    };
+  });
+  const q = (key, label) =>
+    `<p style="font-weight:800;font-size:13px;margin:12px 0 6px">${label}</p>` +
+    ['yes', 'no']
+      .map(
+        (v) =>
+          `<label class="radio-row"><input type="radio" name="${key}" value="${v}"${
+            state.catering[key] === v ? ' checked' : ''
+          }> ${v === 'yes' ? 'Yes' : 'No'}</label>`,
+      )
+      .join('');
+  el('caterDec').innerHTML =
+    q('inHouse', 'In-house catering available?') +
+    q('outside', 'Outside catering allowed?') +
+    q('decorHall', 'Decoration provided by hall?') +
+    q('decorOutside', 'Outside decorators allowed?');
+  el('caterDec').querySelectorAll('input[type=radio]').forEach((r) => {
+    r.onchange = () => {
+      state.catering[r.name] = r.value;
+    };
+  });
+}
+
+function renderPkg3() {
+  renderPkgSteps(3);
+  el('slotPricing').innerHTML =
+    SLOTS.map((sl) => {
+      const p = state.prices[sl.id];
+      return `<div class="slot"><h3>${esc(sl.label)} <span style="font-weight:600;color:var(--mut);font-size:12px">(${esc(
+        sl.time,
+      )})</span></h3><div class="two">
+      <div class="fld"><label>Without AC (₹)</label><input type="number" data-slot="${sl.id}" data-ac="noAc" value="${p.noAc}"></div>
+      <div class="fld"><label>With AC (₹)</label><input type="number" data-slot="${sl.id}" data-ac="ac" value="${p.ac}"></div></div></div>`;
+    }).join('') +
+    `<div class="slot"><h3>Additional Hours Charge</h3><div class="two">
+      <div class="fld"><label>Without AC / hour</label><input type="number" id="extraNoAc" value="${state.prices.extraNoAc}"></div>
+      <div class="fld"><label>With AC / hour</label><input type="number" id="extraAc" value="${state.prices.extraAc}"></div></div></div>`;
+}
+
+function capturePkg3() {
+  el('slotPricing').querySelectorAll('[data-slot]').forEach((inp) => {
+    state.prices[inp.getAttribute('data-slot')][inp.getAttribute('data-ac')] = +inp.value || 0;
+  });
+  state.prices.extraNoAc = +el('extraNoAc')?.value || 0;
+  state.prices.extraAc = +el('extraAc')?.value || 0;
+}
+
+function renderPkg4() {
+  renderPkgSteps(4);
+  const p = state.payment;
+  el('payPolicy').innerHTML = `
+    <p class="lbl">ADVANCE PAYMENT</p>
+    <label class="radio-row"><input type="radio" name="adv" value="fixed"${p.advanceType === 'fixed' ? ' checked' : ''}> Fixed amount</label>
+    <div class="fld"><input type="number" id="advFixed" value="${p.advanceFixed}"></div>
+    <label class="radio-row"><input type="radio" name="adv" value="pct"${p.advanceType === 'pct' ? ' checked' : ''}> Percentage of total</label>
+    <div class="fld"><input type="number" id="advPct" value="${p.advancePct}"> %</div>
+    <p class="lbl">FULL PAYMENT DUE</p>
+    <div class="fld"><label>Days before event</label><input type="number" id="fullDue" value="${p.fullDueDays}"></div>
+    <p class="lbl">CANCELLATION POLICY</p>
+    <table class="cancel-table"><tr><th>If cancelled before</th><th>Deduct</th></tr>
+    ${state.cancelRules.map((r) => `<tr><td>${esc(r.days)}</td><td>${r.pct}%</td></tr>`).join('')}
+    </table>`;
+}
+
+function capturePkg2() {
+  state.capacity = {
+    seat: +el('seatCap').value || 0,
+    dine: +el('dineCap').value || 0,
+    car: +el('parkCar').value || 0,
+    bike: +el('parkBike').value || 0,
+    rooms: +el('rooms').value || 0,
+  };
+}
+
+function capturePkg4() {
+  const adv = document.querySelector('input[name=adv]:checked');
+  state.payment.advanceType = adv?.value || 'fixed';
+  state.payment.advanceFixed = +el('advFixed').value || 0;
+  state.payment.advancePct = +el('advPct').value || 0;
+  state.payment.fullDueDays = +el('fullDue').value || 7;
+}
+
+function renderPkg5() {
+  renderPkgSteps(5);
+  capturePkg2();
+  capturePkg3();
+  capturePkg4();
+  const tags = state.events.map((id) => EVENT_CATS.find((c) => c.id === id)?.label || id);
+  el('pkgReview').innerHTML = `
+    <div class="sum"><div class="hd"><b>Event Categories</b><button type="button" class="see" data-to="pkg1">Edit</button></div><div class="tags">${tags
+      .map((t) => `<span class="tag">${esc(t)}</span>`)
+      .join('')}</div></div>
+    <div class="sum"><div class="hd"><b>Venue Details</b><button type="button" class="see" data-to="pkg2">Edit</button></div>
+      <p class="sub">Seating ${state.capacity.seat} · Dining ${state.capacity.dine} · Parking ${state.capacity.car} cars</p></div>
+    <div class="sum"><div class="hd"><b>Pricing &amp; Time Slots</b><button type="button" class="see" data-to="pkg3">Edit</button></div>
+      <p class="sub">Morning ₹${state.prices.morning.noAc.toLocaleString('en-IN')} / ₹${state.prices.morning.ac.toLocaleString(
+    'en-IN',
+  )} (AC)</p></div>
+    <div class="sum"><div class="hd"><b>Payment &amp; Cancellation</b><button type="button" class="see" data-to="pkg4">Edit</button></div>
+      <p class="sub">Advance ₹${state.payment.advanceFixed.toLocaleString('en-IN')} · Full due ${state.payment.fullDueDays} days before</p></div>`;
+  el('pkgReview').querySelectorAll('[data-to]').forEach((b) => {
+    b.onclick = () => {
+      show(b.getAttribute('data-to'));
+      if (b.getAttribute('data-to') === 'pkg1') renderPkg1();
+      if (b.getAttribute('data-to') === 'pkg2') renderPkg2();
+      if (b.getAttribute('data-to') === 'pkg3') renderPkg3();
+      if (b.getAttribute('data-to') === 'pkg4') renderPkg4();
+    };
+  });
+  el('savePkg').onclick = () => {
+    savePkg();
+    toast('Package saved on this device.');
+    show('manage');
+  };
+}
+
+function renderCalendar() {
+  const days = [];
+  for (let d = 1; d <= 31; d++) days.push(d);
+  el('calGrid').innerHTML = days
+    .map(
+      (d) =>
+        `<button type="button" class="${d === state.calDay ? 'on' : ''}" data-day="${d}">${d}</button>`,
+    )
+    .join('');
+  el('calGrid').querySelectorAll('[data-day]').forEach((b) => {
+    b.onclick = () => {
+      state.calDay = +b.getAttribute('data-day');
+      renderCalendar();
+    };
+  });
+  el('daySlots').innerHTML = `
+    <h2>${state.calDay} Dec 2026</h2>
+    <div class="slot"><span class="pill ok">Available</span><h3>Morning (10:00 AM – 3:00 PM)</h3>
+      <p class="sub">With AC ₹75,000 · Without AC ₹55,000</p><button class="btn ghost" type="button">Block Slot</button></div>
+    <div class="slot"><span class="pill bad">Booked (Gixbee)</span><h3>Evening (5:00 PM – 11:00 PM)</h3>
+      <p class="sub">Manage booking in Requests</p></div>`;
+}
+
+function renderBookSettings() {
+  const windows = [3, 6, 9, 12, 18, 24];
+  const notices = [
+    { v: 0, l: 'Same Day' },
+    { v: 1, l: '1 Day' },
+    { v: 2, l: '2 Days' },
+    { v: 3, l: '3 Days' },
+    { v: 7, l: '7 Days' },
+  ];
+  el('bookWindow').innerHTML = windows
+    .map((m) => `<button type="button" class="pick${state.bookWindowMonths === m ? ' on' : ''}" data-win="${m}">${m} Months</button>`)
+    .join('');
+  el('minNotice').innerHTML = notices
+    .map((n) => `<button type="button" class="pick${state.minNoticeDays === n.v ? ' on' : ''}" data-notice="${n.v}">${n.l}</button>`)
+    .join('');
+  el('windowInfo').textContent = `Customers can book up to ${state.bookWindowMonths} months ahead from today.`;
+  el('noticeInfo').textContent = `Customers can book at least ${state.minNoticeDays} day(s) before the event date.`;
+  el('bookWindow').querySelectorAll('[data-win]').forEach((b) => {
+    b.onclick = () => {
+      state.bookWindowMonths = +b.getAttribute('data-win');
+      renderBookSettings();
+    };
+  });
+  el('minNotice').querySelectorAll('[data-notice]').forEach((b) => {
+    b.onclick = () => {
+      state.minNoticeDays = +b.getAttribute('data-notice');
+      renderBookSettings();
+    };
+  });
+}
+
+function renderOwnerReq() {
+  el('ownerReqBody').innerHTML = `
+    <div class="sum"><b>Baptism · 25 Dec 2026</b><p class="sub">Morning · Without AC · 200 guests</p><p style="font-weight:900;font-size:18px;margin:8px 0">₹ 55,000</p></div>
+    <p class="lbl">CUSTOMER</p>
+    <p><b>Arun Kumar</b><br><span class="sub">+91 98765 43210</span></p>
+    <p class="sub">Accept starts 24h advance payment window for the customer.</p>`;
+  el('acceptReq').onclick = () => toast('Request accepted — customer sees Pending (pay advance).');
+  el('rejectReq').onclick = () => toast('Request rejected.');
+}
+
+function showBootError(msg) {
+  const box = el('bootError');
+  if (!box) {
+    alert(msg);
+    return;
+  }
+  box.hidden = false;
+  box.innerHTML =
+    '<h1 style="color:#DC2626;font-size:20px">Demo did not start</h1><p>' +
+    esc(msg) +
+    '</p><p>Open <b>' +
+    DEMO_FILE +
+    '</b> (full file with JavaScript inside). Hard refresh Ctrl+Shift+R.</p>';
+}
+
+function bindOwnerEvents() {
+  document.querySelectorAll('[data-to]').forEach((b) => {
+    b.addEventListener('click', () => {
+      const id = b.getAttribute('data-to');
+      if (id === 'pkg2') renderPkg2();
+      if (id === 'pkg3') {
+        capturePkg2();
+        renderPkg3();
+      }
+      if (id === 'pkg4') {
+        capturePkg3();
+        renderPkg4();
+      }
+      if (id === 'pkg5') {
+        capturePkg4();
+        renderPkg5();
+      }
+      if (id === 'bookSettings') renderBookSettings();
+      show(id);
+    });
+  });
+  const saveBs = el('saveBookSettings');
+  if (saveBs) {
+    saveBs.onclick = () => {
+      savePkg();
+      toast('Booking settings saved.');
+      show('manage');
+    };
+  }
+}
+
+function boot() {
+  try {
+    if (!el('manageMenu')) {
+      throw new Error('Missing #manageMenu — open ' + DEMO_FILE + ', not the empty shell file.');
+    }
+    loadPkg();
+    renderManage();
+    renderPkg1();
+    renderPkg2();
+    renderPkg3();
+    renderPkg4();
+    bindOwnerEvents();
+    renderBookSettings();
+    const tag = el('buildTag');
+    if (tag) {
+      tag.textContent =
+        'Hall owner demo ' + OWNER_BUILD + ' — JS is inside this HTML file (no .js needed).';
+    }
+    const err = el('bootError');
+    if (err) err.hidden = true;
+  } catch (err) {
+    console.error(err);
+    showBootError(err.message || String(err));
+  }
+}
+
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', boot);
+} else {
+  boot();
+}
+
+</script>
+<!-- APP_END -->
+</body>
+</html>

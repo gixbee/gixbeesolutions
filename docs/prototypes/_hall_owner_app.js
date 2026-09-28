@@ -1,4 +1,5 @@
-const OWNER_BUILD = '2026-09-28-hall-owner-inlined';
+const OWNER_BUILD = '2026-09-28-hall-owner-v2';
+const DEMO_FILE = 'hall-owner-lmb-master.html';
 const PKG_KEY = 'GIXBEE_HALL_PACKAGE';
 
 const EVENT_CATS = [
@@ -107,8 +108,10 @@ function renderManage() {
 }
 
 function renderPkgSteps(n) {
+  const stepsEl = el('pkgSteps');
+  if (!stepsEl) return;
   const steps = ['Event Categories', 'Venue Details', 'Pricing & Time Slots', 'Payment & Policies', 'Review & Save'];
-  el('pkgSteps').innerHTML = steps
+  stepsEl.innerHTML = steps
     .map((s, i) => `<span class="step${i + 1 === n ? ' on' : ''}">${i + 1}. ${s}</span>`)
     .join('');
 }
@@ -341,42 +344,80 @@ function renderOwnerReq() {
   el('rejectReq').onclick = () => toast('Request rejected.');
 }
 
-document.querySelectorAll('[data-to]').forEach((b) => {
-  b.addEventListener('click', () => {
-    const id = b.getAttribute('data-to');
-    if (id === 'pkg2') renderPkg2();
-    if (id === 'pkg3') {
-      capturePkg2();
-      renderPkg3();
-    }
-    if (id === 'pkg4') {
-      capturePkg3();
-      renderPkg4();
-    }
-    if (id === 'pkg5') {
-      capturePkg4();
-      renderPkg5();
-    }
-    if (id === 'bookSettings') renderBookSettings();
-    show(id);
-  });
-});
+function showBootError(msg) {
+  const box = el('bootError');
+  if (!box) {
+    alert(msg);
+    return;
+  }
+  box.hidden = false;
+  box.innerHTML =
+    '<h1 style="color:#DC2626;font-size:20px">Demo did not start</h1><p>' +
+    esc(msg) +
+    '</p><p>Open <b>' +
+    DEMO_FILE +
+    '</b> (full file with JavaScript inside). Hard refresh Ctrl+Shift+R.</p>';
+}
 
-el('saveBookSettings').onclick = () => {
-  savePkg();
-  toast('Booking settings saved.');
-  show('manage');
-};
+function bindOwnerEvents() {
+  document.querySelectorAll('[data-to]').forEach((b) => {
+    b.addEventListener('click', () => {
+      const id = b.getAttribute('data-to');
+      if (id === 'pkg2') renderPkg2();
+      if (id === 'pkg3') {
+        capturePkg2();
+        renderPkg3();
+      }
+      if (id === 'pkg4') {
+        capturePkg3();
+        renderPkg4();
+      }
+      if (id === 'pkg5') {
+        capturePkg4();
+        renderPkg5();
+      }
+      if (id === 'bookSettings') renderBookSettings();
+      show(id);
+    });
+  });
+  const saveBs = el('saveBookSettings');
+  if (saveBs) {
+    saveBs.onclick = () => {
+      savePkg();
+      toast('Booking settings saved.');
+      show('manage');
+    };
+  }
+}
 
 function boot() {
-  loadPkg();
-  renderManage();
-  renderPkg1();
-  renderPkg2();
-  renderPkg3();
-  renderPkg4();
-  renderBookSettings();
-  const tag = el('buildTag');
-  if (tag) tag.textContent = 'Hall owner demo ' + OWNER_BUILD + ' — JS is inside this HTML file (no .js needed).';
+  try {
+    if (!el('manageMenu')) {
+      throw new Error('Missing #manageMenu — open ' + DEMO_FILE + ', not the empty shell file.');
+    }
+    loadPkg();
+    renderManage();
+    renderPkg1();
+    renderPkg2();
+    renderPkg3();
+    renderPkg4();
+    bindOwnerEvents();
+    renderBookSettings();
+    const tag = el('buildTag');
+    if (tag) {
+      tag.textContent =
+        'Hall owner demo ' + OWNER_BUILD + ' — JS is inside this HTML file (no .js needed).';
+    }
+    const err = el('bootError');
+    if (err) err.hidden = true;
+  } catch (err) {
+    console.error(err);
+    showBootError(err.message || String(err));
+  }
 }
-boot();
+
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', boot);
+} else {
+  boot();
+}

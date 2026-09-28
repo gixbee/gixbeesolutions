@@ -45,6 +45,15 @@ def build(shell_name: str, js_name: str, out_name: str) -> None:
 def main() -> None:
     for shell, js, out in PAIRS:
         build(shell, js, out)
+    # Obvious download aliases (same single-file content)
+    aliases = [
+        ("hall-owner-lmb-master.html", "DOWNLOAD-gixbee-hall-owner.html"),
+        ("hall-customer-book-master.html", "DOWNLOAD-gixbee-hall-customer.html"),
+    ]
+    for src, alias in aliases:
+        p = DIR / src
+        (DIR / alias).write_text(p.read_text(encoding="utf-8"), encoding="utf-8")
+        print(f"Wrote {alias} (copy of {src})")
 
 
 if __name__ == "__main__":

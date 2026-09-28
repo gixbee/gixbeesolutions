@@ -1,4 +1,5 @@
-const CUSTOMER_BUILD = '2026-09-28-hall-customer-inlined';
+const CUSTOMER_BUILD = '2026-09-28-hall-customer-v2';
+const DEMO_FILE = 'hall-customer-book-master.html';
 
 const HALLS = [
   {
@@ -182,34 +183,72 @@ function renderEnquiry() {
     <p class="sub">1. Request → 2. Hall accepts → 3. Pay advance (24h) → 4. Booked</p>`;
 }
 
-el('goSearch').onclick = () => {
-  renderResults();
-  show('results');
-};
+function showBootError(msg) {
+  const box = el('bootError');
+  if (!box) {
+    alert(msg);
+    return;
+  }
+  box.hidden = false;
+  box.innerHTML =
+    '<h1 style="color:#DC2626">Demo did not start</h1><p>' +
+    String(msg).replace(/</g, '&lt;') +
+    '</p><p>Open <b>' +
+    DEMO_FILE +
+    '</b>. Hard refresh Ctrl+Shift+R.</p>';
+}
 
-document.querySelectorAll('[data-to]').forEach((b) => {
-  b.addEventListener('click', () => {
-    const id = b.getAttribute('data-to');
-    if (id === 'slots') renderSlots();
-    if (id === 'enquiry') renderEnquiry();
-    show(id);
+function bindCustomerEvents() {
+  const go = el('goSearch');
+  if (go) {
+    go.onclick = () => {
+      renderResults();
+      show('results');
+    };
+  }
+  document.querySelectorAll('[data-to]').forEach((b) => {
+    b.addEventListener('click', () => {
+      const id = b.getAttribute('data-to');
+      if (id === 'slots') renderSlots();
+      if (id === 'enquiry') renderEnquiry();
+      show(id);
+    });
   });
-});
+  const fac = el('fAc');
+  if (fac) {
+    fac.querySelectorAll('button').forEach((btn) => {
+      btn.onclick = () => {
+        fac.querySelectorAll('button').forEach((x) => x.classList.remove('on'));
+        btn.classList.add('on');
+        state.ac = btn.getAttribute('data-ac');
+      };
+    });
+  }
+  const req = el('reqBook');
+  if (req) req.onclick = () => show('sent');
+}
 
-el('fAc').querySelectorAll('button').forEach((btn) => {
-  btn.onclick = () => {
-    el('fAc').querySelectorAll('button').forEach((x) => x.classList.remove('on'));
-    btn.classList.add('on');
-    state.ac = btn.getAttribute('data-ac');
-  };
-});
+function bootCustomer() {
+  try {
+    if (!el('goSearch')) {
+      throw new Error('Missing search screen — open ' + DEMO_FILE + ', not the empty shell file.');
+    }
+    bindCustomerEvents();
+    const tag = el('buildTag');
+    if (tag) {
+      tag.textContent =
+        'Hall customer demo ' + CUSTOMER_BUILD + ' — JS is inside this HTML file (no .js needed).';
+    }
+    const err = el('bootError');
+    if (err) err.hidden = true;
+  } catch (err) {
+    console.error(err);
+    showBootError(err.message || String(err));
+  }
+}
 
-el('reqBook').onclick = () => {
-  show('sent');
-};
-
-(function bootCustomer() {
-  const tag = el('buildTag');
-  if (tag) tag.textContent = 'Hall customer demo ' + CUSTOMER_BUILD + ' — JS is inside this HTML file (no .js needed).';
-  console.log('[Gixbee hall customer demo]', CUSTOMER_BUILD);
-})();
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', bootCustomer);
+} else {
+  bootCustomer();
+}
