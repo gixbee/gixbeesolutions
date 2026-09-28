@@ -1,4 +1,4 @@
-const CUSTOMER_BUILD = '2026-09-28-hall-customer-v4';
+const CUSTOMER_BUILD = '2026-09-28-hall-customer-v5';
 const DEMO_FILE = 'hall-customer-book-master.html';
 
 const HALLS = [
@@ -14,6 +14,12 @@ const HALLS = [
     tags: ['Baptism', 'Wedding', 'Reception'],
     priceFrom: 55000,
     priceAc: 75000,
+    services: {
+      inHouseCatering: true,
+      outsideCatering: true,
+      hallDecoration: false,
+      outsideDecorators: true,
+    },
   },
   {
     id: 'grace',
@@ -27,6 +33,12 @@ const HALLS = [
     tags: ['Baptism', 'Birthday'],
     priceFrom: 45000,
     priceAc: 65000,
+    services: {
+      inHouseCatering: true,
+      outsideCatering: true,
+      hallDecoration: true,
+      outsideDecorators: true,
+    },
   },
 ];
 
@@ -72,6 +84,35 @@ function acLabel() {
   if (state.ac === 'noac') return 'Without AC';
   return 'Any';
 }
+
+const PACKAGE_NOTE =
+  'Hall price is venue hire only (time slot + facilities). Catering and decoration are separate unless you agree a bundled quote with the hall owner.';
+
+function serviceLines(h) {
+  const s = h.services || {};
+  const rows = [];
+  if (s.inHouseCatering) {
+    rows.push('In-house catering available — quoted separately (not in hall package)');
+  } else {
+    rows.push('No in-house catering from hall');
+  }
+  if (s.outsideCatering) {
+    rows.push('Outside catering allowed');
+  } else {
+    rows.push('Outside catering not allowed');
+  }
+  if (s.hallDecoration) {
+    rows.push('Hall decoration service available — quoted separately (not in hall package)');
+  } else {
+    rows.push('Hall does not provide decoration service');
+  }
+  if (s.outsideDecorators) {
+    rows.push('Outside decorators allowed');
+  } else {
+    rows.push('Outside decorators not allowed');
+  }
+  return rows;
+}
 function slotLabel() {
   return state.slot === 'morning'
     ? 'Morning (10:00 AM – 3:00 PM)'
@@ -107,7 +148,8 @@ function renderResults() {
       <div class="bd"><span class="badge">Verified Business</span><b>${h.name}</b>
       <div class="meta">${h.area} · ★ ${h.rating} (${h.reviews})</div>
       <div class="meta">👥 ${h.seat} seat · 🍽 ${h.dine} dine · 🅿 ${h.park} cars</div>
-      <div class="price">From ₹ ${h.priceFrom.toLocaleString('en-IN')} (GST incl.)</div></div></article>`,
+      <div class="price">From ₹ ${h.priceFrom.toLocaleString('en-IN')} hall rent (GST incl.)</div>
+      <div class="meta" style="margin-top:4px">Catering &amp; decoration quoted separately</div></div></article>`,
     )
     .join('');
   el('resList').querySelectorAll('[data-hall]').forEach((c) => {
@@ -129,7 +171,10 @@ function renderDetail() {
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px;font-size:12px;font-weight:800">
       <div>🪑 ${h.seat} Seating</div><div>🍽 ${h.dine} Dining</div>
       <div>🅿 ${h.park} Cars</div><div>❄️ AC & Non-AC</div>
-    </div>`;
+    </div>
+    <div class="box bl" style="margin-top:14px"><b>Included in hall package</b><br>Venue hire for your time slot, standard facilities (stage, restrooms, parking as listed). Price on next steps is hall rent only.</div>
+    <div class="box am" style="margin-top:10px"><b>Catering &amp; decoration</b> (not included in hall rent)<br>${serviceLines(h).join('<br>')}</div>
+    <p class="sub" style="margin-top:10px">${PACKAGE_NOTE}</p>`;
 }
 
 function renderSlots() {
@@ -176,7 +221,7 @@ function renderEnquiry() {
     <div class="kv"><span>Time Slot</span><b>${slotLabel()}</b></div>
     <div class="kv"><span>AC Option</span><b>${state.acChoice === 'ac' ? 'With AC' : 'Without AC'}</b></div>
     <div class="kv"><span>Guests</span><b>${state.guests}</b></div>
-    <div class="box gn"><b>Hall charge: ₹ ${total.toLocaleString('en-IN')}</b> (GST included)</div>
+    <div class="box gn"><b>Hall charge (venue only): ₹ ${total.toLocaleString('en-IN')}</b><br><span class="sub">GST included · Catering &amp; decoration not included — arrange separately with the hall if needed.</span></div>
     <div class="box pk"><b>Advance payment: ₹ ${advance.toLocaleString('en-IN')}</b><br>Paid directly to hall owner after acceptance.</div>
     <div class="box bl"><b>Full payment</b> due 7 days before the event.</div>
     <div class="box am"><b>Cancellation policy</b><br>30+ days: 10% · 15–29 days: 25% · 7–14 days: 50% · &lt;1 day: 100%</div>
