@@ -1,4 +1,4 @@
-const OWNER_BUILD = '2026-09-28-hall-owner-v34';
+const OWNER_BUILD = '2026-09-28-hall-owner-v35';
 const DEMO_FILE = 'hall-owner-lmb-master.html';
 const PKG_KEY = 'GIXBEE_HALL_PACKAGE';
 
@@ -132,7 +132,7 @@ const MANAGE_MENU = [
   { id: 'calendar', title: 'Calendar', sub: 'Availability and blocked dates' },
   { id: 'pkg1', title: 'Price & packages', sub: 'Slots, pricing, cancellation policy' },
   { id: 'ownerReq', title: 'Booking requests', sub: 'Accept or decline customer bookings', dot: true },
-  { id: 'placeholder', title: 'Operators', sub: 'Who can manage this hall' },
+  { id: 'operators', title: 'Operators', sub: 'Who can manage this hall' },
   { id: 'deleteHall', title: 'Delete hall', sub: 'Remove this hall from the business', cls: 'danger' },
 ];
 
@@ -1296,7 +1296,7 @@ function normalizeHallRecords() {
 
 function syncHallInactiveLock() {
   const locked = activeHall() && !hallListingOn(activeHall());
-  ['manage', 'pkg1', 'pkg2', 'pkg3', 'pkg4', 'pkg5', 'calendar', 'calDay', 'ownerReq', 'bookSettings', 'placeholder'].forEach(
+  ['manage', 'pkg1', 'pkg2', 'pkg3', 'pkg4', 'pkg5', 'calendar', 'calDay', 'ownerReq', 'bookSettings', 'operators', 'placeholder'].forEach(
     function (id) {
       const scr = el(id);
       if (scr) scr.classList.toggle('hall-inactive-lock', !!locked);
@@ -1611,7 +1611,7 @@ function renderManage() {
         return;
       }
       const id = btn.getAttribute('data-go');
-      if ((id === 'calendar' || id === 'placeholder') && !requireHallPackageSaved(activeHall())) {
+      if ((id === 'calendar' || id === 'operators') && !requireHallPackageSaved(activeHall())) {
         return;
       }
       if (id === 'ownerReq' && !requireHallPackageSaved(activeHall())) {
@@ -1630,6 +1630,10 @@ function renderManage() {
         renderHallBizHome();
         show('hallBizHome');
         toast('Hall deleted.');
+        return;
+      }
+      if (id === 'operators') {
+        openOperatorsScreen();
         return;
       }
       if (id === 'placeholder') {
@@ -2084,6 +2088,192 @@ function renderPkg5() {
   };
 }
 
+let pendingRemoveOperatorId = null;
+
+const OPERATOR_ROLE_LABELS = { owner: 'Owner', manager: 'Manager', staff: 'Staff' };
+
+function defaultOperatorsForHall() {
+  return [
+    { id: 'op_owner', name: 'Thomas Mathew', phone: '+91 94470 55566', role: 'owner' },
+    { id: 'op_mgr1', name: 'John Kurian', phone: '+91 98765 12345', role: 'manager' },
+  ];
+}
+
+function getHallOperators(h) {
+  if (!h) return [];
+  if (!h.operators || !h.operators.length) {
+    h.operators = defaultOperatorsForHall().map(function (o) {
+      return JSON.parse(JSON.stringify(o));
+    });
+  }
+  return h.operators;
+}
+
+function operatorInitial(name) {
+  const p = String(name || '?').trim().split(/\s+/);
+  return (p[0][0] || '?').toUpperCase();
+}
+
+function formatOperatorRole(role) {
+  return OPERATOR_ROLE_LABELS[role] || 'Staff';
+}
+
+function renderOperators() {
+  const h = activeHall();
+  const list = el('operatorsList');
+  const sub = el('operatorsSub');
+  if (sub) {
+    sub.textContent = state.businessName
+      ? 'Who can manage this business · ' + state.businessName
+      : 'Who can manage this business';
+  }
+  if (!list) return;
+  const ops = getHallOperators(h);
+  if (!ops.length) {
+    list.innerHTML = '<p class="sub">No operators yet. Add someone to help manage calendar and requests.</p>';
+    return;
+  }
+  list.innerHTML = ops
+    .map(function (op, idx) {
+      const avClass = 'a' + (idx % 4);
+      const roleLabel = formatOperatorRole(op.role);
+      const right =
+        op.role === 'owner'
+          ? '<span class="op-owner-tag">Owner</span>'
+          : '<button type="button" class="op-remove" data-rm-op="' + esc(op.id) + '">Remove</button>';
+      return (
+        '<div class="op-card">' +
+        '<div class="op-avatar ' +
+        avClass +
+        '">' +
+        esc(operatorInitial(op.name)) +
+        '</div>' +
+        '<div class="op-meta"><b>' +
+        esc(op.name) +
+        '</b><span>' +
+        esc(op.phone) +
+        ' · ' +
+        esc(roleLabel) +
+        '</span></div>' +
+        '<div class="op-actions">' +
+        right +
+        '</div></div>'
+      );
+    })
+    .join('');
+  list.querySelectorAll('[data-rm-op]').forEach(function (btn) {
+    btn.onclick = function () {
+      if (!hallListingOn(h)) {
+        toast('Turn this hall On to manage operators.');
+        return;
+      }
+      pendingRemoveOperatorId = btn.getAttribute('data-rm-op');
+      const op = ops.find(function (x) {
+        return x.id === pendingRemoveOperatorId;
+      });
+      const body = el('removeOperatorBody');
+      if (body && op) {
+        body.textContent =
+          'Remove ' + op.name + '? They will no longer manage bookings or calendar for this hall.';
+      }
+      openOverlay('removeOperatorOverlay');
+    };
+  });
+}
+
+function openOperatorsScreen() {
+  renderOperators();
+  show('operators');
+  syncHallInactiveLock();
+}
+
+function bindOperatorsUi() {
+  const back = el('backFromOperators');
+  if (back) {
+    back.onclick = function () {
+      show('manage');
+      syncHallInactiveLock();
+    };
+  }
+  const addBtn = el('addOperatorBtn');
+  if (addBtn) {
+    addBtn.onclick = function () {
+      if (!hallListingOn(activeHall())) {
+        toast('Turn this hall On to add operators.');
+        return;
+      }
+      if (el('addOpName')) el('addOpName').value = '';
+      if (el('addOpPhone')) el('addOpPhone').value = '';
+      if (el('addOpRole')) el('addOpRole').value = 'manager';
+      openOverlay('addOperatorOverlay');
+    };
+  }
+  ['closeAddOperator', 'cancelAddOperator'].forEach(function (id) {
+    const b = el(id);
+    if (b) b.onclick = function () { closeOverlay('addOperatorOverlay'); };
+  });
+  const saveAdd = el('saveAddOperator');
+  if (saveAdd) {
+    saveAdd.onclick = function () {
+      const name = el('addOpName') ? el('addOpName').value.trim() : '';
+      const phone = el('addOpPhone') ? el('addOpPhone').value.trim() : '';
+      const role = el('addOpRole') ? el('addOpRole').value : 'manager';
+      if (!name) {
+        toast('Enter the operator name.');
+        return;
+      }
+      if (!phone) {
+        toast('Enter a mobile number.');
+        return;
+      }
+      const h = activeHall();
+      const ops = getHallOperators(h);
+      ops.push({
+        id: 'op_' + Date.now(),
+        name: name,
+        phone: phone,
+        role: role === 'staff' ? 'staff' : 'manager',
+      });
+      savePkg();
+      closeOverlay('addOperatorOverlay');
+      renderOperators();
+      toast('Operator added.');
+    };
+  }
+  const cancelRm = el('cancelRemoveOperator');
+  const confirmRm = el('confirmRemoveOperator');
+  if (cancelRm) {
+    cancelRm.onclick = function () {
+      pendingRemoveOperatorId = null;
+      closeOverlay('removeOperatorOverlay');
+    };
+  }
+  if (confirmRm) {
+    confirmRm.onclick = function () {
+      if (!pendingRemoveOperatorId) return;
+      const h = activeHall();
+      const ops = getHallOperators(h);
+      const target = ops.find(function (o) {
+        return o.id === pendingRemoveOperatorId;
+      });
+      if (target && target.role === 'owner') {
+        toast('Owner cannot be removed here.');
+        closeOverlay('removeOperatorOverlay');
+        pendingRemoveOperatorId = null;
+        return;
+      }
+      h.operators = ops.filter(function (o) {
+        return o.id !== pendingRemoveOperatorId;
+      });
+      pendingRemoveOperatorId = null;
+      savePkg();
+      closeOverlay('removeOperatorOverlay');
+      renderOperators();
+      toast('Operator removed.');
+    };
+  }
+}
+
 function renderBookSettings() {
   const windows = [3, 6, 9, 12, 18, 24];
   const notices = [
@@ -2174,6 +2364,7 @@ function bindOwnerEvents() {
     };
   }
   bindCalendarUi();
+  bindOperatorsUi();
   const editPark = el('editParkingBtn');
   if (editPark) {
     editPark.onclick = function () {
