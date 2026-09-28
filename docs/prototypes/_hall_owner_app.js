@@ -1,4 +1,4 @@
-const OWNER_BUILD = '2026-09-28-hall-owner-v16';
+const OWNER_BUILD = '2026-09-28-hall-owner-v17';
 const DEMO_FILE = 'hall-owner-lmb-master.html';
 const PKG_KEY = 'GIXBEE_HALL_PACKAGE';
 
@@ -16,11 +16,108 @@ const EVENT_CATS = [
 
 const FACILITIES = ['AC', 'Generator / Power Backup', 'Chairs & Tables', 'Stage', 'Sound System', 'Restrooms', 'Lift'];
 
-const SLOTS = [
-  { id: 'morning', label: 'Morning', time: '10:00 AM – 3:00 PM' },
-  { id: 'evening', label: 'Evening', time: '5:00 PM – 11:00 PM' },
-  { id: 'fullday', label: 'Full Day', time: '9:00 AM – 5:00 PM' },
+const SLOT_TEMPLATES = [
+  { id: 'morning', label: 'Morning', hallFrom: '10:00', hallTo: '15:00' },
+  { id: 'evening', label: 'Evening', hallFrom: '17:00', hallTo: '23:00' },
+  { id: 'fullday', label: 'Full Day', hallFrom: '09:00', hallTo: '21:00', acMode: 'limited', acHours: 5, acFrom: '12:00', acTo: '17:00' },
 ];
+
+function ensureSlotOffers() {
+  const prices = state.prices || {};
+  if (!state.slotOffers || !state.slotOffers.length) {
+    state.slotOffers = SLOT_TEMPLATES.map(function (t) {
+      const p = prices[t.id] || {};
+      return {
+        id: t.id,
+        label: t.label,
+        enabled: true,
+        hallFrom: t.hallFrom,
+        hallTo: t.hallTo,
+        offerNoAc: true,
+        offerAc: true,
+        priceNoAc: p.noAc != null ? p.noAc : 55000,
+        priceAc: p.ac != null ? p.ac : t.id === 'fullday' ? 200000 : 75000,
+        acMode: t.acMode || 'full',
+        acFrom: t.acFrom || t.hallFrom,
+        acTo: t.acTo || t.hallTo,
+        acHours: t.acHours || 0,
+      };
+    });
+  }
+  SLOT_TEMPLATES.forEach(function (t) {
+    if (
+      state.slotOffers.find(function (o) {
+        return o.id === t.id;
+      })
+    ) {
+      return;
+    }
+    const p = prices[t.id] || {};
+    state.slotOffers.push({
+      id: t.id,
+      label: t.label,
+      enabled: false,
+      hallFrom: t.hallFrom,
+      hallTo: t.hallTo,
+      offerNoAc: true,
+      offerAc: true,
+      priceNoAc: p.noAc || 55000,
+      priceAc: p.ac || 75000,
+      acMode: 'full',
+      acFrom: t.hallFrom,
+      acTo: t.hallTo,
+      acHours: 0,
+    });
+  });
+  state.slotOffers.forEach(function (o) {
+    if (o.acMode == null) o.acMode = 'full';
+    if (o.acHours == null) o.acHours = 0;
+    if (!o.hallFrom) o.hallFrom = '09:00';
+    if (!o.hallTo) o.hallTo = '17:00';
+    if (!o.acFrom) o.acFrom = o.hallFrom;
+    if (!o.acTo) o.acTo = o.hallTo;
+    if (o.offerNoAc == null) o.offerNoAc = true;
+    if (o.offerAc == null) o.offerAc = true;
+    if (o.enabled == null) o.enabled = true;
+  });
+}
+
+function formatTime12(hhmm) {
+  if (!hhmm) return '';
+  const parts = String(hhmm).split(':');
+  const h = +parts[0] || 0;
+  const m = +parts[1] || 0;
+  const ampm = h >= 12 ? 'PM' : 'AM';
+  const h12 = h % 12 || 12;
+  return h12 + ':' + String(m).padStart(2, '0') + ' ' + ampm;
+}
+
+function formatTimeRange(from, to) {
+  return formatTime12(from) + ' – ' + formatTime12(to);
+}
+
+function acUsageSummary(o) {
+  if (!o.offerAc) return '';
+  if (o.acMode === 'full') return ' · AC for full hall window';
+  if (o.acHours) return ' · AC ' + o.acHours + ' hours in window';
+  if (o.acFrom && o.acTo) return ' · AC ' + formatTimeRange(o.acFrom, o.acTo);
+  return ' · AC limited hours';
+}
+
+function slotReviewLines() {
+  ensureSlotOffers();
+  return state.slotOffers
+    .filter(function (o) {
+      return o.enabled;
+    })
+    .map(function (o) {
+      const win = formatTimeRange(o.hallFrom, o.hallTo);
+      const parts = [];
+      if (o.offerNoAc) parts.push('Without AC ₹' + o.priceNoAc.toLocaleString('en-IN'));
+      if (o.offerAc) parts.push('With AC ₹' + o.priceAc.toLocaleString('en-IN') + acUsageSummary(o));
+      return o.label + ' (' + win + '): ' + parts.join(' · ');
+    });
+}
 
 const MANAGE_MENU = [
   { id: 'calendar', title: 'Calendar', sub: 'Availability and blocked dates' },
@@ -88,6 +185,7 @@ function loadPkg() {
     /* ignore */
   }
   normalizeNames();
+  ensureSlotOffers();
 }
 function normalizeNames() {
   if (!state.businessName) state.businessName = 'Vijaya Convention Center';
@@ -507,25 +605,169 @@ function renderPkg2() {
   });
 }
 
+function renderSlotOfferRow(o) {
+  const acFull = o.acMode !== 'limited';
+  return (
+    '<div class="slot' +
+    (o.enabled ? '' : ' slot-disabled') +
+    '" data-offer-id="' +
+    esc(o.id) +
+    '">' +
+    '<label class="radio-row" style="margin:0"><input type="checkbox" data-field="enabled"' +
+    (o.enabled ? ' checked' : '') +
+    '> <b>Offer ' +
+    esc(o.label) +
+    ' slot</b></label>' +
+    '<div class="slot-body"' +
+    (o.enabled ? '' : ' style="display:none"') +
+    '>' +
+    '<p class="lbl" style="margin-top:10px">Hall booking window</p>' +
+    '<div class="two">' +
+    '<div class="fld"><label>From</label><input type="time" data-field="hallFrom" value="' +
+    esc(o.hallFrom) +
+    '"></div>' +
+    '<div class="fld"><label>To</label><input type="time" data-field="hallTo" value="' +
+    esc(o.hallTo) +
+    '"></div></div>' +
+    '<p class="lbl">Pricing options for customers</p>' +
+    '<div class="price-row"><label><input type="checkbox" data-field="offerNoAc"' +
+    (o.offerNoAc ? ' checked' : '') +
+    '> Without AC ₹</label><input type="number" data-field="priceNoAc" min="0" value="' +
+    o.priceNoAc +
+    '"' +
+    (o.offerNoAc ? '' : ' disabled') +
+    '></div>' +
+    '<div class="price-row"><label><input type="checkbox" data-field="offerAc"' +
+    (o.offerAc ? ' checked' : '') +
+    '> With AC ₹</label><input type="number" data-field="priceAc" min="0" value="' +
+    o.priceAc +
+    '"' +
+    (o.offerAc ? '' : ' disabled') +
+    '></div>' +
+    '<div class="ac-usage"' +
+    (o.offerAc ? '' : ' hidden') +
+    '>' +
+    '<p class="lbl" style="margin-top:0">AC usage (With AC package)</p>' +
+    '<p class="sub" style="margin:0 0 8px">Example: full-day hall 12 hours, AC only 5 hours — set hours or exact AC window below.</p>' +
+    '<label class="radio-row"><input type="radio" name="acMode_' +
+    esc(o.id) +
+    '" value="full"' +
+    (acFull ? ' checked' : '') +
+    '> AC for full hall window</label>' +
+    '<label class="radio-row"><input type="radio" name="acMode_' +
+    esc(o.id) +
+    '" value="limited"' +
+    (!acFull ? ' checked' : '') +
+    '> AC for limited time only</label>' +
+    '<div class="ac-limited-fields"' +
+    (acFull || !o.offerAc ? ' hidden' : '') +
+    '>' +
+    '<div class="fld"><label>AC hours included</label><input type="number" data-field="acHours" min="0" step="0.5" value="' +
+    (o.acHours || '') +
+    '" placeholder="e.g. 5"><small class="sub">Hours of AC in this booking window</small></div>' +
+    '<p class="sub" style="margin:8px 0 4px">Optional exact AC window (within hall hours):</p>' +
+    '<div class="two">' +
+    '<div class="fld"><label>AC from</label><input type="time" data-field="acFrom" value="' +
+    esc(o.acFrom) +
+    '"></div>' +
+    '<div class="fld"><label>AC to</label><input type="time" data-field="acTo" value="' +
+    esc(o.acTo) +
+    '"></div></div></div></div></div></div>'
+  );
+}
+
+function attachSlotPricingHandlers() {
+  const root = el('slotPricing');
+  if (!root) return;
+  root.querySelectorAll('.slot[data-offer-id]').forEach(function (row) {
+    const id = row.getAttribute('data-offer-id');
+    function refresh() {
+      const enabled = row.querySelector('[data-field=enabled]').checked;
+      row.classList.toggle('slot-disabled', !enabled);
+      const body = row.querySelector('.slot-body');
+      if (body) body.style.display = enabled ? 'block' : 'none';
+      const offerAc = row.querySelector('[data-field=offerAc]').checked;
+      const offerNoAc = row.querySelector('[data-field=offerNoAc]').checked;
+      const acWrap = row.querySelector('.ac-usage');
+      if (acWrap) acWrap.hidden = !offerAc;
+      const noIn = row.querySelector('[data-field=priceNoAc]');
+      const acIn = row.querySelector('[data-field=priceAc]');
+      if (noIn) noIn.disabled = !offerNoAc;
+      if (acIn) acIn.disabled = !offerAc;
+      const limited = row.querySelector('input[name=acMode_' + id + '][value=limited]');
+      const limWrap = row.querySelector('.ac-limited-fields');
+      if (limWrap && limited) limWrap.hidden = !offerAc || !limited.checked;
+    }
+    row.querySelectorAll('input').forEach(function (inp) {
+      inp.addEventListener('change', refresh);
+    });
+    refresh();
+  });
+}
+
+function validateSlotOffers() {
+  ensureSlotOffers();
+  const enabled = state.slotOffers.filter(function (o) {
+    return o.enabled;
+  });
+  if (!enabled.length) {
+    toast('Enable at least one time slot (Morning, Evening, or Full Day).');
+    return false;
+  }
+  for (let i = 0; i < enabled.length; i++) {
+    const o = enabled[i];
+    if (!o.offerNoAc && !o.offerAc) {
+      toast(o.label + ': turn on Without AC and/or With AC pricing.');
+      return false;
+    }
+    if (o.offerAc && o.acMode === 'limited' && !o.acHours && !(o.acFrom && o.acTo)) {
+      toast(o.label + ': set AC hours or AC from/to for limited AC usage.');
+      return false;
+    }
+  }
+  return true;
+}
+
 function renderPkg3() {
   renderPkgSteps(3);
+  ensureSlotOffers();
   el('slotPricing').innerHTML =
-    SLOTS.map((sl) => {
-      const p = state.prices[sl.id];
-      return `<div class="slot"><h3>${esc(sl.label)} <span style="font-weight:600;color:var(--mut);font-size:12px">(${esc(
-        sl.time,
-      )})</span></h3><div class="two">
-      <div class="fld"><label>Without AC (₹)</label><input type="number" data-slot="${sl.id}" data-ac="noAc" value="${p.noAc}"></div>
-      <div class="fld"><label>With AC (₹)</label><input type="number" data-slot="${sl.id}" data-ac="ac" value="${p.ac}"></div></div></div>`;
-    }).join('') +
-    `<div class="slot"><h3>Additional Hours Charge</h3><div class="two">
-      <div class="fld"><label>Without AC / hour</label><input type="number" id="extraNoAc" value="${state.prices.extraNoAc}"></div>
-      <div class="fld"><label>With AC / hour</label><input type="number" id="extraAc" value="${state.prices.extraAc}"></div></div></div>`;
+    state.slotOffers.map(renderSlotOfferRow).join('') +
+    '<div class="slot"><h3>Additional hours charge</h3><p class="sub" style="margin:0 0 10px">If a booking runs longer than the slot window.</p><div class="two">' +
+    '<div class="fld"><label>Without AC / hour</label><input type="number" id="extraNoAc" value="' +
+    (state.prices.extraNoAc || 0) +
+    '"></div>' +
+    '<div class="fld"><label>With AC / hour</label><input type="number" id="extraAc" value="' +
+    (state.prices.extraAc || 0) +
+    '"></div></div></div>';
+  attachSlotPricingHandlers();
 }
 
 function capturePkg3() {
-  el('slotPricing').querySelectorAll('[data-slot]').forEach((inp) => {
-    state.prices[inp.getAttribute('data-slot')][inp.getAttribute('data-ac')] = +inp.value || 0;
+  ensureSlotOffers();
+  const root = el('slotPricing');
+  if (!root) return;
+  root.querySelectorAll('.slot[data-offer-id]').forEach(function (row) {
+    const id = row.getAttribute('data-offer-id');
+    const o = state.slotOffers.find(function (x) {
+      return x.id === id;
+    });
+    if (!o) return;
+    o.enabled = !!row.querySelector('[data-field=enabled]').checked;
+    o.hallFrom = row.querySelector('[data-field=hallFrom]').value || '09:00';
+    o.hallTo = row.querySelector('[data-field=hallTo]').value || '17:00';
+    o.offerNoAc = !!row.querySelector('[data-field=offerNoAc]').checked;
+    o.offerAc = !!row.querySelector('[data-field=offerAc]').checked;
+    o.priceNoAc = +row.querySelector('[data-field=priceNoAc]').value || 0;
+    o.priceAc = +row.querySelector('[data-field=priceAc]').value || 0;
+    const modeEl = row.querySelector('input[name=acMode_' + id + ']:checked');
+    o.acMode = modeEl && modeEl.value === 'limited' ? 'limited' : 'full';
+    o.acFrom = row.querySelector('[data-field=acFrom]').value || o.hallFrom;
+    o.acTo = row.querySelector('[data-field=acTo]').value || o.hallTo;
+    o.acHours = +row.querySelector('[data-field=acHours]').value || 0;
+    if (!state.prices[o.id]) state.prices[o.id] = {};
+    state.prices[o.id].noAc = o.priceNoAc;
+    state.prices[o.id].ac = o.priceAc;
   });
   state.prices.extraNoAc = +(el('extraNoAc') && el('extraNoAc').value) || 0;
   state.prices.extraAc = +(el('extraAc') && el('extraAc').value) || 0;
@@ -592,9 +834,11 @@ function renderPkg5() {
         .map((line) => esc(line))
         .join('<br>')}</p></div>
     <div class="sum"><div class="hd"><b>Pricing &amp; Time Slots</b><button type="button" class="see" data-to="pkg3">Edit</button></div>
-      <p class="sub">Morning ₹${state.prices.morning.noAc.toLocaleString('en-IN')} / ₹${state.prices.morning.ac.toLocaleString(
-    'en-IN',
-  )} (AC)</p></div>
+      ${slotReviewLines()
+        .map(function (line) {
+          return '<p class="sub">' + esc(line) + '</p>';
+        })
+        .join('')}</div>
     <div class="sum"><div class="hd"><b>Payment &amp; Cancellation</b><button type="button" class="see" data-to="pkg4">Edit</button></div>
       <p class="sub">Advance ₹${state.payment.advanceFixed.toLocaleString('en-IN')} · Full due ${state.payment.fullDueDays} days before</p></div>`;
   el('pkgReview').querySelectorAll('[data-to]').forEach((b) => {
@@ -705,6 +949,7 @@ function bindOwnerEvents() {
       }
       if (id === 'pkg4') {
         capturePkg3();
+        if (!validateSlotOffers()) return;
         renderPkg4();
       }
       if (id === 'pkg5') {
@@ -860,6 +1105,7 @@ function boot() {
       throw new Error('Missing #manageMenu — download DOWNLOAD-gixbee-hall-owner.html (full file).');
     }
     loadPkg();
+    ensureSlotOffers();
     if (!state.commonParking) state.commonParking = { car: 80, bike: 120 };
     if (state.hallSetupComplete && (!state.halls || !state.halls.length)) {
       initHallsFromSetup(state.plannedHallCount || 2);

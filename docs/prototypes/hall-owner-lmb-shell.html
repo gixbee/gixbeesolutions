@@ -48,7 +48,12 @@ h2{margin:0 0 6px;font-size:18px}
 .fac label{display:flex;align-items:center;gap:8px;padding:10px;border:1px solid var(--line);border-radius:12px;font-size:12px;font-weight:700;cursor:pointer}
 .fac label.on{border-color:var(--gn);background:#F0FDF4}
 .slot{border:1px solid var(--line);border-radius:14px;padding:12px;margin-bottom:10px}
+.slot.slot-disabled{opacity:.65}
 .slot h3{margin:0 0 8px;font-size:14px}
+.slot .slot-body{margin-top:6px}
+.slot .ac-usage{margin-top:10px;padding:10px;border-radius:10px;background:#F9FAFB;border:1px solid var(--line)}
+.slot .price-row{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:8px 0;font-size:13px;font-weight:700}
+.slot .price-row input[type=number]{width:120px;font-weight:600}
 .pill{display:inline-block;padding:4px 10px;border-radius:99px;font-size:11px;font-weight:800;margin-bottom:8px}
 .pill.ok{background:#ECFDF3;color:#059669}
 .pill.bad{background:#FEE2E2;color:#B91C1C}
@@ -289,7 +294,7 @@ h2{margin:0 0 6px;font-size:18px}
 <section class="scr" id="pkg3">
   <div class="top"><button class="back" type="button" data-to="pkg2">←</button><h1>Pricing &amp; Packages</h1><span class="chip-h">3/5</span></div>
   <div class="prog"><div class="bar"><i style="width:60%"></i></div><span class="frac">3/5</span></div>
-  <div class="pad"><h2>Pricing &amp; Time Slots</h2><p class="sub">Set your standard prices for each time slot.</p><div id="slotPricing"></div></div>
+  <div class="pad"><h2>Pricing &amp; Time Slots</h2><p class="sub">Turn each slot on or off, set your hall hours (from–to), choose whether customers see Without AC and/or With AC pricing, and define AC usage hours when AC is not for the full booking window.</p><div id="slotPricing"></div></div>
   <div class="cta"><button class="btn" type="button" data-to="pkg4">Continue</button></div>
 </section>
 

@@ -112,7 +112,7 @@ body{margin:0;background:#E8EDF5;font-family:Inter,system-ui,sans-serif;color:va
 </div></div>
 <!-- APP_START -->
 <script>
-const CUSTOMER_BUILD = '2026-09-28-hall-customer-v7';
+const CUSTOMER_BUILD = '2026-09-28-hall-customer-v8';
 const DEMO_FILE = 'hall-customer-book-master.html';
 const OWNER_PKG_KEY = 'GIXBEE_HALL_PACKAGE';
 
@@ -213,13 +213,33 @@ function syncFromOwnerPackage() {
     if (typeof pkg.useHallName === 'boolean') h.useHallName = pkg.useHallName;
     if (pkg.useHallName && pkg.hallName) h.hallName = String(pkg.hallName).trim();
     else if (!pkg.useHallName) h.hallName = '';
+    if (pkg.slotOffers && pkg.slotOffers.length) h.slotOffers = pkg.slotOffers;
+    const offers = enabledSlotOffers(h);
+    let min = null;
+    offers.forEach(function (o) {
+      if (o.offerNoAc) min = min == null ? o.priceNoAc : Math.min(min, o.priceNoAc);
+      if (o.offerAc) min = min == null ? o.priceAc : Math.min(min, o.priceAc);
+    });
+    if (min != null) h.priceFrom = min;
   } catch (_e) {
     /* ignore */
   }
 }
 function priceForHall(h, acChoice) {
+  const o = selectedSlotOffer(h);
+  if (o) {
+    if (acChoice === 'ac' && o.offerAc) return o.priceAc;
+    if (acChoice === 'noac' && o.offerNoAc) return o.priceNoAc;
+    if (o.offerAc) return o.priceAc;
+    if (o.offerNoAc) return o.priceNoAc;
+  }
   if (acChoice === 'ac') return h.priceAc;
   return h.priceFrom;
+}
+function slotLabel() {
+  const o = selectedSlotOffer(hall());
+  if (!o) return '';
+  return o.label + ' (' + formatTimeRange(o.hallFrom, o.hallTo) + ')';
 }
 function formatDate(iso) {
   try {
@@ -262,12 +282,94 @@ function serviceLines(h) {
   }
   return rows;
 }
-function slotLabel() {
-  return state.slot === 'morning'
-    ? 'Morning (10:00 AM – 3:00 PM)'
-    : state.slot === 'evening'
-      ? 'Evening (5:00 PM – 11:00 PM)'
-      : 'Full Day (9:00 AM – 5:00 PM)';
+function formatTime12(hhmm) {
+  if (!hhmm) return '';
+  const parts = String(hhmm).split(':');
+  const h = +parts[0] || 0;
+  const m = +parts[1] || 0;
+  const ampm = h >= 12 ? 'PM' : 'AM';
+  const h12 = h % 12 || 12;
+  return h12 + ':' + String(m).padStart(2, '0') + ' ' + ampm;
+}
+function formatTimeRange(from, to) {
+  return formatTime12(from) + ' – ' + formatTime12(to);
+}
+function defaultSlotOffers(h) {
+  return [
+    {
+      id: 'morning',
+      label: 'Morning',
+      enabled: true,
+      hallFrom: '10:00',
+      hallTo: '15:00',
+      offerNoAc: true,
+      offerAc: true,
+      priceNoAc: h.priceFrom,
+      priceAc: h.priceAc,
+      acMode: 'full',
+      acHours: 0,
+    },
+    {
+      id: 'evening',
+      label: 'Evening',
+      enabled: true,
+      hallFrom: '17:00',
+      hallTo: '23:00',
+      offerNoAc: true,
+      offerAc: true,
+      priceNoAc: h.priceFrom,
+      priceAc: h.priceAc,
+      acMode: 'full',
+      acHours: 0,
+    },
+    {
+      id: 'fullday',
+      label: 'Full Day',
+      enabled: true,
+      hallFrom: '09:00',
+      hallTo: '21:00',
+      offerNoAc: true,
+      offerAc: true,
+      priceNoAc: h.priceFrom + 20000,
+      priceAc: h.priceAc + 15000,
+      acMode: 'limited',
+      acHours: 5,
+      acFrom: '12:00',
+      acTo: '17:00',
+    },
+  ];
+}
+function enabledSlotOffers(h) {
+  const list = h.slotOffers && h.slotOffers.length ? h.slotOffers : defaultSlotOffers(h);
+  return list.filter(function (o) {
+    return o.enabled !== false;
+  });
+}
+function selectedSlotOffer(h) {
+  const offers = enabledSlotOffers(h);
+  const pick = offers.find(function (o) {
+    return o.id === state.slot;
+  });
+  return pick || offers[0];
+}
+function acUsageCustomerLine(o) {
+  if (!o || !o.offerAc || o.acMode === 'full') return '';
+  if (o.acHours) return 'Includes ' + o.acHours + ' hours of AC in this booking window.';
+  if (o.acFrom && o.acTo) return 'AC window: ' + formatTimeRange(o.acFrom, o.acTo) + '.';
+  return '';
+}
+function hallAcProfileLine(h) {
+  const offers = enabledSlotOffers(h);
+  const anyNoAc = offers.some(function (o) {
+    return o.offerNoAc;
+  });
+  const anyAc = offers.some(function (o) {
+    return o.offerAc;
+  });
+  if (anyAc && !anyNoAc) return '❄️ AC hall packages only';
+  if (anyAc && anyNoAc) return '❄️ With or without AC';
+  if (anyAc) return '❄️ AC available';
+  return '🌬 Non-AC packages';
 }
 
 function captureFilters() {
@@ -325,7 +427,7 @@ function renderDetail() {
     <p class="sub" style="margin-top:12px">Spacious hall with stage, green room, and ample parking. Ideal for ${state.event.toLowerCase()} events in Kottayam.</p>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px;font-size:12px;font-weight:800">
       <div>🪑 ${h.seat} Seating</div><div>🍽 ${h.dine} Dining</div>
-      <div>🅿 ${h.park} Cars</div><div>❄️ AC & Non-AC</div>
+      <div>🅿 ${h.park} Cars</div><div>${hallAcProfileLine(h)}</div>
     </div>
     <div class="box bl" style="margin-top:14px"><b>Included in hall package</b><br>Venue hire for your time slot, standard facilities (stage, restrooms, parking as listed). Price on next steps is hall rent only.</div>
     <div class="box am" style="margin-top:10px"><b>Catering &amp; decoration</b> (not included in hall rent)<br>${serviceLines(h).join('<br>')}</div>
@@ -334,19 +436,62 @@ function renderDetail() {
 
 function renderSlots() {
   const h = hall();
-  const slots = [
-    { id: 'morning', label: 'Morning (10:00 AM – 3:00 PM)', no: h.priceFrom, ac: h.priceAc },
-    { id: 'evening', label: 'Evening (5:00 PM – 11:00 PM)', no: h.priceFrom, ac: h.priceAc },
-    { id: 'fullday', label: 'Full Day (9:00 AM – 5:00 PM)', no: h.priceFrom + 20000, ac: h.priceAc + 15000 },
-  ];
+  let slots = enabledSlotOffers(h);
+  if (state.ac === 'ac') {
+    slots = slots.filter(function (o) {
+      return o.offerAc;
+    });
+  } else if (state.ac === 'noac') {
+    slots = slots.filter(function (o) {
+      return o.offerNoAc;
+    });
+  }
+  if (!slots.length) {
+    el('slotPick').innerHTML = '<p class="sub">No slots match your AC filter. Change AC on search or ask the hall owner.</p>';
+    return;
+  }
+  if (!slots.find(function (o) { return o.id === state.slot; })) {
+    state.slot = slots[0].id;
+    state.acChoice = slots[0].offerAc && state.ac !== 'noac' ? 'ac' : 'noac';
+  }
   el('slotPick').innerHTML = slots
-    .map((sl) => {
+    .map(function (sl) {
       const on = state.slot === sl.id;
-      return `<div class="slot-opt${on ? ' on' : ''}" data-slot="${sl.id}">
-        <b>${sl.label}</b>
-        <label class="sub"><input type="radio" name="ac${sl.id}" value="noac"${state.slot === sl.id && state.acChoice === 'noac' ? ' checked' : ''}> Without AC — ₹ ${sl.no.toLocaleString('en-IN')}</label>
-        <label class="sub"><input type="radio" name="ac${sl.id}" value="ac"${state.slot === sl.id && state.acChoice === 'ac' ? ' checked' : ''}> With AC — ₹ ${sl.ac.toLocaleString('en-IN')}</label>
-      </div>`;
+      const title = sl.label + ' (' + formatTimeRange(sl.hallFrom, sl.hallTo) + ')';
+      const acNote = acUsageCustomerLine(sl);
+      let opts = '';
+      if (sl.offerNoAc && state.ac !== 'ac') {
+        opts +=
+          '<label class="sub"><input type="radio" name="ac' +
+          sl.id +
+          '" value="noac"' +
+          (state.slot === sl.id && state.acChoice === 'noac' ? ' checked' : '') +
+          '> Without AC — ₹ ' +
+          sl.priceNoAc.toLocaleString('en-IN') +
+          '</label>';
+      }
+      if (sl.offerAc && state.ac !== 'noac') {
+        opts +=
+          '<label class="sub"><input type="radio" name="ac' +
+          sl.id +
+          '" value="ac"' +
+          (state.slot === sl.id && state.acChoice === 'ac' ? ' checked' : '') +
+          '> With AC — ₹ ' +
+          sl.priceAc.toLocaleString('en-IN') +
+          '</label>';
+      }
+      return (
+        '<div class="slot-opt' +
+        (on ? ' on' : '') +
+        '" data-slot="' +
+        sl.id +
+        '"><b>' +
+        esc(title) +
+        '</b>' +
+        (acNote ? '<p class="sub" style="margin:4px 0 6px">' + esc(acNote) + '</p>' : '') +
+        opts +
+        '</div>'
+      );
     })
     .join('');
   el('slotPick').querySelectorAll('.slot-opt').forEach((row) => {
@@ -367,14 +512,17 @@ function renderSlots() {
 
 function renderEnquiry() {
   const h = hall();
+  const o = selectedSlotOffer(h);
   const total = priceForHall(h, state.acChoice);
   const advance = 20000;
+  const acExtra = o && state.acChoice === 'ac' ? acUsageCustomerLine(o) : '';
   el('enquiryBody').innerHTML = `
     <div class="card" style="cursor:default"><div class="bd"><b>${esc(hallLabel(h))}</b><div class="meta">${esc(businessLabel(h))} · ${h.area}</div></div></div>
     <div class="kv"><span>Event Type</span><b>${state.event}</b></div>
     <div class="kv"><span>Event Date</span><b>${formatDate(state.date)}</b></div>
     <div class="kv"><span>Time Slot</span><b>${slotLabel()}</b></div>
     <div class="kv"><span>AC Option</span><b>${state.acChoice === 'ac' ? 'With AC' : 'Without AC'}</b></div>
+    ${acExtra ? '<div class="kv"><span>AC usage</span><b>' + esc(acExtra) + '</b></div>' : ''}
     <div class="kv"><span>Guests</span><b>${state.guests}</b></div>
     <div class="box gn"><b>Hall charge (venue only): ₹ ${total.toLocaleString('en-IN')}</b><br><span class="sub">GST included · Catering &amp; decoration not included — arrange separately with the hall if needed.</span></div>
     <div class="box pk"><b>Advance payment: ₹ ${advance.toLocaleString('en-IN')}</b><br>Paid directly to hall owner after acceptance.</div>
