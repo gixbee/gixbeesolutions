@@ -67,6 +67,33 @@ h2{margin:0 0 6px;font-size:18px}
 .manage-name-panel input:disabled{background:#F3F4F6;color:#9CA3AF}
 .btn-save-hall{display:flex;align-items:center;justify-content:center;gap:8px}
 .btn-save-hall .save-ico{display:inline-grid;place-items:center;width:22px;height:22px;border-radius:50%;background:rgba(255,255,255,.28);font-size:14px;font-weight:900}
+.pkg-detail-top .pkg-back-lbl{width:auto;font-size:14px;font-weight:800;padding:0 4px}
+#pkg2 .prog,#pkg2 .steps{display:none}
+.pkg-biz-card{display:flex;gap:12px;padding:14px;background:#F0FDFA;border:1px solid #99F6E4;border-radius:16px;margin-bottom:14px;align-items:flex-start}
+.pkg-biz-thumb{width:72px;height:64px;border-radius:10px;background:linear-gradient(145deg,#64748B,#94A3B8);flex-shrink:0}
+.pkg-biz-card b{display:block;font-size:16px;color:var(--navy);margin-bottom:4px}
+.pkg-biz-loc{font-size:12px;color:#475569;font-weight:600;display:flex;align-items:center;gap:4px;margin-bottom:6px}
+.pkg-biz-note{font-size:11px;color:#0D9488;font-weight:600;margin:0;line-height:1.4}
+.cap-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:12px 0}
+.cap-field label{display:flex;align-items:center;gap:6px;font-size:12px;font-weight:800;margin:0 0 6px;color:#374151}
+.cap-field .cap-ico{font-size:16px}
+.cap-field input{width:100%;padding:12px;border:1px solid var(--line);border-radius:12px;font:inherit;font-weight:700}
+.cap-field.full{grid-column:1/-1}
+.cap-suffix{font-size:11px;color:var(--mut);font-weight:700;margin-top:4px}
+.pkg-section-hd{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:900;color:var(--navy);margin:18px 0 10px}
+.fac-rich{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.fac-tile{display:flex;align-items:center;gap:8px;padding:10px 10px;border:1px solid var(--line);border-radius:12px;font-size:11px;font-weight:800;cursor:pointer;background:#fff;line-height:1.25}
+.fac-tile input{flex:none;width:18px;height:18px;accent-color:var(--gn)}
+.fac-tile.on{border-color:#86EFAC;background:#F0FDF4}
+.fac-tile .fac-ico{font-size:16px;flex-shrink:0}
+.cater-stack{display:flex;flex-direction:column;gap:12px}
+.cater-q{padding:12px;border:1px solid var(--line);border-radius:14px;background:#FAFAFA}
+.cater-q p{font-weight:800;font-size:13px;margin:0 0 8px;color:#374151}
+.cater-yn{display:flex;gap:8px}
+.cater-yn label{flex:1;display:flex;align-items:center;justify-content:center;gap:6px;padding:10px;border:1px solid var(--line);border-radius:10px;font-size:13px;font-weight:800;cursor:pointer;background:#fff;margin:0}
+.cater-yn label.on{border-color:var(--gn);background:#ECFDF3;color:#065F46}
+.cater-yn input{position:absolute;opacity:0;width:0;height:0}
+.btn-continue::after{content:'→';margin-left:6px;font-weight:900}
 .cta{position:sticky;bottom:0;padding:12px 16px 18px;background:linear-gradient(transparent,#fff 20%)}
 .btn{width:100%;border:0;border-radius:12px;background:var(--gn);color:#fff;font-weight:800;font-size:16px;padding:14px;cursor:pointer}
 .btn.ghost{background:#fff;color:var(--gn);border:1.5px solid var(--gn);margin-top:8px}
@@ -469,27 +496,35 @@ textarea{width:100%;border:1px solid var(--line);border-radius:10px;padding:10px
 </section>
 
 <section class="scr" id="pkg2">
-  <div class="top"><button class="back" type="button" data-to="pkg1">←</button><h1>Pricing &amp; Packages</h1><span class="chip-h">2/5</span></div>
+  <div class="top pkg-detail-top"><button class="back pkg-back-lbl" type="button" data-to="pkg1">← Back</button><h1>Hall Details</h1><span class="chip-h">2/5</span></div>
   <div class="prog"><div class="bar"><i style="width:40%"></i></div><span class="frac">2/5</span></div>
-  <div class="pad">
-    <h2>Venue Details</h2><p class="sub">Hall name, seating, dining, and facilities. Car and bike parking are set on the Halls page (shared parking).</p>
-    <div class="fld"><label>Business name</label><input id="bizNamePkg" type="text" readonly style="background:#F9FAFB;color:#374151"><small class="sub">Cannot be changed — from List My Business.</small></div>
-    <label class="radio-row" style="margin:0 0 8px"><input type="checkbox" id="useHallNamePkg" checked> This hall has its own name (optional)</label>
-    <div id="hallNamePkgWrap" class="fld">
-      <label>Hall name</label><input id="hallNameInput" type="text" placeholder="e.g. Koinonia"><small class="sub">Customers see this on booking when provided. Cards still show the business name.</small>
+  <div class="pad pkg2-pad">
+    <div class="pkg-biz-card">
+      <div class="pkg-biz-thumb" aria-hidden="true"></div>
+      <div style="min-width:0;flex:1">
+        <b id="pkg2BizTitle">Vijaya Convention Center</b>
+        <p class="pkg-biz-loc"><span aria-hidden="true">📍</span> <span id="pkg2BizLoc">Kottayam, Kerala</span></p>
+        <p class="pkg-biz-note">Cannot be changed — from List My Business.</p>
+        <input id="bizNamePkg" type="text" readonly hidden value="Vijaya Convention Center">
+      </div>
     </div>
-    <div class="two">
-      <div class="fld"><label>Seating Capacity</label><input id="seatCap" type="number" value="700"><small>guests</small></div>
-      <div class="fld"><label>Dining Capacity</label><input id="dineCap" type="number" value="550"><small>guests</small></div>
+    <label class="manage-check-row"><input type="checkbox" id="useHallNamePkg" checked> This hall has its own name (optional)</label>
+    <div id="hallNamePkgWrap" class="manage-name-panel">
+      <div class="manage-name-panel-hd"><span class="tag-ico" aria-hidden="true">🏷</span> Hall name</div>
+      <input id="hallNameInput" type="text" placeholder="e.g. Koinonia">
+      <p class="sub" style="margin:8px 0 0;font-size:12px">Shown when customers book this hall.</p>
     </div>
-    <div class="fld"><label>Private / Changing Room</label><input id="rooms" type="number" value="2"><small>rooms</small></div>
-    <p class="lbl">FACILITIES (SELECT AVAILABLE)</p>
-    <div class="fac" id="facGrid"></div>
-    <p class="lbl">CATERING &amp; DECORATION (FOR CUSTOMERS)</p>
-    <p class="sub" style="margin:-6px 0 10px">Shown on your hall profile so customers know what you offer. These services are not included in hall slot rent.</p>
-    <div id="caterDec"></div>
+    <div class="cap-grid">
+      <div class="cap-field"><label><span class="cap-ico" aria-hidden="true">👥</span> Seating Capacity</label><input id="seatCap" type="number" min="0" value="700"><span class="cap-suffix">guests</span></div>
+      <div class="cap-field"><label><span class="cap-ico" aria-hidden="true">🍽</span> Dining Capacity</label><input id="dineCap" type="number" min="0" value="550"><span class="cap-suffix">guests</span></div>
+      <div class="cap-field full"><label><span class="cap-ico" aria-hidden="true">🚪</span> Private / Changing Room</label><input id="rooms" type="number" min="0" value="2"><span class="cap-suffix">rooms</span></div>
+    </div>
+    <p class="pkg-section-hd"><span aria-hidden="true">⚙</span> Facilities (select available)</p>
+    <div class="fac fac-rich" id="facGrid"></div>
+    <p class="pkg-section-hd"><span aria-hidden="true">🍴</span> Catering &amp; Decoration (for customers)</p>
+    <div class="cater-stack" id="caterDec"></div>
   </div>
-  <div class="cta"><button class="btn" type="button" data-to="pkg3">Continue</button></div>
+  <div class="cta"><button class="btn btn-continue" type="button" data-to="pkg3">Continue</button></div>
 </section>
 
 <section class="scr" id="pkg3">
@@ -702,7 +737,7 @@ textarea{width:100%;border:1px solid var(--line);border-radius:10px;padding:10px
 </div></div>
 <!-- APP_START -->
 <script>
-const OWNER_BUILD = '2026-09-28-hall-owner-v40';
+const OWNER_BUILD = '2026-09-28-hall-owner-v41';
 const DEMO_FILE = 'hall-owner-lmb-master.html';
 const PKG_KEY = 'GIXBEE_HALL_PACKAGE';
 
@@ -719,6 +754,16 @@ const EVENT_CATS = [
 ];
 
 const FACILITIES = ['AC', 'Generator / Power Backup', 'Chairs & Tables', 'Stage', 'Sound System', 'Restrooms', 'Lift'];
+
+const FACILITY_ICONS = {
+  AC: '❄',
+  'Generator / Power Backup': '⚡',
+  'Chairs & Tables': '🪑',
+  Stage: '🎭',
+  'Sound System': '🔊',
+  Restrooms: '🚻',
+  Lift: '🛗',
+};
 
 const SLOT_TEMPLATES = [
   { id: 'morning', label: 'Morning', hallFrom: '10:00', hallTo: '15:00' },
@@ -843,6 +888,7 @@ const MANAGE_MENU = [
 
 const state = {
   businessName: 'Vijaya Convention Center',
+  businessLocation: 'Kottayam, Kerala',
   useHallName: false,
   hallName: '',
   activeHallId: '',
@@ -1822,7 +1868,7 @@ function customerHallName() {
 function syncHallNameUi() {
   const show = !!state.useHallName;
   const pkgWrap = el('hallNamePkgWrap');
-  if (pkgWrap) pkgWrap.style.display = show ? 'block' : 'none';
+  if (pkgWrap) pkgWrap.hidden = !show;
   const pkgCb = el('useHallNamePkg');
   if (pkgCb) pkgCb.checked = show;
   const pkgIn = el('hallNameInput');
@@ -1933,6 +1979,10 @@ function renderManageHeader() {
   if (bizDisplay) bizDisplay.textContent = state.businessName;
   const bizPkg = el('bizNamePkg');
   if (bizPkg) bizPkg.value = state.businessName;
+  const pkg2Title = el('pkg2BizTitle');
+  if (pkg2Title) pkg2Title.textContent = state.businessName;
+  const pkg2Loc = el('pkg2BizLoc');
+  if (pkg2Loc) pkg2Loc.textContent = state.businessLocation || 'Kottayam, Kerala';
   syncHallNameUi();
   const banner = el('hallInactiveBanner');
   if (banner) banner.hidden = hallListingOn(activeHall());
@@ -2448,12 +2498,24 @@ function renderPkg2() {
   el('seatCap').value = state.capacity.seat;
   el('dineCap').value = state.capacity.dine;
   el('rooms').value = state.capacity.rooms;
-  el('facGrid').innerHTML = FACILITIES.map(
-    (f) =>
-      `<label class="${state.facilities.includes(f) ? 'on' : ''}"><input type="checkbox" data-fac="${esc(f)}"${
-        state.facilities.includes(f) ? ' checked' : ''
-      }> ${esc(f)}</label>`,
-  ).join('');
+  syncHallNameUi();
+  el('facGrid').innerHTML = FACILITIES.map(function (f) {
+    const on = state.facilities.includes(f);
+    const icon = FACILITY_ICONS[f] || '•';
+    return (
+      '<label class="fac-tile' +
+      (on ? ' on' : '') +
+      '"><input type="checkbox" data-fac="' +
+      esc(f) +
+      '"' +
+      (on ? ' checked' : '') +
+      '><span class="fac-ico" aria-hidden="true">' +
+      icon +
+      '</span><span>' +
+      esc(f) +
+      '</span></label>'
+    );
+  }).join('');
   el('facGrid').querySelectorAll('[data-fac]').forEach((cb) => {
     cb.onchange = () => {
       const f = cb.getAttribute('data-fac');
@@ -2463,34 +2525,38 @@ function renderPkg2() {
       renderPkg2();
     };
   });
-  const q = (key, label, hint) =>
-    `<div style="margin:12px 0 8px"><p style="font-weight:800;font-size:13px;margin:0 0 4px">${label}</p>` +
-    (hint ? `<p class="sub" style="margin:0 0 6px">${hint}</p>` : '') +
-    ['yes', 'no']
-      .map(
-        (v) =>
-          `<label class="radio-row"><input type="radio" name="${key}" value="${v}"${
-            state.catering[key] === v ? ' checked' : ''
-          }> ${v === 'yes' ? 'Yes' : 'No'}</label>`,
-      )
-      .join('') +
-    '</div>';
+  const q = function (key, label) {
+    const yesOn = state.catering[key] === 'yes';
+    const noOn = state.catering[key] === 'no';
+    return (
+      '<div class="cater-q"><p>' +
+      esc(label) +
+      '</p><div class="cater-yn">' +
+      '<label class="' +
+      (yesOn ? 'on' : '') +
+      '"><input type="radio" name="' +
+      key +
+      '" value="yes"' +
+      (yesOn ? ' checked' : '') +
+      '> Yes</label>' +
+      '<label class="' +
+      (noOn ? 'on' : '') +
+      '"><input type="radio" name="' +
+      key +
+      '" value="no"' +
+      (noOn ? ' checked' : '') +
+      '> No</label></div></div>'
+    );
+  };
   el('caterDec').innerHTML =
-    q(
-      'inHouse',
-      'In-house catering available?',
-      'If Yes, customers see that you offer catering. Catering is an add-on — not included in hall rent.',
-    ) +
-    q('outside', 'Outside catering allowed?', 'If Yes, customers may bring their own caterer.') +
-    q(
-      'decorHall',
-      'Decoration provided by hall?',
-      'If Yes, customers see that you offer decoration. Decoration is an add-on — not included in hall rent.',
-    ) +
-    q('decorOutside', 'Outside decorators allowed?', 'If Yes, customers may hire their own decorators.');
+    q('inHouse', 'In-house catering available?') +
+    q('outside', 'Outside catering allowed?') +
+    q('decorHall', 'Decoration provided by hall?') +
+    q('decorOutside', 'Outside decorators allowed?');
   el('caterDec').querySelectorAll('input[type=radio]').forEach((r) => {
     r.onchange = () => {
       state.catering[r.name] = r.value;
+      renderPkg2();
     };
   });
 }
