@@ -1,4 +1,4 @@
-const OWNER_BUILD = '2026-09-28-hall-owner-v44';
+const OWNER_BUILD = '2026-09-28-hall-owner-v45';
 const DEMO_FILE = 'hall-owner-lmb-master.html';
 const PKG_KEY = 'GIXBEE_HALL_PACKAGE';
 
@@ -1113,6 +1113,7 @@ function loadPkg() {
   ensureSlotOffers();
   ensurePolicyRules();
   normalizeHallRecords();
+  state.parkingEditOpen = false;
 }
 function normalizeNames() {
   if (!state.businessName) state.businessName = 'Vijaya Convention Center';
@@ -1251,8 +1252,9 @@ function renderManageHeader() {
   syncHallInactiveLock();
 }
 function savePkg() {
-  localStorage.setItem(PKG_KEY, JSON.stringify(state));
   syncActiveHallFromState();
+  const payload = Object.assign({}, state, { parkingEditOpen: false });
+  localStorage.setItem(PKG_KEY, JSON.stringify(payload));
 }
 
 function activeHall() {
@@ -1345,8 +1347,8 @@ function saveVenueSetupFromEdit() {
   const bike = +(el('editParkBike') && el('editParkBike').value) || 0;
   state.plannedHallCount = count;
   state.commonParking = { car: car, bike: bike };
-  savePkg();
   closeVenueEditOverlay();
+  savePkg();
   renderParkingSummary();
   renderHallBizHome();
   toast(count > 1 ? 'Venue updated — common parking saved.' : 'Venue updated — parking saved.');
@@ -1581,7 +1583,6 @@ function renderParkingSummary() {
       esc(String(p.bike)) +
       '</span>';
   }
-  setHallBizDisabled(state.parkingEditOpen);
 }
 
 function renderHallCards() {
@@ -2819,6 +2820,8 @@ function boot() {
     renderHallBizHome();
     renderManage();
     bindOwnerEvents();
+    setHallBizDisabled(false);
+    closeOverlay('venueEditOverlay');
     show('lmbDashboard');
     var tag = el('buildTag');
     if (tag) {
