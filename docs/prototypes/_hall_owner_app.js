@@ -1,4 +1,4 @@
-const OWNER_BUILD = '2026-09-28-hall-owner-v47';
+const OWNER_BUILD = '2026-09-28-hall-owner-v48';
 const DEMO_FILE = 'hall-owner-lmb-master.html';
 const PKG_KEY = 'GIXBEE_HALL_PACKAGE';
 
@@ -1769,9 +1769,10 @@ function openManageScreen(fromAddHall) {
   syncHallInactiveLock();
 }
 
-function renderManageFooter() {
-  const foot = el('manageSaveFooter');
-  if (foot) foot.hidden = false;
+function persistActiveHallFromManage() {
+  captureNameFields();
+  syncActiveHallFromState();
+  savePkg();
 }
 
 function yesNoLabel(key, yes) {
@@ -1796,7 +1797,6 @@ function cateringReviewLines() {
 
 function renderManage() {
   renderManageHeader();
-  renderManageFooter();
   el('manageMenu').innerHTML = MANAGE_MENU.map((m) => {
     const cls = m.cls ? ' ' + m.cls.split(' ').join(' ') : '';
     const dot = m.dot ? '<span class="dot"></span>' : '';
@@ -1836,6 +1836,7 @@ function renderManage() {
       if (id === 'ownerReq' && !requireHallPackageSaved(activeHall())) {
         return;
       }
+      persistActiveHallFromManage();
       if (id === 'deleteHall') {
         if (state.halls.length <= 1) {
           toast('Keep at least one hall on this business.');
@@ -2761,41 +2762,25 @@ function bindOwnerEvents() {
       toast(count > 1 ? 'Saved — common parking set. Use + Add hall for each hall.' : 'Saved — use + Add hall to set up your hall.');
     };
   }
-  const saveNewHall = el('saveNewHallBtn');
-  if (saveNewHall) {
-    saveNewHall.onclick = function () {
-      if (!validateHallNameRequired()) return;
-      syncActiveHallFromState();
-      const fromAdd = state.openedFromAddHall;
-      state.openedFromAddHall = false;
-      savePkg();
-      renderManageFooter();
-      renderHallBizHome();
-      renderManageNameMode();
-      renderManageHeader();
-      if (fromAdd) {
-        show('hallBizHome');
-      }
-      const planned = Math.max(1, state.plannedHallCount || 1);
-      if (fromAdd && state.halls.length >= planned && planned > 1) {
-        toast('Hall saved. All ' + planned + ' halls are added for this venue.');
-      } else {
-        toast('Hall saved.');
-      }
-    };
-  }
   const bizHomeToDash = el('bizHomeToDash');
   if (bizHomeToDash) bizHomeToDash.onclick = function () { show('lmbDashboard'); };
   const backBiz = el('backToBizHalls');
   if (backBiz) {
     backBiz.onclick = function () {
-      captureNameFields();
-      syncActiveHallFromState();
+      if (!validateHallNameRequired()) return;
+      persistActiveHallFromManage();
+      const fromAdd = state.openedFromAddHall;
       state.openedFromAddHall = false;
-      savePkg();
-      renderManageFooter();
       renderHallBizHome();
+      renderManageNameMode();
+      renderManageHeader();
       show('hallBizHome');
+      if (fromAdd) {
+        const planned = Math.max(1, state.plannedHallCount || 1);
+        if (state.halls.length >= planned && planned > 1) {
+          toast('All ' + planned + ' halls are added for this venue.');
+        }
+      }
     };
   }
   const manageNameIn = el('manageHallNameInput');

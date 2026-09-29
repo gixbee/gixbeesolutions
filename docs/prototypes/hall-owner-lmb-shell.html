@@ -63,8 +63,6 @@ h2{margin:0 0 6px;font-size:18px}
 .manage-name-panel-hd .tag-ico{font-size:18px}
 .manage-name-panel input{width:100%;border:1px solid #86EFAC;border-radius:10px;padding:12px 14px;font-weight:700;font-size:15px;color:var(--navy);background:#fff}
 .manage-name-panel input:disabled{background:#F3F4F6;color:#9CA3AF}
-.btn-save-hall{display:flex;align-items:center;justify-content:center;gap:8px}
-.btn-save-hall .save-ico{display:inline-grid;place-items:center;width:22px;height:22px;border-radius:50%;background:rgba(255,255,255,.28);font-size:14px;font-weight:900}
 .pkg-detail-top .pkg-back-lbl{width:auto;font-size:14px;font-weight:800;padding:0 4px}
 #pkg2 .prog,#pkg2 .steps{display:none}
 .pkg-biz-card{display:flex;gap:12px;padding:14px;background:#F0FDFA;border:1px solid #99F6E4;border-radius:16px;margin-bottom:14px;align-items:flex-start}
@@ -170,9 +168,8 @@ textarea{width:100%;border:1px solid var(--line);border-radius:10px;padding:10px
 .hall-toggle input:checked + .hall-toggle-ui::after{transform:translateX(20px)}
 .hall-toggle-lbl{min-width:22px;color:#374151}
 .hall-inactive-banner{padding:10px 12px;border-radius:10px;background:#FEF3C7;color:#92400E;font-size:13px;line-height:1.45;margin-bottom:12px}
-.hall-inactive-lock input:not([readonly]):not([data-hall-toggle]),.hall-inactive-lock textarea,.hall-inactive-lock select,.hall-inactive-lock .menu .mrow,.hall-inactive-lock .cta .btn:not(#saveNewHallBtn),.hall-inactive-lock .btn:not(.back):not(#backToBizHalls):not(#saveNewHallBtn),.hall-inactive-lock label.ev,.hall-inactive-lock .policy-row input,.hall-inactive-lock .slot input{pointer-events:none;opacity:.45}
+.hall-inactive-lock input:not([readonly]):not([data-hall-toggle]),.hall-inactive-lock textarea,.hall-inactive-lock select,.hall-inactive-lock .menu .mrow,.hall-inactive-lock .cta .btn,.hall-inactive-lock .btn:not(.back):not(#backToBizHalls),.hall-inactive-lock label.ev,.hall-inactive-lock .policy-row input,.hall-inactive-lock .slot input{pointer-events:none;opacity:.45}
 .hall-inactive-lock #manageHallNameInput,.hall-inactive-lock #hallNameInput{pointer-events:none;opacity:.45}
-.hall-inactive-lock #saveNewHallBtn{pointer-events:auto!important;opacity:1!important}
 .hall-inactive-lock #backToBizHalls,.hall-inactive-lock .top .back{pointer-events:auto!important;opacity:1!important}
 .manage-name-actions{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px}
 .manage-name-actions .btn{margin:0}
@@ -477,9 +474,6 @@ textarea{width:100%;border:1px solid var(--line);border-radius:10px;padding:10px
   <div class="pad">
     <p class="lbl">MANAGE</p>
     <div class="menu" id="manageMenu"><p class="sub" id="jsWait">Loading menu…</p></div>
-  </div>
-  <div class="cta" id="manageSaveFooter">
-    <button type="button" class="btn btn-save-hall" id="saveNewHallBtn"><span class="save-ico" aria-hidden="true">✓</span> Save hall</button>
   </div>
   </div>
 </section>
