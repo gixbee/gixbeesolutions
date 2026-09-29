@@ -504,7 +504,7 @@ textarea{width:100%;border:1px solid var(--line);border-radius:10px;padding:10px
 </section>
 
 <section class="scr" id="pkg2">
-  <div class="top pkg-detail-top"><button class="back pkg-back-lbl" type="button" id="pkg2BackBtn">← Back</button><h1 id="pkg2HeadTitle">Hall Details</h1><span class="chip-h" id="pkg2StepChip">2/5</span></div>
+  <div class="top pkg-detail-top"><button class="back pkg-back-lbl" type="button" id="pkg2BackBtn">← Back</button><h1 id="pkg2HeadTitle">Venue Details</h1><span class="chip-h" id="pkg2StepChip">2/5</span></div>
   <div class="prog" id="pkg2ProgWrap"><div class="bar"><i id="pkg2ProgBar" style="width:40%"></i></div><span class="frac" id="pkg2FracLbl">2/5</span></div>
   <div class="pad pkg2-pad">
     <div class="pkg-biz-card">
@@ -545,7 +545,7 @@ textarea{width:100%;border:1px solid var(--line);border-radius:10px;padding:10px
 <section class="scr" id="pkg3">
   <div class="top"><button class="back" type="button" data-to="pkg2">←</button><h1>Pricing &amp; Packages</h1><span class="chip-h">3/5</span></div>
   <div class="prog"><div class="bar"><i style="width:60%"></i></div><span class="frac">3/5</span></div>
-  <div class="pad"><h2>Pricing &amp; Time Slots</h2><p class="sub">Turn each slot on or off, set your hall hours (from–to), choose whether customers see Without AC and/or With AC pricing, and define AC usage hours when AC is not for the full booking window.</p><div id="slotPricing"></div></div>
+  <div class="pad"><h2 id="pkg3Head">Pricing &amp; Time Slots</h2><p class="sub" id="pkg3Sub">Turn each slot on or off, set your hall hours (from–to), choose whether customers see Without AC and/or With AC pricing, and define AC usage hours when AC is not for the full booking window.</p><div id="slotPricing"></div></div>
   <div class="cta"><button class="btn" type="button" data-to="pkg4">Continue</button></div>
 </section>
 
@@ -789,7 +789,29 @@ textarea{width:100%;border:1px solid var(--line);border-radius:10px;padding:10px
 </div></div>
 <!-- APP_START -->
 <script>
-const OWNER_BUILD = '2026-09-28-hall-owner-v55';
+const OWNER_BUILD = '2026-09-28-hall-owner-v57';
+
+function venueIsOutdoor() {
+  const h = activeHall();
+  if (state.spaceType === 'outdoor') return true;
+  if (h && h.spaceType === 'outdoor') return true;
+  return false;
+}
+
+function applyVenueTypeToAllSlotOffers() {
+  ensureSlotOffers();
+  if (!venueIsOutdoor()) return;
+  state.slotOffers.forEach(function (o) {
+    o.offerAc = false;
+    o.offerNoAc = true;
+    o.acMode = 'full';
+    o.acHours = 0;
+    o.acFrom = '';
+    o.acTo = '';
+  });
+  if (!state.prices) state.prices = {};
+  state.prices.extraAc = 0;
+}
 
 function goBackFromManageToHalls() {
   if (!validateHallNameRequired()) return;
@@ -933,17 +955,28 @@ function acUsageSummary(o) {
 
 function slotReviewLines() {
   ensureSlotOffers();
-  return state.slotOffers
+  const outdoor = venueIsOutdoor();
+  const lines = state.slotOffers
     .filter(function (o) {
       return o.enabled;
     })
     .map(function (o) {
       const win = formatTimeRange(o.hallFrom, o.hallTo);
+      if (outdoor) {
+        return o.label + ' (' + win + '): ₹' + (o.priceNoAc || 0).toLocaleString('en-IN') + ' slot rent';
+      }
       const parts = [];
       if (o.offerNoAc) parts.push('Without AC ₹' + o.priceNoAc.toLocaleString('en-IN'));
       if (o.offerAc) parts.push('With AC ₹' + o.priceAc.toLocaleString('en-IN') + acUsageSummary(o));
       return o.label + ' (' + win + '): ' + parts.join(' · ');
     });
+  if (outdoor && state.prices && state.prices.extraNoAc) {
+    lines.push('Extra hours: ₹' + state.prices.extraNoAc.toLocaleString('en-IN') + ' / hour');
+  } else if (!outdoor && state.prices) {
+    if (state.prices.extraNoAc) lines.push('Extra hours (without AC): ₹' + state.prices.extraNoAc.toLocaleString('en-IN') + ' / hour');
+    if (state.prices.extraAc) lines.push('Extra hours (with AC): ₹' + state.prices.extraAc.toLocaleString('en-IN') + ' / hour');
+  }
+  return lines;
 }
 
 const MANAGE_MENU = [
@@ -1175,6 +1208,7 @@ function commitHallPackageFromState() {
   capturePkg3();
   capturePkg4();
   ensureSlotOffers();
+  applyVenueTypeToAllSlotOffers();
   h.package = clonePackageSlice();
   h.packageSaved = true;
   h.packageRevision = (h.packageRevision || 0) + 1;
@@ -1386,8 +1420,12 @@ function slotStatusLabel(status, slotId, cal, key, h) {
 function renderSlotPriceChips(offer) {
   if (!offer || !offer.enabled) return '';
   let html = '<div class="price-chips">';
-  if (offer.offerAc) html += '<span class="price-chip ac">With AC ' + inr(offer.priceAc) + '</span>';
-  if (offer.offerNoAc) html += '<span class="price-chip noac">Without AC ' + inr(offer.priceNoAc) + '</span>';
+  if (venueIsOutdoor()) {
+    html += '<span class="price-chip noac">Slot rent ' + inr(offer.priceNoAc) + '</span>';
+  } else {
+    if (offer.offerAc) html += '<span class="price-chip ac">With AC ' + inr(offer.priceAc) + '</span>';
+    if (offer.offerNoAc) html += '<span class="price-chip noac">Without AC ' + inr(offer.priceNoAc) + '</span>';
+  }
   html += '</div>';
   return html;
 }
@@ -2338,6 +2376,7 @@ function hallCardGuestCount(h) {
 }
 
 function hallCardHasAc(h) {
+  if (h && h.spaceType === 'outdoor') return false;
   const fac = h && h.package && h.package.facilities;
   if (fac && fac.length) return fac.indexOf('AC') >= 0;
   return true;
@@ -2345,13 +2384,14 @@ function hallCardHasAc(h) {
 
 function hallCardMinPrice(h) {
   if (!h || !h.package || !h.package.slotOffers) return null;
+  const outdoor = h.spaceType === 'outdoor';
   let min = null;
   h.package.slotOffers.forEach(function (o) {
     if (!o.enabled) return;
-    if (o.offerNoAc && o.priceNoAc != null) {
-      min = min == null ? o.priceNoAc : Math.min(min, o.priceNoAc);
+    if (outdoor || o.offerNoAc) {
+      if (o.priceNoAc != null) min = min == null ? o.priceNoAc : Math.min(min, o.priceNoAc);
     }
-    if (o.offerAc && o.priceAc != null) {
+    if (!outdoor && o.offerAc && o.priceAc != null) {
       min = min == null ? o.priceAc : Math.min(min, o.priceAc);
     }
   });
@@ -2743,7 +2783,7 @@ function renderManage() {
 function renderPkgSteps(n) {
   const stepsEl = el('pkgSteps');
   if (!stepsEl) return;
-  const steps = ['Event Categories', 'Hall Details', 'Pricing & Time Slots', 'Payment & Policies', 'Review & Save'];
+  const steps = ['Event Categories', 'Venue Details', 'Pricing & Time Slots', 'Payment & Policies', 'Review & Save'];
   stepsEl.innerHTML = steps
     .map((s, i) => `<span class="step${i + 1 === n ? ' on' : ''}">${i + 1}. ${s}</span>`)
     .join('');
@@ -2784,7 +2824,7 @@ function applyPkg2Chrome() {
   const nameLbl = el('pkg2NameLbl');
   const bizLbl = el('pkg2BizNameLbl');
   const spaceBlock = el('spaceTypeBlock');
-  if (title) title.textContent = 'Hall Details';
+  if (title) title.textContent = 'Venue Details';
   if (chip) chip.textContent = '2/5';
   if (frac) frac.textContent = '2/5';
   if (bar) bar.style.width = '40%';
@@ -2878,12 +2918,46 @@ function renderPkg2() {
   document.querySelectorAll('[data-space-type]').forEach(function (btn) {
     btn.onclick = function () {
       state.spaceType = btn.getAttribute('data-space-type') === 'outdoor' ? 'outdoor' : 'indoor';
+      syncActiveHallFromState();
+      applyVenueTypeToAllSlotOffers();
       renderSpaceTypeUi();
     };
   });
 }
 
 function renderSlotOfferRow(o) {
+  if (venueIsOutdoor()) {
+    return (
+      '<div class="slot slot-outdoor' +
+      (o.enabled ? '' : ' slot-disabled') +
+      '" data-offer-id="' +
+      esc(o.id) +
+      '">' +
+      '<label class="radio-row" style="margin:0"><input type="checkbox" data-field="enabled"' +
+      (o.enabled ? ' checked' : '') +
+      '> <b>Offer ' +
+      esc(o.label) +
+      ' slot</b></label>' +
+      '<div class="slot-body"' +
+      (o.enabled ? '' : ' style="display:none"') +
+      '>' +
+      '<p class="lbl" style="margin-top:10px">Space booking window</p>' +
+      '<div class="two">' +
+      '<div class="fld"><label>From</label><input type="time" data-field="hallFrom" value="' +
+      esc(o.hallFrom) +
+      '"></div>' +
+      '<div class="fld"><label>To</label><input type="time" data-field="hallTo" value="' +
+      esc(o.hallTo) +
+      '"></div></div>' +
+      '<p class="lbl">Slot price (outdoor — no AC options)</p>' +
+      '<div class="price-row"><label>Price ₹</label><input type="number" data-field="priceNoAc" min="0" value="' +
+      (o.priceNoAc != null ? o.priceNoAc : '') +
+      '"></div>' +
+      '<input type="hidden" data-field="offerNoAc" value="1">' +
+      '<input type="hidden" data-field="offerAc" value="0">' +
+      '</div></div>'
+    );
+  }
   const acFull = o.acMode !== 'limited';
   const isFlexible = o.acLimitKind !== 'fixed';
   return (
@@ -2970,6 +3044,7 @@ function renderSlotOfferRow(o) {
 function attachSlotPricingHandlers() {
   const root = el('slotPricing');
   if (!root) return;
+  const outdoor = venueIsOutdoor();
   root.querySelectorAll('.slot[data-offer-id]').forEach(function (row) {
     const id = row.getAttribute('data-offer-id');
     function refresh() {
@@ -2977,6 +3052,7 @@ function attachSlotPricingHandlers() {
       row.classList.toggle('slot-disabled', !enabled);
       const body = row.querySelector('.slot-body');
       if (body) body.style.display = enabled ? 'block' : 'none';
+      if (outdoor) return;
       const offerAc = row.querySelector('[data-field=offerAc]').checked;
       const offerNoAc = row.querySelector('[data-field=offerNoAc]').checked;
       const acWrap = row.querySelector('.ac-usage');
@@ -3002,6 +3078,8 @@ function attachSlotPricingHandlers() {
 
 function validateSlotOffers() {
   ensureSlotOffers();
+  applyVenueTypeToAllSlotOffers();
+  const outdoor = venueIsOutdoor();
   const enabled = state.slotOffers.filter(function (o) {
     return o.enabled;
   });
@@ -3011,6 +3089,13 @@ function validateSlotOffers() {
   }
   for (let i = 0; i < enabled.length; i++) {
     const o = enabled[i];
+    if (outdoor) {
+      if (!o.priceNoAc || o.priceNoAc <= 0) {
+        toast(o.label + ': enter a slot price for this outdoor space.');
+        return false;
+      }
+      continue;
+    }
     if (!o.offerNoAc && !o.offerAc) {
       toast(o.label + ': turn on Without AC and/or With AC pricing.');
       return false;
@@ -3032,20 +3117,34 @@ function validateSlotOffers() {
 function renderPkg3() {
   renderPkgSteps(3);
   ensureSlotOffers();
-  el('slotPricing').innerHTML =
-    state.slotOffers.map(renderSlotOfferRow).join('') +
-    '<div class="slot"><h3>Additional hours charge</h3><p class="sub" style="margin:0 0 10px">If a booking runs longer than the slot window.</p><div class="two">' +
-    '<div class="fld"><label>Without AC / hour</label><input type="number" id="extraNoAc" value="' +
-    (state.prices.extraNoAc || 0) +
-    '"></div>' +
-    '<div class="fld"><label>With AC / hour</label><input type="number" id="extraAc" value="' +
-    (state.prices.extraAc || 0) +
-    '"></div></div></div>';
+  applyVenueTypeToAllSlotOffers();
+  const outdoor = venueIsOutdoor();
+  const sub = el('pkg3Sub');
+  const head = el('pkg3Head');
+  if (head) head.textContent = outdoor ? 'Pricing & Time Slots (outdoor)' : 'Pricing & Time Slots';
+  if (sub) {
+    sub.textContent = outdoor
+      ? 'Outdoor space: set Morning, Evening, and Full Day windows and one slot price each. AC / non-AC pricing does not apply. Add a single extra-hour charge if bookings run over the window.'
+      : 'Turn each slot on or off, set your hall hours (from–to), choose whether customers see Without AC and/or With AC pricing, and define AC usage hours when AC is not for the full booking window.';
+  }
+  const extraBlock = outdoor
+    ? '<div class="slot slot-outdoor-extra"><h3>Additional hours charge</h3><p class="sub" style="margin:0 0 10px">If a booking runs longer than the slot window.</p><div class="fld"><label>Extra charge / hour</label><input type="number" id="extraNoAc" min="0" value="' +
+      (state.prices.extraNoAc || 0) +
+      '"></div></div>'
+    : '<div class="slot"><h3>Additional hours charge</h3><p class="sub" style="margin:0 0 10px">If a booking runs longer than the slot window.</p><div class="two">' +
+      '<div class="fld"><label>Without AC / hour</label><input type="number" id="extraNoAc" value="' +
+      (state.prices.extraNoAc || 0) +
+      '"></div>' +
+      '<div class="fld"><label>With AC / hour</label><input type="number" id="extraAc" value="' +
+      (state.prices.extraAc || 0) +
+      '"></div></div></div>';
+  el('slotPricing').innerHTML = state.slotOffers.map(renderSlotOfferRow).join('') + extraBlock;
   attachSlotPricingHandlers();
 }
 
 function capturePkg3() {
   ensureSlotOffers();
+  const outdoor = venueIsOutdoor();
   const root = el('slotPricing');
   if (!root) return;
   root.querySelectorAll('.slot[data-offer-id]').forEach(function (row) {
@@ -3057,28 +3156,43 @@ function capturePkg3() {
     o.enabled = !!row.querySelector('[data-field=enabled]').checked;
     o.hallFrom = row.querySelector('[data-field=hallFrom]').value || '09:00';
     o.hallTo = row.querySelector('[data-field=hallTo]').value || '17:00';
-    o.offerNoAc = !!row.querySelector('[data-field=offerNoAc]').checked;
-    o.offerAc = !!row.querySelector('[data-field=offerAc]').checked;
-    o.priceNoAc = +row.querySelector('[data-field=priceNoAc]').value || 0;
-    o.priceAc = +row.querySelector('[data-field=priceAc]').value || 0;
-    const modeEl = row.querySelector('input[name=acMode_' + id + ']:checked');
-    o.acMode = modeEl && modeEl.value === 'limited' ? 'limited' : 'full';
-    const limitEl = row.querySelector('input[name=acLimit_' + id + ']:checked');
-    o.acLimitKind = limitEl && limitEl.value === 'fixed' ? 'fixed' : 'flexible';
-    o.acHours = +row.querySelector('[data-field=acHours]').value || 0;
-    if (o.acLimitKind === 'fixed') {
-      o.acFrom = row.querySelector('[data-field=acFrom]').value || '';
-      o.acTo = row.querySelector('[data-field=acTo]').value || '';
-    } else {
+    if (outdoor) {
+      o.offerNoAc = true;
+      o.offerAc = false;
+      o.priceNoAc = +row.querySelector('[data-field=priceNoAc]').value || 0;
+      o.priceAc = 0;
+      o.acMode = 'full';
+      o.acHours = 0;
       o.acFrom = '';
       o.acTo = '';
+    } else {
+      o.offerNoAc = !!row.querySelector('[data-field=offerNoAc]').checked;
+      o.offerAc = !!row.querySelector('[data-field=offerAc]').checked;
+      o.priceNoAc = +row.querySelector('[data-field=priceNoAc]').value || 0;
+      o.priceAc = +row.querySelector('[data-field=priceAc]').value || 0;
+      const modeEl = row.querySelector('input[name=acMode_' + id + ']:checked');
+      o.acMode = modeEl && modeEl.value === 'limited' ? 'limited' : 'full';
+      const limitEl = row.querySelector('input[name=acLimit_' + id + ']:checked');
+      o.acLimitKind = limitEl && limitEl.value === 'fixed' ? 'fixed' : 'flexible';
+      o.acHours = +row.querySelector('[data-field=acHours]').value || 0;
+      if (o.acLimitKind === 'fixed') {
+        o.acFrom = row.querySelector('[data-field=acFrom]').value || '';
+        o.acTo = row.querySelector('[data-field=acTo]').value || '';
+      } else {
+        o.acFrom = '';
+        o.acTo = '';
+      }
     }
     if (!state.prices[o.id]) state.prices[o.id] = {};
     state.prices[o.id].noAc = o.priceNoAc;
     state.prices[o.id].ac = o.priceAc;
   });
   state.prices.extraNoAc = +(el('extraNoAc') && el('extraNoAc').value) || 0;
-  state.prices.extraAc = +(el('extraAc') && el('extraAc').value) || 0;
+  if (outdoor) {
+    state.prices.extraAc = 0;
+  } else {
+    state.prices.extraAc = +(el('extraAc') && el('extraAc').value) || 0;
+  }
 }
 
 function renderPkg4() {
@@ -3187,7 +3301,7 @@ function renderPkg5() {
       .map((t) => `<span class="tag">${esc(t)}</span>`)
       .join('')}</div></div>
     <div class="sum"><div class="hd"><b>Venue Details</b><button type="button" class="see" data-to="pkg2">Edit</button></div>
-      <p class="sub"><b>${esc(state.businessName)}</b> · Hall: <b>${esc(customerHallName() || '—')}</b></p>
+      <p class="sub"><b>${esc(state.businessName)}</b> · Hall: <b>${esc(customerHallName() || '—')}</b>${venueIsOutdoor() ? ' · Outdoor space' : ''}</p>
       <p class="sub">Seating ${state.capacity.seat} · Dining ${state.capacity.dine}</p>
       <p class="sub">Parking: 🚗 ${state.commonParking.car} cars · 🏍 ${state.commonParking.bike} bikes (shared — edit on Halls page)</p>
       <p class="sub" style="margin-top:8px"><b>Catering &amp; decoration (on your profile — add-ons, not in hall slot rent):</b><br>${cateringReviewLines()
