@@ -1,0 +1,3971 @@
+<!DOCTYPE html>
+<!-- GIXBEE HALL DEMO — single self-contained file (CSS + HTML + JS inlined). Open hall-owner-lmb-master.html only; do not open hall-owner-lmb-shell.html. -->
+
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Gixbee — Hall Owner (List My Business)</title>
+<style>
+:root{--navy:#1B2559;--ink:#111827;--mut:#6B7280;--line:#E5E7EB;--gn:#12B76A;--gn2:#099250;--soft:#ECFDF3;--shadow:0 8px 28px rgba(15,23,42,.08);--rd:#DC2626}
+*{box-sizing:border-box}
+body{margin:0;background:#E8EDF5;font-family:Inter,system-ui,sans-serif;color:var(--ink)}
+.stage{min-height:100vh;display:flex;justify-content:center;padding:20px 10px}
+.phone{width:min(100%,430px);background:#fff;min-height:860px;border-radius:36px;box-shadow:var(--shadow);overflow:hidden;position:relative;border:8px solid #111}
+.notch{height:28px;display:flex;justify-content:space-between;padding:8px 18px 0;font-size:12px;font-weight:700}
+.scr{display:none;padding:0 0 92px;min-height:800px}
+.scr.on{display:block}
+.top{display:flex;align-items:center;gap:10px;padding:8px 16px 6px}
+.back{width:36px;height:36px;border:0;background:none;font-size:22px;color:var(--navy);cursor:pointer}
+.top h1{margin:0;font-size:18px;color:var(--navy);flex:1}
+.chip-h{padding:6px 12px;border-radius:99px;background:var(--soft);color:var(--gn2);font-size:11px;font-weight:800}
+.prog{display:flex;align-items:center;gap:8px;padding:4px 16px 12px}
+.bar{flex:1;height:6px;background:#E5E7EB;border-radius:99px;overflow:hidden}
+.bar>i{display:block;height:100%;background:var(--gn);border-radius:99px}
+.frac{font-size:12px;color:#9CA3AF;font-weight:700}
+.pad{padding:0 16px}
+h2{margin:0 0 6px;font-size:18px}
+.sub{color:var(--mut);font-size:13px;line-height:1.45;margin:0 0 14px}
+.lbl{font-size:11px;font-weight:800;color:#9CA3AF;letter-spacing:.6px;margin:16px 0 8px}
+.menu{display:flex;flex-direction:column;gap:10px}
+.mrow{text-align:left;border:1px solid var(--line);border-radius:14px;padding:14px;background:#fff;cursor:pointer;width:100%}
+.mrow b{display:block;font-size:15px;margin-bottom:4px}
+.mrow span{font-size:12px;color:var(--mut);line-height:1.35}
+.mrow.danger{background:#FEF2F2;border-color:#FECACA}
+.mrow.danger b,.mrow.danger span{color:var(--rd)}
+.mrow .dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--rd);margin-left:6px;vertical-align:middle}
+.mrow.green b{color:var(--gn2)}
+.mrow.muted span{color:#9CA3AF}
+.mrow-rich{display:flex;align-items:center;gap:12px;padding:12px 14px}
+.mrow-rich .mrow-text{flex:1;min-width:0;text-align:left}
+.mrow-rich .mrow-text b{margin-bottom:2px;color:var(--navy)}
+.mrow-chev{color:#9CA3AF;font-size:22px;line-height:1;flex-shrink:0;font-weight:300}
+.mico{width:44px;height:44px;border-radius:12px;display:grid;place-items:center;font-size:20px;flex-shrink:0;font-weight:800;position:relative}
+.mico-cal{background:#DCFCE7;color:#15803D}
+.mico-pkg{background:#EDE9FE;color:#6D28D9;font-size:22px}
+.mico-req{background:#FEF9C3;color:#A16207}
+.mico-ops{background:#DBEAFE;color:#1D4ED8;font-size:18px}
+.mico-del{background:#FEE2E2;color:var(--rd);font-size:18px}
+.mico-photo{background:#FCE7F3;color:#BE185D;font-size:18px}
+.mico-req .m-dot{position:absolute;top:8px;right:8px;width:8px;height:8px;border-radius:50%;background:var(--rd);border:2px solid #FEF9C3}
+.media-cover{height:160px;border-radius:14px;background:linear-gradient(145deg,#64748B,#94A3B8);margin-bottom:12px;position:relative;overflow:hidden;border:1px solid var(--line)}
+.media-cover .cover-lbl{position:absolute;left:10px;bottom:10px;background:rgba(15,23,42,.72);color:#fff;font-size:11px;font-weight:800;padding:4px 10px;border-radius:99px}
+.photo-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:12px 0}
+.photo-tile{aspect-ratio:1.15;border-radius:12px;background:linear-gradient(145deg,#CBD5E1,#64748B);position:relative;border:1px solid var(--line)}
+.photo-tile .tile-cap{position:absolute;left:8px;right:8px;bottom:8px;font-size:10px;font-weight:800;color:#fff;text-shadow:0 1px 2px rgba(0,0,0,.45)}
+.photo-tile.add{display:grid;place-items:center;background:#F8FAFC;border:2px dashed #BFDBFE;color:#1D4ED8;font-size:12px;font-weight:800;cursor:pointer}
+.manage-biz-card{background:#EFF6FF;border:1px solid #BFDBFE;border-radius:16px;padding:14px;margin-bottom:14px}
+.manage-biz-photo{height:118px;border-radius:12px;margin-bottom:12px;background:linear-gradient(145deg,#64748B 0%,#94A3B8 40%,#CBD5E1 100%) center/cover}
+.manage-field-lbl{font-size:13px;font-weight:800;color:var(--navy);margin:0 0 6px}
+.manage-biz-card .biz-ro-display{font-size:17px;font-weight:900;color:var(--navy);margin:0 0 8px;line-height:1.3}
+.manage-check-row{display:flex;align-items:flex-start;gap:10px;font-size:14px;font-weight:600;color:#374151;margin:4px 0 12px;cursor:pointer}
+.manage-check-row input{width:18px;height:18px;margin-top:2px;accent-color:var(--gn);flex-shrink:0}
+.manage-name-panel{background:linear-gradient(135deg,#ECFDF3 0%,#D1FAE5 100%);border:1px solid #A7F3D0;border-radius:14px;padding:14px;margin-bottom:8px}
+.manage-name-panel-hd{display:flex;align-items:center;gap:8px;font-weight:800;font-size:14px;color:var(--navy);margin-bottom:10px}
+.manage-name-panel-hd .tag-ico{font-size:18px}
+.manage-name-panel input{width:100%;border:1px solid #86EFAC;border-radius:10px;padding:12px 14px;font-weight:700;font-size:15px;color:var(--navy);background:#fff}
+.manage-name-panel input:disabled{background:#F3F4F6;color:#9CA3AF}
+.pkg-biz-card{display:flex;gap:12px;padding:14px;background:#F0FDFA;border:1px solid #99F6E4;border-radius:16px;margin-bottom:14px;align-items:flex-start}
+.pkg-biz-thumb{width:72px;height:64px;border-radius:10px;background:linear-gradient(145deg,#64748B,#94A3B8);flex-shrink:0}
+.pkg-biz-card b{display:block;font-size:16px;color:var(--navy);margin-bottom:4px}
+.pkg-biz-loc{font-size:12px;color:#475569;font-weight:600;display:flex;align-items:center;gap:4px;margin-bottom:6px}
+.pkg-biz-note{font-size:11px;color:#0D9488;font-weight:600;margin:0;line-height:1.4}
+.pkg-biz-name-lbl{font-size:11px;color:#64748B;font-weight:700;margin:0 0 2px;line-height:1.35}
+.space-type-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:0 0 14px}
+.space-type-card{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;min-height:88px;padding:14px 10px;border:1.5px solid var(--line);border-radius:14px;background:#fff;cursor:pointer;font-size:14px;font-weight:800;color:#374151}
+.space-type-card.on{border-color:var(--gn);background:#F0FDF4;color:#065F46;box-shadow:0 0 0 3px #D1FADF}
+.space-type-card .st-ico{font-size:26px;line-height:1}
+.space-type-card .st-radio{width:18px;height:18px;border-radius:50%;border:2px solid #D1D5DB;background:#fff}
+.space-type-card.on .st-radio{border-color:var(--gn);box-shadow:inset 0 0 0 4px var(--gn)}
+.pkg-detail-top .pkg-back-lbl{width:auto;font-size:14px;font-weight:800;padding:0 4px}
+.cap-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:12px 0}
+.cap-field label{display:flex;align-items:center;gap:6px;font-size:12px;font-weight:800;margin:0 0 6px;color:#374151}
+.cap-field .cap-ico{font-size:16px}
+.cap-field input{width:100%;padding:12px;border:1px solid var(--line);border-radius:12px;font:inherit;font-weight:700}
+.cap-field.full{grid-column:1/-1}
+.cap-suffix{font-size:11px;color:var(--mut);font-weight:700;margin-top:4px}
+.pkg-section-hd{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:900;color:var(--navy);margin:18px 0 10px}
+.fac-rich{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.fac-tile{display:flex;align-items:center;gap:8px;padding:10px 10px;border:1px solid var(--line);border-radius:12px;font-size:11px;font-weight:800;cursor:pointer;background:#fff;line-height:1.25}
+.fac-tile input{flex:none;width:18px;height:18px;accent-color:var(--gn)}
+.fac-tile.on{border-color:#86EFAC;background:#F0FDF4}
+.fac-tile .fac-ico{font-size:16px;flex-shrink:0}
+.cater-stack{display:flex;flex-direction:column;gap:12px}
+.cater-q{padding:12px;border:1px solid var(--line);border-radius:14px;background:#FAFAFA}
+.cater-q p{font-weight:800;font-size:13px;margin:0 0 8px;color:#374151}
+.cater-yn{display:flex;gap:8px}
+.cater-yn label{flex:1;display:flex;align-items:center;justify-content:center;gap:6px;padding:10px;border:1px solid var(--line);border-radius:10px;font-size:13px;font-weight:800;cursor:pointer;background:#fff;margin:0}
+.cater-yn label.on{border-color:var(--gn);background:#ECFDF3;color:#065F46}
+.cater-yn input{position:absolute;opacity:0;width:0;height:0}
+.btn-continue::after{content:'→';margin-left:6px;font-weight:900}
+.cta{position:sticky;bottom:0;padding:12px 16px 18px;background:linear-gradient(transparent,#fff 20%)}
+.btn{width:100%;border:0;border-radius:12px;background:var(--gn);color:#fff;font-weight:800;font-size:16px;padding:14px;cursor:pointer}
+.btn.ghost{background:#fff;color:var(--gn);border:1.5px solid var(--gn);margin-top:8px}
+.btn.red{background:var(--rd)}
+.fld{margin:0 0 12px}
+.fld label{display:block;font-size:13px;font-weight:800;margin:0 0 6px}
+.fld input,.fld select,.fld textarea{width:100%;padding:12px;border:1px solid var(--line);border-radius:12px;font:inherit}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.ev{display:flex;align-items:center;gap:12px;padding:12px;border:1px solid var(--line);border-radius:14px;margin-bottom:8px;cursor:pointer}
+.ev.on{border-color:var(--gn);background:#F0FDF4}
+.ev input{flex:none;width:20px;height:20px}
+.fac{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.fac label{display:flex;align-items:center;gap:8px;padding:10px;border:1px solid var(--line);border-radius:12px;font-size:12px;font-weight:700;cursor:pointer}
+.fac label.on{border-color:var(--gn);background:#F0FDF4}
+.slot{border:1px solid var(--line);border-radius:14px;padding:12px;margin-bottom:10px}
+.slot.slot-disabled{opacity:.65}
+.slot h3{margin:0 0 8px;font-size:14px}
+.slot .slot-body{margin-top:6px}
+.slot .ac-usage{margin-top:10px;padding:10px;border-radius:10px;background:#F9FAFB;border:1px solid var(--line)}
+.slot .price-row{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:8px 0;font-size:13px;font-weight:700}
+.slot .price-row input[type=number]{width:120px;font-weight:600}
+.pill{display:inline-block;padding:4px 10px;border-radius:99px;font-size:11px;font-weight:800;margin-bottom:8px}
+.pill.ok{background:#ECFDF3;color:#059669}
+.pill.bad{background:#FEE2E2;color:#B91C1C}
+.pill.wait{background:#FEF3C7;color:#B45309}
+.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.pick{border:1.5px solid var(--line);border-radius:12px;padding:12px 8px;text-align:center;font-size:12px;font-weight:800;cursor:pointer;background:#fff}
+.pick.on{border-color:var(--gn);background:#ECFDF3;color:#065F46}
+.info{margin:10px 0;padding:12px;border-radius:12px;font-size:12.5px;line-height:1.45;display:flex;gap:10px;align-items:flex-start}
+.info.gn{background:#ECFDF3;color:#065F46}
+.info.bl{background:#EFF6FF;color:#1D4ED8}
+.sum{border:1px solid var(--line);border-radius:14px;padding:12px;margin-bottom:10px}
+.sum .hd{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+.sum .hd b{font-size:14px}
+.see{border:0;background:none;color:#2563EB;font-weight:800;font-size:12px;cursor:pointer}
+.tags{display:flex;flex-wrap:wrap;gap:6px}
+.tag{padding:6px 10px;border-radius:99px;background:#F3F4F6;font-size:11px;font-weight:700}
+.toast{position:absolute;left:16px;right:16px;bottom:88px;background:#111827;color:#fff;padding:12px;border-radius:12px;font-size:13px;display:none;z-index:9}
+.lmb-top{background:#F8FAFC;border-bottom:1px solid var(--line);padding:10px 16px 12px}
+.lmb-top .row{display:flex;align-items:center;gap:10px}
+.home-pill{padding:8px 14px;border-radius:99px;background:var(--gn);color:#fff;font-weight:800;font-size:12px;border:0}
+.biz-title{font-size:17px;font-weight:900;color:var(--navy);flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.manage-pill{font-size:11px;font-weight:800;color:var(--mut);border:1px solid var(--line);padding:6px 10px;border-radius:99px;background:#fff;flex-shrink:0;white-space:nowrap}
+.manage-top h1{font-size:17px}
+.manage-top .manage-pill{margin-left:auto}
+.lmb-top .row{align-items:center;gap:8px;flex-wrap:nowrap}
+.home-pill{flex-shrink:0;white-space:nowrap}
+.steps{display:flex;gap:6px;padding:12px 16px;overflow:auto;font-size:10px;color:var(--mut)}
+.step{flex:none;padding:6px 10px;border-radius:10px;background:#F3F4F6;font-weight:700}
+.step.on{background:#ECFDF3;color:#065F46}
+.radio-row{display:flex;gap:12px;align-items:center;margin:8px 0;font-size:13px}
+.cancel-table{width:100%;font-size:12px;border-collapse:collapse}
+.cancel-table td,.cancel-table th{padding:8px 4px;border-bottom:1px solid #F3F4F6}
+.policy-tabs{display:flex;border:1px solid var(--line);border-radius:12px;overflow:hidden;margin:0 0 14px}
+.policy-tabs button{flex:1;padding:11px 8px;border:0;background:#F3F4F6;font-weight:800;font-size:12px;color:#374151;cursor:pointer}
+.policy-tabs button.on{background:#2563EB;color:#fff}
+.policy-banner{display:flex;gap:10px;align-items:flex-start;padding:12px;border-radius:12px;font-size:13px;line-height:1.45;margin-bottom:8px}
+.policy-banner.cancel{background:#EFF6FF;color:#1E3A8A}
+.policy-banner.resched{background:#ECFDF5;color:#065F46}
+.policy-row{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:14px 0;border-bottom:1px solid #F3F4F6}
+.policy-row-remove{flex-shrink:0;width:36px;height:36px;border:1px solid #FECACA;border-radius:10px;background:#FEF2F2;color:#B91C1C;font-weight:800;cursor:pointer;font-size:14px;line-height:1}
+.policy-days-inp{flex:1;border:1px solid var(--line);border-radius:10px;padding:10px;font-weight:700;font-size:13px;min-width:0}
+.policy-pct-wrap{font-weight:800;font-size:14px;white-space:nowrap}
+.policy-pct-inp{width:64px;border:1px solid var(--line);border-radius:10px;padding:10px;text-align:center;font-weight:800;margin-right:4px}
+textarea{width:100%;border:1px solid var(--line);border-radius:10px;padding:10px;font:inherit;resize:vertical}
+.hall-card{border:1px solid var(--line);border-radius:14px;padding:12px;margin-bottom:10px;background:#fff}
+.hall-card-top{display:flex;justify-content:space-between;align-items:flex-start;gap:10px}
+.hall-card-inactive{border-color:#E5E7EB;background:#FAFAFA}
+.hall-card .hall-sub{font-size:12px;margin:6px 0 10px;line-height:1.45;display:flex;flex-wrap:wrap;align-items:center;gap:6px}
+.hall-sub-kicker{font-size:10px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:#64748B}
+.hall-sub-name{display:inline-block;font-weight:800;font-size:13px;padding:4px 10px;border-radius:999px;color:#5B21B6;background:linear-gradient(135deg,#EDE9FE 0%,#D1FAE5 100%);border:1px solid rgba(91,33,182,.12);box-shadow:0 1px 0 rgba(255,255,255,.8) inset}
+.hall-card-inactive .hall-sub-name{color:#6B7280;background:#F3F4F6;border-color:#E5E7EB}
+.hall-toggle{display:inline-flex;align-items:center;gap:8px;font-size:11px;font-weight:800;cursor:pointer;flex-shrink:0;margin-top:2px}
+.hall-toggle input{position:absolute;opacity:0;width:0;height:0;pointer-events:none}
+.hall-toggle-ui{width:46px;height:26px;background:#D1D5DB;border-radius:999px;position:relative;transition:background .2s;flex-shrink:0}
+.hall-toggle-ui::after{content:'';position:absolute;top:3px;left:3px;width:20px;height:20px;background:#fff;border-radius:50%;box-shadow:0 1px 2px rgba(0,0,0,.15);transition:transform .2s}
+.hall-toggle input:checked + .hall-toggle-ui{background:#2563EB}
+.hall-toggle input:checked + .hall-toggle-ui::after{transform:translateX(20px)}
+.hall-toggle-lbl{min-width:22px;color:#374151}
+.hall-inactive-banner{padding:10px 12px;border-radius:10px;background:#FEF3C7;color:#92400E;font-size:13px;line-height:1.45;margin-bottom:12px}
+.hall-inactive-lock input:not([readonly]):not([data-hall-toggle]),.hall-inactive-lock textarea,.hall-inactive-lock select,.hall-inactive-lock .menu .mrow,.hall-inactive-lock .cta .btn:not(#manageBackToHallsBtn),.hall-inactive-lock .btn:not(.back):not(#backToBizHalls):not(#manageBackToHallsBtn),.hall-inactive-lock label.ev,.hall-inactive-lock .policy-row input,.hall-inactive-lock .slot input{pointer-events:none;opacity:.45}
+.hall-inactive-lock #manageHallNameInput,.hall-inactive-lock #hallNameInput{pointer-events:none;opacity:.45}
+.hall-inactive-lock #backToBizHalls,.hall-inactive-lock #manageBackToHallsBtn,.hall-inactive-lock .top .back{pointer-events:auto!important;opacity:1!important}
+.manage-back-cta{padding-top:4px}
+.manage-back-cta .btn{margin:0}
+.manage-name-actions{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px}
+.manage-name-actions .btn{margin:0}
+.hall-name-display{font-weight:800;font-size:15px;padding:10px 12px;border-radius:12px;background:linear-gradient(135deg,#EDE9FE 0%,#D1FAE5 100%);color:#5B21B6;border:1px solid rgba(91,33,182,.12)}
+.hall-name-display.muted{color:#6B7280;background:#F3F4F6;border-color:#E5E7EB;font-weight:700;font-size:13px}
+#manageRestBlock{transition:opacity .2s}
+.manage-name-editing #manageRestBlock{opacity:.42;pointer-events:none;user-select:none;filter:grayscale(.15);background:#F3F4F6;border-radius:0 0 16px 16px;margin:0 -16px;padding:0 16px 8px}
+#manageHallNameWrap input:disabled{background:#F3F4F6;color:#9CA3AF}
+.venue-hero{display:flex;gap:12px;padding:14px;background:#fff;border:1px solid var(--line);border-radius:16px;margin:0 0 12px;align-items:flex-start}
+.venue-thumb{width:88px;height:76px;border-radius:12px;background:linear-gradient(145deg,#94A3B8 0%,#64748B 50%,#CBD5E1 100%);flex-shrink:0}
+.venue-hero h2{margin:0 0 4px;font-size:17px;color:var(--navy);line-height:1.25}
+.venue-hero .venue-meta{font-size:12px;color:#475569;line-height:1.45;margin:0}
+.venue-loc{display:flex;align-items:center;gap:4px;margin-top:6px;font-size:12px;color:var(--mut);font-weight:600}
+.parking-hub-card{background:#EFF6FF;border:1px solid #BFDBFE;border-radius:14px;padding:14px;margin-bottom:14px}
+.parking-hub-card .hd{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;margin-bottom:10px}
+.parking-hub-card .hd b{font-size:14px;color:var(--navy);line-height:1.35;flex:1}
+.edit-park-btn{display:inline-flex;align-items:center;gap:6px;padding:8px 12px;border-radius:10px;background:#DBEAFE;border:0;color:var(--navy);font-weight:800;font-size:12px;cursor:pointer;flex-shrink:0;white-space:nowrap}
+.parking-stats{display:flex;flex-wrap:wrap;gap:14px;font-size:13px;font-weight:700;color:#1E3A8A}
+.btn-add-hall{display:flex;align-items:center;justify-content:center;gap:8px;margin:4px 0 8px}
+.btn-add-hall::before{content:'+';font-size:20px;font-weight:900;line-height:1}
+.add-hall-hint{margin:-4px 0 14px;font-size:12px;line-height:1.45;color:var(--mut)}
+.halls-section-lbl{display:flex;align-items:baseline;justify-content:space-between;margin:0 0 10px}
+.halls-section-lbl .lbl{margin:0}
+.hall-card-rich{border:1px solid var(--line);border-radius:16px;padding:12px;margin-bottom:12px;background:#fff}
+.hall-card-rich.inactive{background:#FAFAFA;border-color:#E5E7EB}
+.hall-rich-top{display:flex;gap:10px;align-items:flex-start}
+.hall-thumb{width:76px;height:68px;border-radius:10px;background:linear-gradient(145deg,#E2E8F0,#64748B);flex-shrink:0}
+.hall-rich-meta{flex:1;min-width:0}
+.hall-rich-meta b{display:block;font-size:16px;color:var(--navy);margin-bottom:6px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.hall-rich-tags{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-top:4px}
+.hall-pill{display:inline-flex;align-items:center;gap:5px;padding:5px 10px;border-radius:999px;font-size:11px;font-weight:800;line-height:1.15;border:1px solid transparent;white-space:nowrap}
+.hall-pill-ico{font-size:14px;line-height:1;flex-shrink:0}
+.hall-pill-guests{background:#EFF6FF;border-color:#BFDBFE;color:#1E40AF}
+.hall-pill-indoor{background:#F5F3FF;border-color:#DDD6FE;color:#5B21B6}
+.hall-pill-outdoor{background:#ECFDF5;border-color:#86EFAC;color:#047857}
+.hall-pill-ac{background:#E0F2FE;border-color:#7DD3FC;color:#0369A1}
+.hall-rich-price{font-weight:900;color:var(--navy);font-size:17px;margin-top:8px}
+.hall-rich-price.muted{font-size:13px;color:var(--mut);font-weight:700}
+.hall-rich-toggle{display:flex;flex-direction:column;align-items:center;gap:6px;flex-shrink:0}
+.hall-rich-toggle .hall-toggle input:checked + .hall-toggle-ui{background:var(--gn)}
+.hall-status-badge{font-size:10px;font-weight:800;padding:4px 10px;border-radius:99px;text-align:center;min-width:64px}
+.hall-status-badge.on{background:#ECFDF3;color:#059669}
+.hall-status-badge.off{background:#F3F4F6;color:#6B7280}
+.hall-actions-rich{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-top:12px;padding-top:12px;border-top:1px solid var(--line)}
+.hall-act-btn{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;min-height:52px;padding:8px 4px;border:1.5px solid #BFDBFE;border-radius:12px;background:#F8FAFC;font-size:11px;font-weight:800;color:#1D4ED8;cursor:pointer;width:100%}
+.hall-act-btn:disabled{opacity:.45;cursor:not-allowed}
+.hall-act-btn .ico{font-size:18px;line-height:1}
+.hall-act-btn.manage{flex-direction:row;gap:4px}
+.hall-act-btn.manage .chev{font-size:14px;margin-left:2px}
+.hall-actions.hall-actions-minimal{grid-template-columns:1fr}
+.hall-actions.hall-actions-minimal .pick{grid-column:1/-1}
+.hall-actions .pick{padding:10px 4px;font-size:11px;min-height:40px;display:flex;align-items:center;justify-content:center}
+.biz-dash-card{border:1px solid var(--line);border-radius:16px;padding:14px;margin-bottom:14px;background:#fff;box-shadow:0 2px 8px rgba(15,23,42,.04)}
+.biz-dash-card .biz-row{display:flex;gap:12px;align-items:flex-start}
+.biz-dash-card .biz-ico{width:44px;height:44px;border-radius:12px;background:#F3F4F6;display:grid;place-items:center;font-size:22px;flex:none}
+.biz-dash-card .biz-name{font-weight:900;font-size:15px;margin:0 0 2px}
+.biz-dash-card .biz-type{font-size:12px;color:var(--mut);font-weight:600}
+.biz-dash-card .biz-meta{font-size:12px;color:var(--mut);margin:8px 0}
+.biz-dash-card .biz-badges{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0 12px}
+.biz-dash-card .biz-badges span{font-size:10px;font-weight:800;padding:4px 8px;border-radius:99px;background:#FEE2E2;color:#B91C1C}
+.biz-dash-card .biz-badges span.gy{background:#F3F4F6;color:#374151}
+.biz-actions{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
+.biz-actions button{border:1px solid var(--line);border-radius:10px;padding:10px 6px;font-size:11px;font-weight:800;background:#fff;cursor:pointer}
+.biz-actions button.mgr-hall{background:var(--gn);color:#fff;border-color:var(--gn)}
+.biz-actions button.mgr-cat{background:#F97316;color:#fff;border-color:#F97316}
+.biz-actions button.mgr-rent{background:#2563EB;color:#fff;border-color:#2563EB}
+.biz-home-disabled{opacity:.45;pointer-events:none;user-select:none}
+.cal-tabs{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px}
+.cal-tabs .pick{padding:12px 8px}
+.cal-month-nav{display:flex;align-items:center;justify-content:space-between;margin:8px 0 10px;gap:8px}
+.cal-month-nav button{border:0;background:#F3F4F6;width:36px;height:36px;border-radius:10px;font-size:18px;cursor:pointer;color:var(--navy);font-weight:800}
+.cal-month-nav b{font-size:16px;color:var(--navy)}
+.cal-weekdays{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;font-size:10px;font-weight:800;color:#9CA3AF;text-align:center;margin-bottom:4px}
+.cal-mini{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;font-size:12px;text-align:center;margin:0 0 12px}
+.cal-mini .cal-pad{visibility:hidden;pointer-events:none}
+.cal-day-cell{border:0;background:#F9FAFB;border-radius:10px;padding:6px 0 8px;cursor:pointer;font-weight:700;position:relative;min-height:44px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px}
+.cal-day-cell.on{background:var(--gn);color:#fff}
+.cal-day-cell.on .cal-dot{opacity:1}
+.cal-dot{width:6px;height:6px;border-radius:50%;flex-shrink:0}
+.cal-dot.av{background:var(--gn)}
+.cal-dot.bk{background:var(--rd)}
+.cal-dot.off{background:#F97316}
+.cal-dot.blk{background:#7C3AED}
+.cal-dot.na{background:#2563EB}
+.cal-day-cell.on .cal-dot.av{background:#fff}
+.cal-day-cell.on .cal-dot.bk,.cal-day-cell.on .cal-dot.off,.cal-day-cell.on .cal-dot.blk,.cal-day-cell.on .cal-dot.na{box-shadow:0 0 0 1px rgba(255,255,255,.5)}
+.cal-legend{display:flex;flex-wrap:wrap;gap:8px 14px;font-size:11px;color:var(--mut);margin-bottom:12px}
+.cal-legend span{display:inline-flex;align-items:center;gap:4px;font-weight:700}
+.cal-month-pick{width:100%;border:1px solid var(--line);border-radius:12px;padding:12px;font-weight:800;font-size:13px;background:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;color:var(--navy)}
+.cal-date-nav{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:0 0 14px}
+.cal-date-nav b{font-size:15px;color:var(--navy);flex:1;text-align:center;line-height:1.3}
+.price-chips{display:flex;flex-wrap:wrap;gap:8px;margin:8px 0 12px}
+.price-chip{padding:8px 12px;border-radius:10px;font-size:12px;font-weight:800;border:1px solid var(--line);background:#F9FAFB}
+.price-chip.ac{color:#065F46;border-color:#A7F3D0;background:#ECFDF3}
+.price-chip.noac{color:#1E3A8A;border-color:#BFDBFE;background:#EFF6FF}
+.pill.off{background:#FFEDD5;color:#C2410C}
+.pill.blk{background:#EDE9FE;color:#6D28D9}
+.pill.muted{background:#F3F4F6;color:#6B7280}
+.slot-actions{display:flex;gap:8px;margin-top:8px}
+.slot-actions .btn,.slot-actions .btn.ghost{margin:0;flex:1;font-size:14px;padding:12px}
+.overlay{position:absolute;inset:0;background:rgba(15,23,42,.45);z-index:20;display:none;align-items:flex-end;justify-content:center;padding:0}
+.overlay.on{display:flex}
+.overlay.center{align-items:center;padding:16px}
+.sheet{width:100%;max-height:88%;background:#fff;border-radius:20px 20px 0 0;padding:16px 16px 24px;overflow:auto;box-shadow:0 -8px 32px rgba(0,0,0,.12)}
+.sheet-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+.sheet-head h2{margin:0;font-size:18px;color:var(--navy)}
+.sheet-close{border:0;background:#F3F4F6;width:36px;height:36px;border-radius:10px;font-size:20px;cursor:pointer}
+.sheet-slot-sum{padding:12px;border-radius:12px;background:#F9FAFB;border:1px solid var(--line);margin-bottom:14px;font-size:13px;line-height:1.5}
+.sheet-slot-sum b{display:block;font-size:14px;margin-bottom:4px}
+.block-reason{display:block;border:1px solid var(--line);border-radius:12px;padding:12px;margin-bottom:8px;cursor:pointer}
+.block-reason.on{border-color:var(--gn);background:#F0FDF4}
+.block-reason input{margin-right:8px}
+.block-reason small{display:block;color:var(--mut);font-size:12px;margin-top:4px;font-weight:600}
+.sheet-actions{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:16px}
+.sheet-actions .btn.ghost{margin:0}
+.modal-card{background:#fff;border-radius:16px;padding:20px 18px;max-width:340px;width:100%;text-align:center;box-shadow:0 12px 40px rgba(0,0,0,.15)}
+.modal-card .modal-ico{font-size:36px;margin-bottom:8px}
+.modal-card h3{margin:0 0 10px;font-size:17px;color:var(--navy)}
+.modal-card p{font-size:13px;color:var(--mut);line-height:1.5;margin:0 0 18px;text-align:left}
+.modal-card .sheet-actions{margin-top:0}
+.pkg-required-modal{text-align:center;padding:24px 20px 20px}
+.pkg-required-modal .pkg-required-ico{width:56px;height:56px;margin:0 auto 14px;border-radius:16px;background:linear-gradient(135deg,#EDE9FE 0%,#D1FAE5 100%);display:grid;place-items:center;font-size:28px;font-weight:900;color:#5B21B6;line-height:1}
+.pkg-required-modal h3{font-size:18px;margin:0 0 10px}
+.pkg-required-modal .pkg-required-body{font-size:14px;color:#475569;line-height:1.55;margin:0 0 20px;text-align:center}
+.pkg-required-modal .pkg-required-body b{color:var(--navy)}
+.pkg-required-modal #pkgRequiredOk{width:100%;margin:0}
+.venue-edit-modal{text-align:left;max-width:360px;padding:20px 18px 18px}
+.venue-edit-modal h3{margin:0 0 6px;font-size:18px;color:var(--navy)}
+.venue-edit-step[hidden]{display:none!important}
+.venue-edit-actions{display:flex;flex-direction:column;gap:8px;margin-top:16px}
+.venue-edit-actions .btn{margin:0}
+.month-list{max-height:320px;overflow:auto;margin:0 -4px}
+.month-list button{display:flex;width:100%;align-items:center;justify-content:space-between;border:0;background:#fff;padding:14px 12px;border-radius:10px;font-weight:800;font-size:14px;cursor:pointer;color:var(--ink)}
+.month-list button.on{background:#EFF6FF;color:#1D4ED8}
+.op-remove{border:0;background:none;color:var(--rd);font-weight:800;font-size:13px;cursor:pointer;padding:8px 4px}
+.op-owner-tag{color:var(--gn2);font-weight:800;font-size:13px;padding:8px 4px}
+.op-card{display:flex;align-items:center;gap:12px;border:1px solid var(--line);border-radius:14px;padding:12px 14px;margin-bottom:10px;background:#fff}
+.op-meta{flex:1;min-width:0}
+.op-meta b{display:block;font-size:15px;margin-bottom:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.op-meta span{font-size:12px;color:var(--mut);line-height:1.4;display:block;word-break:break-word}
+.op-actions{flex-shrink:0;align-self:center}
+.op-avatar{width:44px;height:44px;border-radius:50%;display:grid;place-items:center;font-weight:900;font-size:17px;color:#fff;flex-shrink:0}
+.op-avatar.a0{background:#12B76A}
+.op-avatar.a1{background:#2563EB}
+.op-avatar.a2{background:#7C3AED}
+.op-avatar.a3{background:#EA580C}
+.operators-info{background:#F3F4F6;border-radius:12px;padding:12px 14px;font-size:13px;line-height:1.45;color:#374151;margin:12px 0 4px;border:1px solid var(--line)}
+.phone{display:flex;flex-direction:column}
+.scr.on{overflow-y:auto;-webkit-overflow-scrolling:touch}
+.overlay{z-index:30}
+.toast.on{display:block}
+</style>
+</head>
+<body>
+<noscript><div style="padding:24px;font:16px sans-serif;color:#b91c1c"><b>JavaScript is off.</b> Turn it on, then reopen this file. Or serve via <code>python3 -m http.server 8765</code> in the prototypes folder.</div></noscript>
+<div id="bootError" hidden style="position:fixed;inset:0;z-index:99999;background:#fff;padding:24px;font:15px sans-serif;overflow:auto"></div>
+<div class="stage"><div class="phone" id="phoneRoot">
+<div class="notch"><span>9:41</span><span>●●●</span></div>
+
+<section class="scr on" id="lmbDashboard">
+  <div class="lmb-top">
+    <div class="row">
+      <button type="button" class="home-pill">🏠 Home</button>
+      <div class="biz-title">List My Business</div>
+      <span class="manage-pill">Manage &amp; grow</span>
+    </div>
+    <p class="hint" id="buildTag" style="margin:8px 0 0;font-size:11px">Single-file demo — all JavaScript is inside this .html</p>
+  </div>
+  <div class="pad" style="padding-top:8px">
+    <div class="biz-dash-card">
+      <div class="biz-row">
+        <div class="biz-ico">🏛️</div>
+        <div style="flex:1">
+          <p class="biz-name">Vijaya Convention Center</p>
+          <p class="biz-type">Marriage Hall</p>
+          <p class="biz-meta"><span class="pill ok" style="margin:0">Verified</span> · MG Road, Kottayam</p>
+          <div class="biz-badges"><span>2 new requests</span><span class="gy">Rs 1.8L this month</span></div>
+          <div class="biz-actions">
+            <button type="button">Calendar</button>
+            <button type="button">Requests</button>
+            <button type="button" class="mgr-hall" id="dashHallManage">Manage</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="biz-dash-card">
+      <div class="biz-row">
+        <div class="biz-ico">🍽️</div>
+        <div style="flex:1">
+          <p class="biz-name">Thilaka Catering</p>
+          <p class="biz-type">Catering Service</p>
+          <p class="biz-meta"><span class="pill ok" style="margin:0">Verified</span> · Sakthan Nagar, Thrissur</p>
+          <div class="biz-badges"><span>4 new requests</span><span class="gy">Rs 3.2L this month</span></div>
+          <div class="biz-actions">
+            <button type="button">Calendar</button>
+            <button type="button">Requests</button>
+            <button type="button" class="mgr-cat" id="dashCatManage">Manage</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="biz-dash-card">
+      <div class="biz-row">
+        <div class="biz-ico">⚡</div>
+        <div style="flex:1">
+          <p class="biz-name">Rajan Power Rentals</p>
+          <p class="biz-type">Rental Business</p>
+          <p class="biz-meta"><span class="pill ok" style="margin:0">Verified</span> · Sakthan Nagar, Thrissur</p>
+          <div class="biz-badges"><span class="gy">Rs 48K this month</span></div>
+          <div class="biz-actions">
+            <button type="button">Items</button>
+            <button type="button">Requests</button>
+            <button type="button" class="mgr-rent" id="dashRentManage">Manage</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="scr" id="hallSetup">
+  <div class="top"><button type="button" class="back" id="setupBackDash">←</button><h1>Hall setup</h1></div>
+  <div class="pad">
+    <h2 id="setupBizTitle">Vijaya Convention Center</h2>
+    <p class="sub" id="setupIntroSub">Enter how many halls, then tap OK.</p>
+    <div id="setupHallCountBlock">
+      <div class="fld"><label>Number of halls</label><input type="number" id="hallCountInput" min="1" max="20" value="2"><small class="sub">Example: 1 hall, or 2–3 halls under one convention center.</small></div>
+      <button type="button" class="btn" id="hallCountOk" style="margin-top:8px">OK</button>
+    </div>
+    <div id="setupParkingSection" hidden style="margin-top:16px">
+      <p class="lbl" id="setupParkingLbl">COMMON PARKING</p>
+      <p class="sub" id="setupParkingHint">Shared car and bike capacity for all halls.</p>
+      <div class="two">
+        <div class="fld"><label>Car parking</label><input type="number" id="setupParkCar" min="0" value="80"></div>
+        <div class="fld"><label>Bike parking</label><input type="number" id="setupParkBike" min="0" value="120"></div>
+      </div>
+    </div>
+  </div>
+  <div class="cta two" id="setupActionsWrap" hidden style="display:none;grid-template-columns:1fr 1fr;gap:10px;padding-top:0">
+    <button type="button" class="btn ghost" id="setupCancel">Cancel</button>
+    <button type="button" class="btn" id="setupSave">Save</button>
+  </div>
+</section>
+
+<section class="scr" id="hallBizHome">
+  <div class="lmb-top">
+    <div class="row">
+      <button type="button" class="home-pill" id="bizHomeToDash">🏠 Home</button>
+      <div class="biz-title" id="bizHomeTitle">Vijaya Convention Center</div>
+      <span class="manage-pill">Manage &amp; grow</span>
+    </div>
+    <p class="hint" id="buildTagHub" style="margin:8px 0 0;font-size:11px">Halls hub — add halls, then Manage each hall</p>
+  </div>
+  <div class="pad" id="hallBizBody">
+    <div class="venue-hero">
+      <div class="venue-thumb" aria-hidden="true"></div>
+      <div style="min-width:0;flex:1">
+        <h2 id="venueHeroTitle">Vijaya Convention Center</h2>
+        <p class="venue-meta">Marriage Hall · Service · Hall</p>
+        <p class="venue-loc"><span aria-hidden="true">📍</span> <span id="venueHeroLoc">Kottayam, Kerala</span></p>
+      </div>
+    </div>
+    <div id="parkingBlockWrap">
+    <div class="parking-hub-card" id="parkingSummaryBox">
+      <div class="hd">
+        <b id="parkingSummaryTitle">Parking</b>
+        <button type="button" class="edit-park-btn" id="editParkingBtn">✎ Edit</button>
+      </div>
+      <div class="parking-stats" id="parkingSummaryText"><span>🚗 Cars: 80</span><span>🏍 Bikes: 120</span></div>
+    </div>
+    </div>
+    <button type="button" class="btn btn-add-hall" id="addHallBtn">Add Hall</button>
+    <p class="sub add-hall-hint" id="addHallHint" hidden></p>
+    <div id="hallBizDisabledZone">
+    <div class="halls-section-lbl">
+      <p class="lbl">YOUR HALLS</p>
+      <span class="sub" id="hallCountLbl" style="margin:0;font-weight:800">(0)</span>
+    </div>
+    <div id="hallListCards"></div>
+    </div>
+  </div>
+</section>
+
+<section class="scr" id="manage">
+  <div class="top manage-top">
+    <button type="button" class="back" id="backToBizHalls" aria-label="Back to halls">←</button>
+    <h1>Manage hall</h1>
+    <span class="manage-pill">Manage &amp; grow</span>
+  </div>
+  <div class="pad" style="padding-bottom:4px">
+    <p class="sub" style="margin:0" id="manageSubLine">Vijaya Convention Center · Hall: Tiffle · Service · Hall</p>
+    <p class="hint" id="buildTagManage" style="margin:6px 0 0;font-size:11px">Hall manage — pricing, calendar, requests</p>
+  </div>
+  <div class="pad" style="padding-top:4px">
+    <div id="hallInactiveBanner" hidden class="hall-inactive-banner">This hall is <b>Off</b> on your Halls list. Turn the toggle <b>On</b> on the hall card to edit names, pricing, and calendar again.</div>
+    <div class="manage-biz-card">
+      <div class="manage-biz-photo" aria-hidden="true"></div>
+      <p class="manage-field-lbl">Business name</p>
+      <p class="biz-ro-display" id="manageBizNameDisplay">Vijaya Convention Center</p>
+      <input id="bizNameRo" type="text" readonly hidden value="Vijaya Convention Center">
+      <p class="sub" style="margin:0;font-size:12px">Set when you listed on Gixbee — cannot be changed here. Shown on search cards.</p>
+    </div>
+    <div id="manageHallNamePanel" class="manage-name-panel">
+      <div class="manage-name-panel-hd"><span class="tag-ico" aria-hidden="true">🏷</span> Hall name <span style="color:var(--rd);font-weight:900">*</span></div>
+      <input id="manageHallNameInput" type="text" value="" placeholder="Hall 1">
+      <p class="sub" style="margin:8px 0 0;font-size:12px">Examples: Koinonia, Grand Hall, AC Banquet Hall — shown to customers when they book.</p>
+    </div>
+  </div>
+  <div id="manageRestBlock">
+  <div class="pad">
+    <p class="lbl">MANAGE</p>
+    <div class="menu" id="manageMenu"><p class="sub" id="jsWait">Loading menu…</p></div>
+  </div>
+  <div class="cta manage-back-cta">
+    <button type="button" class="btn ghost" id="manageBackToHallsBtn">← Back to halls</button>
+  </div>
+  </div>
+</section>
+
+<section class="scr" id="pkg1">
+  <div class="top"><button class="back" type="button" id="pkg1BackBtn">←</button><h1 id="pkg1HeadTitle">Pricing &amp; Packages</h1><span class="chip-h" id="pkg1StepChip">1/5</span></div>
+  <div class="prog"><div class="bar"><i style="width:20%"></i></div><span class="frac">1/5</span></div>
+  <div class="steps" id="pkgSteps"></div>
+  <div class="pad"><h2>Event Categories</h2><p class="sub">Select the functions you accept at your hall.</p><div id="eventCats"></div></div>
+  <div class="cta"><button class="btn" type="button" id="pkg1Next">Continue</button></div>
+</section>
+
+<section class="scr" id="pkg2">
+  <div class="top pkg-detail-top"><button class="back pkg-back-lbl" type="button" id="pkg2BackBtn">← Back</button><h1 id="pkg2HeadTitle">Venue Details</h1><span class="chip-h" id="pkg2StepChip">2/5</span></div>
+  <div class="prog" id="pkg2ProgWrap"><div class="bar"><i id="pkg2ProgBar" style="width:40%"></i></div><span class="frac" id="pkg2FracLbl">2/5</span></div>
+  <div class="pad pkg2-pad">
+    <div class="pkg-biz-card">
+      <div class="pkg-biz-thumb" aria-hidden="true"></div>
+      <div style="min-width:0;flex:1">
+        <p class="pkg-biz-name-lbl" id="pkg2BizNameLbl">Business name (shown on search cards)</p>
+        <b id="pkg2BizTitle">Vijaya Convention Center</b>
+        <p class="pkg-biz-loc"><span aria-hidden="true">📍</span> <span id="pkg2BizLoc">Kottayam, Kerala</span></p>
+        <p class="pkg-biz-note">Cannot be changed — from List My Business.</p>
+        <input id="bizNamePkg" type="text" readonly hidden value="Vijaya Convention Center">
+      </div>
+    </div>
+    <div id="hallNamePkgWrap" class="manage-name-panel">
+      <div class="manage-name-panel-hd" id="pkg2NamePanelHd"><span class="tag-ico" aria-hidden="true">🏷</span> <span id="pkg2NameLbl">Hall name</span> <span style="color:var(--rd);font-weight:900">*</span></div>
+      <input id="hallNameInput" type="text" placeholder="Hall 1">
+      <p class="sub" style="margin:8px 0 0;font-size:12px">Examples: Koinonia, Grand Hall, AC Banquet Hall — shown to customers when they book.</p>
+    </div>
+    <div id="spaceTypeBlock">
+      <p class="pkg-section-hd" style="margin-top:0"><span aria-hidden="true">🏠</span> Space type <span style="color:var(--rd);font-weight:900">*</span></p>
+      <div class="space-type-grid" id="spaceTypeGrid">
+        <button type="button" class="space-type-card on" data-space-type="indoor" id="spaceTypeIndoor"><span class="st-ico" aria-hidden="true">🏛</span><span>Indoor</span><span class="st-radio" aria-hidden="true"></span></button>
+        <button type="button" class="space-type-card" data-space-type="outdoor" id="spaceTypeOutdoor"><span class="st-ico" aria-hidden="true">🌳</span><span>Outdoor</span><span class="st-radio" aria-hidden="true"></span></button>
+      </div>
+    </div>
+    <div class="cap-grid">
+      <div class="cap-field"><label><span class="cap-ico" aria-hidden="true">👥</span> Seating Capacity</label><input id="seatCap" type="number" min="0" value="700"><span class="cap-suffix">guests</span></div>
+      <div class="cap-field"><label><span class="cap-ico" aria-hidden="true">🍽</span> Dining Capacity</label><input id="dineCap" type="number" min="0" value="550"><span class="cap-suffix">guests</span></div>
+      <div class="cap-field full"><label><span class="cap-ico" aria-hidden="true">🚪</span> Private / Changing Room</label><input id="rooms" type="number" min="0" value="2"><span class="cap-suffix">rooms</span></div>
+    </div>
+    <p class="pkg-section-hd"><span aria-hidden="true">⚙</span> Facilities (select available)</p>
+    <div class="fac fac-rich" id="facGrid"></div>
+    <p class="pkg-section-hd"><span aria-hidden="true">🍴</span> Catering &amp; Decoration (for customers)</p>
+    <div class="cater-stack" id="caterDec"></div>
+  </div>
+  <div class="cta"><button class="btn btn-continue" type="button" id="pkg2ContinueBtn">Continue</button></div>
+</section>
+
+<section class="scr" id="pkg3">
+  <div class="top"><button class="back" type="button" data-to="pkg2">←</button><h1>Pricing &amp; Packages</h1><span class="chip-h">3/5</span></div>
+  <div class="prog"><div class="bar"><i style="width:60%"></i></div><span class="frac">3/5</span></div>
+  <div class="pad"><h2 id="pkg3Head">Pricing &amp; Time Slots</h2><p class="sub" id="pkg3Sub">Turn each slot on or off, set your hall hours (from–to), choose whether customers see Without AC and/or With AC pricing, and define AC usage hours when AC is not for the full booking window.</p><div id="slotPricing"></div></div>
+  <div class="cta"><button class="btn" type="button" data-to="pkg4">Continue</button></div>
+</section>
+
+<section class="scr" id="pkg4">
+  <div class="top"><button class="back" type="button" data-to="pkg3">←</button><h1>Pricing &amp; Packages</h1><span class="chip-h">4/5</span></div>
+  <div class="prog"><div class="bar"><i style="width:80%"></i></div><span class="frac">4/5</span></div>
+  <div class="pad"><h2>Payment &amp; Policies</h2><p class="sub">Advance, full payment due date, and editable cancellation / rescheduling rules (deducted from advance).</p><div id="payPolicy"></div></div>
+  <div class="cta"><button class="btn" type="button" data-to="pkg5">Continue</button></div>
+</section>
+
+<section class="scr" id="pkg5">
+  <div class="top"><button class="back" type="button" data-to="pkg4">←</button><h1>Pricing &amp; Packages</h1><span class="chip-h">5/5</span></div>
+  <div class="prog"><div class="bar"><i style="width:100%"></i></div><span class="frac">5/5</span></div>
+  <div class="pad"><h2>Review &amp; Save</h2><p class="sub">Check your package details and save.</p><div id="pkgReview"></div></div>
+  <div class="cta"><button class="btn" type="button" id="savePkg">Save Package</button></div>
+</section>
+
+<section class="scr" id="calendar">
+  <div class="top"><button class="back" type="button" data-to="manage">←</button><h1>Calendar &amp; Availability</h1></div>
+  <div class="pad">
+    <div class="cal-tabs">
+      <button type="button" class="pick on" id="tabCalMain">Calendar</button>
+      <button type="button" class="pick" id="tabBookSettings">Booking Settings</button>
+    </div>
+    <div class="cal-month-nav">
+      <button type="button" id="calPrevMonth" aria-label="Previous month">‹</button>
+      <b id="calMonthLabel">December 2026</b>
+      <button type="button" id="calNextMonth" aria-label="Next month">›</button>
+    </div>
+    <div class="cal-weekdays"><span>S</span><span>M</span><span>T</span><span>W</span><span>T</span><span>F</span><span>S</span></div>
+    <div class="cal-mini" id="calGrid"></div>
+    <div class="cal-legend">
+      <span><i class="cal-dot av"></i> Available</span>
+      <span><i class="cal-dot bk"></i> Booked</span>
+      <span><i class="cal-dot off"></i> Offline Booked</span>
+      <span><i class="cal-dot blk"></i> Blocked</span>
+      <span><i class="cal-dot na"></i> Not Available</span>
+    </div>
+    <button type="button" class="cal-month-pick" id="openMonthPicker">📅 Month: <span id="calMonthPickLabel">December 2026</span> ▾</button>
+  </div>
+</section>
+
+<section class="scr" id="calDay">
+  <div class="top"><button class="back" type="button" id="backFromCalDay">←</button><h1>Select Date</h1></div>
+  <div class="pad">
+    <div class="cal-date-nav">
+      <button type="button" id="calPrevDay" aria-label="Previous day">‹</button>
+      <b id="calDayTitle">25 Dec 2026, Friday</b>
+      <button type="button" id="calNextDay" aria-label="Next day">›</button>
+    </div>
+    <div id="daySlots"></div>
+  </div>
+</section>
+
+<section class="scr" id="bookSettings">
+  <div class="top"><button class="back" type="button" data-to="calendar">←</button><h1>Booking Settings</h1></div>
+  <div class="pad">
+    <h2>Customer Booking Window</h2><p class="sub">How far in advance can customers book?</p>
+    <div class="grid3" id="bookWindow"></div>
+    <div class="info gn" id="windowInfo"></div>
+    <h2 style="margin-top:20px">Minimum Booking Notice</h2><p class="sub">How soon can customers book?</p>
+    <div class="grid3" id="minNotice"></div>
+    <div class="info bl" id="noticeInfo"></div>
+  </div>
+  <div class="cta"><button class="btn" type="button" id="saveBookSettings">Save Settings</button></div>
+</section>
+
+<section class="scr" id="ownerReq">
+  <div class="top"><button class="back" type="button" data-to="manage">←</button><h1>Booking Request</h1><span class="pill wait">New</span></div>
+  <div class="pad" id="ownerReqBody"></div>
+  <div class="cta two" style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+    <button class="btn ghost red" type="button" id="rejectReq">Reject</button>
+    <button class="btn" type="button" id="acceptReq">Accept Request</button>
+  </div>
+</section>
+
+<section class="scr" id="operators">
+  <div class="lmb-top">
+    <div class="row">
+      <button type="button" class="home-pill" id="backFromOperators" style="font-size:12px">← Back</button>
+      <div class="biz-title">List My Business</div>
+      <span class="manage-pill">Manage &amp; grow</span>
+    </div>
+  </div>
+  <div class="pad" style="padding-top:8px">
+    <h2 style="margin:0 0 4px;font-size:20px;color:var(--navy)">Operators</h2>
+    <p class="sub" id="operatorsSub" style="margin-top:0">Who can manage this business</p>
+    <div class="operators-info">Operators can manage bookings and calendar but cannot delete the business or change billing.</div>
+    <p class="lbl" style="margin-top:16px">CURRENT OPERATORS</p>
+    <div id="operatorsList"></div>
+  </div>
+  <div class="cta"><button type="button" class="btn" id="addOperatorBtn">Add Operator</button></div>
+</section>
+
+<section class="scr" id="hallMedia">
+  <div class="lmb-top">
+    <div class="row">
+      <button type="button" class="home-pill" id="backFromHallMedia" style="font-size:12px">← Back</button>
+      <div class="biz-title">List My Business</div>
+      <span class="manage-pill">Manage &amp; grow</span>
+    </div>
+    <p class="sub" style="margin:8px 0 0" id="hallMediaSub">Hall photos</p>
+  </div>
+  <div class="pad" style="padding-top:8px">
+    <h2 style="margin:0 0 4px;font-size:20px;color:var(--navy)">Photos</h2>
+    <p class="lbl" style="margin-top:12px">COVER PHOTO</p>
+    <div class="media-cover" id="hallCoverPhoto"><span class="cover-lbl">Cover</span></div>
+    <button type="button" class="btn ghost" id="changeCoverBtn" style="margin-bottom:4px">Change cover</button>
+    <p class="lbl">GALLERY</p>
+    <p class="sub" style="margin-top:-4px">Shown on your hall profile and search cards.</p>
+    <div class="photo-grid" id="hallPhotoGrid"></div>
+  </div>
+  <div class="cta"><button type="button" class="btn" id="hallMediaAddBtn">Add photo</button></div>
+</section>
+
+<section class="scr" id="placeholder" hidden style="display:none!important">
+  <div class="top"><button class="back" type="button" data-to="manage">←</button><h1 id="phTitle">Coming soon</h1></div>
+  <div class="pad"><p class="sub" id="phBody"></p></div>
+</section>
+
+<div class="overlay center" id="removeOperatorOverlay" aria-hidden="true">
+  <div class="modal-card">
+    <div class="modal-ico">👤</div>
+    <h3>Remove operator?</h3>
+    <p id="removeOperatorBody">This person will no longer be able to manage bookings or calendar for this hall.</p>
+    <div class="sheet-actions">
+      <button type="button" class="btn ghost" id="cancelRemoveOperator">Cancel</button>
+      <button type="button" class="btn red" id="confirmRemoveOperator">Remove</button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="addOperatorOverlay" aria-hidden="true">
+  <div class="sheet">
+    <div class="sheet-head"><h2>Add Operator</h2><button type="button" class="sheet-close" id="closeAddOperator">×</button></div>
+    <p class="sub" style="margin-top:0">They can manage calendar and booking requests for this hall.</p>
+    <div class="fld"><label>Full name</label><input id="addOpName" type="text" placeholder="e.g. John Kurian" autocomplete="name"></div>
+    <div class="fld"><label>Mobile number</label><input id="addOpPhone" type="tel" placeholder="e.g. +91 98765 43210" autocomplete="tel"></div>
+    <div class="fld"><label>Role</label>
+      <select id="addOpRole">
+        <option value="manager">Manager</option>
+        <option value="staff">Staff</option>
+      </select>
+      <small class="sub">Owner is set when you list on Gixbee — add managers or staff here.</small>
+    </div>
+    <div class="sheet-actions">
+      <button type="button" class="btn ghost" id="cancelAddOperator">Cancel</button>
+      <button type="button" class="btn" id="saveAddOperator">Add Operator</button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="monthPickerOverlay" aria-hidden="true">
+  <div class="sheet">
+    <div class="sheet-head"><h2>Month</h2><button type="button" class="sheet-close" id="closeMonthPicker">×</button></div>
+    <p class="sub" style="margin-top:0">Easy navigation — pick a month</p>
+    <div class="month-list" id="monthPickerList"></div>
+    <button type="button" class="btn ghost" id="cancelMonthPicker" style="margin-top:12px">Cancel</button>
+  </div>
+</div>
+
+<div class="overlay" id="blockSheetOverlay" aria-hidden="true">
+  <div class="sheet">
+    <div class="sheet-head"><h2>Block Slot</h2><button type="button" class="sheet-close" id="closeBlockSheet">×</button></div>
+    <div class="sheet-slot-sum" id="blockSheetSummary"></div>
+    <p class="lbl" style="margin-top:0">Select reason</p>
+    <label class="block-reason on" data-block-reason="offline"><input type="radio" name="blockReason" value="offline" checked> <b>Offline Booking</b><small>e.g. direct customer, phone enquiry</small></label>
+    <label class="block-reason" data-block-reason="temp"><input type="radio" name="blockReason" value="temp"> <b>Temporary Block</b><small>e.g. maintenance, private use</small></label>
+    <label class="block-reason" data-block-reason="other"><input type="radio" name="blockReason" value="other"> <b>Other</b></label>
+    <div class="fld" style="margin-top:12px"><label>Notes (optional)</label><textarea id="blockNotes" rows="2" placeholder="Customer name, phone, etc."></textarea></div>
+    <div class="sheet-actions">
+      <button type="button" class="btn ghost" id="cancelBlockSheet">Cancel</button>
+      <button type="button" class="btn" id="submitBlockSheet">Block Slot</button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay center" id="confirmBlockOverlay" aria-hidden="true">
+  <div class="modal-card">
+    <div class="modal-ico">📅</div>
+    <h3 id="confirmBlockTitle">Block Morning Slot?</h3>
+    <p id="confirmBlockBody">This will mark the Morning slot as Offline Booking and it will be unavailable for customers. Full Day slot will also become unavailable automatically.</p>
+    <div class="sheet-actions">
+      <button type="button" class="btn ghost" id="cancelConfirmBlock">Cancel</button>
+      <button type="button" class="btn" id="doConfirmBlock">Confirm</button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay center" id="unblockOverlay" aria-hidden="true">
+  <div class="modal-card">
+    <div class="modal-ico">🔓</div>
+    <h3>Unblock Slot</h3>
+    <p class="sub" id="unblockSlotSum" style="text-align:center;margin-bottom:8px"></p>
+    <p id="unblockBody">This will make the slot available to customers again.</p>
+    <div class="sheet-actions">
+      <button type="button" class="btn ghost" id="cancelUnblock">Cancel</button>
+      <button type="button" class="btn" id="doUnblock">Unblock Slot</button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay center" id="packageRequiredOverlay" aria-hidden="true">
+  <div class="modal-card pkg-required-modal">
+    <div class="pkg-required-ico" aria-hidden="true">₹</div>
+    <h3>Add pricing &amp; packages first</h3>
+    <p class="pkg-required-body">Open <b>Price &amp; packages</b> from Manage, complete all 5 steps, and tap <b>Save Package</b> on Review. Then Calendar, Operators, and Booking requests will unlock for this hall.</p>
+    <button type="button" class="btn" id="pkgRequiredOk">OK</button>
+  </div>
+</div>
+
+<div class="overlay center" id="venueEditOverlay" aria-hidden="true">
+  <div class="modal-card venue-edit-modal">
+    <div class="venue-edit-step" id="venueEditStep1">
+      <h3>Venue setup</h3>
+      <p class="sub" style="margin:0 0 14px">Step 1 of 2 — how many halls at this venue?</p>
+      <div class="fld"><label>Number of halls</label><input type="number" id="editHallCountInput" min="1" max="20" value="1"></div>
+      <p class="sub" id="editHallCountHint" style="margin-top:8px"></p>
+      <div class="venue-edit-actions">
+        <button type="button" class="btn" id="venueEditStep1Ok">OK</button>
+        <button type="button" class="btn ghost" id="venueEditCancel1">Cancel</button>
+      </div>
+    </div>
+    <div class="venue-edit-step" id="venueEditStep2" hidden>
+      <h3 id="editParkingStepTitle">Parking</h3>
+      <p class="sub" id="editParkingHint" style="margin:0 0 14px"></p>
+      <div class="two">
+        <div class="fld"><label>Car parking</label><input type="number" id="editParkCar" min="0" value="80"></div>
+        <div class="fld"><label>Bike parking</label><input type="number" id="editParkBike" min="0" value="120"></div>
+      </div>
+      <div class="venue-edit-actions">
+        <button type="button" class="btn" id="venueEditSave">Save</button>
+        <button type="button" class="btn ghost" id="venueEditBack">Back</button>
+        <button type="button" class="btn ghost" id="venueEditCancel2">Cancel</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+</div></div>
+<!-- APP_START -->
+<script>
+const OWNER_BUILD = '2026-09-28-hall-owner-v60';
+
+const FACILITY_PARKING_SECURITY = 'Security in Parking Area';
+
+const FACILITIES_INDOOR = [
+  'AC',
+  'Generator / Power Backup',
+  'Chairs & Tables',
+  'Stage',
+  'Sound System',
+  'Restrooms',
+  'Lift',
+  FACILITY_PARKING_SECURITY,
+];
+
+const FACILITIES_OUTDOOR = [
+  'Air Coolers',
+  'Fans',
+  'Generator / Power Backup',
+  'Chairs & Tables',
+  'Stage',
+  'Sound System',
+  'Restrooms',
+  FACILITY_PARKING_SECURITY,
+];
+
+const FACILITY_ICONS = {
+  AC: '❄',
+  'Air Coolers': '💨',
+  Fans: '🌀',
+  'Generator / Power Backup': '⚡',
+  'Chairs & Tables': '🪑',
+  Stage: '🎭',
+  'Sound System': '🔊',
+  Restrooms: '🚻',
+  Lift: '🛗',
+  'Security in Parking Area': '🛡',
+};
+
+function venueIsOutdoor() {
+  const h = activeHall();
+  if (state.spaceType === 'outdoor') return true;
+  if (h && h.spaceType === 'outdoor') return true;
+  return false;
+}
+
+function applyVenueTypeToAllSlotOffers() {
+  ensureSlotOffers();
+  if (!venueIsOutdoor()) return;
+  state.slotOffers.forEach(function (o) {
+    o.offerAc = false;
+    o.offerNoAc = true;
+    o.acMode = 'full';
+    o.acHours = 0;
+    o.acFrom = '';
+    o.acTo = '';
+  });
+  if (!state.prices) state.prices = {};
+  state.prices.extraAc = 0;
+}
+
+function goBackFromManageToHalls() {
+  if (!validateHallNameRequired()) return;
+  persistActiveHallFromManage();
+  const fromAdd = state.openedFromAddHall;
+  state.openedFromAddHall = false;
+  renderHallBizHome();
+  renderManageNameMode();
+  renderManageHeader();
+  show('hallBizHome');
+  if (fromAdd) {
+    const planned = Math.max(1, state.plannedHallCount || 1);
+    if (state.halls.length >= planned && planned > 1) {
+      toast('All ' + planned + ' halls are added for this venue.');
+    }
+  }
+}
+const DEMO_FILE = 'hall-owner-lmb-master.html';
+const PKG_KEY = 'GIXBEE_HALL_PACKAGE';
+
+const EVENT_CATS = [
+  { id: 'wedding', label: 'Wedding', icon: '💒' },
+  { id: 'reception', label: 'Reception', icon: '🥂' },
+  { id: 'engagement', label: 'Engagement', icon: '💍' },
+  { id: 'birthday', label: 'Birthday', icon: '🎂' },
+  { id: 'baptism', label: 'Baptism', icon: '⛪' },
+  { id: 'anniversary', label: 'Anniversary', icon: '🎉' },
+  { id: 'corporate', label: 'Corporate Event', icon: '🏢' },
+  { id: 'conference', label: 'Conference', icon: '🎤' },
+  { id: 'religious', label: 'Religious Function', icon: '🕯️' },
+];
+
+function facilitiesForCurrentVenue() {
+  return venueIsOutdoor() ? FACILITIES_OUTDOOR.slice() : FACILITIES_INDOOR.slice();
+}
+
+function migrateLegacyParkingSecurityFacilities() {
+  const fac = state.facilities || [];
+  const hadLegacy = fac.indexOf('Parking') >= 0 || fac.indexOf('Security') >= 0;
+  if (hadLegacy && fac.indexOf(FACILITY_PARKING_SECURITY) < 0) {
+    fac.push(FACILITY_PARKING_SECURITY);
+  }
+  state.facilities = fac.filter(function (f) {
+    return f !== 'Parking' && f !== 'Security';
+  });
+}
+
+function normalizeFacilitiesForVenueType() {
+  migrateLegacyParkingSecurityFacilities();
+  const allowed = facilitiesForCurrentVenue();
+  const set = {};
+  allowed.forEach(function (f) {
+    set[f] = true;
+  });
+  state.facilities = (state.facilities || []).filter(function (f) {
+    return set[f];
+  });
+}
+
+function applyVenueTypeSideEffects() {
+  applyVenueTypeToAllSlotOffers();
+  normalizeFacilitiesForVenueType();
+}
+
+const SLOT_TEMPLATES = [
+  { id: 'morning', label: 'Morning', hallFrom: '10:00', hallTo: '15:00' },
+  { id: 'evening', label: 'Evening', hallFrom: '17:00', hallTo: '23:00' },
+  { id: 'fullday', label: 'Full Day', hallFrom: '09:00', hallTo: '21:00', acMode: 'limited', acLimitKind: 'flexible', acHours: 5 },
+];
+
+function ensureSlotOffers() {
+  const prices = state.prices || {};
+  if (!state.slotOffers || !state.slotOffers.length) {
+    state.slotOffers = SLOT_TEMPLATES.map(function (t) {
+      const p = prices[t.id] || {};
+      return {
+        id: t.id,
+        label: t.label,
+        enabled: true,
+        hallFrom: t.hallFrom,
+        hallTo: t.hallTo,
+        offerNoAc: true,
+        offerAc: true,
+        priceNoAc: p.noAc != null ? p.noAc : 55000,
+        priceAc: p.ac != null ? p.ac : t.id === 'fullday' ? 200000 : 75000,
+        acMode: t.acMode || 'full',
+        acLimitKind: t.acLimitKind || 'flexible',
+        acFrom: '',
+        acTo: '',
+        acHours: t.acHours || 0,
+      };
+    });
+  }
+  SLOT_TEMPLATES.forEach(function (t) {
+    if (
+      state.slotOffers.find(function (o) {
+        return o.id === t.id;
+      })
+    ) {
+      return;
+    }
+    const p = prices[t.id] || {};
+    state.slotOffers.push({
+      id: t.id,
+      label: t.label,
+      enabled: false,
+      hallFrom: t.hallFrom,
+      hallTo: t.hallTo,
+      offerNoAc: true,
+      offerAc: true,
+      priceNoAc: p.noAc || 55000,
+      priceAc: p.ac || 75000,
+      acMode: 'full',
+      acLimitKind: 'flexible',
+      acFrom: '',
+      acTo: '',
+      acHours: 0,
+    });
+  });
+  state.slotOffers.forEach(function (o) {
+    if (o.acMode == null) o.acMode = 'full';
+    if (o.acHours == null) o.acHours = 0;
+    if (!o.hallFrom) o.hallFrom = '09:00';
+    if (!o.hallTo) o.hallTo = '17:00';
+    if (o.acFrom == null) o.acFrom = '';
+    if (o.acTo == null) o.acTo = '';
+    if (o.acLimitKind === 'hours') o.acLimitKind = 'flexible';
+    if (o.acLimitKind == null) {
+      if (o.acFrom && o.acTo) o.acLimitKind = 'fixed';
+      else o.acLimitKind = 'flexible';
+    }
+    if (o.offerNoAc == null) o.offerNoAc = true;
+    if (o.offerAc == null) o.offerAc = true;
+    if (o.enabled == null) o.enabled = true;
+  });
+}
+
+function formatTime12(hhmm) {
+  if (!hhmm) return '';
+  const parts = String(hhmm).split(':');
+  const h = +parts[0] || 0;
+  const m = +parts[1] || 0;
+  const ampm = h >= 12 ? 'PM' : 'AM';
+  const h12 = h % 12 || 12;
+  return h12 + ':' + String(m).padStart(2, '0') + ' ' + ampm;
+}
+
+function formatTimeRange(from, to) {
+  return formatTime12(from) + ' – ' + formatTime12(to);
+}
+
+function acUsageSummary(o) {
+  if (!o.offerAc) return '';
+  if (o.acMode === 'full') return ' · AC for full hall window';
+  if (o.acLimitKind === 'fixed' && o.acFrom && o.acTo) {
+    return ' · ' + (o.acHours || '?') + 'h AC, fixed ' + formatTimeRange(o.acFrom, o.acTo);
+  }
+  if (o.acHours) return ' · ' + o.acHours + 'h AC included (timing with hall management)';
+  return ' · AC limited';
+}
+
+function slotReviewLines() {
+  ensureSlotOffers();
+  const outdoor = venueIsOutdoor();
+  const lines = state.slotOffers
+    .filter(function (o) {
+      return o.enabled;
+    })
+    .map(function (o) {
+      const win = formatTimeRange(o.hallFrom, o.hallTo);
+      if (outdoor) {
+        return o.label + ' (' + win + '): ₹' + (o.priceNoAc || 0).toLocaleString('en-IN') + ' slot rent';
+      }
+      const parts = [];
+      if (o.offerNoAc) parts.push('Without AC ₹' + o.priceNoAc.toLocaleString('en-IN'));
+      if (o.offerAc) parts.push('With AC ₹' + o.priceAc.toLocaleString('en-IN') + acUsageSummary(o));
+      return o.label + ' (' + win + '): ' + parts.join(' · ');
+    });
+  if (outdoor && state.prices && state.prices.extraNoAc) {
+    lines.push('Extra hours: ₹' + state.prices.extraNoAc.toLocaleString('en-IN') + ' / hour');
+  } else if (!outdoor && state.prices) {
+    if (state.prices.extraNoAc) lines.push('Extra hours (without AC): ₹' + state.prices.extraNoAc.toLocaleString('en-IN') + ' / hour');
+    if (state.prices.extraAc) lines.push('Extra hours (with AC): ₹' + state.prices.extraAc.toLocaleString('en-IN') + ' / hour');
+  }
+  return lines;
+}
+
+const MANAGE_MENU = [
+  { id: 'calendar', title: 'Calendar', sub: 'Availability and blocked dates', icon: '📅', ico: 'cal' },
+  { id: 'pkg1', title: 'Price & packages', sub: 'Slots, pricing, cancellation policy', icon: '₹', ico: 'pkg' },
+  { id: 'ownerReq', title: 'Booking requests', sub: 'Accept or decline customer bookings', dot: true, icon: '💬', ico: 'req' },
+  { id: 'operators', title: 'Operators', sub: 'Who can manage this hall', icon: '👥', ico: 'ops' },
+  { id: 'hallPhotos', title: 'Photos', sub: 'Cover image and gallery for this hall', icon: '📷', ico: 'photo' },
+  { id: 'deleteHall', title: 'Delete hall', sub: 'Remove this hall from the business', cls: 'danger', icon: '🗑', ico: 'del' },
+];
+
+const state = {
+  businessName: 'Vijaya Convention Center',
+  businessLocation: 'Kottayam, Kerala',
+  useHallName: false,
+  hallName: '',
+  activeHallId: '',
+  hallSetupComplete: false,
+  plannedHallCount: 2,
+  parkingEditOpen: false,
+  openedFromAddHall: false,
+  spaceType: 'indoor',
+  commonParking: { car: 80, bike: 120 },
+  halls: [],
+  events: ['wedding', 'reception', 'engagement', 'birthday', 'baptism', 'anniversary', 'religious'],
+  facilities: ['AC', 'Generator / Power Backup', 'Chairs & Tables', 'Stage', 'Sound System', 'Restrooms'],
+  catering: { inHouse: 'yes', outside: 'yes', decorHall: 'no', decorOutside: 'yes' },
+  capacity: { seat: 700, dine: 550, car: 50, bike: 100, rooms: 2 },
+  prices: {
+    morning: { noAc: 55000, ac: 75000 },
+    evening: { noAc: 55000, ac: 75000 },
+    fullday: { noAc: 75000, ac: 90000 },
+    extraNoAc: 5000,
+    extraAc: 7000,
+  },
+  payment: { advanceType: 'fixed', advanceFixed: 20000, advancePct: 30, fullDueDays: 7 },
+  cancelRules: [
+    { days: '30 days or more', pct: 10 },
+    { days: '15 – 29 days', pct: 25 },
+    { days: '7 – 14 days', pct: 50 },
+    { days: '3 – 6 days', pct: 75 },
+    { days: 'Less than 1 day', pct: 100 },
+  ],
+  rescheduleRules: [
+    { days: '30 days or more', pct: 10 },
+    { days: '15 – 29 days', pct: 25 },
+    { days: '7 – 14 days', pct: 50 },
+    { days: '3 – 6 days', pct: 75 },
+    { days: 'Less than 1 day', pct: 100 },
+  ],
+  cancelPolicyNote: '',
+  reschedulePolicyNote: '',
+  bookWindowMonths: 6,
+  minNoticeDays: 3,
+  calDay: 25,
+};
+
+let calPendingBlock = null;
+let calPendingUnblock = null;
+let pendingVenueHallCount = 1;
+
+const MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+
+function inr(n) {
+  return '₹ ' + (n || 0).toLocaleString('en-IN');
+}
+
+function calDateKey(y, m, d) {
+  return y + '-' + String(m).padStart(2, '0') + '-' + String(d).padStart(2, '0');
+}
+
+function parseCalDateKey(key) {
+  const p = String(key).split('-');
+  return { y: +p[0], m: +p[1], d: +p[2] };
+}
+
+function getHallCalendar(h) {
+  if (!h) return null;
+  if (!h.calendar) {
+    h.calendar = {
+      viewYear: 2026,
+      viewMonth: 12,
+      selectedKey: '2026-12-25',
+      days: {},
+    };
+    seedHallCalendarDemo(h.calendar);
+  }
+  if (!h.calendar.selectedKey) h.calendar.selectedKey = calDateKey(h.calendar.viewYear, h.calendar.viewMonth, 25);
+  return h.calendar;
+}
+
+function seedHallCalendarDemo(cal) {
+  if (Object.keys(cal.days).length) return;
+  cal.days['2026-12-25'] = { morning: 'available', evening: 'booked_gixbee' };
+  cal.days['2026-12-26'] = {
+    morning: 'offline',
+    evening: 'available',
+    morningBlock: { reason: 'offline', notes: 'Phone booking' },
+  };
+  cal.days['2026-12-27'] = { morning: 'blocked', evening: 'available', morningBlock: { reason: 'temp', notes: '' } };
+  cal.days['2026-12-28'] = { morning: 'available', evening: 'offline', eveningBlock: { reason: 'offline', notes: '' } };
+  cal.days['2026-12-29'] = { morning: 'booked_gixbee', evening: 'booked_gixbee' };
+}
+
+function ensureDayRecord(cal, key) {
+  if (!cal.days[key]) cal.days[key] = {};
+  return cal.days[key];
+}
+
+function rawSlotStatus(cal, key, slotId) {
+  const day = cal.days[key];
+  if (!day || !day[slotId]) return 'available';
+  return day[slotId];
+}
+
+function slotOfferById(id) {
+  ensureSlotOffers();
+  return state.slotOffers.find(function (o) {
+    return o.id === id;
+  });
+}
+
+/** Saved package slots for calendar (not in-progress wizard edits). */
+function calendarSlotOffers(h) {
+  if (h && h.packageSaved && h.package && h.package.slotOffers && h.package.slotOffers.length) {
+    return h.package.slotOffers;
+  }
+  ensureSlotOffers();
+  return state.slotOffers;
+}
+
+function calendarSlotOfferById(h, id) {
+  return calendarSlotOffers(h).find(function (o) {
+    return o.id === id;
+  });
+}
+
+function offerEnabledInList(offers, id) {
+  const o = offers.find(function (x) {
+    return x.id === id;
+  });
+  return !!(o && o.enabled);
+}
+
+function clonePackageSlice(src) {
+  const s = src || state;
+  ensureSlotOffers();
+  return {
+    events: (s.events || []).slice(),
+    facilities: (s.facilities || []).slice(),
+    catering: JSON.parse(JSON.stringify(s.catering || {})),
+    capacity: JSON.parse(JSON.stringify(s.capacity || {})),
+    slotOffers: (s.slotOffers || state.slotOffers).map(function (o) {
+      return JSON.parse(JSON.stringify(o));
+    }),
+    prices: JSON.parse(JSON.stringify(s.prices || {})),
+    payment: JSON.parse(JSON.stringify(s.payment || {})),
+    cancelRules: (s.cancelRules || []).map(function (r) {
+      return JSON.parse(JSON.stringify(r));
+    }),
+    rescheduleRules: (s.rescheduleRules || []).map(function (r) {
+      return JSON.parse(JSON.stringify(r));
+    }),
+    cancelPolicyNote: s.cancelPolicyNote || '',
+    reschedulePolicyNote: s.reschedulePolicyNote || '',
+    bookWindowMonths: s.bookWindowMonths != null ? s.bookWindowMonths : 6,
+    minNoticeDays: s.minNoticeDays != null ? s.minNoticeDays : 3,
+  };
+}
+
+function applyDefaultPackageToState() {
+  state.events = ['wedding', 'reception', 'engagement', 'birthday', 'baptism', 'anniversary', 'religious'];
+  state.facilities = ['AC', 'Generator / Power Backup', 'Chairs & Tables', 'Stage', 'Sound System', 'Restrooms'];
+  state.catering = { inHouse: 'yes', outside: 'yes', decorHall: 'no', decorOutside: 'yes' };
+  state.capacity = { seat: 700, dine: 550, car: 50, bike: 100, rooms: 2 };
+  state.prices = {
+    morning: { noAc: 55000, ac: 75000 },
+    evening: { noAc: 55000, ac: 75000 },
+    fullday: { noAc: 75000, ac: 90000 },
+    extraNoAc: 5000,
+    extraAc: 7000,
+  };
+  state.payment = { advanceType: 'fixed', advanceFixed: 20000, advancePct: 30, fullDueDays: 7 };
+  state.cancelRules = POLICY_DEFAULTS.map(function (r) {
+    return { days: r.days, pct: r.pct };
+  });
+  state.rescheduleRules = POLICY_DEFAULTS.map(function (r) {
+    return { days: r.days, pct: r.pct };
+  });
+  state.cancelPolicyNote = '';
+  state.reschedulePolicyNote = '';
+  state.bookWindowMonths = 6;
+  state.minNoticeDays = 3;
+  state.slotOffers = null;
+  ensureSlotOffers();
+}
+
+function applyPackageSlice(pkg) {
+  if (!pkg) return;
+  state.events = (pkg.events || []).slice();
+  state.facilities = (pkg.facilities || []).slice();
+  state.catering = JSON.parse(JSON.stringify(pkg.catering || {}));
+  state.capacity = JSON.parse(JSON.stringify(pkg.capacity || {}));
+  state.prices = JSON.parse(JSON.stringify(pkg.prices || {}));
+  state.payment = JSON.parse(JSON.stringify(pkg.payment || {}));
+  state.cancelRules = (pkg.cancelRules || []).map(function (r) {
+    return JSON.parse(JSON.stringify(r));
+  });
+  state.rescheduleRules = (pkg.rescheduleRules || []).map(function (r) {
+    return JSON.parse(JSON.stringify(r));
+  });
+  state.cancelPolicyNote = pkg.cancelPolicyNote || '';
+  state.reschedulePolicyNote = pkg.reschedulePolicyNote || '';
+  state.bookWindowMonths = pkg.bookWindowMonths != null ? pkg.bookWindowMonths : 6;
+  state.minNoticeDays = pkg.minNoticeDays != null ? pkg.minNoticeDays : 3;
+  state.slotOffers = (pkg.slotOffers || []).map(function (o) {
+    return JSON.parse(JSON.stringify(o));
+  });
+  ensureSlotOffers();
+}
+
+function commitHallPackageFromState() {
+  const h = activeHall();
+  if (!h) return;
+  capturePkg2();
+  captureSpaceType();
+  syncActiveHallFromState();
+  capturePkg3();
+  capturePkg4();
+  ensureSlotOffers();
+  applyVenueTypeSideEffects();
+  h.package = clonePackageSlice();
+  h.packageSaved = true;
+  h.packageRevision = (h.packageRevision || 0) + 1;
+  reconcileCalendarAfterPackageChange(h);
+  savePkg();
+}
+
+function reconcileCalendarAfterPackageChange(h) {
+  const cal = getHallCalendar(h);
+  if (!cal || !cal.days) return;
+  const enabledIds = calendarSlotOffers(h)
+    .filter(function (o) {
+      return o.enabled;
+    })
+    .map(function (o) {
+      return o.id;
+    });
+  const allIds = ['morning', 'evening', 'fullday'];
+  Object.keys(cal.days).forEach(function (key) {
+    const day = cal.days[key];
+    allIds.forEach(function (sid) {
+      if (enabledIds.indexOf(sid) === -1) {
+        delete day[sid];
+        delete day[sid + 'Block'];
+      }
+    });
+  });
+}
+
+function statusToDotKind(st) {
+  if (st === 'booked_gixbee') return 'bk';
+  if (st === 'offline') return 'off';
+  if (st === 'blocked') return 'blk';
+  if (st === 'available') return 'av';
+  return 'na';
+}
+
+function fulldayComputed(cal, key, h) {
+  const offers = calendarSlotOffers(h);
+  const morningOn = offerEnabledInList(offers, 'morning');
+  const eveningOn = offerEnabledInList(offers, 'evening');
+  const fulldayOn = offerEnabledInList(offers, 'fullday');
+  const mOffer = offers.find(function (o) {
+    return o.id === 'morning';
+  });
+  const eOffer = offers.find(function (o) {
+    return o.id === 'evening';
+  });
+  const mName = mOffer ? mOffer.label : 'Morning';
+  const eName = eOffer ? eOffer.label : 'Evening';
+
+  if (fulldayOn && !morningOn && !eveningOn) {
+    const st = rawSlotStatus(cal, key, 'fullday');
+    if (st === 'available') return { status: 'available', reason: '' };
+    if (st === 'booked_gixbee') return { status: 'unavailable', reason: 'Booked' };
+    if (st === 'offline') return { status: 'unavailable', reason: 'Offline booked' };
+    if (st === 'blocked') return { status: 'unavailable', reason: 'Blocked' };
+    return { status: 'unavailable', reason: 'Not available' };
+  }
+
+  if (!fulldayOn) {
+    return { status: 'unavailable', reason: 'Full day slot not offered' };
+  }
+
+  const m = morningOn ? rawSlotStatus(cal, key, 'morning') : 'available';
+  const e = eveningOn ? rawSlotStatus(cal, key, 'evening') : 'available';
+  const f = rawSlotStatus(cal, key, 'fullday');
+  const mOk = m === 'available';
+  const eOk = e === 'available';
+  if (mOk && eOk) {
+    if (f === 'available') return { status: 'available', reason: '' };
+    if (f === 'booked_gixbee') return { status: 'unavailable', reason: 'Booked (full day)' };
+    if (f === 'offline') return { status: 'unavailable', reason: 'Full day offline booked' };
+    if (f === 'blocked') return { status: 'unavailable', reason: 'Full day blocked' };
+    return { status: 'available', reason: '' };
+  }
+  if (!mOk && !eOk) {
+    return { status: 'unavailable', reason: mName + ' and ' + eName + ' occupied' };
+  }
+  if (!eOk) return { status: 'unavailable', reason: eName + ' occupied' };
+  return { status: 'unavailable', reason: mName + ' occupied' };
+}
+
+function dayDotKind(cal, key, h) {
+  const offers = calendarSlotOffers(h).filter(function (o) {
+    return o.enabled;
+  });
+  const rank = { av: 0, bk: 1, off: 2, blk: 3, na: 4 };
+  let worst = 'av';
+  offers.forEach(function (o) {
+    let kind;
+    if (o.id === 'fullday') {
+      const fd = fulldayComputed(cal, key, h);
+      if (fd.status === 'available') kind = 'av';
+      else kind = 'na';
+      const rawFd = rawSlotStatus(cal, key, 'fullday');
+      if (!offerEnabledInList(offers, 'morning') && !offerEnabledInList(offers, 'evening')) {
+        kind = statusToDotKind(rawFd);
+      }
+    } else {
+      kind = statusToDotKind(rawSlotStatus(cal, key, o.id));
+    }
+    if (rank[kind] > rank[worst]) worst = kind;
+  });
+  return worst || 'av';
+}
+
+function monthLabel(y, m) {
+  return MONTH_NAMES[m - 1] + ' ' + y;
+}
+
+function formatCalDayTitle(key) {
+  const p = parseCalDateKey(key);
+  const dt = new Date(p.y, p.m - 1, p.d);
+  return p.d + ' ' + MONTH_NAMES[p.m - 1].slice(0, 3) + ' ' + p.y + ', ' + DAY_NAMES[dt.getDay()];
+}
+
+function daysInMonth(y, m) {
+  return new Date(y, m, 0).getDate();
+}
+
+function openOverlay(id) {
+  const o = el(id);
+  if (o) {
+    o.classList.add('on');
+    o.setAttribute('aria-hidden', 'false');
+  }
+}
+
+function closeOverlay(id) {
+  const o = el(id);
+  if (o) {
+    o.classList.remove('on');
+    o.setAttribute('aria-hidden', 'true');
+  }
+}
+
+function persistCalendarDay(h, key, slotId, status, blockMeta) {
+  const cal = getHallCalendar(h);
+  const day = ensureDayRecord(cal, key);
+  day[slotId] = status;
+  const metaKey = slotId + 'Block';
+  if (blockMeta) day[metaKey] = blockMeta;
+  else delete day[metaKey];
+  savePkg();
+}
+
+function renderCalendar() {
+  const h = activeHall();
+  const cal = getHallCalendar(h);
+  if (!cal) return;
+  const y = cal.viewYear;
+  const m = cal.viewMonth;
+  const ml = el('calMonthLabel');
+  const mpl = el('calMonthPickLabel');
+  if (ml) ml.textContent = monthLabel(y, m);
+  if (mpl) mpl.textContent = monthLabel(y, m);
+  const firstDow = new Date(y, m - 1, 1).getDay();
+  const dim = daysInMonth(y, m);
+  const cells = [];
+  for (let i = 0; i < firstDow; i++) cells.push('<span class="cal-pad"></span>');
+  for (let d = 1; d <= dim; d++) {
+    const key = calDateKey(y, m, d);
+    const dot = dayDotKind(cal, key, h);
+    const on = cal.selectedKey === key ? ' on' : '';
+    cells.push(
+      '<button type="button" class="cal-day-cell' +
+        on +
+        '" data-cal-day="' +
+        d +
+        '" data-cal-key="' +
+        key +
+        '"><span>' +
+        d +
+        '</span><i class="cal-dot ' +
+        dot +
+        '"></i></button>',
+    );
+  }
+  el('calGrid').innerHTML = cells.join('');
+  el('calGrid').querySelectorAll('[data-cal-day]').forEach(function (btn) {
+    btn.onclick = function () {
+      cal.selectedKey = btn.getAttribute('data-cal-key');
+      savePkg();
+      renderCalDay();
+      show('calDay');
+    };
+  });
+}
+
+function slotStatusLabel(status, slotId, cal, key, h) {
+  if (slotId === 'fullday') {
+    const rawFd = rawSlotStatus(cal, key, 'fullday');
+    if (rawFd === 'offline') return { pill: 'off', text: 'Offline Booked' };
+    if (rawFd === 'blocked') return { pill: 'blk', text: 'Blocked' };
+    if (rawFd === 'booked_gixbee') return { pill: 'bad', text: 'Booked (Gixbee)' };
+    const fd = fulldayComputed(cal, key, h);
+    if (fd.status === 'available') return { pill: 'ok', text: 'Available' };
+    return { pill: 'muted', text: 'Unavailable (' + fd.reason + ')' };
+  }
+  const st = rawSlotStatus(cal, key, slotId);
+  if (st === 'available') return { pill: 'ok', text: 'Available' };
+  if (st === 'booked_gixbee') return { pill: 'bad', text: 'Booked (Gixbee)' };
+  if (st === 'offline') return { pill: 'off', text: 'Offline Booked' };
+  if (st === 'blocked') return { pill: 'blk', text: 'Blocked' };
+  return { pill: 'muted', text: 'Not Available' };
+}
+
+function renderSlotPriceChips(offer) {
+  if (!offer || !offer.enabled) return '';
+  let html = '<div class="price-chips">';
+  if (venueIsOutdoor()) {
+    html += '<span class="price-chip noac">Slot rent ' + inr(offer.priceNoAc) + '</span>';
+  } else {
+    if (offer.offerAc) html += '<span class="price-chip ac">With AC ' + inr(offer.priceAc) + '</span>';
+    if (offer.offerNoAc) html += '<span class="price-chip noac">Without AC ' + inr(offer.priceNoAc) + '</span>';
+  }
+  html += '</div>';
+  return html;
+}
+
+function renderCalDay() {
+  const h = activeHall();
+  const cal = getHallCalendar(h);
+  if (!cal) return;
+  const key = cal.selectedKey;
+  const title = el('calDayTitle');
+  if (title) title.textContent = formatCalDayTitle(key);
+  const order = { morning: 0, evening: 1, fullday: 2 };
+  const offers = calendarSlotOffers(h)
+    .filter(function (o) {
+      return o.enabled;
+    })
+    .sort(function (a, b) {
+      return (order[a.id] != null ? order[a.id] : 9) - (order[b.id] != null ? order[b.id] : 9);
+    });
+  const html = offers
+    .map(function (offer) {
+      const slotId = offer.id;
+      const label = offer.label + ' (' + formatTimeRange(offer.hallFrom, offer.hallTo) + ')';
+      const st = slotStatusLabel(null, slotId, cal, key, h);
+      const rawFd = slotId === 'fullday' ? rawSlotStatus(cal, key, 'fullday') : null;
+      const fd = slotId === 'fullday' ? fulldayComputed(cal, key, h) : null;
+      let raw = slotId === 'fullday' ? rawFd : rawSlotStatus(cal, key, slotId);
+      if (slotId === 'fullday' && raw === 'available' && fd && fd.status !== 'available') {
+        raw = 'unavailable';
+      }
+      const fulldayCanBlock = slotId === 'fullday' && rawFd === 'available' && fd && fd.status === 'available';
+      const disabled = slotId === 'fullday' && raw === 'unavailable';
+      let actions = '';
+      if (slotId === 'fullday') {
+        if (fulldayCanBlock) {
+          actions =
+            '<div class="slot-actions"><button type="button" class="btn" data-cal-block="' +
+            slotId +
+            '">Block Slot</button></div>';
+        } else if (rawFd === 'offline' || rawFd === 'blocked') {
+          actions =
+            '<div class="slot-actions"><button type="button" class="btn ghost" data-cal-unblock="' +
+            slotId +
+            '">Unblock</button></div>';
+        } else if (rawFd === 'booked_gixbee') {
+          actions =
+            '<div class="slot-actions"><button type="button" class="btn ghost" data-cal-manage="' +
+            slotId +
+            '">Manage Booking</button></div>';
+        } else if (raw === 'unavailable') {
+          actions =
+            '<p class="sub" style="margin:8px 0 0">Full day needs Morning and Evening free (or unblock them first).</p>';
+        }
+      } else if (raw === 'available') {
+        actions =
+          '<div class="slot-actions"><button type="button" class="btn" data-cal-block="' +
+          slotId +
+          '">Block Slot</button></div>';
+      } else if (raw === 'offline' || raw === 'blocked') {
+        actions =
+          '<div class="slot-actions"><button type="button" class="btn ghost" data-cal-unblock="' +
+          slotId +
+          '">Unblock</button></div>';
+      } else if (raw === 'booked_gixbee') {
+        actions =
+          '<div class="slot-actions"><button type="button" class="btn ghost" data-cal-manage="' +
+          slotId +
+          '">Manage Booking</button></div>';
+      }
+      return (
+        '<div class="slot' +
+        (disabled ? ' slot-disabled' : '') +
+        '"><span class="pill ' +
+        st.pill +
+        '">' +
+        esc(st.text) +
+        '</span><h3>' +
+        esc(label) +
+        '</h3>' +
+        renderSlotPriceChips(offer) +
+        actions +
+        '</div>'
+      );
+    })
+    .join('');
+  el('daySlots').innerHTML =
+    html ||
+    '<p class="sub">No time slots enabled — set slots in <b>Price &amp; packages</b> step 3 and tap <b>Save Package</b> on Review.</p>';
+  el('daySlots').querySelectorAll('[data-cal-block]').forEach(function (btn) {
+    btn.onclick = function () {
+      openBlockSheet(btn.getAttribute('data-cal-block'));
+    };
+  });
+  el('daySlots').querySelectorAll('[data-cal-unblock]').forEach(function (btn) {
+    btn.onclick = function () {
+      openUnblockModal(btn.getAttribute('data-cal-unblock'));
+    };
+  });
+  el('daySlots').querySelectorAll('[data-cal-manage]').forEach(function () {
+    btn.onclick = function () {
+      toast('Open Booking requests to accept or manage this Gixbee booking.');
+      renderOwnerReq();
+      show('ownerReq');
+    };
+  });
+}
+
+function openBlockSheet(slotId) {
+  const h = activeHall();
+  const cal = getHallCalendar(h);
+  const offer = calendarSlotOfferById(h, slotId);
+  if (!offer) return;
+  calPendingBlock = { slotId: slotId, reason: 'offline', notes: '' };
+  const key = cal.selectedKey;
+  const sum = el('blockSheetSummary');
+  if (sum) {
+    sum.innerHTML =
+      '<b>' +
+      esc(offer.label) +
+      '</b><br>' +
+      esc(formatTimeRange(offer.hallFrom, offer.hallTo)) +
+      '<br>' +
+      esc(formatCalDayTitle(key));
+  }
+  document.querySelectorAll('.block-reason').forEach(function (lab) {
+    lab.classList.toggle('on', lab.getAttribute('data-block-reason') === 'offline');
+    const inp = lab.querySelector('input');
+    if (inp) inp.checked = lab.getAttribute('data-block-reason') === 'offline';
+  });
+  if (el('blockNotes')) el('blockNotes').value = '';
+  openOverlay('blockSheetOverlay');
+}
+
+function openConfirmBlockModal() {
+  if (!calPendingBlock) return;
+  const h = activeHall();
+  const offer = calendarSlotOfferById(h, calPendingBlock.slotId);
+  const title = el('confirmBlockTitle');
+  const body = el('confirmBlockBody');
+  const reason = calPendingBlock.reason;
+  const statusWord = reason === 'temp' ? 'Blocked' : 'Offline Booking';
+  if (title) title.textContent = 'Block ' + (offer ? offer.label : 'Slot') + ' Slot?';
+  if (body) {
+    var extra =
+      calPendingBlock.slotId === 'fullday'
+        ? ' Blocking full day also marks Morning and Evening offline for this date (one full-day booking).'
+        : ' Full Day slot will also become unavailable automatically.';
+    body.textContent =
+      'This will mark the ' +
+      (offer ? offer.label : '') +
+      ' slot as ' +
+      statusWord +
+      ' and it will be unavailable for customers.' +
+      extra;
+  }
+  closeOverlay('blockSheetOverlay');
+  openOverlay('confirmBlockOverlay');
+}
+
+function applyBlockConfirm() {
+  if (!calPendingBlock) return;
+  const h = activeHall();
+  const cal = getHallCalendar(h);
+  const key = cal.selectedKey;
+  const slotId = calPendingBlock.slotId;
+  const reason = calPendingBlock.reason;
+  const status = reason === 'temp' ? 'blocked' : 'offline';
+  const blockMeta = {
+    reason: reason,
+    notes: calPendingBlock.notes || '',
+  };
+  const offers = calendarSlotOffers(h);
+  if (slotId === 'fullday') {
+    persistCalendarDay(h, key, 'fullday', status, blockMeta);
+    if (offerEnabledInList(offers, 'morning') && offerEnabledInList(offers, 'evening')) {
+      const day = ensureDayRecord(cal, key);
+      day.fullDayLinkedBlock = true;
+      persistCalendarDay(h, key, 'morning', status, blockMeta);
+      persistCalendarDay(h, key, 'evening', status, blockMeta);
+    }
+  } else {
+    persistCalendarDay(h, key, slotId, status, blockMeta);
+  }
+  closeOverlay('confirmBlockOverlay');
+  calPendingBlock = null;
+  renderCalendar();
+  renderCalDay();
+  toast('Slot blocked.');
+}
+
+function openUnblockModal(slotId) {
+  const h = activeHall();
+  const offer = calendarSlotOfferById(h, slotId);
+  const cal = getHallCalendar(h);
+  calPendingUnblock = { slotId: slotId, key: cal.selectedKey };
+  const sum = el('unblockSlotSum');
+  if (sum && offer) {
+    sum.textContent = offer.label + ' · ' + formatTimeRange(offer.hallFrom, offer.hallTo);
+  }
+  const body = el('unblockBody');
+  if (body) {
+    body.textContent =
+      'Unblock ' +
+      (offer ? offer.label : 'this') +
+      ' slot? This will make it available to customers again. Full Day slot will be available if the other half-day slot is also free.';
+  }
+  openOverlay('unblockOverlay');
+}
+
+function applyUnblockConfirm() {
+  if (!calPendingUnblock) return;
+  const h = activeHall();
+  const cal = getHallCalendar(h);
+  const key = calPendingUnblock.key;
+  const slotId = calPendingUnblock.slotId;
+  const day = cal && cal.days ? cal.days[key] : null;
+  if (slotId === 'fullday' && day && day.fullDayLinkedBlock) {
+    persistCalendarDay(h, key, 'fullday', 'available', null);
+    persistCalendarDay(h, key, 'morning', 'available', null);
+    persistCalendarDay(h, key, 'evening', 'available', null);
+    delete day.fullDayLinkedBlock;
+  } else {
+    persistCalendarDay(h, key, slotId, 'available', null);
+  }
+  closeOverlay('unblockOverlay');
+  calPendingUnblock = null;
+  renderCalendar();
+  renderCalDay();
+  toast('Slot unblocked.');
+}
+
+function bindCalendarUi() {
+  const tabBs = el('tabBookSettings');
+  if (tabBs) {
+    tabBs.onclick = function () {
+      renderBookSettings();
+      show('bookSettings');
+    };
+  }
+  const prevM = el('calPrevMonth');
+  const nextM = el('calNextMonth');
+  if (prevM) {
+    prevM.onclick = function () {
+      const h = activeHall();
+      const cal = getHallCalendar(h);
+      cal.viewMonth -= 1;
+      if (cal.viewMonth < 1) {
+        cal.viewMonth = 12;
+        cal.viewYear -= 1;
+      }
+      savePkg();
+      renderCalendar();
+    };
+  }
+  if (nextM) {
+    nextM.onclick = function () {
+      const h = activeHall();
+      const cal = getHallCalendar(h);
+      cal.viewMonth += 1;
+      if (cal.viewMonth > 12) {
+        cal.viewMonth = 1;
+        cal.viewYear += 1;
+      }
+      savePkg();
+      renderCalendar();
+    };
+  }
+  const openMp = el('openMonthPicker');
+  if (openMp) {
+    openMp.onclick = function () {
+      renderMonthPickerList();
+      openOverlay('monthPickerOverlay');
+    };
+  }
+  ['closeMonthPicker', 'cancelMonthPicker'].forEach(function (id) {
+    const b = el(id);
+    if (b) b.onclick = function () { closeOverlay('monthPickerOverlay'); };
+  });
+  const backDay = el('backFromCalDay');
+  if (backDay) {
+    backDay.onclick = function () {
+      renderCalendar();
+      show('calendar');
+    };
+  }
+  const prevD = el('calPrevDay');
+  const nextD = el('calNextDay');
+  if (prevD) {
+    prevD.onclick = function () { shiftCalDay(-1); };
+  }
+  if (nextD) {
+    nextD.onclick = function () { shiftCalDay(1); };
+  }
+  document.querySelectorAll('.block-reason').forEach(function (lab) {
+    lab.onclick = function () {
+      document.querySelectorAll('.block-reason').forEach(function (x) { x.classList.remove('on'); });
+      lab.classList.add('on');
+      const inp = lab.querySelector('input');
+      if (inp) inp.checked = true;
+      if (calPendingBlock) calPendingBlock.reason = lab.getAttribute('data-block-reason');
+    };
+  });
+  const closeBs = el('closeBlockSheet');
+  const cancelBs = el('cancelBlockSheet');
+  if (closeBs) closeBs.onclick = function () { closeOverlay('blockSheetOverlay'); calPendingBlock = null; };
+  if (cancelBs) cancelBs.onclick = function () { closeOverlay('blockSheetOverlay'); calPendingBlock = null; };
+  const submitBs = el('submitBlockSheet');
+  if (submitBs) {
+    submitBs.onclick = function () {
+      if (!calPendingBlock) return;
+      const sel = document.querySelector('input[name=blockReason]:checked');
+      calPendingBlock.reason = sel ? sel.value : 'offline';
+      calPendingBlock.notes = el('blockNotes') ? el('blockNotes').value.trim() : '';
+      openConfirmBlockModal();
+    };
+  }
+  const cancelCb = el('cancelConfirmBlock');
+  const doCb = el('doConfirmBlock');
+  if (cancelCb) {
+    cancelCb.onclick = function () {
+      closeOverlay('confirmBlockOverlay');
+      openBlockSheet(calPendingBlock ? calPendingBlock.slotId : 'morning');
+    };
+  }
+  if (doCb) doCb.onclick = applyBlockConfirm;
+  const cancelUb = el('cancelUnblock');
+  const doUb = el('doUnblock');
+  if (cancelUb) cancelUb.onclick = function () { closeOverlay('unblockOverlay'); calPendingUnblock = null; };
+  if (doUb) doUb.onclick = applyUnblockConfirm;
+}
+
+function shiftCalDay(delta) {
+  const h = activeHall();
+  const cal = getHallCalendar(h);
+  const p = parseCalDateKey(cal.selectedKey);
+  const dt = new Date(p.y, p.m - 1, p.d + delta);
+  cal.viewYear = dt.getFullYear();
+  cal.viewMonth = dt.getMonth() + 1;
+  cal.selectedKey = calDateKey(cal.viewYear, cal.viewMonth, dt.getDate());
+  savePkg();
+  renderCalDay();
+}
+
+function renderMonthPickerList() {
+  const h = activeHall();
+  const cal = getHallCalendar(h);
+  const list = el('monthPickerList');
+  if (!list) return;
+  const items = [];
+  for (let i = 0; i < 11; i++) {
+    const dt = new Date(2026, 9 + i, 1);
+    const y = dt.getFullYear();
+    const m = dt.getMonth() + 1;
+    const on = y === cal.viewYear && m === cal.viewMonth;
+    items.push(
+      '<button type="button" class="' +
+        (on ? 'on' : '') +
+        '" data-pick-y="' +
+        y +
+        '" data-pick-m="' +
+        m +
+        '">' +
+        monthLabel(y, m) +
+        '</button>',
+    );
+  }
+  list.innerHTML = items.join('');
+  list.querySelectorAll('[data-pick-y]').forEach(function (btn) {
+    btn.onclick = function () {
+      cal.viewYear = +btn.getAttribute('data-pick-y');
+      cal.viewMonth = +btn.getAttribute('data-pick-m');
+      savePkg();
+      closeOverlay('monthPickerOverlay');
+      renderCalendar();
+    };
+  });
+}
+
+function openCalendarFlow() {
+  ensureSlotOffers();
+  const h = activeHall();
+  getHallCalendar(h);
+  renderCalendar();
+  show('calendar');
+  syncHallInactiveLock();
+}
+
+let pkg4PolicyTab = 'cancel';
+let manageNameSnapshot = { useHallName: false, hallName: '' };
+let manageNameEditing = false;
+
+const POLICY_DEFAULTS = [
+  { days: '30 days or more', pct: 10 },
+  { days: '15 – 29 days', pct: 25 },
+  { days: '7 – 14 days', pct: 50 },
+  { days: '3 – 6 days', pct: 75 },
+  { days: 'Less than 1 day', pct: 100 },
+];
+
+function ensurePolicyRules() {
+  if (!state.cancelRules || !state.cancelRules.length) {
+    state.cancelRules = POLICY_DEFAULTS.map(function (r) {
+      return { days: r.days, pct: r.pct };
+    });
+  }
+  if (!state.rescheduleRules || !state.rescheduleRules.length) {
+    state.rescheduleRules = state.cancelRules.map(function (r) {
+      return { days: r.days, pct: r.pct };
+    });
+  }
+  if (state.cancelPolicyNote == null) state.cancelPolicyNote = '';
+  if (state.reschedulePolicyNote == null) state.reschedulePolicyNote = '';
+}
+
+function policyRulesHtml(kind) {
+  const rules = kind === 'cancel' ? state.cancelRules : state.rescheduleRules;
+  const rows = rules
+    .map(function (r) {
+      return (
+        '<div class="policy-row">' +
+        '<input type="text" class="policy-days-inp" data-field="days" value="' +
+        esc(r.days) +
+        '">' +
+        '<span class="policy-pct-wrap"><input type="number" class="policy-pct-inp" min="0" max="100" data-field="pct" value="' +
+        r.pct +
+        '"> %</span>' +
+        '<button type="button" class="policy-row-remove" title="Remove tier">✕</button></div>'
+      );
+    })
+    .join('');
+  return (
+    '<div class="policy-rows" data-policy-kind="' +
+    kind +
+    '">' +
+    rows +
+    '</div>' +
+    '<button type="button" class="btn ghost policy-add-tier" data-policy="' +
+    kind +
+    '" style="margin-top:10px;width:100%">+ Add tier</button>'
+  );
+}
+
+function capturePolicyRulesFromDom() {
+  if (!el('payPolicy')) return;
+  const box = el('payPolicy').querySelector('.policy-rows[data-policy-kind]');
+  if (box) {
+    const kind = box.getAttribute('data-policy-kind');
+    const rules = [];
+    box.querySelectorAll('.policy-row').forEach(function (row) {
+      const daysIn = row.querySelector('[data-field=days]');
+      const pctIn = row.querySelector('[data-field=pct]');
+      if (!daysIn || !pctIn) return;
+      rules.push({
+        days: daysIn.value.trim() || 'Days before event',
+        pct: +pctIn.value || 0,
+      });
+    });
+    if (kind === 'cancel') {
+      state.cancelRules = rules.length ? rules : [{ days: 'Days before event', pct: 0 }];
+    } else {
+      state.rescheduleRules = rules.length ? rules : [{ days: 'Days before event', pct: 0 }];
+    }
+  }
+  const cn = el('cancelPolicyNote');
+  const rn = el('reschedulePolicyNote');
+  if (cn) state.cancelPolicyNote = cn.value.trim();
+  if (rn) state.reschedulePolicyNote = rn.value.trim();
+}
+
+function attachPolicyRowHandlers() {
+  const root = el('payPolicy');
+  if (!root) return;
+  root.querySelectorAll('.policy-row-remove').forEach(function (btn) {
+    btn.onclick = function () {
+      capturePolicyRulesFromDom();
+      capturePkg4PaymentOnly();
+      const kind = pkg4PolicyTab === 'reschedule' ? 'reschedule' : 'cancel';
+      const arr = kind === 'cancel' ? state.cancelRules : state.rescheduleRules;
+      const row = btn.closest('.policy-row');
+      const box = row && row.parentElement;
+      if (!row || !box) return;
+      const idx = Array.prototype.indexOf.call(box.querySelectorAll('.policy-row'), row);
+      if (arr.length <= 1) {
+        toast('Keep at least one tier in this policy.');
+        return;
+      }
+      if (idx >= 0) arr.splice(idx, 1);
+      renderPkg4();
+    };
+  });
+  root.querySelectorAll('.policy-add-tier').forEach(function (btn) {
+    btn.onclick = function () {
+      capturePolicyRulesFromDom();
+      capturePkg4PaymentOnly();
+      const kind = btn.getAttribute('data-policy');
+      const arr = kind === 'cancel' ? state.cancelRules : state.rescheduleRules;
+      arr.push({ days: 'Days before event', pct: 10 });
+      renderPkg4();
+    };
+  });
+}
+
+function policySummaryLines(rules, note) {
+  const lines = rules.map(function (r) {
+    return r.days + ': ' + r.pct + '%';
+  });
+  if (note) lines.push('Note: ' + note);
+  return lines.join(' · ');
+}
+
+function el(id) {
+  return document.getElementById(id);
+}
+function show(id) {
+  document.querySelectorAll('.scr').forEach((s) => s.classList.toggle('on', s.id === id));
+}
+function toast(m) {
+  const t = el('toast');
+  t.textContent = m;
+  t.style.display = 'block';
+  setTimeout(() => (t.style.display = 'none'), 2600);
+}
+function esc(s) {
+  return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;');
+}
+function loadPkg() {
+  try {
+    const raw = localStorage.getItem(PKG_KEY);
+    if (raw) Object.assign(state, JSON.parse(raw));
+  } catch (_e) {
+    /* ignore */
+  }
+  normalizeNames();
+  ensureSlotOffers();
+  ensurePolicyRules();
+  normalizeHallRecords();
+  syncPlannedHallCount();
+  state.parkingEditOpen = false;
+}
+function syncPlannedHallCount() {
+  if (!state.hallSetupComplete) return;
+  const added = state.halls ? state.halls.length : 0;
+  if (!state.plannedHallCount || state.plannedHallCount < 1) {
+    state.plannedHallCount = Math.max(2, added || 1);
+  }
+  if (added > state.plannedHallCount) {
+    state.plannedHallCount = added;
+  }
+}
+function normalizeNames() {
+  if (!state.businessName) state.businessName = 'Vijaya Convention Center';
+  state.useHallName = true;
+  state.hallName = String(state.hallName || '').trim();
+}
+function venueHasMultipleHalls() {
+  return state.plannedHallCount > 1 || state.halls.length > 1;
+}
+
+function ensureHallNumbers() {
+  if (!state.halls || !state.halls.length) return;
+  state.halls.forEach(function (h, i) {
+    if (h.hallNumber == null || h.hallNumber < 1) {
+      h.hallNumber = i + 1;
+    }
+  });
+}
+
+function nextHallNumber() {
+  ensureHallNumbers();
+  let max = 0;
+  state.halls.forEach(function (h) {
+    if (h.hallNumber > max) max = h.hallNumber;
+  });
+  return max + 1;
+}
+
+function defaultHallLabelForNumber(n) {
+  return 'Hall ' + Math.max(1, +n || 1);
+}
+
+function resolvedHallName(h) {
+  if (!h) return '';
+  const trimmed = String(h.hallName || '').trim();
+  if (trimmed) return trimmed;
+  const n =
+    h.hallNumber != null && h.hallNumber > 0
+      ? h.hallNumber
+      : Math.max(1, state.halls.indexOf(h) + 1);
+  return defaultHallLabelForNumber(n);
+}
+
+function ensureHallNameOnRecord(h) {
+  if (!h) return;
+  if (!String(h.hallName || '').trim()) {
+    const n =
+      h.hallNumber != null && h.hallNumber > 0
+        ? h.hallNumber
+        : Math.max(1, state.halls.indexOf(h) + 1);
+    h.hallName = defaultHallLabelForNumber(n);
+  }
+  h.useHallName = true;
+}
+
+function hallDisplayNameForRecord(h) {
+  if (!h) return state.businessName || 'Your hall';
+  return resolvedHallName(h) || state.businessName || 'Your hall';
+}
+
+function customerHallName() {
+  const h = activeHall();
+  return h ? resolvedHallName(h) : '';
+}
+
+function validateHallNameRequired() {
+  captureNameFields();
+  if (!String(state.hallName || '').trim()) {
+    const onPkg2 = el('pkg2') && el('pkg2').classList.contains('on');
+    toast(
+      onPkg2
+        ? 'Enter a space name (e.g. Hall 1 or Koinonia).'
+        : 'Enter a hall name (e.g. Hall 1 or Koinonia).',
+    );
+    return false;
+  }
+  return true;
+}
+function syncHallNameUi() {
+  const pkgIn = el('hallNameInput');
+  if (pkgIn && document.activeElement !== pkgIn) {
+    pkgIn.value = state.hallName || resolvedHallName(activeHall());
+  }
+  renderManageNameMode();
+}
+
+function renderManageNameMode() {
+  const inp = el('manageHallNameInput');
+  const listingOn = hallListingOn(activeHall());
+  const h = activeHall();
+  const isAdd = !!state.openedFromAddHall;
+  if (inp) {
+    inp.disabled = !listingOn && !isAdd;
+    if (document.activeElement !== inp) {
+      inp.value = state.hallName || (h ? resolvedHallName(h) : '');
+    }
+  }
+  manageNameEditing = false;
+  const manageScr = el('manage');
+  if (manageScr) manageScr.classList.remove('manage-name-editing');
+}
+
+function snapshotManageNameFromHall() {
+  const h = activeHall();
+  manageNameSnapshot = {
+    useHallName: true,
+    hallName: h ? resolvedHallName(h) : String(state.hallName || '').trim(),
+  };
+}
+
+function applyManageNameSnapshot() {
+  state.useHallName = true;
+  state.hallName = manageNameSnapshot.hallName;
+  manageNameEditing = false;
+  syncHallNameUi();
+}
+
+function finishManageNameEdit() {
+  manageNameEditing = false;
+  snapshotManageNameFromHall();
+  renderManageNameMode();
+}
+function captureNameFields() {
+  state.useHallName = true;
+  const hallIn = el('hallNameInput');
+  const manageIn = el('manageHallNameInput');
+  if (hallIn && (el('pkg2') && el('pkg2').classList.contains('on') || document.activeElement === hallIn)) {
+    state.hallName = hallIn.value.trim();
+  } else if (
+    manageIn &&
+    (state.openedFromAddHall || (el('manage') && el('manage').classList.contains('on')))
+  ) {
+    state.hallName = manageIn.value.trim();
+  } else if (hallIn && el('pkg2') && el('pkg2').classList.contains('on')) {
+    state.hallName = hallIn.value.trim();
+  }
+  syncHallNameUi();
+}
+function renderManageHeader() {
+  const sub = el('manageSubLine');
+  if (sub) {
+    var hallPart = customerHallName();
+    if (hallPart) {
+      sub.textContent = state.businessName + ' · Hall: ' + hallPart + ' · Service · Hall';
+    } else {
+      sub.textContent = state.businessName + ' · Service · Hall';
+    }
+  }
+  const bizRo = el('bizNameRo');
+  if (bizRo) bizRo.value = state.businessName;
+  const bizDisplay = el('manageBizNameDisplay');
+  if (bizDisplay) bizDisplay.textContent = state.businessName;
+  const bizPkg = el('bizNamePkg');
+  if (bizPkg) bizPkg.value = state.businessName;
+  const pkg2Title = el('pkg2BizTitle');
+  if (pkg2Title) pkg2Title.textContent = state.businessName;
+  const pkg2Loc = el('pkg2BizLoc');
+  if (pkg2Loc) pkg2Loc.textContent = state.businessLocation || 'Kottayam, Kerala';
+  syncHallNameUi();
+  const banner = el('hallInactiveBanner');
+  if (banner) banner.hidden = hallListingOn(activeHall());
+  syncHallInactiveLock();
+}
+function savePkg() {
+  syncActiveHallFromState();
+  const payload = Object.assign({}, state, { parkingEditOpen: false });
+  localStorage.setItem(PKG_KEY, JSON.stringify(payload));
+}
+
+function activeHall() {
+  return state.halls.find(function (h) { return h.id === state.activeHallId; }) || state.halls[0];
+}
+
+function hallListingOn(h) {
+  if (!h) return true;
+  return h.hallActive !== false;
+}
+
+function hallPackageSaved(h) {
+  return !!(h && h.packageSaved);
+}
+
+
+function showPackageRequiredModal() {
+  openOverlay('packageRequiredOverlay');
+}
+
+function requireHallPackageSaved(h) {
+  if (hallPackageSaved(h)) return true;
+  showPackageRequiredModal();
+  return false;
+}
+
+function bindPackageRequiredUi() {
+  const ok = el('pkgRequiredOk');
+  if (ok) {
+    ok.onclick = function () {
+      closeOverlay('packageRequiredOverlay');
+    };
+  }
+  const overlay = el('packageRequiredOverlay');
+  if (overlay) {
+    overlay.onclick = function (e) {
+      if (e.target === overlay) closeOverlay('packageRequiredOverlay');
+    };
+  }
+}
+
+function showVenueEditStep(step) {
+  const s1 = el('venueEditStep1');
+  const s2 = el('venueEditStep2');
+  if (s1) s1.hidden = step !== 1;
+  if (s2) s2.hidden = step !== 2;
+}
+
+function closeVenueEditOverlay() {
+  closeOverlay('venueEditOverlay');
+  state.parkingEditOpen = false;
+  if (el('editParkingBtn')) el('editParkingBtn').disabled = false;
+  setHallBizZoneLocked(false);
+  showVenueEditStep(1);
+}
+
+function openVenueEditOverlay() {
+  if (state.parkingEditOpen) return;
+  const added = state.halls.length;
+  const startCount = Math.max(state.plannedHallCount || 1, added || 1);
+  pendingVenueHallCount = startCount;
+  const inp = el('editHallCountInput');
+  if (inp) inp.value = startCount;
+  const hint = el('editHallCountHint');
+  if (hint) {
+    hint.textContent = added
+      ? 'You have ' + added + ' hall' + (added === 1 ? '' : 's') + ' added. Count cannot be less than that.'
+      : 'Set how many halls you plan to list, then enter parking.';
+  }
+  showVenueEditStep(1);
+  openOverlay('venueEditOverlay');
+  state.parkingEditOpen = true;
+  if (el('editParkingBtn')) el('editParkingBtn').disabled = true;
+  setHallBizZoneLocked(true);
+}
+
+function applyVenueEditStep2Labels(count) {
+  const labels = parkingLabelsForHallCount(count);
+  const title = el('editParkingStepTitle');
+  const hint = el('editParkingHint');
+  if (title) title.textContent = labels.title;
+  if (hint) hint.textContent = labels.hint;
+  if (el('editParkCar')) el('editParkCar').value = state.commonParking.car;
+  if (el('editParkBike')) el('editParkBike').value = state.commonParking.bike;
+}
+
+function saveVenueSetupFromEdit() {
+  const count = pendingVenueHallCount;
+  const car = +(el('editParkCar') && el('editParkCar').value) || 0;
+  const bike = +(el('editParkBike') && el('editParkBike').value) || 0;
+  state.plannedHallCount = count;
+  state.commonParking = { car: car, bike: bike };
+  syncPlannedHallCount();
+  closeVenueEditOverlay();
+  savePkg();
+  renderParkingSummary();
+  renderHallBizHome();
+  toast(count > 1 ? 'Venue updated — common parking saved.' : 'Venue updated — parking saved.');
+}
+
+function bindVenueEditUi() {
+  const editPark = el('editParkingBtn');
+  if (editPark) {
+    editPark.onclick = function () {
+      openVenueEditOverlay();
+    };
+  }
+  const ok1 = el('venueEditStep1Ok');
+  if (ok1) {
+    ok1.onclick = function () {
+      const count = Math.max(1, +(el('editHallCountInput') && el('editHallCountInput').value) || 1);
+      const added = state.halls.length;
+      if (count < added) {
+        toast('You already have ' + added + ' hall' + (added === 1 ? '' : 's') + '. Delete a hall first or set count to at least ' + added + '.');
+        return;
+      }
+      pendingVenueHallCount = count;
+      applyVenueEditStep2Labels(count);
+      showVenueEditStep(2);
+    };
+  }
+  const back = el('venueEditBack');
+  if (back) {
+    back.onclick = function () {
+      showVenueEditStep(1);
+    };
+  }
+  const save = el('venueEditSave');
+  if (save) {
+    save.onclick = function () {
+      saveVenueSetupFromEdit();
+    };
+  }
+  ['venueEditCancel1', 'venueEditCancel2'].forEach(function (id) {
+    const b = el(id);
+    if (b) b.onclick = function () {
+      closeVenueEditOverlay();
+    };
+  });
+  const overlay = el('venueEditOverlay');
+  if (overlay) {
+    overlay.onclick = function (e) {
+      if (e.target === overlay) closeVenueEditOverlay();
+    };
+  }
+}
+
+function normalizeHallRecords() {
+  if (!state.halls) state.halls = [];
+  state.halls.forEach(function (h) {
+    if (h.hallActive == null) h.hallActive = true;
+    if (h.packageSaved == null) h.packageSaved = false;
+    if (h.packageSaved && !h.package && state.halls.length === 1) {
+      h.package = clonePackageSlice();
+    }
+  });
+  ensureHallNumbers();
+  state.halls.forEach(function (h) {
+    ensureHallNameOnRecord(h);
+  });
+}
+
+function syncHallInactiveLock() {
+  const locked = activeHall() && !hallListingOn(activeHall());
+  ['manage', 'pkg1', 'pkg2', 'pkg3', 'pkg4', 'pkg5', 'calendar', 'calDay', 'ownerReq', 'bookSettings', 'operators', 'hallMedia', 'placeholder'].forEach(
+    function (id) {
+      const scr = el(id);
+      if (scr) scr.classList.toggle('hall-inactive-lock', !!locked);
+    },
+  );
+  const banner = el('hallInactiveBanner');
+  if (banner) banner.hidden = !locked;
+}
+
+function loadActiveHallIntoState() {
+  const h = activeHall();
+  if (!h) return;
+  ensureHallNameOnRecord(h);
+  state.useHallName = true;
+  state.hallName = String(h.hallName || '').trim();
+  state.spaceType = h.spaceType === 'outdoor' ? 'outdoor' : 'indoor';
+  if (h.package) {
+    applyPackageSlice(h.package);
+  } else {
+    applyDefaultPackageToState();
+  }
+  normalizeFacilitiesForVenueType();
+}
+
+function syncActiveHallFromState() {
+  const h = activeHall();
+  if (!h) return;
+  h.useHallName = true;
+  h.hallName = String(state.hallName || '').trim() || resolvedHallName(h);
+  h.spaceType = state.spaceType === 'outdoor' ? 'outdoor' : 'indoor';
+}
+
+function parkingLabelsForHallCount(count) {
+  const n = Math.max(1, +count || 1);
+  if (n <= 1) {
+    return {
+      title: 'Parking',
+      setupLbl: 'PARKING',
+      hint: 'Car and bike parking for your hall (shown to customers).',
+    };
+  }
+  return {
+    title: 'Common parking (shared by ' + n + ' halls)',
+    setupLbl: 'COMMON PARKING (SHARED)',
+    hint: 'One shared car and bike count for all ' + n + ' halls.',
+  };
+}
+
+function parkingDisplay() {
+  const multi = state.plannedHallCount > 1 || state.halls.length > 1;
+  const labelCount = multi ? Math.max(state.plannedHallCount || 1, state.halls.length) : 1;
+  const labels = parkingLabelsForHallCount(labelCount);
+  return {
+    title: labels.title,
+    car: state.commonParking.car,
+    bike: state.commonParking.bike,
+    common: true,
+  };
+}
+
+function hallCardDisplayName(h) {
+  return hallDisplayNameForRecord(h);
+}
+
+function hallCardGuestCount(h) {
+  const cap = h && h.package && h.package.capacity;
+  if (cap && cap.seat != null) return cap.seat;
+  return 700;
+}
+
+function hallCardHasAc(h) {
+  if (h && h.spaceType === 'outdoor') return false;
+  const fac = h && h.package && h.package.facilities;
+  if (fac && fac.length) return fac.indexOf('AC') >= 0;
+  return true;
+}
+
+function hallCardIsOutdoor(h) {
+  return !!(h && h.spaceType === 'outdoor');
+}
+
+function hallCardMetaPillsHtml(h) {
+  const guests = hallCardGuestCount(h);
+  let html =
+    '<span class="hall-pill hall-pill-guests"><span class="hall-pill-ico" aria-hidden="true">👥</span>' +
+    esc(String(guests)) +
+    ' guests</span>';
+  if (hallCardIsOutdoor(h)) {
+    html +=
+      '<span class="hall-pill hall-pill-outdoor"><span class="hall-pill-ico" aria-hidden="true">🌳</span>Outdoor space</span>';
+    return html;
+  }
+  html +=
+    '<span class="hall-pill hall-pill-indoor"><span class="hall-pill-ico" aria-hidden="true">🏛</span>Indoor</span>';
+  if (hallCardHasAc(h)) {
+    html +=
+      '<span class="hall-pill hall-pill-ac"><span class="hall-pill-ico" aria-hidden="true">❄</span>AC</span>';
+  }
+  return html;
+}
+
+function hallCardMinPrice(h) {
+  if (!h || !h.package || !h.package.slotOffers) return null;
+  const outdoor = h.spaceType === 'outdoor';
+  let min = null;
+  h.package.slotOffers.forEach(function (o) {
+    if (!o.enabled) return;
+    if (outdoor || o.offerNoAc) {
+      if (o.priceNoAc != null) min = min == null ? o.priceNoAc : Math.min(min, o.priceNoAc);
+    }
+    if (!outdoor && o.offerAc && o.priceAc != null) {
+      min = min == null ? o.priceAc : Math.min(min, o.priceAc);
+    }
+  });
+  return min;
+}
+
+function updateAddHallButtonState() {
+  const addBtn = el('addHallBtn');
+  const hint = el('addHallHint');
+  if (!addBtn) return;
+  syncPlannedHallCount();
+  const planned = Math.max(1, state.plannedHallCount || 1);
+  const added = state.halls.length;
+  const atLimit = state.hallSetupComplete && added >= planned;
+  addBtn.disabled = false;
+  addBtn.classList.remove('btn-add-hall-muted');
+  addBtn.removeAttribute('aria-disabled');
+  if (hint) {
+    if (atLimit) {
+      hint.hidden = false;
+      hint.textContent =
+        'All ' +
+        planned +
+        ' hall' +
+        (planned === 1 ? '' : 's') +
+        ' added for this venue. Tap Edit on parking to allow more halls.';
+    } else if (state.hallSetupComplete && planned > 1) {
+      hint.hidden = false;
+      hint.textContent = 'You can add ' + (planned - added) + ' more hall' + (planned - added === 1 ? '' : 's') + ' (' + added + ' of ' + planned + ').';
+    } else {
+      hint.hidden = true;
+      hint.textContent = '';
+    }
+  }
+}
+
+function setHallBizZoneLocked(locked) {
+  const zone = el('hallBizDisabledZone');
+  if (zone) zone.classList.toggle('biz-home-disabled', !!locked);
+  updateAddHallButtonState();
+}
+
+function ensureHallBizHubReady() {
+  state.parkingEditOpen = false;
+  if (el('editParkingBtn')) el('editParkingBtn').disabled = false;
+  setHallBizZoneLocked(false);
+  closeOverlay('venueEditOverlay');
+  showVenueEditStep(1);
+}
+
+function renderSetupScreen() {
+  const t = el('setupBizTitle');
+  if (t) t.textContent = state.businessName;
+  const countIn = el('hallCountInput');
+  if (countIn) countIn.value = state.plannedHallCount || 2;
+  const countBlock = el('setupHallCountBlock');
+  const intro = el('setupIntroSub');
+  const sec = el('setupParkingSection');
+  const actions = el('setupActionsWrap');
+  if (countBlock) countBlock.hidden = false;
+  if (intro) intro.hidden = false;
+  if (sec) sec.hidden = true;
+  if (actions) {
+    actions.hidden = true;
+    actions.style.display = 'none';
+  }
+}
+
+function revealSetupParking() {
+  const count = Math.max(1, +(el('hallCountInput') && el('hallCountInput').value) || 1);
+  state.plannedHallCount = count;
+  const countBlock = el('setupHallCountBlock');
+  const intro = el('setupIntroSub');
+  if (countBlock) countBlock.hidden = true;
+  if (intro) intro.hidden = true;
+  const sec = el('setupParkingSection');
+  const lbl = el('setupParkingLbl');
+  const hint = el('setupParkingHint');
+  if (sec) sec.hidden = false;
+  const labels = parkingLabelsForHallCount(count);
+  if (lbl) lbl.textContent = labels.setupLbl;
+  if (hint) hint.textContent = labels.hint;
+  if (el('setupParkCar')) el('setupParkCar').value = state.commonParking.car;
+  if (el('setupParkBike')) el('setupParkBike').value = state.commonParking.bike;
+  const actions = el('setupActionsWrap');
+  if (actions) {
+    actions.hidden = false;
+    actions.style.display = 'grid';
+  }
+}
+
+function initHallsFromSetup(count) {
+  state.plannedHallCount = count;
+  if (!state.halls || !state.halls.length) state.halls = [];
+}
+
+function openHallFromDashboard() {
+  state.businessName = 'Vijaya Convention Center';
+  if (state.hallSetupComplete) {
+    ensureHallBizHubReady();
+    renderHallBizHome();
+    show('hallBizHome');
+    return;
+  }
+  renderSetupScreen();
+  show('hallSetup');
+}
+
+function renderParkingSummary() {
+  const p = parkingDisplay();
+  const title = el('parkingSummaryTitle');
+  const text = el('parkingSummaryText');
+  if (title) title.textContent = p.title;
+  if (text) {
+    text.innerHTML =
+      '<span>🚗 Cars: ' +
+      esc(String(p.car)) +
+      '</span><span>🏍 Bikes: ' +
+      esc(String(p.bike)) +
+      '</span>';
+  }
+}
+
+function renderHallCards() {
+  const root = el('hallListCards');
+  if (!root) return;
+  if (!state.halls.length) {
+    root.innerHTML =
+      '<p class="sub" style="margin:8px 0 12px;padding:12px;border:1px dashed var(--line);border-radius:12px;text-align:center">No halls yet. Tap <b>Add Hall</b> to create your first hall.</p>';
+    return;
+  }
+  root.innerHTML = state.halls
+    .map(function (h) {
+      const on = hallListingOn(h);
+      const title = hallCardDisplayName(h);
+      const minPrice = hallCardMinPrice(h);
+      const reqBadge = h.requests
+        ? '<span class="hall-pill" style="background:#FEF2F2;border-color:#FECACA;color:#B91C1C"><span class="hall-pill-ico" aria-hidden="true">💬</span>' +
+          esc(String(h.requests)) +
+          ' requests</span>'
+        : '';
+      const priceHtml = minPrice != null ? '<div class="hall-rich-price">' + inr(minPrice) + ' onwards</div>' : '';
+      const calDisabled = !on;
+      const reqDisabled = !on;
+      return (
+        '<div class="hall-card-rich' +
+        (on ? '' : ' inactive') +
+        '" data-hid="' +
+        esc(h.id) +
+        '">' +
+        '<div class="hall-rich-top">' +
+        '<div class="hall-thumb" aria-hidden="true"></div>' +
+        '<div class="hall-rich-meta">' +
+        '<b>' +
+        esc(title) +
+        '</b>' +
+        '<div class="hall-rich-tags">' +
+        hallCardMetaPillsHtml(h) +
+        reqBadge +
+        '</div>' +
+        priceHtml +
+        '</div>' +
+        '<label class="hall-rich-toggle hall-toggle" title="When off, this hall cannot be edited or booked">' +
+        '<input type="checkbox" data-hall-toggle data-hid="' +
+        esc(h.id) +
+        '"' +
+        (on ? ' checked' : '') +
+        '><span class="hall-toggle-ui"></span>' +
+        '<span class="hall-status-badge ' +
+        (on ? 'on' : 'off') +
+        '">' +
+        (on ? 'Active' : 'Inactive') +
+        '</span></label></div>' +
+        '<div class="hall-actions-rich">' +
+        '<button type="button" class="hall-act-btn" data-hall-act="cal" data-hid="' +
+        esc(h.id) +
+        '"' +
+        (calDisabled ? ' disabled' : '') +
+        '><span class="ico" aria-hidden="true">📅</span>Calendar</button>' +
+        '<button type="button" class="hall-act-btn" data-hall-act="req" data-hid="' +
+        esc(h.id) +
+        '"' +
+        (reqDisabled ? ' disabled' : '') +
+        '><span class="ico" aria-hidden="true">📋</span>Requests</button>' +
+        '<button type="button" class="hall-act-btn manage" data-hall-act="mgr" data-hid="' +
+        esc(h.id) +
+        '"><span class="ico" aria-hidden="true">⚙</span>Manage<span class="chev" aria-hidden="true">›</span></button>' +
+        '</div></div>'
+      );
+    })
+    .join('');
+  root.querySelectorAll('[data-hall-toggle]').forEach(function (inp) {
+    inp.onchange = function (e) {
+      e.stopPropagation();
+      const id = inp.getAttribute('data-hid');
+      const h = state.halls.find(function (x) {
+        return x.id === id;
+      });
+      if (!h) return;
+      h.hallActive = !!inp.checked;
+      savePkg();
+      renderHallCards();
+      if (state.activeHallId === id) syncHallInactiveLock();
+    };
+  });
+  root.querySelectorAll('[data-hall-act]').forEach(function (btn) {
+    btn.onclick = function () {
+      if (state.parkingEditOpen) return;
+      const hid = btn.getAttribute('data-hid');
+      const h = state.halls.find(function (x) {
+        return x.id === hid;
+      });
+      const act = btn.getAttribute('data-hall-act');
+      if (!hallListingOn(h)) {
+        if (act !== 'mgr') {
+          toast('Turn this hall On using the toggle to use Calendar or Requests.');
+          return;
+        }
+      }
+      state.activeHallId = hid;
+      loadActiveHallIntoState();
+      if (act === 'mgr') {
+        openManageScreen(false);
+        return;
+      }
+      if (act === 'cal' || act === 'req') {
+        if (!requireHallPackageSaved(h)) return;
+      }
+      if (act === 'cal') {
+        openCalendarFlow();
+        return;
+      }
+      if (act === 'req') {
+        renderOwnerReq();
+        show('ownerReq');
+        syncHallInactiveLock();
+      }
+    };
+  });
+}
+
+function renderHallBizHome() {
+  const bizTitle = el('bizHomeTitle');
+  if (bizTitle) bizTitle.textContent = state.businessName;
+  const heroTitle = el('venueHeroTitle');
+  if (heroTitle) heroTitle.textContent = state.businessName;
+  const countLbl = el('hallCountLbl');
+  if (countLbl) {
+    const added = state.halls.length;
+    const planned = Math.max(1, state.plannedHallCount || 1);
+    if (planned > 1 && added !== planned) {
+      countLbl.textContent = '(' + added + ' of ' + planned + ')';
+    } else {
+      countLbl.textContent = '(' + added + ')';
+    }
+  }
+  const parkWrap = el('parkingBlockWrap');
+  if (parkWrap) parkWrap.hidden = !state.hallSetupComplete;
+  renderParkingSummary();
+  renderHallCards();
+  if (!state.parkingEditOpen) setHallBizZoneLocked(false);
+  updateAddHallButtonState();
+}
+
+function openManageScreen(fromAddHall) {
+  state.openedFromAddHall = !!fromAddHall;
+  manageNameEditing = false;
+  loadActiveHallIntoState();
+  snapshotManageNameFromHall();
+  renderManageHeader();
+  renderManage();
+  show('manage');
+  syncHallInactiveLock();
+}
+
+function persistActiveHallFromManage() {
+  captureNameFields();
+  syncActiveHallFromState();
+  savePkg();
+}
+
+function yesNoLabel(key, yes) {
+  const labels = {
+    inHouse: yes ? 'In-house catering offered (separate charge)' : 'No in-house catering',
+    outside: yes ? 'Outside catering allowed' : 'Outside catering not allowed',
+    decorHall: yes ? 'Hall decoration service offered (separate charge)' : 'No hall decoration service',
+    decorOutside: yes ? 'Outside decorators allowed' : 'Outside decorators not allowed',
+  };
+  return labels[key] || (yes ? 'Yes' : 'No');
+}
+
+function cateringReviewLines() {
+  const c = state.catering;
+  return [
+    yesNoLabel('inHouse', c.inHouse === 'yes'),
+    yesNoLabel('outside', c.outside === 'yes'),
+    yesNoLabel('decorHall', c.decorHall === 'yes'),
+    yesNoLabel('decorOutside', c.decorOutside === 'yes'),
+  ];
+}
+
+function renderManage() {
+  renderManageHeader();
+  el('manageMenu').innerHTML = MANAGE_MENU.map((m) => {
+    const cls = m.cls ? ' ' + m.cls.split(' ').join(' ') : '';
+    const dot = m.dot ? '<span class="dot"></span>' : '';
+    const mDot = m.dot ? '<span class="m-dot"></span>' : '';
+    const ico = m.ico || 'cal';
+    return (
+      '<button type="button" class="mrow mrow-rich' +
+      cls +
+      '" data-go="' +
+      m.id +
+      '">' +
+      '<span class="mico mico-' +
+      ico +
+      '">' +
+      esc(m.icon || '•') +
+      mDot +
+      '</span>' +
+      '<span class="mrow-text"><b>' +
+      esc(m.title) +
+      dot +
+      '</b><span>' +
+      esc(m.sub) +
+      '</span></span>' +
+      '<span class="mrow-chev" aria-hidden="true">›</span></button>'
+    );
+  }).join('');
+  el('manageMenu').querySelectorAll('[data-go]').forEach((btn) => {
+    btn.onclick = () => {
+      if (!hallListingOn(activeHall())) {
+        toast('This hall is Off. Turn it On from the Halls list to edit.');
+        return;
+      }
+      const id = btn.getAttribute('data-go');
+      if ((id === 'calendar' || id === 'operators') && !requireHallPackageSaved(activeHall())) {
+        return;
+      }
+      if (id === 'ownerReq' && !requireHallPackageSaved(activeHall())) {
+        return;
+      }
+      persistActiveHallFromManage();
+      if (id === 'deleteHall') {
+        if (state.halls.length <= 1) {
+          toast('Keep at least one hall on this business.');
+          return;
+        }
+        state.halls = state.halls.filter(function (h) { return h.id !== state.activeHallId; });
+        state.activeHallId = state.halls[0].id;
+        loadActiveHallIntoState();
+        state.openedFromAddHall = false;
+        savePkg();
+        renderHallBizHome();
+        show('hallBizHome');
+        toast('Hall deleted.');
+        return;
+      }
+      if (id === 'operators') {
+        openOperatorsScreen();
+        return;
+      }
+      if (id === 'hallPhotos') {
+        openHallMediaScreen();
+        return;
+      }
+      if (id === 'placeholder') {
+        el('phTitle').textContent = btn.querySelector('b').textContent.replace(/\u200b/g, '');
+        show('placeholder');
+        syncHallInactiveLock();
+        return;
+      }
+      if (id === 'calendar') {
+        openCalendarFlow();
+        return;
+      }
+      show(id);
+      if (id === 'pkg1') renderPkg1();
+      if (id === 'ownerReq') renderOwnerReq();
+      syncHallInactiveLock();
+    };
+  });
+  syncHallInactiveLock();
+}
+
+function renderPkgSteps(n) {
+  const stepsEl = el('pkgSteps');
+  if (!stepsEl) return;
+  const steps = ['Event Categories', 'Venue Details', 'Pricing & Time Slots', 'Payment & Policies', 'Review & Save'];
+  stepsEl.innerHTML = steps
+    .map((s, i) => `<span class="step${i + 1 === n ? ' on' : ''}">${i + 1}. ${s}</span>`)
+    .join('');
+}
+
+function renderPkg1() {
+  renderPkgSteps(1);
+  el('eventCats').innerHTML = EVENT_CATS.map(
+    (c) =>
+      `<label class="ev${state.events.includes(c.id) ? ' on' : ''}"><span>${c.icon}</span><span style="flex:1;font-weight:800">${esc(
+        c.label,
+      )}</span><input type="checkbox" data-ev="${c.id}"${state.events.includes(c.id) ? ' checked' : ''}></label>`,
+  ).join('');
+  el('eventCats').querySelectorAll('[data-ev]').forEach((cb) => {
+    cb.onchange = () => {
+      const id = cb.getAttribute('data-ev');
+      if (cb.checked) {
+        if (!state.events.includes(id)) state.events.push(id);
+      } else state.events = state.events.filter((x) => x !== id);
+      renderPkg1();
+    };
+  });
+  el('pkg1Next').onclick = () => {
+    if (!state.events.length) {
+      toast('Select at least one event category.');
+      return;
+    }
+    renderPkg2();
+    show('pkg2');
+  };
+}
+
+function applyPkg2Chrome() {
+  const title = el('pkg2HeadTitle');
+  const chip = el('pkg2StepChip');
+  const frac = el('pkg2FracLbl');
+  const bar = el('pkg2ProgBar');
+  const nameLbl = el('pkg2NameLbl');
+  const bizLbl = el('pkg2BizNameLbl');
+  const spaceBlock = el('spaceTypeBlock');
+  if (title) title.textContent = 'Venue Details';
+  if (chip) chip.textContent = '2/5';
+  if (frac) frac.textContent = '2/5';
+  if (bar) bar.style.width = '40%';
+  if (nameLbl) nameLbl.textContent = 'Space name';
+  if (bizLbl) bizLbl.hidden = false;
+  if (spaceBlock) spaceBlock.hidden = false;
+}
+
+function renderSpaceTypeUi() {
+  const type = state.spaceType === 'outdoor' ? 'outdoor' : 'indoor';
+  state.spaceType = type;
+  document.querySelectorAll('[data-space-type]').forEach(function (btn) {
+    btn.classList.toggle('on', btn.getAttribute('data-space-type') === type);
+  });
+}
+
+function captureSpaceType() {
+  const picked = document.querySelector('[data-space-type].on');
+  state.spaceType = picked && picked.getAttribute('data-space-type') === 'outdoor' ? 'outdoor' : 'indoor';
+}
+
+function renderPkg2() {
+  renderPkgSteps(2);
+  applyPkg2Chrome();
+  renderManageHeader();
+  el('seatCap').value = state.capacity.seat;
+  el('dineCap').value = state.capacity.dine;
+  el('rooms').value = state.capacity.rooms;
+  syncHallNameUi();
+  renderSpaceTypeUi();
+  normalizeFacilitiesForVenueType();
+  el('facGrid').innerHTML = facilitiesForCurrentVenue().map(function (f) {
+    const on = state.facilities.includes(f);
+    const icon = FACILITY_ICONS[f] || '•';
+    return (
+      '<label class="fac-tile' +
+      (on ? ' on' : '') +
+      '"><input type="checkbox" data-fac="' +
+      esc(f) +
+      '"' +
+      (on ? ' checked' : '') +
+      '><span class="fac-ico" aria-hidden="true">' +
+      icon +
+      '</span><span>' +
+      esc(f) +
+      '</span></label>'
+    );
+  }).join('');
+  el('facGrid').querySelectorAll('[data-fac]').forEach((cb) => {
+    cb.onchange = () => {
+      const f = cb.getAttribute('data-fac');
+      if (cb.checked) {
+        if (!state.facilities.includes(f)) state.facilities.push(f);
+      } else state.facilities = state.facilities.filter((x) => x !== f);
+      renderPkg2();
+    };
+  });
+  const q = function (key, label) {
+    const yesOn = state.catering[key] === 'yes';
+    const noOn = state.catering[key] === 'no';
+    return (
+      '<div class="cater-q"><p>' +
+      esc(label) +
+      '</p><div class="cater-yn">' +
+      '<label class="' +
+      (yesOn ? 'on' : '') +
+      '"><input type="radio" name="' +
+      key +
+      '" value="yes"' +
+      (yesOn ? ' checked' : '') +
+      '> Yes</label>' +
+      '<label class="' +
+      (noOn ? 'on' : '') +
+      '"><input type="radio" name="' +
+      key +
+      '" value="no"' +
+      (noOn ? ' checked' : '') +
+      '> No</label></div></div>'
+    );
+  };
+  el('caterDec').innerHTML =
+    q('inHouse', 'In-house catering available?') +
+    q('outside', 'Outside catering allowed?') +
+    q('decorHall', 'Decoration provided by hall?') +
+    q('decorOutside', 'Outside decorators allowed?');
+  el('caterDec').querySelectorAll('input[type=radio]').forEach((r) => {
+    r.onchange = () => {
+      state.catering[r.name] = r.value;
+      renderPkg2();
+    };
+  });
+  document.querySelectorAll('[data-space-type]').forEach(function (btn) {
+    btn.onclick = function () {
+      state.spaceType = btn.getAttribute('data-space-type') === 'outdoor' ? 'outdoor' : 'indoor';
+      syncActiveHallFromState();
+      applyVenueTypeSideEffects();
+      renderPkg2();
+    };
+  });
+}
+
+function renderSlotOfferRow(o) {
+  if (venueIsOutdoor()) {
+    return (
+      '<div class="slot slot-outdoor' +
+      (o.enabled ? '' : ' slot-disabled') +
+      '" data-offer-id="' +
+      esc(o.id) +
+      '">' +
+      '<label class="radio-row" style="margin:0"><input type="checkbox" data-field="enabled"' +
+      (o.enabled ? ' checked' : '') +
+      '> <b>Offer ' +
+      esc(o.label) +
+      ' slot</b></label>' +
+      '<div class="slot-body"' +
+      (o.enabled ? '' : ' style="display:none"') +
+      '>' +
+      '<p class="lbl" style="margin-top:10px">Space booking window</p>' +
+      '<div class="two">' +
+      '<div class="fld"><label>From</label><input type="time" data-field="hallFrom" value="' +
+      esc(o.hallFrom) +
+      '"></div>' +
+      '<div class="fld"><label>To</label><input type="time" data-field="hallTo" value="' +
+      esc(o.hallTo) +
+      '"></div></div>' +
+      '<p class="lbl">Slot price (outdoor — no AC options)</p>' +
+      '<div class="price-row"><label>Price ₹</label><input type="number" data-field="priceNoAc" min="0" value="' +
+      (o.priceNoAc != null ? o.priceNoAc : '') +
+      '"></div>' +
+      '<input type="hidden" data-field="offerNoAc" value="1">' +
+      '<input type="hidden" data-field="offerAc" value="0">' +
+      '</div></div>'
+    );
+  }
+  const acFull = o.acMode !== 'limited';
+  const isFlexible = o.acLimitKind !== 'fixed';
+  return (
+    '<div class="slot' +
+    (o.enabled ? '' : ' slot-disabled') +
+    '" data-offer-id="' +
+    esc(o.id) +
+    '">' +
+    '<label class="radio-row" style="margin:0"><input type="checkbox" data-field="enabled"' +
+    (o.enabled ? ' checked' : '') +
+    '> <b>Offer ' +
+    esc(o.label) +
+    ' slot</b></label>' +
+    '<div class="slot-body"' +
+    (o.enabled ? '' : ' style="display:none"') +
+    '>' +
+    '<p class="lbl" style="margin-top:10px">Hall booking window</p>' +
+    '<div class="two">' +
+    '<div class="fld"><label>From</label><input type="time" data-field="hallFrom" value="' +
+    esc(o.hallFrom) +
+    '"></div>' +
+    '<div class="fld"><label>To</label><input type="time" data-field="hallTo" value="' +
+    esc(o.hallTo) +
+    '"></div></div>' +
+    '<p class="lbl">Pricing options for customers</p>' +
+    '<div class="price-row"><label><input type="checkbox" data-field="offerNoAc"' +
+    (o.offerNoAc ? ' checked' : '') +
+    '> Without AC ₹</label><input type="number" data-field="priceNoAc" min="0" value="' +
+    o.priceNoAc +
+    '"' +
+    (o.offerNoAc ? '' : ' disabled') +
+    '></div>' +
+    '<div class="price-row"><label><input type="checkbox" data-field="offerAc"' +
+    (o.offerAc ? ' checked' : '') +
+    '> With AC ₹</label><input type="number" data-field="priceAc" min="0" value="' +
+    o.priceAc +
+    '"' +
+    (o.offerAc ? '' : ' disabled') +
+    '></div>' +
+    '<div class="ac-usage"' +
+    (o.offerAc ? '' : ' hidden') +
+    '>' +
+    '<p class="lbl" style="margin-top:0">AC usage (With AC package)</p>' +
+    '<p class="sub" style="margin:0 0 8px">Type how many AC hours are included in your price. Customers do not enter this number — they see what you set.</p>' +
+    '<label class="radio-row"><input type="radio" name="acMode_' +
+    esc(o.id) +
+    '" value="full"' +
+    (acFull ? ' checked' : '') +
+    '> AC for full hall window</label>' +
+    '<label class="radio-row"><input type="radio" name="acMode_' +
+    esc(o.id) +
+    '" value="limited"' +
+    (!acFull ? ' checked' : '') +
+    '> AC for part of the hall window</label>' +
+    '<div class="ac-limited-fields"' +
+    (acFull || !o.offerAc ? ' hidden' : '') +
+    '>' +
+    '<div class="fld ac-hours-shared"><label>AC hours included in With AC price</label><input type="number" data-field="acHours" min="0" step="0.5" value="' +
+    (o.acHours || '') +
+    '" placeholder="e.g. 5"><small class="sub">Example: 5 hours AC in a 12-hour hall hire — you type the included hours here.</small></div>' +
+    '<label class="radio-row" style="margin-top:10px"><input type="radio" name="acLimit_' +
+    esc(o.id) +
+    '" value="flexible"' +
+    (isFlexible ? ' checked' : '') +
+    '> <b>Flexible timing</b><br><span class="sub" style="font-weight:600">Customer sees included hours only. They consult your hall management to agree when AC runs (not chosen in the app).</span></label>' +
+    '<label class="radio-row" style="margin-top:8px"><input type="radio" name="acLimit_' +
+    esc(o.id) +
+    '" value="fixed"' +
+    (!isFlexible ? ' checked' : '') +
+    '> <b>Fixed AC schedule</b><br><span class="sub" style="font-weight:600">Same included hours above, plus exact clock times when your hall always runs AC.</span></label>' +
+    '<div class="ac-fixed-fields"' +
+    (isFlexible ? ' hidden' : '') +
+    '><p class="lbl" style="margin:10px 0 6px">Exact AC clock times (with hours included above)</p>' +
+    '<div class="two">' +
+    '<div class="fld"><label>AC from</label><input type="time" data-field="acFrom" value="' +
+    esc(o.acFrom || '') +
+    '"></div>' +
+    '<div class="fld"><label>AC to</label><input type="time" data-field="acTo" value="' +
+    esc(o.acTo || '') +
+    '"></div></div></div></div></div></div></div>'
+  );
+}
+
+function attachSlotPricingHandlers() {
+  const root = el('slotPricing');
+  if (!root) return;
+  const outdoor = venueIsOutdoor();
+  root.querySelectorAll('.slot[data-offer-id]').forEach(function (row) {
+    const id = row.getAttribute('data-offer-id');
+    function refresh() {
+      const enabled = row.querySelector('[data-field=enabled]').checked;
+      row.classList.toggle('slot-disabled', !enabled);
+      const body = row.querySelector('.slot-body');
+      if (body) body.style.display = enabled ? 'block' : 'none';
+      if (outdoor) return;
+      const offerAc = row.querySelector('[data-field=offerAc]').checked;
+      const offerNoAc = row.querySelector('[data-field=offerNoAc]').checked;
+      const acWrap = row.querySelector('.ac-usage');
+      if (acWrap) acWrap.hidden = !offerAc;
+      const noIn = row.querySelector('[data-field=priceNoAc]');
+      const acIn = row.querySelector('[data-field=priceAc]');
+      if (noIn) noIn.disabled = !offerNoAc;
+      if (acIn) acIn.disabled = !offerAc;
+      const limited = row.querySelector('input[name=acMode_' + id + '][value=limited]');
+      const limWrap = row.querySelector('.ac-limited-fields');
+      if (limWrap && limited) limWrap.hidden = !offerAc || !limited.checked;
+      const limitFixed = row.querySelector('input[name=acLimit_' + id + '][value=fixed]');
+      const fixedWrap = row.querySelector('.ac-fixed-fields');
+      const useFixed = limitFixed && limitFixed.checked;
+      if (fixedWrap) fixedWrap.hidden = !offerAc || !limited || !limited.checked || !useFixed;
+    }
+    row.querySelectorAll('input').forEach(function (inp) {
+      inp.addEventListener('change', refresh);
+    });
+    refresh();
+  });
+}
+
+function validateSlotOffers() {
+  ensureSlotOffers();
+  applyVenueTypeSideEffects();
+  const outdoor = venueIsOutdoor();
+  const enabled = state.slotOffers.filter(function (o) {
+    return o.enabled;
+  });
+  if (!enabled.length) {
+    toast('Enable at least one time slot (Morning, Evening, or Full Day).');
+    return false;
+  }
+  for (let i = 0; i < enabled.length; i++) {
+    const o = enabled[i];
+    if (outdoor) {
+      if (!o.priceNoAc || o.priceNoAc <= 0) {
+        toast(o.label + ': enter a slot price for this outdoor space.');
+        return false;
+      }
+      continue;
+    }
+    if (!o.offerNoAc && !o.offerAc) {
+      toast(o.label + ': turn on Without AC and/or With AC pricing.');
+      return false;
+    }
+    if (o.offerAc && o.acMode === 'limited') {
+      if (!o.acHours) {
+        toast(o.label + ': enter AC hours included in the With AC price (e.g. 5).');
+        return false;
+      }
+      if (o.acLimitKind === 'fixed' && (!o.acFrom || !o.acTo)) {
+        toast(o.label + ': fixed schedule needs AC from and AC to times as well as included hours.');
+        return false;
+      }
+    }
+  }
+  return true;
+}
+
+function renderPkg3() {
+  renderPkgSteps(3);
+  ensureSlotOffers();
+  applyVenueTypeSideEffects();
+  const outdoor = venueIsOutdoor();
+  const sub = el('pkg3Sub');
+  const head = el('pkg3Head');
+  if (head) head.textContent = outdoor ? 'Pricing & Time Slots (outdoor)' : 'Pricing & Time Slots';
+  if (sub) {
+    sub.textContent = outdoor
+      ? 'Outdoor space: set Morning, Evening, and Full Day windows and one slot price each. AC / non-AC pricing does not apply. Add a single extra-hour charge if bookings run over the window.'
+      : 'Turn each slot on or off, set your hall hours (from–to), choose whether customers see Without AC and/or With AC pricing, and define AC usage hours when AC is not for the full booking window.';
+  }
+  const extraBlock = outdoor
+    ? '<div class="slot slot-outdoor-extra"><h3>Additional hours charge</h3><p class="sub" style="margin:0 0 10px">If a booking runs longer than the slot window.</p><div class="fld"><label>Extra charge / hour</label><input type="number" id="extraNoAc" min="0" value="' +
+      (state.prices.extraNoAc || 0) +
+      '"></div></div>'
+    : '<div class="slot"><h3>Additional hours charge</h3><p class="sub" style="margin:0 0 10px">If a booking runs longer than the slot window.</p><div class="two">' +
+      '<div class="fld"><label>Without AC / hour</label><input type="number" id="extraNoAc" value="' +
+      (state.prices.extraNoAc || 0) +
+      '"></div>' +
+      '<div class="fld"><label>With AC / hour</label><input type="number" id="extraAc" value="' +
+      (state.prices.extraAc || 0) +
+      '"></div></div></div>';
+  el('slotPricing').innerHTML = state.slotOffers.map(renderSlotOfferRow).join('') + extraBlock;
+  attachSlotPricingHandlers();
+}
+
+function capturePkg3() {
+  ensureSlotOffers();
+  const outdoor = venueIsOutdoor();
+  const root = el('slotPricing');
+  if (!root) return;
+  root.querySelectorAll('.slot[data-offer-id]').forEach(function (row) {
+    const id = row.getAttribute('data-offer-id');
+    const o = state.slotOffers.find(function (x) {
+      return x.id === id;
+    });
+    if (!o) return;
+    o.enabled = !!row.querySelector('[data-field=enabled]').checked;
+    o.hallFrom = row.querySelector('[data-field=hallFrom]').value || '09:00';
+    o.hallTo = row.querySelector('[data-field=hallTo]').value || '17:00';
+    if (outdoor) {
+      o.offerNoAc = true;
+      o.offerAc = false;
+      o.priceNoAc = +row.querySelector('[data-field=priceNoAc]').value || 0;
+      o.priceAc = 0;
+      o.acMode = 'full';
+      o.acHours = 0;
+      o.acFrom = '';
+      o.acTo = '';
+    } else {
+      o.offerNoAc = !!row.querySelector('[data-field=offerNoAc]').checked;
+      o.offerAc = !!row.querySelector('[data-field=offerAc]').checked;
+      o.priceNoAc = +row.querySelector('[data-field=priceNoAc]').value || 0;
+      o.priceAc = +row.querySelector('[data-field=priceAc]').value || 0;
+      const modeEl = row.querySelector('input[name=acMode_' + id + ']:checked');
+      o.acMode = modeEl && modeEl.value === 'limited' ? 'limited' : 'full';
+      const limitEl = row.querySelector('input[name=acLimit_' + id + ']:checked');
+      o.acLimitKind = limitEl && limitEl.value === 'fixed' ? 'fixed' : 'flexible';
+      o.acHours = +row.querySelector('[data-field=acHours]').value || 0;
+      if (o.acLimitKind === 'fixed') {
+        o.acFrom = row.querySelector('[data-field=acFrom]').value || '';
+        o.acTo = row.querySelector('[data-field=acTo]').value || '';
+      } else {
+        o.acFrom = '';
+        o.acTo = '';
+      }
+    }
+    if (!state.prices[o.id]) state.prices[o.id] = {};
+    state.prices[o.id].noAc = o.priceNoAc;
+    state.prices[o.id].ac = o.priceAc;
+  });
+  state.prices.extraNoAc = +(el('extraNoAc') && el('extraNoAc').value) || 0;
+  if (outdoor) {
+    state.prices.extraAc = 0;
+  } else {
+    state.prices.extraAc = +(el('extraAc') && el('extraAc').value) || 0;
+  }
+}
+
+function renderPkg4() {
+  renderPkgSteps(4);
+  ensurePolicyRules();
+  const p = state.payment;
+  const tab = pkg4PolicyTab === 'reschedule' ? 'reschedule' : 'cancel';
+  const cancelOn = tab === 'cancel';
+  el('payPolicy').innerHTML =
+    '<p class="lbl">ADVANCE PAYMENT</p>' +
+    '<label class="radio-row"><input type="radio" name="adv" value="fixed"' +
+    (p.advanceType === 'fixed' ? ' checked' : '') +
+    '> Fixed amount</label>' +
+    '<div class="fld"><input type="number" id="advFixed" value="' +
+    p.advanceFixed +
+    '"></div>' +
+    '<label class="radio-row"><input type="radio" name="adv" value="pct"' +
+    (p.advanceType === 'pct' ? ' checked' : '') +
+    '> Percentage of total</label>' +
+    '<div class="fld"><input type="number" id="advPct" value="' +
+    p.advancePct +
+    '"> %</div>' +
+    '<p class="lbl">FULL PAYMENT DUE</p>' +
+    '<div class="fld"><label>Days before event</label><input type="number" id="fullDue" value="' +
+    p.fullDueDays +
+    '"></div>' +
+    '<hr style="border:0;border-top:1px solid var(--line);margin:20px 0">' +
+    '<h2 style="margin:0 0 4px;font-size:17px">Cancellation &amp; Rescheduling Policy</h2>' +
+    '<p class="sub" style="margin:0 0 12px">Set deduction % by days before the event (from advance). Default tiers shown — remove ✕ or use + Add tier. Cancellation and rescheduling lists are separate.</p>' +
+    '<div class="policy-tabs">' +
+    '<button type="button" class="' +
+    (cancelOn ? 'on' : '') +
+    '" id="policyTabCancel">Cancellation Policy</button>' +
+    '<button type="button" class="' +
+    (!cancelOn ? 'on' : '') +
+    '" id="policyTabResched">Rescheduling Policy</button></div>' +
+    (cancelOn
+      ? '<div class="policy-banner cancel"><span aria-hidden="true">ℹ️</span><span>Enter the deduction percentage for <b>cancellations</b>. This will be deducted from the advance amount.</span></div>' +
+        policyRulesHtml('cancel') +
+        '<div class="fld" style="margin-top:14px"><label>Additional notes (shown to customers)</label>' +
+        '<textarea id="cancelPolicyNote" rows="3" placeholder="e.g. Refund balance after deduction within 7 working days.">' +
+        esc(state.cancelPolicyNote) +
+        '</textarea></div>'
+      : '<div class="policy-banner resched"><span aria-hidden="true">ℹ️</span><span>Enter the deduction percentage for <b>rescheduling</b>. This will be deducted from the advance amount.</span></div>' +
+        policyRulesHtml('reschedule') +
+        '<div class="fld" style="margin-top:14px"><label>Additional notes (shown to customers)</label>' +
+        '<textarea id="reschedulePolicyNote" rows="3" placeholder="e.g. New date must be within 6 months; one free reschedule if 30+ days notice.">' +
+        esc(state.reschedulePolicyNote) +
+        '</textarea></div>');
+  attachPolicyRowHandlers();
+  const tc = el('policyTabCancel');
+  const tr = el('policyTabResched');
+  if (tc) {
+    tc.onclick = function () {
+      capturePolicyRulesFromDom();
+      capturePkg4PaymentOnly();
+      pkg4PolicyTab = 'cancel';
+      renderPkg4();
+    };
+  }
+  if (tr) {
+    tr.onclick = function () {
+      capturePolicyRulesFromDom();
+      capturePkg4PaymentOnly();
+      pkg4PolicyTab = 'reschedule';
+      renderPkg4();
+    };
+  }
+}
+
+function capturePkg4PaymentOnly() {
+  const adv = document.querySelector('input[name=adv]:checked');
+  state.payment.advanceType = adv && adv.value ? adv.value : 'fixed';
+  if (el('advFixed')) state.payment.advanceFixed = +el('advFixed').value || 0;
+  if (el('advPct')) state.payment.advancePct = +el('advPct').value || 0;
+  if (el('fullDue')) state.payment.fullDueDays = +el('fullDue').value || 7;
+}
+
+function capturePkg2() {
+  captureNameFields();
+  state.capacity = {
+    seat: +el('seatCap').value || 0,
+    dine: +el('dineCap').value || 0,
+    car: state.capacity.car,
+    bike: state.capacity.bike,
+    rooms: +el('rooms').value || 0,
+  };
+}
+
+function capturePkg4() {
+  capturePolicyRulesFromDom();
+  capturePkg4PaymentOnly();
+}
+
+function renderPkg5() {
+  renderPkgSteps(5);
+  capturePkg2();
+  capturePkg3();
+  capturePkg4();
+  const tags = state.events.map(function (id) {
+    var c = EVENT_CATS.find(function (x) { return x.id === id; });
+    return c ? c.label : id;
+  });
+  el('pkgReview').innerHTML = `
+    <div class="sum"><div class="hd"><b>Event Categories</b><button type="button" class="see" data-to="pkg1">Edit</button></div><div class="tags">${tags
+      .map((t) => `<span class="tag">${esc(t)}</span>`)
+      .join('')}</div></div>
+    <div class="sum"><div class="hd"><b>Venue Details</b><button type="button" class="see" data-to="pkg2">Edit</button></div>
+      <p class="sub"><b>${esc(state.businessName)}</b> · Hall: <b>${esc(customerHallName() || '—')}</b>${venueIsOutdoor() ? ' · Outdoor space' : ''}</p>
+      <p class="sub">Seating ${state.capacity.seat} · Dining ${state.capacity.dine}</p>
+      <p class="sub">Parking: 🚗 ${state.commonParking.car} cars · 🏍 ${state.commonParking.bike} bikes (shared — edit on Halls page)</p>
+      <p class="sub" style="margin-top:8px"><b>Catering &amp; decoration (on your profile — add-ons, not in hall slot rent):</b><br>${cateringReviewLines()
+        .map((line) => esc(line))
+        .join('<br>')}</p></div>
+    <div class="sum"><div class="hd"><b>Pricing &amp; Time Slots</b><button type="button" class="see" data-to="pkg3">Edit</button></div>
+      ${slotReviewLines()
+        .map(function (line) {
+          return '<p class="sub">' + esc(line) + '</p>';
+        })
+        .join('')}</div>
+    <div class="sum"><div class="hd"><b>Payment &amp; Policies</b><button type="button" class="see" data-to="pkg4">Edit</button></div>
+      <p class="sub">Advance ₹${state.payment.advanceFixed.toLocaleString('en-IN')} · Full due ${state.payment.fullDueDays} days before</p>
+      <p class="sub" style="margin-top:8px"><b>Cancellation</b> (from advance)<br>${esc(policySummaryLines(state.cancelRules, state.cancelPolicyNote))}</p>
+      <p class="sub" style="margin-top:8px"><b>Rescheduling</b> (from advance)<br>${esc(policySummaryLines(state.rescheduleRules, state.reschedulePolicyNote))}</p></div>`;
+  el('pkgReview').querySelectorAll('[data-to]').forEach((b) => {
+    b.onclick = () => {
+      show(b.getAttribute('data-to'));
+      if (b.getAttribute('data-to') === 'pkg1') renderPkg1();
+      if (b.getAttribute('data-to') === 'pkg2') renderPkg2();
+      if (b.getAttribute('data-to') === 'pkg3') renderPkg3();
+      if (b.getAttribute('data-to') === 'pkg4') renderPkg4();
+    };
+  });
+  el('savePkg').onclick = () => {
+    const h = activeHall();
+    const wasSaved = h && h.packageSaved;
+    commitHallPackageFromState();
+    renderManageHeader();
+    renderHallCards();
+    toast(wasSaved ? 'Package updated — calendar uses your new slot times.' : 'Package saved on this device.');
+    show('manage');
+  };
+}
+
+let pendingRemoveOperatorId = null;
+
+const OPERATOR_ROLE_LABELS = { owner: 'Owner', manager: 'Manager', staff: 'Staff' };
+
+function defaultOperatorsForHall() {
+  return [
+    { id: 'op_owner', name: 'Thomas Mathew', phone: '+91 94470 55566', role: 'owner' },
+    { id: 'op_mgr1', name: 'John Kurian', phone: '+91 98765 12345', role: 'manager' },
+  ];
+}
+
+function getHallOperators(h) {
+  if (!h) return [];
+  if (!h.operators || !h.operators.length) {
+    h.operators = defaultOperatorsForHall().map(function (o) {
+      return JSON.parse(JSON.stringify(o));
+    });
+  }
+  return h.operators;
+}
+
+function defaultHallGallery() {
+  return [
+    { id: 'g1', label: 'Main hall' },
+    { id: 'g2', label: 'Stage & lighting' },
+  ];
+}
+
+function getHallGallery(h) {
+  if (!h) return [];
+  if (!h.hallGallery || !h.hallGallery.length) {
+    h.hallGallery = defaultHallGallery().map(function (p) {
+      return JSON.parse(JSON.stringify(p));
+    });
+  }
+  return h.hallGallery;
+}
+
+function renderHallMedia() {
+  const h = activeHall();
+  const sub = el('hallMediaSub');
+  const hallLabel = customerHallName() || state.businessName;
+  if (sub) {
+    sub.textContent = hallLabel + ' — photos customers see before they book';
+  }
+  const grid = el('hallPhotoGrid');
+  const gallery = getHallGallery(h);
+  if (grid) {
+    grid.innerHTML =
+      gallery
+        .map(function (p) {
+          return (
+            '<div class="photo-tile" data-photo-id="' +
+            esc(p.id) +
+            '"><span class="tile-cap">' +
+            esc(p.label) +
+            '</span></div>'
+          );
+        })
+        .join('') + '<button type="button" class="photo-tile add" id="addGalleryTile">+ Add photo</button>';
+    const addTile = el('addGalleryTile');
+    if (addTile) {
+      addTile.onclick = function () {
+        if (!hallListingOn(h)) {
+          toast('Turn this hall On to add photos.');
+          return;
+        }
+        const id = 'g' + Date.now();
+        gallery.push({ id: id, label: 'New photo' });
+        savePkg();
+        renderHallMedia();
+        toast('Photo added (demo — upload in full app).');
+      };
+    }
+  }
+}
+
+function openHallMediaScreen() {
+  renderHallMedia();
+  show('hallMedia');
+  syncHallInactiveLock();
+}
+
+function bindHallMediaUi() {
+  const back = el('backFromHallMedia');
+  if (back) {
+    back.onclick = function () {
+      show('manage');
+      syncHallInactiveLock();
+    };
+  }
+  const changeCover = el('changeCoverBtn');
+  if (changeCover) {
+    changeCover.onclick = function () {
+      if (!hallListingOn(activeHall())) {
+        toast('Turn this hall On to change the cover photo.');
+        return;
+      }
+      toast('Cover photo picker — camera / gallery in full app.');
+    };
+  }
+  const addBtn = el('hallMediaAddBtn');
+  if (addBtn) {
+    addBtn.onclick = function () {
+      const h = activeHall();
+      if (!hallListingOn(h)) {
+        toast('Turn this hall On to add photos.');
+        return;
+      }
+      const gallery = getHallGallery(h);
+      gallery.push({ id: 'g' + Date.now(), label: 'New photo' });
+      savePkg();
+      renderHallMedia();
+      toast('Photo added (demo).');
+    };
+  }
+}
+
+function operatorInitial(name) {
+  const p = String(name || '?').trim().split(/\s+/);
+  return (p[0][0] || '?').toUpperCase();
+}
+
+function formatOperatorRole(role) {
+  return OPERATOR_ROLE_LABELS[role] || 'Staff';
+}
+
+function renderOperators() {
+  const h = activeHall();
+  const list = el('operatorsList');
+  const sub = el('operatorsSub');
+  if (sub) {
+    sub.textContent = state.businessName
+      ? 'Who can manage this business · ' + state.businessName
+      : 'Who can manage this business';
+  }
+  if (!list) return;
+  const ops = getHallOperators(h);
+  if (!ops.length) {
+    list.innerHTML = '<p class="sub">No operators yet. Add someone to help manage calendar and requests.</p>';
+    return;
+  }
+  list.innerHTML = ops
+    .map(function (op, idx) {
+      const avClass = 'a' + (idx % 4);
+      const roleLabel = formatOperatorRole(op.role);
+      const right =
+        op.role === 'owner'
+          ? '<span class="op-owner-tag">Owner</span>'
+          : '<button type="button" class="op-remove" data-rm-op="' + esc(op.id) + '">Remove</button>';
+      return (
+        '<div class="op-card">' +
+        '<div class="op-avatar ' +
+        avClass +
+        '">' +
+        esc(operatorInitial(op.name)) +
+        '</div>' +
+        '<div class="op-meta"><b>' +
+        esc(op.name) +
+        '</b><span>' +
+        esc(op.phone) +
+        ' · ' +
+        esc(roleLabel) +
+        '</span></div>' +
+        '<div class="op-actions">' +
+        right +
+        '</div></div>'
+      );
+    })
+    .join('');
+  list.querySelectorAll('[data-rm-op]').forEach(function (btn) {
+    btn.onclick = function () {
+      if (!hallListingOn(h)) {
+        toast('Turn this hall On to manage operators.');
+        return;
+      }
+      pendingRemoveOperatorId = btn.getAttribute('data-rm-op');
+      const op = ops.find(function (x) {
+        return x.id === pendingRemoveOperatorId;
+      });
+      const body = el('removeOperatorBody');
+      if (body && op) {
+        body.textContent =
+          'Remove ' + op.name + '? They will no longer manage bookings or calendar for this hall.';
+      }
+      openOverlay('removeOperatorOverlay');
+    };
+  });
+}
+
+function openOperatorsScreen() {
+  renderOperators();
+  show('operators');
+  syncHallInactiveLock();
+}
+
+function bindOperatorsUi() {
+  const back = el('backFromOperators');
+  if (back) {
+    back.onclick = function () {
+      show('manage');
+      syncHallInactiveLock();
+    };
+  }
+  const addBtn = el('addOperatorBtn');
+  if (addBtn) {
+    addBtn.onclick = function () {
+      if (!hallListingOn(activeHall())) {
+        toast('Turn this hall On to add operators.');
+        return;
+      }
+      if (el('addOpName')) el('addOpName').value = '';
+      if (el('addOpPhone')) el('addOpPhone').value = '';
+      if (el('addOpRole')) el('addOpRole').value = 'manager';
+      openOverlay('addOperatorOverlay');
+    };
+  }
+  ['closeAddOperator', 'cancelAddOperator'].forEach(function (id) {
+    const b = el(id);
+    if (b) b.onclick = function () { closeOverlay('addOperatorOverlay'); };
+  });
+  const saveAdd = el('saveAddOperator');
+  if (saveAdd) {
+    saveAdd.onclick = function () {
+      const name = el('addOpName') ? el('addOpName').value.trim() : '';
+      const phone = el('addOpPhone') ? el('addOpPhone').value.trim() : '';
+      const role = el('addOpRole') ? el('addOpRole').value : 'manager';
+      if (!name) {
+        toast('Enter the operator name.');
+        return;
+      }
+      if (!phone) {
+        toast('Enter a mobile number.');
+        return;
+      }
+      const h = activeHall();
+      const ops = getHallOperators(h);
+      ops.push({
+        id: 'op_' + Date.now(),
+        name: name,
+        phone: phone,
+        role: role === 'staff' ? 'staff' : 'manager',
+      });
+      savePkg();
+      closeOverlay('addOperatorOverlay');
+      renderOperators();
+      toast('Operator added.');
+    };
+  }
+  const cancelRm = el('cancelRemoveOperator');
+  const confirmRm = el('confirmRemoveOperator');
+  if (cancelRm) {
+    cancelRm.onclick = function () {
+      pendingRemoveOperatorId = null;
+      closeOverlay('removeOperatorOverlay');
+    };
+  }
+  if (confirmRm) {
+    confirmRm.onclick = function () {
+      if (!pendingRemoveOperatorId) return;
+      const h = activeHall();
+      const ops = getHallOperators(h);
+      const target = ops.find(function (o) {
+        return o.id === pendingRemoveOperatorId;
+      });
+      if (target && target.role === 'owner') {
+        toast('Owner cannot be removed here.');
+        closeOverlay('removeOperatorOverlay');
+        pendingRemoveOperatorId = null;
+        return;
+      }
+      h.operators = ops.filter(function (o) {
+        return o.id !== pendingRemoveOperatorId;
+      });
+      pendingRemoveOperatorId = null;
+      savePkg();
+      closeOverlay('removeOperatorOverlay');
+      renderOperators();
+      toast('Operator removed.');
+    };
+  }
+}
+
+function renderBookSettings() {
+  const windows = [3, 6, 9, 12, 18, 24];
+  const notices = [
+    { v: 0, l: 'Same Day' },
+    { v: 1, l: '1 Day' },
+    { v: 2, l: '2 Days' },
+    { v: 3, l: '3 Days' },
+    { v: 7, l: '7 Days' },
+  ];
+  el('bookWindow').innerHTML = windows
+    .map((m) => `<button type="button" class="pick${state.bookWindowMonths === m ? ' on' : ''}" data-win="${m}">${m} Months</button>`)
+    .join('');
+  el('minNotice').innerHTML = notices
+    .map((n) => `<button type="button" class="pick${state.minNoticeDays === n.v ? ' on' : ''}" data-notice="${n.v}">${n.l}</button>`)
+    .join('');
+  el('windowInfo').textContent = `Customers can book up to ${state.bookWindowMonths} months ahead from today.`;
+  el('noticeInfo').textContent = `Customers can book at least ${state.minNoticeDays} day(s) before the event date.`;
+  el('bookWindow').querySelectorAll('[data-win]').forEach((b) => {
+    b.onclick = () => {
+      state.bookWindowMonths = +b.getAttribute('data-win');
+      renderBookSettings();
+    };
+  });
+  el('minNotice').querySelectorAll('[data-notice]').forEach((b) => {
+    b.onclick = () => {
+      state.minNoticeDays = +b.getAttribute('data-notice');
+      renderBookSettings();
+    };
+  });
+}
+
+function renderOwnerReq() {
+  el('ownerReqBody').innerHTML = `
+    <div class="sum"><b>Baptism · 25 Dec 2026</b><p class="sub">Morning · Without AC · 200 guests</p><p style="font-weight:900;font-size:18px;margin:8px 0">₹ 55,000</p></div>
+    <p class="lbl">CUSTOMER</p>
+    <p><b>Arun Kumar</b><br><span class="sub">+91 98765 43210</span></p>
+    <p class="sub">Accept starts 24h advance payment window for the customer.</p>`;
+  el('acceptReq').onclick = () => toast('Request accepted — customer sees Pending (pay advance).');
+  el('rejectReq').onclick = () => toast('Request rejected.');
+}
+
+function showBootError(msg) {
+  const box = el('bootError');
+  if (!box) {
+    alert(msg);
+    return;
+  }
+  box.hidden = false;
+  box.innerHTML =
+    '<h1 style="color:#DC2626;font-size:20px">Demo did not start</h1><p>' +
+    esc(msg) +
+    '</p><p>Open <b>' +
+    DEMO_FILE +
+    '</b> (full file with JavaScript inside). Hard refresh Ctrl+Shift+R.</p>';
+}
+
+function bindOwnerEvents() {
+  document.querySelectorAll('[data-to]').forEach((b) => {
+    b.addEventListener('click', () => {
+      const id = b.getAttribute('data-to');
+      if (id === 'pkg2') renderPkg2();
+      if (id === 'pkg3') {
+        capturePkg2();
+        captureSpaceType();
+        if (!String(state.hallName || '').trim()) {
+          toast('Enter a space name (e.g. Hall 1 or Koinonia).');
+          return;
+        }
+        renderPkg3();
+      }
+      if (id === 'pkg4') {
+        capturePkg3();
+        if (!validateSlotOffers()) return;
+        renderPkg4();
+      }
+      if (id === 'pkg5') {
+        capturePkg4();
+        renderPkg5();
+      }
+      if (id === 'bookSettings') renderBookSettings();
+      if (id === 'calendar') renderCalendar();
+      if (id === 'calDay') renderCalDay();
+      show(id);
+    });
+  });
+  const saveBs = el('saveBookSettings');
+  if (saveBs) {
+    saveBs.onclick = () => {
+      savePkg();
+      toast('Booking settings saved.');
+      renderCalendar();
+      show('calendar');
+    };
+  }
+  bindCalendarUi();
+  bindOperatorsUi();
+  bindHallMediaUi();
+  bindPackageRequiredUi();
+  bindVenueEditUi();
+  const addHall = el('addHallBtn');
+  if (addHall) {
+    addHall.onclick = function () {
+      if (state.parkingEditOpen) {
+        toast('Finish or cancel parking edit first.');
+        return;
+      }
+      const planned = Math.max(1, state.plannedHallCount || 1);
+      if (state.hallSetupComplete && state.halls.length >= planned) {
+        toast('All ' + planned + ' halls are added. Tap Edit on parking to allow more halls.');
+        return;
+      }
+      const id = 'h' + Date.now();
+      const hallNum = nextHallNumber();
+      const defaultName = defaultHallLabelForNumber(hallNum);
+      state.halls.push({
+        id: id,
+        hallNumber: hallNum,
+        useHallName: true,
+        hallName: defaultName,
+        spaceType: 'indoor',
+        requests: 0,
+        hallActive: true,
+        packageSaved: false,
+      });
+      state.activeHallId = id;
+      state.useHallName = true;
+      state.hallName = defaultName;
+      state.spaceType = 'indoor';
+      state.openedFromAddHall = true;
+      loadActiveHallIntoState();
+      openManageScreen(true);
+    };
+  }
+  const dashHall = el('dashHallManage');
+  if (dashHall) dashHall.onclick = function () { openHallFromDashboard(); };
+  const dashCat = el('dashCatManage');
+  if (dashCat) dashCat.onclick = function () { toast('Catering manage — separate module in full app.'); };
+  const dashRent = el('dashRentManage');
+  if (dashRent) dashRent.onclick = function () { toast('Rental manage — separate module in full app.'); };
+  const hallCountOk = el('hallCountOk');
+  if (hallCountOk) hallCountOk.onclick = function () { revealSetupParking(); };
+  const setupCancel = el('setupCancel');
+  if (setupCancel) setupCancel.onclick = function () { show('lmbDashboard'); };
+  const setupBack = el('setupBackDash');
+  if (setupBack) setupBack.onclick = function () { show('lmbDashboard'); };
+  const setupSave = el('setupSave');
+  if (setupSave) {
+    setupSave.onclick = function () {
+      const count = Math.max(1, +(el('hallCountInput') && el('hallCountInput').value) || 1);
+      state.plannedHallCount = count;
+      state.commonParking = {
+        car: +(el('setupParkCar') && el('setupParkCar').value) || 0,
+        bike: +(el('setupParkBike') && el('setupParkBike').value) || 0,
+      };
+      if (!state.hallSetupComplete) {
+        initHallsFromSetup(count);
+      } else {
+        state.plannedHallCount = count;
+      }
+      state.hallSetupComplete = true;
+      ensureHallBizHubReady();
+      savePkg();
+      renderHallBizHome();
+      show('hallBizHome');
+      toast(count > 1 ? 'Saved — common parking set. Use + Add hall for each hall.' : 'Saved — use + Add hall to set up your hall.');
+    };
+  }
+  const bizHomeToDash = el('bizHomeToDash');
+  if (bizHomeToDash) bizHomeToDash.onclick = function () { show('lmbDashboard'); };
+  const backBiz = el('backToBizHalls');
+  if (backBiz) backBiz.onclick = goBackFromManageToHalls;
+  const manageBackFoot = el('manageBackToHallsBtn');
+  if (manageBackFoot) manageBackFoot.onclick = goBackFromManageToHalls;
+  const pkg2Back = el('pkg2BackBtn');
+  if (pkg2Back) {
+    pkg2Back.onclick = function () {
+      capturePkg2();
+      captureSpaceType();
+      renderPkg1();
+      show('pkg1');
+    };
+  }
+  const pkg2Cont = el('pkg2ContinueBtn');
+  if (pkg2Cont) {
+    pkg2Cont.onclick = function () {
+      capturePkg2();
+      captureSpaceType();
+      if (!validateHallNameRequired()) return;
+      syncActiveHallFromState();
+      savePkg();
+      renderPkg3();
+      show('pkg3');
+    };
+  }
+  const pkg1Back = el('pkg1BackBtn');
+  if (pkg1Back) {
+    pkg1Back.onclick = function () {
+      show('manage');
+    };
+  }
+  const manageNameIn = el('manageHallNameInput');
+  if (manageNameIn) {
+    manageNameIn.oninput = function () {
+      state.useHallName = true;
+      state.hallName = manageNameIn.value;
+    };
+  }
+  const hallNameIn = el('hallNameInput');
+  if (hallNameIn) {
+    hallNameIn.oninput = function () {
+      state.useHallName = true;
+      state.hallName = hallNameIn.value;
+    };
+  }
+}
+
+function boot() {
+  try {
+    if (!el('manageMenu')) {
+      throw new Error('Missing #manageMenu — download DOWNLOAD-gixbee-hall-owner.html (full file).');
+    }
+    loadPkg();
+    ensureSlotOffers();
+    ensurePolicyRules();
+    if (!state.commonParking) state.commonParking = { car: 80, bike: 120 };
+    if (!state.halls) state.halls = [];
+    syncPlannedHallCount();
+    normalizeHallRecords();
+    if (!state.activeHallId && state.halls[0]) state.activeHallId = state.halls[0].id;
+    if (state.activeHallId && !state.halls.find(function (h) { return h.id === state.activeHallId; })) {
+      state.activeHallId = state.halls[0] ? state.halls[0].id : '';
+    }
+    if (state.halls.length) loadActiveHallIntoState();
+    renderSetupScreen();
+    renderHallBizHome();
+    renderManage();
+    bindOwnerEvents();
+    ensureHallBizHubReady();
+    show('lmbDashboard');
+    var tag = el('buildTag');
+    if (tag) {
+      tag.textContent =
+        'Working demo ' + OWNER_BUILD + ' — tap Vijaya Convention Center → Manage';
+    }
+    var err = el('bootError');
+    if (err) err.hidden = true;
+  } catch (err) {
+    console.error(err);
+    showBootError(err.message || String(err));
+  }
+}
+
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', boot);
+} else {
+  boot();
+}
+
+</script>
+<!-- APP_END -->
+
+</body>
+</html>

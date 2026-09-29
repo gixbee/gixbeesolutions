@@ -5,13 +5,17 @@ START HERE (pick one):
 
   docs/prototypes/index-hall-demos.html   ← links to both working demos
 
-WORKING SINGLE-FILE DEMOS (JavaScript is INSIDE the file):
+WORKING SINGLE-FILE DEMOS (CSS + HTML + JS in one file — no separate .js):
 
-  Customer:  OPEN-gixbee-hall-customer-demo.html
-             (same as DOWNLOAD-gixbee-hall-customer.html)
+  Customer (pick any — same file):
+    GIXBEE-hall-customer-single-file.html   ← easiest name to share
+    OPEN-gixbee-hall-customer-demo.html
+    DOWNLOAD-gixbee-hall-customer.html
 
-  Owner:     OPEN-gixbee-hall-owner-demo.html
-             (same as DOWNLOAD-gixbee-hall-owner.html)
+  Owner (pick any — same file):
+    GIXBEE-hall-owner-single-file.html
+    OPEN-gixbee-hall-owner-demo.html
+    DOWNLOAD-gixbee-hall-owner.html
 
 NOT FOR DEMO (layout only — no app until you regenerate):
 
