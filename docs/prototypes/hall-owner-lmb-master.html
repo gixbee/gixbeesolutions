@@ -288,6 +288,12 @@ textarea{width:100%;border:1px solid var(--line);border-radius:10px;padding:10px
 .modal-card h3{margin:0 0 10px;font-size:17px;color:var(--navy)}
 .modal-card p{font-size:13px;color:var(--mut);line-height:1.5;margin:0 0 18px;text-align:left}
 .modal-card .sheet-actions{margin-top:0}
+.pkg-required-modal{text-align:center;padding:24px 20px 20px}
+.pkg-required-modal .pkg-required-ico{width:56px;height:56px;margin:0 auto 14px;border-radius:16px;background:linear-gradient(135deg,#EDE9FE 0%,#D1FAE5 100%);display:grid;place-items:center;font-size:28px;font-weight:900;color:#5B21B6;line-height:1}
+.pkg-required-modal h3{font-size:18px;margin:0 0 10px}
+.pkg-required-modal .pkg-required-body{font-size:14px;color:#475569;line-height:1.55;margin:0 0 20px;text-align:center}
+.pkg-required-modal .pkg-required-body b{color:var(--navy)}
+.pkg-required-modal #pkgRequiredOk{width:100%;margin:0}
 .month-list{max-height:320px;overflow:auto;margin:0 -4px}
 .month-list button{display:flex;width:100%;align-items:center;justify-content:space-between;border:0;background:#fff;padding:14px 12px;border-radius:10px;font-weight:800;font-size:14px;cursor:pointer;color:var(--ink)}
 .month-list button.on{background:#EFF6FF;color:#1D4ED8}
@@ -733,11 +739,20 @@ textarea{width:100%;border:1px solid var(--line);border-radius:10px;padding:10px
   </div>
 </div>
 
+<div class="overlay center" id="packageRequiredOverlay" aria-hidden="true">
+  <div class="modal-card pkg-required-modal">
+    <div class="pkg-required-ico" aria-hidden="true">₹</div>
+    <h3>Add pricing &amp; packages first</h3>
+    <p class="pkg-required-body">Open <b>Price &amp; packages</b> from Manage, complete all 5 steps, and tap <b>Save Package</b> on Review. Then Calendar, Operators, and Booking requests will unlock for this hall.</p>
+    <button type="button" class="btn" id="pkgRequiredOk">OK</button>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 </div></div>
 <!-- APP_START -->
 <script>
-const OWNER_BUILD = '2026-09-28-hall-owner-v41';
+const OWNER_BUILD = '2026-09-28-hall-owner-v42';
 const DEMO_FILE = 'hall-owner-lmb-master.html';
 const PKG_KEY = 'GIXBEE_HALL_PACKAGE';
 
@@ -2006,12 +2021,30 @@ function hallPackageSaved(h) {
   return !!(h && h.packageSaved);
 }
 
-const PKG_SAVE_TOAST = 'Save Price & packages first (complete all steps and tap Save on Review).';
+
+function showPackageRequiredModal() {
+  openOverlay('packageRequiredOverlay');
+}
 
 function requireHallPackageSaved(h) {
   if (hallPackageSaved(h)) return true;
-  toast(PKG_SAVE_TOAST);
+  showPackageRequiredModal();
   return false;
+}
+
+function bindPackageRequiredUi() {
+  const ok = el('pkgRequiredOk');
+  if (ok) {
+    ok.onclick = function () {
+      closeOverlay('packageRequiredOverlay');
+    };
+  }
+  const overlay = el('packageRequiredOverlay');
+  if (overlay) {
+    overlay.onclick = function (e) {
+      if (e.target === overlay) closeOverlay('packageRequiredOverlay');
+    };
+  }
 }
 
 function normalizeHallRecords() {
@@ -2218,9 +2251,7 @@ function renderHallCards() {
       const reqBadge = h.requests
         ? ' · <span style="color:var(--rd)">' + esc(String(h.requests)) + ' requests</span>'
         : '';
-      const priceHtml = minPrice != null
-        ? '<div class="hall-rich-price">' + inr(minPrice) + ' onwards</div>'
-        : '<div class="hall-rich-price muted">Set pricing in Manage</div>';
+      const priceHtml = minPrice != null ? '<div class="hall-rich-price">' + inr(minPrice) + ' onwards</div>' : '';
       const calDisabled = !on;
       const reqDisabled = !on;
       return (
@@ -3280,6 +3311,7 @@ function bindOwnerEvents() {
   bindCalendarUi();
   bindOperatorsUi();
   bindHallMediaUi();
+  bindPackageRequiredUi();
   const editPark = el('editParkingBtn');
   if (editPark) {
     editPark.onclick = function () {
