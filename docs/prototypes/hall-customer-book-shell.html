@@ -36,6 +36,10 @@ body{margin:0;background:#E8EDF5;font-family:Inter,system-ui,sans-serif;color:va
 .card .meta{font-size:12px;color:var(--mut);margin-top:4px}
 .card .price{margin-top:8px;font-weight:900;color:var(--navy)}
 .badge{display:inline-block;font-size:10px;font-weight:800;background:#ECFDF3;color:#059669;padding:3px 8px;border-radius:99px;margin-bottom:6px}
+.pills{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0 4px}
+.pill{font-size:10px;font-weight:800;padding:3px 8px;border-radius:99px;background:#EFF6FF;color:#1E40AF}
+.pill.out{background:#ECFDF3;color:#065F46}
+.pill.ac{background:#F0F9FF;color:#0369A1}
 .hero-img{height:180px;background:linear-gradient(135deg,#DDD6FE,#BFDBFE);display:grid;place-items:center;font-size:48px}
 .kv{display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid #F3F4F6;font-size:13px}
 .kv span{color:var(--mut)}
@@ -68,7 +72,7 @@ body{margin:0;background:#E8EDF5;font-family:Inter,system-ui,sans-serif;color:va
     <div class="fld"><label>Event Type</label><select id="fEvent"><option>Baptism</option><option>Wedding</option><option>Reception</option><option>Birthday</option></select></div>
     <div class="fld"><label>Event Date</label><input type="date" id="fDate" value="2026-12-25"></div>
     <div class="fld"><label>Number of Guests</label><select id="fGuests"><option>200</option><option>300</option><option>500</option><option>700</option></select></div>
-    <div class="fld"><label>AC Preference</label><div class="seg" id="fAc"><button type="button" class="on" data-ac="any">Any</button><button type="button" data-ac="ac">With AC</button><button type="button" data-ac="noac">Without AC</button></div></div>
+    <div class="fld"><label>AC Preference</label><div class="fld" id="fAcWrap"><div class="seg" id="fAc"><button type="button" class="on" data-ac="any">Any</button><button type="button" data-ac="ac">With AC</button><button type="button" data-ac="noac">Without AC</button></div></div></div>
   </div>
   <div class="cta"><button class="btn" type="button" id="goSearch">Search Halls</button></div>
 </section>
@@ -87,7 +91,7 @@ body{margin:0;background:#E8EDF5;font-family:Inter,system-ui,sans-serif;color:va
 
 <section class="scr" id="slots">
   <div class="top"><button class="back" type="button" data-to="detail">←</button><h1>Select Date &amp; Time</h1></div>
-  <div class="pad"><p class="sub">December 2026 — tap a slot and AC option</p><div id="slotPick"></div></div>
+  <div class="pad"><p class="sub" id="slotDateHint">Select a time slot for your event</p><div id="slotPick"></div></div>
   <div class="cta"><button class="btn" type="button" data-to="enquiry">Continue</button></div>
 </section>
 

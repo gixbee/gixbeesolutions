@@ -30,7 +30,7 @@ Optional local server:
   cd docs/prototypes && python3 -m http.server 8765
   http://localhost:8765/index-hall-demos.html
 
-Build tag on working files: 2026-09-28-hall-*-v4
+Build tag on working files: 2026-09-28-hall-owner-v60 / hall-customer-v12
 
 Raw GitHub (branch cursor/hall-service-html-b579):
 
