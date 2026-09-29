@@ -1,4 +1,4 @@
-const OWNER_BUILD = '2026-09-28-hall-owner-v43';
+const OWNER_BUILD = '2026-09-28-hall-owner-v44';
 const DEMO_FILE = 'hall-owner-lmb-master.html';
 const PKG_KEY = 'GIXBEE_HALL_PACKAGE';
 
@@ -1451,7 +1451,7 @@ function parkingLabelsForHallCount(count) {
     };
   }
   return {
-    title: 'Common parking (shared by halls)',
+    title: 'Common parking (shared by ' + n + ' halls)',
     setupLbl: 'COMMON PARKING (SHARED)',
     hint: 'One shared car and bike count for all ' + n + ' halls.',
   };
