@@ -1,4 +1,4 @@
-const OWNER_BUILD = '2026-09-28-hall-owner-v41';
+const OWNER_BUILD = '2026-09-28-hall-owner-v42';
 const DEMO_FILE = 'hall-owner-lmb-master.html';
 const PKG_KEY = 'GIXBEE_HALL_PACKAGE';
 
@@ -1267,12 +1267,30 @@ function hallPackageSaved(h) {
   return !!(h && h.packageSaved);
 }
 
-const PKG_SAVE_TOAST = 'Save Price & packages first (complete all steps and tap Save on Review).';
+
+function showPackageRequiredModal() {
+  openOverlay('packageRequiredOverlay');
+}
 
 function requireHallPackageSaved(h) {
   if (hallPackageSaved(h)) return true;
-  toast(PKG_SAVE_TOAST);
+  showPackageRequiredModal();
   return false;
+}
+
+function bindPackageRequiredUi() {
+  const ok = el('pkgRequiredOk');
+  if (ok) {
+    ok.onclick = function () {
+      closeOverlay('packageRequiredOverlay');
+    };
+  }
+  const overlay = el('packageRequiredOverlay');
+  if (overlay) {
+    overlay.onclick = function (e) {
+      if (e.target === overlay) closeOverlay('packageRequiredOverlay');
+    };
+  }
 }
 
 function normalizeHallRecords() {
@@ -1479,9 +1497,7 @@ function renderHallCards() {
       const reqBadge = h.requests
         ? ' · <span style="color:var(--rd)">' + esc(String(h.requests)) + ' requests</span>'
         : '';
-      const priceHtml = minPrice != null
-        ? '<div class="hall-rich-price">' + inr(minPrice) + ' onwards</div>'
-        : '<div class="hall-rich-price muted">Set pricing in Manage</div>';
+      const priceHtml = minPrice != null ? '<div class="hall-rich-price">' + inr(minPrice) + ' onwards</div>' : '';
       const calDisabled = !on;
       const reqDisabled = !on;
       return (
@@ -2541,6 +2557,7 @@ function bindOwnerEvents() {
   bindCalendarUi();
   bindOperatorsUi();
   bindHallMediaUi();
+  bindPackageRequiredUi();
   const editPark = el('editParkingBtn');
   if (editPark) {
     editPark.onclick = function () {
