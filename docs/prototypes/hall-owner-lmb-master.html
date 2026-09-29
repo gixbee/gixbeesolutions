@@ -433,7 +433,7 @@ textarea{width:100%;border:1px solid var(--line);border-radius:10px;padding:10px
     <div id="parkingBlockWrap">
     <div class="parking-hub-card" id="parkingSummaryBox">
       <div class="hd">
-        <b id="parkingSummaryTitle">Common parking (shared by all halls)</b>
+        <b id="parkingSummaryTitle">Parking</b>
         <button type="button" class="edit-park-btn" id="editParkingBtn">✎ Edit</button>
       </div>
       <div class="parking-stats" id="parkingSummaryText"><span>🚗 Cars: 80</span><span>🏍 Bikes: 120</span></div>
@@ -776,7 +776,7 @@ textarea{width:100%;border:1px solid var(--line);border-radius:10px;padding:10px
 </div></div>
 <!-- APP_START -->
 <script>
-const OWNER_BUILD = '2026-09-28-hall-owner-v43';
+const OWNER_BUILD = '2026-09-28-hall-owner-v44';
 const DEMO_FILE = 'hall-owner-lmb-master.html';
 const PKG_KEY = 'GIXBEE_HALL_PACKAGE';
 
@@ -2229,7 +2229,7 @@ function parkingLabelsForHallCount(count) {
     };
   }
   return {
-    title: 'Common parking (shared by halls)',
+    title: 'Common parking (shared by ' + n + ' halls)',
     setupLbl: 'COMMON PARKING (SHARED)',
     hint: 'One shared car and bike count for all ' + n + ' halls.',
   };
