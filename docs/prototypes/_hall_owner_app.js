@@ -1,4 +1,42 @@
-const OWNER_BUILD = '2026-09-28-hall-owner-v57';
+const OWNER_BUILD = '2026-09-28-hall-owner-v58';
+
+const FACILITIES_INDOOR = [
+  'AC',
+  'Generator / Power Backup',
+  'Chairs & Tables',
+  'Stage',
+  'Sound System',
+  'Restrooms',
+  'Lift',
+  'Parking',
+  'Security',
+];
+
+const FACILITIES_OUTDOOR = [
+  'Air Coolers',
+  'Fans',
+  'Generator / Power Backup',
+  'Chairs & Tables',
+  'Stage',
+  'Sound System',
+  'Restrooms',
+  'Parking',
+  'Security',
+];
+
+const FACILITY_ICONS = {
+  AC: '❄',
+  'Air Coolers': '💨',
+  Fans: '🌀',
+  'Generator / Power Backup': '⚡',
+  'Chairs & Tables': '🪑',
+  Stage: '🎭',
+  'Sound System': '🔊',
+  Restrooms: '🚻',
+  Lift: '🛗',
+  Parking: '🅿',
+  Security: '🛡',
+};
 
 function venueIsOutdoor() {
   const h = activeHall();
@@ -53,17 +91,25 @@ const EVENT_CATS = [
   { id: 'religious', label: 'Religious Function', icon: '🕯️' },
 ];
 
-const FACILITIES = ['AC', 'Generator / Power Backup', 'Chairs & Tables', 'Stage', 'Sound System', 'Restrooms', 'Lift'];
+function facilitiesForCurrentVenue() {
+  return venueIsOutdoor() ? FACILITIES_OUTDOOR.slice() : FACILITIES_INDOOR.slice();
+}
 
-const FACILITY_ICONS = {
-  AC: '❄',
-  'Generator / Power Backup': '⚡',
-  'Chairs & Tables': '🪑',
-  Stage: '🎭',
-  'Sound System': '🔊',
-  Restrooms: '🚻',
-  Lift: '🛗',
-};
+function normalizeFacilitiesForVenueType() {
+  const allowed = facilitiesForCurrentVenue();
+  const set = {};
+  allowed.forEach(function (f) {
+    set[f] = true;
+  });
+  state.facilities = (state.facilities || []).filter(function (f) {
+    return set[f];
+  });
+}
+
+function applyVenueTypeSideEffects() {
+  applyVenueTypeToAllSlotOffers();
+  normalizeFacilitiesForVenueType();
+}
 
 const SLOT_TEMPLATES = [
   { id: 'morning', label: 'Morning', hallFrom: '10:00', hallTo: '15:00' },
@@ -417,7 +463,7 @@ function commitHallPackageFromState() {
   capturePkg3();
   capturePkg4();
   ensureSlotOffers();
-  applyVenueTypeToAllSlotOffers();
+  applyVenueTypeSideEffects();
   h.package = clonePackageSlice();
   h.packageSaved = true;
   h.packageRevision = (h.packageRevision || 0) + 1;
@@ -1536,6 +1582,7 @@ function loadActiveHallIntoState() {
   } else {
     applyDefaultPackageToState();
   }
+  normalizeFacilitiesForVenueType();
 }
 
 function syncActiveHallFromState() {
@@ -2064,7 +2111,8 @@ function renderPkg2() {
   el('rooms').value = state.capacity.rooms;
   syncHallNameUi();
   renderSpaceTypeUi();
-  el('facGrid').innerHTML = FACILITIES.map(function (f) {
+  normalizeFacilitiesForVenueType();
+  el('facGrid').innerHTML = facilitiesForCurrentVenue().map(function (f) {
     const on = state.facilities.includes(f);
     const icon = FACILITY_ICONS[f] || '•';
     return (
@@ -2128,8 +2176,8 @@ function renderPkg2() {
     btn.onclick = function () {
       state.spaceType = btn.getAttribute('data-space-type') === 'outdoor' ? 'outdoor' : 'indoor';
       syncActiveHallFromState();
-      applyVenueTypeToAllSlotOffers();
-      renderSpaceTypeUi();
+      applyVenueTypeSideEffects();
+      renderPkg2();
     };
   });
 }
@@ -2287,7 +2335,7 @@ function attachSlotPricingHandlers() {
 
 function validateSlotOffers() {
   ensureSlotOffers();
-  applyVenueTypeToAllSlotOffers();
+  applyVenueTypeSideEffects();
   const outdoor = venueIsOutdoor();
   const enabled = state.slotOffers.filter(function (o) {
     return o.enabled;
@@ -2326,7 +2374,7 @@ function validateSlotOffers() {
 function renderPkg3() {
   renderPkgSteps(3);
   ensureSlotOffers();
-  applyVenueTypeToAllSlotOffers();
+  applyVenueTypeSideEffects();
   const outdoor = venueIsOutdoor();
   const sub = el('pkg3Sub');
   const head = el('pkg3Head');
