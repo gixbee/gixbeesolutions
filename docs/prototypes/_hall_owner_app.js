@@ -1,4 +1,4 @@
-const OWNER_BUILD = '2026-09-28-hall-owner-v42';
+const OWNER_BUILD = '2026-09-28-hall-owner-v43';
 const DEMO_FILE = 'hall-owner-lmb-master.html';
 const PKG_KEY = 'GIXBEE_HALL_PACKAGE';
 
@@ -194,6 +194,7 @@ const state = {
 
 let calPendingBlock = null;
 let calPendingUnblock = null;
+let pendingVenueHallCount = 1;
 
 const MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
@@ -1293,6 +1294,111 @@ function bindPackageRequiredUi() {
   }
 }
 
+function showVenueEditStep(step) {
+  const s1 = el('venueEditStep1');
+  const s2 = el('venueEditStep2');
+  if (s1) s1.hidden = step !== 1;
+  if (s2) s2.hidden = step !== 2;
+}
+
+function closeVenueEditOverlay() {
+  closeOverlay('venueEditOverlay');
+  state.parkingEditOpen = false;
+  if (el('editParkingBtn')) el('editParkingBtn').disabled = false;
+  setHallBizDisabled(false);
+  showVenueEditStep(1);
+}
+
+function openVenueEditOverlay() {
+  if (state.parkingEditOpen) return;
+  const added = state.halls.length;
+  const startCount = Math.max(state.plannedHallCount || 1, added || 1);
+  pendingVenueHallCount = startCount;
+  const inp = el('editHallCountInput');
+  if (inp) inp.value = startCount;
+  const hint = el('editHallCountHint');
+  if (hint) {
+    hint.textContent = added
+      ? 'You have ' + added + ' hall' + (added === 1 ? '' : 's') + ' added. Count cannot be less than that.'
+      : 'Set how many halls you plan to list, then enter parking.';
+  }
+  showVenueEditStep(1);
+  openOverlay('venueEditOverlay');
+  state.parkingEditOpen = true;
+  if (el('editParkingBtn')) el('editParkingBtn').disabled = true;
+  setHallBizDisabled(true);
+}
+
+function applyVenueEditStep2Labels(count) {
+  const labels = parkingLabelsForHallCount(count);
+  const title = el('editParkingStepTitle');
+  const hint = el('editParkingHint');
+  if (title) title.textContent = labels.title;
+  if (hint) hint.textContent = labels.hint;
+  if (el('editParkCar')) el('editParkCar').value = state.commonParking.car;
+  if (el('editParkBike')) el('editParkBike').value = state.commonParking.bike;
+}
+
+function saveVenueSetupFromEdit() {
+  const count = pendingVenueHallCount;
+  const car = +(el('editParkCar') && el('editParkCar').value) || 0;
+  const bike = +(el('editParkBike') && el('editParkBike').value) || 0;
+  state.plannedHallCount = count;
+  state.commonParking = { car: car, bike: bike };
+  savePkg();
+  closeVenueEditOverlay();
+  renderParkingSummary();
+  renderHallBizHome();
+  toast(count > 1 ? 'Venue updated — common parking saved.' : 'Venue updated — parking saved.');
+}
+
+function bindVenueEditUi() {
+  const editPark = el('editParkingBtn');
+  if (editPark) {
+    editPark.onclick = function () {
+      openVenueEditOverlay();
+    };
+  }
+  const ok1 = el('venueEditStep1Ok');
+  if (ok1) {
+    ok1.onclick = function () {
+      const count = Math.max(1, +(el('editHallCountInput') && el('editHallCountInput').value) || 1);
+      const added = state.halls.length;
+      if (count < added) {
+        toast('You already have ' + added + ' hall' + (added === 1 ? '' : 's') + '. Delete a hall first or set count to at least ' + added + '.');
+        return;
+      }
+      pendingVenueHallCount = count;
+      applyVenueEditStep2Labels(count);
+      showVenueEditStep(2);
+    };
+  }
+  const back = el('venueEditBack');
+  if (back) {
+    back.onclick = function () {
+      showVenueEditStep(1);
+    };
+  }
+  const save = el('venueEditSave');
+  if (save) {
+    save.onclick = function () {
+      saveVenueSetupFromEdit();
+    };
+  }
+  ['venueEditCancel1', 'venueEditCancel2'].forEach(function (id) {
+    const b = el(id);
+    if (b) b.onclick = function () {
+      closeVenueEditOverlay();
+    };
+  });
+  const overlay = el('venueEditOverlay');
+  if (overlay) {
+    overlay.onclick = function (e) {
+      if (e.target === overlay) closeVenueEditOverlay();
+    };
+  }
+}
+
 function normalizeHallRecords() {
   if (!state.halls) state.halls = [];
   state.halls.forEach(function (h) {
@@ -1335,18 +1441,28 @@ function syncActiveHallFromState() {
   h.hallName = state.useHallName ? String(state.hallName || '').trim() : '';
 }
 
-function parkingDisplay() {
-  const multi = state.plannedHallCount > 1 || state.halls.length > 1;
-  if (state.hallSetupComplete) {
+function parkingLabelsForHallCount(count) {
+  const n = Math.max(1, +count || 1);
+  if (n <= 1) {
     return {
-      title: multi ? 'Common parking (shared by all halls)' : 'Shared parking',
-      car: state.commonParking.car,
-      bike: state.commonParking.bike,
-      common: true,
+      title: 'Parking',
+      setupLbl: 'PARKING',
+      hint: 'Car and bike parking for your hall (shown to customers).',
     };
   }
   return {
-    title: multi ? 'Common parking (shared by all halls)' : 'Shared parking',
+    title: 'Common parking (shared by halls)',
+    setupLbl: 'COMMON PARKING (SHARED)',
+    hint: 'One shared car and bike count for all ' + n + ' halls.',
+  };
+}
+
+function parkingDisplay() {
+  const multi = state.plannedHallCount > 1 || state.halls.length > 1;
+  const labelCount = multi ? Math.max(state.plannedHallCount || 1, state.halls.length) : 1;
+  const labels = parkingLabelsForHallCount(labelCount);
+  return {
+    title: labels.title,
     car: state.commonParking.car,
     bike: state.commonParking.bike,
     common: true,
@@ -1424,13 +1540,9 @@ function revealSetupParking() {
   const lbl = el('setupParkingLbl');
   const hint = el('setupParkingHint');
   if (sec) sec.hidden = false;
-  if (count > 1) {
-    if (lbl) lbl.textContent = 'COMMON PARKING (SHARED)';
-    if (hint) hint.textContent = 'One shared car and bike count for all ' + count + ' halls.';
-  } else {
-    if (lbl) lbl.textContent = 'SHARED PARKING';
-    if (hint) hint.textContent = 'Car and bike parking for your hall (shown to customers).';
-  }
+  const labels = parkingLabelsForHallCount(count);
+  if (lbl) lbl.textContent = labels.setupLbl;
+  if (hint) hint.textContent = labels.hint;
   if (el('setupParkCar')) el('setupParkCar').value = state.commonParking.car;
   if (el('setupParkBike')) el('setupParkBike').value = state.commonParking.bike;
   const actions = el('setupActionsWrap');
@@ -1469,14 +1581,7 @@ function renderParkingSummary() {
       esc(String(p.bike)) +
       '</span>';
   }
-  const editWrap = el('parkingEditWrap');
-  if (editWrap && editWrap.hidden) {
-    const carIn = el('editParkCar');
-    const bikeIn = el('editParkBike');
-    if (carIn) carIn.value = p.car;
-    if (bikeIn) bikeIn.value = p.bike;
-  }
-  setHallBizDisabled(editWrap && !editWrap.hidden);
+  setHallBizDisabled(state.parkingEditOpen);
 }
 
 function renderHallCards() {
@@ -1606,7 +1711,15 @@ function renderHallBizHome() {
   const heroTitle = el('venueHeroTitle');
   if (heroTitle) heroTitle.textContent = state.businessName;
   const countLbl = el('hallCountLbl');
-  if (countLbl) countLbl.textContent = '(' + state.halls.length + ')';
+  if (countLbl) {
+    const added = state.halls.length;
+    const planned = Math.max(1, state.plannedHallCount || 1);
+    if (planned > 1 && added !== planned) {
+      countLbl.textContent = '(' + added + ' of ' + planned + ')';
+    } else {
+      countLbl.textContent = '(' + added + ')';
+    }
+  }
   const parkWrap = el('parkingBlockWrap');
   if (parkWrap) parkWrap.hidden = !state.hallSetupComplete;
   renderParkingSummary();
@@ -2558,50 +2671,7 @@ function bindOwnerEvents() {
   bindOperatorsUi();
   bindHallMediaUi();
   bindPackageRequiredUi();
-  const editPark = el('editParkingBtn');
-  if (editPark) {
-    editPark.onclick = function () {
-      const wrap = el('parkingEditWrap');
-      if (!wrap || state.parkingEditOpen) return;
-      wrap.hidden = false;
-      const p = parkingDisplay();
-      if (el('editParkCar')) el('editParkCar').value = p.car;
-      if (el('editParkBike')) el('editParkBike').value = p.bike;
-      editPark.disabled = true;
-      setHallBizDisabled(true);
-    };
-  }
-  const savePark = el('saveParkingBtn');
-  if (savePark) {
-    savePark.onclick = function () {
-      const car = +(el('editParkCar') && el('editParkCar').value) || 0;
-      const bike = +(el('editParkBike') && el('editParkBike').value) || 0;
-      const p = parkingDisplay();
-      if (p.common) {
-        state.commonParking.car = car;
-        state.commonParking.bike = bike;
-      } else {
-        state.capacity.car = car;
-        state.capacity.bike = bike;
-      }
-      savePkg();
-      if (el('parkingEditWrap')) el('parkingEditWrap').hidden = true;
-      if (el('editParkingBtn')) el('editParkingBtn').disabled = false;
-      setHallBizDisabled(false);
-      renderParkingSummary();
-      renderHallBizHome();
-      toast('Parking updated.');
-    };
-  }
-  const cancelPark = el('cancelParkingBtn');
-  if (cancelPark) {
-    cancelPark.onclick = function () {
-      if (el('parkingEditWrap')) el('parkingEditWrap').hidden = true;
-      if (el('editParkingBtn')) el('editParkingBtn').disabled = false;
-      setHallBizDisabled(false);
-      renderParkingSummary();
-    };
-  }
+  bindVenueEditUi();
   const addHall = el('addHallBtn');
   if (addHall) {
     addHall.onclick = function () {

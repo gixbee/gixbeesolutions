@@ -294,6 +294,11 @@ textarea{width:100%;border:1px solid var(--line);border-radius:10px;padding:10px
 .pkg-required-modal .pkg-required-body{font-size:14px;color:#475569;line-height:1.55;margin:0 0 20px;text-align:center}
 .pkg-required-modal .pkg-required-body b{color:var(--navy)}
 .pkg-required-modal #pkgRequiredOk{width:100%;margin:0}
+.venue-edit-modal{text-align:left;max-width:360px;padding:20px 18px 18px}
+.venue-edit-modal h3{margin:0 0 6px;font-size:18px;color:var(--navy)}
+.venue-edit-step[hidden]{display:none!important}
+.venue-edit-actions{display:flex;flex-direction:column;gap:8px;margin-top:16px}
+.venue-edit-actions .btn{margin:0}
 .month-list{max-height:320px;overflow:auto;margin:0 -4px}
 .month-list button{display:flex;width:100%;align-items:center;justify-content:space-between;border:0;background:#fff;padding:14px 12px;border-radius:10px;font-weight:800;font-size:14px;cursor:pointer;color:var(--ink)}
 .month-list button.on{background:#EFF6FF;color:#1D4ED8}
@@ -432,15 +437,6 @@ textarea{width:100%;border:1px solid var(--line);border-radius:10px;padding:10px
         <button type="button" class="edit-park-btn" id="editParkingBtn">✎ Edit</button>
       </div>
       <div class="parking-stats" id="parkingSummaryText"><span>🚗 Cars: 80</span><span>🏍 Bikes: 120</span></div>
-    </div>
-    <div id="parkingEditWrap" hidden class="sum" style="background:#F9FAFB;margin-bottom:14px">
-      <p class="lbl" style="margin-top:0">EDIT PARKING</p>
-      <div class="two">
-        <div class="fld"><label>Cars</label><input type="number" id="editParkCar" min="0" value="80"></div>
-        <div class="fld"><label>Bikes</label><input type="number" id="editParkBike" min="0" value="120"></div>
-      </div>
-      <button type="button" class="btn" id="saveParkingBtn" style="margin-bottom:8px">Save parking</button>
-      <button type="button" class="btn ghost" id="cancelParkingBtn">Cancel</button>
     </div>
     </div>
     <div id="hallBizDisabledZone">
@@ -748,11 +744,39 @@ textarea{width:100%;border:1px solid var(--line);border-radius:10px;padding:10px
   </div>
 </div>
 
+<div class="overlay center" id="venueEditOverlay" aria-hidden="true">
+  <div class="modal-card venue-edit-modal">
+    <div class="venue-edit-step" id="venueEditStep1">
+      <h3>Venue setup</h3>
+      <p class="sub" style="margin:0 0 14px">Step 1 of 2 — how many halls at this venue?</p>
+      <div class="fld"><label>Number of halls</label><input type="number" id="editHallCountInput" min="1" max="20" value="1"></div>
+      <p class="sub" id="editHallCountHint" style="margin-top:8px"></p>
+      <div class="venue-edit-actions">
+        <button type="button" class="btn" id="venueEditStep1Ok">OK</button>
+        <button type="button" class="btn ghost" id="venueEditCancel1">Cancel</button>
+      </div>
+    </div>
+    <div class="venue-edit-step" id="venueEditStep2" hidden>
+      <h3 id="editParkingStepTitle">Parking</h3>
+      <p class="sub" id="editParkingHint" style="margin:0 0 14px"></p>
+      <div class="two">
+        <div class="fld"><label>Car parking</label><input type="number" id="editParkCar" min="0" value="80"></div>
+        <div class="fld"><label>Bike parking</label><input type="number" id="editParkBike" min="0" value="120"></div>
+      </div>
+      <div class="venue-edit-actions">
+        <button type="button" class="btn" id="venueEditSave">Save</button>
+        <button type="button" class="btn ghost" id="venueEditBack">Back</button>
+        <button type="button" class="btn ghost" id="venueEditCancel2">Cancel</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 </div></div>
 <!-- APP_START -->
 <script>
-const OWNER_BUILD = '2026-09-28-hall-owner-v42';
+const OWNER_BUILD = '2026-09-28-hall-owner-v43';
 const DEMO_FILE = 'hall-owner-lmb-master.html';
 const PKG_KEY = 'GIXBEE_HALL_PACKAGE';
 
@@ -948,6 +972,7 @@ const state = {
 
 let calPendingBlock = null;
 let calPendingUnblock = null;
+let pendingVenueHallCount = 1;
 
 const MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
@@ -2047,6 +2072,111 @@ function bindPackageRequiredUi() {
   }
 }
 
+function showVenueEditStep(step) {
+  const s1 = el('venueEditStep1');
+  const s2 = el('venueEditStep2');
+  if (s1) s1.hidden = step !== 1;
+  if (s2) s2.hidden = step !== 2;
+}
+
+function closeVenueEditOverlay() {
+  closeOverlay('venueEditOverlay');
+  state.parkingEditOpen = false;
+  if (el('editParkingBtn')) el('editParkingBtn').disabled = false;
+  setHallBizDisabled(false);
+  showVenueEditStep(1);
+}
+
+function openVenueEditOverlay() {
+  if (state.parkingEditOpen) return;
+  const added = state.halls.length;
+  const startCount = Math.max(state.plannedHallCount || 1, added || 1);
+  pendingVenueHallCount = startCount;
+  const inp = el('editHallCountInput');
+  if (inp) inp.value = startCount;
+  const hint = el('editHallCountHint');
+  if (hint) {
+    hint.textContent = added
+      ? 'You have ' + added + ' hall' + (added === 1 ? '' : 's') + ' added. Count cannot be less than that.'
+      : 'Set how many halls you plan to list, then enter parking.';
+  }
+  showVenueEditStep(1);
+  openOverlay('venueEditOverlay');
+  state.parkingEditOpen = true;
+  if (el('editParkingBtn')) el('editParkingBtn').disabled = true;
+  setHallBizDisabled(true);
+}
+
+function applyVenueEditStep2Labels(count) {
+  const labels = parkingLabelsForHallCount(count);
+  const title = el('editParkingStepTitle');
+  const hint = el('editParkingHint');
+  if (title) title.textContent = labels.title;
+  if (hint) hint.textContent = labels.hint;
+  if (el('editParkCar')) el('editParkCar').value = state.commonParking.car;
+  if (el('editParkBike')) el('editParkBike').value = state.commonParking.bike;
+}
+
+function saveVenueSetupFromEdit() {
+  const count = pendingVenueHallCount;
+  const car = +(el('editParkCar') && el('editParkCar').value) || 0;
+  const bike = +(el('editParkBike') && el('editParkBike').value) || 0;
+  state.plannedHallCount = count;
+  state.commonParking = { car: car, bike: bike };
+  savePkg();
+  closeVenueEditOverlay();
+  renderParkingSummary();
+  renderHallBizHome();
+  toast(count > 1 ? 'Venue updated — common parking saved.' : 'Venue updated — parking saved.');
+}
+
+function bindVenueEditUi() {
+  const editPark = el('editParkingBtn');
+  if (editPark) {
+    editPark.onclick = function () {
+      openVenueEditOverlay();
+    };
+  }
+  const ok1 = el('venueEditStep1Ok');
+  if (ok1) {
+    ok1.onclick = function () {
+      const count = Math.max(1, +(el('editHallCountInput') && el('editHallCountInput').value) || 1);
+      const added = state.halls.length;
+      if (count < added) {
+        toast('You already have ' + added + ' hall' + (added === 1 ? '' : 's') + '. Delete a hall first or set count to at least ' + added + '.');
+        return;
+      }
+      pendingVenueHallCount = count;
+      applyVenueEditStep2Labels(count);
+      showVenueEditStep(2);
+    };
+  }
+  const back = el('venueEditBack');
+  if (back) {
+    back.onclick = function () {
+      showVenueEditStep(1);
+    };
+  }
+  const save = el('venueEditSave');
+  if (save) {
+    save.onclick = function () {
+      saveVenueSetupFromEdit();
+    };
+  }
+  ['venueEditCancel1', 'venueEditCancel2'].forEach(function (id) {
+    const b = el(id);
+    if (b) b.onclick = function () {
+      closeVenueEditOverlay();
+    };
+  });
+  const overlay = el('venueEditOverlay');
+  if (overlay) {
+    overlay.onclick = function (e) {
+      if (e.target === overlay) closeVenueEditOverlay();
+    };
+  }
+}
+
 function normalizeHallRecords() {
   if (!state.halls) state.halls = [];
   state.halls.forEach(function (h) {
@@ -2089,18 +2219,28 @@ function syncActiveHallFromState() {
   h.hallName = state.useHallName ? String(state.hallName || '').trim() : '';
 }
 
-function parkingDisplay() {
-  const multi = state.plannedHallCount > 1 || state.halls.length > 1;
-  if (state.hallSetupComplete) {
+function parkingLabelsForHallCount(count) {
+  const n = Math.max(1, +count || 1);
+  if (n <= 1) {
     return {
-      title: multi ? 'Common parking (shared by all halls)' : 'Shared parking',
-      car: state.commonParking.car,
-      bike: state.commonParking.bike,
-      common: true,
+      title: 'Parking',
+      setupLbl: 'PARKING',
+      hint: 'Car and bike parking for your hall (shown to customers).',
     };
   }
   return {
-    title: multi ? 'Common parking (shared by all halls)' : 'Shared parking',
+    title: 'Common parking (shared by halls)',
+    setupLbl: 'COMMON PARKING (SHARED)',
+    hint: 'One shared car and bike count for all ' + n + ' halls.',
+  };
+}
+
+function parkingDisplay() {
+  const multi = state.plannedHallCount > 1 || state.halls.length > 1;
+  const labelCount = multi ? Math.max(state.plannedHallCount || 1, state.halls.length) : 1;
+  const labels = parkingLabelsForHallCount(labelCount);
+  return {
+    title: labels.title,
     car: state.commonParking.car,
     bike: state.commonParking.bike,
     common: true,
@@ -2178,13 +2318,9 @@ function revealSetupParking() {
   const lbl = el('setupParkingLbl');
   const hint = el('setupParkingHint');
   if (sec) sec.hidden = false;
-  if (count > 1) {
-    if (lbl) lbl.textContent = 'COMMON PARKING (SHARED)';
-    if (hint) hint.textContent = 'One shared car and bike count for all ' + count + ' halls.';
-  } else {
-    if (lbl) lbl.textContent = 'SHARED PARKING';
-    if (hint) hint.textContent = 'Car and bike parking for your hall (shown to customers).';
-  }
+  const labels = parkingLabelsForHallCount(count);
+  if (lbl) lbl.textContent = labels.setupLbl;
+  if (hint) hint.textContent = labels.hint;
   if (el('setupParkCar')) el('setupParkCar').value = state.commonParking.car;
   if (el('setupParkBike')) el('setupParkBike').value = state.commonParking.bike;
   const actions = el('setupActionsWrap');
@@ -2223,14 +2359,7 @@ function renderParkingSummary() {
       esc(String(p.bike)) +
       '</span>';
   }
-  const editWrap = el('parkingEditWrap');
-  if (editWrap && editWrap.hidden) {
-    const carIn = el('editParkCar');
-    const bikeIn = el('editParkBike');
-    if (carIn) carIn.value = p.car;
-    if (bikeIn) bikeIn.value = p.bike;
-  }
-  setHallBizDisabled(editWrap && !editWrap.hidden);
+  setHallBizDisabled(state.parkingEditOpen);
 }
 
 function renderHallCards() {
@@ -2360,7 +2489,15 @@ function renderHallBizHome() {
   const heroTitle = el('venueHeroTitle');
   if (heroTitle) heroTitle.textContent = state.businessName;
   const countLbl = el('hallCountLbl');
-  if (countLbl) countLbl.textContent = '(' + state.halls.length + ')';
+  if (countLbl) {
+    const added = state.halls.length;
+    const planned = Math.max(1, state.plannedHallCount || 1);
+    if (planned > 1 && added !== planned) {
+      countLbl.textContent = '(' + added + ' of ' + planned + ')';
+    } else {
+      countLbl.textContent = '(' + added + ')';
+    }
+  }
   const parkWrap = el('parkingBlockWrap');
   if (parkWrap) parkWrap.hidden = !state.hallSetupComplete;
   renderParkingSummary();
@@ -3312,50 +3449,7 @@ function bindOwnerEvents() {
   bindOperatorsUi();
   bindHallMediaUi();
   bindPackageRequiredUi();
-  const editPark = el('editParkingBtn');
-  if (editPark) {
-    editPark.onclick = function () {
-      const wrap = el('parkingEditWrap');
-      if (!wrap || state.parkingEditOpen) return;
-      wrap.hidden = false;
-      const p = parkingDisplay();
-      if (el('editParkCar')) el('editParkCar').value = p.car;
-      if (el('editParkBike')) el('editParkBike').value = p.bike;
-      editPark.disabled = true;
-      setHallBizDisabled(true);
-    };
-  }
-  const savePark = el('saveParkingBtn');
-  if (savePark) {
-    savePark.onclick = function () {
-      const car = +(el('editParkCar') && el('editParkCar').value) || 0;
-      const bike = +(el('editParkBike') && el('editParkBike').value) || 0;
-      const p = parkingDisplay();
-      if (p.common) {
-        state.commonParking.car = car;
-        state.commonParking.bike = bike;
-      } else {
-        state.capacity.car = car;
-        state.capacity.bike = bike;
-      }
-      savePkg();
-      if (el('parkingEditWrap')) el('parkingEditWrap').hidden = true;
-      if (el('editParkingBtn')) el('editParkingBtn').disabled = false;
-      setHallBizDisabled(false);
-      renderParkingSummary();
-      renderHallBizHome();
-      toast('Parking updated.');
-    };
-  }
-  const cancelPark = el('cancelParkingBtn');
-  if (cancelPark) {
-    cancelPark.onclick = function () {
-      if (el('parkingEditWrap')) el('parkingEditWrap').hidden = true;
-      if (el('editParkingBtn')) el('editParkingBtn').disabled = false;
-      setHallBizDisabled(false);
-      renderParkingSummary();
-    };
-  }
+  bindVenueEditUi();
   const addHall = el('addHallBtn');
   if (addHall) {
     addHall.onclick = function () {

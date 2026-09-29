@@ -292,6 +292,11 @@ textarea{width:100%;border:1px solid var(--line);border-radius:10px;padding:10px
 .pkg-required-modal .pkg-required-body{font-size:14px;color:#475569;line-height:1.55;margin:0 0 20px;text-align:center}
 .pkg-required-modal .pkg-required-body b{color:var(--navy)}
 .pkg-required-modal #pkgRequiredOk{width:100%;margin:0}
+.venue-edit-modal{text-align:left;max-width:360px;padding:20px 18px 18px}
+.venue-edit-modal h3{margin:0 0 6px;font-size:18px;color:var(--navy)}
+.venue-edit-step[hidden]{display:none!important}
+.venue-edit-actions{display:flex;flex-direction:column;gap:8px;margin-top:16px}
+.venue-edit-actions .btn{margin:0}
 .month-list{max-height:320px;overflow:auto;margin:0 -4px}
 .month-list button{display:flex;width:100%;align-items:center;justify-content:space-between;border:0;background:#fff;padding:14px 12px;border-radius:10px;font-weight:800;font-size:14px;cursor:pointer;color:var(--ink)}
 .month-list button.on{background:#EFF6FF;color:#1D4ED8}
@@ -430,15 +435,6 @@ textarea{width:100%;border:1px solid var(--line);border-radius:10px;padding:10px
         <button type="button" class="edit-park-btn" id="editParkingBtn">✎ Edit</button>
       </div>
       <div class="parking-stats" id="parkingSummaryText"><span>🚗 Cars: 80</span><span>🏍 Bikes: 120</span></div>
-    </div>
-    <div id="parkingEditWrap" hidden class="sum" style="background:#F9FAFB;margin-bottom:14px">
-      <p class="lbl" style="margin-top:0">EDIT PARKING</p>
-      <div class="two">
-        <div class="fld"><label>Cars</label><input type="number" id="editParkCar" min="0" value="80"></div>
-        <div class="fld"><label>Bikes</label><input type="number" id="editParkBike" min="0" value="120"></div>
-      </div>
-      <button type="button" class="btn" id="saveParkingBtn" style="margin-bottom:8px">Save parking</button>
-      <button type="button" class="btn ghost" id="cancelParkingBtn">Cancel</button>
     </div>
     </div>
     <div id="hallBizDisabledZone">
@@ -743,6 +739,34 @@ textarea{width:100%;border:1px solid var(--line);border-radius:10px;padding:10px
     <h3>Add pricing &amp; packages first</h3>
     <p class="pkg-required-body">Open <b>Price &amp; packages</b> from Manage, complete all 5 steps, and tap <b>Save Package</b> on Review. Then Calendar, Operators, and Booking requests will unlock for this hall.</p>
     <button type="button" class="btn" id="pkgRequiredOk">OK</button>
+  </div>
+</div>
+
+<div class="overlay center" id="venueEditOverlay" aria-hidden="true">
+  <div class="modal-card venue-edit-modal">
+    <div class="venue-edit-step" id="venueEditStep1">
+      <h3>Venue setup</h3>
+      <p class="sub" style="margin:0 0 14px">Step 1 of 2 — how many halls at this venue?</p>
+      <div class="fld"><label>Number of halls</label><input type="number" id="editHallCountInput" min="1" max="20" value="1"></div>
+      <p class="sub" id="editHallCountHint" style="margin-top:8px"></p>
+      <div class="venue-edit-actions">
+        <button type="button" class="btn" id="venueEditStep1Ok">OK</button>
+        <button type="button" class="btn ghost" id="venueEditCancel1">Cancel</button>
+      </div>
+    </div>
+    <div class="venue-edit-step" id="venueEditStep2" hidden>
+      <h3 id="editParkingStepTitle">Parking</h3>
+      <p class="sub" id="editParkingHint" style="margin:0 0 14px"></p>
+      <div class="two">
+        <div class="fld"><label>Car parking</label><input type="number" id="editParkCar" min="0" value="80"></div>
+        <div class="fld"><label>Bike parking</label><input type="number" id="editParkBike" min="0" value="120"></div>
+      </div>
+      <div class="venue-edit-actions">
+        <button type="button" class="btn" id="venueEditSave">Save</button>
+        <button type="button" class="btn ghost" id="venueEditBack">Back</button>
+        <button type="button" class="btn ghost" id="venueEditCancel2">Cancel</button>
+      </div>
+    </div>
   </div>
 </div>
 
