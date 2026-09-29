@@ -10,6 +10,7 @@
 body{margin:0;background:#E8EDF5;font-family:Inter,system-ui,sans-serif;color:var(--ink)}
 .stage{min-height:100vh;display:flex;justify-content:center;padding:20px 10px}
 .phone{width:min(100%,430px);background:#fff;min-height:860px;border-radius:36px;box-shadow:var(--shadow);overflow:hidden;position:relative;border:8px solid #111}
+.phone.add-venue-mode{}
 .notch{height:28px;display:flex;justify-content:space-between;padding:8px 18px 0;font-size:12px;font-weight:700}
 .scr{display:none;padding:0 0 92px;min-height:800px}
 .scr.on{display:block}
@@ -70,6 +71,14 @@ h2{margin:0 0 6px;font-size:18px}
 .pkg-biz-card b{display:block;font-size:16px;color:var(--navy);margin-bottom:4px}
 .pkg-biz-loc{font-size:12px;color:#475569;font-weight:600;display:flex;align-items:center;gap:4px;margin-bottom:6px}
 .pkg-biz-note{font-size:11px;color:#0D9488;font-weight:600;margin:0;line-height:1.4}
+.pkg-biz-name-lbl{font-size:11px;color:#64748B;font-weight:700;margin:0 0 2px;line-height:1.35}
+.space-type-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:0 0 14px}
+.space-type-card{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;min-height:88px;padding:14px 10px;border:1.5px solid var(--line);border-radius:14px;background:#fff;cursor:pointer;font-size:14px;font-weight:800;color:#374151}
+.space-type-card.on{border-color:var(--gn);background:#F0FDF4;color:#065F46;box-shadow:0 0 0 3px #D1FADF}
+.space-type-card .st-ico{font-size:26px;line-height:1}
+.space-type-card .st-radio{width:18px;height:18px;border-radius:50%;border:2px solid #D1D5DB;background:#fff}
+.space-type-card.on .st-radio{border-color:var(--gn);box-shadow:inset 0 0 0 4px var(--gn)}
+.add-venue-mode #pkg2 .prog,.add-venue-mode #pkg2 .steps{display:none}
 .cap-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:12px 0}
 .cap-field label{display:flex;align-items:center;gap:6px;font-size:12px;font-weight:800;margin:0 0 6px;color:#374151}
 .cap-field .cap-ico{font-size:16px}
@@ -324,7 +333,7 @@ textarea{width:100%;border:1px solid var(--line);border-radius:10px;padding:10px
 <body>
 <noscript><div style="padding:24px;font:16px sans-serif;color:#b91c1c"><b>JavaScript is off.</b> Turn it on, then reopen this file. Or serve via <code>python3 -m http.server 8765</code> in the prototypes folder.</div></noscript>
 <div id="bootError" hidden style="position:fixed;inset:0;z-index:99999;background:#fff;padding:24px;font:15px sans-serif;overflow:auto"></div>
-<div class="stage"><div class="phone">
+<div class="stage"><div class="phone" id="phoneRoot">
 <div class="notch"><span>9:41</span><span>●●●</span></div>
 
 <section class="scr on" id="lmbDashboard">
@@ -488,7 +497,7 @@ textarea{width:100%;border:1px solid var(--line);border-radius:10px;padding:10px
 </section>
 
 <section class="scr" id="pkg1">
-  <div class="top"><button class="back" type="button" data-to="manage">←</button><h1>Pricing &amp; Packages</h1><span class="chip-h">1/5</span></div>
+  <div class="top"><button class="back" type="button" id="pkg1BackBtn">←</button><h1 id="pkg1HeadTitle">Pricing &amp; Packages</h1><span class="chip-h" id="pkg1StepChip">1/5</span></div>
   <div class="prog"><div class="bar"><i style="width:20%"></i></div><span class="frac">1/5</span></div>
   <div class="steps" id="pkgSteps"></div>
   <div class="pad"><h2>Event Categories</h2><p class="sub">Select the functions you accept at your hall.</p><div id="eventCats"></div></div>
@@ -496,12 +505,13 @@ textarea{width:100%;border:1px solid var(--line);border-radius:10px;padding:10px
 </section>
 
 <section class="scr" id="pkg2">
-  <div class="top pkg-detail-top"><button class="back pkg-back-lbl" type="button" data-to="pkg1">← Back</button><h1>Hall Details</h1><span class="chip-h">2/5</span></div>
-  <div class="prog"><div class="bar"><i style="width:40%"></i></div><span class="frac">2/5</span></div>
+  <div class="top pkg-detail-top"><button class="back pkg-back-lbl" type="button" id="pkg2BackBtn">← Back</button><h1 id="pkg2HeadTitle">Hall Details</h1><span class="chip-h" id="pkg2StepChip">2/5</span></div>
+  <div class="prog" id="pkg2ProgWrap"><div class="bar"><i id="pkg2ProgBar" style="width:40%"></i></div><span class="frac" id="pkg2FracLbl">2/5</span></div>
   <div class="pad pkg2-pad">
     <div class="pkg-biz-card">
       <div class="pkg-biz-thumb" aria-hidden="true"></div>
       <div style="min-width:0;flex:1">
+        <p class="pkg-biz-name-lbl" id="pkg2BizNameLbl">Business name (shown on search cards)</p>
         <b id="pkg2BizTitle">Vijaya Convention Center</b>
         <p class="pkg-biz-loc"><span aria-hidden="true">📍</span> <span id="pkg2BizLoc">Kottayam, Kerala</span></p>
         <p class="pkg-biz-note">Cannot be changed — from List My Business.</p>
@@ -509,9 +519,16 @@ textarea{width:100%;border:1px solid var(--line);border-radius:10px;padding:10px
       </div>
     </div>
     <div id="hallNamePkgWrap" class="manage-name-panel">
-      <div class="manage-name-panel-hd"><span class="tag-ico" aria-hidden="true">🏷</span> Hall name <span style="color:var(--rd);font-weight:900">*</span></div>
+      <div class="manage-name-panel-hd" id="pkg2NamePanelHd"><span class="tag-ico" aria-hidden="true">🏷</span> <span id="pkg2NameLbl">Hall name</span> <span style="color:var(--rd);font-weight:900">*</span></div>
       <input id="hallNameInput" type="text" placeholder="Hall 1">
       <p class="sub" style="margin:8px 0 0;font-size:12px">Examples: Koinonia, Grand Hall, AC Banquet Hall — shown to customers when they book.</p>
+    </div>
+    <div id="spaceTypeBlock" hidden>
+      <p class="pkg-section-hd" style="margin-top:0"><span aria-hidden="true">🏠</span> Space type <span style="color:var(--rd);font-weight:900">*</span></p>
+      <div class="space-type-grid" id="spaceTypeGrid">
+        <button type="button" class="space-type-card on" data-space-type="indoor" id="spaceTypeIndoor"><span class="st-ico" aria-hidden="true">🏛</span><span>Indoor</span><span class="st-radio" aria-hidden="true"></span></button>
+        <button type="button" class="space-type-card" data-space-type="outdoor" id="spaceTypeOutdoor"><span class="st-ico" aria-hidden="true">🌳</span><span>Outdoor</span><span class="st-radio" aria-hidden="true"></span></button>
+      </div>
     </div>
     <div class="cap-grid">
       <div class="cap-field"><label><span class="cap-ico" aria-hidden="true">👥</span> Seating Capacity</label><input id="seatCap" type="number" min="0" value="700"><span class="cap-suffix">guests</span></div>
@@ -523,7 +540,7 @@ textarea{width:100%;border:1px solid var(--line);border-radius:10px;padding:10px
     <p class="pkg-section-hd"><span aria-hidden="true">🍴</span> Catering &amp; Decoration (for customers)</p>
     <div class="cater-stack" id="caterDec"></div>
   </div>
-  <div class="cta"><button class="btn btn-continue" type="button" data-to="pkg3">Continue</button></div>
+  <div class="cta"><button class="btn btn-continue" type="button" id="pkg2ContinueBtn">Continue</button></div>
 </section>
 
 <section class="scr" id="pkg3">

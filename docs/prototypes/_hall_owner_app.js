@@ -1,4 +1,5 @@
-const OWNER_BUILD = '2026-09-28-hall-owner-v52';
+const OWNER_BUILD = '2026-09-28-hall-owner-v53';
+const ADD_VENUE_WIZARD_TITLE = 'Add Venue Space';
 
 function goBackFromManageToHalls() {
   if (!validateHallNameRequired()) return;
@@ -174,6 +175,8 @@ const state = {
   plannedHallCount: 2,
   parkingEditOpen: false,
   openedFromAddHall: false,
+  addVenueWizard: false,
+  spaceType: 'indoor',
   commonParking: { car: 80, bike: 120 },
   halls: [],
   events: ['wedding', 'reception', 'engagement', 'birthday', 'baptism', 'anniversary', 'religious'],
@@ -378,6 +381,8 @@ function commitHallPackageFromState() {
   const h = activeHall();
   if (!h) return;
   capturePkg2();
+  captureSpaceType();
+  syncActiveHallFromState();
   capturePkg3();
   capturePkg4();
   ensureSlotOffers();
@@ -1132,6 +1137,7 @@ function loadPkg() {
   normalizeHallRecords();
   syncPlannedHallCount();
   state.parkingEditOpen = false;
+  state.addVenueWizard = false;
 }
 function syncPlannedHallCount() {
   if (!state.hallSetupComplete) return;
@@ -1210,7 +1216,11 @@ function customerHallName() {
 function validateHallNameRequired() {
   captureNameFields();
   if (!String(state.hallName || '').trim()) {
-    toast('Enter a hall name (e.g. Hall 1 or Koinonia).');
+    toast(
+      state.addVenueWizard
+        ? 'Enter a space name (e.g. Hall 1 or Koinonia).'
+        : 'Enter a hall name (e.g. Hall 1 or Koinonia).',
+    );
     return false;
   }
   return true;
@@ -1484,6 +1494,7 @@ function loadActiveHallIntoState() {
   ensureHallNameOnRecord(h);
   state.useHallName = true;
   state.hallName = String(h.hallName || '').trim();
+  state.spaceType = h.spaceType === 'outdoor' ? 'outdoor' : 'indoor';
   if (h.package) {
     applyPackageSlice(h.package);
   } else {
@@ -1496,6 +1507,7 @@ function syncActiveHallFromState() {
   if (!h) return;
   h.useHallName = true;
   h.hallName = String(state.hallName || '').trim() || resolvedHallName(h);
+  h.spaceType = state.spaceType === 'outdoor' ? 'outdoor' : 'indoor';
 }
 
 function parkingLabelsForHallCount(count) {
@@ -1949,7 +1961,8 @@ function renderPkgSteps(n) {
 }
 
 function renderPkg1() {
-  renderPkgSteps(1);
+  if (state.addVenueWizard) applyAddVenueWizardChrome('pkg1', 2);
+  else renderPkgSteps(1);
   el('eventCats').innerHTML = EVENT_CATS.map(
     (c) =>
       `<label class="ev${state.events.includes(c.id) ? ' on' : ''}"><span>${c.icon}</span><span style="flex:1;font-weight:800">${esc(
@@ -1970,18 +1983,117 @@ function renderPkg1() {
       toast('Select at least one event category.');
       return;
     }
+    if (state.addVenueWizard) {
+      renderPkg3();
+      applyAddVenueWizardChrome('pkg3', 3);
+      show('pkg3');
+      return;
+    }
     renderPkg2();
+    applyPkg2ModeChrome();
     show('pkg2');
   };
 }
 
+function toggleAddVenueWizardMode(on) {
+  state.addVenueWizard = !!on;
+  const phone = el('phoneRoot');
+  if (phone) phone.classList.toggle('add-venue-mode', !!on);
+}
+
+function applyAddVenueWizardChrome(screenId, step) {
+  if (!state.addVenueWizard) return;
+  const scr = el(screenId);
+  if (!scr) return;
+  const top = scr.querySelector('.top h1');
+  const chip = scr.querySelector('.top .chip-h');
+  const frac = scr.querySelector('.prog .frac');
+  const bar = scr.querySelector('.prog .bar i');
+  if (top) top.textContent = ADD_VENUE_WIZARD_TITLE;
+  const label = step + '/5';
+  if (chip) chip.textContent = label;
+  if (frac) frac.textContent = label;
+  if (bar) bar.style.width = step * 20 + '%';
+}
+
+function applyPkg2ModeChrome() {
+  const title = el('pkg2HeadTitle');
+  const chip = el('pkg2StepChip');
+  const frac = el('pkg2FracLbl');
+  const bar = el('pkg2ProgBar');
+  const nameLbl = el('pkg2NameLbl');
+  const bizLbl = el('pkg2BizNameLbl');
+  const spaceBlock = el('spaceTypeBlock');
+  if (state.addVenueWizard) {
+    if (title) title.textContent = ADD_VENUE_WIZARD_TITLE;
+    if (chip) chip.textContent = '1/5';
+    if (frac) frac.textContent = '1/5';
+    if (bar) bar.style.width = '20%';
+    if (nameLbl) nameLbl.textContent = 'Space name';
+    if (bizLbl) bizLbl.hidden = false;
+    if (spaceBlock) spaceBlock.hidden = false;
+  } else {
+    if (title) title.textContent = 'Hall Details';
+    if (chip) chip.textContent = '2/5';
+    if (frac) frac.textContent = '2/5';
+    if (bar) bar.style.width = '40%';
+    if (nameLbl) nameLbl.textContent = 'Hall name';
+    if (bizLbl) bizLbl.hidden = true;
+    if (spaceBlock) spaceBlock.hidden = true;
+  }
+}
+
+function renderSpaceTypeUi() {
+  const type = state.spaceType === 'outdoor' ? 'outdoor' : 'indoor';
+  state.spaceType = type;
+  document.querySelectorAll('[data-space-type]').forEach(function (btn) {
+    btn.classList.toggle('on', btn.getAttribute('data-space-type') === type);
+  });
+}
+
+function captureSpaceType() {
+  const picked = document.querySelector('[data-space-type].on');
+  state.spaceType = picked && picked.getAttribute('data-space-type') === 'outdoor' ? 'outdoor' : 'indoor';
+}
+
+function openAddVenueSpaceStep1() {
+  toggleAddVenueWizardMode(true);
+  renderPkg2();
+  applyPkg2ModeChrome();
+  show('pkg2');
+  syncHallInactiveLock();
+}
+
+function finishAddVenueWizard() {
+  toggleAddVenueWizardMode(false);
+  state.openedFromAddHall = false;
+  applyPkg2ModeChrome();
+}
+
+function cancelAddVenueWizard() {
+  const fromAdd = state.openedFromAddHall;
+  const hid = state.activeHallId;
+  finishAddVenueWizard();
+  if (fromAdd && hid) {
+    state.halls = state.halls.filter(function (h) {
+      return h.id !== hid;
+    });
+    state.activeHallId = state.halls[0] ? state.halls[0].id : '';
+  }
+  savePkg();
+  renderHallBizHome();
+  show('hallBizHome');
+}
+
 function renderPkg2() {
-  renderPkgSteps(2);
+  if (!state.addVenueWizard) renderPkgSteps(2);
+  applyPkg2ModeChrome();
   renderManageHeader();
   el('seatCap').value = state.capacity.seat;
   el('dineCap').value = state.capacity.dine;
   el('rooms').value = state.capacity.rooms;
   syncHallNameUi();
+  renderSpaceTypeUi();
   el('facGrid').innerHTML = FACILITIES.map(function (f) {
     const on = state.facilities.includes(f);
     const icon = FACILITY_ICONS[f] || '•';
@@ -2040,6 +2152,12 @@ function renderPkg2() {
     r.onchange = () => {
       state.catering[r.name] = r.value;
       renderPkg2();
+    };
+  });
+  document.querySelectorAll('[data-space-type]').forEach(function (btn) {
+    btn.onclick = function () {
+      state.spaceType = btn.getAttribute('data-space-type') === 'outdoor' ? 'outdoor' : 'indoor';
+      renderSpaceTypeUi();
     };
   });
 }
@@ -2191,7 +2309,8 @@ function validateSlotOffers() {
 }
 
 function renderPkg3() {
-  renderPkgSteps(3);
+  if (state.addVenueWizard) applyAddVenueWizardChrome('pkg3', 3);
+  else renderPkgSteps(3);
   ensureSlotOffers();
   el('slotPricing').innerHTML =
     state.slotOffers.map(renderSlotOfferRow).join('') +
@@ -2243,7 +2362,8 @@ function capturePkg3() {
 }
 
 function renderPkg4() {
-  renderPkgSteps(4);
+  if (state.addVenueWizard) applyAddVenueWizardChrome('pkg4', 4);
+  else renderPkgSteps(4);
   ensurePolicyRules();
   const p = state.payment;
   const tab = pkg4PolicyTab === 'reschedule' ? 'reschedule' : 'cancel';
@@ -2335,7 +2455,8 @@ function capturePkg4() {
 }
 
 function renderPkg5() {
-  renderPkgSteps(5);
+  if (state.addVenueWizard) applyAddVenueWizardChrome('pkg5', 5);
+  else renderPkgSteps(5);
   capturePkg2();
   capturePkg3();
   capturePkg4();
@@ -2376,10 +2497,26 @@ function renderPkg5() {
   el('savePkg').onclick = () => {
     const h = activeHall();
     const wasSaved = h && h.packageSaved;
+    const wasWizard = state.addVenueWizard;
+    const wasAdd = state.openedFromAddHall;
     commitHallPackageFromState();
+    syncActiveHallFromState();
+    savePkg();
     renderManageHeader();
     renderHallCards();
     toast(wasSaved ? 'Package updated — calendar uses your new slot times.' : 'Package saved on this device.');
+    if (wasWizard) {
+      finishAddVenueWizard();
+      renderHallBizHome();
+      show('hallBizHome');
+      if (wasAdd) {
+        const planned = Math.max(1, state.plannedHallCount || 1);
+        if (state.halls.length >= planned && planned > 1) {
+          toast('All ' + planned + ' halls are added for this venue.');
+        }
+      }
+      return;
+    }
     show('manage');
   };
 }
@@ -2727,6 +2864,19 @@ function bindOwnerEvents() {
   document.querySelectorAll('[data-to]').forEach((b) => {
     b.addEventListener('click', () => {
       const id = b.getAttribute('data-to');
+      if (id === 'pkg2' && state.addVenueWizard) {
+        const fromScr = document.querySelector('.scr.on');
+        if (fromScr && fromScr.id === 'pkg3') {
+          renderPkg1();
+          applyAddVenueWizardChrome('pkg1', 2);
+          show('pkg1');
+          return;
+        }
+        renderPkg2();
+        applyPkg2ModeChrome();
+        show('pkg2');
+        return;
+      }
       if (id === 'pkg2') renderPkg2();
       if (id === 'pkg3') {
         capturePkg2();
@@ -2785,6 +2935,7 @@ function bindOwnerEvents() {
         hallNumber: hallNum,
         useHallName: true,
         hallName: defaultName,
+        spaceType: 'indoor',
         requests: 0,
         hallActive: true,
         packageSaved: false,
@@ -2792,8 +2943,10 @@ function bindOwnerEvents() {
       state.activeHallId = id;
       state.useHallName = true;
       state.hallName = defaultName;
+      state.spaceType = 'indoor';
+      state.openedFromAddHall = true;
       loadActiveHallIntoState();
-      openManageScreen(true);
+      openAddVenueSpaceStep1();
     };
   }
   const dashHall = el('dashHallManage');
@@ -2836,6 +2989,48 @@ function bindOwnerEvents() {
   if (backBiz) backBiz.onclick = goBackFromManageToHalls;
   const manageBackFoot = el('manageBackToHallsBtn');
   if (manageBackFoot) manageBackFoot.onclick = goBackFromManageToHalls;
+  const pkg2Back = el('pkg2BackBtn');
+  if (pkg2Back) {
+    pkg2Back.onclick = function () {
+      if (state.addVenueWizard) {
+        cancelAddVenueWizard();
+        return;
+      }
+      capturePkg2();
+      renderPkg1();
+      show('pkg1');
+    };
+  }
+  const pkg2Cont = el('pkg2ContinueBtn');
+  if (pkg2Cont) {
+    pkg2Cont.onclick = function () {
+      capturePkg2();
+      captureSpaceType();
+      if (!validateHallNameRequired()) return;
+      syncActiveHallFromState();
+      savePkg();
+      if (state.addVenueWizard) {
+        renderPkg1();
+        applyAddVenueWizardChrome('pkg1', 2);
+        show('pkg1');
+        return;
+      }
+      renderPkg3();
+      show('pkg3');
+    };
+  }
+  const pkg1Back = el('pkg1BackBtn');
+  if (pkg1Back) {
+    pkg1Back.onclick = function () {
+      if (state.addVenueWizard) {
+        renderPkg2();
+        applyPkg2ModeChrome();
+        show('pkg2');
+        return;
+      }
+      show('manage');
+    };
+  }
   const manageNameIn = el('manageHallNameInput');
   if (manageNameIn) {
     manageNameIn.oninput = function () {
