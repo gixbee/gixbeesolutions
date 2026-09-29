@@ -172,9 +172,11 @@ textarea{width:100%;border:1px solid var(--line);border-radius:10px;padding:10px
 .hall-toggle input:checked + .hall-toggle-ui::after{transform:translateX(20px)}
 .hall-toggle-lbl{min-width:22px;color:#374151}
 .hall-inactive-banner{padding:10px 12px;border-radius:10px;background:#FEF3C7;color:#92400E;font-size:13px;line-height:1.45;margin-bottom:12px}
-.hall-inactive-lock input:not([readonly]):not([data-hall-toggle]),.hall-inactive-lock textarea,.hall-inactive-lock select,.hall-inactive-lock .menu .mrow,.hall-inactive-lock .cta .btn,.hall-inactive-lock .btn:not(.back):not(#backToBizHalls),.hall-inactive-lock label.ev,.hall-inactive-lock .policy-row input,.hall-inactive-lock .slot input{pointer-events:none;opacity:.45}
+.hall-inactive-lock input:not([readonly]):not([data-hall-toggle]),.hall-inactive-lock textarea,.hall-inactive-lock select,.hall-inactive-lock .menu .mrow,.hall-inactive-lock .cta .btn:not(#manageBackToHallsBtn),.hall-inactive-lock .btn:not(.back):not(#backToBizHalls):not(#manageBackToHallsBtn),.hall-inactive-lock label.ev,.hall-inactive-lock .policy-row input,.hall-inactive-lock .slot input{pointer-events:none;opacity:.45}
 .hall-inactive-lock #manageHallNameInput,.hall-inactive-lock #hallNameInput{pointer-events:none;opacity:.45}
-.hall-inactive-lock #backToBizHalls,.hall-inactive-lock .top .back{pointer-events:auto!important;opacity:1!important}
+.hall-inactive-lock #backToBizHalls,.hall-inactive-lock #manageBackToHallsBtn,.hall-inactive-lock .top .back{pointer-events:auto!important;opacity:1!important}
+.manage-back-cta{padding-top:4px}
+.manage-back-cta .btn{margin:0}
 .manage-name-actions{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px}
 .manage-name-actions .btn{margin:0}
 .hall-name-display{font-weight:800;font-size:15px;padding:10px 12px;border-radius:12px;background:linear-gradient(135deg,#EDE9FE 0%,#D1FAE5 100%);color:#5B21B6;border:1px solid rgba(91,33,182,.12)}
@@ -479,6 +481,9 @@ textarea{width:100%;border:1px solid var(--line);border-radius:10px;padding:10px
     <p class="lbl">MANAGE</p>
     <div class="menu" id="manageMenu"><p class="sub" id="jsWait">Loading menu…</p></div>
   </div>
+  <div class="cta manage-back-cta">
+    <button type="button" class="btn ghost" id="manageBackToHallsBtn">← Back to halls</button>
+  </div>
   </div>
 </section>
 
@@ -768,7 +773,24 @@ textarea{width:100%;border:1px solid var(--line);border-radius:10px;padding:10px
 </div></div>
 <!-- APP_START -->
 <script>
-const OWNER_BUILD = '2026-09-28-hall-owner-v49';
+const OWNER_BUILD = '2026-09-28-hall-owner-v50';
+
+function goBackFromManageToHalls() {
+  if (!validateHallNameRequired()) return;
+  persistActiveHallFromManage();
+  const fromAdd = state.openedFromAddHall;
+  state.openedFromAddHall = false;
+  renderHallBizHome();
+  renderManageNameMode();
+  renderManageHeader();
+  show('hallBizHome');
+  if (fromAdd) {
+    const planned = Math.max(1, state.plannedHallCount || 1);
+    if (state.halls.length >= planned && planned > 1) {
+      toast('All ' + planned + ' halls are added for this venue.');
+    }
+  }
+}
 const DEMO_FILE = 'hall-owner-lmb-master.html';
 const PKG_KEY = 'GIXBEE_HALL_PACKAGE';
 
@@ -3534,24 +3556,10 @@ function bindOwnerEvents() {
   }
   const bizHomeToDash = el('bizHomeToDash');
   if (bizHomeToDash) bizHomeToDash.onclick = function () { show('lmbDashboard'); };
-  function goBackFromManageToHalls() {
-    if (!validateHallNameRequired()) return;
-    persistActiveHallFromManage();
-    const fromAdd = state.openedFromAddHall;
-    state.openedFromAddHall = false;
-    renderHallBizHome();
-    renderManageNameMode();
-    renderManageHeader();
-    show('hallBizHome');
-    if (fromAdd) {
-      const planned = Math.max(1, state.plannedHallCount || 1);
-      if (state.halls.length >= planned && planned > 1) {
-        toast('All ' + planned + ' halls are added for this venue.');
-      }
-    }
-  }
   const backBiz = el('backToBizHalls');
   if (backBiz) backBiz.onclick = goBackFromManageToHalls;
+  const manageBackFoot = el('manageBackToHallsBtn');
+  if (manageBackFoot) manageBackFoot.onclick = goBackFromManageToHalls;
   const manageNameIn = el('manageHallNameInput');
   if (manageNameIn) {
     manageNameIn.oninput = function () {

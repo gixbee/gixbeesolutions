@@ -1,4 +1,21 @@
-const OWNER_BUILD = '2026-09-28-hall-owner-v49';
+const OWNER_BUILD = '2026-09-28-hall-owner-v50';
+
+function goBackFromManageToHalls() {
+  if (!validateHallNameRequired()) return;
+  persistActiveHallFromManage();
+  const fromAdd = state.openedFromAddHall;
+  state.openedFromAddHall = false;
+  renderHallBizHome();
+  renderManageNameMode();
+  renderManageHeader();
+  show('hallBizHome');
+  if (fromAdd) {
+    const planned = Math.max(1, state.plannedHallCount || 1);
+    if (state.halls.length >= planned && planned > 1) {
+      toast('All ' + planned + ' halls are added for this venue.');
+    }
+  }
+}
 const DEMO_FILE = 'hall-owner-lmb-master.html';
 const PKG_KEY = 'GIXBEE_HALL_PACKAGE';
 
@@ -2764,24 +2781,10 @@ function bindOwnerEvents() {
   }
   const bizHomeToDash = el('bizHomeToDash');
   if (bizHomeToDash) bizHomeToDash.onclick = function () { show('lmbDashboard'); };
-  function goBackFromManageToHalls() {
-    if (!validateHallNameRequired()) return;
-    persistActiveHallFromManage();
-    const fromAdd = state.openedFromAddHall;
-    state.openedFromAddHall = false;
-    renderHallBizHome();
-    renderManageNameMode();
-    renderManageHeader();
-    show('hallBizHome');
-    if (fromAdd) {
-      const planned = Math.max(1, state.plannedHallCount || 1);
-      if (state.halls.length >= planned && planned > 1) {
-        toast('All ' + planned + ' halls are added for this venue.');
-      }
-    }
-  }
   const backBiz = el('backToBizHalls');
   if (backBiz) backBiz.onclick = goBackFromManageToHalls;
+  const manageBackFoot = el('manageBackToHallsBtn');
+  if (manageBackFoot) manageBackFoot.onclick = goBackFromManageToHalls;
   const manageNameIn = el('manageHallNameInput');
   if (manageNameIn) {
     manageNameIn.oninput = function () {
