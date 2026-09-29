@@ -1,4 +1,4 @@
-const OWNER_BUILD = '2026-09-28-hall-owner-v59';
+const OWNER_BUILD = '2026-09-28-hall-owner-v60';
 
 const FACILITY_PARKING_SECURITY = 'Security in Parking Area';
 
@@ -1649,6 +1649,30 @@ function hallCardHasAc(h) {
   return true;
 }
 
+function hallCardIsOutdoor(h) {
+  return !!(h && h.spaceType === 'outdoor');
+}
+
+function hallCardMetaPillsHtml(h) {
+  const guests = hallCardGuestCount(h);
+  let html =
+    '<span class="hall-pill hall-pill-guests"><span class="hall-pill-ico" aria-hidden="true">👥</span>' +
+    esc(String(guests)) +
+    ' guests</span>';
+  if (hallCardIsOutdoor(h)) {
+    html +=
+      '<span class="hall-pill hall-pill-outdoor"><span class="hall-pill-ico" aria-hidden="true">🌳</span>Outdoor space</span>';
+    return html;
+  }
+  html +=
+    '<span class="hall-pill hall-pill-indoor"><span class="hall-pill-ico" aria-hidden="true">🏛</span>Indoor</span>';
+  if (hallCardHasAc(h)) {
+    html +=
+      '<span class="hall-pill hall-pill-ac"><span class="hall-pill-ico" aria-hidden="true">❄</span>AC</span>';
+  }
+  return html;
+}
+
 function hallCardMinPrice(h) {
   if (!h || !h.package || !h.package.slotOffers) return null;
   const outdoor = h.spaceType === 'outdoor';
@@ -1794,11 +1818,11 @@ function renderHallCards() {
     .map(function (h) {
       const on = hallListingOn(h);
       const title = hallCardDisplayName(h);
-      const guests = hallCardGuestCount(h);
-      const hasAc = hallCardHasAc(h);
       const minPrice = hallCardMinPrice(h);
       const reqBadge = h.requests
-        ? ' · <span style="color:var(--rd)">' + esc(String(h.requests)) + ' requests</span>'
+        ? '<span class="hall-pill" style="background:#FEF2F2;border-color:#FECACA;color:#B91C1C"><span class="hall-pill-ico" aria-hidden="true">💬</span>' +
+          esc(String(h.requests)) +
+          ' requests</span>'
         : '';
       const priceHtml = minPrice != null ? '<div class="hall-rich-price">' + inr(minPrice) + ' onwards</div>' : '';
       const calDisabled = !on;
@@ -1816,10 +1840,7 @@ function renderHallCards() {
         esc(title) +
         '</b>' +
         '<div class="hall-rich-tags">' +
-        '<span>👥 ' +
-        esc(String(guests)) +
-        ' guests</span>' +
-        (hasAc ? '<span>❄ AC</span>' : '<span>No AC</span>') +
+        hallCardMetaPillsHtml(h) +
         reqBadge +
         '</div>' +
         priceHtml +
