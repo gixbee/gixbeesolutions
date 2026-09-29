@@ -170,8 +170,8 @@ textarea{width:100%;border:1px solid var(--line);border-radius:10px;padding:10px
 .hall-toggle input:checked + .hall-toggle-ui::after{transform:translateX(20px)}
 .hall-toggle-lbl{min-width:22px;color:#374151}
 .hall-inactive-banner{padding:10px 12px;border-radius:10px;background:#FEF3C7;color:#92400E;font-size:13px;line-height:1.45;margin-bottom:12px}
-.hall-inactive-lock input:not([readonly]):not([data-hall-toggle]),.hall-inactive-lock textarea,.hall-inactive-lock select,.hall-inactive-lock .menu .mrow,.hall-inactive-lock .cta .btn:not(#saveNewHallBtn),.hall-inactive-lock .btn:not(.back):not(#backToBizHalls):not(#saveNewHallBtn),.hall-inactive-lock label.ev,.hall-inactive-lock .policy-row input,.hall-inactive-lock .slot input,.hall-inactive-lock #manageUseHallName{pointer-events:none;opacity:.45}
-.hall-inactive-lock #manageHallNameInput,.hall-inactive-lock #manageUseHallName{pointer-events:none;opacity:.45}
+.hall-inactive-lock input:not([readonly]):not([data-hall-toggle]),.hall-inactive-lock textarea,.hall-inactive-lock select,.hall-inactive-lock .menu .mrow,.hall-inactive-lock .cta .btn:not(#saveNewHallBtn),.hall-inactive-lock .btn:not(.back):not(#backToBizHalls):not(#saveNewHallBtn),.hall-inactive-lock label.ev,.hall-inactive-lock .policy-row input,.hall-inactive-lock .slot input{pointer-events:none;opacity:.45}
+.hall-inactive-lock #manageHallNameInput,.hall-inactive-lock #hallNameInput{pointer-events:none;opacity:.45}
 .hall-inactive-lock #saveNewHallBtn{pointer-events:auto!important;opacity:1!important}
 .hall-inactive-lock #backToBizHalls,.hall-inactive-lock .top .back{pointer-events:auto!important;opacity:1!important}
 .manage-name-actions{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px}
@@ -467,13 +467,10 @@ textarea{width:100%;border:1px solid var(--line);border-radius:10px;padding:10px
       <input id="bizNameRo" type="text" readonly hidden value="Vijaya Convention Center">
       <p class="sub" style="margin:0;font-size:12px">Set when you listed on Gixbee — cannot be changed here. Shown on search cards.</p>
     </div>
-    <div id="manageNameCheckboxRow">
-      <label class="manage-check-row"><input type="checkbox" id="manageUseHallName"> This hall has its own name (optional)</label>
-    </div>
-    <div id="manageHallNamePanel" class="manage-name-panel" hidden>
-      <div class="manage-name-panel-hd"><span class="tag-ico" aria-hidden="true">🏷</span> Hall name</div>
-      <input id="manageHallNameInput" type="text" value="" placeholder="e.g. Koinonia">
-      <p class="sub" style="margin:8px 0 0;font-size:12px">Shown when customers book this hall.</p>
+    <div id="manageHallNamePanel" class="manage-name-panel">
+      <div class="manage-name-panel-hd"><span class="tag-ico" aria-hidden="true">🏷</span> Hall name <span style="color:var(--rd);font-weight:900">*</span></div>
+      <input id="manageHallNameInput" type="text" value="" placeholder="Hall 1">
+      <p class="sub" style="margin:8px 0 0;font-size:12px">Examples: Koinonia, Grand Hall, AC Banquet Hall — shown to customers when they book.</p>
     </div>
   </div>
   <div id="manageRestBlock">
@@ -508,11 +505,10 @@ textarea{width:100%;border:1px solid var(--line);border-radius:10px;padding:10px
         <input id="bizNamePkg" type="text" readonly hidden value="Vijaya Convention Center">
       </div>
     </div>
-    <label class="manage-check-row"><input type="checkbox" id="useHallNamePkg" checked> This hall has its own name (optional)</label>
     <div id="hallNamePkgWrap" class="manage-name-panel">
-      <div class="manage-name-panel-hd"><span class="tag-ico" aria-hidden="true">🏷</span> Hall name</div>
-      <input id="hallNameInput" type="text" placeholder="e.g. Koinonia">
-      <p class="sub" style="margin:8px 0 0;font-size:12px">Shown when customers book this hall.</p>
+      <div class="manage-name-panel-hd"><span class="tag-ico" aria-hidden="true">🏷</span> Hall name <span style="color:var(--rd);font-weight:900">*</span></div>
+      <input id="hallNameInput" type="text" placeholder="Hall 1">
+      <p class="sub" style="margin:8px 0 0;font-size:12px">Examples: Koinonia, Grand Hall, AC Banquet Hall — shown to customers when they book.</p>
     </div>
     <div class="cap-grid">
       <div class="cap-field"><label><span class="cap-ico" aria-hidden="true">👥</span> Seating Capacity</label><input id="seatCap" type="number" min="0" value="700"><span class="cap-suffix">guests</span></div>
