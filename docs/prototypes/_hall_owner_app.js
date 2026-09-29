@@ -1,5 +1,4 @@
-const OWNER_BUILD = '2026-09-28-hall-owner-v54';
-const PKG2_VENUE_TITLE = 'Add Venue Space';
+const OWNER_BUILD = '2026-09-28-hall-owner-v55';
 
 function goBackFromManageToHalls() {
   if (!validateHallNameRequired()) return;
@@ -1953,7 +1952,7 @@ function renderManage() {
 function renderPkgSteps(n) {
   const stepsEl = el('pkgSteps');
   if (!stepsEl) return;
-  const steps = ['Event Categories', 'Venue Space', 'Pricing & Time Slots', 'Payment & Policies', 'Review & Save'];
+  const steps = ['Event Categories', 'Hall Details', 'Pricing & Time Slots', 'Payment & Policies', 'Review & Save'];
   stepsEl.innerHTML = steps
     .map((s, i) => `<span class="step${i + 1 === n ? ' on' : ''}">${i + 1}. ${s}</span>`)
     .join('');
@@ -1994,7 +1993,7 @@ function applyPkg2Chrome() {
   const nameLbl = el('pkg2NameLbl');
   const bizLbl = el('pkg2BizNameLbl');
   const spaceBlock = el('spaceTypeBlock');
-  if (title) title.textContent = PKG2_VENUE_TITLE;
+  if (title) title.textContent = 'Hall Details';
   if (chip) chip.textContent = '2/5';
   if (frac) frac.textContent = '2/5';
   if (bar) bar.style.width = '40%';
