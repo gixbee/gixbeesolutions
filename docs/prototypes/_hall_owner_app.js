@@ -2287,11 +2287,7 @@ function renderPkg5() {
       .map((t) => `<span class="tag">${esc(t)}</span>`)
       .join('')}</div></div>
     <div class="sum"><div class="hd"><b>Venue Details</b><button type="button" class="see" data-to="pkg2">Edit</button></div>
-      <p class="sub"><b>${esc(state.businessName)}</b>${
-        customerHallName()
-          ? ' · Hall: <b>' + esc(customerHallName()) + '</b>'
-          : ' · <span class="sub">No separate hall name</span>'
-      }</p>
+      <p class="sub"><b>${esc(state.businessName)}</b> · Hall: <b>${esc(customerHallName() || '—')}</b></p>
       <p class="sub">Seating ${state.capacity.seat} · Dining ${state.capacity.dine}</p>
       <p class="sub">Parking: 🚗 ${state.commonParking.car} cars · 🏍 ${state.commonParking.bike} bikes (shared — edit on Halls page)</p>
       <p class="sub" style="margin-top:8px"><b>Catering &amp; decoration (on your profile — add-ons, not in hall slot rent):</b><br>${cateringReviewLines()
