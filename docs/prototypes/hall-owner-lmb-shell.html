@@ -10,7 +10,6 @@
 body{margin:0;background:#E8EDF5;font-family:Inter,system-ui,sans-serif;color:var(--ink)}
 .stage{min-height:100vh;display:flex;justify-content:center;padding:20px 10px}
 .phone{width:min(100%,430px);background:#fff;min-height:860px;border-radius:36px;box-shadow:var(--shadow);overflow:hidden;position:relative;border:8px solid #111}
-.phone.add-venue-mode{}
 .notch{height:28px;display:flex;justify-content:space-between;padding:8px 18px 0;font-size:12px;font-weight:700}
 .scr{display:none;padding:0 0 92px;min-height:800px}
 .scr.on{display:block}
@@ -64,8 +63,6 @@ h2{margin:0 0 6px;font-size:18px}
 .manage-name-panel-hd .tag-ico{font-size:18px}
 .manage-name-panel input{width:100%;border:1px solid #86EFAC;border-radius:10px;padding:12px 14px;font-weight:700;font-size:15px;color:var(--navy);background:#fff}
 .manage-name-panel input:disabled{background:#F3F4F6;color:#9CA3AF}
-.pkg-detail-top .pkg-back-lbl{width:auto;font-size:14px;font-weight:800;padding:0 4px}
-#pkg2 .prog,#pkg2 .steps{display:none}
 .pkg-biz-card{display:flex;gap:12px;padding:14px;background:#F0FDFA;border:1px solid #99F6E4;border-radius:16px;margin-bottom:14px;align-items:flex-start}
 .pkg-biz-thumb{width:72px;height:64px;border-radius:10px;background:linear-gradient(145deg,#64748B,#94A3B8);flex-shrink:0}
 .pkg-biz-card b{display:block;font-size:16px;color:var(--navy);margin-bottom:4px}
@@ -78,7 +75,7 @@ h2{margin:0 0 6px;font-size:18px}
 .space-type-card .st-ico{font-size:26px;line-height:1}
 .space-type-card .st-radio{width:18px;height:18px;border-radius:50%;border:2px solid #D1D5DB;background:#fff}
 .space-type-card.on .st-radio{border-color:var(--gn);box-shadow:inset 0 0 0 4px var(--gn)}
-.add-venue-mode #pkg2 .prog,.add-venue-mode #pkg2 .steps{display:none}
+.pkg-detail-top .pkg-back-lbl{width:auto;font-size:14px;font-weight:800;padding:0 4px}
 .cap-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:12px 0}
 .cap-field label{display:flex;align-items:center;gap:6px;font-size:12px;font-weight:800;margin:0 0 6px;color:#374151}
 .cap-field .cap-ico{font-size:16px}
@@ -523,7 +520,7 @@ textarea{width:100%;border:1px solid var(--line);border-radius:10px;padding:10px
       <input id="hallNameInput" type="text" placeholder="Hall 1">
       <p class="sub" style="margin:8px 0 0;font-size:12px">Examples: Koinonia, Grand Hall, AC Banquet Hall — shown to customers when they book.</p>
     </div>
-    <div id="spaceTypeBlock" hidden>
+    <div id="spaceTypeBlock">
       <p class="pkg-section-hd" style="margin-top:0"><span aria-hidden="true">🏠</span> Space type <span style="color:var(--rd);font-weight:900">*</span></p>
       <div class="space-type-grid" id="spaceTypeGrid">
         <button type="button" class="space-type-card on" data-space-type="indoor" id="spaceTypeIndoor"><span class="st-ico" aria-hidden="true">🏛</span><span>Indoor</span><span class="st-radio" aria-hidden="true"></span></button>

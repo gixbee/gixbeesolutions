@@ -1,5 +1,5 @@
-const OWNER_BUILD = '2026-09-28-hall-owner-v53';
-const ADD_VENUE_WIZARD_TITLE = 'Add Venue Space';
+const OWNER_BUILD = '2026-09-28-hall-owner-v54';
+const PKG2_VENUE_TITLE = 'Add Venue Space';
 
 function goBackFromManageToHalls() {
   if (!validateHallNameRequired()) return;
@@ -175,7 +175,6 @@ const state = {
   plannedHallCount: 2,
   parkingEditOpen: false,
   openedFromAddHall: false,
-  addVenueWizard: false,
   spaceType: 'indoor',
   commonParking: { car: 80, bike: 120 },
   halls: [],
@@ -1137,7 +1136,6 @@ function loadPkg() {
   normalizeHallRecords();
   syncPlannedHallCount();
   state.parkingEditOpen = false;
-  state.addVenueWizard = false;
 }
 function syncPlannedHallCount() {
   if (!state.hallSetupComplete) return;
@@ -1216,8 +1214,9 @@ function customerHallName() {
 function validateHallNameRequired() {
   captureNameFields();
   if (!String(state.hallName || '').trim()) {
+    const onPkg2 = el('pkg2') && el('pkg2').classList.contains('on');
     toast(
-      state.addVenueWizard
+      onPkg2
         ? 'Enter a space name (e.g. Hall 1 or Koinonia).'
         : 'Enter a hall name (e.g. Hall 1 or Koinonia).',
     );
@@ -1954,15 +1953,14 @@ function renderManage() {
 function renderPkgSteps(n) {
   const stepsEl = el('pkgSteps');
   if (!stepsEl) return;
-  const steps = ['Event Categories', 'Venue Details', 'Pricing & Time Slots', 'Payment & Policies', 'Review & Save'];
+  const steps = ['Event Categories', 'Venue Space', 'Pricing & Time Slots', 'Payment & Policies', 'Review & Save'];
   stepsEl.innerHTML = steps
     .map((s, i) => `<span class="step${i + 1 === n ? ' on' : ''}">${i + 1}. ${s}</span>`)
     .join('');
 }
 
 function renderPkg1() {
-  if (state.addVenueWizard) applyAddVenueWizardChrome('pkg1', 2);
-  else renderPkgSteps(1);
+  renderPkgSteps(1);
   el('eventCats').innerHTML = EVENT_CATS.map(
     (c) =>
       `<label class="ev${state.events.includes(c.id) ? ' on' : ''}"><span>${c.icon}</span><span style="flex:1;font-weight:800">${esc(
@@ -1983,40 +1981,12 @@ function renderPkg1() {
       toast('Select at least one event category.');
       return;
     }
-    if (state.addVenueWizard) {
-      renderPkg3();
-      applyAddVenueWizardChrome('pkg3', 3);
-      show('pkg3');
-      return;
-    }
     renderPkg2();
-    applyPkg2ModeChrome();
     show('pkg2');
   };
 }
 
-function toggleAddVenueWizardMode(on) {
-  state.addVenueWizard = !!on;
-  const phone = el('phoneRoot');
-  if (phone) phone.classList.toggle('add-venue-mode', !!on);
-}
-
-function applyAddVenueWizardChrome(screenId, step) {
-  if (!state.addVenueWizard) return;
-  const scr = el(screenId);
-  if (!scr) return;
-  const top = scr.querySelector('.top h1');
-  const chip = scr.querySelector('.top .chip-h');
-  const frac = scr.querySelector('.prog .frac');
-  const bar = scr.querySelector('.prog .bar i');
-  if (top) top.textContent = ADD_VENUE_WIZARD_TITLE;
-  const label = step + '/5';
-  if (chip) chip.textContent = label;
-  if (frac) frac.textContent = label;
-  if (bar) bar.style.width = step * 20 + '%';
-}
-
-function applyPkg2ModeChrome() {
+function applyPkg2Chrome() {
   const title = el('pkg2HeadTitle');
   const chip = el('pkg2StepChip');
   const frac = el('pkg2FracLbl');
@@ -2024,23 +1994,13 @@ function applyPkg2ModeChrome() {
   const nameLbl = el('pkg2NameLbl');
   const bizLbl = el('pkg2BizNameLbl');
   const spaceBlock = el('spaceTypeBlock');
-  if (state.addVenueWizard) {
-    if (title) title.textContent = ADD_VENUE_WIZARD_TITLE;
-    if (chip) chip.textContent = '1/5';
-    if (frac) frac.textContent = '1/5';
-    if (bar) bar.style.width = '20%';
-    if (nameLbl) nameLbl.textContent = 'Space name';
-    if (bizLbl) bizLbl.hidden = false;
-    if (spaceBlock) spaceBlock.hidden = false;
-  } else {
-    if (title) title.textContent = 'Hall Details';
-    if (chip) chip.textContent = '2/5';
-    if (frac) frac.textContent = '2/5';
-    if (bar) bar.style.width = '40%';
-    if (nameLbl) nameLbl.textContent = 'Hall name';
-    if (bizLbl) bizLbl.hidden = true;
-    if (spaceBlock) spaceBlock.hidden = true;
-  }
+  if (title) title.textContent = PKG2_VENUE_TITLE;
+  if (chip) chip.textContent = '2/5';
+  if (frac) frac.textContent = '2/5';
+  if (bar) bar.style.width = '40%';
+  if (nameLbl) nameLbl.textContent = 'Space name';
+  if (bizLbl) bizLbl.hidden = false;
+  if (spaceBlock) spaceBlock.hidden = false;
 }
 
 function renderSpaceTypeUi() {
@@ -2056,38 +2016,9 @@ function captureSpaceType() {
   state.spaceType = picked && picked.getAttribute('data-space-type') === 'outdoor' ? 'outdoor' : 'indoor';
 }
 
-function openAddVenueSpaceStep1() {
-  toggleAddVenueWizardMode(true);
-  renderPkg2();
-  applyPkg2ModeChrome();
-  show('pkg2');
-  syncHallInactiveLock();
-}
-
-function finishAddVenueWizard() {
-  toggleAddVenueWizardMode(false);
-  state.openedFromAddHall = false;
-  applyPkg2ModeChrome();
-}
-
-function cancelAddVenueWizard() {
-  const fromAdd = state.openedFromAddHall;
-  const hid = state.activeHallId;
-  finishAddVenueWizard();
-  if (fromAdd && hid) {
-    state.halls = state.halls.filter(function (h) {
-      return h.id !== hid;
-    });
-    state.activeHallId = state.halls[0] ? state.halls[0].id : '';
-  }
-  savePkg();
-  renderHallBizHome();
-  show('hallBizHome');
-}
-
 function renderPkg2() {
-  if (!state.addVenueWizard) renderPkgSteps(2);
-  applyPkg2ModeChrome();
+  renderPkgSteps(2);
+  applyPkg2Chrome();
   renderManageHeader();
   el('seatCap').value = state.capacity.seat;
   el('dineCap').value = state.capacity.dine;
@@ -2309,8 +2240,7 @@ function validateSlotOffers() {
 }
 
 function renderPkg3() {
-  if (state.addVenueWizard) applyAddVenueWizardChrome('pkg3', 3);
-  else renderPkgSteps(3);
+  renderPkgSteps(3);
   ensureSlotOffers();
   el('slotPricing').innerHTML =
     state.slotOffers.map(renderSlotOfferRow).join('') +
@@ -2362,8 +2292,7 @@ function capturePkg3() {
 }
 
 function renderPkg4() {
-  if (state.addVenueWizard) applyAddVenueWizardChrome('pkg4', 4);
-  else renderPkgSteps(4);
+  renderPkgSteps(4);
   ensurePolicyRules();
   const p = state.payment;
   const tab = pkg4PolicyTab === 'reschedule' ? 'reschedule' : 'cancel';
@@ -2455,8 +2384,7 @@ function capturePkg4() {
 }
 
 function renderPkg5() {
-  if (state.addVenueWizard) applyAddVenueWizardChrome('pkg5', 5);
-  else renderPkgSteps(5);
+  renderPkgSteps(5);
   capturePkg2();
   capturePkg3();
   capturePkg4();
@@ -2497,26 +2425,10 @@ function renderPkg5() {
   el('savePkg').onclick = () => {
     const h = activeHall();
     const wasSaved = h && h.packageSaved;
-    const wasWizard = state.addVenueWizard;
-    const wasAdd = state.openedFromAddHall;
     commitHallPackageFromState();
-    syncActiveHallFromState();
-    savePkg();
     renderManageHeader();
     renderHallCards();
     toast(wasSaved ? 'Package updated — calendar uses your new slot times.' : 'Package saved on this device.');
-    if (wasWizard) {
-      finishAddVenueWizard();
-      renderHallBizHome();
-      show('hallBizHome');
-      if (wasAdd) {
-        const planned = Math.max(1, state.plannedHallCount || 1);
-        if (state.halls.length >= planned && planned > 1) {
-          toast('All ' + planned + ' halls are added for this venue.');
-        }
-      }
-      return;
-    }
     show('manage');
   };
 }
@@ -2864,24 +2776,12 @@ function bindOwnerEvents() {
   document.querySelectorAll('[data-to]').forEach((b) => {
     b.addEventListener('click', () => {
       const id = b.getAttribute('data-to');
-      if (id === 'pkg2' && state.addVenueWizard) {
-        const fromScr = document.querySelector('.scr.on');
-        if (fromScr && fromScr.id === 'pkg3') {
-          renderPkg1();
-          applyAddVenueWizardChrome('pkg1', 2);
-          show('pkg1');
-          return;
-        }
-        renderPkg2();
-        applyPkg2ModeChrome();
-        show('pkg2');
-        return;
-      }
       if (id === 'pkg2') renderPkg2();
       if (id === 'pkg3') {
         capturePkg2();
+        captureSpaceType();
         if (!String(state.hallName || '').trim()) {
-          toast('Enter a hall name (e.g. Hall 1 or Koinonia).');
+          toast('Enter a space name (e.g. Hall 1 or Koinonia).');
           return;
         }
         renderPkg3();
@@ -2946,7 +2846,7 @@ function bindOwnerEvents() {
       state.spaceType = 'indoor';
       state.openedFromAddHall = true;
       loadActiveHallIntoState();
-      openAddVenueSpaceStep1();
+      openManageScreen(true);
     };
   }
   const dashHall = el('dashHallManage');
@@ -2992,11 +2892,8 @@ function bindOwnerEvents() {
   const pkg2Back = el('pkg2BackBtn');
   if (pkg2Back) {
     pkg2Back.onclick = function () {
-      if (state.addVenueWizard) {
-        cancelAddVenueWizard();
-        return;
-      }
       capturePkg2();
+      captureSpaceType();
       renderPkg1();
       show('pkg1');
     };
@@ -3009,12 +2906,6 @@ function bindOwnerEvents() {
       if (!validateHallNameRequired()) return;
       syncActiveHallFromState();
       savePkg();
-      if (state.addVenueWizard) {
-        renderPkg1();
-        applyAddVenueWizardChrome('pkg1', 2);
-        show('pkg1');
-        return;
-      }
       renderPkg3();
       show('pkg3');
     };
@@ -3022,12 +2913,6 @@ function bindOwnerEvents() {
   const pkg1Back = el('pkg1BackBtn');
   if (pkg1Back) {
     pkg1Back.onclick = function () {
-      if (state.addVenueWizard) {
-        renderPkg2();
-        applyPkg2ModeChrome();
-        show('pkg2');
-        return;
-      }
       show('manage');
     };
   }
