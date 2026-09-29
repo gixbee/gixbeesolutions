@@ -135,6 +135,8 @@ h2{margin:0 0 6px;font-size:18px}
 .home-pill{padding:8px 14px;border-radius:99px;background:var(--gn);color:#fff;font-weight:800;font-size:12px;border:0}
 .biz-title{font-size:17px;font-weight:900;color:var(--navy);flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .manage-pill{font-size:11px;font-weight:800;color:var(--mut);border:1px solid var(--line);padding:6px 10px;border-radius:99px;background:#fff;flex-shrink:0;white-space:nowrap}
+.manage-top h1{font-size:17px}
+.manage-top .manage-pill{margin-left:auto}
 .lmb-top .row{align-items:center;gap:8px;flex-wrap:nowrap}
 .home-pill{flex-shrink:0;white-space:nowrap}
 .steps{display:flex;gap:6px;padding:12px 16px;overflow:auto;font-size:10px;color:var(--mut)}
@@ -448,14 +450,14 @@ textarea{width:100%;border:1px solid var(--line);border-radius:10px;padding:10px
 </section>
 
 <section class="scr" id="manage">
-  <div class="lmb-top">
-    <div class="row">
-      <button type="button" class="back" id="backToBizHalls" style="width:auto;padding:0 8px;font-size:13px;font-weight:800">← Halls</button>
-      <div class="biz-title">List My Business</div>
-      <span class="manage-pill">Manage &amp; grow</span>
-    </div>
-    <p class="sub" style="margin:8px 0 0" id="manageSubLine">Vijaya Convention Center · Hall: Tiffle · Service · Hall</p>
-    <p class="hint" id="buildTagManage" style="margin:8px 0 0;font-size:11px">Hall manage — pricing, calendar, requests</p>
+  <div class="top manage-top">
+    <button type="button" class="back" id="backToBizHalls" aria-label="Back to halls">←</button>
+    <h1>Manage hall</h1>
+    <span class="manage-pill">Manage &amp; grow</span>
+  </div>
+  <div class="pad" style="padding-bottom:4px">
+    <p class="sub" style="margin:0" id="manageSubLine">Vijaya Convention Center · Hall: Tiffle · Service · Hall</p>
+    <p class="hint" id="buildTagManage" style="margin:6px 0 0;font-size:11px">Hall manage — pricing, calendar, requests</p>
   </div>
   <div class="pad" style="padding-top:4px">
     <div id="hallInactiveBanner" hidden class="hall-inactive-banner">This hall is <b>Off</b> on your Halls list. Turn the toggle <b>On</b> on the hall card to edit names, pricing, and calendar again.</div>
@@ -766,7 +768,7 @@ textarea{width:100%;border:1px solid var(--line);border-radius:10px;padding:10px
 </div></div>
 <!-- APP_START -->
 <script>
-const OWNER_BUILD = '2026-09-28-hall-owner-v48';
+const OWNER_BUILD = '2026-09-28-hall-owner-v49';
 const DEMO_FILE = 'hall-owner-lmb-master.html';
 const PKG_KEY = 'GIXBEE_HALL_PACKAGE';
 
@@ -3532,25 +3534,24 @@ function bindOwnerEvents() {
   }
   const bizHomeToDash = el('bizHomeToDash');
   if (bizHomeToDash) bizHomeToDash.onclick = function () { show('lmbDashboard'); };
-  const backBiz = el('backToBizHalls');
-  if (backBiz) {
-    backBiz.onclick = function () {
-      if (!validateHallNameRequired()) return;
-      persistActiveHallFromManage();
-      const fromAdd = state.openedFromAddHall;
-      state.openedFromAddHall = false;
-      renderHallBizHome();
-      renderManageNameMode();
-      renderManageHeader();
-      show('hallBizHome');
-      if (fromAdd) {
-        const planned = Math.max(1, state.plannedHallCount || 1);
-        if (state.halls.length >= planned && planned > 1) {
-          toast('All ' + planned + ' halls are added for this venue.');
-        }
+  function goBackFromManageToHalls() {
+    if (!validateHallNameRequired()) return;
+    persistActiveHallFromManage();
+    const fromAdd = state.openedFromAddHall;
+    state.openedFromAddHall = false;
+    renderHallBizHome();
+    renderManageNameMode();
+    renderManageHeader();
+    show('hallBizHome');
+    if (fromAdd) {
+      const planned = Math.max(1, state.plannedHallCount || 1);
+      if (state.halls.length >= planned && planned > 1) {
+        toast('All ' + planned + ' halls are added for this venue.');
       }
-    };
+    }
   }
+  const backBiz = el('backToBizHalls');
+  if (backBiz) backBiz.onclick = goBackFromManageToHalls;
   const manageNameIn = el('manageHallNameInput');
   if (manageNameIn) {
     manageNameIn.oninput = function () {
