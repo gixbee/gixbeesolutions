@@ -1,4 +1,4 @@
-const OWNER_BUILD = '2026-09-28-hall-owner-v45';
+const OWNER_BUILD = '2026-09-28-hall-owner-v46';
 const DEMO_FILE = 'hall-owner-lmb-master.html';
 const PKG_KEY = 'GIXBEE_HALL_PACKAGE';
 
@@ -1124,9 +1124,57 @@ function normalizeNames() {
   }
   state.hallName = String(state.hallName || '').trim();
 }
+function venueHasMultipleHalls() {
+  return state.plannedHallCount > 1 || state.halls.length > 1;
+}
+
+function ensureHallNumbers() {
+  if (!state.halls || !state.halls.length) return;
+  state.halls.forEach(function (h, i) {
+    if (h.hallNumber == null || h.hallNumber < 1) {
+      h.hallNumber = i + 1;
+    }
+  });
+}
+
+function nextHallNumber() {
+  ensureHallNumbers();
+  let max = 0;
+  state.halls.forEach(function (h) {
+    if (h.hallNumber > max) max = h.hallNumber;
+  });
+  return max + 1;
+}
+
+function hallDisplayNameForRecord(h) {
+  if (!h) return state.businessName || 'Your hall';
+  if (h.useHallName && String(h.hallName || '').trim()) {
+    return String(h.hallName).trim();
+  }
+  if (venueHasMultipleHalls()) {
+    const n =
+      h.hallNumber != null && h.hallNumber > 0
+        ? h.hallNumber
+        : Math.max(1, state.halls.indexOf(h) + 1);
+    return 'Hall ' + n;
+  }
+  return state.businessName || 'Your hall';
+}
+
 function customerHallName() {
-  if (!state.useHallName || !state.hallName) return '';
-  return state.hallName;
+  const h = activeHall();
+  if (!h) return '';
+  if (h.useHallName && String(h.hallName || '').trim()) {
+    return String(h.hallName).trim();
+  }
+  if (venueHasMultipleHalls()) {
+    const n =
+      h.hallNumber != null && h.hallNumber > 0
+        ? h.hallNumber
+        : Math.max(1, state.halls.indexOf(h) + 1);
+    return 'Hall ' + n;
+  }
+  return '';
 }
 function syncHallNameUi() {
   const show = !!state.useHallName;
@@ -1232,9 +1280,13 @@ function renderManageHeader() {
   const sub = el('manageSubLine');
   if (sub) {
     var hallPart = customerHallName();
-    sub.textContent = hallPart
-      ? state.businessName + ' · Hall: ' + hallPart + ' · Service · Hall'
-      : state.businessName + ' · Service · Hall';
+    var h = activeHall();
+    if (hallPart) {
+      var hallLabel = h && h.useHallName && String(h.hallName || '').trim() ? 'Hall: ' + hallPart : hallPart;
+      sub.textContent = state.businessName + ' · ' + hallLabel + ' · Service · Hall';
+    } else {
+      sub.textContent = state.businessName + ' · Service · Hall';
+    }
   }
   const bizRo = el('bizNameRo');
   if (bizRo) bizRo.value = state.businessName;
@@ -1410,6 +1462,7 @@ function normalizeHallRecords() {
       h.package = clonePackageSlice();
     }
   });
+  ensureHallNumbers();
 }
 
 function syncHallInactiveLock() {
@@ -1472,10 +1525,7 @@ function parkingDisplay() {
 }
 
 function hallCardDisplayName(h) {
-  if (h && h.useHallName && String(h.hallName || '').trim()) {
-    return String(h.hallName).trim();
-  }
-  return state.businessName || 'Your hall';
+  return hallDisplayNameForRecord(h);
 }
 
 function hallCardGuestCount(h) {
@@ -1505,12 +1555,19 @@ function hallCardMinPrice(h) {
   return min;
 }
 
+function updateAddHallButtonState() {
+  const addBtn = el('addHallBtn');
+  if (!addBtn) return;
+  const planned = Math.max(1, state.plannedHallCount || 1);
+  const atLimit = state.hallSetupComplete && state.halls.length >= planned;
+  addBtn.disabled = !!state.parkingEditOpen || atLimit;
+}
+
 function setHallBizDisabled(disabled) {
   state.parkingEditOpen = !!disabled;
   const zone = el('hallBizDisabledZone');
   if (zone) zone.classList.toggle('biz-home-disabled', !!disabled);
-  const addBtn = el('addHallBtn');
-  if (addBtn) addBtn.disabled = !!disabled;
+  updateAddHallButtonState();
 }
 
 function renderSetupScreen() {
@@ -1725,6 +1782,7 @@ function renderHallBizHome() {
   if (parkWrap) parkWrap.hidden = !state.hallSetupComplete;
   renderParkingSummary();
   renderHallCards();
+  updateAddHallButtonState();
 }
 
 function openManageScreen(fromAddHall) {
@@ -2677,9 +2735,16 @@ function bindOwnerEvents() {
   if (addHall) {
     addHall.onclick = function () {
       if (state.parkingEditOpen) return;
+      const planned = Math.max(1, state.plannedHallCount || 1);
+      if (state.halls.length >= planned) {
+        toast('All ' + planned + ' halls are added. Use Edit on parking to add more hall slots.');
+        return;
+      }
       const id = 'h' + Date.now();
+      const hallNum = nextHallNumber();
       state.halls.push({
         id: id,
+        hallNumber: hallNum,
         useHallName: false,
         hallName: '',
         requests: 0,
@@ -2741,7 +2806,12 @@ function bindOwnerEvents() {
       if (fromAdd) {
         show('hallBizHome');
       }
-      toast('Hall saved.');
+      const planned = Math.max(1, state.plannedHallCount || 1);
+      if (fromAdd && state.halls.length >= planned && planned > 1) {
+        toast('Hall saved. All ' + planned + ' halls are added for this venue.');
+      } else {
+        toast('Hall saved.');
+      }
     };
   }
   const bizHomeToDash = el('bizHomeToDash');
