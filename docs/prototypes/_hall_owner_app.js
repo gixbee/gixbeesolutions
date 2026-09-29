@@ -1,4 +1,6 @@
-const OWNER_BUILD = '2026-09-28-hall-owner-v58';
+const OWNER_BUILD = '2026-09-28-hall-owner-v59';
+
+const FACILITY_PARKING_SECURITY = 'Security in Parking Area';
 
 const FACILITIES_INDOOR = [
   'AC',
@@ -8,8 +10,7 @@ const FACILITIES_INDOOR = [
   'Sound System',
   'Restrooms',
   'Lift',
-  'Parking',
-  'Security',
+  FACILITY_PARKING_SECURITY,
 ];
 
 const FACILITIES_OUTDOOR = [
@@ -20,8 +21,7 @@ const FACILITIES_OUTDOOR = [
   'Stage',
   'Sound System',
   'Restrooms',
-  'Parking',
-  'Security',
+  FACILITY_PARKING_SECURITY,
 ];
 
 const FACILITY_ICONS = {
@@ -34,8 +34,7 @@ const FACILITY_ICONS = {
   'Sound System': '🔊',
   Restrooms: '🚻',
   Lift: '🛗',
-  Parking: '🅿',
-  Security: '🛡',
+  'Security in Parking Area': '🛡',
 };
 
 function venueIsOutdoor() {
@@ -95,7 +94,19 @@ function facilitiesForCurrentVenue() {
   return venueIsOutdoor() ? FACILITIES_OUTDOOR.slice() : FACILITIES_INDOOR.slice();
 }
 
+function migrateLegacyParkingSecurityFacilities() {
+  const fac = state.facilities || [];
+  const hadLegacy = fac.indexOf('Parking') >= 0 || fac.indexOf('Security') >= 0;
+  if (hadLegacy && fac.indexOf(FACILITY_PARKING_SECURITY) < 0) {
+    fac.push(FACILITY_PARKING_SECURITY);
+  }
+  state.facilities = fac.filter(function (f) {
+    return f !== 'Parking' && f !== 'Security';
+  });
+}
+
 function normalizeFacilitiesForVenueType() {
+  migrateLegacyParkingSecurityFacilities();
   const allowed = facilitiesForCurrentVenue();
   const set = {};
   allowed.forEach(function (f) {
