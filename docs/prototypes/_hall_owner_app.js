@@ -1,4 +1,4 @@
-const OWNER_BUILD = '2026-09-28-hall-owner-v50';
+const OWNER_BUILD = '2026-09-28-hall-owner-v51';
 
 function goBackFromManageToHalls() {
   if (!validateHallNameRequired()) return;
@@ -1345,7 +1345,7 @@ function closeVenueEditOverlay() {
   closeOverlay('venueEditOverlay');
   state.parkingEditOpen = false;
   if (el('editParkingBtn')) el('editParkingBtn').disabled = false;
-  setHallBizDisabled(false);
+  setHallBizZoneLocked(false);
   showVenueEditStep(1);
 }
 
@@ -1366,7 +1366,7 @@ function openVenueEditOverlay() {
   openOverlay('venueEditOverlay');
   state.parkingEditOpen = true;
   if (el('editParkingBtn')) el('editParkingBtn').disabled = true;
-  setHallBizDisabled(true);
+  setHallBizZoneLocked(true);
 }
 
 function applyVenueEditStep2Labels(count) {
@@ -1550,14 +1550,24 @@ function updateAddHallButtonState() {
   if (!addBtn) return;
   const planned = Math.max(1, state.plannedHallCount || 1);
   const atLimit = state.hallSetupComplete && state.halls.length >= planned;
-  addBtn.disabled = !!state.parkingEditOpen || atLimit;
+  const blocked = !!state.parkingEditOpen || atLimit;
+  addBtn.disabled = false;
+  addBtn.classList.toggle('btn-add-hall-muted', blocked);
+  addBtn.setAttribute('aria-disabled', blocked ? 'true' : 'false');
 }
 
-function setHallBizDisabled(disabled) {
-  state.parkingEditOpen = !!disabled;
+function setHallBizZoneLocked(locked) {
   const zone = el('hallBizDisabledZone');
-  if (zone) zone.classList.toggle('biz-home-disabled', !!disabled);
+  if (zone) zone.classList.toggle('biz-home-disabled', !!locked);
   updateAddHallButtonState();
+}
+
+function ensureHallBizHubReady() {
+  state.parkingEditOpen = false;
+  if (el('editParkingBtn')) el('editParkingBtn').disabled = false;
+  setHallBizZoneLocked(false);
+  closeOverlay('venueEditOverlay');
+  showVenueEditStep(1);
 }
 
 function renderSetupScreen() {
@@ -1603,12 +1613,13 @@ function revealSetupParking() {
 
 function initHallsFromSetup(count) {
   state.plannedHallCount = count;
-  state.halls = [];
+  if (!state.halls || !state.halls.length) state.halls = [];
 }
 
 function openHallFromDashboard() {
   state.businessName = 'Vijaya Convention Center';
-  if (state.hallSetupComplete && state.halls.length) {
+  if (state.hallSetupComplete) {
+    ensureHallBizHubReady();
     renderHallBizHome();
     show('hallBizHome');
     return;
@@ -1772,6 +1783,7 @@ function renderHallBizHome() {
   if (parkWrap) parkWrap.hidden = !state.hallSetupComplete;
   renderParkingSummary();
   renderHallCards();
+  if (!state.parkingEditOpen) setHallBizZoneLocked(false);
   updateAddHallButtonState();
 }
 
@@ -2725,10 +2737,13 @@ function bindOwnerEvents() {
   const addHall = el('addHallBtn');
   if (addHall) {
     addHall.onclick = function () {
-      if (state.parkingEditOpen) return;
+      if (state.parkingEditOpen) {
+        toast('Finish or cancel parking edit first.');
+        return;
+      }
       const planned = Math.max(1, state.plannedHallCount || 1);
-      if (state.halls.length >= planned) {
-        toast('All ' + planned + ' halls are added. Use Edit on parking to add more hall slots.');
+      if (state.hallSetupComplete && state.halls.length >= planned) {
+        toast('All ' + planned + ' halls are added. Tap Edit on parking to allow more halls.');
         return;
       }
       const id = 'h' + Date.now();
@@ -2771,8 +2786,13 @@ function bindOwnerEvents() {
         car: +(el('setupParkCar') && el('setupParkCar').value) || 0,
         bike: +(el('setupParkBike') && el('setupParkBike').value) || 0,
       };
-      initHallsFromSetup(count);
+      if (!state.hallSetupComplete) {
+        initHallsFromSetup(count);
+      } else {
+        state.plannedHallCount = count;
+      }
       state.hallSetupComplete = true;
+      ensureHallBizHubReady();
       savePkg();
       renderHallBizHome();
       show('hallBizHome');
@@ -2810,10 +2830,10 @@ function boot() {
     ensureSlotOffers();
     ensurePolicyRules();
     if (!state.commonParking) state.commonParking = { car: 80, bike: 120 };
-    if (state.hallSetupComplete && (!state.halls || !state.halls.length)) {
-      /* halls stay empty until owner uses + Add hall */
-    }
     if (!state.halls) state.halls = [];
+    if (state.hallSetupComplete && !state.plannedHallCount) {
+      state.plannedHallCount = Math.max(1, state.halls.length || 1);
+    }
     normalizeHallRecords();
     if (!state.activeHallId && state.halls[0]) state.activeHallId = state.halls[0].id;
     if (state.activeHallId && !state.halls.find(function (h) { return h.id === state.activeHallId; })) {
@@ -2824,8 +2844,7 @@ function boot() {
     renderHallBizHome();
     renderManage();
     bindOwnerEvents();
-    setHallBizDisabled(false);
-    closeOverlay('venueEditOverlay');
+    ensureHallBizHubReady();
     show('lmbDashboard');
     var tag = el('buildTag');
     if (tag) {
