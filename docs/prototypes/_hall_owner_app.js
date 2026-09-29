@@ -1,4 +1,4 @@
-const OWNER_BUILD = '2026-09-28-hall-owner-v51';
+const OWNER_BUILD = '2026-09-28-hall-owner-v52';
 
 function goBackFromManageToHalls() {
   if (!validateHallNameRequired()) return;
@@ -1130,7 +1130,18 @@ function loadPkg() {
   ensureSlotOffers();
   ensurePolicyRules();
   normalizeHallRecords();
+  syncPlannedHallCount();
   state.parkingEditOpen = false;
+}
+function syncPlannedHallCount() {
+  if (!state.hallSetupComplete) return;
+  const added = state.halls ? state.halls.length : 0;
+  if (!state.plannedHallCount || state.plannedHallCount < 1) {
+    state.plannedHallCount = Math.max(2, added || 1);
+  }
+  if (added > state.plannedHallCount) {
+    state.plannedHallCount = added;
+  }
 }
 function normalizeNames() {
   if (!state.businessName) state.businessName = 'Vijaya Convention Center';
@@ -1385,6 +1396,7 @@ function saveVenueSetupFromEdit() {
   const bike = +(el('editParkBike') && el('editParkBike').value) || 0;
   state.plannedHallCount = count;
   state.commonParking = { car: car, bike: bike };
+  syncPlannedHallCount();
   closeVenueEditOverlay();
   savePkg();
   renderParkingSummary();
@@ -1547,13 +1559,32 @@ function hallCardMinPrice(h) {
 
 function updateAddHallButtonState() {
   const addBtn = el('addHallBtn');
+  const hint = el('addHallHint');
   if (!addBtn) return;
+  syncPlannedHallCount();
   const planned = Math.max(1, state.plannedHallCount || 1);
-  const atLimit = state.hallSetupComplete && state.halls.length >= planned;
-  const blocked = !!state.parkingEditOpen || atLimit;
+  const added = state.halls.length;
+  const atLimit = state.hallSetupComplete && added >= planned;
   addBtn.disabled = false;
-  addBtn.classList.toggle('btn-add-hall-muted', blocked);
-  addBtn.setAttribute('aria-disabled', blocked ? 'true' : 'false');
+  addBtn.classList.remove('btn-add-hall-muted');
+  addBtn.removeAttribute('aria-disabled');
+  if (hint) {
+    if (atLimit) {
+      hint.hidden = false;
+      hint.textContent =
+        'All ' +
+        planned +
+        ' hall' +
+        (planned === 1 ? '' : 's') +
+        ' added for this venue. Tap Edit on parking to allow more halls.';
+    } else if (state.hallSetupComplete && planned > 1) {
+      hint.hidden = false;
+      hint.textContent = 'You can add ' + (planned - added) + ' more hall' + (planned - added === 1 ? '' : 's') + ' (' + added + ' of ' + planned + ').';
+    } else {
+      hint.hidden = true;
+      hint.textContent = '';
+    }
+  }
 }
 
 function setHallBizZoneLocked(locked) {
@@ -2831,9 +2862,7 @@ function boot() {
     ensurePolicyRules();
     if (!state.commonParking) state.commonParking = { car: 80, bike: 120 };
     if (!state.halls) state.halls = [];
-    if (state.hallSetupComplete && !state.plannedHallCount) {
-      state.plannedHallCount = Math.max(1, state.halls.length || 1);
-    }
+    syncPlannedHallCount();
     normalizeHallRecords();
     if (!state.activeHallId && state.halls[0]) state.activeHallId = state.halls[0].id;
     if (state.activeHallId && !state.halls.find(function (h) { return h.id === state.activeHallId; })) {

@@ -192,10 +192,9 @@ textarea{width:100%;border:1px solid var(--line);border-radius:10px;padding:10px
 .parking-hub-card .hd b{font-size:14px;color:var(--navy);line-height:1.35;flex:1}
 .edit-park-btn{display:inline-flex;align-items:center;gap:6px;padding:8px 12px;border-radius:10px;background:#DBEAFE;border:0;color:var(--navy);font-weight:800;font-size:12px;cursor:pointer;flex-shrink:0;white-space:nowrap}
 .parking-stats{display:flex;flex-wrap:wrap;gap:14px;font-size:13px;font-weight:700;color:#1E3A8A}
-.btn-add-hall{display:flex;align-items:center;justify-content:center;gap:8px;margin:4px 0 16px}
+.btn-add-hall{display:flex;align-items:center;justify-content:center;gap:8px;margin:4px 0 8px}
 .btn-add-hall::before{content:'+';font-size:20px;font-weight:900;line-height:1}
-.btn-add-hall.btn-add-hall-muted{opacity:.55;filter:grayscale(.2)}
-.biz-home-disabled .btn-add-hall{pointer-events:auto;opacity:1;filter:none}
+.add-hall-hint{margin:-4px 0 14px;font-size:12px;line-height:1.45;color:var(--mut)}
 .halls-section-lbl{display:flex;align-items:baseline;justify-content:space-between;margin:0 0 10px}
 .halls-section-lbl .lbl{margin:0}
 .hall-card-rich{border:1px solid var(--line);border-radius:16px;padding:12px;margin-bottom:12px;background:#fff}
@@ -440,8 +439,9 @@ textarea{width:100%;border:1px solid var(--line);border-radius:10px;padding:10px
       <div class="parking-stats" id="parkingSummaryText"><span>🚗 Cars: 80</span><span>🏍 Bikes: 120</span></div>
     </div>
     </div>
-    <div id="hallBizDisabledZone">
     <button type="button" class="btn btn-add-hall" id="addHallBtn">Add Hall</button>
+    <p class="sub add-hall-hint" id="addHallHint" hidden></p>
+    <div id="hallBizDisabledZone">
     <div class="halls-section-lbl">
       <p class="lbl">YOUR HALLS</p>
       <span class="sub" id="hallCountLbl" style="margin:0;font-weight:800">(0)</span>
