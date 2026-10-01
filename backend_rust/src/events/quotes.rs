@@ -327,7 +327,8 @@ async fn offer_hall_revision(
             let basis = pkg
                 .get("deductionBasis")
                 .and_then(|v| v.as_str())
-                .unwrap_or("ADVANCE");
+                .unwrap_or("ADVANCE")
+                .to_string();
             sqlx::query(
                 r#"INSERT INTO hall_booking_terms_snapshot
                    (id,"quoteId","quoteRevision","packageRevisionId","hallId","deductionBasis",terms)

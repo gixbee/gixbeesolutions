@@ -5,7 +5,7 @@ mod policy;
 
 use axum::{
     extract::{Path, Query, State},
-    routing::{delete, get, patch, post, put},
+    routing::{delete, get, post, put},
     Json, Router,
 };
 use chrono::{DateTime, Utc};
