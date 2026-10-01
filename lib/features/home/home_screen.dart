@@ -18,7 +18,6 @@ import '../worker/go_live_screen.dart';
 import '../booking/instant_help_screen.dart';
 import '../rentals/rentals_catalog_screen.dart';
 import 'active_booking_card.dart';
-import '../notifications/notifications_screen.dart';
 import '../../core/main_tab_provider.dart';
 import '../../shared/widgets/gx_profile_avatar.dart';
 
@@ -74,11 +73,10 @@ class HomeScreen extends ConsumerWidget {
     Navigator.push(context, MaterialPageRoute(builder: (_) => screen));
   }
 
-  // ── Location bar: wordmark · separator · location · bell · avatar ────────
+  // ── Location bar: wordmark · separator · location · avatar ───────────────
   Widget _locationBar(BuildContext context, WidgetRef ref) {
     final address = ref.watch(currentAddressProvider);
     final user = ref.watch(currentUserProvider).value;
-    final hasUnreadNotifs = ref.watch(hasUnreadNotificationsProvider).value ?? false;
     final avatarName = (user?.name?.trim().isNotEmpty ?? false)
         ? user!.name!.trim()
         : 'G';
@@ -147,45 +145,6 @@ class HomeScreen extends ConsumerWidget {
                       style: TextStyle(fontSize: 11, color: context.gx.ink.withValues(alpha: 0.55))),
                 ],
               ),
-            ),
-          ),
-          SizedBox(width: 8),
-          // Notification bell with dot.
-          Semantics(
-            button: true,
-            label: 'Notifications',
-            child: GxPressable(
-            onTap: () => _go(context, const NotificationsScreen()),
-            child: Container(
-              width: 36,
-              height: 36,
-              decoration: BoxDecoration(
-                color: context.gx.card2,
-                shape: BoxShape.circle,
-              ),
-              child: Stack(
-                alignment: Alignment.center,
-                children: [
-                  Icon(Icons.notifications_none_rounded,
-                      size: 19, color: context.gx.ink),
-                  if (hasUnreadNotifs)
-                    Positioned(
-                      top: 8,
-                      right: 8,
-                      child: Container(
-                        width: 8,
-                        height: 8,
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFEF4444),
-                          shape: BoxShape.circle,
-                          border: Border.all(
-                              color: context.gx.bg, width: 2),
-                        ),
-                      ),
-                    ),
-                ],
-              ),
-            ),
             ),
           ),
           SizedBox(width: 10),

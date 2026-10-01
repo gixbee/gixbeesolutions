@@ -139,17 +139,16 @@ void main() {
       expect(find.text("Couldn't load your businesses"), findsOneWidget);
     });
 
-    testWidgets('AppBar shows the title and the Add Business FAB',
-        (tester) async {
+    testWidgets('empty list → single add CTA (no duplicate FAB)', (tester) async {
       await tester.pumpWidget(_host(() async => <Business>[]));
       await tester.pump();
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 200));
 
       expect(find.text('List My Business'), findsOneWidget);
-      expect(find.text('Add Business'), findsOneWidget);
       expect(find.text('Add a business'), findsOneWidget);
-      expect(find.byType(FloatingActionButton), findsOneWidget);
+      expect(find.text('Add Business'), findsNothing);
+      expect(find.byType(FloatingActionButton), findsNothing);
     });
   });
 }

@@ -12,6 +12,8 @@ mod config;
 mod error;
 mod events;
 mod favourites;
+mod hall_enquiries;
+mod halls;
 mod hiring;
 mod hiring_catalogue;
 mod jobs;

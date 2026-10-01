@@ -54,6 +54,15 @@ async fn create_plan(State(state):State<AppState>,user:AuthUser,Json(mut input):
             "An event needs your services. Review its date and send a quote from your business dashboard.",
             json!({"type":"event_enquiry","planId":id})).await?;
     }
+    // Hall enquiries: one row per eligible HALL business (idempotent).
+    let _ = crate::hall_enquiries::ensure_enquiries_for_plan(
+        &mut tx,
+        id,
+        uid,
+        input.city_id,
+        &input.services,
+    )
+    .await?;
     tx.commit().await?;
     detail(State(state),user,Path(id.to_string())).await
 }

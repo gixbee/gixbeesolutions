@@ -25,6 +25,8 @@ import 'hiring_requests_screen.dart';
 import 'recommended_candidates_screen.dart';
 import 'list_business_type_screen.dart';
 import '../../repositories/matching_repository.dart';
+import '../hall_owner/hall_entry.dart';
+import '../hall_owner/hall_enquiries_inbox_screen.dart';
 
 /// The signed-in owner's businesses. autoDispose so it re-fetches on each visit
 /// and after add-operator / mark-offline mutations invalidate it.
@@ -39,6 +41,10 @@ class BusinessUnitDashboard extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final businessesAsync = ref.watch(myBusinessesProvider);
+    final showAddFab = businessesAsync.maybeWhen(
+      data: (list) => list.isNotEmpty,
+      orElse: () => false,
+    );
 
     return Scaffold(
       appBar: AppBar(
@@ -111,21 +117,23 @@ class BusinessUnitDashboard extends ConsumerWidget {
           );
         },
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        backgroundColor: GixbeeTheme.accentBlue,
-        foregroundColor: context.gx.onAccent,
-        onPressed: () async {
-          await Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (_) => const ListBusinessTypeScreen(),
-            ),
-          );
-          ref.invalidate(myBusinessesProvider);
-        },
-        icon: const Icon(Icons.add),
-        label: const Text('Add Business'),
-      ),
+      floatingActionButton: showAddFab
+          ? FloatingActionButton.extended(
+              backgroundColor: GixbeeTheme.accentBlue,
+              foregroundColor: context.gx.onAccent,
+              onPressed: () async {
+                await Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => const ListBusinessTypeScreen(),
+                  ),
+                );
+                ref.invalidate(myBusinessesProvider);
+              },
+              icon: const Icon(Icons.add),
+              label: const Text('Add Business'),
+            )
+          : null,
     );
   }
 }
@@ -414,6 +422,58 @@ class _BusinessCard extends ConsumerWidget {
                     ),
                   ),
                 ],
+              ),
+            ] else if (business.serviceType == 'HALL') ...[
+              _BizAction(
+                icon: Icons.meeting_room_outlined,
+                label: 'Manage halls',
+                primary: true,
+                onTap: () => openHallOwnerFlow(context, ref, business),
+              ),
+              const SizedBox(height: 10),
+              _BizAction(
+                icon: Icons.inbox_outlined,
+                label: 'Hall enquiries',
+                primary: false,
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) =>
+                          HallEnquiriesInboxScreen(business: business),
+                    ),
+                  );
+                },
+              ),
+              const SizedBox(height: 10),
+              _BizAction(
+                icon: Icons.celebration_outlined,
+                label: 'Event quotes (legacy)',
+                primary: false,
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => EventPlansScreen(business: business),
+                    ),
+                  );
+                },
+              ),
+              const SizedBox(height: 10),
+              _BizAction(
+                icon: Icons.tune,
+                label: 'Services & contact',
+                primary: false,
+                onTap: () async {
+                  await Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) =>
+                          EventBusinessSettingsScreen(business: business),
+                    ),
+                  );
+                  ref.invalidate(myBusinessesProvider);
+                },
               ),
             ] else ...[
               _BizAction(icon: Icons.celebration_outlined, label: 'Event enquiries & bookings', primary: true,

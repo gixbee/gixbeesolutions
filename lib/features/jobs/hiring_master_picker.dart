@@ -1,9 +1,12 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:geocoding/geocoding.dart';
 
 import '../../repositories/matching_repository.dart';
+import '../../services/location_service.dart';
 import '../../theme.dart';
 
 class HiringLocationPick {
@@ -42,8 +45,21 @@ class HiringPositionPick {
 /// Backend search. Suggestions are listed but only a tap confirms them.
 class HiringLocationSearch extends ConsumerStatefulWidget {
   final String? selectedLabel;
+  final String? selectedId;
   final ValueChanged<HiringLocationPick> onPick;
-  const HiringLocationSearch({super.key, this.selectedLabel, required this.onPick});
+  final VoidCallback? onSelectionCleared;
+  final bool enableGps;
+  final bool embedded;
+
+  const HiringLocationSearch({
+    super.key,
+    this.selectedLabel,
+    this.selectedId,
+    required this.onPick,
+    this.onSelectionCleared,
+    this.enableGps = false,
+    this.embedded = false,
+  });
 
   @override
   ConsumerState<HiringLocationSearch> createState() => _HiringLocationSearchState();
@@ -60,11 +76,23 @@ class _HiringLocationSearchState extends ConsumerState<HiringLocationSearch> {
   String _query = '';
   int _loadSeq = 0;
   bool _showNoMatches = false;
+  bool _gpsLoading = false;
 
   @override
   void initState() {
     super.initState();
     if (widget.selectedLabel != null) _ctrl.text = widget.selectedLabel!;
+  }
+
+  @override
+  void didUpdateWidget(covariant HiringLocationSearch oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.selectedLabel != oldWidget.selectedLabel) {
+      final next = widget.selectedLabel ?? '';
+      if (_ctrl.text.trim() != next.trim()) {
+        _ctrl.text = next;
+      }
+    }
   }
 
   @override
@@ -104,6 +132,12 @@ class _HiringLocationSearchState extends ConsumerState<HiringLocationSearch> {
 
   void _search(String value) {
     final trimmed = value.trim();
+    if (widget.selectedId != null) {
+      final confirmed = (widget.selectedLabel ?? '').trim();
+      if (trimmed != confirmed) {
+        widget.onSelectionCleared?.call();
+      }
+    }
     _invalidatePendingLoads(query: trimmed);
     if (trimmed.length < 2) return;
     setState(() => _loading = true);
@@ -111,6 +145,105 @@ class _HiringLocationSearchState extends ConsumerState<HiringLocationSearch> {
       const Duration(milliseconds: 300),
       () => _load(trimmed, reset: true),
     );
+  }
+
+  Future<void> _useGps() async {
+    if (_gpsLoading) return;
+    setState(() => _gpsLoading = true);
+    try {
+      final loc = ref.read(locationServiceProvider);
+      final block = await loc.gpsBlockReason();
+      if (block == 'service_off') {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Turn on location services, then try again')),
+          );
+        }
+        return;
+      }
+      if (block == 'denied_forever') {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: const Text('Allow location in app settings to use current location'),
+              action: SnackBarAction(label: 'Settings', onPressed: loc.openAppSettings),
+            ),
+          );
+        }
+        return;
+      }
+      final pos = await loc.getCurrentPosition(fallbackToLastKnown: true);
+      if (pos == null) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Could not read GPS — search manually')),
+          );
+        }
+        return;
+      }
+      var query = '';
+      if (!kIsWeb) {
+        try {
+          final marks = await Geocoding()
+              .placemarkFromCoordinates(pos.latitude, pos.longitude)
+              .timeout(const Duration(seconds: 6));
+          if (marks.isNotEmpty) {
+            final p = marks.first;
+            query = [
+              p.locality,
+              p.subAdministrativeArea,
+              p.administrativeArea,
+            ].where((s) => s != null && s.trim().isNotEmpty).map((s) => s!.trim()).join(' ');
+          }
+        } catch (_) {}
+      }
+      if (query.length < 2) {
+        query = await loc.getAddressFromLatLng(pos);
+      }
+      query = query.trim();
+      if (query.length < 2) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Could not resolve a place name — search manually')),
+          );
+        }
+        return;
+      }
+      if (!mounted) return;
+      _ctrl.text = query;
+      widget.onSelectionCleared?.call();
+      await _load(query, reset: true);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Confirm your job location from the list')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _gpsLoading = false);
+    }
+  }
+
+  Future<void> _confirmPick(HiringLocationPick item) async {
+    if (item.needsConfirmation) {
+      final ok = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('Confirm location'),
+          content: Text(
+            'Use “${item.label}” as the job location?\n\n'
+            'This is a suggested match — confirm only if it is correct.',
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+            FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Confirm')),
+          ],
+        ),
+      );
+      if (ok != true) return;
+    }
+    _invalidatePendingLoads(query: item.label);
+    widget.onPick(item);
+    if (mounted) setState(() => _ctrl.text = item.label);
   }
 
   Future<void> _load(String value, {required bool reset}) async {
@@ -160,17 +293,36 @@ class _HiringLocationSearchState extends ConsumerState<HiringLocationSearch> {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
+    final field = TextField(
+      controller: _ctrl,
+      decoration: InputDecoration(
+        hintText: 'Search city or town',
+        prefixIcon: const Icon(Icons.location_on_outlined),
+        suffixIcon: widget.enableGps
+            ? _gpsLoading
+                ? const Padding(
+                    padding: EdgeInsets.all(12),
+                    child: SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    ),
+                  )
+                : IconButton(
+                    tooltip: 'Use current location',
+                    icon: const Icon(Icons.my_location),
+                    onPressed: _useGps,
+                  )
+            : null,
+        border: widget.embedded ? OutlineInputBorder(borderRadius: BorderRadius.circular(12)) : null,
+        filled: widget.embedded,
+      ),
+      onChanged: _search,
+    );
+
+    final suggestions = Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        TextField(
-          controller: _ctrl,
-          decoration: const InputDecoration(
-            hintText: 'Search city or town',
-            prefixIcon: Icon(Icons.location_on_outlined),
-          ),
-          onChanged: _search,
-        ),
         if (_loading) const Padding(padding: EdgeInsets.all(8), child: LinearProgressIndicator()),
         if (_error != null) Text(_error!, style: const TextStyle(color: Colors.red)),
         if (!_loading && _showNoMatches && _error == null)
@@ -184,27 +336,47 @@ class _HiringLocationSearchState extends ConsumerState<HiringLocationSearch> {
           ListTile(
             contentPadding: EdgeInsets.zero,
             title: Text(item.name),
-            subtitle: Text([item.districtName, item.stateName].where((p) => p.isNotEmpty).join(', ')),
-            trailing: item.needsConfirmation ? const Text('Confirm') : null,
-            onTap: () {
-              _invalidatePendingLoads(query: item.label);
-              widget.onPick(item);
-              setState(() => _ctrl.text = item.label);
-            },
+            subtitle: Text(
+              [item.districtName, item.stateName].where((p) => p.isNotEmpty).join(', '),
+            ),
+            trailing: item.needsConfirmation
+                ? Text(
+                    'Confirm',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                      color: context.gx.accent,
+                    ),
+                  )
+                : null,
+            onTap: () => _confirmPick(item),
           ),
       ],
+    );
+
+    if (widget.embedded) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [field, suggestions],
+      );
+    }
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [field, suggestions],
     );
   }
 }
 
 class HiringPositionSearch extends ConsumerStatefulWidget {
   final String? sectorId;
+  final String? selectedId;
   final String? selectedLabel;
   final ValueChanged<HiringPositionPick> onPick;
   final int initialVisible;
   const HiringPositionSearch({
     super.key,
     this.sectorId,
+    this.selectedId,
     this.selectedLabel,
     required this.onPick,
     this.initialVisible = 8,
@@ -328,34 +500,57 @@ class _HiringPositionSearchState extends ConsumerState<HiringPositionSearch> {
     return pool.take(widget.initialVisible).toList();
   }
 
+  void _select(HiringPositionPick item) {
+    widget.onPick(item);
+    setState(() {
+      _items = [];
+      _ctrl.clear();
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
+    final selectedId = widget.selectedId;
+    final visible = _visible;
+    final selectedInList =
+        selectedId != null && visible.any((p) => p.id == selectedId);
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        if (selectedId != null &&
+            widget.selectedLabel != null &&
+            !selectedInList) ...[
+          _PositionTile(
+            item: HiringPositionPick(
+              id: selectedId,
+              label: widget.selectedLabel!,
+              subtitle: 'Your selected position',
+            ),
+            selected: true,
+            onTap: () {},
+          ),
+          const SizedBox(height: 12),
+        ],
         TextField(
           controller: _ctrl,
-          decoration: InputDecoration(
+          decoration: const InputDecoration(
             hintText: 'Search position',
-            prefixIcon: const Icon(Icons.search),
-            suffixText: widget.selectedLabel,
+            prefixIcon: Icon(Icons.search),
           ),
           onChanged: _search,
         ),
-        if (_loading) const LinearProgressIndicator(),
+        if (_loading) const Padding(padding: EdgeInsets.only(top: 8), child: LinearProgressIndicator()),
         if (_error != null) Text(_error!, style: const TextStyle(color: Colors.red)),
-        for (final item in _visible)
-          ListTile(
-            contentPadding: EdgeInsets.zero,
-            title: Text(item.label, style: const TextStyle(color: GixbeeTheme.accentBlue, fontWeight: FontWeight.w700)),
-            subtitle: Text(item.subtitle),
-            onTap: () {
-              widget.onPick(item);
-              setState(() {
-                _items = [];
-                _ctrl.clear();
-              });
-            },
+        const SizedBox(height: 8),
+        for (final item in visible)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: _PositionTile(
+              item: item,
+              selected: selectedId == item.id,
+              onTap: () => _select(item),
+            ),
           ),
         if (_ctrl.text.trim().isEmpty &&
             !_showAll &&
@@ -365,6 +560,90 @@ class _HiringPositionSearchState extends ConsumerState<HiringPositionSearch> {
             child: const Text('Show more positions'),
           ),
       ],
+    );
+  }
+}
+
+class _PositionTile extends StatelessWidget {
+  const _PositionTile({
+    required this.item,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final HiringPositionPick item;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    const selectedFill = Color(0xFFF0FDF4);
+    final gx = context.gx;
+    final border = selected ? GixbeeTheme.accentGreen : gx.border;
+    final titleColor = selected ? GixbeeTheme.accentGreenDark : gx.ink;
+
+    return Material(
+      color: selected ? selectedFill : Colors.white,
+      borderRadius: BorderRadius.circular(14),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(14),
+        child: Container(
+          width: double.infinity,
+          padding: const EdgeInsets.fromLTRB(14, 12, 12, 12),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: border, width: selected ? 2 : 1),
+          ),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      item.label,
+                      style: TextStyle(
+                        fontWeight: FontWeight.w800,
+                        fontSize: 15,
+                        color: titleColor,
+                      ),
+                    ),
+                    if (item.subtitle.isNotEmpty) ...[
+                      const SizedBox(height: 4),
+                      Text(
+                        item.subtitle,
+                        style: TextStyle(
+                          fontSize: 12.5,
+                          height: 1.35,
+                          color: gx.ink.withValues(alpha: 0.55),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              if (selected)
+                Container(
+                  width: 26,
+                  height: 26,
+                  decoration: const BoxDecoration(
+                    color: GixbeeTheme.accentGreen,
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(Icons.check, size: 16, color: Colors.white),
+                )
+              else
+                Icon(
+                  Icons.radio_button_unchecked,
+                  size: 22,
+                  color: gx.ink.withValues(alpha: 0.25),
+                ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

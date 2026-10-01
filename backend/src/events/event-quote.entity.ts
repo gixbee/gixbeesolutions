@@ -5,7 +5,7 @@ import { Business } from '../businesses/business.entity';
 import { User } from '../users/user.entity';
 
 @Entity('event_quotes')
-@Unique(['planId', 'businessId', 'serviceType'])
+@Unique(['planId', 'businessId', 'serviceType', 'revision'])
 @Index('event_quotes_selected_service', ['planId', 'serviceType'], {
   unique: true, where: "status IN ('CONFIRMED','COMPLETED','CANCEL_REQUESTED')",
 })
@@ -13,7 +13,7 @@ import { User } from '../users/user.entity';
 @Check('amount > 0')
 @Check('"cancellationRefund" >= 0')
 @Check('"cancellationRefund" <= amount')
-@Check("status IN ('OFFERED','DECLINED','EXPIRED','CONFIRMED','COMPLETED','CANCEL_REQUESTED','CANCELLED')")
+@Check("status IN ('OFFERED','DECLINED','EXPIRED','CONFIRMED','COMPLETED','CANCEL_REQUESTED','CANCELLED','SUPERSEDED')")
 export class EventQuote {
   @PrimaryGeneratedColumn('uuid') id: string;
   @Column('uuid') planId: string;
@@ -21,6 +21,14 @@ export class EventQuote {
   @Column('uuid') businessId: string;
   @ManyToOne(() => Business, { nullable: false }) @JoinColumn({ name: 'businessId' }) business: Business;
   @Column({ type: 'varchar', length: 40 }) serviceType: string;
+  /** Monotonic offer generation per plan+business+serviceType. */
+  @Column({ type: 'int', default: 1 }) revision: number;
+  @Column({ type: 'uuid', nullable: true }) supersedesQuoteId: string | null;
+  @Column({ type: 'uuid', nullable: true }) hallEnquiryId: string | null;
+  @Column({ type: 'uuid', nullable: true }) hallId: string | null;
+  @Column({ type: 'timestamptz', nullable: true }) intervalStart: Date | null;
+  @Column({ type: 'timestamptz', nullable: true }) intervalEnd: Date | null;
+  @Column({ type: 'varchar', length: 40, nullable: true }) supersedeReason: string | null;
   @Column({ type: 'numeric', precision: 12, scale: 2 }) amount: string;
   @Column('text') inclusions: string;
   @Column('text') cancellationTerms: string;

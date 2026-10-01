@@ -2,26 +2,82 @@ import 'package:flutter/material.dart';
 
 import '../../theme.dart';
 
+/// Keys match `hiring-catalogue.json` sector `icon` field.
 const _sectorIcons = {
+  'bolt': Icons.bolt,
+  'pipe': Icons.plumbing,
+  'broom': Icons.cleaning_services,
+  'roller': Icons.format_paint,
+  'hammer': Icons.handyman,
+  'fan': Icons.ac_unit,
+  'car': Icons.directions_car_outlined,
+  'box': Icons.inventory_2_outlined,
+  'chef': Icons.restaurant,
+  'shield': Icons.shield_outlined,
+  'store': Icons.storefront_outlined,
+  'briefcase': Icons.work_outline,
+  'laptop': Icons.laptop_mac_outlined,
+  'book': Icons.menu_book_outlined,
+  'health': Icons.favorite_outline,
+  'cal': Icons.event_outlined,
+  'dumbbell': Icons.fitness_center,
+  'lotus': Icons.spa_outlined,
+};
+
+/// Fallback when API `icon` is missing or stale in DB.
+const _sectorIconsById = {
   'electrical': Icons.bolt,
   'plumbing': Icons.plumbing,
   'cleaning': Icons.cleaning_services,
   'painting': Icons.format_paint,
   'construction': Icons.handyman,
-  'mechanical': Icons.ac_unit,
-  'driving': Icons.local_taxi,
-  'logistics': Icons.inventory_2,
-  'hospitality': Icons.restaurant,
-  'security': Icons.shield,
-  'retail': Icons.storefront,
-  'office': Icons.business_center,
-  'tech': Icons.computer,
-  'teaching': Icons.menu_book,
-  'healthcare': Icons.favorite,
-  'events': Icons.event,
+  'hvac': Icons.ac_unit,
+  'driving': Icons.directions_car_outlined,
+  'delivery': Icons.inventory_2_outlined,
+  'cooking': Icons.restaurant,
+  'security': Icons.shield_outlined,
+  'retail': Icons.storefront_outlined,
+  'office': Icons.business_center_outlined,
+  'tech': Icons.computer_outlined,
+  'teaching': Icons.menu_book_outlined,
+  'healthcare': Icons.favorite_outline,
+  'events': Icons.event_outlined,
   'fitness': Icons.fitness_center,
-  'beauty': Icons.spa,
+  'beauty': Icons.spa_outlined,
 };
+
+IconData hiringSectorIcon(Map<String, dynamic> sector) {
+  final key = '${sector['icon'] ?? ''}'.trim().toLowerCase();
+  if (key.isNotEmpty && _sectorIcons.containsKey(key)) {
+    return _sectorIcons[key]!;
+  }
+  final id = '${sector['id'] ?? ''}'.trim().toLowerCase();
+  return _sectorIconsById[id] ?? Icons.work_outline;
+}
+
+class _SectorIconBadge extends StatelessWidget {
+  const _SectorIconBadge({required this.tint, required this.icon});
+
+  final Color tint;
+  final IconData icon;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: 48,
+      height: 48,
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: tint.withValues(alpha: 0.14),
+          shape: BoxShape.circle,
+        ),
+        child: Center(
+          child: Icon(icon, color: tint, size: 22),
+        ),
+      ),
+    );
+  }
+}
 
 class HiringSectorGrid extends StatelessWidget {
   const HiringSectorGrid({
@@ -40,7 +96,7 @@ class HiringSectorGrid extends StatelessWidget {
     final gx = context.gx;
     return LayoutBuilder(
       builder: (context, c) {
-        final cols = c.maxWidth >= 520 ? 4 : 3;
+        final cols = c.maxWidth >= 280 ? 3 : 2;
         return GridView.builder(
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
@@ -48,7 +104,7 @@ class HiringSectorGrid extends StatelessWidget {
             crossAxisCount: cols,
             mainAxisSpacing: 10,
             crossAxisSpacing: 10,
-            childAspectRatio: 0.82,
+            childAspectRatio: cols == 3 ? 0.82 : 0.88,
           ),
           itemCount: sectors.length,
           itemBuilder: (_, i) {
@@ -62,10 +118,10 @@ class HiringSectorGrid extends StatelessWidget {
             } catch (_) {
               tint = gx.accent;
             }
-            final iconKey = '${s['icon'] ?? ''}';
-            final icon = _sectorIcons[iconKey] ?? Icons.work_outline;
+            final icon = hiringSectorIcon(s);
+            const selectedFill = Color(0xFFF0FDF4);
             return Material(
-              color: selected ? const Color(0xFFF0FDF4) : gx.card,
+              color: selected ? selectedFill : Colors.white,
               borderRadius: BorderRadius.circular(16),
               child: InkWell(
                 borderRadius: BorderRadius.circular(16),
@@ -74,33 +130,54 @@ class HiringSectorGrid extends StatelessWidget {
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(16),
                     border: Border.all(
-                      color: selected ? gx.accent : gx.border,
+                      color: selected ? GixbeeTheme.accentGreen : gx.border,
                       width: selected ? 2 : 1,
                     ),
-                    boxShadow: selected
-                        ? [BoxShadow(color: gx.accent.withValues(alpha: 0.15), blurRadius: 0, spreadRadius: 2)]
-                        : null,
                   ),
-                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 10),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
+                  padding: const EdgeInsets.fromLTRB(8, 10, 8, 10),
+                  child: Stack(
+                    clipBehavior: Clip.none,
                     children: [
-                      CircleAvatar(
-                        backgroundColor: tint.withValues(alpha: 0.15),
-                        child: Icon(icon, color: tint, size: 22),
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        '${s['label']}',
-                        textAlign: TextAlign.center,
-                        maxLines: 3,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w800,
-                          height: 1.2,
-                          color: gx.ink,
+                      if (selected)
+                        Positioned(
+                          top: -6,
+                          right: -4,
+                          child: Container(
+                            width: 20,
+                            height: 20,
+                            decoration: const BoxDecoration(
+                              color: GixbeeTheme.accentGreen,
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(Icons.check, size: 12, color: Colors.white),
+                          ),
                         ),
+                      Column(
+                        mainAxisAlignment: MainAxisAlignment.start,
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          _SectorIconBadge(tint: tint, icon: icon),
+                          const SizedBox(height: 8),
+                          Expanded(
+                            child: Align(
+                              alignment: Alignment.topCenter,
+                              child: Text(
+                                '${s['label']}',
+                                textAlign: TextAlign.center,
+                                maxLines: 4,
+                                softWrap: true,
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w800,
+                                  height: 1.15,
+                                  color: selected
+                                      ? GixbeeTheme.accentGreenDark
+                                      : gx.ink,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                     ],
                   ),

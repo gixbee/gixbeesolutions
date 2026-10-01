@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../theme.dart';
+import 'hiring_wizard_chips.dart';
 
 /// Stable hiring language codes aligned with `hiring-catalogue.json`.
 class HiringLanguageCatalog {
@@ -67,11 +68,8 @@ class HiringLanguageSection extends StatefulWidget {
   final List<String> selectedIds;
   final LanguagePickChanged onChanged;
   final List<Map<String, dynamic>>? catalogRows;
-  /// When true, do not inject en/ml — used for candidate profiles.
   final bool restoredDraft;
-  /// Employer hire draft only: pre-select English + Malayalam for a new draft.
   final bool applyEmployerDefaults;
-  /// Employer hire flow uses 1; candidates may clear all languages (0).
   final int minSelection;
 
   @override
@@ -83,13 +81,30 @@ class _HiringLanguageSectionState extends State<HiringLanguageSection> {
 
   List<_Lang> get _catalog => HiringLanguageCatalog.fromApi(widget.catalogRows);
 
+  List<_Lang> get _quickPick {
+    if (widget.catalogRows != null && widget.catalogRows!.isNotEmpty) {
+      final fromApi = _catalog.where((l) {
+        for (final r in widget.catalogRows!) {
+          if ('${r['id']}' == l.id && r['quickPick'] == true) return true;
+        }
+        return HiringLanguageCatalog.quick.any((q) => q.id == l.id);
+      }).toList();
+      if (fromApi.isNotEmpty) return fromApi;
+    }
+    return _catalog
+        .where((l) => HiringLanguageCatalog.quick.any((q) => q.id == l.id))
+        .toList();
+  }
+
+  int get _uniqueCount => _ids.toSet().length;
+
   @override
   void initState() {
     super.initState();
-    _ids = [...widget.selectedIds];
+    _ids = _dedupe(widget.selectedIds);
     if (widget.applyEmployerDefaults && !widget.restoredDraft && _ids.isEmpty) {
       _ids = [...HiringLanguageCatalog.defaults];
-      WidgetsBinding.instance.addPostFrameCallback((_) => widget.onChanged(_ids));
+      WidgetsBinding.instance.addPostFrameCallback((_) => _emit());
     }
   }
 
@@ -97,9 +112,20 @@ class _HiringLanguageSectionState extends State<HiringLanguageSection> {
   void didUpdateWidget(covariant HiringLanguageSection oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.selectedIds != widget.selectedIds) {
-      _ids = [...widget.selectedIds];
+      _ids = _dedupe(widget.selectedIds);
     }
   }
+
+  List<String> _dedupe(List<String> raw) {
+    final seen = <String>{};
+    final out = <String>[];
+    for (final id in raw) {
+      if (seen.add(id)) out.add(id);
+    }
+    return out;
+  }
+
+  void _emit() => widget.onChanged(_dedupe(_ids));
 
   void _toggle(String id) {
     setState(() {
@@ -109,12 +135,13 @@ class _HiringLanguageSectionState extends State<HiringLanguageSection> {
       } else {
         _ids.add(id);
       }
+      _ids = _dedupe(_ids);
     });
-    widget.onChanged(_ids);
+    _emit();
   }
 
   Future<void> _openSheet() async {
-    final draft = {..._ids};
+    final draft = _dedupe(_ids).toSet();
     final qCtrl = TextEditingController();
     await showModalBottomSheet<void>(
       context: context,
@@ -123,9 +150,10 @@ class _HiringLanguageSectionState extends State<HiringLanguageSection> {
         return StatefulBuilder(
           builder: (ctx, setSheet) {
             final q = qCtrl.text.trim().toLowerCase();
-            final list = _catalog.where((l) {
+            final filtered = _catalog.where((l) {
               if (q.isEmpty) return true;
-              return l.label.toLowerCase().contains(q) || l.id.contains(q);
+              return l.label.toLowerCase().contains(q) ||
+                  l.id.toLowerCase().contains(q);
             }).toList();
             return Padding(
               padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(ctx).bottom),
@@ -134,16 +162,23 @@ class _HiringLanguageSectionState extends State<HiringLanguageSection> {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Padding(
-                      padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+                      padding: const EdgeInsets.fromLTRB(16, 12, 8, 8),
                       child: Row(
                         children: [
                           Expanded(
                             child: Text(
-                              'Select languages (${draft.length} selected)',
-                              style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 17),
+                              'Add languages',
+                              style: TextStyle(
+                                fontWeight: FontWeight.w800,
+                                fontSize: 17,
+                                color: context.gx.ink,
+                              ),
                             ),
                           ),
-                          IconButton(onPressed: () => Navigator.pop(ctx), icon: const Icon(Icons.close)),
+                          IconButton(
+                            onPressed: () => Navigator.pop(ctx),
+                            icon: const Icon(Icons.close),
+                          ),
                         ],
                       ),
                     ),
@@ -159,7 +194,7 @@ class _HiringLanguageSectionState extends State<HiringLanguageSection> {
                       child: ListView(
                         shrinkWrap: true,
                         children: [
-                          for (final lang in list)
+                          for (final lang in filtered)
                             CheckboxListTile(
                               value: draft.contains(lang.id),
                               title: Text(lang.label),
@@ -183,10 +218,12 @@ class _HiringLanguageSectionState extends State<HiringLanguageSection> {
                         child: FilledButton(
                           onPressed: () {
                             setState(() => _ids = draft.toList()..sort());
-                            widget.onChanged(_ids);
+                            _emit();
                             Navigator.pop(ctx);
                           },
-                          child: Text(draft.isEmpty ? 'OK' : 'OK (${draft.length} selected)'),
+                          child: Text(
+                            draft.isEmpty ? 'OK' : 'OK (${draft.length} selected)',
+                          ),
                         ),
                       ),
                     ),
@@ -201,16 +238,73 @@ class _HiringLanguageSectionState extends State<HiringLanguageSection> {
     qCtrl.dispose();
   }
 
+  Widget _chip({
+    required String label,
+    required bool selected,
+    required VoidCallback onTap,
+    VoidCallback? onRemove,
+  }) {
+    final gx = context.gx;
+    final bg = selected ? GixbeeTheme.accentGreen : Colors.white;
+    final fg = selected ? gx.onAccent : gx.ink;
+    return Material(
+      color: bg,
+      borderRadius: BorderRadius.circular(20),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(20),
+        child: Container(
+          height: 36,
+          padding: const EdgeInsets.symmetric(horizontal: 12),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(
+              color: selected ? GixbeeTheme.accentGreen : gx.border,
+            ),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (selected && onRemove == null)
+                Padding(
+                  padding: const EdgeInsets.only(right: 4),
+                  child: Icon(Icons.check, size: 16, color: fg),
+                ),
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 12.5,
+                  fontWeight: FontWeight.w700,
+                  color: fg,
+                ),
+              ),
+              if (onRemove != null) ...[
+                const SizedBox(width: 4),
+                GestureDetector(
+                  onTap: onRemove,
+                  child: Icon(Icons.close, size: 16, color: fg),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final gx = context.gx;
-    final quick = _catalog.where((l) => HiringLanguageCatalog.quick.any((q) => q.id == l.id)).toList();
-    final extra = _ids.where((id) => !quick.any((l) => l.id == id)).toList();
+    final quick = _quickPick;
+    final quickIdSet = quick.map((l) => l.id).toSet();
+    final extraIds =
+        _ids.where((id) => !quickIdSet.contains(id)).toList()..sort();
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'Languages (${_ids.length} selected)',
+          'Languages ($_uniqueCount selected)',
           style: TextStyle(fontWeight: FontWeight.w800, color: gx.ink),
         ),
         const SizedBox(height: 4),
@@ -218,47 +312,30 @@ class _HiringLanguageSectionState extends State<HiringLanguageSection> {
           'Candidates who speak these languages rank higher in matching.',
           style: TextStyle(fontSize: 12, color: gx.ink.withValues(alpha: 0.55)),
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: 10),
         Wrap(
           spacing: 8,
           runSpacing: 8,
           children: [
             for (final lang in quick)
-              ChoiceChip(
-                label: Text(lang.label),
+              _chip(
+                label: lang.label,
                 selected: _ids.contains(lang.id),
-                onSelected: (_) => _toggle(lang.id),
-                selectedColor: gx.accent,
-                labelStyle: TextStyle(
-                  color: _ids.contains(lang.id) ? gx.onAccent : gx.ink,
-                  fontWeight: FontWeight.w700,
-                ),
+                onTap: () => _toggle(lang.id),
+              ),
+            for (final id in extraIds)
+              _chip(
+                label: HiringLanguageCatalog.labelFor(id),
+                selected: true,
+                onTap: () {},
+                onRemove: _ids.length <= widget.minSelection
+                    ? null
+                    : () => _toggle(id),
               ),
           ],
         ),
-        if (extra.isNotEmpty) ...[
-          const SizedBox(height: 8),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: [
-              for (final id in extra)
-                InputChip(
-                  label: Text(HiringLanguageCatalog.labelFor(id)),
-                  onDeleted: () => _toggle(id),
-                  deleteIconColor: gx.onAccent,
-                  backgroundColor: gx.accent,
-                  labelStyle: TextStyle(color: gx.onAccent, fontWeight: FontWeight.w700),
-                ),
-            ],
-          ),
-        ],
-        const SizedBox(height: 8),
-        OutlinedButton.icon(
-          onPressed: _openSheet,
-          icon: const Icon(Icons.add),
-          label: const Text('+ Add languages'),
-        ),
+        const SizedBox(height: 10),
+        HiringAddButton(label: 'Add languages', onPressed: _openSheet),
       ],
     );
   }

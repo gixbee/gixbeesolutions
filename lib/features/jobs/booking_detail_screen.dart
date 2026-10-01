@@ -456,14 +456,20 @@ class BookingDetailScreen extends ConsumerWidget {
     final counterpartName = (counterpart['name'] ?? 'Gixbee user').toString();
 
     const cancellable = {'PENDING', 'REQUESTED', 'ACCEPTED', 'CONFIRMED'};
+    const contactClosed = {'COMPLETED', 'CANCELLED', 'REJECTED'};
     // A pending request already owns the cancel flow above (withdraw /
     // approve) — a second entry point here would re-cancel a settled booking.
     final canCancel =
         !isAssignedWorker && !cancelRequested && cancellable.contains(status);
-    final canMessage = counterpartId != null && counterpartId.isNotEmpty;
+    final hasCounterparty =
+        counterpartId != null && counterpartId.isNotEmpty;
+    final canContact =
+        hasCounterparty && !contactClosed.contains(status);
     final showAcceptDecline = status == 'REQUESTED' && isAssignedWorker;
 
-    if (!canMessage && !canCancel && !showAcceptDecline) return const SizedBox.shrink();
+    if (!canContact && !canCancel && !showAcceptDecline) {
+      return const SizedBox.shrink();
+    }
 
     if (showAcceptDecline) {
       final error = Theme.of(context).colorScheme.error;
@@ -519,14 +525,14 @@ class BookingDetailScreen extends ConsumerWidget {
 
     return Row(
       children: [
-        if (canMessage)
+        if (canContact)
           Expanded(
             child: GestureDetector(
               onTap: () => Navigator.push(
                 context,
                 MaterialPageRoute(
                   builder: (_) => ChatThreadScreen(
-                    otherUserId: counterpartId,
+                    otherUserId: counterpartId!,
                     otherUserName: counterpartName,
                     bookingId: booking['id']?.toString(),
                   ),
@@ -543,8 +549,8 @@ class BookingDetailScreen extends ConsumerWidget {
               ),
             ),
           ),
-        if (canMessage) const SizedBox(width: 8),
-        if (canMessage)
+        if (canContact) const SizedBox(width: 8),
+        if (canContact)
           Expanded(
             child: GestureDetector(
               onTap: () async {

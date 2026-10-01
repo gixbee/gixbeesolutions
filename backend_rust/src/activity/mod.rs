@@ -77,6 +77,7 @@ async fn feed(
     if category_allowed(&cat, "events") {
         union_parts.push(events_plans_union_sql(phase));
         union_parts.push(events_vendor_quotes_union_sql(phase));
+        union_parts.push(hall_enquiries_union_sql(phase));
     }
     if category_allowed(&cat, "job_applications") {
         union_parts.push(job_applications_union_sql(phase));
@@ -156,7 +157,8 @@ async fn categories_available(state: &AppState, uid: Uuid) -> AppResult<Vec<&'st
     }
     let ev: bool = sqlx::query_scalar(
         r#"SELECT EXISTS(SELECT 1 FROM event_plans WHERE "customerId"=$1)
-           OR EXISTS(SELECT 1 FROM event_quotes q JOIN businesses b ON b.id=q."businessId" WHERE b."ownerId"=$1)"#,
+           OR EXISTS(SELECT 1 FROM event_quotes q JOIN businesses b ON b.id=q."businessId" WHERE b."ownerId"=$1)
+           OR EXISTS(SELECT 1 FROM hall_enquiries e JOIN businesses b ON b.id=e."businessId" WHERE b."ownerId"=$1)"#,
     )
     .bind(uid)
     .fetch_one(&state.db)
@@ -353,6 +355,52 @@ fn events_plans_union_sql(phase: Phase) -> String {
             'open_event_plan'::text AS primary_action
         FROM event_plans p
         WHERE p."customerId" = $4
+          AND ({phase_filter})"#,
+        phase_filter = phase_filter,
+    )
+}
+
+fn hall_enquiries_union_sql(phase: Phase) -> String {
+    let phase_filter = match phase {
+        Phase::Active => {
+            r#"e.status IN ('PENDING_OWNER','OWNER_APPROVED','ASSIGNED','QUOTE_OFFERED','CUSTOMER_ACCEPTED')"#
+        }
+        Phase::History => {
+            r#"e.status IN ('OWNER_DECLINED','QUOTE_DECLINED','QUOTE_EXPIRED','CANCELLED')"#
+        }
+    };
+    format!(
+        r#"SELECT
+            'events'::text AS category,
+            e.id::text AS id,
+            ('events:hall_enquiry:' || e.id::text) AS dedupe_key,
+            CASE WHEN e.status IN ('OWNER_DECLINED','QUOTE_DECLINED','QUOTE_EXPIRED','CANCELLED')
+                 THEN 'history' ELSE 'active' END AS phase,
+            e.status AS status,
+            CASE
+              WHEN e.status IN ('PENDING_OWNER','ASSIGNED','QUOTE_OFFERED') THEN 'action_needed'
+              WHEN e.status IN ('OWNER_APPROVED','CUSTOMER_ACCEPTED') THEN 'in_progress'
+              ELSE 'closed'
+            END AS status_group,
+            (COALESCE(p."eventType", 'Event') || ' · Hall enquiry') AS title,
+            COALESCE(p.location, '') AS subtitle,
+            COALESCE(b.name, '') AS counterparty,
+            'Hall enquiry'::text AS role_label,
+            CASE WHEN e.status = 'PENDING_OWNER' THEN 2 ELSE 8 END AS sort_rank,
+            COALESCE(p."startTime", e."createdAt") AS sort_at,
+            p.id::text AS parent_event_id,
+            'hall_enquiry'::text AS detail_kind,
+            jsonb_build_object(
+              'planId', p.id::text,
+              'businessId', b.id::text,
+              'enquiryId', e.id::text,
+              'hallId', e."assignedHallId"::text
+            ) AS detail_extra,
+            'open_hall_enquiries'::text AS primary_action
+        FROM hall_enquiries e
+        JOIN event_plans p ON p.id = e."eventPlanId"
+        JOIN businesses b ON b.id = e."businessId"
+        WHERE b."ownerId" = $4
           AND ({phase_filter})"#,
         phase_filter = phase_filter,
     )
