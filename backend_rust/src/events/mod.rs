@@ -129,19 +129,74 @@ async fn detail(State(state):State<AppState>,user:AuthUser,Path(id):Path<String>
 }
 
 async fn cancel_plan(State(state):State<AppState>,user:AuthUser,Path(id):Path<String>)->AppResult<Json<Value>> {
-    let id=Uuid::parse_str(&id)?;let mut tx=state.db.begin().await?;
-    sqlx::query(r#"SELECT id FROM event_plans WHERE id=$1 AND "customerId"=$2 FOR UPDATE"#)
-        .bind(id).bind(Uuid::parse_str(&user.user_id)?).fetch_optional(&mut *tx).await?
+    let id=Uuid::parse_str(&id)?;
+    let uid=Uuid::parse_str(&user.user_id)?;
+    let mut tx=state.db.begin().await?;
+    // event_plans, then businesses in id order, then each venue and its halls, then children.
+    let already:Option<DateTime<Utc>>=sqlx::query_scalar::<_, Option<DateTime<Utc>>>(
+        r#"SELECT "cancelledAt" FROM event_plans WHERE id=$1 AND "customerId"=$2 FOR UPDATE"#,
+    )
+        .bind(id).bind(uid).fetch_optional(&mut *tx).await?
         .ok_or_else(||AppError::NotFound("Event not found".into()))?;
-    let selected:bool=sqlx::query_scalar(r#"SELECT EXISTS(SELECT 1 FROM event_quotes WHERE "planId"=$1 AND status IN ('CONFIRMED','COMPLETED','CANCEL_REQUESTED'))"#)
-        .bind(id).fetch_one(&mut *tx).await?;
-    if selected {return Err(AppError::Conflict("Resolve each confirmed service before cancelling the event".into()));}
-    sqlx::query(r#"UPDATE event_plans SET "cancelledAt"=NOW(),"updatedAt"=NOW() WHERE id=$1"#).bind(id).execute(&mut *tx).await?;
-    sqlx::query(r#"UPDATE event_quotes SET status='DECLINED',"updatedAt"=NOW() WHERE "planId"=$1 AND status='OFFERED'"#).bind(id).execute(&mut *tx).await?;
-    let vendors=sqlx::query_scalar::<_,Uuid>(r#"SELECT DISTINCT b."ownerId" FROM businesses b JOIN event_quotes q ON q."businessId"=b.id WHERE q."planId"=$1"#)
-        .bind(id).fetch_all(&mut *tx).await?;
-    for vendor in vendors {
-        crate::outbox::notify(&mut tx,id,vendor,"Event enquiry cancelled","The customer cancelled the event enquiry. Any agreed refunds remain due.",json!({"type":"event_update","planId":id})).await?;
+    let first_cancel=already.is_none();
+    if first_cancel {
+        let selected:bool=sqlx::query_scalar(r#"SELECT EXISTS(SELECT 1 FROM event_quotes WHERE "planId"=$1 AND status IN ('CONFIRMED','COMPLETED','CANCEL_REQUESTED'))"#)
+            .bind(id).fetch_one(&mut *tx).await?;
+        if selected {return Err(AppError::Conflict("Resolve each confirmed service before cancelling the event".into()));}
+        sqlx::query(r#"UPDATE event_plans SET "cancelledAt"=NOW(),"updatedAt"=NOW() WHERE id=$1 AND "cancelledAt" IS NULL"#)
+            .bind(id).execute(&mut *tx).await?;
+    }
+    let business_ids:Vec<Uuid>=sqlx::query_scalar(
+        r#"SELECT "businessId" FROM (
+             SELECT "businessId" FROM hall_enquiries WHERE "eventPlanId"=$1
+             UNION
+             SELECT r."businessId" FROM hall_reservations r
+             WHERE r.status='HELD' AND (
+               r."enquiryId" IN (SELECT id FROM hall_enquiries WHERE "eventPlanId"=$1)
+               OR r."quoteId" IN (SELECT id FROM event_quotes WHERE "planId"=$1)
+             )
+           ) s ORDER BY 1"#,
+    ).bind(id).fetch_all(&mut *tx).await?;
+    crate::halls::availability::lock_business_rows(&mut *tx, &business_ids).await?;
+    for business_id in &business_ids {
+        crate::halls::availability::acquire_hall_scope_locks(&mut *tx, *business_id, None).await?;
+    }
+    sqlx::query(r#"UPDATE event_quotes SET status='DECLINED',"updatedAt"=NOW() WHERE "planId"=$1 AND status='OFFERED'"#)
+        .bind(id).execute(&mut *tx).await?;
+    let enquiries=sqlx::query(
+        r#"UPDATE hall_enquiries
+           SET status='CANCELLED', "activeQuoteId"=NULL, "updatedAt"=NOW()
+           WHERE "eventPlanId"=$1
+             AND status NOT IN ('OWNER_DECLINED','QUOTE_DECLINED','QUOTE_EXPIRED','CANCELLED')
+           RETURNING id, "businessId", "assignedHallId""#,
+    ).bind(id).fetch_all(&mut *tx).await?;
+    let released=crate::halls::availability::release_held_for_plan(&mut *tx, id).await?;
+    for enquiry in &enquiries {
+        let enquiry_id:Uuid=enquiry.get("id");
+        let business_id:Uuid=enquiry.get("businessId");
+        let hall_id:Option<Uuid>=enquiry.try_get("assignedHallId").ok().flatten();
+        crate::halls::audit::write_audit(
+            &mut *tx, business_id, hall_id, "enquiry", &enquiry_id.to_string(), "cancel", uid,
+            json!({"planId": id, "reason": "event_cancelled"}),
+        ).await?;
+        crate::halls::audit::bump_hall_caches(&mut tx, business_id, hall_id).await?;
+    }
+    for reservation in &released {
+        let reservation_id:Uuid=reservation.get("id");
+        let business_id:Uuid=reservation.get("businessId");
+        let hall_id:Option<Uuid>=reservation.try_get("hallId").ok().flatten();
+        crate::halls::audit::write_audit(
+            &mut *tx, business_id, hall_id, "reservation", &reservation_id.to_string(), "release", uid,
+            json!({"planId": id, "reason": "event_cancelled"}),
+        ).await?;
+        crate::halls::audit::bump_hall_caches(&mut tx, business_id, hall_id).await?;
+    }
+    if first_cancel {
+        let vendors=sqlx::query_scalar::<_,Uuid>(r#"SELECT DISTINCT b."ownerId" FROM businesses b JOIN event_quotes q ON q."businessId"=b.id WHERE q."planId"=$1"#)
+            .bind(id).fetch_all(&mut *tx).await?;
+        for vendor in vendors {
+            crate::outbox::notify(&mut tx,id,vendor,"Event enquiry cancelled","The customer cancelled the event enquiry. Any agreed refunds remain due.",json!({"type":"event_update","planId":id})).await?;
+        }
     }
     tx.commit().await?;Ok(Json(json!({"cancelled":true})))
 }

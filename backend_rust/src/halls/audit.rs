@@ -4,6 +4,9 @@ use uuid::Uuid;
 
 use crate::error::AppResult;
 
+/// The caller must already hold `FOR UPDATE` on `businesses` (and on the hall
+/// row when `hall_id` is set). This insert's foreign keys take a key-share
+/// lock on those rows.
 pub async fn write_audit(
     tx: &mut PgConnection,
     business_id: Uuid,

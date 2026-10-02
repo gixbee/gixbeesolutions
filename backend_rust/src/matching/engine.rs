@@ -360,6 +360,10 @@ pub(super) async fn find_matching_preferences(
           AND ($6::text IS NULL OR p."employmentType" IS NULL OR p."employmentType"::text = $6
                OR (t."employmentTypes" IS NOT NULL AND POSITION($6 IN t."employmentTypes") > 0))
           AND (
+            NULLIF(BTRIM(COALESCE(t."preferredWorkMode", '')), '') IS NULL
+            OR UPPER(t."preferredWorkMode") = UPPER($16)
+          )
+          AND (
             ($7::text IS NOT NULL AND p."positionId" = $7)
             OR ($7::text IS NOT NULL AND EXISTS (
                    SELECT 1 FROM hiring_aliases a
@@ -425,6 +429,19 @@ pub(super) async fn find_matching_preferences(
                       ST_SetSRID(ST_MakePoint(cand.lng, cand.lat), 4326)::geography,
                       COALESCE(t."travelRadiusKm", 25) * 1000
                     )
+                )
+                OR (
+                  COALESCE(NULLIF(p."locationId", ''), NULLIF(t."locationId", '')) IS NULL
+                  AND t.lat IS NOT NULL AND t.lng IS NOT NULL
+                  AND EXISTS (
+                    SELECT 1 FROM hiring_locations req
+                    WHERE req.id = $12 AND req.lat IS NOT NULL AND req.lng IS NOT NULL
+                      AND ST_DWithin(
+                        ST_SetSRID(ST_MakePoint(req.lng, req.lat), 4326)::geography,
+                        ST_SetSRID(ST_MakePoint(t.lng, t.lat), 4326)::geography,
+                        COALESCE(t."travelRadiusKm", 25) * 1000
+                      )
+                  )
                 )
               )
             )
@@ -513,7 +530,7 @@ fn format_salary_label(salary: &EmployerSalary, salary_period: &str) -> String {
         "PER_JOB" => "/job",
         _ => "/month",
     };
-    if salary.salary_min > 0.0 && salary.salary_min < salary.salary_max {
+    if salary.salary_min > 0.0 && salary.salary_min <= salary.salary_max {
         format!(
             "₹{}–₹{}{suffix}",
             salary.salary_min.round(),

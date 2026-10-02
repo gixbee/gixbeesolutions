@@ -433,21 +433,20 @@ class _HiringOffersScreenState extends ConsumerState<HiringOffersScreen> {
                                           ],
                                         ],
                                         if (o['response'] == 'PENDING' &&
-                                            o['invited'] == true) ...[
+                                            o['invited'] == true &&
+                                            o['open'] == true) ...[
                                           const SizedBox(height: 14),
                                           Row(
                                             children: [
-                                              if (o['open'] == true) ...[
-                                                Expanded(
-                                                  child: GxButton(
-                                                    label: 'Not Interested',
-                                                    filled: false,
-                                                    onTap: () =>
-                                                        _respond(o, false),
-                                                  ),
+                                              Expanded(
+                                                child: GxButton(
+                                                  label: 'Not Interested',
+                                                  filled: false,
+                                                  onTap: () =>
+                                                      _respond(o, false),
                                                 ),
-                                                const SizedBox(width: 10),
-                                              ],
+                                              ),
+                                              const SizedBox(width: 10),
                                               Expanded(
                                                 child: GxButton(
                                                   label: 'Accept invite',
@@ -456,6 +455,16 @@ class _HiringOffersScreenState extends ConsumerState<HiringOffersScreen> {
                                                 ),
                                               ),
                                             ],
+                                          ),
+                                        ] else if (o['response'] == 'PENDING' &&
+                                            o['invited'] == true) ...[
+                                          const SizedBox(height: 14),
+                                          Text(
+                                            'This opening is closed',
+                                            style: TextStyle(
+                                              color: context.gx.ink
+                                                  .withValues(alpha: 0.6),
+                                            ),
                                           ),
                                         ] else if (o['open'] == true) ...[
                                           const SizedBox(height: 14),

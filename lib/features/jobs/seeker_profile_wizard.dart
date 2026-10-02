@@ -123,6 +123,8 @@ class _SeekerProfileWizardState extends ConsumerState<SeekerProfileWizard> {
   bool _loading = true;
 
   String? _positionId;
+  String? _positionLabel;
+  Set<String> _rolesForPosition = {};
   String? _sectorId;
   String? _qualificationId;
   String? _locationId;
@@ -198,7 +200,7 @@ class _SeekerProfileWizardState extends ConsumerState<SeekerProfileWizard> {
       _resumeMime = profile['resumeMimeType']?.toString();
       _resumeUploadedAt = profile['resumeUploadedAt']?.toString();
       final salary = profile['expectedSalary'];
-      if (salary != null) _salary.text = salary.toString();
+      if (salary != null) _salary.text = _wholeText(salary);
       final period = profile['expectedSalaryPeriod']?.toString();
       if (period != null && period.isNotEmpty) _salaryPeriod = period;
       final places = _strings(profile['preferredLocations']);
@@ -222,6 +224,7 @@ class _SeekerProfileWizardState extends ConsumerState<SeekerProfileWizard> {
         if (_specializationIds.isEmpty) _specializationIds = _strings(pref['specializationIds']);
         if (_skillIds.isEmpty) _skillIds = _strings(pref['skillIds']);
         if (_languageIds.isEmpty) _languageIds.addAll(_strings(pref['languageIds']));
+        _negotiable = pref['salaryNegotiable'] == true;
       }
       final catalogue = await ref.read(matchingRepositoryProvider).hiringCatalogue();
       _catalogueLanguages = ((catalogue['languages'] as List?) ?? [])
@@ -230,6 +233,7 @@ class _SeekerProfileWizardState extends ConsumerState<SeekerProfileWizard> {
       _qualifications = ((catalogue['qualifications'] as List?) ?? [])
           .map((row) => Map<String, dynamic>.from(row as Map))
           .toList();
+      _rolesForPosition = {..._roles};
       if (_positionId != null) await _loadPosition(_positionId!);
       _lat = (profile['lat'] as num?)?.toDouble();
       _lng = (profile['lng'] as num?)?.toDouble();
@@ -338,8 +342,24 @@ class _SeekerProfileWizardState extends ConsumerState<SeekerProfileWizard> {
         showGxSnack(context, 'Choose the date you can join', type: GxSnackType.error);
         return false;
       }
+      final salaryError = _salaryError();
+      if (salaryError != null) {
+        showGxSnack(context, salaryError, type: GxSnackType.error);
+        return false;
+      }
     }
     return true;
+  }
+
+  String? _salaryError() {
+    final text = _salary.text.trim();
+    if (text.isEmpty) return 'Enter your expected pay';
+    final salary = int.tryParse(text);
+    if (salary == null) return 'Expected pay must be a whole number';
+    if (salary <= 0 || salary > 99999999) {
+      return 'Expected pay must be between 1 and 99999999';
+    }
+    return null;
   }
 
   Future<void> _next() async {
@@ -352,13 +372,18 @@ class _SeekerProfileWizardState extends ConsumerState<SeekerProfileWizard> {
   }
 
   Future<void> _save() async {
+    final salaryError = _salaryError();
+    if (salaryError != null) {
+      showGxSnack(context, salaryError, type: GxSnackType.error);
+      return;
+    }
+    final salary = int.parse(_salary.text.trim());
     setState(() => _saving = true);
     final roles = {..._categories, ..._roles}.toList();
     final experience = experienceChoices
         .where((choice) => choice.$1 == _experienceLabel)
         .map((choice) => choice.$2)
         .firstOrNull;
-    final salary = int.tryParse(_salary.text.trim());
     try {
       await _savePreference(salary);
       await ref.read(talentRepositoryProvider).updateProfile({
@@ -380,7 +405,7 @@ class _SeekerProfileWizardState extends ConsumerState<SeekerProfileWizard> {
         'lat': _lat,
         'lng': _lng,
         'travelRadiusKm': _radius,
-        if (salary != null) 'expectedSalary': salary,
+        'expectedSalary': salary,
         'expectedSalaryPeriod': _salaryPeriod,
         'availability': _availability,
         'availableOn': _availability == 'CUSTOM_DATE' && _availableOn != null
@@ -401,13 +426,13 @@ class _SeekerProfileWizardState extends ConsumerState<SeekerProfileWizard> {
     }
   }
 
-  Future<void> _savePreference(int? salary) async {
+  Future<void> _savePreference(int salary) async {
     final repo = ref.read(matchingRepositoryProvider);
     final prefs = await repo.listPreferences();
     final body = <String, dynamic>{
       'skills': _skills.toList(),
       'preferredLocation': _place ?? '',
-      if (salary != null) 'expectedSalary': salary,
+      'expectedSalary': salary,
       'expectedSalaryPeriod': _salaryPeriod,
       'salaryNegotiable': _negotiable,
       'employmentType': _primaryEmployment,
@@ -593,6 +618,8 @@ class _SeekerProfileWizardState extends ConsumerState<SeekerProfileWizard> {
         onPick: (pick) async {
           setState(() {
             _positionId = pick.id;
+            _positionLabel = pick.label;
+            _rolesForPosition = {pick.label};
             _roles
               ..clear()
               ..add(pick.label);
@@ -624,6 +651,7 @@ class _SeekerProfileWizardState extends ConsumerState<SeekerProfileWizard> {
               selected: _roles.contains(role),
               onSelected: (_) => setState(() {
                 _roles.contains(role) ? _roles.remove(role) : _roles.add(role);
+                _dropPositionIfRoleLeft();
               }),
             ),
         ],
@@ -672,6 +700,8 @@ class _SeekerProfileWizardState extends ConsumerState<SeekerProfileWizard> {
       final detail = await ref.read(matchingRepositoryProvider).hiringPosition(positionId);
       if (!mounted || _positionId != positionId) return;
       setState(() {
+        final label = detail['label']?.toString();
+        if (label != null && label.isNotEmpty) _positionLabel = label;
         _typeLabel = '${detail['typeLabel'] ?? 'Specialization'}';
         _specChoices = ((detail['specializations'] as List?) ?? [])
             .map((row) => Map<String, dynamic>.from(row as Map))
@@ -973,7 +1003,25 @@ class _SeekerProfileWizardState extends ConsumerState<SeekerProfileWizard> {
     setState(() {
       _roles.add(role);
       _roleSearch.clear();
+      _dropPositionIfRoleLeft();
     });
+  }
+
+  void _dropPositionIfRoleLeft() {
+    if (_positionId == null) return;
+    final label = _positionLabel;
+    final stillBound = label != null
+        ? _roles.contains(label)
+        : _roles.length == _rolesForPosition.length &&
+            _roles.containsAll(_rolesForPosition);
+    if (stillBound) return;
+    _positionId = null;
+    _positionLabel = null;
+    _rolesForPosition = {};
+    _specializationIds = [];
+    _skillIds = [];
+    _specChoices = [];
+    _catalogueSkills = [];
   }
 
   void _addSkill(String raw) {
@@ -1030,6 +1078,13 @@ class _SeekerProfileWizardState extends ConsumerState<SeekerProfileWizard> {
       ],
     );
   }
+}
+
+String _wholeText(dynamic value) {
+  if (value is num && value == value.roundToDouble()) return '${value.toInt()}';
+  final parsed = num.tryParse('$value');
+  if (parsed != null && parsed == parsed.roundToDouble()) return '${parsed.toInt()}';
+  return '$value';
 }
 
 String _dateOnly(DateTime date) {

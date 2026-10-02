@@ -22,7 +22,7 @@ use self::audit::{bump_hall_caches, write_audit};
 use self::availability::{
     acquire_hall_scope_locks, availability_check, Interval,
 };
-use self::policy::{validate_deduction_basis, validate_policy_rules};
+use self::policy::{enforce_booking_window, validate_deduction_basis, validate_policy_rules};
 
 pub fn public_routes() -> Router<AppState> {
     Router::new().route("/discover", get(discover_halls))
@@ -197,6 +197,9 @@ async fn patch_venue(
                 "plannedHallCount must be between 1 and 50".into(),
             ));
         }
+    }
+    if let Some(ref parking) = body.common_parking {
+        validate_parking(parking)?;
     }
     let mut tx = state.db.begin().await?;
     acquire_hall_scope_locks(&mut tx, business_id, Some(&[])).await?;
@@ -628,6 +631,60 @@ async fn put_package(
     })))
 }
 
+fn optional_whole_number(value: Option<&Value>, field: &str, min: i64, max: i64) -> AppResult<()> {
+    match value {
+        None | Some(Value::Null) => Ok(()),
+        Some(_) => {
+            whole_number(value, field, min, max)?;
+            Ok(())
+        }
+    }
+}
+
+fn whole_number(value: Option<&Value>, field: &str, min: i64, max: i64) -> AppResult<i64> {
+    let n = value.and_then(|v| v.as_i64()).ok_or_else(|| {
+        AppError::BadRequest(format!("{field} must be a whole number"))
+    })?;
+    if !(min..=max).contains(&n) {
+        return Err(AppError::BadRequest(format!(
+            "{field} must be between {min} and {max}"
+        )));
+    }
+    Ok(n)
+}
+
+fn validate_clock(value: Option<&Value>, field: &str) -> AppResult<u32> {
+    let text = value
+        .and_then(|v| v.as_str())
+        .ok_or_else(|| AppError::BadRequest(format!("{field} must be HH:MM")))?;
+    let Some((h, m)) = text.split_once(':') else {
+        return Err(AppError::BadRequest(format!("{field} must be HH:MM")));
+    };
+    if h.len() != 2 || m.len() != 2 {
+        return Err(AppError::BadRequest(format!("{field} must be HH:MM")));
+    }
+    let hour: u32 = h
+        .parse()
+        .map_err(|_| AppError::BadRequest(format!("{field} must be HH:MM")))?;
+    let minute: u32 = m
+        .parse()
+        .map_err(|_| AppError::BadRequest(format!("{field} must be HH:MM")))?;
+    if hour > 23 || minute > 59 {
+        return Err(AppError::BadRequest(format!("{field} must be HH:MM")));
+    }
+    Ok(hour * 60 + minute)
+}
+
+fn validate_parking(value: &Value) -> AppResult<()> {
+    let obj = value.as_object().ok_or_else(|| {
+        AppError::BadRequest("commonParking must be an object with car and bike counts".into())
+    })?;
+    for key in ["car", "bike"] {
+        whole_number(obj.get(key), &format!("commonParking.{key}"), 0, 10_000)?;
+    }
+    Ok(())
+}
+
 fn validate_package(pkg: &Value) -> AppResult<()> {
     let events = pkg
         .get("events")
@@ -638,6 +695,22 @@ fn validate_package(pkg: &Value) -> AppResult<()> {
             "Select at least one event type".into(),
         ));
     }
+    let facilities = pkg
+        .get("facilities")
+        .and_then(|v| v.as_array())
+        .map(|items| {
+            items
+                .iter()
+                .filter_map(|v| v.as_str().map(str::to_owned))
+                .collect::<Vec<_>>()
+        })
+        .unwrap_or_default();
+    let has_ac = facilities.iter().any(|f| f == "AC");
+    let capacity = pkg.get("capacity").ok_or_else(|| {
+        AppError::BadRequest("package.capacity.seat and package.capacity.dine are required".into())
+    })?;
+    whole_number(capacity.get("seat"), "capacity.seat", 0, 100_000)?;
+    whole_number(capacity.get("dine"), "capacity.dine", 0, 100_000)?;
     let offers = pkg
         .get("slotOffers")
         .and_then(|v| v.as_array())
@@ -651,6 +724,63 @@ fn validate_package(pkg: &Value) -> AppResult<()> {
             "Enable at least one time slot with pricing".into(),
         ));
     }
+    for (i, offer) in enabled.iter().enumerate() {
+        let from = validate_clock(offer.get("hallFrom"), &format!("slotOffers[{i}].hallFrom"))?;
+        let to = validate_clock(offer.get("hallTo"), &format!("slotOffers[{i}].hallTo"))?;
+        if to <= from {
+            return Err(AppError::BadRequest(format!(
+                "slotOffers[{i}] end time must be after its start time"
+            )));
+        }
+        let offer_ac = offer.get("offerAc").and_then(|v| v.as_bool()).unwrap_or(false);
+        if offer_ac && !has_ac {
+            return Err(AppError::BadRequest(
+                "AC pricing requires the AC facility".into(),
+            ));
+        }
+        if offer.get("offerNoAc").and_then(|v| v.as_bool()).unwrap_or(true) {
+            whole_number(
+                offer.get("priceNoAc"),
+                &format!("slotOffers[{i}].priceNoAc"),
+                0,
+                100_000_000,
+            )?;
+        }
+        if offer_ac {
+            whole_number(
+                offer.get("priceAc"),
+                &format!("slotOffers[{i}].priceAc"),
+                0,
+                100_000_000,
+            )?;
+        }
+    }
+    let payment = pkg.get("payment").ok_or_else(|| {
+        AppError::BadRequest("package.payment is required".into())
+    })?;
+    match payment.get("advanceType").and_then(|v| v.as_str()).unwrap_or("fixed") {
+        "fixed" => {
+            whole_number(payment.get("advanceFixed"), "payment.advanceFixed", 0, 100_000_000)?;
+            optional_whole_number(payment.get("advancePct"), "payment.advancePct", 0, 100)?;
+        }
+        "percent" => {
+            whole_number(payment.get("advancePct"), "payment.advancePct", 0, 100)?;
+            optional_whole_number(
+                payment.get("advanceFixed"),
+                "payment.advanceFixed",
+                0,
+                100_000_000,
+            )?;
+        }
+        other => {
+            return Err(AppError::BadRequest(format!(
+                "payment.advanceType must be fixed or percent (got {other})"
+            )));
+        }
+    }
+    whole_number(payment.get("fullDueDays"), "payment.fullDueDays", 0, 3650)?;
+    whole_number(pkg.get("bookWindowMonths"), "bookWindowMonths", 1, 36)?;
+    whole_number(pkg.get("minNoticeDays"), "minNoticeDays", 0, 365)?;
     validate_policy_rules(
         pkg.get("cancelRules")
             .unwrap_or(&Value::Array(vec![])),
@@ -662,6 +792,32 @@ fn validate_package(pkg: &Value) -> AppResult<()> {
         "rescheduleRules",
     )?;
     validate_deduction_basis(pkg.get("deductionBasis"))?;
+    Ok(())
+}
+
+pub(crate) async fn load_hall_package(
+    tx: &mut sqlx::PgConnection,
+    hall_id: Uuid,
+) -> AppResult<Option<Value>> {
+    let row = sqlx::query(
+        r#"SELECT rev.package AS package
+           FROM business_halls h
+           LEFT JOIN business_hall_package_revisions rev ON rev.id = h."packageRevisionId"
+           WHERE h.id = $1"#,
+    )
+    .bind(hall_id)
+    .fetch_optional(&mut *tx)
+    .await?;
+    match row {
+        None => Ok(None),
+        Some(r) => Ok(r.try_get("package")?),
+    }
+}
+
+pub(crate) fn ensure_package_window(pkg: Option<&Value>, start: DateTime<Utc>) -> AppResult<()> {
+    if let Some(pkg) = pkg {
+        enforce_booking_window(pkg, start, Utc::now())?;
+    }
     Ok(())
 }
 
@@ -943,6 +1099,8 @@ async fn add_operator(
     let uid = Uuid::parse_str(&user.user_id)?;
     require_perm(&state.db, business_id, Some(hall_id), uid, Perm::Owner).await?;
     let mut tx = state.db.begin().await?;
+    // Business, then venue, then this hall, before the operator row and its audit foreign keys.
+    acquire_hall_scope_locks(&mut *tx, business_id, Some(&[hall_id])).await?;
     sqlx::query(
         r#"INSERT INTO business_hall_operators ("hallId", "userId")
            SELECT $1, $2 FROM business_halls
@@ -978,6 +1136,7 @@ async fn remove_operator(
     let uid = Uuid::parse_str(&user.user_id)?;
     require_perm(&state.db, business_id, Some(hall_id), uid, Perm::Owner).await?;
     let mut tx = state.db.begin().await?;
+    acquire_hall_scope_locks(&mut *tx, business_id, Some(&[hall_id])).await?;
     sqlx::query(
         r#"DELETE FROM business_hall_operators o
            USING business_halls h
@@ -1046,6 +1205,7 @@ async fn add_media(
         return Err(AppError::BadRequest("Media URL is required".into()));
     }
     let mut tx = state.db.begin().await?;
+    acquire_hall_scope_locks(&mut *tx, business_id, Some(&[hall_id])).await?;
     let id = Uuid::new_v4();
     sqlx::query(
         r#"INSERT INTO business_hall_media (id, "hallId", url, "sortOrder")
@@ -1083,6 +1243,7 @@ async fn remove_media(
     let uid = Uuid::parse_str(&user.user_id)?;
     require_perm(&state.db, business_id, Some(hall_id), uid, Perm::HallPhotos).await?;
     let mut tx = state.db.begin().await?;
+    acquire_hall_scope_locks(&mut *tx, business_id, Some(&[hall_id])).await?;
     sqlx::query(
         r#"DELETE FROM business_hall_media m
            USING business_halls h

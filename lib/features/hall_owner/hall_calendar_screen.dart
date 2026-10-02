@@ -5,7 +5,31 @@ import '../../shared/models/business.dart';
 import '../../shared/widgets/gx_button.dart';
 import '../../shared/widgets/gx_snackbar.dart';
 
-/// Interval calendar for a hall. Times displayed in venue timezone (IST label).
+const _kolkataOffset = Duration(hours: 5, minutes: 30);
+
+bool _isKolkata(String tz) => tz == 'Asia/Kolkata' || tz == 'Asia/Calcutta';
+
+Duration _venueOffset(String tz) => _isKolkata(tz) ? _kolkataOffset : Duration.zero;
+
+/// Venue civil clock, stored in calendar fields only.
+DateTime _venueNow(String tz) {
+  final shifted = DateTime.now().toUtc().add(_venueOffset(tz));
+  return DateTime(
+    shifted.year,
+    shifted.month,
+    shifted.day,
+    shifted.hour,
+    shifted.minute,
+    shifted.second,
+  );
+}
+
+/// UTC instant of civil midnight in the venue timezone.
+DateTime _venueMidnightUtc(String tz, int year, int month, [int day = 1]) {
+  return DateTime.utc(year, month, day).subtract(_venueOffset(tz));
+}
+
+/// Interval calendar for a hall. Month bounds and blocks use the venue timezone.
 class HallCalendarScreen extends ConsumerStatefulWidget {
   const HallCalendarScreen({
     super.key,
@@ -23,17 +47,18 @@ class _HallCalendarScreenState extends ConsumerState<HallCalendarScreen> {
   late DateTime _month;
   Map<String, dynamic>? _data;
   bool _loading = true;
+  String _tz = 'Asia/Kolkata';
 
   @override
   void initState() {
     super.initState();
-    final now = DateTime.now();
+    final now = _venueNow(_tz);
     _month = DateTime(now.year, now.month);
     _load();
   }
 
-  DateTime get _from => DateTime(_month.year, _month.month, 1);
-  DateTime get _to => DateTime(_month.year, _month.month + 1, 1);
+  DateTime get _from => _venueMidnightUtc(_tz, _month.year, _month.month);
+  DateTime get _to => _venueMidnightUtc(_tz, _month.year, _month.month + 1);
 
   Future<void> _load() async {
     setState(() => _loading = true);
@@ -41,10 +66,20 @@ class _HallCalendarScreenState extends ConsumerState<HallCalendarScreen> {
       final data = await ref.read(hallRepositoryProvider).getCalendar(
             widget.business.id,
             widget.hallId,
-            from: _from.toUtc(),
-            to: _to.toUtc(),
+            from: _from,
+            to: _to,
           );
       if (!mounted) return;
+      final tz = (data['venueTimezone'] as String?) ?? 'Asia/Kolkata';
+      if (tz != _tz) {
+        final now = _venueNow(tz);
+        setState(() {
+          _tz = tz;
+          _month = DateTime(now.year, now.month);
+        });
+        await _load();
+        return;
+      }
       setState(() {
         _data = data;
         _loading = false;
@@ -57,9 +92,7 @@ class _HallCalendarScreenState extends ConsumerState<HallCalendarScreen> {
   }
 
   Future<void> _blockDay(DateTime day) async {
-    // Venue civil day Asia/Kolkata (+05:30) → UTC instants.
-    final startUtc = DateTime.utc(day.year, day.month, day.day)
-        .subtract(const Duration(hours: 5, minutes: 30));
+    final startUtc = _venueMidnightUtc(_tz, day.year, day.month, day.day);
     final endUtc = startUtc.add(const Duration(days: 1));
     try {
       await ref.read(hallRepositoryProvider).createBlock(
@@ -79,6 +112,17 @@ class _HallCalendarScreenState extends ConsumerState<HallCalendarScreen> {
     }
   }
 
+  String _venueStamp(Object? raw) {
+    final parsed = DateTime.tryParse('${raw ?? ''}');
+    if (parsed == null) return '${raw ?? ''}';
+    final kolkata = _isKolkata(_tz);
+    final local = parsed.toUtc().add(_venueOffset(_tz));
+    String two(int n) => n.toString().padLeft(2, '0');
+    final clock =
+        '${local.year}-${two(local.month)}-${two(local.day)} ${two(local.hour)}:${two(local.minute)}';
+    return kolkata ? clock : '$clock UTC';
+  }
+
   Future<void> _release(String blockId) async {
     try {
       await ref
@@ -93,8 +137,10 @@ class _HallCalendarScreenState extends ConsumerState<HallCalendarScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final tzLabel =
-        (_data?['timezoneLabel'] as String?) ?? 'Times shown in IST (Kolkata)';
+    final kolkata = _isKolkata(_tz);
+    final tzLabel = kolkata
+        ? ((_data?['timezoneLabel'] as String?) ?? 'Times shown in IST (Kolkata)')
+        : 'Times shown in UTC ($_tz)';
     final blocks = (_data?['blocks'] as List?) ?? [];
     final reservations = (_data?['reservations'] as List?) ?? [];
     final activeBlocks = blocks
@@ -141,7 +187,7 @@ class _HallCalendarScreenState extends ConsumerState<HallCalendarScreen> {
                     style: const TextStyle(fontWeight: FontWeight.w700)),
                 ...activeBlocks.map((b) {
                   return ListTile(
-                    title: Text('${b['startAt']} → ${b['endAt']}'),
+                    title: Text('${_venueStamp(b['startAt'])} → ${_venueStamp(b['endAt'])}'),
                     subtitle: Text('${b['reason']} · ${b['notes'] ?? ''}'),
                     trailing: TextButton(
                       onPressed: () => _release(b['id'] as String),
@@ -155,24 +201,35 @@ class _HallCalendarScreenState extends ConsumerState<HallCalendarScreen> {
                 ...reservations.whereType<Map>().map((r) {
                   final m = Map<String, dynamic>.from(r);
                   return ListTile(
-                    title: Text('${m['status']}: ${m['startAt']}'),
-                    subtitle: Text('→ ${m['endAt']}'),
+                    title: Text('${m['status']}: ${_venueStamp(m['startAt'])}'),
+                    subtitle: Text('→ ${_venueStamp(m['endAt'])}'),
                   );
                 }),
                 const SizedBox(height: 16),
                 GxButton(
                   label: 'Block today (full day, venue TZ)',
-                  onTap: () => _blockDay(DateTime.now()),
+                  onTap: () {
+                    final today = _venueNow(_tz);
+                    _blockDay(DateTime(today.year, today.month, today.day));
+                  },
                 ),
                 const SizedBox(height: 8),
                 GxButton(
                   label: 'Block selected month day…',
                   onTap: () async {
+                    final today = _venueNow(_tz);
+                    final first = DateTime(today.year, today.month, today.day)
+                        .subtract(const Duration(days: 1));
+                    final last = DateTime(today.year, today.month, today.day)
+                        .add(const Duration(days: 730));
+                    var initial = DateTime(_month.year, _month.month, 1);
+                    if (initial.isBefore(first)) initial = first;
+                    if (initial.isAfter(last)) initial = last;
                     final picked = await showDatePicker(
                       context: context,
-                      initialDate: _month,
-                      firstDate: DateTime.now().subtract(const Duration(days: 1)),
-                      lastDate: DateTime.now().add(const Duration(days: 730)),
+                      initialDate: initial,
+                      firstDate: first,
+                      lastDate: last,
                     );
                     if (picked != null) await _blockDay(picked);
                   },

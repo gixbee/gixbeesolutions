@@ -7,6 +7,17 @@ import '../../shared/widgets/gx_snackbar.dart';
 import '../../shared/widgets/gx_text_field.dart';
 import 'hall_business_home_screen.dart';
 
+String? _parking(String raw, String label) {
+  final text = raw.trim();
+  if (text.isEmpty) return '$label is required';
+  final value = int.tryParse(text);
+  if (value == null) return '$label must be a whole number';
+  if (value < 0 || value > 10000) {
+    return '$label must be between 0 and 10000';
+  }
+  return null;
+}
+
 class HallSetupScreen extends ConsumerStatefulWidget {
   const HallSetupScreen({super.key, required this.business});
   final Business business;
@@ -31,10 +42,16 @@ class _HallSetupScreenState extends ConsumerState<HallSetupScreen> {
   }
 
   Future<void> _save() async {
-    final count = int.tryParse(_countCtrl.text.trim()) ?? 0;
-    if (count < 1 || count > 50) {
+    final count = int.tryParse(_countCtrl.text.trim());
+    if (count == null || count < 1 || count > 50) {
       showGxSnack(context, 'Enter a hall count between 1 and 50',
           type: GxSnackType.error);
+      return;
+    }
+    final parkingError = _parking(_carCtrl.text, 'Car parking') ??
+        _parking(_bikeCtrl.text, 'Bike parking');
+    if (parkingError != null) {
+      showGxSnack(context, parkingError, type: GxSnackType.error);
       return;
     }
     setState(() => _saving = true);
@@ -42,8 +59,8 @@ class _HallSetupScreenState extends ConsumerState<HallSetupScreen> {
       await ref.read(hallRepositoryProvider).patchVenue(widget.business.id, {
         'plannedHallCount': count,
         'commonParking': {
-          'car': int.tryParse(_carCtrl.text.trim()) ?? 0,
-          'bike': int.tryParse(_bikeCtrl.text.trim()) ?? 0,
+          'car': int.parse(_carCtrl.text.trim()),
+          'bike': int.parse(_bikeCtrl.text.trim()),
         },
         'hallSetupComplete': true,
         'timezone': 'Asia/Kolkata',

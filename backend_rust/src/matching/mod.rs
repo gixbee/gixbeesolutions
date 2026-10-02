@@ -1322,6 +1322,19 @@ async fn start_request(
         .get("salaryNegotiable")
         .and_then(|v| v.as_bool())
         .unwrap_or(false);
+    if !salary_offered.is_finite()
+        || !salary_min.is_finite()
+        || !salary_max.is_finite()
+        || salary_offered < 0.0
+        || salary_min < 0.0
+        || salary_max < 0.0
+        || salary_max > 99_999_999.0
+        || salary_min > salary_max
+    {
+        return Err(AppError::BadRequest(
+            "Salary minimum cannot exceed the maximum".into(),
+        ));
+    }
     let employment_type =
         profiles::employment_type(meta.get("employmentType").and_then(Value::as_str))?;
     let experience_min = meta

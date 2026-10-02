@@ -1,6 +1,7 @@
 use super::*;
 use crate::halls::availability::{
-    acquire_hall_scope_locks, availability_check, release_holds_for_quote, Interval,
+    acquire_hall_scope_locks, availability_check, lock_business_rows, release_holds_for_quote,
+    Interval,
 };
 
 #[derive(Deserialize)]
@@ -42,15 +43,39 @@ pub(super) async fn offer(
     let uid = Uuid::parse_str(&user.user_id)?;
     let plan_id = Uuid::parse_str(&id)?;
     let mut tx = state.db.begin().await?;
+    // Event, then business, then (for a hall offer) venue and halls, then quote rows.
+    let plan = sqlx::query(r#"SELECT * FROM event_plans WHERE id=$1 FOR UPDATE"#)
+        .bind(plan_id)
+        .fetch_optional(&mut *tx)
+        .await?
+        .ok_or_else(|| AppError::Conflict("This event is no longer accepting quotes".into()))?;
+    if plan.get::<Option<DateTime<Utc>>, _>("cancelledAt").is_some()
+        || plan.get::<DateTime<Utc>, _>("startTime") <= Utc::now()
+    {
+        return Err(AppError::Conflict(
+            "This event is no longer accepting quotes".into(),
+        ));
+    }
+    if let Err(err) = lock_business_rows(&mut *tx, &[input.business_id]).await {
+        return Err(match err {
+            AppError::NotFound(_) => {
+                AppError::NotFound("Business not found on your account".into())
+            }
+            other => other,
+        });
+    }
     let business = sqlx::query(
         r#"SELECT "ownerId","cityId","serviceType"::text AS service,"eventServices",status::text AS status,type::text AS type
-        FROM businesses WHERE id=$1 AND "ownerId"=$2 FOR UPDATE"#,
+        FROM businesses WHERE id=$1"#,
     )
     .bind(input.business_id)
-    .bind(uid)
-    .fetch_optional(&mut *tx)
-    .await?
-    .ok_or_else(|| AppError::NotFound("Business not found on your account".into()))?;
+    .fetch_one(&mut *tx)
+    .await?;
+    if business.get::<Uuid, _>("ownerId") != uid {
+        return Err(AppError::NotFound(
+            "Business not found on your account".into(),
+        ));
+    }
     let supports = business.get::<Option<String>, _>("service").as_deref()
         == Some(input.service_type.as_str())
         || business
@@ -65,13 +90,6 @@ pub(super) async fn offer(
             "A verified business offering this service is required".into(),
         ));
     }
-    let plan = sqlx::query(
-        r#"SELECT * FROM event_plans WHERE id=$1 AND "cancelledAt" IS NULL AND "startTime">NOW() FOR UPDATE"#,
-    )
-    .bind(plan_id)
-    .fetch_optional(&mut *tx)
-    .await?
-    .ok_or_else(|| AppError::Conflict("This event is no longer accepting quotes".into()))?;
     let customer: Uuid = plan.get("customerId");
     if customer == uid {
         return Err(AppError::BadRequest(
@@ -161,6 +179,10 @@ async fn offer_hall_revision(
         AppError::BadRequest("hallId is required when offering a hall quote".into())
     })?;
 
+    // offer() already locked the event and the business. Venue and halls next,
+    // then the enquiry and quote rows.
+    acquire_hall_scope_locks(&mut **tx, input.business_id, Some(&[hall_id])).await?;
+
     let enq = sqlx::query(
         r#"SELECT * FROM hall_enquiries WHERE id=$1 AND "businessId"=$2 FOR UPDATE"#,
     )
@@ -198,8 +220,8 @@ async fn offer_hall_revision(
             .unwrap_or_else(|| plan.get("endTime"))
     };
     let interval = Interval::new(start, end)?;
-
-    acquire_hall_scope_locks(&mut **tx, input.business_id, Some(&[hall_id])).await?;
+    let package = crate::halls::load_hall_package(&mut **tx, hall_id).await?;
+    crate::halls::ensure_package_window(package.as_ref(), start)?;
 
     // Supersede any current OFFERED revision for this vendor/service.
     let prior: Option<Uuid> = sqlx::query_scalar(
@@ -378,24 +400,57 @@ pub(super) async fn action(
     let uid = Uuid::parse_str(&user.user_id)?;
     let quote_id = Uuid::parse_str(&id)?;
     let mut tx = state.db.begin().await?;
+    // Unlocked read only to find the rows to lock. State is checked again after the locks.
+    let located = sqlx::query(r#"SELECT "planId","businessId" FROM event_quotes WHERE id=$1"#)
+        .bind(quote_id)
+        .fetch_optional(&mut *tx)
+        .await?
+        .ok_or_else(|| AppError::NotFound("Quote not found".into()))?;
+    let plan_id: Uuid = located.get("planId");
+    let business_id: Uuid = located.get("businessId");
+    // Event, then business, then venue and halls when this is a hall quote, then the quote row.
+    let plan = sqlx::query(r#"SELECT * FROM event_plans WHERE id=$1 FOR UPDATE"#)
+        .bind(plan_id)
+        .fetch_optional(&mut *tx)
+        .await?
+        .ok_or_else(|| AppError::NotFound("Quote not found".into()))?;
+    if let Err(err) = lock_business_rows(&mut *tx, &[business_id]).await {
+        return Err(match err {
+            AppError::NotFound(_) => AppError::NotFound("Quote not found".into()),
+            other => other,
+        });
+    }
     let business = sqlx::query(
-        r#"SELECT b.id,b."ownerId",b.status::text AS status,b."offlineDays"::jsonb AS offline
-        FROM businesses b JOIN event_quotes q ON q."businessId"=b.id WHERE q.id=$1 FOR UPDATE OF b"#,
+        r#"SELECT id,"ownerId",status::text AS status,"offlineDays"::jsonb AS offline
+           FROM businesses WHERE id=$1"#,
+    )
+    .bind(business_id)
+    .fetch_one(&mut *tx)
+    .await?;
+    let preview = sqlx::query(
+        r#"SELECT "hallId","serviceType"::text AS "serviceType" FROM event_quotes WHERE id=$1"#,
     )
     .bind(quote_id)
     .fetch_optional(&mut *tx)
     .await?
     .ok_or_else(|| AppError::NotFound("Quote not found".into()))?;
-    let plan = sqlx::query(
-        r#"SELECT p.* FROM event_plans p JOIN event_quotes q ON q."planId"=p.id WHERE q.id=$1 FOR UPDATE OF p"#,
-    )
-    .bind(quote_id)
-    .fetch_one(&mut *tx)
-    .await?;
+    let preview_hall: Option<Uuid> = preview.try_get("hallId").ok().flatten();
+    let preview_service: String = preview.get("serviceType");
+    if preview_hall.is_some() || preview_service == "HALL" {
+        let lock = preview_hall.map(|hall| vec![hall]);
+        acquire_hall_scope_locks(&mut *tx, business_id, lock.as_deref()).await?;
+    }
     let quote = sqlx::query("SELECT * FROM event_quotes WHERE id=$1 FOR UPDATE")
         .bind(quote_id)
-        .fetch_one(&mut *tx)
-        .await?;
+        .fetch_optional(&mut *tx)
+        .await?
+        .ok_or_else(|| AppError::NotFound("Quote not found".into()))?;
+    if quote.get::<Uuid, _>("planId") != plan_id || quote.get::<Uuid, _>("businessId") != business_id
+    {
+        return Err(AppError::Conflict(
+            "This quote has changed. Refresh and review its current price and terms".into(),
+        ));
+    }
     let customer: Uuid = plan.get("customerId");
     let vendor: Uuid = business.get("ownerId");
     let is_customer = customer == uid;
@@ -404,9 +459,16 @@ pub(super) async fn action(
         return Err(AppError::NotFound("Quote not found".into()));
     }
     let status = quote.get::<String, _>("status");
-    let plan_id: Uuid = plan.get("id");
     let hall_id: Option<Uuid> = quote.try_get("hallId").ok().flatten();
     let service_type: String = quote.get("serviceType");
+    if (hall_id.is_some() || service_type == "HALL")
+        && hall_id != preview_hall
+    {
+        // The event lock blocks other quote writers, so this is a stale preview.
+        return Err(AppError::Conflict(
+            "This quote has changed. Refresh and review its current price and terms".into(),
+        ));
+    }
 
     if ["accept", "request-cancel", "accept-cancel", "reject-cancel"].contains(&action.as_str()) {
         let revision = body
@@ -450,6 +512,10 @@ pub(super) async fn action(
                 .unwrap_or_else(|| plan.get("endTime"));
             let interval = Interval::new(start, end)?;
             let biz_id: Uuid = business.get("id");
+            if let Some(hall) = hall_id {
+                let package = crate::halls::load_hall_package(&mut *tx, hall).await?;
+                crate::halls::ensure_package_window(package.as_ref(), start)?;
+            }
 
             let hold_id: Option<Uuid> = sqlx::query_scalar(
                 r#"SELECT id FROM hall_reservations
@@ -460,8 +526,7 @@ pub(super) async fn action(
             .await?;
 
             if hall_id.is_some() || service_type == "HALL" {
-                let lock = hall_id.map(|h| vec![h]);
-                acquire_hall_scope_locks(&mut *tx, biz_id, lock.as_deref()).await?;
+                // Venue and halls were locked before this quote row.
                 availability_check(&mut *tx, biz_id, hall_id, interval, hold_id).await?;
             } else {
                 // Legacy path (non-hall).
@@ -691,10 +756,16 @@ pub(super) async fn action(
                 if let Some(eid) =
                     quote.try_get::<Option<Uuid>, _>("hallEnquiryId").ok().flatten()
                 {
-                    // Cancel-first MVP: after cancel, enquiry returns to ASSIGNED for re-offer.
+                    // Re-offer only while the parent event is still active.
+                    // A whole-event cancel leaves the enquiry CANCELLED.
                     sqlx::query(
-                        r#"UPDATE hall_enquiries SET status='ASSIGNED',"activeQuoteId"=NULL,"updatedAt"=NOW()
-                           WHERE id=$1 AND "assignedHallId" IS NOT NULL"#,
+                        r#"UPDATE hall_enquiries e
+                           SET status='ASSIGNED', "activeQuoteId"=NULL, "updatedAt"=NOW()
+                           FROM event_plans p
+                           WHERE e.id=$1 AND e."eventPlanId"=p.id
+                             AND p."cancelledAt" IS NULL
+                             AND e."assignedHallId" IS NOT NULL
+                             AND e.status NOT IN ('CANCELLED','OWNER_DECLINED','QUOTE_DECLINED','QUOTE_EXPIRED')"#,
                     )
                     .bind(eid)
                     .execute(&mut *tx)

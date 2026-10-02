@@ -60,6 +60,29 @@ async fn require_owner(db: &sqlx::PgPool, business_id: Uuid, uid: Uuid) -> AppRe
     }
 }
 
+/// Owner check after `businesses` is locked. The unlocked `require_owner` call
+/// only avoids starting a transaction for an obvious rejection.
+async fn recheck_locked_owner(
+    tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
+    business_id: Uuid,
+    uid: Uuid,
+) -> AppResult<()> {
+    let owner: Option<Uuid> = sqlx::query_scalar(
+        r#"SELECT "ownerId" FROM businesses
+           WHERE id = $1 AND type = 'SERVICE' AND "serviceType"::text = 'HALL'"#,
+    )
+    .bind(business_id)
+    .fetch_optional(&mut **tx)
+    .await?;
+    match owner {
+        Some(owner) if owner == uid => Ok(()),
+        Some(_) => Err(AppError::Forbidden(
+            "Only the business owner may manage enquiries".into(),
+        )),
+        None => Err(AppError::NotFound("Hall business not found".into())),
+    }
+}
+
 /// Create hall enquiries for eligible HALL businesses (idempotent UNIQUE plan+business).
 pub async fn ensure_enquiries_for_plan(
     tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
@@ -77,6 +100,7 @@ pub async fn ensure_enquiries_for_plan(
              AND "serviceType"::text = 'HALL'
              AND "ownerId" <> $1
              AND ($2::uuid IS NULL OR "cityId" = $2)
+           ORDER BY id
            LIMIT 200"#,
     )
     .bind(customer_id)
@@ -210,6 +234,36 @@ async fn list_hall_enquiries(
     Ok(Json(rows.iter().map(|r| r.get("data")).collect()))
 }
 
+/// Lock the parent event before the business, venue, or hall locks.
+/// `acquire_hall_scope_locks` must be the next lock: it takes `businesses`,
+/// then the venue, then halls. Reject a cancelled event so approve, assign,
+/// and hold creation cannot race ahead of whole-event cancel.
+async fn lock_open_event_for_enquiry(
+    tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
+    enquiry_id: Uuid,
+) -> AppResult<Uuid> {
+    let plan_id: Option<Uuid> = sqlx::query_scalar(
+        r#"SELECT "eventPlanId" FROM hall_enquiries WHERE id = $1"#,
+    )
+    .bind(enquiry_id)
+    .fetch_optional(&mut **tx)
+    .await?;
+    let plan_id = plan_id.ok_or_else(|| AppError::NotFound("Enquiry not found".into()))?;
+    let cancelled_at: Option<DateTime<Utc>> = sqlx::query_scalar::<_, Option<DateTime<Utc>>>(
+        r#"SELECT "cancelledAt" FROM event_plans WHERE id = $1 FOR UPDATE"#,
+    )
+    .bind(plan_id)
+    .fetch_optional(&mut **tx)
+    .await?
+    .ok_or_else(|| AppError::NotFound("Event not found".into()))?;
+    if cancelled_at.is_some() {
+        return Err(AppError::Conflict(
+            "This event has been cancelled".into(),
+        ));
+    }
+    Ok(plan_id)
+}
+
 async fn owner_approve(
     State(state): State<AppState>,
     user: AuthUser,
@@ -235,7 +289,9 @@ async fn owner_decline(
     let uid = Uuid::parse_str(&user.user_id)?;
     require_owner(&state.db, business_id, uid).await?;
     let mut tx = state.db.begin().await?;
+    lock_open_event_for_enquiry(&mut tx, enquiry_id).await?;
     acquire_hall_scope_locks(&mut *tx, business_id, Some(&[])).await?;
+    recheck_locked_owner(&mut tx, business_id, uid).await?;
     let row = sqlx::query(
         r#"SELECT status FROM hall_enquiries WHERE id = $1 AND "businessId" = $2 FOR UPDATE"#,
     )
@@ -301,7 +357,9 @@ async fn transition_owner(
     let uid = Uuid::parse_str(&user.user_id)?;
     require_owner(&state.db, business_id, uid).await?;
     let mut tx = state.db.begin().await?;
+    lock_open_event_for_enquiry(&mut tx, enquiry_id).await?;
     acquire_hall_scope_locks(&mut *tx, business_id, Some(&[])).await?;
+    recheck_locked_owner(&mut tx, business_id, uid).await?;
     let row = sqlx::query(
         r#"SELECT status FROM hall_enquiries WHERE id = $1 AND "businessId" = $2 FOR UPDATE"#,
     )
@@ -363,7 +421,9 @@ async fn assign_hall(
     let interval = Interval::new(start, end)?;
 
     let mut tx = state.db.begin().await?;
+    lock_open_event_for_enquiry(&mut tx, enquiry_id).await?;
     acquire_hall_scope_locks(&mut *tx, business_id, Some(&[body.hall_id])).await?;
+    recheck_locked_owner(&mut tx, business_id, uid).await?;
 
     let enq = sqlx::query(
         r#"SELECT status, "assignedHallId" FROM hall_enquiries
@@ -414,6 +474,8 @@ async fn assign_hall(
             "Save a package for this hall before assigning enquiries".into(),
         ));
     }
+    let package = crate::halls::load_hall_package(&mut *tx, body.hall_id).await?;
+    crate::halls::ensure_package_window(package.as_ref(), start)?;
 
     availability_check(&mut *tx, business_id, Some(body.hall_id), interval, None).await?;
 

@@ -63,7 +63,9 @@ pub(super) async fn action(
     let iid = Uuid::parse_str(&id)?;
     let mut tx = state.db.begin().await?;
     let request = sqlx::query(
-        r#"SELECT hr.id, hr."employerId", hr.vacancies FROM hiring_requests hr
+        r#"SELECT hr.id, hr."employerId", hr.vacancies, hr.status::text AS status,
+                  hr."deadlineAt" > NOW() AS open
+           FROM hiring_requests hr
            JOIN hiring_interests hi ON hi."requestId"=hr.id WHERE hi.id=$1 FOR UPDATE OF hr"#,
     )
     .bind(iid)
@@ -146,6 +148,12 @@ pub(super) async fn action(
         }
         "accept-invite" => {
             require_role(is_employer, false)?;
+            if request.get::<String, _>("status") != "COLLECTING" || !request.get::<bool, _>("open")
+            {
+                return Err(AppError::Conflict(
+                    "This opening is no longer accepting responses".into(),
+                ));
+            }
             if next_response != "PENDING"
                 || progress.get("invited").and_then(Value::as_bool) != Some(true)
             {

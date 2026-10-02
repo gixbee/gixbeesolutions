@@ -21,14 +21,48 @@ impl Interval {
     }
 }
 
-/// Lock order: venue row → halls ORDER BY id → then child checks.
-/// `hall_ids`: None = lock all halls for the business (venue-wide / legacy).
+/// Lock `businesses` rows in ascending id order.
+///
+/// Event-scoped work locks `event_plans` before this. Venue and hall locks come
+/// after it. Inserts into `hall_audit_log`, `hall_reservations`, and
+/// `hall_enquiries` take a key-share lock on `businesses` through their foreign
+/// keys, and that conflicts with `FOR UPDATE`, so the business row must already
+/// be held here.
+pub async fn lock_business_rows(
+    tx: &mut PgConnection,
+    business_ids: &[Uuid],
+) -> AppResult<()> {
+    if business_ids.is_empty() {
+        return Ok(());
+    }
+    let mut sorted = business_ids.to_vec();
+    sorted.sort();
+    sorted.dedup();
+    let rows = sqlx::query(r#"SELECT id FROM businesses WHERE id = ANY($1) ORDER BY id FOR UPDATE"#)
+        .bind(&sorted)
+        .fetch_all(&mut *tx)
+        .await?;
+    if rows.len() != sorted.len() {
+        return Err(AppError::NotFound("Business not found".into()));
+    }
+    Ok(())
+}
+
+/// Lock order for one business: `businesses` → venue → halls ORDER BY id.
+///
+/// Event-scoped callers lock the parent `event_plans` row before this helper.
+/// When several businesses are involved, lock every business with
+/// [`lock_business_rows`] first, then call this helper for each id in that same
+/// order. `hall_ids`: None = all active halls. An empty slice locks the business
+/// and venue only.
 pub async fn acquire_hall_scope_locks(
     tx: &mut PgConnection,
     business_id: Uuid,
     hall_ids: Option<&[Uuid]>,
 ) -> AppResult<()> {
-    // Ensure venue exists so FOR UPDATE has a row.
+    lock_business_rows(tx, &[business_id]).await?;
+    // Ensure venue exists so FOR UPDATE has a row. The business row is already
+    // locked, so this insert's foreign key does not wait.
     sqlx::query(
         r#"INSERT INTO business_hall_venue ("businessId") VALUES ($1)
            ON CONFLICT ("businessId") DO NOTHING"#,
@@ -352,6 +386,28 @@ pub async fn release_holds_for_enquiry(
     .execute(&mut *tx)
     .await?;
     Ok(())
+}
+
+/// Release active assignment and quote holds for one event. `CONFIRMED` rows stay.
+/// Rows already `RELEASED` are left unchanged, so a repeat call writes nothing.
+pub async fn release_held_for_plan(
+    tx: &mut PgConnection,
+    plan_id: Uuid,
+) -> AppResult<Vec<sqlx::postgres::PgRow>> {
+    let rows = sqlx::query(
+        r#"UPDATE hall_reservations
+           SET status = 'RELEASED', "releasedAt" = NOW(), "updatedAt" = NOW()
+           WHERE status = 'HELD'
+             AND (
+               "enquiryId" IN (SELECT id FROM hall_enquiries WHERE "eventPlanId" = $1)
+               OR "quoteId" IN (SELECT id FROM event_quotes WHERE "planId" = $1)
+             )
+           RETURNING id, "businessId", "hallId""#,
+    )
+    .bind(plan_id)
+    .fetch_all(&mut *tx)
+    .await?;
+    Ok(rows)
 }
 
 pub fn assign_hold_expires_at(

@@ -135,7 +135,19 @@ class _HireEmployeeScreenState extends ConsumerState<HireEmployeeScreen> {
       });
       return;
     }
-    final salaryMin = num.tryParse(_salaryMinCtrl.text.trim());
+    final minText = _salaryMinCtrl.text.trim();
+    final salaryMin = num.tryParse(minText);
+    if (minText.isNotEmpty &&
+        (salaryMin == null ||
+            salaryMin <= 0 ||
+            salaryMin > salaryMax)) {
+      setState(() {
+        _estimated = null;
+        _fee = null;
+        _estimating = false;
+      });
+      return;
+    }
     final gen = ++_estimateGen;
     setState(() {
       _estimating = true;
@@ -190,11 +202,21 @@ class _HireEmployeeScreenState extends ConsumerState<HireEmployeeScreen> {
     }
   }
 
+  String? _salaryIssue() {
+    final max = num.tryParse(_salaryCtrl.text.trim());
+    if (max == null || max <= 0) return 'Enter a valid salary';
+    final minText = _salaryMinCtrl.text.trim();
+    if (minText.isEmpty) return null;
+    final min = num.tryParse(minText);
+    if (min == null || min <= 0) return 'Enter a valid minimum salary';
+    if (min > max) return 'Minimum salary cannot be greater than maximum';
+    return null;
+  }
+
   Map<String, dynamic> _draft() {
     final max = num.parse(_salaryCtrl.text.trim());
-    final minParsed = num.tryParse(_salaryMinCtrl.text.trim());
-    final min =
-        (minParsed != null && minParsed > 0 && minParsed < max) ? minParsed : null;
+    final minText = _salaryMinCtrl.text.trim();
+    final min = minText.isEmpty ? null : num.parse(minText);
     return {
       'jobType': _resolvedJobType,
       if (widget.businessId != null) 'businessId': widget.businessId,
@@ -231,8 +253,9 @@ class _HireEmployeeScreenState extends ConsumerState<HireEmployeeScreen> {
       showGxSnack(context, 'Job Type is required', type: GxSnackType.error);
       return;
     }
-    if (num.tryParse(_salaryCtrl.text.trim()) == null) {
-      showGxSnack(context, 'Enter a valid salary', type: GxSnackType.error);
+    final salaryIssue = _salaryIssue();
+    if (salaryIssue != null) {
+      showGxSnack(context, salaryIssue, type: GxSnackType.error);
       return;
     }
     setState(() => _submitting = true);
@@ -353,10 +376,7 @@ class _HireEmployeeScreenState extends ConsumerState<HireEmployeeScreen> {
         }
         return true;
       case 3:
-        final salary = num.tryParse(_salaryCtrl.text.trim());
-        if (salary == null || salary <= 0 || _locationId == null) return false;
-        final minParsed = num.tryParse(_salaryMinCtrl.text.trim());
-        if (minParsed != null && minParsed > 0 && minParsed > salary) return false;
+        if (_locationId == null || _salaryIssue() != null) return false;
         return true;
       case 4:
         return true;
@@ -1099,13 +1119,13 @@ class _HireEmployeeScreenState extends ConsumerState<HireEmployeeScreen> {
   Widget _hj3Compensation(int? due, int creditApplied) {
     final catalogue = ref.watch(hiringCatalogueSnapshotProvider);
     final salaryUnit = hiringSalaryUnitLabel(_salaryPeriod);
-    final minParsed = num.tryParse(_salaryMinCtrl.text.trim());
+    final minText = _salaryMinCtrl.text.trim();
+    final minParsed = num.tryParse(minText);
     final maxParsed = num.tryParse(_salaryCtrl.text.trim());
-    final salaryRangeError = minParsed != null &&
-        minParsed > 0 &&
-        maxParsed != null &&
-        maxParsed > 0 &&
-        minParsed > maxParsed;
+    final salaryRangeError = minText.isNotEmpty &&
+        (minParsed == null ||
+            minParsed <= 0 ||
+            (maxParsed != null && maxParsed > 0 && minParsed > maxParsed));
 
     return catalogue.when(
       loading: () => const Center(child: CircularProgressIndicator()),
@@ -1254,7 +1274,9 @@ class _HireEmployeeScreenState extends ConsumerState<HireEmployeeScreen> {
               Padding(
                 padding: const EdgeInsets.only(top: 8),
                 child: Text(
-                  'Minimum salary cannot be greater than maximum',
+                  minParsed == null || minParsed <= 0
+                      ? 'Enter a valid minimum salary'
+                      : 'Minimum salary cannot be greater than maximum',
                   style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.error),
                 ),
               ),
@@ -1395,7 +1417,7 @@ class _HireEmployeeScreenState extends ConsumerState<HireEmployeeScreen> {
     final unit = hiringSalaryUnitLabel(_salaryPeriod);
     final salaryLabel = () {
       if (maxParsed == null || maxParsed <= 0) return 'Salary TBD';
-      if (minParsed != null && minParsed > 0 && minParsed < maxParsed) {
+      if (minParsed != null && minParsed > 0 && minParsed <= maxParsed) {
         return '₹$salaryMin–₹$salaryMax / $unit';
       }
       return '₹$salaryMax / $unit';
