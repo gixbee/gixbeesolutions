@@ -1,4 +1,4 @@
-const CUSTOMER_BUILD = '2026-10-03-hall-customer-flow-v17-no-discount-labels';
+const CUSTOMER_BUILD = '2026-10-03-hall-customer-flow-v18-tile-discount-restored';
 const DEMO_FILE = 'GIXBEE-HALL-CUSTOMER-WORKING.html';
 const OWNER_PKG_KEY = 'GIXBEE_HALL_PACKAGE';
 /* IMG_DATA_START — replaced at build with base64 embedded photos */
@@ -433,7 +433,9 @@ function priceTileHtml(o, kind, selected) {
       list.toLocaleString('en-IN') +
       '</div><div class="price-main">₹ ' +
       price.toLocaleString('en-IN') +
-      '</div>';
+      '</div><div class="disc-note">' +
+      pct +
+      '% discount applied</div>';
   }
   return (
     '<div class="ac-tile' +
