@@ -1,4 +1,4 @@
-const CUSTOMER_BUILD = '2026-10-03-hall-customer-flow-v12-facilities-readable';
+const CUSTOMER_BUILD = '2026-10-03-hall-customer-flow-v13-slots-no-cap-strip';
 const DEMO_FILE = 'GIXBEE-HALL-CUSTOMER-WORKING.html';
 const OWNER_PKG_KEY = 'GIXBEE_HALL_PACKAGE';
 /* IMG_DATA_START — replaced at build with base64 embedded photos */
@@ -825,17 +825,6 @@ function renderResults() {
   });
 }
 
-function capStripItem(ico, num, lbl) {
-  return (
-    '<div class="cap-strip-item">' +
-    svgIcon(ico) +
-    '<span class="cap-num">' +
-    num +
-    '</span><span class="cap-lbl">' +
-    lbl +
-    '</span></div>'
-  );
-}
 function capGridCell(ico, num, lbl) {
   return (
     '<div class="cap-cell"><span class="ic">' +
