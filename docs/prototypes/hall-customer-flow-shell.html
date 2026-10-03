@@ -6,7 +6,30 @@
 <title>Gixbee — Halls &amp; Venues (Customer)</title>
 
 <style>
-:root{--navy:#0F1B4C;--blue:#1A237E;--ink:#111827;--mut:#64748B;--line:#D1D5DB;--gn:#12B76A;--gn2:#047857;--soft:#ECFDF3;--shadow:0 10px 32px rgba(15,23,42,.1);--rd:#DC2626;--lav:#EEF2FF}
+:root{--navy:#0F1B4C;--blue:#1A237E;--ink:#111827;--mut:#64748B;--line:#D1D5DB;--gn:#12B76A;--gn2:#047857;--soft:#ECFDF3;--shadow:0 10px 32px rgba(15,23,42,.1);--rd:#DC2626;--lav:#EEF2FF;--ico:24px;--ico-lg:28px;--ico-sm:20px}
+.flow-ico{width:var(--ico);height:var(--ico);display:inline-block;vertical-align:middle;flex-shrink:0}
+.flow-ico.flow-ico-xs{width:16px;height:16px}
+.flow-ico.flow-ico-sm{width:var(--ico-sm);height:var(--ico-sm)}
+.flow-ico.flow-ico-lg{width:var(--ico-lg);height:var(--ico-lg)}
+.sel-box .flow-ico{width:26px;height:26px}
+.fld label .flow-ico{width:22px;height:22px;margin-right:2px}
+.hd-icons .flow-ico{width:26px;height:26px}
+.bottom-nav .flow-ico{width:28px;height:28px;margin-bottom:2px}
+.brand-ico .flow-ico{width:30px;height:30px}
+.detail-hero .fab .flow-ico{width:22px;height:22px}
+.fac-cell .ic .flow-ico{width:28px;height:28px;display:block;margin:0 auto}
+.pill .flow-ico{width:20px;height:20px}
+.cap2 .flow-ico,.hall-row-bd .loc .flow-ico,.title-block .meta .flow-ico{width:20px;height:20px}
+.slot-ico .flow-ico{width:26px;height:26px}
+.ac-tile .tile-ico .flow-ico{width:36px;height:36px}
+.date-ico-wrap .flow-ico{width:28px;height:28px}
+.date-row #dateChev .flow-ico{width:24px;height:24px}
+.ev-list .kv span .flow-ico{width:22px;height:22px}
+.slots-sec-hd .gst .flow-ico{width:20px;height:20px}
+.btn .flow-ico{width:24px;height:24px}
+.seg .flow-ico{width:20px;height:20px}
+.hall-row-img .save .flow-ico{width:22px;height:22px}
+.vb .flow-ico{width:14px;height:14px}
 *{box-sizing:border-box}
 body{margin:0;background:#E8EDF5;font-family:Inter,system-ui,sans-serif;color:var(--ink)}
 .stage{min-height:100vh;display:flex;justify-content:center;padding:12px 8px 24px}
@@ -52,13 +75,13 @@ body{margin:0;background:#E8EDF5;font-family:Inter,system-ui,sans-serif;color:va
 .hall-row{display:flex;gap:10px;border:2px solid #86EFAC;border-radius:16px;padding:10px;margin:0 16px 14px;background:#fff;cursor:pointer;text-align:left;width:calc(100% - 32px);font:inherit;color:inherit}
 .hall-row-img{width:118px;min-height:132px;border-radius:12px;position:relative;flex-shrink:0;overflow:hidden;background:linear-gradient(145deg,#CBD5E1,#94A3B8)}
 .hall-row-img .vb{position:absolute;top:6px;left:6px;font-size:8px;font-weight:800;background:#ECFDF3;color:#047857;padding:3px 6px;border-radius:99px;display:inline-flex;align-items:center;gap:3px;border:1px solid #A7F3D0}
-.hall-row-img .save{position:absolute;top:6px;right:6px;width:28px;height:28px;border-radius:50%;border:0;background:#fff;display:grid;place-items:center;box-shadow:0 2px 6px rgba(0,0,0,.15);cursor:pointer}
+.hall-row-img .save{position:absolute;top:6px;right:6px;width:34px;height:34px;border-radius:50%;border:0;background:#fff;display:grid;place-items:center;box-shadow:0 2px 6px rgba(0,0,0,.15);cursor:pointer}
 .hall-row-img .cnt{position:absolute;bottom:6px;right:6px;font-size:9px;font-weight:800;background:rgba(0,0,0,.6);color:#fff;padding:3px 7px;border-radius:99px}
 .hall-row-bd{flex:1;min-width:0}
 .hall-row-bd b{font-size:12.5px;color:var(--blue);line-height:1.35;display:block;font-weight:900}
-.hall-row-bd .loc{font-size:10px;color:var(--mut);margin:4px 0;display:flex;align-items:center;gap:3px}
+.hall-row-bd .loc{font-size:10px;color:var(--mut);margin:4px 0;display:flex;align-items:center;gap:5px}
 .pills{display:grid;grid-template-columns:1fr 1fr;gap:4px;margin:6px 0}
-.pill{font-size:8.5px;font-weight:800;padding:4px 6px;border-radius:8px;display:flex;align-items:center;gap:3px;line-height:1.2}
+.pill{font-size:10px;font-weight:800;padding:5px 8px;border-radius:8px;display:flex;align-items:center;gap:5px;line-height:1.2}
 .pill.indoor{background:#DCFCE7;color:#166534}
 .pill.outdoor{background:#DCFCE7;color:#166534}
 .pill.ac{background:#DBEAFE;color:#1D4ED8}
@@ -84,10 +107,10 @@ body{margin:0;background:#E8EDF5;font-family:Inter,system-ui,sans-serif;color:va
 .sec-hd .see{font-size:12px;color:var(--gn2);background:none;border:0;font-weight:800;cursor:pointer}
 .cap-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:12px}
 .cap-cell{border:1px solid #BFDBFE;border-radius:12px;padding:10px 4px;text-align:center;font-size:9px;font-weight:800;color:var(--blue);background:#F0F9FF}
-.cap-cell .ic{font-size:18px;display:block;margin-bottom:4px;color:var(--gn2)}
+.cap-cell .ic{font-size:22px;display:block;margin-bottom:4px;color:var(--gn2)}
 .fac-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
 .fac-cell{text-align:center;font-size:9px;font-weight:700;color:var(--blue);line-height:1.25}
-.fac-cell .ic{width:40px;height:40px;border-radius:50%;background:#F1F5F9;display:grid;place-items:center;margin:0 auto 6px;font-size:18px}
+.fac-cell .ic{width:48px;height:48px;border-radius:50%;background:#F1F5F9;display:grid;place-items:center;margin:0 auto 6px;font-size:18px}
 .venue-panel{margin:0 16px 12px;border:1px solid var(--line);border-radius:16px;overflow:hidden;background:#fff}
 .venue-panel .hero-img{height:100px;background:linear-gradient(145deg,#CBD5E1,#94A3B8)}
 .ph-photo{background:linear-gradient(145deg,#CBD5E1,#94A3B8)!important}
@@ -96,7 +119,7 @@ body{margin:0;background:#E8EDF5;font-family:Inter,system-ui,sans-serif;color:va
 .venue-panel .cap-strip{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;padding:10px 12px;border-top:1px solid var(--line);font-size:8px;font-weight:800;color:var(--blue);text-align:center;background:#F8FAFC}
 .venue-panel .cap-strip span{display:block;margin-top:3px}
 .date-row{display:flex;align-items:center;gap:12px;padding:12px 14px;border:1.5px solid #BFDBFE;margin:0 16px 14px;border-radius:14px;cursor:pointer;background:#fff}
-.date-ico-wrap{width:42px;height:42px;border-radius:12px;background:#ECFDF3;display:grid;place-items:center;flex-shrink:0;color:var(--gn2)}
+.date-ico-wrap{width:48px;height:48px;border-radius:12px;background:#ECFDF3;display:grid;place-items:center;flex-shrink:0;color:var(--gn2)}
 .date-txt{flex:1;min-width:0}
 .date-txt .sub{font-size:11px;font-weight:700;color:var(--blue);margin-bottom:2px}
 .date-txt b{font-size:14px;font-weight:800;color:#64748B}
@@ -109,7 +132,7 @@ body{margin:0;background:#E8EDF5;font-family:Inter,system-ui,sans-serif;color:va
 .slot-title{display:flex;align-items:flex-start;gap:8px}
 .slot-name{font-size:14px;font-weight:900;color:var(--blue);line-height:1.2}
 .slot-time{font-size:11px;font-weight:600;color:var(--mut);margin-top:3px}
-.slot-ico{display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:8px;flex-shrink:0}
+.slot-ico{display:inline-flex;align-items:center;justify-content:center;width:34px;height:34px;border-radius:8px;flex-shrink:0}
 .slot-ico.sun{background:#FEF9C3}
 .slot-ico.moon{background:#FEE2E2}
 .disc-badge{font-size:10px;font-weight:800;background:#FBCFE8;color:#BE185D;padding:5px 10px;border-radius:99px;white-space:nowrap}
@@ -119,7 +142,7 @@ body{margin:0;background:#E8EDF5;font-family:Inter,system-ui,sans-serif;color:va
 .ac-tile .radio{width:18px;height:18px;border-radius:50%;border:2px solid #CBD5E1;margin:0 0 8px;display:grid;place-items:center;flex-shrink:0}
 .ac-tile.on .radio{border-color:#2563EB}
 .ac-tile.on .radio::after{content:'';width:9px;height:9px;border-radius:50%;background:#2563EB}
-.ac-tile .tile-ico{margin-bottom:4px;height:20px;display:grid;place-items:center}
+.ac-tile .tile-ico{margin-bottom:6px;height:36px;display:grid;place-items:center}
 .ac-tile .tile-lbl{font-size:11px;font-weight:800;color:var(--blue)}
 .ac-tile .ac-inc{font-size:9px;font-weight:600;color:var(--mut);margin:3px 0 6px;line-height:1.2}
 .ac-tile .strike{text-decoration:line-through;color:#9CA3AF;font-size:11px;font-weight:700;margin-top:4px}

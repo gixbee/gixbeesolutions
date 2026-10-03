@@ -1,4 +1,4 @@
-const CUSTOMER_BUILD = '2026-10-03-hall-customer-flow-v9-cal-phone-top';
+const CUSTOMER_BUILD = '2026-10-03-hall-customer-flow-v10-icons-readable';
 const DEMO_FILE = 'GIXBEE-HALL-CUSTOMER-WORKING.html';
 const OWNER_PKG_KEY = 'GIXBEE_HALL_PACKAGE';
 /* IMG_DATA_START — replaced at build with base64 embedded photos */
@@ -777,7 +777,7 @@ function renderResults() {
       const from = h.listFrom != null ? h.listFrom : minSlotPrice(h);
       const cnt = h.imgCount || '1/12';
       const vb = h.verified
-        ? '<span class="vb">' + svgIcon('check') + ' Verified Business</span>'
+        ? '<span class="vb">' + svgIcon('check', 'flow-ico-xs') + ' Verified Business</span>'
         : '';
       return (
         '<button type="button" class="hall-row" data-hall="' +
