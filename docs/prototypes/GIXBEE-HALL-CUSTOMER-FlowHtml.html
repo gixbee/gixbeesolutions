@@ -212,6 +212,23 @@ body{margin:0;background:#E8EDF5;font-family:Inter,system-ui,sans-serif;color:va
 .cal-grid .d{padding:8px 0;border-radius:8px;cursor:pointer;font-weight:700;color:var(--blue)}
 .cal-grid .d.off{color:#CBD5E1;pointer-events:none}
 .cal-grid .d.on{background:var(--gn2);color:#fff}
+.fac-overlay{position:absolute;top:0;left:0;right:0;bottom:56px;background:rgba(15,23,42,.45);z-index:75;display:none;pointer-events:none}
+.fac-overlay.on{display:block;pointer-events:auto}
+.fac-sheet{position:absolute;bottom:0;left:0;right:0;max-height:88%;background:#fff;border-radius:16px 16px 0 0;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 -8px 32px rgba(15,23,42,.2)}
+.fac-bar{display:flex;justify-content:space-between;align-items:center;padding:12px 16px;border-bottom:1px solid var(--line);font-weight:800;color:var(--blue);flex-shrink:0}
+.fac-bar button{border:0;background:none;font:inherit;font-weight:800;color:var(--gn2);cursor:pointer;padding:4px 0}
+.fac-all-body{overflow:auto;padding:12px 16px 20px;-webkit-overflow-scrolling:touch}
+.fac-all-sec{margin-bottom:18px}
+.fac-all-hd{font-size:14px;font-weight:900;color:var(--blue);margin-bottom:10px}
+.fac-all-list{list-style:none;margin:0;padding:0}
+.fac-all-list li{display:flex;align-items:flex-start;gap:10px;padding:10px 0;border-bottom:1px solid #F1F5F9;font-size:13px;font-weight:700;color:var(--ink);line-height:1.35}
+.fac-all-list li:last-child{border-bottom:0}
+.fac-all-ico{width:32px;height:32px;flex-shrink:0;display:grid;place-items:center;font-size:20px;border-radius:50%;background:#F1F5F9}
+.fac-all-ico .flow-ico{width:22px;height:22px}
+.fac-svc-yes{display:block;font-size:12px;font-weight:800;color:#047857;margin-top:2px}
+.fac-svc-no{display:block;font-size:12px;font-weight:800;color:#B45309;margin-top:2px}
+.fac-all-note{font-size:11px;color:var(--mut);line-height:1.45;margin-top:4px;padding:10px 12px;background:#F8FAFC;border-radius:10px;border:1px solid #E2E8F0}
+.fac-grid.fac-grid-all{margin-bottom:0}
 .map-row{display:flex;gap:10px;align-items:flex-start;margin-top:8px}
 </style>
 </head>
@@ -283,6 +300,13 @@ body{margin:0;background:#E8EDF5;font-family:Inter,system-ui,sans-serif;color:va
     <div class="cal-bar"><button type="button" id="calCancel">Cancel</button><b>Select Date</b><button type="button" class="done" id="calDone">Done</button></div>
     <div style="text-align:center;font-weight:900;color:var(--blue);margin-bottom:8px" id="calMonth">December 2026</div>
     <div class="cal-grid" id="calGrid"></div>
+  </div>
+</div>
+
+<div class="fac-overlay" id="facOverlay" hidden aria-hidden="true">
+  <div class="fac-sheet">
+    <div class="fac-bar"><button type="button" id="facClose">Close</button><b>All facilities &amp; services</b><span style="width:48px"></span></div>
+    <div class="fac-all-body" id="facAllBody"></div>
   </div>
 </div>
 
@@ -731,6 +755,7 @@ function el(id) {
 }
 function show(id) {
   if (id !== 'slots') closeCalendar();
+  if (id !== 'detail') closeFacilitiesAll();
   document.querySelectorAll('.scr').forEach((s) => s.classList.toggle('on', s.id === id));
 }
 function toast(m) {
@@ -1153,6 +1178,154 @@ function serviceLines(h) {
   }
   return rows;
 }
+
+const HALL_FAC_ICONS = {
+  AC: '❄',
+  'Generator / Power Backup': '⚡',
+  'Chairs & Tables': '🪑',
+  Stage: '🎭',
+  'Sound System': '🔊',
+  Restrooms: '🚻',
+  Lift: '🛗',
+  'Security in Parking Area': '🛡',
+  CCTV: '📹',
+  WiFi: '📶',
+  Kitchen: '🍳',
+  Greenroom: '🚪',
+};
+
+function facilityEmoji(name) {
+  return HALL_FAC_ICONS[name] || '✓';
+}
+
+function parkingSecurityAvailable(h) {
+  const fac = h.facilities || [];
+  return fac.some(function (f) {
+    return String(f).toLowerCase().indexOf('security') >= 0;
+  });
+}
+
+function serviceDetailRows(h) {
+  const s = h.services || {};
+  return [
+    {
+      label: 'In-house catering',
+      ok: !!s.inHouseCatering,
+      yes: 'Available — quoted separately (not in hall package)',
+      no: 'Not available from the hall',
+    },
+    {
+      label: 'Outside catering',
+      ok: !!s.outsideCatering,
+      yes: 'Outside catering allowed',
+      no: 'Outside catering not allowed',
+    },
+    {
+      label: 'Hall decoration',
+      ok: !!s.hallDecoration,
+      yes: 'Hall decoration service available — quoted separately',
+      no: 'Hall does not provide decoration service',
+    },
+    {
+      label: 'Outside decorators',
+      ok: !!s.outsideDecorators,
+      yes: 'Outside decorators allowed',
+      no: 'Outside decorators not allowed',
+    },
+    {
+      label: 'Parking security',
+      ok: parkingSecurityAvailable(h),
+      yes: 'Security available in parking area',
+      no: 'Parking security not listed for this hall',
+    },
+  ];
+}
+
+function facAllListRow(icoHtml, title, detail) {
+  return (
+    '<li><span class="fac-all-ico">' +
+    icoHtml +
+    '</span><span><b style="color:var(--blue)">' +
+    esc(title) +
+    '</b>' +
+    (detail ? '<br><span style="font-size:12px;font-weight:600;color:var(--mut)">' + esc(detail) + '</span>' : '') +
+    '</span></li>'
+  );
+}
+
+function buildFacilitiesAllHtml(h) {
+  const fac = h.facilities || [];
+  let cap =
+    '<div class="fac-all-sec"><div class="fac-all-hd">Capacity &amp; parking</div><ul class="fac-all-list">' +
+    facAllListRow(svgIcon('seat'), h.seat + ' seating', 'Maximum seated guests') +
+    facAllListRow(svgIcon('dine'), h.dine + ' dining', 'Dining / buffet capacity') +
+    facAllListRow(svgIcon('car'), h.park + ' car parking', 'On-site parking (cars)') +
+    facAllListRow(svgIcon('bike'), (h.bike || 0) + ' bike parking', 'Two-wheeler parking') +
+    '</ul></div>';
+
+  if (h.rooms) {
+    cap +=
+      '<div class="fac-all-sec"><div class="fac-all-hd">Rooms</div><ul class="fac-all-list">' +
+      facAllListRow('🛏', h.rooms + ' private / changing rooms', 'For bridal / family use') +
+      '</ul></div>';
+  }
+
+  const facGrid =
+    '<div class="fac-all-sec"><div class="fac-all-hd">Hall facilities</div><div class="fac-grid fac-grid-all">' +
+    fac
+      .map(function (f) {
+        return (
+          '<div class="fac-cell"><span class="ic">' + facilityEmoji(f) + '</span>' + esc(f) + '</div>'
+        );
+      })
+      .join('') +
+    (fac.length ? '' : '<p class="sub">No facilities listed yet.</p>') +
+    '</div></div>';
+
+  const svcRows = serviceDetailRows(h)
+    .map(function (r) {
+      return (
+        '<li><span class="fac-all-ico">' +
+        (r.ok ? '✅' : '⛔') +
+        '</span><span><b style="color:var(--blue)">' +
+        esc(r.label) +
+        '</b><span class="' +
+        (r.ok ? 'fac-svc-yes' : 'fac-svc-no') +
+        '">' +
+        esc(r.ok ? r.yes : r.no) +
+        '</span></span></li>'
+      );
+    })
+    .join('');
+
+  const svc =
+    '<div class="fac-all-sec"><div class="fac-all-hd">Catering, decoration &amp; policies</div><ul class="fac-all-list">' +
+    svcRows +
+    '</ul><p class="fac-all-note">' +
+    esc(PACKAGE_NOTE) +
+    '</p></div>';
+
+  return cap + facGrid + svc;
+}
+
+function openFacilitiesAll() {
+  const ov = el('facOverlay');
+  const body = el('facAllBody');
+  if (!ov || !body) return;
+  body.innerHTML = buildFacilitiesAllHtml(hall());
+  ov.hidden = false;
+  ov.setAttribute('aria-hidden', 'false');
+  ov.classList.add('on');
+}
+
+function closeFacilitiesAll() {
+  const ov = el('facOverlay');
+  if (!ov) return;
+  ov.classList.remove('on');
+  ov.hidden = true;
+  ov.setAttribute('aria-hidden', 'true');
+}
+
 function slotLabel() {
   const o = selectedSlotOffer(hall());
   if (!o) {
@@ -1286,8 +1459,8 @@ function renderDetail() {
       })
       .join('');
   }
-  const fac = (h.facilities || []).slice(0, 8);
-  const facIcons = { AC: '❄', 'Generator / Power Backup': '⚡', 'Chairs & Tables': '🪑', Stage: '🎭', 'Sound System': '🔊', Restrooms: '🚻', Lift: '🛗', 'Security in Parking Area': '🛡' };
+  const fac = (h.facilities || []).slice(0, 6);
+  const facIcons = HALL_FAC_ICONS;
   el('detailBody').innerHTML =
     '<div class="sec-hd">Capacity &amp; Parking</div><div class="cap-grid">' +
     capGridCell('seat', h.seat, 'Seating') +
@@ -1300,10 +1473,10 @@ function renderDetail() {
         h.rooms +
         '</b> Private / changing rooms</div></div>'
       : '') +
-    '<div class="sec-hd"><span>Facilities</span><button type="button" class="see">See all</button></div><div class="fac-grid">' +
+    '<div class="sec-hd"><span>Facilities</span><button type="button" class="see" id="btnFacSeeAll">See all</button></div><div class="fac-grid">' +
     fac
       .map(function (f) {
-        return '<div class="fac-cell"><span class="ic">' + (facIcons[f] || '✓') + '</span>' + esc(f) + '</div>';
+        return '<div class="fac-cell"><span class="ic">' + (facIcons[f] || facilityEmoji(f)) + '</span>' + esc(f) + '</div>';
       })
       .join('') +
     '</div><div class="sec-hd">Location</div><p class="sub" style="color:#2563EB;font-weight:700">' +
@@ -1313,6 +1486,13 @@ function renderDetail() {
     ', ' +
     esc(h.area) +
     '</p><p class="sub"><a href="#">Open in Google Maps</a></p>';
+  const seeAll = el('btnFacSeeAll');
+  if (seeAll) {
+    seeAll.onclick = function (e) {
+      e.preventDefault();
+      openFacilitiesAll();
+    };
+  }
 }
 
 function renderSlots() {

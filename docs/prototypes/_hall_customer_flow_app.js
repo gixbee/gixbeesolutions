@@ -317,6 +317,7 @@ function el(id) {
 }
 function show(id) {
   if (id !== 'slots') closeCalendar();
+  if (id !== 'detail') closeFacilitiesAll();
   document.querySelectorAll('.scr').forEach((s) => s.classList.toggle('on', s.id === id));
 }
 function toast(m) {
@@ -739,6 +740,154 @@ function serviceLines(h) {
   }
   return rows;
 }
+
+const HALL_FAC_ICONS = {
+  AC: '❄',
+  'Generator / Power Backup': '⚡',
+  'Chairs & Tables': '🪑',
+  Stage: '🎭',
+  'Sound System': '🔊',
+  Restrooms: '🚻',
+  Lift: '🛗',
+  'Security in Parking Area': '🛡',
+  CCTV: '📹',
+  WiFi: '📶',
+  Kitchen: '🍳',
+  Greenroom: '🚪',
+};
+
+function facilityEmoji(name) {
+  return HALL_FAC_ICONS[name] || '✓';
+}
+
+function parkingSecurityAvailable(h) {
+  const fac = h.facilities || [];
+  return fac.some(function (f) {
+    return String(f).toLowerCase().indexOf('security') >= 0;
+  });
+}
+
+function serviceDetailRows(h) {
+  const s = h.services || {};
+  return [
+    {
+      label: 'In-house catering',
+      ok: !!s.inHouseCatering,
+      yes: 'Available — quoted separately (not in hall package)',
+      no: 'Not available from the hall',
+    },
+    {
+      label: 'Outside catering',
+      ok: !!s.outsideCatering,
+      yes: 'Outside catering allowed',
+      no: 'Outside catering not allowed',
+    },
+    {
+      label: 'Hall decoration',
+      ok: !!s.hallDecoration,
+      yes: 'Hall decoration service available — quoted separately',
+      no: 'Hall does not provide decoration service',
+    },
+    {
+      label: 'Outside decorators',
+      ok: !!s.outsideDecorators,
+      yes: 'Outside decorators allowed',
+      no: 'Outside decorators not allowed',
+    },
+    {
+      label: 'Parking security',
+      ok: parkingSecurityAvailable(h),
+      yes: 'Security available in parking area',
+      no: 'Parking security not listed for this hall',
+    },
+  ];
+}
+
+function facAllListRow(icoHtml, title, detail) {
+  return (
+    '<li><span class="fac-all-ico">' +
+    icoHtml +
+    '</span><span><b style="color:var(--blue)">' +
+    esc(title) +
+    '</b>' +
+    (detail ? '<br><span style="font-size:12px;font-weight:600;color:var(--mut)">' + esc(detail) + '</span>' : '') +
+    '</span></li>'
+  );
+}
+
+function buildFacilitiesAllHtml(h) {
+  const fac = h.facilities || [];
+  let cap =
+    '<div class="fac-all-sec"><div class="fac-all-hd">Capacity &amp; parking</div><ul class="fac-all-list">' +
+    facAllListRow(svgIcon('seat'), h.seat + ' seating', 'Maximum seated guests') +
+    facAllListRow(svgIcon('dine'), h.dine + ' dining', 'Dining / buffet capacity') +
+    facAllListRow(svgIcon('car'), h.park + ' car parking', 'On-site parking (cars)') +
+    facAllListRow(svgIcon('bike'), (h.bike || 0) + ' bike parking', 'Two-wheeler parking') +
+    '</ul></div>';
+
+  if (h.rooms) {
+    cap +=
+      '<div class="fac-all-sec"><div class="fac-all-hd">Rooms</div><ul class="fac-all-list">' +
+      facAllListRow('🛏', h.rooms + ' private / changing rooms', 'For bridal / family use') +
+      '</ul></div>';
+  }
+
+  const facGrid =
+    '<div class="fac-all-sec"><div class="fac-all-hd">Hall facilities</div><div class="fac-grid fac-grid-all">' +
+    fac
+      .map(function (f) {
+        return (
+          '<div class="fac-cell"><span class="ic">' + facilityEmoji(f) + '</span>' + esc(f) + '</div>'
+        );
+      })
+      .join('') +
+    (fac.length ? '' : '<p class="sub">No facilities listed yet.</p>') +
+    '</div></div>';
+
+  const svcRows = serviceDetailRows(h)
+    .map(function (r) {
+      return (
+        '<li><span class="fac-all-ico">' +
+        (r.ok ? '✅' : '⛔') +
+        '</span><span><b style="color:var(--blue)">' +
+        esc(r.label) +
+        '</b><span class="' +
+        (r.ok ? 'fac-svc-yes' : 'fac-svc-no') +
+        '">' +
+        esc(r.ok ? r.yes : r.no) +
+        '</span></span></li>'
+      );
+    })
+    .join('');
+
+  const svc =
+    '<div class="fac-all-sec"><div class="fac-all-hd">Catering, decoration &amp; policies</div><ul class="fac-all-list">' +
+    svcRows +
+    '</ul><p class="fac-all-note">' +
+    esc(PACKAGE_NOTE) +
+    '</p></div>';
+
+  return cap + facGrid + svc;
+}
+
+function openFacilitiesAll() {
+  const ov = el('facOverlay');
+  const body = el('facAllBody');
+  if (!ov || !body) return;
+  body.innerHTML = buildFacilitiesAllHtml(hall());
+  ov.hidden = false;
+  ov.setAttribute('aria-hidden', 'false');
+  ov.classList.add('on');
+}
+
+function closeFacilitiesAll() {
+  const ov = el('facOverlay');
+  if (!ov) return;
+  ov.classList.remove('on');
+  ov.hidden = true;
+  ov.setAttribute('aria-hidden', 'true');
+}
+
 function slotLabel() {
   const o = selectedSlotOffer(hall());
   if (!o) {
@@ -872,8 +1021,8 @@ function renderDetail() {
       })
       .join('');
   }
-  const fac = (h.facilities || []).slice(0, 8);
-  const facIcons = { AC: '❄', 'Generator / Power Backup': '⚡', 'Chairs & Tables': '🪑', Stage: '🎭', 'Sound System': '🔊', Restrooms: '🚻', Lift: '🛗', 'Security in Parking Area': '🛡' };
+  const fac = (h.facilities || []).slice(0, 6);
+  const facIcons = HALL_FAC_ICONS;
   el('detailBody').innerHTML =
     '<div class="sec-hd">Capacity &amp; Parking</div><div class="cap-grid">' +
     capGridCell('seat', h.seat, 'Seating') +
@@ -886,10 +1035,10 @@ function renderDetail() {
         h.rooms +
         '</b> Private / changing rooms</div></div>'
       : '') +
-    '<div class="sec-hd"><span>Facilities</span><button type="button" class="see">See all</button></div><div class="fac-grid">' +
+    '<div class="sec-hd"><span>Facilities</span><button type="button" class="see" id="btnFacSeeAll">See all</button></div><div class="fac-grid">' +
     fac
       .map(function (f) {
-        return '<div class="fac-cell"><span class="ic">' + (facIcons[f] || '✓') + '</span>' + esc(f) + '</div>';
+        return '<div class="fac-cell"><span class="ic">' + (facIcons[f] || facilityEmoji(f)) + '</span>' + esc(f) + '</div>';
       })
       .join('') +
     '</div><div class="sec-hd">Location</div><p class="sub" style="color:#2563EB;font-weight:700">' +
@@ -899,6 +1048,13 @@ function renderDetail() {
     ', ' +
     esc(h.area) +
     '</p><p class="sub"><a href="#">Open in Google Maps</a></p>';
+  const seeAll = el('btnFacSeeAll');
+  if (seeAll) {
+    seeAll.onclick = function (e) {
+      e.preventDefault();
+      openFacilitiesAll();
+    };
+  }
 }
 
 function renderSlots() {
