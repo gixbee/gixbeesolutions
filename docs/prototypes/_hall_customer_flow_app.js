@@ -1,7 +1,14 @@
-const CUSTOMER_BUILD = '2026-10-03-hall-customer-flow-v3-mock-ui';
+const CUSTOMER_BUILD = '2026-10-03-hall-customer-flow-v4-standalone';
 const DEMO_FILE = 'GIXBEE-HALL-CUSTOMER-FlowHtml.html';
 const OWNER_PKG_KEY = 'GIXBEE_HALL_PACKAGE';
-const IMG = 'customer-mock-assets/';
+/* IMG_DATA_START — replaced at build with base64 embedded photos */
+const IMG_DATA = {};
+/* IMG_DATA_END */
+function assetUrl(file) {
+  if (file && IMG_DATA[file]) return IMG_DATA[file];
+  if (IMG_DATA['hall-detail.jpg']) return IMG_DATA['hall-detail.jpg'];
+  return '';
+}
 const MOCK_RESULT_IDS = ['royal', 'grand', 'garden', 'grace'];
 
 function dummyKoinoniaSlots() {
@@ -162,8 +169,8 @@ const HALLS = [
     priceFrom: 75000,
     listFrom: 75000,
     priceAc: 75000,
-    cardImage: IMG + 'hall-card-koinonia.jpg',
-    heroImage: IMG + 'hall-detail.jpg',
+    cardImage: 'hall-card-koinonia.jpg',
+    heroImage: 'hall-detail.jpg',
     imgCount: '1/12',
     verified: true,
     slotOffers: dummyKoinoniaSlots(),
@@ -196,8 +203,8 @@ const HALLS = [
     priceFrom: 55000,
     listFrom: 55000,
     priceAc: 65000,
-    cardImage: IMG + 'hall-card-grand.jpg',
-    heroImage: IMG + 'hall-detail.jpg',
+    cardImage: 'hall-card-grand.jpg',
+    heroImage: 'hall-detail.jpg',
     imgCount: '1/10',
     slotOffers: dummyStandardSlots(55000, 65000),
     payment: DUMMY_PAYMENT,
@@ -223,8 +230,8 @@ const HALLS = [
     priceFrom: 60000,
     listFrom: 60000,
     priceAc: 60000,
-    cardImage: IMG + 'hall-card-garden.jpg',
-    heroImage: IMG + 'hall-card-garden.jpg',
+    cardImage: 'hall-card-garden.jpg',
+    heroImage: 'hall-card-garden.jpg',
     imgCount: '1/8',
     slotOffers: dummyOutdoorSlots(60000),
     payment: DUMMY_PAYMENT,
@@ -251,8 +258,8 @@ const HALLS = [
     priceFrom: 50000,
     listFrom: 50000,
     priceAc: 60000,
-    cardImage: IMG + 'hall-card-grace.jpg',
-    heroImage: IMG + 'hall-detail.jpg',
+    cardImage: 'hall-card-grace.jpg',
+    heroImage: 'hall-detail.jpg',
     imgCount: '1/9',
     slotOffers: dummyStandardSlots(50000, 60000),
     payment: DUMMY_PAYMENT,
@@ -282,8 +289,8 @@ const HALLS = [
     facilities: ['AC', 'Chairs & Tables', 'Stage', 'Sound System', 'Restrooms', 'Lift', 'Generator / Power Backup'],
     priceFrom: 68000,
     listFrom: 68000,
-    cardImage: IMG + 'hall-card-grace.jpg',
-    heroImage: IMG + 'hall-detail.jpg',
+    cardImage: 'hall-card-grace.jpg',
+    heroImage: 'hall-detail.jpg',
     slotOffers: dummyStandardSlots(68000, 92000),
     payment: DUMMY_PAYMENT,
     cancelRules: DUMMY_CANCEL,
@@ -506,6 +513,18 @@ function displayListPrice(h) {
   if (!o) return priceForHall(h, state.acChoice);
   if (state.acChoice === 'ac') return o.listPriceAc != null ? o.listPriceAc : o.priceAc;
   return o.listPriceNoAc != null ? o.listPriceNoAc : o.priceNoAc;
+}
+function applyStandaloneAssets() {
+  const hero = document.querySelector('.hero-home');
+  const h = assetUrl('hero-home.jpg');
+  if (hero && h) {
+    hero.style.backgroundImage =
+      'linear-gradient(90deg,rgba(255,255,255,.92) 0%,rgba(255,255,255,.75) 45%,rgba(255,255,255,.2) 100%),url("' +
+      h +
+      '")';
+    hero.style.backgroundSize = 'cover';
+    hero.style.backgroundPosition = 'center';
+  }
 }
 function injectChromeIcons() {
   const map = {
@@ -733,7 +752,7 @@ function renderResults() {
   el('resList').innerHTML = list
     .map(function (h) {
       const from = h.listFrom != null ? h.listFrom : minSlotPrice(h);
-      const img = h.cardImage || IMG + 'hall-thumb.jpg';
+      const img = assetUrl(h.cardImage || 'hall-detail.jpg');
       const cnt = h.imgCount || '1/12';
       const vb = h.verified
         ? '<span class="vb">' + svgIcon('check') + ' Verified Business</span>'
@@ -789,7 +808,7 @@ function renderResults() {
 function renderDetail() {
   const h = hall();
   const hero = el('detailHeroImg');
-  if (hero) hero.src = h.heroImage || IMG + 'hall-detail.jpg';
+  if (hero) hero.src = assetUrl(h.heroImage || 'hall-detail.jpg');
   const t = el('detailTitle');
   const hl = el('detailHallLine');
   const meta = el('detailMeta');
@@ -809,7 +828,7 @@ function renderDetail() {
       ' reviews)';
   }
   const thumbs = el('detailThumbs');
-  const timg = h.heroImage || IMG + 'hall-detail.jpg';
+  const timg = assetUrl(h.heroImage || 'hall-detail.jpg');
   if (thumbs) {
     thumbs.innerHTML = [
       { t: 'Photos (12)', img: timg },
@@ -869,7 +888,7 @@ function renderSlots() {
   syncFromOwnerPackage();
   captureFilters();
   const h = hall();
-  const img = h.heroImage || IMG + 'hall-detail.jpg';
+  const img = assetUrl(h.heroImage || 'hall-detail.jpg');
   const sv = el('slotsVenue');
   if (sv) {
     sv.innerHTML =
@@ -1002,7 +1021,7 @@ function renderEnquiry() {
   const advance = pay.advanceType === 'pct' ? Math.round((chargeDisplay * pay.advancePct) / 100) : pay.advanceFixed || 20000;
   const cancel = h.cancelRules || [{ days: '30+ days', pct: 10 }];
   const resched = h.rescheduleRules || cancel;
-  const img = h.cardImage || IMG + 'hall-thumb.jpg';
+  const img = assetUrl(h.cardImage || 'hall-detail.jpg');
   const cancelHtml = cancel
     .map(function (r) {
       return esc(r.days) + ': ' + r.pct + '% refund';
@@ -1192,13 +1211,14 @@ function bootCustomer() {
     if (!el('goSearch')) {
       throw new Error('Missing search screen — open ' + DEMO_FILE + ', not the empty shell file.');
     }
+    applyStandaloneAssets();
     injectChromeIcons();
     syncDateDisplay();
     syncFromOwnerPackage();
     bindCustomerEvents();
     const tag = el('buildTag');
     if (tag) {
-      tag.textContent = 'Mock UI · dummy photos in customer-mock-assets/ · ' + CUSTOMER_BUILD;
+      tag.textContent = 'Standalone demo (photos embedded) · ' + CUSTOMER_BUILD + ' · Tap Search Halls';
     }
     const err = el('bootError');
     if (err) err.hidden = true;

@@ -2,6 +2,7 @@
 """Build hall owner (LMB) and hall customer booking single-file HTML demos."""
 from __future__ import annotations
 
+import base64
 import re
 from pathlib import Path
 
@@ -31,10 +32,50 @@ SHELL_PLACEHOLDER = """<!-- APP_START -->
 <!-- APP_END -->"""
 
 
+IMG_DATA_RE = re.compile(
+    r"/\* IMG_DATA_START.*?\*/\s*const IMG_DATA = \{[\s\S]*?\};\s*/\* IMG_DATA_END \*/",
+    re.DOTALL,
+)
+
+
+def inject_customer_img_data(app: str) -> str:
+    asset_dir = DIR / "customer-mock-assets"
+    raw: dict[str, str] = {}
+
+    def encode(name: str) -> str:
+        p = asset_dir / name
+        if not p.is_file():
+            raise SystemExit(f"Missing customer mock asset: {p}")
+        mime = "image/png" if name.endswith(".png") else "image/jpeg"
+        b64 = base64.b64encode(p.read_bytes()).decode("ascii")
+        return f"data:{mime};base64,{b64}"
+
+    for fname in ("hero-home.jpg", "hall-detail.jpg", "hall-card-garden.jpg"):
+        raw[fname] = encode(fname)
+    aliases = {
+        "hall-card-koinonia.jpg": "hall-detail.jpg",
+        "hall-card-grand.jpg": "hall-detail.jpg",
+        "hall-card-grace.jpg": "hall-detail.jpg",
+        "hall-thumb.jpg": "hall-detail.jpg",
+    }
+    lines = ["/* IMG_DATA_START — embedded photos (standalone file) */", "const IMG_DATA = {"]
+    for key, val in raw.items():
+        lines.append(f'  "{key}": "{val}",')
+    for key, src in aliases.items():
+        lines.append(f'  "{key}": "{raw[src]}",')
+    lines.append("};")
+    lines.append("/* IMG_DATA_END */")
+    block = "\n".join(lines)
+    if not IMG_DATA_RE.search(app):
+        raise SystemExit("_hall_customer_flow_app.js missing IMG_DATA markers")
+    return IMG_DATA_RE.sub(block, app, count=1)
+
+
 def read_app_js(js_name: str) -> str:
     if js_name == "_hall_customer_flow_app.js":
         icons = (DIR / "_customer_flow_icons.js").read_text(encoding="utf-8")
         app = (DIR / js_name).read_text(encoding="utf-8")
+        app = inject_customer_img_data(app)
         return icons + "\n" + app
     return (DIR / js_name).read_text(encoding="utf-8")
 
@@ -102,6 +143,7 @@ def main() -> None:
         ("hall-owner-lmb-master.html", "OPEN-gixbee-hall-owner-demo.html"),
         ("hall-customer-book-master.html", "OPEN-gixbee-hall-customer-demo.html"),
         ("GIXBEE-HALL-CUSTOMER-FlowHtml.html", "OPEN-gixbee-hall-customer-flow-demo.html"),
+        ("GIXBEE-HALL-CUSTOMER-FlowHtml.html", "GIXBEE-HALL-CUSTOMER-WORKING.html"),
     ]
     seen: set[str] = set()
     for src, alias in aliases:
