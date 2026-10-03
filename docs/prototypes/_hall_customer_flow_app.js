@@ -1,4 +1,4 @@
-const CUSTOMER_BUILD = '2026-10-03-hall-customer-flow-v11-cap-icons';
+const CUSTOMER_BUILD = '2026-10-03-hall-customer-flow-v12-facilities-readable';
 const DEMO_FILE = 'GIXBEE-HALL-CUSTOMER-WORKING.html';
 const OWNER_PKG_KEY = 'GIXBEE_HALL_PACKAGE';
 /* IMG_DATA_START — replaced at build with base64 embedded photos */
@@ -885,9 +885,9 @@ function renderDetail() {
     capGridCell('bike', h.bike || 0, 'Bikes') +
     '</div>' +
     (h.rooms
-      ? '<div class="sec-hd">Rooms</div><div class="cap-cell" style="text-align:left;padding:12px;margin-bottom:12px;background:#F0F9FF"><span class="ic" style="display:inline">🛏</span> <b>' +
+      ? '<div class="sec-hd">Rooms</div><div class="rooms-row"><span class="rooms-ico" aria-hidden="true">🛏</span><div><b>' +
         h.rooms +
-        '</b> Private / changing rooms</div>'
+        '</b> Private / changing rooms</div></div>'
       : '') +
     '<div class="sec-hd"><span>Facilities</span><button type="button" class="see">See all</button></div><div class="fac-grid">' +
     fac
