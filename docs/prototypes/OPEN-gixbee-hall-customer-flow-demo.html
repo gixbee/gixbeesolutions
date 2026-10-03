@@ -1325,6 +1325,15 @@ function closeFacilitiesAll() {
 }
 
 function bindFacilitiesOverlayEvents() {
+  const facClose = el('facClose');
+  if (facClose && facClose.dataset.bound !== '1') {
+    facClose.dataset.bound = '1';
+    facClose.addEventListener('click', function (e) {
+      e.preventDefault();
+      e.stopPropagation();
+      closeFacilitiesAll();
+    });
+  }
   const facOv = el('facOverlay');
   if (!facOv || facOv.dataset.bound === '1') return;
   facOv.dataset.bound = '1';
@@ -1334,6 +1343,9 @@ function bindFacilitiesOverlayEvents() {
       e.stopPropagation();
       closeFacilitiesAll();
     }
+  });
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape' && facOv.classList.contains('on')) closeFacilitiesAll();
   });
 }
 
