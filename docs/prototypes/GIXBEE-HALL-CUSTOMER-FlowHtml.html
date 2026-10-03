@@ -436,7 +436,7 @@ function svgIcon(name, cls) {
   return icons[name] || '';
 }
 
-const CUSTOMER_BUILD = '2026-10-03-hall-customer-flow-v15b-fac-close-fix';
+const CUSTOMER_BUILD = '2026-10-03-hall-customer-flow-v17-no-discount-labels';
 const DEMO_FILE = 'GIXBEE-HALL-CUSTOMER-WORKING.html';
 const OWNER_PKG_KEY = 'GIXBEE_HALL_PACKAGE';
 /* IMG_DATA_START — no embedded photos (layout-only demo) */
@@ -871,9 +871,7 @@ function priceTileHtml(o, kind, selected) {
       list.toLocaleString('en-IN') +
       '</div><div class="price-main">₹ ' +
       price.toLocaleString('en-IN') +
-      '</div><div class="disc-note">' +
-      pct +
-      '% discount applied</div>';
+      '</div>';
   }
   return (
     '<div class="ac-tile' +
@@ -1117,9 +1115,7 @@ function customerPriceLine(o, kind) {
       label +
       ' — <span style="text-decoration:line-through;color:#9CA3AF;font-weight:700">₹ ' +
       list.toLocaleString('en-IN') +
-      '</span> <span style="color:#B45309;font-weight:800">' +
-      pct +
-      '% off</span> → <b style="color:#065F46">₹ ' +
+      '</span> → <b style="color:#065F46">₹ ' +
       price.toLocaleString('en-IN') +
       '</b>'
     );
@@ -1557,8 +1553,6 @@ function renderSlots() {
   el('slotPick').innerHTML = slots
     .map(function (sl) {
       const on = state.slot === sl.id;
-      const pct = Math.max(sl.discountAc === 'yes' ? sl.discountAcPct : 0, sl.discountNoAc === 'yes' ? sl.discountNoAcPct : 0);
-      const badge = pct > 0 ? '<span class="disc-badge">' + pct + '% Off</span>' : '';
       let tiles = '';
       if (sl.offerAc && state.ac !== 'noac') {
         tiles += priceTileHtml(sl, 'ac', on && state.acChoice === 'ac');
@@ -1578,7 +1572,6 @@ function renderSlots() {
         '</div><div class="slot-time">' +
         esc(formatTimeRange(sl.hallFrom, sl.hallTo)) +
         '</div></div></div>' +
-        badge +
         '</div><div class="ac-tiles">' +
         tiles +
         '</div></div>'
