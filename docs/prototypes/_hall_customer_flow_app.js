@@ -1,4 +1,4 @@
-const CUSTOMER_BUILD = '2026-10-03-hall-customer-flow-v14-list-biz-hall-lines';
+const CUSTOMER_BUILD = '2026-10-03-hall-customer-flow-v15b-fac-close-fix';
 const DEMO_FILE = 'GIXBEE-HALL-CUSTOMER-WORKING.html';
 const OWNER_PKG_KEY = 'GIXBEE_HALL_PACKAGE';
 /* IMG_DATA_START — replaced at build with base64 embedded photos */
@@ -875,7 +875,6 @@ function openFacilitiesAll() {
   const body = el('facAllBody');
   if (!ov || !body) return;
   body.innerHTML = buildFacilitiesAllHtml(hall());
-  ov.hidden = false;
   ov.setAttribute('aria-hidden', 'false');
   ov.classList.add('on');
 }
@@ -884,8 +883,20 @@ function closeFacilitiesAll() {
   const ov = el('facOverlay');
   if (!ov) return;
   ov.classList.remove('on');
-  ov.hidden = true;
   ov.setAttribute('aria-hidden', 'true');
+}
+
+function bindFacilitiesOverlayEvents() {
+  const facOv = el('facOverlay');
+  if (!facOv || facOv.dataset.bound === '1') return;
+  facOv.dataset.bound = '1';
+  facOv.addEventListener('click', function (e) {
+    if (e.target === facOv || e.target.closest('#facClose')) {
+      e.preventDefault();
+      e.stopPropagation();
+      closeFacilitiesAll();
+    }
+  });
 }
 
 function slotLabel() {
@@ -1052,6 +1063,7 @@ function renderDetail() {
   if (seeAll) {
     seeAll.onclick = function (e) {
       e.preventDefault();
+      e.stopPropagation();
       openFacilitiesAll();
     };
   }
@@ -1297,6 +1309,7 @@ function bindCustomerEvents() {
       show(id);
     });
   }
+  bindFacilitiesOverlayEvents();
   const fac = el('fAc');
   if (fac) {
     fac.querySelectorAll('button').forEach(function (btn) {

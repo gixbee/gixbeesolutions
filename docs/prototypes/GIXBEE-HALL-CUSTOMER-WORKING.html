@@ -212,11 +212,11 @@ body{margin:0;background:#E8EDF5;font-family:Inter,system-ui,sans-serif;color:va
 .cal-grid .d{padding:8px 0;border-radius:8px;cursor:pointer;font-weight:700;color:var(--blue)}
 .cal-grid .d.off{color:#CBD5E1;pointer-events:none}
 .cal-grid .d.on{background:var(--gn2);color:#fff}
-.fac-overlay{position:absolute;top:0;left:0;right:0;bottom:56px;background:rgba(15,23,42,.45);z-index:75;display:none;pointer-events:none}
+.fac-overlay{position:absolute;top:0;left:0;right:0;bottom:56px;background:rgba(15,23,42,.45);z-index:90;display:none;pointer-events:none}
 .fac-overlay.on{display:block;pointer-events:auto}
-.fac-sheet{position:absolute;bottom:0;left:0;right:0;max-height:88%;background:#fff;border-radius:16px 16px 0 0;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 -8px 32px rgba(15,23,42,.2)}
-.fac-bar{display:flex;justify-content:space-between;align-items:center;padding:12px 16px;border-bottom:1px solid var(--line);font-weight:800;color:var(--blue);flex-shrink:0}
-.fac-bar button{border:0;background:none;font:inherit;font-weight:800;color:var(--gn2);cursor:pointer;padding:4px 0}
+.fac-sheet{position:absolute;bottom:0;left:0;right:0;max-height:88%;background:#fff;border-radius:16px 16px 0 0;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 -8px 32px rgba(15,23,42,.2);z-index:1}
+.fac-bar{display:flex;justify-content:space-between;align-items:center;padding:12px 16px;border-bottom:1px solid var(--line);font-weight:800;color:var(--blue);flex-shrink:0;background:#fff;position:relative;z-index:2}
+.fac-bar button{border:0;background:none;font:inherit;font-weight:800;color:var(--gn2);cursor:pointer;padding:8px 4px;min-width:48px;text-align:left}
 .fac-all-body{overflow:auto;padding:12px 16px 20px;-webkit-overflow-scrolling:touch}
 .fac-all-sec{margin-bottom:18px}
 .fac-all-hd{font-size:14px;font-weight:900;color:var(--blue);margin-bottom:10px}
@@ -303,7 +303,7 @@ body{margin:0;background:#E8EDF5;font-family:Inter,system-ui,sans-serif;color:va
   </div>
 </div>
 
-<div class="fac-overlay" id="facOverlay" hidden aria-hidden="true">
+<div class="fac-overlay" id="facOverlay" aria-hidden="true">
   <div class="fac-sheet">
     <div class="fac-bar"><button type="button" id="facClose">Close</button><b>All facilities &amp; services</b><span style="width:48px"></span></div>
     <div class="fac-all-body" id="facAllBody"></div>
@@ -436,7 +436,7 @@ function svgIcon(name, cls) {
   return icons[name] || '';
 }
 
-const CUSTOMER_BUILD = '2026-10-03-hall-customer-flow-v14-list-biz-hall-lines';
+const CUSTOMER_BUILD = '2026-10-03-hall-customer-flow-v15b-fac-close-fix';
 const DEMO_FILE = 'GIXBEE-HALL-CUSTOMER-WORKING.html';
 const OWNER_PKG_KEY = 'GIXBEE_HALL_PACKAGE';
 /* IMG_DATA_START — no embedded photos (layout-only demo) */
@@ -1313,7 +1313,6 @@ function openFacilitiesAll() {
   const body = el('facAllBody');
   if (!ov || !body) return;
   body.innerHTML = buildFacilitiesAllHtml(hall());
-  ov.hidden = false;
   ov.setAttribute('aria-hidden', 'false');
   ov.classList.add('on');
 }
@@ -1322,8 +1321,20 @@ function closeFacilitiesAll() {
   const ov = el('facOverlay');
   if (!ov) return;
   ov.classList.remove('on');
-  ov.hidden = true;
   ov.setAttribute('aria-hidden', 'true');
+}
+
+function bindFacilitiesOverlayEvents() {
+  const facOv = el('facOverlay');
+  if (!facOv || facOv.dataset.bound === '1') return;
+  facOv.dataset.bound = '1';
+  facOv.addEventListener('click', function (e) {
+    if (e.target === facOv || e.target.closest('#facClose')) {
+      e.preventDefault();
+      e.stopPropagation();
+      closeFacilitiesAll();
+    }
+  });
 }
 
 function slotLabel() {
@@ -1490,6 +1501,7 @@ function renderDetail() {
   if (seeAll) {
     seeAll.onclick = function (e) {
       e.preventDefault();
+      e.stopPropagation();
       openFacilitiesAll();
     };
   }
@@ -1735,6 +1747,7 @@ function bindCustomerEvents() {
       show(id);
     });
   }
+  bindFacilitiesOverlayEvents();
   const fac = el('fAc');
   if (fac) {
     fac.querySelectorAll('button').forEach(function (btn) {
