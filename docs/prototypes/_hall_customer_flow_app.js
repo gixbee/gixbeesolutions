@@ -919,12 +919,7 @@ function renderSlots() {
       esc(h.area) +
       '</div><div class="pills" style="margin-top:8px">' +
       hallMetaPills(h) +
-      '</div></div><div class="cap-strip">' +
-      capStripItem('seat', h.seat, 'Seating') +
-      capStripItem('dine', h.dine, 'Dining') +
-      capStripItem('car', h.park, 'Parking (Cars)') +
-      capStripItem('bike', h.bike || 0, 'Parking (Bikes)') +
-      '</div></div>';
+      '</div></div></div>';
   }
   const dr = el('dateRowVal');
   if (dr) {
