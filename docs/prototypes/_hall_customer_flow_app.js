@@ -1,4 +1,4 @@
-const CUSTOMER_BUILD = '2026-10-03-hall-customer-flow-v8-cal-top-fixed';
+const CUSTOMER_BUILD = '2026-10-03-hall-customer-flow-v9-cal-phone-top';
 const DEMO_FILE = 'GIXBEE-HALL-CUSTOMER-WORKING.html';
 const OWNER_PKG_KEY = 'GIXBEE_HALL_PACKAGE';
 /* IMG_DATA_START — replaced at build with base64 embedded photos */
@@ -316,6 +316,7 @@ function el(id) {
   return document.getElementById(id);
 }
 function show(id) {
+  if (id !== 'slots') closeCalendar();
   document.querySelectorAll('.scr').forEach((s) => s.classList.toggle('on', s.id === id));
 }
 function toast(m) {
@@ -600,13 +601,20 @@ function syncDateDisplay() {
 }
 function openCalendar() {
   const ov = el('calOverlay');
+  const slotsScr = el('slots');
   if (!ov) return;
+  if (slotsScr) slotsScr.scrollTop = 0;
+  ov.hidden = false;
+  ov.setAttribute('aria-hidden', 'false');
   ov.classList.add('on');
   renderCalendarGrid();
 }
 function closeCalendar() {
   const ov = el('calOverlay');
-  if (ov) ov.classList.remove('on');
+  if (!ov) return;
+  ov.classList.remove('on');
+  ov.hidden = true;
+  ov.setAttribute('aria-hidden', 'true');
 }
 function renderCalendarGrid() {
   const grid = el('calGrid');
