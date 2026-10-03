@@ -31,9 +31,17 @@ SHELL_PLACEHOLDER = """<!-- APP_START -->
 <!-- APP_END -->"""
 
 
+def read_app_js(js_name: str) -> str:
+    if js_name == "_hall_customer_flow_app.js":
+        icons = (DIR / "_customer_flow_icons.js").read_text(encoding="utf-8")
+        app = (DIR / js_name).read_text(encoding="utf-8")
+        return icons + "\n" + app
+    return (DIR / js_name).read_text(encoding="utf-8")
+
+
 def build(shell_name: str, js_name: str, out_name: str) -> None:
     shell = (DIR / shell_name).read_text(encoding="utf-8")
-    app = (DIR / js_name).read_text(encoding="utf-8")
+    app = read_app_js(js_name)
     block = "<!-- APP_START -->\n<script>\n" + app + "\n</script>\n<!-- APP_END -->"
     i, j = shell.find("<!-- APP_START -->"), shell.find("<!-- APP_END -->")
     if i < 0 or j < 0:

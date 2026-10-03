@@ -1,6 +1,8 @@
-const CUSTOMER_BUILD = '2026-10-03-hall-customer-flow-v2-dummy';
+const CUSTOMER_BUILD = '2026-10-03-hall-customer-flow-v3-mock-ui';
 const DEMO_FILE = 'GIXBEE-HALL-CUSTOMER-FlowHtml.html';
 const OWNER_PKG_KEY = 'GIXBEE_HALL_PACKAGE';
+const IMG = 'customer-mock-assets/';
+const MOCK_RESULT_IDS = ['royal', 'grand', 'garden', 'grace'];
 
 function dummyKoinoniaSlots() {
   return [
@@ -46,10 +48,10 @@ function dummyKoinoniaSlots() {
       enabled: true,
       offerNoAc: true,
       offerAc: true,
-      priceNoAc: 75000,
-      priceAc: 90000,
-      listPriceNoAc: 75000,
-      listPriceAc: 90000,
+      priceNoAc: 90000,
+      priceAc: 120000,
+      listPriceNoAc: 90000,
+      listPriceAc: 120000,
       discountNoAc: 'no',
       discountAc: 'no',
       discountNoAcPct: 0,
@@ -157,8 +159,13 @@ const HALLS = [
     rooms: 2,
     facilities: ['AC', 'Generator / Power Backup', 'Chairs & Tables', 'Stage', 'Sound System', 'Restrooms', 'Lift', 'Security in Parking Area'],
     tags: ['Baptism', 'Wedding', 'Reception'],
-    priceFrom: 52500,
+    priceFrom: 75000,
+    listFrom: 75000,
     priceAc: 75000,
+    cardImage: IMG + 'hall-card-koinonia.jpg',
+    heroImage: IMG + 'hall-detail.jpg',
+    imgCount: '1/12',
+    verified: true,
     slotOffers: dummyKoinoniaSlots(),
     payment: DUMMY_PAYMENT,
     cancelRules: DUMMY_CANCEL,
@@ -172,10 +179,64 @@ const HALLS = [
     },
   },
   {
+    id: 'grand',
+    businessName: 'Vijaya Convention Center',
+    useHallName: true,
+    hallName: 'Grand',
+    area: 'Kottayam, Kerala',
+    spaceType: 'indoor',
+    rating: 4.7,
+    reviews: 86,
+    seat: 500,
+    dine: 400,
+    park: 40,
+    bike: 60,
+    rooms: 2,
+    facilities: ['AC', 'Generator / Power Backup', 'Chairs & Tables', 'Stage', 'Sound System', 'Restrooms', 'Lift'],
+    priceFrom: 55000,
+    listFrom: 55000,
+    priceAc: 65000,
+    cardImage: IMG + 'hall-card-grand.jpg',
+    heroImage: IMG + 'hall-detail.jpg',
+    imgCount: '1/10',
+    slotOffers: dummyStandardSlots(55000, 65000),
+    payment: DUMMY_PAYMENT,
+    cancelRules: DUMMY_CANCEL,
+    extraPrices: DUMMY_EXTRA,
+    services: { inHouseCatering: true, outsideCatering: true, hallDecoration: true, outsideDecorators: true },
+  },
+  {
+    id: 'garden',
+    businessName: 'Vijaya Convention Center',
+    useHallName: true,
+    hallName: 'Garden',
+    area: 'Kottayam, Kerala',
+    spaceType: 'outdoor',
+    rating: 4.5,
+    reviews: 72,
+    seat: 1000,
+    dine: 700,
+    park: 120,
+    bike: 200,
+    rooms: 0,
+    facilities: ['Chairs & Tables', 'Stage', 'Sound System', 'Restrooms', 'Generator / Power Backup', 'Security in Parking Area'],
+    priceFrom: 60000,
+    listFrom: 60000,
+    priceAc: 60000,
+    cardImage: IMG + 'hall-card-garden.jpg',
+    heroImage: IMG + 'hall-card-garden.jpg',
+    imgCount: '1/8',
+    slotOffers: dummyOutdoorSlots(60000),
+    payment: DUMMY_PAYMENT,
+    cancelRules: DUMMY_CANCEL,
+    extraPrices: { extraNoAc: 5000 },
+    services: { inHouseCatering: false, outsideCatering: true, hallDecoration: false, outsideDecorators: true },
+  },
+  {
     id: 'grace',
     businessName: 'Grace Auditorium',
-    useHallName: false,
-    hallName: '',
+    useHallName: true,
+    hallName: 'Main',
     area: 'Kottayam, Kerala',
     spaceType: 'indoor',
     rating: 4.6,
@@ -187,9 +248,13 @@ const HALLS = [
     rooms: 1,
     facilities: ['AC', 'Chairs & Tables', 'Stage', 'Sound System', 'Restrooms', 'Generator / Power Backup'],
     tags: ['Baptism', 'Birthday'],
-    priceFrom: 45000,
-    priceAc: 65000,
-    slotOffers: dummyStandardSlots(45000, 65000),
+    priceFrom: 50000,
+    listFrom: 50000,
+    priceAc: 60000,
+    cardImage: IMG + 'hall-card-grace.jpg',
+    heroImage: IMG + 'hall-detail.jpg',
+    imgCount: '1/9',
+    slotOffers: dummyStandardSlots(50000, 60000),
     payment: DUMMY_PAYMENT,
     cancelRules: DUMMY_CANCEL,
     extraPrices: { extraAc: 6000, extraNoAc: 4500 },
@@ -197,35 +262,6 @@ const HALLS = [
       inHouseCatering: true,
       outsideCatering: true,
       hallDecoration: true,
-      outsideDecorators: true,
-    },
-  },
-  {
-    id: 'lakeside',
-    businessName: 'Lakeview Gardens',
-    useHallName: true,
-    hallName: 'Open Lawn',
-    area: 'Kottayam, Kerala',
-    spaceType: 'outdoor',
-    rating: 4.5,
-    reviews: 64,
-    seat: 400,
-    dine: 300,
-    park: 80,
-    bike: 120,
-    rooms: 0,
-    facilities: ['Chairs & Tables', 'Stage', 'Sound System', 'Restrooms', 'Generator / Power Backup', 'Security in Parking Area'],
-    tags: ['Wedding', 'Reception'],
-    priceFrom: 38000,
-    priceAc: 38000,
-    slotOffers: dummyOutdoorSlots(38000),
-    payment: { advanceType: 'pct', advancePct: 25, fullDueDays: 5 },
-    cancelRules: DUMMY_CANCEL,
-    extraPrices: { extraNoAc: 3500 },
-    services: {
-      inHouseCatering: false,
-      outsideCatering: true,
-      hallDecoration: false,
       outsideDecorators: true,
     },
   },
@@ -244,77 +280,15 @@ const HALLS = [
     bike: 60,
     rooms: 2,
     facilities: ['AC', 'Chairs & Tables', 'Stage', 'Sound System', 'Restrooms', 'Lift', 'Generator / Power Backup'],
-    tags: ['Wedding', 'Corporate'],
     priceFrom: 68000,
-    priceAc: 92000,
+    listFrom: 68000,
+    cardImage: IMG + 'hall-card-grace.jpg',
+    heroImage: IMG + 'hall-detail.jpg',
     slotOffers: dummyStandardSlots(68000, 92000),
     payment: DUMMY_PAYMENT,
     cancelRules: DUMMY_CANCEL,
     extraPrices: { extraAc: 8500, extraNoAc: 6000 },
-    services: {
-      inHouseCatering: true,
-      outsideCatering: false,
-      hallDecoration: true,
-      outsideDecorators: false,
-    },
-  },
-  {
-    id: 'stthomas',
-    businessName: 'St. Thomas Community Hall',
-    useHallName: false,
-    hallName: '',
-    area: 'Kottayam, Kerala',
-    spaceType: 'indoor',
-    rating: 4.4,
-    reviews: 45,
-    seat: 350,
-    dine: 280,
-    park: 25,
-    bike: 50,
-    rooms: 1,
-    facilities: ['AC', 'Chairs & Tables', 'Sound System', 'Restrooms'],
-    tags: ['Baptism', 'Birthday'],
-    priceFrom: 32000,
-    priceAc: 48000,
-    slotOffers: dummyStandardSlots(32000, 48000),
-    payment: DUMMY_PAYMENT,
-    cancelRules: DUMMY_CANCEL,
-    extraPrices: DUMMY_EXTRA,
-    services: {
-      inHouseCatering: false,
-      outsideCatering: true,
-      hallDecoration: false,
-      outsideDecorators: true,
-    },
-  },
-  {
-    id: 'palm',
-    businessName: 'Palm Grove Convention',
-    useHallName: true,
-    hallName: 'Crystal',
-    area: 'Kottayam, Kerala',
-    spaceType: 'indoor',
-    rating: 4.9,
-    reviews: 188,
-    seat: 850,
-    dine: 650,
-    park: 60,
-    bike: 90,
-    rooms: 3,
-    facilities: ['AC', 'Generator / Power Backup', 'Chairs & Tables', 'Stage', 'Sound System', 'Restrooms', 'Lift', 'Security in Parking Area'],
-    tags: ['Wedding', 'Reception', 'Corporate'],
-    priceFrom: 85000,
-    priceAc: 110000,
-    slotOffers: dummyStandardSlots(85000, 110000),
-    payment: DUMMY_PAYMENT,
-    cancelRules: DUMMY_CANCEL,
-    extraPrices: { extraAc: 9000, extraNoAc: 6500 },
-    services: {
-      inHouseCatering: true,
-      outsideCatering: true,
-      hallDecoration: true,
-      outsideDecorators: true,
-    },
+    services: { inHouseCatering: true, outsideCatering: false, hallDecoration: true, outsideDecorators: false },
   },
 ];
 
@@ -368,10 +342,42 @@ function hallHasAc(h) {
   const fac = h.facilities || [];
   return fac.indexOf('AC') >= 0;
 }
+function festivePromoActive() {
+  return state.date === '2026-12-25';
+}
+function slotWithPromo(sl) {
+  if (!festivePromoActive() || sl.id !== 'morning') return sl;
+  const o = Object.assign({}, sl);
+  if (o.offerAc) {
+    o.listPriceAc = o.listPriceAc != null ? o.listPriceAc : o.priceAc;
+    o.priceAc = Math.round(o.listPriceAc * 0.7);
+    o.discountAc = 'yes';
+    o.discountAcPct = 30;
+  }
+  if (o.offerNoAc) {
+    o.listPriceNoAc = o.listPriceNoAc != null ? o.listPriceNoAc : o.priceNoAc;
+    o.priceNoAc = Math.round(o.listPriceNoAc * 0.7);
+    o.discountNoAc = 'yes';
+    o.discountNoAcPct = 30;
+  }
+  return o;
+}
 function hallMetaPills(h) {
-  const type = hallIsOutdoor(h) ? '🌳 Outdoor' : '🏠 Indoor';
-  const ac = hallHasAc(h) ? '❄ With AC' : '🌬 Non-AC';
-  return '<span class="pill">' + type + '</span><span class="pill">' + ac + '</span>';
+  const typeCls = hallIsOutdoor(h) ? 'outdoor' : 'indoor';
+  const typeTxt = hallIsOutdoor(h) ? svgIcon('tree') + ' Outdoor' : svgIcon('house') + ' Indoor';
+  const acCls = hallHasAc(h) ? 'ac' : 'noac';
+  const acTxt = hallHasAc(h) ? '❄ With AC' : 'Non-AC';
+  return (
+    '<span class="pill ' +
+    typeCls +
+    '">' +
+    typeTxt +
+    '</span><span class="pill ' +
+    acCls +
+    '">' +
+    acTxt +
+    '</span>'
+  );
 }
 function minSlotPrice(h) {
   const offers = enabledSlotOffers(h);
@@ -396,18 +402,21 @@ function priceTileHtml(o, kind, selected) {
   const list = isNo ? o.listPriceNoAc : o.listPriceAc;
   const disc = isNo ? o.discountNoAc : o.discountAc;
   const pct = isNo ? o.discountNoAcPct : o.discountAcPct;
-  const label = isNo ? '🌬 Without AC' : '❄ With AC';
-  let inner = label + '<span class="price">₹ ' + price.toLocaleString('en-IN') + '</span>';
+  const label = isNo ? svgIcon('fan') + ' Without AC' : svgIcon('snow') + ' With AC';
+  const sub = isNo ? '' : '<div class="sub" style="font-size:8px;font-weight:600;margin-top:2px">AC included · 3 hours</div>';
+  let inner = '<div class="radio"></div>' + label + sub + '<span class="price">₹ ' + price.toLocaleString('en-IN') + '</span>';
   if (disc === 'yes' && list > price && pct > 0) {
     inner =
+      '<div class="radio"></div>' +
       label +
+      sub +
       '<span class="strike">₹ ' +
       list.toLocaleString('en-IN') +
       '</span><span class="price">₹ ' +
       price.toLocaleString('en-IN') +
-      '</span><span class="sub" style="color:var(--gn2);font-weight:800">' +
+      '</span><span class="disc-note">' +
       pct +
-      '% off</span>';
+      '% discount applied</span>';
   }
   return '<div class="ac-tile' + (selected ? ' on' : '') + '" data-ac="' + kind + '">' + inner + '</div>';
 }
@@ -485,12 +494,126 @@ function enabledSlotOffers(h) {
   });
 }
 function selectedSlotOffer(h) {
-  const offers = enabledSlotOffers(h);
+  const offers = enabledSlotOffers(h).map(slotWithPromo);
   return (
     offers.find(function (o) {
       return o.id === state.slot;
     }) || offers[0]
   );
+}
+function displayListPrice(h) {
+  const o = selectedSlotOffer(h);
+  if (!o) return priceForHall(h, state.acChoice);
+  if (state.acChoice === 'ac') return o.listPriceAc != null ? o.listPriceAc : o.priceAc;
+  return o.listPriceNoAc != null ? o.listPriceNoAc : o.priceNoAc;
+}
+function injectChromeIcons() {
+  const map = {
+    brandLogo: svgIcon('logo'),
+    brandLogo2: svgIcon('logo'),
+    hdBell: svgIcon('bell'),
+    hdBell2: svgIcon('bell'),
+    hdMenu: svgIcon('menu'),
+    hdSearch: svgIcon('search'),
+    hdHeart: svgIcon('heart'),
+    icoLoc: svgIcon('pin'),
+    icoEvent: svgIcon('cal'),
+    icoDateHome: svgIcon('cal'),
+    icoGuests: svgIcon('people'),
+    chevLoc: svgIcon('chev'),
+    icoSearchBtn: svgIcon('search'),
+    resLocIco: svgIcon('pin'),
+    fabHeart: svgIcon('heart'),
+    fabShare: svgIcon('share'),
+    dateChev: svgIcon('chev'),
+    gstInfo: svgIcon('info'),
+    icoPlane: svgIcon('plane'),
+    navSearch: svgIcon('search'),
+    navSaved: svgIcon('heart'),
+    navBook: svgIcon('cal'),
+    navProfile: svgIcon('people'),
+  };
+  Object.keys(map).forEach(function (id) {
+    const n = el(id);
+    if (n) n.innerHTML = map[id];
+  });
+  const li = el('lblLoc');
+  if (li) li.innerHTML = svgIcon('pin') + ' Location';
+  const le = el('lblEvent');
+  if (le) le.innerHTML = svgIcon('cal') + ' Event Type';
+  const ld = el('lblDate');
+  if (ld) ld.innerHTML = svgIcon('cal') + ' Event Date';
+  const lg = el('lblGuests');
+  if (lg) lg.innerHTML = svgIcon('people') + ' Number of Guests';
+  const la = el('lblAc');
+  if (la) la.innerHTML = svgIcon('snow') + ' AC Preference';
+  const lv = el('lblVenue');
+  if (lv) lv.innerHTML = svgIcon('house') + ' Venue Type';
+  const lp = el('lblPrice');
+  if (lp) lp.innerHTML = svgIcon('pin') + ' Price Range (per time slot)';
+  document.querySelectorAll('.seg-ico-indoor').forEach(function (n) {
+    n.innerHTML = svgIcon('house');
+  });
+  document.querySelectorAll('.seg-ico-outdoor').forEach(function (n) {
+    n.innerHTML = svgIcon('tree');
+  });
+}
+function syncDateDisplay() {
+  const fd = el('fDate');
+  const disp = el('fDateDisplay');
+  if (fd && disp) disp.value = formatDateLong(fd.value);
+  if (fd) state.date = fd.value;
+}
+function openCalendar() {
+  const ov = el('calOverlay');
+  if (!ov) return;
+  ov.classList.add('on');
+  renderCalendarGrid();
+}
+function closeCalendar() {
+  const ov = el('calOverlay');
+  if (ov) ov.classList.remove('on');
+}
+function renderCalendarGrid() {
+  const grid = el('calGrid');
+  if (!grid) return;
+  const parts = state.date.split('-');
+  const y = +parts[0] || 2026;
+  const m = (+parts[1] || 12) - 1;
+  const sel = +parts[2] || 25;
+  const first = new Date(y, m, 1);
+  const daysInMonth = new Date(y, m + 1, 0).getDate();
+  const start = first.getDay();
+  let html = '<div class="d off">S</div><div class="d off">M</div><div class="d off">T</div><div class="d off">W</div><div class="d off">T</div><div class="d off">F</div><div class="d off">S</div>';
+  for (let i = 0; i < start; i++) html += '<div class="d off"></div>';
+  for (let d = 1; d <= daysInMonth; d++) {
+    html += '<div class="d' + (d === sel ? ' on' : '') + '" data-day="' + d + '">' + d + '</div>';
+  }
+  grid.innerHTML = html;
+  grid.querySelectorAll('.d[data-day]').forEach(function (cell) {
+    cell.onclick = function () {
+      grid.querySelectorAll('.d').forEach(function (x) {
+        x.classList.remove('on');
+      });
+      cell.classList.add('on');
+      state._calDay = +cell.getAttribute('data-day');
+    };
+  });
+}
+function applyCalendar() {
+  const d = state._calDay || +state.date.split('-')[2] || 25;
+  const parts = state.date.split('-');
+  const iso = parts[0] + '-' + parts[1] + '-' + String(d).padStart(2, '0');
+  state.date = iso;
+  const fd = el('fDate');
+  const fds = el('fDateSlots');
+  if (fd) fd.value = iso;
+  if (fds) fds.value = iso;
+  syncDateDisplay();
+  const dr = el('dateRowVal');
+  if (dr) dr.textContent = formatDateLong(iso);
+  closeCalendar();
+  renderSlots();
 }
 function customerPriceLine(o, kind) {
   const isNo = kind === 'noac';
@@ -597,27 +720,54 @@ function captureFilters() {
 function renderResults() {
   syncFromOwnerPackage();
   captureFilters();
-  const list = HALLS.filter(hallMatchesFilters);
-  el('resCount').textContent = list.length + ' halls found';
+  const locTxt = el('resLocTxt');
+  if (locTxt) locTxt.textContent = state.loc;
+  let list = HALLS.filter(hallMatchesFilters);
+  if (state.loc === 'Kottayam, Kerala') {
+    list = list.filter(function (h) {
+      return MOCK_RESULT_IDS.indexOf(h.id) >= 0;
+    });
+  }
+  const show24 = state.loc === 'Kottayam, Kerala' && state.venueType === 'any' && state.ac === 'any';
+  el('resCount').textContent = (show24 ? '24' : list.length) + ' halls found';
   el('resList').innerHTML = list
     .map(function (h) {
-      const from = minSlotPrice(h);
+      const from = h.listFrom != null ? h.listFrom : minSlotPrice(h);
+      const img = h.cardImage || IMG + 'hall-thumb.jpg';
+      const cnt = h.imgCount || '1/12';
+      const vb = h.verified
+        ? '<span class="vb">' + svgIcon('check') + ' Verified Business</span>'
+        : '';
       return (
         '<button type="button" class="hall-row" data-hall="' +
         h.id +
-        '"><div class="hall-row-img"><span class="vb">✓ Verified</span><span class="cnt">1/12</span></div><div class="hall-row-bd"><b>' +
+        '"><div class="hall-row-img"><img src="' +
+        esc(img) +
+        '" alt=""><span class="save" type="button">' +
+        svgIcon('heart') +
+        '</span>' +
+        vb +
+        '<span class="cnt">' +
+        esc(cnt) +
+        '</span></div><div class="hall-row-bd"><b>' +
         esc(displayTitle(h)) +
-        '</b><div class="loc">📍 ' +
+        '</b><div class="loc">' +
+        svgIcon('pinBlue') +
+        ' ' +
         esc(h.area) +
         '</div><div class="pills">' +
         hallMetaPills(h) +
-        '</div><div class="cap2"><span>👥 ' +
+        '</div><div class="cap2"><span>' +
+        svgIcon('seat') +
+        ' ' +
         h.seat +
-        ' Seating</span><span>🍽 ' +
+        ' Seating</span><span>' +
+        svgIcon('dine') +
+        ' ' +
         h.dine +
         ' Dining</span></div><div class="from">From ₹' +
         from.toLocaleString('en-IN') +
-        ' <span class="sub">(GST included)</span></div></div></button>'
+        ' <small>(GST included)</small></div></div></button>'
       );
     })
     .join('');
@@ -628,19 +778,47 @@ function renderResults() {
       show('detail');
     };
   });
+  el('resList').querySelectorAll('.save').forEach(function (btn) {
+    btn.onclick = function (e) {
+      e.stopPropagation();
+      toast('Saved to favourites (demo)');
+    };
+  });
 }
 
 function renderDetail() {
   const h = hall();
+  const hero = el('detailHeroImg');
+  if (hero) hero.src = h.heroImage || IMG + 'hall-detail.jpg';
   const t = el('detailTitle');
-  const s = el('detailSub');
+  const hl = el('detailHallLine');
+  const meta = el('detailMeta');
   if (t) t.textContent = businessLabel(h);
-  if (s) s.innerHTML = esc(hallLabel(h)) + ' · 📍 ' + esc(h.area) + ' · ★ ' + h.rating + ' (' + h.reviews + ' reviews)';
+  if (hl) hl.textContent = showHallSubline(h) ? hallLabel(h) + ' Hall' : '';
+  if (meta) {
+    meta.innerHTML =
+      svgIcon('pin') +
+      ' ' +
+      esc(h.area) +
+      ' · ' +
+      svgIcon('star') +
+      ' ' +
+      h.rating +
+      ' (' +
+      h.reviews +
+      ' reviews)';
+  }
   const thumbs = el('detailThumbs');
+  const timg = h.heroImage || IMG + 'hall-detail.jpg';
   if (thumbs) {
-    thumbs.innerHTML = ['Photos (12)', 'Video (1)', 'Virtual Tour', 'Map']
+    thumbs.innerHTML = [
+      { t: 'Photos (12)', img: timg },
+      { t: 'Video (1)', img: timg },
+      { t: 'Virtual Tour', img: timg },
+      { t: 'Map', img: timg },
+    ]
       .map(function (x) {
-        return '<div class="thumb">' + esc(x) + '</div>';
+        return '<div class="thumb"><img src="' + esc(x.img) + '" alt=""><span>' + esc(x.t) + '</span></div>';
       })
       .join('');
   }
@@ -648,53 +826,86 @@ function renderDetail() {
   const facIcons = { AC: '❄', 'Generator / Power Backup': '⚡', 'Chairs & Tables': '🪑', Stage: '🎭', 'Sound System': '🔊', Restrooms: '🚻', Lift: '🛗', 'Security in Parking Area': '🛡' };
   el('detailBody').innerHTML =
     '<div class="sec-hd">Capacity &amp; Parking</div><div class="cap-grid">' +
-    '<div class="cap-cell"><span>👥</span>' +
+    '<div class="cap-cell"><span class="ic">' +
+    svgIcon('seat') +
+    '</span>' +
     h.seat +
-    '<br>Seating</div><div class="cap-cell"><span>🍽</span>' +
+    '<br>Seating</div><div class="cap-cell"><span class="ic">' +
+    svgIcon('dine') +
+    '</span>' +
     h.dine +
-    '<br>Dining</div><div class="cap-cell"><span>🚗</span>' +
+    '<br>Dining</div><div class="cap-cell"><span class="ic">' +
+    svgIcon('car') +
+    '</span>' +
     h.park +
-    '<br>Cars</div><div class="cap-cell"><span>🏍</span>' +
+    '<br>Cars</div><div class="cap-cell"><span class="ic">' +
+    svgIcon('bike') +
+    '</span>' +
     (h.bike || 0) +
     '<br>Bikes</div></div>' +
     (h.rooms
-      ? '<div class="sec-hd">Rooms</div><div class="cap-cell" style="text-align:left;padding:12px;margin-bottom:12px"><span style="display:inline">🛏</span> <b>' +
+      ? '<div class="sec-hd">Rooms</div><div class="cap-cell" style="text-align:left;padding:12px;margin-bottom:12px;background:#F0F9FF"><span class="ic" style="display:inline">🛏</span> <b>' +
         h.rooms +
         '</b> Private / changing rooms</div>'
       : '') +
     '<div class="sec-hd"><span>Facilities</span><button type="button" class="see">See all</button></div><div class="fac-grid">' +
     fac
       .map(function (f) {
-        return '<div class="fac-cell"><span>' + (facIcons[f] || '✓') + '</span>' + esc(f) + '</div>';
+        return '<div class="fac-cell"><span class="ic">' + (facIcons[f] || '✓') + '</span>' + esc(f) + '</div>';
       })
       .join('') +
-    '</div><div class="sec-hd">Location</div><p class="sub">📍 ' +
+    '</div><div class="sec-hd">Location</div><div class="map-row"><div><p class="sub" style="color:#2563EB;font-weight:700">' +
+    svgIcon('pin') +
+    ' ' +
     esc(displayTitle(h)) +
     ', ' +
     esc(h.area) +
-    '</p><p class="sub"><a href="#">Open in Google Maps</a></p>';
+    '</p><p class="sub"><a href="#">Open in Google Maps</a></p></div><img src="' +
+    esc(timg) +
+    '" alt="Map preview"></div>';
 }
 
 function renderSlots() {
   syncFromOwnerPackage();
   captureFilters();
   const h = hall();
+  const img = h.heroImage || IMG + 'hall-detail.jpg';
   const sv = el('slotsVenue');
   if (sv) {
     sv.innerHTML =
-      '<div class="venue-strip"><div class="thumb"></div><div><b style="font-size:13px;color:var(--navy)">' +
+      '<div class="venue-panel"><div class="hero-img"><img src="' +
+      esc(img) +
+      '" alt=""></div><div class="bd"><b style="font-size:13px;color:var(--blue)">' +
       esc(displayTitle(h)) +
-      '</b><div class="sub">📍 ' +
+      '</b><div class="sub" style="display:flex;align-items:center;gap:4px;margin-top:4px">' +
+      svgIcon('pin') +
+      ' ' +
       esc(h.area) +
-      '</div><div class="pills">' +
+      '</div><div class="pills" style="margin-top:8px">' +
       hallMetaPills(h) +
-      '</div></div></div>';
+      '</div></div><div class="cap-strip"><div>' +
+      svgIcon('seat') +
+      '<span>' +
+      h.seat +
+      ' Seating</span></div><div>' +
+      svgIcon('dine') +
+      '<span>' +
+      h.dine +
+      ' Dining</span></div><div>' +
+      svgIcon('car') +
+      '<span>' +
+      h.park +
+      ' Parking (Cars)</span></div><div>' +
+      svgIcon('bike') +
+      '<span>' +
+      (h.bike || 0) +
+      ' Parking (Bikes)</span></div></div></div>';
   }
   const dr = el('dateRowVal');
-  if (dr) dr.textContent = formatDateLong(state.date);
+  if (dr) dr.textContent = state.date ? formatDateLong(state.date) : 'Select a date';
   const ds = el('fDateSlots');
   if (ds) ds.value = state.date;
-  const slots = enabledSlotOffers(h);
+  const slots = enabledSlotOffers(h).map(slotWithPromo);
   if (!slots.length) {
     el('slotPick').innerHTML = '<p class="sub pad">No slots from owner package yet.</p>';
     return;
@@ -708,8 +919,9 @@ function renderSlots() {
   el('slotPick').innerHTML = slots
     .map(function (sl) {
       const on = state.slot === sl.id;
-      const pct = sl.discountAc === 'yes' ? sl.discountAcPct : sl.discountNoAc === 'yes' ? sl.discountNoAcPct : 0;
+      const pct = Math.max(sl.discountAc === 'yes' ? sl.discountAcPct : 0, sl.discountNoAc === 'yes' ? sl.discountNoAcPct : 0);
       const badge = pct > 0 ? '<span class="disc-badge">' + pct + '% Off</span>' : '';
+      const slotIco = sl.id === 'evening' ? svgIcon('moon') : svgIcon('sun');
       let tiles = '';
       if (sl.offerAc && state.ac !== 'noac') {
         tiles += priceTileHtml(sl, 'ac', on && state.acChoice === 'ac');
@@ -723,6 +935,8 @@ function renderSlots() {
         '" data-slot="' +
         sl.id +
         '"><div class="slot-hd"><div><b>' +
+        slotIco +
+        ' ' +
         esc(sl.label) +
         '</b><div class="sub">' +
         esc(formatTimeRange(sl.hallFrom, sl.hallTo)) +
@@ -738,11 +952,17 @@ function renderSlots() {
   const eh = el('extraHours');
   if (eh) {
     eh.innerHTML =
-      '<div class="extra-card"><b>⏱ Additional Hour Charges (if needed)</b><div class="extra-split"><div>❄ With AC<br>₹ ' +
+      '<div class="extra-card"><b>' +
+      svgIcon('cal') +
+      ' Additional Hour Charges (if needed)</b><div class="extra-split"><div>' +
+      svgIcon('snow') +
+      ' With AC<br>₹ ' +
       (ex.extraAc || 7000).toLocaleString('en-IN') +
-      '/hr</div><div>🌬 Without AC<br>₹ ' +
+      ' per hour</div><div>' +
+      svgIcon('fan') +
+      ' Without AC<br>₹ ' +
       (ex.extraNoAc || 5000).toLocaleString('en-IN') +
-      '/hr</div></div></div>';
+      ' per hour</div></div></div>';
   }
   el('slotPick').querySelectorAll('.slot-block').forEach(function (row) {
     row.onclick = function (e) {
@@ -777,11 +997,12 @@ function renderEnquiry() {
   syncFromOwnerPackage();
   captureFilters();
   const h = hall();
-  const total = priceForHall(h, state.acChoice);
-  const pay = h.payment || { advanceFixed: 20000, fullDueDays: 7, advanceType: 'fixed' };
-  const advance = pay.advanceType === 'pct' ? Math.round((total * pay.advancePct) / 100) : pay.advanceFixed || 20000;
+  const chargeDisplay = displayListPrice(h);
+  const pay = h.payment || { advanceFixed: 20000, fullDueDays: 3, advanceType: 'fixed' };
+  const advance = pay.advanceType === 'pct' ? Math.round((chargeDisplay * pay.advancePct) / 100) : pay.advanceFixed || 20000;
   const cancel = h.cancelRules || [{ days: '30+ days', pct: 10 }];
   const resched = h.rescheduleRules || cancel;
+  const img = h.cardImage || IMG + 'hall-thumb.jpg';
   const cancelHtml = cancel
     .map(function (r) {
       return esc(r.days) + ': ' + r.pct + '% refund';
@@ -793,48 +1014,74 @@ function renderEnquiry() {
     })
     .join('<br>');
   el('enquiryBody').innerHTML =
-    '<div class="ev-card"><div class="thumb"></div><div><b style="color:var(--navy)">' +
-    esc(displayTitle(h)) +
-    '</b><div class="sub">📍 ' +
+    '<div class="ev-card"><div class="thumb"><img src="' +
+    esc(img) +
+    '" alt=""></div><div><b style="color:var(--blue);font-size:14px">' +
+    esc(businessLabel(h)) +
+    '</b><div class="subname">' +
+    esc(hallLabel(h)) +
+    ' Hall</div><div class="sub" style="display:flex;align-items:center;gap:4px;margin-top:4px">' +
+    svgIcon('pin') +
+    ' ' +
     esc(h.area) +
-    '</div><div class="pills">' +
+    '</div><div class="pills" style="margin-top:6px">' +
     hallMetaPills(h) +
     '</div></div></div>' +
-    '<div class="sec-hd"><span>Event Details</span><button type="button" class="see" data-to="home">Edit</button></div>' +
+    '<div class="sec-hd"><span>Event Details</span><button type="button" class="see" data-to="home">✎ Edit</button></div>' +
     '<div class="ev-list">' +
-    '<div class="kv"><span>📅 Event Type</span><b>' +
+    '<div class="kv"><span>' +
+    svgIcon('cal') +
+    ' Event Type</span><b>' +
     esc(state.event) +
     '</b></div>' +
-    '<div class="kv"><span>📅 Event Date</span><b>' +
+    '<div class="kv"><span>' +
+    svgIcon('cal') +
+    ' Event Date</span><b>' +
     esc(formatDateLong(state.date)) +
     '</b></div>' +
-    '<div class="kv"><span>🕐 Time Slot</span><b>' +
+    '<div class="kv"><span>' +
+    svgIcon('cal') +
+    ' Time Slot</span><b>' +
     esc(slotLabel()) +
     '</b></div>' +
-    '<div class="kv"><span>❄ AC Option</span><b>' +
+    '<div class="kv"><span>' +
+    svgIcon('snow') +
+    ' AC Option</span><b>' +
     (state.acChoice === 'ac' ? 'With AC' : 'Without AC') +
     '</b></div>' +
-    '<div class="kv"><span>👥 Guests</span><b>' +
+    '<div class="kv"><span>' +
+    svgIcon('people') +
+    ' Guests</span><b>' +
     esc(state.guests) +
     '</b></div></div>' +
     '<div class="charge-bar"><span>Hall Charge (GST included)</span><b>₹ ' +
-    total.toLocaleString('en-IN') +
+    chargeDisplay.toLocaleString('en-IN') +
     '</b></div>' +
-    '<div class="box-adv"><b>Advance Payment (To Hall Directly) — ₹ ' +
+    '<div class="box-adv"><div class="rupee">₹</div><div><b style="color:#B91C1C">Advance Payment (To Hall Directly) — ₹ ' +
     advance.toLocaleString('en-IN') +
     (pay.advanceType === 'fixed' ? ' (Fixed)' : '') +
-    '</b><br>• Pay the hall directly after they accept.<br>• Gixbee does not collect payment in this demo.<br>• Advance confirms your booking window.</div>' +
-    '<div class="box-full"><b>📅 Full Payment (To Hall Directly)</b><br>Pay the remaining amount at least ' +
-    (pay.fullDueDays || 7) +
-    ' days before the event.</div>' +
-    '<div class="acc" id="accCancel"><button type="button" class="acc-hd">⚠ Cancellation Policy <span>▾</span></button><div class="acc-bd">' +
+    '</b><br>• Pay the hall directly after they accept.<br>• Gixbee does not collect payment in this demo.<br>• Advance confirms your booking window.</div></div>' +
+    '<div class="box-full"><span style="font-size:20px">' +
+    svgIcon('cal') +
+    '</span><div><b>Full Payment (To Hall Directly)</b><br>Pay the remaining amount at least ' +
+    (pay.fullDueDays || 3) +
+    ' days before the event.</div></div>' +
+    '<div class="acc acc-cancel" id="accCancel"><button type="button" class="acc-hd">' +
+    svgIcon('warn') +
+    ' Cancellation Policy <span>▾</span></button><div class="acc-bd">' +
     cancelHtml +
     '</div></div>' +
-    '<div class="acc" id="accResched"><button type="button" class="acc-hd">📅 Rescheduling Policy <span>▾</span></button><div class="acc-bd">' +
+    '<div class="acc acc-resched" id="accResched"><button type="button" class="acc-hd">' +
+    svgIcon('cal') +
+    ' Rescheduling Policy <span>▾</span></button><div class="acc-bd">' +
     reschedHtml +
     '</div></div>' +
     '<div class="flow-hd">How Booking Works</div>' +
-    '<div class="steps"><div><div class="step-n">1</div>Request</div><div><div class="step-n">2</div>Accept</div><div><div class="step-n">3</div>Pay advance</div><div><div class="step-n">4</div>Booked</div></div>';
+    '<div class="steps">' +
+    '<div><div class="step-n">1</div><div class="step-ico">🛏</div>Request booking</div>' +
+    '<div><div class="step-n">2</div><div class="step-ico">✓</div>Hall accepts</div>' +
+    '<div><div class="step-n">3</div><div class="step-ico">⏱</div>Pay advance (24h)</div>' +
+    '<div><div class="step-n">4</div><div class="step-ico">📅</div>Booked</div></div>';
   document.querySelectorAll('.acc-hd').forEach(function (btn) {
     btn.onclick = function () {
       btn.parentElement.classList.toggle('open');
@@ -911,15 +1158,20 @@ function bindCustomerEvents() {
     };
   }
   const dateRow = el('dateRow');
-  const fds = el('fDateSlots');
-  if (dateRow && fds) {
+  if (dateRow) {
     dateRow.onclick = function () {
-      fds.showPicker ? fds.showPicker() : fds.click();
+      openCalendar();
     };
-    fds.onchange = function () {
-      state.date = fds.value;
-      const dr = el('dateRowVal');
-      if (dr) dr.textContent = formatDateLong(state.date);
+  }
+  const calCancel = el('calCancel');
+  const calDone = el('calDone');
+  if (calCancel) calCancel.onclick = closeCalendar;
+  if (calDone) calDone.onclick = applyCalendar;
+  const fdHome = el('fDate');
+  if (fdHome) {
+    fdHome.onchange = function () {
+      syncDateDisplay();
+      state.date = fdHome.value;
     };
   }
   const req = el('reqBook');
@@ -940,16 +1192,13 @@ function bootCustomer() {
     if (!el('goSearch')) {
       throw new Error('Missing search screen — open ' + DEMO_FILE + ', not the empty shell file.');
     }
+    injectChromeIcons();
+    syncDateDisplay();
     syncFromOwnerPackage();
     bindCustomerEvents();
     const tag = el('buildTag');
     if (tag) {
-      tag.textContent =
-        'Dummy data demo · ' +
-        HALLS.length +
-        ' sample halls · ' +
-        CUSTOMER_BUILD +
-        ' (optional: owner package overrides Koinonia in same browser)';
+      tag.textContent = 'Mock UI · dummy photos in customer-mock-assets/ · ' + CUSTOMER_BUILD;
     }
     const err = el('bootError');
     if (err) err.hidden = true;
