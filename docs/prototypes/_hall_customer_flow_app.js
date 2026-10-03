@@ -1,4 +1,4 @@
-const CUSTOMER_BUILD = '2026-10-03-hall-customer-flow-v10-icons-readable';
+const CUSTOMER_BUILD = '2026-10-03-hall-customer-flow-v11-cap-icons';
 const DEMO_FILE = 'GIXBEE-HALL-CUSTOMER-WORKING.html';
 const OWNER_PKG_KEY = 'GIXBEE_HALL_PACKAGE';
 /* IMG_DATA_START — replaced at build with base64 embedded photos */
@@ -825,6 +825,28 @@ function renderResults() {
   });
 }
 
+function capStripItem(ico, num, lbl) {
+  return (
+    '<div class="cap-strip-item">' +
+    svgIcon(ico) +
+    '<span class="cap-num">' +
+    num +
+    '</span><span class="cap-lbl">' +
+    lbl +
+    '</span></div>'
+  );
+}
+function capGridCell(ico, num, lbl) {
+  return (
+    '<div class="cap-cell"><span class="ic">' +
+    svgIcon(ico) +
+    '</span><span class="cap-num">' +
+    num +
+    '</span><span class="cap-lbl">' +
+    lbl +
+    '</span></div>'
+  );
+}
 function renderDetail() {
   const h = hall();
   const t = el('detailTitle');
@@ -857,23 +879,11 @@ function renderDetail() {
   const facIcons = { AC: '❄', 'Generator / Power Backup': '⚡', 'Chairs & Tables': '🪑', Stage: '🎭', 'Sound System': '🔊', Restrooms: '🚻', Lift: '🛗', 'Security in Parking Area': '🛡' };
   el('detailBody').innerHTML =
     '<div class="sec-hd">Capacity &amp; Parking</div><div class="cap-grid">' +
-    '<div class="cap-cell"><span class="ic">' +
-    svgIcon('seat') +
-    '</span>' +
-    h.seat +
-    '<br>Seating</div><div class="cap-cell"><span class="ic">' +
-    svgIcon('dine') +
-    '</span>' +
-    h.dine +
-    '<br>Dining</div><div class="cap-cell"><span class="ic">' +
-    svgIcon('car') +
-    '</span>' +
-    h.park +
-    '<br>Cars</div><div class="cap-cell"><span class="ic">' +
-    svgIcon('bike') +
-    '</span>' +
-    (h.bike || 0) +
-    '<br>Bikes</div></div>' +
+    capGridCell('seat', h.seat, 'Seating') +
+    capGridCell('dine', h.dine, 'Dining') +
+    capGridCell('car', h.park, 'Cars') +
+    capGridCell('bike', h.bike || 0, 'Bikes') +
+    '</div>' +
     (h.rooms
       ? '<div class="sec-hd">Rooms</div><div class="cap-cell" style="text-align:left;padding:12px;margin-bottom:12px;background:#F0F9FF"><span class="ic" style="display:inline">🛏</span> <b>' +
         h.rooms +
@@ -909,23 +919,12 @@ function renderSlots() {
       esc(h.area) +
       '</div><div class="pills" style="margin-top:8px">' +
       hallMetaPills(h) +
-      '</div></div><div class="cap-strip"><div>' +
-      svgIcon('seat') +
-      '<span>' +
-      h.seat +
-      ' Seating</span></div><div>' +
-      svgIcon('dine') +
-      '<span>' +
-      h.dine +
-      ' Dining</span></div><div>' +
-      svgIcon('car') +
-      '<span>' +
-      h.park +
-      ' Parking (Cars)</span></div><div>' +
-      svgIcon('bike') +
-      '<span>' +
-      (h.bike || 0) +
-      ' Parking (Bikes)</span></div></div></div>';
+      '</div></div><div class="cap-strip">' +
+      capStripItem('seat', h.seat, 'Seating') +
+      capStripItem('dine', h.dine, 'Dining') +
+      capStripItem('car', h.park, 'Parking (Cars)') +
+      capStripItem('bike', h.bike || 0, 'Parking (Bikes)') +
+      '</div></div>';
   }
   const dr = el('dateRowVal');
   if (dr) {
