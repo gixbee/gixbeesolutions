@@ -80,6 +80,9 @@ body{margin:0;background:#E8EDF5;font-family:Inter,system-ui,sans-serif;color:va
 .hall-row-img .save{position:absolute;top:6px;right:6px;width:34px;height:34px;border-radius:50%;border:0;background:#fff;display:grid;place-items:center;box-shadow:0 2px 6px rgba(0,0,0,.15);cursor:pointer}
 .hall-row-img .cnt{position:absolute;bottom:6px;right:6px;font-size:9px;font-weight:800;background:rgba(0,0,0,.6);color:#fff;padding:3px 7px;border-radius:99px}
 .hall-row-bd{flex:1;min-width:0}
+.hall-row-titles{display:block;margin-bottom:2px}
+.hall-row-biz{display:block;font-size:12.5px;color:var(--blue);line-height:1.3;font-weight:900}
+.hall-row-hall{display:block;font-size:11px;font-weight:800;color:#2563EB;line-height:1.25;margin-top:2px}
 .hall-row-bd b{font-size:12.5px;color:var(--blue);line-height:1.35;display:block;font-weight:900}
 .hall-row-bd .loc{font-size:10px;color:var(--mut);margin:4px 0;display:flex;align-items:center;gap:5px}
 .pills{display:grid;grid-template-columns:1fr 1fr;gap:4px;margin:6px 0}
@@ -409,7 +412,7 @@ function svgIcon(name, cls) {
   return icons[name] || '';
 }
 
-const CUSTOMER_BUILD = '2026-10-03-hall-customer-flow-v13-slots-no-cap-strip';
+const CUSTOMER_BUILD = '2026-10-03-hall-customer-flow-v14-list-biz-hall-lines';
 const DEMO_FILE = 'GIXBEE-HALL-CUSTOMER-WORKING.html';
 const OWNER_PKG_KEY = 'GIXBEE_HALL_PACKAGE';
 /* IMG_DATA_START — no embedded photos (layout-only demo) */
@@ -884,6 +887,14 @@ function hallLabel(h) {
 function showHallSubline(h) {
   return !!(h.useHallName && String(h.hallName || '').trim());
 }
+function hallRowTitleHtml(h) {
+  let html = '<div class="hall-row-titles"><span class="hall-row-biz">' + esc(businessLabel(h)) + '</span>';
+  if (showHallSubline(h)) {
+    html += '<span class="hall-row-hall">' + esc(hallLabel(h)) + ' Hall</span>';
+  }
+  html += '</div>';
+  return html;
+}
 function syncFromOwnerPackage() {
   try {
     const raw = localStorage.getItem(OWNER_PKG_KEY);
@@ -1199,9 +1210,9 @@ function renderResults() {
         vb +
         '<span class="cnt">' +
         esc(cnt) +
-        '</span></div><div class="hall-row-bd"><b>' +
-        esc(displayTitle(h)) +
-        '</b><div class="loc">' +
+        '</span></div><div class="hall-row-bd">' +
+        hallRowTitleHtml(h) +
+        '<div class="loc">' +
         svgIcon('pinBlue') +
         ' ' +
         esc(h.area) +

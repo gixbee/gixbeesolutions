@@ -1,4 +1,4 @@
-const CUSTOMER_BUILD = '2026-10-03-hall-customer-flow-v13-slots-no-cap-strip';
+const CUSTOMER_BUILD = '2026-10-03-hall-customer-flow-v14-list-biz-hall-lines';
 const DEMO_FILE = 'GIXBEE-HALL-CUSTOMER-WORKING.html';
 const OWNER_PKG_KEY = 'GIXBEE_HALL_PACKAGE';
 /* IMG_DATA_START — replaced at build with base64 embedded photos */
@@ -473,6 +473,14 @@ function hallLabel(h) {
 function showHallSubline(h) {
   return !!(h.useHallName && String(h.hallName || '').trim());
 }
+function hallRowTitleHtml(h) {
+  let html = '<div class="hall-row-titles"><span class="hall-row-biz">' + esc(businessLabel(h)) + '</span>';
+  if (showHallSubline(h)) {
+    html += '<span class="hall-row-hall">' + esc(hallLabel(h)) + ' Hall</span>';
+  }
+  html += '</div>';
+  return html;
+}
 function syncFromOwnerPackage() {
   try {
     const raw = localStorage.getItem(OWNER_PKG_KEY);
@@ -788,9 +796,9 @@ function renderResults() {
         vb +
         '<span class="cnt">' +
         esc(cnt) +
-        '</span></div><div class="hall-row-bd"><b>' +
-        esc(displayTitle(h)) +
-        '</b><div class="loc">' +
+        '</span></div><div class="hall-row-bd">' +
+        hallRowTitleHtml(h) +
+        '<div class="loc">' +
         svgIcon('pinBlue') +
         ' ' +
         esc(h.area) +
