@@ -779,7 +779,7 @@ textarea{width:100%;border:1px solid var(--line);border-radius:10px;padding:10px
 </div></div>
 <!-- APP_START -->
 <script>
-const OWNER_BUILD = '2026-09-28-hall-owner-v47';
+const OWNER_BUILD = '2026-09-28-hall-owner-v48';
 const DEMO_FILE = 'hall-owner-lmb-master.html';
 const PKG_KEY = 'GIXBEE_HALL_PACKAGE';
 
@@ -902,6 +902,38 @@ function normalizeOfferDiscountFields(o) {
 function syncOfferCustomerPrices(o) {
   o.priceNoAc = discountCustomerPrice(o.listPriceNoAc, o.discountNoAc, o.discountNoAcPct);
   o.priceAc = discountCustomerPrice(o.listPriceAc, o.discountAc, o.discountAcPct);
+}
+
+function inrHtml(amount) {
+  return '₹ ' + Math.max(0, +amount || 0).toLocaleString('en-IN');
+}
+
+function discountPriceDisplayHtml(list, pct, customer) {
+  const base = Math.max(0, +list || 0);
+  const final = Math.max(0, +customer || 0);
+  const p = Math.min(100, Math.max(0, +pct || 0));
+  if (p > 0 && base > 0 && final < base) {
+    return (
+      '<span style="text-decoration:line-through;color:#9CA3AF;font-weight:700">' +
+      inrHtml(base) +
+      '</span> ' +
+      '<span style="color:#B45309;font-weight:800">' +
+      p +
+      '% off</span> → ' +
+      '<b style="color:#065F46">' +
+      inrHtml(final) +
+      '</b>'
+    );
+  }
+  return '<b style="color:#065F46">' + inrHtml(final) + '</b>';
+}
+
+function customerSeePreviewHtml(list, discYes, pct, customer) {
+  const gst = ' <span style="font-weight:600;color:#6B7280">(GST incl.)</span>';
+  if (discYes === 'yes') {
+    return 'Customer will see: ' + discountPriceDisplayHtml(list, pct, customer) + gst;
+  }
+  return 'Customer will see: <b style="color:#065F46">' + inrHtml(customer) + '</b>' + gst;
 }
 
 function formatTime12(hhmm) {
@@ -2888,9 +2920,9 @@ function renderOfferPriceBlock(o, kind) {
     '" min="1" max="100" value="' +
     pct +
     '"></div></div>' +
-    '<p class="disc-preview sub" style="margin:8px 0 0;font-weight:800;color:#065F46">Customer will see: ₹ ' +
-    customer.toLocaleString('en-IN') +
-    ' (GST incl.)</p></div></div>'
+    '<p class="disc-preview sub" style="margin:8px 0 0;line-height:1.5">' +
+    customerSeePreviewHtml(listVal, discYes ? 'yes' : 'no', pct, customer) +
+    '</p></div></div>'
   );
 }
 
@@ -2992,7 +3024,7 @@ function attachSlotPricingHandlers() {
         const preview = block.querySelector('.disc-preview');
         if (preview) {
           const customer = discountCustomerPrice(list, discYes ? 'yes' : 'no', pct);
-          preview.textContent = 'Customer will see: ₹ ' + customer.toLocaleString('en-IN') + ' (GST incl.)';
+          preview.innerHTML = customerSeePreviewHtml(list, discYes ? 'yes' : 'no', pct, customer);
         }
       });
     }

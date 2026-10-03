@@ -1,4 +1,4 @@
-const CUSTOMER_BUILD = '2026-09-28-hall-customer-v8';
+const CUSTOMER_BUILD = '2026-09-28-hall-customer-v9';
 const DEMO_FILE = 'hall-customer-book-master.html';
 const OWNER_PKG_KEY = 'GIXBEE_HALL_PACKAGE';
 
@@ -136,24 +136,25 @@ function selectedSlotOffer(h) {
 }
 function customerPriceLine(o, kind) {
   const isNo = kind === 'noac';
-  const list = isNo ? o.listPriceNoAc : o.listPriceAc;
   const price = isNo ? o.priceNoAc : o.priceAc;
+  const listRaw = isNo ? o.listPriceNoAc : o.listPriceAc;
+  const list = listRaw != null ? listRaw : price;
   const disc = isNo ? o.discountNoAc : o.discountAc;
   const pct = isNo ? o.discountNoAcPct : o.discountAcPct;
   const label = isNo ? 'Without AC' : 'With AC';
-  if (disc === 'yes' && list != null && pct > 0 && price < list) {
+  if (disc === 'yes' && pct > 0 && list > 0 && price < list) {
     return (
       label +
-      ' — <span style="text-decoration:line-through;color:#9CA3AF">₹ ' +
+      ' — <span style="text-decoration:line-through;color:#9CA3AF;font-weight:700">₹ ' +
       list.toLocaleString('en-IN') +
-      '</span> ₹ ' +
-      price.toLocaleString('en-IN') +
-      ' (' +
+      '</span> <span style="color:#B45309;font-weight:800">' +
       pct +
-      '% off)'
+      '% off</span> → <b style="color:#065F46">₹ ' +
+      price.toLocaleString('en-IN') +
+      '</b>'
     );
   }
-  return label + ' — ₹ ' + price.toLocaleString('en-IN');
+  return label + ' — <b>₹ ' + price.toLocaleString('en-IN') + '</b>';
 }
 function priceForHall(h, acChoice) {
   const o = selectedSlotOffer(h);
