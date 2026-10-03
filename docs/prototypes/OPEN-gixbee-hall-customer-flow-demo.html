@@ -1318,7 +1318,6 @@ function renderEnquiry() {
   const advance = pay.advanceType === 'pct' ? Math.round((chargeDisplay * pay.advancePct) / 100) : pay.advanceFixed || 20000;
   const cancel = h.cancelRules || [{ days: '30+ days', pct: 10 }];
   const resched = h.rescheduleRules || cancel;
-  const img = assetUrl(h.cardImage || 'hall-detail.jpg');
   const cancelHtml = cancel
     .map(function (r) {
       return esc(r.days) + ': ' + r.pct + '% refund';
@@ -1513,7 +1512,7 @@ function bootCustomer() {
     bindCustomerEvents();
     const tag = el('buildTag');
     if (tag) {
-      tag.textContent = 'Standalone demo (photos embedded) · ' + CUSTOMER_BUILD + ' · Tap Search Halls';
+      tag.textContent = 'No hall photos on cards · ' + CUSTOMER_BUILD + ' · Tap Search Halls';
     }
     const err = el('bootError');
     if (err) err.hidden = true;
