@@ -1,6 +1,144 @@
-const CUSTOMER_BUILD = '2026-10-03-hall-customer-flow-v1';
+const CUSTOMER_BUILD = '2026-10-03-hall-customer-flow-v2-dummy';
 const DEMO_FILE = 'GIXBEE-HALL-CUSTOMER-FlowHtml.html';
 const OWNER_PKG_KEY = 'GIXBEE_HALL_PACKAGE';
+
+function dummyKoinoniaSlots() {
+  return [
+    {
+      id: 'morning',
+      label: 'Morning',
+      hallFrom: '10:00',
+      hallTo: '15:00',
+      enabled: true,
+      offerNoAc: true,
+      offerAc: true,
+      priceNoAc: 55000,
+      priceAc: 52500,
+      listPriceNoAc: 55000,
+      listPriceAc: 75000,
+      discountNoAc: 'no',
+      discountAc: 'yes',
+      discountNoAcPct: 0,
+      discountAcPct: 30,
+    },
+    {
+      id: 'evening',
+      label: 'Evening',
+      hallFrom: '17:00',
+      hallTo: '23:00',
+      enabled: true,
+      offerNoAc: true,
+      offerAc: true,
+      priceNoAc: 55000,
+      priceAc: 75000,
+      listPriceNoAc: 55000,
+      listPriceAc: 75000,
+      discountNoAc: 'no',
+      discountAc: 'no',
+      discountNoAcPct: 0,
+      discountAcPct: 0,
+    },
+    {
+      id: 'fullday',
+      label: 'Full Day',
+      hallFrom: '09:00',
+      hallTo: '23:00',
+      enabled: true,
+      offerNoAc: true,
+      offerAc: true,
+      priceNoAc: 75000,
+      priceAc: 90000,
+      listPriceNoAc: 75000,
+      listPriceAc: 90000,
+      discountNoAc: 'no',
+      discountAc: 'no',
+      discountNoAcPct: 0,
+      discountAcPct: 0,
+    },
+  ];
+}
+
+function dummyStandardSlots(priceNo, priceAc) {
+  return [
+    {
+      id: 'morning',
+      label: 'Morning',
+      hallFrom: '10:00',
+      hallTo: '15:00',
+      enabled: true,
+      offerNoAc: true,
+      offerAc: true,
+      priceNoAc: priceNo,
+      priceAc: priceAc,
+    },
+    {
+      id: 'evening',
+      label: 'Evening',
+      hallFrom: '17:00',
+      hallTo: '23:00',
+      enabled: true,
+      offerNoAc: true,
+      offerAc: true,
+      priceNoAc: priceNo,
+      priceAc: priceAc,
+    },
+    {
+      id: 'fullday',
+      label: 'Full Day',
+      hallFrom: '09:00',
+      hallTo: '23:00',
+      enabled: true,
+      offerNoAc: true,
+      offerAc: true,
+      priceNoAc: priceNo + 15000,
+      priceAc: priceAc + 12000,
+    },
+  ];
+}
+
+function dummyOutdoorSlots(price) {
+  return [
+    {
+      id: 'morning',
+      label: 'Morning',
+      hallFrom: '10:00',
+      hallTo: '15:00',
+      enabled: true,
+      offerNoAc: true,
+      offerAc: false,
+      priceNoAc: price,
+      priceAc: price,
+    },
+    {
+      id: 'evening',
+      label: 'Evening',
+      hallFrom: '17:00',
+      hallTo: '23:00',
+      enabled: true,
+      offerNoAc: true,
+      offerAc: false,
+      priceNoAc: price,
+      priceAc: price,
+    },
+  ];
+}
+
+const DUMMY_PAYMENT = {
+  advanceType: 'fixed',
+  advanceFixed: 20000,
+  fullDueDays: 3,
+};
+const DUMMY_CANCEL = [
+  { days: '30+ days before event', pct: 10 },
+  { days: '15–29 days', pct: 25 },
+  { days: '7–14 days', pct: 50 },
+  { days: 'Under 7 days', pct: 100 },
+];
+const DUMMY_RESCHED = [
+  { days: 'Reschedule once, 15+ days before', pct: 0 },
+  { days: 'Within 14 days', pct: 15 },
+];
+const DUMMY_EXTRA = { extraAc: 7000, extraNoAc: 5000 };
 
 const HALLS = [
   {
@@ -19,8 +157,13 @@ const HALLS = [
     rooms: 2,
     facilities: ['AC', 'Generator / Power Backup', 'Chairs & Tables', 'Stage', 'Sound System', 'Restrooms', 'Lift', 'Security in Parking Area'],
     tags: ['Baptism', 'Wedding', 'Reception'],
-    priceFrom: 55000,
+    priceFrom: 52500,
     priceAc: 75000,
+    slotOffers: dummyKoinoniaSlots(),
+    payment: DUMMY_PAYMENT,
+    cancelRules: DUMMY_CANCEL,
+    rescheduleRules: DUMMY_RESCHED,
+    extraPrices: DUMMY_EXTRA,
     services: {
       inHouseCatering: true,
       outsideCatering: true,
@@ -34,14 +177,138 @@ const HALLS = [
     useHallName: false,
     hallName: '',
     area: 'Kottayam, Kerala',
+    spaceType: 'indoor',
     rating: 4.6,
     reviews: 98,
     seat: 500,
     dine: 400,
     park: 30,
+    bike: 40,
+    rooms: 1,
+    facilities: ['AC', 'Chairs & Tables', 'Stage', 'Sound System', 'Restrooms', 'Generator / Power Backup'],
     tags: ['Baptism', 'Birthday'],
     priceFrom: 45000,
     priceAc: 65000,
+    slotOffers: dummyStandardSlots(45000, 65000),
+    payment: DUMMY_PAYMENT,
+    cancelRules: DUMMY_CANCEL,
+    extraPrices: { extraAc: 6000, extraNoAc: 4500 },
+    services: {
+      inHouseCatering: true,
+      outsideCatering: true,
+      hallDecoration: true,
+      outsideDecorators: true,
+    },
+  },
+  {
+    id: 'lakeside',
+    businessName: 'Lakeview Gardens',
+    useHallName: true,
+    hallName: 'Open Lawn',
+    area: 'Kottayam, Kerala',
+    spaceType: 'outdoor',
+    rating: 4.5,
+    reviews: 64,
+    seat: 400,
+    dine: 300,
+    park: 80,
+    bike: 120,
+    rooms: 0,
+    facilities: ['Chairs & Tables', 'Stage', 'Sound System', 'Restrooms', 'Generator / Power Backup', 'Security in Parking Area'],
+    tags: ['Wedding', 'Reception'],
+    priceFrom: 38000,
+    priceAc: 38000,
+    slotOffers: dummyOutdoorSlots(38000),
+    payment: { advanceType: 'pct', advancePct: 25, fullDueDays: 5 },
+    cancelRules: DUMMY_CANCEL,
+    extraPrices: { extraNoAc: 3500 },
+    services: {
+      inHouseCatering: false,
+      outsideCatering: true,
+      hallDecoration: false,
+      outsideDecorators: true,
+    },
+  },
+  {
+    id: 'marina',
+    businessName: 'Marina Banquet Hall',
+    useHallName: false,
+    hallName: '',
+    area: 'Kochi, Kerala',
+    spaceType: 'indoor',
+    rating: 4.7,
+    reviews: 210,
+    seat: 600,
+    dine: 480,
+    park: 40,
+    bike: 60,
+    rooms: 2,
+    facilities: ['AC', 'Chairs & Tables', 'Stage', 'Sound System', 'Restrooms', 'Lift', 'Generator / Power Backup'],
+    tags: ['Wedding', 'Corporate'],
+    priceFrom: 68000,
+    priceAc: 92000,
+    slotOffers: dummyStandardSlots(68000, 92000),
+    payment: DUMMY_PAYMENT,
+    cancelRules: DUMMY_CANCEL,
+    extraPrices: { extraAc: 8500, extraNoAc: 6000 },
+    services: {
+      inHouseCatering: true,
+      outsideCatering: false,
+      hallDecoration: true,
+      outsideDecorators: false,
+    },
+  },
+  {
+    id: 'stthomas',
+    businessName: 'St. Thomas Community Hall',
+    useHallName: false,
+    hallName: '',
+    area: 'Kottayam, Kerala',
+    spaceType: 'indoor',
+    rating: 4.4,
+    reviews: 45,
+    seat: 350,
+    dine: 280,
+    park: 25,
+    bike: 50,
+    rooms: 1,
+    facilities: ['AC', 'Chairs & Tables', 'Sound System', 'Restrooms'],
+    tags: ['Baptism', 'Birthday'],
+    priceFrom: 32000,
+    priceAc: 48000,
+    slotOffers: dummyStandardSlots(32000, 48000),
+    payment: DUMMY_PAYMENT,
+    cancelRules: DUMMY_CANCEL,
+    extraPrices: DUMMY_EXTRA,
+    services: {
+      inHouseCatering: false,
+      outsideCatering: true,
+      hallDecoration: false,
+      outsideDecorators: true,
+    },
+  },
+  {
+    id: 'palm',
+    businessName: 'Palm Grove Convention',
+    useHallName: true,
+    hallName: 'Crystal',
+    area: 'Kottayam, Kerala',
+    spaceType: 'indoor',
+    rating: 4.9,
+    reviews: 188,
+    seat: 850,
+    dine: 650,
+    park: 60,
+    bike: 90,
+    rooms: 3,
+    facilities: ['AC', 'Generator / Power Backup', 'Chairs & Tables', 'Stage', 'Sound System', 'Restrooms', 'Lift', 'Security in Parking Area'],
+    tags: ['Wedding', 'Reception', 'Corporate'],
+    priceFrom: 85000,
+    priceAc: 110000,
+    slotOffers: dummyStandardSlots(85000, 110000),
+    payment: DUMMY_PAYMENT,
+    cancelRules: DUMMY_CANCEL,
+    extraPrices: { extraAc: 9000, extraNoAc: 6500 },
     services: {
       inHouseCatering: true,
       outsideCatering: true,
@@ -61,7 +328,7 @@ const state = {
   priceMax: 200000,
   hallId: 'royal',
   slot: 'morning',
-  acChoice: 'noac',
+  acChoice: 'ac',
 };
 
 function el(id) {
@@ -97,11 +364,31 @@ function formatDateLong(iso) {
 function hallIsOutdoor(h) {
   return h && h.spaceType === 'outdoor';
 }
+function hallHasAc(h) {
+  const fac = h.facilities || [];
+  return fac.indexOf('AC') >= 0;
+}
+function hallMetaPills(h) {
+  const type = hallIsOutdoor(h) ? '🌳 Outdoor' : '🏠 Indoor';
+  const ac = hallHasAc(h) ? '❄ With AC' : '🌬 Non-AC';
+  return '<span class="pill">' + type + '</span><span class="pill">' + ac + '</span>';
+}
+function minSlotPrice(h) {
+  const offers = enabledSlotOffers(h);
+  let min = h.priceFrom;
+  offers.forEach(function (o) {
+    if (o.offerNoAc && o.priceNoAc != null) min = min == null ? o.priceNoAc : Math.min(min, o.priceNoAc);
+    if (o.offerAc && o.priceAc != null) min = min == null ? o.priceAc : Math.min(min, o.priceAc);
+  });
+  return min != null ? min : h.priceFrom || 0;
+}
 function hallMatchesFilters(h) {
+  if (h.area !== state.loc) return false;
   if (state.venueType === 'indoor' && hallIsOutdoor(h)) return false;
   if (state.venueType === 'outdoor' && !hallIsOutdoor(h)) return false;
-  if (h.priceFrom != null && h.priceFrom > state.priceMax) return false;
-  return h.area === state.loc || state.loc.startsWith('Kottayam');
+  if (state.ac === 'ac' && !hallHasAc(h)) return false;
+  if (minSlotPrice(h) > state.priceMax) return false;
+  return true;
 }
 function priceTileHtml(o, kind, selected) {
   const isNo = kind === 'noac';
@@ -314,10 +601,7 @@ function renderResults() {
   el('resCount').textContent = list.length + ' halls found';
   el('resList').innerHTML = list
     .map(function (h) {
-      const pills =
-        '<span class="pill">' +
-        (hallIsOutdoor(h) ? '🌳 Outdoor' : '🏠 Indoor') +
-        '</span><span class="pill">❄ With AC</span>';
+      const from = minSlotPrice(h);
       return (
         '<button type="button" class="hall-row" data-hall="' +
         h.id +
@@ -326,13 +610,13 @@ function renderResults() {
         '</b><div class="loc">📍 ' +
         esc(h.area) +
         '</div><div class="pills">' +
-        pills +
+        hallMetaPills(h) +
         '</div><div class="cap2"><span>👥 ' +
         h.seat +
         ' Seating</span><span>🍽 ' +
         h.dine +
         ' Dining</span></div><div class="from">From ₹' +
-        h.priceFrom.toLocaleString('en-IN') +
+        from.toLocaleString('en-IN') +
         ' <span class="sub">(GST included)</span></div></div></button>'
       );
     })
@@ -402,7 +686,9 @@ function renderSlots() {
       esc(displayTitle(h)) +
       '</b><div class="sub">📍 ' +
       esc(h.area) +
-      '</div><div class="pills"><span class="pill">Indoor</span><span class="pill">With AC</span></div></div></div>';
+      '</div><div class="pills">' +
+      hallMetaPills(h) +
+      '</div></div></div>';
   }
   const dr = el('dateRowVal');
   if (dr) dr.textContent = formatDateLong(state.date);
@@ -495,17 +781,25 @@ function renderEnquiry() {
   const pay = h.payment || { advanceFixed: 20000, fullDueDays: 7, advanceType: 'fixed' };
   const advance = pay.advanceType === 'pct' ? Math.round((total * pay.advancePct) / 100) : pay.advanceFixed || 20000;
   const cancel = h.cancelRules || [{ days: '30+ days', pct: 10 }];
-  const rulesHtml = cancel
+  const resched = h.rescheduleRules || cancel;
+  const cancelHtml = cancel
     .map(function (r) {
-      return esc(r.days) + ': ' + r.pct + '%';
+      return esc(r.days) + ': ' + r.pct + '% refund';
     })
-    .join(' · ');
+    .join('<br>');
+  const reschedHtml = resched
+    .map(function (r) {
+      return esc(r.days) + (r.pct ? ': ' + r.pct + '% fee' : '');
+    })
+    .join('<br>');
   el('enquiryBody').innerHTML =
     '<div class="ev-card"><div class="thumb"></div><div><b style="color:var(--navy)">' +
     esc(displayTitle(h)) +
     '</b><div class="sub">📍 ' +
     esc(h.area) +
-    '</div><div class="pills"><span class="pill">Indoor</span><span class="pill">With AC</span></div></div></div>' +
+    '</div><div class="pills">' +
+    hallMetaPills(h) +
+    '</div></div></div>' +
     '<div class="sec-hd"><span>Event Details</span><button type="button" class="see" data-to="home">Edit</button></div>' +
     '<div class="ev-list">' +
     '<div class="kv"><span>📅 Event Type</span><b>' +
@@ -534,10 +828,10 @@ function renderEnquiry() {
     (pay.fullDueDays || 7) +
     ' days before the event.</div>' +
     '<div class="acc" id="accCancel"><button type="button" class="acc-hd">⚠ Cancellation Policy <span>▾</span></button><div class="acc-bd">' +
-    rulesHtml +
+    cancelHtml +
     '</div></div>' +
     '<div class="acc" id="accResched"><button type="button" class="acc-hd">📅 Rescheduling Policy <span>▾</span></button><div class="acc-bd">' +
-    rulesHtml +
+    reschedHtml +
     '</div></div>' +
     '<div class="flow-hd">How Booking Works</div>' +
     '<div class="steps"><div><div class="step-n">1</div>Request</div><div><div class="step-n">2</div>Accept</div><div><div class="step-n">3</div>Pay advance</div><div><div class="step-n">4</div>Booked</div></div>';
@@ -571,14 +865,19 @@ function bindCustomerEvents() {
       show('results');
     };
   }
-  document.querySelectorAll('[data-to]').forEach(function (b) {
-    b.addEventListener('click', function () {
-      const id = b.getAttribute('data-to');
+  const phone = document.querySelector('.phone');
+  if (phone) {
+    phone.addEventListener('click', function (e) {
+      const btn = e.target.closest('[data-to]');
+      if (!btn) return;
+      const id = btn.getAttribute('data-to');
+      if (id === 'results') renderResults();
       if (id === 'slots') renderSlots();
       if (id === 'enquiry') renderEnquiry();
+      if (id === 'home') captureFilters();
       show(id);
     });
-  });
+  }
   const fac = el('fAc');
   if (fac) {
     fac.querySelectorAll('button').forEach(function (btn) {
@@ -645,7 +944,12 @@ function bootCustomer() {
     bindCustomerEvents();
     const tag = el('buildTag');
     if (tag) {
-      tag.textContent = 'Working demo ' + CUSTOMER_BUILD + ' — sync with GIXBEE-HALL-OWNER-FlowHtml.html (same browser)';
+      tag.textContent =
+        'Dummy data demo · ' +
+        HALLS.length +
+        ' sample halls · ' +
+        CUSTOMER_BUILD +
+        ' (optional: owner package overrides Koinonia in same browser)';
     }
     const err = el('bootError');
     if (err) err.hidden = true;

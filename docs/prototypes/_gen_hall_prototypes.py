@@ -93,6 +93,7 @@ def main() -> None:
         ("hall-customer-book-master.html", "DOWNLOAD-gixbee-hall-customer.html"),
         ("hall-owner-lmb-master.html", "OPEN-gixbee-hall-owner-demo.html"),
         ("hall-customer-book-master.html", "OPEN-gixbee-hall-customer-demo.html"),
+        ("GIXBEE-HALL-CUSTOMER-FlowHtml.html", "OPEN-gixbee-hall-customer-flow-demo.html"),
     ]
     seen: set[str] = set()
     for src, alias in aliases:
