@@ -115,6 +115,9 @@ h2{margin:0 0 6px;font-size:18px}
 .slot .ac-usage{margin-top:10px;padding:10px;border-radius:10px;background:#F9FAFB;border:1px solid var(--line)}
 .slot .price-row{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:8px 0;font-size:13px;font-weight:700}
 .slot .price-row input[type=number]{width:120px;font-weight:600}
+.slot .price-block{margin:4px 0 12px}
+.slot .disc-block{margin:4px 0 0 4px;padding:8px 0 4px 12px;border-left:3px solid #A7F3D0}
+.slot .radio-row label.on{font-weight:800;color:#065F46}
 .pill{display:inline-block;padding:4px 10px;border-radius:99px;font-size:11px;font-weight:800;margin-bottom:8px}
 .pill.ok{background:#ECFDF3;color:#059669}
 .pill.bad{background:#FEE2E2;color:#B91C1C}
@@ -776,7 +779,7 @@ textarea{width:100%;border:1px solid var(--line);border-radius:10px;padding:10px
 </div></div>
 <!-- APP_START -->
 <script>
-const OWNER_BUILD = '2026-09-28-hall-owner-v46';
+const OWNER_BUILD = '2026-09-28-hall-owner-v47';
 const DEMO_FILE = 'hall-owner-lmb-master.html';
 const PKG_KEY = 'GIXBEE_HALL_PACKAGE';
 
@@ -874,7 +877,31 @@ function ensureSlotOffers() {
     if (o.offerNoAc == null) o.offerNoAc = true;
     if (o.offerAc == null) o.offerAc = true;
     if (o.enabled == null) o.enabled = true;
+    normalizeOfferDiscountFields(o);
   });
+}
+
+function discountCustomerPrice(base, discountFlag, pct) {
+  const b = Math.max(0, +base || 0);
+  if (discountFlag !== 'yes') return b;
+  const p = Math.min(100, Math.max(0, +pct || 0));
+  if (p <= 0) return b;
+  return Math.round(b * (1 - p / 100));
+}
+
+function normalizeOfferDiscountFields(o) {
+  if (o.listPriceNoAc == null) o.listPriceNoAc = o.priceNoAc != null ? o.priceNoAc : 55000;
+  if (o.listPriceAc == null) o.listPriceAc = o.priceAc != null ? o.priceAc : 75000;
+  if (o.discountNoAc == null) o.discountNoAc = 'no';
+  if (o.discountAc == null) o.discountAc = 'no';
+  if (o.discountNoAcPct == null) o.discountNoAcPct = 10;
+  if (o.discountAcPct == null) o.discountAcPct = 10;
+  syncOfferCustomerPrices(o);
+}
+
+function syncOfferCustomerPrices(o) {
+  o.priceNoAc = discountCustomerPrice(o.listPriceNoAc, o.discountNoAc, o.discountNoAcPct);
+  o.priceAc = discountCustomerPrice(o.listPriceAc, o.discountAc, o.discountAcPct);
 }
 
 function formatTime12(hhmm) {
@@ -901,6 +928,27 @@ function acUsageSummary(o) {
   return ' · AC limited';
 }
 
+function slotPriceReviewText(label, o, kind) {
+  const isNo = kind === 'noac';
+  const list = isNo ? o.listPriceNoAc : o.listPriceAc;
+  const customer = isNo ? o.priceNoAc : o.priceAc;
+  const disc = isNo ? o.discountNoAc : o.discountAc;
+  const pct = isNo ? o.discountNoAcPct : o.discountAcPct;
+  let text = label + ' ₹' + customer.toLocaleString('en-IN');
+  if (disc === 'yes' && pct > 0 && customer < list) {
+    text =
+      label +
+      ' ₹' +
+      list.toLocaleString('en-IN') +
+      ' → ₹' +
+      customer.toLocaleString('en-IN') +
+      ' (' +
+      pct +
+      '% off)';
+  }
+  return text;
+}
+
 function slotReviewLines() {
   ensureSlotOffers();
   return state.slotOffers
@@ -910,8 +958,8 @@ function slotReviewLines() {
     .map(function (o) {
       const win = formatTimeRange(o.hallFrom, o.hallTo);
       const parts = [];
-      if (o.offerNoAc) parts.push('Without AC ₹' + o.priceNoAc.toLocaleString('en-IN'));
-      if (o.offerAc) parts.push('With AC ₹' + o.priceAc.toLocaleString('en-IN') + acUsageSummary(o));
+      if (o.offerNoAc) parts.push(slotPriceReviewText('Without AC', o, 'noac'));
+      if (o.offerAc) parts.push(slotPriceReviewText('With AC', o, 'ac') + acUsageSummary(o));
       return o.label + ' (' + win + '): ' + parts.join(' · ');
     });
 }
@@ -2788,6 +2836,64 @@ function renderPkg2() {
   });
 }
 
+function renderOfferPriceBlock(o, kind) {
+  const isNo = kind === 'noac';
+  const offerKey = isNo ? 'offerNoAc' : 'offerAc';
+  const listField = isNo ? 'listPriceNoAc' : 'listPriceAc';
+  const discField = isNo ? 'discountNoAc' : 'discountAc';
+  const pctField = isNo ? 'discountNoAcPct' : 'discountAcPct';
+  const label = isNo ? 'Without AC' : 'With AC';
+  const listVal = o[listField] != null ? o[listField] : isNo ? o.priceNoAc : o.priceAc;
+  const discYes = o[discField] === 'yes';
+  const pct = o[pctField] != null ? o[pctField] : 10;
+  const customer = discountCustomerPrice(listVal, discYes ? 'yes' : 'no', pct);
+  const radioName = discField + '_' + o.id;
+  return (
+    '<div class="price-block" data-price-kind="' +
+    kind +
+    '">' +
+    '<div class="price-row"><label><input type="checkbox" data-field="' +
+    offerKey +
+    '"' +
+    (o[offerKey] ? ' checked' : '') +
+    '> ' +
+    label +
+    ' — base rent ₹</label><input type="number" data-field="' +
+    listField +
+    '" min="0" value="' +
+    listVal +
+    '"' +
+    (o[offerKey] ? '' : ' disabled') +
+    '></div>' +
+    '<div class="disc-block"' +
+    (o[offerKey] ? '' : ' hidden') +
+    '><p class="lbl" style="margin:6px 0 4px">Offer discount on this price?</p>' +
+    '<div class="radio-row"><label class="' +
+    (!discYes ? 'on' : '') +
+    '"><input type="radio" name="' +
+    radioName +
+    '" value="no"' +
+    (!discYes ? ' checked' : '') +
+    '> No</label><label class="' +
+    (discYes ? 'on' : '') +
+    '"><input type="radio" name="' +
+    radioName +
+    '" value="yes"' +
+    (discYes ? ' checked' : '') +
+    '> Yes, give discount</label></div>' +
+    '<div class="disc-pct-row"' +
+    (discYes ? '' : ' hidden') +
+    '><div class="fld" style="margin:0"><label>Discount %</label><input type="number" data-field="' +
+    pctField +
+    '" min="1" max="100" value="' +
+    pct +
+    '"></div></div>' +
+    '<p class="disc-preview sub" style="margin:8px 0 0;font-weight:800;color:#065F46">Customer will see: ₹ ' +
+    customer.toLocaleString('en-IN') +
+    ' (GST incl.)</p></div></div>'
+  );
+}
+
 function renderSlotOfferRow(o) {
   const acFull = o.acMode !== 'limited';
   const isFlexible = o.acLimitKind !== 'fixed';
@@ -2814,20 +2920,8 @@ function renderSlotOfferRow(o) {
     esc(o.hallTo) +
     '"></div></div>' +
     '<p class="lbl">Pricing options for customers</p>' +
-    '<div class="price-row"><label><input type="checkbox" data-field="offerNoAc"' +
-    (o.offerNoAc ? ' checked' : '') +
-    '> Without AC ₹</label><input type="number" data-field="priceNoAc" min="0" value="' +
-    o.priceNoAc +
-    '"' +
-    (o.offerNoAc ? '' : ' disabled') +
-    '></div>' +
-    '<div class="price-row"><label><input type="checkbox" data-field="offerAc"' +
-    (o.offerAc ? ' checked' : '') +
-    '> With AC ₹</label><input type="number" data-field="priceAc" min="0" value="' +
-    o.priceAc +
-    '"' +
-    (o.offerAc ? '' : ' disabled') +
-    '></div>' +
+    renderOfferPriceBlock(o, 'noac') +
+    renderOfferPriceBlock(o, 'ac') +
     '<div class="ac-usage"' +
     (o.offerAc ? '' : ' hidden') +
     '>' +
@@ -2877,19 +2971,39 @@ function attachSlotPricingHandlers() {
   if (!root) return;
   root.querySelectorAll('.slot[data-offer-id]').forEach(function (row) {
     const id = row.getAttribute('data-offer-id');
+    function updateDiscountPreviews() {
+      ['noac', 'ac'].forEach(function (kind) {
+        const block = row.querySelector('.price-block[data-price-kind="' + kind + '"]');
+        if (!block) return;
+        const isNo = kind === 'noac';
+        const offerCb = row.querySelector('[data-field=' + (isNo ? 'offerNoAc' : 'offerAc') + ']');
+        const discWrap = block.querySelector('.disc-block');
+        if (discWrap) discWrap.hidden = !offerCb || !offerCb.checked;
+        const listIn = block.querySelector('[data-field=' + (isNo ? 'listPriceNoAc' : 'listPriceAc') + ']');
+        if (listIn && offerCb) listIn.disabled = !offerCb.checked;
+        const discName = (isNo ? 'discountNoAc' : 'discountAc') + '_' + id;
+        const yesEl = row.querySelector('input[name=' + discName + '][value=yes]');
+        const discYes = !!(yesEl && yesEl.checked);
+        const pctRow = block.querySelector('.disc-pct-row');
+        if (pctRow) pctRow.hidden = !discYes;
+        const list = listIn ? +listIn.value || 0 : 0;
+        const pctIn = block.querySelector('[data-field=' + (isNo ? 'discountNoAcPct' : 'discountAcPct') + ']');
+        const pct = pctIn ? +pctIn.value || 0 : 0;
+        const preview = block.querySelector('.disc-preview');
+        if (preview) {
+          const customer = discountCustomerPrice(list, discYes ? 'yes' : 'no', pct);
+          preview.textContent = 'Customer will see: ₹ ' + customer.toLocaleString('en-IN') + ' (GST incl.)';
+        }
+      });
+    }
     function refresh() {
       const enabled = row.querySelector('[data-field=enabled]').checked;
       row.classList.toggle('slot-disabled', !enabled);
       const body = row.querySelector('.slot-body');
       if (body) body.style.display = enabled ? 'block' : 'none';
       const offerAc = row.querySelector('[data-field=offerAc]').checked;
-      const offerNoAc = row.querySelector('[data-field=offerNoAc]').checked;
       const acWrap = row.querySelector('.ac-usage');
       if (acWrap) acWrap.hidden = !offerAc;
-      const noIn = row.querySelector('[data-field=priceNoAc]');
-      const acIn = row.querySelector('[data-field=priceAc]');
-      if (noIn) noIn.disabled = !offerNoAc;
-      if (acIn) acIn.disabled = !offerAc;
       const limited = row.querySelector('input[name=acMode_' + id + '][value=limited]');
       const limWrap = row.querySelector('.ac-limited-fields');
       if (limWrap && limited) limWrap.hidden = !offerAc || !limited.checked;
@@ -2897,9 +3011,21 @@ function attachSlotPricingHandlers() {
       const fixedWrap = row.querySelector('.ac-fixed-fields');
       const useFixed = limitFixed && limitFixed.checked;
       if (fixedWrap) fixedWrap.hidden = !offerAc || !limited || !limited.checked || !useFixed;
+      updateDiscountPreviews();
     }
     row.querySelectorAll('input').forEach(function (inp) {
       inp.addEventListener('change', refresh);
+      inp.addEventListener('input', function () {
+        if (inp.type === 'number') updateDiscountPreviews();
+      });
+    });
+    row.querySelectorAll('.disc-block input[type=radio]').forEach(function (r) {
+      r.addEventListener('change', function () {
+        row.querySelectorAll('input[name=' + r.name + ']').forEach(function (x) {
+          if (x.parentElement) x.parentElement.classList.toggle('on', x.checked);
+        });
+        updateDiscountPreviews();
+      });
     });
     refresh();
   });
@@ -2918,6 +3044,14 @@ function validateSlotOffers() {
     const o = enabled[i];
     if (!o.offerNoAc && !o.offerAc) {
       toast(o.label + ': turn on Without AC and/or With AC pricing.');
+      return false;
+    }
+    if (o.offerNoAc && o.discountNoAc === 'yes' && (!o.discountNoAcPct || o.discountNoAcPct <= 0)) {
+      toast(o.label + ': enter discount % for Without AC (e.g. 10).');
+      return false;
+    }
+    if (o.offerAc && o.discountAc === 'yes' && (!o.discountAcPct || o.discountAcPct <= 0)) {
+      toast(o.label + ': enter discount % for With AC (e.g. 10).');
       return false;
     }
     if (o.offerAc && o.acMode === 'limited') {
@@ -2964,8 +3098,15 @@ function capturePkg3() {
     o.hallTo = row.querySelector('[data-field=hallTo]').value || '17:00';
     o.offerNoAc = !!row.querySelector('[data-field=offerNoAc]').checked;
     o.offerAc = !!row.querySelector('[data-field=offerAc]').checked;
-    o.priceNoAc = +row.querySelector('[data-field=priceNoAc]').value || 0;
-    o.priceAc = +row.querySelector('[data-field=priceAc]').value || 0;
+    o.listPriceNoAc = +row.querySelector('[data-field=listPriceNoAc]').value || 0;
+    o.listPriceAc = +row.querySelector('[data-field=listPriceAc]').value || 0;
+    const dNo = row.querySelector('input[name=discountNoAc_' + id + ']:checked');
+    o.discountNoAc = dNo && dNo.value === 'yes' ? 'yes' : 'no';
+    const dAc = row.querySelector('input[name=discountAc_' + id + ']:checked');
+    o.discountAc = dAc && dAc.value === 'yes' ? 'yes' : 'no';
+    o.discountNoAcPct = +row.querySelector('[data-field=discountNoAcPct]').value || 0;
+    o.discountAcPct = +row.querySelector('[data-field=discountAcPct]').value || 0;
+    syncOfferCustomerPrices(o);
     const modeEl = row.querySelector('input[name=acMode_' + id + ']:checked');
     o.acMode = modeEl && modeEl.value === 'limited' ? 'limited' : 'full';
     const limitEl = row.querySelector('input[name=acLimit_' + id + ']:checked');

@@ -112,7 +112,7 @@ body{margin:0;background:#E8EDF5;font-family:Inter,system-ui,sans-serif;color:va
 </div></div>
 <!-- APP_START -->
 <script>
-const CUSTOMER_BUILD = '2026-09-28-hall-customer-v7';
+const CUSTOMER_BUILD = '2026-09-28-hall-customer-v8';
 const DEMO_FILE = 'hall-customer-book-master.html';
 const OWNER_PKG_KEY = 'GIXBEE_HALL_PACKAGE';
 
@@ -213,11 +213,70 @@ function syncFromOwnerPackage() {
     if (typeof pkg.useHallName === 'boolean') h.useHallName = pkg.useHallName;
     if (pkg.useHallName && pkg.hallName) h.hallName = String(pkg.hallName).trim();
     else if (!pkg.useHallName) h.hallName = '';
+    if (pkg.slotOffers && pkg.slotOffers.length) {
+      h.slotOffers = pkg.slotOffers;
+      const offers = enabledSlotOffers(h);
+      let min = null;
+      offers.forEach(function (o) {
+        if (o.offerNoAc) min = min == null ? o.priceNoAc : Math.min(min, o.priceNoAc);
+        if (o.offerAc) min = min == null ? o.priceAc : Math.min(min, o.priceAc);
+      });
+      if (min != null) h.priceFrom = min;
+    }
   } catch (_e) {
     /* ignore */
   }
 }
+function enabledSlotOffers(h) {
+  const list =
+    h.slotOffers && h.slotOffers.length
+      ? h.slotOffers
+      : [
+          { id: 'morning', enabled: true, offerNoAc: true, offerAc: true, priceNoAc: h.priceFrom, priceAc: h.priceAc },
+          { id: 'evening', enabled: true, offerNoAc: true, offerAc: true, priceNoAc: h.priceFrom, priceAc: h.priceAc },
+          { id: 'fullday', enabled: true, offerNoAc: true, offerAc: true, priceNoAc: h.priceFrom + 20000, priceAc: h.priceAc + 15000 },
+        ];
+  return list.filter(function (o) {
+    return o.enabled !== false;
+  });
+}
+function selectedSlotOffer(h) {
+  const offers = enabledSlotOffers(h);
+  return (
+    offers.find(function (o) {
+      return o.id === state.slot;
+    }) || offers[0]
+  );
+}
+function customerPriceLine(o, kind) {
+  const isNo = kind === 'noac';
+  const list = isNo ? o.listPriceNoAc : o.listPriceAc;
+  const price = isNo ? o.priceNoAc : o.priceAc;
+  const disc = isNo ? o.discountNoAc : o.discountAc;
+  const pct = isNo ? o.discountNoAcPct : o.discountAcPct;
+  const label = isNo ? 'Without AC' : 'With AC';
+  if (disc === 'yes' && list != null && pct > 0 && price < list) {
+    return (
+      label +
+      ' — <span style="text-decoration:line-through;color:#9CA3AF">₹ ' +
+      list.toLocaleString('en-IN') +
+      '</span> ₹ ' +
+      price.toLocaleString('en-IN') +
+      ' (' +
+      pct +
+      '% off)'
+    );
+  }
+  return label + ' — ₹ ' + price.toLocaleString('en-IN');
+}
 function priceForHall(h, acChoice) {
+  const o = selectedSlotOffer(h);
+  if (o) {
+    if (acChoice === 'ac' && o.offerAc) return o.priceAc;
+    if (acChoice === 'noac' && o.offerNoAc) return o.priceNoAc;
+    if (o.offerAc) return o.priceAc;
+    if (o.offerNoAc) return o.priceNoAc;
+  }
   if (acChoice === 'ac') return h.priceAc;
   return h.priceFrom;
 }
@@ -263,11 +322,20 @@ function serviceLines(h) {
   return rows;
 }
 function slotLabel() {
-  return state.slot === 'morning'
-    ? 'Morning (10:00 AM – 3:00 PM)'
-    : state.slot === 'evening'
-      ? 'Evening (5:00 PM – 11:00 PM)'
-      : 'Full Day (9:00 AM – 5:00 PM)';
+  const o = selectedSlotOffer(hall());
+  if (!o) {
+    return state.slot === 'morning'
+      ? 'Morning (10:00 AM – 3:00 PM)'
+      : state.slot === 'evening'
+        ? 'Evening (5:00 PM – 11:00 PM)'
+        : 'Full Day (9:00 AM – 5:00 PM)';
+  }
+  const ranges = {
+    morning: '10:00 AM – 3:00 PM',
+    evening: '5:00 PM – 11:00 PM',
+    fullday: '9:00 AM – 9:00 PM',
+  };
+  return o.label + ' (' + (ranges[o.id] || o.label) + ')';
 }
 
 function captureFilters() {
@@ -333,20 +401,53 @@ function renderDetail() {
 }
 
 function renderSlots() {
+  syncFromOwnerPackage();
   const h = hall();
-  const slots = [
-    { id: 'morning', label: 'Morning (10:00 AM – 3:00 PM)', no: h.priceFrom, ac: h.priceAc },
-    { id: 'evening', label: 'Evening (5:00 PM – 11:00 PM)', no: h.priceFrom, ac: h.priceAc },
-    { id: 'fullday', label: 'Full Day (9:00 AM – 5:00 PM)', no: h.priceFrom + 20000, ac: h.priceAc + 15000 },
-  ];
+  const slots = enabledSlotOffers(h);
+  if (!slots.length) {
+    el('slotPick').innerHTML = '<p class="sub">No time slots available from this hall yet.</p>';
+    return;
+  }
+  if (!slots.find(function (o) {
+    return o.id === state.slot;
+  })) {
+    state.slot = slots[0].id;
+  }
   el('slotPick').innerHTML = slots
-    .map((sl) => {
+    .map(function (sl) {
       const on = state.slot === sl.id;
-      return `<div class="slot-opt${on ? ' on' : ''}" data-slot="${sl.id}">
-        <b>${sl.label}</b>
-        <label class="sub"><input type="radio" name="ac${sl.id}" value="noac"${state.slot === sl.id && state.acChoice === 'noac' ? ' checked' : ''}> Without AC — ₹ ${sl.no.toLocaleString('en-IN')}</label>
-        <label class="sub"><input type="radio" name="ac${sl.id}" value="ac"${state.slot === sl.id && state.acChoice === 'ac' ? ' checked' : ''}> With AC — ₹ ${sl.ac.toLocaleString('en-IN')}</label>
-      </div>`;
+      let opts = '';
+      if (sl.offerNoAc) {
+        opts +=
+          '<label class="sub"><input type="radio" name="ac' +
+          sl.id +
+          '" value="noac"' +
+          (state.slot === sl.id && state.acChoice === 'noac' ? ' checked' : '') +
+          '> ' +
+          customerPriceLine(sl, 'noac') +
+          '</label>';
+      }
+      if (sl.offerAc) {
+        opts +=
+          '<label class="sub"><input type="radio" name="ac' +
+          sl.id +
+          '" value="ac"' +
+          (state.slot === sl.id && state.acChoice === 'ac' ? ' checked' : '') +
+          '> ' +
+          customerPriceLine(sl, 'ac') +
+          '</label>';
+      }
+      return (
+        '<div class="slot-opt' +
+        (on ? ' on' : '') +
+        '" data-slot="' +
+        sl.id +
+        '"><b>' +
+        esc(sl.label) +
+        '</b>' +
+        opts +
+        '</div>'
+      );
     })
     .join('');
   el('slotPick').querySelectorAll('.slot-opt').forEach((row) => {
@@ -366,6 +467,7 @@ function renderSlots() {
 }
 
 function renderEnquiry() {
+  syncFromOwnerPackage();
   const h = hall();
   const total = priceForHall(h, state.acChoice);
   const advance = 20000;
