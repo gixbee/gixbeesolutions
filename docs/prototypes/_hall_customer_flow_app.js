@@ -1,4 +1,4 @@
-const CUSTOMER_BUILD = '2026-10-03-hall-customer-flow-v19-tile-disc-badge';
+const CUSTOMER_BUILD = '2026-10-03-hall-customer-flow-v20-enquiry-discount-charge';
 const DEMO_FILE = 'GIXBEE-HALL-CUSTOMER-WORKING.html';
 const OWNER_PKG_KEY = 'GIXBEE_HALL_PACKAGE';
 /* IMG_DATA_START — replaced at build with base64 embedded photos */
@@ -543,11 +543,14 @@ function selectedSlotOffer(h) {
     }) || offers[0]
   );
 }
-function displayListPrice(h) {
+function hallChargeListPrice(h) {
   const o = selectedSlotOffer(h);
-  if (!o) return priceForHall(h, state.acChoice);
+  if (!o) return null;
   if (state.acChoice === 'ac') return o.listPriceAc != null ? o.listPriceAc : o.priceAc;
   return o.listPriceNoAc != null ? o.listPriceNoAc : o.priceNoAc;
+}
+function selectedHallCharge(h) {
+  return priceForHall(h, state.acChoice);
 }
 function applyStandaloneAssets() {
   /* Photos removed from cards and hero — layout-only demo */
@@ -1193,7 +1196,9 @@ function renderEnquiry() {
   syncFromOwnerPackage();
   captureFilters();
   const h = hall();
-  const chargeDisplay = displayListPrice(h);
+  const chargeDisplay = selectedHallCharge(h);
+  const listPrice = hallChargeListPrice(h);
+  const showDisc = listPrice != null && listPrice > chargeDisplay;
   const pay = h.payment || { advanceFixed: 20000, fullDueDays: 3, advanceType: 'fixed' };
   const advance = pay.advanceType === 'pct' ? Math.round((chargeDisplay * pay.advancePct) / 100) : pay.advanceFixed || 20000;
   const cancel = h.cancelRules || [{ days: '30+ days', pct: 10 }];
@@ -1247,9 +1252,15 @@ function renderEnquiry() {
     ' Guests</span><b>' +
     esc(state.guests) +
     '</b></div></div>' +
-    '<div class="charge-bar"><span>Hall Charge (GST included)</span><b>₹ ' +
-    chargeDisplay.toLocaleString('en-IN') +
-    '</b></div>' +
+    '<div class="charge-bar"><span>Hall Charge (GST included)</span>' +
+    (showDisc
+      ? '<div class="charge-amt"><span class="charge-was">₹ ' +
+        listPrice.toLocaleString('en-IN') +
+        '</span><b>₹ ' +
+        chargeDisplay.toLocaleString('en-IN') +
+        '</b></div>'
+      : '<b>₹ ' + chargeDisplay.toLocaleString('en-IN') + '</b>') +
+    '</div>' +
     '<div class="box-adv"><div class="rupee">₹</div><div><b style="color:#B91C1C">Advance Payment (To Hall Directly) — ₹ ' +
     advance.toLocaleString('en-IN') +
     (pay.advanceType === 'fixed' ? ' (Fixed)' : '') +
