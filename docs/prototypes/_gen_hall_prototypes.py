@@ -15,6 +15,11 @@ SHELL_ONLY_RE = re.compile(
 PAIRS = [
     ("hall-owner-lmb-shell.html", "_hall_owner_app.js", "hall-owner-lmb-master.html"),
     ("hall-customer-book-shell.html", "_hall_customer_app.js", "hall-customer-book-master.html"),
+    (
+        "hall-customer-flow-shell.html",
+        "_hall_customer_flow_app.js",
+        "GIXBEE-HALL-CUSTOMER-FlowHtml.html",
+    ),
 ]
 
 SHELL_PLACEHOLDER = """<!-- APP_START -->
@@ -39,7 +44,7 @@ def build(shell_name: str, js_name: str, out_name: str) -> None:
         raise SystemExit(f"{out_name} must not use external script src")
     if out.count("<script>") != 1:
         raise SystemExit(f"{out_name} must have exactly one inlined script block, got {out.count('<script>')}")
-    if "CUSTOMER_BUILD" in out_name or "customer" in out_name:
+    if "customer" in out_name.lower():
         if "CUSTOMER_BUILD" not in out:
             raise SystemExit(f"{out_name} missing customer JS")
     else:
@@ -77,6 +82,10 @@ def ensure_shell_placeholder(shell_name: str, download_name: str) -> None:
 def main() -> None:
     ensure_shell_placeholder("hall-owner-lmb-shell.html", "DOWNLOAD-gixbee-hall-owner.html")
     ensure_shell_placeholder("hall-customer-book-shell.html", "DOWNLOAD-gixbee-hall-customer.html")
+    ensure_shell_placeholder(
+        "hall-customer-flow-shell.html",
+        "GIXBEE-HALL-CUSTOMER-FlowHtml.html",
+    )
     for shell, js, out in PAIRS:
         build(shell, js, out)
     aliases = [

@@ -2958,7 +2958,8 @@ function renderManage() {
         return;
       }
       if (id === 'placeholder') {
-        el('phTitle').textContent = btn.querySelector('b').textContent.replace(/\u200b/g, '');
+        const titleEl = btn.querySelector('.manage-card-title') || btn.querySelector('b');
+        el('phTitle').textContent = titleEl ? titleEl.textContent.replace(/\u200b/g, '') : 'Details';
         show('placeholder');
         syncHallInactiveLock();
         return;
