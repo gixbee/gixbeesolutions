@@ -1,4 +1,4 @@
-const CUSTOMER_BUILD = '2026-10-03-hall-customer-flow-v20-enquiry-discount-charge';
+const CUSTOMER_BUILD = '2026-10-03-hall-customer-flow-v21-slots-booking-card';
 const DEMO_FILE = 'GIXBEE-HALL-CUSTOMER-WORKING.html';
 const OWNER_PKG_KEY = 'GIXBEE_HALL_PACKAGE';
 /* IMG_DATA_START — replaced at build with base64 embedded photos */
@@ -386,6 +386,24 @@ function hallMetaPills(h) {
     '">' +
     acTxt +
     '</span>'
+  );
+}
+function hallBookingCardHtml(h) {
+  const hallLine = showHallSubline(h)
+    ? '<div class="subname">' + esc(hallLabel(h)) + ' Hall</div>'
+    : '';
+  return (
+    '<div class="ev-card hall-book-card"><div class="thumb ph-photo" aria-hidden="true"></div><div><b style="color:var(--blue);font-size:14px">' +
+    esc(businessLabel(h)) +
+    '</b>' +
+    hallLine +
+    '<div class="sub" style="display:flex;align-items:center;gap:4px;margin-top:4px">' +
+    svgIcon('pin') +
+    ' ' +
+    esc(h.area) +
+    '</div><div class="pills" style="margin-top:6px">' +
+    hallMetaPills(h) +
+    '</div></div></div>'
   );
 }
 function minSlotPrice(h) {
@@ -1090,16 +1108,7 @@ function renderSlots() {
   const h = hall();
   const sv = el('slotsVenue');
   if (sv) {
-    sv.innerHTML =
-      '<div class="venue-panel"><div class="hero-img ph-photo" aria-hidden="true"></div><div class="bd"><b style="font-size:13px;color:var(--blue)">' +
-      esc(displayTitle(h)) +
-      '</b><div class="sub" style="display:flex;align-items:center;gap:4px;margin-top:4px">' +
-      svgIcon('pin') +
-      ' ' +
-      esc(h.area) +
-      '</div><div class="pills" style="margin-top:8px">' +
-      hallMetaPills(h) +
-      '</div></div></div>';
+    sv.innerHTML = hallBookingCardHtml(h);
   }
   const dr = el('dateRowVal');
   if (dr) {
@@ -1214,17 +1223,7 @@ function renderEnquiry() {
     })
     .join('<br>');
   el('enquiryBody').innerHTML =
-    '<div class="ev-card"><div class="thumb ph-photo" aria-hidden="true"></div><div><b style="color:var(--blue);font-size:14px">' +
-    esc(businessLabel(h)) +
-    '</b><div class="subname">' +
-    esc(hallLabel(h)) +
-    ' Hall</div><div class="sub" style="display:flex;align-items:center;gap:4px;margin-top:4px">' +
-    svgIcon('pin') +
-    ' ' +
-    esc(h.area) +
-    '</div><div class="pills" style="margin-top:6px">' +
-    hallMetaPills(h) +
-    '</div></div></div>' +
+    hallBookingCardHtml(h) +
     '<div class="sec-hd"><span>Event Details</span><button type="button" class="see" data-to="home">✎ Edit</button></div>' +
     '<div class="ev-list">' +
     '<div class="kv"><span>' +

@@ -179,6 +179,9 @@ body{margin:0;background:#E8EDF5;font-family:Inter,system-ui,sans-serif;color:va
 .ev-card .thumb{width:72px;height:72px;border-radius:10px;overflow:hidden;flex-shrink:0}
 .ev-card .thumb img{width:100%;height:100%;object-fit:cover}
 .ev-card .subname{font-size:13px;color:#2563EB;font-weight:800}
+#slotsVenue{padding:8px 16px 4px}
+#slotsVenue .hall-book-card{margin-bottom:0}
+#enquiryBody .hall-book-card{margin-bottom:12px}
 .ev-list .kv{display:flex;justify-content:space-between;padding:11px 0;border-bottom:1px solid #F3F4F6;font-size:13px;align-items:center}
 .ev-list .kv span{color:var(--mut);display:flex;align-items:center;gap:6px;font-weight:600}
 .ev-list .kv b{color:var(--blue);font-weight:800;text-align:right;max-width:58%}
@@ -440,7 +443,7 @@ function svgIcon(name, cls) {
   return icons[name] || '';
 }
 
-const CUSTOMER_BUILD = '2026-10-03-hall-customer-flow-v20-enquiry-discount-charge';
+const CUSTOMER_BUILD = '2026-10-03-hall-customer-flow-v21-slots-booking-card';
 const DEMO_FILE = 'GIXBEE-HALL-CUSTOMER-WORKING.html';
 const OWNER_PKG_KEY = 'GIXBEE_HALL_PACKAGE';
 /* IMG_DATA_START — no embedded photos (layout-only demo) */
@@ -828,6 +831,24 @@ function hallMetaPills(h) {
     '">' +
     acTxt +
     '</span>'
+  );
+}
+function hallBookingCardHtml(h) {
+  const hallLine = showHallSubline(h)
+    ? '<div class="subname">' + esc(hallLabel(h)) + ' Hall</div>'
+    : '';
+  return (
+    '<div class="ev-card hall-book-card"><div class="thumb ph-photo" aria-hidden="true"></div><div><b style="color:var(--blue);font-size:14px">' +
+    esc(businessLabel(h)) +
+    '</b>' +
+    hallLine +
+    '<div class="sub" style="display:flex;align-items:center;gap:4px;margin-top:4px">' +
+    svgIcon('pin') +
+    ' ' +
+    esc(h.area) +
+    '</div><div class="pills" style="margin-top:6px">' +
+    hallMetaPills(h) +
+    '</div></div></div>'
   );
 }
 function minSlotPrice(h) {
@@ -1532,16 +1553,7 @@ function renderSlots() {
   const h = hall();
   const sv = el('slotsVenue');
   if (sv) {
-    sv.innerHTML =
-      '<div class="venue-panel"><div class="hero-img ph-photo" aria-hidden="true"></div><div class="bd"><b style="font-size:13px;color:var(--blue)">' +
-      esc(displayTitle(h)) +
-      '</b><div class="sub" style="display:flex;align-items:center;gap:4px;margin-top:4px">' +
-      svgIcon('pin') +
-      ' ' +
-      esc(h.area) +
-      '</div><div class="pills" style="margin-top:8px">' +
-      hallMetaPills(h) +
-      '</div></div></div>';
+    sv.innerHTML = hallBookingCardHtml(h);
   }
   const dr = el('dateRowVal');
   if (dr) {
@@ -1656,17 +1668,7 @@ function renderEnquiry() {
     })
     .join('<br>');
   el('enquiryBody').innerHTML =
-    '<div class="ev-card"><div class="thumb ph-photo" aria-hidden="true"></div><div><b style="color:var(--blue);font-size:14px">' +
-    esc(businessLabel(h)) +
-    '</b><div class="subname">' +
-    esc(hallLabel(h)) +
-    ' Hall</div><div class="sub" style="display:flex;align-items:center;gap:4px;margin-top:4px">' +
-    svgIcon('pin') +
-    ' ' +
-    esc(h.area) +
-    '</div><div class="pills" style="margin-top:6px">' +
-    hallMetaPills(h) +
-    '</div></div></div>' +
+    hallBookingCardHtml(h) +
     '<div class="sec-hd"><span>Event Details</span><button type="button" class="see" data-to="home">✎ Edit</button></div>' +
     '<div class="ev-list">' +
     '<div class="kv"><span>' +
