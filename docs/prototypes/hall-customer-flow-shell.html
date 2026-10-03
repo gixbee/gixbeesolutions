@@ -164,9 +164,10 @@ body{margin:0;background:#E8EDF5;font-family:Inter,system-ui,sans-serif;color:va
 .sub{font-size:12px;color:var(--mut);line-height:1.4}
 .toast{position:absolute;left:16px;right:16px;bottom:80px;background:#111;color:#fff;padding:12px;border-radius:12px;display:none;z-index:9;font-size:13px}
 #buildTag{font-size:10px;color:var(--mut);padding:6px 16px 0;text-align:center}
-.cal-overlay{position:absolute;inset:0;background:rgba(15,23,42,.45);z-index:40;display:none;align-items:flex-end}
-.cal-overlay.on{display:flex}
-.cal-sheet{width:100%;background:#fff;border-radius:16px 16px 0 0;padding:12px 16px 20px;max-height:70%}
+#slots{position:relative}
+.cal-overlay{position:absolute;inset:0;background:rgba(15,23,42,.45);z-index:50;display:none}
+.cal-overlay.on{display:block}
+.cal-sheet{position:absolute;top:0;left:0;right:0;width:100%;background:#fff;border-radius:0 0 16px 16px;padding:12px 16px 20px;max-height:58%;overflow:auto;box-shadow:0 12px 32px rgba(15,23,42,.2)}
 .cal-bar{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;font-weight:800;color:var(--blue)}
 .cal-bar button{border:0;background:none;font:inherit;font-weight:800;cursor:pointer}
 .cal-bar .done{color:var(--gn2)}
@@ -220,6 +221,13 @@ body{margin:0;background:#E8EDF5;font-family:Inter,system-ui,sans-serif;color:va
 </section>
 
 <section class="scr" id="slots">
+  <div class="cal-overlay" id="calOverlay">
+  <div class="cal-sheet">
+    <div class="cal-bar"><button type="button" id="calCancel">Cancel</button><b>Select Date</b><button type="button" class="done" id="calDone">Done</button></div>
+    <div style="text-align:center;font-weight:900;color:var(--blue);margin-bottom:8px" id="calMonth">December 2026</div>
+    <div class="cal-grid" id="calGrid"></div>
+  </div>
+</div>
   <div class="top"><button class="back" type="button" data-to="detail">←</button><h1>Select Date &amp; Time</h1><span style="width:36px"></span></div>
   <div id="slotsVenue"></div>
   <div class="date-row" id="dateRow"><div class="date-ico-wrap" id="dateIcoWrap"></div><div class="date-txt"><div class="sub">Select Date</div><b id="dateRowVal">Select a date</b></div><span id="dateChev"></span></div>
@@ -246,13 +254,6 @@ body{margin:0;background:#E8EDF5;font-family:Inter,system-ui,sans-serif;color:va
   <button type="button" data-nav="bookings"><span id="navBook"></span>Bookings</button>
   <button type="button" data-nav="profile"><span id="navProfile"></span>Profile</button>
 </nav>
-<div class="cal-overlay" id="calOverlay">
-  <div class="cal-sheet">
-    <div class="cal-bar"><button type="button" id="calCancel">Cancel</button><b>Select Date</b><button type="button" class="done" id="calDone">Done</button></div>
-    <div style="text-align:center;font-weight:900;color:var(--blue);margin-bottom:8px" id="calMonth">December 2026</div>
-    <div class="cal-grid" id="calGrid"></div>
-  </div>
-</div>
 <div class="toast" id="toast"></div>
 </div></div>
 <!-- APP_START -->
