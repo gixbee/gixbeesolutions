@@ -1,5 +1,5 @@
-const CUSTOMER_BUILD = '2026-10-03-hall-customer-flow-v4-standalone';
-const DEMO_FILE = 'GIXBEE-HALL-CUSTOMER-FlowHtml.html';
+const CUSTOMER_BUILD = '2026-10-03-hall-customer-flow-v5-slots-ui';
+const DEMO_FILE = 'GIXBEE-HALL-CUSTOMER-WORKING.html';
 const OWNER_PKG_KEY = 'GIXBEE_HALL_PACKAGE';
 /* IMG_DATA_START — replaced at build with base64 embedded photos */
 const IMG_DATA = {};
@@ -22,13 +22,13 @@ function dummyKoinoniaSlots() {
       offerNoAc: true,
       offerAc: true,
       priceNoAc: 55000,
-      priceAc: 52500,
+      priceAc: 75000,
       listPriceNoAc: 55000,
       listPriceAc: 75000,
       discountNoAc: 'no',
-      discountAc: 'yes',
+      discountAc: 'no',
       discountNoAcPct: 0,
-      discountAcPct: 30,
+      discountAcPct: 0,
     },
     {
       id: 'evening',
@@ -403,29 +403,52 @@ function hallMatchesFilters(h) {
   if (minSlotPrice(h) > state.priceMax) return false;
   return true;
 }
+function acHoursNote(slotId) {
+  if (slotId === 'fullday') return 'AC included: 5 hours';
+  return 'AC included: 3 hours';
+}
+function slotPeriodIcon(slotId) {
+  if (slotId === 'evening') {
+    return '<span class="slot-ico moon">' + svgIcon('moon') + '</span>';
+  }
+  return '<span class="slot-ico sun">' + svgIcon('sun') + '</span>';
+}
 function priceTileHtml(o, kind, selected) {
   const isNo = kind === 'noac';
   const price = isNo ? o.priceNoAc : o.priceAc;
-  const list = isNo ? o.listPriceNoAc : o.listPriceAc;
+  const listRaw = isNo ? o.listPriceNoAc : o.listPriceAc;
+  const list = listRaw != null ? listRaw : price;
   const disc = isNo ? o.discountNoAc : o.discountAc;
   const pct = isNo ? o.discountNoAcPct : o.discountAcPct;
-  const label = isNo ? svgIcon('fan') + ' Without AC' : svgIcon('snow') + ' With AC';
-  const sub = isNo ? '' : '<div class="sub" style="font-size:8px;font-weight:600;margin-top:2px">AC included · 3 hours</div>';
-  let inner = '<div class="radio"></div>' + label + sub + '<span class="price">₹ ' + price.toLocaleString('en-IN') + '</span>';
+  const title = isNo ? 'Without AC' : 'With AC';
+  const ico = isNo ? svgIcon('fan') : svgIcon('snow');
+  const acNote = isNo ? '' : '<div class="ac-inc">' + acHoursNote(o.id) + '</div>';
+  let priceBlock =
+    '<div class="price-main">₹ ' + price.toLocaleString('en-IN') + '</div>';
   if (disc === 'yes' && list > price && pct > 0) {
-    inner =
-      '<div class="radio"></div>' +
-      label +
-      sub +
-      '<span class="strike">₹ ' +
+    priceBlock =
+      '<div class="strike">₹ ' +
       list.toLocaleString('en-IN') +
-      '</span><span class="price">₹ ' +
+      '</div><div class="price-main">₹ ' +
       price.toLocaleString('en-IN') +
-      '</span><span class="disc-note">' +
+      '</div><div class="disc-note">' +
       pct +
-      '% discount applied</span>';
+      '% discount applied</div>';
   }
-  return '<div class="ac-tile' + (selected ? ' on' : '') + '" data-ac="' + kind + '">' + inner + '</div>';
+  return (
+    '<div class="ac-tile' +
+    (selected ? ' on' : '') +
+    '" data-ac="' +
+    kind +
+    '"><div class="radio"></div><div class="tile-ico">' +
+    ico +
+    '</div><div class="tile-lbl">' +
+    title +
+    '</div>' +
+    acNote +
+    priceBlock +
+    '</div>'
+  );
 }
 function slotTimeRange(o) {
   if (!o || !o.hallFrom) return '';
@@ -545,6 +568,7 @@ function injectChromeIcons() {
     fabHeart: svgIcon('heart'),
     fabShare: svgIcon('share'),
     dateChev: svgIcon('chev'),
+    dateIcoWrap: svgIcon('cal'),
     gstInfo: svgIcon('info'),
     icoPlane: svgIcon('plane'),
     navSearch: svgIcon('search'),
@@ -921,7 +945,10 @@ function renderSlots() {
       ' Parking (Bikes)</span></div></div></div>';
   }
   const dr = el('dateRowVal');
-  if (dr) dr.textContent = state.date ? formatDateLong(state.date) : 'Select a date';
+  if (dr) {
+    dr.textContent = state.date ? formatDateLong(state.date) : 'Select a date';
+    dr.style.color = state.date ? '#2563EB' : '#64748B';
+  }
   const ds = el('fDateSlots');
   if (ds) ds.value = state.date;
   const slots = enabledSlotOffers(h).map(slotWithPromo);
@@ -940,7 +967,6 @@ function renderSlots() {
       const on = state.slot === sl.id;
       const pct = Math.max(sl.discountAc === 'yes' ? sl.discountAcPct : 0, sl.discountNoAc === 'yes' ? sl.discountNoAcPct : 0);
       const badge = pct > 0 ? '<span class="disc-badge">' + pct + '% Off</span>' : '';
-      const slotIco = sl.id === 'evening' ? svgIcon('moon') : svgIcon('sun');
       let tiles = '';
       if (sl.offerAc && state.ac !== 'noac') {
         tiles += priceTileHtml(sl, 'ac', on && state.acChoice === 'ac');
@@ -950,16 +976,16 @@ function renderSlots() {
       }
       return (
         '<div class="slot-block' +
-        (on ? ' on' : '') +
+        (on ? ' slot-picked' : '') +
         '" data-slot="' +
         sl.id +
-        '"><div class="slot-hd"><div><b>' +
-        slotIco +
-        ' ' +
+        '"><div class="slot-hd"><div class="slot-title">' +
+        slotPeriodIcon(sl.id) +
+        '<div><div class="slot-name">' +
         esc(sl.label) +
-        '</b><div class="sub">' +
+        '</div><div class="slot-time">' +
         esc(formatTimeRange(sl.hallFrom, sl.hallTo)) +
-        '</div></div>' +
+        '</div></div></div>' +
         badge +
         '</div><div class="ac-tiles">' +
         tiles +
@@ -971,17 +997,17 @@ function renderSlots() {
   const eh = el('extraHours');
   if (eh) {
     eh.innerHTML =
-      '<div class="extra-card"><b>' +
-      svgIcon('cal') +
-      ' Additional Hour Charges (if needed)</b><div class="extra-split"><div>' +
+      '<div class="extra-card"><div class="extra-hd"><span class="extra-clock">🕐</span><b>Additional Hour Charges (if needed)</b><span class="extra-info">' +
+      svgIcon('info') +
+      '</span></div><div class="extra-split"><div>' +
       svgIcon('snow') +
-      ' With AC<br>₹ ' +
+      ' With AC<br><strong>₹ ' +
       (ex.extraAc || 7000).toLocaleString('en-IN') +
-      ' per hour</div><div>' +
+      ' per hour</strong></div><div>' +
       svgIcon('fan') +
-      ' Without AC<br>₹ ' +
+      ' Without AC<br><strong>₹ ' +
       (ex.extraNoAc || 5000).toLocaleString('en-IN') +
-      ' per hour</div></div></div>';
+      ' per hour</strong></div></div></div>';
   }
   el('slotPick').querySelectorAll('.slot-block').forEach(function (row) {
     row.onclick = function (e) {
