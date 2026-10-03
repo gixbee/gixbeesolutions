@@ -28,6 +28,28 @@ h2{margin:0 0 6px;font-size:18px}
 .sub{color:var(--mut);font-size:13px;line-height:1.45;margin:0 0 14px}
 .lbl{font-size:11px;font-weight:800;color:#9CA3AF;letter-spacing:.6px;margin:16px 0 8px}
 .menu{display:flex;flex-direction:column;gap:10px}
+.menu.manage-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.manage-card{position:relative;text-align:left;border:1px solid var(--line);border-radius:16px;padding:14px 12px 14px 14px;cursor:pointer;min-height:132px;display:flex;flex-direction:column;background:#fff;width:100%;font:inherit;color:inherit}
+.manage-card-top{display:flex;justify-content:space-between;align-items:flex-start;width:100%;margin-bottom:10px}
+.manage-card-ico{width:42px;height:42px;border-radius:12px;display:grid;place-items:center;font-size:20px;flex-shrink:0}
+.manage-card-chev{color:#9CA3AF;font-size:20px;line-height:1;font-weight:300;flex-shrink:0;margin-top:2px}
+.manage-card-badge{position:absolute;top:12px;right:36px;min-width:20px;height:20px;padding:0 6px;border-radius:99px;background:var(--rd);color:#fff;font-size:11px;font-weight:800;display:grid;place-items:center;line-height:1}
+.manage-card-title{display:block;font-size:14px;font-weight:800;color:var(--navy);margin:0 0 6px;line-height:1.25}
+.manage-card-sub{font-size:11px;color:var(--mut);line-height:1.45;margin:0;display:block;font-weight:600}
+.manage-card.theme-pkg{background:#F5F3FF;border-color:#DDD6FE}
+.manage-card.theme-pkg .manage-card-ico{background:#EDE9FE;color:#6D28D9}
+.manage-card.theme-cal{background:#ECFDF3;border-color:#A7F3D0}
+.manage-card.theme-cal .manage-card-ico{background:#DCFCE7;color:#15803D}
+.manage-card.theme-req{background:#FFFBEB;border-color:#FDE68A}
+.manage-card.theme-req .manage-card-ico{background:#FEF3C7;color:#B45309}
+.manage-card.theme-photo{background:#EFF6FF;border-color:#BFDBFE}
+.manage-card.theme-photo .manage-card-ico{background:#DBEAFE;color:#2563EB}
+.manage-card.theme-ops{background:#F5F3FF;border-color:#E9D5FF}
+.manage-card.theme-ops .manage-card-ico{background:#EDE9FE;color:#7C3AED}
+.manage-card.theme-del{background:#FEF2F2;border-color:#FECACA}
+.manage-card.theme-del .manage-card-ico{background:#FEE2E2;color:var(--rd)}
+.manage-card.theme-del .manage-card-title{color:var(--rd)}
+.manage-card.theme-del .manage-card-sub{color:#B91C1C}
 .mrow{text-align:left;border:1px solid var(--line);border-radius:14px;padding:14px;background:#fff;cursor:pointer;width:100%}
 .mrow b{display:block;font-size:15px;margin-bottom:4px}
 .mrow span{font-size:12px;color:var(--mut);line-height:1.35}
@@ -181,7 +203,7 @@ textarea{width:100%;border:1px solid var(--line);border-radius:10px;padding:10px
 .hall-toggle input:checked + .hall-toggle-ui::after{transform:translateX(20px)}
 .hall-toggle-lbl{min-width:22px;color:#374151}
 .hall-inactive-banner{padding:10px 12px;border-radius:10px;background:#FEF3C7;color:#92400E;font-size:13px;line-height:1.45;margin-bottom:12px}
-.hall-inactive-lock input:not([readonly]):not([data-hall-toggle]),.hall-inactive-lock textarea,.hall-inactive-lock select,.hall-inactive-lock .menu .mrow,.hall-inactive-lock .cta .btn:not(#manageBackToHallsBtn),.hall-inactive-lock .btn:not(.back):not(#backToBizHalls):not(#manageBackToHallsBtn),.hall-inactive-lock label.ev,.hall-inactive-lock .policy-row input,.hall-inactive-lock .slot input{pointer-events:none;opacity:.45}
+.hall-inactive-lock input:not([readonly]):not([data-hall-toggle]),.hall-inactive-lock textarea,.hall-inactive-lock select,.hall-inactive-lock .menu .manage-card,.hall-inactive-lock .menu .mrow,.hall-inactive-lock .cta .btn:not(#manageBackToHallsBtn),.hall-inactive-lock .btn:not(.back):not(#backToBizHalls):not(#manageBackToHallsBtn),.hall-inactive-lock label.ev,.hall-inactive-lock .policy-row input,.hall-inactive-lock .slot input{pointer-events:none;opacity:.45}
 .hall-inactive-lock #manageHallNameInput,.hall-inactive-lock #hallNameInput{pointer-events:none;opacity:.45}
 .hall-inactive-lock #backToBizHalls,.hall-inactive-lock #manageBackToHallsBtn,.hall-inactive-lock .top .back{pointer-events:auto!important;opacity:1!important}
 .manage-back-cta{padding-top:4px}
@@ -496,7 +518,7 @@ textarea{width:100%;border:1px solid var(--line);border-radius:10px;padding:10px
   <div id="manageRestBlock">
   <div class="pad">
     <p class="lbl">MANAGE</p>
-    <div class="menu" id="manageMenu"><p class="sub" id="jsWait">Loading menu…</p></div>
+    <div class="menu manage-grid" id="manageMenu"><p class="sub" id="jsWait">Loading menu…</p></div>
   </div>
   <div class="cta manage-back-cta">
     <button type="button" class="btn ghost" id="manageBackToHallsBtn">← Back to halls</button>
@@ -798,7 +820,7 @@ textarea{width:100%;border:1px solid var(--line);border-radius:10px;padding:10px
 </div></div>
 <!-- APP_START -->
 <script>
-const OWNER_BUILD = '2026-09-28-hall-owner-v61';
+const OWNER_BUILD = '2026-09-28-hall-owner-v62';
 
 const FACILITY_PARKING_SECURITY = 'Security in Parking Area';
 
@@ -2861,32 +2883,41 @@ function cateringReviewLines() {
   ];
 }
 
+function manageCardTheme(id) {
+  if (id === 'pkg1') return 'pkg';
+  if (id === 'calendar') return 'cal';
+  if (id === 'ownerReq') return 'req';
+  if (id === 'hallPhotos') return 'photo';
+  if (id === 'operators') return 'ops';
+  if (id === 'deleteHall') return 'del';
+  return 'cal';
+}
+
 function renderManage() {
   renderManageHeader();
   el('manageMenu').innerHTML = MANAGE_MENU.map((m) => {
-    const cls = m.cls ? ' ' + m.cls.split(' ').join(' ') : '';
-    const dot = m.dot ? '<span class="dot"></span>' : '';
-    const mDot = m.dot ? '<span class="m-dot"></span>' : '';
-    const ico = m.ico || 'cal';
+    const theme = manageCardTheme(m.id);
+    const danger = m.cls && m.cls.indexOf('danger') >= 0;
+    const badge = m.dot ? '<span class="manage-card-badge" aria-label="Pending requests">3</span>' : '';
     return (
-      '<button type="button" class="mrow mrow-rich' +
-      cls +
+      '<button type="button" class="manage-card theme-' +
+      theme +
+      (danger ? ' danger' : '') +
       '" data-go="' +
       m.id +
       '">' +
-      '<span class="mico mico-' +
-      ico +
-      '">' +
+      badge +
+      '<div class="manage-card-top">' +
+      '<span class="manage-card-ico" aria-hidden="true">' +
       esc(m.icon || '•') +
-      mDot +
       '</span>' +
-      '<span class="mrow-text"><b>' +
+      '<span class="manage-card-chev" aria-hidden="true">›</span></div>' +
+      '<span class="manage-card-title">' +
       esc(m.title) +
-      dot +
-      '</b><span>' +
+      '</span>' +
+      '<span class="manage-card-sub">' +
       esc(m.sub) +
-      '</span></span>' +
-      '<span class="mrow-chev" aria-hidden="true">›</span></button>'
+      '</span></button>'
     );
   }).join('');
   el('manageMenu').querySelectorAll('[data-go]').forEach((btn) => {
