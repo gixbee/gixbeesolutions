@@ -39,33 +39,11 @@ IMG_DATA_RE = re.compile(
 
 
 def inject_customer_img_data(app: str) -> str:
-    asset_dir = DIR / "customer-mock-assets"
-    raw: dict[str, str] = {}
-
-    def encode(name: str) -> str:
-        p = asset_dir / name
-        if not p.is_file():
-            raise SystemExit(f"Missing customer mock asset: {p}")
-        mime = "image/png" if name.endswith(".png") else "image/jpeg"
-        b64 = base64.b64encode(p.read_bytes()).decode("ascii")
-        return f"data:{mime};base64,{b64}"
-
-    for fname in ("hero-home.jpg", "hall-detail.jpg", "hall-card-garden.jpg"):
-        raw[fname] = encode(fname)
-    aliases = {
-        "hall-card-koinonia.jpg": "hall-detail.jpg",
-        "hall-card-grand.jpg": "hall-detail.jpg",
-        "hall-card-grace.jpg": "hall-detail.jpg",
-        "hall-thumb.jpg": "hall-detail.jpg",
-    }
-    lines = ["/* IMG_DATA_START — embedded photos (standalone file) */", "const IMG_DATA = {"]
-    for key, val in raw.items():
-        lines.append(f'  "{key}": "{val}",')
-    for key, src in aliases.items():
-        lines.append(f'  "{key}": "{raw[src]}",')
-    lines.append("};")
-    lines.append("/* IMG_DATA_END */")
-    block = "\n".join(lines)
+    block = (
+        "/* IMG_DATA_START — no embedded photos (layout-only demo) */\n"
+        "const IMG_DATA = {};\n"
+        "/* IMG_DATA_END */"
+    )
     if not IMG_DATA_RE.search(app):
         raise SystemExit("_hall_customer_flow_app.js missing IMG_DATA markers")
     return IMG_DATA_RE.sub(block, app, count=1)
