@@ -1,4 +1,4 @@
-const CUSTOMER_BUILD = '2026-10-03-hall-customer-flow-v18-tile-discount-restored';
+const CUSTOMER_BUILD = '2026-10-03-hall-customer-flow-v19-tile-disc-badge';
 const DEMO_FILE = 'GIXBEE-HALL-CUSTOMER-WORKING.html';
 const OWNER_PKG_KEY = 'GIXBEE_HALL_PACKAGE';
 /* IMG_DATA_START — replaced at build with base64 embedded photos */
@@ -425,24 +425,26 @@ function priceTileHtml(o, kind, selected) {
   const title = isNo ? 'Without AC' : 'With AC';
   const ico = isNo ? svgIcon('fan') : svgIcon('snow');
   const acNote = isNo ? '' : '<div class="ac-inc">' + acHoursNote(o.id) + '</div>';
+  const showDisc = disc === 'yes' && list > price && pct > 0;
+  const tileBadge = showDisc ? '<span class="tile-disc-badge">' + pct + '% Off</span>' : '';
   let priceBlock =
     '<div class="price-main">₹ ' + price.toLocaleString('en-IN') + '</div>';
-  if (disc === 'yes' && list > price && pct > 0) {
+  if (showDisc) {
     priceBlock =
       '<div class="strike">₹ ' +
       list.toLocaleString('en-IN') +
       '</div><div class="price-main">₹ ' +
       price.toLocaleString('en-IN') +
-      '</div><div class="disc-note">' +
-      pct +
-      '% discount applied</div>';
+      '</div>';
   }
   return (
     '<div class="ac-tile' +
     (selected ? ' on' : '') +
     '" data-ac="' +
     kind +
-    '"><div class="radio"></div><div class="tile-ico">' +
+    '">' +
+    tileBadge +
+    '<div class="radio"></div><div class="tile-ico">' +
     ico +
     '</div><div class="tile-lbl">' +
     title +
