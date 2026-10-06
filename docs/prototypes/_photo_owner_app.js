@@ -464,40 +464,45 @@ function renderPkgList() {
   const list = el('pkgList');
   const pkgs = filteredPackages();
   if (!pkgs.length) {
-    list.innerHTML = '<p class="sub" style="padding:8px 16px 16px">No packages yet. Tap <b>+ Add Package</b> to create one.</p>';
+    list.innerHTML =
+      '<div class="hub-empty">' +
+      '<div class="hub-empty-ico">' +
+      photoIcon('pkg') +
+      '</div><b>No packages yet</b><p>Build your first wedding or event package with deliverables, pricing, and policies in a guided flow.</p></div>';
     return;
   }
   list.innerHTML = pkgs
     .map((p) => {
+      const lv = levelClass(p.level);
       const disc =
         p.discountPct > 0 && p.listPrice > p.price
-          ? '<span class="was" style="text-decoration:line-through;color:#9CA3AF;font-size:11px;margin-left:6px">' +
+          ? '<span class="was" style="text-decoration:line-through;color:#9CA3AF;font-size:12px;font-weight:700;margin-left:6px">' +
             inr(p.listPrice) +
             '</span>'
           : '';
       return (
         '<button type="button" class="pkg-card" data-pkg="' +
         esc(p.id) +
-        '"><div class="pkg-thumb"></div><div class="pkg-bd">' +
-        '<span class="pkg-level ' +
-        levelClass(p.level) +
+        '"><div class="pkg-thumb lv-' +
+        lv +
+        '">' +
+        photoIcon('pkg') +
+        '</div><div class="pkg-bd"><div class="pkg-top-row"><span class="pkg-level ' +
+        lv +
         '">' +
         esc(p.level) +
-        '</span>' +
-        '<span class="pkg-menu">' +
-        photoIcon('menu') +
-        '</span><b>' +
+        '</span><span class="pkg-chev">›</span></div><b>' +
         esc(p.name) +
         '</b><div class="pkg-price">' +
         inr(p.price) +
         disc +
         '</div><div class="pkg-sub">' +
-        esc(p.coverage || '') +
-        '</div><span class="status ' +
+        esc(p.coverage || 'Tap to view coverage & deliverables') +
+        '</div><div class="pkg-foot"><span class="status ' +
         (p.status === 'published' ? 'pub' : 'draft') +
         '">' +
-        (p.status === 'published' ? '● Published' : '○ Draft') +
-        '</span></div></button>'
+        (p.status === 'published' ? '● Live' : '○ Draft') +
+        '</span><span style="font-size:10px;font-weight:800;color:var(--blue)">Edit</span></div></div></button>'
       );
     })
     .join('');
@@ -509,9 +514,17 @@ function renderPkgList() {
 function renderSvcList() {
   el('svcCount').textContent = String(store.services.length);
   el('svcSecIco').innerHTML = photoIcon('cam');
+  const tabPkgIco = el('tabPkgIco');
+  const tabSvcIco = el('tabSvcIco');
+  if (tabPkgIco) tabPkgIco.innerHTML = photoIcon('pkg');
+  if (tabSvcIco) tabSvcIco.innerHTML = photoIcon('cam');
   const list = el('svcList');
   if (!store.services.length) {
-    list.innerHTML = '<p class="sub" style="padding:8px 14px 14px">No services yet.</p>';
+    list.innerHTML =
+      '<div class="hub-empty" style="margin:8px 16px 16px">' +
+      '<div class="hub-empty-ico">' +
+      photoIcon('cam') +
+      '</div><b>No services yet</b><p>Add standalone offerings like portraits, product shoots, or funeral coverage.</p></div>';
     return;
   }
   list.innerHTML = store.services
@@ -519,15 +532,17 @@ function renderSvcList() {
       (s) =>
         '<button type="button" class="svc-row" data-svc="' +
         esc(s.id) +
-        '"><div class="svc-thumb"></div><div style="flex:1;min-width:0"><b style="font-size:13px;color:var(--navy)">' +
+        '"><div class="svc-thumb">' +
+        photoIcon('cam') +
+        '</div><div class="svc-bd"><b>' +
         esc(s.name) +
-        '</b><div class="sub">' +
+        '</b><div class="svc-meta"><span class="svc-price-tag">' +
         inr(s.price) +
-        ' · <span class="status ' +
+        '</span><span class="status ' +
         (s.status === 'published' ? 'pub' : 'draft') +
-        '" style="margin:0">' +
-        (s.status === 'published' ? 'Published' : 'Draft') +
-        '</span></div></div><span style="color:var(--mut)">›</span></button>'
+        '" style="margin:0;padding:4px 8px">' +
+        (s.status === 'published' ? 'Live' : 'Draft') +
+        '</span></div></div><span class="svc-row-chev">›</span></button>'
     )
     .join('');
   list.querySelectorAll('.svc-row').forEach((btn) => {
@@ -537,25 +552,36 @@ function renderSvcList() {
 
 function applyHubTab() {
   const isPkg = store.hubTab === 'packages';
+  const hub = el('svcPkg');
+  if (hub) {
+    hub.classList.toggle('hub-mode-packages', isPkg);
+    hub.classList.toggle('hub-mode-services', !isPkg);
+  }
   el('tabPackages').classList.toggle('on', isPkg);
   el('tabServices').classList.toggle('on', !isPkg);
   el('hubIntro').textContent = isPkg
-    ? 'Create packages for full events (wedding, reception, etc.). Filter cards by level.'
-    : 'Individual services customers book separately (funeral, product, portrait, etc.).';
+    ? 'Create full-event packages with coverage, deliverables, and payment stages.'
+    : 'Standalone services customers book without a full package.';
   const stat = el('hubStat');
   if (stat) {
-    stat.textContent =
-      'Packages (' + store.packages.length + ') · Services (' + store.services.length + ')';
+    const pubPkg = store.packages.filter((p) => p.status === 'published').length;
+    const pubSvc = store.services.filter((s) => s.status === 'published').length;
+    stat.innerHTML =
+      '<div class="hub-stat-chip pink"><b>' +
+      store.packages.length +
+      '</b><span>Packages · ' +
+      pubPkg +
+      ' live</span></div>' +
+      '<div class="hub-stat-chip blue"><b>' +
+      store.services.length +
+      '</b><span>Services · ' +
+      pubSvc +
+      ' live</span></div>';
   }
-  el('pkgFilters').style.display = isPkg ? '' : 'none';
-  el('addPackageBtn').closest('.cta').style.display = isPkg ? '' : 'none';
-  el('pkgList').style.display = isPkg ? '' : 'none';
-  const sec = el('svcSecToggle').closest('.svc-sec');
-  if (sec) sec.style.display = isPkg ? '' : 'block';
-  if (!isPkg) {
-    el('pkgList').style.display = 'none';
-    el('addServiceBtn').closest('.cta').style.display = '';
-  }
+  const ctaPkg = el('hubCtaPkg');
+  const ctaSvc = el('hubCtaSvc');
+  if (ctaPkg) ctaPkg.style.display = isPkg ? '' : 'none';
+  if (ctaSvc) ctaSvc.style.display = '';
 }
 
 function renderSvcPkg() {
@@ -882,6 +908,15 @@ function bindGlobal() {
     saveStore();
     applyHubTab();
   };
+  const svcToggle = el('svcSecToggle');
+  if (svcToggle) {
+    svcToggle.onclick = () => {
+      const sec = svcToggle.closest('.svc-sec');
+      if (sec && el('svcPkg').classList.contains('hub-mode-packages')) {
+        sec.classList.toggle('collapsed');
+      }
+    };
+  }
   el('addPackageBtn').onclick = () => startWizard('package');
   el('addServiceBtn').onclick = () => startWizard('service');
   el('wizBack').onclick = () => wizPrev();
