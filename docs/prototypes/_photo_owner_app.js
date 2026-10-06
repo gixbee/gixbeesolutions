@@ -1,4 +1,4 @@
-const PHOTO_OWNER_BUILD = '2026-10-06-photo-owner-finalflow-v2-spec';
+const PHOTO_OWNER_BUILD = '2026-10-06-photo-owner-package-v1-board';
 const STORAGE_KEY = 'GIXBEE_PHOTO_OWNER_V1';
 
 const INDIAN_STATES = {
@@ -543,28 +543,6 @@ function renderSvcPkg() {
   applyHubTab();
 }
 
-function newPkgDraft() {
-  return {
-    name: '',
-    level: 'Standard',
-    desc: '',
-    functions: [],
-    ceremonyType: 'Hindu',
-    coverage: 'Both sides · Candid photographer ×2 · Up to 8 hours · Extra hour ₹5,000',
-    extras: 'Drone — Extra · Live streaming — Extra',
-    deliverables: '400 edited photos · Highlight 12 min · Premium album 30 leaves',
-    complimentary: 'Save-the-date · 2 frames',
-    delivery: 'Edited photos 5 days · Album 45 days after selection',
-    advancePct: 30,
-    cancellation: '50% refund if cancelled 30+ days before event',
-    requirements: 'Customer SSD · Venue power · Photo selection within 14 days',
-    listPrice: 150000,
-    discountYes: 'no',
-    discountPct: 0,
-    price: 150000,
-    status: 'draft',
-  };
-}
 function newSvcDraft() {
   return {
     category: '',
@@ -636,128 +614,6 @@ function renderWizardBody() {
     body.innerHTML = renderSvcStep(wiz.step, d);
   }
   bindWizardFields();
-}
-
-function renderPkgStep(step, d) {
-  switch (step) {
-    case 0:
-      syncPkgPrice(d);
-      return (
-        '<div class="fld"><label>Package level</label><div class="levels" id="f_levels">' +
-        PKG_LEVELS.map(
-          (l) =>
-            '<button type="button" class="' +
-            (d.level === l ? 'on' : '') +
-            '" data-lvl="' +
-            l +
-            '">' +
-            l +
-            '</button>'
-        ).join('') +
-        '</div></div>' +
-        '<div class="fld"><label>Package name *</label><input id="f_name" value="' +
-        esc(d.name) +
-        '" placeholder="Classic Wedding Premium"></div>' +
-        '<div class="fld"><label>Package price (₹) *</label><input type="number" id="f_listPrice" value="' +
-        d.listPrice +
-        '"></div>' +
-        '<div class="fld"><label>Short description</label><textarea id="f_desc">' +
-        esc(d.desc) +
-        '</textarea></div>' +
-        '<div class="fld"><label>Offer discount?</label><select id="f_discYes"><option value="no"' +
-        (d.discountYes !== 'yes' ? ' selected' : '') +
-        '>No</option><option value="yes"' +
-        (d.discountYes === 'yes' ? ' selected' : '') +
-        '>Yes, give discount</option></select></div>' +
-        '<div class="fld"><label>Discount %</label><input type="number" id="f_discountPct" value="' +
-        d.discountPct +
-        '" min="0" max="100"></div>' +
-        '<div class="preview-green">Customer preview: <b>' +
-        inr(d.price) +
-        '</b>' +
-        (d.discountPct > 0 && d.discountYes === 'yes'
-          ? ' <span class="was">' + inr(d.listPrice) + '</span> <span class="off-pill">' + d.discountPct + '% OFF</span>'
-          : '') +
-        '</div><p class="sub" style="margin-top:8px">No GST line in discount preview (V1).</p>'
-      );
-    case 1:
-      return (
-        '<p class="sub">Select functions this package covers. No booking date or venue here.</p><div id="f_funcs">' +
-        PKG_FUNCTIONS.map(
-          (f) =>
-            '<label class="chk-row' +
-            (d.functions.indexOf(f) >= 0 ? ' on' : '') +
-            '" style="display:flex;margin-bottom:8px"><input type="checkbox" data-fn="' +
-            f +
-            '" ' +
-            (d.functions.indexOf(f) >= 0 ? 'checked' : '') +
-            ' style="margin-right:8px"> ' +
-            f +
-            '</label>'
-        ).join('') +
-        '</div>'
-      );
-    case 2:
-      if (!needsCeremonyStep(d.functions)) {
-        return '<p class="sub">Ceremony type is not required for the functions you selected. Tap Next to continue.</p>';
-      }
-      return (
-        '<div class="fld"><label>Ceremony / wedding tradition</label><div class="levels" id="f_ceremonyBtns">' +
-        CEREMONY_TYPES.map(
-          (c) =>
-            '<button type="button" class="' +
-            (d.ceremonyType === c ? 'on' : '') +
-            '" data-cer="' +
-            c +
-            '">' +
-            c +
-            '</button>'
-        ).join('') +
-        '</div></div>'
-      );
-    case 3:
-      return '<div class="fld"><label>Function coverage</label><textarea id="f_coverage">' + esc(d.coverage) + '</textarea></div>';
-    case 4:
-      return '<div class="fld"><label>Special services &amp; extras</label><textarea id="f_extras">' + esc(d.extras) + '</textarea></div>';
-    case 5:
-      return '<div class="fld"><label>Deliverables</label><textarea id="f_deliverables">' + esc(d.deliverables) + '</textarea></div>';
-    case 6:
-      return '<div class="fld"><label>Complimentary items</label><textarea id="f_complimentary">' + esc(d.complimentary) + '</textarea></div>';
-    case 7:
-      return '<div class="fld"><label>Delivery</label><textarea id="f_delivery">' + esc(d.delivery) + '</textarea></div>';
-    case 8:
-      return (
-        '<p class="sub">Customer pays you directly — Gixbee V1 does not collect advance.</p>' +
-        '<div class="fld"><label>Booking advance %</label><input type="number" id="f_advancePct" value="' +
-        d.advancePct +
-        '"></div>' +
-        '<div class="fld"><label>Cancellation policy</label><textarea id="f_cancellation">' +
-        esc(d.cancellation) +
-        '</textarea></div>'
-      );
-    case 9:
-      return '<div class="fld"><label>Customer requirements</label><textarea id="f_requirements">' + esc(d.requirements) + '</textarea></div>';
-    case 10:
-      syncPkgPrice(d);
-      return (
-        '<div class="review-card"><b>' +
-        esc(d.name || 'Untitled package') +
-        '</b><span class="pkg-level ' +
-        levelClass(d.level) +
-        '">' +
-        esc(d.level) +
-        '</span>' +
-        '<p class="sub" style="margin-top:10px"><b>Functions:</b> ' +
-        esc((d.functions || []).join(', ') || '—') +
-        '</p><p class="sub"><b>Price:</b> ' +
-        inr(d.price) +
-        '</p><p class="sub"><b>Coverage:</b> ' +
-        esc(d.coverage) +
-        '</p></div><p class="sub">Publish adds this package card to Services &amp; Packages with level filter.</p>'
-      );
-    default:
-      return '';
-  }
 }
 
 function renderSvcStep(step, d) {
@@ -850,20 +706,7 @@ function readWizardFields() {
   const d = wiz.draft;
   const g = (id) => el(id);
   if (wiz.mode === 'package') {
-    if (g('f_name')) d.name = g('f_name').value.trim();
-    if (g('f_desc')) d.desc = g('f_desc').value.trim();
-    if (g('f_discYes')) d.discountYes = g('f_discYes').value;
-    if (g('f_coverage')) d.coverage = g('f_coverage').value.trim();
-    if (g('f_extras')) d.extras = g('f_extras').value.trim();
-    if (g('f_deliverables')) d.deliverables = g('f_deliverables').value.trim();
-    if (g('f_complimentary')) d.complimentary = g('f_complimentary').value.trim();
-    if (g('f_delivery')) d.delivery = g('f_delivery').value.trim();
-    if (g('f_listPrice')) d.listPrice = +g('f_listPrice').value || 0;
-    if (g('f_discountPct')) d.discountPct = +g('f_discountPct').value || 0;
-    if (g('f_advancePct')) d.advancePct = +g('f_advancePct').value || 0;
-    if (g('f_cancellation')) d.cancellation = g('f_cancellation').value.trim();
-    if (g('f_requirements')) d.requirements = g('f_requirements').value.trim();
-    syncPkgPrice(d);
+    readPkgWizardFields(d);
   } else {
     if (g('f_svcName')) d.name = g('f_svcName').value.trim();
     if (g('f_blurb')) d.blurb = g('f_blurb').value.trim();
@@ -883,20 +726,10 @@ function readWizardFields() {
 
 function bindWizardFields() {
   const d = wiz.draft;
-  document.querySelectorAll('#f_levels button').forEach((b) => {
-    b.onclick = () => {
-      d.level = b.getAttribute('data-lvl');
-      renderWizardBody();
-    };
-  });
-  document.querySelectorAll('#f_funcs input').forEach((cb) => {
-    cb.onchange = () => {
-      const fn = cb.getAttribute('data-fn');
-      if (cb.checked) {
-        if (d.functions.indexOf(fn) < 0) d.functions.push(fn);
-      } else d.functions = d.functions.filter((x) => x !== fn);
-    };
-  });
+  if (wiz.mode === 'package') {
+    bindPkgWizard(d);
+    return;
+  }
   document.querySelectorAll('#f_cats .cat-card').forEach((b) => {
     b.onclick = () => {
       d.category = b.getAttribute('data-cat');
@@ -961,7 +794,9 @@ function finishWizard(publish) {
       toast('Package name required.');
       return;
     }
-    const rec = Object.assign({ id: uid('pkg') }, d, { status: publish ? 'published' : 'draft' });
+    const rec = Object.assign({ id: uid('pkg') }, JSON.parse(JSON.stringify(d)), {
+      status: publish ? 'published' : 'draft',
+    });
     store.packages.unshift(rec);
     toast(publish ? 'Package published' : 'Package saved as draft');
   } else {
@@ -991,15 +826,18 @@ function renderWizard() {
   if (frac) frac.textContent = stepNum + '/' + total;
   if (bar) bar.style.width = pct + '%';
   const last = wiz.step >= wizTotal() - 1;
+  const pkgReview = wiz.mode === 'package' && wiz.step === 10;
   el('wizPrev').style.visibility = wiz.step === 0 ? 'hidden' : 'visible';
-  el('wizNext').textContent = last ? 'Publish →' : 'Next →';
-  el('wizNext').className = last ? 'btn btn-green' : 'btn btn-blue';
+  el('wizNext').hidden = pkgReview;
+  el('wizNext').textContent = last && !pkgReview ? 'Publish →' : 'Next →';
+  el('wizNext').className = last && !pkgReview ? 'btn btn-green' : 'btn btn-blue';
   const draftBtn = el('wizDraft');
-  if (draftBtn) draftBtn.hidden = !last;
+  if (draftBtn) draftBtn.hidden = pkgReview || !last;
 }
 
 function wizNext() {
   if (!validateStep()) return;
+  if (wiz.mode === 'package' && wiz.step === 10) return;
   if (wiz.step >= wizTotal() - 1) {
     finishWizard(true);
     return;

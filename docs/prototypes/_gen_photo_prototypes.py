@@ -5,6 +5,7 @@ from pathlib import Path
 DIR = Path(__file__).resolve().parent
 SHELL = DIR / "photo-owner-flow-shell.html"
 ICONS = DIR / "_photo_owner_icons.js"
+PKG_WIZ = DIR / "_photo_pkg_wizard.js"
 APP = DIR / "_photo_owner_app.js"
 MASTER = DIR / "GIXBEE-PHOTO-OWNER-FINALFLOW.html"
 
@@ -27,8 +28,9 @@ SHELL_PLACEHOLDER = """<!-- APP_START -->
 def build_master() -> str:
     shell = SHELL.read_text(encoding="utf-8")
     icons = ICONS.read_text(encoding="utf-8")
+    pkg = PKG_WIZ.read_text(encoding="utf-8")
     app = APP.read_text(encoding="utf-8")
-    block = "<!-- APP_START -->\n<script>\n" + icons + "\n" + app + "\n</script>\n<!-- APP_END -->"
+    block = "<!-- APP_START -->\n<script>\n" + icons + "\n" + pkg + "\n" + app + "\n</script>\n<!-- APP_END -->"
     i, j = shell.find("<!-- APP_START -->"), shell.find("<!-- APP_END -->")
     if i < 0 or j < 0:
         raise SystemExit("photo-owner-flow-shell.html missing APP markers")
