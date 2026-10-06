@@ -219,10 +219,16 @@ body{margin:0;background:#E8EDF5;font-family:Inter,system-ui,sans-serif;color:va
 #wizard.wiz-create .top h1{color:#fff;font-size:15px;font-weight:800}
 #wizard.wiz-create .back{color:#fff}
 #wizard.wiz-create .chip-h{background:rgba(255,255,255,.15);color:#fff}
-.fn-row{display:block;padding:12px;border:1px solid var(--line);border-radius:12px;margin-bottom:8px;cursor:pointer;background:#fff}
+.fn-row{display:block;width:100%;padding:12px;border:1px solid var(--line);border-radius:12px;margin-bottom:8px;cursor:pointer;background:#fff;box-sizing:border-box}
 .fn-row.on{border-color:#86EFAC;background:#F0FDF4}
 .fn-row b{display:block;font-size:14px;color:var(--navy)}
-.fn-row .hint{display:block;font-size:11px;color:var(--mut);font-weight:600;margin-top:4px}
+.fn-row .fn-hint{display:block;font-size:11px;color:var(--mut);font-weight:600;margin-top:4px;line-height:1.35}
+.fn-list{display:flex;flex-direction:column;gap:8px;width:100%}
+.fn-item{align-items:flex-start}
+.fn-item input[type=checkbox]{width:20px;height:20px;margin-top:2px;flex-shrink:0;accent-color:var(--blue)}
+.fn-label{display:flex;flex-direction:column;gap:3px;flex:1;min-width:0;text-align:left}
+.fn-label strong{font-size:14px;color:var(--navy);line-height:1.3}
+.fn-label small{font-size:11px;color:var(--mut);font-weight:600;line-height:1.35}
 .del-tabs{display:flex;gap:4px;overflow:auto;margin:0 0 12px;padding-bottom:4px;border-bottom:1px solid var(--line)}
 .del-tab{flex:1;min-width:70px;border:0;background:none;font-size:10px;font-weight:800;color:var(--mut);padding:8px 4px;cursor:pointer;border-bottom:2px solid transparent;white-space:nowrap}
 .del-tab.on{color:var(--blue);border-bottom-color:var(--blue)}
@@ -239,7 +245,7 @@ body{margin:0;background:#E8EDF5;font-family:Inter,system-ui,sans-serif;color:va
 .dig-row.on{border-color:#86EFAC;background:#F0FDF4}
 .dig-ico{font-size:22px;flex-shrink:0}
 .dig-row b{display:block;font-size:13px;color:var(--navy)}
-.dig-row .hint{display:block;font-size:11px;color:var(--mut);margin-top:2px}
+.dig-row .dig-desc{display:block;font-size:11px;color:var(--mut);margin-top:2px;line-height:1.35}
 .cov-type{display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--line);font-size:13px;font-weight:700}
 .cov-type.disabled{opacity:.55}
 .cov-type label{display:flex;align-items:center;gap:8px;flex:1}

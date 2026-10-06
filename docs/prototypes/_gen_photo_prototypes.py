@@ -35,6 +35,10 @@ def build_master() -> str:
     if i < 0 or j < 0:
         raise SystemExit("photo-owner-flow-shell.html missing APP markers")
     out = shell[:i] + block + shell[j + len("<!-- APP_END -->") :]
+    head = out.split("<!-- APP_START -->")[0]
+    for marker in (".fn-list", "#wizard.wiz-create", ".del-tabs", "Create Package"):
+        if marker not in head:
+            raise SystemExit(f"built HTML missing shell content: {marker!r} — regenerate from updated shell")
     if out.count("<script>") != 1:
         raise SystemExit(f"expected one inlined script, got {out.count('<script>')}")
     if "PHOTO_OWNER_BUILD" not in out or "function boot(" not in out:

@@ -1,4 +1,4 @@
-const PHOTO_OWNER_BUILD = '2026-10-06-photo-owner-mobile-v1';
+const PHOTO_OWNER_BUILD = '2026-10-06-photo-owner-mobile-v1-fix1';
 const STORAGE_KEY = 'GIXBEE_PHOTO_OWNER_V1';
 
 const INDIAN_STATES = {
@@ -851,7 +851,10 @@ function renderWizard() {
   el('wizNext').textContent = last && !pkgReview ? 'Publish →' : 'Next →';
   el('wizNext').className = last && !pkgReview ? 'btn btn-green' : 'btn btn-blue';
   const draftBtn = el('wizDraft');
-  if (draftBtn) draftBtn.hidden = pkgReview || !last;
+  if (draftBtn) {
+    draftBtn.hidden =
+      wiz.mode === 'package' ? true : pkgReview || !last;
+  }
 }
 
 function wizNext() {

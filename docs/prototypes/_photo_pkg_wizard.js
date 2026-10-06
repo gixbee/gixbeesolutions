@@ -255,25 +255,29 @@ function linkAdd(action, label) {
 }
 
 function fnCheckList(d) {
-  return allPkgFunctions(d)
-    .map(function (item) {
-      const on = d.functions.indexOf(item) >= 0;
-      const hint = FUNCTION_HINTS[item] || '';
-      return (
-        '<label class="fn-row' +
-        (on ? ' on' : '') +
-        '"><input type="checkbox" data-fn="' +
-        esc(item) +
-        '" ' +
-        (on ? 'checked' : '') +
-        ' style="margin-right:8px"><b>' +
-        esc(item) +
-        '</b>' +
-        (hint ? '<span class="hint">' + esc(hint) + '</span>' : '') +
-        '</label>'
-      );
-    })
-    .join('');
+  return (
+    '<div class="fn-list" id="f_funcs">' +
+    allPkgFunctions(d)
+      .map(function (item) {
+        const on = d.functions.indexOf(item) >= 0;
+        const hint = FUNCTION_HINTS[item] || '';
+        return (
+          '<label class="chk-row fn-item' +
+          (on ? ' on' : '') +
+          '"><input type="checkbox" data-fn="' +
+          esc(item) +
+          '" ' +
+          (on ? 'checked' : '') +
+          '><span class="fn-label"><strong>' +
+          esc(item) +
+          '</strong>' +
+          (hint ? '<small>' + esc(hint) + '</small>' : '') +
+          '</span></label>'
+        );
+      })
+      .join('') +
+    '</div>'
+  );
 }
 
 function renderDelTabs(active) {
@@ -507,7 +511,7 @@ function renderDigitalDeliverTab(d) {
           item.icon +
           '</span><span><b>' +
           esc(item.id) +
-          '</b><span class="hint">' +
+          '</b><span class="dig-desc">' +
           esc(item.desc) +
           '</span></span></label>'
         );
@@ -591,12 +595,7 @@ function renderPkgStep(step, d) {
         '</textarea></div>'
       );
     case 1:
-      return (
-        '<div id="f_funcs">' +
-        fnCheckList(d) +
-        '</div>' +
-        linkAdd('add-function', 'Add New Function')
-      );
+      return fnCheckList(d) + linkAdd('add-function', 'Add New Function');
     case 2:
       if (!needsCeremonyStep(d.functions)) {
         return (
