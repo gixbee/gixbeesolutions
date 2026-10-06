@@ -164,7 +164,7 @@ function newPkgDraft() {
     price: 135000,
     coverUploaded: false,
     customFunctions: [],
-    functions: ['Wedding & Reception', 'Reception', 'Wedding Eve', 'Engagement'],
+    functions: ['Wedding & Reception', 'Reception', 'Wedding Eve'],
     customCeremonies: [],
     ceremonyTypes: ['Hindu'],
     coverageFn: 'Wedding & Reception',
@@ -260,18 +260,18 @@ function fnCheckList(d) {
     allPkgFunctions(d)
       .map(function (item) {
         const on = d.functions.indexOf(item) >= 0;
-        const hint = FUNCTION_HINTS[item] || '';
+        const hint = FUNCTION_HINTS[item];
         return (
-          '<label class="chk-row fn-item' +
+          '<label class="fn-pick' +
           (on ? ' on' : '') +
           '"><input type="checkbox" data-fn="' +
           esc(item) +
           '" ' +
           (on ? 'checked' : '') +
-          '><span class="fn-label"><strong>' +
+          '><span class="fn-pick-txt"><strong>' +
           esc(item) +
           '</strong>' +
-          (hint ? '<small>' + esc(hint) + '</small>' : '') +
+          (hint ? ' <em>(' + esc(hint) + ')</em>' : '') +
           '</span></label>'
         );
       })

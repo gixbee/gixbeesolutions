@@ -1,4 +1,4 @@
-const PHOTO_OWNER_BUILD = '2026-10-06-photo-owner-mobile-v1-fix1';
+const PHOTO_OWNER_BUILD = '2026-10-06-photo-owner-mobile-v1-fix2';
 const STORAGE_KEY = 'GIXBEE_PHOTO_OWNER_V1';
 
 const INDIAN_STATES = {
@@ -25,20 +25,20 @@ const PKG_FUNCTIONS = [
   'Other',
 ];
 const FUNCTION_HINTS = {
-  'Wedding & Reception': 'Full wedding day and reception coverage',
-  Reception: 'Reception-only coverage',
-  'Wedding Eve': 'Pre-wedding / wedding eve events',
-  Engagement: 'Engagement ceremony coverage',
+  'Wedding & Reception': 'Wedding followed by reception on the same day',
+  Reception: 'Separate reception function / day',
+  'Wedding Eve': 'Pre-wedding night function',
+  Engagement: 'Engagement ceremony / ring ceremony',
   Baptism: 'Baptism ceremony',
   'First Communion': 'First communion ceremony',
-  Birthday: 'Birthday celebrations',
-  Anniversary: 'Anniversary events',
-  'Baby Shower': 'Baby shower events',
+  Birthday: 'Birthday celebration',
+  Anniversary: 'Anniversary celebration',
+  'Baby Shower': 'Baby shower function',
   'Naming Ceremony': 'Naming ceremony',
-  Housewarming: 'Housewarming events',
-  'Corporate Event': 'Corporate functions and events',
-  'Funeral / Memorial': 'Memorial and funeral services',
-  Other: 'Custom event type',
+  Housewarming: 'Housewarming ceremony',
+  'Corporate Event': 'Corporate or official event',
+  'Funeral / Memorial': 'Funeral or memorial service',
+  Other: '',
 };
 const CEREMONY_TYPES = ['Christian', 'Hindu', 'Muslim', 'Sikh', 'Jain', 'Buddhist', 'Other'];
 const SVC_CATEGORIES = [
@@ -62,7 +62,7 @@ const SVC_CATEGORIES = [
 
 const PKG_STEPS = [
   { title: 'Package basics', sub: 'Basic information about the package.' },
-  { title: 'Select functions', sub: 'Select functions covered in this package.' },
+  { title: 'Select Functions', sub: '' },
   { title: 'Ceremony type', sub: 'Choose applicable ceremony types.' },
   { title: 'Coverage details', sub: 'Set coverage details for selected functions.' },
   { title: 'Deliverables', sub: 'Select photos, videos, albums and other deliverables included in this package.' },
@@ -611,17 +611,20 @@ function wizTotal() {
 
 function renderStepper() {
   const steps = wizSteps();
+  const pkg = wiz.mode === 'package';
   el('stepper').innerHTML = steps
     .map((_, i) => {
       let cls = 'step-dot';
       if (i === wiz.step) cls += ' on';
-      else if (i < wiz.step) cls += ' done';
-      return '<div class="' + cls + '">' + (i < wiz.step ? '✓' : i + 1) + '</div>';
+      else if (!pkg && i < wiz.step) cls += ' done';
+      const label = pkg || i >= wiz.step ? i + 1 : '✓';
+      return '<div class="' + cls + '">' + label + '</div>';
     })
     .join('');
   const meta = steps[wiz.step];
   el('wizStepTitle').textContent = meta.title;
-  el('wizStepSub').textContent = meta.sub;
+  const sub = el('wizStepSub');
+  if (sub) sub.textContent = pkg ? '' : meta.sub;
 }
 
 function renderWizardBody() {

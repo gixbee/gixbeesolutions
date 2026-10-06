@@ -217,20 +217,32 @@ body{margin:0;background:#E8EDF5;font-family:Inter,system-ui,sans-serif;color:va
 .review-jump{display:flex;width:100%;justify-content:space-between;align-items:center;padding:12px;border:1px solid var(--line);border-radius:12px;margin-bottom:8px;background:#fff;font:inherit;font-weight:700;color:var(--navy);cursor:pointer}
 .review-summary{text-align:center;padding:12px;margin:12px 0;background:#F8FAFC;border-radius:12px;font-size:14px}
 .two-col{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-#wizard.wiz-create .top{background:var(--navy);border-bottom-color:rgba(255,255,255,.12)}
-#wizard.wiz-create .top h1{color:#fff;font-size:15px;font-weight:800}
-#wizard.wiz-create .back{color:#fff}
-#wizard.wiz-create .chip-h{background:rgba(255,255,255,.15);color:#fff}
-.fn-row{display:block;width:100%;padding:12px;border:1px solid var(--line);border-radius:12px;margin-bottom:8px;cursor:pointer;background:#fff;box-sizing:border-box}
-.fn-row.on{border-color:#86EFAC;background:#F0FDF4}
-.fn-row b{display:block;font-size:14px;color:var(--navy)}
-.fn-row .fn-hint{display:block;font-size:11px;color:var(--mut);font-weight:600;margin-top:4px;line-height:1.35}
-.fn-list{display:flex;flex-direction:column;gap:8px;width:100%}
-.fn-item{align-items:flex-start}
-.fn-item input[type=checkbox]{width:20px;height:20px;margin-top:2px;flex-shrink:0;accent-color:var(--blue)}
-.fn-label{display:flex;flex-direction:column;gap:3px;flex:1;min-width:0;text-align:left}
-.fn-label strong{font-size:14px;color:var(--navy);line-height:1.3}
-.fn-label small{font-size:11px;color:var(--mut);font-weight:600;line-height:1.35}
+#wizard.wiz-create .top{background:var(--navy);border-bottom:0;display:grid;grid-template-columns:44px 1fr 44px;align-items:center;padding:10px 12px 14px}
+#wizard.wiz-create .back{color:#fff;justify-self:start}
+#wizard.wiz-create #wizTitle{display:none}
+#wizard.wiz-create .wiz-pkg-brand{grid-column:2;text-align:center;color:#fff;line-height:1.2}
+#wizard.wiz-create .wiz-pkg-brand b{display:block;font-size:18px;font-weight:900;letter-spacing:.2px}
+#wizard.wiz-create .wiz-pkg-brand span{display:block;font-size:12px;font-weight:600;margin-top:3px;opacity:.95}
+#wizard:not(.wiz-create) .wiz-pkg-brand{display:none}
+#wizard.wiz-create .chip-h{display:none}
+#wizard.wiz-create .prog{display:none}
+#wizard.wiz-create .stepper{justify-content:space-between;gap:3px;padding:10px 14px 14px;background:#fff}
+#wizard.wiz-create .step-dot{width:27px;height:27px;font-size:10px;border:2px solid var(--blue);color:var(--blue);background:#fff}
+#wizard.wiz-create .step-dot.on{background:var(--pink2);border-color:var(--pink2);color:#fff;box-shadow:0 0 0 1px rgba(219,39,119,.15)}
+#wizard.wiz-create .step-dot.done{background:#fff;border-color:var(--blue);color:var(--blue)}
+#wizard.wiz-create .wiz-hd h2{font-size:20px;font-weight:900;margin-top:4px}
+#wizard.wiz-create #wizStepSub{display:none}
+#wizard.wiz-create .wiz-foot{gap:10px;padding:14px 16px 18px}
+#wizard.wiz-create .wiz-foot .btn{flex:1;max-width:none;border-radius:10px;padding:13px 10px;font-size:15px}
+#wizard.wiz-create .wiz-foot .btn-ghost{border:1.5px solid #BFDBFE;color:var(--navy);background:#fff}
+#wizard.wiz-create .link-add{text-align:center;margin-top:8px}
+.fn-list{display:flex;flex-direction:column;width:100%;gap:0}
+.fn-pick{display:flex;align-items:flex-start;gap:12px;padding:11px 0;border-bottom:1px solid #EEF2F7;cursor:pointer;width:100%;font:inherit;color:inherit;background:transparent;border-left:0;border-right:0;border-top:0}
+.fn-pick:last-of-type{border-bottom:0}
+.fn-pick input[type=checkbox]{width:20px;height:20px;margin-top:2px;flex-shrink:0;accent-color:var(--blue)}
+.fn-pick-txt{flex:1;min-width:0;font-size:14px;line-height:1.45;color:var(--navy);text-align:left}
+.fn-pick-txt strong{font-weight:800}
+.fn-pick-txt em{font-style:italic;font-weight:500;color:#64748B;font-size:13px}
 .del-tabs{display:flex;gap:4px;overflow:auto;margin:0 0 12px;padding-bottom:4px;border-bottom:1px solid var(--line)}
 .del-tab{flex:1;min-width:70px;border:0;background:none;font-size:10px;font-weight:800;color:var(--mut);padding:8px 4px;cursor:pointer;border-bottom:2px solid transparent;white-space:nowrap}
 .del-tab.on{color:var(--blue);border-bottom-color:var(--blue)}
@@ -335,7 +347,12 @@ body{margin:0;background:#E8EDF5;font-family:Inter,system-ui,sans-serif;color:va
 </section>
 
 <section class="scr" id="wizard">
-  <div class="top"><button type="button" class="back" id="wizBack">←</button><h1 id="wizTitle">Create Package</h1><span class="chip-h" id="wizStepChip">1/10</span></div>
+  <div class="top wiz-top">
+    <button type="button" class="back" id="wizBack">←</button>
+    <div class="wiz-pkg-brand" id="wizPkgBrand"><b>Gixbee</b><span>Create Package</span></div>
+    <h1 id="wizTitle">Add Service</h1>
+    <span class="chip-h" id="wizStepChip">1/10</span>
+  </div>
   <div class="prog"><div class="bar"><i id="wizProgBar" style="width:10%"></i></div><span class="frac" id="wizFrac">1/10</span></div>
   <div class="stepper" id="stepper"></div>
   <div class="wiz-hd"><h2 id="wizStepTitle">Step</h2><p class="sub" id="wizStepSub"></p></div>
@@ -551,7 +568,7 @@ function newPkgDraft() {
     price: 135000,
     coverUploaded: false,
     customFunctions: [],
-    functions: ['Wedding & Reception', 'Reception', 'Wedding Eve', 'Engagement'],
+    functions: ['Wedding & Reception', 'Reception', 'Wedding Eve'],
     customCeremonies: [],
     ceremonyTypes: ['Hindu'],
     coverageFn: 'Wedding & Reception',
@@ -647,18 +664,18 @@ function fnCheckList(d) {
     allPkgFunctions(d)
       .map(function (item) {
         const on = d.functions.indexOf(item) >= 0;
-        const hint = FUNCTION_HINTS[item] || '';
+        const hint = FUNCTION_HINTS[item];
         return (
-          '<label class="chk-row fn-item' +
+          '<label class="fn-pick' +
           (on ? ' on' : '') +
           '"><input type="checkbox" data-fn="' +
           esc(item) +
           '" ' +
           (on ? 'checked' : '') +
-          '><span class="fn-label"><strong>' +
+          '><span class="fn-pick-txt"><strong>' +
           esc(item) +
           '</strong>' +
-          (hint ? '<small>' + esc(hint) + '</small>' : '') +
+          (hint ? ' <em>(' + esc(hint) + ')</em>' : '') +
           '</span></label>'
         );
       })
@@ -898,7 +915,7 @@ function renderDigitalDeliverTab(d) {
           item.icon +
           '</span><span><b>' +
           esc(item.id) +
-          '</b><span class="hint">' +
+          '</b><span class="dig-desc">' +
           esc(item.desc) +
           '</span></span></label>'
         );
@@ -1621,7 +1638,7 @@ function bindPkgWizard(d) {
   });
 }
 
-const PHOTO_OWNER_BUILD = '2026-10-06-photo-owner-mobile-v1-fix1';
+const PHOTO_OWNER_BUILD = '2026-10-06-photo-owner-mobile-v1-fix2';
 const STORAGE_KEY = 'GIXBEE_PHOTO_OWNER_V1';
 
 const INDIAN_STATES = {
@@ -1648,20 +1665,20 @@ const PKG_FUNCTIONS = [
   'Other',
 ];
 const FUNCTION_HINTS = {
-  'Wedding & Reception': 'Full wedding day and reception coverage',
-  Reception: 'Reception-only coverage',
-  'Wedding Eve': 'Pre-wedding / wedding eve events',
-  Engagement: 'Engagement ceremony coverage',
+  'Wedding & Reception': 'Wedding followed by reception on the same day',
+  Reception: 'Separate reception function / day',
+  'Wedding Eve': 'Pre-wedding night function',
+  Engagement: 'Engagement ceremony / ring ceremony',
   Baptism: 'Baptism ceremony',
   'First Communion': 'First communion ceremony',
-  Birthday: 'Birthday celebrations',
-  Anniversary: 'Anniversary events',
-  'Baby Shower': 'Baby shower events',
+  Birthday: 'Birthday celebration',
+  Anniversary: 'Anniversary celebration',
+  'Baby Shower': 'Baby shower function',
   'Naming Ceremony': 'Naming ceremony',
-  Housewarming: 'Housewarming events',
-  'Corporate Event': 'Corporate functions and events',
-  'Funeral / Memorial': 'Memorial and funeral services',
-  Other: 'Custom event type',
+  Housewarming: 'Housewarming ceremony',
+  'Corporate Event': 'Corporate or official event',
+  'Funeral / Memorial': 'Funeral or memorial service',
+  Other: '',
 };
 const CEREMONY_TYPES = ['Christian', 'Hindu', 'Muslim', 'Sikh', 'Jain', 'Buddhist', 'Other'];
 const SVC_CATEGORIES = [
@@ -1685,7 +1702,7 @@ const SVC_CATEGORIES = [
 
 const PKG_STEPS = [
   { title: 'Package basics', sub: 'Basic information about the package.' },
-  { title: 'Select functions', sub: 'Select functions covered in this package.' },
+  { title: 'Select Functions', sub: '' },
   { title: 'Ceremony type', sub: 'Choose applicable ceremony types.' },
   { title: 'Coverage details', sub: 'Set coverage details for selected functions.' },
   { title: 'Deliverables', sub: 'Select photos, videos, albums and other deliverables included in this package.' },
@@ -2234,17 +2251,20 @@ function wizTotal() {
 
 function renderStepper() {
   const steps = wizSteps();
+  const pkg = wiz.mode === 'package';
   el('stepper').innerHTML = steps
     .map((_, i) => {
       let cls = 'step-dot';
       if (i === wiz.step) cls += ' on';
-      else if (i < wiz.step) cls += ' done';
-      return '<div class="' + cls + '">' + (i < wiz.step ? '✓' : i + 1) + '</div>';
+      else if (!pkg && i < wiz.step) cls += ' done';
+      const label = pkg || i >= wiz.step ? i + 1 : '✓';
+      return '<div class="' + cls + '">' + label + '</div>';
     })
     .join('');
   const meta = steps[wiz.step];
   el('wizStepTitle').textContent = meta.title;
-  el('wizStepSub').textContent = meta.sub;
+  const sub = el('wizStepSub');
+  if (sub) sub.textContent = pkg ? '' : meta.sub;
 }
 
 function renderWizardBody() {
