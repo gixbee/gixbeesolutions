@@ -1,0 +1,1277 @@
+<!DOCTYPE html>
+<!-- GIXBEE PHOTO OWNER — single self-contained file (CSS + HTML + JS). Download DOWNLOAD-gixbee-photo-owner.html; do NOT open photo-owner-flow-shell.html. -->
+
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Gixbee — Photography Owner</title>
+<style>
+:root{--navy:#1B2559;--blue:#2563EB;--ink:#111827;--mut:#64748B;--line:#E5E7EB;--gn:#12B76A;--gn2:#047857;--soft:#ECFDF3;--pink:#EC4899;--pink2:#DB2777;--shadow:0 10px 32px rgba(15,23,42,.1)}
+*{box-sizing:border-box}
+body{margin:0;background:#E8EDF5;font-family:Inter,system-ui,sans-serif;color:var(--ink)}
+.stage{min-height:100vh;display:flex;justify-content:center;padding:12px 8px 24px}
+.phone{width:min(100%,430px);background:#fff;min-height:920px;border-radius:36px;box-shadow:var(--shadow);overflow:hidden;position:relative;border:8px solid #111;display:flex;flex-direction:column}
+.notch{height:26px;display:flex;justify-content:space-between;padding:8px 18px 0;font-size:12px;font-weight:700;color:var(--navy)}
+.scr{display:none;flex:1;overflow:auto;padding:0 0 72px}
+.scr.on{display:block}
+.top{display:flex;align-items:center;gap:8px;padding:10px 16px;background:#fff;border-bottom:1px solid var(--line)}
+.top h1{margin:0;font-size:17px;flex:1;color:var(--navy);font-weight:800}
+.top .link{border:0;background:none;font:inherit;font-weight:800;color:var(--blue);cursor:pointer;padding:6px}
+.back{border:0;background:none;font-size:22px;color:var(--navy);cursor:pointer;width:36px;height:36px;display:grid;place-items:center}
+.p-ico{width:22px;height:22px;display:inline-block;vertical-align:middle;flex-shrink:0}
+.pad{padding:0 16px}
+.sub{font-size:12px;color:var(--mut);line-height:1.45;margin:0}
+.btn{width:100%;border:0;border-radius:999px;font-weight:800;font-size:16px;padding:14px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px}
+.btn-blue{background:var(--blue);color:#fff}
+.btn-pink{background:var(--pink2);color:#fff}
+.btn-green{background:var(--gn2);color:#fff}
+.btn-ghost{background:#fff;color:var(--blue);border:1.5px solid #BFDBFE}
+.cta{padding:12px 16px 16px;background:linear-gradient(transparent,#fff 24%)}
+.lmb-hd{padding:8px 16px 4px;display:flex;align-items:center;gap:10px}
+.lmb-hd .home-pill{display:inline-flex;align-items:center;gap:6px;padding:6px 12px;border-radius:99px;background:var(--soft);color:var(--gn2);font-size:11px;font-weight:800;border:0;cursor:pointer}
+.lmb-hd h1{margin:0;font-size:18px;flex:1;color:var(--navy);font-weight:900}
+.lmb-grow{border:0;background:#F3F4F6;border-radius:99px;padding:8px 12px;font-size:11px;font-weight:800;color:var(--mut);cursor:pointer}
+.lmb-tag{font-size:10px;color:var(--mut);padding:0 16px 10px}
+.biz-card{border:1px solid var(--line);border-radius:16px;padding:12px;margin:0 16px 14px;background:#fff;text-align:left;cursor:pointer;width:calc(100% - 32px);font:inherit;color:inherit}
+.biz-card .row{display:flex;gap:12px}
+.biz-ico{width:52px;height:52px;border-radius:12px;background:#F3F4F6;display:grid;place-items:center;font-size:24px;flex-shrink:0}
+.biz-card b{display:block;font-size:15px;color:var(--navy);font-weight:900}
+.biz-card .type{font-size:12px;color:var(--mut);font-weight:600;margin-top:2px}
+.biz-meta{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0 10px;align-items:center}
+.pill{font-size:10px;font-weight:800;padding:4px 8px;border-radius:99px;display:inline-flex;align-items:center;gap:4px}
+.pill-ver{background:#DCFCE7;color:#166534}
+.pill-req{background:#FEE2E2;color:#B91C1C}
+.pill-rev{background:#F3F4F6;color:#475569}
+.biz-actions{display:flex;gap:8px}
+.biz-actions button{flex:1;border:1px solid var(--line);background:#fff;border-radius:99px;padding:9px 6px;font-size:11px;font-weight:800;color:var(--navy);cursor:pointer}
+.biz-actions button.primary{border:0;color:#fff}
+.biz-actions button.primary.photo{background:var(--blue)}
+.dash-banner{height:100px;background:linear-gradient(145deg,#64748B,#94A3B8);position:relative}
+.dash-logo{position:absolute;left:16px;bottom:-28px;width:56px;height:56px;border-radius:50%;background:#fff;border:3px solid #fff;box-shadow:0 4px 12px rgba(0,0,0,.12);display:grid;place-items:center;font-size:22px}
+.dash-head{padding:36px 16px 12px}
+.dash-head b{font-size:18px;color:var(--navy);display:block}
+.dash-head .loc{font-size:12px;color:var(--mut);margin-top:4px;display:flex;align-items:center;gap:4px}
+.area-card{margin:0 16px 14px;padding:14px;border:1px solid #BFDBFE;border-radius:14px;background:#F8FAFC}
+.area-card b{display:flex;align-items:center;gap:6px;color:var(--navy);font-size:14px}
+.area-card .sum{font-size:12px;color:var(--mut);margin:8px 0;line-height:1.4}
+.area-card a{font-size:13px;font-weight:800;color:var(--blue);text-decoration:none;cursor:pointer}
+.qgrid{display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:0 16px 16px}
+.qtile{border:1px solid var(--line);border-radius:14px;padding:14px 10px;text-align:center;cursor:pointer;background:#fff;font:inherit;color:inherit}
+.qtile .qi{font-size:22px;margin-bottom:6px}
+.qtile b{font-size:11px;color:var(--navy);display:block;line-height:1.3}
+.qtile.pink{background:#FDF2F8;border-color:#FBCFE8}
+.qtile.blue{background:#EFF6FF;border-color:#BFDBFE}
+.qtile.orange{background:#FFF7ED;border-color:#FED7AA;position:relative}
+.qtile .badge{position:absolute;top:8px;right:8px;background:#EF4444;color:#fff;font-size:10px;font-weight:800;min-width:18px;height:18px;border-radius:99px;display:grid;place-items:center}
+.bottom-nav{display:flex;border-top:1px solid var(--line);background:#fff;padding:8px 0 10px;position:absolute;left:0;right:0;bottom:0;z-index:5}
+.bottom-nav button{flex:1;border:0;background:none;font-size:10px;font-weight:800;color:#64748B;cursor:pointer;padding:6px 0}
+.bottom-nav button.on{color:var(--blue)}
+.hero-ico{width:48px;height:48px;border-radius:50%;background:#EFF6FF;display:grid;place-items:center;margin:16px auto 10px;color:var(--blue)}
+.hero-ico .p-ico{width:28px;height:28px}
+.sa-search{display:flex;align-items:center;gap:8px;border:1.5px solid #BFDBFE;border-radius:12px;padding:10px 12px;margin:0 16px 12px;background:#fff}
+.sa-search input{border:0;flex:1;font:inherit;font-weight:600;outline:none}
+.chk-list{padding:0 16px}
+.chk-row{display:flex;align-items:center;gap:10px;padding:12px;border:1px solid var(--line);border-radius:12px;margin-bottom:8px;cursor:pointer;background:#fff;font-size:14px;font-weight:700;color:var(--navy)}
+.chk-row.on{background:#ECFDF3;border-color:#86EFAC}
+.chk-row.locked{background:#ECFDF3;border-color:#86EFAC}
+.chk-box{width:22px;height:22px;border-radius:6px;border:2px solid #CBD5E1;display:grid;place-items:center;flex-shrink:0}
+.chk-row.on .chk-box,.chk-row.locked .chk-box{background:var(--blue);border-color:var(--blue);color:#fff}
+.seg{display:flex;gap:0;margin:0 16px 12px;border:1px solid var(--line);border-radius:12px;overflow:hidden}
+.seg button{flex:1;border:0;padding:10px;font-weight:800;font-size:13px;background:#F8FAFC;color:var(--mut);cursor:pointer}
+.seg button.on{background:var(--blue);color:#fff}
+.review-card{margin:0 16px 12px;padding:14px;border:1px solid var(--line);border-radius:14px;background:#fff}
+.review-card-hd{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px}
+.review-card-hd b{color:var(--navy);font-size:14px}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip-district{font-size:11px;font-weight:800;padding:6px 10px;border-radius:8px;background:#ECFDF3;color:#065F46}
+.info-box{margin:12px 16px;padding:12px;border-radius:12px;background:#EFF6FF;border:1px solid #BFDBFE;font-size:11px;color:var(--navy);line-height:1.45;display:flex;gap:8px;align-items:flex-start}
+.hub-tabs{display:flex;gap:8px;padding:12px 16px 0}
+.hub-tab{flex:1;border:2px solid #FBCFE8;border-radius:12px;padding:10px 8px;font-weight:800;font-size:12px;background:#FFF1F2;color:var(--pink2);cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px}
+.hub-tab.blue{border-color:#BFDBFE;background:#EFF6FF;color:var(--blue)}
+.hub-tab.on{box-shadow:inset 0 0 0 1px currentColor}
+.hub-intro{font-size:12px;color:var(--navy);padding:8px 16px 10px;font-weight:600;line-height:1.4}
+.filter-row{display:flex;gap:8px;overflow:auto;padding:0 16px 10px}
+.fchip{flex:none;padding:8px 14px;border-radius:99px;border:1.5px solid #BFDBFE;font-size:11px;font-weight:800;background:#fff;color:var(--blue);cursor:pointer}
+.fchip.on{background:var(--blue);color:#fff;border-color:var(--blue)}
+.pkg-card{display:flex;gap:10px;border:1px solid #86EFAC;border-radius:16px;padding:10px;margin:0 16px 12px;background:#fff;text-align:left;width:calc(100% - 32px);font:inherit;cursor:pointer;color:inherit}
+.pkg-thumb{width:72px;height:72px;border-radius:12px;background:linear-gradient(145deg,#CBD5E1,#64748B);flex-shrink:0}
+.pkg-bd{flex:1;min-width:0;position:relative}
+.pkg-level{display:inline-block;font-size:9px;font-weight:800;padding:3px 8px;border-radius:6px;margin-bottom:4px}
+.pkg-level.standard{background:#FFEDD5;color:#C2410C}
+.pkg-level.premium{background:#FEF3C7;color:#92400E}
+.pkg-level.basic{background:#E0E7FF;color:#3730A3}
+.pkg-level.custom{background:#EDE9FE;color:#6D28D9}
+.pkg-bd b{font-size:13px;color:var(--navy);display:block;line-height:1.3}
+.pkg-price{font-size:13px;font-weight:900;color:var(--navy);margin-top:4px}
+.pkg-sub{font-size:11px;color:var(--mut);margin-top:2px}
+.status{display:inline-flex;align-items:center;gap:4px;font-size:10px;font-weight:800;padding:4px 8px;border-radius:99px;margin-top:6px}
+.status.pub{background:#DCFCE7;color:#166534}
+.status.draft{background:#F3F4F6;color:#64748B}
+.pkg-menu{position:absolute;top:0;right:0;border:0;background:none;cursor:pointer;padding:4px;color:var(--mut)}
+.svc-sec{margin:16px 16px 0;border:1px solid #BFDBFE;border-radius:14px;overflow:hidden;background:#F8FAFC}
+.svc-sec-hd{display:flex;align-items:center;gap:8px;padding:12px 14px;background:#EFF6FF;font-weight:800;color:var(--blue);cursor:pointer}
+.svc-row{display:flex;gap:10px;align-items:center;padding:10px 14px;border-top:1px solid var(--line);background:#fff;text-align:left;width:100%;border-left:0;border-right:0;font:inherit;cursor:pointer;color:inherit}
+.svc-thumb{width:48px;height:48px;border-radius:10px;background:linear-gradient(145deg,#CBD5E1,#64748B);flex-shrink:0}
+.stepper{display:flex;gap:4px;padding:8px 16px 12px;overflow:auto}
+.step-dot{width:28px;height:28px;border-radius:50%;border:2px solid #CBD5E1;display:grid;place-items:center;font-size:11px;font-weight:900;color:#94A3B8;flex-shrink:0;background:#fff}
+.step-dot.on{border-color:var(--blue);background:var(--blue);color:#fff}
+.step-dot.done{border-color:var(--gn2);background:var(--gn2);color:#fff}
+.wiz-hd{padding:0 16px 8px}
+.wiz-hd h2{margin:0 0 4px;font-size:18px;color:var(--navy)}
+.fld{margin:0 0 12px}
+.fld label{display:block;font-size:12px;font-weight:800;color:var(--navy);margin:0 0 6px}
+.fld input,.fld select,.fld textarea{width:100%;padding:11px 12px;border:1.5px solid #BFDBFE;border-radius:12px;font:inherit;font-weight:600;color:var(--navy)}
+.fld textarea{min-height:80px;resize:vertical}
+.levels{display:flex;flex-wrap:wrap;gap:8px}
+.levels button{border:1.5px solid #BFDBFE;border-radius:99px;padding:8px 14px;font-weight:800;font-size:12px;background:#fff;color:var(--blue);cursor:pointer}
+.levels button.on{background:var(--blue);color:#fff;border-color:var(--blue)}
+.disc-box{margin:12px 0;padding:12px;border-radius:12px;background:#FFFBEB;border:1px solid #FDE68A}
+.preview-green{margin-top:10px;padding:12px;border-radius:12px;background:#ECFDF3;border:1px solid #A7F3D0;font-size:13px;color:#065F46}
+.preview-green .was{text-decoration:line-through;color:#9CA3AF;margin-left:8px}
+.off-pill{display:inline-block;background:#FBCFE8;color:#BE185D;font-size:11px;font-weight:800;padding:3px 8px;border-radius:99px;margin-left:6px}
+.cat-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:0 16px}
+.cat-card{border:2px solid var(--line);border-radius:14px;padding:10px;cursor:pointer;background:#fff;text-align:center;font-size:11px;font-weight:800;color:var(--navy);position:relative}
+.cat-card.on{border-color:var(--blue);background:#EFF6FF}
+.cat-card .ph{height:56px;border-radius:10px;background:linear-gradient(145deg,#CBD5E1,#94A3B8);margin-bottom:8px}
+.cat-card .tick{position:absolute;top:8px;right:8px;width:22px;height:22px;border-radius:50%;background:var(--blue);color:#fff;display:none;place-items:center;font-size:12px}
+.cat-card.on .tick{display:grid}
+.wiz-foot{display:flex;justify-content:space-between;align-items:center;padding:12px 16px 16px;gap:12px;border-top:1px solid var(--line);background:#fff;position:sticky;bottom:0}
+.wiz-foot .btn{width:auto;flex:1;max-width:160px;border-radius:12px;padding:12px}
+.stub{padding:24px 16px;text-align:center}
+.stub h2{margin:0 0 8px;color:var(--navy)}
+.toast{position:absolute;left:16px;right:16px;bottom:80px;background:#111;color:#fff;padding:12px;border-radius:12px;display:none;z-index:9;font-size:13px}
+#buildTag{font-size:10px;color:var(--mut);padding:6px 16px;text-align:center}
+</style>
+</head>
+<body>
+<div class="stage"><div class="phone">
+<div class="notch"><span>9:41</span><span>●●●</span></div>
+
+<section class="scr on" id="lmb">
+  <div class="lmb-hd">
+    <button type="button" class="home-pill" id="lmbHomeBtn">Home</button>
+    <h1>List My Business</h1>
+    <button type="button" class="lmb-grow">Manage &amp; grow</button>
+  </div>
+  <p class="lmb-tag" id="buildTag">Photography owner prototype</p>
+  <div id="lmbCards"></div>
+</section>
+
+<section class="scr" id="photoDash">
+  <div class="dash-banner"><div class="dash-logo">📷</div></div>
+  <div class="dash-head">
+    <b id="dashBizName">Archana Photography</b>
+    <div class="loc"><span id="dashLocIco"></span> <span id="dashLocTxt">Sakthan Nagar, Thrissur</span></div>
+  </div>
+  <div class="area-card">
+    <b><span id="areaCardIco"></span> Service Areas</b>
+    <p class="sum" id="areaSummary">Set where you accept bookings.</p>
+    <a href="#" id="manageAreasLink">Manage Service Areas →</a>
+  </div>
+  <div class="qgrid" id="quickGrid"></div>
+  <nav class="bottom-nav" id="dashNav"></nav>
+</section>
+
+<section class="scr" id="saStates">
+  <div class="top"><button type="button" class="back" data-to="photoDash">←</button><h1>Service Areas</h1><button type="button" class="link" id="saSkip">Skip</button></div>
+  <div class="hero-ico" id="saHeroIco"></div>
+  <div class="pad" style="text-align:center;margin-bottom:12px"><b style="color:var(--navy);font-size:16px">Where do you provide your services?</b><p class="sub" style="margin-top:6px">Select states where you accept bookings. You can add multiple states.</p></div>
+  <div class="sa-search"><span id="saSearchIco"></span><input type="search" id="stateSearch" placeholder="Search states"></div>
+  <div class="chk-list" id="stateList"></div>
+  <div class="cta"><button type="button" class="btn btn-blue" id="saStatesContinue">Continue →</button></div>
+</section>
+
+<section class="scr" id="saDistricts">
+  <div class="top"><button type="button" class="back" data-to="saStates">←</button><h1>Service Areas</h1><span style="width:48px"></span></div>
+  <div class="seg" id="stateSeg"></div>
+  <div class="pad" style="text-align:center;margin-bottom:8px"><b id="distStateTitle" style="color:var(--navy)">Kerala</b><p class="sub">Select districts where you accept bookings.</p></div>
+  <div class="sa-search"><span></span><input type="search" id="distSearch" placeholder="Search districts"></div>
+  <div class="chk-list" id="distList"></div>
+  <div class="cta"><button type="button" class="btn btn-blue" id="saDistContinue">Continue →</button></div>
+</section>
+
+<section class="scr" id="saReview">
+  <div class="top"><button type="button" class="back" data-to="saDistricts">←</button><h1>Service Areas</h1><span style="width:48px"></span></div>
+  <div class="hero-ico" id="saRevIco"></div>
+  <div class="pad" style="text-align:center;margin-bottom:12px"><b style="color:var(--navy)">Review your service areas</b></div>
+  <div id="saReviewCards"></div>
+  <div class="info-box"><span>ℹ️</span><span>You can add or remove states and districts later from your dashboard.</span></div>
+  <div class="cta"><button type="button" class="btn btn-green" id="saSave">Save Service Areas</button></div>
+</section>
+
+<section class="scr" id="svcPkg">
+  <div class="top"><button type="button" class="back" data-to="photoDash">←</button><h1>Services &amp; Packages</h1><span style="width:36px"></span></div>
+  <div class="hub-tabs">
+    <button type="button" class="hub-tab on" id="tabPackages">Packages</button>
+    <button type="button" class="hub-tab blue" id="tabServices">Services</button>
+  </div>
+  <p class="hub-intro" id="hubIntro">Create and manage your photography packages.</p>
+  <div class="filter-row" id="pkgFilters"></div>
+  <div class="cta" style="padding-top:0"><button type="button" class="btn btn-pink" id="addPackageBtn">+ Add Package</button></div>
+  <div id="pkgList"></div>
+  <div class="svc-sec">
+    <button type="button" class="svc-sec-hd" id="svcSecToggle"><span id="svcSecIco"></span> Services (<span id="svcCount">0</span>) <span style="margin-left:auto">›</span></button>
+    <p class="sub" style="padding:8px 14px 0">Manage individual photography services booked separately.</p>
+    <div class="cta" style="padding-top:8px"><button type="button" class="btn btn-ghost" id="addServiceBtn">+ Add Service</button></div>
+    <div id="svcList"></div>
+  </div>
+</section>
+
+<section class="scr" id="wizard">
+  <div class="top"><button type="button" class="back" id="wizBack">←</button><h1 id="wizTitle">Add Package</h1><span style="width:36px"></span></div>
+  <div class="stepper" id="stepper"></div>
+  <div class="wiz-hd"><h2 id="wizStepTitle">Step</h2><p class="sub" id="wizStepSub"></p></div>
+  <div class="pad" id="wizBody"></div>
+  <div class="wiz-foot">
+    <button type="button" class="btn btn-ghost" id="wizPrev">Back</button>
+    <button type="button" class="btn btn-blue" id="wizNext">Next →</button>
+  </div>
+</section>
+
+<section class="scr" id="calendar">
+  <div class="top"><button type="button" class="back" data-to="photoDash">←</button><h1>Calendar</h1><span style="width:36px"></span></div>
+  <div class="stub"><h2>Calendar</h2><p class="sub">View shoots and blocked dates. Full calendar sync comes in a later release.</p><button type="button" class="btn btn-blue" data-to="photoDash" style="max-width:200px;margin:16px auto">Back to dashboard</button></div>
+</section>
+
+<section class="scr" id="gallery">
+  <div class="top"><button type="button" class="back" data-to="photoDash">←</button><h1>Photos &amp; Gallery</h1><span style="width:36px"></span></div>
+  <div class="stub"><h2>Gallery</h2><p class="sub">Upload portfolio photos for your business profile.</p><button type="button" class="btn btn-blue" data-to="photoDash" style="max-width:200px;margin:16px auto">Back to dashboard</button></div>
+</section>
+
+<section class="scr" id="requests">
+  <div class="top"><button type="button" class="back" data-to="photoDash">←</button><h1>Booking Requests</h1><span style="width:36px"></span></div>
+  <div class="stub"><h2>3 pending requests</h2><p class="sub">Accept or decline customer booking requests here.</p><button type="button" class="btn btn-blue" data-to="photoDash" style="max-width:200px;margin:16px auto">Back to dashboard</button></div>
+</section>
+
+<div class="toast" id="toast"></div>
+</div></div>
+<!-- APP_START -->
+<script>
+function photoIcon(name) {
+  const c = ' class="p-ico" aria-hidden="true"';
+  const icons = {
+    pin: '<svg' + c + ' viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 21s6-5.2 6-10a6 6 0 1 0-12 0c0 4.8 6 10 6 10z"/><circle cx="12" cy="11" r="2.5"/></svg>',
+    cam: '<svg' + c + ' viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 8h4l2-3h4l2 3h4v11H4V8z"/><circle cx="12" cy="13" r="3.5"/></svg>',
+    pkg: '<svg' + c + ' viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3l8 4v6c0 5-3.5 8-8 8s-8-3-8-8V7l8-4z"/></svg>',
+    cal: '<svg' + c + ' viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M8 3v4M16 3v4M3 10h18"/></svg>',
+    back: '<svg' + c + ' viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 6l-6 6 6 6"/></svg>',
+    check: '<svg' + c + ' viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3"><path d="M5 13l4 4L19 7"/></svg>',
+    lock: '<svg' + c + ' viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>',
+    edit: '<svg' + c + ' viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z"/></svg>',
+    search: '<svg' + c + ' viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg>',
+    menu: '<svg' + c + ' viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="6" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="12" cy="18" r="1.5"/></svg>',
+    home: '<svg' + c + ' viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 10.5L12 4l8 6.5V20a1 1 0 0 1-1 1h-5v-6H10v6H5a1 1 0 0 1-1-1v-9.5z"/></svg>',
+    bell: '<svg' + c + ' viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 16H6l1.5-2V10a5.5 5.5 0 0 1 11 0v4L18 16z"/></svg>',
+  };
+  return icons[name] || '';
+}
+
+const PHOTO_OWNER_BUILD = '2026-10-06-photo-owner-v1-working';
+const STORAGE_KEY = 'GIXBEE_PHOTO_OWNER_V1';
+
+const INDIAN_STATES = {
+  Kerala: ['Thrissur', 'Ernakulam', 'Kozhikode', 'Kottayam', 'Palakkad', 'Malappuram', 'Thiruvananthapuram'],
+  Karnataka: ['Bengaluru Urban', 'Mysuru', 'Mangalore', 'Udupi'],
+  'Tamil Nadu': ['Chennai', 'Coimbatore', 'Madurai'],
+};
+
+const PKG_LEVELS = ['Basic', 'Standard', 'Premium', 'Custom'];
+const PKG_FUNCTIONS = ['Wedding', 'Reception', 'Engagement', 'Birthday', 'Corporate', 'Religious'];
+const SVC_CATEGORIES = [
+  { id: 'wedding', label: 'Wedding' },
+  { id: 'candid', label: 'Candid' },
+  { id: 'portrait', label: 'Portrait' },
+  { id: 'product', label: 'Product' },
+  { id: 'event', label: 'Event' },
+  { id: 'maternity', label: 'Maternity' },
+];
+
+const PKG_STEPS = [
+  { title: 'Package basics', sub: 'Name and tier for filtering.' },
+  { title: 'Functions covered', sub: 'Which events this package includes.' },
+  { title: 'Ceremony details', sub: 'Traditional vs modern coverage (wedding only).' },
+  { title: 'Coverage team', sub: 'Photographers and hours on event day.' },
+  { title: 'Add-on extras', sub: 'Optional paid upgrades.' },
+  { title: 'Deliverables', sub: 'Photos, albums, and video outputs.' },
+  { title: 'Complimentary', sub: 'Included at no extra charge.' },
+  { title: 'Delivery timeline', sub: 'When the client receives files.' },
+  { title: 'Payment & policies', sub: 'Advance, balance, and cancellation.' },
+  { title: 'Client requirements', sub: 'What you need from the customer.' },
+  { title: 'Review & publish', sub: 'Confirm and go live on your profile.' },
+];
+
+const SVC_STEPS = [
+  { title: 'Service category', sub: 'Pick the type of photography.' },
+  { title: 'Service basics', sub: 'Title and short description.' },
+  { title: 'Pricing', sub: 'List price and optional discount preview.' },
+  { title: 'Duration & coverage', sub: 'Optional hours and locations.' },
+  { title: 'What is included', sub: 'Deliverables in this service.' },
+  { title: 'Extras', sub: 'Paid add-ons customers can choose.' },
+  { title: 'Delivery', sub: 'Turnaround for edited files.' },
+  { title: 'Policies & review', sub: 'Rules and publish.' },
+];
+
+function defaultStore() {
+  return {
+    biz: {
+      name: 'Archana Photography',
+      loc: 'Sakthan Nagar, Thrissur',
+      registeredState: 'Kerala',
+      registeredDistrict: 'Thrissur',
+    },
+    serviceAreas: {
+      states: ['Kerala'],
+      districts: { Kerala: ['Thrissur', 'Ernakulam'] },
+    },
+    packages: [
+      {
+        id: 'pkg-demo-1',
+        name: 'Classic Wedding Package',
+        level: 'Premium',
+        functions: ['Wedding', 'Reception'],
+        price: 150000,
+        listPrice: 150000,
+        discountPct: 0,
+        status: 'published',
+        deliverables: '500 edited photos, wedding film 15 min',
+        coverage: '2 photographers, 10 hours',
+      },
+      {
+        id: 'pkg-demo-2',
+        name: 'Engagement Standard',
+        level: 'Standard',
+        functions: ['Engagement'],
+        price: 35000,
+        listPrice: 40000,
+        discountPct: 12,
+        status: 'draft',
+        deliverables: '150 edited photos',
+        coverage: '1 photographer, 4 hours',
+      },
+    ],
+    services: [
+      {
+        id: 'svc-demo-1',
+        name: 'Candid Photography',
+        category: 'candid',
+        price: 25000,
+        listPrice: 28000,
+        discountPct: 10,
+        status: 'published',
+        blurb: 'Natural moments across the event.',
+      },
+    ],
+    pkgFilter: 'all',
+    hubTab: 'packages',
+  };
+}
+
+let store = defaultStore();
+let saDraft = null;
+let wiz = { mode: 'package', step: 0, draft: null, backTo: 'svcPkg' };
+
+function el(id) {
+  return document.getElementById(id);
+}
+function show(id) {
+  document.querySelectorAll('.scr').forEach((s) => s.classList.toggle('on', s.id === id));
+}
+function toast(m) {
+  const t = el('toast');
+  if (!t) return;
+  t.textContent = m;
+  t.style.display = 'block';
+  setTimeout(() => (t.style.display = 'none'), 2600);
+}
+function inr(n) {
+  return '₹ ' + Math.max(0, Math.round(+n || 0)).toLocaleString('en-IN');
+}
+function uid(prefix) {
+  return prefix + '-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+}
+function levelClass(level) {
+  return (level || 'Standard').toLowerCase();
+}
+function loadStore() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return;
+    const parsed = JSON.parse(raw);
+    store = Object.assign(defaultStore(), parsed);
+    if (!store.packages) store.packages = defaultStore().packages;
+    if (!store.services) store.services = defaultStore().services;
+    if (!store.serviceAreas) store.serviceAreas = defaultStore().serviceAreas;
+  } catch (_e) {
+    store = defaultStore();
+  }
+}
+function saveStore() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(store));
+}
+function ensureRegisteredDistrict() {
+  const st = store.biz.registeredState;
+  const dist = store.biz.registeredDistrict;
+  if (!store.serviceAreas.states.includes(st)) store.serviceAreas.states.push(st);
+  if (!store.serviceAreas.districts[st]) store.serviceAreas.districts[st] = [];
+  if (store.serviceAreas.districts[st].indexOf(dist) < 0) store.serviceAreas.districts[st].unshift(dist);
+}
+
+function areaSummaryText() {
+  const sa = store.serviceAreas;
+  if (!sa.states.length) return 'Set where you accept bookings.';
+  const parts = sa.states.map((st) => {
+    const ds = sa.districts[st] || [];
+    return st + ' (' + ds.length + ' district' + (ds.length === 1 ? '' : 's') + ')';
+  });
+  return parts.join(' · ');
+}
+
+function renderLmb() {
+  const wrap = el('lmbCards');
+  if (!wrap) return;
+  wrap.innerHTML =
+    '<button type="button" class="biz-card" id="openPhotoDash">' +
+    '<div class="row"><div class="biz-ico">📷</div><div style="flex:1;min-width:0">' +
+    '<b>' +
+    esc(store.biz.name) +
+    '</b><div class="type">Photography</div>' +
+    '<div class="biz-meta"><span class="pill pill-ver">Verified</span><span class="pill pill-rev">Live</span></div>' +
+    '<div class="biz-actions"><button type="button">View</button><button type="button" class="primary photo" id="managePhotoBtn">Manage</button></div>' +
+    '</div></div></button>';
+  el('openPhotoDash').onclick = () => show('photoDash');
+  el('managePhotoBtn').onclick = (e) => {
+    e.stopPropagation();
+    show('photoDash');
+  };
+}
+
+function renderDash() {
+  el('dashBizName').textContent = store.biz.name;
+  el('dashLocTxt').textContent = store.biz.loc;
+  el('dashLocIco').innerHTML = photoIcon('pin');
+  el('areaCardIco').innerHTML = photoIcon('pin');
+  el('areaSummary').textContent = areaSummaryText();
+  const q = el('quickGrid');
+  q.innerHTML = [
+    { id: 'svcPkg', cls: 'pink', ico: '📦', label: 'Services & Packages' },
+    { id: 'calendar', cls: 'blue', ico: '📅', label: 'Calendar' },
+    { id: 'gallery', cls: 'blue', ico: '🖼', label: 'Photos & Gallery' },
+    { id: 'requests', cls: 'orange', ico: '🔔', label: 'Booking Requests', badge: '3' },
+  ]
+    .map(
+      (t) =>
+        '<button type="button" class="qtile ' +
+        t.cls +
+        '" data-go="' +
+        t.id +
+        '">' +
+        (t.badge ? '<span class="badge">' + t.badge + '</span>' : '') +
+        '<div class="qi">' +
+        t.ico +
+        '</div><b>' +
+        esc(t.label) +
+        '</b></button>'
+    )
+    .join('');
+  q.querySelectorAll('[data-go]').forEach((btn) => {
+    btn.onclick = () => show(btn.getAttribute('data-go'));
+  });
+  const nav = el('dashNav');
+  nav.innerHTML = [
+    { id: 'lmb', label: 'Home', ico: 'home' },
+    { id: 'photoDash', label: 'Dashboard', ico: 'cam', on: true },
+    { id: 'svcPkg', label: 'Packages', ico: 'pkg' },
+    { id: 'gallery', label: 'Gallery', ico: 'cam' },
+  ]
+    .map(
+      (n) =>
+        '<button type="button" data-go="' +
+        n.id +
+        '" class="' +
+        (n.on ? 'on' : '') +
+        '">' +
+        photoIcon(n.ico) +
+        '<div>' +
+        n.label +
+        '</div></button>'
+    )
+    .join('');
+  nav.querySelectorAll('[data-go]').forEach((btn) => {
+    btn.onclick = () => show(btn.getAttribute('data-go'));
+  });
+}
+
+function esc(s) {
+  return String(s || '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/"/g, '&quot;');
+}
+
+function startSaDraft() {
+  saDraft = JSON.parse(JSON.stringify(store.serviceAreas));
+  ensureRegisteredDistrictInDraft();
+}
+function ensureRegisteredDistrictInDraft() {
+  const st = store.biz.registeredState;
+  const dist = store.biz.registeredDistrict;
+  if (saDraft.states.indexOf(st) < 0) saDraft.states.push(st);
+  if (!saDraft.districts[st]) saDraft.districts[st] = [];
+  if (saDraft.districts[st].indexOf(dist) < 0) saDraft.districts[st].unshift(dist);
+}
+
+function renderStateList() {
+  const q = (el('stateSearch').value || '').trim().toLowerCase();
+  const list = el('stateList');
+  const states = Object.keys(INDIAN_STATES).filter((s) => !q || s.toLowerCase().includes(q));
+  list.innerHTML = states
+    .map((st) => {
+      const on = saDraft.states.indexOf(st) >= 0;
+      const locked = st === store.biz.registeredState;
+      return (
+        '<div class="chk-row' +
+        (on ? ' on' : '') +
+        (locked ? ' locked' : '') +
+        '" data-state="' +
+        esc(st) +
+        '">' +
+        '<span class="chk-box">' +
+        (on ? photoIcon('check') : locked ? '🔒' : '') +
+        '</span><span>' +
+        esc(st) +
+        (locked ? ' <span style="font-size:11px;color:var(--mut)">(registered)</span>' : '') +
+        '</span></div>'
+      );
+    })
+    .join('');
+  list.querySelectorAll('.chk-row').forEach((row) => {
+    if (row.classList.contains('locked')) return;
+    row.onclick = () => toggleState(row.getAttribute('data-state'));
+  });
+}
+function toggleState(st) {
+  const i = saDraft.states.indexOf(st);
+  if (i >= 0) {
+    if (st === store.biz.registeredState) return;
+    saDraft.states.splice(i, 1);
+    delete saDraft.districts[st];
+  } else {
+    saDraft.states.push(st);
+    saDraft.districts[st] = saDraft.districts[st] || [];
+  }
+  renderStateList();
+}
+
+let saActiveState = 'Kerala';
+function renderStateSeg() {
+  const seg = el('stateSeg');
+  seg.innerHTML = saDraft.states
+    .map(
+      (st) =>
+        '<button type="button" class="' +
+        (st === saActiveState ? 'on' : '') +
+        '" data-st="' +
+        esc(st) +
+        '">' +
+        esc(st) +
+        '</button>'
+    )
+    .join('');
+  seg.querySelectorAll('button').forEach((b) => {
+    b.onclick = () => {
+      saActiveState = b.getAttribute('data-st');
+      renderStateSeg();
+      renderDistList();
+    };
+  });
+  if (saDraft.states.indexOf(saActiveState) < 0 && saDraft.states[0]) saActiveState = saDraft.states[0];
+  el('distStateTitle').textContent = saActiveState;
+}
+
+function renderDistList() {
+  el('distStateTitle').textContent = saActiveState;
+  const q = (el('distSearch').value || '').trim().toLowerCase();
+  const all = INDIAN_STATES[saActiveState] || [];
+  const picked = saDraft.districts[saActiveState] || [];
+  const list = el('distList');
+  list.innerHTML = all
+    .filter((d) => !q || d.toLowerCase().includes(q))
+    .map((d) => {
+      const on = picked.indexOf(d) >= 0;
+      const locked = saActiveState === store.biz.registeredState && d === store.biz.registeredDistrict;
+      return (
+        '<div class="chk-row' +
+        (on ? ' on' : '') +
+        (locked ? ' locked' : '') +
+        '" data-dist="' +
+        esc(d) +
+        '">' +
+        '<span class="chk-box">' +
+        (on ? photoIcon('check') : locked ? '🔒' : '') +
+        '</span><span>' +
+        esc(d) +
+        '</span></div>'
+      );
+    })
+    .join('');
+  list.querySelectorAll('.chk-row').forEach((row) => {
+    if (row.classList.contains('locked')) return;
+    row.onclick = () => toggleDist(saActiveState, row.getAttribute('data-dist'));
+  });
+}
+function toggleDist(st, dist) {
+  if (!saDraft.districts[st]) saDraft.districts[st] = [];
+  const arr = saDraft.districts[st];
+  const i = arr.indexOf(dist);
+  if (i >= 0) {
+    if (st === store.biz.registeredState && dist === store.biz.registeredDistrict) return;
+    arr.splice(i, 1);
+  } else arr.push(dist);
+  renderDistList();
+}
+
+function renderSaReview() {
+  const wrap = el('saReviewCards');
+  wrap.innerHTML = saDraft.states
+    .map((st) => {
+      const ds = saDraft.districts[st] || [];
+      return (
+        '<div class="review-card"><div class="review-card-hd"><b>' +
+        esc(st) +
+        '</b><button type="button" class="link" style="border:0;background:none;font:inherit;color:var(--blue);cursor:pointer" data-edit-st="' +
+        esc(st) +
+        '">' +
+        photoIcon('edit') +
+        ' Edit</button></div><div class="chips">' +
+        ds.map((d) => '<span class="chip-district">' + esc(d) + '</span>').join('') +
+        '</div></div>'
+      );
+    })
+    .join('');
+  wrap.querySelectorAll('[data-edit-st]').forEach((btn) => {
+    btn.onclick = () => {
+      saActiveState = btn.getAttribute('data-edit-st');
+      show('saDistricts');
+      renderStateSeg();
+      renderDistList();
+    };
+  });
+}
+
+function renderPkgFilters() {
+  const filters = [{ id: 'all', label: 'All' }].concat(PKG_LEVELS.map((l) => ({ id: l.toLowerCase(), label: l })));
+  const row = el('pkgFilters');
+  row.innerHTML = filters
+    .map(
+      (f) =>
+        '<button type="button" class="fchip' +
+        (store.pkgFilter === f.id ? ' on' : '') +
+        '" data-f="' +
+        f.id +
+        '">' +
+        f.label +
+        '</button>'
+    )
+    .join('');
+  row.querySelectorAll('.fchip').forEach((b) => {
+    b.onclick = () => {
+      store.pkgFilter = b.getAttribute('data-f');
+      saveStore();
+      renderPkgList();
+      renderPkgFilters();
+    };
+  });
+}
+
+function filteredPackages() {
+  if (store.pkgFilter === 'all') return store.packages;
+  return store.packages.filter((p) => levelClass(p.level) === store.pkgFilter);
+}
+
+function renderPkgList() {
+  const list = el('pkgList');
+  const pkgs = filteredPackages();
+  if (!pkgs.length) {
+    list.innerHTML = '<p class="sub" style="padding:8px 16px 16px">No packages yet. Tap <b>+ Add Package</b> to create one.</p>';
+    return;
+  }
+  list.innerHTML = pkgs
+    .map((p) => {
+      const disc =
+        p.discountPct > 0 && p.listPrice > p.price
+          ? '<span class="was" style="text-decoration:line-through;color:#9CA3AF;font-size:11px;margin-left:6px">' +
+            inr(p.listPrice) +
+            '</span>'
+          : '';
+      return (
+        '<button type="button" class="pkg-card" data-pkg="' +
+        esc(p.id) +
+        '"><div class="pkg-thumb"></div><div class="pkg-bd">' +
+        '<span class="pkg-level ' +
+        levelClass(p.level) +
+        '">' +
+        esc(p.level) +
+        '</span>' +
+        '<span class="pkg-menu">' +
+        photoIcon('menu') +
+        '</span><b>' +
+        esc(p.name) +
+        '</b><div class="pkg-price">' +
+        inr(p.price) +
+        disc +
+        '</div><div class="pkg-sub">' +
+        esc(p.coverage || '') +
+        '</div><span class="status ' +
+        (p.status === 'published' ? 'pub' : 'draft') +
+        '">' +
+        (p.status === 'published' ? '● Published' : '○ Draft') +
+        '</span></div></button>'
+      );
+    })
+    .join('');
+  list.querySelectorAll('.pkg-card').forEach((btn) => {
+    btn.onclick = () => toast('Package detail editor comes in a later sprint.');
+  });
+}
+
+function renderSvcList() {
+  el('svcCount').textContent = String(store.services.length);
+  el('svcSecIco').innerHTML = photoIcon('cam');
+  const list = el('svcList');
+  if (!store.services.length) {
+    list.innerHTML = '<p class="sub" style="padding:8px 14px 14px">No services yet.</p>';
+    return;
+  }
+  list.innerHTML = store.services
+    .map(
+      (s) =>
+        '<button type="button" class="svc-row" data-svc="' +
+        esc(s.id) +
+        '"><div class="svc-thumb"></div><div style="flex:1;min-width:0"><b style="font-size:13px;color:var(--navy)">' +
+        esc(s.name) +
+        '</b><div class="sub">' +
+        inr(s.price) +
+        ' · <span class="status ' +
+        (s.status === 'published' ? 'pub' : 'draft') +
+        '" style="margin:0">' +
+        (s.status === 'published' ? 'Published' : 'Draft') +
+        '</span></div></div><span style="color:var(--mut)">›</span></button>'
+    )
+    .join('');
+}
+
+function applyHubTab() {
+  const isPkg = store.hubTab === 'packages';
+  el('tabPackages').classList.toggle('on', isPkg);
+  el('tabServices').classList.toggle('on', !isPkg);
+  el('hubIntro').textContent = isPkg
+    ? 'Create and manage your photography packages.'
+    : 'Manage individual photography services booked separately.';
+  el('pkgFilters').style.display = isPkg ? '' : 'none';
+  el('addPackageBtn').closest('.cta').style.display = isPkg ? '' : 'none';
+  el('pkgList').style.display = isPkg ? '' : 'none';
+  el('svcSecToggle').parentElement.style.borderColor = isPkg ? '#BFDBFE' : '#2563EB';
+}
+
+function renderSvcPkg() {
+  renderPkgFilters();
+  renderPkgList();
+  renderSvcList();
+  applyHubTab();
+}
+
+function newPkgDraft() {
+  return {
+    name: '',
+    level: 'Standard',
+    functions: [],
+    ceremony: 'Traditional + candid',
+    coverage: '2 photographers, 8 hours',
+    extras: 'Drone highlight clip',
+    deliverables: '400 edited photos, 12 min film',
+    complimentary: 'Pre-wedding mini session',
+    delivery: 'Album in 45 days, online gallery in 21 days',
+    advancePct: 30,
+    cancellation: '50% refund if cancelled 30+ days before',
+    requirements: 'Venue access, meal for team',
+    listPrice: 80000,
+    discountPct: 0,
+    price: 80000,
+    status: 'draft',
+  };
+}
+function newSvcDraft() {
+  return {
+    category: '',
+    name: '',
+    blurb: '',
+    listPrice: 25000,
+    discountPct: 0,
+    price: 25000,
+    duration: '4 hours',
+    coverage: 'Single venue',
+    included: '100 edited photos',
+    extras: 'Extra hour ₹5,000',
+    delivery: '7 days online gallery',
+    policies: '50% advance to confirm',
+    status: 'draft',
+  };
+}
+function syncPkgPrice(d) {
+  const base = Math.max(0, +d.listPrice || 0);
+  const pct = Math.min(100, Math.max(0, +d.discountPct || 0));
+  d.price = pct > 0 ? Math.round(base * (1 - pct / 100)) : base;
+}
+function syncSvcPrice(d) {
+  syncPkgPrice(d);
+}
+
+function startWizard(mode) {
+  wiz.mode = mode;
+  wiz.step = 0;
+  wiz.backTo = 'svcPkg';
+  wiz.draft = mode === 'package' ? newPkgDraft() : newSvcDraft();
+  el('wizTitle').textContent = mode === 'package' ? 'Add Package' : 'Add Service';
+  show('wizard');
+  renderWizard();
+}
+
+function wizSteps() {
+  return wiz.mode === 'package' ? PKG_STEPS : SVC_STEPS;
+}
+function wizTotal() {
+  return wizSteps().length;
+}
+
+function renderStepper() {
+  const steps = wizSteps();
+  el('stepper').innerHTML = steps
+    .map((_, i) => {
+      let cls = 'step-dot';
+      if (i === wiz.step) cls += ' on';
+      else if (i < wiz.step) cls += ' done';
+      return '<div class="' + cls + '">' + (i < wiz.step ? '✓' : i + 1) + '</div>';
+    })
+    .join('');
+  const meta = steps[wiz.step];
+  el('wizStepTitle').textContent = meta.title;
+  el('wizStepSub').textContent = meta.sub;
+}
+
+function renderWizardBody() {
+  const body = el('wizBody');
+  const d = wiz.draft;
+  if (wiz.mode === 'package') {
+    body.innerHTML = renderPkgStep(wiz.step, d);
+  } else {
+    body.innerHTML = renderSvcStep(wiz.step, d);
+  }
+  bindWizardFields();
+}
+
+function renderPkgStep(step, d) {
+  switch (step) {
+    case 0:
+      return (
+        '<div class="fld"><label>Package name</label><input id="f_name" value="' +
+        esc(d.name) +
+        '" placeholder="e.g. Classic Wedding"></div>' +
+        '<div class="fld"><label>Package level</label><div class="levels" id="f_levels">' +
+        PKG_LEVELS.map(
+          (l) =>
+            '<button type="button" class="' +
+            (d.level === l ? 'on' : '') +
+            '" data-lvl="' +
+            l +
+            '">' +
+            l +
+            '</button>'
+        ).join('') +
+        '</div></div>'
+      );
+    case 1:
+      return (
+        '<div class="fld"><label>Select functions</label><div id="f_funcs">' +
+        PKG_FUNCTIONS.map(
+          (f) =>
+            '<label style="display:flex;gap:8px;margin:8px 0;font-weight:700"><input type="checkbox" data-fn="' +
+            f +
+            '" ' +
+            (d.functions.indexOf(f) >= 0 ? 'checked' : '') +
+            '> ' +
+            f +
+            '</label>'
+        ).join('') +
+        '</div></div>'
+      );
+    case 2:
+      if (d.functions.indexOf('Wedding') < 0) {
+        return '<p class="sub">No wedding selected — skip ceremony details or go back to add Wedding.</p>';
+      }
+      return (
+        '<div class="fld"><label>Ceremony coverage</label><select id="f_ceremony"><option' +
+        (d.ceremony.indexOf('Traditional') >= 0 ? ' selected' : '') +
+        '>Traditional + candid</option><option>Modern cinematic</option><option>Temple + reception only</option></select></div>'
+      );
+    case 3:
+      return '<div class="fld"><label>Coverage summary</label><textarea id="f_coverage">' + esc(d.coverage) + '</textarea></div>';
+    case 4:
+      return '<div class="fld"><label>Add-on extras</label><textarea id="f_extras">' + esc(d.extras) + '</textarea></div>';
+    case 5:
+      return '<div class="fld"><label>Deliverables</label><textarea id="f_deliverables">' + esc(d.deliverables) + '</textarea></div>';
+    case 6:
+      return '<div class="fld"><label>Complimentary items</label><textarea id="f_complimentary">' + esc(d.complimentary) + '</textarea></div>';
+    case 7:
+      return '<div class="fld"><label>Delivery timeline</label><textarea id="f_delivery">' + esc(d.delivery) + '</textarea></div>';
+    case 8:
+      return (
+        '<div class="fld"><label>List price (₹)</label><input type="number" id="f_listPrice" value="' +
+        d.listPrice +
+        '"></div>' +
+        '<div class="fld"><label>Discount % (preview)</label><input type="number" id="f_discountPct" value="' +
+        d.discountPct +
+        '" min="0" max="100"></div>' +
+        '<div class="disc-box">Customer pays you directly. GST line omitted in preview per V1 spec.</div>' +
+        '<div class="preview-green">Customer sees: <b>' +
+        inr(d.price) +
+        '</b>' +
+        (d.discountPct > 0
+          ? ' <span class="was">' +
+            inr(d.listPrice) +
+            '</span> <span class="off-pill">' +
+            d.discountPct +
+            '% off</span>'
+          : '') +
+        '</div>' +
+        '<div class="fld" style="margin-top:12px"><label>Advance %</label><input type="number" id="f_advancePct" value="' +
+        d.advancePct +
+        '"></div>' +
+        '<div class="fld"><label>Cancellation policy</label><textarea id="f_cancellation">' +
+        esc(d.cancellation) +
+        '</textarea></div>'
+      );
+    case 9:
+      return '<div class="fld"><label>Client requirements</label><textarea id="f_requirements">' + esc(d.requirements) + '</textarea></div>';
+    case 10:
+      syncPkgPrice(d);
+      return (
+        '<div class="review-card"><b>' +
+        esc(d.name || 'Untitled package') +
+        '</b><div class="sub" style="margin-top:8px"><span class="pkg-level ' +
+        levelClass(d.level) +
+        '">' +
+        esc(d.level) +
+        '</span></div>' +
+        '<p class="sub" style="margin-top:10px"><b>Functions:</b> ' +
+        esc((d.functions || []).join(', ') || 'None') +
+        '</p><p class="sub"><b>Price:</b> ' +
+        inr(d.price) +
+        '</p><p class="sub"><b>Deliverables:</b> ' +
+        esc(d.deliverables) +
+        '</p></div>' +
+        '<p class="sub">Publishing makes this package visible to customers and adds it to package filters.</p>'
+      );
+    default:
+      return '';
+  }
+}
+
+function renderSvcStep(step, d) {
+  switch (step) {
+    case 0:
+      return (
+        '<div class="cat-grid" id="f_cats">' +
+        SVC_CATEGORIES.map(
+          (c) =>
+            '<button type="button" class="cat-card' +
+            (d.category === c.id ? ' on' : '') +
+            '" data-cat="' +
+            c.id +
+            '"><span class="tick">✓</span><div class="ph"></div>' +
+            c.label +
+            '</button>'
+        ).join('') +
+        '</div>'
+      );
+    case 1:
+      return (
+        '<div class="fld"><label>Service name</label><input id="f_svcName" value="' +
+        esc(d.name) +
+        '" placeholder="e.g. Candid Photography"></div>' +
+        '<div class="fld"><label>Short description</label><textarea id="f_blurb">' +
+        esc(d.blurb) +
+        '</textarea></div>'
+      );
+    case 2:
+      syncSvcPrice(d);
+      return (
+        '<div class="fld"><label>List price (₹)</label><input type="number" id="f_listPrice" value="' +
+        d.listPrice +
+        '"></div>' +
+        '<div class="fld"><label>Discount %</label><input type="number" id="f_discountPct" value="' +
+        d.discountPct +
+        '" min="0" max="100"></div>' +
+        '<div class="preview-green">Preview: <b>' +
+        inr(d.price) +
+        '</b>' +
+        (d.discountPct > 0 ? ' <span class="was">' + inr(d.listPrice) + '</span>' : '') +
+        '</div>'
+      );
+    case 3:
+      return (
+        '<div class="fld"><label>Duration (optional)</label><input id="f_duration" value="' +
+        esc(d.duration) +
+        '"></div>' +
+        '<div class="fld"><label>Coverage (optional)</label><input id="f_cov" value="' +
+        esc(d.coverage) +
+        '"></div>'
+      );
+    case 4:
+      return '<div class="fld"><label>Included</label><textarea id="f_included">' + esc(d.included) + '</textarea></div>';
+    case 5:
+      return '<div class="fld"><label>Extras</label><textarea id="f_extras">' + esc(d.extras) + '</textarea></div>';
+    case 6:
+      return '<div class="fld"><label>Delivery</label><textarea id="f_delivery">' + esc(d.delivery) + '</textarea></div>';
+    case 7:
+      syncSvcPrice(d);
+      return (
+        '<div class="fld"><label>Policies</label><textarea id="f_policies">' +
+        esc(d.policies) +
+        '</textarea></div>' +
+        '<div class="review-card"><b>' +
+        esc(d.name || 'Untitled service') +
+        '</b><p class="sub" style="margin-top:8px">' +
+        inr(d.price) +
+        ' · ' +
+        esc(SVC_CATEGORIES.find((c) => c.id === d.category)?.label || 'Category') +
+        '</p></div>'
+      );
+    default:
+      return '';
+  }
+}
+
+function readWizardFields() {
+  const d = wiz.draft;
+  const g = (id) => el(id);
+  if (wiz.mode === 'package') {
+    if (g('f_name')) d.name = g('f_name').value.trim();
+    if (g('f_coverage')) d.coverage = g('f_coverage').value.trim();
+    if (g('f_extras')) d.extras = g('f_extras').value.trim();
+    if (g('f_deliverables')) d.deliverables = g('f_deliverables').value.trim();
+    if (g('f_complimentary')) d.complimentary = g('f_complimentary').value.trim();
+    if (g('f_delivery')) d.delivery = g('f_delivery').value.trim();
+    if (g('f_listPrice')) d.listPrice = +g('f_listPrice').value || 0;
+    if (g('f_discountPct')) d.discountPct = +g('f_discountPct').value || 0;
+    if (g('f_advancePct')) d.advancePct = +g('f_advancePct').value || 0;
+    if (g('f_cancellation')) d.cancellation = g('f_cancellation').value.trim();
+    if (g('f_requirements')) d.requirements = g('f_requirements').value.trim();
+    if (g('f_ceremony')) d.ceremony = g('f_ceremony').value;
+    syncPkgPrice(d);
+  } else {
+    if (g('f_svcName')) d.name = g('f_svcName').value.trim();
+    if (g('f_blurb')) d.blurb = g('f_blurb').value.trim();
+    if (g('f_listPrice')) d.listPrice = +g('f_listPrice').value || 0;
+    if (g('f_discountPct')) d.discountPct = +g('f_discountPct').value || 0;
+    if (g('f_duration')) d.duration = g('f_duration').value.trim();
+    if (g('f_cov')) d.coverage = g('f_cov').value.trim();
+    if (g('f_included')) d.included = g('f_included').value.trim();
+    if (g('f_extras')) d.extras = g('f_extras').value.trim();
+    if (g('f_delivery')) d.delivery = g('f_delivery').value.trim();
+    if (g('f_policies')) d.policies = g('f_policies').value.trim();
+    syncSvcPrice(d);
+  }
+}
+
+function bindWizardFields() {
+  const d = wiz.draft;
+  document.querySelectorAll('#f_levels button').forEach((b) => {
+    b.onclick = () => {
+      d.level = b.getAttribute('data-lvl');
+      renderWizardBody();
+    };
+  });
+  document.querySelectorAll('#f_funcs input').forEach((cb) => {
+    cb.onchange = () => {
+      const fn = cb.getAttribute('data-fn');
+      if (cb.checked) {
+        if (d.functions.indexOf(fn) < 0) d.functions.push(fn);
+      } else d.functions = d.functions.filter((x) => x !== fn);
+    };
+  });
+  document.querySelectorAll('#f_cats .cat-card').forEach((b) => {
+    b.onclick = () => {
+      d.category = b.getAttribute('data-cat');
+      renderWizardBody();
+    };
+  });
+  ['f_listPrice', 'f_discountPct'].forEach((id) => {
+    const node = el(id);
+    if (node) node.oninput = () => {
+      readWizardFields();
+      renderWizardBody();
+    };
+  });
+}
+
+function validateStep() {
+  readWizardFields();
+  const d = wiz.draft;
+  if (wiz.mode === 'package') {
+    if (wiz.step === 0 && !d.name) {
+      toast('Enter a package name.');
+      return false;
+    }
+    if (wiz.step === 1 && !d.functions.length) {
+      toast('Select at least one function.');
+      return false;
+    }
+  } else {
+    if (wiz.step === 0 && !d.category) {
+      toast('Pick a service category.');
+      return false;
+    }
+    if (wiz.step === 1 && !d.name) {
+      toast('Enter a service name.');
+      return false;
+    }
+  }
+  return true;
+}
+
+function finishWizard(publish) {
+  readWizardFields();
+  const d = wiz.draft;
+  if (wiz.mode === 'package') {
+    if (!d.name) {
+      toast('Package name required.');
+      return;
+    }
+    const rec = Object.assign({ id: uid('pkg') }, d, { status: publish ? 'published' : 'draft' });
+    store.packages.unshift(rec);
+    toast(publish ? 'Package published' : 'Package saved as draft');
+  } else {
+    if (!d.name || !d.category) {
+      toast('Complete service basics.');
+      return;
+    }
+    const rec = Object.assign({ id: uid('svc') }, d, { status: publish ? 'published' : 'draft' });
+    store.services.unshift(rec);
+    toast(publish ? 'Service published' : 'Service saved');
+  }
+  saveStore();
+  show('svcPkg');
+  renderSvcPkg();
+}
+
+function renderWizard() {
+  renderStepper();
+  renderWizardBody();
+  const last = wiz.step >= wizTotal() - 1;
+  el('wizPrev').style.visibility = wiz.step === 0 ? 'hidden' : 'visible';
+  el('wizNext').textContent = last ? (wiz.mode === 'package' ? 'Publish →' : 'Publish →') : 'Next →';
+  el('wizNext').className = last ? 'btn btn-green' : 'btn btn-blue';
+}
+
+function wizNext() {
+  if (!validateStep()) return;
+  if (wiz.step >= wizTotal() - 1) {
+    finishWizard(true);
+    return;
+  }
+  wiz.step += 1;
+  renderWizard();
+}
+
+function wizPrev() {
+  if (wiz.step <= 0) {
+    show(wiz.backTo);
+    return;
+  }
+  readWizardFields();
+  wiz.step -= 1;
+  renderWizard();
+}
+
+function bindGlobal() {
+  document.querySelectorAll('.back[data-to]').forEach((btn) => {
+    btn.onclick = () => show(btn.getAttribute('data-to'));
+  });
+  document.querySelectorAll('.stub .btn[data-to], .btn[data-to]').forEach((btn) => {
+    if (btn.id) return;
+    const to = btn.getAttribute('data-to');
+    if (to) btn.onclick = () => show(to);
+  });
+  el('lmbHomeBtn').onclick = () => show('lmb');
+  el('manageAreasLink').onclick = (e) => {
+    e.preventDefault();
+    startSaDraft();
+    show('saStates');
+    el('saHeroIco').innerHTML = photoIcon('pin');
+    el('saSearchIco').innerHTML = photoIcon('search');
+    renderStateList();
+  };
+  el('saSkip').onclick = () => show('photoDash');
+  el('saStatesContinue').onclick = () => {
+    if (!saDraft.states.length) {
+      toast('Select at least one state.');
+      return;
+    }
+    saActiveState = saDraft.states[0];
+    show('saDistricts');
+    renderStateSeg();
+    renderDistList();
+  };
+  el('stateSearch').oninput = () => renderStateList();
+  el('distSearch').oninput = () => renderDistList();
+  el('saDistContinue').onclick = () => {
+    show('saReview');
+    el('saRevIco').innerHTML = photoIcon('pin');
+    renderSaReview();
+  };
+  el('saSave').onclick = () => {
+    store.serviceAreas = JSON.parse(JSON.stringify(saDraft));
+    ensureRegisteredDistrict();
+    saveStore();
+    renderDash();
+    show('photoDash');
+    toast('Service areas saved');
+  };
+  el('tabPackages').onclick = () => {
+    store.hubTab = 'packages';
+    saveStore();
+    applyHubTab();
+  };
+  el('tabServices').onclick = () => {
+    store.hubTab = 'services';
+    saveStore();
+    applyHubTab();
+  };
+  el('addPackageBtn').onclick = () => startWizard('package');
+  el('addServiceBtn').onclick = () => startWizard('service');
+  el('wizBack').onclick = () => wizPrev();
+  el('wizPrev').onclick = () => wizPrev();
+  el('wizNext').onclick = () => wizNext();
+}
+
+function boot() {
+  loadStore();
+  ensureRegisteredDistrict();
+  saveStore();
+  const tag = el('buildTag');
+  if (tag) tag.textContent = 'Build ' + PHOTO_OWNER_BUILD;
+  renderLmb();
+  renderDash();
+  renderSvcPkg();
+  bindGlobal();
+  show('lmb');
+}
+
+if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
+else boot();
+
+</script>
+<!-- APP_END -->
+</body>
+</html>
