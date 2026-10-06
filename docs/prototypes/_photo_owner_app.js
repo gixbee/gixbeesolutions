@@ -1,4 +1,4 @@
-const PHOTO_OWNER_BUILD = '2026-10-06-photo-owner-package-v1-board';
+const PHOTO_OWNER_BUILD = '2026-10-06-photo-owner-mobile-v1';
 const STORAGE_KEY = 'GIXBEE_PHOTO_OWNER_V1';
 
 const INDIAN_STATES = {
@@ -21,7 +21,25 @@ const PKG_FUNCTIONS = [
   'Naming Ceremony',
   'Housewarming',
   'Corporate Event',
+  'Funeral / Memorial',
+  'Other',
 ];
+const FUNCTION_HINTS = {
+  'Wedding & Reception': 'Full wedding day and reception coverage',
+  Reception: 'Reception-only coverage',
+  'Wedding Eve': 'Pre-wedding / wedding eve events',
+  Engagement: 'Engagement ceremony coverage',
+  Baptism: 'Baptism ceremony',
+  'First Communion': 'First communion ceremony',
+  Birthday: 'Birthday celebrations',
+  Anniversary: 'Anniversary events',
+  'Baby Shower': 'Baby shower events',
+  'Naming Ceremony': 'Naming ceremony',
+  Housewarming: 'Housewarming events',
+  'Corporate Event': 'Corporate functions and events',
+  'Funeral / Memorial': 'Memorial and funeral services',
+  Other: 'Custom event type',
+};
 const CEREMONY_TYPES = ['Christian', 'Hindu', 'Muslim', 'Sikh', 'Jain', 'Buddhist', 'Other'];
 const SVC_CATEGORIES = [
   { id: 'event', label: 'Event Photography' },
@@ -43,17 +61,16 @@ const SVC_CATEGORIES = [
 ];
 
 const PKG_STEPS = [
-  { title: 'Package basics', sub: 'Level, name, price, short description, optional discount.' },
-  { title: 'Functions included', sub: 'Events covered by this package (reusable template).' },
-  { title: 'Ceremony type', sub: 'Wedding tradition — only for wedding-related functions.' },
-  { title: 'Function coverage', sub: 'Sides, team roles, duration, additional hour charge.' },
-  { title: 'Special services & extras', sub: 'Drone, live stream, extra crew — included or paid.' },
-  { title: 'Deliverables', sub: 'Photos, video, albums, digital delivery.' },
-  { title: 'Complimentary items', sub: 'Included at no extra charge.' },
-  { title: 'Delivery', sub: 'Turnaround per deliverable.' },
-  { title: 'Payment & policies', sub: 'Advance stages; customer pays you directly in V1.' },
-  { title: 'Customer requirements', sub: 'SSD, power, selection deadlines, permissions.' },
-  { title: 'Review & publish', sub: 'Save as draft or publish to your profile.' },
+  { title: 'Package basics', sub: 'Basic information about the package.' },
+  { title: 'Select functions', sub: 'Select functions covered in this package.' },
+  { title: 'Ceremony type', sub: 'Choose applicable ceremony types.' },
+  { title: 'Coverage details', sub: 'Set coverage details for selected functions.' },
+  { title: 'Deliverables', sub: 'Select photos, videos, albums and other deliverables included in this package.' },
+  { title: 'Special services & extras', sub: 'Select additional services with price.' },
+  { title: 'Delivery timeline', sub: 'Set delivery timeline for each deliverable.' },
+  { title: 'Payment stages', sub: 'Set payment stages and policies.' },
+  { title: 'Customer requirements', sub: 'Optional requirements from customer.' },
+  { title: 'Review & publish', sub: 'Review all details and publish.' },
 ];
 
 const SVC_STEPS = [
@@ -578,7 +595,9 @@ function startWizard(mode) {
   wiz.step = 0;
   wiz.backTo = 'svcPkg';
   wiz.draft = mode === 'package' ? newPkgDraft() : newSvcDraft();
-  el('wizTitle').textContent = mode === 'package' ? 'Add Package' : 'Add Service';
+  el('wizTitle').textContent = mode === 'package' ? 'Create Package' : 'Add Service';
+  const wSec = el('wizard');
+  if (wSec) wSec.classList.toggle('wiz-create', mode === 'package');
   show('wizard');
   renderWizard();
 }
@@ -826,7 +845,7 @@ function renderWizard() {
   if (frac) frac.textContent = stepNum + '/' + total;
   if (bar) bar.style.width = pct + '%';
   const last = wiz.step >= wizTotal() - 1;
-  const pkgReview = wiz.mode === 'package' && wiz.step === 10;
+  const pkgReview = wiz.mode === 'package' && wiz.step === wizTotal() - 1;
   el('wizPrev').style.visibility = wiz.step === 0 ? 'hidden' : 'visible';
   el('wizNext').hidden = pkgReview;
   el('wizNext').textContent = last && !pkgReview ? 'Publish →' : 'Next →';
@@ -837,7 +856,7 @@ function renderWizard() {
 
 function wizNext() {
   if (!validateStep()) return;
-  if (wiz.mode === 'package' && wiz.step === 10) return;
+  if (wiz.mode === 'package' && wiz.step === wizTotal() - 1) return;
   if (wiz.step >= wizTotal() - 1) {
     finishWizard(true);
     return;

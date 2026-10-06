@@ -14,13 +14,13 @@ Navigation (v2-spec):
   List My Business → Archana Photography → Manage
   Photography dashboard: service areas card + quick tiles
   Services & Packages hub: package filters · cards · services list
-  Add Package (11 steps) / Add Service (8 steps) · Save draft or Publish on review
+  Add Package (10 steps) / Add Service (8 steps) · Save draft or Publish on review
 
 NOT for demo: photo-owner-flow-shell.html
 
 Regenerate: python3 docs/prototypes/_gen_photo_prototypes.py
 
-Build tag: 2026-10-06-photo-owner-package-v1-board
+Build tag: 2026-10-06-photo-owner-mobile-v1
 
 Sources: _photo_owner_app.js + _photo_pkg_wizard.js (11-step package board) + _photo_owner_icons.js
 

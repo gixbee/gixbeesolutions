@@ -215,6 +215,35 @@ body{margin:0;background:#E8EDF5;font-family:Inter,system-ui,sans-serif;color:va
 .review-jump{display:flex;width:100%;justify-content:space-between;align-items:center;padding:12px;border:1px solid var(--line);border-radius:12px;margin-bottom:8px;background:#fff;font:inherit;font-weight:700;color:var(--navy);cursor:pointer}
 .review-summary{text-align:center;padding:12px;margin:12px 0;background:#F8FAFC;border-radius:12px;font-size:14px}
 .two-col{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+#wizard.wiz-create .top{background:var(--navy);border-bottom-color:rgba(255,255,255,.12)}
+#wizard.wiz-create .top h1{color:#fff;font-size:15px;font-weight:800}
+#wizard.wiz-create .back{color:#fff}
+#wizard.wiz-create .chip-h{background:rgba(255,255,255,.15);color:#fff}
+.fn-row{display:block;padding:12px;border:1px solid var(--line);border-radius:12px;margin-bottom:8px;cursor:pointer;background:#fff}
+.fn-row.on{border-color:#86EFAC;background:#F0FDF4}
+.fn-row b{display:block;font-size:14px;color:var(--navy)}
+.fn-row .hint{display:block;font-size:11px;color:var(--mut);font-weight:600;margin-top:4px}
+.del-tabs{display:flex;gap:4px;overflow:auto;margin:0 0 12px;padding-bottom:4px;border-bottom:1px solid var(--line)}
+.del-tab{flex:1;min-width:70px;border:0;background:none;font-size:10px;font-weight:800;color:var(--mut);padding:8px 4px;cursor:pointer;border-bottom:2px solid transparent;white-space:nowrap}
+.del-tab.on{color:var(--blue);border-bottom-color:var(--blue)}
+.del-sec-title{font-size:15px;font-weight:900;color:var(--navy);margin:0 0 4px}
+.del-card{border:1px solid var(--line);border-radius:14px;padding:12px;margin-bottom:10px;background:#fff}
+.del-card.on{border-color:#86EFAC;background:#FAFFFE}
+.del-card-hd{display:flex;gap:10px;align-items:flex-start}
+.del-chk{flex-shrink:0;margin-top:4px}
+.del-thumb{width:52px;height:52px;border-radius:10px;background:linear-gradient(145deg,#CBD5E1,#94A3B8);display:grid;place-items:center;font-size:18px;flex-shrink:0}
+.del-meta{flex:1;min-width:0}
+.del-meta b{font-size:13px;color:var(--navy)}
+.del-fields{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px;padding-top:10px;border-top:1px dashed var(--line)}
+.dig-row{display:flex;gap:10px;align-items:flex-start;padding:12px;border:1px solid var(--line);border-radius:12px;margin-bottom:8px;cursor:pointer;background:#fff}
+.dig-row.on{border-color:#86EFAC;background:#F0FDF4}
+.dig-ico{font-size:22px;flex-shrink:0}
+.dig-row b{display:block;font-size:13px;color:var(--navy)}
+.dig-row .hint{display:block;font-size:11px;color:var(--mut);margin-top:2px}
+.cov-type{display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--line);font-size:13px;font-weight:700}
+.cov-type.disabled{opacity:.55}
+.cov-type label{display:flex;align-items:center;gap:8px;flex:1}
+.qty-step.off{opacity:.4}
 </style>
 </head>
 <body>
@@ -298,8 +327,8 @@ body{margin:0;background:#E8EDF5;font-family:Inter,system-ui,sans-serif;color:va
 </section>
 
 <section class="scr" id="wizard">
-  <div class="top"><button type="button" class="back" id="wizBack">←</button><h1 id="wizTitle">Add Package</h1><span class="chip-h" id="wizStepChip">1/11</span></div>
-  <div class="prog"><div class="bar"><i id="wizProgBar" style="width:9%"></i></div><span class="frac" id="wizFrac">1/11</span></div>
+  <div class="top"><button type="button" class="back" id="wizBack">←</button><h1 id="wizTitle">Create Package</h1><span class="chip-h" id="wizStepChip">1/10</span></div>
+  <div class="prog"><div class="bar"><i id="wizProgBar" style="width:10%"></i></div><span class="frac" id="wizFrac">1/10</span></div>
   <div class="stepper" id="stepper"></div>
   <div class="wiz-hd"><h2 id="wizStepTitle">Step</h2><p class="sub" id="wizStepSub"></p></div>
   <div class="pad" id="wizBody"></div>
