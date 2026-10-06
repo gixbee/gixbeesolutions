@@ -1,4 +1,4 @@
-const PHOTO_OWNER_BUILD = '2026-10-06-photo-owner-mobile-v1-fix2';
+const PHOTO_OWNER_BUILD = '2026-10-06-photo-owner-service-v1';
 const STORAGE_KEY = 'GIXBEE_PHOTO_OWNER_V1';
 
 const INDIAN_STATES = {
@@ -42,7 +42,7 @@ const FUNCTION_HINTS = {
 };
 const CEREMONY_TYPES = ['Christian', 'Hindu', 'Muslim', 'Sikh', 'Jain', 'Buddhist', 'Other'];
 const SVC_CATEGORIES = [
-  { id: 'event', label: 'Event Photography' },
+  { id: 'wedding', label: 'Wedding Photography' },
   { id: 'portrait', label: 'Portrait Photography' },
   { id: 'baby', label: 'Baby & Kids' },
   { id: 'maternity', label: 'Maternity' },
@@ -51,8 +51,9 @@ const SVC_CATEGORIES = [
   { id: 'funeral', label: 'Funeral / Memorial' },
   { id: 'product', label: 'Product' },
   { id: 'corporate', label: 'Corporate' },
-  { id: 'fashion', label: 'Fashion & Portfolio' },
   { id: 'realestate', label: 'Real Estate' },
+  { id: 'event', label: 'Event Photography' },
+  { id: 'fashion', label: 'Fashion & Portfolio' },
   { id: 'food', label: 'Food' },
   { id: 'commercial', label: 'Commercial' },
   { id: 'drone', label: 'Drone / Aerial' },
@@ -74,14 +75,14 @@ const PKG_STEPS = [
 ];
 
 const SVC_STEPS = [
-  { title: 'Select service category', sub: 'Visual grid — pick the photography type.' },
-  { title: 'Service basics', sub: 'Name, category, short description.' },
-  { title: 'Service pricing', sub: 'Fixed price or other V1 types; optional discount.' },
-  { title: 'Duration & coverage', sub: 'Optional hours and team.' },
-  { title: "What's included", sub: 'Deliverables included in this service.' },
-  { title: 'Optional extras', sub: 'Paid add-ons with price basis.' },
-  { title: 'Delivery', sub: 'Timeline per deliverable.' },
-  { title: 'Policies & review', sub: 'Policies, requirements, publish.' },
+  { title: 'Select service category', sub: 'Choose the category for your photography service.' },
+  { title: 'Service basics', sub: 'Add basic information about your service.' },
+  { title: 'Pricing', sub: 'Set your service pricing.' },
+  { title: 'Duration & coverage (optional)', sub: 'Add duration, team and coverage details.' },
+  { title: "What's included", sub: 'Select deliverables included in this service.' },
+  { title: 'Optional extras', sub: 'Add additional services (if available).' },
+  { title: 'Delivery', sub: 'Set delivery timeline for each deliverable.' },
+  { title: 'Policies, requirements & review', sub: 'Set policies, customer requirements and publish.' },
 ];
 
 function defaultStore() {
@@ -141,7 +142,7 @@ function defaultStore() {
 
 let store = defaultStore();
 let saDraft = null;
-let wiz = { mode: 'package', step: 0, draft: null, backTo: 'svcPkg' };
+let wiz = { mode: 'package', step: 0, draft: null, backTo: 'svcPkg', editId: null };
 
 function needsCeremonyStep(functions) {
   const f = functions || [];
@@ -500,7 +501,7 @@ function renderPkgList() {
     })
     .join('');
   list.querySelectorAll('.pkg-card').forEach((btn) => {
-    btn.onclick = () => toast('Package detail editor comes in a later sprint.');
+    btn.onclick = () => startWizard('package', btn.getAttribute('data-pkg'));
   });
 }
 
@@ -528,6 +529,9 @@ function renderSvcList() {
         '</span></div></div><span style="color:var(--mut)">›</span></button>'
     )
     .join('');
+  list.querySelectorAll('.svc-row').forEach((btn) => {
+    btn.onclick = () => startWizard('service', btn.getAttribute('data-svc'));
+  });
 }
 
 function applyHubTab() {
@@ -560,26 +564,49 @@ function renderSvcPkg() {
   applyHubTab();
 }
 
-function newSvcDraft() {
-  return {
-    category: '',
-    name: '',
-    blurb: '',
-    pricingType: 'fixed',
-    listPrice: 25000,
-    discountYes: 'no',
-    discountPct: 0,
-    price: 25000,
-    duration: 'Up to 4 hours',
-    coverage: '1 candid photographer',
-    included: '100 edited photos · Online gallery',
-    extras: 'Extra hour ₹5,000 · Drone ₹8,000',
-    delivery: 'Edited photos 5 days · Reel 3 days',
-    policies: 'Cancellation · Data retention 1 year',
-    requirements: 'Customer provides venue access',
-    status: 'draft',
-  };
+function findPackage(id) {
+  return store.packages.find(function (p) {
+    return p.id === id;
+  });
 }
+function findService(id) {
+  return store.services.find(function (s) {
+    return s.id === id;
+  });
+}
+
+function startWizard(mode, editId) {
+  wiz.mode = mode;
+  wiz.step = 0;
+  wiz.editId = editId || null;
+  wiz.backTo = 'svcPkg';
+  if (mode === 'package') {
+    const src = editId ? findPackage(editId) : null;
+    wiz.draft = src ? recordToPkgDraft(src) : newPkgDraft();
+  } else {
+    const src = editId ? findService(editId) : null;
+    wiz.draft = src ? recordToSvcDraft(src) : newSvcDraft();
+  }
+  const wSec = el('wizard');
+  if (wSec) {
+    wSec.classList.toggle('wiz-create', mode === 'package');
+    wSec.classList.toggle('wiz-svc-create', mode === 'service');
+  }
+  const pkgBrand = el('wizPkgBrand');
+  if (pkgBrand) {
+    const sub = pkgBrand.querySelector('span');
+    if (sub) sub.textContent = wiz.editId && mode === 'package' ? 'Edit Package' : 'Create Package';
+  }
+  const svcBrand = el('wizSvcBrand');
+  if (svcBrand) {
+    const sub = svcBrand.querySelector('span');
+    if (sub) sub.textContent = wiz.editId && mode === 'service' ? 'Edit Service' : 'Create Service';
+  }
+  el('wizTitle').textContent = mode === 'package' ? 'Create Package' : 'Add Service';
+  show('wizard');
+  renderWizard();
+}
+
 function syncPkgPrice(d) {
   const base = Math.max(0, +d.listPrice || 0);
   const pct =
@@ -588,18 +615,6 @@ function syncPkgPrice(d) {
 }
 function syncSvcPrice(d) {
   syncPkgPrice(d);
-}
-
-function startWizard(mode) {
-  wiz.mode = mode;
-  wiz.step = 0;
-  wiz.backTo = 'svcPkg';
-  wiz.draft = mode === 'package' ? newPkgDraft() : newSvcDraft();
-  el('wizTitle').textContent = mode === 'package' ? 'Create Package' : 'Add Service';
-  const wSec = el('wizard');
-  if (wSec) wSec.classList.toggle('wiz-create', mode === 'package');
-  show('wizard');
-  renderWizard();
 }
 
 function wizSteps() {
@@ -612,12 +627,13 @@ function wizTotal() {
 function renderStepper() {
   const steps = wizSteps();
   const pkg = wiz.mode === 'package';
+  const svc = wiz.mode === 'service';
   el('stepper').innerHTML = steps
     .map((_, i) => {
       let cls = 'step-dot';
       if (i === wiz.step) cls += ' on';
-      else if (!pkg && i < wiz.step) cls += ' done';
-      const label = pkg || i >= wiz.step ? i + 1 : '✓';
+      else if (!pkg && !svc && i < wiz.step) cls += ' done';
+      const label = pkg || svc || i >= wiz.step ? i + 1 : '✓';
       return '<div class="' + cls + '">' + label + '</div>';
     })
     .join('');
@@ -638,111 +654,12 @@ function renderWizardBody() {
   bindWizardFields();
 }
 
-function renderSvcStep(step, d) {
-  switch (step) {
-    case 0:
-      return (
-        '<div class="sa-search" style="margin:0 0 12px"><span>' +
-        photoIcon('search') +
-        '</span><input type="search" id="catSearch" placeholder="Search categories"></div>' +
-        '<div class="cat-grid" id="f_cats">' +
-        SVC_CATEGORIES.map(
-          (c) =>
-            '<button type="button" class="cat-card' +
-            (d.category === c.id ? ' on' : '') +
-            '" data-cat="' +
-            c.id +
-            '" data-lbl="' +
-            esc(c.label) +
-            '"><span class="tick">✓</span><div class="ph"></div>' +
-            c.label +
-            '</button>'
-        ).join('') +
-        '</div>'
-      );
-    case 1:
-      return (
-        '<div class="fld"><label>Service name *</label><input id="f_svcName" value="' +
-        esc(d.name) +
-        '"></div>' +
-        '<div class="fld"><label>Category</label><input readonly value="' +
-        esc(SVC_CATEGORIES.find((c) => c.id === d.category)?.label || '—') +
-        '"></div>' +
-        '<div class="fld"><label>Short description *</label><textarea id="f_blurb">' +
-        esc(d.blurb) +
-        '</textarea></div>'
-      );
-    case 2:
-      syncSvcPrice(d);
-      return (
-        '<div class="fld"><label>Pricing type</label><select id="f_priceType"><option value="fixed">Fixed price</option><option value="from">Starting from</option><option value="hour">Per hour</option></select></div>' +
-        '<div class="fld"><label>Price (₹)</label><input type="number" id="f_listPrice" value="' +
-        d.listPrice +
-        '"></div>' +
-        '<div class="fld"><label>Discount % (optional)</label><input type="number" id="f_discountPct" value="' +
-        d.discountPct +
-        '"></div>' +
-        '<div class="preview-green"><b>' +
-        inr(d.price) +
-        '</b> — includes deliverables listed in this service.</div>'
-      );
-    case 3:
-      return (
-        '<label class="manage-check-row"><input type="checkbox" id="f_durOn" checked> Enable duration &amp; coverage</label>' +
-        '<div class="fld"><label>Duration</label><input id="f_duration" value="' +
-        esc(d.duration) +
-        '"></div>' +
-        '<div class="fld"><label>Coverage / team</label><input id="f_cov" value="' +
-        esc(d.coverage) +
-        '"></div>'
-      );
-    case 4:
-      return '<div class="fld"><label>What\'s included</label><textarea id="f_included">' + esc(d.included) + '</textarea></div>';
-    case 5:
-      return '<div class="fld"><label>Optional extras</label><textarea id="f_extras">' + esc(d.extras) + '</textarea></div>';
-    case 6:
-      return '<div class="fld"><label>Delivery</label><textarea id="f_delivery">' + esc(d.delivery) + '</textarea></div>';
-    case 7:
-      syncSvcPrice(d);
-      return (
-        '<div class="fld"><label>Policies</label><textarea id="f_policies">' +
-        esc(d.policies) +
-        '</textarea></div>' +
-        '<div class="fld"><label>Customer requirements</label><textarea id="f_requirements">' +
-        esc(d.requirements) +
-        '</textarea></div>' +
-        '<div class="review-card"><b>' +
-        esc(d.name || 'Untitled service') +
-        '</b><p class="sub">' +
-        inr(d.price) +
-        ' · ' +
-        esc(SVC_CATEGORIES.find((c) => c.id === d.category)?.label || '') +
-        '</p></div>'
-      );
-    default:
-      return '';
-  }
-}
-
 function readWizardFields() {
   const d = wiz.draft;
-  const g = (id) => el(id);
   if (wiz.mode === 'package') {
     readPkgWizardFields(d);
   } else {
-    if (g('f_svcName')) d.name = g('f_svcName').value.trim();
-    if (g('f_blurb')) d.blurb = g('f_blurb').value.trim();
-    if (g('f_priceType')) d.pricingType = g('f_priceType').value;
-    if (g('f_listPrice')) d.listPrice = +g('f_listPrice').value || 0;
-    if (g('f_discountPct')) d.discountPct = +g('f_discountPct').value || 0;
-    if (g('f_duration')) d.duration = g('f_duration').value.trim();
-    if (g('f_cov')) d.coverage = g('f_cov').value.trim();
-    if (g('f_included')) d.included = g('f_included').value.trim();
-    if (g('f_extras')) d.extras = g('f_extras').value.trim();
-    if (g('f_delivery')) d.delivery = g('f_delivery').value.trim();
-    if (g('f_policies')) d.policies = g('f_policies').value.trim();
-    if (g('f_requirements')) d.requirements = g('f_requirements').value.trim();
-    syncSvcPrice(d);
+    readSvcWizardFields(d);
   }
 }
 
@@ -750,37 +667,9 @@ function bindWizardFields() {
   const d = wiz.draft;
   if (wiz.mode === 'package') {
     bindPkgWizard(d);
-    return;
+  } else {
+    bindSvcWizard(d);
   }
-  document.querySelectorAll('#f_cats .cat-card').forEach((b) => {
-    b.onclick = () => {
-      d.category = b.getAttribute('data-cat');
-      renderWizardBody();
-    };
-  });
-  document.querySelectorAll('#f_ceremonyBtns button').forEach((b) => {
-    b.onclick = () => {
-      d.ceremonyType = b.getAttribute('data-cer');
-      renderWizardBody();
-    };
-  });
-  const catSearch = el('catSearch');
-  if (catSearch) {
-    catSearch.oninput = () => {
-      const q = catSearch.value.trim().toLowerCase();
-      document.querySelectorAll('#f_cats .cat-card').forEach((card) => {
-        const lbl = (card.getAttribute('data-lbl') || card.textContent || '').toLowerCase();
-        card.style.display = !q || lbl.includes(q) ? '' : 'none';
-      });
-    };
-  }
-  ['f_listPrice', 'f_discountPct', 'f_discYes'].forEach((id) => {
-    const node = el(id);
-    if (node) node.oninput = () => {
-      readWizardFields();
-      renderWizardBody();
-    };
-  });
 }
 
 function validateStep() {
@@ -800,8 +689,12 @@ function validateStep() {
       toast('Pick a service category.');
       return false;
     }
-    if (wiz.step === 1 && !d.name) {
-      toast('Enter a service name.');
+    if (wiz.step === 1 && (!d.name || !d.blurb)) {
+      toast('Enter service name and description.');
+      return false;
+    }
+    if (wiz.step === 2 && !d.listPrice) {
+      toast('Enter service price.');
       return false;
     }
   }
@@ -816,20 +709,42 @@ function finishWizard(publish) {
       toast('Package name required.');
       return;
     }
-    const rec = Object.assign({ id: uid('pkg') }, JSON.parse(JSON.stringify(d)), {
-      status: publish ? 'published' : 'draft',
-    });
-    store.packages.unshift(rec);
-    toast(publish ? 'Package published' : 'Package saved as draft');
+    const payload = JSON.parse(JSON.stringify(d));
+    payload.id = wiz.editId || uid('pkg');
+    payload.status = publish ? 'published' : 'draft';
+    if (wiz.editId) {
+      const i = store.packages.findIndex(function (p) {
+        return p.id === wiz.editId;
+      });
+      if (i >= 0) store.packages[i] = payload;
+      else store.packages.unshift(payload);
+      toast(publish ? 'Package updated & published' : 'Package saved');
+    } else {
+      store.packages.unshift(payload);
+      toast(publish ? 'Package published' : 'Package saved as draft');
+    }
   } else {
     if (!d.name || !d.category) {
       toast('Complete service basics.');
       return;
     }
-    const rec = Object.assign({ id: uid('svc') }, d, { status: publish ? 'published' : 'draft' });
-    store.services.unshift(rec);
-    toast(publish ? 'Service published' : 'Service saved');
+    const payload = JSON.parse(JSON.stringify(d));
+    payload.id = wiz.editId || uid('svc');
+    if (publish) payload.status = 'published';
+    else payload.status = 'draft';
+    if (wiz.editId) {
+      const i = store.services.findIndex(function (s) {
+        return s.id === wiz.editId;
+      });
+      if (i >= 0) store.services[i] = payload;
+      else store.services.unshift(payload);
+      toast(publish ? 'Service updated & published' : 'Service saved');
+    } else {
+      store.services.unshift(payload);
+      toast(publish ? 'Service published' : 'Service saved as draft');
+    }
   }
+  wiz.editId = null;
   saveStore();
   show('svcPkg');
   renderSvcPkg();
@@ -849,20 +764,28 @@ function renderWizard() {
   if (bar) bar.style.width = pct + '%';
   const last = wiz.step >= wizTotal() - 1;
   const pkgReview = wiz.mode === 'package' && wiz.step === wizTotal() - 1;
+  const svcReview = wiz.mode === 'service' && wiz.step === wizTotal() - 1;
   el('wizPrev').style.visibility = wiz.step === 0 ? 'hidden' : 'visible';
-  el('wizNext').hidden = pkgReview;
-  el('wizNext').textContent = last && !pkgReview ? 'Publish →' : 'Next →';
-  el('wizNext').className = last && !pkgReview ? 'btn btn-green' : 'btn btn-blue';
+  el('wizNext').hidden = pkgReview || svcReview;
+  if (wiz.mode === 'service' && wiz.step === wizTotal() - 2) {
+    el('wizNext').textContent = 'Review →';
+  } else if (last && !pkgReview && !svcReview) {
+    el('wizNext').textContent = 'Publish →';
+  } else {
+    el('wizNext').textContent = 'Next →';
+  }
+  el('wizNext').className =
+    last && !pkgReview && !svcReview ? 'btn btn-green' : 'btn btn-blue';
   const draftBtn = el('wizDraft');
   if (draftBtn) {
-    draftBtn.hidden =
-      wiz.mode === 'package' ? true : pkgReview || !last;
+    draftBtn.hidden = true;
   }
 }
 
 function wizNext() {
   if (!validateStep()) return;
   if (wiz.mode === 'package' && wiz.step === wizTotal() - 1) return;
+  if (wiz.mode === 'service' && wiz.step === wizTotal() - 1) return;
   if (wiz.step >= wizTotal() - 1) {
     finishWizard(true);
     return;

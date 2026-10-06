@@ -222,6 +222,25 @@ body{margin:0;background:#E8EDF5;font-family:Inter,system-ui,sans-serif;color:va
 #wizard.wiz-create .wiz-pkg-brand b{display:block;font-size:18px;font-weight:900;letter-spacing:.2px}
 #wizard.wiz-create .wiz-pkg-brand span{display:block;font-size:12px;font-weight:600;margin-top:3px;opacity:.95}
 #wizard:not(.wiz-create) .wiz-pkg-brand{display:none}
+#wizard.wiz-create .wiz-svc-brand{display:none}
+#wizard.wiz-svc-create .top{background:var(--navy);border-bottom:0;display:grid;grid-template-columns:44px 1fr 44px;align-items:center;padding:10px 12px 14px}
+#wizard.wiz-svc-create .back{color:#fff;justify-self:start}
+#wizard.wiz-svc-create #wizTitle{display:none}
+#wizard.wiz-svc-create .wiz-pkg-brand{display:none}
+#wizard.wiz-svc-create .wiz-svc-brand{grid-column:2;text-align:center;color:#fff;line-height:1.2}
+#wizard.wiz-svc-create .wiz-svc-brand b{display:block;font-size:18px;font-weight:900}
+#wizard.wiz-svc-create .wiz-svc-brand span{display:block;font-size:12px;font-weight:600;margin-top:3px;opacity:.95}
+#wizard:not(.wiz-svc-create) .wiz-svc-brand{display:none}
+#wizard.wiz-svc-create .chip-h{display:none}
+#wizard.wiz-svc-create .prog{display:none}
+#wizard.wiz-svc-create .stepper{justify-content:space-between;gap:3px;padding:10px 14px 14px;background:#fff}
+#wizard.wiz-svc-create .step-dot{width:27px;height:27px;font-size:10px;border:2px solid var(--blue);color:var(--blue);background:#fff}
+#wizard.wiz-svc-create .step-dot.on{background:var(--blue);border-color:var(--blue);color:#fff}
+.radio-col{display:flex;flex-direction:column;gap:8px;margin-top:6px}
+.radio-line{display:flex;align-items:center;gap:8px;font-weight:700;font-size:14px;color:var(--navy)}
+.cat-pill{padding:11px 12px;border:1.5px solid #BFDBFE;border-radius:12px;font-weight:700;color:var(--navy);display:flex;align-items:center;justify-content:space-between;gap:8px}
+.link-inline{border:0;background:none;color:var(--blue);font-weight:800;cursor:pointer;font:inherit;padding:0}
+.svc-extra{grid-template-columns:24px 1fr 64px 72px 28px}
 #wizard.wiz-create .chip-h{display:none}
 #wizard.wiz-create .prog{display:none}
 #wizard.wiz-create .stepper{justify-content:space-between;gap:3px;padding:10px 14px 14px;background:#fff}
@@ -348,6 +367,7 @@ body{margin:0;background:#E8EDF5;font-family:Inter,system-ui,sans-serif;color:va
   <div class="top wiz-top">
     <button type="button" class="back" id="wizBack">←</button>
     <div class="wiz-pkg-brand" id="wizPkgBrand"><b>Gixbee</b><span>Create Package</span></div>
+    <div class="wiz-svc-brand" id="wizSvcBrand"><b>Gixbee</b><span>Create Service</span></div>
     <h1 id="wizTitle">Add Service</h1>
     <span class="chip-h" id="wizStepChip">1/10</span>
   </div>

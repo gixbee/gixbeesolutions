@@ -6,6 +6,7 @@ DIR = Path(__file__).resolve().parent
 SHELL = DIR / "photo-owner-flow-shell.html"
 ICONS = DIR / "_photo_owner_icons.js"
 PKG_WIZ = DIR / "_photo_pkg_wizard.js"
+SVC_WIZ = DIR / "_photo_svc_wizard.js"
 APP = DIR / "_photo_owner_app.js"
 MASTER = DIR / "GIXBEE-PHOTO-OWNER-FINALFLOW.html"
 
@@ -29,14 +30,15 @@ def build_master() -> str:
     shell = SHELL.read_text(encoding="utf-8")
     icons = ICONS.read_text(encoding="utf-8")
     pkg = PKG_WIZ.read_text(encoding="utf-8")
+    svc = SVC_WIZ.read_text(encoding="utf-8")
     app = APP.read_text(encoding="utf-8")
-    block = "<!-- APP_START -->\n<script>\n" + icons + "\n" + pkg + "\n" + app + "\n</script>\n<!-- APP_END -->"
+    block = "<!-- APP_START -->\n<script>\n" + icons + "\n" + pkg + "\n" + svc + "\n" + app + "\n</script>\n<!-- APP_END -->"
     i, j = shell.find("<!-- APP_START -->"), shell.find("<!-- APP_END -->")
     if i < 0 or j < 0:
         raise SystemExit("photo-owner-flow-shell.html missing APP markers")
     out = shell[:i] + block + shell[j + len("<!-- APP_END -->") :]
     head = out.split("<!-- APP_START -->")[0]
-    for marker in (".fn-pick", "#wizard.wiz-create", ".del-tabs", "wiz-pkg-brand", "Gixbee"):
+    for marker in (".fn-pick", "#wizard.wiz-create", "#wizard.wiz-svc-create", ".del-tabs", "wiz-pkg-brand", "wiz-svc-brand"):
         if marker not in head:
             raise SystemExit(f"built HTML missing shell content: {marker!r} — regenerate from updated shell")
     if out.count("<script>") != 1:
