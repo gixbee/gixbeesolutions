@@ -18,6 +18,9 @@ def main() -> None:
     if i < 0 or j < 0:
         raise SystemExit("photo-owner-flow-shell.html missing APP markers")
     out = shell[:i] + block + shell[j + len("<!-- APP_END -->") :]
+    banner = "<!-- GIXBEE PHOTO OWNER — open this file in Chrome/Edge. Do not open photo-owner-flow-shell.html. -->\n"
+    if not out.lstrip().startswith("<!-- GIXBEE PHOTO"):
+        out = out.replace("<!DOCTYPE html>", "<!DOCTYPE html>\n" + banner, 1)
     OUT.write_text(out, encoding="utf-8")
     print(f"Wrote {OUT.name} ({len(out) // 1024} KB)")
 
