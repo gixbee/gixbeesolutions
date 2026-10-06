@@ -1,4 +1,4 @@
-const PHOTO_OWNER_BUILD = '2026-10-06-photo-owner-service-v1-fix3';
+const PHOTO_OWNER_BUILD = '2026-10-06-photo-owner-policy-pay-v1';
 const STORAGE_KEY = 'GIXBEE_PHOTO_OWNER_V1';
 
 const INDIAN_STATES = {
@@ -684,6 +684,21 @@ function validateStep() {
     if (wiz.step === 1 && !d.functions.length) {
       toast('Select at least one function.');
       return false;
+    }
+    if (wiz.step === 7) {
+      const total = payStagesTotalPct(d);
+      if (total !== 100) {
+        toast('Payment stages must total 100% (currently ' + total + '%).');
+        return false;
+      }
+      if (d.policies.indexOf('Cancellation Policy') >= 0) {
+        ensurePolicyValues(d);
+        const c = d.policyValues['Cancellation Policy'] || {};
+        if (!c.refundPct && !String(c.notes || '').trim()) {
+          toast('Enter cancellation refund % or policy text for customers.');
+          return false;
+        }
+      }
     }
   } else {
     if (wiz.step === 0 && !d.category) {

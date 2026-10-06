@@ -91,6 +91,11 @@ function recordToPkgDraft(rec) {
   merged.albumPrints = Object.assign({}, base.albumPrints, m.albumPrints || {});
   merged.extras = Object.assign({}, base.extras, m.extras || {});
   merged.deliveryMap = Object.assign({}, base.deliveryMap, m.deliveryMap || {});
+  ensurePolicyValues(merged);
+  if (!merged.policyValues) merged.policyValues = {};
+  (merged.policies || []).forEach(function (name) {
+    if (!merged.policyValues[name]) merged.policyValues[name] = defaultPolicyValue(name);
+  });
   return merged;
 }
 

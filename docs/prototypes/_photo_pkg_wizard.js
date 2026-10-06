@@ -51,6 +51,199 @@ const POLICY_DEFAULTS = [
   'Delivery Conditions',
   'Other Policy',
 ];
+const POLICY_META = {
+  'Cancellation Policy': {
+    help: 'Set refund rules when the customer cancels the booking.',
+    fields: [
+      { key: 'noticeDays', label: 'If cancelled at least (days before event)', type: 'number', placeholder: '30' },
+      { key: 'refundPct', label: 'Refund % of amount paid', type: 'number', placeholder: '50' },
+      { key: 'notes', label: 'Customer-facing policy text', type: 'textarea', placeholder: 'Advance is non-refundable if cancelled within 7 days of the event.' },
+    ],
+  },
+  'Rescheduling Policy': {
+    help: 'Notice period and fees for rescheduling.',
+    fields: [
+      { key: 'noticeDays', label: 'Free reschedule when notice is (days)', type: 'number', placeholder: '14' },
+      { key: 'fee', label: 'Reschedule fee (₹)', type: 'number', placeholder: '0' },
+      { key: 'notes', label: 'Customer-facing policy text', type: 'textarea', placeholder: 'One free reschedule with sufficient notice.' },
+    ],
+  },
+  'Photo Selection Deadline': {
+    help: 'How long the customer has to select photos.',
+    fields: [
+      { key: 'days', label: 'Deadline (days after delivery)', type: 'number', placeholder: '45' },
+      { key: 'notes', label: 'Details for customer', type: 'textarea', placeholder: '' },
+    ],
+  },
+  'Album Selection Deadline': {
+    help: 'Album design / photo selection timeline.',
+    fields: [
+      { key: 'days', label: 'Deadline (days)', type: 'number', placeholder: '60' },
+      { key: 'notes', label: 'Details for customer', type: 'textarea', placeholder: '' },
+    ],
+  },
+  'Revision Limit': {
+    help: 'Number of included revision rounds.',
+    fields: [
+      { key: 'limit', label: 'Included revisions', type: 'number', placeholder: '2' },
+      { key: 'notes', label: 'Extra revision charges (optional)', type: 'textarea', placeholder: '' },
+    ],
+  },
+  'Song Selection': {
+    fields: [{ key: 'days', label: 'Submit songs before (days)', type: 'number', placeholder: '7' }, { key: 'notes', type: 'textarea', label: 'Notes' }],
+  },
+  'Data Retention': {
+    fields: [{ key: 'days', label: 'Files stored for (days)', type: 'number', placeholder: '365' }, { key: 'notes', type: 'textarea', label: 'Notes' }],
+  },
+  'Additional Work': {
+    fields: [{ key: 'notes', label: 'Policy text', type: 'textarea', placeholder: 'Out-of-scope work billed separately.' }],
+  },
+  'Reprint Charges': {
+    fields: [{ key: 'fee', label: 'Reprint fee from (₹)', type: 'number', placeholder: '500' }, { key: 'notes', type: 'textarea', label: 'Notes' }],
+  },
+  'Delivery Conditions': {
+    fields: [{ key: 'notes', label: 'Delivery conditions', type: 'textarea', placeholder: '' }],
+  },
+  'Other Policy': {
+    fields: [{ key: 'notes', label: 'Policy text', type: 'textarea', placeholder: '' }],
+  },
+};
+
+function defaultPolicyValue(name) {
+  const seed = {
+    'Cancellation Policy': { noticeDays: 30, refundPct: 50, notes: 'Advance is non-refundable if cancelled within 7 days of the event.' },
+    'Rescheduling Policy': { noticeDays: 14, fee: 0, notes: 'One free reschedule with at least 14 days notice.' },
+    'Photo Selection Deadline': { days: 45, notes: 'Selections after the deadline may incur extra charges.' },
+    'Album Selection Deadline': { days: 60, notes: '' },
+    'Revision Limit': { limit: 2, notes: 'Additional revisions charged per package rate.' },
+    'Data Retention': { days: 365, notes: 'Raw files may be deleted after retention period.' },
+  };
+  return Object.assign({ noticeDays: '', refundPct: '', fee: '', days: '', limit: '', notes: '' }, seed[name] || {});
+}
+
+function ensurePolicyValues(d) {
+  if (!d.policyValues) d.policyValues = {};
+  (d.policies || []).forEach(function (name) {
+    if (!d.policyValues[name]) d.policyValues[name] = defaultPolicyValue(name);
+  });
+}
+
+function payStagesTotalPct(d) {
+  return (d.paymentStages || []).reduce(function (sum, s) {
+    return sum + (+s.pct || 0);
+  }, 0);
+}
+
+function renderPolicyCard(name, d) {
+  ensurePolicyValues(d);
+  const on = d.policies.indexOf(name) >= 0;
+  const meta = POLICY_META[name] || { fields: [{ key: 'notes', label: 'Policy text', type: 'textarea' }] };
+  const vals = d.policyValues[name] || defaultPolicyValue(name);
+  if (on && !d.policyValues[name]) d.policyValues[name] = vals;
+  let fieldsHtml = '';
+  if (on) {
+    fieldsHtml =
+      (meta.help ? '<p class="policy-help">' + esc(meta.help) + '</p>' : '') +
+      meta.fields
+        .map(function (f) {
+          const v = vals[f.key] != null ? vals[f.key] : '';
+          if (f.type === 'textarea') {
+            return (
+              '<div class="fld"><label>' +
+              esc(f.label) +
+              '</label><textarea data-pol-val data-pol-key="' +
+              esc(name) +
+              '" data-pol-field="' +
+              f.key +
+              '" placeholder="' +
+              esc(f.placeholder || '') +
+              '">' +
+              esc(String(v)) +
+              '</textarea></div>'
+            );
+          }
+          return (
+            '<div class="fld"><label>' +
+            esc(f.label) +
+            '</label><input type="number" data-pol-val data-pol-key="' +
+            esc(name) +
+            '" data-pol-field="' +
+            f.key +
+            '" value="' +
+            esc(String(v)) +
+            '" placeholder="' +
+            esc(f.placeholder || '') +
+            '"></div>'
+          );
+        })
+        .join('');
+  }
+  return (
+    '<div class="policy-card' +
+    (on ? ' on' : '') +
+    '"><label class="policy-card-hd"><input type="checkbox" data-pol="' +
+    esc(name) +
+    '" ' +
+    (on ? 'checked' : '') +
+    '> <b>' +
+    esc(name) +
+    '</b></label>' +
+    (on ? '<div class="policy-fields">' + fieldsHtml + '</div>' : '') +
+    '</div>'
+  );
+}
+
+function renderPayPoliciesStep(d) {
+  syncPkgPrice(d);
+  const totalPct = payStagesTotalPct(d);
+  const totalOk = totalPct === 100;
+  const base = Math.max(0, +d.price || +d.listPrice || 0);
+  return (
+    '<p class="sub">Split customer payments across milestones. Total must equal <b>100%</b>.</p>' +
+    '<div id="f_payStages">' +
+    d.paymentStages
+      .map(function (s, i) {
+        const amt = Math.round(base * ((+s.pct || 0) / 100));
+        return (
+          '<div class="pay-stage-card" data-pay-idx="' +
+          i +
+          '"><div class="pay-stage-top"><span class="pay-stage-num">Stage ' +
+          (i + 1) +
+          '</span>' +
+          (d.paymentStages.length > 1
+            ? '<button type="button" class="pay-del" data-action="del-stage" data-idx="' +
+              i +
+              '" title="Remove">🗑</button>'
+            : '') +
+          '</div><div class="fld"><label>Milestone name</label><input type="text" data-pay-label value="' +
+          esc(s.label) +
+          '"></div><div class="pay-stage-pct-row"><div class="fld" style="margin:0"><label>Share</label><div class="pct-input-wrap"><input type="number" data-pay-pct value="' +
+          s.pct +
+          '" min="0" max="100"><span>%</span></div></div><div class="pay-stage-amt"><span class="sub">Customer pays</span><b>' +
+          inr(amt) +
+          '</b></div></div></div>'
+        );
+      })
+      .join('') +
+    '</div>' +
+    '<div class="pay-total-bar' +
+    (totalOk ? ' ok' : ' warn') +
+    '"><span>Total</span><b>' +
+    totalPct +
+    '%</b>' +
+    (totalOk ? '' : ' <span class="sub">— adjust stages to reach 100%</span>') +
+    '</div>' +
+    linkAdd('add-stage', 'Add custom stage') +
+    '<p class="lbl" style="margin-top:20px">Policies (optional)</p>' +
+    '<p class="sub" style="margin:0 0 10px">Select a policy and enter values customers will see on your package.</p>' +
+    POLICY_DEFAULTS.concat(d.customPolicies || [])
+      .map(function (item) {
+        return renderPolicyCard(item, d);
+      })
+      .join('') +
+    linkAdd('add-policy', 'Add new policy')
+  );
+}
 const REQ_DEFAULTS = [
   'Customer provides SSD / Hard Disk',
   'Electricity / Power at venue',
@@ -203,6 +396,10 @@ function newPkgDraft() {
       { id: 'ps4', label: 'Final Payment', pct: 10 },
     ],
     policies: ['Cancellation Policy', 'Rescheduling Policy'],
+    policyValues: {
+      'Cancellation Policy': defaultPolicyValue('Cancellation Policy'),
+      'Rescheduling Policy': defaultPolicyValue('Rescheduling Policy'),
+    },
     customPolicies: [],
     requirements: ['Customer provides SSD / Hard Disk', 'Electricity / Power at venue'],
     customRequirements: [],
@@ -728,49 +925,7 @@ function renderPkgStep(step, d) {
       );
     }
     case 7:
-      return (
-        '<p class="lbl">Payment stages</p>' +
-        '<div id="f_payStages">' +
-        d.paymentStages
-          .map(function (s, i) {
-            return (
-              '<div class="pay-row" data-pay-idx="' +
-              i +
-              '"><input type="text" data-pay-label value="' +
-              esc(s.label) +
-              '"><input type="number" data-pay-pct value="' +
-              s.pct +
-              '" min="0" max="100"><span>%</span>' +
-              (d.paymentStages.length > 1
-                ? '<button type="button" class="pay-del" data-action="del-stage" data-idx="' +
-                  i +
-                  '">🗑</button>'
-                : '') +
-              '</div>'
-            );
-          })
-          .join('') +
-        '</div>' +
-        linkAdd('add-stage', 'Add Custom Stage') +
-        '<p class="lbl">Policies (optional)</p>' +
-        POLICY_DEFAULTS.concat(d.customPolicies || [])
-          .map(function (item) {
-            const on = d.policies.indexOf(item) >= 0;
-            return (
-              '<label class="chk-row' +
-              (on ? ' on' : '') +
-              '"><input type="checkbox" data-pol="' +
-              esc(item) +
-              '" ' +
-              (on ? 'checked' : '') +
-              '> ' +
-              esc(item) +
-              '</label>'
-            );
-          })
-          .join('') +
-        linkAdd('add-policy', 'Add New Policy')
-      );
+      return renderPayPoliciesStep(d);
     case 8:
       return (
         REQ_DEFAULTS.concat(d.customRequirements || [])
@@ -911,12 +1066,20 @@ function readPkgWizardFields(d) {
     d.deliveryMap[sel.getAttribute('data-del-key')] = sel.value;
   });
   d.paymentStages = [];
-  document.querySelectorAll('.pay-row').forEach(function (row) {
+  document.querySelectorAll('.pay-stage-card').forEach(function (row) {
     d.paymentStages.push({
       id: uid('ps'),
       label: row.querySelector('[data-pay-label]').value.trim() || 'Stage',
       pct: +(row.querySelector('[data-pay-pct]').value || 0),
     });
+  });
+  if (!d.policyValues) d.policyValues = {};
+  document.querySelectorAll('[data-pol-val]').forEach(function (inp) {
+    const pol = inp.getAttribute('data-pol-key');
+    const field = inp.getAttribute('data-pol-field');
+    if (!pol || !field) return;
+    if (!d.policyValues[pol]) d.policyValues[pol] = defaultPolicyValue(pol);
+    d.policyValues[pol][field] = inp.type === 'number' ? +inp.value || 0 : inp.value;
   });
   syncPkgPrice(d);
   d.coverage = pkgCoverageSummary(d);
@@ -1084,6 +1247,9 @@ function bindPkgWizard(d) {
         const name = prompt('Policy name');
         if (name) {
           d.customPolicies.push(name.trim());
+          if (!d.policyValues) d.policyValues = {};
+          d.policyValues[name.trim()] = defaultPolicyValue(name.trim());
+          if (d.policies.indexOf(name.trim()) < 0) d.policies.push(name.trim());
           renderWizardBody();
         }
         return;
@@ -1213,11 +1379,22 @@ function bindPkgWizard(d) {
       const arr = attr === 'data-pol' ? 'policies' : 'requirements';
       if (t.checked) {
         if (d[arr].indexOf(val) < 0) d[arr].push(val);
+        if (attr === 'data-pol') {
+          if (!d.policyValues) d.policyValues = {};
+          if (!d.policyValues[val]) d.policyValues[val] = defaultPolicyValue(val);
+        }
       } else d[arr] = d[arr].filter(function (x) {
         return x !== val;
       });
+      if (attr === 'data-pol') renderWizardBody();
     });
   };
+  document.querySelectorAll('[data-pay-pct],[data-pay-label]').forEach(function (node) {
+    node.oninput = function () {
+      readPkgWizardFields(d);
+      if (wiz.step === 7) renderWizardBody();
+    };
+  });
   document.querySelectorAll('input[name="discYes"]').forEach(function (r) {
     r.onchange = function () {
       readPkgWizardFields(d);

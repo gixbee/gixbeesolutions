@@ -208,7 +208,24 @@ body{margin:0;background:#E8EDF5;font-family:Inter,system-ui,sans-serif;color:va
 .extra-row select,.extra-row input{padding:6px;font-size:11px;border-radius:8px;border:1px solid var(--line)}
 .album-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 .del-row label{font-size:12px}
-.pay-row{display:flex;gap:8px;align-items:center;margin-bottom:8px}
+.pay-stage-card{border:1.5px solid #BFDBFE;border-radius:14px;padding:12px;margin-bottom:10px;background:#F8FAFC}
+.pay-stage-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+.pay-stage-num{font-size:11px;font-weight:900;color:var(--blue);letter-spacing:.4px}
+.pay-stage-pct-row{display:flex;gap:12px;align-items:flex-end}
+.pay-stage-pct-row .fld{flex:1}
+.pct-input-wrap{display:flex;align-items:center;gap:6px}
+.pct-input-wrap input{width:72px}
+.pay-stage-amt{text-align:right;min-width:100px}
+.pay-stage-amt b{display:block;font-size:15px;color:var(--navy)}
+.pay-total-bar{display:flex;align-items:center;justify-content:space-between;padding:12px 14px;border-radius:12px;margin:8px 0 16px;font-weight:800}
+.pay-total-bar.ok{background:#ECFDF3;border:1px solid #86EFAC;color:#065F46}
+.pay-total-bar.warn{background:#FEF3C7;border:1px solid #FDE68A;color:#92400E}
+.policy-card{border:1px solid var(--line);border-radius:14px;padding:12px;margin-bottom:10px;background:#fff}
+.policy-card.on{border-color:#86EFAC;background:#FAFFFE}
+.policy-card-hd{display:flex;align-items:center;gap:10px;cursor:pointer;font-size:14px}
+.policy-card-hd b{color:var(--navy)}
+.policy-fields{margin-top:10px;padding-top:10px;border-top:1px dashed var(--line)}
+.policy-help{font-size:11px;color:var(--mut);margin:0 0 8px;line-height:1.4}
 .pay-row input[type=text]{flex:1}
 .pay-row input[type=number]{width:64px}
 .pay-del{border:0;background:none;cursor:pointer;font-size:16px}

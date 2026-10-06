@@ -210,7 +210,24 @@ body{margin:0;background:#E8EDF5;font-family:Inter,system-ui,sans-serif;color:va
 .extra-row select,.extra-row input{padding:6px;font-size:11px;border-radius:8px;border:1px solid var(--line)}
 .album-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 .del-row label{font-size:12px}
-.pay-row{display:flex;gap:8px;align-items:center;margin-bottom:8px}
+.pay-stage-card{border:1.5px solid #BFDBFE;border-radius:14px;padding:12px;margin-bottom:10px;background:#F8FAFC}
+.pay-stage-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+.pay-stage-num{font-size:11px;font-weight:900;color:var(--blue);letter-spacing:.4px}
+.pay-stage-pct-row{display:flex;gap:12px;align-items:flex-end}
+.pay-stage-pct-row .fld{flex:1}
+.pct-input-wrap{display:flex;align-items:center;gap:6px}
+.pct-input-wrap input{width:72px}
+.pay-stage-amt{text-align:right;min-width:100px}
+.pay-stage-amt b{display:block;font-size:15px;color:var(--navy)}
+.pay-total-bar{display:flex;align-items:center;justify-content:space-between;padding:12px 14px;border-radius:12px;margin:8px 0 16px;font-weight:800}
+.pay-total-bar.ok{background:#ECFDF3;border:1px solid #86EFAC;color:#065F46}
+.pay-total-bar.warn{background:#FEF3C7;border:1px solid #FDE68A;color:#92400E}
+.policy-card{border:1px solid var(--line);border-radius:14px;padding:12px;margin-bottom:10px;background:#fff}
+.policy-card.on{border-color:#86EFAC;background:#FAFFFE}
+.policy-card-hd{display:flex;align-items:center;gap:10px;cursor:pointer;font-size:14px}
+.policy-card-hd b{color:var(--navy)}
+.policy-fields{margin-top:10px;padding-top:10px;border-top:1px dashed var(--line)}
+.policy-help{font-size:11px;color:var(--mut);margin:0 0 8px;line-height:1.4}
 .pay-row input[type=text]{flex:1}
 .pay-row input[type=number]{width:64px}
 .pay-del{border:0;background:none;cursor:pointer;font-size:16px}
@@ -238,8 +255,21 @@ body{margin:0;background:#E8EDF5;font-family:Inter,system-ui,sans-serif;color:va
 #wizard.wiz-svc-create .stepper{justify-content:space-between;gap:3px;padding:10px 14px 14px;background:#fff}
 #wizard.wiz-svc-create .step-dot{width:27px;height:27px;font-size:10px;border:2px solid var(--blue);color:var(--blue);background:#fff}
 #wizard.wiz-svc-create .step-dot.on{background:var(--blue);border-color:var(--blue);color:#fff}
-.radio-col{display:flex;flex-direction:column;gap:8px;margin-top:6px}
-.radio-line{display:flex;align-items:center;gap:8px;font-weight:700;font-size:14px;color:var(--navy)}
+.radio-col{display:flex;flex-direction:column;gap:0;margin-top:6px;width:100%;box-sizing:border-box}
+.radio-line{display:flex;align-items:center;gap:10px;font-weight:700;font-size:14px;color:var(--navy);width:100%;padding:10px 0;margin:0;cursor:pointer;box-sizing:border-box}
+.radio-line input[type=radio]{flex-shrink:0;width:18px;height:18px;margin:0;accent-color:var(--blue)}
+.radio-line span{flex:1;line-height:1.35}
+.pricing-step{width:100%;box-sizing:border-box}
+.pricing-step .fld{margin-bottom:14px}
+.pricing-step .radio-col{border:1.5px solid #BFDBFE;border-radius:12px;padding:4px 12px;background:#fff}
+.pricing-step .radio-line{border-bottom:1px solid #EEF2F7}
+.pricing-step .radio-line:last-child{border-bottom:0}
+.pricing-step .radio-disc{display:flex;flex-direction:column;align-items:flex-start;gap:10px;margin-top:6px;width:100%}
+.pricing-step .radio-disc label{display:flex;align-items:center;gap:8px;font-weight:700;font-size:14px;color:var(--navy);width:100%;cursor:pointer}
+.pricing-step .radio-disc input[type=radio]{width:18px;height:18px;margin:0;flex-shrink:0;accent-color:var(--blue)}
+.pricing-step .price-preview{margin-top:4px}
+.pricing-step .amount-row{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-top:4px}
+.pricing-step .price-amt{font-size:20px;color:#065F46}
 .cat-pill{padding:11px 12px;border:1.5px solid #BFDBFE;border-radius:12px;font-weight:700;color:var(--navy);display:flex;align-items:center;justify-content:space-between;gap:8px}
 .link-inline{border:0;background:none;color:var(--blue);font-weight:800;cursor:pointer;font:inherit;padding:0}
 .svc-extra{grid-template-columns:24px 1fr 64px 72px 28px}
@@ -475,6 +505,199 @@ const POLICY_DEFAULTS = [
   'Delivery Conditions',
   'Other Policy',
 ];
+const POLICY_META = {
+  'Cancellation Policy': {
+    help: 'Set refund rules when the customer cancels the booking.',
+    fields: [
+      { key: 'noticeDays', label: 'If cancelled at least (days before event)', type: 'number', placeholder: '30' },
+      { key: 'refundPct', label: 'Refund % of amount paid', type: 'number', placeholder: '50' },
+      { key: 'notes', label: 'Customer-facing policy text', type: 'textarea', placeholder: 'Advance is non-refundable if cancelled within 7 days of the event.' },
+    ],
+  },
+  'Rescheduling Policy': {
+    help: 'Notice period and fees for rescheduling.',
+    fields: [
+      { key: 'noticeDays', label: 'Free reschedule when notice is (days)', type: 'number', placeholder: '14' },
+      { key: 'fee', label: 'Reschedule fee (₹)', type: 'number', placeholder: '0' },
+      { key: 'notes', label: 'Customer-facing policy text', type: 'textarea', placeholder: 'One free reschedule with sufficient notice.' },
+    ],
+  },
+  'Photo Selection Deadline': {
+    help: 'How long the customer has to select photos.',
+    fields: [
+      { key: 'days', label: 'Deadline (days after delivery)', type: 'number', placeholder: '45' },
+      { key: 'notes', label: 'Details for customer', type: 'textarea', placeholder: '' },
+    ],
+  },
+  'Album Selection Deadline': {
+    help: 'Album design / photo selection timeline.',
+    fields: [
+      { key: 'days', label: 'Deadline (days)', type: 'number', placeholder: '60' },
+      { key: 'notes', label: 'Details for customer', type: 'textarea', placeholder: '' },
+    ],
+  },
+  'Revision Limit': {
+    help: 'Number of included revision rounds.',
+    fields: [
+      { key: 'limit', label: 'Included revisions', type: 'number', placeholder: '2' },
+      { key: 'notes', label: 'Extra revision charges (optional)', type: 'textarea', placeholder: '' },
+    ],
+  },
+  'Song Selection': {
+    fields: [{ key: 'days', label: 'Submit songs before (days)', type: 'number', placeholder: '7' }, { key: 'notes', type: 'textarea', label: 'Notes' }],
+  },
+  'Data Retention': {
+    fields: [{ key: 'days', label: 'Files stored for (days)', type: 'number', placeholder: '365' }, { key: 'notes', type: 'textarea', label: 'Notes' }],
+  },
+  'Additional Work': {
+    fields: [{ key: 'notes', label: 'Policy text', type: 'textarea', placeholder: 'Out-of-scope work billed separately.' }],
+  },
+  'Reprint Charges': {
+    fields: [{ key: 'fee', label: 'Reprint fee from (₹)', type: 'number', placeholder: '500' }, { key: 'notes', type: 'textarea', label: 'Notes' }],
+  },
+  'Delivery Conditions': {
+    fields: [{ key: 'notes', label: 'Delivery conditions', type: 'textarea', placeholder: '' }],
+  },
+  'Other Policy': {
+    fields: [{ key: 'notes', label: 'Policy text', type: 'textarea', placeholder: '' }],
+  },
+};
+
+function defaultPolicyValue(name) {
+  const seed = {
+    'Cancellation Policy': { noticeDays: 30, refundPct: 50, notes: 'Advance is non-refundable if cancelled within 7 days of the event.' },
+    'Rescheduling Policy': { noticeDays: 14, fee: 0, notes: 'One free reschedule with at least 14 days notice.' },
+    'Photo Selection Deadline': { days: 45, notes: 'Selections after the deadline may incur extra charges.' },
+    'Album Selection Deadline': { days: 60, notes: '' },
+    'Revision Limit': { limit: 2, notes: 'Additional revisions charged per package rate.' },
+    'Data Retention': { days: 365, notes: 'Raw files may be deleted after retention period.' },
+  };
+  return Object.assign({ noticeDays: '', refundPct: '', fee: '', days: '', limit: '', notes: '' }, seed[name] || {});
+}
+
+function ensurePolicyValues(d) {
+  if (!d.policyValues) d.policyValues = {};
+  (d.policies || []).forEach(function (name) {
+    if (!d.policyValues[name]) d.policyValues[name] = defaultPolicyValue(name);
+  });
+}
+
+function payStagesTotalPct(d) {
+  return (d.paymentStages || []).reduce(function (sum, s) {
+    return sum + (+s.pct || 0);
+  }, 0);
+}
+
+function renderPolicyCard(name, d) {
+  ensurePolicyValues(d);
+  const on = d.policies.indexOf(name) >= 0;
+  const meta = POLICY_META[name] || { fields: [{ key: 'notes', label: 'Policy text', type: 'textarea' }] };
+  const vals = d.policyValues[name] || defaultPolicyValue(name);
+  if (on && !d.policyValues[name]) d.policyValues[name] = vals;
+  let fieldsHtml = '';
+  if (on) {
+    fieldsHtml =
+      (meta.help ? '<p class="policy-help">' + esc(meta.help) + '</p>' : '') +
+      meta.fields
+        .map(function (f) {
+          const v = vals[f.key] != null ? vals[f.key] : '';
+          if (f.type === 'textarea') {
+            return (
+              '<div class="fld"><label>' +
+              esc(f.label) +
+              '</label><textarea data-pol-val data-pol-key="' +
+              esc(name) +
+              '" data-pol-field="' +
+              f.key +
+              '" placeholder="' +
+              esc(f.placeholder || '') +
+              '">' +
+              esc(String(v)) +
+              '</textarea></div>'
+            );
+          }
+          return (
+            '<div class="fld"><label>' +
+            esc(f.label) +
+            '</label><input type="number" data-pol-val data-pol-key="' +
+            esc(name) +
+            '" data-pol-field="' +
+            f.key +
+            '" value="' +
+            esc(String(v)) +
+            '" placeholder="' +
+            esc(f.placeholder || '') +
+            '"></div>'
+          );
+        })
+        .join('');
+  }
+  return (
+    '<div class="policy-card' +
+    (on ? ' on' : '') +
+    '"><label class="policy-card-hd"><input type="checkbox" data-pol="' +
+    esc(name) +
+    '" ' +
+    (on ? 'checked' : '') +
+    '> <b>' +
+    esc(name) +
+    '</b></label>' +
+    (on ? '<div class="policy-fields">' + fieldsHtml + '</div>' : '') +
+    '</div>'
+  );
+}
+
+function renderPayPoliciesStep(d) {
+  syncPkgPrice(d);
+  const totalPct = payStagesTotalPct(d);
+  const totalOk = totalPct === 100;
+  const base = Math.max(0, +d.price || +d.listPrice || 0);
+  return (
+    '<p class="sub">Split customer payments across milestones. Total must equal <b>100%</b>.</p>' +
+    '<div id="f_payStages">' +
+    d.paymentStages
+      .map(function (s, i) {
+        const amt = Math.round(base * ((+s.pct || 0) / 100));
+        return (
+          '<div class="pay-stage-card" data-pay-idx="' +
+          i +
+          '"><div class="pay-stage-top"><span class="pay-stage-num">Stage ' +
+          (i + 1) +
+          '</span>' +
+          (d.paymentStages.length > 1
+            ? '<button type="button" class="pay-del" data-action="del-stage" data-idx="' +
+              i +
+              '" title="Remove">🗑</button>'
+            : '') +
+          '</div><div class="fld"><label>Milestone name</label><input type="text" data-pay-label value="' +
+          esc(s.label) +
+          '"></div><div class="pay-stage-pct-row"><div class="fld" style="margin:0"><label>Share</label><div class="pct-input-wrap"><input type="number" data-pay-pct value="' +
+          s.pct +
+          '" min="0" max="100"><span>%</span></div></div><div class="pay-stage-amt"><span class="sub">Customer pays</span><b>' +
+          inr(amt) +
+          '</b></div></div></div>'
+        );
+      })
+      .join('') +
+    '</div>' +
+    '<div class="pay-total-bar' +
+    (totalOk ? ' ok' : ' warn') +
+    '"><span>Total</span><b>' +
+    totalPct +
+    '%</b>' +
+    (totalOk ? '' : ' <span class="sub">— adjust stages to reach 100%</span>') +
+    '</div>' +
+    linkAdd('add-stage', 'Add custom stage') +
+    '<p class="lbl" style="margin-top:20px">Policies (optional)</p>' +
+    '<p class="sub" style="margin:0 0 10px">Select a policy and enter values customers will see on your package.</p>' +
+    POLICY_DEFAULTS.concat(d.customPolicies || [])
+      .map(function (item) {
+        return renderPolicyCard(item, d);
+      })
+      .join('') +
+    linkAdd('add-policy', 'Add new policy')
+  );
+}
 const REQ_DEFAULTS = [
   'Customer provides SSD / Hard Disk',
   'Electricity / Power at venue',
@@ -627,6 +850,10 @@ function newPkgDraft() {
       { id: 'ps4', label: 'Final Payment', pct: 10 },
     ],
     policies: ['Cancellation Policy', 'Rescheduling Policy'],
+    policyValues: {
+      'Cancellation Policy': defaultPolicyValue('Cancellation Policy'),
+      'Rescheduling Policy': defaultPolicyValue('Rescheduling Policy'),
+    },
     customPolicies: [],
     requirements: ['Customer provides SSD / Hard Disk', 'Electricity / Power at venue'],
     customRequirements: [],
@@ -1152,49 +1379,7 @@ function renderPkgStep(step, d) {
       );
     }
     case 7:
-      return (
-        '<p class="lbl">Payment stages</p>' +
-        '<div id="f_payStages">' +
-        d.paymentStages
-          .map(function (s, i) {
-            return (
-              '<div class="pay-row" data-pay-idx="' +
-              i +
-              '"><input type="text" data-pay-label value="' +
-              esc(s.label) +
-              '"><input type="number" data-pay-pct value="' +
-              s.pct +
-              '" min="0" max="100"><span>%</span>' +
-              (d.paymentStages.length > 1
-                ? '<button type="button" class="pay-del" data-action="del-stage" data-idx="' +
-                  i +
-                  '">🗑</button>'
-                : '') +
-              '</div>'
-            );
-          })
-          .join('') +
-        '</div>' +
-        linkAdd('add-stage', 'Add Custom Stage') +
-        '<p class="lbl">Policies (optional)</p>' +
-        POLICY_DEFAULTS.concat(d.customPolicies || [])
-          .map(function (item) {
-            const on = d.policies.indexOf(item) >= 0;
-            return (
-              '<label class="chk-row' +
-              (on ? ' on' : '') +
-              '"><input type="checkbox" data-pol="' +
-              esc(item) +
-              '" ' +
-              (on ? 'checked' : '') +
-              '> ' +
-              esc(item) +
-              '</label>'
-            );
-          })
-          .join('') +
-        linkAdd('add-policy', 'Add New Policy')
-      );
+      return renderPayPoliciesStep(d);
     case 8:
       return (
         REQ_DEFAULTS.concat(d.customRequirements || [])
@@ -1335,12 +1520,20 @@ function readPkgWizardFields(d) {
     d.deliveryMap[sel.getAttribute('data-del-key')] = sel.value;
   });
   d.paymentStages = [];
-  document.querySelectorAll('.pay-row').forEach(function (row) {
+  document.querySelectorAll('.pay-stage-card').forEach(function (row) {
     d.paymentStages.push({
       id: uid('ps'),
       label: row.querySelector('[data-pay-label]').value.trim() || 'Stage',
       pct: +(row.querySelector('[data-pay-pct]').value || 0),
     });
+  });
+  if (!d.policyValues) d.policyValues = {};
+  document.querySelectorAll('[data-pol-val]').forEach(function (inp) {
+    const pol = inp.getAttribute('data-pol-key');
+    const field = inp.getAttribute('data-pol-field');
+    if (!pol || !field) return;
+    if (!d.policyValues[pol]) d.policyValues[pol] = defaultPolicyValue(pol);
+    d.policyValues[pol][field] = inp.type === 'number' ? +inp.value || 0 : inp.value;
   });
   syncPkgPrice(d);
   d.coverage = pkgCoverageSummary(d);
@@ -1508,6 +1701,9 @@ function bindPkgWizard(d) {
         const name = prompt('Policy name');
         if (name) {
           d.customPolicies.push(name.trim());
+          if (!d.policyValues) d.policyValues = {};
+          d.policyValues[name.trim()] = defaultPolicyValue(name.trim());
+          if (d.policies.indexOf(name.trim()) < 0) d.policies.push(name.trim());
           renderWizardBody();
         }
         return;
@@ -1637,9 +1833,20 @@ function bindPkgWizard(d) {
       const arr = attr === 'data-pol' ? 'policies' : 'requirements';
       if (t.checked) {
         if (d[arr].indexOf(val) < 0) d[arr].push(val);
+        if (attr === 'data-pol') {
+          if (!d.policyValues) d.policyValues = {};
+          if (!d.policyValues[val]) d.policyValues[val] = defaultPolicyValue(val);
+        }
       } else d[arr] = d[arr].filter(function (x) {
         return x !== val;
       });
+      if (attr === 'data-pol') renderWizardBody();
+    });
+    document.querySelectorAll('[data-pay-pct],[data-pay-label]').forEach(function (node) {
+      node.oninput = function () {
+        readPkgWizardFields(d);
+        if (wiz.step === 7) renderWizardBody();
+      };
     });
   };
   document.querySelectorAll('input[name="discYes"]').forEach(function (r) {
@@ -1751,6 +1958,11 @@ function recordToPkgDraft(rec) {
   merged.albumPrints = Object.assign({}, base.albumPrints, m.albumPrints || {});
   merged.extras = Object.assign({}, base.extras, m.extras || {});
   merged.deliveryMap = Object.assign({}, base.deliveryMap, m.deliveryMap || {});
+  ensurePolicyValues(merged);
+  if (!merged.policyValues) merged.policyValues = {};
+  (merged.policies || []).forEach(function (name) {
+    if (!merged.policyValues[name]) merged.policyValues[name] = defaultPolicyValue(name);
+  });
   return merged;
 }
 
@@ -1849,6 +2061,7 @@ function renderSvcStep(step, d) {
       );
     case 2:
       return (
+        '<div class="pricing-step">' +
         '<div class="fld"><label>Pricing type</label><div class="radio-col" id="f_priceTypes">' +
         SVC_PRICE_TYPES.map(function (t) {
           return (
@@ -1856,16 +2069,16 @@ function renderSvcStep(step, d) {
             t.id +
             '" ' +
             (d.pricingType === t.id ? 'checked' : '') +
-            '> ' +
+            '><span>' +
             esc(t.label) +
-            '</label>'
+            '</span></label>'
           );
         }).join('') +
         '</div></div>' +
         '<div class="fld"><label>Price (₹) *</label><input type="number" id="f_listPrice" value="' +
         d.listPrice +
         '"></div>' +
-        '<div class="fld"><label>Offer discount on this price?</label><div class="radio-row">' +
+        '<div class="fld"><label>Offer discount on this price?</label><div class="radio-disc">' +
         '<label><input type="radio" name="svcDiscYes" value="no" ' +
         (d.discountYes !== 'yes' ? 'checked' : '') +
         '> No</label>' +
@@ -1875,17 +2088,18 @@ function renderSvcStep(step, d) {
         '<div class="fld"><label>Discount %</label><input type="number" id="f_discountPct" value="' +
         d.discountPct +
         '" min="0" max="100"></div>' +
-        '<div class="preview-green"><span class="sub" style="display:block;margin-bottom:4px">Customer will see:</span><b style="font-size:20px">' +
+        '<div class="preview-green price-preview"><span class="sub" style="display:block;margin-bottom:4px">Customer will see:</span>' +
+        '<div class="amount-row"><b class="price-amt">' +
         inr(d.price) +
         '</b>' +
         (d.discountYes === 'yes' && d.discountPct > 0
-          ? ' <span class="was">' +
+          ? '<span class="was">' +
             inr(d.listPrice) +
-            '</span> <span class="off-pill">' +
+            '</span><span class="off-pill">' +
             d.discountPct +
             '% OFF</span>'
           : '') +
-        '</div>'
+        '</div></div></div>'
       );
     case 3:
       return (
@@ -2315,7 +2529,7 @@ function bindSvcWizard(d) {
   });
 }
 
-const PHOTO_OWNER_BUILD = '2026-10-06-photo-owner-service-v1';
+const PHOTO_OWNER_BUILD = '2026-10-06-photo-owner-policy-pay-v1';
 const STORAGE_KEY = 'GIXBEE_PHOTO_OWNER_V1';
 
 const INDIAN_STATES = {
@@ -3001,6 +3215,21 @@ function validateStep() {
     if (wiz.step === 1 && !d.functions.length) {
       toast('Select at least one function.');
       return false;
+    }
+    if (wiz.step === 7) {
+      const total = payStagesTotalPct(d);
+      if (total !== 100) {
+        toast('Payment stages must total 100% (currently ' + total + '%).');
+        return false;
+      }
+      if (d.policies.indexOf('Cancellation Policy') >= 0) {
+        ensurePolicyValues(d);
+        const c = d.policyValues['Cancellation Policy'] || {};
+        if (!c.refundPct && !String(c.notes || '').trim()) {
+          toast('Enter cancellation refund % or policy text for customers.');
+          return false;
+        }
+      }
     }
   } else {
     if (wiz.step === 0 && !d.category) {
