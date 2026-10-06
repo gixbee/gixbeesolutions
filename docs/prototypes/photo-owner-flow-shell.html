@@ -187,6 +187,7 @@ body{margin:0;background:#E8EDF5;font-family:Inter,system-ui,sans-serif;color:va
 .bar i{display:block;height:100%;background:var(--gn2);border-radius:99px;transition:width .2s}
 .frac{font-size:12px;color:#9CA3AF;font-weight:700}
 .manage-top{align-items:center}
+.manage-check-row{display:flex;align-items:flex-start;gap:10px;font-size:14px;font-weight:600;margin:8px 0 12px}
 </style>
 </head>
 <body>
@@ -207,30 +208,24 @@ body{margin:0;background:#E8EDF5;font-family:Inter,system-ui,sans-serif;color:va
   <div class="pad" style="padding-top:8px" id="lmbCards"></div>
 </section>
 
-<section class="scr" id="photoManage">
-  <div class="top manage-top">
-    <button type="button" class="back" id="backToLmb">←</button>
-    <h1>Manage photography</h1>
-    <span class="manage-pill">Manage &amp; grow</span>
+<section class="scr" id="photoDash">
+  <div class="top"><button type="button" class="back" id="backToLmb">←</button><h1>Dashboard</h1><span class="manage-pill">Manage</span></div>
+  <div class="dash-banner"><div class="dash-logo">📷</div></div>
+  <div class="dash-head">
+    <b id="dashBizName">Archana Photography</b>
+    <div class="loc"><span id="dashLocIco"></span> <span id="dashLocTxt">Sakthan Nagar, Thrissur</span></div>
   </div>
-  <div class="pad" style="padding-bottom:4px">
-    <p class="sub" style="margin:0" id="manageSubLine">Archana Photography · Photography · Sakthan Nagar, Thrissur</p>
+  <div class="area-card">
+    <b><span id="areaCardIco"></span> Service areas</b>
+    <p class="sum" id="areaSummary">Set where you accept bookings.</p>
+    <a href="#" id="manageAreasLink">Manage service areas →</a>
   </div>
-  <div class="pad" style="padding-top:4px">
-    <div class="manage-biz-card">
-      <div class="manage-biz-photo" aria-hidden="true"></div>
-      <p class="manage-field-lbl">Business name</p>
-      <p class="biz-ro-display" id="dashBizName">Archana Photography</p>
-      <p class="sub" style="margin:0;font-size:12px">From List My Business — shown on customer search.</p>
-    </div>
-    <p class="lbl">MANAGE</p>
-    <div class="menu manage-grid" id="photoManageMenu"><p class="sub">Loading…</p></div>
-  </div>
-  <div class="cta"><button type="button" class="btn btn-ghost" id="manageBackLmb">← Back to List My Business</button></div>
+  <p class="lbl" style="padding:0 16px;margin-bottom:8px">QUICK ACTIONS</p>
+  <div class="qgrid" id="quickGrid"></div>
 </section>
 
 <section class="scr" id="saStates">
-  <div class="top"><button type="button" class="back" data-to="photoManage">←</button><h1>Service Areas</h1><button type="button" class="link" id="saSkip">Skip</button></div>
+  <div class="top"><button type="button" class="back" data-to="photoDash">←</button><h1>Service Areas</h1><button type="button" class="link" id="saSkip">Skip</button></div>
   <div class="hero-ico" id="saHeroIco"></div>
   <div class="pad" style="text-align:center;margin-bottom:12px"><b style="color:var(--navy);font-size:16px">Where do you provide your services?</b><p class="sub" style="margin-top:6px">Select states where you accept bookings. You can add multiple states.</p></div>
   <div class="sa-search"><span id="saSearchIco"></span><input type="search" id="stateSearch" placeholder="Search states"></div>
@@ -257,12 +252,13 @@ body{margin:0;background:#E8EDF5;font-family:Inter,system-ui,sans-serif;color:va
 </section>
 
 <section class="scr" id="svcPkg">
-  <div class="top"><button type="button" class="back" data-to="photoManage">←</button><h1>Services &amp; Packages</h1><span style="width:36px"></span></div>
+  <div class="top"><button type="button" class="back" data-to="photoDash">←</button><h1>Services &amp; Packages</h1><span style="width:36px"></span></div>
   <div class="hub-tabs">
     <button type="button" class="hub-tab on" id="tabPackages">Packages</button>
     <button type="button" class="hub-tab blue" id="tabServices">Services</button>
   </div>
-  <p class="hub-intro" id="hubIntro">Create and manage your photography packages.</p>
+  <div class="hub-stat" id="hubStat" style="padding:0 16px 4px;font-size:12px;font-weight:800;color:var(--navy)"></div>
+  <p class="hub-intro" id="hubIntro">Packages — filter by Basic, Standard, Premium, Custom.</p>
   <div class="filter-row" id="pkgFilters"></div>
   <div class="cta" style="padding-top:0"><button type="button" class="btn btn-pink" id="addPackageBtn">+ Add Package</button></div>
   <div id="pkgList"></div>
@@ -282,23 +278,24 @@ body{margin:0;background:#E8EDF5;font-family:Inter,system-ui,sans-serif;color:va
   <div class="pad" id="wizBody"></div>
   <div class="wiz-foot">
     <button type="button" class="btn btn-ghost" id="wizPrev">Back</button>
+    <button type="button" class="btn btn-ghost" id="wizDraft" hidden>Save draft</button>
     <button type="button" class="btn btn-blue" id="wizNext">Next →</button>
   </div>
 </section>
 
 <section class="scr" id="calendar">
-  <div class="top"><button type="button" class="back" data-to="photoManage">←</button><h1>Calendar</h1><span style="width:36px"></span></div>
-  <div class="stub"><h2>Calendar</h2><p class="sub">View shoots and blocked dates. Full calendar sync comes in a later release.</p><button type="button" class="btn btn-blue" data-to="photoManage" style="max-width:200px;margin:16px auto">Back to dashboard</button></div>
+  <div class="top"><button type="button" class="back" data-to="photoDash">←</button><h1>Calendar</h1><span style="width:36px"></span></div>
+  <div class="stub"><h2>Calendar</h2><p class="sub">View shoots and blocked dates. Full calendar sync comes in a later release.</p><button type="button" class="btn btn-blue" data-to="photoDash" style="max-width:200px;margin:16px auto">Back to dashboard</button></div>
 </section>
 
 <section class="scr" id="gallery">
-  <div class="top"><button type="button" class="back" data-to="photoManage">←</button><h1>Photos &amp; Gallery</h1><span style="width:36px"></span></div>
-  <div class="stub"><h2>Gallery</h2><p class="sub">Upload portfolio photos for your business profile.</p><button type="button" class="btn btn-blue" data-to="photoManage" style="max-width:200px;margin:16px auto">Back to dashboard</button></div>
+  <div class="top"><button type="button" class="back" data-to="photoDash">←</button><h1>Photos &amp; Gallery</h1><span style="width:36px"></span></div>
+  <div class="stub"><h2>Gallery</h2><p class="sub">Upload portfolio photos for your business profile.</p><button type="button" class="btn btn-blue" data-to="photoDash" style="max-width:200px;margin:16px auto">Back to dashboard</button></div>
 </section>
 
 <section class="scr" id="requests">
-  <div class="top"><button type="button" class="back" data-to="photoManage">←</button><h1>Booking Requests</h1><span style="width:36px"></span></div>
-  <div class="stub"><h2>3 pending requests</h2><p class="sub">Accept or decline customer booking requests here.</p><button type="button" class="btn btn-blue" data-to="photoManage" style="max-width:200px;margin:16px auto">Back to dashboard</button></div>
+  <div class="top"><button type="button" class="back" data-to="photoDash">←</button><h1>Booking Requests</h1><span style="width:36px"></span></div>
+  <div class="stub"><h2>3 pending requests</h2><p class="sub">Accept or decline customer booking requests here.</p><button type="button" class="btn btn-blue" data-to="photoDash" style="max-width:200px;margin:16px auto">Back to dashboard</button></div>
 </section>
 
 <div class="toast" id="toast"></div>

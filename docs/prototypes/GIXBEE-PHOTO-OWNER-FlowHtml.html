@@ -209,30 +209,24 @@ body{margin:0;background:#E8EDF5;font-family:Inter,system-ui,sans-serif;color:va
   <div class="pad" style="padding-top:8px" id="lmbCards"></div>
 </section>
 
-<section class="scr" id="photoManage">
-  <div class="top manage-top">
-    <button type="button" class="back" id="backToLmb">←</button>
-    <h1>Manage photography</h1>
-    <span class="manage-pill">Manage &amp; grow</span>
+<section class="scr" id="photoDash">
+  <div class="top"><button type="button" class="back" id="backToLmb">←</button><h1>Dashboard</h1><span class="manage-pill">Manage</span></div>
+  <div class="dash-banner"><div class="dash-logo">📷</div></div>
+  <div class="dash-head">
+    <b id="dashBizName">Archana Photography</b>
+    <div class="loc"><span id="dashLocIco"></span> <span id="dashLocTxt">Sakthan Nagar, Thrissur</span></div>
   </div>
-  <div class="pad" style="padding-bottom:4px">
-    <p class="sub" style="margin:0" id="manageSubLine">Archana Photography · Photography · Sakthan Nagar, Thrissur</p>
+  <div class="area-card">
+    <b><span id="areaCardIco"></span> Service areas</b>
+    <p class="sum" id="areaSummary">Set where you accept bookings.</p>
+    <a href="#" id="manageAreasLink">Manage service areas →</a>
   </div>
-  <div class="pad" style="padding-top:4px">
-    <div class="manage-biz-card">
-      <div class="manage-biz-photo" aria-hidden="true"></div>
-      <p class="manage-field-lbl">Business name</p>
-      <p class="biz-ro-display" id="dashBizName">Archana Photography</p>
-      <p class="sub" style="margin:0;font-size:12px">From List My Business — shown on customer search.</p>
-    </div>
-    <p class="lbl">MANAGE</p>
-    <div class="menu manage-grid" id="photoManageMenu"><p class="sub">Loading…</p></div>
-  </div>
-  <div class="cta"><button type="button" class="btn btn-ghost" id="manageBackLmb">← Back to List My Business</button></div>
+  <p class="lbl" style="padding:0 16px;margin-bottom:8px">QUICK ACTIONS</p>
+  <div class="qgrid" id="quickGrid"></div>
 </section>
 
 <section class="scr" id="saStates">
-  <div class="top"><button type="button" class="back" data-to="photoManage">←</button><h1>Service Areas</h1><button type="button" class="link" id="saSkip">Skip</button></div>
+  <div class="top"><button type="button" class="back" data-to="photoDash">←</button><h1>Service Areas</h1><button type="button" class="link" id="saSkip">Skip</button></div>
   <div class="hero-ico" id="saHeroIco"></div>
   <div class="pad" style="text-align:center;margin-bottom:12px"><b style="color:var(--navy);font-size:16px">Where do you provide your services?</b><p class="sub" style="margin-top:6px">Select states where you accept bookings. You can add multiple states.</p></div>
   <div class="sa-search"><span id="saSearchIco"></span><input type="search" id="stateSearch" placeholder="Search states"></div>
@@ -259,12 +253,13 @@ body{margin:0;background:#E8EDF5;font-family:Inter,system-ui,sans-serif;color:va
 </section>
 
 <section class="scr" id="svcPkg">
-  <div class="top"><button type="button" class="back" data-to="photoManage">←</button><h1>Services &amp; Packages</h1><span style="width:36px"></span></div>
+  <div class="top"><button type="button" class="back" data-to="photoDash">←</button><h1>Services &amp; Packages</h1><span style="width:36px"></span></div>
   <div class="hub-tabs">
     <button type="button" class="hub-tab on" id="tabPackages">Packages</button>
     <button type="button" class="hub-tab blue" id="tabServices">Services</button>
   </div>
-  <p class="hub-intro" id="hubIntro">Create and manage your photography packages.</p>
+  <div class="hub-stat" id="hubStat" style="padding:0 16px 4px;font-size:12px;font-weight:800;color:var(--navy)"></div>
+  <p class="hub-intro" id="hubIntro">Packages — filter by Basic, Standard, Premium, Custom.</p>
   <div class="filter-row" id="pkgFilters"></div>
   <div class="cta" style="padding-top:0"><button type="button" class="btn btn-pink" id="addPackageBtn">+ Add Package</button></div>
   <div id="pkgList"></div>
@@ -284,23 +279,24 @@ body{margin:0;background:#E8EDF5;font-family:Inter,system-ui,sans-serif;color:va
   <div class="pad" id="wizBody"></div>
   <div class="wiz-foot">
     <button type="button" class="btn btn-ghost" id="wizPrev">Back</button>
+    <button type="button" class="btn btn-ghost" id="wizDraft" hidden>Save draft</button>
     <button type="button" class="btn btn-blue" id="wizNext">Next →</button>
   </div>
 </section>
 
 <section class="scr" id="calendar">
-  <div class="top"><button type="button" class="back" data-to="photoManage">←</button><h1>Calendar</h1><span style="width:36px"></span></div>
-  <div class="stub"><h2>Calendar</h2><p class="sub">View shoots and blocked dates. Full calendar sync comes in a later release.</p><button type="button" class="btn btn-blue" data-to="photoManage" style="max-width:200px;margin:16px auto">Back to dashboard</button></div>
+  <div class="top"><button type="button" class="back" data-to="photoDash">←</button><h1>Calendar</h1><span style="width:36px"></span></div>
+  <div class="stub"><h2>Calendar</h2><p class="sub">View shoots and blocked dates. Full calendar sync comes in a later release.</p><button type="button" class="btn btn-blue" data-to="photoDash" style="max-width:200px;margin:16px auto">Back to dashboard</button></div>
 </section>
 
 <section class="scr" id="gallery">
-  <div class="top"><button type="button" class="back" data-to="photoManage">←</button><h1>Photos &amp; Gallery</h1><span style="width:36px"></span></div>
-  <div class="stub"><h2>Gallery</h2><p class="sub">Upload portfolio photos for your business profile.</p><button type="button" class="btn btn-blue" data-to="photoManage" style="max-width:200px;margin:16px auto">Back to dashboard</button></div>
+  <div class="top"><button type="button" class="back" data-to="photoDash">←</button><h1>Photos &amp; Gallery</h1><span style="width:36px"></span></div>
+  <div class="stub"><h2>Gallery</h2><p class="sub">Upload portfolio photos for your business profile.</p><button type="button" class="btn btn-blue" data-to="photoDash" style="max-width:200px;margin:16px auto">Back to dashboard</button></div>
 </section>
 
 <section class="scr" id="requests">
-  <div class="top"><button type="button" class="back" data-to="photoManage">←</button><h1>Booking Requests</h1><span style="width:36px"></span></div>
-  <div class="stub"><h2>3 pending requests</h2><p class="sub">Accept or decline customer booking requests here.</p><button type="button" class="btn btn-blue" data-to="photoManage" style="max-width:200px;margin:16px auto">Back to dashboard</button></div>
+  <div class="top"><button type="button" class="back" data-to="photoDash">←</button><h1>Booking Requests</h1><span style="width:36px"></span></div>
+  <div class="stub"><h2>3 pending requests</h2><p class="sub">Accept or decline customer booking requests here.</p><button type="button" class="btn btn-blue" data-to="photoDash" style="max-width:200px;margin:16px auto">Back to dashboard</button></div>
 </section>
 
 <div class="toast" id="toast"></div>
@@ -326,7 +322,7 @@ function photoIcon(name) {
   return icons[name] || '';
 }
 
-const PHOTO_OWNER_BUILD = '2026-10-06-photo-owner-finalflow-v1';
+const PHOTO_OWNER_BUILD = '2026-10-06-photo-owner-finalflow-v2-spec';
 const STORAGE_KEY = 'GIXBEE_PHOTO_OWNER_V1';
 
 const INDIAN_STATES = {
@@ -336,47 +332,63 @@ const INDIAN_STATES = {
 };
 
 const PKG_LEVELS = ['Basic', 'Standard', 'Premium', 'Custom'];
-const PKG_FUNCTIONS = ['Wedding', 'Reception', 'Engagement', 'Birthday', 'Corporate', 'Religious'];
+const PKG_FUNCTIONS = [
+  'Wedding & Reception',
+  'Reception',
+  'Wedding Eve',
+  'Engagement',
+  'Baptism',
+  'First Communion',
+  'Birthday',
+  'Anniversary',
+  'Baby Shower',
+  'Naming Ceremony',
+  'Housewarming',
+  'Corporate Event',
+];
+const CEREMONY_TYPES = ['Christian', 'Hindu', 'Muslim', 'Sikh', 'Jain', 'Buddhist', 'Other'];
 const SVC_CATEGORIES = [
-  { id: 'wedding', label: 'Wedding' },
-  { id: 'candid', label: 'Candid' },
-  { id: 'portrait', label: 'Portrait' },
-  { id: 'product', label: 'Product' },
-  { id: 'event', label: 'Event' },
+  { id: 'event', label: 'Event Photography' },
+  { id: 'portrait', label: 'Portrait Photography' },
+  { id: 'baby', label: 'Baby & Kids' },
   { id: 'maternity', label: 'Maternity' },
+  { id: 'newborn', label: 'Newborn' },
+  { id: 'couple', label: 'Couple' },
+  { id: 'funeral', label: 'Funeral / Memorial' },
+  { id: 'product', label: 'Product' },
+  { id: 'corporate', label: 'Corporate' },
+  { id: 'fashion', label: 'Fashion & Portfolio' },
+  { id: 'realestate', label: 'Real Estate' },
+  { id: 'food', label: 'Food' },
+  { id: 'commercial', label: 'Commercial' },
+  { id: 'drone', label: 'Drone / Aerial' },
+  { id: 'reel', label: 'Reel & Short Video' },
+  { id: 'production', label: 'Photo & Video Production' },
 ];
 
 const PKG_STEPS = [
-  { title: 'Package basics', sub: 'Name and tier for filtering.' },
-  { title: 'Functions covered', sub: 'Which events this package includes.' },
-  { title: 'Ceremony details', sub: 'Traditional vs modern coverage (wedding only).' },
-  { title: 'Coverage team', sub: 'Photographers and hours on event day.' },
-  { title: 'Add-on extras', sub: 'Optional paid upgrades.' },
-  { title: 'Deliverables', sub: 'Photos, albums, and video outputs.' },
-  { title: 'Complimentary', sub: 'Included at no extra charge.' },
-  { title: 'Delivery timeline', sub: 'When the client receives files.' },
-  { title: 'Payment & policies', sub: 'Advance, balance, and cancellation.' },
-  { title: 'Client requirements', sub: 'What you need from the customer.' },
-  { title: 'Review & publish', sub: 'Confirm and go live on your profile.' },
+  { title: 'Package basics', sub: 'Level, name, price, short description, optional discount.' },
+  { title: 'Functions included', sub: 'Events covered by this package (reusable template).' },
+  { title: 'Ceremony type', sub: 'Wedding tradition — only for wedding-related functions.' },
+  { title: 'Function coverage', sub: 'Sides, team roles, duration, additional hour charge.' },
+  { title: 'Special services & extras', sub: 'Drone, live stream, extra crew — included or paid.' },
+  { title: 'Deliverables', sub: 'Photos, video, albums, digital delivery.' },
+  { title: 'Complimentary items', sub: 'Included at no extra charge.' },
+  { title: 'Delivery', sub: 'Turnaround per deliverable.' },
+  { title: 'Payment & policies', sub: 'Advance stages; customer pays you directly in V1.' },
+  { title: 'Customer requirements', sub: 'SSD, power, selection deadlines, permissions.' },
+  { title: 'Review & publish', sub: 'Save as draft or publish to your profile.' },
 ];
 
 const SVC_STEPS = [
-  { title: 'Service category', sub: 'Pick the type of photography.' },
-  { title: 'Service basics', sub: 'Title and short description.' },
-  { title: 'Pricing', sub: 'List price and optional discount preview.' },
-  { title: 'Duration & coverage', sub: 'Optional hours and locations.' },
-  { title: 'What is included', sub: 'Deliverables in this service.' },
-  { title: 'Extras', sub: 'Paid add-ons customers can choose.' },
-  { title: 'Delivery', sub: 'Turnaround for edited files.' },
-  { title: 'Policies & review', sub: 'Rules and publish.' },
-];
-
-const PHOTO_MANAGE_MENU = [
-  { id: 'svcPkg', title: 'Services & packages', sub: 'Wedding packages and add-on services', icon: '📦', theme: 'pkg' },
-  { id: 'saStates', title: 'Service areas', sub: 'States and districts you serve', icon: '📍', theme: 'area' },
-  { id: 'calendar', title: 'Calendar', sub: 'Shoot dates and blocked days', icon: '📅', theme: 'cal' },
-  { id: 'gallery', title: 'Photos & gallery', sub: 'Portfolio for your profile', icon: '📷', theme: 'photo' },
-  { id: 'requests', title: 'Booking requests', sub: 'Accept or decline bookings', icon: '💬', theme: 'req', dot: true },
+  { title: 'Select service category', sub: 'Visual grid — pick the photography type.' },
+  { title: 'Service basics', sub: 'Name, category, short description.' },
+  { title: 'Service pricing', sub: 'Fixed price or other V1 types; optional discount.' },
+  { title: 'Duration & coverage', sub: 'Optional hours and team.' },
+  { title: "What's included", sub: 'Deliverables included in this service.' },
+  { title: 'Optional extras', sub: 'Paid add-ons with price basis.' },
+  { title: 'Delivery', sub: 'Timeline per deliverable.' },
+  { title: 'Policies & review', sub: 'Policies, requirements, publish.' },
 ];
 
 function defaultStore() {
@@ -396,7 +408,7 @@ function defaultStore() {
         id: 'pkg-demo-1',
         name: 'Classic Wedding Package',
         level: 'Premium',
-        functions: ['Wedding', 'Reception'],
+        functions: ['Wedding & Reception', 'Reception'],
         price: 150000,
         listPrice: 150000,
         discountPct: 0,
@@ -421,7 +433,7 @@ function defaultStore() {
       {
         id: 'svc-demo-1',
         name: 'Candid Photography',
-        category: 'candid',
+        category: 'event',
         price: 25000,
         listPrice: 28000,
         discountPct: 10,
@@ -436,7 +448,12 @@ function defaultStore() {
 
 let store = defaultStore();
 let saDraft = null;
-let wiz = { mode: 'package', step: 0, draft: null, backTo: 'photoManage' };
+let wiz = { mode: 'package', step: 0, draft: null, backTo: 'svcPkg' };
+
+function needsCeremonyStep(functions) {
+  const f = functions || [];
+  return f.indexOf('Wedding & Reception') >= 0 || f.indexOf('Reception') >= 0 || f.indexOf('Engagement') >= 0;
+}
 
 function el(id) {
   return document.getElementById(id);
@@ -523,50 +540,41 @@ function renderLmb() {
     '<button type="button" class="mgr-photo" id="dashPhotoManage">Manage</button></div>' +
     '</div></div></div>';
   el('dashPhotoManage').onclick = () => {
-    renderPhotoManage();
-    show('photoManage');
+    renderPhotoDash();
+    show('photoDash');
   };
 }
 
-function renderPhotoManage() {
+function renderPhotoDash() {
   el('dashBizName').textContent = store.biz.name;
-  const sub = el('manageSubLine');
-  if (sub) {
-    sub.textContent = store.biz.name + ' · Photography · ' + store.biz.loc + ' · ' + areaSummaryText();
-  }
-  const menu = el('photoManageMenu');
-  if (!menu) return;
-  menu.innerHTML = PHOTO_MANAGE_MENU.map((m) => {
-    const badge = m.dot ? '<span class="manage-card-badge">3</span>' : '';
-    return (
-      '<button type="button" class="manage-card theme-' +
-      m.theme +
-      '" data-go="' +
-      m.id +
-      '">' +
-      badge +
-      '<div class="manage-card-top"><span class="manage-card-ico">' +
-      m.icon +
-      '</span><span class="manage-card-chev">›</span></div>' +
-      '<span class="manage-card-title">' +
-      esc(m.title) +
-      '</span>' +
-      '<span class="manage-card-sub">' +
-      esc(m.sub) +
-      '</span></button>'
-    );
-  }).join('');
-  menu.querySelectorAll('[data-go]').forEach((btn) => {
-    btn.onclick = () => {
-      const go = btn.getAttribute('data-go');
-      if (go === 'saStates') {
-        startSaDraft();
-        el('saHeroIco').innerHTML = photoIcon('pin');
-        el('saSearchIco').innerHTML = photoIcon('search');
-        renderStateList();
-      }
-      show(go);
-    };
+  el('dashLocTxt').textContent = store.biz.loc;
+  el('dashLocIco').innerHTML = photoIcon('pin');
+  el('areaCardIco').innerHTML = photoIcon('pin');
+  el('areaSummary').textContent = areaSummaryText();
+  const q = el('quickGrid');
+  q.innerHTML = [
+    { id: 'svcPkg', cls: 'pink', ico: '📦', label: 'Services & Packages' },
+    { id: 'calendar', cls: 'blue', ico: '📅', label: 'Calendar' },
+    { id: 'gallery', cls: 'blue', ico: '🖼', label: 'Photos & Gallery' },
+    { id: 'requests', cls: 'orange', ico: '🔔', label: 'Booking Requests', badge: '3' },
+  ]
+    .map(
+      (t) =>
+        '<button type="button" class="qtile ' +
+        t.cls +
+        '" data-go="' +
+        t.id +
+        '">' +
+        (t.badge ? '<span class="badge">' + t.badge + '</span>' : '') +
+        '<div class="qi">' +
+        t.ico +
+        '</div><b>' +
+        esc(t.label) +
+        '</b></button>'
+    )
+    .join('');
+  q.querySelectorAll('[data-go]').forEach((btn) => {
+    btn.onclick = () => show(btn.getAttribute('data-go'));
   });
 }
 
@@ -834,12 +842,22 @@ function applyHubTab() {
   el('tabPackages').classList.toggle('on', isPkg);
   el('tabServices').classList.toggle('on', !isPkg);
   el('hubIntro').textContent = isPkg
-    ? 'Create and manage your photography packages.'
-    : 'Manage individual photography services booked separately.';
+    ? 'Create packages for full events (wedding, reception, etc.). Filter cards by level.'
+    : 'Individual services customers book separately (funeral, product, portrait, etc.).';
+  const stat = el('hubStat');
+  if (stat) {
+    stat.textContent =
+      'Packages (' + store.packages.length + ') · Services (' + store.services.length + ')';
+  }
   el('pkgFilters').style.display = isPkg ? '' : 'none';
   el('addPackageBtn').closest('.cta').style.display = isPkg ? '' : 'none';
   el('pkgList').style.display = isPkg ? '' : 'none';
-  el('svcSecToggle').parentElement.style.borderColor = isPkg ? '#BFDBFE' : '#2563EB';
+  const sec = el('svcSecToggle').closest('.svc-sec');
+  if (sec) sec.style.display = isPkg ? '' : 'block';
+  if (!isPkg) {
+    el('pkgList').style.display = 'none';
+    el('addServiceBtn').closest('.cta').style.display = '';
+  }
 }
 
 function renderSvcPkg() {
@@ -853,19 +871,21 @@ function newPkgDraft() {
   return {
     name: '',
     level: 'Standard',
+    desc: '',
     functions: [],
-    ceremony: 'Traditional + candid',
-    coverage: '2 photographers, 8 hours',
-    extras: 'Drone highlight clip',
-    deliverables: '400 edited photos, 12 min film',
-    complimentary: 'Pre-wedding mini session',
-    delivery: 'Album in 45 days, online gallery in 21 days',
+    ceremonyType: 'Hindu',
+    coverage: 'Both sides · Candid photographer ×2 · Up to 8 hours · Extra hour ₹5,000',
+    extras: 'Drone — Extra · Live streaming — Extra',
+    deliverables: '400 edited photos · Highlight 12 min · Premium album 30 leaves',
+    complimentary: 'Save-the-date · 2 frames',
+    delivery: 'Edited photos 5 days · Album 45 days after selection',
     advancePct: 30,
-    cancellation: '50% refund if cancelled 30+ days before',
-    requirements: 'Venue access, meal for team',
-    listPrice: 80000,
+    cancellation: '50% refund if cancelled 30+ days before event',
+    requirements: 'Customer SSD · Venue power · Photo selection within 14 days',
+    listPrice: 150000,
+    discountYes: 'no',
     discountPct: 0,
-    price: 80000,
+    price: 150000,
     status: 'draft',
   };
 }
@@ -874,21 +894,25 @@ function newSvcDraft() {
     category: '',
     name: '',
     blurb: '',
+    pricingType: 'fixed',
     listPrice: 25000,
+    discountYes: 'no',
     discountPct: 0,
     price: 25000,
-    duration: '4 hours',
-    coverage: 'Single venue',
-    included: '100 edited photos',
-    extras: 'Extra hour ₹5,000',
-    delivery: '7 days online gallery',
-    policies: '50% advance to confirm',
+    duration: 'Up to 4 hours',
+    coverage: '1 candid photographer',
+    included: '100 edited photos · Online gallery',
+    extras: 'Extra hour ₹5,000 · Drone ₹8,000',
+    delivery: 'Edited photos 5 days · Reel 3 days',
+    policies: 'Cancellation · Data retention 1 year',
+    requirements: 'Customer provides venue access',
     status: 'draft',
   };
 }
 function syncPkgPrice(d) {
   const base = Math.max(0, +d.listPrice || 0);
-  const pct = Math.min(100, Math.max(0, +d.discountPct || 0));
+  const pct =
+    d.discountYes === 'yes' ? Math.min(100, Math.max(0, +d.discountPct || 0)) : 0;
   d.price = pct > 0 ? Math.round(base * (1 - pct / 100)) : base;
 }
 function syncSvcPrice(d) {
@@ -941,10 +965,8 @@ function renderWizardBody() {
 function renderPkgStep(step, d) {
   switch (step) {
     case 0:
+      syncPkgPrice(d);
       return (
-        '<div class="fld"><label>Package name</label><input id="f_name" value="' +
-        esc(d.name) +
-        '" placeholder="e.g. Classic Wedding"></div>' +
         '<div class="fld"><label>Package level</label><div class="levels" id="f_levels">' +
         PKG_LEVELS.map(
           (l) =>
@@ -956,63 +978,81 @@ function renderPkgStep(step, d) {
             l +
             '</button>'
         ).join('') +
-        '</div></div>'
+        '</div></div>' +
+        '<div class="fld"><label>Package name *</label><input id="f_name" value="' +
+        esc(d.name) +
+        '" placeholder="Classic Wedding Premium"></div>' +
+        '<div class="fld"><label>Package price (₹) *</label><input type="number" id="f_listPrice" value="' +
+        d.listPrice +
+        '"></div>' +
+        '<div class="fld"><label>Short description</label><textarea id="f_desc">' +
+        esc(d.desc) +
+        '</textarea></div>' +
+        '<div class="fld"><label>Offer discount?</label><select id="f_discYes"><option value="no"' +
+        (d.discountYes !== 'yes' ? ' selected' : '') +
+        '>No</option><option value="yes"' +
+        (d.discountYes === 'yes' ? ' selected' : '') +
+        '>Yes, give discount</option></select></div>' +
+        '<div class="fld"><label>Discount %</label><input type="number" id="f_discountPct" value="' +
+        d.discountPct +
+        '" min="0" max="100"></div>' +
+        '<div class="preview-green">Customer preview: <b>' +
+        inr(d.price) +
+        '</b>' +
+        (d.discountPct > 0 && d.discountYes === 'yes'
+          ? ' <span class="was">' + inr(d.listPrice) + '</span> <span class="off-pill">' + d.discountPct + '% OFF</span>'
+          : '') +
+        '</div><p class="sub" style="margin-top:8px">No GST line in discount preview (V1).</p>'
       );
     case 1:
       return (
-        '<div class="fld"><label>Select functions</label><div id="f_funcs">' +
+        '<p class="sub">Select functions this package covers. No booking date or venue here.</p><div id="f_funcs">' +
         PKG_FUNCTIONS.map(
           (f) =>
-            '<label style="display:flex;gap:8px;margin:8px 0;font-weight:700"><input type="checkbox" data-fn="' +
+            '<label class="chk-row' +
+            (d.functions.indexOf(f) >= 0 ? ' on' : '') +
+            '" style="display:flex;margin-bottom:8px"><input type="checkbox" data-fn="' +
             f +
             '" ' +
             (d.functions.indexOf(f) >= 0 ? 'checked' : '') +
-            '> ' +
+            ' style="margin-right:8px"> ' +
             f +
             '</label>'
         ).join('') +
-        '</div></div>'
+        '</div>'
       );
     case 2:
-      if (d.functions.indexOf('Wedding') < 0) {
-        return '<p class="sub">No wedding selected — skip ceremony details or go back to add Wedding.</p>';
+      if (!needsCeremonyStep(d.functions)) {
+        return '<p class="sub">Ceremony type is not required for the functions you selected. Tap Next to continue.</p>';
       }
       return (
-        '<div class="fld"><label>Ceremony coverage</label><select id="f_ceremony"><option' +
-        (d.ceremony.indexOf('Traditional') >= 0 ? ' selected' : '') +
-        '>Traditional + candid</option><option>Modern cinematic</option><option>Temple + reception only</option></select></div>'
+        '<div class="fld"><label>Ceremony / wedding tradition</label><div class="levels" id="f_ceremonyBtns">' +
+        CEREMONY_TYPES.map(
+          (c) =>
+            '<button type="button" class="' +
+            (d.ceremonyType === c ? 'on' : '') +
+            '" data-cer="' +
+            c +
+            '">' +
+            c +
+            '</button>'
+        ).join('') +
+        '</div></div>'
       );
     case 3:
-      return '<div class="fld"><label>Coverage summary</label><textarea id="f_coverage">' + esc(d.coverage) + '</textarea></div>';
+      return '<div class="fld"><label>Function coverage</label><textarea id="f_coverage">' + esc(d.coverage) + '</textarea></div>';
     case 4:
-      return '<div class="fld"><label>Add-on extras</label><textarea id="f_extras">' + esc(d.extras) + '</textarea></div>';
+      return '<div class="fld"><label>Special services &amp; extras</label><textarea id="f_extras">' + esc(d.extras) + '</textarea></div>';
     case 5:
       return '<div class="fld"><label>Deliverables</label><textarea id="f_deliverables">' + esc(d.deliverables) + '</textarea></div>';
     case 6:
       return '<div class="fld"><label>Complimentary items</label><textarea id="f_complimentary">' + esc(d.complimentary) + '</textarea></div>';
     case 7:
-      return '<div class="fld"><label>Delivery timeline</label><textarea id="f_delivery">' + esc(d.delivery) + '</textarea></div>';
+      return '<div class="fld"><label>Delivery</label><textarea id="f_delivery">' + esc(d.delivery) + '</textarea></div>';
     case 8:
       return (
-        '<div class="fld"><label>List price (₹)</label><input type="number" id="f_listPrice" value="' +
-        d.listPrice +
-        '"></div>' +
-        '<div class="fld"><label>Discount % (preview)</label><input type="number" id="f_discountPct" value="' +
-        d.discountPct +
-        '" min="0" max="100"></div>' +
-        '<div class="disc-box">Customer pays you directly. GST line omitted in preview per V1 spec.</div>' +
-        '<div class="preview-green">Customer sees: <b>' +
-        inr(d.price) +
-        '</b>' +
-        (d.discountPct > 0
-          ? ' <span class="was">' +
-            inr(d.listPrice) +
-            '</span> <span class="off-pill">' +
-            d.discountPct +
-            '% off</span>'
-          : '') +
-        '</div>' +
-        '<div class="fld" style="margin-top:12px"><label>Advance %</label><input type="number" id="f_advancePct" value="' +
+        '<p class="sub">Customer pays you directly — Gixbee V1 does not collect advance.</p>' +
+        '<div class="fld"><label>Booking advance %</label><input type="number" id="f_advancePct" value="' +
         d.advancePct +
         '"></div>' +
         '<div class="fld"><label>Cancellation policy</label><textarea id="f_cancellation">' +
@@ -1020,25 +1060,24 @@ function renderPkgStep(step, d) {
         '</textarea></div>'
       );
     case 9:
-      return '<div class="fld"><label>Client requirements</label><textarea id="f_requirements">' + esc(d.requirements) + '</textarea></div>';
+      return '<div class="fld"><label>Customer requirements</label><textarea id="f_requirements">' + esc(d.requirements) + '</textarea></div>';
     case 10:
       syncPkgPrice(d);
       return (
         '<div class="review-card"><b>' +
         esc(d.name || 'Untitled package') +
-        '</b><div class="sub" style="margin-top:8px"><span class="pkg-level ' +
+        '</b><span class="pkg-level ' +
         levelClass(d.level) +
         '">' +
         esc(d.level) +
-        '</span></div>' +
+        '</span>' +
         '<p class="sub" style="margin-top:10px"><b>Functions:</b> ' +
-        esc((d.functions || []).join(', ') || 'None') +
+        esc((d.functions || []).join(', ') || '—') +
         '</p><p class="sub"><b>Price:</b> ' +
         inr(d.price) +
-        '</p><p class="sub"><b>Deliverables:</b> ' +
-        esc(d.deliverables) +
-        '</p></div>' +
-        '<p class="sub">Publishing makes this package visible to customers and adds it to package filters.</p>'
+        '</p><p class="sub"><b>Coverage:</b> ' +
+        esc(d.coverage) +
+        '</p></div><p class="sub">Publish adds this package card to Services &amp; Packages with level filter.</p>'
       );
     default:
       return '';
@@ -1049,6 +1088,9 @@ function renderSvcStep(step, d) {
   switch (step) {
     case 0:
       return (
+        '<div class="sa-search" style="margin:0 0 12px"><span>' +
+        photoIcon('search') +
+        '</span><input type="search" id="catSearch" placeholder="Search categories"></div>' +
         '<div class="cat-grid" id="f_cats">' +
         SVC_CATEGORIES.map(
           (c) =>
@@ -1056,6 +1098,8 @@ function renderSvcStep(step, d) {
             (d.category === c.id ? ' on' : '') +
             '" data-cat="' +
             c.id +
+            '" data-lbl="' +
+            esc(c.label) +
             '"><span class="tick">✓</span><div class="ph"></div>' +
             c.label +
             '</button>'
@@ -1064,41 +1108,44 @@ function renderSvcStep(step, d) {
       );
     case 1:
       return (
-        '<div class="fld"><label>Service name</label><input id="f_svcName" value="' +
+        '<div class="fld"><label>Service name *</label><input id="f_svcName" value="' +
         esc(d.name) +
-        '" placeholder="e.g. Candid Photography"></div>' +
-        '<div class="fld"><label>Short description</label><textarea id="f_blurb">' +
+        '"></div>' +
+        '<div class="fld"><label>Category</label><input readonly value="' +
+        esc(SVC_CATEGORIES.find((c) => c.id === d.category)?.label || '—') +
+        '"></div>' +
+        '<div class="fld"><label>Short description *</label><textarea id="f_blurb">' +
         esc(d.blurb) +
         '</textarea></div>'
       );
     case 2:
       syncSvcPrice(d);
       return (
-        '<div class="fld"><label>List price (₹)</label><input type="number" id="f_listPrice" value="' +
+        '<div class="fld"><label>Pricing type</label><select id="f_priceType"><option value="fixed">Fixed price</option><option value="from">Starting from</option><option value="hour">Per hour</option></select></div>' +
+        '<div class="fld"><label>Price (₹)</label><input type="number" id="f_listPrice" value="' +
         d.listPrice +
         '"></div>' +
-        '<div class="fld"><label>Discount %</label><input type="number" id="f_discountPct" value="' +
+        '<div class="fld"><label>Discount % (optional)</label><input type="number" id="f_discountPct" value="' +
         d.discountPct +
-        '" min="0" max="100"></div>' +
-        '<div class="preview-green">Preview: <b>' +
+        '"></div>' +
+        '<div class="preview-green"><b>' +
         inr(d.price) +
-        '</b>' +
-        (d.discountPct > 0 ? ' <span class="was">' + inr(d.listPrice) + '</span>' : '') +
-        '</div>'
+        '</b> — includes deliverables listed in this service.</div>'
       );
     case 3:
       return (
-        '<div class="fld"><label>Duration (optional)</label><input id="f_duration" value="' +
+        '<label class="manage-check-row"><input type="checkbox" id="f_durOn" checked> Enable duration &amp; coverage</label>' +
+        '<div class="fld"><label>Duration</label><input id="f_duration" value="' +
         esc(d.duration) +
         '"></div>' +
-        '<div class="fld"><label>Coverage (optional)</label><input id="f_cov" value="' +
+        '<div class="fld"><label>Coverage / team</label><input id="f_cov" value="' +
         esc(d.coverage) +
         '"></div>'
       );
     case 4:
-      return '<div class="fld"><label>Included</label><textarea id="f_included">' + esc(d.included) + '</textarea></div>';
+      return '<div class="fld"><label>What\'s included</label><textarea id="f_included">' + esc(d.included) + '</textarea></div>';
     case 5:
-      return '<div class="fld"><label>Extras</label><textarea id="f_extras">' + esc(d.extras) + '</textarea></div>';
+      return '<div class="fld"><label>Optional extras</label><textarea id="f_extras">' + esc(d.extras) + '</textarea></div>';
     case 6:
       return '<div class="fld"><label>Delivery</label><textarea id="f_delivery">' + esc(d.delivery) + '</textarea></div>';
     case 7:
@@ -1107,12 +1154,15 @@ function renderSvcStep(step, d) {
         '<div class="fld"><label>Policies</label><textarea id="f_policies">' +
         esc(d.policies) +
         '</textarea></div>' +
+        '<div class="fld"><label>Customer requirements</label><textarea id="f_requirements">' +
+        esc(d.requirements) +
+        '</textarea></div>' +
         '<div class="review-card"><b>' +
         esc(d.name || 'Untitled service') +
-        '</b><p class="sub" style="margin-top:8px">' +
+        '</b><p class="sub">' +
         inr(d.price) +
         ' · ' +
-        esc(SVC_CATEGORIES.find((c) => c.id === d.category)?.label || 'Category') +
+        esc(SVC_CATEGORIES.find((c) => c.id === d.category)?.label || '') +
         '</p></div>'
       );
     default:
@@ -1125,6 +1175,8 @@ function readWizardFields() {
   const g = (id) => el(id);
   if (wiz.mode === 'package') {
     if (g('f_name')) d.name = g('f_name').value.trim();
+    if (g('f_desc')) d.desc = g('f_desc').value.trim();
+    if (g('f_discYes')) d.discountYes = g('f_discYes').value;
     if (g('f_coverage')) d.coverage = g('f_coverage').value.trim();
     if (g('f_extras')) d.extras = g('f_extras').value.trim();
     if (g('f_deliverables')) d.deliverables = g('f_deliverables').value.trim();
@@ -1135,11 +1187,11 @@ function readWizardFields() {
     if (g('f_advancePct')) d.advancePct = +g('f_advancePct').value || 0;
     if (g('f_cancellation')) d.cancellation = g('f_cancellation').value.trim();
     if (g('f_requirements')) d.requirements = g('f_requirements').value.trim();
-    if (g('f_ceremony')) d.ceremony = g('f_ceremony').value;
     syncPkgPrice(d);
   } else {
     if (g('f_svcName')) d.name = g('f_svcName').value.trim();
     if (g('f_blurb')) d.blurb = g('f_blurb').value.trim();
+    if (g('f_priceType')) d.pricingType = g('f_priceType').value;
     if (g('f_listPrice')) d.listPrice = +g('f_listPrice').value || 0;
     if (g('f_discountPct')) d.discountPct = +g('f_discountPct').value || 0;
     if (g('f_duration')) d.duration = g('f_duration').value.trim();
@@ -1148,6 +1200,7 @@ function readWizardFields() {
     if (g('f_extras')) d.extras = g('f_extras').value.trim();
     if (g('f_delivery')) d.delivery = g('f_delivery').value.trim();
     if (g('f_policies')) d.policies = g('f_policies').value.trim();
+    if (g('f_requirements')) d.requirements = g('f_requirements').value.trim();
     syncSvcPrice(d);
   }
 }
@@ -1174,7 +1227,23 @@ function bindWizardFields() {
       renderWizardBody();
     };
   });
-  ['f_listPrice', 'f_discountPct'].forEach((id) => {
+  document.querySelectorAll('#f_ceremonyBtns button').forEach((b) => {
+    b.onclick = () => {
+      d.ceremonyType = b.getAttribute('data-cer');
+      renderWizardBody();
+    };
+  });
+  const catSearch = el('catSearch');
+  if (catSearch) {
+    catSearch.oninput = () => {
+      const q = catSearch.value.trim().toLowerCase();
+      document.querySelectorAll('#f_cats .cat-card').forEach((card) => {
+        const lbl = (card.getAttribute('data-lbl') || card.textContent || '').toLowerCase();
+        card.style.display = !q || lbl.includes(q) ? '' : 'none';
+      });
+    };
+  }
+  ['f_listPrice', 'f_discountPct', 'f_discYes'].forEach((id) => {
     const node = el(id);
     if (node) node.oninput = () => {
       readWizardFields();
@@ -1187,8 +1256,8 @@ function validateStep() {
   readWizardFields();
   const d = wiz.draft;
   if (wiz.mode === 'package') {
-    if (wiz.step === 0 && !d.name) {
-      toast('Enter a package name.');
+    if (wiz.step === 0 && (!d.name || !d.listPrice)) {
+      toast('Enter package name and price.');
       return false;
     }
     if (wiz.step === 1 && !d.functions.length) {
@@ -1247,8 +1316,10 @@ function renderWizard() {
   if (bar) bar.style.width = pct + '%';
   const last = wiz.step >= wizTotal() - 1;
   el('wizPrev').style.visibility = wiz.step === 0 ? 'hidden' : 'visible';
-  el('wizNext').textContent = last ? (wiz.mode === 'package' ? 'Publish →' : 'Publish →') : 'Next →';
+  el('wizNext').textContent = last ? 'Publish →' : 'Next →';
   el('wizNext').className = last ? 'btn btn-green' : 'btn btn-blue';
+  const draftBtn = el('wizDraft');
+  if (draftBtn) draftBtn.hidden = !last;
 }
 
 function wizNext() {
@@ -1258,6 +1329,9 @@ function wizNext() {
     return;
   }
   wiz.step += 1;
+  if (wiz.mode === 'package' && wiz.step === 2 && !needsCeremonyStep(wiz.draft.functions)) {
+    wiz.step = 3;
+  }
   renderWizard();
 }
 
@@ -1268,6 +1342,9 @@ function wizPrev() {
   }
   readWizardFields();
   wiz.step -= 1;
+  if (wiz.mode === 'package' && wiz.step === 2 && !needsCeremonyStep(wiz.draft.functions)) {
+    wiz.step = 1;
+  }
   renderWizard();
 }
 
@@ -1283,9 +1360,15 @@ function bindGlobal() {
   el('lmbHomeBtn').onclick = () => show('lmbDashboard');
   const backLmb = el('backToLmb');
   if (backLmb) backLmb.onclick = () => show('lmbDashboard');
-  const manageBackLmb = el('manageBackLmb');
-  if (manageBackLmb) manageBackLmb.onclick = () => show('lmbDashboard');
-  el('saSkip').onclick = () => show('photoManage');
+  el('manageAreasLink').onclick = (e) => {
+    e.preventDefault();
+    startSaDraft();
+    el('saHeroIco').innerHTML = photoIcon('pin');
+    el('saSearchIco').innerHTML = photoIcon('search');
+    renderStateList();
+    show('saStates');
+  };
+  el('saSkip').onclick = () => show('photoDash');
   el('saStatesContinue').onclick = () => {
     if (!saDraft.states.length) {
       toast('Select at least one state.');
@@ -1307,8 +1390,8 @@ function bindGlobal() {
     store.serviceAreas = JSON.parse(JSON.stringify(saDraft));
     ensureRegisteredDistrict();
     saveStore();
-    renderPhotoManage();
-    show('photoManage');
+    renderPhotoDash();
+    show('photoDash');
     toast('Service areas saved');
   };
   el('tabPackages').onclick = () => {
@@ -1326,22 +1409,25 @@ function bindGlobal() {
   el('wizBack').onclick = () => wizPrev();
   el('wizPrev').onclick = () => wizPrev();
   el('wizNext').onclick = () => wizNext();
+  const wizDraft = el('wizDraft');
+  if (wizDraft) wizDraft.onclick = () => finishWizard(false);
 }
 
 function boot() {
   try {
-    if (!el('photoManageMenu')) {
-      throw new Error('Missing #photoManageMenu — open GIXBEE-PHOTO-OWNER-FINALFLOW.html (full file).');
+    if (!el('quickGrid')) {
+      throw new Error('Missing dashboard — open GIXBEE-PHOTO-OWNER-FINALFLOW.html (full file).');
     }
     loadStore();
     ensureRegisteredDistrict();
     saveStore();
     const tag = el('buildTag');
     if (tag) {
-      tag.textContent = 'Working demo ' + PHOTO_OWNER_BUILD + ' — tap Archana Photography → Manage';
+      tag.textContent =
+        'Working demo ' + PHOTO_OWNER_BUILD + ' — List My Business → Archana Photography → Manage';
     }
     renderLmb();
-    renderPhotoManage();
+    renderPhotoDash();
     renderSvcPkg();
     bindGlobal();
     const err = el('bootError');
