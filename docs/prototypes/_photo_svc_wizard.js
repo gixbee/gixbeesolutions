@@ -189,6 +189,7 @@ function renderSvcStep(step, d) {
       );
     case 2:
       return (
+        '<div class="pricing-step">' +
         '<div class="fld"><label>Pricing type</label><div class="radio-col" id="f_priceTypes">' +
         SVC_PRICE_TYPES.map(function (t) {
           return (
@@ -196,16 +197,16 @@ function renderSvcStep(step, d) {
             t.id +
             '" ' +
             (d.pricingType === t.id ? 'checked' : '') +
-            '> ' +
+            '><span>' +
             esc(t.label) +
-            '</label>'
+            '</span></label>'
           );
         }).join('') +
         '</div></div>' +
         '<div class="fld"><label>Price (₹) *</label><input type="number" id="f_listPrice" value="' +
         d.listPrice +
         '"></div>' +
-        '<div class="fld"><label>Offer discount on this price?</label><div class="radio-row">' +
+        '<div class="fld"><label>Offer discount on this price?</label><div class="radio-disc">' +
         '<label><input type="radio" name="svcDiscYes" value="no" ' +
         (d.discountYes !== 'yes' ? 'checked' : '') +
         '> No</label>' +
@@ -215,17 +216,18 @@ function renderSvcStep(step, d) {
         '<div class="fld"><label>Discount %</label><input type="number" id="f_discountPct" value="' +
         d.discountPct +
         '" min="0" max="100"></div>' +
-        '<div class="preview-green"><span class="sub" style="display:block;margin-bottom:4px">Customer will see:</span><b style="font-size:20px">' +
+        '<div class="preview-green price-preview"><span class="sub" style="display:block;margin-bottom:4px">Customer will see:</span>' +
+        '<div class="amount-row"><b class="price-amt">' +
         inr(d.price) +
         '</b>' +
         (d.discountYes === 'yes' && d.discountPct > 0
-          ? ' <span class="was">' +
+          ? '<span class="was">' +
             inr(d.listPrice) +
-            '</span> <span class="off-pill">' +
+            '</span><span class="off-pill">' +
             d.discountPct +
             '% OFF</span>'
           : '') +
-        '</div>'
+        '</div></div></div>'
       );
     case 3:
       return (
