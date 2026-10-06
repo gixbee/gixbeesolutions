@@ -6,19 +6,20 @@ DIR = Path(__file__).resolve().parent
 SHELL = DIR / "photo-owner-flow-shell.html"
 ICONS = DIR / "_photo_owner_icons.js"
 APP = DIR / "_photo_owner_app.js"
-MASTER = DIR / "GIXBEE-PHOTO-OWNER-WORKING.html"
+MASTER = DIR / "GIXBEE-PHOTO-OWNER-FINALFLOW.html"
 
 ALIASES = [
     "DOWNLOAD-gixbee-photo-owner.html",
     "OPEN-gixbee-photo-owner-demo.html",
+    "GIXBEE-PHOTO-OWNER-WORKING.html",
     "GIXBEE-PHOTO-OWNER-FlowHtml.html",
 ]
 
 SHELL_PLACEHOLDER = """<!-- APP_START -->
 <div id="shellOnlyNotice" style="margin:16px;padding:20px;border:2px solid #DC2626;border-radius:12px;background:#FEE2E2;font:15px sans-serif">
   <p style="margin:0 0 8px;font-weight:800;color:#991B1B">This is not the working demo file.</p>
-  <p style="margin:0 0 12px;line-height:1.5">Download and open the single-file demo (all JavaScript is inside that file):</p>
-  <p style="margin:0"><a href="DOWNLOAD-gixbee-photo-owner.html" style="font-weight:800;color:#1D4ED8">DOWNLOAD-gixbee-photo-owner.html</a></p>
+  <p style="margin:0 0 12px;line-height:1.5">Open the single-file flow HTML (JavaScript is inside that file only):</p>
+  <p style="margin:0"><a href="GIXBEE-PHOTO-OWNER-FINALFLOW.html" style="font-weight:800;color:#1D4ED8">GIXBEE-PHOTO-OWNER-FINALFLOW.html</a></p>
 </div>
 <!-- APP_END -->"""
 
@@ -37,8 +38,9 @@ def build_master() -> str:
     if "PHOTO_OWNER_BUILD" not in out or "function boot(" not in out:
         raise SystemExit("missing photo owner app")
     banner = (
-        "<!-- GIXBEE PHOTO OWNER — single self-contained file (CSS + HTML + JS). "
-        "Download DOWNLOAD-gixbee-photo-owner.html; do NOT open photo-owner-flow-shell.html. -->\n"
+        "<!-- GIXBEE PHOTO OWNER — single self-contained flow HTML (FINALFLOW). "
+        "Save as GIXBEE-PHOTO-OWNER-FINALFLOW.html and open in browser. "
+        "Do NOT open photo-owner-flow-shell.html. -->\n"
     )
     out = out.replace("<!DOCTYPE html>", "<!DOCTYPE html>\n" + banner, 1)
     return out

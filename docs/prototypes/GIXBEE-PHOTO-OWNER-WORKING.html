@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- GIXBEE PHOTO OWNER — single self-contained file (CSS + HTML + JS). Download DOWNLOAD-gixbee-photo-owner.html; do NOT open photo-owner-flow-shell.html. -->
+<!-- GIXBEE PHOTO OWNER — single self-contained flow HTML (FINALFLOW). Save as GIXBEE-PHOTO-OWNER-FINALFLOW.html and open in browser. Do NOT open photo-owner-flow-shell.html. -->
 
 <html lang="en">
 <head>
@@ -141,40 +141,98 @@ body{margin:0;background:#E8EDF5;font-family:Inter,system-ui,sans-serif;color:va
 .stub{padding:24px 16px;text-align:center}
 .stub h2{margin:0 0 8px;color:var(--navy)}
 .toast{position:absolute;left:16px;right:16px;bottom:80px;background:#111;color:#fff;padding:12px;border-radius:12px;display:none;z-index:9;font-size:13px}
-#buildTag{font-size:10px;color:var(--mut);padding:6px 16px;text-align:center}
+.hint{font-size:11px;color:var(--mut);line-height:1.4}
+.lbl{font-size:11px;font-weight:800;color:#9CA3AF;letter-spacing:.6px;margin:16px 0 8px}
+.lmb-top{background:#F8FAFC;border-bottom:1px solid var(--line);padding:10px 16px 12px}
+.lmb-top .row{display:flex;align-items:center;gap:8px;flex-wrap:nowrap}
+.biz-title{font-weight:900;font-size:16px;color:var(--navy);flex:1;min-width:0}
+.manage-pill{font-size:11px;font-weight:800;color:var(--mut);border:1px solid var(--line);padding:6px 10px;border-radius:99px;background:#fff;flex-shrink:0}
+.home-pill{display:inline-flex;align-items:center;gap:6px;padding:6px 12px;border-radius:99px;background:var(--soft);color:var(--gn2);font-size:11px;font-weight:800;border:0;cursor:pointer}
+.biz-dash-card{border:1px solid var(--line);border-radius:16px;padding:14px;margin-bottom:14px;background:#fff;box-shadow:0 2px 8px rgba(15,23,42,.04)}
+.biz-dash-card .biz-row{display:flex;gap:12px;align-items:flex-start}
+.biz-dash-card .biz-ico{width:44px;height:44px;border-radius:12px;background:#DBEAFE;display:grid;place-items:center;font-size:22px;flex:none}
+.biz-dash-card .biz-name{font-weight:900;font-size:15px;margin:0 0 2px;color:var(--navy)}
+.biz-dash-card .biz-type{font-size:12px;color:var(--mut);font-weight:600;margin:0}
+.biz-dash-card .biz-meta{font-size:12px;color:var(--mut);margin:8px 0}
+.biz-dash-card .biz-badges{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0 12px}
+.biz-dash-card .biz-badges span{font-size:10px;font-weight:800;padding:4px 8px;border-radius:99px;background:#FEE2E2;color:#B91C1C}
+.biz-dash-card .biz-badges span.gy{background:#F3F4F6;color:#374151}
+.biz-dash-card .biz-actions{display:flex;gap:8px}
+.biz-dash-card .biz-actions button{flex:1;border:1px solid var(--line);background:#fff;border-radius:99px;padding:9px 6px;font-size:11px;font-weight:800;color:var(--navy);cursor:pointer}
+.biz-dash-card .biz-actions button.mgr-photo{border:0;background:var(--blue);color:#fff}
+.pill.ok{background:#DCFCE7;color:#166534;font-size:10px;font-weight:800;padding:4px 8px;border-radius:99px}
+.menu.manage-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.manage-card{position:relative;text-align:left;border:1px solid var(--line);border-radius:16px;padding:14px 12px;cursor:pointer;min-height:132px;display:flex;flex-direction:column;background:#fff;width:100%;font:inherit;color:inherit}
+.manage-card-top{display:flex;justify-content:space-between;align-items:flex-start;width:100%;margin-bottom:10px}
+.manage-card-ico{width:42px;height:42px;border-radius:12px;display:grid;place-items:center;font-size:20px;flex-shrink:0}
+.manage-card-chev{color:#9CA3AF;font-size:20px;line-height:1;font-weight:300}
+.manage-card-badge{position:absolute;top:12px;right:36px;min-width:20px;height:20px;padding:0 6px;border-radius:99px;background:#EF4444;color:#fff;font-size:11px;font-weight:800;display:grid;place-items:center}
+.manage-card-title{display:block;font-size:14px;font-weight:800;color:var(--navy);margin:0 0 6px;line-height:1.25}
+.manage-card-sub{font-size:11px;color:var(--mut);line-height:1.45;margin:0;font-weight:600}
+.manage-card.theme-pkg{background:#FDF2F8;border-color:#FBCFE8}
+.manage-card.theme-pkg .manage-card-ico{background:#FCE7F3;color:#BE185D}
+.manage-card.theme-cal{background:#ECFDF3;border-color:#A7F3D0}
+.manage-card.theme-cal .manage-card-ico{background:#DCFCE7;color:#15803D}
+.manage-card.theme-req{background:#FFFBEB;border-color:#FDE68A}
+.manage-card.theme-req .manage-card-ico{background:#FEF3C7;color:#B45309}
+.manage-card.theme-photo{background:#EFF6FF;border-color:#BFDBFE}
+.manage-card.theme-photo .manage-card-ico{background:#DBEAFE;color:#2563EB}
+.manage-card.theme-area{background:#F0FDFA;border-color:#99F6E4}
+.manage-card.theme-area .manage-card-ico{background:#CCFBF1;color:#0F766E}
+.manage-biz-card{background:#EFF6FF;border:1px solid #BFDBFE;border-radius:16px;padding:14px;margin-bottom:14px}
+.manage-biz-photo{height:118px;border-radius:12px;margin-bottom:12px;background:linear-gradient(145deg,#64748B 0%,#94A3B8 40%,#CBD5E1 100%)}
+.manage-field-lbl{font-size:13px;font-weight:800;color:var(--navy);margin:0 0 6px}
+.biz-ro-display{font-size:17px;font-weight:900;color:var(--navy);margin:0 0 8px;line-height:1.3}
+.chip-h{padding:6px 12px;border-radius:99px;background:var(--soft);color:var(--gn2);font-size:11px;font-weight:800}
+.prog{display:flex;align-items:center;gap:8px;padding:4px 16px 12px}
+.bar{flex:1;height:6px;background:#E5E7EB;border-radius:99px;overflow:hidden}
+.bar i{display:block;height:100%;background:var(--gn2);border-radius:99px;transition:width .2s}
+.frac{font-size:12px;color:#9CA3AF;font-weight:700}
+.manage-top{align-items:center}
 </style>
 </head>
 <body>
+<noscript><div style="padding:24px;font:16px sans-serif;color:#b91c1c"><b>JavaScript is off.</b> Turn it on and reopen this file.</div></noscript>
+<div id="bootError" hidden style="position:fixed;inset:0;z-index:99999;background:#fff;padding:24px;font:15px sans-serif;overflow:auto"></div>
 <div class="stage"><div class="phone">
 <div class="notch"><span>9:41</span><span>●●●</span></div>
 
-<section class="scr on" id="lmb">
-  <div class="lmb-hd">
-    <button type="button" class="home-pill" id="lmbHomeBtn">Home</button>
-    <h1>List My Business</h1>
-    <button type="button" class="lmb-grow">Manage &amp; grow</button>
+<section class="scr on" id="lmbDashboard">
+  <div class="lmb-top">
+    <div class="row">
+      <button type="button" class="home-pill" id="lmbHomeBtn">🏠 Home</button>
+      <div class="biz-title">List My Business</div>
+      <span class="manage-pill">Manage &amp; grow</span>
+    </div>
+    <p class="hint" id="buildTag" style="margin:8px 0 0">Single-file demo — all JavaScript is inside this .html</p>
   </div>
-  <p class="lmb-tag" id="buildTag">Photography owner prototype</p>
-  <div id="lmbCards"></div>
+  <div class="pad" style="padding-top:8px" id="lmbCards"></div>
 </section>
 
-<section class="scr" id="photoDash">
-  <div class="dash-banner"><div class="dash-logo">📷</div></div>
-  <div class="dash-head">
-    <b id="dashBizName">Archana Photography</b>
-    <div class="loc"><span id="dashLocIco"></span> <span id="dashLocTxt">Sakthan Nagar, Thrissur</span></div>
+<section class="scr" id="photoManage">
+  <div class="top manage-top">
+    <button type="button" class="back" id="backToLmb">←</button>
+    <h1>Manage photography</h1>
+    <span class="manage-pill">Manage &amp; grow</span>
   </div>
-  <div class="area-card">
-    <b><span id="areaCardIco"></span> Service Areas</b>
-    <p class="sum" id="areaSummary">Set where you accept bookings.</p>
-    <a href="#" id="manageAreasLink">Manage Service Areas →</a>
+  <div class="pad" style="padding-bottom:4px">
+    <p class="sub" style="margin:0" id="manageSubLine">Archana Photography · Photography · Sakthan Nagar, Thrissur</p>
   </div>
-  <div class="qgrid" id="quickGrid"></div>
-  <nav class="bottom-nav" id="dashNav"></nav>
+  <div class="pad" style="padding-top:4px">
+    <div class="manage-biz-card">
+      <div class="manage-biz-photo" aria-hidden="true"></div>
+      <p class="manage-field-lbl">Business name</p>
+      <p class="biz-ro-display" id="dashBizName">Archana Photography</p>
+      <p class="sub" style="margin:0;font-size:12px">From List My Business — shown on customer search.</p>
+    </div>
+    <p class="lbl">MANAGE</p>
+    <div class="menu manage-grid" id="photoManageMenu"><p class="sub">Loading…</p></div>
+  </div>
+  <div class="cta"><button type="button" class="btn btn-ghost" id="manageBackLmb">← Back to List My Business</button></div>
 </section>
 
 <section class="scr" id="saStates">
-  <div class="top"><button type="button" class="back" data-to="photoDash">←</button><h1>Service Areas</h1><button type="button" class="link" id="saSkip">Skip</button></div>
+  <div class="top"><button type="button" class="back" data-to="photoManage">←</button><h1>Service Areas</h1><button type="button" class="link" id="saSkip">Skip</button></div>
   <div class="hero-ico" id="saHeroIco"></div>
   <div class="pad" style="text-align:center;margin-bottom:12px"><b style="color:var(--navy);font-size:16px">Where do you provide your services?</b><p class="sub" style="margin-top:6px">Select states where you accept bookings. You can add multiple states.</p></div>
   <div class="sa-search"><span id="saSearchIco"></span><input type="search" id="stateSearch" placeholder="Search states"></div>
@@ -201,7 +259,7 @@ body{margin:0;background:#E8EDF5;font-family:Inter,system-ui,sans-serif;color:va
 </section>
 
 <section class="scr" id="svcPkg">
-  <div class="top"><button type="button" class="back" data-to="photoDash">←</button><h1>Services &amp; Packages</h1><span style="width:36px"></span></div>
+  <div class="top"><button type="button" class="back" data-to="photoManage">←</button><h1>Services &amp; Packages</h1><span style="width:36px"></span></div>
   <div class="hub-tabs">
     <button type="button" class="hub-tab on" id="tabPackages">Packages</button>
     <button type="button" class="hub-tab blue" id="tabServices">Services</button>
@@ -219,7 +277,8 @@ body{margin:0;background:#E8EDF5;font-family:Inter,system-ui,sans-serif;color:va
 </section>
 
 <section class="scr" id="wizard">
-  <div class="top"><button type="button" class="back" id="wizBack">←</button><h1 id="wizTitle">Add Package</h1><span style="width:36px"></span></div>
+  <div class="top"><button type="button" class="back" id="wizBack">←</button><h1 id="wizTitle">Add Package</h1><span class="chip-h" id="wizStepChip">1/11</span></div>
+  <div class="prog"><div class="bar"><i id="wizProgBar" style="width:9%"></i></div><span class="frac" id="wizFrac">1/11</span></div>
   <div class="stepper" id="stepper"></div>
   <div class="wiz-hd"><h2 id="wizStepTitle">Step</h2><p class="sub" id="wizStepSub"></p></div>
   <div class="pad" id="wizBody"></div>
@@ -230,18 +289,18 @@ body{margin:0;background:#E8EDF5;font-family:Inter,system-ui,sans-serif;color:va
 </section>
 
 <section class="scr" id="calendar">
-  <div class="top"><button type="button" class="back" data-to="photoDash">←</button><h1>Calendar</h1><span style="width:36px"></span></div>
-  <div class="stub"><h2>Calendar</h2><p class="sub">View shoots and blocked dates. Full calendar sync comes in a later release.</p><button type="button" class="btn btn-blue" data-to="photoDash" style="max-width:200px;margin:16px auto">Back to dashboard</button></div>
+  <div class="top"><button type="button" class="back" data-to="photoManage">←</button><h1>Calendar</h1><span style="width:36px"></span></div>
+  <div class="stub"><h2>Calendar</h2><p class="sub">View shoots and blocked dates. Full calendar sync comes in a later release.</p><button type="button" class="btn btn-blue" data-to="photoManage" style="max-width:200px;margin:16px auto">Back to dashboard</button></div>
 </section>
 
 <section class="scr" id="gallery">
-  <div class="top"><button type="button" class="back" data-to="photoDash">←</button><h1>Photos &amp; Gallery</h1><span style="width:36px"></span></div>
-  <div class="stub"><h2>Gallery</h2><p class="sub">Upload portfolio photos for your business profile.</p><button type="button" class="btn btn-blue" data-to="photoDash" style="max-width:200px;margin:16px auto">Back to dashboard</button></div>
+  <div class="top"><button type="button" class="back" data-to="photoManage">←</button><h1>Photos &amp; Gallery</h1><span style="width:36px"></span></div>
+  <div class="stub"><h2>Gallery</h2><p class="sub">Upload portfolio photos for your business profile.</p><button type="button" class="btn btn-blue" data-to="photoManage" style="max-width:200px;margin:16px auto">Back to dashboard</button></div>
 </section>
 
 <section class="scr" id="requests">
-  <div class="top"><button type="button" class="back" data-to="photoDash">←</button><h1>Booking Requests</h1><span style="width:36px"></span></div>
-  <div class="stub"><h2>3 pending requests</h2><p class="sub">Accept or decline customer booking requests here.</p><button type="button" class="btn btn-blue" data-to="photoDash" style="max-width:200px;margin:16px auto">Back to dashboard</button></div>
+  <div class="top"><button type="button" class="back" data-to="photoManage">←</button><h1>Booking Requests</h1><span style="width:36px"></span></div>
+  <div class="stub"><h2>3 pending requests</h2><p class="sub">Accept or decline customer booking requests here.</p><button type="button" class="btn btn-blue" data-to="photoManage" style="max-width:200px;margin:16px auto">Back to dashboard</button></div>
 </section>
 
 <div class="toast" id="toast"></div>
@@ -267,7 +326,7 @@ function photoIcon(name) {
   return icons[name] || '';
 }
 
-const PHOTO_OWNER_BUILD = '2026-10-06-photo-owner-v1-working';
+const PHOTO_OWNER_BUILD = '2026-10-06-photo-owner-finalflow-v1';
 const STORAGE_KEY = 'GIXBEE_PHOTO_OWNER_V1';
 
 const INDIAN_STATES = {
@@ -310,6 +369,14 @@ const SVC_STEPS = [
   { title: 'Extras', sub: 'Paid add-ons customers can choose.' },
   { title: 'Delivery', sub: 'Turnaround for edited files.' },
   { title: 'Policies & review', sub: 'Rules and publish.' },
+];
+
+const PHOTO_MANAGE_MENU = [
+  { id: 'svcPkg', title: 'Services & packages', sub: 'Wedding packages and add-on services', icon: '📦', theme: 'pkg' },
+  { id: 'saStates', title: 'Service areas', sub: 'States and districts you serve', icon: '📍', theme: 'area' },
+  { id: 'calendar', title: 'Calendar', sub: 'Shoot dates and blocked days', icon: '📅', theme: 'cal' },
+  { id: 'gallery', title: 'Photos & gallery', sub: 'Portfolio for your profile', icon: '📷', theme: 'photo' },
+  { id: 'requests', title: 'Booking requests', sub: 'Accept or decline bookings', icon: '💬', theme: 'req', dot: true },
 ];
 
 function defaultStore() {
@@ -369,10 +436,22 @@ function defaultStore() {
 
 let store = defaultStore();
 let saDraft = null;
-let wiz = { mode: 'package', step: 0, draft: null, backTo: 'svcPkg' };
+let wiz = { mode: 'package', step: 0, draft: null, backTo: 'photoManage' };
 
 function el(id) {
   return document.getElementById(id);
+}
+function showBootError(msg) {
+  const box = el('bootError');
+  if (!box) {
+    alert(msg);
+    return;
+  }
+  box.hidden = false;
+  box.innerHTML =
+    '<p style="color:#991B1B;font-weight:800;font-size:18px">Demo did not start</p><p style="line-height:1.5;color:#374151">' +
+    esc(msg) +
+    '</p><p style="margin-top:16px">Open <b>GIXBEE-PHOTO-OWNER-FINALFLOW.html</b> (full file with JavaScript inside).</p>';
 }
 function show(id) {
   document.querySelectorAll('.scr').forEach((s) => s.classList.toggle('on', s.id === id));
@@ -431,74 +510,63 @@ function renderLmb() {
   const wrap = el('lmbCards');
   if (!wrap) return;
   wrap.innerHTML =
-    '<button type="button" class="biz-card" id="openPhotoDash">' +
-    '<div class="row"><div class="biz-ico">📷</div><div style="flex:1;min-width:0">' +
-    '<b>' +
+    '<div class="biz-dash-card">' +
+    '<div class="biz-row"><div class="biz-ico">📷</div><div style="flex:1">' +
+    '<p class="biz-name">' +
     esc(store.biz.name) +
-    '</b><div class="type">Photography</div>' +
-    '<div class="biz-meta"><span class="pill pill-ver">Verified</span><span class="pill pill-rev">Live</span></div>' +
-    '<div class="biz-actions"><button type="button">View</button><button type="button" class="primary photo" id="managePhotoBtn">Manage</button></div>' +
-    '</div></div></button>';
-  el('openPhotoDash').onclick = () => show('photoDash');
-  el('managePhotoBtn').onclick = (e) => {
-    e.stopPropagation();
-    show('photoDash');
+    '</p><p class="biz-type">Photography</p>' +
+    '<p class="biz-meta"><span class="pill ok">Verified</span> · ' +
+    esc(store.biz.loc) +
+    '</p>' +
+    '<div class="biz-badges"><span>3 new requests</span><span class="gy">Rs 2.1L this month</span></div>' +
+    '<div class="biz-actions"><button type="button">Calendar</button><button type="button">Requests</button>' +
+    '<button type="button" class="mgr-photo" id="dashPhotoManage">Manage</button></div>' +
+    '</div></div></div>';
+  el('dashPhotoManage').onclick = () => {
+    renderPhotoManage();
+    show('photoManage');
   };
 }
 
-function renderDash() {
+function renderPhotoManage() {
   el('dashBizName').textContent = store.biz.name;
-  el('dashLocTxt').textContent = store.biz.loc;
-  el('dashLocIco').innerHTML = photoIcon('pin');
-  el('areaCardIco').innerHTML = photoIcon('pin');
-  el('areaSummary').textContent = areaSummaryText();
-  const q = el('quickGrid');
-  q.innerHTML = [
-    { id: 'svcPkg', cls: 'pink', ico: '📦', label: 'Services & Packages' },
-    { id: 'calendar', cls: 'blue', ico: '📅', label: 'Calendar' },
-    { id: 'gallery', cls: 'blue', ico: '🖼', label: 'Photos & Gallery' },
-    { id: 'requests', cls: 'orange', ico: '🔔', label: 'Booking Requests', badge: '3' },
-  ]
-    .map(
-      (t) =>
-        '<button type="button" class="qtile ' +
-        t.cls +
-        '" data-go="' +
-        t.id +
-        '">' +
-        (t.badge ? '<span class="badge">' + t.badge + '</span>' : '') +
-        '<div class="qi">' +
-        t.ico +
-        '</div><b>' +
-        esc(t.label) +
-        '</b></button>'
-    )
-    .join('');
-  q.querySelectorAll('[data-go]').forEach((btn) => {
-    btn.onclick = () => show(btn.getAttribute('data-go'));
-  });
-  const nav = el('dashNav');
-  nav.innerHTML = [
-    { id: 'lmb', label: 'Home', ico: 'home' },
-    { id: 'photoDash', label: 'Dashboard', ico: 'cam', on: true },
-    { id: 'svcPkg', label: 'Packages', ico: 'pkg' },
-    { id: 'gallery', label: 'Gallery', ico: 'cam' },
-  ]
-    .map(
-      (n) =>
-        '<button type="button" data-go="' +
-        n.id +
-        '" class="' +
-        (n.on ? 'on' : '') +
-        '">' +
-        photoIcon(n.ico) +
-        '<div>' +
-        n.label +
-        '</div></button>'
-    )
-    .join('');
-  nav.querySelectorAll('[data-go]').forEach((btn) => {
-    btn.onclick = () => show(btn.getAttribute('data-go'));
+  const sub = el('manageSubLine');
+  if (sub) {
+    sub.textContent = store.biz.name + ' · Photography · ' + store.biz.loc + ' · ' + areaSummaryText();
+  }
+  const menu = el('photoManageMenu');
+  if (!menu) return;
+  menu.innerHTML = PHOTO_MANAGE_MENU.map((m) => {
+    const badge = m.dot ? '<span class="manage-card-badge">3</span>' : '';
+    return (
+      '<button type="button" class="manage-card theme-' +
+      m.theme +
+      '" data-go="' +
+      m.id +
+      '">' +
+      badge +
+      '<div class="manage-card-top"><span class="manage-card-ico">' +
+      m.icon +
+      '</span><span class="manage-card-chev">›</span></div>' +
+      '<span class="manage-card-title">' +
+      esc(m.title) +
+      '</span>' +
+      '<span class="manage-card-sub">' +
+      esc(m.sub) +
+      '</span></button>'
+    );
+  }).join('');
+  menu.querySelectorAll('[data-go]').forEach((btn) => {
+    btn.onclick = () => {
+      const go = btn.getAttribute('data-go');
+      if (go === 'saStates') {
+        startSaDraft();
+        el('saHeroIco').innerHTML = photoIcon('pin');
+        el('saSearchIco').innerHTML = photoIcon('search');
+        renderStateList();
+      }
+      show(go);
+    };
   });
 }
 
@@ -1168,6 +1236,15 @@ function finishWizard(publish) {
 function renderWizard() {
   renderStepper();
   renderWizardBody();
+  const total = wizTotal();
+  const stepNum = wiz.step + 1;
+  const pct = Math.round((stepNum / total) * 100);
+  const chip = el('wizStepChip');
+  const frac = el('wizFrac');
+  const bar = el('wizProgBar');
+  if (chip) chip.textContent = stepNum + '/' + total;
+  if (frac) frac.textContent = stepNum + '/' + total;
+  if (bar) bar.style.width = pct + '%';
   const last = wiz.step >= wizTotal() - 1;
   el('wizPrev').style.visibility = wiz.step === 0 ? 'hidden' : 'visible';
   el('wizNext').textContent = last ? (wiz.mode === 'package' ? 'Publish →' : 'Publish →') : 'Next →';
@@ -1203,16 +1280,12 @@ function bindGlobal() {
     const to = btn.getAttribute('data-to');
     if (to) btn.onclick = () => show(to);
   });
-  el('lmbHomeBtn').onclick = () => show('lmb');
-  el('manageAreasLink').onclick = (e) => {
-    e.preventDefault();
-    startSaDraft();
-    show('saStates');
-    el('saHeroIco').innerHTML = photoIcon('pin');
-    el('saSearchIco').innerHTML = photoIcon('search');
-    renderStateList();
-  };
-  el('saSkip').onclick = () => show('photoDash');
+  el('lmbHomeBtn').onclick = () => show('lmbDashboard');
+  const backLmb = el('backToLmb');
+  if (backLmb) backLmb.onclick = () => show('lmbDashboard');
+  const manageBackLmb = el('manageBackLmb');
+  if (manageBackLmb) manageBackLmb.onclick = () => show('lmbDashboard');
+  el('saSkip').onclick = () => show('photoManage');
   el('saStatesContinue').onclick = () => {
     if (!saDraft.states.length) {
       toast('Select at least one state.');
@@ -1234,8 +1307,8 @@ function bindGlobal() {
     store.serviceAreas = JSON.parse(JSON.stringify(saDraft));
     ensureRegisteredDistrict();
     saveStore();
-    renderDash();
-    show('photoDash');
+    renderPhotoManage();
+    show('photoManage');
     toast('Service areas saved');
   };
   el('tabPackages').onclick = () => {
@@ -1256,16 +1329,28 @@ function bindGlobal() {
 }
 
 function boot() {
-  loadStore();
-  ensureRegisteredDistrict();
-  saveStore();
-  const tag = el('buildTag');
-  if (tag) tag.textContent = 'Build ' + PHOTO_OWNER_BUILD;
-  renderLmb();
-  renderDash();
-  renderSvcPkg();
-  bindGlobal();
-  show('lmb');
+  try {
+    if (!el('photoManageMenu')) {
+      throw new Error('Missing #photoManageMenu — open GIXBEE-PHOTO-OWNER-FINALFLOW.html (full file).');
+    }
+    loadStore();
+    ensureRegisteredDistrict();
+    saveStore();
+    const tag = el('buildTag');
+    if (tag) {
+      tag.textContent = 'Working demo ' + PHOTO_OWNER_BUILD + ' — tap Archana Photography → Manage';
+    }
+    renderLmb();
+    renderPhotoManage();
+    renderSvcPkg();
+    bindGlobal();
+    const err = el('bootError');
+    if (err) err.hidden = true;
+    show('lmbDashboard');
+  } catch (err) {
+    console.error(err);
+    showBootError(err.message || String(err));
+  }
 }
 
 if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);

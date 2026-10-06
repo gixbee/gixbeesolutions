@@ -1,4 +1,4 @@
-const PHOTO_OWNER_BUILD = '2026-10-06-photo-owner-v1-working';
+const PHOTO_OWNER_BUILD = '2026-10-06-photo-owner-finalflow-v1';
 const STORAGE_KEY = 'GIXBEE_PHOTO_OWNER_V1';
 
 const INDIAN_STATES = {
@@ -41,6 +41,14 @@ const SVC_STEPS = [
   { title: 'Extras', sub: 'Paid add-ons customers can choose.' },
   { title: 'Delivery', sub: 'Turnaround for edited files.' },
   { title: 'Policies & review', sub: 'Rules and publish.' },
+];
+
+const PHOTO_MANAGE_MENU = [
+  { id: 'svcPkg', title: 'Services & packages', sub: 'Wedding packages and add-on services', icon: '📦', theme: 'pkg' },
+  { id: 'saStates', title: 'Service areas', sub: 'States and districts you serve', icon: '📍', theme: 'area' },
+  { id: 'calendar', title: 'Calendar', sub: 'Shoot dates and blocked days', icon: '📅', theme: 'cal' },
+  { id: 'gallery', title: 'Photos & gallery', sub: 'Portfolio for your profile', icon: '📷', theme: 'photo' },
+  { id: 'requests', title: 'Booking requests', sub: 'Accept or decline bookings', icon: '💬', theme: 'req', dot: true },
 ];
 
 function defaultStore() {
@@ -100,10 +108,22 @@ function defaultStore() {
 
 let store = defaultStore();
 let saDraft = null;
-let wiz = { mode: 'package', step: 0, draft: null, backTo: 'svcPkg' };
+let wiz = { mode: 'package', step: 0, draft: null, backTo: 'photoManage' };
 
 function el(id) {
   return document.getElementById(id);
+}
+function showBootError(msg) {
+  const box = el('bootError');
+  if (!box) {
+    alert(msg);
+    return;
+  }
+  box.hidden = false;
+  box.innerHTML =
+    '<p style="color:#991B1B;font-weight:800;font-size:18px">Demo did not start</p><p style="line-height:1.5;color:#374151">' +
+    esc(msg) +
+    '</p><p style="margin-top:16px">Open <b>GIXBEE-PHOTO-OWNER-FINALFLOW.html</b> (full file with JavaScript inside).</p>';
 }
 function show(id) {
   document.querySelectorAll('.scr').forEach((s) => s.classList.toggle('on', s.id === id));
@@ -162,74 +182,63 @@ function renderLmb() {
   const wrap = el('lmbCards');
   if (!wrap) return;
   wrap.innerHTML =
-    '<button type="button" class="biz-card" id="openPhotoDash">' +
-    '<div class="row"><div class="biz-ico">📷</div><div style="flex:1;min-width:0">' +
-    '<b>' +
+    '<div class="biz-dash-card">' +
+    '<div class="biz-row"><div class="biz-ico">📷</div><div style="flex:1">' +
+    '<p class="biz-name">' +
     esc(store.biz.name) +
-    '</b><div class="type">Photography</div>' +
-    '<div class="biz-meta"><span class="pill pill-ver">Verified</span><span class="pill pill-rev">Live</span></div>' +
-    '<div class="biz-actions"><button type="button">View</button><button type="button" class="primary photo" id="managePhotoBtn">Manage</button></div>' +
-    '</div></div></button>';
-  el('openPhotoDash').onclick = () => show('photoDash');
-  el('managePhotoBtn').onclick = (e) => {
-    e.stopPropagation();
-    show('photoDash');
+    '</p><p class="biz-type">Photography</p>' +
+    '<p class="biz-meta"><span class="pill ok">Verified</span> · ' +
+    esc(store.biz.loc) +
+    '</p>' +
+    '<div class="biz-badges"><span>3 new requests</span><span class="gy">Rs 2.1L this month</span></div>' +
+    '<div class="biz-actions"><button type="button">Calendar</button><button type="button">Requests</button>' +
+    '<button type="button" class="mgr-photo" id="dashPhotoManage">Manage</button></div>' +
+    '</div></div></div>';
+  el('dashPhotoManage').onclick = () => {
+    renderPhotoManage();
+    show('photoManage');
   };
 }
 
-function renderDash() {
+function renderPhotoManage() {
   el('dashBizName').textContent = store.biz.name;
-  el('dashLocTxt').textContent = store.biz.loc;
-  el('dashLocIco').innerHTML = photoIcon('pin');
-  el('areaCardIco').innerHTML = photoIcon('pin');
-  el('areaSummary').textContent = areaSummaryText();
-  const q = el('quickGrid');
-  q.innerHTML = [
-    { id: 'svcPkg', cls: 'pink', ico: '📦', label: 'Services & Packages' },
-    { id: 'calendar', cls: 'blue', ico: '📅', label: 'Calendar' },
-    { id: 'gallery', cls: 'blue', ico: '🖼', label: 'Photos & Gallery' },
-    { id: 'requests', cls: 'orange', ico: '🔔', label: 'Booking Requests', badge: '3' },
-  ]
-    .map(
-      (t) =>
-        '<button type="button" class="qtile ' +
-        t.cls +
-        '" data-go="' +
-        t.id +
-        '">' +
-        (t.badge ? '<span class="badge">' + t.badge + '</span>' : '') +
-        '<div class="qi">' +
-        t.ico +
-        '</div><b>' +
-        esc(t.label) +
-        '</b></button>'
-    )
-    .join('');
-  q.querySelectorAll('[data-go]').forEach((btn) => {
-    btn.onclick = () => show(btn.getAttribute('data-go'));
-  });
-  const nav = el('dashNav');
-  nav.innerHTML = [
-    { id: 'lmb', label: 'Home', ico: 'home' },
-    { id: 'photoDash', label: 'Dashboard', ico: 'cam', on: true },
-    { id: 'svcPkg', label: 'Packages', ico: 'pkg' },
-    { id: 'gallery', label: 'Gallery', ico: 'cam' },
-  ]
-    .map(
-      (n) =>
-        '<button type="button" data-go="' +
-        n.id +
-        '" class="' +
-        (n.on ? 'on' : '') +
-        '">' +
-        photoIcon(n.ico) +
-        '<div>' +
-        n.label +
-        '</div></button>'
-    )
-    .join('');
-  nav.querySelectorAll('[data-go]').forEach((btn) => {
-    btn.onclick = () => show(btn.getAttribute('data-go'));
+  const sub = el('manageSubLine');
+  if (sub) {
+    sub.textContent = store.biz.name + ' · Photography · ' + store.biz.loc + ' · ' + areaSummaryText();
+  }
+  const menu = el('photoManageMenu');
+  if (!menu) return;
+  menu.innerHTML = PHOTO_MANAGE_MENU.map((m) => {
+    const badge = m.dot ? '<span class="manage-card-badge">3</span>' : '';
+    return (
+      '<button type="button" class="manage-card theme-' +
+      m.theme +
+      '" data-go="' +
+      m.id +
+      '">' +
+      badge +
+      '<div class="manage-card-top"><span class="manage-card-ico">' +
+      m.icon +
+      '</span><span class="manage-card-chev">›</span></div>' +
+      '<span class="manage-card-title">' +
+      esc(m.title) +
+      '</span>' +
+      '<span class="manage-card-sub">' +
+      esc(m.sub) +
+      '</span></button>'
+    );
+  }).join('');
+  menu.querySelectorAll('[data-go]').forEach((btn) => {
+    btn.onclick = () => {
+      const go = btn.getAttribute('data-go');
+      if (go === 'saStates') {
+        startSaDraft();
+        el('saHeroIco').innerHTML = photoIcon('pin');
+        el('saSearchIco').innerHTML = photoIcon('search');
+        renderStateList();
+      }
+      show(go);
+    };
   });
 }
 
@@ -899,6 +908,15 @@ function finishWizard(publish) {
 function renderWizard() {
   renderStepper();
   renderWizardBody();
+  const total = wizTotal();
+  const stepNum = wiz.step + 1;
+  const pct = Math.round((stepNum / total) * 100);
+  const chip = el('wizStepChip');
+  const frac = el('wizFrac');
+  const bar = el('wizProgBar');
+  if (chip) chip.textContent = stepNum + '/' + total;
+  if (frac) frac.textContent = stepNum + '/' + total;
+  if (bar) bar.style.width = pct + '%';
   const last = wiz.step >= wizTotal() - 1;
   el('wizPrev').style.visibility = wiz.step === 0 ? 'hidden' : 'visible';
   el('wizNext').textContent = last ? (wiz.mode === 'package' ? 'Publish →' : 'Publish →') : 'Next →';
@@ -934,16 +952,12 @@ function bindGlobal() {
     const to = btn.getAttribute('data-to');
     if (to) btn.onclick = () => show(to);
   });
-  el('lmbHomeBtn').onclick = () => show('lmb');
-  el('manageAreasLink').onclick = (e) => {
-    e.preventDefault();
-    startSaDraft();
-    show('saStates');
-    el('saHeroIco').innerHTML = photoIcon('pin');
-    el('saSearchIco').innerHTML = photoIcon('search');
-    renderStateList();
-  };
-  el('saSkip').onclick = () => show('photoDash');
+  el('lmbHomeBtn').onclick = () => show('lmbDashboard');
+  const backLmb = el('backToLmb');
+  if (backLmb) backLmb.onclick = () => show('lmbDashboard');
+  const manageBackLmb = el('manageBackLmb');
+  if (manageBackLmb) manageBackLmb.onclick = () => show('lmbDashboard');
+  el('saSkip').onclick = () => show('photoManage');
   el('saStatesContinue').onclick = () => {
     if (!saDraft.states.length) {
       toast('Select at least one state.');
@@ -965,8 +979,8 @@ function bindGlobal() {
     store.serviceAreas = JSON.parse(JSON.stringify(saDraft));
     ensureRegisteredDistrict();
     saveStore();
-    renderDash();
-    show('photoDash');
+    renderPhotoManage();
+    show('photoManage');
     toast('Service areas saved');
   };
   el('tabPackages').onclick = () => {
@@ -987,16 +1001,28 @@ function bindGlobal() {
 }
 
 function boot() {
-  loadStore();
-  ensureRegisteredDistrict();
-  saveStore();
-  const tag = el('buildTag');
-  if (tag) tag.textContent = 'Build ' + PHOTO_OWNER_BUILD;
-  renderLmb();
-  renderDash();
-  renderSvcPkg();
-  bindGlobal();
-  show('lmb');
+  try {
+    if (!el('photoManageMenu')) {
+      throw new Error('Missing #photoManageMenu — open GIXBEE-PHOTO-OWNER-FINALFLOW.html (full file).');
+    }
+    loadStore();
+    ensureRegisteredDistrict();
+    saveStore();
+    const tag = el('buildTag');
+    if (tag) {
+      tag.textContent = 'Working demo ' + PHOTO_OWNER_BUILD + ' — tap Archana Photography → Manage';
+    }
+    renderLmb();
+    renderPhotoManage();
+    renderSvcPkg();
+    bindGlobal();
+    const err = el('bootError');
+    if (err) err.hidden = true;
+    show('lmbDashboard');
+  } catch (err) {
+    console.error(err);
+    showBootError(err.message || String(err));
+  }
 }
 
 if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
