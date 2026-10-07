@@ -1461,4 +1461,11 @@ function bindPkgWizard(d) {
         renderWizardBody();
       };
   });
+  body.onchange = function (e) {
+    if (!e.target.matches('[data-extra-mode]')) return;
+    const row = e.target.closest('.extra-row');
+    applyExtraRowMode(row, e.target.value);
+    readPkgWizardFields(d);
+  };
+  if (wiz.step === 5) syncAllExtraRowModes();
 }
