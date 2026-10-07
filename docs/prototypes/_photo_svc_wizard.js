@@ -7,9 +7,47 @@ const SVC_PRICE_TYPES = [
   { id: 'hour', label: 'Per hour' },
   { id: 'unit', label: 'Per item / unit' },
 ];
-const SVC_INCL_PHOTO = ['Edited Photos', 'High-Resolution Photos', 'RAW Photos', 'Printed Photos'];
-const SVC_INCL_VIDEO = ['Highlight Video', 'Reel (1 Minute)', 'Full Video', 'Live Streaming', 'Traditional Video'];
-const SVC_INCL_DIGITAL = ['Google Drive Link', 'Online Gallery', 'Pen Drive', 'Email Delivery'];
+function svcPhotoDeliverOptions(d) {
+  return PHOTO_DELIVER.concat(d.customInclPhoto || []);
+}
+function svcVideoDeliverOptions(d) {
+  return VIDEO_DELIVER.concat(d.customInclVideo || []);
+}
+function svcDigitalDeliverOptions(d) {
+  const base = DIGITAL_DELIVER.map(function (x) {
+    return x.id;
+  });
+  return base.concat(d.customInclDigital || []);
+}
+function svcAlbumDeliverOptions() {
+  return ALBUM_PRINT_TYPES.slice();
+}
+
+function normalizeSvcDeliverables(d) {
+  if (!d.inclPhoto) d.inclPhoto = [];
+  if (!d.inclVideo) d.inclVideo = [];
+  if (!d.inclDigital) d.inclDigital = [];
+  if (!d.inclAlbums) d.inclAlbums = [];
+  if (!d.customInclPhoto) d.customInclPhoto = [];
+  if (!d.customInclVideo) d.customInclVideo = [];
+  if (!d.customInclDigital) d.customInclDigital = [];
+  d.inclPhoto = d.inclPhoto.map(function (x) {
+    if (x === 'High-Resolution Photos') return 'Colour-Graded Photos';
+    return x;
+  });
+  d.inclVideo = d.inclVideo.map(function (x) {
+    if (x === 'Full Video') return 'Full-Length Video';
+    if (x === 'Reel (1 Minute)') return 'Reel';
+    return x;
+  });
+  (d.customInclVideo || []).forEach(function (x) {
+    if (['Live Streaming', 'Cinematic Video', 'Teaser Video'].indexOf(x) >= 0) return;
+    if (VIDEO_DELIVER.indexOf(x) >= 0 && d.inclVideo.indexOf(x) < 0) d.inclVideo.push(x);
+  });
+  if (d.album && d.album.include && d.inclAlbums.indexOf('Photo Album') < 0) {
+    d.inclAlbums.push('Photo Album');
+  }
+}
 const SVC_EXTRA_DEFAULTS = [
   { name: 'Extra 10 Edited Photos', price: 500, unit: 'Per Set' },
   { name: 'Extra Hour', price: 1000, unit: 'Per Hour' },
@@ -47,11 +85,13 @@ function newSvcDraft() {
     duration: 'Up to 4 Hours',
     extraHour: 1500,
     team: { photoCandid: 1, photoTraditional: 1, videoCandid: 1, videoTraditional: 0 },
-    inclPhoto: ['Edited Photos', 'High-Resolution Photos'],
-    inclVideo: ['Highlight Video', 'Live Streaming'],
+    inclPhoto: ['Edited Photos', 'Colour-Graded Photos'],
+    inclVideo: ['Highlight Video'],
     inclDigital: ['Google Drive Link', 'Online Gallery'],
+    inclAlbums: [],
     customInclPhoto: [],
-    customInclVideo: [],
+    customInclVideo: ['Live Streaming'],
+    customInclDigital: [],
     album: { include: false, qty: 1, leaves: 20, size: '12 x 12 inch' },
     optionalExtras: JSON.parse(JSON.stringify(SVC_EXTRA_DEFAULTS)),
     customExtras: [],
@@ -72,12 +112,14 @@ function newSvcDraft() {
 function recordToSvcDraft(rec) {
   const base = newSvcDraft();
   const m = JSON.parse(JSON.stringify(rec || {}));
-  return Object.assign(base, m, {
+  const merged = Object.assign(base, m, {
     team: Object.assign(base.team, m.team || {}),
     album: Object.assign(base.album, m.album || {}),
     optionalExtras: m.optionalExtras || base.optionalExtras,
     deliveryMap: Object.assign(base.deliveryMap, m.deliveryMap || {}),
   });
+  normalizeSvcDeliverables(merged);
+  return merged;
 }
 
 function recordToPkgDraft(rec) {
@@ -127,7 +169,9 @@ function svcSelectedDeliverableKeys(d) {
   (d.inclVideo || []).forEach(function (x) {
     keys.push(x);
   });
-  if (d.album && d.album.include) keys.push('Photo Album');
+  (d.inclAlbums || []).forEach(function (x) {
+    keys.push(x);
+  });
   (d.inclDigital || []).forEach(function (x) {
     keys.push(x);
   });
@@ -288,11 +332,14 @@ function renderSvcStep(step, d) {
           : '<p class="sub">Duration and team details are optional for this service.</p>')
       );
     case 4:
+      normalizeSvcDeliverables(d);
       return (
+        '<p class="sub" style="margin:0 0 12px">Same deliverable options as <b>packages</b> — tick what this service includes. Details like quantity and format are set on packages; here you choose the items only.</p>' +
         '<p class="lbl">Photography</p>' +
-        SVC_INCL_PHOTO.concat(d.customInclPhoto || [])
+        svcPhotoDeliverOptions(d)
           .map(function (item) {
             const on = d.inclPhoto.indexOf(item) >= 0;
+            const hint = PHOTO_DELIVER_HINTS[item] || '';
             return (
               '<label class="chk-row' +
               (on ? ' on' : '') +
@@ -300,21 +347,42 @@ function renderSvcStep(step, d) {
               esc(item) +
               '" ' +
               (on ? 'checked' : '') +
-              '> ' +
+              '> <span>' +
               esc(item) +
-              '</label>'
+              (hint ? '<em class="chk-hint">' + esc(hint) + '</em>' : '') +
+              '</span></label>'
             );
           })
           .join('') +
-        '<button type="button" class="link-add" data-action="svc-add-incl-photo">+ Add new</button>' +
-        '<p class="lbl">Video (if applicable)</p>' +
-        SVC_INCL_VIDEO.concat(d.customInclVideo || [])
+        '<button type="button" class="link-add" data-action="svc-add-incl-photo">+ Add custom photo type</button>' +
+        '<p class="lbl">Video</p>' +
+        svcVideoDeliverOptions(d)
           .map(function (item) {
             const on = d.inclVideo.indexOf(item) >= 0;
+            const hint = VIDEO_DELIVER_HINTS[item] || '';
             return (
               '<label class="chk-row' +
               (on ? ' on' : '') +
               '"><input type="checkbox" data-sincl-video="' +
+              esc(item) +
+              '" ' +
+              (on ? 'checked' : '') +
+              '> <span>' +
+              esc(item) +
+              (hint ? '<em class="chk-hint">' + esc(hint) + '</em>' : '') +
+              '</span></label>'
+            );
+          })
+          .join('') +
+        '<button type="button" class="link-add" data-action="svc-add-incl-video">+ Add custom video type</button>' +
+        '<p class="lbl">Albums &amp; prints</p>' +
+        svcAlbumDeliverOptions()
+          .map(function (item) {
+            const on = d.inclAlbums.indexOf(item) >= 0;
+            return (
+              '<label class="chk-row' +
+              (on ? ' on' : '') +
+              '"><input type="checkbox" data-sincl-album="' +
               esc(item) +
               '" ' +
               (on ? 'checked' : '') +
@@ -324,38 +392,29 @@ function renderSvcStep(step, d) {
             );
           })
           .join('') +
-        '<button type="button" class="link-add" data-action="svc-add-incl-video">+ Add new</button>' +
-        '<p class="lbl">Albums &amp; prints</p>' +
-        '<label class="chk-row' +
-        (d.album.include ? ' on' : '') +
-        '"><input type="checkbox" id="f_svcAlbum" ' +
-        (d.album.include ? 'checked' : '') +
-        '> Include album</label>' +
-        (d.album.include
-          ? '<div class="album-grid">' +
-            '<div class="fld"><label>Quantity</label>' +
-            svcQtyStep('albumQty', d.album.qty) +
-            '</div>' +
-            '<div class="fld"><label>Pages / leaves</label><input type="number" id="f_svcAlbumLeaves" value="' +
-            d.album.leaves +
-            '"></div>' +
-            '<div class="fld"><label>Size</label><select id="f_svcAlbumSize"><option>12 x 12 inch</option><option>12 x 18 inch</option></select></div></div>'
-          : '') +
         '<p class="lbl">Digital delivery</p>' +
-        SVC_INCL_DIGITAL.map(function (item) {
-          const on = d.inclDigital.indexOf(item) >= 0;
-          return (
-            '<label class="chk-row' +
-            (on ? ' on' : '') +
-            '"><input type="checkbox" data-sincl-digital="' +
-            esc(item) +
-            '" ' +
-            (on ? 'checked' : '') +
-            '> ' +
-            esc(item) +
-            '</label>'
-          );
-        }).join('')
+        svcDigitalDeliverOptions(d)
+          .map(function (item) {
+            const on = d.inclDigital.indexOf(item) >= 0;
+            const meta = DIGITAL_DELIVER.find(function (x) {
+              return x.id === item;
+            });
+            return (
+              '<label class="chk-row' +
+              (on ? ' on' : '') +
+              '"><input type="checkbox" data-sincl-digital="' +
+              esc(item) +
+              '" ' +
+              (on ? 'checked' : '') +
+              '> <span>' +
+              (meta ? meta.icon + ' ' : '') +
+              esc(item) +
+              (meta && meta.desc ? '<em class="chk-hint">' + esc(meta.desc) + '</em>' : '') +
+              '</span></label>'
+            );
+          })
+          .join('') +
+        '<button type="button" class="link-add" data-action="svc-add-incl-digital">+ Add custom digital option</button>'
       );
     case 5:
       return (
@@ -494,8 +553,6 @@ function readSvcWizardFields(d) {
   if (g('f_durOn')) d.durEnabled = g('f_durOn').checked;
   if (g('f_duration')) d.duration = g('f_duration').value;
   if (g('f_extraHour')) d.extraHour = +g('f_extraHour').value || 0;
-  if (g('f_svcAlbum')) d.album.include = g('f_svcAlbum').checked;
-  if (g('f_svcAlbumLeaves')) d.album.leaves = +g('f_svcAlbumLeaves').value || 0;
   document.querySelectorAll('.svc-extra').forEach(function (row, i) {
     if (!d.optionalExtras[i]) d.optionalExtras[i] = {};
     d.optionalExtras[i].name = row.querySelector('[data-svc-extra-name]').value.trim();
@@ -564,6 +621,15 @@ function bindSvcWizard(d) {
         const n = prompt('Video item');
         if (n) {
           d.customInclVideo.push(n.trim());
+          renderWizardBody();
+        }
+        return;
+      }
+      if (act === 'svc-add-incl-digital') {
+        const n = prompt('Digital delivery option');
+        if (n) {
+          if (!d.customInclDigital) d.customInclDigital = [];
+          d.customInclDigital.push(n.trim());
           renderWizardBody();
         }
         return;
@@ -651,6 +717,20 @@ function bindSvcWizard(d) {
       renderWizardBody();
       return;
     }
+    if (t.matches('[data-sincl-album]')) {
+      if (!d.inclAlbums) d.inclAlbums = [];
+      const v = t.getAttribute('data-sincl-album');
+      if (t.checked) {
+        if (d.inclAlbums.indexOf(v) < 0) d.inclAlbums.push(v);
+      } else {
+        d.inclAlbums = d.inclAlbums.filter(function (x) {
+          return x !== v;
+        });
+        if (d.deliveryMap) delete d.deliveryMap[v];
+      }
+      renderWizardBody();
+      return;
+    }
     if (t.matches('[data-svc-pol]')) {
       const v = t.getAttribute('data-svc-pol');
       if (t.checked) {
@@ -668,11 +748,6 @@ function bindSvcWizard(d) {
         return x !== v;
       });
       return;
-    }
-    if (t.id === 'f_svcAlbum') {
-      d.album.include = t.checked;
-      if (!t.checked && d.deliveryMap) delete d.deliveryMap['Photo Album'];
-      renderWizardBody();
     }
     if (t.id === 'f_durOn') {
       d.durEnabled = t.checked;
