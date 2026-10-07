@@ -1,4 +1,4 @@
-const PHOTO_OWNER_BUILD = '2026-10-07-photo-owner-pkg-extras-revert-v1';
+const PHOTO_OWNER_BUILD = '2026-10-07-photo-owner-flow-audit-v1';
 const STORAGE_KEY = 'GIXBEE_PHOTO_OWNER_V1';
 
 const INDIAN_STATES = {
@@ -752,6 +752,12 @@ function bindHubCatalogActions(root) {
       startWizard('package', card.getAttribute('data-pkg-id'));
     };
   });
+  root.querySelectorAll('.svc-row-wrap').forEach(function (row) {
+    row.onclick = function (e) {
+      if (e.target.closest('.hub-act')) return;
+      startWizard('service', row.getAttribute('data-svc-id'));
+    };
+  });
 }
 
 function renderPkgList() {
@@ -1013,6 +1019,18 @@ function validateStep() {
       toast('Select at least one function.');
       return false;
     }
+    if (wiz.step === 2 && needsCeremonyStep(d.functions) && !(d.ceremonyTypes || []).length) {
+      toast('Select at least one ceremony type (or go back and change functions).');
+      return false;
+    }
+    if (wiz.step === 4 && !selectedDeliverableKeys(d).length) {
+      toast('Select at least one deliverable (photo, video, album, or digital).');
+      return false;
+    }
+    if (wiz.step === 6 && !pkgDeliveryKeys(d).length) {
+      toast('Add deliverables before setting delivery timelines.');
+      return false;
+    }
     if (wiz.step === 7) {
       const total = payStagesTotalPct(d);
       if (total !== 100) {
@@ -1039,6 +1057,14 @@ function validateStep() {
     }
     if (wiz.step === 2 && !d.listPrice) {
       toast('Enter service price.');
+      return false;
+    }
+    if (wiz.step === 4 && !svcSelectedDeliverableKeys(d).length) {
+      toast("Select at least one included item (photo, video, album, or digital).");
+      return false;
+    }
+    if (wiz.step === 6 && !svcDeliveryKeys(d).length) {
+      toast("Add included items before setting delivery timelines.");
       return false;
     }
   }

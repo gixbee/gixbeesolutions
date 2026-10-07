@@ -1129,8 +1129,19 @@ function readPkgWizardFields(d) {
     d.videoDetails[k].format = sel.value;
   });
   document.querySelectorAll('[data-del-key]').forEach(function (sel) {
-    d.deliveryMap[sel.getAttribute('data-del-key')] = sel.value;
+    const k = sel.getAttribute('data-del-key');
+    if (!k) return;
+    d.deliveryMap[k] = sel.value;
+    if ((d.deliverPhoto || []).indexOf(k) >= 0) {
+      if (!d.photoDetails[k]) d.photoDetails[k] = {};
+      d.photoDetails[k].delivery = sel.value;
+    }
+    if ((d.deliverVideo || []).indexOf(k) >= 0) {
+      if (!d.videoDetails[k]) d.videoDetails[k] = {};
+      d.videoDetails[k].delivery = sel.value;
+    }
   });
+  pruneDeliveryMap(d);
   d.paymentStages = [];
   document.querySelectorAll('.pay-stage-card').forEach(function (row) {
     d.paymentStages.push({
@@ -1401,9 +1412,13 @@ function bindPkgWizard(d) {
       const fn = t.getAttribute('data-fn');
       if (t.checked) {
         if (d.functions.indexOf(fn) < 0) d.functions.push(fn);
-      } else d.functions = d.functions.filter(function (x) {
-        return x !== fn;
-      });
+      } else {
+        d.functions = d.functions.filter(function (x) {
+          return x !== fn;
+        });
+      }
+      if (!needsCeremonyStep(d.functions)) d.ceremonyTypes = [];
+      renderWizardBody();
       return;
     }
     if (t.matches('[data-cer]')) {

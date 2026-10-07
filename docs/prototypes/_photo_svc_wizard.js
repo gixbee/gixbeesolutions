@@ -117,7 +117,7 @@ function svcQtyStep(field, val) {
   );
 }
 
-function svcDeliveryKeys(d) {
+function svcSelectedDeliverableKeys(d) {
   const keys = [];
   (d.inclPhoto || []).forEach(function (x) {
     keys.push(x);
@@ -129,8 +129,23 @@ function svcDeliveryKeys(d) {
   (d.inclDigital || []).forEach(function (x) {
     keys.push(x);
   });
-  if (!keys.length) keys.push('Edited Photos');
   return keys;
+}
+
+function pruneSvcDeliveryMap(d) {
+  if (!d.deliveryMap) d.deliveryMap = {};
+  const allowed = {};
+  svcSelectedDeliverableKeys(d).forEach(function (k) {
+    allowed[k] = true;
+  });
+  Object.keys(d.deliveryMap).forEach(function (k) {
+    if (!allowed[k]) delete d.deliveryMap[k];
+  });
+}
+
+function svcDeliveryKeys(d) {
+  pruneSvcDeliveryMap(d);
+  return svcSelectedDeliverableKeys(d);
 }
 
 function renderSvcStep(step, d) {
@@ -370,10 +385,19 @@ function renderSvcStep(step, d) {
       );
     case 6: {
       const keys = svcDeliveryKeys(d);
+      if (!keys.length) {
+        return (
+          '<div class="hub-empty" style="margin:0">' +
+          '<div class="hub-empty-ico">📦</div><b>No deliverables selected</b>' +
+          '<p>Go back to <b>What\'s included</b> and check at least one photo, video, album, or digital option.</p></div>' +
+          '<button type="button" class="btn btn-ghost" data-goto-step="4" style="margin-top:12px;width:100%">← Back to what\'s included</button>'
+        );
+      }
       keys.forEach(function (k) {
         if (!d.deliveryMap[k]) d.deliveryMap[k] = '5 Working Days';
       });
       return (
+        '<p class="sub">Set delivery timeline for each item you included on the previous step.</p>' +
         keys
           .map(function (k) {
             return (
@@ -479,6 +503,7 @@ function readSvcWizardFields(d) {
   document.querySelectorAll('[data-svc-del]').forEach(function (sel) {
     d.deliveryMap[sel.getAttribute('data-svc-del')] = sel.value;
   });
+  pruneSvcDeliveryMap(d);
   syncSvcPrice(d);
 }
 
@@ -486,8 +511,14 @@ function bindSvcWizard(d) {
   const body = el('wizBody');
   if (!body) return;
   body.onclick = function (e) {
-    const t = e.target.closest('[data-action],[data-qty-d],[data-cat]');
+    const t = e.target.closest('[data-action],[data-goto-step],[data-qty-d],[data-cat]');
     if (t) {
+      if (t.getAttribute('data-goto-step') != null) {
+        readSvcWizardFields(d);
+        wiz.step = +t.getAttribute('data-goto-step');
+        renderWizard();
+        return;
+      }
       if (t.getAttribute('data-cat')) {
         d.category = t.getAttribute('data-cat');
         renderWizardBody();
@@ -583,27 +614,39 @@ function bindSvcWizard(d) {
       const v = t.getAttribute('data-sincl-photo');
       if (t.checked) {
         if (d.inclPhoto.indexOf(v) < 0) d.inclPhoto.push(v);
-      } else d.inclPhoto = d.inclPhoto.filter(function (x) {
-        return x !== v;
-      });
+      } else {
+        d.inclPhoto = d.inclPhoto.filter(function (x) {
+          return x !== v;
+        });
+        if (d.deliveryMap) delete d.deliveryMap[v];
+      }
+      renderWizardBody();
       return;
     }
     if (t.matches('[data-sincl-video]')) {
       const v = t.getAttribute('data-sincl-video');
       if (t.checked) {
         if (d.inclVideo.indexOf(v) < 0) d.inclVideo.push(v);
-      } else d.inclVideo = d.inclVideo.filter(function (x) {
-        return x !== v;
-      });
+      } else {
+        d.inclVideo = d.inclVideo.filter(function (x) {
+          return x !== v;
+        });
+        if (d.deliveryMap) delete d.deliveryMap[v];
+      }
+      renderWizardBody();
       return;
     }
     if (t.matches('[data-sincl-digital]')) {
       const v = t.getAttribute('data-sincl-digital');
       if (t.checked) {
         if (d.inclDigital.indexOf(v) < 0) d.inclDigital.push(v);
-      } else d.inclDigital = d.inclDigital.filter(function (x) {
-        return x !== v;
-      });
+      } else {
+        d.inclDigital = d.inclDigital.filter(function (x) {
+          return x !== v;
+        });
+        if (d.deliveryMap) delete d.deliveryMap[v];
+      }
+      renderWizardBody();
       return;
     }
     if (t.matches('[data-svc-pol]')) {
@@ -626,6 +669,7 @@ function bindSvcWizard(d) {
     }
     if (t.id === 'f_svcAlbum') {
       d.album.include = t.checked;
+      if (!t.checked && d.deliveryMap) delete d.deliveryMap['Photo Album'];
       renderWizardBody();
     }
     if (t.id === 'f_durOn') {
