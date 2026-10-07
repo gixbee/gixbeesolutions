@@ -1,4 +1,4 @@
-const PHOTO_OWNER_BUILD = '2026-10-07-photo-owner-pricing-extras-v1';
+const PHOTO_OWNER_BUILD = '2026-10-07-photo-owner-pay-stages-row-v1';
 const STORAGE_KEY = 'GIXBEE_PHOTO_OWNER_V1';
 
 const INDIAN_STATES = {

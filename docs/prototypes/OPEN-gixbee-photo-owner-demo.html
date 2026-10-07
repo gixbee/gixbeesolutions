@@ -268,16 +268,19 @@ body{margin:0;background:#E8EDF5;font-family:Inter,system-ui,sans-serif;color:va
 .extra-row .pay-del{width:32px;height:32px;border-radius:8px;background:#FEF2F2;display:grid;place-items:center;font-size:14px;line-height:1}
 .album-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 .del-row label{font-size:12px}
-.pay-stage-card{border:1.5px solid #BFDBFE;border-radius:14px;padding:12px;margin-bottom:10px;background:#F8FAFC}
-.pay-stage-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
-.pay-stage-num{font-size:11px;font-weight:900;color:var(--blue);letter-spacing:.4px}
-.pay-stage-pct-row{display:flex;gap:12px;align-items:flex-end}
-.pay-stage-pct-row .fld{flex:1}
-.pct-input-wrap{display:flex;align-items:center;gap:6px}
-.pct-input-wrap input{width:72px}
-.pay-stage-amt{text-align:right;min-width:100px}
-.pay-stage-amt b{display:block;font-size:15px;color:var(--navy)}
-.pay-total-bar{display:flex;align-items:center;justify-content:space-between;padding:12px 14px;border-radius:12px;margin:8px 0 16px;font-weight:800}
+.pay-stage-section{margin:0 0 8px}
+.pay-stage-section > .lbl{margin:0 0 10px;font-size:13px}
+.pay-stage-list{display:flex;flex-direction:column;gap:10px;margin-bottom:12px}
+.pay-stage-wrap{display:flex;flex-direction:column;gap:4px}
+.pay-stage-row{display:grid;grid-template-columns:minmax(0,1fr) 64px 40px 44px;gap:8px;align-items:center}
+.pay-stage-row input.pay-stage-label,.pay-stage-row input.pay-stage-pct{padding:11px 10px;border:1.5px solid #BFDBFE;border-radius:12px;font:inherit;font-weight:600;color:var(--navy);width:100%;box-sizing:border-box;background:#fff}
+.pay-stage-row input.pay-stage-pct{text-align:center;font-weight:800;padding:11px 6px}
+.pay-pct-suffix{display:grid;place-items:center;height:44px;border:1.5px solid #BFDBFE;border-radius:12px;font-weight:800;color:var(--navy);background:#F8FAFC;font-size:14px}
+.pay-stage-row .pay-del{width:44px;height:44px;border-radius:12px;border:1.5px solid #FECACA;background:#FEF2F2;display:grid;place-items:center;font-size:16px;padding:0;cursor:pointer;flex-shrink:0}
+.pay-stage-sub{font-size:11px;color:var(--mut);font-weight:700;padding:0 2px}
+.pay-stage-sub b{color:var(--navy);font-weight:900}
+.btn-add-stage{display:flex;align-items:center;justify-content:center;gap:6px;width:100%;padding:14px 12px;border:1.5px solid #BFDBFE;border-radius:14px;background:#EFF6FF;color:var(--blue);font-weight:800;font-size:14px;cursor:pointer;font:inherit;margin:0 0 16px}
+.pay-total-bar{display:flex;align-items:center;justify-content:space-between;padding:12px 14px;border-radius:12px;margin:0 0 16px;font-weight:800}
 .pay-total-bar.ok{background:#ECFDF3;border:1px solid #86EFAC;color:#065F46}
 .pay-total-bar.warn{background:#FEF3C7;border:1px solid #FDE68A;color:#92400E}
 .policy-card{border:1px solid var(--line);border-radius:14px;padding:12px;margin-bottom:10px;background:#fff}
@@ -722,28 +725,30 @@ function renderPayPoliciesStep(d) {
   const base = Math.max(0, +d.price || +d.listPrice || 0);
   return (
     '<p class="sub">Split customer payments across milestones. Total must equal <b>100%</b>.</p>' +
-    '<div id="f_payStages">' +
+    '<div class="pay-stage-section"><p class="lbl">Payment Stages</p>' +
+    '<div id="f_payStages" class="pay-stage-list">' +
     d.paymentStages
       .map(function (s, i) {
         const amt = Math.round(base * ((+s.pct || 0) / 100));
         return (
-          '<div class="pay-stage-card" data-pay-idx="' +
+          '<div class="pay-stage-wrap pay-stage-card" data-pay-idx="' +
           i +
-          '"><div class="pay-stage-top"><span class="pay-stage-num">Stage ' +
-          (i + 1) +
-          '</span>' +
+          '"><div class="pay-stage-row">' +
+          '<input type="text" class="pay-stage-label" data-pay-label value="' +
+          esc(s.label) +
+          '" placeholder="Stage name">' +
+          '<input type="number" class="pay-stage-pct" data-pay-pct value="' +
+          s.pct +
+          '" min="0" max="100" aria-label="Percent">' +
+          '<span class="pay-pct-suffix" aria-hidden="true">%</span>' +
           (d.paymentStages.length > 1
             ? '<button type="button" class="pay-del" data-action="del-stage" data-idx="' +
               i +
-              '" title="Remove">🗑</button>'
-            : '') +
-          '</div><div class="fld"><label>Milestone name</label><input type="text" data-pay-label value="' +
-          esc(s.label) +
-          '"></div><div class="pay-stage-pct-row"><div class="fld" style="margin:0"><label>Share</label><div class="pct-input-wrap"><input type="number" data-pay-pct value="' +
-          s.pct +
-          '" min="0" max="100"><span>%</span></div></div><div class="pay-stage-amt"><span class="sub">Customer pays</span><b>' +
+              '" title="Remove stage" aria-label="Remove stage">🗑</button>'
+            : '<span aria-hidden="true" style="width:44px"></span>') +
+          '</div><p class="pay-stage-sub">Customer pays <b>' +
           inr(amt) +
-          '</b></div></div></div>'
+          '</b></p></div>'
         );
       })
       .join('') +
@@ -755,7 +760,7 @@ function renderPayPoliciesStep(d) {
     '%</b>' +
     (totalOk ? '' : ' <span class="sub">— adjust stages to reach 100%</span>') +
     '</div>' +
-    linkAdd('add-stage', 'Add custom stage') +
+    '<button type="button" class="btn-add-stage" data-action="add-stage">+ Add Custom Stage</button></div>' +
     '<p class="lbl" style="margin-top:20px">Policies (optional)</p>' +
     '<p class="sub" style="margin:0 0 10px">Select a policy and enter values customers will see on your package.</p>' +
     POLICY_DEFAULTS.concat(d.customPolicies || [])
@@ -2626,7 +2631,7 @@ function bindSvcWizard(d) {
   });
 }
 
-const PHOTO_OWNER_BUILD = '2026-10-07-photo-owner-pricing-extras-v1';
+const PHOTO_OWNER_BUILD = '2026-10-07-photo-owner-pay-stages-row-v1';
 const STORAGE_KEY = 'GIXBEE_PHOTO_OWNER_V1';
 
 const INDIAN_STATES = {

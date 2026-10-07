@@ -200,28 +200,30 @@ function renderPayPoliciesStep(d) {
   const base = Math.max(0, +d.price || +d.listPrice || 0);
   return (
     '<p class="sub">Split customer payments across milestones. Total must equal <b>100%</b>.</p>' +
-    '<div id="f_payStages">' +
+    '<div class="pay-stage-section"><p class="lbl">Payment Stages</p>' +
+    '<div id="f_payStages" class="pay-stage-list">' +
     d.paymentStages
       .map(function (s, i) {
         const amt = Math.round(base * ((+s.pct || 0) / 100));
         return (
-          '<div class="pay-stage-card" data-pay-idx="' +
+          '<div class="pay-stage-wrap pay-stage-card" data-pay-idx="' +
           i +
-          '"><div class="pay-stage-top"><span class="pay-stage-num">Stage ' +
-          (i + 1) +
-          '</span>' +
+          '"><div class="pay-stage-row">' +
+          '<input type="text" class="pay-stage-label" data-pay-label value="' +
+          esc(s.label) +
+          '" placeholder="Stage name">' +
+          '<input type="number" class="pay-stage-pct" data-pay-pct value="' +
+          s.pct +
+          '" min="0" max="100" aria-label="Percent">' +
+          '<span class="pay-pct-suffix" aria-hidden="true">%</span>' +
           (d.paymentStages.length > 1
             ? '<button type="button" class="pay-del" data-action="del-stage" data-idx="' +
               i +
-              '" title="Remove">🗑</button>'
-            : '') +
-          '</div><div class="fld"><label>Milestone name</label><input type="text" data-pay-label value="' +
-          esc(s.label) +
-          '"></div><div class="pay-stage-pct-row"><div class="fld" style="margin:0"><label>Share</label><div class="pct-input-wrap"><input type="number" data-pay-pct value="' +
-          s.pct +
-          '" min="0" max="100"><span>%</span></div></div><div class="pay-stage-amt"><span class="sub">Customer pays</span><b>' +
+              '" title="Remove stage" aria-label="Remove stage">🗑</button>'
+            : '<span aria-hidden="true" style="width:44px"></span>') +
+          '</div><p class="pay-stage-sub">Customer pays <b>' +
           inr(amt) +
-          '</b></div></div></div>'
+          '</b></p></div>'
         );
       })
       .join('') +
@@ -233,7 +235,7 @@ function renderPayPoliciesStep(d) {
     '%</b>' +
     (totalOk ? '' : ' <span class="sub">— adjust stages to reach 100%</span>') +
     '</div>' +
-    linkAdd('add-stage', 'Add custom stage') +
+    '<button type="button" class="btn-add-stage" data-action="add-stage">+ Add Custom Stage</button></div>' +
     '<p class="lbl" style="margin-top:20px">Policies (optional)</p>' +
     '<p class="sub" style="margin:0 0 10px">Select a policy and enter values customers will see on your package.</p>' +
     POLICY_DEFAULTS.concat(d.customPolicies || [])

@@ -266,16 +266,19 @@ body{margin:0;background:#E8EDF5;font-family:Inter,system-ui,sans-serif;color:va
 .extra-row .pay-del{width:32px;height:32px;border-radius:8px;background:#FEF2F2;display:grid;place-items:center;font-size:14px;line-height:1}
 .album-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 .del-row label{font-size:12px}
-.pay-stage-card{border:1.5px solid #BFDBFE;border-radius:14px;padding:12px;margin-bottom:10px;background:#F8FAFC}
-.pay-stage-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
-.pay-stage-num{font-size:11px;font-weight:900;color:var(--blue);letter-spacing:.4px}
-.pay-stage-pct-row{display:flex;gap:12px;align-items:flex-end}
-.pay-stage-pct-row .fld{flex:1}
-.pct-input-wrap{display:flex;align-items:center;gap:6px}
-.pct-input-wrap input{width:72px}
-.pay-stage-amt{text-align:right;min-width:100px}
-.pay-stage-amt b{display:block;font-size:15px;color:var(--navy)}
-.pay-total-bar{display:flex;align-items:center;justify-content:space-between;padding:12px 14px;border-radius:12px;margin:8px 0 16px;font-weight:800}
+.pay-stage-section{margin:0 0 8px}
+.pay-stage-section > .lbl{margin:0 0 10px;font-size:13px}
+.pay-stage-list{display:flex;flex-direction:column;gap:10px;margin-bottom:12px}
+.pay-stage-wrap{display:flex;flex-direction:column;gap:4px}
+.pay-stage-row{display:grid;grid-template-columns:minmax(0,1fr) 64px 40px 44px;gap:8px;align-items:center}
+.pay-stage-row input.pay-stage-label,.pay-stage-row input.pay-stage-pct{padding:11px 10px;border:1.5px solid #BFDBFE;border-radius:12px;font:inherit;font-weight:600;color:var(--navy);width:100%;box-sizing:border-box;background:#fff}
+.pay-stage-row input.pay-stage-pct{text-align:center;font-weight:800;padding:11px 6px}
+.pay-pct-suffix{display:grid;place-items:center;height:44px;border:1.5px solid #BFDBFE;border-radius:12px;font-weight:800;color:var(--navy);background:#F8FAFC;font-size:14px}
+.pay-stage-row .pay-del{width:44px;height:44px;border-radius:12px;border:1.5px solid #FECACA;background:#FEF2F2;display:grid;place-items:center;font-size:16px;padding:0;cursor:pointer;flex-shrink:0}
+.pay-stage-sub{font-size:11px;color:var(--mut);font-weight:700;padding:0 2px}
+.pay-stage-sub b{color:var(--navy);font-weight:900}
+.btn-add-stage{display:flex;align-items:center;justify-content:center;gap:6px;width:100%;padding:14px 12px;border:1.5px solid #BFDBFE;border-radius:14px;background:#EFF6FF;color:var(--blue);font-weight:800;font-size:14px;cursor:pointer;font:inherit;margin:0 0 16px}
+.pay-total-bar{display:flex;align-items:center;justify-content:space-between;padding:12px 14px;border-radius:12px;margin:0 0 16px;font-weight:800}
 .pay-total-bar.ok{background:#ECFDF3;border:1px solid #86EFAC;color:#065F46}
 .pay-total-bar.warn{background:#FEF3C7;border:1px solid #FDE68A;color:#92400E}
 .policy-card{border:1px solid var(--line);border-radius:14px;padding:12px;margin-bottom:10px;background:#fff}
