@@ -1819,6 +1819,7 @@ function bindPkgWizard(d) {
         return;
       }
       if (act === 'del-stage') {
+        if (d.paymentStages.length <= 1) return;
         const i = +t.getAttribute('data-idx');
         d.paymentStages.splice(i, 1);
         renderWizardBody();
