@@ -1,4 +1,4 @@
-const PHOTO_OWNER_BUILD = '2026-10-07-photo-owner-hub-tabs-clean-v1';
+const PHOTO_OWNER_BUILD = '2026-10-07-photo-owner-dash-ops-del-v1';
 const STORAGE_KEY = 'GIXBEE_PHOTO_OWNER_V1';
 
 const INDIAN_STATES = {
@@ -138,8 +138,23 @@ function defaultStore() {
     ],
     pkgFilter: 'all',
     hubTab: 'packages',
+    operators: [
+      { id: 'op_owner', name: 'Archana K.', phone: '+91 94470 55566', role: 'owner' },
+      { id: 'op_mgr1', name: 'Priya Nair', phone: '+91 98470 11223', role: 'manager' },
+    ],
+    deletedBusinesses: [
+      {
+        id: 'biz-del-1',
+        name: 'Studio Nine Photography',
+        type: 'Photography',
+        loc: 'Kochi, Kerala',
+        deletedAt: '2026-09-12',
+      },
+    ],
   };
 }
+
+const OPERATOR_ROLE_LABELS = { owner: 'Owner', manager: 'Manager', staff: 'Staff' };
 
 let store = defaultStore();
 let saDraft = null;
@@ -199,6 +214,8 @@ function loadStore() {
     if (!store.packages) store.packages = defaultStore().packages;
     if (!store.services) store.services = defaultStore().services;
     if (!store.serviceAreas) store.serviceAreas = defaultStore().serviceAreas;
+    if (!store.operators) store.operators = defaultStore().operators;
+    if (!store.deletedBusinesses) store.deletedBusinesses = defaultStore().deletedBusinesses;
   } catch (_e) {
     store = defaultStore();
   }
@@ -222,6 +239,115 @@ function areaSummaryText() {
     return st + ' (' + ds.length + ' district' + (ds.length === 1 ? '' : 's') + ')';
   });
   return parts.join(' · ');
+}
+
+function operatorInitial(name) {
+  const p = String(name || '?').trim().split(/\s+/);
+  return (p[0][0] || '?').toUpperCase();
+}
+
+function ensureOperators() {
+  if (!store.operators || !store.operators.length) {
+    store.operators = defaultStore().operators.map(function (o) {
+      return JSON.parse(JSON.stringify(o));
+    });
+  }
+  return store.operators;
+}
+
+function renderPhotoOperators() {
+  const sub = el('photoOperatorsSub');
+  if (sub) sub.textContent = 'Who can manage · ' + store.biz.name;
+  const list = el('photoOperatorsList');
+  if (!list) return;
+  const ops = ensureOperators();
+  list.innerHTML = ops
+    .map(function (op, idx) {
+      const right =
+        op.role === 'owner'
+          ? '<span class="op-owner-tag">Owner</span>'
+          : '<button type="button" class="op-remove" data-rm-photo-op="' +
+            esc(op.id) +
+            '">Remove</button>';
+      return (
+        '<div class="op-card"><div class="op-avatar a' +
+        (idx % 4) +
+        '">' +
+        esc(operatorInitial(op.name)) +
+        '</div><div class="op-meta"><b>' +
+        esc(op.name) +
+        '</b><span>' +
+        esc(op.phone) +
+        ' · ' +
+        esc(OPERATOR_ROLE_LABELS[op.role] || 'Staff') +
+        '</span></div><div class="op-actions">' +
+        right +
+        '</div></div>'
+      );
+    })
+    .join('');
+  list.querySelectorAll('[data-rm-photo-op]').forEach(function (btn) {
+    btn.onclick = function () {
+      const id = btn.getAttribute('data-rm-photo-op');
+      const op = ops.find(function (x) {
+        return x.id === id;
+      });
+      if (!op || !confirm('Remove ' + op.name + ' as an operator?')) return;
+      store.operators = ops.filter(function (x) {
+        return x.id !== id;
+      });
+      saveStore();
+      renderPhotoOperators();
+      toast('Operator removed');
+    };
+  });
+}
+
+function renderDeletedBusinesses() {
+  const list = el('deletedBizList');
+  if (!list) return;
+  const items = store.deletedBusinesses || [];
+  if (!items.length) {
+    list.innerHTML =
+      '<div class="hub-empty" style="margin:0"><div class="hub-empty-ico">🗑</div><b>No deleted businesses</b><p>When you delete a listing, it appears here for 30 days so you can restore it.</p></div>';
+    return;
+  }
+  list.innerHTML = items
+    .map(function (b) {
+      return (
+        '<div class="del-biz-card" data-del-biz="' +
+        esc(b.id) +
+        '"><b>' +
+        esc(b.name) +
+        '</b><p class="sub">' +
+        esc(b.type) +
+        ' · ' +
+        esc(b.loc) +
+        '<br>Deleted ' +
+        esc(b.deletedAt) +
+        '</p><button type="button" class="btn-restore" data-restore-biz="' +
+        esc(b.id) +
+        '">Restore business</button></div>'
+      );
+    })
+    .join('');
+  list.querySelectorAll('[data-restore-biz]').forEach(function (btn) {
+    btn.onclick = function () {
+      const id = btn.getAttribute('data-restore-biz');
+      const biz = (store.deletedBusinesses || []).find(function (x) {
+        return x.id === id;
+      });
+      if (!biz) return;
+      if (!confirm('Restore ' + biz.name + '? You can switch to it from List My Business.')) return;
+      store.deletedBusinesses = store.deletedBusinesses.filter(function (x) {
+        return x.id !== id;
+      });
+      saveStore();
+      renderDeletedBusinesses();
+      renderPhotoDash();
+      toast('Business restored (demo)');
+    };
+  });
 }
 
 function renderLmb() {
@@ -258,6 +384,14 @@ function renderPhotoDash() {
     { id: 'calendar', cls: 'blue', ico: '📅', label: 'Calendar' },
     { id: 'gallery', cls: 'blue', ico: '🖼', label: 'Photos & Gallery' },
     { id: 'requests', cls: 'orange', ico: '🔔', label: 'Booking Requests', badge: '3' },
+    { id: 'photoOperators', cls: 'teal', ico: '👥', label: 'Operators' },
+    {
+      id: 'deletedBusiness',
+      cls: 'gray',
+      ico: '🗑',
+      label: 'Deleted business',
+      badge: store.deletedBusinesses.length ? String(store.deletedBusinesses.length) : '',
+    },
   ]
     .map(
       (t) =>
@@ -278,7 +412,13 @@ function renderPhotoDash() {
     btn.onclick = () => {
       const dest = btn.getAttribute('data-go');
       if (dest === 'svcPkg') openSvcPkgHub();
-      else show(dest);
+      else if (dest === 'photoOperators') {
+        renderPhotoOperators();
+        show(dest);
+      } else if (dest === 'deletedBusiness') {
+        renderDeletedBusinesses();
+        show(dest);
+      } else show(dest);
     };
   });
 }
@@ -926,6 +1066,25 @@ function bindGlobal() {
   }
   el('addPackageBtn').onclick = () => startWizard('package');
   el('addServiceBtn').onclick = () => startWizard('service');
+  const addOp = el('photoAddOperatorBtn');
+  if (addOp) {
+    addOp.onclick = function () {
+      const name = prompt('Operator full name');
+      if (!name || !name.trim()) return;
+      const phone = prompt('Mobile number', '+91 ');
+      if (!phone || !phone.trim()) return;
+      ensureOperators();
+      store.operators.push({
+        id: uid('op'),
+        name: name.trim(),
+        phone: phone.trim(),
+        role: 'staff',
+      });
+      saveStore();
+      renderPhotoOperators();
+      toast('Operator added');
+    };
+  }
   el('wizBack').onclick = () => wizPrev();
   el('wizPrev').onclick = () => wizPrev();
   el('wizNext').onclick = () => wizNext();

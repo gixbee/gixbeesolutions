@@ -63,7 +63,23 @@ body{margin:0;background:#E8EDF5;font-family:Inter,system-ui,sans-serif;color:va
 .qtile.pink{background:#FDF2F8;border-color:#FBCFE8}
 .qtile.blue{background:#EFF6FF;border-color:#BFDBFE}
 .qtile.orange{background:#FFF7ED;border-color:#FED7AA;position:relative}
+.qtile.teal{background:#F0FDFA;border-color:#99F6E4}
+.qtile.gray{background:#F8FAFC;border-color:#CBD5E1}
 .qtile .badge{position:absolute;top:8px;right:8px;background:#EF4444;color:#fff;font-size:10px;font-weight:800;min-width:18px;height:18px;border-radius:99px;display:grid;place-items:center}
+.op-remove{border:0;background:none;color:#DC2626;font-weight:800;font-size:13px;cursor:pointer;padding:8px 4px}
+.op-owner-tag{color:var(--gn2);font-weight:800;font-size:13px;padding:8px 4px}
+.op-card{display:flex;align-items:center;gap:12px;border:1px solid var(--line);border-radius:14px;padding:12px 14px;margin-bottom:10px;background:#fff}
+.op-meta{flex:1;min-width:0}
+.op-meta b{display:block;font-size:15px;margin-bottom:2px;color:var(--navy)}
+.op-meta span{font-size:12px;color:var(--mut);line-height:1.4;display:block}
+.op-actions{flex-shrink:0}
+.op-avatar{width:44px;height:44px;border-radius:50%;display:grid;place-items:center;font-weight:900;font-size:17px;color:#fff;flex-shrink:0}
+.op-avatar.a0{background:#12B76A}.op-avatar.a1{background:#2563EB}.op-avatar.a2{background:#7C3AED}.op-avatar.a3{background:#EA580C}
+.operators-info{background:#F3F4F6;border-radius:12px;padding:12px 14px;font-size:13px;line-height:1.45;color:#374151;margin:12px 0 4px;border:1px solid var(--line)}
+.del-biz-card{border:1px solid var(--line);border-radius:14px;padding:14px;margin-bottom:10px;background:#fff}
+.del-biz-card b{display:block;font-size:15px;color:var(--navy);margin-bottom:4px}
+.del-biz-card .sub{margin-bottom:10px}
+.btn-restore{width:100%;border:1.5px solid #BFDBFE;background:#EFF6FF;color:var(--blue);border-radius:99px;padding:10px;font-weight:800;font-size:13px;cursor:pointer;font:inherit}
 .bottom-nav{display:flex;border-top:1px solid var(--line);background:#fff;padding:8px 0 10px;position:absolute;left:0;right:0;bottom:0;z-index:5}
 .bottom-nav button{flex:1;border:0;background:none;font-size:10px;font-weight:800;color:#64748B;cursor:pointer;padding:6px 0}
 .bottom-nav button.on{color:var(--blue)}
@@ -501,6 +517,25 @@ body{margin:0;background:#E8EDF5;font-family:Inter,system-ui,sans-serif;color:va
 <section class="scr" id="requests">
   <div class="top"><button type="button" class="back" data-to="photoDash">←</button><h1>Booking Requests</h1><span style="width:36px"></span></div>
   <div class="stub"><h2>3 pending requests</h2><p class="sub">Accept or decline customer booking requests here.</p><button type="button" class="btn btn-blue" data-to="photoDash" style="max-width:200px;margin:16px auto">Back to dashboard</button></div>
+</section>
+
+<section class="scr" id="photoOperators">
+  <div class="top"><button type="button" class="back" data-to="photoDash">←</button><h1>Operators</h1><span style="width:36px"></span></div>
+  <div class="pad" style="padding-top:8px">
+    <p class="sub" id="photoOperatorsSub" style="margin-top:0">Who can manage this business</p>
+    <div class="operators-info">Operators can manage bookings, calendar, and requests. They cannot delete the business or change billing.</div>
+    <p class="lbl" style="margin-top:16px">CURRENT OPERATORS</p>
+    <div id="photoOperatorsList"></div>
+  </div>
+  <div class="cta"><button type="button" class="btn btn-blue" id="photoAddOperatorBtn">+ Add Operator</button></div>
+</section>
+
+<section class="scr" id="deletedBusiness">
+  <div class="top"><button type="button" class="back" data-to="photoDash">←</button><h1>Deleted business</h1><span style="width:36px"></span></div>
+  <div class="pad" style="padding-top:8px">
+    <p class="sub">Businesses you removed from List My Business. Restore within 30 days to keep your reviews and packages.</p>
+    <div id="deletedBizList" style="margin-top:12px"></div>
+  </div>
 </section>
 
 <div class="toast" id="toast"></div>
@@ -2635,7 +2670,7 @@ function bindSvcWizard(d) {
   });
 }
 
-const PHOTO_OWNER_BUILD = '2026-10-07-photo-owner-hub-tabs-clean-v1';
+const PHOTO_OWNER_BUILD = '2026-10-07-photo-owner-dash-ops-del-v1';
 const STORAGE_KEY = 'GIXBEE_PHOTO_OWNER_V1';
 
 const INDIAN_STATES = {
@@ -2775,8 +2810,23 @@ function defaultStore() {
     ],
     pkgFilter: 'all',
     hubTab: 'packages',
+    operators: [
+      { id: 'op_owner', name: 'Archana K.', phone: '+91 94470 55566', role: 'owner' },
+      { id: 'op_mgr1', name: 'Priya Nair', phone: '+91 98470 11223', role: 'manager' },
+    ],
+    deletedBusinesses: [
+      {
+        id: 'biz-del-1',
+        name: 'Studio Nine Photography',
+        type: 'Photography',
+        loc: 'Kochi, Kerala',
+        deletedAt: '2026-09-12',
+      },
+    ],
   };
 }
+
+const OPERATOR_ROLE_LABELS = { owner: 'Owner', manager: 'Manager', staff: 'Staff' };
 
 let store = defaultStore();
 let saDraft = null;
@@ -2836,6 +2886,8 @@ function loadStore() {
     if (!store.packages) store.packages = defaultStore().packages;
     if (!store.services) store.services = defaultStore().services;
     if (!store.serviceAreas) store.serviceAreas = defaultStore().serviceAreas;
+    if (!store.operators) store.operators = defaultStore().operators;
+    if (!store.deletedBusinesses) store.deletedBusinesses = defaultStore().deletedBusinesses;
   } catch (_e) {
     store = defaultStore();
   }
@@ -2859,6 +2911,115 @@ function areaSummaryText() {
     return st + ' (' + ds.length + ' district' + (ds.length === 1 ? '' : 's') + ')';
   });
   return parts.join(' · ');
+}
+
+function operatorInitial(name) {
+  const p = String(name || '?').trim().split(/\s+/);
+  return (p[0][0] || '?').toUpperCase();
+}
+
+function ensureOperators() {
+  if (!store.operators || !store.operators.length) {
+    store.operators = defaultStore().operators.map(function (o) {
+      return JSON.parse(JSON.stringify(o));
+    });
+  }
+  return store.operators;
+}
+
+function renderPhotoOperators() {
+  const sub = el('photoOperatorsSub');
+  if (sub) sub.textContent = 'Who can manage · ' + store.biz.name;
+  const list = el('photoOperatorsList');
+  if (!list) return;
+  const ops = ensureOperators();
+  list.innerHTML = ops
+    .map(function (op, idx) {
+      const right =
+        op.role === 'owner'
+          ? '<span class="op-owner-tag">Owner</span>'
+          : '<button type="button" class="op-remove" data-rm-photo-op="' +
+            esc(op.id) +
+            '">Remove</button>';
+      return (
+        '<div class="op-card"><div class="op-avatar a' +
+        (idx % 4) +
+        '">' +
+        esc(operatorInitial(op.name)) +
+        '</div><div class="op-meta"><b>' +
+        esc(op.name) +
+        '</b><span>' +
+        esc(op.phone) +
+        ' · ' +
+        esc(OPERATOR_ROLE_LABELS[op.role] || 'Staff') +
+        '</span></div><div class="op-actions">' +
+        right +
+        '</div></div>'
+      );
+    })
+    .join('');
+  list.querySelectorAll('[data-rm-photo-op]').forEach(function (btn) {
+    btn.onclick = function () {
+      const id = btn.getAttribute('data-rm-photo-op');
+      const op = ops.find(function (x) {
+        return x.id === id;
+      });
+      if (!op || !confirm('Remove ' + op.name + ' as an operator?')) return;
+      store.operators = ops.filter(function (x) {
+        return x.id !== id;
+      });
+      saveStore();
+      renderPhotoOperators();
+      toast('Operator removed');
+    };
+  });
+}
+
+function renderDeletedBusinesses() {
+  const list = el('deletedBizList');
+  if (!list) return;
+  const items = store.deletedBusinesses || [];
+  if (!items.length) {
+    list.innerHTML =
+      '<div class="hub-empty" style="margin:0"><div class="hub-empty-ico">🗑</div><b>No deleted businesses</b><p>When you delete a listing, it appears here for 30 days so you can restore it.</p></div>';
+    return;
+  }
+  list.innerHTML = items
+    .map(function (b) {
+      return (
+        '<div class="del-biz-card" data-del-biz="' +
+        esc(b.id) +
+        '"><b>' +
+        esc(b.name) +
+        '</b><p class="sub">' +
+        esc(b.type) +
+        ' · ' +
+        esc(b.loc) +
+        '<br>Deleted ' +
+        esc(b.deletedAt) +
+        '</p><button type="button" class="btn-restore" data-restore-biz="' +
+        esc(b.id) +
+        '">Restore business</button></div>'
+      );
+    })
+    .join('');
+  list.querySelectorAll('[data-restore-biz]').forEach(function (btn) {
+    btn.onclick = function () {
+      const id = btn.getAttribute('data-restore-biz');
+      const biz = (store.deletedBusinesses || []).find(function (x) {
+        return x.id === id;
+      });
+      if (!biz) return;
+      if (!confirm('Restore ' + biz.name + '? You can switch to it from List My Business.')) return;
+      store.deletedBusinesses = store.deletedBusinesses.filter(function (x) {
+        return x.id !== id;
+      });
+      saveStore();
+      renderDeletedBusinesses();
+      renderPhotoDash();
+      toast('Business restored (demo)');
+    };
+  });
 }
 
 function renderLmb() {
@@ -2895,6 +3056,14 @@ function renderPhotoDash() {
     { id: 'calendar', cls: 'blue', ico: '📅', label: 'Calendar' },
     { id: 'gallery', cls: 'blue', ico: '🖼', label: 'Photos & Gallery' },
     { id: 'requests', cls: 'orange', ico: '🔔', label: 'Booking Requests', badge: '3' },
+    { id: 'photoOperators', cls: 'teal', ico: '👥', label: 'Operators' },
+    {
+      id: 'deletedBusiness',
+      cls: 'gray',
+      ico: '🗑',
+      label: 'Deleted business',
+      badge: store.deletedBusinesses.length ? String(store.deletedBusinesses.length) : '',
+    },
   ]
     .map(
       (t) =>
@@ -2915,7 +3084,13 @@ function renderPhotoDash() {
     btn.onclick = () => {
       const dest = btn.getAttribute('data-go');
       if (dest === 'svcPkg') openSvcPkgHub();
-      else show(dest);
+      else if (dest === 'photoOperators') {
+        renderPhotoOperators();
+        show(dest);
+      } else if (dest === 'deletedBusiness') {
+        renderDeletedBusinesses();
+        show(dest);
+      } else show(dest);
     };
   });
 }
@@ -3563,6 +3738,25 @@ function bindGlobal() {
   }
   el('addPackageBtn').onclick = () => startWizard('package');
   el('addServiceBtn').onclick = () => startWizard('service');
+  const addOp = el('photoAddOperatorBtn');
+  if (addOp) {
+    addOp.onclick = function () {
+      const name = prompt('Operator full name');
+      if (!name || !name.trim()) return;
+      const phone = prompt('Mobile number', '+91 ');
+      if (!phone || !phone.trim()) return;
+      ensureOperators();
+      store.operators.push({
+        id: uid('op'),
+        name: name.trim(),
+        phone: phone.trim(),
+        role: 'staff',
+      });
+      saveStore();
+      renderPhotoOperators();
+      toast('Operator added');
+    };
+  }
   el('wizBack').onclick = () => wizPrev();
   el('wizPrev').onclick = () => wizPrev();
   el('wizNext').onclick = () => wizNext();
