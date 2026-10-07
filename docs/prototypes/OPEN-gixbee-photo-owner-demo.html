@@ -349,18 +349,27 @@ button.manage-pill{cursor:pointer;font:inherit;color:var(--blue);border-color:#B
 .policy-card.on{border-color:#86EFAC;background:#FAFFFE}
 .policy-card-hd{display:flex;align-items:center;gap:10px;cursor:pointer;font-size:14px}
 .policy-card-hd b{color:var(--navy)}
-.policy-tabs{display:flex;border:1px solid var(--line);border-radius:12px;overflow:hidden;margin:0 0 14px}
-.policy-tabs button{flex:1;padding:11px 8px;border:0;background:#F3F4F6;font-weight:800;font-size:12px;color:#374151;cursor:pointer;font:inherit}
-.policy-tabs button.on{background:#2563EB;color:#fff}
-.policy-banner{display:flex;gap:10px;align-items:flex-start;padding:12px;border-radius:12px;font-size:13px;line-height:1.45;margin-bottom:8px}
-.policy-banner.cancel{background:#EFF6FF;color:#1E3A8A}
-.policy-banner.resched{background:#ECFDF5;color:#065F46}
-.policy-row{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:14px 0;border-bottom:1px solid #F3F4F6}
-.policy-row-remove{flex-shrink:0;width:36px;height:36px;border:1px solid #FECACA;border-radius:10px;background:#FEF2F2;color:#B91C1C;font-weight:800;cursor:pointer;font-size:14px;line-height:1}
-.policy-days-inp{flex:1;border:1px solid var(--line);border-radius:10px;padding:10px;font-weight:700;font-size:13px;min-width:0;font:inherit}
-.policy-pct-wrap{font-weight:800;font-size:14px;white-space:nowrap;display:flex;align-items:center;gap:4px}
-.policy-pct-inp{width:64px;border:1px solid var(--line);border-radius:10px;padding:10px;text-align:center;font-weight:800;font:inherit}
-.policy-add-tier{display:flex;align-items:center;justify-content:center;width:100%;padding:14px 12px;border:1.5px solid #86EFAC;border-radius:14px;background:#ECFDF5;color:#047857;font-weight:800;font-size:14px;cursor:pointer;font:inherit;margin-top:10px}
+.policy-section{margin:20px 0 0;padding-top:4px}
+.policy-section-hd{margin:0 0 6px;font-size:17px;font-weight:900;color:var(--navy);line-height:1.25}
+.policy-section-lead{margin:0 0 14px;font-size:13px;color:var(--mut);line-height:1.5}
+.policy-tabs{display:flex;border:1px solid var(--line);border-radius:14px;overflow:hidden;margin:0 0 14px;box-shadow:0 1px 3px rgba(15,23,42,.04)}
+.policy-tabs button{flex:1;min-height:48px;padding:12px 8px;border:0;background:#F3F4F6;font-weight:800;font-size:12px;line-height:1.25;color:#374151;cursor:pointer;font:inherit;-webkit-tap-highlight-color:transparent}
+.policy-tabs button.on{background:var(--blue);color:#fff}
+.policy-banner{display:flex;gap:10px;align-items:flex-start;padding:14px;border-radius:14px;font-size:13px;line-height:1.5;margin-bottom:12px}
+.policy-banner.cancel{background:#EFF6FF;color:#1E3A8A;border:1px solid #BFDBFE}
+.policy-banner.resched{background:#ECFDF5;color:#065F46;border:1px solid #A7F3D0}
+.policy-rows{display:flex;flex-direction:column;gap:10px;margin:0 0 4px}
+.policy-row{display:grid;grid-template-columns:1fr auto 48px;grid-template-areas:"days days days" "deduct deduct remove";gap:8px 10px;padding:14px 12px;border:1px solid var(--line);border-radius:14px;background:#FAFBFC;align-items:center}
+.policy-tier-lbl{grid-area:deduct;font-size:11px;font-weight:800;color:var(--mut);text-transform:uppercase;letter-spacing:.04em;align-self:center}
+.policy-row-remove{grid-area:remove;flex-shrink:0;width:48px;height:48px;border:1px solid #FECACA;border-radius:12px;background:#FEF2F2;color:#B91C1C;font-weight:800;cursor:pointer;font-size:16px;line-height:1;-webkit-tap-highlight-color:transparent}
+.policy-days-inp{grid-area:days;width:100%;border:1.5px solid #BFDBFE;border-radius:12px;padding:12px 14px;font-weight:700;font-size:16px;min-height:48px;min-width:0;font:inherit;color:var(--navy);background:#fff}
+.policy-pct-wrap{grid-area:deduct;display:flex;align-items:center;gap:6px;font-weight:800;font-size:15px}
+.policy-pct-inp{width:72px;min-height:48px;border:1.5px solid #BFDBFE;border-radius:12px;padding:10px;text-align:center;font-weight:800;font-size:16px;font:inherit;color:var(--navy);background:#fff}
+.policy-pct-unit{color:var(--navy);font-weight:900}
+.policy-add-tier{display:flex;align-items:center;justify-content:center;width:100%;min-height:48px;padding:14px 12px;border:1.5px solid #86EFAC;border-radius:14px;background:#ECFDF5;color:#047857;font-weight:800;font-size:15px;cursor:pointer;font:inherit;margin-top:12px;-webkit-tap-highlight-color:transparent}
+.policy-notes textarea{font-size:16px;min-height:96px;line-height:1.45}
+#wizard .fld input:not([type=radio]):not([type=checkbox]),#wizard .fld select,#wizard .fld textarea{font-size:16px}
+#wizard .wiz-foot{padding-bottom:max(16px,env(safe-area-inset-bottom,0px))}
 .policy-fields{margin-top:10px;padding-top:10px;border-top:1px dashed var(--line)}
 .policy-help{font-size:11px;color:var(--mut);margin:0 0 8px;line-height:1.4}
 .pay-row input[type=text]{flex:1}
@@ -819,11 +828,12 @@ function pkgPolicyRulesRowsHtml(rules, kind) {
         '<div class="policy-row">' +
         '<input type="text" class="policy-days-inp" data-field="days" value="' +
         esc(r.days) +
-        '">' +
-        '<span class="policy-pct-wrap"><input type="number" class="policy-pct-inp" min="0" max="100" data-field="pct" value="' +
+        '" aria-label="Days before event">' +
+        '<span class="policy-tier-lbl">Deduct</span>' +
+        '<span class="policy-pct-wrap"><input type="number" class="policy-pct-inp" inputmode="numeric" min="0" max="100" data-field="pct" value="' +
         r.pct +
-        '"> %</span>' +
-        '<button type="button" class="policy-row-remove" data-action="pkg-policy-del-tier" title="Remove tier">✕</button></div>'
+        '" aria-label="Deduction percent"><span class="policy-pct-unit">%</span></span>' +
+        '<button type="button" class="policy-row-remove" data-action="pkg-policy-del-tier" title="Remove tier" aria-label="Remove tier">✕</button></div>'
       );
     })
     .join('');
@@ -876,28 +886,34 @@ function renderPkgCancelReschedBlock(d) {
   ensurePkgPolicyRules(d);
   const cancelOn = pkgWizPolicyTab !== 'reschedule';
   return (
-    '<h2 style="margin:20px 0 4px;font-size:17px">Cancellation &amp; Rescheduling Policy</h2>' +
-    '<p class="sub" style="margin:0 0 12px">Set deduction % by days before the event (from advance). Default tiers shown — remove ✕ or use + Add tier. Cancellation and rescheduling lists are separate.</p>' +
-    '<div class="policy-tabs">' +
-    '<button type="button" class="' +
+    '<section class="policy-section" aria-label="Cancellation and rescheduling">' +
+    '<h2 class="policy-section-hd">Cancellation &amp; rescheduling</h2>' +
+    '<p class="policy-section-lead">Set how much of the <b>advance</b> you keep when the customer cancels or moves the date. Use the tabs for each case. Tap <b>+ Add tier</b> for more ranges, or ✕ to remove one.</p>' +
+    '<div class="policy-tabs" role="tablist">' +
+    '<button type="button" role="tab" aria-selected="' +
+    (cancelOn ? 'true' : 'false') +
+    '" class="' +
     (cancelOn ? 'on' : '') +
-    '" data-action="pkg-policy-tab" data-tab="cancel">Cancellation Policy</button>' +
-    '<button type="button" class="' +
+    '" data-action="pkg-policy-tab" data-tab="cancel">Cancellation</button>' +
+    '<button type="button" role="tab" aria-selected="' +
+    (!cancelOn ? 'true' : 'false') +
+    '" class="' +
     (!cancelOn ? 'on' : '') +
-    '" data-action="pkg-policy-tab" data-tab="reschedule">Rescheduling Policy</button></div>' +
+    '" data-action="pkg-policy-tab" data-tab="reschedule">Rescheduling</button></div>' +
     (cancelOn
-      ? '<div class="policy-banner cancel"><span aria-hidden="true">ℹ️</span><span>Enter the deduction percentage for <b>cancellations</b>. This will be deducted from the advance amount.</span></div>' +
+      ? '<div class="policy-banner cancel" role="note"><span aria-hidden="true">ℹ️</span><span>Deduction % for <b>cancellations</b> — taken from the advance already paid.</span></div>' +
         pkgPolicyRulesRowsHtml(d.cancelRules, 'cancel') +
-        '<div class="fld" style="margin-top:14px"><label>Additional notes (shown to customers)</label>' +
-        '<textarea id="cancelPolicyNote" rows="3" placeholder="e.g. Refund balance after deduction within 7 working days.">' +
+        '<div class="fld policy-notes" style="margin-top:14px"><label>Notes for customers (optional)</label>' +
+        '<textarea id="cancelPolicyNote" rows="3" placeholder="e.g. Remaining balance refunded within 7 working days after deduction.">' +
         esc(d.cancelPolicyNote || '') +
         '</textarea></div>'
-      : '<div class="policy-banner resched"><span aria-hidden="true">ℹ️</span><span>Enter the deduction percentage for <b>rescheduling</b>. This will be deducted from the advance amount.</span></div>' +
+      : '<div class="policy-banner resched" role="note"><span aria-hidden="true">ℹ️</span><span>Deduction % for <b>rescheduling</b> — taken from the advance already paid.</span></div>' +
         pkgPolicyRulesRowsHtml(d.rescheduleRules, 'reschedule') +
-        '<div class="fld" style="margin-top:14px"><label>Additional notes (shown to customers)</label>' +
-        '<textarea id="reschedulePolicyNote" rows="3" placeholder="e.g. New date must be within 6 months; one free reschedule if 30+ days notice.">' +
+        '<div class="fld policy-notes" style="margin-top:14px"><label>Notes for customers (optional)</label>' +
+        '<textarea id="reschedulePolicyNote" rows="3" placeholder="e.g. New date within 6 months; one free reschedule with 30+ days notice.">' +
         esc(d.reschedulePolicyNote || '') +
-        '</textarea></div>')
+        '</textarea></div>') +
+    '</section>'
   );
 }
 

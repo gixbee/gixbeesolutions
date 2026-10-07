@@ -179,11 +179,12 @@ function pkgPolicyRulesRowsHtml(rules, kind) {
         '<div class="policy-row">' +
         '<input type="text" class="policy-days-inp" data-field="days" value="' +
         esc(r.days) +
-        '">' +
-        '<span class="policy-pct-wrap"><input type="number" class="policy-pct-inp" min="0" max="100" data-field="pct" value="' +
+        '" aria-label="Days before event">' +
+        '<span class="policy-tier-lbl">Deduct</span>' +
+        '<span class="policy-pct-wrap"><input type="number" class="policy-pct-inp" inputmode="numeric" min="0" max="100" data-field="pct" value="' +
         r.pct +
-        '"> %</span>' +
-        '<button type="button" class="policy-row-remove" data-action="pkg-policy-del-tier" title="Remove tier">✕</button></div>'
+        '" aria-label="Deduction percent"><span class="policy-pct-unit">%</span></span>' +
+        '<button type="button" class="policy-row-remove" data-action="pkg-policy-del-tier" title="Remove tier" aria-label="Remove tier">✕</button></div>'
       );
     })
     .join('');
@@ -236,28 +237,34 @@ function renderPkgCancelReschedBlock(d) {
   ensurePkgPolicyRules(d);
   const cancelOn = pkgWizPolicyTab !== 'reschedule';
   return (
-    '<h2 style="margin:20px 0 4px;font-size:17px">Cancellation &amp; Rescheduling Policy</h2>' +
-    '<p class="sub" style="margin:0 0 12px">Set deduction % by days before the event (from advance). Default tiers shown — remove ✕ or use + Add tier. Cancellation and rescheduling lists are separate.</p>' +
-    '<div class="policy-tabs">' +
-    '<button type="button" class="' +
+    '<section class="policy-section" aria-label="Cancellation and rescheduling">' +
+    '<h2 class="policy-section-hd">Cancellation &amp; rescheduling</h2>' +
+    '<p class="policy-section-lead">Set how much of the <b>advance</b> you keep when the customer cancels or moves the date. Use the tabs for each case. Tap <b>+ Add tier</b> for more ranges, or ✕ to remove one.</p>' +
+    '<div class="policy-tabs" role="tablist">' +
+    '<button type="button" role="tab" aria-selected="' +
+    (cancelOn ? 'true' : 'false') +
+    '" class="' +
     (cancelOn ? 'on' : '') +
-    '" data-action="pkg-policy-tab" data-tab="cancel">Cancellation Policy</button>' +
-    '<button type="button" class="' +
+    '" data-action="pkg-policy-tab" data-tab="cancel">Cancellation</button>' +
+    '<button type="button" role="tab" aria-selected="' +
+    (!cancelOn ? 'true' : 'false') +
+    '" class="' +
     (!cancelOn ? 'on' : '') +
-    '" data-action="pkg-policy-tab" data-tab="reschedule">Rescheduling Policy</button></div>' +
+    '" data-action="pkg-policy-tab" data-tab="reschedule">Rescheduling</button></div>' +
     (cancelOn
-      ? '<div class="policy-banner cancel"><span aria-hidden="true">ℹ️</span><span>Enter the deduction percentage for <b>cancellations</b>. This will be deducted from the advance amount.</span></div>' +
+      ? '<div class="policy-banner cancel" role="note"><span aria-hidden="true">ℹ️</span><span>Deduction % for <b>cancellations</b> — taken from the advance already paid.</span></div>' +
         pkgPolicyRulesRowsHtml(d.cancelRules, 'cancel') +
-        '<div class="fld" style="margin-top:14px"><label>Additional notes (shown to customers)</label>' +
-        '<textarea id="cancelPolicyNote" rows="3" placeholder="e.g. Refund balance after deduction within 7 working days.">' +
+        '<div class="fld policy-notes" style="margin-top:14px"><label>Notes for customers (optional)</label>' +
+        '<textarea id="cancelPolicyNote" rows="3" placeholder="e.g. Remaining balance refunded within 7 working days after deduction.">' +
         esc(d.cancelPolicyNote || '') +
         '</textarea></div>'
-      : '<div class="policy-banner resched"><span aria-hidden="true">ℹ️</span><span>Enter the deduction percentage for <b>rescheduling</b>. This will be deducted from the advance amount.</span></div>' +
+      : '<div class="policy-banner resched" role="note"><span aria-hidden="true">ℹ️</span><span>Deduction % for <b>rescheduling</b> — taken from the advance already paid.</span></div>' +
         pkgPolicyRulesRowsHtml(d.rescheduleRules, 'reschedule') +
-        '<div class="fld" style="margin-top:14px"><label>Additional notes (shown to customers)</label>' +
-        '<textarea id="reschedulePolicyNote" rows="3" placeholder="e.g. New date must be within 6 months; one free reschedule if 30+ days notice.">' +
+        '<div class="fld policy-notes" style="margin-top:14px"><label>Notes for customers (optional)</label>' +
+        '<textarea id="reschedulePolicyNote" rows="3" placeholder="e.g. New date within 6 months; one free reschedule with 30+ days notice.">' +
         esc(d.reschedulePolicyNote || '') +
-        '</textarea></div>')
+        '</textarea></div>') +
+    '</section>'
   );
 }
 
