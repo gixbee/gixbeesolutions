@@ -1,4 +1,4 @@
-const PHOTO_OWNER_BUILD = '2026-10-07-photo-owner-flow-audit-v1';
+const PHOTO_OWNER_BUILD = '2026-10-07-photo-owner-cancel-tiers-v1';
 const STORAGE_KEY = 'GIXBEE_PHOTO_OWNER_V1';
 
 const INDIAN_STATES = {
@@ -1037,13 +1037,14 @@ function validateStep() {
         toast('Payment stages must total 100% (currently ' + total + '%).');
         return false;
       }
-      if (d.policies.indexOf('Cancellation Policy') >= 0) {
-        ensurePolicyValues(d);
-        const c = d.policyValues['Cancellation Policy'] || {};
-        if (!c.refundPct && !String(c.notes || '').trim()) {
-          toast('Enter cancellation refund % or policy text for customers.');
-          return false;
-        }
+      ensurePkgPolicyRules(d);
+      if (!d.cancelRules || !d.cancelRules.length) {
+        toast('Add at least one cancellation policy tier.');
+        return false;
+      }
+      if (!d.rescheduleRules || !d.rescheduleRules.length) {
+        toast('Add at least one rescheduling policy tier.');
+        return false;
       }
     }
   } else {
