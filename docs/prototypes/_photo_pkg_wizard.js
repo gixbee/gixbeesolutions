@@ -379,6 +379,7 @@ function newPkgDraft() {
     deliverTab: 'photos',
     extras: pkgExtraDefaults(),
     customExtras: [],
+    excludedExtras: [],
     deliverPhoto: ['Edited Photos', 'Colour-Graded Photos'],
     deliverVideo: ['Full-Length Video', 'Highlight Video', 'Cinematic Video'],
     deliverDigital: ['Google Drive Link', 'Online Gallery'],
@@ -413,9 +414,12 @@ function allCeremonyTypes(d) {
   return CEREMONY_TYPES.concat(d.customCeremonies || []);
 }
 function allExtrasNames(d) {
+  const excluded = d.excludedExtras || [];
   return PKG_EXTRA_DEFAULTS.concat((d.customExtras || []).map(function (x) {
     return x.name;
-  }));
+  })).filter(function (name) {
+    return excluded.indexOf(name) < 0;
+  });
 }
 function allPhotoTypes(d) {
   return PHOTO_TYPE_DEFAULTS.concat(d.customPhotoTypes || []);
@@ -888,7 +892,10 @@ function renderPkgStep(step, d) {
               (x.basis === 'Per Event' ? ' selected' : '') +
               '>Per Event</option><option' +
               (x.basis === 'Per Hour' ? ' selected' : '') +
-              '>Per Hour</option></select></div>'
+              '>Per Hour</option></select>' +
+              '<button type="button" class="pay-del" data-action="remove-extra" data-extra-name="' +
+              esc(name) +
+              '" title="Remove service" aria-label="Remove service">🗑</button></div>'
             );
           })
           .join('') +
@@ -1194,10 +1201,32 @@ function bindPkgWizard(d) {
       if (act === 'add-extra') {
         const name = prompt('Service name');
         if (name) {
-          d.customExtras.push({ name: name.trim() });
-          d.extras[name.trim()] = { mode: 'extra', price: 5000, basis: 'Per Event' };
+          const trimmed = name.trim();
+          if (!trimmed) return;
+          d.customExtras.push({ name: trimmed });
+          d.extras[trimmed] = { mode: 'extra', price: 5000, basis: 'Per Event' };
+          if (d.excludedExtras) {
+            d.excludedExtras = d.excludedExtras.filter(function (x) {
+              return x !== trimmed;
+            });
+          }
           renderWizardBody();
         }
+        return;
+      }
+      if (act === 'remove-extra') {
+        const extraName = t.getAttribute('data-extra-name');
+        if (!extraName) return;
+        readPkgWizardFields(d);
+        delete d.extras[extraName];
+        d.customExtras = (d.customExtras || []).filter(function (x) {
+          return x.name !== extraName;
+        });
+        if (!d.excludedExtras) d.excludedExtras = [];
+        if (PKG_EXTRA_DEFAULTS.indexOf(extraName) >= 0 && d.excludedExtras.indexOf(extraName) < 0) {
+          d.excludedExtras.push(extraName);
+        }
+        renderWizardBody();
         return;
       }
       if (act === 'add-dphoto') {
