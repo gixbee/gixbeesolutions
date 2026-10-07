@@ -415,6 +415,19 @@ function allPkgFunctions(d) {
 function allCeremonyTypes(d) {
   return CEREMONY_TYPES.concat(d.customCeremonies || []);
 }
+function applyExtraRowMode(row, mode) {
+  if (!row) return;
+  row.classList.remove('mode-included', 'mode-extra');
+  row.classList.add(mode === 'included' ? 'mode-included' : 'mode-extra');
+}
+
+function syncAllExtraRowModes() {
+  document.querySelectorAll('.extra-row').forEach(function (row) {
+    const sel = row.querySelector('[data-extra-mode]');
+    if (sel) applyExtraRowMode(row, sel.value);
+  });
+}
+
 function allExtrasNames(d) {
   const excluded = d.excludedExtras || [];
   return PKG_EXTRA_DEFAULTS.concat((d.customExtras || []).map(function (x) {
@@ -876,8 +889,11 @@ function renderPkgStep(step, d) {
         allExtrasNames(d)
           .map(function (name) {
             const x = d.extras[name] || { mode: 'extra', price: 0, basis: 'Per Event' };
+            const modeCls = x.mode === 'included' ? 'mode-included' : 'mode-extra';
             return (
-              '<div class="extra-row" data-extra-name="' +
+              '<div class="extra-row ' +
+              modeCls +
+              '" data-extra-name="' +
               esc(name) +
               '"><span class="extra-ico">✦</span><b class="extra-name">' +
               esc(name) +
@@ -887,14 +903,15 @@ function renderPkgStep(step, d) {
               '>Included</option><option value="extra"' +
               (x.mode === 'extra' ? ' selected' : '') +
               '>Extra</option></select>' +
+              '<div class="extra-pay-fields">' +
               '<input type="number" data-extra-price value="' +
-              (x.price || 0) +
-              '" placeholder="₹">' +
+              (x.mode === 'included' ? 0 : x.price || 0) +
+              '" placeholder="₹" min="0">' +
               '<select data-extra-basis><option' +
               (x.basis === 'Per Event' ? ' selected' : '') +
               '>Per Event</option><option' +
               (x.basis === 'Per Hour' ? ' selected' : '') +
-              '>Per Hour</option></select>' +
+              '>Per Hour</option></select></div>' +
               '<button type="button" class="pay-del" data-action="remove-extra" data-extra-name="' +
               esc(name) +
               '" title="Remove service" aria-label="Remove service">🗑</button></div>'
@@ -1040,10 +1057,13 @@ function readPkgWizardFields(d) {
   document.querySelectorAll('.extra-row').forEach(function (row) {
     const name = row.getAttribute('data-extra-name');
     if (!name) return;
+    const mode = row.querySelector('[data-extra-mode]').value;
+    const priceEl = row.querySelector('[data-extra-price]');
+    const basisEl = row.querySelector('[data-extra-basis]');
     d.extras[name] = {
-      mode: row.querySelector('[data-extra-mode]').value,
-      price: +(row.querySelector('[data-extra-price]').value || 0),
-      basis: row.querySelector('[data-extra-basis]').value,
+      mode: mode,
+      price: mode === 'included' ? 0 : +(priceEl && priceEl.value ? priceEl.value : 0),
+      basis: mode === 'included' ? 'Per Event' : basisEl ? basisEl.value : 'Per Event',
     };
   });
   document.querySelectorAll('[data-photo-qty]').forEach(function (inp) {
@@ -1294,6 +1314,7 @@ function bindPkgWizard(d) {
         return;
       }
       if (act === 'del-stage') {
+        if (d.paymentStages.length <= 1) return;
         const i = +t.getAttribute('data-idx');
         d.paymentStages.splice(i, 1);
         renderWizardBody();

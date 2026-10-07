@@ -159,6 +159,7 @@ body{margin:0;background:#E8EDF5;font-family:Inter,system-ui,sans-serif;color:va
 .hub-act{border-radius:10px;padding:7px 12px;font-size:11px;font-weight:800;cursor:pointer;font:inherit;border:1.5px solid;display:inline-flex;align-items:center;gap:4px}
 .hub-act-edit{background:#EFF6FF;border-color:#BFDBFE;color:var(--blue)}
 .hub-act-del{background:#FEF2F2;border-color:#FECACA;color:#DC2626}
+.hub-act .p-ico{width:14px;height:14px}
 .svc-row-wrap{border-top:1px solid #F1F5F9;background:#fff}
 .svc-row-wrap:first-child{border-top:0}
 .svc-row-wrap .svc-row{border:0;cursor:default}
@@ -320,10 +321,13 @@ button.manage-pill{cursor:pointer;font:inherit;color:var(--blue);border-color:#B
 .role-row{display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--line);font-weight:700;font-size:13px}
 .qty-step{display:flex;align-items:center;gap:8px}
 .qty-step button{width:32px;height:32px;border-radius:8px;border:1px solid var(--line);background:#fff;font-size:18px;cursor:pointer;font-weight:800}
-.extra-row{display:grid;grid-template-columns:22px minmax(0,1fr) 68px 62px 68px 36px;gap:6px;align-items:center;padding:10px 0;border-bottom:1px solid var(--line);font-size:11px}
+.extra-row{display:grid;grid-template-columns:22px minmax(0,1fr) 76px 36px;gap:6px;align-items:center;padding:10px 0;border-bottom:1px solid var(--line);font-size:11px}
+.extra-row.mode-extra{grid-template-columns:22px minmax(0,1fr) 76px minmax(52px,64px) minmax(58px,72px) 36px}
 .extra-row .extra-name{font-size:12px;color:var(--navy);line-height:1.3}
 .extra-row select,.extra-row input:not([type=checkbox]){padding:6px;font-size:11px;border-radius:8px;border:1px solid var(--line);width:100%;box-sizing:border-box}
-.extra-row .pay-del{width:32px;height:32px;border-radius:8px;background:#FEF2F2;display:grid;place-items:center;font-size:14px;line-height:1}
+.extra-pay-fields{display:none}
+.extra-row.mode-extra .extra-pay-fields{display:contents}
+.extra-row .pay-del{width:32px;height:32px;border-radius:8px;background:#FEF2F2;display:grid;place-items:center;font-size:14px;line-height:1;border:1px solid #FECACA;cursor:pointer}
 .album-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 .del-row label{font-size:12px}
 .pay-stage-section{margin:0 0 8px}
@@ -1039,6 +1043,19 @@ function allPkgFunctions(d) {
 function allCeremonyTypes(d) {
   return CEREMONY_TYPES.concat(d.customCeremonies || []);
 }
+function applyExtraRowMode(row, mode) {
+  if (!row) return;
+  row.classList.remove('mode-included', 'mode-extra');
+  row.classList.add(mode === 'included' ? 'mode-included' : 'mode-extra');
+}
+
+function syncAllExtraRowModes() {
+  document.querySelectorAll('.extra-row').forEach(function (row) {
+    const sel = row.querySelector('[data-extra-mode]');
+    if (sel) applyExtraRowMode(row, sel.value);
+  });
+}
+
 function allExtrasNames(d) {
   const excluded = d.excludedExtras || [];
   return PKG_EXTRA_DEFAULTS.concat((d.customExtras || []).map(function (x) {
@@ -1500,8 +1517,11 @@ function renderPkgStep(step, d) {
         allExtrasNames(d)
           .map(function (name) {
             const x = d.extras[name] || { mode: 'extra', price: 0, basis: 'Per Event' };
+            const modeCls = x.mode === 'included' ? 'mode-included' : 'mode-extra';
             return (
-              '<div class="extra-row" data-extra-name="' +
+              '<div class="extra-row ' +
+              modeCls +
+              '" data-extra-name="' +
               esc(name) +
               '"><span class="extra-ico">✦</span><b class="extra-name">' +
               esc(name) +
@@ -1511,14 +1531,15 @@ function renderPkgStep(step, d) {
               '>Included</option><option value="extra"' +
               (x.mode === 'extra' ? ' selected' : '') +
               '>Extra</option></select>' +
+              '<div class="extra-pay-fields">' +
               '<input type="number" data-extra-price value="' +
-              (x.price || 0) +
-              '" placeholder="₹">' +
+              (x.mode === 'included' ? 0 : x.price || 0) +
+              '" placeholder="₹" min="0">' +
               '<select data-extra-basis><option' +
               (x.basis === 'Per Event' ? ' selected' : '') +
               '>Per Event</option><option' +
               (x.basis === 'Per Hour' ? ' selected' : '') +
-              '>Per Hour</option></select>' +
+              '>Per Hour</option></select></div>' +
               '<button type="button" class="pay-del" data-action="remove-extra" data-extra-name="' +
               esc(name) +
               '" title="Remove service" aria-label="Remove service">🗑</button></div>'
@@ -1664,10 +1685,13 @@ function readPkgWizardFields(d) {
   document.querySelectorAll('.extra-row').forEach(function (row) {
     const name = row.getAttribute('data-extra-name');
     if (!name) return;
+    const mode = row.querySelector('[data-extra-mode]').value;
+    const priceEl = row.querySelector('[data-extra-price]');
+    const basisEl = row.querySelector('[data-extra-basis]');
     d.extras[name] = {
-      mode: row.querySelector('[data-extra-mode]').value,
-      price: +(row.querySelector('[data-extra-price]').value || 0),
-      basis: row.querySelector('[data-extra-basis]').value,
+      mode: mode,
+      price: mode === 'included' ? 0 : +(priceEl && priceEl.value ? priceEl.value : 0),
+      basis: mode === 'included' ? 'Per Event' : basisEl ? basisEl.value : 'Per Event',
     };
   });
   document.querySelectorAll('[data-photo-qty]').forEach(function (inp) {
@@ -2731,7 +2755,7 @@ function bindSvcWizard(d) {
   });
 }
 
-const PHOTO_OWNER_BUILD = '2026-10-07-photo-owner-hub-edit-del-v1';
+const PHOTO_OWNER_BUILD = '2026-10-07-photo-owner-pkg-extras-v1';
 const STORAGE_KEY = 'GIXBEE_PHOTO_OWNER_V1';
 
 const INDIAN_STATES = {

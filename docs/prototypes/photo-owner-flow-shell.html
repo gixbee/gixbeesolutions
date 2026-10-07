@@ -157,6 +157,7 @@ body{margin:0;background:#E8EDF5;font-family:Inter,system-ui,sans-serif;color:va
 .hub-act{border-radius:10px;padding:7px 12px;font-size:11px;font-weight:800;cursor:pointer;font:inherit;border:1.5px solid;display:inline-flex;align-items:center;gap:4px}
 .hub-act-edit{background:#EFF6FF;border-color:#BFDBFE;color:var(--blue)}
 .hub-act-del{background:#FEF2F2;border-color:#FECACA;color:#DC2626}
+.hub-act .p-ico{width:14px;height:14px}
 .svc-row-wrap{border-top:1px solid #F1F5F9;background:#fff}
 .svc-row-wrap:first-child{border-top:0}
 .svc-row-wrap .svc-row{border:0;cursor:default}
@@ -318,10 +319,13 @@ button.manage-pill{cursor:pointer;font:inherit;color:var(--blue);border-color:#B
 .role-row{display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--line);font-weight:700;font-size:13px}
 .qty-step{display:flex;align-items:center;gap:8px}
 .qty-step button{width:32px;height:32px;border-radius:8px;border:1px solid var(--line);background:#fff;font-size:18px;cursor:pointer;font-weight:800}
-.extra-row{display:grid;grid-template-columns:22px minmax(0,1fr) 68px 62px 68px 36px;gap:6px;align-items:center;padding:10px 0;border-bottom:1px solid var(--line);font-size:11px}
+.extra-row{display:grid;grid-template-columns:22px minmax(0,1fr) 76px 36px;gap:6px;align-items:center;padding:10px 0;border-bottom:1px solid var(--line);font-size:11px}
+.extra-row.mode-extra{grid-template-columns:22px minmax(0,1fr) 76px minmax(52px,64px) minmax(58px,72px) 36px}
 .extra-row .extra-name{font-size:12px;color:var(--navy);line-height:1.3}
 .extra-row select,.extra-row input:not([type=checkbox]){padding:6px;font-size:11px;border-radius:8px;border:1px solid var(--line);width:100%;box-sizing:border-box}
-.extra-row .pay-del{width:32px;height:32px;border-radius:8px;background:#FEF2F2;display:grid;place-items:center;font-size:14px;line-height:1}
+.extra-pay-fields{display:none}
+.extra-row.mode-extra .extra-pay-fields{display:contents}
+.extra-row .pay-del{width:32px;height:32px;border-radius:8px;background:#FEF2F2;display:grid;place-items:center;font-size:14px;line-height:1;border:1px solid #FECACA;cursor:pointer}
 .album-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 .del-row label{font-size:12px}
 .pay-stage-section{margin:0 0 8px}
