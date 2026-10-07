@@ -905,7 +905,7 @@ function renderPkgStep(step, d) {
               '>Extra</option></select>' +
               '<div class="extra-pay-fields">' +
               '<input type="number" data-extra-price value="' +
-              (x.mode === 'included' ? 0 : x.price || 0) +
+              (x.price != null ? x.price : 0) +
               '" placeholder="₹" min="0">' +
               '<select data-extra-basis><option' +
               (x.basis === 'Per Event' ? ' selected' : '') +
@@ -922,10 +922,17 @@ function renderPkgStep(step, d) {
         linkAdd('add-extra', 'Add New Service')
       );
     case 6: {
-      syncDeliveryMap(d);
       const keys = pkgDeliveryKeys(d);
+      if (!keys.length) {
+        return (
+          '<div class="hub-empty" style="margin:0">' +
+          '<div class="hub-empty-ico">📦</div><b>No deliverables selected</b>' +
+          '<p>Go back to the <b>Deliverables</b> step and check at least one photo, video, album, or digital option.</p></div>' +
+          '<button type="button" class="btn btn-ghost" data-goto-step="4" style="margin-top:12px;width:100%">← Back to deliverables</button>'
+        );
+      }
       return (
-        '<p class="sub">Set delivery timeline for each deliverable.</p>' +
+        '<p class="sub">Set delivery timeline for each deliverable you selected (photos, videos, albums, digital).</p>' +
         keys
           .map(function (k) {
             return (
@@ -1001,6 +1008,36 @@ function renderPkgStep(step, d) {
   }
 }
 
+function selectedDeliverableKeys(d) {
+  const keys = [];
+  (d.deliverPhoto || []).forEach(function (x) {
+    keys.push(x);
+  });
+  (d.deliverVideo || []).forEach(function (x) {
+    keys.push(x);
+  });
+  if (d.albumPrints) {
+    Object.keys(d.albumPrints).forEach(function (name) {
+      if (d.albumPrints[name] && d.albumPrints[name].on) keys.push(name);
+    });
+  }
+  (d.deliverDigital || []).forEach(function (x) {
+    keys.push(x);
+  });
+  return keys;
+}
+
+function pruneDeliveryMap(d) {
+  if (!d.deliveryMap) d.deliveryMap = {};
+  const allowed = {};
+  selectedDeliverableKeys(d).forEach(function (k) {
+    allowed[k] = true;
+  });
+  Object.keys(d.deliveryMap).forEach(function (k) {
+    if (!allowed[k]) delete d.deliveryMap[k];
+  });
+}
+
 function syncDeliveryMap(d) {
   if (!d.deliveryMap) d.deliveryMap = {};
   (d.deliverPhoto || []).forEach(function (name) {
@@ -1013,33 +1050,25 @@ function syncDeliveryMap(d) {
     if (det && det.delivery) d.deliveryMap[name] = det.delivery;
     else if (!d.deliveryMap[name]) d.deliveryMap[name] = '15 Working Days';
   });
-  if (d.albumPrints && d.albumPrints['Photo Album'] && d.albumPrints['Photo Album'].on) {
-    if (!d.deliveryMap['Photo Album']) d.deliveryMap['Photo Album'] = '45 Days (after selection)';
+  if (d.albumPrints) {
+    Object.keys(d.albumPrints).forEach(function (name) {
+      if (d.albumPrints[name] && d.albumPrints[name].on) {
+        if (!d.deliveryMap[name]) {
+          d.deliveryMap[name] =
+            name === 'Photo Album' ? '45 Days (after selection)' : '30 Working Days';
+        }
+      }
+    });
   }
   (d.deliverDigital || []).forEach(function (name) {
     if (!d.deliveryMap[name]) d.deliveryMap[name] = '5 Working Days';
   });
+  pruneDeliveryMap(d);
 }
 
 function pkgDeliveryKeys(d) {
   syncDeliveryMap(d);
-  const keys = [];
-  (d.deliverPhoto || []).forEach(function (x) {
-    keys.push(x);
-  });
-  (d.deliverVideo || []).forEach(function (x) {
-    keys.push(x);
-  });
-  if (d.albumPrints) {
-    ALBUM_PRINT_TYPES.forEach(function (name) {
-      if (d.albumPrints[name] && d.albumPrints[name].on) keys.push(name);
-    });
-  }
-  (d.deliverDigital || []).forEach(function (x) {
-    keys.push(x);
-  });
-  if (!keys.length) keys.push('Edited Photos');
-  return keys;
+  return selectedDeliverableKeys(d);
 }
 
 function readPkgWizardFields(d) {
@@ -1060,11 +1089,19 @@ function readPkgWizardFields(d) {
     const mode = row.querySelector('[data-extra-mode]').value;
     const priceEl = row.querySelector('[data-extra-price]');
     const basisEl = row.querySelector('[data-extra-basis]');
-    d.extras[name] = {
-      mode: mode,
-      price: mode === 'included' ? 0 : +(priceEl && priceEl.value ? priceEl.value : 0),
-      basis: mode === 'included' ? 'Per Event' : basisEl ? basisEl.value : 'Per Event',
-    };
+    const prev = d.extras[name] || {};
+    if (mode === 'included') {
+      const price =
+        priceEl && priceEl.value !== '' ? +(priceEl.value || 0) : prev.price != null ? prev.price : 0;
+      const basis = basisEl && basisEl.value ? basisEl.value : prev.basis || 'Per Event';
+      d.extras[name] = { mode: 'included', price: price, basis: basis };
+    } else {
+      d.extras[name] = {
+        mode: 'extra',
+        price: +(priceEl && priceEl.value !== '' ? priceEl.value : prev.price != null ? prev.price : 0),
+        basis: basisEl && basisEl.value ? basisEl.value : prev.basis || 'Per Event',
+      };
+    }
   });
   document.querySelectorAll('[data-photo-qty]').forEach(function (inp) {
     const k = inp.getAttribute('data-photo-qty');
@@ -1393,9 +1430,12 @@ function bindPkgWizard(d) {
       const val = t.getAttribute('data-dphoto');
       if (t.checked) {
         if (d.deliverPhoto.indexOf(val) < 0) d.deliverPhoto.push(val);
-      } else d.deliverPhoto = d.deliverPhoto.filter(function (x) {
-        return x !== val;
-      });
+      } else {
+        d.deliverPhoto = d.deliverPhoto.filter(function (x) {
+          return x !== val;
+        });
+        if (d.deliveryMap) delete d.deliveryMap[val];
+      }
       renderWizardBody();
       return;
     }
@@ -1403,9 +1443,12 @@ function bindPkgWizard(d) {
       const val = t.getAttribute('data-dvideo');
       if (t.checked) {
         if (d.deliverVideo.indexOf(val) < 0) d.deliverVideo.push(val);
-      } else d.deliverVideo = d.deliverVideo.filter(function (x) {
-        return x !== val;
-      });
+      } else {
+        d.deliverVideo = d.deliverVideo.filter(function (x) {
+          return x !== val;
+        });
+        if (d.deliveryMap) delete d.deliveryMap[val];
+      }
       renderWizardBody();
       return;
     }
@@ -1413,15 +1456,20 @@ function bindPkgWizard(d) {
       const val = t.getAttribute('data-ddigital');
       if (t.checked) {
         if (d.deliverDigital.indexOf(val) < 0) d.deliverDigital.push(val);
-      } else d.deliverDigital = d.deliverDigital.filter(function (x) {
-        return x !== val;
-      });
+      } else {
+        d.deliverDigital = d.deliverDigital.filter(function (x) {
+          return x !== val;
+        });
+        if (d.deliveryMap) delete d.deliveryMap[val];
+      }
+      renderWizardBody();
       return;
     }
     if (t.matches('[data-album-type]')) {
       const name = t.getAttribute('data-album-type');
       if (!d.albumPrints[name]) d.albumPrints[name] = defaultAlbumPrints()[name] || { on: false };
       d.albumPrints[name].on = t.checked;
+      if (!t.checked && d.deliveryMap) delete d.deliveryMap[name];
       renderWizardBody();
       return;
     }
@@ -1464,8 +1512,26 @@ function bindPkgWizard(d) {
   body.onchange = function (e) {
     if (!e.target.matches('[data-extra-mode]')) return;
     const row = e.target.closest('.extra-row');
-    applyExtraRowMode(row, e.target.value);
-    readPkgWizardFields(d);
+    const mode = e.target.value;
+    const name = row.getAttribute('data-extra-name');
+    if (!name) return;
+    const priceEl = row.querySelector('[data-extra-price]');
+    const basisEl = row.querySelector('[data-extra-basis]');
+    const prev = d.extras[name] || {};
+    if (mode === 'included') {
+      d.extras[name] = {
+        mode: 'included',
+        price: priceEl ? +(priceEl.value || 0) : prev.price != null ? prev.price : 0,
+        basis: basisEl ? basisEl.value : prev.basis || 'Per Event',
+      };
+    } else {
+      const price = prev.price != null ? prev.price : +(priceEl && priceEl.value ? priceEl.value : 0);
+      const basis = prev.basis || (basisEl ? basisEl.value : 'Per Event');
+      d.extras[name] = { mode: 'extra', price: price, basis: basis };
+      if (priceEl) priceEl.value = String(price);
+      if (basisEl) basisEl.value = basis;
+    }
+    applyExtraRowMode(row, mode);
   };
   if (wiz.step === 5) syncAllExtraRowModes();
 }
