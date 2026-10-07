@@ -1,4 +1,4 @@
-const PHOTO_OWNER_BUILD = '2026-10-07-photo-owner-biz-profile-ui-v1';
+const PHOTO_OWNER_BUILD = '2026-10-07-photo-owner-hub-edit-del-v1';
 const STORAGE_KEY = 'GIXBEE_PHOTO_OWNER_V1';
 
 const INDIAN_STATES = {
@@ -696,6 +696,64 @@ function filteredPackages() {
   return store.packages.filter((p) => levelClass(p.level) === store.pkgFilter);
 }
 
+function deletePackage(id) {
+  const p = findPackage(id);
+  if (!p) return;
+  if (!confirm('Delete package "' + p.name + '"? This cannot be undone.')) return;
+  store.packages = store.packages.filter(function (x) {
+    return x.id !== id;
+  });
+  saveStore();
+  renderSvcPkg();
+  toast('Package deleted');
+}
+
+function deleteService(id) {
+  const s = findService(id);
+  if (!s) return;
+  if (!confirm('Delete service "' + s.name + '"? This cannot be undone.')) return;
+  store.services = store.services.filter(function (x) {
+    return x.id !== id;
+  });
+  saveStore();
+  renderSvcPkg();
+  toast('Service deleted');
+}
+
+function bindHubCatalogActions(root) {
+  if (!root) return;
+  root.querySelectorAll('[data-hub-edit-pkg]').forEach(function (btn) {
+    btn.onclick = function (e) {
+      e.stopPropagation();
+      startWizard('package', btn.getAttribute('data-hub-edit-pkg'));
+    };
+  });
+  root.querySelectorAll('[data-hub-del-pkg]').forEach(function (btn) {
+    btn.onclick = function (e) {
+      e.stopPropagation();
+      deletePackage(btn.getAttribute('data-hub-del-pkg'));
+    };
+  });
+  root.querySelectorAll('[data-hub-edit-svc]').forEach(function (btn) {
+    btn.onclick = function (e) {
+      e.stopPropagation();
+      startWizard('service', btn.getAttribute('data-hub-edit-svc'));
+    };
+  });
+  root.querySelectorAll('[data-hub-del-svc]').forEach(function (btn) {
+    btn.onclick = function (e) {
+      e.stopPropagation();
+      deleteService(btn.getAttribute('data-hub-del-svc'));
+    };
+  });
+  root.querySelectorAll('.pkg-card-tap').forEach(function (card) {
+    card.onclick = function (e) {
+      if (e.target.closest('.hub-act')) return;
+      startWizard('package', card.getAttribute('data-pkg-id'));
+    };
+  });
+}
+
 function renderPkgList() {
   const list = el('pkgList');
   const pkgs = filteredPackages();
@@ -717,7 +775,7 @@ function renderPkgList() {
             '</span>'
           : '';
       return (
-        '<button type="button" class="pkg-card" data-pkg="' +
+        '<div class="pkg-card pkg-card-tap" data-pkg-id="' +
         esc(p.id) +
         '"><div class="pkg-thumb lv-' +
         lv +
@@ -727,24 +785,30 @@ function renderPkgList() {
         lv +
         '">' +
         esc(p.level) +
-        '</span><span class="pkg-chev">›</span></div><b>' +
+        '</span></div><b>' +
         esc(p.name) +
         '</b><div class="pkg-price">' +
         inr(p.price) +
         disc +
         '</div><div class="pkg-sub">' +
-        esc(p.coverage || 'Tap to view coverage & deliverables') +
+        esc(p.coverage || 'Tap card to edit coverage & deliverables') +
         '</div><div class="pkg-foot"><span class="status ' +
         (p.status === 'published' ? 'pub' : 'draft') +
         '">' +
         (p.status === 'published' ? '● Live' : '○ Draft') +
-        '</span><span style="font-size:10px;font-weight:800;color:var(--blue)">Edit</span></div></div></button>'
+        '</span></div><div class="hub-card-actions">' +
+        '<button type="button" class="hub-act hub-act-edit" data-hub-edit-pkg="' +
+        esc(p.id) +
+        '">' +
+        photoIcon('edit') +
+        ' Edit</button>' +
+        '<button type="button" class="hub-act hub-act-del" data-hub-del-pkg="' +
+        esc(p.id) +
+        '">Delete</button></div></div></div>'
       );
     })
     .join('');
-  list.querySelectorAll('.pkg-card').forEach((btn) => {
-    btn.onclick = () => startWizard('package', btn.getAttribute('data-pkg'));
-  });
+  bindHubCatalogActions(list);
 }
 
 function renderSvcList() {
@@ -766,9 +830,9 @@ function renderSvcList() {
   list.innerHTML = store.services
     .map(
       (s) =>
-        '<button type="button" class="svc-row" data-svc="' +
+        '<div class="svc-row-wrap" data-svc-id="' +
         esc(s.id) +
-        '"><div class="svc-thumb">' +
+        '"><div class="svc-row"><div class="svc-thumb">' +
         photoIcon('cam') +
         '</div><div class="svc-bd"><b>' +
         esc(s.name) +
@@ -778,12 +842,18 @@ function renderSvcList() {
         (s.status === 'published' ? 'pub' : 'draft') +
         '" style="margin:0;padding:4px 8px">' +
         (s.status === 'published' ? 'Live' : 'Draft') +
-        '</span></div></div><span class="svc-row-chev">›</span></button>'
+        '</span></div></div></div><div class="hub-card-actions">' +
+        '<button type="button" class="hub-act hub-act-edit" data-hub-edit-svc="' +
+        esc(s.id) +
+        '">' +
+        photoIcon('edit') +
+        ' Edit</button>' +
+        '<button type="button" class="hub-act hub-act-del" data-hub-del-svc="' +
+        esc(s.id) +
+        '">Delete</button></div></div>'
     )
     .join('');
-  list.querySelectorAll('.svc-row').forEach((btn) => {
-    btn.onclick = () => startWizard('service', btn.getAttribute('data-svc'));
-  });
+  bindHubCatalogActions(list);
 }
 
 function applyHubTab() {

@@ -129,8 +129,9 @@ body{margin:0;background:#E8EDF5;font-family:Inter,system-ui,sans-serif;color:va
 .fchip{flex:none;padding:9px 16px;border-radius:99px;border:1.5px solid #E2E8F0;font-size:11px;font-weight:800;background:#fff;color:#475569;cursor:pointer;transition:all .15s}
 .fchip.on{background:linear-gradient(135deg,#DB2777,#EC4899);color:#fff;border-color:transparent;box-shadow:0 4px 12px rgba(219,39,119,.35)}
 .hub-list{padding:0 16px 8px}
-.pkg-card{display:flex;gap:12px;border:1px solid #E2E8F0;border-radius:18px;padding:12px;margin:0 0 12px;background:#fff;text-align:left;width:100%;font:inherit;cursor:pointer;color:inherit;box-shadow:0 4px 16px rgba(15,23,42,.06);transition:transform .12s,box-shadow .12s}
-.pkg-card:active{transform:scale(.985)}
+.pkg-card{display:flex;gap:12px;border:1px solid #E2E8F0;border-radius:18px;padding:12px;margin:0 0 12px;background:#fff;text-align:left;width:100%;font:inherit;color:inherit;box-shadow:0 4px 16px rgba(15,23,42,.06)}
+.pkg-card.pkg-card-tap{cursor:pointer;transition:transform .12s,box-shadow .12s}
+.pkg-card.pkg-card-tap:active{transform:scale(.985)}
 .pkg-thumb{width:80px;height:80px;border-radius:14px;flex-shrink:0;display:grid;place-items:center;color:#fff;position:relative;overflow:hidden}
 .pkg-thumb::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,transparent 40%,rgba(0,0,0,.25))}
 .pkg-thumb .p-ico{width:28px;height:28px;position:relative;z-index:1;opacity:.95}
@@ -152,8 +153,16 @@ body{margin:0;background:#E8EDF5;font-family:Inter,system-ui,sans-serif;color:va
 .status{display:inline-flex;align-items:center;gap:4px;font-size:10px;font-weight:800;padding:5px 10px;border-radius:99px}
 .status.pub{background:#DCFCE7;color:#166534}
 .status.draft{background:#F1F5F9;color:#64748B}
-.pkg-chev{width:32px;height:32px;border-radius:10px;background:#F8FAFC;display:grid;place-items:center;color:#94A3B8;flex-shrink:0}
+.pkg-chev{display:none}
 .pkg-menu{display:none}
+.hub-card-actions{display:flex;gap:8px;margin-top:6px;justify-content:flex-end;width:100%}
+.hub-act{border-radius:10px;padding:7px 12px;font-size:11px;font-weight:800;cursor:pointer;font:inherit;border:1.5px solid;display:inline-flex;align-items:center;gap:4px}
+.hub-act-edit{background:#EFF6FF;border-color:#BFDBFE;color:var(--blue)}
+.hub-act-del{background:#FEF2F2;border-color:#FECACA;color:#DC2626}
+.svc-row-wrap{border-top:1px solid #F1F5F9;background:#fff}
+.svc-row-wrap:first-child{border-top:0}
+.svc-row-wrap .svc-row{border:0;cursor:default}
+.svc-row-wrap .hub-card-actions{padding:0 16px 12px;justify-content:flex-end;margin-top:-4px}
 .hub-empty{text-align:center;padding:28px 20px 24px;margin:0 16px 12px;border-radius:18px;border:1.5px dashed #CBD5E1;background:#F8FAFC}
 .hub-empty-ico{width:52px;height:52px;border-radius:16px;margin:0 auto 12px;display:grid;place-items:center;background:#fff;box-shadow:0 4px 12px rgba(15,23,42,.06);color:var(--blue)}
 .hub-empty b{display:block;font-size:14px;color:var(--navy);margin-bottom:6px}
@@ -2722,7 +2731,7 @@ function bindSvcWizard(d) {
   });
 }
 
-const PHOTO_OWNER_BUILD = '2026-10-07-photo-owner-biz-profile-ui-v1';
+const PHOTO_OWNER_BUILD = '2026-10-07-photo-owner-hub-edit-del-v1';
 const STORAGE_KEY = 'GIXBEE_PHOTO_OWNER_V1';
 
 const INDIAN_STATES = {
@@ -3420,6 +3429,64 @@ function filteredPackages() {
   return store.packages.filter((p) => levelClass(p.level) === store.pkgFilter);
 }
 
+function deletePackage(id) {
+  const p = findPackage(id);
+  if (!p) return;
+  if (!confirm('Delete package "' + p.name + '"? This cannot be undone.')) return;
+  store.packages = store.packages.filter(function (x) {
+    return x.id !== id;
+  });
+  saveStore();
+  renderSvcPkg();
+  toast('Package deleted');
+}
+
+function deleteService(id) {
+  const s = findService(id);
+  if (!s) return;
+  if (!confirm('Delete service "' + s.name + '"? This cannot be undone.')) return;
+  store.services = store.services.filter(function (x) {
+    return x.id !== id;
+  });
+  saveStore();
+  renderSvcPkg();
+  toast('Service deleted');
+}
+
+function bindHubCatalogActions(root) {
+  if (!root) return;
+  root.querySelectorAll('[data-hub-edit-pkg]').forEach(function (btn) {
+    btn.onclick = function (e) {
+      e.stopPropagation();
+      startWizard('package', btn.getAttribute('data-hub-edit-pkg'));
+    };
+  });
+  root.querySelectorAll('[data-hub-del-pkg]').forEach(function (btn) {
+    btn.onclick = function (e) {
+      e.stopPropagation();
+      deletePackage(btn.getAttribute('data-hub-del-pkg'));
+    };
+  });
+  root.querySelectorAll('[data-hub-edit-svc]').forEach(function (btn) {
+    btn.onclick = function (e) {
+      e.stopPropagation();
+      startWizard('service', btn.getAttribute('data-hub-edit-svc'));
+    };
+  });
+  root.querySelectorAll('[data-hub-del-svc]').forEach(function (btn) {
+    btn.onclick = function (e) {
+      e.stopPropagation();
+      deleteService(btn.getAttribute('data-hub-del-svc'));
+    };
+  });
+  root.querySelectorAll('.pkg-card-tap').forEach(function (card) {
+    card.onclick = function (e) {
+      if (e.target.closest('.hub-act')) return;
+      startWizard('package', card.getAttribute('data-pkg-id'));
+    };
+  });
+}
+
 function renderPkgList() {
   const list = el('pkgList');
   const pkgs = filteredPackages();
@@ -3441,7 +3508,7 @@ function renderPkgList() {
             '</span>'
           : '';
       return (
-        '<button type="button" class="pkg-card" data-pkg="' +
+        '<div class="pkg-card pkg-card-tap" data-pkg-id="' +
         esc(p.id) +
         '"><div class="pkg-thumb lv-' +
         lv +
@@ -3451,24 +3518,30 @@ function renderPkgList() {
         lv +
         '">' +
         esc(p.level) +
-        '</span><span class="pkg-chev">›</span></div><b>' +
+        '</span></div><b>' +
         esc(p.name) +
         '</b><div class="pkg-price">' +
         inr(p.price) +
         disc +
         '</div><div class="pkg-sub">' +
-        esc(p.coverage || 'Tap to view coverage & deliverables') +
+        esc(p.coverage || 'Tap card to edit coverage & deliverables') +
         '</div><div class="pkg-foot"><span class="status ' +
         (p.status === 'published' ? 'pub' : 'draft') +
         '">' +
         (p.status === 'published' ? '● Live' : '○ Draft') +
-        '</span><span style="font-size:10px;font-weight:800;color:var(--blue)">Edit</span></div></div></button>'
+        '</span></div><div class="hub-card-actions">' +
+        '<button type="button" class="hub-act hub-act-edit" data-hub-edit-pkg="' +
+        esc(p.id) +
+        '">' +
+        photoIcon('edit') +
+        ' Edit</button>' +
+        '<button type="button" class="hub-act hub-act-del" data-hub-del-pkg="' +
+        esc(p.id) +
+        '">Delete</button></div></div></div>'
       );
     })
     .join('');
-  list.querySelectorAll('.pkg-card').forEach((btn) => {
-    btn.onclick = () => startWizard('package', btn.getAttribute('data-pkg'));
-  });
+  bindHubCatalogActions(list);
 }
 
 function renderSvcList() {
@@ -3490,9 +3563,9 @@ function renderSvcList() {
   list.innerHTML = store.services
     .map(
       (s) =>
-        '<button type="button" class="svc-row" data-svc="' +
+        '<div class="svc-row-wrap" data-svc-id="' +
         esc(s.id) +
-        '"><div class="svc-thumb">' +
+        '"><div class="svc-row"><div class="svc-thumb">' +
         photoIcon('cam') +
         '</div><div class="svc-bd"><b>' +
         esc(s.name) +
@@ -3502,12 +3575,18 @@ function renderSvcList() {
         (s.status === 'published' ? 'pub' : 'draft') +
         '" style="margin:0;padding:4px 8px">' +
         (s.status === 'published' ? 'Live' : 'Draft') +
-        '</span></div></div><span class="svc-row-chev">›</span></button>'
+        '</span></div></div></div><div class="hub-card-actions">' +
+        '<button type="button" class="hub-act hub-act-edit" data-hub-edit-svc="' +
+        esc(s.id) +
+        '">' +
+        photoIcon('edit') +
+        ' Edit</button>' +
+        '<button type="button" class="hub-act hub-act-del" data-hub-del-svc="' +
+        esc(s.id) +
+        '">Delete</button></div></div>'
     )
     .join('');
-  list.querySelectorAll('.svc-row').forEach((btn) => {
-    btn.onclick = () => startWizard('service', btn.getAttribute('data-svc'));
-  });
+  bindHubCatalogActions(list);
 }
 
 function applyHubTab() {
