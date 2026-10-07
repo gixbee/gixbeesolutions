@@ -161,8 +161,6 @@ const PKG_POLICY_TIER_DEFAULTS = [
   { days: 'Less than 1 day', pct: 100 },
 ];
 
-let pkgWizPolicyTab = 'cancel';
-
 function clonePkgPolicyTierDefaults() {
   return PKG_POLICY_TIER_DEFAULTS.map(function (r) {
     return { days: r.days, pct: r.pct };
@@ -189,6 +187,11 @@ function ensurePkgPolicyRules(d) {
   if (!d.policies) d.policies = [];
   if (d.policies.indexOf('Cancellation Policy') < 0) d.policies.push('Cancellation Policy');
   if (d.policies.indexOf('Rescheduling Policy') < 0) d.policies.push('Rescheduling Policy');
+  if (!d.cancelReschedTab) d.cancelReschedTab = 'cancel';
+}
+
+function activeCancelReschedTab(d) {
+  return d.cancelReschedTab === 'reschedule' ? 'reschedule' : 'cancel';
 }
 
 function pkgPolicyRulesRowsHtml(rules, kind) {
@@ -202,7 +205,7 @@ function pkgPolicyRulesRowsHtml(rules, kind) {
         '<span class="policy-pct-wrap"><span class="policy-tier-lbl">Deduct</span><input type="number" class="policy-pct-inp" inputmode="numeric" min="0" max="100" data-field="pct" value="' +
         r.pct +
         '" aria-label="Deduction percent"><span class="policy-pct-unit">%</span></span>' +
-        '<button type="button" class="policy-row-remove" data-action="pkg-policy-del-tier" title="Remove tier" aria-label="Remove tier">✕</button></div>'
+        '<button type="button" class="policy-row-remove" data-action="cr-policy-del-tier" title="Remove tier" aria-label="Remove tier">✕</button></div>'
       );
     })
     .join('');
@@ -212,7 +215,7 @@ function pkgPolicyRulesRowsHtml(rules, kind) {
     '">' +
     rows +
     '</div>' +
-    '<button type="button" class="policy-add-tier" data-action="pkg-policy-add-tier" data-policy="' +
+    '<button type="button" class="policy-add-tier" data-action="cr-policy-add-tier" data-policy="' +
     kind +
     '">+ Add tier</button>'
   );
@@ -251,9 +254,40 @@ function readPkgPolicyTiersFromDom(d) {
   }
 }
 
-function renderPkgCancelReschedBlock(d) {
+function onCrPolicyTab(d, readFields, tab) {
+  readFields(d);
+  d.cancelReschedTab = tab === 'reschedule' ? 'reschedule' : 'cancel';
+  renderWizardBody();
+}
+
+function onCrPolicyAddTier(d, readFields, kind) {
+  readFields(d);
   ensurePkgPolicyRules(d);
-  const cancelOn = pkgWizPolicyTab !== 'reschedule';
+  const arr = kind === 'reschedule' ? d.rescheduleRules : d.cancelRules;
+  arr.push({ days: 'Days before event', pct: 10 });
+  renderWizardBody();
+}
+
+function onCrPolicyDelTier(d, readFields, btn) {
+  readFields(d);
+  ensurePkgPolicyRules(d);
+  const kind = activeCancelReschedTab(d);
+  const arr = kind === 'reschedule' ? d.rescheduleRules : d.cancelRules;
+  const row = btn.closest('.policy-row');
+  const box = row && row.parentElement;
+  if (!row || !box) return;
+  const idx = Array.prototype.indexOf.call(box.querySelectorAll('.policy-row'), row);
+  if (arr.length <= 1) {
+    toast('Keep at least one tier in this policy.');
+    return;
+  }
+  if (idx >= 0) arr.splice(idx, 1);
+  renderWizardBody();
+}
+
+function renderCancelReschedBlock(d) {
+  ensurePkgPolicyRules(d);
+  const cancelOn = activeCancelReschedTab(d) === 'cancel';
   return (
     '<section class="policy-section" aria-label="Cancellation and rescheduling">' +
     '<h2 class="policy-section-hd">Cancellation &amp; rescheduling</h2>' +
@@ -263,12 +297,12 @@ function renderPkgCancelReschedBlock(d) {
     (cancelOn ? 'true' : 'false') +
     '" class="' +
     (cancelOn ? 'on' : '') +
-    '" data-action="pkg-policy-tab" data-tab="cancel">Cancellation</button>' +
+    '" data-action="cr-policy-tab" data-tab="cancel">Cancellation</button>' +
     '<button type="button" role="tab" aria-selected="' +
     (!cancelOn ? 'true' : 'false') +
     '" class="' +
     (!cancelOn ? 'on' : '') +
-    '" data-action="pkg-policy-tab" data-tab="reschedule">Rescheduling</button></div>' +
+    '" data-action="cr-policy-tab" data-tab="reschedule">Rescheduling</button></div>' +
     (cancelOn
       ? '<div class="policy-banner cancel" role="note"><span aria-hidden="true">ℹ️</span><span>Deduction % for <b>cancellations</b> — taken from the advance already paid.</span></div>' +
         pkgPolicyRulesRowsHtml(d.cancelRules, 'cancel') +
@@ -388,7 +422,7 @@ function renderPayPoliciesStep(d) {
     (totalOk ? '' : ' <span class="sub">— adjust stages to reach 100%</span>') +
     '</div>' +
     '<button type="button" class="btn-add-stage" data-action="add-stage">+ Add Custom Stage</button></div>' +
-    renderPkgCancelReschedBlock(d) +
+    renderCancelReschedBlock(d) +
     '<p class="lbl" style="margin-top:20px">Other policies (optional)</p>' +
     '<p class="sub" style="margin:0 0 10px">Select additional policies customers will see on your package.</p>' +
     POLICY_DEFAULTS.concat(d.customPolicies || [])
@@ -554,6 +588,7 @@ function newPkgDraft() {
     rescheduleRules: clonePkgPolicyTierDefaults(),
     cancelPolicyNote: '',
     reschedulePolicyNote: '',
+    cancelReschedTab: 'cancel',
     policyValues: {
       'Cancellation Policy': defaultPolicyValue('Cancellation Policy'),
       'Rescheduling Policy': defaultPolicyValue('Rescheduling Policy'),
@@ -1525,34 +1560,16 @@ function bindPkgWizard(d) {
         renderWizardBody();
         return;
       }
-      if (act === 'pkg-policy-tab') {
-        readPkgWizardFields(d);
-        pkgWizPolicyTab = t.getAttribute('data-tab') === 'reschedule' ? 'reschedule' : 'cancel';
-        renderWizardBody();
+      if (act === 'cr-policy-tab') {
+        onCrPolicyTab(d, readPkgWizardFields, t.getAttribute('data-tab'));
         return;
       }
-      if (act === 'pkg-policy-add-tier') {
-        readPkgWizardFields(d);
-        const kind = t.getAttribute('data-policy');
-        const arr = kind === 'reschedule' ? d.rescheduleRules : d.cancelRules;
-        arr.push({ days: 'Days before event', pct: 10 });
-        renderWizardBody();
+      if (act === 'cr-policy-add-tier') {
+        onCrPolicyAddTier(d, readPkgWizardFields, t.getAttribute('data-policy'));
         return;
       }
-      if (act === 'pkg-policy-del-tier') {
-        readPkgWizardFields(d);
-        const kind = pkgWizPolicyTab === 'reschedule' ? 'reschedule' : 'cancel';
-        const arr = kind === 'reschedule' ? d.rescheduleRules : d.cancelRules;
-        const row = t.closest('.policy-row');
-        const box = row && row.parentElement;
-        if (!row || !box) return;
-        const idx = Array.prototype.indexOf.call(box.querySelectorAll('.policy-row'), row);
-        if (arr.length <= 1) {
-          toast('Keep at least one tier in this policy.');
-          return;
-        }
-        if (idx >= 0) arr.splice(idx, 1);
-        renderWizardBody();
+      if (act === 'cr-policy-del-tier') {
+        onCrPolicyDelTier(d, readPkgWizardFields, t);
         return;
       }
       if (act === 'publish-draft') {

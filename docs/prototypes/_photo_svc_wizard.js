@@ -35,15 +35,15 @@ function normalizeSvcDeliverables(d) {
     if (x === 'High-Resolution Photos') return 'Colour-Graded Photos';
     return x;
   });
-  d.inclVideo = d.inclVideo.map(function (x) {
-    if (x === 'Full Video') return 'Full-Length Video';
-    if (x === 'Reel (1 Minute)') return 'Reel';
-    return x;
+  const nextVideo = [];
+  (d.inclVideo || []).forEach(function (x) {
+    let mapped = x;
+    if (x === 'Full Video') mapped = 'Full-Length Video';
+    if (x === 'Reel (1 Minute)') mapped = 'Reel';
+    if (VIDEO_DELIVER.indexOf(mapped) >= 0) nextVideo.push(mapped);
+    else if (d.customInclVideo.indexOf(mapped) < 0) d.customInclVideo.push(mapped);
   });
-  (d.customInclVideo || []).forEach(function (x) {
-    if (['Live Streaming', 'Cinematic Video', 'Teaser Video'].indexOf(x) >= 0) return;
-    if (VIDEO_DELIVER.indexOf(x) >= 0 && d.inclVideo.indexOf(x) < 0) d.inclVideo.push(x);
-  });
+  d.inclVideo = nextVideo;
   if (d.album && d.album.include && d.inclAlbums.indexOf('Photo Album') < 0) {
     d.inclAlbums.push('Photo Album');
   }
@@ -101,6 +101,15 @@ function newSvcDraft() {
       'Live Streaming': 'Same Day',
     },
     policies: ['Cancellation Policy', 'Rescheduling Policy'],
+    cancelRules: clonePkgPolicyTierDefaults(),
+    rescheduleRules: clonePkgPolicyTierDefaults(),
+    cancelPolicyNote: '',
+    reschedulePolicyNote: '',
+    cancelReschedTab: 'cancel',
+    policyValues: {
+      'Cancellation Policy': defaultPolicyValue('Cancellation Policy'),
+      'Rescheduling Policy': defaultPolicyValue('Rescheduling Policy'),
+    },
     customPolicies: [],
     requirements: ['Travel charges may apply for outside locations'],
     customRequirements: [],
@@ -119,6 +128,8 @@ function recordToSvcDraft(rec) {
     deliveryMap: Object.assign(base.deliveryMap, m.deliveryMap || {}),
   });
   normalizeSvcDeliverables(merged);
+  ensurePkgPolicyRules(merged);
+  ensurePolicyValues(merged);
   return merged;
 }
 
@@ -485,8 +496,12 @@ function renderSvcStep(step, d) {
     }
     case 7:
       return (
-        '<p class="lbl">Policies</p>' +
+        renderCancelReschedBlock(d) +
+        '<p class="lbl" style="margin-top:20px">Other policies (optional)</p>' +
         SVC_POLICY_DEFAULTS.concat(d.customPolicies || [])
+          .filter(function (item) {
+            return item !== 'Cancellation Policy' && item !== 'Rescheduling Policy';
+          })
           .map(function (item) {
             const on = d.policies.indexOf(item) >= 0;
             return (
@@ -563,6 +578,7 @@ function readSvcWizardFields(d) {
     d.deliveryMap[sel.getAttribute('data-svc-del')] = sel.value;
   });
   pruneSvcDeliveryMap(d);
+  readPkgPolicyTiersFromDom(d);
   syncSvcPrice(d);
 }
 
@@ -648,6 +664,18 @@ function bindSvcWizard(d) {
           d.customRequirements.push(n.trim());
           renderWizardBody();
         }
+        return;
+      }
+      if (act === 'cr-policy-tab') {
+        onCrPolicyTab(d, readSvcWizardFields, t.getAttribute('data-tab'));
+        return;
+      }
+      if (act === 'cr-policy-add-tier') {
+        onCrPolicyAddTier(d, readSvcWizardFields, t.getAttribute('data-policy'));
+        return;
+      }
+      if (act === 'cr-policy-del-tier') {
+        onCrPolicyDelTier(d, readSvcWizardFields, t);
         return;
       }
       if (act === 'svc-publish-draft') {

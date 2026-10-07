@@ -1,4 +1,4 @@
-const PHOTO_OWNER_BUILD = '2026-10-07-photo-owner-svc-deliverables-v1';
+const PHOTO_OWNER_BUILD = '2026-10-07-photo-owner-svc-cancel-tiers-v1';
 const STORAGE_KEY = 'GIXBEE_PHOTO_OWNER_V1';
 
 const INDIAN_STATES = {
@@ -1067,6 +1067,17 @@ function validateStep() {
     if (wiz.step === 6 && !svcDeliveryKeys(d).length) {
       toast("Add included items before setting delivery timelines.");
       return false;
+    }
+    if (wiz.step === 7) {
+      ensurePkgPolicyRules(d);
+      if (!d.cancelRules || !d.cancelRules.length) {
+        toast('Add at least one cancellation policy tier.');
+        return false;
+      }
+      if (!d.rescheduleRules || !d.rescheduleRules.length) {
+        toast('Add at least one rescheduling policy tier.');
+        return false;
+      }
     }
   }
   return true;
