@@ -1,4 +1,4 @@
-const PHOTO_OWNER_BUILD = '2026-10-07-photo-owner-dash-ops-del-v1';
+const PHOTO_OWNER_BUILD = '2026-10-07-photo-owner-biz-profile-v1';
 const STORAGE_KEY = 'GIXBEE_PHOTO_OWNER_V1';
 
 const INDIAN_STATES = {
@@ -92,6 +92,13 @@ function defaultStore() {
       loc: 'Sakthan Nagar, Thrissur',
       registeredState: 'Kerala',
       registeredDistrict: 'Thrissur',
+      type: 'Photography',
+      vertical: 'Service',
+      phone: '+91 98765 43210',
+      email: 'hello@archanaphoto.in',
+      gstin: '—',
+      verified: true,
+      memberSince: '2024',
     },
     serviceAreas: {
       states: ['Kerala'],
@@ -370,6 +377,42 @@ function renderLmb() {
     renderPhotoDash();
     show('photoDash');
   };
+}
+
+function renderPhotoBizProfile() {
+  const b = store.biz;
+  const nameEl = el('profBizName');
+  if (nameEl) nameEl.textContent = b.name || '—';
+  const ver = el('profVerified');
+  if (ver) {
+    ver.textContent = b.verified ? '● Verified business' : '○ Verification pending';
+    ver.className = b.verified ? 'pill pill-ver' : 'pill pill-rev';
+  }
+  const rows = el('profDetailRows');
+  if (!rows) return;
+  const items = [
+    ['Business type', b.type || 'Photography'],
+    ['Listing', b.vertical || 'Service'],
+    ['Location', b.loc || '—'],
+    ['Registered state', b.registeredState || '—'],
+    ['Registered district', b.registeredDistrict || '—'],
+    ['Service areas', areaSummaryText()],
+    ['Phone', b.phone || '—'],
+    ['Email', b.email || '—'],
+    ['GSTIN', b.gstin || 'Not added'],
+    ['Member since', b.memberSince || '—'],
+  ];
+  rows.innerHTML = items
+    .map(function (pair) {
+      return (
+        '<div class="profile-row"><span>' +
+        esc(pair[0]) +
+        '</span><b>' +
+        esc(pair[1]) +
+        '</b></div>'
+      );
+    })
+    .join('');
 }
 
 function renderPhotoDash() {
@@ -1011,6 +1054,13 @@ function bindGlobal() {
   el('lmbHomeBtn').onclick = () => show('lmbDashboard');
   const backLmb = el('backToLmb');
   if (backLmb) backLmb.onclick = () => show('lmbDashboard');
+  const profBtn = el('photoBizProfileBtn');
+  if (profBtn) {
+    profBtn.onclick = function () {
+      renderPhotoBizProfile();
+      show('photoBizProfile');
+    };
+  }
   el('manageAreasLink').onclick = (e) => {
     e.preventDefault();
     startSaDraft();

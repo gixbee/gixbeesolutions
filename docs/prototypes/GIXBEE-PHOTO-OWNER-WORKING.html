@@ -223,6 +223,12 @@ body{margin:0;background:#E8EDF5;font-family:Inter,system-ui,sans-serif;color:va
 .lmb-top .row{display:flex;align-items:center;gap:8px;flex-wrap:nowrap}
 .biz-title{font-weight:900;font-size:16px;color:var(--navy);flex:1;min-width:0}
 .manage-pill{font-size:11px;font-weight:800;color:var(--mut);border:1px solid var(--line);padding:6px 10px;border-radius:99px;background:#fff;flex-shrink:0}
+button.manage-pill{cursor:pointer;font:inherit;color:var(--blue);border-color:#BFDBFE;background:#EFF6FF;max-width:108px;line-height:1.25;text-align:center}
+.profile-row{display:flex;justify-content:space-between;gap:12px;padding:14px 0;border-bottom:1px solid var(--line);font-size:13px}
+.profile-row:last-child{border-bottom:0}
+.profile-row span{color:var(--mut);font-weight:700;flex-shrink:0}
+.profile-row b{color:var(--navy);font-weight:800;text-align:right;line-height:1.35}
+.profile-ver{display:inline-flex;align-items:center;gap:6px;margin-top:8px}
 .home-pill{display:inline-flex;align-items:center;gap:6px;padding:6px 12px;border-radius:99px;background:var(--soft);color:var(--gn2);font-size:11px;font-weight:800;border:0;cursor:pointer}
 .biz-dash-card{border:1px solid var(--line);border-radius:16px;padding:14px;margin-bottom:14px;background:#fff;box-shadow:0 2px 8px rgba(15,23,42,.04)}
 .biz-dash-card .biz-row{display:flex;gap:12px;align-items:flex-start}
@@ -415,7 +421,7 @@ body{margin:0;background:#E8EDF5;font-family:Inter,system-ui,sans-serif;color:va
 </section>
 
 <section class="scr" id="photoDash">
-  <div class="top"><button type="button" class="back" id="backToLmb">←</button><h1>Dashboard</h1><span class="manage-pill">Manage</span></div>
+  <div class="top"><button type="button" class="back" id="backToLmb">←</button><h1>Dashboard</h1><button type="button" class="manage-pill" id="photoBizProfileBtn">Business profile</button></div>
   <div class="dash-banner"><div class="dash-logo">📷</div></div>
   <div class="dash-head">
     <b id="dashBizName">Archana Photography</b>
@@ -517,6 +523,22 @@ body{margin:0;background:#E8EDF5;font-family:Inter,system-ui,sans-serif;color:va
 <section class="scr" id="requests">
   <div class="top"><button type="button" class="back" data-to="photoDash">←</button><h1>Booking Requests</h1><span style="width:36px"></span></div>
   <div class="stub"><h2>3 pending requests</h2><p class="sub">Accept or decline customer booking requests here.</p><button type="button" class="btn btn-blue" data-to="photoDash" style="max-width:200px;margin:16px auto">Back to dashboard</button></div>
+</section>
+
+<section class="scr" id="photoBizProfile">
+  <div class="top"><button type="button" class="back" data-to="photoDash">←</button><h1>Business profile</h1><span style="width:36px"></span></div>
+  <div class="pad" style="padding-top:8px">
+    <div class="manage-biz-card">
+      <div class="manage-biz-photo" aria-hidden="true"></div>
+      <p class="manage-field-lbl">Business name</p>
+      <p class="biz-ro-display" id="profBizName">—</p>
+      <p class="sub" style="margin:0;font-size:12px">Set when you listed on Gixbee. Shown on search and your public profile.</p>
+      <div class="profile-ver"><span class="pill pill-ver" id="profVerified">● Verified</span></div>
+    </div>
+    <p class="lbl" style="margin-top:8px">BUSINESS DETAILS</p>
+    <div id="profDetailRows"></div>
+    <p class="sub" style="margin-top:14px">Need to change your registered business name? Contact Gixbee support from Help in the app.</p>
+  </div>
 </section>
 
 <section class="scr" id="photoOperators">
@@ -2670,7 +2692,7 @@ function bindSvcWizard(d) {
   });
 }
 
-const PHOTO_OWNER_BUILD = '2026-10-07-photo-owner-dash-ops-del-v1';
+const PHOTO_OWNER_BUILD = '2026-10-07-photo-owner-biz-profile-v1';
 const STORAGE_KEY = 'GIXBEE_PHOTO_OWNER_V1';
 
 const INDIAN_STATES = {
@@ -2764,6 +2786,13 @@ function defaultStore() {
       loc: 'Sakthan Nagar, Thrissur',
       registeredState: 'Kerala',
       registeredDistrict: 'Thrissur',
+      type: 'Photography',
+      vertical: 'Service',
+      phone: '+91 98765 43210',
+      email: 'hello@archanaphoto.in',
+      gstin: '—',
+      verified: true,
+      memberSince: '2024',
     },
     serviceAreas: {
       states: ['Kerala'],
@@ -3042,6 +3071,42 @@ function renderLmb() {
     renderPhotoDash();
     show('photoDash');
   };
+}
+
+function renderPhotoBizProfile() {
+  const b = store.biz;
+  const nameEl = el('profBizName');
+  if (nameEl) nameEl.textContent = b.name || '—';
+  const ver = el('profVerified');
+  if (ver) {
+    ver.textContent = b.verified ? '● Verified business' : '○ Verification pending';
+    ver.className = b.verified ? 'pill pill-ver' : 'pill pill-rev';
+  }
+  const rows = el('profDetailRows');
+  if (!rows) return;
+  const items = [
+    ['Business type', b.type || 'Photography'],
+    ['Listing', b.vertical || 'Service'],
+    ['Location', b.loc || '—'],
+    ['Registered state', b.registeredState || '—'],
+    ['Registered district', b.registeredDistrict || '—'],
+    ['Service areas', areaSummaryText()],
+    ['Phone', b.phone || '—'],
+    ['Email', b.email || '—'],
+    ['GSTIN', b.gstin || 'Not added'],
+    ['Member since', b.memberSince || '—'],
+  ];
+  rows.innerHTML = items
+    .map(function (pair) {
+      return (
+        '<div class="profile-row"><span>' +
+        esc(pair[0]) +
+        '</span><b>' +
+        esc(pair[1]) +
+        '</b></div>'
+      );
+    })
+    .join('');
 }
 
 function renderPhotoDash() {
@@ -3683,6 +3748,13 @@ function bindGlobal() {
   el('lmbHomeBtn').onclick = () => show('lmbDashboard');
   const backLmb = el('backToLmb');
   if (backLmb) backLmb.onclick = () => show('lmbDashboard');
+  const profBtn = el('photoBizProfileBtn');
+  if (profBtn) {
+    profBtn.onclick = function () {
+      renderPhotoBizProfile();
+      show('photoBizProfile');
+    };
+  }
   el('manageAreasLink').onclick = (e) => {
     e.preventDefault();
     startSaDraft();
