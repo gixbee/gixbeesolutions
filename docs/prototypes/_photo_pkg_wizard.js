@@ -387,8 +387,7 @@ function renderPayPoliciesStep(d) {
     '%</b>' +
     (totalOk ? '' : ' <span class="sub">— adjust stages to reach 100%</span>') +
     '</div>' +
-    '<button type="button" class="btn-add-stage" data-action="add-stage">+ Add Custom Stage</button>' +
-    '<button type="button" class="link-add pay-stage-reset" data-action="reset-pay-stages">Reset to default stages (30 / 40 / 20 / 10)</button></div>' +
+    '<button type="button" class="btn-add-stage" data-action="add-stage">+ Add Custom Stage</button></div>' +
     renderPkgCancelReschedBlock(d) +
     '<p class="lbl" style="margin-top:20px">Other policies (optional)</p>' +
     '<p class="sub" style="margin:0 0 10px">Select additional policies customers will see on your package.</p>' +
@@ -1497,13 +1496,6 @@ function bindPkgWizard(d) {
       if (act === 'add-stage') {
         readPkgWizardFields(d);
         d.paymentStages.push({ id: uid('ps'), label: 'Custom Stage', pct: 0 });
-        renderWizardBody();
-        return;
-      }
-      if (act === 'reset-pay-stages') {
-        readPkgWizardFields(d);
-        d.paymentStages = cloneDefaultPaymentStages();
-        toast('Payment stages reset to default.');
         renderWizardBody();
         return;
       }

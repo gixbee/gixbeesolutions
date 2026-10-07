@@ -344,8 +344,7 @@ button.manage-pill{cursor:pointer;font:inherit;color:var(--blue);border-color:#B
 .pay-stage-row .pay-del{grid-area:remove;width:48px;height:48px;border-radius:12px;border:1.5px solid #FECACA;background:#FEF2F2;display:grid;place-items:center;font-size:16px;padding:0;cursor:pointer;flex-shrink:0;justify-self:end;-webkit-tap-highlight-color:transparent}
 .pay-stage-sub{font-size:12px;color:var(--mut);font-weight:700;padding:0 4px}
 .pay-stage-sub b{color:var(--navy);font-weight:900}
-.btn-add-stage{display:flex;align-items:center;justify-content:center;gap:6px;width:100%;min-height:48px;padding:14px 12px;border:1.5px solid #BFDBFE;border-radius:14px;background:#EFF6FF;color:var(--blue);font-weight:800;font-size:15px;cursor:pointer;font:inherit;margin:0 0 8px;-webkit-tap-highlight-color:transparent}
-.pay-stage-reset{text-align:center;margin:0 0 16px;font-size:12px}
+.btn-add-stage{display:flex;align-items:center;justify-content:center;gap:6px;width:100%;min-height:48px;padding:14px 12px;border:1.5px solid #BFDBFE;border-radius:14px;background:#EFF6FF;color:var(--blue);font-weight:800;font-size:15px;cursor:pointer;font:inherit;margin:0 0 16px;-webkit-tap-highlight-color:transparent}
 .pay-total-bar{display:flex;align-items:center;justify-content:space-between;padding:12px 14px;border-radius:12px;margin:0 0 16px;font-weight:800}
 .pay-total-bar.ok{background:#ECFDF3;border:1px solid #86EFAC;color:#065F46}
 .pay-total-bar.warn{background:#FEF3C7;border:1px solid #FDE68A;color:#92400E}
@@ -1040,8 +1039,7 @@ function renderPayPoliciesStep(d) {
     '%</b>' +
     (totalOk ? '' : ' <span class="sub">— adjust stages to reach 100%</span>') +
     '</div>' +
-    '<button type="button" class="btn-add-stage" data-action="add-stage">+ Add Custom Stage</button>' +
-    '<button type="button" class="link-add pay-stage-reset" data-action="reset-pay-stages">Reset to default stages (30 / 40 / 20 / 10)</button></div>' +
+    '<button type="button" class="btn-add-stage" data-action="add-stage">+ Add Custom Stage</button></div>' +
     renderPkgCancelReschedBlock(d) +
     '<p class="lbl" style="margin-top:20px">Other policies (optional)</p>' +
     '<p class="sub" style="margin:0 0 10px">Select additional policies customers will see on your package.</p>' +
@@ -2153,13 +2151,6 @@ function bindPkgWizard(d) {
         renderWizardBody();
         return;
       }
-      if (act === 'reset-pay-stages') {
-        readPkgWizardFields(d);
-        d.paymentStages = cloneDefaultPaymentStages();
-        toast('Payment stages reset to default.');
-        renderWizardBody();
-        return;
-      }
       if (act === 'add-policy') {
         const name = prompt('Policy name');
         if (name) {
@@ -3109,7 +3100,7 @@ function bindSvcWizard(d) {
   });
 }
 
-const PHOTO_OWNER_BUILD = '2026-10-07-photo-owner-pay-stages-v1';
+const PHOTO_OWNER_BUILD = '2026-10-07-photo-owner-pay-stages-v2';
 const STORAGE_KEY = 'GIXBEE_PHOTO_OWNER_V1';
 
 const INDIAN_STATES = {
