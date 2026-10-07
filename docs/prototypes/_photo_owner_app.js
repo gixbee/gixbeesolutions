@@ -1,4 +1,4 @@
-const PHOTO_OWNER_BUILD = '2026-10-07-photo-owner-pay-stages-row-v1';
+const PHOTO_OWNER_BUILD = '2026-10-07-photo-owner-hub-tabs-clean-v1';
 const STORAGE_KEY = 'GIXBEE_PHOTO_OWNER_V1';
 
 const INDIAN_STATES = {
@@ -168,6 +168,12 @@ function showBootError(msg) {
 function show(id) {
   document.querySelectorAll('.scr').forEach((s) => s.classList.toggle('on', s.id === id));
 }
+function openSvcPkgHub() {
+  store.hubTab = 'packages';
+  saveStore();
+  renderSvcPkg();
+  show('svcPkg');
+}
 function toast(m) {
   const t = el('toast');
   if (!t) return;
@@ -269,7 +275,11 @@ function renderPhotoDash() {
     )
     .join('');
   q.querySelectorAll('[data-go]').forEach((btn) => {
-    btn.onclick = () => show(btn.getAttribute('data-go'));
+    btn.onclick = () => {
+      const dest = btn.getAttribute('data-go');
+      if (dest === 'svcPkg') openSvcPkgHub();
+      else show(dest);
+    };
   });
 }
 
@@ -566,22 +576,18 @@ function applyHubTab() {
   if (stat) {
     const pubPkg = store.packages.filter((p) => p.status === 'published').length;
     const pubSvc = store.services.filter((s) => s.status === 'published').length;
-    stat.innerHTML =
-      '<div class="hub-stat-chip pink"><b>' +
-      store.packages.length +
-      '</b><span>Packages · ' +
-      pubPkg +
-      ' live</span></div>' +
-      '<div class="hub-stat-chip blue"><b>' +
-      store.services.length +
-      '</b><span>Services · ' +
-      pubSvc +
-      ' live</span></div>';
+    stat.innerHTML = isPkg
+      ? '<div class="hub-stat-chip pink" style="flex:1;min-width:100%"><b>' +
+        store.packages.length +
+        '</b><span>Packages · ' +
+        pubPkg +
+        ' live</span></div>'
+      : '<div class="hub-stat-chip blue" style="flex:1;min-width:100%"><b>' +
+        store.services.length +
+        '</b><span>Services · ' +
+        pubSvc +
+        ' live</span></div>';
   }
-  const ctaPkg = el('hubCtaPkg');
-  const ctaSvc = el('hubCtaSvc');
-  if (ctaPkg) ctaPkg.style.display = isPkg ? '' : 'none';
-  if (ctaSvc) ctaSvc.style.display = '';
 }
 
 function renderSvcPkg() {
@@ -787,6 +793,7 @@ function finishWizard(publish) {
     }
   }
   wiz.editId = null;
+  store.hubTab = wiz.mode === 'service' ? 'services' : 'packages';
   saveStore();
   show('svcPkg');
   renderSvcPkg();

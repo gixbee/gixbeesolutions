@@ -161,9 +161,12 @@ body{margin:0;background:#E8EDF5;font-family:Inter,system-ui,sans-serif;color:va
 .svc-meta{display:flex;align-items:center;flex-wrap:wrap;gap:6px;font-size:11px;color:var(--mut);font-weight:700}
 .svc-price-tag{font-size:12px;font-weight:900;color:var(--navy)}
 .svc-row-chev{color:#CBD5E1;font-size:20px;font-weight:300}
+#svcPkg.hub-mode-packages .hub-svc-only{display:none!important}
 #svcPkg.hub-mode-services .hub-pkg-only{display:none!important}
 #svcPkg.hub-mode-services .svc-sec{border-color:#E2E8F0;box-shadow:0 4px 20px rgba(15,23,42,.08);margin-top:0}
-#svcPkg.hub-mode-services .svc-sec-hd{background:linear-gradient(90deg,#1B2559,#2563EB);color:#fff}
+#svcPkg.hub-mode-services .svc-sec-hd{display:none}
+#svcPkg.hub-mode-services .svc-sec{border:0;box-shadow:none;margin:0 16px;background:transparent}
+#svcPkg.hub-mode-services .svc-sec-body{padding-top:0}
 #svcPkg.hub-mode-services .svc-sec-hd .sec-chev{color:rgba(255,255,255,.7)}
 #svcPkg.hub-mode-services .svc-sec.collapsed .svc-sec-body{display:block}
 #svcPkg.hub-mode-services .svc-sec-hd{cursor:default;pointer-events:none}
@@ -456,7 +459,7 @@ body{margin:0;background:#E8EDF5;font-family:Inter,system-ui,sans-serif;color:va
   <div class="filter-row hub-pkg-only" id="pkgFilters"></div>
   <div class="hub-list hub-pkg-only" id="pkgList"></div>
   <div class="hub-cta-sticky hub-pkg-only hub-cta-pkg" id="hubCtaPkg"><button type="button" class="btn btn-pink" id="addPackageBtn">+ Add Package</button></div>
-  <div class="svc-sec" id="hubSvcBlock">
+  <div class="svc-sec hub-svc-only" id="hubSvcBlock">
     <button type="button" class="svc-sec-hd" id="svcSecToggle"><span id="svcSecIco"></span><span>Individual services</span><span style="opacity:.85;font-weight:700">(<span id="svcCount">0</span>)</span><span class="sec-chev">›</span></button>
     <div class="svc-sec-body">
       <p class="svc-sec-intro">Booked separately from packages — portraits, products, ceremonies, and more.</p>
@@ -2632,7 +2635,7 @@ function bindSvcWizard(d) {
   });
 }
 
-const PHOTO_OWNER_BUILD = '2026-10-07-photo-owner-pay-stages-row-v1';
+const PHOTO_OWNER_BUILD = '2026-10-07-photo-owner-hub-tabs-clean-v1';
 const STORAGE_KEY = 'GIXBEE_PHOTO_OWNER_V1';
 
 const INDIAN_STATES = {
@@ -2802,6 +2805,12 @@ function showBootError(msg) {
 function show(id) {
   document.querySelectorAll('.scr').forEach((s) => s.classList.toggle('on', s.id === id));
 }
+function openSvcPkgHub() {
+  store.hubTab = 'packages';
+  saveStore();
+  renderSvcPkg();
+  show('svcPkg');
+}
 function toast(m) {
   const t = el('toast');
   if (!t) return;
@@ -2903,7 +2912,11 @@ function renderPhotoDash() {
     )
     .join('');
   q.querySelectorAll('[data-go]').forEach((btn) => {
-    btn.onclick = () => show(btn.getAttribute('data-go'));
+    btn.onclick = () => {
+      const dest = btn.getAttribute('data-go');
+      if (dest === 'svcPkg') openSvcPkgHub();
+      else show(dest);
+    };
   });
 }
 
@@ -3200,22 +3213,18 @@ function applyHubTab() {
   if (stat) {
     const pubPkg = store.packages.filter((p) => p.status === 'published').length;
     const pubSvc = store.services.filter((s) => s.status === 'published').length;
-    stat.innerHTML =
-      '<div class="hub-stat-chip pink"><b>' +
-      store.packages.length +
-      '</b><span>Packages · ' +
-      pubPkg +
-      ' live</span></div>' +
-      '<div class="hub-stat-chip blue"><b>' +
-      store.services.length +
-      '</b><span>Services · ' +
-      pubSvc +
-      ' live</span></div>';
+    stat.innerHTML = isPkg
+      ? '<div class="hub-stat-chip pink" style="flex:1;min-width:100%"><b>' +
+        store.packages.length +
+        '</b><span>Packages · ' +
+        pubPkg +
+        ' live</span></div>'
+      : '<div class="hub-stat-chip blue" style="flex:1;min-width:100%"><b>' +
+        store.services.length +
+        '</b><span>Services · ' +
+        pubSvc +
+        ' live</span></div>';
   }
-  const ctaPkg = el('hubCtaPkg');
-  const ctaSvc = el('hubCtaSvc');
-  if (ctaPkg) ctaPkg.style.display = isPkg ? '' : 'none';
-  if (ctaSvc) ctaSvc.style.display = '';
 }
 
 function renderSvcPkg() {
@@ -3421,6 +3430,7 @@ function finishWizard(publish) {
     }
   }
   wiz.editId = null;
+  store.hubTab = wiz.mode === 'service' ? 'services' : 'packages';
   saveStore();
   show('svcPkg');
   renderSvcPkg();
