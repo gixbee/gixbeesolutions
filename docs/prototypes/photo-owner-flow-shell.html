@@ -329,17 +329,21 @@ button.manage-pill{cursor:pointer;font:inherit;color:var(--blue);border-color:#B
 .album-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 .del-row label{font-size:12px}
 .pay-stage-section{margin:0 0 8px}
-.pay-stage-section > .lbl{margin:0 0 10px;font-size:13px}
+.pay-stage-section > .lbl{margin:0 0 10px;font-size:13px;font-weight:900;color:var(--navy)}
 .pay-stage-list{display:flex;flex-direction:column;gap:10px;margin-bottom:12px}
-.pay-stage-wrap{display:flex;flex-direction:column;gap:4px}
-.pay-stage-row{display:grid;grid-template-columns:minmax(0,1fr) 64px 40px 44px;gap:8px;align-items:center}
-.pay-stage-row input.pay-stage-label,.pay-stage-row input.pay-stage-pct{padding:11px 10px;border:1.5px solid #BFDBFE;border-radius:12px;font:inherit;font-weight:600;color:var(--navy);width:100%;box-sizing:border-box;background:#fff}
-.pay-stage-row input.pay-stage-pct{text-align:center;font-weight:800;padding:11px 6px}
-.pay-pct-suffix{display:grid;place-items:center;height:44px;border:1.5px solid #BFDBFE;border-radius:12px;font-weight:800;color:var(--navy);background:#F8FAFC;font-size:14px}
-.pay-stage-row .pay-del{width:44px;height:44px;border-radius:12px;border:1.5px solid #FECACA;background:#FEF2F2;display:grid;place-items:center;font-size:16px;padding:0;cursor:pointer;flex-shrink:0}
-.pay-stage-sub{font-size:11px;color:var(--mut);font-weight:700;padding:0 2px}
+.pay-stage-wrap{display:flex;flex-direction:column;gap:6px}
+.pay-stage-card{padding:12px;border:1px solid var(--line);border-radius:14px;background:#FAFBFC}
+.pay-stage-row{display:grid;grid-template-columns:1fr auto 48px;grid-template-areas:"name name name" "pct pct remove";gap:8px 10px;align-items:center}
+.pay-stage-row input.pay-stage-label{grid-area:name;padding:12px 14px;border:1.5px solid #BFDBFE;border-radius:12px;font:inherit;font-weight:700;font-size:16px;color:var(--navy);width:100%;box-sizing:border-box;background:#fff;min-height:48px}
+.pay-stage-pct-wrap{grid-area:pct;display:flex;align-items:center;gap:8px}
+.pay-stage-row input.pay-stage-pct{width:72px;min-height:48px;padding:10px;border:1.5px solid #BFDBFE;border-radius:12px;font:inherit;font-weight:800;font-size:16px;text-align:center;color:var(--navy);background:#fff;box-sizing:border-box}
+.pay-pct-suffix{font-weight:900;font-size:15px;color:var(--navy)}
+.pay-stage-del-spacer{width:48px;height:48px}
+.pay-stage-row .pay-del{grid-area:remove;width:48px;height:48px;border-radius:12px;border:1.5px solid #FECACA;background:#FEF2F2;display:grid;place-items:center;font-size:16px;padding:0;cursor:pointer;flex-shrink:0;justify-self:end;-webkit-tap-highlight-color:transparent}
+.pay-stage-sub{font-size:12px;color:var(--mut);font-weight:700;padding:0 4px}
 .pay-stage-sub b{color:var(--navy);font-weight:900}
-.btn-add-stage{display:flex;align-items:center;justify-content:center;gap:6px;width:100%;padding:14px 12px;border:1.5px solid #BFDBFE;border-radius:14px;background:#EFF6FF;color:var(--blue);font-weight:800;font-size:14px;cursor:pointer;font:inherit;margin:0 0 16px}
+.btn-add-stage{display:flex;align-items:center;justify-content:center;gap:6px;width:100%;min-height:48px;padding:14px 12px;border:1.5px solid #BFDBFE;border-radius:14px;background:#EFF6FF;color:var(--blue);font-weight:800;font-size:15px;cursor:pointer;font:inherit;margin:0 0 8px;-webkit-tap-highlight-color:transparent}
+.pay-stage-reset{text-align:center;margin:0 0 16px;font-size:12px}
 .pay-total-bar{display:flex;align-items:center;justify-content:space-between;padding:12px 14px;border-radius:12px;margin:0 0 16px;font-weight:800}
 .pay-total-bar.ok{background:#ECFDF3;border:1px solid #86EFAC;color:#065F46}
 .pay-total-bar.warn{background:#FEF3C7;border:1px solid #FDE68A;color:#92400E}
@@ -357,11 +361,11 @@ button.manage-pill{cursor:pointer;font:inherit;color:var(--blue);border-color:#B
 .policy-banner.cancel{background:#EFF6FF;color:#1E3A8A;border:1px solid #BFDBFE}
 .policy-banner.resched{background:#ECFDF5;color:#065F46;border:1px solid #A7F3D0}
 .policy-rows{display:flex;flex-direction:column;gap:10px;margin:0 0 4px}
-.policy-row{display:grid;grid-template-columns:1fr auto 48px;grid-template-areas:"days days days" "deduct deduct remove";gap:8px 10px;padding:14px 12px;border:1px solid var(--line);border-radius:14px;background:#FAFBFC;align-items:center}
-.policy-tier-lbl{grid-area:deduct;font-size:11px;font-weight:800;color:var(--mut);text-transform:uppercase;letter-spacing:.04em;align-self:center}
-.policy-row-remove{grid-area:remove;flex-shrink:0;width:48px;height:48px;border:1px solid #FECACA;border-radius:12px;background:#FEF2F2;color:#B91C1C;font-weight:800;cursor:pointer;font-size:16px;line-height:1;-webkit-tap-highlight-color:transparent}
+.policy-row{display:grid;grid-template-columns:1fr 48px;grid-template-areas:"days days" "pct remove";gap:10px;padding:14px 12px;border:1px solid var(--line);border-radius:14px;background:#FAFBFC;align-items:center}
+.policy-tier-lbl{font-size:12px;font-weight:800;color:var(--mut);flex-shrink:0}
+.policy-row-remove{grid-area:remove;flex-shrink:0;width:48px;height:48px;border:1px solid #FECACA;border-radius:12px;background:#FEF2F2;color:#B91C1C;font-weight:800;cursor:pointer;font-size:16px;line-height:1;-webkit-tap-highlight-color:transparent;justify-self:end}
 .policy-days-inp{grid-area:days;width:100%;border:1.5px solid #BFDBFE;border-radius:12px;padding:12px 14px;font-weight:700;font-size:16px;min-height:48px;min-width:0;font:inherit;color:var(--navy);background:#fff}
-.policy-pct-wrap{grid-area:deduct;display:flex;align-items:center;gap:6px;font-weight:800;font-size:15px}
+.policy-pct-wrap{grid-area:pct;display:flex;align-items:center;gap:8px;font-weight:800;font-size:15px;flex-wrap:wrap}
 .policy-pct-inp{width:72px;min-height:48px;border:1.5px solid #BFDBFE;border-radius:12px;padding:10px;text-align:center;font-weight:800;font-size:16px;font:inherit;color:var(--navy);background:#fff}
 .policy-pct-unit{color:var(--navy);font-weight:900}
 .policy-add-tier{display:flex;align-items:center;justify-content:center;width:100%;min-height:48px;padding:14px 12px;border:1.5px solid #86EFAC;border-radius:14px;background:#ECFDF5;color:#047857;font-weight:800;font-size:15px;cursor:pointer;font:inherit;margin-top:12px;-webkit-tap-highlight-color:transparent}

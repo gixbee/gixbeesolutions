@@ -134,6 +134,25 @@ function payStagesTotalPct(d) {
   }, 0);
 }
 
+const DEFAULT_PAYMENT_STAGES = [
+  { label: 'Booking Advance', pct: 30 },
+  { label: 'Event Day', pct: 40 },
+  { label: 'Before Album Printing', pct: 20 },
+  { label: 'Final Payment', pct: 10 },
+];
+
+function cloneDefaultPaymentStages() {
+  return DEFAULT_PAYMENT_STAGES.map(function (s) {
+    return { id: uid('ps'), label: s.label, pct: s.pct };
+  });
+}
+
+function ensureDefaultPaymentStages(d) {
+  if (!d.paymentStages || !d.paymentStages.length) {
+    d.paymentStages = cloneDefaultPaymentStages();
+  }
+}
+
 const PKG_POLICY_TIER_DEFAULTS = [
   { days: '30 days or more', pct: 10 },
   { days: '15 – 29 days', pct: 25 },
@@ -180,8 +199,7 @@ function pkgPolicyRulesRowsHtml(rules, kind) {
         '<input type="text" class="policy-days-inp" data-field="days" value="' +
         esc(r.days) +
         '" aria-label="Days before event">' +
-        '<span class="policy-tier-lbl">Deduct</span>' +
-        '<span class="policy-pct-wrap"><input type="number" class="policy-pct-inp" inputmode="numeric" min="0" max="100" data-field="pct" value="' +
+        '<span class="policy-pct-wrap"><span class="policy-tier-lbl">Deduct</span><input type="number" class="policy-pct-inp" inputmode="numeric" min="0" max="100" data-field="pct" value="' +
         r.pct +
         '" aria-label="Deduction percent"><span class="policy-pct-unit">%</span></span>' +
         '<button type="button" class="policy-row-remove" data-action="pkg-policy-del-tier" title="Remove tier" aria-label="Remove tier">✕</button></div>'
@@ -328,12 +346,13 @@ function renderPolicyCard(name, d) {
 }
 
 function renderPayPoliciesStep(d) {
+  ensureDefaultPaymentStages(d);
   syncPkgPrice(d);
   const totalPct = payStagesTotalPct(d);
   const totalOk = totalPct === 100;
   const base = Math.max(0, +d.price || +d.listPrice || 0);
   return (
-    '<p class="sub">Split customer payments across milestones. Total must equal <b>100%</b>.</p>' +
+    '<p class="sub">Split payments across milestones. Total must equal <b>100%</b>. Default stages load for new packages — edit names and % as needed.</p>' +
     '<div class="pay-stage-section"><p class="lbl">Payment Stages</p>' +
     '<div id="f_payStages" class="pay-stage-list">' +
     d.paymentStages
@@ -345,16 +364,15 @@ function renderPayPoliciesStep(d) {
           '"><div class="pay-stage-row">' +
           '<input type="text" class="pay-stage-label" data-pay-label value="' +
           esc(s.label) +
-          '" placeholder="Stage name">' +
-          '<input type="number" class="pay-stage-pct" data-pay-pct value="' +
+          '" placeholder="Stage name" aria-label="Payment stage name">' +
+          '<span class="pay-stage-pct-wrap"><input type="number" class="pay-stage-pct" data-pay-pct value="' +
           s.pct +
-          '" min="0" max="100" aria-label="Percent">' +
-          '<span class="pay-pct-suffix" aria-hidden="true">%</span>' +
+          '" inputmode="numeric" min="0" max="100" aria-label="Percent of package price"><span class="pay-pct-suffix" aria-hidden="true">%</span></span>' +
           (d.paymentStages.length > 1
             ? '<button type="button" class="pay-del" data-action="del-stage" data-idx="' +
               i +
               '" title="Remove stage" aria-label="Remove stage">🗑</button>'
-            : '<span aria-hidden="true" style="width:44px"></span>') +
+            : '<span class="pay-stage-del-spacer" aria-hidden="true"></span>') +
           '</div><p class="pay-stage-sub">Customer pays <b>' +
           inr(amt) +
           '</b></p></div>'
@@ -369,7 +387,8 @@ function renderPayPoliciesStep(d) {
     '%</b>' +
     (totalOk ? '' : ' <span class="sub">— adjust stages to reach 100%</span>') +
     '</div>' +
-    '<button type="button" class="btn-add-stage" data-action="add-stage">+ Add Custom Stage</button></div>' +
+    '<button type="button" class="btn-add-stage" data-action="add-stage">+ Add Custom Stage</button>' +
+    '<button type="button" class="link-add pay-stage-reset" data-action="reset-pay-stages">Reset to default stages (30 / 40 / 20 / 10)</button></div>' +
     renderPkgCancelReschedBlock(d) +
     '<p class="lbl" style="margin-top:20px">Other policies (optional)</p>' +
     '<p class="sub" style="margin:0 0 10px">Select additional policies customers will see on your package.</p>' +
@@ -530,12 +549,7 @@ function newPkgDraft() {
     videoDetails: defaultVideoDetails(),
     albumPrints: defaultAlbumPrints(),
     deliveryMap: {},
-    paymentStages: [
-      { id: 'ps1', label: 'Booking Advance', pct: 30 },
-      { id: 'ps2', label: 'Event Day', pct: 40 },
-      { id: 'ps3', label: 'Before Album Printing', pct: 20 },
-      { id: 'ps4', label: 'Final Payment', pct: 10 },
-    ],
+    paymentStages: cloneDefaultPaymentStages(),
     policies: ['Cancellation Policy', 'Rescheduling Policy'],
     cancelRules: clonePkgPolicyTierDefaults(),
     rescheduleRules: clonePkgPolicyTierDefaults(),
@@ -1481,7 +1495,15 @@ function bindPkgWizard(d) {
         return;
       }
       if (act === 'add-stage') {
+        readPkgWizardFields(d);
         d.paymentStages.push({ id: uid('ps'), label: 'Custom Stage', pct: 0 });
+        renderWizardBody();
+        return;
+      }
+      if (act === 'reset-pay-stages') {
+        readPkgWizardFields(d);
+        d.paymentStages = cloneDefaultPaymentStages();
+        toast('Payment stages reset to default.');
         renderWizardBody();
         return;
       }

@@ -91,6 +91,7 @@ function recordToPkgDraft(rec) {
   merged.albumPrints = Object.assign({}, base.albumPrints, m.albumPrints || {});
   merged.extras = Object.assign({}, base.extras, m.extras || {});
   merged.deliveryMap = Object.assign({}, base.deliveryMap, m.deliveryMap || {});
+  ensureDefaultPaymentStages(merged);
   ensurePolicyValues(merged);
   ensurePkgPolicyRules(merged);
   if (!merged.policyValues) merged.policyValues = {};
