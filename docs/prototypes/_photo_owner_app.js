@@ -1,4 +1,4 @@
-const PHOTO_OWNER_BUILD = '2026-10-07-photo-owner-biz-profile-v1';
+const PHOTO_OWNER_BUILD = '2026-10-07-photo-owner-biz-profile-ui-v1';
 const STORAGE_KEY = 'GIXBEE_PHOTO_OWNER_V1';
 
 const INDIAN_STATES = {
@@ -379,40 +379,83 @@ function renderLmb() {
   };
 }
 
+function profCell(ico, label, value) {
+  return (
+    '<div class="prof-cell"><div class="prof-cell-ico">' +
+    ico +
+    '</div><div class="prof-cell-bd"><label>' +
+    esc(label) +
+    '</label><b>' +
+    esc(value) +
+    '</b></div></div>'
+  );
+}
+
+function profGroup(title, icon, cellsHtml) {
+  return (
+    '<div class="prof-group"><div class="prof-group-hd"><span>' +
+    icon +
+    '</span>' +
+    esc(title) +
+    '</div>' +
+    cellsHtml +
+    '</div>'
+  );
+}
+
 function renderPhotoBizProfile() {
   const b = store.biz;
   const nameEl = el('profBizName');
   if (nameEl) nameEl.textContent = b.name || '—';
-  const ver = el('profVerified');
-  if (ver) {
-    ver.textContent = b.verified ? '● Verified business' : '○ Verification pending';
-    ver.className = b.verified ? 'pill pill-ver' : 'pill pill-rev';
+  const tag = el('profBizTagline');
+  if (tag) {
+    tag.textContent =
+      (b.type || 'Photography') + ' · ' + (b.vertical || 'Service') + ' · ' + (b.loc || '—');
   }
-  const rows = el('profDetailRows');
-  if (!rows) return;
-  const items = [
-    ['Business type', b.type || 'Photography'],
-    ['Listing', b.vertical || 'Service'],
-    ['Location', b.loc || '—'],
-    ['Registered state', b.registeredState || '—'],
-    ['Registered district', b.registeredDistrict || '—'],
-    ['Service areas', areaSummaryText()],
-    ['Phone', b.phone || '—'],
-    ['Email', b.email || '—'],
-    ['GSTIN', b.gstin || 'Not added'],
-    ['Member since', b.memberSince || '—'],
-  ];
-  rows.innerHTML = items
-    .map(function (pair) {
-      return (
-        '<div class="profile-row"><span>' +
-        esc(pair[0]) +
-        '</span><b>' +
-        esc(pair[1]) +
-        '</b></div>'
-      );
-    })
-    .join('');
+  const badges = el('profBadges');
+  if (badges) {
+    badges.innerHTML =
+      (b.verified
+        ? '<span class="prof-badge ver">✓ Verified</span>'
+        : '<span class="prof-badge type">Verification pending</span>') +
+      '<span class="prof-badge type">Gixbee LMB</span>';
+  }
+  const chips = el('profChips');
+  if (chips) {
+    const areaN = (store.serviceAreas.states || []).length;
+    chips.innerHTML =
+      '<div class="prof-chip"><b>' +
+      esc(b.memberSince || '—') +
+      '</b><span>Member since</span></div>' +
+      '<div class="prof-chip"><b>' +
+      store.packages.length +
+      '</b><span>Packages</span></div>' +
+      '<div class="prof-chip"><b>' +
+      areaN +
+      '</b><span>States</span></div>';
+  }
+  const groups = el('profDetailGroups');
+  if (!groups) return;
+  groups.innerHTML =
+    profGroup(
+      'Contact',
+      '📞',
+      profCell('📱', 'Phone', b.phone || '—') + profCell('✉️', 'Email', b.email || '—')
+    ) +
+    profGroup(
+      'Location',
+      '📍',
+      profCell('🏠', 'Address / area', b.loc || '—') +
+        profCell('🗺', 'Service areas', areaSummaryText())
+    ) +
+    profGroup(
+      'Registration',
+      '📋',
+      profCell('🏛', 'Registered state', b.registeredState || '—') +
+        profCell('📌', 'Registered district', b.registeredDistrict || '—') +
+        profCell('🏷', 'Business type', b.type || 'Photography')
+    ) +
+    profGroup('Tax & billing', '💳', profCell('🧾', 'GSTIN', b.gstin && b.gstin !== '—' ? b.gstin : 'Not added'));
 }
 
 function renderPhotoDash() {
