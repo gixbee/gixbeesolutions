@@ -1176,10 +1176,18 @@ function defaultVideoDetails() {
 function defaultAlbumPrints() {
   return {
     'Photo Album': { on: true, pages: 40, size: '12 x 18 inch', cover: 'Premium' },
-    Calendar: { on: true, qty: 1, size: 'A3', type: 'Wall Calendar' },
-    'Mini Album': { on: true, qty: 1, size: '6 x 6 inch', cover: 'Standard' },
+    Calendar: { on: false, qty: 1, size: 'A3', type: 'Wall Calendar' },
+    'Mini Album': { on: false, qty: 1, size: '6 x 6 inch', cover: 'Standard' },
     'Photo Frame': { on: false, qty: 1, size: '12 x 18 inch', type: 'Acrylic' },
   };
+}
+
+function albumPrintsAllOff() {
+  const a = defaultAlbumPrints();
+  Object.keys(a).forEach(function (name) {
+    a[name].on = false;
+  });
+  return a;
 }
 
 function defaultCoverageTypes(defaults, seed) {
@@ -1761,6 +1769,13 @@ function ensureServiceDeliverableModel(d) {
       if (!d.albumPrints[name]) d.albumPrints[name] = defaultAlbumPrints()[name] || { on: false };
       d.albumPrints[name].on = true;
     });
+    delete d.inclPhoto;
+    delete d.inclVideo;
+    delete d.inclDigital;
+    delete d.inclAlbums;
+    delete d.customInclPhoto;
+    delete d.customInclVideo;
+    delete d.customInclDigital;
   }
   ensureDeliverableDraft(d);
 }
@@ -2630,7 +2645,7 @@ function newSvcDraft() {
     customDeliverDigital: [],
     photoDetails: photoDetails,
     videoDetails: videoDetails,
-    albumPrints: defaultAlbumPrints(),
+    albumPrints: albumPrintsAllOff(),
     extras: svcExtraDefaults(),
     customExtras: [],
     excludedExtras: [],
@@ -3157,7 +3172,7 @@ function bindSvcWizard(d) {
   if (wiz.step === 5) syncAllExtraRowModes();
 }
 
-const PHOTO_OWNER_BUILD = '2026-10-08-photo-owner-svc-extras-included-v1';
+const PHOTO_OWNER_BUILD = '2026-10-08-photo-owner-included-deliverables-v1';
 const STORAGE_KEY = 'GIXBEE_PHOTO_OWNER_V1';
 
 const INDIAN_STATES = {

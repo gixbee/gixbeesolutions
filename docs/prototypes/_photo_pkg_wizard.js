@@ -523,10 +523,18 @@ function defaultVideoDetails() {
 function defaultAlbumPrints() {
   return {
     'Photo Album': { on: true, pages: 40, size: '12 x 18 inch', cover: 'Premium' },
-    Calendar: { on: true, qty: 1, size: 'A3', type: 'Wall Calendar' },
-    'Mini Album': { on: true, qty: 1, size: '6 x 6 inch', cover: 'Standard' },
+    Calendar: { on: false, qty: 1, size: 'A3', type: 'Wall Calendar' },
+    'Mini Album': { on: false, qty: 1, size: '6 x 6 inch', cover: 'Standard' },
     'Photo Frame': { on: false, qty: 1, size: '12 x 18 inch', type: 'Acrylic' },
   };
+}
+
+function albumPrintsAllOff() {
+  const a = defaultAlbumPrints();
+  Object.keys(a).forEach(function (name) {
+    a[name].on = false;
+  });
+  return a;
 }
 
 function defaultCoverageTypes(defaults, seed) {
@@ -625,6 +633,140 @@ function allExtrasNames(d) {
   })).filter(function (name) {
     return excluded.indexOf(name) < 0;
   });
+}
+
+function readExtrasFieldsFromDom(d) {
+  if (!d.extras) d.extras = {};
+  document.querySelectorAll('.extra-row').forEach(function (row) {
+    const name = row.getAttribute('data-extra-name');
+    if (!name) return;
+    const modeEl = row.querySelector('[data-extra-mode]');
+    if (!modeEl) return;
+    const mode = modeEl.value;
+    const priceEl = row.querySelector('[data-extra-price]');
+    const basisEl = row.querySelector('[data-extra-basis]');
+    const prev = d.extras[name] || {};
+    if (mode === 'included') {
+      const price =
+        priceEl && priceEl.value !== '' ? +(priceEl.value || 0) : prev.price != null ? prev.price : 0;
+      const basis = basisEl && basisEl.value ? basisEl.value : prev.basis || 'Per Event';
+      d.extras[name] = { mode: 'included', price: price, basis: basis };
+    } else {
+      d.extras[name] = {
+        mode: 'extra',
+        price: +(priceEl && priceEl.value !== '' ? priceEl.value : prev.price != null ? prev.price : 0),
+        basis: basisEl && basisEl.value ? basisEl.value : prev.basis || 'Per Event',
+      };
+    }
+  });
+}
+
+function renderWizardExtrasStep(d, namesFn, addLinkLabel) {
+  if (!d.extras) d.extras = {};
+  return (
+    '<div id="f_extraRows">' +
+    namesFn(d)
+      .map(function (name) {
+        const x = d.extras[name] || { mode: 'extra', price: 0, basis: 'Per Event' };
+        const modeCls = x.mode === 'included' ? 'mode-included' : 'mode-extra';
+        return (
+          '<div class="extra-row ' +
+          modeCls +
+          '" data-extra-name="' +
+          esc(name) +
+          '"><span class="extra-ico">✦</span><b class="extra-name">' +
+          esc(name) +
+          '</b>' +
+          '<select data-extra-mode><option value="included"' +
+          (x.mode === 'included' ? ' selected' : '') +
+          '>Included</option><option value="extra"' +
+          (x.mode === 'extra' ? ' selected' : '') +
+          '>Extra</option></select>' +
+          '<div class="extra-pay-fields">' +
+          '<input type="number" data-extra-price value="' +
+          (x.price != null ? x.price : 0) +
+          '" placeholder="₹" min="0">' +
+          '<select data-extra-basis><option' +
+          (x.basis === 'Per Event' ? ' selected' : '') +
+          '>Per Event</option><option' +
+          (x.basis === 'Per Hour' ? ' selected' : '') +
+          '>Per Hour</option></select></div>' +
+          '<button type="button" class="pay-del" data-action="remove-extra" data-extra-name="' +
+          esc(name) +
+          '" title="Remove service" aria-label="Remove service">🗑</button></div>'
+        );
+      })
+      .join('') +
+    '</div>' +
+    linkAdd('add-extra', addLinkLabel || 'Add New Service')
+  );
+}
+
+function handleExtraModeSelectChange(e, d) {
+  const t = e.target;
+  if (!t.matches('[data-extra-mode]')) return false;
+  const row = t.closest('.extra-row');
+  if (!row) return false;
+  const mode = t.value;
+  const name = row.getAttribute('data-extra-name');
+  if (!name) return false;
+  if (!d.extras) d.extras = {};
+  const priceEl = row.querySelector('[data-extra-price]');
+  const basisEl = row.querySelector('[data-extra-basis]');
+  const prev = d.extras[name] || {};
+  if (mode === 'included') {
+    d.extras[name] = {
+      mode: 'included',
+      price: priceEl ? +(priceEl.value || 0) : prev.price != null ? prev.price : 0,
+      basis: basisEl ? basisEl.value : prev.basis || 'Per Event',
+    };
+  } else {
+    const price = prev.price != null ? prev.price : +(priceEl && priceEl.value ? priceEl.value : 0);
+    const basis = prev.basis || (basisEl ? basisEl.value : 'Per Event');
+    d.extras[name] = { mode: 'extra', price: price, basis: basis };
+    if (priceEl) priceEl.value = String(price);
+    if (basisEl) basisEl.value = basis;
+  }
+  applyExtraRowMode(row, mode);
+  return true;
+}
+
+function runExtraWizardAction(act, t, d, readFields, presetNames) {
+  const presets = presetNames || [];
+  if (act === 'add-extra') {
+    const name = prompt('Service name');
+    if (name) {
+      const trimmed = name.trim();
+      if (!trimmed) return true;
+      if (!d.customExtras) d.customExtras = [];
+      if (!d.extras) d.extras = {};
+      d.customExtras.push({ name: trimmed });
+      d.extras[trimmed] = { mode: 'extra', price: 5000, basis: 'Per Event' };
+      if (d.excludedExtras) {
+        d.excludedExtras = d.excludedExtras.filter(function (x) {
+          return x !== trimmed;
+        });
+      }
+      renderWizardBody();
+    }
+    return true;
+  }
+  if (act === 'remove-extra') {
+    const extraName = t.getAttribute('data-extra-name');
+    if (!extraName) return true;
+    readFields(d);
+    delete d.extras[extraName];
+    d.customExtras = (d.customExtras || []).filter(function (x) {
+      return x.name !== extraName;
+    });
+    if (!d.excludedExtras) d.excludedExtras = [];
+    if (presets.indexOf(extraName) >= 0 && d.excludedExtras.indexOf(extraName) < 0) {
+      d.excludedExtras.push(extraName);
+    }
+    renderWizardBody();
+    return true;
+  }
+  return false;
 }
 function allPhotoTypes(d) {
   return PHOTO_TYPE_DEFAULTS.concat(d.customPhotoTypes || []);
@@ -942,11 +1084,7 @@ function ensureDeliverableDraft(d) {
 }
 
 function ensureServiceDeliverableModel(d) {
-  if (d.deliverPhoto && d.deliverPhoto.length && !d.inclPhoto) {
-    ensureDeliverableDraft(d);
-    return;
-  }
-  if (d.inclPhoto || d.inclVideo || d.inclDigital || d.inclAlbums) {
+  if (d.inclPhoto || d.inclVideo || d.inclDigital || (d.inclAlbums && d.inclAlbums.length)) {
     d.deliverTab = d.deliverTab || 'photos';
     d.deliverPhoto = (d.inclPhoto || []).map(function (x) {
       return x === 'High-Resolution Photos' ? 'Colour-Graded Photos' : x;
@@ -978,6 +1116,13 @@ function ensureServiceDeliverableModel(d) {
       if (!d.albumPrints[name]) d.albumPrints[name] = defaultAlbumPrints()[name] || { on: false };
       d.albumPrints[name].on = true;
     });
+    delete d.inclPhoto;
+    delete d.inclVideo;
+    delete d.inclDigital;
+    delete d.inclAlbums;
+    delete d.customInclPhoto;
+    delete d.customInclVideo;
+    delete d.customInclDigital;
   }
   ensureDeliverableDraft(d);
 }
@@ -1075,6 +1220,7 @@ function deliverableCheckboxChange(t, d) {
 }
 
 function runDeliverableWizardAction(act, d, readFields) {
+  ensureDeliverableDraft(d);
   if (act === 'add-dphoto') {
     const name = prompt('Photo deliverable name');
     if (name) {
@@ -1256,43 +1402,7 @@ function renderPkgStep(step, d) {
     case 4:
       return renderDeliverablesStep(d);
     case 5:
-      return (
-        '<div id="f_extraRows">' +
-        allExtrasNames(d)
-          .map(function (name) {
-            const x = d.extras[name] || { mode: 'extra', price: 0, basis: 'Per Event' };
-            const modeCls = x.mode === 'included' ? 'mode-included' : 'mode-extra';
-            return (
-              '<div class="extra-row ' +
-              modeCls +
-              '" data-extra-name="' +
-              esc(name) +
-              '"><span class="extra-ico">✦</span><b class="extra-name">' +
-              esc(name) +
-              '</b>' +
-              '<select data-extra-mode><option value="included"' +
-              (x.mode === 'included' ? ' selected' : '') +
-              '>Included</option><option value="extra"' +
-              (x.mode === 'extra' ? ' selected' : '') +
-              '>Extra</option></select>' +
-              '<div class="extra-pay-fields">' +
-              '<input type="number" data-extra-price value="' +
-              (x.price != null ? x.price : 0) +
-              '" placeholder="₹" min="0">' +
-              '<select data-extra-basis><option' +
-              (x.basis === 'Per Event' ? ' selected' : '') +
-              '>Per Event</option><option' +
-              (x.basis === 'Per Hour' ? ' selected' : '') +
-              '>Per Hour</option></select></div>' +
-              '<button type="button" class="pay-del" data-action="remove-extra" data-extra-name="' +
-              esc(name) +
-              '" title="Remove service" aria-label="Remove service">🗑</button></div>'
-            );
-          })
-          .join('') +
-        '</div>' +
-        linkAdd('add-extra', 'Add New Service')
-      );
+      return renderWizardExtrasStep(d, allExtrasNames);
     case 6: {
       const keys = pkgDeliveryKeys(d);
       if (!keys.length) {
@@ -1455,26 +1565,7 @@ function readPkgWizardFields(d) {
   if (discRad) d.discountYes = discRad.value;
   if (g('f_duration')) d.duration = g('f_duration').value;
   if (g('f_extraHour')) d.extraHour = +g('f_extraHour').value || 0;
-  document.querySelectorAll('.extra-row').forEach(function (row) {
-    const name = row.getAttribute('data-extra-name');
-    if (!name) return;
-    const mode = row.querySelector('[data-extra-mode]').value;
-    const priceEl = row.querySelector('[data-extra-price]');
-    const basisEl = row.querySelector('[data-extra-basis]');
-    const prev = d.extras[name] || {};
-    if (mode === 'included') {
-      const price =
-        priceEl && priceEl.value !== '' ? +(priceEl.value || 0) : prev.price != null ? prev.price : 0;
-      const basis = basisEl && basisEl.value ? basisEl.value : prev.basis || 'Per Event';
-      d.extras[name] = { mode: 'included', price: price, basis: basis };
-    } else {
-      d.extras[name] = {
-        mode: 'extra',
-        price: +(priceEl && priceEl.value !== '' ? priceEl.value : prev.price != null ? prev.price : 0),
-        basis: basisEl && basisEl.value ? basisEl.value : prev.basis || 'Per Event',
-      };
-    }
-  });
+  readExtrasFieldsFromDom(d);
   readDeliverableFieldsFromDom(d);
   document.querySelectorAll('[data-del-key]').forEach(function (sel) {
     const k = sel.getAttribute('data-del-key');
@@ -1617,37 +1708,7 @@ function bindPkgWizard(d) {
         }
         return;
       }
-      if (act === 'add-extra') {
-        const name = prompt('Service name');
-        if (name) {
-          const trimmed = name.trim();
-          if (!trimmed) return;
-          d.customExtras.push({ name: trimmed });
-          d.extras[trimmed] = { mode: 'extra', price: 5000, basis: 'Per Event' };
-          if (d.excludedExtras) {
-            d.excludedExtras = d.excludedExtras.filter(function (x) {
-              return x !== trimmed;
-            });
-          }
-          renderWizardBody();
-        }
-        return;
-      }
-      if (act === 'remove-extra') {
-        const extraName = t.getAttribute('data-extra-name');
-        if (!extraName) return;
-        readPkgWizardFields(d);
-        delete d.extras[extraName];
-        d.customExtras = (d.customExtras || []).filter(function (x) {
-          return x.name !== extraName;
-        });
-        if (!d.excludedExtras) d.excludedExtras = [];
-        if (PKG_EXTRA_DEFAULTS.indexOf(extraName) >= 0 && d.excludedExtras.indexOf(extraName) < 0) {
-          d.excludedExtras.push(extraName);
-        }
-        renderWizardBody();
-        return;
-      }
+      if (runExtraWizardAction(act, t, d, readPkgWizardFields, PKG_EXTRA_DEFAULTS)) return;
       if (runDeliverableWizardAction(act, d, readPkgWizardFields)) return;
       if (act === 'add-stage') {
         readPkgWizardFields(d);
@@ -1782,6 +1843,7 @@ function bindPkgWizard(d) {
       });
       if (attr === 'data-pol') renderWizardBody();
     });
+    if (handleExtraModeSelectChange(e, d)) return;
   };
   document.querySelectorAll('[data-pay-pct],[data-pay-label]').forEach(function (node) {
     node.oninput = function () {
@@ -1803,29 +1865,5 @@ function bindPkgWizard(d) {
         renderWizardBody();
       };
   });
-  body.onchange = function (e) {
-    if (!e.target.matches('[data-extra-mode]')) return;
-    const row = e.target.closest('.extra-row');
-    const mode = e.target.value;
-    const name = row.getAttribute('data-extra-name');
-    if (!name) return;
-    const priceEl = row.querySelector('[data-extra-price]');
-    const basisEl = row.querySelector('[data-extra-basis]');
-    const prev = d.extras[name] || {};
-    if (mode === 'included') {
-      d.extras[name] = {
-        mode: 'included',
-        price: priceEl ? +(priceEl.value || 0) : prev.price != null ? prev.price : 0,
-        basis: basisEl ? basisEl.value : prev.basis || 'Per Event',
-      };
-    } else {
-      const price = prev.price != null ? prev.price : +(priceEl && priceEl.value ? priceEl.value : 0);
-      const basis = prev.basis || (basisEl ? basisEl.value : 'Per Event');
-      d.extras[name] = { mode: 'extra', price: price, basis: basis };
-      if (priceEl) priceEl.value = String(price);
-      if (basisEl) basisEl.value = basis;
-    }
-    applyExtraRowMode(row, mode);
-  };
   if (wiz.step === 5) syncAllExtraRowModes();
 }

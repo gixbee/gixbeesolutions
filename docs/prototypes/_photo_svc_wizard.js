@@ -122,7 +122,7 @@ function newSvcDraft() {
     customDeliverDigital: [],
     photoDetails: photoDetails,
     videoDetails: videoDetails,
-    albumPrints: defaultAlbumPrints(),
+    albumPrints: albumPrintsAllOff(),
     extras: svcExtraDefaults(),
     customExtras: [],
     excludedExtras: [],

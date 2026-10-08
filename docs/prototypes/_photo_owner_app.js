@@ -1,4 +1,4 @@
-const PHOTO_OWNER_BUILD = '2026-10-08-photo-owner-svc-extras-included-v1';
+const PHOTO_OWNER_BUILD = '2026-10-08-photo-owner-included-deliverables-v1';
 const STORAGE_KEY = 'GIXBEE_PHOTO_OWNER_V1';
 
 const INDIAN_STATES = {
