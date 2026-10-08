@@ -1,4 +1,4 @@
-const PHOTO_OWNER_BUILD = '2026-10-08-photo-owner-finalflow5-bookings-v4';
+const PHOTO_OWNER_BUILD = '2026-10-08-photo-owner-finalflow5-bookings-v5';
 
 function photoOwnerDemoFileName() {
   try {
@@ -199,15 +199,14 @@ function showBootError(msg) {
     photoOwnerDemoFileName() +
     '</b> (full file with JavaScript inside).</p>';
 }
-function show(id) {
+function photoShowScreen(id) {
   document.querySelectorAll('.scr').forEach((s) => s.classList.toggle('on', s.id === id));
-  if (id === 'calendar' && typeof ensurePhotoCalendar === 'function') {
-    const cal = ensurePhotoCalendar();
-    if (cal.activeTab === 'list' && typeof renderPhotoBookingRegister === 'function') {
-      renderPhotoBookingRegister();
-    } else if (typeof renderPhotoCalendar === 'function') {
-      renderPhotoCalendar();
-    }
+}
+
+function show(id) {
+  photoShowScreen(id);
+  if (id === 'calendar' && typeof syncPhotoCalendarUi === 'function') {
+    syncPhotoCalendarUi();
   }
   if (id === 'photoCalDay' && typeof renderPhotoCalDay === 'function') renderPhotoCalDay();
   if (id === 'photoBookSettings' && typeof renderPhotoBookSettings === 'function') renderPhotoBookSettings();
@@ -215,8 +214,10 @@ function show(id) {
 
 function navigatePhotoScreen(id) {
   if (!id) return;
-  if (id === 'calendar') openPhotoCalendar();
-  else if (id === 'photoBookSettings') {
+  if (id === 'calendar') {
+    if (typeof openPhotoCalendar === 'function') openPhotoCalendar();
+    else show('calendar');
+  } else if (id === 'photoBookSettings') {
     renderPhotoBookSettings();
     show(id);
   } else if (id === 'photoCalDay') {
@@ -257,13 +258,27 @@ function loadStore() {
     if (!store.serviceAreas) store.serviceAreas = defaultStore().serviceAreas;
     if (!store.operators) store.operators = defaultStore().operators;
     if (!store.deletedBusinesses) store.deletedBusinesses = defaultStore().deletedBusinesses;
-    if (!store.calendar) store.calendar = defaultPhotoCalendar();
+    if (!store.calendar || typeof store.calendar !== 'object') store.calendar = defaultPhotoCalendar();
   } catch (_e) {
     store = defaultStore();
+    try {
+      localStorage.removeItem(STORAGE_KEY);
+    } catch (_e2) {
+      /* ignore */
+    }
   }
 }
 function saveStore() {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(store));
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(store));
+  } catch (_e) {
+    try {
+      if (store.calendar) store.calendar = defaultPhotoCalendar();
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(store));
+    } catch (_e2) {
+      /* demo still runs without persisting */
+    }
+  }
 }
 function ensureRegisteredDistrict() {
   const st = store.biz.registeredState;

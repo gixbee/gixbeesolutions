@@ -19,6 +19,7 @@ const PHOTO_DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday',
 let photoPendingBook = null;
 let photoPendingBookDateKey = null;
 let photoAuditBookingId = null;
+let photoCalendarUiLock = false;
 
 function photoCalDateKey(y, m, d) {
   return y + '-' + String(m).padStart(2, '0') + '-' + String(d).padStart(2, '0');
@@ -331,22 +332,33 @@ function photoCloseOverlay(id) {
   }
 }
 
-function openPhotoCalendar() {
-  ensurePhotoCalendar();
-  const cal = store.calendar;
-  const chip = el('calBuildChip');
-  if (chip && typeof PHOTO_OWNER_BUILD !== 'undefined') chip.textContent = 'Cal ' + PHOTO_OWNER_BUILD.split('-').pop();
-  if (cal.activeTab === 'list') {
-    photoSetCalTab('list');
-    renderPhotoBookingRegister();
-  } else {
-    photoSetCalTab('grid');
-    renderPhotoCalendar();
+function syncPhotoCalendarUi() {
+  if (photoCalendarUiLock) return;
+  photoCalendarUiLock = true;
+  try {
+    const cal = ensurePhotoCalendar();
+    if (cal.activeTab === 'list') {
+      photoSetCalTab('list');
+      renderPhotoBookingRegister(false);
+    } else {
+      photoSetCalTab(cal.activeTab || 'grid');
+      renderPhotoCalendar(false);
+    }
+  } finally {
+    photoCalendarUiLock = false;
   }
-  show('calendar');
 }
 
-function renderPhotoCalendar() {
+function openPhotoCalendar() {
+  ensurePhotoCalendar();
+  const chip = el('calBuildChip');
+  if (chip && typeof PHOTO_OWNER_BUILD !== 'undefined') chip.textContent = 'Cal ' + PHOTO_OWNER_BUILD.split('-').pop();
+  if (typeof photoShowScreen === 'function') photoShowScreen('calendar');
+  else if (typeof show === 'function') show('calendar');
+  syncPhotoCalendarUi();
+}
+
+function renderPhotoCalendar(syncTab) {
   const cal = ensurePhotoCalendar();
   const y = cal.viewYear;
   const m = cal.viewMonth;
@@ -393,10 +405,10 @@ function renderPhotoCalendar() {
       show('photoCalDay');
     };
   });
-  photoSetCalTab(store.calendar.activeTab || 'grid');
+  if (syncTab !== false) photoSetCalTab(store.calendar.activeTab || 'grid');
 }
 
-function renderPhotoBookingRegister() {
+function renderPhotoBookingRegister(syncTab) {
   const cal = ensurePhotoCalendar();
   const y = cal.viewYear;
   const m = cal.viewMonth;
@@ -473,7 +485,7 @@ function renderPhotoBookingRegister() {
       openPhotoBookingDetail(btn.getAttribute('data-photo-reg-key'), btn.getAttribute('data-photo-reg-id'));
     };
   });
-  photoSetCalTab('list');
+  if (syncTab !== false) photoSetCalTab('list');
 }
 
 function openPhotoBookingDetail(dateKey, bookingId) {

@@ -105,7 +105,6 @@ def main() -> None:
                 "flow HTML (FINALFLOW). Save as GIXBEE-PHOTO-OWNER-FINALFLOW.html",
                 "flow HTML (FINALFLOW5). Save as GIXBEE-PHOTO-OWNER-FINALFLOW5.html",
             )
-            body = body.replace("GIXBEE-PHOTO-OWNER-FINALFLOW.html", "GIXBEE-PHOTO-OWNER-FINALFLOW5.html")
             body = body.replace(
                 "<title>Gixbee — Photography Owner</title>",
                 "<title>Gixbee — Photography Owner (FINALFLOW5)</title>",

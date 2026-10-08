@@ -3445,6 +3445,7 @@ const PHOTO_DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday',
 let photoPendingBook = null;
 let photoPendingBookDateKey = null;
 let photoAuditBookingId = null;
+let photoCalendarUiLock = false;
 
 function photoCalDateKey(y, m, d) {
   return y + '-' + String(m).padStart(2, '0') + '-' + String(d).padStart(2, '0');
@@ -3757,22 +3758,33 @@ function photoCloseOverlay(id) {
   }
 }
 
-function openPhotoCalendar() {
-  ensurePhotoCalendar();
-  const cal = store.calendar;
-  const chip = el('calBuildChip');
-  if (chip && typeof PHOTO_OWNER_BUILD !== 'undefined') chip.textContent = 'Cal ' + PHOTO_OWNER_BUILD.split('-').pop();
-  if (cal.activeTab === 'list') {
-    photoSetCalTab('list');
-    renderPhotoBookingRegister();
-  } else {
-    photoSetCalTab('grid');
-    renderPhotoCalendar();
+function syncPhotoCalendarUi() {
+  if (photoCalendarUiLock) return;
+  photoCalendarUiLock = true;
+  try {
+    const cal = ensurePhotoCalendar();
+    if (cal.activeTab === 'list') {
+      photoSetCalTab('list');
+      renderPhotoBookingRegister(false);
+    } else {
+      photoSetCalTab(cal.activeTab || 'grid');
+      renderPhotoCalendar(false);
+    }
+  } finally {
+    photoCalendarUiLock = false;
   }
-  show('calendar');
 }
 
-function renderPhotoCalendar() {
+function openPhotoCalendar() {
+  ensurePhotoCalendar();
+  const chip = el('calBuildChip');
+  if (chip && typeof PHOTO_OWNER_BUILD !== 'undefined') chip.textContent = 'Cal ' + PHOTO_OWNER_BUILD.split('-').pop();
+  if (typeof photoShowScreen === 'function') photoShowScreen('calendar');
+  else if (typeof show === 'function') show('calendar');
+  syncPhotoCalendarUi();
+}
+
+function renderPhotoCalendar(syncTab) {
   const cal = ensurePhotoCalendar();
   const y = cal.viewYear;
   const m = cal.viewMonth;
@@ -3819,10 +3831,10 @@ function renderPhotoCalendar() {
       show('photoCalDay');
     };
   });
-  photoSetCalTab(store.calendar.activeTab || 'grid');
+  if (syncTab !== false) photoSetCalTab(store.calendar.activeTab || 'grid');
 }
 
-function renderPhotoBookingRegister() {
+function renderPhotoBookingRegister(syncTab) {
   const cal = ensurePhotoCalendar();
   const y = cal.viewYear;
   const m = cal.viewMonth;
@@ -3899,7 +3911,7 @@ function renderPhotoBookingRegister() {
       openPhotoBookingDetail(btn.getAttribute('data-photo-reg-key'), btn.getAttribute('data-photo-reg-id'));
     };
   });
-  photoSetCalTab('list');
+  if (syncTab !== false) photoSetCalTab('list');
 }
 
 function openPhotoBookingDetail(dateKey, bookingId) {
@@ -4587,7 +4599,7 @@ function bindPhotoCalendarUi() {
   });
 }
 
-const PHOTO_OWNER_BUILD = '2026-10-08-photo-owner-finalflow5-bookings-v4';
+const PHOTO_OWNER_BUILD = '2026-10-08-photo-owner-finalflow5-bookings-v5';
 
 function photoOwnerDemoFileName() {
   try {
@@ -4596,7 +4608,7 @@ function photoOwnerDemoFileName() {
   } catch (e) {
     /* ignore */
   }
-  return 'GIXBEE-PHOTO-OWNER-FINALFLOW5.html';
+  return 'GIXBEE-PHOTO-OWNER-FINALFLOW.html';
 }
 const STORAGE_KEY = 'GIXBEE_PHOTO_OWNER_V1';
 
@@ -4788,15 +4800,14 @@ function showBootError(msg) {
     photoOwnerDemoFileName() +
     '</b> (full file with JavaScript inside).</p>';
 }
-function show(id) {
+function photoShowScreen(id) {
   document.querySelectorAll('.scr').forEach((s) => s.classList.toggle('on', s.id === id));
-  if (id === 'calendar' && typeof ensurePhotoCalendar === 'function') {
-    const cal = ensurePhotoCalendar();
-    if (cal.activeTab === 'list' && typeof renderPhotoBookingRegister === 'function') {
-      renderPhotoBookingRegister();
-    } else if (typeof renderPhotoCalendar === 'function') {
-      renderPhotoCalendar();
-    }
+}
+
+function show(id) {
+  photoShowScreen(id);
+  if (id === 'calendar' && typeof syncPhotoCalendarUi === 'function') {
+    syncPhotoCalendarUi();
   }
   if (id === 'photoCalDay' && typeof renderPhotoCalDay === 'function') renderPhotoCalDay();
   if (id === 'photoBookSettings' && typeof renderPhotoBookSettings === 'function') renderPhotoBookSettings();
@@ -4804,8 +4815,10 @@ function show(id) {
 
 function navigatePhotoScreen(id) {
   if (!id) return;
-  if (id === 'calendar') openPhotoCalendar();
-  else if (id === 'photoBookSettings') {
+  if (id === 'calendar') {
+    if (typeof openPhotoCalendar === 'function') openPhotoCalendar();
+    else show('calendar');
+  } else if (id === 'photoBookSettings') {
     renderPhotoBookSettings();
     show(id);
   } else if (id === 'photoCalDay') {
@@ -4846,13 +4859,27 @@ function loadStore() {
     if (!store.serviceAreas) store.serviceAreas = defaultStore().serviceAreas;
     if (!store.operators) store.operators = defaultStore().operators;
     if (!store.deletedBusinesses) store.deletedBusinesses = defaultStore().deletedBusinesses;
-    if (!store.calendar) store.calendar = defaultPhotoCalendar();
+    if (!store.calendar || typeof store.calendar !== 'object') store.calendar = defaultPhotoCalendar();
   } catch (_e) {
     store = defaultStore();
+    try {
+      localStorage.removeItem(STORAGE_KEY);
+    } catch (_e2) {
+      /* ignore */
+    }
   }
 }
 function saveStore() {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(store));
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(store));
+  } catch (_e) {
+    try {
+      if (store.calendar) store.calendar = defaultPhotoCalendar();
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(store));
+    } catch (_e2) {
+      /* demo still runs without persisting */
+    }
+  }
 }
 function ensureRegisteredDistrict() {
   const st = store.biz.registeredState;
@@ -5956,7 +5983,7 @@ function bindGlobal() {
 function boot() {
   try {
     if (!el('quickGrid')) {
-      throw new Error('Missing dashboard — open GIXBEE-PHOTO-OWNER-FINALFLOW5.html (full file).');
+      throw new Error('Missing dashboard — open ' + photoOwnerDemoFileName() + ' (full file).');
     }
     loadStore();
     ensureRegisteredDistrict();
