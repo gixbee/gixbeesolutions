@@ -59,7 +59,14 @@ def build_master() -> str:
         raise SystemExit(f"expected one inlined script, got {out.count('<script>')}")
     if "PHOTO_OWNER_BUILD" not in out or "function boot(" not in out:
         raise SystemExit("missing photo owner app")
-    for cal_marker in ("id=\"photoCalGrid\"", "function openPhotoCalendar", "bindPhotoCalendarUi"):
+    for cal_marker in (
+        'id="photoCalGrid"',
+        "function openPhotoCalendar",
+        "bindPhotoCalendarUi",
+        'id="photoBkRegisterList"',
+        "renderPhotoBookingRegister",
+        'id="photoAuditOverlay"',
+    ):
         if cal_marker not in out:
             raise SystemExit(f"built FINALFLOW missing calendar bundle: {cal_marker!r}")
     banner = (

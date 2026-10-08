@@ -333,8 +333,29 @@ button.manage-pill{cursor:pointer;font:inherit;color:var(--blue);border-color:#B
 .grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
 .pick{border:1.5px solid var(--line);border-radius:12px;padding:12px 8px;text-align:center;font-size:12px;font-weight:800;cursor:pointer;background:#fff;font:inherit;color:var(--navy)}
 .pick.on{border-color:var(--blue);background:#EFF6FF;color:var(--blue)}
-.cal-tabs{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px}
-.cal-tabs .pick{padding:12px 8px}
+.cal-tabs{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-bottom:14px}
+.cal-tabs .pick{padding:10px 4px;font-size:11px}
+.photo-reg-stats{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:0 0 14px}
+.photo-reg-stat{padding:12px;border-radius:12px;background:#F8FAFC;border:1px solid var(--line)}
+.photo-reg-stat b{display:block;font-size:20px;color:var(--navy)}
+.photo-reg-stat span{font-size:11px;font-weight:700;color:var(--mut)}
+.photo-bk-register-date{margin:16px 0 6px;font-size:11px;font-weight:800;color:#9CA3AF;letter-spacing:.5px;text-transform:uppercase}
+.photo-bk-register-row{display:flex;align-items:flex-start;gap:10px;width:100%;text-align:left;border:1px solid var(--line);border-radius:14px;padding:12px;margin-bottom:8px;background:#fff;cursor:pointer;font:inherit;color:inherit}
+.photo-bk-register-row:active{background:#F8FAFC}
+.photo-bk-register-row .bk-time{font-size:11px;font-weight:800;color:var(--blue);min-width:52px}
+.photo-bk-register-row .bk-meta{flex:1;min-width:0}
+.photo-bk-register-row .bk-meta b{display:block;font-size:14px;color:var(--navy)}
+.photo-bk-register-row .bk-meta span{font-size:11px;color:var(--mut);font-weight:600}
+.photo-bk-register-row .bk-op{font-size:10px;font-weight:800;color:#6B7280;text-align:right;max-width:72px;line-height:1.3}
+.photo-detail-dl{margin:12px 0}
+.photo-detail-dl dt{font-size:11px;font-weight:800;color:#9CA3AF;margin:12px 0 4px}
+.photo-detail-dl dd{margin:0;font-size:15px;font-weight:700;color:var(--navy)}
+.photo-audit-list{margin:0;padding:0;list-style:none}
+.photo-audit-item{padding:12px 0;border-bottom:1px solid var(--line);font-size:12px;line-height:1.45}
+.photo-audit-item b{color:var(--navy)}
+.photo-audit-item .audit-changes{margin-top:6px;color:var(--mut);font-weight:600}
+.btn-audit-link{display:inline-flex;align-items:center;gap:6px;margin-top:12px;padding:10px 14px;border-radius:12px;border:1.5px solid #BFDBFE;background:#EFF6FF;color:var(--blue);font-weight:800;font-size:13px;cursor:pointer;font:inherit}
+.btn-audit-link.has-changes::after{content:'';width:8px;height:8px;border-radius:50%;background:#EF4444}
 .cal-month-nav{display:flex;align-items:center;justify-content:space-between;margin:8px 0 10px;gap:8px}
 .cal-month-nav button{border:0;background:#F3F4F6;width:36px;height:36px;border-radius:10px;font-size:18px;cursor:pointer;color:var(--navy);font-weight:800}
 .cal-month-nav b{font-size:16px;color:var(--navy)}
@@ -647,24 +668,38 @@ button.manage-pill{cursor:pointer;font:inherit;color:var(--blue);border-color:#B
   <div class="pad">
     <div class="cal-tabs">
       <button type="button" class="pick on" id="photoTabCalMain">Calendar</button>
-      <button type="button" class="pick" id="photoTabBookSettings">Booking Settings</button>
+      <button type="button" class="pick" id="photoTabBookList">Bookings</button>
+      <button type="button" class="pick" id="photoTabBookSettings">Settings</button>
     </div>
     <div class="cal-month-nav">
       <button type="button" id="photoCalPrevMonth" aria-label="Previous month">‹</button>
       <b id="photoCalMonthLabel">October 2026</b>
       <button type="button" id="photoCalNextMonth" aria-label="Next month">›</button>
     </div>
-    <div class="cal-weekdays"><span>S</span><span>M</span><span>T</span><span>W</span><span>T</span><span>F</span><span>S</span></div>
-    <div class="cal-mini" id="photoCalGrid"></div>
-    <div class="cal-legend">
-      <span><i class="cal-dot av"></i> Open</span>
-      <span><i class="cal-dot off"></i> Has shoots</span>
-      <span><i class="cal-dot bk"></i> Full</span>
-      <span><i class="cal-dot na"></i> Unavailable</span>
+    <div id="photoCalPanelGrid">
+      <div class="cal-weekdays"><span>S</span><span>M</span><span>T</span><span>W</span><span>T</span><span>F</span><span>S</span></div>
+      <div class="cal-mini" id="photoCalGrid"></div>
+      <div class="cal-legend">
+        <span><i class="cal-dot av"></i> Open</span>
+        <span><i class="cal-dot off"></i> Has shoots</span>
+        <span><i class="cal-dot bk"></i> Full</span>
+        <span><i class="cal-dot na"></i> Unavailable</span>
+      </div>
+      <button type="button" class="cal-month-pick" id="photoOpenMonthPicker">📅 Month: <span id="photoCalMonthPickLabel">October 2026</span> ▾</button>
+      <p class="hint" style="margin-top:12px">Tap a date for day schedule, add bookings, or change availability.</p>
     </div>
-    <button type="button" class="cal-month-pick" id="photoOpenMonthPicker">📅 Month: <span id="photoCalMonthPickLabel">October 2026</span> ▾</button>
-    <p class="hint" style="margin-top:12px">Tap a date to view shoots, add offline bookings, or mark the day unavailable / full.</p>
+    <div id="photoCalPanelList" hidden>
+      <div class="photo-reg-stats" id="photoBkRegisterStats"></div>
+      <button type="button" class="cal-month-pick" id="photoOpenMonthPickerList" style="margin-bottom:12px">📅 Month: <span id="photoCalMonthPickLabelList">October 2026</span> ▾</button>
+      <div id="photoBkRegisterList"></div>
+      <p class="hint">Tap a row for full details, edit, or change history.</p>
+    </div>
   </div>
+</section>
+
+<section class="scr" id="photoBookingDetail">
+  <div class="top"><button type="button" class="back" id="photoBackFromBkDetail">←</button><h1>Booking</h1><span style="width:36px"></span></div>
+  <div class="pad" id="photoBookingDetailBody"></div>
 </section>
 
 <section class="scr" id="photoCalDay">
@@ -757,6 +792,7 @@ button.manage-pill{cursor:pointer;font:inherit;color:var(--blue);border-color:#B
     <div class="fld"><label>Phone</label><input id="photoBkPhone" placeholder="+91 " inputmode="tel"></div>
     <div class="fld"><label>Event type</label><input id="photoBkEvent" placeholder="Wedding, portrait, funeral…"></div>
     <div class="fld"><label>Time</label><input id="photoBkTime" placeholder="10:00 AM – 6:00 PM"></div>
+    <div class="fld"><label>Assigned operator *</label><select id="photoBkOperator"></select></div>
     <div class="fld"><label>Source</label>
       <div class="radio-row" style="margin-top:6px">
         <label><input type="radio" name="photoBkSource" value="offline" checked> Offline / phone</label>
@@ -783,6 +819,15 @@ button.manage-pill{cursor:pointer;font:inherit;color:var(--blue);border-color:#B
       <button type="button" class="btn btn-ghost" id="photoCloseDaySheet2" style="display:none"></button>
       <button type="button" class="btn btn-blue" id="photoSaveDaySheet" style="grid-column:1/-1">Save</button>
     </div>
+  </div>
+</div>
+
+<div class="overlay" id="photoAuditOverlay" aria-hidden="true">
+  <div class="sheet">
+    <div class="sheet-head"><h2>Change history</h2><button type="button" class="sheet-close" id="photoCloseAudit" aria-label="Close">×</button></div>
+    <p class="sub" id="photoAuditSubtitle" style="margin-top:0">Who changed this booking and when.</p>
+    <ul class="photo-audit-list" id="photoAuditList"></ul>
+    <button type="button" class="btn btn-ghost" id="photoCloseAuditBtn" style="width:100%;margin-top:8px">Close</button>
   </div>
 </div>
 
