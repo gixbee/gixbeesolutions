@@ -13,6 +13,73 @@ const SVC_EXTRA_DEFAULTS = [
   { name: 'Live Streaming', price: 5000, unit: 'Per Event' },
   { name: 'Drone Coverage', price: 5000, unit: 'Per Event' },
 ];
+
+function svcExtraDefaults() {
+  const o = {};
+  SVC_EXTRA_DEFAULTS.forEach(function (row) {
+    o[row.name] = {
+      mode: 'extra',
+      price: row.price != null ? row.price : 0,
+      basis: row.unit === 'Per Hour' ? 'Per Hour' : 'Per Event',
+    };
+  });
+  return o;
+}
+
+function allSvcExtrasNames(d) {
+  const excluded = d.excludedExtras || [];
+  return SVC_EXTRA_DEFAULTS.map(function (x) {
+    return x.name;
+  })
+    .concat((d.customExtras || []).map(function (x) {
+      return x.name;
+    }))
+    .filter(function (name) {
+      return excluded.indexOf(name) < 0;
+    });
+}
+
+function svcExtraUnitToBasis(unit) {
+  return unit === 'Per Hour' ? 'Per Hour' : 'Per Event';
+}
+
+function ensureSvcExtrasModel(d) {
+  if (!d.extras) d.extras = {};
+  if (!d.customExtras) d.customExtras = [];
+  if (!d.excludedExtras) d.excludedExtras = [];
+  const defaults = svcExtraDefaults();
+  Object.keys(defaults).forEach(function (name) {
+    if (!d.extras[name] && d.excludedExtras.indexOf(name) < 0) {
+      d.extras[name] = defaults[name];
+    }
+  });
+  const legacy = d.optionalExtras;
+  if (legacy && legacy.length) {
+    legacy.forEach(function (row) {
+      const name = (row.name || '').trim();
+      if (!name) return;
+      const preset = SVC_EXTRA_DEFAULTS.some(function (x) {
+        return x.name === name;
+      });
+      if (
+        !preset &&
+        !d.customExtras.some(function (x) {
+          return x.name === name;
+        })
+      ) {
+        d.customExtras.push({ name: name });
+      }
+      if (!d.extras[name]) {
+        d.extras[name] = {
+          mode: 'extra',
+          price: row.price != null ? row.price : 0,
+          basis: svcExtraUnitToBasis(row.unit),
+        };
+      }
+    });
+    delete d.optionalExtras;
+  }
+}
 const SVC_POLICY_DEFAULTS = [
   'Cancellation Policy',
   'Rescheduling Policy',
@@ -56,8 +123,9 @@ function newSvcDraft() {
     photoDetails: photoDetails,
     videoDetails: videoDetails,
     albumPrints: defaultAlbumPrints(),
-    optionalExtras: JSON.parse(JSON.stringify(SVC_EXTRA_DEFAULTS)),
+    extras: svcExtraDefaults(),
     customExtras: [],
+    excludedExtras: [],
     deliveryMap: {
       'Edited Photos': '5 Working Days',
       'Highlight Video': '7 Working Days',
@@ -86,12 +154,15 @@ function recordToSvcDraft(rec) {
   const m = JSON.parse(JSON.stringify(rec || {}));
   const merged = Object.assign(base, m, {
     team: Object.assign(base.team, m.team || {}),
-    optionalExtras: m.optionalExtras || base.optionalExtras,
     deliveryMap: Object.assign(base.deliveryMap, m.deliveryMap || {}),
     photoDetails: Object.assign(base.photoDetails, m.photoDetails || {}),
     videoDetails: Object.assign(base.videoDetails, m.videoDetails || {}),
     albumPrints: Object.assign(base.albumPrints, m.albumPrints || {}),
   });
+  merged.extras = Object.assign({}, base.extras, m.extras || {});
+  merged.customExtras = m.customExtras || base.customExtras;
+  merged.excludedExtras = m.excludedExtras || base.excludedExtras;
+  ensureSvcExtrasModel(merged);
   ensureServiceDeliverableModel(merged);
   ensurePkgPolicyRules(merged);
   ensurePolicyValues(merged);
@@ -290,33 +361,8 @@ function renderSvcStep(step, d) {
       ensureServiceDeliverableModel(d);
       return renderDeliverablesStep(d);
     case 5:
-      return (
-        '<div id="f_svcExtras">' +
-        (d.optionalExtras || [])
-          .map(function (row, i) {
-            return (
-              '<div class="extra-row svc-extra" data-svc-extra-idx="' +
-              i +
-              '"><span class="extra-ico">✦</span><input type="text" data-svc-extra-name value="' +
-              esc(row.name) +
-              '"><input type="number" data-svc-extra-price value="' +
-              (row.price || 0) +
-              '"><select data-svc-extra-unit><option' +
-              (row.unit === 'Per Set' ? ' selected' : '') +
-              '>Per Set</option><option' +
-              (row.unit === 'Per Hour' ? ' selected' : '') +
-              '>Per Hour</option><option' +
-              (row.unit === 'Per Event' ? ' selected' : '') +
-              '>Per Event</option></select>' +
-              '<button type="button" class="pay-del" data-action="svc-del-extra" data-idx="' +
-              i +
-              '">🗑</button></div>'
-            );
-          })
-          .join('') +
-        '</div>' +
-        '<button type="button" class="link-add" data-action="svc-add-extra">+ Add new extra</button>'
-      );
+      ensureSvcExtrasModel(d);
+      return renderWizardExtrasStep(d, allSvcExtrasNames, 'Add new extra');
     case 6: {
       const keys = svcDeliveryKeys(d);
       if (!keys.length) {
@@ -431,12 +477,7 @@ function readSvcWizardFields(d) {
   if (g('f_duration')) d.duration = g('f_duration').value;
   if (g('f_extraHour')) d.extraHour = +g('f_extraHour').value || 0;
   readDeliverableFieldsFromDom(d);
-  document.querySelectorAll('.svc-extra').forEach(function (row, i) {
-    if (!d.optionalExtras[i]) d.optionalExtras[i] = {};
-    d.optionalExtras[i].name = row.querySelector('[data-svc-extra-name]').value.trim();
-    d.optionalExtras[i].price = +(row.querySelector('[data-svc-extra-price]').value || 0);
-    d.optionalExtras[i].unit = row.querySelector('[data-svc-extra-unit]').value;
-  });
+  readExtrasFieldsFromDom(d);
   document.querySelectorAll('[data-svc-del]').forEach(function (sel) {
     d.deliveryMap[sel.getAttribute('data-svc-del')] = sel.value;
   });
@@ -470,6 +511,18 @@ function bindSvcWizard(d) {
         return;
       }
       const act = t.getAttribute('data-action');
+      if (
+        runExtraWizardAction(
+          act,
+          t,
+          d,
+          readSvcWizardFields,
+          SVC_EXTRA_DEFAULTS.map(function (x) {
+            return x.name;
+          })
+        )
+      )
+        return;
       if (runDeliverableWizardAction(act, d, readSvcWizardFields)) return;
       if (act === 'svc-more-cats') {
         d.showAllCats = !d.showAllCats;
@@ -484,16 +537,6 @@ function bindSvcWizard(d) {
       if (act === 'svc-cover-edit' || act === 'svc-cover-more') {
         d.coverCount = (d.coverCount || 1) + 1;
         toast('Cover image updated (demo).');
-        return;
-      }
-      if (act === 'svc-add-extra') {
-        d.optionalExtras.push({ name: 'Custom extra', price: 1000, unit: 'Per Event' });
-        renderWizardBody();
-        return;
-      }
-      if (act === 'svc-del-extra') {
-        d.optionalExtras.splice(+t.getAttribute('data-idx'), 1);
-        renderWizardBody();
         return;
       }
       if (act === 'svc-add-pol') {
@@ -551,6 +594,7 @@ function bindSvcWizard(d) {
   };
   body.onchange = function (e) {
     const t = e.target;
+    if (handleExtraModeSelectChange(e, d)) return;
     if (deliverableCheckboxChange(t, d)) return;
     if (t.matches('[data-svc-pol]')) {
       const v = t.getAttribute('data-svc-pol');
@@ -602,4 +646,5 @@ function bindSvcWizard(d) {
       renderWizardBody();
     };
   });
+  if (wiz.step === 5) syncAllExtraRowModes();
 }
