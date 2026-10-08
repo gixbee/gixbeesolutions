@@ -16,6 +16,7 @@ ALIASES = [
     "OPEN-gixbee-photo-owner-demo.html",
     "GIXBEE-PHOTO-OWNER-WORKING.html",
     "GIXBEE-PHOTO-OWNER-FlowHtml.html",
+    "GIXBEE-PHOTO-OWNER-FINALFLOW5.html",
 ]
 
 SHELL_PLACEHOLDER = """<!-- APP_START -->
@@ -98,7 +99,13 @@ def main() -> None:
     kb = MASTER.stat().st_size // 1024
     print(f"Wrote {MASTER.name} ({kb} KB)")
     for name in ALIASES:
-        (DIR / name).write_text(out, encoding="utf-8")
+        body = out
+        if name == "GIXBEE-PHOTO-OWNER-FINALFLOW5.html":
+            body = out.replace(
+                "flow HTML (FINALFLOW). Save as GIXBEE-PHOTO-OWNER-FINALFLOW.html",
+                "flow HTML (FINALFLOW5). Save as GIXBEE-PHOTO-OWNER-FINALFLOW5.html",
+            )
+        (DIR / name).write_text(body, encoding="utf-8")
         print(f"Wrote {name} (copy of {MASTER.name})")
 
 
