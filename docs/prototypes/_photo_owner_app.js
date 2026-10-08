@@ -1,4 +1,4 @@
-const PHOTO_OWNER_BUILD = '2026-10-08-photo-owner-package-albums-opt-in-v1';
+const PHOTO_OWNER_BUILD = '2026-10-08-photo-owner-skip-live-streaming-delivery-v1';
 const STORAGE_KEY = 'GIXBEE_PHOTO_OWNER_V1';
 
 const INDIAN_STATES = {
@@ -1027,7 +1027,7 @@ function validateStep() {
       toast('Select at least one deliverable (photo, video, album, or digital).');
       return false;
     }
-    if (wiz.step === 6 && !pkgDeliveryKeys(d).length) {
+    if (wiz.step === 6 && !selectedDeliverableKeys(d).length) {
       toast('Add deliverables before setting delivery timelines.');
       return false;
     }
@@ -1064,7 +1064,7 @@ function validateStep() {
       toast("Select at least one included item (photo, video, album, or digital).");
       return false;
     }
-    if (wiz.step === 6 && !svcDeliveryKeys(d).length) {
+    if (wiz.step === 6 && !svcSelectedDeliverableKeys(d).length) {
       toast("Add included items before setting delivery timelines.");
       return false;
     }

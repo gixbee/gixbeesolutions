@@ -129,7 +129,6 @@ function newSvcDraft() {
     deliveryMap: {
       'Edited Photos': '5 Working Days',
       'Highlight Video': '7 Working Days',
-      'Live Streaming': 'Same Day',
     },
     policies: ['Cancellation Policy', 'Rescheduling Policy'],
     cancelRules: clonePkgPolicyTierDefaults(),
@@ -221,7 +220,7 @@ function pruneSvcDeliveryMap(d) {
 function svcDeliveryKeys(d) {
   ensureServiceDeliverableModel(d);
   syncDeliveryMap(d);
-  return selectedDeliverableKeys(d);
+  return deliverablesForDeliveryStep(d);
 }
 
 function renderSvcStep(step, d) {
@@ -364,13 +363,20 @@ function renderSvcStep(step, d) {
       ensureSvcExtrasModel(d);
       return renderWizardExtrasStep(d, allSvcExtrasNames, 'Add new extra');
     case 6: {
+      const included = svcSelectedDeliverableKeys(d);
       const keys = svcDeliveryKeys(d);
-      if (!keys.length) {
+      if (!included.length) {
         return (
           '<div class="hub-empty" style="margin:0">' +
           '<div class="hub-empty-ico">📦</div><b>No deliverables selected</b>' +
           '<p>Go back to <b>What\'s included</b> and check at least one photo, video, album, or digital option.</p></div>' +
           '<button type="button" class="btn btn-ghost" data-goto-step="4" style="margin-top:12px;width:100%">← Back to what\'s included</button>'
+        );
+      }
+      if (!keys.length) {
+        return (
+          '<p class="sub">Items such as <b>Live Streaming</b> are provided during the event. They stay in your service but do not need a post-event delivery timeline here.</p>' +
+          '<div class="warn-box" style="margin-top:12px">Tap <b>Next</b> to continue.</div>'
         );
       }
       keys.forEach(function (k) {

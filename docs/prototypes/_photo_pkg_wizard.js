@@ -443,6 +443,9 @@ const REQ_DEFAULTS = [
   'Customer provides song preference',
   'Required permissions / materials',
 ];
+/** Included deliverables that are not post-event timelines (omit from Delivery step). */
+const DELIVERY_TIMELINE_SKIP = ['Live Streaming'];
+
 const DELIVERY_TIMELINES = [
   'Same Day',
   '1 Day',
@@ -1404,13 +1407,20 @@ function renderPkgStep(step, d) {
     case 5:
       return renderWizardExtrasStep(d, allExtrasNames);
     case 6: {
+      const included = selectedDeliverableKeys(d);
       const keys = pkgDeliveryKeys(d);
-      if (!keys.length) {
+      if (!included.length) {
         return (
           '<div class="hub-empty" style="margin:0">' +
           '<div class="hub-empty-ico">📦</div><b>No deliverables selected</b>' +
           '<p>Go back to the <b>Deliverables</b> step and check at least one photo, video, album, or digital option.</p></div>' +
           '<button type="button" class="btn btn-ghost" data-goto-step="4" style="margin-top:12px;width:100%">← Back to deliverables</button>'
+        );
+      }
+      if (!keys.length) {
+        return (
+          '<p class="sub">Items such as <b>Live Streaming</b> are provided during the event. They stay in your package but do not need a post-event delivery timeline here.</p>' +
+          '<div class="warn-box" style="margin-top:12px">Tap <b>Next</b> to continue.</div>'
         );
       }
       return (
@@ -1509,6 +1519,12 @@ function selectedDeliverableKeys(d) {
   return keys;
 }
 
+function deliverablesForDeliveryStep(d) {
+  return selectedDeliverableKeys(d).filter(function (k) {
+    return DELIVERY_TIMELINE_SKIP.indexOf(k) < 0;
+  });
+}
+
 function pruneDeliveryMap(d) {
   if (!d.deliveryMap) d.deliveryMap = {};
   const allowed = {};
@@ -1517,6 +1533,9 @@ function pruneDeliveryMap(d) {
   });
   Object.keys(d.deliveryMap).forEach(function (k) {
     if (!allowed[k]) delete d.deliveryMap[k];
+  });
+  DELIVERY_TIMELINE_SKIP.forEach(function (k) {
+    delete d.deliveryMap[k];
   });
 }
 
@@ -1528,6 +1547,7 @@ function syncDeliveryMap(d) {
     else if (!d.deliveryMap[name]) d.deliveryMap[name] = '5 Working Days';
   });
   (d.deliverVideo || []).forEach(function (name) {
+    if (DELIVERY_TIMELINE_SKIP.indexOf(name) >= 0) return;
     const det = d.videoDetails[name];
     if (det && det.delivery) d.deliveryMap[name] = det.delivery;
     else if (!d.deliveryMap[name]) d.deliveryMap[name] = '15 Working Days';
@@ -1550,7 +1570,7 @@ function syncDeliveryMap(d) {
 
 function pkgDeliveryKeys(d) {
   syncDeliveryMap(d);
-  return selectedDeliverableKeys(d);
+  return deliverablesForDeliveryStep(d);
 }
 
 function readPkgWizardFields(d) {
