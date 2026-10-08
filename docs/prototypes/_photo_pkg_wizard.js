@@ -588,7 +588,7 @@ function newPkgDraft() {
     customDeliverDigital: [],
     photoDetails: defaultPhotoDetails(),
     videoDetails: defaultVideoDetails(),
-    albumPrints: defaultAlbumPrints(),
+    albumPrints: albumPrintsAllOff(),
     deliveryMap: {},
     paymentStages: cloneDefaultPaymentStages(),
     policies: ['Cancellation Policy', 'Rescheduling Policy'],
