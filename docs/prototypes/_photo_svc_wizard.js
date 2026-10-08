@@ -103,7 +103,7 @@ function newSvcDraft() {
     name: 'Funeral / Memorial Photography & Live Streaming',
     blurb:
       'Respectful photo and video coverage for funeral and memorial services, with optional live streaming for remote family.',
-    coverCount: 1,
+    coverUploaded: true,
     pricingType: 'fixed',
     listPrice: 55000,
     discountYes: 'yes',
@@ -223,6 +223,36 @@ function svcDeliveryKeys(d) {
   return deliverablesForDeliveryStep(d);
 }
 
+function renderSvcBasicsStep(d) {
+  const hasCover = !!d.coverUploaded;
+  return (
+    '<p class="svc-basics-lead">This is what customers see on your service listing — keep the name clear and the description short.</p>' +
+    '<div class="svc-basics-cat"><span class="svc-basics-cat-lbl">Category</span>' +
+    '<div class="cat-pill"><span>' +
+    esc(svcCatLabel(d.category)) +
+    '</span><button type="button" class="link-inline" data-action="svc-change-cat">Change</button></div></div>' +
+    '<div class="fld"><label>Service name *</label><input id="f_svcName" value="' +
+    esc(d.name) +
+    '" placeholder="e.g. Wedding candid photography" autocomplete="off"></div>' +
+    '<div class="fld"><label>Short description *</label><textarea id="f_blurb" maxlength="300" placeholder="What is included, who it is for, and what makes your service stand out.">' +
+    esc(d.blurb) +
+    '</textarea><p class="hint" id="blurbCount">' +
+    (d.blurb || '').length +
+    '/300 characters</p></div>' +
+    '<div class="fld"><label>Cover photo *</label>' +
+    '<p class="hint" style="margin:0 0 10px">Main image on search and booking — one photo is enough to start.</p>' +
+    '<button type="button" class="svc-cover-upload' +
+    (hasCover ? ' has-image' : '') +
+    '" data-action="svc-cover-upload">' +
+    '<span class="svc-cover-upload-ico" aria-hidden="true">📷</span>' +
+    '<span class="svc-cover-upload-txt"><b>' +
+    (hasCover ? 'Cover photo added' : 'Upload cover photo') +
+    '</b><span class="sub">' +
+    (hasCover ? 'Tap to change photo' : 'JPG or PNG · demo upload') +
+    '</span></span></button></div>'
+  );
+}
+
 function renderSvcStep(step, d) {
   syncSvcPrice(d);
   switch (step) {
@@ -264,24 +294,7 @@ function renderSvcStep(step, d) {
       );
     }
     case 1:
-      return (
-        '<div class="fld"><label>Service name *</label><input id="f_svcName" value="' +
-        esc(d.name) +
-        '"></div>' +
-        '<div class="fld"><label>Short description *</label><textarea id="f_blurb" maxlength="300">' +
-        esc(d.blurb) +
-        '</textarea><p class="hint" id="blurbCount">' +
-        (d.blurb || '').length +
-        '/300</p></div>' +
-        '<div class="fld"><label>Service category</label><div class="cat-pill">' +
-        esc(svcCatLabel(d.category)) +
-        ' <button type="button" class="link-inline" data-action="svc-change-cat">Change</button></div></div>' +
-        '<div class="fld"><label>Cover image *</label><div class="cover-row">' +
-        '<div class="cover-thumb on">🖼</div><button type="button" class="btn btn-ghost" data-action="svc-cover-edit" style="flex:1;padding:10px">Edit</button></div>' +
-        '<div class="cover-row" style="margin-top:8px">' +
-        '<div class="cover-thumb"></div><div class="cover-thumb"></div><div class="cover-thumb"></div>' +
-        '<button type="button" class="btn btn-ghost" data-action="svc-cover-more" style="flex:1;padding:10px">+ Add more</button></div>'
-      );
+      return renderSvcBasicsStep(d);
     case 2:
       return (
         '<div class="pricing-step">' +
@@ -540,9 +553,10 @@ function bindSvcWizard(d) {
         renderWizard();
         return;
       }
-      if (act === 'svc-cover-edit' || act === 'svc-cover-more') {
-        d.coverCount = (d.coverCount || 1) + 1;
-        toast('Cover image updated (demo).');
+      if (act === 'svc-cover-upload') {
+        d.coverUploaded = true;
+        toast('Cover photo updated (demo).');
+        renderWizardBody();
         return;
       }
       if (act === 'svc-add-pol') {

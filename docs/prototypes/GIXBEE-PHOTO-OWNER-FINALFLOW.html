@@ -319,6 +319,19 @@ button.manage-pill{cursor:pointer;font:inherit;color:var(--blue);border-color:#B
 .cover-row{display:flex;gap:10px;align-items:center}
 .cover-thumb{width:64px;height:64px;border-radius:10px;border:2px dashed #BFDBFE;background:#F8FAFC;display:grid;place-items:center}
 .cover-thumb.on{border-style:solid;background:linear-gradient(145deg,#CBD5E1,#94A3B8)}
+.svc-basics-lead{margin:0 0 16px;font-size:13px;color:var(--mut);line-height:1.5}
+.svc-basics-cat{margin:0 0 18px;padding:12px 14px;border-radius:14px;background:#F8FAFC;border:1px solid var(--line)}
+.svc-basics-cat-lbl{display:block;font-size:11px;font-weight:800;color:#9CA3AF;letter-spacing:.5px;text-transform:uppercase;margin:0 0 8px}
+.svc-basics-cat .cat-pill{margin:0;background:#fff}
+.svc-cover-upload{display:flex;align-items:center;gap:14px;width:100%;padding:14px;border:2px dashed #BFDBFE;border-radius:16px;background:#F8FAFC;cursor:pointer;font:inherit;text-align:left;-webkit-tap-highlight-color:transparent}
+.svc-cover-upload.has-image{border-style:solid;border-color:#93C5FD;background:linear-gradient(145deg,#64748B 0%,#94A3B8 55%,#CBD5E1 100%);min-height:120px;align-items:flex-end;padding:16px}
+.svc-cover-upload.has-image .svc-cover-upload-ico{display:none}
+.svc-cover-upload.has-image .svc-cover-upload-txt{color:#fff;text-shadow:0 1px 2px rgba(0,0,0,.25)}
+.svc-cover-upload.has-image .svc-cover-upload-txt .sub{color:rgba(255,255,255,.92)}
+.svc-cover-upload-ico{width:48px;height:48px;border-radius:12px;background:#EFF6FF;display:grid;place-items:center;font-size:22px;flex-shrink:0}
+.svc-cover-upload-txt{display:flex;flex-direction:column;gap:2px;min-width:0}
+.svc-cover-upload-txt b{font-size:15px;color:var(--navy)}
+.svc-cover-upload-txt .sub{font-size:12px;color:var(--mut);font-weight:600}
 .link-add{border:0;background:none;color:var(--blue);font-weight:800;font-size:13px;cursor:pointer;padding:8px 0;margin:8px 0;display:block}
 .warn-box{margin:12px 0;padding:10px;border-radius:10px;background:#FFFBEB;border:1px solid #FDE68A;font-size:11px;line-height:1.4}
 .role-row{display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--line);font-weight:700;font-size:13px}
@@ -2648,7 +2661,7 @@ function newSvcDraft() {
     name: 'Funeral / Memorial Photography & Live Streaming',
     blurb:
       'Respectful photo and video coverage for funeral and memorial services, with optional live streaming for remote family.',
-    coverCount: 1,
+    coverUploaded: true,
     pricingType: 'fixed',
     listPrice: 55000,
     discountYes: 'yes',
@@ -2768,6 +2781,36 @@ function svcDeliveryKeys(d) {
   return deliverablesForDeliveryStep(d);
 }
 
+function renderSvcBasicsStep(d) {
+  const hasCover = !!d.coverUploaded;
+  return (
+    '<p class="svc-basics-lead">This is what customers see on your service listing — keep the name clear and the description short.</p>' +
+    '<div class="svc-basics-cat"><span class="svc-basics-cat-lbl">Category</span>' +
+    '<div class="cat-pill"><span>' +
+    esc(svcCatLabel(d.category)) +
+    '</span><button type="button" class="link-inline" data-action="svc-change-cat">Change</button></div></div>' +
+    '<div class="fld"><label>Service name *</label><input id="f_svcName" value="' +
+    esc(d.name) +
+    '" placeholder="e.g. Wedding candid photography" autocomplete="off"></div>' +
+    '<div class="fld"><label>Short description *</label><textarea id="f_blurb" maxlength="300" placeholder="What is included, who it is for, and what makes your service stand out.">' +
+    esc(d.blurb) +
+    '</textarea><p class="hint" id="blurbCount">' +
+    (d.blurb || '').length +
+    '/300 characters</p></div>' +
+    '<div class="fld"><label>Cover photo *</label>' +
+    '<p class="hint" style="margin:0 0 10px">Main image on search and booking — one photo is enough to start.</p>' +
+    '<button type="button" class="svc-cover-upload' +
+    (hasCover ? ' has-image' : '') +
+    '" data-action="svc-cover-upload">' +
+    '<span class="svc-cover-upload-ico" aria-hidden="true">📷</span>' +
+    '<span class="svc-cover-upload-txt"><b>' +
+    (hasCover ? 'Cover photo added' : 'Upload cover photo') +
+    '</b><span class="sub">' +
+    (hasCover ? 'Tap to change photo' : 'JPG or PNG · demo upload') +
+    '</span></span></button></div>'
+  );
+}
+
 function renderSvcStep(step, d) {
   syncSvcPrice(d);
   switch (step) {
@@ -2809,24 +2852,7 @@ function renderSvcStep(step, d) {
       );
     }
     case 1:
-      return (
-        '<div class="fld"><label>Service name *</label><input id="f_svcName" value="' +
-        esc(d.name) +
-        '"></div>' +
-        '<div class="fld"><label>Short description *</label><textarea id="f_blurb" maxlength="300">' +
-        esc(d.blurb) +
-        '</textarea><p class="hint" id="blurbCount">' +
-        (d.blurb || '').length +
-        '/300</p></div>' +
-        '<div class="fld"><label>Service category</label><div class="cat-pill">' +
-        esc(svcCatLabel(d.category)) +
-        ' <button type="button" class="link-inline" data-action="svc-change-cat">Change</button></div></div>' +
-        '<div class="fld"><label>Cover image *</label><div class="cover-row">' +
-        '<div class="cover-thumb on">🖼</div><button type="button" class="btn btn-ghost" data-action="svc-cover-edit" style="flex:1;padding:10px">Edit</button></div>' +
-        '<div class="cover-row" style="margin-top:8px">' +
-        '<div class="cover-thumb"></div><div class="cover-thumb"></div><div class="cover-thumb"></div>' +
-        '<button type="button" class="btn btn-ghost" data-action="svc-cover-more" style="flex:1;padding:10px">+ Add more</button></div>'
-      );
+      return renderSvcBasicsStep(d);
     case 2:
       return (
         '<div class="pricing-step">' +
@@ -3085,9 +3111,10 @@ function bindSvcWizard(d) {
         renderWizard();
         return;
       }
-      if (act === 'svc-cover-edit' || act === 'svc-cover-more') {
-        d.coverCount = (d.coverCount || 1) + 1;
-        toast('Cover image updated (demo).');
+      if (act === 'svc-cover-upload') {
+        d.coverUploaded = true;
+        toast('Cover photo updated (demo).');
+        renderWizardBody();
         return;
       }
       if (act === 'svc-add-pol') {
@@ -3200,7 +3227,7 @@ function bindSvcWizard(d) {
   if (wiz.step === 5) syncAllExtraRowModes();
 }
 
-const PHOTO_OWNER_BUILD = '2026-10-08-photo-owner-svc-review-footer-v1';
+const PHOTO_OWNER_BUILD = '2026-10-08-photo-owner-svc-basics-ui-v1';
 const STORAGE_KEY = 'GIXBEE_PHOTO_OWNER_V1';
 
 const INDIAN_STATES = {
