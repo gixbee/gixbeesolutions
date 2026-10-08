@@ -1,4 +1,4 @@
-const PHOTO_OWNER_BUILD = '2026-10-08-photo-owner-calendar-erp-v1';
+const PHOTO_OWNER_BUILD = '2026-10-08-photo-owner-finalflow-calendar-v1';
 const STORAGE_KEY = 'GIXBEE_PHOTO_OWNER_V1';
 
 const INDIAN_STATES = {
@@ -383,13 +383,17 @@ function renderLmb() {
     esc(store.biz.loc) +
     '</p>' +
     '<div class="biz-badges"><span>3 new requests</span><span class="gy">Rs 2.1L this month</span></div>' +
-    '<div class="biz-actions"><button type="button">Calendar</button><button type="button">Requests</button>' +
+    '<div class="biz-actions"><button type="button" id="lmbCalBtn">Calendar</button><button type="button" id="lmbReqBtn">Requests</button>' +
     '<button type="button" class="mgr-photo" id="dashPhotoManage">Manage</button></div>' +
     '</div></div></div>';
   el('dashPhotoManage').onclick = () => {
     renderPhotoDash();
     show('photoDash');
   };
+  const lmbCal = el('lmbCalBtn');
+  if (lmbCal) lmbCal.onclick = () => openPhotoCalendar();
+  const lmbReq = el('lmbReqBtn');
+  if (lmbReq) lmbReq.onclick = () => show('requests');
 }
 
 function profCell(ico, label, value) {
