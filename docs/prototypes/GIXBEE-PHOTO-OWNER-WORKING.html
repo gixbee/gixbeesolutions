@@ -224,6 +224,8 @@ body{margin:0;background:#E8EDF5;font-family:Inter,system-ui,sans-serif;color:va
 .cat-card .tick{position:absolute;top:8px;right:8px;width:22px;height:22px;border-radius:50%;background:var(--blue);color:#fff;display:none;place-items:center;font-size:12px}
 .cat-card.on .tick{display:grid}
 .wiz-foot{display:flex;justify-content:space-between;align-items:center;padding:12px 16px 16px;gap:12px;border-top:1px solid var(--line);background:#fff;position:sticky;bottom:0}
+.wiz-foot.wiz-foot-review-only{justify-content:flex-start}
+.wiz-foot.wiz-foot-review-only #wizNext,.wiz-foot.wiz-foot-review-only #wizDraft{display:none!important}
 .wiz-foot .btn{width:auto;flex:1;max-width:160px;border-radius:12px;padding:12px}
 .stub{padding:24px 16px;text-align:center}
 .stub h2{margin:0 0 8px;color:var(--navy)}
@@ -3198,7 +3200,7 @@ function bindSvcWizard(d) {
   if (wiz.step === 5) syncAllExtraRowModes();
 }
 
-const PHOTO_OWNER_BUILD = '2026-10-08-photo-owner-skip-live-streaming-delivery-v1';
+const PHOTO_OWNER_BUILD = '2026-10-08-photo-owner-svc-review-footer-v1';
 const STORAGE_KEY = 'GIXBEE_PHOTO_OWNER_V1';
 
 const INDIAN_STATES = {
@@ -4178,6 +4180,41 @@ function renderStepper() {
   if (sub) sub.textContent = pkg ? '' : meta.sub;
 }
 
+function isWizardReviewStep() {
+  if (wiz.mode === 'package' || wiz.mode === 'service') {
+    return wiz.step === wizTotal() - 1;
+  }
+  return false;
+}
+
+function syncWizardFooter() {
+  const onReview = isWizardReviewStep();
+  const nextBtn = el('wizNext');
+  const draftBtn = el('wizDraft');
+  const prevBtn = el('wizPrev');
+  const foot = document.querySelector('#wizard .wiz-foot');
+  if (prevBtn) prevBtn.style.visibility = wiz.step === 0 ? 'hidden' : 'visible';
+  if (nextBtn) {
+    const hideNext = onReview;
+    nextBtn.hidden = hideNext;
+    nextBtn.style.display = hideNext ? 'none' : '';
+    if (wiz.mode === 'service' && wiz.step === wizTotal() - 2) {
+      nextBtn.textContent = 'Review →';
+    } else if (wiz.step >= wizTotal() - 1 && !onReview) {
+      nextBtn.textContent = 'Publish →';
+    } else {
+      nextBtn.textContent = 'Next →';
+    }
+    nextBtn.className =
+      wiz.step >= wizTotal() - 1 && !onReview ? 'btn btn-green' : 'btn btn-blue';
+  }
+  if (draftBtn) {
+    draftBtn.hidden = true;
+    draftBtn.style.display = 'none';
+  }
+  if (foot) foot.classList.toggle('wiz-foot-review-only', onReview);
+}
+
 function renderWizardBody() {
   const body = el('wizBody');
   const d = wiz.draft;
@@ -4187,6 +4224,7 @@ function renderWizardBody() {
     body.innerHTML = renderSvcStep(wiz.step, d);
   }
   bindWizardFields();
+  syncWizardFooter();
 }
 
 function readWizardFields() {
@@ -4350,24 +4388,7 @@ function renderWizard() {
   if (chip) chip.textContent = stepNum + '/' + total;
   if (frac) frac.textContent = stepNum + '/' + total;
   if (bar) bar.style.width = pct + '%';
-  const last = wiz.step >= wizTotal() - 1;
-  const pkgReview = wiz.mode === 'package' && wiz.step === wizTotal() - 1;
-  const svcReview = wiz.mode === 'service' && wiz.step === wizTotal() - 1;
-  el('wizPrev').style.visibility = wiz.step === 0 ? 'hidden' : 'visible';
-  el('wizNext').hidden = pkgReview || svcReview;
-  if (wiz.mode === 'service' && wiz.step === wizTotal() - 2) {
-    el('wizNext').textContent = 'Review →';
-  } else if (last && !pkgReview && !svcReview) {
-    el('wizNext').textContent = 'Publish →';
-  } else {
-    el('wizNext').textContent = 'Next →';
-  }
-  el('wizNext').className =
-    last && !pkgReview && !svcReview ? 'btn btn-green' : 'btn btn-blue';
-  const draftBtn = el('wizDraft');
-  if (draftBtn) {
-    draftBtn.hidden = true;
-  }
+  syncWizardFooter();
 }
 
 function wizNext() {

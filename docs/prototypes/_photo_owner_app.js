@@ -1,4 +1,4 @@
-const PHOTO_OWNER_BUILD = '2026-10-08-photo-owner-skip-live-streaming-delivery-v1';
+const PHOTO_OWNER_BUILD = '2026-10-08-photo-owner-svc-review-footer-v1';
 const STORAGE_KEY = 'GIXBEE_PHOTO_OWNER_V1';
 
 const INDIAN_STATES = {
@@ -978,6 +978,41 @@ function renderStepper() {
   if (sub) sub.textContent = pkg ? '' : meta.sub;
 }
 
+function isWizardReviewStep() {
+  if (wiz.mode === 'package' || wiz.mode === 'service') {
+    return wiz.step === wizTotal() - 1;
+  }
+  return false;
+}
+
+function syncWizardFooter() {
+  const onReview = isWizardReviewStep();
+  const nextBtn = el('wizNext');
+  const draftBtn = el('wizDraft');
+  const prevBtn = el('wizPrev');
+  const foot = document.querySelector('#wizard .wiz-foot');
+  if (prevBtn) prevBtn.style.visibility = wiz.step === 0 ? 'hidden' : 'visible';
+  if (nextBtn) {
+    const hideNext = onReview;
+    nextBtn.hidden = hideNext;
+    nextBtn.style.display = hideNext ? 'none' : '';
+    if (wiz.mode === 'service' && wiz.step === wizTotal() - 2) {
+      nextBtn.textContent = 'Review →';
+    } else if (wiz.step >= wizTotal() - 1 && !onReview) {
+      nextBtn.textContent = 'Publish →';
+    } else {
+      nextBtn.textContent = 'Next →';
+    }
+    nextBtn.className =
+      wiz.step >= wizTotal() - 1 && !onReview ? 'btn btn-green' : 'btn btn-blue';
+  }
+  if (draftBtn) {
+    draftBtn.hidden = true;
+    draftBtn.style.display = 'none';
+  }
+  if (foot) foot.classList.toggle('wiz-foot-review-only', onReview);
+}
+
 function renderWizardBody() {
   const body = el('wizBody');
   const d = wiz.draft;
@@ -987,6 +1022,7 @@ function renderWizardBody() {
     body.innerHTML = renderSvcStep(wiz.step, d);
   }
   bindWizardFields();
+  syncWizardFooter();
 }
 
 function readWizardFields() {
@@ -1150,24 +1186,7 @@ function renderWizard() {
   if (chip) chip.textContent = stepNum + '/' + total;
   if (frac) frac.textContent = stepNum + '/' + total;
   if (bar) bar.style.width = pct + '%';
-  const last = wiz.step >= wizTotal() - 1;
-  const pkgReview = wiz.mode === 'package' && wiz.step === wizTotal() - 1;
-  const svcReview = wiz.mode === 'service' && wiz.step === wizTotal() - 1;
-  el('wizPrev').style.visibility = wiz.step === 0 ? 'hidden' : 'visible';
-  el('wizNext').hidden = pkgReview || svcReview;
-  if (wiz.mode === 'service' && wiz.step === wizTotal() - 2) {
-    el('wizNext').textContent = 'Review →';
-  } else if (last && !pkgReview && !svcReview) {
-    el('wizNext').textContent = 'Publish →';
-  } else {
-    el('wizNext').textContent = 'Next →';
-  }
-  el('wizNext').className =
-    last && !pkgReview && !svcReview ? 'btn btn-green' : 'btn btn-blue';
-  const draftBtn = el('wizDraft');
-  if (draftBtn) {
-    draftBtn.hidden = true;
-  }
+  syncWizardFooter();
 }
 
 function wizNext() {
