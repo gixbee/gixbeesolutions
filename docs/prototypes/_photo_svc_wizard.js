@@ -7,47 +7,6 @@ const SVC_PRICE_TYPES = [
   { id: 'hour', label: 'Per hour' },
   { id: 'unit', label: 'Per item / unit' },
 ];
-function svcPhotoDeliverOptions(d) {
-  return PHOTO_DELIVER.concat(d.customInclPhoto || []);
-}
-function svcVideoDeliverOptions(d) {
-  return VIDEO_DELIVER.concat(d.customInclVideo || []);
-}
-function svcDigitalDeliverOptions(d) {
-  const base = DIGITAL_DELIVER.map(function (x) {
-    return x.id;
-  });
-  return base.concat(d.customInclDigital || []);
-}
-function svcAlbumDeliverOptions() {
-  return ALBUM_PRINT_TYPES.slice();
-}
-
-function normalizeSvcDeliverables(d) {
-  if (!d.inclPhoto) d.inclPhoto = [];
-  if (!d.inclVideo) d.inclVideo = [];
-  if (!d.inclDigital) d.inclDigital = [];
-  if (!d.inclAlbums) d.inclAlbums = [];
-  if (!d.customInclPhoto) d.customInclPhoto = [];
-  if (!d.customInclVideo) d.customInclVideo = [];
-  if (!d.customInclDigital) d.customInclDigital = [];
-  d.inclPhoto = d.inclPhoto.map(function (x) {
-    if (x === 'High-Resolution Photos') return 'Colour-Graded Photos';
-    return x;
-  });
-  const nextVideo = [];
-  (d.inclVideo || []).forEach(function (x) {
-    let mapped = x;
-    if (x === 'Full Video') mapped = 'Full-Length Video';
-    if (x === 'Reel (1 Minute)') mapped = 'Reel';
-    if (VIDEO_DELIVER.indexOf(mapped) >= 0) nextVideo.push(mapped);
-    else if (d.customInclVideo.indexOf(mapped) < 0) d.customInclVideo.push(mapped);
-  });
-  d.inclVideo = nextVideo;
-  if (d.album && d.album.include && d.inclAlbums.indexOf('Photo Album') < 0) {
-    d.inclAlbums.push('Photo Album');
-  }
-}
 const SVC_EXTRA_DEFAULTS = [
   { name: 'Extra 10 Edited Photos', price: 500, unit: 'Per Set' },
   { name: 'Extra Hour', price: 1000, unit: 'Per Hour' },
@@ -70,6 +29,8 @@ const SVC_REQ_DEFAULTS = [
 const SVC_DUR_OPTS = ['Up to 2 Hours', 'Up to 4 Hours', 'Up to 6 Hours', 'Up to 8 Hours', 'Full Day', 'Custom'];
 
 function newSvcDraft() {
+  const photoDetails = defaultPhotoDetails();
+  const videoDetails = defaultVideoDetails();
   return {
     category: 'funeral',
     name: 'Funeral / Memorial Photography & Live Streaming',
@@ -85,14 +46,16 @@ function newSvcDraft() {
     duration: 'Up to 4 Hours',
     extraHour: 1500,
     team: { photoCandid: 1, photoTraditional: 1, videoCandid: 1, videoTraditional: 0 },
-    inclPhoto: ['Edited Photos', 'Colour-Graded Photos'],
-    inclVideo: ['Highlight Video'],
-    inclDigital: ['Google Drive Link', 'Online Gallery'],
-    inclAlbums: [],
-    customInclPhoto: [],
-    customInclVideo: ['Live Streaming'],
-    customInclDigital: [],
-    album: { include: false, qty: 1, leaves: 20, size: '12 x 12 inch' },
+    deliverTab: 'photos',
+    deliverPhoto: ['Edited Photos', 'Colour-Graded Photos'],
+    deliverVideo: ['Highlight Video', 'Live Streaming'],
+    deliverDigital: ['Google Drive Link', 'Online Gallery'],
+    customDeliverPhoto: [],
+    customDeliverVideo: ['Live Streaming'],
+    customDeliverDigital: [],
+    photoDetails: photoDetails,
+    videoDetails: videoDetails,
+    albumPrints: defaultAlbumPrints(),
     optionalExtras: JSON.parse(JSON.stringify(SVC_EXTRA_DEFAULTS)),
     customExtras: [],
     deliveryMap: {
@@ -123,11 +86,13 @@ function recordToSvcDraft(rec) {
   const m = JSON.parse(JSON.stringify(rec || {}));
   const merged = Object.assign(base, m, {
     team: Object.assign(base.team, m.team || {}),
-    album: Object.assign(base.album, m.album || {}),
     optionalExtras: m.optionalExtras || base.optionalExtras,
     deliveryMap: Object.assign(base.deliveryMap, m.deliveryMap || {}),
+    photoDetails: Object.assign(base.photoDetails, m.photoDetails || {}),
+    videoDetails: Object.assign(base.videoDetails, m.videoDetails || {}),
+    albumPrints: Object.assign(base.albumPrints, m.albumPrints || {}),
   });
-  normalizeSvcDeliverables(merged);
+  ensureServiceDeliverableModel(merged);
   ensurePkgPolicyRules(merged);
   ensurePolicyValues(merged);
   return merged;
@@ -173,36 +138,19 @@ function svcQtyStep(field, val) {
 }
 
 function svcSelectedDeliverableKeys(d) {
-  const keys = [];
-  (d.inclPhoto || []).forEach(function (x) {
-    keys.push(x);
-  });
-  (d.inclVideo || []).forEach(function (x) {
-    keys.push(x);
-  });
-  (d.inclAlbums || []).forEach(function (x) {
-    keys.push(x);
-  });
-  (d.inclDigital || []).forEach(function (x) {
-    keys.push(x);
-  });
-  return keys;
+  ensureServiceDeliverableModel(d);
+  return selectedDeliverableKeys(d);
 }
 
 function pruneSvcDeliveryMap(d) {
-  if (!d.deliveryMap) d.deliveryMap = {};
-  const allowed = {};
-  svcSelectedDeliverableKeys(d).forEach(function (k) {
-    allowed[k] = true;
-  });
-  Object.keys(d.deliveryMap).forEach(function (k) {
-    if (!allowed[k]) delete d.deliveryMap[k];
-  });
+  ensureServiceDeliverableModel(d);
+  pruneDeliveryMap(d);
 }
 
 function svcDeliveryKeys(d) {
-  pruneSvcDeliveryMap(d);
-  return svcSelectedDeliverableKeys(d);
+  ensureServiceDeliverableModel(d);
+  syncDeliveryMap(d);
+  return selectedDeliverableKeys(d);
 }
 
 function renderSvcStep(step, d) {
@@ -274,45 +222,41 @@ function renderSvcStep(step, d) {
             t.id +
             '" ' +
             (d.pricingType === t.id ? 'checked' : '') +
-            '><span>' +
+            '> ' +
             esc(t.label) +
-            '</span></label>'
+            '</label>'
           );
         }).join('') +
         '</div></div>' +
-        '<div class="fld"><label>Price (₹) *</label><input type="number" id="f_listPrice" value="' +
+        '<div class="fld"><label>List price (₹) *</label><input type="number" id="f_listPrice" value="' +
         d.listPrice +
         '"></div>' +
-        '<div class="fld"><label>Offer discount on this price?</label><div class="radio-disc">' +
-        '<label><input type="radio" name="svcDiscYes" value="no" ' +
-        (d.discountYes !== 'yes' ? 'checked' : '') +
-        '> No</label>' +
+        '<div class="fld"><label>Discount</label><div class="radio-row">' +
         '<label><input type="radio" name="svcDiscYes" value="yes" ' +
         (d.discountYes === 'yes' ? 'checked' : '') +
-        '> Yes, give discount</label></div></div>' +
-        '<div class="fld"><label>Discount %</label><input type="number" id="f_discountPct" value="' +
-        d.discountPct +
-        '" min="0" max="100"></div>' +
-        '<div class="preview-green price-preview"><span class="sub" style="display:block;margin-bottom:4px">Customer will see:</span>' +
-        '<div class="amount-row"><b class="price-amt">' +
-        inr(d.price) +
-        '</b>' +
-        (d.discountYes === 'yes' && d.discountPct > 0
-          ? '<span class="was">' +
-            inr(d.listPrice) +
-            '</span><span class="off-pill">' +
+        '> Yes</label>' +
+        '<label><input type="radio" name="svcDiscYes" value="no" ' +
+        (d.discountYes === 'no' ? 'checked' : '') +
+        '> No</label></div></div>' +
+        (d.discountYes === 'yes'
+          ? '<div class="fld"><label>Discount %</label><input type="number" id="f_discountPct" value="' +
             d.discountPct +
-            '% OFF</span>'
+            '"></div>' +
+            '<div class="price-panel"><b>Customer pays ' +
+            inr(d.price) +
+            '</b></div>'
           : '') +
-        '</div></div></div>'
+        '</div>'
       );
     case 3:
       return (
-        '<label class="manage-check-row"><input type="checkbox" id="f_durOn" ' +
+        '<label class="chk-row' +
+        (d.durEnabled ? ' on' : '') +
+        '" style="margin-bottom:12px"><input type="checkbox" id="f_durOn" ' +
         (d.durEnabled ? 'checked' : '') +
-        '> Enable duration &amp; coverage for this service</label>' +
+        '> Add duration &amp; team coverage</label>' +
         (d.durEnabled
-          ? '<div class="fld"><label>Service duration</label><select id="f_duration">' +
+          ? '<div class="fld"><label>Duration</label><select id="f_duration">' +
             SVC_DUR_OPTS.map(function (o) {
               return (
                 '<option' +
@@ -343,90 +287,8 @@ function renderSvcStep(step, d) {
           : '<p class="sub">Duration and team details are optional for this service.</p>')
       );
     case 4:
-      normalizeSvcDeliverables(d);
-      return (
-        '<p class="sub" style="margin:0 0 12px">Same deliverable options as <b>packages</b> — tick what this service includes. Details like quantity and format are set on packages; here you choose the items only.</p>' +
-        '<p class="lbl">Photography</p>' +
-        svcPhotoDeliverOptions(d)
-          .map(function (item) {
-            const on = d.inclPhoto.indexOf(item) >= 0;
-            const hint = PHOTO_DELIVER_HINTS[item] || '';
-            return (
-              '<label class="chk-row' +
-              (on ? ' on' : '') +
-              '"><input type="checkbox" data-sincl-photo="' +
-              esc(item) +
-              '" ' +
-              (on ? 'checked' : '') +
-              '> <span>' +
-              esc(item) +
-              (hint ? '<em class="chk-hint">' + esc(hint) + '</em>' : '') +
-              '</span></label>'
-            );
-          })
-          .join('') +
-        '<button type="button" class="link-add" data-action="svc-add-incl-photo">+ Add custom photo type</button>' +
-        '<p class="lbl">Video</p>' +
-        svcVideoDeliverOptions(d)
-          .map(function (item) {
-            const on = d.inclVideo.indexOf(item) >= 0;
-            const hint = VIDEO_DELIVER_HINTS[item] || '';
-            return (
-              '<label class="chk-row' +
-              (on ? ' on' : '') +
-              '"><input type="checkbox" data-sincl-video="' +
-              esc(item) +
-              '" ' +
-              (on ? 'checked' : '') +
-              '> <span>' +
-              esc(item) +
-              (hint ? '<em class="chk-hint">' + esc(hint) + '</em>' : '') +
-              '</span></label>'
-            );
-          })
-          .join('') +
-        '<button type="button" class="link-add" data-action="svc-add-incl-video">+ Add custom video type</button>' +
-        '<p class="lbl">Albums &amp; prints</p>' +
-        svcAlbumDeliverOptions()
-          .map(function (item) {
-            const on = d.inclAlbums.indexOf(item) >= 0;
-            return (
-              '<label class="chk-row' +
-              (on ? ' on' : '') +
-              '"><input type="checkbox" data-sincl-album="' +
-              esc(item) +
-              '" ' +
-              (on ? 'checked' : '') +
-              '> ' +
-              esc(item) +
-              '</label>'
-            );
-          })
-          .join('') +
-        '<p class="lbl">Digital delivery</p>' +
-        svcDigitalDeliverOptions(d)
-          .map(function (item) {
-            const on = d.inclDigital.indexOf(item) >= 0;
-            const meta = DIGITAL_DELIVER.find(function (x) {
-              return x.id === item;
-            });
-            return (
-              '<label class="chk-row' +
-              (on ? ' on' : '') +
-              '"><input type="checkbox" data-sincl-digital="' +
-              esc(item) +
-              '" ' +
-              (on ? 'checked' : '') +
-              '> <span>' +
-              (meta ? meta.icon + ' ' : '') +
-              esc(item) +
-              (meta && meta.desc ? '<em class="chk-hint">' + esc(meta.desc) + '</em>' : '') +
-              '</span></label>'
-            );
-          })
-          .join('') +
-        '<button type="button" class="link-add" data-action="svc-add-incl-digital">+ Add custom digital option</button>'
-      );
+      ensureServiceDeliverableModel(d);
+      return renderDeliverablesStep(d);
     case 5:
       return (
         '<div id="f_svcExtras">' +
@@ -568,6 +430,7 @@ function readSvcWizardFields(d) {
   if (g('f_durOn')) d.durEnabled = g('f_durOn').checked;
   if (g('f_duration')) d.duration = g('f_duration').value;
   if (g('f_extraHour')) d.extraHour = +g('f_extraHour').value || 0;
+  readDeliverableFieldsFromDom(d);
   document.querySelectorAll('.svc-extra').forEach(function (row, i) {
     if (!d.optionalExtras[i]) d.optionalExtras[i] = {};
     d.optionalExtras[i].name = row.querySelector('[data-svc-extra-name]').value.trim();
@@ -586,6 +449,13 @@ function bindSvcWizard(d) {
   const body = el('wizBody');
   if (!body) return;
   body.onclick = function (e) {
+    const tabBtn = e.target.closest('[data-del-tab]');
+    if (tabBtn) {
+      readSvcWizardFields(d);
+      d.deliverTab = tabBtn.getAttribute('data-del-tab');
+      renderWizardBody();
+      return;
+    }
     const t = e.target.closest('[data-action],[data-goto-step],[data-qty-d],[data-cat]');
     if (t) {
       if (t.getAttribute('data-goto-step') != null) {
@@ -600,6 +470,7 @@ function bindSvcWizard(d) {
         return;
       }
       const act = t.getAttribute('data-action');
+      if (runDeliverableWizardAction(act, d, readSvcWizardFields)) return;
       if (act === 'svc-more-cats') {
         d.showAllCats = !d.showAllCats;
         renderWizardBody();
@@ -623,31 +494,6 @@ function bindSvcWizard(d) {
       if (act === 'svc-del-extra') {
         d.optionalExtras.splice(+t.getAttribute('data-idx'), 1);
         renderWizardBody();
-        return;
-      }
-      if (act === 'svc-add-incl-photo') {
-        const n = prompt('Included item');
-        if (n) {
-          d.customInclPhoto.push(n.trim());
-          renderWizardBody();
-        }
-        return;
-      }
-      if (act === 'svc-add-incl-video') {
-        const n = prompt('Video item');
-        if (n) {
-          d.customInclVideo.push(n.trim());
-          renderWizardBody();
-        }
-        return;
-      }
-      if (act === 'svc-add-incl-digital') {
-        const n = prompt('Digital delivery option');
-        if (n) {
-          if (!d.customInclDigital) d.customInclDigital = [];
-          d.customInclDigital.push(n.trim());
-          renderWizardBody();
-        }
         return;
       }
       if (act === 'svc-add-pol') {
@@ -699,66 +545,13 @@ function bindSvcWizard(d) {
       let v = +span.textContent + delta;
       v = Math.max(0, Math.min(20, v));
       span.textContent = v;
-      if (field === 'albumQty') d.album.qty = v;
-      else if (d.team[field] != null) d.team[field] = v;
+      if (d.team[field] != null) d.team[field] = v;
       return;
     }
   };
   body.onchange = function (e) {
     const t = e.target;
-    if (t.matches('[data-sincl-photo]')) {
-      const v = t.getAttribute('data-sincl-photo');
-      if (t.checked) {
-        if (d.inclPhoto.indexOf(v) < 0) d.inclPhoto.push(v);
-      } else {
-        d.inclPhoto = d.inclPhoto.filter(function (x) {
-          return x !== v;
-        });
-        if (d.deliveryMap) delete d.deliveryMap[v];
-      }
-      renderWizardBody();
-      return;
-    }
-    if (t.matches('[data-sincl-video]')) {
-      const v = t.getAttribute('data-sincl-video');
-      if (t.checked) {
-        if (d.inclVideo.indexOf(v) < 0) d.inclVideo.push(v);
-      } else {
-        d.inclVideo = d.inclVideo.filter(function (x) {
-          return x !== v;
-        });
-        if (d.deliveryMap) delete d.deliveryMap[v];
-      }
-      renderWizardBody();
-      return;
-    }
-    if (t.matches('[data-sincl-digital]')) {
-      const v = t.getAttribute('data-sincl-digital');
-      if (t.checked) {
-        if (d.inclDigital.indexOf(v) < 0) d.inclDigital.push(v);
-      } else {
-        d.inclDigital = d.inclDigital.filter(function (x) {
-          return x !== v;
-        });
-        if (d.deliveryMap) delete d.deliveryMap[v];
-      }
-      renderWizardBody();
-      return;
-    }
-    if (t.matches('[data-sincl-album]')) {
-      if (!d.inclAlbums) d.inclAlbums = [];
-      const v = t.getAttribute('data-sincl-album');
-      if (t.checked) {
-        if (d.inclAlbums.indexOf(v) < 0) d.inclAlbums.push(v);
-      } else {
-        d.inclAlbums = d.inclAlbums.filter(function (x) {
-          return x !== v;
-        });
-        if (d.deliveryMap) delete d.deliveryMap[v];
-      }
-      renderWizardBody();
-      return;
-    }
+    if (deliverableCheckboxChange(t, d)) return;
     if (t.matches('[data-svc-pol]')) {
       const v = t.getAttribute('data-svc-pol');
       if (t.checked) {

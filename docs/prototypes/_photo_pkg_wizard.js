@@ -927,6 +927,195 @@ function renderDigitalDeliverTab(d) {
   );
 }
 
+function ensureDeliverableDraft(d) {
+  if (!d.deliverTab) d.deliverTab = 'photos';
+  if (!d.deliverPhoto) d.deliverPhoto = [];
+  if (!d.deliverVideo) d.deliverVideo = [];
+  if (!d.deliverDigital) d.deliverDigital = [];
+  if (!d.customDeliverPhoto) d.customDeliverPhoto = [];
+  if (!d.customDeliverVideo) d.customDeliverVideo = [];
+  if (!d.customDeliverDigital) d.customDeliverDigital = [];
+  if (!d.photoDetails) d.photoDetails = defaultPhotoDetails();
+  if (!d.videoDetails) d.videoDetails = defaultVideoDetails();
+  if (!d.albumPrints) d.albumPrints = defaultAlbumPrints();
+  if (!d.deliveryMap) d.deliveryMap = {};
+}
+
+function ensureServiceDeliverableModel(d) {
+  if (d.deliverPhoto && d.deliverPhoto.length && !d.inclPhoto) {
+    ensureDeliverableDraft(d);
+    return;
+  }
+  if (d.inclPhoto || d.inclVideo || d.inclDigital || d.inclAlbums) {
+    d.deliverTab = d.deliverTab || 'photos';
+    d.deliverPhoto = (d.inclPhoto || []).map(function (x) {
+      return x === 'High-Resolution Photos' ? 'Colour-Graded Photos' : x;
+    });
+    d.deliverVideo = [];
+    (d.inclVideo || []).forEach(function (x) {
+      let mapped = x;
+      if (x === 'Full Video') mapped = 'Full-Length Video';
+      if (x === 'Reel (1 Minute)') mapped = 'Reel';
+      if (VIDEO_DELIVER.indexOf(mapped) >= 0) d.deliverVideo.push(mapped);
+      else {
+        if (!d.customDeliverVideo) d.customDeliverVideo = [];
+        if (d.customDeliverVideo.indexOf(mapped) < 0) d.customDeliverVideo.push(mapped);
+        if (d.deliverVideo.indexOf(mapped) < 0) d.deliverVideo.push(mapped);
+      }
+    });
+    d.deliverDigital = (d.inclDigital || []).slice();
+    d.customDeliverPhoto = (d.customInclPhoto || []).slice();
+    if (!d.customDeliverVideo) d.customDeliverVideo = [];
+    (d.customInclVideo || []).forEach(function (x) {
+      if (d.customDeliverVideo.indexOf(x) < 0) d.customDeliverVideo.push(x);
+      if (d.deliverVideo.indexOf(x) < 0) d.deliverVideo.push(x);
+    });
+    d.customDeliverDigital = (d.customInclDigital || []).slice();
+    d.photoDetails = Object.assign(defaultPhotoDetails(), d.photoDetails || {});
+    d.videoDetails = Object.assign(defaultVideoDetails(), d.videoDetails || {});
+    d.albumPrints = Object.assign(defaultAlbumPrints(), d.albumPrints || {});
+    (d.inclAlbums || []).forEach(function (name) {
+      if (!d.albumPrints[name]) d.albumPrints[name] = defaultAlbumPrints()[name] || { on: false };
+      d.albumPrints[name].on = true;
+    });
+  }
+  ensureDeliverableDraft(d);
+}
+
+function renderDeliverablesStep(d) {
+  ensureDeliverableDraft(d);
+  const tab = d.deliverTab || 'photos';
+  let body = '';
+  if (tab === 'photos') body = renderPhotoDeliverTab(d);
+  else if (tab === 'videos') body = renderVideoDeliverTab(d);
+  else if (tab === 'albums') body = renderAlbumDeliverTab(d);
+  else body = renderDigitalDeliverTab(d);
+  return renderDelTabs(tab) + body;
+}
+
+function readDeliverableFieldsFromDom(d) {
+  ensureDeliverableDraft(d);
+  document.querySelectorAll('[data-photo-qty]').forEach(function (inp) {
+    const k = inp.getAttribute('data-photo-qty');
+    if (!d.photoDetails[k]) d.photoDetails[k] = {};
+    d.photoDetails[k].qty = +inp.value || 0;
+  });
+  document.querySelectorAll('[data-photo-fmt]').forEach(function (sel) {
+    const k = sel.getAttribute('data-photo-fmt');
+    if (!d.photoDetails[k]) d.photoDetails[k] = {};
+    d.photoDetails[k].format = sel.value;
+  });
+  document.querySelectorAll('[data-photo-del]').forEach(function (sel) {
+    const k = sel.getAttribute('data-photo-del');
+    if (!d.photoDetails[k]) d.photoDetails[k] = {};
+    d.photoDetails[k].delivery = sel.value;
+    d.deliveryMap[k] = sel.value;
+  });
+  document.querySelectorAll('[data-video-dur]').forEach(function (sel) {
+    const k = sel.getAttribute('data-video-dur');
+    if (!d.videoDetails[k]) d.videoDetails[k] = {};
+    d.videoDetails[k].duration = sel.value;
+  });
+  document.querySelectorAll('[data-video-fmt]').forEach(function (sel) {
+    const k = sel.getAttribute('data-video-fmt');
+    if (!d.videoDetails[k]) d.videoDetails[k] = {};
+    d.videoDetails[k].format = sel.value;
+  });
+}
+
+function deliverableCheckboxChange(t, d) {
+  if (t.matches('[data-dphoto]')) {
+    const val = t.getAttribute('data-dphoto');
+    if (t.checked) {
+      if (d.deliverPhoto.indexOf(val) < 0) d.deliverPhoto.push(val);
+    } else {
+      d.deliverPhoto = d.deliverPhoto.filter(function (x) {
+        return x !== val;
+      });
+      if (d.deliveryMap) delete d.deliveryMap[val];
+    }
+    renderWizardBody();
+    return true;
+  }
+  if (t.matches('[data-dvideo]')) {
+    const val = t.getAttribute('data-dvideo');
+    if (t.checked) {
+      if (d.deliverVideo.indexOf(val) < 0) d.deliverVideo.push(val);
+    } else {
+      d.deliverVideo = d.deliverVideo.filter(function (x) {
+        return x !== val;
+      });
+      if (d.deliveryMap) delete d.deliveryMap[val];
+    }
+    renderWizardBody();
+    return true;
+  }
+  if (t.matches('[data-ddigital]')) {
+    const val = t.getAttribute('data-ddigital');
+    if (t.checked) {
+      if (d.deliverDigital.indexOf(val) < 0) d.deliverDigital.push(val);
+    } else {
+      d.deliverDigital = d.deliverDigital.filter(function (x) {
+        return x !== val;
+      });
+      if (d.deliveryMap) delete d.deliveryMap[val];
+    }
+    renderWizardBody();
+    return true;
+  }
+  if (t.matches('[data-album-type]')) {
+    const name = t.getAttribute('data-album-type');
+    if (!d.albumPrints[name]) d.albumPrints[name] = defaultAlbumPrints()[name] || { on: false };
+    d.albumPrints[name].on = t.checked;
+    if (!t.checked && d.deliveryMap) delete d.deliveryMap[name];
+    renderWizardBody();
+    return true;
+  }
+  return false;
+}
+
+function runDeliverableWizardAction(act, d, readFields) {
+  if (act === 'add-dphoto') {
+    const name = prompt('Photo deliverable name');
+    if (name) {
+      d.customDeliverPhoto.push(name.trim());
+      d.photoDetails[name.trim()] = { qty: 100, format: PHOTO_FORMATS[0], delivery: '5 Working Days' };
+      renderWizardBody();
+    }
+    return true;
+  }
+  if (act === 'add-dvideo') {
+    const name = prompt('Video deliverable name');
+    if (name) {
+      d.customDeliverVideo.push(name.trim());
+      d.videoDetails[name.trim()] = {
+        duration: VIDEO_DURATIONS[0],
+        format: VIDEO_FORMATS[0],
+        delivery: '15 Working Days',
+      };
+      renderWizardBody();
+    }
+    return true;
+  }
+  if (act === 'add-ddigital') {
+    const name = prompt('Delivery option');
+    if (name) {
+      d.customDeliverDigital.push(name.trim());
+      renderWizardBody();
+    }
+    return true;
+  }
+  if (act === 'add-album-print') {
+    const name = prompt('Album / print type');
+    if (name && !d.albumPrints[name]) {
+      d.albumPrints[name] = { on: true, qty: 1, size: 'A4', type: 'Custom' };
+      renderWizardBody();
+    }
+    return true;
+  }
+  return false;
+}
+
 function renderCoverageTypes(types, obj, prefix, customKey) {
   return types
     .map(function (label) {
@@ -1064,15 +1253,8 @@ function renderPkgStep(step, d) {
         linkAdd('add-video-type', 'Add New Videography Type')
       );
     }
-    case 4: {
-      const tab = d.deliverTab || 'photos';
-      let body = '';
-      if (tab === 'photos') body = renderPhotoDeliverTab(d);
-      else if (tab === 'videos') body = renderVideoDeliverTab(d);
-      else if (tab === 'albums') body = renderAlbumDeliverTab(d);
-      else body = renderDigitalDeliverTab(d);
-      return renderDelTabs(tab) + body;
-    }
+    case 4:
+      return renderDeliverablesStep(d);
     case 5:
       return (
         '<div id="f_extraRows">' +
@@ -1293,31 +1475,7 @@ function readPkgWizardFields(d) {
       };
     }
   });
-  document.querySelectorAll('[data-photo-qty]').forEach(function (inp) {
-    const k = inp.getAttribute('data-photo-qty');
-    if (!d.photoDetails[k]) d.photoDetails[k] = {};
-    d.photoDetails[k].qty = +inp.value || 0;
-  });
-  document.querySelectorAll('[data-photo-fmt]').forEach(function (sel) {
-    const k = sel.getAttribute('data-photo-fmt');
-    if (!d.photoDetails[k]) d.photoDetails[k] = {};
-    d.photoDetails[k].format = sel.value;
-  });
-  document.querySelectorAll('[data-photo-del]').forEach(function (sel) {
-    const k = sel.getAttribute('data-photo-del');
-    if (!d.photoDetails[k]) d.photoDetails[k] = {};
-    d.photoDetails[k].delivery = sel.value;
-  });
-  document.querySelectorAll('[data-video-dur]').forEach(function (sel) {
-    const k = sel.getAttribute('data-video-dur');
-    if (!d.videoDetails[k]) d.videoDetails[k] = {};
-    d.videoDetails[k].duration = sel.value;
-  });
-  document.querySelectorAll('[data-video-fmt]').forEach(function (sel) {
-    const k = sel.getAttribute('data-video-fmt');
-    if (!d.videoDetails[k]) d.videoDetails[k] = {};
-    d.videoDetails[k].format = sel.value;
-  });
+  readDeliverableFieldsFromDom(d);
   document.querySelectorAll('[data-del-key]').forEach(function (sel) {
     const k = sel.getAttribute('data-del-key');
     if (!k) return;
@@ -1490,44 +1648,7 @@ function bindPkgWizard(d) {
         renderWizardBody();
         return;
       }
-      if (act === 'add-dphoto') {
-        const name = prompt('Photo deliverable name');
-        if (name) {
-          d.customDeliverPhoto.push(name.trim());
-          d.photoDetails[name.trim()] = { qty: 100, format: PHOTO_FORMATS[0], delivery: '5 Working Days' };
-          renderWizardBody();
-        }
-        return;
-      }
-      if (act === 'add-dvideo') {
-        const name = prompt('Video deliverable name');
-        if (name) {
-          d.customDeliverVideo.push(name.trim());
-          d.videoDetails[name.trim()] = {
-            duration: VIDEO_DURATIONS[0],
-            format: VIDEO_FORMATS[0],
-            delivery: '15 Working Days',
-          };
-          renderWizardBody();
-        }
-        return;
-      }
-      if (act === 'add-ddigital') {
-        const name = prompt('Delivery option');
-        if (name) {
-          d.customDeliverDigital.push(name.trim());
-          renderWizardBody();
-        }
-        return;
-      }
-      if (act === 'add-album-print') {
-        const name = prompt('Album / print type');
-        if (name && !d.albumPrints[name]) {
-          d.albumPrints[name] = { on: true, qty: 1, size: 'A4', type: 'Custom' };
-          renderWizardBody();
-        }
-        return;
-      }
+      if (runDeliverableWizardAction(act, d, readPkgWizardFields)) return;
       if (act === 'add-stage') {
         readPkgWizardFields(d);
         d.paymentStages.push({ id: uid('ps'), label: 'Custom Stage', pct: 0 });
@@ -1645,53 +1766,7 @@ function bindPkgWizard(d) {
       renderWizardBody();
       return;
     }
-    if (t.matches('[data-dphoto]')) {
-      const val = t.getAttribute('data-dphoto');
-      if (t.checked) {
-        if (d.deliverPhoto.indexOf(val) < 0) d.deliverPhoto.push(val);
-      } else {
-        d.deliverPhoto = d.deliverPhoto.filter(function (x) {
-          return x !== val;
-        });
-        if (d.deliveryMap) delete d.deliveryMap[val];
-      }
-      renderWizardBody();
-      return;
-    }
-    if (t.matches('[data-dvideo]')) {
-      const val = t.getAttribute('data-dvideo');
-      if (t.checked) {
-        if (d.deliverVideo.indexOf(val) < 0) d.deliverVideo.push(val);
-      } else {
-        d.deliverVideo = d.deliverVideo.filter(function (x) {
-          return x !== val;
-        });
-        if (d.deliveryMap) delete d.deliveryMap[val];
-      }
-      renderWizardBody();
-      return;
-    }
-    if (t.matches('[data-ddigital]')) {
-      const val = t.getAttribute('data-ddigital');
-      if (t.checked) {
-        if (d.deliverDigital.indexOf(val) < 0) d.deliverDigital.push(val);
-      } else {
-        d.deliverDigital = d.deliverDigital.filter(function (x) {
-          return x !== val;
-        });
-        if (d.deliveryMap) delete d.deliveryMap[val];
-      }
-      renderWizardBody();
-      return;
-    }
-    if (t.matches('[data-album-type]')) {
-      const name = t.getAttribute('data-album-type');
-      if (!d.albumPrints[name]) d.albumPrints[name] = defaultAlbumPrints()[name] || { on: false };
-      d.albumPrints[name].on = t.checked;
-      if (!t.checked && d.deliveryMap) delete d.deliveryMap[name];
-      renderWizardBody();
-      return;
-    }
+    if (deliverableCheckboxChange(t, d)) return;
     ['data-pol', 'data-req'].forEach(function (attr) {
       if (!t.matches('[' + attr + ']')) return;
       const val = t.getAttribute(attr);
