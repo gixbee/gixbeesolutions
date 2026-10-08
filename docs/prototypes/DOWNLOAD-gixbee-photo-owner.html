@@ -645,7 +645,7 @@ button.manage-pill{cursor:pointer;font:inherit;color:var(--blue);border-color:#B
 </section>
 
 <section class="scr" id="calendar">
-  <div class="top"><button type="button" class="back" data-to="photoDash">←</button><h1>Calendar &amp; Bookings</h1><span style="width:36px"></span></div>
+  <div class="top"><button type="button" class="back" data-to="photoDash">←</button><h1>Calendar &amp; Bookings</h1><span class="chip-h" id="calBuildChip" style="font-size:9px;max-width:88px;line-height:1.2;text-align:center">ERP</span></div>
   <div class="pad">
     <div class="cal-tabs">
       <button type="button" class="pick on" id="photoTabCalMain">Calendar</button>
@@ -3559,6 +3559,8 @@ function photoCloseOverlay(id) {
 
 function openPhotoCalendar() {
   ensurePhotoCalendar();
+  const chip = el('calBuildChip');
+  if (chip && typeof PHOTO_OWNER_BUILD !== 'undefined') chip.textContent = 'Cal ' + PHOTO_OWNER_BUILD.split('-').pop();
   renderPhotoCalendar();
   show('calendar');
 }
@@ -4069,7 +4071,7 @@ function bindPhotoCalendarUi() {
   });
 }
 
-const PHOTO_OWNER_BUILD = '2026-10-08-photo-owner-finalflow-calendar-v1';
+const PHOTO_OWNER_BUILD = '2026-10-08-photo-owner-finalflow-calendar-v2';
 const STORAGE_KEY = 'GIXBEE_PHOTO_OWNER_V1';
 
 const INDIAN_STATES = {
@@ -4260,6 +4262,9 @@ function showBootError(msg) {
 }
 function show(id) {
   document.querySelectorAll('.scr').forEach((s) => s.classList.toggle('on', s.id === id));
+  if (id === 'calendar' && typeof renderPhotoCalendar === 'function') renderPhotoCalendar();
+  if (id === 'photoCalDay' && typeof renderPhotoCalDay === 'function') renderPhotoCalDay();
+  if (id === 'photoBookSettings' && typeof renderPhotoBookSettings === 'function') renderPhotoBookSettings();
 }
 
 function navigatePhotoScreen(id) {
@@ -5429,9 +5434,10 @@ function boot() {
     renderLmb();
     renderPhotoDash();
     renderSvcPkg();
-  bindGlobal();
-  bindPhotoCalendarUi();
-  const err = el('bootError');
+    bindGlobal();
+    bindPhotoCalendarUi();
+    ensurePhotoCalendar();
+    const err = el('bootError');
     if (err) err.hidden = true;
     show('lmbDashboard');
   } catch (err) {

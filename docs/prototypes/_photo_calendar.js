@@ -178,6 +178,8 @@ function photoCloseOverlay(id) {
 
 function openPhotoCalendar() {
   ensurePhotoCalendar();
+  const chip = el('calBuildChip');
+  if (chip && typeof PHOTO_OWNER_BUILD !== 'undefined') chip.textContent = 'Cal ' + PHOTO_OWNER_BUILD.split('-').pop();
   renderPhotoCalendar();
   show('calendar');
 }

@@ -1,4 +1,4 @@
-const PHOTO_OWNER_BUILD = '2026-10-08-photo-owner-finalflow-calendar-v1';
+const PHOTO_OWNER_BUILD = '2026-10-08-photo-owner-finalflow-calendar-v2';
 const STORAGE_KEY = 'GIXBEE_PHOTO_OWNER_V1';
 
 const INDIAN_STATES = {
@@ -189,6 +189,9 @@ function showBootError(msg) {
 }
 function show(id) {
   document.querySelectorAll('.scr').forEach((s) => s.classList.toggle('on', s.id === id));
+  if (id === 'calendar' && typeof renderPhotoCalendar === 'function') renderPhotoCalendar();
+  if (id === 'photoCalDay' && typeof renderPhotoCalDay === 'function') renderPhotoCalDay();
+  if (id === 'photoBookSettings' && typeof renderPhotoBookSettings === 'function') renderPhotoBookSettings();
 }
 
 function navigatePhotoScreen(id) {
@@ -1358,9 +1361,10 @@ function boot() {
     renderLmb();
     renderPhotoDash();
     renderSvcPkg();
-  bindGlobal();
-  bindPhotoCalendarUi();
-  const err = el('bootError');
+    bindGlobal();
+    bindPhotoCalendarUi();
+    ensurePhotoCalendar();
+    const err = el('bootError');
     if (err) err.hidden = true;
     show('lmbDashboard');
   } catch (err) {
