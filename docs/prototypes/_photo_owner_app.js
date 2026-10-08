@@ -1,4 +1,14 @@
-const PHOTO_OWNER_BUILD = '2026-10-08-photo-owner-finalflow-bookings-register-v3';
+const PHOTO_OWNER_BUILD = '2026-10-08-photo-owner-finalflow5-bookings-v4';
+
+function photoOwnerDemoFileName() {
+  try {
+    const path = String(location.pathname || location.href || '').toLowerCase();
+    if (path.indexOf('finalflow5') >= 0) return 'GIXBEE-PHOTO-OWNER-FINALFLOW5.html';
+  } catch (e) {
+    /* ignore */
+  }
+  return 'GIXBEE-PHOTO-OWNER-FINALFLOW.html';
+}
 const STORAGE_KEY = 'GIXBEE_PHOTO_OWNER_V1';
 
 const INDIAN_STATES = {
@@ -185,7 +195,9 @@ function showBootError(msg) {
   box.innerHTML =
     '<p style="color:#991B1B;font-weight:800;font-size:18px">Demo did not start</p><p style="line-height:1.5;color:#374151">' +
     esc(msg) +
-    '</p><p style="margin-top:16px">Open <b>GIXBEE-PHOTO-OWNER-FINALFLOW.html</b> (full file with JavaScript inside).</p>';
+    '</p><p style="margin-top:16px">Open <b>' +
+    photoOwnerDemoFileName() +
+    '</b> (full file with JavaScript inside).</p>';
 }
 function show(id) {
   document.querySelectorAll('.scr').forEach((s) => s.classList.toggle('on', s.id === id));
@@ -1355,7 +1367,7 @@ function bindGlobal() {
 function boot() {
   try {
     if (!el('quickGrid')) {
-      throw new Error('Missing dashboard — open GIXBEE-PHOTO-OWNER-FINALFLOW.html (full file).');
+      throw new Error('Missing dashboard — open ' + photoOwnerDemoFileName() + ' (full file).');
     }
     loadStore();
     ensureRegisteredDistrict();
