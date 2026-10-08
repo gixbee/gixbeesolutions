@@ -330,6 +330,63 @@ button.manage-pill{cursor:pointer;font:inherit;color:var(--blue);border-color:#B
 .svc-cover-upload-txt{display:flex;flex-direction:column;gap:2px;min-width:0}
 .svc-cover-upload-txt b{font-size:15px;color:var(--navy)}
 .svc-cover-upload-txt .sub{font-size:12px;color:var(--mut);font-weight:600}
+.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.pick{border:1.5px solid var(--line);border-radius:12px;padding:12px 8px;text-align:center;font-size:12px;font-weight:800;cursor:pointer;background:#fff;font:inherit;color:var(--navy)}
+.pick.on{border-color:var(--blue);background:#EFF6FF;color:var(--blue)}
+.cal-tabs{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px}
+.cal-tabs .pick{padding:12px 8px}
+.cal-month-nav{display:flex;align-items:center;justify-content:space-between;margin:8px 0 10px;gap:8px}
+.cal-month-nav button{border:0;background:#F3F4F6;width:36px;height:36px;border-radius:10px;font-size:18px;cursor:pointer;color:var(--navy);font-weight:800}
+.cal-month-nav b{font-size:16px;color:var(--navy)}
+.cal-weekdays{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;font-size:10px;font-weight:800;color:#9CA3AF;text-align:center;margin-bottom:4px}
+.cal-mini{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;font-size:12px;text-align:center;margin:0 0 12px}
+.cal-mini .cal-pad{visibility:hidden;pointer-events:none}
+.cal-day-cell{border:0;background:#F9FAFB;border-radius:10px;padding:6px 0 8px;cursor:pointer;font-weight:700;position:relative;min-height:48px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;font:inherit;color:var(--navy)}
+.cal-day-cell.on{background:var(--blue);color:#fff}
+.cal-day-count{font-size:9px;font-weight:800;line-height:1;opacity:.85}
+.cal-day-count.empty{visibility:hidden}
+.cal-dot{width:6px;height:6px;border-radius:50%;flex-shrink:0}
+.cal-dot.av{background:#22C55E}
+.cal-dot.bk{background:#EF4444}
+.cal-dot.off{background:#F97316}
+.cal-dot.blk{background:#7C3AED}
+.cal-dot.na{background:#2563EB}
+.cal-day-cell.on .cal-dot{box-shadow:0 0 0 1px rgba(255,255,255,.45)}
+.cal-legend{display:flex;flex-wrap:wrap;gap:8px 14px;font-size:11px;color:var(--mut);margin-bottom:12px}
+.cal-legend span{display:inline-flex;align-items:center;gap:4px;font-weight:700}
+.cal-month-pick{width:100%;border:1px solid var(--line);border-radius:12px;padding:12px;font-weight:800;font-size:13px;background:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;color:var(--navy);font:inherit}
+.cal-date-nav{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:0 0 14px}
+.cal-date-nav b{font-size:15px;color:var(--navy);flex:1;text-align:center;line-height:1.3}
+.slot{border:1px solid var(--line);border-radius:14px;padding:12px;margin-bottom:10px;background:#fff}
+.slot h3{margin:6px 0 4px;font-size:15px;color:var(--navy)}
+.slot-actions{display:flex;gap:8px;margin-top:10px}
+.slot-actions .btn{margin:0;flex:1;font-size:14px;padding:12px;border-radius:12px}
+.pill{display:inline-block;padding:4px 10px;border-radius:99px;font-size:11px;font-weight:800;margin-bottom:6px}
+.pill.ok{background:#ECFDF3;color:#059669}
+.pill.bad{background:#FEE2E2;color:#B91C1C}
+.pill.off{background:#FFEDD5;color:#C2410C}
+.pill.muted{background:#F3F4F6;color:#6B7280}
+.photo-cal-day-sum{margin-bottom:12px;padding:12px;border-radius:12px;background:#F8FAFC;border:1px solid var(--line)}
+.photo-bk-notes{font-size:12px;color:var(--mut);margin:8px 0 0;line-height:1.45}
+.photo-day-actions{display:flex;flex-direction:column;gap:10px;margin-top:16px}
+.photo-day-actions .btn{margin:0}
+.info.gn{margin-top:10px;padding:10px 12px;border-radius:10px;background:#ECFDF3;color:#065F46;font-size:12px;font-weight:700;line-height:1.4}
+.info.bl{margin-top:10px;padding:10px 12px;border-radius:10px;background:#EFF6FF;color:#1E40AF;font-size:12px;font-weight:700;line-height:1.4}
+.overlay{position:absolute;inset:0;background:rgba(15,23,42,.45);z-index:20;display:none;align-items:flex-end;justify-content:center;padding:0}
+.overlay.on{display:flex}
+.overlay.center{align-items:center;padding:16px}
+.sheet{width:100%;max-height:88%;background:#fff;border-radius:20px 20px 0 0;padding:16px 16px 24px;overflow:auto;box-shadow:0 -8px 32px rgba(0,0,0,.12)}
+.sheet-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+.sheet-head h2{margin:0;font-size:18px;color:var(--navy)}
+.sheet-close{border:0;background:#F3F4F6;width:36px;height:36px;border-radius:10px;font-size:20px;cursor:pointer}
+.sheet-slot-sum{padding:12px;border-radius:12px;background:#F9FAFB;border:1px solid var(--line);margin-bottom:14px;font-size:13px;font-weight:700;color:var(--navy)}
+.block-reason{display:block;border:1px solid var(--line);border-radius:12px;padding:12px;margin-bottom:8px;cursor:pointer}
+.block-reason.on{border-color:var(--blue);background:#EFF6FF}
+.block-reason input{margin-right:8px}
+.block-reason small{display:block;color:var(--mut);font-size:12px;margin-top:4px;font-weight:600}
+.sheet-actions{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:16px}
+.sheet-actions .btn{margin:0;width:100%}
+#photoMonthPickerList{display:grid;grid-template-columns:1fr 1fr;gap:8px;max-height:50vh;overflow:auto}
 .link-add{border:0;background:none;color:var(--blue);font-weight:800;font-size:13px;cursor:pointer;padding:8px 0;margin:8px 0;display:block}
 .warn-box{margin:12px 0;padding:10px;border-radius:10px;background:#FFFBEB;border:1px solid #FDE68A;font-size:11px;line-height:1.4}
 .role-row{display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--line);font-weight:700;font-size:13px}
@@ -586,8 +643,59 @@ button.manage-pill{cursor:pointer;font:inherit;color:var(--blue);border-color:#B
 </section>
 
 <section class="scr" id="calendar">
-  <div class="top"><button type="button" class="back" data-to="photoDash">←</button><h1>Calendar</h1><span style="width:36px"></span></div>
-  <div class="stub"><h2>Calendar</h2><p class="sub">View shoots and blocked dates. Full calendar sync comes in a later release.</p><button type="button" class="btn btn-blue" data-to="photoDash" style="max-width:200px;margin:16px auto">Back to dashboard</button></div>
+  <div class="top"><button type="button" class="back" data-to="photoDash">←</button><h1>Calendar &amp; Bookings</h1><span style="width:36px"></span></div>
+  <div class="pad">
+    <div class="cal-tabs">
+      <button type="button" class="pick on" id="photoTabCalMain">Calendar</button>
+      <button type="button" class="pick" id="photoTabBookSettings">Booking Settings</button>
+    </div>
+    <div class="cal-month-nav">
+      <button type="button" id="photoCalPrevMonth" aria-label="Previous month">‹</button>
+      <b id="photoCalMonthLabel">October 2026</b>
+      <button type="button" id="photoCalNextMonth" aria-label="Next month">›</button>
+    </div>
+    <div class="cal-weekdays"><span>S</span><span>M</span><span>T</span><span>W</span><span>T</span><span>F</span><span>S</span></div>
+    <div class="cal-mini" id="photoCalGrid"></div>
+    <div class="cal-legend">
+      <span><i class="cal-dot av"></i> Open</span>
+      <span><i class="cal-dot off"></i> Has shoots</span>
+      <span><i class="cal-dot bk"></i> Full</span>
+      <span><i class="cal-dot na"></i> Unavailable</span>
+    </div>
+    <button type="button" class="cal-month-pick" id="photoOpenMonthPicker">📅 Month: <span id="photoCalMonthPickLabel">October 2026</span> ▾</button>
+    <p class="hint" style="margin-top:12px">Tap a date to view shoots, add offline bookings, or mark the day unavailable / full.</p>
+  </div>
+</section>
+
+<section class="scr" id="photoCalDay">
+  <div class="top"><button type="button" class="back" id="photoBackFromCalDay">←</button><h1>Day schedule</h1><span style="width:36px"></span></div>
+  <div class="pad">
+    <div class="cal-date-nav">
+      <button type="button" id="photoCalPrevDay" aria-label="Previous day">‹</button>
+      <b id="photoCalDayTitle">—</b>
+      <button type="button" id="photoCalNextDay" aria-label="Next day">›</button>
+    </div>
+    <div id="photoDayBookings"></div>
+  </div>
+</section>
+
+<section class="scr" id="photoBookSettings">
+  <div class="top"><button type="button" class="back" data-to="calendar">←</button><h1>Booking Settings</h1><span style="width:36px"></span></div>
+  <div class="pad">
+    <h2 style="margin:0 0 4px;font-size:17px;color:var(--navy)">Max bookings per day</h2>
+    <p class="sub">How many shoots you can take on the same date (ERP capacity).</p>
+    <div class="grid3" id="photoMaxPerDay"></div>
+    <div class="info gn" id="photoMaxInfo"></div>
+    <h2 style="margin:20px 0 4px;font-size:17px;color:var(--navy)">Customer booking window</h2>
+    <p class="sub">How far ahead customers can book online.</p>
+    <div class="grid3" id="photoBookWindow"></div>
+    <div class="info bl" id="photoWindowInfo"></div>
+    <h2 style="margin:20px 0 4px;font-size:17px;color:var(--navy)">Minimum notice</h2>
+    <p class="sub">Earliest day customers can pick from today.</p>
+    <div class="grid3" id="photoMinNotice"></div>
+    <div class="info bl" id="photoNoticeInfo"></div>
+  </div>
+  <div class="cta"><button type="button" class="btn btn-blue" id="photoSaveBookSettings">Save &amp; back to calendar</button></div>
 </section>
 
 <section class="scr" id="gallery">
@@ -640,6 +748,50 @@ button.manage-pill{cursor:pointer;font:inherit;color:var(--blue);border-color:#B
     <div id="deletedBizList" style="margin-top:12px"></div>
   </div>
 </section>
+
+<div class="overlay" id="photoBookSheetOverlay" aria-hidden="true">
+  <div class="sheet">
+    <div class="sheet-head"><h2 id="photoBookSheetTitle">Add booking</h2><button type="button" class="sheet-close" id="photoCloseBookSheet" aria-label="Close">×</button></div>
+    <div class="sheet-slot-sum" id="photoBookSheetSum">—</div>
+    <div class="fld"><label>Client name *</label><input id="photoBkClient" placeholder="Client or family name"></div>
+    <div class="fld"><label>Phone</label><input id="photoBkPhone" placeholder="+91 " inputmode="tel"></div>
+    <div class="fld"><label>Event type</label><input id="photoBkEvent" placeholder="Wedding, portrait, funeral…"></div>
+    <div class="fld"><label>Time</label><input id="photoBkTime" placeholder="10:00 AM – 6:00 PM"></div>
+    <div class="fld"><label>Source</label>
+      <div class="radio-row" style="margin-top:6px">
+        <label><input type="radio" name="photoBkSource" value="offline" checked> Offline / phone</label>
+        <label><input type="radio" name="photoBkSource" value="gixbee"> Gixbee</label>
+      </div>
+    </div>
+    <div class="fld"><label>Notes</label><textarea id="photoBkNotes" rows="3" placeholder="Venue, package, special requests…"></textarea></div>
+    <div class="sheet-actions">
+      <button type="button" class="btn btn-ghost" id="photoCancelBookSheet">Cancel</button>
+      <button type="button" class="btn btn-blue" id="photoSaveBookSheet">Save booking</button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="photoDaySheetOverlay" aria-hidden="true">
+  <div class="sheet">
+    <div class="sheet-head"><h2>Day availability</h2><button type="button" class="sheet-close" id="photoCloseDaySheet" aria-label="Close">×</button></div>
+    <p class="sub">Control what customers see. You can still add offline bookings unless the day is at capacity.</p>
+    <label class="block-reason on"><input type="radio" name="photoDayStatus" value="open" checked> <b>Open</b><small>Normal day — bookings allowed up to daily limit.</small></label>
+    <label class="block-reason"><input type="radio" name="photoDayStatus" value="full"> <b>Full</b><small>Hide from customers — day marked as bookings full.</small></label>
+    <label class="block-reason"><input type="radio" name="photoDayStatus" value="disabled"> <b>Not available</b><small>Day off, travel, or personal — no customer booking.</small></label>
+    <div class="fld" style="margin-top:12px"><label>Note (optional)</label><textarea id="photoDayNote" rows="2" placeholder="Shown to your team on this date"></textarea></div>
+    <div class="sheet-actions">
+      <button type="button" class="btn btn-ghost" id="photoCloseDaySheet2" style="display:none"></button>
+      <button type="button" class="btn btn-blue" id="photoSaveDaySheet" style="grid-column:1/-1">Save</button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay center" id="photoMonthPickerOverlay" aria-hidden="true">
+  <div class="sheet" style="max-height:70%;border-radius:16px">
+    <div class="sheet-head"><h2>Jump to month</h2><button type="button" class="sheet-close" id="photoCloseMonthPicker">×</button></div>
+    <div id="photoMonthPickerList"></div>
+  </div>
+</div>
 
 <div class="toast" id="toast"></div>
 </div></div>

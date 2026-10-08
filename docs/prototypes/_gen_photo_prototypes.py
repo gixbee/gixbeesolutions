@@ -7,6 +7,7 @@ SHELL = DIR / "photo-owner-flow-shell.html"
 ICONS = DIR / "_photo_owner_icons.js"
 PKG_WIZ = DIR / "_photo_pkg_wizard.js"
 SVC_WIZ = DIR / "_photo_svc_wizard.js"
+CAL = DIR / "_photo_calendar.js"
 APP = DIR / "_photo_owner_app.js"
 MASTER = DIR / "GIXBEE-PHOTO-OWNER-FINALFLOW.html"
 
@@ -31,8 +32,21 @@ def build_master() -> str:
     icons = ICONS.read_text(encoding="utf-8")
     pkg = PKG_WIZ.read_text(encoding="utf-8")
     svc = SVC_WIZ.read_text(encoding="utf-8")
+    cal = CAL.read_text(encoding="utf-8")
     app = APP.read_text(encoding="utf-8")
-    block = "<!-- APP_START -->\n<script>\n" + icons + "\n" + pkg + "\n" + svc + "\n" + app + "\n</script>\n<!-- APP_END -->"
+    block = (
+        "<!-- APP_START -->\n<script>\n"
+        + icons
+        + "\n"
+        + pkg
+        + "\n"
+        + svc
+        + "\n"
+        + cal
+        + "\n"
+        + app
+        + "\n</script>\n<!-- APP_END -->"
+    )
     i, j = shell.find("<!-- APP_START -->"), shell.find("<!-- APP_END -->")
     if i < 0 or j < 0:
         raise SystemExit("photo-owner-flow-shell.html missing APP markers")

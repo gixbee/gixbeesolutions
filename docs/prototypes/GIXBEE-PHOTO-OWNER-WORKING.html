@@ -332,6 +332,63 @@ button.manage-pill{cursor:pointer;font:inherit;color:var(--blue);border-color:#B
 .svc-cover-upload-txt{display:flex;flex-direction:column;gap:2px;min-width:0}
 .svc-cover-upload-txt b{font-size:15px;color:var(--navy)}
 .svc-cover-upload-txt .sub{font-size:12px;color:var(--mut);font-weight:600}
+.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.pick{border:1.5px solid var(--line);border-radius:12px;padding:12px 8px;text-align:center;font-size:12px;font-weight:800;cursor:pointer;background:#fff;font:inherit;color:var(--navy)}
+.pick.on{border-color:var(--blue);background:#EFF6FF;color:var(--blue)}
+.cal-tabs{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px}
+.cal-tabs .pick{padding:12px 8px}
+.cal-month-nav{display:flex;align-items:center;justify-content:space-between;margin:8px 0 10px;gap:8px}
+.cal-month-nav button{border:0;background:#F3F4F6;width:36px;height:36px;border-radius:10px;font-size:18px;cursor:pointer;color:var(--navy);font-weight:800}
+.cal-month-nav b{font-size:16px;color:var(--navy)}
+.cal-weekdays{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;font-size:10px;font-weight:800;color:#9CA3AF;text-align:center;margin-bottom:4px}
+.cal-mini{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;font-size:12px;text-align:center;margin:0 0 12px}
+.cal-mini .cal-pad{visibility:hidden;pointer-events:none}
+.cal-day-cell{border:0;background:#F9FAFB;border-radius:10px;padding:6px 0 8px;cursor:pointer;font-weight:700;position:relative;min-height:48px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;font:inherit;color:var(--navy)}
+.cal-day-cell.on{background:var(--blue);color:#fff}
+.cal-day-count{font-size:9px;font-weight:800;line-height:1;opacity:.85}
+.cal-day-count.empty{visibility:hidden}
+.cal-dot{width:6px;height:6px;border-radius:50%;flex-shrink:0}
+.cal-dot.av{background:#22C55E}
+.cal-dot.bk{background:#EF4444}
+.cal-dot.off{background:#F97316}
+.cal-dot.blk{background:#7C3AED}
+.cal-dot.na{background:#2563EB}
+.cal-day-cell.on .cal-dot{box-shadow:0 0 0 1px rgba(255,255,255,.45)}
+.cal-legend{display:flex;flex-wrap:wrap;gap:8px 14px;font-size:11px;color:var(--mut);margin-bottom:12px}
+.cal-legend span{display:inline-flex;align-items:center;gap:4px;font-weight:700}
+.cal-month-pick{width:100%;border:1px solid var(--line);border-radius:12px;padding:12px;font-weight:800;font-size:13px;background:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;color:var(--navy);font:inherit}
+.cal-date-nav{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:0 0 14px}
+.cal-date-nav b{font-size:15px;color:var(--navy);flex:1;text-align:center;line-height:1.3}
+.slot{border:1px solid var(--line);border-radius:14px;padding:12px;margin-bottom:10px;background:#fff}
+.slot h3{margin:6px 0 4px;font-size:15px;color:var(--navy)}
+.slot-actions{display:flex;gap:8px;margin-top:10px}
+.slot-actions .btn{margin:0;flex:1;font-size:14px;padding:12px;border-radius:12px}
+.pill{display:inline-block;padding:4px 10px;border-radius:99px;font-size:11px;font-weight:800;margin-bottom:6px}
+.pill.ok{background:#ECFDF3;color:#059669}
+.pill.bad{background:#FEE2E2;color:#B91C1C}
+.pill.off{background:#FFEDD5;color:#C2410C}
+.pill.muted{background:#F3F4F6;color:#6B7280}
+.photo-cal-day-sum{margin-bottom:12px;padding:12px;border-radius:12px;background:#F8FAFC;border:1px solid var(--line)}
+.photo-bk-notes{font-size:12px;color:var(--mut);margin:8px 0 0;line-height:1.45}
+.photo-day-actions{display:flex;flex-direction:column;gap:10px;margin-top:16px}
+.photo-day-actions .btn{margin:0}
+.info.gn{margin-top:10px;padding:10px 12px;border-radius:10px;background:#ECFDF3;color:#065F46;font-size:12px;font-weight:700;line-height:1.4}
+.info.bl{margin-top:10px;padding:10px 12px;border-radius:10px;background:#EFF6FF;color:#1E40AF;font-size:12px;font-weight:700;line-height:1.4}
+.overlay{position:absolute;inset:0;background:rgba(15,23,42,.45);z-index:20;display:none;align-items:flex-end;justify-content:center;padding:0}
+.overlay.on{display:flex}
+.overlay.center{align-items:center;padding:16px}
+.sheet{width:100%;max-height:88%;background:#fff;border-radius:20px 20px 0 0;padding:16px 16px 24px;overflow:auto;box-shadow:0 -8px 32px rgba(0,0,0,.12)}
+.sheet-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+.sheet-head h2{margin:0;font-size:18px;color:var(--navy)}
+.sheet-close{border:0;background:#F3F4F6;width:36px;height:36px;border-radius:10px;font-size:20px;cursor:pointer}
+.sheet-slot-sum{padding:12px;border-radius:12px;background:#F9FAFB;border:1px solid var(--line);margin-bottom:14px;font-size:13px;font-weight:700;color:var(--navy)}
+.block-reason{display:block;border:1px solid var(--line);border-radius:12px;padding:12px;margin-bottom:8px;cursor:pointer}
+.block-reason.on{border-color:var(--blue);background:#EFF6FF}
+.block-reason input{margin-right:8px}
+.block-reason small{display:block;color:var(--mut);font-size:12px;margin-top:4px;font-weight:600}
+.sheet-actions{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:16px}
+.sheet-actions .btn{margin:0;width:100%}
+#photoMonthPickerList{display:grid;grid-template-columns:1fr 1fr;gap:8px;max-height:50vh;overflow:auto}
 .link-add{border:0;background:none;color:var(--blue);font-weight:800;font-size:13px;cursor:pointer;padding:8px 0;margin:8px 0;display:block}
 .warn-box{margin:12px 0;padding:10px;border-radius:10px;background:#FFFBEB;border:1px solid #FDE68A;font-size:11px;line-height:1.4}
 .role-row{display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--line);font-weight:700;font-size:13px}
@@ -588,8 +645,59 @@ button.manage-pill{cursor:pointer;font:inherit;color:var(--blue);border-color:#B
 </section>
 
 <section class="scr" id="calendar">
-  <div class="top"><button type="button" class="back" data-to="photoDash">←</button><h1>Calendar</h1><span style="width:36px"></span></div>
-  <div class="stub"><h2>Calendar</h2><p class="sub">View shoots and blocked dates. Full calendar sync comes in a later release.</p><button type="button" class="btn btn-blue" data-to="photoDash" style="max-width:200px;margin:16px auto">Back to dashboard</button></div>
+  <div class="top"><button type="button" class="back" data-to="photoDash">←</button><h1>Calendar &amp; Bookings</h1><span style="width:36px"></span></div>
+  <div class="pad">
+    <div class="cal-tabs">
+      <button type="button" class="pick on" id="photoTabCalMain">Calendar</button>
+      <button type="button" class="pick" id="photoTabBookSettings">Booking Settings</button>
+    </div>
+    <div class="cal-month-nav">
+      <button type="button" id="photoCalPrevMonth" aria-label="Previous month">‹</button>
+      <b id="photoCalMonthLabel">October 2026</b>
+      <button type="button" id="photoCalNextMonth" aria-label="Next month">›</button>
+    </div>
+    <div class="cal-weekdays"><span>S</span><span>M</span><span>T</span><span>W</span><span>T</span><span>F</span><span>S</span></div>
+    <div class="cal-mini" id="photoCalGrid"></div>
+    <div class="cal-legend">
+      <span><i class="cal-dot av"></i> Open</span>
+      <span><i class="cal-dot off"></i> Has shoots</span>
+      <span><i class="cal-dot bk"></i> Full</span>
+      <span><i class="cal-dot na"></i> Unavailable</span>
+    </div>
+    <button type="button" class="cal-month-pick" id="photoOpenMonthPicker">📅 Month: <span id="photoCalMonthPickLabel">October 2026</span> ▾</button>
+    <p class="hint" style="margin-top:12px">Tap a date to view shoots, add offline bookings, or mark the day unavailable / full.</p>
+  </div>
+</section>
+
+<section class="scr" id="photoCalDay">
+  <div class="top"><button type="button" class="back" id="photoBackFromCalDay">←</button><h1>Day schedule</h1><span style="width:36px"></span></div>
+  <div class="pad">
+    <div class="cal-date-nav">
+      <button type="button" id="photoCalPrevDay" aria-label="Previous day">‹</button>
+      <b id="photoCalDayTitle">—</b>
+      <button type="button" id="photoCalNextDay" aria-label="Next day">›</button>
+    </div>
+    <div id="photoDayBookings"></div>
+  </div>
+</section>
+
+<section class="scr" id="photoBookSettings">
+  <div class="top"><button type="button" class="back" data-to="calendar">←</button><h1>Booking Settings</h1><span style="width:36px"></span></div>
+  <div class="pad">
+    <h2 style="margin:0 0 4px;font-size:17px;color:var(--navy)">Max bookings per day</h2>
+    <p class="sub">How many shoots you can take on the same date (ERP capacity).</p>
+    <div class="grid3" id="photoMaxPerDay"></div>
+    <div class="info gn" id="photoMaxInfo"></div>
+    <h2 style="margin:20px 0 4px;font-size:17px;color:var(--navy)">Customer booking window</h2>
+    <p class="sub">How far ahead customers can book online.</p>
+    <div class="grid3" id="photoBookWindow"></div>
+    <div class="info bl" id="photoWindowInfo"></div>
+    <h2 style="margin:20px 0 4px;font-size:17px;color:var(--navy)">Minimum notice</h2>
+    <p class="sub">Earliest day customers can pick from today.</p>
+    <div class="grid3" id="photoMinNotice"></div>
+    <div class="info bl" id="photoNoticeInfo"></div>
+  </div>
+  <div class="cta"><button type="button" class="btn btn-blue" id="photoSaveBookSettings">Save &amp; back to calendar</button></div>
 </section>
 
 <section class="scr" id="gallery">
@@ -642,6 +750,50 @@ button.manage-pill{cursor:pointer;font:inherit;color:var(--blue);border-color:#B
     <div id="deletedBizList" style="margin-top:12px"></div>
   </div>
 </section>
+
+<div class="overlay" id="photoBookSheetOverlay" aria-hidden="true">
+  <div class="sheet">
+    <div class="sheet-head"><h2 id="photoBookSheetTitle">Add booking</h2><button type="button" class="sheet-close" id="photoCloseBookSheet" aria-label="Close">×</button></div>
+    <div class="sheet-slot-sum" id="photoBookSheetSum">—</div>
+    <div class="fld"><label>Client name *</label><input id="photoBkClient" placeholder="Client or family name"></div>
+    <div class="fld"><label>Phone</label><input id="photoBkPhone" placeholder="+91 " inputmode="tel"></div>
+    <div class="fld"><label>Event type</label><input id="photoBkEvent" placeholder="Wedding, portrait, funeral…"></div>
+    <div class="fld"><label>Time</label><input id="photoBkTime" placeholder="10:00 AM – 6:00 PM"></div>
+    <div class="fld"><label>Source</label>
+      <div class="radio-row" style="margin-top:6px">
+        <label><input type="radio" name="photoBkSource" value="offline" checked> Offline / phone</label>
+        <label><input type="radio" name="photoBkSource" value="gixbee"> Gixbee</label>
+      </div>
+    </div>
+    <div class="fld"><label>Notes</label><textarea id="photoBkNotes" rows="3" placeholder="Venue, package, special requests…"></textarea></div>
+    <div class="sheet-actions">
+      <button type="button" class="btn btn-ghost" id="photoCancelBookSheet">Cancel</button>
+      <button type="button" class="btn btn-blue" id="photoSaveBookSheet">Save booking</button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="photoDaySheetOverlay" aria-hidden="true">
+  <div class="sheet">
+    <div class="sheet-head"><h2>Day availability</h2><button type="button" class="sheet-close" id="photoCloseDaySheet" aria-label="Close">×</button></div>
+    <p class="sub">Control what customers see. You can still add offline bookings unless the day is at capacity.</p>
+    <label class="block-reason on"><input type="radio" name="photoDayStatus" value="open" checked> <b>Open</b><small>Normal day — bookings allowed up to daily limit.</small></label>
+    <label class="block-reason"><input type="radio" name="photoDayStatus" value="full"> <b>Full</b><small>Hide from customers — day marked as bookings full.</small></label>
+    <label class="block-reason"><input type="radio" name="photoDayStatus" value="disabled"> <b>Not available</b><small>Day off, travel, or personal — no customer booking.</small></label>
+    <div class="fld" style="margin-top:12px"><label>Note (optional)</label><textarea id="photoDayNote" rows="2" placeholder="Shown to your team on this date"></textarea></div>
+    <div class="sheet-actions">
+      <button type="button" class="btn btn-ghost" id="photoCloseDaySheet2" style="display:none"></button>
+      <button type="button" class="btn btn-blue" id="photoSaveDaySheet" style="grid-column:1/-1">Save</button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay center" id="photoMonthPickerOverlay" aria-hidden="true">
+  <div class="sheet" style="max-height:70%;border-radius:16px">
+    <div class="sheet-head"><h2>Jump to month</h2><button type="button" class="sheet-close" id="photoCloseMonthPicker">×</button></div>
+    <div id="photoMonthPickerList"></div>
+  </div>
+</div>
 
 <div class="toast" id="toast"></div>
 </div></div>
@@ -3227,7 +3379,697 @@ function bindSvcWizard(d) {
   if (wiz.step === 5) syncAllExtraRowModes();
 }
 
-const PHOTO_OWNER_BUILD = '2026-10-08-photo-owner-svc-basics-ui-v1';
+/* Photography owner — calendar & bookings (ERP-style, multi-shoot per day) */
+
+const PHOTO_MONTH_NAMES = [
+  'January',
+  'February',
+  'March',
+  'April',
+  'May',
+  'June',
+  'July',
+  'August',
+  'September',
+  'October',
+  'November',
+  'December',
+];
+const PHOTO_DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+
+let photoPendingBook = null;
+function photoCalDateKey(y, m, d) {
+  return y + '-' + String(m).padStart(2, '0') + '-' + String(d).padStart(2, '0');
+}
+
+function photoParseCalDateKey(key) {
+  const p = String(key).split('-');
+  return { y: +p[0], m: +p[1], d: +p[2] };
+}
+
+function photoDaysInMonth(y, m) {
+  return new Date(y, m, 0).getDate();
+}
+
+function photoMonthLabel(y, m) {
+  return PHOTO_MONTH_NAMES[m - 1] + ' ' + y;
+}
+
+function photoFormatCalDayTitle(key) {
+  const p = photoParseCalDateKey(key);
+  const dt = new Date(p.y, p.m - 1, p.d);
+  return p.d + ' ' + PHOTO_MONTH_NAMES[p.m - 1].slice(0, 3) + ' ' + p.y + ', ' + PHOTO_DAY_NAMES[dt.getDay()];
+}
+
+function defaultPhotoCalendar() {
+  const now = new Date(2026, 9, 8);
+  return {
+    viewYear: now.getFullYear(),
+    viewMonth: now.getMonth() + 1,
+    selectedKey: photoCalDateKey(now.getFullYear(), now.getMonth() + 1, now.getDate()),
+    settings: {
+      maxBookingsPerDay: 3,
+      bookWindowMonths: 6,
+      minNoticeDays: 2,
+    },
+    days: {},
+  };
+}
+
+function ensurePhotoCalendar() {
+  if (!store.calendar) store.calendar = defaultPhotoCalendar();
+  const cal = store.calendar;
+  if (!cal.settings) cal.settings = defaultPhotoCalendar().settings;
+  if (!cal.days) cal.days = {};
+  if (!cal.selectedKey) {
+    cal.selectedKey = photoCalDateKey(cal.viewYear, cal.viewMonth, 1);
+  }
+  seedPhotoCalendarDemo(cal);
+  return cal;
+}
+
+function seedPhotoCalendarDemo(cal) {
+  if (cal._demoSeeded) return;
+  if (Object.keys(cal.days).length > 3) {
+    cal._demoSeeded = true;
+    return;
+  }
+  cal.days['2026-10-10'] = {
+    bookings: [
+      {
+        id: 'bk-demo-1',
+        client: 'Anjali & Rohit',
+        phone: '+91 98470 11220',
+        event: 'Engagement',
+        time: '10:00 AM – 2:00 PM',
+        source: 'gixbee',
+        notes: 'Outdoor at Sakthan Nagar park',
+        status: 'confirmed',
+      },
+      {
+        id: 'bk-demo-2',
+        client: 'Thomas Family',
+        phone: '+91 94470 55661',
+        event: 'Portrait',
+        time: '4:00 PM – 5:30 PM',
+        source: 'offline',
+        notes: 'Studio slot',
+        status: 'confirmed',
+      },
+    ],
+  };
+  cal.days['2026-10-12'] = {
+    dayStatus: 'disabled',
+    dayNote: 'Team on wedding travel — not taking new bookings',
+    bookings: [],
+  };
+  cal.days['2026-10-15'] = {
+    dayStatus: 'full',
+    dayNote: 'Festival week — capacity reached',
+    bookings: [
+      {
+        id: 'bk-demo-3',
+        client: 'Memorial Service',
+        phone: '+91 98765 00011',
+        event: 'Funeral / Memorial',
+        time: '9:00 AM – 1:00 PM',
+        source: 'offline',
+        notes: '',
+        status: 'confirmed',
+      },
+    ],
+  };
+  cal._demoSeeded = true;
+}
+
+function photoEnsureDay(cal, key) {
+  if (!cal.days[key]) cal.days[key] = { bookings: [] };
+  if (!cal.days[key].bookings) cal.days[key].bookings = [];
+  return cal.days[key];
+}
+
+function photoActiveBookings(day) {
+  return (day.bookings || []).filter(function (b) {
+    return b.status !== 'cancelled';
+  });
+}
+
+function photoDayCapacityUsed(cal, key) {
+  const day = cal.days[key];
+  if (!day) return 0;
+  return photoActiveBookings(day).length;
+}
+
+function photoDayIsFull(cal, key) {
+  const day = cal.days[key];
+  if (day && day.dayStatus === 'full') return true;
+  const max = cal.settings.maxBookingsPerDay || 1;
+  return photoDayCapacityUsed(cal, key) >= max;
+}
+
+function photoDayDotKind(cal, key) {
+  const day = cal.days[key];
+  if (!day) return 'av';
+  if (day.dayStatus === 'disabled') return 'na';
+  if (day.dayStatus === 'full' || photoDayIsFull(cal, key)) return 'bk';
+  const active = photoActiveBookings(day);
+  if (!active.length) return 'av';
+  if (active.some(function (b) {
+    return b.source === 'gixbee';
+  }))
+    return 'bk';
+  return 'off';
+}
+
+function photoOpenOverlay(id) {
+  const o = el(id);
+  if (o) {
+    o.classList.add('on');
+    o.setAttribute('aria-hidden', 'false');
+  }
+}
+
+function photoCloseOverlay(id) {
+  const o = el(id);
+  if (o) {
+    o.classList.remove('on');
+    o.setAttribute('aria-hidden', 'true');
+  }
+}
+
+function openPhotoCalendar() {
+  ensurePhotoCalendar();
+  renderPhotoCalendar();
+  show('calendar');
+}
+
+function renderPhotoCalendar() {
+  const cal = ensurePhotoCalendar();
+  const y = cal.viewYear;
+  const m = cal.viewMonth;
+  const ml = el('photoCalMonthLabel');
+  const mpl = el('photoCalMonthPickLabel');
+  if (ml) ml.textContent = photoMonthLabel(y, m);
+  if (mpl) mpl.textContent = photoMonthLabel(y, m);
+  const firstDow = new Date(y, m - 1, 1).getDay();
+  const dim = photoDaysInMonth(y, m);
+  const cells = [];
+  for (let i = 0; i < firstDow; i++) cells.push('<span class="cal-pad"></span>');
+  const max = cal.settings.maxBookingsPerDay || 3;
+  for (let d = 1; d <= dim; d++) {
+    const key = photoCalDateKey(y, m, d);
+    const dot = photoDayDotKind(cal, key);
+    const cnt = photoDayCapacityUsed(cal, key);
+    const on = cal.selectedKey === key ? ' on' : '';
+    const countHtml =
+      cnt > 0 ? '<span class="cal-day-count">' + cnt + '/' + max + '</span>' : '<span class="cal-day-count empty"></span>';
+    cells.push(
+      '<button type="button" class="cal-day-cell' +
+        on +
+        '" data-photo-cal-day="' +
+        d +
+        '" data-photo-cal-key="' +
+        key +
+        '"><span>' +
+        d +
+        '</span>' +
+        countHtml +
+        '<i class="cal-dot ' +
+        dot +
+        '"></i></button>'
+    );
+  }
+  const grid = el('photoCalGrid');
+  if (!grid) return;
+  grid.innerHTML = cells.join('');
+  grid.querySelectorAll('[data-photo-cal-key]').forEach(function (btn) {
+    btn.onclick = function () {
+      cal.selectedKey = btn.getAttribute('data-photo-cal-key');
+      saveStore();
+      renderPhotoCalDay();
+      show('photoCalDay');
+    };
+  });
+  const tabMain = el('photoTabCalMain');
+  const tabSet = el('photoTabBookSettings');
+  if (tabMain) tabMain.classList.add('on');
+  if (tabSet) tabSet.classList.remove('on');
+}
+
+function photoDayStatusLabel(cal, key) {
+  const day = cal.days[key];
+  if (day && day.dayStatus === 'disabled') {
+    return { pill: 'muted', text: 'Not available to customers' };
+  }
+  if (day && day.dayStatus === 'full') return { pill: 'bad', text: 'Marked full' };
+  if (photoDayIsFull(cal, key)) return { pill: 'bad', text: 'Capacity reached' };
+  const used = photoDayCapacityUsed(cal, key);
+  const max = cal.settings.maxBookingsPerDay || 3;
+  return { pill: 'ok', text: used + ' of ' + max + ' bookings' };
+}
+
+function renderPhotoCalDay() {
+  const cal = ensurePhotoCalendar();
+  const key = cal.selectedKey;
+  const title = el('photoCalDayTitle');
+  if (title) title.textContent = photoFormatCalDayTitle(key);
+  const day = photoEnsureDay(cal, key);
+  const st = photoDayStatusLabel(cal, key);
+  const slots = el('photoDayBookings');
+  if (!slots) return;
+
+  let head =
+    '<div class="photo-cal-day-sum"><span class="pill ' +
+    st.pill +
+    '">' +
+    esc(st.text) +
+    '</span>';
+  if (day.dayNote) {
+    head += '<p class="sub" style="margin:8px 0 0">' + esc(day.dayNote) + '</p>';
+  }
+  head += '</div>';
+
+  const active = photoActiveBookings(day);
+  const cards = active
+    .map(function (b) {
+      const srcPill = b.source === 'gixbee' ? '<span class="pill bad">Gixbee</span>' : '<span class="pill off">Offline</span>';
+      return (
+        '<div class="slot photo-bk-card" data-bk-id="' +
+        esc(b.id) +
+        '">' +
+        srcPill +
+        '<h3>' +
+        esc(b.client) +
+        '</h3>' +
+        '<p class="sub" style="margin:4px 0"><b>' +
+        esc(b.event) +
+        '</b> · ' +
+        esc(b.time) +
+        '</p>' +
+        (b.phone ? '<p class="hint" style="margin:0">' + esc(b.phone) + '</p>' : '') +
+        (b.notes ? '<p class="photo-bk-notes">' + esc(b.notes) + '</p>' : '') +
+        '<div class="slot-actions">' +
+        '<button type="button" class="btn btn-ghost" data-photo-edit-bk="' +
+        esc(b.id) +
+        '">Edit</button>' +
+        '<button type="button" class="btn btn-ghost" style="color:#B91C1C;border-color:#FECACA" data-photo-cancel-bk="' +
+        esc(b.id) +
+        '">Cancel</button></div></div>'
+      );
+    })
+    .join('');
+
+  const canAdd = !photoDayIsFull(cal, key);
+  const dayActions =
+    '<div class="photo-day-actions">' +
+    '<button type="button" class="btn btn-blue" data-photo-add-bk' +
+    (canAdd ? '' : ' disabled') +
+    '>+ Add booking</button>' +
+    '<button type="button" class="btn btn-ghost" data-photo-day-status>Day availability</button></div>';
+
+  slots.innerHTML =
+    head + (cards || '<p class="sub" style="margin:12px 0">No shoots on this date yet.</p>') + dayActions;
+
+  slots.querySelectorAll('[data-photo-add-bk]').forEach(function (btn) {
+    btn.onclick = function () {
+      openPhotoBookSheet(null);
+    };
+  });
+  slots.querySelectorAll('[data-photo-day-status]').forEach(function (btn) {
+    btn.onclick = function () {
+      openPhotoDaySheet();
+    };
+  });
+  slots.querySelectorAll('[data-photo-edit-bk]').forEach(function (btn) {
+    btn.onclick = function () {
+      openPhotoBookSheet(btn.getAttribute('data-photo-edit-bk'));
+    };
+  });
+  slots.querySelectorAll('[data-photo-cancel-bk]').forEach(function (btn) {
+    btn.onclick = function () {
+      cancelPhotoBooking(btn.getAttribute('data-photo-cancel-bk'));
+    };
+  });
+}
+
+function openPhotoBookSheet(bookingId) {
+  const cal = ensurePhotoCalendar();
+  const key = cal.selectedKey;
+  const day = photoEnsureDay(cal, key);
+  if (!bookingId) {
+    photoPendingBook = {
+      id: null,
+      client: '',
+      phone: '',
+      event: 'Wedding',
+      time: '10:00 AM – 6:00 PM',
+      source: 'offline',
+      notes: '',
+      status: 'confirmed',
+    };
+  } else {
+    const found = (day.bookings || []).find(function (b) {
+      return b.id === bookingId;
+    });
+    photoPendingBook = found ? JSON.parse(JSON.stringify(found)) : null;
+  }
+  if (!photoPendingBook) return;
+  const sum = el('photoBookSheetSum');
+  if (sum) sum.textContent = photoFormatCalDayTitle(key);
+  if (el('photoBkClient')) el('photoBkClient').value = photoPendingBook.client;
+  if (el('photoBkPhone')) el('photoBkPhone').value = photoPendingBook.phone || '';
+  if (el('photoBkEvent')) el('photoBkEvent').value = photoPendingBook.event;
+  if (el('photoBkTime')) el('photoBkTime').value = photoPendingBook.time;
+  if (el('photoBkNotes')) el('photoBkNotes').value = photoPendingBook.notes || '';
+  document.querySelectorAll('[name=photoBkSource]').forEach(function (r) {
+    r.checked = r.value === photoPendingBook.source;
+  });
+  const h2 = el('photoBookSheetTitle');
+  if (h2) h2.textContent = bookingId ? 'Edit booking' : 'Add booking';
+  photoOpenOverlay('photoBookSheetOverlay');
+}
+
+function savePhotoBookSheet() {
+  if (!photoPendingBook) return;
+  const cal = ensurePhotoCalendar();
+  const key = cal.selectedKey;
+  const day = photoEnsureDay(cal, key);
+  photoPendingBook.client = el('photoBkClient').value.trim();
+  photoPendingBook.phone = el('photoBkPhone').value.trim();
+  photoPendingBook.event = el('photoBkEvent').value.trim() || 'Event';
+  photoPendingBook.time = el('photoBkTime').value.trim() || 'TBD';
+  photoPendingBook.notes = el('photoBkNotes').value.trim();
+  const src = document.querySelector('input[name=photoBkSource]:checked');
+  photoPendingBook.source = src ? src.value : 'offline';
+  if (!photoPendingBook.client) {
+    toast('Enter client name.');
+    return;
+  }
+  if (!photoPendingBook.id) {
+    if (photoDayIsFull(cal, key)) {
+      toast('Day is at capacity. Increase limit in Booking Settings or mark another day.');
+      return;
+    }
+    photoPendingBook.id = uid('bk');
+    photoPendingBook.status = 'confirmed';
+    day.bookings.push(photoPendingBook);
+  } else {
+    const i = day.bookings.findIndex(function (b) {
+      return b.id === photoPendingBook.id;
+    });
+    if (i >= 0) day.bookings[i] = photoPendingBook;
+  }
+  saveStore();
+  photoCloseOverlay('photoBookSheetOverlay');
+  photoPendingBook = null;
+  renderPhotoCalendar();
+  renderPhotoCalDay();
+  toast('Booking saved.');
+}
+
+function cancelPhotoBooking(id) {
+  if (!confirm('Cancel this booking? It will be removed from the active day schedule.')) return;
+  const cal = ensurePhotoCalendar();
+  const day = photoEnsureDay(cal, cal.selectedKey);
+  const b = day.bookings.find(function (x) {
+    return x.id === id;
+  });
+  if (b) b.status = 'cancelled';
+  saveStore();
+  renderPhotoCalendar();
+  renderPhotoCalDay();
+  toast('Booking cancelled.');
+}
+
+function openPhotoDaySheet() {
+  const cal = ensurePhotoCalendar();
+  const day = photoEnsureDay(cal, cal.selectedKey);
+  const status = day.dayStatus || 'open';
+  document.querySelectorAll('[name=photoDayStatus]').forEach(function (r) {
+    r.checked = r.value === status;
+  });
+  if (el('photoDayNote')) el('photoDayNote').value = day.dayNote || '';
+  photoOpenOverlay('photoDaySheetOverlay');
+}
+
+function savePhotoDaySheet() {
+  const cal = ensurePhotoCalendar();
+  const day = photoEnsureDay(cal, cal.selectedKey);
+  const sel = document.querySelector('input[name=photoDayStatus]:checked');
+  const status = sel ? sel.value : 'open';
+  day.dayStatus = status === 'open' ? undefined : status;
+  if (status === 'open') delete day.dayStatus;
+  day.dayNote = el('photoDayNote') ? el('photoDayNote').value.trim() : '';
+  if (!day.dayNote) delete day.dayNote;
+  saveStore();
+  photoCloseOverlay('photoDaySheetOverlay');
+  renderPhotoCalendar();
+  renderPhotoCalDay();
+  toast(status === 'disabled' ? 'Day hidden from customers.' : status === 'full' ? 'Day marked full.' : 'Day reopened.');
+}
+
+function renderPhotoBookSettings() {
+  const cal = ensurePhotoCalendar();
+  const s = cal.settings;
+  const maxOpts = [1, 2, 3, 4, 5, 6];
+  const win = el('photoBookWindow');
+  if (win) {
+    win.innerHTML = [3, 6, 9, 12]
+      .map(function (m) {
+        return (
+          '<button type="button" class="pick' +
+          (s.bookWindowMonths === m ? ' on' : '') +
+          '" data-photo-win="' +
+          m +
+          '">' +
+          m +
+          ' mo</button>'
+        );
+      })
+      .join('');
+    win.querySelectorAll('[data-photo-win]').forEach(function (btn) {
+      btn.onclick = function () {
+        s.bookWindowMonths = +btn.getAttribute('data-photo-win');
+        saveStore();
+        renderPhotoBookSettings();
+      };
+    });
+  }
+  const notice = el('photoMinNotice');
+  if (notice) {
+    notice.innerHTML = [0, 1, 2, 3, 7]
+      .map(function (d) {
+        return (
+          '<button type="button" class="pick' +
+          (s.minNoticeDays === d ? ' on' : '') +
+          '" data-photo-notice="' +
+          d +
+          '">' +
+          (d === 0 ? 'Same day' : d + ' day' + (d > 1 ? 's' : '')) +
+          '</button>'
+        );
+      })
+      .join('');
+    notice.querySelectorAll('[data-photo-notice]').forEach(function (btn) {
+      btn.onclick = function () {
+        s.minNoticeDays = +btn.getAttribute('data-photo-notice');
+        saveStore();
+        renderPhotoBookSettings();
+      };
+    });
+  }
+  const cap = el('photoMaxPerDay');
+  if (cap) {
+    cap.innerHTML = maxOpts
+      .map(function (n) {
+        return (
+          '<button type="button" class="pick' +
+          (s.maxBookingsPerDay === n ? ' on' : '') +
+          '" data-photo-max="' +
+          n +
+          '">' +
+          n +
+          '</button>'
+        );
+      })
+      .join('');
+    cap.querySelectorAll('[data-photo-max]').forEach(function (btn) {
+      btn.onclick = function () {
+        s.maxBookingsPerDay = +btn.getAttribute('data-photo-max');
+        saveStore();
+        renderPhotoBookSettings();
+      };
+    });
+  }
+  const wi = el('photoWindowInfo');
+  if (wi) wi.textContent = 'Customers can book up to ' + s.bookWindowMonths + ' months ahead.';
+  const ni = el('photoNoticeInfo');
+  if (ni) {
+    ni.textContent =
+      s.minNoticeDays === 0
+        ? 'Same-day booking is allowed (subject to capacity).'
+        : 'Customers need at least ' + s.minNoticeDays + ' day(s) notice before the shoot date.';
+  }
+  const mi = el('photoMaxInfo');
+  if (mi) {
+    mi.textContent =
+      'You can add up to ' + s.maxBookingsPerDay + ' active booking(s) per day. Calendar shows count on each date.';
+  }
+}
+
+function photoShiftCalDay(delta) {
+  const cal = ensurePhotoCalendar();
+  const p = photoParseCalDateKey(cal.selectedKey);
+  const dt = new Date(p.y, p.m - 1, p.d + delta);
+  cal.viewYear = dt.getFullYear();
+  cal.viewMonth = dt.getMonth() + 1;
+  cal.selectedKey = photoCalDateKey(cal.viewYear, cal.viewMonth, dt.getDate());
+  saveStore();
+  renderPhotoCalDay();
+}
+
+function photoShiftCalMonth(delta) {
+  const cal = ensurePhotoCalendar();
+  let m = cal.viewMonth + delta;
+  let y = cal.viewYear;
+  if (m < 1) {
+    m = 12;
+    y--;
+  }
+  if (m > 12) {
+    m = 1;
+    y++;
+  }
+  cal.viewMonth = m;
+  cal.viewYear = y;
+  saveStore();
+  renderPhotoCalendar();
+}
+
+function renderPhotoMonthPickerList() {
+  const cal = ensurePhotoCalendar();
+  const list = el('photoMonthPickerList');
+  if (!list) return;
+  const items = [];
+  const start = new Date(2026, 0, 1);
+  for (let i = 0; i < 18; i++) {
+    const dt = new Date(start.getFullYear(), start.getMonth() + i, 1);
+    const y = dt.getFullYear();
+    const m = dt.getMonth() + 1;
+    const on = y === cal.viewYear && m === cal.viewMonth;
+    items.push(
+      '<button type="button" class="pick' +
+        (on ? ' on' : '') +
+        '" data-photo-pick-y="' +
+        y +
+        '" data-photo-pick-m="' +
+        m +
+        '">' +
+        photoMonthLabel(y, m) +
+        '</button>'
+    );
+  }
+  list.innerHTML = items.join('');
+  list.querySelectorAll('[data-photo-pick-y]').forEach(function (btn) {
+    btn.onclick = function () {
+      cal.viewYear = +btn.getAttribute('data-photo-pick-y');
+      cal.viewMonth = +btn.getAttribute('data-photo-pick-m');
+      saveStore();
+      photoCloseOverlay('photoMonthPickerOverlay');
+      renderPhotoCalendar();
+    };
+  });
+}
+
+function bindPhotoCalendarUi() {
+  const tabSet = el('photoTabBookSettings');
+  if (tabSet) {
+    tabSet.onclick = function () {
+      renderPhotoBookSettings();
+      show('photoBookSettings');
+    };
+  }
+  const tabMain = el('photoTabCalMain');
+  if (tabMain) {
+    tabMain.onclick = function () {
+      renderPhotoCalendar();
+      show('calendar');
+    };
+  }
+  const prevM = el('photoCalPrevMonth');
+  const nextM = el('photoCalNextMonth');
+  if (prevM) prevM.onclick = function () {
+    photoShiftCalMonth(-1);
+  };
+  if (nextM) nextM.onclick = function () {
+    photoShiftCalMonth(1);
+  };
+  const prevD = el('photoCalPrevDay');
+  const nextD = el('photoCalNextDay');
+  if (prevD) prevD.onclick = function () {
+    photoShiftCalDay(-1);
+  };
+  if (nextD) nextD.onclick = function () {
+    photoShiftCalDay(1);
+  };
+  const backDay = el('photoBackFromCalDay');
+  if (backDay) {
+    backDay.onclick = function () {
+      renderPhotoCalendar();
+      show('calendar');
+    };
+  }
+  const openMp = el('photoOpenMonthPicker');
+  if (openMp) {
+    openMp.onclick = function () {
+      renderPhotoMonthPickerList();
+      photoOpenOverlay('photoMonthPickerOverlay');
+    };
+  }
+  const saveBs = el('photoSaveBookSettings');
+  if (saveBs) {
+    saveBs.onclick = function () {
+      saveStore();
+      toast('Booking settings saved.');
+      renderPhotoCalendar();
+      show('calendar');
+    };
+  }
+  const closeBk = el('photoCloseBookSheet');
+  if (closeBk) closeBk.onclick = function () {
+    photoCloseOverlay('photoBookSheetOverlay');
+    photoPendingBook = null;
+  };
+  const cancelBk = el('photoCancelBookSheet');
+  if (cancelBk) cancelBk.onclick = function () {
+    photoCloseOverlay('photoBookSheetOverlay');
+    photoPendingBook = null;
+  };
+  const saveBk = el('photoSaveBookSheet');
+  if (saveBk) saveBk.onclick = savePhotoBookSheet;
+  const closeDay = el('photoCloseDaySheet');
+  if (closeDay) closeDay.onclick = function () {
+    photoCloseOverlay('photoDaySheetOverlay');
+  };
+  const saveDay = el('photoSaveDaySheet');
+  if (saveDay) saveDay.onclick = savePhotoDaySheet;
+  const closeMp = el('photoCloseMonthPicker');
+  if (closeMp) closeMp.onclick = function () {
+    photoCloseOverlay('photoMonthPickerOverlay');
+  };
+  document.querySelectorAll('.block-reason').forEach(function (lab) {
+    lab.onclick = function () {
+      document.querySelectorAll('.block-reason').forEach(function (x) {
+        x.classList.remove('on');
+      });
+      lab.classList.add('on');
+      const inp = lab.querySelector('input');
+      if (inp) inp.checked = true;
+    };
+  });
+}
+
+const PHOTO_OWNER_BUILD = '2026-10-08-photo-owner-calendar-erp-v1';
 const STORAGE_KEY = 'GIXBEE_PHOTO_OWNER_V1';
 
 const INDIAN_STATES = {
@@ -3419,6 +4261,18 @@ function showBootError(msg) {
 function show(id) {
   document.querySelectorAll('.scr').forEach((s) => s.classList.toggle('on', s.id === id));
 }
+
+function navigatePhotoScreen(id) {
+  if (!id) return;
+  if (id === 'calendar') openPhotoCalendar();
+  else if (id === 'photoBookSettings') {
+    renderPhotoBookSettings();
+    show(id);
+  } else if (id === 'photoCalDay') {
+    renderPhotoCalDay();
+    show(id);
+  } else show(id);
+}
 function openSvcPkgHub() {
   store.hubTab = 'packages';
   saveStore();
@@ -3452,6 +4306,7 @@ function loadStore() {
     if (!store.serviceAreas) store.serviceAreas = defaultStore().serviceAreas;
     if (!store.operators) store.operators = defaultStore().operators;
     if (!store.deletedBusinesses) store.deletedBusinesses = defaultStore().deletedBusinesses;
+    if (!store.calendar) store.calendar = defaultPhotoCalendar();
   } catch (_e) {
     store = defaultStore();
   }
@@ -3732,6 +4587,14 @@ function renderPhotoDash() {
         show(dest);
       } else if (dest === 'deletedBusiness') {
         renderDeletedBusinesses();
+        show(dest);
+      } else if (dest === 'calendar') {
+        openPhotoCalendar();
+      } else if (dest === 'photoBookSettings') {
+        renderPhotoBookSettings();
+        show(dest);
+      } else if (dest === 'photoCalDay') {
+        renderPhotoCalDay();
         show(dest);
       } else show(dest);
     };
@@ -4448,12 +5311,12 @@ function wizPrev() {
 
 function bindGlobal() {
   document.querySelectorAll('.back[data-to]').forEach((btn) => {
-    btn.onclick = () => show(btn.getAttribute('data-to'));
+    btn.onclick = () => navigatePhotoScreen(btn.getAttribute('data-to'));
   });
   document.querySelectorAll('.stub .btn[data-to], .btn[data-to]').forEach((btn) => {
     if (btn.id) return;
     const to = btn.getAttribute('data-to');
-    if (to) btn.onclick = () => show(to);
+    if (to) btn.onclick = () => navigatePhotoScreen(to);
   });
   el('lmbHomeBtn').onclick = () => show('lmbDashboard');
   const backLmb = el('backToLmb');
@@ -4562,8 +5425,9 @@ function boot() {
     renderLmb();
     renderPhotoDash();
     renderSvcPkg();
-    bindGlobal();
-    const err = el('bootError');
+  bindGlobal();
+  bindPhotoCalendarUi();
+  const err = el('bootError');
     if (err) err.hidden = true;
     show('lmbDashboard');
   } catch (err) {

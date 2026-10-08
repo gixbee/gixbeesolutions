@@ -1,4 +1,4 @@
-const PHOTO_OWNER_BUILD = '2026-10-08-photo-owner-svc-basics-ui-v1';
+const PHOTO_OWNER_BUILD = '2026-10-08-photo-owner-calendar-erp-v1';
 const STORAGE_KEY = 'GIXBEE_PHOTO_OWNER_V1';
 
 const INDIAN_STATES = {
@@ -190,6 +190,18 @@ function showBootError(msg) {
 function show(id) {
   document.querySelectorAll('.scr').forEach((s) => s.classList.toggle('on', s.id === id));
 }
+
+function navigatePhotoScreen(id) {
+  if (!id) return;
+  if (id === 'calendar') openPhotoCalendar();
+  else if (id === 'photoBookSettings') {
+    renderPhotoBookSettings();
+    show(id);
+  } else if (id === 'photoCalDay') {
+    renderPhotoCalDay();
+    show(id);
+  } else show(id);
+}
 function openSvcPkgHub() {
   store.hubTab = 'packages';
   saveStore();
@@ -223,6 +235,7 @@ function loadStore() {
     if (!store.serviceAreas) store.serviceAreas = defaultStore().serviceAreas;
     if (!store.operators) store.operators = defaultStore().operators;
     if (!store.deletedBusinesses) store.deletedBusinesses = defaultStore().deletedBusinesses;
+    if (!store.calendar) store.calendar = defaultPhotoCalendar();
   } catch (_e) {
     store = defaultStore();
   }
@@ -503,6 +516,14 @@ function renderPhotoDash() {
         show(dest);
       } else if (dest === 'deletedBusiness') {
         renderDeletedBusinesses();
+        show(dest);
+      } else if (dest === 'calendar') {
+        openPhotoCalendar();
+      } else if (dest === 'photoBookSettings') {
+        renderPhotoBookSettings();
+        show(dest);
+      } else if (dest === 'photoCalDay') {
+        renderPhotoCalDay();
         show(dest);
       } else show(dest);
     };
@@ -1219,12 +1240,12 @@ function wizPrev() {
 
 function bindGlobal() {
   document.querySelectorAll('.back[data-to]').forEach((btn) => {
-    btn.onclick = () => show(btn.getAttribute('data-to'));
+    btn.onclick = () => navigatePhotoScreen(btn.getAttribute('data-to'));
   });
   document.querySelectorAll('.stub .btn[data-to], .btn[data-to]').forEach((btn) => {
     if (btn.id) return;
     const to = btn.getAttribute('data-to');
-    if (to) btn.onclick = () => show(to);
+    if (to) btn.onclick = () => navigatePhotoScreen(to);
   });
   el('lmbHomeBtn').onclick = () => show('lmbDashboard');
   const backLmb = el('backToLmb');
@@ -1333,8 +1354,9 @@ function boot() {
     renderLmb();
     renderPhotoDash();
     renderSvcPkg();
-    bindGlobal();
-    const err = el('bootError');
+  bindGlobal();
+  bindPhotoCalendarUi();
+  const err = el('bootError');
     if (err) err.hidden = true;
     show('lmbDashboard');
   } catch (err) {
