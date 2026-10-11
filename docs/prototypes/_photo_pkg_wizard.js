@@ -25,6 +25,7 @@ const VIDEO_DELIVER = [
 const ALBUM_MAIN_TYPES = ['Photo Album'];
 const COMPLIMENTARY_PRINT_TYPES = ['Calendar', 'Mini Album', 'Photo Frame'];
 const ALBUM_PRINT_TYPES = ALBUM_MAIN_TYPES.concat(COMPLIMENTARY_PRINT_TYPES);
+const ALBUM_PAGE_FINISHES = ['Matte', 'Glossy', 'Lustre', 'Silk', 'Metallic'];
 const DIGITAL_DELIVER = [
   { id: 'Google Drive Link', icon: '📁', desc: 'Share high-resolution files via Google Drive.' },
   { id: 'Online Gallery', icon: '🔗', desc: 'Private online gallery for easy access.' },
@@ -652,11 +653,43 @@ function albumComplimentaryField(row) {
   );
 }
 
+function albumPageFinishValue(row) {
+  const f = row && row.pageFinish;
+  if (f && ALBUM_PAGE_FINISHES.indexOf(f) >= 0) return f;
+  return 'Matte';
+}
+
+function renderAlbumPageFinishField(row) {
+  const val = albumPageFinishValue(row);
+  return (
+    '<div class="fld album-page-finish-fld"><label>Page finish</label>' +
+    '<p class="hint album-finish-hint">Inner album pages — not the outer cover.</p>' +
+    '<select data-album-page-finish>' +
+    ALBUM_PAGE_FINISHES.map(function (opt) {
+      return '<option' + (val === opt ? ' selected' : '') + '>' + opt + '</option>';
+    }).join('') +
+    '</select></div>'
+  );
+}
+
 function defaultAlbumPrints() {
   return {
-    'Photo Album': { on: true, pages: 40, size: '12 x 18 inch', cover: 'Premium' },
+    'Photo Album': {
+      on: true,
+      pages: 40,
+      size: '12 x 18 inch',
+      cover: 'Premium',
+      pageFinish: 'Matte',
+    },
     Calendar: { on: false, qty: 1, size: 'A3', type: 'Wall Calendar', complimentary: true },
-    'Mini Album': { on: false, qty: 1, size: '6 x 6 inch', cover: 'Standard', complimentary: true },
+    'Mini Album': {
+      on: false,
+      qty: 1,
+      size: '6 x 6 inch',
+      cover: 'Standard',
+      pageFinish: 'Matte',
+      complimentary: true,
+    },
     'Photo Frame': { on: false, qty: 1, size: '12 x 18 inch', type: 'Acrylic', complimentary: true },
   };
 }
@@ -1415,7 +1448,9 @@ function renderAlbumPrintCard(name, d) {
       '>12 x 18 inch</option><option>10 x 12 inch</option></select></div>' +
       '<div class="fld"><label>Cover type</label><select data-album-cover><option' +
       (row.cover === 'Premium' ? ' selected' : '') +
-      '>Premium</option><option>Standard</option></select></div></div>';
+      '>Premium</option><option>Standard</option></select></div>' +
+      renderAlbumPageFinishField(row) +
+      '</div>';
   } else if (on) {
     fields =
       '<div class="del-fields">' +
@@ -1426,6 +1461,7 @@ function renderAlbumPrintCard(name, d) {
       esc(name) +
       '><option>A3</option><option>A4</option><option>6 x 6 inch</option><option>12 x 18 inch</option></select></div>' +
       '<div class="fld"><label>Type</label><select data-album-type-opt><option>Wall Calendar</option><option>Desk Calendar</option><option>Acrylic</option><option>Standard</option></select></div>' +
+      (name === 'Mini Album' ? renderAlbumPageFinishField(row) : '') +
       (isComplimentaryType ? albumComplimentaryField(row) : '') +
       '</div>';
   }
@@ -1607,6 +1643,8 @@ function readAlbumFieldsFromDom(d) {
       if (pages) d.albumPrints[name].pages = +pages.value || 40;
       if (sizeSel) d.albumPrints[name].size = sizeSel.value;
       if (coverSel) d.albumPrints[name].cover = coverSel.value;
+      const finishA = card.querySelector('[data-album-page-finish]');
+      if (finishA) d.albumPrints[name].pageFinish = finishA.value;
       const compA = card.querySelector('[data-album-complimentary]');
       if (compA) d.albumPrints[name].complimentary = compA.checked;
     } else {
@@ -1615,6 +1653,8 @@ function readAlbumFieldsFromDom(d) {
       const selects = card.querySelectorAll('.del-fields select');
       if (selects[0]) d.albumPrints[name].size = selects[0].value;
       if (selects[1]) d.albumPrints[name].type = selects[1].value;
+      const finishB = card.querySelector('[data-album-page-finish]');
+      if (finishB) d.albumPrints[name].pageFinish = finishB.value;
       const compB = card.querySelector('[data-album-complimentary]');
       if (compB) d.albumPrints[name].complimentary = compB.checked;
     }
@@ -2339,7 +2379,14 @@ function pkgDeliverSummary(d) {
     ALBUM_PRINT_TYPES.forEach(function (name) {
       if (d.albumPrints[name] && d.albumPrints[name].on) {
         if (name === 'Photo Album' && d.albumPrints[name].pages) {
-          albums.push(d.albumPrints[name].pages + 'pg album');
+          albums.push(
+            d.albumPrints[name].pages +
+              'pg album (' +
+              albumPageFinishValue(d.albumPrints[name]) +
+              ' pages)'
+          );
+        } else if (name === 'Mini Album') {
+          albums.push(name + ' (' + albumPageFinishValue(d.albumPrints[name]) + ' pages)');
         } else albums.push(name);
       }
     });
