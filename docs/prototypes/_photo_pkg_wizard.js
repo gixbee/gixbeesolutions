@@ -109,26 +109,12 @@ function defaultVideoDurationForName(name) {
 
 function renderVideoDurationSelect(name, selected) {
   const sel = selected || defaultVideoDurationForName(name);
-  const hourOpts = VIDEO_DURATION_HOURS.map(function (v) {
-    return '<option' + (sel === v ? ' selected' : '') + '>' + v + '</option>';
-  }).join('');
-  const shortOpts = VIDEO_DURATION_SHORT.map(function (v) {
-    return '<option' + (sel === v ? ' selected' : '') + '>' + v + '</option>';
-  }).join('');
-  const legacy =
-    sel && VIDEO_DURATIONS.indexOf(sel) < 0
-      ? '<option selected>' + esc(sel) + '</option>'
-      : '';
   return (
     '<select data-video-dur="' +
     esc(name) +
     '">' +
-    legacy +
-    '<optgroup label="Hours (full-length style)">' +
-    hourOpts +
-    '</optgroup><optgroup label="Minutes (highlight / reel)">' +
-    shortOpts +
-    '</optgroup></select>'
+    buildSelectOptionsHtml(VIDEO_DURATIONS, sel) +
+    '</select>'
   );
 }
 /** Client delivery formats (studios rarely list ProRes/DNx to couples). */
