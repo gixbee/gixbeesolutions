@@ -961,46 +961,60 @@ const PHOTO_TYPE_DEFAULTS = [
 ];
 const VIDEO_TYPE_DEFAULTS = ['Candid Videographer', 'Traditional Videographer', 'Cinematic Videographer'];
 const PHOTO_FORMATS = ['JPG (High Resolution)', 'JPG + RAW', 'PNG'];
-const VIDEO_DURATION_HOURS = ['Full Event', '0-1 Hours', '1-2 Hours', '2-3 Hours', '3-4 Hours'];
+const VIDEO_DURATION_HOURS = ['Full Event', '0-1 Hours', '1-2 Hours', '2-3 Hours', '3-4 Hours', 'Custom'];
 const VIDEO_DURATION_SHORT = ['1-2 Minutes', '3-5 Minutes', '5-10 Minutes', 'Custom'];
-const VIDEO_DURATIONS = VIDEO_DURATION_HOURS.concat(VIDEO_DURATION_SHORT);
+const VIDEO_DURATIONS = VIDEO_DURATION_HOURS.concat(
+  VIDEO_DURATION_SHORT.filter(function (x) {
+    return x !== 'Custom';
+  })
+).concat(['Custom']);
+
+function videoUsesHourDurations(name) {
+  if (name === 'Full-Length Video' || name === 'Traditional Video') return true;
+  if (
+    name === 'Highlight Video' ||
+    name === 'Cinematic Video' ||
+    name === 'Teaser Video' ||
+    name === 'Reel'
+  ) {
+    return false;
+  }
+  const n = String(name || '').toLowerCase();
+  if (/full|traditional|documentary/.test(n)) return true;
+  if (/highlight|reel|teaser|cinematic/.test(n)) return false;
+  return true;
+}
+
+function videoDurationOptionsForName(name) {
+  return videoUsesHourDurations(name) ? VIDEO_DURATION_HOURS : VIDEO_DURATION_SHORT;
+}
 
 function defaultVideoDurationForName(name) {
   if (name === 'Full-Length Video' || name === 'Traditional Video') return '2-3 Hours';
   if (name === 'Highlight Video') return '3-5 Minutes';
   if (name === 'Cinematic Video') return '5-10 Minutes';
   if (name === 'Teaser Video' || name === 'Reel') return '1-2 Minutes';
-  return 'Full Event';
-}
-
-function videoDurationSelectOptions(selected) {
-  const list = VIDEO_DURATIONS.slice();
-  if (selected && list.indexOf(selected) < 0) list.unshift(selected);
-  return list;
+  return videoUsesHourDurations(name) ? 'Full Event' : '3-5 Minutes';
 }
 
 function renderVideoDurationSelect(name, selected) {
   const sel = selected || defaultVideoDurationForName(name);
-  const hourOpts = VIDEO_DURATION_HOURS.map(function (v) {
-    return '<option' + (sel === v ? ' selected' : '') + '>' + v + '</option>';
-  }).join('');
-  const shortOpts = VIDEO_DURATION_SHORT.map(function (v) {
-    return '<option' + (sel === v ? ' selected' : '') + '>' + v + '</option>';
-  }).join('');
-  const legacy =
-    sel && VIDEO_DURATIONS.indexOf(sel) < 0
-      ? '<option selected>' + esc(sel) + '</option>'
-      : '';
+  const options = videoDurationOptionsForName(name);
+  let legacy = '';
+  if (sel && options.indexOf(sel) < 0) {
+    legacy = '<option selected>' + esc(sel) + '</option>';
+  }
   return (
     '<select data-video-dur="' +
     esc(name) +
     '">' +
     legacy +
-    '<optgroup label="Hours (full-length style)">' +
-    hourOpts +
-    '</optgroup><optgroup label="Minutes (highlight / reel)">' +
-    shortOpts +
-    '</optgroup></select>'
+    options
+      .map(function (v) {
+        return '<option' + (sel === v && !legacy ? ' selected' : sel === v && legacy ? '' : sel === v ? ' selected' : '') + '>' + v + '</option>';
+      })
+      .join('')
+      .replace(/selected="" /g, '')
   );
 }
 const VIDEO_FORMATS = ['MP4 (Full HD)', 'MP4 (4K)', 'MOV (4K)'];
