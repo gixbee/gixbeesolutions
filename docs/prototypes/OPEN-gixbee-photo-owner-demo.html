@@ -593,6 +593,11 @@ button.manage-pill{cursor:pointer;font:inherit;color:var(--blue);border-color:#B
 .del-album-list .del-fields{grid-template-columns:1fr;border-top-color:#E8ECF0}
 .del-album-list .album-finish-hint{margin:0 0 6px;font-size:11px;line-height:1.35;color:var(--mut)}
 .del-album-list .album-page-finish-fld select{width:100%}
+.del-album-list .album-finish-panel{margin-top:8px}
+.del-album-list .album-finish-panel[hidden]{display:none}
+.del-album-list .album-finish-customer-hint{margin:0 0 8px}
+.del-album-list .album-finish-choices{display:flex;flex-direction:column;gap:6px}
+.del-album-list .album-finish-opt.chk-row{margin:0;padding:10px 12px}
 .del-fields{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px;padding-top:10px;border-top:1px dashed var(--line)}
 .dig-row{display:flex;gap:10px;align-items:flex-start;padding:12px;border:1px solid var(--line);border-radius:12px;margin-bottom:8px;cursor:pointer;background:#fff}
 .dig-row.on{border-color:#86EFAC;background:#F0FDF4}
@@ -939,6 +944,7 @@ const ALBUM_MAIN_TYPES = ['Photo Album'];
 const COMPLIMENTARY_PRINT_TYPES = ['Calendar', 'Mini Album', 'Photo Frame'];
 const ALBUM_PRINT_TYPES = ALBUM_MAIN_TYPES.concat(COMPLIMENTARY_PRINT_TYPES);
 const ALBUM_PAGE_FINISHES = ['Matte', 'Glossy', 'Lustre', 'Silk', 'Metallic'];
+const ALBUM_PAGE_FINISH_CUSTOMER_OPTIONS = ['Matte', 'Glossy'];
 const DIGITAL_DELIVER = [
   { id: 'Google Drive Link', icon: '📁', desc: 'Share high-resolution files via Google Drive.' },
   { id: 'Online Gallery', icon: '🔗', desc: 'Private online gallery for easy access.' },
@@ -1566,22 +1572,90 @@ function albumComplimentaryField(row) {
   );
 }
 
+function normalizeAlbumFinishRow(row) {
+  if (!row) return;
+  if (row.pageFinishPolicy !== 'customer') row.pageFinishPolicy = 'studio';
+  if (!row.pageFinishCustomerOptions || !row.pageFinishCustomerOptions.length) {
+    row.pageFinishCustomerOptions = ALBUM_PAGE_FINISH_CUSTOMER_OPTIONS.slice();
+  }
+}
+
 function albumPageFinishValue(row) {
   const f = row && row.pageFinish;
   if (f && ALBUM_PAGE_FINISHES.indexOf(f) >= 0) return f;
   return 'Matte';
 }
 
+function albumPageFinishSummaryText(row) {
+  normalizeAlbumFinishRow(row);
+  if (row.pageFinishPolicy === 'customer') {
+    const opts = row.pageFinishCustomerOptions.filter(function (x) {
+      return ALBUM_PAGE_FINISH_CUSTOMER_OPTIONS.indexOf(x) >= 0;
+    });
+    const use = opts.length ? opts : ALBUM_PAGE_FINISH_CUSTOMER_OPTIONS.slice();
+    if (use.length === 2) return 'customer chooses Matte or Glossy';
+    return 'customer chooses ' + use.join(' or ');
+  }
+  return albumPageFinishValue(row) + ' pages';
+}
+
+function readAlbumFinishFromCard(card, row) {
+  if (!card || !row) return;
+  normalizeAlbumFinishRow(row);
+  const policySel = card.querySelector('[data-album-finish-policy]');
+  if (policySel) row.pageFinishPolicy = policySel.value === 'customer' ? 'customer' : 'studio';
+  const finishSel = card.querySelector('[data-album-page-finish]');
+  if (finishSel) row.pageFinish = finishSel.value;
+  const offered = [];
+  card.querySelectorAll('[data-album-finish-offered]:checked').forEach(function (chk) {
+    if (chk.value) offered.push(chk.value);
+  });
+  if (row.pageFinishPolicy === 'customer') {
+    row.pageFinishCustomerOptions = offered.length ? offered : ALBUM_PAGE_FINISH_CUSTOMER_OPTIONS.slice();
+  }
+}
+
 function renderAlbumPageFinishField(row) {
+  normalizeAlbumFinishRow(row);
+  const policy = row.pageFinishPolicy;
   const val = albumPageFinishValue(row);
+  const offered = row.pageFinishCustomerOptions;
   return (
     '<div class="fld album-page-finish-fld"><label>Page finish</label>' +
     '<p class="hint album-finish-hint">Inner album pages — not the outer cover.</p>' +
-    '<select data-album-page-finish>' +
+    '<div class="fld album-finish-policy-fld"><label>Who chooses?</label><select data-album-finish-policy>' +
+    '<option value="studio"' +
+    (policy === 'studio' ? ' selected' : '') +
+    '>Studio sets finish (shown in package)</option>' +
+    '<option value="customer"' +
+    (policy === 'customer' ? ' selected' : '') +
+    '>Customer chooses (Matte or Glossy)</option></select></div>' +
+    '<div class="album-finish-panel album-finish-studio"' +
+    (policy === 'studio' ? '' : ' hidden') +
+    '><div class="fld"><label>Included finish</label><select data-album-page-finish>' +
     ALBUM_PAGE_FINISHES.map(function (opt) {
       return '<option' + (val === opt ? ' selected' : '') + '>' + opt + '</option>';
     }).join('') +
-    '</select></div>'
+    '</select></div></div>' +
+    '<div class="album-finish-panel album-finish-customer"' +
+    (policy === 'customer' ? '' : ' hidden') +
+    '><p class="hint album-finish-customer-hint">Shown to customers as: they pick one when designing the album.</p>' +
+    '<div class="album-finish-choices">' +
+    ALBUM_PAGE_FINISH_CUSTOMER_OPTIONS.map(function (opt) {
+      const on = offered.indexOf(opt) >= 0;
+      return (
+        '<label class="chk-row album-finish-opt' +
+        (on ? ' on' : '') +
+        '"><input type="checkbox" data-album-finish-offered value="' +
+        esc(opt) +
+        '" ' +
+        (on ? 'checked' : '') +
+        '> ' +
+        esc(opt) +
+        '</label>'
+      );
+    }).join('') +
+    '</div></div></div>'
   );
 }
 
@@ -1593,6 +1667,8 @@ function defaultAlbumPrints() {
       size: '12 x 18 inch',
       cover: 'Premium',
       pageFinish: 'Matte',
+      pageFinishPolicy: 'studio',
+      pageFinishCustomerOptions: ALBUM_PAGE_FINISH_CUSTOMER_OPTIONS.slice(),
     },
     Calendar: { on: false, qty: 1, size: 'A3', type: 'Wall Calendar', complimentary: true },
     'Mini Album': {
@@ -1601,6 +1677,8 @@ function defaultAlbumPrints() {
       size: '6 x 6 inch',
       cover: 'Standard',
       pageFinish: 'Matte',
+      pageFinishPolicy: 'studio',
+      pageFinishCustomerOptions: ALBUM_PAGE_FINISH_CUSTOMER_OPTIONS.slice(),
       complimentary: true,
     },
     'Photo Frame': { on: false, qty: 1, size: '12 x 18 inch', type: 'Acrylic', complimentary: true },
@@ -2556,8 +2634,7 @@ function readAlbumFieldsFromDom(d) {
       if (pages) d.albumPrints[name].pages = +pages.value || 40;
       if (sizeSel) d.albumPrints[name].size = sizeSel.value;
       if (coverSel) d.albumPrints[name].cover = coverSel.value;
-      const finishA = card.querySelector('[data-album-page-finish]');
-      if (finishA) d.albumPrints[name].pageFinish = finishA.value;
+      readAlbumFinishFromCard(card, d.albumPrints[name]);
       const compA = card.querySelector('[data-album-complimentary]');
       if (compA) d.albumPrints[name].complimentary = compA.checked;
     } else {
@@ -2566,8 +2643,7 @@ function readAlbumFieldsFromDom(d) {
       const selects = card.querySelectorAll('.del-fields select');
       if (selects[0]) d.albumPrints[name].size = selects[0].value;
       if (selects[1]) d.albumPrints[name].type = selects[1].value;
-      const finishB = card.querySelector('[data-album-page-finish]');
-      if (finishB) d.albumPrints[name].pageFinish = finishB.value;
+      readAlbumFinishFromCard(card, d.albumPrints[name]);
       const compB = card.querySelector('[data-album-complimentary]');
       if (compB) d.albumPrints[name].complimentary = compB.checked;
     }
@@ -3293,13 +3369,10 @@ function pkgDeliverSummary(d) {
       if (d.albumPrints[name] && d.albumPrints[name].on) {
         if (name === 'Photo Album' && d.albumPrints[name].pages) {
           albums.push(
-            d.albumPrints[name].pages +
-              'pg album (' +
-              albumPageFinishValue(d.albumPrints[name]) +
-              ' pages)'
+            d.albumPrints[name].pages + 'pg album (' + albumPageFinishSummaryText(d.albumPrints[name]) + ')'
           );
         } else if (name === 'Mini Album') {
-          albums.push(name + ' (' + albumPageFinishValue(d.albumPrints[name]) + ' pages)');
+          albums.push(name + ' (' + albumPageFinishSummaryText(d.albumPrints[name]) + ')');
         } else albums.push(name);
       }
     });
@@ -3546,6 +3619,11 @@ function bindPkgWizard(d) {
   };
   body.onchange = function (e) {
     const t = e.target;
+    if (t.matches('[data-album-finish-policy]')) {
+      readPkgWizardFields(d);
+      renderWizardBody();
+      return;
+    }
     if (t.matches('[data-fn]')) {
       const fn = t.getAttribute('data-fn');
       if (t.checked) {
@@ -5494,7 +5572,7 @@ function bindPhotoCalendarUi() {
   });
 }
 
-const PHOTO_OWNER_BUILD = '2026-10-11-photo-owner-album-finish-v29';
+const PHOTO_OWNER_BUILD = '2026-10-11-photo-owner-album-finish-choice-v30';
 
 function photoOwnerDemoFileName() {
   try {
