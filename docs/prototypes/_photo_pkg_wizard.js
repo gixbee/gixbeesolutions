@@ -1441,7 +1441,7 @@ function renderFnCoverageStep(d) {
   if (pkgNeedsCoverageSideUi(d)) {
     const pkgSide = resolvePkgCoverageSide(d);
     html +=
-      '<div class="fld fn-cov-pkg-side"><label>Coverage side</label><p class="hint" style="margin:-2px 0 8px">Applies to all wedding functions in this package (not couple shoots).</p><div class="seg seg-full">' +
+      '<div class="fld fn-cov-pkg-side"><label>Coverage side</label><p class="hint" style="margin:-2px 0 8px">Applies to all wedding functions in this package.</p><div class="seg seg-full">' +
       '<button type="button" class="' +
       (pkgSide === 'single' ? 'on' : '') +
       '" data-pkg-cov-side="single">Single side</button>' +
