@@ -441,6 +441,13 @@ button.manage-pill{cursor:pointer;font:inherit;color:var(--blue);border-color:#B
 .extra-row select,.extra-row input:not([type=checkbox]){padding:6px;font-size:11px;border-radius:8px;border:1px solid var(--line);width:100%;box-sizing:border-box}
 .extra-pay-fields{display:none}
 .extra-row.mode-extra .extra-pay-fields{display:contents}
+.extra-included-block{grid-column:1/-1;display:none;padding:4px 0 6px 28px;border-top:1px dashed var(--line);margin-top:4px}
+.extra-row.mode-included .extra-included-block{display:block}
+.extra-included-block label.extra-hourly-chk{display:flex;align-items:center;gap:8px;font-size:11px;color:var(--navy);cursor:pointer;margin:0}
+.extra-hourly-fields{display:none;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px}
+.extra-row.mode-included.hourly-on .extra-hourly-fields{display:grid}
+.extra-hourly-fields .fld{margin:0}
+.extra-hourly-fields .fld label{font-size:10px;color:var(--muted);display:block;margin-bottom:4px}
 .extra-row .pay-del{width:32px;height:32px;border-radius:8px;background:#FEF2F2;display:grid;place-items:center;font-size:14px;line-height:1;border:1px solid #FECACA;cursor:pointer}
 .album-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 .del-row label{font-size:12px}
@@ -1389,9 +1396,48 @@ function pkgExtraDefaults() {
       mode: name === 'Live Streaming' ? 'included' : 'extra',
       price: name === PKG_AERIAL_EXTRA ? 10000 : hourly ? 5000 : 8000,
       basis: hourly ? 'Per Hour' : 'Per Event',
+      hourlyLimit: false,
+      includedHours: 4,
+      extraHour: 2000,
     };
+    if (name === 'Live Streaming') {
+      o[name].hourlyLimit = true;
+      o[name].includedHours = 4;
+      o[name].extraHour = 2000;
+    }
   });
   return o;
+}
+
+function extraIncludedHourlyFields(x) {
+  const hourlyLimit = !!x.hourlyLimit;
+  const incl = x.includedHours != null ? x.includedHours : 4;
+  const extra = x.extraHour != null ? x.extraHour : 0;
+  return (
+    '<div class="extra-included-block">' +
+    '<label class="extra-hourly-chk"><input type="checkbox" data-extra-hourly-on ' +
+    (hourlyLimit ? 'checked' : '') +
+    '> Hourly inclusion (limit included hours)</label>' +
+    '<div class="extra-hourly-fields">' +
+    '<div class="fld"><label>Included hours</label><input type="number" min="0" step="1" data-extra-included-hours value="' +
+    incl +
+    '"></div>' +
+    '<div class="fld"><label>Extra hour charge (₹)</label><input type="number" min="0" step="500" data-extra-hour-after value="' +
+    extra +
+    '"><span class="hint"> / hour after included</span></div></div></div>'
+  );
+}
+
+function readExtraHourlyFieldsFromRow(row, target, prev) {
+  const hourlyOn = row.querySelector('[data-extra-hourly-on]');
+  const inclH = row.querySelector('[data-extra-included-hours]');
+  const extraH = row.querySelector('[data-extra-hour-after]');
+  if (hourlyOn) target.hourlyLimit = hourlyOn.checked;
+  else if (prev.hourlyLimit != null) target.hourlyLimit = prev.hourlyLimit;
+  if (inclH) target.includedHours = +inclH.value || 0;
+  else if (prev.includedHours != null) target.includedHours = prev.includedHours;
+  if (extraH) target.extraHour = +extraH.value || 0;
+  else if (prev.extraHour != null) target.extraHour = prev.extraHour;
 }
 
 function defaultPhotoDetails() {
@@ -1721,13 +1767,17 @@ function readExtrasFieldsFromDom(d) {
       const price =
         priceEl && priceEl.value !== '' ? +(priceEl.value || 0) : prev.price != null ? prev.price : 0;
       const basis = basisEl && basisEl.value ? basisEl.value : prev.basis || 'Per Event';
-      d.extras[name] = { mode: 'included', price: price, basis: basis };
+      const rowData = { mode: 'included', price: price, basis: basis };
+      readExtraHourlyFieldsFromRow(row, rowData, prev);
+      d.extras[name] = rowData;
     } else {
-      d.extras[name] = {
+      const rowData = {
         mode: 'extra',
         price: +(priceEl && priceEl.value !== '' ? priceEl.value : prev.price != null ? prev.price : 0),
         basis: basisEl && basisEl.value ? basisEl.value : prev.basis || 'Per Event',
       };
+      readExtraHourlyFieldsFromRow(row, rowData, prev);
+      d.extras[name] = rowData;
     }
   });
 }
@@ -1738,11 +1788,20 @@ function renderWizardExtrasStep(d, namesFn, addLinkLabel) {
     '<div id="f_extraRows">' +
     namesFn(d)
       .map(function (name) {
-        const x = d.extras[name] || { mode: 'extra', price: 0, basis: 'Per Event' };
+        const x = d.extras[name] || {
+          mode: 'extra',
+          price: 0,
+          basis: 'Per Event',
+          hourlyLimit: false,
+          includedHours: 4,
+          extraHour: 0,
+        };
         const modeCls = x.mode === 'included' ? 'mode-included' : 'mode-extra';
+        const hourlyCls = x.mode === 'included' && x.hourlyLimit ? ' hourly-on' : '';
         return (
           '<div class="extra-row ' +
           modeCls +
+          hourlyCls +
           '" data-extra-name="' +
           esc(name) +
           '"><span class="extra-ico">✦</span><b class="extra-name">' +
@@ -1764,7 +1823,9 @@ function renderWizardExtrasStep(d, namesFn, addLinkLabel) {
           '>Per Hour</option></select></div>' +
           '<button type="button" class="pay-del" data-action="remove-extra" data-extra-name="' +
           esc(name) +
-          '" title="Remove service" aria-label="Remove service">🗑</button></div>'
+          '" title="Remove service" aria-label="Remove service">🗑</button>' +
+          extraIncludedHourlyFields(x) +
+          '</div>'
         );
       })
       .join('') +
@@ -1790,15 +1851,35 @@ function handleExtraModeSelectChange(e, d) {
       mode: 'included',
       price: priceEl ? +(priceEl.value || 0) : prev.price != null ? prev.price : 0,
       basis: basisEl ? basisEl.value : prev.basis || 'Per Event',
+      hourlyLimit: prev.hourlyLimit != null ? prev.hourlyLimit : false,
+      includedHours: prev.includedHours != null ? prev.includedHours : 4,
+      extraHour: prev.extraHour != null ? prev.extraHour : 0,
     };
+    readExtraHourlyFieldsFromRow(row, d.extras[name], prev);
   } else {
     const price = prev.price != null ? prev.price : +(priceEl && priceEl.value ? priceEl.value : 0);
     const basis = prev.basis || (basisEl ? basisEl.value : 'Per Event');
-    d.extras[name] = { mode: 'extra', price: price, basis: basis };
+    d.extras[name] = {
+      mode: 'extra',
+      price: price,
+      basis: basis,
+      hourlyLimit: prev.hourlyLimit,
+      includedHours: prev.includedHours,
+      extraHour: prev.extraHour,
+    };
     if (priceEl) priceEl.value = String(price);
     if (basisEl) basisEl.value = basis;
   }
   applyExtraRowMode(row, mode);
+  row.classList.toggle('hourly-on', mode === 'included' && d.extras[name].hourlyLimit);
+  return true;
+}
+
+function handleExtraHourlyCheckboxChange(e) {
+  const t = e.target;
+  if (!t.matches('[data-extra-hourly-on]')) return false;
+  const row = t.closest('.extra-row');
+  if (row) row.classList.toggle('hourly-on', t.checked);
   return true;
 }
 
@@ -1812,7 +1893,14 @@ function runExtraWizardAction(act, t, d, readFields, presetNames) {
       if (!d.customExtras) d.customExtras = [];
       if (!d.extras) d.extras = {};
       d.customExtras.push({ name: trimmed });
-      d.extras[trimmed] = { mode: 'extra', price: 5000, basis: 'Per Event' };
+      d.extras[trimmed] = {
+        mode: 'extra',
+        price: 5000,
+        basis: 'Per Event',
+        hourlyLimit: false,
+        includedHours: 4,
+        extraHour: 0,
+      };
       if (d.excludedExtras) {
         d.excludedExtras = d.excludedExtras.filter(function (x) {
           return x !== trimmed;
@@ -3170,6 +3258,7 @@ function bindPkgWizard(d) {
       if (attr === 'data-pol') renderWizardBody();
     });
     if (handleExtraModeSelectChange(e, d)) return;
+    if (handleExtraHourlyCheckboxChange(e)) return;
   };
   document.querySelectorAll('[data-fn-duration]').forEach(function (sel) {
     sel.onchange = function () {
@@ -5050,7 +5139,7 @@ function bindPhotoCalendarUi() {
   });
 }
 
-const PHOTO_OWNER_BUILD = '2026-10-11-photo-owner-drone-helicam-svc-v16';
+const PHOTO_OWNER_BUILD = '2026-10-11-photo-owner-extra-hourly-included-v17';
 
 function photoOwnerDemoFileName() {
   try {

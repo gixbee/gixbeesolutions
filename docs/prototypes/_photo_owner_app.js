@@ -1,4 +1,4 @@
-const PHOTO_OWNER_BUILD = '2026-10-11-photo-owner-drone-helicam-svc-v16';
+const PHOTO_OWNER_BUILD = '2026-10-11-photo-owner-extra-hourly-included-v17';
 
 function photoOwnerDemoFileName() {
   try {

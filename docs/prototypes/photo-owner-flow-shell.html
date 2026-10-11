@@ -439,6 +439,13 @@ button.manage-pill{cursor:pointer;font:inherit;color:var(--blue);border-color:#B
 .extra-row select,.extra-row input:not([type=checkbox]){padding:6px;font-size:11px;border-radius:8px;border:1px solid var(--line);width:100%;box-sizing:border-box}
 .extra-pay-fields{display:none}
 .extra-row.mode-extra .extra-pay-fields{display:contents}
+.extra-included-block{grid-column:1/-1;display:none;padding:4px 0 6px 28px;border-top:1px dashed var(--line);margin-top:4px}
+.extra-row.mode-included .extra-included-block{display:block}
+.extra-included-block label.extra-hourly-chk{display:flex;align-items:center;gap:8px;font-size:11px;color:var(--navy);cursor:pointer;margin:0}
+.extra-hourly-fields{display:none;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px}
+.extra-row.mode-included.hourly-on .extra-hourly-fields{display:grid}
+.extra-hourly-fields .fld{margin:0}
+.extra-hourly-fields .fld label{font-size:10px;color:var(--muted);display:block;margin-bottom:4px}
 .extra-row .pay-del{width:32px;height:32px;border-radius:8px;background:#FEF2F2;display:grid;place-items:center;font-size:14px;line-height:1;border:1px solid #FECACA;cursor:pointer}
 .album-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 .del-row label{font-size:12px}
