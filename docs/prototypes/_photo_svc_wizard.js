@@ -7,16 +7,20 @@ const SVC_PRICE_TYPES = [
   { id: 'hour', label: 'Per hour' },
   { id: 'unit', label: 'Per item / unit' },
 ];
-const SVC_EXTRA_DEFAULTS = [
+const SVC_ONLY_EXTRA_DEFAULTS = [
   { name: 'Extra 10 Edited Photos', price: 500, unit: 'Per Set' },
   { name: 'Extra Hour', price: 1000, unit: 'Per Hour' },
-  { name: 'Live Streaming', price: 5000, unit: 'Per Event' },
-  { name: 'Drone / Helicam', price: 10000, unit: 'Per Event' },
 ];
 
+function svcPresetExtraNames() {
+  return SVC_ONLY_EXTRA_DEFAULTS.map(function (x) {
+    return x.name;
+  }).concat(PKG_EXTRA_DEFAULTS);
+}
+
 function svcExtraDefaults() {
-  const o = {};
-  SVC_EXTRA_DEFAULTS.forEach(function (row) {
+  const o = typeof pkgExtraDefaults === 'function' ? pkgExtraDefaults() : {};
+  SVC_ONLY_EXTRA_DEFAULTS.forEach(function (row) {
     o[row.name] = {
       mode: 'extra',
       price: row.price != null ? row.price : 0,
@@ -28,9 +32,7 @@ function svcExtraDefaults() {
 
 function allSvcExtrasNames(d) {
   const excluded = d.excludedExtras || [];
-  return SVC_EXTRA_DEFAULTS.map(function (x) {
-    return x.name;
-  })
+  return svcPresetExtraNames()
     .concat((d.customExtras || []).map(function (x) {
       return x.name;
     }))
@@ -44,6 +46,7 @@ function svcExtraUnitToBasis(unit) {
 }
 
 function ensureSvcExtrasModel(d) {
+  if (typeof migrateDroneHelicamExtra === 'function') migrateDroneHelicamExtra(d);
   if (!d.extras) d.extras = {};
   if (!d.customExtras) d.customExtras = [];
   if (!d.excludedExtras) d.excludedExtras = [];
@@ -58,9 +61,7 @@ function ensureSvcExtrasModel(d) {
     legacy.forEach(function (row) {
       const name = (row.name || '').trim();
       if (!name) return;
-      const preset = SVC_EXTRA_DEFAULTS.some(function (x) {
-        return x.name === name;
-      });
+      const preset = svcPresetExtraNames().indexOf(name) >= 0;
       if (
         !preset &&
         !d.customExtras.some(function (x) {
@@ -172,6 +173,7 @@ function recordToPkgDraft(rec) {
   const base = newPkgDraft();
   const m = JSON.parse(JSON.stringify(rec || {}));
   const merged = Object.assign(base, m);
+  migrateDroneHelicamExtra(merged);
   migrateLegacyPkgCoverage(merged);
   merged.photoDetails = Object.assign({}, base.photoDetails, m.photoDetails || {});
   merged.videoDetails = Object.assign({}, base.videoDetails, m.videoDetails || {});
@@ -535,9 +537,7 @@ function bindSvcWizard(d) {
           t,
           d,
           readSvcWizardFields,
-          SVC_EXTRA_DEFAULTS.map(function (x) {
-            return x.name;
-          })
+          svcPresetExtraNames()
         )
       )
         return;

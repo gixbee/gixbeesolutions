@@ -644,9 +644,11 @@ function defaultFnCoverage(fnName, fromTemplate) {
   };
 }
 
+const AERIAL_EXTRA_LEGACY = ['Drone', 'Heli Cam', 'Drone Coverage'];
+
 function migrateDroneHelicamExtra(d) {
   if (!d) return;
-  const LEGACY = ['Drone', 'Heli Cam'];
+  const LEGACY = AERIAL_EXTRA_LEGACY;
   if (!d.extras) d.extras = {};
   const hadLegacy = LEGACY.some(function (k) {
     return d.extras[k];
@@ -674,7 +676,9 @@ function migrateDroneHelicamExtra(d) {
     const next = d.excludedExtras.filter(function (k) {
       return LEGACY.indexOf(k) < 0;
     });
-    if (legacyExcluded.length === 2 && next.indexOf(PKG_AERIAL_EXTRA) < 0) next.push(PKG_AERIAL_EXTRA);
+    if (legacyExcluded.length === LEGACY.length && next.indexOf(PKG_AERIAL_EXTRA) < 0) {
+      next.push(PKG_AERIAL_EXTRA);
+    }
     d.excludedExtras = next;
   }
 }

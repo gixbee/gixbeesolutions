@@ -1,4 +1,4 @@
-const PHOTO_OWNER_BUILD = '2026-10-11-photo-owner-drone-helicam-extra-v15';
+const PHOTO_OWNER_BUILD = '2026-10-11-photo-owner-drone-helicam-svc-v16';
 
 function photoOwnerDemoFileName() {
   try {
@@ -266,6 +266,10 @@ function loadStore() {
     (store.packages || []).forEach(function (p) {
       if (typeof migrateDroneHelicamExtra === 'function') migrateDroneHelicamExtra(p);
       if (typeof migrateLegacyPkgCoverage === 'function') migrateLegacyPkgCoverage(p);
+    });
+    (store.services || []).forEach(function (s) {
+      if (typeof migrateDroneHelicamExtra === 'function') migrateDroneHelicamExtra(s);
+      if (typeof ensureSvcExtrasModel === 'function') ensureSvcExtrasModel(s);
     });
   } catch (_e) {
     store = defaultStore();
