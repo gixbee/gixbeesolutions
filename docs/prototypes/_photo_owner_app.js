@@ -1,4 +1,4 @@
-const PHOTO_OWNER_BUILD = '2026-10-11-photo-owner-extra-hourly-copy-v25';
+const PHOTO_OWNER_BUILD = '2026-10-11-photo-owner-deliverables-both-sides-v26';
 
 function photoOwnerDemoFileName() {
   try {

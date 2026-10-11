@@ -574,15 +574,23 @@ button.manage-pill{cursor:pointer;font:inherit;color:var(--blue);border-color:#B
 .del-sec-title{font-size:15px;font-weight:900;color:var(--navy);margin:0 0 4px}
 .del-card{border:1px solid var(--line);border-radius:14px;padding:12px;margin-bottom:10px;background:#fff}
 .del-card.on{border-color:#86EFAC;background:#FAFFFE}
+.del-album-list .del-card{border-color:#E2E8F0;border-radius:12px;padding:14px 12px;margin-bottom:12px;box-shadow:0 1px 0 rgba(15,23,42,.04)}
+.del-album-list .del-card.on{border-color:#CBD5E1;background:#fff}
 .del-card-hd{display:flex;gap:10px;align-items:flex-start;width:100%}
+.del-album-list .del-card-hd{align-items:center;gap:12px}
 .del-card-hd .del-meta{flex:1;min-width:0}
 .del-card-remove{margin-left:auto;flex-shrink:0;width:32px;height:32px;border-radius:8px;background:#FEF2F2;border:1px solid #FECACA;display:grid;place-items:center;font-size:14px;cursor:pointer;padding:0}
 .dig-row-wrap{display:flex;align-items:flex-start;gap:8px;margin-bottom:8px}
 .dig-row-wrap .dig-row{flex:1;margin:0}
 .del-chk{flex-shrink:0;margin-top:4px}
+.del-album-list .del-chk{margin-top:0}
+.del-album-list .del-chk input{width:18px;height:18px}
 .del-thumb{width:52px;height:52px;border-radius:10px;background:linear-gradient(145deg,#CBD5E1,#94A3B8);display:grid;place-items:center;font-size:18px;flex-shrink:0}
+.del-album-list .del-thumb{width:56px;height:56px;border-radius:12px;background:linear-gradient(160deg,#E8EDF5 0%,#D5DCE8 100%);font-size:24px}
 .del-meta{flex:1;min-width:0}
 .del-meta b{font-size:13px;color:var(--navy)}
+.del-album-list .del-meta b{font-size:15px;font-weight:800}
+.del-album-list .del-fields{grid-template-columns:1fr;border-top-color:#E8ECF0}
 .del-fields{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px;padding-top:10px;border-top:1px dashed var(--line)}
 .dig-row{display:flex;gap:10px;align-items:flex-start;padding:12px;border:1px solid var(--line);border-radius:12px;margin-bottom:8px;cursor:pointer;background:#fff}
 .dig-row.on{border-color:#86EFAC;background:#F0FDF4}
@@ -1517,9 +1525,6 @@ function ensurePkgMarketingFields(d) {
   if (d.shootUnlimitedClicks == null) d.shootUnlimitedClicks = false;
   if (d.equipmentNote == null) d.equipmentNote = '';
   if (d.qualityNote == null) d.qualityNote = '';
-  if (d.albumPrints && d.albumPrints['Photo Album'] && d.albumPrints['Photo Album'].sets == null) {
-    d.albumPrints['Photo Album'].sets = 1;
-  }
   if (d.albumPrints) {
     Object.keys(d.albumPrints).forEach(function (k) {
       if (d.albumPrints[k].complimentary == null) d.albumPrints[k].complimentary = false;
@@ -1537,7 +1542,7 @@ function albumComplimentaryField(row) {
 
 function defaultAlbumPrints() {
   return {
-    'Photo Album': { on: true, pages: 40, sets: 1, size: '12 x 18 inch', cover: 'Premium' },
+    'Photo Album': { on: true, pages: 40, size: '12 x 18 inch', cover: 'Premium' },
     Calendar: { on: false, qty: 1, size: 'A3', type: 'Wall Calendar', complimentary: true },
     'Mini Album': { on: false, qty: 1, size: '6 x 6 inch', cover: 'Standard', complimentary: true },
     'Photo Frame': { on: false, qty: 1, size: '12 x 18 inch', type: 'Acrylic', complimentary: true },
@@ -2061,7 +2066,7 @@ function renderDelTabs(active) {
   const tabs = [
     { id: 'photos', label: '📷 Photos' },
     { id: 'videos', label: '🎬 Videos' },
-    { id: 'albums', label: '📚 Albums & prints' },
+    { id: 'albums', label: '📚 Albums' },
     { id: 'digital', label: '☁ Digital' },
   ];
   return (
@@ -2265,44 +2270,48 @@ function renderVideoDeliverTab(d) {
   );
 }
 
-function renderAlbumPrintCard(name, d, opts) {
-  opts = opts || {};
-  const complimentarySection = !!opts.complimentarySection;
+function albumPrintThumbIcon(name) {
+  if (name === 'Photo Album') return '📕';
+  if (name === 'Calendar') return '🗓️';
+  if (name === 'Mini Album') return '📔';
+  if (name === 'Photo Frame') return '🖼️';
+  return '🖼️';
+}
+
+function renderAlbumPrintCard(name, d) {
   if (!d.albumPrints) d.albumPrints = defaultAlbumPrints();
   const row = d.albumPrints[name] || { on: false };
   const on = !!row.on;
-  if (name === 'Photo Album') {
-    return (
-      '<div class="del-card' +
-      (on ? ' on' : '') +
-      '"><div class="del-card-hd"><label class="del-chk"><input type="checkbox" data-album-type="' +
+  const showComplimentary =
+    COMPLIMENTARY_PRINT_TYPES.indexOf(name) >= 0 && row.complimentary == null
+      ? (row.complimentary = true)
+      : COMPLIMENTARY_PRINT_TYPES.indexOf(name) >= 0;
+  let fields = '';
+  if (on && name === 'Photo Album') {
+    fields =
+      '<div class="del-fields">' +
+      '<div class="fld"><label>Pages</label><input type="number" data-album-pages value="' +
+      (row.pages || 40) +
+      '"></div>' +
+      '<div class="fld"><label>Size</label><select data-album-size><option' +
+      ((row.size || '').indexOf('12') >= 0 ? ' selected' : '') +
+      '>12 x 18 inch</option><option>10 x 12 inch</option></select></div>' +
+      '<div class="fld"><label>Cover type</label><select data-album-cover><option' +
+      (row.cover === 'Premium' ? ' selected' : '') +
+      '>Premium</option><option>Standard</option></select></div></div>';
+  } else if (on) {
+    fields =
+      '<div class="del-fields">' +
+      '<div class="fld"><label>Quantity</label><input type="number" data-album-qty value="' +
+      (row.qty || 1) +
+      '"></div>' +
+      '<div class="fld"><label>Size</label><select data-album-size-' +
       esc(name) +
-      '" ' +
-      (on ? 'checked' : '') +
-      '></label><div class="del-thumb">📕</div><div class="del-meta"><b>' +
-      esc(name) +
-      '</b></div>' +
-      (isCustomAlbumPrint(d, name) ? customDeliverableDelBtn('remove-del-album', name) : '') +
-      '</div>' +
-      (on
-        ? '<div class="del-fields">' +
-          '<div class="fld"><label>Pages</label><input type="number" data-album-pages value="' +
-          (row.pages || 40) +
-          '"></div>' +
-          '<div class="fld"><label>Album sets</label><input type="number" min="1" step="1" data-album-sets value="' +
-          (row.sets != null ? row.sets : 1) +
-          '"><span class="hint"> e.g. 2 for bride &amp; groom</span></div>' +
-          '<div class="fld"><label>Size</label><select data-album-size><option' +
-          ((row.size || '').indexOf('12') >= 0 ? ' selected' : '') +
-          '>12 x 18 inch</option><option>10 x 12 inch</option></select></div>' +
-          '<div class="fld"><label>Cover type</label><select data-album-cover><option' +
-          (row.cover === 'Premium' ? ' selected' : '') +
-          '>Premium</option><option>Standard</option></select></div></div>'
-        : '') +
-      '</div>'
-    );
+      '><option>A3</option><option>A4</option><option>6 x 6 inch</option><option>12 x 18 inch</option></select></div>' +
+      '<div class="fld"><label>Type</label><select data-album-type-opt><option>Wall Calendar</option><option>Desk Calendar</option><option>Acrylic</option><option>Standard</option></select></div>' +
+      (showComplimentary ? albumComplimentaryField(row) : '') +
+      '</div>';
   }
-  if (complimentarySection && row.complimentary == null) row.complimentary = true;
   return (
     '<div class="del-card' +
     (on ? ' on' : '') +
@@ -2310,23 +2319,14 @@ function renderAlbumPrintCard(name, d, opts) {
     esc(name) +
     '" ' +
     (on ? 'checked' : '') +
-    '></label><div class="del-thumb">🖼</div><div class="del-meta"><b>' +
+    '></label><div class="del-thumb">' +
+    albumPrintThumbIcon(name) +
+    '</div><div class="del-meta"><b>' +
     esc(name) +
     '</b></div>' +
     (isCustomAlbumPrint(d, name) ? customDeliverableDelBtn('remove-del-album', name) : '') +
     '</div>' +
-    (on
-      ? '<div class="del-fields">' +
-        '<div class="fld"><label>Quantity</label><input type="number" data-album-qty value="' +
-        (row.qty || 1) +
-        '"></div>' +
-        '<div class="fld"><label>Size</label><select data-album-size-' +
-        esc(name) +
-        '><option>A3</option><option>A4</option><option>6 x 6 inch</option><option>12 x 18 inch</option></select></div>' +
-        '<div class="fld"><label>Type</label><select data-album-type-opt><option>Wall Calendar</option><option>Desk Calendar</option><option>Acrylic</option><option>Standard</option></select></div>' +
-        (complimentarySection ? albumComplimentaryField(row) : '') +
-        '</div>'
-      : '') +
+    fields +
     '</div>'
   );
 }
@@ -2334,20 +2334,18 @@ function renderAlbumPrintCard(name, d, opts) {
 function renderAlbumsPrintsTab(d) {
   if (!d.albumPrints) d.albumPrints = defaultAlbumPrints();
   const custom = Object.keys(d.albumPrints).filter(function (name) {
-    return ALBUM_PRINT_TYPES.indexOf(name) < 0 && COMPLIMENTARY_PRINT_TYPES.indexOf(name) < 0;
+    return ALBUM_PRINT_TYPES.indexOf(name) < 0;
   });
+  const items = ALBUM_PRINT_TYPES.concat(custom);
   return (
-    '<p class="del-sec-title">Albums &amp; prints</p><p class="sub">Main albums included in the package price.</p>' +
-    ALBUM_MAIN_TYPES.concat(custom)
+    '<p class="del-sec-title">Albums &amp; prints</p><p class="sub">Select albums and printed materials.</p>' +
+    '<div class="del-album-list">' +
+    items
       .map(function (name) {
-        return renderAlbumPrintCard(name, d, { complimentarySection: false });
+        return renderAlbumPrintCard(name, d);
       })
       .join('') +
-    '<p class="lbl del-sec-spaced">Complimentary deliverables</p>' +
-    '<p class="sub">Free bonuses (frames, mini albums, calendars). Save-the-date shoot is under <b>Select functions</b>.</p>' +
-    COMPLIMENTARY_PRINT_TYPES.map(function (name) {
-      return renderAlbumPrintCard(name, d, { complimentarySection: true });
-    }).join('') +
+    '</div>' +
     linkAdd('add-album-print', 'Add Custom Album/Print')
   );
 }
@@ -2447,6 +2445,24 @@ function ensureServiceDeliverableModel(d) {
   ensureDeliverableDraft(d);
 }
 
+function renderDeliverablesCoverageHint(d) {
+  if (typeof wiz !== 'undefined' && wiz.mode && wiz.mode !== 'package') return '';
+  if (!pkgNeedsCoverageSideUi(d)) return '';
+  const side = resolvePkgCoverageSide(d);
+  const label = side === 'both' ? 'Both sides' : 'Single side';
+  const msg =
+    side === 'both'
+      ? 'The same deliverables listed below (photos, albums, calendars, digital, etc.) are shared with both families.'
+      : 'Deliverables apply to the one side / family covered by this package.';
+  return (
+    '<div class="warn-box deliverables-coverage-hint" style="margin-bottom:12px"><b>Deliverables (' +
+    esc(label) +
+    ')</b><p class="sub" style="margin:6px 0 0;line-height:1.45">' +
+    esc(msg) +
+    '</p></div>'
+  );
+}
+
 function renderDeliverablesStep(d) {
   ensureDeliverableDraft(d);
   const tab = d.deliverTab || 'photos';
@@ -2455,7 +2471,7 @@ function renderDeliverablesStep(d) {
   else if (tab === 'videos') body = renderVideoDeliverTab(d);
   else if (tab === 'albums') body = renderAlbumsPrintsTab(d);
   else body = renderDigitalDeliverTab(d);
-  return renderDelTabs(tab) + body;
+  return renderDeliverablesCoverageHint(d) + renderDelTabs(tab) + body;
 }
 
 function readAlbumFieldsFromDom(d) {
@@ -2469,11 +2485,9 @@ function readAlbumFieldsFromDom(d) {
     if (!card) return;
     if (name === 'Photo Album') {
       const pages = card.querySelector('[data-album-pages]');
-      const sets = card.querySelector('[data-album-sets]');
       const sizeSel = card.querySelector('[data-album-size]');
       const coverSel = card.querySelector('[data-album-cover]');
       if (pages) d.albumPrints[name].pages = +pages.value || 40;
-      if (sets) d.albumPrints[name].sets = Math.max(1, +sets.value || 1);
       if (sizeSel) d.albumPrints[name].size = sizeSel.value;
       if (coverSel) d.albumPrints[name].cover = coverSel.value;
       const compA = card.querySelector('[data-album-complimentary]');
@@ -2685,7 +2699,7 @@ function renderFnCoverageStep(d) {
   if (pkgNeedsCoverageSideUi(d)) {
     const pkgSide = resolvePkgCoverageSide(d);
     html +=
-      '<div class="fld fn-cov-pkg-side"><label>Coverage side</label><p class="hint" style="margin:-2px 0 8px">Applies to all wedding functions in this package.</p><div class="seg seg-full">' +
+      '<div class="fld fn-cov-pkg-side"><label>Coverage side</label><p class="hint" style="margin:-2px 0 8px">Both sides: you cover both families; the same deliverables (album, calendar, photos, etc.) are for both parties.</p><div class="seg seg-full">' +
       '<button type="button" class="' +
       (pkgSide === 'single' ? 'on' : '') +
       '" data-pkg-cov-side="single">Single side</button>' +
@@ -3202,8 +3216,7 @@ function pkgDeliverSummary(d) {
     ALBUM_PRINT_TYPES.forEach(function (name) {
       if (d.albumPrints[name] && d.albumPrints[name].on) {
         if (name === 'Photo Album' && d.albumPrints[name].pages) {
-          const sets = d.albumPrints[name].sets > 1 ? d.albumPrints[name].sets + '× ' : '';
-          albums.push(sets + d.albumPrints[name].pages + 'pg album');
+          albums.push(d.albumPrints[name].pages + 'pg album');
         } else albums.push(name);
       }
     });
@@ -5398,7 +5411,7 @@ function bindPhotoCalendarUi() {
   });
 }
 
-const PHOTO_OWNER_BUILD = '2026-10-11-photo-owner-extra-hourly-copy-v25';
+const PHOTO_OWNER_BUILD = '2026-10-11-photo-owner-deliverables-both-sides-v26';
 
 function photoOwnerDemoFileName() {
   try {
