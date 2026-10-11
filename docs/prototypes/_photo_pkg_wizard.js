@@ -710,7 +710,7 @@ function renderAlbumPageFinishField(row) {
     '<div class="fld album-finish-policy-fld"><label>Paper on package</label><select data-album-finish-policy>' +
     '<option value="studio"' +
     (policy === 'studio' ? ' selected' : '') +
-    '>Paper included (you select below)</option>' +
+    '>Album paper we provide</option>' +
     '<option value="customer"' +
     (policy === 'customer' ? ' selected' : '') +
     '>Customer chooses</option></select></div>' +

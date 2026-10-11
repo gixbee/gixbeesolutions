@@ -1,4 +1,4 @@
-const PHOTO_OWNER_BUILD = '2026-10-11-photo-owner-album-paper-v34';
+const PHOTO_OWNER_BUILD = '2026-10-11-photo-owner-album-paper-v35';
 
 function photoOwnerDemoFileName() {
   try {
