@@ -2573,7 +2573,7 @@ function deliverableCheckboxChange(t, d) {
   return false;
 }
 
-function runDeliverableWizardAction(act, d, readFields) {
+function runDeliverableWizardAction(act, t, d, readFields) {
   ensureDeliverableDraft(d);
   if (act === 'add-dphoto') {
     const name = prompt('Photo deliverable name');
@@ -3362,7 +3362,7 @@ function bindPkgWizard(d) {
         return;
       }
       if (runExtraWizardAction(act, t, d, readPkgWizardFields, PKG_EXTRA_DEFAULTS)) return;
-      if (runDeliverableWizardAction(act, d, readPkgWizardFields)) return;
+      if (runDeliverableWizardAction(act, t, d, readPkgWizardFields)) return;
       if (act === 'add-stage') {
         readPkgWizardFields(d);
         d.paymentStages.push({ id: uid('ps'), label: 'Custom Stage', pct: 0 });
@@ -4093,7 +4093,7 @@ function bindSvcWizard(d) {
         )
       )
         return;
-      if (runDeliverableWizardAction(act, d, readSvcWizardFields)) return;
+      if (runDeliverableWizardAction(act, t, d, readSvcWizardFields)) return;
       if (act === 'svc-more-cats') {
         d.showAllCats = !d.showAllCats;
         renderWizardBody();
@@ -5397,7 +5397,7 @@ function bindPhotoCalendarUi() {
   });
 }
 
-const PHOTO_OWNER_BUILD = '2026-10-11-photo-owner-four-del-tabs-v23';
+const PHOTO_OWNER_BUILD = '2026-10-11-photo-owner-custom-del-delete-v24';
 
 function photoOwnerDemoFileName() {
   try {

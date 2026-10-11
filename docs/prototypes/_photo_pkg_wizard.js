@@ -1670,7 +1670,7 @@ function deliverableCheckboxChange(t, d) {
   return false;
 }
 
-function runDeliverableWizardAction(act, d, readFields) {
+function runDeliverableWizardAction(act, t, d, readFields) {
   ensureDeliverableDraft(d);
   if (act === 'add-dphoto') {
     const name = prompt('Photo deliverable name');
@@ -2459,7 +2459,7 @@ function bindPkgWizard(d) {
         return;
       }
       if (runExtraWizardAction(act, t, d, readPkgWizardFields, PKG_EXTRA_DEFAULTS)) return;
-      if (runDeliverableWizardAction(act, d, readPkgWizardFields)) return;
+      if (runDeliverableWizardAction(act, t, d, readPkgWizardFields)) return;
       if (act === 'add-stage') {
         readPkgWizardFields(d);
         d.paymentStages.push({ id: uid('ps'), label: 'Custom Stage', pct: 0 });
