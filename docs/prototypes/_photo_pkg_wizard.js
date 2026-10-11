@@ -1415,17 +1415,21 @@ function renderFnCoverageStep(d) {
     fns.length +
     '</b> function' +
     (fns.length === 1 ? '' : 's') +
-    ' — tap to expand coverage</p>' +
+    ' — open each card, fill all fields, then tap Next</p>' +
     '<div class="fn-cov-toolbar-actions">' +
     '<button type="button" data-action="fn-cov-expand-all">Expand all</button>' +
     '<button type="button" data-action="fn-cov-collapse-all">Collapse all</button>' +
     '</div></div>';
   fns.forEach(function (fn, idx) {
     const c = pkgFnCoverage(d, fn);
-    const open = d.coverageUiOpen[fn] != null ? d.coverageUiOpen[fn] : idx === 0;
+    const open = d.coverageUiOpen[fn] === true;
+    const hint = pkgFnHint(fn);
+    const incomplete =
+      d.coverageValidateHighlight && d.coverageValidateHighlight.indexOf(fn) >= 0;
     html +=
       '<div class="fn-cov-card' +
       (open ? '' : ' collapsed') +
+      (incomplete ? ' fn-cov-incomplete' : '') +
       '" data-fn-name="' +
       esc(fn) +
       '">';
@@ -1436,8 +1440,9 @@ function renderFnCoverageStep(d) {
       '<span class="fn-cov-idx">' +
       (idx + 1) +
       '</span>' +
-      '<span class="fn-cov-titles"><b>' +
+      '<span class="fn-cov-titles"><b class="fn-cov-fn-title">' +
       esc(fn) +
+      (hint ? ' <span class="fn-cov-desc">(' + esc(hint) + ')</span>' : '') +
       '</b><span class="fn-cov-summary">' +
       esc(fnCoverageChipSummary(c)) +
       '</span></span>' +
@@ -1795,6 +1800,43 @@ function readPkgWizardFields(d) {
   syncPkgPrice(d);
   d.coverage = pkgCoverageSummary(d);
   d.deliverables = pkgDeliverSummary(d);
+}
+
+function pkgFnHint(fnName) {
+  if (typeof FUNCTION_HINTS === 'undefined') return '';
+  return FUNCTION_HINTS[fnName] || '';
+}
+
+function pkgCoverageTeamCounts(block) {
+  let photo = 0;
+  let video = 0;
+  Object.keys(block.photoTypes || {}).forEach(function (k) {
+    const r = block.photoTypes[k];
+    if (r.on && r.qty) photo += r.qty;
+  });
+  Object.keys(block.videoTypes || {}).forEach(function (k) {
+    const r = block.videoTypes[k];
+    if (r.on && r.qty) video += r.qty;
+  });
+  return { photo: photo, video: video };
+}
+
+function pkgCoverageFnIsComplete(block) {
+  if (!block || !block.duration) return false;
+  if (block.extraHour === '' || block.extraHour == null || isNaN(+block.extraHour)) return false;
+  const team = pkgCoverageTeamCounts(block);
+  if (team.photo < 1 && team.video < 1) return false;
+  return true;
+}
+
+function pkgCoverageMissingFunctions(d) {
+  ensurePkgCoverageByFunction(d);
+  const fns = d.functions && d.functions.length ? d.functions : [];
+  const missing = [];
+  fns.forEach(function (fn) {
+    if (!pkgCoverageFnIsComplete(d.coverageByFunction[fn])) missing.push(fn);
+  });
+  return missing;
 }
 
 function fnCoverageChipSummary(block) {
@@ -2161,6 +2203,7 @@ function bindPkgWizard(d) {
       if (!bucket[label]) bucket[label] = { on: false, qty: 0 };
       bucket[label].on = t.checked;
       if (t.checked && !bucket[label].qty) bucket[label].qty = 1;
+      refreshFnCoverageCardSummary(t.closest('.fn-cov-card'), d);
       renderWizardBody();
       return;
     }

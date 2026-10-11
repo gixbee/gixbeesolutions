@@ -1128,6 +1128,23 @@ function validateStep() {
       toast('Select at least one ceremony type (or go back and change functions).');
       return false;
     }
+    if (wiz.step === 3) {
+      if (typeof readPkgCoverageFieldsFromDom === 'function') readPkgCoverageFieldsFromDom(d);
+      const missing =
+        typeof pkgCoverageMissingFunctions === 'function' ? pkgCoverageMissingFunctions(d) : [];
+      if (missing.length) {
+        if (!d.coverageUiOpen) d.coverageUiOpen = {};
+        missing.forEach(function (fn) {
+          d.coverageUiOpen[fn] = true;
+        });
+        d.coverageValidateHighlight = missing;
+        toast(
+          'Complete coverage for each function: duration, extra hour (₹0 allowed), and at least one photographer or videographer.'
+        );
+        return false;
+      }
+      d.coverageValidateHighlight = [];
+    }
     if (wiz.step === 4 && !selectedDeliverableKeys(d).length) {
       toast('Select at least one deliverable (photo, video, album, or digital).');
       return false;
