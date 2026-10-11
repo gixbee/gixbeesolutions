@@ -1,4 +1,4 @@
-const PHOTO_OWNER_BUILD = '2026-10-11-photo-owner-pkg-coverage-side-v14';
+const PHOTO_OWNER_BUILD = '2026-10-11-photo-owner-drone-helicam-extra-v15';
 
 function photoOwnerDemoFileName() {
   try {
@@ -53,7 +53,7 @@ const SVC_CATEGORIES = [
   { id: 'fashion', label: 'Fashion & Portfolio' },
   { id: 'food', label: 'Food' },
   { id: 'commercial', label: 'Commercial' },
-  { id: 'drone', label: 'Drone / Aerial' },
+  { id: 'drone', label: 'Drone / Helicam' },
   { id: 'reel', label: 'Reel & Short Video' },
   { id: 'production', label: 'Photo & Video Production' },
 ];
@@ -264,6 +264,7 @@ function loadStore() {
     if (!store.calendar || typeof store.calendar !== 'object') store.calendar = defaultPhotoCalendar();
     sanitizeWeddingPackageFunctions();
     (store.packages || []).forEach(function (p) {
+      if (typeof migrateDroneHelicamExtra === 'function') migrateDroneHelicamExtra(p);
       if (typeof migrateLegacyPkgCoverage === 'function') migrateLegacyPkgCoverage(p);
     });
   } catch (_e) {

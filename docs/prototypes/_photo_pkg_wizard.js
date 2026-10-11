@@ -1,8 +1,9 @@
 /* Photography package wizard — mobile Create Package flow (10 steps) */
 
+const PKG_AERIAL_EXTRA = 'Drone / Helicam';
+
 const PKG_EXTRA_DEFAULTS = [
-  'Drone',
-  'Heli Cam',
+  PKG_AERIAL_EXTRA,
   'Live Streaming',
   'Jib Crane',
   'LED Wall',
@@ -501,7 +502,7 @@ function pkgExtraDefaults() {
     const hourly = name.indexOf('Photographer') >= 0 || name.indexOf('Videographer') >= 0;
     o[name] = {
       mode: name === 'Live Streaming' ? 'included' : 'extra',
-      price: name === 'Heli Cam' ? 25000 : name === 'Drone' ? 10000 : hourly ? 5000 : 8000,
+      price: name === PKG_AERIAL_EXTRA ? 10000 : hourly ? 5000 : 8000,
       basis: hourly ? 'Per Hour' : 'Per Event',
     };
   });
@@ -641,6 +642,41 @@ function defaultFnCoverage(fnName, fromTemplate) {
           }
     ),
   };
+}
+
+function migrateDroneHelicamExtra(d) {
+  if (!d) return;
+  const LEGACY = ['Drone', 'Heli Cam'];
+  if (!d.extras) d.extras = {};
+  const hadLegacy = LEGACY.some(function (k) {
+    return d.extras[k];
+  });
+  const ex = d.excludedExtras || [];
+  const legacyExcluded = LEGACY.filter(function (k) {
+    return ex.indexOf(k) >= 0;
+  });
+  if (!hadLegacy && !legacyExcluded.length) return;
+  if (!d.extras[PKG_AERIAL_EXTRA] && hadLegacy) {
+    const merged = { mode: 'extra', price: 10000, basis: 'Per Event' };
+    LEGACY.forEach(function (k) {
+      const x = d.extras[k];
+      if (!x) return;
+      if (x.mode === 'included') merged.mode = 'included';
+      if (+x.price > merged.price) merged.price = +x.price;
+      if (x.basis) merged.basis = x.basis;
+    });
+    d.extras[PKG_AERIAL_EXTRA] = merged;
+  }
+  LEGACY.forEach(function (k) {
+    delete d.extras[k];
+  });
+  if (d.excludedExtras) {
+    const next = d.excludedExtras.filter(function (k) {
+      return LEGACY.indexOf(k) < 0;
+    });
+    if (legacyExcluded.length === 2 && next.indexOf(PKG_AERIAL_EXTRA) < 0) next.push(PKG_AERIAL_EXTRA);
+    d.excludedExtras = next;
+  }
 }
 
 function migrateLegacyPkgCoverage(d) {

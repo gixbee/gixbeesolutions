@@ -11,7 +11,7 @@ const SVC_EXTRA_DEFAULTS = [
   { name: 'Extra 10 Edited Photos', price: 500, unit: 'Per Set' },
   { name: 'Extra Hour', price: 1000, unit: 'Per Hour' },
   { name: 'Live Streaming', price: 5000, unit: 'Per Event' },
-  { name: 'Drone Coverage', price: 5000, unit: 'Per Event' },
+  { name: 'Drone / Helicam', price: 10000, unit: 'Per Event' },
 ];
 
 function svcExtraDefaults() {

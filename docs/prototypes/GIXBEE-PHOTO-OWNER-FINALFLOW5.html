@@ -885,9 +885,10 @@ function photoIcon(name) {
 
 /* Photography package wizard — mobile Create Package flow (10 steps) */
 
+const PKG_AERIAL_EXTRA = 'Drone / Helicam';
+
 const PKG_EXTRA_DEFAULTS = [
-  'Drone',
-  'Heli Cam',
+  PKG_AERIAL_EXTRA,
   'Live Streaming',
   'Jib Crane',
   'LED Wall',
@@ -1386,7 +1387,7 @@ function pkgExtraDefaults() {
     const hourly = name.indexOf('Photographer') >= 0 || name.indexOf('Videographer') >= 0;
     o[name] = {
       mode: name === 'Live Streaming' ? 'included' : 'extra',
-      price: name === 'Heli Cam' ? 25000 : name === 'Drone' ? 10000 : hourly ? 5000 : 8000,
+      price: name === PKG_AERIAL_EXTRA ? 10000 : hourly ? 5000 : 8000,
       basis: hourly ? 'Per Hour' : 'Per Event',
     };
   });
@@ -1526,6 +1527,41 @@ function defaultFnCoverage(fnName, fromTemplate) {
           }
     ),
   };
+}
+
+function migrateDroneHelicamExtra(d) {
+  if (!d) return;
+  const LEGACY = ['Drone', 'Heli Cam'];
+  if (!d.extras) d.extras = {};
+  const hadLegacy = LEGACY.some(function (k) {
+    return d.extras[k];
+  });
+  const ex = d.excludedExtras || [];
+  const legacyExcluded = LEGACY.filter(function (k) {
+    return ex.indexOf(k) >= 0;
+  });
+  if (!hadLegacy && !legacyExcluded.length) return;
+  if (!d.extras[PKG_AERIAL_EXTRA] && hadLegacy) {
+    const merged = { mode: 'extra', price: 10000, basis: 'Per Event' };
+    LEGACY.forEach(function (k) {
+      const x = d.extras[k];
+      if (!x) return;
+      if (x.mode === 'included') merged.mode = 'included';
+      if (+x.price > merged.price) merged.price = +x.price;
+      if (x.basis) merged.basis = x.basis;
+    });
+    d.extras[PKG_AERIAL_EXTRA] = merged;
+  }
+  LEGACY.forEach(function (k) {
+    delete d.extras[k];
+  });
+  if (d.excludedExtras) {
+    const next = d.excludedExtras.filter(function (k) {
+      return LEGACY.indexOf(k) < 0;
+    });
+    if (legacyExcluded.length === 2 && next.indexOf(PKG_AERIAL_EXTRA) < 0) next.push(PKG_AERIAL_EXTRA);
+    d.excludedExtras = next;
+  }
 }
 
 function migrateLegacyPkgCoverage(d) {
@@ -3178,7 +3214,7 @@ const SVC_EXTRA_DEFAULTS = [
   { name: 'Extra 10 Edited Photos', price: 500, unit: 'Per Set' },
   { name: 'Extra Hour', price: 1000, unit: 'Per Hour' },
   { name: 'Live Streaming', price: 5000, unit: 'Per Event' },
-  { name: 'Drone Coverage', price: 5000, unit: 'Per Event' },
+  { name: 'Drone / Helicam', price: 10000, unit: 'Per Event' },
 ];
 
 function svcExtraDefaults() {
@@ -5010,7 +5046,7 @@ function bindPhotoCalendarUi() {
   });
 }
 
-const PHOTO_OWNER_BUILD = '2026-10-11-photo-owner-pkg-coverage-side-v14';
+const PHOTO_OWNER_BUILD = '2026-10-11-photo-owner-drone-helicam-extra-v15';
 
 function photoOwnerDemoFileName() {
   try {
@@ -5065,7 +5101,7 @@ const SVC_CATEGORIES = [
   { id: 'fashion', label: 'Fashion & Portfolio' },
   { id: 'food', label: 'Food' },
   { id: 'commercial', label: 'Commercial' },
-  { id: 'drone', label: 'Drone / Aerial' },
+  { id: 'drone', label: 'Drone / Helicam' },
   { id: 'reel', label: 'Reel & Short Video' },
   { id: 'production', label: 'Photo & Video Production' },
 ];
@@ -5276,6 +5312,7 @@ function loadStore() {
     if (!store.calendar || typeof store.calendar !== 'object') store.calendar = defaultPhotoCalendar();
     sanitizeWeddingPackageFunctions();
     (store.packages || []).forEach(function (p) {
+      if (typeof migrateDroneHelicamExtra === 'function') migrateDroneHelicamExtra(p);
       if (typeof migrateLegacyPkgCoverage === 'function') migrateLegacyPkgCoverage(p);
     });
   } catch (_e) {
