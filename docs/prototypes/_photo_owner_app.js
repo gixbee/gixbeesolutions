@@ -1,4 +1,4 @@
-const PHOTO_OWNER_BUILD = '2026-10-11-photo-owner-complimentary-deliverables-v19';
+const PHOTO_OWNER_BUILD = '2026-10-11-photo-owner-albums-no-save-date-v20';
 
 function photoOwnerDemoFileName() {
   try {

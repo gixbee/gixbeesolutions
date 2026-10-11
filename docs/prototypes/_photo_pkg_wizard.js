@@ -22,7 +22,7 @@ const VIDEO_DELIVER = [
   'Reel',
   'Traditional Video',
 ];
-const ALBUM_PRINT_TYPES = ['Photo Album', 'Calendar', 'Mini Album', 'Photo Frame', 'Save the Date'];
+const ALBUM_PRINT_TYPES = ['Photo Album', 'Calendar', 'Mini Album', 'Photo Frame'];
 const DIGITAL_DELIVER = [
   { id: 'Google Drive Link', icon: '📁', desc: 'Share high-resolution files via Google Drive.' },
   { id: 'Online Gallery', icon: '🔗', desc: 'Private online gallery for easy access.' },
@@ -586,9 +586,9 @@ function migrateComplimentaryDeliverables(d) {
   if (!d.albumPrints) d.albumPrints = albumPrintsAllOff();
   const legacy = d.complimentary;
   if (legacy && legacy.length) {
-    const nameMap = { 'Save the Date (complimentary)': 'Save the Date' };
     legacy.forEach(function (item) {
-      const name = nameMap[item] || item;
+      if (/save the date/i.test(String(item || ''))) return;
+      const name = item;
       if (!d.albumPrints[name]) d.albumPrints[name] = { on: false, qty: 1 };
       d.albumPrints[name].on = true;
       d.albumPrints[name].complimentary = true;
@@ -635,7 +635,6 @@ function defaultAlbumPrints() {
     Calendar: { on: false, qty: 1, size: 'A3', type: 'Wall Calendar' },
     'Mini Album': { on: false, qty: 1, size: '6 x 6 inch', cover: 'Standard' },
     'Photo Frame': { on: false, qty: 1, size: '12 x 18 inch', type: 'Acrylic', complimentary: false },
-    'Save the Date': { on: false, qty: 1, type: 'Card / video', complimentary: true },
   };
 }
 
@@ -1299,7 +1298,7 @@ function renderVideoDeliverTab(d) {
 function renderAlbumDeliverTab(d) {
   if (!d.albumPrints) d.albumPrints = defaultAlbumPrints();
   return (
-    '<p class="del-sec-title">Albums, prints &amp; complimentary deliverables</p><p class="sub">Select what is included. Use <b>Complimentary deliverable</b> for free bonuses (frames, save the date, etc.).</p>' +
+    '<p class="del-sec-title">Albums, prints &amp; complimentary deliverables</p><p class="sub">Select what is included. Use <b>Complimentary deliverable</b> for free bonuses (frames, mini albums, etc.). Save-the-date coverage is set under <b>Select functions</b>.</p>' +
     ALBUM_PRINT_TYPES.map(function (name) {
       const row = d.albumPrints[name] || { on: false };
       const on = !!row.on;
