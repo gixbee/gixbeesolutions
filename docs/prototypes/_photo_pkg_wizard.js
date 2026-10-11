@@ -42,10 +42,57 @@ const PHOTO_TYPE_DEFAULTS = [
   'Candid + Traditional Photographer',
 ];
 const VIDEO_TYPE_DEFAULTS = ['Candid Videographer', 'Traditional Videographer', 'Cinematic Videographer'];
-const PHOTO_FORMATS = ['JPG (High Resolution)', 'JPG + RAW', 'PNG'];
+const PHOTO_FORMATS = ['JPG (High Resolution)', 'JPG + RAW', 'PNG', 'Custom'];
 const VIDEO_DURATION_HOURS = ['Full Event', '0-1 Hours', '1-2 Hours', '2-3 Hours', '3-4 Hours'];
 const VIDEO_DURATION_SHORT = ['1-2 Minutes', '3-5 Minutes', '5-10 Minutes', 'Custom'];
-const VIDEO_DURATIONS = VIDEO_DURATION_HOURS.concat(VIDEO_DURATION_SHORT);
+const VIDEO_DURATIONS = VIDEO_DURATION_HOURS.concat(
+  VIDEO_DURATION_SHORT.filter(function (x) {
+    return x !== 'Custom';
+  })
+).concat(['Custom']);
+
+function normalizeCustomOption(obj, valueKey, customKey, options, fallback) {
+  if (!obj) return;
+  if (!obj[valueKey]) obj[valueKey] = fallback || options[0];
+  if (obj[valueKey] !== 'Custom' && options.indexOf(obj[valueKey]) < 0) {
+    obj[customKey] = obj[valueKey];
+    obj[valueKey] = 'Custom';
+  }
+  if (obj[customKey] == null) obj[customKey] = '';
+}
+
+function buildSelectOptionsHtml(options, selected) {
+  const inList = options.indexOf(selected) >= 0;
+  let html = '';
+  if (selected && !inList && selected !== 'Custom') {
+    html += '<option selected>' + esc(selected) + '</option>';
+  }
+  if (selected === 'Custom') {
+    return options
+      .map(function (o) {
+        return '<option' + (o === 'Custom' ? ' selected' : '') + '>' + esc(o) + '</option>';
+      })
+      .join('');
+  }
+  options.forEach(function (o) {
+    html += '<option' + (inList && o === selected ? ' selected' : '') + '>' + esc(o) + '</option>';
+  });
+  return html;
+}
+
+function renderCustomTextInput(dataAttr, value, label, placeholder) {
+  return (
+    '<div class="fld del-custom-fld"><label>' +
+    esc(label) +
+    '</label><input type="text" ' +
+    dataAttr +
+    ' placeholder="' +
+    esc(placeholder) +
+    '" value="' +
+    esc(value || '') +
+    '"></div>'
+  );
+}
 
 function defaultVideoDurationForName(name) {
   if (name === 'Full-Length Video' || name === 'Traditional Video') return '2-3 Hours';
@@ -91,28 +138,18 @@ const VIDEO_FORMATS = [
 
 function renderVideoFormatSelect(name, selected) {
   const sel = selected || 'MP4 (Full HD)';
-  const inList = VIDEO_FORMATS.indexOf(sel) >= 0;
-  let html = '';
-  if (sel && !inList && sel !== 'Custom') html += '<option selected>' + esc(sel) + '</option>';
-  VIDEO_FORMATS.forEach(function (f) {
-    html += '<option' + (inList && f === sel ? ' selected' : '') + '>' + esc(f) + '</option>';
-  });
-  if (sel === 'Custom') {
-    html = VIDEO_FORMATS.map(function (f) {
-      return '<option' + (f === 'Custom' ? ' selected' : '') + '>' + f + '</option>';
-    }).join('');
-  }
-  return '<select data-video-fmt="' + esc(name) + '">' + html + '</select>';
+  return (
+    '<select data-video-fmt="' +
+    esc(name) +
+    '">' +
+    buildSelectOptionsHtml(VIDEO_FORMATS, sel) +
+    '</select>'
+  );
 }
 
 function normalizeVideoFormatDet(det) {
   if (!det) return;
-  if (!det.format) det.format = 'MP4 (Full HD)';
-  if (det.format !== 'Custom' && VIDEO_FORMATS.indexOf(det.format) < 0) {
-    det.formatCustom = det.format;
-    det.format = 'Custom';
-  }
-  if (det.formatCustom == null) det.formatCustom = '';
+  normalizeCustomOption(det, 'format', 'formatCustom', VIDEO_FORMATS, 'MP4 (Full HD)');
 }
 
 function renderVideoFormatFields(name, det) {
@@ -130,6 +167,82 @@ function renderVideoFormatFields(name, det) {
   }
   return html;
 }
+
+function renderVideoDurationFields(name, det) {
+  normalizeCustomOption(
+    det,
+    'duration',
+    'durationCustom',
+    VIDEO_DURATIONS,
+    defaultVideoDurationForName(name)
+  );
+  let html =
+    '<div class="fld"><label>Duration</label>' + renderVideoDurationSelect(name, det.duration) + '</div>';
+  if (det.duration === 'Custom') {
+    html += renderCustomTextInput(
+      'data-video-dur-custom="' + esc(name) + '"',
+      det.durationCustom,
+      'Describe duration',
+      'e.g. 3 hours full ceremony'
+    );
+  }
+  return html;
+}
+
+function renderPhotoFormatFields(name, det) {
+  normalizeCustomOption(det, 'format', 'formatCustom', PHOTO_FORMATS, PHOTO_FORMATS[0]);
+  let html =
+    '<div class="fld"><label>Format</label><select data-photo-fmt="' +
+    esc(name) +
+    '">' +
+    buildSelectOptionsHtml(PHOTO_FORMATS, det.format) +
+    '</select></div>';
+  if (det.format === 'Custom') {
+    html += renderCustomTextInput(
+      'data-photo-fmt-custom="' + esc(name) + '"',
+      det.formatCustom,
+      'Describe format',
+      'e.g. JPG + TIFF archive'
+    );
+  }
+  return html;
+}
+
+function normalizeDeliveryTimeline(d, key) {
+  if (!d.deliveryMap) d.deliveryMap = {};
+  if (!d.deliveryMapCustom) d.deliveryMapCustom = {};
+  const v = d.deliveryMap[key];
+  if (v && v !== 'Custom' && DELIVERY_TIMELINES.indexOf(v) < 0) {
+    d.deliveryMapCustom[key] = v;
+    d.deliveryMap[key] = 'Custom';
+  }
+  if (d.deliveryMapCustom[key] == null) d.deliveryMapCustom[key] = '';
+}
+
+function renderDeliveryTimelineRow(d, k) {
+  normalizeDeliveryTimeline(d, k);
+  const sel = d.deliveryMap[k] || DELIVERY_TIMELINES[4];
+  let html =
+    '<div class="fld del-row' +
+    (sel === 'Custom' ? ' del-custom-wrap' : '') +
+    '"><label>' +
+    esc(deliverableTimelineLabel(d, k)) +
+    '</label><select data-del-key="' +
+    esc(k) +
+    '">' +
+    buildSelectOptionsHtml(DELIVERY_TIMELINES, sel) +
+    '</select>';
+  if (sel === 'Custom') {
+    html += renderCustomTextInput(
+      'data-del-key-custom="' + esc(k) + '"',
+      d.deliveryMapCustom[k],
+      'Describe timeline',
+      'e.g. 60 days after album selection'
+    );
+  }
+  return html + '</div>';
+}
+
 const POLICY_DEFAULTS = [
   'Cancellation Policy',
   'Rescheduling Policy',
@@ -562,7 +675,7 @@ function coverageDurationHelp(duration) {
   if (d === 'Full Day') {
     return 'Included wedding-day coverage (use your policy or customer requirements to state exact hours, e.g. 10–12 hours).';
   }
-  if (d === 'Custom') return 'Describe exact hours in package description or customer requirements.';
+  if (d === 'Custom') return 'Type the exact hours in the field below.';
   return 'Included coverage up to this limit for the function(s) in this package.';
 }
 
@@ -1072,6 +1185,7 @@ function newPkgDraft() {
     videoDetails: defaultVideoDetails(),
     albumPrints: albumPrintsAllOff(),
     deliveryMap: {},
+    deliveryMapCustom: {},
     paymentStages: cloneDefaultPaymentStages(),
     policies: ['Cancellation Policy', 'Rescheduling Policy'],
     cancelRules: clonePkgPolicyTierDefaults(),
@@ -1482,19 +1596,8 @@ function renderPhotoDeliverTab(d) {
               '" value="' +
               det.qty +
               '"></div>' +
-              '<div class="fld"><label>Format</label><select data-photo-fmt="' +
-              esc(name) +
-              '">' +
-              PHOTO_FORMATS.map(function (f) {
-                return (
-                  '<option' +
-                  (det.format === f ? ' selected' : '') +
-                  '>' +
-                  f +
-                  '</option>'
-                );
-              }).join('') +
-              '</select></div></div>'
+              renderPhotoFormatFields(name, det) +
+              '</div>'
             : '') +
           '</div>'
         );
@@ -1540,9 +1643,7 @@ function renderVideoDeliverTab(d) {
               '" value="' +
               det.qty +
               '"></div>' +
-              '<div class="fld"><label>Duration</label>' +
-              renderVideoDurationSelect(name, det.duration) +
-              '</div>' +
+              renderVideoDurationFields(name, det) +
               renderVideoFormatFields(name, det) +
               '</div>'
             : '') +
@@ -1805,6 +1906,12 @@ function readDeliverableFieldsFromDom(d) {
     const k = sel.getAttribute('data-photo-fmt');
     if (!d.photoDetails[k]) d.photoDetails[k] = {};
     d.photoDetails[k].format = sel.value;
+    if (sel.value !== 'Custom') d.photoDetails[k].formatCustom = '';
+  });
+  document.querySelectorAll('[data-photo-fmt-custom]').forEach(function (inp) {
+    const k = inp.getAttribute('data-photo-fmt-custom');
+    if (!d.photoDetails[k]) d.photoDetails[k] = {};
+    d.photoDetails[k].formatCustom = inp.value.trim();
   });
   document.querySelectorAll('[data-photo-del]').forEach(function (sel) {
     const k = sel.getAttribute('data-photo-del');
@@ -1821,6 +1928,12 @@ function readDeliverableFieldsFromDom(d) {
     const k = sel.getAttribute('data-video-dur');
     if (!d.videoDetails[k]) d.videoDetails[k] = {};
     d.videoDetails[k].duration = sel.value;
+    if (sel.value !== 'Custom') d.videoDetails[k].durationCustom = '';
+  });
+  document.querySelectorAll('[data-video-dur-custom]').forEach(function (inp) {
+    const k = inp.getAttribute('data-video-dur-custom');
+    if (!d.videoDetails[k]) d.videoDetails[k] = {};
+    d.videoDetails[k].durationCustom = inp.value.trim();
   });
   document.querySelectorAll('[data-video-fmt]').forEach(function (sel) {
     const k = sel.getAttribute('data-video-fmt');
@@ -2042,12 +2155,19 @@ function renderFnCoverageStep(d) {
         esc(fns[idx - 1]) +
         '</button></div>';
     }
+    normalizeCustomOption(c, 'duration', 'durationCustom', DURATION_OPTS, 'Full Day');
     html +=
       '<div class="fld"><label>Coverage duration</label><select data-fn-duration>' +
-      DURATION_OPTS.map(function (o) {
-        return '<option' + (c.duration === o ? ' selected' : '') + '>' + o + '</option>';
-      }).join('') +
+      buildSelectOptionsHtml(DURATION_OPTS, c.duration) +
       '</select></div>' +
+      (c.duration === 'Custom'
+        ? renderCustomTextInput(
+            'data-fn-duration-custom',
+            c.durationCustom,
+            'Describe coverage hours',
+            'e.g. 10 hours wedding day'
+          )
+        : '') +
       '<p class="hint fn-duration-hint" style="margin:-4px 0 12px">' +
       esc(coverageDurationHelp(c.duration)) +
       '</p>' +
@@ -2183,27 +2303,9 @@ function renderPkgStep(step, d) {
       }
       return (
         '<p class="sub">Set delivery timeline for each deliverable you selected (photos, videos, albums, digital).</p>' +
-        keys
-          .map(function (k) {
-            return (
-              '<div class="fld del-row"><label>' +
-              esc(deliverableTimelineLabel(d, k)) +
-              '</label><select data-del-key="' +
-              esc(k) +
-              '">' +
-              DELIVERY_TIMELINES.map(function (t) {
-                return (
-                  '<option' +
-                  (d.deliveryMap[k] === t ? ' selected' : '') +
-                  '>' +
-                  t +
-                  '</option>'
-                );
-              }).join('') +
-              '</select></div>'
-            );
-          })
-          .join('') +
+        keys.map(function (k) {
+          return renderDeliveryTimelineRow(d, k);
+        }).join('') +
         '<div class="warn-box">Delivery timelines can be different for each deliverable.</div>'
       );
     }
@@ -2346,10 +2448,12 @@ function readPkgWizardFields(d) {
   readPkgCoverageFieldsFromDom(d);
   readExtrasFieldsFromDom(d);
   readDeliverableFieldsFromDom(d);
+  if (!d.deliveryMapCustom) d.deliveryMapCustom = {};
   document.querySelectorAll('[data-del-key]').forEach(function (sel) {
     const k = sel.getAttribute('data-del-key');
     if (!k) return;
     d.deliveryMap[k] = sel.value;
+    if (sel.value !== 'Custom') delete d.deliveryMapCustom[k];
     if ((d.deliverPhoto || []).indexOf(k) >= 0) {
       if (!d.photoDetails[k]) d.photoDetails[k] = {};
       d.photoDetails[k].delivery = sel.value;
@@ -2358,6 +2462,12 @@ function readPkgWizardFields(d) {
       if (!d.videoDetails[k]) d.videoDetails[k] = {};
       d.videoDetails[k].delivery = sel.value;
     }
+  });
+  document.querySelectorAll('[data-del-key-custom]').forEach(function (inp) {
+    const k = inp.getAttribute('data-del-key-custom');
+    if (!k) return;
+    if (!d.deliveryMapCustom) d.deliveryMapCustom = {};
+    d.deliveryMapCustom[k] = inp.value.trim();
   });
   pruneDeliveryMap(d);
   readPkgPolicyTiersFromDom(d);
@@ -2459,6 +2569,9 @@ function readPkgCoverageFieldsFromDom(d) {
     const block = pkgFnCoverage(d, fn);
     const dur = card.querySelector('[data-fn-duration]');
     if (dur) block.duration = dur.value;
+    const durCustom = card.querySelector('[data-fn-duration-custom]');
+    if (durCustom) block.durationCustom = durCustom.value.trim();
+    if (dur && dur.value !== 'Custom') block.durationCustom = '';
     const ex = card.querySelector('[data-fn-extra-hour]');
     if (ex) block.extraHour = +ex.value || 0;
   });
@@ -2776,6 +2889,26 @@ function bindPkgWizard(d) {
       renderWizardBody();
       return;
     }
+    if (t.matches('[data-video-dur]')) {
+      readPkgWizardFields(d);
+      renderWizardBody();
+      return;
+    }
+    if (t.matches('[data-photo-fmt]')) {
+      readPkgWizardFields(d);
+      renderWizardBody();
+      return;
+    }
+    if (t.matches('[data-del-key]')) {
+      readPkgWizardFields(d);
+      renderWizardBody();
+      return;
+    }
+    if (t.matches('[data-fn-duration]')) {
+      readPkgCoverageFieldsFromDom(d);
+      renderWizardBody();
+      return;
+    }
     if (t.matches('[data-fn]')) {
       const fn = t.getAttribute('data-fn');
       if (t.checked) {
@@ -2815,7 +2948,7 @@ function bindPkgWizard(d) {
       renderWizardBody();
       return;
     }
-    if (t.matches('[data-fn-duration]')) {
+    if (t.matches('[data-fn-duration]') && !t.matches('[data-fn-duration-custom]')) {
       updateFnCoverageHints(t.closest('.fn-cov-card'), d);
       return;
     }

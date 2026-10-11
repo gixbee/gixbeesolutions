@@ -112,6 +112,7 @@ function newSvcDraft() {
     price: 49500,
     durEnabled: true,
     duration: 'Up to 4 Hours',
+    durationCustom: '',
     extraHour: 1500,
     team: { photoCandid: 1, photoTraditional: 1, videoCandid: 1, videoTraditional: 0 },
     deliverTab: 'photos',
@@ -341,17 +342,22 @@ function renderSvcStep(step, d) {
         (d.durEnabled ? 'checked' : '') +
         '> Add duration &amp; team coverage</label>' +
         (d.durEnabled
-          ? '<div class="fld"><label>Duration</label><select id="f_duration">' +
-            SVC_DUR_OPTS.map(function (o) {
-              return (
-                '<option' +
-                (d.duration === o ? ' selected' : '') +
-                '>' +
-                o +
-                '</option>'
-              );
-            }).join('') +
-            '</select></div>' +
+          ? (function () {
+              normalizeCustomOption(d, 'duration', 'durationCustom', SVC_DUR_OPTS, 'Up to 4 Hours');
+              let h =
+                '<div class="fld"><label>Duration</label><select id="f_duration">' +
+                buildSelectOptionsHtml(SVC_DUR_OPTS, d.duration) +
+                '</select></div>';
+              if (d.duration === 'Custom') {
+                h += renderCustomTextInput(
+                  'id="f_durationCustom"',
+                  d.durationCustom,
+                  'Describe duration',
+                  'e.g. 5 hours on location'
+                );
+              }
+              return h;
+            })() +
             '<div class="fld"><label>Additional hour charge (₹)</label><input type="number" id="f_extraHour" value="' +
             d.extraHour +
             '"><span class="hint"> Per hour</span></div>' +
@@ -495,7 +501,11 @@ function readSvcWizardFields(d) {
   if (dy) d.discountYes = dy.value;
   if (g('f_discountPct')) d.discountPct = +g('f_discountPct').value || 0;
   if (g('f_durOn')) d.durEnabled = g('f_durOn').checked;
-  if (g('f_duration')) d.duration = g('f_duration').value;
+  if (g('f_duration')) {
+    d.duration = g('f_duration').value;
+    if (d.duration !== 'Custom') d.durationCustom = '';
+  }
+  if (g('f_durationCustom')) d.durationCustom = g('f_durationCustom').value.trim();
   if (g('f_extraHour')) d.extraHour = +g('f_extraHour').value || 0;
   readDeliverableFieldsFromDom(d);
   readExtrasFieldsFromDom(d);
