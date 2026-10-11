@@ -961,7 +961,48 @@ const PHOTO_TYPE_DEFAULTS = [
 ];
 const VIDEO_TYPE_DEFAULTS = ['Candid Videographer', 'Traditional Videographer', 'Cinematic Videographer'];
 const PHOTO_FORMATS = ['JPG (High Resolution)', 'JPG + RAW', 'PNG'];
-const VIDEO_DURATIONS = ['Full Event', '3-5 Minutes', '5-10 Minutes', '1-2 Minutes', 'Custom'];
+const VIDEO_DURATION_HOURS = ['Full Event', '0-1 Hours', '1-2 Hours', '2-3 Hours', '3-4 Hours'];
+const VIDEO_DURATION_SHORT = ['1-2 Minutes', '3-5 Minutes', '5-10 Minutes', 'Custom'];
+const VIDEO_DURATIONS = VIDEO_DURATION_HOURS.concat(VIDEO_DURATION_SHORT);
+
+function defaultVideoDurationForName(name) {
+  if (name === 'Full-Length Video' || name === 'Traditional Video') return '2-3 Hours';
+  if (name === 'Highlight Video') return '3-5 Minutes';
+  if (name === 'Cinematic Video') return '5-10 Minutes';
+  if (name === 'Teaser Video' || name === 'Reel') return '1-2 Minutes';
+  return 'Full Event';
+}
+
+function videoDurationSelectOptions(selected) {
+  const list = VIDEO_DURATIONS.slice();
+  if (selected && list.indexOf(selected) < 0) list.unshift(selected);
+  return list;
+}
+
+function renderVideoDurationSelect(name, selected) {
+  const sel = selected || defaultVideoDurationForName(name);
+  const hourOpts = VIDEO_DURATION_HOURS.map(function (v) {
+    return '<option' + (sel === v ? ' selected' : '') + '>' + v + '</option>';
+  }).join('');
+  const shortOpts = VIDEO_DURATION_SHORT.map(function (v) {
+    return '<option' + (sel === v ? ' selected' : '') + '>' + v + '</option>';
+  }).join('');
+  const legacy =
+    sel && VIDEO_DURATIONS.indexOf(sel) < 0
+      ? '<option selected>' + esc(sel) + '</option>'
+      : '';
+  return (
+    '<select data-video-dur="' +
+    esc(name) +
+    '">' +
+    legacy +
+    '<optgroup label="Hours (full-length style)">' +
+    hourOpts +
+    '</optgroup><optgroup label="Minutes (highlight / reel)">' +
+    shortOpts +
+    '</optgroup></select>'
+  );
+}
 const VIDEO_FORMATS = ['MP4 (Full HD)', 'MP4 (4K)', 'MOV (4K)'];
 const POLICY_DEFAULTS = [
   'Cancellation Policy',
@@ -1490,14 +1531,7 @@ function defaultVideoDetails() {
   VIDEO_DELIVER.forEach(function (name) {
     o[name] = {
       qty: 1,
-      duration:
-        name === 'Full-Length Video'
-          ? 'Full Event'
-          : name === 'Highlight Video'
-            ? '3-5 Minutes'
-            : name === 'Cinematic Video'
-              ? '5-10 Minutes'
-              : '1-2 Minutes',
+      duration: defaultVideoDurationForName(name),
       format: 'MP4 (Full HD)',
       delivery: '15 Working Days',
     };
@@ -2353,7 +2387,7 @@ function renderVideoDeliverTab(d) {
         const on = d.deliverVideo.indexOf(name) >= 0;
         const det = d.videoDetails[name] || {
           qty: 1,
-          duration: VIDEO_DURATIONS[0],
+          duration: defaultVideoDurationForName(name),
           format: VIDEO_FORMATS[0],
           delivery: '15 Working Days',
         };
@@ -2380,19 +2414,9 @@ function renderVideoDeliverTab(d) {
               '" value="' +
               det.qty +
               '"></div>' +
-              '<div class="fld"><label>Duration</label><select data-video-dur="' +
-              esc(name) +
-              '">' +
-              VIDEO_DURATIONS.map(function (v) {
-                return (
-                  '<option' +
-                  (det.duration === v ? ' selected' : '') +
-                  '>' +
-                  v +
-                  '</option>'
-                );
-              }).join('') +
-              '</select></div>' +
+              '<div class="fld"><label>Duration</label>' +
+              renderVideoDurationSelect(name, det.duration) +
+              '</div>' +
               '<div class="fld"><label>Format</label><select data-video-fmt="' +
               esc(name) +
               '">' +
@@ -2758,7 +2782,7 @@ function runDeliverableWizardAction(act, t, d, readFields) {
       d.customDeliverVideo.push(name.trim());
       d.videoDetails[name.trim()] = {
         qty: 1,
-        duration: VIDEO_DURATIONS[0],
+        duration: defaultVideoDurationForName(name.trim()),
         format: VIDEO_FORMATS[0],
         delivery: '15 Working Days',
       };
@@ -5574,7 +5598,7 @@ function bindPhotoCalendarUi() {
   });
 }
 
-const PHOTO_OWNER_BUILD = '2026-10-11-photo-owner-album-paper-v35';
+const PHOTO_OWNER_BUILD = '2026-10-11-photo-owner-video-hours-v36';
 
 function photoOwnerDemoFileName() {
   try {
