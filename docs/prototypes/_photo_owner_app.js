@@ -1,4 +1,4 @@
-const PHOTO_OWNER_BUILD = '2026-10-11-photo-owner-custom-del-delete-v24';
+const PHOTO_OWNER_BUILD = '2026-10-11-photo-owner-extra-hourly-copy-v25';
 
 function photoOwnerDemoFileName() {
   try {

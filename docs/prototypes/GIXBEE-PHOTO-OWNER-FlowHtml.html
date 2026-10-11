@@ -1432,14 +1432,15 @@ function extraIncludedHourlyFields(x) {
     '<div class="extra-included-block">' +
     '<label class="extra-hourly-chk"><input type="checkbox" data-extra-hourly-on ' +
     (hourlyLimit ? 'checked' : '') +
-    '> Hourly inclusion (limit included hours)</label>' +
+    '> Limit included hours</label>' +
+    '<p class="hint" style="margin:4px 0 8px">For example: 4 hours live stream included, then paid per extra hour.</p>' +
     '<div class="extra-hourly-fields">' +
-    '<div class="fld"><label>Included hours</label><input type="number" min="0" step="1" data-extra-included-hours value="' +
+    '<div class="fld"><label>Hours included</label><input type="number" min="0" step="1" data-extra-included-hours value="' +
     incl +
     '"></div>' +
-    '<div class="fld"><label>Extra hour charge (₹)</label><input type="number" min="0" step="500" data-extra-hour-after value="' +
+    '<div class="fld"><label>Extra hour (₹)</label><input type="number" min="0" step="500" data-extra-hour-after value="' +
     extra +
-    '"><span class="hint"> / hour after included</span></div></div></div>'
+    '"><span class="hint"> per hour after that</span></div></div></div>'
   );
 }
 
@@ -5397,7 +5398,7 @@ function bindPhotoCalendarUi() {
   });
 }
 
-const PHOTO_OWNER_BUILD = '2026-10-11-photo-owner-custom-del-delete-v24';
+const PHOTO_OWNER_BUILD = '2026-10-11-photo-owner-extra-hourly-copy-v25';
 
 function photoOwnerDemoFileName() {
   try {
