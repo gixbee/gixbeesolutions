@@ -1,4 +1,4 @@
-const PHOTO_OWNER_BUILD = '2026-10-11-photo-owner-deliverables-no-photo-delivery-v12';
+const PHOTO_OWNER_BUILD = '2026-10-11-photo-owner-pkg-coverage-side-v13';
 
 function photoOwnerDemoFileName() {
   try {
@@ -62,7 +62,7 @@ const PKG_STEPS = [
   { title: 'Package basics', sub: 'Basic information about the package.' },
   { title: 'Select functions', sub: 'Choose wedding functions covered in this wedding package.' },
   { title: 'Ceremony type', sub: 'Choose applicable ceremony types.' },
-  { title: 'Coverage details', sub: 'Duration, extra hour, and team for each function in this package.' },
+  { title: 'Coverage details', sub: 'Coverage side, then duration, extra hour, and team for each function.' },
   { title: 'Deliverables', sub: 'Select photos, videos, albums and other deliverables included in this package.' },
   { title: 'Special services & extras', sub: 'Select additional services with price.' },
   { title: 'Delivery timeline', sub: 'Set delivery timeline for each deliverable.' },

@@ -573,6 +573,36 @@ function fnShowsCoverageSide(fnName) {
   return !fnIsCoupleShoot(fnName);
 }
 
+function pkgNeedsCoverageSideUi(d) {
+  const fns = d.functions && d.functions.length ? d.functions : ['Wedding & Reception'];
+  return fns.some(fnShowsCoverageSide);
+}
+
+function resolvePkgCoverageSide(d) {
+  if (d.coverageSide === 'single' || d.coverageSide === 'both') return d.coverageSide;
+  ensurePkgCoverageByFunction(d);
+  const fns = d.functions && d.functions.length ? d.functions : ['Wedding & Reception'];
+  for (let i = 0; i < fns.length; i++) {
+    if (!fnShowsCoverageSide(fns[i])) continue;
+    const block = d.coverageByFunction[fns[i]];
+    if (block && (block.coverageSide === 'single' || block.coverageSide === 'both')) {
+      return block.coverageSide;
+    }
+  }
+  return 'both';
+}
+
+function applyPkgCoverageSide(d, side) {
+  if (side !== 'single' && side !== 'both') return;
+  d.coverageSide = side;
+  ensurePkgCoverageByFunction(d);
+  const fns = d.functions && d.functions.length ? d.functions : ['Wedding & Reception'];
+  fns.forEach(function (fn) {
+    if (fnShowsCoverageSide(fn)) d.coverageByFunction[fn].coverageSide = side;
+    else d.coverageByFunction[fn].coverageSide = 'single';
+  });
+}
+
 function defaultFnCoverage(fnName, fromTemplate) {
   if (fromTemplate) {
     return JSON.parse(JSON.stringify(fromTemplate));
@@ -684,6 +714,7 @@ function newPkgDraft() {
     coverUploaded: false,
     customFunctions: [],
     functions: ['Wedding & Reception', 'Reception', 'Wedding Eve'],
+    coverageSide: 'both',
     customCeremonies: [],
     ceremonyTypes: ['Hindu'],
     customPhotoTypes: [],
@@ -1407,6 +1438,17 @@ function renderFnCoverageStep(d) {
     '<button type="button" data-action="fn-cov-expand-all">Expand all</button>' +
     '<button type="button" data-action="fn-cov-collapse-all">Collapse all</button>' +
     '</div></div>';
+  if (pkgNeedsCoverageSideUi(d)) {
+    const pkgSide = resolvePkgCoverageSide(d);
+    html +=
+      '<div class="fld fn-cov-pkg-side"><label>Coverage side</label><p class="hint" style="margin:-2px 0 8px">Applies to all wedding functions in this package (not couple shoots).</p><div class="seg seg-full">' +
+      '<button type="button" class="' +
+      (pkgSide === 'single' ? 'on' : '') +
+      '" data-pkg-cov-side="single">Single side</button>' +
+      '<button type="button" class="' +
+      (pkgSide === 'both' ? 'on' : '') +
+      '" data-pkg-cov-side="both">Both sides</button></div></div>';
+  }
   fns.forEach(function (fn, idx) {
     const c = pkgFnCoverage(d, fn);
     const open = d.coverageUiOpen[fn] === true;
@@ -1442,20 +1484,6 @@ function renderFnCoverageStep(d) {
         '">Same coverage as ' +
         esc(fns[idx - 1]) +
         '</button></div>';
-    }
-    if (fnShowsCoverageSide(fn)) {
-      html +=
-        '<div class="fld fn-cov-side"><label>Coverage side</label><div class="seg seg-full">' +
-        '<button type="button" class="' +
-        (c.coverageSide === 'single' ? 'on' : '') +
-        '" data-side="single" data-cov-fn="' +
-        esc(fn) +
-        '">Single side</button>' +
-        '<button type="button" class="' +
-        (c.coverageSide === 'both' ? 'on' : '') +
-        '" data-side="both" data-cov-fn="' +
-        esc(fn) +
-        '">Both sides</button></div></div>';
     }
     html +=
       '<div class="fld"><label>Coverage duration</label><select data-fn-duration>' +
@@ -1856,12 +1884,12 @@ function readFnCoverageUiOpen(d) {
 
 function readPkgCoverageFieldsFromDom(d) {
   readFnCoverageUiOpen(d);
+  const pkgSideOn = document.querySelector('.fn-cov-pkg-side [data-pkg-cov-side].on');
+  if (pkgSideOn) applyPkgCoverageSide(d, pkgSideOn.getAttribute('data-pkg-cov-side'));
   document.querySelectorAll('.fn-cov-card').forEach(function (card) {
     const fn = card.getAttribute('data-fn-name');
     if (!fn) return;
     const block = pkgFnCoverage(d, fn);
-    const sideOn = card.querySelector('.fn-cov-side [data-side].on');
-    if (sideOn) block.coverageSide = sideOn.getAttribute('data-side');
     const dur = card.querySelector('[data-fn-duration]');
     if (dur) block.duration = dur.value;
     const ex = card.querySelector('[data-fn-extra-hour]');
@@ -2122,11 +2150,9 @@ function bindPkgWizard(d) {
         return;
       }
     }
-    const side = e.target.closest('[data-side][data-cov-fn]');
-    if (side) {
-      const fn = side.getAttribute('data-cov-fn');
-      const block = pkgFnCoverage(d, fn);
-      block.coverageSide = side.getAttribute('data-side');
+    const pkgSideBtn = e.target.closest('[data-pkg-cov-side]');
+    if (pkgSideBtn) {
+      applyPkgCoverageSide(d, pkgSideBtn.getAttribute('data-pkg-cov-side'));
       renderWizardBody();
       return;
     }
