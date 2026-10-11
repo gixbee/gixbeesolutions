@@ -1371,10 +1371,8 @@ function renderAlbumPrintCard(name, d) {
   if (!d.albumPrints) d.albumPrints = defaultAlbumPrints();
   const row = d.albumPrints[name] || { on: false };
   const on = !!row.on;
-  const showComplimentary =
-    COMPLIMENTARY_PRINT_TYPES.indexOf(name) >= 0 && row.complimentary == null
-      ? (row.complimentary = true)
-      : COMPLIMENTARY_PRINT_TYPES.indexOf(name) >= 0;
+  const isComplimentaryType = COMPLIMENTARY_PRINT_TYPES.indexOf(name) >= 0;
+  if (isComplimentaryType && row.complimentary == null) row.complimentary = true;
   let fields = '';
   if (on && name === 'Photo Album') {
     fields =
@@ -1398,7 +1396,7 @@ function renderAlbumPrintCard(name, d) {
       esc(name) +
       '><option>A3</option><option>A4</option><option>6 x 6 inch</option><option>12 x 18 inch</option></select></div>' +
       '<div class="fld"><label>Type</label><select data-album-type-opt><option>Wall Calendar</option><option>Desk Calendar</option><option>Acrylic</option><option>Standard</option></select></div>' +
-      (showComplimentary ? albumComplimentaryField(row) : '') +
+      (isComplimentaryType ? albumComplimentaryField(row) : '') +
       '</div>';
   }
   return (
