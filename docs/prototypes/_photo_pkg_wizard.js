@@ -706,24 +706,24 @@ function renderAlbumPageFinishField(row) {
   const offered = row.pageFinishCustomerOptions;
   return (
     '<div class="fld album-page-finish-fld"><label>Page finish</label>' +
-    '<p class="hint album-finish-hint">Inner album pages — not the outer cover.</p>' +
-    '<div class="fld album-finish-policy-fld"><label>Who chooses?</label><select data-album-finish-policy>' +
+    '<p class="hint album-finish-hint">Inside album pages only (not cover).</p>' +
+    '<div class="fld album-finish-policy-fld"><label>Show on package as</label><select data-album-finish-policy>' +
     '<option value="studio"' +
     (policy === 'studio' ? ' selected' : '') +
-    '>Studio sets one finish (in package)</option>' +
+    '>One finish included</option>' +
     '<option value="customer"' +
     (policy === 'customer' ? ' selected' : '') +
-    '>Customer chooses finish</option></select></div>' +
+    '>Customer can choose</option></select></div>' +
     '<div class="album-finish-panel album-finish-studio"' +
     (policy === 'studio' ? '' : ' hidden') +
-    '><div class="fld"><label>Included finish</label><select data-album-page-finish>' +
+    '><div class="fld"><label>Finish</label><select data-album-page-finish>' +
     ALBUM_PAGE_FINISHES.map(function (opt) {
       return '<option' + (val === opt ? ' selected' : '') + '>' + opt + '</option>';
     }).join('') +
     '</select></div></div>' +
     '<div class="album-finish-panel album-finish-customer"' +
     (policy === 'customer' ? '' : ' hidden') +
-    '><p class="hint album-finish-customer-hint">Tick the finishes you offer. Customer picks <b>one</b> when designing the album.</p>' +
+    '><p class="hint album-finish-customer-hint">Tick all you allow. Customer picks one later.</p>' +
     '<div class="album-finish-choices">' +
     ALBUM_PAGE_FINISHES.map(function (opt) {
       const on = offered.indexOf(opt) >= 0;
