@@ -948,6 +948,11 @@ const COMPLIMENTARY_PRINT_TYPES = ['Calendar', 'Mini Album', 'Photo Frame'];
 const ALBUM_PRINT_TYPES = ALBUM_MAIN_TYPES.concat(COMPLIMENTARY_PRINT_TYPES);
 const ALBUM_PAGE_FINISHES = ['Matte', 'Glossy', 'Lustre', 'Silk', 'Metallic'];
 const ALBUM_PAGE_FINISH_CUSTOMER_DEFAULT = ['Matte', 'Glossy'];
+const PHOTO_ALBUM_SIZES = ['12 x 18 inch', '10 x 12 inch', '12 x 30 inch', '12 x 36 inch', 'Custom'];
+const PHOTO_ALBUM_COVERS = ['Premium', 'Standard', 'Leather', 'Wooden', 'Custom'];
+const ALBUM_STUDIO_PAPER_OPTS = ALBUM_PAGE_FINISHES.concat(['Custom']);
+const ALBUM_PRINT_SIZES = ['A3', 'A4', '6 x 6 inch', '12 x 18 inch', 'Custom'];
+const ALBUM_PRINT_TYPES = ['Wall Calendar', 'Desk Calendar', 'Acrylic', 'Standard', 'Custom'];
 const DIGITAL_DELIVER = [
   { id: 'Google Drive Link', icon: '📁', desc: 'Share high-resolution files via Google Drive.' },
   { id: 'Online Gallery', icon: '🔗', desc: 'Private online gallery for easy access.' },
@@ -1782,8 +1787,38 @@ function normalizeAlbumFinishRow(row) {
 
 function albumPageFinishValue(row) {
   const f = row && row.pageFinish;
+  if (f === 'Custom') return (row.pageFinishCustom || '').trim() || 'Custom paper';
   if (f && ALBUM_PAGE_FINISHES.indexOf(f) >= 0) return f;
   return 'Matte';
+}
+
+function renderAlbumCustomSelect(row, valueKey, customKey, options, selectAttr, label, placeholder) {
+  normalizeCustomOption(row, valueKey, customKey, options, options[0]);
+  let html =
+    '<div class="fld"><label>' +
+    esc(label) +
+    '</label><select ' +
+    selectAttr +
+    '>' +
+    buildSelectOptionsHtml(options, row[valueKey]) +
+    '</select></div>';
+  if (row[valueKey] === 'Custom') {
+    html += renderCustomTextInput(
+      'data-album-field-custom="' + customKey + '"',
+      row[customKey],
+      'Your ' + label.toLowerCase(),
+      placeholder
+    );
+  }
+  return html;
+}
+
+function readAlbumCustomFieldsFromCard(card, row) {
+  if (!card || !row) return;
+  card.querySelectorAll('[data-album-field-custom]').forEach(function (inp) {
+    const key = inp.getAttribute('data-album-field-custom');
+    if (key) row[key] = inp.value.trim();
+  });
 }
 
 function albumPageFinishSummaryText(row) {
@@ -1801,7 +1836,12 @@ function readAlbumFinishFromCard(card, row) {
   const policySel = card.querySelector('[data-album-finish-policy]');
   if (policySel) row.pageFinishPolicy = policySel.value === 'customer' ? 'customer' : 'studio';
   const finishSel = card.querySelector('[data-album-page-finish]');
-  if (finishSel) row.pageFinish = finishSel.value;
+  if (finishSel) {
+    row.pageFinish = finishSel.value;
+    if (finishSel.value !== 'Custom') row.pageFinishCustom = '';
+  }
+  const paperCustom = card.querySelector('[data-album-paper-custom]');
+  if (paperCustom) row.pageFinishCustom = paperCustom.value.trim();
   const offered = [];
   card.querySelectorAll('[data-album-finish-offered]:checked').forEach(function (chk) {
     if (chk.value) offered.push(chk.value);
@@ -1814,8 +1854,20 @@ function readAlbumFinishFromCard(card, row) {
 function renderAlbumPageFinishField(row) {
   normalizeAlbumFinishRow(row);
   const policy = row.pageFinishPolicy;
-  const val = albumPageFinishValue(row);
+  normalizeCustomOption(row, 'pageFinish', 'pageFinishCustom', ALBUM_STUDIO_PAPER_OPTS, 'Matte');
   const offered = row.pageFinishCustomerOptions;
+  let studioPaper =
+    '<div class="fld"><label>Paper</label><select data-album-page-finish>' +
+    buildSelectOptionsHtml(ALBUM_STUDIO_PAPER_OPTS, row.pageFinish) +
+    '</select></div>';
+  if (row.pageFinish === 'Custom') {
+    studioPaper += renderCustomTextInput(
+      'data-album-paper-custom',
+      row.pageFinishCustom,
+      'Describe paper',
+      'e.g. Metallic pearl'
+    );
+  }
   return (
     '<div class="fld album-page-finish-fld"><label>Album paper</label>' +
     '<p class="hint album-finish-hint">Paper inside the album (not cover).</p>' +
@@ -1828,11 +1880,9 @@ function renderAlbumPageFinishField(row) {
     '>Customer chooses</option></select></div>' +
     '<div class="album-finish-panel album-finish-studio"' +
     (policy === 'studio' ? '' : ' hidden') +
-    '><div class="fld"><label>Paper</label><select data-album-page-finish>' +
-    ALBUM_PAGE_FINISHES.map(function (opt) {
-      return '<option' + (val === opt ? ' selected' : '') + '>' + opt + '</option>';
-    }).join('') +
-    '</select></div></div>' +
+    '>' +
+    studioPaper +
+    '</div>' +
     '<div class="album-finish-panel album-finish-customer"' +
     (policy === 'customer' ? '' : ' hidden') +
     '><p class="hint album-finish-customer-hint">Tick papers you allow. Customer picks one later.</p>' +
@@ -2597,12 +2647,24 @@ function renderAlbumPrintCard(name, d) {
       '<div class="fld"><label>Pages</label><input type="number" data-album-pages value="' +
       (row.pages || 40) +
       '"></div>' +
-      '<div class="fld"><label>Size</label><select data-album-size><option' +
-      ((row.size || '').indexOf('12') >= 0 ? ' selected' : '') +
-      '>12 x 18 inch</option><option>10 x 12 inch</option></select></div>' +
-      '<div class="fld"><label>Cover type</label><select data-album-cover><option' +
-      (row.cover === 'Premium' ? ' selected' : '') +
-      '>Premium</option><option>Standard</option></select></div>' +
+      renderAlbumCustomSelect(
+        row,
+        'size',
+        'sizeCustom',
+        PHOTO_ALBUM_SIZES,
+        'data-album-size',
+        'Size',
+        'e.g. 14 x 21 inch'
+      ) +
+      renderAlbumCustomSelect(
+        row,
+        'cover',
+        'coverCustom',
+        PHOTO_ALBUM_COVERS,
+        'data-album-cover',
+        'Cover type',
+        'e.g. Velvet cover'
+      ) +
       renderAlbumPageFinishField(row) +
       '</div>';
   } else if (on) {
@@ -2611,10 +2673,24 @@ function renderAlbumPrintCard(name, d) {
       '<div class="fld"><label>Quantity</label><input type="number" data-album-qty value="' +
       (row.qty || 1) +
       '"></div>' +
-      '<div class="fld"><label>Size</label><select data-album-size-' +
-      esc(name) +
-      '><option>A3</option><option>A4</option><option>6 x 6 inch</option><option>12 x 18 inch</option></select></div>' +
-      '<div class="fld"><label>Type</label><select data-album-type-opt><option>Wall Calendar</option><option>Desk Calendar</option><option>Acrylic</option><option>Standard</option></select></div>' +
+      renderAlbumCustomSelect(
+        row,
+        'size',
+        'sizeCustom',
+        ALBUM_PRINT_SIZES,
+        'data-album-print-size',
+        'Size',
+        'e.g. 8 x 8 inch'
+      ) +
+      renderAlbumCustomSelect(
+        row,
+        'type',
+        'typeCustom',
+        ALBUM_PRINT_TYPES,
+        'data-album-print-type',
+        'Type',
+        'e.g. Tabletop calendar'
+      ) +
       (name === 'Mini Album' ? renderAlbumPageFinishField(row) : '') +
       (isComplimentaryType ? albumComplimentaryField(row) : '') +
       '</div>';
@@ -2795,17 +2871,32 @@ function readAlbumFieldsFromDom(d) {
       const sizeSel = card.querySelector('[data-album-size]');
       const coverSel = card.querySelector('[data-album-cover]');
       if (pages) d.albumPrints[name].pages = +pages.value || 40;
-      if (sizeSel) d.albumPrints[name].size = sizeSel.value;
-      if (coverSel) d.albumPrints[name].cover = coverSel.value;
+      if (sizeSel) {
+        d.albumPrints[name].size = sizeSel.value;
+        if (sizeSel.value !== 'Custom') d.albumPrints[name].sizeCustom = '';
+      }
+      if (coverSel) {
+        d.albumPrints[name].cover = coverSel.value;
+        if (coverSel.value !== 'Custom') d.albumPrints[name].coverCustom = '';
+      }
+      readAlbumCustomFieldsFromCard(card, d.albumPrints[name]);
       readAlbumFinishFromCard(card, d.albumPrints[name]);
       const compA = card.querySelector('[data-album-complimentary]');
       if (compA) d.albumPrints[name].complimentary = compA.checked;
     } else {
       const qty = card.querySelector('[data-album-qty]');
       if (qty) d.albumPrints[name].qty = +qty.value || 1;
-      const selects = card.querySelectorAll('.del-fields select');
-      if (selects[0]) d.albumPrints[name].size = selects[0].value;
-      if (selects[1]) d.albumPrints[name].type = selects[1].value;
+      const sizeSel = card.querySelector('[data-album-print-size]');
+      const typeSel = card.querySelector('[data-album-print-type]');
+      if (sizeSel) {
+        d.albumPrints[name].size = sizeSel.value;
+        if (sizeSel.value !== 'Custom') d.albumPrints[name].sizeCustom = '';
+      }
+      if (typeSel) {
+        d.albumPrints[name].type = typeSel.value;
+        if (typeSel.value !== 'Custom') d.albumPrints[name].typeCustom = '';
+      }
+      readAlbumCustomFieldsFromCard(card, d.albumPrints[name]);
       readAlbumFinishFromCard(card, d.albumPrints[name]);
       const compB = card.querySelector('[data-album-complimentary]');
       if (compB) d.albumPrints[name].complimentary = compB.checked;
@@ -3801,6 +3892,15 @@ function bindPkgWizard(d) {
   body.onchange = function (e) {
     const t = e.target;
     if (t.matches('[data-album-finish-policy]')) {
+      readPkgWizardFields(d);
+      renderWizardBody();
+      return;
+    }
+    if (
+      t.matches(
+        '[data-album-size],[data-album-cover],[data-album-page-finish],[data-album-print-size],[data-album-print-type]'
+      )
+    ) {
       readPkgWizardFields(d);
       renderWizardBody();
       return;
@@ -5792,7 +5892,7 @@ function bindPhotoCalendarUi() {
   });
 }
 
-const PHOTO_OWNER_BUILD = '2026-10-11-photo-owner-custom-dropdowns-v40';
+const PHOTO_OWNER_BUILD = '2026-10-11-photo-owner-album-custom-v41';
 
 function photoOwnerDemoFileName() {
   try {
