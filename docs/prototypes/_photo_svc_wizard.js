@@ -175,6 +175,7 @@ function recordToPkgDraft(rec) {
   const merged = Object.assign(base, m);
   migrateDroneHelicamExtra(merged);
   migrateLegacyPkgCoverage(merged);
+  ensurePkgMarketingFields(merged);
   merged.photoDetails = Object.assign({}, base.photoDetails, m.photoDetails || {});
   merged.videoDetails = Object.assign({}, base.videoDetails, m.videoDetails || {});
   merged.albumPrints = Object.assign({}, base.albumPrints, m.albumPrints || {});
@@ -610,10 +611,12 @@ function bindSvcWizard(d) {
       if (d.team[field] != null) d.team[field] = v;
       return;
     }
+    if (handleExtraHourlyCheckboxChange(e)) return;
   };
   body.onchange = function (e) {
     const t = e.target;
     if (handleExtraModeSelectChange(e, d)) return;
+    if (handleExtraHourlyCheckboxChange(e)) return;
     if (deliverableCheckboxChange(t, d)) return;
     if (t.matches('[data-svc-pol]')) {
       const v = t.getAttribute('data-svc-pol');

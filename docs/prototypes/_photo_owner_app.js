@@ -1,4 +1,4 @@
-const PHOTO_OWNER_BUILD = '2026-10-11-photo-owner-extra-hourly-included-v17';
+const PHOTO_OWNER_BUILD = '2026-10-11-photo-owner-package-marketing-v18';
 
 function photoOwnerDemoFileName() {
   try {
@@ -266,6 +266,7 @@ function loadStore() {
     (store.packages || []).forEach(function (p) {
       if (typeof migrateDroneHelicamExtra === 'function') migrateDroneHelicamExtra(p);
       if (typeof migrateLegacyPkgCoverage === 'function') migrateLegacyPkgCoverage(p);
+      if (typeof ensurePkgMarketingFields === 'function') ensurePkgMarketingFields(p);
     });
     (store.services || []).forEach(function (s) {
       if (typeof migrateDroneHelicamExtra === 'function') migrateDroneHelicamExtra(s);

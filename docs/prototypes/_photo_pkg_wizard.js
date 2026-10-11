@@ -26,9 +26,17 @@ const ALBUM_PRINT_TYPES = ['Photo Album', 'Calendar', 'Mini Album', 'Photo Frame
 const DIGITAL_DELIVER = [
   { id: 'Google Drive Link', icon: '📁', desc: 'Share high-resolution files via Google Drive.' },
   { id: 'Online Gallery', icon: '🔗', desc: 'Private online gallery for easy access.' },
+  { id: 'Photo Selection App', icon: '📲', desc: 'App for customers to select photos for albums.' },
+  { id: 'Guest Gallery & Face AI', icon: '🤳', desc: 'Guests find and download their photos with face search.' },
   { id: 'Pen Drive', icon: '💾', desc: 'Physical pen drive with all files.' },
   { id: 'Pen Drive Box', icon: '📦', desc: 'Premium pen drive box with branding.' },
   { id: 'Email Delivery', icon: '✉️', desc: 'Files delivered via email.' },
+];
+const PKG_COMPLIMENTARY_PRESETS = [
+  'Save the Date (complimentary)',
+  'Photo Frame',
+  'Mini Album',
+  'Calendar',
 ];
 const PHOTO_TYPE_DEFAULTS = [
   'Candid Photographer',
@@ -579,9 +587,21 @@ function defaultVideoDetails() {
   return o;
 }
 
+function ensurePkgMarketingFields(d) {
+  if (!d) return;
+  if (!d.complimentary) d.complimentary = [];
+  if (!d.customComplimentary) d.customComplimentary = [];
+  if (d.shootUnlimitedClicks == null) d.shootUnlimitedClicks = false;
+  if (d.equipmentNote == null) d.equipmentNote = '';
+  if (d.qualityNote == null) d.qualityNote = '';
+  if (d.albumPrints && d.albumPrints['Photo Album'] && d.albumPrints['Photo Album'].sets == null) {
+    d.albumPrints['Photo Album'].sets = 1;
+  }
+}
+
 function defaultAlbumPrints() {
   return {
-    'Photo Album': { on: true, pages: 40, size: '12 x 18 inch', cover: 'Premium' },
+    'Photo Album': { on: true, pages: 40, sets: 1, size: '12 x 18 inch', cover: 'Premium' },
     Calendar: { on: false, qty: 1, size: 'A3', type: 'Wall Calendar' },
     'Mini Album': { on: false, qty: 1, size: '6 x 6 inch', cover: 'Standard' },
     'Photo Frame': { on: false, qty: 1, size: '12 x 18 inch', type: 'Acrylic' },
@@ -827,8 +847,14 @@ function newPkgDraft() {
     customPolicies: [],
     requirements: ['Customer provides SSD / Hard Disk', 'Electricity / Power at venue'],
     customRequirements: [],
+    complimentary: [],
+    customComplimentary: [],
+    shootUnlimitedClicks: false,
+    equipmentNote: '',
+    qualityNote: '',
   };
   newPkgDraftFinalize(d);
+  ensurePkgMarketingFields(d);
   return d;
 }
 
@@ -888,6 +914,38 @@ function readExtrasFieldsFromDom(d) {
       d.extras[name] = rowData;
     }
   });
+}
+
+function renderPkgComplimentarySection(d) {
+  ensurePkgMarketingFields(d);
+  const preset = PKG_COMPLIMENTARY_PRESETS.concat(
+    (d.customComplimentary || []).map(function (x) {
+      return typeof x === 'string' ? x : x.name;
+    })
+  );
+  return (
+    '<div class="pkg-complimentary">' +
+    '<p class="lbl" style="margin-top:20px">Complimentary (free with package)</p>' +
+    '<p class="sub">Optional bonuses on your package card (Save the Date, frames, etc.).</p>' +
+    preset
+      .map(function (item) {
+        const on = (d.complimentary || []).indexOf(item) >= 0;
+        return (
+          '<label class="chk-row' +
+          (on ? ' on' : '') +
+          '"><input type="checkbox" data-complimentary="' +
+          esc(item) +
+          '" ' +
+          (on ? 'checked' : '') +
+          '> ' +
+          esc(item) +
+          '</label>'
+        );
+      })
+      .join('') +
+    linkAdd('add-complimentary', 'Add complimentary item') +
+    '</div>'
+  );
 }
 
 function renderWizardExtrasStep(d, namesFn, addLinkLabel) {
@@ -1124,9 +1182,15 @@ function renderDelTabs(active) {
 }
 
 function renderPhotoDeliverTab(d) {
+  ensurePkgMarketingFields(d);
   const items = PHOTO_DELIVER.concat(d.customDeliverPhoto || []);
   return (
     '<p class="del-sec-title">Photography deliverables</p><p class="sub">Select the types of photos to be delivered.</p>' +
+    '<label class="chk-row' +
+    (d.shootUnlimitedClicks ? ' on' : '') +
+    '" style="margin-bottom:12px"><input type="checkbox" id="f_unlimitedClicks" ' +
+    (d.shootUnlimitedClicks ? 'checked' : '') +
+    '> Unlimited clicks during shoot</label>' +
     items
       .map(function (name) {
         const on = d.deliverPhoto.indexOf(name) >= 0;
@@ -1258,6 +1322,9 @@ function renderAlbumDeliverTab(d) {
               '<div class="fld"><label>Pages</label><input type="number" data-album-pages value="' +
               (row.pages || 40) +
               '"></div>' +
+              '<div class="fld"><label>Album sets</label><input type="number" min="1" step="1" data-album-sets value="' +
+              (row.sets != null ? row.sets : 1) +
+              '"><span class="hint"> e.g. 2 for bride &amp; groom</span></div>' +
               '<div class="fld"><label>Size</label><select data-album-size><option' +
               ((row.size || '').indexOf('12') >= 0 ? ' selected' : '') +
               '>12 x 18 inch</option><option>10 x 12 inch</option></select></div>' +
@@ -1394,8 +1461,39 @@ function renderDeliverablesStep(d) {
   return renderDelTabs(tab) + body;
 }
 
+function readAlbumFieldsFromDom(d) {
+  if (!d.albumPrints) d.albumPrints = defaultAlbumPrints();
+  document.querySelectorAll('input[data-album-type]').forEach(function (chk) {
+    const name = chk.getAttribute('data-album-type');
+    if (!name) return;
+    if (!d.albumPrints[name]) d.albumPrints[name] = defaultAlbumPrints()[name] || { on: false };
+    d.albumPrints[name].on = chk.checked;
+    const card = chk.closest('.del-card');
+    if (!card) return;
+    if (name === 'Photo Album') {
+      const pages = card.querySelector('[data-album-pages]');
+      const sets = card.querySelector('[data-album-sets]');
+      const sizeSel = card.querySelector('[data-album-size]');
+      const coverSel = card.querySelector('[data-album-cover]');
+      if (pages) d.albumPrints[name].pages = +pages.value || 40;
+      if (sets) d.albumPrints[name].sets = Math.max(1, +sets.value || 1);
+      if (sizeSel) d.albumPrints[name].size = sizeSel.value;
+      if (coverSel) d.albumPrints[name].cover = coverSel.value;
+    } else {
+      const qty = card.querySelector('[data-album-qty]');
+      if (qty) d.albumPrints[name].qty = +qty.value || 1;
+      const selects = card.querySelectorAll('.del-fields select');
+      if (selects[0]) d.albumPrints[name].size = selects[0].value;
+      if (selects[1]) d.albumPrints[name].type = selects[1].value;
+    }
+  });
+}
+
 function readDeliverableFieldsFromDom(d) {
   ensureDeliverableDraft(d);
+  const unlimited = el('f_unlimitedClicks');
+  if (unlimited) d.shootUnlimitedClicks = unlimited.checked;
+  readAlbumFieldsFromDom(d);
   document.querySelectorAll('[data-photo-qty]').forEach(function (inp) {
     const k = inp.getAttribute('data-photo-qty');
     if (!d.photoDetails[k]) d.photoDetails[k] = {};
@@ -1681,7 +1779,15 @@ function renderPkgStep(step, d) {
         '</div></div>' +
         '<div class="fld"><label>Short description *</label><textarea id="f_desc">' +
         esc(d.desc) +
-        '</textarea></div>'
+        '</textarea></div>' +
+        '<details class="pkg-optional-details"><summary>Customer showcase (optional)</summary>' +
+        '<p class="sub">Gear, editing, or quality notes shown on your public package page.</p>' +
+        '<div class="fld"><label>Equipment &amp; gear</label><textarea id="f_equipmentNote" rows="3" placeholder="e.g. Sony A7 IV, GM lenses, Godox flashes…">' +
+        esc(d.equipmentNote || '') +
+        '</textarea></div>' +
+        '<div class="fld"><label>Quality &amp; editing</label><textarea id="f_qualityNote" rows="3" placeholder="e.g. Colour grading on calibrated monitors, selection app…">' +
+        esc(d.qualityNote || '') +
+        '</textarea></div></details>'
       );
     case 1:
       return fnCheckList(d) + linkAdd('add-function', 'Add New Function');
@@ -1719,7 +1825,7 @@ function renderPkgStep(step, d) {
     case 4:
       return renderDeliverablesStep(d);
     case 5:
-      return renderWizardExtrasStep(d, allExtrasNames);
+      return renderWizardExtrasStep(d, allExtrasNames) + renderPkgComplimentarySection(d);
     case 6: {
       const included = selectedDeliverableKeys(d);
       const keys = pkgDeliveryKeys(d);
@@ -1893,6 +1999,8 @@ function readPkgWizardFields(d) {
   };
   if (g('f_name')) d.name = g('f_name').value.trim();
   if (g('f_desc')) d.desc = g('f_desc').value.trim();
+  if (g('f_equipmentNote')) d.equipmentNote = g('f_equipmentNote').value.trim();
+  if (g('f_qualityNote')) d.qualityNote = g('f_qualityNote').value.trim();
   if (g('f_listPrice')) d.listPrice = +g('f_listPrice').value || 0;
   if (g('f_discountPct')) d.discountPct = +g('f_discountPct').value || 0;
   const discRad = document.querySelector('input[name="discYes"]:checked');
@@ -2063,20 +2171,28 @@ function pkgCoverageSummary(d) {
 }
 
 function pkgDeliverSummary(d) {
+  ensurePkgMarketingFields(d);
   const albums = [];
   if (d.albumPrints) {
     ALBUM_PRINT_TYPES.forEach(function (name) {
-      if (d.albumPrints[name] && d.albumPrints[name].on) albums.push(name);
+      if (d.albumPrints[name] && d.albumPrints[name].on) {
+        if (name === 'Photo Album' && d.albumPrints[name].pages) {
+          const sets = d.albumPrints[name].sets > 1 ? d.albumPrints[name].sets + '× ' : '';
+          albums.push(sets + d.albumPrints[name].pages + 'pg album');
+        } else albums.push(name);
+      }
     });
   }
-  return (
+  let s =
     (d.deliverPhoto || []).join(', ') +
     ' | Video: ' +
     (d.deliverVideo || []).join(', ') +
     (albums.length ? ' | ' + albums.join(', ') : '') +
     ' | Digital: ' +
-    (d.deliverDigital || []).join(', ')
-  );
+    (d.deliverDigital || []).join(', ');
+  if (d.shootUnlimitedClicks) s += ' | Unlimited clicks';
+  if (d.complimentary && d.complimentary.length) s += ' | Free: ' + d.complimentary.join(', ');
+  return s;
 }
 
 function setCovTypeField(d, covFn, field, on, qty) {
@@ -2241,6 +2357,26 @@ function bindPkgWizard(d) {
         }
         return;
       }
+      if (act === 'add-complimentary') {
+        const name = prompt('Complimentary item');
+        if (name) {
+          const trimmed = name.trim();
+          if (!trimmed) return;
+          if (!d.customComplimentary) d.customComplimentary = [];
+          if (!d.complimentary) d.complimentary = [];
+          if (
+            PKG_COMPLIMENTARY_PRESETS.indexOf(trimmed) < 0 &&
+            !d.customComplimentary.some(function (x) {
+              return (x.name || x) === trimmed;
+            })
+          ) {
+            d.customComplimentary.push({ name: trimmed });
+          }
+          if (d.complimentary.indexOf(trimmed) < 0) d.complimentary.push(trimmed);
+          renderWizardBody();
+        }
+        return;
+      }
       if (act === 'del-stage') {
         if (d.paymentStages.length <= 1) return;
         const i = +t.getAttribute('data-idx');
@@ -2350,6 +2486,18 @@ function bindPkgWizard(d) {
       return;
     }
     if (deliverableCheckboxChange(t, d)) return;
+    if (t.matches('[data-complimentary]')) {
+      const val = t.getAttribute('data-complimentary');
+      if (!d.complimentary) d.complimentary = [];
+      if (t.checked) {
+        if (d.complimentary.indexOf(val) < 0) d.complimentary.push(val);
+      } else {
+        d.complimentary = d.complimentary.filter(function (x) {
+          return x !== val;
+        });
+      }
+      return;
+    }
     ['data-pol', 'data-req'].forEach(function (attr) {
       if (!t.matches('[' + attr + ']')) return;
       const val = t.getAttribute(attr);
