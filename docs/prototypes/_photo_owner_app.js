@@ -1,4 +1,4 @@
-const PHOTO_OWNER_BUILD = '2026-10-11-photo-owner-wedding-packages-labels-v6';
+const PHOTO_OWNER_BUILD = '2026-10-11-photo-owner-wedding-functions-v7';
 
 function photoOwnerDemoFileName() {
   try {
@@ -18,37 +18,24 @@ const INDIAN_STATES = {
 };
 
 const PKG_LEVELS = ['Basic', 'Standard', 'Premium', 'Custom'];
+/** Wedding-only functions for package wizard (non-wedding events → individual services). */
 const PKG_FUNCTIONS = [
   'Wedding & Reception',
   'Reception',
   'Wedding Eve',
   'Engagement',
-  'Baptism',
-  'First Communion',
-  'Birthday',
-  'Anniversary',
-  'Baby Shower',
-  'Naming Ceremony',
-  'Housewarming',
-  'Corporate Event',
-  'Funeral / Memorial',
-  'Other',
+  'Pre-Wedding Shoot',
+  'Post-Wedding Shoot',
+  'Save-the-Date Shoot',
 ];
 const FUNCTION_HINTS = {
   'Wedding & Reception': 'Wedding followed by reception on the same day',
   Reception: 'Separate reception function / day',
   'Wedding Eve': 'Pre-wedding night function',
   Engagement: 'Engagement ceremony / ring ceremony',
-  Baptism: 'Baptism ceremony',
-  'First Communion': 'First communion ceremony',
-  Birthday: 'Birthday celebration',
-  Anniversary: 'Anniversary celebration',
-  'Baby Shower': 'Baby shower function',
-  'Naming Ceremony': 'Naming ceremony',
-  Housewarming: 'Housewarming ceremony',
-  'Corporate Event': 'Corporate or official event',
-  'Funeral / Memorial': 'Funeral or memorial service',
-  Other: '',
+  'Pre-Wedding Shoot': 'Photoshoot of the couple before the wedding',
+  'Post-Wedding Shoot': 'Photoshoot of the couple after the wedding',
+  'Save-the-Date Shoot': 'Photoshoot to announce the wedding date',
 };
 const CEREMONY_TYPES = ['Christian', 'Hindu', 'Muslim', 'Sikh', 'Jain', 'Buddhist', 'Other'];
 const SVC_CATEGORIES = [
@@ -73,7 +60,7 @@ const SVC_CATEGORIES = [
 
 const PKG_STEPS = [
   { title: 'Package basics', sub: 'Basic information about the package.' },
-  { title: 'Select Functions', sub: '' },
+  { title: 'Select functions', sub: 'Choose wedding functions covered in this wedding package.' },
   { title: 'Ceremony type', sub: 'Choose applicable ceremony types.' },
   { title: 'Coverage details', sub: 'Set coverage details for selected functions.' },
   { title: 'Deliverables', sub: 'Select photos, videos, albums and other deliverables included in this package.' },
@@ -247,6 +234,22 @@ function uid(prefix) {
 function levelClass(level) {
   return (level || 'Standard').toLowerCase();
 }
+function sanitizeWeddingPackageFunctions() {
+  const allowed = {};
+  PKG_FUNCTIONS.forEach(function (fn) {
+    allowed[fn] = true;
+  });
+  (store.packages || []).forEach(function (p) {
+    if (!p.customFunctions) p.customFunctions = [];
+    const nextFns = [];
+    (p.functions || []).forEach(function (fn) {
+      if (allowed[fn]) nextFns.push(fn);
+      else if (p.customFunctions.indexOf(fn) < 0) p.customFunctions.push(fn);
+    });
+    p.functions = nextFns;
+  });
+}
+
 function loadStore() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
@@ -259,6 +262,7 @@ function loadStore() {
     if (!store.operators) store.operators = defaultStore().operators;
     if (!store.deletedBusinesses) store.deletedBusinesses = defaultStore().deletedBusinesses;
     if (!store.calendar || typeof store.calendar !== 'object') store.calendar = defaultPhotoCalendar();
+    sanitizeWeddingPackageFunctions();
   } catch (_e) {
     store = defaultStore();
     try {
@@ -1385,6 +1389,7 @@ function boot() {
       throw new Error('Missing dashboard — open ' + photoOwnerDemoFileName() + ' (full file).');
     }
     loadStore();
+    sanitizeWeddingPackageFunctions();
     ensureRegisteredDistrict();
     saveStore();
     const tag = el('buildTag');

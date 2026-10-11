@@ -1344,7 +1344,7 @@ function renderPkgStep(step, d) {
       if (!needsCeremonyStep(d.functions)) {
         return (
           '<p class="sub">Not required for selected functions. Continue to coverage.</p>' +
-          '<div class="warn-box">Ceremony type applies to Wedding &amp; Reception, Reception, or Engagement.</div>'
+          '<div class="warn-box">Ceremony type applies to Wedding &amp; Reception, Reception, or Engagement only (not couple shoots).</div>'
         );
       }
       return (
