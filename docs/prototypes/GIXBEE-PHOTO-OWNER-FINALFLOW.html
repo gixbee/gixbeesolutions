@@ -1000,22 +1000,13 @@ function defaultVideoDurationForName(name) {
 function renderVideoDurationSelect(name, selected) {
   const sel = selected || defaultVideoDurationForName(name);
   const options = videoDurationOptionsForName(name);
-  let legacy = '';
-  if (sel && options.indexOf(sel) < 0) {
-    legacy = '<option selected>' + esc(sel) + '</option>';
-  }
-  return (
-    '<select data-video-dur="' +
-    esc(name) +
-    '">' +
-    legacy +
-    options
-      .map(function (v) {
-        return '<option' + (sel === v && !legacy ? ' selected' : sel === v && legacy ? '' : sel === v ? ' selected' : '') + '>' + v + '</option>';
-      })
-      .join('')
-      .replace(/selected="" /g, '')
-  );
+  const inList = options.indexOf(sel) >= 0;
+  let html = '';
+  if (sel && !inList) html += '<option selected>' + esc(sel) + '</option>';
+  options.forEach(function (v) {
+    html += '<option' + (inList && v === sel ? ' selected' : '') + '>' + esc(v) + '</option>';
+  });
+  return '<select data-video-dur="' + esc(name) + '">' + html + '</select>';
 }
 const VIDEO_FORMATS = ['MP4 (Full HD)', 'MP4 (4K)', 'MOV (4K)'];
 const POLICY_DEFAULTS = [
@@ -5612,7 +5603,7 @@ function bindPhotoCalendarUi() {
   });
 }
 
-const PHOTO_OWNER_BUILD = '2026-10-11-photo-owner-video-hours-v36';
+const PHOTO_OWNER_BUILD = '2026-10-11-photo-owner-video-dur-by-type-v37';
 
 function photoOwnerDemoFileName() {
   try {
