@@ -961,52 +961,41 @@ const PHOTO_TYPE_DEFAULTS = [
 ];
 const VIDEO_TYPE_DEFAULTS = ['Candid Videographer', 'Traditional Videographer', 'Cinematic Videographer'];
 const PHOTO_FORMATS = ['JPG (High Resolution)', 'JPG + RAW', 'PNG'];
-const VIDEO_DURATION_HOURS = ['Full Event', '0-1 Hours', '1-2 Hours', '2-3 Hours', '3-4 Hours', 'Custom'];
+const VIDEO_DURATION_HOURS = ['Full Event', '0-1 Hours', '1-2 Hours', '2-3 Hours', '3-4 Hours'];
 const VIDEO_DURATION_SHORT = ['1-2 Minutes', '3-5 Minutes', '5-10 Minutes', 'Custom'];
-const VIDEO_DURATIONS = VIDEO_DURATION_HOURS.concat(
-  VIDEO_DURATION_SHORT.filter(function (x) {
-    return x !== 'Custom';
-  })
-).concat(['Custom']);
-
-function videoUsesHourDurations(name) {
-  if (name === 'Full-Length Video' || name === 'Traditional Video') return true;
-  if (
-    name === 'Highlight Video' ||
-    name === 'Cinematic Video' ||
-    name === 'Teaser Video' ||
-    name === 'Reel'
-  ) {
-    return false;
-  }
-  const n = String(name || '').toLowerCase();
-  if (/full|traditional|documentary/.test(n)) return true;
-  if (/highlight|reel|teaser|cinematic/.test(n)) return false;
-  return true;
-}
-
-function videoDurationOptionsForName(name) {
-  return videoUsesHourDurations(name) ? VIDEO_DURATION_HOURS : VIDEO_DURATION_SHORT;
-}
+const VIDEO_DURATIONS = VIDEO_DURATION_HOURS.concat(VIDEO_DURATION_SHORT);
 
 function defaultVideoDurationForName(name) {
   if (name === 'Full-Length Video' || name === 'Traditional Video') return '2-3 Hours';
   if (name === 'Highlight Video') return '3-5 Minutes';
   if (name === 'Cinematic Video') return '5-10 Minutes';
   if (name === 'Teaser Video' || name === 'Reel') return '1-2 Minutes';
-  return videoUsesHourDurations(name) ? 'Full Event' : '3-5 Minutes';
+  return 'Full Event';
 }
 
 function renderVideoDurationSelect(name, selected) {
   const sel = selected || defaultVideoDurationForName(name);
-  const options = videoDurationOptionsForName(name);
-  const inList = options.indexOf(sel) >= 0;
-  let html = '';
-  if (sel && !inList) html += '<option selected>' + esc(sel) + '</option>';
-  options.forEach(function (v) {
-    html += '<option' + (inList && v === sel ? ' selected' : '') + '>' + esc(v) + '</option>';
-  });
-  return '<select data-video-dur="' + esc(name) + '">' + html + '</select>';
+  const hourOpts = VIDEO_DURATION_HOURS.map(function (v) {
+    return '<option' + (sel === v ? ' selected' : '') + '>' + v + '</option>';
+  }).join('');
+  const shortOpts = VIDEO_DURATION_SHORT.map(function (v) {
+    return '<option' + (sel === v ? ' selected' : '') + '>' + v + '</option>';
+  }).join('');
+  const legacy =
+    sel && VIDEO_DURATIONS.indexOf(sel) < 0
+      ? '<option selected>' + esc(sel) + '</option>'
+      : '';
+  return (
+    '<select data-video-dur="' +
+    esc(name) +
+    '">' +
+    legacy +
+    '<optgroup label="Hours (full-length style)">' +
+    hourOpts +
+    '</optgroup><optgroup label="Minutes (highlight / reel)">' +
+    shortOpts +
+    '</optgroup></select>'
+  );
 }
 const VIDEO_FORMATS = ['MP4 (Full HD)', 'MP4 (4K)', 'MOV (4K)'];
 const POLICY_DEFAULTS = [
@@ -5603,7 +5592,7 @@ function bindPhotoCalendarUi() {
   });
 }
 
-const PHOTO_OWNER_BUILD = '2026-10-11-photo-owner-video-dur-by-type-v37';
+const PHOTO_OWNER_BUILD = '2026-10-11-photo-owner-video-hours-v36';
 
 function photoOwnerDemoFileName() {
   try {
