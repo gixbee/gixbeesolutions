@@ -1,4 +1,4 @@
-const PHOTO_OWNER_BUILD = '2026-10-08-photo-owner-finalflow5-bookings-v5';
+const PHOTO_OWNER_BUILD = '2026-10-11-photo-owner-wedding-packages-labels-v6';
 
 function photoOwnerDemoFileName() {
   try {
@@ -483,7 +483,7 @@ function renderPhotoBizProfile() {
       '</b><span>Member since</span></div>' +
       '<div class="prof-chip"><b>' +
       store.packages.length +
-      '</b><span>Packages</span></div>' +
+      '</b><span>Wedding packages</span></div>' +
       '<div class="prof-chip"><b>' +
       areaN +
       '</b><span>States</span></div>';
@@ -520,7 +520,7 @@ function renderPhotoDash() {
   el('areaSummary').textContent = areaSummaryText();
   const q = el('quickGrid');
   q.innerHTML = [
-    { id: 'svcPkg', cls: 'pink', ico: '📦', label: 'Services & Packages' },
+    { id: 'svcPkg', cls: 'pink', ico: '📦', label: 'Wedding packages & services' },
     { id: 'calendar', cls: 'blue', ico: '📅', label: 'Calendar' },
     { id: 'gallery', cls: 'blue', ico: '🖼', label: 'Photos & Gallery' },
     { id: 'requests', cls: 'orange', ico: '🔔', label: 'Booking Requests', badge: '3' },
@@ -767,7 +767,7 @@ function deletePackage(id) {
   });
   saveStore();
   renderSvcPkg();
-  toast('Package deleted');
+  toast('Wedding package deleted');
 }
 
 function deleteService(id) {
@@ -779,7 +779,7 @@ function deleteService(id) {
   });
   saveStore();
   renderSvcPkg();
-  toast('Service deleted');
+  toast('Individual service deleted');
 }
 
 function bindHubCatalogActions(root) {
@@ -830,7 +830,7 @@ function renderPkgList() {
       '<div class="hub-empty">' +
       '<div class="hub-empty-ico">' +
       photoIcon('pkg') +
-      '</div><b>No packages yet</b><p>Build your first wedding or event package with deliverables, pricing, and policies in a guided flow.</p></div>';
+      '</div><b>No wedding packages yet</b><p>Build your first wedding package with functions, deliverables, pricing, and policies in a guided flow.</p></div>';
     return;
   }
   list.innerHTML = pkgs
@@ -892,7 +892,7 @@ function renderSvcList() {
       '<div class="hub-empty" style="margin:8px 16px 16px">' +
       '<div class="hub-empty-ico">' +
       photoIcon('cam') +
-      '</div><b>No services yet</b><p>Add standalone offerings like portraits, product shoots, or funeral coverage.</p></div>';
+      '</div><b>No individual services yet</b><p>Add standalone offerings like portraits, product shoots, or funeral coverage.</p></div>';
     return;
   }
   list.innerHTML = store.services
@@ -934,8 +934,8 @@ function applyHubTab() {
   el('tabPackages').classList.toggle('on', isPkg);
   el('tabServices').classList.toggle('on', !isPkg);
   el('hubIntro').textContent = isPkg
-    ? 'Create full-event packages with coverage, deliverables, and payment stages.'
-    : 'Standalone services customers book without a full package.';
+    ? 'Wedding packages with coverage, deliverables, and payment stages. Filter by level.'
+    : 'Individual services customers book without a wedding package.';
   const stat = el('hubStat');
   if (stat) {
     const pubPkg = store.packages.filter((p) => p.status === 'published').length;
@@ -943,12 +943,12 @@ function applyHubTab() {
     stat.innerHTML = isPkg
       ? '<div class="hub-stat-chip pink" style="flex:1;min-width:100%"><b>' +
         store.packages.length +
-        '</b><span>Packages · ' +
+        '</b><span>Wedding packages · ' +
         pubPkg +
         ' live</span></div>'
       : '<div class="hub-stat-chip blue" style="flex:1;min-width:100%"><b>' +
         store.services.length +
-        '</b><span>Services · ' +
+        '</b><span>Individual services · ' +
         pubSvc +
         ' live</span></div>';
   }
@@ -992,14 +992,14 @@ function startWizard(mode, editId) {
   const pkgBrand = el('wizPkgBrand');
   if (pkgBrand) {
     const sub = pkgBrand.querySelector('span');
-    if (sub) sub.textContent = wiz.editId && mode === 'package' ? 'Edit Package' : 'Create Package';
+    if (sub) sub.textContent = wiz.editId && mode === 'package' ? 'Edit wedding package' : 'Create wedding package';
   }
   const svcBrand = el('wizSvcBrand');
   if (svcBrand) {
     const sub = svcBrand.querySelector('span');
-    if (sub) sub.textContent = wiz.editId && mode === 'service' ? 'Edit Service' : 'Create Service';
+    if (sub) sub.textContent = wiz.editId && mode === 'service' ? 'Edit individual service' : 'Create individual service';
   }
-  el('wizTitle').textContent = mode === 'package' ? 'Create Package' : 'Add Service';
+  el('wizTitle').textContent = mode === 'package' ? 'Wedding package' : 'Individual service';
   show('wizard');
   renderWizard();
 }
@@ -1198,10 +1198,10 @@ function finishWizard(publish) {
       });
       if (i >= 0) store.packages[i] = payload;
       else store.packages.unshift(payload);
-      toast(publish ? 'Package updated & published' : 'Package saved');
+      toast(publish ? 'Wedding package updated & published' : 'Wedding package saved');
     } else {
       store.packages.unshift(payload);
-      toast(publish ? 'Package published' : 'Package saved as draft');
+      toast(publish ? 'Wedding package published' : 'Wedding package saved as draft');
     }
   } else {
     if (!d.name || !d.category) {
@@ -1223,10 +1223,10 @@ function finishWizard(publish) {
       });
       if (i >= 0) store.services[i] = payload;
       else store.services.unshift(payload);
-      toast(publish ? 'Service updated & published' : 'Service saved');
+      toast(publish ? 'Individual service updated & published' : 'Individual service saved');
     } else {
       store.services.unshift(payload);
-      toast(publish ? 'Service published' : 'Service saved as draft');
+      toast(publish ? 'Individual service published' : 'Individual service saved as draft');
     }
   }
   wiz.editId = null;

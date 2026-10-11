@@ -622,25 +622,25 @@ button.manage-pill{cursor:pointer;font:inherit;color:var(--blue);border-color:#B
   <div class="hub-top"><button type="button" class="back" data-to="photoDash">←</button><h1>Catalog</h1></div>
   <div class="hub-hero">
     <p class="hub-hero-kicker">Archana Photography</p>
-    <h2>Services &amp; Packages</h2>
-    <p>Everything customers can discover and book on Gixbee.</p>
+    <h2>Wedding packages &amp; individual services</h2>
+    <p>Wedding bundles and standalone shoots customers can book on Gixbee.</p>
   </div>
   <div class="hub-seg-wrap">
     <div class="hub-seg">
-      <button type="button" class="hub-tab pkg-tab on" id="tabPackages"><span class="ht-ico" id="tabPkgIco"></span> Packages</button>
-      <button type="button" class="hub-tab svc-tab" id="tabServices"><span class="ht-ico" id="tabSvcIco"></span> Services</button>
+      <button type="button" class="hub-tab pkg-tab on" id="tabPackages"><span class="ht-ico" id="tabPkgIco"></span> Wedding packages</button>
+      <button type="button" class="hub-tab svc-tab" id="tabServices"><span class="ht-ico" id="tabSvcIco"></span> Individual services</button>
     </div>
   </div>
   <div class="hub-stats" id="hubStat"></div>
-  <p class="hub-intro" id="hubIntro">Create full-event packages. Filter by level.</p>
+  <p class="hub-intro" id="hubIntro">Create wedding packages. Filter by level.</p>
   <div class="filter-row hub-pkg-only" id="pkgFilters"></div>
   <div class="hub-list hub-pkg-only" id="pkgList"></div>
-  <div class="hub-cta-sticky hub-pkg-only hub-cta-pkg" id="hubCtaPkg"><button type="button" class="btn btn-pink" id="addPackageBtn">+ Add Package</button></div>
+  <div class="hub-cta-sticky hub-pkg-only hub-cta-pkg" id="hubCtaPkg"><button type="button" class="btn btn-pink" id="addPackageBtn">+ Add wedding package</button></div>
   <div class="svc-sec hub-svc-only" id="hubSvcBlock">
     <button type="button" class="svc-sec-hd" id="svcSecToggle"><span id="svcSecIco"></span><span>Individual services</span><span style="opacity:.85;font-weight:700">(<span id="svcCount">0</span>)</span><span class="sec-chev">›</span></button>
     <div class="svc-sec-body">
-      <p class="svc-sec-intro">Booked separately from packages — portraits, products, ceremonies, and more.</p>
-      <div class="hub-svc-cta hub-cta-svc" id="hubCtaSvc"><button type="button" class="btn btn-blue" id="addServiceBtn">+ Add Service</button></div>
+      <p class="svc-sec-intro">Booked separately from wedding packages — portraits, products, ceremonies, and more.</p>
+      <div class="hub-svc-cta hub-cta-svc" id="hubCtaSvc"><button type="button" class="btn btn-blue" id="addServiceBtn">+ Add individual service</button></div>
       <div id="svcList"></div>
     </div>
   </div>
@@ -649,8 +649,8 @@ button.manage-pill{cursor:pointer;font:inherit;color:var(--blue);border-color:#B
 <section class="scr" id="wizard">
   <div class="top wiz-top">
     <button type="button" class="back" id="wizBack">←</button>
-    <div class="wiz-pkg-brand" id="wizPkgBrand"><b>Gixbee</b><span>Create Package</span></div>
-    <div class="wiz-svc-brand" id="wizSvcBrand"><b>Gixbee</b><span>Create Service</span></div>
+    <div class="wiz-pkg-brand" id="wizPkgBrand"><b>Gixbee</b><span>Create wedding package</span></div>
+    <div class="wiz-svc-brand" id="wizSvcBrand"><b>Gixbee</b><span>Create individual service</span></div>
     <h1 id="wizTitle">Add Service</h1>
     <span class="chip-h" id="wizStepChip">1/10</span>
   </div>
@@ -4599,7 +4599,7 @@ function bindPhotoCalendarUi() {
   });
 }
 
-const PHOTO_OWNER_BUILD = '2026-10-08-photo-owner-finalflow5-bookings-v5';
+const PHOTO_OWNER_BUILD = '2026-10-11-photo-owner-wedding-packages-labels-v6';
 
 function photoOwnerDemoFileName() {
   try {
@@ -5084,7 +5084,7 @@ function renderPhotoBizProfile() {
       '</b><span>Member since</span></div>' +
       '<div class="prof-chip"><b>' +
       store.packages.length +
-      '</b><span>Packages</span></div>' +
+      '</b><span>Wedding packages</span></div>' +
       '<div class="prof-chip"><b>' +
       areaN +
       '</b><span>States</span></div>';
@@ -5121,7 +5121,7 @@ function renderPhotoDash() {
   el('areaSummary').textContent = areaSummaryText();
   const q = el('quickGrid');
   q.innerHTML = [
-    { id: 'svcPkg', cls: 'pink', ico: '📦', label: 'Services & Packages' },
+    { id: 'svcPkg', cls: 'pink', ico: '📦', label: 'Wedding packages & services' },
     { id: 'calendar', cls: 'blue', ico: '📅', label: 'Calendar' },
     { id: 'gallery', cls: 'blue', ico: '🖼', label: 'Photos & Gallery' },
     { id: 'requests', cls: 'orange', ico: '🔔', label: 'Booking Requests', badge: '3' },
@@ -5368,7 +5368,7 @@ function deletePackage(id) {
   });
   saveStore();
   renderSvcPkg();
-  toast('Package deleted');
+  toast('Wedding package deleted');
 }
 
 function deleteService(id) {
@@ -5380,7 +5380,7 @@ function deleteService(id) {
   });
   saveStore();
   renderSvcPkg();
-  toast('Service deleted');
+  toast('Individual service deleted');
 }
 
 function bindHubCatalogActions(root) {
@@ -5431,7 +5431,7 @@ function renderPkgList() {
       '<div class="hub-empty">' +
       '<div class="hub-empty-ico">' +
       photoIcon('pkg') +
-      '</div><b>No packages yet</b><p>Build your first wedding or event package with deliverables, pricing, and policies in a guided flow.</p></div>';
+      '</div><b>No wedding packages yet</b><p>Build your first wedding package with functions, deliverables, pricing, and policies in a guided flow.</p></div>';
     return;
   }
   list.innerHTML = pkgs
@@ -5493,7 +5493,7 @@ function renderSvcList() {
       '<div class="hub-empty" style="margin:8px 16px 16px">' +
       '<div class="hub-empty-ico">' +
       photoIcon('cam') +
-      '</div><b>No services yet</b><p>Add standalone offerings like portraits, product shoots, or funeral coverage.</p></div>';
+      '</div><b>No individual services yet</b><p>Add standalone offerings like portraits, product shoots, or funeral coverage.</p></div>';
     return;
   }
   list.innerHTML = store.services
@@ -5535,8 +5535,8 @@ function applyHubTab() {
   el('tabPackages').classList.toggle('on', isPkg);
   el('tabServices').classList.toggle('on', !isPkg);
   el('hubIntro').textContent = isPkg
-    ? 'Create full-event packages with coverage, deliverables, and payment stages.'
-    : 'Standalone services customers book without a full package.';
+    ? 'Wedding packages with coverage, deliverables, and payment stages. Filter by level.'
+    : 'Individual services customers book without a wedding package.';
   const stat = el('hubStat');
   if (stat) {
     const pubPkg = store.packages.filter((p) => p.status === 'published').length;
@@ -5544,12 +5544,12 @@ function applyHubTab() {
     stat.innerHTML = isPkg
       ? '<div class="hub-stat-chip pink" style="flex:1;min-width:100%"><b>' +
         store.packages.length +
-        '</b><span>Packages · ' +
+        '</b><span>Wedding packages · ' +
         pubPkg +
         ' live</span></div>'
       : '<div class="hub-stat-chip blue" style="flex:1;min-width:100%"><b>' +
         store.services.length +
-        '</b><span>Services · ' +
+        '</b><span>Individual services · ' +
         pubSvc +
         ' live</span></div>';
   }
@@ -5593,14 +5593,14 @@ function startWizard(mode, editId) {
   const pkgBrand = el('wizPkgBrand');
   if (pkgBrand) {
     const sub = pkgBrand.querySelector('span');
-    if (sub) sub.textContent = wiz.editId && mode === 'package' ? 'Edit Package' : 'Create Package';
+    if (sub) sub.textContent = wiz.editId && mode === 'package' ? 'Edit wedding package' : 'Create wedding package';
   }
   const svcBrand = el('wizSvcBrand');
   if (svcBrand) {
     const sub = svcBrand.querySelector('span');
-    if (sub) sub.textContent = wiz.editId && mode === 'service' ? 'Edit Service' : 'Create Service';
+    if (sub) sub.textContent = wiz.editId && mode === 'service' ? 'Edit individual service' : 'Create individual service';
   }
-  el('wizTitle').textContent = mode === 'package' ? 'Create Package' : 'Add Service';
+  el('wizTitle').textContent = mode === 'package' ? 'Wedding package' : 'Individual service';
   show('wizard');
   renderWizard();
 }
@@ -5799,10 +5799,10 @@ function finishWizard(publish) {
       });
       if (i >= 0) store.packages[i] = payload;
       else store.packages.unshift(payload);
-      toast(publish ? 'Package updated & published' : 'Package saved');
+      toast(publish ? 'Wedding package updated & published' : 'Wedding package saved');
     } else {
       store.packages.unshift(payload);
-      toast(publish ? 'Package published' : 'Package saved as draft');
+      toast(publish ? 'Wedding package published' : 'Wedding package saved as draft');
     }
   } else {
     if (!d.name || !d.category) {
@@ -5824,10 +5824,10 @@ function finishWizard(publish) {
       });
       if (i >= 0) store.services[i] = payload;
       else store.services.unshift(payload);
-      toast(publish ? 'Service updated & published' : 'Service saved');
+      toast(publish ? 'Individual service updated & published' : 'Individual service saved');
     } else {
       store.services.unshift(payload);
-      toast(publish ? 'Service published' : 'Service saved as draft');
+      toast(publish ? 'Individual service published' : 'Individual service saved as draft');
     }
   }
   wiz.editId = null;
