@@ -1,4 +1,4 @@
-const PHOTO_OWNER_BUILD = '2026-10-11-photo-owner-per-function-coverage-v9';
+const PHOTO_OWNER_BUILD = '2026-10-11-photo-owner-coverage-accordion-v10';
 
 function photoOwnerDemoFileName() {
   try {

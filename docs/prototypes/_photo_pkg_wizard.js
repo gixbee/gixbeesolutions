@@ -1407,21 +1407,50 @@ function renderCoverageTypes(types, obj, prefix, fnName) {
 function renderFnCoverageStep(d) {
   ensurePkgCoverageByFunction(d);
   const fns = d.functions.length ? d.functions : ['Wedding & Reception'];
+  if (!d.coverageUiOpen) d.coverageUiOpen = {};
   let html =
-    '<p class="sub" style="margin:0 0 14px">Set duration, extra hour rate, and photo/video team for <b>each function</b> in this package.</p>';
+    '<div class="fn-cov-stack">' +
+    '<div class="fn-cov-toolbar">' +
+    '<p class="sub"><b>' +
+    fns.length +
+    '</b> function' +
+    (fns.length === 1 ? '' : 's') +
+    ' — tap to expand coverage</p>' +
+    '<div class="fn-cov-toolbar-actions">' +
+    '<button type="button" data-action="fn-cov-expand-all">Expand all</button>' +
+    '<button type="button" data-action="fn-cov-collapse-all">Collapse all</button>' +
+    '</div></div>';
   fns.forEach(function (fn, idx) {
     const c = pkgFnCoverage(d, fn);
-    html += '<div class="fn-cov-card" data-fn-name="' + esc(fn) + '">';
-    html += '<div class="fn-cov-hd"><b>' + esc(fn) + '</b>';
+    const open = d.coverageUiOpen[fn] != null ? d.coverageUiOpen[fn] : idx === 0;
+    html +=
+      '<div class="fn-cov-card' +
+      (open ? '' : ' collapsed') +
+      '" data-fn-name="' +
+      esc(fn) +
+      '">';
+    html +=
+      '<button type="button" class="fn-cov-toggle" data-action="toggle-fn-cov" aria-expanded="' +
+      (open ? 'true' : 'false') +
+      '">' +
+      '<span class="fn-cov-idx">' +
+      (idx + 1) +
+      '</span>' +
+      '<span class="fn-cov-titles"><b>' +
+      esc(fn) +
+      '</b><span class="fn-cov-summary">' +
+      esc(fnCoverageChipSummary(c)) +
+      '</span></span>' +
+      '<span class="sec-chev" aria-hidden="true">›</span></button>';
+    html += '<div class="fn-cov-body">';
     if (idx > 0) {
       html +=
-        '<button type="button" class="link-inline" data-action="copy-cov-from-prev" data-cov-fn="' +
+        '<div class="fn-cov-actions"><button type="button" class="link-inline" data-action="copy-cov-from-prev" data-cov-fn="' +
         esc(fn) +
-        '">Same as ' +
+        '">Same coverage as ' +
         esc(fns[idx - 1]) +
-        '</button>';
+        '</button></div>';
     }
-    html += '</div>';
     if (fnShowsCoverageSide(fn)) {
       html +=
         '<div class="fld fn-cov-side"><label>Coverage side</label><div class="seg seg-full">' +
@@ -1457,8 +1486,9 @@ function renderFnCoverageStep(d) {
       '<p class="lbl">Videography coverage</p>' +
       renderCoverageTypes(allVideoTypes(d), c.videoTypes, 'video', fn) +
       linkAdd('add-video-type', 'Add New Videography Type') +
-      '</div>';
+      '</div></div>';
   });
+  html += '</div>';
   return html;
 }
 
@@ -1726,17 +1756,7 @@ function readPkgWizardFields(d) {
   if (g('f_discountPct')) d.discountPct = +g('f_discountPct').value || 0;
   const discRad = document.querySelector('input[name="discYes"]:checked');
   if (discRad) d.discountYes = discRad.value;
-  document.querySelectorAll('.fn-cov-card').forEach(function (card) {
-    const fn = card.getAttribute('data-fn-name');
-    if (!fn) return;
-    const block = pkgFnCoverage(d, fn);
-    const sideOn = card.querySelector('.fn-cov-side [data-side].on');
-    if (sideOn) block.coverageSide = sideOn.getAttribute('data-side');
-    const dur = card.querySelector('[data-fn-duration]');
-    if (dur) block.duration = dur.value;
-    const ex = card.querySelector('[data-fn-extra-hour]');
-    if (ex) block.extraHour = +ex.value || 0;
-  });
+  readPkgCoverageFieldsFromDom(d);
   readExtrasFieldsFromDom(d);
   readDeliverableFieldsFromDom(d);
   document.querySelectorAll('[data-del-key]').forEach(function (sel) {
@@ -1754,14 +1774,16 @@ function readPkgWizardFields(d) {
   });
   pruneDeliveryMap(d);
   readPkgPolicyTiersFromDom(d);
-  d.paymentStages = [];
-  document.querySelectorAll('.pay-stage-card').forEach(function (row) {
-    d.paymentStages.push({
-      id: uid('ps'),
-      label: row.querySelector('[data-pay-label]').value.trim() || 'Stage',
-      pct: +(row.querySelector('[data-pay-pct]').value || 0),
+  if (document.querySelector('.pay-stage-card')) {
+    d.paymentStages = [];
+    document.querySelectorAll('.pay-stage-card').forEach(function (row) {
+      d.paymentStages.push({
+        id: uid('ps'),
+        label: row.querySelector('[data-pay-label]').value.trim() || 'Stage',
+        pct: +(row.querySelector('[data-pay-pct]').value || 0),
+      });
     });
-  });
+  }
   if (!d.policyValues) d.policyValues = {};
   document.querySelectorAll('[data-pol-val]').forEach(function (inp) {
     const pol = inp.getAttribute('data-pol-key');
@@ -1773,6 +1795,59 @@ function readPkgWizardFields(d) {
   syncPkgPrice(d);
   d.coverage = pkgCoverageSummary(d);
   d.deliverables = pkgDeliverSummary(d);
+}
+
+function fnCoverageChipSummary(block) {
+  let photo = 0;
+  let video = 0;
+  Object.keys(block.photoTypes || {}).forEach(function (k) {
+    const r = block.photoTypes[k];
+    if (r.on && r.qty) photo += r.qty;
+  });
+  Object.keys(block.videoTypes || {}).forEach(function (k) {
+    const r = block.videoTypes[k];
+    if (r.on && r.qty) video += r.qty;
+  });
+  const parts = [block.duration || '—'];
+  if (block.extraHour > 0) parts.push('+' + inr(block.extraHour) + '/hr');
+  else parts.push('no extra hr');
+  parts.push(photo + ' photographer' + (photo === 1 ? '' : 's'));
+  parts.push(video + ' video');
+  return parts.join(' · ');
+}
+
+function readFnCoverageUiOpen(d) {
+  if (!d.coverageUiOpen) d.coverageUiOpen = {};
+  document.querySelectorAll('.fn-cov-card').forEach(function (card) {
+    const fn = card.getAttribute('data-fn-name');
+    if (!fn) return;
+    d.coverageUiOpen[fn] = !card.classList.contains('collapsed');
+  });
+}
+
+function readPkgCoverageFieldsFromDom(d) {
+  readFnCoverageUiOpen(d);
+  document.querySelectorAll('.fn-cov-card').forEach(function (card) {
+    const fn = card.getAttribute('data-fn-name');
+    if (!fn) return;
+    const block = pkgFnCoverage(d, fn);
+    const sideOn = card.querySelector('.fn-cov-side [data-side].on');
+    if (sideOn) block.coverageSide = sideOn.getAttribute('data-side');
+    const dur = card.querySelector('[data-fn-duration]');
+    if (dur) block.duration = dur.value;
+    const ex = card.querySelector('[data-fn-extra-hour]');
+    if (ex) block.extraHour = +ex.value || 0;
+  });
+}
+
+function refreshFnCoverageCardSummary(card, d) {
+  if (!card) return;
+  const fn = card.getAttribute('data-fn-name');
+  if (!fn) return;
+  readPkgCoverageFieldsFromDom(d);
+  const block = pkgFnCoverage(d, fn);
+  const sum = card.querySelector('.fn-cov-summary');
+  if (sum) sum.textContent = fnCoverageChipSummary(block);
 }
 
 function pkgCoverageFnSummary(block) {
@@ -1837,7 +1912,7 @@ function setCovTypeField(d, covFn, field, on, qty) {
   bucket[label].qty = qty;
 }
 
-function updateFnCoverageHints(card) {
+function updateFnCoverageHints(card, d) {
   if (!card) return;
   const dur = card.querySelector('[data-fn-duration]');
   const dh = card.querySelector('.fn-duration-hint');
@@ -1845,10 +1920,13 @@ function updateFnCoverageHints(card) {
   const val = dur ? dur.value : 'Full Day';
   if (dh) dh.textContent = coverageDurationHelp(val);
   if (eh) eh.textContent = extraHourChargeHelp(val);
+  if (d) refreshFnCoverageCardSummary(card, d);
 }
 
-function syncAllFnCoverageHints() {
-  document.querySelectorAll('.fn-cov-card').forEach(updateFnCoverageHints);
+function syncAllFnCoverageHints(d) {
+  document.querySelectorAll('.fn-cov-card').forEach(function (card) {
+    updateFnCoverageHints(card, d);
+  });
 }
 
 function bindPkgWizard(d) {
@@ -1887,13 +1965,47 @@ function bindPkgWizard(d) {
         }
         return;
       }
+      if (act === 'toggle-fn-cov') {
+        const card = t.closest('.fn-cov-card');
+        if (!card) return;
+        readPkgCoverageFieldsFromDom(d);
+        const fn = card.getAttribute('data-fn-name');
+        const willOpen = card.classList.contains('collapsed');
+        if (!d.coverageUiOpen) d.coverageUiOpen = {};
+        d.coverageUiOpen[fn] = willOpen;
+        card.classList.toggle('collapsed', !willOpen);
+        const btn = card.querySelector('.fn-cov-toggle');
+        if (btn) btn.setAttribute('aria-expanded', willOpen ? 'true' : 'false');
+        refreshFnCoverageCardSummary(card, d);
+        return;
+      }
+      if (act === 'fn-cov-expand-all') {
+        readPkgCoverageFieldsFromDom(d);
+        if (!d.coverageUiOpen) d.coverageUiOpen = {};
+        (d.functions.length ? d.functions : ['Wedding & Reception']).forEach(function (fn) {
+          d.coverageUiOpen[fn] = true;
+        });
+        renderWizardBody();
+        return;
+      }
+      if (act === 'fn-cov-collapse-all') {
+        readPkgCoverageFieldsFromDom(d);
+        if (!d.coverageUiOpen) d.coverageUiOpen = {};
+        (d.functions.length ? d.functions : ['Wedding & Reception']).forEach(function (fn) {
+          d.coverageUiOpen[fn] = false;
+        });
+        renderWizardBody();
+        return;
+      }
       if (act === 'copy-cov-from-prev') {
-        readPkgWizardFields(d);
+        readPkgCoverageFieldsFromDom(d);
         const fn = t.getAttribute('data-cov-fn');
         const fns = d.functions.length ? d.functions : ['Wedding & Reception'];
         const idx = fns.indexOf(fn);
         if (idx > 0 && d.coverageByFunction[fns[idx - 1]]) {
           d.coverageByFunction[fn] = JSON.parse(JSON.stringify(d.coverageByFunction[fns[idx - 1]]));
+          if (!d.coverageUiOpen) d.coverageUiOpen = {};
+          d.coverageUiOpen[fn] = true;
           renderWizardBody();
         }
         return;
@@ -2008,6 +2120,7 @@ function bindPkgWizard(d) {
       const covFn = wrap.getAttribute('data-cov-fn');
       if (!covFn) return;
       setCovTypeField(d, covFn, field, true, v);
+      refreshFnCoverageCardSummary(wrap.closest('.fn-cov-card'), d);
       return;
     }
   };
@@ -2052,7 +2165,11 @@ function bindPkgWizard(d) {
       return;
     }
     if (t.matches('[data-fn-duration]')) {
-      updateFnCoverageHints(t.closest('.fn-cov-card'));
+      updateFnCoverageHints(t.closest('.fn-cov-card'), d);
+      return;
+    }
+    if (t.matches('[data-fn-extra-hour]')) {
+      refreshFnCoverageCardSummary(t.closest('.fn-cov-card'), d);
       return;
     }
     if (deliverableCheckboxChange(t, d)) return;
@@ -2075,10 +2192,15 @@ function bindPkgWizard(d) {
   };
   document.querySelectorAll('[data-fn-duration]').forEach(function (sel) {
     sel.onchange = function () {
-      updateFnCoverageHints(sel.closest('.fn-cov-card'));
+      updateFnCoverageHints(sel.closest('.fn-cov-card'), d);
     };
   });
-  syncAllFnCoverageHints();
+  document.querySelectorAll('[data-fn-extra-hour]').forEach(function (inp) {
+    inp.oninput = function () {
+      refreshFnCoverageCardSummary(inp.closest('.fn-cov-card'), d);
+    };
+  });
+  syncAllFnCoverageHints(d);
   document.querySelectorAll('[data-pay-pct],[data-pay-label]').forEach(function (node) {
     node.oninput = function () {
       readPkgWizardFields(d);
