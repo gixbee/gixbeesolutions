@@ -22,7 +22,9 @@ const VIDEO_DELIVER = [
   'Reel',
   'Traditional Video',
 ];
-const ALBUM_PRINT_TYPES = ['Photo Album', 'Calendar', 'Mini Album', 'Photo Frame'];
+const ALBUM_MAIN_TYPES = ['Photo Album'];
+const COMPLIMENTARY_PRINT_TYPES = ['Calendar', 'Mini Album', 'Photo Frame'];
+const ALBUM_PRINT_TYPES = ALBUM_MAIN_TYPES.concat(COMPLIMENTARY_PRINT_TYPES);
 const DIGITAL_DELIVER = [
   { id: 'Google Drive Link', icon: '📁', desc: 'Share high-resolution files via Google Drive.' },
   { id: 'Online Gallery', icon: '🔗', desc: 'Private online gallery for easy access.' },
@@ -625,16 +627,16 @@ function albumComplimentaryField(row) {
   return (
     '<label class="del-complimentary-chk"><input type="checkbox" data-album-complimentary ' +
     (row.complimentary ? 'checked' : '') +
-    '> Complimentary deliverable (free bonus)</label>'
+    '> Complimentary deliverables</label>'
   );
 }
 
 function defaultAlbumPrints() {
   return {
     'Photo Album': { on: true, pages: 40, sets: 1, size: '12 x 18 inch', cover: 'Premium' },
-    Calendar: { on: false, qty: 1, size: 'A3', type: 'Wall Calendar' },
-    'Mini Album': { on: false, qty: 1, size: '6 x 6 inch', cover: 'Standard' },
-    'Photo Frame': { on: false, qty: 1, size: '12 x 18 inch', type: 'Acrylic', complimentary: false },
+    Calendar: { on: false, qty: 1, size: 'A3', type: 'Wall Calendar', complimentary: true },
+    'Mini Album': { on: false, qty: 1, size: '6 x 6 inch', cover: 'Standard', complimentary: true },
+    'Photo Frame': { on: false, qty: 1, size: '12 x 18 inch', type: 'Acrylic', complimentary: true },
   };
 }
 
@@ -1155,7 +1157,8 @@ function renderDelTabs(active) {
   const tabs = [
     { id: 'photos', label: '📷 Photos' },
     { id: 'videos', label: '🎬 Videos' },
-    { id: 'albums', label: '📚 Albums' },
+    { id: 'albums', label: '📚 Albums & prints' },
+    { id: 'complimentary', label: '🎁 Complimentary deliverables' },
     { id: 'digital', label: '☁ Digital' },
   ];
   return (
@@ -1295,70 +1298,92 @@ function renderVideoDeliverTab(d) {
   );
 }
 
-function renderAlbumDeliverTab(d) {
+function renderAlbumPrintCard(name, d, opts) {
+  opts = opts || {};
+  const complimentarySection = !!opts.complimentarySection;
+  if (!d.albumPrints) d.albumPrints = defaultAlbumPrints();
+  const row = d.albumPrints[name] || { on: false };
+  const on = !!row.on;
+  if (name === 'Photo Album') {
+    return (
+      '<div class="del-card' +
+      (on ? ' on' : '') +
+      '"><label class="del-card-hd"><input type="checkbox" data-album-type="' +
+      esc(name) +
+      '" ' +
+      (on ? 'checked' : '') +
+      '><div class="del-thumb">📕</div><div class="del-meta"><b>' +
+      esc(name) +
+      '</b></div></label>' +
+      (on
+        ? '<div class="del-fields">' +
+          '<div class="fld"><label>Pages</label><input type="number" data-album-pages value="' +
+          (row.pages || 40) +
+          '"></div>' +
+          '<div class="fld"><label>Album sets</label><input type="number" min="1" step="1" data-album-sets value="' +
+          (row.sets != null ? row.sets : 1) +
+          '"><span class="hint"> e.g. 2 for bride &amp; groom</span></div>' +
+          '<div class="fld"><label>Size</label><select data-album-size><option' +
+          ((row.size || '').indexOf('12') >= 0 ? ' selected' : '') +
+          '>12 x 18 inch</option><option>10 x 12 inch</option></select></div>' +
+          '<div class="fld"><label>Cover type</label><select data-album-cover><option' +
+          (row.cover === 'Premium' ? ' selected' : '') +
+          '>Premium</option><option>Standard</option></select></div></div>'
+        : '') +
+      '</div>'
+    );
+  }
+  if (complimentarySection && row.complimentary == null) row.complimentary = true;
+  return (
+    '<div class="del-card' +
+    (on ? ' on' : '') +
+    '"><label class="del-card-hd"><input type="checkbox" data-album-type="' +
+    esc(name) +
+    '" ' +
+    (on ? 'checked' : '') +
+    '><div class="del-thumb">🖼</div><div class="del-meta"><b>' +
+    esc(name) +
+    '</b></div></label>' +
+    (on
+      ? '<div class="del-fields">' +
+        '<div class="fld"><label>Quantity</label><input type="number" data-album-qty value="' +
+        (row.qty || 1) +
+        '"></div>' +
+        '<div class="fld"><label>Size</label><select data-album-size-' +
+        esc(name) +
+        '><option>A3</option><option>A4</option><option>6 x 6 inch</option><option>12 x 18 inch</option></select></div>' +
+        '<div class="fld"><label>Type</label><select data-album-type-opt><option>Wall Calendar</option><option>Desk Calendar</option><option>Acrylic</option><option>Standard</option></select></div>' +
+        (complimentarySection ? albumComplimentaryField(row) : '') +
+        '</div>'
+      : '') +
+    '</div>'
+  );
+}
+
+function renderAlbumsPrintsTab(d) {
+  if (!d.albumPrints) d.albumPrints = defaultAlbumPrints();
+  const custom = Object.keys(d.albumPrints).filter(function (name) {
+    return ALBUM_PRINT_TYPES.indexOf(name) < 0 && COMPLIMENTARY_PRINT_TYPES.indexOf(name) < 0;
+  });
+  return (
+    '<p class="del-sec-title">Albums &amp; prints</p><p class="sub">Main albums included in the package price.</p>' +
+    ALBUM_MAIN_TYPES.concat(custom)
+      .map(function (name) {
+        return renderAlbumPrintCard(name, d, { complimentarySection: false });
+      })
+      .join('') +
+    linkAdd('add-album-print', 'Add Custom Album/Print')
+  );
+}
+
+function renderComplimentaryDeliverTab(d) {
   if (!d.albumPrints) d.albumPrints = defaultAlbumPrints();
   return (
-    '<p class="del-sec-title">Albums, prints &amp; complimentary deliverables</p><p class="sub">Select what is included. Use <b>Complimentary deliverable</b> for free bonuses (frames, mini albums, etc.). Save-the-date coverage is set under <b>Select functions</b>.</p>' +
-    ALBUM_PRINT_TYPES.map(function (name) {
-      const row = d.albumPrints[name] || { on: false };
-      const on = !!row.on;
-      if (name === 'Photo Album') {
-        return (
-          '<div class="del-card' +
-          (on ? ' on' : '') +
-          '"><label class="del-card-hd"><input type="checkbox" data-album-type="' +
-          esc(name) +
-          '" ' +
-          (on ? 'checked' : '') +
-          '><div class="del-thumb">📕</div><div class="del-meta"><b>' +
-          esc(name) +
-          '</b></div></label>' +
-          (on
-            ? '<div class="del-fields">' +
-              '<div class="fld"><label>Pages</label><input type="number" data-album-pages value="' +
-              (row.pages || 40) +
-              '"></div>' +
-              '<div class="fld"><label>Album sets</label><input type="number" min="1" step="1" data-album-sets value="' +
-              (row.sets != null ? row.sets : 1) +
-              '"><span class="hint"> e.g. 2 for bride &amp; groom</span></div>' +
-              '<div class="fld"><label>Size</label><select data-album-size><option' +
-              ((row.size || '').indexOf('12') >= 0 ? ' selected' : '') +
-              '>12 x 18 inch</option><option>10 x 12 inch</option></select></div>' +
-              '<div class="fld"><label>Cover type</label><select data-album-cover><option' +
-              (row.cover === 'Premium' ? ' selected' : '') +
-              '>Premium</option><option>Standard</option></select></div>' +
-              albumComplimentaryField(row) +
-              '</div>'
-            : '') +
-          '</div>'
-        );
-      }
-      return (
-        '<div class="del-card' +
-        (on ? ' on' : '') +
-        '"><label class="del-card-hd"><input type="checkbox" data-album-type="' +
-        esc(name) +
-        '" ' +
-        (on ? 'checked' : '') +
-        '><div class="del-thumb">🖼</div><div class="del-meta"><b>' +
-        esc(name) +
-        '</b></div></label>' +
-        (on
-          ? '<div class="del-fields">' +
-            '<div class="fld"><label>Quantity</label><input type="number" data-album-qty value="' +
-            (row.qty || 1) +
-            '"></div>' +
-            '<div class="fld"><label>Size</label><select data-album-size-' +
-            esc(name) +
-            '><option>A3</option><option>A4</option><option>6 x 6 inch</option><option>12 x 18 inch</option></select></div>' +
-            '<div class="fld"><label>Type</label><select data-album-type-opt><option>Wall Calendar</option><option>Desk Calendar</option><option>Acrylic</option><option>Standard</option><option>Card / video</option></select></div>' +
-            albumComplimentaryField(row) +
-            '</div>'
-          : '') +
-        '</div>'
-      );
-    }).join('') +
-    linkAdd('add-album-print', 'Add Custom Album/Print')
+    '<p class="del-sec-title">Complimentary deliverables</p>' +
+    '<p class="sub">Free bonuses with this package (frames, mini albums, calendars). Save-the-date shoot is under <b>Select functions</b>.</p>' +
+    COMPLIMENTARY_PRINT_TYPES.map(function (name) {
+      return renderAlbumPrintCard(name, d, { complimentarySection: true });
+    }).join('')
   );
 }
 
@@ -1456,7 +1481,8 @@ function renderDeliverablesStep(d) {
   let body = '';
   if (tab === 'photos') body = renderPhotoDeliverTab(d);
   else if (tab === 'videos') body = renderVideoDeliverTab(d);
-  else if (tab === 'albums') body = renderAlbumDeliverTab(d);
+  else if (tab === 'albums') body = renderAlbumsPrintsTab(d);
+  else if (tab === 'complimentary') body = renderComplimentaryDeliverTab(d);
   else body = renderDigitalDeliverTab(d);
   return renderDelTabs(tab) + body;
 }

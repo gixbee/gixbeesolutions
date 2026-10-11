@@ -1,4 +1,4 @@
-const PHOTO_OWNER_BUILD = '2026-10-11-photo-owner-albums-no-save-date-v20';
+const PHOTO_OWNER_BUILD = '2026-10-11-photo-owner-del-tabs-complimentary-v22';
 
 function photoOwnerDemoFileName() {
   try {
@@ -63,7 +63,7 @@ const PKG_STEPS = [
   { title: 'Select functions', sub: 'Choose wedding functions covered in this wedding package.' },
   { title: 'Ceremony type', sub: 'Choose applicable ceremony types.' },
   { title: 'Coverage details', sub: 'Coverage side, then duration, extra hour, and team for each function.' },
-  { title: 'Deliverables', sub: 'Select photos, videos, albums and other deliverables included in this package.' },
+  { title: 'Deliverables', sub: 'Photos, videos, albums & prints, complimentary bonuses, and digital delivery.' },
   { title: 'Special services & extras', sub: 'Select additional services with price.' },
   { title: 'Delivery timeline', sub: 'Set delivery timeline for each deliverable.' },
   { title: 'Payment stages', sub: 'Set payment stages and policies.' },
