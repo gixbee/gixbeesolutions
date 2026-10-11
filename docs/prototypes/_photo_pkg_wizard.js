@@ -1371,15 +1371,15 @@ function renderAlbumPrintCard(name, d, opts) {
     return (
       '<div class="del-card' +
       (on ? ' on' : '') +
-      '"><label class="del-card-hd"><input type="checkbox" data-album-type="' +
+      '"><div class="del-card-hd"><label class="del-chk"><input type="checkbox" data-album-type="' +
       esc(name) +
       '" ' +
       (on ? 'checked' : '') +
-      '><div class="del-thumb">📕</div><div class="del-meta"><b>' +
+      '></label><div class="del-thumb">📕</div><div class="del-meta"><b>' +
       esc(name) +
       '</b></div>' +
       (isCustomAlbumPrint(d, name) ? customDeliverableDelBtn('remove-del-album', name) : '') +
-      '</label>' +
+      '</div>' +
       (on
         ? '<div class="del-fields">' +
           '<div class="fld"><label>Pages</label><input type="number" data-album-pages value="' +
@@ -1402,15 +1402,15 @@ function renderAlbumPrintCard(name, d, opts) {
   return (
     '<div class="del-card' +
     (on ? ' on' : '') +
-    '"><label class="del-card-hd"><input type="checkbox" data-album-type="' +
+    '"><div class="del-card-hd"><label class="del-chk"><input type="checkbox" data-album-type="' +
     esc(name) +
     '" ' +
     (on ? 'checked' : '') +
-    '><div class="del-thumb">🖼</div><div class="del-meta"><b>' +
+    '></label><div class="del-thumb">🖼</div><div class="del-meta"><b>' +
     esc(name) +
     '</b></div>' +
     (isCustomAlbumPrint(d, name) ? customDeliverableDelBtn('remove-del-album', name) : '') +
-    '</label>' +
+    '</div>' +
     (on
       ? '<div class="del-fields">' +
         '<div class="fld"><label>Quantity</label><input type="number" data-album-qty value="' +
