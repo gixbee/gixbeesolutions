@@ -55,12 +55,6 @@ function defaultVideoDurationForName(name) {
   return 'Full Event';
 }
 
-function videoDurationSelectOptions(selected) {
-  const list = VIDEO_DURATIONS.slice();
-  if (selected && list.indexOf(selected) < 0) list.unshift(selected);
-  return list;
-}
-
 function renderVideoDurationSelect(name, selected) {
   const sel = selected || defaultVideoDurationForName(name);
   const hourOpts = VIDEO_DURATION_HOURS.map(function (v) {
