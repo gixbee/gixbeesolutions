@@ -1179,6 +1179,66 @@ function renderDelTabs(active) {
   );
 }
 
+function customDeliverableDelBtn(action, name) {
+  return (
+    '<button type="button" class="del-card-remove" data-action="' +
+    action +
+    '" data-del-name="' +
+    esc(name) +
+    '" title="Remove custom type" aria-label="Remove">🗑</button>'
+  );
+}
+
+function isCustomPhotoDeliverable(d, name) {
+  return (d.customDeliverPhoto || []).indexOf(name) >= 0;
+}
+
+function isCustomVideoDeliverable(d, name) {
+  return (d.customDeliverVideo || []).indexOf(name) >= 0;
+}
+
+function isCustomDigitalDeliverable(d, id) {
+  return (d.customDeliverDigital || []).indexOf(id) >= 0;
+}
+
+function isCustomAlbumPrint(d, name) {
+  return ALBUM_PRINT_TYPES.indexOf(name) < 0;
+}
+
+function removeCustomDeliverable(d, kind, name) {
+  if (!name) return;
+  if (kind === 'photo') {
+    d.customDeliverPhoto = (d.customDeliverPhoto || []).filter(function (x) {
+      return x !== name;
+    });
+    d.deliverPhoto = (d.deliverPhoto || []).filter(function (x) {
+      return x !== name;
+    });
+    if (d.photoDetails) delete d.photoDetails[name];
+    if (d.deliveryMap) delete d.deliveryMap[name];
+  } else if (kind === 'video') {
+    d.customDeliverVideo = (d.customDeliverVideo || []).filter(function (x) {
+      return x !== name;
+    });
+    d.deliverVideo = (d.deliverVideo || []).filter(function (x) {
+      return x !== name;
+    });
+    if (d.videoDetails) delete d.videoDetails[name];
+    if (d.deliveryMap) delete d.deliveryMap[name];
+  } else if (kind === 'digital') {
+    d.customDeliverDigital = (d.customDeliverDigital || []).filter(function (x) {
+      return x !== name;
+    });
+    d.deliverDigital = (d.deliverDigital || []).filter(function (x) {
+      return x !== name;
+    });
+    if (d.deliveryMap) delete d.deliveryMap[name];
+  } else if (kind === 'album') {
+    if (d.albumPrints) delete d.albumPrints[name];
+    if (d.deliveryMap) delete d.deliveryMap[name];
+  }
+}
+
 function renderPhotoDeliverTab(d) {
   ensurePkgMarketingFields(d);
   const items = PHOTO_DELIVER.concat(d.customDeliverPhoto || []);
@@ -1205,7 +1265,9 @@ function renderPhotoDeliverTab(d) {
           esc(name) +
           '</b><p class="sub">' +
           esc(PHOTO_DELIVER_HINTS[name] || '') +
-          '</p></div></div>' +
+          '</p></div>' +
+          (isCustomPhotoDeliverable(d, name) ? customDeliverableDelBtn('remove-del-photo', name) : '') +
+          '</div>' +
           (on
             ? '<div class="del-fields">' +
               '<div class="fld"><label>Quantity</label><input type="number" data-photo-qty="' +
@@ -1259,7 +1321,9 @@ function renderVideoDeliverTab(d) {
           esc(name) +
           '</b><p class="sub">' +
           esc(VIDEO_DELIVER_HINTS[name] || '') +
-          '</p></div></div>' +
+          '</p></div>' +
+          (isCustomVideoDeliverable(d, name) ? customDeliverableDelBtn('remove-del-video', name) : '') +
+          '</div>' +
           (on
             ? '<div class="del-fields">' +
               '<div class="fld"><label>Duration</label><select data-video-dur="' +
@@ -1313,7 +1377,9 @@ function renderAlbumPrintCard(name, d, opts) {
       (on ? 'checked' : '') +
       '><div class="del-thumb">📕</div><div class="del-meta"><b>' +
       esc(name) +
-      '</b></div></label>' +
+      '</b></div>' +
+      (isCustomAlbumPrint(d, name) ? customDeliverableDelBtn('remove-del-album', name) : '') +
+      '</label>' +
       (on
         ? '<div class="del-fields">' +
           '<div class="fld"><label>Pages</label><input type="number" data-album-pages value="' +
@@ -1342,7 +1408,9 @@ function renderAlbumPrintCard(name, d, opts) {
     (on ? 'checked' : '') +
     '><div class="del-thumb">🖼</div><div class="del-meta"><b>' +
     esc(name) +
-    '</b></div></label>' +
+    '</b></div>' +
+    (isCustomAlbumPrint(d, name) ? customDeliverableDelBtn('remove-del-album', name) : '') +
+    '</label>' +
     (on
       ? '<div class="del-fields">' +
         '<div class="fld"><label>Quantity</label><input type="number" data-album-qty value="' +
@@ -1389,7 +1457,7 @@ function renderDigitalDeliverTab(d) {
     DIGITAL_DELIVER.concat(custom)
       .map(function (item) {
         const on = d.deliverDigital.indexOf(item.id) >= 0;
-        return (
+        const row =
           '<label class="dig-row' +
           (on ? ' on' : '') +
           '"><input type="checkbox" data-ddigital="' +
@@ -1402,7 +1470,13 @@ function renderDigitalDeliverTab(d) {
           esc(item.id) +
           '</b><span class="dig-desc">' +
           esc(item.desc) +
-          '</span></span></label>'
+          '</span></span></label>';
+        if (!isCustomDigitalDeliverable(d, item.id)) return row;
+        return (
+          '<div class="dig-row-wrap">' +
+          row +
+          customDeliverableDelBtn('remove-del-digital', item.id) +
+          '</div>'
         );
       })
       .join('') +
@@ -1634,6 +1708,30 @@ function runDeliverableWizardAction(act, d, readFields) {
       d.albumPrints[name] = { on: true, qty: 1, size: 'A4', type: 'Custom' };
       renderWizardBody();
     }
+    return true;
+  }
+  if (act === 'remove-del-photo') {
+    readFields(d);
+    removeCustomDeliverable(d, 'photo', t.getAttribute('data-del-name'));
+    renderWizardBody();
+    return true;
+  }
+  if (act === 'remove-del-video') {
+    readFields(d);
+    removeCustomDeliverable(d, 'video', t.getAttribute('data-del-name'));
+    renderWizardBody();
+    return true;
+  }
+  if (act === 'remove-del-digital') {
+    readFields(d);
+    removeCustomDeliverable(d, 'digital', t.getAttribute('data-del-name'));
+    renderWizardBody();
+    return true;
+  }
+  if (act === 'remove-del-album') {
+    readFields(d);
+    removeCustomDeliverable(d, 'album', t.getAttribute('data-del-name'));
+    renderWizardBody();
     return true;
   }
   return false;
