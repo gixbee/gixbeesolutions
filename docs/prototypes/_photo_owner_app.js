@@ -1,4 +1,4 @@
-const PHOTO_OWNER_BUILD = '2026-10-11-photo-owner-coverage-extra-hour-v8';
+const PHOTO_OWNER_BUILD = '2026-10-11-photo-owner-per-function-coverage-v9';
 
 function photoOwnerDemoFileName() {
   try {
@@ -62,7 +62,7 @@ const PKG_STEPS = [
   { title: 'Package basics', sub: 'Basic information about the package.' },
   { title: 'Select functions', sub: 'Choose wedding functions covered in this wedding package.' },
   { title: 'Ceremony type', sub: 'Choose applicable ceremony types.' },
-  { title: 'Coverage details', sub: 'Set coverage details for selected functions.' },
+  { title: 'Coverage details', sub: 'Duration, extra hour, and team for each function in this package.' },
   { title: 'Deliverables', sub: 'Select photos, videos, albums and other deliverables included in this package.' },
   { title: 'Special services & extras', sub: 'Select additional services with price.' },
   { title: 'Delivery timeline', sub: 'Set delivery timeline for each deliverable.' },
@@ -263,6 +263,9 @@ function loadStore() {
     if (!store.deletedBusinesses) store.deletedBusinesses = defaultStore().deletedBusinesses;
     if (!store.calendar || typeof store.calendar !== 'object') store.calendar = defaultPhotoCalendar();
     sanitizeWeddingPackageFunctions();
+    (store.packages || []).forEach(function (p) {
+      if (typeof migrateLegacyPkgCoverage === 'function') migrateLegacyPkgCoverage(p);
+    });
   } catch (_e) {
     store = defaultStore();
     try {

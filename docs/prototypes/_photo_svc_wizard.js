@@ -172,8 +172,7 @@ function recordToPkgDraft(rec) {
   const base = newPkgDraft();
   const m = JSON.parse(JSON.stringify(rec || {}));
   const merged = Object.assign(base, m);
-  merged.photoTypes = Object.assign({}, base.photoTypes, m.photoTypes || {});
-  merged.videoTypes = Object.assign({}, base.videoTypes, m.videoTypes || {});
+  migrateLegacyPkgCoverage(merged);
   merged.photoDetails = Object.assign({}, base.photoDetails, m.photoDetails || {});
   merged.videoDetails = Object.assign({}, base.videoDetails, m.videoDetails || {});
   merged.albumPrints = Object.assign({}, base.albumPrints, m.albumPrints || {});

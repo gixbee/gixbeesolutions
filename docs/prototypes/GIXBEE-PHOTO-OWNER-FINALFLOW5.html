@@ -118,6 +118,10 @@ body{margin:0;background:#E8EDF5;font-family:Inter,system-ui,sans-serif;color:va
 .hub-tab.on{background:#fff;color:var(--navy);box-shadow:0 4px 12px rgba(15,23,42,.1)}
 .hub-tab.on.pkg-tab{color:#BE185D}
 .hub-tab.on.svc-tab{color:var(--blue)}
+.fn-cov-card{border:1px solid var(--line);border-radius:16px;padding:14px 14px 10px;margin-bottom:14px;background:#F8FAFC}
+.fn-cov-hd{display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:12px;flex-wrap:wrap}
+.fn-cov-hd b{font-size:14px;color:var(--navy);font-weight:800;line-height:1.3;flex:1;min-width:120px}
+.fn-cov-side{margin-bottom:10px}
 .hub-stats{display:flex;gap:8px;padding:0 16px 10px;flex-wrap:wrap}
 .hub-stat-chip{flex:1;min-width:calc(50% - 4px);padding:10px 12px;border-radius:14px;background:#fff;border:1px solid var(--line);box-shadow:0 2px 8px rgba(15,23,42,.04)}
 .hub-stat-chip b{display:block;font-size:18px;font-weight:900;color:var(--navy);line-height:1.1}
@@ -1430,8 +1434,115 @@ function defaultCoverageTypes(defaults, seed) {
   return o;
 }
 
-function newPkgDraft() {
+function fnIsCoupleShoot(fnName) {
+  return /shoot/i.test(String(fnName || ''));
+}
+
+function fnShowsCoverageSide(fnName) {
+  return !fnIsCoupleShoot(fnName);
+}
+
+function defaultFnCoverage(fnName, fromTemplate) {
+  if (fromTemplate) {
+    return JSON.parse(JSON.stringify(fromTemplate));
+  }
+  const shoot = fnIsCoupleShoot(fnName);
   return {
+    coverageSide: shoot ? 'single' : 'both',
+    duration: shoot ? 'Up to 5 Hours' : 'Full Day',
+    extraHour: shoot ? 3000 : 5000,
+    photoTypes: defaultCoverageTypes(
+      PHOTO_TYPE_DEFAULTS,
+      shoot
+        ? {
+            'Candid Photographer': { on: true, qty: 1 },
+            'Traditional Photographer': { on: false, qty: 0 },
+            'Candid + Traditional Photographer': { on: false, qty: 0 },
+          }
+        : {
+            'Candid Photographer': { on: true, qty: 1 },
+            'Traditional Photographer': { on: true, qty: 1 },
+            'Candid + Traditional Photographer': { on: false, qty: 0 },
+          }
+    ),
+    videoTypes: defaultCoverageTypes(
+      VIDEO_TYPE_DEFAULTS,
+      shoot
+        ? {
+            'Candid Videographer': { on: false, qty: 0 },
+            'Traditional Videographer': { on: false, qty: 0 },
+            'Cinematic Videographer': { on: true, qty: 1 },
+          }
+        : {
+            'Candid Videographer': { on: true, qty: 1 },
+            'Traditional Videographer': { on: true, qty: 1 },
+            'Cinematic Videographer': { on: true, qty: 1 },
+          }
+    ),
+  };
+}
+
+function migrateLegacyPkgCoverage(d) {
+  if (!d) return;
+  if (d.coverageByFunction && Object.keys(d.coverageByFunction).length) {
+    ensurePkgCoverageByFunction(d);
+    return;
+  }
+  const fns = d.functions && d.functions.length ? d.functions : ['Wedding & Reception'];
+  const template = {
+    coverageSide: d.coverageSide || 'both',
+    duration: d.duration || 'Full Day',
+    extraHour: d.extraHour != null ? d.extraHour : 5000,
+    photoTypes: d.photoTypes
+      ? JSON.parse(JSON.stringify(d.photoTypes))
+      : defaultFnCoverage(fns[0]).photoTypes,
+    videoTypes: d.videoTypes
+      ? JSON.parse(JSON.stringify(d.videoTypes))
+      : defaultFnCoverage(fns[0]).videoTypes,
+  };
+  d.coverageByFunction = {};
+  fns.forEach(function (fn) {
+    d.coverageByFunction[fn] = defaultFnCoverage(fn, template);
+    if (fnIsCoupleShoot(fn)) {
+      d.coverageByFunction[fn].duration = 'Up to 5 Hours';
+      d.coverageByFunction[fn].coverageSide = 'single';
+    }
+  });
+}
+
+function ensurePkgCoverageByFunction(d) {
+  if (!d.coverageByFunction) d.coverageByFunction = {};
+  const fns = d.functions && d.functions.length ? d.functions : ['Wedding & Reception'];
+  fns.forEach(function (fn) {
+    if (!d.coverageByFunction[fn]) d.coverageByFunction[fn] = defaultFnCoverage(fn);
+    const block = d.coverageByFunction[fn];
+    allPhotoTypes(d).forEach(function (label) {
+      if (!block.photoTypes[label]) block.photoTypes[label] = { on: false, qty: 0 };
+    });
+    allVideoTypes(d).forEach(function (label) {
+      if (!block.videoTypes[label]) block.videoTypes[label] = { on: false, qty: 0 };
+    });
+  });
+  Object.keys(d.coverageByFunction).forEach(function (fn) {
+    if (fns.indexOf(fn) < 0) delete d.coverageByFunction[fn];
+  });
+}
+
+function pkgFnCoverage(d, fnName) {
+  ensurePkgCoverageByFunction(d);
+  return d.coverageByFunction[fnName];
+}
+
+function newPkgDraftFinalize(d) {
+  if (!d.coverageByFunction) d.coverageByFunction = {};
+  (d.functions || []).forEach(function (fn) {
+    if (!d.coverageByFunction[fn]) d.coverageByFunction[fn] = defaultFnCoverage(fn);
+  });
+  return d;
+}
+
+function newPkgDraft() {
+  const d = {
     level: 'Premium',
     name: 'Premium Wedding Package',
     desc: 'Complete wedding & reception photography and videography with premium deliverables.',
@@ -1444,22 +1555,9 @@ function newPkgDraft() {
     functions: ['Wedding & Reception', 'Reception', 'Wedding Eve'],
     customCeremonies: [],
     ceremonyTypes: ['Hindu'],
-    coverageFn: 'Wedding & Reception',
-    coverageSide: 'both',
-    photoTypes: defaultCoverageTypes(PHOTO_TYPE_DEFAULTS, {
-      'Candid Photographer': { on: true, qty: 1 },
-      'Traditional Photographer': { on: true, qty: 1 },
-      'Candid + Traditional Photographer': { on: false, qty: 0 },
-    }),
     customPhotoTypes: [],
-    videoTypes: defaultCoverageTypes(VIDEO_TYPE_DEFAULTS, {
-      'Candid Videographer': { on: true, qty: 1 },
-      'Traditional Videographer': { on: true, qty: 1 },
-      'Cinematic Videographer': { on: true, qty: 1 },
-    }),
     customVideoTypes: [],
-    duration: 'Full Day',
-    extraHour: 5000,
+    coverageByFunction: {},
     deliverTab: 'photos',
     extras: pkgExtraDefaults(),
     customExtras: [],
@@ -1489,6 +1587,8 @@ function newPkgDraft() {
     requirements: ['Customer provides SSD / Hard Disk', 'Electricity / Power at venue'],
     customRequirements: [],
   };
+  newPkgDraftFinalize(d);
+  return d;
 }
 
 function allPkgFunctions(d) {
@@ -1659,14 +1759,16 @@ function allVideoTypes(d) {
   return VIDEO_TYPE_DEFAULTS.concat(d.customVideoTypes || []);
 }
 
-function qtyStepper(field, val, disabled) {
+function qtyStepper(field, val, disabled, covFn) {
   val = Math.max(0, +val || 0);
   return (
     '<div class="qty-step' +
     (disabled ? ' off' : '') +
     '" data-qty-field="' +
     field +
-    '"><button type="button" data-qty-d="-1"' +
+    '"' +
+    (covFn ? ' data-cov-fn="' + esc(covFn) + '"' : '') +
+    '><button type="button" data-qty-d="-1"' +
     (disabled ? ' disabled' : '') +
     '>−</button><span>' +
     val +
@@ -2146,7 +2248,7 @@ function runDeliverableWizardAction(act, d, readFields) {
   return false;
 }
 
-function renderCoverageTypes(types, obj, prefix, customKey) {
+function renderCoverageTypes(types, obj, prefix, fnName) {
   return types
     .map(function (label) {
       const row = obj[label] || { on: false, qty: 0 };
@@ -2155,18 +2257,78 @@ function renderCoverageTypes(types, obj, prefix, customKey) {
       return (
         '<div class="cov-type' +
         (!row.on ? ' disabled' : '') +
-        '"><label><input type="checkbox" data-cov-type="' +
+        '"><label><input type="checkbox" data-cov-fn="' +
+        esc(fnName) +
+        '" data-cov-type="' +
         esc(field) +
         '" ' +
         (row.on ? 'checked' : '') +
         '> ' +
         esc(label) +
         '</label>' +
-        qtyStepper(field, row.qty, !row.on) +
+        qtyStepper(field, row.qty, !row.on, fnName) +
         '</div>'
       );
     })
     .join('');
+}
+
+function renderFnCoverageStep(d) {
+  ensurePkgCoverageByFunction(d);
+  const fns = d.functions.length ? d.functions : ['Wedding & Reception'];
+  let html =
+    '<p class="sub" style="margin:0 0 14px">Set duration, extra hour rate, and photo/video team for <b>each function</b> in this package.</p>';
+  fns.forEach(function (fn, idx) {
+    const c = pkgFnCoverage(d, fn);
+    html += '<div class="fn-cov-card" data-fn-name="' + esc(fn) + '">';
+    html += '<div class="fn-cov-hd"><b>' + esc(fn) + '</b>';
+    if (idx > 0) {
+      html +=
+        '<button type="button" class="link-inline" data-action="copy-cov-from-prev" data-cov-fn="' +
+        esc(fn) +
+        '">Same as ' +
+        esc(fns[idx - 1]) +
+        '</button>';
+    }
+    html += '</div>';
+    if (fnShowsCoverageSide(fn)) {
+      html +=
+        '<div class="fld fn-cov-side"><label>Coverage side</label><div class="seg seg-full">' +
+        '<button type="button" class="' +
+        (c.coverageSide === 'single' ? 'on' : '') +
+        '" data-side="single" data-cov-fn="' +
+        esc(fn) +
+        '">Single side</button>' +
+        '<button type="button" class="' +
+        (c.coverageSide === 'both' ? 'on' : '') +
+        '" data-side="both" data-cov-fn="' +
+        esc(fn) +
+        '">Both sides</button></div></div>';
+    }
+    html +=
+      '<div class="fld"><label>Coverage duration</label><select data-fn-duration>' +
+      DURATION_OPTS.map(function (o) {
+        return '<option' + (c.duration === o ? ' selected' : '') + '>' + o + '</option>';
+      }).join('') +
+      '</select></div>' +
+      '<p class="hint fn-duration-hint" style="margin:-4px 0 12px">' +
+      esc(coverageDurationHelp(c.duration)) +
+      '</p>' +
+      '<div class="fld"><label>Additional hour charge (₹)</label><input type="number" data-fn-extra-hour min="0" step="500" value="' +
+      c.extraHour +
+      '"><span class="hint"> / hour beyond included duration</span>' +
+      '<p class="hint fn-extra-hint" style="margin:8px 0 0">' +
+      esc(extraHourChargeHelp(c.duration)) +
+      '</p></div>' +
+      '<p class="lbl">Photography coverage</p>' +
+      renderCoverageTypes(allPhotoTypes(d), c.photoTypes, 'photo', fn) +
+      linkAdd('add-photo-type', 'Add New Photography Type') +
+      '<p class="lbl">Videography coverage</p>' +
+      renderCoverageTypes(allVideoTypes(d), c.videoTypes, 'video', fn) +
+      linkAdd('add-video-type', 'Add New Videography Type') +
+      '</div>';
+  });
+  return html;
 }
 
 function renderPkgStep(step, d) {
@@ -2250,45 +2412,8 @@ function renderPkgStep(step, d) {
         linkAdd('add-ceremony', 'Add New') +
         '<div class="warn-box">This helps customers identify packages based on their ceremony type.</div>'
       );
-    case 3: {
-      const fns = d.functions.length ? d.functions : ['Wedding & Reception'];
-      if (d.functions.indexOf(d.coverageFn) < 0) d.coverageFn = fns[0];
-      return (
-        '<div class="fld"><label>Coverage side</label><div class="seg seg-full" id="f_covSide">' +
-        '<button type="button" class="' +
-        (d.coverageSide === 'single' ? 'on' : '') +
-        '" data-side="single">Single side</button>' +
-        '<button type="button" class="' +
-        (d.coverageSide === 'both' ? 'on' : '') +
-        '" data-side="both">Both sides</button></div></div>' +
-        '<div class="fld"><label>Coverage duration</label><select id="f_duration">' +
-        DURATION_OPTS.map(function (o) {
-          return (
-            '<option' +
-            (d.duration === o ? ' selected' : '') +
-            '>' +
-            o +
-            '</option>'
-          );
-        }).join('') +
-        '</select></div>' +
-        '<p class="hint" id="f_durationHelp" style="margin:-4px 0 14px">' +
-        esc(coverageDurationHelp(d.duration)) +
-        '</p>' +
-        '<div class="fld" id="f_extraHourWrap"><label>Additional hour charge (₹)</label><input type="number" id="f_extraHour" min="0" step="500" value="' +
-        d.extraHour +
-        '"><span class="hint"> / hour beyond included duration</span>' +
-        '<p class="hint" id="f_extraHourHelp" style="margin:8px 0 0">' +
-        esc(extraHourChargeHelp(d.duration)) +
-        '</p></div>' +
-        '<p class="lbl">Photography coverage</p>' +
-        renderCoverageTypes(allPhotoTypes(d), d.photoTypes, 'photo', 'customPhotoTypes') +
-        linkAdd('add-photo-type', 'Add New Photography Type') +
-        '<p class="lbl">Videography coverage</p>' +
-        renderCoverageTypes(allVideoTypes(d), d.videoTypes, 'video', 'customVideoTypes') +
-        linkAdd('add-video-type', 'Add New Videography Type')
-      );
-    }
+    case 3:
+      return renderFnCoverageStep(d);
     case 4:
       return renderDeliverablesStep(d);
     case 5:
@@ -2470,8 +2595,17 @@ function readPkgWizardFields(d) {
   if (g('f_discountPct')) d.discountPct = +g('f_discountPct').value || 0;
   const discRad = document.querySelector('input[name="discYes"]:checked');
   if (discRad) d.discountYes = discRad.value;
-  if (g('f_duration')) d.duration = g('f_duration').value;
-  if (g('f_extraHour')) d.extraHour = +g('f_extraHour').value || 0;
+  document.querySelectorAll('.fn-cov-card').forEach(function (card) {
+    const fn = card.getAttribute('data-fn-name');
+    if (!fn) return;
+    const block = pkgFnCoverage(d, fn);
+    const sideOn = card.querySelector('.fn-cov-side [data-side].on');
+    if (sideOn) block.coverageSide = sideOn.getAttribute('data-side');
+    const dur = card.querySelector('[data-fn-duration]');
+    if (dur) block.duration = dur.value;
+    const ex = card.querySelector('[data-fn-extra-hour]');
+    if (ex) block.extraHour = +ex.value || 0;
+  });
   readExtrasFieldsFromDom(d);
   readDeliverableFieldsFromDom(d);
   document.querySelectorAll('[data-del-key]').forEach(function (sel) {
@@ -2510,27 +2644,38 @@ function readPkgWizardFields(d) {
   d.deliverables = pkgDeliverSummary(d);
 }
 
-function pkgCoverageSummary(d) {
+function pkgCoverageFnSummary(block) {
   const photo = [];
-  Object.keys(d.photoTypes || {}).forEach(function (k) {
-    const r = d.photoTypes[k];
+  Object.keys(block.photoTypes || {}).forEach(function (k) {
+    const r = block.photoTypes[k];
     if (r.on && r.qty) photo.push(k.split(' ')[0] + '×' + r.qty);
   });
   const video = [];
-  Object.keys(d.videoTypes || {}).forEach(function (k) {
-    const r = d.videoTypes[k];
+  Object.keys(block.videoTypes || {}).forEach(function (k) {
+    const r = block.videoTypes[k];
     if (r.on && r.qty) video.push(k.split(' ')[0] + '×' + r.qty);
   });
   return (
-    (d.coverageSide === 'both' ? 'Both sides' : 'Single side') +
-    ' · Photo: ' +
-    (photo.join(', ') || '—') +
-    ' · Video: ' +
-    (video.join(', ') || '—') +
-    ' · ' +
-    d.duration +
-    (d.extraHour > 0 ? ' · Extra hr ' + inr(d.extraHour) : ' · No extra-hour charge')
+    block.duration +
+    (block.extraHour > 0 ? ' · extra hr ' + inr(block.extraHour) : '') +
+    ' · P:' +
+    (photo.join(',') || '—') +
+    ' · V:' +
+    (video.join(',') || '—')
   );
+}
+
+function pkgCoverageSummary(d) {
+  migrateLegacyPkgCoverage(d);
+  ensurePkgCoverageByFunction(d);
+  const fns = d.functions && d.functions.length ? d.functions : ['Wedding & Reception'];
+  const parts = fns.map(function (fn) {
+    const block = d.coverageByFunction[fn];
+    if (!block) return fn + ': —';
+    const shortFn = fn.length > 22 ? fn.slice(0, 20) + '…' : fn;
+    return shortFn + ': ' + pkgCoverageFnSummary(block);
+  });
+  return parts.join(' | ');
 }
 
 function pkgDeliverSummary(d) {
@@ -2550,24 +2695,29 @@ function pkgDeliverSummary(d) {
   );
 }
 
-function setCovTypeField(d, field, on, qty) {
+function setCovTypeField(d, covFn, field, on, qty) {
   const parts = field.split('.');
   const kind = parts[0];
   const label = parts.slice(1).join('.');
-  const bucket = kind === 'photo' ? d.photoTypes : d.videoTypes;
+  const block = pkgFnCoverage(d, covFn);
+  const bucket = kind === 'photo' ? block.photoTypes : block.videoTypes;
   if (!bucket[label]) bucket[label] = { on: false, qty: 0 };
   bucket[label].on = on;
   bucket[label].qty = qty;
 }
 
-function syncCoverageDurationHints() {
-  const sel = el('f_duration');
-  const dh = el('f_durationHelp');
-  const eh = el('f_extraHourHelp');
-  if (!sel) return;
-  const val = sel.value;
+function updateFnCoverageHints(card) {
+  if (!card) return;
+  const dur = card.querySelector('[data-fn-duration]');
+  const dh = card.querySelector('.fn-duration-hint');
+  const eh = card.querySelector('.fn-extra-hint');
+  const val = dur ? dur.value : 'Full Day';
   if (dh) dh.textContent = coverageDurationHelp(val);
   if (eh) eh.textContent = extraHourChargeHelp(val);
+}
+
+function syncAllFnCoverageHints() {
+  document.querySelectorAll('.fn-cov-card').forEach(updateFnCoverageHints);
 }
 
 function bindPkgWizard(d) {
@@ -2606,11 +2756,26 @@ function bindPkgWizard(d) {
         }
         return;
       }
+      if (act === 'copy-cov-from-prev') {
+        readPkgWizardFields(d);
+        const fn = t.getAttribute('data-cov-fn');
+        const fns = d.functions.length ? d.functions : ['Wedding & Reception'];
+        const idx = fns.indexOf(fn);
+        if (idx > 0 && d.coverageByFunction[fns[idx - 1]]) {
+          d.coverageByFunction[fn] = JSON.parse(JSON.stringify(d.coverageByFunction[fns[idx - 1]]));
+          renderWizardBody();
+        }
+        return;
+      }
       if (act === 'add-photo-type') {
         const name = prompt('Photography type');
         if (name && d.customPhotoTypes.indexOf(name) < 0) {
-          d.customPhotoTypes.push(name.trim());
-          d.photoTypes[name.trim()] = { on: true, qty: 1 };
+          const label = name.trim();
+          d.customPhotoTypes.push(label);
+          ensurePkgCoverageByFunction(d);
+          Object.keys(d.coverageByFunction).forEach(function (fn) {
+            d.coverageByFunction[fn].photoTypes[label] = { on: true, qty: 1 };
+          });
           renderWizardBody();
         }
         return;
@@ -2618,8 +2783,12 @@ function bindPkgWizard(d) {
       if (act === 'add-video-type') {
         const name = prompt('Videography type');
         if (name && d.customVideoTypes.indexOf(name) < 0) {
-          d.customVideoTypes.push(name.trim());
-          d.videoTypes[name.trim()] = { on: true, qty: 1 };
+          const label = name.trim();
+          d.customVideoTypes.push(label);
+          ensurePkgCoverageByFunction(d);
+          Object.keys(d.coverageByFunction).forEach(function (fn) {
+            d.coverageByFunction[fn].videoTypes[label] = { on: true, qty: 1 };
+          });
           renderWizardBody();
         }
         return;
@@ -2681,9 +2850,11 @@ function bindPkgWizard(d) {
         return;
       }
     }
-    const side = e.target.closest('[data-side]');
+    const side = e.target.closest('[data-side][data-cov-fn]');
     if (side) {
-      d.coverageSide = side.getAttribute('data-side');
+      const fn = side.getAttribute('data-cov-fn');
+      const block = pkgFnCoverage(d, fn);
+      block.coverageSide = side.getAttribute('data-side');
       renderWizardBody();
       return;
     }
@@ -2703,8 +2874,9 @@ function bindPkgWizard(d) {
       let v = +span.textContent + delta;
       v = Math.max(0, Math.min(20, v));
       span.textContent = v;
-      const parts = field.split('.');
-      setCovTypeField(d, field, true, v);
+      const covFn = wrap.getAttribute('data-cov-fn');
+      if (!covFn) return;
+      setCovTypeField(d, covFn, field, true, v);
       return;
     }
   };
@@ -2720,6 +2892,7 @@ function bindPkgWizard(d) {
         });
       }
       if (!needsCeremonyStep(d.functions)) d.ceremonyTypes = [];
+      ensurePkgCoverageByFunction(d);
       renderWizardBody();
       return;
     }
@@ -2735,12 +2908,20 @@ function bindPkgWizard(d) {
     }
     if (t.matches('[data-cov-type]')) {
       const field = t.getAttribute('data-cov-type');
+      const covFn = t.getAttribute('data-cov-fn');
+      if (!covFn) return;
       const parts = field.split('.');
       const label = parts.slice(1).join('.');
-      const bucket = parts[0] === 'photo' ? d.photoTypes : d.videoTypes;
+      const block = pkgFnCoverage(d, covFn);
+      const bucket = parts[0] === 'photo' ? block.photoTypes : block.videoTypes;
+      if (!bucket[label]) bucket[label] = { on: false, qty: 0 };
       bucket[label].on = t.checked;
       if (t.checked && !bucket[label].qty) bucket[label].qty = 1;
       renderWizardBody();
+      return;
+    }
+    if (t.matches('[data-fn-duration]')) {
+      updateFnCoverageHints(t.closest('.fn-cov-card'));
       return;
     }
     if (deliverableCheckboxChange(t, d)) return;
@@ -2760,11 +2941,13 @@ function bindPkgWizard(d) {
       if (attr === 'data-pol') renderWizardBody();
     });
     if (handleExtraModeSelectChange(e, d)) return;
-    if (t.id === 'f_duration') syncCoverageDurationHints();
   };
-  const durSel = el('f_duration');
-  if (durSel) durSel.onchange = syncCoverageDurationHints;
-  syncCoverageDurationHints();
+  document.querySelectorAll('[data-fn-duration]').forEach(function (sel) {
+    sel.onchange = function () {
+      updateFnCoverageHints(sel.closest('.fn-cov-card'));
+    };
+  });
+  syncAllFnCoverageHints();
   document.querySelectorAll('[data-pay-pct],[data-pay-label]').forEach(function (node) {
     node.oninput = function () {
       readPkgWizardFields(d);
@@ -2962,8 +3145,7 @@ function recordToPkgDraft(rec) {
   const base = newPkgDraft();
   const m = JSON.parse(JSON.stringify(rec || {}));
   const merged = Object.assign(base, m);
-  merged.photoTypes = Object.assign({}, base.photoTypes, m.photoTypes || {});
-  merged.videoTypes = Object.assign({}, base.videoTypes, m.videoTypes || {});
+  migrateLegacyPkgCoverage(merged);
   merged.photoDetails = Object.assign({}, base.photoDetails, m.photoDetails || {});
   merged.videoDetails = Object.assign({}, base.videoDetails, m.videoDetails || {});
   merged.albumPrints = Object.assign({}, base.albumPrints, m.albumPrints || {});
@@ -4634,7 +4816,7 @@ function bindPhotoCalendarUi() {
   });
 }
 
-const PHOTO_OWNER_BUILD = '2026-10-11-photo-owner-coverage-extra-hour-v8';
+const PHOTO_OWNER_BUILD = '2026-10-11-photo-owner-per-function-coverage-v9';
 
 function photoOwnerDemoFileName() {
   try {
@@ -4698,7 +4880,7 @@ const PKG_STEPS = [
   { title: 'Package basics', sub: 'Basic information about the package.' },
   { title: 'Select functions', sub: 'Choose wedding functions covered in this wedding package.' },
   { title: 'Ceremony type', sub: 'Choose applicable ceremony types.' },
-  { title: 'Coverage details', sub: 'Set coverage details for selected functions.' },
+  { title: 'Coverage details', sub: 'Duration, extra hour, and team for each function in this package.' },
   { title: 'Deliverables', sub: 'Select photos, videos, albums and other deliverables included in this package.' },
   { title: 'Special services & extras', sub: 'Select additional services with price.' },
   { title: 'Delivery timeline', sub: 'Set delivery timeline for each deliverable.' },
@@ -4899,6 +5081,9 @@ function loadStore() {
     if (!store.deletedBusinesses) store.deletedBusinesses = defaultStore().deletedBusinesses;
     if (!store.calendar || typeof store.calendar !== 'object') store.calendar = defaultPhotoCalendar();
     sanitizeWeddingPackageFunctions();
+    (store.packages || []).forEach(function (p) {
+      if (typeof migrateLegacyPkgCoverage === 'function') migrateLegacyPkgCoverage(p);
+    });
   } catch (_e) {
     store = defaultStore();
     try {
