@@ -93,11 +93,42 @@ function renderVideoFormatSelect(name, selected) {
   const sel = selected || 'MP4 (Full HD)';
   const inList = VIDEO_FORMATS.indexOf(sel) >= 0;
   let html = '';
-  if (sel && !inList) html += '<option selected>' + esc(sel) + '</option>';
+  if (sel && !inList && sel !== 'Custom') html += '<option selected>' + esc(sel) + '</option>';
   VIDEO_FORMATS.forEach(function (f) {
     html += '<option' + (inList && f === sel ? ' selected' : '') + '>' + esc(f) + '</option>';
   });
+  if (sel === 'Custom') {
+    html = VIDEO_FORMATS.map(function (f) {
+      return '<option' + (f === 'Custom' ? ' selected' : '') + '>' + f + '</option>';
+    }).join('');
+  }
   return '<select data-video-fmt="' + esc(name) + '">' + html + '</select>';
+}
+
+function normalizeVideoFormatDet(det) {
+  if (!det) return;
+  if (!det.format) det.format = 'MP4 (Full HD)';
+  if (det.format !== 'Custom' && VIDEO_FORMATS.indexOf(det.format) < 0) {
+    det.formatCustom = det.format;
+    det.format = 'Custom';
+  }
+  if (det.formatCustom == null) det.formatCustom = '';
+}
+
+function renderVideoFormatFields(name, det) {
+  normalizeVideoFormatDet(det);
+  let html =
+    '<div class="fld"><label>Format</label>' + renderVideoFormatSelect(name, det.format) + '</div>';
+  if (det.format === 'Custom') {
+    html +=
+      '<div class="fld video-fmt-custom-fld"><label>Describe format</label>' +
+      '<input type="text" data-video-fmt-custom="' +
+      esc(name) +
+      '" placeholder="e.g. MP4 1080p optimised for TV" value="' +
+      esc(det.formatCustom || '') +
+      '"></div>';
+  }
+  return html;
 }
 const POLICY_DEFAULTS = [
   'Cancellation Policy',
@@ -1512,9 +1543,8 @@ function renderVideoDeliverTab(d) {
               '<div class="fld"><label>Duration</label>' +
               renderVideoDurationSelect(name, det.duration) +
               '</div>' +
-              '<div class="fld"><label>Format</label>' +
-              renderVideoFormatSelect(name, det.format) +
-              '</div></div>'
+              renderVideoFormatFields(name, det) +
+              '</div>'
             : '') +
           '</div>'
         );
@@ -1796,6 +1826,12 @@ function readDeliverableFieldsFromDom(d) {
     const k = sel.getAttribute('data-video-fmt');
     if (!d.videoDetails[k]) d.videoDetails[k] = {};
     d.videoDetails[k].format = sel.value;
+    if (sel.value !== 'Custom') d.videoDetails[k].formatCustom = '';
+  });
+  document.querySelectorAll('[data-video-fmt-custom]').forEach(function (inp) {
+    const k = inp.getAttribute('data-video-fmt-custom');
+    if (!d.videoDetails[k]) d.videoDetails[k] = {};
+    d.videoDetails[k].formatCustom = inp.value.trim();
   });
 }
 
@@ -2731,6 +2767,11 @@ function bindPkgWizard(d) {
   body.onchange = function (e) {
     const t = e.target;
     if (t.matches('[data-album-finish-policy]')) {
+      readPkgWizardFields(d);
+      renderWizardBody();
+      return;
+    }
+    if (t.matches('[data-video-fmt]')) {
       readPkgWizardFields(d);
       renderWizardBody();
       return;

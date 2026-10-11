@@ -1,4 +1,4 @@
-const PHOTO_OWNER_BUILD = '2026-10-11-photo-owner-video-formats-v38';
+const PHOTO_OWNER_BUILD = '2026-10-11-photo-owner-video-format-custom-v39';
 
 function photoOwnerDemoFileName() {
   try {
