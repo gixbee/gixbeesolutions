@@ -158,7 +158,7 @@ function renderVideoFormatFields(name, det) {
     '<div class="fld"><label>Format</label>' + renderVideoFormatSelect(name, det.format) + '</div>';
   if (det.format === 'Custom') {
     html +=
-      '<div class="fld video-fmt-custom-fld"><label>Describe format</label>' +
+      '<div class="fld del-custom-fld"><label>Describe format</label>' +
       '<input type="text" data-video-fmt-custom="' +
       esc(name) +
       '" placeholder="e.g. MP4 1080p optimised for TV" value="' +

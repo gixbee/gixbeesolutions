@@ -650,6 +650,10 @@ function bindSvcWizard(d) {
       d.durEnabled = t.checked;
       renderWizardBody();
     }
+    if (t.id === 'f_duration') {
+      readSvcWizardFields(d);
+      renderWizardBody();
+    }
   };
   const cs = el('catSearch');
   if (cs)
