@@ -1,4 +1,4 @@
-const PHOTO_OWNER_BUILD = '2026-10-11-photo-owner-del-tabs-complimentary-v22';
+const PHOTO_OWNER_BUILD = '2026-10-11-photo-owner-four-del-tabs-v23';
 
 function photoOwnerDemoFileName() {
   try {

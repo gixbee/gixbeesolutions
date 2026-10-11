@@ -1158,7 +1158,6 @@ function renderDelTabs(active) {
     { id: 'photos', label: '📷 Photos' },
     { id: 'videos', label: '🎬 Videos' },
     { id: 'albums', label: '📚 Albums & prints' },
-    { id: 'complimentary', label: '🎁 Complimentary deliverables' },
     { id: 'digital', label: '☁ Digital' },
   ];
   return (
@@ -1372,18 +1371,12 @@ function renderAlbumsPrintsTab(d) {
         return renderAlbumPrintCard(name, d, { complimentarySection: false });
       })
       .join('') +
-    linkAdd('add-album-print', 'Add Custom Album/Print')
-  );
-}
-
-function renderComplimentaryDeliverTab(d) {
-  if (!d.albumPrints) d.albumPrints = defaultAlbumPrints();
-  return (
-    '<p class="del-sec-title">Complimentary deliverables</p>' +
-    '<p class="sub">Free bonuses with this package (frames, mini albums, calendars). Save-the-date shoot is under <b>Select functions</b>.</p>' +
+    '<p class="lbl del-sec-spaced">Complimentary deliverables</p>' +
+    '<p class="sub">Free bonuses (frames, mini albums, calendars). Save-the-date shoot is under <b>Select functions</b>.</p>' +
     COMPLIMENTARY_PRINT_TYPES.map(function (name) {
       return renderAlbumPrintCard(name, d, { complimentarySection: true });
-    }).join('')
+    }).join('') +
+    linkAdd('add-album-print', 'Add Custom Album/Print')
   );
 }
 
@@ -1418,6 +1411,7 @@ function renderDigitalDeliverTab(d) {
 }
 
 function ensureDeliverableDraft(d) {
+  if (d.deliverTab === 'complimentary') d.deliverTab = 'albums';
   if (!d.deliverTab) d.deliverTab = 'photos';
   if (!d.deliverPhoto) d.deliverPhoto = [];
   if (!d.deliverVideo) d.deliverVideo = [];
@@ -1482,7 +1476,6 @@ function renderDeliverablesStep(d) {
   if (tab === 'photos') body = renderPhotoDeliverTab(d);
   else if (tab === 'videos') body = renderVideoDeliverTab(d);
   else if (tab === 'albums') body = renderAlbumsPrintsTab(d);
-  else if (tab === 'complimentary') body = renderComplimentaryDeliverTab(d);
   else body = renderDigitalDeliverTab(d);
   return renderDelTabs(tab) + body;
 }
