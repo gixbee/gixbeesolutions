@@ -1329,6 +1329,22 @@ const DELIVERY_TIMELINES = [
   'Custom',
 ];
 const DURATION_OPTS = ['Up to 3 Hours', 'Up to 5 Hours', 'Up to 8 Hours', 'Up to 10 Hours', 'Full Day', 'Custom'];
+
+function coverageDurationHelp(duration) {
+  const d = duration || 'Full Day';
+  if (d === 'Full Day') {
+    return 'Included wedding-day coverage (use your policy or customer requirements to state exact hours, e.g. 10–12 hours).';
+  }
+  if (d === 'Custom') return 'Describe exact hours in package description or customer requirements.';
+  return 'Included coverage up to this limit for the function(s) in this package.';
+}
+
+function extraHourChargeHelp(duration) {
+  if (duration === 'Full Day') {
+    return 'Recommended for weddings: per-hour rate if the event runs past your full-day limit. Set ₹0 if you never charge overtime.';
+  }
+  return 'Per-hour rate beyond the duration above. Set ₹0 if extra hours are not offered.';
+}
 const PHOTO_DELIVER_HINTS = {
   'Edited Photos': 'Professionally edited high-resolution photos.',
   'Colour-Graded Photos': 'Colour corrected and graded photos.',
@@ -1442,7 +1458,7 @@ function newPkgDraft() {
       'Cinematic Videographer': { on: true, qty: 1 },
     }),
     customVideoTypes: [],
-    duration: 'Up to 5 Hours',
+    duration: 'Full Day',
     extraHour: 5000,
     deliverTab: 'photos',
     extras: pkgExtraDefaults(),
@@ -2256,9 +2272,15 @@ function renderPkgStep(step, d) {
           );
         }).join('') +
         '</select></div>' +
-        '<div class="fld"><label>Additional hour charge (₹)</label><input type="number" id="f_extraHour" value="' +
+        '<p class="hint" id="f_durationHelp" style="margin:-4px 0 14px">' +
+        esc(coverageDurationHelp(d.duration)) +
+        '</p>' +
+        '<div class="fld" id="f_extraHourWrap"><label>Additional hour charge (₹)</label><input type="number" id="f_extraHour" min="0" step="500" value="' +
         d.extraHour +
-        '"><span class="hint"> / Hour</span></div>' +
+        '"><span class="hint"> / hour beyond included duration</span>' +
+        '<p class="hint" id="f_extraHourHelp" style="margin:8px 0 0">' +
+        esc(extraHourChargeHelp(d.duration)) +
+        '</p></div>' +
         '<p class="lbl">Photography coverage</p>' +
         renderCoverageTypes(allPhotoTypes(d), d.photoTypes, 'photo', 'customPhotoTypes') +
         linkAdd('add-photo-type', 'Add New Photography Type') +
@@ -2507,8 +2529,7 @@ function pkgCoverageSummary(d) {
     (video.join(', ') || '—') +
     ' · ' +
     d.duration +
-    ' · Extra hr ' +
-    inr(d.extraHour)
+    (d.extraHour > 0 ? ' · Extra hr ' + inr(d.extraHour) : ' · No extra-hour charge')
   );
 }
 
@@ -2537,6 +2558,16 @@ function setCovTypeField(d, field, on, qty) {
   if (!bucket[label]) bucket[label] = { on: false, qty: 0 };
   bucket[label].on = on;
   bucket[label].qty = qty;
+}
+
+function syncCoverageDurationHints() {
+  const sel = el('f_duration');
+  const dh = el('f_durationHelp');
+  const eh = el('f_extraHourHelp');
+  if (!sel) return;
+  const val = sel.value;
+  if (dh) dh.textContent = coverageDurationHelp(val);
+  if (eh) eh.textContent = extraHourChargeHelp(val);
 }
 
 function bindPkgWizard(d) {
@@ -2729,7 +2760,11 @@ function bindPkgWizard(d) {
       if (attr === 'data-pol') renderWizardBody();
     });
     if (handleExtraModeSelectChange(e, d)) return;
+    if (t.id === 'f_duration') syncCoverageDurationHints();
   };
+  const durSel = el('f_duration');
+  if (durSel) durSel.onchange = syncCoverageDurationHints;
+  syncCoverageDurationHints();
   document.querySelectorAll('[data-pay-pct],[data-pay-label]').forEach(function (node) {
     node.oninput = function () {
       readPkgWizardFields(d);
@@ -4599,7 +4634,7 @@ function bindPhotoCalendarUi() {
   });
 }
 
-const PHOTO_OWNER_BUILD = '2026-10-11-photo-owner-wedding-functions-v7';
+const PHOTO_OWNER_BUILD = '2026-10-11-photo-owner-coverage-extra-hour-v8';
 
 function photoOwnerDemoFileName() {
   try {

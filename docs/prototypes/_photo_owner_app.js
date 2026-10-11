@@ -1,4 +1,4 @@
-const PHOTO_OWNER_BUILD = '2026-10-11-photo-owner-wedding-functions-v7';
+const PHOTO_OWNER_BUILD = '2026-10-11-photo-owner-coverage-extra-hour-v8';
 
 function photoOwnerDemoFileName() {
   try {
