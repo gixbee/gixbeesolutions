@@ -1,4 +1,4 @@
-const PHOTO_OWNER_BUILD = '2026-10-11-photo-owner-coverage-accordion-v10';
+const PHOTO_OWNER_BUILD = '2026-10-11-photo-owner-deliverables-no-photo-delivery-v12';
 
 function photoOwnerDemoFileName() {
   try {
@@ -1276,7 +1276,10 @@ function renderWizard() {
 }
 
 function wizNext() {
-  if (!validateStep()) return;
+  if (!validateStep()) {
+    if (wiz.mode === 'package' && wiz.step === 3) renderWizardBody();
+    return;
+  }
   if (wiz.mode === 'package' && wiz.step === wizTotal() - 1) return;
   if (wiz.mode === 'service' && wiz.step === wizTotal() - 1) return;
   if (wiz.step >= wizTotal() - 1) {

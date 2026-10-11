@@ -1011,19 +1011,6 @@ function renderPhotoDeliverTab(d) {
                   '</option>'
                 );
               }).join('') +
-              '</select></div>' +
-              '<div class="fld"><label>Delivery</label><select data-photo-del="' +
-              esc(name) +
-              '">' +
-              DELIVERY_TIMELINES.map(function (t) {
-                return (
-                  '<option' +
-                  (det.delivery === t ? ' selected' : '') +
-                  '>' +
-                  t +
-                  '</option>'
-                );
-              }).join('') +
               '</select></div></div>'
             : '') +
           '</div>'
@@ -1479,9 +1466,9 @@ function renderFnCoverageStep(d) {
       '<p class="hint fn-duration-hint" style="margin:-4px 0 12px">' +
       esc(coverageDurationHelp(c.duration)) +
       '</p>' +
-      '<div class="fld"><label>Additional hour charge (₹)</label><input type="number" data-fn-extra-hour min="0" step="500" value="' +
-      c.extraHour +
-      '"><span class="hint"> / hour beyond included duration</span>' +
+      '<div class="fld"><label>Additional hour charge (₹) *</label><input type="number" data-fn-extra-hour min="0" step="500" required value="' +
+      (c.extraHour != null && c.extraHour !== '' ? c.extraHour : '') +
+      '"><span class="hint"> / hour beyond included duration (enter 0 if not offered)</span>' +
       '<p class="hint fn-extra-hint" style="margin:8px 0 0">' +
       esc(extraHourChargeHelp(c.duration)) +
       '</p></div>' +
