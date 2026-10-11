@@ -79,7 +79,26 @@ function renderVideoDurationSelect(name, selected) {
     '</optgroup></select>'
   );
 }
-const VIDEO_FORMATS = ['MP4 (Full HD)', 'MP4 (4K)', 'MOV (4K)'];
+/** Client delivery formats (studios rarely list ProRes/DNx to couples). */
+const VIDEO_FORMATS = [
+  'MP4 (Full HD)',
+  'MP4 (4K)',
+  'MP4 (4K HEVC)',
+  'MP4 (720p social)',
+  'MOV (Full HD)',
+  'Custom',
+];
+
+function renderVideoFormatSelect(name, selected) {
+  const sel = selected || 'MP4 (Full HD)';
+  const inList = VIDEO_FORMATS.indexOf(sel) >= 0;
+  let html = '';
+  if (sel && !inList) html += '<option selected>' + esc(sel) + '</option>';
+  VIDEO_FORMATS.forEach(function (f) {
+    html += '<option' + (inList && f === sel ? ' selected' : '') + '>' + esc(f) + '</option>';
+  });
+  return '<select data-video-fmt="' + esc(name) + '">' + html + '</select>';
+}
 const POLICY_DEFAULTS = [
   'Cancellation Policy',
   'Rescheduling Policy',
@@ -1493,19 +1512,9 @@ function renderVideoDeliverTab(d) {
               '<div class="fld"><label>Duration</label>' +
               renderVideoDurationSelect(name, det.duration) +
               '</div>' +
-              '<div class="fld"><label>Format</label><select data-video-fmt="' +
-              esc(name) +
-              '">' +
-              VIDEO_FORMATS.map(function (f) {
-                return (
-                  '<option' +
-                  (det.format === f ? ' selected' : '') +
-                  '>' +
-                  f +
-                  '</option>'
-                );
-              }).join('') +
-              '</select></div></div>'
+              '<div class="fld"><label>Format</label>' +
+              renderVideoFormatSelect(name, det.format) +
+              '</div></div>'
             : '') +
           '</div>'
         );
