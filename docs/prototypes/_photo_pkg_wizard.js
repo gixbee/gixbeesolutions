@@ -22,7 +22,7 @@ const VIDEO_DELIVER = [
   'Reel',
   'Traditional Video',
 ];
-const ALBUM_PRINT_TYPES = ['Photo Album', 'Calendar', 'Mini Album', 'Photo Frame'];
+const ALBUM_PRINT_TYPES = ['Photo Album', 'Calendar', 'Mini Album', 'Photo Frame', 'Save the Date'];
 const DIGITAL_DELIVER = [
   { id: 'Google Drive Link', icon: '📁', desc: 'Share high-resolution files via Google Drive.' },
   { id: 'Online Gallery', icon: '🔗', desc: 'Private online gallery for easy access.' },
@@ -31,12 +31,6 @@ const DIGITAL_DELIVER = [
   { id: 'Pen Drive', icon: '💾', desc: 'Physical pen drive with all files.' },
   { id: 'Pen Drive Box', icon: '📦', desc: 'Premium pen drive box with branding.' },
   { id: 'Email Delivery', icon: '✉️', desc: 'Files delivered via email.' },
-];
-const PKG_COMPLIMENTARY_PRESETS = [
-  'Save the Date (complimentary)',
-  'Photo Frame',
-  'Mini Album',
-  'Calendar',
 ];
 const PHOTO_TYPE_DEFAULTS = [
   'Candid Photographer',
@@ -587,16 +581,52 @@ function defaultVideoDetails() {
   return o;
 }
 
+function migrateComplimentaryDeliverables(d) {
+  if (!d) return;
+  if (!d.albumPrints) d.albumPrints = albumPrintsAllOff();
+  const legacy = d.complimentary;
+  if (legacy && legacy.length) {
+    const nameMap = { 'Save the Date (complimentary)': 'Save the Date' };
+    legacy.forEach(function (item) {
+      const name = nameMap[item] || item;
+      if (!d.albumPrints[name]) d.albumPrints[name] = { on: false, qty: 1 };
+      d.albumPrints[name].on = true;
+      d.albumPrints[name].complimentary = true;
+    });
+  }
+  (d.customComplimentary || []).forEach(function (x) {
+    const name = (typeof x === 'string' ? x : x.name || '').trim();
+    if (!name) return;
+    if (!d.albumPrints[name]) d.albumPrints[name] = { on: false, qty: 1 };
+    d.albumPrints[name].on = true;
+    d.albumPrints[name].complimentary = true;
+  });
+  delete d.complimentary;
+  delete d.customComplimentary;
+}
+
 function ensurePkgMarketingFields(d) {
   if (!d) return;
-  if (!d.complimentary) d.complimentary = [];
-  if (!d.customComplimentary) d.customComplimentary = [];
+  migrateComplimentaryDeliverables(d);
   if (d.shootUnlimitedClicks == null) d.shootUnlimitedClicks = false;
   if (d.equipmentNote == null) d.equipmentNote = '';
   if (d.qualityNote == null) d.qualityNote = '';
   if (d.albumPrints && d.albumPrints['Photo Album'] && d.albumPrints['Photo Album'].sets == null) {
     d.albumPrints['Photo Album'].sets = 1;
   }
+  if (d.albumPrints) {
+    Object.keys(d.albumPrints).forEach(function (k) {
+      if (d.albumPrints[k].complimentary == null) d.albumPrints[k].complimentary = false;
+    });
+  }
+}
+
+function albumComplimentaryField(row) {
+  return (
+    '<label class="del-complimentary-chk"><input type="checkbox" data-album-complimentary ' +
+    (row.complimentary ? 'checked' : '') +
+    '> Complimentary deliverable (free bonus)</label>'
+  );
 }
 
 function defaultAlbumPrints() {
@@ -604,7 +634,8 @@ function defaultAlbumPrints() {
     'Photo Album': { on: true, pages: 40, sets: 1, size: '12 x 18 inch', cover: 'Premium' },
     Calendar: { on: false, qty: 1, size: 'A3', type: 'Wall Calendar' },
     'Mini Album': { on: false, qty: 1, size: '6 x 6 inch', cover: 'Standard' },
-    'Photo Frame': { on: false, qty: 1, size: '12 x 18 inch', type: 'Acrylic' },
+    'Photo Frame': { on: false, qty: 1, size: '12 x 18 inch', type: 'Acrylic', complimentary: false },
+    'Save the Date': { on: false, qty: 1, type: 'Card / video', complimentary: true },
   };
 }
 
@@ -847,8 +878,6 @@ function newPkgDraft() {
     customPolicies: [],
     requirements: ['Customer provides SSD / Hard Disk', 'Electricity / Power at venue'],
     customRequirements: [],
-    complimentary: [],
-    customComplimentary: [],
     shootUnlimitedClicks: false,
     equipmentNote: '',
     qualityNote: '',
@@ -914,38 +943,6 @@ function readExtrasFieldsFromDom(d) {
       d.extras[name] = rowData;
     }
   });
-}
-
-function renderPkgComplimentarySection(d) {
-  ensurePkgMarketingFields(d);
-  const preset = PKG_COMPLIMENTARY_PRESETS.concat(
-    (d.customComplimentary || []).map(function (x) {
-      return typeof x === 'string' ? x : x.name;
-    })
-  );
-  return (
-    '<div class="pkg-complimentary">' +
-    '<p class="lbl" style="margin-top:20px">Complimentary (free with package)</p>' +
-    '<p class="sub">Optional bonuses on your package card (Save the Date, frames, etc.).</p>' +
-    preset
-      .map(function (item) {
-        const on = (d.complimentary || []).indexOf(item) >= 0;
-        return (
-          '<label class="chk-row' +
-          (on ? ' on' : '') +
-          '"><input type="checkbox" data-complimentary="' +
-          esc(item) +
-          '" ' +
-          (on ? 'checked' : '') +
-          '> ' +
-          esc(item) +
-          '</label>'
-        );
-      })
-      .join('') +
-    linkAdd('add-complimentary', 'Add complimentary item') +
-    '</div>'
-  );
 }
 
 function renderWizardExtrasStep(d, namesFn, addLinkLabel) {
@@ -1302,7 +1299,7 @@ function renderVideoDeliverTab(d) {
 function renderAlbumDeliverTab(d) {
   if (!d.albumPrints) d.albumPrints = defaultAlbumPrints();
   return (
-    '<p class="del-sec-title">Albums &amp; prints</p><p class="sub">Select albums and printed materials.</p>' +
+    '<p class="del-sec-title">Albums, prints &amp; complimentary deliverables</p><p class="sub">Select what is included. Use <b>Complimentary deliverable</b> for free bonuses (frames, save the date, etc.).</p>' +
     ALBUM_PRINT_TYPES.map(function (name) {
       const row = d.albumPrints[name] || { on: false };
       const on = !!row.on;
@@ -1330,7 +1327,9 @@ function renderAlbumDeliverTab(d) {
               '>12 x 18 inch</option><option>10 x 12 inch</option></select></div>' +
               '<div class="fld"><label>Cover type</label><select data-album-cover><option' +
               (row.cover === 'Premium' ? ' selected' : '') +
-              '>Premium</option><option>Standard</option></select></div></div>'
+              '>Premium</option><option>Standard</option></select></div>' +
+              albumComplimentaryField(row) +
+              '</div>'
             : '') +
           '</div>'
         );
@@ -1353,7 +1352,9 @@ function renderAlbumDeliverTab(d) {
             '<div class="fld"><label>Size</label><select data-album-size-' +
             esc(name) +
             '><option>A3</option><option>A4</option><option>6 x 6 inch</option><option>12 x 18 inch</option></select></div>' +
-            '<div class="fld"><label>Type</label><select data-album-type-opt><option>Wall Calendar</option><option>Desk Calendar</option><option>Acrylic</option><option>Standard</option></select></div></div>'
+            '<div class="fld"><label>Type</label><select data-album-type-opt><option>Wall Calendar</option><option>Desk Calendar</option><option>Acrylic</option><option>Standard</option><option>Card / video</option></select></div>' +
+            albumComplimentaryField(row) +
+            '</div>'
           : '') +
         '</div>'
       );
@@ -1479,12 +1480,16 @@ function readAlbumFieldsFromDom(d) {
       if (sets) d.albumPrints[name].sets = Math.max(1, +sets.value || 1);
       if (sizeSel) d.albumPrints[name].size = sizeSel.value;
       if (coverSel) d.albumPrints[name].cover = coverSel.value;
+      const compA = card.querySelector('[data-album-complimentary]');
+      if (compA) d.albumPrints[name].complimentary = compA.checked;
     } else {
       const qty = card.querySelector('[data-album-qty]');
       if (qty) d.albumPrints[name].qty = +qty.value || 1;
       const selects = card.querySelectorAll('.del-fields select');
       if (selects[0]) d.albumPrints[name].size = selects[0].value;
       if (selects[1]) d.albumPrints[name].type = selects[1].value;
+      const compB = card.querySelector('[data-album-complimentary]');
+      if (compB) d.albumPrints[name].complimentary = compB.checked;
     }
   });
 }
@@ -1825,7 +1830,7 @@ function renderPkgStep(step, d) {
     case 4:
       return renderDeliverablesStep(d);
     case 5:
-      return renderWizardExtrasStep(d, allExtrasNames) + renderPkgComplimentarySection(d);
+      return renderWizardExtrasStep(d, allExtrasNames);
     case 6: {
       const included = selectedDeliverableKeys(d);
       const keys = pkgDeliveryKeys(d);
@@ -2191,7 +2196,14 @@ function pkgDeliverSummary(d) {
     ' | Digital: ' +
     (d.deliverDigital || []).join(', ');
   if (d.shootUnlimitedClicks) s += ' | Unlimited clicks';
-  if (d.complimentary && d.complimentary.length) s += ' | Free: ' + d.complimentary.join(', ');
+  const complimentary = [];
+  if (d.albumPrints) {
+    ALBUM_PRINT_TYPES.forEach(function (name) {
+      const row = d.albumPrints[name];
+      if (row && row.on && row.complimentary) complimentary.push(name);
+    });
+  }
+  if (complimentary.length) s += ' | Complimentary: ' + complimentary.join(', ');
   return s;
 }
 
@@ -2357,26 +2369,6 @@ function bindPkgWizard(d) {
         }
         return;
       }
-      if (act === 'add-complimentary') {
-        const name = prompt('Complimentary item');
-        if (name) {
-          const trimmed = name.trim();
-          if (!trimmed) return;
-          if (!d.customComplimentary) d.customComplimentary = [];
-          if (!d.complimentary) d.complimentary = [];
-          if (
-            PKG_COMPLIMENTARY_PRESETS.indexOf(trimmed) < 0 &&
-            !d.customComplimentary.some(function (x) {
-              return (x.name || x) === trimmed;
-            })
-          ) {
-            d.customComplimentary.push({ name: trimmed });
-          }
-          if (d.complimentary.indexOf(trimmed) < 0) d.complimentary.push(trimmed);
-          renderWizardBody();
-        }
-        return;
-      }
       if (act === 'del-stage') {
         if (d.paymentStages.length <= 1) return;
         const i = +t.getAttribute('data-idx');
@@ -2486,18 +2478,6 @@ function bindPkgWizard(d) {
       return;
     }
     if (deliverableCheckboxChange(t, d)) return;
-    if (t.matches('[data-complimentary]')) {
-      const val = t.getAttribute('data-complimentary');
-      if (!d.complimentary) d.complimentary = [];
-      if (t.checked) {
-        if (d.complimentary.indexOf(val) < 0) d.complimentary.push(val);
-      } else {
-        d.complimentary = d.complimentary.filter(function (x) {
-          return x !== val;
-        });
-      }
-      return;
-    }
     ['data-pol', 'data-req'].forEach(function (attr) {
       if (!t.matches('[' + attr + ']')) return;
       const val = t.getAttribute(attr);
