@@ -542,7 +542,7 @@ function bindSvcWizard(d) {
         )
       )
         return;
-      if (runDeliverableWizardAction(act, d, readSvcWizardFields)) return;
+      if (runDeliverableWizardAction(act, t, d, readSvcWizardFields)) return;
       if (act === 'svc-more-cats') {
         d.showAllCats = !d.showAllCats;
         renderWizardBody();

@@ -569,6 +569,7 @@ function defaultVideoDetails() {
   const o = {};
   VIDEO_DELIVER.forEach(function (name) {
     o[name] = {
+      qty: 1,
       duration:
         name === 'Full-Length Video'
           ? 'Full Event'
@@ -582,6 +583,28 @@ function defaultVideoDetails() {
     };
   });
   return o;
+}
+
+function videoDeliverQty(d, name) {
+  const det = d.videoDetails && d.videoDetails[name];
+  const q = det && det.qty != null ? +det.qty : 1;
+  return q > 0 ? q : 1;
+}
+
+function deliverableTimelineLabel(d, key) {
+  if ((d.deliverVideo || []).indexOf(key) >= 0 && videoDeliverQty(d, key) > 1) {
+    return key + ' (×' + videoDeliverQty(d, key) + ')';
+  }
+  return key;
+}
+
+function formatVideoDeliverSummary(d) {
+  return (d.deliverVideo || [])
+    .map(function (name) {
+      const q = videoDeliverQty(d, name);
+      return q > 1 ? name + ' ×' + q : name;
+    })
+    .join(', ');
 }
 
 function migrateComplimentaryDeliverables(d) {
@@ -1303,10 +1326,12 @@ function renderVideoDeliverTab(d) {
       .map(function (name) {
         const on = d.deliverVideo.indexOf(name) >= 0;
         const det = d.videoDetails[name] || {
+          qty: 1,
           duration: VIDEO_DURATIONS[0],
           format: VIDEO_FORMATS[0],
           delivery: '15 Working Days',
         };
+        if (det.qty == null || det.qty < 1) det.qty = 1;
         if (!d.videoDetails[name]) d.videoDetails[name] = det;
         return (
           '<div class="del-card' +
@@ -1324,6 +1349,11 @@ function renderVideoDeliverTab(d) {
           '</div>' +
           (on
             ? '<div class="del-fields">' +
+              '<div class="fld"><label>Quantity</label><input type="number" min="1" data-video-qty="' +
+              esc(name) +
+              '" value="' +
+              det.qty +
+              '"></div>' +
               '<div class="fld"><label>Duration</label><select data-video-dur="' +
               esc(name) +
               '">' +
@@ -1612,6 +1642,11 @@ function readDeliverableFieldsFromDom(d) {
     d.photoDetails[k].delivery = sel.value;
     d.deliveryMap[k] = sel.value;
   });
+  document.querySelectorAll('[data-video-qty]').forEach(function (inp) {
+    const k = inp.getAttribute('data-video-qty');
+    if (!d.videoDetails[k]) d.videoDetails[k] = {};
+    d.videoDetails[k].qty = Math.max(1, +inp.value || 1);
+  });
   document.querySelectorAll('[data-video-dur]').forEach(function (sel) {
     const k = sel.getAttribute('data-video-dur');
     if (!d.videoDetails[k]) d.videoDetails[k] = {};
@@ -1691,6 +1726,7 @@ function runDeliverableWizardAction(act, t, d, readFields) {
     if (name) {
       d.customDeliverVideo.push(name.trim());
       d.videoDetails[name.trim()] = {
+        qty: 1,
         duration: VIDEO_DURATIONS[0],
         format: VIDEO_FORMATS[0],
         delivery: '15 Working Days',
@@ -1975,7 +2011,7 @@ function renderPkgStep(step, d) {
           .map(function (k) {
             return (
               '<div class="fld del-row"><label>' +
-              esc(k) +
+              esc(deliverableTimelineLabel(d, k)) +
               '</label><select data-del-key="' +
               esc(k) +
               '">' +
@@ -2311,7 +2347,7 @@ function pkgDeliverSummary(d) {
   let s =
     (d.deliverPhoto || []).join(', ') +
     ' | Video: ' +
-    (d.deliverVideo || []).join(', ') +
+    formatVideoDeliverSummary(d) +
     (albums.length ? ' | ' + albums.join(', ') : '') +
     ' | Digital: ' +
     (d.deliverDigital || []).join(', ');
