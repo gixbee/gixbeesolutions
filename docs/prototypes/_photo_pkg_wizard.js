@@ -26,7 +26,7 @@ const ALBUM_MAIN_TYPES = ['Photo Album'];
 const COMPLIMENTARY_PRINT_TYPES = ['Calendar', 'Mini Album', 'Photo Frame'];
 const ALBUM_PRINT_TYPES = ALBUM_MAIN_TYPES.concat(COMPLIMENTARY_PRINT_TYPES);
 const ALBUM_PAGE_FINISHES = ['Matte', 'Glossy', 'Lustre', 'Silk', 'Metallic'];
-const ALBUM_PAGE_FINISH_CUSTOMER_OPTIONS = ['Matte', 'Glossy'];
+const ALBUM_PAGE_FINISH_CUSTOMER_DEFAULT = ['Matte', 'Glossy'];
 const DIGITAL_DELIVER = [
   { id: 'Google Drive Link', icon: '📁', desc: 'Share high-resolution files via Google Drive.' },
   { id: 'Online Gallery', icon: '🔗', desc: 'Private online gallery for easy access.' },
@@ -658,7 +658,13 @@ function normalizeAlbumFinishRow(row) {
   if (!row) return;
   if (row.pageFinishPolicy !== 'customer') row.pageFinishPolicy = 'studio';
   if (!row.pageFinishCustomerOptions || !row.pageFinishCustomerOptions.length) {
-    row.pageFinishCustomerOptions = ALBUM_PAGE_FINISH_CUSTOMER_OPTIONS.slice();
+    row.pageFinishCustomerOptions = ALBUM_PAGE_FINISH_CUSTOMER_DEFAULT.slice();
+  }
+  row.pageFinishCustomerOptions = row.pageFinishCustomerOptions.filter(function (x) {
+    return ALBUM_PAGE_FINISHES.indexOf(x) >= 0;
+  });
+  if (!row.pageFinishCustomerOptions.length) {
+    row.pageFinishCustomerOptions = ALBUM_PAGE_FINISH_CUSTOMER_DEFAULT.slice();
   }
 }
 
@@ -671,12 +677,8 @@ function albumPageFinishValue(row) {
 function albumPageFinishSummaryText(row) {
   normalizeAlbumFinishRow(row);
   if (row.pageFinishPolicy === 'customer') {
-    const opts = row.pageFinishCustomerOptions.filter(function (x) {
-      return ALBUM_PAGE_FINISH_CUSTOMER_OPTIONS.indexOf(x) >= 0;
-    });
-    const use = opts.length ? opts : ALBUM_PAGE_FINISH_CUSTOMER_OPTIONS.slice();
-    if (use.length === 2) return 'customer chooses Matte or Glossy';
-    return 'customer chooses ' + use.join(' or ');
+    const use = row.pageFinishCustomerOptions.slice();
+    return 'customer chooses: ' + use.join(', ');
   }
   return albumPageFinishValue(row) + ' pages';
 }
@@ -693,7 +695,7 @@ function readAlbumFinishFromCard(card, row) {
     if (chk.value) offered.push(chk.value);
   });
   if (row.pageFinishPolicy === 'customer') {
-    row.pageFinishCustomerOptions = offered.length ? offered : ALBUM_PAGE_FINISH_CUSTOMER_OPTIONS.slice();
+    row.pageFinishCustomerOptions = offered.length ? offered : ALBUM_PAGE_FINISH_CUSTOMER_DEFAULT.slice();
   }
 }
 
@@ -708,10 +710,10 @@ function renderAlbumPageFinishField(row) {
     '<div class="fld album-finish-policy-fld"><label>Who chooses?</label><select data-album-finish-policy>' +
     '<option value="studio"' +
     (policy === 'studio' ? ' selected' : '') +
-    '>Studio sets finish (shown in package)</option>' +
+    '>Studio sets one finish (in package)</option>' +
     '<option value="customer"' +
     (policy === 'customer' ? ' selected' : '') +
-    '>Customer chooses (Matte or Glossy)</option></select></div>' +
+    '>Customer chooses finish</option></select></div>' +
     '<div class="album-finish-panel album-finish-studio"' +
     (policy === 'studio' ? '' : ' hidden') +
     '><div class="fld"><label>Included finish</label><select data-album-page-finish>' +
@@ -721,9 +723,9 @@ function renderAlbumPageFinishField(row) {
     '</select></div></div>' +
     '<div class="album-finish-panel album-finish-customer"' +
     (policy === 'customer' ? '' : ' hidden') +
-    '><p class="hint album-finish-customer-hint">Shown to customers as: they pick one when designing the album.</p>' +
+    '><p class="hint album-finish-customer-hint">Tick the finishes you offer. Customer picks <b>one</b> when designing the album.</p>' +
     '<div class="album-finish-choices">' +
-    ALBUM_PAGE_FINISH_CUSTOMER_OPTIONS.map(function (opt) {
+    ALBUM_PAGE_FINISHES.map(function (opt) {
       const on = offered.indexOf(opt) >= 0;
       return (
         '<label class="chk-row album-finish-opt' +
@@ -750,7 +752,7 @@ function defaultAlbumPrints() {
       cover: 'Premium',
       pageFinish: 'Matte',
       pageFinishPolicy: 'studio',
-      pageFinishCustomerOptions: ALBUM_PAGE_FINISH_CUSTOMER_OPTIONS.slice(),
+      pageFinishCustomerOptions: ALBUM_PAGE_FINISH_CUSTOMER_DEFAULT.slice(),
     },
     Calendar: { on: false, qty: 1, size: 'A3', type: 'Wall Calendar', complimentary: true },
     'Mini Album': {
@@ -760,7 +762,7 @@ function defaultAlbumPrints() {
       cover: 'Standard',
       pageFinish: 'Matte',
       pageFinishPolicy: 'studio',
-      pageFinishCustomerOptions: ALBUM_PAGE_FINISH_CUSTOMER_OPTIONS.slice(),
+      pageFinishCustomerOptions: ALBUM_PAGE_FINISH_CUSTOMER_DEFAULT.slice(),
       complimentary: true,
     },
     'Photo Frame': { on: false, qty: 1, size: '12 x 18 inch', type: 'Acrylic', complimentary: true },
