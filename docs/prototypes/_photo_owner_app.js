@@ -1,4 +1,4 @@
-const PHOTO_OWNER_BUILD = '2026-10-11-photo-owner-svc-cta-gap-v66';
+const PHOTO_OWNER_BUILD = '2026-10-11-photo-owner-svc-cta-gap-v67';
 
 function photoOwnerDemoFileName() {
   try {
