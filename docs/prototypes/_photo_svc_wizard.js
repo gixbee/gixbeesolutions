@@ -217,6 +217,51 @@ const SVC_REQ_DEFAULTS = [
   'Required permissions / materials',
 ];
 const SVC_DUR_OPTS = ['Up to 2 Hours', 'Up to 4 Hours', 'Up to 6 Hours', 'Up to 8 Hours', 'Full Day', 'Custom'];
+const SVC_TEAM_PHOTO_ROWS = [
+  { key: 'photoCandid', label: 'Candid Photographer' },
+  { key: 'photoTraditional', label: 'Traditional Photographer' },
+  { key: 'photoCandTrad', label: 'Candid + Traditional Photographer' },
+];
+const SVC_TEAM_VIDEO_ROWS = [
+  { key: 'videoCandid', label: 'Candid Videographer' },
+  { key: 'videoTraditional', label: 'Traditional Videographer' },
+  { key: 'videoCandTrad', label: 'Candid + Traditional Videographer' },
+  { key: 'videoCinematic', label: 'Cinematic Videographer' },
+];
+
+function defaultSvcTeam() {
+  return {
+    photoCandid: 1,
+    photoTraditional: 1,
+    photoCandTrad: 0,
+    videoCandid: 1,
+    videoTraditional: 0,
+    videoCandTrad: 0,
+    videoCinematic: 1,
+  };
+}
+
+function ensureSvcTeam(d) {
+  if (!d.team) d.team = defaultSvcTeam();
+  const defaults = defaultSvcTeam();
+  Object.keys(defaults).forEach(function (k) {
+    if (d.team[k] == null) d.team[k] = defaults[k];
+  });
+}
+
+function renderSvcTeamQtyRows(rows, team) {
+  return rows
+    .map(function (row) {
+      return (
+        '<div class="role-row"><span>' +
+        esc(row.label) +
+        '</span>' +
+        svcQtyStep(row.key, team[row.key]) +
+        '</div>'
+      );
+    })
+    .join('');
+}
 
 function newSvcDraft() {
   const photoDetails = defaultPhotoDetails();
@@ -238,7 +283,7 @@ function newSvcDraft() {
     duration: 'Up to 4 Hours',
     durationCustom: '',
     extraHour: 1500,
-    team: { photoCandid: 1, photoTraditional: 1, videoCandid: 1, videoTraditional: 0 },
+    team: defaultSvcTeam(),
     deliverTab: 'photos',
     deliverPhoto: ['Edited Photos', 'Colour-Graded Photos'],
     deliverVideo: ['Highlight Video', 'Live Streaming'],
@@ -292,6 +337,7 @@ function recordToSvcDraft(rec) {
   ensurePkgPolicyRules(merged);
   ensurePolicyValues(merged);
   ensureSvcPricingFields(merged);
+  ensureSvcTeam(merged);
   return merged;
 }
 
@@ -481,6 +527,7 @@ function renderSvcStep(step, d) {
     case 2:
       return renderSvcPricingStep(d);
     case 3:
+      ensureSvcTeam(d);
       return (
         '<label class="chk-row' +
         (d.durEnabled ? ' on' : '') +
@@ -507,20 +554,10 @@ function renderSvcStep(step, d) {
             '<div class="fld"><label>Additional hour charge (₹)</label><input type="number" id="f_extraHour" value="' +
             d.extraHour +
             '"><span class="hint"> Per hour</span></div>' +
-            '<p class="lbl">Photographers</p>' +
-            '<div class="role-row"><span>Candid photographer</span>' +
-            svcQtyStep('photoCandid', d.team.photoCandid) +
-            '</div>' +
-            '<div class="role-row"><span>Traditional photographer</span>' +
-            svcQtyStep('photoTraditional', d.team.photoTraditional) +
-            '</div>' +
-            '<p class="lbl">Videographers</p>' +
-            '<div class="role-row"><span>Candid videographer</span>' +
-            svcQtyStep('videoCandid', d.team.videoCandid) +
-            '</div>' +
-            '<div class="role-row"><span>Traditional videographer</span>' +
-            svcQtyStep('videoTraditional', d.team.videoTraditional) +
-            '</div>'
+            '<p class="lbl">Photography coverage</p>' +
+            renderSvcTeamQtyRows(SVC_TEAM_PHOTO_ROWS, d.team) +
+            '<p class="lbl">Videography coverage</p>' +
+            renderSvcTeamQtyRows(SVC_TEAM_VIDEO_ROWS, d.team)
           : '<p class="sub">Duration and team details are optional for this service.</p>')
       );
     case 4:

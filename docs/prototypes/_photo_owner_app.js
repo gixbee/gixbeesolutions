@@ -1,4 +1,4 @@
-const PHOTO_OWNER_BUILD = '2026-10-11-photo-owner-svc-pricing-type-v60';
+const PHOTO_OWNER_BUILD = '2026-10-11-photo-owner-svc-team-roles-v61';
 
 function photoOwnerDemoFileName() {
   try {
