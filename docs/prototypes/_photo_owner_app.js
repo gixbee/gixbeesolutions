@@ -1,4 +1,4 @@
-const PHOTO_OWNER_BUILD = '2026-10-11-photo-owner-no-unlimited-clicks-v47';
+const PHOTO_OWNER_BUILD = '2026-10-11-photo-owner-no-build-tag-v48';
 
 function photoOwnerDemoFileName() {
   try {
@@ -1449,11 +1449,6 @@ function boot() {
     sanitizeWeddingPackageFunctions();
     ensureRegisteredDistrict();
     saveStore();
-    const tag = el('buildTag');
-    if (tag) {
-      tag.textContent =
-        'Working demo ' + PHOTO_OWNER_BUILD + ' — List My Business → Archana Photography → Manage';
-    }
     renderLmb();
     renderPhotoDash();
     renderSvcPkg();

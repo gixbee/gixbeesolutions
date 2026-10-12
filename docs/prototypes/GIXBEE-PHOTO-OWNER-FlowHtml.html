@@ -626,7 +626,6 @@ button.manage-pill{cursor:pointer;font:inherit;color:var(--blue);border-color:#B
       <div class="biz-title">List My Business</div>
       <span class="manage-pill">Manage &amp; grow</span>
     </div>
-    <p class="hint" id="buildTag" style="margin:8px 0 0">Single-file demo — all JavaScript is inside this .html</p>
   </div>
   <div class="pad" style="padding-top:8px" id="lmbCards"></div>
 </section>
@@ -5881,7 +5880,7 @@ function bindPhotoCalendarUi() {
   });
 }
 
-const PHOTO_OWNER_BUILD = '2026-10-11-photo-owner-no-unlimited-clicks-v47';
+const PHOTO_OWNER_BUILD = '2026-10-11-photo-owner-no-build-tag-v48';
 
 function photoOwnerDemoFileName() {
   try {
@@ -7332,11 +7331,6 @@ function boot() {
     sanitizeWeddingPackageFunctions();
     ensureRegisteredDistrict();
     saveStore();
-    const tag = el('buildTag');
-    if (tag) {
-      tag.textContent =
-        'Working demo ' + PHOTO_OWNER_BUILD + ' — List My Business → Archana Photography → Manage';
-    }
     renderLmb();
     renderPhotoDash();
     renderSvcPkg();
