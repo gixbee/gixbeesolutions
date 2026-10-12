@@ -1,4 +1,4 @@
-const PHOTO_OWNER_BUILD = '2026-10-11-photo-owner-svc-team-roles-v61';
+const PHOTO_OWNER_BUILD = '2026-10-11-photo-owner-svc-del-custom-v62';
 
 function photoOwnerDemoFileName() {
   try {
@@ -321,6 +321,9 @@ function loadStore() {
     sanitizePackageLevels();
     sanitizePackageCeremonyTypes();
     sanitizeServiceCategories();
+    (store.services || []).forEach(function (s) {
+      if (typeof ensureSvcTeam === 'function') ensureSvcTeam(s);
+    });
     (store.packages || []).forEach(function (p) {
       if (typeof migrateDroneHelicamExtra === 'function') migrateDroneHelicamExtra(p);
       if (typeof migrateLegacyPkgCoverage === 'function') migrateLegacyPkgCoverage(p);

@@ -2953,6 +2953,20 @@ function readDeliverableFieldsFromDom(d) {
   });
 }
 
+function deliverableDetailSelectChanged(t) {
+  if (!t || !t.matches) return false;
+  return (
+    t.matches('[data-album-finish-policy]') ||
+    t.matches(
+      '[data-album-size],[data-album-cover],[data-album-page-finish],[data-album-print-size],[data-album-print-type]'
+    ) ||
+    t.matches('[data-video-fmt]') ||
+    t.matches('[data-video-dur]') ||
+    t.matches('[data-photo-fmt]') ||
+    t.matches('[data-del-key]')
+  );
+}
+
 function deliverableCheckboxChange(t, d) {
   if (t.matches('[data-dphoto]')) {
     const val = t.getAttribute('data-dphoto');
@@ -3889,36 +3903,7 @@ function bindPkgWizard(d) {
   };
   body.onchange = function (e) {
     const t = e.target;
-    if (t.matches('[data-album-finish-policy]')) {
-      readPkgWizardFields(d);
-      renderWizardBody();
-      return;
-    }
-    if (
-      t.matches(
-        '[data-album-size],[data-album-cover],[data-album-page-finish],[data-album-print-size],[data-album-print-type]'
-      )
-    ) {
-      readPkgWizardFields(d);
-      renderWizardBody();
-      return;
-    }
-    if (t.matches('[data-video-fmt]')) {
-      readPkgWizardFields(d);
-      renderWizardBody();
-      return;
-    }
-    if (t.matches('[data-video-dur]')) {
-      readPkgWizardFields(d);
-      renderWizardBody();
-      return;
-    }
-    if (t.matches('[data-photo-fmt]')) {
-      readPkgWizardFields(d);
-      renderWizardBody();
-      return;
-    }
-    if (t.matches('[data-del-key]')) {
+    if (deliverableDetailSelectChanged(t)) {
       readPkgWizardFields(d);
       renderWizardBody();
       return;
@@ -4618,27 +4603,9 @@ function renderSvcStep(step, d) {
       });
       return (
         '<p class="sub">Set delivery timeline for each item you included on the previous step.</p>' +
-        keys
-          .map(function (k) {
-            return (
-              '<div class="fld del-row"><label>' +
-              esc(k) +
-              '</label><select data-svc-del="' +
-              esc(k) +
-              '">' +
-              DELIVERY_TIMELINES.map(function (t) {
-                return (
-                  '<option' +
-                  (d.deliveryMap[k] === t ? ' selected' : '') +
-                  '>' +
-                  t +
-                  '</option>'
-                );
-              }).join('') +
-              '</select></div>'
-            );
-          })
-          .join('') +
+        keys.map(function (k) {
+          return renderDeliveryTimelineRow(d, k);
+        }).join('') +
         '<div class="warn-box">Delivery timelines can be different for each deliverable.</div>'
       );
     }
@@ -4723,9 +4690,6 @@ function readSvcWizardFields(d) {
   if (g('f_extraHour')) d.extraHour = +g('f_extraHour').value || 0;
   readDeliverableFieldsFromDom(d);
   readExtrasFieldsFromDom(d);
-  document.querySelectorAll('[data-svc-del]').forEach(function (sel) {
-    d.deliveryMap[sel.getAttribute('data-svc-del')] = sel.value;
-  });
   pruneSvcDeliveryMap(d);
   readPkgPolicyTiersFromDom(d);
   ensureSvcPricingFields(d);
@@ -4857,6 +4821,11 @@ function bindSvcWizard(d) {
     if (handleExtraModeSelectChange(e, d)) return;
     if (handleExtraHourlyCheckboxChange(e)) return;
     if (deliverableCheckboxChange(t, d)) return;
+    if (deliverableDetailSelectChanged(t)) {
+      readSvcWizardFields(d);
+      renderWizardBody();
+      return;
+    }
     if (t.matches('[data-svc-pol]')) {
       const v = t.getAttribute('data-svc-pol');
       if (t.checked) {
@@ -6098,7 +6067,7 @@ function bindPhotoCalendarUi() {
   });
 }
 
-const PHOTO_OWNER_BUILD = '2026-10-11-photo-owner-svc-team-roles-v61';
+const PHOTO_OWNER_BUILD = '2026-10-11-photo-owner-svc-del-custom-v62';
 
 function photoOwnerDemoFileName() {
   try {
@@ -6421,6 +6390,9 @@ function loadStore() {
     sanitizePackageLevels();
     sanitizePackageCeremonyTypes();
     sanitizeServiceCategories();
+    (store.services || []).forEach(function (s) {
+      if (typeof ensureSvcTeam === 'function') ensureSvcTeam(s);
+    });
     (store.packages || []).forEach(function (p) {
       if (typeof migrateDroneHelicamExtra === 'function') migrateDroneHelicamExtra(p);
       if (typeof migrateLegacyPkgCoverage === 'function') migrateLegacyPkgCoverage(p);

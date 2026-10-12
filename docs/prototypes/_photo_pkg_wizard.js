@@ -2023,6 +2023,20 @@ function readDeliverableFieldsFromDom(d) {
   });
 }
 
+function deliverableDetailSelectChanged(t) {
+  if (!t || !t.matches) return false;
+  return (
+    t.matches('[data-album-finish-policy]') ||
+    t.matches(
+      '[data-album-size],[data-album-cover],[data-album-page-finish],[data-album-print-size],[data-album-print-type]'
+    ) ||
+    t.matches('[data-video-fmt]') ||
+    t.matches('[data-video-dur]') ||
+    t.matches('[data-photo-fmt]') ||
+    t.matches('[data-del-key]')
+  );
+}
+
 function deliverableCheckboxChange(t, d) {
   if (t.matches('[data-dphoto]')) {
     const val = t.getAttribute('data-dphoto');
@@ -2959,36 +2973,7 @@ function bindPkgWizard(d) {
   };
   body.onchange = function (e) {
     const t = e.target;
-    if (t.matches('[data-album-finish-policy]')) {
-      readPkgWizardFields(d);
-      renderWizardBody();
-      return;
-    }
-    if (
-      t.matches(
-        '[data-album-size],[data-album-cover],[data-album-page-finish],[data-album-print-size],[data-album-print-type]'
-      )
-    ) {
-      readPkgWizardFields(d);
-      renderWizardBody();
-      return;
-    }
-    if (t.matches('[data-video-fmt]')) {
-      readPkgWizardFields(d);
-      renderWizardBody();
-      return;
-    }
-    if (t.matches('[data-video-dur]')) {
-      readPkgWizardFields(d);
-      renderWizardBody();
-      return;
-    }
-    if (t.matches('[data-photo-fmt]')) {
-      readPkgWizardFields(d);
-      renderWizardBody();
-      return;
-    }
-    if (t.matches('[data-del-key]')) {
+    if (deliverableDetailSelectChanged(t)) {
       readPkgWizardFields(d);
       renderWizardBody();
       return;

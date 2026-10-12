@@ -588,27 +588,9 @@ function renderSvcStep(step, d) {
       });
       return (
         '<p class="sub">Set delivery timeline for each item you included on the previous step.</p>' +
-        keys
-          .map(function (k) {
-            return (
-              '<div class="fld del-row"><label>' +
-              esc(k) +
-              '</label><select data-svc-del="' +
-              esc(k) +
-              '">' +
-              DELIVERY_TIMELINES.map(function (t) {
-                return (
-                  '<option' +
-                  (d.deliveryMap[k] === t ? ' selected' : '') +
-                  '>' +
-                  t +
-                  '</option>'
-                );
-              }).join('') +
-              '</select></div>'
-            );
-          })
-          .join('') +
+        keys.map(function (k) {
+          return renderDeliveryTimelineRow(d, k);
+        }).join('') +
         '<div class="warn-box">Delivery timelines can be different for each deliverable.</div>'
       );
     }
@@ -693,9 +675,6 @@ function readSvcWizardFields(d) {
   if (g('f_extraHour')) d.extraHour = +g('f_extraHour').value || 0;
   readDeliverableFieldsFromDom(d);
   readExtrasFieldsFromDom(d);
-  document.querySelectorAll('[data-svc-del]').forEach(function (sel) {
-    d.deliveryMap[sel.getAttribute('data-svc-del')] = sel.value;
-  });
   pruneSvcDeliveryMap(d);
   readPkgPolicyTiersFromDom(d);
   ensureSvcPricingFields(d);
@@ -827,6 +806,11 @@ function bindSvcWizard(d) {
     if (handleExtraModeSelectChange(e, d)) return;
     if (handleExtraHourlyCheckboxChange(e)) return;
     if (deliverableCheckboxChange(t, d)) return;
+    if (deliverableDetailSelectChanged(t)) {
+      readSvcWizardFields(d);
+      renderWizardBody();
+      return;
+    }
     if (t.matches('[data-svc-pol]')) {
       const v = t.getAttribute('data-svc-pol');
       if (t.checked) {
