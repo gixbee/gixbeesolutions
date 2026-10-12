@@ -112,6 +112,18 @@ function defaultVideoDurationForName(name) {
   return 'Full Event';
 }
 
+function renderLiveStreamingCameraField(name, det) {
+  if (name !== 'Live Streaming') return '';
+  if (det.streamCameras == null) det.streamCameras = 1;
+  return (
+    '<div class="fld"><label>Cameras included</label><input type="number" min="1" max="20" data-video-stream-cameras="' +
+    esc(name) +
+    '" value="' +
+    det.streamCameras +
+    '"><p class="hint">Number of camera feeds for the live stream.</p></div>'
+  );
+}
+
 function renderVideoDurationSelect(name, selected) {
   const sel = selected || defaultVideoDurationForName(name);
   return (
@@ -694,6 +706,7 @@ const VIDEO_DELIVER_HINTS = {
   'Teaser Video': 'Short teaser for social media.',
   Reel: 'Short vertical reel for social media.',
   'Traditional Video': 'Traditional full-length coverage style.',
+  'Live Streaming': 'Multi-camera live stream for remote guests (event day).',
 };
 
 function pkgExtraDefaults() {
@@ -712,17 +725,25 @@ function pkgExtraDefaults() {
       o[name].hourlyLimit = true;
       o[name].includedHours = 4;
       o[name].extraHour = 2000;
+      o[name].includedCameras = 1;
     }
   });
   return o;
 }
 
-function extraIncludedHourlyFields(x) {
+function extraIncludedHourlyFields(name, x) {
   const hourlyLimit = !!x.hourlyLimit;
   const incl = x.includedHours != null ? x.includedHours : 4;
   const extra = x.extraHour != null ? x.extraHour : 0;
-  return (
-    '<div class="extra-included-block">' +
+  let html = '<div class="extra-included-block">';
+  if (name === 'Live Streaming') {
+    const cams = x.includedCameras != null ? x.includedCameras : 1;
+    html +=
+      '<div class="fld extra-stream-cams"><label>Cameras included</label><input type="number" min="1" max="20" step="1" data-extra-stream-cameras value="' +
+      cams +
+      '"><p class="hint" style="margin:4px 0 0">How many camera feeds are included in the live stream.</p></div>';
+  }
+  html +=
     '<label class="extra-hourly-chk"><input type="checkbox" data-extra-hourly-on ' +
     (hourlyLimit ? 'checked' : '') +
     '> Limit included hours</label>' +
@@ -733,8 +754,8 @@ function extraIncludedHourlyFields(x) {
     '"></div>' +
     '<div class="fld"><label>Extra hour (₹)</label><input type="number" min="0" step="500" data-extra-hour-after value="' +
     extra +
-    '"><span class="hint"> per hour after that</span></div></div></div>'
-  );
+    '"><span class="hint"> per hour after that</span></div></div></div>';
+  return html;
 }
 
 function readExtraHourlyFieldsFromRow(row, target, prev) {
@@ -747,6 +768,9 @@ function readExtraHourlyFieldsFromRow(row, target, prev) {
   else if (prev.includedHours != null) target.includedHours = prev.includedHours;
   if (extraH) target.extraHour = +extraH.value || 0;
   else if (prev.extraHour != null) target.extraHour = prev.extraHour;
+  const camEl = row.querySelector('[data-extra-stream-cameras]');
+  if (camEl) target.includedCameras = Math.max(1, +camEl.value || 1);
+  else if (prev.includedCameras != null) target.includedCameras = prev.includedCameras;
 }
 
 function defaultPhotoDetails() {
@@ -770,8 +794,19 @@ function defaultVideoDetails() {
       format: 'MP4 (Full HD)',
       delivery: '15 Working Days',
     };
+    if (name === 'Live Streaming') o[name].streamCameras = 1;
   });
   return o;
+}
+
+function ensureLiveStreamingExtras(d) {
+  if (!d) return;
+  if (d.extras && d.extras['Live Streaming'] && d.extras['Live Streaming'].includedCameras == null) {
+    d.extras['Live Streaming'].includedCameras = 1;
+  }
+  if (d.videoDetails && d.videoDetails['Live Streaming'] && d.videoDetails['Live Streaming'].streamCameras == null) {
+    d.videoDetails['Live Streaming'].streamCameras = 1;
+  }
 }
 
 function videoDeliverQty(d, name) {
@@ -1350,7 +1385,7 @@ function renderWizardExtrasStep(d, namesFn, addLinkLabel) {
           '<button type="button" class="pay-del" data-action="remove-extra" data-extra-name="' +
           esc(name) +
           '" title="Remove service" aria-label="Remove service">🗑</button>' +
-          extraIncludedHourlyFields(x) +
+          extraIncludedHourlyFields(name, x) +
           '</div>'
         );
       })
@@ -1380,6 +1415,7 @@ function handleExtraModeSelectChange(e, d) {
       hourlyLimit: prev.hourlyLimit != null ? prev.hourlyLimit : false,
       includedHours: prev.includedHours != null ? prev.includedHours : 4,
       extraHour: prev.extraHour != null ? prev.extraHour : 0,
+      includedCameras: prev.includedCameras != null ? prev.includedCameras : name === 'Live Streaming' ? 1 : undefined,
     };
     readExtraHourlyFieldsFromRow(row, d.extras[name], prev);
   } else {
@@ -1392,6 +1428,7 @@ function handleExtraModeSelectChange(e, d) {
       hourlyLimit: prev.hourlyLimit,
       includedHours: prev.includedHours,
       extraHour: prev.extraHour,
+      includedCameras: prev.includedCameras,
     };
     if (priceEl) priceEl.value = String(price);
     if (basisEl) basisEl.value = basis;
@@ -1679,6 +1716,7 @@ function renderVideoDeliverTab(d) {
               '" value="' +
               det.qty +
               '"></div>' +
+              renderLiveStreamingCameraField(name, det) +
               renderVideoDurationFields(name, det) +
               renderVideoFormatFields(name, det) +
               '</div>'
@@ -1998,6 +2036,11 @@ function readDeliverableFieldsFromDom(d) {
     const k = inp.getAttribute('data-video-qty');
     if (!d.videoDetails[k]) d.videoDetails[k] = {};
     d.videoDetails[k].qty = Math.max(1, +inp.value || 1);
+  });
+  document.querySelectorAll('[data-video-stream-cameras]').forEach(function (inp) {
+    const k = inp.getAttribute('data-video-stream-cameras');
+    if (!d.videoDetails[k]) d.videoDetails[k] = {};
+    d.videoDetails[k].streamCameras = Math.max(1, +inp.value || 1);
   });
   document.querySelectorAll('[data-video-dur]').forEach(function (sel) {
     const k = sel.getAttribute('data-video-dur');
