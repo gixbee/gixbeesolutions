@@ -1,4 +1,4 @@
-const PHOTO_OWNER_BUILD = '2026-10-11-photo-owner-svc-no-wedding-v51';
+const PHOTO_OWNER_BUILD = '2026-10-11-photo-owner-svc-one-per-cat-v52';
 
 function photoOwnerDemoFileName() {
   try {
@@ -1054,6 +1054,23 @@ function findService(id) {
   });
 }
 
+function findServiceByCategory(categoryId, excludeServiceId) {
+  if (!categoryId) return null;
+  return store.services.find(function (s) {
+    if (excludeServiceId && s.id === excludeServiceId) return false;
+    return s.category === categoryId;
+  });
+}
+
+function svcCategoryAlreadyUsed(categoryId, excludeServiceId) {
+  return !!findServiceByCategory(categoryId, excludeServiceId);
+}
+
+function toastSvcCategoryDuplicate(categoryId) {
+  const label = typeof svcCatLabel === 'function' ? svcCatLabel(categoryId) : categoryId;
+  toast('You already have a service for “' + label + '”. Edit that listing or choose another category.');
+}
+
 function startWizard(mode, editId) {
   wiz.mode = mode;
   wiz.step = 0;
@@ -1245,9 +1262,15 @@ function validateStep() {
       }
     }
   } else {
-    if (wiz.step === 0 && !d.category) {
-      toast('Pick a service category.');
-      return false;
+    if (wiz.step === 0) {
+      if (!d.category) {
+        toast('Pick a service category.');
+        return false;
+      }
+      if (svcCategoryAlreadyUsed(d.category, wiz.editId || null)) {
+        toastSvcCategoryDuplicate(d.category);
+        return false;
+      }
     }
     if (wiz.step === 1 && (!d.name || !d.blurb)) {
       toast('Enter service name and description.');
@@ -1305,6 +1328,10 @@ function finishWizard(publish) {
   } else {
     if (!d.name || !d.category) {
       toast('Complete service basics.');
+      return;
+    }
+    if (svcCategoryAlreadyUsed(d.category, wiz.editId || null)) {
+      toastSvcCategoryDuplicate(d.category);
       return;
     }
     ensurePkgPolicyRules(d);

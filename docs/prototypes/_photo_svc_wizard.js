@@ -275,15 +275,23 @@ function renderSvcStep(step, d) {
         '<div class="cat-grid" id="f_cats">' +
         visible
           .map(function (c) {
+            const taken =
+              typeof svcCategoryAlreadyUsed === 'function' &&
+              svcCategoryAlreadyUsed(c.id, wiz.editId || null) &&
+              d.category !== c.id;
             return (
               '<button type="button" class="cat-card' +
               (d.category === c.id ? ' on' : '') +
+              (taken ? ' cat-taken' : '') +
               '" data-cat="' +
               c.id +
               '" data-lbl="' +
               esc(c.label) +
+              '" data-cat-taken="' +
+              (taken ? '1' : '0') +
               '"><span class="tick">✓</span><div class="ph"></div>' +
               esc(c.label) +
+              (taken ? '<span class="cat-taken-hint">Already added</span>' : '') +
               '</button>'
             );
           })
@@ -537,7 +545,20 @@ function bindSvcWizard(d) {
         return;
       }
       if (t.getAttribute('data-cat')) {
-        d.category = t.getAttribute('data-cat');
+        const cat = t.getAttribute('data-cat');
+        if (t.getAttribute('data-cat-taken') === '1') {
+          if (typeof toastSvcCategoryDuplicate === 'function') toastSvcCategoryDuplicate(cat);
+          return;
+        }
+        if (
+          typeof svcCategoryAlreadyUsed === 'function' &&
+          svcCategoryAlreadyUsed(cat, wiz.editId || null) &&
+          d.category !== cat
+        ) {
+          toastSvcCategoryDuplicate(cat);
+          return;
+        }
+        d.category = cat;
         renderWizardBody();
         return;
       }

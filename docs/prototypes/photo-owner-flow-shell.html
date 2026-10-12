@@ -246,6 +246,9 @@ body{margin:0;background:#E8EDF5;font-family:Inter,system-ui,sans-serif;color:va
 .cat-card .ph{height:56px;border-radius:10px;background:linear-gradient(145deg,#CBD5E1,#94A3B8);margin-bottom:8px}
 .cat-card .tick{position:absolute;top:8px;right:8px;width:22px;height:22px;border-radius:50%;background:var(--blue);color:#fff;display:none;place-items:center;font-size:12px}
 .cat-card.on .tick{display:grid}
+.cat-card.cat-taken{opacity:.65;cursor:not-allowed;border-style:dashed}
+.cat-card.cat-taken .cat-taken-hint{display:block;margin-top:4px;font-size:9px;font-weight:700;color:var(--mut)}
+.cat-card .cat-taken-hint{display:none}
 .wiz-foot{display:flex;justify-content:space-between;align-items:center;padding:12px 16px 16px;gap:12px;border-top:1px solid var(--line);background:#fff;position:sticky;bottom:0}
 .wiz-foot.wiz-foot-review-only{justify-content:flex-start}
 .wiz-foot.wiz-foot-review-only #wizNext,.wiz-foot.wiz-foot-review-only #wizDraft{display:none!important}
