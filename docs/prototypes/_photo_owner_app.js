@@ -1,4 +1,4 @@
-const PHOTO_OWNER_BUILD = '2026-10-11-photo-owner-video-dur-flat-v42';
+const PHOTO_OWNER_BUILD = '2026-10-11-photo-owner-catalog-filters-v43';
 
 function photoOwnerDemoFileName() {
   try {
@@ -18,6 +18,8 @@ const INDIAN_STATES = {
 };
 
 const PKG_LEVELS = ['Basic', 'Standard', 'Premium', 'Custom'];
+/** Catalog page filter chips only (Custom level still allowed when creating a package). */
+const PKG_CATALOG_FILTER_LEVELS = ['Basic', 'Standard', 'Premium'];
 /** Wedding-only functions for package wizard (non-wedding events → individual services). */
 const PKG_FUNCTIONS = [
   'Wedding & Reception',
@@ -742,7 +744,17 @@ function renderSaReview() {
 }
 
 function renderPkgFilters() {
-  const filters = [{ id: 'all', label: 'All' }].concat(PKG_LEVELS.map((l) => ({ id: l.toLowerCase(), label: l })));
+  const allowed = ['all'].concat(
+    PKG_CATALOG_FILTER_LEVELS.map(function (l) {
+      return l.toLowerCase();
+    })
+  );
+  if (allowed.indexOf(store.pkgFilter) < 0) store.pkgFilter = 'all';
+  const filters = [{ id: 'all', label: 'All' }].concat(
+    PKG_CATALOG_FILTER_LEVELS.map(function (l) {
+      return { id: l.toLowerCase(), label: l };
+    })
+  );
   const row = el('pkgFilters');
   row.innerHTML = filters
     .map(
