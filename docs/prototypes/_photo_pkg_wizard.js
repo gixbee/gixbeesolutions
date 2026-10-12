@@ -2790,11 +2790,17 @@ function bindPkgWizard(d) {
         return;
       }
       if (act === 'add-ceremony') {
-        const name = prompt('Ceremony type');
-        if (name && d.customCeremonies.indexOf(name) < 0) {
-          d.customCeremonies.push(name.trim());
-          renderWizardBody();
+        if (!d.customCeremonies) d.customCeremonies = [];
+        const raw = prompt('Ceremony type');
+        const name = raw ? raw.trim() : '';
+        if (!name) return;
+        if (CEREMONY_TYPES.indexOf(name) >= 0) {
+          toast('That ceremony is already in the list — tick it above.');
+          return;
         }
+        if (d.customCeremonies.indexOf(name) < 0) d.customCeremonies.push(name);
+        if (d.ceremonyTypes.indexOf(name) < 0) d.ceremonyTypes.push(name);
+        renderWizardBody();
         return;
       }
       if (act === 'toggle-fn-cov') {

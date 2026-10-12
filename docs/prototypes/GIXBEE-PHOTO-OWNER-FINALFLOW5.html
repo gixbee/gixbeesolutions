@@ -3711,11 +3711,17 @@ function bindPkgWizard(d) {
         return;
       }
       if (act === 'add-ceremony') {
-        const name = prompt('Ceremony type');
-        if (name && d.customCeremonies.indexOf(name) < 0) {
-          d.customCeremonies.push(name.trim());
-          renderWizardBody();
+        if (!d.customCeremonies) d.customCeremonies = [];
+        const raw = prompt('Ceremony type');
+        const name = raw ? raw.trim() : '';
+        if (!name) return;
+        if (CEREMONY_TYPES.indexOf(name) >= 0) {
+          toast('That ceremony is already in the list — tick it above.');
+          return;
         }
+        if (d.customCeremonies.indexOf(name) < 0) d.customCeremonies.push(name);
+        if (d.ceremonyTypes.indexOf(name) < 0) d.ceremonyTypes.push(name);
+        renderWizardBody();
         return;
       }
       if (act === 'toggle-fn-cov') {
@@ -5878,7 +5884,7 @@ function bindPhotoCalendarUi() {
   });
 }
 
-const PHOTO_OWNER_BUILD = '2026-10-11-photo-owner-pkg-levels-v44';
+const PHOTO_OWNER_BUILD = '2026-10-11-photo-owner-ceremony-types-v45';
 
 function photoOwnerDemoFileName() {
   try {
@@ -5917,7 +5923,7 @@ const FUNCTION_HINTS = {
   'Post-Wedding Shoot': 'Photoshoot of the couple after the wedding',
   'Save-the-Date Shoot': 'Photoshoot to announce the wedding date',
 };
-const CEREMONY_TYPES = ['Christian', 'Hindu', 'Muslim', 'Sikh', 'Jain', 'Buddhist', 'Other'];
+const CEREMONY_TYPES = ['Christian', 'Hindu', 'Muslim', 'Sikh', 'Jain', 'Buddhist'];
 const SVC_CATEGORIES = [
   { id: 'wedding', label: 'Wedding Photography' },
   { id: 'portrait', label: 'Portrait Photography' },
@@ -6136,6 +6142,16 @@ function sanitizePackageLevels() {
   });
 }
 
+function sanitizePackageCeremonyTypes() {
+  (store.packages || []).forEach(function (p) {
+    if (!p.customCeremonies) p.customCeremonies = [];
+    if (!p.ceremonyTypes) p.ceremonyTypes = [];
+    p.ceremonyTypes = p.ceremonyTypes.filter(function (c) {
+      return c !== 'Other';
+    });
+  });
+}
+
 function loadStore() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
@@ -6150,6 +6166,7 @@ function loadStore() {
     if (!store.calendar || typeof store.calendar !== 'object') store.calendar = defaultPhotoCalendar();
     sanitizeWeddingPackageFunctions();
     sanitizePackageLevels();
+    sanitizePackageCeremonyTypes();
     (store.packages || []).forEach(function (p) {
       if (typeof migrateDroneHelicamExtra === 'function') migrateDroneHelicamExtra(p);
       if (typeof migrateLegacyPkgCoverage === 'function') migrateLegacyPkgCoverage(p);

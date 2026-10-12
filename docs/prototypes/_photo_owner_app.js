@@ -1,4 +1,4 @@
-const PHOTO_OWNER_BUILD = '2026-10-11-photo-owner-pkg-levels-v44';
+const PHOTO_OWNER_BUILD = '2026-10-11-photo-owner-ceremony-types-v45';
 
 function photoOwnerDemoFileName() {
   try {
@@ -37,7 +37,7 @@ const FUNCTION_HINTS = {
   'Post-Wedding Shoot': 'Photoshoot of the couple after the wedding',
   'Save-the-Date Shoot': 'Photoshoot to announce the wedding date',
 };
-const CEREMONY_TYPES = ['Christian', 'Hindu', 'Muslim', 'Sikh', 'Jain', 'Buddhist', 'Other'];
+const CEREMONY_TYPES = ['Christian', 'Hindu', 'Muslim', 'Sikh', 'Jain', 'Buddhist'];
 const SVC_CATEGORIES = [
   { id: 'wedding', label: 'Wedding Photography' },
   { id: 'portrait', label: 'Portrait Photography' },
@@ -256,6 +256,16 @@ function sanitizePackageLevels() {
   });
 }
 
+function sanitizePackageCeremonyTypes() {
+  (store.packages || []).forEach(function (p) {
+    if (!p.customCeremonies) p.customCeremonies = [];
+    if (!p.ceremonyTypes) p.ceremonyTypes = [];
+    p.ceremonyTypes = p.ceremonyTypes.filter(function (c) {
+      return c !== 'Other';
+    });
+  });
+}
+
 function loadStore() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
@@ -270,6 +280,7 @@ function loadStore() {
     if (!store.calendar || typeof store.calendar !== 'object') store.calendar = defaultPhotoCalendar();
     sanitizeWeddingPackageFunctions();
     sanitizePackageLevels();
+    sanitizePackageCeremonyTypes();
     (store.packages || []).forEach(function (p) {
       if (typeof migrateDroneHelicamExtra === 'function') migrateDroneHelicamExtra(p);
       if (typeof migrateLegacyPkgCoverage === 'function') migrateLegacyPkgCoverage(p);
