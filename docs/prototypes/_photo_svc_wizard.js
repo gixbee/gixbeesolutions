@@ -210,7 +210,7 @@ function svcCategoryNameBase(categoryId) {
 function svcDefaultServiceName(categoryId) {
   if (categoryId === 'production') return 'Photo & video production';
   if (categoryId === 'reel') return 'Reel & short video';
-  if (categoryId === 'event') return 'Event / family functions photography';
+  if (categoryId === 'event') return 'Event / get-togethers photography';
   return svcCategoryNameBase(categoryId) + ' photography';
 }
 
