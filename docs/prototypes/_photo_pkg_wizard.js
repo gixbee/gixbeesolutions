@@ -46,7 +46,12 @@ const PHOTO_TYPE_DEFAULTS = [
   'Traditional Photographer',
   'Candid + Traditional Photographer',
 ];
-const VIDEO_TYPE_DEFAULTS = ['Candid Videographer', 'Traditional Videographer', 'Cinematic Videographer'];
+const VIDEO_TYPE_DEFAULTS = [
+  'Candid Videographer',
+  'Traditional Videographer',
+  'Candid + Traditional Videographer',
+  'Cinematic Videographer',
+];
 const PHOTO_FORMATS = ['JPG (High Resolution)', 'JPG + RAW', 'PNG', 'Custom'];
 const VIDEO_DURATION_HOURS = ['Full Event', '0-1 Hours', '1-2 Hours', '2-3 Hours', '3-4 Hours'];
 const VIDEO_DURATION_SHORT = ['1-2 Minutes', '3-5 Minutes', '5-10 Minutes', 'Custom'];
@@ -1080,11 +1085,13 @@ function defaultFnCoverage(fnName, fromTemplate) {
         ? {
             'Candid Videographer': { on: false, qty: 0 },
             'Traditional Videographer': { on: false, qty: 0 },
+            'Candid + Traditional Videographer': { on: false, qty: 0 },
             'Cinematic Videographer': { on: true, qty: 1 },
           }
         : {
             'Candid Videographer': { on: true, qty: 1 },
             'Traditional Videographer': { on: true, qty: 1 },
+            'Candid + Traditional Videographer': { on: false, qty: 0 },
             'Cinematic Videographer': { on: true, qty: 1 },
           }
     ),
