@@ -163,6 +163,7 @@ body{margin:0;background:#E8EDF5;font-family:Inter,system-ui,sans-serif;color:va
 .pkg-bd{flex:1;min-width:0;position:relative;display:flex;flex-direction:column;gap:4px}
 .pkg-top-row{display:flex;align-items:flex-start;justify-content:space-between;gap:8px}
 .pkg-chips{display:flex;flex-wrap:wrap;align-items:center;gap:6px}
+.pkg-chips>.pkg-level{font-size:11px;padding:5px 11px;border-radius:9px}
 .pkg-meta-chip{display:inline-block;font-size:9px;font-weight:700;padding:4px 9px;border-radius:8px;letter-spacing:.01em;line-height:1.2}
 .pkg-meta-chip.ceremony{background:#ECFDF5;color:#047857}
 .pkg-meta-chip.side{background:#EFF6FF;color:#1D4ED8}
@@ -5884,7 +5885,7 @@ function bindPhotoCalendarUi() {
   });
 }
 
-const PHOTO_OWNER_BUILD = '2026-10-11-photo-owner-pkg-card-meta-v49';
+const PHOTO_OWNER_BUILD = '2026-10-11-photo-owner-pkg-card-chips-v50';
 
 function photoOwnerDemoFileName() {
   try {
@@ -6139,9 +6140,8 @@ function pkgCardCoverageSideText(pkg) {
 function pkgCardMetaChipsHtml(pkg, levelHtml) {
   const ceremony = pkgCardCeremonyText(pkg);
   const side = pkgCardCoverageSideText(pkg);
-  let html = '';
+  let html = levelHtml;
   if (ceremony) html += '<span class="pkg-meta-chip ceremony">' + esc(ceremony) + '</span>';
-  html += levelHtml;
   if (side) html += '<span class="pkg-meta-chip side">' + esc(side) + '</span>';
   return html;
 }

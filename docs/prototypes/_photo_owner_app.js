@@ -1,4 +1,4 @@
-const PHOTO_OWNER_BUILD = '2026-10-11-photo-owner-pkg-card-meta-v49';
+const PHOTO_OWNER_BUILD = '2026-10-11-photo-owner-pkg-card-chips-v50';
 
 function photoOwnerDemoFileName() {
   try {
@@ -253,9 +253,8 @@ function pkgCardCoverageSideText(pkg) {
 function pkgCardMetaChipsHtml(pkg, levelHtml) {
   const ceremony = pkgCardCeremonyText(pkg);
   const side = pkgCardCoverageSideText(pkg);
-  let html = '';
+  let html = levelHtml;
   if (ceremony) html += '<span class="pkg-meta-chip ceremony">' + esc(ceremony) + '</span>';
-  html += levelHtml;
   if (side) html += '<span class="pkg-meta-chip side">' + esc(side) + '</span>';
   return html;
 }
