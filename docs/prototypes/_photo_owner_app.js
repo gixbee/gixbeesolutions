@@ -1,4 +1,4 @@
-const PHOTO_OWNER_BUILD = '2026-10-11-photo-owner-video-combo-v46';
+const PHOTO_OWNER_BUILD = '2026-10-11-photo-owner-no-unlimited-clicks-v47';
 
 function photoOwnerDemoFileName() {
   try {

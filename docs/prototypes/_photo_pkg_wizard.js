@@ -823,7 +823,6 @@ function migrateComplimentaryDeliverables(d) {
 function ensurePkgMarketingFields(d) {
   if (!d) return;
   migrateComplimentaryDeliverables(d);
-  if (d.shootUnlimitedClicks == null) d.shootUnlimitedClicks = false;
   if (d.equipmentNote == null) d.equipmentNote = '';
   if (d.qualityNote == null) d.qualityNote = '';
   if (d.albumPrints) {
@@ -1243,7 +1242,6 @@ function newPkgDraft() {
     customPolicies: [],
     requirements: ['Customer provides SSD / Hard Disk', 'Electricity / Power at venue'],
     customRequirements: [],
-    shootUnlimitedClicks: false,
     equipmentNote: '',
     qualityNote: '',
   };
@@ -1608,11 +1606,6 @@ function renderPhotoDeliverTab(d) {
   const items = PHOTO_DELIVER.concat(d.customDeliverPhoto || []);
   return (
     '<p class="del-sec-title">Photography deliverables</p><p class="sub">Select the types of photos to be delivered.</p>' +
-    '<label class="chk-row' +
-    (d.shootUnlimitedClicks ? ' on' : '') +
-    '" style="margin-bottom:12px"><input type="checkbox" id="f_unlimitedClicks" ' +
-    (d.shootUnlimitedClicks ? 'checked' : '') +
-    '> Unlimited clicks during shoot</label>' +
     items
       .map(function (name) {
         const on = d.deliverPhoto.indexOf(name) >= 0;
@@ -1978,8 +1971,6 @@ function readAlbumFieldsFromDom(d) {
 
 function readDeliverableFieldsFromDom(d) {
   ensureDeliverableDraft(d);
-  const unlimited = el('f_unlimitedClicks');
-  if (unlimited) d.shootUnlimitedClicks = unlimited.checked;
   readAlbumFieldsFromDom(d);
   document.querySelectorAll('[data-photo-qty]').forEach(function (inp) {
     const k = inp.getAttribute('data-photo-qty');
@@ -2728,7 +2719,6 @@ function pkgDeliverSummary(d) {
     (albums.length ? ' | ' + albums.join(', ') : '') +
     ' | Digital: ' +
     (d.deliverDigital || []).join(', ');
-  if (d.shootUnlimitedClicks) s += ' | Unlimited clicks';
   const complimentary = [];
   if (d.albumPrints) {
     ALBUM_PRINT_TYPES.forEach(function (name) {
