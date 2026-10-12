@@ -1885,6 +1885,7 @@ function ensureDeliverableDraft(d) {
   if (!d.videoDetails) d.videoDetails = defaultVideoDetails();
   if (!d.albumPrints) d.albumPrints = defaultAlbumPrints();
   if (!d.deliveryMap) d.deliveryMap = {};
+  ensureLiveStreamingExtras(d);
 }
 
 function ensureServiceDeliverableModel(d) {
