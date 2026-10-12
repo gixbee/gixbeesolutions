@@ -1,4 +1,4 @@
-const PHOTO_OWNER_BUILD = '2026-10-11-photo-owner-svc-name-pattern-v55';
+const PHOTO_OWNER_BUILD = '2026-10-11-photo-owner-event-family-v56';
 
 function photoOwnerDemoFileName() {
   try {
@@ -51,8 +51,8 @@ const SVC_CATEGORIES = [
   { id: 'realestate', label: 'Real Estate' },
   {
     id: 'event',
-    label: 'Event Photography',
-    desc: 'Get-togethers, family functions, kudumbayogam & similar',
+    label: 'Event / Family Functions',
+    desc: 'Get-togethers, kudumbayogam & similar (not weddings)',
   },
   { id: 'fashion', label: 'Fashion & Portfolio' },
   { id: 'food', label: 'Food' },
@@ -1385,6 +1385,13 @@ function wizNext() {
   if (!validateStep()) {
     if (wiz.mode === 'package' && wiz.step === 3) renderWizardBody();
     return;
+  }
+  if (
+    wiz.mode === 'service' &&
+    wiz.step === 0 &&
+    typeof syncSvcNameWithCategory === 'function'
+  ) {
+    syncSvcNameWithCategory(wiz.draft, wiz.draft.category, wiz.draft.category);
   }
   if (wiz.mode === 'package' && wiz.step === wizTotal() - 1) return;
   if (wiz.mode === 'service' && wiz.step === wizTotal() - 1) return;
