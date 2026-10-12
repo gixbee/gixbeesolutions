@@ -1,4 +1,4 @@
-const PHOTO_OWNER_BUILD = '2026-10-11-photo-owner-no-build-tag-v48';
+const PHOTO_OWNER_BUILD = '2026-10-11-photo-owner-pkg-card-meta-v49';
 
 function photoOwnerDemoFileName() {
   try {
@@ -233,6 +233,31 @@ function uid(prefix) {
 }
 function levelClass(level) {
   return (level || 'Standard').toLowerCase();
+}
+
+function pkgCardCeremonyText(pkg) {
+  if (!needsCeremonyStep(pkg.functions)) return '';
+  const types = (pkg.ceremonyTypes || []).filter(Boolean);
+  if (!types.length) return '';
+  if (types.length <= 3) return types.join(' · ');
+  return types.slice(0, 2).join(' · ') + ' +' + (types.length - 2);
+}
+
+function pkgCardCoverageSideText(pkg) {
+  if (typeof pkgNeedsCoverageSideUi === 'function' && !pkgNeedsCoverageSideUi(pkg)) return '';
+  const side =
+    typeof resolvePkgCoverageSide === 'function' ? resolvePkgCoverageSide(pkg) : pkg.coverageSide || 'both';
+  return side === 'both' ? 'Both sides' : 'Single side';
+}
+
+function pkgCardMetaChipsHtml(pkg, levelHtml) {
+  const ceremony = pkgCardCeremonyText(pkg);
+  const side = pkgCardCoverageSideText(pkg);
+  let html = '';
+  if (ceremony) html += '<span class="pkg-meta-chip ceremony">' + esc(ceremony) + '</span>';
+  html += levelHtml;
+  if (side) html += '<span class="pkg-meta-chip side">' + esc(side) + '</span>';
+  return html;
 }
 function sanitizeWeddingPackageFunctions() {
   const allowed = {};
@@ -890,11 +915,12 @@ function renderPkgList() {
         lv +
         '">' +
         photoIcon('pkg') +
-        '</div><div class="pkg-bd"><div class="pkg-top-row"><span class="pkg-level ' +
-        lv +
-        '">' +
-        esc(p.level) +
-        '</span></div><b>' +
+        '</div><div class="pkg-bd"><div class="pkg-top-row"><div class="pkg-chips">' +
+        pkgCardMetaChipsHtml(
+          p,
+          '<span class="pkg-level ' + lv + '">' + esc(p.level) + '</span>'
+        ) +
+        '</div></div><b>' +
         esc(p.name) +
         '</b><div class="pkg-price">' +
         inr(p.price) +

@@ -162,6 +162,10 @@ body{margin:0;background:#E8EDF5;font-family:Inter,system-ui,sans-serif;color:va
 .pkg-thumb.lv-custom{background:linear-gradient(145deg,#A855F7,#7C3AED)}
 .pkg-bd{flex:1;min-width:0;position:relative;display:flex;flex-direction:column;gap:4px}
 .pkg-top-row{display:flex;align-items:flex-start;justify-content:space-between;gap:8px}
+.pkg-chips{display:flex;flex-wrap:wrap;align-items:center;gap:6px}
+.pkg-meta-chip{display:inline-block;font-size:9px;font-weight:700;padding:4px 9px;border-radius:8px;letter-spacing:.01em;line-height:1.2}
+.pkg-meta-chip.ceremony{background:#ECFDF5;color:#047857}
+.pkg-meta-chip.side{background:#EFF6FF;color:#1D4ED8}
 .pkg-level{display:inline-block;font-size:9px;font-weight:800;padding:4px 9px;border-radius:8px;letter-spacing:.02em}
 .pkg-level.standard{background:#FFEDD5;color:#C2410C}
 .pkg-level.premium{background:#FEF3C7;color:#92400E}
@@ -5880,7 +5884,7 @@ function bindPhotoCalendarUi() {
   });
 }
 
-const PHOTO_OWNER_BUILD = '2026-10-11-photo-owner-no-build-tag-v48';
+const PHOTO_OWNER_BUILD = '2026-10-11-photo-owner-pkg-card-meta-v49';
 
 function photoOwnerDemoFileName() {
   try {
@@ -6115,6 +6119,31 @@ function uid(prefix) {
 }
 function levelClass(level) {
   return (level || 'Standard').toLowerCase();
+}
+
+function pkgCardCeremonyText(pkg) {
+  if (!needsCeremonyStep(pkg.functions)) return '';
+  const types = (pkg.ceremonyTypes || []).filter(Boolean);
+  if (!types.length) return '';
+  if (types.length <= 3) return types.join(' · ');
+  return types.slice(0, 2).join(' · ') + ' +' + (types.length - 2);
+}
+
+function pkgCardCoverageSideText(pkg) {
+  if (typeof pkgNeedsCoverageSideUi === 'function' && !pkgNeedsCoverageSideUi(pkg)) return '';
+  const side =
+    typeof resolvePkgCoverageSide === 'function' ? resolvePkgCoverageSide(pkg) : pkg.coverageSide || 'both';
+  return side === 'both' ? 'Both sides' : 'Single side';
+}
+
+function pkgCardMetaChipsHtml(pkg, levelHtml) {
+  const ceremony = pkgCardCeremonyText(pkg);
+  const side = pkgCardCoverageSideText(pkg);
+  let html = '';
+  if (ceremony) html += '<span class="pkg-meta-chip ceremony">' + esc(ceremony) + '</span>';
+  html += levelHtml;
+  if (side) html += '<span class="pkg-meta-chip side">' + esc(side) + '</span>';
+  return html;
 }
 function sanitizeWeddingPackageFunctions() {
   const allowed = {};
@@ -6772,11 +6801,12 @@ function renderPkgList() {
         lv +
         '">' +
         photoIcon('pkg') +
-        '</div><div class="pkg-bd"><div class="pkg-top-row"><span class="pkg-level ' +
-        lv +
-        '">' +
-        esc(p.level) +
-        '</span></div><b>' +
+        '</div><div class="pkg-bd"><div class="pkg-top-row"><div class="pkg-chips">' +
+        pkgCardMetaChipsHtml(
+          p,
+          '<span class="pkg-level ' + lv + '">' + esc(p.level) + '</span>'
+        ) +
+        '</div></div><b>' +
         esc(p.name) +
         '</b><div class="pkg-price">' +
         inr(p.price) +
