@@ -1,4 +1,4 @@
-const PHOTO_OWNER_BUILD = '2026-10-11-photo-owner-svc-price-preview-v59';
+const PHOTO_OWNER_BUILD = '2026-10-11-photo-owner-svc-pricing-type-v60';
 
 function photoOwnerDemoFileName() {
   try {
@@ -1111,6 +1111,16 @@ function syncPkgPrice(d) {
 }
 function syncSvcPrice(d) {
   syncPkgPrice(d);
+  if (!d) return;
+  if (d.pricingType === 'range') {
+    const baseMax = Math.max(0, +d.listPriceMax || 0);
+    const pct =
+      d.discountYes === 'yes' ? Math.min(100, Math.max(0, +d.discountPct || 0)) : 0;
+    d.priceMax = pct > 0 ? Math.round(baseMax * (1 - pct / 100)) : baseMax;
+    if (d.priceMax < d.price) d.priceMax = d.price;
+  } else {
+    delete d.priceMax;
+  }
 }
 
 function wizSteps() {
@@ -1276,9 +1286,17 @@ function validateStep() {
       toast('Enter service name and description.');
       return false;
     }
-    if (wiz.step === 2 && !d.listPrice) {
-      toast('Enter service price.');
-      return false;
+    if (wiz.step === 2) {
+      if (!d.listPrice) {
+        toast('Enter the price amount.');
+        return false;
+      }
+      if (d.pricingType === 'range') {
+        if (!d.listPriceMax || d.listPriceMax <= d.listPrice) {
+          toast('Maximum price must be higher than minimum for a price range.');
+          return false;
+        }
+      }
     }
     if (wiz.step === 4 && !svcSelectedDeliverableKeys(d).length) {
       toast("Select at least one included item (photo, video, album, or digital).");

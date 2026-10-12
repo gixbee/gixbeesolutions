@@ -7,6 +7,128 @@ const SVC_PRICE_TYPES = [
   { id: 'hour', label: 'Per hour' },
   { id: 'unit', label: 'Per item / unit' },
 ];
+
+function svcPricingPrimaryLabel(type) {
+  switch (type) {
+    case 'hour':
+      return 'Rate per hour (₹) *';
+    case 'unit':
+      return 'Rate per item / unit (₹) *';
+    case 'range':
+      return 'Minimum price (₹) *';
+    case 'from':
+      return 'Starting price (₹) *';
+    default:
+      return 'List price (₹) *';
+  }
+}
+
+function ensureSvcPricingFields(d) {
+  if (!d.pricingType) d.pricingType = 'fixed';
+  if (d.pricingType === 'range' && (!d.listPriceMax || d.listPriceMax <= d.listPrice)) {
+    d.listPriceMax = Math.max(d.listPrice + 1, Math.round((d.listPrice || 0) * 1.25) || 1000);
+  }
+  syncSvcPrice(d);
+}
+
+function formatSvcDisplayPrice(s) {
+  const d = s || {};
+  const type = d.pricingType || 'fixed';
+  const lo = d.price != null ? d.price : Math.max(0, +d.listPrice || 0);
+  const hi = d.priceMax != null ? d.priceMax : d.listPriceMax;
+  if (type === 'range' && hi) {
+    return inr(lo) + ' – ' + inr(hi);
+  }
+  if (type === 'from') return 'From ' + inr(lo);
+  if (type === 'hour') return inr(lo) + '/hr';
+  if (type === 'unit') return inr(lo) + '/unit';
+  return inr(lo);
+}
+
+function svcCustomerPricePreviewHtml(d) {
+  ensureSvcPricingFields(d);
+  const type = d.pricingType || 'fixed';
+  let main = '';
+  if (type === 'range' && d.listPriceMax) {
+    const hi = d.priceMax != null ? d.priceMax : d.listPriceMax;
+    main = inr(d.price) + ' – ' + inr(hi);
+  } else if (type === 'from') {
+    main = 'From ' + inr(d.price);
+  } else if (type === 'hour') {
+    main = inr(d.price) + '/hr';
+  } else if (type === 'unit') {
+    main = inr(d.price) + '/unit';
+  } else {
+    main = inr(d.price);
+  }
+  let discount = '';
+  if (d.discountYes === 'yes' && d.discountPct > 0) {
+    if (type === 'range' && d.listPriceMax) {
+      discount =
+        ' <span class="was">' +
+        inr(d.listPrice) +
+        ' – ' +
+        inr(d.listPriceMax) +
+        '</span> <span class="off-pill">' +
+        d.discountPct +
+        '% OFF</span>';
+    } else {
+      discount =
+        ' <span class="was">' +
+        inr(d.listPrice) +
+        '</span> <span class="off-pill">' +
+        d.discountPct +
+        '% OFF</span>';
+    }
+  }
+  return '<b style="font-size:20px">' + main + '</b>' + discount;
+}
+
+function renderSvcPricingStep(d) {
+  ensureSvcPricingFields(d);
+  const type = d.pricingType || 'fixed';
+  return (
+    '<div class="pricing-step">' +
+    '<div class="fld"><label>Pricing type</label><div class="radio-col" id="f_priceTypes">' +
+    SVC_PRICE_TYPES.map(function (t) {
+      return (
+        '<label class="radio-line"><input type="radio" name="svcPriceType" value="' +
+        t.id +
+        '" ' +
+        (type === t.id ? 'checked' : '') +
+        '> ' +
+        esc(t.label) +
+        '</label>'
+      );
+    }).join('') +
+    '</div></div>' +
+    '<div class="fld"><label>' +
+    svcPricingPrimaryLabel(type) +
+    '</label><input type="number" id="f_listPrice" value="' +
+    d.listPrice +
+    '" min="0"></div>' +
+    (type === 'range'
+      ? '<div class="fld"><label>Maximum price (₹) *</label><input type="number" id="f_listPriceMax" value="' +
+        (d.listPriceMax || '') +
+        '" min="0"></div>'
+      : '') +
+    '<div class="fld"><label>Discount</label><div class="radio-row">' +
+    '<label><input type="radio" name="svcDiscYes" value="yes" ' +
+    (d.discountYes === 'yes' ? 'checked' : '') +
+    '> Yes</label>' +
+    '<label><input type="radio" name="svcDiscYes" value="no" ' +
+    (d.discountYes === 'no' ? 'checked' : '') +
+    '> No</label></div></div>' +
+    (d.discountYes === 'yes'
+      ? '<div class="fld"><label>Discount %</label><input type="number" id="f_discountPct" value="' +
+        d.discountPct +
+        '" min="0" max="100"></div>'
+      : '') +
+    '<div class="preview-green"><span class="sub" style="display:block;margin-bottom:4px">Customer will see:</span>' +
+    svcCustomerPricePreviewHtml(d) +
+    '</div></div>'
+  );
+}
 const SVC_ONLY_EXTRA_DEFAULTS = [
   { name: 'Extra 10 Edited Photos', price: 500, unit: 'Per Set' },
   { name: 'Extra Hour', price: 1000, unit: 'Per Hour' },
@@ -108,6 +230,7 @@ function newSvcDraft() {
     coverUploaded: true,
     pricingType: 'fixed',
     listPrice: 55000,
+    listPriceMax: 0,
     discountYes: 'yes',
     discountPct: 10,
     price: 49500,
@@ -168,6 +291,7 @@ function recordToSvcDraft(rec) {
   ensureServiceDeliverableModel(merged);
   ensurePkgPolicyRules(merged);
   ensurePolicyValues(merged);
+  ensureSvcPricingFields(merged);
   return merged;
 }
 
@@ -355,48 +479,7 @@ function renderSvcStep(step, d) {
     case 1:
       return renderSvcBasicsStep(d);
     case 2:
-      return (
-        '<div class="pricing-step">' +
-        '<div class="fld"><label>Pricing type</label><div class="radio-col" id="f_priceTypes">' +
-        SVC_PRICE_TYPES.map(function (t) {
-          return (
-            '<label class="radio-line"><input type="radio" name="svcPriceType" value="' +
-            t.id +
-            '" ' +
-            (d.pricingType === t.id ? 'checked' : '') +
-            '> ' +
-            esc(t.label) +
-            '</label>'
-          );
-        }).join('') +
-        '</div></div>' +
-        '<div class="fld"><label>List price (₹) *</label><input type="number" id="f_listPrice" value="' +
-        d.listPrice +
-        '"></div>' +
-        '<div class="fld"><label>Discount</label><div class="radio-row">' +
-        '<label><input type="radio" name="svcDiscYes" value="yes" ' +
-        (d.discountYes === 'yes' ? 'checked' : '') +
-        '> Yes</label>' +
-        '<label><input type="radio" name="svcDiscYes" value="no" ' +
-        (d.discountYes === 'no' ? 'checked' : '') +
-        '> No</label></div></div>' +
-        (d.discountYes === 'yes'
-          ? '<div class="fld"><label>Discount %</label><input type="number" id="f_discountPct" value="' +
-            d.discountPct +
-            '" min="0" max="100"></div>'
-          : '') +
-        '<div class="preview-green"><span class="sub" style="display:block;margin-bottom:4px">Customer will see:</span><b style="font-size:20px">' +
-        inr(d.price) +
-        '</b>' +
-        (d.discountYes === 'yes' && d.discountPct > 0
-          ? ' <span class="was">' +
-            inr(d.listPrice) +
-            '</span> <span class="off-pill">' +
-            d.discountPct +
-            '% OFF</span>'
-          : '') +
-        '</div></div>'
-      );
+      return renderSvcPricingStep(d);
     case 3:
       return (
         '<label class="chk-row' +
@@ -537,7 +620,7 @@ function renderSvcStep(step, d) {
         '<div class="review-summary" style="margin-top:16px"><b>' +
         esc(d.name) +
         '</b><br><span class="sub">' +
-        inr(d.price) +
+        formatSvcDisplayPrice(d) +
         ' · ' +
         esc(svcCatLabel(d.category)) +
         '</span></div>' +
@@ -560,6 +643,7 @@ function readSvcWizardFields(d) {
   const pt = document.querySelector('input[name="svcPriceType"]:checked');
   if (pt) d.pricingType = pt.value;
   if (g('f_listPrice')) d.listPrice = +g('f_listPrice').value || 0;
+  if (g('f_listPriceMax')) d.listPriceMax = +g('f_listPriceMax').value || 0;
   const dy = document.querySelector('input[name="svcDiscYes"]:checked');
   if (dy) d.discountYes = dy.value;
   if (g('f_discountPct')) d.discountPct = +g('f_discountPct').value || 0;
@@ -577,7 +661,7 @@ function readSvcWizardFields(d) {
   });
   pruneSvcDeliveryMap(d);
   readPkgPolicyTiersFromDom(d);
-  syncSvcPrice(d);
+  ensureSvcPricingFields(d);
 }
 
 function bindSvcWizard(d) {
@@ -752,7 +836,7 @@ function bindSvcWizard(d) {
       d.name = svcNameInp.value;
       d.svcNameAuto = false;
     };
-  ['f_listPrice', 'f_discountPct'].forEach(function (id) {
+  ['f_listPrice', 'f_listPriceMax', 'f_discountPct'].forEach(function (id) {
     const node = el(id);
     if (node)
       node.oninput = function () {
@@ -763,6 +847,9 @@ function bindSvcWizard(d) {
   document.querySelectorAll('input[name="svcDiscYes"],input[name="svcPriceType"]').forEach(function (r) {
     r.onchange = function () {
       readSvcWizardFields(d);
+      if (r.name === 'svcPriceType' && d.pricingType === 'range') {
+        ensureSvcPricingFields(d);
+      }
       renderWizardBody();
     };
   });
