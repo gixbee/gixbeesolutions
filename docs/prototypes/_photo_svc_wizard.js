@@ -199,6 +199,20 @@ function svcCatLabel(id) {
   return c ? c.label : '—';
 }
 
+function svcNameExample(categoryId) {
+  const label = svcCatLabel(categoryId);
+  if (!label || label === '—') return 'Maternity photography';
+  const lower = label.toLowerCase();
+  if (
+    lower.indexOf('photography') >= 0 ||
+    lower.indexOf('production') >= 0 ||
+    lower.indexOf('video') >= 0
+  ) {
+    return label;
+  }
+  return label + ' photography';
+}
+
 function svcQtyStep(field, val) {
   val = Math.max(0, +val || 0);
   return (
@@ -236,7 +250,9 @@ function renderSvcBasicsStep(d) {
     '</span><button type="button" class="link-inline" data-action="svc-change-cat">Change</button></div></div>' +
     '<div class="fld"><label>Service name *</label><input id="f_svcName" value="' +
     esc(d.name) +
-    '" placeholder="e.g. Baptism photography coverage" autocomplete="off"></div>' +
+    '" placeholder="e.g. ' +
+    esc(svcNameExample(d.category)) +
+    '" autocomplete="off"></div>' +
     '<div class="fld"><label>Short description *</label><textarea id="f_blurb" maxlength="300" placeholder="What is included, who it is for, and what makes your service stand out.">' +
     esc(d.blurb) +
     '</textarea><p class="hint" id="blurbCount">' +
