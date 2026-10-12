@@ -1,4 +1,4 @@
-const PHOTO_OWNER_BUILD = '2026-10-11-photo-owner-catalog-filters-v43';
+const PHOTO_OWNER_BUILD = '2026-10-11-photo-owner-pkg-levels-v44';
 
 function photoOwnerDemoFileName() {
   try {
@@ -17,9 +17,7 @@ const INDIAN_STATES = {
   'Tamil Nadu': ['Chennai', 'Coimbatore', 'Madurai'],
 };
 
-const PKG_LEVELS = ['Basic', 'Standard', 'Premium', 'Custom'];
-/** Catalog page filter chips only (Custom level still allowed when creating a package). */
-const PKG_CATALOG_FILTER_LEVELS = ['Basic', 'Standard', 'Premium'];
+const PKG_LEVELS = ['Basic', 'Standard', 'Premium'];
 /** Wedding-only functions for package wizard (non-wedding events → individual services). */
 const PKG_FUNCTIONS = [
   'Wedding & Reception',
@@ -252,6 +250,12 @@ function sanitizeWeddingPackageFunctions() {
   });
 }
 
+function sanitizePackageLevels() {
+  (store.packages || []).forEach(function (p) {
+    if (PKG_LEVELS.indexOf(p.level) < 0) p.level = 'Standard';
+  });
+}
+
 function loadStore() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
@@ -265,6 +269,7 @@ function loadStore() {
     if (!store.deletedBusinesses) store.deletedBusinesses = defaultStore().deletedBusinesses;
     if (!store.calendar || typeof store.calendar !== 'object') store.calendar = defaultPhotoCalendar();
     sanitizeWeddingPackageFunctions();
+    sanitizePackageLevels();
     (store.packages || []).forEach(function (p) {
       if (typeof migrateDroneHelicamExtra === 'function') migrateDroneHelicamExtra(p);
       if (typeof migrateLegacyPkgCoverage === 'function') migrateLegacyPkgCoverage(p);
@@ -745,13 +750,13 @@ function renderSaReview() {
 
 function renderPkgFilters() {
   const allowed = ['all'].concat(
-    PKG_CATALOG_FILTER_LEVELS.map(function (l) {
+    PKG_LEVELS.map(function (l) {
       return l.toLowerCase();
     })
   );
   if (allowed.indexOf(store.pkgFilter) < 0) store.pkgFilter = 'all';
   const filters = [{ id: 'all', label: 'All' }].concat(
-    PKG_CATALOG_FILTER_LEVELS.map(function (l) {
+    PKG_LEVELS.map(function (l) {
       return { id: l.toLowerCase(), label: l };
     })
   );
