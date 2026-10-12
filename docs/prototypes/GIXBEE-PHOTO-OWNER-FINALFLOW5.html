@@ -251,6 +251,8 @@ body{margin:0;background:#E8EDF5;font-family:Inter,system-ui,sans-serif;color:va
 .cat-card.cat-taken{opacity:.65;cursor:not-allowed;border-style:dashed}
 .cat-card.cat-taken .cat-taken-hint{display:block;margin-top:4px;font-size:9px;font-weight:700;color:var(--mut)}
 .cat-card .cat-taken-hint{display:none}
+.cat-card .cat-desc{display:block;margin-top:4px;font-size:9px;font-weight:600;color:var(--mut);line-height:1.35}
+.svc-basics-cat .svc-cat-desc-hint{margin:6px 0 0}
 .wiz-foot{display:flex;justify-content:space-between;align-items:center;padding:12px 16px 16px;gap:12px;border-top:1px solid var(--line);background:#fff;position:sticky;bottom:0}
 .wiz-foot.wiz-foot-review-only{justify-content:flex-start}
 .wiz-foot.wiz-foot-review-only #wizNext,.wiz-foot.wiz-foot-review-only #wizDraft{display:none!important}
@@ -4268,14 +4270,24 @@ function svcDeliveryKeys(d) {
   return deliverablesForDeliveryStep(d);
 }
 
+function svcCatDesc(id) {
+  const c = SVC_CATEGORIES.find(function (x) {
+    return x.id === id;
+  });
+  return c && c.desc ? c.desc : '';
+}
+
 function renderSvcBasicsStep(d) {
   const hasCover = !!d.coverUploaded;
+  const catDesc = svcCatDesc(d.category);
   return (
     '<p class="svc-basics-lead">This is what customers see on your service listing — keep the name clear and the description short.</p>' +
     '<div class="svc-basics-cat"><span class="svc-basics-cat-lbl">Category</span>' +
     '<div class="cat-pill"><span>' +
     esc(svcCatLabel(d.category)) +
-    '</span><button type="button" class="link-inline" data-action="svc-change-cat">Change</button></div></div>' +
+    '</span><button type="button" class="link-inline" data-action="svc-change-cat">Change</button></div>' +
+    (catDesc ? '<p class="hint svc-cat-desc-hint">' + esc(catDesc) + '</p>' : '') +
+    '</div>' +
     '<div class="fld"><label>Service name *</label><input id="f_svcName" value="' +
     esc(d.name) +
     '" placeholder="e.g. ' +
@@ -4308,7 +4320,10 @@ function renderSvcStep(step, d) {
       const visible = SVC_CATEGORIES.filter(function (c, i) {
         if (!d.showAllCats && i >= 10) return false;
         if (!q) return true;
-        return c.label.toLowerCase().indexOf(q.toLowerCase()) >= 0;
+        const qq = q.toLowerCase();
+        if (c.label.toLowerCase().indexOf(qq) >= 0) return true;
+        if (c.desc && c.desc.toLowerCase().indexOf(qq) >= 0) return true;
+        return false;
       });
       return (
         '<div class="sa-search" style="margin:0 0 12px"><span>' +
@@ -4335,6 +4350,7 @@ function renderSvcStep(step, d) {
               (taken ? '1' : '0') +
               '"><span class="tick">✓</span><div class="ph"></div>' +
               esc(c.label) +
+              (c.desc ? '<span class="cat-desc">' + esc(c.desc) + '</span>' : '') +
               (taken ? '<span class="cat-taken-hint">Already added</span>' : '') +
               '</button>'
             );
@@ -5925,7 +5941,7 @@ function bindPhotoCalendarUi() {
   });
 }
 
-const PHOTO_OWNER_BUILD = '2026-10-11-photo-owner-svc-name-hint-v53';
+const PHOTO_OWNER_BUILD = '2026-10-11-photo-owner-event-cat-desc-v54';
 
 function photoOwnerDemoFileName() {
   try {
@@ -5976,7 +5992,11 @@ const SVC_CATEGORIES = [
   { id: 'product', label: 'Product' },
   { id: 'corporate', label: 'Corporate' },
   { id: 'realestate', label: 'Real Estate' },
-  { id: 'event', label: 'Event Photography' },
+  {
+    id: 'event',
+    label: 'Event Photography',
+    desc: 'Get-togethers, family functions, kudumbayogam & similar',
+  },
   { id: 'fashion', label: 'Fashion & Portfolio' },
   { id: 'food', label: 'Food' },
   { id: 'commercial', label: 'Commercial' },

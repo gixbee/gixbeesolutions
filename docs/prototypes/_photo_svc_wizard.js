@@ -240,14 +240,24 @@ function svcDeliveryKeys(d) {
   return deliverablesForDeliveryStep(d);
 }
 
+function svcCatDesc(id) {
+  const c = SVC_CATEGORIES.find(function (x) {
+    return x.id === id;
+  });
+  return c && c.desc ? c.desc : '';
+}
+
 function renderSvcBasicsStep(d) {
   const hasCover = !!d.coverUploaded;
+  const catDesc = svcCatDesc(d.category);
   return (
     '<p class="svc-basics-lead">This is what customers see on your service listing — keep the name clear and the description short.</p>' +
     '<div class="svc-basics-cat"><span class="svc-basics-cat-lbl">Category</span>' +
     '<div class="cat-pill"><span>' +
     esc(svcCatLabel(d.category)) +
-    '</span><button type="button" class="link-inline" data-action="svc-change-cat">Change</button></div></div>' +
+    '</span><button type="button" class="link-inline" data-action="svc-change-cat">Change</button></div>' +
+    (catDesc ? '<p class="hint svc-cat-desc-hint">' + esc(catDesc) + '</p>' : '') +
+    '</div>' +
     '<div class="fld"><label>Service name *</label><input id="f_svcName" value="' +
     esc(d.name) +
     '" placeholder="e.g. ' +
@@ -280,7 +290,10 @@ function renderSvcStep(step, d) {
       const visible = SVC_CATEGORIES.filter(function (c, i) {
         if (!d.showAllCats && i >= 10) return false;
         if (!q) return true;
-        return c.label.toLowerCase().indexOf(q.toLowerCase()) >= 0;
+        const qq = q.toLowerCase();
+        if (c.label.toLowerCase().indexOf(qq) >= 0) return true;
+        if (c.desc && c.desc.toLowerCase().indexOf(qq) >= 0) return true;
+        return false;
       });
       return (
         '<div class="sa-search" style="margin:0 0 12px"><span>' +
@@ -307,6 +320,7 @@ function renderSvcStep(step, d) {
               (taken ? '1' : '0') +
               '"><span class="tick">✓</span><div class="ph"></div>' +
               esc(c.label) +
+              (c.desc ? '<span class="cat-desc">' + esc(c.desc) + '</span>' : '') +
               (taken ? '<span class="cat-taken-hint">Already added</span>' : '') +
               '</button>'
             );
