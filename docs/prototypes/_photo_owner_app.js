@@ -1,4 +1,4 @@
-const PHOTO_OWNER_BUILD = '2026-10-11-photo-owner-pkg-card-chips-v50';
+const PHOTO_OWNER_BUILD = '2026-10-11-photo-owner-svc-no-wedding-v51';
 
 function photoOwnerDemoFileName() {
   try {
@@ -38,8 +38,8 @@ const FUNCTION_HINTS = {
   'Save-the-Date Shoot': 'Photoshoot to announce the wedding date',
 };
 const CEREMONY_TYPES = ['Christian', 'Hindu', 'Muslim', 'Sikh', 'Jain', 'Buddhist'];
+/** Individual services only — wedding functions belong in wedding packages, not here. */
 const SVC_CATEGORIES = [
-  { id: 'wedding', label: 'Wedding Photography' },
   { id: 'portrait', label: 'Portrait Photography' },
   { id: 'baby', label: 'Baby & Kids' },
   { id: 'maternity', label: 'Maternity' },
@@ -72,7 +72,10 @@ const PKG_STEPS = [
 ];
 
 const SVC_STEPS = [
-  { title: 'Select service category', sub: 'Choose the category for your photography service.' },
+  {
+    title: 'Select service category',
+    sub: 'Non-wedding events and shoots — use Wedding packages for reception, engagement, pre-wedding, etc.',
+  },
   { title: 'Service basics', sub: 'Add basic information about your service.' },
   { title: 'Pricing', sub: 'Set your service pricing.' },
   { title: 'Duration & coverage (optional)', sub: 'Add duration, team and coverage details.' },
@@ -290,6 +293,18 @@ function sanitizePackageCeremonyTypes() {
   });
 }
 
+function sanitizeServiceCategories() {
+  const allowed = {};
+  SVC_CATEGORIES.forEach(function (c) {
+    allowed[c.id] = true;
+  });
+  (store.services || []).forEach(function (s) {
+    if (!s.category || s.category === 'wedding' || !allowed[s.category]) {
+      s.category = 'event';
+    }
+  });
+}
+
 function loadStore() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
@@ -305,6 +320,7 @@ function loadStore() {
     sanitizeWeddingPackageFunctions();
     sanitizePackageLevels();
     sanitizePackageCeremonyTypes();
+    sanitizeServiceCategories();
     (store.packages || []).forEach(function (p) {
       if (typeof migrateDroneHelicamExtra === 'function') migrateDroneHelicamExtra(p);
       if (typeof migrateLegacyPkgCoverage === 'function') migrateLegacyPkgCoverage(p);

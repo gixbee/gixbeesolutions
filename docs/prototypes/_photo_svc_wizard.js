@@ -236,7 +236,7 @@ function renderSvcBasicsStep(d) {
     '</span><button type="button" class="link-inline" data-action="svc-change-cat">Change</button></div></div>' +
     '<div class="fld"><label>Service name *</label><input id="f_svcName" value="' +
     esc(d.name) +
-    '" placeholder="e.g. Wedding candid photography" autocomplete="off"></div>' +
+    '" placeholder="e.g. Baptism photography coverage" autocomplete="off"></div>' +
     '<div class="fld"><label>Short description *</label><textarea id="f_blurb" maxlength="300" placeholder="What is included, who it is for, and what makes your service stand out.">' +
     esc(d.blurb) +
     '</textarea><p class="hint" id="blurbCount">' +
