@@ -383,12 +383,19 @@ function renderSvcStep(step, d) {
         (d.discountYes === 'yes'
           ? '<div class="fld"><label>Discount %</label><input type="number" id="f_discountPct" value="' +
             d.discountPct +
-            '"></div>' +
-            '<div class="price-panel"><b>Customer pays ' +
-            inr(d.price) +
-            '</b></div>'
+            '" min="0" max="100"></div>'
           : '') +
-        '</div>'
+        '<div class="preview-green"><span class="sub" style="display:block;margin-bottom:4px">Customer will see:</span><b style="font-size:20px">' +
+        inr(d.price) +
+        '</b>' +
+        (d.discountYes === 'yes' && d.discountPct > 0
+          ? ' <span class="was">' +
+            inr(d.listPrice) +
+            '</span> <span class="off-pill">' +
+            d.discountPct +
+            '% OFF</span>'
+          : '') +
+        '</div></div>'
       );
     case 3:
       return (
