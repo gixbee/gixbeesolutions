@@ -1,4 +1,4 @@
-const PHOTO_OWNER_BUILD = '2026-10-11-photo-owner-event-gettogether-v57';
+const PHOTO_OWNER_BUILD = '2026-10-11-photo-owner-event-no-desc-v58';
 
 function photoOwnerDemoFileName() {
   try {
@@ -49,11 +49,7 @@ const SVC_CATEGORIES = [
   { id: 'product', label: 'Product' },
   { id: 'corporate', label: 'Corporate' },
   { id: 'realestate', label: 'Real Estate' },
-  {
-    id: 'event',
-    label: 'Event / Get-togethers',
-    desc: 'Family meets, kudumbayogam & similar (not weddings)',
-  },
+  { id: 'event', label: 'Event / Get-togethers' },
   { id: 'fashion', label: 'Fashion & Portfolio' },
   { id: 'food', label: 'Food' },
   { id: 'commercial', label: 'Commercial' },
