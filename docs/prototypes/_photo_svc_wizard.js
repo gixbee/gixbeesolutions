@@ -101,7 +101,8 @@ function newSvcDraft() {
   const videoDetails = defaultVideoDetails();
   return {
     category: 'funeral',
-    name: 'Funeral / Memorial Photography & Live Streaming',
+    name: svcDefaultServiceName('funeral'),
+    svcNameAuto: true,
     blurb:
       'Respectful photo and video coverage for funeral and memorial services, with optional live streaming for remote family.',
     coverUploaded: true,
@@ -199,18 +200,34 @@ function svcCatLabel(id) {
   return c ? c.label : '—';
 }
 
-function svcNameExample(categoryId) {
+/** Default listing title: “Newborn photography”, “Maternity photography”, etc. */
+function svcCategoryNameBase(categoryId) {
   const label = svcCatLabel(categoryId);
-  if (!label || label === '—') return 'Maternity photography';
-  const lower = label.toLowerCase();
-  if (
-    lower.indexOf('photography') >= 0 ||
-    lower.indexOf('production') >= 0 ||
-    lower.indexOf('video') >= 0
-  ) {
-    return label;
+  if (!label || label === '—') return 'Maternity';
+  return label.replace(/\s+Photography\s*$/i, '').trim();
+}
+
+function svcDefaultServiceName(categoryId) {
+  if (categoryId === 'production') return 'Photo & video production';
+  if (categoryId === 'reel') return 'Reel & short video';
+  return svcCategoryNameBase(categoryId) + ' photography';
+}
+
+function syncSvcNameWithCategory(d, categoryId, previousCategoryId) {
+  const suggested = svcDefaultServiceName(categoryId);
+  if (!d.name || !String(d.name).trim()) {
+    d.name = suggested;
+    d.svcNameAuto = true;
+    return;
   }
-  return label + ' photography';
+  if (d.svcNameAuto) {
+    d.name = suggested;
+    return;
+  }
+  if (previousCategoryId && d.name === svcDefaultServiceName(previousCategoryId)) {
+    d.name = suggested;
+    d.svcNameAuto = true;
+  }
 }
 
 function svcQtyStep(field, val) {
@@ -261,7 +278,7 @@ function renderSvcBasicsStep(d) {
     '<div class="fld"><label>Service name *</label><input id="f_svcName" value="' +
     esc(d.name) +
     '" placeholder="e.g. ' +
-    esc(svcNameExample(d.category)) +
+    esc(svcDefaultServiceName(d.category)) +
     '" autocomplete="off"></div>' +
     '<div class="fld"><label>Short description *</label><textarea id="f_blurb" maxlength="300" placeholder="What is included, who it is for, and what makes your service stand out.">' +
     esc(d.blurb) +
@@ -588,7 +605,9 @@ function bindSvcWizard(d) {
           toastSvcCategoryDuplicate(cat);
           return;
         }
+        const prevCat = d.category;
         d.category = cat;
+        syncSvcNameWithCategory(d, cat, prevCat);
         renderWizardBody();
         return;
       }
@@ -718,6 +737,12 @@ function bindSvcWizard(d) {
       d.blurb = bl.value;
       const c = el('blurbCount');
       if (c) c.textContent = bl.value.length + '/300';
+    };
+  const svcNameInp = el('f_svcName');
+  if (svcNameInp)
+    svcNameInp.oninput = function () {
+      d.name = svcNameInp.value;
+      d.svcNameAuto = false;
     };
   ['f_listPrice', 'f_discountPct'].forEach(function (id) {
     const node = el(id);
