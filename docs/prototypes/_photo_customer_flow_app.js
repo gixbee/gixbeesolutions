@@ -1,4 +1,4 @@
-const PHOTO_CUSTOMER_BUILD = '2026-10-13-photo-customer-owner-mirror-v6c';
+const PHOTO_CUSTOMER_BUILD = '2026-10-13-photo-customer-owner-mirror-v6d';
 const DEMO_FILE = 'GIXBEE-PHOTO-CUSTOMER-FINALFLOW.html';
 const STORAGE_KEY = 'GIXBEE_PHOTO_CUSTOMER_INTERESTS_V2';
 
@@ -1260,13 +1260,20 @@ function bindEvents() {
       renderProfPanel();
     };
   });
-  ['goCustomize', 'goCustomize2'].forEach(function (id) {
-    const n = el(id);
-    if (n) n.onclick = function () {
+  const goCust = el('goCustomize');
+  if (goCust) {
+    goCust.onclick = function () {
       renderCustomize();
       show('customize', 'detail');
     };
-  });
+  }
+  const goInterest = el('goCustomize2');
+  if (goInterest) {
+    goInterest.onclick = function () {
+      renderReview();
+      show('review', 'detail');
+    };
+  }
   el('goReview').onclick = function () {
     renderReview();
     show('review', 'customize');
