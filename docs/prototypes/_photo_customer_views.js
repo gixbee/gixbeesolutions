@@ -61,46 +61,87 @@ function custRenderPkgBasics(pkg) {
   return html;
 }
 
-function custRenderPkgInclusions(pkg) {
-  let html = '<h3 style="margin:0 0 8px;font-size:15px">Photos</h3><ul class="chk-list">';
-  (pkg.deliverPhoto || []).forEach(function (name) {
-    const det = (pkg.photoDetails || {})[name] || {};
-    html +=
-      '<li><b>' +
-      custEsc(name) +
-      '</b> — ' +
-      (det.qty ? det.qty + ' · ' : '') +
-      custEsc(det.format || '') +
-      (det.delivery ? ' · ' + custEsc(det.delivery) : '') +
-      '</li>';
-  });
-  html += '</ul>';
-  if ((pkg.deliverVideo || []).length) {
-    html += '<h3 style="margin:16px 0 8px;font-size:15px">Videos</h3><ul class="chk-list">';
-    (pkg.deliverVideo || []).forEach(function (name) {
-      const det = (pkg.videoDetails || {})[name] || {};
-      let extra = '';
-      if (name === 'Live Streaming' && det.streamCameras) extra = ' · ' + det.streamCameras + ' camera(s)';
-      html +=
-        '<li><b>' +
-        custEsc(name) +
-        '</b> — ' +
-        custEsc(det.duration || '') +
-        ' · ' +
-        custEsc(det.format || '') +
-        extra +
-        '</li>';
+const CUST_SVC_CATEGORY_LABELS = {
+  portrait: 'Portrait Photography',
+  baby: 'Baby & Kids',
+  maternity: 'Maternity',
+  newborn: 'Newborn',
+  couple: 'Couple',
+  funeral: 'Funeral / Memorial',
+  product: 'Product',
+  corporate: 'Corporate',
+  realestate: 'Real Estate',
+  event: 'Event / Get-togethers',
+  fashion: 'Fashion & Portfolio',
+  food: 'Food',
+  commercial: 'Commercial',
+  drone: 'Drone / Helicam',
+  reel: 'Reel & Short Video',
+  production: 'Photo & Video Production',
+};
+
+function custServiceCategoryLabel(categoryId) {
+  return CUST_SVC_CATEGORY_LABELS[categoryId] || categoryId || 'Service';
+}
+
+function custSvcPricingSummary(svc) {
+  const type = svc.pricingType || 'fixed';
+  if (type === 'fixed') return '';
+  const labels = {
+    from: 'Starting from',
+    range: 'Price range',
+    hour: 'Per hour',
+    unit: 'Per item / unit',
+  };
+  let line = labels[type] || type;
+  const base = svc.listPrice != null ? svc.listPrice : svc.price;
+  if (type === 'range' && svc.listPriceMax) {
+    line += ' · ' + custInr(base) + ' – ' + custInr(svc.listPriceMax);
+  } else if (base) {
+    line += ' · ' + custInr(base);
+  }
+  return line;
+}
+
+function custRenderDeliverablesInclusions(entity) {
+  const dm = entity.deliveryMap || {};
+  let html = '';
+  if ((entity.deliverPhoto || []).length) {
+    html += '<h3 style="margin:0 0 8px;font-size:15px">Photos</h3><ul class="chk-list">';
+    (entity.deliverPhoto || []).forEach(function (name) {
+      const det = (entity.photoDetails || {})[name] || {};
+      const parts = [];
+      if (det.qty) parts.push(String(det.qty) + (name.indexOf('Photo') >= 0 ? ' photos' : ''));
+      if (det.format) parts.push(det.format);
+      if (det.delivery) parts.push(det.delivery);
+      else if (dm[name]) parts.push(dm[name]);
+      html += '<li><b>' + custEsc(name) + '</b>' + (parts.length ? ' — ' + custEsc(parts.join(' · ')) : '') + '</li>';
     });
     html += '</ul>';
   }
-  if ((pkg.deliverDigital || []).length) {
+  if ((entity.deliverVideo || []).length) {
+    html += '<h3 style="margin:16px 0 8px;font-size:15px">Videos & live</h3><ul class="chk-list">';
+    (entity.deliverVideo || []).forEach(function (name) {
+      const det = (entity.videoDetails || {})[name] || {};
+      const parts = [];
+      if (det.duration) parts.push(det.duration);
+      if (det.format) parts.push(det.format);
+      if (name === 'Live Streaming' && det.streamCameras) parts.push(det.streamCameras + ' camera(s)');
+      if (det.delivery) parts.push(det.delivery);
+      else if (dm[name]) parts.push(dm[name]);
+      html += '<li><b>' + custEsc(name) + '</b>' + (parts.length ? ' — ' + custEsc(parts.join(' · ')) : '') + '</li>';
+    });
+    html += '</ul>';
+  }
+  if ((entity.deliverDigital || []).length) {
     html += '<h3 style="margin:16px 0 8px;font-size:15px">Digital delivery</h3><ul class="chk-list">';
-    (pkg.deliverDigital || []).forEach(function (name) {
-      html += '<li>' + custEsc(name) + '</li>';
+    (entity.deliverDigital || []).forEach(function (name) {
+      const timeline = dm[name];
+      html += '<li>' + custEsc(name) + (timeline ? ' — ' + custEsc(timeline) : '') + '</li>';
     });
     html += '</ul>';
   }
-  const ap = pkg.albumPrints || {};
+  const ap = entity.albumPrints || {};
   const album = ap['Photo Album'];
   if (album && album.on) {
     html +=
@@ -112,18 +153,55 @@ function custRenderPkgInclusions(pkg) {
       custEsc(album.cover) +
       ' cover · ' +
       custEsc(album.paper) +
-      ' paper</li>';
+      ' paper' +
+      (album.copies > 1 ? ' · ' + album.copies + ' copies' : '') +
+      '</li>';
     if (ap.Calendar && ap.Calendar.on) {
       html += '<li>Wall calendar · ' + custEsc(ap.Calendar.size) + ' × ' + (ap.Calendar.copies || 1) + '</li>';
     }
+    if (ap['Photo Frame'] && ap['Photo Frame'].on) {
+      html += '<li>Photo frame · ' + custEsc(ap['Photo Frame'].size || 'Included') + '</li>';
+    }
     html += '</ul>';
   }
-  html += '<h3 style="margin:16px 0 8px;font-size:15px">Delivery timeline</h3>';
-  html += custKvRows(
-    Object.keys(pkg.deliveryMap || {}).map(function (k) {
-      return { k: k, v: pkg.deliveryMap[k] };
-    })
-  );
+  const timelineKeys = Object.keys(dm);
+  if (timelineKeys.length) {
+    html += '<h3 style="margin:16px 0 8px;font-size:15px">Delivery timeline</h3>';
+    html += custKvRows(
+      timelineKeys.map(function (k) {
+        return { k: k, v: dm[k] };
+      })
+    );
+  }
+  return html;
+}
+
+function custRenderPkgInclusions(pkg) {
+  return custRenderDeliverablesInclusions(pkg);
+}
+
+function custRenderSvcOverviewInclusions(svc) {
+  let html =
+    '<p style="font-size:13px;font-weight:600;color:var(--mut);line-height:1.5;margin:0 0 12px">' +
+    custEsc(svc.blurb) +
+    '</p>';
+  html += '<div class="cust-hd">Service category</div>' + custChips([custServiceCategoryLabel(svc.category)]);
+  const priceNote = custSvcPricingSummary(svc);
+  if (priceNote) {
+    html += '<div class="cust-hd">How pricing works</div><p class="sub" style="margin:0 0 4px">' + custEsc(priceNote) + '</p>';
+  }
+  if (svc.discountYes === 'yes' && svc.discountPct && svc.listPrice > (svc.price || 0)) {
+    html +=
+      '<p class="sub" style="margin:0 0 12px">List price ' +
+      custInr(svc.listPrice) +
+      ' · <b style="color:#BE185D">' +
+      svc.discountPct +
+      '% off</b> · You pay ' +
+      custInr(svc.price) +
+      '</p>';
+  }
+  html += '<div class="cust-hd" style="margin-top:4px">What\'s included</div>';
+  html += custRenderDeliverablesInclusions(svc);
   return html;
 }
 
@@ -252,48 +330,28 @@ function custRenderPolicies(pkg) {
 }
 
 function custRenderSvcInclusions(svc) {
-  let html = '<p class="sub" style="margin:0 0 12px">' + custEsc(svc.blurb) + '</p>';
-  html += '<h3 style="margin:0 0 8px;font-size:15px">What\'s included</h3><ul class="chk-list">';
-  (svc.deliverPhoto || []).forEach(function (name) {
-    const det = (svc.photoDetails || {})[name] || {};
-    html +=
-      '<li><b>' +
-      custEsc(name) +
-      '</b>' +
-      (det.qty ? ' — ' + det.qty + ' photos' : '') +
-      (det.delivery ? ' · ' + custEsc(det.delivery) : '') +
-      '</li>';
-  });
-  (svc.deliverVideo || []).forEach(function (name) {
-    const det = (svc.videoDetails || {})[name] || {};
-    html += '<li><b>' + custEsc(name) + '</b>';
-    if (det.streamCameras) html += ' — ' + det.streamCameras + ' camera(s)';
-    html += '</li>';
-  });
-  (svc.deliverDigital || []).forEach(function (name) {
-    html += '<li>' + custEsc(name) + '</li>';
-  });
-  html += '</ul>';
-  if (svc.deliveryMap) {
-    html += '<h3 style="margin:16px 0 8px;font-size:15px">Delivery</h3>';
-    html += custKvRows(
-      Object.keys(svc.deliveryMap).map(function (k) {
-        return { k: k, v: svc.deliveryMap[k] };
-      })
-    );
-  }
-  return html;
+  return custRenderSvcOverviewInclusions(svc);
 }
 
 function custRenderSvcCoverage(svc) {
+  if (svc.durEnabled === false) {
+    return (
+      '<p class="sub" style="margin:0 0 12px">This service is priced as a fixed package. Duration and crew size are agreed when you confirm the booking.</p>' +
+      custKvRows([{ k: 'Typical coverage', v: svc.duration || 'As per studio schedule' }])
+    );
+  }
+  const dur =
+    svc.duration === 'Custom' && svc.durationCustom
+      ? svc.durationCustom
+      : svc.duration || '—';
   const rows = [
-    { k: 'Duration', v: svc.duration || '—' },
+    { k: 'Duration included', v: dur },
     { k: 'Extra hour', v: svc.extraHour ? custInr(svc.extraHour) : '—' },
   ];
   const photo = custTeamLines((svc.team || {}).photo).join(', ');
   const video = custTeamLines((svc.team || {}).video).join(', ');
-  if (photo) rows.push({ k: 'Photo team', v: photo });
-  if (video) rows.push({ k: 'Video team', v: video });
+  rows.push({ k: 'Photo team', v: photo || '—' });
+  rows.push({ k: 'Video team', v: video || '—' });
   return custKvRows(rows);
 }
 
@@ -313,7 +371,7 @@ function custServiceExtrasList(svc) {
   Object.keys(svc.extras || {}).forEach(function (name) {
     const x = svc.extras[name];
     if (x && x.mode === 'extra') {
-      out.push({ id: name, label: name, price: x.price || 0 });
+      out.push({ id: name, label: name, price: x.price || 0, basis: x.basis });
     }
   });
   return out;

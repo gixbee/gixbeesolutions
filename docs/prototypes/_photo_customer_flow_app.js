@@ -1,4 +1,4 @@
-const PHOTO_CUSTOMER_BUILD = '2026-10-13-photo-customer-owner-mirror-v5';
+const PHOTO_CUSTOMER_BUILD = '2026-10-13-photo-customer-owner-mirror-v6';
 const DEMO_FILE = 'GIXBEE-PHOTO-CUSTOMER-FINALFLOW.html';
 const STORAGE_KEY = 'GIXBEE_PHOTO_CUSTOMER_INTERESTS_V2';
 
@@ -643,8 +643,13 @@ function renderDetail() {
     }
     priceTag.innerHTML = ph;
   }
-  const tabIds = ['overview', 'inclusions', 'coverage', 'extras', 'policies', 'reviews'];
-  const tabLbl = ['Overview', 'Inclusions', 'Coverage', 'Extras', 'Policies', 'Reviews'];
+  if (!isWed && state.detailTab === 'inclusions') state.detailTab = 'overview';
+  const tabIds = isWed
+    ? ['overview', 'inclusions', 'coverage', 'extras', 'policies', 'reviews']
+    : ['overview', 'coverage', 'extras', 'policies', 'reviews'];
+  const tabLbl = isWed
+    ? ['Overview', 'Inclusions', 'Coverage', 'Extras', 'Policies', 'Reviews']
+    : ['Overview / Inclusions', 'Coverage', 'Extras', 'Policies', 'Reviews'];
   if (tabs) {
     tabs.innerHTML = tabIds
       .map(function (id, i) {
@@ -668,9 +673,9 @@ function renderDetail() {
   }
   if (!panel) return;
   if (state.detailTab === 'overview') {
-    panel.innerHTML = isWed ? custRenderPkgBasics(pkg) : '<p class="sub">' + esc(svc.blurb) + '</p>';
+    panel.innerHTML = isWed ? custRenderPkgBasics(pkg) : custRenderSvcOverviewInclusions(svc);
   } else if (state.detailTab === 'inclusions') {
-    panel.innerHTML = isWed ? custRenderPkgInclusions(pkg) : custRenderSvcInclusions(svc);
+    panel.innerHTML = custRenderPkgInclusions(pkg);
   } else if (state.detailTab === 'coverage') {
     panel.innerHTML = isWed ? custRenderPkgCoverage(pkg) : custRenderSvcCoverage(svc);
   } else if (state.detailTab === 'extras') {
