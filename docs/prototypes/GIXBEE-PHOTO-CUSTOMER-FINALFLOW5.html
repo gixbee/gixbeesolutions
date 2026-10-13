@@ -216,7 +216,8 @@ textarea.notes{width:100%;min-height:88px;border:1.5px solid #BFDBFE;border-radi
 </section>
 
 <section class="scr" id="sent">
-  <div class="sent-wrap">
+  <div class="top"><button type="button" class="back" data-back>←</button><h1>Interest sent</h1><span style="width:36px"></span></div>
+  <div class="sent-wrap" style="padding-top:12px">
     <div class="plane">✈</div>
     <h2>Your Interest has been Sent!</h2>
     <p style="font-size:13px;color:var(--mut);line-height:1.45;margin:0 0 20px">The photographer will review your request and contact you.</p>
@@ -365,7 +366,366 @@ function svgIcon(name, cls) {
   return icons[name] || '';
 }
 
-const PHOTO_CUSTOMER_BUILD = '2026-10-13-photo-customer-search-home-v2';
+/** Customer-facing catalog — mirrors owner package/service wizard fields (demo data). */
+const CUSTOMER_CATALOG = {
+  blue: {
+    id: 'blue',
+    name: 'Blue Lens Studio',
+    tagline: 'Sakthan Nagar, Thrissur',
+    rating: 4.8,
+    reviews: 56,
+    km: 5,
+    years: '5+',
+    events: '200+',
+    team: 'Professional Team',
+    about:
+      'Blue Lens Studio specialises in Christian and inter-faith weddings across Pathanamthitta and Kottayam. We deliver candid storytelling, traditional coverage, and cinematic films with clear deliverable timelines.',
+    areas: ['Pathanamthitta', 'Kottayam', 'Ranni', 'Thiruvalla'],
+    weddingFrom: 65000,
+    serviceFrom: 8000,
+    packages: [
+      {
+        id: 'basic',
+        name: 'Basic Wedding Package',
+        level: 'Basic',
+        ceremonies: ['Christian', 'Hindu'],
+        functions: ['Wedding & Reception'],
+        price: 65000,
+        listPrice: 65000,
+        discountPct: 0,
+        cardBullets: ['300 edited photos', '1 candid photographer', 'Online gallery', '8×8 album (20 pages)'],
+        inclusions: [
+          '300 edited high-resolution photos',
+          '1 candid photographer (8 hours)',
+          'Online gallery (password protected)',
+          '8×8 flush-mount album · 20 pages',
+          'Basic colour correction',
+          'Travel within 25 km of Thrissur',
+        ],
+        coverage: [
+          {
+            fn: 'Wedding & Reception',
+            side: 'Both',
+            hours: 8,
+            extraHour: 2000,
+            photoTeam: '1 Candid Photographer',
+            videoTeam: '—',
+          },
+        ],
+        delivery: [
+          { item: 'Online gallery', timeline: '7 days after event' },
+          { item: 'Edited photos (full set)', timeline: '21 days' },
+          { item: 'Album design proof', timeline: '30 days' },
+          { item: 'Printed album', timeline: '45 days' },
+        ],
+        extras: [
+          { id: 'drone', label: 'Drone photography', price: 10000 },
+          { id: 'cine', label: 'Cinematography (highlight film)', price: 15000 },
+          { id: 'live', label: 'Live streaming', price: 8000, cameras: 2 },
+          { id: 'album-extra', label: 'Extra parent album copy', price: 5000 },
+        ],
+        paymentStages: [
+          { label: 'Booking advance', pct: 30 },
+          { label: 'Before event', pct: 40 },
+          { label: 'On delivery of gallery', pct: 20 },
+          { label: 'Final (album)', pct: 10 },
+        ],
+        optionalFunctions: ['Engagement', 'Reception only', 'Wedding Eve'],
+      },
+      {
+        id: 'standard',
+        name: 'Standard Wedding Package',
+        level: 'Standard',
+        ceremonies: ['Christian'],
+        functions: ['Wedding & Reception', 'Reception'],
+        price: 90000,
+        listPrice: 100000,
+        discountPct: 10,
+        cardBullets: [
+          '500 edited photos',
+          '2 photographers',
+          '12×12 album (30 pages)',
+          'Pre-wedding shoot (4 hrs)',
+        ],
+        inclusions: [
+          '500 edited photos',
+          '2 candid photographers',
+          'Pre-wedding shoot · 4 hours · 80 edited photos',
+          '12×12 album · 30 pages',
+          'Wedding highlight film · 8–10 min',
+          'Online gallery + download',
+          'Photo selection app for album',
+        ],
+        coverage: [
+          {
+            fn: 'Wedding & Reception',
+            side: 'Both',
+            hours: 10,
+            extraHour: 2500,
+            photoTeam: 'Candid + Traditional Photographer',
+            videoTeam: '1 Cinematic Videographer',
+          },
+          {
+            fn: 'Reception',
+            side: 'Single',
+            hours: 5,
+            extraHour: 2000,
+            photoTeam: '2 Candid Photographers',
+            videoTeam: '—',
+          },
+        ],
+        delivery: [
+          { item: 'Pre-wedding gallery', timeline: '5 days after shoot' },
+          { item: 'Wedding online gallery', timeline: '10 days' },
+          { item: 'Highlight film', timeline: '21 days' },
+          { item: 'Album print', timeline: '50 days' },
+        ],
+        extras: [
+          { id: 'drone', label: 'Drone photography', price: 10000 },
+          { id: 'cine', label: 'Full ceremony film', price: 18000 },
+          { id: 'live', label: 'Live streaming (2 cameras)', price: 8000 },
+          { id: 'album-extra', label: 'Extra album copy', price: 5500 },
+        ],
+        paymentStages: [
+          { label: 'Booking advance', pct: 25 },
+          { label: 'Before wedding', pct: 45 },
+          { label: 'After gallery delivery', pct: 20 },
+          { label: 'Final payment', pct: 10 },
+        ],
+        optionalFunctions: ['Engagement', 'Reception', 'Wedding Eve'],
+      },
+      {
+        id: 'premium',
+        name: 'Premium Wedding Package',
+        level: 'Premium',
+        ceremonies: ['All'],
+        functions: ['Wedding & Reception', 'Engagement', 'Pre-Wedding Shoot'],
+        price: 145000,
+        listPrice: 145000,
+        discountPct: 0,
+        cardBullets: ['800+ photos', 'Photo + video team', 'Premium albums', 'Save-the-date reel'],
+        inclusions: [
+          '800+ edited photos',
+          'Candid + traditional photo team',
+          'Cinematic videography team',
+          'Premium album set (couple + parents)',
+          'Save-the-date reel',
+          'Dedicated album designer',
+        ],
+        coverage: [
+          {
+            fn: 'Wedding & Reception',
+            side: 'Both',
+            hours: 12,
+            extraHour: 3000,
+            photoTeam: 'Candid + Traditional Photographer',
+            videoTeam: 'Cinematic Videographer',
+          },
+        ],
+        delivery: [
+          { item: 'Teaser reel', timeline: '3 days' },
+          { item: 'Full gallery', timeline: '14 days' },
+          { item: 'Albums', timeline: '60 days' },
+        ],
+        extras: [
+          { id: 'drone', label: 'Drone package', price: 12000 },
+          { id: 'live', label: 'Live streaming (3 cameras)', price: 12000 },
+        ],
+        paymentStages: [
+          { label: 'Advance', pct: 30 },
+          { label: 'Mid', pct: 40 },
+          { label: 'Balance', pct: 30 },
+        ],
+        optionalFunctions: ['Engagement', 'Reception', 'Wedding Eve', 'Post-wedding shoot'],
+      },
+    ],
+    services: {
+      funeral: {
+        id: 'funeral-mem',
+        name: 'Funeral / Memorial Photography',
+        category: 'funeral',
+        price: 8000,
+        listPrice: 8000,
+        pricingType: 'fixed',
+        inclusions: [
+          'Event coverage (2–3 hours)',
+          'Professional photographer (1)',
+          '100+ edited photos',
+          'Online gallery',
+          'Basic enhancement',
+          'Travel within 20 km',
+        ],
+        coverage: [
+          { k: 'Duration', v: '2–3 hours (included)' },
+          { k: 'Stages covered', v: 'Family arrival · Prayer/rituals · Last respects · Procession · Cremation/Burial' },
+          { k: 'Team', v: '1 respectful candid photographer' },
+          { k: 'Delivery', v: '3–5 days · online gallery' },
+        ],
+        durationOptions: [
+          { id: 'inc', label: '2–3 hours (Included)', add: 0 },
+          { id: '3-5', label: '3–5 hours', add: 2000 },
+          { id: '5-7', label: '5–7 hours', add: 4000 },
+        ],
+        extras: [
+          { id: 'extra-photos', label: 'Extra edited photos pack', price: 1000 },
+          { id: 'extend', label: 'Extended coverage (+1 hr)', price: 2000 },
+          { id: 'stream', label: 'Live streaming for family abroad', price: 2000, cameras: 1 },
+          { id: 'album', label: 'Memorial printed album', price: 4000 },
+        ],
+        delivery: [{ item: 'Online gallery', timeline: '3–5 days' }],
+      },
+      baptism: {
+        id: 'baptism',
+        name: 'Baptism Photography',
+        category: 'event',
+        price: 12000,
+        inclusions: [
+          'Church / venue coverage (3 hours)',
+          '1 photographer',
+          '150 edited photos',
+          'Online gallery',
+          'Group & family portraits',
+        ],
+        coverage: [{ k: 'Duration', v: '3 hours' }, { k: 'Delivery', v: '7 days' }],
+        durationOptions: [{ id: 'inc', label: '3 hours (Included)', add: 0 }, { id: 'ext', label: '+1 hour', add: 1500 }],
+        extras: [{ id: 'album', label: 'Small album', price: 3500 }],
+        delivery: [{ item: 'Gallery', timeline: '7 days' }],
+      },
+      event: {
+        id: 'event-gtg',
+        name: 'Event / Get-togethers Photography',
+        category: 'event',
+        price: 18000,
+        inclusions: ['4 hours coverage', '2 photographers', '250 edited photos', 'Online gallery'],
+        coverage: [{ k: 'Duration', v: '4 hours' }, { k: 'Team', v: '2 candid photographers' }],
+        durationOptions: [{ id: 'inc', label: '4 hours', add: 0 }, { id: 'ext', label: '6 hours', add: 4000 }],
+        extras: [{ id: 'video', label: 'Event highlight video', price: 8000 }],
+        delivery: [{ item: 'Photos', timeline: '10 days' }],
+      },
+      portrait: {
+        id: 'portrait',
+        name: 'Portrait Photography',
+        category: 'portrait',
+        price: 5000,
+        inclusions: ['1 hour studio or outdoor', '30 edited photos', '2 outfit changes'],
+        coverage: [{ k: 'Duration', v: '1 hour' }],
+        durationOptions: [{ id: 'inc', label: '1 hour', add: 0 }],
+        extras: [{ id: 'makeup', label: 'Makeup artist coordination', price: 3000 }],
+        delivery: [{ item: 'Gallery', timeline: '5 days' }],
+      },
+      corporate: {
+        id: 'corporate',
+        name: 'Corporate Photography',
+        category: 'corporate',
+        price: 15000,
+        inclusions: ['Half-day coverage', '1 photographer', 'Event & headshots', '200 edited photos'],
+        coverage: [{ k: 'Duration', v: '4 hours' }],
+        durationOptions: [{ id: 'inc', label: '4 hours', add: 0 }],
+        extras: [{ id: 'video', label: 'Corporate reel', price: 12000 }],
+        delivery: [{ item: 'Photos', timeline: '7 business days' }],
+      },
+    },
+  },
+  archana: {
+    id: 'archana',
+    name: 'Archana Photography',
+    tagline: 'Peringara, Pathanamthitta',
+    rating: 4.9,
+    reviews: 128,
+    km: 8,
+    years: '8+',
+    events: '350+',
+    team: 'Professional Team',
+    about:
+      'Archana Photography is a full-service studio for Hindu and Christian weddings, with published work in Kerala wedding magazines. We operate with lead photographer Archana K. and trained associates.',
+    areas: ['Pathanamthitta', 'Kozhencherry', 'Ranni', 'Thiruvalla'],
+    weddingFrom: 72000,
+    serviceFrom: 7500,
+    packages: [
+      {
+        id: 'arch-standard',
+        name: 'Classic Wedding Package',
+        level: 'Standard',
+        ceremonies: ['Hindu', 'Christian'],
+        functions: ['Wedding & Reception'],
+        price: 95000,
+        listPrice: 105000,
+        discountPct: 10,
+        cardBullets: ['450 edited photos', '2 photographers', 'Traditional + candid', '10×10 album'],
+        inclusions: ['450 edited photos', '2 photographers', 'Online gallery', '10×10 album · 25 pages'],
+        coverage: [
+          {
+            fn: 'Wedding & Reception',
+            side: 'Both',
+            hours: 9,
+            extraHour: 2200,
+            photoTeam: 'Candid + Traditional Photographer',
+            videoTeam: 'Optional add-on',
+          },
+        ],
+        delivery: [{ item: 'Gallery', timeline: '14 days' }],
+        extras: [{ id: 'drone', label: 'Drone', price: 9000 }],
+        paymentStages: [{ label: 'Advance', pct: 30 }, { label: 'Balance', pct: 70 }],
+        optionalFunctions: ['Engagement', 'Reception'],
+      },
+    ],
+    services: {
+      funeral: {
+        id: 'arch-funeral',
+        name: 'Funeral / Memorial Photography',
+        category: 'funeral',
+        price: 7500,
+        inclusions: ['2–3 hours', '1 photographer', '80+ photos', 'Online gallery'],
+        coverage: [{ k: 'Duration', v: '2–3 hours' }],
+        durationOptions: [{ id: 'inc', label: '2–3 hours', add: 0 }],
+        extras: [{ id: 'stream', label: 'Live stream', price: 1800 }],
+        delivery: [{ item: 'Gallery', timeline: '4 days' }],
+      },
+    },
+  },
+};
+
+function catalogStudio(studioId) {
+  return CUSTOMER_CATALOG[studioId] || CUSTOMER_CATALOG.blue;
+}
+
+function studioList() {
+  return Object.keys(CUSTOMER_CATALOG).map(function (k) {
+    return CUSTOMER_CATALOG[k];
+  });
+}
+
+function packagesForStudio(studioId, filters) {
+  const st = catalogStudio(studioId);
+  let list = (st.packages || []).slice();
+  if (filters && filters.level && filters.level !== 'All') {
+    list = list.filter(function (p) {
+      return p.level === filters.level;
+    });
+  }
+  if (filters && filters.community && filters.community !== 'all') {
+    const map = { hindu: 'Hindu', muslim: 'Muslim', christian: 'Christian', other: 'Others' };
+    const want = map[filters.community] || '';
+    list = list.filter(function (p) {
+      return (p.ceremonies || []).indexOf('All') >= 0 || (p.ceremonies || []).indexOf(want) >= 0;
+    });
+  }
+  return list.length ? list : st.packages || [];
+}
+
+function serviceForStudio(studioId, serviceKey) {
+  const st = catalogStudio(studioId);
+  const svc = (st.services || {})[serviceKey];
+  if (svc) return svc;
+  return CUSTOMER_CATALOG.blue.services.funeral;
+}
+
+function defaultPackageId(studioId) {
+  const pkgs = packagesForStudio(studioId, {});
+  return pkgs[0] ? pkgs[0].id : 'standard';
+}
+
+const PHOTO_CUSTOMER_BUILD = '2026-10-13-photo-customer-real-data-v3';
 const DEMO_FILE = 'GIXBEE-PHOTO-CUSTOMER-FINALFLOW.html';
 const STORAGE_KEY = 'GIXBEE_PHOTO_CUSTOMER_INTERESTS_V1';
 
@@ -395,107 +755,6 @@ const PHOTO_NEEDS = [
   { id: 'corporate', label: 'Corporate', packagePath: false },
 ];
 
-const STUDIOS = [
-  {
-    id: 'blue',
-    name: 'Blue Lens Studio',
-    rating: 4.8,
-    reviews: 56,
-    km: 5,
-    years: '5+',
-    events: '200+',
-    team: 'Professional Team',
-    about:
-      'We capture weddings and life events with cinematic storytelling and respectful, unobtrusive coverage.',
-    areas: ['Pathanamthitta', 'Kottayam', 'Alappuzha', 'Idukki'],
-    weddingFrom: 45000,
-    serviceFrom: 8000,
-    tags: { christian: true, standard: true },
-  },
-  {
-    id: 'archana',
-    name: 'Archana Photography',
-    rating: 4.9,
-    reviews: 128,
-    km: 8,
-    years: '8+',
-    events: '350+',
-    team: 'Professional Team',
-    about: 'Award-winning wedding and event photography across central Kerala.',
-    areas: ['Pathanamthitta', 'Kozhencherry', 'Ranni'],
-    weddingFrom: 52000,
-    serviceFrom: 7500,
-    tags: { hindu: true, premium: true },
-  },
-];
-
-const WEDDING_PACKAGES = [
-  {
-    id: 'basic',
-    level: 'Basic',
-    name: 'Basic Wedding Package',
-    price: 65000,
-    bullets: ['300 edited photos', '1 candid photographer', 'Online gallery', '8×8 album (20 pages)'],
-    community: 'Christian',
-  },
-  {
-    id: 'standard',
-    level: 'Standard',
-    name: 'Standard Wedding Package',
-    price: 90000,
-    bullets: ['500 edited photos', '2 photographers', 'Online gallery', '12×12 album (30 pages)', 'Pre-wedding shoot (4 hrs)'],
-    community: 'Christian',
-  },
-  {
-    id: 'premium',
-    level: 'Premium',
-    name: 'Premium Wedding Package',
-    price: 145000,
-    bullets: ['800+ edited photos', 'Candid + traditional team', 'Cinematic highlights', 'Premium album set'],
-    community: 'All',
-  },
-];
-
-const FUNERAL_SERVICE = {
-  id: 'funeral-mem',
-  name: 'Funeral / Memorial Photography',
-  price: 8000,
-  inclusions: [
-    'Event coverage (2–3 hours)',
-    'Professional photographer (1)',
-    'Edited photos',
-    'Online gallery',
-    'Basic enhancement',
-    'Travel within 20 km',
-  ],
-  coverage: [
-    { k: 'Duration', v: '2–3 hours (Included)' },
-    { k: 'Event stages', v: 'Arrival of family · Prayer/rituals · Last respects · Procession · Cremation/Burial' },
-    { k: 'Edited photos', v: '100+ (High resolution)' },
-    { k: 'Delivery', v: '3–5 days (Online gallery)' },
-  ],
-  extras: [
-    { id: 'extra-photos', label: 'Extra edited photos', price: 1000 },
-    { id: 'extend', label: 'Extended coverage (+1 hr)', price: 2000 },
-    { id: 'extend2', label: 'Extended coverage (+2 hr)', price: 4000 },
-    { id: 'stream', label: 'Live streaming', price: 2000 },
-    { id: 'album', label: 'Printed album', price: 4000 },
-    { id: 'usb', label: 'USB delivery', price: 500 },
-  ],
-  durationOptions: [
-    { id: 'inc', label: '2–3 hours (Included)', add: 0 },
-    { id: '3-5', label: '3–5 hours', add: 2000 },
-    { id: '5-7', label: '5–7 hours', add: 4000 },
-  ],
-};
-
-const WED_EXTRAS = [
-  { id: 'cine', label: 'Cinematography', price: 15000 },
-  { id: 'drone', label: 'Drone Photography', price: 10000 },
-  { id: 'album-extra', label: 'Extra album copy', price: 5000 },
-  { id: 'live', label: 'Live streaming', price: 8000 },
-];
-
 const TIMELINE = [
   { key: 'sent', label: 'Interest Sent', sub: 'We notified the studio' },
   { key: 'review', label: 'Under Review', sub: 'Photographer will review' },
@@ -523,6 +782,8 @@ const state = {
   intTab: 'active',
   customize: { extras: {}, duration: 'inc', albumSize: '12×12', albumPages: '30', functions: {}, notes: '' },
   interests: [],
+  activeInterestId: null,
+  detailBack: 'catalog',
   backScreen: 'search',
 };
 
@@ -587,34 +848,79 @@ function toast(msg) {
 }
 
 function studio() {
-  return STUDIOS.find(function (s) {
-    return s.id === state.studioId;
-  }) || STUDIOS[0];
+  return catalogStudio(state.studioId);
 }
 
 function activePackage() {
-  return WEDDING_PACKAGES.find(function (p) {
+  const list = packagesForStudio(state.studioId, {
+    level: state.pkgLevel,
+    community: state.community,
+  });
+  const found = list.find(function (p) {
     return p.id === state.packageId;
-  }) || WEDDING_PACKAGES[1];
+  });
+  return found || list[0] || packagesForStudio(state.studioId, {})[0];
+}
+
+function activeService() {
+  const key = state.serviceId || state.photoNeed || 'funeral';
+  return serviceForStudio(state.studioId, key);
+}
+
+function packageExtras() {
+  const p = activePackage();
+  return p && p.extras ? p.extras : [];
+}
+
+function serviceExtras() {
+  const s = activeService();
+  return s && s.extras ? s.extras : [];
 }
 
 function offerTitle() {
   if (state.mode === 'wedding') return activePackage().name;
-  if (state.photoNeed === 'funeral') return FUNERAL_SERVICE.name;
-  return needLabel();
+  return activeService().name;
 }
 
 function offerPrice() {
-  if (state.mode === 'wedding') return activePackage().price;
-  let p = FUNERAL_SERVICE.price;
-  const dur = FUNERAL_SERVICE.durationOptions.find(function (d) {
-    return d.id === state.customize.duration;
+  if (state.mode === 'wedding') {
+    let p = activePackage().price;
+    packageExtras().forEach(function (ex) {
+      if (state.customize.extras[ex.id]) p += ex.price;
+    });
+    return p;
+  }
+  const svc = activeService();
+  let p = svc.price || 0;
+  (svc.durationOptions || []).forEach(function (d) {
+    if (d.id === state.customize.duration) p += d.add || 0;
   });
-  if (dur) p += dur.add;
-  FUNERAL_SERVICE.extras.forEach(function (ex) {
+  serviceExtras().forEach(function (ex) {
     if (state.customize.extras[ex.id]) p += ex.price;
   });
   return p;
+}
+
+function selectedRequirementsLines() {
+  const lines = [];
+  if (state.mode === 'wedding') {
+    packageExtras().forEach(function (ex) {
+      if (state.customize.extras[ex.id]) lines.push(ex.label + ' — ' + inr(ex.price));
+    });
+    Object.keys(state.customize.functions || {}).forEach(function (fn) {
+      if (state.customize.functions[fn]) lines.push('Also cover: ' + fn);
+    });
+    if (state.customize.albumSize) lines.push('Album ' + state.customize.albumSize + ' · ' + state.customize.albumPages + ' pages');
+  } else {
+    const svc = activeService();
+    (svc.durationOptions || []).forEach(function (d) {
+      if (d.id === state.customize.duration) lines.push('Duration: ' + d.label);
+    });
+    serviceExtras().forEach(function (ex) {
+      if (state.customize.extras[ex.id]) lines.push(ex.label + ' — ' + inr(ex.price));
+    });
+  }
+  return lines;
 }
 
 function show(id, backTo) {
@@ -624,7 +930,10 @@ function show(id, backTo) {
   });
   const nav = el('bottomNav');
   if (nav) {
-    nav.style.display = ['results', 'profile', 'detail', 'catalog', 'customize', 'review', 'interestDetail'].indexOf(id) >= 0 ? 'none' : '';
+    nav.style.display =
+      ['results', 'profile', 'detail', 'catalog', 'customize', 'review', 'interestDetail', 'sent'].indexOf(id) >= 0
+        ? 'none'
+        : '';
   }
   document.querySelectorAll('[data-nav]').forEach(function (b) {
     const n = b.getAttribute('data-nav');
@@ -637,7 +946,13 @@ function show(id, backTo) {
 }
 
 function goBack() {
-  show(state.backScreen || 'search');
+  let target = state.backScreen || 'search';
+  show(target);
+  if (target === 'catalog') state.backScreen = 'profile';
+  if (target === 'profile') state.backScreen = 'results';
+  if (target === 'results') state.backScreen = 'search';
+  if (target === 'customize') state.backScreen = 'detail';
+  if (target === 'review') state.backScreen = 'customize';
 }
 
 function loadInterests() {
@@ -647,6 +962,60 @@ function loadInterests() {
   } catch (e) {
     state.interests = [];
   }
+  ensureSeedInterests();
+}
+
+function ensureSeedInterests() {
+  if (state.interests.length) return;
+  state.interests = [
+    {
+      id: 'demo-seed-1',
+      mode: 'wedding',
+      studioId: 'archana',
+      studioName: 'Archana Photography',
+      offerName: 'Classic Wedding Package',
+      needLabel: 'Wedding / Marriage',
+      date: '2026-11-20',
+      location: 'Pathanamthitta, Kerala',
+      community: 'Hindu',
+      pkgLevel: 'Standard',
+      price: 95000,
+      statusLabel: 'Under Review',
+      status: 'active',
+      sentAt: '2026-10-01',
+      requirements: ['Drone — ₹ 9,000', 'Also cover: Engagement'],
+      notes: 'Church morning + hall evening on same day.',
+      paymentSummary: 'Advance 30% · Balance 70%',
+      coverageSummary: 'Wedding & Reception · 9 hrs · Both sides · Candid + Traditional',
+      deliverySummary: 'Gallery in 14 days',
+    },
+    {
+      id: 'demo-seed-past',
+      mode: 'service',
+      studioId: 'blue',
+      studioName: 'Blue Lens Studio',
+      offerName: 'Funeral / Memorial Photography',
+      needLabel: 'Funeral / Memorial',
+      date: '2026-09-08',
+      location: 'Kottayam, Kerala',
+      price: 10000,
+      statusLabel: 'Accepted',
+      status: 'past',
+      sentAt: '2026-09-01',
+      requirements: ['Duration: 3–5 hours', 'Live streaming for family abroad — ₹ 2,000'],
+      notes: '',
+      paymentSummary: 'Paid in full after gallery',
+      coverageSummary: '2–3 hours included · 1 photographer',
+      deliverySummary: 'Gallery in 3–5 days',
+    },
+  ];
+  saveInterests();
+}
+
+function interestById(id) {
+  return state.interests.find(function (x) {
+    return x.id === id;
+  });
 }
 
 function saveInterests() {
@@ -819,7 +1188,7 @@ function renderResults() {
     if (count) count.textContent = '8 photographers found';
   }
   if (!list) return;
-  list.innerHTML = STUDIOS.map(function (s) {
+  list.innerHTML = studioList().map(function (s) {
     const from = state.mode === 'wedding' ? s.weddingFrom : s.serviceFrom;
     const tag =
       state.mode === 'wedding'
@@ -847,6 +1216,8 @@ function renderResults() {
   list.querySelectorAll('[data-studio]').forEach(function (btn) {
     btn.onclick = function () {
       state.studioId = btn.getAttribute('data-studio');
+      state.packageId = defaultPackageId(state.studioId);
+      state.profTab = 'overview';
       renderProfile();
       show('profile', 'results');
     };
@@ -920,25 +1291,42 @@ function renderCatalog() {
   }
   const list = el('catList');
   if (!list) return;
-  list.innerHTML = WEDDING_PACKAGES.map(function (p) {
-    return (
-      '<button type="button" class="pkg-card" data-pkg="' +
-      p.id +
-      '"><div class="thumb"></div><div><b>' +
-      esc(p.name) +
-      '</b><div class="price">' +
-      inr(p.price) +
-      '</div><ul>' +
-      p.bullets.map(function (b) {
-        return '<li>' + esc(b) + '</li>';
-      }).join('') +
-      '</ul><span class="link">View Details ›</span></div></button>'
-    );
-  }).join('');
+  const pkgs = packagesForStudio(state.studioId, {
+    level: state.pkgLevel,
+    community: state.community,
+  });
+  list.innerHTML = pkgs
+    .map(function (p) {
+      const bullets = p.cardBullets || p.inclusions || [];
+      let priceHtml = inr(p.price);
+      if (p.listPrice > p.price) {
+        priceHtml +=
+          ' <span style="font-size:11px;color:var(--mut);text-decoration:line-through">' + inr(p.listPrice) + '</span>';
+      }
+      return (
+        '<button type="button" class="pkg-card" data-pkg="' +
+        p.id +
+        '"><div class="thumb"></div><div><b>' +
+        esc(p.name) +
+        '</b><div class="price">' +
+        priceHtml +
+        (p.discountPct ? ' <span style="font-size:10px;color:#BE185D">' + p.discountPct + '% OFF</span>' : '') +
+        '</div><ul>' +
+        bullets
+          .slice(0, 4)
+          .map(function (b) {
+            return '<li>' + esc(b) + '</li>';
+          })
+          .join('') +
+        '</ul><span class="link">View Details ›</span></div></button>'
+      );
+    })
+    .join('');
   list.querySelectorAll('[data-pkg]').forEach(function (btn) {
     btn.onclick = function () {
       state.packageId = btn.getAttribute('data-pkg');
       state.detailTab = 'inclusions';
+      state.detailBack = 'catalog';
       renderDetail();
       show('detail', 'catalog');
     };
@@ -952,9 +1340,27 @@ function renderDetail() {
   const panel = el('detailPanel');
   const isWed = state.mode === 'wedding';
   const title = offerTitle();
-  const price = isWed ? activePackage().price : FUNERAL_SERVICE.price;
+  const pkg = activePackage();
+  const svc = activeService();
+  const price = isWed ? pkg.price : svc.price;
   if (name) name.textContent = title;
-  if (priceTag) priceTag.innerHTML = '<b>' + inr(price) + '</b><span>' + (isWed ? 'Package price' : 'Base price') + '</span>';
+  if (priceTag) {
+    let ph =
+      '<b>' +
+      inr(price) +
+      '</b><span>' +
+      (isWed ? 'Package price' : 'Base price') +
+      '</span>';
+    if (isWed && pkg.listPrice > pkg.price) {
+      ph +=
+        '<span style="display:block;font-size:12px;text-decoration:line-through;opacity:.85">' +
+        inr(pkg.listPrice) +
+        ' · ' +
+        pkg.discountPct +
+        '% OFF</span>';
+    }
+    priceTag.innerHTML = ph;
+  }
   const tabIds = ['inclusions', 'coverage', 'extras', 'reviews'];
   const tabLbl = ['Inclusions', 'Coverage', 'Extras', 'Reviews'];
   if (tabs) {
@@ -978,23 +1384,65 @@ function renderDetail() {
   }
   if (!panel) return;
   if (state.detailTab === 'inclusions') {
-    const items = isWed
-      ? activePackage().bullets.concat(['Online gallery access', 'Basic color correction'])
-      : FUNERAL_SERVICE.inclusions;
-    panel.innerHTML = '<h3 style="margin:0 0 8px;font-size:15px">What\'s Included</h3><ul class="chk-list">' + items.map(function (t) {
-      return '<li>' + esc(t) + '</li>';
-    }).join('') + '</ul>';
+    const items = isWed ? pkg.inclusions || [] : svc.inclusions || [];
+    panel.innerHTML =
+      '<h3 style="margin:0 0 8px;font-size:15px">What\'s Included</h3><ul class="chk-list">' +
+      items.map(function (t) {
+        return '<li>' + esc(t) + '</li>';
+      }).join('') +
+      '</ul>' +
+      (isWed && pkg.delivery
+        ? '<h3 style="margin:16px 0 8px;font-size:14px">Delivery timeline</h3>' +
+          pkg.delivery
+            .map(function (d) {
+              return '<div class="kv-row"><span>' + esc(d.item) + '</span><b>' + esc(d.timeline) + '</b></div>';
+            })
+            .join('')
+        : svc.delivery
+          ? '<h3 style="margin:16px 0 8px;font-size:14px">Delivery</h3>' +
+            svc.delivery
+              .map(function (d) {
+                return '<div class="kv-row"><span>' + esc(d.item) + '</span><b>' + esc(d.timeline) + '</b></div>';
+              })
+              .join('')
+          : '');
   } else if (state.detailTab === 'coverage') {
     if (isWed) {
       panel.innerHTML =
-        '<ul class="chk-list"><li>Wedding ceremony & reception coverage</li><li>8 hours on event day</li><li>2 candid photographers</li><li>Travel within 30 km included</li></ul>';
+        '<h3 style="margin:0 0 10px;font-size:14px">Coverage by function</h3>' +
+        (pkg.coverage || [])
+          .map(function (c) {
+            return (
+              '<div style="margin-bottom:12px;padding:12px;border:1px solid #E2E8F0;border-radius:12px">' +
+              '<b style="display:block;color:var(--navy);margin-bottom:6px">' +
+              esc(c.fn) +
+              '</b>' +
+              '<div class="kv-row"><span>Side</span><b>' +
+              esc(c.side) +
+              '</b></div>' +
+              '<div class="kv-row"><span>Duration</span><b>' +
+              c.hours +
+              ' hrs · extra hr ' +
+              inr(c.extraHour) +
+              '</b></div>' +
+              '<div class="kv-row"><span>Photo team</span><b>' +
+              esc(c.photoTeam) +
+              '</b></div>' +
+              '<div class="kv-row"><span>Video</span><b>' +
+              esc(c.videoTeam) +
+              '</b></div></div>'
+            );
+          })
+          .join('');
     } else {
-      panel.innerHTML = FUNERAL_SERVICE.coverage.map(function (row) {
-        return '<div class="kv-row"><span>' + esc(row.k) + '</span><b>' + esc(row.v) + '</b></div>';
-      }).join('');
+      panel.innerHTML = (svc.coverage || [])
+        .map(function (row) {
+          return '<div class="kv-row"><span>' + esc(row.k) + '</span><b>' + esc(row.v) + '</b></div>';
+        })
+        .join('');
     }
   } else if (state.detailTab === 'extras') {
-    const extras = isWed ? WED_EXTRAS : FUNERAL_SERVICE.extras;
+    const extras = isWed ? packageExtras() : serviceExtras();
     panel.innerHTML =
       '<p style="font-size:12px;font-weight:800;color:var(--mut);margin:0 0 8px">Additional Services (Optional)</p>' +
       extras.map(function (ex) {
@@ -1015,7 +1463,7 @@ function renderCustomize() {
   const sum = el('custSummary');
   const body = el('custBody');
   const title = offerTitle();
-  const price = state.mode === 'wedding' ? activePackage().price : FUNERAL_SERVICE.price;
+  const price = state.mode === 'wedding' ? activePackage().price : activeService().price;
   if (sum) {
     sum.innerHTML =
       '<div class="review-summary"><div class="thumb"></div><div><b style="font-size:14px;color:var(--navy)">' +
@@ -1026,9 +1474,11 @@ function renderCustomize() {
   }
   if (!body) return;
   if (state.mode === 'wedding') {
+    const pkg = activePackage();
+    const optFns = pkg.optionalFunctions || ['Engagement', 'Reception', 'Wedding Eve'];
     body.innerHTML =
       '<div class="cust-hd">Additional Services (Optional)</div>' +
-      WED_EXTRAS.map(function (ex) {
+      packageExtras().map(function (ex) {
         return (
           '<label class="extra-line"><span><input type="checkbox" data-wex="' +
           ex.id +
@@ -1042,18 +1492,30 @@ function renderCustomize() {
         );
       }).join('') +
       '<div class="cust-hd">Album Preferences</div>' +
-      '<div class="budget-row"><div class="fld"><label>Album Size</label><div class="sel-box"><select id="albSize"><option>12×12</option><option>10×10</option></select></div></div>' +
-      '<div class="fld"><label>Album Pages</label><div class="sel-box"><select id="albPages"><option>30</option><option>40</option></select></div></div></div>' +
+      '<div class="budget-row"><div class="fld"><label>Album Size</label><div class="sel-box"><select id="albSize"><option' +
+      (state.customize.albumSize === '12×12' ? ' selected' : '') +
+      '>12×12</option><option' +
+      (state.customize.albumSize === '10×10' ? ' selected' : '') +
+      '>10×10</option></select></div></div>' +
+      '<div class="fld"><label>Album Pages</label><div class="sel-box"><select id="albPages"><option' +
+      (state.customize.albumPages === '30' ? ' selected' : '') +
+      '>30</option><option' +
+      (state.customize.albumPages === '40' ? ' selected' : '') +
+      '>40</option></select></div></div></div>' +
       '<div class="cust-hd">Other Functions to Cover</div>' +
-      ['Engagement', 'Reception', 'Wedding Eve'].map(function (fn) {
-        return (
-          '<label class="extra-line"><span><input type="checkbox" data-fn="' +
-          fn +
-          '"> ' +
-          fn +
-          '</span></label>'
-        );
-      }).join('') +
+      optFns
+        .map(function (fn) {
+          return (
+            '<label class="extra-line"><span><input type="checkbox" data-fn="' +
+            esc(fn) +
+            '"' +
+            (state.customize.functions[fn] ? ' checked' : '') +
+            '> ' +
+            esc(fn) +
+            '</span></label>'
+          );
+        })
+        .join('') +
       '<div class="cust-hd">Additional Notes</div><textarea class="notes" id="custNotes" maxlength="500" placeholder="Any special requests…">' +
       esc(state.customize.notes) +
       '</textarea><div class="notes-count"><span id="noteCt">0</span>/500</div>';
@@ -1062,7 +1524,7 @@ function renderCustomize() {
   } else {
     body.innerHTML =
       '<div class="cust-hd">Coverage Duration</div>' +
-      FUNERAL_SERVICE.durationOptions.map(function (d) {
+      (activeService().durationOptions || []).map(function (d) {
         return (
           '<label class="radio-card' +
           (state.customize.duration === d.id ? ' on' : '') +
@@ -1077,7 +1539,7 @@ function renderCustomize() {
         );
       }).join('') +
       '<div class="cust-hd">Additional Services</div>' +
-      FUNERAL_SERVICE.extras.map(function (ex) {
+      serviceExtras().map(function (ex) {
         return (
           '<label class="extra-line"><span><input type="checkbox" data-sex="' +
           ex.id +
@@ -1116,6 +1578,19 @@ function bindCustomize() {
       renderCustomize();
     };
   });
+  document.querySelectorAll('[data-fn]').forEach(function (inp) {
+    inp.onchange = function () {
+      state.customize.functions[inp.getAttribute('data-fn')] = inp.checked;
+    };
+  });
+  const albSize = el('albSize');
+  const albPages = el('albPages');
+  if (albSize) albSize.onchange = function () {
+    state.customize.albumSize = albSize.value;
+  };
+  if (albPages) albPages.onchange = function () {
+    state.customize.albumPages = albPages.value;
+  };
   const notes = el('custNotes');
   const ct = el('noteCt');
   if (notes) {
@@ -1148,8 +1623,22 @@ function renderReview() {
     '<div class="kv-row"><span>Location</span><b>' +
     esc(state.location) +
     '</b></div>' +
+    '<div class="kv-row"><span>Photography for</span><b>' +
+    esc(needLabel()) +
+    '</b></div>' +
+    (state.mode === 'wedding' && state.community !== 'all'
+      ? '<div class="kv-row"><span>Community</span><b>' +
+        esc(
+          (COMMUNITIES.find(function (c) {
+            return c.id === state.community;
+          }) || {}).label || state.community
+        ) +
+        '</b></div>'
+      : '') +
     (state.mode === 'wedding'
-      ? '<div class="kv-row"><span>Guests (est.)</span><b>300</b></div><div class="kv-row"><span>Budget</span><b>' +
+      ? '<div class="kv-row"><span>Package level</span><b>' +
+        esc(state.pkgLevel) +
+        '</b></div><div class="kv-row"><span>Budget (search)</span><b>' +
         inr(state.budgetMin) +
         ' – ' +
         inr(state.budgetMax) +
@@ -1157,6 +1646,14 @@ function renderReview() {
       : '') +
     '<div class="cust-hd">Selected Requirements</div>' +
     '<div id="revReqs"></div>' +
+    (state.mode === 'wedding' && activePackage().paymentStages
+      ? '<div class="cust-hd">Payment stages (studio)</div>' +
+        activePackage()
+          .paymentStages.map(function (ps) {
+            return '<div class="kv-row"><span>' + esc(ps.label) + '</span><b>' + ps.pct + '%</b></div>';
+          })
+          .join('')
+      : '') +
     (state.customize.notes
       ? '<div class="cust-hd">Additional Notes</div><p style="font-size:13px;font-weight:600;color:var(--mut)">' +
         esc(state.customize.notes) +
@@ -1164,20 +1661,7 @@ function renderReview() {
       : '');
   const reqs = el('revReqs');
   if (reqs) {
-    const lines = [];
-    if (state.mode === 'service') {
-      const dur = FUNERAL_SERVICE.durationOptions.find(function (d) {
-        return d.id === state.customize.duration;
-      });
-      if (dur) lines.push(dur.label);
-      FUNERAL_SERVICE.extras.forEach(function (ex) {
-        if (state.customize.extras[ex.id]) lines.push(ex.label);
-      });
-    } else {
-      WED_EXTRAS.forEach(function (ex) {
-        if (state.customize.extras[ex.id]) lines.push(ex.label + ' — ' + inr(ex.price));
-      });
-    }
+    const lines = selectedRequirementsLines();
     reqs.innerHTML = lines.length
       ? lines.map(function (l) {
           return '<div class="kv-row"><span>•</span><b style="text-align:left">' + esc(l) + '</b></div>';
@@ -1218,10 +1702,10 @@ function renderInterests() {
       '<p style="text-align:center;padding:32px 16px;color:var(--mut);font-weight:600">No interests yet. Send one from a package or service.</p>';
     return;
   }
-  list.innerHTML = items.map(function (it, idx) {
+  list.innerHTML = items.map(function (it) {
     return (
-      '<button type="button" class="int-card" data-int="' +
-      idx +
+      '<button type="button" class="int-card" data-int-id="' +
+      esc(it.id) +
       '"><b>' +
       esc(it.studioName) +
       '</b><div style="font-size:12px;color:var(--mut);font-weight:700;margin-top:4px">' +
@@ -1235,9 +1719,9 @@ function renderInterests() {
       '</span><div style="font-size:12px;font-weight:800;color:var(--blue2);margin-top:8px">View Details ›</div></button>'
     );
   }).join('');
-  list.querySelectorAll('[data-int]').forEach(function (btn) {
+  list.querySelectorAll('[data-int-id]').forEach(function (btn) {
     btn.onclick = function () {
-      state.activeInterest = +btn.getAttribute('data-int');
+      state.activeInterestId = btn.getAttribute('data-int-id');
       renderInterestDetail();
       show('interestDetail', 'interests');
     };
@@ -1245,7 +1729,7 @@ function renderInterests() {
 }
 
 function renderInterestDetail() {
-  const it = state.interests[state.activeInterest];
+  const it = interestById(state.activeInterestId);
   if (!it) return;
   el('intDetailHead').innerHTML =
     '<div class="review-summary"><div class="thumb"></div><div><b>' +
@@ -1263,9 +1747,31 @@ function renderInterestDetail() {
     '<div class="kv-row"><span>Location</span><b>' +
     esc(it.location) +
     '</b></div>' +
+    '<div class="kv-row"><span>Photography for</span><b>' +
+    esc(it.needLabel || '—') +
+    '</b></div>' +
     '<div class="kv-row"><span>Price (est.)</span><b>' +
     inr(it.price) +
     '</b></div>' +
+    (it.coverageSummary
+      ? '<div class="cust-hd">Coverage</div><p style="font-size:13px;font-weight:600;color:var(--mut);margin:0 0 12px">' +
+        esc(it.coverageSummary) +
+        '</p>'
+      : '') +
+    (it.requirements && it.requirements.length
+      ? '<div class="cust-hd">Requested requirements</div>' +
+        it.requirements
+          .map(function (r) {
+            return '<div class="kv-row"><span>•</span><b style="text-align:left">' + esc(r) + '</b></div>';
+          })
+          .join('')
+      : '') +
+    (it.notes
+      ? '<div class="cust-hd">Notes</div><p style="font-size:13px;font-weight:600;color:var(--mut)">' + esc(it.notes) + '</p>'
+      : '') +
+    (it.paymentSummary
+      ? '<div class="kv-row"><span>Payment</span><b>' + esc(it.paymentSummary) + '</b></div>'
+      : '') +
     '<div class="cust-hd">Status Timeline</div>' +
     '<div class="timeline">' +
     TIMELINE.map(function (step, i) {
@@ -1286,14 +1792,39 @@ function renderInterestDetail() {
 }
 
 function submitInterest() {
+  const pkg = state.mode === 'wedding' ? activePackage() : null;
+  const cov =
+    pkg && pkg.coverage && pkg.coverage[0]
+      ? pkg.coverage[0].fn + ' · ' + pkg.coverage[0].hours + ' hrs · ' + pkg.coverage[0].side
+      : state.mode === 'service'
+        ? (activeService().coverage || []).map(function (c) {
+            return c.k + ': ' + c.v;
+          }).join(' · ')
+        : '';
+  const pay =
+    pkg && pkg.paymentStages
+      ? pkg.paymentStages.map(function (p) {
+          return p.label + ' ' + p.pct + '%';
+        }).join(' · ')
+      : '';
   const rec = {
     id: 'int_' + Date.now(),
     mode: state.mode,
+    studioId: state.studioId,
     studioName: studio().name,
     offerName: offerTitle(),
+    needLabel: needLabel(),
     date: state.date,
     location: state.location,
+    community: state.community,
+    pkgLevel: state.pkgLevel,
     price: offerPrice(),
+    requirements: selectedRequirementsLines(),
+    notes: state.customize.notes || '',
+    paymentSummary: pay,
+    coverageSummary: cov,
+    deliverySummary:
+      pkg && pkg.delivery && pkg.delivery[0] ? pkg.delivery[0].item + ' · ' + pkg.delivery[0].timeline : '',
     statusLabel: 'Under Review',
     status: 'active',
     sentAt: new Date().toISOString().slice(0, 10),
@@ -1335,7 +1866,10 @@ function bindEvents() {
         show('customize', 'detail');
       } else if (id === 'interests') {
         renderInterests();
-        show('interests', 'pick');
+        show('interests', 'search');
+      } else if (id === 'review') {
+        renderReview();
+        show('review', 'customize');
       } else show(id);
       return;
     }
@@ -1346,6 +1880,7 @@ function bindEvents() {
       show('catalog', 'profile');
     } else {
       state.detailTab = 'inclusions';
+      state.detailBack = 'profile';
       renderDetail();
       show('detail', 'profile');
     }

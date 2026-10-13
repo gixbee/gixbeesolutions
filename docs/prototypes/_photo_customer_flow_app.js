@@ -1,6 +1,6 @@
-const PHOTO_CUSTOMER_BUILD = '2026-10-13-photo-customer-search-home-v2';
+const PHOTO_CUSTOMER_BUILD = '2026-10-13-photo-customer-real-data-v3';
 const DEMO_FILE = 'GIXBEE-PHOTO-CUSTOMER-FINALFLOW.html';
-const STORAGE_KEY = 'GIXBEE_PHOTO_CUSTOMER_INTERESTS_V1';
+const STORAGE_KEY = 'GIXBEE_PHOTO_CUSTOMER_INTERESTS_V2';
 
 const LOCATIONS = ['Pathanamthitta, Kerala', 'Kottayam, Kerala', 'Kochi, Kerala'];
 const COMMUNITIES = [
@@ -26,107 +26,6 @@ const PHOTO_NEEDS = [
   { id: 'event', label: 'Event Photography', packagePath: false },
   { id: 'portrait', label: 'Portrait', packagePath: false },
   { id: 'corporate', label: 'Corporate', packagePath: false },
-];
-
-const STUDIOS = [
-  {
-    id: 'blue',
-    name: 'Blue Lens Studio',
-    rating: 4.8,
-    reviews: 56,
-    km: 5,
-    years: '5+',
-    events: '200+',
-    team: 'Professional Team',
-    about:
-      'We capture weddings and life events with cinematic storytelling and respectful, unobtrusive coverage.',
-    areas: ['Pathanamthitta', 'Kottayam', 'Alappuzha', 'Idukki'],
-    weddingFrom: 45000,
-    serviceFrom: 8000,
-    tags: { christian: true, standard: true },
-  },
-  {
-    id: 'archana',
-    name: 'Archana Photography',
-    rating: 4.9,
-    reviews: 128,
-    km: 8,
-    years: '8+',
-    events: '350+',
-    team: 'Professional Team',
-    about: 'Award-winning wedding and event photography across central Kerala.',
-    areas: ['Pathanamthitta', 'Kozhencherry', 'Ranni'],
-    weddingFrom: 52000,
-    serviceFrom: 7500,
-    tags: { hindu: true, premium: true },
-  },
-];
-
-const WEDDING_PACKAGES = [
-  {
-    id: 'basic',
-    level: 'Basic',
-    name: 'Basic Wedding Package',
-    price: 65000,
-    bullets: ['300 edited photos', '1 candid photographer', 'Online gallery', '8×8 album (20 pages)'],
-    community: 'Christian',
-  },
-  {
-    id: 'standard',
-    level: 'Standard',
-    name: 'Standard Wedding Package',
-    price: 90000,
-    bullets: ['500 edited photos', '2 photographers', 'Online gallery', '12×12 album (30 pages)', 'Pre-wedding shoot (4 hrs)'],
-    community: 'Christian',
-  },
-  {
-    id: 'premium',
-    level: 'Premium',
-    name: 'Premium Wedding Package',
-    price: 145000,
-    bullets: ['800+ edited photos', 'Candid + traditional team', 'Cinematic highlights', 'Premium album set'],
-    community: 'All',
-  },
-];
-
-const FUNERAL_SERVICE = {
-  id: 'funeral-mem',
-  name: 'Funeral / Memorial Photography',
-  price: 8000,
-  inclusions: [
-    'Event coverage (2–3 hours)',
-    'Professional photographer (1)',
-    'Edited photos',
-    'Online gallery',
-    'Basic enhancement',
-    'Travel within 20 km',
-  ],
-  coverage: [
-    { k: 'Duration', v: '2–3 hours (Included)' },
-    { k: 'Event stages', v: 'Arrival of family · Prayer/rituals · Last respects · Procession · Cremation/Burial' },
-    { k: 'Edited photos', v: '100+ (High resolution)' },
-    { k: 'Delivery', v: '3–5 days (Online gallery)' },
-  ],
-  extras: [
-    { id: 'extra-photos', label: 'Extra edited photos', price: 1000 },
-    { id: 'extend', label: 'Extended coverage (+1 hr)', price: 2000 },
-    { id: 'extend2', label: 'Extended coverage (+2 hr)', price: 4000 },
-    { id: 'stream', label: 'Live streaming', price: 2000 },
-    { id: 'album', label: 'Printed album', price: 4000 },
-    { id: 'usb', label: 'USB delivery', price: 500 },
-  ],
-  durationOptions: [
-    { id: 'inc', label: '2–3 hours (Included)', add: 0 },
-    { id: '3-5', label: '3–5 hours', add: 2000 },
-    { id: '5-7', label: '5–7 hours', add: 4000 },
-  ],
-};
-
-const WED_EXTRAS = [
-  { id: 'cine', label: 'Cinematography', price: 15000 },
-  { id: 'drone', label: 'Drone Photography', price: 10000 },
-  { id: 'album-extra', label: 'Extra album copy', price: 5000 },
-  { id: 'live', label: 'Live streaming', price: 8000 },
 ];
 
 const TIMELINE = [
@@ -156,6 +55,8 @@ const state = {
   intTab: 'active',
   customize: { extras: {}, duration: 'inc', albumSize: '12×12', albumPages: '30', functions: {}, notes: '' },
   interests: [],
+  activeInterestId: null,
+  detailBack: 'catalog',
   backScreen: 'search',
 };
 
@@ -220,34 +121,79 @@ function toast(msg) {
 }
 
 function studio() {
-  return STUDIOS.find(function (s) {
-    return s.id === state.studioId;
-  }) || STUDIOS[0];
+  return catalogStudio(state.studioId);
 }
 
 function activePackage() {
-  return WEDDING_PACKAGES.find(function (p) {
+  const list = packagesForStudio(state.studioId, {
+    level: state.pkgLevel,
+    community: state.community,
+  });
+  const found = list.find(function (p) {
     return p.id === state.packageId;
-  }) || WEDDING_PACKAGES[1];
+  });
+  return found || list[0] || packagesForStudio(state.studioId, {})[0];
+}
+
+function activeService() {
+  const key = state.serviceId || state.photoNeed || 'funeral';
+  return serviceForStudio(state.studioId, key);
+}
+
+function packageExtras() {
+  const p = activePackage();
+  return p && p.extras ? p.extras : [];
+}
+
+function serviceExtras() {
+  const s = activeService();
+  return s && s.extras ? s.extras : [];
 }
 
 function offerTitle() {
   if (state.mode === 'wedding') return activePackage().name;
-  if (state.photoNeed === 'funeral') return FUNERAL_SERVICE.name;
-  return needLabel();
+  return activeService().name;
 }
 
 function offerPrice() {
-  if (state.mode === 'wedding') return activePackage().price;
-  let p = FUNERAL_SERVICE.price;
-  const dur = FUNERAL_SERVICE.durationOptions.find(function (d) {
-    return d.id === state.customize.duration;
+  if (state.mode === 'wedding') {
+    let p = activePackage().price;
+    packageExtras().forEach(function (ex) {
+      if (state.customize.extras[ex.id]) p += ex.price;
+    });
+    return p;
+  }
+  const svc = activeService();
+  let p = svc.price || 0;
+  (svc.durationOptions || []).forEach(function (d) {
+    if (d.id === state.customize.duration) p += d.add || 0;
   });
-  if (dur) p += dur.add;
-  FUNERAL_SERVICE.extras.forEach(function (ex) {
+  serviceExtras().forEach(function (ex) {
     if (state.customize.extras[ex.id]) p += ex.price;
   });
   return p;
+}
+
+function selectedRequirementsLines() {
+  const lines = [];
+  if (state.mode === 'wedding') {
+    packageExtras().forEach(function (ex) {
+      if (state.customize.extras[ex.id]) lines.push(ex.label + ' — ' + inr(ex.price));
+    });
+    Object.keys(state.customize.functions || {}).forEach(function (fn) {
+      if (state.customize.functions[fn]) lines.push('Also cover: ' + fn);
+    });
+    if (state.customize.albumSize) lines.push('Album ' + state.customize.albumSize + ' · ' + state.customize.albumPages + ' pages');
+  } else {
+    const svc = activeService();
+    (svc.durationOptions || []).forEach(function (d) {
+      if (d.id === state.customize.duration) lines.push('Duration: ' + d.label);
+    });
+    serviceExtras().forEach(function (ex) {
+      if (state.customize.extras[ex.id]) lines.push(ex.label + ' — ' + inr(ex.price));
+    });
+  }
+  return lines;
 }
 
 function show(id, backTo) {
@@ -257,7 +203,10 @@ function show(id, backTo) {
   });
   const nav = el('bottomNav');
   if (nav) {
-    nav.style.display = ['results', 'profile', 'detail', 'catalog', 'customize', 'review', 'interestDetail'].indexOf(id) >= 0 ? 'none' : '';
+    nav.style.display =
+      ['results', 'profile', 'detail', 'catalog', 'customize', 'review', 'interestDetail', 'sent'].indexOf(id) >= 0
+        ? 'none'
+        : '';
   }
   document.querySelectorAll('[data-nav]').forEach(function (b) {
     const n = b.getAttribute('data-nav');
@@ -270,7 +219,13 @@ function show(id, backTo) {
 }
 
 function goBack() {
-  show(state.backScreen || 'search');
+  let target = state.backScreen || 'search';
+  show(target);
+  if (target === 'catalog') state.backScreen = 'profile';
+  if (target === 'profile') state.backScreen = 'results';
+  if (target === 'results') state.backScreen = 'search';
+  if (target === 'customize') state.backScreen = 'detail';
+  if (target === 'review') state.backScreen = 'customize';
 }
 
 function loadInterests() {
@@ -280,6 +235,60 @@ function loadInterests() {
   } catch (e) {
     state.interests = [];
   }
+  ensureSeedInterests();
+}
+
+function ensureSeedInterests() {
+  if (state.interests.length) return;
+  state.interests = [
+    {
+      id: 'demo-seed-1',
+      mode: 'wedding',
+      studioId: 'archana',
+      studioName: 'Archana Photography',
+      offerName: 'Classic Wedding Package',
+      needLabel: 'Wedding / Marriage',
+      date: '2026-11-20',
+      location: 'Pathanamthitta, Kerala',
+      community: 'Hindu',
+      pkgLevel: 'Standard',
+      price: 95000,
+      statusLabel: 'Under Review',
+      status: 'active',
+      sentAt: '2026-10-01',
+      requirements: ['Drone — ₹ 9,000', 'Also cover: Engagement'],
+      notes: 'Church morning + hall evening on same day.',
+      paymentSummary: 'Advance 30% · Balance 70%',
+      coverageSummary: 'Wedding & Reception · 9 hrs · Both sides · Candid + Traditional',
+      deliverySummary: 'Gallery in 14 days',
+    },
+    {
+      id: 'demo-seed-past',
+      mode: 'service',
+      studioId: 'blue',
+      studioName: 'Blue Lens Studio',
+      offerName: 'Funeral / Memorial Photography',
+      needLabel: 'Funeral / Memorial',
+      date: '2026-09-08',
+      location: 'Kottayam, Kerala',
+      price: 10000,
+      statusLabel: 'Accepted',
+      status: 'past',
+      sentAt: '2026-09-01',
+      requirements: ['Duration: 3–5 hours', 'Live streaming for family abroad — ₹ 2,000'],
+      notes: '',
+      paymentSummary: 'Paid in full after gallery',
+      coverageSummary: '2–3 hours included · 1 photographer',
+      deliverySummary: 'Gallery in 3–5 days',
+    },
+  ];
+  saveInterests();
+}
+
+function interestById(id) {
+  return state.interests.find(function (x) {
+    return x.id === id;
+  });
 }
 
 function saveInterests() {
@@ -452,7 +461,7 @@ function renderResults() {
     if (count) count.textContent = '8 photographers found';
   }
   if (!list) return;
-  list.innerHTML = STUDIOS.map(function (s) {
+  list.innerHTML = studioList().map(function (s) {
     const from = state.mode === 'wedding' ? s.weddingFrom : s.serviceFrom;
     const tag =
       state.mode === 'wedding'
@@ -480,6 +489,8 @@ function renderResults() {
   list.querySelectorAll('[data-studio]').forEach(function (btn) {
     btn.onclick = function () {
       state.studioId = btn.getAttribute('data-studio');
+      state.packageId = defaultPackageId(state.studioId);
+      state.profTab = 'overview';
       renderProfile();
       show('profile', 'results');
     };
@@ -553,25 +564,42 @@ function renderCatalog() {
   }
   const list = el('catList');
   if (!list) return;
-  list.innerHTML = WEDDING_PACKAGES.map(function (p) {
-    return (
-      '<button type="button" class="pkg-card" data-pkg="' +
-      p.id +
-      '"><div class="thumb"></div><div><b>' +
-      esc(p.name) +
-      '</b><div class="price">' +
-      inr(p.price) +
-      '</div><ul>' +
-      p.bullets.map(function (b) {
-        return '<li>' + esc(b) + '</li>';
-      }).join('') +
-      '</ul><span class="link">View Details ›</span></div></button>'
-    );
-  }).join('');
+  const pkgs = packagesForStudio(state.studioId, {
+    level: state.pkgLevel,
+    community: state.community,
+  });
+  list.innerHTML = pkgs
+    .map(function (p) {
+      const bullets = p.cardBullets || p.inclusions || [];
+      let priceHtml = inr(p.price);
+      if (p.listPrice > p.price) {
+        priceHtml +=
+          ' <span style="font-size:11px;color:var(--mut);text-decoration:line-through">' + inr(p.listPrice) + '</span>';
+      }
+      return (
+        '<button type="button" class="pkg-card" data-pkg="' +
+        p.id +
+        '"><div class="thumb"></div><div><b>' +
+        esc(p.name) +
+        '</b><div class="price">' +
+        priceHtml +
+        (p.discountPct ? ' <span style="font-size:10px;color:#BE185D">' + p.discountPct + '% OFF</span>' : '') +
+        '</div><ul>' +
+        bullets
+          .slice(0, 4)
+          .map(function (b) {
+            return '<li>' + esc(b) + '</li>';
+          })
+          .join('') +
+        '</ul><span class="link">View Details ›</span></div></button>'
+      );
+    })
+    .join('');
   list.querySelectorAll('[data-pkg]').forEach(function (btn) {
     btn.onclick = function () {
       state.packageId = btn.getAttribute('data-pkg');
       state.detailTab = 'inclusions';
+      state.detailBack = 'catalog';
       renderDetail();
       show('detail', 'catalog');
     };
@@ -585,9 +613,27 @@ function renderDetail() {
   const panel = el('detailPanel');
   const isWed = state.mode === 'wedding';
   const title = offerTitle();
-  const price = isWed ? activePackage().price : FUNERAL_SERVICE.price;
+  const pkg = activePackage();
+  const svc = activeService();
+  const price = isWed ? pkg.price : svc.price;
   if (name) name.textContent = title;
-  if (priceTag) priceTag.innerHTML = '<b>' + inr(price) + '</b><span>' + (isWed ? 'Package price' : 'Base price') + '</span>';
+  if (priceTag) {
+    let ph =
+      '<b>' +
+      inr(price) +
+      '</b><span>' +
+      (isWed ? 'Package price' : 'Base price') +
+      '</span>';
+    if (isWed && pkg.listPrice > pkg.price) {
+      ph +=
+        '<span style="display:block;font-size:12px;text-decoration:line-through;opacity:.85">' +
+        inr(pkg.listPrice) +
+        ' · ' +
+        pkg.discountPct +
+        '% OFF</span>';
+    }
+    priceTag.innerHTML = ph;
+  }
   const tabIds = ['inclusions', 'coverage', 'extras', 'reviews'];
   const tabLbl = ['Inclusions', 'Coverage', 'Extras', 'Reviews'];
   if (tabs) {
@@ -611,23 +657,65 @@ function renderDetail() {
   }
   if (!panel) return;
   if (state.detailTab === 'inclusions') {
-    const items = isWed
-      ? activePackage().bullets.concat(['Online gallery access', 'Basic color correction'])
-      : FUNERAL_SERVICE.inclusions;
-    panel.innerHTML = '<h3 style="margin:0 0 8px;font-size:15px">What\'s Included</h3><ul class="chk-list">' + items.map(function (t) {
-      return '<li>' + esc(t) + '</li>';
-    }).join('') + '</ul>';
+    const items = isWed ? pkg.inclusions || [] : svc.inclusions || [];
+    panel.innerHTML =
+      '<h3 style="margin:0 0 8px;font-size:15px">What\'s Included</h3><ul class="chk-list">' +
+      items.map(function (t) {
+        return '<li>' + esc(t) + '</li>';
+      }).join('') +
+      '</ul>' +
+      (isWed && pkg.delivery
+        ? '<h3 style="margin:16px 0 8px;font-size:14px">Delivery timeline</h3>' +
+          pkg.delivery
+            .map(function (d) {
+              return '<div class="kv-row"><span>' + esc(d.item) + '</span><b>' + esc(d.timeline) + '</b></div>';
+            })
+            .join('')
+        : svc.delivery
+          ? '<h3 style="margin:16px 0 8px;font-size:14px">Delivery</h3>' +
+            svc.delivery
+              .map(function (d) {
+                return '<div class="kv-row"><span>' + esc(d.item) + '</span><b>' + esc(d.timeline) + '</b></div>';
+              })
+              .join('')
+          : '');
   } else if (state.detailTab === 'coverage') {
     if (isWed) {
       panel.innerHTML =
-        '<ul class="chk-list"><li>Wedding ceremony & reception coverage</li><li>8 hours on event day</li><li>2 candid photographers</li><li>Travel within 30 km included</li></ul>';
+        '<h3 style="margin:0 0 10px;font-size:14px">Coverage by function</h3>' +
+        (pkg.coverage || [])
+          .map(function (c) {
+            return (
+              '<div style="margin-bottom:12px;padding:12px;border:1px solid #E2E8F0;border-radius:12px">' +
+              '<b style="display:block;color:var(--navy);margin-bottom:6px">' +
+              esc(c.fn) +
+              '</b>' +
+              '<div class="kv-row"><span>Side</span><b>' +
+              esc(c.side) +
+              '</b></div>' +
+              '<div class="kv-row"><span>Duration</span><b>' +
+              c.hours +
+              ' hrs · extra hr ' +
+              inr(c.extraHour) +
+              '</b></div>' +
+              '<div class="kv-row"><span>Photo team</span><b>' +
+              esc(c.photoTeam) +
+              '</b></div>' +
+              '<div class="kv-row"><span>Video</span><b>' +
+              esc(c.videoTeam) +
+              '</b></div></div>'
+            );
+          })
+          .join('');
     } else {
-      panel.innerHTML = FUNERAL_SERVICE.coverage.map(function (row) {
-        return '<div class="kv-row"><span>' + esc(row.k) + '</span><b>' + esc(row.v) + '</b></div>';
-      }).join('');
+      panel.innerHTML = (svc.coverage || [])
+        .map(function (row) {
+          return '<div class="kv-row"><span>' + esc(row.k) + '</span><b>' + esc(row.v) + '</b></div>';
+        })
+        .join('');
     }
   } else if (state.detailTab === 'extras') {
-    const extras = isWed ? WED_EXTRAS : FUNERAL_SERVICE.extras;
+    const extras = isWed ? packageExtras() : serviceExtras();
     panel.innerHTML =
       '<p style="font-size:12px;font-weight:800;color:var(--mut);margin:0 0 8px">Additional Services (Optional)</p>' +
       extras.map(function (ex) {
@@ -648,7 +736,7 @@ function renderCustomize() {
   const sum = el('custSummary');
   const body = el('custBody');
   const title = offerTitle();
-  const price = state.mode === 'wedding' ? activePackage().price : FUNERAL_SERVICE.price;
+  const price = state.mode === 'wedding' ? activePackage().price : activeService().price;
   if (sum) {
     sum.innerHTML =
       '<div class="review-summary"><div class="thumb"></div><div><b style="font-size:14px;color:var(--navy)">' +
@@ -659,9 +747,11 @@ function renderCustomize() {
   }
   if (!body) return;
   if (state.mode === 'wedding') {
+    const pkg = activePackage();
+    const optFns = pkg.optionalFunctions || ['Engagement', 'Reception', 'Wedding Eve'];
     body.innerHTML =
       '<div class="cust-hd">Additional Services (Optional)</div>' +
-      WED_EXTRAS.map(function (ex) {
+      packageExtras().map(function (ex) {
         return (
           '<label class="extra-line"><span><input type="checkbox" data-wex="' +
           ex.id +
@@ -675,18 +765,30 @@ function renderCustomize() {
         );
       }).join('') +
       '<div class="cust-hd">Album Preferences</div>' +
-      '<div class="budget-row"><div class="fld"><label>Album Size</label><div class="sel-box"><select id="albSize"><option>12×12</option><option>10×10</option></select></div></div>' +
-      '<div class="fld"><label>Album Pages</label><div class="sel-box"><select id="albPages"><option>30</option><option>40</option></select></div></div></div>' +
+      '<div class="budget-row"><div class="fld"><label>Album Size</label><div class="sel-box"><select id="albSize"><option' +
+      (state.customize.albumSize === '12×12' ? ' selected' : '') +
+      '>12×12</option><option' +
+      (state.customize.albumSize === '10×10' ? ' selected' : '') +
+      '>10×10</option></select></div></div>' +
+      '<div class="fld"><label>Album Pages</label><div class="sel-box"><select id="albPages"><option' +
+      (state.customize.albumPages === '30' ? ' selected' : '') +
+      '>30</option><option' +
+      (state.customize.albumPages === '40' ? ' selected' : '') +
+      '>40</option></select></div></div></div>' +
       '<div class="cust-hd">Other Functions to Cover</div>' +
-      ['Engagement', 'Reception', 'Wedding Eve'].map(function (fn) {
-        return (
-          '<label class="extra-line"><span><input type="checkbox" data-fn="' +
-          fn +
-          '"> ' +
-          fn +
-          '</span></label>'
-        );
-      }).join('') +
+      optFns
+        .map(function (fn) {
+          return (
+            '<label class="extra-line"><span><input type="checkbox" data-fn="' +
+            esc(fn) +
+            '"' +
+            (state.customize.functions[fn] ? ' checked' : '') +
+            '> ' +
+            esc(fn) +
+            '</span></label>'
+          );
+        })
+        .join('') +
       '<div class="cust-hd">Additional Notes</div><textarea class="notes" id="custNotes" maxlength="500" placeholder="Any special requests…">' +
       esc(state.customize.notes) +
       '</textarea><div class="notes-count"><span id="noteCt">0</span>/500</div>';
@@ -695,7 +797,7 @@ function renderCustomize() {
   } else {
     body.innerHTML =
       '<div class="cust-hd">Coverage Duration</div>' +
-      FUNERAL_SERVICE.durationOptions.map(function (d) {
+      (activeService().durationOptions || []).map(function (d) {
         return (
           '<label class="radio-card' +
           (state.customize.duration === d.id ? ' on' : '') +
@@ -710,7 +812,7 @@ function renderCustomize() {
         );
       }).join('') +
       '<div class="cust-hd">Additional Services</div>' +
-      FUNERAL_SERVICE.extras.map(function (ex) {
+      serviceExtras().map(function (ex) {
         return (
           '<label class="extra-line"><span><input type="checkbox" data-sex="' +
           ex.id +
@@ -749,6 +851,19 @@ function bindCustomize() {
       renderCustomize();
     };
   });
+  document.querySelectorAll('[data-fn]').forEach(function (inp) {
+    inp.onchange = function () {
+      state.customize.functions[inp.getAttribute('data-fn')] = inp.checked;
+    };
+  });
+  const albSize = el('albSize');
+  const albPages = el('albPages');
+  if (albSize) albSize.onchange = function () {
+    state.customize.albumSize = albSize.value;
+  };
+  if (albPages) albPages.onchange = function () {
+    state.customize.albumPages = albPages.value;
+  };
   const notes = el('custNotes');
   const ct = el('noteCt');
   if (notes) {
@@ -781,8 +896,22 @@ function renderReview() {
     '<div class="kv-row"><span>Location</span><b>' +
     esc(state.location) +
     '</b></div>' +
+    '<div class="kv-row"><span>Photography for</span><b>' +
+    esc(needLabel()) +
+    '</b></div>' +
+    (state.mode === 'wedding' && state.community !== 'all'
+      ? '<div class="kv-row"><span>Community</span><b>' +
+        esc(
+          (COMMUNITIES.find(function (c) {
+            return c.id === state.community;
+          }) || {}).label || state.community
+        ) +
+        '</b></div>'
+      : '') +
     (state.mode === 'wedding'
-      ? '<div class="kv-row"><span>Guests (est.)</span><b>300</b></div><div class="kv-row"><span>Budget</span><b>' +
+      ? '<div class="kv-row"><span>Package level</span><b>' +
+        esc(state.pkgLevel) +
+        '</b></div><div class="kv-row"><span>Budget (search)</span><b>' +
         inr(state.budgetMin) +
         ' – ' +
         inr(state.budgetMax) +
@@ -790,6 +919,14 @@ function renderReview() {
       : '') +
     '<div class="cust-hd">Selected Requirements</div>' +
     '<div id="revReqs"></div>' +
+    (state.mode === 'wedding' && activePackage().paymentStages
+      ? '<div class="cust-hd">Payment stages (studio)</div>' +
+        activePackage()
+          .paymentStages.map(function (ps) {
+            return '<div class="kv-row"><span>' + esc(ps.label) + '</span><b>' + ps.pct + '%</b></div>';
+          })
+          .join('')
+      : '') +
     (state.customize.notes
       ? '<div class="cust-hd">Additional Notes</div><p style="font-size:13px;font-weight:600;color:var(--mut)">' +
         esc(state.customize.notes) +
@@ -797,20 +934,7 @@ function renderReview() {
       : '');
   const reqs = el('revReqs');
   if (reqs) {
-    const lines = [];
-    if (state.mode === 'service') {
-      const dur = FUNERAL_SERVICE.durationOptions.find(function (d) {
-        return d.id === state.customize.duration;
-      });
-      if (dur) lines.push(dur.label);
-      FUNERAL_SERVICE.extras.forEach(function (ex) {
-        if (state.customize.extras[ex.id]) lines.push(ex.label);
-      });
-    } else {
-      WED_EXTRAS.forEach(function (ex) {
-        if (state.customize.extras[ex.id]) lines.push(ex.label + ' — ' + inr(ex.price));
-      });
-    }
+    const lines = selectedRequirementsLines();
     reqs.innerHTML = lines.length
       ? lines.map(function (l) {
           return '<div class="kv-row"><span>•</span><b style="text-align:left">' + esc(l) + '</b></div>';
@@ -851,10 +975,10 @@ function renderInterests() {
       '<p style="text-align:center;padding:32px 16px;color:var(--mut);font-weight:600">No interests yet. Send one from a package or service.</p>';
     return;
   }
-  list.innerHTML = items.map(function (it, idx) {
+  list.innerHTML = items.map(function (it) {
     return (
-      '<button type="button" class="int-card" data-int="' +
-      idx +
+      '<button type="button" class="int-card" data-int-id="' +
+      esc(it.id) +
       '"><b>' +
       esc(it.studioName) +
       '</b><div style="font-size:12px;color:var(--mut);font-weight:700;margin-top:4px">' +
@@ -868,9 +992,9 @@ function renderInterests() {
       '</span><div style="font-size:12px;font-weight:800;color:var(--blue2);margin-top:8px">View Details ›</div></button>'
     );
   }).join('');
-  list.querySelectorAll('[data-int]').forEach(function (btn) {
+  list.querySelectorAll('[data-int-id]').forEach(function (btn) {
     btn.onclick = function () {
-      state.activeInterest = +btn.getAttribute('data-int');
+      state.activeInterestId = btn.getAttribute('data-int-id');
       renderInterestDetail();
       show('interestDetail', 'interests');
     };
@@ -878,7 +1002,7 @@ function renderInterests() {
 }
 
 function renderInterestDetail() {
-  const it = state.interests[state.activeInterest];
+  const it = interestById(state.activeInterestId);
   if (!it) return;
   el('intDetailHead').innerHTML =
     '<div class="review-summary"><div class="thumb"></div><div><b>' +
@@ -896,9 +1020,31 @@ function renderInterestDetail() {
     '<div class="kv-row"><span>Location</span><b>' +
     esc(it.location) +
     '</b></div>' +
+    '<div class="kv-row"><span>Photography for</span><b>' +
+    esc(it.needLabel || '—') +
+    '</b></div>' +
     '<div class="kv-row"><span>Price (est.)</span><b>' +
     inr(it.price) +
     '</b></div>' +
+    (it.coverageSummary
+      ? '<div class="cust-hd">Coverage</div><p style="font-size:13px;font-weight:600;color:var(--mut);margin:0 0 12px">' +
+        esc(it.coverageSummary) +
+        '</p>'
+      : '') +
+    (it.requirements && it.requirements.length
+      ? '<div class="cust-hd">Requested requirements</div>' +
+        it.requirements
+          .map(function (r) {
+            return '<div class="kv-row"><span>•</span><b style="text-align:left">' + esc(r) + '</b></div>';
+          })
+          .join('')
+      : '') +
+    (it.notes
+      ? '<div class="cust-hd">Notes</div><p style="font-size:13px;font-weight:600;color:var(--mut)">' + esc(it.notes) + '</p>'
+      : '') +
+    (it.paymentSummary
+      ? '<div class="kv-row"><span>Payment</span><b>' + esc(it.paymentSummary) + '</b></div>'
+      : '') +
     '<div class="cust-hd">Status Timeline</div>' +
     '<div class="timeline">' +
     TIMELINE.map(function (step, i) {
@@ -919,14 +1065,39 @@ function renderInterestDetail() {
 }
 
 function submitInterest() {
+  const pkg = state.mode === 'wedding' ? activePackage() : null;
+  const cov =
+    pkg && pkg.coverage && pkg.coverage[0]
+      ? pkg.coverage[0].fn + ' · ' + pkg.coverage[0].hours + ' hrs · ' + pkg.coverage[0].side
+      : state.mode === 'service'
+        ? (activeService().coverage || []).map(function (c) {
+            return c.k + ': ' + c.v;
+          }).join(' · ')
+        : '';
+  const pay =
+    pkg && pkg.paymentStages
+      ? pkg.paymentStages.map(function (p) {
+          return p.label + ' ' + p.pct + '%';
+        }).join(' · ')
+      : '';
   const rec = {
     id: 'int_' + Date.now(),
     mode: state.mode,
+    studioId: state.studioId,
     studioName: studio().name,
     offerName: offerTitle(),
+    needLabel: needLabel(),
     date: state.date,
     location: state.location,
+    community: state.community,
+    pkgLevel: state.pkgLevel,
     price: offerPrice(),
+    requirements: selectedRequirementsLines(),
+    notes: state.customize.notes || '',
+    paymentSummary: pay,
+    coverageSummary: cov,
+    deliverySummary:
+      pkg && pkg.delivery && pkg.delivery[0] ? pkg.delivery[0].item + ' · ' + pkg.delivery[0].timeline : '',
     statusLabel: 'Under Review',
     status: 'active',
     sentAt: new Date().toISOString().slice(0, 10),
@@ -968,7 +1139,10 @@ function bindEvents() {
         show('customize', 'detail');
       } else if (id === 'interests') {
         renderInterests();
-        show('interests', 'pick');
+        show('interests', 'search');
+      } else if (id === 'review') {
+        renderReview();
+        show('review', 'customize');
       } else show(id);
       return;
     }
@@ -979,6 +1153,7 @@ function bindEvents() {
       show('catalog', 'profile');
     } else {
       state.detailTab = 'inclusions';
+      state.detailBack = 'profile';
       renderDetail();
       show('detail', 'profile');
     }
