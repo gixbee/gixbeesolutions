@@ -129,3 +129,11 @@ docker compose logs -f --tail=50 backend
 - **Zero Analyze Issues**: Always ensure `flutter analyze` returns **0 issues** after making modifications. Do not leave unused imports, unused local variables, or deprecated widget parameters (e.g., use `activeThumbColor` instead of deprecated `activeColor` on `Switch` widgets).
 - **Global Navigation (401 / Interceptors)**: When triggering navigation from outside widget contexts (such as in Dio interceptors upon `401 Unauthorized`), use `rootNavigatorKey` defined in `lib/core/navigator_key.dart` to push users to `/welcome`. Do NOT introduce circular Riverpod dependencies between `dioProvider` and auth state providers.
 - **Client Crash Reporting**: All unhandled Flutter widget exceptions and async platform errors must be captured via `CrashReporter` (`lib/services/crash_reporter.dart`) and transmitted to `POST /client-logs` with type `APP_CRASH`.
+
+---
+
+## 5. Cloud Agent local development
+
+Cloud Agents do not use Docker Compose. On boot, Postgres 16 and Redis 7 listen on localhost, the Nest API listens on port 3000, and the Angular admin dev server listens on port 4200. The gitignored `backend/.env` is created on boot when it is missing. Local database name is `gixbee_db` (user `postgres`, password `gixbee123`, matching Compose). Admin portal login is the `ADMIN_USERNAME` / `ADMIN_PASSWORD` pair in that file.
+
+`npm run start:dev` currently fails typecheck in `backend/src/bookings/booking-cancel.service.ts` (`st !== 'IN_PROGRESS'` is not a `BookingStatus`). The boot script runs the API with `ts-node-dev --transpile-only` so schema sync and hot reload still work. `cd backend_rust && cargo build --bin gixbee-backend` is the Rust backend; it expects the Nest-synchronized schema. Flutter is on `PATH` (`flutter test`, `flutter analyze`). Do not run `flutter pub upgrade`.
