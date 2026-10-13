@@ -411,9 +411,15 @@ function packagesForStudio(studioId, filters) {
       return (p.ceremonies || []).indexOf('All') >= 0 || (p.ceremonies || []).indexOf(want) >= 0;
     });
   }
-  return list.length ? list : BLUE_PACKAGE_IDS.map(function (id) {
-    return packageCardFromOwner(ownerPayloadForPackage('blue', id));
-  });
+  const filterActive =
+    (filters && filters.level && filters.level !== 'All') ||
+    (filters && filters.community && filters.community !== 'all');
+  if (!list.length && filterActive) return [];
+  return list.length
+    ? list
+    : BLUE_PACKAGE_IDS.map(function (id) {
+        return packageCardFromOwner(ownerPayloadForPackage('blue', id));
+      });
 }
 
 function serviceForStudio(studioId, serviceKey) {

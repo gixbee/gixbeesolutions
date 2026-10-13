@@ -59,7 +59,15 @@ body{margin:0;background:#E8EDF5;font-family:Inter,system-ui,sans-serif;color:va
 .res-bar{padding:8px 16px;font-size:12px;font-weight:800;color:var(--blue)}
 .res-bar .ctx{color:var(--mut);font-weight:700;display:block;font-size:11px;margin-top:2px}
 .filter-row{display:flex;gap:8px;overflow:auto;padding:6px 16px 8px}
-.fchip{flex:none;padding:8px 12px;border-radius:99px;border:1.5px solid #BFDBFE;font-size:11px;font-weight:800;background:#fff;color:var(--blue)}
+.fchip{flex:none;padding:8px 12px;border-radius:99px;border:1.5px solid #BFDBFE;font-size:11px;font-weight:800;background:#fff;color:var(--blue);cursor:pointer;font:inherit}
+.fchip.on{background:var(--soft);border-color:var(--blue2)}
+.cat-filter-panel{padding:10px 16px 12px;border-bottom:1px solid var(--line);background:#FAFBFC}
+.cat-filter-panel .lbl{margin:0 0 8px;font-size:11px;font-weight:800;color:var(--mut)}
+.cat-count{padding:4px 16px 8px;font-size:12px;font-weight:700;color:var(--mut)}
+.hub-empty{margin:24px 16px;padding:20px;text-align:center;border:1.5px dashed #CBD5E1;border-radius:16px;background:#F8FAFC}
+.hub-empty-ico{font-size:28px;margin-bottom:8px}
+.hub-empty b{display:block;color:var(--navy);margin-bottom:6px}
+.hub-empty p{margin:0;font-size:12px;font-weight:600;color:var(--mut);line-height:1.45}
 .res-meta{display:flex;justify-content:space-between;align-items:center;padding:4px 16px 10px;font-size:13px;font-weight:800;color:var(--blue)}
 .ph-row{display:flex;gap:10px;border:1.5px solid #E2E8F0;border-radius:16px;padding:10px;margin:0 16px 12px;background:#fff;cursor:pointer;text-align:left;width:calc(100% - 32px);font:inherit;color:inherit}
 .ph-thumb{width:88px;height:88px;border-radius:12px;flex-shrink:0;background:linear-gradient(145deg,#CBD5E1,#64748B);position:relative}
@@ -192,6 +200,8 @@ textarea.notes{width:100%;min-height:88px;border:1.5px solid #BFDBFE;border-radi
 <section class="scr" id="catalog">
   <div class="top"><button type="button" class="back" data-back>←</button><h1 id="catTitle">Packages</h1><span style="width:36px"></span></div>
   <div class="filter-row" id="catFilters"></div>
+  <div id="catFilterPanel" class="cat-filter-panel" hidden></div>
+  <div class="cat-count" id="catCount"></div>
   <div id="catList"></div>
 </section>
 
@@ -1550,9 +1560,15 @@ function packagesForStudio(studioId, filters) {
       return (p.ceremonies || []).indexOf('All') >= 0 || (p.ceremonies || []).indexOf(want) >= 0;
     });
   }
-  return list.length ? list : BLUE_PACKAGE_IDS.map(function (id) {
-    return packageCardFromOwner(ownerPayloadForPackage('blue', id));
-  });
+  const filterActive =
+    (filters && filters.level && filters.level !== 'All') ||
+    (filters && filters.community && filters.community !== 'all');
+  if (!list.length && filterActive) return [];
+  return list.length
+    ? list
+    : BLUE_PACKAGE_IDS.map(function (id) {
+        return packageCardFromOwner(ownerPayloadForPackage('blue', id));
+      });
 }
 
 function serviceForStudio(studioId, serviceKey) {
@@ -1565,7 +1581,7 @@ function defaultPackageId(studioId) {
   return pkgs[0] ? pkgs[0].id : 'standard';
 }
 
-const PHOTO_CUSTOMER_BUILD = '2026-10-13-photo-customer-owner-mirror-v6a';
+const PHOTO_CUSTOMER_BUILD = '2026-10-13-photo-customer-owner-mirror-v6b';
 const DEMO_FILE = 'GIXBEE-PHOTO-CUSTOMER-FINALFLOW.html';
 const STORAGE_KEY = 'GIXBEE_PHOTO_CUSTOMER_INTERESTS_V2';
 
@@ -1625,6 +1641,7 @@ const state = {
   activeInterestId: null,
   detailBack: 'catalog',
   backScreen: 'search',
+  catalogFilterPanel: null,
 };
 
 function activeNeed() {
@@ -2145,19 +2162,111 @@ function renderReviewsHtml() {
   );
 }
 
+function catalogCommunityLabel() {
+  const c = COMMUNITIES.find(function (x) {
+    return x.id === state.community;
+  });
+  return c ? c.label : 'All';
+}
+
+function renderCatalogFilterPanel() {
+  const panel = el('catFilterPanel');
+  if (!panel) return;
+  if (!state.catalogFilterPanel) {
+    panel.hidden = true;
+    panel.innerHTML = '';
+    return;
+  }
+  panel.hidden = false;
+  if (state.catalogFilterPanel === 'community') {
+    panel.innerHTML =
+      '<p class="lbl">Select community / religion</p><div class="comm-row" id="catCommPick">' +
+      COMMUNITIES.map(function (c) {
+        return (
+          '<button type="button" class="comm-btn' +
+          (state.community === c.id ? ' on' : '') +
+          '" data-cat-comm="' +
+          c.id +
+          '"><div class="c-ico">' +
+          c.icon +
+          '</div><span>' +
+          esc(c.label) +
+          '</span></button>'
+        );
+      }).join('') +
+      '</div>';
+    panel.querySelectorAll('[data-cat-comm]').forEach(function (btn) {
+      btn.onclick = function () {
+        state.community = btn.getAttribute('data-cat-comm');
+        state.catalogFilterPanel = null;
+        renderCatalog();
+      };
+    });
+  } else if (state.catalogFilterPanel === 'pkg') {
+    panel.innerHTML =
+      '<p class="lbl">Select package type</p><div class="pkg-type-row" id="catPkgPick">' +
+      PKG_LEVELS.map(function (p) {
+        return (
+          '<button type="button" class="pkg-type-btn' +
+          (state.pkgLevel === p ? ' on' : '') +
+          '" data-cat-pkg="' +
+          esc(p) +
+          '"><b>' +
+          esc(p) +
+          '</b></button>'
+        );
+      }).join('') +
+      '</div>';
+    panel.querySelectorAll('[data-cat-pkg]').forEach(function (btn) {
+      btn.onclick = function () {
+        state.pkgLevel = btn.getAttribute('data-cat-pkg');
+        state.catalogFilterPanel = null;
+        renderCatalog();
+      };
+    });
+  }
+}
+
 function renderCatalog() {
   el('catTitle').textContent = studio().name;
   const filters = el('catFilters');
   if (filters) {
     filters.innerHTML =
-      '<span class="fchip">Community ▾</span><span class="fchip">Package type ▾</span>';
+      '<button type="button" class="fchip' +
+      (state.catalogFilterPanel === 'community' ? ' on' : '') +
+      '" data-cat-filter="community">Community: ' +
+      esc(catalogCommunityLabel()) +
+      ' ▾</button>' +
+      '<button type="button" class="fchip' +
+      (state.catalogFilterPanel === 'pkg' ? ' on' : '') +
+      '" data-cat-filter="pkg">Package: ' +
+      esc(state.pkgLevel || 'All') +
+      ' ▾</button>';
+    filters.querySelectorAll('[data-cat-filter]').forEach(function (btn) {
+      btn.onclick = function () {
+        const key = btn.getAttribute('data-cat-filter');
+        state.catalogFilterPanel = state.catalogFilterPanel === key ? null : key;
+        renderCatalog();
+      };
+    });
   }
+  renderCatalogFilterPanel();
   const list = el('catList');
+  const countEl = el('catCount');
   if (!list) return;
   const pkgs = packagesForStudio(state.studioId, {
     level: state.pkgLevel,
     community: state.community,
   });
+  if (countEl) {
+    countEl.textContent =
+      pkgs.length === 1 ? 'Showing 1 package' : 'Showing ' + pkgs.length + ' packages';
+  }
+  if (!pkgs.length) {
+    list.innerHTML =
+      '<div class="hub-empty" style="margin:16px"><div class="hub-empty-ico">📦</div><b>No packages match</b><p>Try <b>All</b> community or a different package type.</p></div>';
+    return;
+  }
   list.innerHTML = pkgs
     .map(function (p) {
       const bullets = p.cardBullets || p.inclusions || [];

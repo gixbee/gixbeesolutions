@@ -1,4 +1,4 @@
-const PHOTO_CUSTOMER_BUILD = '2026-10-13-photo-customer-owner-mirror-v6a';
+const PHOTO_CUSTOMER_BUILD = '2026-10-13-photo-customer-owner-mirror-v6b';
 const DEMO_FILE = 'GIXBEE-PHOTO-CUSTOMER-FINALFLOW.html';
 const STORAGE_KEY = 'GIXBEE_PHOTO_CUSTOMER_INTERESTS_V2';
 
@@ -58,6 +58,7 @@ const state = {
   activeInterestId: null,
   detailBack: 'catalog',
   backScreen: 'search',
+  catalogFilterPanel: null,
 };
 
 function activeNeed() {
@@ -578,19 +579,111 @@ function renderReviewsHtml() {
   );
 }
 
+function catalogCommunityLabel() {
+  const c = COMMUNITIES.find(function (x) {
+    return x.id === state.community;
+  });
+  return c ? c.label : 'All';
+}
+
+function renderCatalogFilterPanel() {
+  const panel = el('catFilterPanel');
+  if (!panel) return;
+  if (!state.catalogFilterPanel) {
+    panel.hidden = true;
+    panel.innerHTML = '';
+    return;
+  }
+  panel.hidden = false;
+  if (state.catalogFilterPanel === 'community') {
+    panel.innerHTML =
+      '<p class="lbl">Select community / religion</p><div class="comm-row" id="catCommPick">' +
+      COMMUNITIES.map(function (c) {
+        return (
+          '<button type="button" class="comm-btn' +
+          (state.community === c.id ? ' on' : '') +
+          '" data-cat-comm="' +
+          c.id +
+          '"><div class="c-ico">' +
+          c.icon +
+          '</div><span>' +
+          esc(c.label) +
+          '</span></button>'
+        );
+      }).join('') +
+      '</div>';
+    panel.querySelectorAll('[data-cat-comm]').forEach(function (btn) {
+      btn.onclick = function () {
+        state.community = btn.getAttribute('data-cat-comm');
+        state.catalogFilterPanel = null;
+        renderCatalog();
+      };
+    });
+  } else if (state.catalogFilterPanel === 'pkg') {
+    panel.innerHTML =
+      '<p class="lbl">Select package type</p><div class="pkg-type-row" id="catPkgPick">' +
+      PKG_LEVELS.map(function (p) {
+        return (
+          '<button type="button" class="pkg-type-btn' +
+          (state.pkgLevel === p ? ' on' : '') +
+          '" data-cat-pkg="' +
+          esc(p) +
+          '"><b>' +
+          esc(p) +
+          '</b></button>'
+        );
+      }).join('') +
+      '</div>';
+    panel.querySelectorAll('[data-cat-pkg]').forEach(function (btn) {
+      btn.onclick = function () {
+        state.pkgLevel = btn.getAttribute('data-cat-pkg');
+        state.catalogFilterPanel = null;
+        renderCatalog();
+      };
+    });
+  }
+}
+
 function renderCatalog() {
   el('catTitle').textContent = studio().name;
   const filters = el('catFilters');
   if (filters) {
     filters.innerHTML =
-      '<span class="fchip">Community ▾</span><span class="fchip">Package type ▾</span>';
+      '<button type="button" class="fchip' +
+      (state.catalogFilterPanel === 'community' ? ' on' : '') +
+      '" data-cat-filter="community">Community: ' +
+      esc(catalogCommunityLabel()) +
+      ' ▾</button>' +
+      '<button type="button" class="fchip' +
+      (state.catalogFilterPanel === 'pkg' ? ' on' : '') +
+      '" data-cat-filter="pkg">Package: ' +
+      esc(state.pkgLevel || 'All') +
+      ' ▾</button>';
+    filters.querySelectorAll('[data-cat-filter]').forEach(function (btn) {
+      btn.onclick = function () {
+        const key = btn.getAttribute('data-cat-filter');
+        state.catalogFilterPanel = state.catalogFilterPanel === key ? null : key;
+        renderCatalog();
+      };
+    });
   }
+  renderCatalogFilterPanel();
   const list = el('catList');
+  const countEl = el('catCount');
   if (!list) return;
   const pkgs = packagesForStudio(state.studioId, {
     level: state.pkgLevel,
     community: state.community,
   });
+  if (countEl) {
+    countEl.textContent =
+      pkgs.length === 1 ? 'Showing 1 package' : 'Showing ' + pkgs.length + ' packages';
+  }
+  if (!pkgs.length) {
+    list.innerHTML =
+      '<div class="hub-empty" style="margin:16px"><div class="hub-empty-ico">📦</div><b>No packages match</b><p>Try <b>All</b> community or a different package type.</p></div>';
+    return;
+  }
   list.innerHTML = pkgs
     .map(function (p) {
       const bullets = p.cardBullets || p.inclusions || [];
