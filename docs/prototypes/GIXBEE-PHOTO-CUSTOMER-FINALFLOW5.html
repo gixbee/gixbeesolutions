@@ -167,7 +167,9 @@ textarea.notes{width:100%;min-height:88px;border:1.5px solid #BFDBFE;border-radi
 .bottom-nav button.on{color:var(--blue2)}
 #buildTag{font-size:10px;color:var(--mut);padding:8px 16px;text-align:center}
 .toast{position:absolute;left:16px;right:16px;bottom:80px;background:#111;color:#fff;padding:12px;border-radius:12px;display:none;z-index:9;font-size:13px}
-.review-date-bar{position:absolute;left:0;right:0;bottom:118px;padding:10px 16px 8px;background:#fff;border-top:1px solid var(--line);z-index:4}
+.catalog-date-bar{padding-top:0;padding-bottom:4px}
+.review-date-bar--inline{position:static;padding:0 16px 12px;border-top:0;background:transparent}
+.review-date-bar:not(.review-date-bar--inline){position:absolute;left:0;right:0;bottom:118px;padding:10px 16px 8px;background:#fff;border-top:1px solid var(--line);z-index:4}
 .review-date-pick{display:flex;align-items:center;gap:12px;width:100%;border:1.5px solid #E2E8F0;border-radius:14px;padding:12px 14px;background:#fff;cursor:pointer;font:inherit;text-align:left}
 .review-date-ico{width:42px;height:42px;border-radius:10px;background:#ECFDF5;display:grid;place-items:center;font-size:20px;flex-shrink:0}
 .review-date-txt{flex:1;min-width:0}
@@ -234,6 +236,7 @@ textarea.notes{width:100%;min-height:88px;border:1.5px solid #BFDBFE;border-radi
   <div class="filter-row" id="catFilters"></div>
   <div id="catFilterPanel" class="cat-filter-panel" hidden></div>
   <div class="cat-count" id="catCount"></div>
+  <div class="catalog-date-bar pad16" id="catalogDateBar"></div>
   <div id="catList"></div>
 </section>
 
@@ -252,10 +255,10 @@ textarea.notes{width:100%;min-height:88px;border:1.5px solid #BFDBFE;border-radi
   <div class="cta"><button type="button" class="btn" id="goReview">Continue</button></div>
 </section>
 
-<section class="scr has-review-foot" id="review">
+<section class="scr has-dual-foot" id="review">
   <div class="top"><button type="button" class="back" data-back>←</button><h1>Review Your Interest</h1><span style="width:36px"></span></div>
   <div class="pad16" id="reviewBody"></div>
-  <div class="review-date-bar" id="reviewDateBar"></div>
+  <div class="review-date-bar review-date-bar--inline pad16" id="reviewDateBar" hidden></div>
   <div class="dual-foot" id="reviewFoot" style="grid-template-columns:1fr 1fr"></div>
 </section>
 
@@ -1696,7 +1699,7 @@ function defaultPackageId(studioId) {
   return pkgs[0] ? pkgs[0].id : 'standard';
 }
 
-const PHOTO_CUSTOMER_BUILD = '2026-10-13-photo-customer-owner-mirror-v7';
+const PHOTO_CUSTOMER_BUILD = '2026-10-13-photo-customer-owner-mirror-v7a';
 const DEMO_FILE = 'GIXBEE-PHOTO-CUSTOMER-FINALFLOW.html';
 const STORAGE_KEY = 'GIXBEE_PHOTO_CUSTOMER_INTERESTS_V2';
 
@@ -1927,9 +1930,10 @@ function renderReviewCalendar() {
 
 function updateReviewDateLabels() {
   const long = formatReviewDateLong(state.date);
-  const lbl = el('reviewDateLbl');
+  document.querySelectorAll('[data-event-date-lbl]').forEach(function (node) {
+    node.textContent = long;
+  });
   const row = el('reviewEventDate');
-  if (lbl) lbl.textContent = long;
   if (row) row.textContent = formatDate(state.date);
 }
 
@@ -1958,18 +1962,48 @@ function closeDateFullModal() {
   if (modal) modal.hidden = true;
 }
 
+function eventDatePickHtml() {
+  return (
+    '<button type="button" class="review-date-pick" data-open-date-pick>' +
+    '<span class="review-date-ico" aria-hidden="true">📅</span>' +
+    '<span class="review-date-txt"><span class="lbl">Select Date</span><b data-event-date-lbl>' +
+    esc(formatReviewDateLong(state.date)) +
+    '</b></span>' +
+    '<span class="review-date-chev" aria-hidden="true">›</span></button>'
+  );
+}
+
+function bindDatePickButtons(root) {
+  if (!root) return;
+  root.querySelectorAll('[data-open-date-pick]').forEach(function (btn) {
+    btn.onclick = openReviewDateModal;
+  });
+}
+
+function renderCatalogDateBar() {
+  const bar = el('catalogDateBar');
+  if (!bar) return;
+  bar.innerHTML =
+    '<p class="sub" style="margin:0 0 8px;font-size:11px;font-weight:700">Confirm your event date before choosing a package</p>' +
+    eventDatePickHtml();
+  bindDatePickButtons(bar);
+  if (photographerDateUnavailable(state.studioId, state.date)) {
+    bar.innerHTML +=
+      '<p class="sub" style="margin:8px 0 0;font-size:11px;font-weight:700;color:#B45309">This date looks fully booked — tap to pick another day.</p>';
+  }
+}
+
 function renderReviewDateBar() {
   const bar = el('reviewDateBar');
   if (!bar) return;
-  bar.innerHTML =
-    '<button type="button" class="review-date-pick" id="openReviewDatePick">' +
-    '<span class="review-date-ico" aria-hidden="true">📅</span>' +
-    '<span class="review-date-txt"><span class="lbl">Select Date</span><b id="reviewDateLbl">' +
-    esc(formatReviewDateLong(state.date)) +
-    '</b></span>' +
-    '<span class="review-date-chev" aria-hidden="true">›</span></button>';
-  const btn = el('openReviewDatePick');
-  if (btn) btn.onclick = openReviewDateModal;
+  if (state.mode === 'wedding') {
+    bar.hidden = true;
+    bar.innerHTML = '';
+    return;
+  }
+  bar.hidden = false;
+  bar.innerHTML = eventDatePickHtml();
+  bindDatePickButtons(bar);
 }
 
 function toast(msg) {
@@ -2530,6 +2564,7 @@ function renderCatalog() {
     });
   }
   renderCatalogFilterPanel();
+  renderCatalogDateBar();
   const list = el('catList');
   const countEl = el('catCount');
   if (!list) return;
@@ -2885,7 +2920,7 @@ function renderReview() {
         }).join('')
       : '<p class="sub">No add-ons selected</p>';
   }
-  renderReviewDateBar();
+  if (state.mode === 'service') renderReviewDateBar();
   renderReviewFooter();
 }
 

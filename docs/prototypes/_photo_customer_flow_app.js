@@ -1,4 +1,4 @@
-const PHOTO_CUSTOMER_BUILD = '2026-10-13-photo-customer-owner-mirror-v7';
+const PHOTO_CUSTOMER_BUILD = '2026-10-13-photo-customer-owner-mirror-v7a';
 const DEMO_FILE = 'GIXBEE-PHOTO-CUSTOMER-FINALFLOW.html';
 const STORAGE_KEY = 'GIXBEE_PHOTO_CUSTOMER_INTERESTS_V2';
 
@@ -229,9 +229,10 @@ function renderReviewCalendar() {
 
 function updateReviewDateLabels() {
   const long = formatReviewDateLong(state.date);
-  const lbl = el('reviewDateLbl');
+  document.querySelectorAll('[data-event-date-lbl]').forEach(function (node) {
+    node.textContent = long;
+  });
   const row = el('reviewEventDate');
-  if (lbl) lbl.textContent = long;
   if (row) row.textContent = formatDate(state.date);
 }
 
@@ -260,18 +261,48 @@ function closeDateFullModal() {
   if (modal) modal.hidden = true;
 }
 
+function eventDatePickHtml() {
+  return (
+    '<button type="button" class="review-date-pick" data-open-date-pick>' +
+    '<span class="review-date-ico" aria-hidden="true">📅</span>' +
+    '<span class="review-date-txt"><span class="lbl">Select Date</span><b data-event-date-lbl>' +
+    esc(formatReviewDateLong(state.date)) +
+    '</b></span>' +
+    '<span class="review-date-chev" aria-hidden="true">›</span></button>'
+  );
+}
+
+function bindDatePickButtons(root) {
+  if (!root) return;
+  root.querySelectorAll('[data-open-date-pick]').forEach(function (btn) {
+    btn.onclick = openReviewDateModal;
+  });
+}
+
+function renderCatalogDateBar() {
+  const bar = el('catalogDateBar');
+  if (!bar) return;
+  bar.innerHTML =
+    '<p class="sub" style="margin:0 0 8px;font-size:11px;font-weight:700">Confirm your event date before choosing a package</p>' +
+    eventDatePickHtml();
+  bindDatePickButtons(bar);
+  if (photographerDateUnavailable(state.studioId, state.date)) {
+    bar.innerHTML +=
+      '<p class="sub" style="margin:8px 0 0;font-size:11px;font-weight:700;color:#B45309">This date looks fully booked — tap to pick another day.</p>';
+  }
+}
+
 function renderReviewDateBar() {
   const bar = el('reviewDateBar');
   if (!bar) return;
-  bar.innerHTML =
-    '<button type="button" class="review-date-pick" id="openReviewDatePick">' +
-    '<span class="review-date-ico" aria-hidden="true">📅</span>' +
-    '<span class="review-date-txt"><span class="lbl">Select Date</span><b id="reviewDateLbl">' +
-    esc(formatReviewDateLong(state.date)) +
-    '</b></span>' +
-    '<span class="review-date-chev" aria-hidden="true">›</span></button>';
-  const btn = el('openReviewDatePick');
-  if (btn) btn.onclick = openReviewDateModal;
+  if (state.mode === 'wedding') {
+    bar.hidden = true;
+    bar.innerHTML = '';
+    return;
+  }
+  bar.hidden = false;
+  bar.innerHTML = eventDatePickHtml();
+  bindDatePickButtons(bar);
 }
 
 function toast(msg) {
@@ -832,6 +863,7 @@ function renderCatalog() {
     });
   }
   renderCatalogFilterPanel();
+  renderCatalogDateBar();
   const list = el('catList');
   const countEl = el('catCount');
   if (!list) return;
@@ -1187,7 +1219,7 @@ function renderReview() {
         }).join('')
       : '<p class="sub">No add-ons selected</p>';
   }
-  renderReviewDateBar();
+  if (state.mode === 'service') renderReviewDateBar();
   renderReviewFooter();
 }
 
