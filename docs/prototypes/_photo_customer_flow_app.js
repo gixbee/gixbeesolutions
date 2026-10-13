@@ -1,4 +1,4 @@
-const PHOTO_CUSTOMER_BUILD = '2026-10-13-photo-customer-owner-mirror-v6e';
+const PHOTO_CUSTOMER_BUILD = '2026-10-13-photo-customer-owner-mirror-v6f';
 const DEMO_FILE = 'GIXBEE-PHOTO-CUSTOMER-FINALFLOW.html';
 const STORAGE_KEY = 'GIXBEE_PHOTO_CUSTOMER_INTERESTS_V2';
 
@@ -694,12 +694,15 @@ function renderCatalog() {
         priceHtml +=
           ' <span style="font-size:11px;color:var(--mut);text-decoration:line-through">' + inr(p.listPrice) + '</span>';
       }
+      const ownerPkg = p.owner || ownerPayloadForPackage(state.studioId, p.id);
       return (
         '<button type="button" class="pkg-card" data-pkg="' +
         p.id +
         '"><div class="thumb"></div><div><b>' +
         esc(p.name) +
-        '</b><div class="price">' +
+        '</b>' +
+        custPkgCardMetaHtml(ownerPkg) +
+        '<div class="price">' +
         priceHtml +
         (p.discountPct ? ' <span style="font-size:10px;color:#BE185D">' + p.discountPct + '% OFF</span>' : '') +
         '</div><ul>' +

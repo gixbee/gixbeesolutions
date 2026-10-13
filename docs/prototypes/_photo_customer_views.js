@@ -405,12 +405,57 @@ function custServiceExtrasList(svc) {
   return out;
 }
 
+function custPkgLevelClass(level) {
+  const l = String(level || '').toLowerCase();
+  if (l === 'basic') return 'tier-basic';
+  if (l === 'premium') return 'tier-premium';
+  return 'tier-standard';
+}
+
+function custPkgCoverageSideSummary(pkg) {
+  const blocks = pkg.coverageByFunction || {};
+  const fns = pkg.functions && pkg.functions.length ? pkg.functions : Object.keys(blocks);
+  const sides = {};
+  fns.forEach(function (fn) {
+    if (custFnIsCoupleShoot(fn)) return;
+    const b = blocks[fn];
+    if (!b || !b.coverageSide) return;
+    sides[b.coverageSide] = (sides[b.coverageSide] || 0) + 1;
+  });
+  const keys = Object.keys(sides);
+  if (!keys.length) return '';
+  if (keys.length === 1) {
+    return keys[0] === 'both' ? 'Both sides' : 'Single side';
+  }
+  if (keys.indexOf('both') >= 0 && keys.indexOf('single') >= 0) {
+    return 'Both & single side';
+  }
+  return keys[0] === 'both' ? 'Both sides' : 'Single side';
+}
+
 function custSummaryBulletsFromPkg(pkg) {
   const bullets = [];
   const ed = pkg.photoDetails && pkg.photoDetails['Edited Photos'];
   if (ed && ed.qty) bullets.push(ed.qty + ' edited photos');
-  const fn = (pkg.functions || [])[0];
-  if (fn) bullets.push(fn);
+  const fnCount = (pkg.functions || []).length;
+  if (fnCount > 1) bullets.push(fnCount + ' events covered');
+  else if ((pkg.functions || [])[0]) bullets.push((pkg.functions || [])[0]);
   if (pkg.ceremonyTypes && pkg.ceremonyTypes[0]) bullets.push(pkg.ceremonyTypes[0]);
   return bullets.slice(0, 4);
+}
+
+function custPkgCardMetaHtml(pkg) {
+  const level = pkg.level || 'Standard';
+  const side = custPkgCoverageSideSummary(pkg);
+  let html =
+    '<div class="pkg-meta"><span class="pkg-tier ' +
+    custPkgLevelClass(level) +
+    '">' +
+    custEsc(level) +
+    '</span>';
+  if (side) {
+    html += '<span class="pkg-side-pill">' + custEsc(side) + '</span>';
+  }
+  html += '</div>';
+  return html;
 }

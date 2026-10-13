@@ -102,6 +102,12 @@ body{margin:0;background:#E8EDF5;font-family:Inter,system-ui,sans-serif;color:va
 .pkg-card{display:flex;gap:10px;border:1.5px solid #E2E8F0;border-radius:16px;padding:12px;margin:0 16px 12px;background:#fff;cursor:pointer;text-align:left;width:calc(100% - 32px);font:inherit}
 .pkg-card .thumb{width:72px;height:72px;border-radius:12px;background:linear-gradient(145deg,#CBD5E1,#64748B);flex-shrink:0}
 .pkg-card b{font-size:14px;color:var(--navy);display:block;margin-bottom:4px}
+.pkg-meta{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 8px}
+.pkg-tier{font-size:9px;font-weight:900;padding:4px 8px;border-radius:8px;text-transform:uppercase;letter-spacing:.04em}
+.tier-basic{background:#E0F2FE;color:#0369A1}
+.tier-standard{background:#EDE9FE;color:#5B21B6}
+.tier-premium{background:#FEF3C7;color:#B45309}
+.pkg-side-pill{font-size:9px;font-weight:800;padding:4px 8px;border-radius:8px;background:#ECFDF5;color:#047857;border:1px solid #A7F3D0}
 .pkg-card .price{font-size:15px;font-weight:900;color:var(--blue2);margin-bottom:6px}
 .pkg-card ul{margin:0;padding:0 0 0 16px;font-size:11px;color:var(--mut);font-weight:600;line-height:1.45}
 .pkg-card .link{font-size:12px;font-weight:800;color:var(--blue2);margin-top:8px;display:inline-block}
@@ -784,14 +790,59 @@ function custServiceExtrasList(svc) {
   return out;
 }
 
+function custPkgLevelClass(level) {
+  const l = String(level || '').toLowerCase();
+  if (l === 'basic') return 'tier-basic';
+  if (l === 'premium') return 'tier-premium';
+  return 'tier-standard';
+}
+
+function custPkgCoverageSideSummary(pkg) {
+  const blocks = pkg.coverageByFunction || {};
+  const fns = pkg.functions && pkg.functions.length ? pkg.functions : Object.keys(blocks);
+  const sides = {};
+  fns.forEach(function (fn) {
+    if (custFnIsCoupleShoot(fn)) return;
+    const b = blocks[fn];
+    if (!b || !b.coverageSide) return;
+    sides[b.coverageSide] = (sides[b.coverageSide] || 0) + 1;
+  });
+  const keys = Object.keys(sides);
+  if (!keys.length) return '';
+  if (keys.length === 1) {
+    return keys[0] === 'both' ? 'Both sides' : 'Single side';
+  }
+  if (keys.indexOf('both') >= 0 && keys.indexOf('single') >= 0) {
+    return 'Both & single side';
+  }
+  return keys[0] === 'both' ? 'Both sides' : 'Single side';
+}
+
 function custSummaryBulletsFromPkg(pkg) {
   const bullets = [];
   const ed = pkg.photoDetails && pkg.photoDetails['Edited Photos'];
   if (ed && ed.qty) bullets.push(ed.qty + ' edited photos');
-  const fn = (pkg.functions || [])[0];
-  if (fn) bullets.push(fn);
+  const fnCount = (pkg.functions || []).length;
+  if (fnCount > 1) bullets.push(fnCount + ' events covered');
+  else if ((pkg.functions || [])[0]) bullets.push((pkg.functions || [])[0]);
   if (pkg.ceremonyTypes && pkg.ceremonyTypes[0]) bullets.push(pkg.ceremonyTypes[0]);
   return bullets.slice(0, 4);
+}
+
+function custPkgCardMetaHtml(pkg) {
+  const level = pkg.level || 'Standard';
+  const side = custPkgCoverageSideSummary(pkg);
+  let html =
+    '<div class="pkg-meta"><span class="pkg-tier ' +
+    custPkgLevelClass(level) +
+    '">' +
+    custEsc(level) +
+    '</span>';
+  if (side) {
+    html += '<span class="pkg-side-pill">' + custEsc(side) + '</span>';
+  }
+  html += '</div>';
+  return html;
 }
 
 /** Full owner-wizard-shaped payloads for customer demo (Blue Lens Studio). */
@@ -1609,7 +1660,7 @@ function defaultPackageId(studioId) {
   return pkgs[0] ? pkgs[0].id : 'standard';
 }
 
-const PHOTO_CUSTOMER_BUILD = '2026-10-13-photo-customer-owner-mirror-v6e';
+const PHOTO_CUSTOMER_BUILD = '2026-10-13-photo-customer-owner-mirror-v6f';
 const DEMO_FILE = 'GIXBEE-PHOTO-CUSTOMER-FINALFLOW.html';
 const STORAGE_KEY = 'GIXBEE_PHOTO_CUSTOMER_INTERESTS_V2';
 
@@ -2305,12 +2356,15 @@ function renderCatalog() {
         priceHtml +=
           ' <span style="font-size:11px;color:var(--mut);text-decoration:line-through">' + inr(p.listPrice) + '</span>';
       }
+      const ownerPkg = p.owner || ownerPayloadForPackage(state.studioId, p.id);
       return (
         '<button type="button" class="pkg-card" data-pkg="' +
         p.id +
         '"><div class="thumb"></div><div><b>' +
         esc(p.name) +
-        '</b><div class="price">' +
+        '</b>' +
+        custPkgCardMetaHtml(ownerPkg) +
+        '<div class="price">' +
         priceHtml +
         (p.discountPct ? ' <span style="font-size:10px;color:#BE185D">' + p.discountPct + '% OFF</span>' : '') +
         '</div><ul>' +
