@@ -139,6 +139,15 @@ body{margin:0;background:#E8EDF5;font-family:Inter,system-ui,sans-serif;color:va
 .chk-row{display:flex;align-items:flex-start;gap:10px;padding:12px;margin-bottom:8px;border:1.5px solid #E2E8F0;border-radius:12px;font-size:12px;font-weight:600;color:var(--ink);cursor:pointer}
 .chk-row.on{border-color:var(--blue2);background:var(--soft)}
 .chk-row input{margin-top:2px;accent-color:var(--blue2);flex-shrink:0}
+.multi-drop{position:relative}
+.multi-drop-btn{display:flex;align-items:center;justify-content:space-between;width:100%;border:1.5px solid #BFDBFE;border-radius:12px;padding:11px 12px;background:#fff;font:inherit;font-weight:700;color:var(--blue);cursor:pointer;text-align:left}
+.multi-drop-chev{color:var(--mut);font-size:12px;margin-left:8px}
+.multi-drop-panel{position:absolute;left:0;right:0;top:calc(100% + 4px);z-index:8;max-height:240px;overflow:auto;background:#fff;border:1.5px solid #E2E8F0;border-radius:14px;box-shadow:var(--shadow);padding:6px}
+.multi-drop-item{display:flex;align-items:flex-start;gap:10px;padding:10px 12px;border-radius:10px;font-size:12px;font-weight:600;cursor:pointer}
+.multi-drop-item.on{background:var(--soft)}
+.multi-drop-item input{margin-top:2px;accent-color:var(--blue2);flex-shrink:0}
+.multi-drop-item b{display:block;font-size:12px;color:var(--navy);margin-bottom:2px}
+.multi-drop-item .cust-muted{display:block;font-size:10px;line-height:1.35}
 .radio-card{display:block;border:1.5px solid #E2E8F0;border-radius:12px;padding:12px;margin-bottom:8px;cursor:pointer}
 .radio-card.on{border-color:var(--blue2);background:var(--soft)}
 .radio-card input{margin-right:8px}
@@ -933,6 +942,74 @@ function custOptionalFunctionsForOwner(owner) {
   });
 }
 
+function custExtraFunctionsSelectedList(c, optFns) {
+  const list = (optFns || []).filter(function (fn) {
+    return c.extraFunctions && c.extraFunctions[fn];
+  });
+  if (c.extraFunctionCustom && c.functionCustom && String(c.functionCustom).trim()) {
+    list.push(String(c.functionCustom).trim());
+  }
+  return list;
+}
+
+function custExtraFunctionsButtonLabel(c, optFns) {
+  const list = custExtraFunctionsSelectedList(c, optFns);
+  if (!list.length) return 'Select functions…';
+  if (list.length <= 2) return list.join(', ');
+  return list.length + ' functions selected';
+}
+
+function custUpdateExtraFnMultiLabel(optFns) {
+  const lbl = el('custFnMultiLbl');
+  if (lbl) lbl.textContent = custExtraFunctionsButtonLabel(state.customize, optFns);
+  const wrap = el('custFnCustomWrap');
+  if (wrap) wrap.style.display = state.customize.extraFunctionCustom ? '' : 'none';
+}
+
+function custBindExtraFunctionMulti(optFns) {
+  const btn = el('custFnMultiBtn');
+  const panel = el('custFnMultiPanel');
+  if (!btn || !panel) return;
+  if (!panel._custBound) {
+    panel._custBound = true;
+    document.addEventListener('click', function (e) {
+      if (panel.hidden) return;
+      if (panel.contains(e.target) || btn.contains(e.target)) return;
+      panel.hidden = true;
+    });
+  }
+  btn.onclick = function (e) {
+    e.stopPropagation();
+    panel.hidden = !panel.hidden;
+  };
+  const c = state.customize;
+  document.querySelectorAll('[data-extra-fn]').forEach(function (inp) {
+    inp.onchange = function () {
+      const fn = inp.getAttribute('data-extra-fn');
+      if (!c.extraFunctions) c.extraFunctions = {};
+      c.extraFunctions[fn] = inp.checked;
+      inp.closest('.multi-drop-item').classList.toggle('on', inp.checked);
+      custUpdateExtraFnMultiLabel(optFns);
+    };
+  });
+  const customChk = el('custFnCustomChk');
+  if (customChk) {
+    customChk.onchange = function () {
+      c.extraFunctionCustom = customChk.checked;
+      customChk.closest('.multi-drop-item').classList.toggle('on', customChk.checked);
+      custUpdateExtraFnMultiLabel(optFns);
+    };
+  }
+  const fnCustom = el('custFnCustom');
+  if (fnCustom) {
+    fnCustom.oninput = function () {
+      c.functionCustom = fnCustom.value;
+      custUpdateExtraFnMultiLabel(optFns);
+    };
+  }
+  custUpdateExtraFnMultiLabel(optFns);
+}
+
 function custAlbumHasPackage(owner) {
   const a = (owner.albumPrints || {})['Photo Album'];
   return a && a.on;
@@ -977,31 +1054,43 @@ function custRenderCustomizeWedding(owner, packageExtras, state) {
   }
 
   html += '<div class="cust-hd">Extra events to cover</div>';
-  html += '<div class="fld"><label>Add function</label><div class="sel-box"><select id="custFnSelect">';
-  html += '<option value="">None</option>';
+  html += '<div class="fld"><label>Add function</label>';
+  html += '<div class="multi-drop" id="custFnMulti">';
+  html +=
+    '<button type="button" class="multi-drop-btn" id="custFnMultiBtn"><span id="custFnMultiLbl">' +
+    custEsc(custExtraFunctionsButtonLabel(c, optFns)) +
+    '</span><span class="multi-drop-chev" aria-hidden="true">▾</span></button>';
+  html += '<div class="multi-drop-panel" id="custFnMultiPanel" hidden>';
   optFns.forEach(function (fn) {
+    const on = c.extraFunctions && c.extraFunctions[fn];
     html +=
-      '<option value="' +
+      '<label class="multi-drop-item' +
+      (on ? ' on' : '') +
+      '"><input type="checkbox" data-extra-fn="' +
       custEsc(fn) +
       '"' +
-      (c.extraFunctionSelect === fn ? ' selected' : '') +
-      '>' +
+      (on ? ' checked' : '') +
+      '> <span><b>' +
       custEsc(fn) +
-      '</option>';
+      '</b>' +
+      (CUST_FUNCTION_HINTS[fn] ? '<span class="cust-muted">' + custEsc(CUST_FUNCTION_HINTS[fn]) + '</span>' : '') +
+      '</span></label>';
   });
-  html += '<option value="__custom__"' + (c.extraFunctionSelect === '__custom__' ? ' selected' : '') + '>Custom function…</option>';
-  html += '</select></div>';
-  if (CUST_FUNCTION_HINTS[c.extraFunctionSelect]) {
-    html += '<p class="cust-hint">' + custEsc(CUST_FUNCTION_HINTS[c.extraFunctionSelect]) + '</p>';
-  }
+  html +=
+    '<label class="multi-drop-item' +
+    (c.extraFunctionCustom ? ' on' : '') +
+    '"><input type="checkbox" id="custFnCustomChk"' +
+    (c.extraFunctionCustom ? ' checked' : '') +
+    '> <span><b>Custom function…</b><span class="cust-muted">Type your own event name below</span></span></label>';
+  html += '</div></div></div>';
   html +=
     '<div class="fld" id="custFnCustomWrap" style="' +
-    (c.extraFunctionSelect === '__custom__' ? '' : 'display:none') +
-    '"><label>Describe the function</label><div class="sel-box"><input type="text" id="custFnCustom" maxlength="120" placeholder="e.g. Wedding eve at home, 4 hours" value="' +
+    (c.extraFunctionCustom ? '' : 'display:none') +
+    '"><label>Describe custom function</label><div class="sel-box"><input type="text" id="custFnCustom" maxlength="120" placeholder="e.g. Wedding eve at home, 4 hours" value="' +
     custEsc(c.functionCustom || '') +
     '"></div></div>';
   if (optFns.length) {
-    html += '<p class="cust-hint">Already in this package: ' + custEsc((owner.functions || []).join(', ')) + '</p>';
+    html += '<p class="cust-hint">You can select more than one. Already in package: ' + custEsc((owner.functions || []).join(', ')) + '</p>';
   }
 
   if (hasAlbum) {
@@ -1177,17 +1266,10 @@ function custRenderCustomizeService(svcOwner, serviceExtras, durationOptions, st
 function custCustomizeRequirementLines(state, owner) {
   const c = state.customize;
   const lines = [];
-  Object.keys(c.extras || {}).forEach(function (id) {
-    if (!c.extras[id]) return;
-    lines.push(id + ' (add-on)');
+  const optFns = custOptionalFunctionsForOwner(owner);
+  custExtraFunctionsSelectedList(c, optFns).forEach(function (fn) {
+    lines.push('Also cover: ' + fn);
   });
-  if (c.extraFunctionSelect && c.extraFunctionSelect !== '') {
-    if (c.extraFunctionSelect === '__custom__' && c.functionCustom) {
-      lines.push('Extra function: ' + c.functionCustom);
-    } else if (c.extraFunctionSelect !== '__custom__') {
-      lines.push('Also cover: ' + c.extraFunctionSelect);
-    }
-  }
   Object.keys(c.functions || {}).forEach(function (fn) {
     if (c.functions[fn]) lines.push('Also cover: ' + fn);
   });
@@ -2028,7 +2110,7 @@ function defaultPackageId(studioId) {
   return pkgs[0] ? pkgs[0].id : 'standard';
 }
 
-const PHOTO_CUSTOMER_BUILD = '2026-10-13-photo-customer-owner-mirror-v8';
+const PHOTO_CUSTOMER_BUILD = '2026-10-13-photo-customer-owner-mirror-v8a';
 const DEMO_FILE = 'GIXBEE-PHOTO-CUSTOMER-FINALFLOW.html';
 const STORAGE_KEY = 'GIXBEE_PHOTO_CUSTOMER_INTERESTS_V2';
 
@@ -2114,7 +2196,8 @@ const state = {
     albumPaperCustom: '',
     albumCoverCustom: '',
     functions: {},
-    extraFunctionSelect: '',
+    extraFunctions: {},
+    extraFunctionCustom: false,
     functionCustom: '',
     customNeedPreset: '',
     customNeedText: '',
@@ -3072,6 +3155,9 @@ function renderCustomize() {
     if (goRev) goRev.textContent = 'Next: Review Interest';
   }
   bindCustomize();
+  if (state.mode === 'wedding') {
+    custBindExtraFunctionMulti(custOptionalFunctionsForOwner(activePackageOwner()));
+  }
 }
 
 function bindCustomize() {
@@ -3101,19 +3187,6 @@ function bindCustomize() {
       inp.closest('.chk-row').classList.toggle('on', inp.checked);
     };
   });
-  const fnSel = el('custFnSelect');
-  if (fnSel) {
-    fnSel.onchange = function () {
-      c.extraFunctionSelect = fnSel.value;
-      renderCustomize();
-    };
-  }
-  const fnCustom = el('custFnCustom');
-  if (fnCustom) {
-    fnCustom.oninput = function () {
-      c.functionCustom = fnCustom.value;
-    };
-  }
   const needPreset = el('custNeedPreset');
   if (needPreset) {
     needPreset.onchange = function () {
@@ -3125,20 +3198,6 @@ function bindCustomize() {
     needText.oninput = function () {
       c.customNeedText = needText.value;
     };
-  }
-  function bindAlbumSelect(id, key, customKey, wrapId) {
-    const sel = el(id);
-    if (!sel) return;
-    sel.onchange = function () {
-      c[key] = sel.value;
-      renderCustomize();
-    };
-    const customInp = el(customKey);
-    if (customInp) {
-      customInp.oninput = function () {
-        c[customKey.replace('alb', 'album').replace('SizeCustom', 'SizeCustom').replace('PagesCustom', 'PagesCustom')] = customInp.value;
-      };
-    }
   }
   const albSize = el('albSize');
   if (albSize) {

@@ -1,4 +1,4 @@
-const PHOTO_CUSTOMER_BUILD = '2026-10-13-photo-customer-owner-mirror-v8';
+const PHOTO_CUSTOMER_BUILD = '2026-10-13-photo-customer-owner-mirror-v8a';
 const DEMO_FILE = 'GIXBEE-PHOTO-CUSTOMER-FINALFLOW.html';
 const STORAGE_KEY = 'GIXBEE_PHOTO_CUSTOMER_INTERESTS_V2';
 
@@ -84,7 +84,8 @@ const state = {
     albumPaperCustom: '',
     albumCoverCustom: '',
     functions: {},
-    extraFunctionSelect: '',
+    extraFunctions: {},
+    extraFunctionCustom: false,
     functionCustom: '',
     customNeedPreset: '',
     customNeedText: '',
@@ -1042,6 +1043,9 @@ function renderCustomize() {
     if (goRev) goRev.textContent = 'Next: Review Interest';
   }
   bindCustomize();
+  if (state.mode === 'wedding') {
+    custBindExtraFunctionMulti(custOptionalFunctionsForOwner(activePackageOwner()));
+  }
 }
 
 function bindCustomize() {
@@ -1071,19 +1075,6 @@ function bindCustomize() {
       inp.closest('.chk-row').classList.toggle('on', inp.checked);
     };
   });
-  const fnSel = el('custFnSelect');
-  if (fnSel) {
-    fnSel.onchange = function () {
-      c.extraFunctionSelect = fnSel.value;
-      renderCustomize();
-    };
-  }
-  const fnCustom = el('custFnCustom');
-  if (fnCustom) {
-    fnCustom.oninput = function () {
-      c.functionCustom = fnCustom.value;
-    };
-  }
   const needPreset = el('custNeedPreset');
   if (needPreset) {
     needPreset.onchange = function () {
@@ -1095,20 +1086,6 @@ function bindCustomize() {
     needText.oninput = function () {
       c.customNeedText = needText.value;
     };
-  }
-  function bindAlbumSelect(id, key, customKey, wrapId) {
-    const sel = el(id);
-    if (!sel) return;
-    sel.onchange = function () {
-      c[key] = sel.value;
-      renderCustomize();
-    };
-    const customInp = el(customKey);
-    if (customInp) {
-      customInp.oninput = function () {
-        c[customKey.replace('alb', 'album').replace('SizeCustom', 'SizeCustom').replace('PagesCustom', 'PagesCustom')] = customInp.value;
-      };
-    }
   }
   const albSize = el('albSize');
   if (albSize) {

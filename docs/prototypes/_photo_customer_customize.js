@@ -40,6 +40,74 @@ function custOptionalFunctionsForOwner(owner) {
   });
 }
 
+function custExtraFunctionsSelectedList(c, optFns) {
+  const list = (optFns || []).filter(function (fn) {
+    return c.extraFunctions && c.extraFunctions[fn];
+  });
+  if (c.extraFunctionCustom && c.functionCustom && String(c.functionCustom).trim()) {
+    list.push(String(c.functionCustom).trim());
+  }
+  return list;
+}
+
+function custExtraFunctionsButtonLabel(c, optFns) {
+  const list = custExtraFunctionsSelectedList(c, optFns);
+  if (!list.length) return 'Select functions…';
+  if (list.length <= 2) return list.join(', ');
+  return list.length + ' functions selected';
+}
+
+function custUpdateExtraFnMultiLabel(optFns) {
+  const lbl = el('custFnMultiLbl');
+  if (lbl) lbl.textContent = custExtraFunctionsButtonLabel(state.customize, optFns);
+  const wrap = el('custFnCustomWrap');
+  if (wrap) wrap.style.display = state.customize.extraFunctionCustom ? '' : 'none';
+}
+
+function custBindExtraFunctionMulti(optFns) {
+  const btn = el('custFnMultiBtn');
+  const panel = el('custFnMultiPanel');
+  if (!btn || !panel) return;
+  if (!panel._custBound) {
+    panel._custBound = true;
+    document.addEventListener('click', function (e) {
+      if (panel.hidden) return;
+      if (panel.contains(e.target) || btn.contains(e.target)) return;
+      panel.hidden = true;
+    });
+  }
+  btn.onclick = function (e) {
+    e.stopPropagation();
+    panel.hidden = !panel.hidden;
+  };
+  const c = state.customize;
+  document.querySelectorAll('[data-extra-fn]').forEach(function (inp) {
+    inp.onchange = function () {
+      const fn = inp.getAttribute('data-extra-fn');
+      if (!c.extraFunctions) c.extraFunctions = {};
+      c.extraFunctions[fn] = inp.checked;
+      inp.closest('.multi-drop-item').classList.toggle('on', inp.checked);
+      custUpdateExtraFnMultiLabel(optFns);
+    };
+  });
+  const customChk = el('custFnCustomChk');
+  if (customChk) {
+    customChk.onchange = function () {
+      c.extraFunctionCustom = customChk.checked;
+      customChk.closest('.multi-drop-item').classList.toggle('on', customChk.checked);
+      custUpdateExtraFnMultiLabel(optFns);
+    };
+  }
+  const fnCustom = el('custFnCustom');
+  if (fnCustom) {
+    fnCustom.oninput = function () {
+      c.functionCustom = fnCustom.value;
+      custUpdateExtraFnMultiLabel(optFns);
+    };
+  }
+  custUpdateExtraFnMultiLabel(optFns);
+}
+
 function custAlbumHasPackage(owner) {
   const a = (owner.albumPrints || {})['Photo Album'];
   return a && a.on;
@@ -84,31 +152,43 @@ function custRenderCustomizeWedding(owner, packageExtras, state) {
   }
 
   html += '<div class="cust-hd">Extra events to cover</div>';
-  html += '<div class="fld"><label>Add function</label><div class="sel-box"><select id="custFnSelect">';
-  html += '<option value="">None</option>';
+  html += '<div class="fld"><label>Add function</label>';
+  html += '<div class="multi-drop" id="custFnMulti">';
+  html +=
+    '<button type="button" class="multi-drop-btn" id="custFnMultiBtn"><span id="custFnMultiLbl">' +
+    custEsc(custExtraFunctionsButtonLabel(c, optFns)) +
+    '</span><span class="multi-drop-chev" aria-hidden="true">▾</span></button>';
+  html += '<div class="multi-drop-panel" id="custFnMultiPanel" hidden>';
   optFns.forEach(function (fn) {
+    const on = c.extraFunctions && c.extraFunctions[fn];
     html +=
-      '<option value="' +
+      '<label class="multi-drop-item' +
+      (on ? ' on' : '') +
+      '"><input type="checkbox" data-extra-fn="' +
       custEsc(fn) +
       '"' +
-      (c.extraFunctionSelect === fn ? ' selected' : '') +
-      '>' +
+      (on ? ' checked' : '') +
+      '> <span><b>' +
       custEsc(fn) +
-      '</option>';
+      '</b>' +
+      (CUST_FUNCTION_HINTS[fn] ? '<span class="cust-muted">' + custEsc(CUST_FUNCTION_HINTS[fn]) + '</span>' : '') +
+      '</span></label>';
   });
-  html += '<option value="__custom__"' + (c.extraFunctionSelect === '__custom__' ? ' selected' : '') + '>Custom function…</option>';
-  html += '</select></div>';
-  if (CUST_FUNCTION_HINTS[c.extraFunctionSelect]) {
-    html += '<p class="cust-hint">' + custEsc(CUST_FUNCTION_HINTS[c.extraFunctionSelect]) + '</p>';
-  }
+  html +=
+    '<label class="multi-drop-item' +
+    (c.extraFunctionCustom ? ' on' : '') +
+    '"><input type="checkbox" id="custFnCustomChk"' +
+    (c.extraFunctionCustom ? ' checked' : '') +
+    '> <span><b>Custom function…</b><span class="cust-muted">Type your own event name below</span></span></label>';
+  html += '</div></div></div>';
   html +=
     '<div class="fld" id="custFnCustomWrap" style="' +
-    (c.extraFunctionSelect === '__custom__' ? '' : 'display:none') +
-    '"><label>Describe the function</label><div class="sel-box"><input type="text" id="custFnCustom" maxlength="120" placeholder="e.g. Wedding eve at home, 4 hours" value="' +
+    (c.extraFunctionCustom ? '' : 'display:none') +
+    '"><label>Describe custom function</label><div class="sel-box"><input type="text" id="custFnCustom" maxlength="120" placeholder="e.g. Wedding eve at home, 4 hours" value="' +
     custEsc(c.functionCustom || '') +
     '"></div></div>';
   if (optFns.length) {
-    html += '<p class="cust-hint">Already in this package: ' + custEsc((owner.functions || []).join(', ')) + '</p>';
+    html += '<p class="cust-hint">You can select more than one. Already in package: ' + custEsc((owner.functions || []).join(', ')) + '</p>';
   }
 
   if (hasAlbum) {
@@ -284,17 +364,10 @@ function custRenderCustomizeService(svcOwner, serviceExtras, durationOptions, st
 function custCustomizeRequirementLines(state, owner) {
   const c = state.customize;
   const lines = [];
-  Object.keys(c.extras || {}).forEach(function (id) {
-    if (!c.extras[id]) return;
-    lines.push(id + ' (add-on)');
+  const optFns = custOptionalFunctionsForOwner(owner);
+  custExtraFunctionsSelectedList(c, optFns).forEach(function (fn) {
+    lines.push('Also cover: ' + fn);
   });
-  if (c.extraFunctionSelect && c.extraFunctionSelect !== '') {
-    if (c.extraFunctionSelect === '__custom__' && c.functionCustom) {
-      lines.push('Extra function: ' + c.functionCustom);
-    } else if (c.extraFunctionSelect !== '__custom__') {
-      lines.push('Also cover: ' + c.extraFunctionSelect);
-    }
-  }
   Object.keys(c.functions || {}).forEach(function (fn) {
     if (c.functions[fn]) lines.push('Also cover: ' + fn);
   });
