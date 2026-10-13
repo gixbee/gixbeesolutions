@@ -1,4 +1,4 @@
-const PHOTO_CUSTOMER_BUILD = '2026-10-13-photo-customer-owner-mirror-v6d';
+const PHOTO_CUSTOMER_BUILD = '2026-10-13-photo-customer-owner-mirror-v6e';
 const DEMO_FILE = 'GIXBEE-PHOTO-CUSTOMER-FINALFLOW.html';
 const STORAGE_KEY = 'GIXBEE_PHOTO_CUSTOMER_INTERESTS_V2';
 
@@ -59,6 +59,8 @@ const state = {
   detailBack: 'catalog',
   backScreen: 'search',
   catalogFilterPanel: null,
+  /** 'customize' = came via Customize Requirements; 'direct' = Initiate Interest from detail */
+  reviewEntry: 'direct',
 };
 
 function activeNeed() {
@@ -938,16 +940,38 @@ function bindCustomize() {
   }
 }
 
+function renderReviewFooter() {
+  const foot = el('reviewFoot');
+  if (!foot) return;
+  const viaCustomize = state.reviewEntry === 'customize';
+  if (viaCustomize) {
+    foot.style.gridTemplateColumns = '1fr 1fr';
+    foot.innerHTML =
+      '<button type="button" class="btn outline" data-to="customize">Edit Requirements</button>' +
+      '<button type="button" class="btn" id="sendInterest">Send Interest</button>';
+  } else {
+    foot.style.gridTemplateColumns = '1fr 1fr';
+    foot.innerHTML =
+      '<button type="button" class="btn outline" data-back>← Back</button>' +
+      '<button type="button" class="btn" id="sendInterest">Send Interest</button>';
+  }
+  const send = el('sendInterest');
+  if (send) send.onclick = submitInterest;
+}
+
 function renderReview() {
   const body = el('reviewBody');
   if (!body) return;
   const s = studio();
+  const showEditChip = state.reviewEntry === 'customize';
   body.innerHTML =
     '<div class="review-summary"><div class="thumb"></div><div style="flex:1"><b>' +
     esc(offerTitle()) +
     '</b><div style="font-weight:900;color:var(--blue2);margin-top:4px">' +
     inr(offerPrice()) +
-    '</div></div><button type="button" class="btn sm outline" data-to="customize">Edit</button></div>' +
+    '</div></div>' +
+    (showEditChip ? '<button type="button" class="btn sm outline" data-to="customize">Edit</button>' : '') +
+    '</div>' +
     '<div class="cust-hd">Event Details</div>' +
     '<div class="kv-row"><span>Studio</span><b>' +
     esc(s.name) +
