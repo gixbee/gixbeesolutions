@@ -1022,6 +1022,7 @@ function renderReview() {
         }).join('')
       : '<p class="sub">No add-ons selected</p>';
   }
+  renderReviewFooter();
 }
 
 function renderSentTimeline() {
@@ -1255,6 +1256,7 @@ function bindEvents() {
         renderInterests();
         show('interests', 'search');
       } else if (id === 'review') {
+        state.reviewEntry = 'customize';
         renderReview();
         show('review', 'customize');
       } else show(id);
@@ -1294,15 +1296,16 @@ function bindEvents() {
   const goInterest = el('goCustomize2');
   if (goInterest) {
     goInterest.onclick = function () {
+      state.reviewEntry = 'direct';
       renderReview();
       show('review', 'detail');
     };
   }
   el('goReview').onclick = function () {
+    state.reviewEntry = 'customize';
     renderReview();
     show('review', 'customize');
   };
-  el('sendInterest').onclick = submitInterest;
   document.querySelectorAll('[data-intab]').forEach(function (btn) {
     btn.onclick = function () {
       state.intTab = btn.getAttribute('data-intab');
