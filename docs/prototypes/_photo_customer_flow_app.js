@@ -1,4 +1,4 @@
-const PHOTO_CUSTOMER_BUILD = '2026-10-13-photo-customer-real-data-v3';
+const PHOTO_CUSTOMER_BUILD = '2026-10-13-photo-customer-owner-mirror-v4';
 const DEMO_FILE = 'GIXBEE-PHOTO-CUSTOMER-FINALFLOW.html';
 const STORAGE_KEY = 'GIXBEE_PHOTO_CUSTOMER_INTERESTS_V2';
 
@@ -135,19 +135,29 @@ function activePackage() {
   return found || list[0] || packagesForStudio(state.studioId, {})[0];
 }
 
+function activePackageOwner() {
+  const card = activePackage();
+  if (card && card.owner) return card.owner;
+  return ownerPayloadForPackage(state.studioId, state.packageId);
+}
+
 function activeService() {
   const key = state.serviceId || state.photoNeed || 'funeral';
   return serviceForStudio(state.studioId, key);
 }
 
+function activeServiceOwner() {
+  const card = activeService();
+  if (card && card.owner) return card.owner;
+  return ownerPayloadForService(state.studioId, state.serviceId || state.photoNeed);
+}
+
 function packageExtras() {
-  const p = activePackage();
-  return p && p.extras ? p.extras : [];
+  return custPackageExtrasList(activePackageOwner());
 }
 
 function serviceExtras() {
-  const s = activeService();
-  return s && s.extras ? s.extras : [];
+  return custServiceExtrasList(activeServiceOwner());
 }
 
 function offerTitle() {
@@ -598,7 +608,7 @@ function renderCatalog() {
   list.querySelectorAll('[data-pkg]').forEach(function (btn) {
     btn.onclick = function () {
       state.packageId = btn.getAttribute('data-pkg');
-      state.detailTab = 'inclusions';
+      state.detailTab = 'overview';
       state.detailBack = 'catalog';
       renderDetail();
       show('detail', 'catalog');
@@ -612,42 +622,43 @@ function renderDetail() {
   const tabs = el('detailTabs');
   const panel = el('detailPanel');
   const isWed = state.mode === 'wedding';
-  const title = offerTitle();
-  const pkg = activePackage();
-  const svc = activeService();
-  const price = isWed ? pkg.price : svc.price;
-  if (name) name.textContent = title;
+  const pkg = activePackageOwner();
+  const svc = activeServiceOwner();
+  const card = isWed ? activePackage() : activeService();
+  const price = card.price;
+  if (name) name.textContent = isWed ? pkg.name : svc.name;
   if (priceTag) {
     let ph =
       '<b>' +
       inr(price) +
       '</b><span>' +
-      (isWed ? 'Package price' : 'Base price') +
+      (isWed ? 'Package price' : 'Service price') +
       '</span>';
-    if (isWed && pkg.listPrice > pkg.price) {
+    if (card.listPrice > price) {
       ph +=
         '<span style="display:block;font-size:12px;text-decoration:line-through;opacity:.85">' +
-        inr(pkg.listPrice) +
-        ' · ' +
-        pkg.discountPct +
-        '% OFF</span>';
+        inr(card.listPrice) +
+        (card.discountPct ? ' · ' + card.discountPct + '% OFF' : '') +
+        '</span>';
     }
     priceTag.innerHTML = ph;
   }
-  const tabIds = ['inclusions', 'coverage', 'extras', 'reviews'];
-  const tabLbl = ['Inclusions', 'Coverage', 'Extras', 'Reviews'];
+  const tabIds = ['overview', 'inclusions', 'coverage', 'extras', 'policies', 'reviews'];
+  const tabLbl = ['Overview', 'Inclusions', 'Coverage', 'Extras', 'Policies', 'Reviews'];
   if (tabs) {
-    tabs.innerHTML = tabIds.map(function (id, i) {
-      return (
-        '<button type="button" class="' +
-        (state.detailTab === id ? 'on' : '') +
-        '" data-dtab="' +
-        id +
-        '">' +
-        tabLbl[i] +
-        '</button>'
-      );
-    }).join('');
+    tabs.innerHTML = tabIds
+      .map(function (id, i) {
+        return (
+          '<button type="button" class="' +
+          (state.detailTab === id ? 'on' : '') +
+          '" data-dtab="' +
+          id +
+          '">' +
+          tabLbl[i] +
+          '</button>'
+        );
+      })
+      .join('');
     tabs.querySelectorAll('[data-dtab]').forEach(function (btn) {
       btn.onclick = function () {
         state.detailTab = btn.getAttribute('data-dtab');
@@ -656,77 +667,16 @@ function renderDetail() {
     });
   }
   if (!panel) return;
-  if (state.detailTab === 'inclusions') {
-    const items = isWed ? pkg.inclusions || [] : svc.inclusions || [];
-    panel.innerHTML =
-      '<h3 style="margin:0 0 8px;font-size:15px">What\'s Included</h3><ul class="chk-list">' +
-      items.map(function (t) {
-        return '<li>' + esc(t) + '</li>';
-      }).join('') +
-      '</ul>' +
-      (isWed && pkg.delivery
-        ? '<h3 style="margin:16px 0 8px;font-size:14px">Delivery timeline</h3>' +
-          pkg.delivery
-            .map(function (d) {
-              return '<div class="kv-row"><span>' + esc(d.item) + '</span><b>' + esc(d.timeline) + '</b></div>';
-            })
-            .join('')
-        : svc.delivery
-          ? '<h3 style="margin:16px 0 8px;font-size:14px">Delivery</h3>' +
-            svc.delivery
-              .map(function (d) {
-                return '<div class="kv-row"><span>' + esc(d.item) + '</span><b>' + esc(d.timeline) + '</b></div>';
-              })
-              .join('')
-          : '');
+  if (state.detailTab === 'overview') {
+    panel.innerHTML = isWed ? custRenderPkgBasics(pkg) : '<p class="sub">' + esc(svc.blurb) + '</p>';
+  } else if (state.detailTab === 'inclusions') {
+    panel.innerHTML = isWed ? custRenderPkgInclusions(pkg) : custRenderSvcInclusions(svc);
   } else if (state.detailTab === 'coverage') {
-    if (isWed) {
-      panel.innerHTML =
-        '<h3 style="margin:0 0 10px;font-size:14px">Coverage by function</h3>' +
-        (pkg.coverage || [])
-          .map(function (c) {
-            return (
-              '<div style="margin-bottom:12px;padding:12px;border:1px solid #E2E8F0;border-radius:12px">' +
-              '<b style="display:block;color:var(--navy);margin-bottom:6px">' +
-              esc(c.fn) +
-              '</b>' +
-              '<div class="kv-row"><span>Side</span><b>' +
-              esc(c.side) +
-              '</b></div>' +
-              '<div class="kv-row"><span>Duration</span><b>' +
-              c.hours +
-              ' hrs · extra hr ' +
-              inr(c.extraHour) +
-              '</b></div>' +
-              '<div class="kv-row"><span>Photo team</span><b>' +
-              esc(c.photoTeam) +
-              '</b></div>' +
-              '<div class="kv-row"><span>Video</span><b>' +
-              esc(c.videoTeam) +
-              '</b></div></div>'
-            );
-          })
-          .join('');
-    } else {
-      panel.innerHTML = (svc.coverage || [])
-        .map(function (row) {
-          return '<div class="kv-row"><span>' + esc(row.k) + '</span><b>' + esc(row.v) + '</b></div>';
-        })
-        .join('');
-    }
+    panel.innerHTML = isWed ? custRenderPkgCoverage(pkg) : custRenderSvcCoverage(svc);
   } else if (state.detailTab === 'extras') {
-    const extras = isWed ? packageExtras() : serviceExtras();
-    panel.innerHTML =
-      '<p style="font-size:12px;font-weight:800;color:var(--mut);margin:0 0 8px">Additional Services (Optional)</p>' +
-      extras.map(function (ex) {
-        return (
-          '<div class="extra-line"><span>' +
-          esc(ex.label) +
-          '</span><span style="font-weight:900;color:var(--blue)">' +
-          inr(ex.price) +
-          '</span></div>'
-        );
-      }).join('');
+    panel.innerHTML = custRenderExtrasBlock(isWed ? pkg.extras : svc.extras);
+  } else if (state.detailTab === 'policies') {
+    panel.innerHTML = custRenderPolicies(isWed ? pkg : svc);
   } else {
     panel.innerHTML = renderReviewsHtml();
   }
@@ -748,7 +698,8 @@ function renderCustomize() {
   if (!body) return;
   if (state.mode === 'wedding') {
     const pkg = activePackage();
-    const optFns = pkg.optionalFunctions || ['Engagement', 'Reception', 'Wedding Eve'];
+    const owner = activePackageOwner();
+    const optFns = activePackage().optionalFunctions || owner.functions || ['Engagement', 'Reception'];
     body.innerHTML =
       '<div class="cust-hd">Additional Services (Optional)</div>' +
       packageExtras().map(function (ex) {
@@ -797,7 +748,7 @@ function renderCustomize() {
   } else {
     body.innerHTML =
       '<div class="cust-hd">Coverage Duration</div>' +
-      (activeService().durationOptions || []).map(function (d) {
+      (activeService().durationOptions || activeServiceOwner().durationOptions || []).map(function (d) {
         return (
           '<label class="radio-card' +
           (state.customize.duration === d.id ? ' on' : '') +
@@ -919,14 +870,9 @@ function renderReview() {
       : '') +
     '<div class="cust-hd">Selected Requirements</div>' +
     '<div id="revReqs"></div>' +
-    (state.mode === 'wedding' && activePackage().paymentStages
-      ? '<div class="cust-hd">Payment stages (studio)</div>' +
-        activePackage()
-          .paymentStages.map(function (ps) {
-            return '<div class="kv-row"><span>' + esc(ps.label) + '</span><b>' + ps.pct + '%</b></div>';
-          })
-          .join('')
-      : '') +
+    (state.mode === 'wedding'
+      ? '<div class="cust-hd">Policies & payment</div>' + custRenderPolicies(activePackageOwner())
+      : '<div class="cust-hd">Policies</div>' + custRenderPolicies(activeServiceOwner())) +
     (state.customize.notes
       ? '<div class="cust-hd">Additional Notes</div><p style="font-size:13px;font-weight:600;color:var(--mut)">' +
         esc(state.customize.notes) +
@@ -1045,6 +991,18 @@ function renderInterestDetail() {
     (it.paymentSummary
       ? '<div class="kv-row"><span>Payment</span><b>' + esc(it.paymentSummary) + '</b></div>'
       : '') +
+    (it.deliverySummary
+      ? '<div class="kv-row"><span>Delivery</span><b style="font-size:12px">' + esc(it.deliverySummary) + '</b></div>'
+      : '') +
+    (it.requirementsOwner && it.requirementsOwner.length
+      ? '<div class="cust-hd">Studio requirements</div><ul class="chk-list">' +
+        it.requirementsOwner
+          .map(function (r) {
+            return '<li>' + esc(r) + '</li>';
+          })
+          .join('') +
+        '</ul>'
+      : '') +
     '<div class="cust-hd">Status Timeline</div>' +
     '<div class="timeline">' +
     TIMELINE.map(function (step, i) {
@@ -1065,18 +1023,20 @@ function renderInterestDetail() {
 }
 
 function submitInterest() {
-  const pkg = state.mode === 'wedding' ? activePackage() : null;
-  const cov =
-    pkg && pkg.coverage && pkg.coverage[0]
-      ? pkg.coverage[0].fn + ' · ' + pkg.coverage[0].hours + ' hrs · ' + pkg.coverage[0].side
-      : state.mode === 'service'
-        ? (activeService().coverage || []).map(function (c) {
-            return c.k + ': ' + c.v;
-          }).join(' · ')
-        : '';
+  const pkgO = state.mode === 'wedding' ? activePackageOwner() : null;
+  const svcO = state.mode === 'service' ? activeServiceOwner() : null;
+  let cov = '';
+  if (pkgO && pkgO.coverageByFunction) {
+    const fn = Object.keys(pkgO.coverageByFunction)[0];
+    const b = pkgO.coverageByFunction[fn];
+    if (b) cov = fn + ' · ' + (b.duration || '') + ' · ' + (b.coverageSide || '');
+  } else if (svcO) {
+    cov = (svcO.duration || '') + (svcO.team ? ' · photo team assigned' : '');
+  }
+  const paySrc = pkgO || svcO;
   const pay =
-    pkg && pkg.paymentStages
-      ? pkg.paymentStages.map(function (p) {
+    paySrc && paySrc.paymentStages
+      ? paySrc.paymentStages.map(function (p) {
           return p.label + ' ' + p.pct + '%';
         }).join(' · ')
       : '';
@@ -1097,7 +1057,18 @@ function submitInterest() {
     paymentSummary: pay,
     coverageSummary: cov,
     deliverySummary:
-      pkg && pkg.delivery && pkg.delivery[0] ? pkg.delivery[0].item + ' · ' + pkg.delivery[0].timeline : '',
+      pkgO && pkgO.deliveryMap
+        ? Object.keys(pkgO.deliveryMap)
+            .slice(0, 2)
+            .map(function (k) {
+              return k + ' · ' + pkgO.deliveryMap[k];
+            })
+            .join('; ')
+        : svcO && svcO.deliveryMap
+          ? Object.keys(svcO.deliveryMap)[0] + ' · ' + svcO.deliveryMap[Object.keys(svcO.deliveryMap)[0]]
+          : '',
+    requirementsOwner: (pkgO || svcO || {}).requirements || [],
+    policiesSummary: (pkgO || svcO || {}).policies || [],
     statusLabel: 'Under Review',
     status: 'active',
     sentAt: new Date().toISOString().slice(0, 10),
@@ -1152,7 +1123,7 @@ function bindEvents() {
       renderCatalog();
       show('catalog', 'profile');
     } else {
-      state.detailTab = 'inclusions';
+      state.detailTab = 'overview';
       state.detailBack = 'profile';
       renderDetail();
       show('detail', 'profile');

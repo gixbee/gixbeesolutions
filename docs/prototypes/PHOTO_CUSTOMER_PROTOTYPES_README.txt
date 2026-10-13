@@ -5,13 +5,16 @@ PRIMARY DEMO (double-click):
 
   docs/prototypes/GIXBEE-PHOTO-CUSTOMER-FINALFLOW5.html
 
-Flows (from Home):
+Default Home / Search screen:
 
-  Wedding photography — packages search → results → profile → packages →
-  package detail (tabs) → customize → review → interest sent → My Interests
+  Hero: Find Your Wedding Photographer
+  Fields: Location → Event Date → What do you need photography for? (required)
+  If wedding-related (marriage, engagement, save the date, pre/post wedding, etc.):
+    Community / Religion + Package Type
+  If funeral, baptism, event, etc.: no community or package filters
+  Budget (optional) → Search Photographers
 
-  Funeral / Memorial (or other services) — service search → results → profile →
-  service detail (tabs) → customize → review → interest sent → My Interests
+  Wedding need → packages path. Individual service need → single-service path.
 
 Sources:
 

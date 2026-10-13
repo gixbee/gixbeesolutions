@@ -327,9 +327,62 @@ function studioList() {
   });
 }
 
+const BLUE_PACKAGE_IDS = ['basic', 'standard', 'premium'];
+
+function packageCardFromOwner(owner) {
+  return {
+    id: owner.id,
+    name: owner.name,
+    level: owner.level,
+    price: owner.price,
+    listPrice: owner.listPrice,
+    discountPct: owner.discountPct,
+    ceremonies: owner.ceremonyTypes || [],
+    cardBullets: custSummaryBulletsFromPkg(owner),
+    optionalFunctions: owner.functions || [],
+    owner: owner,
+  };
+}
+
+function serviceCardFromOwner(owner) {
+  const durationOptions = [
+    { id: 'inc', label: (owner.duration || 'Included') + (owner.price ? '' : ''), add: 0 },
+  ];
+  Object.keys(owner.extras || {}).forEach(function (name) {
+    if (name.toLowerCase().indexOf('extend') >= 0 || name.indexOf('+') >= 0) {
+      const x = owner.extras[name];
+      durationOptions.push({ id: name, label: name, add: x.price || 0 });
+    }
+  });
+  if (durationOptions.length === 1 && owner.extraHour) {
+    durationOptions.push({
+      id: 'ext1',
+      label: 'Extended coverage (+1 hr)',
+      add: owner.extraHour,
+    });
+  }
+  return {
+    id: owner.id,
+    name: owner.name,
+    price: owner.price,
+    listPrice: owner.listPrice,
+    discountPct: owner.discountPct,
+    durationOptions: durationOptions,
+    owner: owner,
+  };
+}
+
 function packagesForStudio(studioId, filters) {
-  const st = catalogStudio(studioId);
-  let list = (st.packages || []).slice();
+  let list;
+  if (studioId === 'blue') {
+    list = BLUE_PACKAGE_IDS.map(function (id) {
+      return packageCardFromOwner(ownerPayloadForPackage('blue', id));
+    });
+  } else if (studioId === 'archana') {
+    list = [packageCardFromOwner(ownerPayloadForPackage('archana', 'arch-standard'))];
+  } else {
+    list = (catalogStudio(studioId).packages || []).slice();
+  }
   if (filters && filters.level && filters.level !== 'All') {
     list = list.filter(function (p) {
       return p.level === filters.level;
@@ -342,14 +395,14 @@ function packagesForStudio(studioId, filters) {
       return (p.ceremonies || []).indexOf('All') >= 0 || (p.ceremonies || []).indexOf(want) >= 0;
     });
   }
-  return list.length ? list : st.packages || [];
+  return list.length ? list : BLUE_PACKAGE_IDS.map(function (id) {
+    return packageCardFromOwner(ownerPayloadForPackage('blue', id));
+  });
 }
 
 function serviceForStudio(studioId, serviceKey) {
-  const st = catalogStudio(studioId);
-  const svc = (st.services || {})[serviceKey];
-  if (svc) return svc;
-  return CUSTOMER_CATALOG.blue.services.funeral;
+  const key = serviceKey || 'funeral';
+  return serviceCardFromOwner(ownerPayloadForService(studioId, key));
 }
 
 function defaultPackageId(studioId) {

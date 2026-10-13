@@ -366,6 +366,599 @@ function svgIcon(name, cls) {
   return icons[name] || '';
 }
 
+/** Render owner-shaped package/service data for customer screens. */
+
+function custEsc(s) {
+  return String(s == null ? '' : s)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+}
+
+function custInr(n) {
+  return '₹ ' + Number(n || 0).toLocaleString('en-IN');
+}
+
+function custChips(items) {
+  return (
+    '<div class="area-tags">' +
+    items
+      .map(function (x) {
+        return '<span>' + custEsc(x) + '</span>';
+      })
+      .join('') +
+    '</div>'
+  );
+}
+
+function custKvRows(rows) {
+  return rows
+    .map(function (r) {
+      return '<div class="kv-row"><span>' + custEsc(r.k) + '</span><b>' + custEsc(r.v) + '</b></div>';
+    })
+    .join('');
+}
+
+function custTeamLines(types) {
+  const lines = [];
+  Object.keys(types || {}).forEach(function (label) {
+    const t = types[label];
+    if (t && t.on && t.qty > 0) lines.push(t.qty + '× ' + label);
+  });
+  return lines;
+}
+
+function custRenderPkgBasics(pkg) {
+  let html =
+    '<p style="font-size:13px;font-weight:600;color:var(--mut);line-height:1.5;margin:0 0 12px">' +
+    custEsc(pkg.desc) +
+    '</p>';
+  html += '<div class="cust-hd">Package level</div>' + custChips([pkg.level]);
+  html += '<div class="cust-hd">Ceremony types</div>' + custChips(pkg.ceremonyTypes || []);
+  html += '<div class="cust-hd">Functions covered</div>' + custChips(pkg.functions || []);
+  if (pkg.equipmentNote) {
+    html += '<div class="cust-hd">Equipment</div><p class="sub">' + custEsc(pkg.equipmentNote) + '</p>';
+  }
+  if (pkg.qualityNote) {
+    html += '<div class="cust-hd">Quality</div><p class="sub">' + custEsc(pkg.qualityNote) + '</p>';
+  }
+  return html;
+}
+
+function custRenderPkgInclusions(pkg) {
+  let html = '<h3 style="margin:0 0 8px;font-size:15px">Photos</h3><ul class="chk-list">';
+  (pkg.deliverPhoto || []).forEach(function (name) {
+    const det = (pkg.photoDetails || {})[name] || {};
+    html +=
+      '<li><b>' +
+      custEsc(name) +
+      '</b> — ' +
+      (det.qty ? det.qty + ' · ' : '') +
+      custEsc(det.format || '') +
+      (det.delivery ? ' · ' + custEsc(det.delivery) : '') +
+      '</li>';
+  });
+  html += '</ul>';
+  if ((pkg.deliverVideo || []).length) {
+    html += '<h3 style="margin:16px 0 8px;font-size:15px">Videos</h3><ul class="chk-list">';
+    (pkg.deliverVideo || []).forEach(function (name) {
+      const det = (pkg.videoDetails || {})[name] || {};
+      let extra = '';
+      if (name === 'Live Streaming' && det.streamCameras) extra = ' · ' + det.streamCameras + ' camera(s)';
+      html +=
+        '<li><b>' +
+        custEsc(name) +
+        '</b> — ' +
+        custEsc(det.duration || '') +
+        ' · ' +
+        custEsc(det.format || '') +
+        extra +
+        '</li>';
+    });
+    html += '</ul>';
+  }
+  if ((pkg.deliverDigital || []).length) {
+    html += '<h3 style="margin:16px 0 8px;font-size:15px">Digital delivery</h3><ul class="chk-list">';
+    (pkg.deliverDigital || []).forEach(function (name) {
+      html += '<li>' + custEsc(name) + '</li>';
+    });
+    html += '</ul>';
+  }
+  const ap = pkg.albumPrints || {};
+  const album = ap['Photo Album'];
+  if (album && album.on) {
+    html +=
+      '<h3 style="margin:16px 0 8px;font-size:15px">Album & prints</h3><ul class="chk-list"><li><b>Photo Album</b> — ' +
+      custEsc(album.size) +
+      ' · ' +
+      album.pages +
+      ' pages · ' +
+      custEsc(album.cover) +
+      ' cover · ' +
+      custEsc(album.paper) +
+      ' paper</li>';
+    if (ap.Calendar && ap.Calendar.on) {
+      html += '<li>Wall calendar · ' + custEsc(ap.Calendar.size) + ' × ' + (ap.Calendar.copies || 1) + '</li>';
+    }
+    html += '</ul>';
+  }
+  html += '<h3 style="margin:16px 0 8px;font-size:15px">Delivery timeline</h3>';
+  html += custKvRows(
+    Object.keys(pkg.deliveryMap || {}).map(function (k) {
+      return { k: k, v: pkg.deliveryMap[k] };
+    })
+  );
+  return html;
+}
+
+function custRenderPkgCoverage(pkg) {
+  const blocks = pkg.coverageByFunction || {};
+  return Object.keys(blocks)
+    .map(function (fn) {
+      const b = blocks[fn];
+      const photos = custTeamLines(b.photoTypes).join(', ') || '—';
+      const videos = custTeamLines(b.videoTypes).join(', ') || '—';
+      return (
+        '<div style="margin-bottom:12px;padding:12px;border:1px solid #E2E8F0;border-radius:12px">' +
+        '<b style="display:block;color:var(--navy);margin-bottom:8px">' +
+        custEsc(fn) +
+        '</b>' +
+        custKvRows([
+          { k: 'Coverage side', v: b.coverageSide === 'both' ? 'Both sides' : b.coverageSide === 'single' ? 'Single side' : b.coverageSide },
+          { k: 'Duration', v: b.duration || '—' },
+          { k: 'Extra hour', v: custInr(b.extraHour) },
+          { k: 'Photo team', v: photos },
+          { k: 'Video team', v: videos },
+        ]) +
+        '</div>'
+      );
+    })
+    .join('');
+}
+
+function custRenderExtrasBlock(extras) {
+  const inc = [];
+  const paid = [];
+  Object.keys(extras || {}).forEach(function (name) {
+    const x = extras[name];
+    if (!x) return;
+    if (x.mode === 'included') {
+      let line = name;
+      if (name === 'Live Streaming' && x.includedCameras) line += ' · ' + x.includedCameras + ' cameras included';
+      if (x.hourlyLimit) line += ' · ' + (x.includedHours || 0) + ' hrs incl., then ' + custInr(x.extraHour) + '/hr';
+      inc.push(line);
+    } else {
+      paid.push({ name: name, price: x.price, basis: x.basis });
+    }
+  });
+  let html = '';
+  if (inc.length) {
+    html += '<div class="cust-hd">Included in package</div><ul class="chk-list">';
+    inc.forEach(function (l) {
+      html += '<li>' + custEsc(l) + '</li>';
+    });
+    html += '</ul>';
+  }
+  if (paid.length) {
+    html += '<div class="cust-hd">Optional add-ons</div>';
+    paid.forEach(function (p) {
+      html +=
+        '<div class="extra-line"><span>' +
+        custEsc(p.name) +
+        '</span><span style="font-weight:900;color:var(--blue)">' +
+        custInr(p.price) +
+        (p.basis ? ' <span style="font-size:10px;color:var(--mut)">/ ' + custEsc(p.basis) + '</span>' : '') +
+        '</span></div>';
+    });
+  }
+  return html;
+}
+
+function custRenderPolicies(pkg) {
+  let html = '<div class="cust-hd">Payment stages</div>';
+  html += (pkg.paymentStages || [])
+    .map(function (ps) {
+      return '<div class="kv-row"><span>' + custEsc(ps.label) + '</span><b>' + ps.pct + '%</b></div>';
+    })
+    .join('');
+  if (pkg.cancelRules && pkg.cancelRules.length) {
+    html += '<div class="cust-hd">Cancellation</div>';
+    html += pkg.cancelRules
+      .map(function (r) {
+        return '<div class="kv-row"><span>' + custEsc(r.days) + '</span><b>' + r.pct + '% fee</b></div>';
+      })
+      .join('');
+  }
+  if (pkg.rescheduleRules && pkg.rescheduleRules.length) {
+    html += '<div class="cust-hd">Rescheduling</div>';
+    html += pkg.rescheduleRules
+      .map(function (r) {
+        return '<div class="kv-row"><span>' + custEsc(r.days) + '</span><b>' + (r.pct ? r.pct + '%' : 'Free') + '</b></div>';
+      })
+      .join('');
+  }
+  (pkg.policies || []).forEach(function (pol) {
+    const pv = (pkg.policyValues || {})[pol];
+    if (!pv) return;
+    html += '<div class="cust-hd">' + custEsc(pol) + '</div>';
+    if (pv.notes) html += '<p class="sub" style="margin:0 0 10px">' + custEsc(pv.notes) + '</p>';
+    if (pv.noticeDays != null) {
+      html += '<div class="kv-row"><span>Notice (days)</span><b>' + pv.noticeDays + '</b></div>';
+    }
+    if (pv.refundPct != null) {
+      html += '<div class="kv-row"><span>Refund</span><b>' + pv.refundPct + '%</b></div>';
+    }
+    if (pv.days != null && pol.indexOf('Retention') >= 0) {
+      html += '<div class="kv-row"><span>Retention</span><b>' + pv.days + ' days</b></div>';
+    }
+  });
+  if ((pkg.requirements || []).length) {
+    html += '<div class="cust-hd">Customer requirements</div><ul class="chk-list">';
+    pkg.requirements.forEach(function (r) {
+      html += '<li>' + custEsc(r) + '</li>';
+    });
+    html += '</ul>';
+  }
+  return html;
+}
+
+function custRenderSvcInclusions(svc) {
+  let html = '<p class="sub" style="margin:0 0 12px">' + custEsc(svc.blurb) + '</p>';
+  html += '<h3 style="margin:0 0 8px;font-size:15px">What\'s included</h3><ul class="chk-list">';
+  (svc.deliverPhoto || []).forEach(function (name) {
+    const det = (svc.photoDetails || {})[name] || {};
+    html +=
+      '<li><b>' +
+      custEsc(name) +
+      '</b>' +
+      (det.qty ? ' — ' + det.qty + ' photos' : '') +
+      (det.delivery ? ' · ' + custEsc(det.delivery) : '') +
+      '</li>';
+  });
+  (svc.deliverVideo || []).forEach(function (name) {
+    const det = (svc.videoDetails || {})[name] || {};
+    html += '<li><b>' + custEsc(name) + '</b>';
+    if (det.streamCameras) html += ' — ' + det.streamCameras + ' camera(s)';
+    html += '</li>';
+  });
+  (svc.deliverDigital || []).forEach(function (name) {
+    html += '<li>' + custEsc(name) + '</li>';
+  });
+  html += '</ul>';
+  if (svc.deliveryMap) {
+    html += '<h3 style="margin:16px 0 8px;font-size:15px">Delivery</h3>';
+    html += custKvRows(
+      Object.keys(svc.deliveryMap).map(function (k) {
+        return { k: k, v: svc.deliveryMap[k] };
+      })
+    );
+  }
+  return html;
+}
+
+function custRenderSvcCoverage(svc) {
+  const rows = [
+    { k: 'Duration', v: svc.duration || '—' },
+    { k: 'Extra hour', v: svc.extraHour ? custInr(svc.extraHour) : '—' },
+  ];
+  const photo = custTeamLines((svc.team || {}).photo).join(', ');
+  const video = custTeamLines((svc.team || {}).video).join(', ');
+  if (photo) rows.push({ k: 'Photo team', v: photo });
+  if (video) rows.push({ k: 'Video team', v: video });
+  return custKvRows(rows);
+}
+
+function custPackageExtrasList(pkg) {
+  const out = [];
+  Object.keys(pkg.extras || {}).forEach(function (name) {
+    const x = pkg.extras[name];
+    if (x && x.mode === 'extra') {
+      out.push({ id: name, label: name, price: x.price || 0, basis: x.basis });
+    }
+  });
+  return out;
+}
+
+function custServiceExtrasList(svc) {
+  const out = [];
+  Object.keys(svc.extras || {}).forEach(function (name) {
+    const x = svc.extras[name];
+    if (x && x.mode === 'extra') {
+      out.push({ id: name, label: name, price: x.price || 0 });
+    }
+  });
+  return out;
+}
+
+function custSummaryBulletsFromPkg(pkg) {
+  const bullets = [];
+  const ed = pkg.photoDetails && pkg.photoDetails['Edited Photos'];
+  if (ed && ed.qty) bullets.push(ed.qty + ' edited photos');
+  const fn = (pkg.functions || [])[0];
+  if (fn) bullets.push(fn);
+  if (pkg.ceremonyTypes && pkg.ceremonyTypes[0]) bullets.push(pkg.ceremonyTypes[0]);
+  return bullets.slice(0, 4);
+}
+
+/** Full owner-wizard-shaped payloads for customer demo (Blue Lens Studio). */
+
+function ownerPkgBlueStandard() {
+  return {
+    id: 'standard',
+    name: 'Standard Christian Wedding Package',
+    level: 'Standard',
+    desc:
+      'Full-day wedding and reception coverage with candid + traditional photo team, cinematic highlight film, online gallery, and premium album. Designed for Christian ceremonies in Pathanamthitta & Kottayam.',
+    listPrice: 100000,
+    discountYes: 'yes',
+    discountPct: 10,
+    price: 90000,
+    functions: ['Wedding & Reception', 'Reception'],
+    ceremonyTypes: ['Christian'],
+    coverageByFunction: {
+      'Wedding & Reception': {
+        coverageSide: 'both',
+        duration: 'Full Day',
+        extraHour: 2500,
+        photoTypes: {
+          'Candid Photographer': { on: true, qty: 2 },
+          'Traditional Photographer': { on: true, qty: 1 },
+          'Candid + Traditional Photographer': { on: false, qty: 0 },
+        },
+        videoTypes: {
+          'Cinematic Videographer': { on: true, qty: 1 },
+          'Candid Videographer': { on: false, qty: 0 },
+        },
+      },
+      Reception: {
+        coverageSide: 'single',
+        duration: 'Up to 5 Hours',
+        extraHour: 2000,
+        photoTypes: {
+          'Candid Photographer': { on: true, qty: 2 },
+          'Traditional Photographer': { on: false, qty: 0 },
+        },
+        videoTypes: {
+          'Cinematic Videographer': { on: false, qty: 0 },
+        },
+      },
+    },
+    deliverPhoto: ['Edited Photos', 'Colour-Graded Photos'],
+    deliverVideo: ['Highlight Video', 'Cinematic Video'],
+    deliverDigital: ['Online Gallery', 'Photo Selection App', 'Google Drive Link'],
+    photoDetails: {
+      'Edited Photos': { qty: 500, format: 'JPG (High Resolution)', delivery: '21 Working Days' },
+      'Colour-Graded Photos': { qty: 120, format: 'JPG (High Resolution)', delivery: '21 Working Days' },
+    },
+    videoDetails: {
+      'Highlight Video': { qty: 1, duration: '8-10 Minutes', format: 'MP4 (Full HD)', delivery: '21 Working Days' },
+      'Cinematic Video': { qty: 1, duration: '12-15 Minutes', format: 'MP4 (4K)', delivery: '30 Working Days' },
+    },
+    albumPrints: {
+      'Photo Album': {
+        on: true,
+        size: '12 x 30 inch',
+        pages: 30,
+        cover: 'Premium',
+        paper: 'Matte',
+        copies: 1,
+      },
+      Calendar: { on: true, size: 'A3', copies: 2 },
+      'Photo Frame': { on: false },
+    },
+    deliveryMap: {
+      'Edited Photos': '21 Working Days',
+      'Colour-Graded Photos': '21 Working Days',
+      'Highlight Video': '21 Working Days',
+      'Cinematic Video': '30 Working Days',
+      'Online Gallery': '7 Working Days',
+      'Photo Selection App': '7 Working Days',
+      'Google Drive Link': '21 Working Days',
+      'Photo Album': '45 Working Days',
+    },
+    extras: {
+      'Drone / Helicam': { mode: 'extra', price: 10000, basis: 'Per Event' },
+      'Live Streaming': {
+        mode: 'included',
+        price: 0,
+        basis: 'Per Event',
+        hourlyLimit: true,
+        includedHours: 4,
+        extraHour: 2000,
+        includedCameras: 2,
+      },
+      'Extra Photographer': { mode: 'extra', price: 5000, basis: 'Per Hour' },
+      'Extra Videographer': { mode: 'extra', price: 6000, basis: 'Per Hour' },
+      'Photo Booth': { mode: 'extra', price: 12000, basis: 'Per Event' },
+    },
+    paymentStages: [
+      { label: 'Booking advance', pct: 25 },
+      { label: 'Before wedding day', pct: 45 },
+      { label: 'After online gallery', pct: 20 },
+      { label: 'Album delivery', pct: 10 },
+    ],
+    cancelRules: [
+      { days: '30+ days before event', pct: 10 },
+      { days: '15–29 days', pct: 25 },
+      { days: '7–14 days', pct: 50 },
+      { days: 'Under 7 days', pct: 100 },
+    ],
+    rescheduleRules: [
+      { days: 'Reschedule once, 15+ days before', pct: 0 },
+      { days: 'Within 14 days', pct: 15 },
+    ],
+    policyValues: {
+      'Cancellation Policy': {
+        noticeDays: 30,
+        refundPct: 50,
+        notes: 'Advance is non-refundable if cancelled within 7 days of the event.',
+      },
+      'Rescheduling Policy': {
+        noticeDays: 14,
+        fee: 0,
+        notes: 'One free reschedule with 14+ days notice; studio availability applies.',
+      },
+      'Photo Selection Deadline': { days: 45, notes: 'Album design starts after selection is locked.' },
+      'Data Retention': { days: 365, notes: 'Online gallery retained 12 months; extensions on request.' },
+    },
+    policies: ['Cancellation Policy', 'Rescheduling Policy', 'Photo Selection Deadline', 'Data Retention'],
+    requirements: [
+      'Customer provides SSD / hard disk (optional backup)',
+      'Electricity / power at venue for charging',
+      'Meals for team on events over 8 hours',
+      'Venue access 30 minutes before ceremony',
+    ],
+    equipmentNote: 'Backup bodies and lenses carried on wedding day.',
+    qualityNote: 'Colour grading included for all delivered photos.',
+  };
+}
+
+function ownerPkgBlueBasic() {
+  const p = ownerPkgBlueStandard();
+  p.id = 'basic';
+  p.name = 'Basic Wedding Package';
+  p.level = 'Basic';
+  p.price = 65000;
+  p.listPrice = 65000;
+  p.discountPct = 0;
+  p.desc = 'Essential wedding day coverage with one candid photographer and album.';
+  p.functions = ['Wedding & Reception'];
+  p.photoDetails['Edited Photos'].qty = 300;
+  p.albumPrints['Photo Album'] = { on: true, size: '10 x 12 inch', pages: 20, cover: 'Standard', paper: 'Matte', copies: 1 };
+  return p;
+}
+
+function ownerPkgBluePremium() {
+  const p = ownerPkgBlueStandard();
+  p.id = 'premium';
+  p.name = 'Premium Wedding Package';
+  p.level = 'Premium';
+  p.price = 145000;
+  p.listPrice = 145000;
+  p.discountPct = 0;
+  p.desc = 'Premium team, save-the-date reel, parent albums, and extended cinematic deliverables.';
+  p.functions = ['Wedding & Reception', 'Reception', 'Pre-Wedding Shoot'];
+  p.photoDetails['Edited Photos'].qty = 800;
+  return p;
+}
+
+function ownerSvcBlueFuneral() {
+  return {
+    id: 'funeral-mem',
+    category: 'funeral',
+    name: 'Funeral / Memorial Photography',
+    blurb:
+      'Respectful, unobtrusive coverage for funeral and memorial services with fast online delivery and optional live stream for family abroad.',
+    pricingType: 'fixed',
+    listPrice: 9000,
+    discountYes: 'yes',
+    discountPct: 11,
+    price: 8000,
+    durEnabled: true,
+    duration: '2–3 Hours',
+    extraHour: 2000,
+    team: {
+      photo: { 'Candid Photographer': { on: true, qty: 1 } },
+      video: { 'Candid Videographer': { on: false, qty: 0 } },
+    },
+    deliverPhoto: ['Edited Photos'],
+    deliverVideo: ['Live Streaming'],
+    deliverDigital: ['Online Gallery', 'Google Drive Link'],
+    photoDetails: {
+      'Edited Photos': { qty: 100, format: 'JPG (High Resolution)', delivery: '3–5 Working Days' },
+    },
+    videoDetails: {
+      'Live Streaming': {
+        qty: 1,
+        duration: 'Full Event',
+        format: 'HD Stream',
+        delivery: 'Same day',
+        streamCameras: 1,
+      },
+    },
+    albumPrints: {},
+    deliveryMap: {
+      'Edited Photos': '3–5 Working Days',
+      'Online Gallery': '3 Working Days',
+      'Google Drive Link': '5 Working Days',
+      'Live Streaming': 'Same day',
+    },
+    extras: {
+      'Extra edited photos': { mode: 'extra', price: 1000, basis: 'Per Event' },
+      'Extended coverage (+1 hr)': { mode: 'extra', price: 2000, basis: 'Per Hour' },
+      'Live streaming (extra camera)': { mode: 'extra', price: 1500, basis: 'Per Event' },
+      'Printed memorial album': { mode: 'extra', price: 4000, basis: 'Per Event' },
+    },
+    paymentStages: [{ label: 'On booking', pct: 50 }, { label: 'After gallery', pct: 50 }],
+    cancelRules: [{ days: 'Same day cancellation', pct: 100 }],
+    rescheduleRules: [{ days: 'Date change', pct: 0 }],
+    policyValues: {
+      'Cancellation Policy': { notes: 'Memorial services: advance is non-refundable within 24 hours of service.' },
+      'Data Retention': { days: 180, notes: 'Gallery available 6 months.' },
+    },
+    policies: ['Cancellation Policy', 'Data Retention'],
+    requirements: ['Family liaison on arrival', 'Permission for indoor church / hall coverage'],
+  };
+}
+
+function ownerSvcBlueBaptism() {
+  return {
+    id: 'baptism',
+    category: 'event',
+    name: 'Baptism Photography',
+    blurb: 'Church and celebration coverage with family portraits.',
+    pricingType: 'fixed',
+    price: 12000,
+    listPrice: 12000,
+    discountPct: 0,
+    duration: '3 Hours',
+    extraHour: 1500,
+    team: { photo: { 'Candid Photographer': { on: true, qty: 1 } }, video: {} },
+    deliverPhoto: ['Edited Photos'],
+    deliverDigital: ['Online Gallery'],
+    photoDetails: { 'Edited Photos': { qty: 150, format: 'JPG (High Resolution)', delivery: '7 Working Days' } },
+    deliveryMap: { 'Edited Photos': '7 Working Days', 'Online Gallery': '5 Working Days' },
+    extras: { 'Small album': { mode: 'extra', price: 3500, basis: 'Per Event' } },
+    policies: ['Cancellation Policy'],
+    policyValues: { 'Cancellation Policy': { refundPct: 50, noticeDays: 7 } },
+    requirements: ['Church photography permission if required'],
+  };
+}
+
+function ownerPkgArchanaClassic() {
+  const p = ownerPkgBlueStandard();
+  p.id = 'arch-standard';
+  p.name = 'Classic Wedding Package';
+  p.level = 'Standard';
+  p.price = 95000;
+  p.listPrice = 105000;
+  p.discountPct = 10;
+  p.ceremonyTypes = ['Hindu', 'Christian'];
+  p.desc = 'Archana Photography signature package for Hindu and Christian weddings in Pathanamthitta.';
+  p.photoDetails['Edited Photos'].qty = 450;
+  return p;
+}
+
+function ownerPayloadForPackage(studioId, pkgId) {
+  if (studioId === 'archana') {
+    return ownerPkgArchanaClassic();
+  }
+  if (studioId === 'blue') {
+    if (pkgId === 'basic') return ownerPkgBlueBasic();
+    if (pkgId === 'premium') return ownerPkgBluePremium();
+    return ownerPkgBlueStandard();
+  }
+  return ownerPkgBlueStandard();
+}
+
+function ownerPayloadForService(studioId, serviceKey) {
+  if (studioId === 'blue') {
+    if (serviceKey === 'baptism') return ownerSvcBlueBaptism();
+    return ownerSvcBlueFuneral();
+  }
+  return ownerSvcBlueFuneral();
+}
+
 /** Customer-facing catalog — mirrors owner package/service wizard fields (demo data). */
 const CUSTOMER_CATALOG = {
   blue: {
@@ -695,9 +1288,62 @@ function studioList() {
   });
 }
 
+const BLUE_PACKAGE_IDS = ['basic', 'standard', 'premium'];
+
+function packageCardFromOwner(owner) {
+  return {
+    id: owner.id,
+    name: owner.name,
+    level: owner.level,
+    price: owner.price,
+    listPrice: owner.listPrice,
+    discountPct: owner.discountPct,
+    ceremonies: owner.ceremonyTypes || [],
+    cardBullets: custSummaryBulletsFromPkg(owner),
+    optionalFunctions: owner.functions || [],
+    owner: owner,
+  };
+}
+
+function serviceCardFromOwner(owner) {
+  const durationOptions = [
+    { id: 'inc', label: (owner.duration || 'Included') + (owner.price ? '' : ''), add: 0 },
+  ];
+  Object.keys(owner.extras || {}).forEach(function (name) {
+    if (name.toLowerCase().indexOf('extend') >= 0 || name.indexOf('+') >= 0) {
+      const x = owner.extras[name];
+      durationOptions.push({ id: name, label: name, add: x.price || 0 });
+    }
+  });
+  if (durationOptions.length === 1 && owner.extraHour) {
+    durationOptions.push({
+      id: 'ext1',
+      label: 'Extended coverage (+1 hr)',
+      add: owner.extraHour,
+    });
+  }
+  return {
+    id: owner.id,
+    name: owner.name,
+    price: owner.price,
+    listPrice: owner.listPrice,
+    discountPct: owner.discountPct,
+    durationOptions: durationOptions,
+    owner: owner,
+  };
+}
+
 function packagesForStudio(studioId, filters) {
-  const st = catalogStudio(studioId);
-  let list = (st.packages || []).slice();
+  let list;
+  if (studioId === 'blue') {
+    list = BLUE_PACKAGE_IDS.map(function (id) {
+      return packageCardFromOwner(ownerPayloadForPackage('blue', id));
+    });
+  } else if (studioId === 'archana') {
+    list = [packageCardFromOwner(ownerPayloadForPackage('archana', 'arch-standard'))];
+  } else {
+    list = (catalogStudio(studioId).packages || []).slice();
+  }
   if (filters && filters.level && filters.level !== 'All') {
     list = list.filter(function (p) {
       return p.level === filters.level;
@@ -710,14 +1356,14 @@ function packagesForStudio(studioId, filters) {
       return (p.ceremonies || []).indexOf('All') >= 0 || (p.ceremonies || []).indexOf(want) >= 0;
     });
   }
-  return list.length ? list : st.packages || [];
+  return list.length ? list : BLUE_PACKAGE_IDS.map(function (id) {
+    return packageCardFromOwner(ownerPayloadForPackage('blue', id));
+  });
 }
 
 function serviceForStudio(studioId, serviceKey) {
-  const st = catalogStudio(studioId);
-  const svc = (st.services || {})[serviceKey];
-  if (svc) return svc;
-  return CUSTOMER_CATALOG.blue.services.funeral;
+  const key = serviceKey || 'funeral';
+  return serviceCardFromOwner(ownerPayloadForService(studioId, key));
 }
 
 function defaultPackageId(studioId) {
@@ -725,9 +1371,9 @@ function defaultPackageId(studioId) {
   return pkgs[0] ? pkgs[0].id : 'standard';
 }
 
-const PHOTO_CUSTOMER_BUILD = '2026-10-13-photo-customer-real-data-v3';
+const PHOTO_CUSTOMER_BUILD = '2026-10-13-photo-customer-owner-mirror-v4';
 const DEMO_FILE = 'GIXBEE-PHOTO-CUSTOMER-FINALFLOW.html';
-const STORAGE_KEY = 'GIXBEE_PHOTO_CUSTOMER_INTERESTS_V1';
+const STORAGE_KEY = 'GIXBEE_PHOTO_CUSTOMER_INTERESTS_V2';
 
 const LOCATIONS = ['Pathanamthitta, Kerala', 'Kottayam, Kerala', 'Kochi, Kerala'];
 const COMMUNITIES = [
@@ -862,19 +1508,29 @@ function activePackage() {
   return found || list[0] || packagesForStudio(state.studioId, {})[0];
 }
 
+function activePackageOwner() {
+  const card = activePackage();
+  if (card && card.owner) return card.owner;
+  return ownerPayloadForPackage(state.studioId, state.packageId);
+}
+
 function activeService() {
   const key = state.serviceId || state.photoNeed || 'funeral';
   return serviceForStudio(state.studioId, key);
 }
 
+function activeServiceOwner() {
+  const card = activeService();
+  if (card && card.owner) return card.owner;
+  return ownerPayloadForService(state.studioId, state.serviceId || state.photoNeed);
+}
+
 function packageExtras() {
-  const p = activePackage();
-  return p && p.extras ? p.extras : [];
+  return custPackageExtrasList(activePackageOwner());
 }
 
 function serviceExtras() {
-  const s = activeService();
-  return s && s.extras ? s.extras : [];
+  return custServiceExtrasList(activeServiceOwner());
 }
 
 function offerTitle() {
@@ -1325,7 +1981,7 @@ function renderCatalog() {
   list.querySelectorAll('[data-pkg]').forEach(function (btn) {
     btn.onclick = function () {
       state.packageId = btn.getAttribute('data-pkg');
-      state.detailTab = 'inclusions';
+      state.detailTab = 'overview';
       state.detailBack = 'catalog';
       renderDetail();
       show('detail', 'catalog');
@@ -1339,42 +1995,43 @@ function renderDetail() {
   const tabs = el('detailTabs');
   const panel = el('detailPanel');
   const isWed = state.mode === 'wedding';
-  const title = offerTitle();
-  const pkg = activePackage();
-  const svc = activeService();
-  const price = isWed ? pkg.price : svc.price;
-  if (name) name.textContent = title;
+  const pkg = activePackageOwner();
+  const svc = activeServiceOwner();
+  const card = isWed ? activePackage() : activeService();
+  const price = card.price;
+  if (name) name.textContent = isWed ? pkg.name : svc.name;
   if (priceTag) {
     let ph =
       '<b>' +
       inr(price) +
       '</b><span>' +
-      (isWed ? 'Package price' : 'Base price') +
+      (isWed ? 'Package price' : 'Service price') +
       '</span>';
-    if (isWed && pkg.listPrice > pkg.price) {
+    if (card.listPrice > price) {
       ph +=
         '<span style="display:block;font-size:12px;text-decoration:line-through;opacity:.85">' +
-        inr(pkg.listPrice) +
-        ' · ' +
-        pkg.discountPct +
-        '% OFF</span>';
+        inr(card.listPrice) +
+        (card.discountPct ? ' · ' + card.discountPct + '% OFF' : '') +
+        '</span>';
     }
     priceTag.innerHTML = ph;
   }
-  const tabIds = ['inclusions', 'coverage', 'extras', 'reviews'];
-  const tabLbl = ['Inclusions', 'Coverage', 'Extras', 'Reviews'];
+  const tabIds = ['overview', 'inclusions', 'coverage', 'extras', 'policies', 'reviews'];
+  const tabLbl = ['Overview', 'Inclusions', 'Coverage', 'Extras', 'Policies', 'Reviews'];
   if (tabs) {
-    tabs.innerHTML = tabIds.map(function (id, i) {
-      return (
-        '<button type="button" class="' +
-        (state.detailTab === id ? 'on' : '') +
-        '" data-dtab="' +
-        id +
-        '">' +
-        tabLbl[i] +
-        '</button>'
-      );
-    }).join('');
+    tabs.innerHTML = tabIds
+      .map(function (id, i) {
+        return (
+          '<button type="button" class="' +
+          (state.detailTab === id ? 'on' : '') +
+          '" data-dtab="' +
+          id +
+          '">' +
+          tabLbl[i] +
+          '</button>'
+        );
+      })
+      .join('');
     tabs.querySelectorAll('[data-dtab]').forEach(function (btn) {
       btn.onclick = function () {
         state.detailTab = btn.getAttribute('data-dtab');
@@ -1383,77 +2040,16 @@ function renderDetail() {
     });
   }
   if (!panel) return;
-  if (state.detailTab === 'inclusions') {
-    const items = isWed ? pkg.inclusions || [] : svc.inclusions || [];
-    panel.innerHTML =
-      '<h3 style="margin:0 0 8px;font-size:15px">What\'s Included</h3><ul class="chk-list">' +
-      items.map(function (t) {
-        return '<li>' + esc(t) + '</li>';
-      }).join('') +
-      '</ul>' +
-      (isWed && pkg.delivery
-        ? '<h3 style="margin:16px 0 8px;font-size:14px">Delivery timeline</h3>' +
-          pkg.delivery
-            .map(function (d) {
-              return '<div class="kv-row"><span>' + esc(d.item) + '</span><b>' + esc(d.timeline) + '</b></div>';
-            })
-            .join('')
-        : svc.delivery
-          ? '<h3 style="margin:16px 0 8px;font-size:14px">Delivery</h3>' +
-            svc.delivery
-              .map(function (d) {
-                return '<div class="kv-row"><span>' + esc(d.item) + '</span><b>' + esc(d.timeline) + '</b></div>';
-              })
-              .join('')
-          : '');
+  if (state.detailTab === 'overview') {
+    panel.innerHTML = isWed ? custRenderPkgBasics(pkg) : '<p class="sub">' + esc(svc.blurb) + '</p>';
+  } else if (state.detailTab === 'inclusions') {
+    panel.innerHTML = isWed ? custRenderPkgInclusions(pkg) : custRenderSvcInclusions(svc);
   } else if (state.detailTab === 'coverage') {
-    if (isWed) {
-      panel.innerHTML =
-        '<h3 style="margin:0 0 10px;font-size:14px">Coverage by function</h3>' +
-        (pkg.coverage || [])
-          .map(function (c) {
-            return (
-              '<div style="margin-bottom:12px;padding:12px;border:1px solid #E2E8F0;border-radius:12px">' +
-              '<b style="display:block;color:var(--navy);margin-bottom:6px">' +
-              esc(c.fn) +
-              '</b>' +
-              '<div class="kv-row"><span>Side</span><b>' +
-              esc(c.side) +
-              '</b></div>' +
-              '<div class="kv-row"><span>Duration</span><b>' +
-              c.hours +
-              ' hrs · extra hr ' +
-              inr(c.extraHour) +
-              '</b></div>' +
-              '<div class="kv-row"><span>Photo team</span><b>' +
-              esc(c.photoTeam) +
-              '</b></div>' +
-              '<div class="kv-row"><span>Video</span><b>' +
-              esc(c.videoTeam) +
-              '</b></div></div>'
-            );
-          })
-          .join('');
-    } else {
-      panel.innerHTML = (svc.coverage || [])
-        .map(function (row) {
-          return '<div class="kv-row"><span>' + esc(row.k) + '</span><b>' + esc(row.v) + '</b></div>';
-        })
-        .join('');
-    }
+    panel.innerHTML = isWed ? custRenderPkgCoverage(pkg) : custRenderSvcCoverage(svc);
   } else if (state.detailTab === 'extras') {
-    const extras = isWed ? packageExtras() : serviceExtras();
-    panel.innerHTML =
-      '<p style="font-size:12px;font-weight:800;color:var(--mut);margin:0 0 8px">Additional Services (Optional)</p>' +
-      extras.map(function (ex) {
-        return (
-          '<div class="extra-line"><span>' +
-          esc(ex.label) +
-          '</span><span style="font-weight:900;color:var(--blue)">' +
-          inr(ex.price) +
-          '</span></div>'
-        );
-      }).join('');
+    panel.innerHTML = custRenderExtrasBlock(isWed ? pkg.extras : svc.extras);
+  } else if (state.detailTab === 'policies') {
+    panel.innerHTML = custRenderPolicies(isWed ? pkg : svc);
   } else {
     panel.innerHTML = renderReviewsHtml();
   }
@@ -1475,7 +2071,8 @@ function renderCustomize() {
   if (!body) return;
   if (state.mode === 'wedding') {
     const pkg = activePackage();
-    const optFns = pkg.optionalFunctions || ['Engagement', 'Reception', 'Wedding Eve'];
+    const owner = activePackageOwner();
+    const optFns = activePackage().optionalFunctions || owner.functions || ['Engagement', 'Reception'];
     body.innerHTML =
       '<div class="cust-hd">Additional Services (Optional)</div>' +
       packageExtras().map(function (ex) {
@@ -1524,7 +2121,7 @@ function renderCustomize() {
   } else {
     body.innerHTML =
       '<div class="cust-hd">Coverage Duration</div>' +
-      (activeService().durationOptions || []).map(function (d) {
+      (activeService().durationOptions || activeServiceOwner().durationOptions || []).map(function (d) {
         return (
           '<label class="radio-card' +
           (state.customize.duration === d.id ? ' on' : '') +
@@ -1646,14 +2243,9 @@ function renderReview() {
       : '') +
     '<div class="cust-hd">Selected Requirements</div>' +
     '<div id="revReqs"></div>' +
-    (state.mode === 'wedding' && activePackage().paymentStages
-      ? '<div class="cust-hd">Payment stages (studio)</div>' +
-        activePackage()
-          .paymentStages.map(function (ps) {
-            return '<div class="kv-row"><span>' + esc(ps.label) + '</span><b>' + ps.pct + '%</b></div>';
-          })
-          .join('')
-      : '') +
+    (state.mode === 'wedding'
+      ? '<div class="cust-hd">Policies & payment</div>' + custRenderPolicies(activePackageOwner())
+      : '<div class="cust-hd">Policies</div>' + custRenderPolicies(activeServiceOwner())) +
     (state.customize.notes
       ? '<div class="cust-hd">Additional Notes</div><p style="font-size:13px;font-weight:600;color:var(--mut)">' +
         esc(state.customize.notes) +
@@ -1792,18 +2384,20 @@ function renderInterestDetail() {
 }
 
 function submitInterest() {
-  const pkg = state.mode === 'wedding' ? activePackage() : null;
-  const cov =
-    pkg && pkg.coverage && pkg.coverage[0]
-      ? pkg.coverage[0].fn + ' · ' + pkg.coverage[0].hours + ' hrs · ' + pkg.coverage[0].side
-      : state.mode === 'service'
-        ? (activeService().coverage || []).map(function (c) {
-            return c.k + ': ' + c.v;
-          }).join(' · ')
-        : '';
+  const pkgO = state.mode === 'wedding' ? activePackageOwner() : null;
+  const svcO = state.mode === 'service' ? activeServiceOwner() : null;
+  let cov = '';
+  if (pkgO && pkgO.coverageByFunction) {
+    const fn = Object.keys(pkgO.coverageByFunction)[0];
+    const b = pkgO.coverageByFunction[fn];
+    if (b) cov = fn + ' · ' + (b.duration || '') + ' · ' + (b.coverageSide || '');
+  } else if (svcO) {
+    cov = (svcO.duration || '') + (svcO.team ? ' · photo team assigned' : '');
+  }
+  const paySrc = pkgO || svcO;
   const pay =
-    pkg && pkg.paymentStages
-      ? pkg.paymentStages.map(function (p) {
+    paySrc && paySrc.paymentStages
+      ? paySrc.paymentStages.map(function (p) {
           return p.label + ' ' + p.pct + '%';
         }).join(' · ')
       : '';
@@ -1824,7 +2418,18 @@ function submitInterest() {
     paymentSummary: pay,
     coverageSummary: cov,
     deliverySummary:
-      pkg && pkg.delivery && pkg.delivery[0] ? pkg.delivery[0].item + ' · ' + pkg.delivery[0].timeline : '',
+      pkgO && pkgO.deliveryMap
+        ? Object.keys(pkgO.deliveryMap)
+            .slice(0, 2)
+            .map(function (k) {
+              return k + ' · ' + pkgO.deliveryMap[k];
+            })
+            .join('; ')
+        : svcO && svcO.deliveryMap
+          ? Object.keys(svcO.deliveryMap)[0] + ' · ' + svcO.deliveryMap[Object.keys(svcO.deliveryMap)[0]]
+          : '',
+    requirementsOwner: (pkgO || svcO || {}).requirements || [],
+    policiesSummary: (pkgO || svcO || {}).policies || [],
     statusLabel: 'Under Review',
     status: 'active',
     sentAt: new Date().toISOString().slice(0, 10),
@@ -1879,7 +2484,7 @@ function bindEvents() {
       renderCatalog();
       show('catalog', 'profile');
     } else {
-      state.detailTab = 'inclusions';
+      state.detailTab = 'overview';
       state.detailBack = 'profile';
       renderDetail();
       show('detail', 'profile');
