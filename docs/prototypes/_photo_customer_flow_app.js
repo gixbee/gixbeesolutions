@@ -1,4 +1,4 @@
-const PHOTO_CUSTOMER_BUILD = '2026-10-13-photo-customer-owner-mirror-v6';
+const PHOTO_CUSTOMER_BUILD = '2026-10-13-photo-customer-owner-mirror-v6a';
 const DEMO_FILE = 'GIXBEE-PHOTO-CUSTOMER-FINALFLOW.html';
 const STORAGE_KEY = 'GIXBEE_PHOTO_CUSTOMER_INTERESTS_V2';
 
@@ -206,6 +206,11 @@ function selectedRequirementsLines() {
   return lines;
 }
 
+function activeScreenId() {
+  const on = document.querySelector('.scr.on');
+  return on ? on.id : 'search';
+}
+
 function show(id, backTo) {
   if (backTo !== undefined) state.backScreen = backTo;
   document.querySelectorAll('.scr').forEach(function (s) {
@@ -229,13 +234,21 @@ function show(id, backTo) {
 }
 
 function goBack() {
-  let target = state.backScreen || 'search';
+  const cur = activeScreenId();
+  let target;
+  if (cur === 'detail') {
+    target = state.detailBack || 'catalog';
+  } else {
+    target = state.backScreen || 'search';
+  }
   show(target);
   if (target === 'catalog') state.backScreen = 'profile';
-  if (target === 'profile') state.backScreen = 'results';
-  if (target === 'results') state.backScreen = 'search';
-  if (target === 'customize') state.backScreen = 'detail';
-  if (target === 'review') state.backScreen = 'customize';
+  else if (target === 'profile') state.backScreen = 'results';
+  else if (target === 'results') state.backScreen = 'search';
+  else if (target === 'detail') state.backScreen = 'detail';
+  else if (target === 'customize') state.backScreen = 'detail';
+  else if (target === 'review') state.backScreen = 'customize';
+  else if (target === 'interests') state.backScreen = 'search';
 }
 
 function loadInterests() {
@@ -281,7 +294,7 @@ function ensureSeedInterests() {
       needLabel: 'Funeral / Memorial',
       date: '2026-09-08',
       location: 'Kottayam, Kerala',
-      price: 10000,
+      price: 8000,
       statusLabel: 'Accepted',
       status: 'past',
       sentAt: '2026-09-01',
@@ -1110,10 +1123,11 @@ function bindEvents() {
     renderResults();
     show('results', 'search');
   };
-  document.querySelectorAll('[data-back]').forEach(function (btn) {
-    btn.onclick = goBack;
-  });
   document.querySelector('.phone').addEventListener('click', function (e) {
+    if (e.target.closest('[data-back]')) {
+      goBack();
+      return;
+    }
     const to = e.target.closest('[data-to]');
     if (to) {
       const id = to.getAttribute('data-to');

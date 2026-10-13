@@ -98,7 +98,8 @@ body{margin:0;background:#E8EDF5;font-family:Inter,system-ui,sans-serif;color:va
 .pkg-card ul{margin:0;padding:0 0 0 16px;font-size:11px;color:var(--mut);font-weight:600;line-height:1.45}
 .pkg-card .link{font-size:12px;font-weight:800;color:var(--blue2);margin-top:8px;display:inline-block}
 .offer-hero{height:160px;background:linear-gradient(145deg,#64748B,#475569);position:relative}
-.offer-hero .price-tag{position:absolute;left:16px;bottom:12px;color:#fff}
+.offer-hero .fab.back{z-index:6}
+.offer-hero .price-tag{position:absolute;left:16px;bottom:12px;color:#fff;z-index:1}
 .offer-hero .price-tag b{font-size:24px;display:block}
 .offer-hero .price-tag span{font-size:12px;opacity:.9}
 .detail-tabs{display:flex;gap:4px;padding:10px 16px 0;overflow:auto}
@@ -1564,7 +1565,7 @@ function defaultPackageId(studioId) {
   return pkgs[0] ? pkgs[0].id : 'standard';
 }
 
-const PHOTO_CUSTOMER_BUILD = '2026-10-13-photo-customer-owner-mirror-v6';
+const PHOTO_CUSTOMER_BUILD = '2026-10-13-photo-customer-owner-mirror-v6a';
 const DEMO_FILE = 'GIXBEE-PHOTO-CUSTOMER-FINALFLOW.html';
 const STORAGE_KEY = 'GIXBEE_PHOTO_CUSTOMER_INTERESTS_V2';
 
@@ -1772,6 +1773,11 @@ function selectedRequirementsLines() {
   return lines;
 }
 
+function activeScreenId() {
+  const on = document.querySelector('.scr.on');
+  return on ? on.id : 'search';
+}
+
 function show(id, backTo) {
   if (backTo !== undefined) state.backScreen = backTo;
   document.querySelectorAll('.scr').forEach(function (s) {
@@ -1795,13 +1801,21 @@ function show(id, backTo) {
 }
 
 function goBack() {
-  let target = state.backScreen || 'search';
+  const cur = activeScreenId();
+  let target;
+  if (cur === 'detail') {
+    target = state.detailBack || 'catalog';
+  } else {
+    target = state.backScreen || 'search';
+  }
   show(target);
   if (target === 'catalog') state.backScreen = 'profile';
-  if (target === 'profile') state.backScreen = 'results';
-  if (target === 'results') state.backScreen = 'search';
-  if (target === 'customize') state.backScreen = 'detail';
-  if (target === 'review') state.backScreen = 'customize';
+  else if (target === 'profile') state.backScreen = 'results';
+  else if (target === 'results') state.backScreen = 'search';
+  else if (target === 'detail') state.backScreen = 'detail';
+  else if (target === 'customize') state.backScreen = 'detail';
+  else if (target === 'review') state.backScreen = 'customize';
+  else if (target === 'interests') state.backScreen = 'search';
 }
 
 function loadInterests() {
@@ -1847,7 +1861,7 @@ function ensureSeedInterests() {
       needLabel: 'Funeral / Memorial',
       date: '2026-09-08',
       location: 'Kottayam, Kerala',
-      price: 10000,
+      price: 8000,
       statusLabel: 'Accepted',
       status: 'past',
       sentAt: '2026-09-01',
@@ -2676,10 +2690,11 @@ function bindEvents() {
     renderResults();
     show('results', 'search');
   };
-  document.querySelectorAll('[data-back]').forEach(function (btn) {
-    btn.onclick = goBack;
-  });
   document.querySelector('.phone').addEventListener('click', function (e) {
+    if (e.target.closest('[data-back]')) {
+      goBack();
+      return;
+    }
     const to = e.target.closest('[data-to]');
     if (to) {
       const id = to.getAttribute('data-to');
