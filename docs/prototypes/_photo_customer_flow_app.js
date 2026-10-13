@@ -1,4 +1,4 @@
-const PHOTO_CUSTOMER_BUILD = '2026-10-13-photo-customer-service-flow-v9';
+const PHOTO_CUSTOMER_BUILD = '2026-10-13-photo-customer-service-flow-v9b';
 const DEMO_FILE = 'GIXBEE-PHOTO-CUSTOMER-FINALFLOW.html';
 const STORAGE_KEY = 'GIXBEE_PHOTO_CUSTOMER_INTERESTS_V2';
 
@@ -467,7 +467,7 @@ function offerPrice() {
 }
 
 function selectedRequirementsLines() {
-  const lines = [];
+  let lines = [];
   if (state.mode === 'wedding') {
     packageExtras().forEach(function (ex) {
       if (state.customize.extras[ex.id]) lines.push(ex.label + ' — ' + inr(ex.price));
@@ -1737,12 +1737,15 @@ function bindEvents() {
       show('review', 'detail');
     };
   }
-  el('goReview').onclick = function () {
-    if (!ensureEventDateForInterest()) return;
-    state.reviewEntry = 'customize';
-    renderReview();
-    show('review', 'customize');
-  };
+  const goReviewBtn = el('goReview');
+  if (goReviewBtn) {
+    goReviewBtn.onclick = function () {
+      if (!ensureEventDateForInterest()) return;
+      state.reviewEntry = 'customize';
+      renderReview();
+      show('review', 'customize');
+    };
+  }
   document.querySelectorAll('[data-intab]').forEach(function (btn) {
     btn.onclick = function () {
       state.intTab = btn.getAttribute('data-intab');

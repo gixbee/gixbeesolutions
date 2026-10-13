@@ -14,7 +14,13 @@ Default Home / Search screen:
   If funeral, baptism, event, etc.: no community or package filters
   Budget (optional) → Search Photographers
 
-  Wedding need → packages path. Individual service need → single-service path.
+  Wedding need → packages path. Individual service need → services catalog path.
+
+  Service flow (funeral, baptism, event, portrait, corporate):
+    Search hero + service budget → results (studios that list that service)
+    → Profile → View Service → Services list + event date picker
+    → Service detail (date reminder) → Customize / Initiate Interest
+    → Review (change date if needed) → Send Interest
 
 Sources:
 
