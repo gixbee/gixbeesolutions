@@ -1,8 +1,27 @@
-const PHOTO_CUSTOMER_BUILD = '2026-10-13-photo-customer-owner-mirror-v6h';
+const PHOTO_CUSTOMER_BUILD = '2026-10-13-photo-customer-owner-mirror-v7';
 const DEMO_FILE = 'GIXBEE-PHOTO-CUSTOMER-FINALFLOW.html';
 const STORAGE_KEY = 'GIXBEE_PHOTO_CUSTOMER_INTERESTS_V2';
 
-const LOCATIONS = ['Pathanamthitta, Kerala', 'Kottayam, Kerala', 'Kochi, Kerala'];
+/** Kerala districts (14) — location search uses full list */
+const KERALA_DISTRICTS = [
+  'Thiruvananthapuram',
+  'Kollam',
+  'Pathanamthitta',
+  'Alappuzha',
+  'Kottayam',
+  'Idukki',
+  'Ernakulam',
+  'Thrissur',
+  'Palakkad',
+  'Malappuram',
+  'Kozhikode',
+  'Wayanad',
+  'Kannur',
+  'Kasaragod',
+];
+const LOCATIONS = KERALA_DISTRICTS.map(function (d) {
+  return d + ', Kerala';
+});
 const COMMUNITIES = [
   { id: 'all', label: 'All', icon: '☯' },
   { id: 'hindu', label: 'Hindu', icon: '🕉' },
@@ -61,6 +80,8 @@ const state = {
   catalogFilterPanel: null,
   /** 'customize' = came via Customize Requirements; 'direct' = Initiate Interest from detail */
   reviewEntry: 'direct',
+  reviewCalMonth: null,
+  reviewCalPick: null,
 };
 
 function activeNeed() {
@@ -110,6 +131,147 @@ function formatDate(iso) {
   if (!iso) return '—';
   const d = new Date(iso + 'T12:00:00');
   return d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+}
+
+function formatReviewDateLong(iso) {
+  if (!iso) return 'Pick a date';
+  const d = new Date(iso + 'T12:00:00');
+  return d.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
+}
+
+/** Demo: dates photographer has marked full (availability check before Send Interest). */
+const STUDIO_FULL_DATES = {
+  blue: ['2026-12-23', '2026-11-20'],
+  archana: ['2026-11-20', '2026-12-24'],
+};
+
+function photographerDateUnavailable(studioId, isoDate) {
+  if (!isoDate) return true;
+  const list = STUDIO_FULL_DATES[studioId] || STUDIO_FULL_DATES.blue;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const pick = new Date(isoDate + 'T12:00:00');
+  if (pick < today) return true;
+  return list.indexOf(isoDate) >= 0;
+}
+
+function isoDateParts(y, m, day) {
+  return y + '-' + String(m).padStart(2, '0') + '-' + String(day).padStart(2, '0');
+}
+
+function shiftReviewCalMonth(delta) {
+  const base = state.reviewCalMonth || (state.date || '2026-12-15').slice(0, 7);
+  const p = base.split('-');
+  const d = new Date(+p[0], +p[1] - 1 + delta, 1);
+  state.reviewCalMonth = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
+  renderReviewCalendar();
+}
+
+function renderReviewCalendar() {
+  const body = el('reviewCalBody');
+  if (!body) return;
+  const base = state.reviewCalMonth || (state.date || '2026-12-15').slice(0, 7);
+  const p = base.split('-');
+  const y = +p[0];
+  const m = +p[1];
+  const first = new Date(y, m - 1, 1);
+  const monthName = first.toLocaleDateString('en-IN', { month: 'long', year: 'numeric' });
+  const startDow = first.getDay();
+  const daysInMonth = new Date(y, m, 0).getDate();
+  const pick = state.reviewCalPick || state.date;
+  let html =
+    '<div class="cal-nav"><button type="button" data-cal-prev aria-label="Previous month">‹</button><span>' +
+    esc(monthName) +
+    '</span><button type="button" data-cal-next aria-label="Next month">›</button></div><div class="cal-grid">';
+  ['S', 'M', 'T', 'W', 'T', 'F', 'S'].forEach(function (d) {
+    html += '<span class="dow">' + d + '</span>';
+  });
+  let cell = 0;
+  for (let i = 0; i < startDow; i++) {
+    html += '<span></span>';
+    cell++;
+  }
+  for (let day = 1; day <= daysInMonth; day++) {
+    const iso = isoDateParts(y, m, day);
+    const full = photographerDateUnavailable(state.studioId, iso);
+    const on = pick === iso;
+    let cls = 'cal-day';
+    if (full) cls += ' full';
+    else if (on) cls += ' on';
+    html +=
+      '<button type="button" class="' +
+      cls +
+      '" data-cal-day="' +
+      iso +
+      '"' +
+      (full ? ' disabled' : '') +
+      '>' +
+      day +
+      '</button>';
+    cell++;
+  }
+  html += '</div>';
+  body.innerHTML = html;
+  body.querySelector('[data-cal-prev]').onclick = function () {
+    shiftReviewCalMonth(-1);
+  };
+  body.querySelector('[data-cal-next]').onclick = function () {
+    shiftReviewCalMonth(1);
+  };
+  body.querySelectorAll('[data-cal-day]').forEach(function (btn) {
+    if (btn.disabled) return;
+    btn.onclick = function () {
+      state.reviewCalPick = btn.getAttribute('data-cal-day');
+      renderReviewCalendar();
+    };
+  });
+}
+
+function updateReviewDateLabels() {
+  const long = formatReviewDateLong(state.date);
+  const lbl = el('reviewDateLbl');
+  const row = el('reviewEventDate');
+  if (lbl) lbl.textContent = long;
+  if (row) row.textContent = formatDate(state.date);
+}
+
+function openReviewDateModal() {
+  state.reviewCalPick = state.date;
+  state.reviewCalMonth = (state.date || '2026-12-15').slice(0, 7);
+  const modal = el('reviewDateModal');
+  if (modal) modal.hidden = false;
+  renderReviewCalendar();
+}
+
+function closeReviewDateModal() {
+  const modal = el('reviewDateModal');
+  if (modal) modal.hidden = true;
+}
+
+function showDateFullModal() {
+  const lbl = el('dateFullLbl');
+  if (lbl) lbl.textContent = formatReviewDateLong(state.date);
+  const modal = el('dateFullModal');
+  if (modal) modal.hidden = false;
+}
+
+function closeDateFullModal() {
+  const modal = el('dateFullModal');
+  if (modal) modal.hidden = true;
+}
+
+function renderReviewDateBar() {
+  const bar = el('reviewDateBar');
+  if (!bar) return;
+  bar.innerHTML =
+    '<button type="button" class="review-date-pick" id="openReviewDatePick">' +
+    '<span class="review-date-ico" aria-hidden="true">📅</span>' +
+    '<span class="review-date-txt"><span class="lbl">Select Date</span><b id="reviewDateLbl">' +
+    esc(formatReviewDateLong(state.date)) +
+    '</b></span>' +
+    '<span class="review-date-chev" aria-hidden="true">›</span></button>';
+  const btn = el('openReviewDatePick');
+  if (btn) btn.onclick = openReviewDateModal;
 }
 
 function toast(msg) {
@@ -979,7 +1141,7 @@ function renderReview() {
     '<div class="kv-row"><span>Studio</span><b>' +
     esc(s.name) +
     '</b></div>' +
-    '<div class="kv-row"><span>Date</span><b>' +
+    '<div class="kv-row"><span>Date</span><b id="reviewEventDate">' +
     formatDate(state.date) +
     '</b></div>' +
     '<div class="kv-row"><span>Location</span><b>' +
@@ -1025,6 +1187,7 @@ function renderReview() {
         }).join('')
       : '<p class="sub">No add-ons selected</p>';
   }
+  renderReviewDateBar();
   renderReviewFooter();
 }
 
@@ -1162,6 +1325,15 @@ function renderInterestDetail() {
 }
 
 function submitInterest() {
+  if (!state.date) {
+    toast('Please select an event date');
+    openReviewDateModal();
+    return;
+  }
+  if (photographerDateUnavailable(state.studioId, state.date)) {
+    showDateFullModal();
+    return;
+  }
   const pkgO = state.mode === 'wedding' ? activePackageOwner() : null;
   const svcO = state.mode === 'service' ? activeServiceOwner() : null;
   let cov = '';
@@ -1333,6 +1505,42 @@ function bindEvents() {
   el('msgPhotographer').onclick = function () {
     toast('Open chat with photographer');
   };
+  const reviewDateModal = el('reviewDateModal');
+  if (reviewDateModal && !reviewDateModal._bound) {
+    reviewDateModal._bound = true;
+    reviewDateModal.querySelector('[data-cal-cancel]').onclick = closeReviewDateModal;
+    reviewDateModal.querySelector('[data-cal-done]').onclick = function () {
+      const pick = state.reviewCalPick;
+      if (!pick) {
+        toast('Please select a date');
+        return;
+      }
+      if (photographerDateUnavailable(state.studioId, pick)) {
+        toast('That date is fully booked — choose another');
+        return;
+      }
+      state.date = pick;
+      const searchDt = el('fDate');
+      if (searchDt) searchDt.value = state.date;
+      updateReviewDateLabels();
+      closeReviewDateModal();
+    };
+  }
+  const dateFullChange = el('dateFullChange');
+  if (dateFullChange && !dateFullChange._bound) {
+    dateFullChange._bound = true;
+    dateFullChange.onclick = function () {
+      closeDateFullModal();
+      openReviewDateModal();
+    };
+  }
+  const dateFullModal = el('dateFullModal');
+  if (dateFullModal && !dateFullModal._bound) {
+    dateFullModal._bound = true;
+    dateFullModal.addEventListener('click', function (e) {
+      if (e.target === dateFullModal) closeDateFullModal();
+    });
+  }
 }
 
 function bootPhotoCustomer() {
