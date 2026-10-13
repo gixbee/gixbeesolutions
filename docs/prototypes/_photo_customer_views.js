@@ -415,22 +415,19 @@ function custPkgLevelClass(level) {
 function custPkgCoverageSideSummary(pkg) {
   const blocks = pkg.coverageByFunction || {};
   const fns = pkg.functions && pkg.functions.length ? pkg.functions : Object.keys(blocks);
-  const sides = {};
-  fns.forEach(function (fn) {
-    if (custFnIsCoupleShoot(fn)) return;
-    const b = blocks[fn];
-    if (!b || !b.coverageSide) return;
-    sides[b.coverageSide] = (sides[b.coverageSide] || 0) + 1;
-  });
-  const keys = Object.keys(sides);
-  if (!keys.length) return '';
-  if (keys.length === 1) {
-    return keys[0] === 'both' ? 'Both sides' : 'Single side';
+  let primaryFn = null;
+  if (fns.indexOf('Wedding & Reception') >= 0) primaryFn = 'Wedding & Reception';
+  else {
+    for (let i = 0; i < fns.length; i++) {
+      if (!custFnIsCoupleShoot(fns[i])) {
+        primaryFn = fns[i];
+        break;
+      }
+    }
   }
-  if (keys.indexOf('both') >= 0 && keys.indexOf('single') >= 0) {
-    return 'Both & single side';
-  }
-  return keys[0] === 'both' ? 'Both sides' : 'Single side';
+  const b = primaryFn ? blocks[primaryFn] : null;
+  if (!b || !b.coverageSide) return '';
+  return b.coverageSide === 'both' ? 'Both sides' : 'Single side';
 }
 
 function custSummaryBulletsFromPkg(pkg) {
