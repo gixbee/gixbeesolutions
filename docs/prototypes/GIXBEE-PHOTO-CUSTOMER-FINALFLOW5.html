@@ -660,43 +660,71 @@ function custRenderExtrasBlock(extras) {
   return html;
 }
 
+function custRenderPolicyDetailBlock(pol, pv) {
+  let html = '<div class="cust-hd">' + custEsc(pol) + '</div>';
+  if (pv.notes) html += '<p class="sub" style="margin:0 0 10px">' + custEsc(pv.notes) + '</p>';
+  if (pv.noticeDays != null) {
+    html += '<div class="kv-row"><span>Notice (days)</span><b>' + pv.noticeDays + '</b></div>';
+  }
+  if (pv.refundPct != null) {
+    html += '<div class="kv-row"><span>Refund</span><b>' + pv.refundPct + '%</b></div>';
+  }
+  if (pv.fee != null && pol.indexOf('Rescheduling') >= 0) {
+    html += '<div class="kv-row"><span>Reschedule fee</span><b>' + (pv.fee ? custInr(pv.fee) : 'Free') + '</b></div>';
+  }
+  if (pv.days != null) {
+    if (pol.indexOf('Retention') >= 0) {
+      html += '<div class="kv-row"><span>Retention</span><b>' + pv.days + ' days</b></div>';
+    } else if (pol.indexOf('Selection') >= 0) {
+      html += '<div class="kv-row"><span>Selection deadline</span><b>' + pv.days + ' days</b></div>';
+    }
+  }
+  return html;
+}
+
 function custRenderPolicies(pkg) {
-  let html = '<div class="cust-hd">Payment stages</div>';
-  html += (pkg.paymentStages || [])
-    .map(function (ps) {
-      return '<div class="kv-row"><span>' + custEsc(ps.label) + '</span><b>' + ps.pct + '%</b></div>';
-    })
-    .join('');
-  if (pkg.cancelRules && pkg.cancelRules.length) {
+  const pv = pkg.policyValues || {};
+  let html = '';
+  if ((pkg.paymentStages || []).length) {
+    html += '<div class="cust-hd">Payment stages</div>';
+    html += pkg.paymentStages
+      .map(function (ps) {
+        return '<div class="kv-row"><span>' + custEsc(ps.label) + '</span><b>' + ps.pct + '%</b></div>';
+      })
+      .join('');
+  }
+  const hasCancelTiers = pkg.cancelRules && pkg.cancelRules.length;
+  const hasReschedTiers = pkg.rescheduleRules && pkg.rescheduleRules.length;
+  if (hasCancelTiers) {
     html += '<div class="cust-hd">Cancellation</div>';
     html += pkg.cancelRules
       .map(function (r) {
         return '<div class="kv-row"><span>' + custEsc(r.days) + '</span><b>' + r.pct + '% fee</b></div>';
       })
       .join('');
+    if (pv['Cancellation Policy'] && pv['Cancellation Policy'].notes) {
+      html +=
+        '<p class="sub" style="margin:8px 0 0">' + custEsc(pv['Cancellation Policy'].notes) + '</p>';
+    }
   }
-  if (pkg.rescheduleRules && pkg.rescheduleRules.length) {
+  if (hasReschedTiers) {
     html += '<div class="cust-hd">Rescheduling</div>';
     html += pkg.rescheduleRules
       .map(function (r) {
         return '<div class="kv-row"><span>' + custEsc(r.days) + '</span><b>' + (r.pct ? r.pct + '%' : 'Free') + '</b></div>';
       })
       .join('');
+    if (pv['Rescheduling Policy'] && pv['Rescheduling Policy'].notes) {
+      html +=
+        '<p class="sub" style="margin:8px 0 0">' + custEsc(pv['Rescheduling Policy'].notes) + '</p>';
+    }
   }
   (pkg.policies || []).forEach(function (pol) {
-    const pv = (pkg.policyValues || {})[pol];
-    if (!pv) return;
-    html += '<div class="cust-hd">' + custEsc(pol) + '</div>';
-    if (pv.notes) html += '<p class="sub" style="margin:0 0 10px">' + custEsc(pv.notes) + '</p>';
-    if (pv.noticeDays != null) {
-      html += '<div class="kv-row"><span>Notice (days)</span><b>' + pv.noticeDays + '</b></div>';
-    }
-    if (pv.refundPct != null) {
-      html += '<div class="kv-row"><span>Refund</span><b>' + pv.refundPct + '%</b></div>';
-    }
-    if (pv.days != null && pol.indexOf('Retention') >= 0) {
-      html += '<div class="kv-row"><span>Retention</span><b>' + pv.days + ' days</b></div>';
-    }
+    const block = pv[pol];
+    if (!block) return;
+    if (pol === 'Cancellation Policy' && hasCancelTiers) return;
+    if (pol === 'Rescheduling Policy' && hasReschedTiers) return;
+    html += custRenderPolicyDetailBlock(pol, block);
   });
   if ((pkg.requirements || []).length) {
     html += '<div class="cust-hd">Customer requirements</div><ul class="chk-list">';
@@ -1581,7 +1609,7 @@ function defaultPackageId(studioId) {
   return pkgs[0] ? pkgs[0].id : 'standard';
 }
 
-const PHOTO_CUSTOMER_BUILD = '2026-10-13-photo-customer-owner-mirror-v6b';
+const PHOTO_CUSTOMER_BUILD = '2026-10-13-photo-customer-owner-mirror-v6c';
 const DEMO_FILE = 'GIXBEE-PHOTO-CUSTOMER-FINALFLOW.html';
 const STORAGE_KEY = 'GIXBEE_PHOTO_CUSTOMER_INTERESTS_V2';
 
