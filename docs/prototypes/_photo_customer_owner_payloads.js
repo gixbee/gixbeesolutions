@@ -11,7 +11,7 @@ function ownerPkgBlueStandard() {
     discountYes: 'yes',
     discountPct: 10,
     price: 90000,
-    functions: ['Wedding & Reception', 'Reception'],
+    functions: ['Wedding & Reception', 'Engagement'],
     ceremonyTypes: ['Christian'],
     coverageByFunction: {
       'Wedding & Reception': {

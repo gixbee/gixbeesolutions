@@ -693,7 +693,7 @@ function ownerPkgBlueStandard() {
     discountYes: 'yes',
     discountPct: 10,
     price: 90000,
-    functions: ['Wedding & Reception', 'Reception'],
+    functions: ['Wedding & Reception', 'Engagement'],
     ceremonyTypes: ['Christian'],
     coverageByFunction: {
       'Wedding & Reception': {
@@ -2363,6 +2363,18 @@ function renderInterestDetail() {
       : '') +
     (it.paymentSummary
       ? '<div class="kv-row"><span>Payment</span><b>' + esc(it.paymentSummary) + '</b></div>'
+      : '') +
+    (it.deliverySummary
+      ? '<div class="kv-row"><span>Delivery</span><b style="font-size:12px">' + esc(it.deliverySummary) + '</b></div>'
+      : '') +
+    (it.requirementsOwner && it.requirementsOwner.length
+      ? '<div class="cust-hd">Studio requirements</div><ul class="chk-list">' +
+        it.requirementsOwner
+          .map(function (r) {
+            return '<li>' + esc(r) + '</li>';
+          })
+          .join('') +
+        '</ul>'
       : '') +
     '<div class="cust-hd">Status Timeline</div>' +
     '<div class="timeline">' +
