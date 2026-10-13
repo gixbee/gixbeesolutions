@@ -1,4 +1,4 @@
-const PHOTO_CUSTOMER_BUILD = '2026-10-13-photo-customer-owner-mirror-v7a';
+const PHOTO_CUSTOMER_BUILD = '2026-10-13-photo-customer-owner-mirror-v8';
 const DEMO_FILE = 'GIXBEE-PHOTO-CUSTOMER-FINALFLOW.html';
 const STORAGE_KEY = 'GIXBEE_PHOTO_CUSTOMER_INTERESTS_V2';
 
@@ -72,7 +72,25 @@ const state = {
   detailTab: 'inclusions',
   profTab: 'overview',
   intTab: 'active',
-  customize: { extras: {}, duration: 'inc', albumSize: '12×12', albumPages: '30', functions: {}, notes: '' },
+  customize: {
+    extras: {},
+    duration: 'inc',
+    albumSize: '12 x 30 inch',
+    albumPages: '30',
+    albumPaper: 'Matte',
+    albumCover: 'Premium',
+    albumSizeCustom: '',
+    albumPagesCustom: '',
+    albumPaperCustom: '',
+    albumCoverCustom: '',
+    functions: {},
+    extraFunctionSelect: '',
+    functionCustom: '',
+    customNeedPreset: '',
+    customNeedText: '',
+    reqAck: {},
+    notes: '',
+  },
   interests: [],
   activeInterestId: null,
   detailBack: 'catalog',
@@ -386,18 +404,16 @@ function selectedRequirementsLines() {
     packageExtras().forEach(function (ex) {
       if (state.customize.extras[ex.id]) lines.push(ex.label + ' — ' + inr(ex.price));
     });
-    Object.keys(state.customize.functions || {}).forEach(function (fn) {
-      if (state.customize.functions[fn]) lines.push('Also cover: ' + fn);
-    });
-    if (state.customize.albumSize) lines.push('Album ' + state.customize.albumSize + ' · ' + state.customize.albumPages + ' pages');
+    lines = lines.concat(custCustomizeRequirementLines(state, activePackageOwner()));
   } else {
     const svc = activeService();
     (svc.durationOptions || []).forEach(function (d) {
-      if (d.id === state.customize.duration) lines.push('Duration: ' + d.label);
+      if (d.id === state.customize.duration) lines.push('Duration: ' + d.label + (d.add ? ' — +' + inr(d.add) : ''));
     });
     serviceExtras().forEach(function (ex) {
       if (state.customize.extras[ex.id]) lines.push(ex.label + ' — ' + inr(ex.price));
     });
+    lines = lines.concat(custCustomizeRequirementLines(state, activeServiceOwner()));
   }
   return lines;
 }
@@ -999,137 +1015,142 @@ function renderCustomize() {
   const price = state.mode === 'wedding' ? activePackage().price : activeService().price;
   if (sum) {
     sum.innerHTML =
-      '<div class="review-summary"><div class="thumb"></div><div><b style="font-size:14px;color:var(--navy)">' +
+      '<div class="review-summary"><div class="thumb"></div><div style="flex:1"><b style="font-size:14px;color:var(--navy)">' +
       esc(title) +
-      '</b><div style="font-size:15px;font-weight:900;color:var(--blue2);margin-top:4px">' +
-      inr(price) +
+      '</b><div style="font-size:12px;color:var(--mut);font-weight:700;margin-top:2px">' +
+      esc(studio().name) +
+      ' · ' +
+      esc(formatDate(state.date)) +
+      '</div><div style="font-size:15px;font-weight:900;color:var(--blue2);margin-top:6px">Est. ' +
+      inr(offerPrice()) +
       '</div></div></div>';
   }
   if (!body) return;
   if (state.mode === 'wedding') {
-    const pkg = activePackage();
-    const owner = activePackageOwner();
-    const optFns = activePackage().optionalFunctions || owner.functions || ['Engagement', 'Reception'];
-    body.innerHTML =
-      '<div class="cust-hd">Additional Services (Optional)</div>' +
-      packageExtras().map(function (ex) {
-        return (
-          '<label class="extra-line"><span><input type="checkbox" data-wex="' +
-          ex.id +
-          '"' +
-          (state.customize.extras[ex.id] ? ' checked' : '') +
-          '> ' +
-          esc(ex.label) +
-          '</span><span style="font-weight:900">' +
-          inr(ex.price) +
-          '</span></label>'
-        );
-      }).join('') +
-      '<div class="cust-hd">Album Preferences</div>' +
-      '<div class="budget-row"><div class="fld"><label>Album Size</label><div class="sel-box"><select id="albSize"><option' +
-      (state.customize.albumSize === '12×12' ? ' selected' : '') +
-      '>12×12</option><option' +
-      (state.customize.albumSize === '10×10' ? ' selected' : '') +
-      '>10×10</option></select></div></div>' +
-      '<div class="fld"><label>Album Pages</label><div class="sel-box"><select id="albPages"><option' +
-      (state.customize.albumPages === '30' ? ' selected' : '') +
-      '>30</option><option' +
-      (state.customize.albumPages === '40' ? ' selected' : '') +
-      '>40</option></select></div></div></div>' +
-      '<div class="cust-hd">Other Functions to Cover</div>' +
-      optFns
-        .map(function (fn) {
-          return (
-            '<label class="extra-line"><span><input type="checkbox" data-fn="' +
-            esc(fn) +
-            '"' +
-            (state.customize.functions[fn] ? ' checked' : '') +
-            '> ' +
-            esc(fn) +
-            '</span></label>'
-          );
-        })
-        .join('') +
-      '<div class="cust-hd">Additional Notes</div><textarea class="notes" id="custNotes" maxlength="500" placeholder="Any special requests…">' +
-      esc(state.customize.notes) +
-      '</textarea><div class="notes-count"><span id="noteCt">0</span>/500</div>';
+    body.innerHTML = custRenderCustomizeWedding(activePackageOwner(), packageExtras(), state);
     const goRev = el('goReview');
     if (goRev) goRev.textContent = 'Next: Review Interest';
   } else {
-    body.innerHTML =
-      '<div class="cust-hd">Coverage Duration</div>' +
-      (activeService().durationOptions || activeServiceOwner().durationOptions || []).map(function (d) {
-        return (
-          '<label class="radio-card' +
-          (state.customize.duration === d.id ? ' on' : '') +
-          '"><input type="radio" name="dur" value="' +
-          d.id +
-          '"' +
-          (state.customize.duration === d.id ? ' checked' : '') +
-          '> ' +
-          esc(d.label) +
-          (d.add ? ' · +' + inr(d.add) : '') +
-          '</label>'
-        );
-      }).join('') +
-      '<div class="cust-hd">Additional Services</div>' +
-      serviceExtras().map(function (ex) {
-        return (
-          '<label class="extra-line"><span><input type="checkbox" data-sex="' +
-          ex.id +
-          '"' +
-          (state.customize.extras[ex.id] ? ' checked' : '') +
-          '> ' +
-          esc(ex.label) +
-          '</span><span style="font-weight:900">' +
-          inr(ex.price) +
-          '</span></label>'
-        );
-      }).join('') +
-      '<div class="cust-hd">Additional Notes</div><textarea class="notes" id="custNotes" maxlength="500">' +
-      esc(state.customize.notes) +
-      '</textarea><div class="notes-count"><span id="noteCt">0</span>/500</div>';
+    const svcO = activeServiceOwner();
+    body.innerHTML = custRenderCustomizeService(
+      svcO,
+      serviceExtras(),
+      activeService().durationOptions || svcO.durationOptions || [],
+      state
+    );
     const goRev = el('goReview');
-    if (goRev) goRev.textContent = 'Continue';
+    if (goRev) goRev.textContent = 'Next: Review Interest';
   }
   bindCustomize();
 }
 
 function bindCustomize() {
+  const c = state.customize;
   document.querySelectorAll('[data-wex]').forEach(function (inp) {
     inp.onchange = function () {
-      state.customize.extras[inp.getAttribute('data-wex')] = inp.checked;
+      c.extras[inp.getAttribute('data-wex')] = inp.checked;
+      renderCustomize();
     };
   });
   document.querySelectorAll('[data-sex]').forEach(function (inp) {
     inp.onchange = function () {
-      state.customize.extras[inp.getAttribute('data-sex')] = inp.checked;
+      c.extras[inp.getAttribute('data-sex')] = inp.checked;
+      renderCustomize();
     };
   });
   document.querySelectorAll('[name=dur]').forEach(function (inp) {
     inp.onchange = function () {
-      state.customize.duration = inp.value;
+      c.duration = inp.value;
       renderCustomize();
     };
   });
-  document.querySelectorAll('[data-fn]').forEach(function (inp) {
+  document.querySelectorAll('[data-req-ack]').forEach(function (inp) {
     inp.onchange = function () {
-      state.customize.functions[inp.getAttribute('data-fn')] = inp.checked;
+      const key = inp.getAttribute('data-req-ack');
+      c.reqAck[key] = inp.checked;
+      inp.closest('.chk-row').classList.toggle('on', inp.checked);
     };
   });
+  const fnSel = el('custFnSelect');
+  if (fnSel) {
+    fnSel.onchange = function () {
+      c.extraFunctionSelect = fnSel.value;
+      renderCustomize();
+    };
+  }
+  const fnCustom = el('custFnCustom');
+  if (fnCustom) {
+    fnCustom.oninput = function () {
+      c.functionCustom = fnCustom.value;
+    };
+  }
+  const needPreset = el('custNeedPreset');
+  if (needPreset) {
+    needPreset.onchange = function () {
+      c.customNeedPreset = needPreset.value;
+    };
+  }
+  const needText = el('custNeedText');
+  if (needText) {
+    needText.oninput = function () {
+      c.customNeedText = needText.value;
+    };
+  }
+  function bindAlbumSelect(id, key, customKey, wrapId) {
+    const sel = el(id);
+    if (!sel) return;
+    sel.onchange = function () {
+      c[key] = sel.value;
+      renderCustomize();
+    };
+    const customInp = el(customKey);
+    if (customInp) {
+      customInp.oninput = function () {
+        c[customKey.replace('alb', 'album').replace('SizeCustom', 'SizeCustom').replace('PagesCustom', 'PagesCustom')] = customInp.value;
+      };
+    }
+  }
   const albSize = el('albSize');
+  if (albSize) {
+    albSize.onchange = function () {
+      c.albumSize = albSize.value;
+      renderCustomize();
+    };
+  }
   const albPages = el('albPages');
-  if (albSize) albSize.onchange = function () {
-    state.customize.albumSize = albSize.value;
+  if (albPages) {
+    albPages.onchange = function () {
+      c.albumPages = albPages.value;
+      renderCustomize();
+    };
+  }
+  const albPaper = el('albPaper');
+  if (albPaper) {
+    albPaper.onchange = function () {
+      c.albumPaper = albPaper.value;
+      renderCustomize();
+    };
+  }
+  const albCover = el('albCover');
+  if (albCover) {
+    albCover.onchange = function () {
+      c.albumCover = albCover.value;
+      renderCustomize();
+    };
+  }
+  const albSizeCustom = el('albSizeCustom');
+  if (albSizeCustom) albSizeCustom.oninput = function () {
+    c.albumSizeCustom = albSizeCustom.value;
   };
-  if (albPages) albPages.onchange = function () {
-    state.customize.albumPages = albPages.value;
+  const albPagesCustom = el('albPagesCustom');
+  if (albPagesCustom) albPagesCustom.oninput = function () {
+    c.albumPagesCustom = albPagesCustom.value;
   };
   const notes = el('custNotes');
   const ct = el('noteCt');
   if (notes) {
     const upd = function () {
-      state.customize.notes = notes.value;
+      c.notes = notes.value;
       if (ct) ct.textContent = String(notes.value.length);
     };
     notes.oninput = upd;
