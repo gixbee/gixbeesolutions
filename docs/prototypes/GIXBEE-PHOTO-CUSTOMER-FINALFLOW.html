@@ -1,0 +1,4116 @@
+<!DOCTYPE html>
+<!-- GIXBEE PHOTO CUSTOMER — single self-contained flow HTML. Open GIXBEE-PHOTO-CUSTOMER-FINALFLOW5.html. Do NOT open photo-customer-flow-shell.html. -->
+
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Gixbee — Photography (Customer)</title>
+<style>
+:root{--navy:#0F1B4C;--blue:#1A237E;--blue2:#2563EB;--ink:#111827;--mut:#64748B;--line:#E5E7EB;--soft:#EFF6FF;--shadow:0 10px 32px rgba(15,23,42,.1);--orange:#F59E0B;--gn:#16A34A}
+*{box-sizing:border-box}
+body{margin:0;background:#E8EDF5;font-family:Inter,system-ui,sans-serif;color:var(--ink)}
+.stage{min-height:100vh;display:flex;justify-content:center;padding:12px 8px 24px}
+.phone{width:min(100%,430px);background:#fff;min-height:920px;border-radius:36px;box-shadow:var(--shadow);overflow:hidden;position:relative;border:8px solid #111;display:flex;flex-direction:column}
+.scr{display:none;flex:1;overflow:auto;padding:0 0 72px}
+.scr.on{display:block}
+.scr.has-dual-foot{padding-bottom:132px}
+.scr.has-review-foot{padding-bottom:200px}
+.p-ico{width:22px;height:22px;display:inline-block;vertical-align:middle;flex-shrink:0}
+.app-hd{display:flex;align-items:center;justify-content:space-between;padding:12px 16px 10px;background:#fff}
+.brand{display:flex;align-items:center;gap:10px}
+.brand-ico{width:38px;height:38px;border-radius:50%;background:var(--soft);display:grid;place-items:center}
+.brand b{display:block;font-size:17px;color:var(--blue);font-weight:900;line-height:1.15}
+.brand span{font-size:11px;color:var(--blue2);font-weight:700}
+.hd-icons{display:flex;gap:10px;align-items:center;color:var(--navy)}
+.hd-icons .dot{position:relative}
+.hd-icons .dot::after{content:'';position:absolute;top:0;right:0;width:7px;height:7px;background:#EF4444;border-radius:50%;border:2px solid #fff}
+.top{display:flex;align-items:center;gap:8px;padding:10px 16px;background:#fff;border-bottom:1px solid var(--line)}
+.top .back{border:0;background:none;font-size:22px;color:var(--blue);cursor:pointer;width:36px;height:36px}
+.top h1{margin:0;font-size:16px;flex:1;text-align:center;color:var(--blue);font-weight:800;line-height:1.25}
+.top .sub-hd{font-size:11px;color:var(--mut);font-weight:700;text-align:center;margin:-4px 16px 8px}
+.hero-wed{position:relative;min-height:150px;background:linear-gradient(180deg,rgba(15,27,76,.15),rgba(15,27,76,.55)),linear-gradient(145deg,#93C5FD,#1E3A8A) center/cover;color:#fff;padding:20px 16px 28px}
+.hero-wed h2{margin:0 0 6px;font-size:20px;font-weight:900;line-height:1.25}
+.hero-wed p{margin:0;font-size:12px;opacity:.95;font-weight:600}
+.hero-svc{min-height:120px;background:linear-gradient(145deg,#64748B,#334155);color:#fff;padding:20px 16px}
+.hero-svc h2{margin:0 0 4px;font-size:18px;font-weight:900}
+.hero-svc p{margin:0;font-size:12px;opacity:.9}
+.search-card{margin:-18px 16px 0;padding:16px 14px;background:#fff;border-radius:18px;border:1px solid var(--line);box-shadow:var(--shadow);position:relative;z-index:2}
+.fld{margin:0 0 14px}
+.fld>label{display:block;font-size:12px;font-weight:800;color:var(--blue);margin:0 0 6px}
+.sel-box{display:flex;align-items:center;gap:8px;padding:11px 12px;border:1.5px solid #BFDBFE;border-radius:12px;background:#fff;width:100%}
+.sel-box select,.sel-box input{border:0;background:transparent;flex:1;font:inherit;font-weight:700;color:var(--blue);outline:none;min-width:0}
+.comm-row{display:flex;gap:8px;overflow:auto;padding-bottom:4px}
+.comm-btn{flex:none;width:64px;border:1.5px solid #BFDBFE;border-radius:14px;padding:8px 6px;background:#fff;cursor:pointer;text-align:center;font:inherit}
+.comm-btn.on{border-color:var(--blue2);background:var(--soft)}
+.comm-btn .c-ico{font-size:22px;line-height:1;margin-bottom:4px}
+.comm-btn span{display:block;font-size:9px;font-weight:800;color:var(--blue)}
+.pkg-type-row{display:flex;gap:8px;flex-wrap:wrap}
+.pkg-type-btn{flex:1;min-width:72px;border:1.5px solid #BFDBFE;border-radius:12px;padding:10px 6px;background:#fff;cursor:pointer;font:inherit;text-align:center}
+.pkg-type-btn.on{border-color:var(--blue2);background:var(--soft)}
+.pkg-type-btn b{display:block;font-size:11px;font-weight:900;color:var(--blue)}
+.budget-row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.range-dual{margin-top:6px}
+.range-dual input[type=range]{width:100%;accent-color:var(--blue2)}
+.range-dual .range-lbl{display:flex;justify-content:space-between;font-size:11px;font-weight:800;color:var(--blue2);margin-top:4px}
+.btn{width:100%;border:0;border-radius:999px;background:var(--blue2);color:#fff;font-weight:800;font-size:15px;padding:14px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;box-shadow:0 4px 14px rgba(37,99,235,.35)}
+.btn.outline{background:#fff;color:var(--blue);border:1.5px solid #BFDBFE;box-shadow:none}
+.btn.sm{padding:10px 14px;font-size:13px;width:auto}
+.cta{padding:12px 16px}
+.res-bar{padding:8px 16px;font-size:12px;font-weight:800;color:var(--blue)}
+.res-bar .ctx{color:var(--mut);font-weight:700;display:block;font-size:11px;margin-top:2px}
+.filter-row{display:flex;gap:8px;overflow:auto;padding:6px 16px 8px}
+.fchip{flex:none;padding:8px 12px;border-radius:99px;border:1.5px solid #BFDBFE;font-size:11px;font-weight:800;background:#fff;color:var(--blue);cursor:pointer;font:inherit}
+.fchip.on{background:var(--soft);border-color:var(--blue2)}
+.cat-filter-panel{padding:10px 16px 12px;border-bottom:1px solid var(--line);background:#FAFBFC}
+.cat-filter-panel .lbl{margin:0 0 8px;font-size:11px;font-weight:800;color:var(--mut)}
+.cat-count{padding:4px 16px 8px;font-size:12px;font-weight:700;color:var(--mut)}
+.hub-empty{margin:24px 16px;padding:20px;text-align:center;border:1.5px dashed #CBD5E1;border-radius:16px;background:#F8FAFC}
+.hub-empty-ico{font-size:28px;margin-bottom:8px}
+.hub-empty b{display:block;color:var(--navy);margin-bottom:6px}
+.hub-empty p{margin:0;font-size:12px;font-weight:600;color:var(--mut);line-height:1.45}
+.res-meta{display:flex;justify-content:space-between;align-items:center;padding:4px 16px 10px;font-size:13px;font-weight:800;color:var(--blue)}
+.ph-row{display:flex;gap:10px;border:1.5px solid #E2E8F0;border-radius:16px;padding:10px;margin:0 16px 12px;background:#fff;cursor:pointer;text-align:left;width:calc(100% - 32px);font:inherit;color:inherit}
+.ph-thumb{width:88px;height:88px;border-radius:12px;flex-shrink:0;background:linear-gradient(145deg,#CBD5E1,#64748B);position:relative}
+.ph-thumb .heart{position:absolute;top:6px;right:6px;width:28px;height:28px;border-radius:50%;border:0;background:#fff;display:grid;place-items:center;box-shadow:0 2px 6px rgba(0,0,0,.12);cursor:pointer}
+.ph-bd{flex:1;min-width:0}
+.ph-bd b{font-size:14px;color:var(--navy);font-weight:900;display:block;margin-bottom:4px}
+.ph-rating{font-size:11px;font-weight:700;color:var(--mut);margin-bottom:6px}
+.ph-rating .star{color:#F59E0B}
+.ph-price{font-size:13px;font-weight:900;color:var(--blue)}
+.ph-tags{display:flex;flex-wrap:wrap;gap:4px;margin-top:6px}
+.ph-tag{font-size:9px;font-weight:800;padding:4px 8px;border-radius:8px;background:#EFF6FF;color:var(--blue2)}
+.detail-hero{height:220px;position:relative;background:linear-gradient(145deg,#64748B,#334155)}
+.detail-hero .fab{position:absolute;top:12px;width:38px;height:38px;border-radius:50%;border:0;background:rgba(255,255,255,.95);display:grid;place-items:center;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.12);color:var(--blue)}
+.detail-hero .fab.back{left:12px;font-size:18px}
+.detail-hero .fab.r{right:12px}
+.detail-hero .fab.r2{right:56px}
+.detail-hero .gal{position:absolute;right:12px;bottom:12px;font-size:10px;font-weight:800;background:rgba(0,0,0,.55);color:#fff;padding:4px 9px;border-radius:99px}
+.title-block{padding:14px 16px 0}
+.title-block .name{font-size:20px;font-weight:900;color:var(--navy);line-height:1.2}
+.title-block .meta{font-size:12px;font-weight:700;color:var(--mut);margin-top:6px;display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.stat-row{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;padding:14px 16px;text-align:center}
+.stat-cell{font-size:10px;font-weight:800;color:var(--blue);line-height:1.3}
+.stat-cell .ic{font-size:22px;margin-bottom:4px}
+.prof-tabs{display:flex;border-bottom:1px solid var(--line);padding:0 16px}
+.prof-tabs button{flex:1;border:0;background:none;padding:12px 4px;font:inherit;font-size:12px;font-weight:800;color:var(--mut);cursor:pointer;border-bottom:2px solid transparent}
+.prof-tabs button.on{color:var(--blue2);border-bottom-color:var(--blue2)}
+.prof-panel{padding:14px 16px;font-size:13px;line-height:1.5;color:var(--ink)}
+.prof-panel h3{font-size:14px;margin:0 0 8px;color:var(--navy)}
+.area-tags{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.area-tags span{font-size:10px;font-weight:800;padding:6px 10px;border-radius:99px;background:#F1F5F9;color:var(--blue)}
+.dual-foot{position:absolute;left:0;right:0;bottom:56px;display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:10px 16px;background:#fff;border-top:1px solid var(--line);z-index:4}
+.pkg-card{display:flex;gap:10px;border:1.5px solid #E2E8F0;border-radius:16px;padding:12px;margin:0 16px 12px;background:#fff;cursor:pointer;text-align:left;width:calc(100% - 32px);font:inherit}
+.pkg-card .thumb{width:72px;height:72px;border-radius:12px;background:linear-gradient(145deg,#CBD5E1,#64748B);flex-shrink:0}
+.pkg-card b{font-size:14px;color:var(--navy);display:block;margin-bottom:4px}
+.pkg-meta{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 8px}
+.pkg-tier{font-size:9px;font-weight:900;padding:4px 8px;border-radius:8px;text-transform:uppercase;letter-spacing:.04em}
+.tier-basic{background:#E0F2FE;color:#0369A1}
+.tier-standard{background:#EDE9FE;color:#5B21B6}
+.tier-premium{background:#FEF3C7;color:#B45309}
+.pkg-side-pill{font-size:9px;font-weight:800;padding:4px 8px;border-radius:8px;background:#ECFDF5;color:#047857;border:1px solid #A7F3D0}
+.pkg-card .price{font-size:15px;font-weight:900;color:var(--blue2);margin-bottom:6px}
+.pkg-card ul{margin:0;padding:0 0 0 16px;font-size:11px;color:var(--mut);font-weight:600;line-height:1.45}
+.pkg-card .link{font-size:12px;font-weight:800;color:var(--blue2);margin-top:8px;display:inline-block}
+.offer-hero{height:160px;background:linear-gradient(145deg,#64748B,#475569);position:relative}
+.offer-hero .fab.back{z-index:6}
+.offer-hero .price-tag{position:absolute;left:16px;bottom:12px;color:#fff;z-index:1}
+.offer-hero .price-tag b{font-size:24px;display:block}
+.offer-hero .price-tag span{font-size:12px;opacity:.9}
+.detail-tabs{display:flex;gap:4px;padding:10px 16px 0;overflow:auto}
+.detail-tabs button{flex:none;border:0;background:#F1F5F9;border-radius:99px;padding:8px 14px;font:inherit;font-size:11px;font-weight:800;color:var(--mut);cursor:pointer}
+.detail-tabs button.on{background:var(--blue2);color:#fff}
+.detail-panel{padding:14px 16px 8px}
+.chk-list{margin:0;padding:0;list-style:none}
+.chk-list li{display:flex;align-items:flex-start;gap:10px;padding:10px 0;border-bottom:1px solid #F1F5F9;font-size:13px;font-weight:600;color:var(--ink)}
+.chk-list li::before{content:'✓';color:var(--blue2);font-weight:900;flex-shrink:0}
+.extra-line{display:flex;justify-content:space-between;align-items:center;padding:12px 0;border-bottom:1px solid #F1F5F9;font-size:13px;font-weight:600}
+.extra-line input{accent-color:var(--blue2);width:18px;height:18px}
+.review-summary{display:flex;gap:10px;padding:12px;border:1px solid var(--line);border-radius:14px;margin-bottom:14px;align-items:center}
+.review-summary .thumb{width:56px;height:56px;border-radius:10px;background:linear-gradient(145deg,#CBD5E1,#64748B);flex-shrink:0}
+.kv-row{display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid #F3F4F6;font-size:13px}
+.kv-row span{color:var(--mut);font-weight:600}
+.kv-row b{color:var(--blue);font-weight:800;text-align:right;max-width:55%}
+.cust-hd{font-size:15px;font-weight:900;color:var(--navy);margin:16px 0 10px}
+.cust-lead{margin:0 0 14px;font-size:12px;font-weight:600;color:var(--mut);line-height:1.45}
+.cust-hint{margin:6px 0 10px;font-size:11px;font-weight:600;color:var(--mut);line-height:1.4}
+.cust-muted{font-size:10px;font-weight:700;color:var(--mut)}
+.cust-price{font-weight:900;color:var(--blue2)}
+.chk-row{display:flex;align-items:flex-start;gap:10px;padding:12px;margin-bottom:8px;border:1.5px solid #E2E8F0;border-radius:12px;font-size:12px;font-weight:600;color:var(--ink);cursor:pointer}
+.chk-row.on{border-color:var(--blue2);background:var(--soft)}
+.chk-row input{margin-top:2px;accent-color:var(--blue2);flex-shrink:0}
+.multi-drop{position:relative}
+.multi-drop-btn{display:flex;align-items:center;justify-content:space-between;width:100%;border:1.5px solid #BFDBFE;border-radius:12px;padding:11px 12px;background:#fff;font:inherit;font-weight:700;color:var(--blue);cursor:pointer;text-align:left}
+.multi-drop-chev{color:var(--mut);font-size:12px;margin-left:8px}
+.multi-drop-panel{position:absolute;left:0;right:0;top:calc(100% + 4px);z-index:8;max-height:240px;overflow:auto;background:#fff;border:1.5px solid #E2E8F0;border-radius:14px;box-shadow:var(--shadow);padding:6px}
+.multi-drop-item{display:flex;align-items:flex-start;gap:10px;padding:10px 12px;border-radius:10px;font-size:12px;font-weight:600;cursor:pointer}
+.multi-drop-item.on{background:var(--soft)}
+.multi-drop-item input{margin-top:2px;accent-color:var(--blue2);flex-shrink:0}
+.multi-drop-item b{display:block;font-size:12px;color:var(--navy);margin-bottom:2px}
+.multi-drop-item .cust-muted{display:block;font-size:10px;line-height:1.35}
+.radio-card{display:block;border:1.5px solid #E2E8F0;border-radius:12px;padding:12px;margin-bottom:8px;cursor:pointer}
+.radio-card.on{border-color:var(--blue2);background:var(--soft)}
+.radio-card input{margin-right:8px}
+textarea.notes{width:100%;min-height:88px;border:1.5px solid #BFDBFE;border-radius:12px;padding:12px;font:inherit;font-weight:600;resize:vertical}
+.notes-count{font-size:10px;color:var(--mut);text-align:right;margin-top:4px}
+.sent-wrap{padding:32px 24px;text-align:center}
+.sent-wrap .plane{font-size:56px;margin-bottom:12px}
+.sent-wrap h2{margin:0 0 8px;color:var(--navy);font-size:20px}
+.timeline{margin:24px 0;text-align:left;padding:0 16px}
+.tl-item{display:flex;gap:12px;padding:0 0 18px;position:relative}
+.tl-item::before{content:'';position:absolute;left:11px;top:24px;bottom:0;width:2px;background:#E2E8F0}
+.tl-item:last-child::before{display:none}
+.tl-dot{width:24px;height:24px;border-radius:50%;border:2px solid #CBD5E1;flex-shrink:0;background:#fff;display:grid;place-items:center;font-size:11px;font-weight:900;color:#fff}
+.tl-item.done .tl-dot{background:var(--gn);border-color:var(--gn)}
+.tl-item.cur .tl-dot{border-color:var(--orange);background:var(--orange)}
+.tl-bd b{display:block;font-size:13px;color:var(--navy)}
+.tl-bd span{font-size:11px;color:var(--mut);font-weight:600}
+.int-tabs{display:flex;gap:0;border-bottom:1px solid var(--line);padding:0 16px}
+.int-tabs button{flex:1;border:0;background:none;padding:12px;font:inherit;font-size:13px;font-weight:800;color:var(--mut);cursor:pointer;border-bottom:2px solid transparent}
+.int-tabs button.on{color:var(--blue2);border-bottom-color:var(--blue2)}
+.int-card{border:1.5px solid #E2E8F0;border-radius:16px;margin:12px 16px;padding:12px;background:#fff;cursor:pointer;text-align:left;width:calc(100% - 32px);font:inherit}
+.int-card .status{display:inline-block;font-size:10px;font-weight:800;padding:4px 10px;border-radius:99px;margin-top:6px}
+.int-card .status.review{background:#FEF3C7;color:#B45309}
+.int-card .status.ok{background:#DCFCE7;color:#166534}
+.pick-grid{padding:16px;display:grid;gap:12px}
+.pick-tile{border:0;border-radius:18px;padding:20px 16px;text-align:left;cursor:pointer;font:inherit;color:#fff;min-height:100px;position:relative;overflow:hidden}
+.pick-tile.wed{background:linear-gradient(135deg,#1D4ED8,#7C3AED)}
+.pick-tile.svc{background:linear-gradient(135deg,#475569,#1E293B)}
+.pick-tile b{display:block;font-size:17px;font-weight:900;margin-bottom:6px}
+.pick-tile span{font-size:12px;opacity:.92;font-weight:600;line-height:1.4}
+.bottom-nav{display:flex;border-top:1px solid var(--line);background:#fff;padding:8px 0 10px;position:absolute;left:0;right:0;bottom:0;z-index:5}
+.bottom-nav button{flex:1;border:0;background:none;font-size:10px;font-weight:800;color:#64748B;cursor:pointer;padding:6px 0;display:flex;flex-direction:column;align-items:center;gap:3px}
+.bottom-nav button.on{color:var(--blue2)}
+#buildTag{font-size:10px;color:var(--mut);padding:8px 16px;text-align:center}
+.toast{position:absolute;left:16px;right:16px;bottom:80px;background:#111;color:#fff;padding:12px;border-radius:12px;display:none;z-index:9;font-size:13px}
+.catalog-date-bar{padding-top:0;padding-bottom:4px}
+.review-date-bar--inline{position:static;padding:0 16px 12px;border-top:0;background:transparent}
+.review-date-bar:not(.review-date-bar--inline){position:absolute;left:0;right:0;bottom:118px;padding:10px 16px 8px;background:#fff;border-top:1px solid var(--line);z-index:4}
+.review-date-pick{display:flex;align-items:center;gap:12px;width:100%;border:1.5px solid #E2E8F0;border-radius:14px;padding:12px 14px;background:#fff;cursor:pointer;font:inherit;text-align:left}
+.review-date-ico{width:42px;height:42px;border-radius:10px;background:#ECFDF5;display:grid;place-items:center;font-size:20px;flex-shrink:0}
+.review-date-txt{flex:1;min-width:0}
+.review-date-txt .lbl{display:block;font-size:11px;font-weight:800;color:var(--navy);margin-bottom:2px}
+.review-date-txt b{font-size:14px;font-weight:800;color:var(--blue2)}
+.review-date-chev{margin-left:auto;color:#94A3B8;font-size:22px;font-weight:300;line-height:1}
+.modal{position:absolute;inset:0;background:rgba(15,23,42,.45);z-index:30;display:flex;align-items:flex-start;justify-content:center;padding:40px 12px 12px;overflow:auto}
+.modal[hidden]{display:none!important}
+.modal-sheet{width:100%;max-width:380px;background:#fff;border-radius:18px;box-shadow:var(--shadow)}
+.cal-sheet{overflow:hidden}
+.cal-hd{display:flex;align-items:center;justify-content:space-between;padding:14px 16px;border-bottom:1px solid var(--line)}
+.cal-hd b{font-size:15px;color:var(--navy)}
+.cal-hd button{border:0;background:none;font:inherit;font-weight:800;cursor:pointer;color:var(--ink);padding:4px 8px}
+.cal-hd button[data-cal-done]{color:#16A34A}
+.cal-nav{display:flex;align-items:center;justify-content:space-between;padding:10px 16px;font-weight:900;color:var(--navy)}
+.cal-nav button{border:0;background:#F1F5F9;width:32px;height:32px;border-radius:8px;cursor:pointer;font-size:16px}
+.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:2px;padding:8px 12px 16px;text-align:center}
+.cal-grid .dow{font-size:10px;font-weight:800;color:var(--mut);padding:6px 0}
+.cal-day{border:0;background:none;padding:9px 0;border-radius:10px;cursor:pointer;font:inherit;font-size:13px;font-weight:700;color:var(--navy)}
+.cal-day.on{background:#16A34A;color:#fff}
+.cal-day.full{color:#CBD5E1;cursor:not-allowed;position:relative}
+.cal-day.full::after{content:'';position:absolute;left:20%;right:20%;top:50%;height:1px;background:#CBD5E1}
+.cal-day.muted{color:#E2E8F0;cursor:default}
+.date-full-sheet{padding:22px 18px;text-align:center}
+.stars-bar{display:flex;align-items:center;gap:12px;margin-bottom:12px}
+.stars-bar b{font-size:28px;color:var(--navy)}
+.bar-dist{flex:1;font-size:10px;font-weight:700;color:var(--mut)}
+.rev-item{padding:12px 0;border-bottom:1px solid #F1F5F9;font-size:12px}
+.rev-item .who{font-weight:800;color:var(--navy)}
+.pad16{padding:0 16px}
+</style>
+</head>
+<body>
+<div id="bootError" hidden style="position:fixed;inset:0;z-index:99999;background:#fff;padding:24px;font:15px sans-serif"></div>
+<div class="stage"><div class="phone">
+
+<section class="scr on" id="search">
+  <div class="app-hd"><div class="brand"><span class="brand-ico" id="brandIcoSearch"></span><div><b>Gixbee</b><span>Photography</span></div></div><div class="hd-icons"><span class="dot" id="bellSearch"></span></div></div>
+  <div id="searchHero"></div>
+  <div class="search-card" id="searchForm"></div>
+  <div class="cta"><button type="button" class="btn" id="goResults">Search Photographers</button></div>
+  <p id="buildTag">Photography customer flow</p>
+</section>
+
+<section class="scr" id="results">
+  <div class="top"><button type="button" class="back" data-back>←</button><h1 id="resTitle">Photographers</h1><span style="width:36px"></span></div>
+  <p class="sub-hd" id="resSub"></p>
+  <div class="filter-row"><span class="fchip">⇅ Sort</span><span class="fchip">☰ Filter</span></div>
+  <div class="res-meta"><span id="resCount">0 found</span></div>
+  <div id="resList"></div>
+</section>
+
+<section class="scr has-dual-foot" id="profile">
+  <div class="detail-hero"><button type="button" class="fab back" data-back>←</button><button type="button" class="fab r2" id="profHeart">♡</button><button type="button" class="fab r" id="profShare">⎙</button><span class="gal">1/20</span></div>
+  <div class="title-block"><div class="name" id="profName">Studio</div><div class="meta" id="profMeta"></div></div>
+  <div class="stat-row" id="profStats"></div>
+  <div class="prof-tabs" id="profTabs"><button type="button" class="on" data-ptab="overview">Overview</button><button type="button" data-ptab="portfolio">Portfolio</button><button type="button" data-ptab="reviews">Reviews</button></div>
+  <div class="prof-panel" id="profPanel"></div>
+  <div class="dual-foot"><button type="button" class="btn outline" id="profMessage">Message</button><button type="button" class="btn" id="profPrimary">View Packages</button></div>
+</section>
+
+<section class="scr" id="catalog">
+  <div class="top"><button type="button" class="back" data-back>←</button><h1 id="catTitle">Packages</h1><span style="width:36px"></span></div>
+  <div class="filter-row" id="catFilters"></div>
+  <div id="catFilterPanel" class="cat-filter-panel" hidden></div>
+  <div class="cat-count" id="catCount"></div>
+  <div class="catalog-date-bar pad16" id="catalogDateBar"></div>
+  <div id="catList"></div>
+</section>
+
+<section class="scr has-dual-foot" id="detail">
+  <div class="offer-hero" id="detailHero"><button type="button" class="fab back" data-back style="position:absolute;top:12px;left:12px">←</button><div class="price-tag" id="detailPriceTag"></div></div>
+  <div class="pad16" style="padding-top:12px"><b id="detailName" style="font-size:17px;color:var(--navy)"></b></div>
+  <div class="catalog-date-bar pad16" id="detailDateBar" hidden></div>
+  <div class="detail-tabs" id="detailTabs"></div>
+  <div class="detail-panel" id="detailPanel"></div>
+  <div class="dual-foot"><button type="button" class="btn outline" id="goCustomize">⚙ Customize Requirements</button><button type="button" class="btn" id="goCustomize2">✈ Initiate Interest</button></div>
+</section>
+
+<section class="scr" id="customize">
+  <div class="top"><button type="button" class="back" data-back>←</button><h1>Customize Requirements</h1><span style="width:36px"></span></div>
+  <div class="pad16" id="custSummary"></div>
+  <div class="pad16" id="custBody"></div>
+  <div class="cta"><button type="button" class="btn" id="goReview">Continue</button></div>
+</section>
+
+<section class="scr has-dual-foot" id="review">
+  <div class="top"><button type="button" class="back" data-back>←</button><h1>Review Your Interest</h1><span style="width:36px"></span></div>
+  <div class="pad16" id="reviewBody"></div>
+  <div class="review-date-bar review-date-bar--inline pad16" id="reviewDateBar" hidden></div>
+  <div class="dual-foot" id="reviewFoot" style="grid-template-columns:1fr 1fr"></div>
+</section>
+
+<section class="scr" id="sent">
+  <div class="top"><button type="button" class="back" data-back>←</button><h1>Interest sent</h1><span style="width:36px"></span></div>
+  <div class="sent-wrap" style="padding-top:12px">
+    <div class="plane">✈</div>
+    <h2>Your Interest has been Sent!</h2>
+    <p style="font-size:13px;color:var(--mut);line-height:1.45;margin:0 0 20px">The photographer will review your request and contact you.</p>
+    <div class="timeline" id="sentTimeline"></div>
+    <button type="button" class="btn" data-to="interests">View My Interests</button>
+  </div>
+</section>
+
+<section class="scr" id="interests">
+  <div class="top"><button type="button" class="back" data-back style="visibility:hidden">←</button><h1>My Interests</h1><span style="width:36px"></span></div>
+  <div class="int-tabs"><button type="button" class="on" data-intab="active">Active</button><button type="button" data-intab="past">Past</button></div>
+  <div id="intList"></div>
+</section>
+
+<section class="scr has-dual-foot" id="interestDetail">
+  <div class="top"><button type="button" class="back" data-back>←</button><h1>Interest Details</h1><span style="width:36px"></span></div>
+  <div class="pad16" id="intDetailHead"></div>
+  <div class="prof-tabs" style="margin-top:8px"><button type="button" class="on">Details</button><button type="button" disabled style="opacity:.5">Discussion</button></div>
+  <div class="pad16" id="intDetailBody"></div>
+  <div class="dual-foot" style="grid-template-columns:1fr"><button type="button" class="btn" id="msgPhotographer">Message Photographer</button></div>
+</section>
+
+<nav class="bottom-nav" id="bottomNav">
+  <button type="button" class="on" data-nav="home"><span id="navHomeIco"></span>Home</button>
+  <button type="button" data-nav="search"><span id="navSearchIco"></span>Search</button>
+  <button type="button" data-nav="interests"><span id="navIntIco"></span>My Interests</button>
+  <button type="button" data-nav="profile-stub"><span id="navProfIco"></span>Profile</button>
+</nav>
+<div class="toast" id="toast"></div>
+<div class="modal scr-modal" id="reviewDateModal" hidden>
+  <div class="modal-sheet cal-sheet">
+    <div class="cal-hd"><button type="button" data-cal-cancel>Cancel</button><b>Select Date</b><button type="button" data-cal-done>Done</button></div>
+    <div id="reviewCalBody"></div>
+  </div>
+</div>
+<div class="modal scr-modal" id="dateFullModal" hidden>
+  <div class="modal-sheet date-full-sheet">
+    <b style="display:block;font-size:16px;color:var(--navy);margin-bottom:8px">Date not available</b>
+    <p style="margin:0 0 16px;font-size:13px;font-weight:600;color:var(--mut);line-height:1.45">This photographer is fully booked on <b id="dateFullLbl" style="color:var(--navy)"></b>. Please choose another date and send your request again.</p>
+    <button type="button" class="btn" id="dateFullChange">Change date</button>
+  </div>
+</div>
+
+<!-- APP_START -->
+<script>
+/** Inline SVG icons (mock-aligned). Included in customer flow app bundle. */
+function svgIcon(name, cls) {
+  const classes = ['flow-ico'];
+  if (cls) classes.push(cls);
+  const c = ' class="' + classes.join(' ') + '" aria-hidden="true"';
+  const icons = {
+    logo:
+      '<svg' +
+      c +
+      ' viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="11" fill="#ECFDF3"/><path d="M12 19s-5.5-3.5-5.5-8a3.5 3.5 0 0 1 7 0c0 4.5-5.5 8-5.5 8z" fill="#12B76A"/></svg>',
+    pin:
+      '<svg' +
+      c +
+      ' viewBox="0 0 24 24" fill="none" stroke="#12B76A" stroke-width="2"><path d="M12 21s6-5.2 6-10a6 6 0 1 0-12 0c0 4.8 6 10 6 10z"/><circle cx="12" cy="11" r="2.5"/></svg>',
+    pinBlue:
+      '<svg' +
+      c +
+      ' viewBox="0 0 24 24" fill="#2563EB"><path d="M12 2C8.1 2 5 5.1 5 9c0 5.2 7 13 7 13s7-7.8 7-13c0-3.9-3.1-7-7-7zm0 9.5a2.5 2.5 0 1 1 0-5 2.5 2.5 0 0 1 0 5z"/></svg>',
+    cal:
+      '<svg' +
+      c +
+      ' viewBox="0 0 24 24" fill="none" stroke="#12B76A" stroke-width="2"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M8 3v4M16 3v4M3 10h18"/></svg>',
+    people:
+      '<svg' +
+      c +
+      ' viewBox="0 0 24 24" fill="none" stroke="#12B76A" stroke-width="2"><circle cx="9" cy="8" r="3"/><path d="M3 20c0-3.3 2.7-6 6-6"/><circle cx="17" cy="9" r="2.5"/><path d="M14 20c0-2.8 2.2-5 5-5"/></svg>',
+    snow:
+      '<svg' +
+      c +
+      ' viewBox="0 0 24 24" fill="none" stroke="#2563EB" stroke-width="2"><path d="M12 2v20M4 6l16 12M20 6L4 18M2 12h20"/></svg>',
+    house:
+      '<svg' +
+      c +
+      ' viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 10.5L12 4l8 6.5V20a1 1 0 0 1-1 1h-5v-6H10v6H5a1 1 0 0 1-1-1v-9.5z"/></svg>',
+    tree:
+      '<svg' +
+      c +
+      ' viewBox="0 0 24 24" fill="none" stroke="#12B76A" stroke-width="2"><path d="M12 3L8 10h3l-2 4h6l-2-4h3L12 3z"/><path d="M8 18h8v3H8z"/></svg>',
+    search:
+      '<svg' +
+      c +
+      ' viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg>',
+    bell:
+      '<svg' +
+      c +
+      ' viewBox="0 0 24 24" fill="none" stroke="#1B2559" stroke-width="2"><path d="M18 16H6l1.5-2V10a5.5 5.5 0 0 1 11 0v4L18 16z"/><path d="M10 19a2 2 0 0 0 4 0"/></svg>',
+    menu:
+      '<svg' + c + ' viewBox="0 0 24 24" fill="#1B2559"><path d="M4 7h16v2H4V7zm0 5h16v2H4v-2zm0 5h16v2H4v-2z"/></svg>',
+    heart:
+      '<svg' +
+      c +
+      ' viewBox="0 0 24 24" fill="none" stroke="#2563EB" stroke-width="2"><path d="M12 20s-7-4.5-7-10a4 4 0 0 1 7-2 4 4 0 0 1 7 2c0 5.5-7 10-7 10z"/></svg>',
+    heartFill:
+      '<svg' +
+      c +
+      ' viewBox="0 0 24 24" fill="#2563EB"><path d="M12 20s-7-4.5-7-10a4 4 0 0 1 7-2 4 4 0 0 1 7 2c0 5.5-7 10-7 10z"/></svg>',
+    share:
+      '<svg' +
+      c +
+      ' viewBox="0 0 24 24" fill="none" stroke="#2563EB" stroke-width="2"><path d="M16 8l-4-4-4 4M12 4v12M6 16v2a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2v-2"/></svg>',
+    star:
+      '<svg' +
+      c +
+      ' viewBox="0 0 24 24" fill="#FBBF24"><path d="M12 2l3 7h7l-5.5 4.5 2 7L12 17l-6.5 3.5 2-7L2 9h7l3-7z"/></svg>',
+    check:
+      '<svg' +
+      c +
+      ' viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3"><path d="M5 13l4 4L19 7"/></svg>',
+    sun:
+      '<svg' +
+      c +
+      ' viewBox="0 0 24 24" fill="none" stroke="#12B76A" stroke-width="2"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4 12H2M22 12h-2M5 5l1.5 1.5M17.5 17.5L19 19M19 5l-1.5 1.5M5 19l1.5-1.5"/></svg>',
+    moon:
+      '<svg' +
+      c +
+      ' viewBox="0 0 24 24" fill="none" stroke="#6366F1" stroke-width="2"><path d="M21 14.5A8.5 8.5 0 1 1 9.5 3 7 7 0 0 0 21 14.5z"/></svg>',
+    fan:
+      '<svg' +
+      c +
+      ' viewBox="0 0 24 24" fill="none" stroke="#64748B" stroke-width="2"><path d="M12 12v-9M12 12c-3 0-5 2-5 5M12 12c3 0 5 2 5 5M12 12L5 19M12 12l7 7"/></svg>',
+    car:
+      '<svg' +
+      c +
+      ' viewBox="0 0 24 24" fill="none" stroke="#12B76A" stroke-width="2"><path d="M5 17h14l-1.5-6H6.5L5 17zM7 17a1.5 1.5 0 1 0 0 .01M17 17a1.5 1.5 0 1 0 0 .01M6 11l1-4h10l1 4"/></svg>',
+    bike:
+      '<svg' +
+      c +
+      ' viewBox="0 0 24 24" fill="none" stroke="#12B76A" stroke-width="2"><circle cx="6" cy="17" r="3"/><circle cx="18" cy="17" r="3"/><path d="M6 17l4-7h4l2 3h3"/></svg>',
+    dine:
+      '<svg' +
+      c +
+      ' viewBox="0 0 24 24" fill="none" stroke="#12B76A" stroke-width="2"><path d="M8 3v8a3 3 0 0 0 6 0V3M11 11v10M6 3v5M14 3v5"/></svg>',
+    seat:
+      '<svg' +
+      c +
+      ' viewBox="0 0 24 24" fill="none" stroke="#12B76A" stroke-width="2"><circle cx="12" cy="8" r="3"/><path d="M6 20v-2a4 4 0 0 1 8 0v2"/></svg>',
+    plane:
+      '<svg' +
+      c +
+      ' viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/></svg>',
+    warn:
+      '<svg' +
+      c +
+      ' viewBox="0 0 24 24" fill="#EA580C"><path d="M12 3L2 21h20L12 3zm0 6v6m0 3h.01" stroke="#fff" stroke-width="2"/></svg>',
+    chev:
+      '<svg' +
+      c +
+      ' viewBox="0 0 24 24" fill="none" stroke="#94A3B8" stroke-width="2"><path d="M9 6l6 6-6 6"/></svg>',
+    info:
+      '<svg' +
+      c +
+      ' viewBox="0 0 24 24" fill="none" stroke="#12B76A" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 10v6M12 7h.01"/></svg>',
+  };
+  return icons[name] || '';
+}
+
+/** Render owner-shaped package/service data for customer screens. */
+
+function custEsc(s) {
+  return String(s == null ? '' : s)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+}
+
+function custInr(n) {
+  return '₹ ' + Number(n || 0).toLocaleString('en-IN');
+}
+
+function custChips(items) {
+  return (
+    '<div class="area-tags">' +
+    items
+      .map(function (x) {
+        return '<span>' + custEsc(x) + '</span>';
+      })
+      .join('') +
+    '</div>'
+  );
+}
+
+function custKvRows(rows) {
+  return rows
+    .map(function (r) {
+      return '<div class="kv-row"><span>' + custEsc(r.k) + '</span><b>' + custEsc(r.v) + '</b></div>';
+    })
+    .join('');
+}
+
+function custTeamLines(types) {
+  const lines = [];
+  Object.keys(types || {}).forEach(function (label) {
+    const t = types[label];
+    if (t && t.on && t.qty > 0) lines.push(t.qty + '× ' + label);
+  });
+  return lines;
+}
+
+function custFnIsCoupleShoot(fnName) {
+  return /shoot/i.test(String(fnName || ''));
+}
+
+function custRenderPkgBasics(pkg) {
+  let html =
+    '<p style="font-size:13px;font-weight:600;color:var(--mut);line-height:1.5;margin:0 0 12px">' +
+    custEsc(pkg.desc) +
+    '</p>';
+  html += '<div class="cust-hd">Package level</div>' + custChips([pkg.level]);
+  html += '<div class="cust-hd">Ceremony types</div>' + custChips(pkg.ceremonyTypes || []);
+  html += '<div class="cust-hd">Functions covered</div>' + custChips(pkg.functions || []);
+  if (pkg.equipmentNote) {
+    html += '<div class="cust-hd">Equipment</div><p class="sub">' + custEsc(pkg.equipmentNote) + '</p>';
+  }
+  if (pkg.qualityNote) {
+    html += '<div class="cust-hd">Quality</div><p class="sub">' + custEsc(pkg.qualityNote) + '</p>';
+  }
+  return html;
+}
+
+const CUST_SVC_CATEGORY_LABELS = {
+  portrait: 'Portrait Photography',
+  baby: 'Baby & Kids',
+  maternity: 'Maternity',
+  newborn: 'Newborn',
+  couple: 'Couple',
+  funeral: 'Funeral / Memorial',
+  product: 'Product',
+  corporate: 'Corporate',
+  realestate: 'Real Estate',
+  event: 'Event / Get-togethers',
+  fashion: 'Fashion & Portfolio',
+  food: 'Food',
+  commercial: 'Commercial',
+  drone: 'Drone / Helicam',
+  reel: 'Reel & Short Video',
+  production: 'Photo & Video Production',
+};
+
+function custServiceCategoryLabel(categoryId) {
+  return CUST_SVC_CATEGORY_LABELS[categoryId] || categoryId || 'Service';
+}
+
+function custSvcPricingSummary(svc) {
+  const type = svc.pricingType || 'fixed';
+  if (type === 'fixed') return '';
+  const labels = {
+    from: 'Starting from',
+    range: 'Price range',
+    hour: 'Per hour',
+    unit: 'Per item / unit',
+  };
+  let line = labels[type] || type;
+  const base = svc.listPrice != null ? svc.listPrice : svc.price;
+  if (type === 'range' && svc.listPriceMax) {
+    line += ' · ' + custInr(base) + ' – ' + custInr(svc.listPriceMax);
+  } else if (base) {
+    line += ' · ' + custInr(base);
+  }
+  return line;
+}
+
+function custRenderDeliverablesInclusions(entity) {
+  const dm = entity.deliveryMap || {};
+  let html = '';
+  if ((entity.deliverPhoto || []).length) {
+    html += '<h3 style="margin:0 0 8px;font-size:15px">Photos</h3><ul class="chk-list">';
+    (entity.deliverPhoto || []).forEach(function (name) {
+      const det = (entity.photoDetails || {})[name] || {};
+      const parts = [];
+      if (det.qty) parts.push(String(det.qty) + (name.indexOf('Photo') >= 0 ? ' photos' : ''));
+      if (det.format) parts.push(det.format);
+      if (det.delivery) parts.push(det.delivery);
+      else if (dm[name]) parts.push(dm[name]);
+      html += '<li><b>' + custEsc(name) + '</b>' + (parts.length ? ' — ' + custEsc(parts.join(' · ')) : '') + '</li>';
+    });
+    html += '</ul>';
+  }
+  if ((entity.deliverVideo || []).length) {
+    html += '<h3 style="margin:16px 0 8px;font-size:15px">Videos & live</h3><ul class="chk-list">';
+    (entity.deliverVideo || []).forEach(function (name) {
+      const det = (entity.videoDetails || {})[name] || {};
+      const parts = [];
+      if (det.duration) parts.push(det.duration);
+      if (det.format) parts.push(det.format);
+      if (name === 'Live Streaming' && det.streamCameras) parts.push(det.streamCameras + ' camera(s)');
+      if (det.delivery) parts.push(det.delivery);
+      else if (dm[name]) parts.push(dm[name]);
+      html += '<li><b>' + custEsc(name) + '</b>' + (parts.length ? ' — ' + custEsc(parts.join(' · ')) : '') + '</li>';
+    });
+    html += '</ul>';
+  }
+  if ((entity.deliverDigital || []).length) {
+    html += '<h3 style="margin:16px 0 8px;font-size:15px">Digital delivery</h3><ul class="chk-list">';
+    (entity.deliverDigital || []).forEach(function (name) {
+      const timeline = dm[name];
+      html += '<li>' + custEsc(name) + (timeline ? ' — ' + custEsc(timeline) : '') + '</li>';
+    });
+    html += '</ul>';
+  }
+  const ap = entity.albumPrints || {};
+  const album = ap['Photo Album'];
+  if (album && album.on) {
+    html +=
+      '<h3 style="margin:16px 0 8px;font-size:15px">Album & prints</h3><ul class="chk-list"><li><b>Photo Album</b> — ' +
+      custEsc(album.size) +
+      ' · ' +
+      album.pages +
+      ' pages · ' +
+      custEsc(album.cover) +
+      ' cover · ' +
+      custEsc(album.paper) +
+      ' paper' +
+      (album.copies > 1 ? ' · ' + album.copies + ' copies' : '') +
+      '</li>';
+    if (ap.Calendar && ap.Calendar.on) {
+      html += '<li>Wall calendar · ' + custEsc(ap.Calendar.size) + ' × ' + (ap.Calendar.copies || 1) + '</li>';
+    }
+    if (ap['Photo Frame'] && ap['Photo Frame'].on) {
+      html += '<li>Photo frame · ' + custEsc(ap['Photo Frame'].size || 'Included') + '</li>';
+    }
+    html += '</ul>';
+  }
+  const timelineKeys = Object.keys(dm);
+  if (timelineKeys.length) {
+    html += '<h3 style="margin:16px 0 8px;font-size:15px">Delivery timeline</h3>';
+    html += custKvRows(
+      timelineKeys.map(function (k) {
+        return { k: k, v: dm[k] };
+      })
+    );
+  }
+  return html;
+}
+
+function custRenderPkgInclusions(pkg) {
+  return custRenderDeliverablesInclusions(pkg);
+}
+
+function custRenderSvcOverviewInclusions(svc) {
+  let html =
+    '<p style="font-size:13px;font-weight:600;color:var(--mut);line-height:1.5;margin:0 0 12px">' +
+    custEsc(svc.blurb) +
+    '</p>';
+  html += '<div class="cust-hd">Service category</div>' + custChips([custServiceCategoryLabel(svc.category)]);
+  const priceNote = custSvcPricingSummary(svc);
+  if (priceNote) {
+    html += '<div class="cust-hd">How pricing works</div><p class="sub" style="margin:0 0 4px">' + custEsc(priceNote) + '</p>';
+  }
+  if (svc.discountYes === 'yes' && svc.discountPct && svc.listPrice > (svc.price || 0)) {
+    html +=
+      '<p class="sub" style="margin:0 0 12px">List price ' +
+      custInr(svc.listPrice) +
+      ' · <b style="color:#BE185D">' +
+      svc.discountPct +
+      '% off</b> · You pay ' +
+      custInr(svc.price) +
+      '</p>';
+  }
+  html += '<div class="cust-hd" style="margin-top:4px">What\'s included</div>';
+  html += custRenderDeliverablesInclusions(svc);
+  return html;
+}
+
+function custRenderPkgCoverage(pkg) {
+  const blocks = pkg.coverageByFunction || {};
+  const ordered = (pkg.functions && pkg.functions.length ? pkg.functions.slice() : Object.keys(blocks)).filter(function (fn) {
+    return blocks[fn];
+  });
+  Object.keys(blocks).forEach(function (fn) {
+    if (ordered.indexOf(fn) < 0) ordered.push(fn);
+  });
+  return ordered
+    .map(function (fn) {
+      const b = blocks[fn];
+      const photos = custTeamLines(b.photoTypes).join(', ') || '—';
+      const videos = custTeamLines(b.videoTypes).join(', ') || '—';
+      const rows = [];
+      if (!custFnIsCoupleShoot(fn)) {
+        rows.push({
+          k: 'Coverage side',
+          v: b.coverageSide === 'both' ? 'Both sides' : b.coverageSide === 'single' ? 'Single side' : b.coverageSide || '—',
+        });
+      }
+      rows.push(
+        { k: 'Duration', v: b.duration || '—' },
+        { k: 'Extra hour', v: custInr(b.extraHour) },
+        { k: 'Photo team', v: photos },
+        { k: 'Video team', v: videos }
+      );
+      return (
+        '<div style="margin-bottom:12px;padding:12px;border:1px solid #E2E8F0;border-radius:12px">' +
+        '<b style="display:block;color:var(--navy);margin-bottom:8px">' +
+        custEsc(fn) +
+        '</b>' +
+        custKvRows(rows) +
+        '</div>'
+      );
+    })
+    .join('');
+}
+
+function custRenderExtrasBlock(extras) {
+  const inc = [];
+  const paid = [];
+  Object.keys(extras || {}).forEach(function (name) {
+    const x = extras[name];
+    if (!x) return;
+    if (x.mode === 'included') {
+      let line = name;
+      if (name === 'Live Streaming' && x.includedCameras) line += ' · ' + x.includedCameras + ' cameras included';
+      if (x.hourlyLimit) line += ' · ' + (x.includedHours || 0) + ' hrs incl., then ' + custInr(x.extraHour) + '/hr';
+      inc.push(line);
+    } else {
+      paid.push({ name: name, price: x.price, basis: x.basis });
+    }
+  });
+  let html = '';
+  if (inc.length) {
+    html += '<div class="cust-hd">Included in package</div><ul class="chk-list">';
+    inc.forEach(function (l) {
+      html += '<li>' + custEsc(l) + '</li>';
+    });
+    html += '</ul>';
+  }
+  if (paid.length) {
+    html += '<div class="cust-hd">Optional add-ons</div>';
+    paid.forEach(function (p) {
+      html +=
+        '<div class="extra-line"><span>' +
+        custEsc(p.name) +
+        '</span><span style="font-weight:900;color:var(--blue)">' +
+        custInr(p.price) +
+        (p.basis ? ' <span style="font-size:10px;color:var(--mut)">/ ' + custEsc(p.basis) + '</span>' : '') +
+        '</span></div>';
+    });
+  }
+  return html;
+}
+
+function custRenderPolicyDetailBlock(pol, pv) {
+  let html = '<div class="cust-hd">' + custEsc(pol) + '</div>';
+  if (pv.notes) html += '<p class="sub" style="margin:0 0 10px">' + custEsc(pv.notes) + '</p>';
+  if (pv.noticeDays != null) {
+    html += '<div class="kv-row"><span>Notice (days)</span><b>' + pv.noticeDays + '</b></div>';
+  }
+  if (pv.refundPct != null) {
+    html += '<div class="kv-row"><span>Refund</span><b>' + pv.refundPct + '%</b></div>';
+  }
+  if (pv.fee != null && pol.indexOf('Rescheduling') >= 0) {
+    html += '<div class="kv-row"><span>Reschedule fee</span><b>' + (pv.fee ? custInr(pv.fee) : 'Free') + '</b></div>';
+  }
+  if (pv.days != null) {
+    if (pol.indexOf('Retention') >= 0) {
+      html += '<div class="kv-row"><span>Retention</span><b>' + pv.days + ' days</b></div>';
+    } else if (pol.indexOf('Selection') >= 0) {
+      html += '<div class="kv-row"><span>Selection deadline</span><b>' + pv.days + ' days</b></div>';
+    }
+  }
+  return html;
+}
+
+function custRenderPolicies(pkg) {
+  const pv = pkg.policyValues || {};
+  let html = '';
+  if ((pkg.paymentStages || []).length) {
+    html += '<div class="cust-hd">Payment stages</div>';
+    html += pkg.paymentStages
+      .map(function (ps) {
+        return '<div class="kv-row"><span>' + custEsc(ps.label) + '</span><b>' + ps.pct + '%</b></div>';
+      })
+      .join('');
+  }
+  const hasCancelTiers = pkg.cancelRules && pkg.cancelRules.length;
+  const hasReschedTiers = pkg.rescheduleRules && pkg.rescheduleRules.length;
+  if (hasCancelTiers) {
+    html += '<div class="cust-hd">Cancellation</div>';
+    html += pkg.cancelRules
+      .map(function (r) {
+        return '<div class="kv-row"><span>' + custEsc(r.days) + '</span><b>' + r.pct + '% fee</b></div>';
+      })
+      .join('');
+    if (pv['Cancellation Policy'] && pv['Cancellation Policy'].notes) {
+      html +=
+        '<p class="sub" style="margin:8px 0 0">' + custEsc(pv['Cancellation Policy'].notes) + '</p>';
+    }
+  }
+  if (hasReschedTiers) {
+    html += '<div class="cust-hd">Rescheduling</div>';
+    html += pkg.rescheduleRules
+      .map(function (r) {
+        return '<div class="kv-row"><span>' + custEsc(r.days) + '</span><b>' + (r.pct ? r.pct + '%' : 'Free') + '</b></div>';
+      })
+      .join('');
+    if (pv['Rescheduling Policy'] && pv['Rescheduling Policy'].notes) {
+      html +=
+        '<p class="sub" style="margin:8px 0 0">' + custEsc(pv['Rescheduling Policy'].notes) + '</p>';
+    }
+  }
+  (pkg.policies || []).forEach(function (pol) {
+    const block = pv[pol];
+    if (!block) return;
+    if (pol === 'Cancellation Policy' && hasCancelTiers) return;
+    if (pol === 'Rescheduling Policy' && hasReschedTiers) return;
+    html += custRenderPolicyDetailBlock(pol, block);
+  });
+  if ((pkg.requirements || []).length) {
+    html += '<div class="cust-hd">Customer requirements</div><ul class="chk-list">';
+    pkg.requirements.forEach(function (r) {
+      html += '<li>' + custEsc(r) + '</li>';
+    });
+    html += '</ul>';
+  }
+  return html;
+}
+
+function custRenderSvcInclusions(svc) {
+  return custRenderSvcOverviewInclusions(svc);
+}
+
+function custRenderSvcCoverage(svc) {
+  if (svc.durEnabled === false) {
+    return (
+      '<p class="sub" style="margin:0 0 12px">This service is priced as a fixed package. Duration and crew size are agreed when you confirm the booking.</p>' +
+      custKvRows([{ k: 'Typical coverage', v: svc.duration || 'As per studio schedule' }])
+    );
+  }
+  const dur =
+    svc.duration === 'Custom' && svc.durationCustom
+      ? svc.durationCustom
+      : svc.duration || '—';
+  const rows = [
+    { k: 'Duration included', v: dur },
+    { k: 'Extra hour', v: svc.extraHour ? custInr(svc.extraHour) : '—' },
+  ];
+  const photo = custTeamLines((svc.team || {}).photo).join(', ');
+  const video = custTeamLines((svc.team || {}).video).join(', ');
+  rows.push({ k: 'Photo team', v: photo || '—' });
+  rows.push({ k: 'Video team', v: video || '—' });
+  return custKvRows(rows);
+}
+
+function custPackageExtrasList(pkg) {
+  const out = [];
+  Object.keys(pkg.extras || {}).forEach(function (name) {
+    const x = pkg.extras[name];
+    if (x && x.mode === 'extra') {
+      out.push({ id: name, label: name, price: x.price || 0, basis: x.basis });
+    }
+  });
+  return out;
+}
+
+function custServiceExtrasList(svc) {
+  const out = [];
+  Object.keys(svc.extras || {}).forEach(function (name) {
+    const x = svc.extras[name];
+    if (x && x.mode === 'extra') {
+      out.push({ id: name, label: name, price: x.price || 0, basis: x.basis });
+    }
+  });
+  return out;
+}
+
+function custPkgLevelClass(level) {
+  const l = String(level || '').toLowerCase();
+  if (l === 'basic') return 'tier-basic';
+  if (l === 'premium') return 'tier-premium';
+  return 'tier-standard';
+}
+
+function custPkgCoverageSideSummary(pkg) {
+  const blocks = pkg.coverageByFunction || {};
+  const fns = pkg.functions && pkg.functions.length ? pkg.functions : Object.keys(blocks);
+  let hasBoth = false;
+  let hasSingle = false;
+  fns.forEach(function (fn) {
+    if (custFnIsCoupleShoot(fn)) return;
+    const b = blocks[fn];
+    if (!b || !b.coverageSide) return;
+    if (b.coverageSide === 'both') hasBoth = true;
+    else if (b.coverageSide === 'single') hasSingle = true;
+  });
+  if (!hasBoth && !hasSingle) return '';
+  if (hasBoth && !hasSingle) return 'Both sides';
+  return 'Single side';
+}
+
+function custSummaryBulletsFromPkg(pkg) {
+  const bullets = [];
+  const ed = pkg.photoDetails && pkg.photoDetails['Edited Photos'];
+  if (ed && ed.qty) bullets.push(ed.qty + ' edited photos');
+  const fnCount = (pkg.functions || []).length;
+  if (fnCount > 1) bullets.push(fnCount + ' events covered');
+  else if ((pkg.functions || [])[0]) bullets.push((pkg.functions || [])[0]);
+  if (pkg.ceremonyTypes && pkg.ceremonyTypes[0]) bullets.push(pkg.ceremonyTypes[0]);
+  return bullets.slice(0, 4);
+}
+
+function custPkgCardMetaHtml(pkg) {
+  const level = pkg.level || 'Standard';
+  const side = custPkgCoverageSideSummary(pkg);
+  let html =
+    '<div class="pkg-meta"><span class="pkg-tier ' +
+    custPkgLevelClass(level) +
+    '">' +
+    custEsc(level) +
+    '</span>';
+  if (side) {
+    html += '<span class="pkg-side-pill">' + custEsc(side) + '</span>';
+  }
+  html += '</div>';
+  return html;
+}
+
+/** Customer Customize Requirements — mirrors owner package/service wizard options. */
+
+const CUST_PKG_OPTIONAL_FUNCTIONS = [
+  'Reception',
+  'Wedding Eve',
+  'Engagement',
+  'Pre-Wedding Shoot',
+  'Post-Wedding Shoot',
+  'Save-the-Date Shoot',
+];
+
+const CUST_FUNCTION_HINTS = {
+  Reception: 'Separate reception function or evening event',
+  'Wedding Eve': 'Pre-wedding night celebration',
+  Engagement: 'Engagement or ring ceremony',
+  'Pre-Wedding Shoot': 'Couple photoshoot before the wedding',
+  'Post-Wedding Shoot': 'Couple photoshoot after the wedding',
+  'Save-the-Date Shoot': 'Announcement shoot for save-the-date',
+};
+
+const CUST_NEED_PRESETS = [
+  { id: '', label: 'Select a common need…' },
+  { id: 'song', label: 'Song preference for highlight film' },
+  { id: 'permissions', label: 'Church / venue photography permission' },
+  { id: 'family', label: 'Special family portrait list' },
+  { id: 'timeline', label: 'Detailed event timeline share' },
+  { id: 'livestream', label: 'Family abroad — live stream priority' },
+  { id: 'custom', label: 'Custom (type below)' },
+];
+
+const CUST_SERVICE_NEED_PRESETS = {
+  funeral: [
+    { id: '', label: 'Select…' },
+    { id: 'stream', label: 'Live stream for relatives abroad' },
+    { id: 'discreet', label: 'Extra-discreet coverage request' },
+    { id: 'liaison', label: 'Family liaison contact on arrival' },
+    { id: 'custom', label: 'Custom (type below)' },
+  ],
+  baptism: [
+    { id: '', label: 'Select…' },
+    { id: 'church', label: 'Church permission / priest coordination' },
+    { id: 'groups', label: 'Family group portrait list' },
+    { id: 'custom', label: 'Custom (type below)' },
+  ],
+  event: [
+    { id: '', label: 'Select…' },
+    { id: 'timeline', label: 'Event run-sheet / timeline' },
+    { id: 'venue', label: 'Venue lighting limitations' },
+    { id: 'custom', label: 'Custom (type below)' },
+  ],
+  portrait: [
+    { id: '', label: 'Select…' },
+    { id: 'outfit', label: 'Outfit / look preferences' },
+    { id: 'location', label: 'Preferred outdoor location' },
+    { id: 'custom', label: 'Custom (type below)' },
+  ],
+  corporate: [
+    { id: '', label: 'Select…' },
+    { id: 'headshots', label: 'Executive headshot list' },
+    { id: 'billing', label: 'GST invoice / company billing' },
+    { id: 'custom', label: 'Custom (type below)' },
+  ],
+};
+
+function custNeedPresetsForService() {
+  const key = state.serviceId || state.photoNeed || '';
+  return CUST_SERVICE_NEED_PRESETS[key] || CUST_NEED_PRESETS;
+}
+
+const CUST_ALBUM_SIZES = ['10 x 12 inch', '12 x 30 inch', '12 x 36 inch', 'Custom'];
+const CUST_ALBUM_PAGES = ['20', '25', '30', '40', '50', 'Custom'];
+const CUST_ALBUM_PAPER = ['Matte', 'Lustre', 'Glossy', 'Custom'];
+const CUST_ALBUM_COVER = ['Standard', 'Premium', 'Luxury', 'Custom'];
+
+function custOptionalFunctionsForOwner(owner) {
+  const inPkg = owner.functions || [];
+  return CUST_PKG_OPTIONAL_FUNCTIONS.filter(function (fn) {
+    return inPkg.indexOf(fn) < 0;
+  });
+}
+
+function custExtraFunctionsSelectedList(c, optFns) {
+  const list = (optFns || []).filter(function (fn) {
+    return c.extraFunctions && c.extraFunctions[fn];
+  });
+  if (c.extraFunctionCustom && c.functionCustom && String(c.functionCustom).trim()) {
+    list.push(String(c.functionCustom).trim());
+  }
+  return list;
+}
+
+function custExtraFunctionsButtonLabel(c, optFns) {
+  const list = custExtraFunctionsSelectedList(c, optFns);
+  if (!list.length) return 'Select functions…';
+  if (list.length <= 2) return list.join(', ');
+  return list.length + ' functions selected';
+}
+
+function custUpdateExtraFnMultiLabel(optFns) {
+  const lbl = el('custFnMultiLbl');
+  if (lbl) lbl.textContent = custExtraFunctionsButtonLabel(state.customize, optFns);
+  const wrap = el('custFnCustomWrap');
+  if (wrap) wrap.style.display = state.customize.extraFunctionCustom ? '' : 'none';
+}
+
+function custBindExtraFunctionMulti(optFns) {
+  const btn = el('custFnMultiBtn');
+  const panel = el('custFnMultiPanel');
+  if (!btn || !panel) return;
+  if (!panel._custBound) {
+    panel._custBound = true;
+    document.addEventListener('click', function (e) {
+      if (panel.hidden) return;
+      if (panel.contains(e.target) || btn.contains(e.target)) return;
+      panel.hidden = true;
+    });
+  }
+  btn.onclick = function (e) {
+    e.stopPropagation();
+    panel.hidden = !panel.hidden;
+  };
+  const c = state.customize;
+  document.querySelectorAll('[data-extra-fn]').forEach(function (inp) {
+    inp.onchange = function () {
+      const fn = inp.getAttribute('data-extra-fn');
+      if (!c.extraFunctions) c.extraFunctions = {};
+      c.extraFunctions[fn] = inp.checked;
+      inp.closest('.multi-drop-item').classList.toggle('on', inp.checked);
+      custUpdateExtraFnMultiLabel(optFns);
+    };
+  });
+  const customChk = el('custFnCustomChk');
+  if (customChk) {
+    customChk.onchange = function () {
+      c.extraFunctionCustom = customChk.checked;
+      customChk.closest('.multi-drop-item').classList.toggle('on', customChk.checked);
+      custUpdateExtraFnMultiLabel(optFns);
+    };
+  }
+  const fnCustom = el('custFnCustom');
+  if (fnCustom) {
+    fnCustom.oninput = function () {
+      c.functionCustom = fnCustom.value;
+      custUpdateExtraFnMultiLabel(optFns);
+    };
+  }
+  custUpdateExtraFnMultiLabel(optFns);
+}
+
+function custAlbumHasPackage(owner) {
+  const a = (owner.albumPrints || {})['Photo Album'];
+  return a && a.on;
+}
+
+function custSelectOptions(values, selected, customVal, customKey) {
+  return values
+    .map(function (v) {
+      const sel = selected === v ? ' selected' : '';
+      return '<option value="' + custEsc(v) + '"' + sel + '>' + custEsc(v === 'Custom' ? 'Custom…' : v) + '</option>';
+    })
+    .join('');
+}
+
+function custRenderCustomizeWedding(owner, packageExtras, state) {
+  const c = state.customize;
+  const optFns = custOptionalFunctionsForOwner(owner);
+  const hasAlbum = custAlbumHasPackage(owner);
+  let html =
+    '<p class="cust-lead">Add optional services and tell the studio what you need. Package inclusions stay as listed — only your choices below are sent with the interest.</p>';
+
+  html += '<div class="cust-hd">Optional add-ons</div>';
+  const paidExtras = packageExtras.filter(function (ex) {
+    return ex.price > 0;
+  });
+  if (paidExtras.length) {
+    paidExtras.forEach(function (ex) {
+      html +=
+        '<label class="extra-line"><span><input type="checkbox" data-wex="' +
+        custEsc(ex.id) +
+        '"' +
+        (c.extras[ex.id] ? ' checked' : '') +
+        '> ' +
+        custEsc(ex.label) +
+        (ex.basis ? ' <span class="cust-muted">(' + custEsc(ex.basis) + ')</span>' : '') +
+        '</span><span class="cust-price">' +
+        custInr(ex.price) +
+        '</span></label>';
+    });
+  } else {
+    html += '<p class="sub">No paid add-ons for this package.</p>';
+  }
+
+  html += '<div class="cust-hd">Extra events to cover</div>';
+  html += '<div class="fld"><label>Add function</label>';
+  html += '<div class="multi-drop" id="custFnMulti">';
+  html +=
+    '<button type="button" class="multi-drop-btn" id="custFnMultiBtn"><span id="custFnMultiLbl">' +
+    custEsc(custExtraFunctionsButtonLabel(c, optFns)) +
+    '</span><span class="multi-drop-chev" aria-hidden="true">▾</span></button>';
+  html += '<div class="multi-drop-panel" id="custFnMultiPanel" hidden>';
+  optFns.forEach(function (fn) {
+    const on = c.extraFunctions && c.extraFunctions[fn];
+    html +=
+      '<label class="multi-drop-item' +
+      (on ? ' on' : '') +
+      '"><input type="checkbox" data-extra-fn="' +
+      custEsc(fn) +
+      '"' +
+      (on ? ' checked' : '') +
+      '> <span><b>' +
+      custEsc(fn) +
+      '</b>' +
+      (CUST_FUNCTION_HINTS[fn] ? '<span class="cust-muted">' + custEsc(CUST_FUNCTION_HINTS[fn]) + '</span>' : '') +
+      '</span></label>';
+  });
+  html +=
+    '<label class="multi-drop-item' +
+    (c.extraFunctionCustom ? ' on' : '') +
+    '"><input type="checkbox" id="custFnCustomChk"' +
+    (c.extraFunctionCustom ? ' checked' : '') +
+    '> <span><b>Custom function…</b><span class="cust-muted">Type your own event name below</span></span></label>';
+  html += '</div></div></div>';
+  html +=
+    '<div class="fld" id="custFnCustomWrap" style="' +
+    (c.extraFunctionCustom ? '' : 'display:none') +
+    '"><label>Describe custom function</label><div class="sel-box"><input type="text" id="custFnCustom" maxlength="120" placeholder="e.g. Wedding eve at home, 4 hours" value="' +
+    custEsc(c.functionCustom || '') +
+    '"></div></div>';
+  if (optFns.length) {
+    html += '<p class="cust-hint">You can select more than one. Already in package: ' + custEsc((owner.functions || []).join(', ')) + '</p>';
+  }
+
+  if (hasAlbum) {
+    const def = (owner.albumPrints || {})['Photo Album'];
+    html += '<div class="cust-hd">Album preferences</div>';
+    html +=
+      '<p class="cust-hint">Package includes <b>' +
+      custEsc(def.size) +
+      '</b> · ' +
+      def.pages +
+      ' pages · ' +
+      custEsc(def.cover) +
+      ' cover. Adjust if you need changes (subject to studio confirmation).</p>';
+    html += '<div class="budget-row">';
+    html +=
+      '<div class="fld"><label>Album size</label><div class="sel-box"><select id="albSize">' +
+      custSelectOptions(CUST_ALBUM_SIZES, c.albumSize || def.size, c.albumSizeCustom, 'albumSizeCustom') +
+      '</select></div></div>';
+    html +=
+      '<div class="fld"><label>Pages</label><div class="sel-box"><select id="albPages">' +
+      custSelectOptions(CUST_ALBUM_PAGES, String(c.albumPages || def.pages), c.albumPagesCustom, 'albumPagesCustom') +
+      '</select></div></div>';
+    html += '</div><div class="budget-row">';
+    html +=
+      '<div class="fld"><label>Paper</label><div class="sel-box"><select id="albPaper">' +
+      custSelectOptions(CUST_ALBUM_PAPER, c.albumPaper || def.paper || 'Matte', c.albumPaperCustom) +
+      '</select></div></div>';
+    html +=
+      '<div class="fld"><label>Cover</label><div class="sel-box"><select id="albCover">' +
+      custSelectOptions(CUST_ALBUM_COVER, c.albumCover || def.cover || 'Premium', c.albumCoverCustom) +
+      '</select></div></div>';
+    html += '</div>';
+    html +=
+      '<div class="fld" id="albSizeCustomWrap" style="' +
+      (c.albumSize === 'Custom' ? '' : 'display:none') +
+      '"><label>Custom album size</label><div class="sel-box"><input type="text" id="albSizeCustom" placeholder="e.g. 14 x 30 inch" value="' +
+      custEsc(c.albumSizeCustom || '') +
+      '"></div></div>';
+    html +=
+      '<div class="fld" id="albPagesCustomWrap" style="' +
+      (c.albumPages === 'Custom' || String(c.albumPages) === 'Custom' ? '' : 'display:none') +
+      '"><label>Custom page count</label><div class="sel-box"><input type="number" id="albPagesCustom" min="10" max="80" placeholder="e.g. 35" value="' +
+      custEsc(c.albumPagesCustom || '') +
+      '"></div></div>';
+  }
+
+  html += '<div class="cust-hd">Your specific needs</div>';
+  html +=
+    '<div class="fld"><label>What should we know?</label><div class="sel-box"><select id="custNeedPreset">' +
+    CUST_NEED_PRESETS.map(function (p) {
+      return (
+        '<option value="' +
+        custEsc(p.id) +
+        '"' +
+        (c.customNeedPreset === p.id ? ' selected' : '') +
+        '>' +
+        custEsc(p.label) +
+        '</option>'
+      );
+    }).join('') +
+    '</select></div></div>';
+  html +=
+    '<div class="fld"><label>Details (optional)</label><div class="sel-box"><input type="text" id="custNeedText" maxlength="200" placeholder="Type your requirement — e.g. drone only during entry" value="' +
+    custEsc(c.customNeedText || '') +
+    '"></div></div>';
+
+  const reqs = owner.requirements || [];
+  if (reqs.length) {
+    html += '<div class="cust-hd">Studio requirements</div><p class="cust-hint">Please confirm you can meet these (from the photographer\'s package).</p>';
+    reqs.forEach(function (r, i) {
+      const key = 'req_' + i;
+      html +=
+        '<label class="chk-row' +
+        (c.reqAck[key] ? ' on' : '') +
+        '"><input type="checkbox" data-req-ack="' +
+        custEsc(key) +
+        '"' +
+        (c.reqAck[key] ? ' checked' : '') +
+        '> ' +
+        custEsc(r) +
+        '</label>';
+    });
+  }
+
+  html += '<div class="cust-hd">Additional notes</div><textarea class="notes" id="custNotes" maxlength="500" placeholder="Anything else for the studio — venues, second shooter, language preference…">' + custEsc(c.notes) + '</textarea><div class="notes-count"><span id="noteCt">0</span>/500</div>';
+
+  return html;
+}
+
+function custRenderCustomizeService(svcOwner, serviceExtras, durationOptions, state) {
+  const c = state.customize;
+  let html =
+    '<p class="cust-lead">Adjust coverage and add-ons for this service. The studio will confirm availability and final price.</p>';
+
+  html += '<div class="cust-hd">Coverage duration</div>';
+  (durationOptions || []).forEach(function (d) {
+    html +=
+      '<label class="radio-card' +
+      (c.duration === d.id ? ' on' : '') +
+      '"><input type="radio" name="dur" value="' +
+      custEsc(d.id) +
+      '"' +
+      (c.duration === d.id ? ' checked' : '') +
+      '> <span><b>' +
+      custEsc(d.label) +
+      '</b>' +
+      (d.add ? '<span class="cust-muted"> +' + custInr(d.add) + '</span>' : '') +
+      '</span></label>';
+  });
+
+  html += '<div class="cust-hd">Optional add-ons</div>';
+  if (serviceExtras.length) {
+    serviceExtras.forEach(function (ex) {
+      html +=
+        '<label class="extra-line"><span><input type="checkbox" data-sex="' +
+        custEsc(ex.id) +
+        '"' +
+        (c.extras[ex.id] ? ' checked' : '') +
+        '> ' +
+        custEsc(ex.label) +
+        (ex.basis ? ' <span class="cust-muted">(' + custEsc(ex.basis) + ')</span>' : '') +
+        '</span><span class="cust-price">' +
+        custInr(ex.price) +
+        '</span></label>';
+    });
+  } else {
+    html += '<p class="sub">No add-ons listed for this service.</p>';
+  }
+
+  html += '<div class="cust-hd">Your specific needs</div>';
+  html +=
+    '<div class="fld"><label>What should we know?</label><div class="sel-box"><select id="custNeedPreset">' +
+    custNeedPresetsForService().map(function (p) {
+      return (
+        '<option value="' +
+        custEsc(p.id) +
+        '"' +
+        (c.customNeedPreset === p.id ? ' selected' : '') +
+        '>' +
+        custEsc(p.label) +
+        '</option>'
+      );
+    }).join('') +
+    '</select></div></div>';
+  html +=
+    '<div class="fld"><label>Details (optional)</label><div class="sel-box"><input type="text" id="custNeedText" maxlength="200" placeholder="e.g. indoor church + hall, need live stream link" value="' +
+    custEsc(c.customNeedText || '') +
+    '"></div></div>';
+
+  const reqs = svcOwner.requirements || [];
+  if (reqs.length) {
+    html += '<div class="cust-hd">Studio requirements</div>';
+    reqs.forEach(function (r, i) {
+      const key = 'req_' + i;
+      html +=
+        '<label class="chk-row' +
+        (c.reqAck[key] ? ' on' : '') +
+        '"><input type="checkbox" data-req-ack="' +
+        custEsc(key) +
+        '"' +
+        (c.reqAck[key] ? ' checked' : '') +
+        '> ' +
+        custEsc(r) +
+        '</label>';
+    });
+  }
+
+  html += '<div class="cust-hd">Additional notes</div><textarea class="notes" id="custNotes" maxlength="500" placeholder="Respectful coverage notes, family contacts, preferred delivery…">' + custEsc(c.notes) + '</textarea><div class="notes-count"><span id="noteCt">0</span>/500</div>';
+
+  return html;
+}
+
+function custCustomizeRequirementLines(state, owner) {
+  const c = state.customize;
+  const lines = [];
+  const optFns = custOptionalFunctionsForOwner(owner);
+  custExtraFunctionsSelectedList(c, optFns).forEach(function (fn) {
+    lines.push('Also cover: ' + fn);
+  });
+  Object.keys(c.functions || {}).forEach(function (fn) {
+    if (c.functions[fn]) lines.push('Also cover: ' + fn);
+  });
+  if (c.albumSize || c.albumPages) {
+    let alb = 'Album';
+    if (c.albumSize === 'Custom' && c.albumSizeCustom) alb += ' ' + c.albumSizeCustom;
+    else if (c.albumSize) alb += ' ' + c.albumSize;
+    if (c.albumPages === 'Custom' && c.albumPagesCustom) alb += ' · ' + c.albumPagesCustom + ' pages';
+    else if (c.albumPages) alb += ' · ' + c.albumPages + ' pages';
+    if (c.albumPaper) alb += ' · ' + (c.albumPaper === 'Custom' && c.albumPaperCustom ? c.albumPaperCustom : c.albumPaper) + ' paper';
+    lines.push(alb);
+  }
+  if (c.customNeedPreset || c.customNeedText) {
+    const presets = state.mode === 'service' ? custNeedPresetsForService() : CUST_NEED_PRESETS;
+    const preset = presets.find(function (p) {
+      return p.id === c.customNeedPreset;
+    });
+    if (preset && preset.id && preset.id !== 'custom') lines.push(preset.label);
+    if (c.customNeedText) lines.push(c.customNeedText);
+  }
+  (owner.requirements || []).forEach(function (r, i) {
+    if (c.reqAck['req_' + i]) lines.push('Confirmed: ' + r);
+  });
+  return lines;
+}
+
+/** Full owner-wizard-shaped payloads for customer demo (Blue Lens Studio). */
+
+function ownerPkgBlueStandard() {
+  return {
+    id: 'standard',
+    name: 'Standard Christian Wedding Package',
+    level: 'Standard',
+    desc:
+      'Full-day wedding and reception coverage with candid + traditional photo team, cinematic highlight film, online gallery, and premium album. Designed for Christian ceremonies in Pathanamthitta & Kottayam.',
+    listPrice: 100000,
+    discountYes: 'yes',
+    discountPct: 10,
+    price: 90000,
+    functions: ['Wedding & Reception', 'Engagement'],
+    ceremonyTypes: ['Christian'],
+    coverageByFunction: {
+      'Wedding & Reception': {
+        coverageSide: 'both',
+        duration: 'Full Day',
+        extraHour: 2500,
+        photoTypes: {
+          'Candid Photographer': { on: true, qty: 2 },
+          'Traditional Photographer': { on: true, qty: 1 },
+          'Candid + Traditional Photographer': { on: false, qty: 0 },
+        },
+        videoTypes: {
+          'Cinematic Videographer': { on: true, qty: 1 },
+          'Candid Videographer': { on: false, qty: 0 },
+        },
+      },
+      Engagement: {
+        coverageSide: 'single',
+        duration: 'Up to 5 Hours',
+        extraHour: 2000,
+        photoTypes: {
+          'Candid Photographer': { on: true, qty: 2 },
+          'Traditional Photographer': { on: false, qty: 0 },
+        },
+        videoTypes: {
+          'Cinematic Videographer': { on: false, qty: 0 },
+        },
+      },
+    },
+    deliverPhoto: ['Edited Photos', 'Colour-Graded Photos'],
+    deliverVideo: ['Highlight Video', 'Cinematic Video'],
+    deliverDigital: ['Online Gallery', 'Photo Selection App', 'Google Drive Link'],
+    photoDetails: {
+      'Edited Photos': { qty: 500, format: 'JPG (High Resolution)', delivery: '21 Working Days' },
+      'Colour-Graded Photos': { qty: 120, format: 'JPG (High Resolution)', delivery: '21 Working Days' },
+    },
+    videoDetails: {
+      'Highlight Video': { qty: 1, duration: '8-10 Minutes', format: 'MP4 (Full HD)', delivery: '21 Working Days' },
+      'Cinematic Video': { qty: 1, duration: '12-15 Minutes', format: 'MP4 (4K)', delivery: '30 Working Days' },
+    },
+    albumPrints: {
+      'Photo Album': {
+        on: true,
+        size: '12 x 30 inch',
+        pages: 30,
+        cover: 'Premium',
+        paper: 'Matte',
+        copies: 1,
+      },
+      Calendar: { on: true, size: 'A3', copies: 2 },
+      'Photo Frame': { on: false },
+    },
+    deliveryMap: {
+      'Edited Photos': '21 Working Days',
+      'Colour-Graded Photos': '21 Working Days',
+      'Highlight Video': '21 Working Days',
+      'Cinematic Video': '30 Working Days',
+      'Online Gallery': '7 Working Days',
+      'Photo Selection App': '7 Working Days',
+      'Google Drive Link': '21 Working Days',
+      'Photo Album': '45 Working Days',
+    },
+    extras: {
+      'Drone / Helicam': { mode: 'extra', price: 10000, basis: 'Per Event' },
+      'Live Streaming': {
+        mode: 'included',
+        price: 0,
+        basis: 'Per Event',
+        hourlyLimit: true,
+        includedHours: 4,
+        extraHour: 2000,
+        includedCameras: 2,
+      },
+      'Extra Photographer': { mode: 'extra', price: 5000, basis: 'Per Hour' },
+      'Extra Videographer': { mode: 'extra', price: 6000, basis: 'Per Hour' },
+      'Photo Booth': { mode: 'extra', price: 12000, basis: 'Per Event' },
+    },
+    paymentStages: [
+      { label: 'Booking advance', pct: 25 },
+      { label: 'Before wedding day', pct: 45 },
+      { label: 'After online gallery', pct: 20 },
+      { label: 'Album delivery', pct: 10 },
+    ],
+    cancelRules: [
+      { days: '30+ days before event', pct: 10 },
+      { days: '15–29 days', pct: 25 },
+      { days: '7–14 days', pct: 50 },
+      { days: 'Under 7 days', pct: 100 },
+    ],
+    rescheduleRules: [
+      { days: 'Reschedule once, 15+ days before', pct: 0 },
+      { days: 'Within 14 days', pct: 15 },
+    ],
+    policyValues: {
+      'Cancellation Policy': {
+        noticeDays: 30,
+        refundPct: 50,
+        notes: 'Advance is non-refundable if cancelled within 7 days of the event.',
+      },
+      'Rescheduling Policy': {
+        noticeDays: 14,
+        fee: 0,
+        notes: 'One free reschedule with 14+ days notice; studio availability applies.',
+      },
+      'Photo Selection Deadline': { days: 45, notes: 'Album design starts after selection is locked.' },
+      'Data Retention': { days: 365, notes: 'Online gallery retained 12 months; extensions on request.' },
+    },
+    policies: ['Cancellation Policy', 'Rescheduling Policy', 'Photo Selection Deadline', 'Data Retention'],
+    requirements: [
+      'Customer provides SSD / hard disk (optional backup)',
+      'Electricity / power at venue for charging',
+      'Meals for team on events over 8 hours',
+      'Venue access 30 minutes before ceremony',
+    ],
+    equipmentNote: 'Backup bodies and lenses carried on wedding day.',
+    qualityNote: 'Colour grading included for all delivered photos.',
+  };
+}
+
+function ownerPkgBlueBasic() {
+  const p = ownerPkgBlueStandard();
+  p.id = 'basic';
+  p.name = 'Basic Wedding Package';
+  p.level = 'Basic';
+  p.price = 65000;
+  p.listPrice = 65000;
+  p.discountPct = 0;
+  p.desc = 'Essential wedding day coverage with one candid photographer and album.';
+  p.functions = ['Wedding & Reception'];
+  delete p.coverageByFunction.Engagement;
+  const wed = p.coverageByFunction['Wedding & Reception'];
+  wed.extraHour = 2000;
+  wed.photoTypes = {
+    'Candid Photographer': { on: true, qty: 1 },
+    'Traditional Photographer': { on: false, qty: 0 },
+    'Candid + Traditional Photographer': { on: false, qty: 0 },
+  };
+  wed.videoTypes = {
+    'Cinematic Videographer': { on: false, qty: 0 },
+    'Candid Videographer': { on: false, qty: 0 },
+  };
+  p.deliverVideo = [];
+  p.videoDetails = {};
+  p.photoDetails['Edited Photos'].qty = 300;
+  p.albumPrints['Photo Album'] = { on: true, size: '10 x 12 inch', pages: 20, cover: 'Standard', paper: 'Matte', copies: 1 };
+  return p;
+}
+
+function ownerPkgBluePremium() {
+  const p = ownerPkgBlueStandard();
+  p.id = 'premium';
+  p.name = 'Premium Wedding Package';
+  p.level = 'Premium';
+  p.price = 145000;
+  p.listPrice = 145000;
+  p.discountPct = 0;
+  p.desc = 'Premium team, save-the-date reel, parent albums, and extended cinematic deliverables.';
+  p.functions = ['Wedding & Reception', 'Engagement', 'Pre-Wedding Shoot'];
+  p.coverageByFunction = {
+    'Wedding & Reception': {
+      coverageSide: 'both',
+      duration: 'Full Day',
+      extraHour: 3000,
+      photoTypes: {
+        'Candid Photographer': { on: true, qty: 2 },
+        'Traditional Photographer': { on: true, qty: 2 },
+        'Candid + Traditional Photographer': { on: false, qty: 0 },
+      },
+      videoTypes: {
+        'Cinematic Videographer': { on: true, qty: 2 },
+        'Candid Videographer': { on: true, qty: 1 },
+      },
+    },
+    Engagement: {
+      coverageSide: 'single',
+      duration: 'Up to 5 Hours',
+      extraHour: 2500,
+      photoTypes: {
+        'Candid Photographer': { on: true, qty: 2 },
+        'Traditional Photographer': { on: true, qty: 1 },
+      },
+      videoTypes: {
+        'Cinematic Videographer': { on: true, qty: 1 },
+      },
+    },
+    'Pre-Wedding Shoot': {
+      coverageSide: 'single',
+      duration: 'Up to 5 Hours',
+      extraHour: 3000,
+      photoTypes: {
+        'Candid Photographer': { on: true, qty: 1 },
+        'Traditional Photographer': { on: false, qty: 0 },
+      },
+      videoTypes: {
+        'Cinematic Videographer': { on: true, qty: 1 },
+      },
+    },
+  };
+  p.deliverVideo = ['Save-the-date Reel', 'Highlight Video', 'Cinematic Video'];
+  p.videoDetails = {
+    'Save-the-date Reel': {
+      qty: 1,
+      duration: '60–90 Seconds',
+      format: 'MP4 (Full HD)',
+      delivery: '3 Working Days',
+    },
+    'Highlight Video': { qty: 1, duration: '10–12 Minutes', format: 'MP4 (4K)', delivery: '21 Working Days' },
+    'Cinematic Video': { qty: 1, duration: '15–18 Minutes', format: 'MP4 (4K)', delivery: '30 Working Days' },
+  };
+  p.photoDetails['Edited Photos'].qty = 800;
+  p.photoDetails['Colour-Graded Photos'].qty = 200;
+  p.albumPrints['Photo Album'] = {
+    on: true,
+    size: '12 x 36 inch',
+    pages: 40,
+    cover: 'Luxury',
+    paper: 'Lustre',
+    copies: 3,
+  };
+  p.deliveryMap['Save-the-date Reel'] = '3 Working Days';
+  p.deliveryMap['Highlight Video'] = '21 Working Days';
+  p.deliveryMap['Cinematic Video'] = '30 Working Days';
+  p.deliveryMap['Photo Album'] = '60 Working Days';
+  return p;
+}
+
+function ownerSvcBlueFuneral() {
+  return {
+    id: 'funeral-mem',
+    category: 'funeral',
+    name: 'Funeral / Memorial Photography',
+    blurb:
+      'Respectful, unobtrusive coverage for funeral and memorial services with fast online delivery and optional live stream for family abroad.',
+    pricingType: 'fixed',
+    listPrice: 9000,
+    discountYes: 'yes',
+    discountPct: 11,
+    price: 8000,
+    durEnabled: true,
+    duration: '2–3 Hours',
+    extraHour: 2000,
+    team: {
+      photo: { 'Candid Photographer': { on: true, qty: 1 } },
+      video: { 'Candid Videographer': { on: false, qty: 0 } },
+    },
+    deliverPhoto: ['Edited Photos'],
+    deliverVideo: ['Live Streaming'],
+    deliverDigital: ['Online Gallery', 'Google Drive Link'],
+    photoDetails: {
+      'Edited Photos': { qty: 100, format: 'JPG (High Resolution)', delivery: '3–5 Working Days' },
+    },
+    videoDetails: {
+      'Live Streaming': {
+        qty: 1,
+        duration: 'Full Event',
+        format: 'HD Stream',
+        delivery: 'Same day',
+        streamCameras: 1,
+      },
+    },
+    albumPrints: {},
+    deliveryMap: {
+      'Edited Photos': '3–5 Working Days',
+      'Online Gallery': '3 Working Days',
+      'Google Drive Link': '5 Working Days',
+      'Live Streaming': 'Same day',
+    },
+    extras: {
+      'Extra edited photos': { mode: 'extra', price: 1000, basis: 'Per Event' },
+      'Extended coverage (+1 hr)': { mode: 'extra', price: 2000, basis: 'Per Hour' },
+      'Live streaming (extra camera)': { mode: 'extra', price: 1500, basis: 'Per Event' },
+      'Printed memorial album': { mode: 'extra', price: 4000, basis: 'Per Event' },
+    },
+    paymentStages: [{ label: 'On booking', pct: 50 }, { label: 'After gallery', pct: 50 }],
+    cancelRules: [{ days: 'Same day cancellation', pct: 100 }],
+    rescheduleRules: [{ days: 'Date change', pct: 0 }],
+    policyValues: {
+      'Cancellation Policy': { notes: 'Memorial services: advance is non-refundable within 24 hours of service.' },
+      'Data Retention': { days: 180, notes: 'Gallery available 6 months.' },
+    },
+    policies: ['Cancellation Policy', 'Data Retention'],
+    requirements: ['Family liaison on arrival', 'Permission for indoor church / hall coverage'],
+  };
+}
+
+function ownerSvcBlueBaptism() {
+  return {
+    id: 'baptism',
+    category: 'event',
+    name: 'Baptism Photography',
+    blurb:
+      'Church ceremony and family celebration coverage with posed family portraits and candid moments — ideal for baptism and naming ceremonies.',
+    pricingType: 'fixed',
+    price: 12000,
+    listPrice: 12000,
+    discountYes: 'no',
+    discountPct: 0,
+    durEnabled: true,
+    duration: '3 Hours',
+    extraHour: 1500,
+    team: {
+      photo: { 'Candid Photographer': { on: true, qty: 1 }, 'Traditional Photographer': { on: false, qty: 0 } },
+      video: { 'Candid Videographer': { on: false, qty: 0 } },
+    },
+    deliverPhoto: ['Edited Photos'],
+    deliverDigital: ['Online Gallery', 'Google Drive Link'],
+    photoDetails: { 'Edited Photos': { qty: 150, format: 'JPG (High Resolution)', delivery: '7 Working Days' } },
+    albumPrints: {},
+    deliveryMap: {
+      'Edited Photos': '7 Working Days',
+      'Online Gallery': '5 Working Days',
+      'Google Drive Link': '7 Working Days',
+    },
+    extras: {
+      'Small album (15 pages)': { mode: 'extra', price: 3500, basis: 'Per Event' },
+      'Extra hour on location': { mode: 'extra', price: 1500, basis: 'Per Hour' },
+    },
+    paymentStages: [{ label: 'Booking advance', pct: 40 }, { label: 'On gallery delivery', pct: 60 }],
+    cancelRules: [
+      { days: '7+ days before event', pct: 10 },
+      { days: 'Under 7 days', pct: 50 },
+    ],
+    rescheduleRules: [{ days: 'Reschedule with 7+ days notice', pct: 0 }],
+    policies: ['Cancellation Policy', 'Rescheduling Policy', 'Data Retention'],
+    policyValues: {
+      'Cancellation Policy': { refundPct: 50, noticeDays: 7, notes: 'Advance adjusted against reschedule when possible.' },
+      'Rescheduling Policy': { noticeDays: 7, fee: 0, notes: 'One date change with 7+ days notice.' },
+      'Data Retention': { days: 365, notes: 'Online gallery kept 12 months.' },
+    },
+    requirements: ['Church photography permission if required', 'Family group list for portraits (optional)'],
+  };
+}
+
+function ownerPkgArchanaClassic() {
+  const p = ownerPkgBlueStandard();
+  p.id = 'arch-standard';
+  p.name = 'Classic Wedding Package';
+  p.level = 'Standard';
+  p.price = 95000;
+  p.listPrice = 105000;
+  p.discountPct = 10;
+  p.ceremonyTypes = ['Hindu', 'Christian'];
+  p.desc = 'Archana Photography signature package for Hindu and Christian weddings in Pathanamthitta.';
+  p.photoDetails['Edited Photos'].qty = 450;
+  return p;
+}
+
+function ownerPayloadForPackage(studioId, pkgId) {
+  if (studioId === 'archana') {
+    return ownerPkgArchanaClassic();
+  }
+  if (studioId === 'blue') {
+    if (pkgId === 'basic') return ownerPkgBlueBasic();
+    if (pkgId === 'premium') return ownerPkgBluePremium();
+    return ownerPkgBlueStandard();
+  }
+  return ownerPkgBlueStandard();
+}
+
+function ownerSvcBlueEvent() {
+  const p = ownerSvcBlueBaptism();
+  p.id = 'event-gtg';
+  p.name = 'Event / Get-togethers Photography';
+  p.category = 'event';
+  p.blurb =
+    'Coverage for family get-togethers, birthdays, and small events with candid storytelling and group portraits.';
+  p.price = 18000;
+  p.listPrice = 18000;
+  p.duration = '4 Hours';
+  p.extraHour = 2500;
+  p.photoDetails = { 'Edited Photos': { qty: 250, format: 'JPG (High Resolution)', delivery: '10 Working Days' } };
+  p.requirements = ['Venue access permission', 'Event timeline (optional)'];
+  return p;
+}
+
+function ownerSvcBluePortrait() {
+  const p = ownerSvcBlueBaptism();
+  p.id = 'portrait';
+  p.name = 'Portrait Photography';
+  p.category = 'portrait';
+  p.blurb = 'Studio or outdoor portrait session with guided poses and retouched deliverables.';
+  p.price = 5000;
+  p.listPrice = 5000;
+  p.duration = '1 Hour';
+  p.extraHour = 1500;
+  p.photoDetails = { 'Edited Photos': { qty: 30, format: 'JPG (High Resolution)', delivery: '5 Working Days' } };
+  p.requirements = ['Arrive 10 minutes early', 'Up to 2 outfit changes included'];
+  return p;
+}
+
+function ownerSvcBlueCorporate() {
+  const p = ownerSvcBlueBaptism();
+  p.id = 'corporate';
+  p.name = 'Corporate Photography';
+  p.category = 'corporate';
+  p.blurb = 'Half-day corporate event and headshot coverage for teams and conferences.';
+  p.price = 15000;
+  p.listPrice = 15000;
+  p.duration = '4 Hours';
+  p.extraHour = 3000;
+  p.photoDetails = { 'Edited Photos': { qty: 200, format: 'JPG (High Resolution)', delivery: '7 Working Days' } };
+  p.requirements = ['Company billing details if required', 'Shot list for executives (optional)'];
+  return p;
+}
+
+function ownerPayloadForService(studioId, serviceKey) {
+  if (studioId === 'archana') {
+    if (serviceKey === 'baptism') return ownerSvcBlueBaptism();
+    return ownerSvcBlueFuneral();
+  }
+  if (studioId === 'blue') {
+    if (serviceKey === 'baptism') return ownerSvcBlueBaptism();
+    if (serviceKey === 'event') return ownerSvcBlueEvent();
+    if (serviceKey === 'portrait') return ownerSvcBluePortrait();
+    if (serviceKey === 'corporate') return ownerSvcBlueCorporate();
+    return ownerSvcBlueFuneral();
+  }
+  return ownerSvcBlueFuneral();
+}
+
+/** Customer-facing catalog — mirrors owner package/service wizard fields (demo data). */
+const CUSTOMER_CATALOG = {
+  blue: {
+    id: 'blue',
+    name: 'Blue Lens Studio',
+    tagline: 'Sakthan Nagar, Thrissur',
+    rating: 4.8,
+    reviews: 56,
+    km: 5,
+    years: '5+',
+    events: '200+',
+    team: 'Professional Team',
+    about:
+      'Blue Lens Studio specialises in Christian and inter-faith weddings across south-central Kerala districts. We deliver candid storytelling, traditional coverage, and cinematic films with clear deliverable timelines.',
+    areas: ['Pathanamthitta', 'Kottayam', 'Kollam', 'Alappuzha'],
+    weddingFrom: 65000,
+    serviceFrom: 8000,
+    packages: [
+      {
+        id: 'basic',
+        name: 'Basic Wedding Package',
+        level: 'Basic',
+        ceremonies: ['Christian', 'Hindu'],
+        functions: ['Wedding & Reception'],
+        price: 65000,
+        listPrice: 65000,
+        discountPct: 0,
+        cardBullets: ['300 edited photos', '1 candid photographer', 'Online gallery', '8×8 album (20 pages)'],
+        inclusions: [
+          '300 edited high-resolution photos',
+          '1 candid photographer (8 hours)',
+          'Online gallery (password protected)',
+          '8×8 flush-mount album · 20 pages',
+          'Basic colour correction',
+          'Travel within 25 km of Thrissur',
+        ],
+        coverage: [
+          {
+            fn: 'Wedding & Reception',
+            side: 'Both',
+            hours: 8,
+            extraHour: 2000,
+            photoTeam: '1 Candid Photographer',
+            videoTeam: '—',
+          },
+        ],
+        delivery: [
+          { item: 'Online gallery', timeline: '7 days after event' },
+          { item: 'Edited photos (full set)', timeline: '21 days' },
+          { item: 'Album design proof', timeline: '30 days' },
+          { item: 'Printed album', timeline: '45 days' },
+        ],
+        extras: [
+          { id: 'drone', label: 'Drone photography', price: 10000 },
+          { id: 'cine', label: 'Cinematography (highlight film)', price: 15000 },
+          { id: 'live', label: 'Live streaming', price: 8000, cameras: 2 },
+          { id: 'album-extra', label: 'Extra parent album copy', price: 5000 },
+        ],
+        paymentStages: [
+          { label: 'Booking advance', pct: 30 },
+          { label: 'Before event', pct: 40 },
+          { label: 'On delivery of gallery', pct: 20 },
+          { label: 'Final (album)', pct: 10 },
+        ],
+        optionalFunctions: ['Engagement', 'Reception only', 'Wedding Eve'],
+      },
+      {
+        id: 'standard',
+        name: 'Standard Wedding Package',
+        level: 'Standard',
+        ceremonies: ['Christian'],
+        functions: ['Wedding & Reception', 'Engagement'],
+        price: 90000,
+        listPrice: 100000,
+        discountPct: 10,
+        cardBullets: [
+          '500 edited photos',
+          '2 photographers',
+          '12×12 album (30 pages)',
+          'Pre-wedding shoot (4 hrs)',
+        ],
+        inclusions: [
+          '500 edited photos',
+          '2 candid photographers',
+          'Pre-wedding shoot · 4 hours · 80 edited photos',
+          '12×12 album · 30 pages',
+          'Wedding highlight film · 8–10 min',
+          'Online gallery + download',
+          'Photo selection app for album',
+        ],
+        coverage: [
+          {
+            fn: 'Wedding & Reception',
+            side: 'Both',
+            hours: 10,
+            extraHour: 2500,
+            photoTeam: 'Candid + Traditional Photographer',
+            videoTeam: '1 Cinematic Videographer',
+          },
+          {
+            fn: 'Engagement',
+            side: 'Single',
+            hours: 5,
+            extraHour: 2000,
+            photoTeam: '2 Candid Photographers',
+            videoTeam: '—',
+          },
+        ],
+        delivery: [
+          { item: 'Pre-wedding gallery', timeline: '5 days after shoot' },
+          { item: 'Wedding online gallery', timeline: '10 days' },
+          { item: 'Highlight film', timeline: '21 days' },
+          { item: 'Album print', timeline: '50 days' },
+        ],
+        extras: [
+          { id: 'drone', label: 'Drone photography', price: 10000 },
+          { id: 'cine', label: 'Full ceremony film', price: 18000 },
+          { id: 'live', label: 'Live streaming (2 cameras)', price: 8000 },
+          { id: 'album-extra', label: 'Extra album copy', price: 5500 },
+        ],
+        paymentStages: [
+          { label: 'Booking advance', pct: 25 },
+          { label: 'Before wedding', pct: 45 },
+          { label: 'After gallery delivery', pct: 20 },
+          { label: 'Final payment', pct: 10 },
+        ],
+        optionalFunctions: ['Engagement', 'Reception', 'Wedding Eve'],
+      },
+      {
+        id: 'premium',
+        name: 'Premium Wedding Package',
+        level: 'Premium',
+        ceremonies: ['All'],
+        functions: ['Wedding & Reception', 'Engagement', 'Pre-Wedding Shoot'],
+        price: 145000,
+        listPrice: 145000,
+        discountPct: 0,
+        cardBullets: ['800+ photos', 'Photo + video team', 'Premium albums', 'Save-the-date reel'],
+        inclusions: [
+          '800+ edited photos',
+          'Candid + traditional photo team',
+          'Cinematic videography team',
+          'Premium album set (couple + parents)',
+          'Save-the-date reel',
+          'Dedicated album designer',
+        ],
+        coverage: [
+          {
+            fn: 'Wedding & Reception',
+            side: 'Both',
+            hours: 12,
+            extraHour: 3000,
+            photoTeam: '2 Candid + 2 Traditional Photographers',
+            videoTeam: '2 Cinematic + 1 Candid Videographer',
+          },
+          {
+            fn: 'Engagement',
+            side: 'Single',
+            hours: 5,
+            extraHour: 2500,
+            photoTeam: '2 Candid + 1 Traditional Photographer',
+            videoTeam: '1 Cinematic Videographer',
+          },
+          {
+            fn: 'Pre-Wedding Shoot',
+            side: '—',
+            hours: 5,
+            extraHour: 3000,
+            photoTeam: '1 Candid Photographer',
+            videoTeam: '1 Cinematic Videographer',
+          },
+        ],
+        delivery: [
+          { item: 'Teaser reel', timeline: '3 days' },
+          { item: 'Full gallery', timeline: '14 days' },
+          { item: 'Albums', timeline: '60 days' },
+        ],
+        extras: [
+          { id: 'drone', label: 'Drone package', price: 12000 },
+          { id: 'live', label: 'Live streaming (3 cameras)', price: 12000 },
+        ],
+        paymentStages: [
+          { label: 'Advance', pct: 30 },
+          { label: 'Mid', pct: 40 },
+          { label: 'Balance', pct: 30 },
+        ],
+        optionalFunctions: ['Engagement', 'Reception', 'Wedding Eve', 'Post-wedding shoot'],
+      },
+    ],
+    services: {
+      funeral: {
+        id: 'funeral-mem',
+        name: 'Funeral / Memorial Photography',
+        category: 'funeral',
+        price: 8000,
+        listPrice: 8000,
+        pricingType: 'fixed',
+        inclusions: [
+          'Event coverage (2–3 hours)',
+          'Professional photographer (1)',
+          '100+ edited photos',
+          'Online gallery',
+          'Basic enhancement',
+          'Travel within 20 km',
+        ],
+        coverage: [
+          { k: 'Duration', v: '2–3 hours (included)' },
+          { k: 'Stages covered', v: 'Family arrival · Prayer/rituals · Last respects · Procession · Cremation/Burial' },
+          { k: 'Team', v: '1 respectful candid photographer' },
+          { k: 'Delivery', v: '3–5 days · online gallery' },
+        ],
+        durationOptions: [
+          { id: 'inc', label: '2–3 hours (Included)', add: 0 },
+          { id: '3-5', label: '3–5 hours', add: 2000 },
+          { id: '5-7', label: '5–7 hours', add: 4000 },
+        ],
+        extras: [
+          { id: 'extra-photos', label: 'Extra edited photos pack', price: 1000 },
+          { id: 'extend', label: 'Extended coverage (+1 hr)', price: 2000 },
+          { id: 'stream', label: 'Live streaming for family abroad', price: 2000, cameras: 1 },
+          { id: 'album', label: 'Memorial printed album', price: 4000 },
+        ],
+        delivery: [{ item: 'Online gallery', timeline: '3–5 days' }],
+      },
+      baptism: {
+        id: 'baptism',
+        name: 'Baptism Photography',
+        category: 'event',
+        price: 12000,
+        inclusions: [
+          'Church / venue coverage (3 hours)',
+          '1 photographer',
+          '150 edited photos',
+          'Online gallery',
+          'Group & family portraits',
+        ],
+        coverage: [{ k: 'Duration', v: '3 hours' }, { k: 'Delivery', v: '7 days' }],
+        durationOptions: [{ id: 'inc', label: '3 hours (Included)', add: 0 }, { id: 'ext', label: '+1 hour', add: 1500 }],
+        extras: [{ id: 'album', label: 'Small album', price: 3500 }],
+        delivery: [{ item: 'Gallery', timeline: '7 days' }],
+      },
+      event: {
+        id: 'event-gtg',
+        name: 'Event / Get-togethers Photography',
+        category: 'event',
+        price: 18000,
+        inclusions: ['4 hours coverage', '2 photographers', '250 edited photos', 'Online gallery'],
+        coverage: [{ k: 'Duration', v: '4 hours' }, { k: 'Team', v: '2 candid photographers' }],
+        durationOptions: [{ id: 'inc', label: '4 hours', add: 0 }, { id: 'ext', label: '6 hours', add: 4000 }],
+        extras: [{ id: 'video', label: 'Event highlight video', price: 8000 }],
+        delivery: [{ item: 'Photos', timeline: '10 days' }],
+      },
+      portrait: {
+        id: 'portrait',
+        name: 'Portrait Photography',
+        category: 'portrait',
+        price: 5000,
+        inclusions: ['1 hour studio or outdoor', '30 edited photos', '2 outfit changes'],
+        coverage: [{ k: 'Duration', v: '1 hour' }],
+        durationOptions: [{ id: 'inc', label: '1 hour', add: 0 }],
+        extras: [{ id: 'makeup', label: 'Makeup artist coordination', price: 3000 }],
+        delivery: [{ item: 'Gallery', timeline: '5 days' }],
+      },
+      corporate: {
+        id: 'corporate',
+        name: 'Corporate Photography',
+        category: 'corporate',
+        price: 15000,
+        inclusions: ['Half-day coverage', '1 photographer', 'Event & headshots', '200 edited photos'],
+        coverage: [{ k: 'Duration', v: '4 hours' }],
+        durationOptions: [{ id: 'inc', label: '4 hours', add: 0 }],
+        extras: [{ id: 'video', label: 'Corporate reel', price: 12000 }],
+        delivery: [{ item: 'Photos', timeline: '7 business days' }],
+      },
+    },
+  },
+  archana: {
+    id: 'archana',
+    name: 'Archana Photography',
+    tagline: 'Peringara, Pathanamthitta',
+    rating: 4.9,
+    reviews: 128,
+    km: 8,
+    years: '8+',
+    events: '350+',
+    team: 'Professional Team',
+    about:
+      'Archana Photography is a full-service studio for Hindu and Christian weddings, with published work in Kerala wedding magazines. We operate with lead photographer Archana K. and trained associates.',
+    areas: ['Pathanamthitta', 'Kottayam', 'Kollam', 'Alappuzha'],
+    weddingFrom: 72000,
+    serviceFrom: 7500,
+    packages: [
+      {
+        id: 'arch-standard',
+        name: 'Classic Wedding Package',
+        level: 'Standard',
+        ceremonies: ['Hindu', 'Christian'],
+        functions: ['Wedding & Reception'],
+        price: 95000,
+        listPrice: 105000,
+        discountPct: 10,
+        cardBullets: ['450 edited photos', '2 photographers', 'Traditional + candid', '10×10 album'],
+        inclusions: ['450 edited photos', '2 photographers', 'Online gallery', '10×10 album · 25 pages'],
+        coverage: [
+          {
+            fn: 'Wedding & Reception',
+            side: 'Both',
+            hours: 9,
+            extraHour: 2200,
+            photoTeam: 'Candid + Traditional Photographer',
+            videoTeam: 'Optional add-on',
+          },
+        ],
+        delivery: [{ item: 'Gallery', timeline: '14 days' }],
+        extras: [{ id: 'drone', label: 'Drone', price: 9000 }],
+        paymentStages: [{ label: 'Advance', pct: 30 }, { label: 'Balance', pct: 70 }],
+        optionalFunctions: ['Engagement', 'Reception'],
+      },
+    ],
+    services: {
+      funeral: {
+        id: 'arch-funeral',
+        name: 'Funeral / Memorial Photography',
+        category: 'funeral',
+        price: 7500,
+        inclusions: ['2–3 hours', '1 photographer', '80+ photos', 'Online gallery'],
+        coverage: [{ k: 'Duration', v: '2–3 hours' }],
+        durationOptions: [{ id: 'inc', label: '2–3 hours', add: 0 }],
+        extras: [{ id: 'stream', label: 'Live stream', price: 1800 }],
+        delivery: [{ item: 'Gallery', timeline: '4 days' }],
+      },
+    },
+  },
+};
+
+function catalogStudio(studioId) {
+  return CUSTOMER_CATALOG[studioId] || CUSTOMER_CATALOG.blue;
+}
+
+function studioList() {
+  return Object.keys(CUSTOMER_CATALOG).map(function (k) {
+    return CUSTOMER_CATALOG[k];
+  });
+}
+
+const BLUE_PACKAGE_IDS = ['basic', 'standard', 'premium'];
+
+function packageCardFromOwner(owner) {
+  return {
+    id: owner.id,
+    name: owner.name,
+    level: owner.level,
+    price: owner.price,
+    listPrice: owner.listPrice,
+    discountPct: owner.discountPct,
+    ceremonies: owner.ceremonyTypes || [],
+    cardBullets: custSummaryBulletsFromPkg(owner),
+    optionalFunctions: owner.functions || [],
+    owner: owner,
+  };
+}
+
+function serviceCardFromOwner(owner) {
+  const durationOptions = [
+    { id: 'inc', label: (owner.duration || 'Included') + (owner.price ? '' : ''), add: 0 },
+  ];
+  Object.keys(owner.extras || {}).forEach(function (name) {
+    if (name.toLowerCase().indexOf('extend') >= 0 || name.indexOf('+') >= 0) {
+      const x = owner.extras[name];
+      durationOptions.push({ id: name, label: name, add: x.price || 0 });
+    }
+  });
+  if (durationOptions.length === 1 && owner.extraHour) {
+    durationOptions.push({
+      id: 'ext1',
+      label: 'Extended coverage (+1 hr)',
+      add: owner.extraHour,
+    });
+  }
+  return {
+    id: owner.id,
+    name: owner.name,
+    price: owner.price,
+    listPrice: owner.listPrice,
+    discountPct: owner.discountPct,
+    durationOptions: durationOptions,
+    owner: owner,
+  };
+}
+
+function packagesForStudio(studioId, filters) {
+  let list;
+  if (studioId === 'blue') {
+    list = BLUE_PACKAGE_IDS.map(function (id) {
+      return packageCardFromOwner(ownerPayloadForPackage('blue', id));
+    });
+  } else if (studioId === 'archana') {
+    list = [packageCardFromOwner(ownerPayloadForPackage('archana', 'arch-standard'))];
+  } else {
+    list = (catalogStudio(studioId).packages || []).slice();
+  }
+  if (filters && filters.level && filters.level !== 'All') {
+    list = list.filter(function (p) {
+      return p.level === filters.level;
+    });
+  }
+  if (filters && filters.community && filters.community !== 'all') {
+    const map = { hindu: 'Hindu', muslim: 'Muslim', christian: 'Christian', other: 'Others' };
+    const want = map[filters.community] || '';
+    list = list.filter(function (p) {
+      return (p.ceremonies || []).indexOf('All') >= 0 || (p.ceremonies || []).indexOf(want) >= 0;
+    });
+  }
+  const filterActive =
+    (filters && filters.level && filters.level !== 'All') ||
+    (filters && filters.community && filters.community !== 'all');
+  if (!list.length && filterActive) return [];
+  return list.length
+    ? list
+    : BLUE_PACKAGE_IDS.map(function (id) {
+        return packageCardFromOwner(ownerPayloadForPackage('blue', id));
+      });
+}
+
+function studioServiceKeys(studioId) {
+  const svcs = catalogStudio(studioId).services || {};
+  return Object.keys(svcs);
+}
+
+function studioOffersService(studioId, serviceKey) {
+  if (!serviceKey) return studioServiceKeys(studioId).length > 0;
+  const svcs = catalogStudio(studioId).services || {};
+  return Object.prototype.hasOwnProperty.call(svcs, serviceKey);
+}
+
+function serviceCardFromCatalog(studioId, serviceKey) {
+  const svcs = catalogStudio(studioId).services || {};
+  const s = svcs[serviceKey];
+  if (!s) return null;
+  const owner = ownerPayloadForService(studioId, serviceKey);
+  return {
+    serviceKey: serviceKey,
+    id: s.id || serviceKey,
+    name: s.name || owner.name,
+    price: s.price != null ? s.price : owner.price,
+    listPrice: s.listPrice != null ? s.listPrice : owner.listPrice || owner.price,
+    discountPct: s.discountPct != null ? s.discountPct : owner.discountPct,
+    inclusions: s.inclusions || [],
+    cardBullets: (s.inclusions || []).slice(0, 4),
+    durationOptions:
+      s.durationOptions && s.durationOptions.length
+        ? s.durationOptions
+        : [{ id: 'inc', label: owner.duration || 'Included', add: 0 }],
+    owner: owner,
+  };
+}
+
+function servicesForStudio(studioId, needKey) {
+  let keys = studioServiceKeys(studioId);
+  if (needKey) {
+    keys = keys.indexOf(needKey) >= 0 ? [needKey] : [];
+  }
+  return keys
+    .map(function (key) {
+      return serviceCardFromCatalog(studioId, key);
+    })
+    .filter(Boolean);
+}
+
+function serviceForStudio(studioId, serviceKey) {
+  const key = serviceKey || 'funeral';
+  const fromCat = serviceCardFromCatalog(studioId, key);
+  if (fromCat) return fromCat;
+  return serviceCardFromOwner(ownerPayloadForService(studioId, key));
+}
+
+function defaultPackageId(studioId) {
+  const pkgs = packagesForStudio(studioId, {});
+  return pkgs[0] ? pkgs[0].id : 'standard';
+}
+
+const PHOTO_CUSTOMER_BUILD = '2026-10-13-photo-customer-service-flow-v10';
+const DEMO_FILE = 'GIXBEE-PHOTO-CUSTOMER-FINALFLOW.html';
+const STORAGE_KEY = 'GIXBEE_PHOTO_CUSTOMER_INTERESTS_V2';
+
+/** Kerala districts (14) — location search uses full list */
+const KERALA_DISTRICTS = [
+  'Thiruvananthapuram',
+  'Kollam',
+  'Pathanamthitta',
+  'Alappuzha',
+  'Kottayam',
+  'Idukki',
+  'Ernakulam',
+  'Thrissur',
+  'Palakkad',
+  'Malappuram',
+  'Kozhikode',
+  'Wayanad',
+  'Kannur',
+  'Kasaragod',
+];
+const LOCATIONS = KERALA_DISTRICTS.map(function (d) {
+  return d + ', Kerala';
+});
+const COMMUNITIES = [
+  { id: 'all', label: 'All', icon: '☯' },
+  { id: 'hindu', label: 'Hindu', icon: '🕉' },
+  { id: 'muslim', label: 'Muslim', icon: '☪' },
+  { id: 'christian', label: 'Christian', icon: '✝' },
+  { id: 'other', label: 'Others', icon: '◆' },
+];
+const PKG_LEVELS = ['All', 'Basic', 'Standard', 'Premium'];
+const SVC_BUDGET_MIN_OPTS = [
+  { v: 5000, l: '₹ 5,000' },
+  { v: 10000, l: '₹ 10,000' },
+  { v: 15000, l: '₹ 15,000' },
+];
+const SVC_BUDGET_MAX_OPTS = [
+  { v: 25000, l: '₹ 25,000' },
+  { v: 50000, l: '₹ 50,000' },
+  { v: 100000, l: '₹ 1,00,000' },
+];
+const SERVICE_SEARCH_HERO = {
+  funeral: {
+    title: 'Funeral & Memorial Photography',
+    sub: 'Respectful coverage with clear deliverables. Compare studios and send interest in minutes.',
+  },
+  baptism: {
+    title: 'Baptism & Naming Photography',
+    sub: 'Church and family celebration coverage from trusted Kerala studios.',
+  },
+  event: {
+    title: 'Event & Get-together Photography',
+    sub: 'Birthdays, family events, and gatherings — see packages and add-ons upfront.',
+  },
+  portrait: {
+    title: 'Portrait Photography',
+    sub: 'Studio or outdoor sessions with transparent pricing and delivery timelines.',
+  },
+  corporate: {
+    title: 'Corporate Photography',
+    sub: 'Events, conferences, and team headshots from verified professionals.',
+  },
+};
+/** packagePath: show Community + Package type (wedding packages). */
+const PHOTO_NEEDS = [
+  { id: '', label: 'Select…', packagePath: false },
+  { id: 'wedding', label: 'Wedding / Marriage', packagePath: true },
+  { id: 'engagement', label: 'Engagement', packagePath: true },
+  { id: 'save-date', label: 'Save the Date', packagePath: true },
+  { id: 'pre-wedding', label: 'Pre-Wedding Shoot', packagePath: true },
+  { id: 'post-wedding', label: 'Post-Wedding Shoot', packagePath: true },
+  { id: 'reception', label: 'Reception', packagePath: true },
+  { id: 'wedding-eve', label: 'Wedding Eve', packagePath: true },
+  { id: 'funeral', label: 'Funeral / Memorial', packagePath: false },
+  { id: 'baptism', label: 'Baptism', packagePath: false },
+  { id: 'event', label: 'Event Photography', packagePath: false },
+  { id: 'portrait', label: 'Portrait', packagePath: false },
+  { id: 'corporate', label: 'Corporate', packagePath: false },
+];
+
+const TIMELINE = [
+  { key: 'sent', label: 'Interest Sent', sub: 'We notified the studio' },
+  { key: 'review', label: 'Under Review', sub: 'Photographer will review' },
+  { key: 'contact', label: 'Photographer Will Contact', sub: 'Usually within 24 hours' },
+  { key: 'discuss', label: 'Discussion in Progress', sub: 'Finalize details together' },
+  { key: 'confirmed', label: 'Confirmed', sub: 'After discussion' },
+];
+
+const state = {
+  mode: 'wedding',
+  photoNeed: '',
+  serviceId: 'funeral',
+  location: LOCATIONS[0],
+  date: '2026-12-15',
+  community: 'all',
+  pkgLevel: 'All',
+  budgetMin: 50000,
+  budgetMax: 100000,
+  svcBudgetMin: 5000,
+  svcBudgetMax: 50000,
+  studioId: 'blue',
+  packageId: 'standard',
+  detailTab: 'inclusions',
+  profTab: 'overview',
+  intTab: 'active',
+  customize: {
+    extras: {},
+    duration: 'inc',
+    albumSize: '12 x 30 inch',
+    albumPages: '30',
+    albumPaper: 'Matte',
+    albumCover: 'Premium',
+    albumSizeCustom: '',
+    albumPagesCustom: '',
+    albumPaperCustom: '',
+    albumCoverCustom: '',
+    functions: {},
+    extraFunctions: {},
+    extraFunctionCustom: false,
+    functionCustom: '',
+    customNeedPreset: '',
+    customNeedText: '',
+    reqAck: {},
+    notes: '',
+  },
+  interests: [],
+  activeInterestId: null,
+  detailBack: 'catalog',
+  backScreen: 'search',
+  catalogFilterPanel: null,
+  /** 'customize' = came via Customize Requirements; 'direct' = Initiate Interest from detail */
+  reviewEntry: 'direct',
+  reviewCalMonth: null,
+  reviewCalPick: null,
+  /** Service: date picker on detail when catalog skipped (single service); else date only on catalog. */
+  serviceDateOnDetail: false,
+};
+
+function activeNeed() {
+  return PHOTO_NEEDS.find(function (n) {
+    return n.id === state.photoNeed;
+  });
+}
+
+function showPackageFilters() {
+  const n = activeNeed();
+  return !!(n && n.packagePath);
+}
+
+function syncModeFromNeed() {
+  if (showPackageFilters()) {
+    state.mode = 'wedding';
+    return;
+  }
+  if (state.photoNeed) {
+    state.mode = 'service';
+    state.serviceId = state.photoNeed;
+  }
+}
+
+function needLabel() {
+  const n = activeNeed();
+  return n && n.id ? n.label : 'Photography';
+}
+
+function el(id) {
+  return document.getElementById(id);
+}
+
+function esc(s) {
+  return String(s == null ? '' : s)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+function inr(n) {
+  return '₹ ' + Number(n).toLocaleString('en-IN');
+}
+
+function formatDate(iso) {
+  if (!iso) return '—';
+  const d = new Date(iso + 'T12:00:00');
+  return d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+}
+
+function formatReviewDateLong(iso) {
+  if (!iso) return 'Pick a date';
+  const d = new Date(iso + 'T12:00:00');
+  return d.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
+}
+
+/** Demo: dates photographer has marked full (availability check before Send Interest). */
+const STUDIO_FULL_DATES = {
+  blue: ['2026-12-23', '2026-11-20'],
+  archana: ['2026-11-20', '2026-12-24'],
+};
+
+function photographerDateUnavailable(studioId, isoDate) {
+  if (!isoDate) return true;
+  const list = STUDIO_FULL_DATES[studioId] || STUDIO_FULL_DATES.blue;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const pick = new Date(isoDate + 'T12:00:00');
+  if (pick < today) return true;
+  return list.indexOf(isoDate) >= 0;
+}
+
+function isoDateParts(y, m, day) {
+  return y + '-' + String(m).padStart(2, '0') + '-' + String(day).padStart(2, '0');
+}
+
+function shiftReviewCalMonth(delta) {
+  const base = state.reviewCalMonth || (state.date || '2026-12-15').slice(0, 7);
+  const p = base.split('-');
+  const d = new Date(+p[0], +p[1] - 1 + delta, 1);
+  state.reviewCalMonth = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
+  renderReviewCalendar();
+}
+
+function renderReviewCalendar() {
+  const body = el('reviewCalBody');
+  if (!body) return;
+  const base = state.reviewCalMonth || (state.date || '2026-12-15').slice(0, 7);
+  const p = base.split('-');
+  const y = +p[0];
+  const m = +p[1];
+  const first = new Date(y, m - 1, 1);
+  const monthName = first.toLocaleDateString('en-IN', { month: 'long', year: 'numeric' });
+  const startDow = first.getDay();
+  const daysInMonth = new Date(y, m, 0).getDate();
+  const pick = state.reviewCalPick || state.date;
+  let html =
+    '<div class="cal-nav"><button type="button" data-cal-prev aria-label="Previous month">‹</button><span>' +
+    esc(monthName) +
+    '</span><button type="button" data-cal-next aria-label="Next month">›</button></div><div class="cal-grid">';
+  ['S', 'M', 'T', 'W', 'T', 'F', 'S'].forEach(function (d) {
+    html += '<span class="dow">' + d + '</span>';
+  });
+  let cell = 0;
+  for (let i = 0; i < startDow; i++) {
+    html += '<span></span>';
+    cell++;
+  }
+  for (let day = 1; day <= daysInMonth; day++) {
+    const iso = isoDateParts(y, m, day);
+    const full = photographerDateUnavailable(state.studioId, iso);
+    const on = pick === iso;
+    let cls = 'cal-day';
+    if (full) cls += ' full';
+    else if (on) cls += ' on';
+    html +=
+      '<button type="button" class="' +
+      cls +
+      '" data-cal-day="' +
+      iso +
+      '"' +
+      (full ? ' disabled' : '') +
+      '>' +
+      day +
+      '</button>';
+    cell++;
+  }
+  html += '</div>';
+  body.innerHTML = html;
+  body.querySelector('[data-cal-prev]').onclick = function () {
+    shiftReviewCalMonth(-1);
+  };
+  body.querySelector('[data-cal-next]').onclick = function () {
+    shiftReviewCalMonth(1);
+  };
+  body.querySelectorAll('[data-cal-day]').forEach(function (btn) {
+    if (btn.disabled) return;
+    btn.onclick = function () {
+      state.reviewCalPick = btn.getAttribute('data-cal-day');
+      renderReviewCalendar();
+    };
+  });
+}
+
+function updateReviewDateLabels() {
+  const long = formatReviewDateLong(state.date);
+  document.querySelectorAll('[data-event-date-lbl]').forEach(function (node) {
+    node.textContent = long;
+  });
+  const row = el('reviewEventDate');
+  if (row) row.textContent = formatDate(state.date);
+}
+
+function openReviewDateModal() {
+  state.reviewCalPick = state.date;
+  state.reviewCalMonth = (state.date || '2026-12-15').slice(0, 7);
+  const modal = el('reviewDateModal');
+  if (modal) modal.hidden = false;
+  renderReviewCalendar();
+}
+
+function closeReviewDateModal() {
+  const modal = el('reviewDateModal');
+  if (modal) modal.hidden = true;
+}
+
+function showDateFullModal() {
+  const lbl = el('dateFullLbl');
+  if (lbl) lbl.textContent = formatReviewDateLong(state.date);
+  const modal = el('dateFullModal');
+  if (modal) modal.hidden = false;
+}
+
+function closeDateFullModal() {
+  const modal = el('dateFullModal');
+  if (modal) modal.hidden = true;
+}
+
+function eventDatePickHtml() {
+  return (
+    '<button type="button" class="review-date-pick" data-open-date-pick>' +
+    '<span class="review-date-ico" aria-hidden="true">📅</span>' +
+    '<span class="review-date-txt"><span class="lbl">Select Date</span><b data-event-date-lbl>' +
+    esc(formatReviewDateLong(state.date)) +
+    '</b></span>' +
+    '<span class="review-date-chev" aria-hidden="true">›</span></button>'
+  );
+}
+
+function bindDatePickButtons(root) {
+  if (!root) return;
+  root.querySelectorAll('[data-open-date-pick]').forEach(function (btn) {
+    btn.onclick = openReviewDateModal;
+  });
+}
+
+function catalogDatePrompt() {
+  return state.mode === 'service'
+    ? 'Confirm your event date before choosing a service'
+    : 'Confirm your event date before choosing a package';
+}
+
+function renderCatalogDateBar() {
+  const bar = el('catalogDateBar');
+  if (!bar) return;
+  bar.innerHTML =
+    '<p class="sub" style="margin:0 0 8px;font-size:11px;font-weight:700">' +
+    esc(catalogDatePrompt()) +
+    '</p>' +
+    eventDatePickHtml();
+  bindDatePickButtons(bar);
+  if (photographerDateUnavailable(state.studioId, state.date)) {
+    bar.innerHTML +=
+      '<p class="sub" style="margin:8px 0 0;font-size:11px;font-weight:700;color:#B45309">This date looks fully booked — tap to pick another day.</p>';
+  }
+}
+
+function renderDetailDateBar() {
+  const bar = el('detailDateBar');
+  if (!bar) return;
+  if (state.mode !== 'service' || !state.serviceDateOnDetail) {
+    bar.hidden = true;
+    bar.innerHTML = '';
+    return;
+  }
+  bar.hidden = false;
+  bar.innerHTML =
+    '<p class="sub" style="margin:0 0 8px;font-size:11px;font-weight:700">Confirm your event date before sending interest</p>' +
+    eventDatePickHtml();
+  bindDatePickButtons(bar);
+  updateReviewDateLabels();
+  if (photographerDateUnavailable(state.studioId, state.date)) {
+    bar.innerHTML +=
+      '<p class="sub" style="margin:8px 0 0;font-size:11px;font-weight:700;color:#B45309">This date looks fully booked — choose another day.</p>';
+  }
+}
+
+function ensureEventDateForInterest() {
+  if (!state.date) {
+    toast('Please select an event date');
+    openReviewDateModal();
+    return false;
+  }
+  if (photographerDateUnavailable(state.studioId, state.date)) {
+    showDateFullModal();
+    return false;
+  }
+  return true;
+}
+
+function renderReviewDateBar() {
+  const bar = el('reviewDateBar');
+  if (!bar) return;
+  bar.hidden = true;
+  bar.innerHTML = '';
+}
+
+function toast(msg) {
+  const t = el('toast');
+  if (!t) return;
+  t.textContent = msg;
+  t.style.display = 'block';
+  clearTimeout(toast._tm);
+  toast._tm = setTimeout(function () {
+    t.style.display = 'none';
+  }, 2200);
+}
+
+function studio() {
+  return catalogStudio(state.studioId);
+}
+
+function activePackage() {
+  const list = packagesForStudio(state.studioId, {
+    level: state.pkgLevel,
+    community: state.community,
+  });
+  const found = list.find(function (p) {
+    return p.id === state.packageId;
+  });
+  return found || list[0] || packagesForStudio(state.studioId, {})[0];
+}
+
+function activePackageOwner() {
+  const card = activePackage();
+  if (card && card.owner) return card.owner;
+  return ownerPayloadForPackage(state.studioId, state.packageId);
+}
+
+function activeService() {
+  const key = state.serviceId || state.photoNeed || 'funeral';
+  return serviceForStudio(state.studioId, key);
+}
+
+function activeServiceOwner() {
+  const card = activeService();
+  if (card && card.owner) return card.owner;
+  return ownerPayloadForService(state.studioId, state.serviceId || state.photoNeed);
+}
+
+function packageExtras() {
+  return custPackageExtrasList(activePackageOwner());
+}
+
+function serviceExtras() {
+  return custServiceExtrasList(activeServiceOwner());
+}
+
+function offerTitle() {
+  if (state.mode === 'wedding') return activePackage().name;
+  return activeService().name;
+}
+
+function offerPrice() {
+  if (state.mode === 'wedding') {
+    let p = activePackage().price;
+    packageExtras().forEach(function (ex) {
+      if (state.customize.extras[ex.id]) p += ex.price;
+    });
+    return p;
+  }
+  const svc = activeService();
+  let p = svc.price || 0;
+  (svc.durationOptions || []).forEach(function (d) {
+    if (d.id === state.customize.duration) p += d.add || 0;
+  });
+  serviceExtras().forEach(function (ex) {
+    if (state.customize.extras[ex.id]) p += ex.price;
+  });
+  return p;
+}
+
+function selectedRequirementsLines() {
+  let lines = [];
+  if (state.mode === 'wedding') {
+    packageExtras().forEach(function (ex) {
+      if (state.customize.extras[ex.id]) lines.push(ex.label + ' — ' + inr(ex.price));
+    });
+    lines = lines.concat(custCustomizeRequirementLines(state, activePackageOwner()));
+  } else {
+    const svc = activeService();
+    (svc.durationOptions || []).forEach(function (d) {
+      if (d.id === state.customize.duration) lines.push('Duration: ' + d.label + (d.add ? ' — +' + inr(d.add) : ''));
+    });
+    serviceExtras().forEach(function (ex) {
+      if (state.customize.extras[ex.id]) lines.push(ex.label + ' — ' + inr(ex.price));
+    });
+    lines = lines.concat(custCustomizeRequirementLines(state, activeServiceOwner()));
+  }
+  return lines;
+}
+
+function activeScreenId() {
+  const on = document.querySelector('.scr.on');
+  return on ? on.id : 'search';
+}
+
+function show(id, backTo) {
+  if (backTo !== undefined) state.backScreen = backTo;
+  document.querySelectorAll('.scr').forEach(function (s) {
+    s.classList.toggle('on', s.id === id);
+  });
+  const nav = el('bottomNav');
+  if (nav) {
+    nav.style.display =
+      ['results', 'profile', 'detail', 'catalog', 'customize', 'review', 'interestDetail', 'sent'].indexOf(id) >= 0
+        ? 'none'
+        : '';
+  }
+  document.querySelectorAll('[data-nav]').forEach(function (b) {
+    const n = b.getAttribute('data-nav');
+    b.classList.toggle(
+      'on',
+      ((n === 'home' || n === 'search') && id === 'search') ||
+        (n === 'interests' && (id === 'interests' || id === 'interestDetail'))
+    );
+  });
+}
+
+function goBack() {
+  const cur = activeScreenId();
+  let target;
+  if (cur === 'detail') {
+    target = state.detailBack || 'catalog';
+  } else {
+    target = state.backScreen || 'search';
+  }
+  show(target);
+  if (target === 'catalog') state.backScreen = 'profile';
+  else if (target === 'profile') state.backScreen = 'results';
+  else if (target === 'results') state.backScreen = 'search';
+  else if (target === 'detail') state.backScreen = 'detail';
+  else if (target === 'customize') state.backScreen = 'detail';
+  else if (target === 'review') state.backScreen = 'customize';
+  else if (target === 'interests') state.backScreen = 'search';
+}
+
+function loadInterests() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (raw) state.interests = JSON.parse(raw);
+  } catch (e) {
+    state.interests = [];
+  }
+  ensureSeedInterests();
+}
+
+function ensureSeedInterests() {
+  if (state.interests.length) return;
+  state.interests = [
+    {
+      id: 'demo-seed-1',
+      mode: 'wedding',
+      studioId: 'archana',
+      studioName: 'Archana Photography',
+      offerName: 'Classic Wedding Package',
+      needLabel: 'Wedding / Marriage',
+      date: '2026-11-20',
+      location: 'Pathanamthitta, Kerala',
+      community: 'Hindu',
+      pkgLevel: 'Standard',
+      price: 95000,
+      statusLabel: 'Under Review',
+      status: 'active',
+      sentAt: '2026-10-01',
+      requirements: ['Drone — ₹ 9,000', 'Also cover: Engagement'],
+      notes: 'Church morning + hall evening on same day.',
+      paymentSummary: 'Advance 30% · Balance 70%',
+      coverageSummary: 'Wedding & Reception · 9 hrs · Both sides · Candid + Traditional',
+      deliverySummary: 'Gallery in 14 days',
+    },
+    {
+      id: 'demo-seed-past',
+      mode: 'service',
+      studioId: 'blue',
+      studioName: 'Blue Lens Studio',
+      offerName: 'Funeral / Memorial Photography',
+      needLabel: 'Funeral / Memorial',
+      date: '2026-09-08',
+      location: 'Kottayam, Kerala',
+      price: 8000,
+      statusLabel: 'Accepted',
+      status: 'past',
+      sentAt: '2026-09-01',
+      requirements: ['Duration: 3–5 hours', 'Live streaming for family abroad — ₹ 2,000'],
+      notes: '',
+      paymentSummary: 'Paid in full after gallery',
+      coverageSummary: '2–3 hours included · 1 photographer',
+      deliverySummary: 'Gallery in 3–5 days',
+    },
+  ];
+  saveInterests();
+}
+
+function interestById(id) {
+  return state.interests.find(function (x) {
+    return x.id === id;
+  });
+}
+
+function saveInterests() {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state.interests));
+  } catch (e) {
+    /* ignore */
+  }
+}
+
+function searchHeroHtml() {
+  if (showPackageFilters()) {
+    return (
+      '<div class="hero-wed"><h2>Find Your Wedding Photographer</h2><p>Compare packages, coverage, and deliverables from trusted studios.</p></div>'
+    );
+  }
+  const id = state.photoNeed || '';
+  const preset =
+    SERVICE_SEARCH_HERO[id] || {
+      title: 'Find Photography Services',
+      sub: 'Browse individual services, coverage, and deliverables from verified studios.',
+    };
+  return (
+    '<div class="hero-wed hero-svc"><h2>' +
+    esc(preset.title) +
+    '</h2><p>' +
+    esc(preset.sub) +
+    '</p></div>'
+  );
+}
+
+function studiosForResults() {
+  if (state.mode === 'wedding') return studioList();
+  const key = state.photoNeed || state.serviceId;
+  return studioList().filter(function (s) {
+    return studioOffersService(s.id, key);
+  });
+}
+
+function renderSearchForm() {
+  const hero = el('searchHero');
+  const form = el('searchForm');
+  if (!hero || !form) return;
+  hero.innerHTML = searchHeroHtml();
+  const pkgBlock = showPackageFilters()
+    ? '<div class="fld"><label>Community / Religion</label><div class="comm-row" id="fComm">' +
+      COMMUNITIES.map(function (c) {
+        return (
+          '<button type="button" class="comm-btn' +
+          (state.community === c.id ? ' on' : '') +
+          '" data-comm="' +
+          c.id +
+          '"><div class="c-ico">' +
+          c.icon +
+          '</div><span>' +
+          esc(c.label) +
+          '</span></button>'
+        );
+      }).join('') +
+      '</div></div>' +
+      '<div class="fld"><label>Package Type</label><div class="pkg-type-row" id="fPkg">' +
+      PKG_LEVELS.map(function (p) {
+        return (
+          '<button type="button" class="pkg-type-btn' +
+          (state.pkgLevel === p ? ' on' : '') +
+          '" data-pkg="' +
+          esc(p) +
+          '"><b>' +
+          esc(p) +
+          '</b></button>'
+        );
+      }).join('') +
+      '</div></div>'
+    : '';
+  form.innerHTML =
+    '<div class="fld"><label>Location</label><div class="sel-box"><select id="fLoc">' +
+    LOCATIONS.map(function (l) {
+      return '<option' + (l === state.location ? ' selected' : '') + '>' + esc(l) + '</option>';
+    }).join('') +
+    '</select></div></div>' +
+    '<div class="fld"><label>Event Date</label><div class="sel-box"><input type="date" id="fDate" value="' +
+    esc(state.date) +
+    '"></div></div>' +
+    '<div class="fld"><label>What do you need photography for?</label><div class="sel-box"><select id="fNeed">' +
+    '<option value=""' +
+    (state.photoNeed === '' ? ' selected' : '') +
+    '>Select…</option>' +
+    PHOTO_NEEDS.filter(function (n) {
+      return n.id;
+    }).map(function (n) {
+      return (
+        '<option value="' +
+        esc(n.id) +
+        '"' +
+        (state.photoNeed === n.id ? ' selected' : '') +
+        '>' +
+        esc(n.label) +
+        '</option>'
+      );
+    }).join('') +
+    '</select></div></div>' +
+    pkgBlock +
+    (showPackageFilters()
+      ? '<div class="fld"><label>Budget Range (Optional)</label><div class="budget-row">' +
+        '<div class="sel-box"><select id="fBudMin">' +
+        [
+          { v: 50000, l: '₹ 50,000' },
+          { v: 75000, l: '₹ 75,000' },
+          { v: 100000, l: '₹ 1,00,000' },
+        ]
+          .map(function (o) {
+            return (
+              '<option value="' +
+              o.v +
+              '"' +
+              (state.budgetMin === o.v ? ' selected' : '') +
+              '>' +
+              o.l +
+              '</option>'
+            );
+          })
+          .join('') +
+        '</select></div>' +
+        '<div class="sel-box"><select id="fBudMax">' +
+        [
+          { v: 100000, l: '₹ 1,00,000' },
+          { v: 150000, l: '₹ 1,50,000' },
+          { v: 200000, l: '₹ 2,00,000' },
+        ]
+          .map(function (o) {
+            return (
+              '<option value="' +
+              o.v +
+              '"' +
+              (state.budgetMax === o.v ? ' selected' : '') +
+              '>' +
+              o.l +
+              '</option>'
+            );
+          })
+          .join('') +
+        '</select></div></div></div>'
+      : '<div class="fld"><label>Service Budget (Optional)</label><div class="budget-row">' +
+        '<div class="sel-box"><select id="fSvcBudMin">' +
+        SVC_BUDGET_MIN_OPTS.map(function (o) {
+          return (
+            '<option value="' +
+            o.v +
+            '"' +
+            (state.svcBudgetMin === o.v ? ' selected' : '') +
+            '>' +
+            o.l +
+            '</option>'
+          );
+        }).join('') +
+        '</select></div>' +
+        '<div class="sel-box"><select id="fSvcBudMax">' +
+        SVC_BUDGET_MAX_OPTS.map(function (o) {
+          return (
+            '<option value="' +
+            o.v +
+            '"' +
+            (state.svcBudgetMax === o.v ? ' selected' : '') +
+            '>' +
+            o.l +
+            '</option>'
+          );
+        }).join('') +
+        '</select></div></div></div>');
+  bindSearchForm();
+}
+
+function bindSearchForm() {
+  const loc = el('fLoc');
+  if (loc) loc.onchange = function () {
+    state.location = loc.value;
+  };
+  const dt = el('fDate');
+  if (dt) dt.onchange = function () {
+    state.date = dt.value;
+  };
+  const comm = el('fComm');
+  if (comm) {
+    comm.querySelectorAll('[data-comm]').forEach(function (btn) {
+      btn.onclick = function () {
+        state.community = btn.getAttribute('data-comm');
+        renderSearchForm();
+      };
+    });
+  }
+  const pkg = el('fPkg');
+  if (pkg) {
+    pkg.querySelectorAll('[data-pkg]').forEach(function (btn) {
+      btn.onclick = function () {
+        state.pkgLevel = btn.getAttribute('data-pkg');
+        renderSearchForm();
+      };
+    });
+  }
+  const need = el('fNeed');
+  if (need) {
+    need.onchange = function () {
+      state.photoNeed = need.value || '';
+      syncModeFromNeed();
+      renderSearchForm();
+    };
+  }
+  const bmin = el('fBudMin');
+  const bmax = el('fBudMax');
+  if (bmin) bmin.onchange = function () {
+    state.budgetMin = +bmin.value;
+  };
+  if (bmax) bmax.onchange = function () {
+    state.budgetMax = +bmax.value;
+  };
+  const sbmin = el('fSvcBudMin');
+  const sbmax = el('fSvcBudMax');
+  if (sbmin) sbmin.onchange = function () {
+    state.svcBudgetMin = +sbmin.value;
+  };
+  if (sbmax) sbmax.onchange = function () {
+    state.svcBudgetMax = +sbmax.value;
+  };
+}
+
+function renderResults() {
+  const title = el('resTitle');
+  const sub = el('resSub');
+  const count = el('resCount');
+  const list = el('resList');
+  if (state.mode === 'wedding') {
+    if (title) title.textContent = 'Wedding Photographers';
+    if (sub) sub.textContent = state.location + ' · ' + formatDate(state.date);
+    if (count) count.textContent = '24 photographers found';
+  } else {
+    if (title) title.textContent = needLabel();
+    if (sub) sub.textContent = state.location + ' · ' + formatDate(state.date);
+    if (count) count.textContent = '8 photographers found';
+  }
+  if (!list) return;
+  const rows = studiosForResults();
+  if (state.mode === 'service' && count) {
+    count.textContent = rows.length + (rows.length === 1 ? ' studio found' : ' studios found');
+  }
+  if (!rows.length) {
+    list.innerHTML =
+      '<div class="hub-empty" style="margin:16px"><div class="hub-empty-ico">🔍</div><b>No studios for this service yet</b><p>Try another district or a different photography need.</p></div>';
+    return;
+  }
+  list.innerHTML = rows.map(function (s) {
+    const from = state.mode === 'wedding' ? s.weddingFrom : s.serviceFrom;
+    const svcCard = state.mode === 'service' ? serviceForStudio(s.id, state.photoNeed) : null;
+    const fromPrice = state.mode === 'service' && svcCard && svcCard.price ? svcCard.price : from;
+    const tag =
+      state.mode === 'wedding'
+        ? '<span class="ph-tag">Christian</span><span class="ph-tag">Standard</span>'
+        : '<span class="ph-tag">' + esc(needLabel()) + '</span><span class="ph-tag">Verified</span>';
+    return (
+      '<button type="button" class="ph-row" data-studio="' +
+      s.id +
+      '"><div class="ph-thumb"><span class="heart">♡</span></div><div class="ph-bd"><b>' +
+      esc(s.name) +
+      '</b><div class="ph-rating"><span class="star">★</span> ' +
+      s.rating +
+      ' (' +
+      s.reviews +
+      ') · ' +
+      s.km +
+      ' km</div><div class="ph-price">' +
+      inr(fromPrice) +
+      (state.mode === 'wedding' ? ' onwards' : '') +
+      '</div><div class="ph-tags">' +
+      tag +
+      '</div></div></button>'
+    );
+  }).join('');
+  list.querySelectorAll('[data-studio]').forEach(function (btn) {
+    btn.onclick = function () {
+      state.studioId = btn.getAttribute('data-studio');
+      state.packageId = defaultPackageId(state.studioId);
+      state.profTab = 'overview';
+      renderProfile();
+      show('profile', 'results');
+    };
+  });
+}
+
+function renderProfile() {
+  const s = studio();
+  el('profName').textContent = s.name;
+  el('profMeta').innerHTML =
+    '<span class="star" style="color:#F59E0B">★ ' +
+    s.rating +
+    ' (' +
+    s.reviews +
+    ')</span> · ' +
+    esc(state.location.split(',')[0]) +
+    ' · ' +
+    s.km +
+    ' km';
+  el('profStats').innerHTML =
+    '<div class="stat-cell"><div class="ic">📅</div>' +
+    s.years +
+    '<br>Years Experience</div><div class="stat-cell"><div class="ic">📷</div>' +
+    s.events +
+    '<br>' +
+    (state.mode === 'wedding' ? 'Weddings' : 'Events') +
+    '</div><div class="stat-cell"><div class="ic">👥</div>' +
+    esc(s.team) +
+    '</div>';
+  const primary = el('profPrimary');
+  if (primary) primary.textContent = state.mode === 'wedding' ? 'View Packages' : 'View Service';
+  renderProfPanel();
+}
+
+function renderProfPanel() {
+  const s = studio();
+  const panel = el('profPanel');
+  if (!panel) return;
+  if (state.profTab === 'overview') {
+    panel.innerHTML =
+      '<h3>About Us</h3><p style="margin:0 0 14px;font-weight:600;color:var(--mut)">' +
+      esc(s.about) +
+      '</p><h3>Service Areas</h3><div class="area-tags">' +
+      s.areas.map(function (a) {
+        return '<span>' + esc(a) + '</span>';
+      }).join('') +
+      '</div>';
+  } else if (state.profTab === 'portfolio') {
+    panel.innerHTML = '<p class="sub">Portfolio grid — demo placeholders.</p><div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">' + [1, 2, 3, 4].map(function () {
+      return '<div style="height:80px;border-radius:10px;background:linear-gradient(145deg,#CBD5E1,#64748B)"></div>';
+    }).join('') + '</div>';
+  } else {
+    panel.innerHTML = renderReviewsHtml();
+  }
+}
+
+function renderReviewsHtml() {
+  return (
+    '<div class="stars-bar"><b>4.8</b><div class="bar-dist">★★★★★<br>56 reviews</div></div>' +
+    '<div class="rev-item"><div class="who">Anitha K. · Dec 2025</div><div class="star">★★★★★</div>Beautiful photos and very professional team.</div>' +
+    '<div class="rev-item"><div class="who">Rahul M. · Nov 2025</div><div class="star">★★★★☆</div>Great coverage and fast delivery.</div>'
+  );
+}
+
+function catalogCommunityLabel() {
+  const c = COMMUNITIES.find(function (x) {
+    return x.id === state.community;
+  });
+  return c ? c.label : 'All';
+}
+
+function renderCatalogFilterPanel() {
+  const panel = el('catFilterPanel');
+  if (!panel) return;
+  if (!state.catalogFilterPanel) {
+    panel.hidden = true;
+    panel.innerHTML = '';
+    return;
+  }
+  panel.hidden = false;
+  if (state.catalogFilterPanel === 'community') {
+    panel.innerHTML =
+      '<p class="lbl">Select community / religion</p><div class="comm-row" id="catCommPick">' +
+      COMMUNITIES.map(function (c) {
+        return (
+          '<button type="button" class="comm-btn' +
+          (state.community === c.id ? ' on' : '') +
+          '" data-cat-comm="' +
+          c.id +
+          '"><div class="c-ico">' +
+          c.icon +
+          '</div><span>' +
+          esc(c.label) +
+          '</span></button>'
+        );
+      }).join('') +
+      '</div>';
+    panel.querySelectorAll('[data-cat-comm]').forEach(function (btn) {
+      btn.onclick = function () {
+        state.community = btn.getAttribute('data-cat-comm');
+        state.catalogFilterPanel = null;
+        renderCatalog();
+      };
+    });
+  } else if (state.catalogFilterPanel === 'pkg') {
+    panel.innerHTML =
+      '<p class="lbl">Select package type</p><div class="pkg-type-row" id="catPkgPick">' +
+      PKG_LEVELS.map(function (p) {
+        return (
+          '<button type="button" class="pkg-type-btn' +
+          (state.pkgLevel === p ? ' on' : '') +
+          '" data-cat-pkg="' +
+          esc(p) +
+          '"><b>' +
+          esc(p) +
+          '</b></button>'
+        );
+      }).join('') +
+      '</div>';
+    panel.querySelectorAll('[data-cat-pkg]').forEach(function (btn) {
+      btn.onclick = function () {
+        state.pkgLevel = btn.getAttribute('data-cat-pkg');
+        state.catalogFilterPanel = null;
+        renderCatalog();
+      };
+    });
+  }
+}
+
+function renderServiceCatalog() {
+  const title = el('catTitle');
+  if (title) title.textContent = studio().name + ' · Services';
+  const filters = el('catFilters');
+  if (filters) filters.innerHTML = '';
+  const panel = el('catFilterPanel');
+  if (panel) {
+    panel.hidden = true;
+    panel.innerHTML = '';
+  }
+  state.catalogFilterPanel = null;
+  renderCatalogDateBar();
+  const list = el('catList');
+  const countEl = el('catCount');
+  const svcs = servicesForStudio(state.studioId, state.photoNeed);
+  if (countEl) {
+    countEl.textContent =
+      svcs.length === 1 ? 'Showing 1 service for ' + needLabel() : 'Showing ' + svcs.length + ' services';
+  }
+  if (!list) return;
+  if (!svcs.length) {
+    list.innerHTML =
+      '<div class="hub-empty" style="margin:16px"><div class="hub-empty-ico">📷</div><b>Service not listed</b><p>This studio has not published <b>' +
+      esc(needLabel()) +
+      '</b> yet. Try another photographer from results.</p></div>';
+    return;
+  }
+  list.innerHTML = svcs
+    .map(function (svc) {
+      const bullets = svc.cardBullets || svc.inclusions || [];
+      let priceHtml = inr(svc.price);
+      if (svc.listPrice > svc.price) {
+        priceHtml +=
+          ' <span style="font-size:11px;color:var(--mut);text-decoration:line-through">' + inr(svc.listPrice) + '</span>';
+      }
+      return (
+        '<button type="button" class="pkg-card" data-svc="' +
+        esc(svc.serviceKey) +
+        '"><div class="thumb"></div><div><b>' +
+        esc(svc.name) +
+        '</b><div class="price">' +
+        priceHtml +
+        (svc.discountPct ? ' <span style="font-size:10px;color:#BE185D">' + svc.discountPct + '% OFF</span>' : '') +
+        '</div><ul>' +
+        bullets
+          .slice(0, 4)
+          .map(function (b) {
+            return '<li>' + esc(b) + '</li>';
+          })
+          .join('') +
+        '</ul><span class="link">View Service ›</span></div></button>'
+      );
+    })
+    .join('');
+  list.querySelectorAll('[data-svc]').forEach(function (btn) {
+    btn.onclick = function () {
+      openServiceDetail(btn.getAttribute('data-svc'), 'catalog', false);
+    };
+  });
+}
+
+function openServiceDetail(serviceKey, backScreen, dateOnDetail) {
+  state.serviceId = serviceKey;
+  state.customize.duration = 'inc';
+  state.detailTab = 'overview';
+  state.detailBack = backScreen === 'catalog' ? 'catalog' : 'profile';
+  state.serviceDateOnDetail = !!dateOnDetail;
+  renderDetail();
+  show('detail', backScreen);
+}
+
+function openServiceFlowFromProfile() {
+  if (!studioOffersService(state.studioId, state.photoNeed)) {
+    toast('This studio does not list ' + needLabel());
+    return;
+  }
+  const svcs = servicesForStudio(state.studioId, state.photoNeed);
+  if (!svcs.length) {
+    toast('This service is not available at ' + studio().name);
+    return;
+  }
+  if (svcs.length === 1) {
+    openServiceDetail(svcs[0].serviceKey, 'profile', true);
+    return;
+  }
+  state.serviceId = state.photoNeed;
+  state.serviceDateOnDetail = false;
+  renderServiceCatalog();
+  show('catalog', 'profile');
+}
+
+function renderCatalog() {
+  if (state.mode === 'service') {
+    renderServiceCatalog();
+    return;
+  }
+  el('catTitle').textContent = studio().name;
+  const filters = el('catFilters');
+  if (filters) {
+    filters.innerHTML =
+      '<button type="button" class="fchip' +
+      (state.catalogFilterPanel === 'community' ? ' on' : '') +
+      '" data-cat-filter="community">Community: ' +
+      esc(catalogCommunityLabel()) +
+      ' ▾</button>' +
+      '<button type="button" class="fchip' +
+      (state.catalogFilterPanel === 'pkg' ? ' on' : '') +
+      '" data-cat-filter="pkg">Package: ' +
+      esc(state.pkgLevel || 'All') +
+      ' ▾</button>';
+    filters.querySelectorAll('[data-cat-filter]').forEach(function (btn) {
+      btn.onclick = function () {
+        const key = btn.getAttribute('data-cat-filter');
+        state.catalogFilterPanel = state.catalogFilterPanel === key ? null : key;
+        renderCatalog();
+      };
+    });
+  }
+  renderCatalogFilterPanel();
+  renderCatalogDateBar();
+  const list = el('catList');
+  const countEl = el('catCount');
+  if (!list) return;
+  const pkgs = packagesForStudio(state.studioId, {
+    level: state.pkgLevel,
+    community: state.community,
+  });
+  if (countEl) {
+    countEl.textContent =
+      pkgs.length === 1 ? 'Showing 1 package' : 'Showing ' + pkgs.length + ' packages';
+  }
+  if (!pkgs.length) {
+    list.innerHTML =
+      '<div class="hub-empty" style="margin:16px"><div class="hub-empty-ico">📦</div><b>No packages match</b><p>Try <b>All</b> community or a different package type.</p></div>';
+    return;
+  }
+  list.innerHTML = pkgs
+    .map(function (p) {
+      const bullets = p.cardBullets || p.inclusions || [];
+      let priceHtml = inr(p.price);
+      if (p.listPrice > p.price) {
+        priceHtml +=
+          ' <span style="font-size:11px;color:var(--mut);text-decoration:line-through">' + inr(p.listPrice) + '</span>';
+      }
+      const ownerPkg = p.owner || ownerPayloadForPackage(state.studioId, p.id);
+      return (
+        '<button type="button" class="pkg-card" data-pkg="' +
+        p.id +
+        '"><div class="thumb"></div><div><b>' +
+        esc(p.name) +
+        '</b>' +
+        custPkgCardMetaHtml(ownerPkg) +
+        '<div class="price">' +
+        priceHtml +
+        (p.discountPct ? ' <span style="font-size:10px;color:#BE185D">' + p.discountPct + '% OFF</span>' : '') +
+        '</div><ul>' +
+        bullets
+          .slice(0, 4)
+          .map(function (b) {
+            return '<li>' + esc(b) + '</li>';
+          })
+          .join('') +
+        '</ul><span class="link">View Details ›</span></div></button>'
+      );
+    })
+    .join('');
+  list.querySelectorAll('[data-pkg]').forEach(function (btn) {
+    btn.onclick = function () {
+      state.packageId = btn.getAttribute('data-pkg');
+      state.detailTab = 'overview';
+      state.detailBack = 'catalog';
+      renderDetail();
+      show('detail', 'catalog');
+    };
+  });
+}
+
+function renderDetail() {
+  const name = el('detailName');
+  const priceTag = el('detailPriceTag');
+  const tabs = el('detailTabs');
+  const panel = el('detailPanel');
+  const isWed = state.mode === 'wedding';
+  const pkg = activePackageOwner();
+  const svc = activeServiceOwner();
+  const card = isWed ? activePackage() : activeService();
+  const price = card.price;
+  if (name) name.textContent = isWed ? pkg.name : svc.name;
+  if (priceTag) {
+    let ph =
+      '<b>' +
+      inr(price) +
+      '</b><span>' +
+      (isWed ? 'Package price' : 'Service price') +
+      '</span>';
+    if (card.listPrice > price) {
+      ph +=
+        '<span style="display:block;font-size:12px;text-decoration:line-through;opacity:.85">' +
+        inr(card.listPrice) +
+        (card.discountPct ? ' · ' + card.discountPct + '% OFF' : '') +
+        '</span>';
+    }
+    priceTag.innerHTML = ph;
+  }
+  if (!isWed && state.detailTab === 'inclusions') state.detailTab = 'overview';
+  const tabIds = isWed
+    ? ['overview', 'inclusions', 'coverage', 'extras', 'policies', 'reviews']
+    : ['overview', 'coverage', 'extras', 'policies', 'reviews'];
+  const tabLbl = isWed
+    ? ['Overview', 'Inclusions', 'Coverage', 'Extras', 'Policies', 'Reviews']
+    : ['Overview / Inclusions', 'Coverage', 'Extras', 'Policies', 'Reviews'];
+  if (tabs) {
+    tabs.innerHTML = tabIds
+      .map(function (id, i) {
+        return (
+          '<button type="button" class="' +
+          (state.detailTab === id ? 'on' : '') +
+          '" data-dtab="' +
+          id +
+          '">' +
+          tabLbl[i] +
+          '</button>'
+        );
+      })
+      .join('');
+    tabs.querySelectorAll('[data-dtab]').forEach(function (btn) {
+      btn.onclick = function () {
+        state.detailTab = btn.getAttribute('data-dtab');
+        renderDetail();
+      };
+    });
+  }
+  if (!panel) return;
+  if (state.detailTab === 'overview') {
+    panel.innerHTML = isWed ? custRenderPkgBasics(pkg) : custRenderSvcOverviewInclusions(svc);
+  } else if (state.detailTab === 'inclusions') {
+    panel.innerHTML = custRenderPkgInclusions(pkg);
+  } else if (state.detailTab === 'coverage') {
+    panel.innerHTML = isWed ? custRenderPkgCoverage(pkg) : custRenderSvcCoverage(svc);
+  } else if (state.detailTab === 'extras') {
+    panel.innerHTML = custRenderExtrasBlock(isWed ? pkg.extras : svc.extras);
+  } else if (state.detailTab === 'policies') {
+    panel.innerHTML = custRenderPolicies(isWed ? pkg : svc);
+  } else {
+    panel.innerHTML = renderReviewsHtml();
+  }
+  renderDetailDateBar();
+}
+
+function renderCustomize() {
+  const sum = el('custSummary');
+  const body = el('custBody');
+  const title = offerTitle();
+  const price = state.mode === 'wedding' ? activePackage().price : activeService().price;
+  if (sum) {
+    sum.innerHTML =
+      '<div class="review-summary"><div class="thumb"></div><div style="flex:1"><b style="font-size:14px;color:var(--navy)">' +
+      esc(title) +
+      '</b><div style="font-size:12px;color:var(--mut);font-weight:700;margin-top:2px">' +
+      esc(studio().name) +
+      ' · ' +
+      esc(formatDate(state.date)) +
+      '</div><div style="font-size:15px;font-weight:900;color:var(--blue2);margin-top:6px">Est. ' +
+      inr(offerPrice()) +
+      '</div></div></div>';
+  }
+  if (!body) return;
+  if (state.mode === 'wedding') {
+    body.innerHTML = custRenderCustomizeWedding(activePackageOwner(), packageExtras(), state);
+    const goRev = el('goReview');
+    if (goRev) goRev.textContent = 'Next: Review Interest';
+  } else {
+    const svcO = activeServiceOwner();
+    body.innerHTML = custRenderCustomizeService(
+      svcO,
+      serviceExtras(),
+      activeService().durationOptions || svcO.durationOptions || [],
+      state
+    );
+    const goRev = el('goReview');
+    if (goRev) goRev.textContent = 'Next: Review Interest';
+  }
+  bindCustomize();
+  if (state.mode === 'wedding') {
+    custBindExtraFunctionMulti(custOptionalFunctionsForOwner(activePackageOwner()));
+  }
+}
+
+function bindCustomize() {
+  const c = state.customize;
+  document.querySelectorAll('[data-wex]').forEach(function (inp) {
+    inp.onchange = function () {
+      c.extras[inp.getAttribute('data-wex')] = inp.checked;
+      renderCustomize();
+    };
+  });
+  document.querySelectorAll('[data-sex]').forEach(function (inp) {
+    inp.onchange = function () {
+      c.extras[inp.getAttribute('data-sex')] = inp.checked;
+      renderCustomize();
+    };
+  });
+  document.querySelectorAll('[name=dur]').forEach(function (inp) {
+    inp.onchange = function () {
+      c.duration = inp.value;
+      renderCustomize();
+    };
+  });
+  document.querySelectorAll('[data-req-ack]').forEach(function (inp) {
+    inp.onchange = function () {
+      const key = inp.getAttribute('data-req-ack');
+      c.reqAck[key] = inp.checked;
+      inp.closest('.chk-row').classList.toggle('on', inp.checked);
+    };
+  });
+  const needPreset = el('custNeedPreset');
+  if (needPreset) {
+    needPreset.onchange = function () {
+      c.customNeedPreset = needPreset.value;
+    };
+  }
+  const needText = el('custNeedText');
+  if (needText) {
+    needText.oninput = function () {
+      c.customNeedText = needText.value;
+    };
+  }
+  const albSize = el('albSize');
+  if (albSize) {
+    albSize.onchange = function () {
+      c.albumSize = albSize.value;
+      renderCustomize();
+    };
+  }
+  const albPages = el('albPages');
+  if (albPages) {
+    albPages.onchange = function () {
+      c.albumPages = albPages.value;
+      renderCustomize();
+    };
+  }
+  const albPaper = el('albPaper');
+  if (albPaper) {
+    albPaper.onchange = function () {
+      c.albumPaper = albPaper.value;
+      renderCustomize();
+    };
+  }
+  const albCover = el('albCover');
+  if (albCover) {
+    albCover.onchange = function () {
+      c.albumCover = albCover.value;
+      renderCustomize();
+    };
+  }
+  const albSizeCustom = el('albSizeCustom');
+  if (albSizeCustom) albSizeCustom.oninput = function () {
+    c.albumSizeCustom = albSizeCustom.value;
+  };
+  const albPagesCustom = el('albPagesCustom');
+  if (albPagesCustom) albPagesCustom.oninput = function () {
+    c.albumPagesCustom = albPagesCustom.value;
+  };
+  const notes = el('custNotes');
+  const ct = el('noteCt');
+  if (notes) {
+    const upd = function () {
+      c.notes = notes.value;
+      if (ct) ct.textContent = String(notes.value.length);
+    };
+    notes.oninput = upd;
+    upd();
+  }
+}
+
+function renderReviewFooter() {
+  const foot = el('reviewFoot');
+  if (!foot) return;
+  const viaCustomize = state.reviewEntry === 'customize';
+  if (viaCustomize) {
+    foot.style.gridTemplateColumns = '1fr 1fr';
+    foot.innerHTML =
+      '<button type="button" class="btn outline" data-to="customize">Edit Requirements</button>' +
+      '<button type="button" class="btn" id="sendInterest">Send Interest</button>';
+  } else {
+    foot.style.gridTemplateColumns = '1fr 1fr';
+    foot.innerHTML =
+      '<button type="button" class="btn outline" data-back>← Back</button>' +
+      '<button type="button" class="btn" id="sendInterest">Send Interest</button>';
+  }
+  const send = el('sendInterest');
+  if (send) send.onclick = submitInterest;
+}
+
+function renderReview() {
+  const body = el('reviewBody');
+  if (!body) return;
+  const s = studio();
+  const showEditChip = state.reviewEntry === 'customize';
+  body.innerHTML =
+    '<div class="review-summary"><div class="thumb"></div><div style="flex:1"><b>' +
+    esc(offerTitle()) +
+    '</b><div style="font-weight:900;color:var(--blue2);margin-top:4px">' +
+    inr(offerPrice()) +
+    '</div></div>' +
+    (showEditChip ? '<button type="button" class="btn sm outline" data-to="customize">Edit</button>' : '') +
+    '</div>' +
+    '<div class="cust-hd">Event Details</div>' +
+    '<div class="kv-row"><span>Studio</span><b>' +
+    esc(s.name) +
+    '</b></div>' +
+    '<div class="kv-row review-date-kv"><span>Date</span><b id="reviewEventDate">' +
+    formatDate(state.date) +
+    '</b></div>' +
+    '<div class="kv-row"><span>Location</span><b>' +
+    esc(state.location) +
+    '</b></div>' +
+    '<div class="kv-row"><span>Photography for</span><b>' +
+    esc(needLabel()) +
+    '</b></div>' +
+    (state.mode === 'wedding' && state.community !== 'all'
+      ? '<div class="kv-row"><span>Community</span><b>' +
+        esc(
+          (COMMUNITIES.find(function (c) {
+            return c.id === state.community;
+          }) || {}).label || state.community
+        ) +
+        '</b></div>'
+      : '') +
+    (state.mode === 'wedding'
+      ? '<div class="kv-row"><span>Package level</span><b>' +
+        esc(state.pkgLevel) +
+        '</b></div><div class="kv-row"><span>Budget (search)</span><b>' +
+        inr(state.budgetMin) +
+        ' – ' +
+        inr(state.budgetMax) +
+        '</b></div>'
+      : '<div class="kv-row"><span>Budget (search)</span><b>' +
+        inr(state.svcBudgetMin) +
+        ' – ' +
+        inr(state.svcBudgetMax) +
+        '</b></div>') +
+    '<div class="cust-hd">Selected Requirements</div>' +
+    '<div id="revReqs"></div>' +
+    (state.mode === 'wedding'
+      ? '<div class="cust-hd">Policies & payment</div>' + custRenderPolicies(activePackageOwner())
+      : '<div class="cust-hd">Policies</div>' + custRenderPolicies(activeServiceOwner())) +
+    (state.customize.notes
+      ? '<div class="cust-hd">Additional Notes</div><p style="font-size:13px;font-weight:600;color:var(--mut)">' +
+        esc(state.customize.notes) +
+        '</p>'
+      : '');
+  const reqs = el('revReqs');
+  if (reqs) {
+    const lines = selectedRequirementsLines();
+    reqs.innerHTML = lines.length
+      ? lines.map(function (l) {
+          return '<div class="kv-row"><span>•</span><b style="text-align:left">' + esc(l) + '</b></div>';
+        }).join('')
+      : '<p class="sub">No add-ons selected</p>';
+  }
+  updateReviewDateLabels();
+  renderReviewDateBar();
+  renderReviewFooter();
+}
+
+function renderSentTimeline() {
+  const box = el('sentTimeline');
+  if (!box) return;
+  box.innerHTML = TIMELINE.map(function (step, i) {
+    const cls = i === 0 ? 'done' : i === 1 ? 'cur' : '';
+    return (
+      '<div class="tl-item ' +
+      cls +
+      '"><div class="tl-dot">' +
+      (i === 0 ? '✓' : '') +
+      '</div><div class="tl-bd"><b>' +
+      esc(step.label) +
+      '</b><span>' +
+      esc(step.sub) +
+      '</span></div></div>'
+    );
+  }).join('');
+}
+
+function renderInterests() {
+  const list = el('intList');
+  if (!list) return;
+  const items = state.intTab === 'active' ? state.interests.filter(function (x) {
+    return x.status !== 'past';
+  }) : state.interests.filter(function (x) {
+    return x.status === 'past';
+  });
+  if (!items.length) {
+    list.innerHTML =
+      '<p style="text-align:center;padding:32px 16px;color:var(--mut);font-weight:600">No interests yet. Send one from a package or service.</p>';
+    return;
+  }
+  list.innerHTML = items.map(function (it) {
+    return (
+      '<button type="button" class="int-card" data-int-id="' +
+      esc(it.id) +
+      '"><b>' +
+      esc(it.studioName) +
+      '</b><div style="font-size:12px;color:var(--mut);font-weight:700;margin-top:4px">' +
+      esc(it.offerName) +
+      ' · ' +
+      formatDate(it.date) +
+      '</div><span class="status ' +
+      (it.statusLabel === 'Accepted' ? 'ok' : 'review') +
+      '">' +
+      esc(it.statusLabel) +
+      '</span><div style="font-size:12px;font-weight:800;color:var(--blue2);margin-top:8px">View Details ›</div></button>'
+    );
+  }).join('');
+  list.querySelectorAll('[data-int-id]').forEach(function (btn) {
+    btn.onclick = function () {
+      state.activeInterestId = btn.getAttribute('data-int-id');
+      renderInterestDetail();
+      show('interestDetail', 'interests');
+    };
+  });
+}
+
+function renderInterestDetail() {
+  const it = interestById(state.activeInterestId);
+  if (!it) return;
+  el('intDetailHead').innerHTML =
+    '<div class="review-summary"><div class="thumb"></div><div><b>' +
+    esc(it.studioName) +
+    '</b><div style="font-size:12px;color:var(--mut);font-weight:700">' +
+    esc(it.offerName) +
+    '</div><span class="status review">' +
+    esc(it.statusLabel) +
+    '</span></div></div>';
+  el('intDetailBody').innerHTML =
+    '<div class="cust-hd">Event Details</div>' +
+    '<div class="kv-row"><span>Date</span><b>' +
+    formatDate(it.date) +
+    '</b></div>' +
+    '<div class="kv-row"><span>Location</span><b>' +
+    esc(it.location) +
+    '</b></div>' +
+    '<div class="kv-row"><span>Photography for</span><b>' +
+    esc(it.needLabel || '—') +
+    '</b></div>' +
+    '<div class="kv-row"><span>Price (est.)</span><b>' +
+    inr(it.price) +
+    '</b></div>' +
+    (it.coverageSummary
+      ? '<div class="cust-hd">Coverage</div><p style="font-size:13px;font-weight:600;color:var(--mut);margin:0 0 12px">' +
+        esc(it.coverageSummary) +
+        '</p>'
+      : '') +
+    (it.requirements && it.requirements.length
+      ? '<div class="cust-hd">Requested requirements</div>' +
+        it.requirements
+          .map(function (r) {
+            return '<div class="kv-row"><span>•</span><b style="text-align:left">' + esc(r) + '</b></div>';
+          })
+          .join('')
+      : '') +
+    (it.notes
+      ? '<div class="cust-hd">Notes</div><p style="font-size:13px;font-weight:600;color:var(--mut)">' + esc(it.notes) + '</p>'
+      : '') +
+    (it.paymentSummary
+      ? '<div class="kv-row"><span>Payment</span><b>' + esc(it.paymentSummary) + '</b></div>'
+      : '') +
+    (it.deliverySummary
+      ? '<div class="kv-row"><span>Delivery</span><b style="font-size:12px">' + esc(it.deliverySummary) + '</b></div>'
+      : '') +
+    (it.requirementsOwner && it.requirementsOwner.length
+      ? '<div class="cust-hd">Studio requirements</div><ul class="chk-list">' +
+        it.requirementsOwner
+          .map(function (r) {
+            return '<li>' + esc(r) + '</li>';
+          })
+          .join('') +
+        '</ul>'
+      : '') +
+    '<div class="cust-hd">Status Timeline</div>' +
+    '<div class="timeline">' +
+    TIMELINE.map(function (step, i) {
+      const cls = i === 0 ? 'done' : i === 1 ? 'cur' : '';
+      return (
+        '<div class="tl-item ' +
+        cls +
+        '"><div class="tl-dot">' +
+        (i === 0 ? '✓' : '') +
+        '</div><div class="tl-bd"><b>' +
+        esc(step.label) +
+        '</b><span>' +
+        (i === 1 ? formatDate(it.sentAt) + ' · 10:30 AM' : esc(step.sub)) +
+        '</span></div></div>'
+      );
+    }).join('') +
+    '</div>';
+}
+
+function submitInterest() {
+  if (!state.date) {
+    toast('Please select an event date');
+    openReviewDateModal();
+    return;
+  }
+  if (photographerDateUnavailable(state.studioId, state.date)) {
+    showDateFullModal();
+    return;
+  }
+  const pkgO = state.mode === 'wedding' ? activePackageOwner() : null;
+  const svcO = state.mode === 'service' ? activeServiceOwner() : null;
+  let cov = '';
+  if (pkgO && pkgO.coverageByFunction) {
+    const fns = pkgO.functions && pkgO.functions.length ? pkgO.functions : Object.keys(pkgO.coverageByFunction);
+    cov = fns
+      .filter(function (fn) {
+        return pkgO.coverageByFunction[fn];
+      })
+      .map(function (fn) {
+        const b = pkgO.coverageByFunction[fn];
+        return fn + ' · ' + (b.duration || '');
+      })
+      .join('; ');
+  } else if (svcO) {
+    cov = (svcO.duration || '') + (svcO.team ? ' · photo team assigned' : '');
+  }
+  const paySrc = pkgO || svcO;
+  const pay =
+    paySrc && paySrc.paymentStages
+      ? paySrc.paymentStages.map(function (p) {
+          return p.label + ' ' + p.pct + '%';
+        }).join(' · ')
+      : '';
+  const rec = {
+    id: 'int_' + Date.now(),
+    mode: state.mode,
+    studioId: state.studioId,
+    studioName: studio().name,
+    offerName: offerTitle(),
+    needLabel: needLabel(),
+    date: state.date,
+    location: state.location,
+    community: state.community,
+    pkgLevel: state.pkgLevel,
+    price: offerPrice(),
+    requirements: selectedRequirementsLines(),
+    notes: state.customize.notes || '',
+    paymentSummary: pay,
+    coverageSummary: cov,
+    deliverySummary:
+      pkgO && pkgO.deliveryMap
+        ? Object.keys(pkgO.deliveryMap)
+            .slice(0, 2)
+            .map(function (k) {
+              return k + ' · ' + pkgO.deliveryMap[k];
+            })
+            .join('; ')
+        : svcO && svcO.deliveryMap
+          ? Object.keys(svcO.deliveryMap)[0] + ' · ' + svcO.deliveryMap[Object.keys(svcO.deliveryMap)[0]]
+          : '',
+    requirementsOwner: (pkgO || svcO || {}).requirements || [],
+    policiesSummary: (pkgO || svcO || {}).policies || [],
+    statusLabel: 'Under Review',
+    status: 'active',
+    sentAt: new Date().toISOString().slice(0, 10),
+  };
+  state.interests.unshift(rec);
+  saveInterests();
+  renderSentTimeline();
+  show('sent', 'interests');
+}
+
+function injectChrome() {
+  const logo = svgIcon ? svgIcon('logo') : '';
+  if (el('brandIcoSearch')) el('brandIcoSearch').innerHTML = logo;
+  if (el('navHomeIco')) el('navHomeIco').innerHTML = svgIcon('house');
+  if (el('navSearchIco')) el('navSearchIco').innerHTML = svgIcon('search');
+  if (el('navIntIco')) el('navIntIco').innerHTML = svgIcon('heart', 'flow-ico-sm');
+  if (el('navProfIco')) el('navProfIco').innerHTML = svgIcon('people', 'flow-ico-sm');
+}
+
+function bindEvents() {
+  el('goResults').onclick = function () {
+    if (!state.photoNeed) {
+      toast('Select what you need photography for');
+      return;
+    }
+    syncModeFromNeed();
+    renderResults();
+    show('results', 'search');
+  };
+  document.querySelector('.phone').addEventListener('click', function (e) {
+    if (e.target.closest('[data-back]')) {
+      goBack();
+      return;
+    }
+    const to = e.target.closest('[data-to]');
+    if (to) {
+      const id = to.getAttribute('data-to');
+      if (id === 'customize') {
+        renderCustomize();
+        show('customize', 'detail');
+      } else if (id === 'interests') {
+        renderInterests();
+        show('interests', 'search');
+      } else if (id === 'review') {
+        state.reviewEntry = 'customize';
+        renderReview();
+        show('review', 'customize');
+      } else show(id);
+      return;
+    }
+  });
+  el('profPrimary').onclick = function () {
+    if (state.mode === 'wedding') {
+      renderCatalog();
+      show('catalog', 'profile');
+    } else {
+      openServiceFlowFromProfile();
+    }
+  };
+  el('profMessage').onclick = function () {
+    toast('Messaging opens in full app');
+  };
+  document.querySelectorAll('[data-ptab]').forEach(function (btn) {
+    btn.onclick = function () {
+      state.profTab = btn.getAttribute('data-ptab');
+      document.querySelectorAll('[data-ptab]').forEach(function (b) {
+        b.classList.toggle('on', b === btn);
+      });
+      renderProfPanel();
+    };
+  });
+  const goCust = el('goCustomize');
+  if (goCust) {
+    goCust.onclick = function () {
+      if (!ensureEventDateForInterest()) return;
+      renderCustomize();
+      show('customize', 'detail');
+    };
+  }
+  const goInterest = el('goCustomize2');
+  if (goInterest) {
+    goInterest.onclick = function () {
+      if (!ensureEventDateForInterest()) return;
+      state.reviewEntry = 'direct';
+      renderReview();
+      show('review', 'detail');
+    };
+  }
+  const goReviewBtn = el('goReview');
+  if (goReviewBtn) {
+    goReviewBtn.onclick = function () {
+      if (!ensureEventDateForInterest()) return;
+      state.reviewEntry = 'customize';
+      renderReview();
+      show('review', 'customize');
+    };
+  }
+  document.querySelectorAll('[data-intab]').forEach(function (btn) {
+    btn.onclick = function () {
+      state.intTab = btn.getAttribute('data-intab');
+      document.querySelectorAll('[data-intab]').forEach(function (b) {
+        b.classList.toggle('on', b === btn);
+      });
+      renderInterests();
+    };
+  });
+  document.querySelectorAll('[data-nav]').forEach(function (btn) {
+    btn.onclick = function () {
+      const nav = btn.getAttribute('data-nav');
+      if (nav === 'home' || nav === 'search') {
+        renderSearchForm();
+        show('search', 'search');
+      } else if (nav === 'interests') {
+        renderInterests();
+        show('interests', 'search');
+      } else toast('Profile — demo');
+    };
+  });
+  el('msgPhotographer').onclick = function () {
+    toast('Open chat with photographer');
+  };
+  const reviewDateModal = el('reviewDateModal');
+  if (reviewDateModal && !reviewDateModal._bound) {
+    reviewDateModal._bound = true;
+    reviewDateModal.querySelector('[data-cal-cancel]').onclick = closeReviewDateModal;
+    reviewDateModal.querySelector('[data-cal-done]').onclick = function () {
+      const pick = state.reviewCalPick;
+      if (!pick) {
+        toast('Please select a date');
+        return;
+      }
+      if (photographerDateUnavailable(state.studioId, pick)) {
+        toast('That date is fully booked — choose another');
+        return;
+      }
+      state.date = pick;
+      const searchDt = el('fDate');
+      if (searchDt) searchDt.value = state.date;
+      updateReviewDateLabels();
+      if (state.mode === 'service') {
+        renderDetailDateBar();
+        if (activeScreenId() === 'catalog') renderCatalogDateBar();
+      }
+      closeReviewDateModal();
+    };
+  }
+  const dateFullChange = el('dateFullChange');
+  if (dateFullChange && !dateFullChange._bound) {
+    dateFullChange._bound = true;
+    dateFullChange.onclick = function () {
+      closeDateFullModal();
+      openReviewDateModal();
+    };
+  }
+  const dateFullModal = el('dateFullModal');
+  if (dateFullModal && !dateFullModal._bound) {
+    dateFullModal._bound = true;
+    dateFullModal.addEventListener('click', function (e) {
+      if (e.target === dateFullModal) closeDateFullModal();
+    });
+  }
+}
+
+function bootPhotoCustomer() {
+  try {
+    if (!el('goResults')) throw new Error('Open ' + DEMO_FILE + ', not the shell.');
+    loadInterests();
+    injectChrome();
+    renderSearchForm();
+    bindEvents();
+    const tag = el('buildTag');
+    if (tag) tag.textContent = PHOTO_CUSTOMER_BUILD + ' · Default home search';
+    if (el('bootError')) el('bootError').hidden = true;
+  } catch (err) {
+    console.error(err);
+    const box = el('bootError');
+    if (box) {
+      box.hidden = false;
+      box.innerHTML = '<h1 style="color:#DC2626">Demo did not start</h1><p>' + esc(err.message) + '</p>';
+    }
+  }
+}
+
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', bootPhotoCustomer);
+} else {
+  bootPhotoCustomer();
+}
+
+</script>
+<!-- APP_END -->
+
+</div></div>
+</body>
+</html>
