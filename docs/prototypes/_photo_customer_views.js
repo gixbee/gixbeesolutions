@@ -415,19 +415,18 @@ function custPkgLevelClass(level) {
 function custPkgCoverageSideSummary(pkg) {
   const blocks = pkg.coverageByFunction || {};
   const fns = pkg.functions && pkg.functions.length ? pkg.functions : Object.keys(blocks);
-  let primaryFn = null;
-  if (fns.indexOf('Wedding & Reception') >= 0) primaryFn = 'Wedding & Reception';
-  else {
-    for (let i = 0; i < fns.length; i++) {
-      if (!custFnIsCoupleShoot(fns[i])) {
-        primaryFn = fns[i];
-        break;
-      }
-    }
-  }
-  const b = primaryFn ? blocks[primaryFn] : null;
-  if (!b || !b.coverageSide) return '';
-  return b.coverageSide === 'both' ? 'Both sides' : 'Single side';
+  let hasBoth = false;
+  let hasSingle = false;
+  fns.forEach(function (fn) {
+    if (custFnIsCoupleShoot(fn)) return;
+    const b = blocks[fn];
+    if (!b || !b.coverageSide) return;
+    if (b.coverageSide === 'both') hasBoth = true;
+    else if (b.coverageSide === 'single') hasSingle = true;
+  });
+  if (!hasBoth && !hasSingle) return '';
+  if (hasBoth && !hasSingle) return 'Both sides';
+  return 'Single side';
 }
 
 function custSummaryBulletsFromPkg(pkg) {

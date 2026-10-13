@@ -28,6 +28,45 @@ const CUST_NEED_PRESETS = [
   { id: 'custom', label: 'Custom (type below)' },
 ];
 
+const CUST_SERVICE_NEED_PRESETS = {
+  funeral: [
+    { id: '', label: 'Select…' },
+    { id: 'stream', label: 'Live stream for relatives abroad' },
+    { id: 'discreet', label: 'Extra-discreet coverage request' },
+    { id: 'liaison', label: 'Family liaison contact on arrival' },
+    { id: 'custom', label: 'Custom (type below)' },
+  ],
+  baptism: [
+    { id: '', label: 'Select…' },
+    { id: 'church', label: 'Church permission / priest coordination' },
+    { id: 'groups', label: 'Family group portrait list' },
+    { id: 'custom', label: 'Custom (type below)' },
+  ],
+  event: [
+    { id: '', label: 'Select…' },
+    { id: 'timeline', label: 'Event run-sheet / timeline' },
+    { id: 'venue', label: 'Venue lighting limitations' },
+    { id: 'custom', label: 'Custom (type below)' },
+  ],
+  portrait: [
+    { id: '', label: 'Select…' },
+    { id: 'outfit', label: 'Outfit / look preferences' },
+    { id: 'location', label: 'Preferred outdoor location' },
+    { id: 'custom', label: 'Custom (type below)' },
+  ],
+  corporate: [
+    { id: '', label: 'Select…' },
+    { id: 'headshots', label: 'Executive headshot list' },
+    { id: 'billing', label: 'GST invoice / company billing' },
+    { id: 'custom', label: 'Custom (type below)' },
+  ],
+};
+
+function custNeedPresetsForService() {
+  const key = state.serviceId || state.photoNeed || '';
+  return CUST_SERVICE_NEED_PRESETS[key] || CUST_NEED_PRESETS;
+}
+
 const CUST_ALBUM_SIZES = ['10 x 12 inch', '12 x 30 inch', '12 x 36 inch', 'Custom'];
 const CUST_ALBUM_PAGES = ['20', '25', '30', '40', '50', 'Custom'];
 const CUST_ALBUM_PAPER = ['Matte', 'Lustre', 'Glossy', 'Custom'];
@@ -321,7 +360,7 @@ function custRenderCustomizeService(svcOwner, serviceExtras, durationOptions, st
   html += '<div class="cust-hd">Your specific needs</div>';
   html +=
     '<div class="fld"><label>What should we know?</label><div class="sel-box"><select id="custNeedPreset">' +
-    CUST_NEED_PRESETS.map(function (p) {
+    custNeedPresetsForService().map(function (p) {
       return (
         '<option value="' +
         custEsc(p.id) +
@@ -381,7 +420,8 @@ function custCustomizeRequirementLines(state, owner) {
     lines.push(alb);
   }
   if (c.customNeedPreset || c.customNeedText) {
-    const preset = CUST_NEED_PRESETS.find(function (p) {
+    const presets = state.mode === 'service' ? custNeedPresetsForService() : CUST_NEED_PRESETS;
+    const preset = presets.find(function (p) {
       return p.id === c.customNeedPreset;
     });
     if (preset && preset.id && preset.id !== 'custom') lines.push(preset.label);

@@ -371,9 +371,62 @@ function ownerPayloadForPackage(studioId, pkgId) {
   return ownerPkgBlueStandard();
 }
 
+function ownerSvcBlueEvent() {
+  const p = ownerSvcBlueBaptism();
+  p.id = 'event-gtg';
+  p.name = 'Event / Get-togethers Photography';
+  p.category = 'event';
+  p.blurb =
+    'Coverage for family get-togethers, birthdays, and small events with candid storytelling and group portraits.';
+  p.price = 18000;
+  p.listPrice = 18000;
+  p.duration = '4 Hours';
+  p.extraHour = 2500;
+  p.photoDetails = { 'Edited Photos': { qty: 250, format: 'JPG (High Resolution)', delivery: '10 Working Days' } };
+  p.requirements = ['Venue access permission', 'Event timeline (optional)'];
+  return p;
+}
+
+function ownerSvcBluePortrait() {
+  const p = ownerSvcBlueBaptism();
+  p.id = 'portrait';
+  p.name = 'Portrait Photography';
+  p.category = 'portrait';
+  p.blurb = 'Studio or outdoor portrait session with guided poses and retouched deliverables.';
+  p.price = 5000;
+  p.listPrice = 5000;
+  p.duration = '1 Hour';
+  p.extraHour = 1500;
+  p.photoDetails = { 'Edited Photos': { qty: 30, format: 'JPG (High Resolution)', delivery: '5 Working Days' } };
+  p.requirements = ['Arrive 10 minutes early', 'Up to 2 outfit changes included'];
+  return p;
+}
+
+function ownerSvcBlueCorporate() {
+  const p = ownerSvcBlueBaptism();
+  p.id = 'corporate';
+  p.name = 'Corporate Photography';
+  p.category = 'corporate';
+  p.blurb = 'Half-day corporate event and headshot coverage for teams and conferences.';
+  p.price = 15000;
+  p.listPrice = 15000;
+  p.duration = '4 Hours';
+  p.extraHour = 3000;
+  p.photoDetails = { 'Edited Photos': { qty: 200, format: 'JPG (High Resolution)', delivery: '7 Working Days' } };
+  p.requirements = ['Company billing details if required', 'Shot list for executives (optional)'];
+  return p;
+}
+
 function ownerPayloadForService(studioId, serviceKey) {
+  if (studioId === 'archana') {
+    if (serviceKey === 'baptism') return ownerSvcBlueBaptism();
+    return ownerSvcBlueFuneral();
+  }
   if (studioId === 'blue') {
     if (serviceKey === 'baptism') return ownerSvcBlueBaptism();
+    if (serviceKey === 'event') return ownerSvcBlueEvent();
+    if (serviceKey === 'portrait') return ownerSvcBluePortrait();
+    if (serviceKey === 'corporate') return ownerSvcBlueCorporate();
     return ownerSvcBlueFuneral();
   }
   return ownerSvcBlueFuneral();

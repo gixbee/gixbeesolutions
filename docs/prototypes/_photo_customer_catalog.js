@@ -11,8 +11,8 @@ const CUSTOMER_CATALOG = {
     events: '200+',
     team: 'Professional Team',
     about:
-      'Blue Lens Studio specialises in Christian and inter-faith weddings across Pathanamthitta and Kottayam. We deliver candid storytelling, traditional coverage, and cinematic films with clear deliverable timelines.',
-    areas: ['Pathanamthitta', 'Kottayam', 'Ranni', 'Thiruvalla'],
+      'Blue Lens Studio specialises in Christian and inter-faith weddings across south-central Kerala districts. We deliver candid storytelling, traditional coverage, and cinematic films with clear deliverable timelines.',
+    areas: ['Pathanamthitta', 'Kottayam', 'Kollam', 'Alappuzha'],
     weddingFrom: 65000,
     serviceFrom: 8000,
     packages: [
@@ -286,7 +286,7 @@ const CUSTOMER_CATALOG = {
     team: 'Professional Team',
     about:
       'Archana Photography is a full-service studio for Hindu and Christian weddings, with published work in Kerala wedding magazines. We operate with lead photographer Archana K. and trained associates.',
-    areas: ['Pathanamthitta', 'Kozhencherry', 'Ranni', 'Thiruvalla'],
+    areas: ['Pathanamthitta', 'Kottayam', 'Kollam', 'Alappuzha'],
     weddingFrom: 72000,
     serviceFrom: 7500,
     packages: [
@@ -422,8 +422,55 @@ function packagesForStudio(studioId, filters) {
       });
 }
 
+function studioServiceKeys(studioId) {
+  const svcs = catalogStudio(studioId).services || {};
+  return Object.keys(svcs);
+}
+
+function studioOffersService(studioId, serviceKey) {
+  if (!serviceKey) return studioServiceKeys(studioId).length > 0;
+  const svcs = catalogStudio(studioId).services || {};
+  return Object.prototype.hasOwnProperty.call(svcs, serviceKey);
+}
+
+function serviceCardFromCatalog(studioId, serviceKey) {
+  const svcs = catalogStudio(studioId).services || {};
+  const s = svcs[serviceKey];
+  if (!s) return null;
+  const owner = ownerPayloadForService(studioId, serviceKey);
+  return {
+    serviceKey: serviceKey,
+    id: s.id || serviceKey,
+    name: s.name || owner.name,
+    price: s.price != null ? s.price : owner.price,
+    listPrice: s.listPrice != null ? s.listPrice : owner.listPrice || owner.price,
+    discountPct: s.discountPct != null ? s.discountPct : owner.discountPct,
+    inclusions: s.inclusions || [],
+    cardBullets: (s.inclusions || []).slice(0, 4),
+    durationOptions:
+      s.durationOptions && s.durationOptions.length
+        ? s.durationOptions
+        : [{ id: 'inc', label: owner.duration || 'Included', add: 0 }],
+    owner: owner,
+  };
+}
+
+function servicesForStudio(studioId, needKey) {
+  let keys = studioServiceKeys(studioId);
+  if (needKey) {
+    keys = keys.indexOf(needKey) >= 0 ? [needKey] : [];
+  }
+  return keys
+    .map(function (key) {
+      return serviceCardFromCatalog(studioId, key);
+    })
+    .filter(Boolean);
+}
+
 function serviceForStudio(studioId, serviceKey) {
   const key = serviceKey || 'funeral';
+  const fromCat = serviceCardFromCatalog(studioId, key);
+  if (fromCat) return fromCat;
   return serviceCardFromOwner(ownerPayloadForService(studioId, key));
 }
 

@@ -1,4 +1,4 @@
-const PHOTO_CUSTOMER_BUILD = '2026-10-13-photo-customer-owner-mirror-v8a';
+const PHOTO_CUSTOMER_BUILD = '2026-10-13-photo-customer-service-flow-v9';
 const DEMO_FILE = 'GIXBEE-PHOTO-CUSTOMER-FINALFLOW.html';
 const STORAGE_KEY = 'GIXBEE_PHOTO_CUSTOMER_INTERESTS_V2';
 
@@ -30,6 +30,38 @@ const COMMUNITIES = [
   { id: 'other', label: 'Others', icon: '◆' },
 ];
 const PKG_LEVELS = ['All', 'Basic', 'Standard', 'Premium'];
+const SVC_BUDGET_MIN_OPTS = [
+  { v: 5000, l: '₹ 5,000' },
+  { v: 10000, l: '₹ 10,000' },
+  { v: 15000, l: '₹ 15,000' },
+];
+const SVC_BUDGET_MAX_OPTS = [
+  { v: 25000, l: '₹ 25,000' },
+  { v: 50000, l: '₹ 50,000' },
+  { v: 100000, l: '₹ 1,00,000' },
+];
+const SERVICE_SEARCH_HERO = {
+  funeral: {
+    title: 'Funeral & Memorial Photography',
+    sub: 'Respectful coverage with clear deliverables. Compare studios and send interest in minutes.',
+  },
+  baptism: {
+    title: 'Baptism & Naming Photography',
+    sub: 'Church and family celebration coverage from trusted Kerala studios.',
+  },
+  event: {
+    title: 'Event & Get-together Photography',
+    sub: 'Birthdays, family events, and gatherings — see packages and add-ons upfront.',
+  },
+  portrait: {
+    title: 'Portrait Photography',
+    sub: 'Studio or outdoor sessions with transparent pricing and delivery timelines.',
+  },
+  corporate: {
+    title: 'Corporate Photography',
+    sub: 'Events, conferences, and team headshots from verified professionals.',
+  },
+};
 /** packagePath: show Community + Package type (wedding packages). */
 const PHOTO_NEEDS = [
   { id: '', label: 'Select…', packagePath: false },
@@ -298,11 +330,19 @@ function bindDatePickButtons(root) {
   });
 }
 
+function catalogDatePrompt() {
+  return state.mode === 'service'
+    ? 'Confirm your event date before choosing a service'
+    : 'Confirm your event date before choosing a package';
+}
+
 function renderCatalogDateBar() {
   const bar = el('catalogDateBar');
   if (!bar) return;
   bar.innerHTML =
-    '<p class="sub" style="margin:0 0 8px;font-size:11px;font-weight:700">Confirm your event date before choosing a package</p>' +
+    '<p class="sub" style="margin:0 0 8px;font-size:11px;font-weight:700">' +
+    esc(catalogDatePrompt()) +
+    '</p>' +
     eventDatePickHtml();
   bindDatePickButtons(bar);
   if (photographerDateUnavailable(state.studioId, state.date)) {
@@ -311,17 +351,44 @@ function renderCatalogDateBar() {
   }
 }
 
-function renderReviewDateBar() {
-  const bar = el('reviewDateBar');
+function renderDetailDateBar() {
+  const bar = el('detailDateBar');
   if (!bar) return;
-  if (state.mode === 'wedding') {
+  if (state.mode !== 'service') {
     bar.hidden = true;
     bar.innerHTML = '';
     return;
   }
   bar.hidden = false;
-  bar.innerHTML = eventDatePickHtml();
+  bar.innerHTML =
+    '<p class="sub" style="margin:0 0 8px;font-size:11px;font-weight:700">Event date</p>' +
+    eventDatePickHtml();
   bindDatePickButtons(bar);
+  updateReviewDateLabels();
+  if (photographerDateUnavailable(state.studioId, state.date)) {
+    bar.innerHTML +=
+      '<p class="sub" style="margin:8px 0 0;font-size:11px;font-weight:700;color:#B45309">This date looks fully booked — choose another day.</p>';
+  }
+}
+
+function ensureEventDateForInterest() {
+  if (!state.date) {
+    toast('Please select an event date');
+    openReviewDateModal();
+    return false;
+  }
+  if (photographerDateUnavailable(state.studioId, state.date)) {
+    showDateFullModal();
+    return false;
+  }
+  return true;
+}
+
+function renderReviewDateBar() {
+  const bar = el('reviewDateBar');
+  if (!bar) return;
+  bar.hidden = true;
+  bar.innerHTML = '';
 }
 
 function toast(msg) {
@@ -535,12 +602,40 @@ function saveInterests() {
   }
 }
 
+function searchHeroHtml() {
+  if (showPackageFilters()) {
+    return (
+      '<div class="hero-wed"><h2>Find Your Wedding Photographer</h2><p>Compare packages, coverage, and deliverables from trusted studios.</p></div>'
+    );
+  }
+  const id = state.photoNeed || '';
+  const preset =
+    SERVICE_SEARCH_HERO[id] || {
+      title: 'Find Photography Services',
+      sub: 'Browse individual services, coverage, and deliverables from verified studios.',
+    };
+  return (
+    '<div class="hero-wed hero-svc"><h2>' +
+    esc(preset.title) +
+    '</h2><p>' +
+    esc(preset.sub) +
+    '</p></div>'
+  );
+}
+
+function studiosForResults() {
+  if (state.mode === 'wedding') return studioList();
+  const key = state.photoNeed || state.serviceId;
+  return studioList().filter(function (s) {
+    return studioOffersService(s.id, key);
+  });
+}
+
 function renderSearchForm() {
   const hero = el('searchHero');
   const form = el('searchForm');
   if (!hero || !form) return;
-  hero.innerHTML =
-    '<div class="hero-wed"><h2>Find Your Wedding Photographer</h2><p>Compare packages, coverage, and deliverables from trusted studios.</p></div>';
+  hero.innerHTML = searchHeroHtml();
   const pkgBlock = showPackageFilters()
     ? '<div class="fld"><label>Community / Religion</label><div class="comm-row" id="fComm">' +
       COMMUNITIES.map(function (c) {
@@ -599,41 +694,73 @@ function renderSearchForm() {
     }).join('') +
     '</select></div></div>' +
     pkgBlock +
-    '<div class="fld"><label>Budget Range (Optional)</label><div class="budget-row">' +
-    '<div class="sel-box"><select id="fBudMin">' +
-    [
-      { v: 50000, l: '₹ 50,000' },
-      { v: 75000, l: '₹ 75,000' },
-      { v: 100000, l: '₹ 1,00,000' },
-    ].map(function (o) {
-      return (
-        '<option value="' +
-        o.v +
-        '"' +
-        (state.budgetMin === o.v ? ' selected' : '') +
-        '>' +
-        o.l +
-        '</option>'
-      );
-    }).join('') +
-    '</select></div>' +
-    '<div class="sel-box"><select id="fBudMax">' +
-    [
-      { v: 100000, l: '₹ 1,00,000' },
-      { v: 150000, l: '₹ 1,50,000' },
-      { v: 200000, l: '₹ 2,00,000' },
-    ].map(function (o) {
-      return (
-        '<option value="' +
-        o.v +
-        '"' +
-        (state.budgetMax === o.v ? ' selected' : '') +
-        '>' +
-        o.l +
-        '</option>'
-      );
-    }).join('') +
-    '</select></div></div></div>';
+    (showPackageFilters()
+      ? '<div class="fld"><label>Budget Range (Optional)</label><div class="budget-row">' +
+        '<div class="sel-box"><select id="fBudMin">' +
+        [
+          { v: 50000, l: '₹ 50,000' },
+          { v: 75000, l: '₹ 75,000' },
+          { v: 100000, l: '₹ 1,00,000' },
+        ]
+          .map(function (o) {
+            return (
+              '<option value="' +
+              o.v +
+              '"' +
+              (state.budgetMin === o.v ? ' selected' : '') +
+              '>' +
+              o.l +
+              '</option>'
+            );
+          })
+          .join('') +
+        '</select></div>' +
+        '<div class="sel-box"><select id="fBudMax">' +
+        [
+          { v: 100000, l: '₹ 1,00,000' },
+          { v: 150000, l: '₹ 1,50,000' },
+          { v: 200000, l: '₹ 2,00,000' },
+        ]
+          .map(function (o) {
+            return (
+              '<option value="' +
+              o.v +
+              '"' +
+              (state.budgetMax === o.v ? ' selected' : '') +
+              '>' +
+              o.l +
+              '</option>'
+            );
+          })
+          .join('') +
+        '</select></div></div></div>'
+      : '<div class="fld"><label>Service Budget (Optional)</label><div class="budget-row">' +
+        '<div class="sel-box"><select id="fSvcBudMin">' +
+        SVC_BUDGET_MIN_OPTS.map(function (o) {
+          return (
+            '<option value="' +
+            o.v +
+            '"' +
+            (state.svcBudgetMin === o.v ? ' selected' : '') +
+            '>' +
+            o.l +
+            '</option>'
+          );
+        }).join('') +
+        '</select></div>' +
+        '<div class="sel-box"><select id="fSvcBudMax">' +
+        SVC_BUDGET_MAX_OPTS.map(function (o) {
+          return (
+            '<option value="' +
+            o.v +
+            '"' +
+            (state.svcBudgetMax === o.v ? ' selected' : '') +
+            '>' +
+            o.l +
+            '</option>'
+          );
+        }).join('') +
+        '</select></div></div></div>');
   bindSearchForm();
 }
 
@@ -680,6 +807,14 @@ function bindSearchForm() {
   if (bmax) bmax.onchange = function () {
     state.budgetMax = +bmax.value;
   };
+  const sbmin = el('fSvcBudMin');
+  const sbmax = el('fSvcBudMax');
+  if (sbmin) sbmin.onchange = function () {
+    state.svcBudgetMin = +sbmin.value;
+  };
+  if (sbmax) sbmax.onchange = function () {
+    state.svcBudgetMax = +sbmax.value;
+  };
 }
 
 function renderResults() {
@@ -697,12 +832,23 @@ function renderResults() {
     if (count) count.textContent = '8 photographers found';
   }
   if (!list) return;
-  list.innerHTML = studioList().map(function (s) {
+  const rows = studiosForResults();
+  if (state.mode === 'service' && count) {
+    count.textContent = rows.length + (rows.length === 1 ? ' studio found' : ' studios found');
+  }
+  if (!rows.length) {
+    list.innerHTML =
+      '<div class="hub-empty" style="margin:16px"><div class="hub-empty-ico">🔍</div><b>No studios for this service yet</b><p>Try another district or a different photography need.</p></div>';
+    return;
+  }
+  list.innerHTML = rows.map(function (s) {
     const from = state.mode === 'wedding' ? s.weddingFrom : s.serviceFrom;
+    const svcCard = state.mode === 'service' ? serviceForStudio(s.id, state.photoNeed) : null;
+    const fromPrice = state.mode === 'service' && svcCard && svcCard.price ? svcCard.price : from;
     const tag =
       state.mode === 'wedding'
         ? '<span class="ph-tag">Christian</span><span class="ph-tag">Standard</span>'
-        : '<span class="ph-tag">' + esc(needLabel()) + '</span>';
+        : '<span class="ph-tag">' + esc(needLabel()) + '</span><span class="ph-tag">Verified</span>';
     return (
       '<button type="button" class="ph-row" data-studio="' +
       s.id +
@@ -715,7 +861,7 @@ function renderResults() {
       ') · ' +
       s.km +
       ' km</div><div class="ph-price">' +
-      inr(from) +
+      inr(fromPrice) +
       (state.mode === 'wedding' ? ' onwards' : '') +
       '</div><div class="ph-tags">' +
       tag +
@@ -856,7 +1002,77 @@ function renderCatalogFilterPanel() {
   }
 }
 
+function renderServiceCatalog() {
+  const title = el('catTitle');
+  if (title) title.textContent = studio().name + ' · Services';
+  const filters = el('catFilters');
+  if (filters) filters.innerHTML = '';
+  const panel = el('catFilterPanel');
+  if (panel) {
+    panel.hidden = true;
+    panel.innerHTML = '';
+  }
+  state.catalogFilterPanel = null;
+  renderCatalogDateBar();
+  const list = el('catList');
+  const countEl = el('catCount');
+  const svcs = servicesForStudio(state.studioId, state.photoNeed);
+  if (countEl) {
+    countEl.textContent =
+      svcs.length === 1 ? 'Showing 1 service for ' + needLabel() : 'Showing ' + svcs.length + ' services';
+  }
+  if (!list) return;
+  if (!svcs.length) {
+    list.innerHTML =
+      '<div class="hub-empty" style="margin:16px"><div class="hub-empty-ico">📷</div><b>Service not listed</b><p>This studio has not published <b>' +
+      esc(needLabel()) +
+      '</b> yet. Try another photographer from results.</p></div>';
+    return;
+  }
+  list.innerHTML = svcs
+    .map(function (svc) {
+      const bullets = svc.cardBullets || svc.inclusions || [];
+      let priceHtml = inr(svc.price);
+      if (svc.listPrice > svc.price) {
+        priceHtml +=
+          ' <span style="font-size:11px;color:var(--mut);text-decoration:line-through">' + inr(svc.listPrice) + '</span>';
+      }
+      return (
+        '<button type="button" class="pkg-card" data-svc="' +
+        esc(svc.serviceKey) +
+        '"><div class="thumb"></div><div><b>' +
+        esc(svc.name) +
+        '</b><div class="price">' +
+        priceHtml +
+        (svc.discountPct ? ' <span style="font-size:10px;color:#BE185D">' + svc.discountPct + '% OFF</span>' : '') +
+        '</div><ul>' +
+        bullets
+          .slice(0, 4)
+          .map(function (b) {
+            return '<li>' + esc(b) + '</li>';
+          })
+          .join('') +
+        '</ul><span class="link">View Service ›</span></div></button>'
+      );
+    })
+    .join('');
+  list.querySelectorAll('[data-svc]').forEach(function (btn) {
+    btn.onclick = function () {
+      state.serviceId = btn.getAttribute('data-svc');
+      state.customize.duration = 'inc';
+      state.detailTab = 'overview';
+      state.detailBack = 'catalog';
+      renderDetail();
+      show('detail', 'catalog');
+    };
+  });
+}
+
 function renderCatalog() {
+  if (state.mode === 'service') {
+    renderServiceCatalog();
+    return;
+  }
   el('catTitle').textContent = studio().name;
   const filters = el('catFilters');
   if (filters) {
@@ -1007,6 +1223,7 @@ function renderDetail() {
   } else {
     panel.innerHTML = renderReviewsHtml();
   }
+  renderDetailDateBar();
 }
 
 function renderCustomize() {
@@ -1171,9 +1388,12 @@ function renderReview() {
     '<div class="kv-row"><span>Studio</span><b>' +
     esc(s.name) +
     '</b></div>' +
-    '<div class="kv-row"><span>Date</span><b id="reviewEventDate">' +
+    '<div class="kv-row review-date-kv"><span>Date</span><b id="reviewEventDate">' +
     formatDate(state.date) +
     '</b></div>' +
+    (state.mode === 'service'
+      ? '<div class="pad16" style="padding-top:0;padding-bottom:8px">' + eventDatePickHtml() + '</div>'
+      : '') +
     '<div class="kv-row"><span>Location</span><b>' +
     esc(state.location) +
     '</b></div>' +
@@ -1197,7 +1417,11 @@ function renderReview() {
         ' – ' +
         inr(state.budgetMax) +
         '</b></div>'
-      : '') +
+      : '<div class="kv-row"><span>Budget (search)</span><b>' +
+        inr(state.svcBudgetMin) +
+        ' – ' +
+        inr(state.svcBudgetMax) +
+        '</b></div>') +
     '<div class="cust-hd">Selected Requirements</div>' +
     '<div id="revReqs"></div>' +
     (state.mode === 'wedding'
@@ -1217,7 +1441,9 @@ function renderReview() {
         }).join('')
       : '<p class="sub">No add-ons selected</p>';
   }
-  if (state.mode === 'service') renderReviewDateBar();
+  bindDatePickButtons(body);
+  updateReviewDateLabels();
+  renderReviewDateBar();
   renderReviewFooter();
 }
 
@@ -1473,10 +1699,13 @@ function bindEvents() {
       renderCatalog();
       show('catalog', 'profile');
     } else {
-      state.detailTab = 'overview';
-      state.detailBack = 'profile';
-      renderDetail();
-      show('detail', 'profile');
+      if (!studioOffersService(state.studioId, state.photoNeed)) {
+        toast('This studio does not list ' + needLabel());
+        return;
+      }
+      state.serviceId = state.photoNeed;
+      renderServiceCatalog();
+      show('catalog', 'profile');
     }
   };
   el('profMessage').onclick = function () {
@@ -1494,6 +1723,7 @@ function bindEvents() {
   const goCust = el('goCustomize');
   if (goCust) {
     goCust.onclick = function () {
+      if (!ensureEventDateForInterest()) return;
       renderCustomize();
       show('customize', 'detail');
     };
@@ -1501,12 +1731,14 @@ function bindEvents() {
   const goInterest = el('goCustomize2');
   if (goInterest) {
     goInterest.onclick = function () {
+      if (!ensureEventDateForInterest()) return;
       state.reviewEntry = 'direct';
       renderReview();
       show('review', 'detail');
     };
   }
   el('goReview').onclick = function () {
+    if (!ensureEventDateForInterest()) return;
     state.reviewEntry = 'customize';
     renderReview();
     show('review', 'customize');
@@ -1553,6 +1785,10 @@ function bindEvents() {
       const searchDt = el('fDate');
       if (searchDt) searchDt.value = state.date;
       updateReviewDateLabels();
+      if (state.mode === 'service') {
+        renderDetailDateBar();
+        if (activeScreenId() === 'catalog') renderCatalogDateBar();
+      }
       closeReviewDateModal();
     };
   }

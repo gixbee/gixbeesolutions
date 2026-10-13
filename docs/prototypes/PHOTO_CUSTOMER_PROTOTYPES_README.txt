@@ -20,6 +20,9 @@ Sources:
 
   photo-customer-flow-shell.html
   _photo_customer_flow_app.js
+  _photo_customer_catalog.js
+  _photo_customer_owner_payloads.js  (full owner-wizard-shaped demo data)
+  _photo_customer_views.js           (customer renderers for that data)
   _customer_flow_icons.js (bundled at build)
 
 Regenerate:
