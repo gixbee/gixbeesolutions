@@ -1,4 +1,4 @@
-const PHOTO_CUSTOMER_BUILD = '2026-10-13-photo-customer-flow-v1';
+const PHOTO_CUSTOMER_BUILD = '2026-10-13-photo-customer-search-home-v2';
 const DEMO_FILE = 'GIXBEE-PHOTO-CUSTOMER-FINALFLOW.html';
 const STORAGE_KEY = 'GIXBEE_PHOTO_CUSTOMER_INTERESTS_V1';
 
@@ -11,11 +11,21 @@ const COMMUNITIES = [
   { id: 'other', label: 'Others', icon: '◆' },
 ];
 const PKG_LEVELS = ['All', 'Basic', 'Standard', 'Premium'];
-const SERVICES = [
-  { id: 'funeral', label: 'Funeral / Memorial' },
-  { id: 'portrait', label: 'Portrait' },
-  { id: 'corporate', label: 'Corporate' },
-  { id: 'event', label: 'Event / Get-togethers' },
+/** packagePath: show Community + Package type (wedding packages). */
+const PHOTO_NEEDS = [
+  { id: '', label: 'Select…', packagePath: false },
+  { id: 'wedding', label: 'Wedding / Marriage', packagePath: true },
+  { id: 'engagement', label: 'Engagement', packagePath: true },
+  { id: 'save-date', label: 'Save the Date', packagePath: true },
+  { id: 'pre-wedding', label: 'Pre-Wedding Shoot', packagePath: true },
+  { id: 'post-wedding', label: 'Post-Wedding Shoot', packagePath: true },
+  { id: 'reception', label: 'Reception', packagePath: true },
+  { id: 'wedding-eve', label: 'Wedding Eve', packagePath: true },
+  { id: 'funeral', label: 'Funeral / Memorial', packagePath: false },
+  { id: 'baptism', label: 'Baptism', packagePath: false },
+  { id: 'event', label: 'Event Photography', packagePath: false },
+  { id: 'portrait', label: 'Portrait', packagePath: false },
+  { id: 'corporate', label: 'Corporate', packagePath: false },
 ];
 
 const STUDIOS = [
@@ -129,13 +139,14 @@ const TIMELINE = [
 
 const state = {
   mode: 'wedding',
+  photoNeed: '',
   serviceId: 'funeral',
   location: LOCATIONS[0],
   date: '2026-12-15',
   community: 'all',
   pkgLevel: 'All',
   budgetMin: 50000,
-  budgetMax: 200000,
+  budgetMax: 100000,
   svcBudgetMin: 5000,
   svcBudgetMax: 50000,
   studioId: 'blue',
@@ -145,8 +156,35 @@ const state = {
   intTab: 'active',
   customize: { extras: {}, duration: 'inc', albumSize: '12×12', albumPages: '30', functions: {}, notes: '' },
   interests: [],
-  backScreen: 'pick',
+  backScreen: 'search',
 };
+
+function activeNeed() {
+  return PHOTO_NEEDS.find(function (n) {
+    return n.id === state.photoNeed;
+  });
+}
+
+function showPackageFilters() {
+  const n = activeNeed();
+  return !!(n && n.packagePath);
+}
+
+function syncModeFromNeed() {
+  if (showPackageFilters()) {
+    state.mode = 'wedding';
+    return;
+  }
+  if (state.photoNeed) {
+    state.mode = 'service';
+    state.serviceId = state.photoNeed;
+  }
+}
+
+function needLabel() {
+  const n = activeNeed();
+  return n && n.id ? n.label : 'Photography';
+}
 
 function el(id) {
   return document.getElementById(id);
@@ -195,7 +233,8 @@ function activePackage() {
 
 function offerTitle() {
   if (state.mode === 'wedding') return activePackage().name;
-  return FUNERAL_SERVICE.name;
+  if (state.photoNeed === 'funeral') return FUNERAL_SERVICE.name;
+  return needLabel();
 }
 
 function offerPrice() {
@@ -222,12 +261,16 @@ function show(id, backTo) {
   }
   document.querySelectorAll('[data-nav]').forEach(function (b) {
     const n = b.getAttribute('data-nav');
-    b.classList.toggle('on', (n === 'pick' && id === 'pick') || (n === 'search' && id === 'search') || (n === 'interests' && (id === 'interests' || id === 'interestDetail')));
+    b.classList.toggle(
+      'on',
+      ((n === 'home' || n === 'search') && id === 'search') ||
+        (n === 'interests' && (id === 'interests' || id === 'interestDetail'))
+    );
   });
 }
 
 function goBack() {
-  show(state.backScreen || 'pick');
+  show(state.backScreen || 'search');
 }
 
 function loadInterests() {
@@ -251,19 +294,10 @@ function renderSearchForm() {
   const hero = el('searchHero');
   const form = el('searchForm');
   if (!hero || !form) return;
-  if (state.mode === 'wedding') {
-    hero.innerHTML =
-      '<div class="hero-wed"><h2>Find Your Wedding Photographer</h2><p>Compare packages, coverage, and deliverables from trusted studios.</p></div>';
-    form.innerHTML =
-      '<div class="fld"><label>Location</label><div class="sel-box"><select id="fLoc">' +
-      LOCATIONS.map(function (l) {
-        return '<option' + (l === state.location ? ' selected' : '') + '>' + esc(l) + '</option>';
-      }).join('') +
-      '</select></div></div>' +
-      '<div class="fld"><label>Wedding Date</label><div class="sel-box"><input type="date" id="fDate" value="' +
-      esc(state.date) +
-      '"></div></div>' +
-      '<div class="fld"><label>Community / Religion</label><div class="comm-row" id="fComm">' +
+  hero.innerHTML =
+    '<div class="hero-wed"><h2>Find Your Wedding Photographer</h2><p>Compare packages, coverage, and deliverables from trusted studios.</p></div>';
+  const pkgBlock = showPackageFilters()
+    ? '<div class="fld"><label>Community / Religion</label><div class="comm-row" id="fComm">' +
       COMMUNITIES.map(function (c) {
         return (
           '<button type="button" class="comm-btn' +
@@ -290,41 +324,71 @@ function renderSearchForm() {
           '</b></button>'
         );
       }).join('') +
-      '</div></div>' +
-      '<div class="fld"><label>Budget Range (Optional)</label><div class="budget-row">' +
-      '<div class="sel-box"><select id="fBudMin"><option value="50000">₹ 50,000</option><option value="75000">₹ 75,000</option><option value="100000">₹ 1,00,000</option></select></div>' +
-      '<div class="sel-box"><select id="fBudMax"><option value="100000">₹ 1,00,000</option><option value="150000">₹ 1,50,000</option><option value="200000">₹ 2,00,000</option></select></div></div></div>';
-  } else {
-    hero.innerHTML =
-      '<div class="hero-svc"><h2>Find Your Photographer</h2><p>Capture moments with respect.</p></div>';
-    form.innerHTML =
-      '<div class="fld"><label>Location</label><div class="sel-box"><select id="fLoc">' +
-      LOCATIONS.map(function (l) {
-        return '<option' + (l === state.location ? ' selected' : '') + '>' + esc(l) + '</option>';
-      }).join('') +
-      '</select></div></div>' +
-      '<div class="fld"><label>Service</label><div class="sel-box"><select id="fService">' +
-      SERVICES.map(function (s) {
-        return (
-          '<option value="' +
-          s.id +
-          '"' +
-          (s.id === state.serviceId ? ' selected' : '') +
-          '>' +
-          esc(s.label) +
-          '</option>'
-        );
-      }).join('') +
-      '</select></div></div>' +
-      '<div class="fld"><label>Event Date (Optional)</label><div class="sel-box"><input type="date" id="fDate" value="' +
-      esc(state.date) +
-      '"></div></div>' +
-      '<div class="fld"><label>Budget Range</label><div class="range-dual"><input type="range" id="fSvcBud" min="5000" max="50000" step="1000" value="' +
-      state.svcBudgetMax +
-      '"><div class="range-lbl"><span>₹ 5,000</span><span id="svcBudLbl">' +
-      inr(state.svcBudgetMax) +
-      '</span></div></div></div>';
-  }
+      '</div></div>'
+    : '';
+  form.innerHTML =
+    '<div class="fld"><label>Location</label><div class="sel-box"><select id="fLoc">' +
+    LOCATIONS.map(function (l) {
+      return '<option' + (l === state.location ? ' selected' : '') + '>' + esc(l) + '</option>';
+    }).join('') +
+    '</select></div></div>' +
+    '<div class="fld"><label>Event Date</label><div class="sel-box"><input type="date" id="fDate" value="' +
+    esc(state.date) +
+    '"></div></div>' +
+    '<div class="fld"><label>What do you need photography for?</label><div class="sel-box"><select id="fNeed">' +
+    '<option value=""' +
+    (state.photoNeed === '' ? ' selected' : '') +
+    '>Select…</option>' +
+    PHOTO_NEEDS.filter(function (n) {
+      return n.id;
+    }).map(function (n) {
+      return (
+        '<option value="' +
+        esc(n.id) +
+        '"' +
+        (state.photoNeed === n.id ? ' selected' : '') +
+        '>' +
+        esc(n.label) +
+        '</option>'
+      );
+    }).join('') +
+    '</select></div></div>' +
+    pkgBlock +
+    '<div class="fld"><label>Budget Range (Optional)</label><div class="budget-row">' +
+    '<div class="sel-box"><select id="fBudMin">' +
+    [
+      { v: 50000, l: '₹ 50,000' },
+      { v: 75000, l: '₹ 75,000' },
+      { v: 100000, l: '₹ 1,00,000' },
+    ].map(function (o) {
+      return (
+        '<option value="' +
+        o.v +
+        '"' +
+        (state.budgetMin === o.v ? ' selected' : '') +
+        '>' +
+        o.l +
+        '</option>'
+      );
+    }).join('') +
+    '</select></div>' +
+    '<div class="sel-box"><select id="fBudMax">' +
+    [
+      { v: 100000, l: '₹ 1,00,000' },
+      { v: 150000, l: '₹ 1,50,000' },
+      { v: 200000, l: '₹ 2,00,000' },
+    ].map(function (o) {
+      return (
+        '<option value="' +
+        o.v +
+        '"' +
+        (state.budgetMax === o.v ? ' selected' : '') +
+        '>' +
+        o.l +
+        '</option>'
+      );
+    }).join('') +
+    '</select></div></div></div>';
   bindSearchForm();
 }
 
@@ -355,18 +419,22 @@ function bindSearchForm() {
       };
     });
   }
-  const svc = el('fService');
-  if (svc) svc.onchange = function () {
-    state.serviceId = svc.value;
-  };
-  const sb = el('fSvcBud');
-  const lbl = el('svcBudLbl');
-  if (sb) {
-    sb.oninput = function () {
-      state.svcBudgetMax = +sb.value;
-      if (lbl) lbl.textContent = inr(state.svcBudgetMax);
+  const need = el('fNeed');
+  if (need) {
+    need.onchange = function () {
+      state.photoNeed = need.value || '';
+      syncModeFromNeed();
+      renderSearchForm();
     };
   }
+  const bmin = el('fBudMin');
+  const bmax = el('fBudMax');
+  if (bmin) bmin.onchange = function () {
+    state.budgetMin = +bmin.value;
+  };
+  if (bmax) bmax.onchange = function () {
+    state.budgetMax = +bmax.value;
+  };
 }
 
 function renderResults() {
@@ -379,25 +447,17 @@ function renderResults() {
     if (sub) sub.textContent = state.location + ' · ' + formatDate(state.date);
     if (count) count.textContent = '24 photographers found';
   } else {
-    const svc = SERVICES.find(function (s) {
-      return s.id === state.serviceId;
-    });
-    if (title) title.textContent = svc ? svc.label : 'Photographers';
+    if (title) title.textContent = needLabel();
     if (sub) sub.textContent = state.location + ' · ' + formatDate(state.date);
     if (count) count.textContent = '8 photographers found';
   }
   if (!list) return;
   list.innerHTML = STUDIOS.map(function (s) {
     const from = state.mode === 'wedding' ? s.weddingFrom : s.serviceFrom;
-    var svcLbl = 'Service';
-    var svcRow = SERVICES.find(function (x) {
-      return x.id === state.serviceId;
-    });
-    if (svcRow) svcLbl = svcRow.label;
     const tag =
       state.mode === 'wedding'
         ? '<span class="ph-tag">Christian</span><span class="ph-tag">Standard</span>'
-        : '<span class="ph-tag">' + esc(svcLbl) + '</span>';
+        : '<span class="ph-tag">' + esc(needLabel()) + '</span>';
     return (
       '<button type="button" class="ph-row" data-studio="' +
       s.id +
@@ -858,14 +918,6 @@ function renderInterestDetail() {
     '</div>';
 }
 
-function startMode(mode, serviceId) {
-  state.mode = mode;
-  if (serviceId) state.serviceId = serviceId;
-  state.customize = { extras: {}, duration: 'inc', albumSize: '12×12', albumPages: '30', functions: {}, notes: '' };
-  renderSearchForm();
-  show('search', 'pick');
-}
-
 function submitInterest() {
   const rec = {
     id: 'int_' + Date.now(),
@@ -887,10 +939,7 @@ function submitInterest() {
 
 function injectChrome() {
   const logo = svgIcon ? svgIcon('logo') : '';
-  ['brandIcoPick', 'brandIcoSearch'].forEach(function (id) {
-    const n = el(id);
-    if (n) n.innerHTML = logo;
-  });
+  if (el('brandIcoSearch')) el('brandIcoSearch').innerHTML = logo;
   if (el('navHomeIco')) el('navHomeIco').innerHTML = svgIcon('house');
   if (el('navSearchIco')) el('navSearchIco').innerHTML = svgIcon('search');
   if (el('navIntIco')) el('navIntIco').innerHTML = svgIcon('heart', 'flow-ico-sm');
@@ -898,16 +947,12 @@ function injectChrome() {
 }
 
 function bindEvents() {
-  el('pickWedding').onclick = function () {
-    startMode('wedding');
-  };
-  el('pickFuneral').onclick = function () {
-    startMode('service', 'funeral');
-  };
-  el('pickMoreSvc').onclick = function () {
-    startMode('service', 'portrait');
-  };
   el('goResults').onclick = function () {
+    if (!state.photoNeed) {
+      toast('Select what you need photography for');
+      return;
+    }
+    syncModeFromNeed();
     renderResults();
     show('results', 'search');
   };
@@ -974,13 +1019,12 @@ function bindEvents() {
   document.querySelectorAll('[data-nav]').forEach(function (btn) {
     btn.onclick = function () {
       const nav = btn.getAttribute('data-nav');
-      if (nav === 'pick') show('pick', 'pick');
-      else if (nav === 'search') {
+      if (nav === 'home' || nav === 'search') {
         renderSearchForm();
-        show('search', 'pick');
+        show('search', 'search');
       } else if (nav === 'interests') {
         renderInterests();
-        show('interests', 'pick');
+        show('interests', 'search');
       } else toast('Profile — demo');
     };
   });
@@ -991,13 +1035,13 @@ function bindEvents() {
 
 function bootPhotoCustomer() {
   try {
-    if (!el('pickWedding')) throw new Error('Open ' + DEMO_FILE + ', not the shell.');
+    if (!el('goResults')) throw new Error('Open ' + DEMO_FILE + ', not the shell.');
     loadInterests();
     injectChrome();
     renderSearchForm();
     bindEvents();
     const tag = el('buildTag');
-    if (tag) tag.textContent = PHOTO_CUSTOMER_BUILD + ' · Tap Wedding or Funeral to start';
+    if (tag) tag.textContent = PHOTO_CUSTOMER_BUILD + ' · Default home search';
     if (el('bootError')) el('bootError').hidden = true;
   } catch (err) {
     console.error(err);

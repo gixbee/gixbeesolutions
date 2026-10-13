@@ -161,22 +161,12 @@ textarea.notes{width:100%;min-height:88px;border:1.5px solid #BFDBFE;border-radi
 <div id="bootError" hidden style="position:fixed;inset:0;z-index:99999;background:#fff;padding:24px;font:15px sans-serif"></div>
 <div class="stage"><div class="phone">
 
-<section class="scr on" id="pick">
-  <div class="app-hd"><div class="brand"><span class="brand-ico" id="brandIcoPick"></span><div><b>Gixbee</b><span>Photography</span></div></div><div class="hd-icons"><span class="dot" id="bellPick"></span></div></div>
-  <div class="pad16" style="padding-top:8px"><h2 style="margin:0 0 4px;font-size:18px;color:var(--navy)">Book a photographer</h2><p style="margin:0 0 16px;font-size:12px;color:var(--mut);font-weight:600">Wedding packages or individual services — same interest flow.</p></div>
-  <div class="pick-grid">
-    <button type="button" class="pick-tile wed" id="pickWedding"><b>Wedding photography</b><span>Packages for marriage, engagement, and wedding events</span></button>
-    <button type="button" class="pick-tile svc" id="pickFuneral"><b>Funeral / Memorial</b><span>Respectful coverage for memorial services</span></button>
-    <button type="button" class="pick-tile svc" id="pickMoreSvc" style="background:linear-gradient(135deg,#0EA5E9,#0369A1)"><b>Other individual services</b><span>Portrait, corporate, events, and more</span></button>
-  </div>
-  <p id="buildTag">Photography customer flow</p>
-</section>
-
-<section class="scr" id="search">
+<section class="scr on" id="search">
   <div class="app-hd"><div class="brand"><span class="brand-ico" id="brandIcoSearch"></span><div><b>Gixbee</b><span>Photography</span></div></div><div class="hd-icons"><span class="dot" id="bellSearch"></span></div></div>
   <div id="searchHero"></div>
   <div class="search-card" id="searchForm"></div>
   <div class="cta"><button type="button" class="btn" id="goResults">Search Photographers</button></div>
+  <p id="buildTag">Photography customer flow</p>
 </section>
 
 <section class="scr" id="results">
@@ -248,7 +238,7 @@ textarea.notes{width:100%;min-height:88px;border:1.5px solid #BFDBFE;border-radi
 </section>
 
 <nav class="bottom-nav" id="bottomNav">
-  <button type="button" data-nav="pick"><span id="navHomeIco"></span>Home</button>
+  <button type="button" class="on" data-nav="home"><span id="navHomeIco"></span>Home</button>
   <button type="button" data-nav="search"><span id="navSearchIco"></span>Search</button>
   <button type="button" data-nav="interests"><span id="navIntIco"></span>My Interests</button>
   <button type="button" data-nav="profile-stub"><span id="navProfIco"></span>Profile</button>
