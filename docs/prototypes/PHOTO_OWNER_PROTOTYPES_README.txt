@@ -1,6 +1,8 @@
 Gixbee Photography Owner — FINALFLOW HTML (like hall owner)
 =============================================================
 
+STATUS: LOCKED V1 (2026-10-13) — see PHOTO_OWNER_FLOW_LOCK.md
+
 Same build pattern as GIXBEE-HALL-OWNER-FINALFLOW.html:
   one self-contained .html file · all CSS + JS inline · localStorage
 
@@ -23,7 +25,7 @@ NOT for demo: photo-owner-flow-shell.html
 
 Regenerate: python3 docs/prototypes/_gen_photo_prototypes.py
 
-Build tag: 2026-10-11-photo-owner-coverage-extra-hour-v8 (check dashboard after open)
+Build tag: check PHOTO_OWNER_BUILD in _photo_owner_app.js after open (e.g. 2026-10-13-photo-owner-flow-locked-v1)
 
 Sources: _photo_owner_app.js + _photo_pkg_wizard.js + _photo_svc_wizard.js + _photo_calendar.js + _photo_owner_icons.js
 

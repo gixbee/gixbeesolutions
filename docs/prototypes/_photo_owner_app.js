@@ -1,4 +1,6 @@
-const PHOTO_OWNER_BUILD = '2026-10-11-photo-owner-svc-cta-gap-v67';
+/** Photography owner prototype V1 — locked 2026-10-13. See PHOTO_OWNER_FLOW_LOCK.md */
+const PHOTO_OWNER_FLOW_LOCKED = true;
+const PHOTO_OWNER_BUILD = '2026-10-13-photo-owner-flow-locked-v1';
 
 function photoOwnerDemoFileName() {
   try {

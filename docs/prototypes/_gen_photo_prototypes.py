@@ -1,5 +1,8 @@
 #!/usr/bin/env python3
-"""Build photography owner single-file HTML demos from shell + icons + app."""
+"""Build photography owner single-file HTML demos from shell + icons + app.
+
+V1 owner flow is locked — see PHOTO_OWNER_FLOW_LOCK.md before changing sources.
+"""
 from pathlib import Path
 
 DIR = Path(__file__).resolve().parent
@@ -60,6 +63,8 @@ def build_master() -> str:
         raise SystemExit(f"expected one inlined script, got {out.count('<script>')}")
     if "PHOTO_OWNER_BUILD" not in out or "function boot(" not in out:
         raise SystemExit("missing photo owner app")
+    if "PHOTO_OWNER_FLOW_LOCKED" not in out:
+        raise SystemExit("missing PHOTO_OWNER_FLOW_LOCKED — see PHOTO_OWNER_FLOW_LOCK.md")
     for cal_marker in (
         'id="photoCalGrid"',
         "function openPhotoCalendar",
