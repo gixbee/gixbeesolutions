@@ -18,9 +18,10 @@ Default Home / Search screen:
 
   Service flow (funeral, baptism, event, portrait, corporate):
     Search hero + service budget → results (studios that list that service)
-    → Profile → View Service → Services list + event date picker
-    → Service detail (date reminder) → Customize / Initiate Interest
-    → Review (change date if needed) → Send Interest
+    → Profile → View Service
+       (one matching service: straight to detail + date picker once)
+       (several services: services catalog + date, then detail without repeat date)
+    → Customize / Initiate Interest → Review → Send Interest
 
 Sources:
 

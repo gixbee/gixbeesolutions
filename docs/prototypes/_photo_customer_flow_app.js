@@ -1,4 +1,4 @@
-const PHOTO_CUSTOMER_BUILD = '2026-10-13-photo-customer-service-flow-v9b';
+const PHOTO_CUSTOMER_BUILD = '2026-10-13-photo-customer-service-flow-v10';
 const DEMO_FILE = 'GIXBEE-PHOTO-CUSTOMER-FINALFLOW.html';
 const STORAGE_KEY = 'GIXBEE_PHOTO_CUSTOMER_INTERESTS_V2';
 
@@ -133,6 +133,8 @@ const state = {
   reviewEntry: 'direct',
   reviewCalMonth: null,
   reviewCalPick: null,
+  /** Service: date picker on detail when catalog skipped (single service); else date only on catalog. */
+  serviceDateOnDetail: false,
 };
 
 function activeNeed() {
@@ -354,14 +356,14 @@ function renderCatalogDateBar() {
 function renderDetailDateBar() {
   const bar = el('detailDateBar');
   if (!bar) return;
-  if (state.mode !== 'service') {
+  if (state.mode !== 'service' || !state.serviceDateOnDetail) {
     bar.hidden = true;
     bar.innerHTML = '';
     return;
   }
   bar.hidden = false;
   bar.innerHTML =
-    '<p class="sub" style="margin:0 0 8px;font-size:11px;font-weight:700">Event date</p>' +
+    '<p class="sub" style="margin:0 0 8px;font-size:11px;font-weight:700">Confirm your event date before sending interest</p>' +
     eventDatePickHtml();
   bindDatePickButtons(bar);
   updateReviewDateLabels();
@@ -1058,14 +1060,39 @@ function renderServiceCatalog() {
     .join('');
   list.querySelectorAll('[data-svc]').forEach(function (btn) {
     btn.onclick = function () {
-      state.serviceId = btn.getAttribute('data-svc');
-      state.customize.duration = 'inc';
-      state.detailTab = 'overview';
-      state.detailBack = 'catalog';
-      renderDetail();
-      show('detail', 'catalog');
+      openServiceDetail(btn.getAttribute('data-svc'), 'catalog', false);
     };
   });
+}
+
+function openServiceDetail(serviceKey, backScreen, dateOnDetail) {
+  state.serviceId = serviceKey;
+  state.customize.duration = 'inc';
+  state.detailTab = 'overview';
+  state.detailBack = backScreen === 'catalog' ? 'catalog' : 'profile';
+  state.serviceDateOnDetail = !!dateOnDetail;
+  renderDetail();
+  show('detail', backScreen);
+}
+
+function openServiceFlowFromProfile() {
+  if (!studioOffersService(state.studioId, state.photoNeed)) {
+    toast('This studio does not list ' + needLabel());
+    return;
+  }
+  const svcs = servicesForStudio(state.studioId, state.photoNeed);
+  if (!svcs.length) {
+    toast('This service is not available at ' + studio().name);
+    return;
+  }
+  if (svcs.length === 1) {
+    openServiceDetail(svcs[0].serviceKey, 'profile', true);
+    return;
+  }
+  state.serviceId = state.photoNeed;
+  state.serviceDateOnDetail = false;
+  renderServiceCatalog();
+  show('catalog', 'profile');
 }
 
 function renderCatalog() {
@@ -1391,9 +1418,6 @@ function renderReview() {
     '<div class="kv-row review-date-kv"><span>Date</span><b id="reviewEventDate">' +
     formatDate(state.date) +
     '</b></div>' +
-    (state.mode === 'service'
-      ? '<div class="pad16" style="padding-top:0;padding-bottom:8px">' + eventDatePickHtml() + '</div>'
-      : '') +
     '<div class="kv-row"><span>Location</span><b>' +
     esc(state.location) +
     '</b></div>' +
@@ -1441,7 +1465,6 @@ function renderReview() {
         }).join('')
       : '<p class="sub">No add-ons selected</p>';
   }
-  bindDatePickButtons(body);
   updateReviewDateLabels();
   renderReviewDateBar();
   renderReviewFooter();
@@ -1699,13 +1722,7 @@ function bindEvents() {
       renderCatalog();
       show('catalog', 'profile');
     } else {
-      if (!studioOffersService(state.studioId, state.photoNeed)) {
-        toast('This studio does not list ' + needLabel());
-        return;
-      }
-      state.serviceId = state.photoNeed;
-      renderServiceCatalog();
-      show('catalog', 'profile');
+      openServiceFlowFromProfile();
     }
   };
   el('profMessage').onclick = function () {
