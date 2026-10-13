@@ -40,6 +40,10 @@ function custTeamLines(types) {
   return lines;
 }
 
+function custFnIsCoupleShoot(fnName) {
+  return /shoot/i.test(String(fnName || ''));
+}
+
 function custRenderPkgBasics(pkg) {
   let html =
     '<p style="font-size:13px;font-weight:600;color:var(--mut);line-height:1.5;margin:0 0 12px">' +
@@ -125,23 +129,36 @@ function custRenderPkgInclusions(pkg) {
 
 function custRenderPkgCoverage(pkg) {
   const blocks = pkg.coverageByFunction || {};
-  return Object.keys(blocks)
+  const ordered = (pkg.functions && pkg.functions.length ? pkg.functions.slice() : Object.keys(blocks)).filter(function (fn) {
+    return blocks[fn];
+  });
+  Object.keys(blocks).forEach(function (fn) {
+    if (ordered.indexOf(fn) < 0) ordered.push(fn);
+  });
+  return ordered
     .map(function (fn) {
       const b = blocks[fn];
       const photos = custTeamLines(b.photoTypes).join(', ') || '—';
       const videos = custTeamLines(b.videoTypes).join(', ') || '—';
+      const rows = [];
+      if (!custFnIsCoupleShoot(fn)) {
+        rows.push({
+          k: 'Coverage side',
+          v: b.coverageSide === 'both' ? 'Both sides' : b.coverageSide === 'single' ? 'Single side' : b.coverageSide || '—',
+        });
+      }
+      rows.push(
+        { k: 'Duration', v: b.duration || '—' },
+        { k: 'Extra hour', v: custInr(b.extraHour) },
+        { k: 'Photo team', v: photos },
+        { k: 'Video team', v: videos }
+      );
       return (
         '<div style="margin-bottom:12px;padding:12px;border:1px solid #E2E8F0;border-radius:12px">' +
         '<b style="display:block;color:var(--navy);margin-bottom:8px">' +
         custEsc(fn) +
         '</b>' +
-        custKvRows([
-          { k: 'Coverage side', v: b.coverageSide === 'both' ? 'Both sides' : b.coverageSide === 'single' ? 'Single side' : b.coverageSide },
-          { k: 'Duration', v: b.duration || '—' },
-          { k: 'Extra hour', v: custInr(b.extraHour) },
-          { k: 'Photo team', v: photos },
-          { k: 'Video team', v: videos },
-        ]) +
+        custKvRows(rows) +
         '</div>'
       );
     })

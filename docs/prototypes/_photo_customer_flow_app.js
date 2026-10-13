@@ -1,4 +1,4 @@
-const PHOTO_CUSTOMER_BUILD = '2026-10-13-photo-customer-owner-mirror-v4';
+const PHOTO_CUSTOMER_BUILD = '2026-10-13-photo-customer-owner-mirror-v5';
 const DEMO_FILE = 'GIXBEE-PHOTO-CUSTOMER-FINALFLOW.html';
 const STORAGE_KEY = 'GIXBEE_PHOTO_CUSTOMER_INTERESTS_V2';
 
@@ -1027,9 +1027,16 @@ function submitInterest() {
   const svcO = state.mode === 'service' ? activeServiceOwner() : null;
   let cov = '';
   if (pkgO && pkgO.coverageByFunction) {
-    const fn = Object.keys(pkgO.coverageByFunction)[0];
-    const b = pkgO.coverageByFunction[fn];
-    if (b) cov = fn + ' · ' + (b.duration || '') + ' · ' + (b.coverageSide || '');
+    const fns = pkgO.functions && pkgO.functions.length ? pkgO.functions : Object.keys(pkgO.coverageByFunction);
+    cov = fns
+      .filter(function (fn) {
+        return pkgO.coverageByFunction[fn];
+      })
+      .map(function (fn) {
+        const b = pkgO.coverageByFunction[fn];
+        return fn + ' · ' + (b.duration || '');
+      })
+      .join('; ');
   } else if (svcO) {
     cov = (svcO.duration || '') + (svcO.team ? ' · photo team assigned' : '');
   }

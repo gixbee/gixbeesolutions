@@ -408,6 +408,10 @@ function custTeamLines(types) {
   return lines;
 }
 
+function custFnIsCoupleShoot(fnName) {
+  return /shoot/i.test(String(fnName || ''));
+}
+
 function custRenderPkgBasics(pkg) {
   let html =
     '<p style="font-size:13px;font-weight:600;color:var(--mut);line-height:1.5;margin:0 0 12px">' +
@@ -493,23 +497,36 @@ function custRenderPkgInclusions(pkg) {
 
 function custRenderPkgCoverage(pkg) {
   const blocks = pkg.coverageByFunction || {};
-  return Object.keys(blocks)
+  const ordered = (pkg.functions && pkg.functions.length ? pkg.functions.slice() : Object.keys(blocks)).filter(function (fn) {
+    return blocks[fn];
+  });
+  Object.keys(blocks).forEach(function (fn) {
+    if (ordered.indexOf(fn) < 0) ordered.push(fn);
+  });
+  return ordered
     .map(function (fn) {
       const b = blocks[fn];
       const photos = custTeamLines(b.photoTypes).join(', ') || '—';
       const videos = custTeamLines(b.videoTypes).join(', ') || '—';
+      const rows = [];
+      if (!custFnIsCoupleShoot(fn)) {
+        rows.push({
+          k: 'Coverage side',
+          v: b.coverageSide === 'both' ? 'Both sides' : b.coverageSide === 'single' ? 'Single side' : b.coverageSide || '—',
+        });
+      }
+      rows.push(
+        { k: 'Duration', v: b.duration || '—' },
+        { k: 'Extra hour', v: custInr(b.extraHour) },
+        { k: 'Photo team', v: photos },
+        { k: 'Video team', v: videos }
+      );
       return (
         '<div style="margin-bottom:12px;padding:12px;border:1px solid #E2E8F0;border-radius:12px">' +
         '<b style="display:block;color:var(--navy);margin-bottom:8px">' +
         custEsc(fn) +
         '</b>' +
-        custKvRows([
-          { k: 'Coverage side', v: b.coverageSide === 'both' ? 'Both sides' : b.coverageSide === 'single' ? 'Single side' : b.coverageSide },
-          { k: 'Duration', v: b.duration || '—' },
-          { k: 'Extra hour', v: custInr(b.extraHour) },
-          { k: 'Photo team', v: photos },
-          { k: 'Video team', v: videos },
-        ]) +
+        custKvRows(rows) +
         '</div>'
       );
     })
@@ -710,7 +727,7 @@ function ownerPkgBlueStandard() {
           'Candid Videographer': { on: false, qty: 0 },
         },
       },
-      Reception: {
+      Engagement: {
         coverageSide: 'single',
         duration: 'Up to 5 Hours',
         extraHour: 2000,
@@ -823,6 +840,20 @@ function ownerPkgBlueBasic() {
   p.discountPct = 0;
   p.desc = 'Essential wedding day coverage with one candid photographer and album.';
   p.functions = ['Wedding & Reception'];
+  delete p.coverageByFunction.Engagement;
+  const wed = p.coverageByFunction['Wedding & Reception'];
+  wed.extraHour = 2000;
+  wed.photoTypes = {
+    'Candid Photographer': { on: true, qty: 1 },
+    'Traditional Photographer': { on: false, qty: 0 },
+    'Candid + Traditional Photographer': { on: false, qty: 0 },
+  };
+  wed.videoTypes = {
+    'Cinematic Videographer': { on: false, qty: 0 },
+    'Candid Videographer': { on: false, qty: 0 },
+  };
+  p.deliverVideo = [];
+  p.videoDetails = {};
   p.photoDetails['Edited Photos'].qty = 300;
   p.albumPrints['Photo Album'] = { on: true, size: '10 x 12 inch', pages: 20, cover: 'Standard', paper: 'Matte', copies: 1 };
   return p;
@@ -837,8 +868,72 @@ function ownerPkgBluePremium() {
   p.listPrice = 145000;
   p.discountPct = 0;
   p.desc = 'Premium team, save-the-date reel, parent albums, and extended cinematic deliverables.';
-  p.functions = ['Wedding & Reception', 'Reception', 'Pre-Wedding Shoot'];
+  p.functions = ['Wedding & Reception', 'Engagement', 'Pre-Wedding Shoot'];
+  p.coverageByFunction = {
+    'Wedding & Reception': {
+      coverageSide: 'both',
+      duration: 'Full Day',
+      extraHour: 3000,
+      photoTypes: {
+        'Candid Photographer': { on: true, qty: 2 },
+        'Traditional Photographer': { on: true, qty: 2 },
+        'Candid + Traditional Photographer': { on: false, qty: 0 },
+      },
+      videoTypes: {
+        'Cinematic Videographer': { on: true, qty: 2 },
+        'Candid Videographer': { on: true, qty: 1 },
+      },
+    },
+    Engagement: {
+      coverageSide: 'single',
+      duration: 'Up to 5 Hours',
+      extraHour: 2500,
+      photoTypes: {
+        'Candid Photographer': { on: true, qty: 2 },
+        'Traditional Photographer': { on: true, qty: 1 },
+      },
+      videoTypes: {
+        'Cinematic Videographer': { on: true, qty: 1 },
+      },
+    },
+    'Pre-Wedding Shoot': {
+      coverageSide: 'single',
+      duration: 'Up to 5 Hours',
+      extraHour: 3000,
+      photoTypes: {
+        'Candid Photographer': { on: true, qty: 1 },
+        'Traditional Photographer': { on: false, qty: 0 },
+      },
+      videoTypes: {
+        'Cinematic Videographer': { on: true, qty: 1 },
+      },
+    },
+  };
+  p.deliverVideo = ['Save-the-date Reel', 'Highlight Video', 'Cinematic Video'];
+  p.videoDetails = {
+    'Save-the-date Reel': {
+      qty: 1,
+      duration: '60–90 Seconds',
+      format: 'MP4 (Full HD)',
+      delivery: '3 Working Days',
+    },
+    'Highlight Video': { qty: 1, duration: '10–12 Minutes', format: 'MP4 (4K)', delivery: '21 Working Days' },
+    'Cinematic Video': { qty: 1, duration: '15–18 Minutes', format: 'MP4 (4K)', delivery: '30 Working Days' },
+  };
   p.photoDetails['Edited Photos'].qty = 800;
+  p.photoDetails['Colour-Graded Photos'].qty = 200;
+  p.albumPrints['Photo Album'] = {
+    on: true,
+    size: '12 x 36 inch',
+    pages: 40,
+    cover: 'Luxury',
+    paper: 'Lustre',
+    copies: 3,
+  };
+  p.deliveryMap['Save-the-date Reel'] = '3 Working Days';
+  p.deliveryMap['Highlight Video'] = '21 Working Days';
+  p.deliveryMap['Cinematic Video'] = '30 Working Days';
+  p.deliveryMap['Photo Album'] = '60 Working Days';
   return p;
 }
 
@@ -1030,7 +1125,7 @@ const CUSTOMER_CATALOG = {
         name: 'Standard Wedding Package',
         level: 'Standard',
         ceremonies: ['Christian'],
-        functions: ['Wedding & Reception', 'Reception'],
+        functions: ['Wedding & Reception', 'Engagement'],
         price: 90000,
         listPrice: 100000,
         discountPct: 10,
@@ -1059,7 +1154,7 @@ const CUSTOMER_CATALOG = {
             videoTeam: '1 Cinematic Videographer',
           },
           {
-            fn: 'Reception',
+            fn: 'Engagement',
             side: 'Single',
             hours: 5,
             extraHour: 2000,
@@ -1111,8 +1206,24 @@ const CUSTOMER_CATALOG = {
             side: 'Both',
             hours: 12,
             extraHour: 3000,
-            photoTeam: 'Candid + Traditional Photographer',
-            videoTeam: 'Cinematic Videographer',
+            photoTeam: '2 Candid + 2 Traditional Photographers',
+            videoTeam: '2 Cinematic + 1 Candid Videographer',
+          },
+          {
+            fn: 'Engagement',
+            side: 'Single',
+            hours: 5,
+            extraHour: 2500,
+            photoTeam: '2 Candid + 1 Traditional Photographer',
+            videoTeam: '1 Cinematic Videographer',
+          },
+          {
+            fn: 'Pre-Wedding Shoot',
+            side: '—',
+            hours: 5,
+            extraHour: 3000,
+            photoTeam: '1 Candid Photographer',
+            videoTeam: '1 Cinematic Videographer',
           },
         ],
         delivery: [
@@ -1371,7 +1482,7 @@ function defaultPackageId(studioId) {
   return pkgs[0] ? pkgs[0].id : 'standard';
 }
 
-const PHOTO_CUSTOMER_BUILD = '2026-10-13-photo-customer-owner-mirror-v4';
+const PHOTO_CUSTOMER_BUILD = '2026-10-13-photo-customer-owner-mirror-v5';
 const DEMO_FILE = 'GIXBEE-PHOTO-CUSTOMER-FINALFLOW.html';
 const STORAGE_KEY = 'GIXBEE_PHOTO_CUSTOMER_INTERESTS_V2';
 
@@ -2400,9 +2511,16 @@ function submitInterest() {
   const svcO = state.mode === 'service' ? activeServiceOwner() : null;
   let cov = '';
   if (pkgO && pkgO.coverageByFunction) {
-    const fn = Object.keys(pkgO.coverageByFunction)[0];
-    const b = pkgO.coverageByFunction[fn];
-    if (b) cov = fn + ' · ' + (b.duration || '') + ' · ' + (b.coverageSide || '');
+    const fns = pkgO.functions && pkgO.functions.length ? pkgO.functions : Object.keys(pkgO.coverageByFunction);
+    cov = fns
+      .filter(function (fn) {
+        return pkgO.coverageByFunction[fn];
+      })
+      .map(function (fn) {
+        const b = pkgO.coverageByFunction[fn];
+        return fn + ' · ' + (b.duration || '');
+      })
+      .join('; ');
   } else if (svcO) {
     cov = (svcO.duration || '') + (svcO.team ? ' · photo team assigned' : '');
   }

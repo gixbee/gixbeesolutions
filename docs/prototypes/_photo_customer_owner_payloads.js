@@ -28,7 +28,7 @@ function ownerPkgBlueStandard() {
           'Candid Videographer': { on: false, qty: 0 },
         },
       },
-      Reception: {
+      Engagement: {
         coverageSide: 'single',
         duration: 'Up to 5 Hours',
         extraHour: 2000,
@@ -141,6 +141,20 @@ function ownerPkgBlueBasic() {
   p.discountPct = 0;
   p.desc = 'Essential wedding day coverage with one candid photographer and album.';
   p.functions = ['Wedding & Reception'];
+  delete p.coverageByFunction.Engagement;
+  const wed = p.coverageByFunction['Wedding & Reception'];
+  wed.extraHour = 2000;
+  wed.photoTypes = {
+    'Candid Photographer': { on: true, qty: 1 },
+    'Traditional Photographer': { on: false, qty: 0 },
+    'Candid + Traditional Photographer': { on: false, qty: 0 },
+  };
+  wed.videoTypes = {
+    'Cinematic Videographer': { on: false, qty: 0 },
+    'Candid Videographer': { on: false, qty: 0 },
+  };
+  p.deliverVideo = [];
+  p.videoDetails = {};
   p.photoDetails['Edited Photos'].qty = 300;
   p.albumPrints['Photo Album'] = { on: true, size: '10 x 12 inch', pages: 20, cover: 'Standard', paper: 'Matte', copies: 1 };
   return p;
@@ -155,8 +169,72 @@ function ownerPkgBluePremium() {
   p.listPrice = 145000;
   p.discountPct = 0;
   p.desc = 'Premium team, save-the-date reel, parent albums, and extended cinematic deliverables.';
-  p.functions = ['Wedding & Reception', 'Reception', 'Pre-Wedding Shoot'];
+  p.functions = ['Wedding & Reception', 'Engagement', 'Pre-Wedding Shoot'];
+  p.coverageByFunction = {
+    'Wedding & Reception': {
+      coverageSide: 'both',
+      duration: 'Full Day',
+      extraHour: 3000,
+      photoTypes: {
+        'Candid Photographer': { on: true, qty: 2 },
+        'Traditional Photographer': { on: true, qty: 2 },
+        'Candid + Traditional Photographer': { on: false, qty: 0 },
+      },
+      videoTypes: {
+        'Cinematic Videographer': { on: true, qty: 2 },
+        'Candid Videographer': { on: true, qty: 1 },
+      },
+    },
+    Engagement: {
+      coverageSide: 'single',
+      duration: 'Up to 5 Hours',
+      extraHour: 2500,
+      photoTypes: {
+        'Candid Photographer': { on: true, qty: 2 },
+        'Traditional Photographer': { on: true, qty: 1 },
+      },
+      videoTypes: {
+        'Cinematic Videographer': { on: true, qty: 1 },
+      },
+    },
+    'Pre-Wedding Shoot': {
+      coverageSide: 'single',
+      duration: 'Up to 5 Hours',
+      extraHour: 3000,
+      photoTypes: {
+        'Candid Photographer': { on: true, qty: 1 },
+        'Traditional Photographer': { on: false, qty: 0 },
+      },
+      videoTypes: {
+        'Cinematic Videographer': { on: true, qty: 1 },
+      },
+    },
+  };
+  p.deliverVideo = ['Save-the-date Reel', 'Highlight Video', 'Cinematic Video'];
+  p.videoDetails = {
+    'Save-the-date Reel': {
+      qty: 1,
+      duration: '60–90 Seconds',
+      format: 'MP4 (Full HD)',
+      delivery: '3 Working Days',
+    },
+    'Highlight Video': { qty: 1, duration: '10–12 Minutes', format: 'MP4 (4K)', delivery: '21 Working Days' },
+    'Cinematic Video': { qty: 1, duration: '15–18 Minutes', format: 'MP4 (4K)', delivery: '30 Working Days' },
+  };
   p.photoDetails['Edited Photos'].qty = 800;
+  p.photoDetails['Colour-Graded Photos'].qty = 200;
+  p.albumPrints['Photo Album'] = {
+    on: true,
+    size: '12 x 36 inch',
+    pages: 40,
+    cover: 'Luxury',
+    paper: 'Lustre',
+    copies: 3,
+  };
+  p.deliveryMap['Save-the-date Reel'] = '3 Working Days';
+  p.deliveryMap['Highlight Video'] = '21 Working Days';
+  p.deliveryMap['Cinematic Video'] = '30 Working Days';
+  p.deliveryMap['Photo Album'] = '60 Working Days';
   return p;
 }
 
