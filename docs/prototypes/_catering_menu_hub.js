@@ -9,6 +9,7 @@ function ensureCateringMenuStore() {
   if (!store.cateringMenu.foodItems) store.cateringMenu.foodItems = [];
   if (!store.cateringMenu.catPackages) store.cateringMenu.catPackages = defaultCateringMenuStore().catPackages;
   if (!store.cateringMenu.hubTab) store.cateringMenu.hubTab = 'packages';
+  if (store.cateringMenu.pkgFilter === 'custom') store.cateringMenu.pkgFilter = 'all';
 }
 
 function cateringMenuOpenHub() {
