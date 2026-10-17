@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<!-- GIXBEE CATERING OWNER — single self-contained flow HTML (FINALFLOW). Open GIXBEE-CATERING-OWNER-FINALFLOW.html in browser. Do NOT open catering-owner-flow-shell.html. -->
+
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Gixbee — Catering Owner</title>
+<style>
+:root{--navy:#1B2559;--blue:#2563EB;--ink:#111827;--mut:#64748B;--line:#E5E7EB;--gn:#12B76A;--gn2:#047857;--soft:#ECFDF3;--pink:#EC4899;--pink2:#DB2777;--shadow:0 10px 32px rgba(15,23,42,.1)}
+*{box-sizing:border-box}
+body{margin:0;background:#E8EDF5;font-family:Inter,system-ui,sans-serif;color:var(--ink)}
+.stage{min-height:100vh;display:flex;justify-content:center;padding:12px 8px 24px}
+.phone{width:min(100%,430px);background:#fff;min-height:920px;border-radius:36px;box-shadow:var(--shadow);overflow:hidden;position:relative;border:8px solid #111;display:flex;flex-direction:column}
+.notch{height:26px;display:flex;justify-content:space-between;padding:8px 18px 0;font-size:12px;font-weight:700;color:var(--navy)}
+.scr{display:none;flex:1;overflow:auto;padding:0 0 24px}
+.scr.on{display:block}
+.top{display:flex;align-items:center;gap:8px;padding:10px 16px;background:#fff;border-bottom:1px solid var(--line)}
+.top h1{margin:0;font-size:17px;flex:1;color:var(--navy);font-weight:800}
+.back{border:0;background:none;font-size:22px;color:var(--navy);cursor:pointer;width:36px;height:36px;display:grid;place-items:center}
+.p-ico{width:22px;height:22px;display:inline-block;vertical-align:middle;flex-shrink:0}
+.toast{position:absolute;left:16px;right:16px;bottom:80px;background:#111;color:#fff;padding:12px;border-radius:12px;display:none;z-index:9;font-size:13px}
+.lmb-top{background:#F8FAFC;border-bottom:1px solid var(--line);padding:10px 16px 12px}
+.lmb-top .row{display:flex;align-items:center;gap:8px;flex-wrap:nowrap}
+.biz-title{font-weight:900;font-size:16px;color:var(--navy);flex:1;min-width:0}
+.manage-pill{font-size:11px;font-weight:800;color:var(--mut);border:1px solid var(--line);padding:6px 10px;border-radius:99px;background:#fff;flex-shrink:0}
+button.manage-pill{cursor:pointer;font:inherit;color:var(--blue);border-color:#BFDBFE;background:#EFF6FF;max-width:108px;line-height:1.25;text-align:center}
+.home-pill{display:inline-flex;align-items:center;gap:6px;padding:6px 12px;border-radius:99px;background:var(--soft);color:var(--gn2);font-size:11px;font-weight:800;border:0;cursor:pointer}
+.biz-dash-card{border:1px solid var(--line);border-radius:16px;padding:14px;margin-bottom:14px;background:#fff;box-shadow:0 2px 8px rgba(15,23,42,.04)}
+.biz-dash-card .biz-row{display:flex;gap:12px;align-items:flex-start}
+.biz-dash-card .biz-ico{width:44px;height:44px;border-radius:12px;background:#DBEAFE;display:grid;place-items:center;font-size:22px;flex:none}
+.biz-dash-card .biz-ico.catering{background:#FEF3C7}
+.biz-dash-card .biz-name{font-weight:900;font-size:15px;margin:0 0 2px;color:var(--navy)}
+.biz-dash-card .biz-type{font-size:12px;color:var(--mut);font-weight:600;margin:0}
+.biz-dash-card .biz-meta{font-size:12px;color:var(--mut);margin:8px 0}
+.biz-dash-card .biz-badges{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0 12px}
+.biz-dash-card .biz-badges span{font-size:10px;font-weight:800;padding:4px 8px;border-radius:99px;background:#FEE2E2;color:#B91C1C}
+.biz-dash-card .biz-badges span.gy{background:#F3F4F6;color:#374151}
+.biz-dash-card .biz-actions{display:flex;gap:8px}
+.biz-dash-card .biz-actions button{flex:1;border:1px solid var(--line);background:#fff;border-radius:99px;padding:9px 6px;font-size:11px;font-weight:800;color:var(--navy);cursor:pointer}
+.biz-dash-card .biz-actions button.mgr-catering{border:0;background:var(--blue);color:#fff}
+.pill.ok{background:#DCFCE7;color:#166534;font-size:10px;font-weight:800;padding:4px 8px;border-radius:99px}
+.dash-banner{height:100px;background:linear-gradient(145deg,#78716C,#A8A29E);position:relative}
+.dash-logo{position:absolute;left:16px;bottom:-28px;width:56px;height:56px;border-radius:50%;background:#fff;border:3px solid #fff;box-shadow:0 4px 12px rgba(0,0,0,.12);display:grid;place-items:center;font-size:22px}
+.dash-head{padding:36px 16px 12px}
+.dash-head b{font-size:18px;color:var(--navy);display:block}
+.dash-head .loc{font-size:12px;color:var(--mut);margin-top:4px;display:flex;align-items:center;gap:4px}
+.area-card{margin:0 16px 14px;padding:14px;border:1px solid #BFDBFE;border-radius:14px;background:#F8FAFC}
+.area-card b{display:flex;align-items:center;gap:6px;color:var(--navy);font-size:14px}
+.area-card .sum{font-size:12px;color:var(--mut);margin:8px 0;line-height:1.4}
+.area-card a{font-size:13px;font-weight:800;color:var(--blue);text-decoration:none;cursor:pointer}
+.lbl{font-size:11px;font-weight:800;color:#9CA3AF;letter-spacing:.6px;margin:16px 0 8px}
+.qgrid{display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:0 16px 16px}
+.qtile{border:1px solid var(--line);border-radius:14px;padding:14px 10px;text-align:center;cursor:pointer;background:#fff;font:inherit;color:inherit;position:relative}
+.qtile .qi{font-size:22px;margin-bottom:6px}
+.qtile b{font-size:11px;color:var(--navy);display:block;line-height:1.3}
+.qtile.pink{background:#FDF2F8;border-color:#FBCFE8}
+.qtile.blue{background:#EFF6FF;border-color:#BFDBFE}
+.qtile.orange{background:#FFF7ED;border-color:#FED7AA}
+.qtile.teal{background:#F0FDFA;border-color:#99F6E4}
+.qtile.gray{background:#F8FAFC;border-color:#CBD5E1}
+.qtile .badge{position:absolute;top:8px;right:8px;background:#EF4444;color:#fff;font-size:10px;font-weight:800;min-width:18px;height:18px;border-radius:99px;display:grid;place-items:center}
+#buildTag{font-size:10px;color:var(--mut);padding:8px 16px;text-align:center}
+</style>
+</head>
+<body>
+<noscript><div style="padding:24px;font:16px sans-serif;color:#b91c1c"><b>JavaScript is off.</b> Turn it on and reopen this file.</div></noscript>
+<div id="bootError" hidden style="position:fixed;inset:0;z-index:99999;background:#fff;padding:24px;font:15px sans-serif;overflow:auto"></div>
+<div class="stage"><div class="phone">
+<div class="notch"><span>9:41</span><span>●●●</span></div>
+
+<section class="scr on" id="lmbDashboard">
+  <div class="lmb-top">
+    <div class="row">
+      <button type="button" class="home-pill" id="lmbHomeBtn">🏠 Home</button>
+      <div class="biz-title">List My Business</div>
+      <span class="manage-pill">Manage &amp; grow</span>
+    </div>
+  </div>
+  <div class="pad" style="padding-top:8px" id="lmbCards"></div>
+  <p id="buildTag">Catering owner flow</p>
+</section>
+
+<section class="scr" id="cateringDash">
+  <div class="top"><button type="button" class="back" id="backToLmb">←</button><h1>Dashboard</h1><button type="button" class="manage-pill" id="cateringBizProfileBtn">Business profile</button></div>
+  <div class="dash-banner"><div class="dash-logo">🍽️</div></div>
+  <div class="dash-head">
+    <b id="dashBizName">Archana Catering</b>
+    <div class="loc"><span id="dashLocIco"></span> <span id="dashLocTxt">Sakthan Nagar, Thrissur</span></div>
+  </div>
+  <div class="area-card">
+    <b><span id="areaCardIco"></span> Service areas</b>
+    <p class="sum" id="areaSummary">Set where you accept bookings.</p>
+    <a href="#" id="manageAreasLink">Manage service areas →</a>
+  </div>
+  <p class="lbl" style="padding:0 16px;margin-bottom:8px">QUICK ACTIONS</p>
+  <div class="qgrid" id="quickGrid"></div>
+</section>
+
+<div class="toast" id="toast"></div>
+</div></div>
+<!-- APP_START -->
+<script>
+function cateringIcon(name) {
+  const c = ' class="p-ico" aria-hidden="true"';
+  const icons = {
+    pin: '<svg' + c + ' viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 21s6-5.2 6-10a6 6 0 1 0-12 0c0 4.8 6 10 6 10z"/><circle cx="12" cy="11" r="2.5"/></svg>',
+  };
+  return icons[name] || '';
+}
+
+const CATERING_OWNER_BUILD = '2026-10-17-catering-owner-lmb-v1';
+const STORAGE_KEY = 'GIXBEE_CATERING_OWNER_V1';
+
+function cateringOwnerDemoFile() {
+  try {
+    const path = String(location.pathname || location.href || '').toLowerCase();
+    if (path.indexOf('finalflow5') >= 0) return 'GIXBEE-CATERING-OWNER-FINALFLOW5.html';
+  } catch (e) {
+    /* ignore */
+  }
+  return 'GIXBEE-CATERING-OWNER-FINALFLOW.html';
+}
+
+function defaultStore() {
+  return {
+    biz: {
+      name: 'Archana Catering',
+      loc: 'Sakthan Nagar, Thrissur',
+      type: 'Catering',
+      vertical: 'Service',
+      verified: true,
+    },
+    serviceAreas: {
+      states: ['Kerala'],
+      districts: { Kerala: ['Thrissur', 'Ernakulam'] },
+    },
+    stats: { newRequests: 3, revenueLabel: 'Rs 2.1L this month' },
+  };
+}
+
+let store = defaultStore();
+
+function el(id) {
+  return document.getElementById(id);
+}
+
+function esc(s) {
+  return String(s == null ? '' : s)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+function loadStore() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (raw) store = Object.assign(defaultStore(), JSON.parse(raw));
+  } catch (e) {
+    store = defaultStore();
+  }
+}
+
+function saveStore() {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(store));
+  } catch (e) {
+    /* ignore */
+  }
+}
+
+function show(id) {
+  document.querySelectorAll('.scr').forEach(function (s) {
+    s.classList.toggle('on', s.id === id);
+  });
+}
+
+function toast(msg) {
+  const t = el('toast');
+  if (!t) return;
+  t.textContent = msg;
+  t.style.display = 'block';
+  clearTimeout(toast._tm);
+  toast._tm = setTimeout(function () {
+    t.style.display = 'none';
+  }, 2200);
+}
+
+function areaSummaryText() {
+  const sa = store.serviceAreas;
+  if (!sa.states.length) return 'Set where you accept bookings.';
+  return sa.states
+    .map(function (st) {
+      const ds = sa.districts[st] || [];
+      return st + ' (' + ds.length + ' district' + (ds.length === 1 ? '' : 's') + ')';
+    })
+    .join(' · ');
+}
+
+function renderLmb() {
+  const wrap = el('lmbCards');
+  if (!wrap) return;
+  const b = store.biz;
+  wrap.innerHTML =
+    '<div class="biz-dash-card">' +
+    '<div class="biz-row"><div class="biz-ico catering">🍽️</div><div style="flex:1">' +
+    '<p class="biz-name">' +
+    esc(b.name) +
+    '</p><p class="biz-type">' +
+    esc(b.type || 'Catering') +
+    '</p>' +
+    '<p class="biz-meta"><span class="pill ok">Verified</span> · ' +
+    esc(b.loc) +
+    '</p>' +
+    '<div class="biz-badges"><span>' +
+    store.stats.newRequests +
+    ' new requests</span><span class="gy">' +
+    esc(store.stats.revenueLabel) +
+    '</span></div>' +
+    '<div class="biz-actions"><button type="button" id="lmbCalBtn">Calendar</button><button type="button" id="lmbReqBtn">Requests</button>' +
+    '<button type="button" class="mgr-catering" id="dashCateringManage">Manage</button></div>' +
+    '</div></div></div>';
+  el('dashCateringManage').onclick = function () {
+    renderCateringDash();
+    show('cateringDash');
+  };
+  const lmbCal = el('lmbCalBtn');
+  if (lmbCal) lmbCal.onclick = function () {
+    toast('Calendar — coming in next catering screens');
+  };
+  const lmbReq = el('lmbReqBtn');
+  if (lmbReq) lmbReq.onclick = function () {
+    toast('Booking requests — coming in next catering screens');
+  };
+}
+
+function renderCateringDash() {
+  const b = store.biz;
+  el('dashBizName').textContent = b.name;
+  el('dashLocTxt').textContent = b.loc;
+  el('dashLocIco').innerHTML = cateringIcon('pin');
+  el('areaCardIco').innerHTML = cateringIcon('pin');
+  el('areaSummary').textContent = areaSummaryText();
+  const q = el('quickGrid');
+  if (!q) return;
+  q.innerHTML = [
+    { id: 'menuPkg', cls: 'pink', ico: '🍽️', label: 'Menu & Packages' },
+    { id: 'calendar', cls: 'blue', ico: '📅', label: 'Calendar' },
+    { id: 'gallery', cls: 'blue', ico: '🖼', label: 'Photos & Gallery' },
+    { id: 'requests', cls: 'orange', ico: '🔔', label: 'Booking Requests', badge: String(store.stats.newRequests) },
+    { id: 'operators', cls: 'teal', ico: '👥', label: 'Operators' },
+    { id: 'deletedBusiness', cls: 'gray', ico: '🗑', label: 'Deleted business' },
+  ]
+    .map(function (t) {
+      return (
+        '<button type="button" class="qtile ' +
+        t.cls +
+        '" data-go="' +
+        t.id +
+        '">' +
+        (t.badge ? '<span class="badge">' + esc(t.badge) + '</span>' : '') +
+        '<div class="qi">' +
+        t.ico +
+        '</div><b>' +
+        esc(t.label) +
+        '</b></button>'
+      );
+    })
+    .join('');
+  q.querySelectorAll('[data-go]').forEach(function (btn) {
+    btn.onclick = function () {
+      const dest = btn.getAttribute('data-go');
+      if (dest === 'menuPkg') {
+        toast('Menu & packages hub — share page 3+ screens to build next');
+        return;
+      }
+      toast('Coming in next catering owner screens');
+    };
+  });
+}
+
+function bindEvents() {
+  const home = el('lmbHomeBtn');
+  if (home) home.onclick = function () {
+    show('lmbDashboard');
+  };
+  const back = el('backToLmb');
+  if (back) back.onclick = function () {
+    show('lmbDashboard');
+  };
+  const prof = el('cateringBizProfileBtn');
+  if (prof) {
+    prof.onclick = function () {
+      toast('Business profile — coming in next catering screens');
+    };
+  }
+  const areas = el('manageAreasLink');
+  if (areas) {
+    areas.onclick = function (e) {
+      e.preventDefault();
+      toast('Service areas — coming in next catering screens');
+    };
+  }
+}
+
+function showBootError(msg) {
+  const box = el('bootError');
+  if (!box) return;
+  box.hidden = false;
+  box.innerHTML = '<b>Could not start catering owner demo</b><p style="margin:12px 0">' + esc(msg) + '</p>';
+}
+
+function boot() {
+  try {
+    if (!el('quickGrid')) {
+      throw new Error('Open ' + cateringOwnerDemoFile() + ' (full bundled file).');
+    }
+    loadStore();
+    saveStore();
+    renderLmb();
+    renderCateringDash();
+    bindEvents();
+    const err = el('bootError');
+    if (err) err.hidden = true;
+    const tag = el('buildTag');
+    if (tag) tag.textContent = 'Catering owner · ' + CATERING_OWNER_BUILD;
+    show('lmbDashboard');
+  } catch (err) {
+    console.error(err);
+    showBootError(err.message || String(err));
+  }
+}
+
+if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
+else boot();
+
+</script>
+<!-- APP_END -->
+</body>
+</html>
