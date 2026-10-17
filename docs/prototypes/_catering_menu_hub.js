@@ -221,9 +221,7 @@ function renderCatPkgList() {
         lv +
         '">' +
         esc(p.level) +
-        '</span></div><button type="button" class="cat-pkg-more" data-cpkg-menu="' +
-        esc(p.id) +
-        '" aria-label="Options">⋯</button></div><b>' +
+        '</span></div></div><b>' +
         esc(p.name) +
         '</b><div class="pkg-price">' +
         formatInrCompact(p.price || lowestGuestPrice(p)) +
@@ -234,7 +232,15 @@ function renderCatPkgList() {
         (p.status === 'live' ? 'pub' : 'draft') +
         '">' +
         (p.status === 'live' ? '● Live' : '○ Draft') +
-        '</span></div></div></div>'
+        '</span></div><div class="hub-card-actions">' +
+        '<button type="button" class="hub-act hub-act-edit hub-act-sm" data-cpkg-edit="' +
+        esc(p.id) +
+        '">' +
+        photoIcon('edit') +
+        ' Edit</button>' +
+        '<button type="button" class="hub-act hub-act-del hub-act-sm" data-cpkg-del="' +
+        esc(p.id) +
+        '">Delete</button></div></div></div>'
       );
     })
     .join('');
