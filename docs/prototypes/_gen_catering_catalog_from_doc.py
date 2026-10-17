@@ -81,6 +81,23 @@ def extract_paragraphs(docx: Path) -> list[str]:
     return paras
 
 
+def is_custom_catalog_item(name: str) -> bool:
+    n = (name or "").strip()
+    return n == "Custom" or n.startswith("Custom ")
+
+
+def strip_custom_catalog_entries(modules: list[dict]) -> list[dict]:
+    for mod in modules:
+        next_subcats = []
+        for sc in mod["subcats"]:
+            items = [it for it in sc.get("items", []) if not is_custom_catalog_item(it)]
+            if not items:
+                continue
+            next_subcats.append({"name": sc["name"], "items": items})
+        mod["subcats"] = next_subcats
+    return modules
+
+
 def parse_modules(paras: list[str]) -> list[dict]:
     modules: list[dict] = []
     cur_mod: dict | None = None
@@ -217,7 +234,7 @@ def js_string(s: str) -> str:
 def emit_catalog_js(defs: list[dict]) -> str:
     lines = [
         "/** Fixed 13-module catering catalogue — generated from gixbee-catering-almostfinal.docx */",
-        "const CAT_PKG_LEVELS = ['Basic', 'Standard', 'Premium', 'Custom'];",
+        "const CAT_PKG_LEVELS = ['Basic', 'Standard', 'Premium'];",
         "",
         "const FOOD_MODULE_GRADIENTS = " + json.dumps(GRADIENTS) + ";",
         "",
@@ -432,7 +449,7 @@ def main() -> None:
     if not DOCX.is_file():
         raise SystemExit(f"Missing docx: {DOCX}")
     paras = extract_paragraphs(DOCX)
-    parsed = parse_modules(paras)
+    parsed = strip_custom_catalog_entries(parse_modules(paras))
     if len(parsed) != 13:
         raise SystemExit(f"Expected 13 modules, got {len(parsed)}")
     total = sum(len(sc["items"]) for m in parsed for sc in m["subcats"])
