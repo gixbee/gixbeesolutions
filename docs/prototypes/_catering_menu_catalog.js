@@ -1,5 +1,5 @@
 /** Fixed 13-module catering catalogue — generated from gixbee-catering-almostfinal.docx */
-const CAT_PKG_LEVELS = ['Basic', 'Standard', 'Premium', 'Custom'];
+const CAT_PKG_LEVELS = ['Basic', 'Standard', 'Premium'];
 
 const FOOD_MODULE_GRADIENTS = ["linear-gradient(145deg,#0EA5E9,#0284C7)", "linear-gradient(145deg,#F97316,#EA580C)", "linear-gradient(145deg,#22C55E,#16A34A)", "linear-gradient(145deg,#EF4444,#DC2626)", "linear-gradient(145deg,#EAB308,#CA8A04)", "linear-gradient(145deg,#A855F7,#7C3AED)", "linear-gradient(145deg,#F43F5E,#E11D48)", "linear-gradient(145deg,#6366F1,#4F46E5)", "linear-gradient(145deg,#14B8A6,#0D9488)", "linear-gradient(145deg,#84CC16,#65A30D)", "linear-gradient(145deg,#FB923C,#F97316)", "linear-gradient(145deg,#D97706,#B45309)", "linear-gradient(145deg,#EC4899,#DB2777)"];
 
@@ -82,8 +82,7 @@ const CATERING_CATALOG_DEFS =
           "Mojito (Non-Alcoholic)",
           "Iced Tea",
           "Flavoured Water",
-          "Mineral Water",
-          "Custom Welcome Drink"
+          "Mineral Water"
         ]
       }
     ]
@@ -165,8 +164,7 @@ const CATERING_CATALOG_DEFS =
           "Mini Burgers",
           "Finger Foods",
           "Chaat Items",
-          "Kids' Snacks",
-          "Custom Snack"
+          "Kids' Snacks"
         ]
       }
     ]
@@ -261,8 +259,7 @@ const CATERING_CATALOG_DEFS =
         "name": "Specialty",
         "items": [
           "Pepper Soup",
-          "Mulligatawny Soup",
-          "Custom Soup"
+          "Mulligatawny Soup"
         ]
       }
     ]
@@ -461,8 +458,7 @@ const CATERING_CATALOG_DEFS =
         "items": [
           "Half Chicken Combo",
           "Full Chicken Combo",
-          "Family Mandi Combo",
-          "Custom Arabian Combo"
+          "Family Mandi Combo"
         ]
       }
     ]
@@ -549,8 +545,7 @@ const CATERING_CATALOG_DEFS =
         "name": "Other",
         "items": [
           "Regional Speciality",
-          "Chef's Special",
-          "Custom Main Course"
+          "Chef's Special"
         ]
       }
     ]
@@ -788,13 +783,6 @@ const CATERING_CATALOG_DEFS =
           "Coffee Bar",
           "Samavar Tea Counter"
         ]
-      },
-      {
-        "id": "custom",
-        "name": "Custom",
-        "items": [
-          "Custom Live Counter"
-        ]
       }
     ]
   },
@@ -921,8 +909,7 @@ const CATERING_CATALOG_DEFS =
         "items": [
           "Kids' Special Dessert",
           "Seasonal Dessert",
-          "Chef's Special Dessert",
-          "Custom Dessert"
+          "Chef's Special Dessert"
         ]
       }
     ]
