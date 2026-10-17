@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
-"""Build catering owner single-file HTML demos from shell + icons + app."""
+"""Build catering owner single-file HTML demos from shell + icons + calendar + app."""
 from pathlib import Path
 
 DIR = Path(__file__).resolve().parent
 SHELL = DIR / "catering-owner-flow-shell.html"
 ICONS = DIR / "_catering_owner_icons.js"
+CAL = DIR / "_photo_calendar.js"
 APP = DIR / "_catering_owner_app.js"
 MASTER = DIR / "GIXBEE-CATERING-OWNER-FINALFLOW.html"
 
@@ -26,10 +27,13 @@ SHELL_PLACEHOLDER = """<!-- APP_START -->
 def build_master() -> str:
     shell = SHELL.read_text(encoding="utf-8")
     icons = ICONS.read_text(encoding="utf-8")
+    cal = CAL.read_text(encoding="utf-8")
     app = APP.read_text(encoding="utf-8")
     block = (
         "<!-- APP_START -->\n<script>\n"
         + icons
+        + "\n"
+        + cal
         + "\n"
         + app
         + "\n</script>\n<!-- APP_END -->"
@@ -42,6 +46,13 @@ def build_master() -> str:
         raise SystemExit(f"expected one inlined script, got {out.count('<script>')}")
     if "CATERING_OWNER_BUILD" not in out or "function boot(" not in out:
         raise SystemExit("missing catering owner app")
+    for cal_marker in (
+        'id="photoCalGrid"',
+        "function openPhotoCalendar",
+        "bindPhotoCalendarUi",
+    ):
+        if cal_marker not in out:
+            raise SystemExit(f"built HTML missing calendar bundle: {cal_marker!r}")
     banner = (
         "<!-- GIXBEE CATERING OWNER — single self-contained flow HTML (FINALFLOW). "
         "Open GIXBEE-CATERING-OWNER-FINALFLOW.html in browser. "
