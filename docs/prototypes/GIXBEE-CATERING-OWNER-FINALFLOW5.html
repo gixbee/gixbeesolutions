@@ -123,9 +123,33 @@ body{margin:0;background:#E8EDF5;font-family:Inter,system-ui,sans-serif;color:va
 .cat-mod-name small{display:block;font-size:11px;font-weight:600;color:var(--mut);margin-top:2px}
 .cat-mod-chev{color:#CBD5E1;font-size:20px}
 .cat-sub-hd{font-size:11px;font-weight:900;color:#94A3B8;text-transform:uppercase;letter-spacing:.06em;margin:16px 0 8px;padding:0 16px}
-.cat-check-row{display:flex;align-items:center;gap:12px;padding:12px 16px;border-bottom:1px solid #F1F5F9;font-size:14px;font-weight:700;color:var(--navy);cursor:pointer}
-.cat-check-row.on{background:#EFF6FF}
-.cat-check-row input{width:18px;height:18px;accent-color:var(--blue)}
+#catModulePick{padding-bottom:88px;background:#fff}
+#catModulePick .cat-pick-search{margin:0 16px 12px}
+#catModulePick .cat-pick-meta{font-size:11px;font-weight:700;color:var(--mut);padding:0 16px 8px;margin:0}
+.cat-pick-section{margin:0 0 16px}
+.cat-pick-section-hd{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:12px 16px 8px}
+.cat-pick-section-hd b{font-size:14px;font-weight:900;color:var(--navy)}
+.cat-pick-section-actions{display:flex;gap:6px;flex-shrink:0}
+.cat-pick-section-actions button{border:0;background:#EFF6FF;color:var(--blue);font-size:10px;font-weight:800;padding:6px 10px;border-radius:99px;cursor:pointer;font:inherit}
+.cat-pick-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:0 16px 4px}
+.cat-pick-cell{display:flex;align-items:flex-start;gap:8px;padding:10px 10px 10px 8px;border:1.5px solid #E2E8F0;border-radius:12px;background:#fff;cursor:pointer;text-align:left;font:inherit;color:var(--navy);min-height:52px;transition:border-color .12s,background .12s,box-shadow .12s}
+.cat-pick-cell:active{transform:scale(.98)}
+.cat-pick-cell.on{border-color:#93C5FD;background:#EFF6FF;box-shadow:0 0 0 1px #BFDBFE}
+.cat-pick-cell.on-menu{border-color:#A7F3D0;background:#F0FDF4}
+.cat-pick-cell.on-menu.on{border-color:#6EE7B7;background:#ECFDF5}
+.cat-pick-cell.hidden-match{display:none}
+.cat-pick-chk{width:20px;height:20px;border-radius:6px;border:2px solid #CBD5E1;display:grid;place-items:center;flex-shrink:0;margin-top:1px;font-size:11px;font-weight:900;color:#fff}
+.cat-pick-cell.on .cat-pick-chk,.cat-pick-cell.on-menu .cat-pick-chk{background:var(--blue);border-color:var(--blue)}
+.cat-pick-cell.on-menu .cat-pick-chk{background:var(--gn2);border-color:var(--gn2)}
+.cat-pick-label{flex:1;min-width:0;font-size:12px;font-weight:800;line-height:1.35;display:flex;flex-direction:column;gap:3px}
+.cat-pick-label small{font-size:9px;font-weight:800;color:var(--gn2);letter-spacing:.02em}
+.cat-pick-diet{font-size:8px;font-weight:900;padding:2px 5px;border-radius:4px;align-self:flex-start}
+.cat-pick-diet.veg{background:#DCFCE7;color:#166534}
+.cat-pick-diet.non_veg{background:#FEE2E2;color:#B91C1C}
+.cat-pick-diet.egg{background:#FEF3C7;color:#B45309}
+.cat-pick-empty{text-align:center;padding:32px 20px;color:var(--mut);font-size:13px;font-weight:600}
+.cat-pick-foot{position:sticky;bottom:0;z-index:6;padding:12px 16px 16px;background:linear-gradient(transparent,#fff 20%);border-top:1px solid #F1F5F9}
+.cat-pick-foot .btn{box-shadow:0 8px 24px rgba(37,99,235,.28)}
 .cat-food-hero{margin:0 16px 16px;height:160px;border-radius:16px;background:linear-gradient(145deg,#F97316,#EA580C);display:grid;place-items:center;position:relative;overflow:hidden}
 .cat-food-hero span{font-size:64px}
 .cat-food-hero button{position:absolute;bottom:12px;right:12px;border:0;background:rgba(255,255,255,.92);padding:8px 14px;border-radius:99px;font-size:12px;font-weight:800;color:var(--navy);cursor:pointer}
@@ -752,9 +776,11 @@ button.manage-pill{cursor:pointer;font:inherit;color:var(--blue);border-color:#B
 </section>
 
 <section class="scr" id="catModulePick">
-  <div class="top"><button type="button" class="back" id="catModulePickBack">←</button><h1 id="catModuleTitle">Module</h1><button type="button" class="link" id="catModuleEditFood" style="font-size:12px">Edit</button></div>
+  <div class="top"><button type="button" class="back" id="catModulePickBack">←</button><h1 id="catModuleTitle">Module</h1><span style="width:36px"></span></div>
+  <div class="cat-pick-search cat-hub-search" id="catModulePickSearchWrap" hidden><span aria-hidden="true">🔍</span><input type="search" id="catModulePickSearch" placeholder="Search in this module…" autocomplete="off"></div>
+  <p class="cat-pick-meta" id="catModulePickMeta"></p>
   <div id="catModulePickBody"></div>
-  <div class="cta"><button type="button" class="btn btn-blue" id="catModulePickSave">Add Selected Items (0)</button></div>
+  <div class="cat-pick-foot"><button type="button" class="btn btn-blue" id="catModulePickSave">Add Selected Items (0)</button></div>
 </section>
 
 <section class="scr" id="catFoodItemForm">
@@ -3650,26 +3676,78 @@ function deleteCatPackage(id) {
   toast('Package deleted');
 }
 
+function moduleCatalogItemCount(mod) {
+  let n = 0;
+  (mod.subcats || []).forEach(function (sc) {
+    n += (sc.items || []).length;
+  });
+  return n;
+}
+
+function isItemOnOwnerMenu(masterKey) {
+  return ownerHasMasterKey(masterKey);
+}
+
+function pickDietLabel(diet) {
+  if (diet === 'non_veg') return { cls: 'non_veg', text: 'NV' };
+  if (diet === 'egg') return { cls: 'egg', text: 'Egg' };
+  return { cls: 'veg', text: 'V' };
+}
+
+function modulePickMatchesSearch(itemName, query) {
+  if (!query) return true;
+  return String(itemName || '').toLowerCase().indexOf(query) >= 0;
+}
+
+function countModulePickPending() {
+  return Object.keys(menuPickCtx.selected).filter(function (k) {
+    if (!menuPickCtx.selected[k]) return false;
+    if (menuPickCtx.mode === 'package') return true;
+    return !isItemOnOwnerMenu(k);
+  }).length;
+}
+
+function toggleModulePickKey(masterKey) {
+  if (menuPickCtx.mode === 'catalog' && isItemOnOwnerMenu(masterKey)) {
+    const existing = (store.cateringMenu.foodItems || []).find(function (f) {
+      return f.masterKey === masterKey;
+    });
+    if (existing) openFoodItemForm(existing.id, masterKey);
+    return;
+  }
+  if (menuPickCtx.selected[masterKey]) delete menuPickCtx.selected[masterKey];
+  else menuPickCtx.selected[masterKey] = true;
+  renderModulePickerBody();
+}
+
 function openModulePicker(moduleId, mode) {
   menuPickCtx = {
     mode: mode || 'catalog',
     moduleId: moduleId,
     selected: {},
+    search: '',
     returnTo: mode === 'package' ? 'catPkgCreate' : 'menuPkg',
   };
   const mod = findFoodModule(moduleId);
   if (!mod) return;
-  if (mode === 'catalog') {
-    (store.cateringMenu.foodItems || []).forEach(function (f) {
-      if (f.moduleId === moduleId && f.masterKey) menuPickCtx.selected[f.masterKey] = true;
-    });
-  } else if (pkgWizard.draft) {
+  if (mode === 'package' && pkgWizard.draft) {
     (pkgWizard.draft.itemIds || []).forEach(function (fid) {
       const it = findFoodItem(fid);
       if (it && it.moduleId === moduleId && it.masterKey) menuPickCtx.selected[it.masterKey] = true;
     });
   }
   el('catModuleTitle').textContent = mod.name;
+  const searchWrap = el('catModulePickSearchWrap');
+  const searchInp = el('catModulePickSearch');
+  const showSearch = moduleCatalogItemCount(mod) > 18;
+  if (searchWrap) searchWrap.hidden = !showSearch;
+  if (searchInp) {
+    searchInp.value = '';
+    searchInp.oninput = function () {
+      menuPickCtx.search = (searchInp.value || '').trim().toLowerCase();
+      renderModulePickerBody();
+    };
+  }
   renderModulePickerBody();
   show('catModulePick');
 }
@@ -3677,43 +3755,111 @@ function openModulePicker(moduleId, mode) {
 function renderModulePickerBody() {
   const mod = findFoodModule(menuPickCtx.moduleId);
   const body = el('catModulePickBody');
+  const meta = el('catModulePickMeta');
   if (!mod || !body) return;
+  const q = menuPickCtx.search || '';
+  const total = moduleCatalogItemCount(mod);
+  let visible = 0;
   let html = '';
-  mod.subcats.forEach(function (sc) {
-    html += '<p class="cat-sub-hd">' + esc(sc.name) + '</p>';
-    sc.items.forEach(function (it) {
-      const on = !!menuPickCtx.selected[it.masterKey];
-      html +=
-        '<label class="cat-check-row' +
-        (on ? ' on' : '') +
-        '"><input type="checkbox" data-mk="' +
-        esc(it.masterKey) +
-        '"' +
-        (on ? ' checked' : '') +
-        '><span>' +
-        esc(it.name) +
-        '</span></label>';
+  mod.subcats.forEach(function (sc, scIdx) {
+    const visibleItems = (sc.items || []).filter(function (it) {
+      return modulePickMatchesSearch(it.name, q);
     });
+    if (!visibleItems.length) return;
+    visible += visibleItems.length;
+    html +=
+      '<div class="cat-pick-section" data-sc-idx="' +
+      scIdx +
+      '"><div class="cat-pick-section-hd"><b>' +
+      esc(sc.name) +
+      '</b><div class="cat-pick-section-actions">' +
+      '<button type="button" data-pick-all="' +
+      scIdx +
+      '">Select all</button>' +
+      '<button type="button" data-pick-none="' +
+      scIdx +
+      '">Clear</button></div></div><div class="cat-pick-grid">';
+    visibleItems.forEach(function (it) {
+      const onMenuItem = isItemOnOwnerMenu(it.masterKey);
+      const picked =
+        menuPickCtx.mode === 'package'
+          ? !!menuPickCtx.selected[it.masterKey]
+          : onMenuItem || !!menuPickCtx.selected[it.masterKey];
+      const diet = pickDietLabel(it.diet);
+      html +=
+        '<button type="button" class="cat-pick-cell' +
+        (picked ? ' on' : '') +
+        (onMenuItem && menuPickCtx.mode === 'catalog' ? ' on-menu' : '') +
+        '" data-mk="' +
+        esc(it.masterKey) +
+        '"><span class="cat-pick-chk" aria-hidden="true">' +
+        (picked ? '✓' : '') +
+        '</span><span class="cat-pick-label"><span>' +
+        esc(it.name) +
+        '</span>' +
+        (onMenuItem && menuPickCtx.mode === 'catalog' ? '<small>On menu · tap to edit</small>' : '') +
+        '<span class="cat-pick-diet ' +
+        diet.cls +
+        '">' +
+        diet.text +
+        '</span></span></button>';
+    });
+    html += '</div></div>';
   });
+  if (!html) {
+    html = '<div class="cat-pick-empty">No dishes match your search.</div>';
+  }
   body.innerHTML = html;
+  if (meta) {
+    const pending = countModulePickPending();
+    meta.textContent =
+      total +
+      ' dishes in catalogue' +
+      (q ? ' · ' + visible + ' shown' : '') +
+      (menuPickCtx.mode === 'catalog' ? ' · ' + pending + ' to add' : ' · ' + pending + ' selected');
+  }
   syncModulePickCount();
-  body.querySelectorAll('input[type=checkbox]').forEach(function (cb) {
-    cb.onchange = function () {
-      const mk = cb.getAttribute('data-mk');
-      if (cb.checked) menuPickCtx.selected[mk] = true;
-      else delete menuPickCtx.selected[mk];
-      cb.closest('.cat-check-row').classList.toggle('on', cb.checked);
-      syncModulePickCount();
+  body.querySelectorAll('.cat-pick-cell').forEach(function (cell) {
+    cell.onclick = function () {
+      toggleModulePickKey(cell.getAttribute('data-mk'));
+    };
+  });
+  body.querySelectorAll('[data-pick-all]').forEach(function (btn) {
+    btn.onclick = function (e) {
+      e.stopPropagation();
+      const idx = +btn.getAttribute('data-pick-all');
+      const sc = mod.subcats[idx];
+      if (!sc) return;
+      (sc.items || []).forEach(function (it) {
+        if (!modulePickMatchesSearch(it.name, q)) return;
+        if (menuPickCtx.mode === 'catalog' && isItemOnOwnerMenu(it.masterKey)) return;
+        menuPickCtx.selected[it.masterKey] = true;
+      });
+      renderModulePickerBody();
+    };
+  });
+  body.querySelectorAll('[data-pick-none]').forEach(function (btn) {
+    btn.onclick = function (e) {
+      e.stopPropagation();
+      const idx = +btn.getAttribute('data-pick-none');
+      const sc = mod.subcats[idx];
+      if (!sc) return;
+      (sc.items || []).forEach(function (it) {
+        delete menuPickCtx.selected[it.masterKey];
+      });
+      renderModulePickerBody();
     };
   });
 }
 
 function syncModulePickCount() {
-  const n = Object.keys(menuPickCtx.selected).filter(function (k) {
-    return menuPickCtx.selected[k];
-  }).length;
+  const n = countModulePickPending();
   const btn = el('catModulePickSave');
-  if (btn) btn.textContent = menuPickCtx.mode === 'package' ? 'Apply (' + n + ')' : 'Add Selected Items (' + n + ')';
+  if (!btn) return;
+  if (menuPickCtx.mode === 'package') btn.textContent = 'Apply (' + n + ')';
+  else btn.textContent = 'Add Selected Items (' + n + ')';
+  btn.disabled = n === 0;
+  btn.style.opacity = n === 0 ? '0.55' : '1';
 }
 
 function commitModulePicker() {
@@ -3756,6 +3902,7 @@ function commitModulePicker() {
   });
   saveStore();
   show(menuPickCtx.returnTo || 'menuPkg');
+  store.cateringMenu.hubTab = 'food';
   renderCateringMenuHub();
   toast(added ? added + ' item(s) added — set pricing to go live' : 'No new items selected');
 }
@@ -4149,19 +4296,16 @@ function bindCatModulePickUi() {
     if (menuPickCtx.mode === 'package') show('catPkgCreate');
     else {
       show('menuPkg');
+      store.cateringMenu.hubTab = 'food';
       renderCateringMenuHub();
     }
   };
-  el('catModulePickSave').onclick = commitModulePicker;
-  el('catModuleEditFood').onclick = function () {
-    const keys = Object.keys(menuPickCtx.selected).filter(function (k) {
-      return menuPickCtx.selected[k];
-    });
-    if (!keys.length) {
-      toast('Select an item to edit');
+  el('catModulePickSave').onclick = function () {
+    if (countModulePickPending() === 0) {
+      toast(menuPickCtx.mode === 'package' ? 'Select at least one item' : 'Select items to add');
       return;
     }
-    openFoodItemForm(null, keys[0]);
+    commitModulePicker();
   };
 }
 
@@ -4174,7 +4318,7 @@ function bindCateringMenuAll() {
 
 /** Catering owner app core (dashboard, areas, calendar) + menu hub in _catering_menu_*.js */
 const CATERING_OWNER_FLOW_LOCKED = false;
-const CATERING_OWNER_BUILD = '2026-10-17-catering-catalog-459-v1';
+const CATERING_OWNER_BUILD = '2026-10-17-catering-pick-grid-v1';
 
 function cateringOwnerDemoFileName() {
   try {
@@ -4185,7 +4329,7 @@ function cateringOwnerDemoFileName() {
   }
   return 'GIXBEE-CATERING-OWNER-FINALFLOW.html';
 }
-const STORAGE_KEY = 'GIXBEE_CATERING_OWNER_V2';
+const STORAGE_KEY = 'GIXBEE_CATERING_OWNER_V3';
 
 const INDIAN_STATES = {
   Kerala: ['Thrissur', 'Ernakulam', 'Kozhikode', 'Kottayam', 'Palakkad', 'Malappuram', 'Thiruvananthapuram'],

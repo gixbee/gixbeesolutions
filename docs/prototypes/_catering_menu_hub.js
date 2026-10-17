@@ -367,26 +367,78 @@ function deleteCatPackage(id) {
   toast('Package deleted');
 }
 
+function moduleCatalogItemCount(mod) {
+  let n = 0;
+  (mod.subcats || []).forEach(function (sc) {
+    n += (sc.items || []).length;
+  });
+  return n;
+}
+
+function isItemOnOwnerMenu(masterKey) {
+  return ownerHasMasterKey(masterKey);
+}
+
+function pickDietLabel(diet) {
+  if (diet === 'non_veg') return { cls: 'non_veg', text: 'NV' };
+  if (diet === 'egg') return { cls: 'egg', text: 'Egg' };
+  return { cls: 'veg', text: 'V' };
+}
+
+function modulePickMatchesSearch(itemName, query) {
+  if (!query) return true;
+  return String(itemName || '').toLowerCase().indexOf(query) >= 0;
+}
+
+function countModulePickPending() {
+  return Object.keys(menuPickCtx.selected).filter(function (k) {
+    if (!menuPickCtx.selected[k]) return false;
+    if (menuPickCtx.mode === 'package') return true;
+    return !isItemOnOwnerMenu(k);
+  }).length;
+}
+
+function toggleModulePickKey(masterKey) {
+  if (menuPickCtx.mode === 'catalog' && isItemOnOwnerMenu(masterKey)) {
+    const existing = (store.cateringMenu.foodItems || []).find(function (f) {
+      return f.masterKey === masterKey;
+    });
+    if (existing) openFoodItemForm(existing.id, masterKey);
+    return;
+  }
+  if (menuPickCtx.selected[masterKey]) delete menuPickCtx.selected[masterKey];
+  else menuPickCtx.selected[masterKey] = true;
+  renderModulePickerBody();
+}
+
 function openModulePicker(moduleId, mode) {
   menuPickCtx = {
     mode: mode || 'catalog',
     moduleId: moduleId,
     selected: {},
+    search: '',
     returnTo: mode === 'package' ? 'catPkgCreate' : 'menuPkg',
   };
   const mod = findFoodModule(moduleId);
   if (!mod) return;
-  if (mode === 'catalog') {
-    (store.cateringMenu.foodItems || []).forEach(function (f) {
-      if (f.moduleId === moduleId && f.masterKey) menuPickCtx.selected[f.masterKey] = true;
-    });
-  } else if (pkgWizard.draft) {
+  if (mode === 'package' && pkgWizard.draft) {
     (pkgWizard.draft.itemIds || []).forEach(function (fid) {
       const it = findFoodItem(fid);
       if (it && it.moduleId === moduleId && it.masterKey) menuPickCtx.selected[it.masterKey] = true;
     });
   }
   el('catModuleTitle').textContent = mod.name;
+  const searchWrap = el('catModulePickSearchWrap');
+  const searchInp = el('catModulePickSearch');
+  const showSearch = moduleCatalogItemCount(mod) > 18;
+  if (searchWrap) searchWrap.hidden = !showSearch;
+  if (searchInp) {
+    searchInp.value = '';
+    searchInp.oninput = function () {
+      menuPickCtx.search = (searchInp.value || '').trim().toLowerCase();
+      renderModulePickerBody();
+    };
+  }
   renderModulePickerBody();
   show('catModulePick');
 }
@@ -394,43 +446,111 @@ function openModulePicker(moduleId, mode) {
 function renderModulePickerBody() {
   const mod = findFoodModule(menuPickCtx.moduleId);
   const body = el('catModulePickBody');
+  const meta = el('catModulePickMeta');
   if (!mod || !body) return;
+  const q = menuPickCtx.search || '';
+  const total = moduleCatalogItemCount(mod);
+  let visible = 0;
   let html = '';
-  mod.subcats.forEach(function (sc) {
-    html += '<p class="cat-sub-hd">' + esc(sc.name) + '</p>';
-    sc.items.forEach(function (it) {
-      const on = !!menuPickCtx.selected[it.masterKey];
-      html +=
-        '<label class="cat-check-row' +
-        (on ? ' on' : '') +
-        '"><input type="checkbox" data-mk="' +
-        esc(it.masterKey) +
-        '"' +
-        (on ? ' checked' : '') +
-        '><span>' +
-        esc(it.name) +
-        '</span></label>';
+  mod.subcats.forEach(function (sc, scIdx) {
+    const visibleItems = (sc.items || []).filter(function (it) {
+      return modulePickMatchesSearch(it.name, q);
     });
+    if (!visibleItems.length) return;
+    visible += visibleItems.length;
+    html +=
+      '<div class="cat-pick-section" data-sc-idx="' +
+      scIdx +
+      '"><div class="cat-pick-section-hd"><b>' +
+      esc(sc.name) +
+      '</b><div class="cat-pick-section-actions">' +
+      '<button type="button" data-pick-all="' +
+      scIdx +
+      '">Select all</button>' +
+      '<button type="button" data-pick-none="' +
+      scIdx +
+      '">Clear</button></div></div><div class="cat-pick-grid">';
+    visibleItems.forEach(function (it) {
+      const onMenuItem = isItemOnOwnerMenu(it.masterKey);
+      const picked =
+        menuPickCtx.mode === 'package'
+          ? !!menuPickCtx.selected[it.masterKey]
+          : onMenuItem || !!menuPickCtx.selected[it.masterKey];
+      const diet = pickDietLabel(it.diet);
+      html +=
+        '<button type="button" class="cat-pick-cell' +
+        (picked ? ' on' : '') +
+        (onMenuItem && menuPickCtx.mode === 'catalog' ? ' on-menu' : '') +
+        '" data-mk="' +
+        esc(it.masterKey) +
+        '"><span class="cat-pick-chk" aria-hidden="true">' +
+        (picked ? '✓' : '') +
+        '</span><span class="cat-pick-label"><span>' +
+        esc(it.name) +
+        '</span>' +
+        (onMenuItem && menuPickCtx.mode === 'catalog' ? '<small>On menu · tap to edit</small>' : '') +
+        '<span class="cat-pick-diet ' +
+        diet.cls +
+        '">' +
+        diet.text +
+        '</span></span></button>';
+    });
+    html += '</div></div>';
   });
+  if (!html) {
+    html = '<div class="cat-pick-empty">No dishes match your search.</div>';
+  }
   body.innerHTML = html;
+  if (meta) {
+    const pending = countModulePickPending();
+    meta.textContent =
+      total +
+      ' dishes in catalogue' +
+      (q ? ' · ' + visible + ' shown' : '') +
+      (menuPickCtx.mode === 'catalog' ? ' · ' + pending + ' to add' : ' · ' + pending + ' selected');
+  }
   syncModulePickCount();
-  body.querySelectorAll('input[type=checkbox]').forEach(function (cb) {
-    cb.onchange = function () {
-      const mk = cb.getAttribute('data-mk');
-      if (cb.checked) menuPickCtx.selected[mk] = true;
-      else delete menuPickCtx.selected[mk];
-      cb.closest('.cat-check-row').classList.toggle('on', cb.checked);
-      syncModulePickCount();
+  body.querySelectorAll('.cat-pick-cell').forEach(function (cell) {
+    cell.onclick = function () {
+      toggleModulePickKey(cell.getAttribute('data-mk'));
+    };
+  });
+  body.querySelectorAll('[data-pick-all]').forEach(function (btn) {
+    btn.onclick = function (e) {
+      e.stopPropagation();
+      const idx = +btn.getAttribute('data-pick-all');
+      const sc = mod.subcats[idx];
+      if (!sc) return;
+      (sc.items || []).forEach(function (it) {
+        if (!modulePickMatchesSearch(it.name, q)) return;
+        if (menuPickCtx.mode === 'catalog' && isItemOnOwnerMenu(it.masterKey)) return;
+        menuPickCtx.selected[it.masterKey] = true;
+      });
+      renderModulePickerBody();
+    };
+  });
+  body.querySelectorAll('[data-pick-none]').forEach(function (btn) {
+    btn.onclick = function (e) {
+      e.stopPropagation();
+      const idx = +btn.getAttribute('data-pick-none');
+      const sc = mod.subcats[idx];
+      if (!sc) return;
+      (sc.items || []).forEach(function (it) {
+        delete menuPickCtx.selected[it.masterKey];
+      });
+      renderModulePickerBody();
     };
   });
 }
 
 function syncModulePickCount() {
-  const n = Object.keys(menuPickCtx.selected).filter(function (k) {
-    return menuPickCtx.selected[k];
-  }).length;
+  const n = countModulePickPending();
   const btn = el('catModulePickSave');
-  if (btn) btn.textContent = menuPickCtx.mode === 'package' ? 'Apply (' + n + ')' : 'Add Selected Items (' + n + ')';
+  if (!btn) return;
+  if (menuPickCtx.mode === 'package') btn.textContent = 'Apply (' + n + ')';
+  else btn.textContent = 'Add Selected Items (' + n + ')';
+  btn.disabled = n === 0;
+  btn.style.opacity = n === 0 ? '0.55' : '1';
 }
 
 function commitModulePicker() {
@@ -473,6 +593,7 @@ function commitModulePicker() {
   });
   saveStore();
   show(menuPickCtx.returnTo || 'menuPkg');
+  store.cateringMenu.hubTab = 'food';
   renderCateringMenuHub();
   toast(added ? added + ' item(s) added — set pricing to go live' : 'No new items selected');
 }
@@ -866,19 +987,16 @@ function bindCatModulePickUi() {
     if (menuPickCtx.mode === 'package') show('catPkgCreate');
     else {
       show('menuPkg');
+      store.cateringMenu.hubTab = 'food';
       renderCateringMenuHub();
     }
   };
-  el('catModulePickSave').onclick = commitModulePicker;
-  el('catModuleEditFood').onclick = function () {
-    const keys = Object.keys(menuPickCtx.selected).filter(function (k) {
-      return menuPickCtx.selected[k];
-    });
-    if (!keys.length) {
-      toast('Select an item to edit');
+  el('catModulePickSave').onclick = function () {
+    if (countModulePickPending() === 0) {
+      toast(menuPickCtx.mode === 'package' ? 'Select at least one item' : 'Select items to add');
       return;
     }
-    openFoodItemForm(null, keys[0]);
+    commitModulePicker();
   };
 }
 
