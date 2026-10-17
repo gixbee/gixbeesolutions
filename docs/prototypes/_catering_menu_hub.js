@@ -10,6 +10,24 @@ function ensureCateringMenuStore() {
   if (!store.cateringMenu.catPackages) store.cateringMenu.catPackages = defaultCateringMenuStore().catPackages;
   if (!store.cateringMenu.hubTab) store.cateringMenu.hubTab = 'packages';
   if (store.cateringMenu.pkgFilter === 'custom') store.cateringMenu.pkgFilter = 'all';
+  migrateLegacyCateringPackageLabels();
+}
+
+/** Older demos used photography-style names (e.g. "Wedding Premium"); rename in place. */
+function migrateLegacyCateringPackageLabels() {
+  const renames = {
+    'Wedding Premium': 'Wedding Day Feast',
+    'Engagement Standard': 'Engagement Day Menu',
+    'Reception Basic': 'Reception Dinner Menu',
+    'Classic Wedding Package': 'Wedding Day Feast',
+  };
+  (store.cateringMenu.catPackages || []).forEach(function (p) {
+    if (renames[p.name]) p.name = renames[p.name];
+    if (p.coverage && /photographer/i.test(String(p.coverage))) {
+      p.subtitle = (p.level || 'Package') + ' tier · catering · per person';
+      delete p.coverage;
+    }
+  });
 }
 
 function cateringMenuOpenHub() {

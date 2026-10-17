@@ -1,6 +1,6 @@
 /** Catering owner app core (dashboard, areas, calendar) + menu hub in _catering_menu_*.js */
 const CATERING_OWNER_FLOW_LOCKED = false;
-const CATERING_OWNER_BUILD = '2026-10-17-catering-no-custom-v1';
+const CATERING_OWNER_BUILD = '2026-10-17-catering-package-labels-v1';
 
 function cateringOwnerDemoFileName() {
   try {
@@ -11,7 +11,7 @@ function cateringOwnerDemoFileName() {
   }
   return 'GIXBEE-CATERING-OWNER-FINALFLOW.html';
 }
-const STORAGE_KEY = 'GIXBEE_CATERING_OWNER_V3';
+const STORAGE_KEY = 'GIXBEE_CATERING_OWNER_V4';
 
 const INDIAN_STATES = {
   Kerala: ['Thrissur', 'Ernakulam', 'Kozhikode', 'Kottayam', 'Palakkad', 'Malappuram', 'Thiruvananthapuram'],

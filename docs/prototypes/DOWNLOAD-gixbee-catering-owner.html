@@ -3216,11 +3216,11 @@ function defaultCateringMenuStore() {
     catPackages: [
       {
         id: 'cpkg-demo-1',
-        name: 'Engagement Standard',
+        name: 'Engagement Day Menu',
         level: 'Standard',
         description:
           'Balanced spread for engagement functions with welcome drinks, starters, mains and dessert.',
-        subtitle: '~120 guests · 10 modules · per person',
+        subtitle: 'Standard tier · ~120 guests · per person',
         listPrice: 40000,
         price: 35000,
         status: 'live',
@@ -3305,6 +3305,25 @@ function ensureCateringMenuStore() {
   if (!store.cateringMenu.foodItems) store.cateringMenu.foodItems = [];
   if (!store.cateringMenu.catPackages) store.cateringMenu.catPackages = defaultCateringMenuStore().catPackages;
   if (!store.cateringMenu.hubTab) store.cateringMenu.hubTab = 'packages';
+  if (store.cateringMenu.pkgFilter === 'custom') store.cateringMenu.pkgFilter = 'all';
+  migrateLegacyCateringPackageLabels();
+}
+
+/** Older demos used photography-style names (e.g. "Wedding Premium"); rename in place. */
+function migrateLegacyCateringPackageLabels() {
+  const renames = {
+    'Wedding Premium': 'Wedding Day Feast',
+    'Engagement Standard': 'Engagement Day Menu',
+    'Reception Basic': 'Reception Dinner Menu',
+    'Classic Wedding Package': 'Wedding Day Feast',
+  };
+  (store.cateringMenu.catPackages || []).forEach(function (p) {
+    if (renames[p.name]) p.name = renames[p.name];
+    if (p.coverage && /photographer/i.test(String(p.coverage))) {
+      p.subtitle = (p.level || 'Package') + ' tier · catering · per person';
+      delete p.coverage;
+    }
+  });
 }
 
 function cateringMenuOpenHub() {
@@ -4305,7 +4324,7 @@ function bindCateringMenuAll() {
 
 /** Catering owner app core (dashboard, areas, calendar) + menu hub in _catering_menu_*.js */
 const CATERING_OWNER_FLOW_LOCKED = false;
-const CATERING_OWNER_BUILD = '2026-10-17-catering-pick-grid-v1';
+const CATERING_OWNER_BUILD = '2026-10-17-catering-package-labels-v1';
 
 function cateringOwnerDemoFileName() {
   try {
@@ -4316,7 +4335,7 @@ function cateringOwnerDemoFileName() {
   }
   return 'GIXBEE-CATERING-OWNER-FINALFLOW.html';
 }
-const STORAGE_KEY = 'GIXBEE_CATERING_OWNER_V3';
+const STORAGE_KEY = 'GIXBEE_CATERING_OWNER_V4';
 
 const INDIAN_STATES = {
   Kerala: ['Thrissur', 'Ernakulam', 'Kozhikode', 'Kottayam', 'Palakkad', 'Malappuram', 'Thiruvananthapuram'],
