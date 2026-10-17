@@ -27,6 +27,17 @@ MODULE_META = [
     ("m13", "Desserts & Sweets", "🍮"),
 ]
 
+# Display order overrides (subcategory titles). Doc order kept elsewhere; UX may reorder.
+MODULE_SUBCAT_ORDER: dict[str, list[str]] = {
+    "m09": [
+        "Vegetarian Curries",
+        "Regional & Specialty",
+        "Paneer & Egg",
+        "Chicken & Meat",
+        "Fish & Seafood",
+    ],
+}
+
 GRADIENTS = [
     "linear-gradient(145deg,#0EA5E9,#0284C7)",
     "linear-gradient(145deg,#F97316,#EA580C)",
@@ -178,6 +189,14 @@ def attach_ids(parsed: list[dict]) -> list[dict]:
             used[base] = n + 1
             sid = base if n == 0 else f"{base}-{n + 1}"
             subcats.append({"id": sid, "name": sc["name"], "items": sc["items"]})
+        order = MODULE_SUBCAT_ORDER.get(mid)
+        if order:
+            by_name = {sc["name"]: sc for sc in subcats}
+            ordered = [by_name[n] for n in order if n in by_name]
+            for sc in subcats:
+                if sc["name"] not in order:
+                    ordered.append(sc)
+            subcats = ordered
         meta = MODULE_META[mod["num"] - 1]
         out.append(
             {

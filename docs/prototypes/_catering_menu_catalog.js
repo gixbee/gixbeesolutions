@@ -578,6 +578,19 @@ const CATERING_CATALOG_DEFS =
         ]
       },
       {
+        "id": "regional-specialty",
+        "name": "Regional & Specialty",
+        "items": [
+          "Theeyal",
+          "Pulissery",
+          "Moru Curry",
+          "Kalan",
+          "Salna",
+          "Pepper Gravy",
+          "Chef's Special Curry"
+        ]
+      },
+      {
         "id": "paneer-egg",
         "name": "Paneer & Egg",
         "items": [
@@ -617,19 +630,6 @@ const CATERING_CATALOG_DEFS =
           "Kallumakkaya (Mussels) Curry",
           "Squid Curry",
           "Seafood Curry"
-        ]
-      },
-      {
-        "id": "regional-specialty",
-        "name": "Regional & Specialty",
-        "items": [
-          "Theeyal",
-          "Pulissery",
-          "Moru Curry",
-          "Kalan",
-          "Salna",
-          "Pepper Gravy",
-          "Chef's Special Curry"
         ]
       }
     ]
