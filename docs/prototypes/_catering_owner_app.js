@@ -1,6 +1,6 @@
 /** Catering owner app core (dashboard, areas, calendar) + menu hub in _catering_menu_*.js */
 const CATERING_OWNER_FLOW_LOCKED = false;
-const CATERING_OWNER_BUILD = '2026-10-17-catering-menu-hub-v1';
+const CATERING_OWNER_BUILD = '2026-10-17-catering-catalog-459-v1';
 
 function cateringOwnerDemoFileName() {
   try {

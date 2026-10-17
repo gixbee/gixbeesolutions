@@ -1,241 +1,939 @@
-/** Fixed 13-module catering catalogue (seed items for owner selection). */
+/** Fixed 13-module catering catalogue — generated from gixbee-catering-almostfinal.docx */
 const CAT_PKG_LEVELS = ['Basic', 'Standard', 'Premium', 'Custom'];
 
-const FOOD_MODULE_GRADIENTS = [
-  'linear-gradient(145deg,#0EA5E9,#0284C7)',
-  'linear-gradient(145deg,#F97316,#EA580C)',
-  'linear-gradient(145deg,#22C55E,#16A34A)',
-  'linear-gradient(145deg,#EF4444,#DC2626)',
-  'linear-gradient(145deg,#EAB308,#CA8A04)',
-  'linear-gradient(145deg,#A855F7,#7C3AED)',
-  'linear-gradient(145deg,#F43F5E,#E11D48)',
-  'linear-gradient(145deg,#6366F1,#4F46E5)',
-  'linear-gradient(145deg,#14B8A6,#0D9488)',
-  'linear-gradient(145deg,#84CC16,#65A30D)',
-  'linear-gradient(145deg,#FB923C,#F97316)',
-  'linear-gradient(145deg,#D97706,#B45309)',
-  'linear-gradient(145deg,#EC4899,#DB2777)',
-];
+const FOOD_MODULE_GRADIENTS = ["linear-gradient(145deg,#0EA5E9,#0284C7)", "linear-gradient(145deg,#F97316,#EA580C)", "linear-gradient(145deg,#22C55E,#16A34A)", "linear-gradient(145deg,#EF4444,#DC2626)", "linear-gradient(145deg,#EAB308,#CA8A04)", "linear-gradient(145deg,#A855F7,#7C3AED)", "linear-gradient(145deg,#F43F5E,#E11D48)", "linear-gradient(145deg,#6366F1,#4F46E5)", "linear-gradient(145deg,#14B8A6,#0D9488)", "linear-gradient(145deg,#84CC16,#65A30D)", "linear-gradient(145deg,#FB923C,#F97316)", "linear-gradient(145deg,#D97706,#B45309)", "linear-gradient(145deg,#EC4899,#DB2777)"];
 
 function foodMasterKey(moduleId, subcatId, name) {
   return moduleId + '::' + subcatId + '::' + String(name || '').toLowerCase().replace(/\s+/g, '-');
 }
 
+function inferCatalogDiet(subcatName, itemName) {
+  const sc = String(subcatName || '').toLowerCase();
+  const nm = String(itemName || '').toLowerCase();
+  if (/\begg\b/.test(nm) && !/vegetable/.test(nm)) {
+    if (/\begg\b/.test(nm) && !/vegetable/.test(nm)) return 'egg';
+  }
+  if (
+    sc.indexOf('non-vegetarian') >= 0 ||
+    sc.indexOf('non vegetarian') >= 0 ||
+    sc.indexOf('chicken & meat') >= 0 ||
+    sc.indexOf('chicken dishes') >= 0 ||
+    sc.indexOf('mutton') >= 0 ||
+    sc.indexOf('beef') >= 0 ||
+    sc.indexOf('fish & seafood') >= 0 ||
+    sc.indexOf('seafood') >= 0 ||
+    sc.indexOf('grill') >= 0
+  ) {
+    return 'non_veg';
+  }
+  if (/\b(chicken|mutton|beef|prawn|fish|crab|lobster|squid|seafood|chemmeen)\b/.test(nm)) return 'non_veg';
+  if (sc.indexOf('paneer & egg') >= 0 && /\begg\b/.test(nm)) return 'egg';
+  if (sc.indexOf('vegetarian') >= 0) return 'veg';
+  return 'veg';
+}
+
+/** @type {Array<{id:string,name:string,emoji:string,subcats:Array<{id:string,name:string,items:string[]}>}>} */
+const CATERING_CATALOG_DEFS = 
+[
+  {
+    "id": "m01",
+    "name": "Welcome Drinks",
+    "emoji": "🥤",
+    "subcats": [
+      {
+        "id": "juices-fresh-drinks",
+        "name": "Juices & Fresh Drinks",
+        "items": [
+          "Fresh Lime Juice",
+          "Lemon Mint Juice",
+          "Orange Juice",
+          "Watermelon Juice",
+          "Pineapple Juice",
+          "Mango Juice",
+          "Grape Juice",
+          "Apple Juice",
+          "Mixed Fruit Juice",
+          "Tender Coconut Water"
+        ]
+      },
+      {
+        "id": "traditional-dairy-drinks",
+        "name": "Traditional & Dairy Drinks",
+        "items": [
+          "Sambharam / Spiced Buttermilk",
+          "Plain Buttermilk",
+          "Rose Milk",
+          "Badam Milk",
+          "Pista Milk",
+          "Cold Coffee",
+          "Tea",
+          "Coffee"
+        ]
+      },
+      {
+        "id": "cold-special-drinks",
+        "name": "Cold & Special Drinks",
+        "items": [
+          "Soft Drinks",
+          "Packaged Fruit Drinks",
+          "Mocktails",
+          "Smoothies",
+          "Milkshakes",
+          "Mojito (Non-Alcoholic)",
+          "Iced Tea",
+          "Flavoured Water",
+          "Mineral Water",
+          "Custom Welcome Drink"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "m02",
+    "name": "Starters & Snacks",
+    "emoji": "🥟",
+    "subcats": [
+      {
+        "id": "vegetarian-snacks",
+        "name": "Vegetarian Snacks",
+        "items": [
+          "Vegetable Cutlet",
+          "Paneer Cutlet",
+          "Samosa",
+          "Vegetable Spring Roll",
+          "Veg Pakoda",
+          "Onion Pakoda",
+          "Gobi 65",
+          "Chilli Gobi",
+          "Paneer Tikka",
+          "Baby Corn Fry",
+          "French Fries",
+          "Potato Wedges",
+          "Cheese Balls",
+          "Veg Fingers"
+        ]
+      },
+      {
+        "id": "non-vegetarian-snacks",
+        "name": "Non-Vegetarian Snacks",
+        "items": [
+          "Chicken Cutlet",
+          "Chicken 65",
+          "Chilli Chicken",
+          "Chicken Lollipop",
+          "Chicken Fry",
+          "Chicken Tikka",
+          "Chicken Kebab",
+          "Chicken Pakoda",
+          "Fish Fingers",
+          "Fish Cutlet",
+          "Fish Fry Bites",
+          "Prawn Fry",
+          "Prawn Tempura",
+          "Beef Cutlet",
+          "Mutton Kebab",
+          "Egg Pakoda"
+        ]
+      },
+      {
+        "id": "kerala-tea-time-snacks",
+        "name": "Kerala & Tea-Time Snacks",
+        "items": [
+          "Pazham Pori",
+          "Unniyappam",
+          "Sukhiyan",
+          "Parippu Vada",
+          "Uzhunnu Vada",
+          "Ela Ada",
+          "Kozhukatta",
+          "Neyyappam",
+          "Achappam",
+          "Kuzhalappam",
+          "Kallappam Bites",
+          "Banana Fritters"
+        ]
+      },
+      {
+        "id": "other-snack-types",
+        "name": "Other Snack Types",
+        "items": [
+          "Patties",
+          "Puffs",
+          "Sandwiches",
+          "Rolls",
+          "Wraps",
+          "Mini Burgers",
+          "Finger Foods",
+          "Chaat Items",
+          "Kids' Snacks",
+          "Custom Snack"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "m03",
+    "name": "Salads",
+    "emoji": "🥗",
+    "subcats": [
+      {
+        "id": "fresh-vegetable-salads",
+        "name": "Fresh & Vegetable Salads",
+        "items": [
+          "Green Salad",
+          "Cucumber Salad",
+          "Onion Salad",
+          "Tomato Salad",
+          "Carrot Salad",
+          "Beetroot Salad",
+          "Cabbage Salad",
+          "Corn Salad",
+          "Sprout Salad",
+          "Crispy Vegetable Salad"
+        ]
+      },
+      {
+        "id": "fruit-specialty-salads",
+        "name": "Fruit & Specialty Salads",
+        "items": [
+          "Fresh Fruit Salad",
+          "Creamy Fruit Salad",
+          "Pineapple Salad",
+          "Apple Salad",
+          "Russian Salad",
+          "Coleslaw",
+          "Pasta Salad",
+          "Macaroni Salad",
+          "Potato Salad",
+          "Mayonnaise Salad"
+        ]
+      },
+      {
+        "id": "yogurt-based",
+        "name": "Yogurt-Based",
+        "items": [
+          "Plain Curd",
+          "Cucumber Raita",
+          "Boondi Raita",
+          "Mixed Vegetable Raita",
+          "Pineapple Raita",
+          "Specialty Raita"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "m04",
+    "name": "Soups",
+    "emoji": "🍲",
+    "subcats": [
+      {
+        "id": "vegetarian-soups",
+        "name": "Vegetarian Soups",
+        "items": [
+          "Tomato Soup",
+          "Sweet Corn Vegetable Soup",
+          "Hot and Sour Vegetable Soup",
+          "Manchow Vegetable Soup",
+          "Clear Vegetable Soup",
+          "Cream of Mushroom Soup",
+          "Cream of Tomato Soup",
+          "Vegetable Noodle Soup",
+          "Lentil Soup"
+        ]
+      },
+      {
+        "id": "non-vegetarian-soups",
+        "name": "Non-Vegetarian Soups",
+        "items": [
+          "Chicken Clear Soup",
+          "Chicken Sweet Corn Soup",
+          "Chicken Hot and Sour Soup",
+          "Chicken Manchow Soup",
+          "Cream of Chicken Soup",
+          "Seafood Soup",
+          "Prawn Soup",
+          "Fish Soup"
+        ]
+      },
+      {
+        "id": "specialty",
+        "name": "Specialty",
+        "items": [
+          "Pepper Soup",
+          "Mulligatawny Soup",
+          "Custom Soup"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "m05",
+    "name": "Sadhya",
+    "emoji": "🍛",
+    "subcats": [
+      {
+        "id": "rice-dal",
+        "name": "Rice & Dal",
+        "items": [
+          "Kerala Matta Rice",
+          "Parippu Curry",
+          "Ghee",
+          "Sambar",
+          "Rasam",
+          "Pulissery",
+          "Moru Curry"
+        ]
+      },
+      {
+        "id": "vegetable-dishes",
+        "name": "Vegetable Dishes",
+        "items": [
+          "Avial",
+          "Thoran",
+          "Olan",
+          "Kalan",
+          "Erissery",
+          "Koottu Curry",
+          "Mezhukkupuratti",
+          "Theeyal",
+          "Cabbage Thoran",
+          "Beans Thoran",
+          "Pumpkin Erissery"
+        ]
+      },
+      {
+        "id": "pachadi-pickles",
+        "name": "Pachadi & Pickles",
+        "items": [
+          "Pineapple Pachadi",
+          "Beetroot Pachadi",
+          "Cucumber Pachadi",
+          "Pineapple Kichadi",
+          "Beetroot Kichadi",
+          "Inji Curry",
+          "Puli Inji",
+          "Mango Pickle",
+          "Lime Pickle"
+        ]
+      },
+      {
+        "id": "crunchy-sides-desserts",
+        "name": "Crunchy Sides & Desserts",
+        "items": [
+          "Pappadam",
+          "Banana Chips",
+          "Sharkara Upperi",
+          "Upperi",
+          "Ada Pradhaman",
+          "Palada Payasam",
+          "Parippu Payasam",
+          "Paal Payasam",
+          "Semiya Payasam",
+          "Chakka Pradhaman"
+        ]
+      },
+      {
+        "id": "sadhya-packages",
+        "name": "Sadhya Packages",
+        "items": [
+          "Kerala Sadhya",
+          "Wedding Sadhya",
+          "Vegetarian Sadhya",
+          "Special Sadhya",
+          "Banana Leaf Sadhya",
+          "Festival Sadhya"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "m06",
+    "name": "Biriyani",
+    "emoji": "🍚",
+    "subcats": [
+      {
+        "id": "chicken-meat",
+        "name": "Chicken & Meat",
+        "items": [
+          "Chicken Biriyani",
+          "Mutton Biriyani",
+          "Beef Biriyani",
+          "Egg Biriyani"
+        ]
+      },
+      {
+        "id": "vegetarian",
+        "name": "Vegetarian",
+        "items": [
+          "Vegetable Biriyani",
+          "Paneer Biriyani",
+          "Mushroom Biriyani"
+        ]
+      },
+      {
+        "id": "seafood",
+        "name": "Seafood",
+        "items": [
+          "Fish Biriyani",
+          "Prawn / Chemmeen Biriyani",
+          "Seafood Biriyani"
+        ]
+      },
+      {
+        "id": "regional-styles",
+        "name": "Regional & Styles",
+        "items": [
+          "Malabar Biriyani",
+          "Thalassery Biriyani",
+          "Kozhikode Biriyani",
+          "Hyderabadi Biriyani",
+          "Kacchi Biriyani",
+          "Dum Biriyani",
+          "Special Dum Biriyani",
+          "Kaima / Jeerakasala Rice Biriyani"
+        ]
+      },
+      {
+        "id": "common-sides-optional",
+        "name": "Common Sides (optional)",
+        "items": [
+          "Raita",
+          "Pickle",
+          "Pappadam",
+          "Chammanthi",
+          "Boiled Egg"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "m07",
+    "name": "Arabian",
+    "emoji": "🧆",
+    "subcats": [
+      {
+        "id": "rice-mandi",
+        "name": "Rice & Mandi",
+        "items": [
+          "Chicken Mandi",
+          "Al Faham Mandi",
+          "Mutton Mandi",
+          "Beef Mandi",
+          "Fish Mandi",
+          "Prawn Mandi",
+          "Vegetable Mandi",
+          "Kuzhi Mandi",
+          "Arabic Rice"
+        ]
+      },
+      {
+        "id": "grilled-roasted",
+        "name": "Grilled & Roasted",
+        "items": [
+          "Al Faham Chicken",
+          "Shawaya / Shawarma Chicken",
+          "Grilled Chicken",
+          "Madhbi Chicken",
+          "Madfoon",
+          "Kabsa Chicken",
+          "Peri-Peri Chicken",
+          "Mixed Grill"
+        ]
+      },
+      {
+        "id": "wraps-sides",
+        "name": "Wraps & Sides",
+        "items": [
+          "Shawarma Roll",
+          "Shawarma Plate",
+          "Hummus",
+          "Mutabbal",
+          "Pita Bread",
+          "Garlic Sauce",
+          "Arabic Salad",
+          "French Fries"
+        ]
+      },
+      {
+        "id": "combos",
+        "name": "Combos",
+        "items": [
+          "Half Chicken Combo",
+          "Full Chicken Combo",
+          "Family Mandi Combo",
+          "Custom Arabian Combo"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "m08",
+    "name": "Main Course",
+    "emoji": "🍽️",
+    "subcats": [
+      {
+        "id": "chicken-dishes",
+        "name": "Chicken Dishes",
+        "items": [
+          "Chicken Roast",
+          "Chicken Kondattam",
+          "Chicken Pepper Fry",
+          "Butter Chicken",
+          "Chicken Tikka Masala",
+          "Chilli Chicken",
+          "Chicken Stew",
+          "Chicken Kurma",
+          "Chicken Varutharacha Curry"
+        ]
+      },
+      {
+        "id": "mutton-beef",
+        "name": "Mutton & Beef",
+        "items": [
+          "Mutton Roast",
+          "Mutton Kurma",
+          "Mutton Pepper Fry",
+          "Beef Roast",
+          "Beef Ularthiyathu",
+          "Beef Fry",
+          "Beef Curry"
+        ]
+      },
+      {
+        "id": "fish-seafood",
+        "name": "Fish & Seafood",
+        "items": [
+          "Fish Fry",
+          "Fish Molee",
+          "Fish Pollichathu",
+          "Fish Masala",
+          "Prawn Roast",
+          "Prawn Masala",
+          "Crab Roast",
+          "Squid Roast",
+          "Mussels Roast"
+        ]
+      },
+      {
+        "id": "vegetarian-paneer",
+        "name": "Vegetarian & Paneer",
+        "items": [
+          "Vegetable Kurma",
+          "Paneer Butter Masala",
+          "Kadai Paneer",
+          "Palak Paneer",
+          "Mushroom Masala",
+          "Mixed Vegetable Curry",
+          "Dal Tadka",
+          "Chana Masala"
+        ]
+      },
+      {
+        "id": "rice-noodles",
+        "name": "Rice & Noodles",
+        "items": [
+          "Steamed Rice",
+          "Ghee Rice",
+          "Jeera Rice",
+          "Vegetable Pulao",
+          "Fried Rice",
+          "Chicken Fried Rice",
+          "Egg Fried Rice",
+          "Noodles",
+          "Pasta"
+        ]
+      },
+      {
+        "id": "other",
+        "name": "Other",
+        "items": [
+          "Regional Speciality",
+          "Chef's Special",
+          "Custom Main Course"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "m09",
+    "name": "Curries & Gravies",
+    "emoji": "🥘",
+    "subcats": [
+      {
+        "id": "vegetarian-curries",
+        "name": "Vegetarian Curries",
+        "items": [
+          "Vegetable Curry",
+          "Vegetable Kurma",
+          "Mixed Vegetable Curry",
+          "Avial",
+          "Sambar",
+          "Rasam",
+          "Dal Curry",
+          "Dal Tadka",
+          "Chana Masala",
+          "Green Peas Curry",
+          "Mushroom Curry"
+        ]
+      },
+      {
+        "id": "paneer-egg",
+        "name": "Paneer & Egg",
+        "items": [
+          "Paneer Butter Masala",
+          "Kadai Paneer",
+          "Palak Paneer",
+          "Egg Curry",
+          "Egg Roast",
+          "Egg Masala"
+        ]
+      },
+      {
+        "id": "chicken-meat",
+        "name": "Chicken & Meat",
+        "items": [
+          "Chicken Curry",
+          "Chicken Roast Gravy",
+          "Butter Chicken Gravy",
+          "Chicken Kurma",
+          "Mutton Curry",
+          "Mutton Kurma",
+          "Beef Curry",
+          "Beef Roast Gravy"
+        ]
+      },
+      {
+        "id": "fish-seafood",
+        "name": "Fish & Seafood",
+        "items": [
+          "Kerala Fish Curry",
+          "Fish Molee",
+          "Fish Masala",
+          "Prawn Curry",
+          "Prawn Masala",
+          "Crab Curry",
+          "Lobster Curry",
+          "Kallumakkaya (Mussels) Curry",
+          "Squid Curry",
+          "Seafood Curry"
+        ]
+      },
+      {
+        "id": "regional-specialty",
+        "name": "Regional & Specialty",
+        "items": [
+          "Theeyal",
+          "Pulissery",
+          "Moru Curry",
+          "Kalan",
+          "Salna",
+          "Pepper Gravy",
+          "Chef's Special Curry"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "m10",
+    "name": "Accompaniments",
+    "emoji": "🥙",
+    "subcats": [
+      {
+        "id": "chutneys-chammanthi",
+        "name": "Chutneys & Chammanthi",
+        "items": [
+          "Coconut Chammanthi",
+          "Puthina Chutney",
+          "Tomato Chutney",
+          "Mulaku Chutney",
+          "Podi Chutney",
+          "Edi Chammanthi",
+          "Chemmeen Chammanthi",
+          "Chemmeen Podi",
+          "Fish Chutney"
+        ]
+      },
+      {
+        "id": "pickles",
+        "name": "Pickles",
+        "items": [
+          "Mango Pickle",
+          "Lime Pickle",
+          "Mixed Pickle",
+          "Green Chilli Pickle",
+          "Uppilithathu",
+          "Vattal Mulaku"
+        ]
+      },
+      {
+        "id": "salads-curd-pachadi",
+        "name": "Salads, Curd & Pachadi",
+        "items": [
+          "Curd",
+          "Raita",
+          "Vinegar Salad",
+          "Cucumber Salad",
+          "Onion Salad",
+          "Green Salad",
+          "Beetroot Salad",
+          "Carrot Salad",
+          "Pineapple Pachadi",
+          "Beetroot Pachadi",
+          "Cucumber Pachadi"
+        ]
+      },
+      {
+        "id": "pappadam-crunchy-sides",
+        "name": "Pappadam & Crunchy Sides",
+        "items": [
+          "Pappadam",
+          "Banana Chips",
+          "Sharkara Upperi",
+          "Fried Chilli"
+        ]
+      },
+      {
+        "id": "sauces-condiments",
+        "name": "Sauces & Condiments",
+        "items": [
+          "Garlic Sauce",
+          "Mayonnaise",
+          "Ketchup",
+          "Salsa",
+          "Aioli",
+          "Mint Sauce",
+          "Chilli Sauce",
+          "Mustard Sauce"
+        ]
+      },
+      {
+        "id": "traditional-sides",
+        "name": "Traditional Sides",
+        "items": [
+          "Thoran",
+          "Mezhukkupuratti",
+          "Olan",
+          "Kalan",
+          "Erissery",
+          "Koottu Curry",
+          "Inji Curry",
+          "Puli Inji",
+          "Salna"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "m11",
+    "name": "Special Live Counters",
+    "emoji": "🔥",
+    "subcats": [
+      {
+        "id": "kerala-live-counters",
+        "name": "Kerala Live Counters",
+        "items": [
+          "Thattukada",
+          "Appam Counter",
+          "Dosa Counter",
+          "Idiyappam Counter",
+          "Puttu Counter",
+          "Kallappam Counter",
+          "Pathiri Counter",
+          "Porotta Counter",
+          "Kallumakkaya Counter"
+        ]
+      },
+      {
+        "id": "grill-hot-food",
+        "name": "Grill & Hot Food",
+        "items": [
+          "Al Faham Counter",
+          "BBQ Counter",
+          "Tandoori Counter",
+          "Shawarma Counter",
+          "Live Biriyani Counter",
+          "Noodles Counter",
+          "Pasta Counter",
+          "Pizza Counter",
+          "Burger Counter",
+          "Sandwich Counter",
+          "Bread Counter"
+        ]
+      },
+      {
+        "id": "street-food-snacks",
+        "name": "Street Food & Snacks",
+        "items": [
+          "Pani Puri Counter",
+          "Chaat Counter",
+          "Jalebi Counter",
+          "Popcorn Counter",
+          "French Fries Counter",
+          "Live Fry Counter"
+        ]
+      },
+      {
+        "id": "dessert-beverage-counters",
+        "name": "Dessert & Beverage Counters",
+        "items": [
+          "Chocolate Fountain",
+          "Ice Cream Scooping",
+          "Kulfi Counter",
+          "Falooda Counter",
+          "Waffle Counter",
+          "Pancake Counter",
+          "Milkshake Bar",
+          "Mojito Bar (Non-Alcoholic)",
+          "Coffee Bar",
+          "Samavar Tea Counter"
+        ]
+      },
+      {
+        "id": "custom",
+        "name": "Custom",
+        "items": [
+          "Custom Live Counter"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "m12",
+    "name": "Breads & Rotis",
+    "emoji": "🫓",
+    "subcats": [
+      {
+        "id": "indian-breads",
+        "name": "Indian Breads",
+        "items": [
+          "Chapati",
+          "Phulka",
+          "Roti",
+          "Tandoori Roti",
+          "Rumali Roti",
+          "Naan",
+          "Butter Naan",
+          "Garlic Naan",
+          "Kulcha",
+          "Butter Kulcha"
+        ]
+      },
+      {
+        "id": "kerala-breads",
+        "name": "Kerala Breads",
+        "items": [
+          "Porotta",
+          "Malabar Porotta",
+          "Coin Porotta",
+          "Pathiri",
+          "Appam",
+          "Kallappam",
+          "Idiyappam",
+          "Puttu",
+          "Vattayappam"
+        ]
+      },
+      {
+        "id": "other-breads",
+        "name": "Other Breads",
+        "items": [
+          "Pita Bread",
+          "Dinner Rolls",
+          "Bread Slices",
+          "Pav",
+          "Specialty Bread"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "m13",
+    "name": "Desserts & Sweets",
+    "emoji": "🍮",
+    "subcats": [
+      {
+        "id": "payasam-pradhaman",
+        "name": "Payasam & Pradhaman",
+        "items": [
+          "Ada Pradhaman",
+          "Palada Payasam",
+          "Semiya Payasam",
+          "Parippu Payasam",
+          "Paal Payasam",
+          "Carrot Payasam",
+          "Pineapple Payasam",
+          "Chakka Pradhaman",
+          "Gothambu Payasam",
+          "Dates Payasam"
+        ]
+      },
+      {
+        "id": "traditional-sweets",
+        "name": "Traditional Sweets",
+        "items": [
+          "Gulab Jamun",
+          "Rasmalai",
+          "Jalebi",
+          "Laddu",
+          "Mysore Pak",
+          "Halwa",
+          "Mithai",
+          "Unniyappam",
+          "Neyyappam"
+        ]
+      },
+      {
+        "id": "puddings-chilled-desserts",
+        "name": "Puddings & Chilled Desserts",
+        "items": [
+          "Caramel Custard",
+          "Chocolate Pudding",
+          "Fruit Pudding",
+          "Jelly",
+          "Falooda",
+          "Cassata",
+          "Ice Cream",
+          "Kulfi",
+          "Fruit Salad",
+          "Fresh Fruit Platter"
+        ]
+      },
+      {
+        "id": "cakes-baked-desserts",
+        "name": "Cakes & Baked Desserts",
+        "items": [
+          "Cake",
+          "Cheesecake",
+          "Brownie",
+          "Chocolate Mousse",
+          "Pastry",
+          "Tart",
+          "Cookies",
+          "Cupcakes",
+          "Waffles",
+          "Pancakes"
+        ]
+      },
+      {
+        "id": "specialty",
+        "name": "Specialty",
+        "items": [
+          "Kids' Special Dessert",
+          "Seasonal Dessert",
+          "Chef's Special Dessert",
+          "Custom Dessert"
+        ]
+      }
+    ]
+  }
+];
+
 function buildFoodModules() {
-  const defs = [
-    {
-      id: 'm01',
-      name: 'Welcome Drinks',
-      emoji: '🥤',
-      subcats: [
-        {
-          id: 'juices',
-          name: 'Juices & Mocktails',
-          items: ['Fresh Lime', 'Mango Juice', 'Watermelon Juice', 'Mint Lime', 'Buttermilk (Chaas)'],
-        },
-        {
-          id: 'hot',
-          name: 'Hot Beverages',
-          items: ['Tea', 'Coffee', 'Masala Chai'],
-        },
-      ],
-    },
-    {
-      id: 'm02',
-      name: 'Starters & Snacks',
-      emoji: '🥟',
-      subcats: [
-        {
-          id: 'veg',
-          name: 'Vegetarian',
-          items: ['Vegetable Spring Roll', 'Paneer Tikka', 'Gobi Manchurian', 'Banana Fritters', 'Samosa'],
-        },
-        {
-          id: 'nonveg',
-          name: 'Non-Vegetarian',
-          items: ['Chicken 65', 'Fish Fry', 'Prawn Tempura', 'Mutton Cutlet'],
-        },
-      ],
-    },
-    {
-      id: 'm03',
-      name: 'Salads',
-      emoji: '🥗',
-      subcats: [
-        {
-          id: 'fresh',
-          name: 'Fresh Salads',
-          items: ['Green Salad', 'Russian Salad', 'Fruit Salad', 'Coleslaw'],
-        },
-      ],
-    },
-    {
-      id: 'm04',
-      name: 'Soups',
-      emoji: '🍲',
-      subcats: [
-        {
-          id: 'veg',
-          name: 'Vegetarian Soups',
-          items: [
-            'Tomato Soup',
-            'Manchow Vegetable Soup',
-            'Sweet Corn Vegetable Soup',
-            'Mushroom Soup',
-            'Hot & Sour Vegetable Soup',
-          ],
-        },
-        {
-          id: 'nonveg',
-          name: 'Non-Vegetarian Soups',
-          items: [
-            'Chicken Clear Soup',
-            'Chicken Manchow Soup',
-            'Prawn Soup',
-            'Mutton Soup',
-            'Sweet Corn Chicken Soup',
-          ],
-        },
-        {
-          id: 'special',
-          name: 'Specialty',
-          items: ['Pepper Soup', 'Mulligatawny Soup', 'Custom Soup'],
-        },
-      ],
-    },
-    {
-      id: 'm05',
-      name: 'Sadhya',
-      emoji: '🍛',
-      subcats: [
-        {
-          id: 'items',
-          name: 'Sadhya Items',
-          items: ['Traditional Sadhya (per person)', 'Mini Sadhya', 'Onam Sadhya'],
-        },
-      ],
-    },
-    {
-      id: 'm06',
-      name: 'Biriyani',
-      emoji: '🍚',
-      subcats: [
-        {
-          id: 'veg',
-          name: 'Vegetarian',
-          items: ['Vegetable Biriyani', 'Paneer Biriyani', 'Mushroom Biriyani'],
-        },
-        {
-          id: 'nonveg',
-          name: 'Non-Vegetarian',
-          items: ['Chicken Biriyani', 'Mutton Biriyani', 'Fish Biriyani', 'Prawn Biriyani'],
-        },
-      ],
-    },
-    {
-      id: 'm07',
-      name: 'Arabian',
-      emoji: '🧆',
-      subcats: [
-        {
-          id: 'grill',
-          name: 'Grills & Rice',
-          items: ['Chicken Mandi', 'Mutton Kabsa', 'Al Faham', 'Arabian Rice'],
-        },
-      ],
-    },
-    {
-      id: 'm08',
-      name: 'Main Course',
-      emoji: '🍽️',
-      subcats: [
-        {
-          id: 'veg',
-          name: 'Vegetarian',
-          items: ['Vegetable Stew', 'Paneer Butter Masala', 'Dal Tadka', 'Mixed Veg Curry'],
-        },
-        {
-          id: 'nonveg',
-          name: 'Non-Vegetarian',
-          items: ['Chicken Roast', 'Fish Molly', 'Beef Fry', 'Mutton Pepper Fry'],
-        },
-      ],
-    },
-    {
-      id: 'm09',
-      name: 'Curries & Gravies',
-      emoji: '🥘',
-      subcats: [
-        {
-          id: 'veg',
-          name: 'Vegetarian',
-          items: ['Sambar', 'Avial', 'Erissery', 'Moru Curry'],
-        },
-        {
-          id: 'nonveg',
-          name: 'Non-Vegetarian',
-          items: ['Chicken Curry', 'Fish Curry', 'Mutton Curry', 'Prawn Curry'],
-        },
-      ],
-    },
-    {
-      id: 'm10',
-      name: 'Accompaniments',
-      emoji: '🥙',
-      subcats: [
-        {
-          id: 'sides',
-          name: 'Sides',
-          items: ['Pickle', 'Pappadam', 'Chutney', 'Raitha', 'Ghee Rice'],
-        },
-      ],
-    },
-    {
-      id: 'm11',
-      name: 'Special Live Counters',
-      emoji: '🔥',
-      subcats: [
-        {
-          id: 'live',
-          name: 'Live Stations',
-          items: ['Appam Counter', 'Dosa Counter', 'Grill Counter', 'Chaat Counter', 'Payasam Counter'],
-        },
-      ],
-    },
-    {
-      id: 'm12',
-      name: 'Breads & Rotis',
-      emoji: '🫓',
-      subcats: [
-        {
-          id: 'bread',
-          name: 'Breads',
-          items: ['Appam', 'Idiyappam', 'Porotta', 'Naan', 'Chapati'],
-        },
-      ],
-    },
-    {
-      id: 'm13',
-      name: 'Desserts & Sweets',
-      emoji: '🍮',
-      subcats: [
-        {
-          id: 'sweet',
-          name: 'Sweets',
-          items: ['Payasam', 'Gulab Jamun', 'Ice Cream', 'Fruit Custard', 'Ada Pradhaman'],
-        },
-      ],
-    },
-  ];
-  return defs.map(function (m, idx) {
+  return CATERING_CATALOG_DEFS.map(function (m, idx) {
     const subcats = (m.subcats || []).map(function (sc) {
       const items = (sc.items || []).map(function (name) {
-        const diet =
-          sc.id === 'nonveg' || /chicken|mutton|prawn|fish|beef|meat/i.test(name)
-            ? 'non_veg'
-            : sc.id === 'veg' || /vegetable|paneer|mushroom|dal|sambar|avial/i.test(name)
-              ? 'veg'
-              : 'veg';
+        const diet = inferCatalogDiet(sc.name, name);
         return {
           masterKey: foodMasterKey(m.id, sc.id, name),
           name: name,
@@ -311,7 +1009,8 @@ function defaultCateringMenuStore() {
         id: 'cpkg-demo-1',
         name: 'Engagement Standard',
         level: 'Standard',
-        description: 'Balanced spread for engagement functions with welcome drinks, starters, mains and dessert.',
+        description:
+          'Balanced spread for engagement functions with welcome drinks, starters, mains and dessert.',
         subtitle: '~120 guests · 10 modules · per person',
         listPrice: 40000,
         price: 35000,
@@ -325,7 +1024,8 @@ function defaultCateringMenuStore() {
         id: 'cpkg-demo-2',
         name: 'Wedding Premium',
         level: 'Premium',
-        description: 'Full-day premium wedding catering with live counters and extended dessert selection.',
+        description:
+          'Full-day premium wedding catering with live counters and extended dessert selection.',
         subtitle: 'Full day · premium spread',
         listPrice: 75000,
         price: 75000,
@@ -355,10 +1055,10 @@ function defaultCateringMenuStore() {
 
 function seedDemoFoodItems() {
   const keys = [
-    foodMasterKey('m04', 'veg', 'Tomato Soup'),
-    foodMasterKey('m04', 'nonveg', 'Chicken Clear Soup'),
-    foodMasterKey('m01', 'juices', 'Fresh Lime'),
-    foodMasterKey('m02', 'veg', 'Paneer Tikka'),
+    foodMasterKey('m04', 'vegetarian-soups', 'Tomato Soup'),
+    foodMasterKey('m04', 'non-vegetarian-soups', 'Chicken Clear Soup'),
+    foodMasterKey('m01', 'juices-fresh-drinks', 'Fresh Lime Juice'),
+    foodMasterKey('m02', 'vegetarian-snacks', 'Paneer Tikka'),
   ];
   return keys
     .map(function (k) {
@@ -383,3 +1083,4 @@ function seedDemoFoodItems() {
     })
     .filter(Boolean);
 }
+

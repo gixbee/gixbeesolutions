@@ -1,29 +1,34 @@
-Gixbee Catering Owner — prototype (photography parity except menu hub)
-=======================================================================
+Gixbee Catering Owner — prototype
+=================================
 
 PRIMARY DEMO:
 
   docs/prototypes/GIXBEE-CATERING-OWNER-FINALFLOW5.html
 
-Same owner capabilities as photography owner, except **Menu & Packages**
-(opens a stub screen until catering menu wizard screens are provided):
+Owner flow:
 
   List My Business → Archana Catering → Manage → Dashboard
-  Service areas (full flow)
-  Business profile
-  Calendar & bookings (full _photo_calendar.js bundle)
-  Photos & Gallery, Booking Requests (stub screens, same as photo)
+  Menu & Packages (packages + 13-module food catalogue, item editor, package wizard)
+  Service areas, business profile, calendar & bookings
+  Photos & Gallery, Booking Requests (stubs)
   Operators, Deleted business
 
 Sources:
 
   catering-owner-flow-shell.html
   _catering_owner_icons.js
-  _photo_calendar.js          (shared calendar module)
-  _catering_owner_app.js      (fork of _photo_owner_app.js)
+  _photo_calendar.js
+  _catering_menu_catalog.js
+  _catering_menu_hub.js
+  _catering_owner_app.js
 
-Regenerate:
+Regenerate HTML demos:
 
+  python3 docs/prototypes/_gen_catering_prototypes.py
+
+Refresh master catalogue from gixbee-catering-almostfinal.docx (459 items):
+
+  python3 docs/prototypes/_gen_catering_catalog_from_doc.py
   python3 docs/prototypes/_gen_catering_prototypes.py
 
 NOT for demo: catering-owner-flow-shell.html
