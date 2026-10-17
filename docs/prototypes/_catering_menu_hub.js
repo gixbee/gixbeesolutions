@@ -902,61 +902,28 @@ function openFoodItemForm(foodId, masterKey, opts) {
   show('catFoodItemForm');
 }
 
-function syncFoodFormModuleSelects() {
+/** Keep catalogue module/subcat on the record (packages, search) without showing them on the form. */
+function ensureFoodFormCatalogMeta() {
   const d = foodFormDraft;
   if (!d) return;
-  const modSel = el('catFoodModuleSelect');
-  const subSel = el('catFoodSubcatSelect');
-  if (!modSel || !subSel) return;
-  modSel.innerHTML = FOOD_MODULES
-    .map(function (m) {
-      return (
-        '<option value="' +
-        esc(m.id) +
-        '">' +
-        esc(m.num + '. ' + m.name) +
-        '</option>'
-      );
-    })
-    .join('');
-  modSel.value = d.moduleId || FOOD_MODULES[0].id;
-  function fillSubcats() {
-    const mod = findFoodModule(modSel.value);
-    if (!mod) return;
-    subSel.innerHTML = (mod.subcats || [])
-      .map(function (sc) {
-        return '<option value="' + esc(sc.id) + '">' + esc(sc.name) + '</option>';
-      })
-      .join('');
-    let subId = d.subcatId;
-    if (subId && !(mod.subcats || []).some(function (sc) { return sc.id === subId; })) subId = null;
-    if (!subId && d.subcatName) {
-      const hit = (mod.subcats || []).find(function (sc) {
-        return sc.name === d.subcatName;
-      });
-      if (hit) subId = hit.id;
+  if (d.masterKey) {
+    const hit = findMasterItem(d.masterKey);
+    if (hit) {
+      d.moduleId = hit.module.id;
+      d.subcatId = hit.subcat.id;
+      d.subcatName = hit.subcat.name;
+      if (!d.diet) d.diet = hit.item.diet;
+      return;
     }
-    if (subId) subSel.value = subId;
-    else if (mod.subcats && mod.subcats[0]) subSel.value = mod.subcats[0].id;
-    const sc = (mod.subcats || []).find(function (x) {
-      return x.id === subSel.value;
-    });
-    d.moduleId = mod.id;
-    if (sc) {
-      d.subcatId = sc.id;
-      d.subcatName = sc.name;
-    }
-    const mod2 = findFoodModule(d.moduleId);
-    if (mod2) el('catFoodImgEmoji').textContent = d.imageEmoji || mod2.emoji || '🍽️';
   }
-  modSel.onchange = function () {
-    d.subcatId = null;
-    fillSubcats();
-  };
-  subSel.onchange = function () {
-    fillSubcats();
-  };
-  fillSubcats();
+  const named = findCatalogItemByName(d.name);
+  if (named) {
+    d.moduleId = named.module.id;
+    d.subcatId = named.subcat.id;
+    d.subcatName = named.subcat.name;
+    if (named.item.masterKey) d.masterKey = d.masterKey || named.item.masterKey;
+    if (!d.diet) d.diet = named.item.diet;
+  }
 }
 
 function renderFoodItemForm() {
@@ -966,7 +933,9 @@ function renderFoodItemForm() {
   el('catFoodFormTitle').textContent = d.id && findFoodItem(d.id) ? 'Edit Food Item' : 'Add Food Item';
   el('catFoodImgEmoji').textContent = d.imageEmoji || (mod && mod.emoji) || '🍽️';
   el('catFoodName').value = d.name || '';
-  syncFoodFormModuleSelects();
+  ensureFoodFormCatalogMeta();
+  const modAfter = findFoodModule(d.moduleId);
+  if (modAfter) el('catFoodImgEmoji').textContent = d.imageEmoji || modAfter.emoji || '🍽️';
   el('catFoodDesc').value = d.description || '';
   el('catFoodDietVeg').checked = d.diet === 'veg';
   el('catFoodDietEgg').checked = d.diet === 'egg';
@@ -1080,7 +1049,7 @@ function saveFoodItemForm(status) {
   foodFormDraft.description = (el('catFoodDesc').value || '').trim();
   foodFormDraft.quoteOnly = el('catFoodQuoteOnly').checked;
   foodFormDraft.unitLabel = (el('catFoodUnitLabel').value || 'plate').trim();
-  syncFoodFormModuleSelects();
+  ensureFoodFormCatalogMeta();
   if (foodFormDraft.individualListing === undefined && !(store.cateringMenu.foodItems || []).some(function (f) {
     return f.id === foodFormDraft.id;
   })) {
