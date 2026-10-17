@@ -103,9 +103,48 @@ body{margin:0;background:#E8EDF5;font-family:Inter,system-ui,sans-serif;color:va
 .chips{display:flex;flex-wrap:wrap;gap:6px}
 .chip-district{font-size:11px;font-weight:800;padding:6px 10px;border-radius:8px;background:#ECFDF3;color:#065F46}
 .info-box{margin:12px 16px;padding:12px;border-radius:12px;background:#EFF6FF;border:1px solid #BFDBFE;font-size:11px;color:var(--navy);line-height:1.45;display:flex;gap:8px;align-items:flex-start}
-#svcPkg{padding-bottom:88px;background:linear-gradient(180deg,#F8FAFC 0%,#fff 28%)}
-#svcPkg .hub-top{display:flex;align-items:center;gap:8px;padding:12px 16px 0;background:transparent;border:0}
-#svcPkg .hub-top h1{margin:0;font-size:15px;font-weight:800;color:var(--navy);flex:1;text-align:center;padding-right:36px}
+#menuPkg,#svcPkg{padding-bottom:88px;background:linear-gradient(180deg,#F8FAFC 0%,#fff 28%)}
+#menuPkg .hub-top,#svcPkg .hub-top{display:flex;align-items:center;gap:8px;padding:12px 16px 0;background:transparent;border:0}
+#menuPkg .hub-top h1,#svcPkg .hub-top h1{margin:0;font-size:15px;font-weight:800;color:var(--navy);flex:1;text-align:center;padding-right:36px}
+.cat-hub-search{display:flex;align-items:center;gap:8px;border:1.5px solid #E2E8F0;border-radius:12px;padding:10px 12px;margin:0 16px 12px;background:#fff}
+.cat-hub-search input{border:0;flex:1;font:inherit;font-weight:600;outline:none}
+.cat-hub-toolbar{display:flex;align-items:center;justify-content:space-between;padding:0 16px 8px;gap:8px}
+.cat-stat-pill{font-size:10px;font-weight:800;color:var(--mut);letter-spacing:.04em;text-transform:uppercase}
+.cat-stat-pill b{font-size:14px;color:var(--navy);margin-right:4px}
+.cat-stat-pill.live b{color:var(--gn2)}
+.cat-stat-pill.blue b{color:var(--blue)}
+.cat-sort-btn{border:0;background:#F1F5F9;border-radius:10px;padding:8px 12px;font-size:11px;font-weight:800;color:var(--navy);cursor:pointer}
+.cat-pkg-more{border:0;background:#F8FAFC;width:32px;height:32px;border-radius:8px;font-size:18px;line-height:1;cursor:pointer;color:#64748B}
+.cat-mod-row{display:flex;align-items:center;gap:10px;width:calc(100% - 32px);margin:0 16px 10px;padding:12px;border:1px solid #E2E8F0;border-radius:14px;background:#fff;cursor:pointer;text-align:left;font:inherit;color:inherit}
+.cat-mod-thumb{width:48px;height:48px;border-radius:12px;display:grid;place-items:center;font-size:22px;flex-shrink:0;color:#fff}
+.cat-mod-thumb.sm{width:40px;height:40px;font-size:18px}
+.cat-mod-num{font-size:13px;font-weight:900;color:var(--blue);width:20px;text-align:center;flex-shrink:0}
+.cat-mod-name{flex:1;min-width:0;font-size:14px;font-weight:800;color:var(--navy);line-height:1.3}
+.cat-mod-name small{display:block;font-size:11px;font-weight:600;color:var(--mut);margin-top:2px}
+.cat-mod-chev{color:#CBD5E1;font-size:20px}
+.cat-sub-hd{font-size:11px;font-weight:900;color:#94A3B8;text-transform:uppercase;letter-spacing:.06em;margin:16px 0 8px;padding:0 16px}
+.cat-check-row{display:flex;align-items:center;gap:12px;padding:12px 16px;border-bottom:1px solid #F1F5F9;font-size:14px;font-weight:700;color:var(--navy);cursor:pointer}
+.cat-check-row.on{background:#EFF6FF}
+.cat-check-row input{width:18px;height:18px;accent-color:var(--blue)}
+.cat-food-hero{margin:0 16px 16px;height:160px;border-radius:16px;background:linear-gradient(145deg,#F97316,#EA580C);display:grid;place-items:center;position:relative;overflow:hidden}
+.cat-food-hero span{font-size:64px}
+.cat-food-hero button{position:absolute;bottom:12px;right:12px;border:0;background:rgba(255,255,255,.92);padding:8px 14px;border-radius:99px;font-size:12px;font-weight:800;color:var(--navy);cursor:pointer}
+.cat-slab-hd,.cat-slab-row{display:grid;grid-template-columns:1fr 1fr 1.2fr 36px;gap:6px;align-items:center;padding:0 16px 8px;font-size:10px;font-weight:800;color:#94A3B8}
+.cat-slab-row input{padding:8px;border:1.5px solid #BFDBFE;border-radius:8px;font:inherit;font-weight:700;width:100%}
+.cat-slab-rm{border:0;background:#FEE2E2;border-radius:8px;height:32px;cursor:pointer}
+.cat-add-slab{display:inline-block;margin:4px 16px 12px;font-size:12px;font-weight:800;color:var(--blue);cursor:pointer;border:0;background:none;font:inherit}
+.cat-lvl-seg{display:flex;flex-wrap:wrap;gap:8px;padding:0 16px 4px}
+.cat-lvl-btn{border:1.5px solid #BFDBFE;border-radius:99px;padding:8px 14px;font-weight:800;font-size:12px;background:#fff;color:var(--blue);cursor:pointer;font:inherit}
+.cat-lvl-btn.on{background:var(--blue);color:#fff;border-color:var(--blue)}
+.cat-pkg-mod-row{display:flex;align-items:center;gap:10px;width:100%;padding:12px 0;border:0;border-bottom:1px solid #F1F5F9;background:transparent;cursor:pointer;text-align:left;font:inherit}
+.cat-pkg-mod-chk{width:22px;height:22px;border-radius:6px;border:2px solid #CBD5E1;display:grid;place-items:center;font-size:12px;font-weight:900;color:#fff;flex-shrink:0}
+.cat-pkg-mod-chk.on{background:var(--blue);border-color:var(--blue)}
+.cat-pkg-mod-txt{flex:1;min-width:0}
+.cat-pkg-mod-txt b{display:block;font-size:13px;color:var(--navy)}
+.cat-pkg-mod-txt small{font-size:11px;color:var(--mut);font-weight:600}
+.cat-sum-row{font-size:13px;font-weight:700;color:#065F46;padding:6px 0;border-bottom:1px solid #ECFDF3}
+#menuPkg.hub-mode-packages .hub-food-only{display:none!important}
+#menuPkg.hub-mode-services .hub-pkg-only{display:none!important}
 .hub-hero{margin:0 16px 14px;padding:18px 16px 16px;border-radius:20px;background:linear-gradient(135deg,#1B2559 0%,#2563EB 55%,#7C3AED 100%);color:#fff;box-shadow:0 12px 28px rgba(37,99,235,.28);position:relative;overflow:hidden}
 .hub-hero::after{content:"";position:absolute;right:-24px;top:-24px;width:120px;height:120px;border-radius:50%;background:rgba(255,255,255,.08)}
 .hub-hero-kicker{font-size:10px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;opacity:.85;margin:0 0 6px}
@@ -687,14 +726,99 @@ button.manage-pill{cursor:pointer;font:inherit;color:var(--blue);border-color:#B
 </section>
 
 
-<section class="scr" id="menuPkg">
-  <div class="top"><button type="button" class="back" data-to="photoDash">←</button><h1>Menu &amp; Packages</h1><span style="width:36px"></span></div>
-  <div class="stub" style="padding:24px 16px;text-align:center">
-    <div style="font-size:48px;margin-bottom:12px" aria-hidden="true">🍽️</div>
-    <h2 style="margin:0 0 8px;color:var(--navy)">Menu &amp; packages</h2>
-    <p class="sub" style="margin:0 0 16px">Build wedding menus, per-plate packages, and add-ons here. Share the next screen designs to complete this hub.</p>
-    <button type="button" class="btn btn-blue" data-to="photoDash" style="max-width:220px;margin:0 auto">Back to dashboard</button>
+<section class="scr hub-mode-packages" id="menuPkg">
+  <div class="hub-top"><button type="button" class="back" data-to="photoDash">←</button><h1 id="catHubTitle">Menu &amp; Packages</h1></div>
+  <div class="hub-seg-wrap">
+    <div class="hub-seg">
+      <button type="button" class="hub-tab pkg-tab on" id="catTabPackages">Packages</button>
+      <button type="button" class="hub-tab svc-tab" id="catTabFoodItems">Food Items</button>
+    </div>
   </div>
+  <div class="hub-pkg-only">
+    <div class="cat-hub-search"><span aria-hidden="true">🔍</span><input type="search" id="catPkgSearch" placeholder="Search packages…" autocomplete="off"></div>
+    <div class="filter-row" id="catPkgFilters"></div>
+    <div class="cat-hub-toolbar hub-pkg-only">
+      <div id="catHubStat"></div>
+      <button type="button" class="cat-sort-btn" id="catPkgSortBtn">Sort ↕</button>
+    </div>
+    <p class="hub-intro" id="catHubIntro"></p>
+    <div class="hub-list" id="catPkgList"></div>
+    <div class="hub-cta-sticky hub-pkg-only"><button type="button" class="btn btn-pink" id="catAddPackageBtn">+ Add Package</button></div>
+  </div>
+  <div class="hub-food-only">
+    <div class="cat-hub-search"><span aria-hidden="true">🔍</span><input type="search" id="catFoodSearch" placeholder="Search food items…" autocomplete="off"></div>
+    <div id="catFoodModuleList" style="padding-bottom:24px"></div>
+  </div>
+</section>
+
+<section class="scr" id="catModulePick">
+  <div class="top"><button type="button" class="back" id="catModulePickBack">←</button><h1 id="catModuleTitle">Module</h1><button type="button" class="link" id="catModuleEditFood" style="font-size:12px">Edit</button></div>
+  <div id="catModulePickBody"></div>
+  <div class="cta"><button type="button" class="btn btn-blue" id="catModulePickSave">Add Selected Items (0)</button></div>
+</section>
+
+<section class="scr" id="catFoodItemForm">
+  <div class="top"><button type="button" class="back" id="catFoodBack">←</button><h1 id="catFoodFormTitle">Add Food Item</h1><span style="width:36px"></span></div>
+  <div class="cat-food-hero"><span id="catFoodImgEmoji">🍲</span><button type="button" id="catFoodChangeImg">Change Image</button></div>
+  <div class="pad">
+    <div class="fld"><label>Food Item Name*</label><input id="catFoodName" placeholder="Dish name"></div>
+    <div class="fld"><label>Module*</label><input id="catFoodModule" readonly></div>
+    <div class="fld"><label>Subcategory*</label><input id="catFoodSubcat" readonly></div>
+    <div class="fld"><label>Description (optional)</label><textarea id="catFoodDesc" rows="2" placeholder="Short description for customers"></textarea></div>
+    <p class="lbl">DIET</p>
+    <div class="radio-row" style="margin-bottom:12px">
+      <label><input type="radio" name="catFoodDiet" id="catFoodDietVeg" checked> Veg</label>
+      <label><input type="radio" name="catFoodDiet" id="catFoodDietEgg"> Egg</label>
+      <label><input type="radio" name="catFoodDiet" id="catFoodDietNon"> Non-veg</label>
+    </div>
+    <label class="chk-row" style="margin:0 16px 12px;display:flex"><input type="checkbox" id="catFoodQuoteOnly"> Quote on request (no fixed price)</label>
+    <p class="lbl">PRICING TYPE</p>
+    <div class="radio-row" style="margin-bottom:8px">
+      <label><input type="radio" name="catFoodPrice" id="catFoodPricePerson" checked> Per Plate / Person</label>
+      <label><input type="radio" name="catFoodPrice" id="catFoodPriceUnit"> Per Quantity / Unit</label>
+    </div>
+    <div class="fld" id="catFoodUnitWrap" style="display:none"><label>Unit label</label><input id="catFoodUnitLabel" placeholder="bowl, litre, tray…"></div>
+    <p class="lbl">QUANTITY SLABS (OWNER DEFINED)</p>
+    <div id="catFoodSlabs"></div>
+    <button type="button" class="cat-add-slab" id="catFoodAddSlab">+ Add another slab</button>
+  </div>
+  <div class="cta" style="display:flex;gap:10px">
+    <button type="button" class="btn btn-ghost" id="catFoodSaveDraft" style="flex:1">Save as Draft</button>
+    <button type="button" class="btn btn-blue" id="catFoodSave" style="flex:1">Save Food Item</button>
+  </div>
+</section>
+
+<section class="scr" id="catPkgCreate">
+  <div class="top"><button type="button" class="back" id="catPkgCreateBack">←</button><h1>Create Package</h1><span style="width:36px"></span></div>
+  <div class="pad">
+    <div class="fld"><label>Package Name*</label><input id="catPkgName" placeholder="e.g. Wedding Premium"></div>
+    <p class="lbl">PACKAGE TYPE</p>
+    <div class="cat-lvl-seg" id="catPkgLevelSeg"></div>
+    <div class="fld"><label>Description (optional)</label><textarea id="catPkgDesc" rows="2" placeholder="Perfect for medium sized functions."></textarea></div>
+    <p class="lbl">SELECT ITEMS FROM 13 MODULES</p>
+    <div class="cat-hub-search" style="margin:0 0 12px"><span>🔍</span><input type="search" id="catPkgItemSearch" placeholder="Search food items…"></div>
+    <div id="catPkgModulePick" style="padding:0 16px"></div>
+  </div>
+  <div class="cta"><button type="button" class="btn btn-pink" id="catPkgNextPricing">Next: Set Pricing</button></div>
+</section>
+
+<section class="scr" id="catPkgPricing">
+  <div class="top"><button type="button" class="back" id="catPkgPricingBack">←</button><h1>Set Package Pricing</h1><span style="width:36px"></span></div>
+  <div class="pad">
+    <p class="lbl">PRICING TYPE</p>
+    <div class="radio-row" style="margin-bottom:12px"><label><input type="radio" checked disabled> Per Person / Plate</label></div>
+    <p class="lbl">GUEST COUNT PRICING (OWNER DEFINED)</p>
+    <div id="catPkgSlabs"></div>
+    <button type="button" class="cat-add-slab" id="catPkgAddSlab">+ Add another slab</button>
+    <p class="lbl" style="margin-top:16px">PACKAGE SUMMARY</p>
+    <div id="catPkgSummary" style="padding:0 4px"></div>
+    <p class="lbl">STATUS</p>
+    <div class="radio-row">
+      <label><input type="radio" name="catPkgStatus" id="catPkgStatusLive" checked> Live (visible to customers)</label>
+      <label><input type="radio" name="catPkgStatus" id="catPkgStatusDraft"> Draft (not visible)</label>
+    </div>
+  </div>
+  <div class="cta"><button type="button" class="btn btn-blue" id="catPkgSave">Save Package</button></div>
 </section>
 
 <section class="scr" id="calendar">
@@ -2070,9 +2194,1286 @@ function bindPhotoCalendarUi() {
   });
 }
 
-/** Catering owner — forked from photography owner; menu hub stub only. */
+/** Fixed 13-module catering catalogue (seed items for owner selection). */
+const CAT_PKG_LEVELS = ['Basic', 'Standard', 'Premium', 'Custom'];
+
+const FOOD_MODULE_GRADIENTS = [
+  'linear-gradient(145deg,#0EA5E9,#0284C7)',
+  'linear-gradient(145deg,#F97316,#EA580C)',
+  'linear-gradient(145deg,#22C55E,#16A34A)',
+  'linear-gradient(145deg,#EF4444,#DC2626)',
+  'linear-gradient(145deg,#EAB308,#CA8A04)',
+  'linear-gradient(145deg,#A855F7,#7C3AED)',
+  'linear-gradient(145deg,#F43F5E,#E11D48)',
+  'linear-gradient(145deg,#6366F1,#4F46E5)',
+  'linear-gradient(145deg,#14B8A6,#0D9488)',
+  'linear-gradient(145deg,#84CC16,#65A30D)',
+  'linear-gradient(145deg,#FB923C,#F97316)',
+  'linear-gradient(145deg,#D97706,#B45309)',
+  'linear-gradient(145deg,#EC4899,#DB2777)',
+];
+
+function foodMasterKey(moduleId, subcatId, name) {
+  return moduleId + '::' + subcatId + '::' + String(name || '').toLowerCase().replace(/\s+/g, '-');
+}
+
+function buildFoodModules() {
+  const defs = [
+    {
+      id: 'm01',
+      name: 'Welcome Drinks',
+      emoji: '🥤',
+      subcats: [
+        {
+          id: 'juices',
+          name: 'Juices & Mocktails',
+          items: ['Fresh Lime', 'Mango Juice', 'Watermelon Juice', 'Mint Lime', 'Buttermilk (Chaas)'],
+        },
+        {
+          id: 'hot',
+          name: 'Hot Beverages',
+          items: ['Tea', 'Coffee', 'Masala Chai'],
+        },
+      ],
+    },
+    {
+      id: 'm02',
+      name: 'Starters & Snacks',
+      emoji: '🥟',
+      subcats: [
+        {
+          id: 'veg',
+          name: 'Vegetarian',
+          items: ['Vegetable Spring Roll', 'Paneer Tikka', 'Gobi Manchurian', 'Banana Fritters', 'Samosa'],
+        },
+        {
+          id: 'nonveg',
+          name: 'Non-Vegetarian',
+          items: ['Chicken 65', 'Fish Fry', 'Prawn Tempura', 'Mutton Cutlet'],
+        },
+      ],
+    },
+    {
+      id: 'm03',
+      name: 'Salads',
+      emoji: '🥗',
+      subcats: [
+        {
+          id: 'fresh',
+          name: 'Fresh Salads',
+          items: ['Green Salad', 'Russian Salad', 'Fruit Salad', 'Coleslaw'],
+        },
+      ],
+    },
+    {
+      id: 'm04',
+      name: 'Soups',
+      emoji: '🍲',
+      subcats: [
+        {
+          id: 'veg',
+          name: 'Vegetarian Soups',
+          items: [
+            'Tomato Soup',
+            'Manchow Vegetable Soup',
+            'Sweet Corn Vegetable Soup',
+            'Mushroom Soup',
+            'Hot & Sour Vegetable Soup',
+          ],
+        },
+        {
+          id: 'nonveg',
+          name: 'Non-Vegetarian Soups',
+          items: [
+            'Chicken Clear Soup',
+            'Chicken Manchow Soup',
+            'Prawn Soup',
+            'Mutton Soup',
+            'Sweet Corn Chicken Soup',
+          ],
+        },
+        {
+          id: 'special',
+          name: 'Specialty',
+          items: ['Pepper Soup', 'Mulligatawny Soup', 'Custom Soup'],
+        },
+      ],
+    },
+    {
+      id: 'm05',
+      name: 'Sadhya',
+      emoji: '🍛',
+      subcats: [
+        {
+          id: 'items',
+          name: 'Sadhya Items',
+          items: ['Traditional Sadhya (per person)', 'Mini Sadhya', 'Onam Sadhya'],
+        },
+      ],
+    },
+    {
+      id: 'm06',
+      name: 'Biriyani',
+      emoji: '🍚',
+      subcats: [
+        {
+          id: 'veg',
+          name: 'Vegetarian',
+          items: ['Vegetable Biriyani', 'Paneer Biriyani', 'Mushroom Biriyani'],
+        },
+        {
+          id: 'nonveg',
+          name: 'Non-Vegetarian',
+          items: ['Chicken Biriyani', 'Mutton Biriyani', 'Fish Biriyani', 'Prawn Biriyani'],
+        },
+      ],
+    },
+    {
+      id: 'm07',
+      name: 'Arabian',
+      emoji: '🧆',
+      subcats: [
+        {
+          id: 'grill',
+          name: 'Grills & Rice',
+          items: ['Chicken Mandi', 'Mutton Kabsa', 'Al Faham', 'Arabian Rice'],
+        },
+      ],
+    },
+    {
+      id: 'm08',
+      name: 'Main Course',
+      emoji: '🍽️',
+      subcats: [
+        {
+          id: 'veg',
+          name: 'Vegetarian',
+          items: ['Vegetable Stew', 'Paneer Butter Masala', 'Dal Tadka', 'Mixed Veg Curry'],
+        },
+        {
+          id: 'nonveg',
+          name: 'Non-Vegetarian',
+          items: ['Chicken Roast', 'Fish Molly', 'Beef Fry', 'Mutton Pepper Fry'],
+        },
+      ],
+    },
+    {
+      id: 'm09',
+      name: 'Curries & Gravies',
+      emoji: '🥘',
+      subcats: [
+        {
+          id: 'veg',
+          name: 'Vegetarian',
+          items: ['Sambar', 'Avial', 'Erissery', 'Moru Curry'],
+        },
+        {
+          id: 'nonveg',
+          name: 'Non-Vegetarian',
+          items: ['Chicken Curry', 'Fish Curry', 'Mutton Curry', 'Prawn Curry'],
+        },
+      ],
+    },
+    {
+      id: 'm10',
+      name: 'Accompaniments',
+      emoji: '🥙',
+      subcats: [
+        {
+          id: 'sides',
+          name: 'Sides',
+          items: ['Pickle', 'Pappadam', 'Chutney', 'Raitha', 'Ghee Rice'],
+        },
+      ],
+    },
+    {
+      id: 'm11',
+      name: 'Special Live Counters',
+      emoji: '🔥',
+      subcats: [
+        {
+          id: 'live',
+          name: 'Live Stations',
+          items: ['Appam Counter', 'Dosa Counter', 'Grill Counter', 'Chaat Counter', 'Payasam Counter'],
+        },
+      ],
+    },
+    {
+      id: 'm12',
+      name: 'Breads & Rotis',
+      emoji: '🫓',
+      subcats: [
+        {
+          id: 'bread',
+          name: 'Breads',
+          items: ['Appam', 'Idiyappam', 'Porotta', 'Naan', 'Chapati'],
+        },
+      ],
+    },
+    {
+      id: 'm13',
+      name: 'Desserts & Sweets',
+      emoji: '🍮',
+      subcats: [
+        {
+          id: 'sweet',
+          name: 'Sweets',
+          items: ['Payasam', 'Gulab Jamun', 'Ice Cream', 'Fruit Custard', 'Ada Pradhaman'],
+        },
+      ],
+    },
+  ];
+  return defs.map(function (m, idx) {
+    const subcats = (m.subcats || []).map(function (sc) {
+      const items = (sc.items || []).map(function (name) {
+        const diet =
+          sc.id === 'nonveg' || /chicken|mutton|prawn|fish|beef|meat/i.test(name)
+            ? 'non_veg'
+            : sc.id === 'veg' || /vegetable|paneer|mushroom|dal|sambar|avial/i.test(name)
+              ? 'veg'
+              : 'veg';
+        return {
+          masterKey: foodMasterKey(m.id, sc.id, name),
+          name: name,
+          subcatId: sc.id,
+          subcatName: sc.name,
+          diet: diet,
+        };
+      });
+      return { id: sc.id, name: sc.name, items: items };
+    });
+    return {
+      id: m.id,
+      num: idx + 1,
+      name: m.name,
+      emoji: m.emoji,
+      gradient: FOOD_MODULE_GRADIENTS[idx] || FOOD_MODULE_GRADIENTS[0],
+      subcats: subcats,
+    };
+  });
+}
+
+const FOOD_MODULES = buildFoodModules();
+
+function findFoodModule(moduleId) {
+  return FOOD_MODULES.find(function (m) {
+    return m.id === moduleId;
+  });
+}
+
+function findMasterItem(masterKey) {
+  for (let mi = 0; mi < FOOD_MODULES.length; mi++) {
+    const mod = FOOD_MODULES[mi];
+    for (let si = 0; si < mod.subcats.length; si++) {
+      const sc = mod.subcats[si];
+      for (let ii = 0; ii < sc.items.length; ii++) {
+        if (sc.items[ii].masterKey === masterKey) return { module: mod, subcat: sc, item: sc.items[ii] };
+      }
+    }
+  }
+  return null;
+}
+
+function defaultItemSlabs() {
+  return [
+    { from: 1, to: 25, price: 70 },
+    { from: 26, to: 50, price: 60 },
+    { from: 51, to: 100, price: 55 },
+    { from: 101, to: 200, price: 50 },
+    { from: 201, to: 500, price: 45 },
+  ];
+}
+
+function defaultPackageGuestSlabs() {
+  return [
+    { from: 25, to: 50, price: 300 },
+    { from: 51, to: 100, price: 280 },
+    { from: 101, to: 200, price: 260 },
+    { from: 201, to: 300, price: 240 },
+    { from: 301, to: 500, price: 220 },
+  ];
+}
+
+function defaultCateringMenuStore() {
+  return {
+    hubTab: 'packages',
+    pkgFilter: 'all',
+    pkgSort: 'name',
+    pkgSearch: '',
+    foodSearch: '',
+    foodItems: [],
+    catPackages: [
+      {
+        id: 'cpkg-demo-1',
+        name: 'Engagement Standard',
+        level: 'Standard',
+        description: 'Balanced spread for engagement functions with welcome drinks, starters, mains and dessert.',
+        subtitle: '~120 guests · 10 modules · per person',
+        listPrice: 40000,
+        price: 35000,
+        status: 'live',
+        pricingMode: 'per_person',
+        guestSlabs: defaultPackageGuestSlabs(),
+        itemIds: [],
+        imageEmoji: '🍽️',
+      },
+      {
+        id: 'cpkg-demo-2',
+        name: 'Wedding Premium',
+        level: 'Premium',
+        description: 'Full-day premium wedding catering with live counters and extended dessert selection.',
+        subtitle: 'Full day · premium spread',
+        listPrice: 75000,
+        price: 75000,
+        status: 'live',
+        pricingMode: 'per_person',
+        guestSlabs: defaultPackageGuestSlabs(),
+        itemIds: [],
+        imageEmoji: '💒',
+      },
+      {
+        id: 'cpkg-demo-3',
+        name: 'Reception Basic',
+        level: 'Basic',
+        description: 'Essential reception menu — starters, one main and dessert.',
+        subtitle: 'Reception essentials',
+        listPrice: 25000,
+        price: 25000,
+        status: 'draft',
+        pricingMode: 'per_person',
+        guestSlabs: defaultPackageGuestSlabs(),
+        itemIds: [],
+        imageEmoji: '🎉',
+      },
+    ],
+  };
+}
+
+function seedDemoFoodItems() {
+  const keys = [
+    foodMasterKey('m04', 'veg', 'Tomato Soup'),
+    foodMasterKey('m04', 'nonveg', 'Chicken Clear Soup'),
+    foodMasterKey('m01', 'juices', 'Fresh Lime'),
+    foodMasterKey('m02', 'veg', 'Paneer Tikka'),
+  ];
+  return keys
+    .map(function (k) {
+      const hit = findMasterItem(k);
+      if (!hit) return null;
+      return {
+        id: 'food-' + k.replace(/::/g, '-'),
+        masterKey: k,
+        name: hit.item.name,
+        moduleId: hit.module.id,
+        subcatId: hit.subcat.id,
+        subcatName: hit.subcat.name,
+        description: '',
+        diet: hit.item.diet,
+        pricingMode: 'per_person',
+        unitLabel: 'plate',
+        quoteOnly: false,
+        status: 'active',
+        slabs: defaultItemSlabs(),
+        imageEmoji: hit.module.emoji,
+      };
+    })
+    .filter(Boolean);
+}
+
+/** Catering owner — Menu & Packages hub (packages + food items). */
+
+let menuPickCtx = { mode: 'catalog', selected: {}, moduleId: null, returnTo: 'menuPkg' };
+let foodFormDraft = null;
+let pkgWizard = { draft: null, editId: null };
+
+function ensureCateringMenuStore() {
+  if (!store.cateringMenu) store.cateringMenu = defaultCateringMenuStore();
+  if (!store.cateringMenu.foodItems) store.cateringMenu.foodItems = [];
+  if (!store.cateringMenu.catPackages) store.cateringMenu.catPackages = defaultCateringMenuStore().catPackages;
+  if (!store.cateringMenu.hubTab) store.cateringMenu.hubTab = 'packages';
+}
+
+function cateringMenuOpenHub() {
+  ensureCateringMenuStore();
+  show('menuPkg');
+  renderCateringMenuHub();
+}
+
+function catLevelClass(level) {
+  return String(level || 'Standard').toLowerCase();
+}
+
+function findFoodItem(id) {
+  return (store.cateringMenu.foodItems || []).find(function (f) {
+    return f.id === id;
+  });
+}
+
+function findCatPackage(id) {
+  return (store.cateringMenu.catPackages || []).find(function (p) {
+    return p.id === id;
+  });
+}
+
+function ownerHasMasterKey(masterKey) {
+  return (store.cateringMenu.foodItems || []).some(function (f) {
+    return f.masterKey === masterKey;
+  });
+}
+
+function countItemsInModule(moduleId) {
+  return (store.cateringMenu.foodItems || []).filter(function (f) {
+    return f.moduleId === moduleId && f.status !== 'archived';
+  }).length;
+}
+
+function packageItemIdsForModule(pkg, moduleId) {
+  const ids = pkg.itemIds || [];
+  return ids.filter(function (fid) {
+    const it = findFoodItem(fid);
+    return it && it.moduleId === moduleId;
+  });
+}
+
+function countPkgItemsInModule(pkg, moduleId) {
+  return packageItemIdsForModule(pkg, moduleId).length;
+}
+
+function lowestGuestPrice(pkg) {
+  const slabs = pkg.guestSlabs || [];
+  if (!slabs.length) return pkg.price || 0;
+  let min = Infinity;
+  slabs.forEach(function (s) {
+    min = Math.min(min, +s.price || 0);
+  });
+  return min === Infinity ? pkg.price || 0 : min;
+}
+
+function formatInrCompact(n) {
+  const v = Math.max(0, Math.round(+n || 0));
+  return '₹' + v.toLocaleString('en-IN');
+}
+
+function renderCateringMenuHub() {
+  ensureCateringMenuStore();
+  const hub = el('menuPkg');
+  const isPkg = store.cateringMenu.hubTab !== 'food';
+  if (hub) {
+    hub.classList.toggle('hub-mode-packages', isPkg);
+    hub.classList.toggle('hub-mode-services', !isPkg);
+  }
+  const tabPkg = el('catTabPackages');
+  const tabFood = el('catTabFoodItems');
+  if (tabPkg) tabPkg.classList.toggle('on', isPkg);
+  if (tabFood) tabFood.classList.toggle('on', !isPkg);
+
+  const hubTitle = el('catHubTitle');
+  if (hubTitle) hubTitle.textContent = isPkg ? 'Menu & Packages' : 'Food Menu';
+
+  const intro = el('catHubIntro');
+  if (intro) {
+    intro.textContent = isPkg
+      ? 'Catering packages with per-person slabs. Filter by tier and publish when ready.'
+      : 'Browse the 13 modules and add dishes you offer to your live menu.';
+  }
+
+  const stat = el('catHubStat');
+  if (stat) {
+    const pkgs = store.cateringMenu.catPackages || [];
+    const live = pkgs.filter(function (p) {
+      return p.status === 'live';
+    }).length;
+    const foods = (store.cateringMenu.foodItems || []).filter(function (f) {
+      return f.status === 'active';
+    }).length;
+    stat.innerHTML = isPkg
+      ? '<span class="cat-stat-pill"><b>' +
+        pkgs.length +
+        '</b> PACKAGES</span><span class="cat-stat-pill live"><b>' +
+        live +
+        '</b> LIVE</span>'
+      : '<span class="cat-stat-pill blue"><b>' +
+        foods +
+        '</b> ACTIVE ITEMS</span><span class="cat-stat-pill"><b>13</b> MODULES</span>';
+  }
+
+  renderCatPkgFilters();
+  renderCatPkgList();
+  renderCatFoodModuleList();
+  bindCateringMenuHubUi();
+}
+
+function renderCatPkgFilters() {
+  const row = el('catPkgFilters');
+  if (!row) return;
+  const filters = [{ id: 'all', label: 'All' }].concat(
+    CAT_PKG_LEVELS.map(function (l) {
+      return { id: l.toLowerCase(), label: l };
+    })
+  );
+  row.innerHTML = filters
+    .map(function (f) {
+      return (
+        '<button type="button" class="fchip' +
+        (store.cateringMenu.pkgFilter === f.id ? ' on' : '') +
+        '" data-cat-f="' +
+        esc(f.id) +
+        '">' +
+        esc(f.label) +
+        '</button>'
+      );
+    })
+    .join('');
+}
+
+function filteredCatPackages() {
+  let list = (store.cateringMenu.catPackages || []).slice();
+  const f = store.cateringMenu.pkgFilter || 'all';
+  if (f !== 'all') {
+    list = list.filter(function (p) {
+      return catLevelClass(p.level) === f;
+    });
+  }
+  const q = (store.cateringMenu.pkgSearch || '').trim().toLowerCase();
+  if (q) {
+    list = list.filter(function (p) {
+      return (
+        String(p.name || '').toLowerCase().includes(q) ||
+        String(p.level || '').toLowerCase().includes(q)
+      );
+    });
+  }
+  const sort = store.cateringMenu.pkgSort || 'name';
+  list.sort(function (a, b) {
+    if (sort === 'price') return (a.price || 0) - (b.price || 0);
+    if (sort === 'status') return String(a.status).localeCompare(String(b.status));
+    return String(a.name || '').localeCompare(String(b.name || ''));
+  });
+  return list;
+}
+
+function renderCatPkgList() {
+  const list = el('catPkgList');
+  if (!list) return;
+  const pkgs = filteredCatPackages();
+  if (!pkgs.length) {
+    list.innerHTML =
+      '<div class="hub-empty"><div class="hub-empty-ico">📦</div><b>No packages yet</b><p>Create your first catering package with items from all 13 modules.</p></div>';
+    return;
+  }
+  list.innerHTML = pkgs
+    .map(function (p) {
+      const lv = catLevelClass(p.level);
+      const disc =
+        p.listPrice > p.price
+          ? '<span class="was" style="text-decoration:line-through;color:#9CA3AF;font-size:12px;font-weight:700;margin-left:6px">' +
+            formatInrCompact(p.listPrice) +
+            '</span>'
+          : '';
+      const thumbStyle = 'background:' + (p.thumbGradient || 'linear-gradient(145deg,#F97316,#EA580C)');
+      return (
+        '<div class="pkg-card pkg-card-tap" data-cpkg-id="' +
+        esc(p.id) +
+        '"><div class="pkg-thumb lv-' +
+        lv +
+        '" style="' +
+        thumbStyle +
+        '"><span style="font-size:28px;z-index:1;position:relative">' +
+        esc(p.imageEmoji || '🍽️') +
+        '</span></div><div class="pkg-bd"><div class="pkg-top-row"><div class="pkg-chips"><span class="pkg-level ' +
+        lv +
+        '">' +
+        esc(p.level) +
+        '</span></div><button type="button" class="cat-pkg-more" data-cpkg-menu="' +
+        esc(p.id) +
+        '" aria-label="Options">⋯</button></div><b>' +
+        esc(p.name) +
+        '</b><div class="pkg-price">' +
+        formatInrCompact(p.price || lowestGuestPrice(p)) +
+        disc +
+        '</div><div class="pkg-sub">' +
+        esc(p.subtitle || p.description || '') +
+        '</div><div class="pkg-foot"><span class="status ' +
+        (p.status === 'live' ? 'pub' : 'draft') +
+        '">' +
+        (p.status === 'live' ? '● Live' : '○ Draft') +
+        '</span></div></div></div>'
+      );
+    })
+    .join('');
+}
+
+function renderCatFoodModuleList() {
+  const host = el('catFoodModuleList');
+  if (!host) return;
+  const q = (store.cateringMenu.foodSearch || '').trim().toLowerCase();
+  host.innerHTML = FOOD_MODULES
+    .filter(function (m) {
+      if (!q) return true;
+      if (m.name.toLowerCase().includes(q)) return true;
+      return (store.cateringMenu.foodItems || []).some(function (f) {
+        return f.moduleId === m.id && String(f.name).toLowerCase().includes(q);
+      });
+    })
+    .map(function (m) {
+      const n = countItemsInModule(m.id);
+      return (
+        '<button type="button" class="cat-mod-row" data-mod="' +
+        esc(m.id) +
+        '"><span class="cat-mod-thumb" style="background:' +
+        m.gradient +
+        '">' +
+        m.emoji +
+        '</span><span class="cat-mod-num">' +
+        m.num +
+        '</span><span class="cat-mod-name">' +
+        esc(m.name) +
+        (n ? '<small>' + n + ' on menu</small>' : '') +
+        '</span><span class="cat-mod-chev">›</span></button>'
+      );
+    })
+    .join('');
+}
+
+function bindCateringMenuHubUi() {
+  const tabPkg = el('catTabPackages');
+  const tabFood = el('catTabFoodItems');
+  if (tabPkg) {
+    tabPkg.onclick = function () {
+      store.cateringMenu.hubTab = 'packages';
+      saveStore();
+      renderCateringMenuHub();
+    };
+  }
+  if (tabFood) {
+    tabFood.onclick = function () {
+      store.cateringMenu.hubTab = 'food';
+      saveStore();
+      renderCateringMenuHub();
+    };
+  }
+  const pkgSearch = el('catPkgSearch');
+  if (pkgSearch) {
+    pkgSearch.value = store.cateringMenu.pkgSearch || '';
+    pkgSearch.oninput = function () {
+      store.cateringMenu.pkgSearch = pkgSearch.value;
+      renderCatPkgList();
+    };
+  }
+  const foodSearch = el('catFoodSearch');
+  if (foodSearch) {
+    foodSearch.value = store.cateringMenu.foodSearch || '';
+    foodSearch.oninput = function () {
+      store.cateringMenu.foodSearch = foodSearch.value;
+      renderCatFoodModuleList();
+    };
+  }
+  const sortBtn = el('catPkgSortBtn');
+  if (sortBtn) {
+    sortBtn.onclick = function () {
+      const order = ['name', 'price', 'status'];
+      const i = order.indexOf(store.cateringMenu.pkgSort || 'name');
+      store.cateringMenu.pkgSort = order[(i + 1) % order.length];
+      toast('Sort: ' + store.cateringMenu.pkgSort);
+      saveStore();
+      renderCatPkgList();
+    };
+  }
+  const filters = el('catPkgFilters');
+  if (filters) {
+    filters.querySelectorAll('[data-cat-f]').forEach(function (btn) {
+      btn.onclick = function () {
+        store.cateringMenu.pkgFilter = btn.getAttribute('data-cat-f');
+        saveStore();
+        renderCateringMenuHub();
+      };
+    });
+  }
+  const addPkg = el('catAddPackageBtn');
+  if (addPkg) {
+    addPkg.onclick = function () {
+      startCatPackageWizard(null);
+    };
+  }
+  const list = el('catPkgList');
+  if (list) {
+    list.querySelectorAll('[data-cpkg-id]').forEach(function (card) {
+      card.onclick = function (e) {
+        if (e.target.closest('.cat-pkg-more')) return;
+        startCatPackageWizard(card.getAttribute('data-cpkg-id'));
+      };
+    });
+    list.querySelectorAll('[data-cpkg-menu]').forEach(function (btn) {
+      btn.onclick = function (e) {
+        e.stopPropagation();
+        const id = btn.getAttribute('data-cpkg-menu');
+        const action = prompt('Package options:\n1 = Edit\n2 = Duplicate\n3 = Delete\n\nEnter 1, 2 or 3');
+        if (action === '1') startCatPackageWizard(id);
+        else if (action === '2') duplicateCatPackage(id);
+        else if (action === '3') deleteCatPackage(id);
+      };
+    });
+  }
+  const modList = el('catFoodModuleList');
+  if (modList) {
+    modList.querySelectorAll('[data-mod]').forEach(function (row) {
+      row.onclick = function () {
+        openModulePicker(row.getAttribute('data-mod'), 'catalog');
+      };
+    });
+  }
+}
+
+function duplicateCatPackage(id) {
+  const src = findCatPackage(id);
+  if (!src) return;
+  const copy = JSON.parse(JSON.stringify(src));
+  copy.id = uid('cpkg');
+  copy.name = src.name + ' (copy)';
+  copy.status = 'draft';
+  store.cateringMenu.catPackages.unshift(copy);
+  saveStore();
+  renderCateringMenuHub();
+  toast('Package duplicated as draft');
+}
+
+function deleteCatPackage(id) {
+  const p = findCatPackage(id);
+  if (!p) return;
+  if (!confirm('Delete package "' + p.name + '"?')) return;
+  store.cateringMenu.catPackages = store.cateringMenu.catPackages.filter(function (x) {
+    return x.id !== id;
+  });
+  saveStore();
+  renderCateringMenuHub();
+  toast('Package deleted');
+}
+
+function openModulePicker(moduleId, mode) {
+  menuPickCtx = {
+    mode: mode || 'catalog',
+    moduleId: moduleId,
+    selected: {},
+    returnTo: mode === 'package' ? 'catPkgCreate' : 'menuPkg',
+  };
+  const mod = findFoodModule(moduleId);
+  if (!mod) return;
+  if (mode === 'catalog') {
+    (store.cateringMenu.foodItems || []).forEach(function (f) {
+      if (f.moduleId === moduleId && f.masterKey) menuPickCtx.selected[f.masterKey] = true;
+    });
+  } else if (pkgWizard.draft) {
+    (pkgWizard.draft.itemIds || []).forEach(function (fid) {
+      const it = findFoodItem(fid);
+      if (it && it.moduleId === moduleId && it.masterKey) menuPickCtx.selected[it.masterKey] = true;
+    });
+  }
+  el('catModuleTitle').textContent = mod.name;
+  renderModulePickerBody();
+  show('catModulePick');
+}
+
+function renderModulePickerBody() {
+  const mod = findFoodModule(menuPickCtx.moduleId);
+  const body = el('catModulePickBody');
+  if (!mod || !body) return;
+  let html = '';
+  mod.subcats.forEach(function (sc) {
+    html += '<p class="cat-sub-hd">' + esc(sc.name) + '</p>';
+    sc.items.forEach(function (it) {
+      const on = !!menuPickCtx.selected[it.masterKey];
+      html +=
+        '<label class="cat-check-row' +
+        (on ? ' on' : '') +
+        '"><input type="checkbox" data-mk="' +
+        esc(it.masterKey) +
+        '"' +
+        (on ? ' checked' : '') +
+        '><span>' +
+        esc(it.name) +
+        '</span></label>';
+    });
+  });
+  body.innerHTML = html;
+  syncModulePickCount();
+  body.querySelectorAll('input[type=checkbox]').forEach(function (cb) {
+    cb.onchange = function () {
+      const mk = cb.getAttribute('data-mk');
+      if (cb.checked) menuPickCtx.selected[mk] = true;
+      else delete menuPickCtx.selected[mk];
+      cb.closest('.cat-check-row').classList.toggle('on', cb.checked);
+      syncModulePickCount();
+    };
+  });
+}
+
+function syncModulePickCount() {
+  const n = Object.keys(menuPickCtx.selected).filter(function (k) {
+    return menuPickCtx.selected[k];
+  }).length;
+  const btn = el('catModulePickSave');
+  if (btn) btn.textContent = menuPickCtx.mode === 'package' ? 'Apply (' + n + ')' : 'Add Selected Items (' + n + ')';
+}
+
+function commitModulePicker() {
+  const mod = findFoodModule(menuPickCtx.moduleId);
+  if (!mod) return;
+  const keys = Object.keys(menuPickCtx.selected).filter(function (k) {
+    return menuPickCtx.selected[k];
+  });
+  if (menuPickCtx.mode === 'package') {
+    if (!pkgWizard.draft) return;
+    const existing = pkgWizard.draft.itemIds || [];
+    const keepOther = existing.filter(function (fid) {
+      const it = findFoodItem(fid);
+      return it && it.moduleId !== menuPickCtx.moduleId;
+    });
+    const newIds = [];
+    keys.forEach(function (mk) {
+      let item = (store.cateringMenu.foodItems || []).find(function (f) {
+        return f.masterKey === mk;
+      });
+      if (!item) {
+        item = createFoodItemFromMaster(mk, 'draft');
+        store.cateringMenu.foodItems.push(item);
+      }
+      if (newIds.indexOf(item.id) < 0) newIds.push(item.id);
+    });
+    pkgWizard.draft.itemIds = keepOther.concat(newIds);
+    saveStore();
+    show('catPkgCreate');
+    renderCatPkgCreate();
+    toast('Module items updated');
+    return;
+  }
+  let added = 0;
+  keys.forEach(function (mk) {
+    if (ownerHasMasterKey(mk)) return;
+    const item = createFoodItemFromMaster(mk, 'draft');
+    store.cateringMenu.foodItems.push(item);
+    added += 1;
+  });
+  saveStore();
+  show(menuPickCtx.returnTo || 'menuPkg');
+  renderCateringMenuHub();
+  toast(added ? added + ' item(s) added — set pricing to go live' : 'No new items selected');
+}
+
+function createFoodItemFromMaster(masterKey, status) {
+  const hit = findMasterItem(masterKey);
+  if (!hit) {
+    return {
+      id: uid('food'),
+      masterKey: masterKey,
+      name: 'Custom item',
+      moduleId: menuPickCtx.moduleId,
+      subcatId: 'custom',
+      subcatName: 'Custom',
+      description: '',
+      diet: 'veg',
+      pricingMode: 'per_person',
+      unitLabel: 'plate',
+      quoteOnly: false,
+      status: status || 'draft',
+      slabs: defaultItemSlabs(),
+      imageEmoji: '🍽️',
+    };
+  }
+  return {
+    id: uid('food'),
+    masterKey: masterKey,
+    name: hit.item.name,
+    moduleId: hit.module.id,
+    subcatId: hit.subcat.id,
+    subcatName: hit.subcat.name,
+    description: defaultFoodDescription(hit.item.name, hit.item.diet),
+    diet: hit.item.diet,
+    pricingMode: 'per_person',
+    unitLabel: 'plate',
+    quoteOnly: false,
+    status: status || 'draft',
+    slabs: defaultItemSlabs(),
+    imageEmoji: hit.module.emoji,
+  };
+}
+
+function defaultFoodDescription(name, diet) {
+  if (/soup/i.test(name)) {
+    return diet === 'non_veg' ? 'Mild and flavorful ' + name.toLowerCase() + '.' : 'Comforting vegetarian ' + name.toLowerCase() + '.';
+  }
+  return '';
+}
+
+function openFoodItemForm(foodId, masterKey) {
+  let item = foodId ? findFoodItem(foodId) : null;
+  if (!item && masterKey) {
+    item = (store.cateringMenu.foodItems || []).find(function (f) {
+      return f.masterKey === masterKey;
+    });
+  }
+  if (!item && masterKey) {
+    item = createFoodItemFromMaster(masterKey, 'draft');
+  }
+  if (!item) {
+    toast('Select an item first');
+    return;
+  }
+  foodFormDraft = JSON.parse(JSON.stringify(item));
+  renderFoodItemForm();
+  show('catFoodItemForm');
+}
+
+function renderFoodItemForm() {
+  const d = foodFormDraft;
+  if (!d) return;
+  const mod = findFoodModule(d.moduleId);
+  el('catFoodFormTitle').textContent = d.id && findFoodItem(d.id) ? 'Edit Food Item' : 'Add Food Item';
+  el('catFoodImgEmoji').textContent = d.imageEmoji || (mod && mod.emoji) || '🍽️';
+  el('catFoodName').value = d.name || '';
+  el('catFoodModule').value = mod ? mod.num + '. ' + mod.name : d.moduleId;
+  el('catFoodSubcat').value = d.subcatName || d.subcatId || '';
+  el('catFoodDesc').value = d.description || '';
+  el('catFoodDietVeg').checked = d.diet === 'veg';
+  el('catFoodDietEgg').checked = d.diet === 'egg';
+  el('catFoodDietNon').checked = d.diet === 'non_veg';
+  el('catFoodQuoteOnly').checked = !!d.quoteOnly;
+  el('catFoodPricePerson').checked = d.pricingMode !== 'per_unit';
+  el('catFoodPriceUnit').checked = d.pricingMode === 'per_unit';
+  el('catFoodUnitLabel').value = d.unitLabel || 'bowl';
+  el('catFoodUnitWrap').style.display = d.pricingMode === 'per_unit' ? 'block' : 'none';
+  renderSlabTable('catFoodSlabs', d.slabs || defaultItemSlabs(), function (slabs) {
+    foodFormDraft.slabs = slabs;
+  });
+}
+
+function renderSlabTable(hostId, slabs, onChange) {
+  const host = el(hostId);
+  if (!host) return;
+  const rows = (slabs || []).map(function (s, idx) {
+    return (
+      '<div class="cat-slab-row" data-idx="' +
+      idx +
+      '"><input type="number" class="slab-from" value="' +
+      esc(s.from) +
+      '" min="1"><span>–</span><input type="number" class="slab-to" value="' +
+      esc(s.to) +
+      '" min="1"><input type="number" class="slab-price" value="' +
+      esc(s.price) +
+      '" min="0"><button type="button" class="cat-slab-rm" data-rm="' +
+      idx +
+      '">🗑</button></div>'
+    );
+  });
+  host.innerHTML =
+    '<div class="cat-slab-hd"><span>From</span><span>To</span><span>Price (₹)</span><span></span></div>' + rows.join('');
+  function read() {
+    const next = [];
+    host.querySelectorAll('.cat-slab-row').forEach(function (row) {
+      next.push({
+        from: +row.querySelector('.slab-from').value || 0,
+        to: +row.querySelector('.slab-to').value || 0,
+        price: +row.querySelector('.slab-price').value || 0,
+      });
+    });
+    onChange(next);
+  }
+  host.querySelectorAll('input').forEach(function (inp) {
+    inp.oninput = read;
+  });
+  host.querySelectorAll('.cat-slab-rm').forEach(function (btn) {
+    btn.onclick = function () {
+      const i = +btn.getAttribute('data-rm');
+      const next = (slabs || []).slice();
+      next.splice(i, 1);
+      onChange(next);
+      renderSlabTable(hostId, next, onChange);
+    };
+  });
+}
+
+function bindFoodItemFormUi() {
+  const chImg = el('catFoodChangeImg');
+  if (chImg) {
+    chImg.onclick = function () {
+      const emojis = ['🍲', '🥗', '🍛', '🍚', '🥤', '🍮', '🫓', '🥘'];
+      const i = Math.floor(Math.random() * emojis.length);
+      foodFormDraft.imageEmoji = emojis[i];
+      el('catFoodImgEmoji').textContent = emojis[i];
+      toast('Image updated (demo)');
+    };
+  }
+  el('catFoodPricePerson').onchange = function () {
+    foodFormDraft.pricingMode = 'per_person';
+    el('catFoodUnitWrap').style.display = 'none';
+  };
+  el('catFoodPriceUnit').onchange = function () {
+    foodFormDraft.pricingMode = 'per_unit';
+    el('catFoodUnitWrap').style.display = 'block';
+  };
+  el('catFoodAddSlab').onclick = function () {
+    const slabs = foodFormDraft.slabs || [];
+    const last = slabs[slabs.length - 1];
+    const from = last ? last.to + 1 : 1;
+    slabs.push({ from: from, to: from + 24, price: last ? last.price : 50 });
+    foodFormDraft.slabs = slabs;
+    renderSlabTable('catFoodSlabs', slabs, function (s) {
+      foodFormDraft.slabs = s;
+    });
+  };
+  el('catFoodSaveDraft').onclick = function () {
+    saveFoodItemForm('draft');
+  };
+  el('catFoodSave').onclick = function () {
+    saveFoodItemForm('active');
+  };
+  el('catFoodBack').onclick = function () {
+    show('menuPkg');
+    renderCateringMenuHub();
+  };
+}
+
+function saveFoodItemForm(status) {
+  if (!foodFormDraft) return;
+  foodFormDraft.name = (el('catFoodName').value || '').trim();
+  if (!foodFormDraft.name) {
+    toast('Food item name is required');
+    return;
+  }
+  if (el('catFoodDietNon').checked) foodFormDraft.diet = 'non_veg';
+  else if (el('catFoodDietEgg').checked) foodFormDraft.diet = 'egg';
+  else foodFormDraft.diet = 'veg';
+  foodFormDraft.description = (el('catFoodDesc').value || '').trim();
+  foodFormDraft.quoteOnly = el('catFoodQuoteOnly').checked;
+  foodFormDraft.unitLabel = (el('catFoodUnitLabel').value || 'plate').trim();
+  if (foodFormDraft.quoteOnly) foodFormDraft.status = status === 'active' ? 'active' : 'draft';
+  else if (!foodFormDraft.slabs || !foodFormDraft.slabs.length) {
+    toast('Add at least one pricing slab or enable quote-only');
+    return;
+  } else foodFormDraft.status = status;
+  const idx = (store.cateringMenu.foodItems || []).findIndex(function (f) {
+    return f.id === foodFormDraft.id || (foodFormDraft.masterKey && f.masterKey === foodFormDraft.masterKey);
+  });
+  if (idx >= 0) store.cateringMenu.foodItems[idx] = JSON.parse(JSON.stringify(foodFormDraft));
+  else store.cateringMenu.foodItems.push(JSON.parse(JSON.stringify(foodFormDraft)));
+  saveStore();
+  toast(status === 'active' ? 'Food item saved' : 'Saved as draft');
+  show('menuPkg');
+  store.cateringMenu.hubTab = 'food';
+  renderCateringMenuHub();
+}
+
+function newPkgDraft() {
+  return {
+    name: '',
+    level: 'Basic',
+    description: '',
+    status: 'live',
+    pricingMode: 'per_person',
+    guestSlabs: defaultPackageGuestSlabs(),
+    itemIds: [],
+    imageEmoji: '🍽️',
+    listPrice: 0,
+    price: 0,
+    subtitle: '',
+  };
+}
+
+function startCatPackageWizard(editId) {
+  pkgWizard.editId = editId || null;
+  const src = editId ? findCatPackage(editId) : null;
+  pkgWizard.draft = src ? JSON.parse(JSON.stringify(src)) : newPkgDraft();
+  renderCatPkgCreate();
+  show('catPkgCreate');
+}
+
+function renderCatPkgCreate() {
+  const d = pkgWizard.draft;
+  if (!d) return;
+  el('catPkgName').value = d.name || '';
+  el('catPkgDesc').value = d.description || '';
+  renderCatPkgLevelSeg(d.level);
+  const q = (el('catPkgItemSearch').value || '').trim().toLowerCase();
+  const list = el('catPkgModulePick');
+  list.innerHTML = FOOD_MODULES
+    .filter(function (m) {
+      if (!q) return true;
+      return m.name.toLowerCase().includes(q);
+    })
+    .map(function (m) {
+      const n = countPkgItemsInModule(d, m.id);
+      const checked = n > 0;
+      return (
+        '<button type="button" class="cat-pkg-mod-row" data-pkg-mod="' +
+        esc(m.id) +
+        '"><span class="cat-pkg-mod-chk' +
+        (checked ? ' on' : '') +
+        '">' +
+        (checked ? '✓' : '') +
+        '</span><span class="cat-mod-thumb sm" style="background:' +
+        m.gradient +
+        '">' +
+        m.emoji +
+        '</span><span class="cat-pkg-mod-txt"><b>' +
+        esc(m.name) +
+        '</b><small>(' +
+        n +
+        ' items selected)</small></span><span class="cat-mod-chev">›</span></button>'
+      );
+    })
+    .join('');
+  list.querySelectorAll('[data-pkg-mod]').forEach(function (row) {
+    row.onclick = function () {
+      openModulePicker(row.getAttribute('data-pkg-mod'), 'package');
+    };
+  });
+}
+
+function renderCatPkgLevelSeg(level) {
+  const host = el('catPkgLevelSeg');
+  if (!host) return;
+  host.innerHTML = CAT_PKG_LEVELS
+    .map(function (l) {
+      return (
+        '<button type="button" class="cat-lvl-btn' +
+        (l === level ? ' on' : '') +
+        '" data-lvl="' +
+        esc(l) +
+        '">' +
+        esc(l) +
+        '</button>'
+      );
+    })
+    .join('');
+  host.querySelectorAll('.cat-lvl-btn').forEach(function (btn) {
+    btn.onclick = function () {
+      pkgWizard.draft.level = btn.getAttribute('data-lvl');
+      renderCatPkgLevelSeg(pkgWizard.draft.level);
+    };
+  });
+}
+
+function bindCatPkgCreateUi() {
+  el('catPkgCreateBack').onclick = function () {
+    show('menuPkg');
+    renderCateringMenuHub();
+  };
+  el('catPkgNextPricing').onclick = function () {
+    pkgWizard.draft.name = (el('catPkgName').value || '').trim();
+    pkgWizard.draft.description = (el('catPkgDesc').value || '').trim();
+    if (!pkgWizard.draft.name) {
+      toast('Package name is required');
+      return;
+    }
+    if (!(pkgWizard.draft.itemIds || []).length) {
+      toast('Select at least one food item from the modules');
+      return;
+    }
+    renderCatPkgPricing();
+    show('catPkgPricing');
+  };
+  el('catPkgItemSearch').oninput = function () {
+    renderCatPkgCreate();
+  };
+}
+
+function renderCatPkgPricing() {
+  const d = pkgWizard.draft;
+  renderSlabTable('catPkgSlabs', d.guestSlabs || defaultPackageGuestSlabs(), function (slabs) {
+    pkgWizard.draft.guestSlabs = slabs;
+  });
+  const sum = el('catPkgSummary');
+  if (sum) {
+    let html = '';
+    FOOD_MODULES.forEach(function (m) {
+      const n = countPkgItemsInModule(d, m.id);
+      if (!n) return;
+      html += '<div class="cat-sum-row">✓ ' + esc(m.name) + ' (' + n + ' items)</div>';
+    });
+    sum.innerHTML = html || '<p class="sub">No modules selected</p>';
+  }
+  el('catPkgStatusLive').checked = d.status !== 'draft';
+  el('catPkgStatusDraft').checked = d.status === 'draft';
+}
+
+function bindCatPkgPricingUi() {
+  el('catPkgPricingBack').onclick = function () {
+    show('catPkgCreate');
+    renderCatPkgCreate();
+  };
+  el('catPkgAddSlab').onclick = function () {
+    const slabs = pkgWizard.draft.guestSlabs || [];
+    const last = slabs[slabs.length - 1];
+    const from = last ? last.to + 1 : 25;
+    slabs.push({ from: from, to: from + 24, price: last ? last.price - 10 : 300 });
+    pkgWizard.draft.guestSlabs = slabs;
+    renderCatPkgPricing();
+  };
+  el('catPkgSave').onclick = function () {
+    const d = pkgWizard.draft;
+    d.status = el('catPkgStatusDraft').checked ? 'draft' : 'live';
+    const slabs = d.guestSlabs || [];
+    if (!d.quoteOnly && !slabs.length && d.status === 'live') {
+      toast('Add guest pricing slabs');
+      return;
+    }
+    d.price = slabs.length ? Math.min.apply(null, slabs.map(function (s) { return +s.price; })) : 0;
+    d.listPrice = d.listPrice || d.price;
+    d.subtitle = d.subtitle || moduleCountSubtitle(d);
+    d.id = pkgWizard.editId || uid('cpkg');
+    const i = (store.cateringMenu.catPackages || []).findIndex(function (p) {
+      return p.id === d.id;
+    });
+    if (i >= 0) store.cateringMenu.catPackages[i] = JSON.parse(JSON.stringify(d));
+    else store.cateringMenu.catPackages.unshift(JSON.parse(JSON.stringify(d)));
+    pkgWizard.editId = null;
+    saveStore();
+    toast(d.status === 'live' ? 'Package saved & live' : 'Package saved as draft');
+    show('menuPkg');
+    store.cateringMenu.hubTab = 'packages';
+    renderCateringMenuHub();
+  };
+}
+
+function moduleCountSubtitle(pkg) {
+  let mods = 0;
+  FOOD_MODULES.forEach(function (m) {
+    if (countPkgItemsInModule(pkg, m.id) > 0) mods += 1;
+  });
+  const ids = pkg.itemIds || [];
+  return '~' + ids.length + ' dishes · ' + mods + ' modules · per person';
+}
+
+function bindCatModulePickUi() {
+  el('catModulePickBack').onclick = function () {
+    if (menuPickCtx.mode === 'package') show('catPkgCreate');
+    else {
+      show('menuPkg');
+      renderCateringMenuHub();
+    }
+  };
+  el('catModulePickSave').onclick = commitModulePicker;
+  el('catModuleEditFood').onclick = function () {
+    const keys = Object.keys(menuPickCtx.selected).filter(function (k) {
+      return menuPickCtx.selected[k];
+    });
+    if (!keys.length) {
+      toast('Select an item to edit');
+      return;
+    }
+    openFoodItemForm(null, keys[0]);
+  };
+}
+
+function bindCateringMenuAll() {
+  bindFoodItemFormUi();
+  bindCatPkgCreateUi();
+  bindCatPkgPricingUi();
+  bindCatModulePickUi();
+}
+
+/** Catering owner app core (dashboard, areas, calendar) + menu hub in _catering_menu_*.js */
 const CATERING_OWNER_FLOW_LOCKED = false;
-const CATERING_OWNER_BUILD = '2026-10-17-catering-owner-full-v2';
+const CATERING_OWNER_BUILD = '2026-10-17-catering-menu-hub-v1';
 
 function cateringOwnerDemoFileName() {
   try {
@@ -2083,82 +3484,13 @@ function cateringOwnerDemoFileName() {
   }
   return 'GIXBEE-CATERING-OWNER-FINALFLOW.html';
 }
-const STORAGE_KEY = 'GIXBEE_CATERING_OWNER_V1';
+const STORAGE_KEY = 'GIXBEE_CATERING_OWNER_V2';
 
 const INDIAN_STATES = {
   Kerala: ['Thrissur', 'Ernakulam', 'Kozhikode', 'Kottayam', 'Palakkad', 'Malappuram', 'Thiruvananthapuram'],
   Karnataka: ['Bengaluru Urban', 'Mysuru', 'Mangalore', 'Udupi'],
   'Tamil Nadu': ['Chennai', 'Coimbatore', 'Madurai'],
 };
-
-const PKG_LEVELS = ['Basic', 'Standard', 'Premium'];
-/** Wedding-only functions for package wizard (non-wedding events → individual services). */
-const PKG_FUNCTIONS = [
-  'Wedding & Reception',
-  'Reception',
-  'Wedding Eve',
-  'Engagement',
-  'Pre-Wedding Shoot',
-  'Post-Wedding Shoot',
-  'Save-the-Date Shoot',
-];
-const FUNCTION_HINTS = {
-  'Wedding & Reception': 'Wedding followed by reception on the same day',
-  Reception: 'Separate reception function / day',
-  'Wedding Eve': 'Pre-wedding night function',
-  Engagement: 'Engagement ceremony / ring ceremony',
-  'Pre-Wedding Shoot': 'Photoshoot of the couple before the wedding',
-  'Post-Wedding Shoot': 'Photoshoot of the couple after the wedding',
-  'Save-the-Date Shoot': 'Photoshoot to announce the wedding date',
-};
-const CEREMONY_TYPES = ['Christian', 'Hindu', 'Muslim', 'Sikh', 'Jain', 'Buddhist'];
-/** Individual services only — wedding functions belong in wedding packages, not here. */
-const SVC_CATEGORIES = [
-  { id: 'portrait', label: 'Portrait Photography' },
-  { id: 'baby', label: 'Baby & Kids' },
-  { id: 'maternity', label: 'Maternity' },
-  { id: 'newborn', label: 'Newborn' },
-  { id: 'couple', label: 'Couple' },
-  { id: 'funeral', label: 'Funeral / Memorial' },
-  { id: 'product', label: 'Product' },
-  { id: 'corporate', label: 'Corporate' },
-  { id: 'realestate', label: 'Real Estate' },
-  { id: 'event', label: 'Event / Get-togethers' },
-  { id: 'fashion', label: 'Fashion & Portfolio' },
-  { id: 'food', label: 'Food' },
-  { id: 'commercial', label: 'Commercial' },
-  { id: 'drone', label: 'Drone / Helicam' },
-  { id: 'reel', label: 'Reel & Short Video' },
-  { id: 'production', label: 'Photo & Video Production' },
-];
-
-const PKG_STEPS = [
-  { title: 'Package basics', sub: 'Basic information about the package.' },
-  { title: 'Select functions', sub: 'Choose wedding functions covered in this wedding package.' },
-  { title: 'Ceremony type', sub: 'Choose applicable ceremony types.' },
-  { title: 'Coverage details', sub: 'Coverage side, then duration, extra hour, and team for each function.' },
-  { title: 'Deliverables', sub: 'Photos, videos, albums & prints, complimentary bonuses, and digital delivery.' },
-  { title: 'Special services & extras', sub: 'Select additional services with price.' },
-  { title: 'Delivery timeline', sub: 'Set delivery timeline for each deliverable.' },
-  { title: 'Payment stages', sub: 'Set payment stages and policies.' },
-  { title: 'Customer requirements', sub: 'Optional requirements from customer.' },
-  { title: 'Review & publish', sub: 'Review all details and publish.' },
-];
-
-const SVC_STEPS = [
-  {
-    title: 'Select service category',
-    sub: 'Non-wedding events and shoots — use Wedding packages for reception, engagement, pre-wedding, etc.',
-  },
-  { title: 'Service basics', sub: 'Add basic information about your service.' },
-  { title: 'Pricing', sub: 'Set your service pricing.' },
-  { title: 'Duration & coverage (optional)', sub: 'Add duration, team and coverage details.' },
-  { title: "What's included", sub: 'Select deliverables included in this service.' },
-  { title: 'Optional extras', sub: 'Add additional services (if available).' },
-  { title: 'Delivery', sub: 'Set delivery timeline for each deliverable.' },
-  { title: 'Policies, requirements & review', sub: 'Set policies, customer requirements and publish.' },
-];
-
 function defaultStore() {
   return {
     biz: {
@@ -2178,47 +3510,7 @@ function defaultStore() {
       states: ['Kerala'],
       districts: { Kerala: ['Thrissur', 'Ernakulam'] },
     },
-    packages: [
-      {
-        id: 'pkg-demo-1',
-        name: 'Classic Wedding Package',
-        level: 'Premium',
-        functions: ['Wedding & Reception', 'Reception'],
-        price: 150000,
-        listPrice: 150000,
-        discountYes: 'no',
-        discountPct: 0,
-        status: 'published',
-        deliverables: '500 edited photos, wedding film 15 min',
-        coverage: '2 photographers, 10 hours',
-      },
-      {
-        id: 'pkg-demo-2',
-        name: 'Engagement Standard',
-        level: 'Standard',
-        functions: ['Engagement'],
-        price: 35000,
-        listPrice: 40000,
-        discountPct: 12,
-        status: 'draft',
-        deliverables: '150 edited photos',
-        coverage: '1 photographer, 4 hours',
-      },
-    ],
-    services: [
-      {
-        id: 'svc-demo-1',
-        name: 'Candid Photography',
-        category: 'event',
-        price: 25000,
-        listPrice: 28000,
-        discountPct: 10,
-        status: 'published',
-        blurb: 'Natural moments across the event.',
-      },
-    ],
-    pkgFilter: 'all',
-    hubTab: 'packages',
+    cateringMenu: defaultCateringMenuStore(),
     operators: [
       { id: 'op_owner', name: 'Archana K.', phone: '+91 94470 55566', role: 'owner' },
       { id: 'op_mgr1', name: 'Priya Nair', phone: '+91 98470 11223', role: 'manager' },
@@ -2239,13 +3531,6 @@ const OPERATOR_ROLE_LABELS = { owner: 'Owner', manager: 'Manager', staff: 'Staff
 
 let store = defaultStore();
 let saDraft = null;
-let wiz = { mode: 'package', step: 0, draft: null, backTo: 'menuPkg', editId: null };
-
-function needsCeremonyStep(functions) {
-  const f = functions || [];
-  return f.indexOf('Wedding & Reception') >= 0 || f.indexOf('Reception') >= 0 || f.indexOf('Engagement') >= 0;
-}
-
 function el(id) {
   return document.getElementById(id);
 }
@@ -2290,7 +3575,8 @@ function navigatePhotoScreen(id) {
   } else show(id);
 }
 function openMenuPkgHub() {
-  show('menuPkg');
+  if (typeof cateringMenuOpenHub === 'function') cateringMenuOpenHub();
+  else show('menuPkg');
 }
 function toast(m) {
   const t = el('toast');
@@ -2305,107 +3591,26 @@ function inr(n) {
 function uid(prefix) {
   return prefix + '-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
 }
-function levelClass(level) {
-  return (level || 'Standard').toLowerCase();
-}
-
-function pkgCardCeremonyText(pkg) {
-  if (!needsCeremonyStep(pkg.functions)) return '';
-  const types = (pkg.ceremonyTypes || []).filter(Boolean);
-  if (!types.length) return '';
-  if (types.length <= 3) return types.join(' · ');
-  return types.slice(0, 2).join(' · ') + ' +' + (types.length - 2);
-}
-
-function pkgCardCoverageSideText(pkg) {
-  if (typeof pkgNeedsCoverageSideUi === 'function' && !pkgNeedsCoverageSideUi(pkg)) return '';
-  const side =
-    typeof resolvePkgCoverageSide === 'function' ? resolvePkgCoverageSide(pkg) : pkg.coverageSide || 'both';
-  return side === 'both' ? 'Both sides' : 'Single side';
-}
-
-function pkgCardMetaChipsHtml(pkg, levelHtml) {
-  const ceremony = pkgCardCeremonyText(pkg);
-  const side = pkgCardCoverageSideText(pkg);
-  let html = levelHtml;
-  if (ceremony) html += '<span class="pkg-meta-chip ceremony">' + esc(ceremony) + '</span>';
-  if (side) html += '<span class="pkg-meta-chip side">' + esc(side) + '</span>';
-  return html;
-}
-function sanitizeWeddingPackageFunctions() {
-  const allowed = {};
-  PKG_FUNCTIONS.forEach(function (fn) {
-    allowed[fn] = true;
-  });
-  (store.packages || []).forEach(function (p) {
-    if (!p.customFunctions) p.customFunctions = [];
-    const nextFns = [];
-    (p.functions || []).forEach(function (fn) {
-      if (allowed[fn]) nextFns.push(fn);
-      else if (p.customFunctions.indexOf(fn) < 0) p.customFunctions.push(fn);
-    });
-    p.functions = nextFns;
-  });
-}
-
-function sanitizePackageLevels() {
-  (store.packages || []).forEach(function (p) {
-    if (PKG_LEVELS.indexOf(p.level) < 0) p.level = 'Standard';
-  });
-}
-
-function sanitizePackageCeremonyTypes() {
-  (store.packages || []).forEach(function (p) {
-    if (!p.customCeremonies) p.customCeremonies = [];
-    if (!p.ceremonyTypes) p.ceremonyTypes = [];
-    p.ceremonyTypes = p.ceremonyTypes.filter(function (c) {
-      return c !== 'Other';
-    });
-  });
-}
-
-function sanitizeServiceCategories() {
-  const allowed = {};
-  SVC_CATEGORIES.forEach(function (c) {
-    allowed[c.id] = true;
-  });
-  (store.services || []).forEach(function (s) {
-    if (!s.category || s.category === 'wedding' || !allowed[s.category]) {
-      s.category = 'event';
-    }
-  });
-}
-
 function loadStore() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return;
+    if (!raw) {
+      ensureCateringMenuStore();
+      return;
+    }
     const parsed = JSON.parse(raw);
     store = Object.assign(defaultStore(), parsed);
-    if (!store.packages) store.packages = defaultStore().packages;
-    if (!store.services) store.services = defaultStore().services;
     if (!store.serviceAreas) store.serviceAreas = defaultStore().serviceAreas;
     if (!store.operators) store.operators = defaultStore().operators;
     if (!store.deletedBusinesses) store.deletedBusinesses = defaultStore().deletedBusinesses;
     if (!store.calendar || typeof store.calendar !== 'object') store.calendar = defaultPhotoCalendar();
-    sanitizeWeddingPackageFunctions();
-    sanitizePackageLevels();
-    sanitizePackageCeremonyTypes();
-    sanitizeServiceCategories();
-    (store.services || []).forEach(function (s) {
-      if (typeof ensureSvcTeam === 'function') ensureSvcTeam(s);
-    });
-    (store.packages || []).forEach(function (p) {
-      if (typeof migrateDroneHelicamExtra === 'function') migrateDroneHelicamExtra(p);
-      if (typeof migrateLegacyPkgCoverage === 'function') migrateLegacyPkgCoverage(p);
-      if (typeof ensurePkgMarketingFields === 'function') ensurePkgMarketingFields(p);
-    });
-    (store.services || []).forEach(function (s) {
-      if (typeof migrateDroneHelicamExtra === 'function') migrateDroneHelicamExtra(s);
-      if (typeof ensureSvcExtrasModel === 'function') ensureSvcExtrasModel(s);
-    });
+    ensureCateringMenuStore();
+    if (!store.cateringMenu.foodItems.length && typeof seedDemoFoodItems === 'function') {
+      store.cateringMenu.foodItems = seedDemoFoodItems();
+    }
   } catch (_e) {
     store = defaultStore();
+    ensureCateringMenuStore();
     try {
       localStorage.removeItem(STORAGE_KEY);
     } catch (_e2) {
@@ -2627,7 +3832,7 @@ function renderPhotoBizProfile() {
       esc(b.memberSince || '—') +
       '</b><span>Member since</span></div>' +
       '<div class="prof-chip"><b>' +
-      store.packages.length +
+      (store.cateringMenu && store.cateringMenu.catPackages ? store.cateringMenu.catPackages.length : 0) +
       '</b><span>Menu &amp; packages</span></div>' +
       '<div class="prof-chip"><b>' +
       areaN +
@@ -2873,640 +4078,6 @@ function renderSaReview() {
   });
 }
 
-function renderPkgFilters() {
-  const allowed = ['all'].concat(
-    PKG_LEVELS.map(function (l) {
-      return l.toLowerCase();
-    })
-  );
-  if (allowed.indexOf(store.pkgFilter) < 0) store.pkgFilter = 'all';
-  const filters = [{ id: 'all', label: 'All' }].concat(
-    PKG_LEVELS.map(function (l) {
-      return { id: l.toLowerCase(), label: l };
-    })
-  );
-  const row = el('pkgFilters');
-  row.innerHTML = filters
-    .map(
-      (f) =>
-        '<button type="button" class="fchip' +
-        (store.pkgFilter === f.id ? ' on' : '') +
-        '" data-f="' +
-        f.id +
-        '">' +
-        f.label +
-        '</button>'
-    )
-    .join('');
-  row.querySelectorAll('.fchip').forEach((b) => {
-    b.onclick = () => {
-      store.pkgFilter = b.getAttribute('data-f');
-      saveStore();
-      renderPkgList();
-      renderPkgFilters();
-    };
-  });
-}
-
-function filteredPackages() {
-  if (store.pkgFilter === 'all') return store.packages;
-  return store.packages.filter((p) => levelClass(p.level) === store.pkgFilter);
-}
-
-function deletePackage(id) {
-  const p = findPackage(id);
-  if (!p) return;
-  if (!confirm('Delete package "' + p.name + '"? This cannot be undone.')) return;
-  store.packages = store.packages.filter(function (x) {
-    return x.id !== id;
-  });
-  saveStore();
-  renderSvcPkg();
-  toast('Wedding package deleted');
-}
-
-function deleteService(id) {
-  const s = findService(id);
-  if (!s) return;
-  if (!confirm('Delete service "' + s.name + '"? This cannot be undone.')) return;
-  store.services = store.services.filter(function (x) {
-    return x.id !== id;
-  });
-  saveStore();
-  renderSvcPkg();
-  toast('Individual service deleted');
-}
-
-function bindHubCatalogActions(root) {
-  if (!root) return;
-  root.querySelectorAll('[data-hub-edit-pkg]').forEach(function (btn) {
-    btn.onclick = function (e) {
-      e.stopPropagation();
-      startWizard('package', btn.getAttribute('data-hub-edit-pkg'));
-    };
-  });
-  root.querySelectorAll('[data-hub-del-pkg]').forEach(function (btn) {
-    btn.onclick = function (e) {
-      e.stopPropagation();
-      deletePackage(btn.getAttribute('data-hub-del-pkg'));
-    };
-  });
-  root.querySelectorAll('[data-hub-edit-svc]').forEach(function (btn) {
-    btn.onclick = function (e) {
-      e.stopPropagation();
-      startWizard('service', btn.getAttribute('data-hub-edit-svc'));
-    };
-  });
-  root.querySelectorAll('[data-hub-del-svc]').forEach(function (btn) {
-    btn.onclick = function (e) {
-      e.stopPropagation();
-      deleteService(btn.getAttribute('data-hub-del-svc'));
-    };
-  });
-  root.querySelectorAll('.pkg-card-tap').forEach(function (card) {
-    card.onclick = function (e) {
-      if (e.target.closest('.hub-act')) return;
-      startWizard('package', card.getAttribute('data-pkg-id'));
-    };
-  });
-  root.querySelectorAll('.svc-row-wrap').forEach(function (row) {
-    row.onclick = function (e) {
-      if (e.target.closest('.hub-act')) return;
-      startWizard('service', row.getAttribute('data-svc-id'));
-    };
-  });
-}
-
-function renderPkgList() {
-  const list = el('pkgList');
-  const pkgs = filteredPackages();
-  if (!pkgs.length) {
-    list.innerHTML =
-      '<div class="hub-empty">' +
-      '<div class="hub-empty-ico">' +
-      photoIcon('pkg') +
-      '</div><b>No wedding packages yet</b><p>Build your first wedding package with functions, deliverables, pricing, and policies in a guided flow.</p></div>';
-    return;
-  }
-  list.innerHTML = pkgs
-    .map((p) => {
-      const lv = levelClass(p.level);
-      const disc =
-        p.discountPct > 0 && p.listPrice > p.price
-          ? '<span class="was" style="text-decoration:line-through;color:#9CA3AF;font-size:12px;font-weight:700;margin-left:6px">' +
-            inr(p.listPrice) +
-            '</span>'
-          : '';
-      return (
-        '<div class="pkg-card pkg-card-tap" data-pkg-id="' +
-        esc(p.id) +
-        '"><div class="pkg-thumb lv-' +
-        lv +
-        '">' +
-        photoIcon('pkg') +
-        '</div><div class="pkg-bd"><div class="pkg-top-row"><div class="pkg-chips">' +
-        pkgCardMetaChipsHtml(
-          p,
-          '<span class="pkg-level ' + lv + '">' + esc(p.level) + '</span>'
-        ) +
-        '</div></div><b>' +
-        esc(p.name) +
-        '</b><div class="pkg-price">' +
-        inr(p.price) +
-        disc +
-        '</div><div class="pkg-sub">' +
-        esc(p.coverage || 'Tap card to edit coverage & deliverables') +
-        '</div><div class="pkg-foot"><span class="status ' +
-        (p.status === 'published' ? 'pub' : 'draft') +
-        '">' +
-        (p.status === 'published' ? '● Live' : '○ Draft') +
-        '</span></div><div class="hub-card-actions">' +
-        '<button type="button" class="hub-act hub-act-edit" data-hub-edit-pkg="' +
-        esc(p.id) +
-        '">' +
-        photoIcon('edit') +
-        ' Edit</button>' +
-        '<button type="button" class="hub-act hub-act-del" data-hub-del-pkg="' +
-        esc(p.id) +
-        '">Delete</button></div></div></div>'
-      );
-    })
-    .join('');
-  bindHubCatalogActions(list);
-}
-
-function renderSvcList() {
-  el('svcCount').textContent = String(store.services.length);
-  el('svcSecIco').innerHTML = photoIcon('cam');
-  const tabPkgIco = el('tabPkgIco');
-  const tabSvcIco = el('tabSvcIco');
-  if (tabPkgIco) tabPkgIco.innerHTML = photoIcon('pkg');
-  if (tabSvcIco) tabSvcIco.innerHTML = photoIcon('cam');
-  const list = el('svcList');
-  if (!store.services.length) {
-    list.innerHTML =
-      '<div class="hub-empty" style="margin:8px 16px 16px">' +
-      '<div class="hub-empty-ico">' +
-      photoIcon('cam') +
-      '</div><b>No individual services yet</b><p>Add standalone offerings like portraits, product shoots, or funeral coverage.</p></div>';
-    return;
-  }
-  list.innerHTML = store.services
-    .map(
-      (s) =>
-        '<div class="svc-row-wrap" data-svc-id="' +
-        esc(s.id) +
-        '"><div class="svc-row"><div class="svc-thumb">' +
-        photoIcon('cam') +
-        '</div><div class="svc-bd"><b>' +
-        esc(s.name) +
-        '</b><div class="svc-meta"><span class="svc-price-tag">' +
-        inr(s.price) +
-        '</span><span class="status ' +
-        (s.status === 'published' ? 'pub' : 'draft') +
-        '" style="margin:0;padding:4px 8px">' +
-        (s.status === 'published' ? 'Live' : 'Draft') +
-        '</span></div></div></div><div class="hub-card-actions">' +
-        '<button type="button" class="hub-act hub-act-edit" data-hub-edit-svc="' +
-        esc(s.id) +
-        '">' +
-        photoIcon('edit') +
-        ' Edit</button>' +
-        '<button type="button" class="hub-act hub-act-del" data-hub-del-svc="' +
-        esc(s.id) +
-        '">Delete</button></div></div>'
-    )
-    .join('');
-  bindHubCatalogActions(list);
-}
-
-function applyHubTab() {
-  const isPkg = store.hubTab === 'packages';
-  const hub = el('menuPkg');
-  if (hub) {
-    hub.classList.toggle('hub-mode-packages', isPkg);
-    hub.classList.toggle('hub-mode-services', !isPkg);
-  }
-  el('tabPackages').classList.toggle('on', isPkg);
-  el('tabServices').classList.toggle('on', !isPkg);
-  el('hubIntro').textContent = isPkg
-    ? 'Wedding packages with coverage, deliverables, and payment stages. Filter by level.'
-    : 'Individual services customers book without a wedding package.';
-  const stat = el('hubStat');
-  if (stat) {
-    const pubPkg = store.packages.filter((p) => p.status === 'published').length;
-    const pubSvc = store.services.filter((s) => s.status === 'published').length;
-    stat.innerHTML = isPkg
-      ? '<div class="hub-stat-chip pink" style="flex:1;min-width:100%"><b>' +
-        store.packages.length +
-        '</b><span>Wedding packages · ' +
-        pubPkg +
-        ' live</span></div>'
-      : '<div class="hub-stat-chip blue" style="flex:1;min-width:100%"><b>' +
-        store.services.length +
-        '</b><span>Individual services · ' +
-        pubSvc +
-        ' live</span></div>';
-  }
-}
-
-function renderSvcPkg() {
-  renderPkgFilters();
-  renderPkgList();
-  renderSvcList();
-  applyHubTab();
-}
-
-function findPackage(id) {
-  return store.packages.find(function (p) {
-    return p.id === id;
-  });
-}
-function findService(id) {
-  return store.services.find(function (s) {
-    return s.id === id;
-  });
-}
-
-function findServiceByCategory(categoryId, excludeServiceId) {
-  if (!categoryId) return null;
-  return store.services.find(function (s) {
-    if (excludeServiceId && s.id === excludeServiceId) return false;
-    return s.category === categoryId;
-  });
-}
-
-function svcCategoryAlreadyUsed(categoryId, excludeServiceId) {
-  return !!findServiceByCategory(categoryId, excludeServiceId);
-}
-
-function toastSvcCategoryDuplicate(categoryId) {
-  const label = typeof svcCatLabel === 'function' ? svcCatLabel(categoryId) : categoryId;
-  toast('You already have a service for “' + label + '”. Edit that listing or choose another category.');
-}
-
-function startWizard(mode, editId) {
-  wiz.mode = mode;
-  wiz.step = 0;
-  wiz.editId = editId || null;
-  wiz.backTo = 'menuPkg';
-  if (mode === 'package') {
-    const src = editId ? findPackage(editId) : null;
-    wiz.draft = src ? recordToPkgDraft(src) : newPkgDraft();
-  } else {
-    const src = editId ? findService(editId) : null;
-    wiz.draft = src ? recordToSvcDraft(src) : newSvcDraft();
-  }
-  const wSec = el('wizard');
-  if (wSec) {
-    wSec.classList.toggle('wiz-create', mode === 'package');
-    wSec.classList.toggle('wiz-svc-create', mode === 'service');
-  }
-  const pkgBrand = el('wizPkgBrand');
-  if (pkgBrand) {
-    const sub = pkgBrand.querySelector('span');
-    if (sub) sub.textContent = wiz.editId && mode === 'package' ? 'Edit wedding package' : 'Create wedding package';
-  }
-  const svcBrand = el('wizSvcBrand');
-  if (svcBrand) {
-    const sub = svcBrand.querySelector('span');
-    if (sub) sub.textContent = wiz.editId && mode === 'service' ? 'Edit individual service' : 'Create individual service';
-  }
-  el('wizTitle').textContent = mode === 'package' ? 'Wedding package' : 'Individual service';
-  show('wizard');
-  renderWizard();
-}
-
-function syncPkgPrice(d) {
-  const base = Math.max(0, +d.listPrice || 0);
-  const pct =
-    d.discountYes === 'yes' ? Math.min(100, Math.max(0, +d.discountPct || 0)) : 0;
-  d.price = pct > 0 ? Math.round(base * (1 - pct / 100)) : base;
-}
-function syncSvcPrice(d) {
-  syncPkgPrice(d);
-  if (!d) return;
-  if (d.pricingType === 'range') {
-    const baseMax = Math.max(0, +d.listPriceMax || 0);
-    const pct =
-      d.discountYes === 'yes' ? Math.min(100, Math.max(0, +d.discountPct || 0)) : 0;
-    d.priceMax = pct > 0 ? Math.round(baseMax * (1 - pct / 100)) : baseMax;
-    if (d.priceMax < d.price) d.priceMax = d.price;
-  } else {
-    delete d.priceMax;
-  }
-}
-
-function wizSteps() {
-  return wiz.mode === 'package' ? PKG_STEPS : SVC_STEPS;
-}
-function wizTotal() {
-  return wizSteps().length;
-}
-
-function renderStepper() {
-  const steps = wizSteps();
-  const pkg = wiz.mode === 'package';
-  const svc = wiz.mode === 'service';
-  el('stepper').innerHTML = steps
-    .map((_, i) => {
-      let cls = 'step-dot';
-      if (i === wiz.step) cls += ' on';
-      else if (!pkg && !svc && i < wiz.step) cls += ' done';
-      const label = pkg || svc || i >= wiz.step ? i + 1 : '✓';
-      return '<div class="' + cls + '">' + label + '</div>';
-    })
-    .join('');
-  const meta = steps[wiz.step];
-  el('wizStepTitle').textContent = meta.title;
-  const sub = el('wizStepSub');
-  if (sub) sub.textContent = pkg ? '' : meta.sub;
-}
-
-function isWizardReviewStep() {
-  if (wiz.mode === 'package' || wiz.mode === 'service') {
-    return wiz.step === wizTotal() - 1;
-  }
-  return false;
-}
-
-function syncWizardFooter() {
-  const onReview = isWizardReviewStep();
-  const nextBtn = el('wizNext');
-  const draftBtn = el('wizDraft');
-  const prevBtn = el('wizPrev');
-  const foot = document.querySelector('#wizard .wiz-foot');
-  if (prevBtn) prevBtn.style.visibility = wiz.step === 0 ? 'hidden' : 'visible';
-  if (nextBtn) {
-    const hideNext = onReview;
-    nextBtn.hidden = hideNext;
-    nextBtn.style.display = hideNext ? 'none' : '';
-    if (wiz.mode === 'service' && wiz.step === wizTotal() - 2) {
-      nextBtn.textContent = 'Review →';
-    } else if (wiz.step >= wizTotal() - 1 && !onReview) {
-      nextBtn.textContent = 'Publish →';
-    } else {
-      nextBtn.textContent = 'Next →';
-    }
-    nextBtn.className =
-      wiz.step >= wizTotal() - 1 && !onReview ? 'btn btn-green' : 'btn btn-blue';
-  }
-  if (draftBtn) {
-    draftBtn.hidden = true;
-    draftBtn.style.display = 'none';
-  }
-  if (foot) foot.classList.toggle('wiz-foot-review-only', onReview);
-}
-
-function renderWizardBody() {
-  const body = el('wizBody');
-  const d = wiz.draft;
-  if (wiz.mode === 'package') {
-    body.innerHTML = renderPkgStep(wiz.step, d);
-  } else {
-    body.innerHTML = renderSvcStep(wiz.step, d);
-  }
-  bindWizardFields();
-  syncWizardFooter();
-}
-
-function readWizardFields() {
-  const d = wiz.draft;
-  if (wiz.mode === 'package') {
-    readPkgWizardFields(d);
-  } else {
-    readSvcWizardFields(d);
-  }
-}
-
-function bindWizardFields() {
-  const d = wiz.draft;
-  if (wiz.mode === 'package') {
-    bindPkgWizard(d);
-  } else {
-    bindSvcWizard(d);
-  }
-}
-
-function validateStep() {
-  readWizardFields();
-  const d = wiz.draft;
-  if (wiz.mode === 'package') {
-    if (wiz.step === 0 && (!d.name || !d.listPrice)) {
-      toast('Enter package name and price.');
-      return false;
-    }
-    if (wiz.step === 1 && !d.functions.length) {
-      toast('Select at least one function.');
-      return false;
-    }
-    if (wiz.step === 2 && needsCeremonyStep(d.functions) && !(d.ceremonyTypes || []).length) {
-      toast('Select at least one ceremony type (or go back and change functions).');
-      return false;
-    }
-    if (wiz.step === 3) {
-      if (typeof readPkgCoverageFieldsFromDom === 'function') readPkgCoverageFieldsFromDom(d);
-      const missing =
-        typeof pkgCoverageMissingFunctions === 'function' ? pkgCoverageMissingFunctions(d) : [];
-      if (missing.length) {
-        if (!d.coverageUiOpen) d.coverageUiOpen = {};
-        missing.forEach(function (fn) {
-          d.coverageUiOpen[fn] = true;
-        });
-        d.coverageValidateHighlight = missing;
-        toast(
-          'Complete coverage for each function: duration, extra hour (₹0 allowed), and at least one photographer or videographer.'
-        );
-        return false;
-      }
-      d.coverageValidateHighlight = [];
-    }
-    if (wiz.step === 4 && !selectedDeliverableKeys(d).length) {
-      toast('Select at least one deliverable (photo, video, album, or digital).');
-      return false;
-    }
-    if (wiz.step === 6 && !selectedDeliverableKeys(d).length) {
-      toast('Add deliverables before setting delivery timelines.');
-      return false;
-    }
-    if (wiz.step === 7) {
-      const total = payStagesTotalPct(d);
-      if (total !== 100) {
-        toast('Payment stages must total 100% (currently ' + total + '%).');
-        return false;
-      }
-      ensurePkgPolicyRules(d);
-      if (!d.cancelRules || !d.cancelRules.length) {
-        toast('Add at least one cancellation policy tier.');
-        return false;
-      }
-      if (!d.rescheduleRules || !d.rescheduleRules.length) {
-        toast('Add at least one rescheduling policy tier.');
-        return false;
-      }
-    }
-  } else {
-    if (wiz.step === 0) {
-      if (!d.category) {
-        toast('Pick a service category.');
-        return false;
-      }
-      if (svcCategoryAlreadyUsed(d.category, wiz.editId || null)) {
-        toastSvcCategoryDuplicate(d.category);
-        return false;
-      }
-    }
-    if (wiz.step === 1 && (!d.name || !d.blurb)) {
-      toast('Enter service name and description.');
-      return false;
-    }
-    if (wiz.step === 2) {
-      if (!d.listPrice) {
-        toast('Enter the price amount.');
-        return false;
-      }
-      if (d.pricingType === 'range') {
-        if (!d.listPriceMax || d.listPriceMax <= d.listPrice) {
-          toast('Maximum price must be higher than minimum for a price range.');
-          return false;
-        }
-      }
-    }
-    if (wiz.step === 4 && !svcSelectedDeliverableKeys(d).length) {
-      toast("Select at least one included item (photo, video, album, or digital).");
-      return false;
-    }
-    if (wiz.step === 6 && !svcSelectedDeliverableKeys(d).length) {
-      toast("Add included items before setting delivery timelines.");
-      return false;
-    }
-    if (wiz.step === 7) {
-      ensurePkgPolicyRules(d);
-      if (!d.cancelRules || !d.cancelRules.length) {
-        toast('Add at least one cancellation policy tier.');
-        return false;
-      }
-      if (!d.rescheduleRules || !d.rescheduleRules.length) {
-        toast('Add at least one rescheduling policy tier.');
-        return false;
-      }
-    }
-  }
-  return true;
-}
-
-function finishWizard(publish) {
-  readWizardFields();
-  const d = wiz.draft;
-  if (wiz.mode === 'package') {
-    if (!d.name) {
-      toast('Package name required.');
-      return;
-    }
-    const payload = JSON.parse(JSON.stringify(d));
-    payload.id = wiz.editId || uid('pkg');
-    payload.status = publish ? 'published' : 'draft';
-    if (wiz.editId) {
-      const i = store.packages.findIndex(function (p) {
-        return p.id === wiz.editId;
-      });
-      if (i >= 0) store.packages[i] = payload;
-      else store.packages.unshift(payload);
-      toast(publish ? 'Wedding package updated & published' : 'Wedding package saved');
-    } else {
-      store.packages.unshift(payload);
-      toast(publish ? 'Wedding package published' : 'Wedding package saved as draft');
-    }
-  } else {
-    if (!d.name || !d.category) {
-      toast('Complete service basics.');
-      return;
-    }
-    if (svcCategoryAlreadyUsed(d.category, wiz.editId || null)) {
-      toastSvcCategoryDuplicate(d.category);
-      return;
-    }
-    ensurePkgPolicyRules(d);
-    if (!d.cancelRules || !d.cancelRules.length || !d.rescheduleRules || !d.rescheduleRules.length) {
-      toast('Complete cancellation and rescheduling policy tiers.');
-      return;
-    }
-    const payload = JSON.parse(JSON.stringify(d));
-    payload.id = wiz.editId || uid('svc');
-    if (publish) payload.status = 'published';
-    else payload.status = 'draft';
-    if (wiz.editId) {
-      const i = store.services.findIndex(function (s) {
-        return s.id === wiz.editId;
-      });
-      if (i >= 0) store.services[i] = payload;
-      else store.services.unshift(payload);
-      toast(publish ? 'Individual service updated & published' : 'Individual service saved');
-    } else {
-      store.services.unshift(payload);
-      toast(publish ? 'Individual service published' : 'Individual service saved as draft');
-    }
-  }
-  wiz.editId = null;
-  store.hubTab = wiz.mode === 'service' ? 'services' : 'packages';
-  saveStore();
-  show('menuPkg');
-  renderSvcPkg();
-}
-
-function renderWizard() {
-  renderStepper();
-  renderWizardBody();
-  const total = wizTotal();
-  const stepNum = wiz.step + 1;
-  const pct = Math.round((stepNum / total) * 100);
-  const chip = el('wizStepChip');
-  const frac = el('wizFrac');
-  const bar = el('wizProgBar');
-  if (chip) chip.textContent = stepNum + '/' + total;
-  if (frac) frac.textContent = stepNum + '/' + total;
-  if (bar) bar.style.width = pct + '%';
-  syncWizardFooter();
-}
-
-function wizNext() {
-  if (!validateStep()) {
-    if (wiz.mode === 'package' && wiz.step === 3) renderWizardBody();
-    return;
-  }
-  if (
-    wiz.mode === 'service' &&
-    wiz.step === 0 &&
-    typeof syncSvcNameWithCategory === 'function'
-  ) {
-    syncSvcNameWithCategory(wiz.draft, wiz.draft.category, wiz.draft.category);
-  }
-  if (wiz.mode === 'package' && wiz.step === wizTotal() - 1) return;
-  if (wiz.mode === 'service' && wiz.step === wizTotal() - 1) return;
-  if (wiz.step >= wizTotal() - 1) {
-    finishWizard(true);
-    return;
-  }
-  wiz.step += 1;
-  if (wiz.mode === 'package' && wiz.step === 2 && !needsCeremonyStep(wiz.draft.functions)) {
-    wiz.step = 3;
-  }
-  renderWizard();
-}
-
-function wizPrev() {
-  if (wiz.step <= 0) {
-    show(wiz.backTo);
-    return;
-  }
-  readWizardFields();
-  wiz.step -= 1;
-  if (wiz.mode === 'package' && wiz.step === 2 && !needsCeremonyStep(wiz.draft.functions)) {
-    wiz.step = 1;
-  }
-  renderWizard();
-}
-
 function bindGlobal() {
   document.querySelectorAll('.back[data-to]').forEach((btn) => {
     btn.onclick = () => navigatePhotoScreen(btn.getAttribute('data-to'));
@@ -3588,12 +4159,16 @@ function boot() {
       throw new Error('Missing dashboard — open ' + cateringOwnerDemoFileName() + ' (full file).');
     }
     loadStore();
-    sanitizeWeddingPackageFunctions();
+    ensureCateringMenuStore();
+    if (!store.cateringMenu.foodItems.length && typeof seedDemoFoodItems === 'function') {
+      store.cateringMenu.foodItems = seedDemoFoodItems();
+    }
     ensureRegisteredDistrict();
     saveStore();
     renderLmb();
     renderPhotoDash();
     bindGlobal();
+    if (typeof bindCateringMenuAll === 'function') bindCateringMenuAll();
     bindPhotoCalendarUi();
     ensurePhotoCalendar();
     const err = el('bootError');

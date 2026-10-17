@@ -6,6 +6,8 @@ DIR = Path(__file__).resolve().parent
 SHELL = DIR / "catering-owner-flow-shell.html"
 ICONS = DIR / "_catering_owner_icons.js"
 CAL = DIR / "_photo_calendar.js"
+MENU_CAT = DIR / "_catering_menu_catalog.js"
+MENU_HUB = DIR / "_catering_menu_hub.js"
 APP = DIR / "_catering_owner_app.js"
 MASTER = DIR / "GIXBEE-CATERING-OWNER-FINALFLOW.html"
 
@@ -28,12 +30,18 @@ def build_master() -> str:
     shell = SHELL.read_text(encoding="utf-8")
     icons = ICONS.read_text(encoding="utf-8")
     cal = CAL.read_text(encoding="utf-8")
+    menu_cat = MENU_CAT.read_text(encoding="utf-8")
+    menu_hub = MENU_HUB.read_text(encoding="utf-8")
     app = APP.read_text(encoding="utf-8")
     block = (
         "<!-- APP_START -->\n<script>\n"
         + icons
         + "\n"
         + cal
+        + "\n"
+        + menu_cat
+        + "\n"
+        + menu_hub
         + "\n"
         + app
         + "\n</script>\n<!-- APP_END -->"
@@ -46,6 +54,8 @@ def build_master() -> str:
         raise SystemExit(f"expected one inlined script, got {out.count('<script>')}")
     if "CATERING_OWNER_BUILD" not in out or "function boot(" not in out:
         raise SystemExit("missing catering owner app")
+    if "FOOD_MODULES" not in out or "cateringMenuOpenHub" not in out:
+        raise SystemExit("missing catering menu bundle")
     for cal_marker in (
         'id="photoCalGrid"',
         "function openPhotoCalendar",

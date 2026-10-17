@@ -101,9 +101,48 @@ body{margin:0;background:#E8EDF5;font-family:Inter,system-ui,sans-serif;color:va
 .chips{display:flex;flex-wrap:wrap;gap:6px}
 .chip-district{font-size:11px;font-weight:800;padding:6px 10px;border-radius:8px;background:#ECFDF3;color:#065F46}
 .info-box{margin:12px 16px;padding:12px;border-radius:12px;background:#EFF6FF;border:1px solid #BFDBFE;font-size:11px;color:var(--navy);line-height:1.45;display:flex;gap:8px;align-items:flex-start}
-#svcPkg{padding-bottom:88px;background:linear-gradient(180deg,#F8FAFC 0%,#fff 28%)}
-#svcPkg .hub-top{display:flex;align-items:center;gap:8px;padding:12px 16px 0;background:transparent;border:0}
-#svcPkg .hub-top h1{margin:0;font-size:15px;font-weight:800;color:var(--navy);flex:1;text-align:center;padding-right:36px}
+#menuPkg,#svcPkg{padding-bottom:88px;background:linear-gradient(180deg,#F8FAFC 0%,#fff 28%)}
+#menuPkg .hub-top,#svcPkg .hub-top{display:flex;align-items:center;gap:8px;padding:12px 16px 0;background:transparent;border:0}
+#menuPkg .hub-top h1,#svcPkg .hub-top h1{margin:0;font-size:15px;font-weight:800;color:var(--navy);flex:1;text-align:center;padding-right:36px}
+.cat-hub-search{display:flex;align-items:center;gap:8px;border:1.5px solid #E2E8F0;border-radius:12px;padding:10px 12px;margin:0 16px 12px;background:#fff}
+.cat-hub-search input{border:0;flex:1;font:inherit;font-weight:600;outline:none}
+.cat-hub-toolbar{display:flex;align-items:center;justify-content:space-between;padding:0 16px 8px;gap:8px}
+.cat-stat-pill{font-size:10px;font-weight:800;color:var(--mut);letter-spacing:.04em;text-transform:uppercase}
+.cat-stat-pill b{font-size:14px;color:var(--navy);margin-right:4px}
+.cat-stat-pill.live b{color:var(--gn2)}
+.cat-stat-pill.blue b{color:var(--blue)}
+.cat-sort-btn{border:0;background:#F1F5F9;border-radius:10px;padding:8px 12px;font-size:11px;font-weight:800;color:var(--navy);cursor:pointer}
+.cat-pkg-more{border:0;background:#F8FAFC;width:32px;height:32px;border-radius:8px;font-size:18px;line-height:1;cursor:pointer;color:#64748B}
+.cat-mod-row{display:flex;align-items:center;gap:10px;width:calc(100% - 32px);margin:0 16px 10px;padding:12px;border:1px solid #E2E8F0;border-radius:14px;background:#fff;cursor:pointer;text-align:left;font:inherit;color:inherit}
+.cat-mod-thumb{width:48px;height:48px;border-radius:12px;display:grid;place-items:center;font-size:22px;flex-shrink:0;color:#fff}
+.cat-mod-thumb.sm{width:40px;height:40px;font-size:18px}
+.cat-mod-num{font-size:13px;font-weight:900;color:var(--blue);width:20px;text-align:center;flex-shrink:0}
+.cat-mod-name{flex:1;min-width:0;font-size:14px;font-weight:800;color:var(--navy);line-height:1.3}
+.cat-mod-name small{display:block;font-size:11px;font-weight:600;color:var(--mut);margin-top:2px}
+.cat-mod-chev{color:#CBD5E1;font-size:20px}
+.cat-sub-hd{font-size:11px;font-weight:900;color:#94A3B8;text-transform:uppercase;letter-spacing:.06em;margin:16px 0 8px;padding:0 16px}
+.cat-check-row{display:flex;align-items:center;gap:12px;padding:12px 16px;border-bottom:1px solid #F1F5F9;font-size:14px;font-weight:700;color:var(--navy);cursor:pointer}
+.cat-check-row.on{background:#EFF6FF}
+.cat-check-row input{width:18px;height:18px;accent-color:var(--blue)}
+.cat-food-hero{margin:0 16px 16px;height:160px;border-radius:16px;background:linear-gradient(145deg,#F97316,#EA580C);display:grid;place-items:center;position:relative;overflow:hidden}
+.cat-food-hero span{font-size:64px}
+.cat-food-hero button{position:absolute;bottom:12px;right:12px;border:0;background:rgba(255,255,255,.92);padding:8px 14px;border-radius:99px;font-size:12px;font-weight:800;color:var(--navy);cursor:pointer}
+.cat-slab-hd,.cat-slab-row{display:grid;grid-template-columns:1fr 1fr 1.2fr 36px;gap:6px;align-items:center;padding:0 16px 8px;font-size:10px;font-weight:800;color:#94A3B8}
+.cat-slab-row input{padding:8px;border:1.5px solid #BFDBFE;border-radius:8px;font:inherit;font-weight:700;width:100%}
+.cat-slab-rm{border:0;background:#FEE2E2;border-radius:8px;height:32px;cursor:pointer}
+.cat-add-slab{display:inline-block;margin:4px 16px 12px;font-size:12px;font-weight:800;color:var(--blue);cursor:pointer;border:0;background:none;font:inherit}
+.cat-lvl-seg{display:flex;flex-wrap:wrap;gap:8px;padding:0 16px 4px}
+.cat-lvl-btn{border:1.5px solid #BFDBFE;border-radius:99px;padding:8px 14px;font-weight:800;font-size:12px;background:#fff;color:var(--blue);cursor:pointer;font:inherit}
+.cat-lvl-btn.on{background:var(--blue);color:#fff;border-color:var(--blue)}
+.cat-pkg-mod-row{display:flex;align-items:center;gap:10px;width:100%;padding:12px 0;border:0;border-bottom:1px solid #F1F5F9;background:transparent;cursor:pointer;text-align:left;font:inherit}
+.cat-pkg-mod-chk{width:22px;height:22px;border-radius:6px;border:2px solid #CBD5E1;display:grid;place-items:center;font-size:12px;font-weight:900;color:#fff;flex-shrink:0}
+.cat-pkg-mod-chk.on{background:var(--blue);border-color:var(--blue)}
+.cat-pkg-mod-txt{flex:1;min-width:0}
+.cat-pkg-mod-txt b{display:block;font-size:13px;color:var(--navy)}
+.cat-pkg-mod-txt small{font-size:11px;color:var(--mut);font-weight:600}
+.cat-sum-row{font-size:13px;font-weight:700;color:#065F46;padding:6px 0;border-bottom:1px solid #ECFDF3}
+#menuPkg.hub-mode-packages .hub-food-only{display:none!important}
+#menuPkg.hub-mode-services .hub-pkg-only{display:none!important}
 .hub-hero{margin:0 16px 14px;padding:18px 16px 16px;border-radius:20px;background:linear-gradient(135deg,#1B2559 0%,#2563EB 55%,#7C3AED 100%);color:#fff;box-shadow:0 12px 28px rgba(37,99,235,.28);position:relative;overflow:hidden}
 .hub-hero::after{content:"";position:absolute;right:-24px;top:-24px;width:120px;height:120px;border-radius:50%;background:rgba(255,255,255,.08)}
 .hub-hero-kicker{font-size:10px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;opacity:.85;margin:0 0 6px}
@@ -685,14 +724,99 @@ button.manage-pill{cursor:pointer;font:inherit;color:var(--blue);border-color:#B
 </section>
 
 
-<section class="scr" id="menuPkg">
-  <div class="top"><button type="button" class="back" data-to="photoDash">←</button><h1>Menu &amp; Packages</h1><span style="width:36px"></span></div>
-  <div class="stub" style="padding:24px 16px;text-align:center">
-    <div style="font-size:48px;margin-bottom:12px" aria-hidden="true">🍽️</div>
-    <h2 style="margin:0 0 8px;color:var(--navy)">Menu &amp; packages</h2>
-    <p class="sub" style="margin:0 0 16px">Build wedding menus, per-plate packages, and add-ons here. Share the next screen designs to complete this hub.</p>
-    <button type="button" class="btn btn-blue" data-to="photoDash" style="max-width:220px;margin:0 auto">Back to dashboard</button>
+<section class="scr hub-mode-packages" id="menuPkg">
+  <div class="hub-top"><button type="button" class="back" data-to="photoDash">←</button><h1 id="catHubTitle">Menu &amp; Packages</h1></div>
+  <div class="hub-seg-wrap">
+    <div class="hub-seg">
+      <button type="button" class="hub-tab pkg-tab on" id="catTabPackages">Packages</button>
+      <button type="button" class="hub-tab svc-tab" id="catTabFoodItems">Food Items</button>
+    </div>
   </div>
+  <div class="hub-pkg-only">
+    <div class="cat-hub-search"><span aria-hidden="true">🔍</span><input type="search" id="catPkgSearch" placeholder="Search packages…" autocomplete="off"></div>
+    <div class="filter-row" id="catPkgFilters"></div>
+    <div class="cat-hub-toolbar hub-pkg-only">
+      <div id="catHubStat"></div>
+      <button type="button" class="cat-sort-btn" id="catPkgSortBtn">Sort ↕</button>
+    </div>
+    <p class="hub-intro" id="catHubIntro"></p>
+    <div class="hub-list" id="catPkgList"></div>
+    <div class="hub-cta-sticky hub-pkg-only"><button type="button" class="btn btn-pink" id="catAddPackageBtn">+ Add Package</button></div>
+  </div>
+  <div class="hub-food-only">
+    <div class="cat-hub-search"><span aria-hidden="true">🔍</span><input type="search" id="catFoodSearch" placeholder="Search food items…" autocomplete="off"></div>
+    <div id="catFoodModuleList" style="padding-bottom:24px"></div>
+  </div>
+</section>
+
+<section class="scr" id="catModulePick">
+  <div class="top"><button type="button" class="back" id="catModulePickBack">←</button><h1 id="catModuleTitle">Module</h1><button type="button" class="link" id="catModuleEditFood" style="font-size:12px">Edit</button></div>
+  <div id="catModulePickBody"></div>
+  <div class="cta"><button type="button" class="btn btn-blue" id="catModulePickSave">Add Selected Items (0)</button></div>
+</section>
+
+<section class="scr" id="catFoodItemForm">
+  <div class="top"><button type="button" class="back" id="catFoodBack">←</button><h1 id="catFoodFormTitle">Add Food Item</h1><span style="width:36px"></span></div>
+  <div class="cat-food-hero"><span id="catFoodImgEmoji">🍲</span><button type="button" id="catFoodChangeImg">Change Image</button></div>
+  <div class="pad">
+    <div class="fld"><label>Food Item Name*</label><input id="catFoodName" placeholder="Dish name"></div>
+    <div class="fld"><label>Module*</label><input id="catFoodModule" readonly></div>
+    <div class="fld"><label>Subcategory*</label><input id="catFoodSubcat" readonly></div>
+    <div class="fld"><label>Description (optional)</label><textarea id="catFoodDesc" rows="2" placeholder="Short description for customers"></textarea></div>
+    <p class="lbl">DIET</p>
+    <div class="radio-row" style="margin-bottom:12px">
+      <label><input type="radio" name="catFoodDiet" id="catFoodDietVeg" checked> Veg</label>
+      <label><input type="radio" name="catFoodDiet" id="catFoodDietEgg"> Egg</label>
+      <label><input type="radio" name="catFoodDiet" id="catFoodDietNon"> Non-veg</label>
+    </div>
+    <label class="chk-row" style="margin:0 16px 12px;display:flex"><input type="checkbox" id="catFoodQuoteOnly"> Quote on request (no fixed price)</label>
+    <p class="lbl">PRICING TYPE</p>
+    <div class="radio-row" style="margin-bottom:8px">
+      <label><input type="radio" name="catFoodPrice" id="catFoodPricePerson" checked> Per Plate / Person</label>
+      <label><input type="radio" name="catFoodPrice" id="catFoodPriceUnit"> Per Quantity / Unit</label>
+    </div>
+    <div class="fld" id="catFoodUnitWrap" style="display:none"><label>Unit label</label><input id="catFoodUnitLabel" placeholder="bowl, litre, tray…"></div>
+    <p class="lbl">QUANTITY SLABS (OWNER DEFINED)</p>
+    <div id="catFoodSlabs"></div>
+    <button type="button" class="cat-add-slab" id="catFoodAddSlab">+ Add another slab</button>
+  </div>
+  <div class="cta" style="display:flex;gap:10px">
+    <button type="button" class="btn btn-ghost" id="catFoodSaveDraft" style="flex:1">Save as Draft</button>
+    <button type="button" class="btn btn-blue" id="catFoodSave" style="flex:1">Save Food Item</button>
+  </div>
+</section>
+
+<section class="scr" id="catPkgCreate">
+  <div class="top"><button type="button" class="back" id="catPkgCreateBack">←</button><h1>Create Package</h1><span style="width:36px"></span></div>
+  <div class="pad">
+    <div class="fld"><label>Package Name*</label><input id="catPkgName" placeholder="e.g. Wedding Premium"></div>
+    <p class="lbl">PACKAGE TYPE</p>
+    <div class="cat-lvl-seg" id="catPkgLevelSeg"></div>
+    <div class="fld"><label>Description (optional)</label><textarea id="catPkgDesc" rows="2" placeholder="Perfect for medium sized functions."></textarea></div>
+    <p class="lbl">SELECT ITEMS FROM 13 MODULES</p>
+    <div class="cat-hub-search" style="margin:0 0 12px"><span>🔍</span><input type="search" id="catPkgItemSearch" placeholder="Search food items…"></div>
+    <div id="catPkgModulePick" style="padding:0 16px"></div>
+  </div>
+  <div class="cta"><button type="button" class="btn btn-pink" id="catPkgNextPricing">Next: Set Pricing</button></div>
+</section>
+
+<section class="scr" id="catPkgPricing">
+  <div class="top"><button type="button" class="back" id="catPkgPricingBack">←</button><h1>Set Package Pricing</h1><span style="width:36px"></span></div>
+  <div class="pad">
+    <p class="lbl">PRICING TYPE</p>
+    <div class="radio-row" style="margin-bottom:12px"><label><input type="radio" checked disabled> Per Person / Plate</label></div>
+    <p class="lbl">GUEST COUNT PRICING (OWNER DEFINED)</p>
+    <div id="catPkgSlabs"></div>
+    <button type="button" class="cat-add-slab" id="catPkgAddSlab">+ Add another slab</button>
+    <p class="lbl" style="margin-top:16px">PACKAGE SUMMARY</p>
+    <div id="catPkgSummary" style="padding:0 4px"></div>
+    <p class="lbl">STATUS</p>
+    <div class="radio-row">
+      <label><input type="radio" name="catPkgStatus" id="catPkgStatusLive" checked> Live (visible to customers)</label>
+      <label><input type="radio" name="catPkgStatus" id="catPkgStatusDraft"> Draft (not visible)</label>
+    </div>
+  </div>
+  <div class="cta"><button type="button" class="btn btn-blue" id="catPkgSave">Save Package</button></div>
 </section>
 
 <section class="scr" id="calendar">

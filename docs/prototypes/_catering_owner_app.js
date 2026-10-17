@@ -1,6 +1,6 @@
-/** Catering owner — forked from photography owner; menu hub stub only. */
+/** Catering owner app core (dashboard, areas, calendar) + menu hub in _catering_menu_*.js */
 const CATERING_OWNER_FLOW_LOCKED = false;
-const CATERING_OWNER_BUILD = '2026-10-17-catering-owner-full-v2';
+const CATERING_OWNER_BUILD = '2026-10-17-catering-menu-hub-v1';
 
 function cateringOwnerDemoFileName() {
   try {
@@ -11,82 +11,13 @@ function cateringOwnerDemoFileName() {
   }
   return 'GIXBEE-CATERING-OWNER-FINALFLOW.html';
 }
-const STORAGE_KEY = 'GIXBEE_CATERING_OWNER_V1';
+const STORAGE_KEY = 'GIXBEE_CATERING_OWNER_V2';
 
 const INDIAN_STATES = {
   Kerala: ['Thrissur', 'Ernakulam', 'Kozhikode', 'Kottayam', 'Palakkad', 'Malappuram', 'Thiruvananthapuram'],
   Karnataka: ['Bengaluru Urban', 'Mysuru', 'Mangalore', 'Udupi'],
   'Tamil Nadu': ['Chennai', 'Coimbatore', 'Madurai'],
 };
-
-const PKG_LEVELS = ['Basic', 'Standard', 'Premium'];
-/** Wedding-only functions for package wizard (non-wedding events → individual services). */
-const PKG_FUNCTIONS = [
-  'Wedding & Reception',
-  'Reception',
-  'Wedding Eve',
-  'Engagement',
-  'Pre-Wedding Shoot',
-  'Post-Wedding Shoot',
-  'Save-the-Date Shoot',
-];
-const FUNCTION_HINTS = {
-  'Wedding & Reception': 'Wedding followed by reception on the same day',
-  Reception: 'Separate reception function / day',
-  'Wedding Eve': 'Pre-wedding night function',
-  Engagement: 'Engagement ceremony / ring ceremony',
-  'Pre-Wedding Shoot': 'Photoshoot of the couple before the wedding',
-  'Post-Wedding Shoot': 'Photoshoot of the couple after the wedding',
-  'Save-the-Date Shoot': 'Photoshoot to announce the wedding date',
-};
-const CEREMONY_TYPES = ['Christian', 'Hindu', 'Muslim', 'Sikh', 'Jain', 'Buddhist'];
-/** Individual services only — wedding functions belong in wedding packages, not here. */
-const SVC_CATEGORIES = [
-  { id: 'portrait', label: 'Portrait Photography' },
-  { id: 'baby', label: 'Baby & Kids' },
-  { id: 'maternity', label: 'Maternity' },
-  { id: 'newborn', label: 'Newborn' },
-  { id: 'couple', label: 'Couple' },
-  { id: 'funeral', label: 'Funeral / Memorial' },
-  { id: 'product', label: 'Product' },
-  { id: 'corporate', label: 'Corporate' },
-  { id: 'realestate', label: 'Real Estate' },
-  { id: 'event', label: 'Event / Get-togethers' },
-  { id: 'fashion', label: 'Fashion & Portfolio' },
-  { id: 'food', label: 'Food' },
-  { id: 'commercial', label: 'Commercial' },
-  { id: 'drone', label: 'Drone / Helicam' },
-  { id: 'reel', label: 'Reel & Short Video' },
-  { id: 'production', label: 'Photo & Video Production' },
-];
-
-const PKG_STEPS = [
-  { title: 'Package basics', sub: 'Basic information about the package.' },
-  { title: 'Select functions', sub: 'Choose wedding functions covered in this wedding package.' },
-  { title: 'Ceremony type', sub: 'Choose applicable ceremony types.' },
-  { title: 'Coverage details', sub: 'Coverage side, then duration, extra hour, and team for each function.' },
-  { title: 'Deliverables', sub: 'Photos, videos, albums & prints, complimentary bonuses, and digital delivery.' },
-  { title: 'Special services & extras', sub: 'Select additional services with price.' },
-  { title: 'Delivery timeline', sub: 'Set delivery timeline for each deliverable.' },
-  { title: 'Payment stages', sub: 'Set payment stages and policies.' },
-  { title: 'Customer requirements', sub: 'Optional requirements from customer.' },
-  { title: 'Review & publish', sub: 'Review all details and publish.' },
-];
-
-const SVC_STEPS = [
-  {
-    title: 'Select service category',
-    sub: 'Non-wedding events and shoots — use Wedding packages for reception, engagement, pre-wedding, etc.',
-  },
-  { title: 'Service basics', sub: 'Add basic information about your service.' },
-  { title: 'Pricing', sub: 'Set your service pricing.' },
-  { title: 'Duration & coverage (optional)', sub: 'Add duration, team and coverage details.' },
-  { title: "What's included", sub: 'Select deliverables included in this service.' },
-  { title: 'Optional extras', sub: 'Add additional services (if available).' },
-  { title: 'Delivery', sub: 'Set delivery timeline for each deliverable.' },
-  { title: 'Policies, requirements & review', sub: 'Set policies, customer requirements and publish.' },
-];
-
 function defaultStore() {
   return {
     biz: {
@@ -106,47 +37,7 @@ function defaultStore() {
       states: ['Kerala'],
       districts: { Kerala: ['Thrissur', 'Ernakulam'] },
     },
-    packages: [
-      {
-        id: 'pkg-demo-1',
-        name: 'Classic Wedding Package',
-        level: 'Premium',
-        functions: ['Wedding & Reception', 'Reception'],
-        price: 150000,
-        listPrice: 150000,
-        discountYes: 'no',
-        discountPct: 0,
-        status: 'published',
-        deliverables: '500 edited photos, wedding film 15 min',
-        coverage: '2 photographers, 10 hours',
-      },
-      {
-        id: 'pkg-demo-2',
-        name: 'Engagement Standard',
-        level: 'Standard',
-        functions: ['Engagement'],
-        price: 35000,
-        listPrice: 40000,
-        discountPct: 12,
-        status: 'draft',
-        deliverables: '150 edited photos',
-        coverage: '1 photographer, 4 hours',
-      },
-    ],
-    services: [
-      {
-        id: 'svc-demo-1',
-        name: 'Candid Photography',
-        category: 'event',
-        price: 25000,
-        listPrice: 28000,
-        discountPct: 10,
-        status: 'published',
-        blurb: 'Natural moments across the event.',
-      },
-    ],
-    pkgFilter: 'all',
-    hubTab: 'packages',
+    cateringMenu: defaultCateringMenuStore(),
     operators: [
       { id: 'op_owner', name: 'Archana K.', phone: '+91 94470 55566', role: 'owner' },
       { id: 'op_mgr1', name: 'Priya Nair', phone: '+91 98470 11223', role: 'manager' },
@@ -167,13 +58,6 @@ const OPERATOR_ROLE_LABELS = { owner: 'Owner', manager: 'Manager', staff: 'Staff
 
 let store = defaultStore();
 let saDraft = null;
-let wiz = { mode: 'package', step: 0, draft: null, backTo: 'menuPkg', editId: null };
-
-function needsCeremonyStep(functions) {
-  const f = functions || [];
-  return f.indexOf('Wedding & Reception') >= 0 || f.indexOf('Reception') >= 0 || f.indexOf('Engagement') >= 0;
-}
-
 function el(id) {
   return document.getElementById(id);
 }
@@ -218,7 +102,8 @@ function navigatePhotoScreen(id) {
   } else show(id);
 }
 function openMenuPkgHub() {
-  show('menuPkg');
+  if (typeof cateringMenuOpenHub === 'function') cateringMenuOpenHub();
+  else show('menuPkg');
 }
 function toast(m) {
   const t = el('toast');
@@ -233,107 +118,26 @@ function inr(n) {
 function uid(prefix) {
   return prefix + '-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
 }
-function levelClass(level) {
-  return (level || 'Standard').toLowerCase();
-}
-
-function pkgCardCeremonyText(pkg) {
-  if (!needsCeremonyStep(pkg.functions)) return '';
-  const types = (pkg.ceremonyTypes || []).filter(Boolean);
-  if (!types.length) return '';
-  if (types.length <= 3) return types.join(' · ');
-  return types.slice(0, 2).join(' · ') + ' +' + (types.length - 2);
-}
-
-function pkgCardCoverageSideText(pkg) {
-  if (typeof pkgNeedsCoverageSideUi === 'function' && !pkgNeedsCoverageSideUi(pkg)) return '';
-  const side =
-    typeof resolvePkgCoverageSide === 'function' ? resolvePkgCoverageSide(pkg) : pkg.coverageSide || 'both';
-  return side === 'both' ? 'Both sides' : 'Single side';
-}
-
-function pkgCardMetaChipsHtml(pkg, levelHtml) {
-  const ceremony = pkgCardCeremonyText(pkg);
-  const side = pkgCardCoverageSideText(pkg);
-  let html = levelHtml;
-  if (ceremony) html += '<span class="pkg-meta-chip ceremony">' + esc(ceremony) + '</span>';
-  if (side) html += '<span class="pkg-meta-chip side">' + esc(side) + '</span>';
-  return html;
-}
-function sanitizeWeddingPackageFunctions() {
-  const allowed = {};
-  PKG_FUNCTIONS.forEach(function (fn) {
-    allowed[fn] = true;
-  });
-  (store.packages || []).forEach(function (p) {
-    if (!p.customFunctions) p.customFunctions = [];
-    const nextFns = [];
-    (p.functions || []).forEach(function (fn) {
-      if (allowed[fn]) nextFns.push(fn);
-      else if (p.customFunctions.indexOf(fn) < 0) p.customFunctions.push(fn);
-    });
-    p.functions = nextFns;
-  });
-}
-
-function sanitizePackageLevels() {
-  (store.packages || []).forEach(function (p) {
-    if (PKG_LEVELS.indexOf(p.level) < 0) p.level = 'Standard';
-  });
-}
-
-function sanitizePackageCeremonyTypes() {
-  (store.packages || []).forEach(function (p) {
-    if (!p.customCeremonies) p.customCeremonies = [];
-    if (!p.ceremonyTypes) p.ceremonyTypes = [];
-    p.ceremonyTypes = p.ceremonyTypes.filter(function (c) {
-      return c !== 'Other';
-    });
-  });
-}
-
-function sanitizeServiceCategories() {
-  const allowed = {};
-  SVC_CATEGORIES.forEach(function (c) {
-    allowed[c.id] = true;
-  });
-  (store.services || []).forEach(function (s) {
-    if (!s.category || s.category === 'wedding' || !allowed[s.category]) {
-      s.category = 'event';
-    }
-  });
-}
-
 function loadStore() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return;
+    if (!raw) {
+      ensureCateringMenuStore();
+      return;
+    }
     const parsed = JSON.parse(raw);
     store = Object.assign(defaultStore(), parsed);
-    if (!store.packages) store.packages = defaultStore().packages;
-    if (!store.services) store.services = defaultStore().services;
     if (!store.serviceAreas) store.serviceAreas = defaultStore().serviceAreas;
     if (!store.operators) store.operators = defaultStore().operators;
     if (!store.deletedBusinesses) store.deletedBusinesses = defaultStore().deletedBusinesses;
     if (!store.calendar || typeof store.calendar !== 'object') store.calendar = defaultPhotoCalendar();
-    sanitizeWeddingPackageFunctions();
-    sanitizePackageLevels();
-    sanitizePackageCeremonyTypes();
-    sanitizeServiceCategories();
-    (store.services || []).forEach(function (s) {
-      if (typeof ensureSvcTeam === 'function') ensureSvcTeam(s);
-    });
-    (store.packages || []).forEach(function (p) {
-      if (typeof migrateDroneHelicamExtra === 'function') migrateDroneHelicamExtra(p);
-      if (typeof migrateLegacyPkgCoverage === 'function') migrateLegacyPkgCoverage(p);
-      if (typeof ensurePkgMarketingFields === 'function') ensurePkgMarketingFields(p);
-    });
-    (store.services || []).forEach(function (s) {
-      if (typeof migrateDroneHelicamExtra === 'function') migrateDroneHelicamExtra(s);
-      if (typeof ensureSvcExtrasModel === 'function') ensureSvcExtrasModel(s);
-    });
+    ensureCateringMenuStore();
+    if (!store.cateringMenu.foodItems.length && typeof seedDemoFoodItems === 'function') {
+      store.cateringMenu.foodItems = seedDemoFoodItems();
+    }
   } catch (_e) {
     store = defaultStore();
+    ensureCateringMenuStore();
     try {
       localStorage.removeItem(STORAGE_KEY);
     } catch (_e2) {
@@ -555,7 +359,7 @@ function renderPhotoBizProfile() {
       esc(b.memberSince || '—') +
       '</b><span>Member since</span></div>' +
       '<div class="prof-chip"><b>' +
-      store.packages.length +
+      (store.cateringMenu && store.cateringMenu.catPackages ? store.cateringMenu.catPackages.length : 0) +
       '</b><span>Menu &amp; packages</span></div>' +
       '<div class="prof-chip"><b>' +
       areaN +
@@ -801,640 +605,6 @@ function renderSaReview() {
   });
 }
 
-function renderPkgFilters() {
-  const allowed = ['all'].concat(
-    PKG_LEVELS.map(function (l) {
-      return l.toLowerCase();
-    })
-  );
-  if (allowed.indexOf(store.pkgFilter) < 0) store.pkgFilter = 'all';
-  const filters = [{ id: 'all', label: 'All' }].concat(
-    PKG_LEVELS.map(function (l) {
-      return { id: l.toLowerCase(), label: l };
-    })
-  );
-  const row = el('pkgFilters');
-  row.innerHTML = filters
-    .map(
-      (f) =>
-        '<button type="button" class="fchip' +
-        (store.pkgFilter === f.id ? ' on' : '') +
-        '" data-f="' +
-        f.id +
-        '">' +
-        f.label +
-        '</button>'
-    )
-    .join('');
-  row.querySelectorAll('.fchip').forEach((b) => {
-    b.onclick = () => {
-      store.pkgFilter = b.getAttribute('data-f');
-      saveStore();
-      renderPkgList();
-      renderPkgFilters();
-    };
-  });
-}
-
-function filteredPackages() {
-  if (store.pkgFilter === 'all') return store.packages;
-  return store.packages.filter((p) => levelClass(p.level) === store.pkgFilter);
-}
-
-function deletePackage(id) {
-  const p = findPackage(id);
-  if (!p) return;
-  if (!confirm('Delete package "' + p.name + '"? This cannot be undone.')) return;
-  store.packages = store.packages.filter(function (x) {
-    return x.id !== id;
-  });
-  saveStore();
-  renderSvcPkg();
-  toast('Wedding package deleted');
-}
-
-function deleteService(id) {
-  const s = findService(id);
-  if (!s) return;
-  if (!confirm('Delete service "' + s.name + '"? This cannot be undone.')) return;
-  store.services = store.services.filter(function (x) {
-    return x.id !== id;
-  });
-  saveStore();
-  renderSvcPkg();
-  toast('Individual service deleted');
-}
-
-function bindHubCatalogActions(root) {
-  if (!root) return;
-  root.querySelectorAll('[data-hub-edit-pkg]').forEach(function (btn) {
-    btn.onclick = function (e) {
-      e.stopPropagation();
-      startWizard('package', btn.getAttribute('data-hub-edit-pkg'));
-    };
-  });
-  root.querySelectorAll('[data-hub-del-pkg]').forEach(function (btn) {
-    btn.onclick = function (e) {
-      e.stopPropagation();
-      deletePackage(btn.getAttribute('data-hub-del-pkg'));
-    };
-  });
-  root.querySelectorAll('[data-hub-edit-svc]').forEach(function (btn) {
-    btn.onclick = function (e) {
-      e.stopPropagation();
-      startWizard('service', btn.getAttribute('data-hub-edit-svc'));
-    };
-  });
-  root.querySelectorAll('[data-hub-del-svc]').forEach(function (btn) {
-    btn.onclick = function (e) {
-      e.stopPropagation();
-      deleteService(btn.getAttribute('data-hub-del-svc'));
-    };
-  });
-  root.querySelectorAll('.pkg-card-tap').forEach(function (card) {
-    card.onclick = function (e) {
-      if (e.target.closest('.hub-act')) return;
-      startWizard('package', card.getAttribute('data-pkg-id'));
-    };
-  });
-  root.querySelectorAll('.svc-row-wrap').forEach(function (row) {
-    row.onclick = function (e) {
-      if (e.target.closest('.hub-act')) return;
-      startWizard('service', row.getAttribute('data-svc-id'));
-    };
-  });
-}
-
-function renderPkgList() {
-  const list = el('pkgList');
-  const pkgs = filteredPackages();
-  if (!pkgs.length) {
-    list.innerHTML =
-      '<div class="hub-empty">' +
-      '<div class="hub-empty-ico">' +
-      photoIcon('pkg') +
-      '</div><b>No wedding packages yet</b><p>Build your first wedding package with functions, deliverables, pricing, and policies in a guided flow.</p></div>';
-    return;
-  }
-  list.innerHTML = pkgs
-    .map((p) => {
-      const lv = levelClass(p.level);
-      const disc =
-        p.discountPct > 0 && p.listPrice > p.price
-          ? '<span class="was" style="text-decoration:line-through;color:#9CA3AF;font-size:12px;font-weight:700;margin-left:6px">' +
-            inr(p.listPrice) +
-            '</span>'
-          : '';
-      return (
-        '<div class="pkg-card pkg-card-tap" data-pkg-id="' +
-        esc(p.id) +
-        '"><div class="pkg-thumb lv-' +
-        lv +
-        '">' +
-        photoIcon('pkg') +
-        '</div><div class="pkg-bd"><div class="pkg-top-row"><div class="pkg-chips">' +
-        pkgCardMetaChipsHtml(
-          p,
-          '<span class="pkg-level ' + lv + '">' + esc(p.level) + '</span>'
-        ) +
-        '</div></div><b>' +
-        esc(p.name) +
-        '</b><div class="pkg-price">' +
-        inr(p.price) +
-        disc +
-        '</div><div class="pkg-sub">' +
-        esc(p.coverage || 'Tap card to edit coverage & deliverables') +
-        '</div><div class="pkg-foot"><span class="status ' +
-        (p.status === 'published' ? 'pub' : 'draft') +
-        '">' +
-        (p.status === 'published' ? '● Live' : '○ Draft') +
-        '</span></div><div class="hub-card-actions">' +
-        '<button type="button" class="hub-act hub-act-edit" data-hub-edit-pkg="' +
-        esc(p.id) +
-        '">' +
-        photoIcon('edit') +
-        ' Edit</button>' +
-        '<button type="button" class="hub-act hub-act-del" data-hub-del-pkg="' +
-        esc(p.id) +
-        '">Delete</button></div></div></div>'
-      );
-    })
-    .join('');
-  bindHubCatalogActions(list);
-}
-
-function renderSvcList() {
-  el('svcCount').textContent = String(store.services.length);
-  el('svcSecIco').innerHTML = photoIcon('cam');
-  const tabPkgIco = el('tabPkgIco');
-  const tabSvcIco = el('tabSvcIco');
-  if (tabPkgIco) tabPkgIco.innerHTML = photoIcon('pkg');
-  if (tabSvcIco) tabSvcIco.innerHTML = photoIcon('cam');
-  const list = el('svcList');
-  if (!store.services.length) {
-    list.innerHTML =
-      '<div class="hub-empty" style="margin:8px 16px 16px">' +
-      '<div class="hub-empty-ico">' +
-      photoIcon('cam') +
-      '</div><b>No individual services yet</b><p>Add standalone offerings like portraits, product shoots, or funeral coverage.</p></div>';
-    return;
-  }
-  list.innerHTML = store.services
-    .map(
-      (s) =>
-        '<div class="svc-row-wrap" data-svc-id="' +
-        esc(s.id) +
-        '"><div class="svc-row"><div class="svc-thumb">' +
-        photoIcon('cam') +
-        '</div><div class="svc-bd"><b>' +
-        esc(s.name) +
-        '</b><div class="svc-meta"><span class="svc-price-tag">' +
-        inr(s.price) +
-        '</span><span class="status ' +
-        (s.status === 'published' ? 'pub' : 'draft') +
-        '" style="margin:0;padding:4px 8px">' +
-        (s.status === 'published' ? 'Live' : 'Draft') +
-        '</span></div></div></div><div class="hub-card-actions">' +
-        '<button type="button" class="hub-act hub-act-edit" data-hub-edit-svc="' +
-        esc(s.id) +
-        '">' +
-        photoIcon('edit') +
-        ' Edit</button>' +
-        '<button type="button" class="hub-act hub-act-del" data-hub-del-svc="' +
-        esc(s.id) +
-        '">Delete</button></div></div>'
-    )
-    .join('');
-  bindHubCatalogActions(list);
-}
-
-function applyHubTab() {
-  const isPkg = store.hubTab === 'packages';
-  const hub = el('menuPkg');
-  if (hub) {
-    hub.classList.toggle('hub-mode-packages', isPkg);
-    hub.classList.toggle('hub-mode-services', !isPkg);
-  }
-  el('tabPackages').classList.toggle('on', isPkg);
-  el('tabServices').classList.toggle('on', !isPkg);
-  el('hubIntro').textContent = isPkg
-    ? 'Wedding packages with coverage, deliverables, and payment stages. Filter by level.'
-    : 'Individual services customers book without a wedding package.';
-  const stat = el('hubStat');
-  if (stat) {
-    const pubPkg = store.packages.filter((p) => p.status === 'published').length;
-    const pubSvc = store.services.filter((s) => s.status === 'published').length;
-    stat.innerHTML = isPkg
-      ? '<div class="hub-stat-chip pink" style="flex:1;min-width:100%"><b>' +
-        store.packages.length +
-        '</b><span>Wedding packages · ' +
-        pubPkg +
-        ' live</span></div>'
-      : '<div class="hub-stat-chip blue" style="flex:1;min-width:100%"><b>' +
-        store.services.length +
-        '</b><span>Individual services · ' +
-        pubSvc +
-        ' live</span></div>';
-  }
-}
-
-function renderSvcPkg() {
-  renderPkgFilters();
-  renderPkgList();
-  renderSvcList();
-  applyHubTab();
-}
-
-function findPackage(id) {
-  return store.packages.find(function (p) {
-    return p.id === id;
-  });
-}
-function findService(id) {
-  return store.services.find(function (s) {
-    return s.id === id;
-  });
-}
-
-function findServiceByCategory(categoryId, excludeServiceId) {
-  if (!categoryId) return null;
-  return store.services.find(function (s) {
-    if (excludeServiceId && s.id === excludeServiceId) return false;
-    return s.category === categoryId;
-  });
-}
-
-function svcCategoryAlreadyUsed(categoryId, excludeServiceId) {
-  return !!findServiceByCategory(categoryId, excludeServiceId);
-}
-
-function toastSvcCategoryDuplicate(categoryId) {
-  const label = typeof svcCatLabel === 'function' ? svcCatLabel(categoryId) : categoryId;
-  toast('You already have a service for “' + label + '”. Edit that listing or choose another category.');
-}
-
-function startWizard(mode, editId) {
-  wiz.mode = mode;
-  wiz.step = 0;
-  wiz.editId = editId || null;
-  wiz.backTo = 'menuPkg';
-  if (mode === 'package') {
-    const src = editId ? findPackage(editId) : null;
-    wiz.draft = src ? recordToPkgDraft(src) : newPkgDraft();
-  } else {
-    const src = editId ? findService(editId) : null;
-    wiz.draft = src ? recordToSvcDraft(src) : newSvcDraft();
-  }
-  const wSec = el('wizard');
-  if (wSec) {
-    wSec.classList.toggle('wiz-create', mode === 'package');
-    wSec.classList.toggle('wiz-svc-create', mode === 'service');
-  }
-  const pkgBrand = el('wizPkgBrand');
-  if (pkgBrand) {
-    const sub = pkgBrand.querySelector('span');
-    if (sub) sub.textContent = wiz.editId && mode === 'package' ? 'Edit wedding package' : 'Create wedding package';
-  }
-  const svcBrand = el('wizSvcBrand');
-  if (svcBrand) {
-    const sub = svcBrand.querySelector('span');
-    if (sub) sub.textContent = wiz.editId && mode === 'service' ? 'Edit individual service' : 'Create individual service';
-  }
-  el('wizTitle').textContent = mode === 'package' ? 'Wedding package' : 'Individual service';
-  show('wizard');
-  renderWizard();
-}
-
-function syncPkgPrice(d) {
-  const base = Math.max(0, +d.listPrice || 0);
-  const pct =
-    d.discountYes === 'yes' ? Math.min(100, Math.max(0, +d.discountPct || 0)) : 0;
-  d.price = pct > 0 ? Math.round(base * (1 - pct / 100)) : base;
-}
-function syncSvcPrice(d) {
-  syncPkgPrice(d);
-  if (!d) return;
-  if (d.pricingType === 'range') {
-    const baseMax = Math.max(0, +d.listPriceMax || 0);
-    const pct =
-      d.discountYes === 'yes' ? Math.min(100, Math.max(0, +d.discountPct || 0)) : 0;
-    d.priceMax = pct > 0 ? Math.round(baseMax * (1 - pct / 100)) : baseMax;
-    if (d.priceMax < d.price) d.priceMax = d.price;
-  } else {
-    delete d.priceMax;
-  }
-}
-
-function wizSteps() {
-  return wiz.mode === 'package' ? PKG_STEPS : SVC_STEPS;
-}
-function wizTotal() {
-  return wizSteps().length;
-}
-
-function renderStepper() {
-  const steps = wizSteps();
-  const pkg = wiz.mode === 'package';
-  const svc = wiz.mode === 'service';
-  el('stepper').innerHTML = steps
-    .map((_, i) => {
-      let cls = 'step-dot';
-      if (i === wiz.step) cls += ' on';
-      else if (!pkg && !svc && i < wiz.step) cls += ' done';
-      const label = pkg || svc || i >= wiz.step ? i + 1 : '✓';
-      return '<div class="' + cls + '">' + label + '</div>';
-    })
-    .join('');
-  const meta = steps[wiz.step];
-  el('wizStepTitle').textContent = meta.title;
-  const sub = el('wizStepSub');
-  if (sub) sub.textContent = pkg ? '' : meta.sub;
-}
-
-function isWizardReviewStep() {
-  if (wiz.mode === 'package' || wiz.mode === 'service') {
-    return wiz.step === wizTotal() - 1;
-  }
-  return false;
-}
-
-function syncWizardFooter() {
-  const onReview = isWizardReviewStep();
-  const nextBtn = el('wizNext');
-  const draftBtn = el('wizDraft');
-  const prevBtn = el('wizPrev');
-  const foot = document.querySelector('#wizard .wiz-foot');
-  if (prevBtn) prevBtn.style.visibility = wiz.step === 0 ? 'hidden' : 'visible';
-  if (nextBtn) {
-    const hideNext = onReview;
-    nextBtn.hidden = hideNext;
-    nextBtn.style.display = hideNext ? 'none' : '';
-    if (wiz.mode === 'service' && wiz.step === wizTotal() - 2) {
-      nextBtn.textContent = 'Review →';
-    } else if (wiz.step >= wizTotal() - 1 && !onReview) {
-      nextBtn.textContent = 'Publish →';
-    } else {
-      nextBtn.textContent = 'Next →';
-    }
-    nextBtn.className =
-      wiz.step >= wizTotal() - 1 && !onReview ? 'btn btn-green' : 'btn btn-blue';
-  }
-  if (draftBtn) {
-    draftBtn.hidden = true;
-    draftBtn.style.display = 'none';
-  }
-  if (foot) foot.classList.toggle('wiz-foot-review-only', onReview);
-}
-
-function renderWizardBody() {
-  const body = el('wizBody');
-  const d = wiz.draft;
-  if (wiz.mode === 'package') {
-    body.innerHTML = renderPkgStep(wiz.step, d);
-  } else {
-    body.innerHTML = renderSvcStep(wiz.step, d);
-  }
-  bindWizardFields();
-  syncWizardFooter();
-}
-
-function readWizardFields() {
-  const d = wiz.draft;
-  if (wiz.mode === 'package') {
-    readPkgWizardFields(d);
-  } else {
-    readSvcWizardFields(d);
-  }
-}
-
-function bindWizardFields() {
-  const d = wiz.draft;
-  if (wiz.mode === 'package') {
-    bindPkgWizard(d);
-  } else {
-    bindSvcWizard(d);
-  }
-}
-
-function validateStep() {
-  readWizardFields();
-  const d = wiz.draft;
-  if (wiz.mode === 'package') {
-    if (wiz.step === 0 && (!d.name || !d.listPrice)) {
-      toast('Enter package name and price.');
-      return false;
-    }
-    if (wiz.step === 1 && !d.functions.length) {
-      toast('Select at least one function.');
-      return false;
-    }
-    if (wiz.step === 2 && needsCeremonyStep(d.functions) && !(d.ceremonyTypes || []).length) {
-      toast('Select at least one ceremony type (or go back and change functions).');
-      return false;
-    }
-    if (wiz.step === 3) {
-      if (typeof readPkgCoverageFieldsFromDom === 'function') readPkgCoverageFieldsFromDom(d);
-      const missing =
-        typeof pkgCoverageMissingFunctions === 'function' ? pkgCoverageMissingFunctions(d) : [];
-      if (missing.length) {
-        if (!d.coverageUiOpen) d.coverageUiOpen = {};
-        missing.forEach(function (fn) {
-          d.coverageUiOpen[fn] = true;
-        });
-        d.coverageValidateHighlight = missing;
-        toast(
-          'Complete coverage for each function: duration, extra hour (₹0 allowed), and at least one photographer or videographer.'
-        );
-        return false;
-      }
-      d.coverageValidateHighlight = [];
-    }
-    if (wiz.step === 4 && !selectedDeliverableKeys(d).length) {
-      toast('Select at least one deliverable (photo, video, album, or digital).');
-      return false;
-    }
-    if (wiz.step === 6 && !selectedDeliverableKeys(d).length) {
-      toast('Add deliverables before setting delivery timelines.');
-      return false;
-    }
-    if (wiz.step === 7) {
-      const total = payStagesTotalPct(d);
-      if (total !== 100) {
-        toast('Payment stages must total 100% (currently ' + total + '%).');
-        return false;
-      }
-      ensurePkgPolicyRules(d);
-      if (!d.cancelRules || !d.cancelRules.length) {
-        toast('Add at least one cancellation policy tier.');
-        return false;
-      }
-      if (!d.rescheduleRules || !d.rescheduleRules.length) {
-        toast('Add at least one rescheduling policy tier.');
-        return false;
-      }
-    }
-  } else {
-    if (wiz.step === 0) {
-      if (!d.category) {
-        toast('Pick a service category.');
-        return false;
-      }
-      if (svcCategoryAlreadyUsed(d.category, wiz.editId || null)) {
-        toastSvcCategoryDuplicate(d.category);
-        return false;
-      }
-    }
-    if (wiz.step === 1 && (!d.name || !d.blurb)) {
-      toast('Enter service name and description.');
-      return false;
-    }
-    if (wiz.step === 2) {
-      if (!d.listPrice) {
-        toast('Enter the price amount.');
-        return false;
-      }
-      if (d.pricingType === 'range') {
-        if (!d.listPriceMax || d.listPriceMax <= d.listPrice) {
-          toast('Maximum price must be higher than minimum for a price range.');
-          return false;
-        }
-      }
-    }
-    if (wiz.step === 4 && !svcSelectedDeliverableKeys(d).length) {
-      toast("Select at least one included item (photo, video, album, or digital).");
-      return false;
-    }
-    if (wiz.step === 6 && !svcSelectedDeliverableKeys(d).length) {
-      toast("Add included items before setting delivery timelines.");
-      return false;
-    }
-    if (wiz.step === 7) {
-      ensurePkgPolicyRules(d);
-      if (!d.cancelRules || !d.cancelRules.length) {
-        toast('Add at least one cancellation policy tier.');
-        return false;
-      }
-      if (!d.rescheduleRules || !d.rescheduleRules.length) {
-        toast('Add at least one rescheduling policy tier.');
-        return false;
-      }
-    }
-  }
-  return true;
-}
-
-function finishWizard(publish) {
-  readWizardFields();
-  const d = wiz.draft;
-  if (wiz.mode === 'package') {
-    if (!d.name) {
-      toast('Package name required.');
-      return;
-    }
-    const payload = JSON.parse(JSON.stringify(d));
-    payload.id = wiz.editId || uid('pkg');
-    payload.status = publish ? 'published' : 'draft';
-    if (wiz.editId) {
-      const i = store.packages.findIndex(function (p) {
-        return p.id === wiz.editId;
-      });
-      if (i >= 0) store.packages[i] = payload;
-      else store.packages.unshift(payload);
-      toast(publish ? 'Wedding package updated & published' : 'Wedding package saved');
-    } else {
-      store.packages.unshift(payload);
-      toast(publish ? 'Wedding package published' : 'Wedding package saved as draft');
-    }
-  } else {
-    if (!d.name || !d.category) {
-      toast('Complete service basics.');
-      return;
-    }
-    if (svcCategoryAlreadyUsed(d.category, wiz.editId || null)) {
-      toastSvcCategoryDuplicate(d.category);
-      return;
-    }
-    ensurePkgPolicyRules(d);
-    if (!d.cancelRules || !d.cancelRules.length || !d.rescheduleRules || !d.rescheduleRules.length) {
-      toast('Complete cancellation and rescheduling policy tiers.');
-      return;
-    }
-    const payload = JSON.parse(JSON.stringify(d));
-    payload.id = wiz.editId || uid('svc');
-    if (publish) payload.status = 'published';
-    else payload.status = 'draft';
-    if (wiz.editId) {
-      const i = store.services.findIndex(function (s) {
-        return s.id === wiz.editId;
-      });
-      if (i >= 0) store.services[i] = payload;
-      else store.services.unshift(payload);
-      toast(publish ? 'Individual service updated & published' : 'Individual service saved');
-    } else {
-      store.services.unshift(payload);
-      toast(publish ? 'Individual service published' : 'Individual service saved as draft');
-    }
-  }
-  wiz.editId = null;
-  store.hubTab = wiz.mode === 'service' ? 'services' : 'packages';
-  saveStore();
-  show('menuPkg');
-  renderSvcPkg();
-}
-
-function renderWizard() {
-  renderStepper();
-  renderWizardBody();
-  const total = wizTotal();
-  const stepNum = wiz.step + 1;
-  const pct = Math.round((stepNum / total) * 100);
-  const chip = el('wizStepChip');
-  const frac = el('wizFrac');
-  const bar = el('wizProgBar');
-  if (chip) chip.textContent = stepNum + '/' + total;
-  if (frac) frac.textContent = stepNum + '/' + total;
-  if (bar) bar.style.width = pct + '%';
-  syncWizardFooter();
-}
-
-function wizNext() {
-  if (!validateStep()) {
-    if (wiz.mode === 'package' && wiz.step === 3) renderWizardBody();
-    return;
-  }
-  if (
-    wiz.mode === 'service' &&
-    wiz.step === 0 &&
-    typeof syncSvcNameWithCategory === 'function'
-  ) {
-    syncSvcNameWithCategory(wiz.draft, wiz.draft.category, wiz.draft.category);
-  }
-  if (wiz.mode === 'package' && wiz.step === wizTotal() - 1) return;
-  if (wiz.mode === 'service' && wiz.step === wizTotal() - 1) return;
-  if (wiz.step >= wizTotal() - 1) {
-    finishWizard(true);
-    return;
-  }
-  wiz.step += 1;
-  if (wiz.mode === 'package' && wiz.step === 2 && !needsCeremonyStep(wiz.draft.functions)) {
-    wiz.step = 3;
-  }
-  renderWizard();
-}
-
-function wizPrev() {
-  if (wiz.step <= 0) {
-    show(wiz.backTo);
-    return;
-  }
-  readWizardFields();
-  wiz.step -= 1;
-  if (wiz.mode === 'package' && wiz.step === 2 && !needsCeremonyStep(wiz.draft.functions)) {
-    wiz.step = 1;
-  }
-  renderWizard();
-}
-
 function bindGlobal() {
   document.querySelectorAll('.back[data-to]').forEach((btn) => {
     btn.onclick = () => navigatePhotoScreen(btn.getAttribute('data-to'));
@@ -1516,12 +686,16 @@ function boot() {
       throw new Error('Missing dashboard — open ' + cateringOwnerDemoFileName() + ' (full file).');
     }
     loadStore();
-    sanitizeWeddingPackageFunctions();
+    ensureCateringMenuStore();
+    if (!store.cateringMenu.foodItems.length && typeof seedDemoFoodItems === 'function') {
+      store.cateringMenu.foodItems = seedDemoFoodItems();
+    }
     ensureRegisteredDistrict();
     saveStore();
     renderLmb();
     renderPhotoDash();
     bindGlobal();
+    if (typeof bindCateringMenuAll === 'function') bindCateringMenuAll();
     bindPhotoCalendarUi();
     ensurePhotoCalendar();
     const err = el('bootError');

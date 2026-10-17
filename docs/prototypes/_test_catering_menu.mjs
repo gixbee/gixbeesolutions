@@ -1,0 +1,41 @@
+import { chromium } from 'playwright';
+import { fileURLToPath } from 'url';
+import path from 'path';
+
+const html = path.join(path.dirname(fileURLToPath(import.meta.url)), 'GIXBEE-CATERING-OWNER-FINALFLOW5.html');
+const browser = await chromium.launch();
+const page = await browser.newPage();
+const errors = [];
+page.on('pageerror', (e) => errors.push(e.message));
+await page.goto('file://' + html);
+await page.waitForTimeout(800);
+await page.click('text=Manage');
+await page.waitForTimeout(400);
+await page.click('button:has-text("Menu & Packages")');
+await page.waitForTimeout(500);
+const pkgCount = await page.locator('#catPkgList .pkg-card').count();
+if (pkgCount < 3) errors.push('expected 3 demo packages, got ' + pkgCount);
+await page.click('#catTabFoodItems');
+await page.waitForTimeout(300);
+await page.click('button.cat-mod-row:has-text("Soups")');
+await page.waitForTimeout(400);
+await page.click('#catModulePickSave');
+await page.waitForTimeout(400);
+await page.click('#catAddPackageBtn');
+await page.waitForTimeout(300);
+await page.fill('#catPkgName', 'Test Corporate Lunch');
+await page.click('button.cat-pkg-mod-row:has-text("Soups")');
+await page.waitForTimeout(300);
+await page.click('#catModulePickSave');
+await page.waitForTimeout(300);
+await page.click('#catPkgNextPricing');
+await page.waitForTimeout(300);
+await page.click('#catPkgSave');
+await page.waitForTimeout(500);
+const title = await page.locator('#catHubTitle').textContent();
+await browser.close();
+if (errors.length) {
+  console.error('FAIL', errors);
+  process.exit(1);
+}
+console.log('OK menu hub flow, title=', title);
