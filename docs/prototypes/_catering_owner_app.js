@@ -11,7 +11,7 @@ function cateringOwnerDemoFileName() {
   }
   return 'GIXBEE-CATERING-OWNER-FINALFLOW.html';
 }
-const STORAGE_KEY = 'GIXBEE_CATERING_OWNER_V4';
+const STORAGE_KEY = 'GIXBEE_CATERING_OWNER_V5';
 
 const INDIAN_STATES = {
   Kerala: ['Thrissur', 'Ernakulam', 'Kozhikode', 'Kottayam', 'Palakkad', 'Malappuram', 'Thiruvananthapuram'],

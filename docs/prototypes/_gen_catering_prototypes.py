@@ -8,6 +8,7 @@ ICONS = DIR / "_catering_owner_icons.js"
 CAL = DIR / "_photo_calendar.js"
 MENU_CAT = DIR / "_catering_menu_catalog.js"
 MENU_HUB = DIR / "_catering_menu_hub.js"
+INDIVIDUAL = DIR / "_catering_individual_food.js"
 APP = DIR / "_catering_owner_app.js"
 MASTER = DIR / "GIXBEE-CATERING-OWNER-FINALFLOW.html"
 
@@ -32,6 +33,7 @@ def build_master() -> str:
     cal = CAL.read_text(encoding="utf-8")
     menu_cat = MENU_CAT.read_text(encoding="utf-8")
     menu_hub = MENU_HUB.read_text(encoding="utf-8")
+    individual = INDIVIDUAL.read_text(encoding="utf-8")
     app = APP.read_text(encoding="utf-8")
     block = (
         "<!-- APP_START -->\n<script>\n"
@@ -40,6 +42,8 @@ def build_master() -> str:
         + cal
         + "\n"
         + menu_cat
+        + "\n"
+        + individual
         + "\n"
         + menu_hub
         + "\n"
@@ -56,6 +60,8 @@ def build_master() -> str:
         raise SystemExit("missing catering owner app")
     if "FOOD_MODULES" not in out or "cateringMenuOpenHub" not in out:
         raise SystemExit("missing catering menu bundle")
+    if "INDIVIDUAL_FOOD_PICKER_SECTIONS" not in out:
+        raise SystemExit("missing individual food picker bundle")
     for cal_marker in (
         'id="photoCalGrid"',
         "function openPhotoCalendar",

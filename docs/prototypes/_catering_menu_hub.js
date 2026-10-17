@@ -3,6 +3,9 @@
 let menuPickCtx = { mode: 'catalog', selected: {}, moduleId: null, returnTo: 'menuPkg' };
 let foodFormDraft = null;
 let pkgWizard = { draft: null, editId: null };
+let individualPickMk = null;
+let individualPickSearch = '';
+let catalogModuleSearch = '';
 
 function ensureCateringMenuStore() {
   if (!store.cateringMenu) store.cateringMenu = defaultCateringMenuStore();
@@ -105,13 +108,13 @@ function renderCateringMenuHub() {
   if (tabFood) tabFood.classList.toggle('on', !isPkg);
 
   const hubTitle = el('catHubTitle');
-  if (hubTitle) hubTitle.textContent = isPkg ? 'Menu & Packages' : 'Food Menu';
+  if (hubTitle) hubTitle.textContent = isPkg ? 'Menu & Packages' : 'Individual food items';
 
   const intro = el('catHubIntro');
   if (intro) {
     intro.textContent = isPkg
       ? 'Catering packages with per-person slabs. Filter by tier and publish when ready.'
-      : 'Browse the 13 modules and add dishes you offer to your live menu.';
+      : '';
   }
 
   const stat = el('catHubStat');
@@ -130,14 +133,36 @@ function renderCateringMenuHub() {
         live +
         '</b> LIVE</span>'
       : '<span class="cat-stat-pill blue"><b>' +
+        individualFoodItems().length +
+        '</b> INDIVIDUAL ITEMS</span><span class="cat-stat-pill live"><b>' +
         foods +
-        '</b> ACTIVE ITEMS</span><span class="cat-stat-pill"><b>13</b> MODULES</span>';
+        '</b> LIVE</span>';
   }
 
   renderCatPkgFilters();
   renderCatPkgList();
-  renderCatFoodModuleList();
+  renderCatIndividualFoodList();
   bindCateringMenuHubUi();
+}
+
+function individualFoodItems() {
+  return (store.cateringMenu.foodItems || []).filter(function (f) {
+    if (f.status === 'archived') return false;
+    return f.individualListing !== false;
+  });
+}
+
+function foodItemFromPrice(f) {
+  const slabs = f.slabs || [];
+  if (!slabs.length) return f.quoteOnly ? 'Quote' : '—';
+  const min = Math.min.apply(
+    null,
+    slabs.map(function (s) {
+      return +s.price || 0;
+    })
+  );
+  const unit = f.pricingMode === 'per_unit' ? f.unitLabel || 'unit' : 'plate';
+  return formatInrCompact(min) + ' / ' + unit + '+';
 }
 
 function renderCatPkgFilters() {
@@ -246,10 +271,57 @@ function renderCatPkgList() {
     .join('');
 }
 
+function renderCatIndividualFoodList() {
+  const host = el('catIndividualFoodList');
+  if (!host) return;
+  const q = (store.cateringMenu.foodSearch || '').trim().toLowerCase();
+  const items = individualFoodItems().filter(function (f) {
+    if (!q) return true;
+    return (
+      String(f.name).toLowerCase().includes(q) ||
+      String(f.subcatName || '').toLowerCase().includes(q)
+    );
+  });
+  if (!items.length) {
+    host.innerHTML =
+      '<div class="hub-empty" style="margin:8px 16px"><div class="hub-empty-ico">🍽️</div><b>No individual items yet</b><p>Add biriyani, alfam, curries, appam, tea, coffee, and set per-plate rates.</p></div>';
+    return;
+  }
+  host.innerHTML = items
+    .map(function (f) {
+      const mod = findFoodModule(f.moduleId);
+      const emoji = f.imageEmoji || (mod && mod.emoji) || '🍽️';
+      return (
+        '<div class="svc-row-wrap" data-food-id="' +
+        esc(f.id) +
+        '"><div class="svc-row"><div class="svc-thumb" style="background:linear-gradient(145deg,#F97316,#EA580C)"><span style="font-size:22px">' +
+        emoji +
+        '</span></div><div class="svc-bd"><b>' +
+        esc(f.name) +
+        '</b><div class="svc-meta"><span class="svc-price-tag">' +
+        foodItemFromPrice(f) +
+        '</span><span class="status ' +
+        (f.status === 'active' ? 'pub' : 'draft') +
+        '" style="margin:0;padding:4px 8px">' +
+        (f.status === 'active' ? 'Live' : 'Draft') +
+        '</span></div></div></div><div class="hub-card-actions">' +
+        '<button type="button" class="hub-act hub-act-edit hub-act-sm" data-food-edit="' +
+        esc(f.id) +
+        '">' +
+        photoIcon('edit') +
+        ' Edit</button>' +
+        '<button type="button" class="hub-act hub-act-del hub-act-sm" data-food-del="' +
+        esc(f.id) +
+        '">Delete</button></div></div>'
+      );
+    })
+    .join('');
+}
+
 function renderCatFoodModuleList() {
   const host = el('catFoodModuleList');
   if (!host) return;
-  const q = (store.cateringMenu.foodSearch || '').trim().toLowerCase();
+  const q = (catalogModuleSearch || '').trim().toLowerCase();
   host.innerHTML = FOOD_MODULES
     .filter(function (m) {
       if (!q) return true;
@@ -308,8 +380,45 @@ function bindCateringMenuHubUi() {
     foodSearch.value = store.cateringMenu.foodSearch || '';
     foodSearch.oninput = function () {
       store.cateringMenu.foodSearch = foodSearch.value;
-      renderCatFoodModuleList();
+      renderCatIndividualFoodList();
     };
+  }
+  const addInd = el('catAddIndividualFoodBtn');
+  if (addInd) {
+    addInd.onclick = function () {
+      openPickIndividualItem();
+    };
+  }
+  const openCat = el('catOpenFullMenuCatalog');
+  if (openCat) {
+    openCat.onclick = function () {
+      catalogModuleSearch = '';
+      const si = el('catCatalogModuleSearch');
+      if (si) si.value = '';
+      renderCatFoodModuleList();
+      show('catFullMenuCatalog');
+    };
+  }
+  const indList = el('catIndividualFoodList');
+  if (indList) {
+    indList.querySelectorAll('[data-food-edit]').forEach(function (btn) {
+      btn.onclick = function (e) {
+        e.stopPropagation();
+        openFoodItemForm(btn.getAttribute('data-food-edit'), null);
+      };
+    });
+    indList.querySelectorAll('[data-food-del]').forEach(function (btn) {
+      btn.onclick = function (e) {
+        e.stopPropagation();
+        deleteFoodItem(btn.getAttribute('data-food-del'));
+      };
+    });
+    indList.querySelectorAll('.svc-row-wrap').forEach(function (row) {
+      row.onclick = function (e) {
+        if (e.target.closest('.hub-act')) return;
+        openFoodItemForm(row.getAttribute('data-food-id'), null);
+      };
+    });
   }
   const sortBtn = el('catPkgSortBtn');
   if (sortBtn) {
@@ -342,18 +451,20 @@ function bindCateringMenuHubUi() {
   if (list) {
     list.querySelectorAll('[data-cpkg-id]').forEach(function (card) {
       card.onclick = function (e) {
-        if (e.target.closest('.cat-pkg-more')) return;
+        if (e.target.closest('.hub-act')) return;
         startCatPackageWizard(card.getAttribute('data-cpkg-id'));
       };
     });
-    list.querySelectorAll('[data-cpkg-menu]').forEach(function (btn) {
+    list.querySelectorAll('[data-cpkg-edit]').forEach(function (btn) {
       btn.onclick = function (e) {
         e.stopPropagation();
-        const id = btn.getAttribute('data-cpkg-menu');
-        const action = prompt('Package options:\n1 = Edit\n2 = Duplicate\n3 = Delete\n\nEnter 1, 2 or 3');
-        if (action === '1') startCatPackageWizard(id);
-        else if (action === '2') duplicateCatPackage(id);
-        else if (action === '3') deleteCatPackage(id);
+        startCatPackageWizard(btn.getAttribute('data-cpkg-edit'));
+      };
+    });
+    list.querySelectorAll('[data-cpkg-del]').forEach(function (btn) {
+      btn.onclick = function (e) {
+        e.stopPropagation();
+        deleteCatPackage(btn.getAttribute('data-cpkg-del'));
       };
     });
   }
@@ -365,6 +476,72 @@ function bindCateringMenuHubUi() {
       };
     });
   }
+}
+
+function deleteFoodItem(id) {
+  const f = findFoodItem(id);
+  if (!f) return;
+  if (!confirm('Remove "' + f.name + '" from your individual menu?')) return;
+  store.cateringMenu.foodItems = store.cateringMenu.foodItems.filter(function (x) {
+    return x.id !== id;
+  });
+  saveStore();
+  renderCateringMenuHub();
+  toast('Item removed');
+}
+
+function openPickIndividualItem() {
+  individualPickMk = null;
+  individualPickSearch = '';
+  const si = el('catPickIndividualSearch');
+  if (si) si.value = '';
+  renderPickIndividualBody();
+  show('catPickIndividualItem');
+}
+
+function renderPickIndividualBody() {
+  const body = el('catPickIndividualBody');
+  const btn = el('catPickIndividualContinue');
+  if (!body) return;
+  const q = (individualPickSearch || '').trim().toLowerCase();
+  const rows = buildIndividualPickerRows().filter(function (r) {
+    if (!q) return true;
+    return r.name.toLowerCase().includes(q) || r.section.toLowerCase().includes(q);
+  });
+  let html = '';
+  let lastSec = '';
+  rows.forEach(function (r) {
+    if (r.section !== lastSec) {
+      lastSec = r.section;
+      html += '<p class="cat-indiv-sec">' + esc(r.section) + '</p>';
+    }
+    const on = individualPickMk === (r.masterKey || r.name);
+    const onMenu = r.masterKey && isItemOnOwnerMenu(r.masterKey);
+    html +=
+      '<label class="cat-indiv-row' +
+      (on ? ' on' : '') +
+      '"><input type="radio" name="indivPick" value="' +
+      esc(r.masterKey || r.name) +
+      '"' +
+      (on ? ' checked' : '') +
+      '><span><b>' +
+      esc(r.name) +
+      '</b>' +
+      (onMenu ? '<small>Already on menu — edit from list</small>' : '<small>Single item · set plate rates next</small>') +
+      '</span></label>';
+  });
+  if (!html) html = '<div class="cat-pick-empty">No dishes match your search.</div>';
+  body.innerHTML = html;
+  if (btn) {
+    btn.disabled = !individualPickMk;
+    btn.style.opacity = individualPickMk ? '1' : '0.55';
+  }
+  body.querySelectorAll('input[name=indivPick]').forEach(function (inp) {
+    inp.onchange = function () {
+      individualPickMk = inp.value;
+      renderPickIndividualBody();
+    };
+  });
 }
 
 function duplicateCatPackage(id) {
@@ -612,7 +789,7 @@ function commitModulePicker() {
   let added = 0;
   keys.forEach(function (mk) {
     if (ownerHasMasterKey(mk)) return;
-    const item = createFoodItemFromMaster(mk, 'draft');
+    const item = createFoodItemFromMaster(mk, 'draft', false);
     store.cateringMenu.foodItems.push(item);
     added += 1;
   });
@@ -623,18 +800,25 @@ function commitModulePicker() {
   toast(added ? added + ' item(s) added — set pricing to go live' : 'No new items selected');
 }
 
-function createFoodItemFromMaster(masterKey, status) {
-  const hit = findMasterItem(masterKey);
+function createFoodItemFromMaster(masterKey, status, individualListing) {
+  let hit = findMasterItem(masterKey);
+  if (!hit && masterKey) {
+    const named = findCatalogItemByName(masterKey);
+    if (named) hit = named;
+  }
   if (!hit) {
-    return {
+    const row = buildIndividualPickerRows().find(function (r) {
+      return r.masterKey === masterKey || r.name === masterKey;
+    });
+    const out = {
       id: uid('food'),
       masterKey: masterKey,
-      name: 'Custom item',
-      moduleId: menuPickCtx.moduleId,
+      name: row ? row.name : 'Custom item',
+      moduleId: row ? row.moduleId : menuPickCtx.moduleId,
       subcatId: 'custom',
       subcatName: 'Custom',
       description: '',
-      diet: 'veg',
+      diet: row ? row.diet : 'veg',
       pricingMode: 'per_person',
       unitLabel: 'plate',
       quoteOnly: false,
@@ -642,8 +826,11 @@ function createFoodItemFromMaster(masterKey, status) {
       slabs: defaultItemSlabs(),
       imageEmoji: '🍽️',
     };
+    if (individualListing === true) out.individualListing = true;
+    else if (individualListing === false) out.individualListing = false;
+    return out;
   }
-  return {
+  const out = {
     id: uid('food'),
     masterKey: masterKey,
     name: hit.item.name,
@@ -659,6 +846,32 @@ function createFoodItemFromMaster(masterKey, status) {
     slabs: defaultItemSlabs(),
     imageEmoji: hit.module.emoji,
   };
+  if (individualListing === true) out.individualListing = true;
+  else if (individualListing === false) out.individualListing = false;
+  return out;
+}
+
+function continueIndividualPick() {
+  if (!individualPickMk) return;
+  const pickKey = individualPickMk;
+  let existing = (store.cateringMenu.foodItems || []).find(function (f) {
+    return f.masterKey === pickKey;
+  });
+  if (!existing) {
+    const byName = buildIndividualPickerRows().find(function (r) {
+      return (r.masterKey || r.name) === pickKey;
+    });
+    if (byName) {
+      existing = (store.cateringMenu.foodItems || []).find(function (f) {
+        return String(f.name).toLowerCase() === String(byName.name).toLowerCase();
+      });
+    }
+  }
+  if (existing) {
+    openFoodItemForm(existing.id, null);
+    return;
+  }
+  openFoodItemForm(null, pickKey, { individual: true });
 }
 
 function defaultFoodDescription(name, diet) {
@@ -668,7 +881,8 @@ function defaultFoodDescription(name, diet) {
   return '';
 }
 
-function openFoodItemForm(foodId, masterKey) {
+function openFoodItemForm(foodId, masterKey, opts) {
+  opts = opts || {};
   let item = foodId ? findFoodItem(foodId) : null;
   if (!item && masterKey) {
     item = (store.cateringMenu.foodItems || []).find(function (f) {
@@ -676,7 +890,8 @@ function openFoodItemForm(foodId, masterKey) {
     });
   }
   if (!item && masterKey) {
-    item = createFoodItemFromMaster(masterKey, 'draft');
+    item = createFoodItemFromMaster(masterKey, 'draft', opts.individual ? true : undefined);
+    if (opts.individual) item.individualListing = true;
   }
   if (!item) {
     toast('Select an item first');
@@ -687,6 +902,63 @@ function openFoodItemForm(foodId, masterKey) {
   show('catFoodItemForm');
 }
 
+function syncFoodFormModuleSelects() {
+  const d = foodFormDraft;
+  if (!d) return;
+  const modSel = el('catFoodModuleSelect');
+  const subSel = el('catFoodSubcatSelect');
+  if (!modSel || !subSel) return;
+  modSel.innerHTML = FOOD_MODULES
+    .map(function (m) {
+      return (
+        '<option value="' +
+        esc(m.id) +
+        '">' +
+        esc(m.num + '. ' + m.name) +
+        '</option>'
+      );
+    })
+    .join('');
+  modSel.value = d.moduleId || FOOD_MODULES[0].id;
+  function fillSubcats() {
+    const mod = findFoodModule(modSel.value);
+    if (!mod) return;
+    subSel.innerHTML = (mod.subcats || [])
+      .map(function (sc) {
+        return '<option value="' + esc(sc.id) + '">' + esc(sc.name) + '</option>';
+      })
+      .join('');
+    let subId = d.subcatId;
+    if (subId && !(mod.subcats || []).some(function (sc) { return sc.id === subId; })) subId = null;
+    if (!subId && d.subcatName) {
+      const hit = (mod.subcats || []).find(function (sc) {
+        return sc.name === d.subcatName;
+      });
+      if (hit) subId = hit.id;
+    }
+    if (subId) subSel.value = subId;
+    else if (mod.subcats && mod.subcats[0]) subSel.value = mod.subcats[0].id;
+    const sc = (mod.subcats || []).find(function (x) {
+      return x.id === subSel.value;
+    });
+    d.moduleId = mod.id;
+    if (sc) {
+      d.subcatId = sc.id;
+      d.subcatName = sc.name;
+    }
+    const mod2 = findFoodModule(d.moduleId);
+    if (mod2) el('catFoodImgEmoji').textContent = d.imageEmoji || mod2.emoji || '🍽️';
+  }
+  modSel.onchange = function () {
+    d.subcatId = null;
+    fillSubcats();
+  };
+  subSel.onchange = function () {
+    fillSubcats();
+  };
+  fillSubcats();
+}
+
 function renderFoodItemForm() {
   const d = foodFormDraft;
   if (!d) return;
@@ -694,8 +966,7 @@ function renderFoodItemForm() {
   el('catFoodFormTitle').textContent = d.id && findFoodItem(d.id) ? 'Edit Food Item' : 'Add Food Item';
   el('catFoodImgEmoji').textContent = d.imageEmoji || (mod && mod.emoji) || '🍽️';
   el('catFoodName').value = d.name || '';
-  el('catFoodModule').value = mod ? mod.num + '. ' + mod.name : d.moduleId;
-  el('catFoodSubcat').value = d.subcatName || d.subcatId || '';
+  syncFoodFormModuleSelects();
   el('catFoodDesc').value = d.description || '';
   el('catFoodDietVeg').checked = d.diet === 'veg';
   el('catFoodDietEgg').checked = d.diet === 'egg';
@@ -809,6 +1080,12 @@ function saveFoodItemForm(status) {
   foodFormDraft.description = (el('catFoodDesc').value || '').trim();
   foodFormDraft.quoteOnly = el('catFoodQuoteOnly').checked;
   foodFormDraft.unitLabel = (el('catFoodUnitLabel').value || 'plate').trim();
+  syncFoodFormModuleSelects();
+  if (foodFormDraft.individualListing === undefined && !(store.cateringMenu.foodItems || []).some(function (f) {
+    return f.id === foodFormDraft.id;
+  })) {
+    foodFormDraft.individualListing = true;
+  }
   if (foodFormDraft.quoteOnly) foodFormDraft.status = status === 'active' ? 'active' : 'draft';
   else if (!foodFormDraft.slabs || !foodFormDraft.slabs.length) {
     toast('Add at least one pricing slab or enable quote-only');
@@ -1025,9 +1302,49 @@ function bindCatModulePickUi() {
   };
 }
 
+function bindPickIndividualUi() {
+  const back = el('catPickIndividualBack');
+  if (back) {
+    back.onclick = function () {
+      show('menuPkg');
+    };
+  }
+  const cont = el('catPickIndividualContinue');
+  if (cont) {
+    cont.onclick = function () {
+      continueIndividualPick();
+    };
+  }
+  const search = el('catPickIndividualSearch');
+  if (search) {
+    search.oninput = function () {
+      individualPickSearch = search.value;
+      renderPickIndividualBody();
+    };
+  }
+}
+
+function bindFullMenuCatalogUi() {
+  const back = el('catFullMenuBack');
+  if (back) {
+    back.onclick = function () {
+      show('menuPkg');
+    };
+  }
+  const search = el('catCatalogModuleSearch');
+  if (search) {
+    search.oninput = function () {
+      catalogModuleSearch = search.value;
+      renderCatFoodModuleList();
+    };
+  }
+}
+
 function bindCateringMenuAll() {
   bindFoodItemFormUi();
   bindCatPkgCreateUi();
   bindCatPkgPricingUi();
   bindCatModulePickUi();
+  bindPickIndividualUi();
+  bindFullMenuCatalogUi();
 }

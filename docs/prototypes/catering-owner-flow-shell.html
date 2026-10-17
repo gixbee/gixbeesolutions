@@ -148,6 +148,15 @@ body{margin:0;background:#E8EDF5;font-family:Inter,system-ui,sans-serif;color:va
 .cat-pick-empty{text-align:center;padding:32px 20px;color:var(--mut);font-size:13px;font-weight:600}
 .cat-pick-foot{position:sticky;bottom:0;z-index:6;padding:12px 16px 16px;background:linear-gradient(transparent,#fff 20%);border-top:1px solid #F1F5F9}
 .cat-pick-foot .btn{box-shadow:0 8px 24px rgba(37,99,235,.28)}
+.cat-indiv-row{display:flex;align-items:center;gap:12px;width:calc(100% - 32px);margin:0 16px 8px;padding:12px 14px;border:1.5px solid #E2E8F0;border-radius:14px;background:#fff;cursor:pointer;text-align:left;font:inherit;color:var(--navy)}
+.cat-indiv-row.on{border-color:#93C5FD;background:#EFF6FF}
+.cat-indiv-row input{accent-color:var(--blue);width:18px;height:18px;flex-shrink:0}
+.cat-indiv-row b{font-size:14px;font-weight:800;display:block}
+.cat-indiv-row small{font-size:11px;color:var(--mut);font-weight:600}
+.cat-indiv-sec{font-size:13px;font-weight:900;color:var(--navy);padding:14px 16px 8px;margin:0}
+#catIndividualFoodList .svc-row-wrap{margin:0 16px 10px;border:1px solid #E2E8F0;border-radius:14px;overflow:hidden}
+#catIndividualFoodList .svc-row{border:0;padding:12px 14px}
+#catIndividualFoodList .hub-card-actions{padding:0 14px 12px}
 .cat-food-hero{margin:0 16px 16px;height:160px;border-radius:16px;background:linear-gradient(145deg,#F97316,#EA580C);display:grid;place-items:center;position:relative;overflow:hidden}
 .cat-food-hero span{font-size:64px}
 .cat-food-hero button{position:absolute;bottom:12px;right:12px;border:0;background:rgba(255,255,255,.92);padding:8px 14px;border-radius:99px;font-size:12px;font-weight:800;color:var(--navy);cursor:pointer}
@@ -756,7 +765,7 @@ button.manage-pill{cursor:pointer;font:inherit;color:var(--blue);border-color:#B
   <div class="hub-seg-wrap">
     <div class="hub-seg">
       <button type="button" class="hub-tab pkg-tab on" id="catTabPackages">Packages</button>
-      <button type="button" class="hub-tab svc-tab" id="catTabFoodItems">Food Items</button>
+      <button type="button" class="hub-tab svc-tab" id="catTabFoodItems">Individual food items</button>
     </div>
   </div>
   <div class="hub-pkg-only">
@@ -771,9 +780,27 @@ button.manage-pill{cursor:pointer;font:inherit;color:var(--blue);border-color:#B
     <div class="hub-cta-sticky hub-pkg-only"><button type="button" class="btn btn-pink" id="catAddPackageBtn">+ Add Package</button></div>
   </div>
   <div class="hub-food-only">
-    <div class="cat-hub-search"><span aria-hidden="true">🔍</span><input type="search" id="catFoodSearch" placeholder="Search food items…" autocomplete="off"></div>
-    <div id="catFoodModuleList" style="padding-bottom:24px"></div>
+    <p class="hub-intro" id="catFoodIntro">Single dishes customers can order with your per-plate rates (like individual photography services).</p>
+    <div class="cat-hub-search"><span aria-hidden="true">🔍</span><input type="search" id="catFoodSearch" placeholder="Search your individual items…" autocomplete="off"></div>
+    <div id="catIndividualFoodList" style="padding-bottom:8px"></div>
+    <button type="button" class="cat-add-slab" id="catOpenFullMenuCatalog" style="margin:0 16px 12px">Add from full 13-module menu →</button>
+    <div class="hub-cta-sticky hub-cta-svc"><button type="button" class="btn btn-blue" id="catAddIndividualFoodBtn">+ Add individual food item</button></div>
   </div>
+</section>
+
+<section class="scr" id="catFullMenuCatalog">
+  <div class="top"><button type="button" class="back" id="catFullMenuBack">←</button><h1>Full menu catalogue</h1><span style="width:36px"></span></div>
+  <p class="hub-intro" style="padding-top:8px">Pick modules to add many dishes for packages and full menus.</p>
+  <div class="cat-hub-search" style="margin-top:0"><span>🔍</span><input type="search" id="catCatalogModuleSearch" placeholder="Search modules…" autocomplete="off"></div>
+  <div id="catFoodModuleList" style="padding-bottom:24px"></div>
+</section>
+
+<section class="scr" id="catPickIndividualItem">
+  <div class="top"><button type="button" class="back" id="catPickIndividualBack">←</button><h1>Select food item</h1><span style="width:36px"></span></div>
+  <p class="hub-intro" style="padding-top:4px">Choose one dish to price (per plate slabs). You can add more items one at a time.</p>
+  <div class="cat-hub-search" style="margin-top:0"><span>🔍</span><input type="search" id="catPickIndividualSearch" placeholder="Search dishes…" autocomplete="off"></div>
+  <div id="catPickIndividualBody" style="padding-bottom:80px"></div>
+  <div class="cat-pick-foot"><button type="button" class="btn btn-blue" id="catPickIndividualContinue" disabled>Continue →</button></div>
 </section>
 
 <section class="scr" id="catModulePick">
@@ -786,11 +813,11 @@ button.manage-pill{cursor:pointer;font:inherit;color:var(--blue);border-color:#B
 
 <section class="scr" id="catFoodItemForm">
   <div class="top"><button type="button" class="back" id="catFoodBack">←</button><h1 id="catFoodFormTitle">Add Food Item</h1><span style="width:36px"></span></div>
-  <div class="cat-food-hero"><span id="catFoodImgEmoji">🍲</span><button type="button" id="catFoodChangeImg">Change Image</button></div>
+  <div class="cat-food-hero"><span id="catFoodImgEmoji">🍲</span><button type="button" id="catFoodChangeImg">Upload Image</button></div>
   <div class="pad">
     <div class="fld"><label>Food Item Name*</label><input id="catFoodName" placeholder="Dish name"></div>
-    <div class="fld"><label>Module*</label><input id="catFoodModule" readonly></div>
-    <div class="fld"><label>Subcategory*</label><input id="catFoodSubcat" readonly></div>
+    <div class="fld"><label>Module*</label><select id="catFoodModuleSelect"></select></div>
+    <div class="fld"><label>Subcategory*</label><select id="catFoodSubcatSelect"></select></div>
     <div class="fld"><label>Description (optional)</label><textarea id="catFoodDesc" rows="2" placeholder="Short description for customers"></textarea></div>
     <p class="lbl">DIET</p>
     <div class="radio-row" style="margin-bottom:12px">
@@ -805,7 +832,7 @@ button.manage-pill{cursor:pointer;font:inherit;color:var(--blue);border-color:#B
       <label><input type="radio" name="catFoodPrice" id="catFoodPriceUnit"> Per Quantity / Unit</label>
     </div>
     <div class="fld" id="catFoodUnitWrap" style="display:none"><label>Unit label</label><input id="catFoodUnitLabel" placeholder="bowl, litre, tray…"></div>
-    <p class="lbl">QUANTITY SLABS (OWNER DEFINED)</p>
+    <p class="lbl" id="catFoodSlabLabel">GUEST COUNT PRICING (OWNER DEFINED)</p>
     <div id="catFoodSlabs"></div>
     <button type="button" class="cat-add-slab" id="catFoodAddSlab">+ Add another slab</button>
   </div>
