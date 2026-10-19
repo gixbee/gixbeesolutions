@@ -84,7 +84,7 @@ p { margin: 0 0 14px; }
   min-height: 72px;
 }
 .brand { display: flex; align-items: center; text-decoration: none; }
-.brand img { height: 28px; width: auto; }
+.brand img { height: 36px; width: auto; }
 .nav-toggle { position: absolute; opacity: 0; pointer-events: none; }
 .nav-burger {
   display: none;
