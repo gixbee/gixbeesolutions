@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Cloud use — Gixbee</title>
+  <meta name="description" content="How Gixbee uses cloud compute, database, cache, storage, and bandwidth for live local services in Kerala and Tamil Nadu.">
+  <link rel="icon" href="assets/favicon.png" type="image/png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,560;9..144,640&family=Outfit:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="index.html"><img src="assets/gixbee-logo.png" alt="Gixbee"></a>
+      <input class="nav-toggle" type="checkbox" id="nav-toggle" aria-label="Open menu">
+      <label class="nav-burger" for="nav-toggle">Menu</label>
+      <nav>
+        <a href="index.html">Company</a>
+        <a href="product.html">Product</a>
+        <a href="cloud.html" aria-current="page">Cloud</a>
+        <a href="privacy.html">Privacy</a>
+        <a href="terms.html">Terms</a>
+        <a class="nav-mail" href="mailto:gixbeesolutions@gmail.com">Email</a>
+      </nav>
+    </div>
+  </header>
+
+  <main id="main">
+    <div class="wrap hero">
+      <p class="kicker">Cloud</p>
+      <h1>What the credits are for.</h1>
+      <p class="lede">Gixbee is a live marketplace. Matching, maps, calls, and alerts only work if the service stays up while people are moving. Cloud capacity is the production system, not a demo environment.</p>
+    </div>
+
+    <section>
+      <div class="wrap">
+        <div class="section-head">
+          <p class="kicker">Workloads</p>
+          <h2>What runs in the cloud.</h2>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr><th>Workload</th><th>Role</th><th>Why it has to stay on</th></tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>API</td>
+                <td>Bookings, profiles, businesses, hiring, rentals, support.</td>
+                <td>The Android and iOS apps call it throughout a job.</td>
+              </tr>
+              <tr>
+                <td>Realtime</td>
+                <td>Live pro location, job offers, chat, and in-app call signaling.</td>
+                <td>Those connections stay open for the length of a trip or a conversation.</td>
+              </tr>
+              <tr>
+                <td>PostgreSQL</td>
+                <td>System of record for accounts, bookings, businesses, jobs, and rentals.</td>
+                <td>Every confirm, cancel, and hire is stored here.</td>
+              </tr>
+              <tr>
+                <td>Redis</td>
+                <td>One-time passwords, who is live, background queues, and realtime fan-out.</td>
+                <td>Matching and login checks need a fast shared store across API instances.</td>
+              </tr>
+              <tr>
+                <td>Background workers</td>
+                <td>Request timeouts, travel-progress checks, reminders, and notification dispatch.</td>
+                <td>They run after the phone request has already returned.</td>
+              </tr>
+              <tr>
+                <td>File storage</td>
+                <td>Profile photos and uploads.</td>
+                <td>The apps fetch media separately from the database.</td>
+              </tr>
+              <tr>
+                <td>Staff console</td>
+                <td>Web app for verification, disputes, support, and health.</td>
+                <td>Operations staff use it while the public apps are in the field.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <div class="wrap">
+        <div class="grid-3">
+          <article class="card">
+            <h3>Compute</h3>
+            <p>More than one API instance behind a load balancer, so a single process restart does not drop live jobs. Containers package the API and the staff console.</p>
+          </article>
+          <article class="card">
+            <h3>Data</h3>
+            <p>PostgreSQL for records, with a connection pool in front of it. Redis for short-lived state. Object storage for photos and files.</p>
+          </article>
+          <article class="card">
+            <h3>Bandwidth</h3>
+            <p>Map updates, photo loads, push fan-out, and voice signaling grow with the number of live jobs in Kerala and Tamil Nadu.</p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <div class="wrap prose">
+        <p class="kicker">Stack</p>
+        <h2>What the software is.</h2>
+        <p>The mobile apps are Flutter. The API is implemented in TypeScript (NestJS) and in Rust; either one can serve the apps. The staff console is Angular. Data sits in PostgreSQL. Redis backs passwords, queues, and realtime. Payments in the app go through Razorpay. Login texts go through an SMS provider. Push uses Firebase Cloud Messaging. Maps use vector tiles for the live trip.</p>
+        <h2>How usage grows the bill</h2>
+        <p>A quiet hour still needs the database, cache, and at least one API process, because a pro can go live at any time. A busy hour adds open realtime connections, location updates, notification sends, and media. Credits cover that production capacity: virtual machines or containers, managed database, cache, storage, and outbound traffic.</p>
+        <h2>How access is held</h2>
+        <ul>
+          <li>Phone login uses a one-time password stored briefly, then checked. The app keeps a signed session.</li>
+          <li>The staff console is a separate sign-in with page-level access, not the public app login.</li>
+          <li>Realtime rooms take identity from the signed session. A client cannot publish another person’s location by typing an id.</li>
+          <li>Production boot refuses placeholder payment and SMS secrets.</li>
+          <li>Ordinary API responses leave out wallet balances, push tokens, and other private fields.</li>
+        </ul>
+        <p>Questions about this deployment: <a href="mailto:gixbeesolutions@gmail.com">gixbeesolutions@gmail.com</a>.</p>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <div class="wrap">
+      <span>© 2026 Gixbee. The Skill Intelligence Network.</span>
+      <span><a href="privacy.html">Privacy</a> · <a href="terms.html">Terms</a> · <a href="index.html">Company</a></span>
+    </div>
+  </footer>
+</body>
+</html>
