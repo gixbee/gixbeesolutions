@@ -2,8 +2,8 @@
   --bg: #09090d;
   --bg-2: #12121a;
   --ink: #f6f3ec;
-  --muted: #b7b1c2;
-  --faint: #8d8798;
+  --muted: #d2cbd8;
+  --faint: #a39aaf;
   --line: rgba(246, 243, 236, 0.14);
   --orange: #ff8c00;
   --flame: #ff4500;
@@ -134,10 +134,11 @@ nav a[aria-current="page"], nav a:hover { color: var(--ink); }
 dl { margin: 0; }
 .sheet div, .facts div {
   display: grid;
-  grid-template-columns: 118px 1fr;
-  gap: 12px;
-  padding: 12px 0;
+  grid-template-columns: 108px 1fr;
+  gap: 14px;
+  padding: 13px 0;
   border-top: 1px solid var(--line);
+  align-items: baseline;
 }
 dt { color: var(--faint); font-size: 14px; }
 dd { margin: 0; font-size: 15px; }
@@ -163,8 +164,9 @@ section { padding: 64px 0; }
   display: block;
   margin-bottom: 18px;
 }
+.card p:last-child { margin-bottom: 0; }
 .card p, .prose p { color: var(--muted); }
-.card ul, .prose ul { margin: 0; padding-left: 18px; color: var(--muted); }
+.card ul, .prose ul { margin: 0 0 14px; padding-left: 18px; color: var(--muted); }
 .card li + li, .prose li + li { margin-top: 6px; }
 
 .steps { counter-reset: step; display: grid; gap: 0; }
@@ -183,7 +185,8 @@ section { padding: 64px 0; }
 }
 
 table { width: 100%; border-collapse: collapse; font-size: 15px; }
-th, td { text-align: left; padding: 14px 12px; border-top: 1px solid var(--line); vertical-align: top; }
+th, td { text-align: left; padding: 16px 12px; border-top: 1px solid var(--line); vertical-align: top; }
+td:first-child { font-weight: 600; width: 180px; color: var(--ink); }
 th { color: var(--faint); font-weight: 600; font-size: 13px; letter-spacing: 0.08em; text-transform: uppercase; }
 .table-wrap { overflow-x: auto; border-bottom: 1px solid var(--line); }
 
