@@ -81,10 +81,8 @@ p { margin: 0 0 14px; }
   align-items: center;
   justify-content: space-between;
   gap: 20px;
-  min-height: 108px;
+  min-height: 64px;
 }
-.brand { display: flex; align-items: center; text-decoration: none; }
-.brand img { height: 64px; width: auto; }
 .nav-toggle { position: absolute; opacity: 0; pointer-events: none; }
 .nav-burger {
   display: none;
