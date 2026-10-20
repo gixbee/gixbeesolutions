@@ -52,7 +52,7 @@ a { color: inherit; }
   padding: 8px 12px;
 }
 
-.wrap { width: min(var(--max), calc(100% - 40px)); margin: 0 auto; }
+.wrap { width: min(var(--max), calc(100% - 24px)); margin: 0 auto; }
 .kicker {
   margin: 0 0 10px;
   font-size: 12px;
@@ -276,13 +276,14 @@ footer a { color: var(--muted); }
   td:first-child { width: auto; padding-bottom: 4px; }
 }
 @media (max-width: 640px) {
-  .wrap { width: min(var(--max), calc(100% - 32px)); }
+  .wrap { width: min(var(--max), calc(100% - 16px)); }
   .sheet div, .facts div, .steps article { grid-template-columns: 1fr; gap: 4px; }
   body { font-size: 16px; }
   h1 { font-size: 40px; }
   h2 { font-size: 30px; }
   h3 { font-size: 22px; }
   .card { padding: 18px; }
+  .prose ul { padding-left: 22px; }
   .steps article { padding: 16px 0; }
   footer .wrap { flex-direction: column; align-items: flex-start; }
 }
@@ -299,7 +300,7 @@ footer a { color: var(--muted); }
    1600px image at about a quarter of this size, and smaller type disappears. */
 body.capture { font-size: 56px; line-height: 1.38; }
 body.capture .site-header { display: none; }
-body.capture .wrap { width: min(1480px, calc(100% - 96px)); }
+body.capture .wrap { width: calc(100% - 40px); }
 body.capture .kicker { font-size: 32px; letter-spacing: 0.12em; margin-bottom: 18px; }
 body.capture h1 { font-size: 112px; line-height: 1.02; margin-bottom: 28px; }
 body.capture h2 { font-size: 76px; line-height: 1.05; margin-bottom: 20px; }
@@ -351,6 +352,7 @@ body.capture tr { border-top: 1px solid var(--line); padding: 28px 0 8px; }
 body.capture td, body.capture th { border-top: 0; padding: 0 0 12px; font-size: 44px; }
 body.capture td:first-child { font-size: 48px; padding-bottom: 6px; }
 body.capture .prose { max-width: none; }
+body.capture .prose ul { padding-left: 48px; }
 body.capture .prose h2 { font-size: 68px; margin-top: 28px; }
 body.capture .prose h2:first-child { margin-top: 0; }
 body.capture .prose h3 { font-size: 40px; margin-top: 28px; }
