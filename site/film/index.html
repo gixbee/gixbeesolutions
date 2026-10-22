@@ -39,6 +39,12 @@
       font-family: Fraunces, serif; font-weight: 500; font-size: 108px;
       line-height: 0.98; letter-spacing: -0.03em; margin: 0; color: #f6f3ec;
     }
+    .name {
+      font-family: Fraunces, serif; font-weight: 500; font-size: 118px;
+      line-height: 0.94; letter-spacing: -0.035em; margin: 0; color: #f6f3ec;
+      display: flex; flex-direction: column; align-items: center;
+    }
+    .name span { display: block; }
     .sub {
       font-family: Outfit, sans-serif; font-weight: 400; font-size: 34px;
       line-height: 1.4; color: #c9c3b8; margin: 36px 0 0; max-width: 920px;
@@ -77,7 +83,16 @@
     <section class="center" id="sOpen">
       <div class="rule child" id="openRule"></div>
       <img class="logo child" id="openLogo" src="../assets/gixbee-logo.png" alt="Gixbee">
-      <p class="kicker child" id="openKicker" style="margin-top:36px">Kerala first</p>
+    </section>
+
+    <section class="center" id="sName">
+      <h1 class="name">
+        <span class="child" id="n1">The Skill</span>
+        <span class="child" id="n2">Intelligence</span>
+        <span class="child" id="n3">Network.</span>
+      </h1>
+      <div class="rule child" id="nRule" style="width:128px;margin-top:36px"></div>
+      <p class="kicker child" id="nK" style="margin-top:28px;margin-bottom:0">Kerala first</p>
     </section>
 
     <section class="edit" id="sState">
@@ -113,7 +128,7 @@
       <p class="kicker child" id="cK">Public beta</p>
       <h1 class="child" id="cH">March 2027.</h1>
       <p class="sub child" id="cS" style="margin-left:auto;margin-right:auto">Kerala first, then the rest of India, then the world.</p>
-      <p class="mail child" id="cM">contact@gixbee.com &nbsp;/&nbsp; gixbeesolutions@gmail.com</p>
+      <p class="mail child" id="cM">contact@gixbee.com</p>
       <img class="logo-sm child" id="cL" src="../assets/gixbee-logo.png" alt="">
     </section>
   </div>
@@ -130,7 +145,7 @@
       }
       x.putImageData(img, 0, 0);
     })();
-    const DURATION = 30;
+    const DURATION = 36;
     function ease(p) {
       p = Math.max(0, Math.min(1, p));
       return 1 - Math.pow(1 - p, 3);
@@ -158,33 +173,38 @@
       g.style.top = y + "%";
       g.style.transform = "translate(-50%, -50%)";
 
-      rule(document.getElementById("openRule"), t, 0.25, 4.7);
-      show(document.getElementById("openLogo"), t, 0.55, 4.7, 16);
-      show(document.getElementById("openKicker"), t, 1.15, 4.7, 12);
+      rule(document.getElementById("openRule"), t, 0.3, 4.4);
+      show(document.getElementById("openLogo"), t, 0.6, 4.4, 16);
 
-      show(document.getElementById("stK"), t, 4.55, 9.35, 12);
-      show(document.getElementById("stH"), t, 4.75, 9.35, 26);
-      show(document.getElementById("stS"), t, 5.35, 9.35, 16);
+      show(document.getElementById("n1"), t, 4.35, 10.5, 28);
+      show(document.getElementById("n2"), t, 4.85, 10.5, 28);
+      show(document.getElementById("n3"), t, 5.35, 10.5, 28);
+      rule(document.getElementById("nRule"), t, 5.85, 10.5);
+      show(document.getElementById("nK"), t, 6.2, 10.5, 12);
 
-      show(document.getElementById("pK"), t, 9.2, 15.15, 12);
-      show(document.getElementById("p1"), t, 9.45, 15.15, 20);
-      show(document.getElementById("p2"), t, 9.75, 15.15, 20);
-      show(document.getElementById("p3"), t, 10.05, 15.15, 20);
-      show(document.getElementById("p4"), t, 10.35, 15.15, 20);
+      show(document.getElementById("stK"), t, 10.35, 15.15, 12);
+      show(document.getElementById("stH"), t, 10.55, 15.15, 26);
+      show(document.getElementById("stS"), t, 11.15, 15.15, 16);
 
-      show(document.getElementById("aK"), t, 15.0, 19.7, 12);
-      show(document.getElementById("aH"), t, 15.2, 19.7, 26);
-      show(document.getElementById("aS"), t, 15.75, 19.7, 16);
+      show(document.getElementById("pK"), t, 15.0, 20.9, 12);
+      show(document.getElementById("p1"), t, 15.25, 20.9, 20);
+      show(document.getElementById("p2"), t, 15.55, 20.9, 20);
+      show(document.getElementById("p3"), t, 15.85, 20.9, 20);
+      show(document.getElementById("p4"), t, 16.15, 20.9, 20);
 
-      show(document.getElementById("zK"), t, 19.55, 24.35, 12);
-      show(document.getElementById("zH"), t, 19.75, 24.35, 26);
-      show(document.getElementById("zS"), t, 20.35, 24.35, 16);
+      show(document.getElementById("aK"), t, 20.75, 25.45, 12);
+      show(document.getElementById("aH"), t, 20.95, 25.45, 26);
+      show(document.getElementById("aS"), t, 21.5, 25.45, 16);
 
-      show(document.getElementById("cK"), t, 24.2, 99, 12);
-      show(document.getElementById("cH"), t, 24.4, 99, 24);
-      show(document.getElementById("cS"), t, 24.9, 99, 14);
-      show(document.getElementById("cM"), t, 25.25, 99, 12);
-      show(document.getElementById("cL"), t, 25.7, 99, 12);
+      show(document.getElementById("zK"), t, 25.3, 30.1, 12);
+      show(document.getElementById("zH"), t, 25.5, 30.1, 26);
+      show(document.getElementById("zS"), t, 26.1, 30.1, 16);
+
+      show(document.getElementById("cK"), t, 29.95, 99, 12);
+      show(document.getElementById("cH"), t, 30.15, 99, 24);
+      show(document.getElementById("cS"), t, 30.65, 99, 14);
+      show(document.getElementById("cM"), t, 31.0, 99, 12);
+      show(document.getElementById("cL"), t, 31.45, 99, 12);
     };
     window.FILM_DURATION = DURATION;
     if (location.hash !== "#still") {
