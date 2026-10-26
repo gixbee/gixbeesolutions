@@ -363,7 +363,7 @@ services:
         max-size: "10m"
         max-file: "3"
     environment:
-      APP_URL: "http://13.233.60.215/infra/beszel"
+      APP_URL: "http://103.102.234.152/infra/beszel"
     volumes:
       - beszel_data:/beszel_data
     networks:
@@ -386,7 +386,7 @@ services:
         max-file: "3"
     environment:
       PORT: 45876
-      KEY: "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIC17mUbLsNFJB9szC7LwFWEIfUBCNAJFNbkb2DzWW9Ja"
+      KEY: "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIEZQbTmkXErS2aTxj9VGTky6+IJo0tDt+gPm5UycyGfk"
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
     networks:
