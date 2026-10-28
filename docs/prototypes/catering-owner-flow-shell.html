@@ -888,10 +888,11 @@ button.manage-pill{cursor:pointer;font:inherit;color:var(--blue);border-color:#B
       <label><input type="radio" name="catFoodDiet" id="catFoodDietNon"> Non-veg</label>
     </div>
     <label class="chk-row" style="margin:0 16px 12px;display:flex"><input type="checkbox" id="catFoodQuoteOnly"> Quote on request (no fixed price)</label>
-    <p class="lbl">PRICING TYPE</p>
-    <div class="radio-row" style="margin-bottom:8px">
+    <p class="lbl" id="catFoodPriceTypeLbl">PRICING TYPE</p>
+    <p class="cat-pkg-name-hint" id="catFoodPriceIndividualHint" hidden style="margin:0 16px 10px">Per Plate / Person — set guest-count slabs below.</p>
+    <div class="radio-row" id="catFoodPriceTypeChoices" style="margin-bottom:8px">
       <label><input type="radio" name="catFoodPrice" id="catFoodPricePerson" checked> Per Plate / Person</label>
-      <label><input type="radio" name="catFoodPrice" id="catFoodPriceUnit"> Per Quantity / Unit</label>
+      <label id="catFoodPriceUnitWrapLabel"><input type="radio" name="catFoodPrice" id="catFoodPriceUnit"> Per Quantity / Unit</label>
     </div>
     <div class="fld" id="catFoodUnitWrap" style="display:none"><label>Unit label</label><input id="catFoodUnitLabel" placeholder="bowl, litre, tray…"></div>
     <p class="lbl" id="catFoodSlabLabel">GUEST COUNT PRICING (OWNER DEFINED)</p>
