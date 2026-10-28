@@ -68,7 +68,7 @@ function ensureCateringMenuStore() {
   if (!store.cateringMenu.catPackages) store.cateringMenu.catPackages = defaultCateringMenuStore().catPackages;
   if (!store.cateringMenu.hubTab) store.cateringMenu.hubTab = 'packages';
   if (store.cateringMenu.pkgFilter === 'custom') store.cateringMenu.pkgFilter = 'all';
-  if (!store.cateringMenu.pkgCategoryFilter) store.cateringMenu.pkgCategoryFilter = 'all';
+  if (!store.cateringMenu.pkgCategoryFilter) store.cateringMenu.pkgCategoryFilter = 'wedding';
   migratePackageCategories();
   migrateLegacyCateringPackageLabels();
 }
@@ -417,7 +417,6 @@ function renderCatPkgList() {
         esc(p.name) +
         '</b><div class="pkg-price">' +
         esc(packageFromPersonLabel(p)) +
-        disc +
         '</div><div class="pkg-sub">' +
         esc(p.subtitle || p.description || '') +
         '</div><div class="pkg-foot"><span class="status ' +
@@ -436,6 +435,30 @@ function renderCatPkgList() {
       );
     })
     .join('');
+  bindCatPkgListUi();
+}
+
+function bindCatPkgListUi() {
+  const list = el('catPkgList');
+  if (!list) return;
+  list.querySelectorAll('[data-cpkg-id]').forEach(function (card) {
+    card.onclick = function (e) {
+      if (e.target.closest('.hub-act')) return;
+      startCatPackageWizard(card.getAttribute('data-cpkg-id'));
+    };
+  });
+  list.querySelectorAll('[data-cpkg-edit]').forEach(function (btn) {
+    btn.onclick = function (e) {
+      e.stopPropagation();
+      startCatPackageWizard(btn.getAttribute('data-cpkg-edit'));
+    };
+  });
+  list.querySelectorAll('[data-cpkg-del]').forEach(function (btn) {
+    btn.onclick = function (e) {
+      e.stopPropagation();
+      deleteCatPackage(btn.getAttribute('data-cpkg-del'));
+    };
+  });
   list.querySelectorAll('[data-cpkg-menu]').forEach(function (btn) {
     btn.onclick = function (e) {
       e.stopPropagation();
@@ -639,27 +662,7 @@ function bindCateringMenuHubUi() {
       startCatPackageWizard(null);
     };
   }
-  const list = el('catPkgList');
-  if (list) {
-    list.querySelectorAll('[data-cpkg-id]').forEach(function (card) {
-      card.onclick = function (e) {
-        if (e.target.closest('.hub-act')) return;
-        startCatPackageWizard(card.getAttribute('data-cpkg-id'));
-      };
-    });
-    list.querySelectorAll('[data-cpkg-edit]').forEach(function (btn) {
-      btn.onclick = function (e) {
-        e.stopPropagation();
-        startCatPackageWizard(btn.getAttribute('data-cpkg-edit'));
-      };
-    });
-    list.querySelectorAll('[data-cpkg-del]').forEach(function (btn) {
-      btn.onclick = function (e) {
-        e.stopPropagation();
-        deleteCatPackage(btn.getAttribute('data-cpkg-del'));
-      };
-    });
-  }
+  bindCatPkgListUi();
   const modList = el('catFoodModuleList');
   if (modList) {
     modList.querySelectorAll('[data-mod]').forEach(function (row) {
