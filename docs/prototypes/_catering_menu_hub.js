@@ -267,7 +267,7 @@ function individualFoodItems() {
 
 function foodItemFromPrice(f) {
   const slabs = f.slabs || [];
-  if (!slabs.length) return f.quoteOnly ? 'Quote' : '—';
+  if (!slabs.length) return '—';
   const min = Math.min.apply(
     null,
     slabs.map(function (s) {
@@ -1162,7 +1162,6 @@ function renderFoodItemForm() {
   el('catFoodDietVeg').checked = d.diet === 'veg';
   el('catFoodDietEgg').checked = d.diet === 'egg';
   el('catFoodDietNon').checked = d.diet === 'non_veg';
-  el('catFoodQuoteOnly').checked = !!d.quoteOnly;
   el('catFoodUnitLabel').value = d.unitLabel || 'bowl';
   applyFoodFormPricingUi(d);
   renderSlabTable('catFoodSlabs', d.slabs || defaultItemSlabs(), function (slabs) {
@@ -1288,7 +1287,7 @@ function saveFoodItemForm(status) {
   else if (el('catFoodDietEgg').checked) foodFormDraft.diet = 'egg';
   else foodFormDraft.diet = 'veg';
   foodFormDraft.description = (el('catFoodDesc').value || '').trim();
-  foodFormDraft.quoteOnly = el('catFoodQuoteOnly').checked;
+  foodFormDraft.quoteOnly = false;
   if (isIndividualFoodForm(foodFormDraft)) foodFormDraft.pricingMode = 'per_person';
   foodFormDraft.unitLabel = (el('catFoodUnitLabel').value || 'plate').trim();
   ensureFoodFormCatalogMeta();
@@ -1297,11 +1296,11 @@ function saveFoodItemForm(status) {
   })) {
     foodFormDraft.individualListing = true;
   }
-  if (foodFormDraft.quoteOnly) foodFormDraft.status = status === 'active' ? 'active' : 'draft';
-  else if (!foodFormDraft.slabs || !foodFormDraft.slabs.length) {
-    toast('Add at least one pricing slab or enable quote-only');
+  if (!foodFormDraft.slabs || !foodFormDraft.slabs.length) {
+    toast('Add at least one pricing slab');
     return;
-  } else foodFormDraft.status = status;
+  }
+  foodFormDraft.status = status;
   const idx = (store.cateringMenu.foodItems || []).findIndex(function (f) {
     return f.id === foodFormDraft.id || (foodFormDraft.masterKey && f.masterKey === foodFormDraft.masterKey);
   });
@@ -1591,7 +1590,7 @@ function bindCatPkgPricingUi() {
     const d = pkgWizard.draft;
     d.status = el('catPkgStatusDraft') && el('catPkgStatusDraft').checked ? 'draft' : 'live';
     const slabs = d.guestSlabs || [];
-    if (!d.quoteOnly && !slabs.length && d.status === 'live') {
+    if (!slabs.length && d.status === 'live') {
       toast('Add guest pricing slabs');
       return;
     }
