@@ -68,7 +68,22 @@ function ensureCateringMenuStore() {
   if (!store.cateringMenu.catPackages) store.cateringMenu.catPackages = defaultCateringMenuStore().catPackages;
   if (!store.cateringMenu.hubTab) store.cateringMenu.hubTab = 'packages';
   if (store.cateringMenu.pkgFilter === 'custom') store.cateringMenu.pkgFilter = 'all';
+  if (!store.cateringMenu.pkgCategoryFilter) store.cateringMenu.pkgCategoryFilter = 'all';
+  migratePackageCategories();
   migrateLegacyCateringPackageLabels();
+}
+
+function migratePackageCategories() {
+  (store.cateringMenu.catPackages || []).forEach(function (p) {
+    if (p.packageCategory !== 'wedding' && p.packageCategory !== 'other') {
+      p.packageCategory = 'wedding';
+    }
+  });
+}
+
+function packageCategoryHubLabel(id) {
+  if (id === 'other') return 'Other Functions';
+  return 'Wedding & Related';
 }
 
 /** Older demos used photography-style names (e.g. "Wedding Premium"); rename in place. */
@@ -243,6 +258,7 @@ function renderCateringMenuHub() {
   }
 
   renderCatPkgFilters();
+  renderCatPkgCategoryFilters();
   renderCatPkgList();
   renderCatIndividualFoodList();
   bindCateringMenuHubUi();
@@ -291,6 +307,29 @@ function renderCatPkgFilters() {
     .join('');
 }
 
+function renderCatPkgCategoryFilters() {
+  const row = el('catPkgCategoryFilters');
+  if (!row) return;
+  const filters = [
+    { id: 'all', label: 'All categories' },
+    { id: 'wedding', label: 'Wedding & Related' },
+    { id: 'other', label: 'Other Functions' },
+  ];
+  row.innerHTML = filters
+    .map(function (f) {
+      return (
+        '<button type="button" class="fchip fchip-cat' +
+        (store.cateringMenu.pkgCategoryFilter === f.id ? ' on' : '') +
+        '" data-cat-ev="' +
+        esc(f.id) +
+        '">' +
+        esc(f.label) +
+        '</button>'
+      );
+    })
+    .join('');
+}
+
 function filteredCatPackages() {
   let list = (store.cateringMenu.catPackages || []).slice();
   const f = store.cateringMenu.pkgFilter || 'all';
@@ -299,12 +338,19 @@ function filteredCatPackages() {
       return catLevelClass(p.level) === f;
     });
   }
+  const ev = store.cateringMenu.pkgCategoryFilter || 'all';
+  if (ev !== 'all') {
+    list = list.filter(function (p) {
+      return (p.packageCategory || 'wedding') === ev;
+    });
+  }
   const q = (store.cateringMenu.pkgSearch || '').trim().toLowerCase();
   if (q) {
     list = list.filter(function (p) {
       return (
         String(p.name || '').toLowerCase().includes(q) ||
-        String(p.level || '').toLowerCase().includes(q)
+        String(p.level || '').toLowerCase().includes(q) ||
+        packageCategoryHubLabel(p.packageCategory || 'wedding').toLowerCase().includes(q)
       );
     });
   }
@@ -322,8 +368,18 @@ function renderCatPkgList() {
   if (!list) return;
   const pkgs = filteredCatPackages();
   if (!pkgs.length) {
+    const ev = store.cateringMenu.pkgCategoryFilter || 'all';
+    const tier = store.cateringMenu.pkgFilter || 'all';
+    const filtered =
+      ev !== 'all' || tier !== 'all' || (store.cateringMenu.pkgSearch || '').trim();
     list.innerHTML =
-      '<div class="hub-empty"><div class="hub-empty-ico">📦</div><b>No packages yet</b><p>Create your first catering package with items from all 13 modules.</p></div>';
+      '<div class="hub-empty"><div class="hub-empty-ico">📦</div><b>' +
+      (filtered ? 'No packages match these filters' : 'No packages yet') +
+      '</b><p>' +
+      (filtered
+        ? 'Try another category or tier, or create a new package.'
+        : 'Create your first catering package with items from all 13 modules.') +
+      '</p></div>';
     return;
   }
   list.innerHTML = pkgs
@@ -349,6 +405,8 @@ function renderCatPkgList() {
         lv +
         '">' +
         esc(p.level) +
+        '</span><span class="pkg-cat-chip">' +
+        esc(packageCategoryHubLabel(p.packageCategory || 'wedding')) +
         '</span></div></div><b>' +
         esc(p.name) +
         '</b><div class="pkg-price">' +
@@ -539,6 +597,16 @@ function bindCateringMenuHubUi() {
     filters.querySelectorAll('[data-cat-f]').forEach(function (btn) {
       btn.onclick = function () {
         store.cateringMenu.pkgFilter = btn.getAttribute('data-cat-f');
+        saveStore();
+        renderCateringMenuHub();
+      };
+    });
+  }
+  const catEv = el('catPkgCategoryFilters');
+  if (catEv) {
+    catEv.querySelectorAll('[data-cat-ev]').forEach(function (btn) {
+      btn.onclick = function () {
+        store.cateringMenu.pkgCategoryFilter = btn.getAttribute('data-cat-ev');
         saveStore();
         renderCateringMenuHub();
       };

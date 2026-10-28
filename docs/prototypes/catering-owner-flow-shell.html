@@ -285,6 +285,8 @@ body{margin:0;background:#E8EDF5;font-family:Inter,system-ui,sans-serif;color:va
 .pkg-level.premium{background:#FEF3C7;color:#92400E}
 .pkg-level.basic{background:#E0E7FF;color:#3730A3}
 .pkg-level.custom{background:#EDE9FE;color:#6D28D9}
+.pkg-cat-chip{display:inline-block;font-size:9px;font-weight:800;padding:4px 8px;border-radius:8px;background:#ECFDF5;color:#047857;margin-left:4px}
+.cat-pkg-ev-filters{margin-top:-4px;margin-bottom:4px}
 .pkg-bd b{font-size:14px;color:var(--navy);display:block;line-height:1.35;font-weight:900}
 .pkg-price{font-size:15px;font-weight:900;color:var(--navy);letter-spacing:-.02em}
 .pkg-sub{font-size:11px;color:var(--mut);line-height:1.35;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
@@ -814,6 +816,7 @@ button.manage-pill{cursor:pointer;font:inherit;color:var(--blue);border-color:#B
   <div class="hub-pkg-only">
     <div class="cat-hub-search"><span aria-hidden="true">🔍</span><input type="search" id="catPkgSearch" placeholder="Search packages…" autocomplete="off"></div>
     <div class="filter-row" id="catPkgFilters"></div>
+    <div class="filter-row cat-pkg-ev-filters" id="catPkgCategoryFilters" aria-label="Package category filters"></div>
     <div class="cat-hub-toolbar hub-pkg-only">
       <div id="catHubStat"></div>
       <button type="button" class="cat-sort-btn" id="catPkgSortBtn">Sort ↕</button>

@@ -992,6 +992,7 @@ function defaultCateringMenuStore() {
   return {
     hubTab: 'packages',
     pkgFilter: 'all',
+    pkgCategoryFilter: 'all',
     pkgSort: 'name',
     pkgSearch: '',
     foodSearch: '',
@@ -1001,6 +1002,7 @@ function defaultCateringMenuStore() {
         id: 'cpkg-demo-1',
         name: 'Engagement Day Menu',
         level: 'Standard',
+        packageCategory: 'wedding',
         description:
           'Balanced spread for engagement functions with welcome drinks, starters, mains and dessert.',
         subtitle: 'Standard tier · ~120 guests · per person',
@@ -1016,6 +1018,7 @@ function defaultCateringMenuStore() {
         id: 'cpkg-demo-2',
         name: 'Wedding Premium',
         level: 'Premium',
+        packageCategory: 'wedding',
         description:
           'Full-day premium wedding catering with live counters and extended dessert selection.',
         subtitle: 'Full day · premium spread',
@@ -1031,6 +1034,7 @@ function defaultCateringMenuStore() {
         id: 'cpkg-demo-3',
         name: 'Reception Basic',
         level: 'Basic',
+        packageCategory: 'other',
         description: 'Essential reception menu — starters, one main and dessert.',
         subtitle: 'Reception essentials',
         listPrice: 25000,

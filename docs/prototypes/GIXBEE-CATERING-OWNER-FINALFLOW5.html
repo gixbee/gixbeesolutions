@@ -287,6 +287,8 @@ body{margin:0;background:#E8EDF5;font-family:Inter,system-ui,sans-serif;color:va
 .pkg-level.premium{background:#FEF3C7;color:#92400E}
 .pkg-level.basic{background:#E0E7FF;color:#3730A3}
 .pkg-level.custom{background:#EDE9FE;color:#6D28D9}
+.pkg-cat-chip{display:inline-block;font-size:9px;font-weight:800;padding:4px 8px;border-radius:8px;background:#ECFDF5;color:#047857;margin-left:4px}
+.cat-pkg-ev-filters{margin-top:-4px;margin-bottom:4px}
 .pkg-bd b{font-size:14px;color:var(--navy);display:block;line-height:1.35;font-weight:900}
 .pkg-price{font-size:15px;font-weight:900;color:var(--navy);letter-spacing:-.02em}
 .pkg-sub{font-size:11px;color:var(--mut);line-height:1.35;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
@@ -816,6 +818,7 @@ button.manage-pill{cursor:pointer;font:inherit;color:var(--blue);border-color:#B
   <div class="hub-pkg-only">
     <div class="cat-hub-search"><span aria-hidden="true">🔍</span><input type="search" id="catPkgSearch" placeholder="Search packages…" autocomplete="off"></div>
     <div class="filter-row" id="catPkgFilters"></div>
+    <div class="filter-row cat-pkg-ev-filters" id="catPkgCategoryFilters" aria-label="Package category filters"></div>
     <div class="cat-hub-toolbar hub-pkg-only">
       <div id="catHubStat"></div>
       <button type="button" class="cat-sort-btn" id="catPkgSortBtn">Sort ↕</button>
@@ -3319,6 +3322,7 @@ function defaultCateringMenuStore() {
   return {
     hubTab: 'packages',
     pkgFilter: 'all',
+    pkgCategoryFilter: 'all',
     pkgSort: 'name',
     pkgSearch: '',
     foodSearch: '',
@@ -3328,6 +3332,7 @@ function defaultCateringMenuStore() {
         id: 'cpkg-demo-1',
         name: 'Engagement Day Menu',
         level: 'Standard',
+        packageCategory: 'wedding',
         description:
           'Balanced spread for engagement functions with welcome drinks, starters, mains and dessert.',
         subtitle: 'Standard tier · ~120 guests · per person',
@@ -3343,6 +3348,7 @@ function defaultCateringMenuStore() {
         id: 'cpkg-demo-2',
         name: 'Wedding Premium',
         level: 'Premium',
+        packageCategory: 'wedding',
         description:
           'Full-day premium wedding catering with live counters and extended dessert selection.',
         subtitle: 'Full day · premium spread',
@@ -3358,6 +3364,7 @@ function defaultCateringMenuStore() {
         id: 'cpkg-demo-3',
         name: 'Reception Basic',
         level: 'Basic',
+        packageCategory: 'other',
         description: 'Essential reception menu — starters, one main and dessert.',
         subtitle: 'Reception essentials',
         listPrice: 25000,
@@ -3600,7 +3607,22 @@ function ensureCateringMenuStore() {
   if (!store.cateringMenu.catPackages) store.cateringMenu.catPackages = defaultCateringMenuStore().catPackages;
   if (!store.cateringMenu.hubTab) store.cateringMenu.hubTab = 'packages';
   if (store.cateringMenu.pkgFilter === 'custom') store.cateringMenu.pkgFilter = 'all';
+  if (!store.cateringMenu.pkgCategoryFilter) store.cateringMenu.pkgCategoryFilter = 'all';
+  migratePackageCategories();
   migrateLegacyCateringPackageLabels();
+}
+
+function migratePackageCategories() {
+  (store.cateringMenu.catPackages || []).forEach(function (p) {
+    if (p.packageCategory !== 'wedding' && p.packageCategory !== 'other') {
+      p.packageCategory = 'wedding';
+    }
+  });
+}
+
+function packageCategoryHubLabel(id) {
+  if (id === 'other') return 'Other Functions';
+  return 'Wedding & Related';
 }
 
 /** Older demos used photography-style names (e.g. "Wedding Premium"); rename in place. */
@@ -3775,6 +3797,7 @@ function renderCateringMenuHub() {
   }
 
   renderCatPkgFilters();
+  renderCatPkgCategoryFilters();
   renderCatPkgList();
   renderCatIndividualFoodList();
   bindCateringMenuHubUi();
@@ -3823,6 +3846,29 @@ function renderCatPkgFilters() {
     .join('');
 }
 
+function renderCatPkgCategoryFilters() {
+  const row = el('catPkgCategoryFilters');
+  if (!row) return;
+  const filters = [
+    { id: 'all', label: 'All categories' },
+    { id: 'wedding', label: 'Wedding & Related' },
+    { id: 'other', label: 'Other Functions' },
+  ];
+  row.innerHTML = filters
+    .map(function (f) {
+      return (
+        '<button type="button" class="fchip fchip-cat' +
+        (store.cateringMenu.pkgCategoryFilter === f.id ? ' on' : '') +
+        '" data-cat-ev="' +
+        esc(f.id) +
+        '">' +
+        esc(f.label) +
+        '</button>'
+      );
+    })
+    .join('');
+}
+
 function filteredCatPackages() {
   let list = (store.cateringMenu.catPackages || []).slice();
   const f = store.cateringMenu.pkgFilter || 'all';
@@ -3831,12 +3877,19 @@ function filteredCatPackages() {
       return catLevelClass(p.level) === f;
     });
   }
+  const ev = store.cateringMenu.pkgCategoryFilter || 'all';
+  if (ev !== 'all') {
+    list = list.filter(function (p) {
+      return (p.packageCategory || 'wedding') === ev;
+    });
+  }
   const q = (store.cateringMenu.pkgSearch || '').trim().toLowerCase();
   if (q) {
     list = list.filter(function (p) {
       return (
         String(p.name || '').toLowerCase().includes(q) ||
-        String(p.level || '').toLowerCase().includes(q)
+        String(p.level || '').toLowerCase().includes(q) ||
+        packageCategoryHubLabel(p.packageCategory || 'wedding').toLowerCase().includes(q)
       );
     });
   }
@@ -3854,8 +3907,18 @@ function renderCatPkgList() {
   if (!list) return;
   const pkgs = filteredCatPackages();
   if (!pkgs.length) {
+    const ev = store.cateringMenu.pkgCategoryFilter || 'all';
+    const tier = store.cateringMenu.pkgFilter || 'all';
+    const filtered =
+      ev !== 'all' || tier !== 'all' || (store.cateringMenu.pkgSearch || '').trim();
     list.innerHTML =
-      '<div class="hub-empty"><div class="hub-empty-ico">📦</div><b>No packages yet</b><p>Create your first catering package with items from all 13 modules.</p></div>';
+      '<div class="hub-empty"><div class="hub-empty-ico">📦</div><b>' +
+      (filtered ? 'No packages match these filters' : 'No packages yet') +
+      '</b><p>' +
+      (filtered
+        ? 'Try another category or tier, or create a new package.'
+        : 'Create your first catering package with items from all 13 modules.') +
+      '</p></div>';
     return;
   }
   list.innerHTML = pkgs
@@ -3881,6 +3944,8 @@ function renderCatPkgList() {
         lv +
         '">' +
         esc(p.level) +
+        '</span><span class="pkg-cat-chip">' +
+        esc(packageCategoryHubLabel(p.packageCategory || 'wedding')) +
         '</span></div></div><b>' +
         esc(p.name) +
         '</b><div class="pkg-price">' +
@@ -4071,6 +4136,16 @@ function bindCateringMenuHubUi() {
     filters.querySelectorAll('[data-cat-f]').forEach(function (btn) {
       btn.onclick = function () {
         store.cateringMenu.pkgFilter = btn.getAttribute('data-cat-f');
+        saveStore();
+        renderCateringMenuHub();
+      };
+    });
+  }
+  const catEv = el('catPkgCategoryFilters');
+  if (catEv) {
+    catEv.querySelectorAll('[data-cat-ev]').forEach(function (btn) {
+      btn.onclick = function () {
+        store.cateringMenu.pkgCategoryFilter = btn.getAttribute('data-cat-ev');
         saveStore();
         renderCateringMenuHub();
       };
