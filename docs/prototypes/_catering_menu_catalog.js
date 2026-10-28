@@ -992,7 +992,7 @@ function defaultCateringMenuStore() {
   return {
     hubTab: 'packages',
     pkgFilter: 'all',
-    pkgCategoryFilter: 'all',
+    pkgCategoryFilter: 'wedding',
     pkgSort: 'name',
     pkgSearch: '',
     foodSearch: '',

@@ -226,35 +226,29 @@ function renderCateringMenuHub() {
   if (tabFood) tabFood.classList.toggle('on', !isPkg);
 
   const hubTitle = el('catHubTitle');
-  if (hubTitle) hubTitle.textContent = isPkg ? 'Menu & Packages' : 'Individual food items';
+  if (hubTitle) hubTitle.textContent = isPkg ? 'Menu & Packages' : 'Individual Food Items';
 
   const intro = el('catHubIntro');
-  if (intro) {
-    intro.textContent = isPkg
-      ? 'Catering packages with per-person slabs. Filter by tier and publish when ready.'
-      : '';
+  if (intro && !isPkg) {
+    intro.textContent = '';
   }
 
   const stat = el('catHubStat');
   if (stat) {
-    const pkgs = store.cateringMenu.catPackages || [];
-    const live = pkgs.filter(function (p) {
-      return p.status === 'live';
-    }).length;
-    const foods = (store.cateringMenu.foodItems || []).filter(function (f) {
-      return f.status === 'active';
-    }).length;
-    stat.innerHTML = isPkg
-      ? '<span class="cat-stat-pill"><b>' +
-        pkgs.length +
-        '</b> PACKAGES</span><span class="cat-stat-pill live"><b>' +
-        live +
-        '</b> LIVE</span>'
-      : '<span class="cat-stat-pill blue"><b>' +
+    if (isPkg) {
+      const n = filteredCatPackages().length;
+      stat.innerHTML = '<span class="cat-hub-count"><b>' + n + '</b>Packages</span>';
+    } else {
+      const foods = (store.cateringMenu.foodItems || []).filter(function (f) {
+        return f.status === 'active';
+      }).length;
+      stat.innerHTML =
+        '<span class="cat-stat-pill blue"><b>' +
         individualFoodItems().length +
         '</b> INDIVIDUAL ITEMS</span><span class="cat-stat-pill live"><b>' +
         foods +
         '</b> LIVE</span>';
+    }
   }
 
   renderCatPkgFilters();
@@ -307,27 +301,45 @@ function renderCatPkgFilters() {
     .join('');
 }
 
+function packageFromPersonLabel(p) {
+  const from = lowestGuestPrice(p) || p.price || 0;
+  return 'From ₹' + formatInrFull(from) + ' / person';
+}
+
 function renderCatPkgCategoryFilters() {
   const row = el('catPkgCategoryFilters');
   if (!row) return;
-  const filters = [
-    { id: 'all', label: 'All categories' },
-    { id: 'wedding', label: 'Wedding & Related' },
-    { id: 'other', label: 'Other Functions' },
+  const sel = store.cateringMenu.pkgCategoryFilter || 'all';
+  const cards = [
+    {
+      id: 'wedding',
+      title: 'Wedding & Related',
+      sub: 'Wedding, Engagement, Reception',
+    },
+    {
+      id: 'other',
+      title: 'Other Functions',
+      sub: 'Birthday, Noolukettu, Baptism, etc.',
+    },
   ];
-  row.innerHTML = filters
-    .map(function (f) {
-      return (
-        '<button type="button" class="fchip fchip-cat' +
-        (store.cateringMenu.pkgCategoryFilter === f.id ? ' on' : '') +
-        '" data-cat-ev="' +
-        esc(f.id) +
-        '">' +
-        esc(f.label) +
-        '</button>'
-      );
-    })
-    .join('');
+  row.innerHTML =
+    '<div class="hub-cat-filter-grid">' +
+    cards
+      .map(function (c) {
+        return (
+          '<button type="button" class="hub-cat-card' +
+          (sel === c.id ? ' on' : '') +
+          '" data-cat-ev="' +
+          esc(c.id) +
+          '"><b>' +
+          esc(c.title) +
+          '</b><small>' +
+          esc(c.sub) +
+          '</small></button>'
+        );
+      })
+      .join('') +
+    '</div>';
 }
 
 function filteredCatPackages() {
@@ -385,32 +397,26 @@ function renderCatPkgList() {
   list.innerHTML = pkgs
     .map(function (p) {
       const lv = catLevelClass(p.level);
-      const disc =
-        p.listPrice > p.price
-          ? '<span class="was" style="text-decoration:line-through;color:#9CA3AF;font-size:12px;font-weight:700;margin-left:6px">' +
-            formatInrCompact(p.listPrice) +
-            '</span>'
-          : '';
-      const thumbStyle = 'background:' + (p.thumbGradient || 'linear-gradient(145deg,#F97316,#EA580C)');
+      const catId = p.packageCategory || 'wedding';
       return (
         '<div class="pkg-card pkg-card-tap" data-cpkg-id="' +
         esc(p.id) +
         '"><div class="pkg-thumb lv-' +
         lv +
-        '" style="' +
-        thumbStyle +
-        '"><span style="font-size:28px;z-index:1;position:relative">' +
+        '"><span style="font-size:32px;z-index:1;position:relative">' +
         esc(p.imageEmoji || '🍽️') +
         '</span></div><div class="pkg-bd"><div class="pkg-top-row"><div class="pkg-chips"><span class="pkg-level ' +
         lv +
         '">' +
         esc(p.level) +
-        '</span><span class="pkg-cat-chip">' +
-        esc(packageCategoryHubLabel(p.packageCategory || 'wedding')) +
-        '</span></div></div><b>' +
+        '</span><span class="pkg-meta-chip ceremony">' +
+        esc(packageCategoryHubLabel(catId)) +
+        '</span></div><button type="button" class="pkg-card-menu" data-cpkg-menu="' +
+        esc(p.id) +
+        '" aria-label="Package options">⋮</button></div><b>' +
         esc(p.name) +
         '</b><div class="pkg-price">' +
-        formatInrCompact(p.price || lowestGuestPrice(p)) +
+        esc(packageFromPersonLabel(p)) +
         disc +
         '</div><div class="pkg-sub">' +
         esc(p.subtitle || p.description || '') +
@@ -430,6 +436,13 @@ function renderCatPkgList() {
       );
     })
     .join('');
+  list.querySelectorAll('[data-cpkg-menu]').forEach(function (btn) {
+    btn.onclick = function (e) {
+      e.stopPropagation();
+      const id = btn.getAttribute('data-cpkg-menu');
+      if (confirm('Duplicate this package as a draft?')) duplicateCatPackage(id);
+    };
+  });
 }
 
 function renderCatIndividualFoodList() {
@@ -606,11 +619,19 @@ function bindCateringMenuHubUi() {
   if (catEv) {
     catEv.querySelectorAll('[data-cat-ev]').forEach(function (btn) {
       btn.onclick = function () {
-        store.cateringMenu.pkgCategoryFilter = btn.getAttribute('data-cat-ev');
+        const id = btn.getAttribute('data-cat-ev');
+        const cur = store.cateringMenu.pkgCategoryFilter || 'all';
+        store.cateringMenu.pkgCategoryFilter = cur === id ? 'all' : id;
         saveStore();
         renderCateringMenuHub();
       };
     });
+  }
+  const hubMore = el('catHubMoreBtn');
+  if (hubMore) {
+    hubMore.onclick = function () {
+      toast('Hub menu (demo)');
+    };
   }
   const addPkg = el('catAddPackageBtn');
   if (addPkg) {
