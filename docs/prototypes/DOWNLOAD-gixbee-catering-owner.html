@@ -179,6 +179,36 @@ body{margin:0;background:#E8EDF5;font-family:Inter,system-ui,sans-serif;color:va
 .cat-lvl-btn{width:100%;border:1.5px solid #CBD5E1;border-radius:14px;padding:14px 8px;font-weight:900;font-size:13px;background:#fff;color:var(--navy);cursor:pointer;font:inherit;text-align:center;line-height:1.2;min-height:48px}
 .cat-lvl-btn.on{background:#059669;color:#fff;border-color:#059669;box-shadow:0 4px 12px rgba(5,150,105,.25)}
 .cat-lvl-hint{margin:8px 0 0;padding:0 4px;font-size:10px;font-weight:600;color:#64748B;line-height:1.35;text-align:center}
+.cat-wiz-step{margin:0;padding:4px 16px 14px;font-size:12px;font-weight:700;color:#64748B;text-align:center}
+.cat-wiz-foot{display:flex;gap:10px;padding:12px 16px 16px;background:#fff;border-top:1px solid #E2E8F0;position:sticky;bottom:0;z-index:2}
+.cat-wiz-foot .btn{flex:1;margin:0}
+.btn-green{background:#059669;color:#fff;border:0}
+.btn-green:disabled{opacity:.55}
+.cat-wiz-foot .btn-ghost{border:1.5px solid #CBD5E1;background:#fff;color:var(--navy)}
+.cat-pkg-ev-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;padding:0 16px 8px}
+.cat-pkg-ev-card{position:relative;display:flex;flex-direction:column;align-items:center;text-align:center;border:2px solid #E2E8F0;border-radius:16px;padding:16px 10px 14px;background:#fff;cursor:pointer;font:inherit;color:var(--navy);min-height:168px}
+.cat-pkg-ev-card.on{border-color:#059669;background:#F0FDF4;box-shadow:0 0 0 1px #059669}
+.cat-pkg-ev-chk{position:absolute;top:10px;right:10px;width:22px;height:22px;border-radius:50%;border:2px solid #CBD5E1;background:#fff;display:grid;place-items:center;font-size:11px;font-weight:900;color:#fff}
+.cat-pkg-ev-card.on .cat-pkg-ev-chk{background:#059669;border-color:#059669}
+.cat-pkg-ev-ico{font-size:32px;margin:8px 0 10px;line-height:1}
+.cat-pkg-ev-card b{font-size:11px;font-weight:900;line-height:1.35;display:block;margin-bottom:6px}
+.cat-pkg-ev-card small{font-size:9px;font-weight:600;color:#64748B;line-height:1.35;display:block}
+.cat-pkg-cat-banner{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:0 16px 14px;padding:10px 12px;border-radius:12px;background:#ECFDF5;border:1px solid #A7F3D0}
+.cat-pkg-cat-banner b{font-size:12px;font-weight:800;color:#047857;flex:1;line-height:1.3}
+.cat-pkg-cat-banner button{border:0;background:transparent;color:var(--blue);font-weight:800;font-size:12px;cursor:pointer;font:inherit}
+.cat-pkg-type-seg{display:flex;gap:8px;padding:0 16px 6px}
+.cat-pkg-type-btn{flex:1;border:1.5px solid #CBD5E1;border-radius:12px;padding:12px 6px;font-weight:900;font-size:13px;background:#fff;color:var(--navy);cursor:pointer;font:inherit;text-align:center}
+.cat-pkg-type-btn.on{background:#059669;color:#fff;border-color:#059669}
+.cat-pkg-name-hint{margin:4px 16px 0;font-size:11px;font-weight:600;color:#64748B;line-height:1.4}
+.cat-pkg-name-preview{margin:16px 16px 0;padding:14px;border-radius:14px;background:#F8FAFC;border:1px solid #E2E8F0}
+.cat-pkg-name-preview .sub{margin:0 0 6px;font-size:11px;font-weight:700;color:#64748B}
+.cat-pkg-name-preview b{font-size:15px;font-weight:900;color:#059669;line-height:1.35;display:block}
+.cat-menu-step-list{padding:0 0 80px}
+.cat-menu-step-row{display:flex;align-items:center;gap:12px;width:100%;padding:14px 16px;border:0;border-bottom:1px solid #F1F5F9;background:#fff;cursor:pointer;text-align:left;font:inherit;color:var(--navy)}
+.cat-menu-step-row.has-items{background:#F0FDF4}
+.cat-menu-step-row b{font-size:14px;font-weight:800}
+.cat-menu-step-row .cat-mod-count{font-size:13px;font-weight:700;color:#64748B}
+.cat-menu-step-row .cat-mod-chev{margin-left:auto;color:#94A3B8;font-size:18px;font-weight:700}
 .cat-pkg-mod-row{display:flex;align-items:center;gap:10px;width:100%;padding:12px 0;border:0;border-bottom:1px solid #F1F5F9;background:transparent;cursor:pointer;text-align:left;font:inherit}
 .cat-pkg-mod-chk{width:22px;height:22px;border-radius:6px;border:2px solid #CBD5E1;display:grid;place-items:center;font-size:12px;font-weight:900;color:#fff;flex-shrink:0}
 .cat-pkg-mod-chk.on{background:var(--blue);border-color:var(--blue)}
@@ -852,22 +882,49 @@ button.manage-pill{cursor:pointer;font:inherit;color:var(--blue);border-color:#B
   </div>
 </section>
 
-<section class="scr" id="catPkgCreate">
-  <div class="top"><button type="button" class="back" id="catPkgCreateBack">←</button><h1>Create Package</h1><span style="width:36px"></span></div>
-  <div class="pad">
-    <p class="lbl">PACKAGE TYPE*</p>
-    <div class="cat-lvl-seg" id="catPkgLevelSeg"></div>
-    <div class="fld"><label>Package Name*</label><input id="catPkgName" placeholder="e.g. Reception Dinner Menu"></div>
-    <div class="fld"><label>Description (optional)</label><textarea id="catPkgDesc" rows="2" placeholder="Perfect for medium sized functions."></textarea></div>
-    <p class="lbl">SELECT ITEMS FROM 13 MODULES</p>
-    <div class="cat-hub-search" style="margin:0 0 12px"><span>🔍</span><input type="search" id="catPkgItemSearch" placeholder="Search food items…"></div>
-    <div id="catPkgModulePick" style="padding:0 16px"></div>
+<section class="scr" id="catPkgStep1">
+  <div class="top"><button type="button" class="back" id="catPkgStep1Back">←</button><h1>Create Package</h1><span style="width:36px"></span></div>
+  <p class="cat-wiz-step">Step 1 of 7</p>
+  <div class="pad" style="padding-top:0">
+    <p class="cat-lvl-head" style="padding-left:0;padding-right:0"><span aria-hidden="true">📋</span> Select Package Category<span class="cat-lvl-req">*</span></p>
+    <p class="cat-pkg-name-hint" style="margin-left:0;margin-right:0;margin-bottom:12px">Choose the category that best describes this package.</p>
+    <div class="cat-pkg-ev-grid" id="catPkgEventCatGrid"></div>
   </div>
-  <div class="cta"><button type="button" class="btn btn-pink" id="catPkgNextPricing">Next: Set Guest Count Pricing</button></div>
+  <div class="cat-wiz-foot"><button type="button" class="btn btn-green" id="catPkgStep1Next">Next →</button></div>
+</section>
+
+<section class="scr" id="catPkgStep2">
+  <div class="top"><button type="button" class="back" id="catPkgStep2TopBack">←</button><h1>Package Type &amp; Name</h1><span style="width:36px"></span></div>
+  <p class="cat-wiz-step">Step 2 of 7</p>
+  <div class="cat-pkg-cat-banner"><b id="catPkgCatBannerLabel">Wedding &amp; Related Functions</b><button type="button" id="catPkgChangeCategory">Change</button></div>
+  <div class="pad" style="padding-top:0">
+    <p class="cat-lvl-head" style="padding-left:0;padding-right:0"><span aria-hidden="true">📋</span> Package Type<span class="cat-lvl-req">*</span></p>
+    <div class="cat-pkg-type-seg" id="catPkgTypeSeg"></div>
+    <div class="fld"><label>Package Name*</label><input id="catPkgName" placeholder="e.g. Wedding Sadhya"></div>
+    <p class="cat-pkg-name-hint">Example: Wedding Sadhya, Royal Feast, Traditional Menu etc.</p>
+    <div class="cat-pkg-name-preview"><p class="sub">Package name (as shown to customers)</p><b id="catPkgCustomerPreview">Basic - Your package name</b></div>
+    <div class="fld" style="margin-top:14px"><label>Description (optional)</label><textarea id="catPkgDesc" rows="2" placeholder="Short note for customers"></textarea></div>
+  </div>
+  <div class="cat-wiz-foot">
+    <button type="button" class="btn btn-ghost" id="catPkgStep2Back">← Back</button>
+    <button type="button" class="btn btn-green" id="catPkgStep2Next">Next →</button>
+  </div>
+</section>
+
+<section class="scr" id="catPkgStep3">
+  <div class="top"><button type="button" class="back" id="catPkgStep3TopBack">←</button><h1>Add Menu Items</h1><span style="width:36px"></span></div>
+  <p class="cat-wiz-step">Step 3 of 7</p>
+  <div class="cat-hub-search" style="margin-top:0"><span>🔍</span><input type="search" id="catPkgItemSearch" placeholder="Search menu categories…" autocomplete="off"></div>
+  <div class="cat-menu-step-list" id="catPkgModulePick"></div>
+  <div class="cat-wiz-foot">
+    <button type="button" class="btn btn-ghost" id="catPkgStep3Back">← Back</button>
+    <button type="button" class="btn btn-green" id="catPkgStep3Next">Next →</button>
+  </div>
 </section>
 
 <section class="scr" id="catPkgPricing">
   <div class="top"><button type="button" class="back" id="catPkgPricingBack">←</button><h1>Set Guest Count Pricing</h1><span style="width:36px"></span></div>
+  <p class="cat-wiz-step">Step 4 of 7</p>
   <div class="pad" style="padding-top:8px">
     <div id="catPkgSlabs"></div>
     <button type="button" class="cat-add-slab" id="catPkgAddSlab">+ Add another slab</button>
@@ -878,6 +935,7 @@ button.manage-pill{cursor:pointer;font:inherit;color:var(--blue);border-color:#B
 
 <section class="scr" id="catPkgPreview">
   <div class="top"><button type="button" class="back" id="catPkgPreviewBack">←</button><h1>Preview Package</h1><span style="width:36px"></span></div>
+  <p class="cat-wiz-step">Step 5 of 7</p>
   <div class="pad">
     <p class="lbl">PACKAGE SUMMARY</p>
     <div id="catPkgSummary" style="padding:0 4px"></div>
@@ -3474,7 +3532,47 @@ function buildIndividualPickerRows() {
 
 let menuPickCtx = { mode: 'catalog', selected: {}, moduleId: null, returnTo: 'menuPkg' };
 let foodFormDraft = null;
-let pkgWizard = { draft: null, editId: null };
+let pkgWizard = { draft: null, editId: null, step: 1 };
+
+const PKG_EVENT_CATEGORIES = [
+  {
+    id: 'wedding',
+    label: 'Wedding & Related Functions',
+    sub: 'Wedding, Engagement, Reception',
+    icon: '💍',
+  },
+  {
+    id: 'other',
+    label: 'Other Functions',
+    sub: 'Birthday, Noolukettu, Baptism, Nikah, Housewarming and more',
+    icon: '📅',
+  },
+];
+
+function pkgCategoryLabel(id) {
+  let i;
+  for (i = 0; i < PKG_EVENT_CATEGORIES.length; i++) {
+    if (PKG_EVENT_CATEGORIES[i].id === id) return PKG_EVENT_CATEGORIES[i].label;
+  }
+  return PKG_EVENT_CATEGORIES[0].label;
+}
+
+function syncPkgDraftFromStep2Fields() {
+  if (!pkgWizard.draft) return;
+  const nameEl = el('catPkgName');
+  const descEl = el('catPkgDesc');
+  if (nameEl) pkgWizard.draft.name = (nameEl.value || '').trim();
+  if (descEl) pkgWizard.draft.description = (descEl.value || '').trim();
+  pkgWizard.draft.customerTitle =
+    (pkgWizard.draft.level || 'Basic') + ' - ' + (pkgWizard.draft.name || 'Your package name');
+}
+
+function updatePkgCustomerPreview() {
+  syncPkgDraftFromStep2Fields();
+  const host = el('catPkgCustomerPreview');
+  if (!host || !pkgWizard.draft) return;
+  host.textContent = pkgWizard.draft.customerTitle || 'Basic - Your package name';
+}
 let individualPickMk = null;
 let individualPickSearch = '';
 let catalogModuleSearch = '';
@@ -4139,7 +4237,7 @@ function openModulePicker(moduleId, mode) {
     moduleId: moduleId,
     selected: {},
     search: '',
-    returnTo: mode === 'package' ? 'catPkgCreate' : 'menuPkg',
+    returnTo: mode === 'package' ? 'catPkgStep3' : 'menuPkg',
   };
   const mod = findFoodModule(moduleId);
   if (!mod) return;
@@ -4301,8 +4399,8 @@ function commitModulePicker() {
     });
     pkgWizard.draft.itemIds = keepOther.concat(newIds);
     saveStore();
-    show('catPkgCreate');
-    renderCatPkgCreate();
+    show('catPkgStep3');
+    renderCatPkgStep3Menu();
     toast('Module items updated');
     return;
   }
@@ -4615,6 +4713,8 @@ function newPkgDraft() {
   return {
     name: '',
     level: 'Basic',
+    packageCategory: 'wedding',
+    customerTitle: '',
     description: '',
     status: 'live',
     pricingMode: 'per_person',
@@ -4631,42 +4731,106 @@ function startCatPackageWizard(editId) {
   pkgWizard.editId = editId || null;
   const src = editId ? findCatPackage(editId) : null;
   pkgWizard.draft = src ? JSON.parse(JSON.stringify(src)) : newPkgDraft();
-  renderCatPkgCreate();
-  show('catPkgCreate');
+  if (!pkgWizard.draft.packageCategory) pkgWizard.draft.packageCategory = 'wedding';
+  pkgWizard.step = 1;
+  renderCatPkgStep1();
+  show('catPkgStep1');
 }
 
-function renderCatPkgCreate() {
+function renderCatPkgStep1() {
   const d = pkgWizard.draft;
   if (!d) return;
-  el('catPkgName').value = d.name || '';
-  el('catPkgDesc').value = d.description || '';
-  renderCatPkgLevelSeg(d.level);
-  const q = (el('catPkgItemSearch').value || '').trim().toLowerCase();
+  const cat = d.packageCategory || 'wedding';
+  const grid = el('catPkgEventCatGrid');
+  if (!grid) return;
+  grid.innerHTML = PKG_EVENT_CATEGORIES.map(function (c) {
+    const on = cat === c.id;
+    return (
+      '<button type="button" class="cat-pkg-ev-card' +
+      (on ? ' on' : '') +
+      '" data-ev-cat="' +
+      esc(c.id) +
+      '"><span class="cat-pkg-ev-chk">' +
+      (on ? '✓' : '') +
+      '</span><span class="cat-pkg-ev-ico" aria-hidden="true">' +
+      c.icon +
+      '</span><b>' +
+      esc(c.label) +
+      '</b><small>' +
+      esc(c.sub) +
+      '</small></button>'
+    );
+  }).join('');
+  grid.querySelectorAll('[data-ev-cat]').forEach(function (btn) {
+    btn.onclick = function () {
+      pkgWizard.draft.packageCategory = btn.getAttribute('data-ev-cat');
+      renderCatPkgStep1();
+    };
+  });
+}
+
+function renderCatPkgTypeSeg(level) {
+  const host = el('catPkgTypeSeg');
+  if (!host) return;
+  host.innerHTML = CAT_PKG_LEVELS.map(function (l) {
+    return (
+      '<button type="button" class="cat-pkg-type-btn' +
+      (l === level ? ' on' : '') +
+      '" data-lvl="' +
+      esc(l) +
+      '">' +
+      esc(l) +
+      '</button>'
+    );
+  }).join('');
+  host.querySelectorAll('.cat-pkg-type-btn').forEach(function (btn) {
+    btn.onclick = function () {
+      pkgWizard.draft.level = btn.getAttribute('data-lvl');
+      renderCatPkgTypeSeg(pkgWizard.draft.level);
+      updatePkgCustomerPreview();
+    };
+  });
+}
+
+function renderCatPkgStep2() {
+  const d = pkgWizard.draft;
+  if (!d) return;
+  const banner = el('catPkgCatBannerLabel');
+  if (banner) banner.textContent = pkgCategoryLabel(d.packageCategory);
+  renderCatPkgTypeSeg(d.level || 'Basic');
+  const nameEl = el('catPkgName');
+  const descEl = el('catPkgDesc');
+  if (nameEl) nameEl.value = d.name || '';
+  if (descEl) descEl.value = d.description || '';
+  updatePkgCustomerPreview();
+}
+
+function renderCatPkgStep3Menu() {
+  const d = pkgWizard.draft;
+  if (!d) return;
+  const q = (el('catPkgItemSearch') && el('catPkgItemSearch').value || '').trim().toLowerCase();
   const list = el('catPkgModulePick');
-  list.innerHTML = FOOD_MODULES
-    .filter(function (m) {
-      if (!q) return true;
-      return m.name.toLowerCase().includes(q);
-    })
+  if (!list) return;
+  list.innerHTML = FOOD_MODULES.filter(function (m) {
+    if (!q) return true;
+    return m.name.toLowerCase().includes(q);
+  })
     .map(function (m) {
       const n = countPkgItemsInModule(d, m.id);
-      const checked = n > 0;
       return (
-        '<button type="button" class="cat-pkg-mod-row" data-pkg-mod="' +
+        '<button type="button" class="cat-menu-step-row' +
+        (n > 0 ? ' has-items' : '') +
+        '" data-pkg-mod="' +
         esc(m.id) +
-        '"><span class="cat-pkg-mod-chk' +
-        (checked ? ' on' : '') +
-        '">' +
-        (checked ? '✓' : '') +
-        '</span><span class="cat-mod-thumb sm" style="background:' +
+        '"><span class="cat-mod-thumb sm" style="background:' +
         m.gradient +
         '">' +
         m.emoji +
-        '</span><span class="cat-pkg-mod-txt"><b>' +
+        '</span><span><b>' +
         esc(m.name) +
-        '</b><small>(' +
+        '</b> <span class="cat-mod-count">(' +
         n +
-        ' items selected)</small></span><span class="cat-mod-chev">›</span></button>'
+        ')</span></span><span class="cat-mod-chev">›</span></button>'
       );
     })
     .join('');
@@ -4677,54 +4841,71 @@ function renderCatPkgCreate() {
   });
 }
 
-function renderCatPkgLevelSeg(level) {
-  const host = el('catPkgLevelSeg');
-  if (!host) return;
-  host.innerHTML = CAT_PKG_LEVELS
-    .map(function (l) {
-      const hint = (typeof CAT_PKG_LEVEL_HINTS !== 'undefined' && CAT_PKG_LEVEL_HINTS[l]) || '';
-      return (
-        '<div class="cat-lvl-col"><button type="button" class="cat-lvl-btn' +
-        (l === level ? ' on' : '') +
-        '" data-lvl="' +
-        esc(l) +
-        '">' +
-        esc(l) +
-        '</button>' +
-        (hint ? '<p class="cat-lvl-hint">' + esc(hint) + '</p>' : '') +
-        '</div>'
-      );
-    })
-    .join('');
-  host.querySelectorAll('.cat-lvl-btn').forEach(function (btn) {
-    btn.onclick = function () {
-      pkgWizard.draft.level = btn.getAttribute('data-lvl');
-      renderCatPkgLevelSeg(pkgWizard.draft.level);
-    };
-  });
+function goCatPkgStep(step) {
+  pkgWizard.step = step;
+  if (step === 1) {
+    renderCatPkgStep1();
+    show('catPkgStep1');
+  } else if (step === 2) {
+    renderCatPkgStep2();
+    show('catPkgStep2');
+  } else if (step === 3) {
+    renderCatPkgStep3Menu();
+    show('catPkgStep3');
+  }
 }
 
 function bindCatPkgCreateUi() {
-  el('catPkgCreateBack').onclick = function () {
+  el('catPkgStep1Back').onclick = function () {
     show('menuPkg');
     renderCateringMenuHub();
   };
-  el('catPkgNextPricing').onclick = function () {
-    pkgWizard.draft.name = (el('catPkgName').value || '').trim();
-    pkgWizard.draft.description = (el('catPkgDesc').value || '').trim();
+  el('catPkgStep1Next').onclick = function () {
+    if (!pkgWizard.draft.packageCategory) {
+      toast('Select a package category');
+      return;
+    }
+    goCatPkgStep(2);
+  };
+  el('catPkgStep2TopBack').onclick = function () {
+    goCatPkgStep(1);
+  };
+  el('catPkgStep2Back').onclick = function () {
+    goCatPkgStep(1);
+  };
+  el('catPkgChangeCategory').onclick = function () {
+    goCatPkgStep(1);
+  };
+  el('catPkgStep2Next').onclick = function () {
+    syncPkgDraftFromStep2Fields();
     if (!pkgWizard.draft.name) {
       toast('Package name is required');
       return;
     }
+    goCatPkgStep(3);
+  };
+  el('catPkgStep3TopBack').onclick = function () {
+    goCatPkgStep(2);
+  };
+  el('catPkgStep3Back').onclick = function () {
+    goCatPkgStep(2);
+  };
+  el('catPkgStep3Next').onclick = function () {
     if (!(pkgWizard.draft.itemIds || []).length) {
-      toast('Select at least one food item from the modules');
+      toast('Add at least one menu item from the categories');
       return;
     }
     renderCatPkgPricing();
     show('catPkgPricing');
   };
+  const nameEl = el('catPkgName');
+  if (nameEl) {
+    nameEl.oninput = function () {
+      updatePkgCustomerPreview();
+    };
+  }
   el('catPkgItemSearch').oninput = function () {
-    renderCatPkgCreate();
+    renderCatPkgStep3Menu();
   };
 }
 
@@ -4782,8 +4963,8 @@ function renderCatPkgPreview() {
 
 function bindCatPkgPricingUi() {
   el('catPkgPricingBack').onclick = function () {
-    show('catPkgCreate');
-    renderCatPkgCreate();
+    show('catPkgStep3');
+    renderCatPkgStep3Menu();
   };
   el('catPkgAddSlab').onclick = function () {
     const slabs = pkgWizard.draft.guestSlabs || [];
@@ -4822,7 +5003,7 @@ function bindCatPkgPricingUi() {
     }
     d.price = slabs.length ? Math.min.apply(null, slabs.map(function (s) { return +s.price; })) : 0;
     d.listPrice = d.listPrice || d.price;
-    d.subtitle = d.subtitle || moduleCountSubtitle(d);
+    d.subtitle = d.subtitle || d.customerTitle || moduleCountSubtitle(d);
     d.id = pkgWizard.editId || uid('cpkg');
     const i = (store.cateringMenu.catPackages || []).findIndex(function (p) {
       return p.id === d.id;
@@ -4849,8 +5030,10 @@ function moduleCountSubtitle(pkg) {
 
 function bindCatModulePickUi() {
   el('catModulePickBack').onclick = function () {
-    if (menuPickCtx.mode === 'package') show('catPkgCreate');
-    else {
+    if (menuPickCtx.mode === 'package') {
+      show('catPkgStep3');
+      renderCatPkgStep3Menu();
+    } else {
       show('menuPkg');
       store.cateringMenu.hubTab = 'food';
       renderCateringMenuHub();

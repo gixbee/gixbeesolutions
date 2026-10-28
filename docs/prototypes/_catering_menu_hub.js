@@ -2,7 +2,47 @@
 
 let menuPickCtx = { mode: 'catalog', selected: {}, moduleId: null, returnTo: 'menuPkg' };
 let foodFormDraft = null;
-let pkgWizard = { draft: null, editId: null };
+let pkgWizard = { draft: null, editId: null, step: 1 };
+
+const PKG_EVENT_CATEGORIES = [
+  {
+    id: 'wedding',
+    label: 'Wedding & Related Functions',
+    sub: 'Wedding, Engagement, Reception',
+    icon: '💍',
+  },
+  {
+    id: 'other',
+    label: 'Other Functions',
+    sub: 'Birthday, Noolukettu, Baptism, Nikah, Housewarming and more',
+    icon: '📅',
+  },
+];
+
+function pkgCategoryLabel(id) {
+  let i;
+  for (i = 0; i < PKG_EVENT_CATEGORIES.length; i++) {
+    if (PKG_EVENT_CATEGORIES[i].id === id) return PKG_EVENT_CATEGORIES[i].label;
+  }
+  return PKG_EVENT_CATEGORIES[0].label;
+}
+
+function syncPkgDraftFromStep2Fields() {
+  if (!pkgWizard.draft) return;
+  const nameEl = el('catPkgName');
+  const descEl = el('catPkgDesc');
+  if (nameEl) pkgWizard.draft.name = (nameEl.value || '').trim();
+  if (descEl) pkgWizard.draft.description = (descEl.value || '').trim();
+  pkgWizard.draft.customerTitle =
+    (pkgWizard.draft.level || 'Basic') + ' - ' + (pkgWizard.draft.name || 'Your package name');
+}
+
+function updatePkgCustomerPreview() {
+  syncPkgDraftFromStep2Fields();
+  const host = el('catPkgCustomerPreview');
+  if (!host || !pkgWizard.draft) return;
+  host.textContent = pkgWizard.draft.customerTitle || 'Basic - Your package name';
+}
 let individualPickMk = null;
 let individualPickSearch = '';
 let catalogModuleSearch = '';
@@ -667,7 +707,7 @@ function openModulePicker(moduleId, mode) {
     moduleId: moduleId,
     selected: {},
     search: '',
-    returnTo: mode === 'package' ? 'catPkgCreate' : 'menuPkg',
+    returnTo: mode === 'package' ? 'catPkgStep3' : 'menuPkg',
   };
   const mod = findFoodModule(moduleId);
   if (!mod) return;
@@ -829,8 +869,8 @@ function commitModulePicker() {
     });
     pkgWizard.draft.itemIds = keepOther.concat(newIds);
     saveStore();
-    show('catPkgCreate');
-    renderCatPkgCreate();
+    show('catPkgStep3');
+    renderCatPkgStep3Menu();
     toast('Module items updated');
     return;
   }
@@ -1143,6 +1183,8 @@ function newPkgDraft() {
   return {
     name: '',
     level: 'Basic',
+    packageCategory: 'wedding',
+    customerTitle: '',
     description: '',
     status: 'live',
     pricingMode: 'per_person',
@@ -1159,42 +1201,106 @@ function startCatPackageWizard(editId) {
   pkgWizard.editId = editId || null;
   const src = editId ? findCatPackage(editId) : null;
   pkgWizard.draft = src ? JSON.parse(JSON.stringify(src)) : newPkgDraft();
-  renderCatPkgCreate();
-  show('catPkgCreate');
+  if (!pkgWizard.draft.packageCategory) pkgWizard.draft.packageCategory = 'wedding';
+  pkgWizard.step = 1;
+  renderCatPkgStep1();
+  show('catPkgStep1');
 }
 
-function renderCatPkgCreate() {
+function renderCatPkgStep1() {
   const d = pkgWizard.draft;
   if (!d) return;
-  el('catPkgName').value = d.name || '';
-  el('catPkgDesc').value = d.description || '';
-  renderCatPkgLevelSeg(d.level);
-  const q = (el('catPkgItemSearch').value || '').trim().toLowerCase();
+  const cat = d.packageCategory || 'wedding';
+  const grid = el('catPkgEventCatGrid');
+  if (!grid) return;
+  grid.innerHTML = PKG_EVENT_CATEGORIES.map(function (c) {
+    const on = cat === c.id;
+    return (
+      '<button type="button" class="cat-pkg-ev-card' +
+      (on ? ' on' : '') +
+      '" data-ev-cat="' +
+      esc(c.id) +
+      '"><span class="cat-pkg-ev-chk">' +
+      (on ? '✓' : '') +
+      '</span><span class="cat-pkg-ev-ico" aria-hidden="true">' +
+      c.icon +
+      '</span><b>' +
+      esc(c.label) +
+      '</b><small>' +
+      esc(c.sub) +
+      '</small></button>'
+    );
+  }).join('');
+  grid.querySelectorAll('[data-ev-cat]').forEach(function (btn) {
+    btn.onclick = function () {
+      pkgWizard.draft.packageCategory = btn.getAttribute('data-ev-cat');
+      renderCatPkgStep1();
+    };
+  });
+}
+
+function renderCatPkgTypeSeg(level) {
+  const host = el('catPkgTypeSeg');
+  if (!host) return;
+  host.innerHTML = CAT_PKG_LEVELS.map(function (l) {
+    return (
+      '<button type="button" class="cat-pkg-type-btn' +
+      (l === level ? ' on' : '') +
+      '" data-lvl="' +
+      esc(l) +
+      '">' +
+      esc(l) +
+      '</button>'
+    );
+  }).join('');
+  host.querySelectorAll('.cat-pkg-type-btn').forEach(function (btn) {
+    btn.onclick = function () {
+      pkgWizard.draft.level = btn.getAttribute('data-lvl');
+      renderCatPkgTypeSeg(pkgWizard.draft.level);
+      updatePkgCustomerPreview();
+    };
+  });
+}
+
+function renderCatPkgStep2() {
+  const d = pkgWizard.draft;
+  if (!d) return;
+  const banner = el('catPkgCatBannerLabel');
+  if (banner) banner.textContent = pkgCategoryLabel(d.packageCategory);
+  renderCatPkgTypeSeg(d.level || 'Basic');
+  const nameEl = el('catPkgName');
+  const descEl = el('catPkgDesc');
+  if (nameEl) nameEl.value = d.name || '';
+  if (descEl) descEl.value = d.description || '';
+  updatePkgCustomerPreview();
+}
+
+function renderCatPkgStep3Menu() {
+  const d = pkgWizard.draft;
+  if (!d) return;
+  const q = (el('catPkgItemSearch') && el('catPkgItemSearch').value || '').trim().toLowerCase();
   const list = el('catPkgModulePick');
-  list.innerHTML = FOOD_MODULES
-    .filter(function (m) {
-      if (!q) return true;
-      return m.name.toLowerCase().includes(q);
-    })
+  if (!list) return;
+  list.innerHTML = FOOD_MODULES.filter(function (m) {
+    if (!q) return true;
+    return m.name.toLowerCase().includes(q);
+  })
     .map(function (m) {
       const n = countPkgItemsInModule(d, m.id);
-      const checked = n > 0;
       return (
-        '<button type="button" class="cat-pkg-mod-row" data-pkg-mod="' +
+        '<button type="button" class="cat-menu-step-row' +
+        (n > 0 ? ' has-items' : '') +
+        '" data-pkg-mod="' +
         esc(m.id) +
-        '"><span class="cat-pkg-mod-chk' +
-        (checked ? ' on' : '') +
-        '">' +
-        (checked ? '✓' : '') +
-        '</span><span class="cat-mod-thumb sm" style="background:' +
+        '"><span class="cat-mod-thumb sm" style="background:' +
         m.gradient +
         '">' +
         m.emoji +
-        '</span><span class="cat-pkg-mod-txt"><b>' +
+        '</span><span><b>' +
         esc(m.name) +
-        '</b><small>(' +
+        '</b> <span class="cat-mod-count">(' +
         n +
-        ' items selected)</small></span><span class="cat-mod-chev">›</span></button>'
+        ')</span></span><span class="cat-mod-chev">›</span></button>'
       );
     })
     .join('');
@@ -1205,54 +1311,71 @@ function renderCatPkgCreate() {
   });
 }
 
-function renderCatPkgLevelSeg(level) {
-  const host = el('catPkgLevelSeg');
-  if (!host) return;
-  host.innerHTML = CAT_PKG_LEVELS
-    .map(function (l) {
-      const hint = (typeof CAT_PKG_LEVEL_HINTS !== 'undefined' && CAT_PKG_LEVEL_HINTS[l]) || '';
-      return (
-        '<div class="cat-lvl-col"><button type="button" class="cat-lvl-btn' +
-        (l === level ? ' on' : '') +
-        '" data-lvl="' +
-        esc(l) +
-        '">' +
-        esc(l) +
-        '</button>' +
-        (hint ? '<p class="cat-lvl-hint">' + esc(hint) + '</p>' : '') +
-        '</div>'
-      );
-    })
-    .join('');
-  host.querySelectorAll('.cat-lvl-btn').forEach(function (btn) {
-    btn.onclick = function () {
-      pkgWizard.draft.level = btn.getAttribute('data-lvl');
-      renderCatPkgLevelSeg(pkgWizard.draft.level);
-    };
-  });
+function goCatPkgStep(step) {
+  pkgWizard.step = step;
+  if (step === 1) {
+    renderCatPkgStep1();
+    show('catPkgStep1');
+  } else if (step === 2) {
+    renderCatPkgStep2();
+    show('catPkgStep2');
+  } else if (step === 3) {
+    renderCatPkgStep3Menu();
+    show('catPkgStep3');
+  }
 }
 
 function bindCatPkgCreateUi() {
-  el('catPkgCreateBack').onclick = function () {
+  el('catPkgStep1Back').onclick = function () {
     show('menuPkg');
     renderCateringMenuHub();
   };
-  el('catPkgNextPricing').onclick = function () {
-    pkgWizard.draft.name = (el('catPkgName').value || '').trim();
-    pkgWizard.draft.description = (el('catPkgDesc').value || '').trim();
+  el('catPkgStep1Next').onclick = function () {
+    if (!pkgWizard.draft.packageCategory) {
+      toast('Select a package category');
+      return;
+    }
+    goCatPkgStep(2);
+  };
+  el('catPkgStep2TopBack').onclick = function () {
+    goCatPkgStep(1);
+  };
+  el('catPkgStep2Back').onclick = function () {
+    goCatPkgStep(1);
+  };
+  el('catPkgChangeCategory').onclick = function () {
+    goCatPkgStep(1);
+  };
+  el('catPkgStep2Next').onclick = function () {
+    syncPkgDraftFromStep2Fields();
     if (!pkgWizard.draft.name) {
       toast('Package name is required');
       return;
     }
+    goCatPkgStep(3);
+  };
+  el('catPkgStep3TopBack').onclick = function () {
+    goCatPkgStep(2);
+  };
+  el('catPkgStep3Back').onclick = function () {
+    goCatPkgStep(2);
+  };
+  el('catPkgStep3Next').onclick = function () {
     if (!(pkgWizard.draft.itemIds || []).length) {
-      toast('Select at least one food item from the modules');
+      toast('Add at least one menu item from the categories');
       return;
     }
     renderCatPkgPricing();
     show('catPkgPricing');
   };
+  const nameEl = el('catPkgName');
+  if (nameEl) {
+    nameEl.oninput = function () {
+      updatePkgCustomerPreview();
+    };
+  }
   el('catPkgItemSearch').oninput = function () {
-    renderCatPkgCreate();
+    renderCatPkgStep3Menu();
   };
 }
 
@@ -1310,8 +1433,7 @@ function renderCatPkgPreview() {
 
 function bindCatPkgPricingUi() {
   el('catPkgPricingBack').onclick = function () {
-    show('catPkgCreate');
-    renderCatPkgCreate();
+    goCatPkgStep(3);
   };
   el('catPkgAddSlab').onclick = function () {
     const slabs = pkgWizard.draft.guestSlabs || [];
@@ -1350,7 +1472,7 @@ function bindCatPkgPricingUi() {
     }
     d.price = slabs.length ? Math.min.apply(null, slabs.map(function (s) { return +s.price; })) : 0;
     d.listPrice = d.listPrice || d.price;
-    d.subtitle = d.subtitle || moduleCountSubtitle(d);
+    d.subtitle = d.subtitle || d.customerTitle || moduleCountSubtitle(d);
     d.id = pkgWizard.editId || uid('cpkg');
     const i = (store.cateringMenu.catPackages || []).findIndex(function (p) {
       return p.id === d.id;
@@ -1377,8 +1499,10 @@ function moduleCountSubtitle(pkg) {
 
 function bindCatModulePickUi() {
   el('catModulePickBack').onclick = function () {
-    if (menuPickCtx.mode === 'package') show('catPkgCreate');
-    else {
+    if (menuPickCtx.mode === 'package') {
+      show('catPkgStep3');
+      renderCatPkgStep3Menu();
+    } else {
       show('menuPkg');
       store.cateringMenu.hubTab = 'food';
       renderCateringMenuHub();

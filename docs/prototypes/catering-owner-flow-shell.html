@@ -177,6 +177,36 @@ body{margin:0;background:#E8EDF5;font-family:Inter,system-ui,sans-serif;color:va
 .cat-lvl-btn{width:100%;border:1.5px solid #CBD5E1;border-radius:14px;padding:14px 8px;font-weight:900;font-size:13px;background:#fff;color:var(--navy);cursor:pointer;font:inherit;text-align:center;line-height:1.2;min-height:48px}
 .cat-lvl-btn.on{background:#059669;color:#fff;border-color:#059669;box-shadow:0 4px 12px rgba(5,150,105,.25)}
 .cat-lvl-hint{margin:8px 0 0;padding:0 4px;font-size:10px;font-weight:600;color:#64748B;line-height:1.35;text-align:center}
+.cat-wiz-step{margin:0;padding:4px 16px 14px;font-size:12px;font-weight:700;color:#64748B;text-align:center}
+.cat-wiz-foot{display:flex;gap:10px;padding:12px 16px 16px;background:#fff;border-top:1px solid #E2E8F0;position:sticky;bottom:0;z-index:2}
+.cat-wiz-foot .btn{flex:1;margin:0}
+.btn-green{background:#059669;color:#fff;border:0}
+.btn-green:disabled{opacity:.55}
+.cat-wiz-foot .btn-ghost{border:1.5px solid #CBD5E1;background:#fff;color:var(--navy)}
+.cat-pkg-ev-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;padding:0 16px 8px}
+.cat-pkg-ev-card{position:relative;display:flex;flex-direction:column;align-items:center;text-align:center;border:2px solid #E2E8F0;border-radius:16px;padding:16px 10px 14px;background:#fff;cursor:pointer;font:inherit;color:var(--navy);min-height:168px}
+.cat-pkg-ev-card.on{border-color:#059669;background:#F0FDF4;box-shadow:0 0 0 1px #059669}
+.cat-pkg-ev-chk{position:absolute;top:10px;right:10px;width:22px;height:22px;border-radius:50%;border:2px solid #CBD5E1;background:#fff;display:grid;place-items:center;font-size:11px;font-weight:900;color:#fff}
+.cat-pkg-ev-card.on .cat-pkg-ev-chk{background:#059669;border-color:#059669}
+.cat-pkg-ev-ico{font-size:32px;margin:8px 0 10px;line-height:1}
+.cat-pkg-ev-card b{font-size:11px;font-weight:900;line-height:1.35;display:block;margin-bottom:6px}
+.cat-pkg-ev-card small{font-size:9px;font-weight:600;color:#64748B;line-height:1.35;display:block}
+.cat-pkg-cat-banner{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:0 16px 14px;padding:10px 12px;border-radius:12px;background:#ECFDF5;border:1px solid #A7F3D0}
+.cat-pkg-cat-banner b{font-size:12px;font-weight:800;color:#047857;flex:1;line-height:1.3}
+.cat-pkg-cat-banner button{border:0;background:transparent;color:var(--blue);font-weight:800;font-size:12px;cursor:pointer;font:inherit}
+.cat-pkg-type-seg{display:flex;gap:8px;padding:0 16px 6px}
+.cat-pkg-type-btn{flex:1;border:1.5px solid #CBD5E1;border-radius:12px;padding:12px 6px;font-weight:900;font-size:13px;background:#fff;color:var(--navy);cursor:pointer;font:inherit;text-align:center}
+.cat-pkg-type-btn.on{background:#059669;color:#fff;border-color:#059669}
+.cat-pkg-name-hint{margin:4px 16px 0;font-size:11px;font-weight:600;color:#64748B;line-height:1.4}
+.cat-pkg-name-preview{margin:16px 16px 0;padding:14px;border-radius:14px;background:#F8FAFC;border:1px solid #E2E8F0}
+.cat-pkg-name-preview .sub{margin:0 0 6px;font-size:11px;font-weight:700;color:#64748B}
+.cat-pkg-name-preview b{font-size:15px;font-weight:900;color:#059669;line-height:1.35;display:block}
+.cat-menu-step-list{padding:0 0 80px}
+.cat-menu-step-row{display:flex;align-items:center;gap:12px;width:100%;padding:14px 16px;border:0;border-bottom:1px solid #F1F5F9;background:#fff;cursor:pointer;text-align:left;font:inherit;color:var(--navy)}
+.cat-menu-step-row.has-items{background:#F0FDF4}
+.cat-menu-step-row b{font-size:14px;font-weight:800}
+.cat-menu-step-row .cat-mod-count{font-size:13px;font-weight:700;color:#64748B}
+.cat-menu-step-row .cat-mod-chev{margin-left:auto;color:#94A3B8;font-size:18px;font-weight:700}
 .cat-pkg-mod-row{display:flex;align-items:center;gap:10px;width:100%;padding:12px 0;border:0;border-bottom:1px solid #F1F5F9;background:transparent;cursor:pointer;text-align:left;font:inherit}
 .cat-pkg-mod-chk{width:22px;height:22px;border-radius:6px;border:2px solid #CBD5E1;display:grid;place-items:center;font-size:12px;font-weight:900;color:#fff;flex-shrink:0}
 .cat-pkg-mod-chk.on{background:var(--blue);border-color:var(--blue)}
@@ -850,22 +880,49 @@ button.manage-pill{cursor:pointer;font:inherit;color:var(--blue);border-color:#B
   </div>
 </section>
 
-<section class="scr" id="catPkgCreate">
-  <div class="top"><button type="button" class="back" id="catPkgCreateBack">←</button><h1>Create Package</h1><span style="width:36px"></span></div>
-  <div class="pad">
-    <p class="lbl">PACKAGE TYPE*</p>
-    <div class="cat-lvl-seg" id="catPkgLevelSeg"></div>
-    <div class="fld"><label>Package Name*</label><input id="catPkgName" placeholder="e.g. Reception Dinner Menu"></div>
-    <div class="fld"><label>Description (optional)</label><textarea id="catPkgDesc" rows="2" placeholder="Perfect for medium sized functions."></textarea></div>
-    <p class="lbl">SELECT ITEMS FROM 13 MODULES</p>
-    <div class="cat-hub-search" style="margin:0 0 12px"><span>🔍</span><input type="search" id="catPkgItemSearch" placeholder="Search food items…"></div>
-    <div id="catPkgModulePick" style="padding:0 16px"></div>
+<section class="scr" id="catPkgStep1">
+  <div class="top"><button type="button" class="back" id="catPkgStep1Back">←</button><h1>Create Package</h1><span style="width:36px"></span></div>
+  <p class="cat-wiz-step">Step 1 of 7</p>
+  <div class="pad" style="padding-top:0">
+    <p class="cat-lvl-head" style="padding-left:0;padding-right:0"><span aria-hidden="true">📋</span> Select Package Category<span class="cat-lvl-req">*</span></p>
+    <p class="cat-pkg-name-hint" style="margin-left:0;margin-right:0;margin-bottom:12px">Choose the category that best describes this package.</p>
+    <div class="cat-pkg-ev-grid" id="catPkgEventCatGrid"></div>
   </div>
-  <div class="cta"><button type="button" class="btn btn-pink" id="catPkgNextPricing">Next: Set Guest Count Pricing</button></div>
+  <div class="cat-wiz-foot"><button type="button" class="btn btn-green" id="catPkgStep1Next">Next →</button></div>
+</section>
+
+<section class="scr" id="catPkgStep2">
+  <div class="top"><button type="button" class="back" id="catPkgStep2TopBack">←</button><h1>Package Type &amp; Name</h1><span style="width:36px"></span></div>
+  <p class="cat-wiz-step">Step 2 of 7</p>
+  <div class="cat-pkg-cat-banner"><b id="catPkgCatBannerLabel">Wedding &amp; Related Functions</b><button type="button" id="catPkgChangeCategory">Change</button></div>
+  <div class="pad" style="padding-top:0">
+    <p class="cat-lvl-head" style="padding-left:0;padding-right:0"><span aria-hidden="true">📋</span> Package Type<span class="cat-lvl-req">*</span></p>
+    <div class="cat-pkg-type-seg" id="catPkgTypeSeg"></div>
+    <div class="fld"><label>Package Name*</label><input id="catPkgName" placeholder="e.g. Wedding Sadhya"></div>
+    <p class="cat-pkg-name-hint">Example: Wedding Sadhya, Royal Feast, Traditional Menu etc.</p>
+    <div class="cat-pkg-name-preview"><p class="sub">Package name (as shown to customers)</p><b id="catPkgCustomerPreview">Basic - Your package name</b></div>
+    <div class="fld" style="margin-top:14px"><label>Description (optional)</label><textarea id="catPkgDesc" rows="2" placeholder="Short note for customers"></textarea></div>
+  </div>
+  <div class="cat-wiz-foot">
+    <button type="button" class="btn btn-ghost" id="catPkgStep2Back">← Back</button>
+    <button type="button" class="btn btn-green" id="catPkgStep2Next">Next →</button>
+  </div>
+</section>
+
+<section class="scr" id="catPkgStep3">
+  <div class="top"><button type="button" class="back" id="catPkgStep3TopBack">←</button><h1>Add Menu Items</h1><span style="width:36px"></span></div>
+  <p class="cat-wiz-step">Step 3 of 7</p>
+  <div class="cat-hub-search" style="margin-top:0"><span>🔍</span><input type="search" id="catPkgItemSearch" placeholder="Search menu categories…" autocomplete="off"></div>
+  <div class="cat-menu-step-list" id="catPkgModulePick"></div>
+  <div class="cat-wiz-foot">
+    <button type="button" class="btn btn-ghost" id="catPkgStep3Back">← Back</button>
+    <button type="button" class="btn btn-green" id="catPkgStep3Next">Next →</button>
+  </div>
 </section>
 
 <section class="scr" id="catPkgPricing">
   <div class="top"><button type="button" class="back" id="catPkgPricingBack">←</button><h1>Set Guest Count Pricing</h1><span style="width:36px"></span></div>
+  <p class="cat-wiz-step">Step 4 of 7</p>
   <div class="pad" style="padding-top:8px">
     <div id="catPkgSlabs"></div>
     <button type="button" class="cat-add-slab" id="catPkgAddSlab">+ Add another slab</button>
@@ -876,6 +933,7 @@ button.manage-pill{cursor:pointer;font:inherit;color:var(--blue);border-color:#B
 
 <section class="scr" id="catPkgPreview">
   <div class="top"><button type="button" class="back" id="catPkgPreviewBack">←</button><h1>Preview Package</h1><span style="width:36px"></span></div>
+  <p class="cat-wiz-step">Step 5 of 7</p>
   <div class="pad">
     <p class="lbl">PACKAGE SUMMARY</p>
     <div id="catPkgSummary" style="padding:0 4px"></div>
