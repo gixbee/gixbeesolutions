@@ -300,10 +300,13 @@ function renderLmb() {
     '<div class="biz-actions"><button type="button" id="lmbCalBtn">Calendar</button><button type="button" id="lmbReqBtn">Requests</button>' +
     '<button type="button" class="mgr-catering" id="dashPhotoManage">Manage</button></div>' +
     '</div></div></div>';
-  el('dashPhotoManage').onclick = () => {
-    renderPhotoDash();
-    show('photoDash');
-  };
+  const manage = el('dashPhotoManage');
+  if (manage) {
+    manage.onclick = () => {
+      renderPhotoDash();
+      show('photoDash');
+    };
+  }
   const lmbCal = el('lmbCalBtn');
   if (lmbCal) lmbCal.onclick = () => openPhotoCalendar();
   const lmbReq = el('lmbReqBtn');

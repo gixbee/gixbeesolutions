@@ -43,6 +43,21 @@ function updatePkgCustomerPreview() {
   if (!host || !pkgWizard.draft) return;
   host.textContent = pkgWizard.draft.customerTitle || 'Basic - Your package name';
 }
+
+function bindClick(id, handler) {
+  const node = el(id);
+  if (node) node.onclick = handler;
+}
+
+function bindOnInput(id, handler) {
+  const node = el(id);
+  if (node) node.oninput = handler;
+}
+
+function bindOnChange(id, handler) {
+  const node = el(id);
+  if (node) node.onchange = handler;
+}
 let individualPickMk = null;
 let individualPickSearch = '';
 let catalogModuleSearch = '';
@@ -1113,15 +1128,17 @@ function bindFoodItemFormUi() {
       toast('Image updated (demo)');
     };
   }
-  el('catFoodPricePerson').onchange = function () {
+  bindOnChange('catFoodPricePerson', function () {
     foodFormDraft.pricingMode = 'per_person';
-    el('catFoodUnitWrap').style.display = 'none';
-  };
-  el('catFoodPriceUnit').onchange = function () {
+    const wrap = el('catFoodUnitWrap');
+    if (wrap) wrap.style.display = 'none';
+  });
+  bindOnChange('catFoodPriceUnit', function () {
     foodFormDraft.pricingMode = 'per_unit';
-    el('catFoodUnitWrap').style.display = 'block';
-  };
-  el('catFoodAddSlab').onclick = function () {
+    const wrap = el('catFoodUnitWrap');
+    if (wrap) wrap.style.display = 'block';
+  });
+  bindClick('catFoodAddSlab', function () {
     const slabs = foodFormDraft.slabs || [];
     const last = slabs[slabs.length - 1];
     const from = last ? last.to + 1 : 1;
@@ -1130,17 +1147,17 @@ function bindFoodItemFormUi() {
     renderSlabTable('catFoodSlabs', slabs, function (s) {
       foodFormDraft.slabs = s;
     });
-  };
-  el('catFoodSaveDraft').onclick = function () {
+  });
+  bindClick('catFoodSaveDraft', function () {
     saveFoodItemForm('draft');
-  };
-  el('catFoodSave').onclick = function () {
+  });
+  bindClick('catFoodSave', function () {
     saveFoodItemForm('active');
-  };
-  el('catFoodBack').onclick = function () {
+  });
+  bindClick('catFoodBack', function () {
     show('menuPkg');
     renderCateringMenuHub();
-  };
+  });
 }
 
 function saveFoodItemForm(status) {
@@ -1326,57 +1343,51 @@ function goCatPkgStep(step) {
 }
 
 function bindCatPkgCreateUi() {
-  el('catPkgStep1Back').onclick = function () {
+  bindClick('catPkgStep1Back', function () {
     show('menuPkg');
     renderCateringMenuHub();
-  };
-  el('catPkgStep1Next').onclick = function () {
+  });
+  bindClick('catPkgStep1Next', function () {
     if (!pkgWizard.draft.packageCategory) {
       toast('Select a package category');
       return;
     }
     goCatPkgStep(2);
-  };
-  el('catPkgStep2TopBack').onclick = function () {
+  });
+  bindClick('catPkgStep2TopBack', function () {
     goCatPkgStep(1);
-  };
-  el('catPkgStep2Back').onclick = function () {
+  });
+  bindClick('catPkgStep2Back', function () {
     goCatPkgStep(1);
-  };
-  el('catPkgChangeCategory').onclick = function () {
+  });
+  bindClick('catPkgChangeCategory', function () {
     goCatPkgStep(1);
-  };
-  el('catPkgStep2Next').onclick = function () {
+  });
+  bindClick('catPkgStep2Next', function () {
     syncPkgDraftFromStep2Fields();
     if (!pkgWizard.draft.name) {
       toast('Package name is required');
       return;
     }
     goCatPkgStep(3);
-  };
-  el('catPkgStep3TopBack').onclick = function () {
+  });
+  bindClick('catPkgStep3TopBack', function () {
     goCatPkgStep(2);
-  };
-  el('catPkgStep3Back').onclick = function () {
-    goCatPkgStep(2);
-  };
-  el('catPkgStep3Next').onclick = function () {
+  });
+  bindClick('catPkgStep3Next', function () {
     if (!(pkgWizard.draft.itemIds || []).length) {
       toast('Add at least one menu item from the categories');
       return;
     }
     renderCatPkgPricing();
     show('catPkgPricing');
-  };
-  const nameEl = el('catPkgName');
-  if (nameEl) {
-    nameEl.oninput = function () {
-      updatePkgCustomerPreview();
-    };
-  }
-  el('catPkgItemSearch').oninput = function () {
+  });
+  bindOnInput('catPkgName', function () {
+    updatePkgCustomerPreview();
+  });
+  bindOnInput('catPkgItemSearch', function () {
     renderCatPkgStep3Menu();
-  };
+  });
 }
 
 function renderCatPkgPricing() {
@@ -1427,44 +1438,40 @@ function renderCatPkgPreview() {
         .join('<br>');
     }
   }
-  el('catPkgStatusLive').checked = d.status !== 'draft';
-  el('catPkgStatusDraft').checked = d.status === 'draft';
+  const live = el('catPkgStatusLive');
+  const draft = el('catPkgStatusDraft');
+  if (live) live.checked = d.status !== 'draft';
+  if (draft) draft.checked = d.status === 'draft';
 }
 
 function bindCatPkgPricingUi() {
-  el('catPkgPricingBack').onclick = function () {
+  bindClick('catPkgPricingBack', function () {
     goCatPkgStep(3);
-  };
-  el('catPkgAddSlab').onclick = function () {
+  });
+  bindClick('catPkgAddSlab', function () {
     const slabs = pkgWizard.draft.guestSlabs || [];
     const last = slabs[slabs.length - 1];
     const from = last ? last.to + 1 : 25;
     slabs.push({ from: from, to: from + 49, price: last ? Math.max(50, last.price - 50) : 500 });
     pkgWizard.draft.guestSlabs = slabs;
     renderCatPkgPricing();
-  };
-  const nextPrev = el('catPkgNextPreview');
-  if (nextPrev) {
-    nextPrev.onclick = function () {
-      const slabs = pkgWizard.draft.guestSlabs || [];
-      if (!slabs.length) {
-        toast('Add at least one guest pricing slab');
-        return;
-      }
-      renderCatPkgPreview();
-      show('catPkgPreview');
-    };
-  }
-  const prevBack = el('catPkgPreviewBack');
-  if (prevBack) {
-    prevBack.onclick = function () {
-      show('catPkgPricing');
-      renderCatPkgPricing();
-    };
-  }
-  el('catPkgSave').onclick = function () {
+  });
+  bindClick('catPkgNextPreview', function () {
+    const slabs = pkgWizard.draft.guestSlabs || [];
+    if (!slabs.length) {
+      toast('Add at least one guest pricing slab');
+      return;
+    }
+    renderCatPkgPreview();
+    show('catPkgPreview');
+  });
+  bindClick('catPkgPreviewBack', function () {
+    show('catPkgPricing');
+    renderCatPkgPricing();
+  });
+  bindClick('catPkgSave', function () {
     const d = pkgWizard.draft;
-    d.status = el('catPkgStatusDraft').checked ? 'draft' : 'live';
+    d.status = el('catPkgStatusDraft') && el('catPkgStatusDraft').checked ? 'draft' : 'live';
     const slabs = d.guestSlabs || [];
     if (!d.quoteOnly && !slabs.length && d.status === 'live') {
       toast('Add guest pricing slabs');
@@ -1485,7 +1492,7 @@ function bindCatPkgPricingUi() {
     show('menuPkg');
     store.cateringMenu.hubTab = 'packages';
     renderCateringMenuHub();
-  };
+  });
 }
 
 function moduleCountSubtitle(pkg) {
@@ -1498,7 +1505,7 @@ function moduleCountSubtitle(pkg) {
 }
 
 function bindCatModulePickUi() {
-  el('catModulePickBack').onclick = function () {
+  bindClick('catModulePickBack', function () {
     if (menuPickCtx.mode === 'package') {
       show('catPkgStep3');
       renderCatPkgStep3Menu();
@@ -1507,14 +1514,14 @@ function bindCatModulePickUi() {
       store.cateringMenu.hubTab = 'food';
       renderCateringMenuHub();
     }
-  };
-  el('catModulePickSave').onclick = function () {
+  });
+  bindClick('catModulePickSave', function () {
     if (countModulePickPending() === 0) {
       toast(menuPickCtx.mode === 'package' ? 'Select at least one item' : 'Select items to add');
       return;
     }
     commitModulePicker();
-  };
+  });
 }
 
 function bindPickIndividualUi() {
