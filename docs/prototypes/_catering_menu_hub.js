@@ -274,7 +274,7 @@ function foodItemFromPrice(f) {
       return +s.price || 0;
     })
   );
-  const unit = f.pricingMode === 'per_unit' ? f.unitLabel || 'unit' : 'plate';
+  const unit = 'plate';
   return formatInrCompact(min) + ' / ' + unit + '+';
 }
 
@@ -1121,36 +1121,11 @@ function ensureFoodFormCatalogMeta() {
   }
 }
 
-function isIndividualFoodForm(d) {
-  if (!d) return false;
-  if (d.individualListing === false) return false;
-  return true;
-}
-
-function applyFoodFormPricingUi(d) {
-  const individualOnly = isIndividualFoodForm(d);
-  const choices = el('catFoodPriceTypeChoices');
-  const hint = el('catFoodPriceIndividualHint');
-  const unitWrap = el('catFoodUnitWrap');
-  if (individualOnly) {
-    d.pricingMode = 'per_person';
-    if (choices) choices.hidden = true;
-    if (hint) hint.hidden = false;
-    if (unitWrap) unitWrap.style.display = 'none';
-    if (el('catFoodPricePerson')) el('catFoodPricePerson').checked = true;
-    if (el('catFoodPriceUnit')) el('catFoodPriceUnit').checked = false;
-  } else {
-    if (choices) choices.hidden = false;
-    if (hint) hint.hidden = true;
-    if (el('catFoodPricePerson')) el('catFoodPricePerson').checked = d.pricingMode !== 'per_unit';
-    if (el('catFoodPriceUnit')) el('catFoodPriceUnit').checked = d.pricingMode === 'per_unit';
-    if (unitWrap) unitWrap.style.display = d.pricingMode === 'per_unit' ? 'block' : 'none';
-  }
-}
-
 function renderFoodItemForm() {
   const d = foodFormDraft;
   if (!d) return;
+  d.pricingMode = 'per_person';
+  d.unitLabel = 'plate';
   const mod = findFoodModule(d.moduleId);
   el('catFoodFormTitle').textContent = d.id && findFoodItem(d.id) ? 'Edit Food Item' : 'Add Food Item';
   el('catFoodImgEmoji').textContent = d.imageEmoji || (mod && mod.emoji) || '🍽️';
@@ -1162,8 +1137,6 @@ function renderFoodItemForm() {
   el('catFoodDietVeg').checked = d.diet === 'veg';
   el('catFoodDietEgg').checked = d.diet === 'egg';
   el('catFoodDietNon').checked = d.diet === 'non_veg';
-  el('catFoodUnitLabel').value = d.unitLabel || 'bowl';
-  applyFoodFormPricingUi(d);
   renderSlabTable('catFoodSlabs', d.slabs || defaultItemSlabs(), function (slabs) {
     foodFormDraft.slabs = slabs;
   });
@@ -1244,16 +1217,6 @@ function bindFoodItemFormUi() {
       toast('Image updated (demo)');
     };
   }
-  bindOnChange('catFoodPricePerson', function () {
-    if (!foodFormDraft || isIndividualFoodForm(foodFormDraft)) return;
-    foodFormDraft.pricingMode = 'per_person';
-    applyFoodFormPricingUi(foodFormDraft);
-  });
-  bindOnChange('catFoodPriceUnit', function () {
-    if (!foodFormDraft || isIndividualFoodForm(foodFormDraft)) return;
-    foodFormDraft.pricingMode = 'per_unit';
-    applyFoodFormPricingUi(foodFormDraft);
-  });
   bindClick('catFoodAddSlab', function () {
     const slabs = foodFormDraft.slabs || [];
     const last = slabs[slabs.length - 1];
@@ -1288,8 +1251,8 @@ function saveFoodItemForm(status) {
   else foodFormDraft.diet = 'veg';
   foodFormDraft.description = (el('catFoodDesc').value || '').trim();
   foodFormDraft.quoteOnly = false;
-  if (isIndividualFoodForm(foodFormDraft)) foodFormDraft.pricingMode = 'per_person';
-  foodFormDraft.unitLabel = (el('catFoodUnitLabel').value || 'plate').trim();
+  foodFormDraft.pricingMode = 'per_person';
+  foodFormDraft.unitLabel = 'plate';
   ensureFoodFormCatalogMeta();
   if (foodFormDraft.individualListing === undefined && !(store.cateringMenu.foodItems || []).some(function (f) {
     return f.id === foodFormDraft.id;
