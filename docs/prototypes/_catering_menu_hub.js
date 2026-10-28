@@ -998,6 +998,19 @@ function renderFoodItemForm() {
   });
 }
 
+function normalizePackageGuestSlabs(slabs) {
+  const defs = defaultPackageGuestSlabs();
+  if (!slabs || !slabs.length) return defs.slice();
+  return slabs.map(function (s, i) {
+    const d = defs[i] || defs[defs.length - 1];
+    return {
+      from: +s.from > 0 ? +s.from : d.from,
+      to: +s.to > 0 ? +s.to : d.to,
+      price: +s.price >= 0 && s.price !== '' ? +s.price : d.price,
+    };
+  });
+}
+
 function renderSlabTable(hostId, slabs, onChange, tableOpts) {
   tableOpts = tableOpts || {};
   const host = el(hostId);
@@ -1009,11 +1022,11 @@ function renderSlabTable(hostId, slabs, onChange, tableOpts) {
       idx +
       '"><input type="number" class="slab-from" value="' +
       esc(s.from) +
-      '" min="1"><span>–</span><input type="number" class="slab-to" value="' +
+      '" min="1" aria-label="From guests"><input type="number" class="slab-to" value="' +
       esc(s.to) +
-      '" min="1"><input type="number" class="slab-price" value="' +
+      '" min="1" aria-label="To guests"><input type="number" class="slab-price" value="' +
       esc(s.price) +
-      '" min="0"><button type="button" class="cat-slab-rm" data-rm="' +
+      '" min="0" aria-label="Price per person"><button type="button" class="cat-slab-rm" data-rm="' +
       idx +
       '">🗑</button></div>'
     );
@@ -1242,9 +1255,10 @@ function bindCatPkgCreateUi() {
 
 function renderCatPkgPricing() {
   const d = pkgWizard.draft;
+  d.guestSlabs = normalizePackageGuestSlabs(d.guestSlabs);
   renderSlabTable(
     'catPkgSlabs',
-    d.guestSlabs || defaultPackageGuestSlabs(),
+    d.guestSlabs,
     function (slabs) {
       pkgWizard.draft.guestSlabs = slabs;
     },
