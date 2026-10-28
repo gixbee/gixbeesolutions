@@ -1210,13 +1210,16 @@ function renderCatPkgLevelSeg(level) {
   if (!host) return;
   host.innerHTML = CAT_PKG_LEVELS
     .map(function (l) {
+      const hint = (typeof CAT_PKG_LEVEL_HINTS !== 'undefined' && CAT_PKG_LEVEL_HINTS[l]) || '';
       return (
         '<button type="button" class="cat-lvl-btn' +
         (l === level ? ' on' : '') +
         '" data-lvl="' +
         esc(l) +
-        '">' +
+        '"><span class="cat-lvl-name">' +
         esc(l) +
+        '</span>' +
+        (hint ? '<small>' + esc(hint) + '</small>' : '') +
         '</button>'
       );
     })

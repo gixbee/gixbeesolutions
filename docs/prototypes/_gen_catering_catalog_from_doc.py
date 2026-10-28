@@ -235,6 +235,11 @@ def emit_catalog_js(defs: list[dict]) -> str:
     lines = [
         "/** Fixed 13-module catering catalogue — generated from gixbee-catering-almostfinal.docx */",
         "const CAT_PKG_LEVELS = ['Basic', 'Standard', 'Premium'];",
+        "const CAT_PKG_LEVEL_HINTS = {",
+        "  Basic: 'Simple and affordable menu',",
+        "  Standard: 'Popular menu with variety',",
+        "  Premium: 'Grand menu with special dishes',",
+        "};",
         "",
         "const FOOD_MODULE_GRADIENTS = " + json.dumps(GRADIENTS) + ";",
         "",
