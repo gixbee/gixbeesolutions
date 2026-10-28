@@ -94,6 +94,54 @@ function formatInrCompact(n) {
   return '₹' + v.toLocaleString('en-IN');
 }
 
+function formatInrFull(n) {
+  return Math.max(0, Math.round(+n || 0)).toLocaleString('en-IN');
+}
+
+function guestSlabPriceForCount(slabs, guestCount) {
+  const c = +guestCount || 0;
+  let i;
+  for (i = 0; i < (slabs || []).length; i++) {
+    const s = slabs[i];
+    if (c >= +s.from && c <= +s.to) return +s.price || 0;
+  }
+  if (slabs && slabs.length) return +slabs[slabs.length - 1].price || 0;
+  return 0;
+}
+
+function exampleGuestCountForSlabs(slabs) {
+  const list = slabs || [];
+  if (!list.length) return 100;
+  let i;
+  for (i = 0; i < list.length; i++) {
+    const s = list[i];
+    if (100 >= +s.from && 100 <= +s.to) return 100;
+  }
+  const mid = list[Math.floor(list.length / 2)];
+  return Math.round((+mid.from + +mid.to) / 2) || +mid.from || 100;
+}
+
+function renderPkgGuestPricingExample(slabs) {
+  const host = el('catPkgPricingExample');
+  if (!host) return;
+  const s = slabs || (pkgWizard.draft && pkgWizard.draft.guestSlabs) || [];
+  if (!s.length) {
+    host.innerHTML = '';
+    return;
+  }
+  const guests = exampleGuestCountForSlabs(s);
+  const per = guestSlabPriceForCount(s, guests);
+  const total = guests * per;
+  host.innerHTML =
+    '<span class="cat-pkg-example-ico" aria-hidden="true">🧮</span><div><b>Example Calculation</b><p>' +
+    guests +
+    ' guests × ₹' +
+    formatInrFull(per) +
+    ' = ₹ ' +
+    formatInrFull(total) +
+    ' (approx)</p></div>';
+}
+
 function renderCateringMenuHub() {
   ensureCateringMenuStore();
   const hub = el('menuPkg');
@@ -950,9 +998,11 @@ function renderFoodItemForm() {
   });
 }
 
-function renderSlabTable(hostId, slabs, onChange) {
+function renderSlabTable(hostId, slabs, onChange, tableOpts) {
+  tableOpts = tableOpts || {};
   const host = el(hostId);
   if (!host) return;
+  const priceHdr = tableOpts.priceHeader || 'Price (₹)';
   const rows = (slabs || []).map(function (s, idx) {
     return (
       '<div class="cat-slab-row" data-idx="' +
@@ -969,7 +1019,10 @@ function renderSlabTable(hostId, slabs, onChange) {
     );
   });
   host.innerHTML =
-    '<div class="cat-slab-hd"><span>From</span><span>To</span><span>Price (₹)</span><span></span></div>' + rows.join('');
+    '<div class="cat-slab-hd"><span>From</span><span>To</span><span>' +
+    esc(priceHdr) +
+    '</span><span></span></div>' +
+    rows.join('');
   function read() {
     const next = [];
     host.querySelectorAll('.cat-slab-row').forEach(function (row) {
@@ -980,6 +1033,7 @@ function renderSlabTable(hostId, slabs, onChange) {
       });
     });
     onChange(next);
+    if (tableOpts.afterChange) tableOpts.afterChange(next);
   }
   host.querySelectorAll('input').forEach(function (inp) {
     inp.oninput = read;
@@ -990,7 +1044,7 @@ function renderSlabTable(hostId, slabs, onChange) {
       const next = (slabs || []).slice();
       next.splice(i, 1);
       onChange(next);
-      renderSlabTable(hostId, next, onChange);
+      renderSlabTable(hostId, next, onChange, tableOpts);
     };
   });
 }
@@ -1188,9 +1242,22 @@ function bindCatPkgCreateUi() {
 
 function renderCatPkgPricing() {
   const d = pkgWizard.draft;
-  renderSlabTable('catPkgSlabs', d.guestSlabs || defaultPackageGuestSlabs(), function (slabs) {
-    pkgWizard.draft.guestSlabs = slabs;
-  });
+  renderSlabTable(
+    'catPkgSlabs',
+    d.guestSlabs || defaultPackageGuestSlabs(),
+    function (slabs) {
+      pkgWizard.draft.guestSlabs = slabs;
+    },
+    {
+      priceHeader: 'Price per person (₹)',
+      afterChange: renderPkgGuestPricingExample,
+    }
+  );
+  renderPkgGuestPricingExample(d.guestSlabs);
+}
+
+function renderCatPkgPreview() {
+  const d = pkgWizard.draft;
   const sum = el('catPkgSummary');
   if (sum) {
     let html = '';
@@ -1200,6 +1267,25 @@ function renderCatPkgPricing() {
       html += '<div class="cat-sum-row">✓ ' + esc(m.name) + ' (' + n + ' items)</div>';
     });
     sum.innerHTML = html || '<p class="sub">No modules selected</p>';
+  }
+  const pr = el('catPkgPreviewPricing');
+  if (pr) {
+    const slabs = d.guestSlabs || [];
+    if (!slabs.length) pr.textContent = 'No guest slabs set';
+    else {
+      pr.innerHTML = slabs
+        .map(function (s) {
+          return (
+            esc(String(s.from)) +
+            '–' +
+            esc(String(s.to)) +
+            ' guests: ₹' +
+            formatInrFull(s.price) +
+            ' / person'
+          );
+        })
+        .join('<br>');
+    }
   }
   el('catPkgStatusLive').checked = d.status !== 'draft';
   el('catPkgStatusDraft').checked = d.status === 'draft';
@@ -1214,10 +1300,29 @@ function bindCatPkgPricingUi() {
     const slabs = pkgWizard.draft.guestSlabs || [];
     const last = slabs[slabs.length - 1];
     const from = last ? last.to + 1 : 25;
-    slabs.push({ from: from, to: from + 24, price: last ? last.price - 10 : 300 });
+    slabs.push({ from: from, to: from + 49, price: last ? Math.max(50, last.price - 50) : 500 });
     pkgWizard.draft.guestSlabs = slabs;
     renderCatPkgPricing();
   };
+  const nextPrev = el('catPkgNextPreview');
+  if (nextPrev) {
+    nextPrev.onclick = function () {
+      const slabs = pkgWizard.draft.guestSlabs || [];
+      if (!slabs.length) {
+        toast('Add at least one guest pricing slab');
+        return;
+      }
+      renderCatPkgPreview();
+      show('catPkgPreview');
+    };
+  }
+  const prevBack = el('catPkgPreviewBack');
+  if (prevBack) {
+    prevBack.onclick = function () {
+      show('catPkgPricing');
+      renderCatPkgPricing();
+    };
+  }
   el('catPkgSave').onclick = function () {
     const d = pkgWizard.draft;
     d.status = el('catPkgStatusDraft').checked ? 'draft' : 'live';

@@ -163,6 +163,10 @@ body{margin:0;background:#E8EDF5;font-family:Inter,system-ui,sans-serif;color:va
 .cat-slab-hd,.cat-slab-row{display:grid;grid-template-columns:1fr 1fr 1.2fr 36px;gap:6px;align-items:center;padding:0 16px 8px;font-size:10px;font-weight:800;color:#94A3B8}
 .cat-slab-row input{padding:8px;border:1.5px solid #BFDBFE;border-radius:8px;font:inherit;font-weight:700;width:100%}
 .cat-slab-rm{border:0;background:#FEE2E2;border-radius:8px;height:32px;cursor:pointer}
+.cat-pkg-example{margin:8px 16px 16px;padding:14px 16px;border-radius:14px;background:#ECFDF5;border:1px solid #A7F3D0;display:flex;gap:12px;align-items:flex-start}
+.cat-pkg-example-ico{font-size:22px;line-height:1;flex-shrink:0}
+.cat-pkg-example b{display:block;font-size:13px;font-weight:900;color:#065F46;margin-bottom:4px}
+.cat-pkg-example p{margin:0;font-size:12px;font-weight:700;color:#047857;line-height:1.45}
 .cat-add-slab{display:inline-block;margin:4px 16px 12px;font-size:12px;font-weight:800;color:var(--blue);cursor:pointer;border:0;background:none;font:inherit}
 .cat-lvl-seg{display:flex;flex-wrap:wrap;gap:8px;padding:0 16px 4px}
 .cat-lvl-btn{border:1.5px solid #BFDBFE;border-radius:99px;padding:8px 14px;font-weight:800;font-size:12px;background:#fff;color:var(--blue);cursor:pointer;font:inherit}
@@ -851,19 +855,26 @@ button.manage-pill{cursor:pointer;font:inherit;color:var(--blue);border-color:#B
     <div class="cat-hub-search" style="margin:0 0 12px"><span>🔍</span><input type="search" id="catPkgItemSearch" placeholder="Search food items…"></div>
     <div id="catPkgModulePick" style="padding:0 16px"></div>
   </div>
-  <div class="cta"><button type="button" class="btn btn-pink" id="catPkgNextPricing">Next: Set Pricing</button></div>
+  <div class="cta"><button type="button" class="btn btn-pink" id="catPkgNextPricing">Next: Set Guest Count Pricing</button></div>
 </section>
 
 <section class="scr" id="catPkgPricing">
-  <div class="top"><button type="button" class="back" id="catPkgPricingBack">←</button><h1>Set Package Pricing</h1><span style="width:36px"></span></div>
-  <div class="pad">
-    <p class="lbl">PRICING TYPE</p>
-    <div class="radio-row" style="margin-bottom:12px"><label><input type="radio" checked disabled> Per Person / Plate</label></div>
-    <p class="lbl">GUEST COUNT PRICING (OWNER DEFINED)</p>
+  <div class="top"><button type="button" class="back" id="catPkgPricingBack">←</button><h1>Set Guest Count Pricing</h1><span style="width:36px"></span></div>
+  <div class="pad" style="padding-top:8px">
     <div id="catPkgSlabs"></div>
     <button type="button" class="cat-add-slab" id="catPkgAddSlab">+ Add another slab</button>
-    <p class="lbl" style="margin-top:16px">PACKAGE SUMMARY</p>
+    <div class="cat-pkg-example" id="catPkgPricingExample" aria-live="polite"></div>
+  </div>
+  <div class="cta"><button type="button" class="btn btn-blue" id="catPkgNextPreview">Next: Preview Package</button></div>
+</section>
+
+<section class="scr" id="catPkgPreview">
+  <div class="top"><button type="button" class="back" id="catPkgPreviewBack">←</button><h1>Preview Package</h1><span style="width:36px"></span></div>
+  <div class="pad">
+    <p class="lbl">PACKAGE SUMMARY</p>
     <div id="catPkgSummary" style="padding:0 4px"></div>
+    <p class="lbl" style="margin-top:16px">GUEST PRICING</p>
+    <div id="catPkgPreviewPricing" class="sub" style="padding:0 4px 12px;font-weight:700;color:var(--navy)"></div>
     <p class="lbl">STATUS</p>
     <div class="radio-row">
       <label><input type="radio" name="catPkgStatus" id="catPkgStatusLive" checked> Live (visible to customers)</label>
