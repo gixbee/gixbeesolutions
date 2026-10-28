@@ -165,6 +165,9 @@ body{margin:0;background:#E8EDF5;font-family:Inter,system-ui,sans-serif;color:va
 .cat-slab-hd,.cat-slab-row{display:grid;grid-template-columns:minmax(52px,1fr) minmax(52px,1fr) minmax(88px,1.35fr) 36px;gap:8px;align-items:center;padding:0 16px 8px;font-size:10px;font-weight:800;color:#94A3B8}
 .cat-slab-hd{margin-bottom:4px;text-transform:uppercase;letter-spacing:.04em}
 .cat-slab-row input{padding:10px 8px;border:1.5px solid #BFDBFE;border-radius:10px;font:inherit;font-weight:700;width:100%;min-width:0;text-align:center;color:var(--navy);background:#fff}
+.cat-slab-price-wrap{display:flex;align-items:center;gap:2px;border:1.5px solid #BFDBFE;border-radius:10px;background:#fff;padding:0 8px;min-width:0}
+.cat-slab-price-wrap .cat-slab-inr{font-size:14px;font-weight:800;color:var(--navy);flex-shrink:0;line-height:1}
+.cat-slab-price-wrap .slab-price{border:0!important;padding:10px 4px 10px 2px!important;text-align:left!important;flex:1;min-width:0;background:transparent!important}
 .cat-slab-rm{border:0;background:#FEE2E2;border-radius:8px;height:32px;cursor:pointer}
 .cat-pkg-example{margin:8px 16px 16px;padding:14px 16px;border-radius:14px;background:#ECFDF5;border:1px solid #A7F3D0;display:flex;gap:12px;align-items:flex-start}
 .cat-pkg-example-ico{font-size:22px;line-height:1;flex-shrink:0}
@@ -4608,9 +4611,9 @@ function renderSlabTable(hostId, slabs, onChange, tableOpts) {
       esc(s.from) +
       '" min="1" aria-label="From guests"><input type="number" class="slab-to" value="' +
       esc(s.to) +
-      '" min="1" aria-label="To guests"><input type="number" class="slab-price" value="' +
+      '" min="1" aria-label="To guests"><div class="cat-slab-price-wrap"><span class="cat-slab-inr" aria-hidden="true">₹</span><input type="number" class="slab-price" value="' +
       esc(s.price) +
-      '" min="0" aria-label="Price per person"><button type="button" class="cat-slab-rm" data-rm="' +
+      '" min="0" aria-label="Price per person"></div><button type="button" class="cat-slab-rm" data-rm="' +
       idx +
       '">🗑</button></div>'
     );

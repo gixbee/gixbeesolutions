@@ -1079,9 +1079,9 @@ function renderSlabTable(hostId, slabs, onChange, tableOpts) {
       esc(s.from) +
       '" min="1" aria-label="From guests"><input type="number" class="slab-to" value="' +
       esc(s.to) +
-      '" min="1" aria-label="To guests"><input type="number" class="slab-price" value="' +
+      '" min="1" aria-label="To guests"><div class="cat-slab-price-wrap"><span class="cat-slab-inr" aria-hidden="true">₹</span><input type="number" class="slab-price" value="' +
       esc(s.price) +
-      '" min="0" aria-label="Price per person"><button type="button" class="cat-slab-rm" data-rm="' +
+      '" min="0" aria-label="Price per person"></div><button type="button" class="cat-slab-rm" data-rm="' +
       idx +
       '">🗑</button></div>'
     );
