@@ -37,15 +37,32 @@ function syncPkgDraftFromStep2Fields() {
     (pkgWizard.draft.level || 'Basic') + ' - ' + (pkgWizard.draft.name || 'Your package name');
 }
 
-function packageDietChipHtml(dietType) {
-  const veg = '<span class="diet-mark veg" title="Veg" aria-hidden="true"><i></i></span>';
-  const non = '<span class="diet-mark non" title="Non-veg" aria-hidden="true"><i></i></span>';
+function dietMarkHtml(kind, large) {
+  return (
+    '<span class="diet-mark ' +
+    kind +
+    (large ? ' lg' : '') +
+    '" aria-hidden="true"><i></i></span>'
+  );
+}
+
+function packageDietLeadHtml(dietType) {
   if (dietType === 'veg') {
-    return '<span class="pkg-diet-chip">' + veg + ' Veg</span>';
+    return '<span class="pkg-diet-lead">' + dietMarkHtml('veg', true) + '<span>Veg</span></span>';
   }
   if (dietType === 'mixed') {
-    return '<span class="pkg-diet-chip"><span class="diet-marks">' + veg + non + '</span> Veg + Non-veg</span>';
+    return (
+      '<span class="pkg-diet-lead"><span class="diet-marks">' +
+      dietMarkHtml('veg', true) +
+      dietMarkHtml('non', true) +
+      '</span><span>Veg + Non-veg</span></span>'
+    );
   }
+  return '<span class="pkg-diet-lead need"><span>Set menu type</span></span>';
+}
+
+function packageDietChipHtml(dietType) {
+  if (dietType === 'veg' || dietType === 'mixed') return packageDietLeadHtml(dietType);
   return '';
 }
 
@@ -99,12 +116,12 @@ function renderCatPkgDietChoice() {
     {
       id: 'veg',
       title: 'Veg only',
-      sub: 'Every dish is vegetarian. Egg dishes stay out.',
+      sub: 'Vegetarian dishes only',
     },
     {
       id: 'mixed',
       title: 'Veg and non-veg',
-      sub: 'The package includes vegetarian and non-veg dishes.',
+      sub: 'Vegetarian and non-veg dishes',
     },
   ];
   host.innerHTML =
@@ -117,13 +134,15 @@ function renderCatPkgDietChoice() {
           (on ? ' on' : '') +
           '" data-pkg-diet="' +
           opt.id +
-          '">' +
-          packageDietChipHtml(opt.id) +
-          '<span><b>' +
+          '"><span class="cat-diet-ico">' +
+          (opt.id === 'veg'
+            ? dietMarkHtml('veg', true)
+            : dietMarkHtml('veg', true) + dietMarkHtml('non', true)) +
+          '</span><span><b>' +
           esc(opt.title) +
           '</b><small>' +
           esc(opt.sub) +
-          '</small></span></button>'
+          '</small></span><span class="cat-diet-tick" aria-hidden="true">✓</span></button>'
         );
       })
       .join('') +
@@ -554,13 +573,13 @@ function renderCatPkgList() {
         lv +
         '">' +
         esc(p.level) +
-        '</span>' +
-        (packageDietChipHtml(p.dietType) || '<span class="pkg-diet-chip need">Set menu type</span>') +
-        '<span class="pkg-meta-chip ceremony">' +
+        '</span><span class="pkg-meta-chip ceremony">' +
         esc(packageCategoryHubLabel(catId)) +
         '</span></div><button type="button" class="pkg-card-menu" data-cpkg-menu="' +
         esc(p.id) +
-        '" aria-label="Package options">⋮</button></div><b>' +
+        '" aria-label="Package options">⋮</button></div>' +
+        (packageDietChipHtml(p.dietType) || '<span class="pkg-diet-lead need"><span>Set menu type</span></span>') +
+        '<b>' +
         esc(p.name) +
         '</b><div class="pkg-price">' +
         esc(packageFromPersonLabel(p)) +
@@ -1642,7 +1661,7 @@ function renderCatPkgStep3Menu() {
   const nudge = el('catPkgDietNudge');
   if (summary) {
     if (d.dietType === 'veg') {
-      summary.innerHTML = packageDietChipHtml('veg') + ' <span>Veg dishes only · ' + (d.itemIds || []).length + ' selected</span>';
+      summary.innerHTML = packageDietChipHtml('veg') + ' <span>' + (d.itemIds || []).length + ' dishes selected</span>';
     } else if (d.dietType === 'mixed') {
       summary.innerHTML =
         packageDietChipHtml('mixed') +

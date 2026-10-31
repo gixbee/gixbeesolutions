@@ -222,7 +222,7 @@ body{margin:0;background:#E8EDF5;font-family:Inter,system-ui,sans-serif;color:va
 .cat-pkg-name-hint{margin:4px 16px 0;font-size:11px;font-weight:600;color:#64748B;line-height:1.4}
 .cat-pkg-name-preview{margin:16px 16px 0;padding:14px;border-radius:14px;background:#F8FAFC;border:1px solid #E2E8F0}
 .cat-pkg-name-preview .sub{margin:0 0 6px;font-size:11px;font-weight:700;color:#64748B}
-.cat-pkg-name-preview b{font-size:15px;font-weight:900;color:#059669;line-height:1.35;display:block}
+.cat-pkg-name-preview b{font-size:15px;font-weight:900;color:#0F172A;line-height:1.35;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 .cat-menu-step-list{padding:0 0 80px}
 .cat-menu-step-row{display:flex;align-items:center;gap:12px;width:100%;padding:14px 16px;border:0;border-bottom:1px solid #F1F5F9;background:#fff;cursor:pointer;text-align:left;font:inherit;color:var(--navy)}
 .cat-menu-step-row.has-items{background:#F0FDF4}
@@ -299,23 +299,30 @@ body{margin:0;background:#E8EDF5;font-family:Inter,system-ui,sans-serif;color:va
 .pkg-meta-chip{display:inline-block;font-size:9px;font-weight:700;padding:4px 9px;border-radius:8px;letter-spacing:.01em;line-height:1.2}
 .pkg-meta-chip.ceremony{background:#ECFDF5;color:#047857}
 .pkg-meta-chip.side{background:#EFF6FF;color:#1D4ED8}
-.diet-mark{display:inline-flex;align-items:center;justify-content:center;width:14px;height:14px;border:1.5px solid currentColor;border-radius:3px;flex-shrink:0;vertical-align:middle}
-.diet-mark i{width:6px;height:6px;border-radius:50%;background:currentColor;display:block}
-.diet-mark.veg{color:#16A34A}
+.diet-mark{display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;border:1.5px solid currentColor;border-radius:3px;flex-shrink:0;background:#fff}
+.diet-mark i{width:7px;height:7px;border-radius:50%;background:currentColor;display:block}
+.diet-mark.lg{width:20px;height:20px}
+.diet-mark.lg i{width:9px;height:9px}
+.diet-mark.veg{color:#14804A}
 .diet-mark.non{color:#C2410C}
-.diet-marks{display:inline-flex;align-items:center;gap:3px;flex-shrink:0}
-.pkg-diet-chip{display:inline-flex;align-items:center;gap:5px;font-size:10px;font-weight:800;padding:4px 8px;border-radius:8px;background:#F8FAFC;color:var(--navy);border:1px solid #E2E8F0;line-height:1.2}
-.pkg-diet-chip.need{background:#FFFBEB;border-color:#FDE68A;color:#92400E}
+.diet-marks{display:inline-flex;align-items:center;gap:4px;flex-shrink:0}
+.pkg-diet-lead{display:flex;align-items:center;gap:6px;margin-top:2px;font-size:12px;font-weight:800;color:#0F172A;letter-spacing:-.01em}
+.pkg-diet-lead.need{color:#B45309;font-size:11px}
+.pkg-diet-chip{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:800;padding:4px 8px;border-radius:8px;background:#F8FAFC;color:#0F172A;border:1px solid #E2E8F0;line-height:1.2}
 .cat-diet-choice{display:flex;flex-direction:column;gap:10px;margin:0 0 16px}
-.cat-diet-card{display:flex;align-items:flex-start;gap:10px;text-align:left;border:2px solid #E2E8F0;border-radius:14px;padding:12px;background:#fff;cursor:pointer;font:inherit;color:var(--navy);width:100%}
-.cat-diet-card.on{border-color:#16A34A;background:#F0FDF4;box-shadow:0 0 0 1px #16A34A}
-.cat-diet-card b{display:block;font-size:14px;font-weight:900}
-.cat-diet-card small{display:block;margin-top:3px;font-size:11px;font-weight:600;color:#64748B;line-height:1.35}
-.cat-pkg-diet-summary{margin:0 16px 10px;font-size:12px;font-weight:800;color:#334155;display:flex;align-items:center;gap:6px;flex-wrap:wrap}
-.cat-diet-nudge{margin:0 16px 12px;padding:12px 14px;border-radius:12px;background:#FFFBEB;border:1px solid #FDE68A}
-.cat-diet-nudge b{display:block;color:#92400E;font-size:13px}
-.cat-diet-nudge p{margin:4px 0 0;font-size:12px;font-weight:600;color:#78350F;line-height:1.4}
-.cat-diet-nudge button{margin-top:10px}
+.cat-diet-card{display:flex;align-items:center;gap:12px;text-align:left;border:2px solid #E2E8F0;border-radius:16px;padding:12px;background:#fff;cursor:pointer;font:inherit;color:var(--navy);width:100%}
+.cat-diet-card.on{border-color:#14804A;background:#F0FDF4;box-shadow:0 0 0 1px #14804A}
+.cat-diet-ico{width:48px;height:48px;border-radius:14px;background:#F8FAFC;display:flex;align-items:center;justify-content:center;gap:4px;flex-shrink:0;border:1px solid #E2E8F0}
+.cat-diet-card.on .cat-diet-ico{background:#fff;border-color:#BBF7D0}
+.cat-diet-card b{display:block;font-size:15px;font-weight:900;letter-spacing:-.02em}
+.cat-diet-card small{display:block;margin-top:3px;font-size:12px;font-weight:600;color:#64748B;line-height:1.35}
+.cat-diet-tick{margin-left:auto;width:22px;height:22px;border-radius:50%;border:1.5px solid #E2E8F0;display:grid;place-items:center;font-size:12px;font-weight:900;color:transparent;flex-shrink:0;background:#fff}
+.cat-diet-card.on .cat-diet-tick{background:#14804A;border-color:#14804A;color:#fff}
+.cat-pkg-diet-summary{margin:0 16px 10px;padding:10px 12px;border-radius:12px;background:#F8FAFC;border:1px solid #E2E8F0;font-size:13px;font-weight:800;color:#0F172A;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.cat-diet-nudge{margin:0 16px 12px;padding:14px;border-radius:14px;background:#FFFBEB;border:1px solid #FDE68A}
+.cat-diet-nudge b{display:block;color:#92400E;font-size:14px}
+.cat-diet-nudge p{margin:4px 0 0;font-size:12px;font-weight:600;color:#78350F;line-height:1.45}
+.cat-diet-nudge button{margin-top:10px;width:auto;padding:10px 14px;border-radius:12px}
 .pkg-level{display:inline-block;font-size:9px;font-weight:800;padding:4px 9px;border-radius:8px;letter-spacing:.02em}
 .pkg-level.standard{background:#FFEDD5;color:#C2410C}
 .pkg-level.premium{background:#FEF3C7;color:#92400E}
@@ -949,8 +956,8 @@ button.manage-pill{cursor:pointer;font:inherit;color:var(--blue);border-color:#B
   <div class="pad" style="padding-top:0">
     <p class="cat-lvl-head" style="padding-left:0;padding-right:0"><span aria-hidden="true">📋</span> Package Type<span class="cat-lvl-req">*</span></p>
     <div class="cat-pkg-type-seg" id="catPkgTypeSeg"></div>
-    <p class="cat-lvl-head" style="padding-left:0;padding-right:0"><span aria-hidden="true">🍃</span> Menu for customers<span class="cat-lvl-req">*</span></p>
-    <p class="cat-pkg-name-hint" style="margin-left:0;margin-right:0">Customers filter with this. A veg guest can hide mixed packages. Someone who eats non-veg still sees veg packages under All.</p>
+    <p class="cat-lvl-head" style="padding-left:0;padding-right:0"><span aria-hidden="true">🍃</span> What will guests eat?<span class="cat-lvl-req">*</span></p>
+    <p class="cat-pkg-name-hint" style="margin-left:0;margin-right:0">Customers use this to find a vegetarian menu.</p>
     <div id="catPkgDietChoice"></div>
     <div class="fld"><label>Package Name*</label><input id="catPkgName" placeholder="e.g. Wedding Sadhya"></div>
     <p class="cat-pkg-name-hint">Example: Wedding Sadhya, Royal Feast, Traditional Menu etc.</p>
@@ -966,7 +973,7 @@ button.manage-pill{cursor:pointer;font:inherit;color:var(--blue);border-color:#B
 <section class="scr" id="catPkgStep3">
   <div class="top"><button type="button" class="back" id="catPkgStep3TopBack">←</button><h1>Add Menu Items</h1><span style="width:36px"></span></div>
   <p class="cat-wiz-step">Step 3 of 5</p>
-  <p class="cat-pkg-diet-summary" id="catPkgDietSummary"></p>
+  <div class="cat-pkg-diet-summary" id="catPkgDietSummary"></div>
   <div class="cat-diet-nudge" id="catPkgDietNudge" hidden>
     <b>This menu is all vegetarian.</b>
     <p>Switch to veg only, or go back and add a non-veg dish.</p>
@@ -3639,15 +3646,32 @@ function syncPkgDraftFromStep2Fields() {
     (pkgWizard.draft.level || 'Basic') + ' - ' + (pkgWizard.draft.name || 'Your package name');
 }
 
-function packageDietChipHtml(dietType) {
-  const veg = '<span class="diet-mark veg" title="Veg" aria-hidden="true"><i></i></span>';
-  const non = '<span class="diet-mark non" title="Non-veg" aria-hidden="true"><i></i></span>';
+function dietMarkHtml(kind, large) {
+  return (
+    '<span class="diet-mark ' +
+    kind +
+    (large ? ' lg' : '') +
+    '" aria-hidden="true"><i></i></span>'
+  );
+}
+
+function packageDietLeadHtml(dietType) {
   if (dietType === 'veg') {
-    return '<span class="pkg-diet-chip">' + veg + ' Veg</span>';
+    return '<span class="pkg-diet-lead">' + dietMarkHtml('veg', true) + '<span>Veg</span></span>';
   }
   if (dietType === 'mixed') {
-    return '<span class="pkg-diet-chip"><span class="diet-marks">' + veg + non + '</span> Veg + Non-veg</span>';
+    return (
+      '<span class="pkg-diet-lead"><span class="diet-marks">' +
+      dietMarkHtml('veg', true) +
+      dietMarkHtml('non', true) +
+      '</span><span>Veg + Non-veg</span></span>'
+    );
   }
+  return '<span class="pkg-diet-lead need"><span>Set menu type</span></span>';
+}
+
+function packageDietChipHtml(dietType) {
+  if (dietType === 'veg' || dietType === 'mixed') return packageDietLeadHtml(dietType);
   return '';
 }
 
@@ -3701,12 +3725,12 @@ function renderCatPkgDietChoice() {
     {
       id: 'veg',
       title: 'Veg only',
-      sub: 'Every dish is vegetarian. Egg dishes stay out.',
+      sub: 'Vegetarian dishes only',
     },
     {
       id: 'mixed',
       title: 'Veg and non-veg',
-      sub: 'The package includes vegetarian and non-veg dishes.',
+      sub: 'Vegetarian and non-veg dishes',
     },
   ];
   host.innerHTML =
@@ -3719,13 +3743,15 @@ function renderCatPkgDietChoice() {
           (on ? ' on' : '') +
           '" data-pkg-diet="' +
           opt.id +
-          '">' +
-          packageDietChipHtml(opt.id) +
-          '<span><b>' +
+          '"><span class="cat-diet-ico">' +
+          (opt.id === 'veg'
+            ? dietMarkHtml('veg', true)
+            : dietMarkHtml('veg', true) + dietMarkHtml('non', true)) +
+          '</span><span><b>' +
           esc(opt.title) +
           '</b><small>' +
           esc(opt.sub) +
-          '</small></span></button>'
+          '</small></span><span class="cat-diet-tick" aria-hidden="true">✓</span></button>'
         );
       })
       .join('') +
@@ -4156,13 +4182,13 @@ function renderCatPkgList() {
         lv +
         '">' +
         esc(p.level) +
-        '</span>' +
-        (packageDietChipHtml(p.dietType) || '<span class="pkg-diet-chip need">Set menu type</span>') +
-        '<span class="pkg-meta-chip ceremony">' +
+        '</span><span class="pkg-meta-chip ceremony">' +
         esc(packageCategoryHubLabel(catId)) +
         '</span></div><button type="button" class="pkg-card-menu" data-cpkg-menu="' +
         esc(p.id) +
-        '" aria-label="Package options">⋮</button></div><b>' +
+        '" aria-label="Package options">⋮</button></div>' +
+        (packageDietChipHtml(p.dietType) || '<span class="pkg-diet-lead need"><span>Set menu type</span></span>') +
+        '<b>' +
         esc(p.name) +
         '</b><div class="pkg-price">' +
         esc(packageFromPersonLabel(p)) +
@@ -5244,7 +5270,7 @@ function renderCatPkgStep3Menu() {
   const nudge = el('catPkgDietNudge');
   if (summary) {
     if (d.dietType === 'veg') {
-      summary.innerHTML = packageDietChipHtml('veg') + ' <span>Veg dishes only · ' + (d.itemIds || []).length + ' selected</span>';
+      summary.innerHTML = packageDietChipHtml('veg') + ' <span>' + (d.itemIds || []).length + ' dishes selected</span>';
     } else if (d.dietType === 'mixed') {
       summary.innerHTML =
         packageDietChipHtml('mixed') +
