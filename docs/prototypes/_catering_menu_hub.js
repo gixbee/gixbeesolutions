@@ -300,6 +300,38 @@ function formatInrFull(n) {
   return Math.max(0, Math.round(+n || 0)).toLocaleString('en-IN');
 }
 
+function offerPercentOf(pkg) {
+  if (!pkg || !pkg.offerEnabled) return 0;
+  const n = Math.round(+pkg.discountPercent);
+  if (n >= 1 && n <= 90) return n;
+  return 0;
+}
+
+function priceAfterOffer(base, percent) {
+  const b = Math.max(0, Math.round(+base || 0));
+  if (!percent) return b;
+  return Math.max(0, Math.round((b * (100 - percent)) / 100));
+}
+
+function offerBadgeHtml(percent) {
+  return (
+    '<span class="cat-offer-badge"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M21.4 11.6 12.4 2.6A2 2 0 0 0 11 2H4a2 2 0 0 0-2 2v7a2 2 0 0 0 .6 1.4l9 9a2 2 0 0 0 2.8 0l7-7a2 2 0 0 0 0-2.8zM7.2 8.5a1.5 1.5 0 1 1 1.5-1.5 1.5 1.5 0 0 1-1.5 1.5z"/></svg>' +
+    percent +
+    '% off</span>'
+  );
+}
+
+function offerPriceBitsHtml(base, percent) {
+  return (
+    '<s>₹' +
+    formatInrFull(base) +
+    '</s><b>₹' +
+    formatInrFull(priceAfterOffer(base, percent)) +
+    '</b>' +
+    offerBadgeHtml(percent)
+  );
+}
+
 function guestSlabPriceForCount(slabs, guestCount) {
   const c = +guestCount || 0;
   let i;
@@ -332,7 +364,9 @@ function renderPkgGuestPricingExample(slabs) {
     return;
   }
   const guests = exampleGuestCountForSlabs(s);
-  const per = guestSlabPriceForCount(s, guests);
+  const base = guestSlabPriceForCount(s, guests);
+  const pct = pkgWizard.draft ? offerPercentOf(pkgWizard.draft) : 0;
+  const per = priceAfterOffer(base, pct);
   const total = guests * per;
   host.innerHTML =
     '<span class="cat-pkg-example-ico" aria-hidden="true">🧮</span><div><b>Example Calculation</b><p>' +
@@ -341,7 +375,9 @@ function renderPkgGuestPricingExample(slabs) {
     formatInrFull(per) +
     ' = ₹ ' +
     formatInrFull(total) +
-    ' (approx)</p></div>';
+    ' (approx).' +
+    (pct ? ' Offer price, ' + pct + '% off ₹' + formatInrFull(base) + ' / plate.' : '') +
+    '</p></div>';
 }
 
 function renderCateringMenuHub() {
@@ -438,6 +474,24 @@ function packageFromPersonLabel(p) {
   const from = lowestGuestPrice(p) || p.price || 0;
   if (p.rateMode === 'flat') return '₹' + formatInrFull(from) + ' / person';
   return 'From ₹' + formatInrFull(from) + ' / person';
+}
+
+function packagePriceHtml(p) {
+  const base = lowestGuestPrice(p) || +p.price || 0;
+  const pct = offerPercentOf(p);
+  const prefix = p.rateMode === 'flat' ? '' : 'From ';
+  if (!pct) return esc(prefix + '₹' + formatInrFull(base) + ' / person');
+  return (
+    '<span class="pkg-offer"><s>₹' +
+    formatInrFull(base) +
+    '</s><span class="row"><b>' +
+    esc(prefix) +
+    '₹' +
+    formatInrFull(priceAfterOffer(base, pct)) +
+    ' / person</b>' +
+    offerBadgeHtml(pct) +
+    '</span></span>'
+  );
 }
 
 function renderCatPkgCategoryFilters() {
@@ -552,7 +606,7 @@ function renderCatPkgList() {
         '<b>' +
         esc(p.name) +
         '</b><div class="pkg-price">' +
-        esc(packageFromPersonLabel(p)) +
+        packagePriceHtml(p) +
         '</div><div class="pkg-sub">' +
         esc(p.subtitle || p.description || '') +
         '</div><div class="pkg-foot"><span class="status ' +
@@ -1359,9 +1413,9 @@ function renderSlabTable(hostId, slabs, onChange, tableOpts) {
       esc(s.from) +
       '" min="1" aria-label="From guests"><span>guests</span></label><label class="cat-slab-count"><input type="number" class="slab-to" value="' +
       esc(s.to) +
-      '" min="1" aria-label="To guests"><span>guests</span></label><div class="cat-slab-price-wrap"><span class="cat-slab-inr" aria-hidden="true">₹</span><input type="number" class="slab-price" value="' +
+      '" min="1" aria-label="To guests"><span>guests</span></label><div class="cat-slab-price-col"><div class="cat-slab-price-wrap"><span class="cat-slab-inr" aria-hidden="true">₹</span><input type="number" class="slab-price" value="' +
       esc(s.price) +
-      '" min="0" aria-label="Price per plate"></div><button type="button" class="cat-slab-rm" data-rm="' +
+      '" min="0" aria-label="Price per plate"></div><div class="cat-slab-offer"></div></div><button type="button" class="cat-slab-rm" data-rm="' +
       idx +
       '">🗑</button></div>'
     );
@@ -1497,6 +1551,8 @@ function newPkgDraft() {
     itemIds: [],
     imageEmoji: '🍽️',
     dietType: '',
+    offerEnabled: false,
+    discountPercent: '',
     listPrice: 0,
     price: 0,
     subtitle: '',
@@ -1694,6 +1750,41 @@ function bindCatPkgCreateUi() {
   });
 }
 
+function renderCatPkgOffer() {
+  const d = pkgWizard.draft;
+  if (!d) return;
+  const box = el('catPkgOfferBox');
+  const on = el('catPkgOfferOn');
+  const fields = el('catPkgOfferFields');
+  const pct = el('catPkgOfferPercent');
+  if (on) on.checked = !!d.offerEnabled;
+  if (box) box.classList.toggle('on', !!d.offerEnabled);
+  if (fields) fields.hidden = !d.offerEnabled;
+  if (pct && document.activeElement !== pct) {
+    const v = d.discountPercent;
+    pct.value = v === '' || v == null ? '' : v;
+  }
+  paintPackageOfferPrices();
+}
+
+function paintPackageOfferPrices() {
+  const d = pkgWizard.draft;
+  const pct = d ? offerPercentOf(d) : 0;
+  document.querySelectorAll('#catPkgSlabs .cat-slab-offer').forEach(function (slot) {
+    const row = slot.closest('.cat-slab-row');
+    const priceEl = row && row.querySelector('.slab-price');
+    const price = priceEl ? +priceEl.value || 0 : 0;
+    slot.innerHTML = pct ? offerPriceBitsHtml(price, pct) : '';
+  });
+  const flatSlot = el('catPkgFlatOffer');
+  if (flatSlot) {
+    const priceEl = el('catPkgFlatPrice');
+    const show = !!(pct && d && d.rateMode === 'flat');
+    flatSlot.hidden = !show;
+    flatSlot.innerHTML = show ? offerPriceBitsHtml(priceEl ? +priceEl.value || 0 : 0, pct) : '';
+  }
+}
+
 function renderCatPkgPricing() {
   const d = pkgWizard.draft;
   if (!d) return;
@@ -1714,6 +1805,7 @@ function renderCatPkgPricing() {
     }
     const price = el('catPkgFlatPrice');
     if (price) price.value = d.guestSlabs[0].price;
+    renderCatPkgOffer();
     renderPkgGuestPricingExample(d.guestSlabs);
     return;
   }
@@ -1726,9 +1818,13 @@ function renderCatPkgPricing() {
     },
     {
       priceHeader: 'Price per plate (₹)',
-      afterChange: renderPkgGuestPricingExample,
+      afterChange: function (slabs) {
+        renderPkgGuestPricingExample(slabs);
+        paintPackageOfferPrices();
+      },
     }
   );
+  renderCatPkgOffer();
   renderPkgGuestPricingExample(d.guestSlabs);
 }
 
@@ -1748,19 +1844,20 @@ function renderCatPkgPreview() {
   const pr = el('catPkgPreviewPricing');
   if (pr) {
     const slabs = d.guestSlabs || [];
-    if (d.rateMode === 'flat' && slabs[0]) {
-      pr.textContent = '₹' + formatInrFull(slabs[0].price) + ' / plate for all guests';
-    } else if (!slabs.length) pr.textContent = 'No guest slabs set';
+    const pct = offerPercentOf(d);
+    if (!slabs.length) pr.textContent = 'No guest slabs set';
     else {
       pr.innerHTML = slabs
         .map(function (s) {
+          const range =
+            d.rateMode === 'flat' ? 'All guests' : esc(String(s.from)) + '–' + esc(String(s.to)) + ' guests';
+          if (!pct) return range + ': ₹' + formatInrFull(s.price) + ' / plate';
           return (
-            esc(String(s.from)) +
-            '–' +
-            esc(String(s.to)) +
-            ' guests: ₹' +
-            formatInrFull(s.price) +
-            ' / plate'
+            '<span class="cat-preview-offer">' +
+            range +
+            ': ' +
+            offerPriceBitsHtml(s.price, pct) +
+            ' / plate</span>'
           );
         })
         .join('<br>');
@@ -1800,12 +1897,43 @@ function bindCatPkgPricingUi() {
     const price = el('catPkgFlatPrice');
     pkgWizard.draft.rateMode = 'flat';
     pkgWizard.draft.guestSlabs = [{ from: 1, to: 500, price: price ? +price.value || 0 : 0 }];
+    paintPackageOfferPrices();
+    renderPkgGuestPricingExample(pkgWizard.draft.guestSlabs);
+  });
+  bindOnChange('catPkgOfferOn', function () {
+    if (!pkgWizard.draft) return;
+    const on = el('catPkgOfferOn');
+    pkgWizard.draft.offerEnabled = !!(on && on.checked);
+    renderCatPkgOffer();
+    renderPkgGuestPricingExample(pkgWizard.draft.guestSlabs);
+    if (pkgWizard.draft.offerEnabled) {
+      const pct = el('catPkgOfferPercent');
+      if (pct) pct.focus();
+    }
+  });
+  bindOnInput('catPkgOfferPercent', function () {
+    if (!pkgWizard.draft) return;
+    const pct = el('catPkgOfferPercent');
+    const raw = pct ? pct.value : '';
+    pkgWizard.draft.offerEnabled = true;
+    pkgWizard.draft.discountPercent = raw === '' ? '' : Math.round(+raw);
+    paintPackageOfferPrices();
     renderPkgGuestPricingExample(pkgWizard.draft.guestSlabs);
   });
   bindClick('catPkgNextPreview', function () {
     const slabs = pkgWizard.draft.guestSlabs || [];
+    const onEl = el('catPkgOfferOn');
+    const pctEl = el('catPkgOfferPercent');
+    if (onEl) pkgWizard.draft.offerEnabled = !!onEl.checked;
+    if (pkgWizard.draft.offerEnabled && pctEl) {
+      pkgWizard.draft.discountPercent = pctEl.value === '' ? '' : Math.round(+pctEl.value);
+    }
     if (!slabs.length) {
       toast('Add at least one guest pricing slab');
+      return;
+    }
+    if (pkgWizard.draft.offerEnabled && !offerPercentOf(pkgWizard.draft)) {
+      toast('Enter a discount from 1 to 90 percent');
       return;
     }
     renderCatPkgPreview();
@@ -1827,8 +1955,23 @@ function bindCatPkgPricingUi() {
       toast('Choose veg only or veg and non-veg');
       return;
     }
-    d.price = slabs.length ? Math.min.apply(null, slabs.map(function (s) { return +s.price; })) : 0;
-    d.listPrice = d.listPrice || d.price;
+    if (d.offerEnabled && !offerPercentOf(d)) {
+      toast('Enter a discount from 1 to 90 percent');
+      return;
+    }
+    const baseMin = slabs.length
+      ? Math.min.apply(
+          null,
+          slabs.map(function (s) {
+            return +s.price || 0;
+          })
+        )
+      : 0;
+    const pct = offerPercentOf(d);
+    d.discountPercent = pct || '';
+    if (!pct) d.offerEnabled = false;
+    d.price = priceAfterOffer(baseMin, pct);
+    d.listPrice = baseMin;
     clearRateModeBackup(d);
     d.subtitle = d.subtitle || d.customerTitle || moduleCountSubtitle(d);
     d.id = pkgWizard.editId || uid('cpkg');

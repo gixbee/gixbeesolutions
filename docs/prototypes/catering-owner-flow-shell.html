@@ -175,6 +175,7 @@ body{margin:0;background:#E8EDF5;font-family:Inter,system-ui,sans-serif;color:va
 .cat-food-hero span{font-size:64px}
 .cat-food-hero button{position:absolute;bottom:12px;right:12px;border:0;background:rgba(255,255,255,.92);padding:8px 14px;border-radius:99px;font-size:12px;font-weight:800;color:var(--navy);cursor:pointer}
 .cat-slab-hd,.cat-slab-row{display:grid;grid-template-columns:minmax(44px,.75fr) minmax(44px,.75fr) minmax(118px,1.8fr) 32px;gap:8px;align-items:center;padding:0 16px 8px;font-size:10px;font-weight:800;color:#94A3B8}
+.cat-slab-row{align-items:start}
 .cat-slab-hd{margin-bottom:4px;text-transform:uppercase;letter-spacing:.02em}
 .cat-slab-count{display:flex;flex-direction:column;align-items:stretch;gap:3px;min-width:0}
 .cat-slab-count span{font-size:11px;font-weight:800;color:#64748B;text-transform:none;letter-spacing:0;line-height:1.1;text-align:center}
@@ -183,7 +184,31 @@ body{margin:0;background:#E8EDF5;font-family:Inter,system-ui,sans-serif;color:va
 .cat-slab-price-wrap{display:flex;align-items:center;gap:2px;border:1.5px solid #BFDBFE;border-radius:10px;background:#fff;padding:0 8px;min-width:0}
 .cat-slab-price-wrap .cat-slab-inr{font-size:14px;font-weight:800;color:var(--navy);flex-shrink:0;line-height:1}
 .cat-slab-price-wrap .slab-price{border:0!important;padding:10px 4px 10px 2px!important;text-align:left!important;flex:1;min-width:0;background:transparent!important}
-.cat-slab-rm{border:0;background:#FEE2E2;border-radius:8px;height:32px;cursor:pointer}
+.cat-slab-price-col{display:flex;flex-direction:column;gap:4px;min-width:0}
+.cat-slab-offer{display:flex;flex-wrap:wrap;align-items:center;gap:4px}
+.cat-slab-offer:empty{display:none}
+.cat-slab-offer s{font-size:11px;font-weight:700;color:#94A3B8;text-decoration:line-through}
+.cat-slab-offer b{font-size:13px;font-weight:900;color:#BE185D;letter-spacing:-.02em}
+.cat-offer-badge{display:inline-flex;align-items:center;gap:3px;background:#FBCFE8;color:#BE185D;font-size:10px;font-weight:800;padding:2px 6px;border-radius:99px;line-height:1.2}
+.cat-offer-badge svg{width:11px;height:11px;display:block;flex-shrink:0}
+.cat-slab-rm{border:0;background:#FEE2E2;border-radius:8px;height:32px;margin-top:6px;cursor:pointer}
+.cat-offer{margin:0 0 14px;padding:12px;border-radius:14px;border:1.5px solid #E2E8F0;background:#fff}
+.cat-offer.on{border-color:#F9A8D4;background:#FFF1F2}
+.cat-offer-check{display:flex;align-items:flex-start;gap:10px;cursor:pointer}
+.cat-offer-check input{width:18px;height:18px;margin-top:2px;flex-shrink:0;accent-color:#DB2777}
+.cat-offer-check b{display:block;font-size:14px;font-weight:900;color:var(--navy)}
+.cat-offer-check small{display:block;margin-top:2px;font-size:12px;font-weight:600;color:#64748B;line-height:1.35}
+.cat-offer-pct{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:12px}
+.cat-offer-pct label{font-size:13px;font-weight:800;color:var(--navy)}
+.cat-offer-pct-in{display:flex;align-items:center;gap:4px;border:1.5px solid #F9A8D4;border-radius:12px;background:#fff;padding:0 10px}
+.cat-offer-pct-in input{width:64px;border:0;padding:10px 0;font:inherit;font-size:18px;font-weight:900;color:#BE185D;text-align:center;background:transparent}
+.cat-offer-pct-in span{font-size:16px;font-weight:900;color:#BE185D}
+.cat-flat-offer{margin-top:8px}
+.pkg-price .pkg-offer{display:flex;flex-direction:column;align-items:flex-start;gap:3px}
+.pkg-price .pkg-offer s{font-size:12px;font-weight:700;color:#9CA3AF;text-decoration:line-through}
+.pkg-price .pkg-offer .row{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.cat-preview-offer s{color:#94A3B8;font-weight:700;margin-right:4px}
+.cat-preview-offer b{color:#BE185D}
 .cat-pkg-example{margin:8px 16px 16px;padding:14px 16px;border-radius:14px;background:#ECFDF5;border:1px solid #A7F3D0;display:flex;gap:12px;align-items:flex-start}
 .cat-pkg-example-ico{font-size:22px;line-height:1;flex-shrink:0}
 .cat-pkg-example b{display:block;font-size:13px;font-weight:900;color:#065F46;margin-bottom:4px}
@@ -990,8 +1015,22 @@ button.manage-pill{cursor:pointer;font:inherit;color:var(--blue);border-color:#B
       <label><input type="radio" name="catPkgRateMode" id="catPkgRateTiered" checked> Rate reduces as guest count increases</label>
       <label><input type="radio" name="catPkgRateMode" id="catPkgRateFlat"> Same rate for all guests</label>
     </div>
+    <div class="cat-offer" id="catPkgOfferBox">
+      <label class="cat-offer-check">
+        <input type="checkbox" id="catPkgOfferOn">
+        <span><b>Offer for customers</b><small>Plate price stays as you type it. Customers see a lower price.</small></span>
+      </label>
+      <div id="catPkgOfferFields" hidden>
+        <div class="cat-offer-pct">
+          <label for="catPkgOfferPercent">Discount</label>
+          <div class="cat-offer-pct-in"><input type="number" id="catPkgOfferPercent" min="1" max="90" inputmode="numeric" placeholder="10"><span>%</span></div>
+        </div>
+        <p class="cat-pkg-name-hint" style="margin:8px 0 0">Type 10 for 10% off. Use 1 to 90. Each plate price updates on its own.</p>
+      </div>
+    </div>
     <div id="catPkgFlatWrap" hidden>
       <div class="fld"><label>Price per plate (₹)</label><input type="number" id="catPkgFlatPrice" min="0" placeholder="400"></div>
+      <div class="cat-slab-offer cat-flat-offer" id="catPkgFlatOffer" hidden></div>
       <p class="cat-pkg-name-hint">One rate for every guest count. The price does not change when the group is larger.</p>
     </div>
     <div id="catPkgTieredWrap">
