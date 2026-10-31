@@ -1232,11 +1232,11 @@ function renderSlabTable(hostId, slabs, onChange, tableOpts) {
     return (
       '<div class="cat-slab-row" data-idx="' +
       idx +
-      '"><input type="number" class="slab-from" value="' +
+      '"><label class="cat-slab-count"><input type="number" class="slab-from" value="' +
       esc(s.from) +
-      '" min="1" aria-label="From guests"><input type="number" class="slab-to" value="' +
+      '" min="1" aria-label="From guests"><span>guests</span></label><label class="cat-slab-count"><input type="number" class="slab-to" value="' +
       esc(s.to) +
-      '" min="1" aria-label="To guests"><div class="cat-slab-price-wrap"><span class="cat-slab-inr" aria-hidden="true">₹</span><input type="number" class="slab-price" value="' +
+      '" min="1" aria-label="To guests"><span>guests</span></label><div class="cat-slab-price-wrap"><span class="cat-slab-inr" aria-hidden="true">₹</span><input type="number" class="slab-price" value="' +
       esc(s.price) +
       '" min="0" aria-label="Price per plate"></div><button type="button" class="cat-slab-rm" data-rm="' +
       idx +
