@@ -37,11 +37,111 @@ function syncPkgDraftFromStep2Fields() {
     (pkgWizard.draft.level || 'Basic') + ' - ' + (pkgWizard.draft.name || 'Your package name');
 }
 
+function packageDietChipHtml(dietType) {
+  const veg = '<span class="diet-mark veg" title="Veg" aria-hidden="true"><i></i></span>';
+  const non = '<span class="diet-mark non" title="Non-veg" aria-hidden="true"><i></i></span>';
+  if (dietType === 'veg') {
+    return '<span class="pkg-diet-chip">' + veg + ' Veg</span>';
+  }
+  if (dietType === 'mixed') {
+    return '<span class="pkg-diet-chip"><span class="diet-marks">' + veg + non + '</span> Veg + Non-veg</span>';
+  }
+  return '';
+}
+
+function packageDietCounts(pkg) {
+  let veg = 0;
+  let non = 0;
+  (pkg && pkg.itemIds ? pkg.itemIds : []).forEach(function (fid) {
+    const it = findFoodItem(fid);
+    if (!it) return;
+    if (normalizeFoodDiet(it.diet) === 'non_veg') non += 1;
+    else veg += 1;
+  });
+  return { veg: veg, non: non };
+}
+
+function removeFoodFromVegPackages(foodId) {
+  (store.cateringMenu.catPackages || []).forEach(function (p) {
+    if (p.dietType !== 'veg') return;
+    p.itemIds = (p.itemIds || []).filter(function (id) {
+      return id !== foodId;
+    });
+  });
+}
+
+function applyPackageDiet(next) {
+  const d = pkgWizard.draft;
+  if (!d) return;
+  if (d.dietType === 'mixed' && next === 'veg') {
+    const counts = packageDietCounts(d);
+    if (counts.non > 0) {
+      const ok = confirm(
+        'Remove ' + counts.non + ' non-veg dish' + (counts.non === 1 ? '' : 'es') + ' and keep this as veg only?'
+      );
+      if (!ok) return;
+      d.itemIds = (d.itemIds || []).filter(function (fid) {
+        const it = findFoodItem(fid);
+        return it && normalizeFoodDiet(it.diet) !== 'non_veg';
+      });
+    }
+  }
+  d.dietType = next;
+  renderCatPkgDietChoice();
+  updatePkgCustomerPreview();
+}
+
+function renderCatPkgDietChoice() {
+  const host = el('catPkgDietChoice');
+  const d = pkgWizard.draft;
+  if (!host || !d) return;
+  const options = [
+    {
+      id: 'veg',
+      title: 'Veg only',
+      sub: 'Every dish is vegetarian. Egg dishes stay out.',
+    },
+    {
+      id: 'mixed',
+      title: 'Veg and non-veg',
+      sub: 'The package includes vegetarian and non-veg dishes.',
+    },
+  ];
+  host.innerHTML =
+    '<div class="cat-diet-choice">' +
+    options
+      .map(function (opt) {
+        const on = d.dietType === opt.id;
+        return (
+          '<button type="button" class="cat-diet-card' +
+          (on ? ' on' : '') +
+          '" data-pkg-diet="' +
+          opt.id +
+          '">' +
+          packageDietChipHtml(opt.id) +
+          '<span><b>' +
+          esc(opt.title) +
+          '</b><small>' +
+          esc(opt.sub) +
+          '</small></span></button>'
+        );
+      })
+      .join('') +
+    '</div>';
+  host.querySelectorAll('[data-pkg-diet]').forEach(function (btn) {
+    btn.onclick = function () {
+      applyPackageDiet(btn.getAttribute('data-pkg-diet'));
+    };
+  });
+}
+
 function updatePkgCustomerPreview() {
   syncPkgDraftFromStep2Fields();
   const host = el('catPkgCustomerPreview');
   if (!host || !pkgWizard.draft) return;
-  host.textContent = pkgWizard.draft.customerTitle || 'Basic - Your package name';
+  const diet = packageDietChipHtml(pkgWizard.draft.dietType);
+  host.innerHTML =
+    (diet ? diet + ' ' : '') + '<span>' + esc(pkgWizard.draft.customerTitle || 'Basic - Your package name') + '</span>';
 }
 
 function bindClick(id, handler) {
@@ -73,6 +173,7 @@ function ensureCateringMenuStore() {
   migrateLegacyCateringPackageLabels();
   migrateFoodDietsToVegNonVeg();
   migrateEarlyGuestSlabDefaults();
+  migrateDemoPackageDiet();
 }
 
 function normalizeFoodDiet(diet) {
@@ -100,6 +201,18 @@ function migrateEarlyGuestSlabDefaults() {
   (store.cateringMenu.foodItems || []).forEach(function (f) {
     const slabs = f.slabs || [];
     if (!slabs.length) f.slabs = defaultItemSlabs();
+  });
+}
+
+function migrateDemoPackageDiet() {
+  const seeded = {
+    'cpkg-demo-1': 'mixed',
+    'cpkg-demo-2': 'mixed',
+    'cpkg-demo-3': 'veg',
+  };
+  (store.cateringMenu.catPackages || []).forEach(function (p) {
+    if (p.dietType === 'veg' || p.dietType === 'mixed') return;
+    if (seeded[p.id] && !(p.itemIds || []).length) p.dietType = seeded[p.id];
   });
 }
 
@@ -441,7 +554,9 @@ function renderCatPkgList() {
         lv +
         '">' +
         esc(p.level) +
-        '</span><span class="pkg-meta-chip ceremony">' +
+        '</span>' +
+        (packageDietChipHtml(p.dietType) || '<span class="pkg-diet-chip need">Set menu type</span>') +
+        '<span class="pkg-meta-chip ceremony">' +
         esc(packageCategoryHubLabel(catId)) +
         '</span></div><button type="button" class="pkg-card-menu" data-cpkg-menu="' +
         esc(p.id) +
@@ -871,6 +986,13 @@ function openModulePicker(moduleId, mode) {
   show('catModulePick');
 }
 
+function packagePickAllowsItem(it) {
+  if (menuPickCtx.mode !== 'package') return true;
+  const d = pkgWizard.draft;
+  if (!d || d.dietType !== 'veg') return true;
+  return normalizeFoodDiet(it && it.diet) !== 'non_veg';
+}
+
 function renderModulePickerBody() {
   const mod = findFoodModule(menuPickCtx.moduleId);
   const body = el('catModulePickBody');
@@ -882,7 +1004,8 @@ function renderModulePickerBody() {
   let html = '';
   mod.subcats.forEach(function (sc, scIdx) {
     const visibleItems = (sc.items || []).filter(function (it) {
-      return modulePickMatchesSearch(it.name, q);
+      if (!modulePickMatchesSearch(it.name, q)) return false;
+      return packagePickAllowsItem(it);
     });
     if (!visibleItems.length) return;
     visible += visibleItems.length;
@@ -932,6 +1055,9 @@ function renderModulePickerBody() {
   if (meta) {
     const pending = countModulePickPending();
     meta.textContent =
+      (menuPickCtx.mode === 'package' && pkgWizard.draft && pkgWizard.draft.dietType === 'veg'
+        ? 'Veg dishes only · '
+        : '') +
       total +
       ' dishes in catalogue' +
       (q ? ' · ' + visible + ' shown' : '') +
@@ -951,6 +1077,7 @@ function renderModulePickerBody() {
       if (!sc) return;
       (sc.items || []).forEach(function (it) {
         if (!modulePickMatchesSearch(it.name, q)) return;
+        if (!packagePickAllowsItem(it)) return;
         if (menuPickCtx.mode === 'catalog' && isItemOnOwnerMenu(it.masterKey)) return;
         menuPickCtx.selected[it.masterKey] = true;
       });
@@ -1351,6 +1478,32 @@ function saveFoodItemForm(status) {
   }
   if (el('catFoodDietNon').checked) foodFormDraft.diet = 'non_veg';
   else foodFormDraft.diet = 'veg';
+  const previous = findFoodItem(foodFormDraft.id);
+  if (
+    previous &&
+    normalizeFoodDiet(previous.diet) !== 'non_veg' &&
+    foodFormDraft.diet === 'non_veg'
+  ) {
+    const vegPkgs = (store.cateringMenu.catPackages || []).filter(function (p) {
+      return p.dietType === 'veg' && (p.itemIds || []).indexOf(foodFormDraft.id) >= 0;
+    });
+    if (vegPkgs.length) {
+      const names = vegPkgs
+        .map(function (p) {
+          return p.name;
+        })
+        .join(', ');
+      const ok = confirm(
+        'This dish is in veg-only package' +
+          (vegPkgs.length === 1 ? '' : 's') +
+          ': ' +
+          names +
+          '. Change it to non-veg and remove it from those packages?'
+      );
+      if (!ok) return;
+      removeFoodFromVegPackages(foodFormDraft.id);
+    }
+  }
   foodFormDraft.description = (el('catFoodDesc').value || '').trim();
   foodFormDraft.quoteOnly = false;
   foodFormDraft.pricingMode = 'per_person';
@@ -1392,6 +1545,7 @@ function newPkgDraft() {
     guestSlabs: defaultPackageGuestSlabs(),
     itemIds: [],
     imageEmoji: '🍽️',
+    dietType: '',
     listPrice: 0,
     price: 0,
     subtitle: '',
@@ -1469,6 +1623,7 @@ function renderCatPkgStep2() {
   const banner = el('catPkgCatBannerLabel');
   if (banner) banner.textContent = pkgCategoryLabel(d.packageCategory);
   renderCatPkgTypeSeg(d.level || 'Basic');
+  renderCatPkgDietChoice();
   const nameEl = el('catPkgName');
   const descEl = el('catPkgDesc');
   if (nameEl) nameEl.value = d.name || '';
@@ -1482,6 +1637,23 @@ function renderCatPkgStep3Menu() {
   const q = (el('catPkgItemSearch') && el('catPkgItemSearch').value || '').trim().toLowerCase();
   const list = el('catPkgModulePick');
   if (!list) return;
+  const counts = packageDietCounts(d);
+  const summary = el('catPkgDietSummary');
+  const nudge = el('catPkgDietNudge');
+  if (summary) {
+    if (d.dietType === 'veg') {
+      summary.innerHTML = packageDietChipHtml('veg') + ' <span>Veg dishes only · ' + (d.itemIds || []).length + ' selected</span>';
+    } else if (d.dietType === 'mixed') {
+      summary.innerHTML =
+        packageDietChipHtml('mixed') +
+        ' <span>' +
+        counts.veg +
+        ' veg · ' +
+        counts.non +
+        ' non-veg</span>';
+    } else summary.textContent = '';
+  }
+  if (nudge) nudge.hidden = true;
   list.innerHTML = FOOD_MODULES.filter(function (m) {
     if (!q) return true;
     return m.name.toLowerCase().includes(q);
@@ -1553,16 +1725,38 @@ function bindCatPkgCreateUi() {
       toast('Package name is required');
       return;
     }
+    if (pkgWizard.draft.dietType !== 'veg' && pkgWizard.draft.dietType !== 'mixed') {
+      toast('Choose veg only or veg and non-veg');
+      return;
+    }
     goCatPkgStep(3);
   });
   bindClick('catPkgStep3TopBack', function () {
     goCatPkgStep(2);
   });
   bindClick('catPkgStep3Next', function () {
-    if (!(pkgWizard.draft.itemIds || []).length) {
+    const d = pkgWizard.draft;
+    const ids = d.itemIds || [];
+    if (!ids.length) {
       toast('Add at least one menu item from the categories');
       return;
     }
+    const counts = packageDietCounts(d);
+    if (d.dietType === 'mixed' && counts.non === 0) {
+      const nudge = el('catPkgDietNudge');
+      if (nudge) nudge.hidden = false;
+      return;
+    }
+    const nudge = el('catPkgDietNudge');
+    if (nudge) nudge.hidden = true;
+    renderCatPkgPricing();
+    show('catPkgPricing');
+  });
+  bindClick('catPkgDietSwitchVeg', function () {
+    if (!pkgWizard.draft) return;
+    pkgWizard.draft.dietType = 'veg';
+    const nudge = el('catPkgDietNudge');
+    if (nudge) nudge.hidden = true;
     renderCatPkgPricing();
     show('catPkgPricing');
   });
@@ -1616,7 +1810,8 @@ function renderCatPkgPreview() {
   const d = pkgWizard.draft;
   const sum = el('catPkgSummary');
   if (sum) {
-    let html = '';
+    let html = packageDietChipHtml(d.dietType);
+    if (html) html = '<div class="cat-sum-row">' + html + '</div>';
     FOOD_MODULES.forEach(function (m) {
       const n = countPkgItemsInModule(d, m.id);
       if (!n) return;
@@ -1700,6 +1895,10 @@ function bindCatPkgPricingUi() {
     const slabs = d.guestSlabs || [];
     if (!slabs.length && d.status === 'live') {
       toast('Add guest pricing slabs');
+      return;
+    }
+    if (d.dietType !== 'veg' && d.dietType !== 'mixed') {
+      toast('Choose veg only or veg and non-veg');
       return;
     }
     d.price = slabs.length ? Math.min.apply(null, slabs.map(function (s) { return +s.price; })) : 0;

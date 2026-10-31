@@ -297,6 +297,23 @@ body{margin:0;background:#E8EDF5;font-family:Inter,system-ui,sans-serif;color:va
 .pkg-meta-chip{display:inline-block;font-size:9px;font-weight:700;padding:4px 9px;border-radius:8px;letter-spacing:.01em;line-height:1.2}
 .pkg-meta-chip.ceremony{background:#ECFDF5;color:#047857}
 .pkg-meta-chip.side{background:#EFF6FF;color:#1D4ED8}
+.diet-mark{display:inline-flex;align-items:center;justify-content:center;width:14px;height:14px;border:1.5px solid currentColor;border-radius:3px;flex-shrink:0;vertical-align:middle}
+.diet-mark i{width:6px;height:6px;border-radius:50%;background:currentColor;display:block}
+.diet-mark.veg{color:#16A34A}
+.diet-mark.non{color:#C2410C}
+.diet-marks{display:inline-flex;align-items:center;gap:3px;flex-shrink:0}
+.pkg-diet-chip{display:inline-flex;align-items:center;gap:5px;font-size:10px;font-weight:800;padding:4px 8px;border-radius:8px;background:#F8FAFC;color:var(--navy);border:1px solid #E2E8F0;line-height:1.2}
+.pkg-diet-chip.need{background:#FFFBEB;border-color:#FDE68A;color:#92400E}
+.cat-diet-choice{display:flex;flex-direction:column;gap:10px;margin:0 0 16px}
+.cat-diet-card{display:flex;align-items:flex-start;gap:10px;text-align:left;border:2px solid #E2E8F0;border-radius:14px;padding:12px;background:#fff;cursor:pointer;font:inherit;color:var(--navy);width:100%}
+.cat-diet-card.on{border-color:#16A34A;background:#F0FDF4;box-shadow:0 0 0 1px #16A34A}
+.cat-diet-card b{display:block;font-size:14px;font-weight:900}
+.cat-diet-card small{display:block;margin-top:3px;font-size:11px;font-weight:600;color:#64748B;line-height:1.35}
+.cat-pkg-diet-summary{margin:0 16px 10px;font-size:12px;font-weight:800;color:#334155;display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.cat-diet-nudge{margin:0 16px 12px;padding:12px 14px;border-radius:12px;background:#FFFBEB;border:1px solid #FDE68A}
+.cat-diet-nudge b{display:block;color:#92400E;font-size:13px}
+.cat-diet-nudge p{margin:4px 0 0;font-size:12px;font-weight:600;color:#78350F;line-height:1.4}
+.cat-diet-nudge button{margin-top:10px}
 .pkg-level{display:inline-block;font-size:9px;font-weight:800;padding:4px 9px;border-radius:8px;letter-spacing:.02em}
 .pkg-level.standard{background:#FFEDD5;color:#C2410C}
 .pkg-level.premium{background:#FEF3C7;color:#92400E}
@@ -930,6 +947,9 @@ button.manage-pill{cursor:pointer;font:inherit;color:var(--blue);border-color:#B
   <div class="pad" style="padding-top:0">
     <p class="cat-lvl-head" style="padding-left:0;padding-right:0"><span aria-hidden="true">📋</span> Package Type<span class="cat-lvl-req">*</span></p>
     <div class="cat-pkg-type-seg" id="catPkgTypeSeg"></div>
+    <p class="cat-lvl-head" style="padding-left:0;padding-right:0"><span aria-hidden="true">🍃</span> Menu for customers<span class="cat-lvl-req">*</span></p>
+    <p class="cat-pkg-name-hint" style="margin-left:0;margin-right:0">Customers filter with this. A veg guest can hide mixed packages. Someone who eats non-veg still sees veg packages under All.</p>
+    <div id="catPkgDietChoice"></div>
     <div class="fld"><label>Package Name*</label><input id="catPkgName" placeholder="e.g. Wedding Sadhya"></div>
     <p class="cat-pkg-name-hint">Example: Wedding Sadhya, Royal Feast, Traditional Menu etc.</p>
     <div class="cat-pkg-name-preview"><p class="sub">Package name (as shown to customers)</p><b id="catPkgCustomerPreview">Basic - Your package name</b></div>
@@ -944,6 +964,12 @@ button.manage-pill{cursor:pointer;font:inherit;color:var(--blue);border-color:#B
 <section class="scr" id="catPkgStep3">
   <div class="top"><button type="button" class="back" id="catPkgStep3TopBack">←</button><h1>Add Menu Items</h1><span style="width:36px"></span></div>
   <p class="cat-wiz-step">Step 3 of 5</p>
+  <p class="cat-pkg-diet-summary" id="catPkgDietSummary"></p>
+  <div class="cat-diet-nudge" id="catPkgDietNudge" hidden>
+    <b>This menu is all vegetarian.</b>
+    <p>Switch to veg only, or go back and add a non-veg dish.</p>
+    <button type="button" class="btn btn-green" id="catPkgDietSwitchVeg">Switch to veg only</button>
+  </div>
   <div class="cat-hub-search" style="margin-top:0"><span>🔍</span><input type="search" id="catPkgItemSearch" placeholder="Search menu categories…" autocomplete="off"></div>
   <div class="cat-menu-step-list" id="catPkgModulePick"></div>
   <div class="cat-wiz-foot">
