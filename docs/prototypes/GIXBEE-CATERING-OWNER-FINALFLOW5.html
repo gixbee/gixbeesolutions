@@ -66,7 +66,6 @@ body{margin:0;background:#E8EDF5;font-family:Inter,system-ui,sans-serif;color:va
 .qtile.teal{background:#F0FDFA;border-color:#99F6E4}
 .qtile.gray{background:#F8FAFC;border-color:#CBD5E1}
 .qtile .badge{position:absolute;top:8px;right:8px;background:#EF4444;color:#fff;font-size:10px;font-weight:800;min-width:18px;height:18px;border-radius:99px;display:grid;place-items:center}
-.qtile.span{grid-column:1 / -1}
 .op-remove{border:0;background:none;color:#DC2626;font-weight:800;font-size:13px;cursor:pointer;padding:8px 4px}
 .op-owner-tag{color:var(--gn2);font-weight:800;font-size:13px;padding:8px 4px}
 .op-card{display:flex;align-items:center;gap:12px;border:1px solid var(--line);border-radius:14px;padding:12px 14px;margin-bottom:10px;background:#fff}
@@ -5506,8 +5505,9 @@ function renderLmb() {
     '<p class="biz-meta"><span class="pill ok">Verified</span> · ' +
     esc(store.biz.loc) +
     '</p>' +
-    '<div class="biz-badges"><span class="gy">Rs 2.1L this month</span></div>' +
-    '<div class="biz-actions"><button type="button" class="mgr-catering" id="dashPhotoManage">Manage</button></div>' +
+    '<div class="biz-badges"><span>3 new requests</span><span class="gy">Rs 2.1L this month</span></div>' +
+    '<div class="biz-actions"><button type="button" id="lmbCalBtn">Calendar</button><button type="button" id="lmbReqBtn">Requests</button>' +
+    '<button type="button" class="mgr-catering" id="dashPhotoManage">Manage</button></div>' +
     '</div></div></div>';
   const manage = el('dashPhotoManage');
   if (manage) {
@@ -5516,6 +5516,10 @@ function renderLmb() {
       show('photoDash');
     };
   }
+  const lmbCal = el('lmbCalBtn');
+  if (lmbCal) lmbCal.onclick = () => openPhotoCalendar();
+  const lmbReq = el('lmbReqBtn');
+  if (lmbReq) lmbReq.onclick = () => show('requests');
 }
 
 function profCell(ico, label, value) {
@@ -5605,7 +5609,18 @@ function renderPhotoDash() {
   el('areaSummary').textContent = areaSummaryText();
   const q = el('quickGrid');
   q.innerHTML = [
-    { id: 'menuPkg', cls: 'pink span', ico: '📦', label: 'Menu & Packages' },
+    { id: 'menuPkg', cls: 'pink', ico: '📦', label: 'Menu & Packages' },
+    { id: 'calendar', cls: 'blue', ico: '📅', label: 'Calendar' },
+    { id: 'gallery', cls: 'blue', ico: '🖼', label: 'Photos & Gallery' },
+    { id: 'requests', cls: 'orange', ico: '🔔', label: 'Booking Requests', badge: '3' },
+    { id: 'photoOperators', cls: 'teal', ico: '👥', label: 'Operators' },
+    {
+      id: 'deletedBusiness',
+      cls: 'gray',
+      ico: '🗑',
+      label: 'Deleted business',
+      badge: store.deletedBusinesses.length ? String(store.deletedBusinesses.length) : '',
+    },
   ]
     .map(
       (t) =>
@@ -5626,7 +5641,21 @@ function renderPhotoDash() {
     btn.onclick = () => {
       const dest = btn.getAttribute('data-go');
       if (dest === 'menuPkg') openMenuPkgHub();
-      else show(dest);
+      else if (dest === 'photoOperators') {
+        renderPhotoOperators();
+        show(dest);
+      } else if (dest === 'deletedBusiness') {
+        renderDeletedBusinesses();
+        show(dest);
+      } else if (dest === 'calendar') {
+        openPhotoCalendar();
+      } else if (dest === 'photoBookSettings') {
+        renderPhotoBookSettings();
+        show(dest);
+      } else if (dest === 'photoCalDay') {
+        renderPhotoCalDay();
+        show(dest);
+      } else show(dest);
     };
   });
 }
