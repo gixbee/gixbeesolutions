@@ -72,6 +72,7 @@ function ensureCateringMenuStore() {
   migratePackageCategories();
   migrateLegacyCateringPackageLabels();
   migrateFoodDietsToVegNonVeg();
+  migrateEarlyGuestSlabDefaults();
 }
 
 function normalizeFoodDiet(diet) {
@@ -81,6 +82,24 @@ function normalizeFoodDiet(diet) {
 function migrateFoodDietsToVegNonVeg() {
   (store.cateringMenu.foodItems || []).forEach(function (f) {
     f.diet = normalizeFoodDiet(f.diet);
+  });
+}
+
+function migrateEarlyGuestSlabDefaults() {
+  (store.cateringMenu.catPackages || []).forEach(function (p) {
+    const slabs = p.guestSlabs || [];
+    if (slabs.length === 5 && +slabs[0].from === 25 && +slabs[0].to === 50 && +slabs[4].from === 301) {
+      const prices = slabs.map(function (s) {
+        return s.price;
+      });
+      p.guestSlabs = defaultPackageGuestSlabs().map(function (s, i) {
+        return { from: s.from, to: s.to, price: prices[i] != null ? prices[i] : s.price };
+      });
+    }
+  });
+  (store.cateringMenu.foodItems || []).forEach(function (f) {
+    const slabs = f.slabs || [];
+    if (!slabs.length) f.slabs = defaultItemSlabs();
   });
 }
 
@@ -1640,8 +1659,8 @@ function bindCatPkgPricingUi() {
     if (!pkgWizard.draft || pkgWizard.draft.rateMode === 'flat') return;
     const slabs = pkgWizard.draft.guestSlabs || [];
     const last = slabs[slabs.length - 1];
-    const from = last ? last.to + 1 : 25;
-    slabs.push({ from: from, to: from + 49, price: last ? Math.max(50, last.price - 50) : 500 });
+    const from = last ? last.to + 1 : 1;
+    slabs.push({ from: from, to: from + 24, price: last ? Math.max(50, last.price - 50) : 500 });
     pkgWizard.draft.guestSlabs = slabs;
     renderCatPkgPricing();
   });

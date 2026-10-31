@@ -978,11 +978,11 @@ function defaultItemSlabs() {
 
 function defaultPackageGuestSlabs() {
   return [
-    { from: 25, to: 50, price: 500 },
-    { from: 51, to: 100, price: 450 },
-    { from: 101, to: 200, price: 400 },
-    { from: 201, to: 300, price: 350 },
-    { from: 301, to: 500, price: 300 },
+    { from: 1, to: 25, price: 500 },
+    { from: 26, to: 50, price: 450 },
+    { from: 51, to: 100, price: 400 },
+    { from: 101, to: 200, price: 350 },
+    { from: 201, to: 500, price: 300 },
   ];
 }
 
