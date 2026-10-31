@@ -66,43 +66,9 @@ function packageDietChipHtml(dietType) {
   return '';
 }
 
-function packageDietCounts(pkg) {
-  let veg = 0;
-  let non = 0;
-  (pkg && pkg.itemIds ? pkg.itemIds : []).forEach(function (fid) {
-    const it = findFoodItem(fid);
-    if (!it) return;
-    if (normalizeFoodDiet(it.diet) === 'non_veg') non += 1;
-    else veg += 1;
-  });
-  return { veg: veg, non: non };
-}
-
-function removeFoodFromVegPackages(foodId) {
-  (store.cateringMenu.catPackages || []).forEach(function (p) {
-    if (p.dietType !== 'veg') return;
-    p.itemIds = (p.itemIds || []).filter(function (id) {
-      return id !== foodId;
-    });
-  });
-}
-
 function applyPackageDiet(next) {
   const d = pkgWizard.draft;
   if (!d) return;
-  if (d.dietType === 'mixed' && next === 'veg') {
-    const counts = packageDietCounts(d);
-    if (counts.non > 0) {
-      const ok = confirm(
-        'Remove ' + counts.non + ' non-veg dish' + (counts.non === 1 ? '' : 'es') + ' and keep this as veg only?'
-      );
-      if (!ok) return;
-      d.itemIds = (d.itemIds || []).filter(function (fid) {
-        const it = findFoodItem(fid);
-        return it && normalizeFoodDiet(it.diet) !== 'non_veg';
-      });
-    }
-  }
   d.dietType = next;
   renderCatPkgDietChoice();
   updatePkgCustomerPreview();
@@ -1005,13 +971,6 @@ function openModulePicker(moduleId, mode) {
   show('catModulePick');
 }
 
-function packagePickAllowsItem(it) {
-  if (menuPickCtx.mode !== 'package') return true;
-  const d = pkgWizard.draft;
-  if (!d || d.dietType !== 'veg') return true;
-  return normalizeFoodDiet(it && it.diet) !== 'non_veg';
-}
-
 function renderModulePickerBody() {
   const mod = findFoodModule(menuPickCtx.moduleId);
   const body = el('catModulePickBody');
@@ -1023,8 +982,7 @@ function renderModulePickerBody() {
   let html = '';
   mod.subcats.forEach(function (sc, scIdx) {
     const visibleItems = (sc.items || []).filter(function (it) {
-      if (!modulePickMatchesSearch(it.name, q)) return false;
-      return packagePickAllowsItem(it);
+      return modulePickMatchesSearch(it.name, q);
     });
     if (!visibleItems.length) return;
     visible += visibleItems.length;
@@ -1074,9 +1032,6 @@ function renderModulePickerBody() {
   if (meta) {
     const pending = countModulePickPending();
     meta.textContent =
-      (menuPickCtx.mode === 'package' && pkgWizard.draft && pkgWizard.draft.dietType === 'veg'
-        ? 'Veg dishes only · '
-        : '') +
       total +
       ' dishes in catalogue' +
       (q ? ' · ' + visible + ' shown' : '') +
@@ -1096,7 +1051,6 @@ function renderModulePickerBody() {
       if (!sc) return;
       (sc.items || []).forEach(function (it) {
         if (!modulePickMatchesSearch(it.name, q)) return;
-        if (!packagePickAllowsItem(it)) return;
         if (menuPickCtx.mode === 'catalog' && isItemOnOwnerMenu(it.masterKey)) return;
         menuPickCtx.selected[it.masterKey] = true;
       });
@@ -1497,32 +1451,6 @@ function saveFoodItemForm(status) {
   }
   if (el('catFoodDietNon').checked) foodFormDraft.diet = 'non_veg';
   else foodFormDraft.diet = 'veg';
-  const previous = findFoodItem(foodFormDraft.id);
-  if (
-    previous &&
-    normalizeFoodDiet(previous.diet) !== 'non_veg' &&
-    foodFormDraft.diet === 'non_veg'
-  ) {
-    const vegPkgs = (store.cateringMenu.catPackages || []).filter(function (p) {
-      return p.dietType === 'veg' && (p.itemIds || []).indexOf(foodFormDraft.id) >= 0;
-    });
-    if (vegPkgs.length) {
-      const names = vegPkgs
-        .map(function (p) {
-          return p.name;
-        })
-        .join(', ');
-      const ok = confirm(
-        'This dish is in veg-only package' +
-          (vegPkgs.length === 1 ? '' : 's') +
-          ': ' +
-          names +
-          '. Change it to non-veg and remove it from those packages?'
-      );
-      if (!ok) return;
-      removeFoodFromVegPackages(foodFormDraft.id);
-    }
-  }
   foodFormDraft.description = (el('catFoodDesc').value || '').trim();
   foodFormDraft.quoteOnly = false;
   foodFormDraft.pricingMode = 'per_person';
@@ -1657,7 +1585,6 @@ function renderCatPkgStep3Menu() {
   const list = el('catPkgModulePick');
   if (!list) return;
   const summary = el('catPkgDietSummary');
-  const nudge = el('catPkgDietNudge');
   const selected = (d.itemIds || []).length;
   if (summary) {
     if (d.dietType === 'veg') {
@@ -1666,7 +1593,6 @@ function renderCatPkgStep3Menu() {
       summary.innerHTML = packageDietChipHtml('mixed') + ' <span>' + selected + ' dishes selected</span>';
     } else summary.textContent = '';
   }
-  if (nudge) nudge.hidden = true;
   list.innerHTML = FOOD_MODULES.filter(function (m) {
     if (!q) return true;
     return m.name.toLowerCase().includes(q);
@@ -1748,28 +1674,11 @@ function bindCatPkgCreateUi() {
     goCatPkgStep(2);
   });
   bindClick('catPkgStep3Next', function () {
-    const d = pkgWizard.draft;
-    const ids = d.itemIds || [];
+    const ids = pkgWizard.draft.itemIds || [];
     if (!ids.length) {
       toast('Add at least one menu item from the categories');
       return;
     }
-    const counts = packageDietCounts(d);
-    if (d.dietType === 'mixed' && counts.non === 0) {
-      const nudge = el('catPkgDietNudge');
-      if (nudge) nudge.hidden = false;
-      return;
-    }
-    const nudge = el('catPkgDietNudge');
-    if (nudge) nudge.hidden = true;
-    renderCatPkgPricing();
-    show('catPkgPricing');
-  });
-  bindClick('catPkgDietSwitchVeg', function () {
-    if (!pkgWizard.draft) return;
-    pkgWizard.draft.dietType = 'veg';
-    const nudge = el('catPkgDietNudge');
-    if (nudge) nudge.hidden = true;
     renderCatPkgPricing();
     show('catPkgPricing');
   });
