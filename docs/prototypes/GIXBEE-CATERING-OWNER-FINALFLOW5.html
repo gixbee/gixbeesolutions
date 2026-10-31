@@ -5270,9 +5270,9 @@ function renderCatPkgStep3Menu() {
   const selected = (d.itemIds || []).length;
   if (summary) {
     if (d.dietType === 'veg') {
-      summary.innerHTML = packageDietChipHtml('veg') + ' <span>' + selected + ' items selected</span>';
+      summary.innerHTML = packageDietChipHtml('veg') + ' <span>' + selected + ' dishes selected</span>';
     } else if (d.dietType === 'mixed') {
-      summary.innerHTML = packageDietChipHtml('mixed') + ' <span>' + selected + ' items selected</span>';
+      summary.innerHTML = packageDietChipHtml('mixed') + ' <span>' + selected + ' dishes selected</span>';
     } else summary.textContent = '';
   }
   if (nudge) nudge.hidden = true;
