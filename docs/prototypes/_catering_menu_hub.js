@@ -1227,7 +1227,7 @@ function renderSlabTable(hostId, slabs, onChange, tableOpts) {
   tableOpts = tableOpts || {};
   const host = el(hostId);
   if (!host) return;
-  const priceHdr = tableOpts.priceHeader || 'Price (₹)';
+  const priceHdr = tableOpts.priceHeader || 'Price per plate (₹)';
   const rows = (slabs || []).map(function (s, idx) {
     return (
       '<div class="cat-slab-row" data-idx="' +
@@ -1238,7 +1238,7 @@ function renderSlabTable(hostId, slabs, onChange, tableOpts) {
       esc(s.to) +
       '" min="1" aria-label="To guests"><div class="cat-slab-price-wrap"><span class="cat-slab-inr" aria-hidden="true">₹</span><input type="number" class="slab-price" value="' +
       esc(s.price) +
-      '" min="0" aria-label="Price per person"></div><button type="button" class="cat-slab-rm" data-rm="' +
+      '" min="0" aria-label="Price per plate"></div><button type="button" class="cat-slab-rm" data-rm="' +
       idx +
       '">🗑</button></div>'
     );
@@ -1586,7 +1586,7 @@ function renderCatPkgPricing() {
       pkgWizard.draft.guestSlabs = slabs;
     },
     {
-      priceHeader: 'Price per person (₹)',
+      priceHeader: 'Price per plate (₹)',
       afterChange: renderPkgGuestPricingExample,
     }
   );
@@ -1609,7 +1609,7 @@ function renderCatPkgPreview() {
   if (pr) {
     const slabs = d.guestSlabs || [];
     if (d.rateMode === 'flat' && slabs[0]) {
-      pr.textContent = '₹' + formatInrFull(slabs[0].price) + ' / person for all guests';
+      pr.textContent = '₹' + formatInrFull(slabs[0].price) + ' / plate for all guests';
     } else if (!slabs.length) pr.textContent = 'No guest slabs set';
     else {
       pr.innerHTML = slabs
@@ -1620,7 +1620,7 @@ function renderCatPkgPreview() {
             esc(String(s.to)) +
             ' guests: ₹' +
             formatInrFull(s.price) +
-            ' / person'
+            ' / plate'
           );
         })
         .join('<br>');
