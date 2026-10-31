@@ -886,7 +886,6 @@ button.manage-pill{cursor:pointer;font:inherit;color:var(--blue);border-color:#B
     <p class="lbl">DIET</p>
     <div class="radio-row" style="margin-bottom:12px">
       <label><input type="radio" name="catFoodDiet" id="catFoodDietVeg" checked> Veg</label>
-      <label><input type="radio" name="catFoodDiet" id="catFoodDietEgg"> Egg</label>
       <label><input type="radio" name="catFoodDiet" id="catFoodDietNon"> Non-veg</label>
     </div>
     <p class="lbl" id="catFoodSlabLabel">GUEST COUNT PRICING (OWNER DEFINED)</p>
@@ -2356,9 +2355,7 @@ function foodMasterKey(moduleId, subcatId, name) {
 function inferCatalogDiet(subcatName, itemName) {
   const sc = String(subcatName || '').toLowerCase();
   const nm = String(itemName || '').toLowerCase();
-  if (/\begg\b/.test(nm) && !/vegetable/.test(nm)) {
-    if (/\begg\b/.test(nm) && !/vegetable/.test(nm)) return 'egg';
-  }
+  if (/\begg\b/.test(nm) && !/vegetable/.test(nm)) return 'non_veg';
   if (
     sc.indexOf('non-vegetarian') >= 0 ||
     sc.indexOf('non vegetarian') >= 0 ||
@@ -2373,7 +2370,7 @@ function inferCatalogDiet(subcatName, itemName) {
     return 'non_veg';
   }
   if (/\b(chicken|mutton|beef|prawn|fish|crab|lobster|squid|seafood|chemmeen)\b/.test(nm)) return 'non_veg';
-  if (sc.indexOf('paneer & egg') >= 0 && /\begg\b/.test(nm)) return 'egg';
+  if (sc.indexOf('paneer & egg') >= 0 && /\begg\b/.test(nm)) return 'non_veg';
   if (sc.indexOf('vegetarian') >= 0) return 'veg';
   return 'veg';
 }
@@ -3621,6 +3618,17 @@ function ensureCateringMenuStore() {
   if (!store.cateringMenu.pkgCategoryFilter) store.cateringMenu.pkgCategoryFilter = 'wedding';
   migratePackageCategories();
   migrateLegacyCateringPackageLabels();
+  migrateFoodDietsToVegNonVeg();
+}
+
+function normalizeFoodDiet(diet) {
+  return diet === 'non_veg' || diet === 'egg' ? 'non_veg' : 'veg';
+}
+
+function migrateFoodDietsToVegNonVeg() {
+  (store.cateringMenu.foodItems || []).forEach(function (f) {
+    f.diet = normalizeFoodDiet(f.diet);
+  });
 }
 
 function migratePackageCategories() {
@@ -4327,8 +4335,7 @@ function isItemOnOwnerMenu(masterKey) {
 }
 
 function pickDietLabel(diet) {
-  if (diet === 'non_veg') return { cls: 'non_veg', text: 'NV' };
-  if (diet === 'egg') return { cls: 'egg', text: 'Egg' };
+  if (normalizeFoodDiet(diet) === 'non_veg') return { cls: 'non_veg', text: 'NV' };
   return { cls: 'veg', text: 'V' };
 }
 
@@ -4676,6 +4683,7 @@ function renderFoodItemForm() {
   if (!d) return;
   d.pricingMode = 'per_person';
   d.unitLabel = 'plate';
+  d.diet = normalizeFoodDiet(d.diet);
   const mod = findFoodModule(d.moduleId);
   el('catFoodFormTitle').textContent = d.id && findFoodItem(d.id) ? 'Edit Food Item' : 'Add Food Item';
   el('catFoodImgEmoji').textContent = d.imageEmoji || (mod && mod.emoji) || '🍽️';
@@ -4685,7 +4693,6 @@ function renderFoodItemForm() {
   if (modAfter) el('catFoodImgEmoji').textContent = d.imageEmoji || modAfter.emoji || '🍽️';
   el('catFoodDesc').value = d.description || '';
   el('catFoodDietVeg').checked = d.diet === 'veg';
-  el('catFoodDietEgg').checked = d.diet === 'egg';
   el('catFoodDietNon').checked = d.diet === 'non_veg';
   renderSlabTable('catFoodSlabs', d.slabs || defaultItemSlabs(), function (slabs) {
     foodFormDraft.slabs = slabs;
@@ -4797,7 +4804,6 @@ function saveFoodItemForm(status) {
     return;
   }
   if (el('catFoodDietNon').checked) foodFormDraft.diet = 'non_veg';
-  else if (el('catFoodDietEgg').checked) foodFormDraft.diet = 'egg';
   else foodFormDraft.diet = 'veg';
   foodFormDraft.description = (el('catFoodDesc').value || '').trim();
   foodFormDraft.quoteOnly = false;

@@ -15,9 +15,7 @@ function foodMasterKey(moduleId, subcatId, name) {
 function inferCatalogDiet(subcatName, itemName) {
   const sc = String(subcatName || '').toLowerCase();
   const nm = String(itemName || '').toLowerCase();
-  if (/\begg\b/.test(nm) && !/vegetable/.test(nm)) {
-    if (/\begg\b/.test(nm) && !/vegetable/.test(nm)) return 'egg';
-  }
+  if (/\begg\b/.test(nm) && !/vegetable/.test(nm)) return 'non_veg';
   if (
     sc.indexOf('non-vegetarian') >= 0 ||
     sc.indexOf('non vegetarian') >= 0 ||
@@ -32,7 +30,7 @@ function inferCatalogDiet(subcatName, itemName) {
     return 'non_veg';
   }
   if (/\b(chicken|mutton|beef|prawn|fish|crab|lobster|squid|seafood|chemmeen)\b/.test(nm)) return 'non_veg';
-  if (sc.indexOf('paneer & egg') >= 0 && /\begg\b/.test(nm)) return 'egg';
+  if (sc.indexOf('paneer & egg') >= 0 && /\begg\b/.test(nm)) return 'non_veg';
   if (sc.indexOf('vegetarian') >= 0) return 'veg';
   return 'veg';
 }

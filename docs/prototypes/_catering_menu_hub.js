@@ -71,6 +71,17 @@ function ensureCateringMenuStore() {
   if (!store.cateringMenu.pkgCategoryFilter) store.cateringMenu.pkgCategoryFilter = 'wedding';
   migratePackageCategories();
   migrateLegacyCateringPackageLabels();
+  migrateFoodDietsToVegNonVeg();
+}
+
+function normalizeFoodDiet(diet) {
+  return diet === 'non_veg' || diet === 'egg' ? 'non_veg' : 'veg';
+}
+
+function migrateFoodDietsToVegNonVeg() {
+  (store.cateringMenu.foodItems || []).forEach(function (f) {
+    f.diet = normalizeFoodDiet(f.diet);
+  });
 }
 
 function migratePackageCategories() {
@@ -777,8 +788,7 @@ function isItemOnOwnerMenu(masterKey) {
 }
 
 function pickDietLabel(diet) {
-  if (diet === 'non_veg') return { cls: 'non_veg', text: 'NV' };
-  if (diet === 'egg') return { cls: 'egg', text: 'Egg' };
+  if (normalizeFoodDiet(diet) === 'non_veg') return { cls: 'non_veg', text: 'NV' };
   return { cls: 'veg', text: 'V' };
 }
 
@@ -1126,6 +1136,7 @@ function renderFoodItemForm() {
   if (!d) return;
   d.pricingMode = 'per_person';
   d.unitLabel = 'plate';
+  d.diet = normalizeFoodDiet(d.diet);
   const mod = findFoodModule(d.moduleId);
   el('catFoodFormTitle').textContent = d.id && findFoodItem(d.id) ? 'Edit Food Item' : 'Add Food Item';
   el('catFoodImgEmoji').textContent = d.imageEmoji || (mod && mod.emoji) || '🍽️';
@@ -1135,7 +1146,6 @@ function renderFoodItemForm() {
   if (modAfter) el('catFoodImgEmoji').textContent = d.imageEmoji || modAfter.emoji || '🍽️';
   el('catFoodDesc').value = d.description || '';
   el('catFoodDietVeg').checked = d.diet === 'veg';
-  el('catFoodDietEgg').checked = d.diet === 'egg';
   el('catFoodDietNon').checked = d.diet === 'non_veg';
   renderSlabTable('catFoodSlabs', d.slabs || defaultItemSlabs(), function (slabs) {
     foodFormDraft.slabs = slabs;
@@ -1247,7 +1257,6 @@ function saveFoodItemForm(status) {
     return;
   }
   if (el('catFoodDietNon').checked) foodFormDraft.diet = 'non_veg';
-  else if (el('catFoodDietEgg').checked) foodFormDraft.diet = 'egg';
   else foodFormDraft.diet = 'veg';
   foodFormDraft.description = (el('catFoodDesc').value || '').trim();
   foodFormDraft.quoteOnly = false;
