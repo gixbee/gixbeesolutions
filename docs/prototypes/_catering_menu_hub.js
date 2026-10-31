@@ -125,8 +125,12 @@ function updatePkgCustomerPreview() {
   const host = el('catPkgCustomerPreview');
   if (!host || !pkgWizard.draft) return;
   const diet = packageDietChipHtml(pkgWizard.draft.dietType);
+  const title = esc(pkgWizard.draft.customerTitle || 'Basic - Your package name');
   host.innerHTML =
-    (diet ? diet + ' ' : '') + '<span>' + esc(pkgWizard.draft.customerTitle || 'Basic - Your package name') + '</span>';
+    (diet ? '<div class="cat-pkg-cust-diet">' + diet + '</div>' : '') +
+    '<div class="cat-pkg-cust-name">' +
+    title +
+    '</div>';
 }
 
 function bindClick(id, handler) {

@@ -219,8 +219,11 @@ body{margin:0;background:#E8EDF5;font-family:Inter,system-ui,sans-serif;color:va
 .cat-pkg-type-btn.on{background:#059669;color:#fff;border-color:#059669}
 .cat-pkg-name-hint{margin:4px 16px 0;font-size:11px;font-weight:600;color:#64748B;line-height:1.4}
 .cat-pkg-name-preview{margin:16px 16px 0;padding:14px;border-radius:14px;background:#F8FAFC;border:1px solid #E2E8F0}
-.cat-pkg-name-preview .sub{margin:0 0 6px;font-size:11px;font-weight:700;color:#64748B}
-.cat-pkg-name-preview b{font-size:15px;font-weight:900;color:#0F172A;line-height:1.35;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.cat-pkg-name-preview .sub{margin:0 0 10px;font-size:11px;font-weight:700;color:#64748B}
+.cat-pkg-cust{display:flex;flex-direction:column;align-items:flex-start;gap:8px}
+.cat-pkg-cust-diet{display:inline-flex;align-items:center;max-width:100%;padding:6px 12px 6px 8px;border-radius:999px;background:#fff;border:1px solid #E2E8F0}
+.cat-pkg-cust-diet .pkg-diet-lead{margin:0;font-size:13px;flex-wrap:nowrap}
+.cat-pkg-cust-name{font-size:16px;font-weight:900;color:#0F172A;line-height:1.3;letter-spacing:-.02em}
 .cat-menu-step-list{padding:0 0 80px}
 .cat-menu-step-row{display:flex;align-items:center;gap:12px;width:100%;padding:14px 16px;border:0;border-bottom:1px solid #F1F5F9;background:#fff;cursor:pointer;text-align:left;font:inherit;color:var(--navy)}
 .cat-menu-step-row.has-items{background:#F0FDF4}
@@ -959,7 +962,7 @@ button.manage-pill{cursor:pointer;font:inherit;color:var(--blue);border-color:#B
     <div id="catPkgDietChoice"></div>
     <div class="fld"><label>Package Name*</label><input id="catPkgName" placeholder="e.g. Wedding Sadhya"></div>
     <p class="cat-pkg-name-hint">Example: Wedding Sadhya, Royal Feast, Traditional Menu etc.</p>
-    <div class="cat-pkg-name-preview"><p class="sub">Package name (as shown to customers)</p><b id="catPkgCustomerPreview">Basic - Your package name</b></div>
+    <div class="cat-pkg-name-preview"><p class="sub">Package name (as shown to customers)</p><div class="cat-pkg-cust" id="catPkgCustomerPreview"><div class="cat-pkg-cust-name">Basic - Your package name</div></div></div>
     <div class="fld" style="margin-top:14px"><label>Description (optional)</label><textarea id="catPkgDesc" rows="2" placeholder="Short note for customers"></textarea></div>
   </div>
   <div class="cat-wiz-foot">
