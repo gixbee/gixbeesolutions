@@ -481,6 +481,9 @@ button.manage-pill{cursor:pointer;font:inherit;color:var(--blue);border-color:#B
 .price-panel{border:2px solid #FCA5A5;border-radius:14px;padding:12px;margin:12px 0;background:#FFF5F5}
 .radio-row{display:flex;gap:16px;font-weight:700;font-size:14px}
 .radio-row label{display:flex;align-items:center;gap:6px}
+.cat-rate-choice{display:flex;flex-direction:column;gap:10px;margin:0 0 14px}
+.cat-rate-choice label{display:flex;align-items:flex-start;gap:8px;font-weight:700;font-size:13px;color:var(--navy);line-height:1.35;cursor:pointer}
+.cat-rate-choice input{margin-top:2px;flex-shrink:0}
 .seg-full{display:flex;border:1px solid var(--line);border-radius:12px;overflow:hidden;margin:0}
 .seg-full button{flex:1;border:0;padding:10px;font-weight:800;background:#F8FAFC;color:var(--mut);cursor:pointer}
 .seg-full button.on{background:var(--blue);color:#fff}
@@ -887,8 +890,18 @@ button.manage-pill{cursor:pointer;font:inherit;color:var(--blue);border-color:#B
       <label><input type="radio" name="catFoodDiet" id="catFoodDietNon"> Non-veg</label>
     </div>
     <p class="lbl" id="catFoodSlabLabel">GUEST COUNT PRICING (OWNER DEFINED)</p>
-    <div id="catFoodSlabs"></div>
-    <button type="button" class="cat-add-slab" id="catFoodAddSlab">+ Add another slab</button>
+    <div class="cat-rate-choice">
+      <label><input type="radio" name="catFoodRateMode" id="catFoodRateTiered" checked> Rate reduces as guest count increases</label>
+      <label><input type="radio" name="catFoodRateMode" id="catFoodRateFlat"> Same rate for all guests</label>
+    </div>
+    <div id="catFoodFlatWrap" hidden>
+      <div class="fld"><label>Price per plate (₹)</label><input type="number" id="catFoodFlatPrice" min="0" placeholder="70"></div>
+      <p class="cat-pkg-name-hint">One rate for every guest count. The price does not change when the group is larger.</p>
+    </div>
+    <div id="catFoodTieredWrap">
+      <div id="catFoodSlabs"></div>
+      <button type="button" class="cat-add-slab" id="catFoodAddSlab">+ Add another slab</button>
+    </div>
   </div>
   <div class="cta" style="display:flex;gap:10px">
     <button type="button" class="btn btn-ghost" id="catFoodSaveDraft" style="flex:1">Save as Draft</button>
@@ -939,8 +952,18 @@ button.manage-pill{cursor:pointer;font:inherit;color:var(--blue);border-color:#B
   <div class="top"><button type="button" class="back" id="catPkgPricingBack">←</button><h1>Set Guest Count Pricing</h1><span style="width:36px"></span></div>
   <p class="cat-wiz-step">Step 4 of 5</p>
   <div class="pad" style="padding-top:8px">
-    <div id="catPkgSlabs"></div>
-    <button type="button" class="cat-add-slab" id="catPkgAddSlab">+ Add another slab</button>
+    <div class="cat-rate-choice">
+      <label><input type="radio" name="catPkgRateMode" id="catPkgRateTiered" checked> Rate reduces as guest count increases</label>
+      <label><input type="radio" name="catPkgRateMode" id="catPkgRateFlat"> Same rate for all guests</label>
+    </div>
+    <div id="catPkgFlatWrap" hidden>
+      <div class="fld"><label>Price per person (₹)</label><input type="number" id="catPkgFlatPrice" min="0" placeholder="400"></div>
+      <p class="cat-pkg-name-hint">One rate for every guest count. The price does not change when the group is larger.</p>
+    </div>
+    <div id="catPkgTieredWrap">
+      <div id="catPkgSlabs"></div>
+      <button type="button" class="cat-add-slab" id="catPkgAddSlab">+ Add another slab</button>
+    </div>
     <div class="cat-pkg-example" id="catPkgPricingExample" aria-live="polite"></div>
   </div>
   <div class="cta"><button type="button" class="btn btn-blue" id="catPkgNextPreview">Next: Preview Package</button></div>

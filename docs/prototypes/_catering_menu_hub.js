@@ -286,6 +286,7 @@ function foodItemFromPrice(f) {
     })
   );
   const unit = 'plate';
+  if (f.rateMode === 'flat') return formatInrCompact(min) + ' / ' + unit;
   return formatInrCompact(min) + ' / ' + unit + '+';
 }
 
@@ -314,6 +315,7 @@ function renderCatPkgFilters() {
 
 function packageFromPersonLabel(p) {
   const from = lowestGuestPrice(p) || p.price || 0;
+  if (p.rateMode === 'flat') return '₹' + formatInrFull(from) + ' / person';
   return 'From ₹' + formatInrFull(from) + ' / person';
 }
 
@@ -1131,6 +1133,37 @@ function ensureFoodFormCatalogMeta() {
   }
 }
 
+function resolveRateMode(record, slabKey) {
+  if (!record) return 'tiered';
+  if (record.rateMode === 'flat' || record.rateMode === 'tiered') return record.rateMode;
+  const slabs = record[slabKey] || [];
+  return slabs.length === 1 ? 'flat' : 'tiered';
+}
+
+function applyRateMode(record, slabKey, mode, defaultSlabsFn) {
+  const slabs = record[slabKey] || [];
+  if (mode === 'flat') {
+    if (slabs.length > 1) record._tieredBackup = JSON.parse(JSON.stringify(slabs));
+    const price = slabs.length ? +slabs[0].price || 0 : 0;
+    record.rateMode = 'flat';
+    record[slabKey] = [{ from: 1, to: 500, price: price }];
+    return;
+  }
+  record.rateMode = 'tiered';
+  if (record._tieredBackup && record._tieredBackup.length > 1) {
+    record[slabKey] = JSON.parse(JSON.stringify(record._tieredBackup));
+    return;
+  }
+  if (slabs.length > 1) return;
+  const defs = defaultSlabsFn();
+  if (slabs.length === 1 && +slabs[0].price) defs[0].price = +slabs[0].price;
+  record[slabKey] = defs;
+}
+
+function clearRateModeBackup(record) {
+  if (record) delete record._tieredBackup;
+}
+
 function renderFoodItemForm() {
   const d = foodFormDraft;
   if (!d) return;
@@ -1147,7 +1180,32 @@ function renderFoodItemForm() {
   el('catFoodDesc').value = d.description || '';
   el('catFoodDietVeg').checked = d.diet === 'veg';
   el('catFoodDietNon').checked = d.diet === 'non_veg';
-  renderSlabTable('catFoodSlabs', d.slabs || defaultItemSlabs(), function (slabs) {
+  renderFoodPricing();
+}
+
+function renderFoodPricing() {
+  const d = foodFormDraft;
+  if (!d) return;
+  if (!d.slabs || !d.slabs.length) d.slabs = defaultItemSlabs();
+  if (!d.rateMode) d.rateMode = resolveRateMode(d, 'slabs');
+  const flat = d.rateMode === 'flat';
+  const flatRadio = el('catFoodRateFlat');
+  const tierRadio = el('catFoodRateTiered');
+  if (flatRadio) flatRadio.checked = flat;
+  if (tierRadio) tierRadio.checked = !flat;
+  const flatWrap = el('catFoodFlatWrap');
+  const tierWrap = el('catFoodTieredWrap');
+  if (flatWrap) flatWrap.hidden = !flat;
+  if (tierWrap) tierWrap.hidden = flat;
+  if (flat) {
+    if (d.slabs.length !== 1) {
+      d.slabs = [{ from: 1, to: 500, price: +d.slabs[0].price || 0 }];
+    }
+    const price = el('catFoodFlatPrice');
+    if (price) price.value = d.slabs[0].price;
+    return;
+  }
+  renderSlabTable('catFoodSlabs', d.slabs, function (slabs) {
     foodFormDraft.slabs = slabs;
   });
 }
@@ -1228,14 +1286,14 @@ function bindFoodItemFormUi() {
     };
   }
   bindClick('catFoodAddSlab', function () {
+    if (!foodFormDraft || foodFormDraft.rateMode === 'flat') return;
     const slabs = foodFormDraft.slabs || [];
     const last = slabs[slabs.length - 1];
     const from = last ? last.to + 1 : 1;
     slabs.push({ from: from, to: from + 24, price: last ? last.price : 50 });
     foodFormDraft.slabs = slabs;
-    renderSlabTable('catFoodSlabs', slabs, function (s) {
-      foodFormDraft.slabs = s;
-    });
+    foodFormDraft.rateMode = 'tiered';
+    renderFoodPricing();
   });
   bindClick('catFoodSaveDraft', function () {
     saveFoodItemForm('draft');
@@ -1246,6 +1304,22 @@ function bindFoodItemFormUi() {
   bindClick('catFoodBack', function () {
     show('menuPkg');
     renderCateringMenuHub();
+  });
+  bindOnChange('catFoodRateFlat', function () {
+    if (!foodFormDraft) return;
+    applyRateMode(foodFormDraft, 'slabs', 'flat', defaultItemSlabs);
+    renderFoodPricing();
+  });
+  bindOnChange('catFoodRateTiered', function () {
+    if (!foodFormDraft) return;
+    applyRateMode(foodFormDraft, 'slabs', 'tiered', defaultItemSlabs);
+    renderFoodPricing();
+  });
+  bindOnInput('catFoodFlatPrice', function () {
+    if (!foodFormDraft) return;
+    const price = el('catFoodFlatPrice');
+    foodFormDraft.rateMode = 'flat';
+    foodFormDraft.slabs = [{ from: 1, to: 500, price: price ? +price.value || 0 : 0 }];
   });
 }
 
@@ -1272,6 +1346,7 @@ function saveFoodItemForm(status) {
     toast('Add at least one pricing slab');
     return;
   }
+  clearRateModeBackup(foodFormDraft);
   foodFormDraft.status = status;
   const idx = (store.cateringMenu.foodItems || []).findIndex(function (f) {
     return f.id === foodFormDraft.id || (foodFormDraft.masterKey && f.masterKey === foodFormDraft.masterKey);
@@ -1294,6 +1369,7 @@ function newPkgDraft() {
     description: '',
     status: 'live',
     pricingMode: 'per_person',
+    rateMode: 'tiered',
     guestSlabs: defaultPackageGuestSlabs(),
     itemIds: [],
     imageEmoji: '🍽️',
@@ -1481,6 +1557,27 @@ function bindCatPkgCreateUi() {
 
 function renderCatPkgPricing() {
   const d = pkgWizard.draft;
+  if (!d) return;
+  if (!d.guestSlabs || !d.guestSlabs.length) d.guestSlabs = defaultPackageGuestSlabs();
+  if (!d.rateMode) d.rateMode = resolveRateMode(d, 'guestSlabs');
+  const flat = d.rateMode === 'flat';
+  const flatRadio = el('catPkgRateFlat');
+  const tierRadio = el('catPkgRateTiered');
+  if (flatRadio) flatRadio.checked = flat;
+  if (tierRadio) tierRadio.checked = !flat;
+  const flatWrap = el('catPkgFlatWrap');
+  const tierWrap = el('catPkgTieredWrap');
+  if (flatWrap) flatWrap.hidden = !flat;
+  if (tierWrap) tierWrap.hidden = flat;
+  if (flat) {
+    if (d.guestSlabs.length !== 1) {
+      d.guestSlabs = [{ from: 1, to: 500, price: +d.guestSlabs[0].price || 0 }];
+    }
+    const price = el('catPkgFlatPrice');
+    if (price) price.value = d.guestSlabs[0].price;
+    renderPkgGuestPricingExample(d.guestSlabs);
+    return;
+  }
   d.guestSlabs = normalizePackageGuestSlabs(d.guestSlabs);
   renderSlabTable(
     'catPkgSlabs',
@@ -1511,7 +1608,9 @@ function renderCatPkgPreview() {
   const pr = el('catPkgPreviewPricing');
   if (pr) {
     const slabs = d.guestSlabs || [];
-    if (!slabs.length) pr.textContent = 'No guest slabs set';
+    if (d.rateMode === 'flat' && slabs[0]) {
+      pr.textContent = '₹' + formatInrFull(slabs[0].price) + ' / person for all guests';
+    } else if (!slabs.length) pr.textContent = 'No guest slabs set';
     else {
       pr.innerHTML = slabs
         .map(function (s) {
@@ -1538,12 +1637,30 @@ function bindCatPkgPricingUi() {
     goCatPkgStep(3);
   });
   bindClick('catPkgAddSlab', function () {
+    if (!pkgWizard.draft || pkgWizard.draft.rateMode === 'flat') return;
     const slabs = pkgWizard.draft.guestSlabs || [];
     const last = slabs[slabs.length - 1];
     const from = last ? last.to + 1 : 25;
     slabs.push({ from: from, to: from + 49, price: last ? Math.max(50, last.price - 50) : 500 });
     pkgWizard.draft.guestSlabs = slabs;
     renderCatPkgPricing();
+  });
+  bindOnChange('catPkgRateFlat', function () {
+    if (!pkgWizard.draft) return;
+    applyRateMode(pkgWizard.draft, 'guestSlabs', 'flat', defaultPackageGuestSlabs);
+    renderCatPkgPricing();
+  });
+  bindOnChange('catPkgRateTiered', function () {
+    if (!pkgWizard.draft) return;
+    applyRateMode(pkgWizard.draft, 'guestSlabs', 'tiered', defaultPackageGuestSlabs);
+    renderCatPkgPricing();
+  });
+  bindOnInput('catPkgFlatPrice', function () {
+    if (!pkgWizard.draft) return;
+    const price = el('catPkgFlatPrice');
+    pkgWizard.draft.rateMode = 'flat';
+    pkgWizard.draft.guestSlabs = [{ from: 1, to: 500, price: price ? +price.value || 0 : 0 }];
+    renderPkgGuestPricingExample(pkgWizard.draft.guestSlabs);
   });
   bindClick('catPkgNextPreview', function () {
     const slabs = pkgWizard.draft.guestSlabs || [];
@@ -1568,6 +1685,7 @@ function bindCatPkgPricingUi() {
     }
     d.price = slabs.length ? Math.min.apply(null, slabs.map(function (s) { return +s.price; })) : 0;
     d.listPrice = d.listPrice || d.price;
+    clearRateModeBackup(d);
     d.subtitle = d.subtitle || d.customerTitle || moduleCountSubtitle(d);
     d.id = pkgWizard.editId || uid('cpkg');
     const i = (store.cateringMenu.catPackages || []).findIndex(function (p) {
