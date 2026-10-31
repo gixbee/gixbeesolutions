@@ -1656,20 +1656,14 @@ function renderCatPkgStep3Menu() {
   const q = (el('catPkgItemSearch') && el('catPkgItemSearch').value || '').trim().toLowerCase();
   const list = el('catPkgModulePick');
   if (!list) return;
-  const counts = packageDietCounts(d);
   const summary = el('catPkgDietSummary');
   const nudge = el('catPkgDietNudge');
+  const selected = (d.itemIds || []).length;
   if (summary) {
     if (d.dietType === 'veg') {
-      summary.innerHTML = packageDietChipHtml('veg') + ' <span>' + (d.itemIds || []).length + ' dishes selected</span>';
+      summary.innerHTML = packageDietChipHtml('veg') + ' <span>' + selected + ' items selected</span>';
     } else if (d.dietType === 'mixed') {
-      summary.innerHTML =
-        packageDietChipHtml('mixed') +
-        ' <span>' +
-        counts.veg +
-        ' veg · ' +
-        counts.non +
-        ' non-veg</span>';
+      summary.innerHTML = packageDietChipHtml('mixed') + ' <span>' + selected + ' items selected</span>';
     } else summary.textContent = '';
   }
   if (nudge) nudge.hidden = true;
