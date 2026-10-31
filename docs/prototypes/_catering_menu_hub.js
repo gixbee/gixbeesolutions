@@ -433,6 +433,17 @@ function individualFoodItems() {
   });
 }
 
+function foodDietLeadHtml(diet) {
+  const non = normalizeFoodDiet(diet) === 'non_veg';
+  return (
+    '<span class="pkg-diet-lead food-diet-lead">' +
+    dietMarkHtml(non ? 'non' : 'veg', false) +
+    '<span>' +
+    (non ? 'Non-veg' : 'Veg') +
+    '</span></span>'
+  );
+}
+
 function foodItemFromPrice(f) {
   const slabs = f.slabs || [];
   if (!slabs.length) return '—';
@@ -683,7 +694,9 @@ function renderCatIndividualFoodList() {
         esc(f.id) +
         '"><div class="svc-row"><div class="svc-thumb" style="background:linear-gradient(145deg,#F97316,#EA580C)"><span style="font-size:22px">' +
         emoji +
-        '</span></div><div class="svc-bd"><b>' +
+        '</span></div><div class="svc-bd">' +
+        foodDietLeadHtml(f.diet) +
+        '<b>' +
         esc(f.name) +
         '</b><div class="svc-meta"><span class="svc-price-tag">' +
         foodItemFromPrice(f) +
