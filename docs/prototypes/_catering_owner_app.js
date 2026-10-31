@@ -296,9 +296,8 @@ function renderLmb() {
     '<p class="biz-meta"><span class="pill ok">Verified</span> · ' +
     esc(store.biz.loc) +
     '</p>' +
-    '<div class="biz-badges"><span>3 new requests</span><span class="gy">Rs 2.1L this month</span></div>' +
-    '<div class="biz-actions"><button type="button" id="lmbCalBtn">Calendar</button><button type="button" id="lmbReqBtn">Requests</button>' +
-    '<button type="button" class="mgr-catering" id="dashPhotoManage">Manage</button></div>' +
+    '<div class="biz-badges"><span class="gy">Rs 2.1L this month</span></div>' +
+    '<div class="biz-actions"><button type="button" class="mgr-catering" id="dashPhotoManage">Manage</button></div>' +
     '</div></div></div>';
   const manage = el('dashPhotoManage');
   if (manage) {
@@ -307,10 +306,6 @@ function renderLmb() {
       show('photoDash');
     };
   }
-  const lmbCal = el('lmbCalBtn');
-  if (lmbCal) lmbCal.onclick = () => openPhotoCalendar();
-  const lmbReq = el('lmbReqBtn');
-  if (lmbReq) lmbReq.onclick = () => show('requests');
 }
 
 function profCell(ico, label, value) {
@@ -400,18 +395,7 @@ function renderPhotoDash() {
   el('areaSummary').textContent = areaSummaryText();
   const q = el('quickGrid');
   q.innerHTML = [
-    { id: 'menuPkg', cls: 'pink', ico: '📦', label: 'Menu & Packages' },
-    { id: 'calendar', cls: 'blue', ico: '📅', label: 'Calendar' },
-    { id: 'gallery', cls: 'blue', ico: '🖼', label: 'Photos & Gallery' },
-    { id: 'requests', cls: 'orange', ico: '🔔', label: 'Booking Requests', badge: '3' },
-    { id: 'photoOperators', cls: 'teal', ico: '👥', label: 'Operators' },
-    {
-      id: 'deletedBusiness',
-      cls: 'gray',
-      ico: '🗑',
-      label: 'Deleted business',
-      badge: store.deletedBusinesses.length ? String(store.deletedBusinesses.length) : '',
-    },
+    { id: 'menuPkg', cls: 'pink span', ico: '📦', label: 'Menu & Packages' },
   ]
     .map(
       (t) =>
@@ -432,21 +416,7 @@ function renderPhotoDash() {
     btn.onclick = () => {
       const dest = btn.getAttribute('data-go');
       if (dest === 'menuPkg') openMenuPkgHub();
-      else if (dest === 'photoOperators') {
-        renderPhotoOperators();
-        show(dest);
-      } else if (dest === 'deletedBusiness') {
-        renderDeletedBusinesses();
-        show(dest);
-      } else if (dest === 'calendar') {
-        openPhotoCalendar();
-      } else if (dest === 'photoBookSettings') {
-        renderPhotoBookSettings();
-        show(dest);
-      } else if (dest === 'photoCalDay') {
-        renderPhotoCalDay();
-        show(dest);
-      } else show(dest);
+      else show(dest);
     };
   });
 }

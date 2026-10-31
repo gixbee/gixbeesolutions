@@ -64,6 +64,7 @@ body{margin:0;background:#E8EDF5;font-family:Inter,system-ui,sans-serif;color:va
 .qtile.teal{background:#F0FDFA;border-color:#99F6E4}
 .qtile.gray{background:#F8FAFC;border-color:#CBD5E1}
 .qtile .badge{position:absolute;top:8px;right:8px;background:#EF4444;color:#fff;font-size:10px;font-weight:800;min-width:18px;height:18px;border-radius:99px;display:grid;place-items:center}
+.qtile.span{grid-column:1 / -1}
 .op-remove{border:0;background:none;color:#DC2626;font-weight:800;font-size:13px;cursor:pointer;padding:8px 4px}
 .op-owner-tag{color:var(--gn2);font-weight:800;font-size:13px;padding:8px 4px}
 .op-card{display:flex;align-items:center;gap:12px;border:1px solid var(--line);border-radius:14px;padding:12px 14px;margin-bottom:10px;background:#fff}
@@ -898,7 +899,7 @@ button.manage-pill{cursor:pointer;font:inherit;color:var(--blue);border-color:#B
 
 <section class="scr" id="catPkgStep1">
   <div class="top"><button type="button" class="back" id="catPkgStep1Back">←</button><h1>Create Package</h1><span style="width:36px"></span></div>
-  <p class="cat-wiz-step">Step 1 of 7</p>
+  <p class="cat-wiz-step">Step 1 of 5</p>
   <div class="pad" style="padding-top:0">
     <p class="cat-lvl-head" style="padding-left:0;padding-right:0"><span aria-hidden="true">📋</span> Select Package Category<span class="cat-lvl-req">*</span></p>
     <p class="cat-pkg-name-hint" style="margin-left:0;margin-right:0;margin-bottom:12px">Choose the category that best describes this package.</p>
@@ -909,7 +910,7 @@ button.manage-pill{cursor:pointer;font:inherit;color:var(--blue);border-color:#B
 
 <section class="scr" id="catPkgStep2">
   <div class="top"><button type="button" class="back" id="catPkgStep2TopBack">←</button><h1>Package Type &amp; Name</h1><span style="width:36px"></span></div>
-  <p class="cat-wiz-step">Step 2 of 7</p>
+  <p class="cat-wiz-step">Step 2 of 5</p>
   <div class="cat-pkg-cat-banner"><b id="catPkgCatBannerLabel">Wedding &amp; Related Functions</b><button type="button" id="catPkgChangeCategory">Change</button></div>
   <div class="pad" style="padding-top:0">
     <p class="cat-lvl-head" style="padding-left:0;padding-right:0"><span aria-hidden="true">📋</span> Package Type<span class="cat-lvl-req">*</span></p>
@@ -927,7 +928,7 @@ button.manage-pill{cursor:pointer;font:inherit;color:var(--blue);border-color:#B
 
 <section class="scr" id="catPkgStep3">
   <div class="top"><button type="button" class="back" id="catPkgStep3TopBack">←</button><h1>Add Menu Items</h1><span style="width:36px"></span></div>
-  <p class="cat-wiz-step">Step 3 of 7</p>
+  <p class="cat-wiz-step">Step 3 of 5</p>
   <div class="cat-hub-search" style="margin-top:0"><span>🔍</span><input type="search" id="catPkgItemSearch" placeholder="Search menu categories…" autocomplete="off"></div>
   <div class="cat-menu-step-list" id="catPkgModulePick"></div>
   <div class="cat-wiz-foot">
@@ -937,7 +938,7 @@ button.manage-pill{cursor:pointer;font:inherit;color:var(--blue);border-color:#B
 
 <section class="scr" id="catPkgPricing">
   <div class="top"><button type="button" class="back" id="catPkgPricingBack">←</button><h1>Set Guest Count Pricing</h1><span style="width:36px"></span></div>
-  <p class="cat-wiz-step">Step 4 of 7</p>
+  <p class="cat-wiz-step">Step 4 of 5</p>
   <div class="pad" style="padding-top:8px">
     <div id="catPkgSlabs"></div>
     <button type="button" class="cat-add-slab" id="catPkgAddSlab">+ Add another slab</button>
@@ -948,7 +949,7 @@ button.manage-pill{cursor:pointer;font:inherit;color:var(--blue);border-color:#B
 
 <section class="scr" id="catPkgPreview">
   <div class="top"><button type="button" class="back" id="catPkgPreviewBack">←</button><h1>Preview Package</h1><span style="width:36px"></span></div>
-  <p class="cat-wiz-step">Step 5 of 7</p>
+  <p class="cat-wiz-step">Step 5 of 5</p>
   <div class="pad">
     <p class="lbl">PACKAGE SUMMARY</p>
     <div id="catPkgSummary" style="padding:0 4px"></div>
