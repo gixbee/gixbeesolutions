@@ -404,6 +404,9 @@ body{margin:0;background:#E8EDF5;font-family:Inter,system-ui,sans-serif;color:va
 .food-diet-lead{margin:0 0 4px;font-size:11px}
 .svc-meta{display:flex;align-items:center;flex-wrap:wrap;gap:6px;font-size:11px;color:var(--mut);font-weight:700}
 .svc-price-tag{font-size:12px;font-weight:900;color:var(--navy)}
+.svc-price-tag .pkg-offer{display:inline-flex;flex-wrap:wrap;align-items:center;gap:4px}
+.svc-price-tag .pkg-offer s{font-size:11px;font-weight:700;color:#9CA3AF;text-decoration:line-through}
+.svc-price-tag .pkg-offer b{font-weight:900;color:var(--navy)}
 .svc-row-chev{color:#CBD5E1;font-size:20px;font-weight:300}
 #svcPkg.hub-mode-packages .hub-svc-only{display:none!important}
 #svcPkg.hub-mode-services .hub-pkg-only{display:none!important}
@@ -950,8 +953,22 @@ button.manage-pill{cursor:pointer;font:inherit;color:var(--blue);border-color:#B
       <label><input type="radio" name="catFoodRateMode" id="catFoodRateTiered" checked> Rate reduces as guest count increases</label>
       <label><input type="radio" name="catFoodRateMode" id="catFoodRateFlat"> Same rate for all guests</label>
     </div>
+    <div class="cat-offer" id="catFoodOfferBox">
+      <label class="cat-offer-check">
+        <input type="checkbox" id="catFoodOfferOn">
+        <span><b>Offer for customers</b><small>Plate price stays as you type it. Customers see a lower price.</small></span>
+      </label>
+      <div id="catFoodOfferFields" hidden>
+        <div class="cat-offer-pct">
+          <label for="catFoodOfferPercent">Discount</label>
+          <div class="cat-offer-pct-in"><input type="number" id="catFoodOfferPercent" min="1" max="90" inputmode="numeric" placeholder="10"><span>%</span></div>
+        </div>
+        <p class="cat-pkg-name-hint" style="margin:8px 0 0">Type 10 for 10% off. Use 1 to 90. Each plate price updates on its own.</p>
+      </div>
+    </div>
     <div id="catFoodFlatWrap" hidden>
       <div class="fld"><label>Price per plate (₹)</label><input type="number" id="catFoodFlatPrice" min="0" placeholder="70"></div>
+      <div class="cat-slab-offer cat-flat-offer" id="catFoodFlatOffer" hidden></div>
       <p class="cat-pkg-name-hint">One rate for every guest count. The price does not change when the group is larger.</p>
     </div>
     <div id="catFoodTieredWrap">

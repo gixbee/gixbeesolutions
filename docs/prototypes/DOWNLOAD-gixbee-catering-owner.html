@@ -406,6 +406,9 @@ body{margin:0;background:#E8EDF5;font-family:Inter,system-ui,sans-serif;color:va
 .food-diet-lead{margin:0 0 4px;font-size:11px}
 .svc-meta{display:flex;align-items:center;flex-wrap:wrap;gap:6px;font-size:11px;color:var(--mut);font-weight:700}
 .svc-price-tag{font-size:12px;font-weight:900;color:var(--navy)}
+.svc-price-tag .pkg-offer{display:inline-flex;flex-wrap:wrap;align-items:center;gap:4px}
+.svc-price-tag .pkg-offer s{font-size:11px;font-weight:700;color:#9CA3AF;text-decoration:line-through}
+.svc-price-tag .pkg-offer b{font-weight:900;color:var(--navy)}
 .svc-row-chev{color:#CBD5E1;font-size:20px;font-weight:300}
 #svcPkg.hub-mode-packages .hub-svc-only{display:none!important}
 #svcPkg.hub-mode-services .hub-pkg-only{display:none!important}
@@ -952,8 +955,22 @@ button.manage-pill{cursor:pointer;font:inherit;color:var(--blue);border-color:#B
       <label><input type="radio" name="catFoodRateMode" id="catFoodRateTiered" checked> Rate reduces as guest count increases</label>
       <label><input type="radio" name="catFoodRateMode" id="catFoodRateFlat"> Same rate for all guests</label>
     </div>
+    <div class="cat-offer" id="catFoodOfferBox">
+      <label class="cat-offer-check">
+        <input type="checkbox" id="catFoodOfferOn">
+        <span><b>Offer for customers</b><small>Plate price stays as you type it. Customers see a lower price.</small></span>
+      </label>
+      <div id="catFoodOfferFields" hidden>
+        <div class="cat-offer-pct">
+          <label for="catFoodOfferPercent">Discount</label>
+          <div class="cat-offer-pct-in"><input type="number" id="catFoodOfferPercent" min="1" max="90" inputmode="numeric" placeholder="10"><span>%</span></div>
+        </div>
+        <p class="cat-pkg-name-hint" style="margin:8px 0 0">Type 10 for 10% off. Use 1 to 90. Each plate price updates on its own.</p>
+      </div>
+    </div>
     <div id="catFoodFlatWrap" hidden>
       <div class="fld"><label>Price per plate (₹)</label><input type="number" id="catFoodFlatPrice" min="0" placeholder="70"></div>
+      <div class="cat-slab-offer cat-flat-offer" id="catFoodFlatOffer" hidden></div>
       <p class="cat-pkg-name-hint">One rate for every guest count. The price does not change when the group is larger.</p>
     </div>
     <div id="catFoodTieredWrap">
@@ -4105,6 +4122,30 @@ function foodItemFromPrice(f) {
   return formatInrCompact(min) + ' / ' + unit + '+';
 }
 
+function foodPriceHtml(f) {
+  const plain = foodItemFromPrice(f);
+  const pct = offerPercentOf(f);
+  if (plain === '—' || !pct) return esc(plain);
+  const slabs = f.slabs || [];
+  const min = Math.min.apply(
+    null,
+    slabs.map(function (s) {
+      return +s.price || 0;
+    })
+  );
+  const suffix = f.rateMode === 'flat' ? ' / plate' : ' / plate+';
+  return (
+    '<span class="pkg-offer"><s>' +
+    formatInrCompact(min) +
+    '</s><b>' +
+    formatInrCompact(priceAfterOffer(min, pct)) +
+    esc(suffix) +
+    '</b>' +
+    offerBadgeHtml(pct) +
+    '</span>'
+  );
+}
+
 function renderCatPkgFilters() {
   const row = el('catPkgFilters');
   if (!row) return;
@@ -4346,7 +4387,7 @@ function renderCatIndividualFoodList() {
         '<b>' +
         esc(f.name) +
         '</b><div class="svc-meta"><span class="svc-price-tag">' +
-        foodItemFromPrice(f) +
+        foodPriceHtml(f) +
         '</span><span class="status ' +
         (f.status === 'active' ? 'pub' : 'draft') +
         '" style="margin:0;padding:4px 8px">' +
@@ -4867,6 +4908,8 @@ function createFoodItemFromMaster(masterKey, status, individualListing) {
       unitLabel: 'plate',
       quoteOnly: false,
       status: status || 'draft',
+      offerEnabled: false,
+      discountPercent: '',
       slabs: defaultItemSlabs(),
       imageEmoji: '🍽️',
     };
@@ -4887,6 +4930,8 @@ function createFoodItemFromMaster(masterKey, status, individualListing) {
     unitLabel: 'plate',
     quoteOnly: false,
     status: status || 'draft',
+    offerEnabled: false,
+    discountPercent: '',
     slabs: defaultItemSlabs(),
     imageEmoji: hit.module.emoji,
   };
@@ -5020,6 +5065,41 @@ function renderFoodItemForm() {
   renderFoodPricing();
 }
 
+function renderFoodOffer() {
+  const d = foodFormDraft;
+  if (!d) return;
+  const box = el('catFoodOfferBox');
+  const on = el('catFoodOfferOn');
+  const fields = el('catFoodOfferFields');
+  const pct = el('catFoodOfferPercent');
+  if (on) on.checked = !!d.offerEnabled;
+  if (box) box.classList.toggle('on', !!d.offerEnabled);
+  if (fields) fields.hidden = !d.offerEnabled;
+  if (pct && document.activeElement !== pct) {
+    const v = d.discountPercent;
+    pct.value = v === '' || v == null ? '' : v;
+  }
+  paintFoodOfferPrices();
+}
+
+function paintFoodOfferPrices() {
+  const d = foodFormDraft;
+  const pct = d ? offerPercentOf(d) : 0;
+  document.querySelectorAll('#catFoodSlabs .cat-slab-offer').forEach(function (slot) {
+    const row = slot.closest('.cat-slab-row');
+    const priceEl = row && row.querySelector('.slab-price');
+    const price = priceEl ? +priceEl.value || 0 : 0;
+    slot.innerHTML = pct ? offerPriceBitsHtml(price, pct) : '';
+  });
+  const flatSlot = el('catFoodFlatOffer');
+  if (flatSlot) {
+    const priceEl = el('catFoodFlatPrice');
+    const show = !!(pct && d && d.rateMode === 'flat');
+    flatSlot.hidden = !show;
+    flatSlot.innerHTML = show ? offerPriceBitsHtml(priceEl ? +priceEl.value || 0 : 0, pct) : '';
+  }
+}
+
 function renderFoodPricing() {
   const d = foodFormDraft;
   if (!d) return;
@@ -5040,11 +5120,23 @@ function renderFoodPricing() {
     }
     const price = el('catFoodFlatPrice');
     if (price) price.value = d.slabs[0].price;
+    renderFoodOffer();
     return;
   }
-  renderSlabTable('catFoodSlabs', d.slabs, function (slabs) {
-    foodFormDraft.slabs = slabs;
-  });
+  renderSlabTable(
+    'catFoodSlabs',
+    d.slabs,
+    function (slabs) {
+      foodFormDraft.slabs = slabs;
+    },
+    {
+      priceHeader: 'Price per plate (₹)',
+      afterChange: function () {
+        paintFoodOfferPrices();
+      },
+    }
+  );
+  renderFoodOffer();
 }
 
 function normalizePackageGuestSlabs(slabs) {
@@ -5157,6 +5249,25 @@ function bindFoodItemFormUi() {
     const price = el('catFoodFlatPrice');
     foodFormDraft.rateMode = 'flat';
     foodFormDraft.slabs = [{ from: 1, to: 500, price: price ? +price.value || 0 : 0 }];
+    paintFoodOfferPrices();
+  });
+  bindOnChange('catFoodOfferOn', function () {
+    if (!foodFormDraft) return;
+    const on = el('catFoodOfferOn');
+    foodFormDraft.offerEnabled = !!(on && on.checked);
+    renderFoodOffer();
+    if (foodFormDraft.offerEnabled) {
+      const pct = el('catFoodOfferPercent');
+      if (pct) pct.focus();
+    }
+  });
+  bindOnInput('catFoodOfferPercent', function () {
+    if (!foodFormDraft) return;
+    const pct = el('catFoodOfferPercent');
+    const raw = pct ? pct.value : '';
+    foodFormDraft.offerEnabled = true;
+    foodFormDraft.discountPercent = raw === '' ? '' : Math.round(+raw);
+    paintFoodOfferPrices();
   });
 }
 
@@ -5183,6 +5294,19 @@ function saveFoodItemForm(status) {
     toast('Add at least one pricing slab');
     return;
   }
+  const offerOn = el('catFoodOfferOn');
+  const offerPct = el('catFoodOfferPercent');
+  if (offerOn) foodFormDraft.offerEnabled = !!offerOn.checked;
+  if (foodFormDraft.offerEnabled && offerPct) {
+    foodFormDraft.discountPercent = offerPct.value === '' ? '' : Math.round(+offerPct.value);
+  }
+  if (foodFormDraft.offerEnabled && !offerPercentOf(foodFormDraft)) {
+    toast('Enter a discount from 1 to 90 percent');
+    return;
+  }
+  const pct = offerPercentOf(foodFormDraft);
+  foodFormDraft.discountPercent = pct || '';
+  if (!pct) foodFormDraft.offerEnabled = false;
   clearRateModeBackup(foodFormDraft);
   foodFormDraft.status = status;
   const idx = (store.cateringMenu.foodItems || []).findIndex(function (f) {
