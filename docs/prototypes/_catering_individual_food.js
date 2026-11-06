@@ -96,7 +96,7 @@ function buildIndividualPickerRows() {
           name: name,
           masterKey: null,
           diet: 'veg',
-          moduleId: 'm09',
+          moduleId: 'g05',
         });
       }
     });

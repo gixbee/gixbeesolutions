@@ -8,7 +8,7 @@ PRIMARY DEMO:
 Owner flow:
 
   List My Business → Archana Catering → Manage → Dashboard
-  Menu & Packages (packages + 13-module food catalogue, item editor, package wizard)
+  Menu & Packages (packages + 9-group dish library, item editor, package wizard)
   Service areas, business profile, calendar & bookings
   Photos & Gallery, Booking Requests (stubs)
   Operators, Deleted business

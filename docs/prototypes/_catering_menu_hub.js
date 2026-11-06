@@ -613,7 +613,7 @@ function renderCatPkgList() {
       '</b><p>' +
       (filtered
         ? 'Try another category or tier, or create a new package.'
-        : 'Create your first catering package with items from all 13 modules.') +
+        : 'Create a package, pick Sadhya, Buffet or Arabian, then add dishes from those groups.') +
       '</p></div>';
     return;
   }
@@ -1671,6 +1671,7 @@ function newPkgDraft() {
     itemIds: [],
     imageEmoji: '🍽️',
     dietType: '',
+    menuTemplate: 'sadhya',
     offerEnabled: false,
     discountPercent: '',
     listPrice: 0,
@@ -1758,12 +1759,52 @@ function renderCatPkgStep2() {
   updatePkgCustomerPreview();
 }
 
+function pkgTemplateById(id) {
+  const list = typeof PKG_MENU_TEMPLATES !== 'undefined' ? PKG_MENU_TEMPLATES : [];
+  for (let i = 0; i < list.length; i++) {
+    if (list[i].id === id) return list[i];
+  }
+  return list[0] || { id: 'all', label: 'All groups', hint: '', moduleIds: null };
+}
+function modulesForPackageTemplate(templateId) {
+  const tpl = pkgTemplateById(templateId || 'all');
+  if (!tpl.moduleIds) return FOOD_MODULES.slice();
+  return tpl.moduleIds
+    .map(function (id) {
+      return findFoodModule(id);
+    })
+    .filter(Boolean);
+}
 function renderCatPkgStep3Menu() {
   const d = pkgWizard.draft;
   if (!d) return;
+  if (!d.menuTemplate) d.menuTemplate = 'sadhya';
   const q = (el('catPkgItemSearch') && el('catPkgItemSearch').value || '').trim().toLowerCase();
   const list = el('catPkgModulePick');
   if (!list) return;
+  const chips = el('catPkgTemplateChips');
+  const hint = el('catPkgTemplateHint');
+  const tpl = pkgTemplateById(d.menuTemplate);
+  if (chips && typeof PKG_MENU_TEMPLATES !== 'undefined') {
+    chips.innerHTML = PKG_MENU_TEMPLATES.map(function (t) {
+      return (
+        '<button type="button" class="cat-pkg-type-btn' +
+        (t.id === d.menuTemplate ? ' on' : '') +
+        '" data-menu-tpl="' +
+        esc(t.id) +
+        '">' +
+        esc(t.label) +
+        '</button>'
+      );
+    }).join('');
+    chips.querySelectorAll('[data-menu-tpl]').forEach(function (btn) {
+      btn.onclick = function () {
+        pkgWizard.draft.menuTemplate = btn.getAttribute('data-menu-tpl');
+        renderCatPkgStep3Menu();
+      };
+    });
+  }
+  if (hint) hint.textContent = tpl.hint || '';
   const summary = el('catPkgDietSummary');
   const selected = (d.itemIds || []).length;
   if (summary) {
@@ -1773,7 +1814,7 @@ function renderCatPkgStep3Menu() {
       summary.innerHTML = packageDietChipHtml('mixed') + ' <span>' + selected + ' dishes selected</span>';
     } else summary.textContent = '';
   }
-  list.innerHTML = FOOD_MODULES.filter(function (m) {
+  list.innerHTML = modulesForPackageTemplate(d.menuTemplate).filter(function (m) {
     if (!q) return true;
     return m.name.toLowerCase().includes(q);
   })
