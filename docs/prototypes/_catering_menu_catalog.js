@@ -521,14 +521,6 @@ const CATERING_CATALOG_DEFS =
           "Noodles",
           "Pasta"
         ]
-      },
-      {
-        "id": "other",
-        "name": "Other",
-        "items": [
-          "Regional Speciality",
-          "Chef's Special"
-        ]
       }
     ]
   },
@@ -563,8 +555,7 @@ const CATERING_CATALOG_DEFS =
           "Moru Curry",
           "Kalan",
           "Salna",
-          "Pepper Gravy",
-          "Chef's Special Curry"
+          "Pepper Gravy"
         ]
       },
       {
@@ -883,15 +874,6 @@ const CATERING_CATALOG_DEFS =
           "Cupcakes",
           "Waffles",
           "Pancakes"
-        ]
-      },
-      {
-        "id": "specialty",
-        "name": "Specialty",
-        "items": [
-          "Kids' Special Dessert",
-          "Seasonal Dessert",
-          "Chef's Special Dessert"
         ]
       }
     ]
