@@ -442,15 +442,6 @@ const CATERING_CATALOG_DEFS =
           "Arabic Salad",
           "French Fries"
         ]
-      },
-      {
-        "id": "combos",
-        "name": "Combos",
-        "items": [
-          "Half Chicken Combo",
-          "Full Chicken Combo",
-          "Family Mandi Combo"
-        ]
       }
     ]
   },
