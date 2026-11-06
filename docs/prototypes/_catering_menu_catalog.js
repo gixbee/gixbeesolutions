@@ -79,9 +79,12 @@ const CATERING_CATALOG_DEFS =
         "items": [
           "Soft Drinks",
           "Packaged Fruit Drinks",
-          "Mocktails",
-          "Smoothies",
-          "Milkshakes",
+          "Virgin Mojito",
+          "Blue Lagoon (Mocktail)",
+          "Mango Lassi",
+          "Sweet Lassi",
+          "Chocolate Milkshake",
+          "Strawberry Milkshake",
           "Mojito (Non-Alcoholic)",
           "Iced Tea",
           "Flavoured Water",
@@ -159,15 +162,17 @@ const CATERING_CATALOG_DEFS =
         "id": "other-snack-types",
         "name": "Other Snack Types",
         "items": [
-          "Patties",
-          "Puffs",
-          "Sandwiches",
-          "Rolls",
-          "Wraps",
-          "Mini Burgers",
-          "Finger Foods",
-          "Chaat Items",
-          "Kids' Snacks"
+          "Vegetable Puff",
+          "Egg Puff",
+          "Chicken Puff",
+          "Vegetable Patty",
+          "Club Sandwich",
+          "Veg Grill Sandwich",
+          "Kathi Roll (Veg)",
+          "Chicken Kathi Roll",
+          "Aloo Tikki Chaat",
+          "Bhel Puri",
+          "Pav Bhaji"
         ]
       }
     ]
@@ -218,7 +223,8 @@ const CATERING_CATALOG_DEFS =
           "Boondi Raita",
           "Mixed Vegetable Raita",
           "Pineapple Raita",
-          "Specialty Raita"
+          "Mint Raita",
+          "Onion Tomato Raita"
         ]
       }
     ]
@@ -372,14 +378,14 @@ const CATERING_CATALOG_DEFS =
         "id": "regional-styles",
         "name": "Regional & Styles",
         "items": [
-          "Malabar Biriyani",
-          "Thalassery Biriyani",
-          "Kozhikode Biriyani",
-          "Hyderabadi Biriyani",
-          "Kacchi Biriyani",
-          "Dum Biriyani",
-          "Special Dum Biriyani",
-          "Kaima / Jeerakasala Rice Biriyani"
+          "Malabar Chicken Biriyani",
+          "Thalassery Chicken Biriyani",
+          "Hyderabadi Chicken Dum Biriyani",
+          "Ambur Mutton Biriyani",
+          "Dindigul Mutton Biriyani",
+          "Calicut Prawn Biriyani",
+          "Kacchi Mutton Dum Biriyani",
+          "Jeerakasala (Kaima) Fish Biriyani"
         ]
       },
       {
@@ -518,8 +524,10 @@ const CATERING_CATALOG_DEFS =
           "Fried Rice",
           "Chicken Fried Rice",
           "Egg Fried Rice",
-          "Noodles",
-          "Pasta"
+          "Vegetable Hakka Noodles",
+          "Chicken Hakka Noodles",
+          "Penne Pasta (Tomato-Basil)",
+          "White Sauce Pasta"
         ]
       }
     ]
@@ -701,7 +709,7 @@ const CATERING_CATALOG_DEFS =
         "id": "kerala-live-counters",
         "name": "Kerala Live Counters",
         "items": [
-          "Thattukada",
+          "Thattukada Live Station",
           "Appam Counter",
           "Dosa Counter",
           "Idiyappam Counter",
@@ -803,7 +811,8 @@ const CATERING_CATALOG_DEFS =
           "Dinner Rolls",
           "Bread Slices",
           "Pav",
-          "Specialty Bread"
+          "Garlic Bread",
+          "Cheese Garlic Bread"
         ]
       }
     ]
@@ -839,7 +848,8 @@ const CATERING_CATALOG_DEFS =
           "Laddu",
           "Mysore Pak",
           "Halwa",
-          "Mithai",
+          "Kaju Katli",
+          "Milk Burfi",
           "Unniyappam",
           "Neyyappam"
         ]
@@ -864,7 +874,8 @@ const CATERING_CATALOG_DEFS =
         "id": "cakes-baked-desserts",
         "name": "Cakes & Baked Desserts",
         "items": [
-          "Cake",
+          "Vanilla Sponge Cake (Sliced)",
+          "Black Forest Cake (Sliced)",
           "Cheesecake",
           "Brownie",
           "Chocolate Mousse",
