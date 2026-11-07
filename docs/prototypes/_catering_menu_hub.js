@@ -46,30 +46,54 @@ function dietMarkHtml(kind, large) {
   );
 }
 
+function packageIsSadhya(dietType) {
+  return dietType === 'veg' || dietType === 'nonveg_sadhya';
+}
+
+function packageDietChosen(dietType) {
+  return dietType === 'veg' || dietType === 'nonveg_sadhya' || dietType === 'mixed';
+}
+
 function packageDietLeadHtml(dietType) {
   if (dietType === 'veg') {
-    return '<span class="pkg-diet-lead">' + dietMarkHtml('veg', true) + '<span>Veg only (Sadhya)</span></span>';
+    return '<span class="pkg-diet-lead">' + dietMarkHtml('veg', true) + '<span>Veg sadhya</span></span>';
+  }
+  if (dietType === 'nonveg_sadhya') {
+    return (
+      '<span class="pkg-diet-lead"><span class="diet-marks">' +
+      dietMarkHtml('veg', true) +
+      dietMarkHtml('non', true) +
+      '</span><span>Non-veg sadhya</span></span>'
+    );
   }
   if (dietType === 'mixed') {
     return (
       '<span class="pkg-diet-lead"><span class="diet-marks">' +
       dietMarkHtml('veg', true) +
       dietMarkHtml('non', true) +
-      '</span><span>Veg + Non-veg</span></span>'
+      '</span><span>Veg and non-veg buffet</span></span>'
     );
   }
   return '<span class="pkg-diet-lead need"><span>Set menu type</span></span>';
 }
 
 function packageDietChipHtml(dietType) {
-  if (dietType === 'veg' || dietType === 'mixed') return packageDietLeadHtml(dietType);
+  if (packageDietChosen(dietType)) return packageDietLeadHtml(dietType);
   return '';
 }
 
 function applyPackageDiet(next) {
   const d = pkgWizard.draft;
   if (!d) return;
+  const changed = d.dietType !== next;
   d.dietType = next;
+  if (changed && packageIsSadhya(next)) {
+    d.serveAtTable = true;
+    d.serveAtCounter = false;
+  } else if (changed && next === 'mixed') {
+    d.serveAtTable = true;
+    d.serveAtCounter = true;
+  }
   dropDishesOutsidePackageDiet(d);
   renderCatPkgDietChoice();
   updatePkgCustomerPreview();
@@ -95,13 +119,18 @@ function renderCatPkgDietChoice() {
   const options = [
     {
       id: 'veg',
-      title: 'Veg only (Sadhya)',
-      sub: 'Vegetarian dishes. Sadhya uses Kerala curries, thoran, rice, sides and payasam.',
+      title: 'Veg sadhya',
+      sub: 'Vegetarian sadhya, served at the table.',
+    },
+    {
+      id: 'nonveg_sadhya',
+      title: 'Non-veg sadhya',
+      sub: 'Sadhya with fish, chicken or meat, served at the table.',
     },
     {
       id: 'mixed',
-      title: 'Veg and non-veg',
-      sub: 'Vegetarian and non-veg dishes',
+      title: 'Veg and non-veg buffet',
+      sub: 'Serve at the table, at the buffet counter, or both.',
     },
   ];
   host.innerHTML =
@@ -214,7 +243,7 @@ function migrateDemoPackageDiet() {
     'cpkg-demo-3': 'veg',
   };
   (store.cateringMenu.catPackages || []).forEach(function (p) {
-    if (p.dietType === 'veg' || p.dietType === 'mixed') return;
+    if (packageDietChosen(p.dietType)) return;
     if (seeded[p.id] && !(p.itemIds || []).length) p.dietType = seeded[p.id];
   });
 }
@@ -627,7 +656,7 @@ function renderCatPkgList() {
       '</b><p>' +
       (filtered
         ? 'Try another category or tier, or create a new package.'
-        : 'Create a package, choose Veg only (Sadhya) or veg and non-veg, then pick the dishes. Mark if it is served at the counter, at the table, or both.') +
+        : 'Create a veg sadhya or a non-veg sadhya for table service, or a veg and non-veg buffet served at the table, the counter, or both.') +
       '</p></div>';
     return;
   }
@@ -1806,7 +1835,15 @@ function normalizePackageMenu(d) {
   if (!d) return;
   delete d.menuTemplate;
   delete d.serveTouched;
-  if (!d.serveAtTable && !d.serveAtCounter) {
+  if (packageIsSadhya(d.dietType)) {
+    d.serveAtTable = true;
+    d.serveAtCounter = false;
+  } else if (d.dietType === 'mixed') {
+    if (!d.serveAtTable && !d.serveAtCounter) {
+      d.serveAtTable = true;
+      d.serveAtCounter = true;
+    }
+  } else if (!d.serveAtTable && !d.serveAtCounter) {
     d.serveAtTable = true;
     d.serveAtCounter = false;
   }
@@ -1850,47 +1887,66 @@ function renderCatPkgStep3Menu() {
   const q = (el('catPkgItemSearch') && el('catPkgItemSearch').value || '').trim().toLowerCase();
   const list = el('catPkgModulePick');
   if (!list) return;
+  const sadhya = packageIsSadhya(d.dietType);
+  const menuHint = el('catPkgMenuHint');
+  const serveHint = el('catPkgServeHint');
+  if (menuHint) {
+    if (d.dietType === 'veg') {
+      menuHint.textContent =
+        'Vegetarian dishes only. Kerala curries, thoran, rice, sides and payasam are the sadhya dishes.';
+    } else if (d.dietType === 'nonveg_sadhya') {
+      menuHint.textContent = 'Sadhya dishes, plus fish, chicken, beef and egg. Served at the table.';
+    } else {
+      menuHint.textContent = 'Pick vegetarian and non-veg dishes for the buffet.';
+    }
+  }
+  if (serveHint) {
+    serveHint.textContent = sadhya
+      ? 'Served at the table.'
+      : 'How is this food served? Select one or both.';
+  }
   const serveHost = el('catPkgServeChips');
   if (serveHost) {
-    const options = [
-      { id: 'counter', label: 'Buffet counter', on: !!d.serveAtCounter },
-      { id: 'table', label: 'Served at the table', on: !!d.serveAtTable },
-    ];
-    serveHost.innerHTML = options
-      .map(function (o) {
-        return (
-          '<button type="button" class="cat-pkg-type-btn' +
-          (o.on ? ' on' : '') +
-          '" data-serve="' +
-          o.id +
-          '">' +
-          esc(o.label) +
-          '</button>'
-        );
-      })
-      .join('');
-    serveHost.querySelectorAll('[data-serve]').forEach(function (btn) {
-      btn.onclick = function () {
-        const which = btn.getAttribute('data-serve');
-        if (which === 'counter') pkgWizard.draft.serveAtCounter = !pkgWizard.draft.serveAtCounter;
-        else pkgWizard.draft.serveAtTable = !pkgWizard.draft.serveAtTable;
-        if (!pkgWizard.draft.serveAtCounter && !pkgWizard.draft.serveAtTable) {
-          if (which === 'counter') pkgWizard.draft.serveAtCounter = true;
-          else pkgWizard.draft.serveAtTable = true;
-          toast('Choose at least one way to serve');
-        }
-        renderCatPkgStep3Menu();
-      };
-    });
+    serveHost.hidden = sadhya;
+    if (sadhya) serveHost.innerHTML = '';
+    if (!sadhya) {
+      const options = [
+        { id: 'counter', label: 'Buffet counter', on: !!d.serveAtCounter },
+        { id: 'table', label: 'Served at the table', on: !!d.serveAtTable },
+      ];
+      serveHost.innerHTML = options
+        .map(function (o) {
+          return (
+            '<button type="button" class="cat-pkg-type-btn' +
+            (o.on ? ' on' : '') +
+            '" data-serve="' +
+            o.id +
+            '">' +
+            esc(o.label) +
+            '</button>'
+          );
+        })
+        .join('');
+      serveHost.querySelectorAll('[data-serve]').forEach(function (btn) {
+        btn.onclick = function () {
+          const which = btn.getAttribute('data-serve');
+          if (which === 'counter') pkgWizard.draft.serveAtCounter = !pkgWizard.draft.serveAtCounter;
+          else pkgWizard.draft.serveAtTable = !pkgWizard.draft.serveAtTable;
+          if (!pkgWizard.draft.serveAtCounter && !pkgWizard.draft.serveAtTable) {
+            if (which === 'counter') pkgWizard.draft.serveAtCounter = true;
+            else pkgWizard.draft.serveAtTable = true;
+            toast('Choose at least one way to serve');
+          }
+          renderCatPkgStep3Menu();
+        };
+      });
+    }
   }
   const summary = el('catPkgDietSummary');
   const selected = (d.itemIds || []).length;
   if (summary) {
-    if (d.dietType === 'veg') {
-      summary.innerHTML = packageDietChipHtml('veg') + ' <span>' + selected + ' dishes selected</span>';
-    } else if (d.dietType === 'mixed') {
-      summary.innerHTML = packageDietChipHtml('mixed') + ' <span>' + selected + ' dishes selected</span>';
-    } else summary.textContent = '';
+    const chip = packageDietChipHtml(d.dietType);
+    summary.innerHTML = chip ? chip + ' <span>' + selected + ' dishes selected</span>' : '';
   }
   list.innerHTML = FOOD_MODULES.filter(function (m) {
     if (!moduleHasAllowedPackageDishes(m)) return false;
@@ -1963,8 +2019,8 @@ function bindCatPkgCreateUi() {
       toast('Package name is required');
       return;
     }
-    if (pkgWizard.draft.dietType !== 'veg' && pkgWizard.draft.dietType !== 'mixed') {
-      toast('Choose Veg only (Sadhya) or veg and non-veg');
+    if (!packageDietChosen(pkgWizard.draft.dietType)) {
+      toast('Choose veg sadhya, non-veg sadhya, or veg and non-veg buffet');
       return;
     }
     goCatPkgStep(3);
@@ -2191,8 +2247,8 @@ function bindCatPkgPricingUi() {
       toast('Add guest pricing slabs');
       return;
     }
-    if (d.dietType !== 'veg' && d.dietType !== 'mixed') {
-      toast('Choose Veg only (Sadhya) or veg and non-veg');
+    if (!packageDietChosen(d.dietType)) {
+      toast('Choose veg sadhya, non-veg sadhya, or veg and non-veg buffet');
       return;
     }
     if (d.offerEnabled && !offerPercentOf(d)) {
