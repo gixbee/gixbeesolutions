@@ -836,6 +836,68 @@ button.manage-pill{cursor:pointer;font:inherit;color:var(--blue);border-color:#B
 .cov-type.disabled{opacity:.55}
 .cov-type label{display:flex;align-items:center;gap:8px;flex:1}
 .qty-step.off{opacity:.4}
+.gx-top h1{display:flex;align-items:center;justify-content:center;gap:8px;font-size:15px;font-weight:800}
+.gx-top h1 em{font-style:normal;color:#12B76A;font-weight:900}
+.gx-top h1 span{color:#CBD5E1;font-weight:500}
+.gx-more{width:36px;text-align:center;font-size:20px;color:#111827}
+.gx-progress{display:flex;justify-content:space-between;margin:10px 48px 0;position:relative}
+.gx-progress:before{content:"";position:absolute;left:8px;right:8px;top:6px;height:3px;background:#E5E7EB;border-radius:99px}
+.gx-progress i{width:16px;height:16px;border-radius:50%;background:#fff;border:3px solid #E5E7EB;position:relative;z-index:1}
+.gx-progress[data-done="1"] i:nth-child(-n+1),
+.gx-progress[data-done="2"] i:nth-child(-n+2),
+.gx-progress[data-done="3"] i:nth-child(-n+3),
+.gx-progress[data-done="4"] i:nth-child(-n+4),
+.gx-progress[data-done="5"] i{background:#12B76A;border-color:#12B76A}
+.gx-progress[data-on="1"] i:nth-child(1),
+.gx-progress[data-on="2"] i:nth-child(2),
+.gx-progress[data-on="3"] i:nth-child(3),
+.gx-progress[data-on="4"] i:nth-child(4){background:#C2186A;border-color:#C2186A}
+#catPkgStep1 .btn-green,#catPkgStep2 .btn-green,#catPkgStep3 .btn-green,#catPkgPricing .btn-blue,#catPkgPreview .btn-blue,#catModulePick .btn-blue,#menuPkg .btn-pink{background:linear-gradient(180deg,#E11D74,#BE185D);color:#fff;border-radius:999px;box-shadow:0 8px 18px rgba(190,24,93,.25)}
+#catPkgStep2 .btn-ghost,#catPkgStep3 .btn-ghost{border:1.5px solid #E5E7EB;color:#111827;background:#fff;border-radius:999px}
+#catPkgStep1 .cat-pkg-ev-card.on{border-color:#F9A8D4;background:#FFF1F5;box-shadow:none}
+#catPkgStep1 .cat-pkg-ev-card.on .cat-pkg-ev-chk{background:#12B76A;border-color:#12B76A}
+#catPkgTypeSeg .cat-pkg-type-btn{border-radius:999px;background:#fff}
+#catPkgTypeSeg .cat-pkg-type-btn.on{background:#C2186A;border-color:#C2186A;color:#fff}
+#catPkgDietChoice .cat-diet-choice{display:grid;grid-template-columns:1fr 1fr}
+#catPkgDietChoice .cat-diet-card{flex-direction:column;align-items:flex-start;position:relative;min-height:148px;padding-top:16px}
+#catPkgDietChoice .cat-diet-tick{position:absolute;top:10px;right:10px}
+#catPkgDietChoice .cat-diet-card b{font-size:13px}
+#catPkgDietChoice .cat-diet-card,#catPkgServeChoice .cat-diet-card{border-radius:16px}
+#catPkgDietChoice .cat-diet-card.on,#catPkgServeChoice .cat-diet-card.on{border-color:#F9A8D4;background:#FFF1F5;box-shadow:none}
+#catPkgDietChoice .cat-diet-card.on .cat-diet-tick,#catPkgServeChoice .cat-diet-card.on .cat-diet-tick{background:#C2186A;border-color:#C2186A}
+#catPkgStep2 .cat-pkg-cat-banner{background:#F0FDF4;border-color:#BBF7D0}
+#catPkgStep2 .fld input,#catPkgStep2 textarea{border-radius:14px}
+.gx-mod{display:flex;align-items:center;gap:10px;width:calc(100% - 32px);margin:0 16px 10px;padding:10px;border:1px solid #E5E7EB;border-radius:16px;background:#fff;text-align:left;font:inherit;color:#111827;cursor:pointer}
+.gx-mod-ico{width:52px;height:52px;border-radius:12px;display:grid;place-items:center;font-size:26px;flex-shrink:0}
+.gx-mod b{display:block;font-size:14px}
+.gx-mod small{display:block;color:#64748B;font-size:11px;font-weight:600;margin-top:2px}
+.gx-mod-count{margin-left:auto;background:#FFF1F5;color:#BE185D;border-radius:999px;padding:6px 8px;font-size:11px;font-weight:800;white-space:nowrap}
+.gx-banner{display:flex;gap:8px;align-items:center;margin:8px 16px;padding:10px 12px;border-radius:14px;background:#F0FDF4;font-size:12px;font-weight:800}
+.gx-selected{margin:0 16px 10px;padding:12px;border-radius:16px;background:#FFF1F5}
+.gx-selected-top{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.gx-selected b{font-size:15px}
+.gx-selected p{margin:4px 0 0;color:#64748B;font-size:12px;font-weight:600}
+#catModulePick .cat-pick-section-hd{background:#FFF1F5;margin:0 16px;border-radius:12px 12px 0 0;padding:10px 12px}
+#catModulePick .cat-pick-grid{padding-top:8px}
+.gx-food{width:36px;height:36px;border-radius:10px;background:#FFF7ED;display:grid;place-items:center;margin-left:auto;flex-shrink:0}
+#catPkgPricing .cat-rate-choice{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+#catPkgPricing .cat-rate-choice label{border:1.5px solid #E5E7EB;border-radius:16px;padding:12px;background:#fff}
+#catPkgPricing .cat-rate-choice label:has(input:checked){border-color:#F9A8D4;background:#FFF1F5}
+#catPkgOfferBox{background:#FFF1F5;border-radius:16px;padding:12px}
+#catPkgPreview .radio-row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+#catPkgPreview .radio-row label{border:1.5px solid #E5E7EB;border-radius:16px;padding:12px;background:#fff}
+#catPkgPreview .radio-row label:has(input:checked){border-color:#86EFAC;background:#F0FDF4}
+#catPkgMenuHint,#catPkgServeHint,#catPkgServeChips{display:none !important}
+#menuPkg .hub-seg{background:transparent;border:0;box-shadow:none}
+#menuPkg .hub-tab{border-radius:999px;border:1px solid #E5E7EB;background:#fff}
+#menuPkg .hub-tab.on{background:linear-gradient(180deg,#E11D74,#BE185D);color:#fff !important;box-shadow:none !important}
+#catPkgPricing .cat-rate-choice small,#catPkgPreview .radio-row small{display:block;font-size:11px;font-weight:600;color:#64748B;margin-top:4px}
+.cat-own-add{border-color:#F9A8D4 !important;color:#BE185D !important}
+.gx-top h1 b{font-weight:800;color:#111827}
+.gx-hero{display:flex;gap:12px;margin:0 0 14px;padding:12px;border-radius:18px;background:linear-gradient(180deg,#F0FDF4,#fff);border:1px solid #DCFCE7}
+.gx-hero-pic{width:84px;height:84px;border-radius:16px;background:#FEF3C7;display:grid;place-items:center;font-size:40px;flex-shrink:0}
+.gx-hero b{font-size:20px;display:block}
+.gx-hero .lv{display:inline-block;background:#12B76A;color:#fff;border-radius:999px;font-size:11px;font-weight:800;padding:3px 8px;margin-bottom:4px}
 </style>
 </head>
 <body>
@@ -900,7 +962,7 @@ button.manage-pill{cursor:pointer;font:inherit;color:var(--blue);border-color:#B
 
 
 <section class="scr hub-mode-packages" id="menuPkg">
-  <div class="hub-top"><button type="button" class="back" data-to="photoDash">←</button><h1 id="catHubTitle">Menu &amp; Packages</h1><button type="button" class="hub-more" id="catHubMoreBtn" aria-label="More options">⋮</button></div>
+  <div class="hub-top gx-top"><button type="button" class="back" data-to="photoDash">←</button><h1 id="catHubTitle"><em>Gixbee</em><span>|</span>Menu &amp; Packages</h1><button type="button" class="hub-more" id="catHubMoreBtn" aria-label="More options">⋮</button></div>
   <div class="hub-seg-wrap">
     <div class="hub-seg">
       <button type="button" class="hub-tab pkg-tab on" id="catTabPackages">Packages</button>
@@ -944,8 +1006,8 @@ button.manage-pill{cursor:pointer;font:inherit;color:var(--blue);border-color:#B
 </section>
 
 <section class="scr" id="catModulePick">
-  <div class="top"><button type="button" class="back" id="catModulePickBack">←</button><h1 id="catModuleTitle">Module</h1><span style="width:36px"></span></div>
-  <div class="cat-pick-search cat-hub-search" id="catModulePickSearchWrap" hidden><span aria-hidden="true">🔍</span><input type="search" id="catModulePickSearch" placeholder="Search in this module…" autocomplete="off"></div>
+  <div class="top gx-top"><button type="button" class="back" id="catModulePickBack">←</button><h1><em>Gixbee</em><span>|</span><b id="catModuleTitle">Module</b></h1><span class="gx-more">⋮</span></div>
+  <div class="cat-pick-search cat-hub-search" id="catModulePickSearchWrap" hidden><span aria-hidden="true">🔍</span><input type="search" id="catModulePickSearch" placeholder="Search dishes in this module..." autocomplete="off"></div>
   <p class="cat-pick-meta" id="catModulePickMeta"></p>
   <div id="catModulePickBody"></div>
   <div class="cat-pick-foot"><button type="button" class="btn btn-blue" id="catModulePickSave">Add Selected Items (0)</button></div>
@@ -997,7 +1059,8 @@ button.manage-pill{cursor:pointer;font:inherit;color:var(--blue);border-color:#B
 </section>
 
 <section class="scr" id="catPkgStep1">
-  <div class="top"><button type="button" class="back" id="catPkgStep1Back">←</button><h1>Create Package</h1><span style="width:36px"></span></div>
+  <div class="top gx-top"><button type="button" class="back" id="catPkgStep1Back">←</button><h1><em>Gixbee</em><span>|</span>Create Package</h1><span class="gx-more">⋮</span></div>
+  <div class="gx-progress" data-on="1"><i></i><i></i><i></i><i></i><i></i></div>
   <p class="cat-wiz-step">Step 1 of 5</p>
   <div class="pad" style="padding-top:0">
     <p class="cat-lvl-head" style="padding-left:0;padding-right:0"><span aria-hidden="true">📋</span> Select Package Category<span class="cat-lvl-req">*</span></p>
@@ -1008,15 +1071,16 @@ button.manage-pill{cursor:pointer;font:inherit;color:var(--blue);border-color:#B
 </section>
 
 <section class="scr" id="catPkgStep2">
-  <div class="top"><button type="button" class="back" id="catPkgStep2TopBack">←</button><h1>Package Type &amp; Name</h1><span style="width:36px"></span></div>
+  <div class="top gx-top"><button type="button" class="back" id="catPkgStep2TopBack">←</button><h1><em>Gixbee</em><span>|</span>Package Type &amp; Name</h1><span class="gx-more">⋮</span></div>
+  <div class="gx-progress" data-done="1" data-on="2"><i></i><i></i><i></i><i></i><i></i></div>
   <p class="cat-wiz-step">Step 2 of 5</p>
   <div class="cat-pkg-cat-banner"><b id="catPkgCatBannerLabel">Wedding &amp; Related Functions</b><button type="button" id="catPkgChangeCategory">Change</button></div>
   <div class="pad" style="padding-top:0">
     <p class="cat-lvl-head" style="padding-left:0;padding-right:0"><span aria-hidden="true">📋</span> Package Type<span class="cat-lvl-req">*</span></p>
     <div class="cat-pkg-type-seg" id="catPkgTypeSeg"></div>
-    <p class="cat-lvl-head" style="padding-left:0;padding-right:0"><span aria-hidden="true">🍃</span> Food preference<span class="cat-lvl-req">*</span></p>
+    <p class="cat-lvl-head" style="padding-left:0;padding-right:0"><span aria-hidden="true">🍃</span> Food Preference<span class="cat-lvl-req">*</span></p>
     <div id="catPkgDietChoice"></div>
-    <p class="cat-lvl-head" style="padding-left:0;padding-right:0"><span aria-hidden="true">🍽️</span> Serving style<span class="cat-lvl-req">*</span></p>
+    <p class="cat-lvl-head" style="padding-left:0;padding-right:0"><span aria-hidden="true">🍽️</span> Serving Style<span class="cat-lvl-req">*</span></p>
     <p class="cat-pkg-name-hint" style="margin-left:0;margin-right:0">How guests receive the food. The plate price stays the same.</p>
     <div id="catPkgServeChoice"></div>
     <div class="fld"><label>Package Name*</label><input id="catPkgName" placeholder="e.g. Wedding Sadhya"></div>
@@ -1031,26 +1095,29 @@ button.manage-pill{cursor:pointer;font:inherit;color:var(--blue);border-color:#B
 </section>
 
 <section class="scr" id="catPkgStep3">
-  <div class="top"><button type="button" class="back" id="catPkgStep3TopBack">←</button><h1>Add Menu Items</h1><span style="width:36px"></span></div>
+  <div class="top gx-top"><button type="button" class="back" id="catPkgStep3TopBack">←</button><h1><em>Gixbee</em><span>|</span>Add Menu Items</h1><span class="gx-more">⋮</span></div>
+  <div class="gx-progress" data-done="2" data-on="3"><i></i><i></i><i></i><i></i><i></i></div>
   <p class="cat-wiz-step">Step 3 of 5</p>
   <div class="cat-pkg-diet-summary" id="catPkgDietSummary"></div>
   <p class="cat-pkg-name-hint" id="catPkgMenuHint" style="margin:4px 16px 8px"></p>
   <p class="cat-pkg-name-hint" id="catPkgServeHint" style="margin:4px 16px 8px"></p>
   <div class="cat-pkg-type-seg" id="catPkgServeChips"></div>
-  <div class="cat-hub-search" style="margin-top:0"><span>🔍</span><input type="search" id="catPkgItemSearch" placeholder="Search dish groups…" autocomplete="off"></div>
+  <div class="cat-hub-search" style="margin-top:0"><span>🔍</span><input type="search" id="catPkgItemSearch" placeholder="Search dish groups or dishes..." autocomplete="off"></div>
   <div class="cat-menu-step-list" id="catPkgModulePick"></div>
   <div class="cat-wiz-foot">
-    <button type="button" class="btn btn-green" id="catPkgStep3Next" style="flex:1">Next: Set Guest Count Pricing</button>
+    <button type="button" class="btn btn-ghost" id="catPkgStep3FootBack">← Back</button>
+    <button type="button" class="btn btn-green" id="catPkgStep3Next" style="flex:1">Next: Set Guest Count Pricing →</button>
   </div>
 </section>
 
 <section class="scr" id="catPkgPricing">
-  <div class="top"><button type="button" class="back" id="catPkgPricingBack">←</button><h1>Set Guest Count Pricing</h1><span style="width:36px"></span></div>
+  <div class="top gx-top"><button type="button" class="back" id="catPkgPricingBack">←</button><h1><em>Gixbee</em><span>|</span>Set Guest Count Pricing</h1><span class="gx-more">⋮</span></div>
+  <div class="gx-progress" data-done="3" data-on="4"><i></i><i></i><i></i><i></i><i></i></div>
   <p class="cat-wiz-step">Step 4 of 5</p>
   <div class="pad" style="padding-top:8px">
     <div class="cat-rate-choice">
-      <label><input type="radio" name="catPkgRateMode" id="catPkgRateTiered" checked> Rate reduces as guest count increases</label>
-      <label><input type="radio" name="catPkgRateMode" id="catPkgRateFlat"> Same rate for all guests</label>
+      <label><input type="radio" name="catPkgRateMode" id="catPkgRateTiered" checked><span><b>Rate reduces as guest count increases</b><small>Lower price for higher guest count.</small></span></label>
+      <label><input type="radio" name="catPkgRateMode" id="catPkgRateFlat"><span><b>Same rate for all guests</b><small>One price for any guest count.</small></span></label>
     </div>
     <div class="cat-offer" id="catPkgOfferBox">
       <label class="cat-offer-check">
@@ -1076,11 +1143,12 @@ button.manage-pill{cursor:pointer;font:inherit;color:var(--blue);border-color:#B
     </div>
     <div class="cat-pkg-example" id="catPkgPricingExample" aria-live="polite"></div>
   </div>
-  <div class="cta"><button type="button" class="btn btn-blue" id="catPkgNextPreview">Next: Preview Package</button></div>
+  <div class="cta"><button type="button" class="btn btn-blue" id="catPkgNextPreview">Next: Preview Package →</button></div>
 </section>
 
 <section class="scr" id="catPkgPreview">
-  <div class="top"><button type="button" class="back" id="catPkgPreviewBack">←</button><h1>Preview Package</h1><span style="width:36px"></span></div>
+  <div class="top gx-top"><button type="button" class="back" id="catPkgPreviewBack">←</button><h1><em>Gixbee</em><span>|</span>Preview Package</h1><span class="gx-more">⋮</span></div>
+  <div class="gx-progress" data-done="5"><i></i><i></i><i></i><i></i><i></i></div>
   <p class="cat-wiz-step">Step 5 of 5</p>
   <div class="pad">
     <p class="lbl">PACKAGE SUMMARY</p>
@@ -1089,8 +1157,8 @@ button.manage-pill{cursor:pointer;font:inherit;color:var(--blue);border-color:#B
     <div id="catPkgPreviewPricing" class="sub" style="padding:0 4px 12px;font-weight:700;color:var(--navy)"></div>
     <p class="lbl">STATUS</p>
     <div class="radio-row">
-      <label><input type="radio" name="catPkgStatus" id="catPkgStatusLive" checked> Live (visible to customers)</label>
-      <label><input type="radio" name="catPkgStatus" id="catPkgStatusDraft"> Draft (not visible)</label>
+      <label><input type="radio" name="catPkgStatus" id="catPkgStatusLive" checked><span><b>Live</b><small>Visible to customers on Gixbee.</small></span></label>
+      <label><input type="radio" name="catPkgStatus" id="catPkgStatusDraft"><span><b>Draft</b><small>Save privately and publish later.</small></span></label>
     </div>
   </div>
   <div class="cta"><button type="button" class="btn btn-blue" id="catPkgSave">Save Package</button></div>
@@ -3481,7 +3549,33 @@ function dishAllowedOnPackage(item, dietType) {
 }
 
 function packageModuleLabel(mod) {
-  return (mod && mod.name) || '';
+  const labels = {
+    g01: 'Welcome Drinks',
+    g02: 'Starters & Snacks',
+    g03: 'Rice, Biriyani & Mandi',
+    g04: 'Breads & Rotis',
+    g05: 'Curries & Gravies',
+    g06: 'Vegetables & Thoran',
+    g07: 'Accompaniments',
+    g08: 'Desserts & Sweets',
+    g09: 'Special Live Counters',
+  };
+  return (mod && labels[mod.id]) || (mod && mod.name) || '';
+}
+
+function packageModuleHint(id) {
+  const hints = {
+    g01: 'Juices, mocktails, etc.',
+    g02: 'Veg & non-veg starters',
+    g03: 'Rice items, biryani, mandi, pulao, etc.',
+    g04: 'Porotta, chappati, naan, etc.',
+    g05: 'Veg & non-veg curries, gravies',
+    g06: 'Vegetable dishes, thoran, mezhukkupuratti, etc.',
+    g07: 'Salads, chutney, pickle, pappadam, etc.',
+    g08: 'Payasam, pradhaman, sweets, ice cream, etc.',
+    g09: 'Live cooking stations (dosa, chaat, BBQ, etc.)',
+  };
+  return hints[id] || '';
 }
 
 function packageServeStyle(d) {
@@ -3564,12 +3658,12 @@ function renderCatPkgServeChoice() {
   const options = [
     {
       id: 'table',
-      title: 'Traditional table service',
+      title: 'Traditional Table Service',
       sub: 'Food served to guests at their tables.',
     },
     {
       id: 'buffet',
-      title: 'Buffet service',
+      title: 'Buffet Service',
       sub: 'Guests select food from the buffet counter.',
     },
     {
@@ -3880,7 +3974,10 @@ function renderCateringMenuHub() {
   if (tabFood) tabFood.classList.toggle('on', !isPkg);
 
   const hubTitle = el('catHubTitle');
-  if (hubTitle) hubTitle.textContent = isPkg ? 'Menu & Packages' : 'Individual Food Items';
+  if (hubTitle) {
+    hubTitle.innerHTML =
+      '<em>Gixbee</em><span>|</span>' + (isPkg ? 'Menu &amp; Packages' : 'Individual Food Items');
+  }
 
   const intro = el('catHubIntro');
   if (intro && !isPkg) {
@@ -4544,7 +4641,7 @@ function openModulePicker(moduleId, mode) {
       : mod.name;
   const searchWrap = el('catModulePickSearchWrap');
   const searchInp = el('catModulePickSearch');
-  const showSearch = moduleCatalogItemCount(mod) > 18;
+  const showSearch = menuPickCtx.mode === 'package' || moduleCatalogItemCount(mod) > 18;
   if (searchWrap) searchWrap.hidden = !showSearch;
   if (searchInp) {
     searchInp.value = '';
@@ -4667,7 +4764,7 @@ function renderPackageOwnSection(mod, q) {
         diet.cls +
         '">' +
         diet.text +
-        '</span></span></button>'
+        '</span></span><span class="gx-food" aria-hidden="true">＋</span></button>'
       );
     })
     .join('');
@@ -4679,10 +4776,10 @@ function renderPackageOwnSection(mod, q) {
       (menuPickCtx.ownDiet === 'non_veg' ? ' class="on"' : '') +
       '>Non-veg</button></div>';
   return (
-    '<div class="cat-pick-own"><div class="cat-pick-section-hd"><b>Add your own</b></div><p class="cat-pkg-name-hint">Not in the list? Add it to this group.</p>' +
+    '<div class="cat-pick-own"><div class="cat-pick-section-hd"><b>Add Your Own</b></div><p class="cat-pkg-name-hint">Not in the list? Add it to this group.</p>' +
     (cells ? '<div class="cat-pick-grid">' + cells + '</div>' : '') +
     diets +
-    '<div class="cat-own-row"><input id="catOwnDishName" type="text" maxlength="60" placeholder="Dish name" autocomplete="off"><button type="button" class="cat-own-add" id="catOwnDishAdd">Add</button></div></div>'
+    '<div class="cat-own-row"><input id="catOwnDishName" type="text" maxlength="60" placeholder="Enter dish name" autocomplete="off"><button type="button" class="cat-own-add" id="catOwnDishAdd">+ Add</button></div></div>'
   );
 }
 
@@ -4743,7 +4840,9 @@ function renderModulePickerBody() {
         diet.cls +
         '">' +
         diet.text +
-        '</span></span></button>';
+        '</span></span><span class="gx-food" aria-hidden="true">' +
+        mod.emoji +
+        '</span></button>';
     });
     html += '</div></div>';
   });
@@ -5450,9 +5549,9 @@ function normalizePackageMenu(d) {
 }
 function packageServiceLabel(d) {
   const style = packageServeStyle(d);
-  if (style === 'both') return 'Table service and buffet';
-  if (style === 'buffet') return 'Buffet service';
-  if (style === 'table') return 'Traditional table service';
+  if (style === 'both') return 'Both';
+  if (style === 'buffet') return 'Buffet Service';
+  if (style === 'table') return 'Traditional Table Service';
   return '';
 }
 function moduleMatchesPackageSearch(mod, q) {
@@ -5507,8 +5606,26 @@ function renderCatPkgStep3Menu() {
   const summary = el('catPkgDietSummary');
   const selected = (d.itemIds || []).length;
   if (summary) {
-    const chip = packageDietChipHtml(d.dietType);
-    summary.innerHTML = chip ? chip + ' <span>' + selected + ' dishes selected</span>' : '';
+    let vegN = 0;
+    let nvN = 0;
+    (d.itemIds || []).forEach(function (fid) {
+      const it = findFoodItem(fid);
+      if (!it) return;
+      if (normalizeFoodDiet(it.diet) === 'non_veg') nvN += 1;
+      else vegN += 1;
+    });
+    summary.innerHTML =
+      '<div class="gx-banner">' +
+      packageDietLeadHtml(d.dietType) +
+      '<span style="margin-left:auto">' +
+      esc(packageServiceLabel(d)) +
+      '</span></div><div class="gx-selected"><div class="gx-selected-top"><b>Your Selected Menu</b><span class="gx-mod-count">' +
+      selected +
+      ' Dishes</span></div><p>Veg: ' +
+      vegN +
+      ' · Non-veg: ' +
+      nvN +
+      '<br>Select dishes from the categories below.</p></div>';
   }
   list.innerHTML = FOOD_MODULES.filter(function (m) {
     if (!moduleHasAllowedPackageDishes(m)) return false;
@@ -5517,19 +5634,19 @@ function renderCatPkgStep3Menu() {
     .map(function (m) {
       const n = countPkgItemsInModule(d, m.id);
       return (
-        '<button type="button" class="cat-menu-step-row' +
-        (n > 0 ? ' has-items' : '') +
-        '" data-pkg-mod="' +
+        '<button type="button" class="gx-mod" data-pkg-mod="' +
         esc(m.id) +
-        '"><span class="cat-mod-thumb sm" style="background:' +
+        '"><span class="gx-mod-ico" style="background:' +
         m.gradient +
         '">' +
         m.emoji +
         '</span><span><b>' +
         esc(packageModuleLabel(m, d.dietType)) +
-        '</b> <span class="cat-mod-count">(' +
+        '</b><small>' +
+        esc(packageModuleHint(m.id)) +
+        '</small></span><span class="gx-mod-count">' +
         n +
-        ')</span></span><span class="cat-mod-chev">›</span></button>'
+        ' dishes</span><span class="cat-mod-chev">›</span></button>'
       );
     })
     .join('');
@@ -5592,6 +5709,9 @@ function bindCatPkgCreateUi() {
     goCatPkgStep(3);
   });
   bindClick('catPkgStep3TopBack', function () {
+    goCatPkgStep(2);
+  });
+  bindClick('catPkgStep3FootBack', function () {
     goCatPkgStep(2);
   });
   bindClick('catPkgStep3Next', function () {
@@ -5693,15 +5813,43 @@ function renderCatPkgPreview() {
   const d = pkgWizard.draft;
   const sum = el('catPkgSummary');
   if (sum) {
-    let html = packageDietChipHtml(d.dietType);
-    if (html) html = '<div class="cat-sum-row">' + html + '</div>';
-    html += '<div class="cat-sum-row">' + esc(packageServiceLabel(d)) + '</div>';
+    const selected = (d.itemIds || []).length;
+    let html =
+      '<div class="gx-hero"><div class="gx-hero-pic">🍛</div><div><span class="lv">' +
+      esc(d.level || 'Basic') +
+      '</span><b>' +
+      esc(d.name || 'Package') +
+      '</b><div>' +
+      packageDietLeadHtml(d.dietType) +
+      '</div><div>' +
+      esc(packageServiceLabel(d)) +
+      '</div><div>' +
+      esc(pkgCategoryLabel(d.packageCategory)) +
+      '</div></div></div><div class="gx-selected-top" style="margin-bottom:8px"><b>Menu Summary</b><span class="gx-mod-count">Total: ' +
+      selected +
+      ' dishes</span></div>';
     FOOD_MODULES.forEach(function (m) {
       const n = countPkgItemsInModule(d, m.id);
       if (!n) return;
-      html += '<div class="cat-sum-row">✓ ' + esc(packageModuleLabel(m, d.dietType)) + ' (' + n + ' items)</div>';
+      html +=
+        '<button type="button" class="gx-mod" data-prev-mod="' +
+        esc(m.id) +
+        '" style="width:100%;margin:0 0 8px"><span class="gx-mod-ico" style="background:' +
+        m.gradient +
+        '">' +
+        m.emoji +
+        '</span><span><b>' +
+        esc(packageModuleLabel(m, d.dietType)) +
+        '</b></span><span class="gx-mod-count">' +
+        n +
+        ' dishes</span><span class="cat-mod-chev">›</span></button>';
     });
     sum.innerHTML = html || '<p class="sub">No modules selected</p>';
+    sum.querySelectorAll('[data-prev-mod]').forEach(function (row) {
+      row.onclick = function () {
+        openModulePicker(row.getAttribute('data-prev-mod'), 'package');
+      };
+    });
   }
   const pr = el('catPkgPreviewPricing');
   if (pr) {

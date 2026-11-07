@@ -86,7 +86,33 @@ function dishAllowedOnPackage(item, dietType) {
 }
 
 function packageModuleLabel(mod) {
-  return (mod && mod.name) || '';
+  const labels = {
+    g01: 'Welcome Drinks',
+    g02: 'Starters & Snacks',
+    g03: 'Rice, Biriyani & Mandi',
+    g04: 'Breads & Rotis',
+    g05: 'Curries & Gravies',
+    g06: 'Vegetables & Thoran',
+    g07: 'Accompaniments',
+    g08: 'Desserts & Sweets',
+    g09: 'Special Live Counters',
+  };
+  return (mod && labels[mod.id]) || (mod && mod.name) || '';
+}
+
+function packageModuleHint(id) {
+  const hints = {
+    g01: 'Juices, mocktails, etc.',
+    g02: 'Veg & non-veg starters',
+    g03: 'Rice items, biryani, mandi, pulao, etc.',
+    g04: 'Porotta, chappati, naan, etc.',
+    g05: 'Veg & non-veg curries, gravies',
+    g06: 'Vegetable dishes, thoran, mezhukkupuratti, etc.',
+    g07: 'Salads, chutney, pickle, pappadam, etc.',
+    g08: 'Payasam, pradhaman, sweets, ice cream, etc.',
+    g09: 'Live cooking stations (dosa, chaat, BBQ, etc.)',
+  };
+  return hints[id] || '';
 }
 
 function packageServeStyle(d) {
@@ -169,12 +195,12 @@ function renderCatPkgServeChoice() {
   const options = [
     {
       id: 'table',
-      title: 'Traditional table service',
+      title: 'Traditional Table Service',
       sub: 'Food served to guests at their tables.',
     },
     {
       id: 'buffet',
-      title: 'Buffet service',
+      title: 'Buffet Service',
       sub: 'Guests select food from the buffet counter.',
     },
     {
@@ -485,7 +511,10 @@ function renderCateringMenuHub() {
   if (tabFood) tabFood.classList.toggle('on', !isPkg);
 
   const hubTitle = el('catHubTitle');
-  if (hubTitle) hubTitle.textContent = isPkg ? 'Menu & Packages' : 'Individual Food Items';
+  if (hubTitle) {
+    hubTitle.innerHTML =
+      '<em>Gixbee</em><span>|</span>' + (isPkg ? 'Menu &amp; Packages' : 'Individual Food Items');
+  }
 
   const intro = el('catHubIntro');
   if (intro && !isPkg) {
@@ -1149,7 +1178,7 @@ function openModulePicker(moduleId, mode) {
       : mod.name;
   const searchWrap = el('catModulePickSearchWrap');
   const searchInp = el('catModulePickSearch');
-  const showSearch = moduleCatalogItemCount(mod) > 18;
+  const showSearch = menuPickCtx.mode === 'package' || moduleCatalogItemCount(mod) > 18;
   if (searchWrap) searchWrap.hidden = !showSearch;
   if (searchInp) {
     searchInp.value = '';
@@ -1272,7 +1301,7 @@ function renderPackageOwnSection(mod, q) {
         diet.cls +
         '">' +
         diet.text +
-        '</span></span></button>'
+        '</span></span><span class="gx-food" aria-hidden="true">＋</span></button>'
       );
     })
     .join('');
@@ -1284,10 +1313,10 @@ function renderPackageOwnSection(mod, q) {
       (menuPickCtx.ownDiet === 'non_veg' ? ' class="on"' : '') +
       '>Non-veg</button></div>';
   return (
-    '<div class="cat-pick-own"><div class="cat-pick-section-hd"><b>Add your own</b></div><p class="cat-pkg-name-hint">Not in the list? Add it to this group.</p>' +
+    '<div class="cat-pick-own"><div class="cat-pick-section-hd"><b>Add Your Own</b></div><p class="cat-pkg-name-hint">Not in the list? Add it to this group.</p>' +
     (cells ? '<div class="cat-pick-grid">' + cells + '</div>' : '') +
     diets +
-    '<div class="cat-own-row"><input id="catOwnDishName" type="text" maxlength="60" placeholder="Dish name" autocomplete="off"><button type="button" class="cat-own-add" id="catOwnDishAdd">Add</button></div></div>'
+    '<div class="cat-own-row"><input id="catOwnDishName" type="text" maxlength="60" placeholder="Enter dish name" autocomplete="off"><button type="button" class="cat-own-add" id="catOwnDishAdd">+ Add</button></div></div>'
   );
 }
 
@@ -1348,7 +1377,9 @@ function renderModulePickerBody() {
         diet.cls +
         '">' +
         diet.text +
-        '</span></span></button>';
+        '</span></span><span class="gx-food" aria-hidden="true">' +
+        mod.emoji +
+        '</span></button>';
     });
     html += '</div></div>';
   });
@@ -2055,9 +2086,9 @@ function normalizePackageMenu(d) {
 }
 function packageServiceLabel(d) {
   const style = packageServeStyle(d);
-  if (style === 'both') return 'Table service and buffet';
-  if (style === 'buffet') return 'Buffet service';
-  if (style === 'table') return 'Traditional table service';
+  if (style === 'both') return 'Both';
+  if (style === 'buffet') return 'Buffet Service';
+  if (style === 'table') return 'Traditional Table Service';
   return '';
 }
 function moduleMatchesPackageSearch(mod, q) {
@@ -2112,8 +2143,26 @@ function renderCatPkgStep3Menu() {
   const summary = el('catPkgDietSummary');
   const selected = (d.itemIds || []).length;
   if (summary) {
-    const chip = packageDietChipHtml(d.dietType);
-    summary.innerHTML = chip ? chip + ' <span>' + selected + ' dishes selected</span>' : '';
+    let vegN = 0;
+    let nvN = 0;
+    (d.itemIds || []).forEach(function (fid) {
+      const it = findFoodItem(fid);
+      if (!it) return;
+      if (normalizeFoodDiet(it.diet) === 'non_veg') nvN += 1;
+      else vegN += 1;
+    });
+    summary.innerHTML =
+      '<div class="gx-banner">' +
+      packageDietLeadHtml(d.dietType) +
+      '<span style="margin-left:auto">' +
+      esc(packageServiceLabel(d)) +
+      '</span></div><div class="gx-selected"><div class="gx-selected-top"><b>Your Selected Menu</b><span class="gx-mod-count">' +
+      selected +
+      ' Dishes</span></div><p>Veg: ' +
+      vegN +
+      ' · Non-veg: ' +
+      nvN +
+      '<br>Select dishes from the categories below.</p></div>';
   }
   list.innerHTML = FOOD_MODULES.filter(function (m) {
     if (!moduleHasAllowedPackageDishes(m)) return false;
@@ -2122,19 +2171,19 @@ function renderCatPkgStep3Menu() {
     .map(function (m) {
       const n = countPkgItemsInModule(d, m.id);
       return (
-        '<button type="button" class="cat-menu-step-row' +
-        (n > 0 ? ' has-items' : '') +
-        '" data-pkg-mod="' +
+        '<button type="button" class="gx-mod" data-pkg-mod="' +
         esc(m.id) +
-        '"><span class="cat-mod-thumb sm" style="background:' +
+        '"><span class="gx-mod-ico" style="background:' +
         m.gradient +
         '">' +
         m.emoji +
         '</span><span><b>' +
         esc(packageModuleLabel(m, d.dietType)) +
-        '</b> <span class="cat-mod-count">(' +
+        '</b><small>' +
+        esc(packageModuleHint(m.id)) +
+        '</small></span><span class="gx-mod-count">' +
         n +
-        ')</span></span><span class="cat-mod-chev">›</span></button>'
+        ' dishes</span><span class="cat-mod-chev">›</span></button>'
       );
     })
     .join('');
@@ -2197,6 +2246,9 @@ function bindCatPkgCreateUi() {
     goCatPkgStep(3);
   });
   bindClick('catPkgStep3TopBack', function () {
+    goCatPkgStep(2);
+  });
+  bindClick('catPkgStep3FootBack', function () {
     goCatPkgStep(2);
   });
   bindClick('catPkgStep3Next', function () {
@@ -2298,15 +2350,43 @@ function renderCatPkgPreview() {
   const d = pkgWizard.draft;
   const sum = el('catPkgSummary');
   if (sum) {
-    let html = packageDietChipHtml(d.dietType);
-    if (html) html = '<div class="cat-sum-row">' + html + '</div>';
-    html += '<div class="cat-sum-row">' + esc(packageServiceLabel(d)) + '</div>';
+    const selected = (d.itemIds || []).length;
+    let html =
+      '<div class="gx-hero"><div class="gx-hero-pic">🍛</div><div><span class="lv">' +
+      esc(d.level || 'Basic') +
+      '</span><b>' +
+      esc(d.name || 'Package') +
+      '</b><div>' +
+      packageDietLeadHtml(d.dietType) +
+      '</div><div>' +
+      esc(packageServiceLabel(d)) +
+      '</div><div>' +
+      esc(pkgCategoryLabel(d.packageCategory)) +
+      '</div></div></div><div class="gx-selected-top" style="margin-bottom:8px"><b>Menu Summary</b><span class="gx-mod-count">Total: ' +
+      selected +
+      ' dishes</span></div>';
     FOOD_MODULES.forEach(function (m) {
       const n = countPkgItemsInModule(d, m.id);
       if (!n) return;
-      html += '<div class="cat-sum-row">✓ ' + esc(packageModuleLabel(m, d.dietType)) + ' (' + n + ' items)</div>';
+      html +=
+        '<button type="button" class="gx-mod" data-prev-mod="' +
+        esc(m.id) +
+        '" style="width:100%;margin:0 0 8px"><span class="gx-mod-ico" style="background:' +
+        m.gradient +
+        '">' +
+        m.emoji +
+        '</span><span><b>' +
+        esc(packageModuleLabel(m, d.dietType)) +
+        '</b></span><span class="gx-mod-count">' +
+        n +
+        ' dishes</span><span class="cat-mod-chev">›</span></button>';
     });
     sum.innerHTML = html || '<p class="sub">No modules selected</p>';
+    sum.querySelectorAll('[data-prev-mod]').forEach(function (row) {
+      row.onclick = function () {
+        openModulePicker(row.getAttribute('data-prev-mod'), 'package');
+      };
+    });
   }
   const pr = el('catPkgPreviewPricing');
   if (pr) {
