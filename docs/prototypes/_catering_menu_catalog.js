@@ -494,21 +494,6 @@ const CATERING_CATALOG_DEFS = [
   }
 ];
 
-const PKG_MENU_TEMPLATES = [
-  {
-    id: 'sadhya',
-    label: 'Sadhya',
-    hint: 'Set meal: drinks, rice, curries, thoran, sides and payasam. Mandi and grills belong in Buffet.',
-    moduleIds: ['g01', 'g03', 'g05', 'g06', 'g07', 'g08'],
-  },
-  {
-    id: 'buffet',
-    label: 'Buffet',
-    hint: 'Spread guests choose from: starters, biryani, mandi, grills, bread, dessert and live counters.',
-    moduleIds: ['g01', 'g02', 'g03', 'g04', 'g05', 'g07', 'g08', 'g09'],
-  },
-];
-
 function buildFoodModules() {
   return CATERING_CATALOG_DEFS.map(function (m, idx) {
     const subcats = (m.subcats || []).map(function (sc) {
@@ -599,7 +584,6 @@ function defaultCateringMenuStore() {
         status: 'live',
         pricingMode: 'per_person',
         dietType: 'mixed',
-        menuTemplate: 'buffet',
         serveAtCounter: true,
         serveAtTable: false,
         guestSlabs: defaultPackageGuestSlabs(),
@@ -619,7 +603,6 @@ function defaultCateringMenuStore() {
         status: 'live',
         pricingMode: 'per_person',
         dietType: 'mixed',
-        menuTemplate: 'buffet',
         serveAtCounter: true,
         serveAtTable: true,
         guestSlabs: defaultPackageGuestSlabs(),
@@ -638,7 +621,6 @@ function defaultCateringMenuStore() {
         status: 'draft',
         pricingMode: 'per_person',
         dietType: 'veg',
-        menuTemplate: 'sadhya',
         serveAtCounter: false,
         serveAtTable: true,
         guestSlabs: defaultPackageGuestSlabs(),
