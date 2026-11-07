@@ -48,7 +48,7 @@ function dietMarkHtml(kind, large) {
 
 function packageDietLeadHtml(dietType) {
   if (dietType === 'veg') {
-    return '<span class="pkg-diet-lead">' + dietMarkHtml('veg', true) + '<span>Veg</span></span>';
+    return '<span class="pkg-diet-lead">' + dietMarkHtml('veg', true) + '<span>Veg only (Sadhya)</span></span>';
   }
   if (dietType === 'mixed') {
     return (
@@ -95,8 +95,8 @@ function renderCatPkgDietChoice() {
   const options = [
     {
       id: 'veg',
-      title: 'Veg only',
-      sub: 'Vegetarian dishes only',
+      title: 'Veg only (Sadhya)',
+      sub: 'Vegetarian dishes. Sadhya uses Kerala curries, thoran, rice, sides and payasam.',
     },
     {
       id: 'mixed',
@@ -627,7 +627,7 @@ function renderCatPkgList() {
       '</b><p>' +
       (filtered
         ? 'Try another category or tier, or create a new package.'
-        : 'Create a package, choose veg only or veg and non-veg, then pick the dishes. Mark if it is served at the counter, at the table, or both.') +
+        : 'Create a package, choose Veg only (Sadhya) or veg and non-veg, then pick the dishes. Mark if it is served at the counter, at the table, or both.') +
       '</p></div>';
     return;
   }
@@ -1964,7 +1964,7 @@ function bindCatPkgCreateUi() {
       return;
     }
     if (pkgWizard.draft.dietType !== 'veg' && pkgWizard.draft.dietType !== 'mixed') {
-      toast('Choose veg only or veg and non-veg');
+      toast('Choose Veg only (Sadhya) or veg and non-veg');
       return;
     }
     goCatPkgStep(3);
@@ -2192,7 +2192,7 @@ function bindCatPkgPricingUi() {
       return;
     }
     if (d.dietType !== 'veg' && d.dietType !== 'mixed') {
-      toast('Choose veg only or veg and non-veg');
+      toast('Choose Veg only (Sadhya) or veg and non-veg');
       return;
     }
     if (d.offerEnabled && !offerPercentOf(d)) {
