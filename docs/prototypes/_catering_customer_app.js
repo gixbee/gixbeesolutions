@@ -1213,6 +1213,8 @@ function renderMenu() {
   el('ccWhenLabel').textContent = formatWhen(state.date) + ' · ' + state.guests + ' guests';
   const fnLabel = state.functionType === 'other' ? 'Other Functions' : state.functionType === 'wedding' ? 'Wedding & Related' : 'all functions';
   renderMenuDietChips();
+  const serveBlock = el('ccServeFilterBlock');
+  if (serveBlock) serveBlock.hidden = state.menuTab !== 'packages';
   if (state.menuTab === 'food') {
     el('ccMenuChips').innerHTML = '';
     const foods = foodsFor(c);
@@ -1276,13 +1278,17 @@ function renderMenu() {
   } else {
     el('ccMenuChips').innerHTML = CC_SERVE_FILTERS.map(function (s) {
       return (
-        '<button type="button" class="chip' +
+        '<button type="button" class="serve-opt' +
         (state.serveFilter === s.id ? ' on' : '') +
         '" data-serve="' +
-        s.id +
-        '">' +
+        esc(s.id) +
+        '" aria-pressed="' +
+        (state.serveFilter === s.id) +
+        '"><b>' +
         esc(s.label) +
-        '</button>'
+        '</b><small>' +
+        esc(s.hint || '') +
+        '</small></button>'
       );
     }).join('');
     const packs = packagesFor(c, { serve: state.serveFilter, diet: state.menuDietFilter });

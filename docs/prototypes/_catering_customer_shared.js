@@ -1,10 +1,10 @@
 /** Shared catering customer helpers — aligned with owner menu & packages (nine groups, serve style). */
 
 const CC_SERVE_FILTERS = [
-  { id: 'all', label: 'All' },
-  { id: 'table', label: 'Table service' },
-  { id: 'buffet', label: 'Buffet' },
-  { id: 'both', label: 'Table & buffet' },
+  { id: 'all', label: 'All', hint: 'Every serving style' },
+  { id: 'table', label: 'Table service', hint: 'Sadhya on leaf; staff serve courses' },
+  { id: 'buffet', label: 'Buffet', hint: 'Counters; guests help themselves' },
+  { id: 'both', label: 'Table & buffet', hint: 'Leaf sadhya plus buffet counters' },
 ];
 
 function ccPackageServeStyle(p) {
