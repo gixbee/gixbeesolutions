@@ -613,7 +613,7 @@ function renderCatPkgList() {
       '</b><p>' +
       (filtered
         ? 'Try another category or tier, or create a new package.'
-        : 'Create a package, pick Sadhya, Buffet or Arabian, then add dishes from those groups.') +
+        : 'Create one package as a Sadhya or a Buffet. Mark if it is served at the counter, at the table, or both.') +
       '</p></div>';
     return;
   }
@@ -633,6 +633,8 @@ function renderCatPkgList() {
         '">' +
         esc(p.level) +
         '</span><span class="pkg-meta-chip ceremony">' +
+        esc(p.menuTemplate === 'buffet' ? 'Buffet' : 'Sadhya') +
+        '</span><span class="pkg-meta-chip ceremony">' +
         esc(packageCategoryHubLabel(catId)) +
         '</span></div><button type="button" class="pkg-card-menu" data-cpkg-menu="' +
         esc(p.id) +
@@ -640,7 +642,9 @@ function renderCatPkgList() {
         (packageDietChipHtml(p.dietType) || '<span class="pkg-diet-lead need"><span>Set menu type</span></span>') +
         '<b>' +
         esc(p.name) +
-        '</b><div class="pkg-price">' +
+        '</b><div class="pkg-sub">' +
+        esc(packageServiceLabel(p)) +
+        '</div><div class="pkg-price">' +
         packagePriceHtml(p) +
         '</div><div class="pkg-sub">' +
         esc(p.subtitle || p.description || '') +
@@ -1672,6 +1676,9 @@ function newPkgDraft() {
     imageEmoji: '🍽️',
     dietType: '',
     menuTemplate: 'sadhya',
+    serveAtTable: true,
+    serveAtCounter: false,
+    serveTouched: false,
     offerEnabled: false,
     discountPercent: '',
     listPrice: 0,
@@ -1685,6 +1692,7 @@ function startCatPackageWizard(editId) {
   const src = editId ? findCatPackage(editId) : null;
   pkgWizard.draft = src ? JSON.parse(JSON.stringify(src)) : newPkgDraft();
   if (!pkgWizard.draft.packageCategory) pkgWizard.draft.packageCategory = 'wedding';
+  normalizePackageMenu(pkgWizard.draft);
   pkgWizard.step = 1;
   renderCatPkgStep1();
   show('catPkgStep1');
@@ -1764,12 +1772,31 @@ function pkgTemplateById(id) {
   for (let i = 0; i < list.length; i++) {
     if (list[i].id === id) return list[i];
   }
-  return list[0] || { id: 'all', label: 'All groups', hint: '', moduleIds: null };
+  return list[0] || { id: 'sadhya', label: 'Sadhya', hint: '', moduleIds: ['g01', 'g03', 'g05', 'g06', 'g07', 'g08'] };
+}
+function normalizePackageMenu(d) {
+  if (!d) return;
+  if (d.menuTemplate !== 'buffet') d.menuTemplate = 'sadhya';
+  if (d.serveAtTable == null && d.serveAtCounter == null) {
+    d.serveAtTable = d.menuTemplate !== 'buffet';
+    d.serveAtCounter = d.menuTemplate === 'buffet';
+  }
+  if (!d.serveAtTable && !d.serveAtCounter) {
+    d.serveAtTable = d.menuTemplate !== 'buffet';
+    d.serveAtCounter = d.menuTemplate === 'buffet';
+  }
+}
+function packageServiceLabel(d) {
+  d = d || {};
+  const table = !!d.serveAtTable;
+  const counter = !!d.serveAtCounter;
+  if (table && counter) return 'Buffet counter and served at the table';
+  if (counter) return 'Buffet counter';
+  return 'Served at the table';
 }
 function modulesForPackageTemplate(templateId) {
-  const tpl = pkgTemplateById(templateId || 'all');
-  if (!tpl.moduleIds) return FOOD_MODULES.slice();
-  return tpl.moduleIds
+  const tpl = pkgTemplateById(templateId || 'sadhya');
+  return (tpl.moduleIds || [])
     .map(function (id) {
       return findFoodModule(id);
     })
@@ -1778,7 +1805,7 @@ function modulesForPackageTemplate(templateId) {
 function renderCatPkgStep3Menu() {
   const d = pkgWizard.draft;
   if (!d) return;
-  if (!d.menuTemplate) d.menuTemplate = 'sadhya';
+  normalizePackageMenu(d);
   const q = (el('catPkgItemSearch') && el('catPkgItemSearch').value || '').trim().toLowerCase();
   const list = el('catPkgModulePick');
   if (!list) return;
@@ -1799,12 +1826,51 @@ function renderCatPkgStep3Menu() {
     }).join('');
     chips.querySelectorAll('[data-menu-tpl]').forEach(function (btn) {
       btn.onclick = function () {
-        pkgWizard.draft.menuTemplate = btn.getAttribute('data-menu-tpl');
+        const next = btn.getAttribute('data-menu-tpl') === 'buffet' ? 'buffet' : 'sadhya';
+        pkgWizard.draft.menuTemplate = next;
+        if (!pkgWizard.draft.serveTouched) {
+          pkgWizard.draft.serveAtTable = next !== 'buffet';
+          pkgWizard.draft.serveAtCounter = next === 'buffet';
+        }
         renderCatPkgStep3Menu();
       };
     });
   }
   if (hint) hint.textContent = tpl.hint || '';
+  const serveHost = el('catPkgServeChips');
+  if (serveHost) {
+    const options = [
+      { id: 'counter', label: 'Buffet counter', on: !!d.serveAtCounter },
+      { id: 'table', label: 'Served at the table', on: !!d.serveAtTable },
+    ];
+    serveHost.innerHTML = options
+      .map(function (o) {
+        return (
+          '<button type="button" class="cat-pkg-type-btn' +
+          (o.on ? ' on' : '') +
+          '" data-serve="' +
+          o.id +
+          '">' +
+          esc(o.label) +
+          '</button>'
+        );
+      })
+      .join('');
+    serveHost.querySelectorAll('[data-serve]').forEach(function (btn) {
+      btn.onclick = function () {
+        const which = btn.getAttribute('data-serve');
+        pkgWizard.draft.serveTouched = true;
+        if (which === 'counter') pkgWizard.draft.serveAtCounter = !pkgWizard.draft.serveAtCounter;
+        else pkgWizard.draft.serveAtTable = !pkgWizard.draft.serveAtTable;
+        if (!pkgWizard.draft.serveAtCounter && !pkgWizard.draft.serveAtTable) {
+          if (which === 'counter') pkgWizard.draft.serveAtCounter = true;
+          else pkgWizard.draft.serveAtTable = true;
+          toast('Choose at least one way to serve');
+        }
+        renderCatPkgStep3Menu();
+      };
+    });
+  }
   const summary = el('catPkgDietSummary');
   const selected = (d.itemIds || []).length;
   if (summary) {
@@ -1995,6 +2061,12 @@ function renderCatPkgPreview() {
   if (sum) {
     let html = packageDietChipHtml(d.dietType);
     if (html) html = '<div class="cat-sum-row">' + html + '</div>';
+    html +=
+      '<div class="cat-sum-row">' +
+      esc(d.menuTemplate === 'buffet' ? 'Buffet' : 'Sadhya') +
+      ' · ' +
+      esc(packageServiceLabel(d)) +
+      '</div>';
     FOOD_MODULES.forEach(function (m) {
       const n = countPkgItemsInModule(d, m.id);
       if (!n) return;
