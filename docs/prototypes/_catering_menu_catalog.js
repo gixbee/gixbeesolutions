@@ -1,4 +1,4 @@
-/** Nine-group dish library. Packages pick from section templates, not a second copy of each dish. */
+/** Nine-group dish library for Kerala catering, plus the Indian buffet dishes owners also serve. */
 const CAT_PKG_LEVELS = ['Basic', 'Standard', 'Premium'];
 const CAT_PKG_LEVEL_HINTS = {
   Basic: 'Simple and affordable menu',
@@ -15,23 +15,27 @@ function foodMasterKey(moduleId, subcatId, name) {
 function inferCatalogDiet(subcatName, itemName) {
   const sc = String(subcatName || '').toLowerCase();
   const nm = String(itemName || '').toLowerCase();
+  const meat = /\b(chicken|mutton|beef|prawn|fish|crab|lobster|squid|calamari|seafood|chemmeen|duck|pork|meen)\b/;
   if (/\begg\b/.test(nm) && !/vegetable/.test(nm)) return 'non_veg';
+  if (meat.test(nm)) return 'non_veg';
+  if (/\b(rice|biryani|biriyani)\b/.test(nm)) return 'veg';
   if (
     sc.indexOf('non-vegetarian') >= 0 ||
     sc.indexOf('non vegetarian') >= 0 ||
     sc.indexOf('chicken & meat') >= 0 ||
+    sc.indexOf('chicken, meat') >= 0 ||
     sc.indexOf('chicken dishes') >= 0 ||
     sc.indexOf('mutton') >= 0 ||
     sc.indexOf('beef') >= 0 ||
+    sc.indexOf('duck') >= 0 ||
+    sc.indexOf('pork') >= 0 ||
     sc.indexOf('fish & seafood') >= 0 ||
     sc.indexOf('seafood') >= 0 ||
     sc.indexOf('grill') >= 0
   ) {
     return 'non_veg';
   }
-  if (/\b(chicken|mutton|beef|prawn|fish|crab|lobster|squid|seafood|chemmeen)\b/.test(nm)) return 'non_veg';
   if (sc.indexOf('paneer & egg') >= 0 && /\begg\b/.test(nm)) return 'non_veg';
-  if (sc.indexOf('vegetarian') >= 0) return 'veg';
   return 'veg';
 }
 
@@ -46,11 +50,15 @@ const CATERING_CATALOG_DEFS = [
         "name": "Juices",
         "items": [
           "Fresh Lime Juice",
+          "Ginger Lime",
           "Lemon Mint Juice",
           "Orange Juice",
           "Watermelon Juice",
           "Pineapple Juice",
           "Mango Juice",
+          "Guava Juice",
+          "Papaya Juice",
+          "Muskmelon Juice",
           "Tender Coconut Water",
           "Mixed Fruit Juice"
         ]
@@ -60,12 +68,15 @@ const CATERING_CATALOG_DEFS = [
         "name": "Traditional drinks",
         "items": [
           "Tea",
+          "Masala Tea",
+          "Sulaimani",
           "Coffee",
           "Sambharam / Spiced Buttermilk",
           "Plain Buttermilk",
           "Rose Milk",
           "Badam Milk",
-          "Pista Milk"
+          "Pista Milk",
+          "Nannari Sarbath"
         ]
       },
       {
@@ -73,6 +84,8 @@ const CATERING_CATALOG_DEFS = [
         "name": "Cold drinks",
         "items": [
           "Soft Drinks",
+          "Jaljeera",
+          "Aam Panna",
           "Virgin Mojito",
           "Blue Lagoon (Mocktail)",
           "Mango Lassi",
@@ -94,13 +107,17 @@ const CATERING_CATALOG_DEFS = [
         "name": "Vegetarian snacks",
         "items": [
           "Vegetable Cutlet",
+          "Hara Bhara Kebab",
           "Paneer Tikka",
+          "Tandoori Mushroom",
+          "Crispy Corn",
           "Gobi 65",
           "Samosa",
           "Veg Pakoda",
           "Vegetable Spring Roll",
           "French Fries",
-          "Baby Corn Fry"
+          "Baby Corn Fry",
+          "Veg Momos"
         ]
       },
       {
@@ -110,10 +127,18 @@ const CATERING_CATALOG_DEFS = [
           "Chicken 65",
           "Chicken Lollipop",
           "Chicken Tikka",
-          "Fish Fry Bites",
+          "Chicken Malai Tikka",
+          "Chicken Fry",
+          "Chicken Pepper Fry",
+          "Fish Fry",
+          "Fish Finger",
           "Prawn Fry",
+          "Prawn Pepper Fry",
+          "Crab Ball",
           "Mutton Kebab",
+          "Mutton Seekh Kebab",
           "Beef Cutlet",
+          "Beef Fry",
           "Egg Pakoda"
         ]
       },
@@ -122,12 +147,16 @@ const CATERING_CATALOG_DEFS = [
         "name": "Kerala tea-time",
         "items": [
           "Pazham Pori",
+          "Banana Boli",
           "Parippu Vada",
           "Uzhunnu Vada",
+          "Bonda",
           "Unniyappam",
           "Ela Ada",
           "Achappam",
-          "Banana Fritters"
+          "Kuzhalappam",
+          "Sukhiyan",
+          "Kappa Cutlet"
         ]
       },
       {
@@ -139,6 +168,8 @@ const CATERING_CATALOG_DEFS = [
           "Veg Grill Sandwich",
           "Chicken Kathi Roll",
           "Aloo Tikki Chaat",
+          "Papdi Chaat",
+          "Dahi Bhalla",
           "Bhel Puri",
           "Pav Bhaji"
         ]
@@ -152,6 +183,7 @@ const CATERING_CATALOG_DEFS = [
           "Hot and Sour Vegetable Soup",
           "Chicken Clear Soup",
           "Chicken Sweet Corn Soup",
+          "Mutton Soup",
           "Mulligatawny Soup"
         ]
       }
@@ -172,6 +204,7 @@ const CATERING_CATALOG_DEFS = [
           "Fish Biriyani",
           "Prawn Biriyani",
           "Egg Biriyani",
+          "Duck Biriyani",
           "Vegetable Biriyani",
           "Paneer Biriyani"
         ]
@@ -197,6 +230,11 @@ const CATERING_CATALOG_DEFS = [
           "Ghee Rice",
           "Jeera Rice",
           "Vegetable Pulao",
+          "Coconut Rice",
+          "Lemon Rice",
+          "Curd Rice",
+          "Tomato Rice",
+          "Vegetable Fried Rice",
           "Chicken Fried Rice",
           "Vegetable Hakka Noodles",
           "Chicken Hakka Noodles"
@@ -208,9 +246,10 @@ const CATERING_CATALOG_DEFS = [
         "items": [
           "Chicken Mandi",
           "Mutton Mandi",
+          "Fish Mandi",
           "Al Faham Chicken",
-          "Shawarma Roll",
-          "Shawarma Plate",
+          "Chicken Shawarma Roll",
+          "Chicken Shawarma Plate",
           "Grilled Chicken",
           "Mixed Grill",
           "Arabic Rice"
@@ -229,11 +268,15 @@ const CATERING_CATALOG_DEFS = [
         "items": [
           "Chapati",
           "Phulka",
+          "Poori",
+          "Bhatura",
           "Tandoori Roti",
           "Naan",
           "Butter Naan",
           "Garlic Naan",
           "Kulcha",
+          "Lachha Paratha",
+          "Missi Roti",
           "Rumali Roti"
         ]
       },
@@ -243,11 +286,15 @@ const CATERING_CATALOG_DEFS = [
         "items": [
           "Porotta",
           "Malabar Porotta",
+          "Nool Porotta",
+          "Coin Porotta",
           "Appam",
           "Kallappam",
           "Idiyappam",
           "Pathiri",
-          "Puttu"
+          "Neypathal",
+          "Puttu",
+          "Pidi"
         ]
       },
       {
@@ -255,6 +302,7 @@ const CATERING_CATALOG_DEFS = [
         "name": "Other breads",
         "items": [
           "Pita Bread",
+          "Kuboos",
           "Pav",
           "Garlic Bread",
           "Cheese Garlic Bread"
@@ -268,47 +316,77 @@ const CATERING_CATALOG_DEFS = [
     "emoji": "🥘",
     "subcats": [
       {
-        "id": "veg-curries",
-        "name": "Vegetarian curries",
+        "id": "kerala-curries",
+        "name": "Kerala curries",
         "items": [
           "Sambar",
           "Rasam",
           "Avial",
-          "Vegetable Kurma",
-          "Dal Tadka",
-          "Chana Masala",
-          "Paneer Butter Masala",
-          "Palak Paneer",
-          "Mushroom Masala"
-        ]
-      },
-      {
-        "id": "kerala-curries",
-        "name": "Kerala curries",
-        "items": [
+          "Parippu Curry",
           "Theeyal",
+          "Ulli Theeyal",
           "Pulissery",
           "Moru Curry",
-          "Parippu Curry",
           "Kalan",
           "Olan",
           "Erissery",
-          "Koottu Curry"
+          "Koottu Curry",
+          "Kichadi",
+          "Kadala Curry",
+          "Vegetable Stew",
+          "Mango Curry"
+        ]
+      },
+      {
+        "id": "veg-curries",
+        "name": "Other vegetarian gravies",
+        "items": [
+          "Vegetable Kurma",
+          "Mixed Vegetable Curry",
+          "Dal Tadka",
+          "Dal Makhani",
+          "Chana Masala",
+          "Rajma Masala",
+          "Paneer Butter Masala",
+          "Kadai Paneer",
+          "Palak Paneer",
+          "Malai Kofta",
+          "Mushroom Masala",
+          "Aloo Gobi"
         ]
       },
       {
         "id": "non-veg-curries",
-        "name": "Chicken, meat and seafood",
+        "name": "Kerala chicken, meat and seafood",
         "items": [
           "Chicken Curry",
           "Chicken Stew",
-          "Butter Chicken",
+          "Chicken Mappas",
+          "Chicken Roast",
+          "Chicken Varutharacha Curry",
           "Mutton Curry",
+          "Mutton Stew",
+          "Mutton Roast",
           "Beef Curry",
+          "Beef Roast",
+          "Beef Varattiyathu",
+          "Duck Curry",
+          "Duck Roast",
           "Kerala Fish Curry",
           "Fish Molee",
+          "Fish Pollichathu",
           "Prawn Curry",
-          "Crab Curry"
+          "Crab Curry",
+          "Pork Varattiyathu"
+        ]
+      },
+      {
+        "id": "other-gravies",
+        "name": "Other gravies",
+        "items": [
+          "Butter Chicken",
+          "Chicken Chettinad",
+          "Mutton Rogan Josh"
         ]
       },
       {
@@ -329,13 +407,34 @@ const CATERING_CATALOG_DEFS = [
     "subcats": [
       {
         "id": "thoran",
-        "name": "Thoran and stir fry",
+        "name": "Thoran",
         "items": [
           "Cabbage Thoran",
           "Beans Thoran",
+          "Carrot Thoran",
           "Beetroot Thoran",
-          "Thoran",
-          "Mezhukkupuratti"
+          "Long Beans Thoran",
+          "Raw Banana Thoran"
+        ]
+      },
+      {
+        "id": "mezhukkupuratti",
+        "name": "Mezhukkupuratti and fry",
+        "items": [
+          "Potato Mezhukkupuratti",
+          "Beans Mezhukkupuratti",
+          "Raw Banana Mezhukkupuratti",
+          "Potato Fry",
+          "Bitter Gourd Fry",
+          "Kovakka Fry"
+        ]
+      },
+      {
+        "id": "kappa",
+        "name": "Kappa",
+        "items": [
+          "Kappa Puzhukku",
+          "Boiled Kappa"
         ]
       }
     ]
@@ -350,9 +449,12 @@ const CATERING_CATALOG_DEFS = [
         "name": "Chutneys",
         "items": [
           "Coconut Chammanthi",
+          "Mango Chammanthi",
           "Puthina Chutney",
+          "Coriander Chutney",
           "Tomato Chutney",
           "Mulaku Chutney",
+          "Onion Chutney",
           "Inji Curry",
           "Puli Inji"
         ]
@@ -362,9 +464,12 @@ const CATERING_CATALOG_DEFS = [
         "name": "Pickles",
         "items": [
           "Mango Pickle",
+          "Tender Mango Pickle",
           "Lime Pickle",
           "Mixed Pickle",
-          "Green Chilli Pickle"
+          "Green Chilli Pickle",
+          "Gooseberry Pickle",
+          "Vadukapuli Pickle"
         ]
       },
       {
@@ -372,13 +477,18 @@ const CATERING_CATALOG_DEFS = [
         "name": "Salads and raita",
         "items": [
           "Green Salad",
+          "Kachumber Salad",
+          "Russian Salad",
           "Cucumber Salad",
           "Onion Salad",
+          "Coconut Salad",
           "Cucumber Raita",
           "Boondi Raita",
+          "Onion Raita",
           "Mint Raita",
           "Pineapple Pachadi",
           "Beetroot Pachadi",
+          "Mango Pachadi",
           "Curd"
         ]
       },
@@ -388,8 +498,11 @@ const CATERING_CATALOG_DEFS = [
         "items": [
           "Pappadam",
           "Banana Chips",
+          "Jackfruit Chips",
+          "Chena Chips",
           "Sharkara Upperi",
-          "Fried Chilli"
+          "Chilli Kondattam",
+          "Ripe Nendran Banana"
         ]
       }
     ]
@@ -405,10 +518,14 @@ const CATERING_CATALOG_DEFS = [
         "items": [
           "Palada Payasam",
           "Ada Pradhaman",
+          "Pazham Pradhaman",
           "Semiya Payasam",
           "Parippu Payasam",
           "Paal Payasam",
-          "Chakka Pradhaman"
+          "Chakka Pradhaman",
+          "Kadala Parippu Pradhaman",
+          "Ari Payasam",
+          "Gothambu Payasam"
         ]
       },
       {
@@ -419,8 +536,12 @@ const CATERING_CATALOG_DEFS = [
           "Rasmalai",
           "Jalebi",
           "Mysore Pak",
+          "Laddu",
+          "Peda",
           "Kaju Katli",
-          "Milk Burfi"
+          "Milk Burfi",
+          "Carrot Halwa",
+          "Wheat Halwa"
         ]
       },
       {
@@ -431,6 +552,7 @@ const CATERING_CATALOG_DEFS = [
           "Kulfi",
           "Caramel Custard",
           "Falooda",
+          "Tender Coconut Pudding",
           "Fresh Fruit Platter"
         ]
       },
@@ -459,7 +581,9 @@ const CATERING_CATALOG_DEFS = [
           "Dosa Counter",
           "Puttu Counter",
           "Porotta Counter",
-          "Thattukada Live Station"
+          "Idiyappam Counter",
+          "Thattukada Live Station",
+          "Payasam Counter"
         ]
       },
       {
@@ -469,16 +593,19 @@ const CATERING_CATALOG_DEFS = [
           "Al Faham Counter",
           "BBQ Counter",
           "Shawarma Counter",
+          "Seafood Grill Counter",
           "Live Biriyani Counter"
         ]
       },
       {
         "id": "street-live",
-        "name": "Street food",
+        "name": "Street food and tandoor",
         "items": [
           "Chaat Counter",
           "Pani Puri Counter",
-          "French Fries Counter"
+          "French Fries Counter",
+          "Tandoor Counter",
+          "Pasta Counter"
         ]
       },
       {
@@ -486,8 +613,11 @@ const CATERING_CATALOG_DEFS = [
         "name": "Dessert counters",
         "items": [
           "Ice Cream Scooping",
+          "Jalebi Counter",
           "Coffee Bar",
-          "Samavar Tea Counter"
+          "Samavar Tea Counter",
+          "Tender Coconut Counter",
+          "Paan Counter"
         ]
       }
     ]
