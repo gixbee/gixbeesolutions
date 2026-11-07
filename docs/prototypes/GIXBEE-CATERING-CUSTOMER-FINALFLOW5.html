@@ -158,7 +158,8 @@ body{margin:0;background:#E7F6EC;font-family:Inter,system-ui,sans-serif;color:va
 .slab-row.on{border-color:#86EFAC;background:#F0FDF4;box-shadow:0 0 0 1px #BBF7D0}
 .slab-row.on span:first-child{color:#14532D;font-weight:900}
 .slab-note{margin:8px 0 0;font-size:11px;font-weight:700;color:#64748B;line-height:1.4}
-.menu-inc-h{margin:4px 16px 8px;font-size:13px;font-weight:900;color:#14532D}
+.menu-inc-h{margin:4px 16px 4px;font-size:13px;font-weight:900;color:#14532D}
+.menu-inc-sub{margin:0 16px 10px;font-size:11px;font-weight:700;color:#64748B;line-height:1.4}
 .inc-tag{display:inline-block;margin-left:6px;font-size:10px;font-weight:800;color:#047857;background:#ECFDF5;padding:2px 6px;border-radius:999px;vertical-align:middle}
 .inc{width:calc(100% - 32px);margin:0 16px 8px;border:1px solid #E5E7EB;border-radius:14px;background:#fff;text-align:left;font:inherit;cursor:pointer;padding:12px}
 .inc b{display:block;font-size:14px}
@@ -1172,11 +1173,20 @@ function ccCustomerFoodGroups() {
 
 function ccMenuGroupsForPackage(pkg) {
   if (!pkg) return [];
-  if (pkg.groups && pkg.groups.length) return pkg.groups;
   if (pkg.menuModules && pkg.menuModules.length) {
     return pkg.menuModules.map(function (row) {
       const mod = typeof findFoodModule === 'function' ? findFoodModule(row.moduleId) : null;
-      return { name: (mod && mod.name) || String(row.moduleId || 'Menu'), items: row.items || [] };
+      return {
+        moduleId: row.moduleId,
+        name: (mod && mod.name) || String(row.moduleId || 'Menu'),
+        emoji: (mod && mod.emoji) || '',
+        items: row.items || [],
+      };
+    });
+  }
+  if (pkg.groups && pkg.groups.length) {
+    return pkg.groups.map(function (g) {
+      return { name: g.name, items: g.items || [], emoji: '' };
     });
   }
   return [];
@@ -1190,6 +1200,39 @@ function ccGuestSlabsLikeOwner(base) {
     { from: 51, to: 100, price: mid },
     { from: 101, to: 200, price: Math.max(80, mid - 50) },
     { from: 201, to: 500, price: Math.max(80, mid - 80) },
+  ];
+}
+
+function ccDemoVegWeddingMenuModules() {
+  return [
+    { moduleId: 'g01', items: ['Fresh Lime Juice', 'Sambharam / Spiced Buttermilk'] },
+    { moduleId: 'g02', items: ['Vegetable Samosa', 'Banana Fritters', 'Unnakaya'] },
+    { moduleId: 'g03', items: ['Kerala Matta Rice', 'Ghee Rice', 'Nei Choru'] },
+    { moduleId: 'g05', items: ['Sambar', 'Avial', 'Pulissery', 'Kaalan', 'Parippu'] },
+    { moduleId: 'g06', items: ['Mixed Vegetable Thoran', 'Beans Thoran', 'Cabbage Thoran'] },
+    { moduleId: 'g07', items: ['Pappadam', 'Pickle', 'Banana', 'Inji Curry'] },
+    { moduleId: 'g08', items: ['Palada Payasam', 'Ada Pradhaman', 'Semiya Payasam'] },
+  ];
+}
+
+function ccDemoCompactVegMenuModules() {
+  return [
+    { moduleId: 'g01', items: ['Fresh Lime Juice', 'Sambharam / Spiced Buttermilk'] },
+    { moduleId: 'g03', items: ['Kerala Matta Rice', 'Ghee Rice'] },
+    { moduleId: 'g05', items: ['Sambar', 'Avial', 'Parippu'] },
+    { moduleId: 'g06', items: ['Mixed Vegetable Thoran', 'Beans Thoran'] },
+    { moduleId: 'g07', items: ['Pappadam', 'Pickle', 'Banana'] },
+    { moduleId: 'g08', items: ['Palada Payasam', 'Semiya Payasam'] },
+  ];
+}
+
+function ccDemoArabianReceptionModules() {
+  return [
+    { moduleId: 'g01', items: ['Fresh Lime Juice', 'Mint Lime', 'Sambharam / Spiced Buttermilk'] },
+    { moduleId: 'g02', items: ['Chicken Cutlet', 'Beef Fry', 'Hummus', 'Falafel'] },
+    { moduleId: 'g03', items: ['Chicken Mandi', 'Mutton Mandi', 'Al Faham Chicken', 'Ghee Rice'] },
+    { moduleId: 'g04', items: ['Kuboos', 'Rumali Roti', 'Sheermal'] },
+    { moduleId: 'g08', items: ['Fresh Fruit Platter', 'Kunafa', 'Umm Ali'] },
   ];
 }
 
@@ -1232,7 +1275,7 @@ function ccFoodModuleId(item) {
 
 /** Gixbee catering customer flow. Plate price follows the guest count. */
 
-const CC_BUILD = 'catering-customer-2';
+const CC_BUILD = 'catering-customer-3';
 const CC_BUDGET_CAP = 3000;
 const CC_MONTH_NAMES = [
   'January',
@@ -1258,25 +1301,12 @@ function slabsFor(price) {
   ];
 }
 
-const SADHYA = [
-  { name: 'Welcome Drinks', items: ['Lime juice'] },
-  {
-    name: 'Sadhya Items',
-    items: ['Kerala matta rice', 'Parippu', 'Sambar', 'Avial', 'Thoran', 'Olan', 'Kichadi', 'Pachadi'],
-  },
-  { name: 'Curries & Gravies', items: ['Pulissery', 'Kaalan', 'Erissery', 'Theeyal'] },
-  { name: 'Accompaniments', items: ['Pickle', 'Pappadam', 'Banana'] },
-  { name: 'Desserts & Sweets', items: ['Palada payasam', 'Ada pradhaman', 'Semiya payasam', 'Banana'] },
-];
-
 function foodGroupLabel(id) {
   const hit = ccCustomerFoodGroups().filter(function (g) {
     return g.id === id;
   })[0];
   return hit ? hit.label : 'Other dishes';
 }
-
-const CC_WEDDING_MENU = ccPackageMenuFromModules(ccDemoWeddingMenuModules());
 
 const CATERERS = [
   {
@@ -1311,7 +1341,6 @@ const CATERERS = [
         discountPercent: 8,
         guestSlabs: ccGuestSlabsLikeOwner(300),
         menuModules: ccDemoWeddingMenuModules(),
-        groups: CC_WEDDING_MENU,
       },
       {
         id: 'arch-royal-reception',
@@ -1324,7 +1353,7 @@ const CATERERS = [
         offerEnabled: true,
         discountPercent: 8,
         guestSlabs: ccGuestSlabsLikeOwner(450),
-        groups: CC_WEDDING_MENU,
+        menuModules: ccDemoWeddingMenuModules(),
       },
       {
         id: 'arch-veg-sadhya',
@@ -1335,15 +1364,7 @@ const CATERERS = [
         serveStyle: 'table',
         blurb: 'Vegetarian wedding sadhya served on plantain leaf.',
         guestSlabs: ccGuestSlabsLikeOwner(280),
-        groups: ccPackageMenuFromModules([
-          { moduleId: 'g01', items: ['Fresh Lime Juice', 'Sambharam / Spiced Buttermilk'] },
-          { moduleId: 'g02', items: ['Vegetable Samosa', 'Banana Fritters', 'Unnakaya'] },
-          { moduleId: 'g03', items: ['Kerala Matta Rice', 'Ghee Rice', 'Nei Choru'] },
-          { moduleId: 'g05', items: ['Sambar', 'Avial', 'Pulissery', 'Kaalan'] },
-          { moduleId: 'g06', items: ['Mixed Vegetable Thoran', 'Beans Thoran', 'Cabbage Thoran'] },
-          { moduleId: 'g07', items: ['Pappadam', 'Pickle', 'Banana'] },
-          { moduleId: 'g08', items: ['Palada Payasam', 'Ada Pradhaman'] },
-        ]),
+        menuModules: ccDemoVegWeddingMenuModules(),
       },
     ],
     foods: [
@@ -1411,7 +1432,7 @@ const CATERERS = [
         popular: true,
         blurb: 'Traditional Kerala wedding menu with authentic dishes, perfect for wedding functions.',
         guestSlabs: slabsFor(300),
-        groups: SADHYA,
+        menuModules: ccDemoVegWeddingMenuModules(),
       },
       {
         id: 'arya-special',
@@ -1422,7 +1443,7 @@ const CATERERS = [
         dietType: 'mixed',
         blurb: 'Sadhya plus a non-veg main for reception and wedding lunch.',
         guestSlabs: slabsFor(380),
-        groups: SADHYA.concat([{ name: 'Non-veg mains', items: ['Chicken roast', 'Fish curry'] }]),
+        menuModules: ccDemoWeddingMenuModules(),
       },
       {
         id: 'arya-premium',
@@ -1433,7 +1454,7 @@ const CATERERS = [
         dietType: 'mixed',
         blurb: 'Grand feast with live counters and an extended dessert selection.',
         guestSlabs: slabsFor(450),
-        groups: SADHYA.concat([{ name: 'Live counters', items: ['Dosa counter', 'Chaat counter'] }]),
+        menuModules: ccDemoWeddingMenuModules(),
       },
       {
         id: 'arya-birthday',
@@ -1444,7 +1465,7 @@ const CATERERS = [
         dietType: 'veg',
         blurb: 'A shorter vegetarian sadhya for birthdays and housewarmings.',
         guestSlabs: slabsFor(250),
-        groups: SADHYA.slice(0, 3),
+        menuModules: ccDemoCompactVegMenuModules(),
       },
     ],
     foods: [
@@ -1504,7 +1525,7 @@ const CATERERS = [
         dietType: 'veg',
         blurb: 'Full vegetarian sadhya.',
         guestSlabs: slabsFor(350),
-        groups: SADHYA,
+        menuModules: ccDemoVegWeddingMenuModules(),
       },
       {
         id: 'sree-mix',
@@ -1515,7 +1536,7 @@ const CATERERS = [
         dietType: 'mixed',
         blurb: 'Sadhya with a chicken main.',
         guestSlabs: slabsFor(550),
-        groups: SADHYA,
+        menuModules: ccDemoWeddingMenuModules(),
       },
     ],
     foods: [
@@ -1573,7 +1594,7 @@ const CATERERS = [
         dietType: 'veg',
         blurb: 'Vegetarian reception menu.',
         guestSlabs: slabsFor(300),
-        groups: SADHYA,
+        menuModules: ccDemoVegWeddingMenuModules(),
       },
       {
         id: 'royal-std',
@@ -1584,7 +1605,7 @@ const CATERERS = [
         dietType: 'mixed',
         blurb: 'Mixed reception feast.',
         guestSlabs: slabsFor(500),
-        groups: SADHYA,
+        menuModules: ccDemoWeddingMenuModules(),
       },
       {
         id: 'royal-arab',
@@ -1595,11 +1616,7 @@ const CATERERS = [
         dietType: 'mixed',
         blurb: 'Mandi, grill and bread for a reception.',
         guestSlabs: slabsFor(420),
-        groups: [
-          { name: 'Mandi and grills', items: ['Chicken mandi', 'Al faham chicken'] },
-          { name: 'Breads', items: ['Kuboos', 'Rumali roti'] },
-          { name: 'Payasam and desserts', items: ['Fresh fruit platter'] },
-        ],
+        menuModules: ccDemoArabianReceptionModules(),
       },
     ],
     foods: [
@@ -1658,7 +1675,7 @@ const CATERERS = [
         dietType: 'veg',
         blurb: 'Compact vegetarian wedding sadhya when we have an open date.',
         guestSlabs: slabsFor(280),
-        groups: SADHYA.slice(0, 4),
+        menuModules: ccDemoCompactVegMenuModules(),
       },
       {
         id: 'grace-veg',
@@ -1669,7 +1686,7 @@ const CATERERS = [
         dietType: 'veg',
         blurb: 'Home-function vegetarian menu.',
         guestSlabs: slabsFor(250),
-        groups: SADHYA.slice(0, 4),
+        menuModules: ccDemoCompactVegMenuModules(),
       },
       {
         id: 'grace-mix',
@@ -1680,7 +1697,7 @@ const CATERERS = [
         dietType: 'mixed',
         blurb: 'Mixed menu for a house wedding.',
         guestSlabs: slabsFor(450),
-        groups: SADHYA,
+        menuModules: ccDemoWeddingMenuModules(),
       },
     ],
     foods: [
@@ -2645,18 +2662,22 @@ function renderDetail() {
   if (state.detailTab === 'pricing') {
     html += renderDetailSlabSection(item, state.guests);
   } else if (hasMenuGroups) {
-    html += '<p class="menu-inc-h">What&apos;s included <span class="inc-tag">Included in per plate price</span></p>';
+    html +=
+      '<p class="menu-inc-h">What&apos;s included <span class="inc-tag">Included in per plate price</span></p>';
+    html +=
+      '<p class="menu-inc-sub">Same nine dish groups the caterer picks in Gixbee (drinks, starters, rice, curries, desserts, live counters, and more).</p>';
     html += menuGroups
       .map(function (g) {
         const open = state.openGroup === g.name;
+        const title = (g.emoji ? g.emoji + ' ' : '') + g.name;
         return (
           '<button type="button" class="inc" data-g="' +
           esc(g.name) +
           '"><b>' +
-          esc(g.name) +
+          esc(title) +
           '</b><small> (' +
           g.items.length +
-          ')</small>' +
+          ' dishes)</small>' +
           (open ? '<ul>' + g.items.map(function (d) { return '<li>' + esc(d) + '</li>'; }).join('') + '</ul>' : '') +
           '</button>'
         );

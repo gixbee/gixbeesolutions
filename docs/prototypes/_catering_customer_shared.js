@@ -54,11 +54,20 @@ function ccCustomerFoodGroups() {
 
 function ccMenuGroupsForPackage(pkg) {
   if (!pkg) return [];
-  if (pkg.groups && pkg.groups.length) return pkg.groups;
   if (pkg.menuModules && pkg.menuModules.length) {
     return pkg.menuModules.map(function (row) {
       const mod = typeof findFoodModule === 'function' ? findFoodModule(row.moduleId) : null;
-      return { name: (mod && mod.name) || String(row.moduleId || 'Menu'), items: row.items || [] };
+      return {
+        moduleId: row.moduleId,
+        name: (mod && mod.name) || String(row.moduleId || 'Menu'),
+        emoji: (mod && mod.emoji) || '',
+        items: row.items || [],
+      };
+    });
+  }
+  if (pkg.groups && pkg.groups.length) {
+    return pkg.groups.map(function (g) {
+      return { name: g.name, items: g.items || [], emoji: '' };
     });
   }
   return [];
@@ -72,6 +81,39 @@ function ccGuestSlabsLikeOwner(base) {
     { from: 51, to: 100, price: mid },
     { from: 101, to: 200, price: Math.max(80, mid - 50) },
     { from: 201, to: 500, price: Math.max(80, mid - 80) },
+  ];
+}
+
+function ccDemoVegWeddingMenuModules() {
+  return [
+    { moduleId: 'g01', items: ['Fresh Lime Juice', 'Sambharam / Spiced Buttermilk'] },
+    { moduleId: 'g02', items: ['Vegetable Samosa', 'Banana Fritters', 'Unnakaya'] },
+    { moduleId: 'g03', items: ['Kerala Matta Rice', 'Ghee Rice', 'Nei Choru'] },
+    { moduleId: 'g05', items: ['Sambar', 'Avial', 'Pulissery', 'Kaalan', 'Parippu'] },
+    { moduleId: 'g06', items: ['Mixed Vegetable Thoran', 'Beans Thoran', 'Cabbage Thoran'] },
+    { moduleId: 'g07', items: ['Pappadam', 'Pickle', 'Banana', 'Inji Curry'] },
+    { moduleId: 'g08', items: ['Palada Payasam', 'Ada Pradhaman', 'Semiya Payasam'] },
+  ];
+}
+
+function ccDemoCompactVegMenuModules() {
+  return [
+    { moduleId: 'g01', items: ['Fresh Lime Juice', 'Sambharam / Spiced Buttermilk'] },
+    { moduleId: 'g03', items: ['Kerala Matta Rice', 'Ghee Rice'] },
+    { moduleId: 'g05', items: ['Sambar', 'Avial', 'Parippu'] },
+    { moduleId: 'g06', items: ['Mixed Vegetable Thoran', 'Beans Thoran'] },
+    { moduleId: 'g07', items: ['Pappadam', 'Pickle', 'Banana'] },
+    { moduleId: 'g08', items: ['Palada Payasam', 'Semiya Payasam'] },
+  ];
+}
+
+function ccDemoArabianReceptionModules() {
+  return [
+    { moduleId: 'g01', items: ['Fresh Lime Juice', 'Mint Lime', 'Sambharam / Spiced Buttermilk'] },
+    { moduleId: 'g02', items: ['Chicken Cutlet', 'Beef Fry', 'Hummus', 'Falafel'] },
+    { moduleId: 'g03', items: ['Chicken Mandi', 'Mutton Mandi', 'Al Faham Chicken', 'Ghee Rice'] },
+    { moduleId: 'g04', items: ['Kuboos', 'Rumali Roti', 'Sheermal'] },
+    { moduleId: 'g08', items: ['Fresh Fruit Platter', 'Kunafa', 'Umm Ali'] },
   ];
 }
 
