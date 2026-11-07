@@ -474,19 +474,14 @@ function exampleGuestCountForSlabs(slabs) {
   return Math.round((+mid.from + +mid.to) / 2) || +mid.from || 100;
 }
 
-function renderPkgGuestPricingExample(slabs) {
-  const host = el('catPkgPricingExample');
-  if (!host) return;
-  const s = slabs || (pkgWizard.draft && pkgWizard.draft.guestSlabs) || [];
-  if (!s.length) {
-    host.innerHTML = '';
-    return;
-  }
+function guestPricingExampleHtml(slabs, draft) {
+  const s = slabs || [];
+  if (!s.length) return '';
   const guests = exampleGuestCountForSlabs(s);
   const base = guestSlabPriceForCount(s, guests);
-  const pct = pkgWizard.draft ? offerPercentOf(pkgWizard.draft) : 0;
+  const pct = draft ? offerPercentOf(draft) : 0;
   const per = priceAfterOffer(base, pct);
-  host.innerHTML =
+  return (
     '<span class="cat-pkg-example-ico" aria-hidden="true">🧮</span><div><b>Example Calculation</b><p>' +
     guests +
     ' guests × ₹' +
@@ -501,7 +496,22 @@ function renderPkgGuestPricingExample(slabs) {
         formatInrFull(guests * per) +
         ' (approx).'
       : '') +
-    '</p></div>';
+    '</p></div>'
+  );
+}
+
+function renderPkgGuestPricingExample(slabs) {
+  const host = el('catPkgPricingExample');
+  if (!host) return;
+  const s = slabs || (pkgWizard.draft && pkgWizard.draft.guestSlabs) || [];
+  host.innerHTML = s.length ? guestPricingExampleHtml(s, pkgWizard.draft) : '';
+}
+
+function renderFoodGuestPricingExample(slabs) {
+  const host = el('catFoodPricingExample');
+  if (!host) return;
+  const s = slabs || (foodFormDraft && foodFormDraft.slabs) || [];
+  host.innerHTML = s.length && foodFormDraft && foodFormDraft.rateMode !== 'flat' ? guestPricingExampleHtml(s, foodFormDraft) : '';
 }
 
 function renderCateringMenuHub() {
@@ -1748,6 +1758,48 @@ function renderFoodItemForm() {
   renderFoodPricing();
 }
 
+function syncSlabOfferColumn(hostId, checkboxId) {
+  const host = el(hostId);
+  const on = el(checkboxId);
+  if (!host) return;
+  host.classList.toggle('offer-on', !!(on && on.checked));
+}
+
+function syncPkgSlabOfferColumn() {
+  syncSlabOfferColumn('catPkgSlabs', 'catPkgOfferOn');
+}
+
+function syncFoodSlabOfferColumn() {
+  syncSlabOfferColumn('catFoodSlabs', 'catFoodOfferOn');
+}
+
+function paintSlabOfferCells(hostId, draft) {
+  const pct = draft ? offerPercentOf(draft) : 0;
+  const host = el(hostId);
+  if (!host) return;
+  host.querySelectorAll('.cat-slab-offer, .cat-slab-offer-col').forEach(function (slot) {
+    const row = slot.closest('.cat-slab-row');
+    const priceEl = row && row.querySelector('.slab-price');
+    const price = priceEl ? +priceEl.value || 0 : 0;
+    if (!pct) {
+      slot.innerHTML = '';
+      slot.classList.remove('empty');
+      return;
+    }
+    if (slot.classList.contains('cat-slab-offer-col')) {
+      slot.classList.remove('empty');
+      slot.innerHTML =
+        '<s>₹' +
+        formatInrFull(price) +
+        '</s> <b>₹' +
+        formatInrFull(priceAfterOffer(price, pct)) +
+        '</b>';
+    } else {
+      slot.innerHTML = offerPriceBitsHtml(price, pct);
+    }
+  });
+}
+
 function renderFoodOffer() {
   const d = foodFormDraft;
   if (!d) return;
@@ -1762,18 +1814,14 @@ function renderFoodOffer() {
     const v = d.discountPercent;
     pct.value = v === '' || v == null ? '' : v;
   }
+  syncFoodSlabOfferColumn();
   paintFoodOfferPrices();
 }
 
 function paintFoodOfferPrices() {
   const d = foodFormDraft;
+  paintSlabOfferCells('catFoodSlabs', d);
   const pct = d ? offerPercentOf(d) : 0;
-  document.querySelectorAll('#catFoodSlabs .cat-slab-offer').forEach(function (slot) {
-    const row = slot.closest('.cat-slab-row');
-    const priceEl = row && row.querySelector('.slab-price');
-    const price = priceEl ? +priceEl.value || 0 : 0;
-    slot.innerHTML = pct ? offerPriceBitsHtml(price, pct) : '';
-  });
   const flatSlot = el('catFoodFlatOffer');
   if (flatSlot) {
     const priceEl = el('catFoodFlatPrice');
@@ -1804,6 +1852,8 @@ function renderFoodPricing() {
     const price = el('catFoodFlatPrice');
     if (price) price.value = d.slabs[0].price;
     renderFoodOffer();
+    syncFoodSlabOfferColumn();
+    renderFoodGuestPricingExample([]);
     return;
   }
   renderSlabTable(
@@ -1813,13 +1863,17 @@ function renderFoodPricing() {
       foodFormDraft.slabs = slabs;
     },
     {
+      layout: 'package',
       priceHeader: 'Price per plate (₹)',
-      afterChange: function () {
+      afterChange: function (slabs) {
         paintFoodOfferPrices();
+        renderFoodGuestPricingExample(slabs);
       },
     }
   );
   renderFoodOffer();
+  syncFoodSlabOfferColumn();
+  renderFoodGuestPricingExample(d.slabs);
 }
 
 function normalizePackageGuestSlabs(slabs) {
@@ -1840,7 +1894,7 @@ function renderSlabTable(hostId, slabs, onChange, tableOpts) {
   const host = el(hostId);
   if (!host) return;
   const pkgLayout = tableOpts.layout === 'package';
-  host.className = pkgLayout ? 'cat-slab-table cat-slab-table-pkg' : 'cat-slab-table';
+  host.className = pkgLayout ? 'cat-slab-table cat-slab-table-pkg gx-slab-table' : 'cat-slab-table';
   const priceHdr = tableOpts.priceHeader || 'Price per plate (₹)';
   const rows = (slabs || []).map(function (s, idx) {
     if (pkgLayout) {
@@ -1958,6 +2012,7 @@ function bindFoodItemFormUi() {
     foodFormDraft.rateMode = 'flat';
     foodFormDraft.slabs = [{ from: 1, to: 500, price: price ? +price.value || 0 : 0 }];
     paintFoodOfferPrices();
+    renderFoodGuestPricingExample(foodFormDraft.slabs);
   });
   bindOnChange('catFoodOfferOn', function () {
     if (!foodFormDraft) return;
@@ -1976,6 +2031,33 @@ function bindFoodItemFormUi() {
     foodFormDraft.offerEnabled = true;
     foodFormDraft.discountPercent = raw === '' ? '' : Math.round(+raw);
     paintFoodOfferPrices();
+    renderFoodGuestPricingExample(foodFormDraft.slabs);
+  });
+  bindClick('catFoodOfferMinus', function () {
+    if (!foodFormDraft) return;
+    const pct = el('catFoodOfferPercent');
+    const on = el('catFoodOfferOn');
+    if (on) on.checked = true;
+    foodFormDraft.offerEnabled = true;
+    let v = Math.round(+(pct && pct.value !== '' ? pct.value : 7));
+    v = Math.max(1, Math.min(90, v - 1));
+    if (pct) pct.value = v;
+    foodFormDraft.discountPercent = v;
+    renderFoodOffer();
+    renderFoodGuestPricingExample(foodFormDraft.slabs);
+  });
+  bindClick('catFoodOfferPlus', function () {
+    if (!foodFormDraft) return;
+    const pct = el('catFoodOfferPercent');
+    const on = el('catFoodOfferOn');
+    if (on) on.checked = true;
+    foodFormDraft.offerEnabled = true;
+    let v = Math.round(+(pct && pct.value !== '' ? pct.value : 7));
+    v = Math.max(1, Math.min(90, v + 1));
+    if (pct) pct.value = v;
+    foodFormDraft.discountPercent = v;
+    renderFoodOffer();
+    renderFoodGuestPricingExample(foodFormDraft.slabs);
   });
 }
 
@@ -2333,14 +2415,6 @@ function bindCatPkgCreateUi() {
   });
 }
 
-function syncPkgSlabOfferColumn() {
-  const host = el('catPkgSlabs');
-  const on = el('catPkgOfferOn');
-  if (!host) return;
-  const enabled = !!(on && on.checked) || !!(pkgWizard.draft && pkgWizard.draft.offerEnabled);
-  host.classList.toggle('offer-on', enabled);
-}
-
 function renderCatPkgOffer() {
   const d = pkgWizard.draft;
   if (!d) return;
@@ -2361,28 +2435,8 @@ function renderCatPkgOffer() {
 
 function paintPackageOfferPrices() {
   const d = pkgWizard.draft;
+  paintSlabOfferCells('catPkgSlabs', d);
   const pct = d ? offerPercentOf(d) : 0;
-  document.querySelectorAll('#catPkgSlabs .cat-slab-offer, #catPkgSlabs .cat-slab-offer-col').forEach(function (slot) {
-    const row = slot.closest('.cat-slab-row');
-    const priceEl = row && row.querySelector('.slab-price');
-    const price = priceEl ? +priceEl.value || 0 : 0;
-    if (!pct) {
-      slot.innerHTML = '';
-      slot.classList.remove('empty');
-      return;
-    }
-    if (slot.classList.contains('cat-slab-offer-col')) {
-      slot.classList.remove('empty');
-      slot.innerHTML =
-        '<s>₹' +
-        formatInrFull(price) +
-        '</s> <b>₹' +
-        formatInrFull(priceAfterOffer(price, pct)) +
-        '</b>';
-    } else {
-      slot.innerHTML = offerPriceBitsHtml(price, pct);
-    }
-  });
   const flatSlot = el('catPkgFlatOffer');
   if (flatSlot) {
     const priceEl = el('catPkgFlatPrice');

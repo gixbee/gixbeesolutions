@@ -932,22 +932,28 @@ button.manage-pill{cursor:pointer;font:inherit;color:var(--blue);border-color:#B
 .gx-offer-step{display:flex;align-items:center;gap:6px}
 .gx-step-btn{width:36px;height:36px;border-radius:10px;border:1.5px solid #F9A8D4;background:#fff;color:#BE185D;font-size:20px;font-weight:900;cursor:pointer;line-height:1}
 .gx-offer-hint{flex:1;min-width:140px;margin:0;padding:10px;border-radius:12px;background:#FFF1F2;font-size:11px;font-weight:600;color:#64748B;line-height:1.35}
-#catPkgSlabs.cat-slab-table-pkg{margin:0 16px 8px;border:1px solid #E5E7EB;border-radius:14px;overflow:hidden;background:#fff;padding:0}
-#catPkgSlabs.cat-slab-table-pkg .cat-slab-hd-pkg,#catPkgSlabs.cat-slab-table-pkg .cat-slab-row-pkg{display:grid;grid-template-columns:54px 54px minmax(0,1fr) 38px;gap:8px;align-items:center;padding:10px 12px;margin:0}
-#catPkgSlabs.cat-slab-table-pkg.offer-on .cat-slab-hd-pkg,#catPkgSlabs.cat-slab-table-pkg.offer-on .cat-slab-row-pkg{grid-template-columns:54px 54px minmax(0,1.05fr) minmax(0,1.05fr) 38px}
-#catPkgSlabs.cat-slab-table-pkg:not(.offer-on) .cat-slab-hd-offer,#catPkgSlabs.cat-slab-table-pkg:not(.offer-on) .cat-slab-offer-col{display:none!important}
-#catPkgSlabs.cat-slab-table-pkg .cat-slab-hd-pkg{background:#F0FDF4;color:#047857;font-size:10px;font-weight:800;line-height:1.25;text-transform:none;letter-spacing:0;border-radius:0}
-#catPkgSlabs.cat-slab-table-pkg .cat-slab-hd-pkg span{min-width:0;white-space:normal;line-height:1.2}
-#catPkgSlabs.cat-slab-table-pkg .cat-slab-row-pkg{border-top:1px solid #F1F5F9}
-#catPkgSlabs.cat-slab-table-pkg .cat-slab-row-pkg .cat-slab-count{display:block;min-width:0;margin:0}
-#catPkgSlabs.cat-slab-table-pkg .cat-slab-row-pkg .cat-slab-count input{width:100%;padding:9px 6px;font-size:14px;text-align:center}
-#catPkgSlabs.cat-slab-table-pkg .cat-slab-price-wrap{width:100%;min-width:0}
-#catPkgSlabs.cat-slab-table-pkg .cat-slab-price-wrap .slab-price{text-align:center!important}
-#catPkgSlabs.cat-slab-table-pkg .cat-slab-offer-col{font-size:11px;font-weight:800;min-width:0;line-height:1.3;word-break:break-word}
-#catPkgSlabs.cat-slab-table-pkg .cat-slab-offer-col.empty{color:#94A3B8;font-weight:700}
-#catPkgSlabs.cat-slab-table-pkg .cat-slab-offer-col s{color:#94A3B8;text-decoration:line-through;margin-right:2px}
-#catPkgSlabs.cat-slab-table-pkg .cat-slab-offer-col b{color:#BE185D;font-size:12px}
-#catPkgSlabs.cat-slab-table-pkg .cat-slab-rm{margin-top:0;width:38px;height:38px;align-self:center;justify-self:end;padding:0}
+.gx-slab-table.cat-slab-table-pkg{margin:0 16px 8px;border:1px solid #E5E7EB;border-radius:14px;overflow:hidden;background:#fff;padding:0}
+.gx-slab-table.cat-slab-table-pkg .cat-slab-hd-pkg,.gx-slab-table.cat-slab-table-pkg .cat-slab-row-pkg{display:grid;grid-template-columns:54px 54px minmax(0,1fr) 38px;gap:8px;align-items:center;padding:10px 12px;margin:0}
+.gx-slab-table.cat-slab-table-pkg.offer-on .cat-slab-hd-pkg,.gx-slab-table.cat-slab-table-pkg.offer-on .cat-slab-row-pkg{grid-template-columns:54px 54px minmax(0,1.05fr) minmax(0,1.05fr) 38px}
+.gx-slab-table.cat-slab-table-pkg:not(.offer-on) .cat-slab-hd-offer,.gx-slab-table.cat-slab-table-pkg:not(.offer-on) .cat-slab-offer-col{display:none!important}
+.gx-slab-table.cat-slab-table-pkg .cat-slab-hd-pkg{background:#F0FDF4;color:#047857;font-size:10px;font-weight:800;line-height:1.25;text-transform:none;letter-spacing:0;border-radius:0}
+.gx-slab-table.cat-slab-table-pkg .cat-slab-hd-pkg span{min-width:0;white-space:normal;line-height:1.2}
+.gx-slab-table.cat-slab-table-pkg .cat-slab-row-pkg{border-top:1px solid #F1F5F9}
+.gx-slab-table.cat-slab-table-pkg .cat-slab-row-pkg .cat-slab-count{display:block;min-width:0;margin:0}
+.gx-slab-table.cat-slab-table-pkg .cat-slab-row-pkg .cat-slab-count input{width:100%;padding:9px 6px;font-size:14px;text-align:center}
+.gx-slab-table.cat-slab-table-pkg .cat-slab-price-wrap{width:100%;min-width:0}
+.gx-slab-table.cat-slab-table-pkg .cat-slab-price-wrap .slab-price{text-align:center!important}
+.gx-slab-table.cat-slab-table-pkg .cat-slab-offer-col{font-size:11px;font-weight:800;min-width:0;line-height:1.3;word-break:break-word}
+.gx-slab-table.cat-slab-table-pkg .cat-slab-offer-col s{color:#94A3B8;text-decoration:line-through;margin-right:2px}
+.gx-slab-table.cat-slab-table-pkg .cat-slab-offer-col b{color:#BE185D;font-size:12px}
+.gx-slab-table.cat-slab-table-pkg .cat-slab-rm{margin-top:0;width:38px;height:38px;align-self:center;justify-self:end;padding:0}
+#catFoodItemForm .cat-rate-choice{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px}
+#catFoodItemForm .cat-rate-choice label{border:1.5px solid #E5E7EB;border-radius:16px;padding:12px;background:#fff;align-items:flex-start}
+#catFoodItemForm .cat-rate-choice label:has(input:checked){border-color:#F9A8D4;background:#FFF1F5}
+#catFoodItemForm .cat-rate-choice small,#catFoodItemForm .cat-rate-choice b{display:block}
+#catFoodItemForm .cat-rate-choice small{font-size:11px;font-weight:600;color:#64748B;margin-top:4px}
+#catFoodItemForm #catFoodOfferBox{background:#FFF1F5;border-radius:16px;padding:12px}
+#catFoodItemForm .cat-lbl-pricing{font-size:13px;font-weight:900;color:#111827;margin:8px 0 10px}
 .gx-add-slab{display:block;width:calc(100% - 32px);margin:8px 16px 12px;padding:12px;border:2px dashed #86EFAC;border-radius:14px;background:#F0FDF4;color:#047857;font-size:13px;font-weight:800;text-align:center;cursor:pointer}
 .gx-preview-sec-hd{display:flex;align-items:center;gap:8px;margin:12px 0 8px;font-size:15px;font-weight:900;color:#111827}
 .gx-preview-sec-hd .gx-mod-count{margin-left:auto}
@@ -1089,10 +1095,10 @@ button.manage-pill{cursor:pointer;font:inherit;color:var(--blue);border-color:#B
       <label><input type="radio" name="catFoodDiet" id="catFoodDietVeg" checked> Veg</label>
       <label><input type="radio" name="catFoodDiet" id="catFoodDietNon"> Non-veg</label>
     </div>
-    <p class="lbl" id="catFoodSlabLabel">GUEST COUNT PRICING (OWNER DEFINED)</p>
+    <p class="cat-lbl-pricing" id="catFoodSlabLabel">Set guest count pricing</p>
     <div class="cat-rate-choice">
-      <label><input type="radio" name="catFoodRateMode" id="catFoodRateTiered" checked> Rate reduces as guest count increases</label>
-      <label><input type="radio" name="catFoodRateMode" id="catFoodRateFlat"> Same rate for all guests</label>
+      <label><input type="radio" name="catFoodRateMode" id="catFoodRateTiered" checked><span><b>Rate reduces as guest count increases</b><small>Lower price for higher guest count.</small></span></label>
+      <label><input type="radio" name="catFoodRateMode" id="catFoodRateFlat"><span><b>Same rate for all guests</b><small>One price for any guest count.</small></span></label>
     </div>
     <div class="cat-offer" id="catFoodOfferBox">
       <label class="cat-offer-check">
@@ -1100,11 +1106,13 @@ button.manage-pill{cursor:pointer;font:inherit;color:var(--blue);border-color:#B
         <span><b>Offer for customers</b><small>Plate price stays as you type it. Customers see a lower price.</small></span>
       </label>
       <div id="catFoodOfferFields" hidden>
-        <div class="cat-offer-pct">
-          <label for="catFoodOfferPercent">Discount</label>
-          <div class="cat-offer-pct-in"><input type="number" id="catFoodOfferPercent" min="1" max="90" inputmode="numeric" placeholder="10"><span>%</span></div>
+        <div class="gx-offer-row">
+          <div class="cat-offer-pct">
+            <label for="catFoodOfferPercent">Discount</label>
+            <div class="gx-offer-step"><button type="button" class="gx-step-btn" id="catFoodOfferMinus" aria-label="Decrease discount">−</button><div class="cat-offer-pct-in"><input type="number" id="catFoodOfferPercent" min="1" max="90" inputmode="numeric" placeholder="7"><span>%</span></div><button type="button" class="gx-step-btn" id="catFoodOfferPlus" aria-label="Increase discount">+</button></div>
+          </div>
+          <p class="gx-offer-hint"><span aria-hidden="true">ℹ</span> Type 1 to 90% off. Each plate price updates on its own.</p>
         </div>
-        <p class="cat-pkg-name-hint" style="margin:8px 0 0">Type 10 for 10% off. Use 1 to 90. Each plate price updates on its own.</p>
       </div>
     </div>
     <div id="catFoodFlatWrap" hidden>
@@ -1114,7 +1122,8 @@ button.manage-pill{cursor:pointer;font:inherit;color:var(--blue);border-color:#B
     </div>
     <div id="catFoodTieredWrap">
       <div id="catFoodSlabs"></div>
-      <button type="button" class="cat-add-slab" id="catFoodAddSlab">+ Add another slab</button>
+      <button type="button" class="cat-add-slab gx-add-slab" id="catFoodAddSlab">+ Add Another Slab</button>
+      <div class="cat-pkg-example" id="catFoodPricingExample" aria-live="polite"></div>
     </div>
   </div>
   <div class="cta" style="display:flex;gap:10px">
