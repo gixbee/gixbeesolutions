@@ -8,7 +8,7 @@ const PKG_EVENT_CATEGORIES = [
   {
     id: 'wedding',
     label: 'Wedding & Related Functions',
-    sub: 'Wedding, Engagement, Reception',
+    sub: 'Wedding, Engagement, Reception, Anniversary etc.',
     icon: '💍',
   },
   {
@@ -34,7 +34,7 @@ function syncPkgDraftFromStep2Fields() {
   if (nameEl) pkgWizard.draft.name = (nameEl.value || '').trim();
   if (descEl) pkgWizard.draft.description = (descEl.value || '').trim();
   pkgWizard.draft.customerTitle =
-    (pkgWizard.draft.level || 'Basic') + ' - ' + (pkgWizard.draft.name || 'Your package name');
+    (pkgWizard.draft.level || 'Basic') + ' – ' + (pkgWizard.draft.name || 'Your package name');
 }
 
 function dietMarkHtml(kind, large) {
@@ -241,13 +241,15 @@ function updatePkgCustomerPreview() {
   if (!host || !pkgWizard.draft) return;
   const diet = packageDietChipHtml(pkgWizard.draft.dietType);
   const serve = packageServiceLabel(pkgWizard.draft);
-  const title = esc(pkgWizard.draft.customerTitle || 'Basic - Your package name');
+  const title = esc(pkgWizard.draft.customerTitle || 'Basic – Your package name');
+  const chips =
+    (diet ? '<span class="gx-cust-chip diet">' + diet + '</span>' : '') +
+    (serve ? '<span class="gx-cust-chip serve">🍽 ' + esc(serve) + '</span>' : '');
   host.innerHTML =
-    (diet ? '<div class="cat-pkg-cust-diet">' + diet + '</div>' : '') +
-    '<div class="cat-pkg-cust-name">' +
+    '<p class="gx-cust-kicker">Package name (as shown to customers)</p><div class="cat-pkg-cust-name">' +
     title +
     '</div>' +
-    (serve ? '<div class="cat-pkg-cust-diet">' + esc(serve) + '</div>' : '');
+    (chips ? '<div class="gx-cust-chips">' + chips + '</div>' : '');
 }
 
 function bindClick(id, handler) {
@@ -484,16 +486,21 @@ function renderPkgGuestPricingExample(slabs) {
   const base = guestSlabPriceForCount(s, guests);
   const pct = pkgWizard.draft ? offerPercentOf(pkgWizard.draft) : 0;
   const per = priceAfterOffer(base, pct);
-  const total = guests * per;
   host.innerHTML =
     '<span class="cat-pkg-example-ico" aria-hidden="true">🧮</span><div><b>Example Calculation</b><p>' +
     guests +
     ' guests × ₹' +
-    formatInrFull(per) +
-    ' = ₹ ' +
-    formatInrFull(total) +
+    formatInrFull(base) +
+    ' = ₹' +
+    formatInrFull(guests * base) +
     ' (approx).' +
-    (pct ? ' Offer price, ' + pct + '% off ₹' + formatInrFull(base) + ' / plate.' : '') +
+    (pct
+      ? ' Offer price: ' +
+        pct +
+        '% off = ₹' +
+        formatInrFull(guests * per) +
+        ' (approx).'
+      : '') +
     '</p></div>';
 }
 
@@ -669,12 +676,17 @@ function renderCatPkgCategoryFilters() {
     '<div class="hub-cat-filter-grid">' +
     cards
       .map(function (c) {
+        const ico = c.id === 'wedding' ? '💍' : '📅';
         return (
           '<button type="button" class="hub-cat-card' +
           (sel === c.id ? ' on' : '') +
           '" data-cat-ev="' +
           esc(c.id) +
-          '"><b>' +
+          '"><span class="hub-cat-chk" aria-hidden="true">' +
+          (sel === c.id ? '✓' : '') +
+          '</span><span class="hub-cat-ico">' +
+          ico +
+          '</span><b>' +
           esc(c.title) +
           '</b><small>' +
           esc(c.sub) +
@@ -770,7 +782,7 @@ function renderCatPkgList() {
         (p.status === 'live' ? 'pub' : 'draft') +
         '">' +
         (p.status === 'live' ? '● Live' : '○ Draft') +
-        '</span></div><div class="hub-card-actions">' +
+        '</span><div class="hub-card-actions">' +
         '<button type="button" class="hub-act hub-act-edit hub-act-sm" data-cpkg-edit="' +
         esc(p.id) +
         '">' +
@@ -778,7 +790,7 @@ function renderCatPkgList() {
         ' Edit</button>' +
         '<button type="button" class="hub-act hub-act-del hub-act-sm" data-cpkg-del="' +
         esc(p.id) +
-        '">Delete</button></div></div></div>'
+        '">🗑 Delete</button></div></div></div></div>'
       );
     })
     .join('');
@@ -1187,8 +1199,34 @@ function openModulePicker(moduleId, mode) {
       renderModulePickerBody();
     };
   }
+  renderModulePickBanner(mod);
   renderModulePickerBody();
   show('catModulePick');
+}
+
+function renderModulePickBanner(mod) {
+  const banner = el('catModulePickBanner');
+  if (!banner || !mod) return;
+  const pending = countModulePickPending();
+  const total = moduleCatalogItemCount(mod);
+  const label =
+    menuPickCtx.mode === 'package'
+      ? packageModuleLabel(mod, pkgWizard.draft && pkgWizard.draft.dietType)
+      : mod.name;
+  banner.innerHTML =
+    '<div class="gx-pick-banner"><span class="gx-pick-banner-ico" style="background:' +
+    mod.gradient +
+    '">' +
+    mod.emoji +
+    '</span><div><b>' +
+    esc(label) +
+    '</b><small>' +
+    total +
+    ' dishes in catalogue · ' +
+    pending +
+    ' selected</small></div><span class="gx-pick-banner-photo">' +
+    mod.emoji +
+    '</span></div>';
 }
 
 function ownerCustomDishesForModule(moduleId) {
@@ -1402,6 +1440,7 @@ function renderModulePickerBody() {
       (menuPickCtx.mode === 'catalog' ? ' · ' + pending + ' to add' : ' · ' + pending + ' selected');
   }
   syncModulePickCount();
+  renderModulePickBanner(mod);
   body.querySelectorAll('.cat-pick-cell').forEach(function (cell) {
     cell.onclick = function () {
       toggleModulePickKey(cell.getAttribute('data-mk'));
@@ -1800,8 +1839,25 @@ function renderSlabTable(hostId, slabs, onChange, tableOpts) {
   tableOpts = tableOpts || {};
   const host = el(hostId);
   if (!host) return;
+  const pkgLayout = tableOpts.layout === 'package';
+  host.className = pkgLayout ? 'cat-slab-table cat-slab-table-pkg' : 'cat-slab-table';
   const priceHdr = tableOpts.priceHeader || 'Price per plate (₹)';
   const rows = (slabs || []).map(function (s, idx) {
+    if (pkgLayout) {
+      return (
+        '<div class="cat-slab-row cat-slab-row-pkg" data-idx="' +
+        idx +
+        '"><label class="cat-slab-count"><input type="number" class="slab-from" value="' +
+        esc(s.from) +
+        '" min="1" aria-label="From guests"></label><label class="cat-slab-count"><input type="number" class="slab-to" value="' +
+        esc(s.to) +
+        '" min="1" aria-label="To guests"></label><div class="cat-slab-price-wrap"><span class="cat-slab-inr" aria-hidden="true">₹</span><input type="number" class="slab-price" value="' +
+        esc(s.price) +
+        '" min="0" aria-label="Price per plate"></div><div class="cat-slab-offer-col"></div><button type="button" class="cat-slab-rm" data-rm="' +
+        idx +
+        '">🗑</button></div>'
+      );
+    }
     return (
       '<div class="cat-slab-row" data-idx="' +
       idx +
@@ -1816,11 +1872,19 @@ function renderSlabTable(hostId, slabs, onChange, tableOpts) {
       '">🗑</button></div>'
     );
   });
-  host.innerHTML =
-    '<div class="cat-slab-hd"><span>From</span><span>To</span><span>' +
-    esc(priceHdr) +
-    '</span><span></span></div>' +
-    rows.join('');
+  if (pkgLayout) {
+    host.innerHTML =
+      '<div class="cat-slab-hd cat-slab-hd-pkg"><span>From (Guests)</span><span>To (Guests)</span><span>' +
+      esc(priceHdr) +
+      '</span><span>Offer Price (₹)</span><span></span></div>' +
+      rows.join('');
+  } else {
+    host.innerHTML =
+      '<div class="cat-slab-hd"><span>From</span><span>To</span><span>' +
+      esc(priceHdr) +
+      '</span><span></span></div>' +
+      rows.join('');
+  }
   function read() {
     const next = [];
     host.querySelectorAll('.cat-slab-row').forEach(function (row) {
@@ -2044,6 +2108,7 @@ function renderCatPkgTypeSeg(level) {
       esc(l) +
       '">' +
       esc(l) +
+      (l === level ? ' ✓' : '') +
       '</button>'
     );
   }).join('');
@@ -2152,11 +2217,11 @@ function renderCatPkgStep3Menu() {
       else vegN += 1;
     });
     summary.innerHTML =
-      '<div class="gx-banner">' +
+      '<div class="gx-step3-bar"><div class="gx-step3-half">' +
       packageDietLeadHtml(d.dietType) +
-      '<span style="margin-left:auto">' +
+      '</div><div class="gx-step3-half"><span aria-hidden="true">🍽</span> ' +
       esc(packageServiceLabel(d)) +
-      '</span></div><div class="gx-selected"><div class="gx-selected-top"><b>Your Selected Menu</b><span class="gx-mod-count">' +
+      '</div></div><div class="gx-selected"><div class="gx-selected-top"><span class="gx-menu-ico" aria-hidden="true">🍴</span><b>Your Selected Menu</b><span class="gx-mod-count">' +
       selected +
       ' Dishes</span></div><p>Veg: ' +
       vegN +
@@ -2288,11 +2353,24 @@ function renderCatPkgOffer() {
 function paintPackageOfferPrices() {
   const d = pkgWizard.draft;
   const pct = d ? offerPercentOf(d) : 0;
-  document.querySelectorAll('#catPkgSlabs .cat-slab-offer').forEach(function (slot) {
+  document.querySelectorAll('#catPkgSlabs .cat-slab-offer, #catPkgSlabs .cat-slab-offer-col').forEach(function (slot) {
     const row = slot.closest('.cat-slab-row');
     const priceEl = row && row.querySelector('.slab-price');
     const price = priceEl ? +priceEl.value || 0 : 0;
-    slot.innerHTML = pct ? offerPriceBitsHtml(price, pct) : '';
+    if (!pct) {
+      slot.innerHTML = '';
+      return;
+    }
+    if (slot.classList.contains('cat-slab-offer-col')) {
+      slot.innerHTML =
+        '<s>₹' +
+        formatInrFull(price) +
+        '</s> <b>₹' +
+        formatInrFull(priceAfterOffer(price, pct)) +
+        '</b>';
+    } else {
+      slot.innerHTML = offerPriceBitsHtml(price, pct);
+    }
   });
   const flatSlot = el('catPkgFlatOffer');
   if (flatSlot) {
@@ -2335,6 +2413,7 @@ function renderCatPkgPricing() {
       pkgWizard.draft.guestSlabs = slabs;
     },
     {
+      layout: 'package',
       priceHeader: 'Price per plate (₹)',
       afterChange: function (slabs) {
         renderPkgGuestPricingExample(slabs);
@@ -2362,7 +2441,7 @@ function renderCatPkgPreview() {
       esc(packageServiceLabel(d)) +
       '</div><div>' +
       esc(pkgCategoryLabel(d.packageCategory)) +
-      '</div></div></div><div class="gx-selected-top" style="margin-bottom:8px"><b>Menu Summary</b><span class="gx-mod-count">Total: ' +
+      '</div></div></div><div class="gx-preview-sec-hd" style="margin-bottom:8px"><span class="gx-menu-ico" aria-hidden="true">🍴</span><b>Menu Summary</b><span class="gx-mod-count">Total: ' +
       selected +
       ' dishes</span></div>';
     FOOD_MODULES.forEach(function (m) {
@@ -2392,22 +2471,43 @@ function renderCatPkgPreview() {
   if (pr) {
     const slabs = d.guestSlabs || [];
     const pct = offerPercentOf(d);
-    if (!slabs.length) pr.textContent = 'No guest slabs set';
+    if (!slabs.length) pr.innerHTML = '<p class="sub">No guest slabs set</p>';
     else {
-      pr.innerHTML = slabs
+      let rows = slabs
         .map(function (s) {
           const range =
-            d.rateMode === 'flat' ? 'All guests' : esc(String(s.from)) + '–' + esc(String(s.to)) + ' guests';
-          if (!pct) return range + ': ₹' + formatInrFull(s.price) + ' / plate';
+            d.rateMode === 'flat'
+              ? 'All guests'
+              : esc(String(s.from)) + ' – ' + esc(String(s.to));
+          const base = '₹' + formatInrFull(s.price);
+          const offer = pct
+            ? '<s>₹' +
+              formatInrFull(s.price) +
+              '</s> <b>₹' +
+              formatInrFull(priceAfterOffer(s.price, pct)) +
+              '</b>'
+            : '<b>' +
+              base +
+              '</b>';
           return (
-            '<span class="cat-preview-offer">' +
+            '<div class="gx-price-row"><span>' +
             range +
-            ': ' +
-            offerPriceBitsHtml(s.price, pct) +
-            ' / plate</span>'
+            '</span><span>' +
+            base +
+            '</span><span class="gx-price-offer">' +
+            offer +
+            '</span></div>'
           );
         })
-        .join('<br>');
+        .join('');
+      pr.innerHTML =
+        '<div class="gx-preview-sec-hd"><b>Guest Pricing</b>' +
+        (pct ? '<span class="gx-mod-count">Offer: ' + pct + '% off</span>' : '') +
+        '</div><div class="gx-price-table"><div class="gx-price-hd"><span>Guest Count</span><span>Price per Plate</span><span>Offer Price' +
+        (pct ? ' (' + pct + '% off)' : '') +
+        '</span></div>' +
+        rows +
+        '</div>';
     }
   }
   const live = el('catPkgStatusLive');
@@ -2465,6 +2565,32 @@ function bindCatPkgPricingUi() {
     pkgWizard.draft.offerEnabled = true;
     pkgWizard.draft.discountPercent = raw === '' ? '' : Math.round(+raw);
     paintPackageOfferPrices();
+    renderPkgGuestPricingExample(pkgWizard.draft.guestSlabs);
+  });
+  bindClick('catPkgOfferMinus', function () {
+    if (!pkgWizard.draft) return;
+    const pct = el('catPkgOfferPercent');
+    const on = el('catPkgOfferOn');
+    if (on) on.checked = true;
+    pkgWizard.draft.offerEnabled = true;
+    let v = Math.round(+(pct && pct.value !== '' ? pct.value : 7));
+    v = Math.max(1, Math.min(90, v - 1));
+    if (pct) pct.value = v;
+    pkgWizard.draft.discountPercent = v;
+    renderCatPkgOffer();
+    renderPkgGuestPricingExample(pkgWizard.draft.guestSlabs);
+  });
+  bindClick('catPkgOfferPlus', function () {
+    if (!pkgWizard.draft) return;
+    const pct = el('catPkgOfferPercent');
+    const on = el('catPkgOfferOn');
+    if (on) on.checked = true;
+    pkgWizard.draft.offerEnabled = true;
+    let v = Math.round(+(pct && pct.value !== '' ? pct.value : 7));
+    v = Math.max(1, Math.min(90, v + 1));
+    if (pct) pct.value = v;
+    pkgWizard.draft.discountPercent = v;
+    renderCatPkgOffer();
     renderPkgGuestPricingExample(pkgWizard.draft.guestSlabs);
   });
   bindClick('catPkgNextPreview', function () {
