@@ -195,6 +195,25 @@ const CATERING_CATALOG_DEFS = [
     "emoji": "🍚",
     "subcats": [
       {
+        "id": "rice",
+        "name": "Rice and noodles",
+        "items": [
+          "Kerala Matta Rice",
+          "Steamed Rice",
+          "Ghee Rice",
+          "Jeera Rice",
+          "Vegetable Pulao",
+          "Coconut Rice",
+          "Lemon Rice",
+          "Curd Rice",
+          "Tomato Rice",
+          "Vegetable Fried Rice",
+          "Chicken Fried Rice",
+          "Vegetable Hakka Noodles",
+          "Chicken Hakka Noodles"
+        ]
+      },
+      {
         "id": "biryani",
         "name": "Biryani",
         "items": [
@@ -219,25 +238,6 @@ const CATERING_CATALOG_DEFS = [
           "Ambur Mutton Biriyani",
           "Kacchi Mutton Dum Biriyani",
           "Jeerakasala Fish Biriyani"
-        ]
-      },
-      {
-        "id": "rice",
-        "name": "Rice and noodles",
-        "items": [
-          "Kerala Matta Rice",
-          "Steamed Rice",
-          "Ghee Rice",
-          "Jeera Rice",
-          "Vegetable Pulao",
-          "Coconut Rice",
-          "Lemon Rice",
-          "Curd Rice",
-          "Tomato Rice",
-          "Vegetable Fried Rice",
-          "Chicken Fried Rice",
-          "Vegetable Hakka Noodles",
-          "Chicken Hakka Noodles"
         ]
       },
       {
