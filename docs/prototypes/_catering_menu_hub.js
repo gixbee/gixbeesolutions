@@ -2358,10 +2358,16 @@ function paintPackageOfferPrices() {
     const priceEl = row && row.querySelector('.slab-price');
     const price = priceEl ? +priceEl.value || 0 : 0;
     if (!pct) {
-      slot.innerHTML = '';
+      if (slot.classList.contains('cat-slab-offer-col')) {
+        slot.innerHTML = '—';
+        slot.classList.add('empty');
+      } else {
+        slot.innerHTML = '';
+      }
       return;
     }
     if (slot.classList.contains('cat-slab-offer-col')) {
+      slot.classList.remove('empty');
       slot.innerHTML =
         '<s>₹' +
         formatInrFull(price) +
