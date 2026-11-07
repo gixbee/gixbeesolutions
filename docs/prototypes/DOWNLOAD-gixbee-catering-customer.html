@@ -1152,22 +1152,39 @@ function ccServeFilterLabel(id) {
   return hit ? hit.label : 'All';
 }
 
+function ccCustomerModuleLabel(mod) {
+  const id = mod && mod.id;
+  const labels = {
+    g01: 'Welcome Drinks',
+    g02: 'Starters & Snacks',
+    g03: 'Rice, Biriyani & Mandi',
+    g04: 'Breads & Rotis',
+    g05: 'Curries & Gravies',
+    g06: 'Vegetables & Thoran',
+    g07: 'Accompaniments',
+    g08: 'Desserts & Sweets',
+    g09: 'Live Counters',
+  };
+  if (id && labels[id]) return labels[id];
+  return (mod && mod.name) || '';
+}
+
 function ccCustomerFoodGroups() {
   if (typeof FOOD_MODULES !== 'undefined' && FOOD_MODULES.length) {
     return FOOD_MODULES.map(function (m) {
-      return { id: m.id, label: m.name };
+      return { id: m.id, label: ccCustomerModuleLabel(m) };
     });
   }
   return [
-    { id: 'g01', label: 'Welcome drinks' },
-    { id: 'g02', label: 'Starters and snacks' },
-    { id: 'g03', label: 'Rice, biryani and mandi' },
-    { id: 'g04', label: 'Breads' },
-    { id: 'g05', label: 'Curries and gravies' },
-    { id: 'g06', label: 'Dry vegetables and thoran' },
-    { id: 'g07', label: 'Chutney, pickle, salad and pappadam' },
-    { id: 'g08', label: 'Payasam and desserts' },
-    { id: 'g09', label: 'Live counters' },
+    { id: 'g01', label: 'Welcome Drinks' },
+    { id: 'g02', label: 'Starters & Snacks' },
+    { id: 'g03', label: 'Rice, Biriyani & Mandi' },
+    { id: 'g04', label: 'Breads & Rotis' },
+    { id: 'g05', label: 'Curries & Gravies' },
+    { id: 'g06', label: 'Vegetables & Thoran' },
+    { id: 'g07', label: 'Accompaniments' },
+    { id: 'g08', label: 'Desserts & Sweets' },
+    { id: 'g09', label: 'Live Counters' },
   ];
 }
 
@@ -1178,7 +1195,7 @@ function ccMenuGroupsForPackage(pkg) {
       const mod = typeof findFoodModule === 'function' ? findFoodModule(row.moduleId) : null;
       return {
         moduleId: row.moduleId,
-        name: (mod && mod.name) || String(row.moduleId || 'Menu'),
+        name: ccCustomerModuleLabel(mod) || String(row.moduleId || 'Menu'),
         emoji: (mod && mod.emoji) || '',
         items: row.items || [],
       };
@@ -1265,7 +1282,7 @@ function ccDemoWeddingMenuModules() {
 function ccPackageMenuFromModules(rows) {
   return rows.map(function (row) {
     const mod = typeof findFoodModule === 'function' ? findFoodModule(row.moduleId) : null;
-    return { name: (mod && mod.name) || row.moduleId, items: row.items || [] };
+    return { name: ccCustomerModuleLabel(mod) || row.moduleId, items: row.items || [] };
   });
 }
 
