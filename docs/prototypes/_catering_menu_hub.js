@@ -101,6 +101,7 @@ function applyPackageDiet(next) {
 
 function vegSadhyaShowsDish(item) {
   if (!item) return false;
+  if (item.custom || item.subcatId === 'custom') return true;
   const key = String(item.masterKey || '');
   const inRiceGroup = item.moduleId === 'g03' || key.indexOf('g03::') === 0;
   if (!inRiceGroup) return true;
@@ -325,7 +326,7 @@ function ownerHasMasterKey(masterKey) {
 
 function countItemsInModule(moduleId) {
   return (store.cateringMenu.foodItems || []).filter(function (f) {
-    return f.moduleId === moduleId && f.status !== 'archived';
+    return f.moduleId === moduleId && f.status !== 'archived' && !f.custom;
   }).length;
 }
 
@@ -1131,6 +1132,135 @@ function openModulePicker(moduleId, mode) {
   show('catModulePick');
 }
 
+function ownerCustomDishesForModule(moduleId) {
+  return (store.cateringMenu.foodItems || []).filter(function (f) {
+    return f && f.custom && f.moduleId === moduleId && f.status !== 'archived';
+  });
+}
+
+function findCatalogDishInModule(mod, name) {
+  const q = String(name || '').trim().toLowerCase();
+  if (!mod || !q) return null;
+  let found = null;
+  (mod.subcats || []).forEach(function (sc) {
+    (sc.items || []).forEach(function (it) {
+      if (!found && String(it.name || '').trim().toLowerCase() === q) found = it;
+    });
+  });
+  return found;
+}
+
+function addOwnerCustomDish(mod, name, diet) {
+  const clean = String(name || '').trim().replace(/\s+/g, ' ');
+  if (!clean) {
+    toast('Type the dish name');
+    return;
+  }
+  const dietType = pkgWizard.draft && pkgWizard.draft.dietType;
+  const want = diet === 'non_veg' ? 'non_veg' : 'veg';
+  if (dietType === 'veg' && want === 'non_veg') {
+    toast('A veg sadhya can add only a vegetarian dish');
+    return;
+  }
+  const catalog = findCatalogDishInModule(mod, clean);
+  if (catalog) {
+    if (!dishAllowedOnPackage(catalog, dietType)) {
+      toast('That dish is not part of this package');
+      return;
+    }
+    menuPickCtx.selected[catalog.masterKey] = true;
+    toast('Already in the list');
+    renderModulePickerBody();
+    return;
+  }
+  const existing = ownerCustomDishesForModule(mod.id).find(function (f) {
+    return String(f.name || '').trim().toLowerCase() === clean.toLowerCase();
+  });
+  if (existing) {
+    if (!dishAllowedOnPackage(existing, dietType)) {
+      toast('That dish is not part of this package');
+      return;
+    }
+    menuPickCtx.selected[existing.masterKey] = true;
+    toast('Already in your dishes');
+    renderModulePickerBody();
+    return;
+  }
+  const slug = clean.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'dish';
+  const item = {
+    id: uid('food'),
+    masterKey: 'custom::' + mod.id + '::' + slug + '-' + String(uid('d')).slice(-4),
+    name: clean,
+    moduleId: mod.id,
+    subcatId: 'custom',
+    subcatName: 'Your dishes',
+    description: '',
+    diet: want,
+    custom: true,
+    individualListing: false,
+    pricingMode: 'per_person',
+    unitLabel: 'plate',
+    quoteOnly: false,
+    status: 'draft',
+    offerEnabled: false,
+    discountPercent: '',
+    slabs: defaultItemSlabs(),
+    imageEmoji: mod.emoji || '🍽️',
+  };
+  store.cateringMenu.foodItems.push(item);
+  menuPickCtx.selected[item.masterKey] = true;
+  menuPickCtx.ownDiet = 'veg';
+  saveStore();
+  renderModulePickerBody();
+  toast(clean + ' added');
+}
+
+function renderPackageOwnSection(mod, q) {
+  if (menuPickCtx.mode !== 'package' || !pkgWizard.draft) return '';
+  const dietType = pkgWizard.draft.dietType;
+  const vegOnly = dietType === 'veg';
+  if (!menuPickCtx.ownDiet) menuPickCtx.ownDiet = 'veg';
+  if (vegOnly) menuPickCtx.ownDiet = 'veg';
+  const custom = ownerCustomDishesForModule(mod.id).filter(function (it) {
+    if (!dishAllowedOnPackage(it, dietType)) return false;
+    return modulePickMatchesSearch(it.name, q);
+  });
+  let cells = custom
+    .map(function (it) {
+      const picked = !!menuPickCtx.selected[it.masterKey];
+      const diet = pickDietLabel(it.diet);
+      return (
+        '<button type="button" class="cat-pick-cell' +
+        (picked ? ' on' : '') +
+        '" data-mk="' +
+        esc(it.masterKey) +
+        '"><span class="cat-pick-chk" aria-hidden="true">' +
+        (picked ? '✓' : '') +
+        '</span><span class="cat-pick-label"><span>' +
+        esc(it.name) +
+        '</span><span class="cat-pick-diet ' +
+        diet.cls +
+        '">' +
+        diet.text +
+        '</span></span></button>'
+      );
+    })
+    .join('');
+  const diets = vegOnly
+    ? ''
+    : '<div class="cat-own-diets"><button type="button" data-own-diet="veg"' +
+      (menuPickCtx.ownDiet !== 'non_veg' ? ' class="on"' : '') +
+      '>Veg</button><button type="button" data-own-diet="non_veg"' +
+      (menuPickCtx.ownDiet === 'non_veg' ? ' class="on"' : '') +
+      '>Non-veg</button></div>';
+  return (
+    '<div class="cat-pick-own"><div class="cat-pick-section-hd"><b>Add your own</b></div><p class="cat-pkg-name-hint">Not in the list? Add it to this group.</p>' +
+    (cells ? '<div class="cat-pick-grid">' + cells + '</div>' : '') +
+    diets +
+    '<div class="cat-own-row"><input id="catOwnDishName" type="text" maxlength="60" placeholder="Dish name" autocomplete="off"><button type="button" class="cat-own-add" id="catOwnDishAdd">Add</button></div></div>'
+  );
+}
+
 function renderModulePickerBody() {
   const mod = findFoodModule(menuPickCtx.moduleId);
   const body = el('catModulePickBody');
@@ -1201,12 +1331,12 @@ function renderModulePickerBody() {
   });
   const vegOnly =
     menuPickCtx.mode === 'package' && pkgWizard.draft && pkgWizard.draft.dietType === 'veg';
-  if (!html) {
-    html =
-      '<div class="cat-pick-empty">' +
-      (vegOnly && !q ? 'No vegetarian dishes in this group.' : 'No dishes match your search.') +
-      '</div>';
+  if (!html && q) {
+    html = '<div class="cat-pick-empty">No dishes match your search.</div>';
+  } else if (!html && vegOnly) {
+    html = '<div class="cat-pick-empty">No vegetarian dishes in this group.</div>';
   }
+  html += renderPackageOwnSection(mod, q);
   body.innerHTML = html;
   if (meta) {
     const pending = countModulePickPending();
@@ -1255,6 +1385,35 @@ function renderModulePickerBody() {
       renderModulePickerBody();
     };
   });
+  body.querySelectorAll('[data-own-diet]').forEach(function (btn) {
+    btn.onclick = function () {
+      menuPickCtx.ownDiet = btn.getAttribute('data-own-diet') === 'non_veg' ? 'non_veg' : 'veg';
+      const typed = el('catOwnDishName');
+      const keep = typed ? typed.value : '';
+      renderModulePickerBody();
+      const again = el('catOwnDishName');
+      if (again) {
+        again.value = keep;
+        again.focus();
+      }
+    };
+  });
+  const ownAdd = el('catOwnDishAdd');
+  if (ownAdd) {
+    ownAdd.onclick = function () {
+      const input = el('catOwnDishName');
+      addOwnerCustomDish(mod, input ? input.value : '', menuPickCtx.ownDiet || 'veg');
+    };
+  }
+  const ownName = el('catOwnDishName');
+  if (ownName) {
+    ownName.onkeydown = function (e) {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        addOwnerCustomDish(mod, ownName.value, menuPickCtx.ownDiet || 'veg');
+      }
+    };
+  }
 }
 
 function syncModulePickCount() {
@@ -1282,16 +1441,13 @@ function commitModulePicker() {
     });
     const newIds = [];
     keys.forEach(function (mk) {
-      const master = findMasterItem(mk);
-      if (
-        master &&
-        !dishAllowedOnPackage(master.item, pkgWizard.draft.dietType)
-      ) {
-        return;
-      }
       let item = (store.cateringMenu.foodItems || []).find(function (f) {
         return f.masterKey === mk;
       });
+      const master = findMasterItem(mk);
+      const candidate = master ? master.item : item;
+      if (candidate && !dishAllowedOnPackage(candidate, pkgWizard.draft.dietType)) return;
+      if (!item && !master) return;
       if (!item) {
         item = createFoodItemFromMaster(mk, 'draft');
         store.cateringMenu.foodItems.push(item);
@@ -1890,6 +2046,11 @@ function moduleMatchesPackageSearch(mod, q) {
   const dietType = pkgWizard.draft && pkgWizard.draft.dietType;
   if (packageModuleLabel(mod, dietType).toLowerCase().indexOf(q) >= 0) return true;
   let hit = false;
+  ownerCustomDishesForModule(mod.id).forEach(function (it) {
+    if (hit || !dishAllowedOnPackage(it, dietType)) return;
+    if (String(it.name || '').toLowerCase().indexOf(q) >= 0) hit = true;
+  });
+  if (hit) return true;
   (mod.subcats || []).forEach(function (sc) {
     (sc.items || []).forEach(function (it) {
       if (hit || !dishAllowedOnPackage(it, dietType)) return;
