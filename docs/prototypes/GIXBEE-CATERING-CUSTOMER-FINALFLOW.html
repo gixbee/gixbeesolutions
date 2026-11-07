@@ -1,0 +1,3081 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Gixbee — Catering Services (Customer)</title>
+<style>
+:root{--green:#15803D;--green2:#16A34A;--ink:#111827;--mut:#64748B;--line:#E5E7EB;--soft:#F0FDF4;--shadow:0 10px 28px rgba(15,23,42,.08)}
+*{box-sizing:border-box}
+body{margin:0;background:#E7F6EC;font-family:Inter,system-ui,sans-serif;color:var(--ink)}
+.stage{min-height:100vh;display:flex;justify-content:center;padding:12px 8px 24px}
+.phone{width:min(100%,430px);background:#fff;min-height:920px;border-radius:36px;box-shadow:var(--shadow);overflow:hidden;position:relative;border:8px solid #111;display:flex;flex-direction:column}
+.notch{height:28px;display:flex;justify-content:space-between;align-items:center;padding:0 18px;font-size:12px;font-weight:700}
+.scr{display:none;flex:1;overflow:auto;padding:0 0 24px;background:#fff}
+.scr.on{display:block}
+.top{display:flex;align-items:center;gap:8px;padding:8px 12px 10px;background:#fff;position:sticky;top:0;z-index:5}
+.top h1{margin:0;flex:1;text-align:center;font-size:17px;font-weight:900;color:#14532D}
+.back,.icon-btn{border:0;background:#fff;width:36px;height:36px;border-radius:50%;font-size:20px;cursor:pointer;color:#14532D}
+.icon-btn.on{background:#F0FDF4}
+.banner{margin:0 16px 14px;height:132px;border-radius:18px;background:linear-gradient(120deg,#166534 0%,#15803D 42%,#CA8A04 100%);color:#fff;display:flex;flex-direction:column;justify-content:flex-end;padding:16px;position:relative;overflow:hidden}
+.banner::after{content:"🍛 🥗 🥥 🍌";position:absolute;right:12px;top:16px;font-size:28px;letter-spacing:4px;opacity:.95}
+.banner b{font-size:22px;font-weight:900;line-height:1.15;position:relative}
+.banner span{font-size:12px;font-weight:600;opacity:.95;position:relative}
+.pad{padding:0 16px}
+.fld{margin:0 0 14px}
+.fld label{display:block;font-size:13px;font-weight:800;margin:0 0 6px;color:#14532D}
+.fld .opt{font-weight:700;color:#64748B}
+.box{display:flex;align-items:center;gap:8px;border:1.5px solid #D1FAE5;background:#F8FFFB;border-radius:14px;padding:12px}
+.box input{border:0;background:transparent;flex:1;font:inherit;font-weight:800;font-size:15px;color:#14532D;outline:none;min-width:0}
+.date-box{cursor:pointer;align-items:center}
+.date-readout{flex:1;font-weight:800;font-size:15px;color:#14532D;text-align:left}
+.date-open{border:0;background:#DCFCE7;color:#15803D;font:inherit;font-weight:800;font-size:12px;padding:8px 12px;border-radius:999px;cursor:pointer;flex-shrink:0}
+.date-native{position:absolute;width:1px;height:1px;opacity:0;pointer-events:none;left:-9999px}
+.budget-val{text-align:center;font-size:20px;font-weight:900;color:#15803D;margin:10px 0 0;line-height:1.3}
+.budget-sliders{margin-top:4px}
+.dual-range{position:relative;height:40px;margin:10px 0 6px}
+.dual-range-track{position:absolute;left:0;right:0;top:50%;transform:translateY(-50%);height:8px;background:#E5E7EB;border-radius:999px;pointer-events:none}
+.dual-range-track span{position:absolute;top:0;height:100%;background:#16A34A;border-radius:999px;left:0;width:0}
+.dual-range input[type=range]{position:absolute;left:0;top:0;width:100%;height:40px;margin:0;background:transparent;pointer-events:none;-webkit-appearance:none;appearance:none}
+.dual-range input[type=range]::-webkit-slider-runnable-track{height:8px;background:transparent;border:0}
+.dual-range input[type=range]::-moz-range-track{height:8px;background:transparent;border:0}
+.dual-range input[type=range]::-webkit-slider-thumb{pointer-events:auto;-webkit-appearance:none;appearance:none;width:24px;height:24px;margin-top:-8px;border-radius:50%;background:#16A34A;border:3px solid #fff;box-shadow:0 2px 6px rgba(15,23,42,.18);cursor:pointer}
+.dual-range input[type=range]::-moz-range-thumb{pointer-events:auto;width:24px;height:24px;border-radius:50%;background:#16A34A;border:3px solid #fff;box-shadow:0 2px 6px rgba(15,23,42,.18);cursor:pointer}
+.range-ends{display:flex;justify-content:space-between;font-size:11px;font-weight:800;color:#64748B;margin-top:2px}
+.fn-card{display:flex;gap:10px;align-items:flex-start;width:100%;text-align:left;border:1.5px solid #E5E7EB;background:#fff;border-radius:16px;padding:12px;margin:0 0 10px;cursor:pointer;font:inherit;color:inherit}
+.fn-card.on{border-color:#16A34A;background:#F0FDF4}
+.fn-ico{width:36px;height:36px;border-radius:12px;display:grid;place-items:center;background:#F0FDF4;flex-shrink:0;font-size:18px}
+.fn-card b{display:block;font-size:14px;color:#14532D}
+.fn-card small{display:block;margin-top:2px;color:#64748B;font-weight:600;font-size:12px;line-height:1.35}
+.fn-tick{margin-left:auto;width:22px;height:22px;border-radius:50%;border:1.5px solid #D1D5DB;display:grid;place-items:center;color:transparent;font-size:12px;font-weight:900;flex-shrink:0}
+.fn-card.on .fn-tick{background:#16A34A;border-color:#16A34A;color:#fff}
+.fld input[type=range]{width:100%;accent-color:#16A34A}
+.btn{width:100%;border:0;border-radius:999px;background:#16A34A;color:#fff;font-weight:800;font-size:16px;padding:14px;cursor:pointer;font:inherit;box-shadow:0 8px 18px rgba(22,163,74,.28)}
+.btn.ghost{background:#fff;color:#15803D;border:1.5px solid #86EFAC;box-shadow:none}
+.btn-row{display:flex;flex-direction:column;gap:10px;padding:8px 16px 16px}
+.ctx{padding:0 16px 8px;font-size:13px;font-weight:700;color:#64748B}
+.chips{display:flex;gap:8px;flex-wrap:wrap;padding:0 16px 12px}
+.chips::-webkit-scrollbar{display:none}
+.chip{flex:none;border:1.5px solid #D1FAE5;background:#fff;color:#166534;border-radius:999px;padding:8px 14px;font-weight:800;font-size:13px;cursor:pointer;font:inherit}
+.chip.on{background:#16A34A;color:#fff;border-color:#16A34A}
+.serve-filter-block{padding:0 0 2px}
+.serve-filter-title{margin:6px 16px 2px;font-size:12px;font-weight:900;color:#166534;letter-spacing:.02em}
+.serve-filter-lead{margin:0 16px 8px;font-size:11px;font-weight:700;color:#64748B;line-height:1.35}
+.serve-filters{display:flex;flex-wrap:nowrap;gap:6px;padding:0 12px 10px;align-items:stretch}
+.serve-opt{flex:1 1 0;min-width:0;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;gap:4px;border:1.5px solid #D1FAE5;background:#fff;border-radius:12px;padding:8px 5px 7px;cursor:pointer;font:inherit;text-align:center}
+.serve-opt b{display:block;font-size:10px;font-weight:900;color:#14532D;line-height:1.25}
+.serve-opt small{display:block;font-size:9px;font-weight:700;color:#64748B;line-height:1.3}
+.serve-opt.on{background:#16A34A;border-color:#16A34A;box-shadow:0 4px 10px rgba(22,163,74,.22)}
+.serve-opt.on b,.serve-opt.on small{color:#fff}
+.caterer{display:flex;gap:12px;width:calc(100% - 32px);margin:0 16px 12px;padding:10px;border:1px solid #E5E7EB;border-radius:18px;background:#fff;text-align:left;cursor:pointer;font:inherit;color:inherit;box-shadow:0 4px 14px rgba(15,23,42,.04)}
+.caterer.unavail{opacity:.92;border-color:#FECACA;background:#FFFBFB}
+.caterer.unavail .thumb{filter:grayscale(.35)}
+.badge.wait{background:#FFEDD5;color:#C2410C}
+.thumb{width:92px;height:92px;border-radius:14px;flex-shrink:0;display:grid;place-items:center;font-size:34px;color:#fff}
+.caterer b{display:block;font-size:15px;color:#14532D}
+.meta{font-size:12px;font-weight:700;color:#64748B;margin-top:3px;line-height:1.4}
+.stars{color:#CA8A04;font-weight:800}
+.price{margin-top:6px;font-size:13px;font-weight:900;color:#15803D}
+.badge{display:inline-block;margin-top:6px;font-size:11px;font-weight:800;padding:3px 8px;border-radius:999px}
+.badge.ok{background:#DCFCE7;color:#166534}
+.badge.no{background:#FEE2E2;color:#B91C1C}
+.hero{height:168px;margin:0 16px 12px;border-radius:18px;display:flex;align-items:flex-end;padding:14px;color:#fff;font-size:40px;background:linear-gradient(145deg,#166534,#CA8A04)}
+.rate-line{display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:0 16px 8px;font-size:13px;font-weight:800}
+.serves{display:inline-flex;align-items:center;gap:4px;background:#DCFCE7;color:#166534;border-radius:999px;padding:4px 8px;font-size:11px}
+.tabs{display:flex;gap:18px;padding:8px 16px 0;border-bottom:1px solid #E5E7EB}
+.tabs button{border:0;background:none;font:inherit;font-weight:800;color:#64748B;padding:10px 0;cursor:pointer;border-bottom:3px solid transparent}
+.tabs button.on{color:#15803D;border-color:#16A34A}
+.detail-tabs{margin-top:0}
+.detail-tab-body{padding-bottom:16px}
+.about{padding:14px 16px;font-size:14px;line-height:1.5;color:#374151;font-weight:600}
+.about h3{margin:0 0 6px;font-size:14px;color:#14532D}
+.spec{display:flex;gap:8px;flex-wrap:wrap;padding:0 16px 12px}
+.spec span{background:#F0FDF4;color:#166534;border-radius:999px;padding:6px 10px;font-size:12px;font-weight:800}
+.photo-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:12px 16px}
+.photo-grid div{height:110px;border-radius:14px;display:grid;place-items:center;font-size:36px;color:#fff}
+.review{margin:0 16px 10px;padding:12px;border:1px solid #E5E7EB;border-radius:14px}
+.review b{display:block;font-size:13px}
+.review p{margin:4px 0 0;font-size:13px;color:#374151;font-weight:600;line-height:1.4}
+.sticky-cta{position:sticky;bottom:0;padding:12px 16px 16px;background:linear-gradient(transparent,#fff 28%)}
+.confirm{margin:0 16px 12px;padding:12px;border-radius:16px;background:#F0FDF4;border:1px solid #BBF7D0;display:flex;justify-content:space-between;gap:8px;align-items:center;cursor:pointer}
+.confirm b{display:block;font-size:14px;color:#14532D}
+.confirm small{color:#166534;font-weight:700}
+.confirm button{border:0;background:#fff;color:#15803D;font-weight:800;border-radius:999px;padding:8px 10px;cursor:pointer;font:inherit}
+.count-line{padding:0 16px 8px;font-size:12px;font-weight:700;color:#64748B}
+.pkg{display:flex;gap:12px;width:calc(100% - 32px);margin:0 16px 12px;padding:10px;border:0;border-radius:18px;background:#fff;box-shadow:0 6px 18px rgba(15,23,42,.06);text-align:left;cursor:pointer;font:inherit;color:inherit;border:1px solid #E5E7EB}
+.food-row{align-items:center;padding:8px 10px 8px 8px}
+.food-row.on{border-color:#86EFAC;box-shadow:0 0 0 1px #BBF7D0}
+.food-check{width:44px;height:44px;flex-shrink:0;border:2px solid #D1FAE5;border-radius:14px;background:#F0FDF4;color:#15803D;font-size:20px;font-weight:900;cursor:pointer;display:grid;place-items:center;padding:0}
+.food-check.on{background:#16A34A;border-color:#16A34A;color:#fff}
+.food-check:not(.on){font-size:22px;color:#16A34A;font-weight:800}
+.food-hint{margin:-4px 16px 10px;font-size:12px;font-weight:700;color:#64748B;line-height:1.45}
+.food-hint b{color:#14532D}
+.food-group-h{margin:14px 16px 8px;font-size:12px;font-weight:900;letter-spacing:.02em;text-transform:uppercase;color:#166534}
+.food-select-actions{display:flex;flex-direction:column;gap:8px}
+.link-btn{border:0;background:none;font:inherit;font-size:13px;font-weight:800;color:#64748B;cursor:pointer;padding:4px 0;text-align:center}
+.link-btn:hover{color:#14532D}
+.estimate-note{margin:0 16px 12px;padding:10px 12px;border-radius:12px;background:#F0FDF4;border:1px solid #BBF7D0;font-size:12px;font-weight:700;color:#166534;line-height:1.45}
+.detail-hint{margin:12px 16px 0;padding:10px 12px;border-radius:12px;background:#F8FAFC;border:1px solid #E2E8F0;font-size:12px;font-weight:700;color:#64748B;line-height:1.45}
+.food-body{flex:1;display:flex;gap:12px;align-items:flex-start;border:0;background:transparent;padding:0;text-align:left;cursor:pointer;font:inherit;color:inherit;min-width:0}
+.food-body .thumb{width:72px;height:72px;font-size:28px;flex-shrink:0}
+#ccMenu.has-food-bar #ccMenuList{padding-bottom:132px}
+.food-select-bar{position:sticky;bottom:0;margin-top:-4px;padding:10px 16px 16px;background:linear-gradient(transparent,#fff 22%);border-top:1px solid #E5E7EB;display:flex;flex-direction:column;gap:10px;z-index:5}
+.food-select-bar[hidden]{display:none!important}
+.food-select-meta{display:flex;justify-content:space-between;align-items:baseline;gap:8px;padding:0 2px}
+.food-select-meta small{font-size:12px;font-weight:800;color:#64748B}
+.food-select-meta b{font-size:18px;font-weight:900;color:#15803D}
+.sum-card.compact{margin-bottom:8px;padding:10px}
+.sum-card.compact .thumb{width:52px;height:52px;font-size:22px}
+.interest-lines{margin:0 16px 8px}
+.interest-line{display:flex;justify-content:space-between;gap:10px;padding:10px 0;border-bottom:1px solid #F1F5F9;font-size:13px;font-weight:700}
+.interest-line b{color:#14532D;font-size:14px}
+.interest-line span{color:#64748B;text-align:right;line-height:1.35}
+.btn.on{background:#15803D;color:#fff}
+.pkg .thumb{width:84px;height:84px;font-size:32px}
+.pkg-top{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.lv{font-size:10px;font-weight:800;padding:3px 7px;border-radius:8px;background:#DCFCE7;color:#166534}
+.lv.standard{background:#FFEDD5;color:#C2410C}
+.lv.premium{background:#FEF3C7;color:#92400E}
+.cat-chip{font-size:10px;font-weight:800;padding:3px 7px;border-radius:8px;background:#ECFDF5;color:#047857}
+.pop{font-size:10px;font-weight:800;padding:3px 7px;border-radius:8px;background:#FEF3C7;color:#92400E}
+.diet-mark{display:inline-flex;align-items:center;justify-content:center;width:14px;height:14px;border:1.5px solid currentColor;border-radius:3px;background:#fff;flex-shrink:0}
+.diet-mark i{width:6px;height:6px;border-radius:50%;background:currentColor;display:block}
+.diet-mark.veg{color:#14804A}
+.diet-mark.non{color:#C2410C}
+.diet-line{display:flex;align-items:center;gap:4px;margin-top:4px;font-size:12px;font-weight:800;color:#0F172A}
+.was{color:#94A3B8;text-decoration:line-through;font-weight:700;font-size:12px;margin-right:4px}
+.off-pill{display:inline-flex;align-items:center;margin-left:4px;background:#FBCFE8;color:#BE185D;font-size:10px;font-weight:800;padding:2px 6px;border-radius:999px}
+.detail-price{display:flex;justify-content:space-between;gap:8px;margin:12px 16px;padding:12px;border-radius:16px;background:#F0FDF4}
+.detail-price b{display:block;font-size:18px;color:#15803D}
+.detail-price span{font-size:12px;font-weight:700;color:#166534}
+.slab-box{margin:0 16px 10px;padding:12px;border-radius:16px;border:1px solid #D1FAE5;background:#F8FFFB}
+.slab-box-h{margin:0 0 8px;font-size:13px;font-weight:900;color:#14532D}
+.slab-yours{margin:0 0 10px;padding:8px 10px;border-radius:12px;background:#ECFDF5;font-size:13px;font-weight:700;color:#166534;line-height:1.45}
+.slab-yours b{color:#14532D}
+.slab-list{display:flex;flex-direction:column;gap:6px}
+.slab-row{display:flex;justify-content:space-between;gap:10px;align-items:center;padding:8px 10px;border-radius:12px;background:#fff;border:1px solid #E5E7EB;font-size:12px;font-weight:800;color:#374151}
+.slab-row span:first-child{color:#64748B;font-weight:700}
+.slab-row.on{border-color:#86EFAC;background:#F0FDF4;box-shadow:0 0 0 1px #BBF7D0}
+.slab-row.on span:first-child{color:#14532D;font-weight:900}
+.slab-note{margin:8px 0 0;font-size:11px;font-weight:700;color:#64748B;line-height:1.4}
+.menu-inc-h{margin:4px 16px 4px;font-size:13px;font-weight:900;color:#14532D}
+.menu-inc-sub{margin:0 16px 10px;font-size:11px;font-weight:700;color:#64748B;line-height:1.4}
+.inc-tag{display:inline-block;margin-left:6px;font-size:10px;font-weight:800;color:#047857;background:#ECFDF5;padding:2px 6px;border-radius:999px;vertical-align:middle}
+.inc{width:calc(100% - 32px);margin:0 16px 8px;border:1px solid #E5E7EB;border-radius:14px;background:#fff;text-align:left;font:inherit;cursor:pointer;padding:12px}
+.inc b{display:block;font-size:14px}
+.inc small{color:#64748B;font-weight:700}
+.inc ul{margin:8px 0 0;padding-left:18px}
+.inc li{font-size:13px;font-weight:600;color:#374151;margin:2px 0}
+.sum-card{margin:0 16px 12px;padding:12px;border-radius:16px;border:1px solid #E5E7EB;display:flex;gap:10px;align-items:center}
+.sum-card .thumb{width:64px;height:64px;font-size:28px}
+.kv{padding:0 16px 12px}
+.kv div{display:flex;justify-content:space-between;gap:12px;padding:8px 0;border-bottom:1px solid #F1F5F9;font-size:14px;font-weight:700}
+.kv span{color:#64748B}
+.note{width:calc(100% - 32px);margin:0 16px 12px;min-height:96px;border:1.5px solid #D1FAE5;border-radius:14px;padding:12px;font:inherit;font-weight:600}
+.sent{margin:0 16px 12px;padding:14px;border-radius:16px;background:#F0FDF4;border:1px solid #86EFAC;color:#166534;font-weight:700;line-height:1.45}
+.empty{margin:24px 16px;padding:20px;text-align:center;color:#64748B;font-weight:700}
+.toast{position:absolute;left:16px;right:16px;bottom:16px;background:#14532D;color:#fff;padding:10px 14px;border-radius:999px;font-size:12px;font-weight:800;display:none;z-index:120;text-align:center}
+.cal-overlay{position:absolute;inset:0;background:rgba(15,23,42,.38);z-index:90;display:none;pointer-events:none;border-radius:28px}
+.cal-overlay.on{display:block;pointer-events:auto}
+.cal-sheet{position:absolute;left:10px;right:10px;top:36px;background:#fff;border-radius:16px;padding:8px 10px 10px;box-shadow:0 10px 28px rgba(15,23,42,.2);max-height:calc(100% - 48px);overflow:auto}
+.cal-bar{display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;font-weight:800;color:#14532D;font-size:12px;gap:6px}
+.cal-bar b{font-size:12px;flex:1;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cal-bar button{border:0;background:none;font:inherit;font-weight:800;cursor:pointer;color:#64748B;font-size:12px;padding:4px 2px;flex-shrink:0}
+.cal-bar .done{color:#16A34A}
+.cal-nav{display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;gap:4px}
+.cal-nav button{border:0;background:#F0FDF4;color:#14532D;width:28px;height:28px;border-radius:50%;font-size:16px;line-height:1;cursor:pointer;font-weight:900;flex-shrink:0}
+.cal-nav b{flex:1;text-align:center;font-size:13px;color:#14532D;font-weight:800}
+.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:2px;text-align:center}
+.cal-grid .h{padding:2px 0;font-weight:800;color:#64748B;font-size:9px}
+.cal-grid .d{padding:5px 0;border-radius:8px;cursor:pointer;font-weight:800;color:#14532D;border:0;background:transparent;font:inherit;width:100%;font-size:11px;line-height:1.2}
+.cal-grid .d.off{color:#CBD5E1;pointer-events:none;background:transparent}
+.cal-grid .d.on{background:#16A34A;color:#fff}
+.cal-grid .d.past{opacity:.35;pointer-events:none}
+</style>
+</head>
+<body>
+<div class="stage"><div class="phone">
+<div class="notch"><span>9:41</span><span>●●●</span></div>
+
+<section class="scr on" id="ccSearch">
+  <div class="banner"><b>Find Catering Services</b><span>Weddings, receptions &amp; other functions</span></div>
+  <div class="pad">
+    <div class="fld"><label>Location / Area</label><div class="box">📍<input id="ccLocation" list="ccAreas" value="Pathanamthitta" placeholder="Town or area"></div></div>
+    <datalist id="ccAreas">
+      <option value="Pathanamthitta"></option>
+      <option value="Pandalam"></option>
+      <option value="Adoor"></option>
+      <option value="Thiruvalla"></option>
+      <option value="Kozhencherry"></option>
+      <option value="Ranni"></option>
+    </datalist>
+    <div class="fld"><label>Event Date</label><div class="box date-box" id="ccDateBox"><span aria-hidden="true">📅</span><span id="ccDateLabel" class="date-readout">Tue, 15 Dec 2026</span><button type="button" class="date-open" id="ccDateOpen">Select date</button><input id="ccDate" type="date" class="date-native" value="2026-12-15" aria-label="Event date"></div></div>
+    <div class="fld"><label>Number of Guests</label><div class="box">👥<input id="ccGuests" type="number" min="1" value="300"></div></div>
+    <p class="fld" style="margin-bottom:8px"><label>What type of function? <span class="opt">(Optional)</span></label></p>
+    <div id="ccFunctions"></div>
+    <div class="fld">
+      <label>Expected Budget per Plate <span class="opt">(Optional)</span></label>
+      <div class="budget-sliders">
+        <div class="dual-range" id="ccBudgetDual">
+          <div class="dual-range-track" aria-hidden="true"><span id="ccBudgetFill"></span></div>
+          <input id="ccBudgetMin" type="range" min="0" max="3000" step="10" value="0" aria-label="Minimum budget per plate">
+          <input id="ccBudgetMax" type="range" min="0" max="3000" step="10" value="300" aria-label="Maximum budget per plate">
+        </div>
+        <div class="range-ends"><span>₹ 0</span><span>₹ 3,000</span></div>
+      </div>
+      <div class="budget-val" id="ccBudgetRangeVal">₹0 to ₹300 per plate</div>
+    </div>
+  </div>
+  <div class="pad" style="padding-bottom:16px"><button type="button" class="btn" id="ccSearchBtn">Search Caterers</button></div>
+</section>
+
+<section class="scr" id="ccResults">
+  <div class="top"><button type="button" class="back" id="ccResultsBack">←</button><h1 id="ccResultsTitle">Catering Services</h1><span style="width:36px"></span></div>
+  <p class="ctx" id="ccResultsCtx"></p>
+  <div id="ccResultList"></div>
+</section>
+
+<section class="scr" id="ccProfile">
+  <div class="top"><button type="button" class="back" id="ccProfileBack">←</button><h1 id="ccProfileTitle">Caterer</h1><button type="button" class="icon-btn" id="ccSave" aria-label="Save">♡</button></div>
+  <div id="ccProfileBody"></div>
+  <div class="sticky-cta"><button type="button" class="btn" id="ccShowMenu">Show Packages / Individual Food Items</button></div>
+</section>
+
+<section class="scr" id="ccMenu">
+  <div class="top"><button type="button" class="back" id="ccMenuBack">←</button><h1 id="ccMenuTitle">Caterer</h1><span style="width:36px"></span></div>
+  <div class="tabs" id="ccMenuTabs">
+    <button type="button" id="ccTabPackages" class="on">Packages</button>
+    <button type="button" id="ccTabFood">Individual Food Items</button>
+  </div>
+  <div class="confirm" id="ccDateConfirm"><div><small>Confirm your event date</small><b id="ccWhenLabel"></b></div><button type="button" id="ccChangeDate">Change date</button></div>
+  <div class="serve-filter-block" id="ccServeFilterBlock" hidden>
+    <p class="serve-filter-title">How food is served</p>
+    <p class="serve-filter-lead">Same menu prices — pick how guests eat at the event.</p>
+    <div class="serve-filters" id="ccMenuChips"></div>
+  </div>
+  <p class="count-line" id="ccMenuDietLabel" style="padding-top:0;margin-top:-4px">Diet</p>
+  <div class="chips" id="ccMenuDietChips"></div>
+  <p class="count-line" id="ccMenuCount"></p>
+  <p class="food-hint" id="ccMenuPackageHint" hidden></p>
+  <p class="food-hint" id="ccMenuFoodHint" hidden></p>
+  <div id="ccMenuList"></div>
+  <div class="food-select-bar" id="ccFoodSelectBar" hidden>
+    <div class="food-select-meta"><small id="ccFoodSelectSummary">0 dishes selected</small><b id="ccFoodSelectTotal">₹0</b></div>
+    <div class="food-select-actions">
+      <button type="button" class="btn" id="ccFoodReviewBtn">Continue</button>
+      <button type="button" class="link-btn" id="ccFoodClearBtn">Clear selection</button>
+    </div>
+  </div>
+</section>
+
+<section class="scr" id="ccDetail">
+  <div class="top"><button type="button" class="back" id="ccDetailBack">←</button><h1 id="ccDetailTitle">Package</h1><span style="width:36px"></span></div>
+  <div id="ccDetailBody"></div>
+  <div class="btn-row">
+    <button type="button" class="btn ghost" id="ccCustomise">Customise Requirement</button>
+    <button type="button" class="btn" id="ccInitiate">Initiate Interest</button>
+  </div>
+</section>
+
+<section class="scr" id="ccInterest">
+  <div class="top"><button type="button" class="back" id="ccInterestBack">←</button><h1>Send Interest</h1><span style="width:36px"></span></div>
+  <div id="ccInterestBody"></div>
+  <div class="pad"><button type="button" class="btn" id="ccSend">Send Interest</button></div>
+</section>
+
+<div class="cal-overlay" id="ccCalOverlay" hidden aria-hidden="true">
+  <div class="cal-sheet" role="dialog" aria-labelledby="ccCalTitle">
+    <div class="cal-bar"><button type="button" id="ccCalCancel">Cancel</button><b id="ccCalTitle">Event date</b><button type="button" class="done" id="ccCalDone">Done</button></div>
+    <div class="cal-nav"><button type="button" id="ccCalPrev" aria-label="Previous month">‹</button><b id="ccCalMonth"></b><button type="button" id="ccCalNext" aria-label="Next month">›</button></div>
+    <div class="cal-grid" id="ccCalGrid"></div>
+  </div>
+</div>
+<div class="toast" id="ccToast" role="status"></div>
+
+</div></div>
+<!-- APP_START -->
+<script>
+/** Nine-group dish library for Kerala catering, plus the Indian buffet dishes owners also serve. */
+const CAT_PKG_LEVELS = ['Basic', 'Standard', 'Premium'];
+const CAT_PKG_LEVEL_HINTS = {
+  Basic: 'Simple and affordable menu',
+  Standard: 'Popular menu with variety',
+  Premium: 'Grand menu with special dishes',
+};
+
+const FOOD_MODULE_GRADIENTS = ["linear-gradient(145deg,#0EA5E9,#0284C7)", "linear-gradient(145deg,#F97316,#EA580C)", "linear-gradient(145deg,#22C55E,#16A34A)", "linear-gradient(145deg,#EF4444,#DC2626)", "linear-gradient(145deg,#EAB308,#CA8A04)", "linear-gradient(145deg,#A855F7,#7C3AED)", "linear-gradient(145deg,#F43F5E,#E11D48)", "linear-gradient(145deg,#6366F1,#4F46E5)", "linear-gradient(145deg,#14B8A6,#0D9488)", "linear-gradient(145deg,#84CC16,#65A30D)", "linear-gradient(145deg,#FB923C,#F97316)", "linear-gradient(145deg,#D97706,#B45309)", "linear-gradient(145deg,#EC4899,#DB2777)"];
+
+function foodMasterKey(moduleId, subcatId, name) {
+  return moduleId + '::' + subcatId + '::' + String(name || '').toLowerCase().replace(/\s+/g, '-');
+}
+
+function inferCatalogDiet(subcatName, itemName) {
+  const sc = String(subcatName || '').toLowerCase();
+  const nm = String(itemName || '').toLowerCase();
+  const meat = /\b(chicken|mutton|beef|prawn|fish|crab|lobster|squid|calamari|seafood|chemmeen|duck|pork|meen)\b/;
+  if (/\begg\b/.test(nm) && !/vegetable/.test(nm)) return 'non_veg';
+  if (meat.test(nm)) return 'non_veg';
+  if (/\b(rice|biryani|biriyani)\b/.test(nm)) return 'veg';
+  if (
+    sc.indexOf('non-vegetarian') >= 0 ||
+    sc.indexOf('non vegetarian') >= 0 ||
+    sc.indexOf('chicken & meat') >= 0 ||
+    sc.indexOf('chicken, meat') >= 0 ||
+    sc.indexOf('chicken dishes') >= 0 ||
+    sc.indexOf('mutton') >= 0 ||
+    sc.indexOf('beef') >= 0 ||
+    sc.indexOf('duck') >= 0 ||
+    sc.indexOf('pork') >= 0 ||
+    sc.indexOf('fish & seafood') >= 0 ||
+    sc.indexOf('seafood') >= 0 ||
+    sc.indexOf('grill') >= 0
+  ) {
+    return 'non_veg';
+  }
+  if (sc.indexOf('paneer & egg') >= 0 && /\begg\b/.test(nm)) return 'non_veg';
+  return 'veg';
+}
+
+const CATERING_CATALOG_DEFS = [
+  {
+    "id": "g01",
+    "name": "Welcome drinks",
+    "emoji": "🥤",
+    "subcats": [
+      {
+        "id": "juices",
+        "name": "Juices",
+        "items": [
+          "Fresh Lime Juice",
+          "Ginger Lime",
+          "Lemon Mint Juice",
+          "Orange Juice",
+          "Watermelon Juice",
+          "Pineapple Juice",
+          "Mango Juice",
+          "Guava Juice",
+          "Papaya Juice",
+          "Muskmelon Juice",
+          "Tender Coconut Water",
+          "Mixed Fruit Juice"
+        ]
+      },
+      {
+        "id": "traditional",
+        "name": "Traditional drinks",
+        "items": [
+          "Tea",
+          "Masala Tea",
+          "Sulaimani",
+          "Coffee",
+          "Sambharam / Spiced Buttermilk",
+          "Plain Buttermilk",
+          "Rose Milk",
+          "Badam Milk",
+          "Pista Milk",
+          "Nannari Sarbath"
+        ]
+      },
+      {
+        "id": "cold",
+        "name": "Cold drinks",
+        "items": [
+          "Soft Drinks",
+          "Jaljeera",
+          "Aam Panna",
+          "Virgin Mojito",
+          "Blue Lagoon (Mocktail)",
+          "Mango Lassi",
+          "Sweet Lassi",
+          "Chocolate Milkshake",
+          "Strawberry Milkshake",
+          "Mineral Water"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "g02",
+    "name": "Starters and snacks",
+    "emoji": "🥟",
+    "subcats": [
+      {
+        "id": "veg-snacks",
+        "name": "Vegetarian snacks",
+        "items": [
+          "Vegetable Cutlet",
+          "Hara Bhara Kebab",
+          "Paneer Tikka",
+          "Tandoori Mushroom",
+          "Crispy Corn",
+          "Gobi 65",
+          "Samosa",
+          "Veg Pakoda",
+          "Vegetable Spring Roll",
+          "French Fries",
+          "Baby Corn Fry",
+          "Veg Momos"
+        ]
+      },
+      {
+        "id": "non-veg-snacks",
+        "name": "Non-vegetarian snacks",
+        "items": [
+          "Chicken 65",
+          "Chicken Lollipop",
+          "Chicken Tikka",
+          "Chicken Malai Tikka",
+          "Chicken Fry",
+          "Chicken Pepper Fry",
+          "Fish Fry",
+          "Fish Finger",
+          "Prawn Fry",
+          "Prawn Pepper Fry",
+          "Crab Ball",
+          "Mutton Kebab",
+          "Mutton Seekh Kebab",
+          "Beef Cutlet",
+          "Beef Fry",
+          "Egg Pakoda"
+        ]
+      },
+      {
+        "id": "kerala-snacks",
+        "name": "Kerala tea-time",
+        "items": [
+          "Pazham Pori",
+          "Banana Boli",
+          "Parippu Vada",
+          "Uzhunnu Vada",
+          "Bonda",
+          "Unniyappam",
+          "Ela Ada",
+          "Achappam",
+          "Kuzhalappam",
+          "Sukhiyan",
+          "Kappa Cutlet"
+        ]
+      },
+      {
+        "id": "chaat-rolls",
+        "name": "Chaat and rolls",
+        "items": [
+          "Vegetable Puff",
+          "Chicken Puff",
+          "Veg Grill Sandwich",
+          "Chicken Kathi Roll",
+          "Aloo Tikki Chaat",
+          "Papdi Chaat",
+          "Dahi Bhalla",
+          "Bhel Puri",
+          "Pav Bhaji"
+        ]
+      },
+      {
+        "id": "soups",
+        "name": "Soups",
+        "items": [
+          "Tomato Soup",
+          "Sweet Corn Vegetable Soup",
+          "Hot and Sour Vegetable Soup",
+          "Chicken Clear Soup",
+          "Chicken Sweet Corn Soup",
+          "Mutton Soup",
+          "Mulligatawny Soup"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "g03",
+    "name": "Rice, biryani and mandi",
+    "emoji": "🍚",
+    "subcats": [
+      {
+        "id": "rice",
+        "name": "Rice and noodles",
+        "items": [
+          "Kerala Matta Rice",
+          "Steamed Rice",
+          "Ghee Rice",
+          "Jeera Rice",
+          "Vegetable Pulao",
+          "Coconut Rice",
+          "Lemon Rice",
+          "Curd Rice",
+          "Tomato Rice",
+          "Vegetable Fried Rice",
+          "Chicken Fried Rice",
+          "Vegetable Hakka Noodles",
+          "Chicken Hakka Noodles"
+        ]
+      },
+      {
+        "id": "biryani",
+        "name": "Biryani",
+        "items": [
+          "Chicken Biriyani",
+          "Mutton Biriyani",
+          "Beef Biriyani",
+          "Fish Biriyani",
+          "Prawn Biriyani",
+          "Egg Biriyani",
+          "Duck Biriyani",
+          "Vegetable Biriyani",
+          "Paneer Biriyani"
+        ]
+      },
+      {
+        "id": "regional-biryani",
+        "name": "Regional biryani",
+        "items": [
+          "Malabar Chicken Biriyani",
+          "Thalassery Chicken Biriyani",
+          "Hyderabadi Chicken Dum Biriyani",
+          "Ambur Mutton Biriyani",
+          "Kacchi Mutton Dum Biriyani",
+          "Jeerakasala Fish Biriyani"
+        ]
+      },
+      {
+        "id": "mandi-grills",
+        "name": "Mandi and grills",
+        "items": [
+          "Chicken Mandi",
+          "Mutton Mandi",
+          "Fish Mandi",
+          "Al Faham Chicken",
+          "Chicken Shawarma Roll",
+          "Chicken Shawarma Plate",
+          "Grilled Chicken",
+          "Mixed Grill",
+          "Arabic Rice"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "g04",
+    "name": "Breads",
+    "emoji": "🫓",
+    "subcats": [
+      {
+        "id": "indian-breads",
+        "name": "Indian breads",
+        "items": [
+          "Chapati",
+          "Phulka",
+          "Poori",
+          "Bhatura",
+          "Tandoori Roti",
+          "Naan",
+          "Butter Naan",
+          "Garlic Naan",
+          "Kulcha",
+          "Lachha Paratha",
+          "Missi Roti",
+          "Rumali Roti"
+        ]
+      },
+      {
+        "id": "kerala-breads",
+        "name": "Kerala breads",
+        "items": [
+          "Porotta",
+          "Malabar Porotta",
+          "Nool Porotta",
+          "Coin Porotta",
+          "Appam",
+          "Kallappam",
+          "Idiyappam",
+          "Pathiri",
+          "Neypathal",
+          "Puttu",
+          "Pidi"
+        ]
+      },
+      {
+        "id": "other-breads",
+        "name": "Other breads",
+        "items": [
+          "Pita Bread",
+          "Kuboos",
+          "Pav",
+          "Garlic Bread",
+          "Cheese Garlic Bread"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "g05",
+    "name": "Curries and gravies",
+    "emoji": "🥘",
+    "subcats": [
+      {
+        "id": "kerala-curries",
+        "name": "Kerala curries",
+        "items": [
+          "Sambar",
+          "Rasam",
+          "Avial",
+          "Parippu Curry",
+          "Theeyal",
+          "Ulli Theeyal",
+          "Pulissery",
+          "Moru Curry",
+          "Kalan",
+          "Olan",
+          "Erissery",
+          "Koottu Curry",
+          "Kichadi",
+          "Kadala Curry",
+          "Vegetable Stew",
+          "Mango Curry"
+        ]
+      },
+      {
+        "id": "veg-curries",
+        "name": "Other vegetarian gravies",
+        "items": [
+          "Vegetable Kurma",
+          "Mixed Vegetable Curry",
+          "Dal Tadka",
+          "Dal Makhani",
+          "Chana Masala",
+          "Rajma Masala",
+          "Paneer Butter Masala",
+          "Kadai Paneer",
+          "Palak Paneer",
+          "Malai Kofta",
+          "Mushroom Masala",
+          "Aloo Gobi"
+        ]
+      },
+      {
+        "id": "non-veg-curries",
+        "name": "Kerala chicken, meat and seafood",
+        "items": [
+          "Chicken Curry",
+          "Chicken Stew",
+          "Chicken Mappas",
+          "Chicken Roast",
+          "Chicken Varutharacha Curry",
+          "Mutton Curry",
+          "Mutton Stew",
+          "Mutton Roast",
+          "Beef Curry",
+          "Beef Roast",
+          "Beef Varattiyathu",
+          "Duck Curry",
+          "Duck Roast",
+          "Kerala Fish Curry",
+          "Fish Molee",
+          "Fish Pollichathu",
+          "Prawn Curry",
+          "Crab Curry",
+          "Pork Varattiyathu"
+        ]
+      },
+      {
+        "id": "other-gravies",
+        "name": "Other gravies",
+        "items": [
+          "Butter Chicken",
+          "Chicken Chettinad",
+          "Mutton Rogan Josh"
+        ]
+      },
+      {
+        "id": "egg",
+        "name": "Egg",
+        "items": [
+          "Egg Curry",
+          "Egg Roast",
+          "Egg Masala"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "g06",
+    "name": "Dry vegetables and thoran",
+    "emoji": "🥬",
+    "subcats": [
+      {
+        "id": "thoran",
+        "name": "Thoran",
+        "items": [
+          "Cabbage Thoran",
+          "Beans Thoran",
+          "Carrot Thoran",
+          "Beetroot Thoran",
+          "Long Beans Thoran",
+          "Raw Banana Thoran"
+        ]
+      },
+      {
+        "id": "mezhukkupuratti",
+        "name": "Mezhukkupuratti and fry",
+        "items": [
+          "Potato Mezhukkupuratti",
+          "Beans Mezhukkupuratti",
+          "Raw Banana Mezhukkupuratti",
+          "Potato Fry",
+          "Bitter Gourd Fry",
+          "Kovakka Fry"
+        ]
+      },
+      {
+        "id": "kappa",
+        "name": "Kappa",
+        "items": [
+          "Kappa Puzhukku",
+          "Boiled Kappa"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "g07",
+    "name": "Chutney, pickle, salad and pappadam",
+    "emoji": "🥙",
+    "subcats": [
+      {
+        "id": "chutney",
+        "name": "Chutneys",
+        "items": [
+          "Coconut Chammanthi",
+          "Mango Chammanthi",
+          "Puthina Chutney",
+          "Coriander Chutney",
+          "Tomato Chutney",
+          "Mulaku Chutney",
+          "Onion Chutney",
+          "Inji Curry",
+          "Puli Inji"
+        ]
+      },
+      {
+        "id": "pickle",
+        "name": "Pickles",
+        "items": [
+          "Mango Pickle",
+          "Tender Mango Pickle",
+          "Lime Pickle",
+          "Mixed Pickle",
+          "Green Chilli Pickle",
+          "Gooseberry Pickle",
+          "Vadukapuli Pickle"
+        ]
+      },
+      {
+        "id": "salad",
+        "name": "Salads and raita",
+        "items": [
+          "Green Salad",
+          "Kachumber Salad",
+          "Russian Salad",
+          "Cucumber Salad",
+          "Onion Salad",
+          "Coconut Salad",
+          "Cucumber Raita",
+          "Boondi Raita",
+          "Onion Raita",
+          "Mint Raita",
+          "Pineapple Pachadi",
+          "Beetroot Pachadi",
+          "Mango Pachadi",
+          "Curd"
+        ]
+      },
+      {
+        "id": "crunch",
+        "name": "Pappadam and chips",
+        "items": [
+          "Pappadam",
+          "Banana Chips",
+          "Jackfruit Chips",
+          "Chena Chips",
+          "Sharkara Upperi",
+          "Chilli Kondattam",
+          "Ripe Nendran Banana"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "g08",
+    "name": "Payasam and desserts",
+    "emoji": "🍮",
+    "subcats": [
+      {
+        "id": "payasam",
+        "name": "Payasam and pradhaman",
+        "items": [
+          "Palada Payasam",
+          "Ada Pradhaman",
+          "Pazham Pradhaman",
+          "Semiya Payasam",
+          "Parippu Payasam",
+          "Paal Payasam",
+          "Chakka Pradhaman",
+          "Kadala Parippu Pradhaman",
+          "Ari Payasam",
+          "Gothambu Payasam"
+        ]
+      },
+      {
+        "id": "sweets",
+        "name": "Sweets",
+        "items": [
+          "Gulab Jamun",
+          "Rasmalai",
+          "Jalebi",
+          "Mysore Pak",
+          "Laddu",
+          "Peda",
+          "Kaju Katli",
+          "Milk Burfi",
+          "Carrot Halwa",
+          "Wheat Halwa"
+        ]
+      },
+      {
+        "id": "chilled",
+        "name": "Chilled desserts",
+        "items": [
+          "Ice Cream",
+          "Kulfi",
+          "Caramel Custard",
+          "Falooda",
+          "Tender Coconut Pudding",
+          "Fresh Fruit Platter"
+        ]
+      },
+      {
+        "id": "cakes",
+        "name": "Cakes",
+        "items": [
+          "Vanilla Sponge Cake (Sliced)",
+          "Black Forest Cake (Sliced)",
+          "Brownie",
+          "Cupcakes"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "g09",
+    "name": "Live counters",
+    "emoji": "🔥",
+    "subcats": [
+      {
+        "id": "kerala-live",
+        "name": "Kerala counters",
+        "items": [
+          "Appam Counter",
+          "Dosa Counter",
+          "Puttu Counter",
+          "Porotta Counter",
+          "Idiyappam Counter",
+          "Thattukada Live Station",
+          "Payasam Counter"
+        ]
+      },
+      {
+        "id": "hot-live",
+        "name": "Grill and hot food",
+        "items": [
+          "Al Faham Counter",
+          "BBQ Counter",
+          "Shawarma Counter",
+          "Seafood Grill Counter",
+          "Live Biriyani Counter"
+        ]
+      },
+      {
+        "id": "street-live",
+        "name": "Street food and tandoor",
+        "items": [
+          "Chaat Counter",
+          "Pani Puri Counter",
+          "French Fries Counter",
+          "Tandoor Counter",
+          "Pasta Counter"
+        ]
+      },
+      {
+        "id": "sweet-live",
+        "name": "Dessert counters",
+        "items": [
+          "Ice Cream Scooping",
+          "Jalebi Counter",
+          "Coffee Bar",
+          "Samavar Tea Counter",
+          "Tender Coconut Counter",
+          "Paan Counter"
+        ]
+      }
+    ]
+  }
+];
+
+function buildFoodModules() {
+  return CATERING_CATALOG_DEFS.map(function (m, idx) {
+    const subcats = (m.subcats || []).map(function (sc) {
+      const items = (sc.items || []).map(function (name) {
+        const diet = inferCatalogDiet(sc.name, name);
+        return {
+          masterKey: foodMasterKey(m.id, sc.id, name),
+          name: name,
+          subcatId: sc.id,
+          subcatName: sc.name,
+          diet: diet,
+        };
+      });
+      return { id: sc.id, name: sc.name, items: items };
+    });
+    return {
+      id: m.id,
+      num: idx + 1,
+      name: m.name,
+      emoji: m.emoji,
+      gradient: FOOD_MODULE_GRADIENTS[idx] || FOOD_MODULE_GRADIENTS[0],
+      subcats: subcats,
+    };
+  });
+}
+
+const FOOD_MODULES = buildFoodModules();
+
+function findFoodModule(moduleId) {
+  return FOOD_MODULES.find(function (m) {
+    return m.id === moduleId;
+  });
+}
+
+function findMasterItem(masterKey) {
+  for (let mi = 0; mi < FOOD_MODULES.length; mi++) {
+    const mod = FOOD_MODULES[mi];
+    for (let si = 0; si < mod.subcats.length; si++) {
+      const sc = mod.subcats[si];
+      for (let ii = 0; ii < sc.items.length; ii++) {
+        if (sc.items[ii].masterKey === masterKey) return { module: mod, subcat: sc, item: sc.items[ii] };
+      }
+    }
+  }
+  return null;
+}
+
+function defaultItemSlabs() {
+  return [
+    { from: 1, to: 25, price: 70 },
+    { from: 26, to: 50, price: 60 },
+    { from: 51, to: 100, price: 55 },
+    { from: 101, to: 200, price: 50 },
+    { from: 201, to: 500, price: 45 },
+  ];
+}
+
+function defaultPackageGuestSlabs() {
+  return [
+    { from: 1, to: 25, price: 500 },
+    { from: 26, to: 50, price: 450 },
+    { from: 51, to: 100, price: 400 },
+    { from: 101, to: 200, price: 350 },
+    { from: 201, to: 500, price: 300 },
+  ];
+}
+
+function defaultCateringMenuStore() {
+  return {
+    hubTab: 'packages',
+    pkgFilter: 'all',
+    pkgCategoryFilter: 'wedding',
+    pkgSort: 'name',
+    pkgSearch: '',
+    foodSearch: '',
+    foodItems: [],
+    catPackages: [
+      {
+        id: 'cpkg-demo-1',
+        name: 'Christian Wedding',
+        level: 'Basic',
+        packageCategory: 'wedding',
+        description: 'Full day catering with Kerala-style dishes and live counters.',
+        subtitle: 'Full day catering with Kerala-style dishes and live counters.',
+        listPrice: 300,
+        price: 300,
+        status: 'live',
+        pricingMode: 'per_person',
+        rateMode: 'tiered',
+        offerEnabled: true,
+        discountPercent: 8,
+        dietType: 'mixed',
+        serveStyle: 'buffet',
+        serveAtCounter: true,
+        serveAtTable: false,
+        guestSlabs: defaultPackageGuestSlabs(),
+        itemIds: [],
+        imageEmoji: '🍛',
+      },
+      {
+        id: 'cpkg-demo-2',
+        name: 'Royal Reception',
+        level: 'Premium',
+        packageCategory: 'wedding',
+        description: 'Premium reception spread with extended dessert and live counters.',
+        subtitle: 'Premium reception · full buffet',
+        listPrice: 500,
+        price: 500,
+        status: 'live',
+        pricingMode: 'per_person',
+        rateMode: 'tiered',
+        offerEnabled: true,
+        discountPercent: 8,
+        dietType: 'mixed',
+        serveStyle: 'both',
+        serveAtCounter: true,
+        serveAtTable: true,
+        guestSlabs: defaultPackageGuestSlabs(),
+        itemIds: [],
+        imageEmoji: '💒',
+      },
+      {
+        id: 'cpkg-demo-3',
+        name: 'Reception Basic',
+        level: 'Basic',
+        packageCategory: 'other',
+        description: 'Essential reception menu — starters, one main and dessert.',
+        subtitle: 'Reception essentials',
+        listPrice: 25000,
+        price: 25000,
+        status: 'draft',
+        pricingMode: 'per_person',
+        dietType: 'veg',
+        serveStyle: 'table',
+        serveAtCounter: false,
+        serveAtTable: true,
+        guestSlabs: defaultPackageGuestSlabs(),
+        itemIds: [],
+        imageEmoji: '🎉',
+      },
+    ],
+  };
+}
+
+function seedDemoFoodItems() {
+  const specs = [
+    {
+      key: foodMasterKey('g03', 'biryani', 'Chicken Biriyani'),
+      slabs: [
+        { from: 1, to: 25, price: 200 },
+        { from: 26, to: 50, price: 180 },
+        { from: 51, to: 100, price: 165 },
+      ],
+    },
+    {
+      key: foodMasterKey('g03', 'mandi-grills', 'Al Faham Chicken'),
+      slabs: [
+        { from: 1, to: 25, price: 220 },
+        { from: 26, to: 50, price: 200 },
+      ],
+    },
+    {
+      key: foodMasterKey('g01', 'traditional', 'Tea'),
+      slabs: [{ from: 1, to: 25, price: 15 }],
+    },
+    {
+      key: foodMasterKey('g01', 'traditional', 'Coffee'),
+      slabs: [{ from: 1, to: 25, price: 20 }],
+    },
+  ];
+  return specs
+    .map(function (spec) {
+      const hit = findMasterItem(spec.key);
+      if (!hit) return null;
+      return {
+        id: 'food-' + spec.key.replace(/::/g, '-'),
+        masterKey: spec.key,
+        name: hit.item.name,
+        moduleId: hit.module.id,
+        subcatId: hit.subcat.id,
+        subcatName: hit.subcat.name,
+        description: '',
+        diet: hit.item.diet,
+        pricingMode: 'per_person',
+        unitLabel: 'plate',
+        quoteOnly: false,
+        status: 'active',
+        individualListing: true,
+        slabs: spec.slabs || defaultItemSlabs(),
+        imageEmoji: hit.module.emoji,
+      };
+    })
+    .filter(Boolean);
+}
+
+
+/** Shared catering customer helpers — aligned with owner menu & packages (nine groups, serve style). */
+
+const CC_SERVE_FILTERS = [
+  { id: 'all', label: 'All', hint: 'Every serving style' },
+  { id: 'table', label: 'Table service', hint: 'We serve each course at the table' },
+  { id: 'buffet', label: 'Buffet', hint: 'Counters; guests help themselves' },
+  { id: 'both', label: 'Table & buffet', hint: 'Table service plus buffet counters' },
+];
+
+function ccPackageServeStyle(p) {
+  p = p || {};
+  if (p.serveStyle === 'table' || p.serveStyle === 'buffet' || p.serveStyle === 'both') return p.serveStyle;
+  if (p.serveAtTable && p.serveAtCounter) return 'both';
+  if (p.serveAtCounter) return 'buffet';
+  if (p.serveAtTable) return 'table';
+  const legacy = p.menuStyle || '';
+  if (legacy === 'sadhya') return 'table';
+  if (legacy === 'buffet' || legacy === 'arabian') return 'buffet';
+  return '';
+}
+
+function ccServeStyleLabel(id) {
+  if (id === 'table') return 'Table service';
+  if (id === 'buffet') return 'Buffet';
+  if (id === 'both') return 'Table & buffet';
+  return '';
+}
+
+function ccServeFilterLabel(id) {
+  const hit = CC_SERVE_FILTERS.filter(function (s) {
+    return s.id === id;
+  })[0];
+  return hit ? hit.label : 'All';
+}
+
+function ccCustomerModuleLabel(mod) {
+  const id = mod && mod.id;
+  const labels = {
+    g01: 'Welcome Drinks',
+    g02: 'Starters & Snacks',
+    g03: 'Rice, Biriyani & Mandi',
+    g04: 'Breads & Rotis',
+    g05: 'Curries & Gravies',
+    g06: 'Vegetables & Thoran',
+    g07: 'Accompaniments',
+    g08: 'Desserts & Sweets',
+    g09: 'Live Counters',
+  };
+  if (id && labels[id]) return labels[id];
+  return (mod && mod.name) || '';
+}
+
+function ccCustomerFoodGroups() {
+  if (typeof FOOD_MODULES !== 'undefined' && FOOD_MODULES.length) {
+    return FOOD_MODULES.map(function (m) {
+      return { id: m.id, label: ccCustomerModuleLabel(m) };
+    });
+  }
+  return [
+    { id: 'g01', label: 'Welcome Drinks' },
+    { id: 'g02', label: 'Starters & Snacks' },
+    { id: 'g03', label: 'Rice, Biriyani & Mandi' },
+    { id: 'g04', label: 'Breads & Rotis' },
+    { id: 'g05', label: 'Curries & Gravies' },
+    { id: 'g06', label: 'Vegetables & Thoran' },
+    { id: 'g07', label: 'Accompaniments' },
+    { id: 'g08', label: 'Desserts & Sweets' },
+    { id: 'g09', label: 'Live Counters' },
+  ];
+}
+
+function ccMenuGroupsForPackage(pkg) {
+  if (!pkg) return [];
+  if (pkg.menuModules && pkg.menuModules.length) {
+    return pkg.menuModules.map(function (row) {
+      const mod = typeof findFoodModule === 'function' ? findFoodModule(row.moduleId) : null;
+      return {
+        moduleId: row.moduleId,
+        name: ccCustomerModuleLabel(mod) || String(row.moduleId || 'Menu'),
+        emoji: (mod && mod.emoji) || '',
+        items: row.items || [],
+      };
+    });
+  }
+  if (pkg.groups && pkg.groups.length) {
+    return pkg.groups.map(function (g) {
+      return { name: g.name, items: g.items || [], emoji: '' };
+    });
+  }
+  return [];
+}
+
+function ccGuestSlabsLikeOwner(base) {
+  const mid = Math.max(80, Math.round(+base || 300));
+  return [
+    { from: 1, to: 25, price: mid + 100 },
+    { from: 26, to: 50, price: mid + 50 },
+    { from: 51, to: 100, price: mid },
+    { from: 101, to: 200, price: Math.max(80, mid - 50) },
+    { from: 201, to: 500, price: Math.max(80, mid - 80) },
+  ];
+}
+
+function ccDemoVegWeddingMenuModules() {
+  return [
+    { moduleId: 'g01', items: ['Fresh Lime Juice', 'Sambharam / Spiced Buttermilk'] },
+    { moduleId: 'g02', items: ['Vegetable Samosa', 'Banana Fritters', 'Unnakaya'] },
+    { moduleId: 'g03', items: ['Kerala Matta Rice', 'Ghee Rice', 'Nei Choru'] },
+    { moduleId: 'g05', items: ['Sambar', 'Avial', 'Pulissery', 'Kaalan', 'Parippu'] },
+    { moduleId: 'g06', items: ['Mixed Vegetable Thoran', 'Beans Thoran', 'Cabbage Thoran'] },
+    { moduleId: 'g07', items: ['Pappadam', 'Pickle', 'Banana', 'Inji Curry'] },
+    { moduleId: 'g08', items: ['Palada Payasam', 'Ada Pradhaman', 'Semiya Payasam'] },
+  ];
+}
+
+function ccDemoCompactVegMenuModules() {
+  return [
+    { moduleId: 'g01', items: ['Fresh Lime Juice', 'Sambharam / Spiced Buttermilk'] },
+    { moduleId: 'g03', items: ['Kerala Matta Rice', 'Ghee Rice'] },
+    { moduleId: 'g05', items: ['Sambar', 'Avial', 'Parippu'] },
+    { moduleId: 'g06', items: ['Mixed Vegetable Thoran', 'Beans Thoran'] },
+    { moduleId: 'g07', items: ['Pappadam', 'Pickle', 'Banana'] },
+    { moduleId: 'g08', items: ['Palada Payasam', 'Semiya Payasam'] },
+  ];
+}
+
+function ccDemoArabianReceptionModules() {
+  return [
+    { moduleId: 'g01', items: ['Fresh Lime Juice', 'Mint Lime', 'Sambharam / Spiced Buttermilk'] },
+    { moduleId: 'g02', items: ['Chicken Cutlet', 'Beef Fry', 'Hummus', 'Falafel'] },
+    { moduleId: 'g03', items: ['Chicken Mandi', 'Mutton Mandi', 'Al Faham Chicken', 'Ghee Rice'] },
+    { moduleId: 'g04', items: ['Kuboos', 'Rumali Roti', 'Sheermal'] },
+    { moduleId: 'g08', items: ['Fresh Fruit Platter', 'Kunafa', 'Umm Ali'] },
+  ];
+}
+
+function ccDemoWeddingMenuModules() {
+  return [
+    { moduleId: 'g01', items: ['Fresh Lime Juice', 'Tender Coconut Water', 'Sambharam / Spiced Buttermilk'] },
+    {
+      moduleId: 'g02',
+      items: ['Vegetable Samosa', 'Banana Fritters', 'Chicken Cutlet', 'Beef Fry'],
+    },
+    {
+      moduleId: 'g03',
+      items: ['Kerala Matta Rice', 'Ghee Rice', 'Vegetable Biriyani', 'Chicken Biriyani'],
+    },
+    { moduleId: 'g04', items: ['Chappati', 'Kerala Porotta', 'Appam'] },
+    {
+      moduleId: 'g05',
+      items: ['Sambar', 'Avial', 'Chicken Curry', 'Fish Molly', 'Beef Roast'],
+    },
+    { moduleId: 'g06', items: ['Mixed Vegetable Thoran', 'Beans Thoran', 'Cabbage Thoran'] },
+    { moduleId: 'g07', items: ['Pappadam', 'Pickle', 'Banana', 'Onion Salad'] },
+    {
+      moduleId: 'g08',
+      items: ['Palada Payasam', 'Ada Pradhaman', 'Gulab Jamun', 'Fresh Fruit Platter'],
+    },
+    { moduleId: 'g09', items: ['Dosa Counter', 'Chaat Counter', 'Payasam Counter'] },
+  ];
+}
+
+function ccPackageMenuFromModules(rows) {
+  return rows.map(function (row) {
+    const mod = typeof findFoodModule === 'function' ? findFoodModule(row.moduleId) : null;
+    return { name: ccCustomerModuleLabel(mod) || row.moduleId, items: row.items || [] };
+  });
+}
+
+function ccFoodModuleId(item) {
+  return item.moduleId || item.group || 'g05';
+}
+
+/** Gixbee catering customer flow. Plate price follows the guest count. */
+
+const CC_BUILD = 'catering-customer-3';
+const CC_BUDGET_CAP = 3000;
+const CC_MONTH_NAMES = [
+  'January',
+  'February',
+  'March',
+  'April',
+  'May',
+  'June',
+  'July',
+  'August',
+  'September',
+  'October',
+  'November',
+  'December',
+];
+
+function slabsFor(price) {
+  return [
+    { from: 1, to: 100, price: price + 80 },
+    { from: 101, to: 250, price: price + 40 },
+    { from: 251, to: 500, price: price },
+    { from: 501, to: 2000, price: Math.max(80, price - 30) },
+  ];
+}
+
+function foodGroupLabel(id) {
+  const hit = ccCustomerFoodGroups().filter(function (g) {
+    return g.id === id;
+  })[0];
+  return hit ? hit.label : 'Other dishes';
+}
+
+const CATERERS = [
+  {
+    id: 'archana',
+    name: 'Archana Catering',
+    area: 'Thrissur',
+    serves: ['Thrissur', 'Pathanamthitta', 'Ernakulam', 'Pandalam'],
+    rating: 4.9,
+    reviews: 186,
+    available: true,
+    emoji: '🍽️',
+    color: 'linear-gradient(145deg,#BE185D,#9D174D)',
+    about:
+      'Kerala wedding and reception catering with the same nine-group menu owners build on Gixbee — veg-only sadhya or mixed menus, buffet or table service.',
+    specialities: ['Wedding packages', 'Live counters', 'Guest slab pricing'],
+    photos: ['🍽️', '🍛', '🥗', '🍮'],
+    reviewList: [
+      { name: 'Sneha', stars: 5, text: 'Christian Wedding package matched the owner listing — clear per-plate offer for 300 guests.' },
+      { name: 'Roy', stars: 5, text: 'Buffet and table service chips helped us pick the right package quickly.' },
+    ],
+    packages: [
+      {
+        id: 'arch-christian-wedding',
+        name: 'Christian Wedding',
+        level: 'Basic',
+        category: 'wedding',
+        dietType: 'mixed',
+        serveStyle: 'buffet',
+        popular: true,
+        blurb: 'Full day wedding catering with Kerala dishes and live counters.',
+        offerEnabled: true,
+        discountPercent: 8,
+        guestSlabs: ccGuestSlabsLikeOwner(300),
+        menuModules: ccDemoWeddingMenuModules(),
+      },
+      {
+        id: 'arch-royal-reception',
+        name: 'Royal Reception',
+        level: 'Premium',
+        category: 'wedding',
+        dietType: 'mixed',
+        serveStyle: 'both',
+        blurb: 'Premium reception spread with table sadhya and buffet counters.',
+        offerEnabled: true,
+        discountPercent: 8,
+        guestSlabs: ccGuestSlabsLikeOwner(450),
+        menuModules: ccDemoWeddingMenuModules(),
+      },
+      {
+        id: 'arch-veg-sadhya',
+        name: 'Veg Sadhya Feast',
+        level: 'Standard',
+        category: 'wedding',
+        dietType: 'veg',
+        serveStyle: 'table',
+        blurb: 'Vegetarian wedding sadhya served on plantain leaf.',
+        guestSlabs: ccGuestSlabsLikeOwner(280),
+        menuModules: ccDemoVegWeddingMenuModules(),
+      },
+    ],
+    foods: [
+      {
+        id: 'arch-tea',
+        name: 'Tea',
+        moduleId: 'g01',
+        group: 'g01',
+        dietType: 'veg',
+        emoji: '☕',
+        description: 'Fresh tea — same catalogue item owners list individually.',
+        slabs: [{ from: 1, to: 500, price: 15 }],
+        rateMode: 'flat',
+      },
+      {
+        id: 'arch-biri',
+        name: 'Chicken Biriyani',
+        moduleId: 'g03',
+        group: 'g03',
+        dietType: 'non_veg',
+        emoji: '🍚',
+        description: 'Malabar chicken biriyani with tiered guest pricing.',
+        offerEnabled: true,
+        discountPercent: 10,
+        slabs: ccGuestSlabsLikeOwner(180),
+      },
+      {
+        id: 'arch-dosa',
+        name: 'Live Dosa (per plate)',
+        moduleId: 'g09',
+        group: 'g09',
+        dietType: 'veg',
+        emoji: '🥞',
+        description: 'Counter-style dosa priced per guest plate.',
+        slabs: ccGuestSlabsLikeOwner(90),
+      },
+    ],
+  },
+  {
+    id: 'arya',
+    name: 'Arya Catering',
+    area: 'Pathanamthitta',
+    serves: ['Pathanamthitta', 'Pandalam', 'Adoor'],
+    rating: 4.8,
+    reviews: 120,
+    available: true,
+    emoji: '🍛',
+    color: 'linear-gradient(145deg,#166534,#CA8A04)',
+    about:
+      'Traditional and modern catering for all occasions. Quality ingredients, professional service and customised menus.',
+    specialities: ['Live Counters', 'Other Functions'],
+    photos: ['🍛', '🥗', '🍮', '🥥'],
+    reviewList: [
+      { name: 'Meera', stars: 5, text: 'The wedding sadhya was on time and the payasam was excellent.' },
+      { name: 'Anand', stars: 4, text: 'Clear plate price for 300 guests. Easy to compare.' },
+    ],
+    packages: [
+      {
+        id: 'arya-trad',
+        name: 'Traditional Wedding Menu',
+        level: 'Basic',
+        category: 'wedding',
+        serveStyle: 'table',
+        dietType: 'veg',
+        popular: true,
+        blurb: 'Traditional Kerala wedding menu with authentic dishes, perfect for wedding functions.',
+        guestSlabs: slabsFor(300),
+        menuModules: ccDemoVegWeddingMenuModules(),
+      },
+      {
+        id: 'arya-special',
+        name: 'Wedding Special Menu',
+        level: 'Standard',
+        category: 'wedding',
+        serveStyle: 'table',
+        dietType: 'mixed',
+        blurb: 'Sadhya plus a non-veg main for reception and wedding lunch.',
+        guestSlabs: slabsFor(380),
+        menuModules: ccDemoWeddingMenuModules(),
+      },
+      {
+        id: 'arya-premium',
+        name: 'Premium Wedding Feast',
+        level: 'Premium',
+        category: 'wedding',
+        serveStyle: 'buffet',
+        dietType: 'mixed',
+        blurb: 'Grand feast with live counters and an extended dessert selection.',
+        guestSlabs: slabsFor(450),
+        menuModules: ccDemoWeddingMenuModules(),
+      },
+      {
+        id: 'arya-birthday',
+        name: 'Birthday Sadhya',
+        level: 'Basic',
+        category: 'other',
+        serveStyle: 'table',
+        dietType: 'veg',
+        blurb: 'A shorter vegetarian sadhya for birthdays and housewarmings.',
+        guestSlabs: slabsFor(250),
+        menuModules: ccDemoCompactVegMenuModules(),
+      },
+    ],
+    foods: [
+      {
+        id: 'arya-tea',
+        name: 'Tea',
+        group: 'g01',
+        dietType: 'veg',
+        emoji: '☕',
+        description: 'Fresh tea served with the meal.',
+        slabs: [{ from: 1, to: 2000, price: 15 }],
+        rateMode: 'flat',
+      },
+      {
+        id: 'arya-avial',
+        name: 'Avial',
+        group: 'g05',
+        dietType: 'veg',
+        emoji: '🥗',
+        description: 'Mixed vegetables in coconut and curd.',
+        slabs: slabsFor(40),
+      },
+      {
+        id: 'arya-biri',
+        name: 'Chicken Biriyani',
+        group: 'g03',
+        dietType: 'non_veg',
+        emoji: '🍚',
+        description: 'Malabar chicken biriyani, priced per plate.',
+        offerEnabled: true,
+        discountPercent: 10,
+        slabs: slabsFor(180),
+      },
+    ],
+  },
+  {
+    id: 'sree',
+    name: 'Sree Krishna Caters',
+    area: 'Pandalam',
+    serves: ['Pathanamthitta', 'Pandalam'],
+    rating: 4.6,
+    reviews: 78,
+    available: true,
+    emoji: '🍱',
+    color: 'linear-gradient(145deg,#047857,#65A30D)',
+    about: 'Family catering from Pandalam for weddings and temple functions.',
+    specialities: ['Sadhya', 'Temple functions'],
+    photos: ['🍱', '🥥'],
+    reviewList: [{ name: 'Lakshmi', stars: 5, text: 'Neat service and a proper vegetarian sadhya.' }],
+    packages: [
+      {
+        id: 'sree-veg',
+        name: 'Temple Sadhya',
+        level: 'Standard',
+        category: 'wedding',
+        serveStyle: 'table',
+        dietType: 'veg',
+        blurb: 'Full vegetarian sadhya.',
+        guestSlabs: slabsFor(350),
+        menuModules: ccDemoVegWeddingMenuModules(),
+      },
+      {
+        id: 'sree-mix',
+        name: 'Feast with Chicken',
+        level: 'Premium',
+        category: 'wedding',
+        serveStyle: 'buffet',
+        dietType: 'mixed',
+        blurb: 'Sadhya with a chicken main.',
+        guestSlabs: slabsFor(550),
+        menuModules: ccDemoWeddingMenuModules(),
+      },
+    ],
+    foods: [
+      {
+        id: 'sree-payasam',
+        name: 'Palada Payasam',
+        group: 'g08',
+        dietType: 'veg',
+        emoji: '🍮',
+        description: 'Classic palada payasam, priced per plate for your guest count.',
+        slabs: slabsFor(45),
+      },
+      {
+        id: 'sree-sambar',
+        name: 'Sambar',
+        group: 'g05',
+        dietType: 'veg',
+        emoji: '🥘',
+        description: 'Traditional Kerala sambar served as an add-on dish.',
+        slabs: [{ from: 1, to: 2000, price: 35 }],
+        rateMode: 'flat',
+      },
+      {
+        id: 'sree-chicken',
+        name: 'Chicken Curry',
+        group: 'g05',
+        dietType: 'non_veg',
+        emoji: '🍗',
+        description: 'Homestyle chicken curry per plate.',
+        slabs: slabsFor(120),
+      },
+    ],
+  },
+  {
+    id: 'royal',
+    name: 'Royal Feast Catering',
+    area: 'Pathanamthitta',
+    serves: ['Pathanamthitta', 'Adoor'],
+    rating: 4.5,
+    reviews: 76,
+    available: true,
+    emoji: '👑',
+    color: 'linear-gradient(145deg,#B45309,#CA8A04)',
+    about: 'Reception and wedding menus with live counters.',
+    specialities: ['Live Counters'],
+    photos: ['👑', '🍛'],
+    reviewList: [{ name: 'Joseph', stars: 4, text: 'Good reception menu and polite staff.' }],
+    packages: [
+      {
+        id: 'royal-basic',
+        name: 'Reception Sadhya',
+        level: 'Basic',
+        category: 'wedding',
+        serveStyle: 'table',
+        dietType: 'veg',
+        blurb: 'Vegetarian reception menu.',
+        guestSlabs: slabsFor(300),
+        menuModules: ccDemoVegWeddingMenuModules(),
+      },
+      {
+        id: 'royal-std',
+        name: 'Royal Mixed Feast',
+        level: 'Standard',
+        category: 'wedding',
+        serveStyle: 'buffet',
+        dietType: 'mixed',
+        blurb: 'Mixed reception feast.',
+        guestSlabs: slabsFor(500),
+        menuModules: ccDemoWeddingMenuModules(),
+      },
+      {
+        id: 'royal-arab',
+        name: 'Arabian Mandi Spread',
+        level: 'Standard',
+        category: 'wedding',
+        serveStyle: 'buffet',
+        dietType: 'mixed',
+        blurb: 'Mandi, grill and bread for a reception.',
+        guestSlabs: slabsFor(420),
+        menuModules: ccDemoArabianReceptionModules(),
+      },
+    ],
+    foods: [
+      {
+        id: 'royal-ghee',
+        name: 'Ghee Rice',
+        group: 'g03',
+        dietType: 'veg',
+        emoji: '🍚',
+        description: 'Fragrant ghee rice, ideal as an add-on to reception menus.',
+        slabs: slabsFor(55),
+      },
+      {
+        id: 'royal-dosa',
+        name: 'Live Dosa (per plate)',
+        group: 'g09',
+        dietType: 'veg',
+        emoji: '🥞',
+        description: 'Counter-style dosa service priced per guest plate.',
+        offerEnabled: true,
+        discountPercent: 8,
+        slabs: slabsFor(90),
+      },
+      {
+        id: 'royal-grill',
+        name: 'Grilled Chicken',
+        group: 'g03',
+        dietType: 'non_veg',
+        emoji: '🍖',
+        description: 'Grilled chicken portion per plate.',
+        slabs: slabsFor(160),
+      },
+    ],
+  },
+  {
+    id: 'grace',
+    name: 'Grace Catering',
+    area: 'Pathanamthitta',
+    serves: ['Pathanamthitta'],
+    rating: 4.0,
+    reviews: 64,
+    available: false,
+    emoji: '🍽️',
+    color: 'linear-gradient(145deg,#64748B,#94A3B8)',
+    about: 'Booked out for this date. You can still read the menu.',
+    specialities: ['House functions'],
+    photos: ['🍽️'],
+    reviewList: [{ name: 'Anita', stars: 4, text: 'Polite team. Book early for December.' }],
+    packages: [
+      {
+        id: 'grace-wedding-veg',
+        name: 'Simple Wedding Sadhya',
+        level: 'Basic',
+        category: 'wedding',
+        serveStyle: 'table',
+        dietType: 'veg',
+        blurb: 'Compact vegetarian wedding sadhya when we have an open date.',
+        guestSlabs: slabsFor(280),
+        menuModules: ccDemoCompactVegMenuModules(),
+      },
+      {
+        id: 'grace-veg',
+        name: 'House Sadhya',
+        level: 'Basic',
+        category: 'other',
+        serveStyle: 'table',
+        dietType: 'veg',
+        blurb: 'Home-function vegetarian menu.',
+        guestSlabs: slabsFor(250),
+        menuModules: ccDemoCompactVegMenuModules(),
+      },
+      {
+        id: 'grace-mix',
+        name: 'House Feast',
+        level: 'Standard',
+        category: 'wedding',
+        serveStyle: 'buffet',
+        dietType: 'mixed',
+        blurb: 'Mixed menu for a house wedding.',
+        guestSlabs: slabsFor(450),
+        menuModules: ccDemoWeddingMenuModules(),
+      },
+    ],
+    foods: [
+      {
+        id: 'grace-tea',
+        name: 'Tea',
+        group: 'g01',
+        dietType: 'veg',
+        emoji: '☕',
+        description: 'Hot tea service with meals.',
+        slabs: [{ from: 1, to: 2000, price: 12 }],
+        rateMode: 'flat',
+      },
+      {
+        id: 'grace-avial',
+        name: 'Avial',
+        group: 'g05',
+        dietType: 'veg',
+        emoji: '🥗',
+        description: 'Mixed vegetable avial per plate.',
+        slabs: slabsFor(38),
+      },
+      {
+        id: 'grace-fish',
+        name: 'Fish Fry',
+        group: 'g02',
+        dietType: 'non_veg',
+        emoji: '🐟',
+        description: 'Crisp Kerala-style fish fry per plate.',
+        slabs: slabsFor(140),
+      },
+    ],
+  },
+];
+
+const state = {
+  location: 'Pathanamthitta',
+  date: '2026-12-15',
+  guests: 300,
+  functionType: 'wedding',
+  budgetMin: 0,
+  budgetMax: 300,
+  menuDietFilter: 'all',
+  catererId: null,
+  profileTab: 'overview',
+  saved: {},
+  menuTab: 'packages',
+  serveFilter: 'all',
+  tier: 'all',
+  openGroup: '',
+  detailTab: 'menu',
+  selection: null,
+  selectedFoodIds: [],
+  note: '',
+  sent: false,
+  showCustomRequirements: false,
+  calViewYear: 2026,
+  calViewMonth: 12,
+  calPickDay: 15,
+};
+
+function el(id) {
+  return document.getElementById(id);
+}
+function esc(s) {
+  return String(s == null ? '' : s)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+function show(id) {
+  document.querySelectorAll('.scr').forEach(function (s) {
+    s.classList.toggle('on', s.id === id);
+  });
+  const scr = el(id);
+  if (scr) scr.scrollTop = 0;
+}
+function toast(m) {
+  const t = el('ccToast');
+  if (!t) return;
+  t.textContent = m;
+  t.style.display = 'block';
+  clearTimeout(toast._t);
+  toast._t = setTimeout(function () {
+    t.style.display = 'none';
+  }, 2400);
+}
+function inr(n) {
+  return '₹' + Math.max(0, Math.round(+n || 0)).toLocaleString('en-IN');
+}
+function formatWhen(iso) {
+  const d = new Date(String(iso) + 'T00:00:00');
+  if (isNaN(d.getTime())) return '';
+  return d.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
+}
+function slabPrice(slabs, guests) {
+  const c = +guests || 0;
+  const list = slabs || [];
+  let i;
+  for (i = 0; i < list.length; i++) {
+    if (c >= +list[i].from && c <= +list[i].to) return +list[i].price || 0;
+  }
+  if (!list.length) return 0;
+  return +list[list.length - 1].price || 0;
+}
+function offerPct(item) {
+  if (!item || !item.offerEnabled) return 0;
+  const n = Math.round(+item.discountPercent);
+  return n >= 1 && n <= 90 ? n : 0;
+}
+function priceAfterOffer(base, pct) {
+  return Math.max(0, Math.round((base * (100 - pct)) / 100));
+}
+function pricingSlabs(item) {
+  return item.guestSlabs || item.slabs || [];
+}
+function isTieredGuestPricing(slabs) {
+  if (!slabs || slabs.length <= 1) return false;
+  const p0 = +slabs[0].price;
+  let i;
+  for (i = 1; i < slabs.length; i++) {
+    if (+slabs[i].price !== p0) return true;
+  }
+  return false;
+}
+function activeSlabIndex(slabs, guests) {
+  const c = +guests || 0;
+  let i;
+  for (i = 0; i < (slabs || []).length; i++) {
+    if (c >= +slabs[i].from && c <= +slabs[i].to) return i;
+  }
+  if (!slabs || !slabs.length) return -1;
+  return slabs.length - 1;
+}
+function guestRangeLabel(s) {
+  const to = +s.to;
+  const from = +s.from;
+  if (to >= 2000 || to >= 9999) return from.toLocaleString('en-IN') + '+ guests';
+  return from.toLocaleString('en-IN') + ' – ' + to.toLocaleString('en-IN') + ' guests';
+}
+function slabQuoteFromBase(item, basePrice) {
+  const pct = offerPct(item);
+  const base = +basePrice || 0;
+  const offer = pct ? priceAfterOffer(base, pct) : base;
+  return { base: base, offer: offer, pct: pct };
+}
+function renderDetailSlabSection(item, guests) {
+  const slabs = pricingSlabs(item);
+  const q = plateOf(item, guests);
+  if (!slabs.length) {
+    return (
+      '<div class="slab-box"><p class="slab-box-h">Per plate</p><p class="slab-yours">For your <b>' +
+      guests +
+      ' guests</b>: ' +
+      priceHtml(q) +
+      '</p></div>'
+    );
+  }
+  if (!isTieredGuestPricing(slabs)) {
+    const flat = slabQuoteFromBase(item, +slabs[0].price || q.base);
+    return (
+      '<div class="slab-box"><p class="slab-box-h">Per plate</p><p class="slab-yours"><b>' +
+      priceHtml(flat) +
+      '</b></p><p class="slab-note">Same rate for all guest counts.</p></div>'
+    );
+  }
+  const active = activeSlabIndex(slabs, guests);
+  let html = '<div class="slab-box"><p class="slab-box-h">Per plate by guest count</p><div class="slab-list">';
+  slabs.forEach(function (s, i) {
+    const sq = slabQuoteFromBase(item, s.price);
+    html +=
+      '<div class="slab-row' +
+      (i === active ? ' on' : '') +
+      '"><span>' +
+      esc(guestRangeLabel(s)) +
+      '</span><span>' +
+      priceHtml(sq) +
+      '</span></div>';
+  });
+  html += '</div><p class="slab-note">More guests often means a lower per plate rate.</p></div>';
+  return html;
+}
+function plateOf(item, guests) {
+  const base = slabPrice(item.guestSlabs || item.slabs, guests);
+  const pct = offerPct(item);
+  const offer = pct ? Math.max(0, Math.round((base * (100 - pct)) / 100)) : base;
+  return { base: base, offer: offer, pct: pct };
+}
+function priceHtml(quote) {
+  if (!quote.pct) return inr(quote.offer) + ' <small style="font-weight:700">per plate</small>';
+  return (
+    '<s class="was">' +
+    inr(quote.base) +
+    '</s>' +
+    inr(quote.offer) +
+    ' <small style="font-weight:700">per plate</small><span class="off-pill">' +
+    quote.pct +
+    '% off</span>'
+  );
+}
+function dietHtml(diet) {
+  if (diet === 'veg') {
+    return '<span class="diet-line"><span class="diet-mark veg" aria-hidden="true"><i></i></span>Veg</span>';
+  }
+  if (diet === 'non_veg') {
+    return '<span class="diet-line"><span class="diet-mark non" aria-hidden="true"><i></i></span>Non-veg</span>';
+  }
+  return '<span class="diet-line"><span class="diet-mark veg" aria-hidden="true"><i></i></span><span class="diet-mark non" aria-hidden="true"><i></i></span>Veg &amp; Non-veg</span>';
+}
+function catererById(id) {
+  return CATERERS.filter(function (c) {
+    return c.id === id;
+  })[0];
+}
+function servesArea(c, location) {
+  const q = String(location || '').trim().toLowerCase();
+  if (!q) return false;
+  return (c.serves || []).some(function (a) {
+    return a.toLowerCase().indexOf(q) >= 0 || q.indexOf(a.toLowerCase()) >= 0;
+  });
+}
+function packagesFor(c, opts) {
+  opts = opts || {};
+  const diet = opts.diet || 'all';
+  return (c.packages || []).filter(function (p) {
+    if (state.functionType === 'wedding' && p.category !== 'wedding') return false;
+    if (state.functionType === 'other' && p.category !== 'other') return false;
+    if (diet === 'veg' && p.dietType !== 'veg') return false;
+    if (diet === 'mixed' && p.dietType !== 'mixed') return false;
+    if (opts.serve && opts.serve !== 'all' && ccPackageServeStyle(p) !== opts.serve) return false;
+    if (opts.tier && opts.tier !== 'all' && String(p.level).toLowerCase() !== opts.tier) return false;
+    return true;
+  });
+}
+function foodsFor(c) {
+  return (c.foods || []).filter(function (f) {
+    if (state.menuDietFilter === 'veg' && f.dietType !== 'veg') return false;
+    if (state.menuDietFilter === 'non_veg' && f.dietType !== 'non_veg') return false;
+    return true;
+  });
+}
+function clearFoodSelection() {
+  state.selectedFoodIds = [];
+}
+function isFoodSelected(id) {
+  return (state.selectedFoodIds || []).indexOf(id) >= 0;
+}
+function toggleFoodSelection(id) {
+  if (!id) return;
+  if (!state.selectedFoodIds) state.selectedFoodIds = [];
+  const i = state.selectedFoodIds.indexOf(id);
+  if (i >= 0) state.selectedFoodIds.splice(i, 1);
+  else state.selectedFoodIds.push(id);
+}
+function selectedFoodItemsForCaterer(c) {
+  if (!c) return [];
+  return (state.selectedFoodIds || [])
+    .map(function (id) {
+      return (c.foods || []).filter(function (f) {
+        return f.id === id;
+      })[0];
+    })
+    .filter(Boolean);
+}
+function foodSelectionGrandTotal(c) {
+  let sum = 0;
+  selectedFoodItemsForCaterer(c).forEach(function (f) {
+    sum += plateOf(f, state.guests).offer * state.guests;
+  });
+  return sum;
+}
+function renderFoodSelectBar() {
+  const menuScr = el('ccMenu');
+  const bar = el('ccFoodSelectBar');
+  if (!bar || !menuScr) return;
+  const c = catererById(state.catererId);
+  const n = (state.selectedFoodIds || []).length;
+  const show = state.menuTab === 'food' && menuScr.classList.contains('on') && n > 0 && !!c;
+  bar.hidden = !show;
+  menuScr.classList.toggle('has-food-bar', show);
+  if (!show) return;
+  el('ccFoodSelectSummary').textContent =
+    n + (n === 1 ? ' dish' : ' dishes') + ' · Est. for ' + state.guests + ' guests';
+  el('ccFoodSelectTotal').textContent = inr(foodSelectionGrandTotal(c));
+  const reviewBtn = el('ccFoodReviewBtn');
+  if (reviewBtn) {
+    reviewBtn.textContent = 'Continue with ' + n + (n === 1 ? ' dish' : ' dishes');
+  }
+}
+function normalizeMenuDietFilterForTab() {
+  if (state.menuTab === 'food') {
+    if (state.menuDietFilter === 'mixed') state.menuDietFilter = 'all';
+  } else if (state.menuDietFilter === 'non_veg') {
+    state.menuDietFilter = 'all';
+  }
+}
+function menuDietChipOptions() {
+  if (state.menuTab === 'food') {
+    return [
+      { id: 'all', label: 'All' },
+      { id: 'veg', label: 'Veg only' },
+      { id: 'non_veg', label: 'Non veg only' },
+    ];
+  }
+  return [
+    { id: 'all', label: 'All' },
+    { id: 'veg', label: 'Veg only' },
+    { id: 'mixed', label: 'Veg & Non-veg' },
+  ];
+}
+function packagesForResults(c) {
+  return (c.packages || []).filter(function (p) {
+    if (state.functionType === 'wedding' && p.category !== 'wedding') return false;
+    if (state.functionType === 'other' && p.category !== 'other') return false;
+    return true;
+  });
+}
+function plateOffersFromPackages(packs) {
+  return packs
+    .map(function (p) {
+      return plateOf(p, state.guests).offer;
+    })
+    .filter(function (n) {
+      return n > 0;
+    });
+}
+function fitsBudgetRange(c) {
+  const offers = plateOffersFromPackages(packagesForResults(c));
+  if (!offers.length) return false;
+  const plateLo = Math.min.apply(null, offers);
+  const plateHi = Math.max.apply(null, offers);
+  return plateLo <= state.budgetMax && plateHi >= state.budgetMin;
+}
+function rangeLabelForResults(c) {
+  const offers = plateOffersFromPackages(packagesForResults(c));
+  if (!offers.length) return 'Ask for a menu';
+  const lo = Math.min.apply(null, offers);
+  const hi = Math.max.apply(null, offers);
+  if (lo === hi) return inr(lo) + ' per plate';
+  return inr(lo) + ' – ' + inr(hi) + ' per plate';
+}
+function matchingCaterers() {
+  const list = CATERERS.filter(function (c) {
+    if (!servesArea(c, state.location)) return false;
+    if (!packagesForResults(c).length) return false;
+    if (!fitsBudgetRange(c)) return false;
+    return true;
+  });
+  list.sort(function (a, b) {
+    if (a.available === b.available) return 0;
+    return a.available ? -1 : 1;
+  });
+  return list;
+}
+
+function readSearch() {
+  state.location = (el('ccLocation').value || '').trim();
+  state.date = el('ccDate').value || state.date;
+  state.guests = Math.max(1, Math.round(+el('ccGuests').value || 0));
+  syncBudgetFromInputs(false);
+}
+function todayIso() {
+  const d = new Date();
+  d.setHours(0, 0, 0, 0);
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return y + '-' + m + '-' + day;
+}
+function budgetHiLabel(n) {
+  return inr(n);
+}
+function paintBudgetTrack() {
+  const fill = el('ccBudgetFill');
+  const minEl = el('ccBudgetMin');
+  const maxEl = el('ccBudgetMax');
+  if (!fill || !minEl || !maxEl) return;
+  const cap = +maxEl.max || CC_BUDGET_CAP;
+  const loPct = (Math.min(+minEl.value, +maxEl.value) / cap) * 100;
+  const hiPct = (Math.max(+minEl.value, +maxEl.value) / cap) * 100;
+  fill.style.left = loPct + '%';
+  fill.style.width = hiPct - loPct + '%';
+}
+function paintBudgetRange() {
+  const host = el('ccBudgetRangeVal');
+  if (!host) return;
+  host.textContent = inr(state.budgetMin) + ' to ' + budgetHiLabel(state.budgetMax) + ' per plate';
+  paintBudgetTrack();
+}
+function syncBudgetFromInputs(fromUi) {
+  const minEl = el('ccBudgetMin');
+  const maxEl = el('ccBudgetMax');
+  if (!minEl || !maxEl) return;
+  let lo = Math.min(CC_BUDGET_CAP, Math.max(0, Math.round(+minEl.value || 0)));
+  let hi = Math.min(CC_BUDGET_CAP, Math.max(0, Math.round(+maxEl.value || 0)));
+  if (fromUi !== false) {
+    if (lo > hi) {
+      if (document.activeElement === minEl) hi = lo;
+      else lo = hi;
+    }
+    minEl.value = lo;
+    maxEl.value = hi;
+    if (document.activeElement === minEl) {
+      minEl.style.zIndex = 4;
+      maxEl.style.zIndex = 3;
+    } else if (document.activeElement === maxEl) {
+      maxEl.style.zIndex = 4;
+      minEl.style.zIndex = 3;
+    }
+  } else {
+    lo = state.budgetMin;
+    hi = state.budgetMax;
+    if (lo > hi) hi = lo;
+    minEl.value = lo;
+    maxEl.value = hi;
+    maxEl.style.zIndex = 4;
+    minEl.style.zIndex = 3;
+  }
+  state.budgetMin = lo;
+  state.budgetMax = hi;
+  paintBudgetRange();
+}
+function isoFromParts(y, m, d) {
+  return y + '-' + String(m).padStart(2, '0') + '-' + String(d).padStart(2, '0');
+}
+function syncDateEverywhere() {
+  paintDate();
+  const inp = el('ccDate');
+  if (inp) {
+    inp.value = state.date;
+    inp.min = todayIso();
+  }
+  const when = el('ccWhenLabel');
+  if (when) when.textContent = formatWhen(state.date) + ' · ' + state.guests + ' guests';
+  if (el('ccResults') && el('ccResults').classList.contains('on')) renderResults();
+  if (el('ccMenu') && el('ccMenu').classList.contains('on')) renderMenu();
+  if (el('ccProfile') && el('ccProfile').classList.contains('on') && state.catererId) renderProfile();
+}
+function openCustomerCalendar() {
+  const base = state.date || todayIso();
+  const p = base.split('-');
+  state.calViewYear = +p[0] || 2026;
+  state.calViewMonth = +p[1] || 12;
+  state.calPickDay = +p[2] || 15;
+  const ov = el('ccCalOverlay');
+  if (!ov) return;
+  ov.hidden = false;
+  ov.setAttribute('aria-hidden', 'false');
+  ov.classList.add('on');
+  renderCustomerCalendar();
+}
+function closeCustomerCalendar() {
+  const ov = el('ccCalOverlay');
+  if (!ov) return;
+  ov.classList.remove('on');
+  ov.hidden = true;
+  ov.setAttribute('aria-hidden', 'true');
+}
+function renderCustomerCalendar() {
+  const grid = el('ccCalGrid');
+  const monthLab = el('ccCalMonth');
+  if (!grid) return;
+  const y = state.calViewYear;
+  const m = state.calViewMonth;
+  if (monthLab) monthLab.textContent = CC_MONTH_NAMES[m - 1] + ' ' + y;
+  const minDay = todayIso();
+  const first = new Date(y, m - 1, 1);
+  const daysInMonth = new Date(y, m, 0).getDate();
+  const start = first.getDay();
+  let html =
+    '<div class="h">S</div><div class="h">M</div><div class="h">T</div><div class="h">W</div><div class="h">T</div><div class="h">F</div><div class="h">S</div>';
+  let i;
+  for (i = 0; i < start; i++) html += '<div class="d off"></div>';
+  for (i = 1; i <= daysInMonth; i++) {
+    const iso = isoFromParts(y, m, i);
+    const past = iso < minDay;
+    const on = i === state.calPickDay;
+    html +=
+      '<button type="button" class="d' +
+      (past ? ' past' : '') +
+      (on ? ' on' : '') +
+      '" data-day="' +
+      i +
+      '">' +
+      i +
+      '</button>';
+  }
+  grid.innerHTML = html;
+  grid.querySelectorAll('.d[data-day]').forEach(function (btn) {
+    btn.onclick = function () {
+      state.calPickDay = +btn.getAttribute('data-day');
+      renderCustomerCalendar();
+    };
+  });
+}
+function shiftCalMonth(delta) {
+  let y = state.calViewYear;
+  let m = state.calViewMonth + delta;
+  if (m < 1) {
+    m = 12;
+    y -= 1;
+  }
+  if (m > 12) {
+    m = 1;
+    y += 1;
+  }
+  state.calViewYear = y;
+  state.calViewMonth = m;
+  const dim = new Date(y, m, 0).getDate();
+  if (state.calPickDay > dim) state.calPickDay = dim;
+  renderCustomerCalendar();
+}
+function applyCustomerCalendar() {
+  const iso = isoFromParts(state.calViewYear, state.calViewMonth, state.calPickDay);
+  if (iso < todayIso()) {
+    toast('Choose today or a future date');
+    return;
+  }
+  state.date = iso;
+  closeCustomerCalendar();
+  syncDateEverywhere();
+}
+function initSearchDate() {
+  const inp = el('ccDate');
+  if (!inp) return;
+  const minDay = todayIso();
+  inp.min = minDay;
+  if (!inp.value || inp.value < minDay) {
+    inp.value = state.date >= minDay ? state.date : minDay;
+  }
+  state.date = inp.value;
+  syncDateEverywhere();
+}
+function renderFunctions() {
+  const host = el('ccFunctions');
+  if (!host) return;
+  const opts = [
+    { id: 'wedding', icon: '💍', title: 'Wedding & Related', sub: 'Wedding, Engagement, Reception' },
+    { id: 'other', icon: '🎉', title: 'Other Functions', sub: 'Birthday, Noolukettu, Baptism, etc.' },
+  ];
+  host.innerHTML = opts
+    .map(function (o) {
+      const on = state.functionType === o.id;
+      return (
+        '<button type="button" class="fn-card' +
+        (on ? ' on' : '') +
+        '" data-fn="' +
+        o.id +
+        '"><span class="fn-ico">' +
+        o.icon +
+        '</span><span><b>' +
+        esc(o.title) +
+        '</b><small>' +
+        esc(o.sub) +
+        '</small></span><span class="fn-tick">✓</span></button>'
+      );
+    })
+    .join('');
+  host.querySelectorAll('[data-fn]').forEach(function (btn) {
+    btn.onclick = function () {
+      state.functionType = btn.getAttribute('data-fn');
+      renderFunctions();
+    };
+  });
+}
+function paintDate() {
+  const label = el('ccDateLabel');
+  const value = (el('ccDate') && el('ccDate').value) || state.date;
+  if (label) label.textContent = formatWhen(value);
+}
+function renderSearchBits() {
+  initSearchDate();
+  syncBudgetFromInputs(false);
+  renderFunctions();
+}
+
+function renderResults() {
+  el('ccResultsTitle').textContent = 'Catering Services in ' + (state.location || 'your area');
+  el('ccResultsCtx').textContent =
+    formatWhen(state.date) +
+    ' · ' +
+    state.guests +
+    ' Guests · ' +
+    inr(state.budgetMin) +
+    ' – ' +
+    inr(state.budgetMax) +
+    ' per plate';
+  const list = matchingCaterers();
+  if (!list.length) {
+    el('ccResultList').innerHTML =
+      '<div class="empty">No caterers in this budget range. Widen the budget on the search page or try another area.</div>';
+    return;
+  }
+  el('ccResultList').innerHTML = list
+    .map(function (c) {
+      return (
+        '<button type="button" class="caterer' +
+        (c.available ? '' : ' unavail') +
+        '" data-id="' +
+        esc(c.id) +
+        '"><span class="thumb" style="background:' +
+        c.color +
+        '">' +
+        c.emoji +
+        '</span><span><b>' +
+        esc(c.name) +
+        '</b><div class="meta"><span class="stars">★ ' +
+        c.rating +
+        '</span> (' +
+        c.reviews +
+        ' reviews)<br>' +
+        esc(c.area) +
+        '</div><div class="price">' +
+        esc(rangeLabelForResults(c)) +
+        '</div><span class="badge ' +
+        (c.available ? 'ok' : 'wait') +
+        '">' +
+        (c.available ? 'Available' : 'Unavailable on this date') +
+        '</span></span></button>'
+      );
+    })
+    .join('');
+  el('ccResultList').querySelectorAll('[data-id]').forEach(function (btn) {
+    btn.onclick = function () {
+      openProfile(btn.getAttribute('data-id'));
+    };
+  });
+}
+
+function openProfile(id) {
+  if (state.catererId !== id) clearFoodSelection();
+  state.catererId = id;
+  state.profileTab = 'overview';
+  renderProfile();
+  show('ccProfile');
+}
+function renderProfile() {
+  const c = catererById(state.catererId);
+  if (!c) return;
+  el('ccProfileTitle').textContent = c.name;
+  const save = el('ccSave');
+  save.textContent = state.saved[c.id] ? '♥' : '♡';
+  save.classList.toggle('on', !!state.saved[c.id]);
+  let body = '<div class="hero" style="background:' + c.color + '">' + c.emoji + '</div>';
+  body +=
+    '<div class="rate-line"><span class="stars">★ ' +
+    c.rating +
+    '</span> (' +
+    c.reviews +
+    ' reviews) <span class="serves">Serves in your area</span></div>';
+  body += '<p class="ctx" style="margin-top:0">' + esc(c.area) + '</p>';
+  body +=
+    '<div class="tabs"><button type="button" data-pt="overview"' +
+    (state.profileTab === 'overview' ? ' class="on"' : '') +
+    '>Overview</button><button type="button" data-pt="photos"' +
+    (state.profileTab === 'photos' ? ' class="on"' : '') +
+    '>Photos</button><button type="button" data-pt="reviews"' +
+    (state.profileTab === 'reviews' ? ' class="on"' : '') +
+    '>Reviews</button></div>';
+  if (state.profileTab === 'photos') {
+    body +=
+      '<div class="photo-grid">' +
+      c.photos
+        .map(function (p, i) {
+          return '<div style="background:' + c.color + '">' + p + '</div>';
+        })
+        .join('') +
+      '</div>';
+  } else if (state.profileTab === 'reviews') {
+    body += c.reviewList
+      .map(function (r) {
+        return '<div class="review"><b>' + esc(r.name) + ' · ★ ' + r.stars + '</b><p>' + esc(r.text) + '</p></div>';
+      })
+      .join('');
+  } else {
+    body += '<div class="about"><h3>About Us</h3>' + esc(c.about) + '</div>';
+    body +=
+      '<div class="about" style="padding-top:0"><h3>Our Specialities</h3></div><div class="spec">' +
+      c.specialities
+        .map(function (s) {
+          return '<span>' + esc(s) + '</span>';
+        })
+        .join('') +
+      '</div>';
+    if (!c.available) {
+      body += '<div class="sent">This caterer is unavailable on ' + esc(formatWhen(state.date)) + '. You can still view the menu.</div>';
+    }
+  }
+  el('ccProfileBody').innerHTML = body;
+  el('ccProfileBody').querySelectorAll('[data-pt]').forEach(function (btn) {
+    btn.onclick = function () {
+      state.profileTab = btn.getAttribute('data-pt');
+      renderProfile();
+    };
+  });
+}
+
+function renderMenuDietChips() {
+  const host = el('ccMenuDietChips');
+  const label = el('ccMenuDietLabel');
+  if (!host) return;
+  normalizeMenuDietFilterForTab();
+  const opts = menuDietChipOptions();
+  host.innerHTML = opts
+    .map(function (o) {
+      return (
+        '<button type="button" class="chip' +
+        (state.menuDietFilter === o.id ? ' on' : '') +
+        '" data-menu-diet="' +
+        o.id +
+        '">' +
+        esc(o.label) +
+        '</button>'
+      );
+    })
+    .join('');
+  host.querySelectorAll('[data-menu-diet]').forEach(function (btn) {
+    btn.onclick = function () {
+      state.menuDietFilter = btn.getAttribute('data-menu-diet');
+      renderMenu();
+    };
+  });
+  if (label) label.style.display = 'block';
+}
+function openMenu() {
+  state.menuTab = state.menuTab || 'packages';
+  if (state.menuTab !== 'food' && state.menuTab !== 'packages') state.menuTab = 'packages';
+  state.tier = 'all';
+  state.serveFilter = 'all';
+  state.menuDietFilter = 'all';
+  state.openGroup = '';
+  renderMenu();
+  show('ccMenu');
+}
+function renderMenu() {
+  const c = catererById(state.catererId);
+  if (!c) return;
+  el('ccMenuTitle').textContent = c.name;
+  const foodTotal = (c.foods || []).length;
+  const selN = (state.selectedFoodIds || []).length;
+  let foodTabLabel =
+    foodTotal > 0 ? 'Individual Food Items (' + foodTotal + ')' : 'Individual Food Items';
+  if (selN > 0) foodTabLabel = 'Individual Food Items · ' + selN + ' selected';
+  el('ccTabPackages').classList.toggle('on', state.menuTab === 'packages');
+  el('ccTabFood').classList.toggle('on', state.menuTab === 'food');
+  el('ccTabFood').textContent = foodTabLabel;
+  const foodHint = el('ccMenuFoodHint');
+  const pkgHint = el('ccMenuPackageHint');
+  if (foodHint) foodHint.hidden = state.menuTab !== 'food';
+  if (pkgHint) pkgHint.hidden = state.menuTab !== 'packages';
+  if (foodHint && state.menuTab === 'food') {
+    foodHint.innerHTML =
+      'Dishes follow the caterer library (drinks, rice, curries, and so on). Tick <b>+</b> to add <b>more than one</b>. A full menu is one <b>Package</b>. Prices are <b>per plate × ' +
+      state.guests +
+      ' guests</b> (estimate only).';
+  }
+  if (pkgHint && state.menuTab === 'packages') {
+    pkgHint.innerHTML =
+      'Choose <b>one</b> package (table service, buffet, or both). Packages are not combined. Extra dishes go under <b>Individual Food Items</b>.';
+  }
+  el('ccWhenLabel').textContent = formatWhen(state.date) + ' · ' + state.guests + ' guests';
+  const fnLabel = state.functionType === 'other' ? 'Other Functions' : state.functionType === 'wedding' ? 'Wedding & Related' : 'all functions';
+  renderMenuDietChips();
+  const serveBlock = el('ccServeFilterBlock');
+  if (serveBlock) serveBlock.hidden = state.menuTab !== 'packages';
+  if (state.menuTab === 'food') {
+    el('ccMenuChips').innerHTML = '';
+    const foods = foodsFor(c);
+    const dietNote =
+      state.menuDietFilter === 'veg'
+        ? ' · Veg only'
+        : state.menuDietFilter === 'non_veg'
+          ? ' · Non veg only'
+          : '';
+    el('ccMenuCount').textContent = foods.length + ' dishes' + dietNote;
+    el('ccMenuList').innerHTML = foods.length
+      ? ccCustomerFoodGroups().map(function (g) {
+          const rows = foods.filter(function (f) {
+            return ccFoodModuleId(f) === g.id;
+          });
+          if (!rows.length) return '';
+          return (
+            '<p class="food-group-h">' +
+            esc(g.label) +
+            '</p>' +
+            rows
+              .map(function (f) {
+                const q = plateOf(f, state.guests);
+                const picked = isFoodSelected(f.id);
+                return (
+                  '<div class="pkg food-row' +
+                  (picked ? ' on' : '') +
+                  '"><button type="button" class="food-check' +
+                  (picked ? ' on' : '') +
+                  '" data-toggle-food="' +
+                  esc(f.id) +
+                  '" aria-pressed="' +
+                  picked +
+                  '" aria-label="' +
+                  (picked ? 'Remove' : 'Select') +
+                  ' ' +
+                  esc(f.name) +
+                  '">' +
+                  (picked ? '✓' : '+') +
+                  '</button><button type="button" class="food-body" data-food="' +
+                  esc(f.id) +
+                  '"><span class="thumb" style="background:' +
+                  c.color +
+                  '">' +
+                  f.emoji +
+                  '</span><span><b>' +
+                  esc(f.name) +
+                  '</b>' +
+                  dietHtml(f.dietType) +
+                  '<p class="meta" style="margin-top:4px">' +
+                  esc(f.description || '') +
+                  '</p><div class="price">' +
+                  priceHtml(q) +
+                  '</div></span></button></div>'
+                );
+              })
+              .join('')
+          );
+        }).join('')
+      : '<div class="empty">No individual dishes match this diet filter. Try <b>All</b> or check the Packages tab.</div>';
+  } else {
+    el('ccMenuChips').innerHTML = CC_SERVE_FILTERS.map(function (s) {
+      return (
+        '<button type="button" class="serve-opt' +
+        (state.serveFilter === s.id ? ' on' : '') +
+        '" data-serve="' +
+        esc(s.id) +
+        '" aria-pressed="' +
+        (state.serveFilter === s.id) +
+        '"><b>' +
+        esc(s.label) +
+        '</b><small>' +
+        esc(s.hint || '') +
+        '</small></button>'
+      );
+    }).join('');
+    const packs = packagesFor(c, { serve: state.serveFilter, diet: state.menuDietFilter });
+    const dietNote =
+      state.menuDietFilter === 'veg'
+        ? ' · Veg only'
+        : state.menuDietFilter === 'mixed'
+          ? ' · Veg & Non-veg'
+          : '';
+    const styleNote = state.serveFilter === 'all' ? '' : ' · ' + ccServeFilterLabel(state.serveFilter);
+    el('ccMenuCount').textContent = 'Showing ' + packs.length + ' packages for ' + fnLabel + styleNote + dietNote;
+    el('ccMenuList').innerHTML = packs.length
+      ? packs
+          .map(function (p) {
+            const q = plateOf(p, state.guests);
+            return (
+              '<button type="button" class="pkg" data-pkg="' +
+              esc(p.id) +
+              '"><span class="thumb" style="background:' +
+              c.color +
+              '">🍛</span><span><span class="pkg-top"><span class="lv ' +
+              esc(p.level.toLowerCase()) +
+              '">' +
+              esc(p.level) +
+              '</span><span class="cat-chip">' +
+              esc(ccServeStyleLabel(ccPackageServeStyle(p)) || 'Service') +
+              '</span><span class="cat-chip">' +
+              (p.category === 'wedding' ? 'Wedding & Related' : 'Other Functions') +
+              '</span>' +
+              (p.popular ? '<span class="pop">Most Popular</span>' : '') +
+              '</span><b>' +
+              esc(p.name) +
+              '</b>' +
+              dietHtml(p.dietType) +
+              '<div class="price">' +
+              priceHtml(q) +
+              '</div></span></button>'
+            );
+          })
+          .join('')
+      : '<div class="empty">No packages for this filter.</div>';
+  }
+  renderFoodSelectBar();
+  el('ccMenuChips').querySelectorAll('[data-serve]').forEach(function (btn) {
+    btn.onclick = function () {
+      state.serveFilter = btn.getAttribute('data-serve') || 'all';
+      renderMenu();
+    };
+  });
+  el('ccMenuList').querySelectorAll('[data-pkg]').forEach(function (btn) {
+    btn.onclick = function () {
+      openDetail('package', btn.getAttribute('data-pkg'));
+    };
+  });
+  el('ccMenuList').querySelectorAll('[data-toggle-food]').forEach(function (btn) {
+    btn.onclick = function (e) {
+      e.preventDefault();
+      e.stopPropagation();
+      toggleFoodSelection(btn.getAttribute('data-toggle-food'));
+      renderMenu();
+    };
+  });
+  el('ccMenuList').querySelectorAll('[data-food]').forEach(function (btn) {
+    btn.onclick = function () {
+      openDetail('food', btn.getAttribute('data-food'));
+    };
+  });
+}
+
+function findSelection(kind, id) {
+  const c = catererById(state.catererId);
+  if (!c) return null;
+  const list = kind === 'food' ? c.foods : c.packages;
+  const item = (list || []).filter(function (x) {
+    return x.id === id;
+  })[0];
+  return item ? { caterer: c, kind: kind, item: item } : null;
+}
+function openDetail(kind, id) {
+  state.selection = findSelection(kind, id);
+  state.openGroup = '';
+  state.detailTab = 'menu';
+  if (!state.selection) return;
+  renderDetail();
+  show('ccDetail');
+}
+function renderDetail() {
+  const sel = state.selection;
+  if (!sel) return;
+  const item = sel.item;
+  const q = plateOf(item, state.guests);
+  const total = q.offer * state.guests;
+  el('ccDetailTitle').textContent = item.name;
+  let html = '<div class="hero" style="background:' + sel.caterer.color + '">' + (item.emoji || '🍛') + '</div>';
+  html += '<div class="pad"><span class="pkg-top"><span class="lv ' + esc(String(item.level || 'basic').toLowerCase()) + '">' + esc(item.level || 'Dish') + '</span>';
+  if (item.category) {
+    html += '<span class="cat-chip">' + esc(ccServeStyleLabel(ccPackageServeStyle(item)) || 'Service') + '</span>';
+    html += '<span class="cat-chip">' + (item.category === 'wedding' ? 'Wedding & Related' : 'Other Functions') + '</span>';
+  }
+  html += '</span><h2 style="margin:8px 0 0;font-size:20px;color:#14532D">' + esc(item.name) + '</h2>';
+  html += dietHtml(item.dietType);
+  html += '<p class="meta">' + esc(item.blurb || item.description || '') + '</p></div>';
+  html +=
+    '<div class="detail-price"><div><span>Price for ' +
+    state.guests +
+    ' guests</span><b>' +
+    priceHtml(q) +
+    '</b></div><div style="text-align:right"><span>Estimated total</span><b>' +
+    inr(total) +
+    '</b></div></div>';
+  const menuGroups = sel.kind === 'package' ? ccMenuGroupsForPackage(item) : item.groups || [];
+  const hasMenuGroups = !!(menuGroups && menuGroups.length);
+  html +=
+    '<div class="tabs detail-tabs"><button type="button" data-dtab="menu"' +
+    (state.detailTab === 'menu' ? ' class="on"' : '') +
+    '>' +
+    (hasMenuGroups ? 'Menu inclusions' : 'About') +
+    '</button><button type="button" data-dtab="pricing"' +
+    (state.detailTab === 'pricing' ? ' class="on"' : '') +
+    '>Per plate pricing</button></div>';
+  html += '<div class="detail-tab-body">';
+  if (state.detailTab === 'pricing') {
+    html += renderDetailSlabSection(item, state.guests);
+  } else if (hasMenuGroups) {
+    html +=
+      '<p class="menu-inc-h">What&apos;s included <span class="inc-tag">Included in per plate price</span></p>';
+    html +=
+      '<p class="menu-inc-sub">Same nine dish groups the caterer picks in Gixbee (drinks, starters, rice, curries, desserts, live counters, and more).</p>';
+    html += menuGroups
+      .map(function (g) {
+        const open = state.openGroup === g.name;
+        const title = (g.emoji ? g.emoji + ' ' : '') + g.name;
+        return (
+          '<button type="button" class="inc" data-g="' +
+          esc(g.name) +
+          '"><b>' +
+          esc(title) +
+          '</b><small> (' +
+          g.items.length +
+          ' dishes)</small>' +
+          (open ? '<ul>' + g.items.map(function (d) { return '<li>' + esc(d) + '</li>'; }).join('') + '</ul>' : '') +
+          '</button>'
+        );
+      })
+      .join('');
+  } else if (sel.kind === 'food') {
+    html +=
+      '<div class="detail-about pad" style="padding-top:12px"><p class="meta" style="margin:0;line-height:1.5">' +
+      esc(item.description || item.blurb || 'Single dish pricing — see the Per plate pricing tab for your guest count.') +
+      '</p></div>';
+  } else {
+    html += '<p class="empty" style="margin-top:16px">No menu breakdown for this item.</p>';
+  }
+  html += '</div>';
+  if (sel.kind === 'food') {
+    const n = (state.selectedFoodIds || []).length;
+    html +=
+      '<p class="detail-hint">' +
+      (isFoodSelected(item.id)
+        ? 'This dish is in your selection. Tap <b>Added</b> to remove, or continue with all selected dishes below.'
+        : n
+          ? 'Tap <b>Add to selection</b>, or review your ' + n + ' selected dish' + (n === 1 ? '' : 'es') + ' from the menu bar.'
+          : 'Tap <b>Add to selection</b>, or tick <b>+</b> on the list. Prices use your guest count from search.') +
+      '</p>';
+  }
+  el('ccDetailBody').innerHTML = html;
+  el('ccDetailBody').querySelectorAll('[data-dtab]').forEach(function (btn) {
+    btn.onclick = function () {
+      state.detailTab = btn.getAttribute('data-dtab') || 'menu';
+      renderDetail();
+    };
+  });
+  el('ccDetailBody').querySelectorAll('[data-g]').forEach(function (btn) {
+    btn.onclick = function () {
+      const name = btn.getAttribute('data-g');
+      state.openGroup = state.openGroup === name ? '' : name;
+      renderDetail();
+    };
+  });
+  updateDetailActions();
+}
+function updateDetailActions() {
+  const sel = state.selection;
+  const init = el('ccInitiate');
+  const cust = el('ccCustomise');
+  if (!init || !cust || !sel) return;
+  if (sel.kind === 'food') {
+    const on = isFoodSelected(sel.item.id);
+    const n = (state.selectedFoodIds || []).length;
+    init.textContent = on ? 'Added · Tap to remove' : 'Add to selection';
+    init.classList.toggle('on', on);
+    cust.textContent = n ? 'Continue with ' + n + (n === 1 ? ' dish' : ' dishes') : '';
+    cust.style.display = n ? '' : 'none';
+  } else {
+    init.textContent = 'Initiate Interest';
+    init.classList.remove('on');
+    cust.textContent = 'Customise Requirement';
+    cust.style.display = '';
+  }
+}
+
+function openFoodMultiInterest(fromCustomise) {
+  const c = catererById(state.catererId);
+  if (!c) return;
+  const items = selectedFoodItemsForCaterer(c);
+  if (!items.length) {
+    toast('Select at least one dish');
+    return;
+  }
+  if (!c.available) {
+    toast('This caterer is unavailable on ' + formatWhen(state.date));
+    return;
+  }
+  state.selection = { caterer: c, kind: 'food_multi', items: items };
+  state.showCustomRequirements = true;
+  if (!fromCustomise) state.note = '';
+  state.sent = false;
+  renderInterest();
+  show('ccInterest');
+  if (fromCustomise) {
+    const note = el('ccNote');
+    if (note) note.focus();
+  }
+}
+
+function openInterest(fromCustomise) {
+  if (!state.selection) return;
+  const c = state.selection.caterer;
+  if (!c.available) {
+    toast('This caterer is unavailable on ' + formatWhen(state.date));
+    return;
+  }
+  state.showCustomRequirements = !!fromCustomise;
+  if (!fromCustomise) state.note = '';
+  state.sent = false;
+  renderInterest();
+  show('ccInterest');
+  if (fromCustomise) {
+    const note = el('ccNote');
+    if (note) note.focus();
+  }
+}
+function renderInterest() {
+  const sel = state.selection;
+  if (!sel) return;
+  let html = '';
+  if (sel.kind === 'food_multi') {
+    const items = sel.items || [];
+    html +=
+      '<p class="ctx" style="margin-top:8px">Individual dishes · ' +
+      items.length +
+      ' selected for ' +
+      state.guests +
+      ' guests</p><div class="interest-lines">';
+    let grand = 0;
+    items.forEach(function (item) {
+      const q = plateOf(item, state.guests);
+      const line = q.offer * state.guests;
+      grand += line;
+      html +=
+        '<div class="interest-line"><span><b>' +
+        esc(item.emoji || '🍽') +
+        ' ' +
+        esc(item.name) +
+        '</b><br>' +
+        priceHtml(q) +
+        '</span><span>Line total<br><b style="color:#15803D">' +
+        inr(line) +
+        '</b></span></div>';
+    });
+    html +=
+      '</div><div class="kv"><div><span>Event Date</span><b>' +
+      esc(formatWhen(state.date)) +
+      '</b></div><div><span>Number of Guests</span><b>' +
+      state.guests +
+      '</b></div><div><span>Event Location</span><b>' +
+      esc(state.location) +
+      '</b></div><div><span>Estimated total</span><b>' +
+      inr(grand) +
+      '</b></div></div>';
+    html +=
+      '<p class="estimate-note">This total adds each selected dish at its per-plate rate for ' +
+      state.guests +
+      ' guests. The caterer confirms the final quote — sending interest does not book the event.</p>';
+    html +=
+      '<p class="pad" style="font-weight:800;color:#14532D;margin-bottom:8px">Additional Requirements (Optional)</p>' +
+      '<textarea class="note" id="ccNote" maxlength="500" placeholder="Eg. service time, quantity tweaks, combo with a package, etc.">' +
+      esc(state.note) +
+      '</textarea>';
+  } else {
+  const item = sel.item;
+  const q = plateOf(item, state.guests);
+  const cat = item.category === 'other' ? 'Other Functions' : item.category === 'wedding' ? 'Wedding & Related' : 'Individual dish';
+  html =
+    '<div class="sum-card"><span class="thumb" style="background:' +
+    sel.caterer.color +
+    '">' +
+    (item.emoji || '🍛') +
+    '</span><span><b>' +
+    esc(item.name) +
+    '</b><div class="meta">' +
+    esc(item.level || 'Dish') +
+    ' · ' +
+    cat +
+    '</div><div class="price">' +
+    priceHtml(q) +
+    '</div></span></div>' +
+    '<div class="kv"><div><span>Event Date</span><b>' +
+    esc(formatWhen(state.date)) +
+    '</b></div><div><span>Number of Guests</span><b>' +
+    state.guests +
+    '</b></div><div><span>Event Location</span><b>' +
+    esc(state.location) +
+    '</b></div><div><span>Estimated total</span><b>' +
+    inr(q.offer * state.guests) +
+    '</b></div></div>';
+  if (state.showCustomRequirements) {
+    html +=
+      '<p class="pad" style="font-weight:800;color:#14532D;margin-bottom:8px">Additional Requirements (Optional)</p>' +
+      '<textarea class="note" id="ccNote" maxlength="500" placeholder="Eg. Live counter, special menu, service time, etc.">' +
+      esc(state.note) +
+      '</textarea>';
+  }
+  }
+  if (state.sent) {
+    html +=
+      '<div class="sent">Interest sent to ' +
+      esc(sel.caterer.name) +
+      '. They will reply to discuss the menu. This does not confirm the booking.</div>';
+  }
+  el('ccInterestBody').innerHTML = html;
+  const note = el('ccNote');
+  if (note) {
+    note.oninput = function () {
+      state.note = note.value;
+    };
+  }
+  const send = el('ccSend');
+  if (send) {
+    send.disabled = state.sent;
+    send.textContent = state.sent ? 'Interest sent' : 'Send Interest';
+  }
+}
+
+function bootCustomer() {
+  renderSearchBits();
+  const minEl = el('ccBudgetMin');
+  const maxEl = el('ccBudgetMax');
+  if (minEl) {
+    minEl.oninput = function () {
+      syncBudgetFromInputs(true);
+    };
+    minEl.onchange = minEl.oninput;
+  }
+  if (maxEl) {
+    maxEl.oninput = function () {
+      syncBudgetFromInputs(true);
+    };
+    maxEl.onchange = maxEl.oninput;
+  }
+  const dateBox = el('ccDateBox');
+  const dateOpen = el('ccDateOpen');
+  if (dateBox) {
+    dateBox.onclick = function (e) {
+      if (e.target === dateOpen || (dateOpen && dateOpen.contains(e.target))) return;
+      openCustomerCalendar();
+    };
+  }
+  if (dateOpen) {
+    dateOpen.onclick = function (e) {
+      e.stopPropagation();
+      openCustomerCalendar();
+    };
+  }
+  const calCancel = el('ccCalCancel');
+  const calDone = el('ccCalDone');
+  const calPrev = el('ccCalPrev');
+  const calNext = el('ccCalNext');
+  const calOverlay = el('ccCalOverlay');
+  if (calCancel) calCancel.onclick = closeCustomerCalendar;
+  if (calDone) calDone.onclick = applyCustomerCalendar;
+  if (calPrev) calPrev.onclick = function () {
+    shiftCalMonth(-1);
+  };
+  if (calNext) calNext.onclick = function () {
+    shiftCalMonth(1);
+  };
+  if (calOverlay) {
+    calOverlay.onclick = function (e) {
+      if (e.target === calOverlay) closeCustomerCalendar();
+    };
+    const sheet = calOverlay.querySelector('.cal-sheet');
+    if (sheet) {
+      sheet.onclick = function (e) {
+        e.stopPropagation();
+      };
+    }
+  }
+  const dateConfirm = el('ccDateConfirm');
+  if (dateConfirm) {
+    dateConfirm.onclick = function () {
+      openCustomerCalendar();
+    };
+  }
+  el('ccSearchBtn').onclick = function () {
+    readSearch();
+    if (!state.location) {
+      toast('Enter a location');
+      return;
+    }
+    if (!state.date) {
+      toast('Choose the event date');
+      return;
+    }
+    if (!state.guests) {
+      toast('Enter the number of guests');
+      return;
+    }
+    state.menuDietFilter = 'all';
+    clearFoodSelection();
+    renderResults();
+    show('ccResults');
+  };
+  el('ccResultsBack').onclick = function () {
+    show('ccSearch');
+  };
+  el('ccProfileBack').onclick = function () {
+    show('ccResults');
+  };
+  el('ccSave').onclick = function () {
+    if (!state.catererId) return;
+    state.saved[state.catererId] = !state.saved[state.catererId];
+    renderProfile();
+  };
+  el('ccShowMenu').onclick = function () {
+    openMenu();
+  };
+  el('ccMenuBack').onclick = function () {
+    show('ccProfile');
+  };
+  el('ccTabPackages').onclick = function () {
+    state.menuTab = 'packages';
+    normalizeMenuDietFilterForTab();
+    renderMenu();
+  };
+  el('ccTabFood').onclick = function () {
+    state.menuTab = 'food';
+    normalizeMenuDietFilterForTab();
+    renderMenu();
+  };
+  el('ccChangeDate').onclick = function (e) {
+    e.stopPropagation();
+    openCustomerCalendar();
+  };
+  el('ccDetailBack').onclick = function () {
+    renderMenu();
+    show('ccMenu');
+  };
+  el('ccCustomise').onclick = function () {
+    const sel = state.selection;
+    if (sel && sel.kind === 'food') {
+      openFoodMultiInterest(true);
+      return;
+    }
+    openInterest(true);
+  };
+  el('ccInitiate').onclick = function () {
+    const sel = state.selection;
+    if (sel && sel.kind === 'food') {
+      toggleFoodSelection(sel.item.id);
+      updateDetailActions();
+      return;
+    }
+    openInterest(false);
+  };
+  el('ccInterestBack').onclick = function () {
+    if (state.selection && state.selection.kind === 'food_multi') {
+      renderMenu();
+      show('ccMenu');
+    } else show('ccDetail');
+  };
+  const foodReviewBtn = el('ccFoodReviewBtn');
+  if (foodReviewBtn) {
+    foodReviewBtn.onclick = function () {
+      openFoodMultiInterest(false);
+    };
+  }
+  const foodClearBtn = el('ccFoodClearBtn');
+  if (foodClearBtn) {
+    foodClearBtn.onclick = function () {
+      clearFoodSelection();
+      renderMenu();
+      toast('Selection cleared');
+    };
+  }
+  el('ccSend').onclick = function () {
+    if (!state.selection || state.sent) return;
+    if (!state.selection.caterer.available) {
+      toast('This caterer is unavailable on this date');
+      return;
+    }
+    const note = el('ccNote');
+    state.note = note ? note.value : state.showCustomRequirements ? state.note : '';
+    state.sent = true;
+    const wasMulti = state.selection.kind === 'food_multi';
+    renderInterest();
+    if (wasMulti) clearFoodSelection();
+    toast(wasMulti ? 'Interest sent · selection cleared' : 'Interest sent');
+  };
+  show('ccSearch');
+}
+
+function startCustomer() {
+  if (startCustomer.done || !document.getElementById('ccSearchBtn')) return;
+  startCustomer.done = true;
+  bootCustomer();
+}
+if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', startCustomer);
+startCustomer();
+
+</script>
+<!-- APP_END -->
+</body>
+</html>
