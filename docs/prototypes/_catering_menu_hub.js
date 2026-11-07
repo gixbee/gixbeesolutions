@@ -99,10 +99,27 @@ function applyPackageDiet(next) {
   updatePkgCustomerPreview();
 }
 
+function vegSadhyaShowsDish(item) {
+  if (!item) return false;
+  const key = String(item.masterKey || '');
+  const inRiceGroup = item.moduleId === 'g03' || key.indexOf('g03::') === 0;
+  if (!inRiceGroup) return true;
+  if (item.subcatId && item.subcatId !== 'rice') return false;
+  if (!item.subcatId && key.indexOf('g03::') === 0 && key.indexOf('g03::rice::') !== 0) return false;
+  if (/noodle/i.test(item.name || '')) return false;
+  return true;
+}
+
 function dishAllowedOnPackage(item, dietType) {
   if (!item) return false;
   if (dietType === 'veg' && normalizeFoodDiet(item.diet) === 'non_veg') return false;
+  if (dietType === 'veg' && !vegSadhyaShowsDish(item)) return false;
   return true;
+}
+
+function packageModuleLabel(mod, dietType) {
+  if (mod && mod.id === 'g03' && dietType === 'veg') return 'Rice';
+  return (mod && mod.name) || '';
 }
 
 function dropDishesOutsidePackageDiet(d) {
@@ -1095,7 +1112,10 @@ function openModulePicker(moduleId, mode) {
       if (it && it.moduleId === moduleId && it.masterKey) menuPickCtx.selected[it.masterKey] = true;
     });
   }
-  el('catModuleTitle').textContent = mod.name;
+  el('catModuleTitle').textContent =
+    menuPickCtx.mode === 'package'
+      ? packageModuleLabel(mod, pkgWizard.draft && pkgWizard.draft.dietType)
+      : mod.name;
   const searchWrap = el('catModulePickSearchWrap');
   const searchInp = el('catModulePickSearch');
   const showSearch = moduleCatalogItemCount(mod) > 18;
@@ -1132,11 +1152,19 @@ function renderModulePickerBody() {
     });
     if (!visibleItems.length) return;
     visible += visibleItems.length;
+    const sectionName =
+      menuPickCtx.mode === 'package' &&
+      pkgWizard.draft &&
+      pkgWizard.draft.dietType === 'veg' &&
+      mod.id === 'g03' &&
+      sc.id === 'rice'
+        ? 'Rice'
+        : sc.name;
     html +=
       '<div class="cat-pick-section" data-sc-idx="' +
       scIdx +
       '"><div class="cat-pick-section-hd"><b>' +
-      esc(sc.name) +
+      esc(sectionName) +
       '</b><div class="cat-pick-section-actions">' +
       '<button type="button" data-pick-all="' +
       scIdx +
@@ -1859,8 +1887,8 @@ function packageServiceLabel(d) {
 }
 function moduleMatchesPackageSearch(mod, q) {
   if (!q) return true;
-  if (String(mod.name || '').toLowerCase().indexOf(q) >= 0) return true;
   const dietType = pkgWizard.draft && pkgWizard.draft.dietType;
+  if (packageModuleLabel(mod, dietType).toLowerCase().indexOf(q) >= 0) return true;
   let hit = false;
   (mod.subcats || []).forEach(function (sc) {
     (sc.items || []).forEach(function (it) {
@@ -1964,7 +1992,7 @@ function renderCatPkgStep3Menu() {
         '">' +
         m.emoji +
         '</span><span><b>' +
-        esc(m.name) +
+        esc(packageModuleLabel(m, d.dietType)) +
         '</b> <span class="cat-mod-count">(' +
         n +
         ')</span></span><span class="cat-mod-chev">›</span></button>'
@@ -2133,7 +2161,7 @@ function renderCatPkgPreview() {
     FOOD_MODULES.forEach(function (m) {
       const n = countPkgItemsInModule(d, m.id);
       if (!n) return;
-      html += '<div class="cat-sum-row">✓ ' + esc(m.name) + ' (' + n + ' items)</div>';
+      html += '<div class="cat-sum-row">✓ ' + esc(packageModuleLabel(m, d.dietType)) + ' (' + n + ' items)</div>';
     });
     sum.innerHTML = html || '<p class="sub">No modules selected</p>';
   }
