@@ -426,6 +426,20 @@ function offerPercentOf(pkg) {
   return 0;
 }
 
+function stepOfferPercentInput(rawValue, delta) {
+  const empty = rawValue === '' || rawValue == null;
+  if (empty) {
+    if (delta > 0) return 1;
+    return null;
+  }
+  let v = Math.round(+rawValue);
+  if (!Number.isFinite(v) || v < 1) {
+    if (delta > 0) return 1;
+    return null;
+  }
+  return Math.max(1, Math.min(90, v + delta));
+}
+
 function priceAfterOffer(base, percent) {
   const b = Math.max(0, Math.round(+base || 0));
   if (!percent) return b;
@@ -2039,8 +2053,8 @@ function bindFoodItemFormUi() {
     const on = el('catFoodOfferOn');
     if (on) on.checked = true;
     foodFormDraft.offerEnabled = true;
-    let v = Math.round(+(pct && pct.value !== '' ? pct.value : 7));
-    v = Math.max(1, Math.min(90, v - 1));
+    const v = stepOfferPercentInput(pct ? pct.value : '', -1);
+    if (v == null) return;
     if (pct) pct.value = v;
     foodFormDraft.discountPercent = v;
     renderFoodOffer();
@@ -2052,8 +2066,8 @@ function bindFoodItemFormUi() {
     const on = el('catFoodOfferOn');
     if (on) on.checked = true;
     foodFormDraft.offerEnabled = true;
-    let v = Math.round(+(pct && pct.value !== '' ? pct.value : 7));
-    v = Math.max(1, Math.min(90, v + 1));
+    const v = stepOfferPercentInput(pct ? pct.value : '', 1);
+    if (v == null) return;
     if (pct) pct.value = v;
     foodFormDraft.discountPercent = v;
     renderFoodOffer();
@@ -2639,8 +2653,8 @@ function bindCatPkgPricingUi() {
     const on = el('catPkgOfferOn');
     if (on) on.checked = true;
     pkgWizard.draft.offerEnabled = true;
-    let v = Math.round(+(pct && pct.value !== '' ? pct.value : 7));
-    v = Math.max(1, Math.min(90, v - 1));
+    const v = stepOfferPercentInput(pct ? pct.value : '', -1);
+    if (v == null) return;
     if (pct) pct.value = v;
     pkgWizard.draft.discountPercent = v;
     renderCatPkgOffer();
@@ -2652,8 +2666,8 @@ function bindCatPkgPricingUi() {
     const on = el('catPkgOfferOn');
     if (on) on.checked = true;
     pkgWizard.draft.offerEnabled = true;
-    let v = Math.round(+(pct && pct.value !== '' ? pct.value : 7));
-    v = Math.max(1, Math.min(90, v + 1));
+    const v = stepOfferPercentInput(pct ? pct.value : '', 1);
+    if (v == null) return;
     if (pct) pct.value = v;
     pkgWizard.draft.discountPercent = v;
     renderCatPkgOffer();
