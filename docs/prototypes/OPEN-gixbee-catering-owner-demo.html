@@ -935,7 +935,9 @@ button.manage-pill{cursor:pointer;font:inherit;color:var(--blue);border-color:#B
 .gx-step-btn{width:36px;height:36px;border-radius:10px;border:1.5px solid #F9A8D4;background:#fff;color:#BE185D;font-size:20px;font-weight:900;cursor:pointer;line-height:1}
 .gx-offer-hint{flex:1;min-width:140px;margin:0;padding:10px;border-radius:12px;background:#FFF1F2;font-size:11px;font-weight:600;color:#64748B;line-height:1.35}
 #catPkgSlabs.cat-slab-table-pkg{margin:0 16px 8px;border:1px solid #E5E7EB;border-radius:14px;overflow:hidden;background:#fff;padding:0}
-#catPkgSlabs.cat-slab-table-pkg .cat-slab-hd-pkg,#catPkgSlabs.cat-slab-table-pkg .cat-slab-row-pkg{display:grid;grid-template-columns:54px 54px minmax(0,1.1fr) minmax(0,1.1fr) 38px;gap:8px;align-items:center;padding:10px 12px;margin:0}
+#catPkgSlabs.cat-slab-table-pkg .cat-slab-hd-pkg,#catPkgSlabs.cat-slab-table-pkg .cat-slab-row-pkg{display:grid;grid-template-columns:54px 54px minmax(0,1fr) 38px;gap:8px;align-items:center;padding:10px 12px;margin:0}
+#catPkgSlabs.cat-slab-table-pkg.offer-on .cat-slab-hd-pkg,#catPkgSlabs.cat-slab-table-pkg.offer-on .cat-slab-row-pkg{grid-template-columns:54px 54px minmax(0,1.05fr) minmax(0,1.05fr) 38px}
+#catPkgSlabs.cat-slab-table-pkg:not(.offer-on) .cat-slab-hd-offer,#catPkgSlabs.cat-slab-table-pkg:not(.offer-on) .cat-slab-offer-col{display:none!important}
 #catPkgSlabs.cat-slab-table-pkg .cat-slab-hd-pkg{background:#F0FDF4;color:#047857;font-size:10px;font-weight:800;line-height:1.25;text-transform:none;letter-spacing:0;border-radius:0}
 #catPkgSlabs.cat-slab-table-pkg .cat-slab-hd-pkg span{min-width:0;white-space:normal;line-height:1.2}
 #catPkgSlabs.cat-slab-table-pkg .cat-slab-row-pkg{border-top:1px solid #F1F5F9}
@@ -5409,7 +5411,7 @@ function renderSlabTable(hostId, slabs, onChange, tableOpts) {
     host.innerHTML =
       '<div class="cat-slab-hd cat-slab-hd-pkg"><span>From (Guests)</span><span>To (Guests)</span><span>' +
       esc(priceHdr) +
-      '</span><span>Offer Price (₹)</span><span></span></div>' +
+      '</span><span class="cat-slab-hd-offer">Offer Price (₹)</span><span></span></div>' +
       rows.join('');
   } else {
     host.innerHTML =
@@ -5866,6 +5868,14 @@ function bindCatPkgCreateUi() {
   });
 }
 
+function syncPkgSlabOfferColumn() {
+  const host = el('catPkgSlabs');
+  const on = el('catPkgOfferOn');
+  if (!host) return;
+  const enabled = !!(on && on.checked) || !!(pkgWizard.draft && pkgWizard.draft.offerEnabled);
+  host.classList.toggle('offer-on', enabled);
+}
+
 function renderCatPkgOffer() {
   const d = pkgWizard.draft;
   if (!d) return;
@@ -5880,6 +5890,7 @@ function renderCatPkgOffer() {
     const v = d.discountPercent;
     pct.value = v === '' || v == null ? '' : v;
   }
+  syncPkgSlabOfferColumn();
   paintPackageOfferPrices();
 }
 
@@ -5891,12 +5902,8 @@ function paintPackageOfferPrices() {
     const priceEl = row && row.querySelector('.slab-price');
     const price = priceEl ? +priceEl.value || 0 : 0;
     if (!pct) {
-      if (slot.classList.contains('cat-slab-offer-col')) {
-        slot.innerHTML = '—';
-        slot.classList.add('empty');
-      } else {
-        slot.innerHTML = '';
-      }
+      slot.innerHTML = '';
+      slot.classList.remove('empty');
       return;
     }
     if (slot.classList.contains('cat-slab-offer-col')) {
@@ -5961,6 +5968,7 @@ function renderCatPkgPricing() {
     }
   );
   renderCatPkgOffer();
+  syncPkgSlabOfferColumn();
   renderPkgGuestPricingExample(d.guestSlabs);
 }
 

@@ -1876,7 +1876,7 @@ function renderSlabTable(hostId, slabs, onChange, tableOpts) {
     host.innerHTML =
       '<div class="cat-slab-hd cat-slab-hd-pkg"><span>From (Guests)</span><span>To (Guests)</span><span>' +
       esc(priceHdr) +
-      '</span><span>Offer Price (₹)</span><span></span></div>' +
+      '</span><span class="cat-slab-hd-offer">Offer Price (₹)</span><span></span></div>' +
       rows.join('');
   } else {
     host.innerHTML =
@@ -2333,6 +2333,14 @@ function bindCatPkgCreateUi() {
   });
 }
 
+function syncPkgSlabOfferColumn() {
+  const host = el('catPkgSlabs');
+  const on = el('catPkgOfferOn');
+  if (!host) return;
+  const enabled = !!(on && on.checked) || !!(pkgWizard.draft && pkgWizard.draft.offerEnabled);
+  host.classList.toggle('offer-on', enabled);
+}
+
 function renderCatPkgOffer() {
   const d = pkgWizard.draft;
   if (!d) return;
@@ -2347,6 +2355,7 @@ function renderCatPkgOffer() {
     const v = d.discountPercent;
     pct.value = v === '' || v == null ? '' : v;
   }
+  syncPkgSlabOfferColumn();
   paintPackageOfferPrices();
 }
 
@@ -2358,12 +2367,8 @@ function paintPackageOfferPrices() {
     const priceEl = row && row.querySelector('.slab-price');
     const price = priceEl ? +priceEl.value || 0 : 0;
     if (!pct) {
-      if (slot.classList.contains('cat-slab-offer-col')) {
-        slot.innerHTML = '—';
-        slot.classList.add('empty');
-      } else {
-        slot.innerHTML = '';
-      }
+      slot.innerHTML = '';
+      slot.classList.remove('empty');
       return;
     }
     if (slot.classList.contains('cat-slab-offer-col')) {
@@ -2428,6 +2433,7 @@ function renderCatPkgPricing() {
     }
   );
   renderCatPkgOffer();
+  syncPkgSlabOfferColumn();
   renderPkgGuestPricingExample(d.guestSlabs);
 }
 
