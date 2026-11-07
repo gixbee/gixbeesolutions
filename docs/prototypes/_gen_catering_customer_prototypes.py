@@ -45,6 +45,8 @@ def build_master() -> str:
         raise SystemExit("customer demo is missing catalog or app")
     if "Christian Wedding" not in out or "Archana Catering" not in out:
         raise SystemExit("customer demo missing Archana / Christian Wedding seed")
+    if "menuModules" not in out or "ccDemoWeddingMenuModules" not in out:
+        raise SystemExit("customer demo missing nine-group menuModules bundle")
     return out
 
 
