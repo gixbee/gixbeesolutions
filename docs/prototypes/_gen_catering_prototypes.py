@@ -1,0 +1,120 @@
+#!/usr/bin/env python3
+"""Build catering owner single-file HTML demos from shell + icons + calendar + app."""
+from pathlib import Path
+
+DIR = Path(__file__).resolve().parent
+SHELL = DIR / "catering-owner-flow-shell.html"
+ICONS = DIR / "_catering_owner_icons.js"
+CAL = DIR / "_photo_calendar.js"
+MENU_CAT = DIR / "_catering_menu_catalog.js"
+MENU_HUB = DIR / "_catering_menu_hub.js"
+INDIVIDUAL = DIR / "_catering_individual_food.js"
+APP = DIR / "_catering_owner_app.js"
+MASTER = DIR / "GIXBEE-CATERING-OWNER-FINALFLOW.html"
+
+ALIASES = [
+    "GIXBEE-CATERING-OWNER-FINALFLOW5.html",
+    "OPEN-gixbee-catering-owner-demo.html",
+    "DOWNLOAD-gixbee-catering-owner.html",
+]
+
+SHELL_PLACEHOLDER = """<!-- APP_START -->
+<div id="shellOnlyNotice" style="margin:16px;padding:20px;border:2px solid #DC2626;border-radius:12px;background:#FEE2E2;font:15px sans-serif">
+  <p style="margin:0 0 8px;font-weight:800;color:#991B1B">This is not the working demo file.</p>
+  <p style="margin:0 0 12px;line-height:1.5">Open the single-file flow HTML:</p>
+  <p style="margin:0"><a href="GIXBEE-CATERING-OWNER-FINALFLOW.html" style="font-weight:800;color:#1D4ED8">GIXBEE-CATERING-OWNER-FINALFLOW.html</a></p>
+</div>
+<!-- APP_END -->"""
+
+
+def build_master() -> str:
+    shell = SHELL.read_text(encoding="utf-8")
+    icons = ICONS.read_text(encoding="utf-8")
+    cal = CAL.read_text(encoding="utf-8")
+    menu_cat = MENU_CAT.read_text(encoding="utf-8")
+    menu_hub = MENU_HUB.read_text(encoding="utf-8")
+    individual = INDIVIDUAL.read_text(encoding="utf-8")
+    app = APP.read_text(encoding="utf-8")
+    block = (
+        "<!-- APP_START -->\n<script>\n"
+        + icons
+        + "\n"
+        + cal
+        + "\n"
+        + menu_cat
+        + "\n"
+        + individual
+        + "\n"
+        + menu_hub
+        + "\n"
+        + app
+        + "\n</script>\n<!-- APP_END -->"
+    )
+    i, j = shell.find("<!-- APP_START -->"), shell.find("<!-- APP_END -->")
+    if i < 0 or j < 0:
+        raise SystemExit("catering-owner-flow-shell.html missing APP markers")
+    out = shell[:i] + block + shell[j + len("<!-- APP_END -->") :]
+    if out.count("<script>") != 1:
+        raise SystemExit(f"expected one inlined script, got {out.count('<script>')}")
+    if "CATERING_OWNER_BUILD" not in out or "function boot(" not in out:
+        raise SystemExit("missing catering owner app")
+    if "FOOD_MODULES" not in out or "cateringMenuOpenHub" not in out:
+        raise SystemExit("missing catering menu bundle")
+    if "INDIVIDUAL_FOOD_PICKER_SECTIONS" not in out:
+        raise SystemExit("missing individual food picker bundle")
+    for cal_marker in (
+        'id="photoCalGrid"',
+        "function openPhotoCalendar",
+        "bindPhotoCalendarUi",
+    ):
+        if cal_marker not in out:
+            raise SystemExit(f"built HTML missing calendar bundle: {cal_marker!r}")
+    banner = (
+        "<!-- GIXBEE CATERING OWNER — single self-contained flow HTML (FINALFLOW). "
+        "Open GIXBEE-CATERING-OWNER-FINALFLOW.html in browser. "
+        "Do NOT open catering-owner-flow-shell.html. -->\n"
+    )
+    out = out.replace("<!DOCTYPE html>", "<!DOCTYPE html>\n" + banner, 1)
+    return out
+
+
+def ensure_shell_placeholder() -> None:
+    text = SHELL.read_text(encoding="utf-8")
+    i, j = text.find("<!-- APP_START -->"), text.find("<!-- APP_END -->")
+    if i < 0 or j < 0:
+        raise SystemExit("catering-owner-flow-shell.html missing APP markers")
+    inner = text[i + len("<!-- APP_START -->") : j].strip()
+    if inner and "shellOnlyNotice" in inner and "<script" not in inner:
+        return
+    if inner and "<script" in inner:
+        return
+    SHELL.write_text(text[:i] + SHELL_PLACEHOLDER + text[j + len("<!-- APP_END -->") :], encoding="utf-8")
+
+
+def main() -> None:
+    ensure_shell_placeholder()
+    out = build_master()
+    MASTER.write_text(out, encoding="utf-8")
+    kb = MASTER.stat().st_size // 1024
+    print(f"Wrote {MASTER.name} ({kb} KB)")
+    for name in ALIASES:
+        body = out
+        if name == "GIXBEE-CATERING-OWNER-FINALFLOW5.html":
+            body = out.replace(
+                "flow HTML (FINALFLOW).",
+                "flow HTML (FINALFLOW5).",
+            ).replace(
+                "GIXBEE-CATERING-OWNER-FINALFLOW.html",
+                "GIXBEE-CATERING-OWNER-FINALFLOW5.html",
+                1,
+            )
+            body = body.replace(
+                "<title>Gixbee — Catering Owner</title>",
+                "<title>Gixbee — Catering Owner (FINALFLOW5)</title>",
+            )
+        (DIR / name).write_text(body, encoding="utf-8")
+        print(f"Wrote {name} (copy)")
+
+
+if __name__ == "__main__":
+    main()
