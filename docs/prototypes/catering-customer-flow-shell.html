@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Gixbee — Catering Services (Customer)</title>
+<style>
+:root{--green:#15803D;--green2:#16A34A;--ink:#111827;--mut:#64748B;--line:#E5E7EB;--soft:#F0FDF4;--shadow:0 10px 28px rgba(15,23,42,.08)}
+*{box-sizing:border-box}
+body{margin:0;background:#E7F6EC;font-family:Inter,system-ui,sans-serif;color:var(--ink)}
+.stage{min-height:100vh;display:flex;justify-content:center;padding:12px 8px 24px}
+.phone{width:min(100%,430px);background:#fff;min-height:920px;border-radius:36px;box-shadow:var(--shadow);overflow:hidden;position:relative;border:8px solid #111;display:flex;flex-direction:column}
+.notch{height:28px;display:flex;justify-content:space-between;align-items:center;padding:0 18px;font-size:12px;font-weight:700}
+.scr{display:none;flex:1;overflow:auto;padding:0 0 24px;background:#fff}
+.scr.on{display:block}
+.top{display:flex;align-items:center;gap:8px;padding:8px 12px 10px;background:#fff;position:sticky;top:0;z-index:5}
+.top h1{margin:0;flex:1;text-align:center;font-size:17px;font-weight:900;color:#14532D}
+.back,.icon-btn{border:0;background:#fff;width:36px;height:36px;border-radius:50%;font-size:20px;cursor:pointer;color:#14532D}
+.icon-btn.on{background:#F0FDF4}
+.banner{margin:0 16px 14px;height:132px;border-radius:18px;background:linear-gradient(120deg,#166534 0%,#15803D 42%,#CA8A04 100%);color:#fff;display:flex;flex-direction:column;justify-content:flex-end;padding:16px;position:relative;overflow:hidden}
+.banner::after{content:"🍛 🥗 🥥 🍌";position:absolute;right:12px;top:16px;font-size:28px;letter-spacing:4px;opacity:.95}
+.banner b{font-size:22px;font-weight:900;line-height:1.15;position:relative}
+.banner span{font-size:12px;font-weight:600;opacity:.95;position:relative}
+.pad{padding:0 16px}
+.fld{margin:0 0 14px}
+.fld label{display:block;font-size:13px;font-weight:800;margin:0 0 6px;color:#14532D}
+.fld .opt{font-weight:700;color:#64748B}
+.box{display:flex;align-items:center;gap:8px;border:1.5px solid #D1FAE5;background:#F8FFFB;border-radius:14px;padding:12px}
+.box input{border:0;background:transparent;flex:1;font:inherit;font-weight:800;font-size:15px;color:#14532D;outline:none;min-width:0}
+.date-box{cursor:pointer;align-items:center}
+.date-readout{flex:1;font-weight:800;font-size:15px;color:#14532D;text-align:left}
+.date-open{border:0;background:#DCFCE7;color:#15803D;font:inherit;font-weight:800;font-size:12px;padding:8px 12px;border-radius:999px;cursor:pointer;flex-shrink:0}
+.date-native{position:absolute;width:1px;height:1px;opacity:0;pointer-events:none;left:-9999px}
+.budget-val{text-align:center;font-size:20px;font-weight:900;color:#15803D;margin:10px 0 0;line-height:1.3}
+.budget-sliders{margin-top:4px}
+.dual-range{position:relative;height:40px;margin:10px 0 6px}
+.dual-range-track{position:absolute;left:0;right:0;top:50%;transform:translateY(-50%);height:8px;background:#E5E7EB;border-radius:999px;pointer-events:none}
+.dual-range-track span{position:absolute;top:0;height:100%;background:#16A34A;border-radius:999px;left:0;width:0}
+.dual-range input[type=range]{position:absolute;left:0;top:0;width:100%;height:40px;margin:0;background:transparent;pointer-events:none;-webkit-appearance:none;appearance:none}
+.dual-range input[type=range]::-webkit-slider-runnable-track{height:8px;background:transparent;border:0}
+.dual-range input[type=range]::-moz-range-track{height:8px;background:transparent;border:0}
+.dual-range input[type=range]::-webkit-slider-thumb{pointer-events:auto;-webkit-appearance:none;appearance:none;width:24px;height:24px;margin-top:-8px;border-radius:50%;background:#16A34A;border:3px solid #fff;box-shadow:0 2px 6px rgba(15,23,42,.18);cursor:pointer}
+.dual-range input[type=range]::-moz-range-thumb{pointer-events:auto;width:24px;height:24px;border-radius:50%;background:#16A34A;border:3px solid #fff;box-shadow:0 2px 6px rgba(15,23,42,.18);cursor:pointer}
+.range-ends{display:flex;justify-content:space-between;font-size:11px;font-weight:800;color:#64748B;margin-top:2px}
+.fn-card{display:flex;gap:10px;align-items:flex-start;width:100%;text-align:left;border:1.5px solid #E5E7EB;background:#fff;border-radius:16px;padding:12px;margin:0 0 10px;cursor:pointer;font:inherit;color:inherit}
+.fn-card.on{border-color:#16A34A;background:#F0FDF4}
+.fn-ico{width:36px;height:36px;border-radius:12px;display:grid;place-items:center;background:#F0FDF4;flex-shrink:0;font-size:18px}
+.fn-card b{display:block;font-size:14px;color:#14532D}
+.fn-card small{display:block;margin-top:2px;color:#64748B;font-weight:600;font-size:12px;line-height:1.35}
+.fn-tick{margin-left:auto;width:22px;height:22px;border-radius:50%;border:1.5px solid #D1D5DB;display:grid;place-items:center;color:transparent;font-size:12px;font-weight:900;flex-shrink:0}
+.fn-card.on .fn-tick{background:#16A34A;border-color:#16A34A;color:#fff}
+.fld input[type=range]{width:100%;accent-color:#16A34A}
+.btn{width:100%;border:0;border-radius:999px;background:#16A34A;color:#fff;font-weight:800;font-size:16px;padding:14px;cursor:pointer;font:inherit;box-shadow:0 8px 18px rgba(22,163,74,.28)}
+.btn.ghost{background:#fff;color:#15803D;border:1.5px solid #86EFAC;box-shadow:none}
+.btn-row{display:flex;flex-direction:column;gap:10px;padding:8px 16px 16px}
+.ctx{padding:0 16px 8px;font-size:13px;font-weight:700;color:#64748B}
+.chips{display:flex;gap:8px;flex-wrap:wrap;padding:0 16px 12px}
+.chips::-webkit-scrollbar{display:none}
+.chip{flex:none;border:1.5px solid #D1FAE5;background:#fff;color:#166534;border-radius:999px;padding:8px 14px;font-weight:800;font-size:13px;cursor:pointer;font:inherit}
+.chip.on{background:#16A34A;color:#fff;border-color:#16A34A}
+.caterer{display:flex;gap:12px;width:calc(100% - 32px);margin:0 16px 12px;padding:10px;border:1px solid #E5E7EB;border-radius:18px;background:#fff;text-align:left;cursor:pointer;font:inherit;color:inherit;box-shadow:0 4px 14px rgba(15,23,42,.04)}
+.caterer.unavail{opacity:.92;border-color:#FECACA;background:#FFFBFB}
+.caterer.unavail .thumb{filter:grayscale(.35)}
+.badge.wait{background:#FFEDD5;color:#C2410C}
+.thumb{width:92px;height:92px;border-radius:14px;flex-shrink:0;display:grid;place-items:center;font-size:34px;color:#fff}
+.caterer b{display:block;font-size:15px;color:#14532D}
+.meta{font-size:12px;font-weight:700;color:#64748B;margin-top:3px;line-height:1.4}
+.stars{color:#CA8A04;font-weight:800}
+.price{margin-top:6px;font-size:13px;font-weight:900;color:#15803D}
+.badge{display:inline-block;margin-top:6px;font-size:11px;font-weight:800;padding:3px 8px;border-radius:999px}
+.badge.ok{background:#DCFCE7;color:#166534}
+.badge.no{background:#FEE2E2;color:#B91C1C}
+.hero{height:168px;margin:0 16px 12px;border-radius:18px;display:flex;align-items:flex-end;padding:14px;color:#fff;font-size:40px;background:linear-gradient(145deg,#166534,#CA8A04)}
+.rate-line{display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:0 16px 8px;font-size:13px;font-weight:800}
+.serves{display:inline-flex;align-items:center;gap:4px;background:#DCFCE7;color:#166534;border-radius:999px;padding:4px 8px;font-size:11px}
+.tabs{display:flex;gap:18px;padding:8px 16px 0;border-bottom:1px solid #E5E7EB}
+.tabs button{border:0;background:none;font:inherit;font-weight:800;color:#64748B;padding:10px 0;cursor:pointer;border-bottom:3px solid transparent}
+.tabs button.on{color:#15803D;border-color:#16A34A}
+.detail-tabs{margin-top:0}
+.detail-tab-body{padding-bottom:16px}
+.about{padding:14px 16px;font-size:14px;line-height:1.5;color:#374151;font-weight:600}
+.about h3{margin:0 0 6px;font-size:14px;color:#14532D}
+.spec{display:flex;gap:8px;flex-wrap:wrap;padding:0 16px 12px}
+.spec span{background:#F0FDF4;color:#166534;border-radius:999px;padding:6px 10px;font-size:12px;font-weight:800}
+.photo-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:12px 16px}
+.photo-grid div{height:110px;border-radius:14px;display:grid;place-items:center;font-size:36px;color:#fff}
+.review{margin:0 16px 10px;padding:12px;border:1px solid #E5E7EB;border-radius:14px}
+.review b{display:block;font-size:13px}
+.review p{margin:4px 0 0;font-size:13px;color:#374151;font-weight:600;line-height:1.4}
+.sticky-cta{position:sticky;bottom:0;padding:12px 16px 16px;background:linear-gradient(transparent,#fff 28%)}
+.confirm{margin:0 16px 12px;padding:12px;border-radius:16px;background:#F0FDF4;border:1px solid #BBF7D0;display:flex;justify-content:space-between;gap:8px;align-items:center;cursor:pointer}
+.confirm b{display:block;font-size:14px;color:#14532D}
+.confirm small{color:#166534;font-weight:700}
+.confirm button{border:0;background:#fff;color:#15803D;font-weight:800;border-radius:999px;padding:8px 10px;cursor:pointer;font:inherit}
+.count-line{padding:0 16px 8px;font-size:12px;font-weight:700;color:#64748B}
+.pkg{display:flex;gap:12px;width:calc(100% - 32px);margin:0 16px 12px;padding:10px;border:0;border-radius:18px;background:#fff;box-shadow:0 6px 18px rgba(15,23,42,.06);text-align:left;cursor:pointer;font:inherit;color:inherit;border:1px solid #E5E7EB}
+.food-row{align-items:center;padding:8px 10px 8px 8px}
+.food-row.on{border-color:#86EFAC;box-shadow:0 0 0 1px #BBF7D0}
+.food-check{width:44px;height:44px;flex-shrink:0;border:2px solid #D1FAE5;border-radius:14px;background:#F0FDF4;color:#15803D;font-size:20px;font-weight:900;cursor:pointer;display:grid;place-items:center;padding:0}
+.food-check.on{background:#16A34A;border-color:#16A34A;color:#fff}
+.food-check:not(.on){font-size:22px;color:#16A34A;font-weight:800}
+.food-hint{margin:-4px 16px 10px;font-size:12px;font-weight:700;color:#64748B;line-height:1.45}
+.food-hint b{color:#14532D}
+.food-group-h{margin:14px 16px 8px;font-size:12px;font-weight:900;letter-spacing:.02em;text-transform:uppercase;color:#166534}
+.food-select-actions{display:flex;flex-direction:column;gap:8px}
+.link-btn{border:0;background:none;font:inherit;font-size:13px;font-weight:800;color:#64748B;cursor:pointer;padding:4px 0;text-align:center}
+.link-btn:hover{color:#14532D}
+.estimate-note{margin:0 16px 12px;padding:10px 12px;border-radius:12px;background:#F0FDF4;border:1px solid #BBF7D0;font-size:12px;font-weight:700;color:#166534;line-height:1.45}
+.detail-hint{margin:12px 16px 0;padding:10px 12px;border-radius:12px;background:#F8FAFC;border:1px solid #E2E8F0;font-size:12px;font-weight:700;color:#64748B;line-height:1.45}
+.food-body{flex:1;display:flex;gap:12px;align-items:flex-start;border:0;background:transparent;padding:0;text-align:left;cursor:pointer;font:inherit;color:inherit;min-width:0}
+.food-body .thumb{width:72px;height:72px;font-size:28px;flex-shrink:0}
+#ccMenu.has-food-bar #ccMenuList{padding-bottom:132px}
+.food-select-bar{position:sticky;bottom:0;margin-top:-4px;padding:10px 16px 16px;background:linear-gradient(transparent,#fff 22%);border-top:1px solid #E5E7EB;display:flex;flex-direction:column;gap:10px;z-index:5}
+.food-select-bar[hidden]{display:none!important}
+.food-select-meta{display:flex;justify-content:space-between;align-items:baseline;gap:8px;padding:0 2px}
+.food-select-meta small{font-size:12px;font-weight:800;color:#64748B}
+.food-select-meta b{font-size:18px;font-weight:900;color:#15803D}
+.sum-card.compact{margin-bottom:8px;padding:10px}
+.sum-card.compact .thumb{width:52px;height:52px;font-size:22px}
+.interest-lines{margin:0 16px 8px}
+.interest-line{display:flex;justify-content:space-between;gap:10px;padding:10px 0;border-bottom:1px solid #F1F5F9;font-size:13px;font-weight:700}
+.interest-line b{color:#14532D;font-size:14px}
+.interest-line span{color:#64748B;text-align:right;line-height:1.35}
+.btn.on{background:#15803D;color:#fff}
+.pkg .thumb{width:84px;height:84px;font-size:32px}
+.pkg-top{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.lv{font-size:10px;font-weight:800;padding:3px 7px;border-radius:8px;background:#DCFCE7;color:#166534}
+.lv.standard{background:#FFEDD5;color:#C2410C}
+.lv.premium{background:#FEF3C7;color:#92400E}
+.cat-chip{font-size:10px;font-weight:800;padding:3px 7px;border-radius:8px;background:#ECFDF5;color:#047857}
+.pop{font-size:10px;font-weight:800;padding:3px 7px;border-radius:8px;background:#FEF3C7;color:#92400E}
+.diet-mark{display:inline-flex;align-items:center;justify-content:center;width:14px;height:14px;border:1.5px solid currentColor;border-radius:3px;background:#fff;flex-shrink:0}
+.diet-mark i{width:6px;height:6px;border-radius:50%;background:currentColor;display:block}
+.diet-mark.veg{color:#14804A}
+.diet-mark.non{color:#C2410C}
+.diet-line{display:flex;align-items:center;gap:4px;margin-top:4px;font-size:12px;font-weight:800;color:#0F172A}
+.was{color:#94A3B8;text-decoration:line-through;font-weight:700;font-size:12px;margin-right:4px}
+.off-pill{display:inline-flex;align-items:center;margin-left:4px;background:#FBCFE8;color:#BE185D;font-size:10px;font-weight:800;padding:2px 6px;border-radius:999px}
+.detail-price{display:flex;justify-content:space-between;gap:8px;margin:12px 16px;padding:12px;border-radius:16px;background:#F0FDF4}
+.detail-price b{display:block;font-size:18px;color:#15803D}
+.detail-price span{font-size:12px;font-weight:700;color:#166534}
+.slab-box{margin:0 16px 10px;padding:12px;border-radius:16px;border:1px solid #D1FAE5;background:#F8FFFB}
+.slab-box-h{margin:0 0 8px;font-size:13px;font-weight:900;color:#14532D}
+.slab-yours{margin:0 0 10px;padding:8px 10px;border-radius:12px;background:#ECFDF5;font-size:13px;font-weight:700;color:#166534;line-height:1.45}
+.slab-yours b{color:#14532D}
+.slab-list{display:flex;flex-direction:column;gap:6px}
+.slab-row{display:flex;justify-content:space-between;gap:10px;align-items:center;padding:8px 10px;border-radius:12px;background:#fff;border:1px solid #E5E7EB;font-size:12px;font-weight:800;color:#374151}
+.slab-row span:first-child{color:#64748B;font-weight:700}
+.slab-row.on{border-color:#86EFAC;background:#F0FDF4;box-shadow:0 0 0 1px #BBF7D0}
+.slab-row.on span:first-child{color:#14532D;font-weight:900}
+.slab-note{margin:8px 0 0;font-size:11px;font-weight:700;color:#64748B;line-height:1.4}
+.menu-inc-h{margin:4px 16px 8px;font-size:13px;font-weight:900;color:#14532D}
+.inc-tag{display:inline-block;margin-left:6px;font-size:10px;font-weight:800;color:#047857;background:#ECFDF5;padding:2px 6px;border-radius:999px;vertical-align:middle}
+.inc{width:calc(100% - 32px);margin:0 16px 8px;border:1px solid #E5E7EB;border-radius:14px;background:#fff;text-align:left;font:inherit;cursor:pointer;padding:12px}
+.inc b{display:block;font-size:14px}
+.inc small{color:#64748B;font-weight:700}
+.inc ul{margin:8px 0 0;padding-left:18px}
+.inc li{font-size:13px;font-weight:600;color:#374151;margin:2px 0}
+.sum-card{margin:0 16px 12px;padding:12px;border-radius:16px;border:1px solid #E5E7EB;display:flex;gap:10px;align-items:center}
+.sum-card .thumb{width:64px;height:64px;font-size:28px}
+.kv{padding:0 16px 12px}
+.kv div{display:flex;justify-content:space-between;gap:12px;padding:8px 0;border-bottom:1px solid #F1F5F9;font-size:14px;font-weight:700}
+.kv span{color:#64748B}
+.note{width:calc(100% - 32px);margin:0 16px 12px;min-height:96px;border:1.5px solid #D1FAE5;border-radius:14px;padding:12px;font:inherit;font-weight:600}
+.sent{margin:0 16px 12px;padding:14px;border-radius:16px;background:#F0FDF4;border:1px solid #86EFAC;color:#166534;font-weight:700;line-height:1.45}
+.empty{margin:24px 16px;padding:20px;text-align:center;color:#64748B;font-weight:700}
+.toast{position:absolute;left:16px;right:16px;bottom:16px;background:#14532D;color:#fff;padding:10px 14px;border-radius:999px;font-size:12px;font-weight:800;display:none;z-index:120;text-align:center}
+.cal-overlay{position:absolute;inset:0;background:rgba(15,23,42,.38);z-index:90;display:none;pointer-events:none;border-radius:28px}
+.cal-overlay.on{display:block;pointer-events:auto}
+.cal-sheet{position:absolute;left:10px;right:10px;top:36px;background:#fff;border-radius:16px;padding:8px 10px 10px;box-shadow:0 10px 28px rgba(15,23,42,.2);max-height:calc(100% - 48px);overflow:auto}
+.cal-bar{display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;font-weight:800;color:#14532D;font-size:12px;gap:6px}
+.cal-bar b{font-size:12px;flex:1;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cal-bar button{border:0;background:none;font:inherit;font-weight:800;cursor:pointer;color:#64748B;font-size:12px;padding:4px 2px;flex-shrink:0}
+.cal-bar .done{color:#16A34A}
+.cal-nav{display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;gap:4px}
+.cal-nav button{border:0;background:#F0FDF4;color:#14532D;width:28px;height:28px;border-radius:50%;font-size:16px;line-height:1;cursor:pointer;font-weight:900;flex-shrink:0}
+.cal-nav b{flex:1;text-align:center;font-size:13px;color:#14532D;font-weight:800}
+.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:2px;text-align:center}
+.cal-grid .h{padding:2px 0;font-weight:800;color:#64748B;font-size:9px}
+.cal-grid .d{padding:5px 0;border-radius:8px;cursor:pointer;font-weight:800;color:#14532D;border:0;background:transparent;font:inherit;width:100%;font-size:11px;line-height:1.2}
+.cal-grid .d.off{color:#CBD5E1;pointer-events:none;background:transparent}
+.cal-grid .d.on{background:#16A34A;color:#fff}
+.cal-grid .d.past{opacity:.35;pointer-events:none}
+</style>
+</head>
+<body>
+<div class="stage"><div class="phone">
+<div class="notch"><span>9:41</span><span>●●●</span></div>
+
+<section class="scr on" id="ccSearch">
+  <div class="banner"><b>Find Catering Services</b><span>Wedding, sadhya, and other functions</span></div>
+  <div class="pad">
+    <div class="fld"><label>Location / Area</label><div class="box">📍<input id="ccLocation" list="ccAreas" value="Pathanamthitta" placeholder="Town or area"></div></div>
+    <datalist id="ccAreas">
+      <option value="Pathanamthitta"></option>
+      <option value="Pandalam"></option>
+      <option value="Adoor"></option>
+      <option value="Thiruvalla"></option>
+      <option value="Kozhencherry"></option>
+      <option value="Ranni"></option>
+    </datalist>
+    <div class="fld"><label>Event Date</label><div class="box date-box" id="ccDateBox"><span aria-hidden="true">📅</span><span id="ccDateLabel" class="date-readout">Tue, 15 Dec 2026</span><button type="button" class="date-open" id="ccDateOpen">Select date</button><input id="ccDate" type="date" class="date-native" value="2026-12-15" aria-label="Event date"></div></div>
+    <div class="fld"><label>Number of Guests</label><div class="box">👥<input id="ccGuests" type="number" min="1" value="300"></div></div>
+    <p class="fld" style="margin-bottom:8px"><label>What type of function? <span class="opt">(Optional)</span></label></p>
+    <div id="ccFunctions"></div>
+    <div class="fld">
+      <label>Expected Budget per Plate <span class="opt">(Optional)</span></label>
+      <div class="budget-sliders">
+        <div class="dual-range" id="ccBudgetDual">
+          <div class="dual-range-track" aria-hidden="true"><span id="ccBudgetFill"></span></div>
+          <input id="ccBudgetMin" type="range" min="0" max="3000" step="10" value="0" aria-label="Minimum budget per plate">
+          <input id="ccBudgetMax" type="range" min="0" max="3000" step="10" value="300" aria-label="Maximum budget per plate">
+        </div>
+        <div class="range-ends"><span>₹ 0</span><span>₹ 3,000</span></div>
+      </div>
+      <div class="budget-val" id="ccBudgetRangeVal">₹0 to ₹300 per plate</div>
+    </div>
+  </div>
+  <div class="pad" style="padding-bottom:16px"><button type="button" class="btn" id="ccSearchBtn">Search Caterers</button></div>
+</section>
+
+<section class="scr" id="ccResults">
+  <div class="top"><button type="button" class="back" id="ccResultsBack">←</button><h1 id="ccResultsTitle">Catering Services</h1><span style="width:36px"></span></div>
+  <p class="ctx" id="ccResultsCtx"></p>
+  <div id="ccResultList"></div>
+</section>
+
+<section class="scr" id="ccProfile">
+  <div class="top"><button type="button" class="back" id="ccProfileBack">←</button><h1 id="ccProfileTitle">Caterer</h1><button type="button" class="icon-btn" id="ccSave" aria-label="Save">♡</button></div>
+  <div id="ccProfileBody"></div>
+  <div class="sticky-cta"><button type="button" class="btn" id="ccShowMenu">Show Packages / Individual Food Items</button></div>
+</section>
+
+<section class="scr" id="ccMenu">
+  <div class="top"><button type="button" class="back" id="ccMenuBack">←</button><h1 id="ccMenuTitle">Caterer</h1><span style="width:36px"></span></div>
+  <div class="tabs" id="ccMenuTabs">
+    <button type="button" id="ccTabPackages" class="on">Packages</button>
+    <button type="button" id="ccTabFood">Individual Food Items</button>
+  </div>
+  <div class="confirm" id="ccDateConfirm"><div><small>Confirm your event date</small><b id="ccWhenLabel"></b></div><button type="button" id="ccChangeDate">Change date</button></div>
+  <div class="chips" id="ccMenuChips"></div>
+  <p class="count-line" id="ccMenuDietLabel" style="padding-top:0;margin-top:-4px">Diet</p>
+  <div class="chips" id="ccMenuDietChips"></div>
+  <p class="count-line" id="ccMenuCount"></p>
+  <p class="food-hint" id="ccMenuPackageHint" hidden></p>
+  <p class="food-hint" id="ccMenuFoodHint" hidden></p>
+  <div id="ccMenuList"></div>
+  <div class="food-select-bar" id="ccFoodSelectBar" hidden>
+    <div class="food-select-meta"><small id="ccFoodSelectSummary">0 dishes selected</small><b id="ccFoodSelectTotal">₹0</b></div>
+    <div class="food-select-actions">
+      <button type="button" class="btn" id="ccFoodReviewBtn">Continue</button>
+      <button type="button" class="link-btn" id="ccFoodClearBtn">Clear selection</button>
+    </div>
+  </div>
+</section>
+
+<section class="scr" id="ccDetail">
+  <div class="top"><button type="button" class="back" id="ccDetailBack">←</button><h1 id="ccDetailTitle">Package</h1><span style="width:36px"></span></div>
+  <div id="ccDetailBody"></div>
+  <div class="btn-row">
+    <button type="button" class="btn ghost" id="ccCustomise">Customise Requirement</button>
+    <button type="button" class="btn" id="ccInitiate">Initiate Interest</button>
+  </div>
+</section>
+
+<section class="scr" id="ccInterest">
+  <div class="top"><button type="button" class="back" id="ccInterestBack">←</button><h1>Send Interest</h1><span style="width:36px"></span></div>
+  <div id="ccInterestBody"></div>
+  <div class="pad"><button type="button" class="btn" id="ccSend">Send Interest</button></div>
+</section>
+
+<div class="cal-overlay" id="ccCalOverlay" hidden aria-hidden="true">
+  <div class="cal-sheet" role="dialog" aria-labelledby="ccCalTitle">
+    <div class="cal-bar"><button type="button" id="ccCalCancel">Cancel</button><b id="ccCalTitle">Event date</b><button type="button" class="done" id="ccCalDone">Done</button></div>
+    <div class="cal-nav"><button type="button" id="ccCalPrev" aria-label="Previous month">‹</button><b id="ccCalMonth"></b><button type="button" id="ccCalNext" aria-label="Next month">›</button></div>
+    <div class="cal-grid" id="ccCalGrid"></div>
+  </div>
+</div>
+<div class="toast" id="ccToast" role="status"></div>
+
+</div></div>
+<!-- APP_START -->
+<div id="shellOnlyNotice" style="margin:16px;padding:20px;border:2px solid #DC2626;border-radius:12px;background:#FEE2E2;font:15px sans-serif">
+  <p style="margin:0 0 8px;font-weight:800;color:#991B1B">This is not the working demo file.</p>
+  <p style="margin:0">Open <a href="GIXBEE-CATERING-CUSTOMER-FINALFLOW.html" style="font-weight:800">GIXBEE-CATERING-CUSTOMER-FINALFLOW.html</a>.</p>
+</div>
+<!-- APP_END -->
+</body>
+</html>
