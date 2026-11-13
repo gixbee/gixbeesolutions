@@ -256,6 +256,7 @@ class _PostJobScreenState extends ConsumerState<PostJobScreen> {
                 ),
               HiringPositionSearch(
                 sectorId: _sectorId,
+                selectedId: _positionId,
                 selectedLabel: _positionLabel,
                 onPick: (pick) {
                   setState(() {

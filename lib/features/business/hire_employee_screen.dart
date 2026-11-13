@@ -528,6 +528,20 @@ class _HireEmployeeScreenState extends ConsumerState<HireEmployeeScreen> {
     );
   }
 
+  Widget _fieldCaption(String text) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 6),
+      child: Text(
+        text,
+        style: TextStyle(
+          fontSize: 13,
+          fontWeight: FontWeight.w600,
+          color: context.gx.ink.withValues(alpha: 0.75),
+        ),
+      ),
+    );
+  }
+
   Widget _sectionTitle(String title, String sub) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -799,11 +813,11 @@ class _HireEmployeeScreenState extends ConsumerState<HireEmployeeScreen> {
             TextButton(onPressed: _openSpecializationSheet, child: const Text('Show more')),
         ],
         const SizedBox(height: 16),
+        _fieldCaption('Qualification (optional)'),
         DropdownButtonFormField<String>(
           value: _qualificationId,
           isExpanded: true,
           decoration: InputDecoration(
-            labelText: 'Qualification (optional)',
             border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
             contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
           ),
@@ -1235,40 +1249,48 @@ class _HireEmployeeScreenState extends ConsumerState<HireEmployeeScreen> {
               style: TextStyle(fontWeight: FontWeight.w800, color: context.gx.ink),
             ),
             const SizedBox(height: 10),
-            LayoutBuilder(
-              builder: (context, constraints) {
-                final fieldBorder = OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                );
-                final minField = TextField(
-                  controller: _salaryMinCtrl,
-                  keyboardType: TextInputType.number,
-                  decoration: InputDecoration(
-                    labelText: 'Min (₹/$salaryUnit)',
-                    hintText: 'Optional',
-                    border: fieldBorder,
-                    filled: true,
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      _fieldCaption('Min (₹/$salaryUnit)'),
+                      TextField(
+                        controller: _salaryMinCtrl,
+                        keyboardType: TextInputType.number,
+                        decoration: InputDecoration(
+                          hintText: 'Optional',
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                          filled: true,
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+                        ),
+                        onChanged: (_) => _scheduleEstimate(),
+                      ),
+                    ],
                   ),
-                  onChanged: (_) => _scheduleEstimate(),
-                );
-                final maxField = TextField(
-                  controller: _salaryCtrl,
-                  keyboardType: TextInputType.number,
-                  decoration: InputDecoration(
-                    labelText: 'Max (₹/$salaryUnit)',
-                    border: fieldBorder,
-                    filled: true,
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      _fieldCaption('Max (₹/$salaryUnit)'),
+                      TextField(
+                        controller: _salaryCtrl,
+                        keyboardType: TextInputType.number,
+                        decoration: InputDecoration(
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                          filled: true,
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+                        ),
+                        onChanged: (_) => _scheduleEstimate(),
+                      ),
+                    ],
                   ),
-                  onChanged: (_) => _scheduleEstimate(),
-                );
-                return Row(
-                  children: [
-                    Expanded(child: minField),
-                    const SizedBox(width: 10),
-                    Expanded(child: maxField),
-                  ],
-                );
-              },
+                ),
+              ],
             ),
             if (salaryRangeError)
               Padding(

@@ -1,3 +1,7 @@
+# Local scratch — one-off deploy/debug (not part of the repo)
+/tmp/
+.freebuff/
+
 # Miscellaneous
 *.class
 *.log
