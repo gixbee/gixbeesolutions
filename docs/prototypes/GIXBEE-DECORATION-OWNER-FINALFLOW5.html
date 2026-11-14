@@ -38,13 +38,26 @@ body{margin:0;background:#EDE9FE;font-family:Inter,system-ui,sans-serif;color:#1
 .biz-actions button.primary{border:0;color:#fff}
 .lmb-top{padding:12px 16px 4px;display:flex;align-items:center;gap:8px}
 .lmb-top .title{font-size:18px;font-weight:900;color:var(--decor-navy);flex:1}
-.dec-dash-hd{padding:4px 16px 8px}.dec-dash-hd b{font-size:20px;color:var(--decor-navy);display:block}
-.dec-qgrid{display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:0 16px 8px}
-.dec-tile{border:1px solid var(--line);border-radius:14px;padding:14px 8px;text-align:center;cursor:pointer;background:#fff;font:inherit;color:inherit;position:relative;display:flex;flex-direction:column;align-items:center;min-height:92px;justify-content:center}
-.dec-tile .ico{font-size:22px;line-height:1;margin-bottom:6px}
-.dec-tile b{display:block;font-size:11px;font-weight:800;color:var(--decor-navy);line-height:1.3}
-.dec-tile small{display:block;font-size:10px;color:var(--mut);margin-top:4px;line-height:1.3}
-.dec-tile .badge{position:absolute;top:8px;right:8px;background:#EF4444;color:#fff;font-size:10px;font-weight:800;border-radius:99px;min-width:18px;height:18px;line-height:18px;padding:0 5px}
+.dash-banner{height:100px;background:linear-gradient(145deg,#7C3AED,#BE185D);position:relative}
+.dash-logo{position:absolute;left:16px;bottom:-28px;width:56px;height:56px;border-radius:50%;background:#fff;border:3px solid #fff;box-shadow:0 4px 12px rgba(0,0,0,.12);display:grid;place-items:center;font-size:22px}
+.dash-head{padding:36px 16px 12px}
+.dash-head b{font-size:18px;color:var(--decor-navy);display:block}
+.dash-head .loc{font-size:12px;color:var(--mut);margin-top:4px;display:flex;align-items:center;gap:4px}
+.manage-pill{border:0;background:#F5F3FF;border-radius:99px;padding:8px 12px;font-size:11px;font-weight:800;color:var(--decor);cursor:pointer;white-space:nowrap}
+.area-card{margin:0 16px 14px;padding:14px;border:1px solid #DDD6FE;border-radius:14px;background:#FAF5FF}
+.area-card b{display:flex;align-items:center;gap:6px;color:var(--decor-navy);font-size:14px}
+.area-card .sum{font-size:12px;color:var(--mut);margin:8px 0;line-height:1.4}
+.area-card a{font-size:13px;font-weight:800;color:var(--decor);text-decoration:none;cursor:pointer}
+.qgrid{display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:0 16px 16px}
+.qtile{border:1px solid var(--line);border-radius:14px;padding:14px 10px;text-align:center;cursor:pointer;background:#fff;font:inherit;color:inherit;position:relative}
+.qtile .qi{font-size:22px;margin-bottom:6px}
+.qtile b{font-size:11px;color:var(--decor-navy);display:block;line-height:1.3;font-weight:800}
+.qtile.pink{background:#FDF2F8;border-color:#FBCFE8}
+.qtile.blue{background:#EFF6FF;border-color:#BFDBFE}
+.qtile.orange{background:#FFF7ED;border-color:#FED7AA}
+.qtile.teal{background:#F0FDFA;border-color:#99F6E4}
+.qtile.purple{background:#F5F3FF;border-color:#DDD6FE}
+.qtile .badge{position:absolute;top:8px;right:8px;background:#EF4444;color:#fff;font-size:10px;font-weight:800;min-width:18px;height:18px;border-radius:99px;display:grid;place-items:center}
 .bottom-nav{display:flex;border-top:1px solid var(--line);background:#fff;padding:8px 0 calc(10px + env(safe-area-inset-bottom));position:absolute;left:0;right:0;bottom:0;z-index:6}
 .bottom-nav button{flex:1;border:0;background:none;font-size:10px;font-weight:800;color:#64748B;cursor:pointer;padding:6px 0;display:flex;flex-direction:column;align-items:center;gap:4px}
 .bottom-nav button.on{color:var(--decor2)}
@@ -140,21 +153,24 @@ body{margin:0;background:#EDE9FE;font-family:Inter,system-ui,sans-serif;color:#1
 </section>
 
 <section class="scr" id="decorDash">
-  <div class="top gx-top"><button type="button" class="back" id="decDashBack">←</button><h1>Dashboard</h1><span class="hub-more" aria-hidden="true">⋮</span></div>
-  <div class="dec-dash-hd"><b id="decDashHello">Hello, Decor Mart 👋</b><p class="sub" id="decDashLoc">Thrissur</p></div>
-  <p class="lbl pad">QUICK ACTIONS</p>
-  <div class="dec-qgrid">
-    <button type="button" class="dec-tile" data-dec-dash="hub-pkg"><span class="ico">📦</span><b>Packages</b><small>Create &amp; manage</small></button>
-    <button type="button" class="dec-tile" data-dec-dash="hub-svc"><span class="ico">✨</span><b>Individual Services</b><small>Add stage, arch &amp; more</small></button>
-    <button type="button" class="dec-tile" data-dec-dash="enquiries"><span class="ico">💬</span><b>Enquiries</b><span class="badge">12</span></button>
-    <button type="button" class="dec-tile" data-dec-dash="calendar"><span class="ico">📅</span><b>Calendar</b></button>
-    <button type="button" class="dec-tile" data-dec-dash="gallery"><span class="ico">🖼️</span><b>Gallery</b></button>
-    <button type="button" class="dec-tile" data-dec-dash="profile"><span class="ico">🏢</span><b>Business Profile</b></button>
+  <div class="top"><button type="button" class="back" id="decDashBack">←</button><h1>Dashboard</h1><button type="button" class="manage-pill" id="decBizProfileBtn">Business profile</button></div>
+  <div class="dash-banner"><div class="dash-logo">🎀</div></div>
+  <div class="dash-head">
+    <b id="decDashHello">Hello, Decor Mart 👋</b>
+    <div class="loc"><span id="decDashLocIco">📍</span> <span id="decDashLoc">Thrissur</span></div>
+    <p class="sub" style="margin-top:6px">Manage your decoration business</p>
   </div>
+  <div class="area-card">
+    <b><span id="decAreaIco">📍</span> Service areas</b>
+    <p class="sum" id="decAreaSummary">Thrissur, Ernakulam</p>
+    <a href="#" id="decManageAreasLink">Manage service areas →</a>
+  </div>
+  <p class="lbl" style="padding:0 16px;margin-bottom:8px">QUICK ACTIONS</p>
+  <div class="qgrid" id="decQuickGrid"></div>
 </section>
 
 <section class="scr" id="decorHub">
-  <div class="top gx-top"><button type="button" class="back" id="decHubBack">←</button><h1><em>Gixbee</em><span>|</span>Packages</h1><button type="button" class="hub-more" aria-label="More">⋮</button></div>
+  <div class="top gx-top"><button type="button" class="back" id="decHubBack">←</button><h1 id="decHubHead"><em>Gixbee</em><span>|</span>Packages &amp; Services</h1><button type="button" class="hub-more" aria-label="More">⋮</button></div>
   <div class="hub-seg"><button type="button" id="decTabPackages" class="on">Packages</button><button type="button" id="decTabServices">Individual Services</button></div>
   <div id="decHubPkgPanel">
     <div class="search"><span>🔍</span><input type="search" id="decPkgSearch" placeholder="Search packages" autocomplete="off"></div>
@@ -321,6 +337,7 @@ body{margin:0;background:#EDE9FE;font-family:Inter,system-ui,sans-serif;color:#1
   <button type="button" class="btn btn-decor" id="decSvcSuccessDone" style="width:min(100%,280px);margin-top:16px">View services</button></div>
 </section>
 
+<section class="scr stub" id="decorStubOps"><p>Operators (prototype stub)</p><button type="button" class="back" onclick="show('decorDash')">← Dashboard</button></section>
 <section class="scr stub" id="decorStubEnq"><p>Enquiries (prototype stub)</p><button type="button" class="back" onclick="show('decorDash')">←</button></section>
 <section class="scr stub" id="decorStubCal"><p>Calendar (prototype stub)</p><button type="button" class="back" onclick="show('decorDash')">←</button></section>
 <section class="scr stub" id="decorStubGal"><p>Gallery (prototype stub)</p><button type="button" class="back" onclick="show('decorDash')">←</button></section>
@@ -759,6 +776,8 @@ function renderDecorationHub() {
   el('decTabServices').classList.toggle('on', tab === 'services');
   el('decHubPkgPanel').hidden = tab !== 'packages';
   el('decHubSvcPanel').hidden = tab !== 'services';
+  const head = el('decHubHead');
+  if (head) head.innerHTML = '<em>Gixbee</em><span>|</span>Packages &amp; Services';
   if (tab === 'packages') renderDecorPackageList();
   else if (typeof renderDecorIndividualList === 'function') renderDecorIndividualList();
 }
@@ -1903,7 +1922,7 @@ function bindDecorationIndividualUi() {
   });
 }
 /** Decoration owner — LMB, dashboard, stubs; packages in _decoration_*_hub.js */
-const DECORATION_OWNER_BUILD = 'decoration-owner-svc-price-v3';
+const DECORATION_OWNER_BUILD = 'decoration-owner-dash-catering-v4';
 const STORAGE_KEY = 'GIXBEE_DECORATION_OWNER_V1';
 
 function defaultStore() {
@@ -1914,8 +1933,24 @@ function defaultStore() {
       type: 'Decoration',
       verified: true,
     },
+    serviceAreas: {
+      states: ['Kerala'],
+      districts: { Kerala: ['Thrissur', 'Ernakulam'] },
+    },
     decorationMenu: defaultDecorationStore(),
   };
+}
+
+function decorAreaSummaryText() {
+  const sa = store.serviceAreas;
+  if (!sa || !sa.states || !sa.states.length) return 'Set where you accept decoration bookings.';
+  const parts = [];
+  sa.states.forEach(function (st) {
+    const dists = (sa.districts && sa.districts[st]) || [];
+    if (dists.length) parts.push(st + ': ' + dists.join(', '));
+    else parts.push(st);
+  });
+  return parts.join(' · ') || 'Set where you accept decoration bookings.';
 }
 
 let store = defaultStore();
@@ -2006,6 +2041,40 @@ function renderLmb() {
 function renderDecorDash() {
   el('decDashHello').textContent = 'Hello, ' + store.biz.name + ' 👋';
   el('decDashLoc').textContent = store.biz.loc;
+  if (el('decAreaSummary')) el('decAreaSummary').textContent = decorAreaSummaryText();
+  const q = el('decQuickGrid');
+  if (q) {
+    q.innerHTML = [
+      { dest: 'hub', cls: 'pink', ico: '📦', label: 'Packages & Services' },
+      { dest: 'decorStubCal', cls: 'blue', ico: '📅', label: 'Calendar' },
+      { dest: 'decorStubGal', cls: 'blue', ico: '🖼', label: 'Photos & Gallery' },
+      { dest: 'decorStubEnq', cls: 'orange', ico: '💬', label: 'Enquiries', badge: '12' },
+      { dest: 'decorStubOps', cls: 'teal', ico: '👥', label: 'Operators' },
+    ]
+      .map(function (t) {
+        return (
+          '<button type="button" class="qtile ' +
+          t.cls +
+          '" data-dec-go="' +
+          esc(t.dest) +
+          '">' +
+          (t.badge ? '<span class="badge">' + t.badge + '</span>' : '') +
+          '<div class="qi">' +
+          t.ico +
+          '</div><b>' +
+          esc(t.label) +
+          '</b></button>'
+        );
+      })
+      .join('');
+    q.querySelectorAll('[data-dec-go]').forEach(function (btn) {
+      btn.onclick = function () {
+        const dest = btn.getAttribute('data-dec-go');
+        if (dest === 'hub') openDecorHub('packages');
+        else show(dest);
+      };
+    });
+  }
   syncDecBottomNav('decorDash');
 }
 function openDecorHub(tab) {
@@ -2023,16 +2092,12 @@ function bootDecoration() {
   bindClick('decDashBack', function () {
     show('lmbDashboard');
   });
-  document.querySelectorAll('[data-dec-dash]').forEach(function (btn) {
-    btn.onclick = function () {
-      const dest = btn.getAttribute('data-dec-dash');
-      if (dest === 'hub-pkg') openDecorHub('packages');
-      else if (dest === 'hub-svc') openDecorHub('services');
-      else if (dest === 'enquiries') show('decorStubEnq');
-      else if (dest === 'calendar') show('decorStubCal');
-      else if (dest === 'gallery') show('decorStubGal');
-      else if (dest === 'profile') show('decorStubProf');
-    };
+  bindClick('decBizProfileBtn', function () {
+    show('decorStubProf');
+  });
+  bindClick('decManageAreasLink', function (e) {
+    if (e && e.preventDefault) e.preventDefault();
+    toast('Service areas flow (prototype — same as catering)');
   });
   document.querySelectorAll('#decBottomNav button').forEach(function (btn) {
     btn.onclick = function () {

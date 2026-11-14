@@ -1,5 +1,5 @@
 /** Decoration owner — LMB, dashboard, stubs; packages in _decoration_*_hub.js */
-const DECORATION_OWNER_BUILD = 'decoration-owner-svc-price-v3';
+const DECORATION_OWNER_BUILD = 'decoration-owner-dash-catering-v4';
 const STORAGE_KEY = 'GIXBEE_DECORATION_OWNER_V1';
 
 function defaultStore() {
@@ -10,8 +10,24 @@ function defaultStore() {
       type: 'Decoration',
       verified: true,
     },
+    serviceAreas: {
+      states: ['Kerala'],
+      districts: { Kerala: ['Thrissur', 'Ernakulam'] },
+    },
     decorationMenu: defaultDecorationStore(),
   };
+}
+
+function decorAreaSummaryText() {
+  const sa = store.serviceAreas;
+  if (!sa || !sa.states || !sa.states.length) return 'Set where you accept decoration bookings.';
+  const parts = [];
+  sa.states.forEach(function (st) {
+    const dists = (sa.districts && sa.districts[st]) || [];
+    if (dists.length) parts.push(st + ': ' + dists.join(', '));
+    else parts.push(st);
+  });
+  return parts.join(' · ') || 'Set where you accept decoration bookings.';
 }
 
 let store = defaultStore();
@@ -102,6 +118,40 @@ function renderLmb() {
 function renderDecorDash() {
   el('decDashHello').textContent = 'Hello, ' + store.biz.name + ' 👋';
   el('decDashLoc').textContent = store.biz.loc;
+  if (el('decAreaSummary')) el('decAreaSummary').textContent = decorAreaSummaryText();
+  const q = el('decQuickGrid');
+  if (q) {
+    q.innerHTML = [
+      { dest: 'hub', cls: 'pink', ico: '📦', label: 'Packages & Services' },
+      { dest: 'decorStubCal', cls: 'blue', ico: '📅', label: 'Calendar' },
+      { dest: 'decorStubGal', cls: 'blue', ico: '🖼', label: 'Photos & Gallery' },
+      { dest: 'decorStubEnq', cls: 'orange', ico: '💬', label: 'Enquiries', badge: '12' },
+      { dest: 'decorStubOps', cls: 'teal', ico: '👥', label: 'Operators' },
+    ]
+      .map(function (t) {
+        return (
+          '<button type="button" class="qtile ' +
+          t.cls +
+          '" data-dec-go="' +
+          esc(t.dest) +
+          '">' +
+          (t.badge ? '<span class="badge">' + t.badge + '</span>' : '') +
+          '<div class="qi">' +
+          t.ico +
+          '</div><b>' +
+          esc(t.label) +
+          '</b></button>'
+        );
+      })
+      .join('');
+    q.querySelectorAll('[data-dec-go]').forEach(function (btn) {
+      btn.onclick = function () {
+        const dest = btn.getAttribute('data-dec-go');
+        if (dest === 'hub') openDecorHub('packages');
+        else show(dest);
+      };
+    });
+  }
   syncDecBottomNav('decorDash');
 }
 function openDecorHub(tab) {
@@ -119,16 +169,12 @@ function bootDecoration() {
   bindClick('decDashBack', function () {
     show('lmbDashboard');
   });
-  document.querySelectorAll('[data-dec-dash]').forEach(function (btn) {
-    btn.onclick = function () {
-      const dest = btn.getAttribute('data-dec-dash');
-      if (dest === 'hub-pkg') openDecorHub('packages');
-      else if (dest === 'hub-svc') openDecorHub('services');
-      else if (dest === 'enquiries') show('decorStubEnq');
-      else if (dest === 'calendar') show('decorStubCal');
-      else if (dest === 'gallery') show('decorStubGal');
-      else if (dest === 'profile') show('decorStubProf');
-    };
+  bindClick('decBizProfileBtn', function () {
+    show('decorStubProf');
+  });
+  bindClick('decManageAreasLink', function (e) {
+    if (e && e.preventDefault) e.preventDefault();
+    toast('Service areas flow (prototype — same as catering)');
   });
   document.querySelectorAll('#decBottomNav button').forEach(function (btn) {
     btn.onclick = function () {

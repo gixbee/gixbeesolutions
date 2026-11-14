@@ -94,6 +94,8 @@ function renderDecorationHub() {
   el('decTabServices').classList.toggle('on', tab === 'services');
   el('decHubPkgPanel').hidden = tab !== 'packages';
   el('decHubSvcPanel').hidden = tab !== 'services';
+  const head = el('decHubHead');
+  if (head) head.innerHTML = '<em>Gixbee</em><span>|</span>Packages &amp; Services';
   if (tab === 'packages') renderDecorPackageList();
   else if (typeof renderDecorIndividualList === 'function') renderDecorIndividualList();
 }
