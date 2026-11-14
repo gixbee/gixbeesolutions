@@ -201,15 +201,19 @@ function startDecorPackageWizard(editId) {
 }
 
 function setDecorWizProgress(step) {
-  document.querySelectorAll('.dec-progress').forEach(function (bar) {
-    const n = step;
+  const active = document.querySelector('.scr.on .dec-progress');
+  if (active) {
     let i;
     for (i = 0; i < 5; i++) {
-      const dot = bar.children[i];
+      const dot = active.children[i];
       if (!dot) continue;
-      dot.classList.toggle('done', i < n - 1);
-      dot.classList.toggle('on', i === n - 1);
+      dot.classList.remove('done', 'on');
+      if (i < step - 1) dot.classList.add('done');
+      else if (i === step - 1) dot.classList.add('on');
     }
+  }
+  document.querySelectorAll('.dec-wiz-step').forEach(function (lab) {
+    if (lab.closest('.scr.on')) lab.textContent = 'Step ' + step + ' of 5';
   });
   const lab = el('decWizStepLabel');
   if (lab) lab.textContent = 'Step ' + step + ' of 5';
@@ -310,7 +314,7 @@ function renderDecorPkgStep3() {
         esc(m.id) +
         '"><span class="dec-mod-ico">' +
         m.emoji +
-        '</span><span><b>' +
+        '</span><span style="flex:1;min-width:0"><b>' +
         esc(m.name) +
         '</b><small>' +
         sel +
@@ -592,7 +596,7 @@ function renderDecorPkgStep5() {
     (pr.pct
       ? '<s>' + inr(pr.base) + '</s> <b>' + inr(pr.offer) + '</b> <span class="dec-off">-' + pr.pct + '%</span>'
       : '<b>' + inr(pr.base) + '</b>') +
-    '</motion>';
+    '</div>';
   html += '<p class="dec-sec-h">Package amounts</p>';
   DEC_PKG_LEVELS.forEach(function (lv) {
     const key = lv.toLowerCase();
@@ -725,6 +729,10 @@ function bindDecorationPackageUi() {
     el('decPkgTitlePreview').textContent = el('decPkgName').value || 'Your package name';
   });
   bindClick('decPkgStep3Back', function () {
+    renderDecorPkgStep2();
+    show('decorPkgStep2');
+  });
+  bindClick('decPkgStep3BackFoot', function () {
     renderDecorPkgStep2();
     show('decorPkgStep2');
   });

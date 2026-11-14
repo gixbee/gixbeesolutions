@@ -81,9 +81,9 @@ function renderDecorSvcStep1() {
       esc(m.id) +
       '"><span class="dec-mod-ico">' +
       m.emoji +
-      '</span><b>' +
+      '</span><span style="flex:1;min-width:0"><b>' +
       esc(m.name) +
-      '</b></button>'
+      '</b></span></button>'
     );
   }).join('');
   host.querySelectorAll('[data-svc-cat]').forEach(function (btn) {
@@ -197,6 +197,15 @@ function bindDecorationIndividualUi() {
   });
   bindClick('decSvcStep2Back', function () {
     show('decorSvcStep1');
+  });
+  bindClick('decSvcStep2TopBack', function () {
+    show('decorSvcStep1');
+  });
+  bindClick('decSvcStep3TopBack', function () {
+    show('decorSvcStep2');
+  });
+  bindClick('decSvcStep4TopBack', function () {
+    show('decorSvcStep3');
   });
   bindClick('decSvcStep2Next', function () {
     decorSvcWizard.draft.name = (el('decSvcName').value || '').trim();

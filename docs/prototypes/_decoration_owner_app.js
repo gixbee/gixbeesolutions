@@ -1,5 +1,5 @@
 /** Decoration owner — LMB, dashboard, stubs; packages in _decoration_*_hub.js */
-const DECORATION_OWNER_BUILD = 'decoration-owner-1';
+const DECORATION_OWNER_BUILD = 'decoration-owner-layout-2';
 const STORAGE_KEY = 'GIXBEE_DECORATION_OWNER_V1';
 
 function defaultStore() {
@@ -32,6 +32,16 @@ function show(id) {
   });
   const scr = el(id);
   if (scr) scr.scrollTop = 0;
+  syncDecBottomNav(id);
+}
+function syncDecBottomNav(id) {
+  const nav = el('decBottomNav');
+  if (!nav) return;
+  const showNav = id === 'decorDash' || id === 'decorStubEnq' || id === 'decorStubCal' || id === 'decorStubProf';
+  nav.hidden = !showNav;
+  nav.querySelectorAll('button').forEach(function (btn) {
+    btn.classList.toggle('on', btn.getAttribute('data-nav') === id);
+  });
 }
 function toast(m) {
   const t = el('toast');
@@ -90,8 +100,14 @@ function renderLmb() {
 }
 
 function renderDecorDash() {
-  el('decDashHello').textContent = 'Hello, ' + store.biz.name;
+  el('decDashHello').textContent = 'Hello, ' + store.biz.name + ' 👋';
   el('decDashLoc').textContent = store.biz.loc;
+  syncDecBottomNav('decorDash');
+}
+function openDecorHub(tab) {
+  ensureDecorationStore();
+  store.decorationMenu.hubTab = tab || 'packages';
+  decorationMenuOpenHub();
 }
 
 function bootDecoration() {
@@ -106,11 +122,18 @@ function bootDecoration() {
   document.querySelectorAll('[data-dec-dash]').forEach(function (btn) {
     btn.onclick = function () {
       const dest = btn.getAttribute('data-dec-dash');
-      if (dest === 'hub') decorationMenuOpenHub();
+      if (dest === 'hub-pkg') openDecorHub('packages');
+      else if (dest === 'hub-svc') openDecorHub('services');
       else if (dest === 'enquiries') show('decorStubEnq');
       else if (dest === 'calendar') show('decorStubCal');
       else if (dest === 'gallery') show('decorStubGal');
       else if (dest === 'profile') show('decorStubProf');
+    };
+  });
+  document.querySelectorAll('#decBottomNav button').forEach(function (btn) {
+    btn.onclick = function () {
+      const dest = btn.getAttribute('data-nav');
+      if (dest) show(dest);
     };
   });
   bindOnInput('decPkgSearch', function () {
