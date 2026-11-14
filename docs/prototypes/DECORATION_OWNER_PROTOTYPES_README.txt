@@ -10,7 +10,8 @@ Flow:
   List My Business → Decor Mart → Dashboard
   Packages & Individual Services (hub)
   5-step package wizard (category → details → items → Basic/Standard/Premium amounts → preview)
-  Individual service wizard (category → basics → designs → tier amounts)
+  Individual service wizard (4 steps): category → details → optional designs →
+  single service price + unit (NOT Basic/Standard/Premium)
   Enquiries, Calendar, Gallery, Profile (stubs)
 
 Catalogue:

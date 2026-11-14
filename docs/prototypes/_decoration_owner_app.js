@@ -1,5 +1,5 @@
 /** Decoration owner — LMB, dashboard, stubs; packages in _decoration_*_hub.js */
-const DECORATION_OWNER_BUILD = 'decoration-owner-layout-2';
+const DECORATION_OWNER_BUILD = 'decoration-owner-svc-price-v3';
 const STORAGE_KEY = 'GIXBEE_DECORATION_OWNER_V1';
 
 function defaultStore() {

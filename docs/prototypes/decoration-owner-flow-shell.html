@@ -112,6 +112,11 @@ body{margin:0;background:#EDE9FE;font-family:Inter,system-ui,sans-serif;color:#1
 .dec-ul{margin:0 0 12px;padding-left:18px;font-size:13px;line-height:1.5;color:#374151}
 .dec-success{text-align:center;padding:28px 16px 24px}.dec-success .ok{width:64px;height:64px;border-radius:50%;background:#DCFCE7;color:#166534;display:grid;place-items:center;font-size:32px;margin:0 auto 12px;font-weight:900}
 .dec-success #decSuccessCard{margin:16px auto;padding:14px;border:1px solid var(--line);border-radius:14px;max-width:280px;text-align:left}
+.dec-design-card{border:1px solid var(--line);border-radius:14px;padding:12px;margin-bottom:10px;background:#F8FAFC}
+.dec-svc-progress{display:flex;gap:6px;justify-content:center;padding:8px 16px 4px}.dec-svc-progress i{width:40px;height:4px;border-radius:99px;background:#E5E7EB;display:block}
+.dec-svc-progress i.on{background:var(--decor2)}.dec-svc-progress i.done{background:#A78BFA}
+.dec-svc-step{text-align:center;font-size:12px;font-weight:800;color:var(--mut);margin:0 0 10px}
+.dec-skip-link{display:block;width:calc(100% - 32px);margin:0 16px 8px;border:0;background:none;color:var(--decor);font-weight:800;font-size:13px;cursor:pointer;text-align:center;padding:8px}
 .toast{position:fixed;bottom:88px;left:50%;transform:translateX(-50%);background:#1E1B4B;color:#fff;padding:10px 16px;border-radius:12px;font-size:13px;font-weight:700;display:none;z-index:99;max-width:90%}
 .stub{padding:24px 16px;text-align:center}
 .search{margin:0 16px 12px;display:flex;align-items:center;gap:8px;border:1.5px solid #DDD6FE;border-radius:12px;padding:10px 12px;background:#fff}
@@ -257,35 +262,63 @@ body{margin:0;background:#EDE9FE;font-family:Inter,system-ui,sans-serif;color:#1
 </section>
 
 <section class="scr" id="decorSvcStep1">
-  <div class="top gx-top"><button type="button" class="back" id="decSvcWizardBack">←</button><h1><em>Gixbee</em><span>|</span>Service category</h1><span class="hub-more">⋮</span></div>
+  <div class="top gx-top"><button type="button" class="back" id="decSvcWizardBack">←</button><h1><em>Gixbee</em><span>|</span>Add Service</h1><span class="hub-more">⋮</span></div>
+  <div class="dec-svc-progress"><i class="on"></i><i></i><i></i><i></i></div>
+  <p class="dec-svc-step">Step 1 of 4</p>
+  <p class="sub pad" id="decSvcCatHint">Pick one category — one price per service (not package tiers).</p>
+  <form class="search" onsubmit="return false"><span>🔍</span><input type="search" id="decSvcCatSearch" placeholder="Search categories" autocomplete="off"></form>
   <div class="dec-mod-list" id="decSvcCatList"></div>
   <div class="cat-wiz-foot"><button type="button" class="btn btn-decor" id="decSvcStep1Next">Next →</button></div>
 </section>
 
 <section class="scr" id="decorSvcStep2">
-  <div class="top gx-top"><button type="button" class="back" id="decSvcStep2TopBack">←</button><h1>Service details</h1><span class="hub-more">⋮</span></div>
+  <div class="top gx-top"><button type="button" class="back" id="decSvcStep2TopBack">←</button><h1><em>Gixbee</em><span>|</span>Service details</h1><span class="hub-more">⋮</span></div>
+  <div class="dec-svc-progress"><i class="done"></i><i class="on"></i><i></i><i></i></div>
+  <p class="dec-svc-step">Step 2 of 4</p>
+  <div class="dec-ban"><span>✨</span><b id="decSvcCatBanner">—</b><button type="button" id="decSvcChangeCat">Change</button></div>
   <div class="pad"><div class="fld"><label>Service name *</label><input id="decSvcName" placeholder="Wedding car floral decoration"></div>
-  <div class="fld"><label>Description</label><textarea id="decSvcDesc" rows="2"></textarea></div>
-  <p class="lbl">EVENT TYPES</p><div class="dec-chip-wrap" id="decSvcEventChips"></div></div>
+  <div class="fld"><label>Short description</label><textarea id="decSvcDesc" rows="2" placeholder="What is included in this service?"></textarea></div>
+  <p class="lbl">WHERE CUSTOMERS USE THIS (OPTIONAL)</p><div class="dec-chip-wrap" id="decSvcEventChips"></div></div>
   <div class="cat-wiz-foot"><button type="button" class="btn btn-ghost" id="decSvcStep2Back">← Back</button><button type="button" class="btn btn-decor" id="decSvcStep2Next">Next →</button></div>
 </section>
 
 <section class="scr" id="decorSvcStep3">
-  <div class="top gx-top"><button type="button" class="back" id="decSvcStep3TopBack">←</button><h1>Designs</h1><span class="hub-more">⋮</span></div>
-  <div class="pad"><p class="lbl">DESIGNS &amp; VARIANTS</p><div id="decSvcDesigns"></div>
-  <button type="button" class="btn btn-ghost" id="decSvcAddDesign" style="width:100%;margin-top:4px">+ Add design</button></div>
-  <div class="cat-wiz-foot"><button type="button" class="btn btn-decor" id="decSvcStep3Next">Next: Pricing →</button></div>
+  <div class="top gx-top"><button type="button" class="back" id="decSvcStep3TopBack">←</button><h1><em>Gixbee</em><span>|</span>Portfolio</h1><span class="hub-more">⋮</span></div>
+  <div class="dec-svc-progress"><i class="done"></i><i class="done"></i><i class="on"></i><i></i></div>
+  <p class="dec-svc-step">Step 3 of 4</p>
+  <p class="sub pad">Add design names so customers can choose a look (optional).</p>
+  <div class="pad"><p class="lbl">DESIGN OPTIONS</p><div id="decSvcDesigns"></div>
+  <button type="button" class="btn btn-ghost" id="decSvcAddDesign" style="width:100%;margin-top:4px">+ Add another design</button></div>
+  <button type="button" class="dec-skip-link" id="decSvcSkipDesigns">Skip — no design list for now</button>
+  <div class="cat-wiz-foot"><button type="button" class="btn btn-decor" id="decSvcStep3Next">Next: Set price →</button></div>
 </section>
 
 <section class="scr" id="decorSvcStep4">
-  <div class="top gx-top"><button type="button" class="back" id="decSvcStep4TopBack">←</button><h1>Service pricing</h1><span class="hub-more">⋮</span></div>
-  <div class="pad dec-tier-grid">
-    <div class="fld"><label>Basic (₹)</label><input type="number" id="decSvcPriceBasic" inputmode="numeric"></div>
-    <div class="fld"><label>Standard (₹)</label><input type="number" id="decSvcPriceStandard" inputmode="numeric"></div>
-    <div class="fld"><label>Premium (₹)</label><input type="number" id="decSvcPricePremium" inputmode="numeric"></div>
-    <div class="dec-offer"><label><input type="checkbox" id="decSvcOfferOn"> Offer / discount</label><div id="decSvcOfferFields" hidden><input type="number" id="decSvcOfferPct" placeholder="Discount %" inputmode="numeric"></div></div>
+  <div class="top gx-top"><button type="button" class="back" id="decSvcStep4TopBack">←</button><h1><em>Gixbee</em><span>|</span>Service price</h1><span class="hub-more">⋮</span></div>
+  <div class="dec-svc-progress"><i class="done"></i><i class="done"></i><i class="done"></i><i class="on"></i></div>
+  <p class="dec-svc-step">Step 4 of 4</p>
+  <p class="sub pad">One clear rate for this service — not Basic / Standard / Premium like packages.</p>
+  <div class="pad">
+    <div class="fld"><label>Service price (₹) *</label><input type="number" id="decSvcPrice" min="0" placeholder="e.g. 8000" inputmode="numeric"></div>
+    <div class="fld"><label>Price unit</label><select id="decSvcPriceUnit"></select></div>
+    <div class="dec-offer"><label><input type="checkbox" id="decSvcOfferOn"> Offer for customers</label>
+    <div id="decSvcOfferFields" hidden><input type="number" id="decSvcOfferPct" min="1" max="90" placeholder="Discount %" inputmode="numeric"></div></div>
+    <p class="lbl">GST</p><div class="dec-chip-wrap" id="decSvcGstChips"></div>
+    <p class="lbl">Setup charges</p><div class="dec-chip-wrap" id="decSvcSetupChips"></div>
+    <p class="lbl">Transport</p><div class="dec-chip-wrap" id="decSvcTransportChips"></div>
+    <div id="decSvcPricePreview"></div>
   </div>
-  <div class="cat-wiz-foot"><button type="button" class="btn btn-ghost" id="decSvcStep4Back">← Back</button><button type="button" class="btn btn-decor" id="decSvcPublish">Publish service</button></div>
+  <div class="cat-wiz-foot" style="flex-direction:column;gap:8px">
+    <button type="button" class="btn btn-decor" id="decSvcPublish">Publish service</button>
+    <div style="display:flex;gap:10px;width:100%"><button type="button" class="btn btn-ghost" id="decSvcStep4Back" style="flex:1">← Back</button><button type="button" class="btn btn-ghost" id="decSvcSaveDraft" style="flex:1">Save draft</button></div>
+  </div>
+</section>
+
+<section class="scr" id="decorSvcSuccess">
+  <div class="dec-success"><h1 style="font-size:18px;margin:0" id="decSvcSuccessTitle">Service live</h1><p class="sub">Customers can enquire for this service at the price below.</p>
+  <div class="ok">✓</div>
+  <div id="decSvcSuccessBody"></div>
+  <button type="button" class="btn btn-decor" id="decSvcSuccessDone" style="width:min(100%,280px);margin-top:16px">View services</button></div>
 </section>
 
 <section class="scr stub" id="decorStubEnq"><p>Enquiries (prototype stub)</p><button type="button" class="back" onclick="show('decorDash')">←</button></section>
