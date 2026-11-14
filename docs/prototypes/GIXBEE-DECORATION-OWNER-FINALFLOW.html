@@ -1,0 +1,1701 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Gixbee — Decoration Owner</title>
+<style>
+:root{--decor:#7C3AED;--decor2:#BE185D;--decor-navy:#1E1B4B;--line:#E5E7EB;--mut:#64748B}
+*{box-sizing:border-box}body{margin:0;background:#EDE9FE;font-family:Inter,system-ui,sans-serif;color:#111827}
+.stage{min-height:100vh;display:flex;justify-content:center;padding:12px 8px 24px}
+.phone{width:min(100%,430px);background:#fff;min-height:920px;border-radius:36px;box-shadow:0 10px 32px rgba(15,23,42,.1);overflow:hidden;border:8px solid #111;display:flex;flex-direction:column}
+.notch{height:26px;display:flex;justify-content:space-between;padding:8px 18px 0;font-size:12px;font-weight:700}
+.scr{display:none;flex:1;overflow:auto;padding:0 0 72px}.scr.on{display:block}
+.top{display:flex;align-items:center;gap:8px;padding:10px 16px;border-bottom:1px solid var(--line)}.top h1{margin:0;flex:1;font-size:17px;font-weight:800;color:var(--decor-navy)}
+.back{border:0;background:none;font-size:22px;cursor:pointer;width:36px}
+.pad{padding:0 16px}.sub{font-size:12px;color:var(--mut);line-height:1.45;margin:0}
+.btn{width:100%;border:0;border-radius:999px;font-weight:800;font-size:16px;padding:14px;cursor:pointer}
+.btn-decor{background:var(--decor2);color:#fff}.btn-ghost{background:#fff;color:var(--decor);border:1.5px solid #DDD6FE}
+.cta{padding:12px 16px}.biz-card{border:1px solid var(--line);border-radius:16px;padding:12px;margin:16px;width:calc(100% - 32px);background:#fff;text-align:left;cursor:pointer;font:inherit}
+.biz-ico{width:52px;height:52px;border-radius:12px;background:#F5F3FF;display:grid;place-items:center;font-size:24px}
+.dec-dash-hd{padding:16px}.dec-dash-hd b{font-size:20px;color:var(--decor-navy)}.dec-qgrid{display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:0 16px 16px}
+.dec-tile{border:1px solid var(--line);border-radius:14px;padding:14px 10px;text-align:center;cursor:pointer;background:#fff;font:inherit;position:relative}
+.dec-tile .badge{position:absolute;top:8px;right:8px;background:#EF4444;color:#fff;font-size:10px;font-weight:800;border-radius:99px;padding:2px 6px}
+.hub-seg{display:flex;margin:0 16px 12px;border:1px solid var(--line);border-radius:12px;overflow:hidden}
+.hub-seg button{flex:1;border:0;padding:10px;font-weight:800;background:#F8FAFC;color:var(--mut);cursor:pointer}
+.hub-seg button.on{background:var(--decor2);color:#fff}
+.dec-empty{text-align:center;padding:32px 16px}.dec-empty-ico{font-size:40px}
+.dec-pkg-card{display:flex;gap:12px;border:1px solid var(--line);border-radius:16px;padding:12px;margin:0 16px 12px;background:#fff}
+.dec-pkg-thumb{width:72px;height:72px;border-radius:12px;background:#F5F3FF;display:grid;place-items:center;font-size:32px;flex-shrink:0}
+.dec-pkg-price{margin-top:6px;font-weight:800;color:var(--decor)}.dec-off{font-size:11px;color:#059669;font-weight:800;margin-left:4px}
+.dec-pill{font-size:10px;font-weight:800;padding:3px 8px;border-radius:99px}.dec-pill.live{background:#DCFCE7;color:#166534}.dec-pill.draft{background:#F3F4F6;color:#475569}
+.dec-card-actions{display:flex;gap:6px;margin-top:8px}.dec-card-actions button{flex:1;border:1px solid var(--line);border-radius:99px;padding:6px;font-size:11px;font-weight:800;background:#fff;cursor:pointer}
+.dec-progress{display:flex;gap:6px;justify-content:center;padding:8px 16px 4px}.dec-progress i{width:28px;height:4px;border-radius:99px;background:#E5E7EB;display:block}
+.dec-progress i.on{background:var(--decor2)}.dec-progress i.done{background:#A78BFA}
+.dec-wiz-step{text-align:center;font-size:12px;font-weight:800;color:var(--mut);margin:0 0 8px}
+.dec-cat-card{display:block;width:100%;text-align:left;border:2px solid #E5E7EB;border-radius:14px;padding:14px;margin-bottom:10px;background:#fff;cursor:pointer;font:inherit}
+.dec-cat-card.on{border-color:var(--decor2);background:#FFF1F2}
+.dec-cat-card b{display:block;font-size:14px}.dec-cat-card small{display:block;margin-top:6px;font-size:11px;color:var(--mut)}
+.dec-chip{border:1.5px solid #DDD6FE;background:#fff;border-radius:99px;padding:8px 12px;font-size:12px;font-weight:800;color:#5B21B6;margin:0 6px 6px 0;cursor:pointer}
+.dec-chip.on{background:var(--decor2);color:#fff;border-color:var(--decor2)}.dec-chip.sm{font-size:11px;padding:6px 10px}
+.fld{margin:0 0 12px}.fld label{display:block;font-size:12px;font-weight:800;margin-bottom:6px;color:var(--decor-navy)}
+.fld input,.fld textarea{width:100%;border:1.5px solid #DDD6FE;border-radius:12px;padding:10px;font:inherit}
+.dec-mod-row{display:flex;align-items:center;gap:10px;width:calc(100% - 32px);margin:0 16px 8px;padding:12px;border:1px solid var(--line);border-radius:14px;background:#fff;cursor:pointer;font:inherit;text-align:left}
+.dec-mod-row.on{border-color:var(--decor2)}.dec-mod-ico{font-size:22px}.dec-chev{margin-left:auto;color:var(--mut)}
+.dec-pick-row{display:flex;gap:10px;align-items:flex-start;padding:10px 16px;border-bottom:1px solid #F1F5F9;font-size:13px}
+.dec-tag{font-size:10px;font-weight:800;padding:2px 6px;border-radius:6px}.dec-tag.inc{background:#DCFCE7;color:#166534}.dec-tag.extra{background:#FCE7F3;color:#BE185D}
+.dec-tier-grid{display:grid;gap:10px;margin:12px 0}.dec-tier-grid .fld{margin:0}
+.dec-offer{border:1px solid #FBCFE8;border-radius:14px;padding:12px;margin:12px 0;background:#FFF1F2}
+.dec-success{text-align:center;padding:32px 16px}.dec-success .ok{font-size:48px}
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#1E1B4B;color:#fff;padding:10px 16px;border-radius:12px;font-size:13px;font-weight:700;display:none;z-index:99}
+.stub{padding:24px 16px;text-align:center}
+.search{margin:0 16px 12px;display:flex;gap:8px;border:1.5px solid #DDD6FE;border-radius:12px;padding:10px;background:#fff}
+.search input{border:0;flex:1;outline:none;font:inherit}
+.wiz-foot{display:flex;gap:10px;padding:12px 16px}
+</style>
+</head>
+<body>
+<div class="stage"><div class="phone">
+<div class="notch"><span>9:41</span><span>●●●</span></div>
+
+<section class="scr on" id="lmbDashboard">
+  <p style="padding:12px 16px;font-weight:900;font-size:18px;margin:0">List My Business</p>
+  <div id="lmbCards"></div>
+</section>
+
+<section class="scr" id="decorDash">
+  <div class="top"><button type="button" class="back" id="decDashBack">←</button><h1>Dashboard</h1></div>
+  <div class="dec-dash-hd"><b id="decDashHello">Hello, Decor Mart</b><p class="sub" id="decDashLoc">Thrissur</p></div>
+  <p class="sub pad">Manage your decoration business</p>
+  <div class="dec-qgrid">
+    <button type="button" class="dec-tile" data-dec-dash="hub"><div>📦</div><b>Packages</b><small class="sub">Create &amp; manage</small></button>
+    <button type="button" class="dec-tile" data-dec-dash="hub"><div>✨</div><b>Individual Services</b></button>
+    <button type="button" class="dec-tile" data-dec-dash="enquiries"><div>💬</div><b>Enquiries</b><span class="badge">12</span></button>
+    <button type="button" class="dec-tile" data-dec-dash="calendar"><div>📅</div><b>Calendar</b></button>
+    <button type="button" class="dec-tile" data-dec-dash="gallery"><div>🖼️</div><b>Gallery</b></button>
+    <button type="button" class="dec-tile" data-dec-dash="profile"><div>🏢</div><b>Business Profile</b></button>
+  </div>
+</section>
+
+<section class="scr" id="decorHub">
+  <div class="top"><button type="button" class="back" id="decHubBack">←</button><h1>Packages &amp; Services</h1></div>
+  <div class="hub-seg"><button type="button" id="decTabPackages" class="on">Packages</button><button type="button" id="decTabServices">Individual Services</button></div>
+  <div id="decHubPkgPanel">
+    <div class="search"><span>🔍</span><input type="search" id="decPkgSearch" placeholder="Search packages"></div>
+    <p class="sub pad" id="decHubStat">0 packages</p>
+    <div id="decPkgList"></div>
+    <div class="cta"><button type="button" class="btn btn-decor" id="decAddPackageBtn">+ Create Package</button></div>
+  </div>
+  <div id="decHubSvcPanel" hidden>
+    <div id="decSvcList"></div>
+    <div class="cta"><button type="button" class="btn btn-decor" id="decAddServiceBtn">+ Add Individual Service</button></div>
+  </div>
+</section>
+
+<section class="scr" id="decorPkgStep1">
+  <div class="top"><button type="button" class="back" id="decPkgStep1Back">←</button><h1>Create Package</h1></div>
+  <div class="dec-progress"><i class="on"></i><i></i><i></i><i></i><i></i></div>
+  <p class="dec-wiz-step" id="decWizStepLabel">Step 1 of 5</p>
+  <p class="pad" style="font-weight:800">Select package category *</p>
+  <div class="pad" id="decPkgCatGrid"></div>
+  <div class="cta"><button type="button" class="btn btn-decor" id="decPkgStep1Next">Next →</button></div>
+</section>
+
+<section class="scr" id="decorPkgStep2">
+  <div class="top"><button type="button" class="back" id="decPkgStep2Back">←</button><h1>Package details</h1></div>
+  <div class="dec-progress"><i class="done"></i><i class="on"></i><i></i><i></i><i></i></div>
+  <p class="dec-wiz-step">Step 2 of 5</p>
+  <p class="pad sub">Category: <b id="decPkgCatBanner">—</b> <button type="button" id="decPkgChangeCategory" style="border:0;background:none;color:var(--decor);font-weight:800;cursor:pointer">Change</button></p>
+  <div class="pad"><p style="font-weight:800;font-size:12px">Event type *</p><div id="decEventTypeChips"></div>
+  <p style="font-weight:800;font-size:12px;margin-top:12px">Community / tradition (optional)</p><div id="decTraditionChips"></div>
+  <p style="font-weight:800;font-size:12px;margin-top:12px">Decoration style (optional)</p><div id="decStyleChips"></div>
+  <div class="fld"><label>Package name *</label><input id="decPkgName" placeholder="Basic Wedding Decoration"></div>
+  <p class="sub" id="decPkgTitlePreview">Your package name</p>
+  <div class="fld"><label>Description</label><textarea id="decPkgDesc" rows="2"></textarea></div></div>
+  <div class="wiz-foot"><button type="button" class="btn btn-ghost" id="decPkgStep2Back2">← Back</button><button type="button" class="btn btn-decor" id="decPkgStep2Next" style="flex:1">Next →</button></div>
+</section>
+
+<section class="scr" id="decorPkgStep3">
+  <div class="top"><button type="button" class="back" id="decPkgStep3Back">←</button><h1>Add decoration items</h1></div>
+  <div class="dec-progress"><i class="done"></i><i class="done"></i><i class="on"></i><i></i><i></i></div>
+  <p class="dec-wiz-step">Step 3 of 5</p>
+  <p class="pad" style="font-weight:800" id="decItemSummaryBanner">0 items</p>
+  <div class="search"><span>🔍</span><input type="search" id="decModSearch" placeholder="Search categories"></div>
+  <div id="decModList"></div>
+  <div class="pad" id="decSelectedItemsCompact"></div>
+  <div class="cta"><button type="button" class="btn btn-decor" id="decPkgStep3Next">Next: Set pricing →</button></div>
+</section>
+
+<section class="scr" id="decorModPick">
+  <div class="top"><button type="button" class="back" id="decModPickBack">←</button><h1 id="decPickModTitle">Category</h1></div>
+  <p class="pad sub" id="decPickModCount">0 selected</p>
+  <div class="search"><span>🔍</span><input type="search" id="decPickModSearch" placeholder="Search items"></div>
+  <div id="decPickModList"></div>
+  <div class="pad fld"><label>Add your own</label><input id="decCustomItemName" placeholder="Custom item name"><button type="button" class="btn btn-ghost" id="decCustomItemAdd" style="margin-top:8px">Add custom item</button></div>
+  <div class="cta"><button type="button" class="btn btn-decor" id="decModPickDone">Done</button></div>
+</section>
+
+<section class="scr" id="decorItemConfig">
+  <div class="top"><button type="button" class="back" id="decItemCfgBack">←</button><h1 id="decItemCfgTitle">Item</h1></div>
+  <div class="pad">
+    <p style="font-weight:800">Included or extra?</p>
+    <label><input type="radio" name="decInc" id="decIncIncluded" checked> Included in package</label><br>
+    <label><input type="radio" name="decInc" id="decIncExtra"> Extra (add-on)</label>
+    <div id="decExtraPriceWrap" hidden class="fld"><label>Extra price (₹) *</label><input type="number" id="decItemExtraPrice" min="0"><label>Unit</label><select id="decItemUnit"></select></div>
+    <div class="fld"><label>Quantity</label><input type="number" id="decItemQty" min="1" value="1"></div>
+    <div class="fld"><label>Description</label><textarea id="decItemNote" rows="2"></textarea></div>
+  </div>
+  <div class="cta"><button type="button" class="btn btn-decor" id="decItemCfgSave">Save</button></div>
+</section>
+
+<section class="scr" id="decorPkgStep4">
+  <div class="top"><button type="button" class="back" id="decPkgStep4Back">←</button><h1>Package amounts</h1></div>
+  <div class="dec-progress"><i class="done"></i><i class="done"></i><i class="done"></i><i class="on"></i><i></i></div>
+  <p class="dec-wiz-step">Step 4 of 5</p>
+  <p class="pad sub">Enter package amount for Basic, Standard and Premium (at least one).</p>
+  <div class="pad dec-tier-grid">
+    <div class="fld"><label>Basic (₹)</label><input type="number" id="decPriceBasic" min="0" placeholder="30000"></div>
+    <div class="fld"><label>Standard (₹)</label><input type="number" id="decPriceStandard" min="0" placeholder="40000"></div>
+    <div class="fld"><label>Premium (₹)</label><input type="number" id="decPricePremium" min="0" placeholder="55000"></div>
+  </div>
+  <div class="pad dec-offer"><label><input type="checkbox" id="decOfferOn"> Offer / discount</label>
+  <div id="decOfferFields" hidden><input type="number" id="decOfferPct" min="1" max="90" placeholder="% off"></div></div>
+  <p class="pad" style="font-weight:800;font-size:12px">GST</p><div class="pad" id="decGstChips"></div>
+  <div class="pad" id="decTierPreview"></div>
+  <div class="wiz-foot"><button type="button" class="btn btn-ghost" id="decPkgStep4Back2">← Back</button><button type="button" class="btn btn-decor" id="decPkgStep4Next" style="flex:1">Preview →</button></div>
+</section>
+
+<section class="scr" id="decorPkgStep5">
+  <div class="top"><button type="button" class="back" id="decPkgStep5Back">←</button><h1>Preview</h1></div>
+  <div class="dec-progress"><i class="done"></i><i class="done"></i><i class="done"></i><i class="done"></i><i class="on"></i></div>
+  <p class="dec-wiz-step">Step 5 of 5</p>
+  <div class="pad" id="decPkgPreviewBody"></div>
+  <div class="cta"><button type="button" class="btn btn-decor" id="decPkgPublish">Publish Package</button><button type="button" class="btn btn-ghost" id="decPkgSaveDraft" style="margin-top:8px">Save as Draft</button></div>
+</section>
+
+<section class="scr" id="decorPkgSuccess">
+  <div class="dec-success"><div class="ok">✓</div><h2>Package created!</h2><p class="sub">Your decoration package is published.</p>
+  <div id="decSuccessCard"></div><p class="sub">Share: WhatsApp · PDF · Link (prototype)</p>
+  <button type="button" class="btn btn-decor" id="decorPkgSuccessDone">View packages</button></div>
+</section>
+
+<section class="scr" id="decorSvcStep1">
+  <div class="top"><button type="button" class="back" id="decSvcWizardBack">←</button><h1>Service category</h1></div>
+  <div id="decSvcCatList"></div>
+  <div class="cta"><button type="button" class="btn btn-decor" id="decSvcStep1Next">Next →</button></div>
+</section>
+
+<section class="scr" id="decorSvcStep2">
+  <div class="pad"><div class="fld"><label>Service name *</label><input id="decSvcName"></div>
+  <div class="fld"><label>Description</label><textarea id="decSvcDesc" rows="2"></textarea></div>
+  <p style="font-weight:800;font-size:12px">Event types</p><div id="decSvcEventChips"></div></div>
+  <div class="wiz-foot"><button type="button" class="btn btn-ghost" id="decSvcStep2Back">Back</button><button type="button" class="btn btn-decor" id="decSvcStep2Next" style="flex:1">Next</button></div>
+</section>
+
+<section class="scr" id="decorSvcStep3">
+  <div class="pad"><p style="font-weight:800">Designs &amp; variants</p><div id="decSvcDesigns"></div>
+  <button type="button" class="btn btn-ghost" id="decSvcAddDesign">+ Add design</button></div>
+  <div class="cta"><button type="button" class="btn btn-decor" id="decSvcStep3Next">Next: Pricing</button></div>
+</section>
+
+<section class="scr" id="decorSvcStep4">
+  <div class="pad dec-tier-grid">
+    <div class="fld"><label>Basic (₹)</label><input type="number" id="decSvcPriceBasic"></div>
+    <div class="fld"><label>Standard (₹)</label><input type="number" id="decSvcPriceStandard"></div>
+    <div class="fld"><label>Premium (₹)</label><input type="number" id="decSvcPricePremium"></div>
+    <div class="dec-offer"><label><input type="checkbox" id="decSvcOfferOn"> Offer</label><div id="decSvcOfferFields" hidden><input type="number" id="decSvcOfferPct" placeholder="%"></div></div>
+  </div>
+  <div class="wiz-foot"><button type="button" class="btn btn-ghost" id="decSvcStep4Back">Back</button><button type="button" class="btn btn-decor" id="decSvcPublish" style="flex:1">Publish service</button></div>
+</section>
+
+<section class="scr stub" id="decorStubEnq"><p>Enquiries (prototype stub)</p><button type="button" class="back" onclick="show('decorDash')">←</button></section>
+<section class="scr stub" id="decorStubCal"><p>Calendar (prototype stub)</p><button type="button" class="back" onclick="show('decorDash')">←</button></section>
+<section class="scr stub" id="decorStubGal"><p>Gallery (prototype stub)</p><button type="button" class="back" onclick="show('decorDash')">←</button></section>
+<section class="scr stub" id="decorStubProf"><p>Business profile (prototype stub)</p><button type="button" class="back" onclick="show('decorDash')">←</button></section>
+
+<div class="toast" id="toast"></div>
+</div></div>
+<!-- APP_START -->
+<script>
+/** All-India decoration catalogue — 14 categories for packages & individual services. */
+const DECORATION_PKG_LEVELS = ['Basic', 'Standard', 'Premium'];
+const DECORATION_EVENT_CATEGORIES = [
+  { id: 'wedding', label: 'Wedding & Related Functions', hint: 'Wedding, Engagement, Reception, Haldi, Mehendi, Nikah, Walima & more' },
+  { id: 'other', label: 'Other Functions', hint: 'Birthday, Housewarming, Corporate, Baptism, Navjote & more' },
+];
+const DECORATION_EVENT_TYPES = {
+  wedding: ['Wedding','Engagement','Reception','Haldi','Mehendi / Mailanchi','Sangeet','Nikah','Walima','Betrothal','Roka','Chunni Ceremony','Anand Karaj','Bridal Shower','Wedding Eve','Pre-wedding','Post-wedding','Other wedding functions'],
+  other: ['Birthday','First Birthday','Baby Shower','Naming Ceremony','Baptism','First Holy Communion','Confirmation','Housewarming','Anniversary','Retirement','Inauguration','Corporate Event','Cultural Event','Festival Celebration','Navjote','Other'],
+};
+const DECORATION_TRADITIONS = ['Hindu','Muslim','Christian','Sikh','Jain','Buddhist','Parsi','Interfaith','Other','Not specified'];
+const DECORATION_STYLES = ['Traditional','Modern','Floral','Royal','Minimal','Luxury','Theme Based','Custom'];
+const DECORATION_CEREMONY_SETUP = ['Traditional Mandapam','Church Ceremony Setup','Nikah Setup','Reception Stage','Engagement Stage','General Stage','Custom'];
+const DECORATION_UNITS = ['Per Event','Per Set','Per Unit','Per Item','Per Hour','Custom Quotation'];
+const DECORATION_GST = ['Included','Additional','Not Applicable'];
+
+const DECORATION_CATALOG_DEFS = [
+  {
+    "id": "d01",
+    "name": "Stage / Mandapam",
+    "emoji": "\ud83c\udfaa",
+    "items": [
+          "Wedding Stage Backdrop (Fabric)",
+          "Wedding Stage Backdrop (LED)",
+          "Traditional Wooden Mandapam",
+          "Floral Mandapam",
+          "Crystal / Acrylic Stage Arch",
+          "Stage Carpet / Runners",
+          "Stage Steps with Floral Trim",
+          "Couple Throne / Stage Seating",
+          "Name Board / LED Monogram",
+          "Reception Stage (Full Setup)",
+          "Engagement Stage",
+          "Nikah Stage & Seating",
+          "Church-Style Floral Altar Backdrop",
+          "Sangeet / Mehendi Stage",
+          "Haldi Ceremony Stage Setup",
+          "Minimal Stage (Corporate)",
+          "Outdoor Stage Canopy Frame",
+          "Stage Side Pillars (Floral)",
+          "LED Wall Backdrop",
+          "Photo-Frame Stage Panel"
+    ],
+  },
+  {
+    "id": "d02",
+    "name": "Entrance & Welcome",
+    "emoji": "\ud83d\udeaa",
+    "items": [
+          "Floral Entrance Arch",
+          "Balloon Entrance Arch",
+          "Fabric Drape Entrance",
+          "Welcome Board (Printed)",
+          "LED Welcome Sign",
+          "Couple Name Entrance Board",
+          "Direction / Parking Signage",
+          "Floral Entrance Pillars (Pair)",
+          "Welcome Table Arrangement",
+          "Entrance Red Carpet",
+          "Traditional Toran / Main Door Décor",
+          "Nikah Entrance Arch",
+          "Church Entrance Floral Arch",
+          "Gate / Compound Entrance Draping",
+          "Photo Welcome Stand",
+          "Guest Registration Desk Décor",
+          "Entrance Fairy Light Tunnel",
+          "Marquee Entrance Framing"
+    ],
+  },
+  {
+    "id": "d03",
+    "name": "Pathway Decoration",
+    "emoji": "\ud83d\udee4\ufe0f",
+    "items": [
+          "Central Aisle Red Carpet",
+          "White / Ivory Aisle Carpet",
+          "Floral Aisle Markers",
+          "Petal Pathway",
+          "Candle Aisle (Indoor)",
+          "Outdoor Walkway Lanterns",
+          "Garden Pathway Urns",
+          "Mandapam Walkway Draping",
+          "Church Pew Aisle Flowers",
+          "Reception Entry Path Lights",
+          "Bridal Entry Path (Traditional)",
+          "Royal Carpet with Borders",
+          "Mirror / Reflective Aisle Panels",
+          "Outdoor Tent Walkway"
+    ],
+  },
+  {
+    "id": "d04",
+    "name": "Floral Decoration",
+    "emoji": "\ud83d\udc90",
+    "items": [
+          "Fresh Flower Ceiling Hangings",
+          "Artificial Flower Ceiling",
+          "Marigold Garlands (Bulk)",
+          "Jasmine / Malli Strings",
+          "Rose Floral Walls",
+          "Mixed South Indian Flower Arrangements",
+          "North Indian Floral Backdrop",
+          "Orchid & Exotic Flower Décor",
+          "Pooja Room Floral Setup",
+          "Centre Table Floral (Reception)",
+          "Haldi Marigold Setup",
+          "Church Altar Flowers",
+          "Bridal Car Flower Garland (Separate)",
+          "Garland for Mala / Exchange",
+          "Floral Pillars (Indoor)",
+          "Wedding Eve Floral Installations",
+          "Baby Shower Floral Corner",
+          "Corporate Floral Branding",
+          "Hanging Floral Chandeliers",
+          "Tropical Flower Theme (Goa / Coastal)"
+    ],
+  },
+  {
+    "id": "d05",
+    "name": "Lighting & Sound",
+    "emoji": "\ud83d\udca1",
+    "items": [
+          "Fairy / String Lights (Warm)",
+          "LED Strip Lighting",
+          "Par / Focus Lights for Stage",
+          "Moving Head Lights",
+          "Uplighters (Wall Wash)",
+          "Outdoor Flood Lights",
+          "Chandeliers (Rental)",
+          "Pathway Bollard Lights",
+          "Sound System (Basic PA)",
+          "Sound System (Reception / DJ Ready)",
+          "Wireless Microphones",
+          "LED Dance Floor Lighting",
+          "Name GOBO Projection",
+          "Stage Truss Lighting",
+          "Emergency Backup Lighting",
+          "Generator / Power Distribution (Decorator)"
+    ],
+  },
+  {
+    "id": "d06",
+    "name": "Seating & Furniture",
+    "emoji": "\ud83e\ude91",
+    "items": [
+          "Couple Sofa (White)",
+          "Couple Diwan / Traditional Seating",
+          "Royal Chairs (Pair)",
+          "Guest Plastic / Banquet Chairs",
+          "Chiavari Chairs",
+          "Cushions & Covers",
+          "VIP Seating Section",
+          "Mehendi Low Seating",
+          "Sangeet Stage Seating",
+          "Bridal Green Room Sofa",
+          "Bench Seating (Outdoor)",
+          "Traditional Wooden Chairs",
+          "Hospitality Counter Table",
+          "Side Tables (Stage)"
+    ],
+  },
+  {
+    "id": "d07",
+    "name": "Dining & Table",
+    "emoji": "\ud83c\udf7d\ufe0f",
+    "items": [
+          "Buffet Table Skirting & Décor",
+          "Dessert Counter Décor",
+          "Cake Table Setup",
+          "Welcome Drink Counter",
+          "Table Centrepieces",
+          "Table Runners & Linen",
+          "Chair Bow / Sash Decoration",
+          "Menu Display Board",
+          "Live Counter Framing",
+          "Corporate Buffet Branding",
+          "South Indian Banana Leaf Station Décor",
+          "High-Tea Table Styling"
+    ],
+  },
+  {
+    "id": "d08",
+    "name": "Photo & Display",
+    "emoji": "\ud83d\udcf8",
+    "items": [
+          "Photo Booth Backdrop",
+          "Selfie Point / Ring Light",
+          "Couple Portrait Backdrop",
+          "Family Photo Wall",
+          "Polaroid / Guest Message Wall",
+          "Hashtag LED Board",
+          "Memory Lane Photo Line",
+          "Instagram Frame Prop",
+          "360° Spin Booth Space Décor",
+          "Baby Shower Photo Corner",
+          "Corporate Step-and-Repeat",
+          "Gift Display Table"
+    ],
+  },
+  {
+    "id": "d09",
+    "name": "Special Effects",
+    "emoji": "\u2728",
+    "items": [
+          "Cold Pyro / Cold Fire (Permit Required)",
+          "Low-Lying Fog",
+          "Smoke Machine",
+          "Confetti Blast",
+          "CO₂ Jet Effects",
+          "Bubble Machine",
+          "Projection Mapping (Basic)",
+          "Drone Show Coordination (Third Party)",
+          "Fireworks Synchronization (Where Permitted)",
+          "Sparkler Entry Package",
+          "Indoor Safe Confetti"
+    ],
+  },
+  {
+    "id": "d10",
+    "name": "Vehicle & Personal Flowers",
+    "emoji": "\ud83d\ude97",
+    "items": [
+          "Wedding Car Floral Decoration (Full)",
+          "Wedding Car Bonnet Garland",
+          "Car Door Floral Handles",
+          "Car Roof Floral (South Indian Style)",
+          "Luxury Car Décor (Premium Flowers)",
+          "Vintage Car Flower Drape",
+          "Bike / Two-Wheeler Wedding Décor",
+          "Car Ribbon & Bow Package",
+          "Bridal Bouquet (Hand-Tied)",
+          "Bridal Bouquet (Cascading)",
+          "Bridesmaid Bouquets",
+          "Boutonniere (Groom)",
+          "Boutonniere (Groomsmen Set)",
+          "Mother / Family Corsage",
+          "Flower Basket (Petal Shower)",
+          "Garland for Groom Entry",
+          "Marigold Car Toran",
+          "Christian Bridal Bouquet (White Roses)",
+          "Muslim Groom Flower Pin",
+          "Reception Car Send-Off Décor",
+          "Corporate Guest Welcome Bouquet",
+          "Housewarming Door Flower Hangings"
+    ],
+  },
+  {
+    "id": "d11",
+    "name": "Traditional / Ceremony Setup",
+    "emoji": "\ud83e\ude94",
+    "items": [
+          "Banana Stem Traditional Mandapam Elements",
+          "Mango Leaf Thoranam",
+          "Coconut Leaf Toran",
+          "Nilavilakku / Brass Lamps (Set)",
+          "Kalash & Traditional Vessels",
+          "Pooja Backdrop (Traditional)",
+          "Pookalam / Rangoli Support Décor",
+          "Haldi Plate & Seating Corner",
+          "Mehendi / Mailanchi Seating Décor",
+          "Nikah Signing Table Setup",
+          "Islamic Geometric Backdrop Panel",
+          "Walima Stage Floral (Green / Gold Theme)",
+          "Church Pew Ends & Altar Florals",
+          "Baptism / Communion Backdrop",
+          "Anand Karaj Floral (Gurdwara Approved)",
+          "Navjote Traditional Setup Elements",
+          "Roka / Engagement Traditional Platform",
+          "Chunni Ceremony Seating",
+          "Jain Minimal Mandap Elements",
+          "Interfaith Neutral Ceremony Backdrop"
+    ],
+  },
+  {
+    "id": "d12",
+    "name": "Other Items",
+    "emoji": "\ud83d\udce6",
+    "items": [
+          "Ceiling Draping (Full Hall)",
+          "Wall Draping / Masking",
+          "Pillar Wrapping",
+          "Partition Screens",
+          "Home Décor (Housewarming)",
+          "Garden / Lawn Tent Décor",
+          "Weather Protection Sidewalls",
+          "Green Room Makeover",
+          "Signage Package (Event)",
+          "Custom Theme Props",
+          "Balloon Ceiling",
+          "Kids Birthday Balloon Arch",
+          "Corporate Stage Branding",
+          "Festival Ganesh / Onam Installations",
+          "Repairs & Touch-Up Kit (Day Of)"
+    ],
+  },
+];
+
+function buildDecorationModules() {
+  return DECORATION_CATALOG_DEFS.map(function (m, idx) {
+    const items = (m.items || []).map(function (name) {
+      return {
+        id: m.id + '::' + String(name).toLowerCase().replace(/[^a-z0-9]+/g, '-').slice(0, 48),
+        name: name,
+      };
+    });
+    return { id: m.id, num: idx + 1, name: m.name, emoji: m.emoji, items: items };
+  });
+}
+const DECORATION_MODULES = buildDecorationModules();
+
+function findDecorationModule(moduleId) {
+  return DECORATION_MODULES.find(function (m) { return m.id === moduleId; });
+}
+
+function defaultDecorationStore() {
+  return {
+    hubTab: 'packages',
+    pkgFilter: 'all',
+    pkgCategoryFilter: 'wedding',
+    pkgSort: 'name',
+    pkgSearch: '',
+    catPackages: [],
+    individualServices: [],
+  };
+}
+
+
+/** Decoration packages hub + 5-step wizard (tier amounts: Basic / Standard / Premium). */
+
+const DEC_PKG_LEVELS = ['Basic', 'Standard', 'Premium'];
+
+let decorPkgWizard = { editId: null, draft: null };
+let decorModulePickCtx = { moduleId: null, search: '' };
+let decorItemPickCtx = { moduleId: null, configuringId: null, customName: '' };
+
+function ensureDecorationStore() {
+  if (!store.decorationMenu) store.decorationMenu = defaultDecorationStore();
+  if (!store.decorationMenu.catPackages) store.decorationMenu.catPackages = [];
+  if (!store.decorationMenu.individualServices) store.decorationMenu.individualServices = [];
+}
+
+function newDecorPkgDraft() {
+  return {
+    packageCategory: 'wedding',
+    eventTypes: [],
+    traditionTags: [],
+    ceremonySetup: [],
+    styles: [],
+    name: '',
+    description: '',
+    images: ['🎀'],
+    tierPrices: { basic: '', standard: '', premium: '' },
+    offerEnabled: false,
+    discountPercent: '',
+    gstTreatment: 'Included',
+    items: [],
+    status: 'live',
+  };
+}
+
+function findDecorPackage(id) {
+  return (store.decorationMenu.catPackages || []).find(function (p) {
+    return p.id === id;
+  });
+}
+
+function decorPkgCounts(d) {
+  const items = d.items || [];
+  let inc = 0;
+  let extra = 0;
+  items.forEach(function (it) {
+    if (it.inclusionType === 'extra') extra++;
+    else inc++;
+  });
+  return { total: items.length, included: inc, extra: extra };
+}
+
+function decorOfferPct(d) {
+  if (!d || !d.offerEnabled) return 0;
+  const n = Math.round(+d.discountPercent);
+  return n >= 1 && n <= 90 ? n : 0;
+}
+
+function decorPriceAfterOffer(base, pct) {
+  const b = Math.max(0, Math.round(+base || 0));
+  if (!pct) return b;
+  return Math.max(0, Math.round((b * (100 - pct)) / 100));
+}
+
+function decorPrimaryTierPrice(d) {
+  const t = d.tierPrices || {};
+  const order = ['standard', 'basic', 'premium'];
+  let i;
+  for (i = 0; i < order.length; i++) {
+    const v = Math.round(+(t[order[i]] || 0));
+    if (v > 0) return { tier: order[i], amount: v };
+  }
+  return { tier: '', amount: 0 };
+}
+
+function decorPkgListPrice(d) {
+  const hit = decorPrimaryTierPrice(d);
+  const pct = decorOfferPct(d);
+  return {
+    base: hit.amount,
+    offer: decorPriceAfterOffer(hit.amount, pct),
+    pct: pct,
+    tier: hit.tier,
+  };
+}
+
+function decorationMenuOpenHub() {
+  ensureDecorationStore();
+  show('decorHub');
+  renderDecorationHub();
+}
+
+function renderDecorationHub() {
+  const tab = store.decorationMenu.hubTab || 'packages';
+  el('decTabPackages').classList.toggle('on', tab === 'packages');
+  el('decTabServices').classList.toggle('on', tab === 'services');
+  el('decHubPkgPanel').hidden = tab !== 'packages';
+  el('decHubSvcPanel').hidden = tab !== 'services';
+  if (tab === 'packages') renderDecorPackageList();
+  else if (typeof renderDecorIndividualList === 'function') renderDecorIndividualList();
+}
+
+function renderDecorPackageList() {
+  const q = (el('decPkgSearch').value || '').trim().toLowerCase();
+  const filter = store.decorationMenu.pkgFilter || 'all';
+  let list = (store.decorationMenu.catPackages || []).slice();
+  if (filter !== 'all') {
+    list = list.filter(function (p) {
+      return String(p.packageCategory || '') === filter || String(p.level || '').toLowerCase() === filter.toLowerCase();
+    });
+  }
+  if (q) {
+    list = list.filter(function (p) {
+      return String(p.name || '')
+        .toLowerCase()
+        .includes(q);
+    });
+  }
+  const host = el('decPkgList');
+  if (!host) return;
+  el('decHubStat').textContent = list.length + ' package' + (list.length === 1 ? '' : 's');
+  if (!list.length) {
+    host.innerHTML =
+      '<div class="dec-empty"><div class="dec-empty-ico">🎀</div><b>No packages yet</b><p class="sub">Create your first decoration package and start getting enquiries.</p></div>';
+    return;
+  }
+  host.innerHTML = list
+    .map(function (p) {
+      const pr = decorPkgListPrice(p);
+      const inc = decorPkgCounts(p);
+      const priceHtml = pr.pct
+        ? '<s style="color:#94A3B8;font-weight:700">' +
+          inr(pr.base) +
+          '</s> <b>' +
+          inr(pr.offer) +
+          '</b> <span class="dec-off">-' +
+          pr.pct +
+          '%</span>'
+        : '<b>' + inr(pr.base) + '</b>';
+      return (
+        '<article class="dec-pkg-card" data-dec-pkg="' +
+        esc(p.id) +
+        '"><div class="dec-pkg-thumb">' +
+        (p.images && p.images[0] ? p.images[0] : '🎀') +
+        '</div><div><b>' +
+        esc(p.name || 'Package') +
+        '</b><p class="sub">' +
+        esc((p.eventTypes || []).slice(0, 2).join(', ') || '—') +
+        ' · ' +
+        inc.included +
+        ' included, ' +
+        inc.extra +
+        ' extra</p><div class="dec-pkg-price">' +
+        priceHtml +
+        '</div><div class="dec-pkg-meta"><span class="dec-pill ' +
+        (p.status === 'live' ? 'live' : 'draft') +
+        '">' +
+        (p.status === 'live' ? 'Live' : 'Draft') +
+        '</span></div><div class="dec-card-actions"><button type="button" data-dec-edit="' +
+        esc(p.id) +
+        '">Edit</button><button type="button" data-dec-del="' +
+        esc(p.id) +
+        '">Delete</button><button type="button" data-dec-share="' +
+        esc(p.id) +
+        '">Share</button></div></div></article>'
+      );
+    })
+    .join('');
+  host.querySelectorAll('[data-dec-edit]').forEach(function (btn) {
+    btn.onclick = function (e) {
+      e.stopPropagation();
+      startDecorPackageWizard(btn.getAttribute('data-dec-edit'));
+    };
+  });
+  host.querySelectorAll('[data-dec-del]').forEach(function (btn) {
+    btn.onclick = function (e) {
+      e.stopPropagation();
+      const id = btn.getAttribute('data-dec-del');
+      if (!confirm('Delete this package?')) return;
+      store.decorationMenu.catPackages = store.decorationMenu.catPackages.filter(function (x) {
+        return x.id !== id;
+      });
+      saveStore();
+      renderDecorPackageList();
+      toast('Package deleted');
+    };
+  });
+  host.querySelectorAll('[data-dec-share]').forEach(function (btn) {
+    btn.onclick = function (e) {
+      e.stopPropagation();
+      toast('Share menu: WhatsApp, PDF, and link (prototype)');
+    };
+  });
+}
+
+function startDecorPackageWizard(editId) {
+  decorPkgWizard.editId = editId || null;
+  const src = editId ? findDecorPackage(editId) : null;
+  decorPkgWizard.draft = src ? JSON.parse(JSON.stringify(src)) : newDecorPkgDraft();
+  if (!decorPkgWizard.draft.tierPrices) decorPkgWizard.draft.tierPrices = { basic: '', standard: '', premium: '' };
+  renderDecorPkgStep1();
+  show('decorPkgStep1');
+}
+
+function setDecorWizProgress(step) {
+  document.querySelectorAll('.dec-progress').forEach(function (bar) {
+    const n = step;
+    let i;
+    for (i = 0; i < 5; i++) {
+      const dot = bar.children[i];
+      if (!dot) continue;
+      dot.classList.toggle('done', i < n - 1);
+      dot.classList.toggle('on', i === n - 1);
+    }
+  });
+  const lab = el('decWizStepLabel');
+  if (lab) lab.textContent = 'Step ' + step + ' of 5';
+}
+
+function renderDecorPkgStep1() {
+  setDecorWizProgress(1);
+  const host = el('decPkgCatGrid');
+  if (!host) return;
+  const d = decorPkgWizard.draft;
+  host.innerHTML = DECORATION_EVENT_CATEGORIES.map(function (c) {
+    const on = d.packageCategory === c.id;
+    return (
+      '<button type="button" class="dec-cat-card' +
+      (on ? ' on' : '') +
+      '" data-dec-cat="' +
+      esc(c.id) +
+      '"><b>' +
+      esc(c.label) +
+      '</b><small>' +
+      esc(c.hint) +
+      '</small></button>'
+    );
+  }).join('');
+  host.querySelectorAll('[data-dec-cat]').forEach(function (btn) {
+    btn.onclick = function () {
+      decorPkgWizard.draft.packageCategory = btn.getAttribute('data-dec-cat');
+      renderDecorPkgStep1();
+    };
+  });
+}
+
+function renderDecorPkgStep2() {
+  setDecorWizProgress(2);
+  const d = decorPkgWizard.draft;
+  const cat = DECORATION_EVENT_CATEGORIES.filter(function (c) {
+    return c.id === d.packageCategory;
+  })[0];
+  el('decPkgCatBanner').textContent = cat ? cat.label : '';
+  const types = DECORATION_EVENT_TYPES[d.packageCategory] || [];
+  el('decEventTypeChips').innerHTML = types
+    .map(function (t) {
+      const on = (d.eventTypes || []).indexOf(t) >= 0;
+      return '<button type="button" class="dec-chip' + (on ? ' on' : '') + '" data-ev="' + esc(t) + '">' + esc(t) + '</button>';
+    })
+    .join('');
+  el('decTraditionChips').innerHTML = DECORATION_TRADITIONS.map(function (t) {
+    const on = (d.traditionTags || []).indexOf(t) >= 0;
+    return '<button type="button" class="dec-chip sm' + (on ? ' on' : '') + '" data-trad="' + esc(t) + '">' + esc(t) + '</button>';
+  }).join('');
+  el('decStyleChips').innerHTML = DECORATION_STYLES.map(function (t) {
+    const on = (d.styles || []).indexOf(t) >= 0;
+    return '<button type="button" class="dec-chip sm' + (on ? ' on' : '') + '" data-style="' + esc(t) + '">' + esc(t) + '</button>';
+  }).join('');
+  el('decPkgName').value = d.name || '';
+  el('decPkgDesc').value = d.description || '';
+  el('decPkgTitlePreview').textContent = d.name || 'Your package name';
+  function bindChip(sel, attr, arrKey) {
+    el(sel).querySelectorAll('[data-' + attr + ']').forEach(function (btn) {
+      btn.onclick = function () {
+        const val = btn.getAttribute('data-' + attr);
+        const arr = decorPkgWizard.draft[arrKey] || [];
+        const i = arr.indexOf(val);
+        if (i >= 0) arr.splice(i, 1);
+        else arr.push(val);
+        decorPkgWizard.draft[arrKey] = arr;
+        renderDecorPkgStep2();
+      };
+    });
+  }
+  bindChip('decEventTypeChips', 'ev', 'eventTypes');
+  bindChip('decTraditionChips', 'trad', 'traditionTags');
+  bindChip('decStyleChips', 'style', 'styles');
+}
+
+function decorSelectedInModule(moduleId) {
+  return (decorPkgWizard.draft.items || []).filter(function (it) {
+    return it.moduleId === moduleId;
+  });
+}
+
+function renderDecorPkgStep3() {
+  setDecorWizProgress(3);
+  const d = decorPkgWizard.draft;
+  const counts = decorPkgCounts(d);
+  el('decItemSummaryBanner').textContent =
+    counts.total + ' items (' + counts.included + ' included, ' + counts.extra + ' extra)';
+  const q = (el('decModSearch').value || '').trim().toLowerCase();
+  const host = el('decModList');
+  host.innerHTML = DECORATION_MODULES.filter(function (m) {
+    if (!q) return true;
+    return m.name.toLowerCase().indexOf(q) >= 0;
+  })
+    .map(function (m) {
+      const sel = decorSelectedInModule(m.id).length;
+      return (
+        '<button type="button" class="dec-mod-row" data-dec-mod="' +
+        esc(m.id) +
+        '"><span class="dec-mod-ico">' +
+        m.emoji +
+        '</span><span><b>' +
+        esc(m.name) +
+        '</b><small>' +
+        sel +
+        ' selected</small></span><span class="dec-chev">›</span></button>'
+      );
+    })
+    .join('');
+  host.querySelectorAll('[data-dec-mod]').forEach(function (row) {
+    row.onclick = function () {
+      openDecorModulePick(row.getAttribute('data-dec-mod'));
+    };
+  });
+  renderDecorSelectedItemsSummary(false);
+}
+
+function renderDecorSelectedItemsSummary(full) {
+  const d = decorPkgWizard.draft;
+  const host = el(full ? 'decSelectedItemsFull' : 'decSelectedItemsCompact');
+  if (!host) return;
+  const items = d.items || [];
+  if (!items.length) {
+    host.innerHTML = '<p class="sub">No items yet. Open a category above.</p>';
+    return;
+  }
+  host.innerHTML = items
+    .map(function (it, idx) {
+      const label = it.customName || it.name;
+      const tag = it.inclusionType === 'extra' ? 'Extra' : 'Included';
+      const price = it.inclusionType === 'extra' && it.extraPrice ? ' · ' + inr(it.extraPrice) + ' / ' + esc(it.unit || 'Per Event') : '';
+      return (
+        '<div class="dec-sel-row"><span><b>' +
+        esc(label) +
+        '</b> <span class="dec-tag ' +
+        (it.inclusionType === 'extra' ? 'extra' : 'inc') +
+        '">' +
+        tag +
+        '</span>' +
+        price +
+        '</span><button type="button" class="dec-link" data-dec-edit-item="' +
+        idx +
+        '">Edit</button></div>'
+      );
+    })
+    .join('');
+  host.querySelectorAll('[data-dec-edit-item]').forEach(function (btn) {
+    btn.onclick = function () {
+      const idx = +btn.getAttribute('data-dec-edit-item');
+      const it = decorPkgWizard.draft.items[idx];
+      if (!it) return;
+      decorItemPickCtx.configuringId = idx;
+      renderDecorItemConfig();
+      show('decorItemConfig');
+    };
+  });
+}
+
+function openDecorModulePick(moduleId) {
+  decorModulePickCtx = { moduleId: moduleId, search: '' };
+  renderDecorModulePick();
+  show('decorModPick');
+}
+
+function renderDecorModulePick() {
+  const mod = findDecorationModule(decorModulePickCtx.moduleId);
+  if (!mod) return;
+  el('decPickModTitle').textContent = mod.name;
+  const q = (decorModulePickCtx.search || '').trim().toLowerCase();
+  const picked = decorSelectedInModule(mod.id);
+  el('decPickModCount').textContent = picked.length + ' selected';
+  const list = mod.items.filter(function (it) {
+    return !q || it.name.toLowerCase().indexOf(q) >= 0;
+  });
+  const host = el('decPickModList');
+  host.innerHTML = list
+    .map(function (it) {
+      const row = (decorPkgWizard.draft.items || []).find(function (x) {
+        return x.catalogueId === it.id;
+      });
+      const on = !!row;
+      const tag = row ? (row.inclusionType === 'extra' ? 'Extra' : 'Included') : '';
+      return (
+        '<label class="dec-pick-row' +
+        (on ? ' on' : '') +
+        '"><input type="checkbox" data-pick-id="' +
+        esc(it.id) +
+        '"' +
+        (on ? ' checked' : '') +
+        '><span><b>' +
+        esc(it.name) +
+        '</b>' +
+        (tag ? ' <span class="dec-tag ' + (row.inclusionType === 'extra' ? 'extra' : 'inc') + '">' + tag + '</span>' : '') +
+        '</span></label>'
+      );
+    })
+    .join('');
+  host.querySelectorAll('input[type=checkbox]').forEach(function (cb) {
+    cb.onchange = function () {
+      const id = cb.getAttribute('data-pick-id');
+      const hit = mod.items.filter(function (x) {
+        return x.id === id;
+      })[0];
+      if (!hit) return;
+      let items = decorPkgWizard.draft.items || [];
+      const i = items.findIndex(function (x) {
+        return x.catalogueId === id;
+      });
+      if (cb.checked) {
+        if (i < 0) {
+          items.push({
+            moduleId: mod.id,
+            catalogueId: id,
+            name: hit.name,
+            inclusionType: 'included',
+            quantity: 1,
+            unit: 'Per Event',
+            extraPrice: '',
+            description: '',
+          });
+        }
+      } else if (i >= 0) items.splice(i, 1);
+      decorPkgWizard.draft.items = items;
+      renderDecorModulePick();
+      renderDecorPkgStep3();
+    };
+  });
+  el('decPickModSearch').value = decorModulePickCtx.search || '';
+}
+
+function renderDecorItemConfig() {
+  const idx = decorItemPickCtx.configuringId;
+  const it = idx != null ? decorPkgWizard.draft.items[idx] : null;
+  if (!it) return;
+  el('decItemCfgTitle').textContent = it.customName || it.name || 'Item';
+  el('decIncIncluded').checked = it.inclusionType !== 'extra';
+  el('decIncExtra').checked = it.inclusionType === 'extra';
+  el('decExtraPriceWrap').hidden = it.inclusionType !== 'extra';
+  el('decItemExtraPrice').value = it.extraPrice === '' || it.extraPrice == null ? '' : it.extraPrice;
+  el('decItemUnit').innerHTML = DECORATION_UNITS.map(function (u) {
+    return '<option' + (it.unit === u ? ' selected' : '') + '>' + esc(u) + '</option>';
+  }).join('');
+  el('decItemQty').value = it.quantity || 1;
+  el('decItemNote').value = it.description || '';
+}
+
+function saveDecorItemConfig() {
+  const idx = decorItemPickCtx.configuringId;
+  const it = decorPkgWizard.draft.items[idx];
+  if (!it) return;
+  it.inclusionType = el('decIncExtra').checked ? 'extra' : 'included';
+  if (it.inclusionType === 'extra') {
+    const p = Math.round(+el('decItemExtraPrice').value || 0);
+    if (!p) {
+      toast('Extra price is required for add-ons');
+      return;
+    }
+    it.extraPrice = p;
+    it.unit = el('decItemUnit').value;
+  } else {
+    it.extraPrice = '';
+  }
+  it.quantity = Math.max(1, Math.round(+el('decItemQty').value || 1));
+  it.description = (el('decItemNote').value || '').trim();
+  show(decorModulePickCtx.moduleId ? 'decorModPick' : 'decorPkgStep3');
+  renderDecorModulePick();
+  renderDecorPkgStep3();
+}
+
+function addDecorCustomItem() {
+  const name = (el('decCustomItemName').value || '').trim();
+  if (!name) {
+    toast('Enter custom item name');
+    return;
+  }
+  const mod = findDecorationModule(decorModulePickCtx.moduleId);
+  if (!mod) return;
+  decorPkgWizard.draft.items = decorPkgWizard.draft.items || [];
+  decorPkgWizard.draft.items.push({
+    moduleId: mod.id,
+    catalogueId: '',
+    customName: name,
+    name: name,
+    inclusionType: 'included',
+    quantity: 1,
+    unit: 'Per Event',
+    extraPrice: '',
+    description: '',
+  });
+  el('decCustomItemName').value = '';
+  decorItemPickCtx.configuringId = decorPkgWizard.draft.items.length - 1;
+  renderDecorItemConfig();
+  show('decorItemConfig');
+}
+
+function renderDecorPkgStep4() {
+  setDecorWizProgress(4);
+  const d = decorPkgWizard.draft;
+  const t = d.tierPrices || {};
+  el('decPriceBasic').value = t.basic === '' || t.basic == null ? '' : t.basic;
+  el('decPriceStandard').value = t.standard === '' || t.standard == null ? '' : t.standard;
+  el('decPricePremium').value = t.premium === '' || t.premium == null ? '' : t.premium;
+  el('decOfferOn').checked = !!d.offerEnabled;
+  el('decOfferFields').hidden = !d.offerEnabled;
+  el('decOfferPct').value = d.discountPercent === '' || d.discountPercent == null ? '' : d.discountPercent;
+  el('decGstChips').innerHTML = DECORATION_GST.map(function (g) {
+    return (
+      '<button type="button" class="dec-chip sm' +
+      (d.gstTreatment === g ? ' on' : '') +
+      '" data-gst="' +
+      esc(g) +
+      '">' +
+      esc(g) +
+      '</button>'
+    );
+  }).join('');
+  paintDecorTierPreview();
+  el('decGstChips').querySelectorAll('[data-gst]').forEach(function (btn) {
+    btn.onclick = function () {
+      decorPkgWizard.draft.gstTreatment = btn.getAttribute('data-gst');
+      renderDecorPkgStep4();
+    };
+  });
+}
+
+function paintDecorTierPreview() {
+  const d = decorPkgWizard.draft;
+  const pct = decorOfferPct(d);
+  const host = el('decTierPreview');
+  if (!host) return;
+  let html = '';
+  DEC_PKG_LEVELS.forEach(function (lv) {
+    const key = lv.toLowerCase();
+    const base = Math.round(+((d.tierPrices || {})[key] || 0));
+    if (!base) return;
+    const off = decorPriceAfterOffer(base, pct);
+    html +=
+      '<div class="dec-tier-row"><span>' +
+      lv +
+      '</span><span>' +
+      (pct ? '<s>' + inr(base) + '</s> <b>' + inr(off) + '</b>' : '<b>' + inr(base) + '</b>') +
+      '</span></div>';
+  });
+  host.innerHTML = html || '<p class="sub">Enter at least one package amount for Basic, Standard or Premium.</p>';
+}
+
+function syncDecorTierFromInputs() {
+  const d = decorPkgWizard.draft;
+  d.tierPrices = {
+    basic: el('decPriceBasic').value === '' ? '' : Math.round(+el('decPriceBasic').value),
+    standard: el('decPriceStandard').value === '' ? '' : Math.round(+el('decPriceStandard').value),
+    premium: el('decPricePremium').value === '' ? '' : Math.round(+el('decPricePremium').value),
+  };
+  d.offerEnabled = !!el('decOfferOn').checked;
+  if (d.offerEnabled) {
+    const raw = el('decOfferPct').value;
+    d.discountPercent = raw === '' ? '' : Math.round(+raw);
+  }
+  paintDecorTierPreview();
+}
+
+function renderDecorPkgStep5() {
+  setDecorWizProgress(5);
+  const d = decorPkgWizard.draft;
+  const pr = decorPkgListPrice(d);
+  const counts = decorPkgCounts(d);
+  const inc = (d.items || []).filter(function (it) {
+    return it.inclusionType !== 'extra';
+  });
+  const extra = (d.items || []).filter(function (it) {
+    return it.inclusionType === 'extra';
+  });
+  let html =
+    '<div class="dec-preview-hero">' +
+    (d.images && d.images[0] ? d.images[0] : '🎀') +
+    '</div><h2 style="margin:8px 0;font-size:18px;color:var(--decor-navy)">' +
+    esc(d.name) +
+    '</h2><p class="sub">' +
+    esc((d.eventTypes || []).join(', ')) +
+    '</p><div class="dec-preview-price">' +
+    (pr.pct
+      ? '<s>' + inr(pr.base) + '</s> <b>' + inr(pr.offer) + '</b> <span class="dec-off">-' + pr.pct + '%</span>'
+      : '<b>' + inr(pr.base) + '</b>') +
+    '</motion>';
+  html += '<p class="dec-sec-h">Package amounts</p>';
+  DEC_PKG_LEVELS.forEach(function (lv) {
+    const key = lv.toLowerCase();
+    const base = Math.round(+((d.tierPrices || {})[key] || 0));
+    if (!base) return;
+    html += '<div class="dec-tier-row"><span>' + lv + '</span><b>' + inr(decorPriceAfterOffer(base, pr.pct)) + '</b></div>';
+  });
+  html += '<p class="dec-sec-h">Inclusions (' + inc.length + ')</p><ul class="dec-ul">';
+  inc.forEach(function (it) {
+    html += '<li>' + esc(it.customName || it.name) + '</li>';
+  });
+  html += '</ul><p class="dec-sec-h">Optional / Extra (' + extra.length + ')</p><ul class="dec-ul">';
+  extra.forEach(function (it) {
+    html +=
+      '<li>' +
+      esc(it.customName || it.name) +
+      ' — ' +
+      inr(it.extraPrice) +
+      ' / ' +
+      esc(it.unit || 'Per Event') +
+      '</li>';
+  });
+  html += '</ul><p class="sub">GST: ' + esc(d.gstTreatment || 'Included') + '</p>';
+  el('decPkgPreviewBody').innerHTML = html;
+}
+
+function validateDecorPkgStep(step) {
+  const d = decorPkgWizard.draft;
+  if (step === 1 && !d.packageCategory) {
+    toast('Select a package category');
+    return false;
+  }
+  if (step === 2) {
+    if (!(d.eventTypes || []).length) {
+      toast('Select at least one event type');
+      return false;
+    }
+    if (!(d.name || '').trim()) {
+      toast('Package name is required');
+      return false;
+    }
+    d.name = d.name.trim();
+  }
+  if (step === 3 && !(d.items || []).length) {
+    toast('Add at least one decoration item');
+    return false;
+  }
+  if (step === 4) {
+    syncDecorTierFromInputs();
+    const t = d.tierPrices || {};
+    if (!(+t.basic > 0 || +t.standard > 0 || +t.premium > 0)) {
+      toast('Enter package amount for Basic, Standard or Premium');
+      return false;
+    }
+    if (d.offerEnabled) {
+      const n = Math.round(+d.discountPercent);
+      if (!(n >= 1 && n <= 90)) {
+        toast('Discount must be 1–90%');
+        return false;
+      }
+    }
+  }
+  return true;
+}
+
+function saveDecorPackage(status) {
+  const d = decorPkgWizard.draft;
+  d.status = status || 'live';
+  if (!d.id) d.id = uid('dpkg');
+  const i = store.decorationMenu.catPackages.findIndex(function (p) {
+    return p.id === d.id;
+  });
+  const copy = JSON.parse(JSON.stringify(d));
+  if (i >= 0) store.decorationMenu.catPackages[i] = copy;
+  else store.decorationMenu.catPackages.unshift(copy);
+  saveStore();
+  if (status === 'live') {
+    renderDecorPkgSuccess(copy);
+    show('decorPkgSuccess');
+  } else {
+    toast('Draft saved');
+    decorationMenuOpenHub();
+  }
+}
+
+function renderDecorPkgSuccess(pkg) {
+  el('decSuccessCard').innerHTML =
+    '<b>' + esc(pkg.name) + '</b><p class="sub">' + esc((pkg.eventTypes || []).slice(0, 2).join(', ')) + '</p>';
+}
+
+function bindDecorationPackageUi() {
+  bindClick('decAddPackageBtn', function () {
+    startDecorPackageWizard(null);
+  });
+  bindClick('decTabPackages', function () {
+    store.decorationMenu.hubTab = 'packages';
+    renderDecorationHub();
+  });
+  bindClick('decTabServices', function () {
+    store.decorationMenu.hubTab = 'services';
+    renderDecorationHub();
+  });
+  bindClick('decPkgStep1Next', function () {
+    if (!validateDecorPkgStep(1)) return;
+    renderDecorPkgStep2();
+    show('decorPkgStep2');
+  });
+  bindClick('decPkgStep1Back', function () {
+    decorationMenuOpenHub();
+  });
+  bindClick('decPkgChangeCategory', function () {
+    show('decorPkgStep1');
+  });
+  bindClick('decPkgStep2Back', function () {
+    renderDecorPkgStep1();
+    show('decorPkgStep1');
+  });
+  bindClick('decPkgStep2Back2', function () {
+    renderDecorPkgStep1();
+    show('decorPkgStep1');
+  });
+  bindClick('decPkgStep2Next', function () {
+    decorPkgWizard.draft.name = (el('decPkgName').value || '').trim();
+    decorPkgWizard.draft.description = (el('decPkgDesc').value || '').trim();
+    if (!validateDecorPkgStep(2)) return;
+    renderDecorPkgStep3();
+    show('decorPkgStep3');
+  });
+  bindOnInput('decPkgName', function () {
+    el('decPkgTitlePreview').textContent = el('decPkgName').value || 'Your package name';
+  });
+  bindClick('decPkgStep3Back', function () {
+    renderDecorPkgStep2();
+    show('decorPkgStep2');
+  });
+  bindClick('decPkgStep3Next', function () {
+    if (!validateDecorPkgStep(3)) return;
+    renderDecorPkgStep4();
+    show('decorPkgStep4');
+  });
+  bindOnInput('decModSearch', function () {
+    renderDecorPkgStep3();
+  });
+  bindClick('decModPickBack', function () {
+    show('decorPkgStep3');
+    renderDecorPkgStep3();
+  });
+  bindClick('decModPickDone', function () {
+    show('decorPkgStep3');
+    renderDecorPkgStep3();
+  });
+  bindOnInput('decPickModSearch', function () {
+    decorModulePickCtx.search = el('decPickModSearch').value;
+    renderDecorModulePick();
+  });
+  bindClick('decCustomItemAdd', addDecorCustomItem);
+  bindClick('decItemCfgBack', function () {
+    show('decorModPick');
+  });
+  bindClick('decItemCfgSave', saveDecorItemConfig);
+  bindClick('decIncIncluded', function () {
+    el('decIncExtra').checked = false;
+    el('decExtraPriceWrap').hidden = true;
+  });
+  bindClick('decIncExtra', function () {
+    el('decIncIncluded').checked = false;
+    el('decExtraPriceWrap').hidden = false;
+  });
+  bindClick('decPkgStep4Back', function () {
+    renderDecorPkgStep3();
+    show('decorPkgStep3');
+  });
+  bindClick('decPkgStep4Back2', function () {
+    renderDecorPkgStep3();
+    show('decorPkgStep3');
+  });
+  bindClick('decPkgStep4Next', function () {
+    if (!validateDecorPkgStep(4)) return;
+    renderDecorPkgStep5();
+    show('decorPkgStep5');
+  });
+  bindOnInput('decPriceBasic', syncDecorTierFromInputs);
+  bindOnInput('decPriceStandard', syncDecorTierFromInputs);
+  bindOnInput('decPricePremium', syncDecorTierFromInputs);
+  bindOnInput('decOfferPct', syncDecorTierFromInputs);
+  bindClick('decOfferOn', function () {
+    el('decOfferFields').hidden = !el('decOfferOn').checked;
+    syncDecorTierFromInputs();
+  });
+  bindClick('decPkgStep5Back', function () {
+    renderDecorPkgStep4();
+    show('decorPkgStep4');
+  });
+  bindClick('decPkgPublish', function () {
+    if (!validateDecorPkgStep(4)) return;
+    saveDecorPackage('live');
+  });
+  bindClick('decPkgSaveDraft', function () {
+    saveDecorPackage('draft');
+  });
+  bindClick('decorPkgSuccessDone', function () {
+    decorationMenuOpenHub();
+  });
+  bindClick('decHubBack', function () {
+    show('decorDash');
+  });
+}
+/** Individual decoration services — designs/variants + tier amounts. */
+
+let decorSvcWizard = { editId: null, draft: null };
+
+function newDecorServiceDraft() {
+  return {
+    categoryId: 'd01',
+    name: '',
+    description: '',
+    eventTypes: [],
+    designs: [{ id: 'dsg-1', name: 'Design 1', note: '' }],
+    tierPrices: { basic: '', standard: '', premium: '' },
+    offerEnabled: false,
+    discountPercent: '',
+    gstTreatment: 'Included',
+    setupIncluded: 'Included',
+    transport: 'Extra',
+    status: 'live',
+  };
+}
+
+function findDecorService(id) {
+  return (store.decorationMenu.individualServices || []).find(function (s) {
+    return s.id === id;
+  });
+}
+
+function startDecorServiceWizard(editId) {
+  decorSvcWizard.editId = editId || null;
+  const src = editId ? findDecorService(editId) : null;
+  decorSvcWizard.draft = src ? JSON.parse(JSON.stringify(src)) : newDecorServiceDraft();
+  renderDecorSvcStep1();
+  show('decorSvcStep1');
+}
+
+function renderDecorIndividualList() {
+  const list = store.decorationMenu.individualServices || [];
+  const host = el('decSvcList');
+  if (!host) return;
+  if (!list.length) {
+    host.innerHTML =
+      '<div class="dec-empty"><div class="dec-empty-ico">✨</div><b>No individual services yet</b><p class="sub">List stage, arch, car flowers, lighting and more as standalone services.</p></div>';
+    return;
+  }
+  host.innerHTML = list
+    .map(function (s) {
+      const mod = findDecorationModule(s.categoryId);
+      const pr = decorPrimaryTierPrice(s);
+      return (
+        '<article class="dec-pkg-card"><div class="dec-pkg-thumb">' +
+        (mod ? mod.emoji : '✨') +
+        '</div><div><b>' +
+        esc(s.name) +
+        '</b><p class="sub">' +
+        esc(mod ? mod.name : '') +
+        ' · ' +
+        (s.designs || []).length +
+        ' design(s)</p><b>' +
+        inr(pr.amount) +
+        '</b><div class="dec-card-actions"><button type="button" data-svc-edit="' +
+        esc(s.id) +
+        '">Edit</button></div></div></article>'
+      );
+    })
+    .join('');
+  host.querySelectorAll('[data-svc-edit]').forEach(function (btn) {
+    btn.onclick = function () {
+      startDecorServiceWizard(btn.getAttribute('data-svc-edit'));
+    };
+  });
+}
+
+function renderDecorSvcStep1() {
+  const host = el('decSvcCatList');
+  host.innerHTML = DECORATION_MODULES.map(function (m) {
+    const on = decorSvcWizard.draft.categoryId === m.id;
+    return (
+      '<button type="button" class="dec-mod-row' +
+      (on ? ' on' : '') +
+      '" data-svc-cat="' +
+      esc(m.id) +
+      '"><span class="dec-mod-ico">' +
+      m.emoji +
+      '</span><b>' +
+      esc(m.name) +
+      '</b></button>'
+    );
+  }).join('');
+  host.querySelectorAll('[data-svc-cat]').forEach(function (btn) {
+    btn.onclick = function () {
+      decorSvcWizard.draft.categoryId = btn.getAttribute('data-svc-cat');
+      renderDecorSvcStep1();
+    };
+  });
+}
+
+function renderDecorSvcStep2() {
+  const d = decorSvcWizard.draft;
+  el('decSvcName').value = d.name || '';
+  el('decSvcDesc').value = d.description || '';
+  const types = DECORATION_EVENT_TYPES.wedding.concat(DECORATION_EVENT_TYPES.other);
+  el('decSvcEventChips').innerHTML = types
+    .slice(0, 24)
+    .map(function (t) {
+      const on = (d.eventTypes || []).indexOf(t) >= 0;
+      return '<button type="button" class="dec-chip sm' + (on ? ' on' : '') + '" data-sv-ev="' + esc(t) + '">' + esc(t) + '</button>';
+    })
+    .join('');
+  el('decSvcEventChips').querySelectorAll('[data-sv-ev]').forEach(function (btn) {
+    btn.onclick = function () {
+      const val = btn.getAttribute('data-sv-ev');
+      const arr = decorSvcWizard.draft.eventTypes || [];
+      const i = arr.indexOf(val);
+      if (i >= 0) arr.splice(i, 1);
+      else arr.push(val);
+      decorSvcWizard.draft.eventTypes = arr;
+      renderDecorSvcStep2();
+    };
+  });
+}
+
+function renderDecorSvcStep3() {
+  const d = decorSvcWizard.draft;
+  const host = el('decSvcDesigns');
+  host.innerHTML = (d.designs || [])
+    .map(function (dg, i) {
+      return (
+        '<div class="fld"><label>Design ' +
+        (i + 1) +
+        '</label><input data-dgn="' +
+        i +
+        '" value="' +
+        esc(dg.name) +
+        '"><input data-dgn-note="' +
+        i +
+        '" placeholder="Short note" value="' +
+        esc(dg.note || '') +
+        '"></div>'
+      );
+    })
+    .join('');
+  host.querySelectorAll('[data-dgn]').forEach(function (inp) {
+    inp.oninput = function () {
+      const i = +inp.getAttribute('data-dgn');
+      decorSvcWizard.draft.designs[i].name = inp.value;
+    };
+  });
+}
+
+function renderDecorSvcStep4() {
+  const d = decorSvcWizard.draft;
+  const t = d.tierPrices || {};
+  el('decSvcPriceBasic').value = t.basic || '';
+  el('decSvcPriceStandard').value = t.standard || '';
+  el('decSvcPricePremium').value = t.premium || '';
+  el('decSvcOfferOn').checked = !!d.offerEnabled;
+  el('decSvcOfferFields').hidden = !d.offerEnabled;
+  el('decSvcOfferPct').value = d.discountPercent === '' ? '' : d.discountPercent;
+}
+
+function saveDecorService() {
+  const d = decorSvcWizard.draft;
+  d.name = (el('decSvcName').value || '').trim();
+  if (!d.name) {
+    toast('Service name required');
+    return;
+  }
+  d.tierPrices = {
+    basic: el('decSvcPriceBasic').value === '' ? '' : Math.round(+el('decSvcPriceBasic').value),
+    standard: el('decSvcPriceStandard').value === '' ? '' : Math.round(+el('decSvcPriceStandard').value),
+    premium: el('decSvcPricePremium').value === '' ? '' : Math.round(+el('decSvcPricePremium').value),
+  };
+  if (!(+d.tierPrices.basic > 0 || +d.tierPrices.standard > 0 || +d.tierPrices.premium > 0)) {
+    toast('Enter Basic, Standard or Premium amount');
+    return;
+  }
+  if (!d.id) d.id = uid('dsvc');
+  const i = store.decorationMenu.individualServices.findIndex(function (s) {
+    return s.id === d.id;
+  });
+  const copy = JSON.parse(JSON.stringify(d));
+  if (i >= 0) store.decorationMenu.individualServices[i] = copy;
+  else store.decorationMenu.individualServices.unshift(copy);
+  saveStore();
+  toast('Service published');
+  store.decorationMenu.hubTab = 'services';
+  decorationMenuOpenHub();
+}
+
+function bindDecorationIndividualUi() {
+  bindClick('decAddServiceBtn', function () {
+    startDecorServiceWizard(null);
+  });
+  bindClick('decSvcStep1Next', function () {
+    renderDecorSvcStep2();
+    show('decorSvcStep2');
+  });
+  bindClick('decSvcStep2Back', function () {
+    show('decorSvcStep1');
+  });
+  bindClick('decSvcStep2Next', function () {
+    decorSvcWizard.draft.name = (el('decSvcName').value || '').trim();
+    decorSvcWizard.draft.description = (el('decSvcDesc').value || '').trim();
+    if (!decorSvcWizard.draft.name) {
+      toast('Service name required');
+      return;
+    }
+    renderDecorSvcStep3();
+    show('decorSvcStep3');
+  });
+  bindClick('decSvcAddDesign', function () {
+    decorSvcWizard.draft.designs.push({ id: uid('dsg'), name: 'Design ' + (decorSvcWizard.draft.designs.length + 1), note: '' });
+    renderDecorSvcStep3();
+  });
+  bindClick('decSvcStep3Next', function () {
+    renderDecorSvcStep4();
+    show('decorSvcStep4');
+  });
+  bindClick('decSvcStep4Back', function () {
+    show('decorSvcStep3');
+  });
+  bindClick('decSvcPublish', saveDecorService);
+  bindClick('decSvcWizardBack', function () {
+    decorationMenuOpenHub();
+  });
+}
+/** Decoration owner — LMB, dashboard, stubs; packages in _decoration_*_hub.js */
+const DECORATION_OWNER_BUILD = 'decoration-owner-1';
+const STORAGE_KEY = 'GIXBEE_DECORATION_OWNER_V1';
+
+function defaultStore() {
+  return {
+    biz: {
+      name: 'Decor Mart',
+      loc: 'Sakthan Nagar, Thrissur',
+      type: 'Decoration',
+      verified: true,
+    },
+    decorationMenu: defaultDecorationStore(),
+  };
+}
+
+let store = defaultStore();
+
+function el(id) {
+  return document.getElementById(id);
+}
+function esc(s) {
+  return String(s == null ? '' : s)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+function show(id) {
+  document.querySelectorAll('.scr').forEach(function (s) {
+    s.classList.toggle('on', s.id === id);
+  });
+  const scr = el(id);
+  if (scr) scr.scrollTop = 0;
+}
+function toast(m) {
+  const t = el('toast');
+  if (!t) return;
+  t.textContent = m;
+  t.style.display = 'block';
+  setTimeout(function () {
+    t.style.display = 'none';
+  }, 2600);
+}
+function inr(n) {
+  return '₹' + Math.max(0, Math.round(+n || 0)).toLocaleString('en-IN');
+}
+function uid(prefix) {
+  return prefix + '-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+}
+function saveStore() {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(store));
+  } catch (e) {
+    /* ignore */
+  }
+}
+function loadStore() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return;
+    const parsed = JSON.parse(raw);
+    if (parsed && parsed.biz) store = Object.assign(defaultStore(), parsed);
+    if (!store.decorationMenu) store.decorationMenu = defaultDecorationStore();
+  } catch (e) {
+    /* ignore */
+  }
+}
+
+function bindClick(id, fn) {
+  const node = el(id);
+  if (node) node.onclick = fn;
+}
+function bindOnInput(id, fn) {
+  const node = el(id);
+  if (node) node.oninput = fn;
+}
+
+function renderLmb() {
+  const host = el('lmbCards');
+  if (!host) return;
+  host.innerHTML =
+    '<button type="button" class="biz-card" id="openDecorBiz"><div class="row"><div class="biz-ico">🎀</div><div><b>' +
+    esc(store.biz.name) +
+    '</b><span class="type">Decoration · Service</span><div class="biz-meta"><span class="pill pill-ver">Verified</span></div><div class="biz-actions"><button type="button" class="primary" style="background:var(--decor)">Manage</button></div></div></div></button>';
+  bindClick('openDecorBiz', function () {
+    show('decorDash');
+    renderDecorDash();
+  });
+}
+
+function renderDecorDash() {
+  el('decDashHello').textContent = 'Hello, ' + store.biz.name;
+  el('decDashLoc').textContent = store.biz.loc;
+}
+
+function bootDecoration() {
+  loadStore();
+  ensureDecorationStore();
+  renderLmb();
+  bindDecorationPackageUi();
+  bindDecorationIndividualUi();
+  bindClick('decDashBack', function () {
+    show('lmbDashboard');
+  });
+  document.querySelectorAll('[data-dec-dash]').forEach(function (btn) {
+    btn.onclick = function () {
+      const dest = btn.getAttribute('data-dec-dash');
+      if (dest === 'hub') decorationMenuOpenHub();
+      else if (dest === 'enquiries') show('decorStubEnq');
+      else if (dest === 'calendar') show('decorStubCal');
+      else if (dest === 'gallery') show('decorStubGal');
+      else if (dest === 'profile') show('decorStubProf');
+    };
+  });
+  bindOnInput('decPkgSearch', function () {
+    renderDecorPackageList();
+  });
+  show('lmbDashboard');
+}
+
+if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', bootDecoration);
+else bootDecoration();
+</script>
+<!-- APP_END -->
+</body>
+</html>

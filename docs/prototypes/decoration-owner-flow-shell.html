@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Gixbee — Decoration Owner</title>
+<style>
+:root{--decor:#7C3AED;--decor2:#BE185D;--decor-navy:#1E1B4B;--line:#E5E7EB;--mut:#64748B}
+*{box-sizing:border-box}body{margin:0;background:#EDE9FE;font-family:Inter,system-ui,sans-serif;color:#111827}
+.stage{min-height:100vh;display:flex;justify-content:center;padding:12px 8px 24px}
+.phone{width:min(100%,430px);background:#fff;min-height:920px;border-radius:36px;box-shadow:0 10px 32px rgba(15,23,42,.1);overflow:hidden;border:8px solid #111;display:flex;flex-direction:column}
+.notch{height:26px;display:flex;justify-content:space-between;padding:8px 18px 0;font-size:12px;font-weight:700}
+.scr{display:none;flex:1;overflow:auto;padding:0 0 72px}.scr.on{display:block}
+.top{display:flex;align-items:center;gap:8px;padding:10px 16px;border-bottom:1px solid var(--line)}.top h1{margin:0;flex:1;font-size:17px;font-weight:800;color:var(--decor-navy)}
+.back{border:0;background:none;font-size:22px;cursor:pointer;width:36px}
+.pad{padding:0 16px}.sub{font-size:12px;color:var(--mut);line-height:1.45;margin:0}
+.btn{width:100%;border:0;border-radius:999px;font-weight:800;font-size:16px;padding:14px;cursor:pointer}
+.btn-decor{background:var(--decor2);color:#fff}.btn-ghost{background:#fff;color:var(--decor);border:1.5px solid #DDD6FE}
+.cta{padding:12px 16px}.biz-card{border:1px solid var(--line);border-radius:16px;padding:12px;margin:16px;width:calc(100% - 32px);background:#fff;text-align:left;cursor:pointer;font:inherit}
+.biz-ico{width:52px;height:52px;border-radius:12px;background:#F5F3FF;display:grid;place-items:center;font-size:24px}
+.dec-dash-hd{padding:16px}.dec-dash-hd b{font-size:20px;color:var(--decor-navy)}.dec-qgrid{display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:0 16px 16px}
+.dec-tile{border:1px solid var(--line);border-radius:14px;padding:14px 10px;text-align:center;cursor:pointer;background:#fff;font:inherit;position:relative}
+.dec-tile .badge{position:absolute;top:8px;right:8px;background:#EF4444;color:#fff;font-size:10px;font-weight:800;border-radius:99px;padding:2px 6px}
+.hub-seg{display:flex;margin:0 16px 12px;border:1px solid var(--line);border-radius:12px;overflow:hidden}
+.hub-seg button{flex:1;border:0;padding:10px;font-weight:800;background:#F8FAFC;color:var(--mut);cursor:pointer}
+.hub-seg button.on{background:var(--decor2);color:#fff}
+.dec-empty{text-align:center;padding:32px 16px}.dec-empty-ico{font-size:40px}
+.dec-pkg-card{display:flex;gap:12px;border:1px solid var(--line);border-radius:16px;padding:12px;margin:0 16px 12px;background:#fff}
+.dec-pkg-thumb{width:72px;height:72px;border-radius:12px;background:#F5F3FF;display:grid;place-items:center;font-size:32px;flex-shrink:0}
+.dec-pkg-price{margin-top:6px;font-weight:800;color:var(--decor)}.dec-off{font-size:11px;color:#059669;font-weight:800;margin-left:4px}
+.dec-pill{font-size:10px;font-weight:800;padding:3px 8px;border-radius:99px}.dec-pill.live{background:#DCFCE7;color:#166534}.dec-pill.draft{background:#F3F4F6;color:#475569}
+.dec-card-actions{display:flex;gap:6px;margin-top:8px}.dec-card-actions button{flex:1;border:1px solid var(--line);border-radius:99px;padding:6px;font-size:11px;font-weight:800;background:#fff;cursor:pointer}
+.dec-progress{display:flex;gap:6px;justify-content:center;padding:8px 16px 4px}.dec-progress i{width:28px;height:4px;border-radius:99px;background:#E5E7EB;display:block}
+.dec-progress i.on{background:var(--decor2)}.dec-progress i.done{background:#A78BFA}
+.dec-wiz-step{text-align:center;font-size:12px;font-weight:800;color:var(--mut);margin:0 0 8px}
+.dec-cat-card{display:block;width:100%;text-align:left;border:2px solid #E5E7EB;border-radius:14px;padding:14px;margin-bottom:10px;background:#fff;cursor:pointer;font:inherit}
+.dec-cat-card.on{border-color:var(--decor2);background:#FFF1F2}
+.dec-cat-card b{display:block;font-size:14px}.dec-cat-card small{display:block;margin-top:6px;font-size:11px;color:var(--mut)}
+.dec-chip{border:1.5px solid #DDD6FE;background:#fff;border-radius:99px;padding:8px 12px;font-size:12px;font-weight:800;color:#5B21B6;margin:0 6px 6px 0;cursor:pointer}
+.dec-chip.on{background:var(--decor2);color:#fff;border-color:var(--decor2)}.dec-chip.sm{font-size:11px;padding:6px 10px}
+.fld{margin:0 0 12px}.fld label{display:block;font-size:12px;font-weight:800;margin-bottom:6px;color:var(--decor-navy)}
+.fld input,.fld textarea{width:100%;border:1.5px solid #DDD6FE;border-radius:12px;padding:10px;font:inherit}
+.dec-mod-row{display:flex;align-items:center;gap:10px;width:calc(100% - 32px);margin:0 16px 8px;padding:12px;border:1px solid var(--line);border-radius:14px;background:#fff;cursor:pointer;font:inherit;text-align:left}
+.dec-mod-row.on{border-color:var(--decor2)}.dec-mod-ico{font-size:22px}.dec-chev{margin-left:auto;color:var(--mut)}
+.dec-pick-row{display:flex;gap:10px;align-items:flex-start;padding:10px 16px;border-bottom:1px solid #F1F5F9;font-size:13px}
+.dec-tag{font-size:10px;font-weight:800;padding:2px 6px;border-radius:6px}.dec-tag.inc{background:#DCFCE7;color:#166534}.dec-tag.extra{background:#FCE7F3;color:#BE185D}
+.dec-tier-grid{display:grid;gap:10px;margin:12px 0}.dec-tier-grid .fld{margin:0}
+.dec-offer{border:1px solid #FBCFE8;border-radius:14px;padding:12px;margin:12px 0;background:#FFF1F2}
+.dec-success{text-align:center;padding:32px 16px}.dec-success .ok{font-size:48px}
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#1E1B4B;color:#fff;padding:10px 16px;border-radius:12px;font-size:13px;font-weight:700;display:none;z-index:99}
+.stub{padding:24px 16px;text-align:center}
+.search{margin:0 16px 12px;display:flex;gap:8px;border:1.5px solid #DDD6FE;border-radius:12px;padding:10px;background:#fff}
+.search input{border:0;flex:1;outline:none;font:inherit}
+.wiz-foot{display:flex;gap:10px;padding:12px 16px}
+</style>
+</head>
+<body>
+<div class="stage"><div class="phone">
+<div class="notch"><span>9:41</span><span>●●●</span></div>
+
+<section class="scr on" id="lmbDashboard">
+  <p style="padding:12px 16px;font-weight:900;font-size:18px;margin:0">List My Business</p>
+  <div id="lmbCards"></div>
+</section>
+
+<section class="scr" id="decorDash">
+  <div class="top"><button type="button" class="back" id="decDashBack">←</button><h1>Dashboard</h1></div>
+  <div class="dec-dash-hd"><b id="decDashHello">Hello, Decor Mart</b><p class="sub" id="decDashLoc">Thrissur</p></div>
+  <p class="sub pad">Manage your decoration business</p>
+  <div class="dec-qgrid">
+    <button type="button" class="dec-tile" data-dec-dash="hub"><div>📦</div><b>Packages</b><small class="sub">Create &amp; manage</small></button>
+    <button type="button" class="dec-tile" data-dec-dash="hub"><div>✨</div><b>Individual Services</b></button>
+    <button type="button" class="dec-tile" data-dec-dash="enquiries"><div>💬</div><b>Enquiries</b><span class="badge">12</span></button>
+    <button type="button" class="dec-tile" data-dec-dash="calendar"><div>📅</div><b>Calendar</b></button>
+    <button type="button" class="dec-tile" data-dec-dash="gallery"><div>🖼️</div><b>Gallery</b></button>
+    <button type="button" class="dec-tile" data-dec-dash="profile"><div>🏢</div><b>Business Profile</b></button>
+  </div>
+</section>
+
+<section class="scr" id="decorHub">
+  <div class="top"><button type="button" class="back" id="decHubBack">←</button><h1>Packages &amp; Services</h1></div>
+  <div class="hub-seg"><button type="button" id="decTabPackages" class="on">Packages</button><button type="button" id="decTabServices">Individual Services</button></div>
+  <div id="decHubPkgPanel">
+    <div class="search"><span>🔍</span><input type="search" id="decPkgSearch" placeholder="Search packages"></div>
+    <p class="sub pad" id="decHubStat">0 packages</p>
+    <div id="decPkgList"></div>
+    <div class="cta"><button type="button" class="btn btn-decor" id="decAddPackageBtn">+ Create Package</button></div>
+  </div>
+  <div id="decHubSvcPanel" hidden>
+    <div id="decSvcList"></div>
+    <div class="cta"><button type="button" class="btn btn-decor" id="decAddServiceBtn">+ Add Individual Service</button></div>
+  </div>
+</section>
+
+<section class="scr" id="decorPkgStep1">
+  <div class="top"><button type="button" class="back" id="decPkgStep1Back">←</button><h1>Create Package</h1></div>
+  <div class="dec-progress"><i class="on"></i><i></i><i></i><i></i><i></i></div>
+  <p class="dec-wiz-step" id="decWizStepLabel">Step 1 of 5</p>
+  <p class="pad" style="font-weight:800">Select package category *</p>
+  <div class="pad" id="decPkgCatGrid"></div>
+  <div class="cta"><button type="button" class="btn btn-decor" id="decPkgStep1Next">Next →</button></div>
+</section>
+
+<section class="scr" id="decorPkgStep2">
+  <div class="top"><button type="button" class="back" id="decPkgStep2Back">←</button><h1>Package details</h1></div>
+  <div class="dec-progress"><i class="done"></i><i class="on"></i><i></i><i></i><i></i></div>
+  <p class="dec-wiz-step">Step 2 of 5</p>
+  <p class="pad sub">Category: <b id="decPkgCatBanner">—</b> <button type="button" id="decPkgChangeCategory" style="border:0;background:none;color:var(--decor);font-weight:800;cursor:pointer">Change</button></p>
+  <div class="pad"><p style="font-weight:800;font-size:12px">Event type *</p><div id="decEventTypeChips"></div>
+  <p style="font-weight:800;font-size:12px;margin-top:12px">Community / tradition (optional)</p><div id="decTraditionChips"></div>
+  <p style="font-weight:800;font-size:12px;margin-top:12px">Decoration style (optional)</p><div id="decStyleChips"></div>
+  <div class="fld"><label>Package name *</label><input id="decPkgName" placeholder="Basic Wedding Decoration"></div>
+  <p class="sub" id="decPkgTitlePreview">Your package name</p>
+  <div class="fld"><label>Description</label><textarea id="decPkgDesc" rows="2"></textarea></div></div>
+  <div class="wiz-foot"><button type="button" class="btn btn-ghost" id="decPkgStep2Back2">← Back</button><button type="button" class="btn btn-decor" id="decPkgStep2Next" style="flex:1">Next →</button></div>
+</section>
+
+<section class="scr" id="decorPkgStep3">
+  <div class="top"><button type="button" class="back" id="decPkgStep3Back">←</button><h1>Add decoration items</h1></div>
+  <div class="dec-progress"><i class="done"></i><i class="done"></i><i class="on"></i><i></i><i></i></div>
+  <p class="dec-wiz-step">Step 3 of 5</p>
+  <p class="pad" style="font-weight:800" id="decItemSummaryBanner">0 items</p>
+  <div class="search"><span>🔍</span><input type="search" id="decModSearch" placeholder="Search categories"></div>
+  <div id="decModList"></div>
+  <div class="pad" id="decSelectedItemsCompact"></div>
+  <div class="cta"><button type="button" class="btn btn-decor" id="decPkgStep3Next">Next: Set pricing →</button></div>
+</section>
+
+<section class="scr" id="decorModPick">
+  <div class="top"><button type="button" class="back" id="decModPickBack">←</button><h1 id="decPickModTitle">Category</h1></div>
+  <p class="pad sub" id="decPickModCount">0 selected</p>
+  <div class="search"><span>🔍</span><input type="search" id="decPickModSearch" placeholder="Search items"></div>
+  <div id="decPickModList"></div>
+  <div class="pad fld"><label>Add your own</label><input id="decCustomItemName" placeholder="Custom item name"><button type="button" class="btn btn-ghost" id="decCustomItemAdd" style="margin-top:8px">Add custom item</button></div>
+  <div class="cta"><button type="button" class="btn btn-decor" id="decModPickDone">Done</button></div>
+</section>
+
+<section class="scr" id="decorItemConfig">
+  <div class="top"><button type="button" class="back" id="decItemCfgBack">←</button><h1 id="decItemCfgTitle">Item</h1></div>
+  <div class="pad">
+    <p style="font-weight:800">Included or extra?</p>
+    <label><input type="radio" name="decInc" id="decIncIncluded" checked> Included in package</label><br>
+    <label><input type="radio" name="decInc" id="decIncExtra"> Extra (add-on)</label>
+    <div id="decExtraPriceWrap" hidden class="fld"><label>Extra price (₹) *</label><input type="number" id="decItemExtraPrice" min="0"><label>Unit</label><select id="decItemUnit"></select></div>
+    <div class="fld"><label>Quantity</label><input type="number" id="decItemQty" min="1" value="1"></div>
+    <div class="fld"><label>Description</label><textarea id="decItemNote" rows="2"></textarea></div>
+  </div>
+  <div class="cta"><button type="button" class="btn btn-decor" id="decItemCfgSave">Save</button></div>
+</section>
+
+<section class="scr" id="decorPkgStep4">
+  <div class="top"><button type="button" class="back" id="decPkgStep4Back">←</button><h1>Package amounts</h1></div>
+  <div class="dec-progress"><i class="done"></i><i class="done"></i><i class="done"></i><i class="on"></i><i></i></div>
+  <p class="dec-wiz-step">Step 4 of 5</p>
+  <p class="pad sub">Enter package amount for Basic, Standard and Premium (at least one).</p>
+  <div class="pad dec-tier-grid">
+    <div class="fld"><label>Basic (₹)</label><input type="number" id="decPriceBasic" min="0" placeholder="30000"></div>
+    <div class="fld"><label>Standard (₹)</label><input type="number" id="decPriceStandard" min="0" placeholder="40000"></div>
+    <div class="fld"><label>Premium (₹)</label><input type="number" id="decPricePremium" min="0" placeholder="55000"></div>
+  </div>
+  <div class="pad dec-offer"><label><input type="checkbox" id="decOfferOn"> Offer / discount</label>
+  <div id="decOfferFields" hidden><input type="number" id="decOfferPct" min="1" max="90" placeholder="% off"></div></div>
+  <p class="pad" style="font-weight:800;font-size:12px">GST</p><div class="pad" id="decGstChips"></div>
+  <div class="pad" id="decTierPreview"></div>
+  <div class="wiz-foot"><button type="button" class="btn btn-ghost" id="decPkgStep4Back2">← Back</button><button type="button" class="btn btn-decor" id="decPkgStep4Next" style="flex:1">Preview →</button></div>
+</section>
+
+<section class="scr" id="decorPkgStep5">
+  <div class="top"><button type="button" class="back" id="decPkgStep5Back">←</button><h1>Preview</h1></div>
+  <div class="dec-progress"><i class="done"></i><i class="done"></i><i class="done"></i><i class="done"></i><i class="on"></i></div>
+  <p class="dec-wiz-step">Step 5 of 5</p>
+  <div class="pad" id="decPkgPreviewBody"></div>
+  <div class="cta"><button type="button" class="btn btn-decor" id="decPkgPublish">Publish Package</button><button type="button" class="btn btn-ghost" id="decPkgSaveDraft" style="margin-top:8px">Save as Draft</button></div>
+</section>
+
+<section class="scr" id="decorPkgSuccess">
+  <div class="dec-success"><div class="ok">✓</div><h2>Package created!</h2><p class="sub">Your decoration package is published.</p>
+  <div id="decSuccessCard"></div><p class="sub">Share: WhatsApp · PDF · Link (prototype)</p>
+  <button type="button" class="btn btn-decor" id="decorPkgSuccessDone">View packages</button></div>
+</section>
+
+<section class="scr" id="decorSvcStep1">
+  <div class="top"><button type="button" class="back" id="decSvcWizardBack">←</button><h1>Service category</h1></div>
+  <div id="decSvcCatList"></div>
+  <div class="cta"><button type="button" class="btn btn-decor" id="decSvcStep1Next">Next →</button></div>
+</section>
+
+<section class="scr" id="decorSvcStep2">
+  <div class="pad"><div class="fld"><label>Service name *</label><input id="decSvcName"></div>
+  <div class="fld"><label>Description</label><textarea id="decSvcDesc" rows="2"></textarea></div>
+  <p style="font-weight:800;font-size:12px">Event types</p><div id="decSvcEventChips"></div></div>
+  <div class="wiz-foot"><button type="button" class="btn btn-ghost" id="decSvcStep2Back">Back</button><button type="button" class="btn btn-decor" id="decSvcStep2Next" style="flex:1">Next</button></div>
+</section>
+
+<section class="scr" id="decorSvcStep3">
+  <div class="pad"><p style="font-weight:800">Designs &amp; variants</p><div id="decSvcDesigns"></div>
+  <button type="button" class="btn btn-ghost" id="decSvcAddDesign">+ Add design</button></div>
+  <div class="cta"><button type="button" class="btn btn-decor" id="decSvcStep3Next">Next: Pricing</button></div>
+</section>
+
+<section class="scr" id="decorSvcStep4">
+  <div class="pad dec-tier-grid">
+    <div class="fld"><label>Basic (₹)</label><input type="number" id="decSvcPriceBasic"></div>
+    <div class="fld"><label>Standard (₹)</label><input type="number" id="decSvcPriceStandard"></div>
+    <div class="fld"><label>Premium (₹)</label><input type="number" id="decSvcPricePremium"></div>
+    <div class="dec-offer"><label><input type="checkbox" id="decSvcOfferOn"> Offer</label><div id="decSvcOfferFields" hidden><input type="number" id="decSvcOfferPct" placeholder="%"></div></div>
+  </div>
+  <div class="wiz-foot"><button type="button" class="btn btn-ghost" id="decSvcStep4Back">Back</button><button type="button" class="btn btn-decor" id="decSvcPublish" style="flex:1">Publish service</button></div>
+</section>
+
+<section class="scr stub" id="decorStubEnq"><p>Enquiries (prototype stub)</p><button type="button" class="back" onclick="show('decorDash')">←</button></section>
+<section class="scr stub" id="decorStubCal"><p>Calendar (prototype stub)</p><button type="button" class="back" onclick="show('decorDash')">←</button></section>
+<section class="scr stub" id="decorStubGal"><p>Gallery (prototype stub)</p><button type="button" class="back" onclick="show('decorDash')">←</button></section>
+<section class="scr stub" id="decorStubProf"><p>Business profile (prototype stub)</p><button type="button" class="back" onclick="show('decorDash')">←</button></section>
+
+<div class="toast" id="toast"></div>
+</div></div>
+<!-- APP_START -->
+<div style="margin:16px;padding:16px;border:2px solid #DC2626;border-radius:12px"><b>Not the demo file.</b> Open GIXBEE-DECORATION-OWNER-FINALFLOW5.html</div>
+<!-- APP_END -->
+</body>
+</html>
