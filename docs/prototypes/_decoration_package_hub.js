@@ -418,7 +418,7 @@ function renderDecorPkgStep2() {
   const hint = el('decPkgCategoryHint');
   if (hint) {
     hint.textContent = cat
-      ? 'Covers ' + (cat.hint || 'selected functions') + '. No need to pick event types again.'
+      ? cat.hint || 'Function type is set from step 1 — you do not pick individual events here.'
       : 'Pick a category in step 1 first.';
   }
   el('decTraditionChips').innerHTML = DECORATION_TRADITIONS.map(function (t) {

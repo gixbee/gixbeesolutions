@@ -1,5 +1,5 @@
 /** Decoration owner app — dashboard/platform parity with catering + decoration hub. */
-const DECORATION_OWNER_BUILD = 'decoration-owner-pkg-images-v9';
+const DECORATION_OWNER_BUILD = 'decoration-owner-event-hint-v10';
 const STORAGE_KEY = 'GIXBEE_DECORATION_OWNER_V1';
 
 function defaultStore() {

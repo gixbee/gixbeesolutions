@@ -6,12 +6,12 @@ const DECORATION_PKG_LEVEL_HINTS = {
   Premium: 'Grand setup with richer detailing',
 };
 const DECORATION_EVENT_CATEGORIES = [
-  { id: 'wedding', label: 'Wedding & Related Functions', hint: 'Wedding, Engagement, Reception, Haldi, Mehendi, Nikah, Walima & more' },
-  { id: 'other', label: 'Other Functions', hint: 'Birthday, Housewarming, Corporate, Baptism, Navjote & more' },
+  { id: 'wedding', label: 'Wedding & Related Functions', hint: 'All wedding-related functions you offer in one package' },
+  { id: 'other', label: 'Other Functions', hint: 'Birthdays, housewarming, corporate and other events' },
 ];
 const DECORATION_EVENT_TYPES = {
-  wedding: ['Wedding','Engagement','Reception','Haldi','Mehendi / Mailanchi','Sangeet','Nikah','Walima','Betrothal','Roka','Chunni Ceremony','Anand Karaj','Bridal Shower','Wedding Eve','Pre-wedding','Post-wedding','Other wedding functions'],
-  other: ['Birthday','First Birthday','Baby Shower','Naming Ceremony','Baptism','First Holy Communion','Confirmation','Housewarming','Anniversary','Retirement','Inauguration','Corporate Event','Cultural Event','Festival Celebration','Navjote','Other'],
+  wedding: ['Wedding & related functions'],
+  other: ['Other functions'],
 };
 const DECORATION_TRADITIONS = ['Hindu','Muslim','Christian','Others'];
 const DECORATION_STYLES = ['Traditional','Modern','Floral','Royal','Minimal','Luxury','Theme Based','Custom'];

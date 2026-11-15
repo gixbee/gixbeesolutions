@@ -687,7 +687,7 @@ body{margin:0;background:#E8EDF5;font-family:Inter,system-ui,sans-serif;color:#1
   <p class="dec-wiz-step">Step 2 of 5</p>
   <div class="dec-ban"><span>📦</span><b id="decPkgCatBanner">—</b><button type="button" id="decPkgChangeCategory">Change</button></div>
   <div class="pad">
-  <p class="sub" id="decPkgCategoryHint" style="margin:0 0 12px">Functions are based on the category you chose in step 1.</p>
+  <p class="sub" id="decPkgCategoryHint" style="margin:0 0 12px">Function type is set from step 1 — no need to list Haldi, Mehendi, and similar events here.</p>
   <p class="dec-lvl-head"><span aria-hidden="true">📋</span> Package level<span class="req">*</span></p>
   <div class="dec-pkg-type-seg" id="decPkgTypeSeg"></div>
   <p class="dec-lvl-head" style="margin-top:4px"><span aria-hidden="true">🕌</span> Community<span class="req">*</span></p>
@@ -2038,12 +2038,12 @@ const DECORATION_PKG_LEVEL_HINTS = {
   Premium: 'Grand setup with richer detailing',
 };
 const DECORATION_EVENT_CATEGORIES = [
-  { id: 'wedding', label: 'Wedding & Related Functions', hint: 'Wedding, Engagement, Reception, Haldi, Mehendi, Nikah, Walima & more' },
-  { id: 'other', label: 'Other Functions', hint: 'Birthday, Housewarming, Corporate, Baptism, Navjote & more' },
+  { id: 'wedding', label: 'Wedding & Related Functions', hint: 'All wedding-related functions you offer in one package' },
+  { id: 'other', label: 'Other Functions', hint: 'Birthdays, housewarming, corporate and other events' },
 ];
 const DECORATION_EVENT_TYPES = {
-  wedding: ['Wedding','Engagement','Reception','Haldi','Mehendi / Mailanchi','Sangeet','Nikah','Walima','Betrothal','Roka','Chunni Ceremony','Anand Karaj','Bridal Shower','Wedding Eve','Pre-wedding','Post-wedding','Other wedding functions'],
-  other: ['Birthday','First Birthday','Baby Shower','Naming Ceremony','Baptism','First Holy Communion','Confirmation','Housewarming','Anniversary','Retirement','Inauguration','Corporate Event','Cultural Event','Festival Celebration','Navjote','Other'],
+  wedding: ['Wedding & related functions'],
+  other: ['Other functions'],
 };
 const DECORATION_TRADITIONS = ['Hindu','Muslim','Christian','Others'];
 const DECORATION_STYLES = ['Traditional','Modern','Floral','Royal','Minimal','Luxury','Theme Based','Custom'];
@@ -2782,7 +2782,7 @@ function renderDecorPkgStep2() {
   const hint = el('decPkgCategoryHint');
   if (hint) {
     hint.textContent = cat
-      ? 'Covers ' + (cat.hint || 'selected functions') + '. No need to pick event types again.'
+      ? cat.hint || 'Function type is set from step 1 — you do not pick individual events here.'
       : 'Pick a category in step 1 first.';
   }
   el('decTraditionChips').innerHTML = DECORATION_TRADITIONS.map(function (t) {
@@ -4370,7 +4370,7 @@ function bindDecorationPlatform() {
 
 
 /** Decoration owner app — dashboard/platform parity with catering + decoration hub. */
-const DECORATION_OWNER_BUILD = 'decoration-owner-pkg-images-v9';
+const DECORATION_OWNER_BUILD = 'decoration-owner-event-hint-v10';
 const STORAGE_KEY = 'GIXBEE_DECORATION_OWNER_V1';
 
 function defaultStore() {
