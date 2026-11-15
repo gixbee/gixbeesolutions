@@ -8,7 +8,7 @@ const DECORATION_EVENT_TYPES = {
   wedding: ['Wedding','Engagement','Reception','Haldi','Mehendi / Mailanchi','Sangeet','Nikah','Walima','Betrothal','Roka','Chunni Ceremony','Anand Karaj','Bridal Shower','Wedding Eve','Pre-wedding','Post-wedding','Other wedding functions'],
   other: ['Birthday','First Birthday','Baby Shower','Naming Ceremony','Baptism','First Holy Communion','Confirmation','Housewarming','Anniversary','Retirement','Inauguration','Corporate Event','Cultural Event','Festival Celebration','Navjote','Other'],
 };
-const DECORATION_TRADITIONS = ['Hindu','Muslim','Christian','Sikh','Jain','Buddhist','Parsi','Interfaith','Other','Not specified'];
+const DECORATION_TRADITIONS = ['Hindu','Muslim','Christian','Others'];
 const DECORATION_STYLES = ['Traditional','Modern','Floral','Royal','Minimal','Luxury','Theme Based','Custom'];
 const DECORATION_CEREMONY_SETUP = ['Traditional Mandapam','Church Ceremony Setup','Nikah Setup','Reception Stage','Engagement Stage','General Stage','Custom'];
 const DECORATION_UNITS = ['Per Event','Per Set','Per Unit','Per Item','Per Hour','Custom Quotation'];

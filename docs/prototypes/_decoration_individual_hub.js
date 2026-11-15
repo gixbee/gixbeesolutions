@@ -10,7 +10,7 @@ function newDecorServiceDraft() {
     categoryId: 'd10',
     name: '',
     description: '',
-    eventTypes: [],
+    traditionTags: [],
     designs: [{ id: 'dsg-1', name: 'Design 1', note: '' }],
     price: '',
     priceUnit: 'Per Event',
@@ -155,22 +155,26 @@ function renderDecorSvcStep2() {
   el('decSvcCatBanner').textContent = mod ? mod.name : '—';
   el('decSvcName').value = d.name || '';
   el('decSvcDesc').value = d.description || '';
-  const types = DECORATION_EVENT_TYPES.wedding.concat(DECORATION_EVENT_TYPES.other);
-  el('decSvcEventChips').innerHTML = types
-    .slice(0, 20)
-    .map(function (t) {
-      const on = (d.eventTypes || []).indexOf(t) >= 0;
-      return '<button type="button" class="dec-chip sm' + (on ? ' on' : '') + '" data-sv-ev="' + esc(t) + '">' + esc(t) + '</button>';
-    })
-    .join('');
-  el('decSvcEventChips').querySelectorAll('[data-sv-ev]').forEach(function (btn) {
+  el('decSvcCommunityChips').innerHTML = DECORATION_TRADITIONS.map(function (t) {
+    const on = (d.traditionTags || []).indexOf(t) >= 0;
+    return (
+      '<button type="button" class="dec-chip sm' +
+      (on ? ' on' : '') +
+      '" data-svc-comm="' +
+      esc(t) +
+      '">' +
+      esc(t) +
+      '</button>'
+    );
+  }).join('');
+  el('decSvcCommunityChips').querySelectorAll('[data-svc-comm]').forEach(function (btn) {
     btn.onclick = function () {
-      const val = btn.getAttribute('data-sv-ev');
-      const arr = decorSvcWizard.draft.eventTypes || [];
+      const val = btn.getAttribute('data-svc-comm');
+      const arr = decorSvcWizard.draft.traditionTags || [];
       const i = arr.indexOf(val);
       if (i >= 0) arr.splice(i, 1);
       else arr.push(val);
-      decorSvcWizard.draft.eventTypes = arr;
+      decorSvcWizard.draft.traditionTags = arr;
       renderDecorSvcStep2();
     };
   });
@@ -382,6 +386,10 @@ function bindDecorationIndividualUi() {
     decorSvcWizard.draft.description = (el('decSvcDesc').value || '').trim();
     if (!decorSvcWizard.draft.name) {
       toast('Give this service a clear name');
+      return;
+    }
+    if (!(decorSvcWizard.draft.traditionTags || []).length) {
+      toast('Select at least one community');
       return;
     }
     renderDecorSvcStep3();

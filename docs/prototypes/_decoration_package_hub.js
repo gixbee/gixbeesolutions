@@ -145,7 +145,7 @@ function renderDecorPackageList() {
         '</div><div><b>' +
         esc(p.name || 'Package') +
         '</b><p class="sub">' +
-        esc((p.eventTypes || []).slice(0, 2).join(', ') || '—') +
+        esc(decorPkgSummaryLine(p)) +
         ' · ' +
         inc.included +
         ' included, ' +
@@ -248,27 +248,41 @@ function renderDecorPkgStep1() {
   });
 }
 
+function decorPkgCategoryMeta(id) {
+  return DECORATION_EVENT_CATEGORIES.filter(function (c) {
+    return c.id === id;
+  })[0];
+}
+
+function syncDecorPkgEventTypesFromCategory(d) {
+  if (!d || !d.packageCategory) return;
+  d.eventTypes = (DECORATION_EVENT_TYPES[d.packageCategory] || []).slice();
+}
+
+function decorPkgSummaryLine(d) {
+  const cat = decorPkgCategoryMeta(d.packageCategory);
+  const comm = (d.traditionTags || []).join(', ');
+  const parts = [];
+  if (cat) parts.push(cat.label);
+  if (comm) parts.push(comm);
+  return parts.join(' · ') || '—';
+}
+
 function renderDecorPkgStep2() {
   setDecorWizProgress(2);
   const d = decorPkgWizard.draft;
-  const cat = DECORATION_EVENT_CATEGORIES.filter(function (c) {
-    return c.id === d.packageCategory;
-  })[0];
+  syncDecorPkgEventTypesFromCategory(d);
+  const cat = decorPkgCategoryMeta(d.packageCategory);
   el('decPkgCatBanner').textContent = cat ? cat.label : '';
-  const types = DECORATION_EVENT_TYPES[d.packageCategory] || [];
-  el('decEventTypeChips').innerHTML = types
-    .map(function (t) {
-      const on = (d.eventTypes || []).indexOf(t) >= 0;
-      return '<button type="button" class="dec-chip' + (on ? ' on' : '') + '" data-ev="' + esc(t) + '">' + esc(t) + '</button>';
-    })
-    .join('');
+  const hint = el('decPkgCategoryHint');
+  if (hint) {
+    hint.textContent = cat
+      ? 'Covers ' + (cat.hint || 'selected functions') + '. No need to pick event types again.'
+      : 'Pick a category in step 1 first.';
+  }
   el('decTraditionChips').innerHTML = DECORATION_TRADITIONS.map(function (t) {
     const on = (d.traditionTags || []).indexOf(t) >= 0;
     return '<button type="button" class="dec-chip sm' + (on ? ' on' : '') + '" data-trad="' + esc(t) + '">' + esc(t) + '</button>';
-  }).join('');
-  el('decStyleChips').innerHTML = DECORATION_STYLES.map(function (t) {
-    const on = (d.styles || []).indexOf(t) >= 0;
-    return '<button type="button" class="dec-chip sm' + (on ? ' on' : '') + '" data-style="' + esc(t) + '">' + esc(t) + '</button>';
   }).join('');
   el('decPkgName').value = d.name || '';
   el('decPkgDesc').value = d.description || '';
@@ -286,9 +300,7 @@ function renderDecorPkgStep2() {
       };
     });
   }
-  bindChip('decEventTypeChips', 'ev', 'eventTypes');
   bindChip('decTraditionChips', 'trad', 'traditionTags');
-  bindChip('decStyleChips', 'style', 'styles');
 }
 
 function decorSelectedInModule(moduleId) {
@@ -593,7 +605,7 @@ function renderDecorPkgStep5() {
     '</div><h2 style="margin:8px 0;font-size:18px;color:var(--decor-navy)">' +
     esc(d.name) +
     '</h2><p class="sub">' +
-    esc((d.eventTypes || []).join(', ')) +
+    esc(decorPkgSummaryLine(d)) +
     '</p><div class="dec-preview-price">' +
     (pr.pct
       ? '<s>' + inr(pr.base) + '</s> <b>' + inr(pr.offer) + '</b> <span class="dec-off">-' + pr.pct + '%</span>'
@@ -632,8 +644,9 @@ function validateDecorPkgStep(step) {
     return false;
   }
   if (step === 2) {
-    if (!(d.eventTypes || []).length) {
-      toast('Select at least one event type');
+    syncDecorPkgEventTypesFromCategory(d);
+    if (!(d.traditionTags || []).length) {
+      toast('Select at least one community');
       return false;
     }
     if (!(d.name || '').trim()) {
@@ -686,7 +699,7 @@ function saveDecorPackage(status) {
 
 function renderDecorPkgSuccess(pkg) {
   el('decSuccessCard').innerHTML =
-    '<b>' + esc(pkg.name) + '</b><p class="sub">' + esc((pkg.eventTypes || []).slice(0, 2).join(', ')) + '</p>';
+    '<b>' + esc(pkg.name) + '</b><p class="sub">' + esc(decorPkgSummaryLine(pkg)) + '</p>';
 }
 
 function bindDecorationPackageUi() {

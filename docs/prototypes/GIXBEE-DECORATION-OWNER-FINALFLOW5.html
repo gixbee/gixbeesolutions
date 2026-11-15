@@ -665,9 +665,8 @@ body{margin:0;background:#E8EDF5;font-family:Inter,system-ui,sans-serif;color:#1
   <p class="dec-wiz-step">Step 2 of 5</p>
   <div class="dec-ban"><span>📦</span><b id="decPkgCatBanner">—</b><button type="button" id="decPkgChangeCategory">Change</button></div>
   <div class="pad">
-  <p class="lbl">EVENT TYPE *</p><div class="dec-chip-wrap" id="decEventTypeChips"></div>
-  <p class="lbl" style="margin-top:14px">COMMUNITY / TRADITION</p><div class="dec-chip-wrap" id="decTraditionChips"></div>
-  <p class="lbl" style="margin-top:14px">DECORATION STYLE</p><div class="dec-chip-wrap" id="decStyleChips"></div>
+  <p class="sub" id="decPkgCategoryHint" style="margin:0 0 12px">Functions are based on the category you chose in step 1.</p>
+  <p class="lbl">COMMUNITY *</p><div class="dec-chip-wrap" id="decTraditionChips"></div>
   <div class="fld"><label>Package name *</label><input id="decPkgName" placeholder="Basic Wedding Decoration"></div>
   <p class="sub" id="decPkgTitlePreview">Your package name</p>
   <div class="fld"><label>Description (optional)</label><textarea id="decPkgDesc" rows="2" placeholder="Short note for customers"></textarea></div></div>
@@ -759,7 +758,7 @@ body{margin:0;background:#E8EDF5;font-family:Inter,system-ui,sans-serif;color:#1
   <div class="dec-ban"><span>✨</span><b id="decSvcCatBanner">—</b><button type="button" id="decSvcChangeCat">Change</button></div>
   <div class="pad"><div class="fld"><label>Service name *</label><input id="decSvcName" placeholder="Wedding car floral decoration"></div>
   <div class="fld"><label>Short description</label><textarea id="decSvcDesc" rows="2" placeholder="What is included in this service?"></textarea></div>
-  <p class="lbl">WHERE CUSTOMERS USE THIS (OPTIONAL)</p><div class="dec-chip-wrap" id="decSvcEventChips"></div></div>
+  <p class="lbl">COMMUNITY *</p><div class="dec-chip-wrap" id="decSvcCommunityChips"></div></div>
   <div class="cat-wiz-foot"><button type="button" class="btn btn-ghost" id="decSvcStep2Back">← Back</button><button type="button" class="btn btn-decor" id="decSvcStep2Next">Next →</button></div>
 </section>
 
@@ -2010,7 +2009,7 @@ const DECORATION_EVENT_TYPES = {
   wedding: ['Wedding','Engagement','Reception','Haldi','Mehendi / Mailanchi','Sangeet','Nikah','Walima','Betrothal','Roka','Chunni Ceremony','Anand Karaj','Bridal Shower','Wedding Eve','Pre-wedding','Post-wedding','Other wedding functions'],
   other: ['Birthday','First Birthday','Baby Shower','Naming Ceremony','Baptism','First Holy Communion','Confirmation','Housewarming','Anniversary','Retirement','Inauguration','Corporate Event','Cultural Event','Festival Celebration','Navjote','Other'],
 };
-const DECORATION_TRADITIONS = ['Hindu','Muslim','Christian','Sikh','Jain','Buddhist','Parsi','Interfaith','Other','Not specified'];
+const DECORATION_TRADITIONS = ['Hindu','Muslim','Christian','Others'];
 const DECORATION_STYLES = ['Traditional','Modern','Floral','Royal','Minimal','Luxury','Theme Based','Custom'];
 const DECORATION_CEREMONY_SETUP = ['Traditional Mandapam','Church Ceremony Setup','Nikah Setup','Reception Stage','Engagement Stage','General Stage','Custom'];
 const DECORATION_UNITS = ['Per Event','Per Set','Per Unit','Per Item','Per Hour','Custom Quotation'];
@@ -2474,7 +2473,7 @@ function renderDecorPackageList() {
         '</div><div><b>' +
         esc(p.name || 'Package') +
         '</b><p class="sub">' +
-        esc((p.eventTypes || []).slice(0, 2).join(', ') || '—') +
+        esc(decorPkgSummaryLine(p)) +
         ' · ' +
         inc.included +
         ' included, ' +
@@ -2577,27 +2576,41 @@ function renderDecorPkgStep1() {
   });
 }
 
+function decorPkgCategoryMeta(id) {
+  return DECORATION_EVENT_CATEGORIES.filter(function (c) {
+    return c.id === id;
+  })[0];
+}
+
+function syncDecorPkgEventTypesFromCategory(d) {
+  if (!d || !d.packageCategory) return;
+  d.eventTypes = (DECORATION_EVENT_TYPES[d.packageCategory] || []).slice();
+}
+
+function decorPkgSummaryLine(d) {
+  const cat = decorPkgCategoryMeta(d.packageCategory);
+  const comm = (d.traditionTags || []).join(', ');
+  const parts = [];
+  if (cat) parts.push(cat.label);
+  if (comm) parts.push(comm);
+  return parts.join(' · ') || '—';
+}
+
 function renderDecorPkgStep2() {
   setDecorWizProgress(2);
   const d = decorPkgWizard.draft;
-  const cat = DECORATION_EVENT_CATEGORIES.filter(function (c) {
-    return c.id === d.packageCategory;
-  })[0];
+  syncDecorPkgEventTypesFromCategory(d);
+  const cat = decorPkgCategoryMeta(d.packageCategory);
   el('decPkgCatBanner').textContent = cat ? cat.label : '';
-  const types = DECORATION_EVENT_TYPES[d.packageCategory] || [];
-  el('decEventTypeChips').innerHTML = types
-    .map(function (t) {
-      const on = (d.eventTypes || []).indexOf(t) >= 0;
-      return '<button type="button" class="dec-chip' + (on ? ' on' : '') + '" data-ev="' + esc(t) + '">' + esc(t) + '</button>';
-    })
-    .join('');
+  const hint = el('decPkgCategoryHint');
+  if (hint) {
+    hint.textContent = cat
+      ? 'Covers ' + (cat.hint || 'selected functions') + '. No need to pick event types again.'
+      : 'Pick a category in step 1 first.';
+  }
   el('decTraditionChips').innerHTML = DECORATION_TRADITIONS.map(function (t) {
     const on = (d.traditionTags || []).indexOf(t) >= 0;
     return '<button type="button" class="dec-chip sm' + (on ? ' on' : '') + '" data-trad="' + esc(t) + '">' + esc(t) + '</button>';
-  }).join('');
-  el('decStyleChips').innerHTML = DECORATION_STYLES.map(function (t) {
-    const on = (d.styles || []).indexOf(t) >= 0;
-    return '<button type="button" class="dec-chip sm' + (on ? ' on' : '') + '" data-style="' + esc(t) + '">' + esc(t) + '</button>';
   }).join('');
   el('decPkgName').value = d.name || '';
   el('decPkgDesc').value = d.description || '';
@@ -2615,9 +2628,7 @@ function renderDecorPkgStep2() {
       };
     });
   }
-  bindChip('decEventTypeChips', 'ev', 'eventTypes');
   bindChip('decTraditionChips', 'trad', 'traditionTags');
-  bindChip('decStyleChips', 'style', 'styles');
 }
 
 function decorSelectedInModule(moduleId) {
@@ -2922,7 +2933,7 @@ function renderDecorPkgStep5() {
     '</div><h2 style="margin:8px 0;font-size:18px;color:var(--decor-navy)">' +
     esc(d.name) +
     '</h2><p class="sub">' +
-    esc((d.eventTypes || []).join(', ')) +
+    esc(decorPkgSummaryLine(d)) +
     '</p><div class="dec-preview-price">' +
     (pr.pct
       ? '<s>' + inr(pr.base) + '</s> <b>' + inr(pr.offer) + '</b> <span class="dec-off">-' + pr.pct + '%</span>'
@@ -2961,8 +2972,9 @@ function validateDecorPkgStep(step) {
     return false;
   }
   if (step === 2) {
-    if (!(d.eventTypes || []).length) {
-      toast('Select at least one event type');
+    syncDecorPkgEventTypesFromCategory(d);
+    if (!(d.traditionTags || []).length) {
+      toast('Select at least one community');
       return false;
     }
     if (!(d.name || '').trim()) {
@@ -3015,7 +3027,7 @@ function saveDecorPackage(status) {
 
 function renderDecorPkgSuccess(pkg) {
   el('decSuccessCard').innerHTML =
-    '<b>' + esc(pkg.name) + '</b><p class="sub">' + esc((pkg.eventTypes || []).slice(0, 2).join(', ')) + '</p>';
+    '<b>' + esc(pkg.name) + '</b><p class="sub">' + esc(decorPkgSummaryLine(pkg)) + '</p>';
 }
 
 function bindDecorationPackageUi() {
@@ -3151,7 +3163,7 @@ function newDecorServiceDraft() {
     categoryId: 'd10',
     name: '',
     description: '',
-    eventTypes: [],
+    traditionTags: [],
     designs: [{ id: 'dsg-1', name: 'Design 1', note: '' }],
     price: '',
     priceUnit: 'Per Event',
@@ -3296,22 +3308,26 @@ function renderDecorSvcStep2() {
   el('decSvcCatBanner').textContent = mod ? mod.name : '—';
   el('decSvcName').value = d.name || '';
   el('decSvcDesc').value = d.description || '';
-  const types = DECORATION_EVENT_TYPES.wedding.concat(DECORATION_EVENT_TYPES.other);
-  el('decSvcEventChips').innerHTML = types
-    .slice(0, 20)
-    .map(function (t) {
-      const on = (d.eventTypes || []).indexOf(t) >= 0;
-      return '<button type="button" class="dec-chip sm' + (on ? ' on' : '') + '" data-sv-ev="' + esc(t) + '">' + esc(t) + '</button>';
-    })
-    .join('');
-  el('decSvcEventChips').querySelectorAll('[data-sv-ev]').forEach(function (btn) {
+  el('decSvcCommunityChips').innerHTML = DECORATION_TRADITIONS.map(function (t) {
+    const on = (d.traditionTags || []).indexOf(t) >= 0;
+    return (
+      '<button type="button" class="dec-chip sm' +
+      (on ? ' on' : '') +
+      '" data-svc-comm="' +
+      esc(t) +
+      '">' +
+      esc(t) +
+      '</button>'
+    );
+  }).join('');
+  el('decSvcCommunityChips').querySelectorAll('[data-svc-comm]').forEach(function (btn) {
     btn.onclick = function () {
-      const val = btn.getAttribute('data-sv-ev');
-      const arr = decorSvcWizard.draft.eventTypes || [];
+      const val = btn.getAttribute('data-svc-comm');
+      const arr = decorSvcWizard.draft.traditionTags || [];
       const i = arr.indexOf(val);
       if (i >= 0) arr.splice(i, 1);
       else arr.push(val);
-      decorSvcWizard.draft.eventTypes = arr;
+      decorSvcWizard.draft.traditionTags = arr;
       renderDecorSvcStep2();
     };
   });
@@ -3523,6 +3539,10 @@ function bindDecorationIndividualUi() {
     decorSvcWizard.draft.description = (el('decSvcDesc').value || '').trim();
     if (!decorSvcWizard.draft.name) {
       toast('Give this service a clear name');
+      return;
+    }
+    if (!(decorSvcWizard.draft.traditionTags || []).length) {
+      toast('Select at least one community');
       return;
     }
     renderDecorSvcStep3();
@@ -4101,7 +4121,7 @@ function bindDecorationPlatform() {
 
 
 /** Decoration owner app — dashboard/platform parity with catering + decoration hub. */
-const DECORATION_OWNER_BUILD = 'decoration-owner-lmb-v6';
+const DECORATION_OWNER_BUILD = 'decoration-owner-community-v7';
 const STORAGE_KEY = 'GIXBEE_DECORATION_OWNER_V1';
 
 function defaultStore() {
