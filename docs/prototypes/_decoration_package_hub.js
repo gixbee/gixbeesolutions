@@ -514,12 +514,75 @@ function decorSelectedInModule(moduleId) {
   });
 }
 
+function decorModuleItemCounts(moduleId) {
+  const items = decorSelectedInModule(moduleId);
+  let included = 0;
+  let extra = 0;
+  items.forEach(function (it) {
+    if (it.inclusionType === 'extra') extra++;
+    else included++;
+  });
+  return { total: items.length, included: included, extra: extra };
+}
+
+function renderDecorItemSummaryBanner() {
+  const host = el('decItemSummaryBanner');
+  if (!host) return;
+  const counts = decorPkgCounts(decorPkgWizard.draft);
+  host.innerHTML =
+    '<div class="dec-stat-pill inc"><b>' +
+    counts.included +
+    '</b>Included in package</div><div class="dec-stat-pill extra"><b>' +
+    counts.extra +
+    '</b>Extra add-ons</div>';
+}
+
+function decorRenderSelItemRow(it, idx) {
+  const label = it.customName || it.name;
+  const isExtra = it.inclusionType === 'extra';
+  const tag = isExtra ? 'Extra' : 'Included';
+  const price =
+    isExtra && it.extraPrice
+      ? ' · ' + inr(it.extraPrice) + ' / ' + esc(it.unit || 'Per Event')
+      : isExtra
+        ? ' · set add-on price'
+        : '';
+  const qty = +it.quantity > 1 ? ' · Qty ' + it.quantity : '';
+  return (
+    '<div class="dec-sel-row"><span><b>' +
+    esc(label) +
+    '</b> <span class="dec-tag ' +
+    (isExtra ? 'extra' : 'inc') +
+    '">' +
+    tag +
+    '</span>' +
+    price +
+    qty +
+    '</span><button type="button" class="dec-link" data-dec-edit-item="' +
+    idx +
+    '">Configure</button></div>'
+  );
+}
+
+function bindDecorSelItemRows(host) {
+  if (!host) return;
+  host.querySelectorAll('[data-dec-edit-item]').forEach(function (btn) {
+    btn.onclick = function () {
+      const idx = +btn.getAttribute('data-dec-edit-item');
+      const it = decorPkgWizard.draft.items[idx];
+      if (!it) return;
+      decorItemPickCtx.configuringId = idx;
+      decorItemPickCtx.moduleId = it.moduleId || decorModulePickCtx.moduleId;
+      renderDecorItemConfig();
+      show('decorItemConfig');
+    };
+  });
+}
+
 function renderDecorPkgStep3() {
   setDecorWizProgress(3);
   const d = decorPkgWizard.draft;
-  const counts = decorPkgCounts(d);
-  el('decItemSummaryBanner').textContent =
-    counts.total + ' items (' + counts.included + ' included, ' + counts.extra + ' extra)';
+  renderDecorItemSummaryBanner();
   const q = (el('decModSearch').value || '').trim().toLowerCase();
   const host = el('decModList');
   host.innerHTML = DECORATION_MODULES.filter(function (m) {
@@ -527,7 +590,16 @@ function renderDecorPkgStep3() {
     return m.name.toLowerCase().indexOf(q) >= 0;
   })
     .map(function (m) {
-      const sel = decorSelectedInModule(m.id).length;
+      const stats = decorModuleItemCounts(m.id);
+      let sub;
+      if (stats.total) {
+        sub =
+          stats.included +
+          ' included' +
+          (stats.extra ? ' · ' + stats.extra + ' extra' : '');
+      } else {
+        sub = (m.items ? m.items.length : 0) + ' Kerala & all-India items · tap to pick';
+      }
       return (
         '<button type="button" class="dec-mod-row" data-dec-mod="' +
         esc(m.id) +
@@ -536,8 +608,8 @@ function renderDecorPkgStep3() {
         '</span><span style="flex:1;min-width:0"><b>' +
         esc(m.name) +
         '</b><small>' +
-        sel +
-        ' selected</small></span><span class="dec-chev">›</span></button>'
+        esc(sub) +
+        '</small></span><span class="dec-chev">›</span></button>'
       );
     })
     .join('');
@@ -558,36 +630,35 @@ function renderDecorSelectedItemsSummary(full) {
     host.innerHTML = '<p class="sub">No items yet. Open a category above.</p>';
     return;
   }
-  host.innerHTML = items
-    .map(function (it, idx) {
-      const label = it.customName || it.name;
-      const tag = it.inclusionType === 'extra' ? 'Extra' : 'Included';
-      const price = it.inclusionType === 'extra' && it.extraPrice ? ' · ' + inr(it.extraPrice) + ' / ' + esc(it.unit || 'Per Event') : '';
-      return (
-        '<div class="dec-sel-row"><span><b>' +
-        esc(label) +
-        '</b> <span class="dec-tag ' +
-        (it.inclusionType === 'extra' ? 'extra' : 'inc') +
-        '">' +
-        tag +
-        '</span>' +
-        price +
-        '</span><button type="button" class="dec-link" data-dec-edit-item="' +
-        idx +
-        '">Edit</button></div>'
-      );
-    })
-    .join('');
-  host.querySelectorAll('[data-dec-edit-item]').forEach(function (btn) {
-    btn.onclick = function () {
-      const idx = +btn.getAttribute('data-dec-edit-item');
-      const it = decorPkgWizard.draft.items[idx];
-      if (!it) return;
-      decorItemPickCtx.configuringId = idx;
-      renderDecorItemConfig();
-      show('decorItemConfig');
-    };
-  });
+  const included = [];
+  const extra = [];
+  let idx;
+  for (idx = 0; idx < items.length; idx++) {
+    const it = items[idx];
+    if (it.inclusionType === 'extra') extra.push({ it: it, idx: idx });
+    else included.push({ it: it, idx: idx });
+  }
+  let html = '';
+  if (included.length) {
+    html +=
+      '<div class="dec-sel-sec"><div class="dec-sel-sec-hd inc">✓ Included in package price</div>' +
+      included.map(function (row) {
+        return decorRenderSelItemRow(row.it, row.idx);
+      }).join('') +
+      '</div>';
+  }
+  if (extra.length) {
+    html +=
+      '<div class="dec-sel-sec"><div class="dec-sel-sec-hd extra">+ Extra add-ons</div>' +
+      extra
+        .map(function (row) {
+          return decorRenderSelItemRow(row.it, row.idx);
+        })
+        .join('') +
+      '</div>';
+  }
+  host.innerHTML = html;
+  bindDecorSelItemRows(host);
 }
 
 function openDecorModulePick(moduleId) {
@@ -602,7 +673,14 @@ function renderDecorModulePick() {
   el('decPickModTitle').textContent = mod.name;
   const q = (decorModulePickCtx.search || '').trim().toLowerCase();
   const picked = decorSelectedInModule(mod.id);
-  el('decPickModCount').textContent = picked.length + ' selected';
+  const modInc = picked.filter(function (x) {
+    return x.inclusionType !== 'extra';
+  }).length;
+  const modExtra = picked.length - modInc;
+  el('decPickModCount').textContent =
+    picked.length +
+    ' selected' +
+    (picked.length ? ' — ' + modInc + ' included' + (modExtra ? ', ' + modExtra + ' extra' : '') : '');
   const list = mod.items.filter(function (it) {
     return !q || it.name.toLowerCase().indexOf(q) >= 0;
   });
@@ -662,6 +740,15 @@ function renderDecorModulePick() {
   el('decPickModSearch').value = decorModulePickCtx.search || '';
 }
 
+function paintDecorIncTypeHint() {
+  const hint = el('decIncTypeHint');
+  if (!hint) return;
+  const extra = el('decIncExtra') && el('decIncExtra').checked;
+  hint.textContent = extra
+    ? 'Customers see this as an optional add-on with the extra price you enter.'
+    : 'Customers get this item within the package price you set in step 4.';
+}
+
 function renderDecorItemConfig() {
   const idx = decorItemPickCtx.configuringId;
   const it = idx != null ? decorPkgWizard.draft.items[idx] : null;
@@ -670,6 +757,7 @@ function renderDecorItemConfig() {
   el('decIncIncluded').checked = it.inclusionType !== 'extra';
   el('decIncExtra').checked = it.inclusionType === 'extra';
   el('decExtraPriceWrap').hidden = it.inclusionType !== 'extra';
+  paintDecorIncTypeHint();
   el('decItemExtraPrice').value = it.extraPrice === '' || it.extraPrice == null ? '' : it.extraPrice;
   el('decItemUnit').innerHTML = DECORATION_UNITS.map(function (u) {
     return '<option' + (it.unit === u ? ' selected' : '') + '>' + esc(u) + '</option>';
@@ -994,10 +1082,12 @@ function bindDecorationPackageUi() {
   bindClick('decIncIncluded', function () {
     el('decIncExtra').checked = false;
     el('decExtraPriceWrap').hidden = true;
+    paintDecorIncTypeHint();
   });
   bindClick('decIncExtra', function () {
     el('decIncIncluded').checked = false;
     el('decExtraPriceWrap').hidden = false;
+    paintDecorIncTypeHint();
   });
   bindClick('decPkgStep4Back', function () {
     renderDecorPkgStep3();
