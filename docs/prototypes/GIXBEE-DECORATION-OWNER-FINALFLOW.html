@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Gixbee — Decoration Owner</title>
 <style>
-:root{--decor:#7C3AED;--decor2:#BE185D;--decor-navy:#1E1B4B;--line:#E5E7EB;--mut:#64748B;--shadow:0 10px 32px rgba(15,23,42,.1)}
+:root{--navy:#1B2559;--blue:#2563EB;--gn:#12B76A;--gn2:#047857;--decor:#7C3AED;--decor2:#BE185D;--decor-navy:#1E1B4B;--line:#E5E7EB;--mut:#64748B;--shadow:0 10px 32px rgba(15,23,42,.1)}
 *{box-sizing:border-box}
 body{margin:0;background:#EDE9FE;font-family:Inter,system-ui,sans-serif;color:#111827}
 .stage{min-height:100vh;display:flex;justify-content:center;padding:12px 8px 24px}
@@ -23,7 +23,9 @@ body{margin:0;background:#EDE9FE;font-family:Inter,system-ui,sans-serif;color:#1
 .lbl{font-size:11px;font-weight:800;color:var(--mut);letter-spacing:.04em;margin:0 0 8px}
 .btn{border:0;border-radius:14px;font-weight:800;font-size:15px;padding:14px 16px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:6px;line-height:1.2}
 .btn-decor{background:var(--decor2);color:#fff;box-shadow:0 8px 22px rgba(190,24,93,.28)}
+.btn-blue{background:var(--blue);color:#fff}
 .btn-ghost{background:#fff;color:var(--decor-navy);border:1.5px solid #CBD5E1}
+.top .link{border:0;background:none;font:inherit;font-weight:800;color:var(--blue);cursor:pointer;padding:6px}
 .cta{padding:12px 16px 20px}.cta .btn{width:100%}
 .biz-card{border:1px solid var(--line);border-radius:16px;padding:12px;margin:0 16px 14px;width:calc(100% - 32px);background:#fff;text-align:left;cursor:pointer;font:inherit;color:inherit;display:block}
 .biz-card .row{display:flex;gap:12px;align-items:flex-start}
@@ -140,6 +142,268 @@ body{margin:0;background:#EDE9FE;font-family:Inter,system-ui,sans-serif;color:#1
 .wiz-foot{display:flex;gap:10px;padding:12px 16px 16px;background:#fff;border-top:1px solid #E2E8F0;position:sticky;bottom:0;z-index:3}
 .wiz-foot .btn{flex:1;margin:0;min-width:0;width:auto}
 .wiz-foot .btn-ghost{flex:0 0 auto;padding:14px 18px}
+/* platform-shared */
+.dash-banner{height:100px;background:linear-gradient(145deg,#64748B,#94A3B8);position:relative}
+.dash-logo{position:absolute;left:16px;bottom:-28px;width:56px;height:56px;border-radius:50%;background:#fff;border:3px solid #fff;box-shadow:0 4px 12px rgba(0,0,0,.12);display:grid;place-items:center;font-size:22px}
+.dash-head{padding:36px 16px 12px}
+.dash-head b{font-size:18px;color:var(--navy);display:block}
+.dash-head .loc{font-size:12px;color:var(--mut);margin-top:4px;display:flex;align-items:center;gap:4px}
+.area-card{margin:0 16px 14px;padding:14px;border:1px solid #BFDBFE;border-radius:14px;background:#F8FAFC}
+.area-card b{display:flex;align-items:center;gap:6px;color:var(--navy);font-size:14px}
+.area-card .sum{font-size:12px;color:var(--mut);margin:8px 0;line-height:1.4}
+.area-card a{font-size:13px;font-weight:800;color:var(--blue);text-decoration:none;cursor:pointer}
+.qgrid{display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:0 16px 16px}
+.qtile{border:1px solid var(--line);border-radius:14px;padding:14px 10px;text-align:center;cursor:pointer;background:#fff;font:inherit;color:inherit}
+.qtile .qi{font-size:22px;margin-bottom:6px}
+.qtile b{font-size:11px;color:var(--navy);display:block;line-height:1.3}
+.qtile.pink{background:#FDF2F8;border-color:#FBCFE8}
+.qtile.blue{background:#EFF6FF;border-color:#BFDBFE}
+.qtile.orange{background:#FFF7ED;border-color:#FED7AA;position:relative}
+.qtile.teal{background:#F0FDFA;border-color:#99F6E4}
+.qtile.gray{background:#F8FAFC;border-color:#CBD5E1}
+.qtile .badge{position:absolute;top:8px;right:8px;background:#EF4444;color:#fff;font-size:10px;font-weight:800;min-width:18px;height:18px;border-radius:99px;display:grid;place-items:center}
+.op-remove{border:0;background:none;color:#DC2626;font-weight:800;font-size:13px;cursor:pointer;padding:8px 4px}
+.btn-restore{width:100%;border:1.5px solid #BFDBFE;background:#EFF6FF;color:var(--blue);border-radius:99px;padding:10px;font-weight:800;font-size:13px;cursor:pointer;font:inherit}
+.bottom-nav{display:flex;border-top:1px solid var(--line);background:#fff;padding:8px 0 10px;position:absolute;left:0;right:0;bottom:0;z-index:5}
+.bottom-nav button{flex:1;border:0;background:none;font-size:10px;font-weight:800;color:#64748B;cursor:pointer;padding:6px 0}
+.bottom-nav button.on{color:var(--blue)}
+.hero-ico{width:48px;height:48px;border-radius:50%;background:#EFF6FF;display:grid;place-items:center;margin:16px auto 10px;color:var(--blue)}
+.hero-ico .p-ico{width:28px;height:28px}
+.sa-search{display:flex;align-items:center;gap:8px;border:1.5px solid #BFDBFE;border-radius:12px;padding:10px 12px;margin:0 16px 12px;background:#fff}
+.sa-search input{border:0;flex:1;font:inherit;font-weight:600;outline:none}
+.chk-list{padding:0 16px}
+.chk-row{display:flex;align-items:center;gap:10px;padding:12px;border:1px solid var(--line);border-radius:12px;margin-bottom:8px;cursor:pointer;background:#fff;font-size:14px;font-weight:700;color:var(--navy)}
+.chk-row.on{background:#ECFDF3;border-color:#86EFAC}
+.chk-row .chk-hint{display:block;font-size:11px;font-weight:600;color:var(--mut);margin-top:4px;line-height:1.35;font-style:normal}
+.chk-row.locked{background:#ECFDF3;border-color:#86EFAC}
+.chk-box{width:22px;height:22px;border-radius:6px;border:2px solid #CBD5E1;display:grid;place-items:center;flex-shrink:0}
+.chk-row.on .chk-box,.chk-row.locked .chk-box{background:var(--blue);border-color:var(--blue);color:#fff}
+.seg{display:flex;gap:0;margin:0 16px 12px;border:1px solid var(--line);border-radius:12px;overflow:hidden}
+.seg button{flex:1;border:0;padding:10px;font-weight:800;font-size:13px;background:#F8FAFC;color:var(--mut);cursor:pointer}
+.seg button.on{background:var(--blue);color:#fff}
+.review-card{margin:0 16px 12px;padding:14px;border:1px solid var(--line);border-radius:14px;background:#fff}
+.review-card-hd{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px}
+.review-card-hd b{color:var(--navy);font-size:14px}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip-district{font-size:11px;font-weight:800;padding:6px 10px;border-radius:8px;background:#ECFDF3;color:#065F46}
+.info-box{margin:12px 16px;padding:12px;border-radius:12px;background:#EFF6FF;border:1px solid #BFDBFE;font-size:11px;color:var(--navy);line-height:1.45;display:flex;gap:8px;align-items:flex-start}
+#menuPkg,#svcPkg{padding-bottom:88px;background:linear-gradient(180deg,#F8FAFC 0%,#fff 28%)}
+#menuPkg .hub-top,#svcPkg .hub-top{display:grid;grid-template-columns:36px 1fr 36px;align-items:center;gap:4px;padding:12px 16px 0;background:transparent;border:0}
+#menuPkg .hub-top h1,#svcPkg .hub-top h1{margin:0;font-size:15px;font-weight:800;color:var(--navy);text-align:center;padding:0}
+#menuPkg .hub-top .back,#svcPkg .hub-top .back{justify-self:start}
+.hub-top .hub-more{justify-self:end;border:0;background:transparent;font-size:20px;font-weight:700;color:var(--navy);cursor:pointer;padding:4px;line-height:1}
+#menuPkg .hub-pkg-only .hub-intro{display:none}
+.hub-cat-filter-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:0 16px 14px}
+.hub-cat-card{display:flex;flex-direction:column;align-items:flex-start;text-align:left;border:2px solid #E2E8F0;border-radius:14px;padding:12px 10px;background:#F8FAFC;cursor:pointer;font:inherit;color:var(--navy);min-height:76px;transition:border-color .15s,background .15s,box-shadow .15s}
+.hub-cat-card.on{border-color:#EC4899;background:linear-gradient(180deg,#FFF1F2,#fff);box-shadow:0 0 0 1px #FBCFE8}
+.hub-cat-card b{font-size:11px;font-weight:900;line-height:1.35;display:block}
+.hub-cat-card small{font-size:9px;font-weight:600;color:#64748B;margin-top:6px;line-height:1.35;display:block}
+.cat-hub-count{font-size:13px;font-weight:800;color:var(--navy);letter-spacing:0;text-transform:none}
+.cat-hub-count b{font-size:15px;font-weight:900;margin-right:4px}
+.cat-sort-btn{border:0;background:transparent;font-size:12px;font-weight:800;color:#64748B;cursor:pointer;font:inherit;display:inline-flex;align-items:center;gap:4px}
+#menuPkg .hub-seg{border:1px solid #F1F5F9;background:#F8FAFC}
+#menuPkg .hub-tab.on.pkg-tab{color:#BE185D;box-shadow:0 0 0 2px #FBCFE8}
+#menuPkg .hub-tab.on.svc-tab{color:#BE185D;box-shadow:0 0 0 2px #FBCFE8}
+.prof-hero{position:relative;padding:0 16px 88px;margin-bottom:-56px}
+.prof-hero-bg{height:200px;border-radius:0 0 28px 28px;background:linear-gradient(145deg,#1B2559 0%,#2563EB 45%,#7C3AED 100%);box-shadow:0 16px 40px rgba(37,99,235,.25);overflow:hidden;position:relative}
+.prof-hero-bg::before{content:"";position:absolute;inset:0;background:url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.06'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")}
+.prof-hero-top{position:absolute;top:12px;left:16px;right:16px;z-index:2;display:flex;justify-content:space-between;align-items:center}
+.prof-back{width:40px;height:40px;border-radius:12px;border:0;background:rgba(255,255,255,.2);backdrop-filter:blur(8px);color:#fff;font-size:20px;cursor:pointer;display:grid;place-items:center}
+.prof-hero-label{font-size:11px;font-weight:800;color:rgba(255,255,255,.85);letter-spacing:.08em;text-transform:uppercase}
+.prof-identity{position:relative;z-index:1;margin:0 8px;text-align:center}
+.prof-avatar{width:88px;height:88px;margin:-44px auto 12px;border-radius:24px;background:linear-gradient(145deg,#fff,#E0E7FF);border:4px solid #fff;box-shadow:0 12px 28px rgba(15,23,42,.15);display:grid;place-items:center;font-size:36px}
+.prof-identity h2{margin:0 0 6px;font-size:22px;font-weight:900;color:var(--navy);line-height:1.2}
+.prof-tagline{margin:0 0 12px;font-size:13px;color:var(--mut);font-weight:600;line-height:1.4}
+.prof-badge-row{display:flex;flex-wrap:wrap;gap:8px;justify-content:center}
+.prof-badge{font-size:10px;font-weight:800;padding:6px 12px;border-radius:99px;display:inline-flex;align-items:center;gap:4px}
+.prof-badge.ver{background:#DCFCE7;color:#166534}
+.prof-badge.type{background:#EFF6FF;color:#1D4ED8;border:1px solid #BFDBFE}
+.prof-scroll{padding:0 16px 16px}
+.prof-chips{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:16px}
+.prof-chip{background:#fff;border-radius:14px;padding:12px 8px;text-align:center;border:1px solid #E2E8F0;box-shadow:0 4px 12px rgba(15,23,42,.04)}
+.prof-chip b{display:block;font-size:16px;font-weight:900;color:var(--navy);line-height:1.1}
+.prof-chip span{font-size:9px;font-weight:800;color:var(--mut);text-transform:uppercase;letter-spacing:.04em;margin-top:4px;display:block}
+.prof-group{background:#fff;border-radius:18px;padding:4px 14px 8px;margin-bottom:12px;border:1px solid #E2E8F0;box-shadow:0 4px 16px rgba(15,23,42,.05)}
+.prof-group-hd{display:flex;align-items:center;gap:8px;padding:12px 0 8px;font-size:12px;font-weight:900;color:var(--navy);letter-spacing:.02em}
+.prof-group-hd span{font-size:16px}
+.prof-cell{display:flex;gap:12px;align-items:flex-start;padding:12px 0;border-top:1px solid #F1F5F9}
+.prof-cell-ico{width:36px;height:36px;border-radius:10px;background:#F8FAFC;display:grid;place-items:center;font-size:16px;flex-shrink:0}
+.prof-cell-bd{flex:1;min-width:0}
+.prof-cell-bd label{display:block;font-size:10px;font-weight:800;color:#94A3B8;text-transform:uppercase;letter-spacing:.05em;margin-bottom:3px}
+.prof-cell-bd b{font-size:14px;font-weight:800;color:var(--navy);line-height:1.4;display:block;word-break:break-word}
+.prof-foot{margin:8px 4px 0;padding:14px;border-radius:14px;background:#fff;border:1px dashed #CBD5E1;font-size:11px;color:var(--mut);line-height:1.45;text-align:center}
+.home-pill{display:inline-flex;align-items:center;gap:6px;padding:6px 12px;border-radius:99px;background:var(--soft);color:var(--gn2);font-size:11px;font-weight:800;border:0;cursor:pointer}
+.biz-dash-card{border:1px solid var(--line);border-radius:16px;padding:14px;margin-bottom:14px;background:#fff;box-shadow:0 2px 8px rgba(15,23,42,.04)}
+.biz-dash-card .biz-row{display:flex;gap:12px;align-items:flex-start}
+.biz-dash-card .biz-ico{width:44px;height:44px;border-radius:12px;background:#DBEAFE;display:grid;place-items:center;font-size:22px;flex:none}
+.biz-dash-card .biz-ico.catering{background:#FEF3C7}
+.biz-dash-card .biz-name{font-weight:900;font-size:15px;margin:0 0 2px;color:var(--navy)}
+.biz-dash-card .biz-type{font-size:12px;color:var(--mut);font-weight:600;margin:0}
+.biz-dash-card .biz-meta{font-size:12px;color:var(--mut);margin:8px 0}
+.biz-dash-card .biz-badges{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0 12px}
+.biz-dash-card .biz-badges span{font-size:10px;font-weight:800;padding:4px 8px;border-radius:99px;background:#FEE2E2;color:#B91C1C}
+.biz-dash-card .biz-badges span.gy{background:#F3F4F6;color:#374151}
+.biz-dash-card .biz-actions{display:flex;gap:8px}
+.biz-dash-card .biz-actions button{flex:1;border:1px solid var(--line);background:#fff;border-radius:99px;padding:9px 6px;font-size:11px;font-weight:800;color:var(--navy);cursor:pointer}
+.biz-dash-card .biz-actions button.mgr-photo, .biz-dash-card .biz-actions button.mgr-catering{border:0;background:var(--blue);color:#fff}
+.pill.ok{background:#DCFCE7;color:#166534;font-size:10px;font-weight:800;padding:4px 8px;border-radius:99px}
+.menu.manage-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.manage-card{position:relative;text-align:left;border:1px solid var(--line);border-radius:16px;padding:14px 12px;cursor:pointer;min-height:132px;display:flex;flex-direction:column;background:#fff;width:100%;font:inherit;color:inherit}
+.manage-card-top{display:flex;justify-content:space-between;align-items:flex-start;width:100%;margin-bottom:10px}
+.manage-card-ico{width:42px;height:42px;border-radius:12px;display:grid;place-items:center;font-size:20px;flex-shrink:0}
+.manage-card-chev{color:#9CA3AF;font-size:20px;line-height:1;font-weight:300}
+.manage-card-badge{position:absolute;top:12px;right:36px;min-width:20px;height:20px;padding:0 6px;border-radius:99px;background:#EF4444;color:#fff;font-size:11px;font-weight:800;display:grid;place-items:center}
+.manage-card-title{display:block;font-size:14px;font-weight:800;color:var(--navy);margin:0 0 6px;line-height:1.25}
+.manage-card-sub{font-size:11px;color:var(--mut);line-height:1.45;margin:0;font-weight:600}
+.manage-card.theme-pkg{background:#FDF2F8;border-color:#FBCFE8}
+.manage-card.theme-pkg .manage-card-ico{background:#FCE7F3;color:#BE185D}
+.manage-card.theme-cal{background:#ECFDF3;border-color:#A7F3D0}
+.manage-card.theme-cal .manage-card-ico{background:#DCFCE7;color:#15803D}
+.manage-card.theme-req{background:#FFFBEB;border-color:#FDE68A}
+.manage-card.theme-req .manage-card-ico{background:#FEF3C7;color:#B45309}
+.manage-card.theme-photo{background:#EFF6FF;border-color:#BFDBFE}
+.manage-card.theme-photo .manage-card-ico{background:#DBEAFE;color:#2563EB}
+.manage-card.theme-area{background:#F0FDFA;border-color:#99F6E4}
+.manage-card.theme-area .manage-card-ico{background:#CCFBF1;color:#0F766E}
+.manage-biz-card{background:#EFF6FF;border:1px solid #BFDBFE;border-radius:16px;padding:14px;margin-bottom:14px}
+.manage-biz-photo{height:118px;border-radius:12px;margin-bottom:12px;background:linear-gradient(145deg,#64748B 0%,#94A3B8 40%,#CBD5E1 100%)}
+.manage-field-lbl{font-size:13px;font-weight:800;color:var(--navy);margin:0 0 6px}
+.biz-ro-display{font-size:17px;font-weight:900;color:var(--navy);margin:0 0 8px;line-height:1.3}
+.chip-h{padding:6px 12px;border-radius:99px;background:var(--soft);color:var(--gn2);font-size:11px;font-weight:800}
+.prog{display:flex;align-items:center;gap:8px;padding:4px 16px 12px}
+.bar{flex:1;height:6px;background:#E5E7EB;border-radius:99px;overflow:hidden}
+.bar i{display:block;height:100%;background:var(--gn2);border-radius:99px;transition:width .2s}
+.frac{font-size:12px;color:#9CA3AF;font-weight:700}
+.manage-top{align-items:center}
+.manage-check-row{display:flex;align-items:flex-start;gap:10px;font-size:14px;font-weight:600;margin:8px 0 12px}
+.step-num{font-size:13px;font-weight:900;color:var(--blue);margin:0 0 10px}
+.price-panel{border:2px solid #FCA5A5;border-radius:14px;padding:12px;margin:12px 0;background:#FFF5F5}
+.radio-row{display:flex;gap:16px;font-weight:700;font-size:14px}
+.radio-row label{display:flex;align-items:center;gap:6px}
+.cat-rate-choice{display:flex;flex-direction:column;gap:10px;margin:0 0 14px}
+.cat-rate-choice label{display:flex;align-items:flex-start;gap:8px;font-weight:700;font-size:13px;color:var(--navy);line-height:1.35;cursor:pointer}
+.cat-rate-choice input{margin-top:2px;flex-shrink:0}
+.seg-full{display:flex;border:1px solid var(--line);border-radius:12px;overflow:hidden;margin:0}
+.seg-full button{flex:1;border:0;padding:10px;font-weight:800;background:#F8FAFC;color:var(--mut);cursor:pointer}
+.seg-full button.on{background:var(--blue);color:#fff}
+.cover-row{display:flex;gap:10px;align-items:center}
+.cover-thumb{width:64px;height:64px;border-radius:10px;border:2px dashed #BFDBFE;background:#F8FAFC;display:grid;place-items:center}
+.cover-thumb.on{border-style:solid;background:linear-gradient(145deg,#CBD5E1,#94A3B8)}
+.svc-basics-lead{margin:0 0 16px;font-size:13px;color:var(--mut);line-height:1.5}
+.svc-basics-cat{margin:0 0 18px;padding:12px 14px;border-radius:14px;background:#F8FAFC;border:1px solid var(--line)}
+.svc-basics-cat-lbl{display:block;font-size:11px;font-weight:800;color:#9CA3AF;letter-spacing:.5px;text-transform:uppercase;margin:0 0 8px}
+.svc-basics-cat .cat-pill{margin:0;background:#fff}
+.svc-cover-upload{display:flex;align-items:center;gap:14px;width:100%;padding:14px;border:2px dashed #BFDBFE;border-radius:16px;background:#F8FAFC;cursor:pointer;font:inherit;text-align:left;-webkit-tap-highlight-color:transparent}
+.svc-cover-upload.has-image{border-style:solid;border-color:#93C5FD;background:linear-gradient(145deg,#64748B 0%,#94A3B8 55%,#CBD5E1 100%);min-height:120px;align-items:flex-end;padding:16px}
+.svc-cover-upload.has-image .svc-cover-upload-ico{display:none}
+.svc-cover-upload.has-image .svc-cover-upload-txt{color:#fff;text-shadow:0 1px 2px rgba(0,0,0,.25)}
+.svc-cover-upload.has-image .svc-cover-upload-txt .sub{color:rgba(255,255,255,.92)}
+.svc-cover-upload-ico{width:48px;height:48px;border-radius:12px;background:#EFF6FF;display:grid;place-items:center;font-size:22px;flex-shrink:0}
+.svc-cover-upload-txt{display:flex;flex-direction:column;gap:2px;min-width:0}
+.svc-cover-upload-txt b{font-size:15px;color:var(--navy)}
+.svc-cover-upload-txt .sub{font-size:12px;color:var(--mut);font-weight:600}
+.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.pick{border:1.5px solid var(--line);border-radius:12px;padding:12px 8px;text-align:center;font-size:12px;font-weight:800;cursor:pointer;background:#fff;font:inherit;color:var(--navy)}
+.pick.on{border-color:var(--blue);background:#EFF6FF;color:var(--blue)}
+.cal-tabs{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-bottom:14px}
+.cal-tabs .pick{padding:10px 4px;font-size:11px}
+.photo-reg-stats{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:0 0 14px}
+.photo-reg-stat{padding:12px;border-radius:12px;background:#F8FAFC;border:1px solid var(--line)}
+.photo-reg-stat b{display:block;font-size:20px;color:var(--navy)}
+.photo-reg-stat span{font-size:11px;font-weight:700;color:var(--mut)}
+.photo-bk-register-date{margin:16px 0 6px;font-size:11px;font-weight:800;color:#9CA3AF;letter-spacing:.5px;text-transform:uppercase}
+.photo-bk-register-row{display:flex;align-items:flex-start;gap:10px;width:100%;text-align:left;border:1px solid var(--line);border-radius:14px;padding:12px;margin-bottom:8px;background:#fff;cursor:pointer;font:inherit;color:inherit}
+.photo-bk-register-row:active{background:#F8FAFC}
+.photo-bk-register-row .bk-time{font-size:11px;font-weight:800;color:var(--blue);min-width:52px}
+.photo-bk-register-row .bk-meta{flex:1;min-width:0}
+.photo-bk-register-row .bk-meta b{display:block;font-size:14px;color:var(--navy)}
+.photo-bk-register-row .bk-meta span{font-size:11px;color:var(--mut);font-weight:600}
+.photo-bk-register-row .bk-op{font-size:10px;font-weight:800;color:#6B7280;text-align:right;max-width:72px;line-height:1.3}
+.photo-detail-dl{margin:12px 0}
+.photo-detail-dl dt{font-size:11px;font-weight:800;color:#9CA3AF;margin:12px 0 4px}
+.photo-detail-dl dd{margin:0;font-size:15px;font-weight:700;color:var(--navy)}
+.photo-audit-list{margin:0;padding:0;list-style:none}
+.photo-audit-item{padding:12px 0;border-bottom:1px solid var(--line);font-size:12px;line-height:1.45}
+.photo-audit-item b{color:var(--navy)}
+.photo-audit-item .audit-changes{margin-top:6px;color:var(--mut);font-weight:600}
+.btn-audit-link{display:inline-flex;align-items:center;gap:6px;margin-top:12px;padding:10px 14px;border-radius:12px;border:1.5px solid #BFDBFE;background:#EFF6FF;color:var(--blue);font-weight:800;font-size:13px;cursor:pointer;font:inherit}
+.btn-audit-link.has-changes::after{content:'';width:8px;height:8px;border-radius:50%;background:#EF4444}
+.cal-month-nav{display:flex;align-items:center;justify-content:space-between;margin:8px 0 10px;gap:8px}
+.cal-month-nav button{border:0;background:#F3F4F6;width:36px;height:36px;border-radius:10px;font-size:18px;cursor:pointer;color:var(--navy);font-weight:800}
+.cal-month-nav b{font-size:16px;color:var(--navy)}
+.cal-weekdays{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;font-size:10px;font-weight:800;color:#9CA3AF;text-align:center;margin-bottom:4px}
+.cal-mini{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;font-size:12px;text-align:center;margin:0 0 12px}
+.cal-mini .cal-pad{visibility:hidden;pointer-events:none}
+.cal-day-cell{border:0;background:#F9FAFB;border-radius:10px;padding:6px 0 8px;cursor:pointer;font-weight:700;position:relative;min-height:48px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;font:inherit;color:var(--navy)}
+.cal-day-cell.on{background:var(--blue);color:#fff}
+.cal-day-count{font-size:9px;font-weight:800;line-height:1;opacity:.85}
+.cal-day-count.empty{visibility:hidden}
+.cal-dot{width:6px;height:6px;border-radius:50%;flex-shrink:0}
+.cal-dot.av{background:#22C55E}
+.cal-dot.bk{background:#EF4444}
+.cal-dot.off{background:#F97316}
+.cal-dot.blk{background:#7C3AED}
+.cal-dot.na{background:#2563EB}
+.cal-day-cell.on .cal-dot{box-shadow:0 0 0 1px rgba(255,255,255,.45)}
+.cal-legend{display:flex;flex-wrap:wrap;gap:8px 14px;font-size:11px;color:var(--mut);margin-bottom:12px}
+.cal-legend span{display:inline-flex;align-items:center;gap:4px;font-weight:700}
+.cal-month-pick{width:100%;border:1px solid var(--line);border-radius:12px;padding:12px;font-weight:800;font-size:13px;background:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;color:var(--navy);font:inherit}
+.cal-date-nav{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:0 0 14px}
+.cal-date-nav b{font-size:15px;color:var(--navy);flex:1;text-align:center;line-height:1.3}
+.slot{border:1px solid var(--line);border-radius:14px;padding:12px;margin-bottom:10px;background:#fff}
+.slot h3{margin:6px 0 4px;font-size:15px;color:var(--navy)}
+.slot-actions{display:flex;gap:8px;margin-top:10px}
+.slot-actions .btn{margin:0;flex:1;font-size:14px;padding:12px;border-radius:12px}
+.pill{display:inline-block;padding:4px 10px;border-radius:99px;font-size:11px;font-weight:800;margin-bottom:6px}
+.pill.ok{background:#ECFDF3;color:#059669}
+.pill.bad{background:#FEE2E2;color:#B91C1C}
+.pill.off{background:#FFEDD5;color:#C2410C}
+.pill.muted{background:#F3F4F6;color:#6B7280}
+.photo-cal-day-sum{margin-bottom:12px;padding:12px;border-radius:12px;background:#F8FAFC;border:1px solid var(--line)}
+.photo-bk-notes{font-size:12px;color:var(--mut);margin:8px 0 0;line-height:1.45}
+.photo-day-actions{display:flex;flex-direction:column;gap:10px;margin-top:16px}
+.photo-day-actions .btn{margin:0}
+.info.gn{margin-top:10px;padding:10px 12px;border-radius:10px;background:#ECFDF3;color:#065F46;font-size:12px;font-weight:700;line-height:1.4}
+.info.bl{margin-top:10px;padding:10px 12px;border-radius:10px;background:#EFF6FF;color:#1E40AF;font-size:12px;font-weight:700;line-height:1.4}
+.overlay{position:absolute;inset:0;background:rgba(15,23,42,.45);z-index:20;display:none;align-items:flex-end;justify-content:center;padding:0}
+.overlay.on{display:flex}
+.overlay.center{align-items:center;padding:16px}
+.sheet{width:100%;max-height:88%;background:#fff;border-radius:20px 20px 0 0;padding:16px 16px 24px;overflow:auto;box-shadow:0 -8px 32px rgba(0,0,0,.12)}
+.sheet-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+.sheet-head h2{margin:0;font-size:18px;color:var(--navy)}
+.sheet-close{border:0;background:#F3F4F6;width:36px;height:36px;border-radius:10px;font-size:20px;cursor:pointer}
+.sheet-slot-sum{padding:12px;border-radius:12px;background:#F9FAFB;border:1px solid var(--line);margin-bottom:14px;font-size:13px;font-weight:700;color:var(--navy)}
+.block-reason{display:block;border:1px solid var(--line);border-radius:12px;padding:12px;margin-bottom:8px;cursor:pointer}
+.block-reason.on{border-color:var(--blue);background:#EFF6FF}
+.block-reason input{margin-right:8px}
+.block-reason small{display:block;color:var(--mut);font-size:12px;margin-top:4px;font-weight:600}
+.sheet-actions{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:16px}
+.sheet-actions .btn{margin:0;width:100%}
+#photoMonthPickerList{display:grid;grid-template-columns:1fr 1fr;gap:8px;max-height:50vh;overflow:auto}
+.link-add{border:0;background:none;color:var(--blue);font-weight:800;font-size:13px;cursor:pointer;padding:8px 0;margin:8px 0;display:block}
+.warn-box{margin:12px 0;padding:10px;border-radius:10px;background:#FFFBEB;border:1px solid #FDE68A;font-size:11px;line-height:1.4}
+.role-row{display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--line);font-weight:700;font-size:13px}
+.qty-step{display:flex;align-items:center;gap:8px}
+.qty-step button{width:32px;height:32px;border-radius:8px;border:1px solid var(--line);background:#fff;font-size:18px;cursor:pointer;font-weight:800}
+.extra-row{display:grid;grid-template-columns:22px minmax(0,1fr) 76px 36px;gap:6px;align-items:center;padding:10px 0;border-bottom:1px solid var(--line);font-size:11px}
+.extra-row.mode-extra{grid-template-columns:22px minmax(0,1fr) 76px minmax(52px,64px) minmax(58px,72px) 36px}
+.extra-row .extra-name{font-size:12px;color:var(--navy);line-height:1.3}
+.extra-row select,.extra-row input:not([type=checkbox]){padding:6px;font-size:11px;border-radius:8px;border:1px solid var(--line);width:100%;box-sizing:border-box}
+.extra-pay-fields{display:none}
+.extra-row.mode-extra .extra-pay-fields{display:contents}
+.extra-included-block{grid-column:1/-1;display:none;padding:4px 0 6px 28px;border-top:1px dashed var(--line);margin-top:4px}
+.extra-row.mode-included .extra-included-block{display:block}
+.extra-included-block label.extra-hourly-chk{display:flex;align-items:center;gap:8px;font-size:11px;color:var(--navy);cursor:pointer;margin:0}
+.extra-hourly-fields{display:none;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px}
+.extra-row.mode-included.hourly-on .extra-hourly-fields{display:grid}
+.extra-included-block .extra-stream-cams{margin-bottom:10px}
+.extra-hourly-fields .fld{margin:0}
+.extra-hourly-fields .fld label{font-size:10px;color:var(--muted);display:block;margin-bottom:4px}
+.extra-row .pay-del{width:32px;height:32px;border-radius:8px;background:#FEF2F2;display:grid;place-items:center;font-size:14px;line-height:1;border:1px solid #FECACA;cursor:pointer}
+.pkg-optional-details{margin-top:14px;padding:12px;border:1px solid var(--line);border-radius:12px;background:#FAFBFC}
+.pkg-optional-details summary{font-weight:700;font-size:13px;color:var(--navy);cursor:pointer;list-style:none}
+.pkg-optional-details summary::-webkit-details-marker{display:none}
+.pkg-optional-details[open] summary{margin-bottom:10px}
 </style>
 </head>
 <body>
@@ -152,25 +416,215 @@ body{margin:0;background:#EDE9FE;font-family:Inter,system-ui,sans-serif;color:#1
   <div id="lmbCards"></div>
 </section>
 
-<section class="scr" id="decorDash">
-  <div class="top"><button type="button" class="back" id="decDashBack">←</button><h1>Dashboard</h1><button type="button" class="manage-pill" id="decBizProfileBtn">Business profile</button></div>
-  <div class="dash-banner"><div class="dash-logo">🎀</div></div>
+<section class="scr" id="photoDash">
+  <div class="top"><button type="button" class="back" id="backToLmb">←</button><h1>Dashboard</h1><button type="button" class="manage-pill" id="photoBizProfileBtn">Business profile</button></div>
+  <div class="dash-banner" style="background:linear-gradient(145deg,#7C3AED,#BE185D)"><div class="dash-logo">🎀</div></div>
   <div class="dash-head">
-    <b id="decDashHello">Hello, Decor Mart 👋</b>
-    <div class="loc"><span id="decDashLocIco">📍</span> <span id="decDashLoc">Thrissur</span></div>
-    <p class="sub" style="margin-top:6px">Manage your decoration business</p>
+    <b id="dashBizName">Decor Mart</b>
+    <div class="loc"><span id="dashLocIco"></span> <span id="dashLocTxt">Sakthan Nagar, Thrissur</span></div>
   </div>
   <div class="area-card">
-    <b><span id="decAreaIco">📍</span> Service areas</b>
-    <p class="sum" id="decAreaSummary">Thrissur, Ernakulam</p>
-    <a href="#" id="decManageAreasLink">Manage service areas →</a>
+    <b><span id="areaCardIco"></span> Service areas</b>
+    <p class="sum" id="areaSummary">Set where you accept bookings.</p>
+    <a href="#" id="manageAreasLink">Manage service areas →</a>
   </div>
   <p class="lbl" style="padding:0 16px;margin-bottom:8px">QUICK ACTIONS</p>
-  <div class="qgrid" id="decQuickGrid"></div>
+  <div class="qgrid" id="quickGrid"></div>
 </section>
 
+<section class="scr" id="saStates">
+  <div class="top"><button type="button" class="back" data-to="photoDash">←</button><h1>Service Areas</h1><button type="button" class="link" id="saSkip">Skip</button></div>
+  <div class="hero-ico" id="saHeroIco"></div>
+  <div class="pad" style="text-align:center;margin-bottom:12px"><b style="color:var(--navy);font-size:16px">Where do you provide your services?</b><p class="sub" style="margin-top:6px">Select states where you accept bookings. You can add multiple states.</p></div>
+  <div class="sa-search"><span id="saSearchIco"></span><input type="search" id="stateSearch" placeholder="Search states"></div>
+  <div class="chk-list" id="stateList"></div>
+  <div class="cta"><button type="button" class="btn btn-blue" id="saStatesContinue">Continue →</button></div>
+</section>
+<section class="scr" id="saDistricts">
+  <div class="top"><button type="button" class="back" data-to="saStates">←</button><h1>Service Areas</h1><span style="width:48px"></span></div>
+  <div class="seg" id="stateSeg"></div>
+  <div class="pad" style="text-align:center;margin-bottom:8px"><b id="distStateTitle" style="color:var(--navy)">Kerala</b><p class="sub">Select districts where you accept bookings.</p></div>
+  <div class="sa-search"><span></span><input type="search" id="distSearch" placeholder="Search districts"></div>
+  <div class="chk-list" id="distList"></div>
+  <div class="cta"><button type="button" class="btn btn-blue" id="saDistContinue">Continue →</button></div>
+</section>
+<section class="scr" id="saReview">
+  <div class="top"><button type="button" class="back" data-to="saDistricts">←</button><h1>Service Areas</h1><span style="width:48px"></span></div>
+  <div class="hero-ico" id="saRevIco"></div>
+  <div class="pad" style="text-align:center;margin-bottom:12px"><b style="color:var(--navy)">Review your service areas</b></div>
+  <div id="saReviewCards"></div>
+  <div class="info-box"><span>ℹ️</span><span>You can add or remove states and districts later from your dashboard.</span></div>
+  <div class="cta"><button type="button" class="btn btn-green" id="saSave">Save Service Areas</button></div>
+</section>
+<section class="scr" id="calendar">
+  <div class="top"><button type="button" class="back" data-to="photoDash">←</button><h1>Calendar &amp; Bookings</h1><span class="chip-h" id="calBuildChip" style="font-size:9px;max-width:88px;line-height:1.2;text-align:center">ERP</span></div>
+  <div class="pad">
+    <div class="cal-tabs">
+      <button type="button" class="pick on" id="photoTabCalMain">Calendar</button>
+      <button type="button" class="pick" id="photoTabBookList">Bookings</button>
+      <button type="button" class="pick" id="photoTabBookSettings">Settings</button>
+    </div>
+    <div class="cal-month-nav">
+      <button type="button" id="photoCalPrevMonth" aria-label="Previous month">‹</button>
+      <b id="photoCalMonthLabel">October 2026</b>
+      <button type="button" id="photoCalNextMonth" aria-label="Next month">›</button>
+    </div>
+    <div id="photoCalPanelGrid">
+      <div class="cal-weekdays"><span>S</span><span>M</span><span>T</span><span>W</span><span>T</span><span>F</span><span>S</span></div>
+      <div class="cal-mini" id="photoCalGrid"></div>
+      <div class="cal-legend">
+        <span><i class="cal-dot av"></i> Open</span>
+        <span><i class="cal-dot off"></i> Has shoots</span>
+        <span><i class="cal-dot bk"></i> Full</span>
+        <span><i class="cal-dot na"></i> Unavailable</span>
+      </div>
+      <button type="button" class="cal-month-pick" id="photoOpenMonthPicker">📅 Month: <span id="photoCalMonthPickLabel">October 2026</span> ▾</button>
+      <p class="hint" style="margin-top:12px">Tap a date for day schedule, add bookings, or change availability.</p>
+    </div>
+    <div id="photoCalPanelList" hidden>
+      <div class="photo-reg-stats" id="photoBkRegisterStats"></div>
+      <button type="button" class="cal-month-pick" id="photoOpenMonthPickerList" style="margin-bottom:12px">📅 Month: <span id="photoCalMonthPickLabelList">October 2026</span> ▾</button>
+      <div id="photoBkRegisterList"></div>
+      <p class="hint">Tap a row for full details, edit, or change history.</p>
+    </div>
+  </div>
+</section>
+<section class="scr" id="photoBookingDetail">
+  <div class="top"><button type="button" class="back" id="photoBackFromBkDetail">←</button><h1>Booking</h1><span style="width:36px"></span></div>
+  <div class="pad" id="photoBookingDetailBody"></div>
+</section>
+<section class="scr" id="photoCalDay">
+  <div class="top"><button type="button" class="back" id="photoBackFromCalDay">←</button><h1>Day schedule</h1><span style="width:36px"></span></div>
+  <div class="pad">
+    <div class="cal-date-nav">
+      <button type="button" id="photoCalPrevDay" aria-label="Previous day">‹</button>
+      <b id="photoCalDayTitle">—</b>
+      <button type="button" id="photoCalNextDay" aria-label="Next day">›</button>
+    </div>
+    <div id="photoDayBookings"></div>
+  </div>
+</section>
+<section class="scr" id="photoBookSettings">
+  <div class="top"><button type="button" class="back" data-to="photoDash">←</button><h1>Booking Settings</h1><span style="width:36px"></span></div>
+  <div class="pad">
+    <h2 style="margin:0 0 4px;font-size:17px;color:var(--navy)">Max bookings per day</h2>
+    <p class="sub">How many shoots you can take on the same date (ERP capacity).</p>
+    <div class="grid3" id="photoMaxPerDay"></div>
+    <div class="info gn" id="photoMaxInfo"></div>
+    <h2 style="margin:20px 0 4px;font-size:17px;color:var(--navy)">Customer booking window</h2>
+    <p class="sub">How far ahead customers can book online.</p>
+    <div class="grid3" id="photoBookWindow"></div>
+    <div class="info bl" id="photoWindowInfo"></div>
+    <h2 style="margin:20px 0 4px;font-size:17px;color:var(--navy)">Minimum notice</h2>
+    <p class="sub">Earliest day customers can pick from today.</p>
+    <div class="grid3" id="photoMinNotice"></div>
+    <div class="info bl" id="photoNoticeInfo"></div>
+  </div>
+  <div class="cta"><button type="button" class="btn btn-blue" id="photoSaveBookSettings">Save &amp; back to calendar</button></div>
+</section>
+<section class="scr" id="gallery">
+  <div class="top"><button type="button" class="back" data-to="photoDash">←</button><h1>Photos &amp; Gallery</h1><span style="width:36px"></span></div>
+  <div class="stub"><h2>Gallery</h2><p class="sub">Upload portfolio photos for your business profile.</p><button type="button" class="btn btn-blue" data-to="photoDash" style="max-width:200px;margin:16px auto">Back to dashboard</button></div>
+</section>
+<section class="scr" id="requests">
+  <div class="top"><button type="button" class="back" data-to="photoDash">←</button><h1>Booking Requests</h1><span style="width:36px"></span></div>
+  <div class="stub"><h2>3 pending requests</h2><p class="sub">Accept or decline customer booking requests here.</p><button type="button" class="btn btn-blue" data-to="photoDash" style="max-width:200px;margin:16px auto">Back to dashboard</button></div>
+</section>
+<section class="scr" id="photoBizProfile">
+  <div class="prof-hero">
+    <div class="prof-hero-bg"></div>
+    <div class="prof-hero-top">
+      <button type="button" class="prof-back back" data-to="photoDash" aria-label="Back">←</button>
+      <span class="prof-hero-label">Business profile</span>
+      <span style="width:40px"></span>
+    </div>
+  </div>
+  <div class="prof-identity">
+    <div class="prof-avatar" aria-hidden="true">🎀</div>
+    <h2 id="profBizName">—</h2>
+    <p class="prof-tagline" id="profBizTagline"></p>
+    <div class="prof-badge-row" id="profBadges"></div>
+  </div>
+  <div class="prof-scroll">
+    <div class="prof-chips" id="profChips"></div>
+    <div id="profDetailGroups"></div>
+    <p class="prof-foot">Registered business name is locked after listing. For legal name changes, contact Gixbee support via Help.</p>
+  </div>
+</section>
+<section class="scr" id="photoOperators">
+  <div class="top"><button type="button" class="back" data-to="photoDash">←</button><h1>Operators</h1><span style="width:36px"></span></div>
+  <div class="pad" style="padding-top:8px">
+    <p class="sub" id="photoOperatorsSub" style="margin-top:0">Who can manage this business</p>
+    <div class="operators-info">Operators can manage bookings, calendar, and requests. They cannot delete the business or change billing.</div>
+    <p class="lbl" style="margin-top:16px">CURRENT OPERATORS</p>
+    <div id="photoOperatorsList"></div>
+  </div>
+  <div class="cta"><button type="button" class="btn btn-blue" id="photoAddOperatorBtn">+ Add Operator</button></div>
+</section>
+<section class="scr" id="deletedBusiness">
+  <div class="top"><button type="button" class="back" data-to="photoDash">←</button><h1>Deleted business</h1><span style="width:36px"></span></div>
+  <div class="pad" style="padding-top:8px">
+    <p class="sub">Businesses you removed from List My Business. Restore within 30 days to keep your reviews and packages.</p>
+    <div id="deletedBizList" style="margin-top:12px"></div>
+  </div>
+</section>
+<div class="overlay" id="photoBookSheetOverlay" aria-hidden="true">
+  <div class="sheet">
+    <div class="sheet-head"><h2 id="photoBookSheetTitle">Add booking</h2><button type="button" class="sheet-close" id="photoCloseBookSheet" aria-label="Close">×</button></div>
+    <div class="sheet-slot-sum" id="photoBookSheetSum">—</div>
+    <div class="fld"><label>Client name *</label><input id="photoBkClient" placeholder="Client or family name"></div>
+    <div class="fld"><label>Phone</label><input id="photoBkPhone" placeholder="+91 " inputmode="tel"></div>
+    <div class="fld"><label>Event type</label><input id="photoBkEvent" placeholder="Wedding, portrait, funeral…"></div>
+    <div class="fld"><label>Time</label><input id="photoBkTime" placeholder="10:00 AM – 6:00 PM"></div>
+    <div class="fld"><label>Assigned operator *</label><select id="photoBkOperator"></select></div>
+    <div class="fld"><label>Source</label>
+      <div class="radio-row" style="margin-top:6px">
+        <label><input type="radio" name="photoBkSource" value="offline" checked> Offline / phone</label>
+        <label><input type="radio" name="photoBkSource" value="gixbee"> Gixbee</label>
+      </div>
+    </div>
+    <div class="fld"><label>Notes</label><textarea id="photoBkNotes" rows="3" placeholder="Venue, package, special requests…"></textarea></div>
+    <div class="sheet-actions">
+      <button type="button" class="btn btn-ghost" id="photoCancelBookSheet">Cancel</button>
+      <button type="button" class="btn btn-blue" id="photoSaveBookSheet">Save booking</button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="photoDaySheetOverlay" aria-hidden="true">
+  <div class="sheet">
+    <div class="sheet-head"><h2>Day availability</h2><button type="button" class="sheet-close" id="photoCloseDaySheet" aria-label="Close">×</button></div>
+    <p class="sub">Control what customers see. You can still add offline bookings unless the day is at capacity.</p>
+    <label class="block-reason on"><input type="radio" name="photoDayStatus" value="open" checked> <b>Open</b><small>Normal day — bookings allowed up to daily limit.</small></label>
+    <label class="block-reason"><input type="radio" name="photoDayStatus" value="full"> <b>Full</b><small>Hide from customers — day marked as bookings full.</small></label>
+    <label class="block-reason"><input type="radio" name="photoDayStatus" value="disabled"> <b>Not available</b><small>Day off, travel, or personal — no customer booking.</small></label>
+    <div class="fld" style="margin-top:12px"><label>Note (optional)</label><textarea id="photoDayNote" rows="2" placeholder="Shown to your team on this date"></textarea></div>
+    <div class="sheet-actions">
+      <button type="button" class="btn btn-ghost" id="photoCloseDaySheet2" style="display:none"></button>
+      <button type="button" class="btn btn-blue" id="photoSaveDaySheet" style="grid-column:1/-1">Save</button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="photoAuditOverlay" aria-hidden="true">
+  <div class="sheet">
+    <div class="sheet-head"><h2>Change history</h2><button type="button" class="sheet-close" id="photoCloseAudit" aria-label="Close">×</button></div>
+    <p class="sub" id="photoAuditSubtitle" style="margin-top:0">Who changed this booking and when.</p>
+    <ul class="photo-audit-list" id="photoAuditList"></ul>
+    <button type="button" class="btn btn-ghost" id="photoCloseAuditBtn" style="width:100%;margin-top:8px">Close</button>
+  </div>
+</div>
+
+<div class="overlay center" id="photoMonthPickerOverlay" aria-hidden="true">
+  <div class="sheet" style="max-height:70%;border-radius:16px">
+    <div class="sheet-head"><h2>Jump to month</h2><button type="button" class="sheet-close" id="photoCloseMonthPicker">×</button></div>
+    <div id="photoMonthPickerList"></div>
+  </div>
+</div>
+
+
 <section class="scr" id="decorHub">
-  <div class="top gx-top"><button type="button" class="back" id="decHubBack">←</button><h1 id="decHubHead"><em>Gixbee</em><span>|</span>Packages &amp; Services</h1><button type="button" class="hub-more" aria-label="More">⋮</button></div>
+  <div class="top gx-top"><button type="button" class="back" id="decHubBack" data-to="photoDash">←</button><h1 id="decHubHead"><em>Gixbee</em><span>|</span>Packages &amp; Services</h1><button type="button" class="hub-more" aria-label="More">⋮</button></div>
   <div class="hub-seg"><button type="button" id="decTabPackages" class="on">Packages</button><button type="button" id="decTabServices">Individual Services</button></div>
   <div id="decHubPkgPanel">
     <div class="search"><span>🔍</span><input type="search" id="decPkgSearch" placeholder="Search packages" autocomplete="off"></div>
@@ -337,22 +791,1204 @@ body{margin:0;background:#EDE9FE;font-family:Inter,system-ui,sans-serif;color:#1
   <button type="button" class="btn btn-decor" id="decSvcSuccessDone" style="width:min(100%,280px);margin-top:16px">View services</button></div>
 </section>
 
-<section class="scr stub" id="decorStubOps"><p>Operators (prototype stub)</p><button type="button" class="back" onclick="show('decorDash')">← Dashboard</button></section>
-<section class="scr stub" id="decorStubEnq"><p>Enquiries (prototype stub)</p><button type="button" class="back" onclick="show('decorDash')">←</button></section>
-<section class="scr stub" id="decorStubCal"><p>Calendar (prototype stub)</p><button type="button" class="back" onclick="show('decorDash')">←</button></section>
-<section class="scr stub" id="decorStubGal"><p>Gallery (prototype stub)</p><button type="button" class="back" onclick="show('decorDash')">←</button></section>
-<section class="scr stub" id="decorStubProf"><p>Business profile (prototype stub)</p><button type="button" class="back" onclick="show('decorDash')">←</button></section>
-
-<nav class="bottom-nav" id="decBottomNav" hidden>
-  <button type="button" data-nav="decorDash"><span class="ni">🏠</span>Home</button>
-  <button type="button" data-nav="decorStubEnq"><span class="ni">💬</span>Enquiries</button>
-  <button type="button" data-nav="decorStubCal"><span class="ni">📅</span>Calendar</button>
-  <button type="button" data-nav="decorStubProf"><span class="ni">👤</span>Profile</button>
-</nav>
 <div class="toast" id="toast"></div>
 </div></div>
 <!-- APP_START -->
 <script>
+function photoIcon(name) {
+  const c = ' class="p-ico" aria-hidden="true"';
+  const icons = {
+    pin: '<svg' + c + ' viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 21s6-5.2 6-10a6 6 0 1 0-12 0c0 4.8 6 10 6 10z"/><circle cx="12" cy="11" r="2.5"/></svg>',
+    cam: '<svg' + c + ' viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 8h4l2-3h4l2 3h4v11H4V8z"/><circle cx="12" cy="13" r="3.5"/></svg>',
+    pkg: '<svg' + c + ' viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3l8 4v6c0 5-3.5 8-8 8s-8-3-8-8V7l8-4z"/></svg>',
+    cal: '<svg' + c + ' viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M8 3v4M16 3v4M3 10h18"/></svg>',
+    back: '<svg' + c + ' viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 6l-6 6 6 6"/></svg>',
+    check: '<svg' + c + ' viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3"><path d="M5 13l4 4L19 7"/></svg>',
+    lock: '<svg' + c + ' viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>',
+    edit: '<svg' + c + ' viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z"/></svg>',
+    search: '<svg' + c + ' viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg>',
+    menu: '<svg' + c + ' viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="6" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="12" cy="18" r="1.5"/></svg>',
+    home: '<svg' + c + ' viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 10.5L12 4l8 6.5V20a1 1 0 0 1-1 1h-5v-6H10v6H5a1 1 0 0 1-1-1v-9.5z"/></svg>',
+    bell: '<svg' + c + ' viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 16H6l1.5-2V10a5.5 5.5 0 0 1 11 0v4L18 16z"/></svg>',
+  };
+  return icons[name] || '';
+}
+
+/* Photography owner — calendar & bookings (ERP-style, multi-shoot per day) */
+
+const PHOTO_MONTH_NAMES = [
+  'January',
+  'February',
+  'March',
+  'April',
+  'May',
+  'June',
+  'July',
+  'August',
+  'September',
+  'October',
+  'November',
+  'December',
+];
+const PHOTO_DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+
+let photoPendingBook = null;
+let photoPendingBookDateKey = null;
+let photoAuditBookingId = null;
+let photoCalendarUiLock = false;
+
+function photoCalDateKey(y, m, d) {
+  return y + '-' + String(m).padStart(2, '0') + '-' + String(d).padStart(2, '0');
+}
+
+function photoParseCalDateKey(key) {
+  const p = String(key).split('-');
+  return { y: +p[0], m: +p[1], d: +p[2] };
+}
+
+function photoDaysInMonth(y, m) {
+  return new Date(y, m, 0).getDate();
+}
+
+function photoMonthLabel(y, m) {
+  return PHOTO_MONTH_NAMES[m - 1] + ' ' + y;
+}
+
+function photoFormatCalDayTitle(key) {
+  const p = photoParseCalDateKey(key);
+  const dt = new Date(p.y, p.m - 1, p.d);
+  return p.d + ' ' + PHOTO_MONTH_NAMES[p.m - 1].slice(0, 3) + ' ' + p.y + ', ' + PHOTO_DAY_NAMES[dt.getDay()];
+}
+
+function defaultPhotoCalendar() {
+  const now = new Date(2026, 9, 8);
+  return {
+    viewYear: now.getFullYear(),
+    viewMonth: now.getMonth() + 1,
+    selectedKey: photoCalDateKey(now.getFullYear(), now.getMonth() + 1, now.getDate()),
+    activeTab: 'grid',
+    sessionOperatorId: 'op_owner',
+    settings: {
+      maxBookingsPerDay: 3,
+      bookWindowMonths: 6,
+      minNoticeDays: 2,
+    },
+    days: {},
+  };
+}
+
+function ensurePhotoCalendar() {
+  if (!store.calendar) store.calendar = defaultPhotoCalendar();
+  const cal = store.calendar;
+  if (!cal.settings) cal.settings = defaultPhotoCalendar().settings;
+  if (!cal.days) cal.days = {};
+  if (!cal.selectedKey) {
+    cal.selectedKey = photoCalDateKey(cal.viewYear, cal.viewMonth, 1);
+  }
+  seedPhotoCalendarDemo(cal);
+  Object.keys(cal.days).forEach(function (key) {
+    (cal.days[key].bookings || []).forEach(photoEnsureBookingShape);
+  });
+  return cal;
+}
+
+function seedPhotoCalendarDemo(cal) {
+  if (cal._demoSeeded) return;
+  if (Object.keys(cal.days).length > 3) {
+    cal._demoSeeded = true;
+    return;
+  }
+  cal.days['2026-10-10'] = {
+    bookings: [
+      photoNewBookingRecord({
+        id: 'bk-demo-1',
+        client: 'Anjali & Rohit',
+        phone: '+91 98470 11220',
+        event: 'Engagement',
+        time: '10:00 AM – 2:00 PM',
+        source: 'gixbee',
+        notes: 'Outdoor at Sakthan Nagar park',
+        operatorId: 'op_owner',
+      }),
+      photoNewBookingRecord({
+        id: 'bk-demo-2',
+        client: 'Thomas Family',
+        phone: '+91 94470 55661',
+        event: 'Portrait',
+        time: '4:00 PM – 5:30 PM',
+        source: 'offline',
+        notes: 'Studio slot',
+        operatorId: 'op_mgr1',
+      }),
+    ],
+  };
+  cal.days['2026-10-12'] = {
+    dayStatus: 'disabled',
+    dayNote: 'Team on wedding travel — not taking new bookings',
+    bookings: [],
+  };
+  cal.days['2026-10-15'] = {
+    dayStatus: 'full',
+    dayNote: 'Festival week — capacity reached',
+    bookings: [
+      photoNewBookingRecord({
+        id: 'bk-demo-3',
+        client: 'Memorial Service',
+        phone: '+91 98765 00011',
+        event: 'Funeral / Memorial',
+        time: '9:00 AM – 1:00 PM',
+        source: 'offline',
+        notes: '',
+        operatorId: 'op_owner',
+      }),
+    ],
+  };
+  cal._demoSeeded = true;
+}
+
+function photoOperatorName(operatorId) {
+  ensureOperators();
+  const op = store.operators.find(function (o) {
+    return o.id === operatorId;
+  });
+  return op ? op.name : 'Unknown';
+}
+
+function photoSessionOperatorId() {
+  const cal = ensurePhotoCalendar();
+  if (cal.sessionOperatorId) return cal.sessionOperatorId;
+  ensureOperators();
+  const owner = store.operators.find(function (o) {
+    return o.role === 'owner';
+  });
+  return owner ? owner.id : store.operators[0] ? store.operators[0].id : 'op_owner';
+}
+
+function photoNowIso() {
+  return new Date().toISOString();
+}
+
+function photoNewBookingRecord(partial) {
+  const opId = partial.operatorId || photoSessionOperatorId();
+  const rec = {
+    id: partial.id || null,
+    client: partial.client || '',
+    phone: partial.phone || '',
+    event: partial.event || 'Event',
+    time: partial.time || 'TBD',
+    source: partial.source || 'offline',
+    notes: partial.notes || '',
+    status: partial.status || 'confirmed',
+    operatorId: opId,
+    operatorName: photoOperatorName(opId),
+    createdAt: partial.createdAt || photoNowIso(),
+    createdBy: partial.createdBy || opId,
+    auditLog: partial.auditLog || [],
+  };
+  if (!rec.auditLog.length) {
+    rec.auditLog.push({
+      at: rec.createdAt,
+      by: rec.createdBy,
+      byName: photoOperatorName(rec.createdBy),
+      action: 'created',
+      changes: {},
+    });
+  }
+  return rec;
+}
+
+function photoEnsureBookingShape(b) {
+  if (!b.auditLog) b.auditLog = [];
+  if (!b.operatorId) b.operatorId = photoSessionOperatorId();
+  if (!b.operatorName) b.operatorName = photoOperatorName(b.operatorId);
+  if (!b.createdAt) b.createdAt = photoNowIso();
+  return b;
+}
+
+function photoAppendBookingAudit(booking, action, changes) {
+  photoEnsureBookingShape(booking);
+  const by = photoSessionOperatorId();
+  booking.auditLog.push({
+    at: photoNowIso(),
+    by: by,
+    byName: photoOperatorName(by),
+    action: action,
+    changes: changes || {},
+  });
+}
+
+function photoBookingFieldLabels() {
+  return {
+    client: 'Client',
+    phone: 'Phone',
+    event: 'Event',
+    time: 'Time',
+    source: 'Source',
+    notes: 'Notes',
+    operatorId: 'Operator',
+  };
+}
+
+function photoDiffBooking(prev, next) {
+  const labels = photoBookingFieldLabels();
+  const changes = {};
+  Object.keys(labels).forEach(function (k) {
+    const a = prev[k] != null ? String(prev[k]) : '';
+    const b = next[k] != null ? String(next[k]) : '';
+    if (a !== b) {
+      changes[k] = {
+        label: labels[k],
+        from: k === 'operatorId' ? photoOperatorName(a) || a : a,
+        to: k === 'operatorId' ? photoOperatorName(b) || b : b,
+      };
+    }
+  });
+  return changes;
+}
+
+function photoFindBooking(bookingId) {
+  const cal = ensurePhotoCalendar();
+  let found = null;
+  Object.keys(cal.days).forEach(function (key) {
+    const day = cal.days[key];
+    (day.bookings || []).forEach(function (b) {
+      if (b.id === bookingId) found = { key: key, booking: b };
+    });
+  });
+  return found;
+}
+
+function photoBookingsInMonth(y, m) {
+  const cal = ensurePhotoCalendar();
+  const dim = photoDaysInMonth(y, m);
+  const rows = [];
+  for (let d = 1; d <= dim; d++) {
+    const key = photoCalDateKey(y, m, d);
+    const day = cal.days[key];
+    if (!day || !day.bookings) continue;
+    photoActiveBookings(day).forEach(function (b) {
+      photoEnsureBookingShape(b);
+      rows.push({ dateKey: key, booking: b });
+    });
+  }
+  rows.sort(function (a, b) {
+    if (a.dateKey !== b.dateKey) return a.dateKey < b.dateKey ? -1 : 1;
+    return (a.booking.time || '').localeCompare(b.booking.time || '');
+  });
+  return rows;
+}
+
+function photoSetCalTab(tab) {
+  const cal = ensurePhotoCalendar();
+  cal.activeTab = tab;
+  const grid = el('photoCalPanelGrid');
+  const list = el('photoCalPanelList');
+  const tabMain = el('photoTabCalMain');
+  const tabList = el('photoTabBookList');
+  const tabSet = el('photoTabBookSettings');
+  if (tabMain) tabMain.classList.toggle('on', tab === 'grid');
+  if (tabList) tabList.classList.toggle('on', tab === 'list');
+  if (tabSet) tabSet.classList.toggle('on', tab === 'settings');
+  if (grid) grid.hidden = tab !== 'grid';
+  if (list) list.hidden = tab !== 'list';
+}
+
+function photoEnsureDay(cal, key) {
+  if (!cal.days[key]) cal.days[key] = { bookings: [] };
+  if (!cal.days[key].bookings) cal.days[key].bookings = [];
+  return cal.days[key];
+}
+
+function photoActiveBookings(day) {
+  return (day.bookings || []).filter(function (b) {
+    return b.status !== 'cancelled';
+  });
+}
+
+function photoDayCapacityUsed(cal, key) {
+  const day = cal.days[key];
+  if (!day) return 0;
+  return photoActiveBookings(day).length;
+}
+
+function photoDayIsFull(cal, key) {
+  const day = cal.days[key];
+  if (day && day.dayStatus === 'full') return true;
+  const max = cal.settings.maxBookingsPerDay || 1;
+  return photoDayCapacityUsed(cal, key) >= max;
+}
+
+function photoDayDotKind(cal, key) {
+  const day = cal.days[key];
+  if (!day) return 'av';
+  if (day.dayStatus === 'disabled') return 'na';
+  if (day.dayStatus === 'full' || photoDayIsFull(cal, key)) return 'bk';
+  const active = photoActiveBookings(day);
+  if (!active.length) return 'av';
+  if (active.some(function (b) {
+    return b.source === 'gixbee';
+  }))
+    return 'bk';
+  return 'off';
+}
+
+function photoOpenOverlay(id) {
+  const o = el(id);
+  if (o) {
+    o.classList.add('on');
+    o.setAttribute('aria-hidden', 'false');
+  }
+}
+
+function photoCloseOverlay(id) {
+  const o = el(id);
+  if (o) {
+    o.classList.remove('on');
+    o.setAttribute('aria-hidden', 'true');
+  }
+}
+
+function syncPhotoCalendarUi() {
+  if (photoCalendarUiLock) return;
+  photoCalendarUiLock = true;
+  try {
+    const cal = ensurePhotoCalendar();
+    if (cal.activeTab === 'list') {
+      photoSetCalTab('list');
+      renderPhotoBookingRegister(false);
+    } else {
+      photoSetCalTab(cal.activeTab || 'grid');
+      renderPhotoCalendar(false);
+    }
+  } finally {
+    photoCalendarUiLock = false;
+  }
+}
+
+function openPhotoCalendar() {
+  ensurePhotoCalendar();
+  const chip = el('calBuildChip');
+  if (chip && typeof PHOTO_OWNER_BUILD !== 'undefined') chip.textContent = 'Cal ' + PHOTO_OWNER_BUILD.split('-').pop();
+  if (typeof photoShowScreen === 'function') photoShowScreen('calendar');
+  else if (typeof show === 'function') show('calendar');
+  syncPhotoCalendarUi();
+}
+
+function renderPhotoCalendar(syncTab) {
+  const cal = ensurePhotoCalendar();
+  const y = cal.viewYear;
+  const m = cal.viewMonth;
+  const ml = el('photoCalMonthLabel');
+  const mpl = el('photoCalMonthPickLabel');
+  if (ml) ml.textContent = photoMonthLabel(y, m);
+  if (mpl) mpl.textContent = photoMonthLabel(y, m);
+  const firstDow = new Date(y, m - 1, 1).getDay();
+  const dim = photoDaysInMonth(y, m);
+  const cells = [];
+  for (let i = 0; i < firstDow; i++) cells.push('<span class="cal-pad"></span>');
+  const max = cal.settings.maxBookingsPerDay || 3;
+  for (let d = 1; d <= dim; d++) {
+    const key = photoCalDateKey(y, m, d);
+    const dot = photoDayDotKind(cal, key);
+    const cnt = photoDayCapacityUsed(cal, key);
+    const on = cal.selectedKey === key ? ' on' : '';
+    const countHtml =
+      cnt > 0 ? '<span class="cal-day-count">' + cnt + '/' + max + '</span>' : '<span class="cal-day-count empty"></span>';
+    cells.push(
+      '<button type="button" class="cal-day-cell' +
+        on +
+        '" data-photo-cal-day="' +
+        d +
+        '" data-photo-cal-key="' +
+        key +
+        '"><span>' +
+        d +
+        '</span>' +
+        countHtml +
+        '<i class="cal-dot ' +
+        dot +
+        '"></i></button>'
+    );
+  }
+  const grid = el('photoCalGrid');
+  if (!grid) return;
+  grid.innerHTML = cells.join('');
+  grid.querySelectorAll('[data-photo-cal-key]').forEach(function (btn) {
+    btn.onclick = function () {
+      cal.selectedKey = btn.getAttribute('data-photo-cal-key');
+      saveStore();
+      renderPhotoCalDay();
+      show('photoCalDay');
+    };
+  });
+  if (syncTab !== false) photoSetCalTab(store.calendar.activeTab || 'grid');
+}
+
+function renderPhotoBookingRegister(syncTab) {
+  const cal = ensurePhotoCalendar();
+  const y = cal.viewYear;
+  const m = cal.viewMonth;
+  const ml = el('photoCalMonthLabel');
+  const mpl = el('photoCalMonthPickLabel');
+  const mpl2 = el('photoCalMonthPickLabelList');
+  const label = photoMonthLabel(y, m);
+  if (ml) ml.textContent = label;
+  if (mpl) mpl.textContent = label;
+  if (mpl2) mpl2.textContent = label;
+  const rows = photoBookingsInMonth(y, m);
+  const stats = el('photoBkRegisterStats');
+  if (stats) {
+    const daysWith = {};
+    rows.forEach(function (r) {
+      daysWith[r.dateKey] = true;
+    });
+    stats.innerHTML =
+      '<div class="photo-reg-stat"><b>' +
+      rows.length +
+      '</b><span>Bookings this month</span></div>' +
+      '<div class="photo-reg-stat"><b>' +
+      Object.keys(daysWith).length +
+      '</b><span>Days with shoots</span></div>';
+  }
+  const list = el('photoBkRegisterList');
+  if (!list) return;
+  if (!rows.length) {
+    list.innerHTML =
+      '<div class="hub-empty" style="margin:12px 0"><div class="hub-empty-ico">📋</div><b>No bookings</b><p class="sub">No active shoots in ' +
+      esc(label) +
+      '. Add from Calendar or open a day schedule.</p></div>';
+    return;
+  }
+  let html = '';
+  let lastKey = '';
+  rows.forEach(function (row) {
+    if (row.dateKey !== lastKey) {
+      lastKey = row.dateKey;
+      const cnt = rows.filter(function (x) {
+        return x.dateKey === row.dateKey;
+      }).length;
+      html +=
+        '<p class="photo-bk-register-date">' +
+        esc(photoFormatCalDayTitle(row.dateKey)) +
+        ' · ' +
+        cnt +
+        ' booking' +
+        (cnt === 1 ? '' : 's') +
+        '</p>';
+    }
+    const b = row.booking;
+    html +=
+      '<button type="button" class="photo-bk-register-row" data-photo-reg-key="' +
+      esc(row.dateKey) +
+      '" data-photo-reg-id="' +
+      esc(b.id) +
+      '"><span class="bk-time">' +
+      esc((b.time || '').split('–')[0].trim() || '—') +
+      '</span><span class="bk-meta"><b>' +
+      esc(b.client) +
+      '</b><span>' +
+      esc(b.event) +
+      ' · ' +
+      (b.source === 'gixbee' ? 'Gixbee' : 'Offline') +
+      (b.auditLog && b.auditLog.length > 1 ? ' · edited' : '') +
+      '</span></span><span class="bk-op">' +
+      esc(b.operatorName || '—') +
+      '</span></button>';
+  });
+  list.innerHTML = html;
+  list.querySelectorAll('.photo-bk-register-row').forEach(function (btn) {
+    btn.onclick = function () {
+      openPhotoBookingDetail(btn.getAttribute('data-photo-reg-key'), btn.getAttribute('data-photo-reg-id'));
+    };
+  });
+  if (syncTab !== false) photoSetCalTab('list');
+}
+
+function openPhotoBookingDetail(dateKey, bookingId) {
+  const cal = ensurePhotoCalendar();
+  cal.selectedKey = dateKey;
+  cal.detailReturnTab = cal.activeTab || 'list';
+  saveStore();
+  renderPhotoBookingDetail(bookingId);
+  show('photoBookingDetail');
+}
+
+function renderPhotoBookingDetail(bookingId) {
+  const hit = photoFindBooking(bookingId);
+  const body = el('photoBookingDetailBody');
+  if (!body || !hit) {
+    if (body) body.innerHTML = '<p class="sub">Booking not found.</p>';
+    return;
+  }
+  const b = photoEnsureBookingShape(hit.booking);
+  const key = hit.key;
+  const edits = (b.auditLog || []).filter(function (e) {
+    return e.action === 'updated' || e.action === 'cancelled';
+  }).length;
+  const auditCls = edits > 0 || (b.auditLog && b.auditLog.length > 1) ? ' has-changes' : '';
+  body.innerHTML =
+    '<p class="sub" style="margin:0 0 12px">' +
+    esc(photoFormatCalDayTitle(key)) +
+    '</p>' +
+    '<span class="pill ' +
+    (b.source === 'gixbee' ? 'bad' : 'off') +
+    '">' +
+    (b.source === 'gixbee' ? 'Gixbee' : 'Offline') +
+    '</span>' +
+    '<dl class="photo-detail-dl">' +
+    '<dt>Client</dt><dd>' +
+    esc(b.client) +
+    '</dd>' +
+    '<dt>Event</dt><dd>' +
+    esc(b.event) +
+    '</dd>' +
+    '<dt>Time</dt><dd>' +
+    esc(b.time) +
+    '</dd>' +
+    '<dt>Phone</dt><dd>' +
+    esc(b.phone || '—') +
+    '</dd>' +
+    '<dt>Operator</dt><dd>' +
+    esc(b.operatorName) +
+    '</dd>' +
+    '<dt>Notes</dt><dd style="font-weight:600;font-size:14px;line-height:1.45">' +
+    esc(b.notes || '—') +
+    '</dd></dl>' +
+    '<button type="button" class="btn-audit-link' +
+    auditCls +
+    '" id="photoOpenAuditBtn">Change history (' +
+    (b.auditLog ? b.auditLog.length : 0) +
+    ')</button>' +
+    '<div class="slot-actions" style="margin-top:20px">' +
+    '<button type="button" class="btn btn-ghost" id="photoDetailEditBtn">Edit booking</button>' +
+    '<button type="button" class="btn btn-ghost" style="color:#B91C1C;border-color:#FECACA" id="photoDetailCancelBtn">Cancel</button></div>';
+  const auditBtn = el('photoOpenAuditBtn');
+  if (auditBtn) {
+    auditBtn.onclick = function () {
+      openPhotoAuditLog(bookingId);
+    };
+  }
+  el('photoDetailEditBtn').onclick = function () {
+    const cal = ensurePhotoCalendar();
+    cal.selectedKey = key;
+    openPhotoBookSheet(bookingId, key);
+  };
+  el('photoDetailCancelBtn').onclick = function () {
+    const cal = ensurePhotoCalendar();
+    cal.selectedKey = key;
+    cancelPhotoBooking(bookingId, true);
+    renderPhotoBookingDetail(bookingId);
+  };
+}
+
+function openPhotoAuditLog(bookingId) {
+  const hit = photoFindBooking(bookingId);
+  if (!hit) return;
+  photoAuditBookingId = bookingId;
+  const b = hit.booking;
+  const sub = el('photoAuditSubtitle');
+  if (sub) sub.textContent = b.client + ' · ' + photoFormatCalDayTitle(hit.key);
+  const list = el('photoAuditList');
+  if (!list) return;
+  const entries = (b.auditLog || []).slice().reverse();
+  list.innerHTML = entries
+    .map(function (e) {
+      let ch = '';
+      if (e.changes && Object.keys(e.changes).length) {
+        ch =
+          '<div class="audit-changes">' +
+          Object.keys(e.changes)
+            .map(function (k) {
+              const c = e.changes[k];
+              return esc(c.label || k) + ': ' + esc(c.from || '—') + ' → ' + esc(c.to || '—');
+            })
+            .join('<br>') +
+          '</div>';
+      }
+      const actionLabel =
+        e.action === 'created'
+          ? 'Created'
+          : e.action === 'updated'
+            ? 'Updated'
+            : e.action === 'cancelled'
+              ? 'Cancelled'
+              : e.action;
+      return (
+        '<li class="photo-audit-item"><b>' +
+        esc(actionLabel) +
+        '</b> · ' +
+        esc(e.byName || '—') +
+        '<br><span class="hint">' +
+        esc(new Date(e.at).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })) +
+        '</span>' +
+        ch +
+        '</li>'
+      );
+    })
+    .join('');
+  photoOpenOverlay('photoAuditOverlay');
+}
+
+function photoFillOperatorSelect(selectedId) {
+  const sel = el('photoBkOperator');
+  if (!sel) return;
+  ensureOperators();
+  sel.innerHTML = store.operators
+    .map(function (op) {
+      return (
+        '<option value="' +
+        esc(op.id) +
+        '"' +
+        (op.id === selectedId ? ' selected' : '') +
+        '>' +
+        esc(op.name) +
+        (op.role === 'owner' ? ' (Owner)' : '') +
+        '</option>'
+      );
+    })
+    .join('');
+}
+
+function photoDayStatusLabel(cal, key) {
+  const day = cal.days[key];
+  if (day && day.dayStatus === 'disabled') {
+    return { pill: 'muted', text: 'Not available to customers' };
+  }
+  if (day && day.dayStatus === 'full') return { pill: 'bad', text: 'Marked full' };
+  if (photoDayIsFull(cal, key)) return { pill: 'bad', text: 'Capacity reached' };
+  const used = photoDayCapacityUsed(cal, key);
+  const max = cal.settings.maxBookingsPerDay || 3;
+  return { pill: 'ok', text: used + ' of ' + max + ' bookings' };
+}
+
+function renderPhotoCalDay() {
+  const cal = ensurePhotoCalendar();
+  const key = cal.selectedKey;
+  const title = el('photoCalDayTitle');
+  if (title) title.textContent = photoFormatCalDayTitle(key);
+  const day = photoEnsureDay(cal, key);
+  const st = photoDayStatusLabel(cal, key);
+  const slots = el('photoDayBookings');
+  if (!slots) return;
+
+  let head =
+    '<div class="photo-cal-day-sum"><span class="pill ' +
+    st.pill +
+    '">' +
+    esc(st.text) +
+    '</span>';
+  if (day.dayNote) {
+    head += '<p class="sub" style="margin:8px 0 0">' + esc(day.dayNote) + '</p>';
+  }
+  head += '</div>';
+
+  const active = photoActiveBookings(day);
+  const cards = active
+    .map(function (b) {
+      photoEnsureBookingShape(b);
+      const srcPill = b.source === 'gixbee' ? '<span class="pill bad">Gixbee</span>' : '<span class="pill off">Offline</span>';
+      return (
+        '<div class="slot photo-bk-card" data-bk-id="' +
+        esc(b.id) +
+        '">' +
+        srcPill +
+        '<h3>' +
+        esc(b.client) +
+        '</h3>' +
+        '<p class="sub" style="margin:4px 0"><b>' +
+        esc(b.event) +
+        '</b> · ' +
+        esc(b.time) +
+        '</p>' +
+        '<p class="hint" style="margin:0">Operator: ' +
+        esc(b.operatorName || '—') +
+        '</p>' +
+        (b.phone ? '<p class="hint" style="margin:0">' + esc(b.phone) + '</p>' : '') +
+        (b.notes ? '<p class="photo-bk-notes">' + esc(b.notes) + '</p>' : '') +
+        '<div class="slot-actions">' +
+        '<button type="button" class="btn btn-ghost" data-photo-view-bk="' +
+        esc(b.id) +
+        '">Details</button>' +
+        '<button type="button" class="btn btn-ghost" data-photo-edit-bk="' +
+        esc(b.id) +
+        '">Edit</button>' +
+        '<button type="button" class="btn btn-ghost" style="color:#B91C1C;border-color:#FECACA" data-photo-cancel-bk="' +
+        esc(b.id) +
+        '">Cancel</button></div></div>'
+      );
+    })
+    .join('');
+
+  const canAdd = !photoDayIsFull(cal, key);
+  const dayActions =
+    '<div class="photo-day-actions">' +
+    '<button type="button" class="btn btn-blue" data-photo-add-bk' +
+    (canAdd ? '' : ' disabled') +
+    '>+ Add booking</button>' +
+    '<button type="button" class="btn btn-ghost" data-photo-day-status>Day availability</button></div>';
+
+  slots.innerHTML =
+    head + (cards || '<p class="sub" style="margin:12px 0">No shoots on this date yet.</p>') + dayActions;
+
+  slots.querySelectorAll('[data-photo-add-bk]').forEach(function (btn) {
+    btn.onclick = function () {
+      openPhotoBookSheet(null);
+    };
+  });
+  slots.querySelectorAll('[data-photo-day-status]').forEach(function (btn) {
+    btn.onclick = function () {
+      openPhotoDaySheet();
+    };
+  });
+  slots.querySelectorAll('[data-photo-view-bk]').forEach(function (btn) {
+    btn.onclick = function () {
+      openPhotoBookingDetail(key, btn.getAttribute('data-photo-view-bk'));
+    };
+  });
+  slots.querySelectorAll('[data-photo-edit-bk]').forEach(function (btn) {
+    btn.onclick = function () {
+      openPhotoBookSheet(btn.getAttribute('data-photo-edit-bk'), key);
+    };
+  });
+  slots.querySelectorAll('[data-photo-cancel-bk]').forEach(function (btn) {
+    btn.onclick = function () {
+      cancelPhotoBooking(btn.getAttribute('data-photo-cancel-bk'));
+    };
+  });
+}
+
+function openPhotoBookSheet(bookingId, dateKey) {
+  const cal = ensurePhotoCalendar();
+  if (dateKey) cal.selectedKey = dateKey;
+  const key = cal.selectedKey;
+  photoPendingBookDateKey = key;
+  const day = photoEnsureDay(cal, key);
+  if (!bookingId) {
+    photoPendingBook = photoNewBookingRecord({
+      id: null,
+      client: '',
+      phone: '',
+      event: 'Wedding',
+      time: '10:00 AM – 6:00 PM',
+      source: 'offline',
+      notes: '',
+      operatorId: photoSessionOperatorId(),
+    });
+  } else {
+    const found = (day.bookings || []).find(function (b) {
+      return b.id === bookingId;
+    });
+    photoPendingBook = found ? JSON.parse(JSON.stringify(found)) : null;
+  }
+  if (!photoPendingBook) return;
+  photoFillOperatorSelect(photoPendingBook.operatorId || photoSessionOperatorId());
+  const sum = el('photoBookSheetSum');
+  if (sum) sum.textContent = photoFormatCalDayTitle(key);
+  if (el('photoBkClient')) el('photoBkClient').value = photoPendingBook.client;
+  if (el('photoBkPhone')) el('photoBkPhone').value = photoPendingBook.phone || '';
+  if (el('photoBkEvent')) el('photoBkEvent').value = photoPendingBook.event;
+  if (el('photoBkTime')) el('photoBkTime').value = photoPendingBook.time;
+  if (el('photoBkNotes')) el('photoBkNotes').value = photoPendingBook.notes || '';
+  document.querySelectorAll('[name=photoBkSource]').forEach(function (r) {
+    r.checked = r.value === photoPendingBook.source;
+  });
+  const h2 = el('photoBookSheetTitle');
+  if (h2) h2.textContent = bookingId ? 'Edit booking' : 'Add booking';
+  photoOpenOverlay('photoBookSheetOverlay');
+}
+
+function savePhotoBookSheet() {
+  if (!photoPendingBook) return;
+  const cal = ensurePhotoCalendar();
+  const key = cal.selectedKey;
+  const day = photoEnsureDay(cal, key);
+  photoPendingBook.client = el('photoBkClient').value.trim();
+  photoPendingBook.phone = el('photoBkPhone').value.trim();
+  photoPendingBook.event = el('photoBkEvent').value.trim() || 'Event';
+  photoPendingBook.time = el('photoBkTime').value.trim() || 'TBD';
+  photoPendingBook.notes = el('photoBkNotes').value.trim();
+  const src = document.querySelector('input[name=photoBkSource]:checked');
+  photoPendingBook.source = src ? src.value : 'offline';
+  const opSel = el('photoBkOperator');
+  if (opSel) {
+    photoPendingBook.operatorId = opSel.value;
+    photoPendingBook.operatorName = photoOperatorName(opSel.value);
+  }
+  if (!photoPendingBook.client) {
+    toast('Enter client name.');
+    return;
+  }
+  if (!photoPendingBook.id) {
+    if (photoDayIsFull(cal, key)) {
+      toast('Day is at capacity. Increase limit in Booking Settings or mark another day.');
+      return;
+    }
+    photoPendingBook.id = uid('bk');
+    photoPendingBook.status = 'confirmed';
+    photoPendingBook.createdBy = photoSessionOperatorId();
+    day.bookings.push(photoPendingBook);
+  } else {
+    const i = day.bookings.findIndex(function (b) {
+      return b.id === photoPendingBook.id;
+    });
+    if (i >= 0) {
+      const prev = JSON.parse(JSON.stringify(day.bookings[i]));
+      const changes = photoDiffBooking(prev, photoPendingBook);
+      if (Object.keys(changes).length) {
+        photoAppendBookingAudit(photoPendingBook, 'updated', changes);
+      }
+      day.bookings[i] = photoPendingBook;
+    }
+  }
+  const savedId = photoPendingBook.id;
+  saveStore();
+  photoCloseOverlay('photoBookSheetOverlay');
+  photoPendingBook = null;
+  photoPendingBookDateKey = null;
+  renderPhotoCalendar();
+  renderPhotoCalDay();
+  renderPhotoBookingRegister();
+  const detailScr = el('photoBookingDetail');
+  if (detailScr && detailScr.classList.contains('on') && savedId) {
+    renderPhotoBookingDetail(savedId);
+  }
+  toast('Booking saved.');
+}
+
+function cancelPhotoBooking(id, skipConfirm) {
+  if (!skipConfirm && !confirm('Cancel this booking? It will be removed from the active day schedule.')) return;
+  const cal = ensurePhotoCalendar();
+  const day = photoEnsureDay(cal, cal.selectedKey);
+  const b = day.bookings.find(function (x) {
+    return x.id === id;
+  });
+  if (b) {
+    b.status = 'cancelled';
+    photoAppendBookingAudit(b, 'cancelled', { status: { label: 'Status', from: 'confirmed', to: 'cancelled' } });
+  }
+  saveStore();
+  renderPhotoCalendar();
+  renderPhotoCalDay();
+  renderPhotoBookingRegister();
+  toast('Booking cancelled.');
+}
+
+function openPhotoDaySheet() {
+  const cal = ensurePhotoCalendar();
+  const day = photoEnsureDay(cal, cal.selectedKey);
+  const status = day.dayStatus || 'open';
+  document.querySelectorAll('[name=photoDayStatus]').forEach(function (r) {
+    r.checked = r.value === status;
+  });
+  if (el('photoDayNote')) el('photoDayNote').value = day.dayNote || '';
+  photoOpenOverlay('photoDaySheetOverlay');
+}
+
+function savePhotoDaySheet() {
+  const cal = ensurePhotoCalendar();
+  const day = photoEnsureDay(cal, cal.selectedKey);
+  const sel = document.querySelector('input[name=photoDayStatus]:checked');
+  const status = sel ? sel.value : 'open';
+  day.dayStatus = status === 'open' ? undefined : status;
+  if (status === 'open') delete day.dayStatus;
+  day.dayNote = el('photoDayNote') ? el('photoDayNote').value.trim() : '';
+  if (!day.dayNote) delete day.dayNote;
+  saveStore();
+  photoCloseOverlay('photoDaySheetOverlay');
+  renderPhotoCalendar();
+  renderPhotoCalDay();
+  toast(status === 'disabled' ? 'Day hidden from customers.' : status === 'full' ? 'Day marked full.' : 'Day reopened.');
+}
+
+function renderPhotoBookSettings() {
+  const cal = ensurePhotoCalendar();
+  const s = cal.settings;
+  const maxOpts = [1, 2, 3, 4, 5, 6];
+  const win = el('photoBookWindow');
+  if (win) {
+    win.innerHTML = [3, 6, 9, 12]
+      .map(function (m) {
+        return (
+          '<button type="button" class="pick' +
+          (s.bookWindowMonths === m ? ' on' : '') +
+          '" data-photo-win="' +
+          m +
+          '">' +
+          m +
+          ' mo</button>'
+        );
+      })
+      .join('');
+    win.querySelectorAll('[data-photo-win]').forEach(function (btn) {
+      btn.onclick = function () {
+        s.bookWindowMonths = +btn.getAttribute('data-photo-win');
+        saveStore();
+        renderPhotoBookSettings();
+      };
+    });
+  }
+  const notice = el('photoMinNotice');
+  if (notice) {
+    notice.innerHTML = [0, 1, 2, 3, 7]
+      .map(function (d) {
+        return (
+          '<button type="button" class="pick' +
+          (s.minNoticeDays === d ? ' on' : '') +
+          '" data-photo-notice="' +
+          d +
+          '">' +
+          (d === 0 ? 'Same day' : d + ' day' + (d > 1 ? 's' : '')) +
+          '</button>'
+        );
+      })
+      .join('');
+    notice.querySelectorAll('[data-photo-notice]').forEach(function (btn) {
+      btn.onclick = function () {
+        s.minNoticeDays = +btn.getAttribute('data-photo-notice');
+        saveStore();
+        renderPhotoBookSettings();
+      };
+    });
+  }
+  const cap = el('photoMaxPerDay');
+  if (cap) {
+    cap.innerHTML = maxOpts
+      .map(function (n) {
+        return (
+          '<button type="button" class="pick' +
+          (s.maxBookingsPerDay === n ? ' on' : '') +
+          '" data-photo-max="' +
+          n +
+          '">' +
+          n +
+          '</button>'
+        );
+      })
+      .join('');
+    cap.querySelectorAll('[data-photo-max]').forEach(function (btn) {
+      btn.onclick = function () {
+        s.maxBookingsPerDay = +btn.getAttribute('data-photo-max');
+        saveStore();
+        renderPhotoBookSettings();
+      };
+    });
+  }
+  const wi = el('photoWindowInfo');
+  if (wi) wi.textContent = 'Customers can book up to ' + s.bookWindowMonths + ' months ahead.';
+  const ni = el('photoNoticeInfo');
+  if (ni) {
+    ni.textContent =
+      s.minNoticeDays === 0
+        ? 'Same-day booking is allowed (subject to capacity).'
+        : 'Customers need at least ' + s.minNoticeDays + ' day(s) notice before the shoot date.';
+  }
+  const mi = el('photoMaxInfo');
+  if (mi) {
+    mi.textContent =
+      'You can add up to ' + s.maxBookingsPerDay + ' active booking(s) per day. Calendar shows count on each date.';
+  }
+}
+
+function photoShiftCalDay(delta) {
+  const cal = ensurePhotoCalendar();
+  const p = photoParseCalDateKey(cal.selectedKey);
+  const dt = new Date(p.y, p.m - 1, p.d + delta);
+  cal.viewYear = dt.getFullYear();
+  cal.viewMonth = dt.getMonth() + 1;
+  cal.selectedKey = photoCalDateKey(cal.viewYear, cal.viewMonth, dt.getDate());
+  saveStore();
+  renderPhotoCalDay();
+}
+
+function photoShiftCalMonth(delta) {
+  const cal = ensurePhotoCalendar();
+  let m = cal.viewMonth + delta;
+  let y = cal.viewYear;
+  if (m < 1) {
+    m = 12;
+    y--;
+  }
+  if (m > 12) {
+    m = 1;
+    y++;
+  }
+  cal.viewMonth = m;
+  cal.viewYear = y;
+  saveStore();
+  if (cal.activeTab === 'list') renderPhotoBookingRegister();
+  else renderPhotoCalendar();
+}
+
+function renderPhotoMonthPickerList() {
+  const cal = ensurePhotoCalendar();
+  const list = el('photoMonthPickerList');
+  if (!list) return;
+  const items = [];
+  const start = new Date(2026, 0, 1);
+  for (let i = 0; i < 18; i++) {
+    const dt = new Date(start.getFullYear(), start.getMonth() + i, 1);
+    const y = dt.getFullYear();
+    const m = dt.getMonth() + 1;
+    const on = y === cal.viewYear && m === cal.viewMonth;
+    items.push(
+      '<button type="button" class="pick' +
+        (on ? ' on' : '') +
+        '" data-photo-pick-y="' +
+        y +
+        '" data-photo-pick-m="' +
+        m +
+        '">' +
+        photoMonthLabel(y, m) +
+        '</button>'
+    );
+  }
+  list.innerHTML = items.join('');
+  list.querySelectorAll('[data-photo-pick-y]').forEach(function (btn) {
+    btn.onclick = function () {
+      cal.viewYear = +btn.getAttribute('data-photo-pick-y');
+      cal.viewMonth = +btn.getAttribute('data-photo-pick-m');
+      saveStore();
+      photoCloseOverlay('photoMonthPickerOverlay');
+      if (cal.activeTab === 'list') renderPhotoBookingRegister();
+      else renderPhotoCalendar();
+    };
+  });
+}
+
+function bindPhotoCalendarUi() {
+  const tabSet = el('photoTabBookSettings');
+  if (tabSet) {
+    tabSet.onclick = function () {
+      const cal = ensurePhotoCalendar();
+      cal.activeTab = 'settings';
+      renderPhotoBookSettings();
+      show('photoBookSettings');
+    };
+  }
+  const tabList = el('photoTabBookList');
+  if (tabList) {
+    tabList.onclick = function () {
+      const cal = ensurePhotoCalendar();
+      cal.activeTab = 'list';
+      saveStore();
+      renderPhotoBookingRegister();
+      show('calendar');
+    };
+  }
+  const tabMain = el('photoTabCalMain');
+  if (tabMain) {
+    tabMain.onclick = function () {
+      const cal = ensurePhotoCalendar();
+      cal.activeTab = 'grid';
+      saveStore();
+      renderPhotoCalendar();
+      show('calendar');
+    };
+  }
+  const prevM = el('photoCalPrevMonth');
+  const nextM = el('photoCalNextMonth');
+  if (prevM) prevM.onclick = function () {
+    photoShiftCalMonth(-1);
+  };
+  if (nextM) nextM.onclick = function () {
+    photoShiftCalMonth(1);
+  };
+  const prevD = el('photoCalPrevDay');
+  const nextD = el('photoCalNextDay');
+  if (prevD) prevD.onclick = function () {
+    photoShiftCalDay(-1);
+  };
+  if (nextD) nextD.onclick = function () {
+    photoShiftCalDay(1);
+  };
+  const backDay = el('photoBackFromCalDay');
+  if (backDay) {
+    backDay.onclick = function () {
+      renderPhotoCalendar();
+      show('calendar');
+    };
+  }
+  const openMp = el('photoOpenMonthPicker');
+  if (openMp) {
+    openMp.onclick = function () {
+      renderPhotoMonthPickerList();
+      photoOpenOverlay('photoMonthPickerOverlay');
+    };
+  }
+  const openMpList = el('photoOpenMonthPickerList');
+  if (openMpList) {
+    openMpList.onclick = function () {
+      renderPhotoMonthPickerList();
+      photoOpenOverlay('photoMonthPickerOverlay');
+    };
+  }
+  const backDet = el('photoBackFromBkDetail');
+  if (backDet) {
+    backDet.onclick = function () {
+      const cal = ensurePhotoCalendar();
+      const tab = cal.detailReturnTab || 'list';
+      cal.activeTab = tab;
+      saveStore();
+      if (tab === 'list') {
+        renderPhotoBookingRegister();
+        show('calendar');
+      } else {
+        renderPhotoCalendar();
+        show('calendar');
+      }
+    };
+  }
+  const closeAudit = el('photoCloseAudit');
+  const closeAuditBtn = el('photoCloseAuditBtn');
+  if (closeAudit) closeAudit.onclick = function () {
+    photoCloseOverlay('photoAuditOverlay');
+  };
+  if (closeAuditBtn) closeAuditBtn.onclick = function () {
+    photoCloseOverlay('photoAuditOverlay');
+  };
+  const saveBs = el('photoSaveBookSettings');
+  if (saveBs) {
+    saveBs.onclick = function () {
+      saveStore();
+      toast('Booking settings saved.');
+      renderPhotoCalendar();
+      show('calendar');
+    };
+  }
+  const closeBk = el('photoCloseBookSheet');
+  if (closeBk) closeBk.onclick = function () {
+    photoCloseOverlay('photoBookSheetOverlay');
+    photoPendingBook = null;
+  };
+  const cancelBk = el('photoCancelBookSheet');
+  if (cancelBk) cancelBk.onclick = function () {
+    photoCloseOverlay('photoBookSheetOverlay');
+    photoPendingBook = null;
+  };
+  const saveBk = el('photoSaveBookSheet');
+  if (saveBk) saveBk.onclick = savePhotoBookSheet;
+  const closeDay = el('photoCloseDaySheet');
+  if (closeDay) closeDay.onclick = function () {
+    photoCloseOverlay('photoDaySheetOverlay');
+  };
+  const saveDay = el('photoSaveDaySheet');
+  if (saveDay) saveDay.onclick = savePhotoDaySheet;
+  const closeMp = el('photoCloseMonthPicker');
+  if (closeMp) closeMp.onclick = function () {
+    photoCloseOverlay('photoMonthPickerOverlay');
+  };
+  document.querySelectorAll('.block-reason').forEach(function (lab) {
+    lab.onclick = function () {
+      document.querySelectorAll('.block-reason').forEach(function (x) {
+        x.classList.remove('on');
+      });
+      lab.classList.add('on');
+      const inp = lab.querySelector('input');
+      if (inp) inp.checked = true;
+    };
+  });
+}
+
 /** All-India decoration catalogue — 14 categories for packages & individual services. */
 const DECORATION_PKG_LEVELS = ['Basic', 'Standard', 'Premium'];
 const DECORATION_EVENT_CATEGORIES = [
@@ -1921,8 +3557,540 @@ function bindDecorationIndividualUi() {
     decorationMenuOpenHub();
   });
 }
-/** Decoration owner — LMB, dashboard, stubs; packages in _decoration_*_hub.js */
-const DECORATION_OWNER_BUILD = 'decoration-owner-dash-catering-v4';
+/** Decoration owner platform — calendar, service areas, operators (from catering parity). */
+const INDIAN_STATES = {
+  Kerala: ['Thrissur', 'Ernakulam', 'Kozhikode', 'Kottayam', 'Palakkad', 'Malappuram', 'Thiruvananthapuram'],
+  Karnataka: ['Bengaluru Urban', 'Mysuru', 'Mangalore', 'Udupi'],
+  'Tamil Nadu': ['Chennai', 'Coimbatore', 'Madurai'],
+};
+const OPERATOR_ROLE_LABELS = { owner: 'Owner', manager: 'Manager', staff: 'Staff' };
+let saDraft = null;
+
+function navigatePhotoScreen(id) {
+  if (!id) return;
+  if (id === 'calendar') {
+    if (typeof openPhotoCalendar === 'function') openPhotoCalendar();
+    else show('calendar');
+  } else if (id === 'photoBookSettings') {
+    renderPhotoBookSettings();
+    show(id);
+  } else if (id === 'photoCalDay') {
+    renderPhotoCalDay();
+    show(id);
+  } else show(id);
+}
+
+function ensureRegisteredDistrict() {
+  const st = store.biz.registeredState;
+  const dist = store.biz.registeredDistrict;
+  if (!store.serviceAreas.states.includes(st)) store.serviceAreas.states.push(st);
+  if (!store.serviceAreas.districts[st]) store.serviceAreas.districts[st] = [];
+  if (store.serviceAreas.districts[st].indexOf(dist) < 0) store.serviceAreas.districts[st].unshift(dist);
+}
+
+function areaSummaryText() {
+  const sa = store.serviceAreas;
+  if (!sa.states.length) return 'Set where you accept bookings.';
+  const parts = sa.states.map((st) => {
+    const ds = sa.districts[st] || [];
+    return st + ' (' + ds.length + ' district' + (ds.length === 1 ? '' : 's') + ')';
+  });
+  return parts.join(' · ');
+}
+
+function operatorInitial(name) {
+  const p = String(name || '?').trim().split(/\s+/);
+  return (p[0][0] || '?').toUpperCase();
+}
+
+function ensureOperators() {
+  if (!store.operators || !store.operators.length) {
+    store.operators = defaultStore().operators.map(function (o) {
+      return JSON.parse(JSON.stringify(o));
+    });
+  }
+  return store.operators;
+}
+
+function renderPhotoOperators() {
+  const sub = el('photoOperatorsSub');
+  if (sub) sub.textContent = 'Who can manage · ' + store.biz.name;
+  const list = el('photoOperatorsList');
+  if (!list) return;
+  const ops = ensureOperators();
+  list.innerHTML = ops
+    .map(function (op, idx) {
+      const right =
+        op.role === 'owner'
+          ? '<span class="op-owner-tag">Owner</span>'
+          : '<button type="button" class="op-remove" data-rm-photo-op="' +
+            esc(op.id) +
+            '">Remove</button>';
+      return (
+        '<div class="op-card"><div class="op-avatar a' +
+        (idx % 4) +
+        '">' +
+        esc(operatorInitial(op.name)) +
+        '</div><div class="op-meta"><b>' +
+        esc(op.name) +
+        '</b><span>' +
+        esc(op.phone) +
+        ' · ' +
+        esc(OPERATOR_ROLE_LABELS[op.role] || 'Staff') +
+        '</span></div><div class="op-actions">' +
+        right +
+        '</div></div>'
+      );
+    })
+    .join('');
+  list.querySelectorAll('[data-rm-photo-op]').forEach(function (btn) {
+    btn.onclick = function () {
+      const id = btn.getAttribute('data-rm-photo-op');
+      const op = ops.find(function (x) {
+        return x.id === id;
+      });
+      if (!op || !confirm('Remove ' + op.name + ' as an operator?')) return;
+      store.operators = ops.filter(function (x) {
+        return x.id !== id;
+      });
+      saveStore();
+      renderPhotoOperators();
+      toast('Operator removed');
+    };
+  });
+}
+
+function renderDeletedBusinesses() {
+  const list = el('deletedBizList');
+  if (!list) return;
+  const items = store.deletedBusinesses || [];
+  if (!items.length) {
+    list.innerHTML =
+      '<div class="hub-empty" style="margin:0"><div class="hub-empty-ico">🗑</div><b>No deleted businesses</b><p>When you delete a listing, it appears here for 30 days so you can restore it.</p></div>';
+    return;
+  }
+  list.innerHTML = items
+    .map(function (b) {
+      return (
+        '<div class="del-biz-card" data-del-biz="' +
+        esc(b.id) +
+        '"><b>' +
+        esc(b.name) +
+        '</b><p class="sub">' +
+        esc(b.type) +
+        ' · ' +
+        esc(b.loc) +
+        '<br>Deleted ' +
+        esc(b.deletedAt) +
+        '</p><button type="button" class="btn-restore" data-restore-biz="' +
+        esc(b.id) +
+        '">Restore business</button></div>'
+      );
+    })
+    .join('');
+  list.querySelectorAll('[data-restore-biz]').forEach(function (btn) {
+    btn.onclick = function () {
+      const id = btn.getAttribute('data-restore-biz');
+      const biz = (store.deletedBusinesses || []).find(function (x) {
+        return x.id === id;
+      });
+      if (!biz) return;
+      if (!confirm('Restore ' + biz.name + '? You can switch to it from List My Business.')) return;
+      store.deletedBusinesses = store.deletedBusinesses.filter(function (x) {
+        return x.id !== id;
+      });
+      saveStore();
+      renderDeletedBusinesses();
+      renderPhotoDash();
+      toast('Business restored (demo)');
+    };
+  });
+}
+
+function profCell(ico, label, value) {
+  return (
+    '<div class="prof-cell"><div class="prof-cell-ico">' +
+    ico +
+    '</div><div class="prof-cell-bd"><label>' +
+    esc(label) +
+    '</label><b>' +
+    esc(value) +
+    '</b></div></div>'
+  );
+}
+
+function profGroup(title, icon, cellsHtml) {
+  return (
+    '<div class="prof-group"><div class="prof-group-hd"><span>' +
+    icon +
+    '</span>' +
+    esc(title) +
+    '</div>' +
+    cellsHtml +
+    '</div>'
+  );
+}
+
+function renderPhotoBizProfile() {
+  const b = store.biz;
+  const nameEl = el('profBizName');
+  if (nameEl) nameEl.textContent = b.name || '—';
+  const tag = el('profBizTagline');
+  if (tag) {
+    tag.textContent =
+      (b.type || 'Decoration') + ' · ' + (b.vertical || 'Service') + ' · ' + (b.loc || '—');
+  }
+  const badges = el('profBadges');
+  if (badges) {
+    badges.innerHTML =
+      (b.verified
+        ? '<span class="prof-badge ver">✓ Verified</span>'
+        : '<span class="prof-badge type">Verification pending</span>') +
+      '<span class="prof-badge type">Gixbee LMB</span>';
+  }
+  const chips = el('profChips');
+  if (chips) {
+    const areaN = (store.serviceAreas.states || []).length;
+    chips.innerHTML =
+      '<div class="prof-chip"><b>' +
+      esc(b.memberSince || '—') +
+      '</b><span>Member since</span></div>' +
+      '<div class="prof-chip"><b>' +
+      ((store.decorationMenu && store.decorationMenu.catPackages) ? store.decorationMenu.catPackages.length : 0) +
+      '</b><span>Packages &amp; services</span></div>' +
+      '<div class="prof-chip"><b>' +
+      areaN +
+      '</b><span>States</span></div>';
+  }
+  const groups = el('profDetailGroups');
+  if (!groups) return;
+  groups.innerHTML =
+    profGroup(
+      'Contact',
+      '📞',
+      profCell('📱', 'Phone', b.phone || '—') + profCell('✉️', 'Email', b.email || '—')
+    ) +
+    profGroup(
+      'Location',
+      '📍',
+      profCell('🏠', 'Address / area', b.loc || '—') +
+        profCell('🗺', 'Service areas', areaSummaryText())
+    ) +
+    profGroup(
+      'Registration',
+      '📋',
+      profCell('🏛', 'Registered state', b.registeredState || '—') +
+        profCell('📌', 'Registered district', b.registeredDistrict || '—') +
+        profCell('🏷', 'Business type', b.type || 'Decoration')
+    ) +
+    profGroup('Tax & billing', '💳', profCell('🧾', 'GSTIN', b.gstin && b.gstin !== '—' ? b.gstin : 'Not added'));
+}
+
+function renderPhotoDash() {
+  el('dashBizName').textContent = store.biz.name;
+  el('dashLocTxt').textContent = store.biz.loc;
+  el('dashLocIco').innerHTML = photoIcon('pin');
+  el('areaCardIco').innerHTML = photoIcon('pin');
+  el('areaSummary').textContent = areaSummaryText();
+  const q = el('quickGrid');
+  q.innerHTML = [
+    { id: 'hub', cls: 'pink', ico: '📦', label: 'Packages & Services' },
+    { id: 'calendar', cls: 'blue', ico: '📅', label: 'Calendar' },
+    { id: 'gallery', cls: 'blue', ico: '🖼', label: 'Photos & Gallery' },
+    { id: 'requests', cls: 'orange', ico: '🔔', label: 'Booking Requests', badge: '3' },
+    { id: 'photoOperators', cls: 'teal', ico: '👥', label: 'Operators' },
+    {
+      id: 'deletedBusiness',
+      cls: 'gray',
+      ico: '🗑',
+      label: 'Deleted business',
+      badge: store.deletedBusinesses.length ? String(store.deletedBusinesses.length) : '',
+    },
+  ]
+    .map(
+      (t) =>
+        '<button type="button" class="qtile ' +
+        t.cls +
+        '" data-go="' +
+        t.id +
+        '">' +
+        (t.badge ? '<span class="badge">' + t.badge + '</span>' : '') +
+        '<div class="qi">' +
+        t.ico +
+        '</div><b>' +
+        esc(t.label) +
+        '</b></button>'
+    )
+    .join('');
+  q.querySelectorAll('[data-go]').forEach((btn) => {
+    btn.onclick = () => {
+      const dest = btn.getAttribute('data-go');
+      if (dest === 'hub') openDecorHub('packages');
+      else if (dest === 'photoOperators') {
+        renderPhotoOperators();
+        show(dest);
+      } else if (dest === 'deletedBusiness') {
+        renderDeletedBusinesses();
+        show(dest);
+      } else if (dest === 'calendar') {
+        openPhotoCalendar();
+      } else if (dest === 'photoBookSettings') {
+        renderPhotoBookSettings();
+        show(dest);
+      } else if (dest === 'photoCalDay') {
+        renderPhotoCalDay();
+        show(dest);
+      } else show(dest);
+    };
+  });
+}
+
+function startSaDraft() {
+  saDraft = JSON.parse(JSON.stringify(store.serviceAreas));
+  ensureRegisteredDistrictInDraft();
+}
+function ensureRegisteredDistrictInDraft() {
+  const st = store.biz.registeredState;
+  const dist = store.biz.registeredDistrict;
+  if (saDraft.states.indexOf(st) < 0) saDraft.states.push(st);
+  if (!saDraft.districts[st]) saDraft.districts[st] = [];
+  if (saDraft.districts[st].indexOf(dist) < 0) saDraft.districts[st].unshift(dist);
+}
+
+function renderStateList() {
+  const q = (el('stateSearch').value || '').trim().toLowerCase();
+  const list = el('stateList');
+  const states = Object.keys(INDIAN_STATES).filter((s) => !q || s.toLowerCase().includes(q));
+  list.innerHTML = states
+    .map((st) => {
+      const on = saDraft.states.indexOf(st) >= 0;
+      const locked = st === store.biz.registeredState;
+      return (
+        '<div class="chk-row' +
+        (on ? ' on' : '') +
+        (locked ? ' locked' : '') +
+        '" data-state="' +
+        esc(st) +
+        '">' +
+        '<span class="chk-box">' +
+        (on ? photoIcon('check') : locked ? '🔒' : '') +
+        '</span><span>' +
+        esc(st) +
+        (locked ? ' <span style="font-size:11px;color:var(--mut)">(registered)</span>' : '') +
+        '</span></div>'
+      );
+    })
+    .join('');
+  list.querySelectorAll('.chk-row').forEach((row) => {
+    if (row.classList.contains('locked')) return;
+    row.onclick = () => toggleState(row.getAttribute('data-state'));
+  });
+}
+function toggleState(st) {
+  const i = saDraft.states.indexOf(st);
+  if (i >= 0) {
+    if (st === store.biz.registeredState) return;
+    saDraft.states.splice(i, 1);
+    delete saDraft.districts[st];
+  } else {
+    saDraft.states.push(st);
+    saDraft.districts[st] = saDraft.districts[st] || [];
+  }
+  renderStateList();
+}
+
+let saActiveState = 'Kerala';
+function renderStateSeg() {
+  const seg = el('stateSeg');
+  seg.innerHTML = saDraft.states
+    .map(
+      (st) =>
+        '<button type="button" class="' +
+        (st === saActiveState ? 'on' : '') +
+        '" data-st="' +
+        esc(st) +
+        '">' +
+        esc(st) +
+        '</button>'
+    )
+    .join('');
+  seg.querySelectorAll('button').forEach((b) => {
+    b.onclick = () => {
+      saActiveState = b.getAttribute('data-st');
+      renderStateSeg();
+      renderDistList();
+    };
+  });
+  if (saDraft.states.indexOf(saActiveState) < 0 && saDraft.states[0]) saActiveState = saDraft.states[0];
+  el('distStateTitle').textContent = saActiveState;
+}
+
+function renderDistList() {
+  el('distStateTitle').textContent = saActiveState;
+  const q = (el('distSearch').value || '').trim().toLowerCase();
+  const all = INDIAN_STATES[saActiveState] || [];
+  const picked = saDraft.districts[saActiveState] || [];
+  const list = el('distList');
+  list.innerHTML = all
+    .filter((d) => !q || d.toLowerCase().includes(q))
+    .map((d) => {
+      const on = picked.indexOf(d) >= 0;
+      const locked = saActiveState === store.biz.registeredState && d === store.biz.registeredDistrict;
+      return (
+        '<div class="chk-row' +
+        (on ? ' on' : '') +
+        (locked ? ' locked' : '') +
+        '" data-dist="' +
+        esc(d) +
+        '">' +
+        '<span class="chk-box">' +
+        (on ? photoIcon('check') : locked ? '🔒' : '') +
+        '</span><span>' +
+        esc(d) +
+        '</span></div>'
+      );
+    })
+    .join('');
+  list.querySelectorAll('.chk-row').forEach((row) => {
+    if (row.classList.contains('locked')) return;
+    row.onclick = () => toggleDist(saActiveState, row.getAttribute('data-dist'));
+  });
+}
+function toggleDist(st, dist) {
+  if (!saDraft.districts[st]) saDraft.districts[st] = [];
+  const arr = saDraft.districts[st];
+  const i = arr.indexOf(dist);
+  if (i >= 0) {
+    if (st === store.biz.registeredState && dist === store.biz.registeredDistrict) return;
+    arr.splice(i, 1);
+  } else arr.push(dist);
+  renderDistList();
+}
+
+function renderSaReview() {
+  const wrap = el('saReviewCards');
+  wrap.innerHTML = saDraft.states
+    .map((st) => {
+      const ds = saDraft.districts[st] || [];
+      return (
+        '<div class="review-card"><div class="review-card-hd"><b>' +
+        esc(st) +
+        '</b><button type="button" class="link" style="border:0;background:none;font:inherit;color:var(--blue);cursor:pointer" data-edit-st="' +
+        esc(st) +
+        '">' +
+        photoIcon('edit') +
+        ' Edit</button></div><div class="chips">' +
+        ds.map((d) => '<span class="chip-district">' + esc(d) + '</span>').join('') +
+        '</div></div>'
+      );
+    })
+    .join('');
+  wrap.querySelectorAll('[data-edit-st]').forEach((btn) => {
+    btn.onclick = () => {
+      saActiveState = btn.getAttribute('data-edit-st');
+      show('saDistricts');
+      renderStateSeg();
+      renderDistList();
+    };
+  });
+}
+
+function bindDecorationPlatform() {
+  document.querySelectorAll('.back[data-to]').forEach((btn) => {
+    btn.onclick = () => navigatePhotoScreen(btn.getAttribute('data-to'));
+  });
+  document.querySelectorAll('.stub .btn[data-to], .btn[data-to]').forEach((btn) => {
+    if (btn.id) return;
+    const to = btn.getAttribute('data-to');
+    if (to) btn.onclick = () => navigatePhotoScreen(to);
+  });
+  const lmbHome = el('lmbHomeBtn');
+  if (lmbHome) lmbHome.onclick = () => show('lmbDashboard');
+  const backLmb = el('backToLmb');
+  if (backLmb) backLmb.onclick = () => show('lmbDashboard');
+  const decDashBack = el('decDashBack');
+  if (decDashBack) decDashBack.onclick = () => show('lmbDashboard');
+  const profBtn = el('photoBizProfileBtn');
+  if (profBtn) {
+    profBtn.onclick = function () {
+      renderPhotoBizProfile();
+      show('photoBizProfile');
+    };
+  }
+  const manageAreas = el('manageAreasLink');
+  if (manageAreas) {
+    manageAreas.onclick = (e) => {
+      e.preventDefault();
+      startSaDraft();
+      el('saHeroIco').innerHTML = photoIcon('pin');
+      el('saSearchIco').innerHTML = photoIcon('search');
+      renderStateList();
+      show('saStates');
+    };
+  }
+  const saSkip = el('saSkip');
+  if (saSkip) saSkip.onclick = () => show('photoDash');
+  const saCont = el('saStatesContinue');
+  if (saCont) {
+    saCont.onclick = () => {
+      if (!saDraft.states.length) {
+        toast('Select at least one state.');
+        return;
+      }
+      saActiveState = saDraft.states[0];
+      show('saDistricts');
+      renderStateSeg();
+      renderDistList();
+    };
+  }
+  const stateSearch = el('stateSearch');
+  if (stateSearch) stateSearch.oninput = () => renderStateList();
+  const distSearch = el('distSearch');
+  if (distSearch) distSearch.oninput = () => renderDistList();
+  const saDistCont = el('saDistContinue');
+  if (saDistCont) {
+    saDistCont.onclick = () => {
+      show('saReview');
+      el('saRevIco').innerHTML = photoIcon('pin');
+      renderSaReview();
+    };
+  }
+  const saSave = el('saSave');
+  if (saSave) {
+    saSave.onclick = () => {
+      store.serviceAreas = JSON.parse(JSON.stringify(saDraft));
+      ensureRegisteredDistrict();
+      saveStore();
+      renderPhotoDash();
+      show('photoDash');
+      toast('Service areas saved');
+    };
+  }
+  const addOp = el('photoAddOperatorBtn');
+  if (addOp) {
+    addOp.onclick = function () {
+      const name = prompt('Operator full name');
+      if (!name || !name.trim()) return;
+      const phone = prompt('Mobile number', '+91 ');
+      if (!phone || !phone.trim()) return;
+      ensureOperators();
+      store.operators.push({
+        id: uid('op'),
+        name: name.trim(),
+        phone: phone.trim(),
+        role: 'staff',
+      });
+      saveStore();
+      renderPhotoOperators();
+      toast('Operator added');
+    };
+  }
+
+}
+
+
+/** Decoration owner app — dashboard/platform parity with catering + decoration hub. */
+const DECORATION_OWNER_BUILD = 'decoration-owner-platform-v5';
 const STORAGE_KEY = 'GIXBEE_DECORATION_OWNER_V1';
 
 function defaultStore() {
@@ -1930,27 +4098,36 @@ function defaultStore() {
     biz: {
       name: 'Decor Mart',
       loc: 'Sakthan Nagar, Thrissur',
+      registeredState: 'Kerala',
+      registeredDistrict: 'Thrissur',
       type: 'Decoration',
+      vertical: 'Service',
+      phone: '+91 98765 43210',
+      email: 'hello@decormart.in',
+      gstin: '—',
       verified: true,
+      memberSince: '2024',
     },
     serviceAreas: {
       states: ['Kerala'],
       districts: { Kerala: ['Thrissur', 'Ernakulam'] },
     },
     decorationMenu: defaultDecorationStore(),
+    operators: [
+      { id: 'op_owner', name: 'Riya V.', phone: '+91 94470 55566', role: 'owner' },
+      { id: 'op_mgr1', name: 'Anil K.', phone: '+91 98470 11223', role: 'manager' },
+    ],
+    deletedBusinesses: [
+      {
+        id: 'biz-del-1',
+        name: 'Studio Bloom Decor',
+        type: 'Decoration',
+        loc: 'Kochi, Kerala',
+        deletedAt: '2026-09-12',
+      },
+    ],
+    calendar: typeof defaultPhotoCalendar === 'function' ? defaultPhotoCalendar() : { bookings: [] },
   };
-}
-
-function decorAreaSummaryText() {
-  const sa = store.serviceAreas;
-  if (!sa || !sa.states || !sa.states.length) return 'Set where you accept decoration bookings.';
-  const parts = [];
-  sa.states.forEach(function (st) {
-    const dists = (sa.districts && sa.districts[st]) || [];
-    if (dists.length) parts.push(st + ': ' + dists.join(', '));
-    else parts.push(st);
-  });
-  return parts.join(' · ') || 'Set where you accept decoration bookings.';
 }
 
 let store = defaultStore();
@@ -1971,16 +4148,9 @@ function show(id) {
   });
   const scr = el(id);
   if (scr) scr.scrollTop = 0;
-  syncDecBottomNav(id);
-}
-function syncDecBottomNav(id) {
-  const nav = el('decBottomNav');
-  if (!nav) return;
-  const showNav = id === 'decorDash' || id === 'decorStubEnq' || id === 'decorStubCal' || id === 'decorStubProf';
-  nav.hidden = !showNav;
-  nav.querySelectorAll('button').forEach(function (btn) {
-    btn.classList.toggle('on', btn.getAttribute('data-nav') === id);
-  });
+  if (id === 'calendar' && typeof syncPhotoCalendarUi === 'function') syncPhotoCalendarUi();
+  if (id === 'photoCalDay' && typeof renderPhotoCalDay === 'function') renderPhotoCalDay();
+  if (id === 'photoBookSettings' && typeof renderPhotoBookSettings === 'function') renderPhotoBookSettings();
 }
 function toast(m) {
   const t = el('toast');
@@ -2009,10 +4179,16 @@ function loadStore() {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return;
     const parsed = JSON.parse(raw);
-    if (parsed && parsed.biz) store = Object.assign(defaultStore(), parsed);
+    store = Object.assign(defaultStore(), parsed);
     if (!store.decorationMenu) store.decorationMenu = defaultDecorationStore();
+    if (!store.serviceAreas) store.serviceAreas = defaultStore().serviceAreas;
+    if (!store.operators) store.operators = defaultStore().operators;
+    if (!store.deletedBusinesses) store.deletedBusinesses = defaultStore().deletedBusinesses;
+    if (!store.calendar || typeof store.calendar !== 'object') {
+      store.calendar = typeof defaultPhotoCalendar === 'function' ? defaultPhotoCalendar() : { bookings: [] };
+    }
   } catch (e) {
-    /* ignore */
+    store = defaultStore();
   }
 }
 
@@ -2033,50 +4209,11 @@ function renderLmb() {
     esc(store.biz.name) +
     '</b><span class="type">Decoration · Service</span><div class="biz-meta"><span class="pill pill-ver">Verified</span></div><div class="biz-actions"><button type="button" class="primary" style="background:var(--decor)">Manage</button></div></div></div></button>';
   bindClick('openDecorBiz', function () {
-    show('decorDash');
-    renderDecorDash();
+    renderPhotoDash();
+    show('photoDash');
   });
 }
 
-function renderDecorDash() {
-  el('decDashHello').textContent = 'Hello, ' + store.biz.name + ' 👋';
-  el('decDashLoc').textContent = store.biz.loc;
-  if (el('decAreaSummary')) el('decAreaSummary').textContent = decorAreaSummaryText();
-  const q = el('decQuickGrid');
-  if (q) {
-    q.innerHTML = [
-      { dest: 'hub', cls: 'pink', ico: '📦', label: 'Packages & Services' },
-      { dest: 'decorStubCal', cls: 'blue', ico: '📅', label: 'Calendar' },
-      { dest: 'decorStubGal', cls: 'blue', ico: '🖼', label: 'Photos & Gallery' },
-      { dest: 'decorStubEnq', cls: 'orange', ico: '💬', label: 'Enquiries', badge: '12' },
-      { dest: 'decorStubOps', cls: 'teal', ico: '👥', label: 'Operators' },
-    ]
-      .map(function (t) {
-        return (
-          '<button type="button" class="qtile ' +
-          t.cls +
-          '" data-dec-go="' +
-          esc(t.dest) +
-          '">' +
-          (t.badge ? '<span class="badge">' + t.badge + '</span>' : '') +
-          '<div class="qi">' +
-          t.ico +
-          '</div><b>' +
-          esc(t.label) +
-          '</b></button>'
-        );
-      })
-      .join('');
-    q.querySelectorAll('[data-dec-go]').forEach(function (btn) {
-      btn.onclick = function () {
-        const dest = btn.getAttribute('data-dec-go');
-        if (dest === 'hub') openDecorHub('packages');
-        else show(dest);
-      };
-    });
-  }
-  syncDecBottomNav('decorDash');
-}
 function openDecorHub(tab) {
   ensureDecorationStore();
   store.decorationMenu.hubTab = tab || 'packages';
@@ -2084,31 +4221,31 @@ function openDecorHub(tab) {
 }
 
 function bootDecoration() {
-  loadStore();
-  ensureDecorationStore();
-  renderLmb();
-  bindDecorationPackageUi();
-  bindDecorationIndividualUi();
-  bindClick('decDashBack', function () {
+  try {
+    if (!el('quickGrid')) throw new Error('Open GIXBEE-DECORATION-OWNER-FINALFLOW5.html');
+    loadStore();
+    ensureDecorationStore();
+    if (typeof ensureRegisteredDistrict === 'function') ensureRegisteredDistrict();
+    saveStore();
+    renderLmb();
+    renderPhotoDash();
+    bindDecorationPlatform();
+    bindDecorationPackageUi();
+    bindDecorationIndividualUi();
+    if (typeof bindPhotoCalendarUi === 'function') bindPhotoCalendarUi();
+    if (typeof ensurePhotoCalendar === 'function') ensurePhotoCalendar();
+    bindClick('decHubBack', function () {
+      renderPhotoDash();
+      show('photoDash');
+    });
+    bindOnInput('decPkgSearch', function () {
+      renderDecorPackageList();
+    });
     show('lmbDashboard');
-  });
-  bindClick('decBizProfileBtn', function () {
-    show('decorStubProf');
-  });
-  bindClick('decManageAreasLink', function (e) {
-    if (e && e.preventDefault) e.preventDefault();
-    toast('Service areas flow (prototype — same as catering)');
-  });
-  document.querySelectorAll('#decBottomNav button').forEach(function (btn) {
-    btn.onclick = function () {
-      const dest = btn.getAttribute('data-nav');
-      if (dest) show(dest);
-    };
-  });
-  bindOnInput('decPkgSearch', function () {
-    renderDecorPackageList();
-  });
-  show('lmbDashboard');
+  } catch (err) {
+    console.error(err);
+    toast(err.message || String(err));
+  }
 }
 
 if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', bootDecoration);

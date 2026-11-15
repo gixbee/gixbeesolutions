@@ -7,7 +7,8 @@ PRIMARY DEMO:
 
 Flow:
 
-  List My Business → Decor Mart → Dashboard
+  List My Business → Decor Mart → Dashboard (same layout & flows as catering owner)
+  Service areas, calendar/bookings, gallery, booking requests, operators, deleted business, profile
   Packages & Individual Services (hub)
   5-step package wizard (category → details → items → Basic/Standard/Premium amounts → preview)
   Individual service wizard (4 steps): category → details → optional designs →

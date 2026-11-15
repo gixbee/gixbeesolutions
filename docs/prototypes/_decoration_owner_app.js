@@ -1,5 +1,5 @@
-/** Decoration owner — LMB, dashboard, stubs; packages in _decoration_*_hub.js */
-const DECORATION_OWNER_BUILD = 'decoration-owner-dash-catering-v4';
+/** Decoration owner app — dashboard/platform parity with catering + decoration hub. */
+const DECORATION_OWNER_BUILD = 'decoration-owner-platform-v5';
 const STORAGE_KEY = 'GIXBEE_DECORATION_OWNER_V1';
 
 function defaultStore() {
@@ -7,27 +7,36 @@ function defaultStore() {
     biz: {
       name: 'Decor Mart',
       loc: 'Sakthan Nagar, Thrissur',
+      registeredState: 'Kerala',
+      registeredDistrict: 'Thrissur',
       type: 'Decoration',
+      vertical: 'Service',
+      phone: '+91 98765 43210',
+      email: 'hello@decormart.in',
+      gstin: '—',
       verified: true,
+      memberSince: '2024',
     },
     serviceAreas: {
       states: ['Kerala'],
       districts: { Kerala: ['Thrissur', 'Ernakulam'] },
     },
     decorationMenu: defaultDecorationStore(),
+    operators: [
+      { id: 'op_owner', name: 'Riya V.', phone: '+91 94470 55566', role: 'owner' },
+      { id: 'op_mgr1', name: 'Anil K.', phone: '+91 98470 11223', role: 'manager' },
+    ],
+    deletedBusinesses: [
+      {
+        id: 'biz-del-1',
+        name: 'Studio Bloom Decor',
+        type: 'Decoration',
+        loc: 'Kochi, Kerala',
+        deletedAt: '2026-09-12',
+      },
+    ],
+    calendar: typeof defaultPhotoCalendar === 'function' ? defaultPhotoCalendar() : { bookings: [] },
   };
-}
-
-function decorAreaSummaryText() {
-  const sa = store.serviceAreas;
-  if (!sa || !sa.states || !sa.states.length) return 'Set where you accept decoration bookings.';
-  const parts = [];
-  sa.states.forEach(function (st) {
-    const dists = (sa.districts && sa.districts[st]) || [];
-    if (dists.length) parts.push(st + ': ' + dists.join(', '));
-    else parts.push(st);
-  });
-  return parts.join(' · ') || 'Set where you accept decoration bookings.';
 }
 
 let store = defaultStore();
@@ -48,16 +57,9 @@ function show(id) {
   });
   const scr = el(id);
   if (scr) scr.scrollTop = 0;
-  syncDecBottomNav(id);
-}
-function syncDecBottomNav(id) {
-  const nav = el('decBottomNav');
-  if (!nav) return;
-  const showNav = id === 'decorDash' || id === 'decorStubEnq' || id === 'decorStubCal' || id === 'decorStubProf';
-  nav.hidden = !showNav;
-  nav.querySelectorAll('button').forEach(function (btn) {
-    btn.classList.toggle('on', btn.getAttribute('data-nav') === id);
-  });
+  if (id === 'calendar' && typeof syncPhotoCalendarUi === 'function') syncPhotoCalendarUi();
+  if (id === 'photoCalDay' && typeof renderPhotoCalDay === 'function') renderPhotoCalDay();
+  if (id === 'photoBookSettings' && typeof renderPhotoBookSettings === 'function') renderPhotoBookSettings();
 }
 function toast(m) {
   const t = el('toast');
@@ -86,10 +88,16 @@ function loadStore() {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return;
     const parsed = JSON.parse(raw);
-    if (parsed && parsed.biz) store = Object.assign(defaultStore(), parsed);
+    store = Object.assign(defaultStore(), parsed);
     if (!store.decorationMenu) store.decorationMenu = defaultDecorationStore();
+    if (!store.serviceAreas) store.serviceAreas = defaultStore().serviceAreas;
+    if (!store.operators) store.operators = defaultStore().operators;
+    if (!store.deletedBusinesses) store.deletedBusinesses = defaultStore().deletedBusinesses;
+    if (!store.calendar || typeof store.calendar !== 'object') {
+      store.calendar = typeof defaultPhotoCalendar === 'function' ? defaultPhotoCalendar() : { bookings: [] };
+    }
   } catch (e) {
-    /* ignore */
+    store = defaultStore();
   }
 }
 
@@ -110,50 +118,11 @@ function renderLmb() {
     esc(store.biz.name) +
     '</b><span class="type">Decoration · Service</span><div class="biz-meta"><span class="pill pill-ver">Verified</span></div><div class="biz-actions"><button type="button" class="primary" style="background:var(--decor)">Manage</button></div></div></div></button>';
   bindClick('openDecorBiz', function () {
-    show('decorDash');
-    renderDecorDash();
+    renderPhotoDash();
+    show('photoDash');
   });
 }
 
-function renderDecorDash() {
-  el('decDashHello').textContent = 'Hello, ' + store.biz.name + ' 👋';
-  el('decDashLoc').textContent = store.biz.loc;
-  if (el('decAreaSummary')) el('decAreaSummary').textContent = decorAreaSummaryText();
-  const q = el('decQuickGrid');
-  if (q) {
-    q.innerHTML = [
-      { dest: 'hub', cls: 'pink', ico: '📦', label: 'Packages & Services' },
-      { dest: 'decorStubCal', cls: 'blue', ico: '📅', label: 'Calendar' },
-      { dest: 'decorStubGal', cls: 'blue', ico: '🖼', label: 'Photos & Gallery' },
-      { dest: 'decorStubEnq', cls: 'orange', ico: '💬', label: 'Enquiries', badge: '12' },
-      { dest: 'decorStubOps', cls: 'teal', ico: '👥', label: 'Operators' },
-    ]
-      .map(function (t) {
-        return (
-          '<button type="button" class="qtile ' +
-          t.cls +
-          '" data-dec-go="' +
-          esc(t.dest) +
-          '">' +
-          (t.badge ? '<span class="badge">' + t.badge + '</span>' : '') +
-          '<div class="qi">' +
-          t.ico +
-          '</div><b>' +
-          esc(t.label) +
-          '</b></button>'
-        );
-      })
-      .join('');
-    q.querySelectorAll('[data-dec-go]').forEach(function (btn) {
-      btn.onclick = function () {
-        const dest = btn.getAttribute('data-dec-go');
-        if (dest === 'hub') openDecorHub('packages');
-        else show(dest);
-      };
-    });
-  }
-  syncDecBottomNav('decorDash');
-}
 function openDecorHub(tab) {
   ensureDecorationStore();
   store.decorationMenu.hubTab = tab || 'packages';
@@ -161,31 +130,31 @@ function openDecorHub(tab) {
 }
 
 function bootDecoration() {
-  loadStore();
-  ensureDecorationStore();
-  renderLmb();
-  bindDecorationPackageUi();
-  bindDecorationIndividualUi();
-  bindClick('decDashBack', function () {
+  try {
+    if (!el('quickGrid')) throw new Error('Open GIXBEE-DECORATION-OWNER-FINALFLOW5.html');
+    loadStore();
+    ensureDecorationStore();
+    if (typeof ensureRegisteredDistrict === 'function') ensureRegisteredDistrict();
+    saveStore();
+    renderLmb();
+    renderPhotoDash();
+    bindDecorationPlatform();
+    bindDecorationPackageUi();
+    bindDecorationIndividualUi();
+    if (typeof bindPhotoCalendarUi === 'function') bindPhotoCalendarUi();
+    if (typeof ensurePhotoCalendar === 'function') ensurePhotoCalendar();
+    bindClick('decHubBack', function () {
+      renderPhotoDash();
+      show('photoDash');
+    });
+    bindOnInput('decPkgSearch', function () {
+      renderDecorPackageList();
+    });
     show('lmbDashboard');
-  });
-  bindClick('decBizProfileBtn', function () {
-    show('decorStubProf');
-  });
-  bindClick('decManageAreasLink', function (e) {
-    if (e && e.preventDefault) e.preventDefault();
-    toast('Service areas flow (prototype — same as catering)');
-  });
-  document.querySelectorAll('#decBottomNav button').forEach(function (btn) {
-    btn.onclick = function () {
-      const dest = btn.getAttribute('data-nav');
-      if (dest) show(dest);
-    };
-  });
-  bindOnInput('decPkgSearch', function () {
-    renderDecorPackageList();
-  });
-  show('lmbDashboard');
+  } catch (err) {
+    console.error(err);
+    toast(err.message || String(err));
+  }
 }
 
 if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', bootDecoration);

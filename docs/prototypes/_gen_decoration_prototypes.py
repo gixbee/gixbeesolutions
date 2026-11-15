@@ -5,9 +5,12 @@ from pathlib import Path
 DIR = Path(__file__).resolve().parent
 SHELL = DIR / "decoration-owner-flow-shell.html"
 PARTS = [
+    "_catering_owner_icons.js",
+    "_photo_calendar.js",
     "_decoration_catalog.js",
     "_decoration_package_hub.js",
     "_decoration_individual_hub.js",
+    "_decoration_owner_platform.js",
     "_decoration_owner_app.js",
 ]
 MASTER = DIR / "GIXBEE-DECORATION-OWNER-FINALFLOW.html"
@@ -31,6 +34,8 @@ def build() -> str:
     out = shell[:i] + block + shell[j + len("<!-- APP_END -->") :]
     if "DECORATION_MODULES" not in out or "bootDecoration" not in out:
         raise SystemExit("missing decoration bundle")
+    if "bindPhotoCalendarUi" not in out or "renderPhotoDash" not in out:
+        raise SystemExit("missing platform/calendar bundle")
     if "decPriceBasic" not in out or "Vehicle & Personal Flowers" not in out:
         raise SystemExit("missing catalogue or pricing UI")
     return out
