@@ -2,7 +2,7 @@
 
 const DEC_PKG_LEVELS = ['Basic', 'Standard', 'Premium'];
 
-let decorPkgWizard = { editId: null, draft: null };
+let decorPkgWizard = { editId: null, draft: null, itemsTab: 'included' };
 let decorModulePickCtx = { moduleId: null, search: '' };
 let decorItemPickCtx = { moduleId: null, configuringId: null, customName: '' };
 
@@ -300,6 +300,7 @@ function renderDecorPackageList() {
 
 function startDecorPackageWizard(editId) {
   decorPkgWizard.editId = editId || null;
+  decorPkgWizard.itemsTab = 'included';
   const src = editId ? findDecorPackage(editId) : null;
   decorPkgWizard.draft = src ? JSON.parse(JSON.stringify(src)) : newDecorPkgDraft();
   if (!decorPkgWizard.draft.tierPrices) decorPkgWizard.draft.tierPrices = { basic: '', standard: '', premium: '' };
@@ -525,6 +526,35 @@ function decorModuleItemCounts(moduleId) {
   return { total: items.length, included: included, extra: extra };
 }
 
+function decorPkgItemsTab() {
+  return decorPkgWizard.itemsTab === 'extra' ? 'extra' : 'included';
+}
+
+function renderDecorItemsTabSeg() {
+  const host = el('decItemsTabSeg');
+  if (!host) return;
+  const tab = decorPkgItemsTab();
+  host.innerHTML =
+    '<button type="button" data-dec-items-tab="included"' +
+    (tab === 'included' ? ' class="on"' : '') +
+    '>Included items</button><button type="button" data-dec-items-tab="extra"' +
+    (tab === 'extra' ? ' class="on"' : '') +
+    '>Extra add-ons</button>';
+  host.querySelectorAll('[data-dec-items-tab]').forEach(function (btn) {
+    btn.onclick = function () {
+      decorPkgWizard.itemsTab = btn.getAttribute('data-dec-items-tab');
+      renderDecorPkgStep3();
+    };
+  });
+  const hint = el('decItemsTabHint');
+  if (hint) {
+    hint.textContent =
+      tab === 'extra'
+        ? 'Optional add-ons — customer pays item price on top of the package.'
+        : 'Part of your package price — customer does not pay extra for these.';
+  }
+}
+
 function renderDecorItemSummaryBanner() {
   const host = el('decItemSummaryBanner');
   if (!host) return;
@@ -541,12 +571,11 @@ function decorRenderSelItemRow(it, idx) {
   const label = it.customName || it.name;
   const isExtra = it.inclusionType === 'extra';
   const tag = isExtra ? 'Extra' : 'Included';
-  const price =
-    isExtra && it.extraPrice
-      ? ' · ' + inr(it.extraPrice) + ' / ' + esc(it.unit || 'Per Event')
-      : isExtra
-        ? ' · set add-on price'
-        : '';
+  const price = isExtra
+    ? it.extraPrice
+      ? ' — <b>' + inr(it.extraPrice) + '</b> / ' + esc(it.unit || 'Per Event')
+      : ' — <span style="color:#BE185D">add price</span>'
+    : '';
   const qty = +it.quantity > 1 ? ' · Qty ' + it.quantity : '';
   return (
     '<div class="dec-sel-row"><span><b>' +
@@ -582,6 +611,7 @@ function bindDecorSelItemRows(host) {
 function renderDecorPkgStep3() {
   setDecorWizProgress(3);
   const d = decorPkgWizard.draft;
+  renderDecorItemsTabSeg();
   renderDecorItemSummaryBanner();
   const q = (el('decModSearch').value || '').trim().toLowerCase();
   const host = el('decModList');
@@ -623,10 +653,7 @@ function renderDecorSelectedItemsSummary(full) {
   const host = el(full ? 'decSelectedItemsFull' : 'decSelectedItemsCompact');
   if (!host) return;
   const items = d.items || [];
-  if (!items.length) {
-    host.innerHTML = '<p class="sub">No items yet. Open a category above.</p>';
-    return;
-  }
+  const tab = full ? 'all' : decorPkgItemsTab();
   const included = [];
   const extra = [];
   let idx;
@@ -635,39 +662,75 @@ function renderDecorSelectedItemsSummary(full) {
     if (it.inclusionType === 'extra') extra.push({ it: it, idx: idx });
     else included.push({ it: it, idx: idx });
   }
-  let html = '';
-  if (included.length) {
-    html +=
-      '<div class="dec-sel-sec"><div class="dec-sel-sec-hd inc">Included</div>' +
-      included.map(function (row) {
+  let rows = tab === 'all' ? included.concat(extra) : tab === 'extra' ? extra : included;
+  if (tab === 'all') {
+    let html = '';
+    if (included.length) {
+      html +=
+        '<div class="dec-sel-sec"><div class="dec-sel-sec-hd inc">Included</div>' +
+        included
+          .map(function (row) {
+            return decorRenderSelItemRow(row.it, row.idx);
+          })
+          .join('') +
+        '</div>';
+    }
+    if (extra.length) {
+      html +=
+        '<div class="dec-sel-sec"><div class="dec-sel-sec-hd extra">Extra</div>' +
+        extra
+          .map(function (row) {
+            return decorRenderSelItemRow(row.it, row.idx);
+          })
+          .join('') +
+        '</div>';
+    }
+    host.innerHTML = html || '<p class="sub">No items yet.</p>';
+    bindDecorSelItemRows(host);
+    return;
+  }
+  if (!rows.length) {
+    host.innerHTML =
+      '<p class="sub">' +
+      (tab === 'extra'
+        ? 'No add-ons yet. Pick items above — enter price for each extra.'
+        : 'No included items yet. Pick items above.') +
+      '</p>';
+    return;
+  }
+  const title = tab === 'extra' ? 'Extra add-ons (with price)' : 'Included in package';
+  host.innerHTML =
+    '<div class="dec-sel-sec"><div class="dec-sel-sec-hd ' +
+    tab +
+    '">' +
+    title +
+    '</div>' +
+    rows
+      .map(function (row) {
         return decorRenderSelItemRow(row.it, row.idx);
-      }).join('') +
-      '</div>';
-  }
-  if (extra.length) {
-    html +=
-      '<div class="dec-sel-sec"><div class="dec-sel-sec-hd extra">Extra</div>' +
-      extra
-        .map(function (row) {
-          return decorRenderSelItemRow(row.it, row.idx);
-        })
-        .join('') +
-      '</div>';
-  }
-  host.innerHTML = html;
+      })
+      .join('') +
+    '</div>';
   bindDecorSelItemRows(host);
 }
 
 function openDecorModulePick(moduleId) {
-  decorModulePickCtx = { moduleId: moduleId, search: '' };
+  decorModulePickCtx = { moduleId: moduleId, search: '', pickMode: decorPkgItemsTab() };
   renderDecorModulePick();
   show('decorModPick');
+}
+
+function decorDefaultInclusionType() {
+  if (decorModulePickCtx && decorModulePickCtx.pickMode === 'extra') return 'extra';
+  if (decorPkgItemsTab() === 'extra') return 'extra';
+  return 'included';
 }
 
 function renderDecorModulePick() {
   const mod = findDecorationModule(decorModulePickCtx.moduleId);
   if (!mod) return;
-  el('decPickModTitle').textContent = mod.name;
+  el('decPickModTitle').textContent =
+    mod.name + (decorPkgItemsTab() === 'extra' ? ' · add-ons' : ' · included');
   const q = (decorModulePickCtx.search || '').trim().toLowerCase();
   const picked = decorSelectedInModule(mod.id);
   el('decPickModCount').textContent = picked.length + ' item' + (picked.length === 1 ? '' : 's') + ' selected';
@@ -710,16 +773,25 @@ function renderDecorModulePick() {
       });
       if (cb.checked) {
         if (i < 0) {
+          const type = decorDefaultInclusionType();
           items.push({
             moduleId: mod.id,
             catalogueId: id,
             name: hit.name,
-            inclusionType: 'included',
+            inclusionType: type,
             quantity: 1,
             unit: 'Per Event',
             extraPrice: '',
             description: '',
           });
+          decorPkgWizard.draft.items = items;
+          decorItemPickCtx.configuringId = items.length - 1;
+          if (type === 'extra') {
+            renderDecorPkgStep3();
+            renderDecorItemConfig();
+            show('decorItemConfig');
+            return;
+          }
         }
       } else if (i >= 0) items.splice(i, 1);
       decorPkgWizard.draft.items = items;
@@ -778,12 +850,13 @@ function addDecorCustomItem() {
   const mod = findDecorationModule(decorModulePickCtx.moduleId);
   if (!mod) return;
   decorPkgWizard.draft.items = decorPkgWizard.draft.items || [];
+  const type = decorDefaultInclusionType();
   decorPkgWizard.draft.items.push({
     moduleId: mod.id,
     catalogueId: '',
     customName: name,
     name: name,
-    inclusionType: 'included',
+    inclusionType: type,
     quantity: 1,
     unit: 'Per Event',
     extraPrice: '',
@@ -793,6 +866,15 @@ function addDecorCustomItem() {
   decorItemPickCtx.configuringId = decorPkgWizard.draft.items.length - 1;
   renderDecorItemConfig();
   show('decorItemConfig');
+  if (type !== 'extra') {
+    el('decIncIncluded').checked = true;
+    el('decIncExtra').checked = false;
+    el('decExtraPriceWrap').hidden = true;
+  } else {
+    el('decIncIncluded').checked = false;
+    el('decIncExtra').checked = true;
+    el('decExtraPriceWrap').hidden = false;
+  }
 }
 
 function renderDecorPkgStep4() {
