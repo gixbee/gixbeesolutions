@@ -18,8 +18,33 @@ function decorLevelClass(level) {
   return 'standard';
 }
 
+const DEC_PKG_MAX_IMAGES = 6;
+
+function ensureDecorPkgImageSlots(d) {
+  if (!d.images || !d.images.length) d.images = ['🎀'];
+  if (!d.imageUploaded) d.imageUploaded = d.images.map(function () {
+    return false;
+  });
+  while (d.imageUploaded.length < d.images.length) d.imageUploaded.push(false);
+  while (d.images.length < d.imageUploaded.length) d.images.push('🖼️');
+}
+
+function decorPkgHasCoverPhoto(p) {
+  return !!(p && p.imageUploaded && p.imageUploaded[0]);
+}
+
+function decorPkgThumbInner(p) {
+  if (decorPkgHasCoverPhoto(p)) return '';
+  return esc((p.images && p.images[0]) || '🎀');
+}
+
+function decorPkgHeroClass(d) {
+  return decorPkgHasCoverPhoto(d) ? ' dec-preview-hero has-photo' : ' dec-preview-hero';
+}
+
 function normalizeDecorPackage(d) {
   if (!d) return;
+  ensureDecorPkgImageSlots(d);
   if (!d.level) {
     const t = d.tierPrices || {};
     if (+t.premium > 0) d.level = 'Premium';
@@ -50,6 +75,7 @@ function newDecorPkgDraft() {
     name: '',
     description: '',
     images: ['🎀'],
+    imageUploaded: [false],
     listPrice: '',
     tierPrices: { basic: '', standard: '', premium: '' },
     offerEnabled: false,
@@ -213,8 +239,10 @@ function renderDecorPackageList() {
       return (
         '<article class="dec-pkg-card" data-dec-pkg="' +
         esc(p.id) +
-        '"><div class="dec-pkg-thumb">' +
-        (p.images && p.images[0] ? p.images[0] : '🎀') +
+        '"><div class="dec-pkg-thumb' +
+        (decorPkgHasCoverPhoto(p) ? ' has-photo' : '') +
+        '">' +
+        decorPkgThumbInner(p) +
         '</div><div><div class="dec-pkg-chips"><span class="dec-pkg-level ' +
         lv +
         '">' +
@@ -415,6 +443,69 @@ function renderDecorPkgStep2() {
     });
   }
   bindChip('decTraditionChips', 'trad', 'traditionTags');
+  renderDecorPkgImages();
+}
+
+function renderDecorPkgImages() {
+  const d = decorPkgWizard.draft;
+  ensureDecorPkgImageSlots(d);
+  const hasCover = !!d.imageUploaded[0];
+  const coverBtn = el('decPkgCoverUpload');
+  if (coverBtn) {
+    coverBtn.classList.toggle('has-image', hasCover);
+  }
+  const coverTitle = el('decPkgCoverTitle');
+  const coverSub = el('decPkgCoverSub');
+  if (coverTitle) coverTitle.textContent = hasCover ? 'Cover photo added' : 'Upload cover photo';
+  if (coverSub) coverSub.textContent = hasCover ? 'Tap to change cover' : 'JPG or PNG · demo upload';
+  const row = el('decPkgImageRow');
+  if (row) {
+  let html = '';
+  let i;
+  for (i = 1; i < d.images.length; i++) {
+    const on = !!d.imageUploaded[i];
+    html +=
+      '<button type="button" class="cover-thumb' +
+      (on ? ' on' : '') +
+      '" data-dec-img="' +
+      i +
+      '" aria-label="' +
+      (on ? 'Change photo ' + (i + 1) : 'Add photo ' + (i + 1)) +
+      '">' +
+      (on ? '📷' : '+') +
+      '</button>';
+  }
+    row.innerHTML = html;
+    row.querySelectorAll('[data-dec-img]').forEach(function (btn) {
+      btn.onclick = function () {
+        const idx = +btn.getAttribute('data-dec-img');
+        toggleDecorPkgImageSlot(idx);
+      };
+    });
+  }
+  const addBtn = el('decPkgAddImage');
+  if (addBtn) addBtn.hidden = d.images.length >= DEC_PKG_MAX_IMAGES;
+}
+
+function toggleDecorPkgImageSlot(idx) {
+  const d = decorPkgWizard.draft;
+  ensureDecorPkgImageSlots(d);
+  d.imageUploaded[idx] = !d.imageUploaded[idx];
+  if (d.imageUploaded[idx] && (!d.images[idx] || d.images[idx] === '🎀')) d.images[idx] = '🖼️';
+  renderDecorPkgImages();
+  toast(d.imageUploaded[idx] ? 'Photo added (demo).' : 'Photo removed.');
+}
+
+function addDecorPkgImageSlot() {
+  const d = decorPkgWizard.draft;
+  ensureDecorPkgImageSlots(d);
+  if (d.images.length >= DEC_PKG_MAX_IMAGES) {
+    toast('Up to ' + DEC_PKG_MAX_IMAGES + ' photos per package');
+    return;
+  }
+  d.images.push('🖼️');
+  d.imageUploaded.push(false);
+  renderDecorPkgImages();
 }
 
 function decorSelectedInModule(moduleId) {
@@ -718,8 +809,10 @@ function renderDecorPkgStep5() {
     return it.inclusionType === 'extra';
   });
   let html =
-    '<div class="dec-preview-hero">' +
-    (d.images && d.images[0] ? d.images[0] : '🎀') +
+    '<div class="' +
+    decorPkgHeroClass(d).trim() +
+    '">' +
+    (decorPkgHasCoverPhoto(d) ? '' : d.images && d.images[0] ? d.images[0] : '🎀') +
     '</div><h2 style="margin:8px 0;font-size:18px;color:var(--decor-navy)">' +
     esc(d.name) +
     '</h2><p class="sub">' +
@@ -861,6 +954,10 @@ function bindDecorationPackageUi() {
     show('decorPkgStep3');
   });
   bindOnInput('decPkgName', updateDecorPkgNamePreview);
+  bindClick('decPkgCoverUpload', function () {
+    toggleDecorPkgImageSlot(0);
+  });
+  bindClick('decPkgAddImage', addDecorPkgImageSlot);
   bindClick('decPkgStep3Back', function () {
     renderDecorPkgStep2();
     show('decorPkgStep2');

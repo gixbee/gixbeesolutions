@@ -310,8 +310,12 @@ body{margin:0;background:#E8EDF5;font-family:Inter,system-ui,sans-serif;color:#1
 .seg-full button{flex:1;border:0;padding:10px;font-weight:800;background:#F8FAFC;color:var(--mut);cursor:pointer}
 .seg-full button.on{background:var(--blue);color:#fff}
 .cover-row{display:flex;gap:10px;align-items:center}
-.cover-thumb{width:64px;height:64px;border-radius:10px;border:2px dashed #BFDBFE;background:#F8FAFC;display:grid;place-items:center}
-.cover-thumb.on{border-style:solid;background:linear-gradient(145deg,#CBD5E1,#94A3B8)}
+.cover-thumb{width:64px;height:64px;border-radius:10px;border:2px dashed #BFDBFE;background:#F8FAFC;display:grid;place-items:center;cursor:pointer;font:inherit;color:var(--mut);font-size:22px;font-weight:800;flex-shrink:0;padding:0}
+.cover-thumb.on{border-style:solid;background:linear-gradient(145deg,#7C3AED,#BE185D);color:#fff;font-size:18px}
+.dec-pkg-thumb.has-photo{background:linear-gradient(145deg,#64748B 0%,#94A3B8 55%,#CBD5E1 100%);font-size:0}
+.dec-preview-hero.has-photo{font-size:0;background:linear-gradient(145deg,#64748B 0%,#94A3B8 55%,#CBD5E1 100%)}
+.dec-pkg-cover-zone .svc-cover-upload{border-color:#DDD6FE;background:#FAF5FF;width:100%}
+.dec-pkg-cover-zone .svc-cover-upload.has-image{border-color:#C4B5FD}
 .svc-basics-lead{margin:0 0 16px;font-size:13px;color:var(--mut);line-height:1.5}
 .svc-basics-cat{margin:0 0 18px;padding:12px 14px;border-radius:14px;background:#F8FAFC;border:1px solid var(--line)}
 .svc-basics-cat-lbl{display:block;font-size:11px;font-weight:800;color:#9CA3AF;letter-spacing:.5px;text-transform:uppercase;margin:0 0 8px}
@@ -690,7 +694,15 @@ body{margin:0;background:#E8EDF5;font-family:Inter,system-ui,sans-serif;color:#1
   <div class="dec-chip-wrap" id="decTraditionChips"></div>
   <div class="fld"><label>Package name *</label><input id="decPkgName" placeholder="Basic Wedding Decoration"></div>
   <p class="sub" id="decPkgTitlePreview">Your package name</p>
-  <div class="fld"><label>Description (optional)</label><textarea id="decPkgDesc" rows="2" placeholder="Short note for customers"></textarea></div></div>
+  <div class="fld"><label>Description (optional)</label><textarea id="decPkgDesc" rows="2" placeholder="Short note for customers"></textarea></div>
+  <div class="fld dec-pkg-cover-zone"><label>Package images</label>
+  <p class="sub" style="margin:0 0 10px">Cover photo first — customers see this on search and booking. Add more portfolio shots (optional).</p>
+  <button type="button" class="svc-cover-upload" id="decPkgCoverUpload">
+    <span class="svc-cover-upload-ico" aria-hidden="true">📷</span>
+    <span class="svc-cover-upload-txt"><b id="decPkgCoverTitle">Upload cover photo</b><span class="sub" id="decPkgCoverSub">JPG or PNG · demo upload</span></span>
+  </button>
+  <div class="cover-row" id="decPkgImageRow" style="margin-top:10px;flex-wrap:wrap"></div>
+  <button type="button" class="btn btn-ghost" id="decPkgAddImage" style="width:100%;margin-top:8px">+ Add another photo</button></div></div>
   <div class="cat-wiz-foot"><button type="button" class="btn btn-ghost" id="decPkgStep2Back2">← Back</button><button type="button" class="btn btn-decor" id="decPkgStep2Next">Next →</button></div>
 </section>
 
@@ -2370,8 +2382,33 @@ function decorLevelClass(level) {
   return 'standard';
 }
 
+const DEC_PKG_MAX_IMAGES = 6;
+
+function ensureDecorPkgImageSlots(d) {
+  if (!d.images || !d.images.length) d.images = ['🎀'];
+  if (!d.imageUploaded) d.imageUploaded = d.images.map(function () {
+    return false;
+  });
+  while (d.imageUploaded.length < d.images.length) d.imageUploaded.push(false);
+  while (d.images.length < d.imageUploaded.length) d.images.push('🖼️');
+}
+
+function decorPkgHasCoverPhoto(p) {
+  return !!(p && p.imageUploaded && p.imageUploaded[0]);
+}
+
+function decorPkgThumbInner(p) {
+  if (decorPkgHasCoverPhoto(p)) return '';
+  return esc((p.images && p.images[0]) || '🎀');
+}
+
+function decorPkgHeroClass(d) {
+  return decorPkgHasCoverPhoto(d) ? ' dec-preview-hero has-photo' : ' dec-preview-hero';
+}
+
 function normalizeDecorPackage(d) {
   if (!d) return;
+  ensureDecorPkgImageSlots(d);
   if (!d.level) {
     const t = d.tierPrices || {};
     if (+t.premium > 0) d.level = 'Premium';
@@ -2402,6 +2439,7 @@ function newDecorPkgDraft() {
     name: '',
     description: '',
     images: ['🎀'],
+    imageUploaded: [false],
     listPrice: '',
     tierPrices: { basic: '', standard: '', premium: '' },
     offerEnabled: false,
@@ -2565,8 +2603,10 @@ function renderDecorPackageList() {
       return (
         '<article class="dec-pkg-card" data-dec-pkg="' +
         esc(p.id) +
-        '"><div class="dec-pkg-thumb">' +
-        (p.images && p.images[0] ? p.images[0] : '🎀') +
+        '"><div class="dec-pkg-thumb' +
+        (decorPkgHasCoverPhoto(p) ? ' has-photo' : '') +
+        '">' +
+        decorPkgThumbInner(p) +
         '</div><div><div class="dec-pkg-chips"><span class="dec-pkg-level ' +
         lv +
         '">' +
@@ -2767,6 +2807,69 @@ function renderDecorPkgStep2() {
     });
   }
   bindChip('decTraditionChips', 'trad', 'traditionTags');
+  renderDecorPkgImages();
+}
+
+function renderDecorPkgImages() {
+  const d = decorPkgWizard.draft;
+  ensureDecorPkgImageSlots(d);
+  const hasCover = !!d.imageUploaded[0];
+  const coverBtn = el('decPkgCoverUpload');
+  if (coverBtn) {
+    coverBtn.classList.toggle('has-image', hasCover);
+  }
+  const coverTitle = el('decPkgCoverTitle');
+  const coverSub = el('decPkgCoverSub');
+  if (coverTitle) coverTitle.textContent = hasCover ? 'Cover photo added' : 'Upload cover photo';
+  if (coverSub) coverSub.textContent = hasCover ? 'Tap to change cover' : 'JPG or PNG · demo upload';
+  const row = el('decPkgImageRow');
+  if (row) {
+  let html = '';
+  let i;
+  for (i = 1; i < d.images.length; i++) {
+    const on = !!d.imageUploaded[i];
+    html +=
+      '<button type="button" class="cover-thumb' +
+      (on ? ' on' : '') +
+      '" data-dec-img="' +
+      i +
+      '" aria-label="' +
+      (on ? 'Change photo ' + (i + 1) : 'Add photo ' + (i + 1)) +
+      '">' +
+      (on ? '📷' : '+') +
+      '</button>';
+  }
+    row.innerHTML = html;
+    row.querySelectorAll('[data-dec-img]').forEach(function (btn) {
+      btn.onclick = function () {
+        const idx = +btn.getAttribute('data-dec-img');
+        toggleDecorPkgImageSlot(idx);
+      };
+    });
+  }
+  const addBtn = el('decPkgAddImage');
+  if (addBtn) addBtn.hidden = d.images.length >= DEC_PKG_MAX_IMAGES;
+}
+
+function toggleDecorPkgImageSlot(idx) {
+  const d = decorPkgWizard.draft;
+  ensureDecorPkgImageSlots(d);
+  d.imageUploaded[idx] = !d.imageUploaded[idx];
+  if (d.imageUploaded[idx] && (!d.images[idx] || d.images[idx] === '🎀')) d.images[idx] = '🖼️';
+  renderDecorPkgImages();
+  toast(d.imageUploaded[idx] ? 'Photo added (demo).' : 'Photo removed.');
+}
+
+function addDecorPkgImageSlot() {
+  const d = decorPkgWizard.draft;
+  ensureDecorPkgImageSlots(d);
+  if (d.images.length >= DEC_PKG_MAX_IMAGES) {
+    toast('Up to ' + DEC_PKG_MAX_IMAGES + ' photos per package');
+    return;
+  }
+  d.images.push('🖼️');
+  d.imageUploaded.push(false);
+  renderDecorPkgImages();
 }
 
 function decorSelectedInModule(moduleId) {
@@ -3070,8 +3173,10 @@ function renderDecorPkgStep5() {
     return it.inclusionType === 'extra';
   });
   let html =
-    '<div class="dec-preview-hero">' +
-    (d.images && d.images[0] ? d.images[0] : '🎀') +
+    '<div class="' +
+    decorPkgHeroClass(d).trim() +
+    '">' +
+    (decorPkgHasCoverPhoto(d) ? '' : d.images && d.images[0] ? d.images[0] : '🎀') +
     '</div><h2 style="margin:8px 0;font-size:18px;color:var(--decor-navy)">' +
     esc(d.name) +
     '</h2><p class="sub">' +
@@ -3213,6 +3318,10 @@ function bindDecorationPackageUi() {
     show('decorPkgStep3');
   });
   bindOnInput('decPkgName', updateDecorPkgNamePreview);
+  bindClick('decPkgCoverUpload', function () {
+    toggleDecorPkgImageSlot(0);
+  });
+  bindClick('decPkgAddImage', addDecorPkgImageSlot);
   bindClick('decPkgStep3Back', function () {
     renderDecorPkgStep2();
     show('decorPkgStep2');
@@ -4261,7 +4370,7 @@ function bindDecorationPlatform() {
 
 
 /** Decoration owner app — dashboard/platform parity with catering + decoration hub. */
-const DECORATION_OWNER_BUILD = 'decoration-owner-pkg-level-v8';
+const DECORATION_OWNER_BUILD = 'decoration-owner-pkg-images-v9';
 const STORAGE_KEY = 'GIXBEE_DECORATION_OWNER_V1';
 
 function defaultStore() {
