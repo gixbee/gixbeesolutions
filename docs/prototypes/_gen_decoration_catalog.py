@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Generate _decoration_catalog.js — India-wide decoration catalogue (14 groups)."""
+"""Generate _decoration_catalog.js — India-wide decoration catalogue (12 groups)."""
 from pathlib import Path
 import json
 
@@ -244,7 +244,7 @@ ITEMS = {
 def main():
     out = Path(__file__).resolve().parent / "_decoration_catalog.js"
     lines = [
-        "/** All-India decoration catalogue — 14 categories for packages & individual services. */",
+        "/** All-India decoration catalogue — 12 categories for packages & individual services. */",
         "const DECORATION_PKG_LEVELS = ['Basic', 'Standard', 'Premium'];",
         "const DECORATION_PKG_LEVEL_HINTS = {",
         "  Basic: 'Essential décor for the function',",

@@ -1,4 +1,4 @@
-/** All-India decoration catalogue — 14 categories for packages & individual services. */
+/** All-India decoration catalogue — 12 categories for packages & individual services. */
 const DECORATION_PKG_LEVELS = ['Basic', 'Standard', 'Premium'];
 const DECORATION_PKG_LEVEL_HINTS = {
   Basic: 'Essential décor for the function',
@@ -300,12 +300,121 @@ const DECORATION_CATALOG_DEFS = [
   },
 ];
 
+function decorTraditionKey(tag) {
+  return String(tag || '')
+    .toLowerCase()
+    .replace(/[^a-z]/g, '');
+}
+
+function inferDecorationItemScopes(name) {
+  const n = String(name || '').toLowerCase();
+  const pkgScopes = [];
+  const traditionScopes = [];
+  const wedding =
+    /\b(wedding|bridal|couple|mandap|mandapam|mehendi|mailanchi|haldi|sangeet|nikah|walima|engagement|reception|mala|throne|roka|chunni|pookalam|nilavilakku|couple name)\b/.test(
+      n
+    );
+  const other =
+    /\b(birthday|baby shower|corporate|housewarming|baptism|communion|navjote|festival|ganesh|onam|kids|inauguration|green room|repairs|balloon ceiling|balloon arch)\b/.test(
+      n
+    );
+  if (wedding) pkgScopes.push('wedding');
+  if (other) pkgScopes.push('other');
+  if (!pkgScopes.length) pkgScopes.push('wedding', 'other');
+  if (/\b(nikah|walima|islamic)\b/.test(n)) traditionScopes.push('muslim');
+  if (/\b(church|baptism|communion|pew|altar)\b/.test(n)) traditionScopes.push('christian');
+  if (
+    /\b(mandap|mandapam|pookalam|haldi|mehendi|sangeet|marigold|nilavilakku|kalash|jasmine|malli|south indian|north indian|pooja|toran|thoranam|mango leaf|banana stem|garland for mala)\b/.test(
+      n
+    )
+  )
+    traditionScopes.push('hindu');
+  if (/\b(anand karaj|gurdwara|jain|interfaith)\b/.test(n)) traditionScopes.push('others');
+  if (
+    /\b(corporate|minimal stage|balloon|kids|housewarming|weather|partition|ceiling draping|wall draping|pillar wrapping|direction|parking|registration|signage package|custom theme|garden|lawn tent|green room|repairs)\b/.test(
+      n
+    )
+  ) {
+    if (traditionScopes.indexOf('others') < 0) traditionScopes.push('others');
+  }
+  if (!traditionScopes.length) traditionScopes.push('hindu', 'muslim', 'christian', 'others');
+  return { pkgScopes: pkgScopes, traditionScopes: traditionScopes };
+}
+
+function decorCatalogContextFromDraft(draft) {
+  const d = draft || {};
+  return {
+    packageCategory: d.packageCategory || 'wedding',
+    traditionTags: d.traditionTags || [],
+  };
+}
+
+function decorItemVisibleForPackage(item, ctx) {
+  if (ctx && ctx.showAll) return true;
+  const scopes = {
+    pkgScopes: item.pkgScopes || inferDecorationItemScopes(item.name).pkgScopes,
+    traditionScopes: item.traditionScopes || inferDecorationItemScopes(item.name).traditionScopes,
+  };
+  const cat = ctx.packageCategory || 'wedding';
+  const pkgOk =
+    scopes.pkgScopes.indexOf('all') >= 0 ||
+    scopes.pkgScopes.indexOf(cat) >= 0 ||
+    (scopes.pkgScopes.indexOf('wedding') >= 0 && scopes.pkgScopes.indexOf('other') >= 0);
+  if (!pkgOk) return false;
+  const comm = ctx.traditionTags || [];
+  if (!comm.length) return true;
+  return comm.some(function (t) {
+    const key = decorTraditionKey(t);
+    return scopes.traditionScopes.indexOf('all') >= 0 || scopes.traditionScopes.indexOf(key) >= 0;
+  });
+}
+
+function decorFilteredModuleItems(mod, ctx, searchQ) {
+  const q = (searchQ || '').trim().toLowerCase();
+  return (mod.items || []).filter(function (it) {
+    if (!decorItemVisibleForPackage(it, ctx)) return false;
+    if (q && it.name.toLowerCase().indexOf(q) < 0) return false;
+    return true;
+  });
+}
+
+function decorModulesForPackage(ctx, searchQ) {
+  const q = (searchQ || '').trim().toLowerCase();
+  return DECORATION_MODULES.map(function (m) {
+    const nameHit = q && m.name.toLowerCase().indexOf(q) >= 0;
+    const visible = decorFilteredModuleItems(m, ctx, nameHit ? '' : q);
+    return { mod: m, visibleCount: visible.length, items: visible };
+  }).filter(function (row) {
+    return row.visibleCount > 0;
+  });
+}
+
+function decorPackageCatalogSummary(ctx) {
+  const cat = DECORATION_EVENT_CATEGORIES.filter(function (c) {
+    return c.id === (ctx.packageCategory || 'wedding');
+  })[0];
+  const comm = (ctx.traditionTags || []).join(', ');
+  const rows = decorModulesForPackage(ctx, '');
+  let itemCount = 0;
+  rows.forEach(function (r) {
+    itemCount += r.visibleCount;
+  });
+  return {
+    categories: rows.length,
+    items: itemCount,
+    label: (cat ? cat.label : 'Package') + (comm ? ' · ' + comm : ''),
+  };
+}
+
 function buildDecorationModules() {
   return DECORATION_CATALOG_DEFS.map(function (m, idx) {
     const items = (m.items || []).map(function (name) {
+      const scopes = inferDecorationItemScopes(name);
       return {
         id: m.id + '::' + String(name).toLowerCase().replace(/[^a-z0-9]+/g, '-').slice(0, 48),
         name: name,
+        pkgScopes: scopes.pkgScopes,
+        traditionScopes: scopes.traditionScopes,
       };
     });
     return { id: m.id, num: idx + 1, name: m.name, emoji: m.emoji, items: items };

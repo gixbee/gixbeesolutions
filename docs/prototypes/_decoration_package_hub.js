@@ -613,38 +613,54 @@ function renderDecorPkgStep3() {
   const d = decorPkgWizard.draft;
   renderDecorItemsTabSeg();
   renderDecorItemSummaryBanner();
+  const ctx = decorCatalogContextFromDraft(d);
   const q = (el('decModSearch').value || '').trim().toLowerCase();
+  const summary = decorPackageCatalogSummary(ctx);
+  const hint = el('decPkgCatalogHint');
+  if (hint) {
+    hint.textContent =
+      summary.categories +
+      ' categories · ' +
+      summary.items +
+      ' items match ' +
+      summary.label +
+      '. Each category shows only what fits your package.';
+  }
   const host = el('decModList');
-  host.innerHTML = DECORATION_MODULES.filter(function (m) {
-    if (!q) return true;
-    return m.name.toLowerCase().indexOf(q) >= 0;
-  })
-    .map(function (m) {
-      const stats = decorModuleItemCounts(m.id);
-      let sub;
-      if (stats.total) {
-        sub = stats.included + ' included' + (stats.extra ? ', ' + stats.extra + ' extra' : '');
-      } else {
-        sub = (m.items ? m.items.length : 0) + ' items · tap to open';
-      }
-      return (
-        '<button type="button" class="dec-mod-row" data-dec-mod="' +
-        esc(m.id) +
-        '"><span class="dec-mod-ico">' +
-        m.emoji +
-        '</span><span style="flex:1;min-width:0"><b>' +
-        esc(m.name) +
-        '</b><small>' +
-        esc(sub) +
-        '</small></span><span class="dec-chev">›</span></button>'
-      );
-    })
-    .join('');
-  host.querySelectorAll('[data-dec-mod]').forEach(function (row) {
-    row.onclick = function () {
-      openDecorModulePick(row.getAttribute('data-dec-mod'));
-    };
-  });
+  const rows = decorModulesForPackage(ctx, q);
+  if (!rows.length) {
+    host.innerHTML =
+      '<div class="dec-empty" style="margin:12px 16px"><p class="sub">No categories match. Try another search or update package type / community in step 2.</p></div>';
+  } else {
+    host.innerHTML = rows
+      .map(function (row) {
+        const m = row.mod;
+        const stats = decorModuleItemCounts(m.id);
+        let sub;
+        if (stats.total) {
+          sub = stats.included + ' included' + (stats.extra ? ', ' + stats.extra + ' extra' : '');
+        } else {
+          sub = row.visibleCount + ' items for this package';
+        }
+        return (
+          '<button type="button" class="dec-mod-row" data-dec-mod="' +
+          esc(m.id) +
+          '"><span class="dec-mod-ico">' +
+          m.emoji +
+          '</span><span style="flex:1;min-width:0"><b>' +
+          esc(m.name) +
+          '</b><small>' +
+          esc(sub) +
+          '</small></span><span class="dec-chev">›</span></button>'
+        );
+      })
+      .join('');
+    host.querySelectorAll('[data-dec-mod]').forEach(function (row) {
+      row.onclick = function () {
+        openDecorModulePick(row.getAttribute('data-dec-mod'));
+      };
+    });
+  }
   renderDecorSelectedItemsSummary(false);
 }
 
@@ -733,11 +749,19 @@ function renderDecorModulePick() {
     mod.name + (decorPkgItemsTab() === 'extra' ? ' · add-ons' : ' · included');
   const q = (decorModulePickCtx.search || '').trim().toLowerCase();
   const picked = decorSelectedInModule(mod.id);
-  el('decPickModCount').textContent = picked.length + ' item' + (picked.length === 1 ? '' : 's') + ' selected';
-  const list = mod.items.filter(function (it) {
-    return !q || it.name.toLowerCase().indexOf(q) >= 0;
-  });
+  const ctx = decorCatalogContextFromDraft(decorPkgWizard.draft);
+  const list = decorFilteredModuleItems(mod, ctx, q);
+  el('decPickModCount').textContent =
+    picked.length +
+    ' selected · ' +
+    list.length +
+    ' shown for your package';
   const host = el('decPickModList');
+  if (!list.length) {
+    host.innerHTML = '<p class="sub pad">No items here for your package type and community. Go back and adjust step 2, or add a custom item below.</p>';
+    el('decPickModSearch').value = decorModulePickCtx.search || '';
+    return;
+  }
   host.innerHTML = list
     .map(function (it) {
       const row = (decorPkgWizard.draft.items || []).find(function (x) {
