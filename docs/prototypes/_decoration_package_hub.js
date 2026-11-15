@@ -532,9 +532,9 @@ function renderDecorItemSummaryBanner() {
   host.innerHTML =
     '<div class="dec-stat-pill inc"><b>' +
     counts.included +
-    '</b>Included in package</div><div class="dec-stat-pill extra"><b>' +
+    '</b>Included</div><div class="dec-stat-pill extra"><b>' +
     counts.extra +
-    '</b>Extra add-ons</div>';
+    '</b>Extra</div>';
 }
 
 function decorRenderSelItemRow(it, idx) {
@@ -593,12 +593,9 @@ function renderDecorPkgStep3() {
       const stats = decorModuleItemCounts(m.id);
       let sub;
       if (stats.total) {
-        sub =
-          stats.included +
-          ' included' +
-          (stats.extra ? ' · ' + stats.extra + ' extra' : '');
+        sub = stats.included + ' included' + (stats.extra ? ', ' + stats.extra + ' extra' : '');
       } else {
-        sub = (m.items ? m.items.length : 0) + ' Kerala & all-India items · tap to pick';
+        sub = (m.items ? m.items.length : 0) + ' items · tap to open';
       }
       return (
         '<button type="button" class="dec-mod-row" data-dec-mod="' +
@@ -641,7 +638,7 @@ function renderDecorSelectedItemsSummary(full) {
   let html = '';
   if (included.length) {
     html +=
-      '<div class="dec-sel-sec"><div class="dec-sel-sec-hd inc">✓ Included in package price</div>' +
+      '<div class="dec-sel-sec"><div class="dec-sel-sec-hd inc">Included</div>' +
       included.map(function (row) {
         return decorRenderSelItemRow(row.it, row.idx);
       }).join('') +
@@ -649,7 +646,7 @@ function renderDecorSelectedItemsSummary(full) {
   }
   if (extra.length) {
     html +=
-      '<div class="dec-sel-sec"><div class="dec-sel-sec-hd extra">+ Extra add-ons</div>' +
+      '<div class="dec-sel-sec"><div class="dec-sel-sec-hd extra">Extra</div>' +
       extra
         .map(function (row) {
           return decorRenderSelItemRow(row.it, row.idx);
@@ -673,14 +670,7 @@ function renderDecorModulePick() {
   el('decPickModTitle').textContent = mod.name;
   const q = (decorModulePickCtx.search || '').trim().toLowerCase();
   const picked = decorSelectedInModule(mod.id);
-  const modInc = picked.filter(function (x) {
-    return x.inclusionType !== 'extra';
-  }).length;
-  const modExtra = picked.length - modInc;
-  el('decPickModCount').textContent =
-    picked.length +
-    ' selected' +
-    (picked.length ? ' — ' + modInc + ' included' + (modExtra ? ', ' + modExtra + ' extra' : '') : '');
+  el('decPickModCount').textContent = picked.length + ' item' + (picked.length === 1 ? '' : 's') + ' selected';
   const list = mod.items.filter(function (it) {
     return !q || it.name.toLowerCase().indexOf(q) >= 0;
   });
@@ -740,15 +730,6 @@ function renderDecorModulePick() {
   el('decPickModSearch').value = decorModulePickCtx.search || '';
 }
 
-function paintDecorIncTypeHint() {
-  const hint = el('decIncTypeHint');
-  if (!hint) return;
-  const extra = el('decIncExtra') && el('decIncExtra').checked;
-  hint.textContent = extra
-    ? 'Customers see this as an optional add-on with the extra price you enter.'
-    : 'Customers get this item within the package price you set in step 4.';
-}
-
 function renderDecorItemConfig() {
   const idx = decorItemPickCtx.configuringId;
   const it = idx != null ? decorPkgWizard.draft.items[idx] : null;
@@ -757,7 +738,6 @@ function renderDecorItemConfig() {
   el('decIncIncluded').checked = it.inclusionType !== 'extra';
   el('decIncExtra').checked = it.inclusionType === 'extra';
   el('decExtraPriceWrap').hidden = it.inclusionType !== 'extra';
-  paintDecorIncTypeHint();
   el('decItemExtraPrice').value = it.extraPrice === '' || it.extraPrice == null ? '' : it.extraPrice;
   el('decItemUnit').innerHTML = DECORATION_UNITS.map(function (u) {
     return '<option' + (it.unit === u ? ' selected' : '') + '>' + esc(u) + '</option>';
@@ -1082,12 +1062,10 @@ function bindDecorationPackageUi() {
   bindClick('decIncIncluded', function () {
     el('decIncExtra').checked = false;
     el('decExtraPriceWrap').hidden = true;
-    paintDecorIncTypeHint();
   });
   bindClick('decIncExtra', function () {
     el('decIncIncluded').checked = false;
     el('decExtraPriceWrap').hidden = false;
-    paintDecorIncTypeHint();
   });
   bindClick('decPkgStep4Back', function () {
     renderDecorPkgStep3();

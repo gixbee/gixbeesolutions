@@ -728,26 +728,18 @@ body{margin:0;background:#E8EDF5;font-family:Inter,system-ui,sans-serif;color:#1
   <div class="dec-progress"><i class="done"></i><i class="done"></i><i class="on"></i><i></i><i></i></div>
   <p class="dec-wiz-step">Step 3 of 5</p>
   <div class="dec-items-intro">
-    <p class="sub" style="margin:0 0 10px">Pick décor for Kerala weddings and events — stage, mandapam, entrance, car flowers, lighting, and more.</p>
-    <div class="dec-inc-extra-legend">
-      <span class="dec-legend inc"><b>Included</b> — part of your package price. Customer does not pay extra.</span>
-      <span class="dec-legend extra"><b>Extra</b> — optional add-on. You set an extra price on top of the package.</span>
-    </div>
+    <p class="sub" style="margin:0 0 10px"><b>Included</b> = in your package price. <b>Extra</b> = customer pays add-on price (set when you configure).</p>
     <div class="dec-item-stats" id="decItemSummaryBanner"></div>
   </div>
-  <form class="search" onsubmit="return false"><span>🔍</span><input type="search" id="decModSearch" placeholder="Search stage, mandapam, flowers, lighting…" autocomplete="off"></form>
+  <form class="search" onsubmit="return false"><span>🔍</span><input type="search" id="decModSearch" placeholder="Search categories" autocomplete="off"></form>
   <div class="dec-mod-list" id="decModList"></div>
-  <p class="lbl pad" style="margin-bottom:6px">YOUR PACKAGE LIST</p>
   <div class="pad" id="decSelectedItemsCompact"></div>
   <div class="cat-wiz-foot"><button type="button" class="btn btn-ghost" id="decPkgStep3BackFoot">← Back</button><button type="button" class="btn btn-decor" id="decPkgStep3Next">Next: Set pricing →</button></div>
 </section>
 
 <section class="scr" id="decorModPick">
   <div class="top gx-top"><button type="button" class="back" id="decModPickBack">←</button><h1 id="decPickModTitle">Category</h1><span class="hub-more">⋮</span></div>
-  <div class="pad dec-items-intro" style="margin-top:8px;padding:10px 12px">
-    <p class="sub" style="margin:0 0 8px" id="decPickModCount">0 selected</p>
-    <p class="sub" style="margin:0">New items start as <b>Included</b>. Open <b>Configure</b> on your list to switch to <b>Extra</b> and set add-on price.</p>
-  </div>
+  <p class="sub pad" id="decPickModCount" style="margin:8px 0">0 selected</p>
   <form class="search" onsubmit="return false"><span>🔍</span><input type="search" id="decPickModSearch" placeholder="Search items" autocomplete="off"></form>
   <div class="dec-pick-list" id="decPickModList"></div>
   <div class="pad fld"><label>Add your own</label><input id="decCustomItemName" placeholder="Custom item name"><button type="button" class="btn btn-ghost" id="decCustomItemAdd" style="margin-top:8px;width:100%">Add custom item</button></div>
@@ -759,9 +751,8 @@ body{margin:0;background:#E8EDF5;font-family:Inter,system-ui,sans-serif;color:#1
   <div class="pad">
     <p class="lbl">HOW IS THIS CHARGED?</p>
     <div class="dec-radio">
-    <label><input type="radio" name="decInc" id="decIncIncluded" checked><span><b>Included in package</b><small>Covered by your package price — no extra charge for the customer.</small></span></label>
-    <label><input type="radio" name="decInc" id="decIncExtra"><span><b>Extra (add-on)</b><small>Customer can add this on top of the package — set the extra price below.</small></span></label></div>
-    <p class="sub" id="decIncTypeHint" style="margin:4px 0 12px"></p>
+    <label><input type="radio" name="decInc" id="decIncIncluded" checked><span><b>Included</b><small>In package price</small></span></label>
+    <label><input type="radio" name="decInc" id="decIncExtra"><span><b>Extra</b><small>Add-on — enter price below</small></span></label></div>
     <div id="decExtraPriceWrap" hidden>
     <div class="fld"><label>Extra price (₹) *</label><input type="number" id="decItemExtraPrice" min="0" inputmode="numeric"></div>
     <div class="fld"><label>Pricing unit</label><select id="decItemUnit"></select></div></div>
@@ -2925,9 +2916,9 @@ function renderDecorItemSummaryBanner() {
   host.innerHTML =
     '<div class="dec-stat-pill inc"><b>' +
     counts.included +
-    '</b>Included in package</div><div class="dec-stat-pill extra"><b>' +
+    '</b>Included</div><div class="dec-stat-pill extra"><b>' +
     counts.extra +
-    '</b>Extra add-ons</div>';
+    '</b>Extra</div>';
 }
 
 function decorRenderSelItemRow(it, idx) {
@@ -2986,12 +2977,9 @@ function renderDecorPkgStep3() {
       const stats = decorModuleItemCounts(m.id);
       let sub;
       if (stats.total) {
-        sub =
-          stats.included +
-          ' included' +
-          (stats.extra ? ' · ' + stats.extra + ' extra' : '');
+        sub = stats.included + ' included' + (stats.extra ? ', ' + stats.extra + ' extra' : '');
       } else {
-        sub = (m.items ? m.items.length : 0) + ' Kerala & all-India items · tap to pick';
+        sub = (m.items ? m.items.length : 0) + ' items · tap to open';
       }
       return (
         '<button type="button" class="dec-mod-row" data-dec-mod="' +
@@ -3034,7 +3022,7 @@ function renderDecorSelectedItemsSummary(full) {
   let html = '';
   if (included.length) {
     html +=
-      '<div class="dec-sel-sec"><div class="dec-sel-sec-hd inc">✓ Included in package price</div>' +
+      '<div class="dec-sel-sec"><div class="dec-sel-sec-hd inc">Included</div>' +
       included.map(function (row) {
         return decorRenderSelItemRow(row.it, row.idx);
       }).join('') +
@@ -3042,7 +3030,7 @@ function renderDecorSelectedItemsSummary(full) {
   }
   if (extra.length) {
     html +=
-      '<div class="dec-sel-sec"><div class="dec-sel-sec-hd extra">+ Extra add-ons</div>' +
+      '<div class="dec-sel-sec"><div class="dec-sel-sec-hd extra">Extra</div>' +
       extra
         .map(function (row) {
           return decorRenderSelItemRow(row.it, row.idx);
@@ -3066,14 +3054,7 @@ function renderDecorModulePick() {
   el('decPickModTitle').textContent = mod.name;
   const q = (decorModulePickCtx.search || '').trim().toLowerCase();
   const picked = decorSelectedInModule(mod.id);
-  const modInc = picked.filter(function (x) {
-    return x.inclusionType !== 'extra';
-  }).length;
-  const modExtra = picked.length - modInc;
-  el('decPickModCount').textContent =
-    picked.length +
-    ' selected' +
-    (picked.length ? ' — ' + modInc + ' included' + (modExtra ? ', ' + modExtra + ' extra' : '') : '');
+  el('decPickModCount').textContent = picked.length + ' item' + (picked.length === 1 ? '' : 's') + ' selected';
   const list = mod.items.filter(function (it) {
     return !q || it.name.toLowerCase().indexOf(q) >= 0;
   });
@@ -3133,15 +3114,6 @@ function renderDecorModulePick() {
   el('decPickModSearch').value = decorModulePickCtx.search || '';
 }
 
-function paintDecorIncTypeHint() {
-  const hint = el('decIncTypeHint');
-  if (!hint) return;
-  const extra = el('decIncExtra') && el('decIncExtra').checked;
-  hint.textContent = extra
-    ? 'Customers see this as an optional add-on with the extra price you enter.'
-    : 'Customers get this item within the package price you set in step 4.';
-}
-
 function renderDecorItemConfig() {
   const idx = decorItemPickCtx.configuringId;
   const it = idx != null ? decorPkgWizard.draft.items[idx] : null;
@@ -3150,7 +3122,6 @@ function renderDecorItemConfig() {
   el('decIncIncluded').checked = it.inclusionType !== 'extra';
   el('decIncExtra').checked = it.inclusionType === 'extra';
   el('decExtraPriceWrap').hidden = it.inclusionType !== 'extra';
-  paintDecorIncTypeHint();
   el('decItemExtraPrice').value = it.extraPrice === '' || it.extraPrice == null ? '' : it.extraPrice;
   el('decItemUnit').innerHTML = DECORATION_UNITS.map(function (u) {
     return '<option' + (it.unit === u ? ' selected' : '') + '>' + esc(u) + '</option>';
@@ -3475,12 +3446,10 @@ function bindDecorationPackageUi() {
   bindClick('decIncIncluded', function () {
     el('decIncExtra').checked = false;
     el('decExtraPriceWrap').hidden = true;
-    paintDecorIncTypeHint();
   });
   bindClick('decIncExtra', function () {
     el('decIncIncluded').checked = false;
     el('decExtraPriceWrap').hidden = false;
-    paintDecorIncTypeHint();
   });
   bindClick('decPkgStep4Back', function () {
     renderDecorPkgStep3();
@@ -4489,7 +4458,7 @@ function bindDecorationPlatform() {
 
 
 /** Decoration owner app — dashboard/platform parity with catering + decoration hub. */
-const DECORATION_OWNER_BUILD = 'decoration-owner-items-ux-v12';
+const DECORATION_OWNER_BUILD = 'decoration-owner-items-simple-v13';
 const STORAGE_KEY = 'GIXBEE_DECORATION_OWNER_V1';
 
 function defaultStore() {

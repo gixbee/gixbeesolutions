@@ -728,26 +728,18 @@ body{margin:0;background:#E8EDF5;font-family:Inter,system-ui,sans-serif;color:#1
   <div class="dec-progress"><i class="done"></i><i class="done"></i><i class="on"></i><i></i><i></i></div>
   <p class="dec-wiz-step">Step 3 of 5</p>
   <div class="dec-items-intro">
-    <p class="sub" style="margin:0 0 10px">Pick décor for Kerala weddings and events — stage, mandapam, entrance, car flowers, lighting, and more.</p>
-    <div class="dec-inc-extra-legend">
-      <span class="dec-legend inc"><b>Included</b> — part of your package price. Customer does not pay extra.</span>
-      <span class="dec-legend extra"><b>Extra</b> — optional add-on. You set an extra price on top of the package.</span>
-    </div>
+    <p class="sub" style="margin:0 0 10px"><b>Included</b> = in your package price. <b>Extra</b> = customer pays add-on price (set when you configure).</p>
     <div class="dec-item-stats" id="decItemSummaryBanner"></div>
   </div>
-  <form class="search" onsubmit="return false"><span>🔍</span><input type="search" id="decModSearch" placeholder="Search stage, mandapam, flowers, lighting…" autocomplete="off"></form>
+  <form class="search" onsubmit="return false"><span>🔍</span><input type="search" id="decModSearch" placeholder="Search categories" autocomplete="off"></form>
   <div class="dec-mod-list" id="decModList"></div>
-  <p class="lbl pad" style="margin-bottom:6px">YOUR PACKAGE LIST</p>
   <div class="pad" id="decSelectedItemsCompact"></div>
   <div class="cat-wiz-foot"><button type="button" class="btn btn-ghost" id="decPkgStep3BackFoot">← Back</button><button type="button" class="btn btn-decor" id="decPkgStep3Next">Next: Set pricing →</button></div>
 </section>
 
 <section class="scr" id="decorModPick">
   <div class="top gx-top"><button type="button" class="back" id="decModPickBack">←</button><h1 id="decPickModTitle">Category</h1><span class="hub-more">⋮</span></div>
-  <div class="pad dec-items-intro" style="margin-top:8px;padding:10px 12px">
-    <p class="sub" style="margin:0 0 8px" id="decPickModCount">0 selected</p>
-    <p class="sub" style="margin:0">New items start as <b>Included</b>. Open <b>Configure</b> on your list to switch to <b>Extra</b> and set add-on price.</p>
-  </div>
+  <p class="sub pad" id="decPickModCount" style="margin:8px 0">0 selected</p>
   <form class="search" onsubmit="return false"><span>🔍</span><input type="search" id="decPickModSearch" placeholder="Search items" autocomplete="off"></form>
   <div class="dec-pick-list" id="decPickModList"></div>
   <div class="pad fld"><label>Add your own</label><input id="decCustomItemName" placeholder="Custom item name"><button type="button" class="btn btn-ghost" id="decCustomItemAdd" style="margin-top:8px;width:100%">Add custom item</button></div>
@@ -759,9 +751,8 @@ body{margin:0;background:#E8EDF5;font-family:Inter,system-ui,sans-serif;color:#1
   <div class="pad">
     <p class="lbl">HOW IS THIS CHARGED?</p>
     <div class="dec-radio">
-    <label><input type="radio" name="decInc" id="decIncIncluded" checked><span><b>Included in package</b><small>Covered by your package price — no extra charge for the customer.</small></span></label>
-    <label><input type="radio" name="decInc" id="decIncExtra"><span><b>Extra (add-on)</b><small>Customer can add this on top of the package — set the extra price below.</small></span></label></div>
-    <p class="sub" id="decIncTypeHint" style="margin:4px 0 12px"></p>
+    <label><input type="radio" name="decInc" id="decIncIncluded" checked><span><b>Included</b><small>In package price</small></span></label>
+    <label><input type="radio" name="decInc" id="decIncExtra"><span><b>Extra</b><small>Add-on — enter price below</small></span></label></div>
     <div id="decExtraPriceWrap" hidden>
     <div class="fld"><label>Extra price (₹) *</label><input type="number" id="decItemExtraPrice" min="0" inputmode="numeric"></div>
     <div class="fld"><label>Pricing unit</label><select id="decItemUnit"></select></div></div>
