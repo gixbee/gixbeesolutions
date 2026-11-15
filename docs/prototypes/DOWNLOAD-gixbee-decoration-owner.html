@@ -5,9 +5,9 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Gixbee — Decoration Owner</title>
 <style>
-:root{--navy:#1B2559;--blue:#2563EB;--gn:#12B76A;--gn2:#047857;--decor:#7C3AED;--decor2:#BE185D;--decor-navy:#1E1B4B;--line:#E5E7EB;--mut:#64748B;--shadow:0 10px 32px rgba(15,23,42,.1)}
+:root{--navy:#1B2559;--blue:#2563EB;--gn:#12B76A;--gn2:#047857;--soft:#ECFDF3;--decor:#7C3AED;--decor2:#BE185D;--decor-navy:#1E1B4B;--line:#E5E7EB;--mut:#64748B;--shadow:0 10px 32px rgba(15,23,42,.1)}
 *{box-sizing:border-box}
-body{margin:0;background:#EDE9FE;font-family:Inter,system-ui,sans-serif;color:#111827}
+body{margin:0;background:#E8EDF5;font-family:Inter,system-ui,sans-serif;color:#111827}
 .stage{min-height:100vh;display:flex;justify-content:center;padding:12px 8px 24px}
 .phone{width:min(100%,430px);background:#fff;min-height:920px;border-radius:36px;box-shadow:var(--shadow);overflow:hidden;border:8px solid #111;display:flex;flex-direction:column;position:relative}
 .notch{height:26px;display:flex;justify-content:space-between;padding:8px 18px 0;font-size:12px;font-weight:700}
@@ -27,19 +27,25 @@ body{margin:0;background:#EDE9FE;font-family:Inter,system-ui,sans-serif;color:#1
 .btn-ghost{background:#fff;color:var(--decor-navy);border:1.5px solid #CBD5E1}
 .top .link{border:0;background:none;font:inherit;font-weight:800;color:var(--blue);cursor:pointer;padding:6px}
 .cta{padding:12px 16px 20px}.cta .btn{width:100%}
-.biz-card{border:1px solid var(--line);border-radius:16px;padding:12px;margin:0 16px 14px;width:calc(100% - 32px);background:#fff;text-align:left;cursor:pointer;font:inherit;color:inherit;display:block}
-.biz-card .row{display:flex;gap:12px;align-items:flex-start}
-.biz-ico{width:52px;height:52px;border-radius:12px;background:#F5F3FF;display:grid;place-items:center;font-size:24px;flex-shrink:0}
-.biz-card b{display:block;font-size:15px;color:var(--decor-navy);font-weight:900}
-.biz-card .type{font-size:12px;color:var(--mut);font-weight:600;margin-top:2px;display:block}
-.biz-meta{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0 10px}
-.pill{font-size:10px;font-weight:800;padding:4px 8px;border-radius:99px}
-.pill-ver{background:#DCFCE7;color:#166534}
-.biz-actions{display:flex;gap:8px}
-.biz-actions button{flex:1;border:1px solid var(--line);background:#fff;border-radius:99px;padding:9px;font-size:11px;font-weight:800;color:var(--decor-navy);cursor:pointer}
-.biz-actions button.primary{border:0;color:#fff}
-.lmb-top{padding:12px 16px 4px;display:flex;align-items:center;gap:8px}
-.lmb-top .title{font-size:18px;font-weight:900;color:var(--decor-navy);flex:1}
+.lmb-top{background:#F8FAFC;border-bottom:1px solid var(--line);padding:10px 16px 12px}
+.lmb-top .row{display:flex;align-items:center;gap:8px;flex-wrap:nowrap}
+.biz-title{font-weight:900;font-size:16px;color:var(--navy);flex:1;min-width:0}
+.home-pill{display:inline-flex;align-items:center;gap:6px;padding:6px 12px;border-radius:99px;background:var(--soft);color:var(--gn2);font-size:11px;font-weight:800;border:0;cursor:pointer;flex-shrink:0}
+.lmb-top .manage-pill{font-size:11px;font-weight:800;color:var(--mut);border:1px solid var(--line);padding:6px 10px;border-radius:99px;background:#fff;flex-shrink:0}
+.biz-dash-card{border:1px solid var(--line);border-radius:16px;padding:14px;margin:0 0 14px;background:#fff;box-shadow:0 2px 8px rgba(15,23,42,.04)}
+.biz-dash-card .biz-row{display:flex;gap:12px;align-items:flex-start}
+.biz-dash-card .biz-ico{width:44px;height:44px;border-radius:12px;background:#DBEAFE;display:grid;place-items:center;font-size:22px;flex:none}
+.biz-dash-card .biz-ico.decoration{background:#F5F3FF}
+.biz-dash-card .biz-name{font-weight:900;font-size:15px;margin:0 0 2px;color:var(--navy)}
+.biz-dash-card .biz-type{font-size:12px;color:var(--mut);font-weight:600;margin:0}
+.biz-dash-card .biz-meta{font-size:12px;color:var(--mut);margin:8px 0}
+.biz-dash-card .biz-badges{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0 12px}
+.biz-dash-card .biz-badges span{font-size:10px;font-weight:800;padding:4px 8px;border-radius:99px;background:#FEE2E2;color:#B91C1C}
+.biz-dash-card .biz-badges span.gy{background:#F3F4F6;color:#374151}
+.biz-dash-card .biz-actions{display:flex;gap:8px}
+.biz-dash-card .biz-actions button{flex:1;border:1px solid var(--line);background:#fff;border-radius:99px;padding:9px 6px;font-size:11px;font-weight:800;color:var(--navy);cursor:pointer;font:inherit}
+.biz-dash-card .biz-actions button.mgr-decoration{border:0;background:var(--blue);color:#fff}
+.pill.ok{background:#DCFCE7;color:#166534;font-size:10px;font-weight:800;padding:4px 8px;border-radius:99px}
 .dash-banner{height:100px;background:linear-gradient(145deg,#7C3AED,#BE185D);position:relative}
 .dash-logo{position:absolute;left:16px;bottom:-28px;width:56px;height:56px;border-radius:50%;background:#fff;border:3px solid #fff;box-shadow:0 4px 12px rgba(0,0,0,.12);display:grid;place-items:center;font-size:22px}
 .dash-head{padding:36px 16px 12px}
@@ -411,9 +417,14 @@ body{margin:0;background:#EDE9FE;font-family:Inter,system-ui,sans-serif;color:#1
 <div class="notch"><span>9:41</span><span>●●●</span></div>
 
 <section class="scr on" id="lmbDashboard">
-  <div class="lmb-top"><span class="title">List My Business</span></div>
-  <p class="sub pad" style="margin-bottom:12px">Registered businesses on your profile</p>
-  <div id="lmbCards"></div>
+  <div class="lmb-top">
+    <div class="row">
+      <button type="button" class="home-pill" id="lmbHomeBtn">🏠 Home</button>
+      <div class="biz-title">List My Business</div>
+      <span class="manage-pill">Manage &amp; grow</span>
+    </div>
+  </div>
+  <div class="pad" style="padding-top:8px" id="lmbCards"></div>
 </section>
 
 <section class="scr" id="photoDash">
@@ -4090,7 +4101,7 @@ function bindDecorationPlatform() {
 
 
 /** Decoration owner app — dashboard/platform parity with catering + decoration hub. */
-const DECORATION_OWNER_BUILD = 'decoration-owner-platform-v5';
+const DECORATION_OWNER_BUILD = 'decoration-owner-lmb-v6';
 const STORAGE_KEY = 'GIXBEE_DECORATION_OWNER_V1';
 
 function defaultStore() {
@@ -4202,16 +4213,39 @@ function bindOnInput(id, fn) {
 }
 
 function renderLmb() {
-  const host = el('lmbCards');
-  if (!host) return;
-  host.innerHTML =
-    '<button type="button" class="biz-card" id="openDecorBiz"><div class="row"><div class="biz-ico">🎀</div><div><b>' +
+  const wrap = el('lmbCards');
+  if (!wrap) return;
+  wrap.innerHTML =
+    '<div class="biz-dash-card">' +
+    '<div class="biz-row"><div class="biz-ico decoration">🎀</div><div style="flex:1">' +
+    '<p class="biz-name">' +
     esc(store.biz.name) +
-    '</b><span class="type">Decoration · Service</span><div class="biz-meta"><span class="pill pill-ver">Verified</span></div><div class="biz-actions"><button type="button" class="primary" style="background:var(--decor)">Manage</button></div></div></div></button>';
-  bindClick('openDecorBiz', function () {
-    renderPhotoDash();
-    show('photoDash');
-  });
+    '</p><p class="biz-type">' +
+    esc(store.biz.type || 'Decoration') +
+    '</p>' +
+    '<p class="biz-meta"><span class="pill ok">Verified</span> · ' +
+    esc(store.biz.loc) +
+    '</p>' +
+    '<div class="biz-badges"><span>3 new requests</span><span class="gy">Rs 2.1L this month</span></div>' +
+    '<div class="biz-actions"><button type="button" id="lmbCalBtn">Calendar</button><button type="button" id="lmbReqBtn">Requests</button>' +
+    '<button type="button" class="mgr-decoration" id="dashDecorManage">Manage</button></div>' +
+    '</div></div></div>';
+  const manage = el('dashDecorManage');
+  if (manage) {
+    manage.onclick = function () {
+      renderPhotoDash();
+      show('photoDash');
+    };
+  }
+  const lmbCal = el('lmbCalBtn');
+  if (lmbCal) lmbCal.onclick = function () {
+    if (typeof openPhotoCalendar === 'function') openPhotoCalendar();
+    else show('calendar');
+  };
+  const lmbReq = el('lmbReqBtn');
+  if (lmbReq) lmbReq.onclick = function () {
+    show('requests');
+  };
 }
 
 function openDecorHub(tab) {

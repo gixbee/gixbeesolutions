@@ -1,5 +1,5 @@
 /** Decoration owner app — dashboard/platform parity with catering + decoration hub. */
-const DECORATION_OWNER_BUILD = 'decoration-owner-platform-v5';
+const DECORATION_OWNER_BUILD = 'decoration-owner-lmb-v6';
 const STORAGE_KEY = 'GIXBEE_DECORATION_OWNER_V1';
 
 function defaultStore() {
@@ -111,16 +111,39 @@ function bindOnInput(id, fn) {
 }
 
 function renderLmb() {
-  const host = el('lmbCards');
-  if (!host) return;
-  host.innerHTML =
-    '<button type="button" class="biz-card" id="openDecorBiz"><div class="row"><div class="biz-ico">🎀</div><div><b>' +
+  const wrap = el('lmbCards');
+  if (!wrap) return;
+  wrap.innerHTML =
+    '<div class="biz-dash-card">' +
+    '<div class="biz-row"><div class="biz-ico decoration">🎀</div><div style="flex:1">' +
+    '<p class="biz-name">' +
     esc(store.biz.name) +
-    '</b><span class="type">Decoration · Service</span><div class="biz-meta"><span class="pill pill-ver">Verified</span></div><div class="biz-actions"><button type="button" class="primary" style="background:var(--decor)">Manage</button></div></div></div></button>';
-  bindClick('openDecorBiz', function () {
-    renderPhotoDash();
-    show('photoDash');
-  });
+    '</p><p class="biz-type">' +
+    esc(store.biz.type || 'Decoration') +
+    '</p>' +
+    '<p class="biz-meta"><span class="pill ok">Verified</span> · ' +
+    esc(store.biz.loc) +
+    '</p>' +
+    '<div class="biz-badges"><span>3 new requests</span><span class="gy">Rs 2.1L this month</span></div>' +
+    '<div class="biz-actions"><button type="button" id="lmbCalBtn">Calendar</button><button type="button" id="lmbReqBtn">Requests</button>' +
+    '<button type="button" class="mgr-decoration" id="dashDecorManage">Manage</button></div>' +
+    '</div></div></div>';
+  const manage = el('dashDecorManage');
+  if (manage) {
+    manage.onclick = function () {
+      renderPhotoDash();
+      show('photoDash');
+    };
+  }
+  const lmbCal = el('lmbCalBtn');
+  if (lmbCal) lmbCal.onclick = function () {
+    if (typeof openPhotoCalendar === 'function') openPhotoCalendar();
+    else show('calendar');
+  };
+  const lmbReq = el('lmbReqBtn');
+  if (lmbReq) lmbReq.onclick = function () {
+    show('requests');
+  };
 }
 
 function openDecorHub(tab) {
