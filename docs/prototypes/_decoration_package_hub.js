@@ -12,9 +12,37 @@ function ensureDecorationStore() {
   if (!store.decorationMenu.individualServices) store.decorationMenu.individualServices = [];
 }
 
+function decorLevelClass(level) {
+  const lv = String(level || 'standard').toLowerCase();
+  if (lv === 'basic' || lv === 'premium') return lv;
+  return 'standard';
+}
+
+function normalizeDecorPackage(d) {
+  if (!d) return;
+  if (!d.level) {
+    const t = d.tierPrices || {};
+    if (+t.premium > 0) d.level = 'Premium';
+    else if (+t.standard > 0) d.level = 'Standard';
+    else if (+t.basic > 0) d.level = 'Basic';
+    else d.level = 'Standard';
+  }
+  if (d.listPrice === '' || d.listPrice == null || !(+d.listPrice > 0)) {
+    const key = decorLevelClass(d.level);
+    const fromTier = Math.round(+((d.tierPrices || {})[key] || 0));
+    if (fromTier > 0) d.listPrice = fromTier;
+    else {
+      const hit = decorPrimaryTierPrice(d);
+      if (hit.amount > 0) d.listPrice = hit.amount;
+      else d.listPrice = '';
+    }
+  }
+}
+
 function newDecorPkgDraft() {
   return {
     packageCategory: 'wedding',
+    level: 'Standard',
     eventTypes: [],
     traditionTags: [],
     ceremonySetup: [],
@@ -22,6 +50,7 @@ function newDecorPkgDraft() {
     name: '',
     description: '',
     images: ['🎀'],
+    listPrice: '',
     tierPrices: { basic: '', standard: '', premium: '' },
     offerEnabled: false,
     discountPercent: '',
@@ -61,6 +90,9 @@ function decorPriceAfterOffer(base, pct) {
 }
 
 function decorPrimaryTierPrice(d) {
+  if (+d.listPrice > 0) {
+    return { tier: decorLevelClass(d.level), amount: Math.round(+d.listPrice) };
+  }
   const t = d.tierPrices || {};
   const order = ['standard', 'basic', 'premium'];
   let i;
@@ -96,8 +128,47 @@ function renderDecorationHub() {
   el('decHubSvcPanel').hidden = tab !== 'services';
   const head = el('decHubHead');
   if (head) head.innerHTML = '<em>Gixbee</em><span>|</span>Packages &amp; Services';
-  if (tab === 'packages') renderDecorPackageList();
-  else if (typeof renderDecorIndividualList === 'function') renderDecorIndividualList();
+  if (tab === 'packages') {
+    renderDecorPkgFilters();
+    renderDecorPackageList();
+  } else if (typeof renderDecorIndividualList === 'function') renderDecorIndividualList();
+}
+
+function renderDecorPkgFilters() {
+  const host = el('decPkgFilters');
+  if (!host) return;
+  const allowed = ['all'].concat(
+    DEC_PKG_LEVELS.map(function (l) {
+      return l.toLowerCase();
+    })
+  );
+  if (allowed.indexOf(store.decorationMenu.pkgFilter) < 0) store.decorationMenu.pkgFilter = 'all';
+  const filters = [{ id: 'all', label: 'All' }].concat(
+    DEC_PKG_LEVELS.map(function (l) {
+      return { id: l.toLowerCase(), label: l };
+    })
+  );
+  host.innerHTML = filters
+    .map(function (f) {
+      return (
+        '<button type="button"' +
+        (store.decorationMenu.pkgFilter === f.id ? ' class="on"' : '') +
+        ' data-dec-f="' +
+        esc(f.id) +
+        '">' +
+        esc(f.label) +
+        '</button>'
+      );
+    })
+    .join('');
+  host.querySelectorAll('[data-dec-f]').forEach(function (btn) {
+    btn.onclick = function () {
+      store.decorationMenu.pkgFilter = btn.getAttribute('data-dec-f');
+      saveStore();
+      renderDecorPkgFilters();
+      renderDecorPackageList();
+    };
+  });
 }
 
 function renderDecorPackageList() {
@@ -106,7 +177,7 @@ function renderDecorPackageList() {
   let list = (store.decorationMenu.catPackages || []).slice();
   if (filter !== 'all') {
     list = list.filter(function (p) {
-      return String(p.packageCategory || '') === filter || String(p.level || '').toLowerCase() === filter.toLowerCase();
+      return decorLevelClass(p.level) === filter;
     });
   }
   if (q) {
@@ -137,12 +208,18 @@ function renderDecorPackageList() {
           pr.pct +
           '%</span>'
         : '<b>' + inr(pr.base) + '</b>';
+      const lv = decorLevelClass(p.level);
+      const levelLabel = p.level || 'Standard';
       return (
         '<article class="dec-pkg-card" data-dec-pkg="' +
         esc(p.id) +
         '"><div class="dec-pkg-thumb">' +
         (p.images && p.images[0] ? p.images[0] : '🎀') +
-        '</div><div><b>' +
+        '</div><div><div class="dec-pkg-chips"><span class="dec-pkg-level ' +
+        lv +
+        '">' +
+        esc(levelLabel) +
+        '</span></div><b>' +
         esc(p.name || 'Package') +
         '</b><p class="sub">' +
         esc(decorPkgSummaryLine(p)) +
@@ -198,6 +275,7 @@ function startDecorPackageWizard(editId) {
   const src = editId ? findDecorPackage(editId) : null;
   decorPkgWizard.draft = src ? JSON.parse(JSON.stringify(src)) : newDecorPkgDraft();
   if (!decorPkgWizard.draft.tierPrices) decorPkgWizard.draft.tierPrices = { basic: '', standard: '', premium: '' };
+  normalizeDecorPackage(decorPkgWizard.draft);
   renderDecorPkgStep1();
   show('decorPkgStep1');
 }
@@ -263,9 +341,44 @@ function decorPkgSummaryLine(d) {
   const cat = decorPkgCategoryMeta(d.packageCategory);
   const comm = (d.traditionTags || []).join(', ');
   const parts = [];
+  if (d.level) parts.push(d.level);
   if (cat) parts.push(cat.label);
   if (comm) parts.push(comm);
   return parts.join(' · ') || '—';
+}
+
+function updateDecorPkgNamePreview() {
+  const d = decorPkgWizard.draft;
+  const prev = el('decPkgTitlePreview');
+  if (!prev) return;
+  const name = (el('decPkgName') && el('decPkgName').value) || d.name || 'Your package name';
+  prev.textContent = (d.level || 'Standard') + ' – ' + name;
+}
+
+function renderDecorPkgTypeSeg(level) {
+  const host = el('decPkgTypeSeg');
+  if (!host) return;
+  const hints = typeof DECORATION_PKG_LEVEL_HINTS === 'object' ? DECORATION_PKG_LEVEL_HINTS : {};
+  host.innerHTML = DEC_PKG_LEVELS.map(function (l) {
+    const hint = hints[l] || '';
+    return (
+      '<button type="button" class="dec-pkg-type-btn' +
+      (l === level ? ' on' : '') +
+      '" data-dec-lvl="' +
+      esc(l) +
+      '">' +
+      esc(l) +
+      (hint ? '<small>' + esc(hint) + '</small>' : '') +
+      '</button>'
+    );
+  }).join('');
+  host.querySelectorAll('[data-dec-lvl]').forEach(function (btn) {
+    btn.onclick = function () {
+      decorPkgWizard.draft.level = btn.getAttribute('data-dec-lvl');
+      renderDecorPkgTypeSeg(decorPkgWizard.draft.level);
+      updateDecorPkgNamePreview();
+    };
+  });
 }
 
 function renderDecorPkgStep2() {
@@ -284,9 +397,10 @@ function renderDecorPkgStep2() {
     const on = (d.traditionTags || []).indexOf(t) >= 0;
     return '<button type="button" class="dec-chip sm' + (on ? ' on' : '') + '" data-trad="' + esc(t) + '">' + esc(t) + '</button>';
   }).join('');
+  renderDecorPkgTypeSeg(d.level || 'Standard');
   el('decPkgName').value = d.name || '';
   el('decPkgDesc').value = d.description || '';
-  el('decPkgTitlePreview').textContent = d.name || 'Your package name';
+  updateDecorPkgNamePreview();
   function bindChip(sel, attr, arrKey) {
     el(sel).querySelectorAll('[data-' + attr + ']').forEach(function (btn) {
       btn.onclick = function () {
@@ -525,10 +639,16 @@ function addDecorCustomItem() {
 function renderDecorPkgStep4() {
   setDecorWizProgress(4);
   const d = decorPkgWizard.draft;
-  const t = d.tierPrices || {};
-  el('decPriceBasic').value = t.basic === '' || t.basic == null ? '' : t.basic;
-  el('decPriceStandard').value = t.standard === '' || t.standard == null ? '' : t.standard;
-  el('decPricePremium').value = t.premium === '' || t.premium == null ? '' : t.premium;
+  const lvl = d.level || 'Standard';
+  const priceLab = el('decPkgPriceLabel');
+  if (priceLab) priceLab.textContent = lvl + ' package amount (₹) *';
+  const intro = el('decPkgPriceIntro');
+  if (intro) {
+    intro.textContent =
+      'Price for this ' + lvl + ' package. Add a separate package card for each level (Basic, Standard, Premium).';
+  }
+  const lp = d.listPrice;
+  el('decPkgListPrice').value = lp === '' || lp == null ? '' : lp;
   el('decOfferOn').checked = !!d.offerEnabled;
   el('decOfferFields').hidden = !d.offerEnabled;
   el('decOfferPct').value = d.discountPercent === '' || d.discountPercent == null ? '' : d.discountPercent;
@@ -557,33 +677,31 @@ function paintDecorTierPreview() {
   const pct = decorOfferPct(d);
   const host = el('decTierPreview');
   if (!host) return;
-  let html = '';
-  DEC_PKG_LEVELS.forEach(function (lv) {
-    const key = lv.toLowerCase();
-    const base = Math.round(+((d.tierPrices || {})[key] || 0));
-    if (!base) return;
-    const off = decorPriceAfterOffer(base, pct);
-    html +=
-      '<div class="dec-tier-row"><span>' +
-      lv +
-      '</span><span>' +
-      (pct ? '<s>' + inr(base) + '</s> <b>' + inr(off) + '</b>' : '<b>' + inr(base) + '</b>') +
-      '</span></div>';
-  });
-  host.innerHTML = html || '<p class="sub">Enter at least one package amount for Basic, Standard or Premium.</p>';
+  const base = Math.round(+(d.listPrice || 0));
+  if (!base) {
+    host.innerHTML = '<p class="sub">Enter the package amount above.</p>';
+    return;
+  }
+  const off = decorPriceAfterOffer(base, pct);
+  host.innerHTML =
+    '<div class="dec-tier-row"><span>' +
+    esc(d.level || 'Standard') +
+    ' package</span><span>' +
+    (pct ? '<s>' + inr(base) + '</s> <b>' + inr(off) + '</b>' : '<b>' + inr(base) + '</b>') +
+    '</span></div>';
 }
 
 function syncDecorTierFromInputs() {
   const d = decorPkgWizard.draft;
-  d.tierPrices = {
-    basic: el('decPriceBasic').value === '' ? '' : Math.round(+el('decPriceBasic').value),
-    standard: el('decPriceStandard').value === '' ? '' : Math.round(+el('decPriceStandard').value),
-    premium: el('decPricePremium').value === '' ? '' : Math.round(+el('decPricePremium').value),
-  };
+  const raw = el('decPkgListPrice') ? el('decPkgListPrice').value : '';
+  d.listPrice = raw === '' ? '' : Math.round(+raw);
+  const key = decorLevelClass(d.level);
+  d.tierPrices = { basic: '', standard: '', premium: '' };
+  if (+d.listPrice > 0) d.tierPrices[key] = d.listPrice;
   d.offerEnabled = !!el('decOfferOn').checked;
   if (d.offerEnabled) {
-    const raw = el('decOfferPct').value;
-    d.discountPercent = raw === '' ? '' : Math.round(+raw);
+    const offerRaw = el('decOfferPct').value;
+    d.discountPercent = offerRaw === '' ? '' : Math.round(+offerRaw);
   }
   paintDecorTierPreview();
 }
@@ -611,13 +729,12 @@ function renderDecorPkgStep5() {
       ? '<s>' + inr(pr.base) + '</s> <b>' + inr(pr.offer) + '</b> <span class="dec-off">-' + pr.pct + '%</span>'
       : '<b>' + inr(pr.base) + '</b>') +
     '</div>';
-  html += '<p class="dec-sec-h">Package amounts</p>';
-  DEC_PKG_LEVELS.forEach(function (lv) {
-    const key = lv.toLowerCase();
-    const base = Math.round(+((d.tierPrices || {})[key] || 0));
-    if (!base) return;
-    html += '<div class="dec-tier-row"><span>' + lv + '</span><b>' + inr(decorPriceAfterOffer(base, pr.pct)) + '</b></div>';
-  });
+  html +=
+    '<p class="dec-sec-h">Package price</p><div class="dec-tier-row"><span>' +
+    esc(d.level || 'Standard') +
+    '</span><b>' +
+    inr(decorPriceAfterOffer(pr.base, pr.pct)) +
+    '</b></div>';
   html += '<p class="dec-sec-h">Inclusions (' + inc.length + ')</p><ul class="dec-ul">';
   inc.forEach(function (it) {
     html += '<li>' + esc(it.customName || it.name) + '</li>';
@@ -645,6 +762,10 @@ function validateDecorPkgStep(step) {
   }
   if (step === 2) {
     syncDecorPkgEventTypesFromCategory(d);
+    if (!d.level || DEC_PKG_LEVELS.indexOf(d.level) < 0) {
+      toast('Select package level (Basic, Standard or Premium)');
+      return false;
+    }
     if (!(d.traditionTags || []).length) {
       toast('Select at least one community');
       return false;
@@ -661,9 +782,8 @@ function validateDecorPkgStep(step) {
   }
   if (step === 4) {
     syncDecorTierFromInputs();
-    const t = d.tierPrices || {};
-    if (!(+t.basic > 0 || +t.standard > 0 || +t.premium > 0)) {
-      toast('Enter package amount for Basic, Standard or Premium');
+    if (!(+d.listPrice > 0)) {
+      toast('Enter package amount (₹)');
       return false;
     }
     if (d.offerEnabled) {
@@ -740,9 +860,7 @@ function bindDecorationPackageUi() {
     renderDecorPkgStep3();
     show('decorPkgStep3');
   });
-  bindOnInput('decPkgName', function () {
-    el('decPkgTitlePreview').textContent = el('decPkgName').value || 'Your package name';
-  });
+  bindOnInput('decPkgName', updateDecorPkgNamePreview);
   bindClick('decPkgStep3Back', function () {
     renderDecorPkgStep2();
     show('decorPkgStep2');
@@ -797,9 +915,7 @@ function bindDecorationPackageUi() {
     renderDecorPkgStep5();
     show('decorPkgStep5');
   });
-  bindOnInput('decPriceBasic', syncDecorTierFromInputs);
-  bindOnInput('decPriceStandard', syncDecorTierFromInputs);
-  bindOnInput('decPricePremium', syncDecorTierFromInputs);
+  bindOnInput('decPkgListPrice', syncDecorTierFromInputs);
   bindOnInput('decOfferPct', syncDecorTierFromInputs);
   bindClick('decOfferOn', function () {
     el('decOfferFields').hidden = !el('decOfferOn').checked;

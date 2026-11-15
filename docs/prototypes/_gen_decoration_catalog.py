@@ -246,6 +246,11 @@ def main():
     lines = [
         "/** All-India decoration catalogue — 14 categories for packages & individual services. */",
         "const DECORATION_PKG_LEVELS = ['Basic', 'Standard', 'Premium'];",
+        "const DECORATION_PKG_LEVEL_HINTS = {",
+        "  Basic: 'Essential décor for the function',",
+        "  Standard: 'Popular look with balanced inclusions',",
+        "  Premium: 'Grand setup with richer detailing',",
+        "};",
         "const DECORATION_EVENT_CATEGORIES = [",
         "  { id: 'wedding', label: 'Wedding & Related Functions', hint: 'Wedding, Engagement, Reception, Haldi, Mehendi, Nikah, Walima & more' },",
         "  { id: 'other', label: 'Other Functions', hint: 'Birthday, Housewarming, Corporate, Baptism, Navjote & more' },",

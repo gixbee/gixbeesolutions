@@ -80,7 +80,24 @@ body{margin:0;background:#E8EDF5;font-family:Inter,system-ui,sans-serif;color:#1
 .dec-pkg-card>div:last-child{flex:1;min-width:0}
 .dec-pkg-card b{display:block;font-size:14px;color:var(--decor-navy);line-height:1.3}
 .dec-pkg-card .sub{margin-top:4px}
-.dec-pkg-thumb{width:72px;height:72px;border-radius:12px;background:#F5F3FF;display:grid;place-items:center;font-size:32px;flex-shrink:0}
+.dec-pkg-thumb{width:72px;height:72px;border-radius:12px;background:#F5F3FF;display:grid;place-items:center;font-size:32px;flex-shrink:0;position:relative}
+.dec-pkg-top{display:flex;align-items:flex-start;justify-content:space-between;gap:8px}
+.dec-pkg-chips{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:6px}
+.dec-pkg-level{display:inline-block;font-size:9px;font-weight:800;padding:4px 9px;border-radius:8px;letter-spacing:.02em}
+.dec-pkg-level.basic{background:#E0E7FF;color:#3730A3}
+.dec-pkg-level.standard{background:#FFEDD5;color:#C2410C}
+.dec-pkg-level.premium{background:#FEF3C7;color:#92400E}
+.dec-lvl-head{display:flex;align-items:center;gap:6px;margin:0 0 8px;font-size:13px;font-weight:900;color:var(--decor-navy)}
+.dec-lvl-head .req{color:#BE185D}
+.dec-pkg-type-seg{display:flex;gap:8px;margin:0 0 14px}
+.dec-pkg-type-btn{flex:1;border:1.5px solid #CBD5E1;border-radius:12px;padding:12px 6px;font-weight:900;font-size:13px;background:#fff;color:var(--decor-navy);cursor:pointer;font:inherit;text-align:center;line-height:1.25}
+.dec-pkg-type-btn small{display:block;margin-top:4px;font-size:10px;font-weight:600;color:var(--mut)}
+.dec-pkg-type-btn.on{background:var(--decor2);color:#fff;border-color:var(--decor2)}
+.dec-pkg-type-btn.on small{color:rgba(255,255,255,.88)}
+#decPkgTypeSeg .dec-pkg-type-btn{border-radius:999px}
+.dec-filters{display:flex;flex-wrap:wrap;gap:8px;padding:0 16px 10px}
+.dec-filters button{border:1px solid var(--line);border-radius:99px;padding:7px 12px;font-size:11px;font-weight:800;background:#fff;color:var(--mut);cursor:pointer}
+.dec-filters button.on{background:#FDF2F8;border-color:#F9A8D4;color:var(--decor2)}
 .dec-pkg-price{margin-top:8px;font-weight:800;color:var(--decor);font-size:14px;display:flex;align-items:center;flex-wrap:wrap;gap:4px}
 .dec-off{font-size:11px;color:#059669;font-weight:800}
 .dec-pill{font-size:10px;font-weight:800;padding:3px 8px;border-radius:99px;display:inline-block;margin-top:6px}
@@ -639,6 +656,7 @@ body{margin:0;background:#E8EDF5;font-family:Inter,system-ui,sans-serif;color:#1
   <div class="hub-seg"><button type="button" id="decTabPackages" class="on">Packages</button><button type="button" id="decTabServices">Individual Services</button></div>
   <div id="decHubPkgPanel">
     <div class="search"><span>🔍</span><input type="search" id="decPkgSearch" placeholder="Search packages" autocomplete="off"></div>
+    <div class="dec-filters" id="decPkgFilters"></div>
     <p class="sub pad" id="decHubStat">0 packages</p>
     <div id="decPkgList"></div>
     <div class="hub-cta-sticky"><button type="button" class="btn btn-decor" id="decAddPackageBtn">+ Create Package</button></div>
@@ -666,7 +684,10 @@ body{margin:0;background:#E8EDF5;font-family:Inter,system-ui,sans-serif;color:#1
   <div class="dec-ban"><span>📦</span><b id="decPkgCatBanner">—</b><button type="button" id="decPkgChangeCategory">Change</button></div>
   <div class="pad">
   <p class="sub" id="decPkgCategoryHint" style="margin:0 0 12px">Functions are based on the category you chose in step 1.</p>
-  <p class="lbl">COMMUNITY *</p><div class="dec-chip-wrap" id="decTraditionChips"></div>
+  <p class="dec-lvl-head"><span aria-hidden="true">📋</span> Package level<span class="req">*</span></p>
+  <div class="dec-pkg-type-seg" id="decPkgTypeSeg"></div>
+  <p class="dec-lvl-head" style="margin-top:4px"><span aria-hidden="true">🕌</span> Community<span class="req">*</span></p>
+  <div class="dec-chip-wrap" id="decTraditionChips"></div>
   <div class="fld"><label>Package name *</label><input id="decPkgName" placeholder="Basic Wedding Decoration"></div>
   <p class="sub" id="decPkgTitlePreview">Your package name</p>
   <div class="fld"><label>Description (optional)</label><textarea id="decPkgDesc" rows="2" placeholder="Short note for customers"></textarea></div></div>
@@ -710,14 +731,12 @@ body{margin:0;background:#E8EDF5;font-family:Inter,system-ui,sans-serif;color:#1
 </section>
 
 <section class="scr" id="decorPkgStep4">
-  <div class="top gx-top"><button type="button" class="back" id="decPkgStep4Back">←</button><h1><em>Gixbee</em><span>|</span>Package Amounts</h1><span class="hub-more">⋮</span></div>
+  <div class="top gx-top"><button type="button" class="back" id="decPkgStep4Back">←</button><h1><em>Gixbee</em><span>|</span>Package Price</h1><span class="hub-more">⋮</span></div>
   <div class="dec-progress"><i class="done"></i><i class="done"></i><i class="done"></i><i class="on"></i><i></i></div>
   <p class="dec-wiz-step">Step 4 of 5</p>
-  <p class="pad sub">Enter package amount for Basic, Standard and Premium (at least one required).</p>
-  <div class="pad dec-tier-grid">
-    <div class="fld"><label>Basic package (₹)</label><input type="number" id="decPriceBasic" min="0" placeholder="30,000" inputmode="numeric"></div>
-    <div class="fld"><label>Standard package (₹)</label><input type="number" id="decPriceStandard" min="0" placeholder="40,000" inputmode="numeric"></div>
-    <div class="fld"><label>Premium package (₹)</label><input type="number" id="decPricePremium" min="0" placeholder="55,000" inputmode="numeric"></div>
+  <p class="pad sub" id="decPkgPriceIntro">One price for this package level — create separate packages for Basic, Standard and Premium.</p>
+  <div class="pad">
+    <div class="fld"><label id="decPkgPriceLabel">Package amount (₹) *</label><input type="number" id="decPkgListPrice" min="0" placeholder="40,000" inputmode="numeric"></div>
   </div>
   <div class="pad dec-offer"><label><input type="checkbox" id="decOfferOn"> Offer / discount for customers</label>
   <div id="decOfferFields" hidden><input type="number" id="decOfferPct" min="1" max="90" placeholder="Discount %" inputmode="numeric"></div></div>
