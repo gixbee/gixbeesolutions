@@ -7,7 +7,7 @@ const DECORATION_PKG_LEVEL_HINTS = {
 };
 const DECORATION_EVENT_CATEGORIES = [
   { id: 'wedding', label: 'Wedding & Related Functions', hint: 'All wedding-related functions you offer in one package' },
-  { id: 'other', label: 'Other Functions', hint: 'Birthdays, housewarming, corporate and other events' },
+  { id: 'other', label: 'Other Functions', hint: 'Birthdays, baptisms, housewarming, corporate events, and more' },
 ];
 const DECORATION_EVENT_TYPES = {
   wedding: ['Wedding & related functions'],
