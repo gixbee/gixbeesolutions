@@ -98,7 +98,8 @@ class _PhotographyCustomerInterestScreenState
   Map<String,dynamic> _request() => PhotographyCustomerRequest.build(
     clientRequestId:_requestId,
     businessId:widget.vendor['businessId'] as String,
-    cityId:widget.cityId,eventType:widget.eventType,
+    cityId:widget.cityId,
+    eventType:PhotographyCustomerCatalogue.label(widget.need),
     location:_location.text,start:_start,end:_end,
     guests:widget.guests,item:widget.item,
     notes:_notes.text,customization:_customization(),
