@@ -6,6 +6,8 @@ on:
       - 'lib/features/events/photography_*'
       - 'lib/features/events/event_service_catalogue_screen.dart'
       - 'lib/features/events/event_vendor_calendar_screen.dart'
+      - 'lib/features/events/photography_owner_calendar_screen.dart'
+      - 'lib/repositories/events_repository.dart'
       - 'lib/features/business/business_unit_dashboard.dart'
       - 'backend_rust/src/events/catalogues.rs'
       - 'backend_rust/src/events/calendar.rs'
@@ -37,6 +39,8 @@ jobs:
             lib/features/events/photography_service_wizard_screen.dart \
             lib/features/events/event_service_catalogue_screen.dart \
             lib/features/events/event_vendor_calendar_screen.dart \
+            lib/features/events/photography_owner_calendar_screen.dart \
+            lib/repositories/events_repository.dart \
             lib/features/business/business_unit_dashboard.dart \
             test/features/events/photography_owner_pricing_test.dart \
             test/features/events/photography_owner_wizard_test.dart
