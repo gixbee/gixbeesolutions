@@ -1,0 +1,63 @@
+name: Catering Customer validation
+
+on:
+  pull_request:
+    paths:
+      - 'lib/features/events/catering_customer_*'
+      - 'lib/features/events/event_service_browser.dart'
+      - 'test/features/events/catering_customer_*'
+      - '.github/workflows/catering-customer.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  flutter:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    name: Flutter customer flow, API contract, Android build
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: subosito/flutter-action@v2
+        with:
+          # The project uses Android Gradle 8.14 + AGP 8.11.1.
+          # Flutter 3.50 needs Gradle >=9.3.1; don't silently upgrade
+          # the entire Android toolchain just for this feature PR.
+          flutter-version: '3.41.0'
+          channel: stable
+          cache: true
+      - run: flutter pub get
+      - name: Analyze customer screens and contracts
+        run: |
+          flutter analyze --no-fatal-infos \
+            lib/features/events/catering_customer_pricing.dart \
+            lib/features/events/catering_customer_interest_screen.dart \
+            lib/features/events/catering_customer_flow_screen.dart \
+            lib/features/events/catering_customer_search_screen.dart \
+            lib/features/events/event_service_browser.dart \
+            test/features/events/catering_customer_pricing_test.dart \
+            test/features/events/catering_customer_request_test.dart \
+            test/features/events/catering_customer_flow_test.dart
+      - name: Validate guest pricing, request contract and widgets
+        run: |
+          flutter test --no-pub \
+            test/features/events/catering_customer_pricing_test.dart \
+            test/features/events/catering_customer_request_test.dart \
+            test/features/events/catering_customer_flow_test.dart
+      - name: Verify project-specific Android Firebase configuration
+        id: android_config
+        run: |
+          if [[ -f lib/firebase_options.dart && -f android/app/google-services.json ]]; then
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::warning::Android APK not built: lib/firebase_options.dart and android/app/google-services.json are absent from this checkout. Supply genuine Firebase configuration before releasing."
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Build Android debug APK (when Firebase configured)
+        if: steps.android_config.outputs.ready == 'true'
+        run: flutter build apk --debug --no-pub
