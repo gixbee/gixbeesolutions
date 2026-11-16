@@ -56,7 +56,8 @@ class _EventPlansScreenState extends ConsumerState<EventPlansScreen> {
     final completed = (plan['completedServices'] as num?)?.toInt() ?? 0;
     final confirmed = (plan['confirmedServices'] as num?)?.toInt() ?? 0;
     final offered = (plan['offeredServices'] as num?)?.toInt() ?? 0;
-    if (completed > 0 && confirmed == completed) return 'Completed';
+    final total = (plan['services'] as List?)?.length ?? 1;
+    if (total > 0 && completed >= total) return 'Completed';
     if (confirmed > 0) return 'Booking confirmed';
     if (offered > 0) return 'Quote received — review now';
     return _isPast(plan) ? 'Event date passed' : 'Interest sent · awaiting vendor';
@@ -81,29 +82,8 @@ class _EventPlansScreenState extends ConsumerState<EventPlansScreen> {
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(14),
         side: const BorderSide(color: Color(0xFFE2E8F0))),
-      child: ListTile(
-        contentPadding: const EdgeInsets.all(13),
-        title: Text(label, style: const TextStyle(
-            color: Color(0xFF1B2559), fontWeight: FontWeight.w800)),
-        subtitle: Padding(
-          padding: const EdgeInsets.only(top: 7),
-          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text(eventDate(plan['startTime'])),
-            Text('${plan['guestCount']} guests · ${plan['location']}'),
-            const SizedBox(height: 6),
-            Text(status, style: TextStyle(
-              fontWeight: FontWeight.w800,
-              color: status.contains('Quote received')
-                  ? const Color(0xFF2563EB)
-                  : status.contains('confirmed') || status == 'Completed'
-                      ? const Color(0xFF047857)
-                      : plan['cancelledAt'] != null ? Colors.red
-                          : const Color(0xFFB45309),
-            )),
-          ]),
-        ),
-        isThreeLine: true,
-        trailing: const Icon(Icons.chevron_right),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(14),
         onTap: () async {
           await Navigator.push(context, MaterialPageRoute<void>(
             builder: (_) => EventPlanDetailScreen(
@@ -113,6 +93,35 @@ class _EventPlansScreenState extends ConsumerState<EventPlansScreen> {
           ));
           if (mounted) await _refresh();
         },
+        child: Padding(
+          padding: const EdgeInsets.all(14),
+          child: Row(children: [
+            Expanded(child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(label, style: const TextStyle(
+                    color: Color(0xFF1B2559),
+                    fontSize: 15, fontWeight: FontWeight.w800)),
+                const SizedBox(height: 7),
+                Text(eventDate(plan['startTime'])),
+                const SizedBox(height: 3),
+                Text('${plan['guestCount']} guests · ${plan['location']}'),
+                const SizedBox(height: 8),
+                Text(status, style: TextStyle(
+                  fontWeight: FontWeight.w800,
+                  color: status.contains('Quote received')
+                      ? const Color(0xFF2563EB)
+                      : status.contains('confirmed') || status == 'Completed'
+                          ? const Color(0xFF047857)
+                          : plan['cancelledAt'] != null ? Colors.red
+                              : const Color(0xFFB45309),
+                )),
+              ],
+            )),
+            const SizedBox(width: 8),
+            const Icon(Icons.chevron_right),
+          ]),
+        ),
       ),
     );
   }
