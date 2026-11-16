@@ -46,7 +46,7 @@ class _CateringCustomerSearchScreenState
   void initState() {
     super.initState();
     _day = DateUtils.dateOnly(widget.date);
-    _guests = widget.guests.clamp(1, 100000);
+    _guests = widget.guests.clamp(1, 100000).toInt();
     _guestInput.text = '$_guests';
     _cityId = ref.read(currentCityProvider)?.id;
   }
