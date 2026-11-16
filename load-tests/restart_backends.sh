@@ -5,17 +5,10 @@ set -euo pipefail
 COMPOSE_DIR="${COMPOSE_DIR:-/home/ec2-user/gixbeesolutions}"
 cd "$COMPOSE_DIR"
 
-SERVICE=""
-PROFILE=""
+SERVICE="backend_rust"
 
-if docker ps --format '{{.Names}}' | grep -q 'backend_rust'; then
-  SERVICE="backend_rust"
-  PROFILE="rust"
-elif docker ps --format '{{.Names}}' | grep -qE 'gixbee_backend|backend-1'; then
-  SERVICE="backend"
-  PROFILE="nest"
-else
-  echo "restart_backends: no running backend container found"
+if ! docker ps --format '{{.Names}}' | grep -q 'backend_rust'; then
+  echo "restart_backends: no running backend_rust container found"
   exit 1
 fi
 
@@ -24,8 +17,8 @@ REPLICAS="$(docker ps --filter "name=${SERVICE}" --format '{{.Names}}' | wc -l |
 echo "Memory before backend restart:"
 free -h | awk '/^Mem:/{print "  used=" $3 "  available=" $7}'
 
-echo "Restarting ${SERVICE} (${REPLICAS} replica(s), profile=${PROFILE})..."
-COMPOSE_PROFILES="${PROFILE}" docker compose --profile "${PROFILE}" restart "${SERVICE}"
+echo "Restarting ${SERVICE} (${REPLICAS} replica(s))..."
+docker compose restart "${SERVICE}"
 
 echo "Waiting for healthy backends..."
 for _ in $(seq 1 45); do

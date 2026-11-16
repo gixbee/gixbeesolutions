@@ -9,8 +9,7 @@ cp /tmp/admin-ops.service.ts "$ROOT/super-admin-web/src/app/core/services/admin-
 docker exec -i gixbee_postgres psql -U postgres -d gixbee_db -c "ALTER TYPE \"businesses_status_enum\" ADD VALUE IF NOT EXISTS 'NEEDS_CHANGES';"
 echo SQL_OK
 cd "$ROOT"
-export COMPOSE_PROFILES=rust
 docker compose up -d --scale backend_rust=1 backend_rust
-nohup bash -c 'export COMPOSE_PROFILES=rust; cd /home/azureuser/gixbeesolutions; docker compose build backend_rust && docker compose up -d --scale backend_rust=2 backend_rust && docker compose build admin && docker compose up -d admin && docker image prune -f && echo HIRING_VERIFY_UP' > /tmp/hiring-verify-rebuild.log 2>&1 &
+nohup bash -c 'cd /home/azureuser/gixbeesolutions; docker compose build backend_rust && docker compose up -d --scale backend_rust=2 backend_rust && docker compose build admin && docker compose up -d admin && docker image prune -f && echo HIRING_VERIFY_UP' > /tmp/hiring-verify-rebuild.log 2>&1 &
 echo BUILD_PID=$!
 echo BUILD_STARTED

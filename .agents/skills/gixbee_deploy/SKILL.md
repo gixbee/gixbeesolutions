@@ -28,7 +28,7 @@ From repo root on Windows:
 cd C:\Users\gkv00\Music\gixbee
 tar -czf "$env:TEMP\gixbee-azure.tgz" `
   --exclude=node_modules --exclude=.git --exclude=tmp `
-  --exclude=backend/node_modules --exclude=super-admin-web/node_modules `
+  --exclude=super-admin-web/node_modules `
   --exclude=backend_rust/target --exclude=.dart_tool --exclude=build `
   --exclude=android --exclude=ios --exclude="*.apk" .
 
@@ -40,7 +40,7 @@ scp -i C:\Users\gkv00\.ssh\gixbee-ec2 -o StrictHostKeyChecking=no `
 
 ## Step 3: Migrate schema + build + restart (on VM)
 
-Runs SQL bundles, sets `BACKEND_IMPL=rust`, builds `backend_rust` + `admin`, starts stack:
+Runs SQL bundles, builds `backend_rust` + `admin`, starts stack:
 
 ```powershell
 ssh -i C:\Users\gkv00\.ssh\gixbee-ec2 -o StrictHostKeyChecking=no azureuser@20.106.171.188 `
@@ -67,6 +67,6 @@ Use project defines pointing at Azure (see `gixbee_keys.bat` or `--dart-define=A
 
 ## Notes
 
-- Preserves `backend/.env` and Firebase JSON on deploy (script backs up before replacing tree).
+- Preserves `deploy/.env` and Firebase JSON on deploy (script backs up before replacing tree; legacy `backend/.env` is migrated if present).
 - `docker image prune -f` runs after build — keep it.
 - See `docs/MASTER_DATA_ADMIN.md` for optional catalogue/location imports after deploy.

@@ -11,7 +11,7 @@
 | Layer | Tech |
 |---|---|
 | App | Flutter + Riverpod + Dio + Socket.IO + MapLibre (Ola) + FCM |
-| API | NestJS 11 + TypeORM + Postgres + Redis + Bull + JWT |
+| API | Rust (Axum) + Postgres + Redis + JWT (`backend_rust/`) |
 | Admin | Angular 19 (`super-admin-web/`) |
 | Infra | Docker Compose · Nginx LB · PgBouncer · AWS EC2 `i-0263e6862a2e32e59` (`13.233.60.215`) · Beszel / Dozzle / pgAdmin |
 | Themes | **Gixbee Dark** (violet shell) · **Grab Green** (light) via Profile → Appearance |

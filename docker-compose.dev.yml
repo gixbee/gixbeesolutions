@@ -1,10 +1,10 @@
 version: '3.9'
 
 # ── Development override ──────────────────────────────────────────────────────
-# Usage: BACKEND_IMPL=nest|rust docker compose -f docker-compose.yml -f docker-compose.dev.yml up
+# Usage: docker compose -f docker-compose.yml -f docker-compose.dev.yml up
 #
 # Differences from production:
-#  - Hot reload (Nest ts-node-dev or Rust cargo-watch)
+#  - Hot reload (Rust cargo-watch)
 #  - Database and Redis ports exposed to host
 #  - No Nginx LB — access API directly on port 3000
 #  - NODE_ENV=development
@@ -19,29 +19,12 @@ services:
     ports:
       - "6379:6379"
 
-  backend:
-    profiles: ["nest"]
-    build:
-      context: ./backend
-      dockerfile: Dockerfile.dev
-    environment:
-      NODE_ENV: development
-    volumes:
-      - ./backend/src:/app/src
-      - ./backend/package.json:/app/package.json
-    ports:
-      - "3000:3000"
-      - "9229:9229"
-    networks:
-      gixbee_net:
-        aliases:
-          - api
-
   backend_rust:
-    profiles: ["rust"]
     build:
       context: ./backend_rust
       dockerfile: Dockerfile.dev
+    env_file:
+      - ./deploy/.env
     environment:
       NODE_ENV: development
       UPLOADS_DIR: /app/uploads

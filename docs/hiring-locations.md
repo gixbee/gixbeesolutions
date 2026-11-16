@@ -4,7 +4,7 @@ This catalogue is separate from serviceable cities (`cities`), which still contr
 
 ## Source
 
-Importer: `backend/scripts/import-hiring-locations.py`
+Importer: `scripts/import-hiring-locations.py`
 
 | Piece | Source | Licence | Coverage |
 | --- | --- | --- | --- |
@@ -20,11 +20,11 @@ The repository does not contain a fabricated India-wide place list. Search stays
 Download the GeoNames files into one directory, then:
 
 ```
-python backend/scripts/import-hiring-locations.py --dir path/to/geonames --database-url postgresql://...
+python scripts/import-hiring-locations.py --dir path/to/geonames --database-url postgresql://...
 ```
 
 Re-running upserts on `sourceKey` (`geonames:<id>`) and does not duplicate rows.
 
 ## Legacy text
 
-`backend/scripts/map-legacy-hiring-locations.py` sets `locationId` only when the stored text matches exactly one active place name or alias. Anything else stays `locationMatchStatus = UNRESOLVED` for correction. Typed street addresses stay in `addressText` or the existing location text column.
+`scripts/map-legacy-hiring-locations.py` sets `locationId` only when the stored text matches exactly one active place name or alias. Anything else stays `locationMatchStatus = UNRESOLVED` for correction. Typed street addresses stay in `addressText` or the existing location text column.

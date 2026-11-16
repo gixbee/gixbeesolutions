@@ -1,3 +1,6 @@
+# Removed NestJS tree — ignore local leftovers if the folder still exists
+/backend/
+
 # Local scratch — one-off deploy/debug (not part of the repo)
 /tmp/
 .freebuff/
@@ -65,6 +68,8 @@ ios/Runner/GoogleService-Info.plist
 .env.local
 .env.production
 scripts/azure_backend.env
+deploy/.env
+deploy/firebase-service-account.json
 gixbee-fcd03-firebase-adminsdk-fbsvc-971124e7c1.json
 
 # Local build secrets used by the .bat launchers (Ola Maps key, LAN backend URL).

@@ -59,7 +59,7 @@ if docker ps --filter name=backend_rust --format '{{.Status}}' | grep -q healthy
 else
   echo "[$(date +%T)] Backends unhealthy — attempting compose up..."
   cd "${COMPOSE_DIR}"
-  COMPOSE_PROFILES=rust docker compose --profile rust up -d backend_rust || true
+  docker compose up -d backend_rust || true
 fi
 
 echo "[$(date +%T)] STRESS TEST DONE"

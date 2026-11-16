@@ -13,5 +13,5 @@ p.write_text(t.replace(old, new, 1))
 print("key updated")
 PY
 grep KEY docker-compose.yml
-COMPOSE_PROFILES=rust docker compose up -d --force-recreate beszel-agent
+docker compose up -d --force-recreate beszel-agent
 docker compose ps beszel-agent

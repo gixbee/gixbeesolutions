@@ -5,7 +5,7 @@ Sources:
 - `hire-employee-skills-master.html` (`window.GIXBEE_HIRE_CATALOG`, version `skills-hire-final-master`).
 - `GIXBEE_SkillsHire_FinalMaster.pdf` (18-sector Final Master Job Positions Catalogue).
 
-The bundled file is `backend/data/hiring-catalogue.json` (copied into `backend_rust/data` for the API import).
+The bundled file is `backend_rust/data/hiring-catalogue.json`.
 HTML ids are kept when a role appears once. A repeated label is one shared position when suggested skills overlap at least half; otherwise each sector keeps `sector--position`.
 Suggested skills come from the HTML list. PDF skill wording that does not overlap is recorded below and also kept when it only exists on one side via the HTML `suggestedSkills` and `moreSkills` lists.
 Deactivating a row later does not delete profiles that already stored its id.

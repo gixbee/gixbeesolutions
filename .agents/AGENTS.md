@@ -22,53 +22,15 @@ Gixbee is an on-demand service platform consisting of three containerized/native
 - **Crash Reporting**: Keep `CrashReporter` (`lib/services/crash_reporter.dart`) initialized in `main.dart` to transmit unhandled widget/platform exceptions to `POST /client-logs` as `APP_CRASH`.
 - **Client Features Index (17 Modules in `lib/features/`)**: `auth`, `billing`, `booking`, `business`, `common`, `graph`, `home`, `jobs`, `map`, `messages`, `notifications`, `onboarding`, `profile`, `reels`, `rentals`, `search`, `worker`.
 
-### Backend API (`backend/src/`) — NestJS, PostgreSQL & Redis
-- **Stack & Ports**: Runs on port `3000` via Docker Compose (`gixbee_backend`). Connects to PostgreSQL 16 (`gixbee_postgres:5432`) and Redis 7 (`gixbee_redis:6379`).
-- **Transactional Outbox Pattern**: All booking lifecycle state changes MUST emit events via `OutboxService` (`backend/src/outbox/`). The `OutboxDispatcher` handles reliable WebSocket notifications and background tasks.
-- **Replica-Safe Schedulers**: The backend runs `replicas: 2`, so every module
-  boots its schedulers twice. Bull repeatables MUST pass a constant `jobId` and
-  interval so all replicas collapse onto one entry — changing either value
-  orphans the old repeatable in Redis, where it keeps firing across deploys, so
-  `OutboxDispatcher` prunes non-matching repeatables before registering. Plain
-  `setInterval` sweeps MUST elect a single runner via
-  `RedisService.acquireLock()` (see the `system_logs` retention purge) and stay
-  idempotent, since the lock degrades to per-process when Redis is down.
-- **WebSocket Scaling**: Uses `RedisIoAdapter` (`backend/src/redis/`) for real-time worker GPS broadcasting and instant job matching (`backend/src/worker-engine/`).
-- **Never Call Redis `KEYS`**: It is O(N) over the whole keyspace and blocks
-  Redis's single thread, stalling Bull dispatch and every other caller. Use
-  `RedisService.keys()` (cache invalidation) or `getAdminKeys()` (admin
-  browser, capped) — both iterate with `SCAN`.
-- **Redis / Socket.IO fail-closed with replicas**: Compose sets
-  `REDIS_ALLOW_MEMORY_FALLBACK=false`. Do not re-enable memory fallback on a
-  multi-replica deploy — OTP, locks, and Socket.IO rooms would silently split
-  per process. Local single-process dev may omit the flag (allowed when
-  `NODE_ENV != production`) or set it `true` explicitly.
-- **PgBouncer transaction pooling**: Backend talks to Postgres via PgBouncer
-  (`POOL_MODE=transaction`). Never use session-scoped Postgres features
-  (`LISTEN`/`NOTIFY`, session advisory locks, named `PREPARE` that outlive a
-  transaction). Keep work inside TypeORM transactions / single queries.
-  `statement_timeout=60s` is set on each connection.
-- **WebSocket Authorization**: All client room handlers use `WsJwtGuard`.
-  Personal room names come only from the verified JWT. Joining `job_<bookingId>`
-  requires the JWT user to be that booking's customer or operator, and only the
-  assigned operator may publish GPS to it. Never trust socket body `userId`.
-- **Logging & Monitoring**: System logs and mobile client crash reports are processed in `backend/src/system-logs/` and monitored via `backend/src/system-metrics/`.
-- **Database Entities Index (27 Tables)**: `User`, `Booking`, `WalletTransaction`, `WorkerProfile`, `WorkerStrike`, `RentalItem`, `RentalReservation`, `JobPost`, `JobApplication`, `HiringRequest`, `HiringInterest`, `JobPreference`, `Business`, `TalentProfile`, `ProfessionalSkill`, `MasterEntry`, `Message`, `Favourite`, `Address`, `City`, `SupportTicket`, `AdminStaff`, `OutboxEvent`, `SystemLog`, `PaymentOrder`, `JobCredit`, `CreditTransaction`.
-- **Server Modules Index (25 Modules)**: `Users`, `Auth`, `WorkerEngine`, `Bookings`, `Wallets`, `Workers`, `Billing`, `Notifications`, `Redis`, `Rentals`, `Hiring`, `Businesses`, `Talent`, `MasterEntries`, `Messages`, `Payments`, `Favourites`, `Addresses`, `Cities`, `Support`, `AdminStaff`, `SystemLogs`, `SystemMetrics`, `Outbox`, `Uploads`.
-- **Money Model (source of truth)**: See `backend/src/common/money-model.ts`.
-  `WALLET_PAYMENTS_ENABLED` is **false**. Live money paths:
-  (1) Job settlement = customer pays pro directly (cash/UPI) + dual-confirm
-  `markPaid` — default `paymentMethod` is `CASH`, never invent `WALLET`;
-  (2) Worker Go Live = job credits + period fee via **direct Razorpay**;
-  (3) Late-cancel compensation = **direct Razorpay**. Wallet transfer /
-  recharge / hiring `charge()` / welcome bonus stay dormant behind the flag —
-  flip the constant (one place) when the wallet product returns. Do not add
-  new wallet debits while the flag is off.
-- **Booking Billing Rules**: Completion bills wall-clock work time (no pause). Instant Help also adds a **one-way petrol charge** — `acceptDistanceKm × instant_petrol_per_km` (Master Entries, default `10`) — frozen on the booking as `petrolDistanceKm` / `petrolRatePerKm` / `petrolAmount`. No accept distance means no petrol; non-Instant bookings are unaffected.
-- **No Pause Workflow**: Pause/resume was retired. Do not add pause fields to
-  booking entities, status payloads, outbox events, or payment UI. Migration
-  `1754100000002-RemoveBookingPause` drops the former columns.
-- **Cancel Rules**: Customer cancels are stage-gated (free while `REQUESTED` or within the 3-minute post-accept grace; then worker-approved cancel request or a late-cancel strike; no unilateral cancel after `ARRIVED`/`ACTIVE`). Three strikes block Instant Help until distance-based compensation is paid. A worker who is not making GPS progress unlocks a free cancel (`WORKER_NO_PROGRESS`).
+### Backend API (`backend_rust/`) — Axum, PostgreSQL & Redis
+- **Stack & Ports**: Rust API on port `3000` via Docker Compose (`backend_rust`, network alias `api`). PostgreSQL 18 + PgBouncer + Redis 7.
+- **Config**: `deploy/.env` and `deploy/firebase-service-account.json` (see `deploy/.env.example`).
+- **Schema**: SQL bundles under `scripts/` (not TypeORM). Apply on deploy before/restart API containers.
+- **Replicas**: Scale `backend_rust` to 2; background jobs and Redis locks must be idempotent (`REDIS_ALLOW_MEMORY_FALLBACK=false` in compose).
+- **WebSockets**: JWT-scoped Socket.IO rooms; never trust client-supplied user ids for room membership.
+- **PgBouncer**: Transaction pooling only — no session-scoped Postgres features across transactions.
+- **Product rules**: Wallet settlement OFF; dual-confirm job pay; Razorpay for platform charges; no pause workflow; petrol on Instant Help; stage-gated cancel + strikes.
+- **Reference**: `backend_rust/README.md`, `docs/architecture/rust-nest-parity.md`.
 
 ### Super Admin Portal (`super-admin-web/src/`) — Angular & Nginx
 - **Stack & Ports**: Served on port `80` via Docker Compose (`gixbee_admin`).

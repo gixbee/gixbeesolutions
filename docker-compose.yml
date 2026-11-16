@@ -35,7 +35,7 @@ services:
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: gixbee123
-      # MUST match DATABASE_NAME in backend/.env. NOTE: POSTGRES_DB only takes
+      # MUST match DATABASE_NAME in deploy/.env. NOTE: POSTGRES_DB only takes
       # effect when the data volume is empty (first boot) — changing it later
       # does NOT rename/create anything, it just makes the healthcheck below
       # probe a database that doesn't exist ("FATAL: database ... does not
@@ -186,53 +186,8 @@ services:
       - --max-port=49200
       - --external-ip=${TURN_EXTERNAL_IP:-13.233.60.215}
 
-  # ── NestJS Backend (profile: nest) ─────────────────────────────────────────
-  backend:
-    profiles: ["nest"]
-    build:
-      context: ./backend
-      dockerfile: Dockerfile
-    deploy:
-      replicas: 2
-    restart: unless-stopped
-    logging:
-      driver: json-file
-      options:
-        max-size: "10m"
-        max-file: "3"
-    env_file:
-      - ./backend/.env
-    environment:
-      DATABASE_HOST: pgbouncer
-      DATABASE_PORT: 6432
-      REDIS_HOST: redis
-      REDIS_PORT: 6379
-      REDIS_ALLOW_MEMORY_FALLBACK: "false"
-      NODE_ENV: ${NODE_ENV:-development}
-      PORT: 3000
-      FIREBASE_KEY_PATH: /app/firebase-service-account.json
-    ulimits:
-      nofile:
-        soft: 65535
-        hard: 65535
-    volumes:
-      - uploads_data:/app/uploads
-      - ./backend/firebase-service-account.json:/app/firebase-service-account.json:ro
-    networks:
-      gixbee_net:
-        aliases:
-          - api
-    depends_on:
-      postgres:
-        condition: service_healthy
-      pgbouncer:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-
-  # ── Rust Backend (profile: rust) ─────────────────────────────────────────
+  # ── Rust API (Axum) ──────────────────────────────────────────────────────
   backend_rust:
-    profiles: ["rust"]
     build:
       context: ./backend_rust
       dockerfile: Dockerfile
@@ -245,7 +200,7 @@ services:
         max-size: "10m"
         max-file: "3"
     env_file:
-      - ./backend/.env
+      - ./deploy/.env
     environment:
       DATABASE_HOST: pgbouncer
       DATABASE_PORT: 6432
@@ -263,7 +218,7 @@ services:
         hard: 65535
     volumes:
       - uploads_data:/app/uploads
-      - ./backend/firebase-service-account.json:/app/firebase-service-account.json:ro
+      - ./deploy/firebase-service-account.json:/app/firebase-service-account.json:ro
     networks:
       gixbee_net:
         aliases:
