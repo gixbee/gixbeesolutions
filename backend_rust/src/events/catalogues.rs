@@ -244,9 +244,27 @@ fn validate_catalogue(catalogue: &Value, service: &str) -> AppResult<()> {
 /// catalogue JSONB. Validate the structure, not just the base package price.
 fn validate_photography_metadata(item: &Value) -> AppResult<()> {
     let invalid = || AppError::BadRequest("Check photography package details".into());
+    // Customer-facing amount must equal the published list price minus the
+    // owner-entered percentage. The event quote selects the saved 'price',
+    // never client-supplied discounts or list prices.
+    match (item.get("listPrice"), item.get("discountPct")) {
+        (None, None) => {}
+        (Some(list), Some(pct)) => {
+            let list = list.as_i64().ok_or_else(invalid)?;
+            let pct = pct.as_i64().ok_or_else(invalid)?;
+            let offered = item["price"].as_i64().ok_or_else(invalid)?;
+            if !valid_price(Some(list)) || !(0..=90).contains(&pct)
+                || offered != (list * (100 - pct) + 50) / 100
+            {
+                return Err(invalid());
+            }
+        }
+        _ => return Err(invalid()),
+    }
     for key in [
         "coverageNotes", "photographerTeam", "videographerTeam",
         "duration", "team", "extrasNotes", "customerRequirements", "packageLevel",
+        "equipmentNote", "qualityNote",
     ] {
         if item.get(key).is_some_and(|v| {
             v.as_str().is_none_or(|s| s.len() > 3000)
@@ -268,6 +286,28 @@ fn validate_photography_metadata(item: &Value) -> AppResult<()> {
                 return Err(invalid());
             }
         }
+    }
+    // Details are optional for legacy catalogues. Enforce a bounded shape
+    // for structured per-function coverage and per-deliverable quantities.
+    for key in ["functionCoverage", "deliverableDetails", "deliveryTimelines"] {
+        if let Some(rows) = item.get(key) {
+            let rows = rows.as_object().ok_or_else(invalid)?;
+            if rows.len() > 30 || rows.iter().any(|(name, entry)| {
+                name.trim().is_empty() || name.len() > 150
+                    || !entry.is_object()
+                    || entry.to_string().len() > 2400
+            }) {
+                return Err(invalid());
+            }
+        }
+    }
+    if let Some(rules) = item.get("policyRules") {
+        let rules = rules.as_array().ok_or_else(invalid)?;
+        if rules.len() > 10 || rules.iter().any(|row| {
+            row["label"].as_str().is_none_or(|s| s.trim().is_empty() || s.len() > 150)
+                || row["deductionPercent"].as_i64()
+                    .is_none_or(|p| !(0..=100).contains(&p))
+        }) { return Err(invalid()); }
     }
     if item.get("extraHourPrice").is_some_and(|v| {
         v.as_i64().is_none_or(|p| !(0..=10_000_000).contains(&p))
@@ -548,6 +588,45 @@ mod catalogue_metadata_tests {
             ]
         });
         assert!(validate_photography_metadata(&item).is_ok());
+    }
+
+    #[test]
+    fn photo_discount_must_match_customer_price() {
+        let mut item = json!({
+            "kind":"PACKAGE", "price": 51, "listPrice": 101,
+            "discountPct": 50
+        });
+        assert!(validate_photography_metadata(&item).is_ok());
+        item["price"] = json!(50);
+        assert!(validate_photography_metadata(&item).is_err());
+        item["price"] = json!(51);
+        item["discountPct"] = json!(91);
+        assert!(validate_photography_metadata(&item).is_err());
+        item["discountPct"] = json!(50);
+        item["listPrice"] = json!(null);
+        assert!(validate_photography_metadata(&item).is_err());
+    }
+
+    #[test]
+    fn validates_structured_photo_owner_metadata() {
+        let item = json!({
+            "kind":"PACKAGE",
+            "price":90000, "listPrice":100000, "discountPct":10,
+            "functionCoverage":{"Wedding":{"duration":"6 hours", "side":"Both"}},
+            "deliverableDetails":{"Edited Photos":{"quantity":400,"format":"JPG"}},
+            "deliveryTimelines":{"Edited Photos":{"days":15}},
+            "policyRules":[{"label":"30+ days","deductionPercent":10}],
+            "paymentSplit":[
+                {"label":"Booking advance","percent":30},
+                {"label":"Event day","percent":40},
+                {"label":"Before album printing","percent":20},
+                {"label":"Final","percent":10}
+            ]
+        });
+        assert!(validate_photography_metadata(&item).is_ok());
+        let mut bad = item.clone();
+        bad["deliverableDetails"] = json!([{"quantity":400}]);
+        assert!(validate_photography_metadata(&bad).is_err());
     }
 
     #[test]
