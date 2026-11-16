@@ -79,8 +79,7 @@ void main() {
     await tester.tap(find.text('Initiate Interest'));
     await tester.pumpAndSettle();
     expect(find.text('Review Your Interest'),findsOneWidget);
-    expect(find.text('I understand this is an enquiry, not a booking.'),
-      findsOneWidget);
+    expect(find.text('Send Interest'),findsOneWidget);
   });
 
   testWidgets('individual service is accessible without wedding package filter',
