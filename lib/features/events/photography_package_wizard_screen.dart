@@ -1,12 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:uuid/uuid.dart';
+import 'photography_owner_pricing.dart';
 
 /// Photography owner's ten-step package wizard from the HTML reference.
 /// Structured details are retained in catalogue JSON; customer selection and
 /// final quote still use the existing Rust API and the base package price.
 class PhotographyPackageWizardScreen extends StatefulWidget {
-  const PhotographyPackageWizardScreen({super.key, this.package});
+  const PhotographyPackageWizardScreen({super.key, this.package, this.onSave});
   final Map<String, dynamic>? package;
+  final Future<bool> Function(Map<String, dynamic> item)? onSave;
 
   @override
   State<PhotographyPackageWizardScreen> createState() =>
@@ -32,6 +34,17 @@ class _PhotographyPackageWizardScreenState
   final _name = TextEditingController();
   final _description = TextEditingController();
   final _price = TextEditingController();
+  final _discount = TextEditingController(text: '0');
+  final _equipment = TextEditingController();
+  final _quality = TextEditingController();
+  final _functionDurations = <String, TextEditingController>{};
+  final _functionSides = <String, String>{};
+  final _deliveryDays = <String, TextEditingController>{};
+  final _deliverableQty = <String, TextEditingController>{};
+  final _deliverableFormat = <String, String>{};
+  bool _discountEnabled = false;
+  bool _saving = false;
+  String? _saveError;
   final _coverage = TextEditingController();
   final _photoTeam = TextEditingController();
   final _videoTeam = TextEditingController();
@@ -56,7 +69,11 @@ class _PhotographyPackageWizardScreenState
     final item = widget.package ?? {};
     _name.text = item['name']?.toString() ?? '';
     _description.text = item['description']?.toString() ?? '';
-    _price.text = item['price']?.toString() ?? '';
+    _price.text = (item['listPrice'] ?? item['price'])?.toString() ?? '';
+    _discount.text = (item['discountPct'] ?? 0).toString();
+    _discountEnabled = (item['discountPct'] as num? ?? 0) > 0;
+    _equipment.text = item['equipmentNote']?.toString() ?? '';
+    _quality.text = item['qualityNote']?.toString() ?? '';
     _coverage.text = item['coverageNotes']?.toString() ?? '';
     _photoTeam.text = item['photographerTeam']?.toString() ?? '';
     _videoTeam.text = item['videographerTeam']?.toString() ?? '';
@@ -77,6 +94,25 @@ class _PhotographyPackageWizardScreenState
     _inclusions
         .addAll((item['inclusions'] as List? ?? const []).whereType<String>());
     _extras.addAll((item['extras'] as List? ?? const []).whereType<String>());
+    final coverage = item['functionCoverage'] as Map? ?? {};
+    for (final entry in coverage.entries) {
+      if (entry.value is! Map) continue;
+      final value = entry.value as Map;
+      _functionDurations[entry.key.toString()] = TextEditingController(
+          text: value['duration']?.toString() ?? '');
+      _functionSides[entry.key.toString()] = value['side']?.toString() ?? 'Both';
+    }
+    final details = item['deliverableDetails'] as Map? ?? {};
+    final deadlines = item['deliveryTimelines'] as Map? ?? {};
+    for (final name in _inclusions) {
+      final d = details[name] as Map? ?? {};
+      _deliverableQty[name] = TextEditingController(
+        text: (d['quantity'] ?? 1).toString());
+      _deliverableFormat[name] = d['format']?.toString() ?? 'JPG';
+      final timeline = deadlines[name] as Map? ?? {};
+      _deliveryDays[name] = TextEditingController(
+        text: timeline['days']?.toString() ?? '15');
+    }
     final stages =
         (item['paymentSplit'] as List? ?? const []).whereType<Map>().toList();
     if (stages.isEmpty) {
@@ -102,6 +138,12 @@ class _PhotographyPackageWizardScreenState
       _name,
       _description,
       _price,
+      _discount,
+      _equipment,
+      _quality,
+      ..._functionDurations.values,
+      ..._deliverableQty.values,
+      ..._deliveryDays.values,
       _coverage,
       _photoTeam,
       _videoTeam,
@@ -118,6 +160,11 @@ class _PhotographyPackageWizardScreenState
     super.dispose();
   }
 
+  int? get _offerPrice => PhotographyOwnerPrice.discounted(
+        int.tryParse(_price.text.trim()) ?? 0,
+        _discountEnabled ? (int.tryParse(_discount.text.trim()) ?? -1) : 0,
+      );
+
   void _warn(String s) =>
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(s)));
 
@@ -127,9 +174,9 @@ class _PhotographyPackageWizardScreenState
         if (_name.text.trim().isEmpty ||
             _name.text.trim().length > 150 ||
             (int.tryParse(_price.text) ?? 0) < 1 ||
-            (int.tryParse(_price.text) ?? 0) > 10000000) {
-          _warn(
-              'Enter a package name and a valid base price (₹1–₹1,00,00,000).');
+            (int.tryParse(_price.text) ?? 0) > 10000000 ||
+            _offerPrice == null || _description.text.trim().isEmpty) {
+          _warn('Enter a package name, short description and valid price/discount.');
           return false;
         }
         return _description.text.trim().length <= 3000;
@@ -140,7 +187,7 @@ class _PhotographyPackageWizardScreenState
         }
         return true;
       case 2:
-        if (_ceremonies.isEmpty) {
+        if (_functions.any((f) => const ['Wedding', 'Reception', 'Engagement'].contains(f)) && _ceremonies.isEmpty) {
           _warn('Select at least one ceremony type.');
           return false;
         }
@@ -173,43 +220,103 @@ class _PhotographyPackageWizardScreenState
     }
   }
 
-  void _save() {
+  Future<void> _save({bool draft = false}) async {
+    if (_saving) return;
+    // Do not close the wizard until the canonical Rust catalogue write succeeds.
+    final oldStep = _step;
+    for (final step in [0, 1, 2, 7]) {
+      _step = step;
+      if (!_validStep()) {
+        setState(() => _step = step);
+        return;
+      }
+    }
+    _step = oldStep;
     final payment = [
       for (var i = 0; i < _stageNames.length; i++)
-        {
-          'label': _stageNames[i].text.trim(),
-          'percent': int.parse(_stageValues[i].text.trim())
-        },
+        {'label': _stageNames[i].text.trim(),
+          'percent': int.parse(_stageValues[i].text.trim())},
     ];
     final item = <String, dynamic>{
       ...?widget.package,
       'id': widget.package?['id'] ?? const Uuid().v4(),
       'kind': 'PACKAGE',
-      'active': _active,
+      'active': draft ? false : _active,
       'name': _name.text.trim(),
       'category': 'Wedding & related functions',
       'description': _description.text.trim(),
-      'price': int.parse(_price.text),
+      'listPrice': int.parse(_price.text.trim()),
+      'discountPct': _discountEnabled ? int.parse(_discount.text.trim()) : 0,
+      'price': _offerPrice,
+      'equipmentNote': _equipment.text.trim(),
+      'qualityNote': _quality.text.trim(),
       'packageLevel': _level,
-      'functions': _functions.toList(),
-      'ceremonies': _ceremonies.toList(),
+      'functions': _functions.toList()..sort(),
+      'ceremonies': _ceremonies.toList()..sort(),
       'coverageNotes': _coverage.text.trim(),
       'photographerTeam': _photoTeam.text.trim(),
       'videographerTeam': _videoTeam.text.trim(),
       'extraHourPrice': int.tryParse(_extraHour.text.trim()) ?? 0,
-      'inclusions': _inclusions.toList(),
+      'functionCoverage': {
+        for (final name in _functions)
+          name: {
+            'duration': _functionDurations[name]?.text.trim() ?? '',
+            'side': _functionSides[name] ?? 'Both',
+          },
+      },
+      'inclusions': _inclusions.toList()..sort(),
       'includes': _deliverables.text.trim().isNotEmpty
           ? _deliverables.text.trim()
           : _inclusions.join(', '),
-      'extras': _extras.toList(),
+      'deliverableDetails': {
+        for (final name in _inclusions)
+          name: {
+            'quantity': int.tryParse(_deliverableQty[name]?.text ?? '') ?? 1,
+            'format': _deliverableFormat[name] ?? 'JPG',
+          },
+      },
+      'deliveryTimelines': {
+        for (final name in _inclusions)
+          name: {'days': int.tryParse(_deliveryDays[name]?.text ?? '') ?? 15},
+      },
+      'extras': _extras.toList()..sort(),
       'delivery': _delivery.text.trim(),
       'paymentSplit': payment,
-      'paymentStages':
-          payment.map((s) => '${s['label']}: ${s['percent']}%').join(' | '),
+      'paymentStages': payment.map((s) =>
+          '${s['label']}: ${s['percent']}%').join(' | '),
       'policy': _policy.text.trim(),
       'customerRequirements': _requirements.text.trim(),
     };
-    Navigator.pop(context, item);
+    final validation = PhotographyOwnerPrice.validate(item);
+    if (validation != null) {
+      _warn(validation);
+      return;
+    }
+    if (widget.onSave == null) {
+      Navigator.pop(context, item);
+      return;
+    }
+    setState(() {
+      _saving = true;
+      _saveError = null;
+    });
+    try {
+      final saved = await widget.onSave!(item);
+      if (!mounted) return;
+      if (saved) {
+        Navigator.pop(context);
+      } else {
+        setState(() => _saveError =
+            'Package could not be saved. Check the catalogue and retry.');
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(() => _saveError =
+            'Unable to contact the API. Your changes are still here.');
+      }
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
   }
 
   Widget _text(String label, TextEditingController ctrl,
