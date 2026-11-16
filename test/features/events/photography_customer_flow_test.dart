@@ -71,6 +71,8 @@ void main() {
     expect(find.text('10% OFF'),findsOneWidget);
     await tester.tap(find.text('Wedding Premium'));
     await tester.pumpAndSettle();
+    await tester.ensureVisible(find.text('Extras'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Extras'));
     await tester.pumpAndSettle();
     expect(find.text('Drone / Helicam'),findsOneWidget);
@@ -114,7 +116,13 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.text('Initiate Interest'));
     await tester.pumpAndSettle();
-    await tester.tap(find.byType(CheckboxListTile).last);
+    await tester.scrollUntilVisible(
+      find.text('I understand this is an enquiry, not a booking.'),
+      250,
+      scrollable: find.byType(Scrollable).last,
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('I understand this is an enquiry, not a booking.'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Send Interest'));
     await tester.pumpAndSettle();
