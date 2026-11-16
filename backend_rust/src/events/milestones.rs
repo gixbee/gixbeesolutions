@@ -114,7 +114,7 @@ pub(super) async fn list(
              JOIN businesses b ON b.id=q."businessId"
              WHERE q.id=m."quoteId" AND (p."customerId"=$2 OR b."ownerId"=$2)
            )
-           ORDER BY CASE WHEN m.kind='PAYMENT' THEN 0 ELSE 1 END, m.position"#,
+           ORDER BY CASE WHEN m.kind='PAYMENT' THEN 0 ELSE 1 END, m."position""#,
     )
     .bind(id)
     .bind(uid)
