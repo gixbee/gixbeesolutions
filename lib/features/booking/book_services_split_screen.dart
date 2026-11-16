@@ -3,6 +3,7 @@ import '../../theme.dart';
 import '../../shared/widgets/gx_snackbar.dart';
 import '../events/event_plan_create_screen.dart';
 import '../events/event_plans_screen.dart';
+import '../events/event_service_browser.dart';
 import '../../repositories/events_repository.dart';
 import '../../shared/widgets/dribbble_background.dart';
 import '../../shared/widgets/gx_glass_card.dart';
@@ -83,13 +84,23 @@ class _BookServicesSplitScreenState extends State<BookServicesSplitScreen> {
       showGxSnack(context, 'Choose your event date');
       return;
     }
+    final services = eventServices.entries
+        .where((entry) => _selectedServices.contains(entry.value))
+        .map((entry) => entry.key)
+        .toList();
+    final service = services.singleOrNull;
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (_) => EventPlanCreateScreen(
+        builder: (_) => const ['HALL', 'PHOTOGRAPHY', 'CATERING'].contains(service)
+          ? EventServiceBrowser(
+            service: service!, eventType: _eventTypes[_eventTypeIndex].label,
+            date: _eventDate!, guests: _guests,
+          )
+          : EventPlanCreateScreen(
           eventType: _eventTypes[_eventTypeIndex].label,
           date: _eventDate!, guests: _guests,
-          services: eventServices.entries.where((e) => _selectedServices.contains(e.value)).map((e) => e.key).toList(),
+          services: services,
         ),
       ),
     );

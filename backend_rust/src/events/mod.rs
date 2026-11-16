@@ -8,6 +8,8 @@ use uuid::Uuid;
 use crate::{error::{AppError, AppResult}, middleware::auth::AuthUser, state::AppState};
 
 mod quotes;
+mod catalogues;
+mod calendar;
 pub const SERVICES: [&str;8] = ["HALL","CATERING","DECORATION","PHOTOGRAPHY","DJ","MAKEUP","MEHENDI","INVITATIONS"];
 
 pub fn routes() -> Router<AppState> {
@@ -17,6 +19,8 @@ pub fn routes() -> Router<AppState> {
         .route("/{id}",get(detail))
         .route("/{id}/quotes",post(quotes::offer))
         .route("/{id}/cancel",post(cancel_plan))
+        .merge(catalogues::routes())
+        .merge(calendar::routes())
 }
 
 #[derive(Deserialize)]
@@ -24,6 +28,9 @@ pub fn routes() -> Router<AppState> {
 struct PlanInput {
     event_type:String, start_time:String, end_time:String, guest_count:i32,
     location:String, city_id:Option<Uuid>, services:Vec<String>, #[serde(default)] notes:String,
+    target_business_id: Option<Uuid>,
+    service_request: Option<Value>,
+    client_request_id: Option<Uuid>,
 }
 
 async fn create_plan(State(state):State<AppState>,user:AuthUser,Json(mut input):Json<PlanInput>)->AppResult<Json<Value>> {
@@ -37,18 +44,72 @@ async fn create_plan(State(state):State<AppState>,user:AuthUser,Json(mut input):
         return Err(AppError::BadRequest("Provide future event times, an address, guest count and supported services".into()));
     }
     let id=Uuid::new_v4();let uid=Uuid::parse_str(&user.user_id)?;
+    if let Some(request_id) = input.client_request_id {
+        let existing: Option<Uuid> = sqlx::query_scalar(
+            r#"SELECT id FROM event_plans WHERE "customerId"=$1 AND "clientRequestId"=$2"#,
+        ).bind(uid).bind(request_id).fetch_optional(&state.db).await?;
+        if let Some(existing) = existing {
+            return detail(State(state), user, Path(existing.to_string())).await;
+        }
+    }
     let mut tx=state.db.begin().await?;
     let active_city:bool=sqlx::query_scalar(r#"SELECT EXISTS(SELECT 1 FROM cities WHERE id=$1 AND "isActive"=true)"#)
         .bind(input.city_id).fetch_one(&mut *tx).await?;
     if !active_city {return Err(AppError::BadRequest("Select an active serviceable city for the event".into()));}
-    sqlx::query(r#"INSERT INTO event_plans (id,"customerId","eventType","startTime","endTime","guestCount",location,"cityId",services,notes)
-        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)"#)
+    let service_request = if let Some(business) = input.target_business_id {
+        let request = input.service_request.as_ref().ok_or_else(|| {
+            AppError::BadRequest("Choose a service from the provider".into())
+        })?;
+        if input.services.len() != 1 {
+            return Err(AppError::BadRequest("A request to a named provider must have one service".into()));
+        }
+        let service = &input.services[0];
+        let provider_name: Option<String> = sqlx::query_scalar(
+            r#"SELECT name FROM businesses WHERE id=$1 AND "ownerId"<>$2
+                 AND type='SERVICE' AND status='VERIFIED'
+                 AND ("cityId"=$3::uuid OR EXISTS (
+                   SELECT 1 FROM event_service_catalogues c WHERE c."businessId"=businesses.id
+                     AND c."serviceType"=$4 AND c.catalogue->'serviceCityIds' ? ($3::uuid)::text))
+                 AND ("serviceType"::text=$4 OR "eventServices" ? $4) FOR UPDATE"#,
+        ).bind(business).bind(uid).bind(input.city_id).bind(service)
+            .fetch_optional(&mut *tx).await?;
+        let provider_name = provider_name.ok_or_else(|| AppError::NotFound("Provider unavailable in this city".into()))?;
+        let mut selection = if service == "HALL" {
+            crate::halls::requested_slot(&mut tx, business, input.guest_count,
+                crate::halls::availability::Interval::new(start,end)?, request).await?
+        } else {
+            catalogues::selection(&mut tx, business, service, input.guest_count, start, request).await?
+        };
+        if request["expectedEstimate"].as_i64() != selection["estimate"].as_i64() {
+            return Err(AppError::Conflict("The price changed. Return to the listing and review the latest price.".into()));
+        }
+        selection["providerName"] = json!(provider_name);
+        Some(selection)
+    } else {
+        if input.service_request.is_some() {
+            return Err(AppError::BadRequest("Choose a provider for this request".into()));
+        }
+        None
+    };
+    let created: Option<Uuid> = sqlx::query_scalar(r#"INSERT INTO event_plans (id,"customerId","eventType","startTime","endTime","guestCount",location,"cityId",services,notes,"targetBusinessId","serviceRequest","clientRequestId")
+        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)
+        ON CONFLICT ("customerId","clientRequestId") DO NOTHING RETURNING id"#)
         .bind(id).bind(uid).bind(input.event_type.trim()).bind(start).bind(end).bind(input.guest_count)
-        .bind(input.location.trim()).bind(input.city_id).bind(json!(input.services)).bind(input.notes.trim()).execute(&mut *tx).await?;
+        .bind(input.location.trim()).bind(input.city_id).bind(json!(input.services)).bind(input.notes.trim())
+        .bind(input.target_business_id).bind(service_request).bind(input.client_request_id)
+        .fetch_optional(&mut *tx).await?;
+    if created.is_none() {
+        let previous: Uuid = sqlx::query_scalar(
+            r#"SELECT id FROM event_plans WHERE "customerId"=$1 AND "clientRequestId"=$2"#,
+        ).bind(uid).bind(input.client_request_id).fetch_one(&mut *tx).await?;
+        tx.commit().await?;
+        return detail(State(state), user, Path(previous.to_string())).await;
+    }
     let vendors=sqlx::query(r#"SELECT DISTINCT "ownerId" FROM businesses WHERE type='SERVICE' AND status='VERIFIED'
-        AND "ownerId"<>$1 AND ($2::uuid IS NULL OR "cityId"=$2)
-        AND ("serviceType"::text=ANY($3) OR "eventServices" ?| $3) LIMIT 200"#)
-        .bind(uid).bind(input.city_id).bind(&input.services).fetch_all(&mut *tx).await?;
+        AND "ownerId"<>$1 AND ($2::uuid IS NULL OR "cityId"=$2 OR id=$4)
+        AND ("serviceType"::text=ANY($3) OR "eventServices" ?| $3)
+        AND ($4::uuid IS NULL OR id=$4) LIMIT 200"#)
+        .bind(uid).bind(input.city_id).bind(&input.services).bind(input.target_business_id).fetch_all(&mut *tx).await?;
     for vendor in vendors {
         crate::outbox::notify(&mut tx,id,vendor.get("ownerId"),"New event enquiry",
             "An event needs your services. Review its date and send a quote from your business dashboard.",
@@ -61,6 +122,7 @@ async fn create_plan(State(state):State<AppState>,user:AuthUser,Json(mut input):
         uid,
         input.city_id,
         &input.services,
+        input.target_business_id,
     )
     .await?;
     tx.commit().await?;
@@ -90,9 +152,14 @@ async fn vendor_inbox(State(state):State<AppState>,user:AuthUser,Query(q):Query<
     let mut services=business.get::<Value,_>("eventServices").as_array().cloned().unwrap_or_default()
         .iter().filter_map(|v|v.as_str().map(str::to_owned)).collect::<Vec<_>>();
     if let Some(service)=business.get::<Option<String>,_>("service") {services.push(service);}
-    let rows=sqlx::query(r#"SELECT to_jsonb(p) AS data FROM event_plans p WHERE p."customerId"<>$1
+    let rows=sqlx::query(r#"SELECT to_jsonb(p) || jsonb_build_object('bookingStatus',
+        (SELECT q.status::text FROM event_quotes q WHERE q."planId"=p.id AND q."businessId"=$2
+         AND q.status IN ('CONFIRMED','COMPLETED','CANCEL_REQUESTED')
+         ORDER BY q."updatedAt" DESC LIMIT 1)) AS data FROM event_plans p WHERE p."customerId"<>$1
+        AND (p."targetBusinessId" IS NULL OR p."targetBusinessId"=$2)
         AND (EXISTS(SELECT 1 FROM event_quotes q WHERE q."planId"=p.id AND q."businessId"=$2)
-        OR ($5 AND p."cancelledAt" IS NULL AND p."startTime">NOW() AND (p."cityId" IS NULL OR p."cityId"=$3) AND p.services ?| $4))
+        OR ($5 AND p."cancelledAt" IS NULL AND p."startTime">NOW()
+          AND (p."cityId" IS NULL OR p."cityId"=$3 OR p."targetBusinessId"=$2) AND p.services ?| $4))
         ORDER BY p."startTime" DESC LIMIT 100"#)
         .bind(uid).bind(q.business_id).bind(business.get::<Option<Uuid>,_>("cityId")).bind(services).bind(verified).fetch_all(&state.db).await?;
     Ok(Json(rows.iter().map(|r| {let mut p:Value=r.get("data");p.as_object_mut().unwrap().remove("customerId");p}).collect()))
@@ -102,8 +169,10 @@ async fn detail(State(state):State<AppState>,user:AuthUser,Path(id):Path<String>
     let uid=Uuid::parse_str(&user.user_id)?;let id=Uuid::parse_str(&id)?;
     let row=sqlx::query(r#"SELECT to_jsonb(p) AS data FROM event_plans p WHERE p.id=$1 AND (p."customerId"=$2
         OR EXISTS(SELECT 1 FROM businesses b WHERE b."ownerId"=$2 AND b.type='SERVICE'
+            AND (p."targetBusinessId" IS NULL OR p."targetBusinessId"=b.id)
             AND (EXISTS(SELECT 1 FROM event_quotes q WHERE q."planId"=p.id AND q."businessId"=b.id)
-                OR (b.status='VERIFIED' AND p."cancelledAt" IS NULL AND p."startTime">NOW() AND (p."cityId" IS NULL OR p."cityId"=b."cityId")
+                OR (b.status='VERIFIED' AND p."cancelledAt" IS NULL AND p."startTime">NOW()
+                    AND (p."cityId" IS NULL OR p."cityId"=b."cityId" OR p."targetBusinessId"=b.id)
                     AND (p.services ? b."serviceType"::text OR p.services ?| ARRAY(SELECT jsonb_array_elements_text(b."eventServices")))))))"#)
         .bind(id).bind(uid).fetch_optional(&state.db).await?.ok_or_else(||AppError::NotFound("Event not found".into()))?;
     let mut plan:Value=row.get("data");let is_customer=plan["customerId"].as_str()==Some(user.user_id.as_str());
@@ -117,6 +186,23 @@ async fn detail(State(state):State<AppState>,user:AuthUser,Path(id):Path<String>
     plan["quotes"]=json!(quotes.iter().map(|r|r.get::<Value,_>("data")).collect::<Vec<_>>());
     plan["isCustomer"]=json!(is_customer);
     if !is_customer {
+        if plan["services"].as_array().is_some_and(|services| {
+            services.iter().any(|service| service.as_str() == Some("HALL"))
+        }) {
+            let enquiries = sqlx::query_scalar::<_, Value>(
+                r#"SELECT jsonb_build_object('id', e.id, 'businessId', e."businessId",
+                           'assignedHallId', e."assignedHallId", 'hallName', h.name, 'status', e.status,
+                           'proposedStartAt', e."proposedStartAt", 'proposedEndAt', e."proposedEndAt")
+                   FROM hall_enquiries e JOIN businesses b ON b.id=e."businessId"
+                   LEFT JOIN business_halls h ON h.id=e."assignedHallId"
+                   WHERE e."eventPlanId"=$1 AND b."ownerId"=$2"#,
+            )
+            .bind(id)
+            .bind(uid)
+            .fetch_all(&state.db)
+            .await?;
+            plan["hallEnquiries"] = json!(enquiries);
+        }
         let contact=sqlx::query_scalar::<_,Value>(r#"SELECT jsonb_build_object('name',u.name,'phoneNumber',u."phoneNumber")
             FROM users u JOIN event_plans p ON p."customerId"=u.id WHERE p.id=$1 AND EXISTS(
                 SELECT 1 FROM event_quotes q JOIN businesses b ON b.id=q."businessId"

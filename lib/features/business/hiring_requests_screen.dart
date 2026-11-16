@@ -9,13 +9,13 @@ import '../../repositories/matching_repository.dart';
 import '../../shared/widgets/dribbble_background.dart';
 import '../../shared/widgets/gx_button.dart';
 import '../../shared/widgets/gx_empty.dart';
-import '../../shared/widgets/gx_sheet.dart';
 import '../../shared/widgets/gx_snackbar.dart';
 import '../../theme.dart';
 import '../jobs/hiring_progress_screen.dart';
 import '../jobs/hiring_flow.dart';
 import '../jobs/pending_payments_screen.dart';
 import '../messages/chat_thread_screen.dart';
+import 'hiring_location_pay.dart';
 
 /// Employer's Smart Hiring requests list.
 class HiringRequestsScreen extends ConsumerStatefulWidget {
@@ -433,10 +433,12 @@ class _CandidateCard extends StatelessWidget {
               Text(
                 [
                   if (candidate['expectedSalary'] != null)
-                    '₹${candidate['expectedSalary']}/mo',
+                    '₹${candidate['expectedSalary']}/${hiringSalaryUnitLabel(candidate['expectedSalaryPeriod']?.toString() ?? 'MONTHLY')}',
                   if (candidate['experienceYears'] != null)
                     '${candidate['experienceYears']} yrs',
-                  if (candidate['noticePeriod'] != null)
+                  if (candidate['availableOn'] != null)
+                    'Available ${candidate['availableOn']}'
+                  else if (candidate['noticePeriod'] != null)
                     '${candidate['noticePeriod']}',
                   if ((candidate['preferredLocation'] ?? '')
                       .toString()
@@ -448,6 +450,10 @@ class _CandidateCard extends StatelessWidget {
                   color: context.gx.ink.withValues(alpha: 0.55),
                 ),
               ),
+              if (candidate['bio'] case final String bio when bio.isNotEmpty) ...[
+                const SizedBox(height: 6),
+                Text(bio),
+              ],
               if ((candidate['skills'] as List?)?.isNotEmpty == true) ...[
                 const SizedBox(height: 6),
                 Text(

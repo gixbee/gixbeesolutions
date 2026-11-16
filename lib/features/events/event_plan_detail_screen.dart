@@ -58,14 +58,21 @@ class _EventPlanDetailScreenState extends ConsumerState<EventPlanDetailScreen> {
       {'updatedAt': quote['updatedAt']}));
   }
 
-  Future<void> _offer(String service) async {
+  Future<void> _offer(String service, {Map<Object?, Object?>? hallEnquiry}) async {
     final business = widget.business;
     if (_busy || business == null) return;
     final result = await Navigator.push<Map<String, dynamic>>(context, MaterialPageRoute(
-      builder: (_) => _QuoteForm(service: service)));
+      builder: (_) => _QuoteForm(service: service, request: _plan?['serviceRequest'] as Map?)));
     if (result == null || !mounted) return;
-    await _mutate(() => ref.read(eventsRepositoryProvider).offer(widget.planId,
-      {...result, 'businessId': business.id, 'serviceType': service}));
+    await _mutate(() => ref.read(eventsRepositoryProvider).offer(widget.planId, {
+      ...result,
+      'businessId': business.id,
+      'serviceType': service,
+      if (hallEnquiry != null) ...{
+        'hallEnquiryId': hallEnquiry['id'],
+        'hallId': hallEnquiry['assignedHallId'],
+      },
+    }));
   }
 
   Future<void> _requestCancellation(Map<String, dynamic> quote) async {
@@ -166,10 +173,21 @@ class _EventPlanDetailScreenState extends ConsumerState<EventPlanDetailScreen> {
     final quotes = (plan?['quotes'] as List? ?? []).map((q) => Map<String, dynamic>.from(q as Map))
       .where((q) => customer || widget.business == null || q['businessId'] == widget.business!.id).toList();
     final services = (plan?['services'] as List? ?? []).map((s) => s.toString()).toList();
+    final request = plan?['serviceRequest'] as Map?;
     final active = plan != null && plan['cancelledAt'] == null &&
       (DateTime.tryParse('${plan['startTime']}')?.isAfter(DateTime.now()) ?? false);
     final business = widget.business;
     final supported = {...?business?.eventServices, if (business?.serviceType != null) business!.serviceType!};
+    final hallEnquiry = (plan?['hallEnquiries'] as List? ?? [])
+        .whereType<Map>()
+        .where((item) => item['businessId'] == business?.id)
+        .firstOrNull;
+    final canQuoteHall = hallEnquiry == null ||
+        (hallEnquiry['assignedHallId'] != null &&
+            const ['ASSIGNED', 'QUOTE_OFFERED'].contains(hallEnquiry['status']));
+    final hallStart = hallEnquiry?['proposedStartAt'];
+    final hallEnd = hallEnquiry?['proposedEndAt'];
+    final hallName = hallEnquiry?['hallName'];
     return Scaffold(
       appBar: AppBar(title: Text(plan?['eventType']?.toString() ?? 'Event'),
         actions: [IconButton(onPressed: _busy ? null : _refresh, icon: const Icon(Icons.refresh))]),
@@ -181,6 +199,16 @@ class _EventPlanDetailScreenState extends ConsumerState<EventPlanDetailScreen> {
           Text('${eventDate(plan['startTime'])} – ${eventDate(plan['endTime'])}', style: const TextStyle(fontWeight: FontWeight.w700)),
           const SizedBox(height: 8),
           Text('${plan['guestCount']} guests · ${plan['location']}'),
+          if (request != null) ...[
+            const SizedBox(height: 12),
+            if (request['providerName'] case final String name) Text(name),
+            if (request['kind'] == 'HALL')
+              Text('${request['hallName']} · ${request['slot']} · ${request['withAc'] == true ? 'With AC' : 'Without AC'}')
+            else
+              for (final line in (request['items'] as List? ?? []).whereType<Map>())
+                Text('${line['item']['name']} · ${eventMoney(line['unitPrice'])}${request['kind'] == 'CATERING' ? ' / plate' : ''}'),
+            Text('Requested estimate ${eventMoney(request['estimate'])}'),
+          ],
           if (plan['cancelledAt'] != null) const Text('Event cancelled'),
           if ('${plan['notes'] ?? ''}'.isNotEmpty) Padding(padding: const EdgeInsets.symmetric(vertical: 12), child: Text('${plan['notes']}')),
           if (!customer && plan['customerContact'] is Map) ...[
@@ -193,10 +221,20 @@ class _EventPlanDetailScreenState extends ConsumerState<EventPlanDetailScreen> {
             '${quotes.where((q) => ['CONFIRMED', 'COMPLETED'].contains(q['status'])).length}/${services.length} services confirmed. '
             'Each service has its own vendor, price and cancellation terms.')),
           if (!customer && business != null && active) ...[
+            if (hallStart != null && hallEnd != null)
+              Text('Assigned hall slot: ${eventDate(hallStart)} – ${eventDate(hallEnd)}'),
             const SizedBox(height: 12), const Text('Send or update a quote', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
             for (final service in services.where(supported.contains))
               if (!quotes.any((q) => q['serviceType'] == service && ['CONFIRMED', 'COMPLETED', 'CANCEL_REQUESTED', 'CANCELLED'].contains(q['status'])))
-                _button('Quote for ${eventServices[service] ?? service}', () => _offer(service)),
+                if (service == 'HALL' && !canQuoteHall)
+                  const Text('Open Hall enquiries to review and assign a hall before quoting.')
+                else
+                  _button(
+                    service == 'HALL' && hallName is String
+                        ? 'Quote for $hallName'
+                        : 'Quote for ${eventServices[service] ?? service}',
+                    () => _offer(service, hallEnquiry: service == 'HALL' ? hallEnquiry : null),
+                  ),
           ],
           if (!customer && business == null && active)
             _button('Open my business to send a quote', () => Navigator.push(context,
@@ -218,16 +256,20 @@ class _EventPlanDetailScreenState extends ConsumerState<EventPlanDetailScreen> {
 }
 
 class _QuoteForm extends StatefulWidget {
-  const _QuoteForm({required this.service});
+  const _QuoteForm({required this.service, this.request});
   final String service;
+  final Map? request;
   @override
   State<_QuoteForm> createState() => _QuoteFormState();
 }
 
 class _QuoteFormState extends State<_QuoteForm> {
   final _key = GlobalKey<FormState>();
-  final _price = TextEditingController();
-  final _scope = TextEditingController();
+  late final _price = TextEditingController(text: widget.request?['estimate']?.toString() ?? '');
+  late final _scope = TextEditingController(text: widget.service == 'HALL'
+      ? (widget.request?['hallName']?.toString() ?? '')
+      : ((widget.request?['items'] as List?) ?? []).whereType<Map>()
+          .map((line) => line['item']['name']).join(', '));
   final _terms = TextEditingController();
   @override
   void dispose() { _price.dispose(); _scope.dispose(); _terms.dispose(); super.dispose(); }

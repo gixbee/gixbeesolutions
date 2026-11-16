@@ -519,7 +519,8 @@ async fn get_request(
     let candidates = sqlx::query(r#"SELECT hi.id, hi."candidateId", hi.response::text AS response, hi.decision::text AS decision,
         hi."respondedAt", hi.progress, u.name, u."phoneNumber" AS phone,
         p.skills, p."expectedSalary", p."experienceYears", p."noticePeriod"::text AS "noticePeriod",
-        p."preferredLocation", p."employmentType"::text AS "prefEmployment"
+        p."preferredLocation", p."employmentType"::text AS "prefEmployment",
+        p."expectedSalaryPeriod", p."seekerDetails"
         FROM hiring_interests hi JOIN users u ON u.id = hi."candidateId"
         LEFT JOIN job_preferences p ON p.id = hi."preferenceId"
         WHERE hi."requestId" = $1 ORDER BY hi."notifiedAt" ASC"#)
@@ -556,6 +557,7 @@ async fn get_request(
             let response = r.get::<String, _>("response");
             let decision = r.get::<String, _>("decision");
             let unlocked = flow::contact_unlocked(&progress, &decision);
+            let details: Option<Value> = r.get("seekerDetails");
             let cand_skills = crate::common::pg::string_list(r, "skills");
             let overlap = flow::skill_overlap(&job_skills, &cand_skills);
             let loc = r
@@ -588,6 +590,11 @@ async fn get_request(
                 "respondedAt": crate::common::pg::date_json(r, "respondedAt"),
                 "skills": cand_skills,
                 "expectedSalary": r.get::<Option<rust_decimal::Decimal>, _>("expectedSalary"),
+                "expectedSalaryPeriod": r.get::<Option<String>, _>("expectedSalaryPeriod"),
+                "availableOn": details.as_ref().and_then(|value| value.get("availableOn")),
+                "bio": if response == "INTERESTED" {
+                    details.as_ref().and_then(|value| value.get("bio"))
+                } else { None },
                 "experienceYears": r.get::<Option<i32>, _>("experienceYears"),
                 "noticePeriod": r.get::<Option<String>, _>("noticePeriod"),
                 "preferredLocation": r.get::<Option<String>, _>("preferredLocation"),
@@ -698,6 +705,7 @@ fn pref_json(row: &sqlx::postgres::PgRow) -> Value {
         "addressText": row.try_get::<Option<String>, _>("addressText").ok().flatten(),
         "locationMatchStatus": row.try_get::<String, _>("locationMatchStatus").unwrap_or_else(|_| "UNRESOLVED".into()),
         "languageIds": crate::common::pg::string_list(row, "languageIds"),
+        "seekerDetails": row.get::<Option<Value>, _>("seekerDetails"),
         "isActive": row.get::<bool, _>("isActive"),
         "matchingPaused": row.try_get::<bool, _>("matchingPaused").unwrap_or(false),
         "isPaid": row.get::<bool, _>("isPaid"),
@@ -764,6 +772,16 @@ pub fn fee_for_vacancies(vacancies: i32) -> AppResult<i32> {
 struct RequestFilter {business_id:Option<Uuid>}
 
 pub fn validate_preference(meta:&Value)->AppResult<()> {profiles::Preference::parse(meta)?;Ok(())}
+
+pub async fn validate_seeker_checkout(state: &AppState, meta: &Value, uid: Uuid) -> AppResult<()> {
+    let input = profiles::Preference::parse(meta)?;
+    if input.seeker_details.is_some() {
+        let mut conn = state.db.acquire().await?;
+        profiles::validate_locations(&mut conn, &input, None).await?;
+        profiles::validate_resume(&mut conn, uid, &input).await?;
+    }
+    Ok(())
+}
 
 pub async fn resolve_business(state:&AppState,owner:&str,meta:&Value)->AppResult<Uuid> {
     let chosen=meta.get("businessId").and_then(Value::as_str).map(Uuid::parse_str).transpose()?;

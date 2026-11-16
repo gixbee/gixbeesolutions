@@ -933,6 +933,7 @@ dependencies = [
  "hex",
  "hmac",
  "jsonwebtoken",
+ "lazy_static",
  "mime_guess",
  "rand 0.8.8",
  "redis 0.27.6",

@@ -15,6 +15,7 @@ import '../../theme.dart';
 import '../jobs/post_job_screen.dart';
 import '../rentals/owner_rentals_screen.dart';
 import '../events/event_plans_screen.dart';
+import '../events/event_service_catalogue_screen.dart';
 import 'event_business_settings_screen.dart';
 import 'hiring_pipeline_screen.dart';
 import 'hire_employee_screen.dart';
@@ -233,6 +234,19 @@ class _BusinessCard extends ConsumerWidget {
               ],
             ),
             const SizedBox(height: 18),
+            if (business.type == 'SERVICE')
+              for (final service in const ['PHOTOGRAPHY', 'CATERING'])
+                if (business.serviceType == service || business.eventServices.contains(service)) ...[
+                  _BizAction(
+                    icon: Icons.list_alt_outlined,
+                    label: service == 'CATERING' ? 'Menu & packages' : 'Photography catalogue',
+                    primary: true,
+                    onTap: () => Navigator.push(context, MaterialPageRoute<void>(
+                      builder: (_) => EventServiceCatalogueScreen(business: business, service: service),
+                    )),
+                  ),
+                  const SizedBox(height: 10),
+                ],
             if (_isHiring) ...[
               if (business.status == 'NEEDS_CHANGES') ...[
                 Container(
@@ -448,7 +462,7 @@ class _BusinessCard extends ConsumerWidget {
               const SizedBox(height: 10),
               _BizAction(
                 icon: Icons.celebration_outlined,
-                label: 'Event quotes (legacy)',
+                label: 'Event quotes',
                 primary: false,
                 onTap: () {
                   Navigator.push(
@@ -480,6 +494,11 @@ class _BusinessCard extends ConsumerWidget {
                 onTap: () {
                   Navigator.push(context, MaterialPageRoute(builder: (_) => EventPlansScreen(business: business)));
                 }),
+              const SizedBox(height: 10),
+              _BizAction(icon: Icons.event_note_outlined, label: 'Booking register', primary: false,
+                onTap: () => Navigator.push(context, MaterialPageRoute<void>(
+                  builder: (_) => EventPlansScreen(business: business, bookingsOnly: true),
+                ))),
               const SizedBox(height: 10),
               _BizAction(icon: Icons.tune, label: 'Services & contact', primary: false,
                 onTap: () async {

@@ -20,6 +20,9 @@ export class EventPlan {
   @Column({ type: 'uuid', nullable: true }) cityId: string | null;
   @ManyToOne(() => City, { nullable: true }) @JoinColumn({ name: 'cityId' }) city: City | null;
   @Column('jsonb') services: string[];
+  @Column({ type: 'uuid', nullable: true }) targetBusinessId: string | null;
+  @Column({ type: 'jsonb', nullable: true }) serviceRequest: Record<string, unknown> | null;
+  @Column({ type: 'uuid', nullable: true }) clientRequestId: string | null;
   @Column({ type: 'text', default: '' }) notes: string;
   @Column({ type: 'timestamptz', nullable: true }) cancelledAt: Date | null;
   @CreateDateColumn({ type: 'timestamptz' }) createdAt: Date;

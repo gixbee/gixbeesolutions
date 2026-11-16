@@ -31,6 +31,58 @@ class EventsRepository {
   Future<Map<String, dynamic>> create(Map<String, dynamic> data) async =>
       Map<String, dynamic>.from((await _dio.post('/events', data: data)).data as Map);
 
+  Future<List<Map<String, dynamic>>> discover(
+    String service, String cityId,
+  ) async {
+    final response = await _dio.get(
+      service == 'HALL' ? '/halls/discover' : '/events/catalogues',
+      queryParameters: {
+        'cityId': cityId,
+        if (service != 'HALL') 'serviceType': service,
+      },
+    );
+    return (response.data as List)
+        .map((value) => Map<String, dynamic>.from(value as Map))
+        .toList();
+  }
+
+  Future<Map<String, dynamic>> hallDetails(String hallId, String day) async {
+    final response = await _dio.get('/halls/$hallId/customer',
+        queryParameters: {'day': day});
+    return Map<String, dynamic>.from(response.data as Map);
+  }
+
+  Future<Map<String, dynamic>> catalogue(String businessId, String service) async {
+    final response = await _dio.get('/events/catalogues/$businessId/$service');
+    return Map<String, dynamic>.from(response.data as Map);
+  }
+
+  Future<List<Map<String, dynamic>>> vendorCalendar(String businessId) async {
+    final response = await _dio.get('/events/vendor/calendar/$businessId');
+    return (response.data as List)
+        .map((entry) => Map<String, dynamic>.from(entry as Map))
+        .toList();
+  }
+
+  Future<void> addCalendarBooking(String businessId, String title, DateTime start, DateTime end) async {
+    await _dio.post('/events/vendor/calendar/$businessId', data: {
+      'title': title, 'startAt': start.toUtc().toIso8601String(),
+      'endAt': end.toUtc().toIso8601String(),
+    });
+  }
+
+  Future<void> cancelCalendarBooking(String businessId, String id) async {
+    await _dio.delete('/events/vendor/calendar/$businessId/$id');
+  }
+
+  Future<Map<String, dynamic>> saveCatalogue(
+    String businessId, String service, int revision, Map<String, dynamic> catalogue,
+  ) async {
+    final response = await _dio.put('/events/catalogues/$businessId/$service',
+        data: {'revision': revision, 'catalogue': catalogue});
+    return Map<String, dynamic>.from(response.data as Map);
+  }
+
   Future<void> offer(String id, Map<String, dynamic> data) async {
     await _dio.post('/events/$id/quotes', data: data);
   }

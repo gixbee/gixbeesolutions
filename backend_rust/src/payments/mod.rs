@@ -115,6 +115,7 @@ struct HiringMatchBody {
 
 #[derive(Deserialize)]
 struct ExtraJobTypeBody {
+    seekerDetails: Option<Value>,
     renewPreferenceId:Option<Uuid>,
     jobType: String,
     skills: Option<Vec<String>>,
@@ -295,6 +296,7 @@ async fn create_extra_job_type_order(
     }
     let meta = json!({
         "renewPreferenceId":body.renewPreferenceId,
+        "seekerDetails":body.seekerDetails,
         "jobType": job_type,
         "skills": body.skills.unwrap_or_default(),
         "preferredLocation": body.preferredLocation,
@@ -318,6 +320,7 @@ async fn create_extra_job_type_order(
         crate::matching::validate_renewal_profile_catalogue(&state, &meta, profile_id, uid)
             .await?;
     } else {
+        crate::matching::validate_seeker_checkout(&state, &meta, uid).await?;
         crate::matching::validate_profile_catalogue(&state, &meta).await?;
     }
     create_razorpay_order(&state, &user.user_id, PURPOSE_EXTRA_JOB_TYPE, 50, Some(meta)).await

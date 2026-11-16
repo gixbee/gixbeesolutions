@@ -94,6 +94,49 @@ class _HallCalendarScreenState extends ConsumerState<HallCalendarScreen> {
   Future<void> _blockDay(DateTime day) async {
     final startUtc = _venueMidnightUtc(_tz, day.year, day.month, day.day);
     final endUtc = startUtc.add(const Duration(days: 1));
+    await _createBlock(startUtc, endUtc);
+  }
+
+  Future<void> _chooseBlock(DateTime day) async {
+    try {
+      final data = await ref.read(hallRepositoryProvider)
+          .getPackage(widget.business.id, widget.hallId);
+      if (!mounted) return;
+      final package = data['package'] as Map?;
+      final slots = ((package?['slotOffers'] as List?) ?? []).whereType<Map>()
+          .where((slot) => slot['enabled'] != false).toList();
+      final selection = await showDialog<Map>(
+        context: context,
+        builder: (dialogContext) => SimpleDialog(
+          title: const Text('Block availability'),
+          children: [
+            SimpleDialogOption(onPressed: () => Navigator.pop(dialogContext, const {}),
+              child: const Text('Full day')),
+            for (final slot in slots)
+              SimpleDialogOption(
+                onPressed: () => Navigator.pop(dialogContext, slot),
+                child: Text('${slot['label']} · ${slot['hallFrom']}–${slot['hallTo']}'),
+              ),
+          ],
+        ),
+      );
+      if (!mounted || selection == null) return;
+      if (selection.isEmpty) {
+        await _blockDay(day);
+        return;
+      }
+      final midnight = _venueMidnightUtc(_tz, day.year, day.month, day.day);
+      DateTime at(String value) {
+        final parts = value.split(':');
+        return midnight.add(Duration(hours: int.parse(parts[0]), minutes: int.parse(parts[1])));
+      }
+      await _createBlock(at(selection['hallFrom'] as String), at(selection['hallTo'] as String));
+    } catch (error) {
+      if (mounted) showGxSnack(context, '$error', type: GxSnackType.error);
+    }
+  }
+
+  Future<void> _createBlock(DateTime startUtc, DateTime endUtc) async {
     try {
       await ref.read(hallRepositoryProvider).createBlock(
         widget.business.id,
@@ -231,7 +274,7 @@ class _HallCalendarScreenState extends ConsumerState<HallCalendarScreen> {
                       firstDate: first,
                       lastDate: last,
                     );
-                    if (picked != null) await _blockDay(picked);
+                    if (picked != null && mounted) await _chooseBlock(picked);
                   },
                 ),
               ],

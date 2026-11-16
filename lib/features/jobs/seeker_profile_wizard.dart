@@ -1,1094 +1,906 @@
+import 'package:dio/dio.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:razorpay_flutter/razorpay_flutter.dart';
 
-import '../../repositories/cities_repository.dart';
-import '../../repositories/master_entries_repository.dart';
+import '../../core/config/app_config.dart';
+import '../../repositories/auth_repository.dart';
 import '../../repositories/matching_repository.dart';
-import '../../repositories/talent_repository.dart';
-import '../../services/location_service.dart';
 import '../../shared/widgets/gx_button.dart';
 import '../../shared/widgets/gx_snackbar.dart';
-import '../../theme.dart';
-import '../booking/location_pin_screen.dart';
-import 'hiring_master_picker.dart';
-import 'job_types_screen.dart';
 import '../business/hiring_language_picker.dart';
+import '../business/hiring_sector_grid.dart';
+import 'hiring_master_picker.dart';
+import 'pending_payments_screen.dart';
 
-/// A talent profile is ready for Jobs when it is not incomplete and has a
-/// role, an employment preference, and a map pin.
 bool jobProfileNeedsWizard(Map<String, dynamic> profile) {
-  final status = profile['profileStatus']?.toString() ?? '';
-  if (status == 'INCOMPLETE') return true;
-  final roles = _strings(profile['preferredRoles']);
-  final types = _strings(profile['employmentTypes']);
   final lat = profile['lat'];
   final lng = profile['lng'];
-  final hasGeo = lat is num && lng is num && !(lat == 0 && lng == 0);
-  return roles.isEmpty || types.isEmpty || !hasGeo;
+  final location = _text(profile['locationId']);
+  final hasPin = lat is num && lng is num && !(lat == 0 && lng == 0);
+  return profile['profileStatus'] == 'INCOMPLETE' ||
+      _strings(profile['preferredRoles']).isEmpty ||
+      _strings(profile['employmentTypes']).isEmpty ||
+      (location == null && !hasPin);
 }
 
-List<String> _strings(dynamic raw) {
-  if (raw is! List) return const [];
-  return raw.map((e) => e.toString().trim()).where((e) => e.isNotEmpty).toList();
+String? _text(Object? value) {
+  final text = value?.toString().trim();
+  return text == null || text.isEmpty ? null : text;
 }
 
-const jobCategories = [
-  'Electrical',
-  'Plumbing',
-  'Cleaning',
-  'Painting',
-  'Carpentry',
-  'AC & Appliances',
-  'Driving',
-  'Delivery',
-  'Cooking',
-  'Security',
-  'Retail & Sales',
-  'Office / Admin',
-  'Tech & IT',
-  'Teaching',
-  'Healthcare',
-  'Events',
-  'Fitness & Yoga',
-  'Beauty',
-];
+List<String> _strings(Object? value) =>
+    value is List ? value.map(_text).whereType<String>().toList() : [];
 
-const roleSuggestions = {
-  'Electrical': ['Electrician', 'Maintenance Electrician', 'Wiring Technician', 'Electrical Helper'],
-  'Plumbing': ['Plumber', 'Pipe Fitter', 'Plumbing Helper'],
-  'Cleaning': ['Cleaner', 'Housekeeping Staff', 'Deep Cleaning Specialist'],
-  'Painting': ['Painter', 'Wall Painter', 'Painter Helper'],
-  'Carpentry': ['Carpenter', 'Furniture Carpenter', 'Carpentry Helper'],
-  'AC & Appliances': ['AC Technician', 'Appliance Repair Technician'],
-  'Driving': ['Driver', 'Delivery Driver', 'Personal Driver'],
-  'Delivery': ['Delivery Partner', 'Courier'],
-  'Cooking': ['Cook', 'Kitchen Helper', 'Chef'],
-  'Security': ['Security Guard', 'Supervisor'],
-  'Retail & Sales': ['Sales Associate', 'Cashier', 'Store Helper'],
-  'Office / Admin': ['Office Assistant', 'Admin Executive', 'Data Entry'],
-  'Tech & IT': ['IT Support', 'Software Developer', 'Technician'],
-  'Teaching': ['Teacher', 'Tutor', 'Trainer'],
-  'Healthcare': ['Caregiver', 'Nurse Assistant', 'Clinic Helper'],
-  'Events': ['Event Staff', 'Event Coordinator'],
-  'Fitness & Yoga': ['Yoga Instructor', 'Fitness Trainer'],
-  'Beauty': ['Beautician', 'Hair Stylist'],
+List<Map<String, dynamic>> _rows(Object? value) => value is List
+    ? value
+        .whereType<Map>()
+        .map((row) => Map<String, dynamic>.from(row))
+        .toList()
+    : [];
+
+String _dateOnly(DateTime value) =>
+    '${value.year}-${value.month.toString().padLeft(2, '0')}-${value.day.toString().padLeft(2, '0')}';
+
+const _joinChoices = {
+  'IMMEDIATE': 'Immediately',
+  'DAYS_7': 'Within 7 days',
+  'DAYS_15': 'Within 15 days',
+  'DAYS_30': 'Within 30 days',
+  'DAYS_60': 'Within 60 days',
+  'DAYS_90': 'Within 90 days',
+  'CUSTOM_DATE': 'Choose a date',
 };
 
-const employmentChoices = [
-  ('FT', 'Full-time'),
-  ('PT', 'Part-time'),
-  ('CONTRACT', 'Contract'),
-  ('INTERN', 'Internship'),
-  ('GIG', 'Gig'),
-];
-
-const experienceChoices = [
-  ('Fresher', '0 years'),
-  ('Less than 1 year', '0.5 years'),
-  ('1–2 years', '1 years'),
-  ('3–5 years', '3 years'),
-  ('5–10 years', '5 years'),
-  ('10+ years', '10 years'),
-];
-
-const educationChoices = ['10th', '12th', 'ITI', 'Diploma', 'Degree', 'Postgraduate', 'Other'];
-
-const salaryPeriods = [
-  ('HOURLY', 'Hourly'),
-  ('DAILY', 'Daily'),
-  ('WEEKLY', 'Weekly'),
-  ('MONTHLY', 'Monthly'),
-  ('PER_JOB', 'Per Job'),
-];
-
-const joinChoices = [
-  ('IMMEDIATE', 'Immediately'),
-  ('DAYS_7', 'Within 7 days'),
-  ('DAYS_15', 'Within 15 days'),
-  ('DAYS_30', 'Within 30 days'),
-  ('CUSTOM_DATE', 'Custom Date'),
-];
+enum SeekerProfileResult { profiles, createAnother }
 
 class SeekerProfileWizard extends ConsumerStatefulWidget {
-  const SeekerProfileWizard({super.key});
+  const SeekerProfileWizard({super.key, this.existing, this.freeSlotsLeft});
+  final Map<String, dynamic>? existing;
+  final int? freeSlotsLeft;
 
   @override
-  ConsumerState<SeekerProfileWizard> createState() => _SeekerProfileWizardState();
+  ConsumerState<SeekerProfileWizard> createState() =>
+      _SeekerProfileWizardState();
 }
 
 class _SeekerProfileWizardState extends ConsumerState<SeekerProfileWizard> {
-  int _step = 0;
-  bool _saving = false;
-  bool _loading = true;
-
-  String? _positionId;
-  String? _positionLabel;
-  Set<String> _rolesForPosition = {};
-  String? _sectorId;
-  String? _qualificationId;
-  String? _locationId;
-  List<String> _specializationIds = [];
-  List<String> _skillIds = [];
-  final List<String> _languageIds = [];
-  List<Map<String, dynamic>> _catalogueLanguages = [];
-  List<Map<String, dynamic>> _specChoices = [];
-  List<Map<String, dynamic>> _catalogueSkills = [];
-  List<Map<String, dynamic>> _qualifications = [];
-  String _typeLabel = 'Specialization';
-  final _categories = <String>{};
-  final _roles = <String>{};
-  final _employment = <String>[];
-  String? _workMode;
-  String? _career;
-  final _roleSearch = TextEditingController();
-
-  final _skills = <String>{};
-  final _skillSearch = TextEditingController();
-  List<String> _catalogSkills = [];
-  String? _experienceLabel;
-  String? _education;
-  String? _resumeUrl;
-  String? _resumeName;
-  String? _resumeMime;
-  String? _resumeUploadedAt;
-  bool _uploadingResume = false;
-
+  static const _steps = [
+    'Job type & sector',
+    'Position',
+    'Your qualifications',
+    'Location & pay expectations',
+    'Review & save',
+  ];
+  final _name = TextEditingController();
+  final _bio = TextEditingController();
   final _salary = TextEditingController();
-  String _salaryPeriod = 'MONTHLY';
-  bool _negotiable = false;
-  String? _place;
-  double? _lat;
-  double? _lng;
-  double _radius = 25;
-  String _availability = 'IMMEDIATE';
+  final _experience = TextEditingController(text: '0');
+  final _search = TextEditingController();
+  final _locations = <({String id, String label})>[];
+  final _skillIds = <String>{};
+  final _specializations = <String>{};
+  List<String> _languages = [];
+  List<String> _legacySkills = [];
+  Map<String, dynamic>? _catalogue, _position;
+  Object? _loadError, _positionError;
+  int _step = 0, _positionLoad = 0, _locationPickerKey = 0;
+  String? _sectorId, _positionId, _positionLabel, _employment, _qualification;
+  String? _resumeId, _resumeName, _orderId;
+  String _mode = 'ONSITE', _period = 'MONTHLY', _notice = 'IMMEDIATE';
   DateTime? _availableOn;
-  bool _openToWork = true;
+  bool _saving = false, _uploading = false, _positionLoading = false;
+  bool _negotiable = false, _saved = false;
+  Razorpay? _razorpay;
+
+  bool get _editing => widget.existing != null;
 
   @override
   void initState() {
     super.initState();
-    _load();
+    final saved = widget.existing;
+    if (saved != null) {
+      final details = saved['seekerDetails'] as Map? ?? {};
+      _name.text = _text(details['profileName']) ?? '';
+      _bio.text = _text(details['bio']) ?? '';
+      _positionId = _text(saved['positionId']);
+      _positionLabel = _text(saved['jobType']);
+      _sectorId = _text(saved['sectorId']);
+      _employment = _text(saved['employmentType']);
+      _qualification = _text(saved['qualificationId']);
+      final expected = num.tryParse('${saved['expectedSalary']}');
+      if (expected != null && expected > 0) {
+        _salary.text = expected == expected.roundToDouble()
+            ? expected.toInt().toString()
+            : expected.toString();
+      }
+      _experience.text = '${saved['experienceYears'] ?? 0}';
+      _mode = _text(details['workMode']) ?? 'ONSITE';
+      _period = _text(saved['expectedSalaryPeriod']) ?? 'MONTHLY';
+      _notice = _text(saved['noticePeriod']) ?? 'IMMEDIATE';
+      _availableOn = DateTime.tryParse(
+          '${details['availableOn'] ?? saved['availableOn'] ?? ''}');
+      _negotiable = saved['salaryNegotiable'] == true;
+      _resumeId = _text(details['resumeId']);
+      _resumeName = _text(details['resumeName']);
+      _skillIds.addAll(_strings(saved['skillIds']));
+      _specializations.addAll(_strings(saved['specializationIds']));
+      _languages = _strings(saved['languageIds']);
+      _legacySkills = _strings(saved['skills']);
+      for (final row in _rows(details['locations'])) {
+        final id = _text(row['id']), label = _text(row['label']);
+        if (id != null && label != null) _locations.add((id: id, label: label));
+      }
+      if (_locations.isEmpty) {
+        final id = _text(saved['locationId']);
+        final label = _text(saved['preferredLocation']);
+        if (id != null && label != null) _locations.add((id: id, label: label));
+      }
+    }
+    _loadCatalogue();
   }
 
   @override
   void dispose() {
-    _roleSearch.dispose();
-    _skillSearch.dispose();
-    _salary.dispose();
+    for (final controller in [_name, _bio, _salary, _experience, _search]) {
+      controller.dispose();
+    }
+    _razorpay?.clear();
     super.dispose();
   }
 
-  Future<void> _load() async {
+  Future<void> _loadCatalogue() async {
+    setState(() => _loadError = null);
     try {
-      final profile = await ref.read(talentRepositoryProvider).getProfile();
-      final roles = _strings(profile['preferredRoles']);
-      _categories.addAll(roles.where(jobCategories.contains));
-      _roles.addAll(roles.where((role) => !jobCategories.contains(role)));
-      _employment.addAll(_strings(profile['employmentTypes']));
-      _workMode = profile['preferredWorkMode']?.toString();
-      _career = profile['currentStatus']?.toString();
-      _skills.addAll(_strings(profile['skills']));
-      final experience = profile['experience']?.toString();
-      for (final choice in experienceChoices) {
-        if (choice.$2 == experience) _experienceLabel = choice.$1;
-      }
-      final education = _strings(profile['education']);
-      if (education.isNotEmpty) _education = education.first;
-      _resumeUrl = profile['resumeUrl']?.toString();
-      _resumeName = profile['resumeFileName']?.toString();
-      _resumeMime = profile['resumeMimeType']?.toString();
-      _resumeUploadedAt = profile['resumeUploadedAt']?.toString();
-      final salary = profile['expectedSalary'];
-      if (salary != null) _salary.text = _wholeText(salary);
-      final period = profile['expectedSalaryPeriod']?.toString();
-      if (period != null && period.isNotEmpty) _salaryPeriod = period;
-      final places = _strings(profile['preferredLocations']);
-      if (places.isNotEmpty) _place = places.first;
-      _positionId = _strings(profile['positionIds']).firstOrNull;
-      _qualificationId = profile['qualificationId']?.toString();
-      _locationId = profile['locationId']?.toString();
-      _specializationIds = _strings(profile['specializationIds']);
-      _skillIds = _strings(profile['skillIds']);
-      _languageIds.addAll(_strings(profile['languageIds']));
-      final prefs = await ref.read(matchingRepositoryProvider).listPreferences();
-      if (prefs.isNotEmpty) {
-        final pref = prefs.firstWhere(
-          (row) => '${row['positionId'] ?? ''}' == (_positionId ?? '') || '${row['jobType'] ?? ''}' == _roleName,
-          orElse: () => prefs.first,
-        );
-        _positionId ??= pref['positionId']?.toString();
-        _sectorId ??= pref['sectorId']?.toString();
-        _qualificationId ??= pref['qualificationId']?.toString();
-        _locationId ??= pref['locationId']?.toString();
-        if (_specializationIds.isEmpty) _specializationIds = _strings(pref['specializationIds']);
-        if (_skillIds.isEmpty) _skillIds = _strings(pref['skillIds']);
-        if (_languageIds.isEmpty) _languageIds.addAll(_strings(pref['languageIds']));
-        _negotiable = pref['salaryNegotiable'] == true;
-      }
-      final catalogue = await ref.read(matchingRepositoryProvider).hiringCatalogue();
-      _catalogueLanguages = ((catalogue['languages'] as List?) ?? [])
-          .map((row) => Map<String, dynamic>.from(row as Map))
-          .toList();
-      _qualifications = ((catalogue['qualifications'] as List?) ?? [])
-          .map((row) => Map<String, dynamic>.from(row as Map))
-          .toList();
-      _rolesForPosition = {..._roles};
+      final data = await ref.read(matchingRepositoryProvider).hiringCatalogue();
+      if (!mounted) return;
+      setState(() => _catalogue = data);
       if (_positionId != null) await _loadPosition(_positionId!);
-      _lat = (profile['lat'] as num?)?.toDouble();
-      _lng = (profile['lng'] as num?)?.toDouble();
-      _radius = (profile['travelRadiusKm'] as num?)?.toDouble() ?? 25;
-      if (![5, 10, 25, 50].contains(_radius.round())) _radius = 25;
-      final availability = profile['availability']?.toString();
-      if (availability != null && availability.isNotEmpty) _availability = availability;
-      final rawDate = profile['availableOn']?.toString();
-      if (rawDate != null && rawDate.isNotEmpty) {
-        _availableOn = DateTime.tryParse(rawDate);
+    } catch (_) {
+      if (mounted) {
+        setState(() => _loadError = 'Could not load the hiring catalogue.');
       }
-      _openToWork = profile['profileStatus']?.toString() != 'PAUSED';
-      await _loadSkills();
-    } catch (_) {}
-    if (mounted) setState(() => _loading = false);
-  }
-
-  Future<void> _loadSkills() async {
-    try {
-      final entries = await ref.read(masterEntriesRepositoryProvider).getByType('PRO_SUB_SKILL');
-      final labels = entries.map((e) => e.label.trim()).where((e) => e.isNotEmpty).toSet();
-      if (mounted) setState(() => _catalogSkills = labels.toList()..sort());
-    } catch (_) {}
-  }
-
-  List<String> get _suggestedRoles {
-    final out = <String>[];
-    for (final category in _categories) {
-      out.addAll(roleSuggestions[category] ?? const []);
     }
-    return out;
   }
 
-  List<String> get _suggestedSkills {
-    final query = _skillSearch.text.trim().toLowerCase();
-    final source = _catalogSkills.where((skill) {
-      if (query.isEmpty) return true;
-      return skill.toLowerCase().contains(query);
+  List<Map<String, dynamic>> _catalogueRows(String key) =>
+      _rows(_catalogue?[key]);
+
+  void _chooseSector(String id) {
+    if (_sectorId == id) return;
+    setState(() {
+      _sectorId = id;
+      _positionId = _positionLabel = null;
+      _position = null;
+      _positionLoad++;
+      _positionLoading = false;
+      _positionError = null;
+      _specializations.clear();
+      _skillIds.clear();
+      _legacySkills = [];
+      _search.clear();
     });
-    return source.take(24).toList();
   }
 
-  String? get _primaryEmployment {
-    if (_employment.length == 1 && _employment.contains('GIG')) return 'GIG';
-    for (final code in _employment) {
-      if (code != 'GIG') return code;
+  Future<void> _loadPosition(String id) async {
+    final seq = ++_positionLoad;
+    setState(() {
+      _positionLoading = true;
+      _positionError = null;
+    });
+    try {
+      final item =
+          await ref.read(matchingRepositoryProvider).hiringPosition(id);
+      if (!mounted || seq != _positionLoad) return;
+      setState(() {
+        _position = item;
+        _positionLabel = _text(item['label']) ?? _positionLabel;
+        _positionLoading = false;
+      });
+    } catch (_) {
+      if (!mounted || seq != _positionLoad) return;
+      setState(() {
+        _positionError = 'Could not load the position details.';
+        _positionLoading = false;
+      });
+    }
+  }
+
+  String? _issue(int step) {
+    if (step == 0 && (_employment == null || _sectorId == null)) {
+      return 'Choose a job type and sector.';
+    }
+    if (step == 1 &&
+        (_positionId == null || _positionLoading || _positionError != null)) {
+      return 'Choose a position and wait for its details to load.';
+    }
+    if (step == 2) {
+      final specs = _rows(_position?['specializations'])
+          .where((row) => row['isActive'] != false);
+      if (specs.isNotEmpty && _specializations.isEmpty) {
+        return 'Choose at least one specialization.';
+      }
+      final years = int.tryParse(_experience.text.trim());
+      if (years == null || years < 0 || years > 80) {
+        return 'Enter experience from 0 to 80 years.';
+      }
+      if (_languages.isEmpty) return 'Choose at least one language.';
+    }
+    if (step == 3) {
+      if (_locations.isEmpty) {
+        return 'Add at least one preferred work location.';
+      }
+      final salary = num.tryParse(_salary.text.trim());
+      if (salary == null ||
+          !salary.isFinite ||
+          salary < 0.01 ||
+          salary > 99999999) {
+        return 'Enter expected pay between ₹0.01 and ₹99,999,999.';
+      }
+      if (_notice == 'CUSTOM_DATE' && _availableOn == null) {
+        return 'Choose your joining date.';
+      }
     }
     return null;
   }
 
-  String get _roleName {
-    if (_roles.isNotEmpty) return _roles.first;
-    if (_categories.isNotEmpty) return _categories.first;
-    return 'Job';
-  }
-
-  String get _displayName {
-    final role = _roleName;
-    final code = _employment.isNotEmpty ? _employment.first : null;
-    final label = employmentChoices
-        .where((choice) => choice.$1 == code)
-        .map((choice) => choice.$2)
-        .firstOrNull;
-    if (label == null) return role;
-    return '$role · $label';
-  }
-
-  int get _experienceYears {
-    final stored = experienceChoices
-        .where((choice) => choice.$1 == _experienceLabel)
-        .map((choice) => choice.$2)
-        .firstOrNull;
-    final match = RegExp(r'\d+').firstMatch(stored ?? '');
-    return int.tryParse(match?.group(0) ?? '') ?? 0;
-  }
-
-  bool _validateStep() {
-    if (_step == 0) {
-      if (_categories.isEmpty && _roles.isEmpty) {
-        showGxSnack(context, 'Choose the work you want', type: GxSnackType.error);
-        return false;
-      }
-      if (_employment.isEmpty) {
-        showGxSnack(context, 'Choose at least one employment preference', type: GxSnackType.error);
-        return false;
-      }
-      if (_workMode == null) {
-        showGxSnack(context, 'Choose a work preference', type: GxSnackType.error);
-        return false;
-      }
-      if (_career == null) {
-        showGxSnack(context, 'Choose your career stage', type: GxSnackType.error);
-        return false;
-      }
-    }
-    if (_step == 1 && _experienceLabel == null) {
-      showGxSnack(context, 'Choose your experience', type: GxSnackType.error);
-      return false;
-    }
-    if (_step == 2) {
-      if (_lat == null || _lng == null || (_lat == 0 && _lng == 0)) {
-        showGxSnack(context, 'Pin a preferred work location', type: GxSnackType.error);
-        return false;
-      }
-      if (_availability == 'CUSTOM_DATE' && _availableOn == null) {
-        showGxSnack(context, 'Choose the date you can join', type: GxSnackType.error);
-        return false;
-      }
-      final salaryError = _salaryError();
-      if (salaryError != null) {
-        showGxSnack(context, salaryError, type: GxSnackType.error);
-        return false;
-      }
-    }
-    return true;
-  }
-
-  String? _salaryError() {
-    final text = _salary.text.trim();
-    if (text.isEmpty) return 'Enter your expected pay';
-    final salary = int.tryParse(text);
-    if (salary == null) return 'Expected pay must be a whole number';
-    if (salary <= 0 || salary > 99999999) {
-      return 'Expected pay must be between 1 and 99999999';
-    }
-    return null;
-  }
+  void _message(String value) =>
+      showGxSnack(context, value, type: GxSnackType.error);
 
   Future<void> _next() async {
-    if (!_validateStep()) return;
-    if (_step < 2) {
-      setState(() => _step += 1);
+    if (_saving || _uploading || _positionLoading) return;
+    final issue = _issue(_step);
+    if (issue != null) {
+      _message(issue);
+      return;
+    }
+    if (_step < 4) {
+      setState(() => _step++);
       return;
     }
     await _save();
   }
 
-  Future<void> _save() async {
-    final salaryError = _salaryError();
-    if (salaryError != null) {
-      showGxSnack(context, salaryError, type: GxSnackType.error);
-      return;
-    }
-    final salary = int.parse(_salary.text.trim());
-    setState(() => _saving = true);
-    final roles = {..._categories, ..._roles}.toList();
-    final experience = experienceChoices
-        .where((choice) => choice.$1 == _experienceLabel)
-        .map((choice) => choice.$2)
-        .firstOrNull;
-    try {
-      await _savePreference(salary);
-      await ref.read(talentRepositoryProvider).updateProfile({
-        'preferredRoles': roles,
-        'positionIds': [if (_positionId != null) _positionId],
-        'specializationIds': _specializationIds,
-        'skillIds': _skillIds,
-        'languageIds': _languageIds,
-        'qualificationId': _qualificationId,
-        'locationId': _locationId,
-        if (_place != null) 'addressText': _place,
-        'skills': _skills.toList(),
-        'employmentTypes': _employment,
-        'preferredWorkMode': _workMode,
-        'currentStatus': _career,
-        if (experience != null) 'experience': experience,
-        if (_education != null) 'education': [_education],
-        'preferredLocations': [if (_place != null && _place!.isNotEmpty) _place],
-        'lat': _lat,
-        'lng': _lng,
-        'travelRadiusKm': _radius,
-        'expectedSalary': salary,
-        'expectedSalaryPeriod': _salaryPeriod,
-        'availability': _availability,
-        'availableOn': _availability == 'CUSTOM_DATE' && _availableOn != null
-            ? _dateOnly(_availableOn!)
-            : null,
-        'profileStatus': _openToWork ? 'ACTIVE' : 'PAUSED',
-        'resumeUrl': _resumeUrl,
-        'resumeFileName': _resumeName,
-        'resumeMimeType': _resumeMime,
-        'resumeUploadedAt': _resumeUploadedAt,
-      });
-      if (!mounted) return;
-      Navigator.pop(context, true);
-    } catch (e) {
-      if (!mounted) return;
-      showGxSnack(context, 'Could not save profile: $e', type: GxSnackType.error);
-      setState(() => _saving = false);
-    }
-  }
+  String get _profileName => _name.text.trim().isNotEmpty
+      ? _name.text.trim()
+      : [_positionLabel, if (_locations.isNotEmpty) _locations.first.label]
+          .whereType<String>()
+          .join(' · ')
+          .characters
+          .take(100)
+          .toString();
 
-  Future<void> _savePreference(int salary) async {
-    final repo = ref.read(matchingRepositoryProvider);
-    final prefs = await repo.listPreferences();
-    final body = <String, dynamic>{
-      'skills': _skills.toList(),
-      'preferredLocation': _place ?? '',
-      'expectedSalary': salary,
-      'expectedSalaryPeriod': _salaryPeriod,
-      'salaryNegotiable': _negotiable,
-      'employmentType': _primaryEmployment,
-      'experienceYears': _experienceYears,
-      'noticePeriod': _availability,
-      'positionId': _positionId,
+  Map<String, dynamic> _draft() {
+    final skillNames = _rows(_position?['skills'])
+        .where((row) => _skillIds.contains(row['id']))
+        .map((row) => '${row['label']}')
+        .where((label) => !label.contains(',') && label.length <= 100);
+    final names = _skillIds.isEmpty ? _legacySkills : skillNames.toList();
+    return {
+      'jobType': _positionLabel,
       'sectorId': _sectorId,
-      'qualificationId': _qualificationId,
-      'locationId': _locationId,
-      if (_place != null) 'addressText': _place,
-      'specializationIds': _specializationIds,
-        'skillIds': _skillIds,
-        'languageIds': _languageIds,
+      'positionId': _positionId,
+      'employmentType': _employment,
+      'experienceYears': int.parse(_experience.text.trim()),
+      'qualificationId': _qualification,
+      'specializationIds': _specializations.toList(),
+      'skillIds': _skillIds.toList(),
+      'skills': names.take(50).toList(),
+      'languageIds': _languages,
+      'preferredLocation': _locations.first.label,
+      'locationId': _locations.first.id,
+      'addressText': _locations.first.label,
+      'expectedSalary': num.parse(_salary.text.trim()),
+      'expectedSalaryPeriod': _period,
+      'salaryNegotiable': _negotiable,
+      'noticePeriod': _notice,
+      'seekerDetails': {
+        'profileName': _profileName,
+        'bio': _bio.text.trim(),
+        'workMode': _mode,
+        'locations': [
+          for (final place in _locations) {'id': place.id, 'label': place.label}
+        ],
+        'availableOn':
+            _notice == 'CUSTOM_DATE' ? _dateOnly(_availableOn!) : null,
+        'resumeId': _resumeId,
+        'resumeName': _resumeName,
+      },
     };
-    final role = _roleName.toLowerCase();
-    final match = prefs.where((pref) {
-      return '${pref['jobType'] ?? ''}'.toLowerCase() == role;
-    }).toList();
-    if (match.isNotEmpty) {
-      await repo.updatePreference(match.first['id'].toString(), {
-        ...body,
-        'jobType': _roleName,
-      });
-      return;
-    }
-    if (prefs.length == 1) {
-      await repo.updatePreference(prefs.first['id'].toString(), {
-        ...body,
-        'jobType': _roleName,
-      });
-      return;
-    }
-    final created = await repo.createPreference({
-      ...body,
-      'jobType': _roleName,
-    });
-    if (created['needsPayment'] == true) {
-      if (!mounted) return;
-      final paid = await Navigator.push<bool>(
-        context,
-        MaterialPageRoute(
-          builder: (_) => JobTypeFormScreen(
-            freeSlotsLeft: 0,
-            initialPreference: {
-              ...body,
-              'jobType': _roleName,
-              if (_availability == 'CUSTOM_DATE' && _availableOn != null)
-                'availableOn': _dateOnly(_availableOn!),
-            },
-          ),
-        ),
-      );
-      if (paid != true) {
-        throw StateError('Payment is required before adding another profile.');
-      }
-    }
   }
 
-  Future<void> _useCurrentLocation() async {
-    final position = await ref.read(locationServiceProvider).getCurrentPosition();
-    if (position == null) {
+  Future<void> _save() async {
+    for (var step = 0; step < 4; step++) {
+      final issue = _issue(step);
+      if (issue != null) {
+        setState(() => _step = step);
+        _message(issue);
+        return;
+      }
+    }
+    setState(() => _saving = true);
+    try {
+      final repo = ref.read(matchingRepositoryProvider);
+      final draft = _draft();
+      if (_editing) {
+        await repo.updatePreference('${widget.existing!['id']}', draft);
+      } else {
+        final result = await repo.createPreference(draft);
+        if (!mounted) return;
+        if (result['needsPayment'] == true) {
+          final confirmed = await showDialog<bool>(
+            context: context,
+            builder: (context) => AlertDialog(
+              title: const Text('Add a paid profile?'),
+              content: Text(
+                  'This profile costs ₹${result['fee'] ?? 50} for 30 days of matching.'),
+              actions: [
+                TextButton(
+                    onPressed: () => Navigator.pop(context, false),
+                    child: const Text('Back')),
+                TextButton(
+                    onPressed: () => Navigator.pop(context, true),
+                    child: const Text('Continue to payment')),
+              ],
+            ),
+          );
+          if (!mounted) return;
+          if (confirmed == true) {
+            await _openPayment(draft);
+          } else {
+            setState(() => _saving = false);
+          }
+          return;
+        }
+      }
       if (mounted) {
-        showGxSnack(context, 'Location is unavailable. Pick it on the map.',
-            type: GxSnackType.error);
+        setState(() {
+          _saved = true;
+          _saving = false;
+        });
       }
-      return;
+    } catch (e) {
+      if (mounted) {
+        setState(() => _saving = false);
+        _message(_errorMessage(e));
+      }
     }
-    setState(() {
-      _lat = position.latitude;
-      _lng = position.longitude;
-      _place = _place ?? 'Current location';
-      _locationId = null;
+  }
+
+  String _errorMessage(Object e) {
+    final data = e is DioException ? e.response?.data : null;
+    return data is Map && data['message'] != null
+        ? data['message'].toString()
+        : 'Could not complete the request. Please try again.';
+  }
+
+  Future<void> _openPayment(Map<String, dynamic> draft) async {
+    final order = await ref
+        .read(matchingRepositoryProvider)
+        .createExtraJobTypeOrder(draft);
+    if (!mounted) return;
+    _orderId = _text(order['orderId']);
+    if (_orderId == null) throw StateError('Missing payment order');
+    final user = ref.read(currentUserProvider).value;
+    _razorpay ??= Razorpay()
+      ..on(Razorpay.EVENT_PAYMENT_SUCCESS, _onPaid)
+      ..on(Razorpay.EVENT_PAYMENT_ERROR, _onPayFail);
+    _razorpay!.open({
+      'key': order['keyId'] ?? AppConfig.razorpayKey,
+      'order_id': _orderId,
+      'amount': order['amount'],
+      'currency': order['currency'] ?? 'INR',
+      'name': AppConfig.appName,
+      'description': 'Job profile matching · 30 days',
+      'timeout': AppConfig.paymentTimeoutSeconds,
+      'prefill': {'contact': user?.phone ?? '', 'email': user?.email ?? ''},
     });
   }
 
-  Future<void> _pickOnMap() async {
-    final pin = await Navigator.push<PinnedLocation>(
-      context,
-      MaterialPageRoute(
-        builder: (_) => LocationPinScreen(
-          initialLat: _lat ?? 8.5241,
-          initialLng: _lng ?? 76.9366,
-          initialAddress: _place,
-        ),
-      ),
-    );
-    if (pin == null) return;
-    setState(() {
-      _lat = pin.lat;
-      _lng = pin.lng;
-      _place = pin.address.isNotEmpty ? pin.address : _place;
-      _locationId = null;
-    });
+  Future<void> _onPaid(PaymentSuccessResponse result) async {
+    if (!mounted) return;
+    try {
+      if (result.orderId != _orderId || result.paymentId == null) {
+        throw StateError('Missing payment reference');
+      }
+      await ref
+          .read(matchingRepositoryProvider)
+          .verifyPayment(_orderId!, result.paymentId!);
+      if (mounted) {
+        setState(() {
+          _saved = true;
+          _saving = false;
+        });
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(() => _saving = false);
+        _message('Payment confirmation is pending. Check Pending payments.');
+      }
+    }
+  }
+
+  void _onPayFail(PaymentFailureResponse result) {
+    if (!mounted) return;
+    setState(() => _saving = false);
+    _message('Payment did not complete. Resume it from Pending payments.');
+  }
+
+  Future<void> _renew() async {
+    if (_saving) return;
+    setState(() => _saving = true);
+    try {
+      final saved = widget.existing!;
+      await _openPayment({
+        ...saved,
+        'expectedSalary': num.tryParse('${saved['expectedSalary']}') ?? 0,
+        'renewPreferenceId': saved['id'],
+      });
+    } catch (e) {
+      if (mounted) {
+        setState(() => _saving = false);
+        _message(_errorMessage(e));
+      }
+    }
   }
 
   Future<void> _pickResume() async {
-    final picked = await FilePicker.platform.pickFiles(
-      type: FileType.custom,
-      allowedExtensions: const ['pdf', 'doc', 'docx'],
-      withData: true,
-    );
-    final file = picked?.files.single;
-    final bytes = file?.bytes;
-    if (file == null || bytes == null) return;
-    setState(() => _uploadingResume = true);
+    if (_uploading || _saving) return;
+    setState(() => _uploading = true);
     try {
-      final saved = await ref.read(talentRepositoryProvider).uploadResume(bytes, file.name);
+      final result = await FilePicker.platform.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: ['pdf', 'doc', 'docx', 'jpg', 'jpeg', 'png', 'webp'],
+        withData: true,
+      );
+      if (result == null || !mounted) return;
+      final file = result.files.single;
+      final bytes = file.bytes;
+      if (bytes == null || bytes.isEmpty || bytes.length > 5 * 1024 * 1024) {
+        _message('Choose a PDF, Word document or supported image up to 5 MB.');
+        return;
+      }
+      final upload = await ref
+          .read(matchingRepositoryProvider)
+          .uploadSeekerResume(bytes, file.name);
       if (!mounted) return;
       setState(() {
-        _resumeUrl = saved['fileUrl']?.toString();
-        _resumeName = saved['fileName']?.toString() ?? file.name;
-        _resumeMime = saved['mimeType']?.toString();
-        _resumeUploadedAt = saved['uploadedAt']?.toString();
-        _uploadingResume = false;
+        _resumeId = _text(upload['resumeId']);
+        _resumeName =
+            _resumeId == null ? null : _text(upload['fileName']) ?? file.name;
       });
     } catch (e) {
-      if (!mounted) return;
-      setState(() => _uploadingResume = false);
-      showGxSnack(context, 'Resume upload failed: $e', type: GxSnackType.error);
+      if (mounted) _message(_errorMessage(e));
+    } finally {
+      if (mounted) setState(() => _uploading = false);
     }
   }
+
+  Widget _heading(String value) => Padding(
+        padding: const EdgeInsets.only(top: 16, bottom: 8),
+        child: Text(value, style: const TextStyle(fontWeight: FontWeight.w800)),
+      );
+
+  Widget _select(
+    String label,
+    Map<String, String> options,
+    String? value,
+    ValueChanged<String?> change,
+  ) =>
+      DropdownButtonFormField<String>(
+        key: ValueKey((label, value)),
+        initialValue: options.containsKey(value) ? value : null,
+        isExpanded: true,
+        decoration: InputDecoration(labelText: label),
+        items: [
+          for (final item in options.entries)
+            DropdownMenuItem(value: item.key, child: Text(item.value))
+        ],
+        onChanged: change,
+      );
+
+  Map<String, String> _options(String key, String id, [String? saved]) => {
+        for (final row in _catalogueRows(key))
+          if (row['isActive'] != false || row[id] == saved)
+            '${row[id]}': '${row['label']}',
+      };
+
+  List<Widget> _typeAndSector() => [
+        _heading('Select job type'),
+        Wrap(spacing: 8, runSpacing: 8, children: [
+          for (final item
+              in _options('employmentTypes', 'code', _employment).entries)
+            ChoiceChip(
+              label: Text(item.value),
+              selected: _employment == item.key,
+              onSelected: (_) => setState(() => _employment = item.key),
+            ),
+        ]),
+        _heading('Sector / Category'),
+        HiringSectorGrid(
+          sectors: _catalogueRows('sectors')
+              .where(
+                  (row) => row['isActive'] != false || row['id'] == _sectorId)
+              .toList(),
+          selectedId: _sectorId,
+          onSelect: (row) => _chooseSector('${row['id']}'),
+        ),
+      ];
+
+  List<Widget> _positionStep() => [
+        Text(_options('sectors', 'id', _sectorId)[_sectorId] ??
+            'Select position'),
+        HiringPositionSearch(
+          key: ValueKey(_sectorId),
+          sectorId: _sectorId,
+          selectedId: _positionId,
+          selectedLabel: _positionLabel,
+          onPick: (pick) {
+            if (_positionId == pick.id) return;
+            setState(() {
+              _positionId = pick.id;
+              _positionLabel = pick.label;
+              _position = null;
+              _specializations.clear();
+              _skillIds.clear();
+              _legacySkills = [];
+              _search.clear();
+            });
+            _loadPosition(pick.id);
+          },
+        ),
+        if (_positionLoading) const LinearProgressIndicator(),
+        if (_positionError != null)
+          TextButton(
+              onPressed: () => _loadPosition(_positionId!),
+              child: Text('$_positionError Retry')),
+      ];
+
+  Widget _catalogueChips(String key, Set<String> selected,
+      {bool search = false}) {
+    final query = _search.text.trim().toLowerCase();
+    final choices = _rows(_position?[key])
+        .where((row) =>
+            (row['isActive'] != false || selected.contains(row['id'])) &&
+            (!search || '${row['label']}'.toLowerCase().contains(query)))
+        .toList();
+    return Wrap(spacing: 8, runSpacing: 8, children: [
+      for (final row in choices)
+        FilterChip(
+          label: Text('${row['label']}'),
+          selected: selected.contains(row['id']),
+          onSelected: (on) => setState(() {
+            final id = '${row['id']}';
+            if (on) {
+              selected.add(id);
+            } else {
+              selected.remove(id);
+            }
+          }),
+        ),
+    ]);
+  }
+
+  List<Widget> _requirements() => [
+        if (_rows(_position?['specializations']).isNotEmpty) ...[
+          _heading(_text(_position?['typeLabel']) ?? 'Specializations'),
+          _catalogueChips('specializations', _specializations),
+        ],
+        const SizedBox(height: 12),
+        _select(
+            'Qualification (optional)',
+            {
+              '': 'None',
+              ..._options('qualifications', 'id', _qualification),
+            },
+            _qualification ?? '',
+            (value) => setState(() => _qualification = _text(value))),
+        const SizedBox(height: 12),
+        TextField(
+            controller: _experience,
+            keyboardType: TextInputType.number,
+            decoration: const InputDecoration(labelText: 'Experience (years)')),
+        _heading('Skills'),
+        TextField(
+            controller: _search,
+            decoration: const InputDecoration(hintText: 'Search skills'),
+            onChanged: (_) => setState(() {})),
+        _catalogueChips('skills', _skillIds, search: true),
+        _heading('Languages you speak'),
+        HiringLanguageSection(
+          selectedIds: _languages,
+          catalogRows: _catalogueRows('languages'),
+          minSelection: 1,
+          restoredDraft: _editing || _languages.isNotEmpty,
+          onChanged: (ids) => setState(() => _languages = List.of(ids)),
+        ),
+        _heading('Short bio (optional)'),
+        TextField(
+            controller: _bio,
+            maxLength: 1000,
+            minLines: 2,
+            maxLines: 4,
+            decoration: const InputDecoration(
+                hintText: 'Tell employers about your experience.')),
+      ];
+
+  void _moveLocation(int index, int destination) {
+    setState(() {
+      final item = _locations.removeAt(index);
+      _locations.insert(destination, item);
+    });
+  }
+
+  Future<void> _chooseNotice(String? value) async {
+    if (value == null) return;
+    if (value != 'CUSTOM_DATE') {
+      setState(() {
+        _notice = value;
+        _availableOn = null;
+      });
+      return;
+    }
+    final today = DateUtils.dateOnly(DateTime.now());
+    final last = today.add(const Duration(days: 730));
+    final saved = _availableOn ?? today;
+    final date = await showDatePicker(
+        context: context,
+        firstDate: today,
+        lastDate: last,
+        initialDate: saved.isBefore(today)
+            ? today
+            : (saved.isAfter(last) ? last : saved));
+    if (mounted && date != null) {
+      setState(() {
+        _notice = value;
+        _availableOn = date;
+      });
+    }
+  }
+
+  List<Widget> _locationAndPay() => [
+        _heading('Preferred work locations (${_locations.length}/5)'),
+        const Text(
+            'Order your locations by preference. Priority 1 is matched first.'),
+        for (var i = 0; i < _locations.length; i++)
+          ListTile(
+            contentPadding: EdgeInsets.zero,
+            leading: Text('${i + 1}'),
+            title: Text(_locations[i].label),
+            trailing: Row(mainAxisSize: MainAxisSize.min, children: [
+              IconButton(
+                  tooltip: 'Move up',
+                  onPressed: i == 0 ? null : () => _moveLocation(i, i - 1),
+                  icon: const Icon(Icons.arrow_upward)),
+              IconButton(
+                  tooltip: 'Move down',
+                  onPressed: i + 1 == _locations.length
+                      ? null
+                      : () => _moveLocation(i, i + 1),
+                  icon: const Icon(Icons.arrow_downward)),
+              IconButton(
+                  tooltip: 'Remove location',
+                  onPressed: () => setState(() => _locations.removeAt(i)),
+                  icon: const Icon(Icons.close)),
+            ]),
+          ),
+        if (_locations.length < 5)
+          HiringLocationSearch(
+            key: ValueKey(_locationPickerKey),
+            enableGps: true,
+            onPick: (pick) {
+              if (_locations.any((place) => place.id == pick.id)) {
+                _message('That location is already selected.');
+                return;
+              }
+              setState(() {
+                _locations.add((id: pick.id, label: pick.label));
+                _locationPickerKey++;
+              });
+            },
+          ),
+        const SizedBox(height: 12),
+        _select(
+            'Work mode',
+            const {'ONSITE': 'On-site', 'HYBRID': 'Hybrid', 'REMOTE': 'Remote'},
+            _mode,
+            (value) => setState(() => _mode = value!)),
+        const SizedBox(height: 12),
+        TextField(
+            controller: _salary,
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            decoration: const InputDecoration(labelText: 'Expected pay (₹)')),
+        const SizedBox(height: 12),
+        _select('Pay frequency', _options('salaryPeriods', 'code', _period),
+            _period, (value) => setState(() => _period = value!)),
+        SwitchListTile(
+            contentPadding: EdgeInsets.zero,
+            title: const Text('Salary negotiable'),
+            value: _negotiable,
+            onChanged: (value) => setState(() => _negotiable = value)),
+        _select('Available to join', _joinChoices, _notice, _chooseNotice),
+        if (_notice == 'CUSTOM_DATE' && _availableOn != null)
+          TextButton(
+            onPressed: () => _chooseNotice('CUSTOM_DATE'),
+            child: Text('Joining ${_dateOnly(_availableOn!)} · Change'),
+          ),
+        _heading('Resume (optional)'),
+        Text(_resumeName ?? 'PDF, Word, JPG, PNG or WebP up to 5 MB'),
+        Row(children: [
+          TextButton(
+              onPressed: _uploading ? null : _pickResume,
+              child: Text(_uploading
+                  ? 'Uploading…'
+                  : (_resumeId == null ? 'Upload resume' : 'Replace resume'))),
+          if (_resumeId != null)
+            TextButton(
+                onPressed: _uploading
+                    ? null
+                    : () => setState(() {
+                          _resumeId = _resumeName = null;
+                        }),
+                child: const Text('Remove')),
+        ]),
+      ];
+
+  String _selectedLabels(String key, Iterable<String> ids,
+      {bool position = false}) {
+    final rows = position ? _rows(_position?[key]) : _catalogueRows(key);
+    final byId = {for (final row in rows) '${row['id']}': '${row['label']}'};
+    return ids.map((id) => byId[id] ?? id).join(', ');
+  }
+
+  List<Widget> _review() => [
+        TextField(
+            controller: _name,
+            maxLength: 100,
+            decoration: InputDecoration(
+                labelText: 'Profile name', hintText: _profileName)),
+        _heading('Profile summary'),
+        Text(
+            '${_options('employmentTypes', 'code', _employment)[_employment]} · ${_positionLabel ?? ''}'),
+        Text(_options('sectors', 'id', _sectorId)[_sectorId] ?? ''),
+        if (_specializations.isNotEmpty)
+          Text(
+              'Specializations: ${_selectedLabels('specializations', _specializations, position: true)}'),
+        if (_qualification != null)
+          Text('Qualification: ${_selectedLabels('qualifications', [
+                _qualification!
+              ])}'),
+        Text('Experience: ${_experience.text} years'),
+        if (_skillIds.isNotEmpty)
+          Text(
+              'Skills: ${_selectedLabels('skills', _skillIds, position: true)}'),
+        Text('Languages: ${_selectedLabels('languages', _languages)}'),
+        if (_bio.text.trim().isNotEmpty) Text(_bio.text.trim()),
+        _heading('Work preferences'),
+        for (var i = 0; i < _locations.length; i++)
+          Text('${i + 1}. ${_locations[i].label}'),
+        Text(
+            '₹${_salary.text} · ${_options('salaryPeriods', 'code', _period)[_period] ?? _period}${_negotiable ? ' · Negotiable' : ''}'),
+        Text('Work mode: $_mode'),
+        Text(
+            'Available: ${_notice == 'CUSTOM_DATE' && _availableOn != null ? _dateOnly(_availableOn!) : _joinChoices[_notice]}'),
+        if (_resumeName != null) Text('Resume: $_resumeName'),
+        if (!_editing && widget.freeSlotsLeft == 0)
+          const Text(
+              'This additional profile costs ₹50 for 30 days of matching.'),
+        TextButton(
+            onPressed: () => setState(() => _step = 0),
+            child: const Text('Edit profile details')),
+      ];
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: context.gx.bg,
-      appBar: AppBar(
-        title: const Text('Job Profile'),
-      ),
-      body: _loading
-          ? const Center(child: CircularProgressIndicator())
-          : ListView(
-              padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
-              children: [
-                Text('${_step + 1}/3',
-                    style: TextStyle(
-                      color: GixbeeTheme.accentGreen,
-                      fontWeight: FontWeight.w800,
-                    )),
-                const SizedBox(height: 8),
-                Text(_heading, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w900)),
-                const SizedBox(height: 6),
-                Text(_subtitle, style: TextStyle(color: context.gx.ink.withValues(alpha: 0.6))),
-                const SizedBox(height: 18),
-                if (_step == 0) ..._stepWork(),
-                if (_step == 1) ..._stepSkills(),
-                if (_step == 2) ..._stepPay(),
-              ],
-            ),
-      bottomNavigationBar: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: GxButton(
-            label: _step < 2 ? 'Continue' : 'Create Profile · Find Jobs',
-            loading: _saving,
-            accent: GixbeeTheme.accentGreen,
-            gradient: const [GixbeeTheme.accentGreen, Color(0xFF047857)],
-            onTap: _saving ? null : _next,
-          ),
-        ),
-      ),
-    );
-  }
-
-  String get _heading => switch (_step) {
-        0 => 'What kind of work do you want?',
-        1 => 'Your Skills',
-        _ => 'Salary & Preferences',
-      };
-
-  String get _subtitle => switch (_step) {
-        0 => 'Choose the jobs you want Gixbee to match for you.',
-        1 => 'Employers see these on your shared profile.',
-        _ => 'Pay, location and when you can join.',
-      };
-
-  List<Widget> _stepWork() {
-    return [
-      _label('Position from the hiring catalogue'),
-      HiringPositionSearch(
-        sectorId: _sectorId,
-        selectedLabel: _roles.isEmpty ? null : _roles.first,
-        onPick: (pick) async {
-          setState(() {
-            _positionId = pick.id;
-            _positionLabel = pick.label;
-            _rolesForPosition = {pick.label};
-            _roles
-              ..clear()
-              ..add(pick.label);
-            _specializationIds.clear();
-            _skillIds.clear();
-            _skills.clear();
-            _specChoices = [];
-            _catalogueSkills = [];
-          });
-          await _loadPosition(pick.id);
+    if (_saved) {
+      return PopScope<SeekerProfileResult>(
+        canPop: false,
+        onPopInvokedWithResult: (didPop, _) {
+          if (!didPop) Navigator.pop(context, SeekerProfileResult.profiles);
         },
-      ),
-      _label('Categories'),
-      _chips(
-        jobCategories,
-        selected: _categories.contains,
-        onTap: (value) => setState(() {
-          _categories.contains(value) ? _categories.remove(value) : _categories.add(value);
-        }),
-      ),
-      _label('Preferred role'),
-      Wrap(
-        spacing: 8,
-        runSpacing: 8,
-        children: [
-          for (final role in {..._suggestedRoles, ..._roles})
-            FilterChip(
-              label: Text(role),
-              selected: _roles.contains(role),
-              onSelected: (_) => setState(() {
-                _roles.contains(role) ? _roles.remove(role) : _roles.add(role);
-                _dropPositionIfRoleLeft();
-              }),
-            ),
-        ],
-      ),
-      const SizedBox(height: 8),
-      Row(
-        children: [
-          Expanded(
-            child: TextField(
-              controller: _roleSearch,
-              decoration: const InputDecoration(hintText: 'Search or add a role'),
-              onSubmitted: _addRole,
-            ),
-          ),
-          IconButton(onPressed: () => _addRole(_roleSearch.text), icon: const Icon(Icons.add)),
-        ],
-      ),
-      _label('Employment preference'),
-      _chips(
-        [for (final choice in employmentChoices) choice.$2],
-        selected: (label) => _employment.contains(_codeFor(label)),
-        onTap: (label) => setState(() {
-          final code = _codeFor(label);
-          _employment.contains(code) ? _employment.remove(code) : _employment.add(code);
-        }),
-      ),
-      _label('Work preference'),
-      _chips(
-        const ['On-site', 'Remote', 'Hybrid'],
-        selected: (label) => _workMode == _modeCode(label),
-        onTap: (label) => setState(() => _workMode = _modeCode(label)),
-        single: true,
-      ),
-      _label('Career stage'),
-      _chips(
-        const ['Student', 'Fresher', 'Experienced'],
-        selected: (label) => _career == _careerCode(label),
-        onTap: (label) => setState(() => _career = _careerCode(label)),
-        single: true,
-      ),
-    ];
-  }
-
-  Future<void> _loadPosition(String positionId) async {
-    try {
-      final detail = await ref.read(matchingRepositoryProvider).hiringPosition(positionId);
-      if (!mounted || _positionId != positionId) return;
-      setState(() {
-        final label = detail['label']?.toString();
-        if (label != null && label.isNotEmpty) _positionLabel = label;
-        _typeLabel = '${detail['typeLabel'] ?? 'Specialization'}';
-        _specChoices = ((detail['specializations'] as List?) ?? [])
-            .map((row) => Map<String, dynamic>.from(row as Map))
-            .where((row) => row['isActive'] != false)
-            .toList();
-        _catalogueSkills = ((detail['skills'] as List?) ?? [])
-            .map((row) => Map<String, dynamic>.from(row as Map))
-            .where((row) => row['isActive'] != false)
-            .toList();
-      });
-    } catch (_) {
-      if (!mounted || _positionId != positionId) return;
+        child: Scaffold(
+          appBar: AppBar(
+              title: const Text('Profile saved'),
+              leading: BackButton(
+                  onPressed: () =>
+                      Navigator.pop(context, SeekerProfileResult.profiles))),
+          body: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(Icons.check_circle_outline, size: 50),
+                  const SizedBox(height: 16),
+                  Text('$_profileName is saved to your Gixbee account.',
+                      textAlign: TextAlign.center),
+                  const SizedBox(height: 16),
+                  GxButton(
+                      label: 'View My profiles',
+                      onTap: () =>
+                          Navigator.pop(context, SeekerProfileResult.profiles)),
+                  TextButton(
+                      onPressed: () => Navigator.pop(
+                          context, SeekerProfileResult.createAnother),
+                      child: const Text('Create another profile')),
+                ],
+              )),
+        ),
+      );
     }
-  }
-
-  List<Widget> _stepSkills() {
-    return [
-      HiringLanguageSection(
-        selectedIds: _languageIds,
-        catalogRows: _catalogueLanguages,
-        applyEmployerDefaults: false,
-        minSelection: 0,
-        restoredDraft: _languageIds.isNotEmpty,
-        onChanged: (ids) => setState(() {
-          _languageIds
-            ..clear()
-            ..addAll(ids);
-        }),
-      ),
-      const SizedBox(height: 16),
-      _label(_typeLabel),
-      if (_positionId == null) const Text('Choose a catalogue position first.'),
-      _chips(
-        [for (final spec in _specChoices) '${spec['label']}'],
-        selected: (label) => _specChoices.any((spec) => spec['label'] == label && _specializationIds.contains(spec['id'])),
-        onTap: (label) {
-          final spec = _specChoices.cast<Map<String, dynamic>?>().firstWhere(
-            (row) => row!['label'] == label,
-            orElse: () => null,
-          );
-          if (spec == null) return;
-          final id = '${spec['id']}';
-          setState(() {
-            _specializationIds.contains(id) ? _specializationIds.remove(id) : _specializationIds.add(id);
-          });
-        },
-      ),
-      _label('Catalogue skills'),
-      _chips(
-        [for (final skill in _catalogueSkills) '${skill['label']}'],
-        selected: (label) => _catalogueSkills.any((skill) => skill['label'] == label && _skillIds.contains(skill['id'])),
-        onTap: (label) {
-          final skill = _catalogueSkills.cast<Map<String, dynamic>?>().firstWhere(
-            (row) => row!['label'] == label,
-            orElse: () => null,
-          );
-          if (skill == null) return;
-          final id = '${skill['id']}';
-          final name = '${skill['label']}';
-          setState(() {
-            if (_skillIds.contains(id)) {
-              _skillIds.remove(id);
-              _skills.remove(name);
-            } else {
-              _skillIds.add(id);
-              _skills.add(name);
-            }
-          });
-        },
-      ),
-      _label('Qualification'),
-      _chips(
-        [for (final qual in _qualifications) '${qual['label']}'],
-        selected: (label) => _qualifications.any((qual) => qual['label'] == label && _qualificationId == qual['id']),
-        onTap: (label) {
-          final qual = _qualifications.cast<Map<String, dynamic>?>().firstWhere(
-            (row) => row!['label'] == label,
-            orElse: () => null,
-          );
-          if (qual == null) return;
-          final id = '${qual['id']}';
-          setState(() => _qualificationId = _qualificationId == id ? null : id);
-        },
-        single: true,
-      ),
-      _label('Suggested skills'),
-      TextField(
-        controller: _skillSearch,
-        decoration: const InputDecoration(hintText: 'Search skills'),
-        onChanged: (_) => setState(() {}),
-      ),
-      const SizedBox(height: 8),
-      _chips(
-        _suggestedSkills,
-        selected: _skills.contains,
-        onTap: (skill) => setState(() {
-          _skills.contains(skill) ? _skills.remove(skill) : _skills.add(skill);
-        }),
-      ),
-      Align(
-        alignment: Alignment.centerLeft,
-        child: TextButton.icon(
-          onPressed: () => _addSkill(_skillSearch.text),
-          icon: const Icon(Icons.add),
-          label: const Text('Add skill'),
-        ),
-      ),
-      if (_skills.isNotEmpty)
-        Wrap(
-          spacing: 6,
-          children: [
-            for (final skill in _skills)
-              InputChip(label: Text(skill), onDeleted: () => setState(() => _skills.remove(skill))),
-          ],
-        ),
-      _label('Experience'),
-      _chips(
-        [for (final choice in experienceChoices) choice.$1],
-        selected: (label) => _experienceLabel == label,
-        onTap: (label) => setState(() => _experienceLabel = label),
-        single: true,
-      ),
-      _label('Highest education'),
-      _chips(
-        educationChoices,
-        selected: (label) => _education == label,
-        onTap: (label) => setState(() => _education = _education == label ? null : label),
-        single: true,
-      ),
-      _label('Resume / CV'),
-      const Text('Resume is optional.'),
-      const SizedBox(height: 8),
-      if (_resumeName != null) ...[
-        Text(_resumeName!, style: const TextStyle(fontWeight: FontWeight.w700)),
-        const Text('Uploaded'),
-        Row(
-          children: [
-            TextButton(onPressed: _uploadingResume ? null : _pickResume, child: const Text('Replace')),
+    return PopScope<SeekerProfileResult>(
+      canPop: _step == 0 && !_saving,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop && !_saving && _step > 0) setState(() => _step--);
+      },
+      child: Scaffold(
+        appBar: AppBar(
+          title: Text(_editing ? 'Edit job profile' : 'Create job profile'),
+          leading: BackButton(
+              onPressed: _saving
+                  ? () {}
+                  : () {
+                      if (_step == 0) {
+                        Navigator.pop(context);
+                      } else {
+                        setState(() => _step--);
+                      }
+                    }),
+          actions: [
             TextButton(
-              onPressed: () => setState(() {
-                _resumeUrl = null;
-                _resumeName = null;
-                _resumeMime = null;
-                _resumeUploadedAt = null;
-              }),
-              child: const Text('Remove'),
-            ),
+                onPressed: _saving
+                    ? null
+                    : () => Navigator.push(
+                        context,
+                        MaterialPageRoute<void>(
+                            builder: (_) => const PendingPaymentsScreen())),
+                child: const Text('Pending payments')),
           ],
         ),
-      ] else
-        GxButton(
-          label: 'Upload Resume',
-          filled: false,
-          loading: _uploadingResume,
-          accent: GixbeeTheme.accentGreen,
-          onTap: _uploadingResume ? null : _pickResume,
-        ),
-    ];
-  }
-
-  List<Widget> _stepPay() {
-    final cities = ref.watch(citiesProvider).value ?? const <CityEntry>[];
-    return [
-      _label('Expected pay'),
-      TextField(
-        controller: _salary,
-        keyboardType: TextInputType.number,
-        decoration: const InputDecoration(prefixText: '₹ '),
+        body: _loadError != null
+            ? Center(
+                child: TextButton(
+                    onPressed: _loadCatalogue,
+                    child: Text('$_loadError Retry')))
+            : _catalogue == null
+                ? const Center(child: CircularProgressIndicator())
+                : AbsorbPointer(
+                    absorbing: _saving,
+                    child: ListView(
+                      key: ValueKey(_step),
+                      padding: const EdgeInsets.all(20),
+                      children: [
+                        LinearProgressIndicator(value: (_step + 1) / 5),
+                        const SizedBox(height: 12),
+                        Text('${_step + 1}/5 · ${_steps[_step]}',
+                            style: Theme.of(context).textTheme.titleLarge),
+                        if (_step == 0 && widget.existing?['isPaid'] == true)
+                          TextButton(
+                              onPressed: _renew,
+                              child: const Text(
+                                  'Renew matching access · ₹50 / 30 days')),
+                        ...switch (_step) {
+                          0 => _typeAndSector(),
+                          1 => _positionStep(),
+                          2 => _requirements(),
+                          3 => _locationAndPay(),
+                          _ => _review(),
+                        },
+                      ],
+                    )),
+        bottomNavigationBar: _catalogue == null
+            ? null
+            : SafeArea(
+                child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: GxButton(
+                    label: _step == 4 ? 'Save profile' : 'Continue',
+                    loading: _saving,
+                    onTap: _saving || _uploading || _positionLoading
+                        ? null
+                        : _next),
+              )),
       ),
-      const SizedBox(height: 8),
-      DropdownButtonFormField<String>(
-        initialValue: _salaryPeriod,
-        decoration: const InputDecoration(labelText: 'Pay type'),
-        items: [
-          for (final period in salaryPeriods)
-            DropdownMenuItem(value: period.$1, child: Text(period.$2)),
-        ],
-        onChanged: (value) => setState(() => _salaryPeriod = value ?? 'MONTHLY'),
-      ),
-      SwitchListTile(
-        contentPadding: EdgeInsets.zero,
-        title: const Text('Salary negotiable'),
-        value: _negotiable,
-        activeThumbColor: context.gx.onAccent,
-        activeTrackColor: context.gx.accent,
-        onChanged: (value) => setState(() => _negotiable = value),
-      ),
-      _label('Work location from the India location master'),
-      HiringLocationSearch(
-        selectedLabel: _place,
-        onPick: (pick) => setState(() {
-          _locationId = pick.id;
-          _place = pick.label;
-          if (pick.lat != null && pick.lng != null) {
-            _lat = pick.lat;
-            _lng = pick.lng;
-          }
-        }),
-      ),
-      Text(_place ?? 'Location not set'),
-      if (_lat != null && _lng != null)
-        Text('${_lat!.toStringAsFixed(4)}, ${_lng!.toStringAsFixed(4)}',
-            style: TextStyle(color: context.gx.ink.withValues(alpha: 0.55), fontSize: 12)),
-      Wrap(
-        spacing: 8,
-        children: [
-          TextButton(onPressed: _useCurrentLocation, child: const Text('Use Current Location')),
-          TextButton(onPressed: _pickOnMap, child: const Text('Pick on Map')),
-        ],
-      ),
-      TextField(
-        decoration: const InputDecoration(hintText: 'Search location'),
-        onChanged: (value) {
-          final match = cities.cast<CityEntry?>().firstWhere(
-                (city) => city!.name.toLowerCase() == value.trim().toLowerCase(),
-                orElse: () => null,
-              );
-          if (match != null && !(match.lat == 0 && match.lng == 0)) {
-            setState(() {
-              _place = match.displayName;
-              _lat = match.lat;
-              _lng = match.lng;
-              _locationId = null;
-            });
-          }
-        },
-      ),
-      const SizedBox(height: 8),
-      Wrap(
-        spacing: 6,
-        children: [
-          for (final city in cities.where((city) {
-            return city.name.isNotEmpty && !(city.lat == 0 && city.lng == 0);
-          }).take(8))
-            ActionChip(
-              label: Text(city.name),
-              onPressed: () => setState(() {
-                _place = city.displayName;
-                _lat = city.lat;
-                _lng = city.lng;
-                _locationId = null;
-              }),
-            ),
-        ],
-      ),
-      _label('Travel radius'),
-      _chips(
-        const ['5 km', '10 km', '25 km', '50 km'],
-        selected: (label) => _radius.round() == int.parse(label.split(' ').first),
-        onTap: (label) => setState(() => _radius = double.parse(label.split(' ').first)),
-        single: true,
-      ),
-      _label('Available to Join'),
-      _chips(
-        [for (final choice in joinChoices) choice.$2],
-        selected: (label) => _availability == _joinCode(label),
-        onTap: (label) async {
-          final code = _joinCode(label);
-          if (code == 'CUSTOM_DATE') {
-            final picked = await showDatePicker(
-              context: context,
-              firstDate: DateTime.now(),
-              lastDate: DateTime.now().add(const Duration(days: 365 * 2)),
-              initialDate: _availableOn ?? DateTime.now(),
-            );
-            if (picked == null) return;
-            setState(() {
-              _availability = code;
-              _availableOn = picked;
-            });
-            return;
-          }
-          setState(() {
-            _availability = code;
-            _availableOn = null;
-          });
-        },
-        single: true,
-      ),
-      if (_availability == 'CUSTOM_DATE' && _availableOn != null)
-        Text('Joining ${_dateOnly(_availableOn!)}'),
-      SwitchListTile(
-        contentPadding: EdgeInsets.zero,
-        title: const Text('Open to Work'),
-        subtitle: const Text(
-          'When enabled, your profile can be considered for matching opportunities.',
-        ),
-        value: _openToWork,
-        activeThumbColor: context.gx.onAccent,
-        activeTrackColor: context.gx.accent,
-        onChanged: (value) => setState(() => _openToWork = value),
-      ),
-    ];
-  }
-
-  void _addRole(String raw) {
-    final role = raw.trim();
-    if (role.isEmpty) return;
-    setState(() {
-      _roles.add(role);
-      _roleSearch.clear();
-      _dropPositionIfRoleLeft();
-    });
-  }
-
-  void _dropPositionIfRoleLeft() {
-    if (_positionId == null) return;
-    final label = _positionLabel;
-    final stillBound = label != null
-        ? _roles.contains(label)
-        : _roles.length == _rolesForPosition.length &&
-            _roles.containsAll(_rolesForPosition);
-    if (stillBound) return;
-    _positionId = null;
-    _positionLabel = null;
-    _rolesForPosition = {};
-    _specializationIds = [];
-    _skillIds = [];
-    _specChoices = [];
-    _catalogueSkills = [];
-  }
-
-  void _addSkill(String raw) {
-    final skill = raw.trim();
-    if (skill.isEmpty || skill.contains(',')) return;
-    setState(() {
-      _skills.add(skill);
-      _skillSearch.clear();
-    });
-  }
-
-  String _codeFor(String label) =>
-      employmentChoices.firstWhere((choice) => choice.$2 == label).$1;
-
-  String _modeCode(String label) => switch (label) {
-        'Remote' => 'REMOTE',
-        'Hybrid' => 'HYBRID',
-        _ => 'ONSITE',
-      };
-
-  String _careerCode(String label) => switch (label) {
-        'Student' => 'FINAL_YEAR',
-        'Fresher' => 'GRADUATE',
-        _ => 'EXPERIENCED',
-      };
-
-  String _joinCode(String label) =>
-      joinChoices.firstWhere((choice) => choice.$2 == label).$1;
-
-  Widget _label(String text) {
-    return Padding(
-      padding: const EdgeInsets.only(top: 16, bottom: 8),
-      child: Text(text, style: const TextStyle(fontWeight: FontWeight.w800)),
     );
   }
-
-  Widget _chips(
-    List<String> values, {
-    required bool Function(String) selected,
-    required void Function(String) onTap,
-    bool single = false,
-  }) {
-    return Wrap(
-      spacing: 8,
-      runSpacing: 8,
-      children: [
-        for (final value in values)
-          FilterChip(
-            label: Text(value),
-            selected: selected(value),
-            onSelected: (_) => onTap(value),
-            showCheckmark: !single,
-          ),
-      ],
-    );
-  }
-}
-
-String _wholeText(dynamic value) {
-  if (value is num && value == value.roundToDouble()) return '${value.toInt()}';
-  final parsed = num.tryParse('$value');
-  if (parsed != null && parsed == parsed.roundToDouble()) return '${parsed.toInt()}';
-  return '$value';
-}
-
-String _dateOnly(DateTime date) {
-  final month = date.month.toString().padLeft(2, '0');
-  final day = date.day.toString().padLeft(2, '0');
-  return '${date.year}-$month-$day';
 }

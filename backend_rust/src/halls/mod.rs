@@ -2,6 +2,8 @@
 pub mod audit;
 pub mod availability;
 mod policy;
+mod customer;
+pub(crate) use customer::requested_slot;
 
 use axum::{
     extract::{Path, Query, State},
@@ -25,7 +27,9 @@ use self::availability::{
 use self::policy::{enforce_booking_window, validate_deduction_basis, validate_policy_rules};
 
 pub fn public_routes() -> Router<AppState> {
-    Router::new().route("/discover", get(discover_halls))
+    Router::new()
+        .route("/discover", get(discover_halls))
+        .route("/{hall_id}/customer", get(customer::detail))
 }
 
 pub fn routes() -> Router<AppState> {
@@ -753,6 +757,9 @@ fn validate_package(pkg: &Value) -> AppResult<()> {
                 0,
                 100_000_000,
             )?;
+        }
+        for field in ["discountNoAcPct", "discountAcPct"] {
+            optional_whole_number(offer.get(field), field, 0, 99)?;
         }
     }
     let payment = pkg.get("payment").ok_or_else(|| {

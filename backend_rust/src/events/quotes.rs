@@ -26,7 +26,7 @@ pub(super) async fn offer(
     State(state): State<AppState>,
     user: AuthUser,
     Path(id): Path<String>,
-    Json(input): Json<OfferInput>,
+    Json(mut input): Json<OfferInput>,
 ) -> AppResult<Json<Value>> {
     let price = amount(input.amount)?;
     if price <= Decimal::ZERO
@@ -55,6 +55,9 @@ pub(super) async fn offer(
         return Err(AppError::Conflict(
             "This event is no longer accepting quotes".into(),
         ));
+    }
+    if plan.get::<Option<Uuid>, _>("targetBusinessId").is_some_and(|id| id != input.business_id) {
+        return Err(AppError::NotFound("This enquiry belongs to another provider".into()));
     }
     if let Err(err) = lock_business_rows(&mut *tx, &[input.business_id]).await {
         return Err(match err {
@@ -97,7 +100,8 @@ pub(super) async fn offer(
         ));
     }
     let city: Option<Uuid> = plan.get("cityId");
-    if city.is_some() && city != business.get::<Option<Uuid>, _>("cityId") {
+    if plan.get::<Option<Uuid>, _>("targetBusinessId").is_none()
+        && city.is_some() && city != business.get::<Option<Uuid>, _>("cityId") {
         return Err(AppError::BadRequest(
             "This event is outside your business city".into(),
         ));
@@ -124,8 +128,36 @@ pub(super) async fn offer(
         ));
     }
 
-    let is_hall = input.service_type == "HALL"
-        && (input.hall_enquiry_id.is_some() || input.hall_id.is_some());
+    let is_hall = if input.service_type == "HALL" {
+        let assignment = sqlx::query(
+            r#"SELECT id, "assignedHallId" FROM hall_enquiries
+               WHERE "eventPlanId"=$1 AND "businessId"=$2"#,
+        )
+        .bind(plan_id)
+        .bind(input.business_id)
+        .fetch_optional(&mut *tx)
+        .await?;
+        if let Some(assignment) = assignment {
+            let enquiry_id: Uuid = assignment.get("id");
+            let hall_id: Option<Uuid> = assignment.get("assignedHallId");
+            if input.hall_enquiry_id.is_some_and(|id| id != enquiry_id)
+                || (input.hall_id.is_some() && input.hall_id != hall_id)
+            {
+                return Err(AppError::Conflict("The hall assignment has changed".into()));
+            }
+            input.hall_enquiry_id = Some(enquiry_id);
+            input.hall_id = Some(hall_id.ok_or_else(|| {
+                AppError::Conflict("Assign a hall before sending a quote".into())
+            })?);
+            true
+        } else if input.hall_enquiry_id.is_some() || input.hall_id.is_some() {
+            return Err(AppError::NotFound("Hall enquiry not found for this event".into()));
+        } else {
+            false
+        }
+    } else {
+        false
+    };
 
     let row = if is_hall {
         offer_hall_revision(&mut tx, &input, plan_id, &plan, price, uid).await?
@@ -184,10 +216,12 @@ async fn offer_hall_revision(
     acquire_hall_scope_locks(&mut **tx, input.business_id, Some(&[hall_id])).await?;
 
     let enq = sqlx::query(
-        r#"SELECT * FROM hall_enquiries WHERE id=$1 AND "businessId"=$2 FOR UPDATE"#,
+        r#"SELECT * FROM hall_enquiries
+           WHERE id=$1 AND "businessId"=$2 AND "eventPlanId"=$3 FOR UPDATE"#,
     )
     .bind(enquiry_id)
     .bind(input.business_id)
+    .bind(plan_id)
     .fetch_optional(&mut **tx)
     .await?
     .ok_or_else(|| AppError::NotFound("Hall enquiry not found".into()))?;
@@ -220,6 +254,12 @@ async fn offer_hall_revision(
             .unwrap_or_else(|| plan.get("endTime"))
     };
     let interval = Interval::new(start, end)?;
+    if plan.get::<Option<Uuid>, _>("targetBusinessId").is_some()
+        && (start != plan.get::<DateTime<Utc>, _>("startTime")
+            || end != plan.get::<DateTime<Utc>, _>("endTime"))
+    {
+        return Err(AppError::Conflict("Use the hall slot requested by the customer".into()));
+    }
     let package = crate::halls::load_hall_package(&mut **tx, hall_id).await?;
     crate::halls::ensure_package_window(package.as_ref(), start)?;
 
@@ -305,12 +345,15 @@ async fn offer_hall_revision(
     // Convert assignment hold → quote hold (or insert quote hold).
     if let Some(hid) = assign_hold {
         sqlx::query(
-            r#"UPDATE hall_reservations SET "quoteId"=$2, "expiresAt"=$3, "updatedAt"=NOW()
+            r#"UPDATE hall_reservations SET "quoteId"=$2, "expiresAt"=$3,
+               "startAt"=$4, "endAt"=$5, "updatedAt"=NOW()
                WHERE id=$1"#,
         )
         .bind(hid)
         .bind(quote_id)
         .bind(expires)
+        .bind(start)
+        .bind(end)
         .execute(&mut **tx)
         .await?;
     } else {
@@ -530,6 +573,10 @@ pub(super) async fn action(
                 availability_check(&mut *tx, biz_id, hall_id, interval, hold_id).await?;
             } else {
                 // Legacy path (non-hall).
+                super::calendar::check_overlap(&mut tx, biz_id, start, end).await?;
+                super::catalogues::check_daily_limit(
+                    &mut tx, biz_id, &service_type, plan_id, start, end,
+                ).await?;
                 let offset = chrono::FixedOffset::east_opt(19800).unwrap();
                 let first = start.with_timezone(&offset).date_naive();
                 let last = (end - chrono::Duration::milliseconds(1))

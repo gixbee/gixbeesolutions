@@ -86,6 +86,10 @@ class _HallPackageWizardScreenState
   final _eAc = TextEditingController(text: '75000');
   final _fNoAc = TextEditingController(text: '75000');
   final _fAc = TextEditingController(text: '90000');
+  final _discounts = {
+    for (final slot in ['morning', 'evening', 'fullday'])
+      slot: (TextEditingController(text: '0'), TextEditingController(text: '0')),
+  };
 
   String _advanceType = 'fixed';
   final _advanceFixed = TextEditingController(text: '20000');
@@ -172,6 +176,11 @@ class _HallPackageWizardScreenState
       for (final raw in slots) {
         if (raw is! Map) continue;
         final slot = Map<String, dynamic>.from(raw);
+        final discount = _discounts[slot['id']];
+        if (discount != null) {
+          discount.$1.text = '${slot['discountNoAcPct'] ?? 0}';
+          discount.$2.text = '${slot['discountAcPct'] ?? 0}';
+        }
         final enabled = slot['enabled'] != false;
         switch (slot['id']?.toString()) {
           case 'morning':
@@ -272,6 +281,10 @@ class _HallPackageWizardScreenState
     _eAc.dispose();
     _fNoAc.dispose();
     _fAc.dispose();
+    for (final (regular, ac) in _discounts.values) {
+      regular.dispose();
+      ac.dispose();
+    }
     for (final field in _cancelFields) {
       field.dispose();
     }
@@ -309,6 +322,8 @@ class _HallPackageWizardScreenState
         'offerAc': offerAc,
         'priceNoAc': int.parse(price.text.trim()),
         'priceAc': offerAc ? int.parse(acPrice.text.trim()) : 0,
+        'discountNoAcPct': int.parse(_discounts[id]!.$1.text.trim()),
+        'discountAcPct': offerAc ? int.parse(_discounts[id]!.$2.text.trim()) : 0,
       });
     }
 
@@ -365,6 +380,7 @@ class _HallPackageWizardScreenState
         return 'Enable at least one slot';
       }
       String? slot(
+        String id,
         String label,
         bool enabled,
         TextEditingController from,
@@ -382,15 +398,19 @@ class _HallPackageWizardScreenState
         }
         final rent = _whole(price.text, '$label price', min: 0, max: 100000000);
         if (rent != null) return rent;
+        final discount = _discounts[id]!;
+        final discountError = _whole(discount.$1.text, '$label discount', min: 0, max: 99);
+        if (discountError != null) return discountError;
         if (_offersAc) {
-          return _whole(acPrice.text, '$label AC price', min: 0, max: 100000000);
+          return _whole(acPrice.text, '$label AC price', min: 0, max: 100000000) ??
+              _whole(discount.$2.text, '$label AC discount', min: 0, max: 99);
         }
         return null;
       }
 
-      return slot('Morning', _morning, _mFrom, _mTo, _mNoAc, _mAc) ??
-          slot('Evening', _evening, _eFrom, _eTo, _eNoAc, _eAc) ??
-          slot('Full day', _fullday, _fFrom, _fTo, _fNoAc, _fAc);
+      return slot('morning', 'Morning', _morning, _mFrom, _mTo, _mNoAc, _mAc) ??
+          slot('evening', 'Evening', _evening, _eFrom, _eTo, _eNoAc, _eAc) ??
+          slot('fullday', 'Full day', _fullday, _fFrom, _fTo, _fNoAc, _fAc);
     }
     if (step == 4) {
       final advance = _advanceType == 'percent'
@@ -678,14 +698,15 @@ class _HallPackageWizardScreenState
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _slotEditor('Morning', _morning, (v) => _morning = v, _mFrom, _mTo, _mNoAc, _mAc, priceLabel),
-        _slotEditor('Evening', _evening, (v) => _evening = v, _eFrom, _eTo, _eNoAc, _eAc, priceLabel),
-        _slotEditor('Full day', _fullday, (v) => _fullday = v, _fFrom, _fTo, _fNoAc, _fAc, priceLabel),
+        _slotEditor('morning', 'Morning', _morning, (v) => _morning = v, _mFrom, _mTo, _mNoAc, _mAc, priceLabel),
+        _slotEditor('evening', 'Evening', _evening, (v) => _evening = v, _eFrom, _eTo, _eNoAc, _eAc, priceLabel),
+        _slotEditor('fullday', 'Full day', _fullday, (v) => _fullday = v, _fFrom, _fTo, _fNoAc, _fAc, priceLabel),
       ],
     );
   }
 
   Widget _slotEditor(
+    String id,
     String title,
     bool enabled,
     ValueChanged<bool> onEnabled,
@@ -712,9 +733,13 @@ class _HallPackageWizardScreenState
           ),
           const SizedBox(height: 8),
           GxTextField(controller: price, label: priceLabel, keyboardType: TextInputType.number),
+          GxTextField(controller: _discounts[id]!.$1, label: 'Discount (%)',
+            keyboardType: TextInputType.number),
           if (_offersAc) ...[
             const SizedBox(height: 8),
             GxTextField(controller: acPrice, label: 'With AC ₹', keyboardType: TextInputType.number),
+            GxTextField(controller: _discounts[id]!.$2, label: 'AC discount (%)',
+              keyboardType: TextInputType.number),
           ],
           const SizedBox(height: 8),
         ],

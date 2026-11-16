@@ -90,6 +90,7 @@ pub async fn ensure_enquiries_for_plan(
     customer_id: Uuid,
     city_id: Option<Uuid>,
     services: &[String],
+    target_business: Option<Uuid>,
 ) -> AppResult<usize> {
     if !services.iter().any(|s| s == "HALL") {
         return Ok(0);
@@ -100,11 +101,13 @@ pub async fn ensure_enquiries_for_plan(
              AND "serviceType"::text = 'HALL'
              AND "ownerId" <> $1
              AND ($2::uuid IS NULL OR "cityId" = $2)
+             AND ($3::uuid IS NULL OR id = $3)
            ORDER BY id
            LIMIT 200"#,
     )
     .bind(customer_id)
     .bind(city_id)
+    .bind(target_business)
     .fetch_all(&mut **tx)
     .await?;
     let mut created = 0usize;
@@ -166,6 +169,8 @@ async fn list_business_enquiries(
              'guestCount', p."guestCount",
              'location', p.location,
              'hallName', h.name,
+             'requestedHallId', p."serviceRequest"->>'hallId',
+             'requestedHallName', p."serviceRequest"->>'hallName',
              'venueTimezone', COALESCE(v.timezone, 'Asia/Kolkata')
            ) AS data
            FROM hall_enquiries e
@@ -421,7 +426,7 @@ async fn assign_hall(
     let interval = Interval::new(start, end)?;
 
     let mut tx = state.db.begin().await?;
-    lock_open_event_for_enquiry(&mut tx, enquiry_id).await?;
+    let plan_id = lock_open_event_for_enquiry(&mut tx, enquiry_id).await?;
     acquire_hall_scope_locks(&mut *tx, business_id, Some(&[body.hall_id])).await?;
     recheck_locked_owner(&mut tx, business_id, uid).await?;
 
@@ -439,6 +444,18 @@ async fn assign_hall(
         return Err(AppError::Conflict(
             "Approve the enquiry before assigning a hall".into(),
         ));
+    }
+    let requested: Option<(String, DateTime<Utc>, DateTime<Utc>)> = sqlx::query_as(
+        r#"SELECT "serviceRequest"->>'hallId',"startTime","endTime" FROM event_plans
+           WHERE id=$1 AND "serviceRequest"->>'kind'='HALL'"#,
+    )
+    .bind(plan_id)
+    .fetch_optional(&mut *tx)
+    .await?;
+    if let Some((hall, requested_start, requested_end)) = requested {
+        if hall != body.hall_id.to_string() || start != requested_start || end != requested_end {
+            return Err(AppError::Conflict("Assign the hall and time requested by the customer".into()));
+        }
     }
     if status == "QUOTE_OFFERED" {
         // Pre-accept reassign: supersede offered quote + release HELD.

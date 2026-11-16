@@ -9,7 +9,7 @@ import '../../shared/widgets/gx_skeleton.dart';
 import '../../shared/widgets/gx_fade.dart';
 import '../../theme.dart';
 import 'register_pro_screen.dart';
-import 'seeker_profile_wizard.dart';
+import 'job_types_screen.dart';
 
 /// The job seeker's talent profile — skills, experience, bio, portfolio.
 /// This is what customers see when reviewing applicants.
@@ -68,7 +68,7 @@ class _TalentProfileScreenState extends ConsumerState<TalentProfileScreen> {
   Future<void> _openJobPrefs() async {
     await Navigator.push(
       context,
-      MaterialPageRoute(builder: (_) => const SeekerProfileWizard()),
+      MaterialPageRoute(builder: (_) => const JobTypesScreen()),
     );
     _fetchProfile();
   }

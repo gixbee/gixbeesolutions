@@ -4,6 +4,7 @@ import '../../repositories/hall_enquiry_repository.dart';
 import '../../repositories/hall_repository.dart';
 import '../../shared/models/business.dart';
 import '../../shared/widgets/gx_snackbar.dart';
+import '../events/event_plan_detail_screen.dart';
 
 /// Business-level inbox (owner). When [hallId] is set, shows assigned-only
 /// list (operators see readOnly).
@@ -76,7 +77,9 @@ class _HallEnquiriesInboxScreenState
 
   Future<void> _assign(Map<String, dynamic> e) async {
     final halls =
-        await ref.read(hallRepositoryProvider).listHalls(widget.business.id);
+        (await ref.read(hallRepositoryProvider).listHalls(widget.business.id))
+            .where((hall) => e['requestedHallId'] == null || hall['id'] == e['requestedHallId'])
+            .toList();
     final ready = halls.where((h) => h['packageSaved'] == true).toList();
     if (!mounted) return;
     if (ready.isEmpty) {
@@ -111,12 +114,22 @@ class _HallEnquiriesInboxScreenState
             proposedEnd: end,
           );
       if (!mounted) return;
-      showGxSnack(context, 'Hall assigned — send a quote from Event enquiries');
-      _load();
+      showGxSnack(context, 'Hall assigned');
+      await _openQuote(e['eventPlanId'] as String);
     } catch (err) {
       if (!mounted) return;
       showGxSnack(context, '$err', type: GxSnackType.error);
     }
+  }
+
+  Future<void> _openQuote(String planId) async {
+    await Navigator.of(context).push<void>(MaterialPageRoute(
+      builder: (_) => EventPlanDetailScreen(
+        planId: planId,
+        business: widget.business,
+      ),
+    ));
+    if (mounted) await _load();
   }
 
   @override
@@ -139,7 +152,13 @@ class _HallEnquiriesInboxScreenState
                     final readOnly = e['readOnly'] == true;
                     final tz = e['venueTimezone']?.toString() ?? 'Asia/Kolkata';
                     final unassigned = e['assignedHallId'] == null;
+                    final canOpenQuote = !readOnly &&
+                        !unassigned &&
+                        const ['ASSIGNED', 'QUOTE_OFFERED'].contains(status);
                     return ListTile(
+                      onTap: canOpenQuote
+                          ? () => _openQuote(e['eventPlanId'] as String)
+                          : null,
                       title: Text(
                         '${e['eventType'] ?? 'Event'} · $status',
                         style: const TextStyle(fontWeight: FontWeight.w700),
@@ -148,17 +167,19 @@ class _HallEnquiriesInboxScreenState
                         '${e['startTime'] ?? ''} · ${e['guestCount'] ?? '?'} guests\n'
                         'Times in $tz'
                         '${unassigned && !hallScoped ? '\nUnassigned — business inbox' : ''}'
-                        '${e['hallName'] != null ? '\nHall: ${e['hallName']}' : ''}',
+                        '${e['hallName'] != null ? '\nHall: ${e['hallName']}' : ''}'
+                        '${unassigned && e['requestedHallName'] != null ? '\nRequested: ${e['requestedHallName']}' : ''}',
                       ),
                       isThreeLine: true,
                       trailing: readOnly || hallScoped
-                          ? null
+                          ? (canOpenQuote ? const Icon(Icons.chevron_right) : null)
                           : PopupMenuButton<String>(
                               onSelected: (v) {
                                 final id = e['id'] as String;
                                 if (v == 'approve') _approve(id);
                                 if (v == 'decline') _decline(id);
                                 if (v == 'assign') _assign(e);
+                                if (v == 'quote') _openQuote(e['eventPlanId'] as String);
                               },
                               itemBuilder: (_) => [
                                 if (status == 'PENDING_OWNER') ...[
@@ -172,6 +193,10 @@ class _HallEnquiriesInboxScreenState
                                   const PopupMenuItem(
                                       value: 'assign',
                                       child: Text('Assign / reassign hall')),
+                                if (canOpenQuote)
+                                  const PopupMenuItem(
+                                      value: 'quote',
+                                      child: Text('Open quote')),
                               ],
                             ),
                     );

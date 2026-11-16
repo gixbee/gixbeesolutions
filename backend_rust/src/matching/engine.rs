@@ -344,12 +344,35 @@ pub(super) async fn find_matching_preferences(
               )
             )
           ) AS lang_score,
-          CASE COALESCE(t.availability, 'IMMEDIATE')
+          CASE COALESCE(
+            CASE WHEN p."seekerDetails" IS NULL THEN t.availability ELSE p."noticePeriod"::text END,
+            'IMMEDIATE')
             WHEN 'IMMEDIATE' THEN 0 WHEN 'DAYS_7' THEN 1 ELSE 2 END AS avail_rank,
+          COALESCE(ranked.priority, 1) AS location_rank,
           p."createdAt" AS pref_created
         FROM job_preferences p
         LEFT JOIN talent_profiles t ON t."userId" = p."userId"
         LEFT JOIN worker_profiles w ON w."userId" = p."userId"
+        LEFT JOIN LATERAL (
+          SELECT min(place.priority) AS priority
+          FROM jsonb_array_elements(COALESCE(p."seekerDetails"->'locations', '[]'::jsonb))
+            WITH ORDINALITY AS place(item, priority)
+          JOIN hiring_locations cand ON cand.id = place.item->>'id'
+          LEFT JOIN hiring_locations req ON req.id = $12
+          WHERE $16 = 'REMOTE'
+             OR ($12::text IS NULL AND (
+                 $13 = '' OR POSITION($13 IN LOWER(place.item->>'label')) > 0
+             ))
+             OR req.id = cand.id
+             OR (req."districtId" IS NOT NULL AND req."districtId" = cand."districtId")
+             OR (req.lat IS NOT NULL AND req.lng IS NOT NULL
+                 AND cand.lat IS NOT NULL AND cand.lng IS NOT NULL
+                 AND ST_DWithin(
+                   ST_SetSRID(ST_MakePoint(req.lng, req.lat), 4326)::geography,
+                   ST_SetSRID(ST_MakePoint(cand.lng, cand.lat), 4326)::geography,
+                   COALESCE(t."travelRadiusKm", 25) * 1000
+                 ))
+        ) ranked ON true
         WHERE p."isActive" = true
           AND COALESCE(p."matchingPaused", false) = false
           AND p."experienceYears" >= $1 AND NOT (p."userId" = ANY($2))
@@ -358,10 +381,11 @@ pub(super) async fn find_matching_preferences(
           AND (NOT p."isPaid" OR p."paidUntil" IS NULL OR p."paidUntil" > NOW())
           AND (t.id IS NULL OR (t."profileStatus" <> 'PAUSED' AND t."jobAlertsEnabled" = true))
           AND ($6::text IS NULL OR p."employmentType" IS NULL OR p."employmentType"::text = $6
-               OR (t."employmentTypes" IS NOT NULL AND POSITION($6 IN t."employmentTypes") > 0))
+               OR (p."seekerDetails" IS NULL AND t."employmentTypes" IS NOT NULL
+                   AND $6 = ANY(string_to_array(t."employmentTypes", ','))))
           AND (
-            NULLIF(BTRIM(COALESCE(t."preferredWorkMode", '')), '') IS NULL
-            OR UPPER(t."preferredWorkMode") = UPPER($16)
+            NULLIF(BTRIM(COALESCE(p."seekerDetails"->>'workMode', t."preferredWorkMode", '')), '') IS NULL
+            OR UPPER(COALESCE(p."seekerDetails"->>'workMode', t."preferredWorkMode")) = UPPER($16)
           )
           AND (
             ($7::text IS NOT NULL AND p."positionId" = $7)
@@ -401,17 +425,17 @@ pub(super) async fn find_matching_preferences(
             NOT $10
             OR $11::text IS NULL
             OR p."qualificationId" = $11
-            OR t."qualificationId" = $11
+            OR (p."seekerDetails" IS NULL AND t."qualificationId" = $11)
             OR (
-              (SELECT rank FROM hiring_qualifications WHERE id = COALESCE(p."qualificationId", t."qualificationId"))
+              (SELECT rank FROM hiring_qualifications WHERE id = COALESCE(
+                p."qualificationId", CASE WHEN p."seekerDetails" IS NULL THEN t."qualificationId" END))
               >= (SELECT rank FROM hiring_qualifications WHERE id = $11)
-              AND (SELECT rank FROM hiring_qualifications WHERE id = $11) IS NOT NULL
-              AND (SELECT rank FROM hiring_qualifications WHERE id = COALESCE(p."qualificationId", t."qualificationId")) IS NOT NULL
             )
           )
           AND (
             $16 = 'REMOTE'
-            OR (
+            OR (p."seekerDetails" IS NOT NULL AND ranked.priority IS NOT NULL)
+            OR (p."seekerDetails" IS NULL AND ((
               $12::text IS NOT NULL AND (
                 p."locationId" = $12 OR t."locationId" = $12
                 OR EXISTS (
@@ -451,16 +475,17 @@ pub(super) async fn find_matching_preferences(
                 OR POSITION($13 IN LOWER(COALESCE(p."preferredLocation",''))) > 0
                 OR POSITION($13 IN LOWER(COALESCE(t."addressText",''))) > 0
               )
-            )
+            )))
           )
         ORDER BY p."userId",
+          location_rank ASC,
           skill_score DESC,
           lang_score DESC,
           avail_rank ASC,
           pref_created ASC,
           p.id ASC
         ) best
-        ORDER BY skill_score DESC, lang_score DESC, avail_rank ASC, pref_created ASC, id ASC
+        ORDER BY location_rank ASC, skill_score DESC, lang_score DESC, avail_rank ASC, pref_created ASC, id ASC
         LIMIT $15"#,
     )
     .bind(query.experience_min.max(0))

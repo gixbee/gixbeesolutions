@@ -35,6 +35,9 @@ export enum NoticePeriod {
 @Entity('job_preferences')
 @Index(['jobType', 'isActive'])
 export class JobPreference {
+  @Column({ type: 'jsonb', nullable: true })
+  seekerDetails: Record<string, unknown> | null;
+
   @PrimaryGeneratedColumn('uuid')
   id: string;
 

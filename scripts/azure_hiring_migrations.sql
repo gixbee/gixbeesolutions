@@ -167,3 +167,13 @@ ALTER TABLE hiring_requests ADD COLUMN IF NOT EXISTS "languageIds" text NOT NULL
 ALTER TABLE job_preferences ADD COLUMN IF NOT EXISTS "languageIds" text NOT NULL DEFAULT '';
 ALTER TABLE talent_profiles ADD COLUMN IF NOT EXISTS "languageIds" text NOT NULL DEFAULT '';
 ALTER TABLE job_posts ADD COLUMN IF NOT EXISTS "languageIds" text NOT NULL DEFAULT '';
+
+-- 1756700000000-SeekerProfileDetails (keep existing profiles intact).
+ALTER TABLE job_preferences ADD COLUMN IF NOT EXISTS "seekerDetails" jsonb;
+CREATE TABLE IF NOT EXISTS seeker_resume_uploads (
+  id uuid PRIMARY KEY,
+  "userId" uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  filename varchar(255) NOT NULL,
+  content bytea NOT NULL,
+  "createdAt" timestamptz NOT NULL DEFAULT NOW()
+);

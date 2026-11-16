@@ -58,8 +58,8 @@ class _HireEmployeeScreenState extends ConsumerState<HireEmployeeScreen> {
   String? _category;
   final _jobTypeCtrl = TextEditingController();
   final _locationCtrl = TextEditingController();
-  final _salaryMinCtrl = TextEditingController();
-  final _salaryCtrl = TextEditingController(text: '25000');
+  final _salaryMinCtrl = TextEditingController(text: '25000');
+  final _salaryCtrl = TextEditingController();
   final _expCtrl = TextEditingController(text: '0');
   final _descriptionCtrl = TextEditingController();
   final Set<String> _skills = {};
@@ -83,7 +83,6 @@ class _HireEmployeeScreenState extends ConsumerState<HireEmployeeScreen> {
   void initState() {
     super.initState();
     _loadCredit();
-    _salaryCtrl.addListener(_scheduleEstimate);
     _jobTypeCtrl.addListener(_scheduleEstimate);
   }
 
@@ -117,6 +116,7 @@ class _HireEmployeeScreenState extends ConsumerState<HireEmployeeScreen> {
 
   void _scheduleEstimate() {
     _debounce?.cancel();
+    _estimateGen++;
     setState(() {
       _estimated = null;
       _estimateError = null;
@@ -126,29 +126,16 @@ class _HireEmployeeScreenState extends ConsumerState<HireEmployeeScreen> {
 
   Future<void> _estimate() async {
     final jobType = _resolvedJobType;
-    final salaryMax = num.tryParse(_salaryCtrl.text.trim());
-    if (jobType.isEmpty || salaryMax == null || salaryMax <= 0) {
-      setState(() {
-        _estimated = null;
-        _fee = null;
-        _estimating = false;
-      });
-      return;
-    }
-    final minText = _salaryMinCtrl.text.trim();
-    final salaryMin = num.tryParse(minText);
-    if (minText.isNotEmpty &&
-        (salaryMin == null ||
-            salaryMin <= 0 ||
-            salaryMin > salaryMax)) {
-      setState(() {
-        _estimated = null;
-        _fee = null;
-        _estimating = false;
-      });
-      return;
-    }
+    final pay = _salaryRange;
     final gen = ++_estimateGen;
+    if (jobType.isEmpty || pay == null || _locationId == null) {
+      setState(() {
+        _estimated = null;
+        _fee = null;
+        _estimating = false;
+      });
+      return;
+    }
     setState(() {
       _estimating = true;
       _estimateError = null;
@@ -157,9 +144,9 @@ class _HireEmployeeScreenState extends ConsumerState<HireEmployeeScreen> {
       final repo = ref.read(matchingRepositoryProvider);
       final est = await repo.estimate(
         jobType: jobType,
-        salary: salaryMax,
-        salaryMin: salaryMin,
-        salaryMax: salaryMax,
+        salary: pay.max,
+        salaryMin: pay.min,
+        salaryMax: pay.max,
         salaryNegotiable: _salaryNegotiable,
         employmentType: _employmentType,
         location: _locationCtrl.text.trim(),
@@ -186,14 +173,14 @@ class _HireEmployeeScreenState extends ConsumerState<HireEmployeeScreen> {
           break;
         }
       }
-      if (!mounted) return;
+      if (!mounted || gen != _estimateGen) return;
       setState(() {
         _estimated = (est['estimated'] as num?)?.toInt() ?? 0;
         _fee = fee;
         _estimating = false;
       });
     } catch (_) {
-      if (!mounted) return;
+      if (!mounted || gen != _estimateGen) return;
       setState(() {
         _estimating = false;
         _estimateError = 'Unable to estimate candidates';
@@ -203,20 +190,26 @@ class _HireEmployeeScreenState extends ConsumerState<HireEmployeeScreen> {
   }
 
   String? _salaryIssue() {
-    final max = num.tryParse(_salaryCtrl.text.trim());
-    if (max == null || max <= 0) return 'Enter a valid salary';
-    final minText = _salaryMinCtrl.text.trim();
-    if (minText.isEmpty) return null;
-    final min = num.tryParse(minText);
-    if (min == null || min <= 0) return 'Enter a valid minimum salary';
-    if (min > max) return 'Minimum salary cannot be greater than maximum';
+    bool valid(num? value) => value != null && value.isFinite &&
+        value >= 0.01 && value <= 99999999;
+    final min = num.tryParse(_salaryMinCtrl.text.trim());
+    if (!valid(min)) return 'Enter a valid minimum salary';
+    final maxText = _salaryCtrl.text.trim();
+    if (maxText.isEmpty) return null;
+    final max = num.tryParse(maxText);
+    if (!valid(max)) return 'Enter a valid maximum salary';
+    if (max! < min!) return 'Maximum salary cannot be below the minimum';
     return null;
   }
 
+  ({num min, num max})? get _salaryRange {
+    if (_salaryIssue() != null) return null;
+    final min = num.parse(_salaryMinCtrl.text.trim());
+    return (min: min, max: num.tryParse(_salaryCtrl.text.trim()) ?? min);
+  }
+
   Map<String, dynamic> _draft() {
-    final max = num.parse(_salaryCtrl.text.trim());
-    final minText = _salaryMinCtrl.text.trim();
-    final min = minText.isEmpty ? null : num.parse(minText);
+    final pay = _salaryRange!;
     return {
       'jobType': _resolvedJobType,
       if (widget.businessId != null) 'businessId': widget.businessId,
@@ -226,9 +219,9 @@ class _HireEmployeeScreenState extends ConsumerState<HireEmployeeScreen> {
         if (_locationCtrl.text.trim().isNotEmpty) _locationCtrl.text.trim(),
       ].join(' · '),
       'workMode': _workMode,
-      'salaryOffered': max,
-      if (min != null) 'salaryMin': min,
-      'salaryMax': max,
+      'salaryOffered': pay.max,
+      'salaryMin': pay.min,
+      'salaryMax': pay.max,
       'salaryNegotiable': _salaryNegotiable,
       if (_employmentType != null) 'employmentType': _employmentType,
       'experienceMinYears': int.tryParse(_expCtrl.text.trim()) ?? 0,
@@ -261,9 +254,10 @@ class _HireEmployeeScreenState extends ConsumerState<HireEmployeeScreen> {
     setState(() => _submitting = true);
     final repo = ref.read(matchingRepositoryProvider);
     try {
-      final result = await repo.createRequest(_draft());
+      final draft = _draft();
+      final result = await repo.createRequest(draft);
       if (result['needsPayment'] == true) {
-        await _payAndCreate(_draft());
+        await _payAndCreate(draft);
         return;
       }
       if (!mounted) return;
@@ -271,7 +265,9 @@ class _HireEmployeeScreenState extends ConsumerState<HireEmployeeScreen> {
           type: GxSnackType.success);
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(builder: (_) => const HiringRequestsScreen()),
+        MaterialPageRoute(
+          builder: (_) => HiringRequestsScreen(businessId: widget.businessId),
+        ),
       );
     } on DioException catch (e) {
       final msg = e.response?.data is Map
@@ -468,7 +464,9 @@ class _HireEmployeeScreenState extends ConsumerState<HireEmployeeScreen> {
           TextButton(
             onPressed: () => Navigator.push(
               context,
-              MaterialPageRoute(builder: (_) => const HiringRequestsScreen()),
+              MaterialPageRoute(
+                builder: (_) => HiringRequestsScreen(businessId: widget.businessId),
+              ),
             ),
             child: const Text('My requests'),
           ),
@@ -1133,13 +1131,7 @@ class _HireEmployeeScreenState extends ConsumerState<HireEmployeeScreen> {
   Widget _hj3Compensation(int? due, int creditApplied) {
     final catalogue = ref.watch(hiringCatalogueSnapshotProvider);
     final salaryUnit = hiringSalaryUnitLabel(_salaryPeriod);
-    final minText = _salaryMinCtrl.text.trim();
-    final minParsed = num.tryParse(minText);
-    final maxParsed = num.tryParse(_salaryCtrl.text.trim());
-    final salaryRangeError = minText.isNotEmpty &&
-        (minParsed == null ||
-            minParsed <= 0 ||
-            (maxParsed != null && maxParsed > 0 && minParsed > maxParsed));
+    final salaryRangeError = _salaryIssue();
 
     return catalogue.when(
       loading: () => const Center(child: CircularProgressIndicator()),
@@ -1256,12 +1248,11 @@ class _HireEmployeeScreenState extends ConsumerState<HireEmployeeScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      _fieldCaption('Min (₹/$salaryUnit)'),
+                      _fieldCaption('Min (₹/$salaryUnit) · required'),
                       TextField(
                         controller: _salaryMinCtrl,
-                        keyboardType: TextInputType.number,
+                        keyboardType: const TextInputType.numberWithOptions(decimal: true),
                         decoration: InputDecoration(
-                          hintText: 'Optional',
                           border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                           filled: true,
                           contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
@@ -1276,10 +1267,10 @@ class _HireEmployeeScreenState extends ConsumerState<HireEmployeeScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      _fieldCaption('Max (₹/$salaryUnit)'),
+                      _fieldCaption('Max (₹/$salaryUnit) · optional'),
                       TextField(
                         controller: _salaryCtrl,
-                        keyboardType: TextInputType.number,
+                        keyboardType: const TextInputType.numberWithOptions(decimal: true),
                         decoration: InputDecoration(
                           border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                           filled: true,
@@ -1292,13 +1283,11 @@ class _HireEmployeeScreenState extends ConsumerState<HireEmployeeScreen> {
                 ),
               ],
             ),
-            if (salaryRangeError)
+            if (salaryRangeError != null)
               Padding(
                 padding: const EdgeInsets.only(top: 8),
                 child: Text(
-                  minParsed == null || minParsed <= 0
-                      ? 'Enter a valid minimum salary'
-                      : 'Minimum salary cannot be greater than maximum',
+                  salaryRangeError,
                   style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.error),
                 ),
               ),
@@ -1427,23 +1416,18 @@ class _HireEmployeeScreenState extends ConsumerState<HireEmployeeScreen> {
 
   // ── hj4: candidate-facing preview card ──────────────────────────────────
   Widget _hj4Preview(int? due, int creditApplied, HiringCatalog catalog) {
-    final salaryMax = _salaryCtrl.text.trim();
-    final salaryMin = _salaryMinCtrl.text.trim();
+    final pay = _salaryRange;
     final location = [
       if (_locationLabel != null && _locationLabel!.isNotEmpty) _locationLabel!,
       if (_locationCtrl.text.trim().isNotEmpty) _locationCtrl.text.trim(),
     ].join(' · ');
     final exp = _expCtrl.text.trim();
-    final minParsed = num.tryParse(salaryMin);
-    final maxParsed = num.tryParse(salaryMax);
     final unit = hiringSalaryUnitLabel(_salaryPeriod);
-    final salaryLabel = () {
-      if (maxParsed == null || maxParsed <= 0) return 'Salary TBD';
-      if (minParsed != null && minParsed > 0 && minParsed <= maxParsed) {
-        return '₹$salaryMin–₹$salaryMax / $unit';
-      }
-      return '₹$salaryMax / $unit';
-    }();
+    final salaryLabel = pay == null
+        ? 'Salary TBD'
+        : pay.min == pay.max
+            ? '₹${pay.min} / $unit'
+            : '₹${pay.min}–₹${pay.max} / $unit';
     final empLabel = catalog.labelForCode(_employmentType);
     final catalogue = ref.watch(hiringCatalogueSnapshotProvider).value;
     final qualifications = ((catalogue?['qualifications'] as List?) ?? [])
@@ -1714,7 +1698,7 @@ class _HireEmployeeScreenState extends ConsumerState<HireEmployeeScreen> {
                 child: Text(
                   _locationId == null
                       ? 'Pick a job location from search results to continue.'
-                      : 'Enter a valid maximum salary to continue.',
+                      : 'Enter a valid salary to continue.',
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     fontSize: 12,

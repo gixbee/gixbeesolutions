@@ -91,7 +91,7 @@ pub const JOB_PREFERENCE_COLS: &str = r#"
     "employmentType"::text AS "employmentType", "experienceYears", "noticePeriod"::text AS "noticePeriod",
     "isActive", "matchingPaused", "isPaid", "paidUntil", "createdAt", "updatedAt",
     "sectorId", "positionId", "specializationIds", "skillIds", "qualificationId", "locationId",
-    "addressText", "locationMatchStatus", "languageIds"
+    "addressText", "locationMatchStatus", "languageIds", "seekerDetails"
 "#;
 
 pub const HIRING_REQUEST_COLS: &str = r#"

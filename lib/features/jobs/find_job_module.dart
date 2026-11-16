@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../repositories/matching_repository.dart';
 import '../../repositories/talent_repository.dart';
 import '../../shared/widgets/dribbble_background.dart';
 import '../../theme.dart';
@@ -39,22 +40,41 @@ class _FindJobModuleState extends ConsumerState<FindJobModule> {
     if (_gateChecked || !mounted) return;
     _gateChecked = true;
     try {
+      final profiles =
+          await ref.read(matchingRepositoryProvider).listPreferences();
+      if (!mounted) return;
       final profile = await ref.read(talentRepositoryProvider).getProfile();
-      if (!jobProfileNeedsWizard(profile) || !mounted) return;
-      await _openWizard();
+      if (!mounted || (profiles.isNotEmpty && !jobProfileNeedsWizard(profile))) {
+        return;
+      }
+      await _openWizard(
+        existing: profiles.isEmpty
+            ? null
+            : {
+                ...profiles.first,
+                'availableOn': profile['availableOn'],
+              },
+      );
     } catch (_) {
       // Soft-fail — user can still open the tabs.
     }
   }
 
-  Future<void> _openWizard() async {
-    final opened = await Navigator.push<bool>(
-      context,
-      MaterialPageRoute(builder: (_) => const SeekerProfileWizard()),
-    );
-    if (opened == true && mounted) {
-      setState(() => _jobsReload++);
-      _goToTab(0);
+  Future<void> _openWizard({Map<String, dynamic>? existing}) async {
+    var profile = existing;
+    while (mounted) {
+      final result = await Navigator.push<SeekerProfileResult>(
+        context,
+        MaterialPageRoute(
+            builder: (_) => SeekerProfileWizard(existing: profile)),
+      );
+      if (!mounted || result == null) return;
+      setState(() {
+        _jobsReload++;
+        _currentIndex = 2;
+      });
+      if (result != SeekerProfileResult.createAnother) return;
+      profile = null;
     }
   }
 
@@ -72,13 +92,12 @@ class _FindJobModuleState extends ConsumerState<FindJobModule> {
       JobAlertsScreen(
         reloadToken: _jobsReload,
         onOpenApplications: () => _goToTab(3),
-        onCreateProfile: _openWizard,
+        onCreateProfile: () => _openWizard(),
         onEditProfile: () => _goToTab(2),
       ),
       HiringOffersScreen(onGoToProfiles: () => _goToTab(2)),
       JobTypesScreen(
         onCreatedHint: () => _goToTab(0),
-        onCreateProfile: _openWizard,
       ),
       const ApplicationTrackerScreen(),
     ];

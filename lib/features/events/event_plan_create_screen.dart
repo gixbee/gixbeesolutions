@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:uuid/uuid.dart';
 import '../../repositories/cities_repository.dart';
 import '../../repositories/events_repository.dart';
 import '../../shared/widgets/gx_button.dart';
@@ -11,11 +12,13 @@ import 'event_plan_detail_screen.dart';
 
 class EventPlanCreateScreen extends ConsumerStatefulWidget {
   const EventPlanCreateScreen({super.key, required this.eventType,
-    required this.date, required this.guests, required this.services});
+    required this.date, required this.guests, required this.services,
+    this.selection});
   final String eventType;
   final DateTime date;
   final int guests;
   final List<String> services;
+  final EventServiceSelection? selection;
 
   @override
   ConsumerState<EventPlanCreateScreen> createState() => _EventPlanCreateScreenState();
@@ -25,6 +28,7 @@ class _EventPlanCreateScreenState extends ConsumerState<EventPlanCreateScreen> {
   final _form = GlobalKey<FormState>();
   final _address = TextEditingController();
   final _notes = TextEditingController();
+  final _requestId = const Uuid().v4();
   late final TextEditingController _guests;
   late DateTime _start;
   late DateTime _end;
@@ -35,9 +39,12 @@ class _EventPlanCreateScreenState extends ConsumerState<EventPlanCreateScreen> {
   void initState() {
     super.initState();
     _guests = TextEditingController(text: '${widget.guests}');
-    _start = DateTime(widget.date.year, widget.date.month, widget.date.day, 10);
-    _end = _start.add(const Duration(hours: 4));
-    _cityId = ref.read(currentCityProvider)?.id;
+    _start = widget.selection?.start ??
+        DateTime(widget.date.year, widget.date.month, widget.date.day, 10);
+    _end = widget.selection?.end ?? _start.add(const Duration(hours: 4));
+    _cityId = widget.selection?.cityId ?? ref.read(currentCityProvider)?.id;
+    _address.text = widget.selection?.address ?? '';
+    _notes.text = widget.selection?.requirements ?? '';
   }
 
   @override
@@ -75,6 +82,11 @@ class _EventPlanCreateScreenState extends ConsumerState<EventPlanCreateScreen> {
         'endTime': _end.toUtc().toIso8601String(), 'guestCount': int.parse(_guests.text),
         'location': _address.text.trim(), 'notes': _notes.text.trim(),
         'cityId': _cityId, 'services': widget.services,
+        'clientRequestId': _requestId,
+        if (widget.selection case final selection?) ...{
+          'targetBusinessId': selection.businessId,
+          'serviceRequest': selection.request,
+        },
       });
       if (!mounted) return;
       Navigator.pushReplacement(context, MaterialPageRoute<void>(
@@ -87,6 +99,8 @@ class _EventPlanCreateScreenState extends ConsumerState<EventPlanCreateScreen> {
   @override
   Widget build(BuildContext context) {
     final cities = ref.watch(citiesProvider);
+    final selection = widget.selection;
+    final fixedSlot = selection?.start != null;
     return Scaffold(
       appBar: AppBar(title: const Text('Review your event')),
       body: Form(key: _form, child: ListView(padding: const EdgeInsets.all(20), children: [
@@ -94,17 +108,22 @@ class _EventPlanCreateScreenState extends ConsumerState<EventPlanCreateScreen> {
         const SizedBox(height: 12),
         Wrap(spacing: 8, children: widget.services.map((s) => Chip(label: Text(eventServices[s] ?? s))).toList()),
         const SizedBox(height: 12),
-        const Text('Businesses in your city can send a total price, inclusions and cancellation terms for each service. Review and confirm each vendor separately. Payment is directly to the vendor.'),
+        if (selection == null)
+          const Text('Businesses in your city can send a total price, inclusions and cancellation terms for each service. Review and confirm each vendor separately. Payment is directly to the vendor.')
+        else ...[
+          Text(selection.summary),
+          const Text('The provider will confirm availability and send a quote. Pay the provider directly after confirmation.'),
+        ],
         const SizedBox(height: 16),
         ListTile(contentPadding: EdgeInsets.zero, leading: const Icon(Icons.event),
           title: const Text('Starts'), subtitle: Text(eventDate(_start.toIso8601String())),
-          onTap: _busy ? null : () => _pickTime(true)),
+          onTap: _busy || fixedSlot ? null : () => _pickTime(true)),
         ListTile(contentPadding: EdgeInsets.zero, leading: const Icon(Icons.event_available),
           title: const Text('Ends'), subtitle: Text(eventDate(_end.toIso8601String())),
-          onTap: _busy ? null : () => _pickTime(false)),
+          onTap: _busy || fixedSlot ? null : () => _pickTime(false)),
         const Text('Times are shown in your device timezone.'),
         const SizedBox(height: 16),
-        cities.when(
+        if (selection == null) cities.when(
           loading: () => const LinearProgressIndicator(),
           error: (_, __) => TextButton(onPressed: () => ref.invalidate(citiesProvider), child: const Text('Reload cities')),
           data: (items) => items.isEmpty
@@ -117,6 +136,7 @@ class _EventPlanCreateScreenState extends ConsumerState<EventPlanCreateScreen> {
               validator: (value) => value == null ? 'Select a city' : null),
         ),
         const SizedBox(height: 16),
+        if (selection != null) Text('${widget.guests} guests') else
         GxTextField(controller: _guests, label: 'Guests', keyboardType: TextInputType.number,
           validator: (v) { final n = int.tryParse(v ?? ''); return n == null || n < 1 || n > 100000 ? 'Enter 1–100,000 guests' : null; }),
         const SizedBox(height: 16),
@@ -126,10 +146,28 @@ class _EventPlanCreateScreenState extends ConsumerState<EventPlanCreateScreen> {
         GxTextField(controller: _notes, label: 'Requirements for your vendors',
           hint: 'Food preferences, venue capacity, timing, style and access…', maxLines: 4, maxLength: 5000),
         const SizedBox(height: 12),
-        const Text('Your event details and requirements will be visible to matching verified businesses. Contact details are shared after confirmation.'),
+        Text(selection == null
+            ? 'Your event details and requirements will be visible to matching verified businesses. Contact details are shared after confirmation.'
+            : 'Only the selected provider receives this request. Contact details are shared after confirmation.'),
         const SizedBox(height: 24),
-        GxButton(label: 'Publish enquiry', loading: _busy, onTap: _publish, accent: GixbeeTheme.accentPink),
+        GxButton(label: selection == null ? 'Publish enquiry' : 'Send request', loading: _busy, onTap: _publish, accent: GixbeeTheme.accentPink),
       ])),
     );
   }
+}
+
+class EventServiceSelection {
+  const EventServiceSelection({
+    required this.businessId, required this.cityId, required this.summary,
+    required this.request, this.address, this.requirements, this.start, this.end,
+  });
+
+  final String businessId;
+  final String cityId;
+  final String summary;
+  final Map<String, dynamic> request;
+  final String? address;
+  final String? requirements;
+  final DateTime? start;
+  final DateTime? end;
 }

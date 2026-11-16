@@ -41,6 +41,17 @@ class MatchingRepository {
     await _dio.delete('/hiring/match/preferences/$id');
   }
 
+  Future<Map<String, dynamic>> uploadSeekerResume(
+    List<int> bytes,
+    String filename,
+  ) async {
+    final form = FormData.fromMap({
+      'file': MultipartFile.fromBytes(bytes, filename: filename),
+    });
+    final res = await _dio.post('/hiring/seeker-resumes', data: form);
+    return Map<String, dynamic>.from(res.data as Map);
+  }
+
   /// Shared employment types + category catalog (V147-02).
   Future<Map<String, dynamic>> catalog() async {
     final res = await _dio.get('/hiring/match/catalog');
