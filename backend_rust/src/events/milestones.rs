@@ -89,7 +89,7 @@ async fn rows(
            FROM event_quote_milestones m
            WHERE m."quoteId"=$1
            ORDER BY CASE WHEN m.kind='PAYMENT' THEN 0 ELSE 1 END,
-                    m.position"#,
+                    m."position""#,
     )
     .bind(quote_id)
     .fetch_all(&mut **tx)
@@ -247,7 +247,7 @@ async fn insert_rows(
     for entry in milestones {
         sqlx::query(
             r#"INSERT INTO event_quote_milestones
-               (id,"quoteId",kind,position,label,details,"percent",amount,"dueAt")
+               (id,"quoteId",kind,"position",label,details,"percent",amount,"dueAt")
                VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)"#,
         )
         .bind(Uuid::new_v4())
