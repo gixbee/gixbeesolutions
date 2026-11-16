@@ -36,6 +36,7 @@ class _EventServiceCatalogueScreenState
   int _revision = 0;
   bool _loading = true;
   bool _busy = false;
+  bool _hasUnsavedChanges = false;
   String? _error;
   bool get _catering => widget.service == 'CATERING';
 
@@ -86,8 +87,8 @@ class _EventServiceCatalogueScreenState
     }
   }
 
-  Future<void> _save() async {
-    if (_busy) return;
+  Future<bool> _save({List<Map<String, dynamic>>? entries}) async {
+    if (_busy) return false;
     final notice = int.tryParse(_notice.text.trim());
     final advance = int.tryParse(_advance.text.trim());
     final limit = int.tryParse(_perDay.text.trim());
@@ -103,7 +104,7 @@ class _EventServiceCatalogueScreenState
         limit > 50) {
       showGxSnack(
           context, 'Check the notice, booking window and daily booking limit.');
-      return;
+      return false;
     }
     setState(() => _busy = true);
     try {
@@ -113,7 +114,7 @@ class _EventServiceCatalogueScreenState
         _revision,
         {
           'about': _about.text.trim(),
-          'items': _items,
+          'items': entries ?? _items,
           'photos': _photos,
           'minNoticeDays': notice,
           'maxAdvanceDays': advance,
@@ -122,12 +123,66 @@ class _EventServiceCatalogueScreenState
         },
       );
       if (!mounted) return;
-      setState(() => _revision = saved['revision'] as int);
+      final canonical = saved['catalogue'] as Map?;
+      setState(() {
+        _revision = saved['revision'] as int;
+        // The Rust API enriches package menus on save. Always display
+        // the canonical persisted item set, not a stale local approximation.
+        _items = (canonical?['items'] as List? ?? entries ?? _items)
+            .map((item) => Map<String, dynamic>.from(item as Map))
+            .toList();
+        _hasUnsavedChanges = false;
+      });
       showGxSnack(context, 'Catalogue saved');
+      return true;
     } catch (error) {
-      if (mounted) showGxSnack(context, eventError(error));
+      if (mounted) {
+        showGxSnack(context, eventError(error));
+      }
+      return false;
     } finally {
       if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  Future<bool> _savePackage(Map<String, dynamic> updated, int? index) async {
+    final candidate = [
+      for (final entry in _items) Map<String, dynamic>.from(entry)
+    ];
+    if (index == null) {
+      candidate.add(updated);
+    } else {
+      candidate[index] = updated;
+    }
+    // Keep the wizard open when the API rejects pricing, a stale
+    // revision, or connectivity fails; the owner can correct/retry.
+    return _save(entries: candidate);
+  }
+
+  Future<void> _reload() async {
+    if (_busy) return;
+    if (_hasUnsavedChanges) {
+      final discard = await showDialog<bool>(
+        context: context,
+        builder: (dialog) => AlertDialog(
+          title: const Text('Discard unsaved changes?'),
+          content: const Text('Reloading will replace local changes '
+              'with the latest saved catalogue.'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialog, false),
+              child: const Text('Keep editing')),
+            TextButton(
+              onPressed: () => Navigator.pop(dialog, true),
+              child: const Text('Reload saved')),
+          ],
+        ),
+      );
+      if (discard != true || !mounted) return;
+    }
+    await _load();
+    if (mounted && _error == null) {
+      setState(() => _hasUnsavedChanges = false);
     }
   }
 
@@ -160,7 +215,11 @@ class _EventServiceCatalogueScreenState
     final updated = await Navigator.of(context).push<Map<String, dynamic>>(
       MaterialPageRoute(
         builder: (_) => packageFlow
-            ? CateringPackageWizardScreen(package: original, dishes: dishes)
+            ? CateringPackageWizardScreen(
+                package: original,
+                dishes: dishes,
+                onSave: (entry) => _savePackage(entry, index),
+              )
             : photoPackageFlow
                 ? PhotographyPackageWizardScreen(package: original)
                 : photoServiceFlow
@@ -174,17 +233,18 @@ class _EventServiceCatalogueScreenState
       ),
     );
     if (!mounted || updated == null) return;
+    if (photoPackageFlow || photoServiceFlow) {
+      await _savePackage(updated, index);
+      return;
+    }
     setState(() {
       if (index == null) {
         _items.add(updated);
       } else {
         _items[index] = updated;
       }
+      _hasUnsavedChanges = true;
     });
-    // 'Save Package' in the wizard must persist to the Rust API, not just
-    // change the local list. Other catalogue entries keep the existing
-    // explicit Save catalogue action.
-    if (packageFlow || photoPackageFlow || photoServiceFlow) await _save();
   }
 
   @override
@@ -195,7 +255,7 @@ class _EventServiceCatalogueScreenState
             actions: [
               IconButton(
                   tooltip: 'Reload saved catalogue',
-                  onPressed: _busy ? null : _load,
+                  onPressed: _busy ? null : _reload,
                   icon: const Icon(Icons.refresh))
             ]),
         body: _loading
