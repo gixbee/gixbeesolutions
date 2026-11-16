@@ -11,6 +11,7 @@ import 'event_plans_screen.dart';
 import 'event_interest_customize_screen.dart';
 import 'hall_booking_review_screen.dart';
 import 'catering_package_wizard_screen.dart';
+import 'catering_customer_search_screen.dart';
 
 class EventServiceBrowser extends ConsumerStatefulWidget {
   const EventServiceBrowser({
@@ -71,7 +72,7 @@ class _EventServiceBrowserState extends ConsumerState<EventServiceBrowser> {
   void initState() {
     super.initState();
     final city = ref.read(currentCityProvider)?.id;
-    if (city != null) _load(city);
+    if (widget.service != 'CATERING' && city != null) _load(city);
   }
 
   void _load(String city) {
@@ -82,6 +83,13 @@ class _EventServiceBrowserState extends ConsumerState<EventServiceBrowser> {
 
   @override
   Widget build(BuildContext context) {
+    if (widget.service == 'CATERING') {
+      return CateringCustomerSearchScreen(
+        eventType: widget.eventType,
+        date: widget.date,
+        guests: widget.guests,
+      );
+    }
     final cities = ref.watch(citiesProvider);
     final title = switch (widget.service) {
       'HALL' => 'Find a hall',
