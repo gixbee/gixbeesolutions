@@ -168,7 +168,7 @@ class _HallCustomerSearchScreenState
             onSelected:(_)=>setState(()=>_venue=key)),
       ]),
       const SizedBox(height:16),
-      Text('Price per slot: up to ${_money(_priceMax)}',
+      Text('Price per slot: ${_priceMax==200000?'₹2,00,000+':'Up to ${_money(_priceMax)}'}',
         style:const TextStyle(fontWeight:FontWeight.w800,color:_navy)),
       Slider(min:0,max:200000,divisions:40,value:_priceMax.toDouble(),
         onChanged:(v)=>setState(()=>_priceMax=v.round())),
@@ -218,7 +218,8 @@ class _HallCustomerSearchScreenState
         final rows=HallCustomerModel.matches(snapshot.data??[],
           guests:int.tryParse(_guests.text.trim())??0,
           event:_event,ac:_ac,venue:_venue,
-          maxPrice:_priceMax,query:_query.text,sort:_sort);
+          maxPrice:_priceMax==200000?100000000:_priceMax,
+          query:_query.text,sort:_sort);
         if(rows.isEmpty)return const Center(child:Padding(
           padding:EdgeInsets.all(24),
           child:Text('No published halls match these filters. '
