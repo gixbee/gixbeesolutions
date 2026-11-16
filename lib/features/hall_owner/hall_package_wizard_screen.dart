@@ -70,6 +70,7 @@ class _HallPackageWizardScreenState
   String _decorOut = 'yes';
   final _seatCtrl = TextEditingController(text: '500');
   final _dineCtrl = TextEditingController(text: '400');
+  final _roomsCtrl = TextEditingController(text: '0');
 
   bool _morning = true;
   bool _evening = true;
@@ -169,6 +170,7 @@ class _HallPackageWizardScreenState
     if (capacity is Map) {
       _setNum(_seatCtrl, capacity['seat']);
       _setNum(_dineCtrl, capacity['dine']);
+      _setNum(_roomsCtrl, capacity['rooms']);
     }
     final slots = m['slotOffers'];
     if (slots is List) {
@@ -271,6 +273,7 @@ class _HallPackageWizardScreenState
     _nameCtrl.dispose();
     _seatCtrl.dispose();
     _dineCtrl.dispose();
+    _roomsCtrl.dispose();
     _mFrom.dispose();
     _mTo.dispose();
     _eFrom.dispose();
@@ -345,6 +348,7 @@ class _HallPackageWizardScreenState
       'capacity': {
         'seat': int.parse(_seatCtrl.text.trim()),
         'dine': int.parse(_dineCtrl.text.trim()),
+        'rooms': int.parse(_roomsCtrl.text.trim()),
       },
       'slotOffers': offers,
       'payment': {
@@ -379,6 +383,8 @@ class _HallPackageWizardScreenState
       final dine =
           _whole(_dineCtrl.text, 'Dining capacity', min: 0, max: 100000);
       if (dine != null) return dine;
+      final rooms=_whole(_roomsCtrl.text,'Private / changing rooms',min:0,max:10000);
+      if (rooms != null) return rooms;
     }
     if (step == 3) {
       if (!_morning && !_evening && !_fullday) {
@@ -674,6 +680,11 @@ class _HallPackageWizardScreenState
         GxTextField(
             controller: _dineCtrl,
             label: 'Dining capacity',
+            keyboardType: TextInputType.number),
+        const SizedBox(height: 8),
+        GxTextField(
+            controller: _roomsCtrl,
+            label: 'Private / Changing Rooms',
             keyboardType: TextInputType.number),
         const SizedBox(height: 12),
         _yesNo(
