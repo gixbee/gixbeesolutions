@@ -93,10 +93,12 @@ class CateringPackageWizardScreen extends StatefulWidget {
     super.key,
     required this.dishes,
     this.package,
+    this.onSave,
   });
 
   final List<Map<String, dynamic>> dishes;
   final Map<String, dynamic>? package;
+  final Future<bool> Function(Map<String, dynamic> entry)? onSave;
 
   @override
   State<CateringPackageWizardScreen> createState() =>
@@ -159,6 +161,7 @@ class _CateringPackageWizardScreenState
   bool _active = true;
   bool _flat = false;
   bool _offer = false;
+  bool _saving = false;
 
   List<Map<String, dynamic>> get _dishes => widget.dishes
       .where((d) =>
@@ -296,7 +299,7 @@ class _CateringPackageWizardScreenState
   }
 
   void _next() {
-    if (!_validate()) return;
+    if (_saving || !_validate()) return;
     if (_step == 4) {
       _finish();
     } else {
@@ -304,13 +307,13 @@ class _CateringPackageWizardScreenState
     }
   }
 
-  void _finish() {
+  Future<void> _finish() async {
     final base = _baseTiers();
     final pct = _discountPct;
     final billed = CateringPriceMath.offerTiers(base, pct);
     final selected =
         _dishes.where((dish) => _dishIds.contains(dish['id'])).toList();
-    Navigator.of(context).pop(<String, dynamic>{
+    final result = <String, dynamic>{
       ...?widget.package,
       'id': widget.package?['id'] ?? const Uuid().v4(),
       'kind': 'PACKAGE',
@@ -329,7 +332,25 @@ class _CateringPackageWizardScreenState
       'active': _active,
       'paymentStages': widget.package?['paymentStages'] ?? '',
       'policy': widget.package?['policy'] ?? '',
-    });
+    };
+    if (widget.onSave == null) {
+      Navigator.of(context).pop(result);
+      return;
+    }
+    setState(() => _saving = true);
+    try {
+      final saved = await widget.onSave!(result);
+      if (!mounted) return;
+      if (saved) {
+        Navigator.of(context).pop();
+      } else {
+        _notice('Package not saved. Check the error and retry.');
+      }
+    } catch (_) {
+      if (mounted) _notice('Unable to save package. Please try again.');
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
   }
 
   @override
@@ -428,8 +449,12 @@ class _CateringPackageWizardScreenState
                       _step == 4 ? const Color(0xFF2563EB) : _green,
                   padding: const EdgeInsets.symmetric(vertical: 15),
                 ),
-                onPressed: _next,
-                child: Text(_step == 4
+                onPressed: _saving ? null : _next,
+                child: _saving
+                    ? const SizedBox(
+                        height: 18, width: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2))
+                    : Text(_step == 4
                     ? 'Save Package'
                     : _step == 2
                         ? 'Next: Set Guest Count Pricing →'
