@@ -1,0 +1,49 @@
+name: Catering Customer validation
+
+on:
+  pull_request:
+    paths:
+      - 'lib/features/events/catering_customer_*'
+      - 'lib/features/events/event_service_browser.dart'
+      - 'test/features/events/catering_customer_*'
+      - '.github/workflows/catering-customer.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  flutter:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    name: Flutter customer flow, API contract, Android build
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - run: flutter pub get
+      - name: Analyze customer screens and contracts
+        run: |
+          flutter analyze --no-fatal-infos \
+            lib/features/events/catering_customer_pricing.dart \
+            lib/features/events/catering_customer_interest_screen.dart \
+            lib/features/events/catering_customer_flow_screen.dart \
+            lib/features/events/catering_customer_search_screen.dart \
+            lib/features/events/event_service_browser.dart \
+            test/features/events/catering_customer_pricing_test.dart \
+            test/features/events/catering_customer_request_test.dart \
+            test/features/events/catering_customer_flow_test.dart
+      - name: Validate guest pricing, request contract and widgets
+        run: |
+          flutter test --no-pub \
+            test/features/events/catering_customer_pricing_test.dart \
+            test/features/events/catering_customer_request_test.dart \
+            test/features/events/catering_customer_flow_test.dart
+      - name: Build Android debug APK
+        run: flutter build apk --debug --no-pub
