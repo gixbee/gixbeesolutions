@@ -55,6 +55,7 @@ async fn fixture() -> (AppState, Router) {
     };
     let http = reqwest::Client::new();
     let state = AppState {
+        cache: crate::cache::CacheConfig::from_env(),
         db: sqlx::postgres::PgPoolOptions::new()
             .max_connections(8)
             .connect(&url)
