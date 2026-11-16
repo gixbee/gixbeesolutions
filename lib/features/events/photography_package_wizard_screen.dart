@@ -362,9 +362,29 @@ class _PhotographyPackageWizardScreenState
       case 0:
         return Column(children: [
           _text('Package name *', _name),
-          _text('Base package price (₹) *', _price,
+          _text('Package price including GST (₹) *', _price,
               keyboardType: TextInputType.number),
-          _text('Description', _description, lines: 3),
+          SwitchListTile(
+            title: const Text('Offer a discount?'),
+            value: _discountEnabled,
+            onChanged: (v) => setState(() => _discountEnabled = v),
+          ),
+          if (_discountEnabled)
+            _text('Discount % (1–90)', _discount,
+              keyboardType: TextInputType.number),
+          Card(
+            color: const Color(0xFFECFDF3),
+            child: Padding(
+              padding: const EdgeInsets.all(12),
+              child: Text('Customer will see: ₹${_offerPrice ?? 0}'
+                  '${_discountEnabled ? ' (was ₹${_price.text})' : ''}',
+                style: const TextStyle(color: _blue,
+                    fontWeight: FontWeight.w900, fontSize: 18)),
+            ),
+          ),
+          _text('Short description *', _description, lines: 3),
+          _text('Equipment & gear (optional)', _equipment, lines: 3),
+          _text('Quality & editing notes (optional)', _quality, lines: 3),
           const Text('Package level',
               style: TextStyle(fontWeight: FontWeight.bold)),
           SegmentedButton<String>(segments: const [
@@ -399,8 +419,35 @@ class _PhotographyPackageWizardScreenState
             ],
             _ceremonies);
       case 3:
-        return Column(children: [
-          _text('Coverage details by function', _coverage, lines: 4),
+        return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          const Text('Coverage for each selected function',
+            style: TextStyle(color: _blue, fontWeight: FontWeight.w800)),
+          for (final name in _functions.toList()..sort())
+            Card(
+              child: Padding(padding: const EdgeInsets.all(12),
+                child: Column(children: [
+                  Text(name, style: const TextStyle(
+                      fontWeight: FontWeight.w800, color: _blue)),
+                  _text('Duration (e.g. 6 hours)',
+                      _functionDurations.putIfAbsent(name,
+                        () => TextEditingController())),
+                  DropdownButtonFormField<String>(
+                    isExpanded: true,
+                    initialValue: _functionSides[name] ?? 'Both',
+                    decoration: const InputDecoration(
+                        labelText: 'Coverage side'),
+                    items: const [
+                      DropdownMenuItem(value: 'Both', child: Text('Both sides')),
+                      DropdownMenuItem(value: 'Bride', child: Text('Bride side')),
+                      DropdownMenuItem(value: 'Groom', child: Text('Groom side')),
+                    ],
+                    onChanged: (v) =>
+                      setState(() => _functionSides[name] = v ?? 'Both'),
+                  ),
+                ]),
+              ),
+            ),
+          _text('Additional coverage notes', _coverage, lines: 4),
           _text('Photography crew', _photoTeam),
           _text('Videography crew', _videoTeam),
           _text('Additional hour price (₹, optional)', _extraHour,
@@ -423,8 +470,33 @@ class _PhotographyPackageWizardScreenState
                 'Raw Files',
               ],
               _inclusions),
-          _text('Quantities, format and album details', _deliverables,
-              lines: 4),
+          const Text('Deliverable quantity and format',
+            style: TextStyle(color: _blue, fontWeight: FontWeight.w800)),
+          for (final name in _inclusions.toList()..sort())
+            Card(child: Padding(padding: const EdgeInsets.all(10),
+              child: Column(children: [
+                Text(name, style: const TextStyle(fontWeight: FontWeight.w800)),
+                _text('Quantity',
+                    _deliverableQty.putIfAbsent(name,
+                        () => TextEditingController(text: '1')),
+                    keyboardType: TextInputType.number),
+                DropdownButtonFormField<String>(
+                  isExpanded: true,
+                  initialValue: const ['JPG','PNG','MP4','PDF','RAW','Print','Other']
+                      .contains(_deliverableFormat[name])
+                      ? _deliverableFormat[name] : 'JPG',
+                  decoration: const InputDecoration(labelText: 'Format'),
+                  items: const [
+                    for (final name in ['JPG','PNG','MP4','PDF','RAW','Print','Other'])
+                      DropdownMenuItem(value: name, child: Text(name)),
+                  ],
+                  onChanged: (v) =>
+                    setState(() => _deliverableFormat[name] = v ?? 'JPG'),
+                ),
+              ]),
+            )),
+          _text('Additional album, print and delivery details',
+              _deliverables, lines: 4),
         ]);
       case 5:
         return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -444,9 +516,15 @@ class _PhotographyPackageWizardScreenState
               style: TextStyle(color: Colors.blueGrey)),
         ]);
       case 6:
-        return Column(children: [
-          _text('Delivery timeline for albums, gallery and videos', _delivery,
-              lines: 5),
+        return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          const Text('Set timelines for included deliverables',
+            style: TextStyle(color: _blue, fontWeight: FontWeight.w800)),
+          for (final name in _inclusions.toList()..sort())
+            _text('$name — delivery within (days)',
+              _deliveryDays.putIfAbsent(name,
+                () => TextEditingController(text: '15')),
+              keyboardType: TextInputType.number),
+          _text('Other delivery details', _delivery, lines: 4),
         ]);
       case 7:
         return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -519,7 +597,7 @@ class _PhotographyPackageWizardScreenState
 
   String eventMoneyShort() {
     final value = int.tryParse(_price.text.trim()) ?? 0;
-    return '₹$value';
+    return '₹${_offerPrice ?? value}';
   }
 
   @override
@@ -548,21 +626,34 @@ class _PhotographyPackageWizardScreenState
               child: ListView(
                   padding: const EdgeInsets.fromLTRB(16, 12, 16, 18),
                   children: [_stepBody()])),
+          if (_saveError != null)
+            Padding(padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Text(_saveError!, textAlign: TextAlign.center,
+                style: const TextStyle(color: Colors.red,
+                    fontWeight: FontWeight.w700))),
           Padding(
               padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
               child: Row(children: [
                 if (_step > 0) ...[
                   OutlinedButton(
-                      onPressed: () => setState(() => _step--),
+                      onPressed: _saving ? null :
+                          () => setState(() => _step--),
                       child: const Text('Back')),
                   const SizedBox(width: 10),
+                ],
+                if (_step == _steps.length - 1) ...[
+                  TextButton(
+                    onPressed: _saving ? null : () => _save(draft: true),
+                    child: const Text('Save draft'),
+                  ),
+                  const SizedBox(width: 6),
                 ],
                 Expanded(
                     child: FilledButton(
                   style: FilledButton.styleFrom(
                       backgroundColor: _green,
                       padding: const EdgeInsets.symmetric(vertical: 15)),
-                  onPressed: _advance,
+                  onPressed: _saving ? null : _advance,
                   child: Text(
                       _step == _steps.length - 1 ? 'Save Package' : 'Next →'),
                 )),
