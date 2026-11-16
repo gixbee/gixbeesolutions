@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
+import 'package:intl/intl.dart';
 import 'event_plan_detail_screen.dart';
 import 'event_plans_screen.dart';
 
@@ -35,6 +36,7 @@ class HallBookingReviewScreen extends ConsumerStatefulWidget {
 class _HallBookingReviewScreenState extends ConsumerState<HallBookingReviewScreen> {
   static const _navy = Color(0xFF1B2559);
   static const _green = Color(0xFF12B76A);
+  String _money(num value) => '₹${NumberFormat.decimalPattern('en_IN').format(value)}';
   bool _acknowledged = false;
   bool _sending = false;
   final _requestId = const Uuid().v4();
@@ -82,9 +84,10 @@ class _HallBookingReviewScreenState extends ConsumerState<HallBookingReviewScree
                 Icon(icon, size: 18, color: _navy),
                 const SizedBox(width: 7)
               ],
-              Text(heading,
+              Expanded(child:Text(heading,
+                  softWrap:true,
                   style: const TextStyle(
-                      fontWeight: FontWeight.w800, fontSize: 15, color: _navy)),
+                      fontWeight: FontWeight.w800, fontSize: 15, color: _navy))),
             ]),
             const SizedBox(height: 10),
             body,
@@ -194,14 +197,14 @@ class _HallBookingReviewScreenState extends ConsumerState<HallBookingReviewScree
           _card(
               'Hall Charge',
               Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text(eventMoney(_rent),
+                Text(_money(_rent),
                     style: const TextStyle(
                         color: _navy,
                         fontWeight: FontWeight.w900,
                         fontSize: 23)),
                 if(widget.slot?['basePrice'] is num &&
                     (widget.slot!['basePrice'] as num)>_rent)
-                  Text(eventMoney(widget.slot!['basePrice']),
+                  Text(_money(widget.slot!['basePrice'] as num),
                     style:const TextStyle(
                       color:Colors.blueGrey,
                       decoration:TextDecoration.lineThrough)),
@@ -218,7 +221,7 @@ class _HallBookingReviewScreenState extends ConsumerState<HallBookingReviewScree
           _card(
               'Advance payment — paid directly to hall',
               Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text(eventMoney(_advance),
+                Text(_money(_advance),
                     style: const TextStyle(
                         fontWeight: FontWeight.w900,
                         fontSize: 20,
@@ -226,7 +229,7 @@ class _HallBookingReviewScreenState extends ConsumerState<HallBookingReviewScree
                 const SizedBox(height: 5),
                 const Text(
                     'Gixbee does not collect this payment. The owner must accept your request and issue a quote first.'),
-                Text('Remaining balance: ${eventMoney(_rent - _advance)}'),
+                Text('Remaining balance: ${_money(_rent - _advance)}'),
                 if (dueDays > 0)
                   Text('Full payment due $dueDays days before the event.'),
               ]),
