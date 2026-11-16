@@ -333,6 +333,8 @@ class _ProviderDetailState extends ConsumerState<_ProviderDetail> {
   String _kind = 'All';
   int? _unitBudget;
   String _category = 'All';
+  String _serveFilter = 'All';
+  String _functionFilter = 'All';
 
   bool get _isHall => widget.service == 'HALL';
   bool get _isCatering => widget.service == 'CATERING';
@@ -541,9 +543,23 @@ class _ProviderDetailState extends ConsumerState<_ProviderDetail> {
           .whereType<String>()
           .where((value) => value.isNotEmpty)
     };
+    final serves = {
+      'All',
+      ...all.map((item) => item['serveStyle'])
+          .whereType<String>().where((value) => value.isNotEmpty),
+    };
+    final functions = {
+      'All',
+      for (final item in all)
+        for (final name in (item['functions'] as List? ?? const []))
+          if (name is String && name.isNotEmpty) name,
+    };
     final items = all.where((item) =>
         (_diet == 'All' || _diet == item['diet']) &&
         (_category == 'All' || _category == item['category']) &&
+        (_serveFilter == 'All' || _serveFilter == item['serveStyle']) &&
+        (_functionFilter == 'All' ||
+            (item['functions'] as List? ?? const []).contains(_functionFilter)) &&
         (_kind == 'All' || _kind == item['kind']) &&
         (_unitBudget == null ||
             (_price(item) ?? _unitBudget! + 1) <= _unitBudget!));
@@ -587,6 +603,26 @@ class _ProviderDetailState extends ConsumerState<_ProviderDetail> {
           ],
           onChanged: (value) =>
               setState(() => _category = value ?? 'All'),
+        ),
+      if (_isCatering && serves.length > 1)
+        Wrap(spacing: 8, children: [
+          for (final serve in serves)
+            ChoiceChip(
+              label: Text(serve),
+              selected: _serveFilter == serve,
+              onSelected: (_) => setState(() => _serveFilter = serve),
+            ),
+        ]),
+      if (!_isCatering && functions.length > 1)
+        DropdownButtonFormField<String>(
+          initialValue: _functionFilter,
+          decoration: const InputDecoration(labelText: 'Functions covered'),
+          items: [
+            for (final name in functions)
+              DropdownMenuItem(value: name, child: Text(name)),
+          ],
+          onChanged: (value) =>
+              setState(() => _functionFilter = value ?? 'All'),
         ),
       if (_isCatering && diets.length > 1)
         Wrap(spacing: 8, children: [
