@@ -13,6 +13,7 @@ import 'catering_package_wizard_screen.dart';
 import 'catering_food_item_screen.dart';
 import 'photography_package_wizard_screen.dart';
 import 'photography_service_wizard_screen.dart';
+import 'photography_owner_pricing.dart';
 
 class EventServiceCatalogueScreen extends ConsumerStatefulWidget {
   const EventServiceCatalogueScreen(
@@ -42,6 +43,7 @@ class _EventServiceCatalogueScreenState
   String _menuTab = 'packages';
   String _menuStatus = 'all';
   String _menuSearch = '';
+  String _photoLevel = 'all';
   bool get _catering => widget.service == 'CATERING';
 
   @override
@@ -238,9 +240,15 @@ class _EventServiceCatalogueScreenState
                     onSave: (entry) => _savePackage(entry, index),
                   )
             : photoPackageFlow
-                ? PhotographyPackageWizardScreen(package: original)
+                ? PhotographyPackageWizardScreen(
+                  package: original,
+                  onSave: (entry) => _savePackage(entry, index),
+                )
                 : photoServiceFlow
-                    ? PhotographyServiceWizardScreen(service: original)
+                    ? PhotographyServiceWizardScreen(
+                        service: original,
+                        onSave: (entry) => _savePackage(entry, index),
+                      )
                     : _CatalogueEntry(
                         catering: _catering,
                         item: original,
@@ -250,10 +258,6 @@ class _EventServiceCatalogueScreenState
       ),
     );
     if (!mounted || updated == null) return;
-    if (photoPackageFlow || photoServiceFlow) {
-      await _savePackage(updated, index);
-      return;
-    }
     setState(() {
       if (index == null) {
         _items.add(updated);
@@ -262,6 +266,195 @@ class _EventServiceCatalogueScreenState
       }
       _hasUnsavedChanges = true;
     });
+  }
+
+  Future<void> _archivePhoto(int index) async {
+    final item = _items[index];
+    if (item['active'] == false) return;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialog) => AlertDialog(
+        title: const Text('Move this listing to Draft?'),
+        content: Text('"${item['name']}" will no longer appear in customer '
+            'searches. Past customer enquiries will retain their price snapshots.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(dialog, false),
+            child: const Text('Cancel')),
+          FilledButton(onPressed: () => Navigator.pop(dialog, true),
+            child: const Text('Move to Draft')),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    await _savePackage({...item, 'active': false}, index);
+  }
+
+  Widget _photographyHub() {
+    const navy = Color(0xFF1B2559);
+    const pink = Color(0xFFDB2777);
+    final packagesTab = _menuTab == 'packages';
+    final packages = _items.where((entry) => entry['kind'] == 'PACKAGE').length;
+    final services = _items.where((entry) => entry['kind'] == 'ITEM').length;
+    final matches = PhotographyOwnerPrice.visible(_items,
+      packages: packagesTab,
+      status: _menuStatus,
+      level: _photoLevel,
+      search: _menuSearch);
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Container(
+        decoration: BoxDecoration(
+          color: const Color(0xFFECFDF3),
+          borderRadius: BorderRadius.circular(15)),
+        padding: const EdgeInsets.all(16),
+        child: const Column(crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Gixbee  |  Photography catalogue', style:
+              TextStyle(color: navy, fontWeight: FontWeight.w900, fontSize: 18)),
+            SizedBox(height: 6),
+            Text('Wedding packages and standalone photography services. '
+                'Manage pricing, inclusions and customer visibility.',
+              style: TextStyle(color: Color(0xFF475569))),
+          ]),
+      ),
+      const SizedBox(height: 14),
+      Row(children: [
+        for (final (tab, label, count) in [
+          ('packages', 'Wedding packages', packages),
+          ('services', 'Individual services', services),
+        ])
+          Expanded(child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 3),
+            child: InkWell(
+              borderRadius: BorderRadius.circular(12),
+              onTap: () => setState(() { _menuTab = tab; _photoLevel = 'all'; }),
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 6, vertical: 12),
+                decoration: BoxDecoration(
+                  color: _menuTab == tab
+                    ? const Color(0xFFFDF2F8) : Colors.white,
+                  border: Border.all(color: _menuTab == tab
+                    ? pink : const Color(0xFFE5E7EB),
+                    width: _menuTab == tab ? 2 : 1),
+                  borderRadius: BorderRadius.circular(12)),
+                child: Text('$label ($count)', maxLines: 2,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontWeight: FontWeight.w800,
+                    fontSize: 12,
+                    color: _menuTab == tab ? pink : navy)),
+              ),
+            ),
+          )),
+      ]),
+      const SizedBox(height: 14),
+      TextField(
+        onChanged: (value) => setState(() => _menuSearch = value),
+        decoration: InputDecoration(
+          hintText: packagesTab ? 'Search wedding packages...' :
+              'Search individual services...',
+          prefixIcon: const Icon(Icons.search),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12)),
+        ),
+      ),
+      const SizedBox(height: 8),
+      Wrap(spacing: 7, runSpacing: 7, children: [
+        for (final (value, label) in const [
+          ('all', 'All'), ('live', 'Live'), ('draft', 'Draft'),
+        ])
+          ChoiceChip(label: Text(label),
+            selected: _menuStatus == value,
+            onSelected: (_) => setState(() => _menuStatus = value)),
+        if (packagesTab)
+          for (final (value, label) in const [
+            ('Basic', 'Basic'), ('Standard', 'Standard'),
+            ('Premium', 'Premium'),
+          ])
+            ChoiceChip(label: Text(label),
+              selected: _photoLevel == value,
+              onSelected: (_) => setState(() =>
+                _photoLevel = _photoLevel == value ? 'all' : value)),
+      ]),
+      const SizedBox(height: 8),
+      Text('${matches.length} ${packagesTab ? 'packages' : 'individual services'}',
+        style: const TextStyle(color: navy, fontWeight: FontWeight.w800)),
+      if (matches.isEmpty)
+        Padding(padding: const EdgeInsets.all(18),
+          child: Text(packagesTab
+            ? 'No wedding packages match the selected filters.'
+            : 'No individual services match the selected filters.')),
+      for (final entry in _items.indexed)
+        if (matches.any((item) => item['id'] == entry.$2['id']))
+          Card(
+            margin: const EdgeInsets.only(bottom: 10),
+            child: Padding(padding: const EdgeInsets.all(12),
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Row(children: [
+                  const Text('📷', style: TextStyle(fontSize: 30)),
+                  const SizedBox(width: 10),
+                  Expanded(child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start, children: [
+                      Text(entry.$2['name']?.toString() ?? 'Untitled',
+                        style: const TextStyle(
+                          color: navy, fontWeight: FontWeight.w900)),
+                      Text([
+                        packagesTab ? '${entry.$2['packageLevel'] ?? 'Standard'}' :
+                          '${entry.$2['category'] ?? 'Service'}',
+                        entry.$2['active'] == false ? 'Draft' : 'Live',
+                      ].join(' · '),
+                        style: const TextStyle(color: Color(0xFF64748B))),
+                    ]),
+                  )),
+                ]),
+                const SizedBox(height: 6),
+                Wrap(spacing: 9, crossAxisAlignment: WrapCrossAlignment.center, children: [
+                  Text('₹${entry.$2['price'] ?? '—'}',
+                    style: const TextStyle(color: navy,
+                      fontWeight: FontWeight.w900, fontSize: 17)),
+                  if ((entry.$2['discountPct'] as num? ?? 0) > 0 &&
+                      entry.$2['listPrice'] is num) ...[
+                    Text('₹${entry.$2['listPrice']}',
+                      style: const TextStyle(color: Colors.blueGrey,
+                        decoration: TextDecoration.lineThrough)),
+                    Text('${entry.$2['discountPct']}% OFF',
+                      style: const TextStyle(color: pink,
+                        fontWeight: FontWeight.w800)),
+                  ],
+                ]),
+                const SizedBox(height: 6),
+                Row(children: [
+                  OutlinedButton.icon(
+                    onPressed: _busy ? null : () => _edit(entry.$1),
+                    icon: const Icon(Icons.edit_outlined, size: 18),
+                    label: const Text('Edit'),
+                  ),
+                  const SizedBox(width: 8),
+                  if (entry.$2['active'] != false)
+                    TextButton.icon(
+                      onPressed: _busy ? null : () => _archivePhoto(entry.$1),
+                      icon: const Icon(Icons.visibility_off_outlined, size: 18),
+                      label: const Text('Move to Draft'),
+                    ),
+                ]),
+              ]),
+            ),
+          ),
+      const SizedBox(height: 8),
+      SizedBox(width: double.infinity,
+        child: FilledButton.icon(
+          style: FilledButton.styleFrom(
+            backgroundColor: packagesTab ? pink : const Color(0xFF2563EB),
+            padding: const EdgeInsets.symmetric(vertical: 15)),
+          onPressed: _busy || _items.length >= 150
+            ? null : () => _edit(null, createPackage: packagesTab),
+          icon: const Icon(Icons.add),
+          label: Text(packagesTab ? 'Add wedding package'
+            : 'Add individual service'),
+        ),
+      ),
+      const SizedBox(height: 18),
+    ]);
   }
 
   Widget _cateringHub() {
@@ -371,7 +564,7 @@ class _EventServiceCatalogueScreenState
                     absorbing: _busy,
                     child:
                         ListView(padding: const EdgeInsets.all(16), children: [
-                       if (_catering) _cateringHub(),
+                       if (_catering) _cateringHub() else _photographyHub(),
                       TextField(
                           controller: _about,
                            onChanged: (_) => setState(() => _hasUnsavedChanges = true),
@@ -437,29 +630,6 @@ class _EventServiceCatalogueScreenState
                         icon: const Icon(Icons.add_a_photo_outlined),
                         label: const Text('Add photo'),
                       ),
-                      if (!_catering)
-                        for (final (index, item) in _items.indexed)
-                          Card(child: ListTile(
-                            title: Text(item['name']?.toString() ?? ''),
-                            subtitle: Text('${item['kind']} · ${eventMoney(item['price'])}'),
-                            trailing: const Icon(Icons.edit_outlined),
-                            onTap: () => _edit(index),
-                          )),
-                      if (!_catering) ...[
-                        TextButton.icon(
-                          onPressed: _items.length >= 150
-                              ? null
-                              : () => _edit(null, createPackage: true),
-                          icon: const Icon(Icons.photo_camera_outlined),
-                          label: const Text('Create wedding package'),
-                        ),
-                        TextButton.icon(
-                          onPressed:
-                              _items.length >= 150 ? null : () => _edit(null),
-                          icon: const Icon(Icons.add),
-                          label: const Text('Add individual service'),
-                        ),
-                      ],
                       GxButton(
                           label: _hasUnsavedChanges ? 'Save changes' : 'Save catalogue',
                           onTap: _save,
