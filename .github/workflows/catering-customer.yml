@@ -49,5 +49,15 @@ jobs:
             test/features/events/catering_customer_pricing_test.dart \
             test/features/events/catering_customer_request_test.dart \
             test/features/events/catering_customer_flow_test.dart
-      - name: Build Android debug APK
+      - name: Verify project-specific Android Firebase configuration
+        id: android_config
+        run: |
+          if [[ -f lib/firebase_options.dart && -f android/app/google-services.json ]]; then
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::warning::Android APK not built: lib/firebase_options.dart and android/app/google-services.json are absent from this checkout. Supply genuine Firebase configuration before releasing."
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Build Android debug APK (when Firebase configured)
+        if: steps.android_config.outputs.ready == 'true'
         run: flutter build apk --debug --no-pub
