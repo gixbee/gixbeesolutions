@@ -191,6 +191,7 @@ class _CateringCustomerInterestScreenState
           const SizedBox(height: 10),
           if (widget.customize) ...[
             DropdownButtonFormField<String>(
+              isExpanded: true,
               initialValue: _servingStyle,
               decoration: const InputDecoration(
                   labelText: 'Preferred serving style',
