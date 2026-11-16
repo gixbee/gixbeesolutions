@@ -11,6 +11,7 @@ CREATE TABLE IF NOT EXISTS event_quote_milestones (
     kind varchar(12) NOT NULL CHECK (kind IN ('PAYMENT','DELIVERY')),
     position smallint NOT NULL CHECK (position BETWEEN 1 AND 20),
     label varchar(150) NOT NULL CHECK (length(btrim(label)) BETWEEN 1 AND 150),
+    details text NOT NULL DEFAULT '' CHECK (length(details) <= 3000),
     "percent" smallint NULL CHECK ("percent" BETWEEN 1 AND 100),
     amount numeric(12,2) NULL CHECK (amount > 0),
     "dueAt" timestamptz NULL,
