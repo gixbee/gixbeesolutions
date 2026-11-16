@@ -132,7 +132,9 @@ async fn create_plan(State(state):State<AppState>,user:AuthUser,Json(mut input):
 async fn my_plans(State(state):State<AppState>,user:AuthUser)->AppResult<Json<Vec<Value>>> {
     let rows=sqlx::query(r#"SELECT to_jsonb(p) || jsonb_build_object('confirmedServices',
         (SELECT count(*) FROM event_quotes q WHERE q."planId"=p.id AND q.status IN ('CONFIRMED','COMPLETED')),
-        'completedServices',(SELECT count(*) FROM event_quotes q WHERE q."planId"=p.id AND q.status='COMPLETED')) AS data
+        'completedServices',(SELECT count(*) FROM event_quotes q WHERE q."planId"=p.id AND q.status='COMPLETED'),
+        'offeredServices',(SELECT count(*) FROM event_quotes q WHERE q."planId"=p.id
+            AND q.status='OFFERED' AND q."expiresAt" > NOW())) AS data
         FROM event_plans p WHERE p."customerId"=$1 ORDER BY p."startTime" DESC LIMIT 100"#)
         .bind(Uuid::parse_str(&user.user_id)?).fetch_all(&state.db).await?;
     Ok(Json(rows.iter().map(|r|r.get("data")).collect()))
