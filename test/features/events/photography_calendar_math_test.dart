@@ -39,7 +39,7 @@ void main() {
     expect(PhotographyCalendarMath.overlapsDay({
       'startAt':'2026-12-14T18:00:00Z',
       'endAt':'2026-12-14T18:30:00Z',
-    },DateTime(2026,12,15)), isTrue); // 23:30 → 00:00 IST
+    },DateTime(2026,12,15)), isFalse); // ends exactly at 00:00 IST
     expect(PhotographyCalendarMath.overlapsDay({
       'startAt':'2026-12-15T12:00:00Z',
       'endAt':'2026-12-15T12:00:00Z',
