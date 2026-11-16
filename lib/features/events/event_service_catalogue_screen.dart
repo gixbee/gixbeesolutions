@@ -405,7 +405,7 @@ class _EventServiceCatalogueScreenState
                       ].join(' · '),
                         style: const TextStyle(color: Color(0xFF64748B))),
                     ]),
-                  )),
+                  ),
                 ]),
                 const SizedBox(height: 6),
                 Wrap(spacing: 9, crossAxisAlignment: WrapCrossAlignment.center, children: [
