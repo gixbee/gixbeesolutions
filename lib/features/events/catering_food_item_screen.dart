@@ -286,18 +286,22 @@ class _CateringFoodItemScreenState extends State<CateringFoodItemScreen> {
           const SizedBox(height: 14),
           const Text('Diet', style: TextStyle(
               color: _navy, fontWeight: FontWeight.w800)),
-          Row(children: [
-            for (final (value, title) in const [
-              ('veg', 'Vegetarian'), ('non_veg', 'Non-vegetarian')
-            ])
-              Expanded(child: RadioListTile<String>(
-                value: value,
-                groupValue: _diet,
-                title: Text(title, style: const TextStyle(fontSize: 12)),
-                contentPadding: EdgeInsets.zero,
-                onChanged: (value) => setState(() => _diet = value ?? _diet),
-              )),
-          ]),
+          RadioGroup<String>(
+            groupValue: _diet,
+            onChanged: (value) {
+              if (value != null) setState(() => _diet = value);
+            },
+            child: Row(children: [
+              for (final (value, title) in const [
+                ('veg', 'Vegetarian'), ('non_veg', 'Non-vegetarian')
+              ])
+                Expanded(child: RadioListTile<String>(
+                  value: value,
+                  title: Text(title, style: const TextStyle(fontSize: 12)),
+                  contentPadding: EdgeInsets.zero,
+                )),
+            ]),
+          ),
           const SizedBox(height: 12),
           const Text('Set guest count pricing',
               style: TextStyle(fontWeight: FontWeight.w900, color: _navy)),
@@ -365,8 +369,8 @@ class _CateringFoodItemScreenState extends State<CateringFoodItemScreen> {
                     (int.tryParse(_tiers.last.amount.text) ?? 100) - 10;
                 _tiers.add(_DishTier(
                   from: start,
-                  to: (start + 24).clamp(start, CateringPriceMath.maxGuests),
-                  price: price.clamp(1, CateringPriceMath.maxPlatePrice),
+                  to: (start + 24).clamp(start, CateringPriceMath.maxGuests).toInt(),
+                  price: price.clamp(1, CateringPriceMath.maxPlatePrice).toInt(),
                 ));
               }),
               icon: const Icon(Icons.add),
