@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:uuid/uuid.dart';
+import 'catering_price_math.dart';
 
 /// Categories from the Catering Owner HTML flow. Stored as stable IDs so
 /// package selection works even when the display labels change.
@@ -198,11 +199,21 @@ class _CateringPackageWizardScreenState
         price: (t['price'] as num?)?.toInt(),
       ));
     }
-    if (_tiers.isEmpty) _tiers.add(_PriceTier());
-    _flat = _tiers.length == 1 &&
-        _tiers.first.minGuests.text == '1' &&
-        _tiers.first.maxGuests.text == '100000';
-    if (_flat) _flatPrice.text = _tiers.first.pricePerPlate.text;
+    if (_tiers.isEmpty) {
+      for (final tier in CateringPriceMath.referenceSlabs) {
+        _tiers.add(_PriceTier(
+          min: tier['minGuests']!,
+          max: tier['maxGuests']!,
+          price: tier['price'],
+        ));
+      }
+    }
+    _flat = existing?['rateMode'] == 'flat' ||
+        (existing?['rateMode'] == null &&
+            _tiers.length == 1 &&
+            _tiers.first.minGuests.text == '1' &&
+            _tiers.first.maxGuests.text == '100000');
+    _flatPrice.text = _tiers.first.pricePerPlate.text;
   }
 
   @override
@@ -221,6 +232,29 @@ class _CateringPackageWizardScreenState
   void _notice(String message) {
     ScaffoldMessenger.of(context)
         .showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  List<Map<String, int>> _baseTiers() {
+    final raw = _flat
+        ? <Map<String, int>>[
+            {
+              'minGuests': 1,
+              'maxGuests': CateringPriceMath.maxGuests,
+              'price': int.tryParse(_flatPrice.text.trim()) ?? 0,
+            },
+          ]
+        : _tiers.map((tier) => tier.value ?? <String, int>{}).toList();
+    return CateringPriceMath.validateBaseTiers(raw);
+  }
+
+  int get _discountPct => _offer ? (int.tryParse(_discount.text.trim()) ?? -1) : 0;
+
+  List<Map<String, int>>? _pricedTiers() {
+    try {
+      return CateringPriceMath.offerTiers(_baseTiers(), _discountPct);
+    } on FormatException {
+      return null;
+    }
   }
 
   bool _validate() {
@@ -245,38 +279,17 @@ class _CateringPackageWizardScreenState
         }
         return true;
       case 3:
-        if (_offer) {
-          final pct = int.tryParse(_discount.text);
-          if (pct == null || pct < 1 || pct > 90) {
-            _notice('Enter a discount between 1% and 90%.');
-            return false;
-          }
+        if (_offer && (_discountPct < 1 || _discountPct > 90)) {
+          _notice('Enter a discount between 1% and 90%.');
+          return false;
         }
-        if (_flat) {
-          final value = int.tryParse(_flatPrice.text);
-          if (value == null || value < 1 || value > 10000000) {
-            _notice('Enter a valid price per plate.');
-            return false;
-          }
-        } else {
-          if (_tiers.isEmpty || _tiers.length > 20) return false;
-          final rows = _tiers.map((tier) => tier.value).toList();
-          if (rows.any((row) => row == null)) {
-            _notice('Enter valid guest ranges and plate prices.');
-            return false;
-          }
-          final sorted = rows.cast<Map<String, int>>()
-            ..sort((a, b) => a['minGuests']!.compareTo(b['minGuests']!));
-          var end = 0;
-          for (final row in sorted) {
-            if (row['minGuests']! <= end) {
-              _notice('Guest-count ranges must not overlap.');
-              return false;
-            }
-            end = row['maxGuests']!;
-          }
+        try {
+          _baseTiers();
+          return true;
+        } on FormatException catch (error) {
+          _notice(error.message);
+          return false;
         }
-        return true;
       default:
         return true;
     }
@@ -292,25 +305,9 @@ class _CateringPackageWizardScreenState
   }
 
   void _finish() {
-    final base = _flat
-        ? <Map<String, int>>[
-            {
-              'minGuests': 1,
-              'maxGuests': 100000,
-              'price': int.parse(_flatPrice.text)
-            }
-          ]
-        : _tiers.map((tier) => tier.value!).toList()
-      ..sort((a, b) => a['minGuests']!.compareTo(b['minGuests']!));
-    final pct = _offer ? int.parse(_discount.text) : 0;
-    final billed = [
-      for (final tier in base)
-        {
-          ...tier,
-          'price':
-              ((tier['price']! * (100 - pct) + 50) ~/ 100).clamp(1, 10000000),
-        }
-    ];
+    final base = _baseTiers();
+    final pct = _discountPct;
+    final billed = CateringPriceMath.offerTiers(base, pct);
     final selected =
         _dishes.where((dish) => _dishIds.contains(dish['id'])).toList();
     Navigator.of(context).pop(<String, dynamic>{
@@ -327,6 +324,7 @@ class _CateringPackageWizardScreenState
       'dishIds': selected.map((d) => d['id'].toString()).toList(),
       'baseTiers': base,
       'discountPct': pct,
+      'rateMode': _flat ? 'flat' : 'tiered',
       'tiers': billed,
       'active': _active,
       'paymentStages': widget.package?['paymentStages'] ?? '',
@@ -560,6 +558,20 @@ class _CateringPackageWizardScreenState
                   labelText: 'Package Name *',
                   hintText: 'Wedding Feast',
                   border: OutlineInputBorder())),
+          const SizedBox(height: 10),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF8FAFC),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: const Color(0xFFE2E8F0)),
+            ),
+            child: Text(
+              'Customer preview: $_level – ${_name.text.trim().isEmpty ? 'Your package name' : _name.text.trim()}',
+              style: const TextStyle(color: _navy, fontWeight: FontWeight.w800),
+            ),
+          ),
           const SizedBox(height: 12),
           TextField(
               controller: _description,
@@ -685,8 +697,13 @@ class _CateringPackageWizardScreenState
 
   Widget _groupCard(
       CateringMenuGroup group, List<Map<String, dynamic>> dishes) {
-    final selected = dishes.where((d) => _dishIds.contains(d['id'])).length;
-    final expanded = _expandedGroup == group.id;
+    final selected = _dishes
+        .where((dish) =>
+            CateringMenuGroups.classify(dish) == group.id &&
+            _dishIds.contains(dish['id']))
+        .length;
+    final expanded =
+        _expandedGroup == group.id || _search.text.trim().isNotEmpty;
     return Card(
       margin: const EdgeInsets.only(bottom: 10),
       shape: RoundedRectangleBorder(
