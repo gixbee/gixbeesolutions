@@ -348,7 +348,7 @@ class _CateringCustomerSearchScreenState
                           style: TextStyle(fontSize: 11,
                             color: Colors.blueGrey)),
                       ]),
-                    )),
+                    ),
                     const Icon(Icons.chevron_right),
                   ]),
                 ),
