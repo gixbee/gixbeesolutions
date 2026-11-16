@@ -5,6 +5,7 @@ use sqlx::PgConnection;
 pub(super) fn routes() -> Router<AppState> {
     Router::new()
         .route("/vendor/calendar/{business}", get(entries).post(add))
+        .route("/vendor/calendar/{business}/overview", get(overview))
         .route("/vendor/calendar/{business}/{entry}", delete(cancel))
 }
 
@@ -47,6 +48,42 @@ async fn entries(
     )
     .bind(business).fetch_all(&mut *conn).await?;
     Ok(Json(data))
+}
+
+/// Read-only owner schedule, including existing Gixbee bookings and manually
+/// entered outside shoots. The owner can view only their own business.
+/// No new SQL schema is required; booking rows are projected from event_quotes.
+async fn overview(
+    State(state): State<AppState>,
+    user: AuthUser,
+    Path(business): Path<Uuid>,
+) -> AppResult<Json<Vec<Value>>> {
+    let mut conn = state.db.acquire().await?;
+    owner(&mut conn, business, Uuid::parse_str(&user.user_id)?, false).await?;
+    let mut rows: Vec<Value> = sqlx::query_scalar(
+        r#"SELECT to_jsonb(e) || jsonb_build_object('source','offline')
+           FROM event_vendor_calendar e
+           WHERE e."businessId"=$1 AND e."cancelledAt" IS NULL
+           ORDER BY e."startAt" DESC LIMIT 500"#,
+    ).bind(business).fetch_all(&mut *conn).await?;
+    let booked: Vec<Value> = sqlx::query_scalar(
+        r#"SELECT jsonb_build_object(
+            'id', q.id, 'source', 'gixbee',
+            'title', p."eventType",
+            'startAt', COALESCE(q."intervalStart",p."startTime"),
+            'endAt', COALESCE(q."intervalEnd",p."endTime"),
+            'status', q.status::text,
+            'location', p.location,
+            'guestCount', p."guestCount",
+            'planId', p.id)
+          FROM event_quotes q JOIN event_plans p ON p.id=q."planId"
+          WHERE q."businessId"=$1 AND q."serviceType"='PHOTOGRAPHY'
+            AND q.status IN ('CONFIRMED','CANCEL_REQUESTED','COMPLETED')
+            AND p."cancelledAt" IS NULL
+          ORDER BY p."startTime" DESC LIMIT 500"#,
+    ).bind(business).fetch_all(&mut *conn).await?;
+    rows.extend(booked);
+    Ok(Json(rows))
 }
 
 async fn add(
