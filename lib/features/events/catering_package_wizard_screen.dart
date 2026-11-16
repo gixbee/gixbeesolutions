@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:uuid/uuid.dart';
+import 'catering_price_math.dart';
+import 'catering_module_picker_screen.dart';
 
 /// Categories from the Catering Owner HTML flow. Stored as stable IDs so
 /// package selection works even when the display labels change.
@@ -92,10 +94,12 @@ class CateringPackageWizardScreen extends StatefulWidget {
     super.key,
     required this.dishes,
     this.package,
+    this.onSave,
   });
 
   final List<Map<String, dynamic>> dishes;
   final Map<String, dynamic>? package;
+  final Future<bool> Function(Map<String, dynamic> entry)? onSave;
 
   @override
   State<CateringPackageWizardScreen> createState() =>
@@ -154,10 +158,12 @@ class _CateringPackageWizardScreenState
   String _level = 'Basic';
   String _diet = 'mixed';
   String _serve = 'buffet';
-  String? _expandedGroup;
+  // Menu changes are applied atomically by the dedicated category picker.
   bool _active = true;
   bool _flat = false;
   bool _offer = false;
+  bool _saving = false;
+  String? _saveError;
 
   List<Map<String, dynamic>> get _dishes => widget.dishes
       .where((d) =>
@@ -176,8 +182,12 @@ class _CateringPackageWizardScreenState
     final existing = widget.package;
     _name.text = existing?['name']?.toString() ?? '';
     _description.text = existing?['description']?.toString() ?? '';
-    _eventCategory = existing?['category']?.toString() ?? _eventCategory;
-    _level = existing?['packageLevel']?.toString() ?? _level;
+    final category = existing?['category']?.toString();
+    _eventCategory = category == 'Other Functions' || category == 'other'
+        ? 'Other Functions' : 'Wedding & Related Functions';
+    final level = existing?['packageLevel']?.toString();
+    _level = const ['Basic', 'Standard', 'Premium'].contains(level)
+        ? level! : 'Basic';
     _diet = existing?['diet']?.toString() == 'veg' ? 'veg' : 'mixed';
     final serve = existing?['serveStyle']?.toString();
     if (const ['table', 'buffet', 'both'].contains(serve)) _serve = serve!;
@@ -198,11 +208,21 @@ class _CateringPackageWizardScreenState
         price: (t['price'] as num?)?.toInt(),
       ));
     }
-    if (_tiers.isEmpty) _tiers.add(_PriceTier());
-    _flat = _tiers.length == 1 &&
-        _tiers.first.minGuests.text == '1' &&
-        _tiers.first.maxGuests.text == '100000';
-    if (_flat) _flatPrice.text = _tiers.first.pricePerPlate.text;
+    if (_tiers.isEmpty) {
+      for (final tier in CateringPriceMath.referenceSlabs) {
+        _tiers.add(_PriceTier(
+          min: tier['minGuests']!,
+          max: tier['maxGuests']!,
+          price: tier['price'],
+        ));
+      }
+    }
+    _flat = existing?['rateMode'] == 'flat' ||
+        (existing?['rateMode'] == null &&
+            _tiers.length == 1 &&
+            _tiers.first.minGuests.text == '1' &&
+            _tiers.first.maxGuests.text == '100000');
+    _flatPrice.text = _tiers.first.pricePerPlate.text;
   }
 
   @override
@@ -221,6 +241,29 @@ class _CateringPackageWizardScreenState
   void _notice(String message) {
     ScaffoldMessenger.of(context)
         .showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  List<Map<String, int>> _baseTiers() {
+    final raw = _flat
+        ? <Map<String, int>>[
+            {
+              'minGuests': 1,
+              'maxGuests': CateringPriceMath.maxGuests,
+              'price': int.tryParse(_flatPrice.text.trim()) ?? 0,
+            },
+          ]
+        : _tiers.map((tier) => tier.value ?? <String, int>{}).toList();
+    return CateringPriceMath.validateBaseTiers(raw);
+  }
+
+  int get _discountPct => _offer ? (int.tryParse(_discount.text.trim()) ?? -1) : 0;
+
+  List<Map<String, int>>? _pricedTiers() {
+    try {
+      return CateringPriceMath.offerTiers(_baseTiers(), _discountPct);
+    } on FormatException {
+      return null;
+    }
   }
 
   bool _validate() {
@@ -245,45 +288,24 @@ class _CateringPackageWizardScreenState
         }
         return true;
       case 3:
-        if (_offer) {
-          final pct = int.tryParse(_discount.text);
-          if (pct == null || pct < 1 || pct > 90) {
-            _notice('Enter a discount between 1% and 90%.');
-            return false;
-          }
+        if (_offer && (_discountPct < 1 || _discountPct > 90)) {
+          _notice('Enter a discount between 1% and 90%.');
+          return false;
         }
-        if (_flat) {
-          final value = int.tryParse(_flatPrice.text);
-          if (value == null || value < 1 || value > 10000000) {
-            _notice('Enter a valid price per plate.');
-            return false;
-          }
-        } else {
-          if (_tiers.isEmpty || _tiers.length > 20) return false;
-          final rows = _tiers.map((tier) => tier.value).toList();
-          if (rows.any((row) => row == null)) {
-            _notice('Enter valid guest ranges and plate prices.');
-            return false;
-          }
-          final sorted = rows.cast<Map<String, int>>()
-            ..sort((a, b) => a['minGuests']!.compareTo(b['minGuests']!));
-          var end = 0;
-          for (final row in sorted) {
-            if (row['minGuests']! <= end) {
-              _notice('Guest-count ranges must not overlap.');
-              return false;
-            }
-            end = row['maxGuests']!;
-          }
+        try {
+          _baseTiers();
+          return true;
+        } on FormatException catch (error) {
+          _notice(error.message);
+          return false;
         }
-        return true;
       default:
         return true;
     }
   }
 
   void _next() {
-    if (!_validate()) return;
+    if (_saving || !_validate()) return;
     if (_step == 4) {
       _finish();
     } else {
@@ -291,29 +313,13 @@ class _CateringPackageWizardScreenState
     }
   }
 
-  void _finish() {
-    final base = _flat
-        ? <Map<String, int>>[
-            {
-              'minGuests': 1,
-              'maxGuests': 100000,
-              'price': int.parse(_flatPrice.text)
-            }
-          ]
-        : _tiers.map((tier) => tier.value!).toList()
-      ..sort((a, b) => a['minGuests']!.compareTo(b['minGuests']!));
-    final pct = _offer ? int.parse(_discount.text) : 0;
-    final billed = [
-      for (final tier in base)
-        {
-          ...tier,
-          'price':
-              ((tier['price']! * (100 - pct) + 50) ~/ 100).clamp(1, 10000000),
-        }
-    ];
+  Future<void> _finish() async {
+    final base = _baseTiers();
+    final pct = _discountPct;
+    final billed = CateringPriceMath.offerTiers(base, pct);
     final selected =
         _dishes.where((dish) => _dishIds.contains(dish['id'])).toList();
-    Navigator.of(context).pop(<String, dynamic>{
+    final result = <String, dynamic>{
       ...?widget.package,
       'id': widget.package?['id'] ?? const Uuid().v4(),
       'kind': 'PACKAGE',
@@ -327,11 +333,36 @@ class _CateringPackageWizardScreenState
       'dishIds': selected.map((d) => d['id'].toString()).toList(),
       'baseTiers': base,
       'discountPct': pct,
+      'rateMode': _flat ? 'flat' : 'tiered',
       'tiers': billed,
       'active': _active,
       'paymentStages': widget.package?['paymentStages'] ?? '',
       'policy': widget.package?['policy'] ?? '',
+    };
+    if (widget.onSave == null) {
+      Navigator.of(context).pop(result);
+      return;
+    }
+    setState(() {
+      _saving = true;
+      _saveError = null;
     });
+    try {
+      final saved = await widget.onSave!(result);
+      if (!mounted) return;
+      if (saved) {
+        Navigator.of(context).pop();
+      } else {
+        setState(() => _saveError =
+            'Package not saved. Check the error and retry.');
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(() => _saveError = 'Unable to save package. Please try again.');
+      }
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
   }
 
   @override
@@ -410,6 +441,14 @@ class _CateringPackageWizardScreenState
               if (_step == 4) _previewStep(),
             ],
           )),
+          if (_saveError != null)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+              child: Text(_saveError!, textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    color: Color(0xFFB91C1C), fontWeight: FontWeight.w700,
+                  )),
+            ),
           Container(
             padding: const EdgeInsets.fromLTRB(16, 10, 16, 12),
             decoration: const BoxDecoration(
@@ -430,8 +469,12 @@ class _CateringPackageWizardScreenState
                       _step == 4 ? const Color(0xFF2563EB) : _green,
                   padding: const EdgeInsets.symmetric(vertical: 15),
                 ),
-                onPressed: _next,
-                child: Text(_step == 4
+                onPressed: _saving ? null : _next,
+                child: _saving
+                    ? const SizedBox(
+                        height: 18, width: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2))
+                    : Text(_step == 4
                     ? 'Save Package'
                     : _step == 2
                         ? 'Next: Set Guest Count Pricing →'
@@ -460,50 +503,91 @@ class _CateringPackageWizardScreenState
       );
 
   Widget _categoryStep() {
+    const categories = [
+      (
+        'Wedding & Related Functions',
+        'Wedding, engagement, reception and anniversary',
+        '💍',
+      ),
+      (
+        'Other Functions',
+        'Birthday, baptism, housewarming, and more',
+        '📅',
+      ),
+    ];
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
       _heading('Select Package Category *',
           hint: 'Choose the category that best describes this package.'),
-      RadioGroup<String>(
-        groupValue: _eventCategory,
-        onChanged: (v) {
-          if (v != null) setState(() => _eventCategory = v);
-        },
-        child: Column(
-          children: [
-            for (final (name, sub, emoji) in [
-              (
-                'Wedding & Related Functions',
-                'Wedding, engagement, reception and anniversary',
-                '💍'
-              ),
-              (
-                'Other Functions',
-                'Birthday, baptism, housewarming, and more',
-                '📅'
-              )
-            ])
-              Card(
+      LayoutBuilder(builder: (context, constraints) {
+        final cardWidth = (constraints.maxWidth - 10) / 2;
+        return Wrap(spacing: 10, runSpacing: 10, children: [
+          for (final (name, sub, emoji) in categories)
+            SizedBox(width: cardWidth, height: 178,
+              child: Card(
+                margin: EdgeInsets.zero,
                 color: _eventCategory == name
-                    ? const Color(0xFFECFDF3)
-                    : Colors.white,
-                child: RadioListTile<String>(
-                  value: name,
-                  secondary: Text(emoji, style: const TextStyle(fontSize: 27)),
-                  title: Text(name,
-                      style: const TextStyle(fontWeight: FontWeight.w800)),
-                  subtitle: Text(sub),
+                    ? const Color(0xFFECFDF3) : Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14),
+                  side: BorderSide(
+                    color: _eventCategory == name
+                        ? _green : const Color(0xFFE2E8F0),
+                    width: _eventCategory == name ? 2 : 1,
+                  ),
+                ),
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(14),
+                  onTap: () => setState(() => _eventCategory = name),
+                  child: Padding(
+                    padding: const EdgeInsets.all(12),
+                    child: Column(crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(children: [
+                          Text(emoji, style: const TextStyle(fontSize: 33)),
+                          const Spacer(),
+                          if (_eventCategory == name)
+                            const Icon(Icons.check_circle, color: _green),
+                        ]),
+                        const SizedBox(height: 10),
+                        Text(name, maxLines: 2,
+                            style: const TextStyle(
+                              fontSize: 13, color: _navy,
+                              fontWeight: FontWeight.w900)),
+                        const SizedBox(height: 5),
+                        Expanded(child: Text(sub,
+                          maxLines: 3,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            color: Color(0xFF64748B), fontSize: 11))),
+                      ],
+                    ),
+                  ),
                 ),
               ),
-          ],
-        ),
-      ),
+            ),
+        ]);
+      }),
     ]);
   }
 
   Widget _identityStep() => Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _heading(_eventCategory),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 7),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF0FDF4),
+              border: Border.all(color: const Color(0xFFBBF7D0)),
+              borderRadius: BorderRadius.circular(12)),
+            child: Row(children: [
+              const Text('📅  '),
+              Expanded(child: Text(_eventCategory, style: const TextStyle(
+                fontWeight: FontWeight.w800, color: _navy))),
+              TextButton(
+                onPressed: () => setState(() => _step = 0),
+                child: const Text('Change')),
+            ]),
+          ),
           _heading('Package Type *'),
           SegmentedButton<String>(
             segments: const [
@@ -555,12 +639,39 @@ class _CateringPackageWizardScreenState
           ),
           TextField(
               controller: _name,
+              onChanged: (_) => setState(() {}),
               maxLength: 150,
               decoration: const InputDecoration(
                   labelText: 'Package Name *',
                   hintText: 'Wedding Feast',
                   border: OutlineInputBorder())),
-          const SizedBox(height: 12),
+          const SizedBox(height: 10),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF8FAFC),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: const Color(0xFFE2E8F0)),
+            ),
+            child: Text(
+              'Customer preview: $_level – ${_name.text.trim().isEmpty ? 'Your package name' : _name.text.trim()}',
+              style: const TextStyle(color: _navy, fontWeight: FontWeight.w800),
+            ),
+          ),
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF8FAFC),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: const Color(0xFFE2E8F0)),
+            ),
+            child: Text(
+              'Customer preview: $_level – ${_name.text.trim().isEmpty ? 'Your package name' : _name.text.trim()}',
+              style: const TextStyle(color: _navy, fontWeight: FontWeight.w800),
+            ),
+          ),
+          const SizedBox(height: 14),
           TextField(
               controller: _description,
               maxLines: 3,
@@ -655,11 +766,13 @@ class _CateringPackageWizardScreenState
       ),
       const SizedBox(height: 10),
       for (final group in CateringMenuGroups.all)
-        if (term.isEmpty ||
-            group.title.toLowerCase().contains(term) ||
-            visible.any((dish) =>
+        if (visible.any((dish) =>
+                CateringMenuGroups.classify(dish) == group.id) &&
+            (term.isEmpty ||
+             group.title.toLowerCase().contains(term) ||
+             visible.any((dish) =>
                 CateringMenuGroups.classify(dish) == group.id &&
-                dish['name'].toString().toLowerCase().contains(term)))
+                dish['name'].toString().toLowerCase().contains(term))))
           _groupCard(
               group,
               visible
@@ -683,252 +796,440 @@ class _CateringPackageWizardScreenState
     return !raw.contains('non') && !raw.contains('meat');
   }
 
+  Future<void> _openModule(
+      CateringMenuGroup group, List<Map<String, dynamic>> dishes) async {
+    final picked = await Navigator.of(context).push<Set<String>>(
+      MaterialPageRoute(
+        builder: (_) => CateringModulePickerScreen(
+          title: group.title,
+          emoji: group.emoji,
+          dishes: dishes,
+          selectedIds: _dishIds,
+        ),
+      ),
+    );
+    if (!mounted || picked == null) return;
+    setState(() {
+      _dishIds
+        ..clear()
+        ..addAll(picked);
+    });
+  }
+
   Widget _groupCard(
       CateringMenuGroup group, List<Map<String, dynamic>> dishes) {
-    final selected = dishes.where((d) => _dishIds.contains(d['id'])).length;
-    final expanded = _expandedGroup == group.id;
+    final selected = _dishes.where((dish) =>
+      CateringMenuGroups.classify(dish) == group.id &&
+      _dishIds.contains(dish['id'])).length;
     return Card(
       margin: const EdgeInsets.only(bottom: 10),
-      shape: RoundedRectangleBorder(
-          side: const BorderSide(color: Color(0xFFE2E8F0)),
-          borderRadius: BorderRadius.circular(15)),
       color: Colors.white,
-      child: Column(children: [
-        InkWell(
-          borderRadius: BorderRadius.circular(15),
-          onTap: () =>
-              setState(() => _expandedGroup = expanded ? null : group.id),
-          child: Padding(
-            padding: const EdgeInsets.all(11),
-            child: Row(children: [
-              Container(
-                height: 52,
-                width: 52,
-                alignment: Alignment.center,
-                decoration: BoxDecoration(
-                    color: group.color,
-                    borderRadius: BorderRadius.circular(12)),
-                child: Text(group.emoji, style: const TextStyle(fontSize: 27)),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                  child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(group.title,
-                      style: const TextStyle(
-                          fontSize: 13,
-                          color: _navy,
-                          fontWeight: FontWeight.w900)),
-                  Text(group.hint,
-                      style: const TextStyle(
-                          fontSize: 10, color: Color(0xFF64748B))),
-                ],
-              )),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
-                decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(30),
-                    color: const Color(0xFFFFF1F5)),
-                child: Text('$selected dishes',
-                    style: const TextStyle(
-                        color: _pink,
-                        fontWeight: FontWeight.w900,
-                        fontSize: 10)),
-              ),
-              Icon(expanded ? Icons.keyboard_arrow_up : Icons.chevron_right,
-                  color: const Color(0xFFCBD5E1)),
-            ]),
-          ),
-        ),
-        if (expanded) ...[
-          const Divider(height: 1),
-          if (dishes.isEmpty)
-            const Padding(
-                padding: EdgeInsets.all(15),
-                child: Text(
-                    'No dishes in this group yet. Create an individual dish first.')),
-          for (final dish in dishes)
-            CheckboxListTile(
-              dense: true,
-              controlAffinity: ListTileControlAffinity.leading,
-              title: Text(dish['name'].toString()),
-              subtitle:
-                  Text(_allowedByDiet(dish) ? 'Vegetarian' : 'Non-vegetarian'),
-              value: _dishIds.contains(dish['id']),
-              onChanged: (checked) => setState(() {
-                final id = dish['id'] as String;
-                if (checked == true) {
-                  _dishIds.add(id);
-                } else {
-                  _dishIds.remove(id);
-                }
-              }),
+      shape: RoundedRectangleBorder(
+        side: const BorderSide(color: Color(0xFFE2E8F0)),
+        borderRadius: BorderRadius.circular(15),
+      ),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(15),
+        onTap: dishes.isEmpty ? null : () => _openModule(group, dishes),
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: Row(children: [
+            Container(
+              height: 52, width: 52, alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: group.color,
+                borderRadius: BorderRadius.circular(12)),
+              child: Text(group.emoji, style: const TextStyle(fontSize: 27)),
             ),
+            const SizedBox(width: 10),
+            Expanded(child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(group.title, style: const TextStyle(
+                  fontSize: 13, color: _navy, fontWeight: FontWeight.w900)),
+                Text(group.hint, style: const TextStyle(
+                  fontSize: 10, color: Color(0xFF64748B))),
+              ],
+            )),
+            Container(
+              padding: const EdgeInsets.symmetric(
+                  horizontal: 9, vertical: 6),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(30),
+                color: const Color(0xFFFFF1F5)),
+              child: Text('$selected dishes', style: const TextStyle(
+                color: _pink, fontWeight: FontWeight.w900, fontSize: 10)),
+            ),
+            const Icon(Icons.chevron_right, color: Color(0xFFCBD5E1)),
+          ]),
+        ),
+      ),
+    );
+  }
+
+  void _toggleRate(bool flat) {
+    setState(() {
+      if (flat && !_flat) {
+        final tierPrice = _tiers.isEmpty ? '' : _tiers.first.pricePerPlate.text;
+        if (_flatPrice.text.trim().isEmpty) _flatPrice.text = tierPrice;
+      }
+      _flat = flat;
+    });
+  }
+
+  Widget _offerPriceRow(String range, int original, int discounted) =>
+      Padding(
+        padding: const EdgeInsets.symmetric(vertical: 8),
+        child: Row(children: [
+          Expanded(flex: 3, child: Text(range,
+              style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 12))),
+          Expanded(flex: 3, child: Text('₹$original',
+              textAlign: TextAlign.right,
+              style: const TextStyle(fontWeight: FontWeight.w700))),
+          Expanded(flex: 4, child: Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              if (_offer)
+                Text('₹$original', style: const TextStyle(
+                    decoration: TextDecoration.lineThrough,
+                    color: Color(0xFF94A3B8), fontSize: 11)),
+              Text('₹$discounted', textAlign: TextAlign.right,
+                  style: TextStyle(
+                      fontWeight: FontWeight.w900,
+                      color: _offer ? const Color(0xFF047857) : _navy)),
+            ],
+          )),
+        ]),
+      );
+
+  Widget _pricePreview({bool compact = false}) {
+    final priced = _pricedTiers();
+    if (priced == null) {
+      return const Padding(
+        padding: EdgeInsets.all(12),
+        child: Text('Enter valid guest ranges, prices and discount to preview.'),
+      );
+    }
+    final base = _baseTiers();
+    final exampleGuests = _flat ? 100 : base.first['minGuests']!;
+    final examplePrice =
+        CateringPriceMath.estimateForGuests(priced, exampleGuests);
+    return Container(
+      padding: const EdgeInsets.all(13),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF8FAFC),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Row(children: [
+          const Expanded(child: Text('Guest Pricing',
+              style: TextStyle(color: _navy, fontWeight: FontWeight.w900))),
+          if (_offer)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+              decoration: BoxDecoration(
+                color: const Color(0xFFFCE7F3),
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Text('${_discountPct}% off',
+                  style: const TextStyle(fontSize: 11,
+                      fontWeight: FontWeight.w900, color: _pink)),
+            ),
+        ]),
+        const SizedBox(height: 10),
+        const Row(children: [
+          Expanded(flex: 3, child: Text('Guest Count',
+              style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700))),
+          Expanded(flex: 3, child: Text('Price / Plate',
+              textAlign: TextAlign.right,
+              style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700))),
+          Expanded(flex: 4, child: Text('Offer Price',
+              textAlign: TextAlign.right,
+              style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700))),
+        ]),
+        const Divider(),
+        for (var i = 0; i < priced.length; i++) ...[
+          _offerPriceRow(
+            _flat
+                ? 'All guests'
+                : '${base[i]['minGuests']}–${base[i]['maxGuests']}',
+            base[i]['price']!,
+            priced[i]['price']!,
+          ),
+          if (i < priced.length - 1) const Divider(height: 1),
+        ],
+        if (!compact && examplePrice != null) ...[
+          const Divider(),
+          Text('Example: $exampleGuests guests × ₹${priced.first['price']} '
+              '= ₹$examplePrice',
+              style: const TextStyle(fontSize: 12,
+                  color: _navy, fontWeight: FontWeight.w800)),
         ],
       ]),
     );
   }
 
-  Widget _pricingStep() => Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _heading('Price per plate'),
-          RadioGroup<bool>(
-            groupValue: _flat,
-            onChanged: (v) {
-              if (v != null) setState(() => _flat = v);
-            },
-            child: Column(
-              children: const [
-                RadioListTile<bool>(
-                    title: Text('Rate reduces as guest count increases'),
-                    subtitle: Text('Lower price for larger groups.'),
-                    value: false),
-                RadioListTile<bool>(
-                    title: Text('Same rate for all guests'),
-                    subtitle: Text('One price for every guest count.'),
-                    value: true),
+  Widget _pricingStep() {
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      _heading('Set Guest Count Pricing', hint:
+          'The base plate price stays as entered. Offer prices are calculated separately.'),
+      RadioGroup<bool>(
+        groupValue: _flat,
+        onChanged: (v) { if (v != null) _toggleRate(v); },
+        child: const Column(children: [
+          RadioListTile<bool>(
+            title: Text('Rate reduces as guest count increases'),
+            subtitle: Text('Lower price for higher guest count.'),
+            value: false,
+          ),
+          RadioListTile<bool>(
+            title: Text('Same rate for all guests'),
+            subtitle: Text('One price for any guest count.'),
+            value: true,
+          ),
+        ]),
+      ),
+      Card(
+        color: _offer ? const Color(0xFFFFF1F5) : Colors.white,
+        shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(13),
+            side: const BorderSide(color: Color(0xFFE2E8F0))),
+        child: Padding(
+          padding: const EdgeInsets.all(10),
+          child: Column(children: [
+            CheckboxListTile(
+              contentPadding: EdgeInsets.zero,
+              controlAffinity: ListTileControlAffinity.leading,
+              title: const Text('Offer for customers',
+                  style: TextStyle(fontWeight: FontWeight.w800)),
+              subtitle: const Text('Plate price stays as you type it. '
+                  'Customers see a lower price.'),
+              value: _offer,
+              onChanged: (v) => setState(() {
+                _offer = v ?? false;
+                if (_offer && _discount.text.trim().isEmpty) {
+                  _discount.text = '10';
+                }
+              }),
+            ),
+            if (_offer) ...[
+              Row(children: [
+                IconButton(
+                  tooltip: 'Decrease discount',
+                  onPressed: () => setState(() {
+                    final n = int.tryParse(_discount.text) ?? 1;
+                    _discount.text = '${(n - 1).clamp(1, 90)}';
+                  }),
+                  icon: const Icon(Icons.remove_circle_outline),
+                ),
+                Expanded(child: TextField(
+                  controller: _discount,
+                  onChanged: (_) => setState(() {}),
+                  keyboardType: TextInputType.number,
+                  textAlign: TextAlign.center,
+                  decoration: const InputDecoration(
+                    labelText: 'Discount (%)',
+                    border: OutlineInputBorder(),
+                  ),
+                )),
+                IconButton(
+                  tooltip: 'Increase discount',
+                  onPressed: () => setState(() {
+                    final n = int.tryParse(_discount.text) ?? 0;
+                    _discount.text = '${(n + 1).clamp(1, 90)}';
+                  }),
+                  icon: const Icon(Icons.add_circle_outline),
+                ),
+              ]),
+              const Padding(
+                padding: EdgeInsets.only(top: 7, bottom: 4),
+                child: Text('Type 1 to 90% off. Each plate price updates on its own.',
+                    style: TextStyle(color: Color(0xFF64748B), fontSize: 12)),
+              ),
+            ],
+          ]),
+        ),
+      ),
+      const SizedBox(height: 13),
+      if (_flat) ...[
+        TextField(
+          controller: _flatPrice,
+          onChanged: (_) => setState(() {}),
+          keyboardType: TextInputType.number,
+          decoration: const InputDecoration(
+            labelText: 'Price per plate (₹)',
+            border: OutlineInputBorder(),
+          ),
+        ),
+        const SizedBox(height: 7),
+        const Text('One rate for every guest count.',
+            style: TextStyle(color: Colors.blueGrey, fontSize: 12)),
+      ] else ...[
+        for (final (index, tier) in _tiers.indexed)
+          Card(
+            key: ObjectKey(tier),
+            margin: const EdgeInsets.only(bottom: 9),
+            child: Padding(
+              padding: const EdgeInsets.all(12),
+              child: Column(children: [
+                Row(children: [
+                  Expanded(child: Text('Guest slab ${index + 1}',
+                      style: const TextStyle(fontWeight: FontWeight.w800))),
+                  if (_tiers.length > 1)
+                    IconButton(
+                      tooltip: 'Remove slab',
+                      onPressed: () => setState(() {
+                        _tiers.removeAt(index);
+                        WidgetsBinding.instance.addPostFrameCallback((_) =>
+                            tier.dispose());
+                      }),
+                      icon: const Icon(Icons.remove_circle_outline),
+                    ),
+                ]),
+                Row(children: [
+                  for (final (label, controller) in [
+                    ('From', tier.minGuests),
+                    ('To', tier.maxGuests),
+                    ('₹ / plate', tier.pricePerPlate),
+                  ])
+                    Expanded(child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 3),
+                      child: TextField(
+                        controller: controller,
+                        onChanged: (_) => setState(() {}),
+                        keyboardType: TextInputType.number,
+                        decoration: InputDecoration(
+                          labelText: label,
+                          border: const OutlineInputBorder(),
+                        ),
+                      ),
+                    )),
+                ]),
+              ]),
+            ),
+          ),
+        TextButton.icon(
+          onPressed: _tiers.length >= 20 ? null : () => setState(() {
+            final last = int.tryParse(_tiers.last.maxGuests.text) ?? 0;
+            if (last >= CateringPriceMath.maxGuests) {
+              _notice('Maximum supported guest count reached.');
+              return;
+            }
+            final start = last + 1;
+            final previousPrice =
+                int.tryParse(_tiers.last.pricePerPlate.text) ?? 500;
+            _tiers.add(_PriceTier(
+              min: start,
+              max: (start + 24).clamp(start, CateringPriceMath.maxGuests).toInt(),
+              price: (previousPrice - 50).clamp(1, CateringPriceMath.maxPlatePrice).toInt(),
+            ));
+          }),
+          icon: const Icon(Icons.add),
+          label: const Text('Add Another Slab'),
+        ),
+      ],
+      const SizedBox(height: 12),
+      _pricePreview(),
+    ]);
+  }
+
+  Widget _previewStep() {
+    final selected = _dishes
+        .where((dish) => _dishIds.contains(dish['id']))
+        .toList();
+    final count = selected.length;
+    final veg = selected.where(_allowedByDiet).length;
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: const Color(0xFFF0FDF4),
+          borderRadius: BorderRadius.circular(13),
+          border: Border.all(color: const Color(0xFFBBF7D0)),
+        ),
+        child: Row(children: [
+          const Text('🍛  ', style: TextStyle(fontSize: 31)),
+          Expanded(child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text('$_level – ${_name.text.trim()}',
+                  style: const TextStyle(color: _navy, fontSize: 17,
+                      fontWeight: FontWeight.w900)),
+              Text(_diet == 'veg' ? 'Vegetarian only' : 'Veg + Non-vegetarian'),
+              Text(_serve == 'buffet' ? 'Buffet Service'
+                  : _serve == 'table'
+                    ? 'Traditional Table Service' : 'Both'),
+              Text(_eventCategory,
+                  style: const TextStyle(color: Colors.blueGrey, fontSize: 12)),
+            ],
+          )),
+        ]),
+      ),
+      if (_description.text.trim().isNotEmpty)
+        Padding(
+          padding: const EdgeInsets.symmetric(vertical: 12),
+          child: Text(_description.text.trim()),
+        ),
+      _heading('🍴  Menu Summary', hint:
+        'Total: $count dishes · $veg veg · ${count - veg} non-veg'),
+      for (final group in CateringMenuGroups.all)
+        if (selected.any((dish) =>
+            CateringMenuGroups.classify(dish) == group.id))
+          Card(
+            color: Colors.white,
+            margin: const EdgeInsets.only(bottom: 8),
+            child: ExpansionTile(
+              leading: Container(
+                height: 40, width: 40, alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: group.color,
+                  borderRadius: BorderRadius.circular(9),
+                ),
+                child: Text(group.emoji, style: const TextStyle(fontSize: 23)),
+              ),
+              title: Text(group.title,
+                  style: const TextStyle(color: _navy,
+                      fontWeight: FontWeight.w800)),
+              trailing: Text(
+                '${selected.where((dish) => CateringMenuGroups.classify(dish) == group.id).length} dishes',
+                style: const TextStyle(color: _pink,
+                    fontWeight: FontWeight.w800, fontSize: 12),
+              ),
+              children: [
+                for (final dish in selected.where((dish) =>
+                    CateringMenuGroups.classify(dish) == group.id))
+                  ListTile(
+                    dense: true,
+                    title: Text(dish['name'].toString()),
+                    subtitle: Text(_allowedByDiet(dish)
+                        ? 'Vegetarian' : 'Non-vegetarian'),
+                  ),
               ],
             ),
           ),
-          SwitchListTile(
-              contentPadding: EdgeInsets.zero,
-              title: const Text('Offer for customers'),
-              subtitle: const Text('Show a discounted price per plate.'),
-              value: _offer,
-              onChanged: (v) => setState(() => _offer = v)),
-          if (_offer)
-            TextField(
-              controller: _discount,
-              keyboardType: TextInputType.number,
-              decoration: const InputDecoration(
-                  labelText: 'Discount (%)', border: OutlineInputBorder()),
-            ),
-          const SizedBox(height: 16),
-          if (_flat)
-            TextField(
-                controller: _flatPrice,
-                keyboardType: TextInputType.number,
-                decoration: const InputDecoration(
-                    labelText: 'Price per plate (₹)',
-                    border: OutlineInputBorder()))
-          else ...[
-            for (final (index, tier) in _tiers.indexed)
-              Card(
-                key: ObjectKey(tier),
-                child: Padding(
-                  padding: const EdgeInsets.all(12),
-                  child: Column(children: [
-                    Row(children: [
-                      Expanded(
-                          child: Text('Guest slab ${index + 1}',
-                              style: const TextStyle(
-                                  fontWeight: FontWeight.bold))),
-                      if (_tiers.length > 1)
-                        IconButton(
-                            onPressed: () => setState(() {
-                                  _tiers.removeAt(index);
-                                  WidgetsBinding.instance.addPostFrameCallback(
-                                      (_) => tier.dispose());
-                                }),
-                            icon: const Icon(Icons.remove_circle_outline)),
-                    ]),
-                    Row(children: [
-                      for (final (label, controller) in [
-                        ('From', tier.minGuests),
-                        ('To', tier.maxGuests),
-                        ('₹ / plate', tier.pricePerPlate),
-                      ])
-                        Expanded(
-                            child: Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 3),
-                          child: TextField(
-                              controller: controller,
-                              keyboardType: TextInputType.number,
-                              decoration: InputDecoration(
-                                  labelText: label,
-                                  border: const OutlineInputBorder())),
-                        )),
-                    ]),
-                  ]),
-                ),
-              ),
-            TextButton.icon(
-              onPressed: _tiers.length >= 20
-                  ? null
-                  : () => setState(() {
-                        final last =
-                            int.tryParse(_tiers.last.maxGuests.text) ?? 0;
-                        final start = (last + 1).clamp(1, 100000).toInt();
-                        _tiers.add(_PriceTier(
-                            min: start,
-                            max: (start + 499).clamp(start, 100000).toInt()));
-                      }),
-              icon: const Icon(Icons.add),
-              label: const Text('Add Another Slab'),
-            ),
-          ],
-          const Text(
-              'Prices are saved to the Rust catalogue as guest-count tiers.'),
-        ],
-      );
-
-  Widget _previewStep() {
-    final count = _dishIds.length;
-    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      _heading('Review your package'),
-      Card(
-          child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text('$_level – ${_name.text.trim()}',
-              style:
-                  const TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
-          const SizedBox(height: 7),
-          Text(_eventCategory),
-          Text(_diet == 'veg' ? 'Vegetarian only' : 'Veg + Non-vegetarian'),
-          Text(_serve == 'buffet'
-              ? 'Buffet Service'
-              : _serve == 'table'
-                  ? 'Traditional Table Service'
-                  : 'Both'),
-          Text('$count dishes selected'),
-          const Divider(),
-          Text(_description.text.trim()),
-          const SizedBox(height: 10),
-          for (final dish in _dishes.where((d) => _dishIds.contains(d['id'])))
-            Text('• ${dish['name']}'),
-          const Divider(),
-          Text(
-              _flat
-                  ? 'Flat rate ₹${_flatPrice.text} per plate'
-                  : '${_tiers.length} guest-count price slabs',
-              style: const TextStyle(fontWeight: FontWeight.w700)),
-          if (_offer)
-            Text(
-                '${_discount.text}% discount applied to the saved plate prices'),
-        ]),
-      )),
-      _heading('Publish Your Package'),
+      const SizedBox(height: 12),
+      _pricePreview(compact: true),
+      const SizedBox(height: 14),
+      _heading('🚀  Publish Your Package'),
       RadioGroup<bool>(
         groupValue: _active,
         onChanged: (v) {
           if (v != null) setState(() => _active = v);
         },
-        child: const Column(
-          children: [
-            RadioListTile<bool>(
-                value: true,
-                title: Text('Live'),
-                subtitle: Text('Visible to customers after catalogue save.')),
-            RadioListTile<bool>(
-                value: false,
-                title: Text('Draft'),
-                subtitle: Text('Keep the package private.')),
-          ],
-        ),
+        child: const Column(children: [
+          RadioListTile<bool>(
+            value: true,
+            title: Text('Live', style: TextStyle(fontWeight: FontWeight.w800)),
+            subtitle: Text('Visible to customers on Gixbee.'),
+          ),
+          RadioListTile<bool>(
+            value: false,
+            title: Text('Draft', style: TextStyle(fontWeight: FontWeight.w800)),
+            subtitle: Text('Save privately and publish later.'),
+          ),
+        ]),
       ),
     ]);
   }
+
 }

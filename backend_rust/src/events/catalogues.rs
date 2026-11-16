@@ -314,6 +314,19 @@ fn validate_catering_discounts(item: &Value) -> AppResult<()> {
     if base.is_empty() || base.len() != displayed.len() || base.len() > 20 {
         return Err(invalid());
     }
+    if let Some(mode) = item.get("rateMode") {
+        match mode.as_str() {
+            Some("flat") => {
+                if base.len() != 1 || base[0]["minGuests"].as_i64() != Some(1)
+                    || base[0]["maxGuests"].as_i64() != Some(100000)
+                {
+                    return Err(invalid());
+                }
+            }
+            Some("tiered") => {}
+            _ => return Err(invalid()),
+        }
+    }
     for (raw, shown) in base.iter().zip(displayed.iter()) {
         let min = raw["minGuests"].as_i64().ok_or_else(invalid)?;
         let max = raw["maxGuests"].as_i64().ok_or_else(invalid)?;
@@ -546,4 +559,63 @@ mod catalogue_metadata_tests {
         });
         assert!(validate_catering_discounts(&item).is_ok());
     }
+    #[test]
+    fn catering_rounds_half_up_exactly_like_flutter() {
+        let item = json!({
+            "kind": "ITEM", "rateMode": "tiered", "discountPct": 50,
+            "baseTiers": [{"minGuests":1, "maxGuests":100, "price":101}],
+            "tiers": [{"minGuests":1, "maxGuests":100, "price":51}]
+        });
+        assert!(validate_catering_discounts(&item).is_ok());
+        let mut bad = item.clone();
+        bad["tiers"][0]["price"] = json!(50);
+        assert!(validate_catering_discounts(&bad).is_err());
+    }
+
+    #[test]
+    fn catering_rejects_fake_flat_rate_and_wrong_offer() {
+        let mut item = json!({
+            "kind": "PACKAGE", "rateMode": "flat", "discountPct": 10,
+            "baseTiers": [{"minGuests":1, "maxGuests":100, "price":500}],
+            "tiers": [{"minGuests":1, "maxGuests":100, "price":450}]
+        });
+        assert!(validate_catering_discounts(&item).is_err());
+        item["baseTiers"][0]["maxGuests"] = json!(100000);
+        item["tiers"][0]["maxGuests"] = json!(100000);
+        assert!(validate_catering_discounts(&item).is_ok());
+        item["tiers"][0]["price"] = json!(500);
+        assert!(validate_catering_discounts(&item).is_err());
+    }
+
+    #[test]
+    fn catering_menu_snapshot_updates_when_dish_is_edited() {
+        let dish_id = "22222222-2222-4222-8222-222222222222";
+        let package_id = "33333333-3333-4333-8333-333333333333";
+        let mut catalogue = json!({
+            "photos": [],
+            "items": [
+                {
+                    "id": dish_id, "kind": "ITEM",
+                    "name": "Welcome Drink", "category": "g01",
+                    "diet": "veg", "active": true,
+                    "tiers": [{"minGuests":1,"maxGuests":100,"price":100}]
+                },
+                {
+                    "id": package_id, "kind": "PACKAGE",
+                    "name": "Wedding Feast", "active": true,
+                    "dishIds": [dish_id], "discountPct": 10,
+                    "rateMode": "tiered",
+                    "baseTiers": [{"minGuests":1,"maxGuests":100,"price":500}],
+                    "tiers": [{"minGuests":1,"maxGuests":100,"price":450}]
+                }
+            ]
+        });
+        assert!(validate_catalogue(&catalogue, "CATERING").is_ok());
+        populate_menus(&mut catalogue).unwrap();
+        assert_eq!(catalogue["items"][1]["menuItems"], json!(["Welcome Drink"]));
+        catalogue["items"][0]["name"] = json!("Mango Welcome Drink");
+        populate_menus(&mut catalogue).unwrap();
+        assert_eq!(catalogue["items"][1]["menuItems"], json!(["Mango Welcome Drink"]));
+    }
+
 }

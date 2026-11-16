@@ -10,6 +10,7 @@ import '../../shared/widgets/gx_button.dart';
 import '../../shared/widgets/gx_snackbar.dart';
 import 'event_service_browser.dart';
 import 'catering_package_wizard_screen.dart';
+import 'catering_food_item_screen.dart';
 import 'photography_package_wizard_screen.dart';
 import 'photography_service_wizard_screen.dart';
 
@@ -36,7 +37,11 @@ class _EventServiceCatalogueScreenState
   int _revision = 0;
   bool _loading = true;
   bool _busy = false;
+  bool _hasUnsavedChanges = false;
   String? _error;
+  String _menuTab = 'packages';
+  String _menuStatus = 'all';
+  String _menuSearch = '';
   bool get _catering => widget.service == 'CATERING';
 
   @override
@@ -78,6 +83,7 @@ class _EventServiceCatalogueScreenState
             .map((item) => Map<String, dynamic>.from(item as Map))
             .toList();
         _photos = (catalogue['photos'] as List).cast<String>().toList();
+        _hasUnsavedChanges = false;
       });
     } catch (error) {
       if (mounted) setState(() => _error = eventError(error));
@@ -86,8 +92,8 @@ class _EventServiceCatalogueScreenState
     }
   }
 
-  Future<void> _save() async {
-    if (_busy) return;
+  Future<bool> _save({List<Map<String, dynamic>>? entries}) async {
+    if (_busy) return false;
     final notice = int.tryParse(_notice.text.trim());
     final advance = int.tryParse(_advance.text.trim());
     final limit = int.tryParse(_perDay.text.trim());
@@ -103,7 +109,7 @@ class _EventServiceCatalogueScreenState
         limit > 50) {
       showGxSnack(
           context, 'Check the notice, booking window and daily booking limit.');
-      return;
+      return false;
     }
     setState(() => _busy = true);
     try {
@@ -113,7 +119,7 @@ class _EventServiceCatalogueScreenState
         _revision,
         {
           'about': _about.text.trim(),
-          'items': _items,
+          'items': entries ?? _items,
           'photos': _photos,
           'minNoticeDays': notice,
           'maxAdvanceDays': advance,
@@ -121,13 +127,69 @@ class _EventServiceCatalogueScreenState
           'serviceCityIds': _serviceCities.toList(),
         },
       );
-      if (!mounted) return;
-      setState(() => _revision = saved['revision'] as int);
+      if (!mounted) return false;
+      final canonical = saved['catalogue'] as Map?;
+      setState(() {
+        _revision = saved['revision'] as int;
+        // The Rust API enriches package menus on save. Always display
+        // the canonical persisted item set, not a stale local approximation.
+        _items = (canonical?['items'] as List? ?? entries ?? _items)
+            .map((item) => Map<String, dynamic>.from(item as Map))
+            .toList();
+        _hasUnsavedChanges = false;
+      });
       showGxSnack(context, 'Catalogue saved');
+      return true;
     } catch (error) {
-      if (mounted) showGxSnack(context, eventError(error));
+      // The wizard shows its own inline retry error. A snackbar from the
+      // parent Scaffold would cover the wizard's bottom Save button.
+      if (mounted && entries == null) {
+        showGxSnack(context, eventError(error));
+      }
+      return false;
     } finally {
       if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  Future<bool> _savePackage(Map<String, dynamic> updated, int? index) async {
+    final candidate = [
+      for (final entry in _items) Map<String, dynamic>.from(entry)
+    ];
+    if (index == null) {
+      candidate.add(updated);
+    } else {
+      candidate[index] = updated;
+    }
+    // Keep the wizard open when the API rejects pricing, a stale
+    // revision, or connectivity fails; the owner can correct/retry.
+    return _save(entries: candidate);
+  }
+
+  Future<void> _reload() async {
+    if (_busy) return;
+    if (_hasUnsavedChanges) {
+      final discard = await showDialog<bool>(
+        context: context,
+        builder: (dialog) => AlertDialog(
+          title: const Text('Discard unsaved changes?'),
+          content: const Text('Reloading will replace local changes '
+              'with the latest saved catalogue.'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialog, false),
+              child: const Text('Keep editing')),
+            TextButton(
+              onPressed: () => Navigator.pop(dialog, true),
+              child: const Text('Reload saved')),
+          ],
+        ),
+      );
+      if (discard != true || !mounted) return;
+    }
+    await _load();
+    if (mounted && _error == null) {
+      setState(() => _hasUnsavedChanges = false);
     }
   }
 
@@ -140,7 +202,10 @@ class _EventServiceCatalogueScreenState
       if (image == null || !mounted) return;
       final repo = ref.read(businessRepositoryProvider);
       final url = await repo.uploadImage(await image.readAsBytes(), image.name);
-      if (mounted) setState(() => _photos.add(url));
+      if (mounted) setState(() {
+        _photos.add(url);
+        _hasUnsavedChanges = true;
+      });
     } catch (error) {
       if (mounted) showGxSnack(context, eventError(error));
     } finally {
@@ -152,6 +217,8 @@ class _EventServiceCatalogueScreenState
     final original = index == null ? null : _items[index];
     final packageFlow = _catering &&
         (original?['kind'] == 'PACKAGE' || (index == null && createPackage));
+    final cateringDishFlow = _catering &&
+        (original?['kind'] == 'ITEM' || (index == null && !createPackage));
     final photoPackageFlow = !_catering &&
         (original?['kind'] == 'PACKAGE' || (index == null && createPackage));
     final photoServiceFlow = !_catering &&
@@ -160,7 +227,16 @@ class _EventServiceCatalogueScreenState
     final updated = await Navigator.of(context).push<Map<String, dynamic>>(
       MaterialPageRoute(
         builder: (_) => packageFlow
-            ? CateringPackageWizardScreen(package: original, dishes: dishes)
+            ? CateringPackageWizardScreen(
+                package: original,
+                dishes: dishes,
+                onSave: (entry) => _savePackage(entry, index),
+              )
+            : cateringDishFlow
+                ? CateringFoodItemScreen(
+                    item: original,
+                    onSave: (entry) => _savePackage(entry, index),
+                  )
             : photoPackageFlow
                 ? PhotographyPackageWizardScreen(package: original)
                 : photoServiceFlow
@@ -174,17 +250,104 @@ class _EventServiceCatalogueScreenState
       ),
     );
     if (!mounted || updated == null) return;
+    if (photoPackageFlow || photoServiceFlow) {
+      await _savePackage(updated, index);
+      return;
+    }
     setState(() {
       if (index == null) {
         _items.add(updated);
       } else {
         _items[index] = updated;
       }
+      _hasUnsavedChanges = true;
     });
-    // 'Save Package' in the wizard must persist to the Rust API, not just
-    // change the local list. Other catalogue entries keep the existing
-    // explicit Save catalogue action.
-    if (packageFlow || photoPackageFlow || photoServiceFlow) await _save();
+  }
+
+  Widget _cateringHub() {
+    final matches = _items.indexed.where((entry) {
+      final item = entry.$2;
+      if ((_menuTab == 'packages') != (item['kind'] == 'PACKAGE')) return false;
+      if (_menuStatus == 'live' && item['active'] == false) return false;
+      if (_menuStatus == 'draft' && item['active'] != false) return false;
+      return '${item['name'] ?? ''} ${item['category'] ?? ''}'
+          .toLowerCase().contains(_menuSearch.toLowerCase());
+    }).toList();
+    final packages = _items.where((e) => e['kind'] == 'PACKAGE').length;
+    final dishes = _items.where((e) => e['kind'] == 'ITEM').length;
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      const Text('Gixbee  |  Menu & Packages',
+          style: TextStyle(fontSize: 19, color: Color(0xFF1B2559),
+              fontWeight: FontWeight.w900)),
+      const SizedBox(height: 12),
+      SegmentedButton<String>(
+        segments: [
+          ButtonSegment(value: 'packages', label: Text('Packages ($packages)')),
+          ButtonSegment(value: 'food', label: Text('Food Items ($dishes)')),
+        ],
+        selected: {_menuTab},
+        onSelectionChanged: (values) =>
+            setState(() => _menuTab = values.first),
+      ),
+      const SizedBox(height: 12),
+      TextField(
+        onChanged: (value) => setState(() => _menuSearch = value),
+        decoration: InputDecoration(
+          hintText: _menuTab == 'packages'
+              ? 'Search packages...' : 'Search food items...',
+          prefixIcon: const Icon(Icons.search),
+          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+        ),
+      ),
+      Wrap(spacing: 8, children: [
+        for (final (value, label) in const [
+          ('all', 'All'), ('live', 'Live'), ('draft', 'Draft'),
+        ])
+          ChoiceChip(label: Text(label), selected: _menuStatus == value,
+              onSelected: (_) => setState(() => _menuStatus = value)),
+      ]),
+      if (matches.isEmpty)
+        Padding(padding: const EdgeInsets.all(16),
+          child: Text(_menuTab == 'packages'
+              ? 'No packages match these filters.'
+              : 'No food items match these filters.')),
+      for (final entry in matches)
+        Card(
+          margin: const EdgeInsets.only(bottom: 9),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(13)),
+          child: ListTile(
+            title: Text(entry.$2['name']?.toString() ?? 'Untitled',
+                style: const TextStyle(color: Color(0xFF1B2559),
+                    fontWeight: FontWeight.w900)),
+            subtitle: Text([
+              entry.$2['kind'] == 'PACKAGE'
+                  ? '${entry.$2['packageLevel'] ?? 'Basic'} · ${(entry.$2['dishIds'] as List? ?? const []).length} dishes'
+                  : '${entry.$2['diet'] == 'non_veg' ? 'Non-veg' : 'Veg'} dish',
+              if ((entry.$2['tiers'] as List? ?? const []).isNotEmpty)
+                '${(entry.$2['tiers'] as List).length} price slabs',
+              if (((entry.$2['discountPct'] as num?)?.toInt() ?? 0) > 0)
+                '${entry.$2['discountPct']}% OFF',
+              entry.$2['active'] == false ? 'Draft' : 'Live',
+            ].join(' · ')),
+            trailing: const Icon(Icons.edit_outlined),
+            onTap: () => _edit(entry.$1),
+          ),
+        ),
+      const SizedBox(height: 10),
+      SizedBox(width: double.infinity, child: FilledButton.icon(
+        style: FilledButton.styleFrom(
+          backgroundColor: const Color(0xFF12B76A),
+          padding: const EdgeInsets.symmetric(vertical: 15),
+        ),
+        onPressed: _items.length >= 150 ? null :
+            () => _edit(null, createPackage: _menuTab == 'packages'),
+        icon: Icon(_menuTab == 'packages'
+            ? Icons.restaurant_menu : Icons.add),
+        label: Text(_menuTab == 'packages'
+            ? 'Create Catering Package' : 'Add Food Item'),
+      )),
+      const SizedBox(height: 16),
+    ]);
   }
 
   @override
@@ -195,7 +358,7 @@ class _EventServiceCatalogueScreenState
             actions: [
               IconButton(
                   tooltip: 'Reload saved catalogue',
-                  onPressed: _busy ? null : _load,
+                  onPressed: _busy ? null : _reload,
                   icon: const Icon(Icons.refresh))
             ]),
         body: _loading
@@ -208,8 +371,10 @@ class _EventServiceCatalogueScreenState
                     absorbing: _busy,
                     child:
                         ListView(padding: const EdgeInsets.all(16), children: [
+                       if (_catering) _cateringHub(),
                       TextField(
                           controller: _about,
+                           onChanged: (_) => setState(() => _hasUnsavedChanges = true),
                           maxLength: 3000,
                           maxLines: 3,
                           decoration: const InputDecoration(
@@ -227,6 +392,7 @@ class _EventServiceCatalogueScreenState
                                     label: Text(city.displayName),
                                     selected: _serviceCities.contains(city.id),
                                     onSelected: (on) => setState(() {
+                                          _hasUnsavedChanges = true;
                                           if (on &&
                                               _serviceCities.length < 30) {
                                             _serviceCities.add(city.id);
@@ -247,6 +413,7 @@ class _EventServiceCatalogueScreenState
                         TextField(
                             controller: controller,
                             keyboardType: TextInputType.number,
+                             onChanged: (_) => setState(() => _hasUnsavedChanges = true),
                             decoration: InputDecoration(labelText: label)),
                       const SizedBox(height: 16),
                       Text('Gallery',
@@ -258,7 +425,10 @@ class _EventServiceCatalogueScreenState
                               image,
                               TextButton(
                                   onPressed: () =>
-                                      setState(() => _photos.remove(photo)),
+                                      setState(() {
+                                         _photos.remove(photo);
+                                         _hasUnsavedChanges = true;
+                                       }),
                                   child: const Text('Remove photo')),
                             ]),
                       ]),
@@ -267,38 +437,15 @@ class _EventServiceCatalogueScreenState
                         icon: const Icon(Icons.add_a_photo_outlined),
                         label: const Text('Add photo'),
                       ),
-                      for (final (index, item) in _items.indexed)
-                        Card(
-                            child: ListTile(
-                          title: Text(item['name'] as String),
-                          subtitle: Text([
-                            item['kind'] == 'PACKAGE'
-                                ? 'Package'
-                                : (_catering ? 'Dish' : 'Service'),
-                            if (_catering)
-                              '${(item['tiers'] as List).length} pricing tiers'
-                            else
-                              eventMoney(item['price']),
-                            if (item['active'] == false) 'Hidden',
-                          ].join(' · ')),
-                          trailing: const Icon(Icons.edit_outlined),
-                          onTap: () => _edit(index),
-                        )),
-                      if (_catering) ...[
-                        TextButton.icon(
-                          onPressed: _items.length >= 150
-                              ? null
-                              : () => _edit(null, createPackage: true),
-                          icon: const Icon(Icons.restaurant_menu),
-                          label: const Text('Create catering package'),
-                        ),
-                        TextButton.icon(
-                          onPressed:
-                              _items.length >= 150 ? null : () => _edit(null),
-                          icon: const Icon(Icons.add),
-                          label: const Text('Add individual dish'),
-                        ),
-                      ] else ...[
+                      if (!_catering)
+                        for (final (index, item) in _items.indexed)
+                          Card(child: ListTile(
+                            title: Text(item['name']?.toString() ?? ''),
+                            subtitle: Text('${item['kind']} · ${eventMoney(item['price'])}'),
+                            trailing: const Icon(Icons.edit_outlined),
+                            onTap: () => _edit(index),
+                          )),
+                      if (!_catering) ...[
                         TextButton.icon(
                           onPressed: _items.length >= 150
                               ? null
@@ -314,7 +461,7 @@ class _EventServiceCatalogueScreenState
                         ),
                       ],
                       GxButton(
-                          label: 'Save catalogue',
+                          label: _hasUnsavedChanges ? 'Save changes' : 'Save catalogue',
                           onTap: _save,
                           loading: _busy),
                     ])),
