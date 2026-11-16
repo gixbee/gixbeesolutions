@@ -10,6 +10,7 @@ import 'event_plan_create_screen.dart';
 import 'event_plans_screen.dart';
 import 'event_interest_customize_screen.dart';
 import 'hall_booking_review_screen.dart';
+import 'catering_package_wizard_screen.dart';
 
 class EventServiceBrowser extends ConsumerStatefulWidget {
   const EventServiceBrowser({
@@ -337,6 +338,18 @@ class _ProviderDetailState extends ConsumerState<_ProviderDetail> {
   bool get _isCatering => widget.service == 'CATERING';
   Map get _catalogue => widget.vendor['catalogue'] as Map? ?? {};
 
+  String _categoryLabel(String value) {
+    for (final group in CateringMenuGroups.all) {
+      if (group.id == value) return group.title;
+    }
+    return value;
+  }
+
+  String _detailText(Object? value) {
+    if (value is List) return value.join(', ');
+    return value?.toString() ?? '';
+  }
+
   @override
   void initState() {
     super.initState();
@@ -569,7 +582,8 @@ class _ProviderDetailState extends ConsumerState<_ProviderDetail> {
                 value: 'All', child: Text('All categories')),
             for (final category in all.map((item) => item['category'])
                 .whereType<String>().where((name) => name.isNotEmpty).toSet())
-              DropdownMenuItem(value: category, child: Text(category)),
+              DropdownMenuItem(
+                value: category, child: Text(_categoryLabel(category))),
           ],
           onChanged: (value) =>
               setState(() => _category = value ?? 'All'),
@@ -598,15 +612,15 @@ class _ProviderDetailState extends ConsumerState<_ProviderDetail> {
             else
               'Unavailable for this guest count',
             for (final key in [
-              'diet',
-              'serveStyle',
-              'description',
-              'includes',
-              'delivery',
-              'paymentStages',
-              'policy'
+              'diet', 'serveStyle', 'description',
+              'packageLevel', 'functions', 'ceremonies',
+              'coverageNotes', 'photographerTeam', 'videographerTeam',
+              'duration', 'team', 'includes', 'inclusions',
+              'extras', 'extrasNotes', 'delivery',
+              'paymentStages', 'policy',
             ])
-              if ('${item[key] ?? ''}'.isNotEmpty) item[key].toString(),
+              if (_detailText(item[key]).isNotEmpty)
+                '${key.replaceAll(RegExp(r'([A-Z])'), r' $1')}: ${_detailText(item[key])}',
           ].join('\n')),
           onChanged: _price(item) == null
               ? null
