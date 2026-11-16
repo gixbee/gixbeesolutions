@@ -180,8 +180,12 @@ class _CateringPackageWizardScreenState
     final existing = widget.package;
     _name.text = existing?['name']?.toString() ?? '';
     _description.text = existing?['description']?.toString() ?? '';
-    _eventCategory = existing?['category']?.toString() ?? _eventCategory;
-    _level = existing?['packageLevel']?.toString() ?? _level;
+    final category = existing?['category']?.toString();
+    _eventCategory = category == 'Other Functions' || category == 'other'
+        ? 'Other Functions' : 'Wedding & Related Functions';
+    final level = existing?['packageLevel']?.toString();
+    _level = const ['Basic', 'Standard', 'Premium'].contains(level)
+        ? level! : 'Basic';
     _diet = existing?['diet']?.toString() == 'veg' ? 'veg' : 'mixed';
     final serve = existing?['serveStyle']?.toString();
     if (const ['table', 'buffet', 'both'].contains(serve)) _serve = serve!;
