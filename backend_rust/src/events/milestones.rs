@@ -108,10 +108,16 @@ pub(super) async fn list(
                    m."dueAt" IS NOT NULL AND m."dueAt" < NOW()
                    AND m."completedAt" IS NULL)
            FROM event_quote_milestones m
-           WHERE m."quoteId"=$1
+           WHERE m."quoteId"=$1 AND EXISTS (
+             SELECT 1 FROM event_quotes q
+             JOIN event_plans p ON p.id=q."planId"
+             JOIN businesses b ON b.id=q."businessId"
+             WHERE q.id=m."quoteId" AND (p."customerId"=$2 OR b."ownerId"=$2)
+           )
            ORDER BY CASE WHEN m.kind='PAYMENT' THEN 0 ELSE 1 END, m.position"#,
     )
     .bind(id)
+    .bind(uid)
     .fetch_all(&state.db)
     .await?;
     Ok(Json(rows))
