@@ -32,8 +32,7 @@ import 'package:gixbee/shared/widgets/gx_button.dart';
 
 /// Returns a fixed skill list, or throws to exercise the initState fallback.
 class _FakeMasterRepo extends MasterEntriesRepository {
-  _FakeMasterRepo({this.fail = false})
-      : super(Dio());
+  _FakeMasterRepo({this.fail = false}) : super(Dio());
   final List<String> labels = const ['Plumbing', 'Welding'];
   final bool fail;
 
@@ -67,7 +66,7 @@ class _FakeHiringRepo extends HiringRepository {
   JobPost? posted;
 
   @override
-  Future<void> postJob(JobPost jobData) async {
+  Future<void> postJob(JobPost jobData, {String? businessId}) async {
     if (fail) throw 'server down';
     posted = jobData;
   }
@@ -137,8 +136,7 @@ void main() {
     testWidgets('renders header, section labels, dropdowns and fetched skills',
         (tester) async {
       await tester.pumpWidget(_host([
-        masterEntriesRepositoryProvider
-            .overrideWithValue(_FakeMasterRepo()),
+        masterEntriesRepositoryProvider.overrideWithValue(_FakeMasterRepo()),
       ]));
       await tester.pump(); // drain the initState skill fetch microtask
 
@@ -174,8 +172,7 @@ void main() {
     testWidgets('empty submit shows validation errors and no skill snack',
         (tester) async {
       await tester.pumpWidget(_host([
-        masterEntriesRepositoryProvider
-            .overrideWithValue(_FakeMasterRepo()),
+        masterEntriesRepositoryProvider.overrideWithValue(_FakeMasterRepo()),
       ]));
       await tester.pump();
 
@@ -191,8 +188,7 @@ void main() {
     testWidgets('valid form but no skill selected shows the skill snack',
         (tester) async {
       await tester.pumpWidget(_host([
-        masterEntriesRepositoryProvider
-            .overrideWithValue(_FakeMasterRepo()),
+        masterEntriesRepositoryProvider.overrideWithValue(_FakeMasterRepo()),
       ]));
       await tester.pump();
 
@@ -211,8 +207,7 @@ void main() {
     testWidgets('no business → error snack, no post', (tester) async {
       final hiring = _FakeHiringRepo();
       await tester.pumpWidget(_host([
-        masterEntriesRepositoryProvider
-            .overrideWithValue(_FakeMasterRepo()),
+        masterEntriesRepositoryProvider.overrideWithValue(_FakeMasterRepo()),
         businessRepositoryProvider
             .overrideWithValue(_FakeBusinessRepo(businesses: const [])),
         hiringRepositoryProvider.overrideWithValue(hiring),
@@ -238,8 +233,7 @@ void main() {
         (tester) async {
       final hiring = _FakeHiringRepo();
       await tester.pumpWidget(_pushHost([
-        masterEntriesRepositoryProvider
-            .overrideWithValue(_FakeMasterRepo()),
+        masterEntriesRepositoryProvider.overrideWithValue(_FakeMasterRepo()),
         businessRepositoryProvider
             .overrideWithValue(_FakeBusinessRepo(businesses: [_biz('emp-9')])),
         hiringRepositoryProvider.overrideWithValue(hiring),

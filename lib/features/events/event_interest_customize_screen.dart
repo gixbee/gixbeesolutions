@@ -64,28 +64,30 @@ class _EventInterestCustomizeScreenState
   }
 
   Widget _section(String title, {String? subtitle}) => Padding(
-    padding: const EdgeInsets.only(top: 20, bottom: 10),
-    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      Text(title, style: const TextStyle(
-        color: _navy, fontSize: 16, fontWeight: FontWeight.w800)),
-      if (subtitle != null)
-        Text(subtitle, style: const TextStyle(
-          fontSize: 12, color: Colors.blueGrey)),
-    ]),
-  );
+        padding: const EdgeInsets.only(top: 20, bottom: 10),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text(title,
+              style: const TextStyle(
+                  color: _navy, fontSize: 16, fontWeight: FontWeight.w800)),
+          if (subtitle != null)
+            Text(subtitle,
+                style: const TextStyle(fontSize: 12, color: Colors.blueGrey)),
+        ]),
+      );
 
   Widget _field(TextEditingController controller, String label,
-      {String? hint, int lines = 2}) => TextField(
-    controller: controller,
-    maxLength: 900,
-    maxLines: lines,
-    decoration: InputDecoration(
-      labelText: label,
-      hintText: hint,
-      alignLabelWithHint: lines > 1,
-      border: const OutlineInputBorder(),
-    ),
-  );
+          {String? hint, int lines = 2}) =>
+      TextField(
+        controller: controller,
+        maxLength: 900,
+        maxLines: lines,
+        decoration: InputDecoration(
+          labelText: label,
+          hintText: hint,
+          alignLabelWithHint: lines > 1,
+          border: const OutlineInputBorder(),
+        ),
+      );
 
   String _requirements() {
     final lines = <String>[
@@ -118,7 +120,8 @@ class _EventInterestCustomizeScreenState
     final details = _requirements();
     if (details.length > 5000) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Reduce your requirements to 5,000 characters.')),
+        const SnackBar(
+            content: Text('Reduce your requirements to 5,000 characters.')),
       );
       return;
     }
@@ -162,33 +165,45 @@ class _EventInterestCustomizeScreenState
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
-        title: Text(_photography ? 'Customize Photography' : 'Customize Catering'),
+        title:
+            Text(_photography ? 'Customize Photography' : 'Customize Catering'),
         backgroundColor: Colors.white,
         foregroundColor: _navy,
       ),
-      body: SafeArea(child: Column(children: [
-        Expanded(child: ListView(padding: const EdgeInsets.all(16), children: [
+      body: SafeArea(
+          child: Column(children: [
+        Expanded(
+            child: ListView(padding: const EdgeInsets.all(16), children: [
           Card(
             color: const Color(0xFFECFDF3),
             child: Padding(
               padding: const EdgeInsets.all(14),
-              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                const Text('Your selected offer', style: TextStyle(
-                    color: _navy, fontWeight: FontWeight.w800)),
-                const SizedBox(height: 5),
-                Text(widget.selection.summary),
-              ]),
+              child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('Your selected offer',
+                        style: TextStyle(
+                            color: _navy, fontWeight: FontWeight.w800)),
+                    const SizedBox(height: 5),
+                    Text(widget.selection.summary),
+                  ]),
             ),
           ),
           _section('Customize requirements',
-              subtitle: 'The displayed price is an estimate. Changes will be confirmed by the vendor in a quote.'),
+              subtitle:
+                  'The displayed price is an estimate. Changes will be confirmed by the vendor in a quote.'),
           if (_photography) ...[
             const Text('Functions you want covered',
-              style: TextStyle(fontWeight: FontWeight.w700)),
+                style: TextStyle(fontWeight: FontWeight.w700)),
             Wrap(spacing: 7, children: [
               for (final function in const [
-                'Wedding', 'Reception', 'Engagement', 'Wedding Eve',
-                'Pre-wedding Shoot', 'Post-wedding Shoot', 'Other event',
+                'Wedding',
+                'Reception',
+                'Engagement',
+                'Wedding Eve',
+                'Pre-wedding Shoot',
+                'Post-wedding Shoot',
+                'Other event',
               ])
                 FilterChip(
                   label: Text(function),
@@ -204,13 +219,13 @@ class _EventInterestCustomizeScreenState
             ]),
             const SizedBox(height: 12),
             _field(_coverage, 'Coverage and time',
-              hint: 'Hours, venue coverage, side of family, schedule'),
+                hint: 'Hours, venue coverage, side of family, schedule'),
             _field(_team, 'Crew preferences',
-              hint: 'Photographers, videographers, drones, live stream'),
+                hint: 'Photographers, videographers, drones, live stream'),
             _field(_deliverables, 'Albums, gallery and delivery',
-              hint: 'Edited photos, videos, prints, albums, dates'),
+                hint: 'Edited photos, videos, prints, albums, dates'),
             _field(_extras, 'Optional extras',
-              hint: 'Extra crew, drone, photobooth (vendor quote required)'),
+                hint: 'Extra crew, drone, photobooth (vendor quote required)'),
           ] else ...[
             DropdownButtonFormField<String>(
               initialValue: _serviceStyle,
@@ -224,13 +239,14 @@ class _EventInterestCustomizeScreenState
                 'Traditional Table Service',
                 'Both',
               ].map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
-              onChanged: (s) => setState(() => _serviceStyle = s ?? _serviceStyle),
+              onChanged: (s) =>
+                  setState(() => _serviceStyle = s ?? _serviceStyle),
             ),
             const SizedBox(height: 12),
             _field(_dietNeeds, 'Dietary preferences',
-              hint: 'Vegetarian, non-vegetarian, Jain, allergies, etc.'),
+                hint: 'Vegetarian, non-vegetarian, Jain, allergies, etc.'),
             _field(_menuChanges, 'Menu customization',
-              hint: 'Dishes to add/remove, portions, special requests'),
+                hint: 'Dishes to add/remove, portions, special requests'),
           ],
           _section('Additional instructions'),
           _field(_notes, 'Notes for the vendor', lines: 3),
@@ -238,7 +254,8 @@ class _EventInterestCustomizeScreenState
             contentPadding: EdgeInsets.zero,
             value: _requiresQuote,
             controlAffinity: ListTileControlAffinity.leading,
-            title: const Text('I understand this is an enquiry, not a confirmed booking'),
+            title: const Text(
+                'I understand this is an enquiry, not a confirmed booking'),
             subtitle: const Text(
                 'The vendor will confirm availability and the final price. Payment is made directly to the vendor.'),
             onChanged: (v) => setState(() => _requiresQuote = v ?? false),
@@ -246,7 +263,8 @@ class _EventInterestCustomizeScreenState
         ])),
         Padding(
           padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
-          child: SizedBox(width: double.infinity,
+          child: SizedBox(
+            width: double.infinity,
             child: FilledButton.icon(
               style: FilledButton.styleFrom(
                 backgroundColor: _accent,
@@ -254,7 +272,8 @@ class _EventInterestCustomizeScreenState
               ),
               onPressed: _requiresQuote ? _continue : null,
               icon: const Icon(Icons.arrow_forward),
-              label: Text('Continue to ${eventServices[widget.service] ?? 'Event'} Review'),
+              label: Text(
+                  'Continue to ${eventServices[widget.service] ?? 'Event'} Review'),
             ),
           ),
         ),

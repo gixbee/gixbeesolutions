@@ -34,10 +34,8 @@ class _HallPhotosScreenState extends ConsumerState<HallPhotosScreen> {
   Future<void> _load() async {
     try {
       final repo = ref.read(hallRepositoryProvider);
-      final media =
-          await repo.listMedia(widget.business.id, widget.hallId);
-      final hall =
-          await repo.getHall(widget.business.id, widget.hallId);
+      final media = await repo.listMedia(widget.business.id, widget.hallId);
+      final hall = await repo.getHall(widget.business.id, widget.hallId);
       if (!mounted) return;
       setState(() {
         _media = media;
@@ -52,8 +50,8 @@ class _HallPhotosScreenState extends ConsumerState<HallPhotosScreen> {
   }
 
   Future<void> _pick({bool cover = false}) async {
-    final picked =
-        await ImagePicker().pickImage(source: ImageSource.gallery, maxWidth: 1600);
+    final picked = await ImagePicker()
+        .pickImage(source: ImageSource.gallery, maxWidth: 1600);
     if (picked == null) return;
     try {
       final bytes = await picked.readAsBytes();
@@ -62,10 +60,10 @@ class _HallPhotosScreenState extends ConsumerState<HallPhotosScreen> {
           .uploadImage(bytes, picked.name);
       if (cover) {
         await ref.read(hallRepositoryProvider).patchHall(
-              widget.business.id,
-              widget.hallId,
-              {'coverImageUrl': url},
-            );
+          widget.business.id,
+          widget.hallId,
+          {'coverImageUrl': url},
+        );
       } else {
         await ref.read(hallRepositoryProvider).addMedia(
               widget.business.id,
@@ -89,13 +87,16 @@ class _HallPhotosScreenState extends ConsumerState<HallPhotosScreen> {
           : ListView(
               padding: const EdgeInsets.all(16),
               children: [
-                const Text('Cover', style: TextStyle(fontWeight: FontWeight.w700)),
+                const Text('Cover',
+                    style: TextStyle(fontWeight: FontWeight.w700)),
                 const SizedBox(height: 8),
                 if (_cover != null)
                   Text(_cover!, style: const TextStyle(fontSize: 12)),
-                GxButton(label: 'Set cover photo', onTap: () => _pick(cover: true)),
+                GxButton(
+                    label: 'Set cover photo', onTap: () => _pick(cover: true)),
                 const SizedBox(height: 16),
-                const Text('Gallery', style: TextStyle(fontWeight: FontWeight.w700)),
+                const Text('Gallery',
+                    style: TextStyle(fontWeight: FontWeight.w700)),
                 ..._media.map((m) {
                   return ListTile(
                     title: Text((m['url'] as String?) ?? '',

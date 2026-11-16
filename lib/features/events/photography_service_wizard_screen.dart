@@ -63,40 +63,58 @@ class _PhotographyServiceWizardScreenState
   @override
   void dispose() {
     for (final c in [
-      _name, _description, _price, _duration, _coverage, _team,
-      _includes, _extras, _delivery, _policy, _requirements,
-    ]) { c.dispose(); }
+      _name,
+      _description,
+      _price,
+      _duration,
+      _coverage,
+      _team,
+      _includes,
+      _extras,
+      _delivery,
+      _policy,
+      _requirements,
+    ]) {
+      c.dispose();
+    }
     super.dispose();
   }
 
   Widget _field(TextEditingController ctrl, String label,
-      {int lines = 1, TextInputType? input}) => Padding(
-    padding: const EdgeInsets.only(bottom: 12),
-    child: TextField(
-      controller: ctrl,
-      maxLength: lines == 1 ? 150 : 1000,
-      keyboardType: input,
-      maxLines: lines,
-      decoration: InputDecoration(
-        labelText: label,
-        border: const OutlineInputBorder(),
-        alignLabelWithHint: lines > 1,
-      ),
-    ),
-  );
+          {int lines = 1, TextInputType? input}) =>
+      Padding(
+        padding: const EdgeInsets.only(bottom: 12),
+        child: TextField(
+          controller: ctrl,
+          maxLength: lines == 1 ? 150 : 1000,
+          keyboardType: input,
+          maxLines: lines,
+          decoration: InputDecoration(
+            labelText: label,
+            border: const OutlineInputBorder(),
+            alignLabelWithHint: lines > 1,
+          ),
+        ),
+      );
 
   void _error(String message) => ScaffoldMessenger.of(context)
-    .showSnackBar(SnackBar(content: Text(message)));
+      .showSnackBar(SnackBar(content: Text(message)));
 
   void _next() {
     if (_step == 1 && _name.text.trim().isEmpty) {
-      _error('Enter the service name.'); return;
+      _error('Enter the service name.');
+      return;
     }
-    if (_step == 2 && ((int.tryParse(_price.text) ?? 0) < 1 ||
-        (int.tryParse(_price.text) ?? 0) > 10000000)) {
-      _error('Enter a price between ₹1 and ₹1,00,00,000.'); return;
+    if (_step == 2 &&
+        ((int.tryParse(_price.text) ?? 0) < 1 ||
+            (int.tryParse(_price.text) ?? 0) > 10000000)) {
+      _error('Enter a price between ₹1 and ₹1,00,00,000.');
+      return;
     }
-    if (_step == 7) { _save(); return; }
+    if (_step == 7) {
+      _save();
+      return;
+    }
     setState(() => _step++);
   }
 
@@ -125,55 +143,78 @@ class _PhotographyServiceWizardScreenState
 
   Widget _stepWidget() {
     switch (_step) {
-      case 0: return Column(crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
+      case 0:
+        return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           const Text('Choose the kind of non-wedding shoot or service.',
               style: TextStyle(color: Colors.blueGrey)),
           const SizedBox(height: 16),
-          for (final type in const [
-            'Portrait & Family', 'Baby & Maternity', 'Product Photography',
-            'Corporate & Commercial', 'Birthday & Celebration',
-            'Funeral / Memorial', 'Baptism / First Communion',
-            'Event / Get-togethers', 'Other Photography',
-          ])
-            RadioListTile<String>(
-              value: type,
-              groupValue: _category,
-              title: Text(type),
-              contentPadding: EdgeInsets.zero,
-              onChanged: (v) => setState(() => _category = v ?? _category),
+          RadioGroup<String>(
+            groupValue: _category,
+            onChanged: (v) {
+              if (v != null) setState(() => _category = v);
+            },
+            child: Column(
+              children: [
+                for (final type in const [
+                  'Portrait & Family',
+                  'Baby & Maternity',
+                  'Product Photography',
+                  'Corporate & Commercial',
+                  'Birthday & Celebration',
+                  'Funeral / Memorial',
+                  'Baptism / First Communion',
+                  'Event / Get-togethers',
+                  'Other Photography',
+                ])
+                  RadioListTile<String>(
+                    value: type,
+                    title: Text(type),
+                    contentPadding: EdgeInsets.zero,
+                  ),
+              ],
             ),
+          ),
         ]);
-      case 1: return Column(children: [
-        _field(_name, 'Service name *'),
-        _field(_description, 'Describe this service', lines: 4),
-      ]);
-      case 2: return Column(children: [
-        _field(_price, 'Fixed price (₹) *', input: TextInputType.number),
-        const Text('Optional additions are priced separately in the vendor quote.'),
-      ]);
-      case 3: return Column(children: [
-        _field(_duration, 'Included duration (e.g. 4 Hours)'),
-        _field(_coverage, 'Location, coverage and extra time', lines: 4),
-        _field(_team, 'Team & equipment included', lines: 3),
-      ]);
-      case 4: return Column(children: [
-        _field(_includes, 'Edited photos, videos, gallery, prints, etc.', lines: 5),
-      ]);
-      case 5: return Column(children: [
-        _field(_extras, 'Optional extras and prices', lines: 5),
-        const Text('Extras are negotiated after the customer sends interest.'),
-      ]);
-      case 6: return Column(children: [
-        _field(_delivery, 'Delivery deadlines and format', lines: 5),
-      ]);
-      default: return Column(crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
+      case 1:
+        return Column(children: [
+          _field(_name, 'Service name *'),
+          _field(_description, 'Describe this service', lines: 4),
+        ]);
+      case 2:
+        return Column(children: [
+          _field(_price, 'Fixed price (₹) *', input: TextInputType.number),
+          const Text(
+              'Optional additions are priced separately in the vendor quote.'),
+        ]);
+      case 3:
+        return Column(children: [
+          _field(_duration, 'Included duration (e.g. 4 Hours)'),
+          _field(_coverage, 'Location, coverage and extra time', lines: 4),
+          _field(_team, 'Team & equipment included', lines: 3),
+        ]);
+      case 4:
+        return Column(children: [
+          _field(_includes, 'Edited photos, videos, gallery, prints, etc.',
+              lines: 5),
+        ]);
+      case 5:
+        return Column(children: [
+          _field(_extras, 'Optional extras and prices', lines: 5),
+          const Text(
+              'Extras are negotiated after the customer sends interest.'),
+        ]);
+      case 6:
+        return Column(children: [
+          _field(_delivery, 'Delivery deadlines and format', lines: 5),
+        ]);
+      default:
+        return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           _field(_policy, 'Cancellation / rescheduling policies', lines: 4),
           _field(_requirements, 'Customer requirements', lines: 4),
           const Divider(height: 28),
-          Text(_name.text.trim(), style: const TextStyle(
-              color: _navy, fontWeight: FontWeight.w900, fontSize: 18)),
+          Text(_name.text.trim(),
+              style: const TextStyle(
+                  color: _navy, fontWeight: FontWeight.w900, fontSize: 18)),
           Text(_category),
           Text('₹${_price.text.trim()}'),
           if (_includes.text.isNotEmpty)
@@ -191,43 +232,50 @@ class _PhotographyServiceWizardScreenState
 
   @override
   Widget build(BuildContext context) => Scaffold(
-    backgroundColor: Colors.white,
-    appBar: AppBar(
-      title: const Text('Gixbee | Individual Service'),
-      backgroundColor: Colors.white,
-      foregroundColor: _navy,
-    ),
-    body: SafeArea(child: Column(children: [
-      Padding(padding: const EdgeInsets.all(16), child: Column(children: [
-        Text('Step ${_step + 1}/8 · ${_steps[_step]}',
-            style: const TextStyle(color: _navy,
-                fontWeight: FontWeight.w800)),
-        const SizedBox(height: 8),
-        LinearProgressIndicator(
-          value: (_step + 1) / _steps.length,
-          color: _accent,
-          backgroundColor: const Color(0xFFE5E7EB)),
-      ])),
-      Expanded(child: ListView(
-        padding: const EdgeInsets.fromLTRB(16, 12, 16, 20),
-        children: [_stepWidget()],
-      )),
-      Padding(padding: const EdgeInsets.fromLTRB(16, 10, 16, 16),
-        child: Row(children: [
-          if (_step > 0) ...[
-            OutlinedButton(onPressed: () => setState(() => _step--),
-                child: const Text('Back')),
-            const SizedBox(width: 10),
-          ],
-          Expanded(child: FilledButton(
-            style: FilledButton.styleFrom(
-              backgroundColor: _accent,
-              padding: const EdgeInsets.symmetric(vertical: 16)),
-            onPressed: _next,
-            child: Text(_step == 7 ? 'Save Service' : 'Next →'),
+        backgroundColor: Colors.white,
+        appBar: AppBar(
+          title: const Text('Gixbee | Individual Service'),
+          backgroundColor: Colors.white,
+          foregroundColor: _navy,
+        ),
+        body: SafeArea(
+            child: Column(children: [
+          Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(children: [
+                Text('Step ${_step + 1}/8 · ${_steps[_step]}',
+                    style: const TextStyle(
+                        color: _navy, fontWeight: FontWeight.w800)),
+                const SizedBox(height: 8),
+                LinearProgressIndicator(
+                    value: (_step + 1) / _steps.length,
+                    color: _accent,
+                    backgroundColor: const Color(0xFFE5E7EB)),
+              ])),
+          Expanded(
+              child: ListView(
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 20),
+            children: [_stepWidget()],
           )),
-        ]),
-      ),
-    ])),
-  );
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 10, 16, 16),
+            child: Row(children: [
+              if (_step > 0) ...[
+                OutlinedButton(
+                    onPressed: () => setState(() => _step--),
+                    child: const Text('Back')),
+                const SizedBox(width: 10),
+              ],
+              Expanded(
+                  child: FilledButton(
+                style: FilledButton.styleFrom(
+                    backgroundColor: _accent,
+                    padding: const EdgeInsets.symmetric(vertical: 16)),
+                onPressed: _next,
+                child: Text(_step == 7 ? 'Save Service' : 'Next →'),
+              )),
+            ]),
+          ),
+        ])),
+      );
 }

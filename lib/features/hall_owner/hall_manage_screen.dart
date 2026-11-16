@@ -83,8 +83,12 @@ class _HallManageScreenState extends ConsumerState<HallManageScreen> {
           'This removes the hall from your active list. Existing bookings are kept. You cannot archive a hall with active holds or confirmations.',
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
-          TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Archive')),
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Cancel')),
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('Archive')),
         ],
       ),
     );

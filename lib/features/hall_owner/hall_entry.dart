@@ -13,8 +13,7 @@ Future<void> openHallOwnerFlow(
   Business business,
 ) async {
   try {
-    final venue =
-        await ref.read(hallRepositoryProvider).getVenue(business.id);
+    final venue = await ref.read(hallRepositoryProvider).getVenue(business.id);
     if (!context.mounted) return;
     final complete = venue['hallSetupComplete'] == true;
     await Navigator.push(

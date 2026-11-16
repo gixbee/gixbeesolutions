@@ -29,8 +29,7 @@ class _HallBusinessHomeScreenState
 
   void _reload() {
     setState(() {
-      _future =
-          ref.read(hallRepositoryProvider).listHalls(widget.business.id);
+      _future = ref.read(hallRepositoryProvider).listHalls(widget.business.id);
     });
   }
 

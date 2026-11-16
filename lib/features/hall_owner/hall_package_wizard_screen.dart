@@ -88,7 +88,10 @@ class _HallPackageWizardScreenState
   final _fAc = TextEditingController(text: '90000');
   final _discounts = {
     for (final slot in ['morning', 'evening', 'fullday'])
-      slot: (TextEditingController(text: '0'), TextEditingController(text: '0')),
+      slot: (
+        TextEditingController(text: '0'),
+        TextEditingController(text: '0')
+      ),
   };
 
   String _advanceType = 'fixed';
@@ -102,8 +105,7 @@ class _HallPackageWizardScreenState
   final _bookMonths = TextEditingController(text: '6');
   final _minNotice = TextEditingController(text: '3');
 
-  bool get _offersAc =>
-      _spaceType != 'outdoor' && _facilities.contains('AC');
+  bool get _offersAc => _spaceType != 'outdoor' && _facilities.contains('AC');
 
   @override
   void initState() {
@@ -323,7 +325,8 @@ class _HallPackageWizardScreenState
         'priceNoAc': int.parse(price.text.trim()),
         'priceAc': offerAc ? int.parse(acPrice.text.trim()) : 0,
         'discountNoAcPct': int.parse(_discounts[id]!.$1.text.trim()),
-        'discountAcPct': offerAc ? int.parse(_discounts[id]!.$2.text.trim()) : 0,
+        'discountAcPct':
+            offerAc ? int.parse(_discounts[id]!.$2.text.trim()) : 0,
       });
     }
 
@@ -370,9 +373,11 @@ class _HallPackageWizardScreenState
     }
     if (step == 2) {
       if (_nameCtrl.text.trim().isEmpty) return 'Enter a space name';
-      final seat = _whole(_seatCtrl.text, 'Seating capacity', min: 0, max: 100000);
+      final seat =
+          _whole(_seatCtrl.text, 'Seating capacity', min: 0, max: 100000);
       if (seat != null) return seat;
-      final dine = _whole(_dineCtrl.text, 'Dining capacity', min: 0, max: 100000);
+      final dine =
+          _whole(_dineCtrl.text, 'Dining capacity', min: 0, max: 100000);
       if (dine != null) return dine;
     }
     if (step == 3) {
@@ -399,10 +404,12 @@ class _HallPackageWizardScreenState
         final rent = _whole(price.text, '$label price', min: 0, max: 100000000);
         if (rent != null) return rent;
         final discount = _discounts[id]!;
-        final discountError = _whole(discount.$1.text, '$label discount', min: 0, max: 99);
+        final discountError =
+            _whole(discount.$1.text, '$label discount', min: 0, max: 99);
         if (discountError != null) return discountError;
         if (_offersAc) {
-          return _whole(acPrice.text, '$label AC price', min: 0, max: 100000000) ??
+          return _whole(acPrice.text, '$label AC price',
+                  min: 0, max: 100000000) ??
               _whole(discount.$2.text, '$label AC discount', min: 0, max: 99);
         }
         return null;
@@ -426,7 +433,8 @@ class _HallPackageWizardScreenState
       if (due != null) return due;
       final window = _whole(_bookMonths.text, 'Book window', min: 1, max: 36);
       if (window != null) return window;
-      final notice = _whole(_minNotice.text, 'Minimum notice', min: 0, max: 365);
+      final notice =
+          _whole(_minNotice.text, 'Minimum notice', min: 0, max: 365);
       if (notice != null) return notice;
       final policies = _readPolicies();
       if (policies != null) return policies;
@@ -547,22 +555,22 @@ class _HallPackageWizardScreenState
           : !_ready
               ? const Center(child: CircularProgressIndicator())
               : ListView(
-        padding: const EdgeInsets.all(16),
-        children: [
-          if (_step == 1) _step1(),
-          if (_step == 2) _step2(),
-          if (_step == 3) _step3(),
-          if (_step == 4) _step4(),
-          if (_step == 5) _step5(),
-          const SizedBox(height: 20),
-          GxButton(
-            label: _step == 5
-                ? (_saving ? 'Saving…' : 'Save Package')
-                : (_advancing ? 'Please wait…' : 'Continue'),
-            onTap: busy ? null : _next,
-          ),
-        ],
-      ),
+                  padding: const EdgeInsets.all(16),
+                  children: [
+                    if (_step == 1) _step1(),
+                    if (_step == 2) _step2(),
+                    if (_step == 3) _step3(),
+                    if (_step == 4) _step4(),
+                    if (_step == 5) _step5(),
+                    const SizedBox(height: 20),
+                    GxButton(
+                      label: _step == 5
+                          ? (_saving ? 'Saving…' : 'Save Package')
+                          : (_advancing ? 'Please wait…' : 'Continue'),
+                      onTap: busy ? null : _next,
+                    ),
+                  ],
+                ),
     );
   }
 
@@ -658,14 +666,24 @@ class _HallPackageWizardScreenState
         const Text('Facilities', style: TextStyle(fontWeight: FontWeight.w700)),
         _chips(fac, _facilities),
         const SizedBox(height: 12),
-        GxTextField(controller: _seatCtrl, label: 'Seating capacity', keyboardType: TextInputType.number),
+        GxTextField(
+            controller: _seatCtrl,
+            label: 'Seating capacity',
+            keyboardType: TextInputType.number),
         const SizedBox(height: 8),
-        GxTextField(controller: _dineCtrl, label: 'Dining capacity', keyboardType: TextInputType.number),
+        GxTextField(
+            controller: _dineCtrl,
+            label: 'Dining capacity',
+            keyboardType: TextInputType.number),
         const SizedBox(height: 12),
-        _yesNo('In-house catering', _caterIn, (v) => setState(() => _caterIn = v)),
-        _yesNo('Outside catering allowed', _caterOut, (v) => setState(() => _caterOut = v)),
-        _yesNo('Decor by hall', _decorHall, (v) => setState(() => _decorHall = v)),
-        _yesNo('Outside decor allowed', _decorOut, (v) => setState(() => _decorOut = v)),
+        _yesNo(
+            'In-house catering', _caterIn, (v) => setState(() => _caterIn = v)),
+        _yesNo('Outside catering allowed', _caterOut,
+            (v) => setState(() => _caterOut = v)),
+        _yesNo(
+            'Decor by hall', _decorHall, (v) => setState(() => _decorHall = v)),
+        _yesNo('Outside decor allowed', _decorOut,
+            (v) => setState(() => _decorOut = v)),
       ],
     );
   }
@@ -698,9 +716,12 @@ class _HallPackageWizardScreenState
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _slotEditor('morning', 'Morning', _morning, (v) => _morning = v, _mFrom, _mTo, _mNoAc, _mAc, priceLabel),
-        _slotEditor('evening', 'Evening', _evening, (v) => _evening = v, _eFrom, _eTo, _eNoAc, _eAc, priceLabel),
-        _slotEditor('fullday', 'Full day', _fullday, (v) => _fullday = v, _fFrom, _fTo, _fNoAc, _fAc, priceLabel),
+        _slotEditor('morning', 'Morning', _morning, (v) => _morning = v, _mFrom,
+            _mTo, _mNoAc, _mAc, priceLabel),
+        _slotEditor('evening', 'Evening', _evening, (v) => _evening = v, _eFrom,
+            _eTo, _eNoAc, _eAc, priceLabel),
+        _slotEditor('fullday', 'Full day', _fullday, (v) => _fullday = v,
+            _fFrom, _fTo, _fNoAc, _fAc, priceLabel),
       ],
     );
   }
@@ -726,20 +747,31 @@ class _HallPackageWizardScreenState
         if (enabled) ...[
           Row(
             children: [
-              Expanded(child: GxTextField(controller: from, label: 'From (HH:MM)')),
+              Expanded(
+                  child: GxTextField(controller: from, label: 'From (HH:MM)')),
               const SizedBox(width: 8),
               Expanded(child: GxTextField(controller: to, label: 'To (HH:MM)')),
             ],
           ),
           const SizedBox(height: 8),
-          GxTextField(controller: price, label: priceLabel, keyboardType: TextInputType.number),
-          GxTextField(controller: _discounts[id]!.$1, label: 'Discount (%)',
-            keyboardType: TextInputType.number),
+          GxTextField(
+              controller: price,
+              label: priceLabel,
+              keyboardType: TextInputType.number),
+          GxTextField(
+              controller: _discounts[id]!.$1,
+              label: 'Discount (%)',
+              keyboardType: TextInputType.number),
           if (_offersAc) ...[
             const SizedBox(height: 8),
-            GxTextField(controller: acPrice, label: 'With AC ₹', keyboardType: TextInputType.number),
-            GxTextField(controller: _discounts[id]!.$2, label: 'AC discount (%)',
-              keyboardType: TextInputType.number),
+            GxTextField(
+                controller: acPrice,
+                label: 'With AC ₹',
+                keyboardType: TextInputType.number),
+            GxTextField(
+                controller: _discounts[id]!.$2,
+                label: 'AC discount (%)',
+                keyboardType: TextInputType.number),
           ],
           const SizedBox(height: 8),
         ],
@@ -771,13 +803,23 @@ class _HallPackageWizardScreenState
         ),
         const SizedBox(height: 8),
         if (_advanceType == 'fixed')
-          GxTextField(controller: _advanceFixed, label: 'Advance ₹', keyboardType: TextInputType.number)
+          GxTextField(
+              controller: _advanceFixed,
+              label: 'Advance ₹',
+              keyboardType: TextInputType.number)
         else
-          GxTextField(controller: _advancePct, label: 'Advance %', keyboardType: TextInputType.number),
+          GxTextField(
+              controller: _advancePct,
+              label: 'Advance %',
+              keyboardType: TextInputType.number),
         const SizedBox(height: 8),
-        GxTextField(controller: _fullDue, label: 'Full payment due (days before)', keyboardType: TextInputType.number),
+        GxTextField(
+            controller: _fullDue,
+            label: 'Full payment due (days before)',
+            keyboardType: TextInputType.number),
         const SizedBox(height: 12),
-        const Text('Deduction basis', style: TextStyle(fontWeight: FontWeight.w700)),
+        const Text('Deduction basis',
+            style: TextStyle(fontWeight: FontWeight.w700)),
         Row(
           children: [
             ChoiceChip(
@@ -789,7 +831,8 @@ class _HallPackageWizardScreenState
             ChoiceChip(
               label: const Text('Of total'),
               selected: _deductionBasis == 'TOTAL_QUOTE',
-              onSelected: (_) => setState(() => _deductionBasis = 'TOTAL_QUOTE'),
+              onSelected: (_) =>
+                  setState(() => _deductionBasis = 'TOTAL_QUOTE'),
             ),
           ],
         ),
@@ -798,9 +841,15 @@ class _HallPackageWizardScreenState
         const SizedBox(height: 12),
         _policyEditor('Reschedule policy', _rescheduleFields),
         const SizedBox(height: 8),
-        GxTextField(controller: _bookMonths, label: 'Book window (months)', keyboardType: TextInputType.number),
+        GxTextField(
+            controller: _bookMonths,
+            label: 'Book window (months)',
+            keyboardType: TextInputType.number),
         const SizedBox(height: 8),
-        GxTextField(controller: _minNotice, label: 'Min notice (days)', keyboardType: TextInputType.number),
+        GxTextField(
+            controller: _minNotice,
+            label: 'Min notice (days)',
+            keyboardType: TextInputType.number),
       ],
     );
   }
@@ -811,15 +860,25 @@ class _HallPackageWizardScreenState
       children: [
         Text(title, style: const TextStyle(fontWeight: FontWeight.w700)),
         const SizedBox(height: 4),
-        const Text('Leave max days blank on the last tier only. Days must meet with no gaps.'),
+        const Text(
+            'Leave max days blank on the last tier only. Days must meet with no gaps.'),
         for (var i = 0; i < fields.length; i++) ...[
           const SizedBox(height: 8),
           Text('Tier ${i + 1}'),
-          GxTextField(controller: fields[i].min, label: 'Min days before event', keyboardType: TextInputType.number),
+          GxTextField(
+              controller: fields[i].min,
+              label: 'Min days before event',
+              keyboardType: TextInputType.number),
           const SizedBox(height: 6),
-          GxTextField(controller: fields[i].max, label: 'Max days (blank = no limit)', keyboardType: TextInputType.number),
+          GxTextField(
+              controller: fields[i].max,
+              label: 'Max days (blank = no limit)',
+              keyboardType: TextInputType.number),
           const SizedBox(height: 6),
-          GxTextField(controller: fields[i].pct, label: 'Deduction %', keyboardType: TextInputType.number),
+          GxTextField(
+              controller: fields[i].pct,
+              label: 'Deduction %',
+              keyboardType: TextInputType.number),
         ],
         const SizedBox(height: 8),
         Row(
@@ -863,7 +922,8 @@ class _HallPackageWizardScreenState
         Text('Space: ${_nameCtrl.text.trim()} ($_spaceType)'),
         Text('Events: ${_events.join(', ')}'),
         Text('Facilities: ${_facilities.join(', ')}'),
-        Text('Seating ${_seatCtrl.text.trim()}, dining ${_dineCtrl.text.trim()}'),
+        Text(
+            'Seating ${_seatCtrl.text.trim()}, dining ${_dineCtrl.text.trim()}'),
         Text('Catering in-house $_caterIn, outside $_caterOut'),
         Text('Decor by hall $_decorHall, outside decor $_decorOut'),
         const SizedBox(height: 8),
@@ -910,7 +970,8 @@ class _HallPackageWizardScreenState
 class _TierEditors {
   _TierEditors(HallPolicyTier tier)
       : min = TextEditingController(text: '${tier.minDaysBeforeEvent}'),
-        max = TextEditingController(text: tier.maxDaysBeforeEvent?.toString() ?? ''),
+        max = TextEditingController(
+            text: tier.maxDaysBeforeEvent?.toString() ?? ''),
         pct = TextEditingController(text: '${tier.deductionPercent}');
 
   final TextEditingController min;
