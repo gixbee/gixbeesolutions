@@ -57,6 +57,13 @@ class _PhotographyPackageWizardScreenState
   final _ceremonies = <String>{};
   final _inclusions = <String>{};
   final _extras = <String>{};
+  final _extraPrices = <String, TextEditingController>{};
+  static const _policyRanges = [
+    '30 days or more', '15–29 days', '7–14 days',
+    '3–6 days', 'Less than 1 day',
+  ];
+  final _cancelRates = <TextEditingController>[];
+  final _rescheduleRates = <TextEditingController>[];
   final _stageNames = <TextEditingController>[];
   final _stageValues = <TextEditingController>[];
   int _step = 0;
@@ -94,6 +101,21 @@ class _PhotographyPackageWizardScreenState
     _inclusions
         .addAll((item['inclusions'] as List? ?? const []).whereType<String>());
     _extras.addAll((item['extras'] as List? ?? const []).whereType<String>());
+    final prices = item['extraPrices'] as Map? ?? {};
+    for (final name in _extras) {
+      _extraPrices[name] = TextEditingController(
+        text: (prices[name] ?? 0).toString());
+    }
+    final cancels = (item['cancelRules'] as List? ?? const []).whereType<Map>().toList();
+    final reschedules = (item['rescheduleRules'] as List? ?? const []).whereType<Map>().toList();
+    for (var i = 0; i < _policyRanges.length; i++) {
+      _cancelRates.add(TextEditingController(text:
+          (i < cancels.length ? cancels[i]['deductionPercent'] :
+            [10, 25, 50, 75, 100][i]).toString()));
+      _rescheduleRates.add(TextEditingController(text:
+          (i < reschedules.length ? reschedules[i]['deductionPercent'] :
+            [0, 10, 25, 50, 100][i]).toString()));
+    }
     final coverage = item['functionCoverage'] as Map? ?? {};
     for (final entry in coverage.entries) {
       if (entry.value is! Map) continue;
@@ -143,6 +165,9 @@ class _PhotographyPackageWizardScreenState
       _equipment,
       _quality,
       ..._functionDurations.values,
+      ..._extraPrices.values,
+      ..._cancelRates,
+      ..._rescheduleRates,
       ..._deliverableQty.values,
       ..._deliveryDays.values,
       _coverage,
@@ -210,6 +235,15 @@ class _PhotographyPackageWizardScreenState
           }
         }
         return true;
+      case 5:
+        for (final name in _extras) {
+          final p = int.tryParse(_extraPrices[name]?.text ?? '0');
+          if (p == null || p < 0 || p > 10000000) {
+            _warn('Enter a valid extra service price.');
+            return false;
+          }
+        }
+        return true;
       case 7:
         if (_stageNames.isEmpty ||
             _stageNames.length > 6 ||
@@ -221,6 +255,13 @@ class _PhotographyPackageWizardScreenState
         if (numbers.any((v) => v == null || v < 1 || v > 100) ||
             numbers.fold<int>(0, (sum, v) => sum + (v ?? 0)) != 100) {
           _warn('Payment stage percentages must total exactly 100%.');
+          return false;
+        }
+        if ([..._cancelRates, ..._rescheduleRates].any((c) {
+          final pct = int.tryParse(c.text.trim());
+          return pct == null || pct < 0 || pct > 100;
+        })) {
+          _warn('Policy deduction percentages must be 0–100%.');
           return false;
         }
         return true;
@@ -242,7 +283,7 @@ class _PhotographyPackageWizardScreenState
     if (_saving) return;
     // Do not close the wizard until the canonical Rust catalogue write succeeds.
     final oldStep = _step;
-    for (final step in [0, 1, 2, 4, 6, 7]) {
+    for (final step in [0, 1, 2, 4, 5, 6, 7]) {
       _step = step;
       if (!_validStep()) {
         setState(() => _step = step);
@@ -298,6 +339,20 @@ class _PhotographyPackageWizardScreenState
           name: {'days': int.tryParse(_deliveryDays[name]?.text ?? '') ?? 15},
       },
       'extras': _extras.toList()..sort(),
+      'extraPrices': {
+        for (final name in _extras)
+          name: int.tryParse(_extraPrices[name]?.text ?? '') ?? 0,
+      },
+      'cancelRules': [
+        for (var i = 0; i < _policyRanges.length; i++)
+          {'label': _policyRanges[i],
+            'deductionPercent': int.parse(_cancelRates[i].text)},
+      ],
+      'rescheduleRules': [
+        for (var i = 0; i < _policyRanges.length; i++)
+          {'label': _policyRanges[i],
+            'deductionPercent': int.parse(_rescheduleRates[i].text)},
+      ],
       'delivery': _delivery.text.trim(),
       'paymentSplit': payment,
       'paymentStages': payment.map((s) =>
@@ -530,8 +585,13 @@ class _PhotographyPackageWizardScreenState
                 'Extra Hour'
               ],
               _extras),
+          for (final name in _extras.toList()..sort())
+            _text('$name — add-on price (₹)',
+              _extraPrices.putIfAbsent(name,
+                () => TextEditingController(text: '0')),
+              keyboardType: TextInputType.number),
           const Text(
-              'These extras are requests, not included in the base price.',
+              'Extras are optional, priced separately and not included in the base package.',
               style: TextStyle(color: Colors.blueGrey)),
         ]);
       case 6:
@@ -578,7 +638,19 @@ class _PhotographyPackageWizardScreenState
                   child: const Text('Remove last')),
           ]),
           const SizedBox(height: 12),
-          _text('Cancellation and rescheduling policies', _policy, lines: 4),
+          const SizedBox(height: 12),
+          const Text('Cancellation deductions by notice period (%)',
+            style: TextStyle(fontWeight: FontWeight.w800, color: _blue)),
+          for (var i=0; i<_policyRanges.length; i++)
+            _text(_policyRanges[i], _cancelRates[i],
+                keyboardType: TextInputType.number),
+          const Text('Rescheduling deductions by notice period (%)',
+            style: TextStyle(fontWeight: FontWeight.w800, color: _blue)),
+          for (var i=0; i<_policyRanges.length; i++)
+            _text(_policyRanges[i], _rescheduleRates[i],
+                keyboardType: TextInputType.number),
+          _text('Additional cancellation/rescheduling policy',
+              _policy, lines: 4),
         ]);
       case 8:
         return Column(children: [
