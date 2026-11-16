@@ -5,7 +5,7 @@ class HallCustomerModel {
 
   static int? offer(Map raw, bool ac) {
     if (raw['enabled'] == false) return null;
-    if (raw[ac ? 'offerAc' : 'offerNoAc'] != true) return null;
+    if (ac ? raw['offerAc'] != true : raw['offerNoAc'] == false) return null;
     final base = raw[ac ? 'priceAc' : 'priceNoAc'];
     final pct = raw[ac ? 'discountAcPct' : 'discountNoAcPct'] ?? 0;
     if (base is! int || base < 0 || base > 100000000 ||
