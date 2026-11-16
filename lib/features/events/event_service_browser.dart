@@ -8,6 +8,8 @@ import '../../shared/widgets/gx_button.dart';
 import '../../shared/widgets/gx_calendar.dart';
 import 'event_plan_create_screen.dart';
 import 'event_plans_screen.dart';
+import 'event_interest_customize_screen.dart';
+import 'hall_booking_review_screen.dart';
 
 class EventServiceBrowser extends ConsumerStatefulWidget {
   const EventServiceBrowser({
@@ -230,6 +232,7 @@ class _ProviderDetailState extends ConsumerState<_ProviderDetail> {
   String _diet = 'All';
   String _kind = 'All';
   int? _unitBudget;
+  String _category = 'All';
 
   bool get _isHall => widget.service == 'HALL';
   bool get _isCatering => widget.service == 'CATERING';
@@ -282,15 +285,23 @@ class _ProviderDetailState extends ConsumerState<_ProviderDetail> {
     return null;
   }
 
-  void _review(EventServiceSelection selection) {
+  void _review(EventServiceSelection selection, {Map<String, dynamic>? hall}) {
     Navigator.of(context).push<void>(MaterialPageRoute(
-      builder: (_) => EventPlanCreateScreen(
-        eventType: widget.eventType,
-        date: _day,
-        guests: _guests,
-        services: [widget.service],
-        selection: selection,
-      ),
+      builder: (_) => _isHall && hall != null
+          ? HallBookingReviewScreen(
+              hall: hall,
+              selection: selection,
+              eventType: widget.eventType,
+              eventDate: _day,
+              guests: _guests,
+            )
+          : EventInterestCustomizeScreen(
+              service: widget.service,
+              selection: selection,
+              eventType: widget.eventType,
+              eventDate: _day,
+              guests: _guests,
+            ),
     ));
   }
 
@@ -397,7 +408,7 @@ class _ProviderDetailState extends ConsumerState<_ProviderDetail> {
                               'expectedEstimate': slot['offer']
                                   [withAc ? 'priceAc' : 'priceNoAc'],
                             },
-                          )),
+                          ), hall: data),
                   child: Text(
                       '${withAc ? 'With AC' : 'Without AC'} · ${eventMoney(slot['offer'][withAc ? 'priceAc' : 'priceNoAc'])}'),
                 ),
@@ -420,6 +431,7 @@ class _ProviderDetailState extends ConsumerState<_ProviderDetail> {
     };
     final items = all.where((item) =>
         (_diet == 'All' || _diet == item['diet']) &&
+        (_category == 'All' || _category == item['category']) &&
         (_kind == 'All' || _kind == item['kind']) &&
         (_unitBudget == null ||
             (_price(item) ?? _unitBudget! + 1) <= _unitBudget!));
@@ -446,6 +458,23 @@ class _ProviderDetailState extends ConsumerState<_ProviderDetail> {
         onChanged: (value) =>
             setState(() => _unitBudget = int.tryParse(value.trim())),
       ),
+      if (_isCatering)
+        DropdownButtonFormField<String>(
+          initialValue: _category == 'All' ||
+                  all.any((item) => item['category'] == _category)
+              ? _category : 'All',
+          decoration: const InputDecoration(
+              labelText: 'Dish / package category'),
+          items: [
+            const DropdownMenuItem(
+                value: 'All', child: Text('All categories')),
+            for (final category in all.map((item) => item['category'])
+                .whereType<String>().where((name) => name.isNotEmpty).toSet())
+              DropdownMenuItem(value: category, child: Text(category)),
+          ],
+          onChanged: (value) =>
+              setState(() => _category = value ?? 'All'),
+        ),
       if (_isCatering && diets.length > 1)
         Wrap(spacing: 8, children: [
           for (final diet in diets)
