@@ -10,6 +10,7 @@ use crate::{error::{AppError, AppResult}, middleware::auth::AuthUser, state::App
 mod quotes;
 mod catalogues;
 mod calendar;
+mod milestones;
 pub const SERVICES: [&str;8] = ["HALL","CATERING","DECORATION","PHOTOGRAPHY","DJ","MAKEUP","MEHENDI","INVITATIONS"];
 
 pub fn routes() -> Router<AppState> {
