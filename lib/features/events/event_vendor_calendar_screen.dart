@@ -34,6 +34,18 @@ class _EventVendorCalendarScreenState
         ));
   }
 
+  Future<void> _edit(Map<String, dynamic> item) async {
+    if (_saving || item['cancelledAt'] != null) return;
+    final draft = await Navigator.of(context).push<_CalendarDraft>(
+      MaterialPageRoute(builder: (_) => _NewCalendarBooking(existing: item)),
+    );
+    if (!mounted || draft == null) return;
+    await _save(() => ref.read(eventsRepositoryProvider).updateCalendarBooking(
+      widget.businessId, item['id'] as String,
+      draft.title, draft.start, draft.end,
+    ));
+  }
+
   Future<void> _save(Future<void> Function() submit) async {
     if (_saving) return;
     setState(() => _saving = true);
@@ -79,6 +91,10 @@ class _EventVendorCalendarScreenState
                   subtitle: Text(
                       '${eventDate(entry['startAt'])} – ${eventDate(entry['endAt'])}'
                       '${entry['cancelledAt'] == null ? '' : '\nCancelled'}'),
+                  onTap: entry['cancelledAt'] == null &&
+                      (DateTime.tryParse('${entry['endAt']}')
+                              ?.isAfter(DateTime.now()) ?? false)
+                    ? () => _edit(entry) : null,
                   trailing: entry['cancelledAt'] == null &&
                           (DateTime.tryParse('${entry['endAt']}')
                                   ?.isAfter(DateTime.now()) ??
@@ -105,7 +121,8 @@ class _EventVendorCalendarScreenState
 typedef _CalendarDraft = ({String title, DateTime start, DateTime end});
 
 class _NewCalendarBooking extends StatefulWidget {
-  const _NewCalendarBooking();
+  const _NewCalendarBooking({this.existing});
+  final Map<String, dynamic>? existing;
 
   @override
   State<_NewCalendarBooking> createState() => _NewCalendarBookingState();
@@ -115,6 +132,19 @@ class _NewCalendarBookingState extends State<_NewCalendarBooking> {
   final _title = TextEditingController();
   late DateTime _start = DateTime.now().add(const Duration(days: 1));
   late DateTime _end = _start.add(const Duration(hours: 2));
+
+  @override
+  void initState() {
+    super.initState();
+    final item = widget.existing;
+    if (item != null) {
+      _title.text = item['title']?.toString() ?? '';
+      _start = DateTime.tryParse(item['startAt']?.toString() ?? '')
+          ?.toLocal() ?? _start;
+      _end = DateTime.tryParse(item['endAt']?.toString() ?? '')
+          ?.toLocal() ?? _end;
+    }
+  }
 
   @override
   void dispose() {
@@ -160,7 +190,8 @@ class _NewCalendarBookingState extends State<_NewCalendarBooking> {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-        appBar: AppBar(title: const Text('Add outside booking')),
+        appBar: AppBar(title: Text(widget.existing == null
+          ? 'Add outside booking' : 'Edit outside booking')),
         body: ListView(padding: const EdgeInsets.all(16), children: [
           TextField(
               controller: _title,
@@ -174,7 +205,8 @@ class _NewCalendarBookingState extends State<_NewCalendarBooking> {
               title: const Text('Ends'),
               subtitle: Text(eventDate(_end)),
               onTap: () => _pick(false)),
-          GxButton(label: 'Save booking', onTap: _finish),
+          GxButton(label: widget.existing == null
+            ? 'Save booking' : 'Save changes', onTap: _finish),
         ]),
       );
 }

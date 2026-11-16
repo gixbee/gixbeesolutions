@@ -16,6 +16,7 @@ import '../jobs/post_job_screen.dart';
 import '../rentals/owner_rentals_screen.dart';
 import '../events/event_plans_screen.dart';
 import '../events/event_service_catalogue_screen.dart';
+import '../events/photography_owner_calendar_screen.dart';
 import 'event_business_settings_screen.dart';
 import 'hiring_pipeline_screen.dart';
 import 'hire_employee_screen.dart';
@@ -513,7 +514,18 @@ class _BusinessCard extends ConsumerWidget {
                       icon: Icons.calendar_month,
                       label: 'Calendar',
                       primary: true,
-                      onTap: () => _manageOfflineDays(context, ref, business),
+                      onTap: () async {
+                         if (business.serviceType == 'PHOTOGRAPHY' ||
+                             business.eventServices.contains('PHOTOGRAPHY')) {
+                           await Navigator.push(context, MaterialPageRoute<void>(
+                             builder: (_) =>
+                               PhotographyOwnerCalendarScreen(business: business),
+                           ));
+                           ref.invalidate(myBusinessesProvider);
+                         } else {
+                           await _manageOfflineDays(context, ref, business);
+                         }
+                       },
                     ),
                   ),
                   const SizedBox(width: 12),

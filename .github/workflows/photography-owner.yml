@@ -1,0 +1,71 @@
+name: Photography Owner validation
+
+on:
+  pull_request:
+    paths:
+      - 'lib/features/events/photography_*'
+      - 'lib/features/events/event_service_catalogue_screen.dart'
+      - 'lib/features/events/event_vendor_calendar_screen.dart'
+      - 'lib/features/events/photography_owner_calendar_screen.dart'
+      - 'lib/features/events/photography_calendar_math.dart'
+      - 'lib/repositories/events_repository.dart'
+      - 'lib/features/business/business_unit_dashboard.dart'
+      - 'backend_rust/src/events/catalogues.rs'
+      - 'backend_rust/src/events/calendar.rs'
+      - 'test/features/events/photography_*'
+      - 'test/repositories/photography_owner_repository_test.dart'
+      - '.github/workflows/photography-owner.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  flutter:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    name: Flutter package, service, pricing and calendar
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.41.0'
+          channel: stable
+          cache: true
+      - run: flutter pub get
+      - name: Analyze photography changes
+        run: |
+          flutter analyze --no-fatal-infos \
+            lib/features/events/photography_owner_pricing.dart \
+            lib/features/events/photography_calendar_math.dart \
+            lib/features/events/photography_package_wizard_screen.dart \
+            lib/features/events/photography_service_wizard_screen.dart \
+            lib/features/events/event_service_catalogue_screen.dart \
+            lib/features/events/event_vendor_calendar_screen.dart \
+            lib/features/events/photography_owner_calendar_screen.dart \
+            lib/repositories/events_repository.dart \
+            lib/features/business/business_unit_dashboard.dart \
+            test/features/events/photography_owner_pricing_test.dart \
+            test/features/events/photography_calendar_math_test.dart \
+            test/features/events/photography_owner_wizard_test.dart \
+            test/repositories/photography_owner_repository_test.dart
+      - name: Run focused photo tests
+        run: |
+          flutter test --no-pub \
+            test/features/events/photography_owner_pricing_test.dart \
+            test/features/events/photography_calendar_math_test.dart \
+            test/features/events/photography_owner_wizard_test.dart \
+            test/repositories/photography_owner_repository_test.dart
+
+  rust:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    name: Rust photo catalogue and calendar tests
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: backend_rust
+      - run: cargo check --manifest-path backend_rust/Cargo.toml
+      - run: cargo test --manifest-path backend_rust/Cargo.toml catalogue_metadata_tests

@@ -5,7 +5,8 @@ use sqlx::PgConnection;
 pub(super) fn routes() -> Router<AppState> {
     Router::new()
         .route("/vendor/calendar/{business}", get(entries).post(add))
-        .route("/vendor/calendar/{business}/{entry}", delete(cancel))
+        .route("/vendor/calendar/{business}/overview", get(overview))
+        .route("/vendor/calendar/{business}/{entry}", delete(cancel).put(edit))
 }
 
 #[derive(Deserialize)]
@@ -47,6 +48,42 @@ async fn entries(
     )
     .bind(business).fetch_all(&mut *conn).await?;
     Ok(Json(data))
+}
+
+/// Read-only owner schedule, including existing Gixbee bookings and manually
+/// entered outside shoots. The owner can view only their own business.
+/// No new SQL schema is required; booking rows are projected from event_quotes.
+async fn overview(
+    State(state): State<AppState>,
+    user: AuthUser,
+    Path(business): Path<Uuid>,
+) -> AppResult<Json<Vec<Value>>> {
+    let mut conn = state.db.acquire().await?;
+    owner(&mut conn, business, Uuid::parse_str(&user.user_id)?, false).await?;
+    let mut rows: Vec<Value> = sqlx::query_scalar(
+        r#"SELECT to_jsonb(e) || jsonb_build_object('source','offline')
+           FROM event_vendor_calendar e
+           WHERE e."businessId"=$1 AND e."cancelledAt" IS NULL
+           ORDER BY e."startAt" DESC LIMIT 500"#,
+    ).bind(business).fetch_all(&mut *conn).await?;
+    let booked: Vec<Value> = sqlx::query_scalar(
+        r#"SELECT jsonb_build_object(
+            'id', q.id, 'source', 'gixbee',
+            'title', p."eventType",
+            'startAt', COALESCE(q."intervalStart",p."startTime"),
+            'endAt', COALESCE(q."intervalEnd",p."endTime"),
+            'status', q.status::text,
+            'location', p.location,
+            'guestCount', p."guestCount",
+            'planId', p.id)
+          FROM event_quotes q JOIN event_plans p ON p.id=q."planId"
+          WHERE q."businessId"=$1 AND q."serviceType"='PHOTOGRAPHY'
+            AND q.status IN ('CONFIRMED','CANCEL_REQUESTED','COMPLETED')
+            AND p."cancelledAt" IS NULL
+          ORDER BY p."startTime" DESC LIMIT 500"#,
+    ).bind(business).fetch_all(&mut *conn).await?;
+    rows.extend(booked);
+    Ok(Json(rows))
 }
 
 async fn add(
@@ -101,6 +138,62 @@ async fn add(
     Ok(Json(entry))
 }
 
+/// Owners can reschedule an outside shoot without creating a duplicate.
+/// The business row is locked, then the original entry is excluded from
+/// interval collision checks. Confirmed Gixbee bookings remain protected.
+async fn edit(
+    State(state): State<AppState>,
+    user: AuthUser,
+    Path((business, entry)): Path<(Uuid, Uuid)>,
+    Json(input): Json<EntryInput>,
+) -> AppResult<Json<Value>> {
+    let title = input.title.trim();
+    if title.is_empty() || title.chars().count() > 160
+        || input.start_at <= Utc::now()
+        || input.end_at <= input.start_at
+        || input.end_at - input.start_at > chrono::Duration::days(14)
+    {
+        return Err(AppError::BadRequest(
+            "Enter a title and future booking times".into(),
+        ));
+    }
+    let mut tx = state.db.begin().await?;
+    owner(&mut tx, business, Uuid::parse_str(&user.user_id)?, true).await?;
+    let existing: Option<Uuid> = sqlx::query_scalar(
+        r#"SELECT id FROM event_vendor_calendar WHERE "businessId"=$1
+           AND id=$2 AND "cancelledAt" IS NULL FOR UPDATE"#,
+    ).bind(business).bind(entry).fetch_optional(&mut *tx).await?;
+    if existing.is_none() {
+        return Err(AppError::NotFound("Outside booking not found".into()));
+    }
+    check_overlap_except(&mut tx, business, input.start_at, input.end_at, Some(entry)).await?;
+    let confirmed: bool = sqlx::query_scalar(
+        r#"SELECT EXISTS(SELECT 1 FROM event_quotes q JOIN event_plans p
+             ON p.id=q."planId"
+             WHERE q."businessId"=$1
+               AND q.status IN ('CONFIRMED','CANCEL_REQUESTED')
+               AND q."serviceType"<>'HALL'
+               AND COALESCE(q."intervalStart",p."startTime")<$3
+               AND COALESCE(q."intervalEnd",p."endTime")>$2)"#,
+    ).bind(business).bind(input.start_at).bind(input.end_at)
+       .fetch_one(&mut *tx).await?;
+    if confirmed {
+        return Err(AppError::Conflict(
+            "A confirmed booking already uses this time".into(),
+        ));
+    }
+    let result: Value = sqlx::query_scalar(
+        r#"UPDATE event_vendor_calendar
+           SET title=$3,"startAt"=$4,"endAt"=$5
+           WHERE "businessId"=$1 AND id=$2 AND "cancelledAt" IS NULL
+           RETURNING to_jsonb(event_vendor_calendar)"#,
+    ).bind(business).bind(entry).bind(title)
+      .bind(input.start_at).bind(input.end_at)
+      .fetch_one(&mut *tx).await?;
+    tx.commit().await?;
+    Ok(Json(result))
+}
+
 async fn cancel(
     State(state): State<AppState>,
     user: AuthUser,
@@ -129,13 +222,25 @@ pub(super) async fn check_overlap(
     start: DateTime<Utc>,
     end: DateTime<Utc>,
 ) -> AppResult<()> {
+    check_overlap_except(conn, business, start, end, None).await
+}
+
+async fn check_overlap_except(
+    conn: &mut PgConnection,
+    business: Uuid,
+    start: DateTime<Utc>,
+    end: DateTime<Utc>,
+    exclude: Option<Uuid>,
+) -> AppResult<()> {
     let conflict: bool = sqlx::query_scalar(
         r#"SELECT EXISTS(SELECT 1 FROM event_vendor_calendar WHERE "businessId"=$1
-           AND "cancelledAt" IS NULL AND "startAt"<$3 AND "endAt">$2)"#,
+           AND "cancelledAt" IS NULL AND "startAt"<$3 AND "endAt">$2
+           AND ($4::uuid IS NULL OR id<>$4))"#,
     )
     .bind(business)
     .bind(start)
     .bind(end)
+    .bind(exclude)
     .fetch_one(conn)
     .await?;
     if conflict {
