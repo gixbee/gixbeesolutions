@@ -93,6 +93,16 @@ class EventsRepository {
     });
   }
 
+  Future<void> updateCalendarBooking(
+      String businessId, String id, String title,
+      DateTime start, DateTime end) async {
+    await _dio.put('/events/vendor/calendar/$businessId/$id', data: {
+      'title': title,
+      'startAt': start.toUtc().toIso8601String(),
+      'endAt': end.toUtc().toIso8601String(),
+    });
+  }
+
   Future<void> cancelCalendarBooking(String businessId, String id) async {
     await _dio.delete('/events/vendor/calendar/$businessId/$id');
   }
