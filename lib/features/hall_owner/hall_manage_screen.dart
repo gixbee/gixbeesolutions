@@ -74,6 +74,41 @@ class _HallManageScreenState extends ConsumerState<HallManageScreen> {
     _load();
   }
 
+  Future<void> _rename() async {
+    final controller=TextEditingController(
+      text:_hall?['name']?.toString()??'');
+    final name=await showDialog<String>(context:context,
+      builder:(dialog)=>AlertDialog(
+        title:const Text('Hall name'),
+        content:TextField(controller:controller,maxLength:150,
+          autofocus:true,
+          decoration:const InputDecoration(labelText:'Space name',
+            hintText:'Grand Hall, Banquet Hall, etc.')),
+        actions:[
+          TextButton(onPressed:()=>Navigator.pop(dialog),
+            child:const Text('Cancel')),
+          FilledButton(onPressed:()=>Navigator.pop(
+            dialog,controller.text.trim()),
+            child:const Text('Save')),
+        ],
+      ));
+    controller.dispose();
+    if(!mounted||name==null)return;
+    if(name.isEmpty || name.length>150) {
+      showGxSnack(context,'Enter a hall name (1–150 characters).',
+        type:GxSnackType.error);
+      return;
+    }
+    try {
+      await ref.read(hallRepositoryProvider).patchHall(
+        widget.business.id,widget.hallId,{'name':name});
+      if(mounted)await _load();
+    } catch(e) {
+      if(mounted)showGxSnack(context,'Rename failed: $e',
+        type:GxSnackType.error);
+    }
+  }
+
   Future<void> _archive() async {
     final ok = await showDialog<bool>(
       context: context,
@@ -114,6 +149,14 @@ class _HallManageScreenState extends ConsumerState<HallManageScreen> {
           ? const Center(child: CircularProgressIndicator())
           : ListView(
               children: [
+                ListTile(
+                  leading: const Icon(Icons.business_outlined),
+                  title: Text(widget.business.name),
+                  subtitle: Text('Hall: $name · Owner-only hall name'),
+                  trailing: const Icon(Icons.edit_outlined),
+                  onTap: _rename,
+                ),
+                const Divider(height: 12),
                 _tile(
                   Icons.currency_rupee,
                   'Price & packages',
