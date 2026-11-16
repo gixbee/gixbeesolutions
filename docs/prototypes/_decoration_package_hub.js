@@ -545,9 +545,17 @@ function decCloseOverlay(id) {
   o.setAttribute('aria-hidden', 'true');
 }
 
-function decorItemPaneSearchQuery() {
-  const inp = el('decItemPaneSearch');
+function decorCategorySearchQuery() {
+  const inp = el('decModSearch');
   return inp ? (inp.value || '').trim().toLowerCase() : '';
+}
+
+function refreshDecorPkgItemsUi() {
+  if (decorModulePickCtx.moduleId) {
+    renderDecorModulePick();
+  } else {
+    renderDecorPkgStep3();
+  }
 }
 
 function decorCatalogItemBlurb(name) {
@@ -600,8 +608,9 @@ function renderDecorPkgStep3Banner() {
     '</div></div><button type="button" id="decPkgStep3Change">Change</button>';
 }
 
-function renderDecorItemsTabSeg() {
-  const host = el('decItemsTabSeg');
+function renderDecorItemsTabSeg(opts) {
+  opts = opts || {};
+  const host = el(opts.host || 'decItemsTabSeg');
   if (!host) return;
   const tab = decorPkgItemsTab();
   const counts = decorPkgCounts(decorPkgWizard.draft);
@@ -618,10 +627,11 @@ function renderDecorItemsTabSeg() {
   host.querySelectorAll('[data-dec-items-tab]').forEach(function (btn) {
     btn.onclick = function () {
       decorPkgWizard.itemsTab = btn.getAttribute('data-dec-items-tab');
-      renderDecorPkgStep3();
+      if (typeof opts.after === 'function') opts.after();
+      else renderDecorPkgStep3();
     };
   });
-  const hint = el('decItemsTabHint');
+  const hint = el(opts.hint || 'decItemsTabHint');
   if (hint) {
     hint.textContent =
       tab === 'extra'
@@ -630,38 +640,41 @@ function renderDecorItemsTabSeg() {
   }
 }
 
-function renderDecorCatRail(ctx, moduleRows) {
-  const host = el('decCatRail');
+function renderDecorCategoryList(ctx, q) {
+  const host = el('decModList');
   if (!host) return;
-  if (!moduleRows.length) {
-    host.innerHTML = '<p class="dec-items-empty" style="padding:12px 4px">No categories</p>';
+  const rows = decorModulesForPackage(ctx, q);
+  if (!rows.length) {
+    host.innerHTML =
+      '<div class="dec-items-empty" style="margin:12px 16px">No categories match. Try another search or update package type / community in step 2.</div>';
     return;
   }
-  const active = decorPkgWizard.activeModuleId;
-  host.innerHTML = moduleRows
+  host.innerHTML = rows
     .map(function (row) {
       const m = row.mod;
-      const on = m.id === active;
+      const stats = decorModuleItemCounts(m.id);
+      let sub;
+      if (stats.total) {
+        sub = stats.included + ' included' + (stats.extra ? ', ' + stats.extra + ' extra' : '');
+      } else {
+        sub = row.visibleCount + ' items for this package';
+      }
       return (
-        '<button type="button" class="' +
-        (on ? 'on' : '') +
-        '" data-dec-rail-mod="' +
+        '<button type="button" class="dec-mod-row" data-dec-mod="' +
         esc(m.id) +
-        '"><span class="ico">' +
+        '"><span class="dec-mod-ico">' +
         m.emoji +
-        '</span><b>' +
+        '</span><span style="flex:1;min-width:0"><b>' +
         esc(m.name) +
-        '</b><span class="cnt">' +
-        row.visibleCount +
-        '</span></button>'
+        '</b><small>' +
+        esc(sub) +
+        '</small></span><span class="dec-chev">›</span></button>'
       );
     })
     .join('');
-  host.querySelectorAll('[data-dec-rail-mod]').forEach(function (btn) {
-    btn.onclick = function () {
-      decorPkgWizard.activeModuleId = btn.getAttribute('data-dec-rail-mod');
-      renderDecorItemsPane(ctx);
-      renderDecorCatRail(ctx, moduleRows);
+  host.querySelectorAll('[data-dec-mod]').forEach(function (row) {
+    row.onclick = function () {
+      openDecorModulePick(row.getAttribute('data-dec-mod'));
     };
   });
 }
@@ -749,7 +762,8 @@ function bindDecorItemsPane(host, mod) {
     btn.onclick = function () {
       const idx = +btn.getAttribute('data-dec-edit-item');
       decorItemPickCtx.configuringId = idx;
-      decorModulePickCtx.moduleId = null;
+      const it = decorPkgWizard.draft.items[idx];
+      if (it && it.moduleId) decorModulePickCtx.moduleId = it.moduleId;
       renderDecorItemConfig();
       show('decorItemConfig');
     };
@@ -766,7 +780,7 @@ function toggleDecorCatalogInclusion(catalogueItem, mod, mode) {
     if (sameType) {
       items.splice(idx, 1);
       decorPkgWizard.draft.items = items;
-      renderDecorPkgStep3();
+      refreshDecorPkgItemsUi();
       return;
     }
     toast('This item is already in the other list — open Edit to switch.');
@@ -785,13 +799,12 @@ function toggleDecorCatalogInclusion(catalogueItem, mod, mode) {
   });
   decorPkgWizard.draft.items = items;
   decorItemPickCtx.configuringId = items.length - 1;
-  decorModulePickCtx.moduleId = null;
   if (type === 'extra') {
     renderDecorItemConfig();
     show('decorItemConfig');
     return;
   }
-  renderDecorPkgStep3();
+  refreshDecorPkgItemsUi();
 }
 
 function bumpDecorCatalogQty(catalogueId, delta) {
@@ -799,32 +812,7 @@ function bumpDecorCatalogQty(catalogueId, delta) {
   if (idx < 0) return;
   const it = decorPkgWizard.draft.items[idx];
   it.quantity = Math.max(1, Math.round(+(it.quantity || 1)) + delta);
-  renderDecorPkgStep3();
-}
-
-function renderDecorItemsPane(ctx) {
-  const host = el('decItemsPane');
-  if (!host) return;
-  const q = decorItemPaneSearchQuery();
-  const moduleRows = decorModulesForPackage(ctx, q);
-  const mod = ensureDecorPkgActiveModule(moduleRows);
-  if (!mod) {
-    host.innerHTML =
-      '<p class="dec-items-empty">No items match. Try another search or update package type / community in step 2.</p>';
-    return;
-  }
-  const list = decorFilteredModuleItems(mod, ctx, q);
-  const tab = decorPkgItemsTab();
-  if (!list.length) {
-    host.innerHTML = '<p class="dec-items-empty">No items in this category for your package. Add a custom item below.</p>';
-    return;
-  }
-  host.innerHTML = list
-    .map(function (it) {
-      return renderDecorItemCard(it, mod, tab);
-    })
-    .join('');
-  bindDecorItemsPane(host, mod);
+  refreshDecorPkgItemsUi();
 }
 
 function renderDecorItemSummaryBanner() {
@@ -887,10 +875,8 @@ function renderDecorPkgStep3() {
   renderDecorPkgStep3Banner();
   renderDecorItemsTabSeg();
   const ctx = decorCatalogContextFromDraft(d);
-  const q = decorItemPaneSearchQuery();
-  const moduleRows = decorModulesForPackage(ctx, q);
-  renderDecorCatRail(ctx, moduleRows);
-  renderDecorItemsPane(ctx);
+  const q = decorCategorySearchQuery();
+  renderDecorCategoryList(ctx, q);
 }
 
 function renderDecorSelectedItemsSummary(full) {
@@ -960,6 +946,7 @@ function renderDecorSelectedItemsSummary(full) {
 }
 
 function openDecorModulePick(moduleId) {
+  decorPkgWizard.activeModuleId = moduleId;
   decorModulePickCtx = { moduleId: moduleId, search: '', pickMode: decorPkgItemsTab() };
   renderDecorModulePick();
   show('decorModPick');
@@ -972,86 +959,44 @@ function decorDefaultInclusionType() {
 }
 
 function renderDecorModulePick() {
+  setDecorWizProgress(3);
+  renderDecorItemsTabSeg({
+    host: 'decPickItemsTabSeg',
+    hint: 'decPickItemsTabHint',
+    after: function () {
+      renderDecorModulePick();
+    },
+  });
   const mod = findDecorationModule(decorModulePickCtx.moduleId);
   if (!mod) return;
-  el('decPickModTitle').textContent =
-    mod.name + (decorPkgItemsTab() === 'extra' ? ' · add-ons' : ' · included');
+  const title = el('decPickModTitle');
+  if (title) title.textContent = mod.name;
   const q = (decorModulePickCtx.search || '').trim().toLowerCase();
   const picked = decorSelectedInModule(mod.id);
+  const tab = decorPkgItemsTab();
+  const pickedTab = picked.filter(function (it) {
+    return tab === 'extra' ? it.inclusionType === 'extra' : it.inclusionType !== 'extra';
+  }).length;
   const ctx = decorCatalogContextFromDraft(decorPkgWizard.draft);
   const list = decorFilteredModuleItems(mod, ctx, q);
   el('decPickModCount').textContent =
-    picked.length +
-    ' selected · ' +
+    pickedTab +
+    ' in this tab · ' +
     list.length +
-    ' shown for your package';
+    ' items shown';
   const host = el('decPickModList');
   if (!list.length) {
-    host.innerHTML = '<p class="sub pad">No items here for your package type and community. Go back and adjust step 2, or add a custom item below.</p>';
+    host.innerHTML =
+      '<p class="dec-items-empty">No items here for your package. Adjust step 2 or add a custom item below.</p>';
     el('decPickModSearch').value = decorModulePickCtx.search || '';
     return;
   }
   host.innerHTML = list
     .map(function (it) {
-      const row = (decorPkgWizard.draft.items || []).find(function (x) {
-        return x.catalogueId === it.id;
-      });
-      const on = !!row;
-      const tag = row ? (row.inclusionType === 'extra' ? 'Extra' : 'Included') : '';
-      return (
-        '<label class="dec-pick-row' +
-        (on ? ' on' : '') +
-        '"><input type="checkbox" data-pick-id="' +
-        esc(it.id) +
-        '"' +
-        (on ? ' checked' : '') +
-        '><span><b>' +
-        esc(it.name) +
-        '</b>' +
-        (tag ? ' <span class="dec-tag ' + (row.inclusionType === 'extra' ? 'extra' : 'inc') + '">' + tag + '</span>' : '') +
-        '</span></label>'
-      );
+      return renderDecorItemCard(it, mod, tab);
     })
     .join('');
-  host.querySelectorAll('input[type=checkbox]').forEach(function (cb) {
-    cb.onchange = function () {
-      const id = cb.getAttribute('data-pick-id');
-      const hit = mod.items.filter(function (x) {
-        return x.id === id;
-      })[0];
-      if (!hit) return;
-      let items = decorPkgWizard.draft.items || [];
-      const i = items.findIndex(function (x) {
-        return x.catalogueId === id;
-      });
-      if (cb.checked) {
-        if (i < 0) {
-          const type = decorDefaultInclusionType();
-          items.push({
-            moduleId: mod.id,
-            catalogueId: id,
-            name: hit.name,
-            inclusionType: type,
-            quantity: 1,
-            unit: 'Per Event',
-            extraPrice: '',
-            description: '',
-          });
-          decorPkgWizard.draft.items = items;
-          decorItemPickCtx.configuringId = items.length - 1;
-          if (type === 'extra') {
-            renderDecorPkgStep3();
-            renderDecorItemConfig();
-            show('decorItemConfig');
-            return;
-          }
-        }
-      } else if (i >= 0) items.splice(i, 1);
-      decorPkgWizard.draft.items = items;
-      renderDecorModulePick();
-      renderDecorPkgStep3();
-    };
-  });
+  bindDecorItemsPane(host, mod);
   el('decPickModSearch').value = decorModulePickCtx.search || '';
 }
 
@@ -1182,7 +1127,7 @@ function saveDecorCustomItemFromSheet() {
     description: descParts.join(' · '),
   });
   decCloseOverlay('decCustomItemOverlay');
-  renderDecorPkgStep3();
+  refreshDecorPkgItemsUi();
   toast('Custom item added');
 }
 
@@ -1470,10 +1415,11 @@ function bindDecorationPackageUi() {
     renderDecorPkgStep2();
     show('decorPkgStep2');
   });
-  bindOnInput('decItemPaneSearch', function () {
+  bindOnInput('decModSearch', function () {
     renderDecorPkgStep3();
   });
   bindClick('decOpenCustomItem', openDecorCustomItemSheet);
+  bindClick('decPickOpenCustom', openDecorCustomItemSheet);
   bindClick('decCustomClose', function () {
     decCloseOverlay('decCustomItemOverlay');
   });

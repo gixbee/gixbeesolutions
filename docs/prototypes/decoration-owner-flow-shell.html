@@ -138,6 +138,7 @@ body{margin:0;background:#E8EDF5;font-family:Inter,system-ui,sans-serif;color:#1
 .dec-cat-rail b{font-size:9px;font-weight:900;color:var(--decor-navy);line-height:1.2;display:block}
 .dec-cat-rail .cnt{font-size:9px;font-weight:700;color:var(--mut);margin-top:2px}
 .dec-items-pane{flex:1;overflow-y:auto;padding:4px 10px 12px;min-width:0}
+.dec-mod-items-list{padding:0 16px 12px}
 .dec-item-card{display:flex;gap:10px;padding:12px 0;border-bottom:1px solid #F1F5F9}
 .dec-item-card:last-child{border-bottom:0}
 .dec-item-thumb{width:54px;height:54px;border-radius:10px;background:linear-gradient(135deg,#EDE9FE,#FBCFE8);flex-shrink:0;display:grid;place-items:center;font-size:22px}
@@ -771,11 +772,8 @@ body{margin:0;background:#E8EDF5;font-family:Inter,system-ui,sans-serif;color:#1
   <div class="dec-pkg-step3-banner" id="decPkgStep3Banner"></div>
   <div class="dec-items-tabseg" id="decItemsTabSeg"></div>
   <p class="sub pad" id="decItemsTabHint" style="margin-top:0">These items are part of your package price.</p>
-  <form class="search" onsubmit="return false"><span>🔍</span><input type="search" id="decItemPaneSearch" placeholder="Search stage, arch, car decoration…" autocomplete="off"></form>
-  <div class="dec-items-split">
-    <div class="dec-cat-rail" id="decCatRail" aria-label="Categories"></div>
-    <div class="dec-items-pane" id="decItemsPane"></div>
-  </div>
+  <form class="search" onsubmit="return false"><span>🔍</span><input type="search" id="decModSearch" placeholder="Search categories" autocomplete="off"></form>
+  <div class="dec-mod-list" id="decModList"></div>
   <button type="button" class="dec-add-custom-btn" id="decOpenCustomItem">+ Add Custom Item</button>
   <div class="pad" id="decSelectedItemsCompact" hidden></div>
   <div class="cat-wiz-foot"><button type="button" class="btn btn-ghost" id="decPkgStep3BackFoot">← Back</button><button type="button" class="btn btn-decor" id="decPkgStep3Next">Next: Set pricing →</button></div>
@@ -803,10 +801,14 @@ body{margin:0;background:#E8EDF5;font-family:Inter,system-ui,sans-serif;color:#1
 
 <section class="scr" id="decorModPick">
   <div class="top gx-top"><button type="button" class="back" id="decModPickBack">←</button><h1 id="decPickModTitle">Category</h1><span class="hub-more">⋮</span></div>
-  <p class="sub pad" id="decPickModCount" style="margin:8px 0">0 selected</p>
-  <form class="search" onsubmit="return false"><span>🔍</span><input type="search" id="decPickModSearch" placeholder="Search items" autocomplete="off"></form>
-  <div class="dec-pick-list" id="decPickModList"></div>
-  <div class="pad fld"><label>Add your own</label><input id="decCustomItemName" placeholder="Custom item name"><button type="button" class="btn btn-ghost" id="decCustomItemAdd" style="margin-top:8px;width:100%">Add custom item</button></div>
+  <div class="dec-progress"><i class="done"></i><i class="done"></i><i class="on"></i><i></i><i></i></div>
+  <p class="dec-wiz-step">Step 3 of 5</p>
+  <div class="dec-items-tabseg" id="decPickItemsTabSeg"></div>
+  <p class="sub pad" id="decPickItemsTabHint" style="margin-top:0">These items are part of your package price.</p>
+  <p class="sub pad" id="decPickModCount" style="margin:0 0 8px">0 selected</p>
+  <form class="search" onsubmit="return false"><span>🔍</span><input type="search" id="decPickModSearch" placeholder="Search items in this category" autocomplete="off"></form>
+  <div class="dec-mod-items-list" id="decPickModList"></div>
+  <button type="button" class="dec-add-custom-btn" id="decPickOpenCustom">+ Add Custom Item</button>
   <div class="hub-cta-sticky"><button type="button" class="btn btn-decor" id="decModPickDone">Done</button></div>
 </section>
 
