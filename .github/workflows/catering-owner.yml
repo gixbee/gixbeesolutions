@@ -36,12 +36,14 @@ jobs:
             lib/features/events/event_service_catalogue_screen.dart \
             test/features/events/catering_price_math_test.dart \
             test/features/events/catering_package_wizard_test.dart \
+            test/features/events/catering_module_picker_test.dart \
             test/repositories/catering_catalogue_repository_test.dart
       - name: Validate create/edit/reload, discount math and failed-save retry
         run: |
           flutter test --no-pub \
             test/features/events/catering_price_math_test.dart \
             test/features/events/catering_package_wizard_test.dart \
+            test/features/events/catering_module_picker_test.dart \
             test/repositories/catering_catalogue_repository_test.dart
 
   rust:
