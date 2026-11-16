@@ -25,6 +25,10 @@ jobs:
           java-version: '17'
       - uses: subosito/flutter-action@v2
         with:
+          # The project uses Android Gradle 8.14 + AGP 8.11.1.
+          # Flutter 3.50 needs Gradle >=9.3.1; don't silently upgrade
+          # the entire Android toolchain just for this feature PR.
+          flutter-version: '3.41.0'
           channel: stable
           cache: true
       - run: flutter pub get
