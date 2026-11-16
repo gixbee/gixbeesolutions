@@ -772,7 +772,7 @@ body{margin:0;background:#E8EDF5;font-family:Inter,system-ui,sans-serif;color:#1
   <div class="dec-pkg-step3-banner" id="decPkgStep3Banner"></div>
   <div class="dec-items-tabseg" id="decItemsTabSeg"></div>
   <p class="sub pad" id="decItemsTabHint" style="margin-top:0">These items are part of your package price.</p>
-  <p class="sub pad" id="decPkgCatalogHint" style="margin:0;padding-top:0">Pick main items from each category. Anything not listed can be added as a custom item.</p>
+  <p class="sub pad" id="decPkgCatalogHint" style="margin:0;padding-top:0">Each category has 3 main items (like the mockup). Open a category to pick Include or Extra — use Add Custom Item for anything else.</p>
   <form class="search" onsubmit="return false"><span>🔍</span><input type="search" id="decModSearch" placeholder="Search categories" autocomplete="off"></form>
   <div class="dec-mod-list" id="decModList"></div>
   <button type="button" class="dec-add-custom-btn" id="decOpenCustomItem">+ Add Custom Item</button>
@@ -2117,7 +2117,8 @@ function bindPhotoCalendarUi() {
   });
 }
 
-/** All-India decoration catalogue — 14 categories (mockup-aligned sub-items per category). */
+/** Decoration package catalogue — 3 main items per category; custom item for the rest. */
+const DECORATION_PACKAGE_MODULE_IDS = ["d01", "d02", "d03", "d04", "d05", "d06", "d07", "d08", "d09", "d10"];
 const DECORATION_PKG_LEVELS = ['Basic', 'Standard', 'Premium'];
 const DECORATION_PKG_LEVEL_HINTS = {
   Basic: 'Essential décor for the function',
@@ -2144,27 +2145,9 @@ const DECORATION_CATALOG_DEFS = [
     "name": "Stage / Mandapam",
     "emoji": "\ud83c\udfaa",
     "items": [
-          "Wedding Stage Decoration (Full Setup)",
-          "Wedding Stage Backdrop (Fabric)",
-          "Wedding Stage Backdrop (LED)",
-          "Traditional Wooden Mandapam",
-          "Floral Mandapam",
-          "Crystal / Acrylic Stage Arch",
-          "Stage Carpet / Runners",
-          "Stage Steps with Floral Trim",
-          "Couple Throne / Stage Seating",
-          "Couple Sofa / Diwan (Stage)",
-          "Name Board / LED Monogram",
-          "Reception Stage (Full Setup)",
-          "Engagement Stage",
-          "Nikah Stage & Seating",
-          "Sangeet / Mehendi Stage",
-          "Haldi Ceremony Stage Setup",
-          "Minimal Stage (Corporate)",
-          "Outdoor Stage Canopy Frame",
-          "Stage Side Pillars (Floral)",
-          "LED Wall Backdrop",
-          "Photo-Frame Stage Panel"
+          "Wedding Stage Decoration",
+          "Couple Sofa / Diwan",
+          "Stage Carpet / Runners"
     ],
   },
   {
@@ -2172,18 +2155,9 @@ const DECORATION_CATALOG_DEFS = [
     "name": "Church Decoration",
     "emoji": "\u26ea",
     "items": [
-          "Church Entrance Floral Arch",
+          "Church Entrance Arch",
           "Church Flower Stand",
-          "Pew / Aisle Flowers",
-          "Church Altar Flowers",
-          "Church Pew Ends & Altar Florals",
-          "Church Floral Altar Backdrop",
-          "Pulpit / Lectern Floral Arrangement",
-          "Communion Table Floral",
-          "Church Side Entrance Décor",
-          "Church Window / Ledge Florals",
-          "Cross & Candle Altar Display",
-          "Baptism / Communion Backdrop"
+          "Pew / Aisle Flowers"
     ],
   },
   {
@@ -2191,25 +2165,9 @@ const DECORATION_CATALOG_DEFS = [
     "name": "Entrance & Welcome",
     "emoji": "\ud83d\udeaa",
     "items": [
-          "Welcome Arch (Floral)",
-          "Floral Entrance Arch",
-          "Balloon Entrance Arch",
-          "Fabric Drape Entrance",
-          "Welcome Board (Printed)",
-          "LED Welcome Sign",
-          "Couple Name Entrance Board",
-          "Name LED Board",
-          "Direction / Parking Signage",
-          "Floral Entrance Pillars (Pair)",
-          "Welcome Table Arrangement",
-          "Entrance Red Carpet",
-          "Traditional Toran / Main Door Décor",
-          "Nikah Entrance Arch",
-          "Gate / Compound Entrance Draping",
-          "Photo Welcome Stand",
-          "Guest Registration Desk Décor",
-          "Entrance Fairy Light Tunnel",
-          "Marquee Entrance Framing"
+          "Welcome Arch",
+          "Welcome Board",
+          "Name LED Board"
     ],
   },
   {
@@ -2218,21 +2176,8 @@ const DECORATION_CATALOG_DEFS = [
     "emoji": "\ud83d\udee4\ufe0f",
     "items": [
           "Aisle Carpet / Runner",
-          "Central Aisle Red Carpet",
-          "White / Ivory Aisle Carpet",
-          "Floral Aisle Markers",
           "Aisle Floral Stands",
-          "Petal Pathway",
-          "Candle Aisle (Indoor)",
-          "Outdoor Walkway Lanterns",
-          "Garden Pathway Urns",
-          "Mandapam Walkway Draping",
-          "Reception Entry Path Lights",
-          "LED Pathway Lights",
-          "Bridal Entry Path (Traditional)",
-          "Royal Carpet with Borders",
-          "Mirror / Reflective Aisle Panels",
-          "Outdoor Tent Walkway"
+          "LED Pathway Lights"
     ],
   },
   {
@@ -2242,23 +2187,7 @@ const DECORATION_CATALOG_DEFS = [
     "items": [
           "Floral Backdrop",
           "Floral Ceiling",
-          "Fresh Flower Ceiling Hangings",
-          "Artificial Flower Ceiling",
-          "Marigold Garlands (Bulk)",
-          "Jasmine / Malli Strings",
-          "Rose Floral Walls",
-          "Mixed South Indian Flower Arrangements",
-          "North Indian Floral Backdrop",
-          "Orchid & Exotic Flower Décor",
-          "Pooja Room Floral Setup",
-          "Centre Table Floral (Reception)",
-          "Haldi Marigold Setup",
-          "Garland for Mala / Exchange",
-          "Floral Pillars (Indoor)",
-          "Wedding Eve Floral Installations",
-          "Hanging Floral Chandeliers",
-          "Bridal Bouquet (Hand-Tied)",
-          "Tropical Flower Theme (Goa / Coastal)"
+          "Bridal Bouquet"
     ],
   },
   {
@@ -2266,22 +2195,9 @@ const DECORATION_CATALOG_DEFS = [
     "name": "Lighting & Sound",
     "emoji": "\ud83d\udca1",
     "items": [
-          "Stage Lighting (Par / Focus)",
-          "Fairy / String Lights (Warm)",
-          "LED Strip Lighting",
-          "Moving Head Lights",
-          "Uplighters (Wall Wash)",
-          "Outdoor Flood Lights",
-          "Chandeliers (Rental)",
-          "Pathway Bollard Lights",
-          "Sound System (Basic PA)",
-          "Sound System (Reception / DJ Ready)",
-          "Wireless Microphones",
-          "LED Dance Floor Lighting",
-          "Name GOBO Projection",
-          "Stage Truss Lighting",
-          "Emergency Backup Lighting",
-          "Generator / Power Distribution (Decorator)"
+          "Stage Lighting",
+          "Fairy / String Lights",
+          "Sound System"
     ],
   },
   {
@@ -2289,22 +2205,9 @@ const DECORATION_CATALOG_DEFS = [
     "name": "Seating & Furniture",
     "emoji": "\ud83e\ude91",
     "items": [
-          "Guest Chairs (Banquet)",
-          "Chair Covers & Bows / Sashes",
-          "Couple Sofa (White)",
-          "Couple Diwan / Traditional Seating",
-          "VIP Sofa Seating",
-          "Royal Chairs (Pair)",
-          "Chiavari Chairs",
-          "Cushions & Covers",
-          "VIP Seating Section",
-          "Mehendi Low Seating",
-          "Sangeet Stage Seating",
-          "Bridal Green Room Sofa",
-          "Bench Seating (Outdoor)",
-          "Traditional Wooden Chairs",
-          "Hospitality Counter Table",
-          "Side Tables (Stage)"
+          "Guest Chairs",
+          "Chair Covers & Bows",
+          "VIP Sofa Seating"
     ],
   },
   {
@@ -2312,14 +2215,9 @@ const DECORATION_CATALOG_DEFS = [
     "name": "Car Decoration",
     "emoji": "\ud83d\ude97",
     "items": [
-          "Wedding Car Decoration (Full)",
-          "Wedding Car Bonnet Garland",
-          "Car Door Floral Handles",
-          "Car Door Decoration (Per Door)",
-          "Car Ribbon & Bow Package",
-          "Luxury Car Décor (Premium Flowers)",
-          "Vintage Car Flower Drape",
-          "Reception Car Send-Off Décor"
+          "Wedding Car Decoration",
+          "Car Bonnet Decoration",
+          "Car Door Decoration"
     ],
   },
   {
@@ -2328,17 +2226,8 @@ const DECORATION_CATALOG_DEFS = [
     "emoji": "\ud83d\udcf8",
     "items": [
           "Photo Booth Backdrop",
-          "Selfie Point / Ring Light",
           "Couple Portrait Backdrop",
-          "Family Photo Wall",
-          "Polaroid / Guest Message Wall",
-          "Hashtag LED Board",
-          "Memory Lane Photo Line",
-          "Instagram Frame Prop",
-          "360° Spin Booth Space Décor",
-          "Baby Shower Photo Corner",
-          "Corporate Step-and-Repeat",
-          "Gift Display Table"
+          "Hashtag LED Board"
     ],
   },
   {
@@ -2346,17 +2235,9 @@ const DECORATION_CATALOG_DEFS = [
     "name": "Special Effects",
     "emoji": "\u2728",
     "items": [
-          "Cold Pyro / Cold Fire (Permit Required)",
           "Low-Lying Fog",
-          "Smoke Machine",
           "Confetti Blast",
-          "CO₂ Jet Effects",
-          "Bubble Machine",
-          "Projection Mapping (Basic)",
-          "Sparkler Entry Package",
-          "Indoor Safe Confetti",
-          "Fireworks Synchronization (Where Permitted)",
-          "Drone Show Coordination (Third Party)"
+          "Sparkler Entry Package"
     ],
   },
   {
@@ -2364,18 +2245,9 @@ const DECORATION_CATALOG_DEFS = [
     "name": "Personal Flowers & Garlands",
     "emoji": "\ud83d\udcae",
     "items": [
-          "Bridal Bouquet (Cascading)",
-          "Christian Bridal Bouquet (White Roses)",
-          "Bridesmaid Bouquets",
           "Boutonniere (Groom)",
-          "Boutonniere (Groomsmen Set)",
-          "Mother / Family Corsage",
-          "Flower Basket (Petal Shower)",
-          "Garland for Groom Entry",
-          "Muslim Groom Flower Pin",
-          "Marigold Car Toran",
-          "Corporate Guest Welcome Bouquet",
-          "Housewarming Door Flower Hangings"
+          "Bridesmaid Bouquets",
+          "Garland for Groom Entry"
     ],
   },
   {
@@ -2383,24 +2255,9 @@ const DECORATION_CATALOG_DEFS = [
     "name": "Traditional / Ceremony Setup",
     "emoji": "\ud83e\ude94",
     "items": [
-          "Banana Stem Traditional Mandapam Elements",
-          "Mango Leaf Thoranam",
-          "Coconut Leaf Toran",
-          "Nilavilakku / Brass Lamps (Set)",
-          "Kalash & Traditional Vessels",
+          "Traditional Mandapam Setup",
           "Pooja Backdrop (Traditional)",
-          "Pookalam / Rangoli Support Décor",
-          "Haldi Plate & Seating Corner",
-          "Mehendi / Mailanchi Seating Décor",
-          "Nikah Signing Table Setup",
-          "Islamic Geometric Backdrop Panel",
-          "Walima Stage Floral (Green / Gold Theme)",
-          "Anand Karaj Floral (Gurdwara Approved)",
-          "Navjote Traditional Setup Elements",
-          "Roka / Engagement Traditional Platform",
-          "Chunni Ceremony Seating",
-          "Jain Minimal Mandap Elements",
-          "Interfaith Neutral Ceremony Backdrop"
+          "Nikah Signing Table Setup"
     ],
   },
   {
@@ -2409,16 +2266,8 @@ const DECORATION_CATALOG_DEFS = [
     "emoji": "\ud83c\udf7d\ufe0f",
     "items": [
           "Buffet Table Skirting & Décor",
-          "Dessert Counter Décor",
-          "Cake Table Setup",
-          "Welcome Drink Counter",
           "Table Centrepieces",
-          "Table Runners & Linen",
-          "Menu Display Board",
-          "Live Counter Framing",
-          "Corporate Buffet Branding",
-          "South Indian Banana Leaf Station Décor",
-          "High-Tea Table Styling"
+          "Cake Table Setup"
     ],
   },
   {
@@ -2427,20 +2276,8 @@ const DECORATION_CATALOG_DEFS = [
     "emoji": "\ud83d\udce6",
     "items": [
           "Ceiling Draping (Full Hall)",
-          "Wall Draping / Masking",
           "Pillar Wrapping",
-          "Partition Screens",
-          "Home Décor (Housewarming)",
-          "Garden / Lawn Tent Décor",
-          "Weather Protection Sidewalls",
-          "Green Room Makeover",
-          "Signage Package (Event)",
-          "Custom Theme Props",
-          "Balloon Ceiling",
-          "Kids Birthday Balloon Arch",
-          "Corporate Stage Branding",
-          "Festival Ganesh / Onam Installations",
-          "Repairs & Touch-Up Kit (Day Of)"
+          "Custom Theme Props"
     ],
   },
 ];
@@ -2530,13 +2367,17 @@ function decorFilteredModuleItems(mod, ctx, searchQ) {
 
 function decorModulesForPackage(ctx, searchQ) {
   const q = (searchQ || '').trim().toLowerCase();
+  const pkgOnly = ctx && ctx.ownerPick;
+  const allowIds = typeof DECORATION_PACKAGE_MODULE_IDS !== 'undefined' ? DECORATION_PACKAGE_MODULE_IDS : null;
   return DECORATION_MODULES.map(function (m) {
+    if (pkgOnly && allowIds && allowIds.indexOf(m.id) < 0) return null;
     const nameHit = q && m.name.toLowerCase().indexOf(q) >= 0;
     const visible = decorFilteredModuleItems(m, ctx, nameHit ? '' : q);
     return { mod: m, visibleCount: visible.length, items: visible };
-  }).filter(function (row) {
-    return row.visibleCount > 0;
-  });
+  })
+    .filter(function (row) {
+      return row && row.visibleCount > 0;
+    });
 }
 
 function decorPackageCatalogSummary(ctx) {
@@ -5055,7 +4896,7 @@ function bindDecorationPlatform() {
 
 
 /** Decoration owner app — dashboard/platform parity with catering + decoration hub. */
-const DECORATION_OWNER_BUILD = 'decoration-owner-catalog-mockup-v19';
+const DECORATION_OWNER_BUILD = 'decoration-owner-three-items-v20';
 const STORAGE_KEY = 'GIXBEE_DECORATION_OWNER_V1';
 
 function defaultStore() {
