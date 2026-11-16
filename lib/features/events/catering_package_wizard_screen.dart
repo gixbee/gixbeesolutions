@@ -657,9 +657,9 @@ class _CateringPackageWizardScreenState
         TextButton.icon(
           onPressed: _tiers.length >= 20 ? null : () => setState(() {
             final last = int.tryParse(_tiers.last.maxGuests.text) ?? 0;
-            final start = (last + 1).clamp(1, 100000);
+            final start = (last + 1).clamp(1, 100000).toInt();
             _tiers.add(_PriceTier(min: start,
-                max: (start + 499).clamp(start, 100000)));
+                max: (start + 499).clamp(start, 100000).toInt()));
           }),
           icon: const Icon(Icons.add),
           label: const Text('Add Another Slab'),
