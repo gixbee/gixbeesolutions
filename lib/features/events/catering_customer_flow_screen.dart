@@ -292,18 +292,21 @@ class _CateringCustomerMenuScreenState extends State<CateringCustomerMenuScreen>
       body: SafeArea(child: Column(children: [
         Padding(padding: const EdgeInsets.fromLTRB(16, 10, 16, 6),
           child: Column(children: [
-            SegmentedButton<String>(
-              segments: [
-                ButtonSegment(value: 'packages',
-                    label: Text('Packages (${_active.where((e) => e['kind'] == 'PACKAGE').length})')),
-                ButtonSegment(value: 'food',
-                    label: Text('Individual Food Items (${_active.where((e) => e['kind'] == 'ITEM').length})')),
-              ],
-              selected: {_tab},
-              onSelectionChanged: (values) => setState(() {
-                _tab = values.first;
-                _diet = 'all';
-              }),
+            SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: SegmentedButton<String>(
+                segments: [
+                  ButtonSegment(value: 'packages',
+                      label: Text('Packages (${_active.where((e) => e['kind'] == 'PACKAGE').length})')),
+                  ButtonSegment(value: 'food',
+                      label: Text('Individual Food Items (${_active.where((e) => e['kind'] == 'ITEM').length})')),
+                ],
+                selected: {_tab},
+                onSelectionChanged: (values) => setState(() {
+                  _tab = values.first;
+                  _diet = 'all';
+                }),
+              ),
             ),
             const SizedBox(height: 12),
             Row(children: [
