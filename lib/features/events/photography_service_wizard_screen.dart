@@ -112,6 +112,7 @@ class _PhotographyServiceWizardScreenState
         padding: const EdgeInsets.only(bottom: 12),
         child: TextField(
           controller: ctrl,
+          onChanged: (_) => setState(() {}),
           maxLength: lines == 1 ? 150 : 1000,
           keyboardType: input,
           maxLines: lines,
@@ -155,6 +156,15 @@ class _PhotographyServiceWizardScreenState
         _offerPrice == null) {
       _error('Enter a service name and valid price/discount.');
       return;
+    }
+    for (final name in _deliverables) {
+      final qty = int.tryParse(_deliverableQty[name]?.text ?? '1');
+      final days = int.tryParse(_deliveryDays[name]?.text ?? '5');
+      if (qty == null || qty < 1 || qty > 100000 ||
+          days == null || days < 0 || days > 730) {
+        _error('Check the quantity and delivery days for $name.');
+        return;
+      }
     }
     final item = <String, dynamic>{
       ...?widget.service,
