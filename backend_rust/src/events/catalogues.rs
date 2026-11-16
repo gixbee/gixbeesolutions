@@ -301,13 +301,38 @@ fn validate_photography_metadata(item: &Value) -> AppResult<()> {
             }
         }
     }
-    if let Some(rules) = item.get("policyRules") {
-        let rules = rules.as_array().ok_or_else(invalid)?;
-        if rules.len() > 10 || rules.iter().any(|row| {
-            row["label"].as_str().is_none_or(|s| s.trim().is_empty() || s.len() > 150)
-                || row["deductionPercent"].as_i64()
-                    .is_none_or(|p| !(0..=100).contains(&p))
+    for key in ["policyRules", "cancelRules", "rescheduleRules"] {
+        if let Some(rules) = item.get(key) {
+            let rules = rules.as_array().ok_or_else(invalid)?;
+            if rules.len() > 10 || rules.iter().any(|row| {
+                row["label"].as_str().is_none_or(|s| s.trim().is_empty() || s.len() > 150)
+                    || row["deductionPercent"].as_i64()
+                        .is_none_or(|p| !(0..=100).contains(&p))
+            }) { return Err(invalid()); }
+        }
+    }
+    if let Some(prices) = item.get("extraPrices") {
+        let prices = prices.as_object().ok_or_else(invalid)?;
+        let selected = item["extras"].as_array().ok_or_else(invalid)?;
+        if prices.len() > 20 || prices.iter().any(|(key, amount)| {
+            key.trim().is_empty() || key.len() > 150
+                || !selected.iter().any(|name| name.as_str() == Some(key.as_str()))
+                || amount.as_i64().is_none_or(|v| !(0..=10_000_000).contains(&v))
         }) { return Err(invalid()); }
+    }
+    if let Some(qty) = item.get("deliverableDetails") {
+        for detail in qty.as_object().ok_or_else(invalid)?.values() {
+            if detail.get("quantity").is_some_and(|value| {
+                value.as_i64().is_none_or(|n| !(1..=100_000).contains(&n))
+            }) { return Err(invalid()); }
+        }
+    }
+    if let Some(timing) = item.get("deliveryTimelines") {
+        for detail in timing.as_object().ok_or_else(invalid)?.values() {
+            if detail.get("days").is_some_and(|value| {
+                value.as_i64().is_none_or(|n| !(0..=730).contains(&n))
+            }) { return Err(invalid()); }
+        }
     }
     if item.get("extraHourPrice").is_some_and(|v| {
         v.as_i64().is_none_or(|p| !(0..=10_000_000).contains(&p))
@@ -627,6 +652,28 @@ mod catalogue_metadata_tests {
         let mut bad = item.clone();
         bad["deliverableDetails"] = json!([{"quantity":400}]);
         assert!(validate_photography_metadata(&bad).is_err());
+    }
+
+    #[test]
+    fn rejects_photo_invalid_addons_and_policy_deductions() {
+        let mut item = json!({
+            "kind":"PACKAGE","price":10000,"listPrice":10000,"discountPct":0,
+            "extras":["Drone / Helicam"],
+            "extraPrices":{"Drone / Helicam":2000},
+            "cancelRules":[{"label":"30 days or more","deductionPercent":10}],
+            "rescheduleRules":[{"label":"30 days or more","deductionPercent":0}],
+            "deliverableDetails":{"Edited Photos":{"quantity":100}},
+            "deliveryTimelines":{"Edited Photos":{"days":15}}
+        });
+        assert!(validate_photography_metadata(&item).is_ok());
+        item["extraPrices"]["Other"] = json!(900);
+        assert!(validate_photography_metadata(&item).is_err());
+        item["extraPrices"].as_object_mut().unwrap().remove("Other");
+        item["cancelRules"][0]["deductionPercent"] = json!(101);
+        assert!(validate_photography_metadata(&item).is_err());
+        item["cancelRules"][0]["deductionPercent"] = json!(10);
+        item["deliverableDetails"]["Edited Photos"]["quantity"] = json!(0);
+        assert!(validate_photography_metadata(&item).is_err());
     }
 
     #[test]
