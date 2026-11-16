@@ -155,3 +155,53 @@ pub(crate) async fn requested_slot(
         "cancelRules":package["cancelRules"],"rescheduleRules":package["rescheduleRules"]}),
     )
 }
+
+
+#[cfg(test)]
+mod customer_contract_tests {
+    use super::*;
+
+    #[test]
+    fn discount_rounds_half_up_and_never_double_discounts() {
+        let offer=json!({
+            "enabled":true,"offerNoAc":true,"offerAc":true,
+            "priceNoAc":101,"discountNoAcPct":50,
+            "priceAc":75000,"discountAcPct":20
+        });
+        assert_eq!(rent(&offer,false),Some(51));
+        assert_eq!(rent(&offer,true),Some(60000));
+        let already_discounted=json!({
+            "offerNoAc":true,"priceNoAc":60000,"discountNoAcPct":0
+        });
+        assert_eq!(rent(&already_discounted,false),Some(60000));
+    }
+
+    #[test]
+    fn disabled_ac_and_inactive_slots_cannot_be_requested() {
+        let slot=json!({
+            "enabled":true,"offerNoAc":true,"offerAc":false,
+            "priceNoAc":50000,"priceAc":70000
+        });
+        assert_eq!(rent(&slot,false),Some(50000));
+        assert_eq!(rent(&slot,true),None);
+        let day=NaiveDate::from_ymd_opt(2027,3,2).unwrap();
+        let disabled=json!({"enabled":false,"hallFrom":"09:00","hallTo":"14:00"});
+        assert!(slot_interval(&disabled,day).is_none());
+    }
+
+    #[test]
+    fn hall_slot_times_are_ist_utc_instants() {
+        let slot=json!({
+            "id":"morning","enabled":true,
+            "hallFrom":"09:00","hallTo":"14:00"
+        });
+        let day=NaiveDate::from_ymd_opt(2027,3,2).unwrap();
+        let interval=slot_interval(&slot,day).unwrap();
+        assert_eq!(interval.start.to_rfc3339(),"2027-03-02T03:30:00+00:00");
+        assert_eq!(interval.end.to_rfc3339(),"2027-03-02T08:30:00+00:00");
+        let backwards=json!({
+            "hallFrom":"14:00","hallTo":"09:00"
+        });
+        assert!(slot_interval(&backwards,day).is_none());
+    }
+}
