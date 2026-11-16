@@ -79,45 +79,29 @@ class _CateringCustomerInterestScreenState
 
   Future<void> _send() async {
     if (_sending || !_acknowledged) return;
-    final estimate = CateringCustomerPrice.estimate(widget.items, widget.guests);
-    if (estimate == null || estimate <= 0) {
-      showGxSnack(context, 'Selected pricing is no longer valid. Review the menu.');
-      return;
-    }
-    final start = _at(_start);
-    final end = _at(_end);
-    if (!start.isAfter(DateTime.now()) ||
-        !end.isAfter(start) ||
-        _venue.text.trim().isEmpty ||
-        _venue.text.trim().length > 2000) {
-      showGxSnack(context, 'Choose future event times and enter the venue or area.');
+    Map<String, dynamic> request;
+    try {
+      request = CateringCustomerRequest.build(
+        clientRequestId: _requestId,
+        businessId: widget.businessId,
+        cityId: widget.cityId,
+        eventType: widget.eventType,
+        location: _venue.text,
+        start: _at(_start),
+        end: _at(_end),
+        guests: widget.guests,
+        items: widget.items,
+        notes: _notes.text,
+        customize: widget.customize,
+        servingStyle: _servingStyle,
+      );
+    } on FormatException catch (error) {
+      showGxSnack(context, error.message);
       return;
     }
     setState(() => _sending = true);
     try {
-      final plan = await ref.read(eventsRepositoryProvider).create({
-        'eventType': widget.eventType,
-        'startTime': start.toUtc().toIso8601String(),
-        'endTime': end.toUtc().toIso8601String(),
-        'guestCount': widget.guests,
-        'location': _venue.text.trim(),
-        'notes': _notes.text.trim(),
-        'cityId': widget.cityId,
-        'services': const ['CATERING'],
-        'targetBusinessId': widget.businessId,
-        'clientRequestId': _requestId,
-        'serviceRequest': {
-          'itemIds': widget.items.map((item) => item['id']).toList(),
-          'expectedEstimate': estimate,
-          if (widget.customize && (_notes.text.trim().isNotEmpty ||
-              _servingStyle != 'As offered'))
-            'customization': {
-              'servingStyle': _servingStyle,
-              'dietaryNeeds': '',
-              'menuChanges': _notes.text.trim(),
-            },
-        },
-      });
+      final plan = await ref.read(eventsRepositoryProvider).create(request);
       if (!mounted) return;
       Navigator.of(context).pushReplacement(MaterialPageRoute<void>(
         builder: (_) =>
