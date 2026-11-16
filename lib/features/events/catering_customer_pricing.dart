@@ -112,3 +112,64 @@ class CateringCustomerPrice {
         forItem(item, guests) != null).toList();
   }
 }
+
+ 
+/// Payload contract for Rust /events. All selected prices are rechecked on
+/// the backend; this builder prevents malformed or duplicate client requests.
+class CateringCustomerRequest {
+  const CateringCustomerRequest._();
+
+  static Map<String, dynamic> build({
+    required String clientRequestId,
+    required String businessId,
+    required String cityId,
+    required String eventType,
+    required String location,
+    required DateTime start,
+    required DateTime end,
+    required int guests,
+    required List<Map<String, dynamic>> items,
+    String notes = '',
+    bool customize = false,
+    String servingStyle = 'As offered',
+    DateTime? now,
+  }) {
+    final estimate = CateringCustomerPrice.estimate(items, guests);
+    final current = now ?? DateTime.now();
+    if (clientRequestId.isEmpty || businessId.isEmpty || cityId.isEmpty ||
+        eventType.trim().isEmpty || eventType.length > 100 ||
+        location.trim().isEmpty || location.trim().length > 2000 ||
+        notes.trim().length > 500 ||
+        !start.isAfter(current) || !end.isAfter(start) ||
+        end.difference(start) > const Duration(days: 14) ||
+        start.difference(current) > const Duration(days: 730) ||
+        estimate == null || estimate <= 0) {
+      throw const FormatException(
+        'Check event details, selected prices and future event times.',
+      );
+    }
+    return {
+      'eventType': eventType.trim(),
+      'startTime': start.toUtc().toIso8601String(),
+      'endTime': end.toUtc().toIso8601String(),
+      'guestCount': guests,
+      'location': location.trim(),
+      'notes': notes.trim(),
+      'cityId': cityId,
+      'services': ['CATERING'],
+      'targetBusinessId': businessId,
+      'clientRequestId': clientRequestId,
+      'serviceRequest': {
+        'itemIds': items.map((item) => item['id']).toList(),
+        'expectedEstimate': estimate,
+        if (customize && (notes.trim().isNotEmpty ||
+            servingStyle != 'As offered'))
+          'customization': {
+            'servingStyle': servingStyle,
+            'dietaryNeeds': '',
+            'menuChanges': notes.trim(),
+          },
+      },
+    };
+  }
+}
