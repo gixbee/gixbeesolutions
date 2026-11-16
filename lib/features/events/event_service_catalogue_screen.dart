@@ -82,6 +82,7 @@ class _EventServiceCatalogueScreenState
             .map((item) => Map<String, dynamic>.from(item as Map))
             .toList();
         _photos = (catalogue['photos'] as List).cast<String>().toList();
+        _hasUnsavedChanges = false;
       });
     } catch (error) {
       if (mounted) setState(() => _error = eventError(error));
@@ -125,7 +126,7 @@ class _EventServiceCatalogueScreenState
           'serviceCityIds': _serviceCities.toList(),
         },
       );
-      if (!mounted) return;
+      if (!mounted) return false;
       final canonical = saved['catalogue'] as Map?;
       setState(() {
         _revision = saved['revision'] as int;
