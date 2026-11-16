@@ -212,10 +212,12 @@ fn validate_catalogue(catalogue: &Value, service: &str) -> AppResult<()> {
             return Err(invalid());
         }
         if service == "PHOTOGRAPHY" {
+            validate_photography_metadata(item)?;
             if !valid_price(item["price"].as_i64()) {
                 return Err(invalid());
             }
         } else {
+            validate_catering_discounts(item)?;
             let tiers = item["tiers"].as_array().ok_or_else(invalid)?;
             let mut previous_end = 0;
             if tiers.is_empty() || tiers.len() > 20 {
@@ -233,6 +235,96 @@ fn validate_catalogue(catalogue: &Value, service: &str) -> AppResult<()> {
                 }
                 previous_end = max;
             }
+        }
+    }
+    Ok(())
+}
+
+/// The new Flutter photography wizards store structured metadata inside
+/// catalogue JSONB. Validate the structure, not just the base package price.
+fn validate_photography_metadata(item: &Value) -> AppResult<()> {
+    let invalid = || AppError::BadRequest("Check photography package details".into());
+    for key in [
+        "coverageNotes", "photographerTeam", "videographerTeam",
+        "duration", "team", "extrasNotes", "customerRequirements", "packageLevel",
+    ] {
+        if item.get(key).is_some_and(|v| {
+            v.as_str().is_none_or(|s| s.len() > 3000)
+        }) {
+            return Err(invalid());
+        }
+    }
+    for key in ["functions", "ceremonies", "inclusions", "extras"] {
+        if let Some(value) = item.get(key) {
+            let items = value.as_array().ok_or_else(invalid)?;
+            if items.len() > 20 || items.iter().any(|v| {
+                v.as_str().is_none_or(|s| s.trim().is_empty() || s.len() > 150)
+            }) {
+                return Err(invalid());
+            }
+            let distinct = items.iter().filter_map(Value::as_str)
+                .collect::<std::collections::HashSet<_>>();
+            if distinct.len() != items.len() {
+                return Err(invalid());
+            }
+        }
+    }
+    if item.get("extraHourPrice").is_some_and(|v| {
+        v.as_i64().is_none_or(|p| !(0..=10_000_000).contains(&p))
+    }) {
+        return Err(invalid());
+    }
+    if let Some(stages) = item.get("paymentSplit") {
+        if item["kind"] != "PACKAGE" {
+            return Err(invalid());
+        }
+        let stages = stages.as_array().ok_or_else(invalid)?;
+        if stages.is_empty() || stages.len() > 6 {
+            return Err(invalid());
+        }
+        let mut total = 0_i64;
+        for stage in stages {
+            let label = stage["label"].as_str().ok_or_else(invalid)?;
+            let pct = stage["percent"].as_i64().ok_or_else(invalid)?;
+            if label.trim().is_empty() || label.len() > 150 || !(1..=100).contains(&pct) {
+                return Err(invalid());
+            }
+            total += pct;
+        }
+        if total != 100 {
+            return Err(invalid());
+        }
+    }
+    Ok(())
+}
+
+/// Optional catering offers must agree with their published per-guest slabs.
+/// Prevent clients from sending a fake discount badge without discounted prices.
+fn validate_catering_discounts(item: &Value) -> AppResult<()> {
+    let invalid = || AppError::BadRequest("Check catering discount and guest pricing".into());
+    let pct = item.get("discountPct").map(|v| v.as_i64().ok_or_else(invalid))
+        .transpose()?.unwrap_or(0);
+    if !(0..=90).contains(&pct) { return Err(invalid()); }
+    let Some(base) = item.get("baseTiers") else {
+        if pct != 0 { return Err(invalid()); }
+        return Ok(());
+    };
+    let base = base.as_array().ok_or_else(invalid)?;
+    let displayed = item["tiers"].as_array().ok_or_else(invalid)?;
+    if base.is_empty() || base.len() != displayed.len() || base.len() > 20 {
+        return Err(invalid());
+    }
+    for (raw, shown) in base.iter().zip(displayed.iter()) {
+        let min = raw["minGuests"].as_i64().ok_or_else(invalid)?;
+        let max = raw["maxGuests"].as_i64().ok_or_else(invalid)?;
+        let price = raw["price"].as_i64().ok_or_else(invalid)?;
+        if !valid_price(Some(price)) || shown["minGuests"].as_i64() != Some(min)
+            || shown["maxGuests"].as_i64() != Some(max) {
+            return Err(invalid());
+        }
+        let after_discount = ((price * (100 - pct) + 50) / 100).max(1);
+        if shown["price"].as_i64() != Some(after_discount) {
+            return Err(invalid());
         }
     }
     Ok(())
@@ -413,4 +505,45 @@ pub(super) async fn check_daily_limit(
         }
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod catalogue_metadata_tests {
+    use super::*;
+
+    #[test]
+    fn rejects_malformed_photo_payment_split() {
+        let item = json!({
+            "kind":"PACKAGE",
+            "paymentSplit":[
+                {"label":"Advance","percent":40},
+                {"label":"Final","percent":40}
+            ]
+        });
+        assert!(validate_photography_metadata(&item).is_err());
+    }
+
+    #[test]
+    fn accepts_wizard_photo_metadata() {
+        let item = json!({
+            "kind":"PACKAGE",
+            "functions":["Wedding","Reception"],
+            "inclusions":["Edited Photos"],
+            "paymentSplit":[
+                {"label":"Advance","percent":30},
+                {"label":"Final","percent":70}
+            ]
+        });
+        assert!(validate_photography_metadata(&item).is_ok());
+    }
+
+    #[test]
+    fn validates_discounted_catering_price() {
+        let item = json!({
+            "discountPct":10,
+            "baseTiers":[{"minGuests":1,"maxGuests":200,"price":200}],
+            "tiers":[{"minGuests":1,"maxGuests":200,"price":180}]
+        });
+        assert!(validate_catering_discounts(&item).is_ok());
+    }
 }
