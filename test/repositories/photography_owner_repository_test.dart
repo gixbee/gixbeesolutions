@@ -100,6 +100,24 @@ void main() {
         catalogue),throwsA(isA<DioException>()));
   });
 
+  test('editing an outside shoot uses the protected PUT endpoint', () async {
+    final dio=Dio();
+    dio.interceptors.add(InterceptorsWrapper(onRequest:(o,h) {
+      expect(o.method,'PUT');
+      expect(o.path,
+        '/events/vendor/calendar/$businessId/55555555-5555-4555-8555-555555555555');
+      final body=Map<String,dynamic>.from(o.data as Map);
+      expect(body['title'],'Portrait rescheduled');
+      expect(body['startAt'],'2026-12-20T07:00:00.000Z');
+      expect(body['endAt'],'2026-12-20T09:00:00.000Z');
+      h.resolve(Response(requestOptions:o,data:{'id':'ok'}));
+    }));
+    await EventsRepository(dio).updateCalendarBooking(
+      businessId,'55555555-5555-4555-8555-555555555555',
+      'Portrait rescheduled',
+      DateTime.utc(2026,12,20,7),DateTime.utc(2026,12,20,9));
+  });
+
   test('owner calendar uses protected combined overview endpoint',
       () async {
     final dio = Dio();
