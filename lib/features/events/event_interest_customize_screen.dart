@@ -132,7 +132,22 @@ class _EventInterestCustomizeScreenState
           businessId: widget.selection.businessId,
           cityId: widget.selection.cityId,
           summary: widget.selection.summary,
-          request: widget.selection.request,
+          request: {
+            ...widget.selection.request,
+            'customization': _photography
+                ? {
+                    'functions': _selectedFunctions.toList(),
+                    'coverage': _coverage.text.trim(),
+                    'team': _team.text.trim(),
+                    'deliverables': _deliverables.text.trim(),
+                    'extras': _extras.text.trim(),
+                  }
+                : {
+                    'servingStyle': _serviceStyle,
+                    'dietaryNeeds': _dietNeeds.text.trim(),
+                    'menuChanges': _menuChanges.text.trim(),
+                  },
+          },
           address: widget.selection.address,
           start: widget.selection.start,
           end: widget.selection.end,
