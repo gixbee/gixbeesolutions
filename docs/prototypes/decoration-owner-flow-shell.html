@@ -156,6 +156,9 @@ body{margin:0;background:#E8EDF5;font-family:Inter,system-ui,sans-serif;color:#1
 .dec-act-extra.on{background:var(--decor2);color:#fff;border-color:var(--decor2)}
 .dec-act-extra .pr{display:block;font-size:9px;font-weight:800;margin-top:2px}
 .dec-add-custom-btn{display:block;width:calc(100% - 32px);margin:6px 16px 12px;border:2px dashed #F9A8D4;background:#FFF1F2;color:var(--decor2);font-weight:900;font-size:13px;padding:11px 12px;border-radius:12px;cursor:pointer;font:inherit}
+.dec-pkg-sel-wrap{margin-top:4px;padding-top:0;border-top:1px solid var(--line)}
+.dec-custom-sec-hd{font-size:11px;font-weight:900;letter-spacing:.04em;text-transform:uppercase;color:var(--decor2);margin:16px 0 8px}
+.dec-item-card .dec-tag-custom{font-size:9px;font-weight:800;padding:2px 6px;border-radius:6px;background:#FEF3C7;color:#92400E;margin-left:6px;vertical-align:middle}
 .dec-items-empty{padding:20px 8px;text-align:center;font-size:12px;color:var(--mut);line-height:1.45}
 .dec-custom-sheet{max-height:88%}
 .dec-custom-type{display:flex;gap:8px;margin:8px 0 12px}
@@ -776,7 +779,7 @@ body{margin:0;background:#E8EDF5;font-family:Inter,system-ui,sans-serif;color:#1
   <form class="search" onsubmit="return false"><span>🔍</span><input type="search" id="decModSearch" placeholder="Search categories" autocomplete="off"></form>
   <div class="dec-mod-list" id="decModList"></div>
   <button type="button" class="dec-add-custom-btn" id="decOpenCustomItem">+ Add Custom Item</button>
-  <div class="pad" id="decSelectedItemsCompact" hidden></div>
+  <div class="pad dec-pkg-sel-wrap" id="decSelectedItemsCompact" hidden></div>
   <div class="cat-wiz-foot"><button type="button" class="btn btn-ghost" id="decPkgStep3BackFoot">← Back</button><button type="button" class="btn btn-decor" id="decPkgStep3Next">Next: Set pricing →</button></div>
 </section>
 

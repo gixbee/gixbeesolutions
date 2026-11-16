@@ -815,6 +815,100 @@ function bumpDecorCatalogQty(catalogueId, delta) {
   refreshDecorPkgItemsUi();
 }
 
+function decorIsCustomPackageItem(it) {
+  return !!(it && !it.catalogueId);
+}
+
+function decorCustomItemsForModule(modId, tab, searchQ) {
+  const q = (searchQ || '').trim().toLowerCase();
+  const items = decorPkgWizard.draft.items || [];
+  const rows = [];
+  let idx;
+  for (idx = 0; idx < items.length; idx++) {
+    const it = items[idx];
+    if (!decorIsCustomPackageItem(it) || it.moduleId !== modId) continue;
+    const isExtra = it.inclusionType === 'extra';
+    if (tab === 'extra' ? !isExtra : isExtra) continue;
+    const label = (it.customName || it.name || '').toLowerCase();
+    if (q && label.indexOf(q) < 0) continue;
+    rows.push({ it: it, idx: idx });
+  }
+  return rows;
+}
+
+function renderDecorCustomItemCard(row, mod, tab) {
+  const it = row.it;
+  const idx = row.idx;
+  const isExtra = it.inclusionType === 'extra';
+  const qty = Math.max(1, +it.quantity || 1);
+  let extraLbl = 'Extra';
+  if (isExtra && it.extraPrice) {
+    extraLbl += '<span class="pr">' + inr(it.extraPrice) + ' / ' + esc(it.unit || 'Per Event') + '</span>';
+  }
+  const blurb = it.description || 'Custom requirement you added for this package.';
+  return (
+    '<div class="dec-item-card dec-item-custom" data-custom-idx="' +
+    idx +
+    '"><div class="dec-item-thumb" aria-hidden="true">✨</div><div class="dec-item-card-body"><b>' +
+    esc(it.customName || it.name) +
+    '<span class="dec-tag-custom">Custom</span></b><div class="blurb">' +
+    esc(blurb) +
+    '</div><div class="dec-item-actions"><div class="dec-qty"><button type="button" data-dec-custom-qty="' +
+    idx +
+    '" data-delta="-1" aria-label="Decrease">−</button><span>' +
+    qty +
+    '</span><button type="button" data-dec-custom-qty="' +
+    idx +
+    '" data-delta="1" aria-label="Increase">+</button></div>' +
+    (tab === 'included'
+      ? '<button type="button" class="dec-act-inc on">✓ Include</button>'
+      : '<button type="button" class="dec-act-extra on">' +
+        extraLbl +
+        '</button>') +
+    '<button type="button" class="dec-link" data-dec-edit-item="' +
+    idx +
+    '">Edit</button><button type="button" class="dec-link" data-dec-remove-item="' +
+    idx +
+    '">Remove</button></div></div></div>'
+  );
+}
+
+function bindDecorCustomItemCards(host) {
+  if (!host) return;
+  host.querySelectorAll('[data-dec-custom-qty]').forEach(function (btn) {
+    btn.onclick = function () {
+      const idx = +btn.getAttribute('data-dec-custom-qty');
+      const delta = +btn.getAttribute('data-delta');
+      const it = decorPkgWizard.draft.items[idx];
+      if (!it) return;
+      it.quantity = Math.max(1, Math.round(+(it.quantity || 1)) + delta);
+      refreshDecorPkgItemsUi();
+    };
+  });
+  host.querySelectorAll('[data-dec-remove-item]').forEach(function (btn) {
+    btn.onclick = function () {
+      const idx = +btn.getAttribute('data-dec-remove-item');
+      const items = decorPkgWizard.draft.items || [];
+      if (idx < 0 || idx >= items.length) return;
+      items.splice(idx, 1);
+      decorPkgWizard.draft.items = items;
+      refreshDecorPkgItemsUi();
+      toast('Item removed');
+    };
+  });
+  host.querySelectorAll('[data-dec-edit-item]').forEach(function (btn) {
+    btn.onclick = function () {
+      const idx = +btn.getAttribute('data-dec-edit-item');
+      const it = decorPkgWizard.draft.items[idx];
+      if (!it) return;
+      decorItemPickCtx.configuringId = idx;
+      if (it.moduleId) decorModulePickCtx.moduleId = it.moduleId;
+      renderDecorItemConfig();
+      show('decorItemConfig');
+    };
+  });
+}
+
 function renderDecorItemSummaryBanner() {
   const host = el('decItemSummaryBanner');
   if (!host) return;
@@ -831,6 +925,7 @@ function decorRenderSelItemRow(it, idx) {
   const label = it.customName || it.name;
   const isExtra = it.inclusionType === 'extra';
   const tag = isExtra ? 'Extra' : 'Included';
+  const custom = decorIsCustomPackageItem(it) ? ' <span class="dec-tag-custom">Custom</span>' : '';
   const price = isExtra
     ? it.extraPrice
       ? ' — <b>' + inr(it.extraPrice) + '</b> / ' + esc(it.unit || 'Per Event')
@@ -840,7 +935,9 @@ function decorRenderSelItemRow(it, idx) {
   return (
     '<div class="dec-sel-row"><span><b>' +
     esc(label) +
-    '</b> <span class="dec-tag ' +
+    '</b>' +
+    custom +
+    ' <span class="dec-tag ' +
     (isExtra ? 'extra' : 'inc') +
     '">' +
     tag +
@@ -877,6 +974,7 @@ function renderDecorPkgStep3() {
   const ctx = decorCatalogContextForOwnerPick(d);
   const q = decorCategorySearchQuery();
   renderDecorCategoryList(ctx, q);
+  renderDecorSelectedItemsSummary(false);
 }
 
 function renderDecorSelectedItemsSummary(full) {
@@ -921,15 +1019,12 @@ function renderDecorSelectedItemsSummary(full) {
     return;
   }
   if (!rows.length) {
-    host.innerHTML =
-      '<p class="sub">' +
-      (tab === 'extra'
-        ? 'No add-ons yet. Pick items above — enter price for each extra.'
-        : 'No included items yet. Pick items above.') +
-      '</p>';
+    host.hidden = true;
+    host.innerHTML = '';
     return;
   }
-  const title = tab === 'extra' ? 'Extra add-ons (with price)' : 'Included in package';
+  host.hidden = false;
+  const title = tab === 'extra' ? 'Your extra add-ons' : 'Added to package';
   host.innerHTML =
     '<div class="dec-sel-sec"><div class="dec-sel-sec-hd ' +
     tab +
@@ -985,18 +1080,29 @@ function renderDecorModulePick() {
     list.length +
     ' items shown';
   const host = el('decPickModList');
-  if (!list.length) {
-    host.innerHTML =
-      '<p class="dec-items-empty">No items here for your package. Adjust step 2 or add a custom item below.</p>';
-    el('decPickModSearch').value = decorModulePickCtx.search || '';
-    return;
-  }
-  host.innerHTML = list
+  const customRows = decorCustomItemsForModule(mod.id, tab, q);
+  let html = list
     .map(function (it) {
       return renderDecorItemCard(it, mod, tab);
     })
     .join('');
-  bindDecorItemsPane(host, mod);
+  if (customRows.length) {
+    html +=
+      '<p class="dec-custom-sec-hd">Your custom items</p>' +
+      customRows
+        .map(function (row) {
+          return renderDecorCustomItemCard(row, mod, tab);
+        })
+        .join('');
+  }
+  if (!html) {
+    host.innerHTML =
+      '<p class="dec-items-empty">No items here for your package. Add a custom item below.</p>';
+  } else {
+    host.innerHTML = html;
+    bindDecorItemsPane(host, mod);
+    bindDecorCustomItemCards(host);
+  }
   el('decPickModSearch').value = decorModulePickCtx.search || '';
 }
 
