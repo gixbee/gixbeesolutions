@@ -487,43 +487,70 @@ class _CateringPackageWizardScreenState
       );
 
   Widget _categoryStep() {
+    const categories = [
+      (
+        'Wedding & Related Functions',
+        'Wedding, engagement, reception and anniversary',
+        '💍',
+      ),
+      (
+        'Other Functions',
+        'Birthday, baptism, housewarming, and more',
+        '📅',
+      ),
+    ];
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
       _heading('Select Package Category *',
           hint: 'Choose the category that best describes this package.'),
-      RadioGroup<String>(
-        groupValue: _eventCategory,
-        onChanged: (v) {
-          if (v != null) setState(() => _eventCategory = v);
-        },
-        child: Column(
-          children: [
-            for (final (name, sub, emoji) in [
-              (
-                'Wedding & Related Functions',
-                'Wedding, engagement, reception and anniversary',
-                '💍'
-              ),
-              (
-                'Other Functions',
-                'Birthday, baptism, housewarming, and more',
-                '📅'
-              )
-            ])
-              Card(
+      LayoutBuilder(builder: (context, constraints) {
+        final cardWidth = (constraints.maxWidth - 10) / 2;
+        return Wrap(spacing: 10, runSpacing: 10, children: [
+          for (final (name, sub, emoji) in categories)
+            SizedBox(width: cardWidth, height: 178,
+              child: Card(
+                margin: EdgeInsets.zero,
                 color: _eventCategory == name
-                    ? const Color(0xFFECFDF3)
-                    : Colors.white,
-                child: RadioListTile<String>(
-                  value: name,
-                  secondary: Text(emoji, style: const TextStyle(fontSize: 27)),
-                  title: Text(name,
-                      style: const TextStyle(fontWeight: FontWeight.w800)),
-                  subtitle: Text(sub),
+                    ? const Color(0xFFECFDF3) : Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14),
+                  side: BorderSide(
+                    color: _eventCategory == name
+                        ? _green : const Color(0xFFE2E8F0),
+                    width: _eventCategory == name ? 2 : 1,
+                  ),
+                ),
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(14),
+                  onTap: () => setState(() => _eventCategory = name),
+                  child: Padding(
+                    padding: const EdgeInsets.all(12),
+                    child: Column(crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(children: [
+                          Text(emoji, style: const TextStyle(fontSize: 33)),
+                          const Spacer(),
+                          if (_eventCategory == name)
+                            const Icon(Icons.check_circle, color: _green),
+                        ]),
+                        const SizedBox(height: 10),
+                        Text(name, maxLines: 2,
+                            style: const TextStyle(
+                              fontSize: 13, color: _navy,
+                              fontWeight: FontWeight.w900)),
+                        const SizedBox(height: 5),
+                        Expanded(child: Text(sub,
+                          maxLines: 3,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            color: Color(0xFF64748B), fontSize: 11))),
+                      ],
+                    ),
+                  ),
                 ),
               ),
-          ],
-        ),
-      ),
+            ),
+        ]);
+      }),
     ]);
   }
 
