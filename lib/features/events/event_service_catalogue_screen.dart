@@ -141,7 +141,9 @@ class _EventServiceCatalogueScreenState
       showGxSnack(context, 'Catalogue saved');
       return true;
     } catch (error) {
-      if (mounted) {
+      // The wizard shows its own inline retry error. A snackbar from the
+      // parent Scaffold would cover the wizard's bottom Save button.
+      if (mounted && entries == null) {
         showGxSnack(context, eventError(error));
       }
       return false;
