@@ -1,0 +1,56 @@
+name: Photography Customer validation
+
+on:
+  pull_request:
+    paths:
+      - 'lib/features/events/photography_customer_*'
+      - 'lib/features/events/event_service_browser.dart'
+      - 'test/features/events/photography_customer_*'
+      - '.github/workflows/photography-customer.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  flutter:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    name: Flutter customer search, details, customization and enquiry
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.41.0'
+          channel: stable
+          cache: true
+      - run: flutter pub get
+      - name: Analyze photography customer screens and tests
+        run: |
+          flutter analyze --no-fatal-infos \
+            lib/features/events/photography_customer_model.dart \
+            lib/features/events/photography_customer_search_screen.dart \
+            lib/features/events/photography_customer_flow_screen.dart \
+            lib/features/events/photography_customer_interest_screen.dart \
+            lib/features/events/event_service_browser.dart \
+            test/features/events/photography_customer_model_test.dart \
+            test/features/events/photography_customer_flow_test.dart
+      - name: Test photography filtering, request contract and widgets
+        run: |
+          flutter test --no-pub \
+            test/features/events/photography_customer_model_test.dart \
+            test/features/events/photography_customer_flow_test.dart
+
+  rust:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    name: Rust catalogue and customization contract
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: backend_rust
+      - run: cargo check --manifest-path backend_rust/Cargo.toml
+      - run: cargo test --manifest-path backend_rust/Cargo.toml customization_tests
+      - run: cargo test --manifest-path backend_rust/Cargo.toml catalogue_metadata_tests
