@@ -36,6 +36,8 @@ class _PhotographyServiceWizardScreenState
   final _deliverableQty = <String, TextEditingController>{};
   final _deliveryDays = <String, TextEditingController>{};
   final _deliverables = <String>{};
+  final _selectedExtras = <String>{};
+  final _extraPrices = <String, TextEditingController>{};
   bool _discountEnabled = false;
   bool _saving = false;
   String? _saveError;
@@ -62,6 +64,12 @@ class _PhotographyServiceWizardScreenState
     _discountEnabled = (item['discountPct'] as num? ?? 0) > 0;
     _extraHour.text = (item['extraHourPrice'] ?? '').toString();
     _deliverables.addAll((item['inclusions'] as List? ?? const []).whereType<String>());
+    _selectedExtras.addAll((item['extras'] as List? ?? const []).whereType<String>());
+    final prices = item['extraPrices'] as Map? ?? {};
+    for (final name in _selectedExtras) {
+      _extraPrices[name] = TextEditingController(
+        text: (prices[name] ?? 0).toString());
+    }
     final details = item['deliverableDetails'] as Map? ?? {};
     final timelines = item['deliveryTimelines'] as Map? ?? {};
     for (final name in _deliverables) {
@@ -91,6 +99,7 @@ class _PhotographyServiceWizardScreenState
       _discount,
       _extraHour,
       ..._deliverableQty.values,
+      ..._extraPrices.values,
       ..._deliveryDays.values,
       _duration,
       _coverage,
@@ -166,6 +175,13 @@ class _PhotographyServiceWizardScreenState
         return;
       }
     }
+    for (final name in _selectedExtras) {
+      final amount = int.tryParse(_extraPrices[name]?.text ?? '');
+      if (amount == null || amount < 0 || amount > 10000000) {
+        _error('Check the optional extra price for $name.');
+        return;
+      }
+    }
     final item = <String, dynamic>{
       ...?widget.service,
       'id': widget.service?['id'] ?? const Uuid().v4(),
@@ -192,6 +208,11 @@ class _PhotographyServiceWizardScreenState
           name: {'days': int.tryParse(_deliveryDays[name]?.text ?? '') ?? 5},
       },
       'extrasNotes': _extras.text.trim(),
+      'extras': _selectedExtras.toList()..sort(),
+      'extraPrices': {
+        for (final name in _selectedExtras)
+          name: int.parse(_extraPrices[name]!.text.trim()),
+      },
       'delivery': _delivery.text.trim(),
       'policy': _policy.text.trim(),
       'customerRequirements': _requirements.text.trim(),
@@ -321,10 +342,31 @@ class _PhotographyServiceWizardScreenState
               lines: 4),
         ]);
       case 5:
-        return Column(children: [
-          _field(_extras, 'Optional extras and prices', lines: 5),
-          const Text(
-              'Extras are negotiated after the customer sends interest.'),
+        return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          const Text('Optional services with separate prices',
+            style: TextStyle(fontWeight: FontWeight.w800, color: _navy)),
+          Wrap(spacing: 8, children: [
+            for (final name in const [
+              'Drone / Helicam','Live Streaming','Extra Photographer',
+              'Extra Videographer','Photo Booth','Additional Hour',
+              'Express Delivery',
+            ])
+              FilterChip(
+                label: Text(name),
+                selected: _selectedExtras.contains(name),
+                onSelected: (v) => setState(() {
+                  if (v) { _selectedExtras.add(name); }
+                  else { _selectedExtras.remove(name); }
+                }),
+              ),
+          ]),
+          for (final name in _selectedExtras.toList()..sort())
+            _field(_extraPrices.putIfAbsent(name,
+                () => TextEditingController(text: '0')),
+                '$name — add-on price (₹)', input: TextInputType.number),
+          _field(_extras, 'Additional extra-service notes', lines: 4),
+          const Text('Add-ons are separate from the base service quote.',
+            style: TextStyle(color: Colors.blueGrey)),
         ]);
       case 6:
         return Column(children: [
