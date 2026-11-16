@@ -27,6 +27,10 @@ pub(super) async fn detail(
             };
             let mut display = offer.clone();
             display["offerNoAc"] = json!(offer["offerNoAc"].as_bool().unwrap_or(true));
+            // Preserve owner list prices alongside the discounted customer
+            // prices; do not apply the percentage discount twice in Flutter.
+            display["listPriceNoAc"] = offer["priceNoAc"].clone();
+            display["listPriceAc"] = offer["priceAc"].clone();
             display["priceNoAc"] = json!(rent(offer, false));
             display["priceAc"] = json!(rent(offer, true));
             slots.push(json!({"offer": display, "start": interval.start, "end": interval.end, "available": available}));
