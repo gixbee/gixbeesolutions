@@ -1,0 +1,60 @@
+name: Catering Owner validation
+
+on:
+  pull_request:
+    paths:
+      - 'lib/features/events/catering_*'
+      - 'lib/features/events/event_service_catalogue_screen.dart'
+      - 'backend_rust/src/events/catalogues.rs'
+      - 'test/features/events/catering_*'
+      - 'test/repositories/catering_catalogue_repository_test.dart'
+      - '.github/workflows/catering-owner.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  flutter:
+    name: Flutter pricing, wizard and catalogue tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - run: flutter --version
+      - run: flutter pub get
+      - name: Analyze changed catering files
+        run: |
+          flutter analyze --no-fatal-infos \
+            lib/features/events/catering_price_math.dart \
+            lib/features/events/catering_food_item_screen.dart \
+            lib/features/events/catering_package_wizard_screen.dart \
+            lib/features/events/event_service_catalogue_screen.dart \
+            test/features/events/catering_price_math_test.dart \
+            test/features/events/catering_package_wizard_test.dart \
+            test/repositories/catering_catalogue_repository_test.dart
+      - name: Validate create/edit/reload, discount math and failed-save retry
+        run: |
+          flutter test --no-pub \
+            test/features/events/catering_price_math_test.dart \
+            test/features/events/catering_package_wizard_test.dart \
+            test/repositories/catering_catalogue_repository_test.dart
+
+  rust:
+    name: Rust catalogue price and menu snapshot tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: backend_rust
+      - name: Check Rust compilation
+        run: cargo check --manifest-path backend_rust/Cargo.toml
+      - name: Run catalogue validation tests
+        run: cargo test --manifest-path backend_rust/Cargo.toml catalogue_metadata_tests
