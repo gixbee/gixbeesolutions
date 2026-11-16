@@ -7,6 +7,7 @@ import '../../repositories/events_repository.dart';
 import '../../shared/models/business.dart';
 import '../../shared/widgets/gx_snackbar.dart';
 import 'event_plan_detail_screen.dart';
+import 'photography_calendar_math.dart';
 import 'event_plans_screen.dart';
 import 'event_vendor_calendar_screen.dart';
 
@@ -33,6 +34,7 @@ class _PhotographyOwnerCalendarScreenState
   String _tab = 'calendar';
   bool _busy = false;
   bool _settingsLoaded = false;
+  String? _settingsError;
   int _revision = 0;
   Map<String, dynamic> _catalogue = {};
   int _dailyLimit = 1;
@@ -66,9 +68,10 @@ class _PhotographyOwnerCalendarScreenState
         _advanceDays = (c['maxAdvanceDays'] as num?)?.toInt() ?? 365;
         _noticeDays = (c['minNoticeDays'] as num?)?.toInt() ?? 0;
         _settingsLoaded = true;
+        _settingsError = null;
       });
     } catch (error) {
-      if (mounted) showGxSnack(context, eventError(error));
+      if (mounted) setState(() => _settingsError = eventError(error));
     }
   }
 
@@ -78,28 +81,17 @@ class _PhotographyOwnerCalendarScreenState
   }
 
   DateTime? _begin(Map<String, dynamic> item) =>
-      DateTime.tryParse(item['startAt']?.toString() ?? '')?.toLocal();
+      PhotographyCalendarMath.inIndia(item['startAt']);
 
   DateTime? _finish(Map<String, dynamic> item) =>
-      DateTime.tryParse(item['endAt']?.toString() ?? '')?.toLocal();
+      PhotographyCalendarMath.inIndia(item['endAt']);
 
   bool _same(DateTime a, DateTime b) =>
       a.year == b.year && a.month == b.month && a.day == b.day;
 
-  /// A multiday shoot occupies all dates overlapped by its interval.
-  bool _onDay(Map<String, dynamic> item, DateTime date) {
-    final start = _begin(item), end = _finish(item);
-    if (start == null || end == null) return false;
-    final day = DateUtils.dateOnly(date);
-    return start.isBefore(day.add(const Duration(days: 1))) &&
-        end.isAfter(day);
-  }
-
   List<Map<String, dynamic>> _forDay(
       List<Map<String, dynamic>> items, DateTime date) =>
-      items.where((item) => _onDay(item, date)).toList()
-        ..sort((a,b) => (_begin(a) ?? DateTime(1900))
-            .compareTo(_begin(b) ?? DateTime(1900)));
+      PhotographyCalendarMath.onDay(items, date);
 
   Future<void> _markOffline(bool blocked) async {
     if (_busy) return;
@@ -323,12 +315,11 @@ class _PhotographyOwnerCalendarScreenState
   }
 
   Widget _registerBody(List<Map<String, dynamic>> items) {
-    final monthEntries = items.where((item) {
-      final start = _begin(item);
-      return start != null && start.year == _month.year &&
-          start.month == _month.month;
-    }).toList()..sort((a,b)=> (_begin(a) ?? DateTime(1900))
-        .compareTo(_begin(b) ?? DateTime(1900)));
+    final monthEntries = items.where((item) =>
+        PhotographyCalendarMath.overlapsMonth(item, _month))
+        .toList()..sort((a,b) =>
+            (_begin(a) ?? DateTime.utc(1900))
+                .compareTo(_begin(b) ?? DateTime.utc(1900)));
     return ListView(
       padding: const EdgeInsets.fromLTRB(12, 0, 12, 18),
       children: [
@@ -375,8 +366,10 @@ class _PhotographyOwnerCalendarScreenState
         title: Text(item['title']?.toString() ?? 'Photography shoot',
           style: const TextStyle(fontWeight: FontWeight.w800)),
         subtitle: Text([
-          if (start != null) DateFormat('EEE d MMM · hh:mm a').format(start),
-          if (end != null) 'Until ${DateFormat('hh:mm a').format(end)}',
+          if (start != null)
+            '${DateFormat('EEE d MMM · hh:mm a').format(start)} IST',
+          if (end != null)
+            'Until ${DateFormat('hh:mm a').format(end)} IST',
           platform ? 'Gixbee · ${item['status'] ?? 'Confirmed'}' : 'Outside booking',
           if ((item['location']?.toString() ?? '').isNotEmpty)
             item['location'].toString(),
@@ -389,7 +382,10 @@ class _PhotographyOwnerCalendarScreenState
 
   Widget _settingsBody() {
     if (!_settingsLoaded) {
-      return const Center(child: CircularProgressIndicator());
+      return Center(child: _settingsError == null
+        ? const CircularProgressIndicator()
+        : TextButton(onPressed: _loadSettings,
+            child: Text('$_settingsError · Retry')));
     }
     return ListView(padding: const EdgeInsets.all(16), children: [
       const Text('Booking settings',
