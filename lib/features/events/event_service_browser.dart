@@ -12,6 +12,7 @@ import 'event_interest_customize_screen.dart';
 import 'hall_booking_review_screen.dart';
 import 'catering_package_wizard_screen.dart';
 import 'catering_customer_search_screen.dart';
+import 'photography_customer_search_screen.dart';
 
 class EventServiceBrowser extends ConsumerStatefulWidget {
   const EventServiceBrowser({
@@ -72,7 +73,7 @@ class _EventServiceBrowserState extends ConsumerState<EventServiceBrowser> {
   void initState() {
     super.initState();
     final city = ref.read(currentCityProvider)?.id;
-    if (widget.service != 'CATERING' && city != null) _load(city);
+    if (widget.service != 'CATERING' && widget.service != 'PHOTOGRAPHY' && city != null) _load(city);
   }
 
   void _load(String city) {
@@ -85,6 +86,13 @@ class _EventServiceBrowserState extends ConsumerState<EventServiceBrowser> {
   Widget build(BuildContext context) {
     if (widget.service == 'CATERING') {
       return CateringCustomerSearchScreen(
+        eventType: widget.eventType,
+        date: widget.date,
+        guests: widget.guests,
+      );
+    }
+    if (widget.service == 'PHOTOGRAPHY') {
+      return PhotographyCustomerSearchScreen(
         eventType: widget.eventType,
         date: widget.date,
         guests: widget.guests,
