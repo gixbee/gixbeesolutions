@@ -66,7 +66,7 @@ void main() {
   test('rejects invalid selection, past date, venue and long requirement', () {
     expect(() => make(selected: []), throwsFormatException);
     expect(() => make(location: ' '), throwsFormatException);
-    expect(() => make(notes: 'a' * 501), throwsFormatException);
+    expect(() => make(notes: List.filled(501, 'a').join()), throwsFormatException);
     expect(() => make(from: now.subtract(const Duration(hours: 1))),
       throwsFormatException);
     expect(() => make(until: start.subtract(const Duration(minutes: 1))),
