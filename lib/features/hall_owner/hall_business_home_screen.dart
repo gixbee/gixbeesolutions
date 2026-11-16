@@ -7,6 +7,7 @@ import '../../shared/widgets/gx_button.dart';
 import '../../shared/widgets/gx_snackbar.dart';
 import 'hall_enquiries_inbox_screen.dart';
 import 'hall_manage_screen.dart';
+import 'hall_venue_settings_screen.dart';
 
 class HallBusinessHomeScreen extends ConsumerStatefulWidget {
   const HallBusinessHomeScreen({super.key, required this.business});
@@ -76,6 +77,17 @@ class _HallBusinessHomeScreenState
       appBar: AppBar(
         title: Text(widget.business.name),
         actions: [
+          IconButton(
+            tooltip: 'Venue and parking settings',
+            icon: const Icon(Icons.settings_outlined),
+            onPressed: () async {
+              await Navigator.push(context, MaterialPageRoute<void>(
+                builder: (_) => HallVenueSettingsScreen(
+                  business: widget.business),
+              ));
+              if (mounted) _reload();
+            },
+          ),
           IconButton(
             tooltip: 'Enquiries',
             icon: const Icon(Icons.inbox_outlined),

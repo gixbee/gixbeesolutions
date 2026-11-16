@@ -1,0 +1,62 @@
+name: Hall Owner and Customer validation
+
+on:
+  pull_request:
+    paths:
+      - 'backend_rust/src/halls/**'
+      - 'lib/features/hall_owner/**'
+      - 'lib/features/events/hall_customer_*'
+      - 'lib/features/events/hall_booking_review_screen.dart'
+      - 'lib/features/events/event_service_browser.dart'
+      - 'test/features/events/hall_customer_*'
+      - 'test/repositories/hall_*'
+      - '.github/workflows/hall-flows.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  flutter:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    name: Flutter Hall Owner and Customer
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.41.0'
+          channel: stable
+          cache: true
+      - run: flutter pub get
+      - name: Analyze hall owner/customer changes
+        run: |
+          flutter analyze --no-fatal-infos \
+            lib/features/hall_owner \
+            lib/features/events/hall_customer_model.dart \
+            lib/features/events/hall_customer_search_screen.dart \
+            lib/features/events/hall_customer_flow_screen.dart \
+            lib/features/events/hall_booking_review_screen.dart \
+            lib/features/events/event_service_browser.dart \
+            test/features/events/hall_customer_model_test.dart \
+            test/features/events/hall_customer_flow_test.dart \
+            test/repositories/hall_contract_test.dart
+      - name: Test hall flows and request contracts
+        run: |
+          flutter test --no-pub \
+            test/features/events/hall_customer_model_test.dart \
+            test/features/events/hall_customer_flow_test.dart \
+            test/repositories/hall_contract_test.dart
+
+  rust:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    name: Rust hall pricing, availability and request contracts
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: backend_rust
+      - run: cargo check --manifest-path backend_rust/Cargo.toml
+      - run: cargo test --manifest-path backend_rust/Cargo.toml halls

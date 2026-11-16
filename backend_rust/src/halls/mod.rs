@@ -715,6 +715,8 @@ fn validate_package(pkg: &Value) -> AppResult<()> {
     })?;
     whole_number(capacity.get("seat"), "capacity.seat", 0, 100_000)?;
     whole_number(capacity.get("dine"), "capacity.dine", 0, 100_000)?;
+    // Optional for earlier packages; supported by the v61 Hall Owner editor.
+    optional_whole_number(capacity.get("rooms"), "capacity.rooms", 0, 10_000)?;
     let offers = pkg
         .get("slotOffers")
         .and_then(|v| v.as_array())
@@ -1306,10 +1308,16 @@ async fn discover_halls(
              'location', b.location,
              'cityId', b."cityId",
              'venueTimezone', COALESCE(v.timezone, 'Asia/Kolkata'),
-             'timezoneLabel', 'Times shown in IST (Kolkata)'
+             'timezoneLabel', 'Times shown in IST (Kolkata)',
+             'capacity', pr.package->'capacity',
+             'facilities', pr.package->'facilities',
+             'events', pr.package->'events',
+             'slotOffers', pr.package->'slotOffers',
+             'parking', COALESCE(v."commonParking", '{}'::jsonb)
            ) AS data
            FROM business_halls h
            JOIN businesses b ON b.id = h."businessId"
+           JOIN business_hall_package_revisions pr ON pr.id = h."packageRevisionId"
            LEFT JOIN business_hall_venue v ON v."businessId" = b.id
            WHERE b.type = 'SERVICE' AND b."serviceType"::text = 'HALL'
              AND b.status = 'VERIFIED'

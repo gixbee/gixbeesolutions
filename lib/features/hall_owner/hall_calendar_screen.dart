@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../repositories/hall_repository.dart';
 import 'hall_month_grid.dart';
+import 'hall_booking_settings_screen.dart';
 import '../../shared/models/business.dart';
 import '../../shared/widgets/gx_button.dart';
 import '../../shared/widgets/gx_snackbar.dart';
@@ -211,6 +212,16 @@ class _HallCalendarScreenState extends ConsumerState<HallCalendarScreen> {
       appBar: AppBar(
         title: const Text('Hall calendar'),
         actions: [
+          IconButton(
+            tooltip: 'Booking settings',
+            icon: const Icon(Icons.tune),
+            onPressed: () async {
+              await Navigator.of(context).push<void>(MaterialPageRoute(
+                builder: (_) => HallBookingSettingsScreen(
+                  business: widget.business, hallId: widget.hallId)));
+              if (mounted) await _load();
+            },
+          ),
           IconButton(
             icon: const Icon(Icons.chevron_left),
             onPressed: () {
