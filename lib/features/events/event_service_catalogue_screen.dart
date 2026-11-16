@@ -166,11 +166,11 @@ class _EventServiceCatalogueScreenState
                 : photoServiceFlow
                     ? PhotographyServiceWizardScreen(service: original)
                     : _CatalogueEntry(
-                catering: _catering,
-                item: original,
-                dishes: dishes,
-                initialKind: index == null ? 'ITEM' : null,
-              ),
+                        catering: _catering,
+                        item: original,
+                        dishes: dishes,
+                        initialKind: index == null ? 'ITEM' : null,
+                      ),
       ),
     );
     if (!mounted || updated == null) return;
@@ -293,22 +293,22 @@ class _EventServiceCatalogueScreenState
                           label: const Text('Create catering package'),
                         ),
                         TextButton.icon(
-                          onPressed: _items.length >= 150
-                              ? null
-                              : () => _edit(null),
+                          onPressed:
+                              _items.length >= 150 ? null : () => _edit(null),
                           icon: const Icon(Icons.add),
                           label: const Text('Add individual dish'),
                         ),
                       ] else ...[
                         TextButton.icon(
                           onPressed: _items.length >= 150
-                              ? null : () => _edit(null, createPackage: true),
+                              ? null
+                              : () => _edit(null, createPackage: true),
                           icon: const Icon(Icons.photo_camera_outlined),
                           label: const Text('Create wedding package'),
                         ),
                         TextButton.icon(
-                          onPressed: _items.length >= 150
-                              ? null : () => _edit(null),
+                          onPressed:
+                              _items.length >= 150 ? null : () => _edit(null),
                           icon: const Icon(Icons.add),
                           label: const Text('Add individual service'),
                         ),
@@ -323,7 +323,10 @@ class _EventServiceCatalogueScreenState
 
 class _CatalogueEntry extends StatefulWidget {
   const _CatalogueEntry(
-      {required this.catering, required this.dishes, this.item, this.initialKind});
+      {required this.catering,
+      required this.dishes,
+      this.item,
+      this.initialKind});
   final bool catering;
   final Map<String, dynamic>? item;
   final List<Map<String, dynamic>> dishes;
@@ -361,8 +364,8 @@ class _CatalogueEntryState extends State<_CatalogueEntry> {
       _GuestTier(row),
     if (widget.catering && widget.item == null) _GuestTier({'minGuests': 1}),
   ];
-  late String _kind = widget.item?['kind'] as String? ??
-      widget.initialKind ?? 'PACKAGE';
+  late String _kind =
+      widget.item?['kind'] as String? ?? widget.initialKind ?? 'PACKAGE';
   late bool _active = widget.item?['active'] != false;
   late final _dishIds =
       (widget.item?['dishIds'] as List? ?? []).whereType<String>().toSet();
@@ -398,7 +401,8 @@ class _CatalogueEntryState extends State<_CatalogueEntry> {
       }
       lastMax = tier['maxGuests']!;
     }
-    if (widget.catering && _kind == 'ITEM' &&
+    if (widget.catering &&
+        _kind == 'ITEM' &&
         _controllers['diet']!.text.trim().isEmpty) {
       _controllers['diet']!.text = 'veg';
     }
@@ -442,12 +446,12 @@ class _CatalogueEntryState extends State<_CatalogueEntry> {
                 },
               ),
               for (final field in _fields.entries)
-                if (widget.catering && _kind == 'ITEM' &&
+                if (widget.catering &&
+                    _kind == 'ITEM' &&
                     field.key == 'category')
                   DropdownButtonFormField<String>(
-                    initialValue: CateringMenuGroups.all.any(
-                            (group) =>
-                                group.id == _controllers['category']!.text)
+                    initialValue: CateringMenuGroups.all.any((group) =>
+                            group.id == _controllers['category']!.text)
                         ? _controllers['category']!.text
                         : null,
                     decoration:
@@ -459,24 +463,22 @@ class _CatalogueEntryState extends State<_CatalogueEntry> {
                           child: Text(group.title),
                         ),
                     ],
-                    validator: (value) => value == null
-                        ? 'Choose a dish group'
-                        : null,
+                    validator: (value) =>
+                        value == null ? 'Choose a dish group' : null,
                     onChanged: (value) =>
                         _controllers['category']!.text = value ?? '',
                   )
-                else if (widget.catering && _kind == 'ITEM' &&
+                else if (widget.catering &&
+                    _kind == 'ITEM' &&
                     field.key == 'diet')
                   DropdownButtonFormField<String>(
                     initialValue:
                         _controllers['diet']!.text.toLowerCase().contains('non')
                             ? 'non_veg'
                             : 'veg',
-                    decoration:
-                        const InputDecoration(labelText: 'Food type *'),
+                    decoration: const InputDecoration(labelText: 'Food type *'),
                     items: const [
-                      DropdownMenuItem(
-                          value: 'veg', child: Text('Vegetarian')),
+                      DropdownMenuItem(value: 'veg', child: Text('Vegetarian')),
                       DropdownMenuItem(
                           value: 'non_veg', child: Text('Non-vegetarian')),
                     ],

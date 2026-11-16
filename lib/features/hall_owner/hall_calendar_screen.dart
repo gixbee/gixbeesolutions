@@ -10,7 +10,8 @@ const _kolkataOffset = Duration(hours: 5, minutes: 30);
 
 bool _isKolkata(String tz) => tz == 'Asia/Kolkata' || tz == 'Asia/Calcutta';
 
-Duration _venueOffset(String tz) => _isKolkata(tz) ? _kolkataOffset : Duration.zero;
+Duration _venueOffset(String tz) =>
+    _isKolkata(tz) ? _kolkataOffset : Duration.zero;
 
 /// Venue civil clock, stored in calendar fields only.
 DateTime _venueNow(String tz) {
@@ -100,23 +101,28 @@ class _HallCalendarScreenState extends ConsumerState<HallCalendarScreen> {
 
   Future<void> _chooseBlock(DateTime day) async {
     try {
-      final data = await ref.read(hallRepositoryProvider)
+      final data = await ref
+          .read(hallRepositoryProvider)
           .getPackage(widget.business.id, widget.hallId);
       if (!mounted) return;
       final package = data['package'] as Map?;
-      final slots = ((package?['slotOffers'] as List?) ?? []).whereType<Map>()
-          .where((slot) => slot['enabled'] != false).toList();
+      final slots = ((package?['slotOffers'] as List?) ?? [])
+          .whereType<Map>()
+          .where((slot) => slot['enabled'] != false)
+          .toList();
       final selection = await showDialog<Map>(
         context: context,
         builder: (dialogContext) => SimpleDialog(
           title: const Text('Block availability'),
           children: [
-            SimpleDialogOption(onPressed: () => Navigator.pop(dialogContext, const {}),
-              child: const Text('Full day')),
+            SimpleDialogOption(
+                onPressed: () => Navigator.pop(dialogContext, const {}),
+                child: const Text('Full day')),
             for (final slot in slots)
               SimpleDialogOption(
                 onPressed: () => Navigator.pop(dialogContext, slot),
-                child: Text('${slot['label']} · ${slot['hallFrom']}–${slot['hallTo']}'),
+                child: Text(
+                    '${slot['label']} · ${slot['hallFrom']}–${slot['hallTo']}'),
               ),
           ],
         ),
@@ -129,9 +135,12 @@ class _HallCalendarScreenState extends ConsumerState<HallCalendarScreen> {
       final midnight = _venueMidnightUtc(_tz, day.year, day.month, day.day);
       DateTime at(String value) {
         final parts = value.split(':');
-        return midnight.add(Duration(hours: int.parse(parts[0]), minutes: int.parse(parts[1])));
+        return midnight.add(
+            Duration(hours: int.parse(parts[0]), minutes: int.parse(parts[1])));
       }
-      await _createBlock(at(selection['hallFrom'] as String), at(selection['hallTo'] as String));
+
+      await _createBlock(at(selection['hallFrom'] as String),
+          at(selection['hallTo'] as String));
     } catch (error) {
       if (mounted) showGxSnack(context, '$error', type: GxSnackType.error);
     }
@@ -183,7 +192,8 @@ class _HallCalendarScreenState extends ConsumerState<HallCalendarScreen> {
   Widget build(BuildContext context) {
     final kolkata = _isKolkata(_tz);
     final tzLabel = kolkata
-        ? ((_data?['timezoneLabel'] as String?) ?? 'Times shown in IST (Kolkata)')
+        ? ((_data?['timezoneLabel'] as String?) ??
+            'Times shown in IST (Kolkata)')
         : 'Times shown in UTC ($_tz)';
     final blocks = (_data?['blocks'] as List?) ?? [];
     final reservations = (_data?['reservations'] as List?) ?? [];
@@ -192,8 +202,10 @@ class _HallCalendarScreenState extends ConsumerState<HallCalendarScreen> {
         .map((e) => Map<String, dynamic>.from(e))
         .where((b) => b['releasedAt'] == null)
         .toList();
-    final bookingRows = reservations.whereType<Map>()
-        .map((e) => Map<String, dynamic>.from(e)).toList();
+    final bookingRows = reservations
+        .whereType<Map>()
+        .map((e) => Map<String, dynamic>.from(e))
+        .toList();
 
     return Scaffold(
       appBar: AppBar(
@@ -226,8 +238,7 @@ class _HallCalendarScreenState extends ConsumerState<HallCalendarScreen> {
           : ListView(
               padding: const EdgeInsets.all(16),
               children: [
-                Text(tzLabel,
-                    style: Theme.of(context).textTheme.bodySmall),
+                Text(tzLabel, style: Theme.of(context).textTheme.bodySmall),
                 const SizedBox(height: 12),
                 HallMonthGrid(
                   month: _month,
@@ -241,7 +252,8 @@ class _HallCalendarScreenState extends ConsumerState<HallCalendarScreen> {
                     style: const TextStyle(fontWeight: FontWeight.w700)),
                 ...activeBlocks.map((b) {
                   return ListTile(
-                    title: Text('${_venueStamp(b['startAt'])} → ${_venueStamp(b['endAt'])}'),
+                    title: Text(
+                        '${_venueStamp(b['startAt'])} → ${_venueStamp(b['endAt'])}'),
                     subtitle: Text('${b['reason']} · ${b['notes'] ?? ''}'),
                     trailing: TextButton(
                       onPressed: () => _release(b['id'] as String),

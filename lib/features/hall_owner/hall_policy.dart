@@ -25,7 +25,8 @@ class HallPolicyTier {
 
 String? validatePolicyTiers(List<HallPolicyTier> tiers, String field) {
   if (tiers.isEmpty) return '$field must include at least one tier';
-  final sorted = [...tiers]..sort((a, b) => a.minDaysBeforeEvent.compareTo(b.minDaysBeforeEvent));
+  final sorted = [...tiers]
+    ..sort((a, b) => a.minDaysBeforeEvent.compareTo(b.minDaysBeforeEvent));
   if (sorted.first.minDaysBeforeEvent != 0) {
     return '$field: first tier must start at minDaysBeforeEvent = 0';
   }
@@ -58,10 +59,18 @@ String? validatePolicyTiers(List<HallPolicyTier> tiers, String field) {
 }
 
 List<HallPolicyTier> defaultPolicyTiers() => [
-      HallPolicyTier(minDaysBeforeEvent: 0, maxDaysBeforeEvent: 0, deductionPercent: 100),
-      HallPolicyTier(minDaysBeforeEvent: 1, maxDaysBeforeEvent: 2, deductionPercent: 100),
-      HallPolicyTier(minDaysBeforeEvent: 3, maxDaysBeforeEvent: 6, deductionPercent: 75),
-      HallPolicyTier(minDaysBeforeEvent: 7, maxDaysBeforeEvent: 14, deductionPercent: 50),
-      HallPolicyTier(minDaysBeforeEvent: 15, maxDaysBeforeEvent: 29, deductionPercent: 25),
-      HallPolicyTier(minDaysBeforeEvent: 30, maxDaysBeforeEvent: null, deductionPercent: 10),
+      HallPolicyTier(
+          minDaysBeforeEvent: 0, maxDaysBeforeEvent: 0, deductionPercent: 100),
+      HallPolicyTier(
+          minDaysBeforeEvent: 1, maxDaysBeforeEvent: 2, deductionPercent: 100),
+      HallPolicyTier(
+          minDaysBeforeEvent: 3, maxDaysBeforeEvent: 6, deductionPercent: 75),
+      HallPolicyTier(
+          minDaysBeforeEvent: 7, maxDaysBeforeEvent: 14, deductionPercent: 50),
+      HallPolicyTier(
+          minDaysBeforeEvent: 15, maxDaysBeforeEvent: 29, deductionPercent: 25),
+      HallPolicyTier(
+          minDaysBeforeEvent: 30,
+          maxDaysBeforeEvent: null,
+          deductionPercent: 10),
     ];

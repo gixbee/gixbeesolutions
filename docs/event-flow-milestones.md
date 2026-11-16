@@ -132,6 +132,16 @@ must produce the same displayed pricing stored in `tiers`.
    - Test quote amendments and concurrent requests in a separate transaction test.
 4. Check owner/customer Flutter booking detail after save and reload.
 
+## Agreed hall deadline semantics
+
+Do not add HTML demo timers without a product change:
+
+1. **Owner response:** quote-first. The hall owner assigns and quotes; there is
+   no 90-second auto-reject of enquiries.
+2. **Advance:** after quote acceptance, a PAYMENT milestone may carry
+   `dueAt = min(now + 24h, event start)`. It is **not** an automatic
+   cancellation, refund, or inventory release.
+
 ## Known limitations — not a complete production booking engine
 
 - The reference HTML's 90-second demo owner-response timeout is **not**

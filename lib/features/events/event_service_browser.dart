@@ -52,8 +52,11 @@ class _EventServiceBrowserState extends ConsumerState<EventServiceBrowser> {
         for (final tier in (item['tiers'] as List? ?? []).whereType<Map>()) {
           final min = tier['minGuests'];
           final max = tier['maxGuests'];
-          if (min is num && max is num && min <= widget.guests &&
-              widget.guests <= max && tier['price'] is num) {
+          if (min is num &&
+              max is num &&
+              min <= widget.guests &&
+              widget.guests <= max &&
+              tier['price'] is num) {
             prices.add((tier['price'] as num).round());
           }
         }
@@ -143,46 +146,50 @@ class _EventServiceBrowserState extends ConsumerState<EventServiceBrowser> {
                   setState(() => _search = value.trim().toLowerCase()),
             ),
             const SizedBox(height: 7),
-            Wrap(spacing: 12, runSpacing: 4,
-              crossAxisAlignment: WrapCrossAlignment.center, children: [
-              DropdownButton<String>(
-                value: _sort,
-                items: [
-                  const DropdownMenuItem(value: 'name', child: Text('Name')),
-                  if (widget.service != 'HALL')
-                    const DropdownMenuItem(
-                        value: 'price', child: Text('Lowest price')),
-                ],
-                onChanged: (value) => setState(() => _sort = value ?? 'name'),
-              ),
-              if (widget.service == 'HALL')
+            Wrap(
+              spacing: 12,
+              runSpacing: 4,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: [
                 DropdownButton<String>(
-                  value: _hallSpace,
-                  items: const [
-                    DropdownMenuItem(value: 'all', child: Text('All spaces')),
-                    DropdownMenuItem(value: 'indoor', child: Text('Indoor')),
-                    DropdownMenuItem(value: 'outdoor', child: Text('Outdoor')),
+                  value: _sort,
+                  items: [
+                    const DropdownMenuItem(value: 'name', child: Text('Name')),
+                    if (widget.service != 'HALL')
+                      const DropdownMenuItem(
+                          value: 'price', child: Text('Lowest price')),
                   ],
-                  onChanged: (value) =>
-                      setState(() => _hallSpace = value ?? 'all'),
-                )
-              else
-                DropdownButton<int?>(
-                  value: _maxUnitPrice,
-                  items: const [
-                    DropdownMenuItem<int?>(
-                        value: null, child: Text('Any price')),
-                    DropdownMenuItem<int?>(
-                        value: 1000, child: Text('Up to ₹1,000')),
-                    DropdownMenuItem<int?>(
-                        value: 5000, child: Text('Up to ₹5,000')),
-                    DropdownMenuItem<int?>(
-                        value: 25000, child: Text('Up to ₹25,000')),
-                    DropdownMenuItem<int?>(
-                        value: 100000, child: Text('Up to ₹1,00,000')),
-                  ],
-                  onChanged: (v) => setState(() => _maxUnitPrice = v),
+                  onChanged: (value) => setState(() => _sort = value ?? 'name'),
                 ),
+                if (widget.service == 'HALL')
+                  DropdownButton<String>(
+                    value: _hallSpace,
+                    items: const [
+                      DropdownMenuItem(value: 'all', child: Text('All spaces')),
+                      DropdownMenuItem(value: 'indoor', child: Text('Indoor')),
+                      DropdownMenuItem(
+                          value: 'outdoor', child: Text('Outdoor')),
+                    ],
+                    onChanged: (value) =>
+                        setState(() => _hallSpace = value ?? 'all'),
+                  )
+                else
+                  DropdownButton<int?>(
+                    value: _maxUnitPrice,
+                    items: const [
+                      DropdownMenuItem<int?>(
+                          value: null, child: Text('Any price')),
+                      DropdownMenuItem<int?>(
+                          value: 1000, child: Text('Up to ₹1,000')),
+                      DropdownMenuItem<int?>(
+                          value: 5000, child: Text('Up to ₹5,000')),
+                      DropdownMenuItem<int?>(
+                          value: 25000, child: Text('Up to ₹25,000')),
+                      DropdownMenuItem<int?>(
+                          value: 100000, child: Text('Up to ₹1,00,000')),
+                    ],
+                    onChanged: (v) => setState(() => _maxUnitPrice = v),
+                  ),
               ],
             ),
           ]),
@@ -209,10 +216,12 @@ class _EventServiceBrowserState extends ConsumerState<EventServiceBrowser> {
                     '${vendor['name'] ?? vendor['hallName']} ${vendor['businessName'] ?? ''} ${vendor['location'] ?? ''}'
                         .toLowerCase()
                         .contains(_search))
-                .where((vendor) => widget.service != 'HALL' ||
+                .where((vendor) =>
+                    widget.service != 'HALL' ||
                     _hallSpace == 'all' ||
                     '${vendor['spaceType'] ?? ''}'.toLowerCase() == _hallSpace)
-                .where((vendor) => _maxUnitPrice == null ||
+                .where((vendor) =>
+                    _maxUnitPrice == null ||
                     (_startingPrice(vendor) ?? 2147483647) <= _maxUnitPrice!)
                 .toList()
               ..sort((a, b) {
@@ -240,37 +249,39 @@ class _EventServiceBrowserState extends ConsumerState<EventServiceBrowser> {
                 return Card(
                     margin: const EdgeInsets.only(bottom: 12),
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14)),
+                        borderRadius: BorderRadius.circular(14)),
                     child: ListTile(
-                  contentPadding: const EdgeInsets.all(10),
-                  leading: eventPhoto(cover, width: 82, height: 76) ??
-                      const SizedBox(width: 82, child: Icon(Icons.storefront)),
-                  title: Text('${vendor['name'] ?? vendor['hallName']}',
-                    style: const TextStyle(fontWeight: FontWeight.w800)),
-                  subtitle: Text([
-                    '${vendor['businessName'] ?? ''}',
-                    '${vendor['location'] ?? ''}',
-                    if (price != null)
-                      'From ${eventMoney(price)}${widget.service == 'CATERING' ? ' / plate' : ''}',
-                    if (widget.service == 'HALL')
-                      '${vendor['spaceType'] ?? 'Hall'}',
-                  ].where((value) => value.trim().isNotEmpty).join('\n')),
-                  trailing: const Icon(Icons.chevron_right),
-                  onTap: () async {
-                    final city = _city!;
-                    await Navigator.of(context).push<void>(MaterialPageRoute(
-                      builder: (_) => _ProviderDetail(
-                        service: widget.service,
-                        eventType: widget.eventType,
-                        date: widget.date,
-                        guests: widget.guests,
-                        city: city,
-                        vendor: vendor,
-                      ),
+                      contentPadding: const EdgeInsets.all(10),
+                      leading: eventPhoto(cover, width: 82, height: 76) ??
+                          const SizedBox(
+                              width: 82, child: Icon(Icons.storefront)),
+                      title: Text('${vendor['name'] ?? vendor['hallName']}',
+                          style: const TextStyle(fontWeight: FontWeight.w800)),
+                      subtitle: Text([
+                        '${vendor['businessName'] ?? ''}',
+                        '${vendor['location'] ?? ''}',
+                        if (price != null)
+                          'From ${eventMoney(price)}${widget.service == 'CATERING' ? ' / plate' : ''}',
+                        if (widget.service == 'HALL')
+                          '${vendor['spaceType'] ?? 'Hall'}',
+                      ].where((value) => value.trim().isNotEmpty).join('\n')),
+                      trailing: const Icon(Icons.chevron_right),
+                      onTap: () async {
+                        final city = _city!;
+                        await Navigator.of(context)
+                            .push<void>(MaterialPageRoute(
+                          builder: (_) => _ProviderDetail(
+                            service: widget.service,
+                            eventType: widget.eventType,
+                            date: widget.date,
+                            guests: widget.guests,
+                            city: city,
+                            vendor: vendor,
+                          ),
+                        ));
+                        if (mounted) setState(() => _load(city));
+                      },
                     ));
-                    if (mounted) setState(() => _load(city));
-                  },
-                ));
               },
             );
           },
@@ -452,7 +463,7 @@ class _ProviderDetailState extends ConsumerState<_ProviderDetail> {
     return Wrap(spacing: 8, runSpacing: 8, children: images);
   }
 
-  List<Widget> _hallBody(Map data) {
+  List<Widget> _hallBody(Map<String, dynamic> data) {
     final pkg = data['package'] as Map;
     final capacity = pkg['capacity'] as Map? ?? {};
     final parking = data['parking'] as Map? ?? {};
@@ -505,7 +516,8 @@ class _ProviderDetailState extends ConsumerState<_ProviderDetail> {
                 TextButton(
                   onPressed: _guests < 1 || _guests > 100000
                       ? null
-                      : () => _review(EventServiceSelection(
+                      : () => _review(
+                          EventServiceSelection(
                             businessId: data['businessId'] as String,
                             cityId: widget.city,
                             start: DateTime.parse(slot['start'] as String),
@@ -522,7 +534,8 @@ class _ProviderDetailState extends ConsumerState<_ProviderDetail> {
                               'expectedEstimate': slot['offer']
                                   [withAc ? 'priceAc' : 'priceNoAc'],
                             },
-                          ), hall: data),
+                          ),
+                          hall: Map<String, dynamic>.from(data)),
                   child: Text(
                       '${withAc ? 'With AC' : 'Without AC'} · ${eventMoney(slot['offer'][withAc ? 'priceAc' : 'priceNoAc'])}'),
                 ),
@@ -545,8 +558,10 @@ class _ProviderDetailState extends ConsumerState<_ProviderDetail> {
     };
     final serves = {
       'All',
-      ...all.map((item) => item['serveStyle'])
-          .whereType<String>().where((value) => value.isNotEmpty),
+      ...all
+          .map((item) => item['serveStyle'])
+          .whereType<String>()
+          .where((value) => value.isNotEmpty),
     };
     final functions = {
       'All',
@@ -559,7 +574,8 @@ class _ProviderDetailState extends ConsumerState<_ProviderDetail> {
         (_category == 'All' || _category == item['category']) &&
         (_serveFilter == 'All' || _serveFilter == item['serveStyle']) &&
         (_functionFilter == 'All' ||
-            (item['functions'] as List? ?? const []).contains(_functionFilter)) &&
+            (item['functions'] as List? ?? const [])
+                .contains(_functionFilter)) &&
         (_kind == 'All' || _kind == item['kind']) &&
         (_unitBudget == null ||
             (_price(item) ?? _unitBudget! + 1) <= _unitBudget!));
@@ -590,19 +606,21 @@ class _ProviderDetailState extends ConsumerState<_ProviderDetail> {
         DropdownButtonFormField<String>(
           initialValue: _category == 'All' ||
                   all.any((item) => item['category'] == _category)
-              ? _category : 'All',
-          decoration: const InputDecoration(
-              labelText: 'Dish / package category'),
+              ? _category
+              : 'All',
+          decoration:
+              const InputDecoration(labelText: 'Dish / package category'),
           items: [
-            const DropdownMenuItem(
-                value: 'All', child: Text('All categories')),
-            for (final category in all.map((item) => item['category'])
-                .whereType<String>().where((name) => name.isNotEmpty).toSet())
+            const DropdownMenuItem(value: 'All', child: Text('All categories')),
+            for (final category in all
+                .map((item) => item['category'])
+                .whereType<String>()
+                .where((name) => name.isNotEmpty)
+                .toSet())
               DropdownMenuItem(
-                value: category, child: Text(_categoryLabel(category))),
+                  value: category, child: Text(_categoryLabel(category))),
           ],
-          onChanged: (value) =>
-              setState(() => _category = value ?? 'All'),
+          onChanged: (value) => setState(() => _category = value ?? 'All'),
         ),
       if (_isCatering && serves.length > 1)
         Wrap(spacing: 8, children: [
@@ -648,12 +666,24 @@ class _ProviderDetailState extends ConsumerState<_ProviderDetail> {
             else
               'Unavailable for this guest count',
             for (final key in [
-              'diet', 'serveStyle', 'description',
-              'packageLevel', 'functions', 'ceremonies',
-              'coverageNotes', 'photographerTeam', 'videographerTeam',
-              'duration', 'team', 'includes', 'inclusions',
-              'extras', 'extrasNotes', 'delivery',
-              'paymentStages', 'policy',
+              'diet',
+              'serveStyle',
+              'description',
+              'packageLevel',
+              'functions',
+              'ceremonies',
+              'coverageNotes',
+              'photographerTeam',
+              'videographerTeam',
+              'duration',
+              'team',
+              'includes',
+              'inclusions',
+              'extras',
+              'extrasNotes',
+              'delivery',
+              'paymentStages',
+              'policy',
             ])
               if (_detailText(item[key]).isNotEmpty)
                 '${key.replaceAll(RegExp(r'([A-Z])'), r' $1')}: ${_detailText(item[key])}',

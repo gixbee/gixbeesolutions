@@ -22,8 +22,8 @@ class HallMonthGrid extends StatelessWidget {
     final start = DateTime.tryParse('${item['startAt'] ?? ''}')?.toUtc();
     final end = DateTime.tryParse('${item['endAt'] ?? ''}')?.toUtc();
     if (start == null || end == null) return false;
-    final midnightUtc = DateTime.utc(day.year, day.month, day.day)
-        .subtract(venueOffset);
+    final midnightUtc =
+        DateTime.utc(day.year, day.month, day.day).subtract(venueOffset);
     return start.isBefore(midnightUtc.add(const Duration(days: 1))) &&
         end.isAfter(midnightUtc);
   }
@@ -36,12 +36,17 @@ class HallMonthGrid extends StatelessWidget {
     final count = DateUtils.getDaysInMonth(month.year, month.month);
     final now = DateTime.now().toUtc().add(venueOffset);
     final today = DateTime(now.year, now.month, now.day);
-    return Column(children: [
-      const Row(children: [
+    return SingleChildScrollView(
+      child: Column(children: [
+      Row(children: [
         for (final name in ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'])
-          Expanded(child: Center(child: Text(name,
-              style: TextStyle(color: navy, fontSize: 11,
-                  fontWeight: FontWeight.w700)))),
+          Expanded(
+              child: Center(
+                  child: Text(name,
+                      style: const TextStyle(
+                          color: navy,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700)))),
       ]),
       const SizedBox(height: 10),
       GridView.builder(
@@ -56,17 +61,23 @@ class HallMonthGrid extends StatelessWidget {
         itemCount: weekdayOffset + count,
         itemBuilder: (_, index) {
           if (index < weekdayOffset) return const SizedBox.shrink();
-          final date = DateTime(month.year, month.month, index - weekdayOffset + 1);
+          final date =
+              DateTime(month.year, month.month, index - weekdayOffset + 1);
           final blocked = blocks.any((item) => _overlaps(item, date));
-          final confirmed = reservations.any((item) =>
-              item['status'] == 'CONFIRMED' && _overlaps(item, date));
-          final held = !confirmed && reservations.any((item) =>
-              item['status'] == 'HELD' && _overlaps(item, date));
+          final confirmed = reservations.any(
+              (item) => item['status'] == 'CONFIRMED' && _overlaps(item, date));
+          final held = !confirmed &&
+              reservations.any(
+                  (item) => item['status'] == 'HELD' && _overlaps(item, date));
           final isToday = date == today;
           final inPast = date.isBefore(today);
-          final background = blocked ? const Color(0xFFFEE2E2)
-              : confirmed ? const Color(0xFFDCFCE7)
-              : held ? const Color(0xFFFFF3C4) : Colors.white;
+          final background = blocked
+              ? const Color(0xFFFEE2E2)
+              : confirmed
+                  ? const Color(0xFFDCFCE7)
+                  : held
+                      ? const Color(0xFFFFF3C4)
+                      : Colors.white;
           return InkWell(
             borderRadius: BorderRadius.circular(9),
             onTap: inPast ? null : () => onSelectDate(date),
@@ -75,22 +86,32 @@ class HallMonthGrid extends StatelessWidget {
                 color: background,
                 borderRadius: BorderRadius.circular(9),
                 border: Border.all(
-                  color: isToday ? const Color(0xFF2563EB)
+                  color: isToday
+                      ? const Color(0xFF2563EB)
                       : const Color(0xFFE2E8F0),
                   width: isToday ? 1.5 : 1,
                 ),
               ),
-              child: Column(mainAxisAlignment: MainAxisAlignment.center,
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Text('${date.day}', style: TextStyle(
-                    fontWeight: FontWeight.w800,
-                    color: inPast ? Colors.grey : navy)),
+                  Text('${date.day}',
+                      style: TextStyle(
+                          fontWeight: FontWeight.w800,
+                          color: inPast ? Colors.grey : navy)),
                   if (blocked || confirmed || held)
-                    Icon(blocked ? Icons.block :
-                        confirmed ? Icons.check_circle : Icons.schedule,
-                      size: 12, color: blocked ? const Color(0xFFB91C1C)
-                          : confirmed ? const Color(0xFF047857)
-                          : const Color(0xFFB45309)),
+                    Icon(
+                        blocked
+                            ? Icons.block
+                            : confirmed
+                                ? Icons.check_circle
+                                : Icons.schedule,
+                        size: 12,
+                        color: blocked
+                            ? const Color(0xFFB91C1C)
+                            : confirmed
+                                ? const Color(0xFF047857)
+                                : const Color(0xFFB45309)),
                 ],
               ),
             ),
@@ -107,6 +128,7 @@ class HallMonthGrid extends StatelessWidget {
       const SizedBox(height: 5),
       const Text('Tap a date to block a full day or a selected slot.',
           style: TextStyle(fontSize: 11, color: Colors.blueGrey)),
-    ]);
+    ]),
+    );
   }
 }

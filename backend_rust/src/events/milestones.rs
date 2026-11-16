@@ -191,6 +191,13 @@ fn distribute_payments(
     Ok(rows)
 }
 
+/// Informational only: 24 hours after acceptance, never later than event start.
+/// Does not cancel, refund, or release a hall hold.
+fn hall_advance_due(now: DateTime<Utc>, starts_at: DateTime<Utc>) -> DateTime<Utc> {
+    let proposed = now + Duration::hours(24);
+    if proposed > starts_at { starts_at } else { proposed }
+}
+
 fn validate_manual(input: ScheduleInput, context: &QuoteContext) -> AppResult<Vec<MilestoneSeed>> {
     if input.milestones.is_empty() || input.milestones.len() > 20 {
         return Err(AppError::BadRequest("Choose 1–20 milestones".into()));
@@ -466,9 +473,8 @@ pub(super) async fn seed_at_acceptance(
                 Decimal::from(policy["advanceFixed"].as_i64().unwrap_or(0))
             };
             if value > Decimal::ZERO && value <= amount {
-                let proposed_due = Utc::now() + Duration::hours(24);
                 let starts_at: DateTime<Utc> = plan.get("startTime");
-                let due_at = if proposed_due > starts_at { starts_at } else { proposed_due };
+                let due_at = hall_advance_due(Utc::now(), starts_at);
                 milestones.push(MilestoneSeed {
                     kind: "PAYMENT",
                     position: 1,
@@ -513,5 +519,16 @@ mod tests {
             &[("First".into(), 1, None), ("Rest".into(), 99, None)],
         );
         assert!(value.is_err());
+    }
+
+    #[test]
+    fn hall_advance_due_is_capped_by_event_start() {
+        let now = DateTime::parse_from_rfc3339("2026-11-16T10:00:00Z")
+            .unwrap()
+            .with_timezone(&Utc);
+        let start = now + Duration::hours(6);
+        assert_eq!(hall_advance_due(now, start), start);
+        let later = now + Duration::hours(48);
+        assert_eq!(hall_advance_due(now, later), now + Duration::hours(24));
     }
 }

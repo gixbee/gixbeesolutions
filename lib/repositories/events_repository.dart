@@ -3,9 +3,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'auth_repository.dart';
 
 const eventServices = <String, String>{
-  'HALL': 'Hall', 'CATERING': 'Catering', 'DECORATION': 'Decor',
-  'PHOTOGRAPHY': 'Photography', 'DJ': 'Music / DJ', 'MAKEUP': 'Makeup',
-  'MEHENDI': 'Mehendi', 'INVITATIONS': 'Invitations',
+  'HALL': 'Hall',
+  'CATERING': 'Catering',
+  'DECORATION': 'Decor',
+  'PHOTOGRAPHY': 'Photography',
+  'DJ': 'Music / DJ',
+  'MAKEUP': 'Makeup',
+  'MEHENDI': 'Mehendi',
+  'INVITATIONS': 'Invitations',
 };
 
 final eventsRepositoryProvider = Provider<EventsRepository>(
@@ -22,17 +27,20 @@ class EventsRepository {
       queryParameters: businessId == null ? null : {'businessId': businessId},
     );
     return (response.data as List)
-        .map((v) => Map<String, dynamic>.from(v as Map)).toList();
+        .map((v) => Map<String, dynamic>.from(v as Map))
+        .toList();
   }
 
   Future<Map<String, dynamic>> detail(String id) async =>
       Map<String, dynamic>.from((await _dio.get('/events/$id')).data as Map);
 
   Future<Map<String, dynamic>> create(Map<String, dynamic> data) async =>
-      Map<String, dynamic>.from((await _dio.post('/events', data: data)).data as Map);
+      Map<String, dynamic>.from(
+          (await _dio.post('/events', data: data)).data as Map);
 
   Future<List<Map<String, dynamic>>> discover(
-    String service, String cityId,
+    String service,
+    String cityId,
   ) async {
     final response = await _dio.get(
       service == 'HALL' ? '/halls/discover' : '/events/catalogues',
@@ -47,12 +55,13 @@ class EventsRepository {
   }
 
   Future<Map<String, dynamic>> hallDetails(String hallId, String day) async {
-    final response = await _dio.get('/halls/$hallId/customer',
-        queryParameters: {'day': day});
+    final response = await _dio
+        .get('/halls/$hallId/customer', queryParameters: {'day': day});
     return Map<String, dynamic>.from(response.data as Map);
   }
 
-  Future<Map<String, dynamic>> catalogue(String businessId, String service) async {
+  Future<Map<String, dynamic>> catalogue(
+      String businessId, String service) async {
     final response = await _dio.get('/events/catalogues/$businessId/$service');
     return Map<String, dynamic>.from(response.data as Map);
   }
@@ -64,9 +73,11 @@ class EventsRepository {
         .toList();
   }
 
-  Future<void> addCalendarBooking(String businessId, String title, DateTime start, DateTime end) async {
+  Future<void> addCalendarBooking(
+      String businessId, String title, DateTime start, DateTime end) async {
     await _dio.post('/events/vendor/calendar/$businessId', data: {
-      'title': title, 'startAt': start.toUtc().toIso8601String(),
+      'title': title,
+      'startAt': start.toUtc().toIso8601String(),
       'endAt': end.toUtc().toIso8601String(),
     });
   }
@@ -76,7 +87,10 @@ class EventsRepository {
   }
 
   Future<Map<String, dynamic>> saveCatalogue(
-    String businessId, String service, int revision, Map<String, dynamic> catalogue,
+    String businessId,
+    String service,
+    int revision,
+    Map<String, dynamic> catalogue,
   ) async {
     final response = await _dio.put('/events/catalogues/$businessId/$service',
         data: {'revision': revision, 'catalogue': catalogue});
@@ -95,7 +109,8 @@ class EventsRepository {
   Future<List<Map<String, dynamic>>> quoteMilestones(String quoteId) async {
     final response = await _dio.get('/events/quotes/$quoteId/milestones');
     return (response.data as List)
-        .map((row) => Map<String, dynamic>.from(row as Map)).toList();
+        .map((row) => Map<String, dynamic>.from(row as Map))
+        .toList();
   }
 
   Future<List<Map<String, dynamic>>> createQuoteMilestones(
@@ -105,7 +120,8 @@ class EventsRepository {
       data: {'milestones': milestones},
     );
     return (response.data as List)
-        .map((row) => Map<String, dynamic>.from(row as Map)).toList();
+        .map((row) => Map<String, dynamic>.from(row as Map))
+        .toList();
   }
 
   Future<Map<String, dynamic>> acknowledgeQuoteMilestone(

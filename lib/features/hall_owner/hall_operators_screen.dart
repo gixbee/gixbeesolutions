@@ -77,7 +77,8 @@ class _HallOperatorsScreenState extends ConsumerState<HallOperatorsScreen> {
                 const SizedBox(height: 12),
                 ..._ops.map((o) {
                   return ListTile(
-                    title: Text((o['name'] as String?) ?? o['userId'] as String),
+                    title:
+                        Text((o['name'] as String?) ?? o['userId'] as String),
                     subtitle: Text((o['phoneNumber'] as String?) ?? ''),
                     trailing: IconButton(
                       icon: const Icon(Icons.remove_circle_outline),
