@@ -292,22 +292,45 @@ class _CateringCustomerMenuScreenState extends State<CateringCustomerMenuScreen>
       body: SafeArea(child: Column(children: [
         Padding(padding: const EdgeInsets.fromLTRB(16, 10, 16, 6),
           child: Column(children: [
-            SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: SegmentedButton<String>(
-                segments: [
-                  ButtonSegment(value: 'packages',
-                      label: Text('Packages (${_active.where((e) => e['kind'] == 'PACKAGE').length})')),
-                  ButtonSegment(value: 'food',
-                      label: Text('Individual Food Items (${_active.where((e) => e['kind'] == 'ITEM').length})')),
-                ],
-                selected: {_tab},
-                onSelectionChanged: (values) => setState(() {
-                  _tab = values.first;
-                  _diet = 'all';
-                }),
-              ),
-            ),
+            Row(children: [
+              for (final (code, label) in [
+                ('packages',
+                  'Packages (${_active.where((e) => e['kind'] == 'PACKAGE').length})'),
+                ('food',
+                  'Individual Food Items (${_active.where((e) => e['kind'] == 'ITEM').length})'),
+              ])
+                Expanded(child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 3),
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(12),
+                    onTap: () => setState(() {
+                      _tab = code;
+                      _diet = 'all';
+                    }),
+                    child: Container(
+                      height: 54,
+                      alignment: Alignment.center,
+                      padding: const EdgeInsets.symmetric(horizontal: 6),
+                      decoration: BoxDecoration(
+                        color: _tab == code ? _light : Colors.white,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: _tab == code ? _green : const Color(0xFFE2E8F0),
+                          width: _tab == code ? 2 : 1,
+                        ),
+                      ),
+                      child: Text(label,
+                        maxLines: 2,
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w800,
+                          color: _tab == code ? _forest : Colors.blueGrey,
+                        )),
+                    ),
+                  ),
+                )),
+            ]),
             const SizedBox(height: 12),
             Row(children: [
               Expanded(child: Text(
@@ -656,7 +679,9 @@ class _CateringCustomerItemDetailScreenState
                   },
                   label: Text(_selected ? 'Added · Remove' : 'Add to selection'),
                 )),
-                if (widget.selectedCount > 0 || _selected) ...[
+                if (widget.selectedCount -
+                    (widget.selected ? 1 : 0) +
+                    (_selected ? 1 : 0) > 0) ...[
                   const SizedBox(width: 8),
                   Expanded(child: FilledButton(
                     style: FilledButton.styleFrom(backgroundColor: _green),
