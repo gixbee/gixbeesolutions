@@ -239,7 +239,7 @@ class _EventInterestCustomizeScreenState
               ),
               onPressed: _requiresQuote ? _continue : null,
               icon: const Icon(Icons.arrow_forward),
-              label: Text('Review & Send ${eventServices[widget.service] ?? 'Event'} Interest'),
+              label: Text('Continue to ${eventServices[widget.service] ?? 'Event'} Review'),
             ),
           ),
         ),
