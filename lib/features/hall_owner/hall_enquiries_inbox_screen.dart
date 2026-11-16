@@ -185,7 +185,7 @@ class _HallEnquiriesInboxScreenState
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
               decoration: BoxDecoration(
-                color: color.withValues(alpha: 0.10),
+                color: color.withOpacity(0.10),
                 borderRadius: BorderRadius.circular(25)),
               child: Text(_statusLabel(status),
                 style: TextStyle(fontSize: 11, color: color,
