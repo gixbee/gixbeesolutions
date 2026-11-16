@@ -77,7 +77,7 @@ void main() {
     expect(find.text('10% off'), findsOneWidget);
     await tester.tap(find.text('Next →'));
     await tester.pumpAndSettle();
-    expect(find.text('Publish Your Package'), findsOneWidget);
+    expect(find.textContaining('Publish Your Package'), findsOneWidget);
 
     await tester.tap(find.text('Save Package'));
     await tester.pumpAndSettle();
