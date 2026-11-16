@@ -87,7 +87,7 @@ class HallCustomerModel {
           'slotId':offer['id'], 'label':offer['label'],
           'start':raw['start'], 'end':raw['end'],
           'withAc':withAc, 'price':price,
-          'basePrice':offer[withAc ? 'priceAc' : 'priceNoAc'],
+          'basePrice':offer[withAc ? 'listPriceAc' : 'listPriceNoAc'] ?? price,
           'discountPercent':offer[withAc
             ? 'discountAcPct' : 'discountNoAcPct'] ?? 0,
         });
