@@ -127,7 +127,7 @@ class _PhotographyPackageWizardScreenState
           _warn('Enter the payment stage names.'); return false;
         }
         final numbers = _stageValues.map((v) => int.tryParse(v.text)).toList();
-        if (numbers.any((v) => v == null || v < 0 || v > 100) ||
+        if (numbers.any((v) => v == null || v < 1 || v > 100) ||
             numbers.fold<int>(0, (sum, v) => sum + (v ?? 0)) != 100) {
           _warn('Payment stage percentages must total exactly 100%.');
           return false;
