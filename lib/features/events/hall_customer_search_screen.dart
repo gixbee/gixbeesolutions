@@ -126,8 +126,8 @@ class _HallCustomerSearchScreenState
         ].contains(_event)?_event:'Other',
         decoration:const InputDecoration(labelText:'Event Type',
           border:OutlineInputBorder()),
-        items:const [
-          for(final s in ['Wedding','Reception','Birthday','Baptism',
+        items:[
+          for(final s in const ['Wedding','Reception','Birthday','Baptism',
             'Engagement','Other'])
             DropdownMenuItem(value:s,child:Text(s)),
         ],
