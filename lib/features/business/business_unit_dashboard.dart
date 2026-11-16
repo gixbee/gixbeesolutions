@@ -514,15 +514,16 @@ class _BusinessCard extends ConsumerWidget {
                       icon: Icons.calendar_month,
                       label: 'Calendar',
                       primary: true,
-                      onTap: () {
+                      onTap: () async {
                          if (business.serviceType == 'PHOTOGRAPHY' ||
                              business.eventServices.contains('PHOTOGRAPHY')) {
-                           Navigator.push(context, MaterialPageRoute<void>(
+                           await Navigator.push(context, MaterialPageRoute<void>(
                              builder: (_) =>
                                PhotographyOwnerCalendarScreen(business: business),
                            ));
+                           ref.invalidate(myBusinessesProvider);
                          } else {
-                           _manageOfflineDays(context, ref, business);
+                           await _manageOfflineDays(context, ref, business);
                          }
                        },
                     ),
