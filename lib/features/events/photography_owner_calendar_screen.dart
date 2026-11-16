@@ -108,6 +108,8 @@ class _PhotographyOwnerCalendarScreenState
         if (blocked) { _blocked.add(_key(_selected)); }
         else { _blocked.remove(_key(_selected)); }
       });
+      // Refresh the dashboard Business model before this route is reopened.
+      ref.invalidate(myBusinessesProvider);
     } catch (error) {
       if (mounted) showGxSnack(context, eventError(error));
     } finally {
@@ -149,12 +151,13 @@ class _PhotographyOwnerCalendarScreenState
     if (mounted) await _refresh();
   }
 
-  void _openPlan(Map<String, dynamic> item) {
+  Future<void> _openPlan(Map<String, dynamic> item) async {
     final id = item['planId'];
     if (id is! String || id.isEmpty) return;
-    Navigator.of(context).push<void>(MaterialPageRoute(
+    await Navigator.of(context).push<void>(MaterialPageRoute(
       builder: (_) => EventPlanDetailScreen(planId: id),
     ));
+    if (mounted) await _refresh();
   }
 
   @override
