@@ -117,8 +117,9 @@ class _PhotographyPackageWizardScreenState
         (item['paymentSplit'] as List? ?? const []).whereType<Map>().toList();
     if (stages.isEmpty) {
       _addStage('Booking advance', '30');
-      _addStage('Before event', '50');
-      _addStage('After delivery', '20');
+      _addStage('Event day', '40');
+      _addStage('Before album printing', '20');
+      _addStage('Final payment', '10');
     } else {
       for (final stage in stages) {
         _addStage(stage['label']?.toString() ?? '',
@@ -192,6 +193,23 @@ class _PhotographyPackageWizardScreenState
           return false;
         }
         return true;
+      case 4:
+        if (_inclusions.isEmpty) {
+          _warn('Select at least one deliverable.');
+          return false;
+        }
+        return true;
+      case 6:
+        for (final name in _inclusions) {
+          final value = int.tryParse(_deliveryDays[name]?.text ?? '15');
+          final qty = int.tryParse(_deliverableQty[name]?.text ?? '1');
+          if (value == null || value < 0 || value > 730 ||
+              qty == null || qty < 1 || qty > 100000) {
+            _warn('Check deliverable quantity and delivery days.');
+            return false;
+          }
+        }
+        return true;
       case 7:
         if (_stageNames.isEmpty ||
             _stageNames.length > 6 ||
@@ -224,7 +242,7 @@ class _PhotographyPackageWizardScreenState
     if (_saving) return;
     // Do not close the wizard until the canonical Rust catalogue write succeeds.
     final oldStep = _step;
-    for (final step in [0, 1, 2, 7]) {
+    for (final step in [0, 1, 2, 4, 6, 7]) {
       _step = step;
       if (!_validStep()) {
         setState(() => _step = step);
@@ -325,6 +343,7 @@ class _PhotographyPackageWizardScreenState
         padding: const EdgeInsets.only(bottom: 14),
         child: TextField(
           controller: ctrl,
+          onChanged: (_) => setState(() {}),
           maxLength: lines == 1 ? 150 : 1000,
           maxLines: lines,
           keyboardType: keyboardType,
@@ -486,8 +505,8 @@ class _PhotographyPackageWizardScreenState
                       .contains(_deliverableFormat[name])
                       ? _deliverableFormat[name] : 'JPG',
                   decoration: const InputDecoration(labelText: 'Format'),
-                  items: const [
-                    for (final name in ['JPG','PNG','MP4','PDF','RAW','Print','Other'])
+                  items: [
+                    for (final name in const ['JPG','PNG','MP4','PDF','RAW','Print','Other'])
                       DropdownMenuItem(value: name, child: Text(name)),
                   ],
                   onChanged: (v) =>
