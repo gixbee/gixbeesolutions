@@ -47,7 +47,8 @@ class _EventInterestCustomizeScreenState
   @override
   void initState() {
     super.initState();
-    _notes.text = widget.selection.requirements ?? '';
+    // Existing package requirements are preserved separately; this field is for new notes.
+    _notes.text = '';
   }
 
   @override
