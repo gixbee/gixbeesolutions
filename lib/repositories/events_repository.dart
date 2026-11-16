@@ -66,6 +66,17 @@ class EventsRepository {
     return Map<String, dynamic>.from(response.data as Map);
   }
 
+  /// Confirmed platform bookings plus manually entered outside shoots.
+  /// Server-side owner authorization is required for this endpoint.
+  Future<List<Map<String, dynamic>>> photographyCalendar(
+      String businessId) async {
+    final response = await _dio.get(
+      '/events/vendor/calendar/$businessId/overview');
+    return (response.data as List)
+        .map((row) => Map<String, dynamic>.from(row as Map))
+        .toList();
+  }
+
   Future<List<Map<String, dynamic>>> vendorCalendar(String businessId) async {
     final response = await _dio.get('/events/vendor/calendar/$businessId');
     return (response.data as List)
