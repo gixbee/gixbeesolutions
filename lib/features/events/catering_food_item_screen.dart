@@ -67,9 +67,7 @@ class _CateringFoodItemScreenState extends State<CateringFoodItemScreen> {
     final item = widget.item;
     _name.text = item?['name']?.toString() ?? '';
     _description.text = item?['description']?.toString() ?? '';
-    final group = item?['category']?.toString();
-    _category = CateringMenuGroups.all.any((g) => g.id == group)
-        ? group! : 'g01';
+    _category = item == null ? 'g01' : CateringMenuGroups.classify(item);
     _diet = item?['diet']?.toString() == 'non_veg' ? 'non_veg' : 'veg';
     _active = item?['active'] != false;
     final pct = (item?['discountPct'] as num?)?.toInt() ?? 0;
