@@ -676,6 +676,17 @@ pub(super) async fn action(
                 .execute(&mut *tx)
                 .await?;
             }
+            // Creates the photography payment/deliverable schedule or hall
+            // advance deadline from the immutable selected catalogue and
+            // package terms. The same DB transaction confirms the quote.
+            super::milestones::seed_at_acceptance(
+                &mut tx,
+                quote_id,
+                &service_type,
+                &plan,
+                quote.get::<Decimal, _>("amount"),
+            )
+            .await?;
         }
         "decline" => {
             if status != "OFFERED" {
@@ -703,6 +714,22 @@ pub(super) async fn action(
             if status != "CONFIRMED" {
                 return Err(AppError::Conflict(
                     "This action requires a confirmed booking".into(),
+                ));
+            }
+            // Old bookings without milestone rows retain their previous
+            // acknowledgement behavior. New schedules must be completed
+            // before the full-payment / service-complete shortcuts are used.
+            let outstanding: i64 = sqlx::query_scalar(
+                r#"SELECT COUNT(*) FROM event_quote_milestones
+                   WHERE "quoteId"=$1 AND kind=$2 AND "completedAt" IS NULL"#,
+            )
+            .bind(quote_id)
+            .bind(if action == "payment" { "PAYMENT" } else { "DELIVERY" })
+            .fetch_one(&mut *tx)
+            .await?;
+            if outstanding > 0 {
+                return Err(AppError::Conflict(
+                    "Confirm each agreed milestone with both parties first".into(),
                 ));
             }
             if action == "complete" && plan.get::<DateTime<Utc>, _>("startTime") > Utc::now() {

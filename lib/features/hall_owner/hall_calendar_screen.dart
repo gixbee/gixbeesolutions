@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../repositories/hall_repository.dart';
+import 'hall_month_grid.dart';
 import '../../shared/models/business.dart';
 import '../../shared/widgets/gx_button.dart';
 import '../../shared/widgets/gx_snackbar.dart';
@@ -191,6 +192,8 @@ class _HallCalendarScreenState extends ConsumerState<HallCalendarScreen> {
         .map((e) => Map<String, dynamic>.from(e))
         .where((b) => b['releasedAt'] == null)
         .toList();
+    final bookingRows = reservations.whereType<Map>()
+        .map((e) => Map<String, dynamic>.from(e)).toList();
 
     return Scaffold(
       appBar: AppBar(
@@ -226,6 +229,14 @@ class _HallCalendarScreenState extends ConsumerState<HallCalendarScreen> {
                 Text(tzLabel,
                     style: Theme.of(context).textTheme.bodySmall),
                 const SizedBox(height: 12),
+                HallMonthGrid(
+                  month: _month,
+                  venueOffset: _venueOffset(_tz),
+                  blocks: activeBlocks,
+                  reservations: bookingRows,
+                  onSelectDate: _chooseBlock,
+                ),
+                const Divider(height: 32),
                 Text('Active blocks (${activeBlocks.length})',
                     style: const TextStyle(fontWeight: FontWeight.w700)),
                 ...activeBlocks.map((b) {

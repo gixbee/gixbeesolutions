@@ -6,6 +6,7 @@ import '../../shared/widgets/gx_button.dart';
 import '../../shared/widgets/gx_snackbar.dart';
 import '../../shared/widgets/gx_text_field.dart';
 import '../../theme.dart';
+import 'event_quote_milestones.dart';
 import '../business/business_unit_dashboard.dart';
 
 class EventPlanDetailScreen extends ConsumerStatefulWidget {
@@ -123,6 +124,14 @@ class _EventPlanDetailScreenState extends ConsumerState<EventPlanDetailScreen> {
         ],
         if (status == 'CONFIRMED' || status == 'COMPLETED') ...[
           const Divider(height: 28),
+          EventQuoteMilestones(
+            key: ValueKey('milestones-${quote['id']}'),
+            quoteId: quote['id'] as String,
+            customer: customer,
+            status: status,
+            onChanged: () { _refresh(); },
+          ),
+          const SizedBox(height: 12),
           const Text('Direct payment', style: TextStyle(fontWeight: FontWeight.w700)),
           Text('Customer: ${quote['customerPaidAt'] == null ? 'payment not acknowledged' : 'marked paid'}'),
           Text('Vendor: ${quote['vendorReceivedAt'] == null ? 'receipt not acknowledged' : 'confirmed receipt'}'),
