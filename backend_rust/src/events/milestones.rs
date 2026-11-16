@@ -179,7 +179,7 @@ fn distribute_payments(
             details: "Direct payment to the vendor; both parties must acknowledge it".into(),
             percent: Some(*pct),
             amount: Some(amount),
-            due_at: *due,
+            due_at: due.clone(),
         });
     }
     Ok(rows)
@@ -252,7 +252,7 @@ async fn insert_rows(
         .bind(&entry.details)
         .bind(entry.percent)
         .bind(entry.amount)
-        .bind(entry.due_at)
+        .bind(entry.due_at.clone())
         .execute(&mut **tx)
         .await?;
     }
