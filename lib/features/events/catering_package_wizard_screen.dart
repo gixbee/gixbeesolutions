@@ -501,7 +501,21 @@ class _CateringPackageWizardScreenState
   Widget _identityStep() => Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _heading(_eventCategory),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 7),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF0FDF4),
+              border: Border.all(color: const Color(0xFFBBF7D0)),
+              borderRadius: BorderRadius.circular(12)),
+            child: Row(children: [
+              const Text('📅  '),
+              Expanded(child: Text(_eventCategory, style: const TextStyle(
+                fontWeight: FontWeight.w800, color: _navy))),
+              TextButton(
+                onPressed: () => setState(() => _step = 0),
+                child: const Text('Change')),
+            ]),
+          ),
           _heading('Package Type *'),
           SegmentedButton<String>(
             segments: const [
@@ -553,6 +567,7 @@ class _CateringPackageWizardScreenState
           ),
           TextField(
               controller: _name,
+              onChanged: (_) => setState(() {}),
               maxLength: 150,
               decoration: const InputDecoration(
                   labelText: 'Package Name *',
@@ -572,7 +587,19 @@ class _CateringPackageWizardScreenState
               style: const TextStyle(color: _navy, fontWeight: FontWeight.w800),
             ),
           ),
-          const SizedBox(height: 12),
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF8FAFC),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: const Color(0xFFE2E8F0)),
+            ),
+            child: Text(
+              'Customer preview: $_level – ${_name.text.trim().isEmpty ? 'Your package name' : _name.text.trim()}',
+              style: const TextStyle(color: _navy, fontWeight: FontWeight.w800),
+            ),
+          ),
+          const SizedBox(height: 14),
           TextField(
               controller: _description,
               maxLines: 3,
@@ -1055,60 +1082,101 @@ class _CateringPackageWizardScreenState
   }
 
   Widget _previewStep() {
-    final count = _dishIds.length;
+    final selected = _dishes
+        .where((dish) => _dishIds.contains(dish['id']))
+        .toList();
+    final count = selected.length;
+    final veg = selected.where(_allowedByDiet).length;
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      _heading('Review your package'),
-      Card(
-          child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text('$_level – ${_name.text.trim()}',
-              style:
-                  const TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
-          const SizedBox(height: 7),
-          Text(_eventCategory),
-          Text(_diet == 'veg' ? 'Vegetarian only' : 'Veg + Non-vegetarian'),
-          Text(_serve == 'buffet'
-              ? 'Buffet Service'
-              : _serve == 'table'
-                  ? 'Traditional Table Service'
-                  : 'Both'),
-          Text('$count dishes selected'),
-          const Divider(),
-          Text(_description.text.trim()),
-          const SizedBox(height: 10),
-          for (final dish in _dishes.where((d) => _dishIds.contains(d['id'])))
-            Text('• ${dish['name']}'),
-          const Divider(),
-          Text(
-              _flat
-                  ? 'Flat rate ₹${_flatPrice.text} per plate'
-                  : '${_tiers.length} guest-count price slabs',
-              style: const TextStyle(fontWeight: FontWeight.w700)),
-          if (_offer)
-            Text(
-                '${_discount.text}% discount applied to the saved plate prices'),
+      Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: const Color(0xFFF0FDF4),
+          borderRadius: BorderRadius.circular(13),
+          border: Border.all(color: const Color(0xFFBBF7D0)),
+        ),
+        child: Row(children: [
+          const Text('🍛  ', style: TextStyle(fontSize: 31)),
+          Expanded(child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text('$_level – ${_name.text.trim()}',
+                  style: const TextStyle(color: _navy, fontSize: 17,
+                      fontWeight: FontWeight.w900)),
+              Text(_diet == 'veg' ? 'Vegetarian only' : 'Veg + Non-vegetarian'),
+              Text(_serve == 'buffet' ? 'Buffet Service'
+                  : _serve == 'table'
+                    ? 'Traditional Table Service' : 'Both'),
+              Text(_eventCategory,
+                  style: const TextStyle(color: Colors.blueGrey, fontSize: 12)),
+            ],
+          )),
         ]),
-      )),
-      _heading('Publish Your Package'),
+      ),
+      if (_description.text.trim().isNotEmpty)
+        Padding(
+          padding: const EdgeInsets.symmetric(vertical: 12),
+          child: Text(_description.text.trim()),
+        ),
+      _heading('🍴  Menu Summary', hint:
+        'Total: $count dishes · $veg veg · ${count - veg} non-veg'),
+      for (final group in CateringMenuGroups.all)
+        if (selected.any((dish) =>
+            CateringMenuGroups.classify(dish) == group.id))
+          Card(
+            color: Colors.white,
+            margin: const EdgeInsets.only(bottom: 8),
+            child: ExpansionTile(
+              leading: Container(
+                height: 40, width: 40, alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: group.color,
+                  borderRadius: BorderRadius.circular(9),
+                ),
+                child: Text(group.emoji, style: const TextStyle(fontSize: 23)),
+              ),
+              title: Text(group.title,
+                  style: const TextStyle(color: _navy,
+                      fontWeight: FontWeight.w800)),
+              trailing: Text(
+                '${selected.where((dish) => CateringMenuGroups.classify(dish) == group.id).length} dishes',
+                style: const TextStyle(color: _pink,
+                    fontWeight: FontWeight.w800, fontSize: 12),
+              ),
+              children: [
+                for (final dish in selected.where((dish) =>
+                    CateringMenuGroups.classify(dish) == group.id))
+                  ListTile(
+                    dense: true,
+                    title: Text(dish['name'].toString()),
+                    subtitle: Text(_allowedByDiet(dish)
+                        ? 'Vegetarian' : 'Non-vegetarian'),
+                  ),
+              ],
+            ),
+          ),
+      const SizedBox(height: 12),
+      _pricePreview(compact: true),
+      const SizedBox(height: 14),
+      _heading('🚀  Publish Your Package'),
       RadioGroup<bool>(
         groupValue: _active,
         onChanged: (v) {
           if (v != null) setState(() => _active = v);
         },
-        child: const Column(
-          children: [
-            RadioListTile<bool>(
-                value: true,
-                title: Text('Live'),
-                subtitle: Text('Visible to customers after catalogue save.')),
-            RadioListTile<bool>(
-                value: false,
-                title: Text('Draft'),
-                subtitle: Text('Keep the package private.')),
-          ],
-        ),
+        child: const Column(children: [
+          RadioListTile<bool>(
+            value: true,
+            title: Text('Live', style: TextStyle(fontWeight: FontWeight.w800)),
+            subtitle: Text('Visible to customers on Gixbee.'),
+          ),
+          RadioListTile<bool>(
+            value: false,
+            title: Text('Draft', style: TextStyle(fontWeight: FontWeight.w800)),
+            subtitle: Text('Save privately and publish later.'),
+          ),
+        ]),
       ),
     ]);
   }
+
 }
