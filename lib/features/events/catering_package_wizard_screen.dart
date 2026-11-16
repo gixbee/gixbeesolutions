@@ -162,6 +162,7 @@ class _CateringPackageWizardScreenState
   bool _flat = false;
   bool _offer = false;
   bool _saving = false;
+  String? _saveError;
 
   List<Map<String, dynamic>> get _dishes => widget.dishes
       .where((d) =>
@@ -341,17 +342,23 @@ class _CateringPackageWizardScreenState
       Navigator.of(context).pop(result);
       return;
     }
-    setState(() => _saving = true);
+    setState(() {
+      _saving = true;
+      _saveError = null;
+    });
     try {
       final saved = await widget.onSave!(result);
       if (!mounted) return;
       if (saved) {
         Navigator.of(context).pop();
       } else {
-        _notice('Package not saved. Check the error and retry.');
+        setState(() => _saveError =
+            'Package not saved. Check the error and retry.');
       }
     } catch (_) {
-      if (mounted) _notice('Unable to save package. Please try again.');
+      if (mounted) {
+        setState(() => _saveError = 'Unable to save package. Please try again.');
+      }
     } finally {
       if (mounted) setState(() => _saving = false);
     }
@@ -433,6 +440,14 @@ class _CateringPackageWizardScreenState
               if (_step == 4) _previewStep(),
             ],
           )),
+          if (_saveError != null)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+              child: Text(_saveError!, textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    color: Color(0xFFB91C1C), fontWeight: FontWeight.w700,
+                  )),
+            ),
           Container(
             padding: const EdgeInsets.fromLTRB(16, 10, 16, 12),
             decoration: const BoxDecoration(
