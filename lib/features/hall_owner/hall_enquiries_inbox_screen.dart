@@ -132,76 +132,166 @@ class _HallEnquiriesInboxScreenState
     if (mounted) await _load();
   }
 
+  String _statusLabel(String status) => switch (status) {
+    'PENDING_OWNER' => 'New request',
+    'OWNER_APPROVED' => 'Approved · Assign hall',
+    'ASSIGNED' => 'Hall assigned',
+    'QUOTE_OFFERED' => 'Quote sent',
+    'OWNER_DECLINED' => 'Declined',
+    _ => status.replaceAll('_', ' ').toLowerCase(),
+  };
+
+  Color _statusColor(String status) => switch (status) {
+    'PENDING_OWNER' => const Color(0xFF92400E),
+    'OWNER_APPROVED' => const Color(0xFF1D4ED8),
+    'ASSIGNED' || 'QUOTE_OFFERED' => const Color(0xFF047857),
+    'OWNER_DECLINED' => Colors.red.shade700,
+    _ => const Color(0xFF64748B),
+  };
+
+  Widget _detailRow(IconData icon, String text) => Padding(
+    padding: const EdgeInsets.only(bottom: 8),
+    child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Icon(icon, size: 16, color: const Color(0xFF64748B)),
+      const SizedBox(width: 8),
+      Expanded(child: Text(text, style: const TextStyle(
+          color: Color(0xFF475569), fontSize: 13))),
+    ]),
+  );
+
+  Widget _requestCard(Map<String, dynamic> e, bool hallScoped) {
+    final status = e['status']?.toString() ?? '';
+    final readOnly = e['readOnly'] == true;
+    final unassigned = e['assignedHallId'] == null;
+    final id = e['id'] as String;
+    final planId = e['eventPlanId'] as String;
+    final canOpenQuote = !readOnly && !unassigned &&
+        const ['ASSIGNED', 'QUOTE_OFFERED'].contains(status);
+    final tz = e['venueTimezone']?.toString() ?? 'Asia/Kolkata';
+    final color = _statusColor(status);
+    return Card(
+      margin: const EdgeInsets.only(bottom: 13),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: const BorderSide(color: Color(0xFFE2E8F0))),
+      color: Colors.white,
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Row(children: [
+            Expanded(child: Text(e['eventType']?.toString() ?? 'Event booking',
+                style: const TextStyle(fontSize: 17,
+                    color: Color(0xFF1B2559), fontWeight: FontWeight.w900))),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
+              decoration: BoxDecoration(
+                color: color.withValues(alpha: 0.10),
+                borderRadius: BorderRadius.circular(25)),
+              child: Text(_statusLabel(status),
+                style: TextStyle(fontSize: 11, color: color,
+                  fontWeight: FontWeight.w800)),
+            ),
+          ]),
+          const SizedBox(height: 12),
+          _detailRow(Icons.event, 'Start: ${e['startTime'] ?? 'Not specified'}'),
+          _detailRow(Icons.group_outlined,
+              '${e['guestCount'] ?? '?'} guests · Times in $tz'),
+          if (e['requestedHallName'] != null)
+            _detailRow(Icons.apartment,
+                'Requested hall: ${e['requestedHallName']}'),
+          if (e['hallName'] != null)
+            _detailRow(Icons.meeting_room_outlined,
+                'Assigned hall: ${e['hallName']}'),
+          if (unassigned && !hallScoped)
+            const Padding(
+              padding: EdgeInsets.only(bottom: 12),
+              child: Text('This enquiry has not been assigned to a hall.',
+                style: TextStyle(color: Color(0xFFB45309),
+                    fontWeight: FontWeight.w700))),
+          if (readOnly)
+            const Text('View-only access · Package and approval changes require owner access.',
+                style: TextStyle(fontSize: 12, color: Colors.blueGrey)),
+          if (!readOnly && !hallScoped) ...[
+            const Divider(height: 22),
+            if (status == 'PENDING_OWNER')
+              Row(children: [
+                Expanded(child: OutlinedButton.icon(
+                  icon: const Icon(Icons.close),
+                  onPressed: () => _decline(id),
+                  label: const Text('Reject'),
+                  style: OutlinedButton.styleFrom(foregroundColor: Colors.red),
+                )),
+                const SizedBox(width: 10),
+                Expanded(child: FilledButton.icon(
+                  icon: const Icon(Icons.check),
+                  onPressed: () => _approve(id),
+                  label: const Text('Accept Request'),
+                )),
+              ]),
+            if (const ['OWNER_APPROVED', 'ASSIGNED', 'QUOTE_OFFERED']
+                .contains(status))
+              SizedBox(width: double.infinity, child: OutlinedButton.icon(
+                icon: const Icon(Icons.meeting_room_outlined),
+                label: Text(unassigned ? 'Assign a hall' : 'Reassign hall'),
+                onPressed: () => _assign(e),
+              )),
+            if (canOpenQuote)
+              SizedBox(width: double.infinity, child: FilledButton.icon(
+                icon: const Icon(Icons.receipt_long_outlined),
+                label: const Text('Open quote / booking details'),
+                onPressed: () => _openQuote(planId),
+              )),
+          ] else if (canOpenQuote)
+            TextButton.icon(
+              icon: const Icon(Icons.description_outlined),
+              label: const Text('View quote'),
+              onPressed: () => _openQuote(planId),
+            ),
+        ]),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final hallScoped = widget.hallId != null;
     return Scaffold(
+      backgroundColor: const Color(0xFFF8FAFC),
       appBar: AppBar(
-        title: Text(hallScoped ? 'Hall requests' : 'Hall enquiries'),
+        title: Text(hallScoped ? 'Hall booking requests' : 'Hall enquiries'),
+        actions: [
+          IconButton(
+            tooltip: 'Refresh requests',
+            onPressed: _load,
+            icon: const Icon(Icons.refresh),
+          ),
+        ],
       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
-          : _items.isEmpty
-              ? const Center(child: Text('No enquiries yet'))
-              : ListView.separated(
-                  itemCount: _items.length,
-                  separatorBuilder: (_, __) => const Divider(height: 1),
-                  itemBuilder: (context, i) {
-                    final e = _items[i];
-                    final status = e['status']?.toString() ?? '';
-                    final readOnly = e['readOnly'] == true;
-                    final tz = e['venueTimezone']?.toString() ?? 'Asia/Kolkata';
-                    final unassigned = e['assignedHallId'] == null;
-                    final canOpenQuote = !readOnly &&
-                        !unassigned &&
-                        const ['ASSIGNED', 'QUOTE_OFFERED'].contains(status);
-                    return ListTile(
-                      onTap: canOpenQuote
-                          ? () => _openQuote(e['eventPlanId'] as String)
-                          : null,
-                      title: Text(
-                        '${e['eventType'] ?? 'Event'} · $status',
-                        style: const TextStyle(fontWeight: FontWeight.w700),
-                      ),
-                      subtitle: Text(
-                        '${e['startTime'] ?? ''} · ${e['guestCount'] ?? '?'} guests\n'
-                        'Times in $tz'
-                        '${unassigned && !hallScoped ? '\nUnassigned — business inbox' : ''}'
-                        '${e['hallName'] != null ? '\nHall: ${e['hallName']}' : ''}'
-                        '${unassigned && e['requestedHallName'] != null ? '\nRequested: ${e['requestedHallName']}' : ''}',
-                      ),
-                      isThreeLine: true,
-                      trailing: readOnly || hallScoped
-                          ? (canOpenQuote ? const Icon(Icons.chevron_right) : null)
-                          : PopupMenuButton<String>(
-                              onSelected: (v) {
-                                final id = e['id'] as String;
-                                if (v == 'approve') _approve(id);
-                                if (v == 'decline') _decline(id);
-                                if (v == 'assign') _assign(e);
-                                if (v == 'quote') _openQuote(e['eventPlanId'] as String);
-                              },
-                              itemBuilder: (_) => [
-                                if (status == 'PENDING_OWNER') ...[
-                                  const PopupMenuItem(
-                                      value: 'approve', child: Text('Approve')),
-                                  const PopupMenuItem(
-                                      value: 'decline', child: Text('Decline')),
-                                ],
-                                if (['OWNER_APPROVED', 'ASSIGNED', 'QUOTE_OFFERED']
-                                    .contains(status))
-                                  const PopupMenuItem(
-                                      value: 'assign',
-                                      child: Text('Assign / reassign hall')),
-                                if (canOpenQuote)
-                                  const PopupMenuItem(
-                                      value: 'quote',
-                                      child: Text('Open quote')),
-                              ],
-                            ),
-                    );
-                  },
-                ),
+          : RefreshIndicator(
+              onRefresh: _load,
+              child: ListView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+                children: [
+                  Text('${_items.length} requests',
+                      style: const TextStyle(fontWeight: FontWeight.w800,
+                          fontSize: 16, color: Color(0xFF1B2559))),
+                  const SizedBox(height: 6),
+                  const Text('Review requests, assign a suitable hall, then send a quote. '
+                      'Payment is arranged directly between customer and venue.',
+                      style: TextStyle(fontSize: 12, color: Colors.blueGrey)),
+                  const SizedBox(height: 16),
+                  if (_items.isEmpty)
+                    const Padding(
+                      padding: EdgeInsets.all(24),
+                      child: Center(child: Text('No enquiries yet. Pull down to refresh.')),
+                    ),
+                  for (final item in _items) _requestCard(item, hallScoped),
+                ],
+              ),
+            ),
     );
   }
 }
