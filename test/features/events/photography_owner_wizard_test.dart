@@ -92,7 +92,7 @@ void main() {
           ),
         )),
       )),
-    ))));
+    )));
     await tester.tap(find.text('Open service'));
     await tester.pumpAndSettle();
     for (var i=0;i<7;i++) {
