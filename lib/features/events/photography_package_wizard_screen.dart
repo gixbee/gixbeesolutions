@@ -66,6 +66,9 @@ class _PhotographyPackageWizardScreenState
     _requirements.text = item['customerRequirements']?.toString() ?? '';
     _policy.text = item['policy']?.toString() ?? '';
     _level = item['packageLevel']?.toString() ?? 'Standard';
+    if (!const ['Basic', 'Standard', 'Premium'].contains(_level)) {
+      _level = 'Standard';
+    }
     _active = item['active'] != false;
     _functions.addAll((item['functions'] as List? ?? const []).whereType<String>());
     _ceremonies.addAll((item['ceremonies'] as List? ?? const []).whereType<String>());
