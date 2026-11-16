@@ -138,7 +138,11 @@ void main() {
     await t.pumpAndSettle();
     await t.scrollUntilVisible(
       find.text('I understand this sends a booking request, not a confirmed reservation.'),
-      280,scrollable:find.byType(Scrollable).last);
+      280,
+      scrollable:find.descendant(
+        of:find.byType(ListView).last,
+        matching:find.byType(Scrollable),
+      ).first);
     await t.pumpAndSettle();
     await t.tap(find.text('I understand this sends a booking request, not a confirmed reservation.'));
     await t.pumpAndSettle();
