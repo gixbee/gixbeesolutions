@@ -7,6 +7,7 @@ on:
       - 'lib/features/events/event_service_catalogue_screen.dart'
       - 'lib/features/events/event_vendor_calendar_screen.dart'
       - 'lib/features/events/photography_owner_calendar_screen.dart'
+      - 'lib/features/events/photography_calendar_math.dart'
       - 'lib/repositories/events_repository.dart'
       - 'lib/features/business/business_unit_dashboard.dart'
       - 'backend_rust/src/events/catalogues.rs'
@@ -35,6 +36,7 @@ jobs:
         run: |
           flutter analyze --no-fatal-infos \
             lib/features/events/photography_owner_pricing.dart \
+            lib/features/events/photography_calendar_math.dart \
             lib/features/events/photography_package_wizard_screen.dart \
             lib/features/events/photography_service_wizard_screen.dart \
             lib/features/events/event_service_catalogue_screen.dart \
@@ -43,11 +45,13 @@ jobs:
             lib/repositories/events_repository.dart \
             lib/features/business/business_unit_dashboard.dart \
             test/features/events/photography_owner_pricing_test.dart \
+            test/features/events/photography_calendar_math_test.dart \
             test/features/events/photography_owner_wizard_test.dart
       - name: Run focused photo tests
         run: |
           flutter test --no-pub \
             test/features/events/photography_owner_pricing_test.dart \
+            test/features/events/photography_calendar_math_test.dart \
             test/features/events/photography_owner_wizard_test.dart
 
   rust:
