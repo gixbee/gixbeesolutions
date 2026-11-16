@@ -92,6 +92,31 @@ class EventsRepository {
     await _dio.post('/events/quotes/$quoteId/$action', data: data);
   }
 
+  Future<List<Map<String, dynamic>>> quoteMilestones(String quoteId) async {
+    final response = await _dio.get('/events/quotes/$quoteId/milestones');
+    return (response.data as List)
+        .map((row) => Map<String, dynamic>.from(row as Map)).toList();
+  }
+
+  Future<List<Map<String, dynamic>>> createQuoteMilestones(
+      String quoteId, List<Map<String, dynamic>> milestones) async {
+    final response = await _dio.post(
+      '/events/quotes/$quoteId/milestones',
+      data: {'milestones': milestones},
+    );
+    return (response.data as List)
+        .map((row) => Map<String, dynamic>.from(row as Map)).toList();
+  }
+
+  Future<Map<String, dynamic>> acknowledgeQuoteMilestone(
+      String quoteId, String milestoneId) async {
+    final response = await _dio.post(
+      '/events/quotes/$quoteId/milestones/$milestoneId/ack',
+      data: const {},
+    );
+    return Map<String, dynamic>.from(response.data as Map);
+  }
+
   Future<void> cancel(String id) async {
     await _dio.post('/events/$id/cancel');
   }
