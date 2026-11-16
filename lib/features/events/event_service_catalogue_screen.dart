@@ -372,6 +372,7 @@ class _EventServiceCatalogueScreenState
                        if (_catering) _cateringHub(),
                       TextField(
                           controller: _about,
+                           onChanged: (_) => setState(() => _hasUnsavedChanges = true),
                           maxLength: 3000,
                           maxLines: 3,
                           decoration: const InputDecoration(
@@ -389,6 +390,7 @@ class _EventServiceCatalogueScreenState
                                     label: Text(city.displayName),
                                     selected: _serviceCities.contains(city.id),
                                     onSelected: (on) => setState(() {
+                                          _hasUnsavedChanges = true;
                                           if (on &&
                                               _serviceCities.length < 30) {
                                             _serviceCities.add(city.id);
@@ -409,6 +411,7 @@ class _EventServiceCatalogueScreenState
                         TextField(
                             controller: controller,
                             keyboardType: TextInputType.number,
+                             onChanged: (_) => setState(() => _hasUnsavedChanges = true),
                             decoration: InputDecoration(labelText: label)),
                       const SizedBox(height: 16),
                       Text('Gallery',
@@ -456,7 +459,7 @@ class _EventServiceCatalogueScreenState
                         ),
                       ],
                       GxButton(
-                          label: 'Save catalogue',
+                          label: _hasUnsavedChanges ? 'Save changes' : 'Save catalogue',
                           onTap: _save,
                           loading: _busy),
                     ])),
