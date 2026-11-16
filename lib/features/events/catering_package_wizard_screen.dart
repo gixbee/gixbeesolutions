@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:uuid/uuid.dart';
 import 'catering_price_math.dart';
+import 'catering_module_picker_screen.dart';
 
 /// Categories from the Catering Owner HTML flow. Stored as stable IDs so
 /// package selection works even when the display labels change.
@@ -157,7 +158,7 @@ class _CateringPackageWizardScreenState
   String _level = 'Basic';
   String _diet = 'mixed';
   String _serve = 'buffet';
-  String? _expandedGroup;
+  // Menu changes are applied atomically by the dedicated category picker.
   bool _active = true;
   bool _flat = false;
   bool _offer = false;
@@ -765,11 +766,13 @@ class _CateringPackageWizardScreenState
       ),
       const SizedBox(height: 10),
       for (final group in CateringMenuGroups.all)
-        if (term.isEmpty ||
-            group.title.toLowerCase().contains(term) ||
-            visible.any((dish) =>
+        if (visible.any((dish) =>
+                CateringMenuGroups.classify(dish) == group.id) &&
+            (term.isEmpty ||
+             group.title.toLowerCase().contains(term) ||
+             visible.any((dish) =>
                 CateringMenuGroups.classify(dish) == group.id &&
-                dish['name'].toString().toLowerCase().contains(term)))
+                dish['name'].toString().toLowerCase().contains(term))))
           _groupCard(
               group,
               visible
@@ -793,95 +796,74 @@ class _CateringPackageWizardScreenState
     return !raw.contains('non') && !raw.contains('meat');
   }
 
+  Future<void> _openModule(
+      CateringMenuGroup group, List<Map<String, dynamic>> dishes) async {
+    final picked = await Navigator.of(context).push<Set<String>>(
+      MaterialPageRoute(
+        builder: (_) => CateringModulePickerScreen(
+          title: group.title,
+          emoji: group.emoji,
+          dishes: dishes,
+          selectedIds: _dishIds,
+        ),
+      ),
+    );
+    if (!mounted || picked == null) return;
+    setState(() {
+      _dishIds
+        ..clear()
+        ..addAll(picked);
+    });
+  }
+
   Widget _groupCard(
       CateringMenuGroup group, List<Map<String, dynamic>> dishes) {
-    final selected = _dishes
-        .where((dish) =>
-            CateringMenuGroups.classify(dish) == group.id &&
-            _dishIds.contains(dish['id']))
-        .length;
-    final expanded =
-        _expandedGroup == group.id || _search.text.trim().isNotEmpty;
+    final selected = _dishes.where((dish) =>
+      CateringMenuGroups.classify(dish) == group.id &&
+      _dishIds.contains(dish['id'])).length;
     return Card(
       margin: const EdgeInsets.only(bottom: 10),
-      shape: RoundedRectangleBorder(
-          side: const BorderSide(color: Color(0xFFE2E8F0)),
-          borderRadius: BorderRadius.circular(15)),
       color: Colors.white,
-      child: Column(children: [
-        InkWell(
-          borderRadius: BorderRadius.circular(15),
-          onTap: () =>
-              setState(() => _expandedGroup = expanded ? null : group.id),
-          child: Padding(
-            padding: const EdgeInsets.all(11),
-            child: Row(children: [
-              Container(
-                height: 52,
-                width: 52,
-                alignment: Alignment.center,
-                decoration: BoxDecoration(
-                    color: group.color,
-                    borderRadius: BorderRadius.circular(12)),
-                child: Text(group.emoji, style: const TextStyle(fontSize: 27)),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                  child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(group.title,
-                      style: const TextStyle(
-                          fontSize: 13,
-                          color: _navy,
-                          fontWeight: FontWeight.w900)),
-                  Text(group.hint,
-                      style: const TextStyle(
-                          fontSize: 10, color: Color(0xFF64748B))),
-                ],
-              )),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
-                decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(30),
-                    color: const Color(0xFFFFF1F5)),
-                child: Text('$selected dishes',
-                    style: const TextStyle(
-                        color: _pink,
-                        fontWeight: FontWeight.w900,
-                        fontSize: 10)),
-              ),
-              Icon(expanded ? Icons.keyboard_arrow_up : Icons.chevron_right,
-                  color: const Color(0xFFCBD5E1)),
-            ]),
-          ),
-        ),
-        if (expanded) ...[
-          const Divider(height: 1),
-          if (dishes.isEmpty)
-            const Padding(
-                padding: EdgeInsets.all(15),
-                child: Text(
-                    'No dishes in this group yet. Create an individual dish first.')),
-          for (final dish in dishes)
-            CheckboxListTile(
-              dense: true,
-              controlAffinity: ListTileControlAffinity.leading,
-              title: Text(dish['name'].toString()),
-              subtitle:
-                  Text(_allowedByDiet(dish) ? 'Vegetarian' : 'Non-vegetarian'),
-              value: _dishIds.contains(dish['id']),
-              onChanged: (checked) => setState(() {
-                final id = dish['id'] as String;
-                if (checked == true) {
-                  _dishIds.add(id);
-                } else {
-                  _dishIds.remove(id);
-                }
-              }),
+      shape: RoundedRectangleBorder(
+        side: const BorderSide(color: Color(0xFFE2E8F0)),
+        borderRadius: BorderRadius.circular(15),
+      ),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(15),
+        onTap: dishes.isEmpty ? null : () => _openModule(group, dishes),
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: Row(children: [
+            Container(
+              height: 52, width: 52, alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: group.color,
+                borderRadius: BorderRadius.circular(12)),
+              child: Text(group.emoji, style: const TextStyle(fontSize: 27)),
             ),
-        ],
-      ]),
+            const SizedBox(width: 10),
+            Expanded(child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(group.title, style: const TextStyle(
+                  fontSize: 13, color: _navy, fontWeight: FontWeight.w900)),
+                Text(group.hint, style: const TextStyle(
+                  fontSize: 10, color: Color(0xFF64748B))),
+              ],
+            )),
+            Container(
+              padding: const EdgeInsets.symmetric(
+                  horizontal: 9, vertical: 6),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(30),
+                color: const Color(0xFFFFF1F5)),
+              child: Text('$selected dishes', style: const TextStyle(
+                color: _pink, fontWeight: FontWeight.w900, fontSize: 10)),
+            ),
+            const Icon(Icons.chevron_right, color: Color(0xFFCBD5E1)),
+          ]),
+        ),
+      ),
     );
   }
 
