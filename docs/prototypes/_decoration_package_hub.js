@@ -2,7 +2,7 @@
 
 const DEC_PKG_LEVELS = ['Basic', 'Standard', 'Premium'];
 
-let decorPkgWizard = { editId: null, draft: null, itemsTab: 'included' };
+let decorPkgWizard = { editId: null, draft: null, itemsTab: 'included', activeModuleId: null };
 let decorModulePickCtx = { moduleId: null, search: '' };
 let decorItemPickCtx = { moduleId: null, configuringId: null, customName: '' };
 
@@ -301,6 +301,7 @@ function renderDecorPackageList() {
 function startDecorPackageWizard(editId) {
   decorPkgWizard.editId = editId || null;
   decorPkgWizard.itemsTab = 'included';
+  decorPkgWizard.activeModuleId = null;
   const src = editId ? findDecorPackage(editId) : null;
   decorPkgWizard.draft = src ? JSON.parse(JSON.stringify(src)) : newDecorPkgDraft();
   if (!decorPkgWizard.draft.tierPrices) decorPkgWizard.draft.tierPrices = { basic: '', standard: '', premium: '' };
@@ -530,16 +531,90 @@ function decorPkgItemsTab() {
   return decorPkgWizard.itemsTab === 'extra' ? 'extra' : 'included';
 }
 
+function decOpenOverlay(id) {
+  const o = el(id);
+  if (!o) return;
+  o.classList.add('on');
+  o.setAttribute('aria-hidden', 'false');
+}
+
+function decCloseOverlay(id) {
+  const o = el(id);
+  if (!o) return;
+  o.classList.remove('on');
+  o.setAttribute('aria-hidden', 'true');
+}
+
+function decorItemPaneSearchQuery() {
+  const inp = el('decItemPaneSearch');
+  return inp ? (inp.value || '').trim().toLowerCase() : '';
+}
+
+function decorCatalogItemBlurb(name) {
+  const n = String(name || '').toLowerCase();
+  if (n.indexOf('car') >= 0) return 'Vehicle floral décor for the day.';
+  if (n.indexOf('stage') >= 0 || n.indexOf('mandap') >= 0) return 'Stage setup with backdrop and trim.';
+  if (n.indexOf('church') >= 0 || n.indexOf('altar') >= 0) return 'Ceremony space styling and florals.';
+  if (n.indexOf('entrance') >= 0 || n.indexOf('welcome') >= 0) return 'Entrance arch, signage, and welcome décor.';
+  if (n.indexOf('light') >= 0 || n.indexOf('sound') >= 0) return 'Lighting and ambience for the venue.';
+  if (n.indexOf('seat') >= 0 || n.indexOf('chair') >= 0) return 'Seating arrangement and furniture styling.';
+  if (n.indexOf('photo') >= 0 || n.indexOf('display') >= 0) return 'Photo walls and display corners.';
+  if (n.indexOf('floral') >= 0 || n.indexOf('flower') >= 0) return 'Fresh or artificial floral accents.';
+  if (n.indexOf('path') >= 0 || n.indexOf('aisle') >= 0) return 'Walkway and aisle decoration.';
+  return 'Decoration for this part of your event.';
+}
+
+function decorFindDraftItemIdx(catalogueId) {
+  const items = decorPkgWizard.draft.items || [];
+  let i;
+  for (i = 0; i < items.length; i++) {
+    if (items[i].catalogueId === catalogueId) return i;
+  }
+  return -1;
+}
+
+function ensureDecorPkgActiveModule(moduleRows) {
+  if (!moduleRows || !moduleRows.length) {
+    decorPkgWizard.activeModuleId = null;
+    return null;
+  }
+  const active = decorPkgWizard.activeModuleId;
+  const ok = moduleRows.some(function (r) {
+    return r.mod.id === active;
+  });
+  if (!ok) decorPkgWizard.activeModuleId = moduleRows[0].mod.id;
+  return findDecorationModule(decorPkgWizard.activeModuleId);
+}
+
+function renderDecorPkgStep3Banner() {
+  const d = decorPkgWizard.draft;
+  const host = el('decPkgStep3Banner');
+  if (!host) return;
+  const name = d.name || 'Your package';
+  const tags = decorPkgSummaryLine(d);
+  host.innerHTML =
+    '<div class="body"><b>' +
+    esc(name) +
+    '</b><div class="tags">' +
+    esc(tags) +
+    '</div></div><button type="button" id="decPkgStep3Change">Change</button>';
+}
+
 function renderDecorItemsTabSeg() {
   const host = el('decItemsTabSeg');
   if (!host) return;
   const tab = decorPkgItemsTab();
+  const counts = decorPkgCounts(decorPkgWizard.draft);
   host.innerHTML =
     '<button type="button" data-dec-items-tab="included"' +
     (tab === 'included' ? ' class="on"' : '') +
-    '>Included items</button><button type="button" data-dec-items-tab="extra"' +
+    '><b>Include in Package</b><small>(' +
+    counts.included +
+    ')</small></button><button type="button" data-dec-items-tab="extra"' +
     (tab === 'extra' ? ' class="on"' : '') +
-    '>Extra add-ons</button>';
+    '><b>Extra Add-ons</b><small>(' +
+    counts.extra +
+    ')</small></button>';
   host.querySelectorAll('[data-dec-items-tab]').forEach(function (btn) {
     btn.onclick = function () {
       decorPkgWizard.itemsTab = btn.getAttribute('data-dec-items-tab');
@@ -550,9 +625,206 @@ function renderDecorItemsTabSeg() {
   if (hint) {
     hint.textContent =
       tab === 'extra'
-        ? 'Optional add-ons — customer pays item price on top of the package.'
-        : 'Part of your package price — customer does not pay extra for these.';
+        ? 'Optional add-ons — customer pays the item price on top of the package.'
+        : 'Covered by your package price — customer does not pay extra for these.';
   }
+}
+
+function renderDecorCatRail(ctx, moduleRows) {
+  const host = el('decCatRail');
+  if (!host) return;
+  if (!moduleRows.length) {
+    host.innerHTML = '<p class="dec-items-empty" style="padding:12px 4px">No categories</p>';
+    return;
+  }
+  const active = decorPkgWizard.activeModuleId;
+  host.innerHTML = moduleRows
+    .map(function (row) {
+      const m = row.mod;
+      const on = m.id === active;
+      return (
+        '<button type="button" class="' +
+        (on ? 'on' : '') +
+        '" data-dec-rail-mod="' +
+        esc(m.id) +
+        '"><span class="ico">' +
+        m.emoji +
+        '</span><b>' +
+        esc(m.name) +
+        '</b><span class="cnt">' +
+        row.visibleCount +
+        '</span></button>'
+      );
+    })
+    .join('');
+  host.querySelectorAll('[data-dec-rail-mod]').forEach(function (btn) {
+    btn.onclick = function () {
+      decorPkgWizard.activeModuleId = btn.getAttribute('data-dec-rail-mod');
+      renderDecorItemsPane(ctx);
+      renderDecorCatRail(ctx, moduleRows);
+    };
+  });
+}
+
+function renderDecorItemCard(it, mod, tab) {
+  const idx = decorFindDraftItemIdx(it.id);
+  const row = idx >= 0 ? decorPkgWizard.draft.items[idx] : null;
+  const isInc = row && row.inclusionType !== 'extra';
+  const isExt = row && row.inclusionType === 'extra';
+  const incOn = tab === 'included' && isInc;
+  const extOn = tab === 'extra' && isExt;
+  const qty = row ? Math.max(1, +row.quantity || 1) : 1;
+  const showQty = incOn || extOn;
+  let extraLbl = 'Extra';
+  if (extOn && row.extraPrice) extraLbl += '<span class="pr">' + inr(row.extraPrice) + ' / ' + esc(row.unit || 'Per Event') + '</span>';
+  else if (tab === 'extra') extraLbl += '<span class="pr">Set add-on price</span>';
+  const qtyHtml = showQty
+    ? '<div class="dec-qty" data-dec-qty-wrap="' +
+      esc(it.id) +
+      '"><button type="button" data-dec-qty="' +
+      esc(it.id) +
+      '" data-delta="-1" aria-label="Decrease">−</button><span>' +
+      qty +
+      '</span><button type="button" data-dec-qty="' +
+      esc(it.id) +
+      '" data-delta="1" aria-label="Increase">+</button></div>'
+    : '';
+  return (
+    '<div class="dec-item-card"><div class="dec-item-thumb" aria-hidden="true">' +
+    mod.emoji +
+    '</div><div class="dec-item-card-body"><b>' +
+    esc(it.name) +
+    '</b><div class="blurb">' +
+    esc(decorCatalogItemBlurb(it.name)) +
+    '</div><div class="dec-item-actions">' +
+    qtyHtml +
+    (tab === 'included'
+      ? '<button type="button" class="dec-act-inc' +
+        (incOn ? ' on' : '') +
+        '" data-dec-toggle="include" data-cat-id="' +
+        esc(it.id) +
+        '">' +
+        (incOn ? '✓ Include' : 'Include') +
+        '</button>'
+      : '') +
+    (tab === 'extra'
+      ? '<button type="button" class="dec-act-extra' +
+        (extOn ? ' on' : '') +
+        '" data-dec-toggle="extra" data-cat-id="' +
+        esc(it.id) +
+        '">' +
+        extraLbl +
+        '</button>'
+      : '') +
+    (row && ((tab === 'included' && isExt) || (tab === 'extra' && isInc))
+      ? '<button type="button" class="dec-link" data-dec-edit-item="' +
+        idx +
+        '">Edit</button>'
+      : '') +
+    '</div></div></div>'
+  );
+}
+
+function bindDecorItemsPane(host, mod) {
+  if (!host || !mod) return;
+  host.querySelectorAll('[data-dec-toggle]').forEach(function (btn) {
+    btn.onclick = function () {
+      const catId = btn.getAttribute('data-cat-id');
+      const mode = btn.getAttribute('data-dec-toggle');
+      const hit = mod.items.filter(function (x) {
+        return x.id === catId;
+      })[0];
+      if (!hit) return;
+      toggleDecorCatalogInclusion(hit, mod, mode);
+    };
+  });
+  host.querySelectorAll('[data-dec-qty]').forEach(function (btn) {
+    btn.onclick = function () {
+      const catId = btn.getAttribute('data-dec-qty');
+      const delta = +btn.getAttribute('data-delta');
+      bumpDecorCatalogQty(catId, delta);
+    };
+  });
+  host.querySelectorAll('[data-dec-edit-item]').forEach(function (btn) {
+    btn.onclick = function () {
+      const idx = +btn.getAttribute('data-dec-edit-item');
+      decorItemPickCtx.configuringId = idx;
+      decorModulePickCtx.moduleId = null;
+      renderDecorItemConfig();
+      show('decorItemConfig');
+    };
+  });
+}
+
+function toggleDecorCatalogInclusion(catalogueItem, mod, mode) {
+  const items = decorPkgWizard.draft.items || [];
+  const idx = decorFindDraftItemIdx(catalogueItem.id);
+  const wantExtra = mode === 'extra';
+  if (idx >= 0) {
+    const row = items[idx];
+    const sameType = wantExtra ? row.inclusionType === 'extra' : row.inclusionType !== 'extra';
+    if (sameType) {
+      items.splice(idx, 1);
+      decorPkgWizard.draft.items = items;
+      renderDecorPkgStep3();
+      return;
+    }
+    toast('This item is already in the other list — open Edit to switch.');
+    return;
+  }
+  const type = wantExtra ? 'extra' : 'included';
+  items.push({
+    moduleId: mod.id,
+    catalogueId: catalogueItem.id,
+    name: catalogueItem.name,
+    inclusionType: type,
+    quantity: 1,
+    unit: 'Per Event',
+    extraPrice: '',
+    description: '',
+  });
+  decorPkgWizard.draft.items = items;
+  decorItemPickCtx.configuringId = items.length - 1;
+  decorModulePickCtx.moduleId = null;
+  if (type === 'extra') {
+    renderDecorItemConfig();
+    show('decorItemConfig');
+    return;
+  }
+  renderDecorPkgStep3();
+}
+
+function bumpDecorCatalogQty(catalogueId, delta) {
+  const idx = decorFindDraftItemIdx(catalogueId);
+  if (idx < 0) return;
+  const it = decorPkgWizard.draft.items[idx];
+  it.quantity = Math.max(1, Math.round(+(it.quantity || 1)) + delta);
+  renderDecorPkgStep3();
+}
+
+function renderDecorItemsPane(ctx) {
+  const host = el('decItemsPane');
+  if (!host) return;
+  const q = decorItemPaneSearchQuery();
+  const moduleRows = decorModulesForPackage(ctx, q);
+  const mod = ensureDecorPkgActiveModule(moduleRows);
+  if (!mod) {
+    host.innerHTML =
+      '<p class="dec-items-empty">No items match. Try another search or update package type / community in step 2.</p>';
+    return;
+  }
+  const list = decorFilteredModuleItems(mod, ctx, q);
+  const tab = decorPkgItemsTab();
+  if (!list.length) {
+    host.innerHTML = '<p class="dec-items-empty">No items in this category for your package. Add a custom item below.</p>';
+    return;
+  }
+  host.innerHTML = list
+    .map(function (it) {
+      return renderDecorItemCard(it, mod, tab);
+    })
+    .join('');
+  bindDecorItemsPane(host, mod);
 }
 
 function renderDecorItemSummaryBanner() {
@@ -611,57 +883,14 @@ function bindDecorSelItemRows(host) {
 function renderDecorPkgStep3() {
   setDecorWizProgress(3);
   const d = decorPkgWizard.draft;
+  decorModulePickCtx.moduleId = null;
+  renderDecorPkgStep3Banner();
   renderDecorItemsTabSeg();
-  renderDecorItemSummaryBanner();
   const ctx = decorCatalogContextFromDraft(d);
-  const q = (el('decModSearch').value || '').trim().toLowerCase();
-  const summary = decorPackageCatalogSummary(ctx);
-  const hint = el('decPkgCatalogHint');
-  if (hint) {
-    hint.textContent =
-      summary.categories +
-      ' categories · ' +
-      summary.items +
-      ' items match ' +
-      summary.label +
-      '. Each category shows only what fits your package.';
-  }
-  const host = el('decModList');
-  const rows = decorModulesForPackage(ctx, q);
-  if (!rows.length) {
-    host.innerHTML =
-      '<div class="dec-empty" style="margin:12px 16px"><p class="sub">No categories match. Try another search or update package type / community in step 2.</p></div>';
-  } else {
-    host.innerHTML = rows
-      .map(function (row) {
-        const m = row.mod;
-        const stats = decorModuleItemCounts(m.id);
-        let sub;
-        if (stats.total) {
-          sub = stats.included + ' included' + (stats.extra ? ', ' + stats.extra + ' extra' : '');
-        } else {
-          sub = row.visibleCount + ' items for this package';
-        }
-        return (
-          '<button type="button" class="dec-mod-row" data-dec-mod="' +
-          esc(m.id) +
-          '"><span class="dec-mod-ico">' +
-          m.emoji +
-          '</span><span style="flex:1;min-width:0"><b>' +
-          esc(m.name) +
-          '</b><small>' +
-          esc(sub) +
-          '</small></span><span class="dec-chev">›</span></button>'
-        );
-      })
-      .join('');
-    host.querySelectorAll('[data-dec-mod]').forEach(function (row) {
-      row.onclick = function () {
-        openDecorModulePick(row.getAttribute('data-dec-mod'));
-      };
-    });
-  }
-  renderDecorSelectedItemsSummary(false);
+  const q = decorItemPaneSearchQuery();
+  const moduleRows = decorModulesForPackage(ctx, q);
+  renderDecorCatRail(ctx, moduleRows);
+  renderDecorItemsPane(ctx);
 }
 
 function renderDecorSelectedItemsSummary(full) {
@@ -860,9 +1089,101 @@ function saveDecorItemConfig() {
   }
   it.quantity = Math.max(1, Math.round(+el('decItemQty').value || 1));
   it.description = (el('decItemNote').value || '').trim();
-  show(decorModulePickCtx.moduleId ? 'decorModPick' : 'decorPkgStep3');
-  renderDecorModulePick();
+  if (decorModulePickCtx.moduleId) {
+    show('decorModPick');
+    renderDecorModulePick();
+  } else {
+    show('decorPkgStep3');
+  }
   renderDecorPkgStep3();
+}
+
+function renderDecorCustomSheetFields() {
+  const ctx = decorCatalogContextFromDraft(decorPkgWizard.draft);
+  const rows = decorModulesForPackage(ctx, '');
+  const sel = el('decCustomSheetCategory');
+  if (sel) {
+    const active = decorPkgWizard.activeModuleId;
+    sel.innerHTML = rows
+      .map(function (row) {
+        return (
+          '<option value="' +
+          esc(row.mod.id) +
+          '"' +
+          (row.mod.id === active ? ' selected' : '') +
+          '>' +
+          row.mod.emoji +
+          ' ' +
+          esc(row.mod.name) +
+          '</option>'
+        );
+      })
+      .join('');
+  }
+  const unitSel = el('decCustomSheetUnit');
+  if (unitSel) {
+    unitSel.innerHTML = DECORATION_UNITS.map(function (u) {
+      return '<option>' + esc(u) + '</option>';
+    }).join('');
+  }
+  const inc = decorPkgItemsTab() !== 'extra';
+  if (el('decCustomSheetInc')) el('decCustomSheetInc').checked = inc;
+  if (el('decCustomSheetExtra')) el('decCustomSheetExtra').checked = !inc;
+  if (el('decCustomExtraWrap')) el('decCustomExtraWrap').hidden = inc;
+}
+
+function openDecorCustomItemSheet() {
+  renderDecorCustomSheetFields();
+  if (el('decCustomSheetName')) el('decCustomSheetName').value = '';
+  if (el('decCustomSheetLocation')) el('decCustomSheetLocation').value = '';
+  if (el('decCustomSheetQty')) el('decCustomSheetQty').value = '1';
+  if (el('decCustomSheetExtraPrice')) el('decCustomSheetExtraPrice').value = '';
+  if (el('decCustomSheetNote')) el('decCustomSheetNote').value = '';
+  decOpenOverlay('decCustomItemOverlay');
+}
+
+function saveDecorCustomItemFromSheet() {
+  const name = (el('decCustomSheetName').value || '').trim();
+  if (!name) {
+    toast('Enter item name');
+    return;
+  }
+  const modId = el('decCustomSheetCategory').value;
+  const mod = findDecorationModule(modId);
+  if (!mod) {
+    toast('Pick a category');
+    return;
+  }
+  const isExtra = el('decCustomSheetExtra').checked;
+  const placement = (el('decCustomSheetLocation').value || '').trim();
+  const note = (el('decCustomSheetNote').value || '').trim();
+  let extraPrice = '';
+  if (isExtra) {
+    const p = Math.round(+el('decCustomSheetExtraPrice').value || 0);
+    if (!p) {
+      toast('Extra price is required');
+      return;
+    }
+    extraPrice = p;
+  }
+  decorPkgWizard.draft.items = decorPkgWizard.draft.items || [];
+  const descParts = [];
+  if (placement) descParts.push('Placement: ' + placement);
+  if (note) descParts.push(note);
+  decorPkgWizard.draft.items.push({
+    moduleId: mod.id,
+    catalogueId: '',
+    customName: name,
+    name: name,
+    inclusionType: isExtra ? 'extra' : 'included',
+    quantity: Math.max(1, Math.round(+el('decCustomSheetQty').value || 1)),
+    unit: el('decCustomSheetUnit').value || 'Per Event',
+    extraPrice: extraPrice,
+    description: descParts.join(' · '),
+  });
+  decCloseOverlay('decCustomItemOverlay');
+  renderDecorPkgStep3();
+  toast('Custom item added');
 }
 
 function addDecorCustomItem() {
@@ -1145,8 +1466,25 @@ function bindDecorationPackageUi() {
     renderDecorPkgStep4();
     show('decorPkgStep4');
   });
-  bindOnInput('decModSearch', function () {
+  bindClick('decPkgStep3Change', function () {
+    renderDecorPkgStep2();
+    show('decorPkgStep2');
+  });
+  bindOnInput('decItemPaneSearch', function () {
     renderDecorPkgStep3();
+  });
+  bindClick('decOpenCustomItem', openDecorCustomItemSheet);
+  bindClick('decCustomClose', function () {
+    decCloseOverlay('decCustomItemOverlay');
+  });
+  bindClick('decCustomSave', saveDecorCustomItemFromSheet);
+  bindClick('decCustomSheetInc', function () {
+    el('decCustomSheetExtra').checked = false;
+    el('decCustomExtraWrap').hidden = true;
+  });
+  bindClick('decCustomSheetExtra', function () {
+    el('decCustomSheetInc').checked = false;
+    el('decCustomExtraWrap').hidden = false;
   });
   bindClick('decModPickBack', function () {
     show('decorPkgStep3');
@@ -1162,7 +1500,8 @@ function bindDecorationPackageUi() {
   });
   bindClick('decCustomItemAdd', addDecorCustomItem);
   bindClick('decItemCfgBack', function () {
-    show('decorModPick');
+    if (decorModulePickCtx.moduleId) show('decorModPick');
+    else show('decorPkgStep3');
   });
   bindClick('decItemCfgSave', saveDecorItemConfig);
   bindClick('decIncIncluded', function () {

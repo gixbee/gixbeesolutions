@@ -119,6 +119,47 @@ body{margin:0;background:#E8EDF5;font-family:Inter,system-ui,sans-serif;color:#1
 .dec-ban button{margin-left:auto;border:1px solid #86EFAC;background:#fff;border-radius:99px;padding:4px 10px;font-size:11px;font-weight:800;color:#047857;cursor:pointer}
 .fld{margin:0 0 14px}.fld label{display:block;font-size:12px;font-weight:800;margin-bottom:6px;color:var(--decor-navy)}
 .fld input,.fld select,.fld textarea{width:100%;border:1.5px solid #DDD6FE;border-radius:12px;padding:10px 12px;font:inherit}
+.dec-items-tabseg{display:flex;gap:8px;margin:0 16px 10px;padding:4px;background:#F8FAFC;border-radius:14px;border:1px solid var(--line)}
+.dec-items-tabseg button{flex:1;border:2px solid transparent;border-radius:12px;padding:10px 6px;background:#fff;cursor:pointer;font:inherit;text-align:center;line-height:1.25}
+.dec-items-tabseg button.on{border-color:var(--decor2);background:linear-gradient(180deg,#FFF1F2,#fff);box-shadow:0 0 0 1px #FBCFE8}
+.dec-items-tabseg button b{display:block;font-size:12px;font-weight:900;color:var(--decor-navy)}
+.dec-items-tabseg button small{display:block;font-size:10px;font-weight:700;color:var(--mut);margin-top:3px}
+.dec-items-tabseg button.on b{color:var(--decor2)}
+.dec-pkg-step3-banner{display:flex;align-items:flex-start;gap:10px;margin:0 16px 10px;padding:12px 14px;border-radius:14px;background:linear-gradient(180deg,#F5F3FF 0%,#fff 70%);border:1px solid #DDD6FE}
+.dec-pkg-step3-banner .body{flex:1;min-width:0}
+.dec-pkg-step3-banner b{display:block;font-size:14px;font-weight:900;color:var(--decor-navy);line-height:1.3}
+.dec-pkg-step3-banner .tags{font-size:11px;color:var(--mut);margin-top:4px;line-height:1.35}
+.dec-pkg-step3-banner button{margin-top:2px;border:1px solid #C4B5FD;background:#fff;border-radius:99px;padding:5px 11px;font-size:10px;font-weight:900;color:#6D28D9;cursor:pointer;flex-shrink:0}
+.dec-items-split{display:flex;min-height:min(52vh,420px);max-height:min(58vh,480px);margin:0 0 4px;border:1px solid var(--line);border-radius:14px;overflow:hidden;background:#fff}
+.dec-cat-rail{width:38%;max-width:132px;border-right:1px solid var(--line);overflow-y:auto;padding:6px 4px;background:#FAFAFA;flex-shrink:0}
+.dec-cat-rail button{display:block;width:100%;border:0;background:transparent;padding:10px 4px;border-radius:10px;text-align:center;cursor:pointer;font:inherit;margin-bottom:2px;color:inherit}
+.dec-cat-rail button.on{background:#FFF1F2;box-shadow:inset 3px 0 0 var(--decor2)}
+.dec-cat-rail .ico{font-size:20px;display:block;margin-bottom:4px;line-height:1}
+.dec-cat-rail b{font-size:9px;font-weight:900;color:var(--decor-navy);line-height:1.2;display:block}
+.dec-cat-rail .cnt{font-size:9px;font-weight:700;color:var(--mut);margin-top:2px}
+.dec-items-pane{flex:1;overflow-y:auto;padding:4px 10px 12px;min-width:0}
+.dec-item-card{display:flex;gap:10px;padding:12px 0;border-bottom:1px solid #F1F5F9}
+.dec-item-card:last-child{border-bottom:0}
+.dec-item-thumb{width:54px;height:54px;border-radius:10px;background:linear-gradient(135deg,#EDE9FE,#FBCFE8);flex-shrink:0;display:grid;place-items:center;font-size:22px}
+.dec-item-card-body{flex:1;min-width:0}
+.dec-item-card-body b{font-size:12px;font-weight:900;display:block;color:var(--decor-navy);line-height:1.25}
+.dec-item-card-body .blurb{font-size:10px;color:var(--mut);margin:3px 0 8px;line-height:1.35}
+.dec-item-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.dec-qty{display:inline-flex;align-items:center;border:1px solid var(--line);border-radius:99px;overflow:hidden;background:#fff}
+.dec-qty button{width:28px;height:28px;border:0;background:#F8FAFC;font-weight:900;font-size:16px;line-height:1;cursor:pointer;color:var(--decor-navy)}
+.dec-qty span{min-width:22px;text-align:center;font-size:12px;font-weight:900}
+.dec-act-inc,.dec-act-extra{border-radius:99px;padding:6px 12px;font-size:10px;font-weight:900;cursor:pointer;border:1.5px solid;font:inherit;line-height:1.2}
+.dec-act-inc{border-color:#86EFAC;background:#fff;color:#166534}
+.dec-act-inc.on{background:#16A34A;color:#fff;border-color:#16A34A}
+.dec-act-extra{border-color:#E9D5FF;color:#7C3AED;background:#fff;text-align:center}
+.dec-act-extra.on{background:var(--decor2);color:#fff;border-color:var(--decor2)}
+.dec-act-extra .pr{display:block;font-size:9px;font-weight:800;margin-top:2px}
+.dec-add-custom-btn{display:block;width:calc(100% - 32px);margin:6px 16px 12px;border:2px dashed #F9A8D4;background:#FFF1F2;color:var(--decor2);font-weight:900;font-size:13px;padding:11px 12px;border-radius:12px;cursor:pointer;font:inherit}
+.dec-items-empty{padding:20px 8px;text-align:center;font-size:12px;color:var(--mut);line-height:1.45}
+.dec-custom-sheet{max-height:88%}
+.dec-custom-type{display:flex;gap:8px;margin:8px 0 12px}
+.dec-custom-type label{flex:1;display:flex;align-items:flex-start;gap:8px;padding:10px;border:1.5px solid var(--line);border-radius:12px;cursor:pointer;font-size:12px;font-weight:800}
+.dec-custom-type label:has(input:checked){border-color:var(--decor2);background:#FFF1F2}
 .dec-mod-list{padding-bottom:8px}
 .dec-mod-row{display:flex;align-items:center;gap:10px;margin:0 16px 8px;padding:12px 14px;border:1px solid var(--line);border-radius:14px;background:#fff;cursor:pointer;font:inherit;text-align:left;width:calc(100% - 32px);color:inherit}
 .dec-mod-row.on{border-color:var(--decor2);background:#FFF1F2}
@@ -727,17 +768,38 @@ body{margin:0;background:#E8EDF5;font-family:Inter,system-ui,sans-serif;color:#1
   <div class="top gx-top"><button type="button" class="back" id="decPkgStep3Back">←</button><h1><em>Gixbee</em><span>|</span>Add Items</h1><span class="hub-more">⋮</span></div>
   <div class="dec-progress"><i class="done"></i><i class="done"></i><i class="on"></i><i></i><i></i></div>
   <p class="dec-wiz-step">Step 3 of 5</p>
-  <div class="hub-seg" id="decItemsTabSeg"></div>
+  <div class="dec-pkg-step3-banner" id="decPkgStep3Banner"></div>
+  <div class="dec-items-tabseg" id="decItemsTabSeg"></div>
   <p class="sub pad" id="decItemsTabHint" style="margin-top:0">These items are part of your package price.</p>
-  <p class="sub pad" id="decPkgCatalogHint" style="margin-top:0;padding-top:0"></p>
-  <div class="dec-items-intro" style="margin-top:0">
-    <div class="dec-item-stats" id="decItemSummaryBanner"></div>
+  <form class="search" onsubmit="return false"><span>🔍</span><input type="search" id="decItemPaneSearch" placeholder="Search stage, arch, car decoration…" autocomplete="off"></form>
+  <div class="dec-items-split">
+    <div class="dec-cat-rail" id="decCatRail" aria-label="Categories"></div>
+    <div class="dec-items-pane" id="decItemsPane"></div>
   </div>
-  <form class="search" onsubmit="return false"><span>🔍</span><input type="search" id="decModSearch" placeholder="Search categories" autocomplete="off"></form>
-  <div class="dec-mod-list" id="decModList"></div>
-  <div class="pad" id="decSelectedItemsCompact"></div>
+  <button type="button" class="dec-add-custom-btn" id="decOpenCustomItem">+ Add Custom Item</button>
+  <div class="pad" id="decSelectedItemsCompact" hidden></div>
   <div class="cat-wiz-foot"><button type="button" class="btn btn-ghost" id="decPkgStep3BackFoot">← Back</button><button type="button" class="btn btn-decor" id="decPkgStep3Next">Next: Set pricing →</button></div>
 </section>
+
+<div class="overlay" id="decCustomItemOverlay" aria-hidden="true">
+  <div class="sheet dec-custom-sheet">
+    <div class="sheet-head"><h2>Add Custom Item</h2><button type="button" class="sheet-close" id="decCustomClose" aria-label="Close">×</button></div>
+    <p class="sub" style="margin-top:0">Add a requirement not in the catalogue (arch, stands, coolers, car decoration, etc.).</p>
+    <div class="fld"><label>Item name *</label><input id="decCustomSheetName" placeholder="Church entrance arch" autocomplete="off"></div>
+    <div class="fld"><label>Category</label><select id="decCustomSheetCategory"></select></div>
+    <div class="fld"><label>Location / placement</label><input id="decCustomSheetLocation" placeholder="Church entrance" autocomplete="off"></div>
+    <div class="fld"><label>Quantity</label><input type="number" id="decCustomSheetQty" min="1" value="1" inputmode="numeric"></div>
+    <div class="fld"><label>Unit</label><select id="decCustomSheetUnit"></select></div>
+    <p class="lbl" style="margin:8px 0 6px">Add to package as</p>
+    <div class="dec-custom-type">
+      <label><input type="radio" name="decCustomCharge" id="decCustomSheetInc" checked> Included in package</label>
+      <label><input type="radio" name="decCustomCharge" id="decCustomSheetExtra"> Extra add-on</label>
+    </div>
+    <div class="fld" id="decCustomExtraWrap" hidden><label>Extra price (₹) *</label><input type="number" id="decCustomSheetExtraPrice" min="0" inputmode="numeric" placeholder="1,500"></div>
+    <div class="fld"><label>Additional instructions (optional)</label><textarea id="decCustomSheetNote" rows="2" maxlength="250" placeholder="Colours, size, timing…"></textarea></div>
+    <button type="button" class="btn btn-decor" id="decCustomSave" style="width:100%">Add item</button>
+  </div>
+</div>
 
 <section class="scr" id="decorModPick">
   <div class="top gx-top"><button type="button" class="back" id="decModPickBack">←</button><h1 id="decPickModTitle">Category</h1><span class="hub-more">⋮</span></div>
