@@ -787,109 +787,272 @@ class _CateringPackageWizardScreenState
     );
   }
 
-  Widget _pricingStep() => Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _heading('Price per plate'),
-          RadioGroup<bool>(
-            groupValue: _flat,
-            onChanged: (v) {
-              if (v != null) setState(() => _flat = v);
-            },
-            child: Column(
-              children: const [
-                RadioListTile<bool>(
-                    title: Text('Rate reduces as guest count increases'),
-                    subtitle: Text('Lower price for larger groups.'),
-                    value: false),
-                RadioListTile<bool>(
-                    title: Text('Same rate for all guests'),
-                    subtitle: Text('One price for every guest count.'),
-                    value: true),
-              ],
+  void _toggleRate(bool flat) {
+    setState(() {
+      if (flat && !_flat) {
+        final tierPrice = _tiers.isEmpty ? '' : _tiers.first.pricePerPlate.text;
+        if (_flatPrice.text.trim().isEmpty) _flatPrice.text = tierPrice;
+      }
+      _flat = flat;
+    });
+  }
+
+  Widget _offerPriceRow(String range, int original, int discounted) =>
+      Padding(
+        padding: const EdgeInsets.symmetric(vertical: 8),
+        child: Row(children: [
+          Expanded(flex: 3, child: Text(range,
+              style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 12))),
+          Expanded(flex: 3, child: Text('₹$original',
+              textAlign: TextAlign.right,
+              style: const TextStyle(fontWeight: FontWeight.w700))),
+          Expanded(flex: 4, child: Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              if (_offer)
+                Text('₹$original', style: const TextStyle(
+                    decoration: TextDecoration.lineThrough,
+                    color: Color(0xFF94A3B8), fontSize: 11)),
+              Text('₹$discounted', textAlign: TextAlign.right,
+                  style: TextStyle(
+                      fontWeight: FontWeight.w900,
+                      color: _offer ? const Color(0xFF047857) : _navy)),
+            ],
+          )),
+        ]),
+      );
+
+  Widget _pricePreview({bool compact = false}) {
+    final priced = _pricedTiers();
+    if (priced == null) {
+      return const Padding(
+        padding: EdgeInsets.all(12),
+        child: Text('Enter valid guest ranges, prices and discount to preview.'),
+      );
+    }
+    final base = _baseTiers();
+    final exampleGuests = _flat ? 100 : base.first['minGuests']!;
+    final examplePrice =
+        CateringPriceMath.estimateForGuests(priced, exampleGuests);
+    return Container(
+      padding: const EdgeInsets.all(13),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF8FAFC),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Row(children: [
+          const Expanded(child: Text('Guest Pricing',
+              style: TextStyle(color: _navy, fontWeight: FontWeight.w900))),
+          if (_offer)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+              decoration: BoxDecoration(
+                color: const Color(0xFFFCE7F3),
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Text('${_discountPct}% off',
+                  style: const TextStyle(fontSize: 11,
+                      fontWeight: FontWeight.w900, color: _pink)),
+            ),
+        ]),
+        const SizedBox(height: 10),
+        const Row(children: [
+          Expanded(flex: 3, child: Text('Guest Count',
+              style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700))),
+          Expanded(flex: 3, child: Text('Price / Plate',
+              textAlign: TextAlign.right,
+              style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700))),
+          Expanded(flex: 4, child: Text('Offer Price',
+              textAlign: TextAlign.right,
+              style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700))),
+        ]),
+        const Divider(),
+        for (var i = 0; i < priced.length; i++) ...[
+          _offerPriceRow(
+            _flat
+                ? 'All guests'
+                : '${base[i]['minGuests']}–${base[i]['maxGuests']}',
+            base[i]['price']!,
+            priced[i]['price']!,
+          ),
+          if (i < priced.length - 1) const Divider(height: 1),
+        ],
+        if (!compact && examplePrice != null) ...[
+          const Divider(),
+          Text('Example: $exampleGuests guests × ₹${priced.first['price']} '
+              '= ₹$examplePrice',
+              style: const TextStyle(fontSize: 12,
+                  color: _navy, fontWeight: FontWeight.w800)),
+        ],
+      ]),
+    );
+  }
+
+  Widget _pricingStep() {
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      _heading('Set Guest Count Pricing', hint:
+          'The base plate price stays as entered. Offer prices are calculated separately.'),
+      RadioGroup<bool>(
+        groupValue: _flat,
+        onChanged: (v) { if (v != null) _toggleRate(v); },
+        child: const Column(children: [
+          RadioListTile<bool>(
+            title: Text('Rate reduces as guest count increases'),
+            subtitle: Text('Lower price for higher guest count.'),
+            value: false,
+          ),
+          RadioListTile<bool>(
+            title: Text('Same rate for all guests'),
+            subtitle: Text('One price for any guest count.'),
+            value: true,
+          ),
+        ]),
+      ),
+      Card(
+        color: _offer ? const Color(0xFFFFF1F5) : Colors.white,
+        shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(13),
+            side: const BorderSide(color: Color(0xFFE2E8F0))),
+        child: Padding(
+          padding: const EdgeInsets.all(10),
+          child: Column(children: [
+            CheckboxListTile(
+              contentPadding: EdgeInsets.zero,
+              controlAffinity: ListTileControlAffinity.leading,
+              title: const Text('Offer for customers',
+                  style: TextStyle(fontWeight: FontWeight.w800)),
+              subtitle: const Text('Plate price stays as you type it. '
+                  'Customers see a lower price.'),
+              value: _offer,
+              onChanged: (v) => setState(() {
+                _offer = v ?? false;
+                if (_offer && _discount.text.trim().isEmpty) {
+                  _discount.text = '10';
+                }
+              }),
+            ),
+            if (_offer) ...[
+              Row(children: [
+                IconButton(
+                  tooltip: 'Decrease discount',
+                  onPressed: () => setState(() {
+                    final n = int.tryParse(_discount.text) ?? 1;
+                    _discount.text = '${(n - 1).clamp(1, 90)}';
+                  }),
+                  icon: const Icon(Icons.remove_circle_outline),
+                ),
+                Expanded(child: TextField(
+                  controller: _discount,
+                  onChanged: (_) => setState(() {}),
+                  keyboardType: TextInputType.number,
+                  textAlign: TextAlign.center,
+                  decoration: const InputDecoration(
+                    labelText: 'Discount (%)',
+                    border: OutlineInputBorder(),
+                  ),
+                )),
+                IconButton(
+                  tooltip: 'Increase discount',
+                  onPressed: () => setState(() {
+                    final n = int.tryParse(_discount.text) ?? 0;
+                    _discount.text = '${(n + 1).clamp(1, 90)}';
+                  }),
+                  icon: const Icon(Icons.add_circle_outline),
+                ),
+              ]),
+              const Padding(
+                padding: EdgeInsets.only(top: 7, bottom: 4),
+                child: Text('Type 1 to 90% off. Each plate price updates on its own.',
+                    style: TextStyle(color: Color(0xFF64748B), fontSize: 12)),
+              ),
+            ],
+          ]),
+        ),
+      ),
+      const SizedBox(height: 13),
+      if (_flat) ...[
+        TextField(
+          controller: _flatPrice,
+          onChanged: (_) => setState(() {}),
+          keyboardType: TextInputType.number,
+          decoration: const InputDecoration(
+            labelText: 'Price per plate (₹)',
+            border: OutlineInputBorder(),
+          ),
+        ),
+        const SizedBox(height: 7),
+        const Text('One rate for every guest count.',
+            style: TextStyle(color: Colors.blueGrey, fontSize: 12)),
+      ] else ...[
+        for (final (index, tier) in _tiers.indexed)
+          Card(
+            key: ObjectKey(tier),
+            margin: const EdgeInsets.only(bottom: 9),
+            child: Padding(
+              padding: const EdgeInsets.all(12),
+              child: Column(children: [
+                Row(children: [
+                  Expanded(child: Text('Guest slab ${index + 1}',
+                      style: const TextStyle(fontWeight: FontWeight.w800))),
+                  if (_tiers.length > 1)
+                    IconButton(
+                      tooltip: 'Remove slab',
+                      onPressed: () => setState(() {
+                        _tiers.removeAt(index);
+                        WidgetsBinding.instance.addPostFrameCallback((_) =>
+                            tier.dispose());
+                      }),
+                      icon: const Icon(Icons.remove_circle_outline),
+                    ),
+                ]),
+                Row(children: [
+                  for (final (label, controller) in [
+                    ('From', tier.minGuests),
+                    ('To', tier.maxGuests),
+                    ('₹ / plate', tier.pricePerPlate),
+                  ])
+                    Expanded(child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 3),
+                      child: TextField(
+                        controller: controller,
+                        onChanged: (_) => setState(() {}),
+                        keyboardType: TextInputType.number,
+                        decoration: InputDecoration(
+                          labelText: label,
+                          border: const OutlineInputBorder(),
+                        ),
+                      ),
+                    )),
+                ]),
+              ]),
             ),
           ),
-          SwitchListTile(
-              contentPadding: EdgeInsets.zero,
-              title: const Text('Offer for customers'),
-              subtitle: const Text('Show a discounted price per plate.'),
-              value: _offer,
-              onChanged: (v) => setState(() => _offer = v)),
-          if (_offer)
-            TextField(
-              controller: _discount,
-              keyboardType: TextInputType.number,
-              decoration: const InputDecoration(
-                  labelText: 'Discount (%)', border: OutlineInputBorder()),
-            ),
-          const SizedBox(height: 16),
-          if (_flat)
-            TextField(
-                controller: _flatPrice,
-                keyboardType: TextInputType.number,
-                decoration: const InputDecoration(
-                    labelText: 'Price per plate (₹)',
-                    border: OutlineInputBorder()))
-          else ...[
-            for (final (index, tier) in _tiers.indexed)
-              Card(
-                key: ObjectKey(tier),
-                child: Padding(
-                  padding: const EdgeInsets.all(12),
-                  child: Column(children: [
-                    Row(children: [
-                      Expanded(
-                          child: Text('Guest slab ${index + 1}',
-                              style: const TextStyle(
-                                  fontWeight: FontWeight.bold))),
-                      if (_tiers.length > 1)
-                        IconButton(
-                            onPressed: () => setState(() {
-                                  _tiers.removeAt(index);
-                                  WidgetsBinding.instance.addPostFrameCallback(
-                                      (_) => tier.dispose());
-                                }),
-                            icon: const Icon(Icons.remove_circle_outline)),
-                    ]),
-                    Row(children: [
-                      for (final (label, controller) in [
-                        ('From', tier.minGuests),
-                        ('To', tier.maxGuests),
-                        ('₹ / plate', tier.pricePerPlate),
-                      ])
-                        Expanded(
-                            child: Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 3),
-                          child: TextField(
-                              controller: controller,
-                              keyboardType: TextInputType.number,
-                              decoration: InputDecoration(
-                                  labelText: label,
-                                  border: const OutlineInputBorder())),
-                        )),
-                    ]),
-                  ]),
-                ),
-              ),
-            TextButton.icon(
-              onPressed: _tiers.length >= 20
-                  ? null
-                  : () => setState(() {
-                        final last =
-                            int.tryParse(_tiers.last.maxGuests.text) ?? 0;
-                        final start = (last + 1).clamp(1, 100000).toInt();
-                        _tiers.add(_PriceTier(
-                            min: start,
-                            max: (start + 499).clamp(start, 100000).toInt()));
-                      }),
-              icon: const Icon(Icons.add),
-              label: const Text('Add Another Slab'),
-            ),
-          ],
-          const Text(
-              'Prices are saved to the Rust catalogue as guest-count tiers.'),
-        ],
-      );
+        TextButton.icon(
+          onPressed: _tiers.length >= 20 ? null : () => setState(() {
+            final last = int.tryParse(_tiers.last.maxGuests.text) ?? 0;
+            if (last >= CateringPriceMath.maxGuests) {
+              _notice('Maximum supported guest count reached.');
+              return;
+            }
+            final start = last + 1;
+            final previousPrice =
+                int.tryParse(_tiers.last.pricePerPlate.text) ?? 500;
+            _tiers.add(_PriceTier(
+              min: start,
+              max: (start + 24).clamp(start, CateringPriceMath.maxGuests).toInt(),
+              price: (previousPrice - 50).clamp(1, CateringPriceMath.maxPlatePrice).toInt(),
+            ));
+          }),
+          icon: const Icon(Icons.add),
+          label: const Text('Add Another Slab'),
+        ),
+      ],
+      const SizedBox(height: 12),
+      _pricePreview(),
+    ]);
+  }
 
   Widget _previewStep() {
     final count = _dishIds.length;
