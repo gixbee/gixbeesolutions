@@ -108,8 +108,7 @@ class _PhotographyOwnerCalendarScreenState
         if (blocked) { _blocked.add(_key(_selected)); }
         else { _blocked.remove(_key(_selected)); }
       });
-      // Refresh the dashboard Business model before this route is reopened.
-      ref.invalidate(myBusinessesProvider);
+
     } catch (error) {
       if (mounted) showGxSnack(context, eventError(error));
     } finally {
