@@ -10,6 +10,7 @@ import '../../shared/widgets/gx_button.dart';
 import '../../shared/widgets/gx_snackbar.dart';
 import 'event_service_browser.dart';
 import 'catering_package_wizard_screen.dart';
+import 'photography_package_wizard_screen.dart';
 
 class EventServiceCatalogueScreen extends ConsumerStatefulWidget {
   const EventServiceCatalogueScreen(
@@ -150,16 +151,20 @@ class _EventServiceCatalogueScreenState
     final original = index == null ? null : _items[index];
     final packageFlow = _catering &&
         (original?['kind'] == 'PACKAGE' || (index == null && createPackage));
+    final photoPackageFlow = !_catering &&
+        (original?['kind'] == 'PACKAGE' || (index == null && createPackage));
     final dishes = _items.where((item) => item['kind'] == 'ITEM').toList();
     final updated = await Navigator.of(context).push<Map<String, dynamic>>(
       MaterialPageRoute(
         builder: (_) => packageFlow
             ? CateringPackageWizardScreen(package: original, dishes: dishes)
-            : _CatalogueEntry(
+            : photoPackageFlow
+                ? PhotographyPackageWizardScreen(package: original)
+                : _CatalogueEntry(
                 catering: _catering,
                 item: original,
                 dishes: dishes,
-                initialKind: _catering && index == null ? 'ITEM' : null,
+                initialKind: index == null ? 'ITEM' : null,
               ),
       ),
     );
@@ -174,7 +179,7 @@ class _EventServiceCatalogueScreenState
     // 'Save Package' in the wizard must persist to the Rust API, not just
     // change the local list. Other catalogue entries keep the existing
     // explicit Save catalogue action.
-    if (packageFlow) await _save();
+    if (packageFlow || photoPackageFlow) await _save();
   }
 
   @override
@@ -289,13 +294,20 @@ class _EventServiceCatalogueScreenState
                           icon: const Icon(Icons.add),
                           label: const Text('Add individual dish'),
                         ),
-                      ] else
+                      ] else ...[
                         TextButton.icon(
-                          onPressed:
-                              _items.length >= 150 ? null : () => _edit(null),
-                          icon: const Icon(Icons.add),
-                          label: const Text('Add service or package'),
+                          onPressed: _items.length >= 150
+                              ? null : () => _edit(null, createPackage: true),
+                          icon: const Icon(Icons.photo_camera_outlined),
+                          label: const Text('Create wedding package'),
                         ),
+                        TextButton.icon(
+                          onPressed: _items.length >= 150
+                              ? null : () => _edit(null),
+                          icon: const Icon(Icons.add),
+                          label: const Text('Add individual service'),
+                        ),
+                      ],
                       GxButton(
                           label: 'Save catalogue',
                           onTap: _save,
