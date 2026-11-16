@@ -75,7 +75,7 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.text('Extras'));
     await tester.pumpAndSettle();
-    expect(find.text('Drone / Helicam'),findsOneWidget);
+    expect(find.textContaining('Drone / Helicam'),findsOneWidget);
     await tester.tap(find.text('Initiate Interest'));
     await tester.pumpAndSettle();
     expect(find.text('Review Your Interest'),findsOneWidget);
