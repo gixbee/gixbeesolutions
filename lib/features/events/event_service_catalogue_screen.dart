@@ -9,6 +9,7 @@ import '../../shared/models/business.dart';
 import '../../shared/widgets/gx_button.dart';
 import '../../shared/widgets/gx_snackbar.dart';
 import 'event_service_browser.dart';
+import 'catering_package_wizard_screen.dart';
 
 class EventServiceCatalogueScreen extends ConsumerStatefulWidget {
   const EventServiceCatalogueScreen(
@@ -145,14 +146,23 @@ class _EventServiceCatalogueScreenState
     }
   }
 
-  Future<void> _edit(int? index) async {
-    final updated = await Navigator.of(context)
-        .push<Map<String, dynamic>>(MaterialPageRoute(
-      builder: (_) => _CatalogueEntry(
-          catering: _catering,
-          item: index == null ? null : _items[index],
-          dishes: _items.where((item) => item['kind'] == 'ITEM').toList()),
-    ));
+  Future<void> _edit(int? index, {bool createPackage = false}) async {
+    final original = index == null ? null : _items[index];
+    final packageFlow = _catering &&
+        (original?['kind'] == 'PACKAGE' || (index == null && createPackage));
+    final dishes = _items.where((item) => item['kind'] == 'ITEM').toList();
+    final updated = await Navigator.of(context).push<Map<String, dynamic>>(
+      MaterialPageRoute(
+        builder: (_) => packageFlow
+            ? CateringPackageWizardScreen(package: original, dishes: dishes)
+            : _CatalogueEntry(
+                catering: _catering,
+                item: original,
+                dishes: dishes,
+                initialKind: _catering && index == null ? 'ITEM' : null,
+              ),
+      ),
+    );
     if (!mounted || updated == null) return;
     setState(() {
       if (index == null) {
@@ -161,6 +171,10 @@ class _EventServiceCatalogueScreenState
         _items[index] = updated;
       }
     });
+    // 'Save Package' in the wizard must persist to the Rust API, not just
+    // change the local list. Other catalogue entries keep the existing
+    // explicit Save catalogue action.
+    if (packageFlow) await _save();
   }
 
   @override
@@ -260,14 +274,28 @@ class _EventServiceCatalogueScreenState
                           trailing: const Icon(Icons.edit_outlined),
                           onTap: () => _edit(index),
                         )),
-                      TextButton.icon(
-                        onPressed:
-                            _items.length >= 150 ? null : () => _edit(null),
-                        icon: const Icon(Icons.add),
-                        label: Text(_catering
-                            ? 'Add dish or package'
-                            : 'Add service or package'),
-                      ),
+                      if (_catering) ...[
+                        TextButton.icon(
+                          onPressed: _items.length >= 150
+                              ? null
+                              : () => _edit(null, createPackage: true),
+                          icon: const Icon(Icons.restaurant_menu),
+                          label: const Text('Create catering package'),
+                        ),
+                        TextButton.icon(
+                          onPressed: _items.length >= 150
+                              ? null
+                              : () => _edit(null),
+                          icon: const Icon(Icons.add),
+                          label: const Text('Add individual dish'),
+                        ),
+                      ] else
+                        TextButton.icon(
+                          onPressed:
+                              _items.length >= 150 ? null : () => _edit(null),
+                          icon: const Icon(Icons.add),
+                          label: const Text('Add service or package'),
+                        ),
                       GxButton(
                           label: 'Save catalogue',
                           onTap: _save,
@@ -278,10 +306,11 @@ class _EventServiceCatalogueScreenState
 
 class _CatalogueEntry extends StatefulWidget {
   const _CatalogueEntry(
-      {required this.catering, required this.dishes, this.item});
+      {required this.catering, required this.dishes, this.item, this.initialKind});
   final bool catering;
   final Map<String, dynamic>? item;
   final List<Map<String, dynamic>> dishes;
+  final String? initialKind;
 
   @override
   State<_CatalogueEntry> createState() => _CatalogueEntryState();
@@ -315,7 +344,8 @@ class _CatalogueEntryState extends State<_CatalogueEntry> {
       _GuestTier(row),
     if (widget.catering && widget.item == null) _GuestTier({'minGuests': 1}),
   ];
-  late String _kind = widget.item?['kind'] as String? ?? 'PACKAGE';
+  late String _kind = widget.item?['kind'] as String? ??
+      widget.initialKind ?? 'PACKAGE';
   late bool _active = widget.item?['active'] != false;
   late final _dishIds =
       (widget.item?['dishIds'] as List? ?? []).whereType<String>().toSet();
@@ -350,6 +380,10 @@ class _CatalogueEntryState extends State<_CatalogueEntry> {
         return;
       }
       lastMax = tier['maxGuests']!;
+    }
+    if (widget.catering && _kind == 'ITEM' &&
+        _controllers['diet']!.text.trim().isEmpty) {
+      _controllers['diet']!.text = 'veg';
     }
     Navigator.of(context).pop({
       'id': widget.item?['id'] ?? const Uuid().v4(),
@@ -391,16 +425,58 @@ class _CatalogueEntryState extends State<_CatalogueEntry> {
                 },
               ),
               for (final field in _fields.entries)
-                TextFormField(
-                  controller: _controllers[field.key],
-                  maxLength: field.key == 'name' ? 150 : 3000,
-                  decoration: InputDecoration(labelText: field.value),
-                  maxLines: field.key == 'name' ? 1 : null,
-                  validator: field.key == 'name'
-                      ? (value) =>
-                          (value ?? '').trim().isEmpty ? 'Enter a name' : null
-                      : null,
-                ),
+                if (widget.catering && _kind == 'ITEM' &&
+                    field.key == 'category')
+                  DropdownButtonFormField<String>(
+                    initialValue: CateringMenuGroups.all.any(
+                            (group) =>
+                                group.id == _controllers['category']!.text)
+                        ? _controllers['category']!.text
+                        : null,
+                    decoration:
+                        const InputDecoration(labelText: 'Dish group *'),
+                    items: [
+                      for (final group in CateringMenuGroups.all)
+                        DropdownMenuItem(
+                          value: group.id,
+                          child: Text(group.title),
+                        ),
+                    ],
+                    validator: (value) => value == null
+                        ? 'Choose a dish group'
+                        : null,
+                    onChanged: (value) =>
+                        _controllers['category']!.text = value ?? '',
+                  )
+                else if (widget.catering && _kind == 'ITEM' &&
+                    field.key == 'diet')
+                  DropdownButtonFormField<String>(
+                    initialValue:
+                        _controllers['diet']!.text.toLowerCase().contains('non')
+                            ? 'non_veg'
+                            : 'veg',
+                    decoration:
+                        const InputDecoration(labelText: 'Food type *'),
+                    items: const [
+                      DropdownMenuItem(
+                          value: 'veg', child: Text('Vegetarian')),
+                      DropdownMenuItem(
+                          value: 'non_veg', child: Text('Non-vegetarian')),
+                    ],
+                    onChanged: (value) =>
+                        _controllers['diet']!.text = value ?? 'veg',
+                  )
+                else
+                  TextFormField(
+                    controller: _controllers[field.key],
+                    maxLength: field.key == 'name' ? 150 : 3000,
+                    decoration: InputDecoration(labelText: field.value),
+                    maxLines: field.key == 'name' ? 1 : null,
+                    validator: field.key == 'name'
+                        ? (value) =>
+                            (value ?? '').trim().isEmpty ? 'Enter a name' : null
+                        : null,
+                  ),
               if (widget.catering) ...[
                 if (_kind == 'PACKAGE' && widget.dishes.isNotEmpty) ...[
                   const Text('Dishes in this package'),
