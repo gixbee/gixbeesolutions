@@ -22,6 +22,7 @@ pub fn routes() -> Router<AppState> {
         .route("/{id}/cancel",post(cancel_plan))
         .merge(catalogues::routes())
         .merge(calendar::routes())
+        .merge(milestones::routes())
 }
 
 #[derive(Deserialize)]
