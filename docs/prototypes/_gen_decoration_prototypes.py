@@ -36,7 +36,7 @@ def build() -> str:
         raise SystemExit("missing decoration bundle")
     if "bindPhotoCalendarUi" not in out or "renderPhotoDash" not in out:
         raise SystemExit("missing platform/calendar bundle")
-    if "decPkgListPrice" not in out or "Vehicle & Personal Flowers" not in out:
+    if "decPkgListPrice" not in out or "Church Decoration" not in out or "Car Decoration" not in out:
         raise SystemExit("missing catalogue or pricing UI")
     return out
 
