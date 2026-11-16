@@ -21,7 +21,7 @@ CREATE TABLE IF NOT EXISTS event_quote_milestones (
     "createdAt" timestamptz NOT NULL DEFAULT NOW(),
     "updatedAt" timestamptz NOT NULL DEFAULT NOW(),
     CONSTRAINT event_quote_milestones_kind_fields CHECK (
-        (kind = 'PAYMENT' AND amount IS NOT NULL AND "percent" IS NOT NULL)
+        (kind = 'PAYMENT' AND amount IS NOT NULL)
         OR (kind = 'DELIVERY' AND amount IS NULL AND "percent" IS NULL)
     ),
     CONSTRAINT event_quote_milestones_completion CHECK (
