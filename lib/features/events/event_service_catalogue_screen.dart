@@ -10,6 +10,7 @@ import '../../shared/widgets/gx_button.dart';
 import '../../shared/widgets/gx_snackbar.dart';
 import 'event_service_browser.dart';
 import 'catering_package_wizard_screen.dart';
+import 'catering_food_item_screen.dart';
 import 'photography_package_wizard_screen.dart';
 import 'photography_service_wizard_screen.dart';
 
@@ -211,6 +212,8 @@ class _EventServiceCatalogueScreenState
     final original = index == null ? null : _items[index];
     final packageFlow = _catering &&
         (original?['kind'] == 'PACKAGE' || (index == null && createPackage));
+    final cateringDishFlow = _catering &&
+        (original?['kind'] == 'ITEM' || (index == null && !createPackage));
     final photoPackageFlow = !_catering &&
         (original?['kind'] == 'PACKAGE' || (index == null && createPackage));
     final photoServiceFlow = !_catering &&
@@ -224,6 +227,11 @@ class _EventServiceCatalogueScreenState
                 dishes: dishes,
                 onSave: (entry) => _savePackage(entry, index),
               )
+            : cateringDishFlow
+                ? CateringFoodItemScreen(
+                    item: original,
+                    onSave: (entry) => _savePackage(entry, index),
+                  )
             : photoPackageFlow
                 ? PhotographyPackageWizardScreen(package: original)
                 : photoServiceFlow
