@@ -349,6 +349,11 @@ function decorCatalogContextFromDraft(draft) {
   };
 }
 
+/** Owner package wizard: list every main catalogue item per category (wedding/other only). */
+function decorCatalogContextForOwnerPick(draft) {
+  return Object.assign({}, decorCatalogContextFromDraft(draft), { ownerPick: true });
+}
+
 function decorItemVisibleForPackage(item, ctx) {
   if (ctx && ctx.showAll) return true;
   const scopes = {
@@ -361,6 +366,7 @@ function decorItemVisibleForPackage(item, ctx) {
     scopes.pkgScopes.indexOf(cat) >= 0 ||
     (scopes.pkgScopes.indexOf('wedding') >= 0 && scopes.pkgScopes.indexOf('other') >= 0);
   if (!pkgOk) return false;
+  if (ctx && ctx.ownerPick) return true;
   const comm = ctx.traditionTags || [];
   if (!comm.length) return true;
   return comm.some(function (t) {

@@ -874,7 +874,7 @@ function renderDecorPkgStep3() {
   decorModulePickCtx.moduleId = null;
   renderDecorPkgStep3Banner();
   renderDecorItemsTabSeg();
-  const ctx = decorCatalogContextFromDraft(d);
+  const ctx = decorCatalogContextForOwnerPick(d);
   const q = decorCategorySearchQuery();
   renderDecorCategoryList(ctx, q);
 }
@@ -977,7 +977,7 @@ function renderDecorModulePick() {
   const pickedTab = picked.filter(function (it) {
     return tab === 'extra' ? it.inclusionType === 'extra' : it.inclusionType !== 'extra';
   }).length;
-  const ctx = decorCatalogContextFromDraft(decorPkgWizard.draft);
+  const ctx = decorCatalogContextForOwnerPick(decorPkgWizard.draft);
   const list = decorFilteredModuleItems(mod, ctx, q);
   el('decPickModCount').textContent =
     pickedTab +
@@ -1044,7 +1044,7 @@ function saveDecorItemConfig() {
 }
 
 function renderDecorCustomSheetFields() {
-  const ctx = decorCatalogContextFromDraft(decorPkgWizard.draft);
+  const ctx = decorCatalogContextForOwnerPick(decorPkgWizard.draft);
   const rows = decorModulesForPackage(ctx, '');
   const sel = el('decCustomSheetCategory');
   if (sel) {

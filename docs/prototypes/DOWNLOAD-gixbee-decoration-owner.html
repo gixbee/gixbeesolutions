@@ -772,6 +772,7 @@ body{margin:0;background:#E8EDF5;font-family:Inter,system-ui,sans-serif;color:#1
   <div class="dec-pkg-step3-banner" id="decPkgStep3Banner"></div>
   <div class="dec-items-tabseg" id="decItemsTabSeg"></div>
   <p class="sub pad" id="decItemsTabHint" style="margin-top:0">These items are part of your package price.</p>
+  <p class="sub pad" id="decPkgCatalogHint" style="margin:0;padding-top:0">Pick main items from each category. Anything not listed can be added as a custom item.</p>
   <form class="search" onsubmit="return false"><span>🔍</span><input type="search" id="decModSearch" placeholder="Search categories" autocomplete="off"></form>
   <div class="dec-mod-list" id="decModList"></div>
   <button type="button" class="dec-add-custom-btn" id="decOpenCustomItem">+ Add Custom Item</button>
@@ -2467,6 +2468,11 @@ function decorCatalogContextFromDraft(draft) {
   };
 }
 
+/** Owner package wizard: list every main catalogue item per category (wedding/other only). */
+function decorCatalogContextForOwnerPick(draft) {
+  return Object.assign({}, decorCatalogContextFromDraft(draft), { ownerPick: true });
+}
+
 function decorItemVisibleForPackage(item, ctx) {
   if (ctx && ctx.showAll) return true;
   const scopes = {
@@ -2479,6 +2485,7 @@ function decorItemVisibleForPackage(item, ctx) {
     scopes.pkgScopes.indexOf(cat) >= 0 ||
     (scopes.pkgScopes.indexOf('wedding') >= 0 && scopes.pkgScopes.indexOf('other') >= 0);
   if (!pkgOk) return false;
+  if (ctx && ctx.ownerPick) return true;
   const comm = ctx.traditionTags || [];
   if (!comm.length) return true;
   return comm.some(function (t) {
@@ -3433,7 +3440,7 @@ function renderDecorPkgStep3() {
   decorModulePickCtx.moduleId = null;
   renderDecorPkgStep3Banner();
   renderDecorItemsTabSeg();
-  const ctx = decorCatalogContextFromDraft(d);
+  const ctx = decorCatalogContextForOwnerPick(d);
   const q = decorCategorySearchQuery();
   renderDecorCategoryList(ctx, q);
 }
@@ -3536,7 +3543,7 @@ function renderDecorModulePick() {
   const pickedTab = picked.filter(function (it) {
     return tab === 'extra' ? it.inclusionType === 'extra' : it.inclusionType !== 'extra';
   }).length;
-  const ctx = decorCatalogContextFromDraft(decorPkgWizard.draft);
+  const ctx = decorCatalogContextForOwnerPick(decorPkgWizard.draft);
   const list = decorFilteredModuleItems(mod, ctx, q);
   el('decPickModCount').textContent =
     pickedTab +
@@ -3603,7 +3610,7 @@ function saveDecorItemConfig() {
 }
 
 function renderDecorCustomSheetFields() {
-  const ctx = decorCatalogContextFromDraft(decorPkgWizard.draft);
+  const ctx = decorCatalogContextForOwnerPick(decorPkgWizard.draft);
   const rows = decorModulesForPackage(ctx, '');
   const sel = el('decCustomSheetCategory');
   if (sel) {
@@ -5024,7 +5031,7 @@ function bindDecorationPlatform() {
 
 
 /** Decoration owner app — dashboard/platform parity with catering + decoration hub. */
-const DECORATION_OWNER_BUILD = 'decoration-owner-category-drill-v17';
+const DECORATION_OWNER_BUILD = 'decoration-owner-main-catalog-v18';
 const STORAGE_KEY = 'GIXBEE_DECORATION_OWNER_V1';
 
 function defaultStore() {
