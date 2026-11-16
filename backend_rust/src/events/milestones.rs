@@ -68,7 +68,8 @@ async fn locked_access(
 ) -> AppResult<QuoteContext> {
     // Locks quote before milestone rows. No participant can confirm a
     // milestone against an concurrently cancelled or revised quote.
-    let row = sqlx::query(&format!("{QUOTE_ACCESS} FOR UPDATE OF q"))
+    let sql = format!("{QUOTE_ACCESS} FOR UPDATE OF q");
+    let row = sqlx::query(&sql)
         .bind(quote_id)
         .bind(uid)
         .fetch_optional(&mut **tx)
