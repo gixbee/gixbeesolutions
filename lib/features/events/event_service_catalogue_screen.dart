@@ -200,7 +200,10 @@ class _EventServiceCatalogueScreenState
       if (image == null || !mounted) return;
       final repo = ref.read(businessRepositoryProvider);
       final url = await repo.uploadImage(await image.readAsBytes(), image.name);
-      if (mounted) setState(() => _photos.add(url));
+      if (mounted) setState(() {
+        _photos.add(url);
+        _hasUnsavedChanges = true;
+      });
     } catch (error) {
       if (mounted) showGxSnack(context, eventError(error));
     } finally {
@@ -417,7 +420,10 @@ class _EventServiceCatalogueScreenState
                               image,
                               TextButton(
                                   onPressed: () =>
-                                      setState(() => _photos.remove(photo)),
+                                      setState(() {
+                                         _photos.remove(photo);
+                                         _hasUnsavedChanges = true;
+                                       }),
                                   child: const Text('Remove photo')),
                             ]),
                       ]),
