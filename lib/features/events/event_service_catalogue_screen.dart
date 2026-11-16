@@ -38,6 +38,9 @@ class _EventServiceCatalogueScreenState
   bool _busy = false;
   bool _hasUnsavedChanges = false;
   String? _error;
+  String _menuTab = 'packages';
+  String _menuStatus = 'all';
+  String _menuSearch = '';
   bool get _catering => widget.service == 'CATERING';
 
   @override
@@ -247,6 +250,92 @@ class _EventServiceCatalogueScreenState
     });
   }
 
+  Widget _cateringHub() {
+    final matches = _items.indexed.where((entry) {
+      final item = entry.$2;
+      if ((_menuTab == 'packages') != (item['kind'] == 'PACKAGE')) return false;
+      if (_menuStatus == 'live' && item['active'] == false) return false;
+      if (_menuStatus == 'draft' && item['active'] != false) return false;
+      return '${item['name'] ?? ''} ${item['category'] ?? ''}'
+          .toLowerCase().contains(_menuSearch.toLowerCase());
+    }).toList();
+    final packages = _items.where((e) => e['kind'] == 'PACKAGE').length;
+    final dishes = _items.where((e) => e['kind'] == 'ITEM').length;
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      const Text('Gixbee  |  Menu & Packages',
+          style: TextStyle(fontSize: 19, color: Color(0xFF1B2559),
+              fontWeight: FontWeight.w900)),
+      const SizedBox(height: 12),
+      SegmentedButton<String>(
+        segments: [
+          ButtonSegment(value: 'packages', label: Text('Packages ($packages)')),
+          ButtonSegment(value: 'food', label: Text('Food Items ($dishes)')),
+        ],
+        selected: {_menuTab},
+        onSelectionChanged: (values) =>
+            setState(() => _menuTab = values.first),
+      ),
+      const SizedBox(height: 12),
+      TextField(
+        onChanged: (value) => setState(() => _menuSearch = value),
+        decoration: InputDecoration(
+          hintText: _menuTab == 'packages'
+              ? 'Search packages...' : 'Search food items...',
+          prefixIcon: const Icon(Icons.search),
+          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+        ),
+      ),
+      Wrap(spacing: 8, children: [
+        for (final (value, label) in const [
+          ('all', 'All'), ('live', 'Live'), ('draft', 'Draft'),
+        ])
+          ChoiceChip(label: Text(label), selected: _menuStatus == value,
+              onSelected: (_) => setState(() => _menuStatus = value)),
+      ]),
+      if (matches.isEmpty)
+        Padding(padding: const EdgeInsets.all(16),
+          child: Text(_menuTab == 'packages'
+              ? 'No packages match these filters.'
+              : 'No food items match these filters.')),
+      for (final entry in matches)
+        Card(
+          margin: const EdgeInsets.only(bottom: 9),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(13)),
+          child: ListTile(
+            title: Text(entry.$2['name']?.toString() ?? 'Untitled',
+                style: const TextStyle(color: Color(0xFF1B2559),
+                    fontWeight: FontWeight.w900)),
+            subtitle: Text([
+              entry.$2['kind'] == 'PACKAGE'
+                  ? '${entry.$2['packageLevel'] ?? 'Basic'} · ${(entry.$2['dishIds'] as List? ?? const []).length} dishes'
+                  : '${entry.$2['diet'] == 'non_veg' ? 'Non-veg' : 'Veg'} dish',
+              if ((entry.$2['tiers'] as List? ?? const []).isNotEmpty)
+                '${(entry.$2['tiers'] as List).length} price slabs',
+              if (((entry.$2['discountPct'] as num?)?.toInt() ?? 0) > 0)
+                '${entry.$2['discountPct']}% OFF',
+              entry.$2['active'] == false ? 'Draft' : 'Live',
+            ].join(' · ')),
+            trailing: const Icon(Icons.edit_outlined),
+            onTap: () => _edit(entry.$1),
+          ),
+        ),
+      const SizedBox(height: 10),
+      SizedBox(width: double.infinity, child: FilledButton.icon(
+        style: FilledButton.styleFrom(
+          backgroundColor: const Color(0xFF12B76A),
+          padding: const EdgeInsets.symmetric(vertical: 15),
+        ),
+        onPressed: _items.length >= 150 ? null :
+            () => _edit(null, createPackage: _menuTab == 'packages'),
+        icon: Icon(_menuTab == 'packages'
+            ? Icons.restaurant_menu : Icons.add),
+        label: Text(_menuTab == 'packages'
+            ? 'Create Catering Package' : 'Add Food Item'),
+      )),
+      const SizedBox(height: 16),
+    ]);
+  }
+
   @override
   Widget build(BuildContext context) => Scaffold(
         appBar: AppBar(
@@ -268,6 +357,7 @@ class _EventServiceCatalogueScreenState
                     absorbing: _busy,
                     child:
                         ListView(padding: const EdgeInsets.all(16), children: [
+                       if (_catering) _cateringHub(),
                       TextField(
                           controller: _about,
                           maxLength: 3000,
@@ -327,38 +417,15 @@ class _EventServiceCatalogueScreenState
                         icon: const Icon(Icons.add_a_photo_outlined),
                         label: const Text('Add photo'),
                       ),
-                      for (final (index, item) in _items.indexed)
-                        Card(
-                            child: ListTile(
-                          title: Text(item['name'] as String),
-                          subtitle: Text([
-                            item['kind'] == 'PACKAGE'
-                                ? 'Package'
-                                : (_catering ? 'Dish' : 'Service'),
-                            if (_catering)
-                              '${(item['tiers'] as List).length} pricing tiers'
-                            else
-                              eventMoney(item['price']),
-                            if (item['active'] == false) 'Hidden',
-                          ].join(' · ')),
-                          trailing: const Icon(Icons.edit_outlined),
-                          onTap: () => _edit(index),
-                        )),
-                      if (_catering) ...[
-                        TextButton.icon(
-                          onPressed: _items.length >= 150
-                              ? null
-                              : () => _edit(null, createPackage: true),
-                          icon: const Icon(Icons.restaurant_menu),
-                          label: const Text('Create catering package'),
-                        ),
-                        TextButton.icon(
-                          onPressed:
-                              _items.length >= 150 ? null : () => _edit(null),
-                          icon: const Icon(Icons.add),
-                          label: const Text('Add individual dish'),
-                        ),
-                      ] else ...[
+                      if (!_catering)
+                        for (final (index, item) in _items.indexed)
+                          Card(child: ListTile(
+                            title: Text(item['name']?.toString() ?? ''),
+                            subtitle: Text('${item['kind']} · ${eventMoney(item['price'])}'),
+                            trailing: const Icon(Icons.edit_outlined),
+                            onTap: () => _edit(index),
+                          )),
+                      if (!_catering) ...[
                         TextButton.icon(
                           onPressed: _items.length >= 150
                               ? null
