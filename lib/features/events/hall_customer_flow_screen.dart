@@ -242,6 +242,7 @@ class _HallCustomerSlotsScreenState
             '${hallMoney(amount)}',
           request:request,
         ),
+        slot:row,
       )));
   }
 
@@ -291,8 +292,9 @@ class _HallCustomerSlotsScreenState
               if(offer['available']==false)
                 Card(child:ListTile(
                   enabled:false,
-                  title:Text(offer['offer'] is Map?
-                    (offer['offer'] as Map)['label']?.toString()??'Slot':'Slot'),
+                  title:Text(offer['offer'] is Map
+                    ? (offer['offer'] as Map)['label']?.toString()??'Slot'
+                    : 'Slot'),
                   subtitle:const Text('Unavailable / already booked'))),
             for(final row in rows)
               Card(
