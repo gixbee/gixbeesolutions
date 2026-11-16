@@ -35,6 +35,57 @@ struct PlanInput {
     client_request_id: Option<Uuid>,
 }
 
+/// Only bounded, non-priced preferences are accepted. The server still
+/// recalculates estimates from stored catalogue items / hall slots.
+fn validate_customization(service: &str, raw: &Value) -> AppResult<Value> {
+    let fields: &[&str] = match service {
+        "CATERING" => &["servingStyle", "dietaryNeeds", "menuChanges"],
+        "PHOTOGRAPHY" => &["functions", "coverage", "team", "deliverables", "extras"],
+        _ => return Err(AppError::BadRequest(
+            "Customization is supported for catering and photography".into()
+        )),
+    };
+    let source = raw.as_object().ok_or_else(|| {
+        AppError::BadRequest("Customization must be an object".into())
+    })?;
+    if source.len() > fields.len() || raw.to_string().len() > 5000 {
+        return Err(AppError::BadRequest("Customization is too large".into()));
+    }
+    let mut result = serde_json::Map::new();
+    for (key, value) in source {
+        if !fields.contains(&key.as_str()) {
+            return Err(AppError::BadRequest(
+                "Only supported service customization fields are allowed".into()
+            ));
+        }
+        if key == "functions" {
+            let items = value.as_array().ok_or_else(|| {
+                AppError::BadRequest("Functions must be a list".into())
+            })?;
+            if items.len() > 8 || items.iter().any(|v| {
+                v.as_str().is_none_or(|s| s.trim().is_empty() || s.len() > 90)
+            }) {
+                return Err(AppError::BadRequest("Choose up to eight valid functions".into()));
+            }
+            let distinct = items.iter().filter_map(Value::as_str)
+                .map(str::trim).collect::<std::collections::HashSet<_>>();
+            if distinct.len() != items.len() {
+                return Err(AppError::BadRequest("Choose distinct functions".into()));
+            }
+            result.insert(key.clone(), json!(items));
+        } else {
+            let text = value.as_str().ok_or_else(|| {
+                AppError::BadRequest("Customization fields must be text".into())
+            })?.trim();
+            if text.len() > 900 {
+                return Err(AppError::BadRequest("Customization field is too long".into()));
+            }
+            result.insert(key.clone(), json!(text));
+        }
+    }
+    Ok(Value::Object(result))
+}
+
 async fn create_plan(State(state):State<AppState>,user:AuthUser,Json(mut input):Json<PlanInput>)->AppResult<Json<Value>> {
     let start=parse_time(&input.start_time)?;let end=parse_time(&input.end_time)?;
     input.services.sort();input.services.dedup();
@@ -86,6 +137,9 @@ async fn create_plan(State(state):State<AppState>,user:AuthUser,Json(mut input):
             return Err(AppError::Conflict("The price changed. Return to the listing and review the latest price.".into()));
         }
         selection["providerName"] = json!(provider_name);
+        if let Some(extra) = request.get("customization") {
+            selection["customization"] = validate_customization(service, extra)?;
+        }
         Some(selection)
     } else {
         if input.service_request.is_some() {
@@ -297,4 +351,33 @@ fn parse_time(value:&str)->AppResult<DateTime<Utc>> {
 fn amount(value:f64)->AppResult<Decimal> {
     if !value.is_finite() || !(0.0..=999_999_999.0).contains(&value) {return Err(AppError::BadRequest("Invalid amount".into()));}
     Ok(Decimal::from_f64_retain(value).unwrap().round_dp(2))
+}
+
+#[cfg(test)]
+mod customization_tests {
+    use super::*;
+
+    #[test]
+    fn accepts_bounded_catering_preferences() {
+        let v = validate_customization("CATERING", &json!({
+            "servingStyle": "Buffet Service",
+            "dietaryNeeds": "Vegetarian",
+            "menuChanges": "Less spicy"
+        })).unwrap();
+        assert_eq!(v["dietaryNeeds"], "Vegetarian");
+    }
+
+    #[test]
+    fn rejects_untrusted_pricing_override() {
+        assert!(validate_customization("PHOTOGRAPHY", &json!({
+            "extras": "Drone", "expectedEstimate": 1
+        })).is_err());
+    }
+
+    #[test]
+    fn rejects_duplicate_functions() {
+        assert!(validate_customization("PHOTOGRAPHY", &json!({
+            "functions": ["Reception", "Reception"]
+        })).is_err());
+    }
 }
