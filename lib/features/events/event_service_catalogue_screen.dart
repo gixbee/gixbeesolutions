@@ -11,6 +11,7 @@ import '../../shared/widgets/gx_snackbar.dart';
 import 'event_service_browser.dart';
 import 'catering_package_wizard_screen.dart';
 import 'photography_package_wizard_screen.dart';
+import 'photography_service_wizard_screen.dart';
 
 class EventServiceCatalogueScreen extends ConsumerStatefulWidget {
   const EventServiceCatalogueScreen(
@@ -153,6 +154,8 @@ class _EventServiceCatalogueScreenState
         (original?['kind'] == 'PACKAGE' || (index == null && createPackage));
     final photoPackageFlow = !_catering &&
         (original?['kind'] == 'PACKAGE' || (index == null && createPackage));
+    final photoServiceFlow = !_catering &&
+        (original?['kind'] == 'ITEM' || (index == null && !createPackage));
     final dishes = _items.where((item) => item['kind'] == 'ITEM').toList();
     final updated = await Navigator.of(context).push<Map<String, dynamic>>(
       MaterialPageRoute(
@@ -160,7 +163,9 @@ class _EventServiceCatalogueScreenState
             ? CateringPackageWizardScreen(package: original, dishes: dishes)
             : photoPackageFlow
                 ? PhotographyPackageWizardScreen(package: original)
-                : _CatalogueEntry(
+                : photoServiceFlow
+                    ? PhotographyServiceWizardScreen(service: original)
+                    : _CatalogueEntry(
                 catering: _catering,
                 item: original,
                 dishes: dishes,
@@ -179,7 +184,7 @@ class _EventServiceCatalogueScreenState
     // 'Save Package' in the wizard must persist to the Rust API, not just
     // change the local list. Other catalogue entries keep the existing
     // explicit Save catalogue action.
-    if (packageFlow || photoPackageFlow) await _save();
+    if (packageFlow || photoPackageFlow || photoServiceFlow) await _save();
   }
 
   @override
