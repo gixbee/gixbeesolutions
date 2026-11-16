@@ -335,14 +335,15 @@ pub(super) async fn acknowledge(
     let already: Option<DateTime<Utc>> = milestone.get(own_column);
     if already.is_none() {
         // These identifiers come only from the two static branches above.
-        sqlx::query(&format!(
+        let statement = format!(
             r#"UPDATE event_quote_milestones
                SET "{own_column}"=NOW(),
                    "completedAt"=CASE WHEN "{other_column}" IS NOT NULL
                        THEN NOW() ELSE "completedAt" END,
                    "updatedAt"=NOW()
                WHERE id=$1"#
-        ))
+        );
+        sqlx::query(&statement)
         .bind(milestone_id)
         .execute(&mut *tx)
         .await?;
