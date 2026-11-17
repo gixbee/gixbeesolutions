@@ -512,11 +512,13 @@ async fn change_offline_day(
         if booked {return Err(AppError::Conflict("This date has a confirmed event. Resolve the booking before marking it unavailable".into()));}
         days.push(json!(format!("{date_key}T00:00:00.000")));
     }
-    sqlx::query(r#"UPDATE businesses SET "offlineDays" = $1, "updatedAt" = NOW() WHERE id = $2"#)
-        .bind(serde_json::to_string(&days).map_err(|e| AppError::Internal(e.to_string()))?)
-        .bind(bid)
-        .execute(&mut *tx)
-        .await?;
+    sqlx::query(
+        r#"UPDATE businesses SET "offlineDays" = $1::jsonb, "updatedAt" = NOW() WHERE id = $2"#,
+    )
+    .bind(Value::Array(days))
+    .bind(bid)
+    .execute(&mut *tx)
+    .await?;
     tx.commit().await?;
     Ok(())
 }
@@ -536,7 +538,7 @@ fn business_json(row: &sqlx::postgres::PgRow) -> Value {
         "documentUrl": row.get::<Option<String>, _>("documentUrl"),
         "status": row.get::<String, _>("status"),
         "operatorIds": row.try_get::<Option<String>, _>("operatorIds").ok().flatten().unwrap_or_default().split(',').filter(|s| !s.is_empty()).collect::<Vec<_>>(),
-        "offlineDays": row.try_get::<Option<String>, _>("offlineDays").ok().flatten().and_then(|v| serde_json::from_str::<Value>(&v).ok()).unwrap_or(json!([])),
+        "offlineDays": row.try_get::<Value, _>("offlineDays").ok().unwrap_or(json!([])),
         "hiringProfile": row.try_get::<Value, _>("hiringProfile").ok().unwrap_or(json!({})),
         "createdAt": crate::common::pg::date_json(row,"createdAt"),
         "updatedAt": crate::common::pg::date_json(row,"updatedAt"),
