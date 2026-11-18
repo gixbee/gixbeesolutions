@@ -23,11 +23,11 @@ struct Save {
 }
 
 fn validate_service(service: &str) -> AppResult<()> {
-    if matches!(service, "PHOTOGRAPHY" | "CATERING") {
+    if matches!(service, "PHOTOGRAPHY" | "CATERING" | "DECORATION") {
         return Ok(());
     }
     Err(AppError::BadRequest(
-        "Choose photography or catering".into(),
+        "Choose photography, catering or decoration".into(),
     ))
 }
 
@@ -211,8 +211,12 @@ fn validate_catalogue(catalogue: &Value, service: &str) -> AppResult<()> {
         {
             return Err(invalid());
         }
-        if service == "PHOTOGRAPHY" {
-            validate_photography_metadata(item)?;
+        if service == "PHOTOGRAPHY" || service == "DECORATION" {
+            if service == "PHOTOGRAPHY" {
+                validate_photography_metadata(item)?;
+            } else {
+                validate_decoration_metadata(item)?;
+            }
             if !valid_price(item["price"].as_i64()) {
                 return Err(invalid());
             }
@@ -236,6 +240,33 @@ fn validate_catalogue(catalogue: &Value, service: &str) -> AppResult<()> {
                 previous_end = max;
             }
         }
+    }
+    Ok(())
+}
+
+/// Decoration uses a fixed event price (never a client-supplied amount).
+/// Discounts are recomputed in integer rupees, matching Flutter's preview.
+fn validate_decoration_metadata(item: &Value) -> AppResult<()> {
+    let invalid = || AppError::BadRequest("Check decoration items, pricing and add-ons".into());
+    if item.get("addon").is_some_and(|v| !v.is_boolean())
+        || (item["kind"] == "PACKAGE" && item["addon"] == true)
+    {
+        return Err(invalid());
+    }
+    match (item.get("listPrice"), item.get("discountPct")) {
+        (None, None) => {}
+        (Some(list), Some(pct)) => {
+            let list = list.as_i64().ok_or_else(invalid)?;
+            let pct = pct.as_i64().ok_or_else(invalid)?;
+            let offered = item["price"].as_i64().ok_or_else(invalid)?;
+            if !valid_price(Some(list))
+                || !(0..=90).contains(&pct)
+                || offered != (list * (100 - pct) + 50) / 100
+            {
+                return Err(invalid());
+            }
+        }
+        _ => return Err(invalid()),
     }
     Ok(())
 }
@@ -481,6 +512,8 @@ pub(super) async fn selection(
     let mut seen = std::collections::HashSet::new();
     let mut lines = Vec::new();
     let mut estimate = 0;
+    let mut decoration_packages = 0;
+    let mut decoration_regular_items = 0;
     for id in ids {
         let item = catalogue["items"]
             .as_array()
@@ -490,7 +523,22 @@ pub(super) async fn selection(
                 id.is_string() && item["id"] == *id && item["active"].as_bool() != Some(false)
             })
             .ok_or_else(|| AppError::Conflict("A selected item is no longer available".into()))?;
-        if !seen.insert(id.as_str()) || (ids.len() > 1 && item["kind"] != "ITEM") {
+        if !seen.insert(id.as_str()) {
+            return Err(AppError::BadRequest("Select distinct catalogue entries".into()));
+        }
+        if service == "DECORATION" {
+            if item["kind"] == "PACKAGE" {
+                decoration_packages += 1;
+            } else if item["addon"] != true {
+                decoration_regular_items += 1;
+            }
+            // One package may be combined only with explicitly marked add-ons.
+            if decoration_packages > 1 || (decoration_packages > 0 && decoration_regular_items > 0) {
+                return Err(AppError::BadRequest(
+                    "Choose one decoration package with add-ons, or standalone services".into(),
+                ));
+            }
+        } else if ids.len() > 1 && item["kind"] != "ITEM" {
             return Err(AppError::BadRequest(
                 "Select one package or distinct dishes".into(),
             ));
@@ -544,7 +592,7 @@ pub(super) async fn check_daily_limit(
     start: DateTime<Utc>,
     end: DateTime<Utc>,
 ) -> AppResult<()> {
-    if !matches!(service, "PHOTOGRAPHY" | "CATERING") {
+    if !matches!(service, "PHOTOGRAPHY" | "CATERING" | "DECORATION") {
         return Ok(());
     }
     let limit: Option<i64> = sqlx::query_scalar::<_, Option<i64>>(
@@ -588,6 +636,34 @@ pub(super) async fn check_daily_limit(
 #[cfg(test)]
 mod catalogue_metadata_tests {
     use super::*;
+
+    #[test]
+    fn decoration_catalogue_supports_packages_and_addons() {
+        let catalogue = json!({
+            "photos":[],
+            "items":[
+                {"id":"123e4567-e89b-42d3-a456-426614174000","kind":"PACKAGE",
+                 "name":"Wedding stage","price":18000,"listPrice":20000,
+                 "discountPct":10,"active":true},
+                {"id":"123e4567-e89b-42d3-a456-426614174001","kind":"ITEM",
+                 "name":"Extra flower arch","price":2500,"addon":true,"active":true}
+            ]
+        });
+        assert!(validate_service("DECORATION").is_ok());
+        assert!(validate_catalogue(&catalogue, "DECORATION").is_ok());
+    }
+
+    #[test]
+    fn decoration_rejects_fake_prices_and_package_addon_flag() {
+        let mut item = json!({"kind":"PACKAGE","price":18000,
+            "listPrice":20000,"discountPct":10});
+        assert!(validate_decoration_metadata(&item).is_ok());
+        item["price"] = json!(18001);
+        assert!(validate_decoration_metadata(&item).is_err());
+        item["price"] = json!(18000);
+        item["addon"] = json!(true);
+        assert!(validate_decoration_metadata(&item).is_err());
+    }
 
     #[test]
     fn rejects_malformed_photo_payment_split() {
