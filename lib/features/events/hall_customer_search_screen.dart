@@ -1,3 +1,5 @@
+import '../../shared/widgets/gx_empty.dart';
+import '../../shared/widgets/gx_network_error.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -212,19 +214,21 @@ class _HallCustomerSearchScreenState
         if(snapshot.connectionState!=ConnectionState.done) {
           return const Center(child:CircularProgressIndicator());
         }
-        if(snapshot.hasError) return Center(child:TextButton(
-          onPressed:_search,
-          child:Text('${eventError(snapshot.error!)} Retry')));
+        if (snapshot.hasError) return GxNetworkError(
+          error: snapshot.error,
+          title: 'Hall search unavailable',
+          onRetry: _search,
+        );
         final rows=HallCustomerModel.matches(snapshot.data??[],
           guests:int.tryParse(_guests.text.trim())??0,
           event:_event,ac:_ac,venue:_venue,
           maxPrice:_priceMax==200000?100000000:_priceMax,
           query:_query.text,sort:_sort);
-        if(rows.isEmpty)return const Center(child:Padding(
-          padding:EdgeInsets.all(24),
-          child:Text('No published halls match these filters. '
-            'Try a different date, location, AC preference or budget.',
-            textAlign:TextAlign.center)));
+        if (rows.isEmpty) return const GxEmptyState(
+          icon: Icons.meeting_room_outlined,
+          title: 'No matching halls',
+          message: 'Try a different date, location, AC preference, or budget.',
+        );
         return ListView.builder(
           padding:const EdgeInsets.fromLTRB(12,0,12,22),
           itemCount:rows.length+1,

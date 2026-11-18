@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../repositories/events_repository.dart';
 import '../../shared/widgets/gx_button.dart';
+import '../../shared/widgets/gx_network_error.dart';
+import '../../shared/widgets/gx_empty.dart';
 import '../../shared/widgets/gx_snackbar.dart';
 
 class EventVendorCalendarScreen extends ConsumerStatefulWidget {
@@ -69,11 +71,11 @@ class _EventVendorCalendarScreenState
               return const Center(child: CircularProgressIndicator());
             }
             if (snapshot.hasError) {
-              return Center(
-                  child: TextButton(
-                onPressed: () => setState(() => _entries = _load()),
-                child: Text('${eventError(snapshot.error!)} Retry'),
-              ));
+              return GxNetworkError(
+                error: snapshot.error,
+                title: 'Calendar bookings unavailable',
+                onRetry: () => setState(() => _entries = _load()),
+              );
             }
             final entries = snapshot.data ?? [];
             return ListView(padding: const EdgeInsets.all(16), children: [
@@ -81,9 +83,12 @@ class _EventVendorCalendarScreenState
                   label: 'Add outside booking', onTap: _saving ? null : _add),
               if (entries.isEmpty)
                 const Padding(
-                    padding: EdgeInsets.all(12),
-                    child: Text(
-                        'Bookings added to your calendar will appear here.')),
+                    padding: EdgeInsets.symmetric(vertical: 32),
+                    child: GxEmptyState(
+                      icon: Icons.event_available_outlined,
+                      title: 'No outside bookings',
+                      message: 'Bookings added to your calendar will appear here.',
+                    )),
               for (final entry in entries)
                 Card(
                     child: ListTile(

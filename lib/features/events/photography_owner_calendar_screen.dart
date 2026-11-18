@@ -2,6 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
+import '../../theme.dart';
+import '../../shared/widgets/gx_button.dart';
+import '../../shared/widgets/gx_network_error.dart';
+import '../../shared/widgets/gx_empty.dart';
 import '../../repositories/business_repository.dart';
 import '../../repositories/events_repository.dart';
 import '../../shared/models/business.dart';
@@ -24,9 +28,7 @@ class PhotographyOwnerCalendarScreen extends ConsumerStatefulWidget {
 
 class _PhotographyOwnerCalendarScreenState
     extends ConsumerState<PhotographyOwnerCalendarScreen> {
-  static const _navy = Color(0xFF1B2559);
   static const _green = Color(0xFF12B76A);
-  static const _light = Color(0xFFECFDF3);
   late DateTime _month = DateTime(DateTime.now().year, DateTime.now().month);
   late DateTime _selected = DateUtils.dateOnly(DateTime.now());
   late Future<List<Map<String, dynamic>>> _bookings = _loadBookings();
@@ -55,6 +57,10 @@ class _PhotographyOwnerCalendarScreenState
           .photographyCalendar(widget.business.id);
 
   Future<void> _loadSettings() async {
+    if (mounted) setState(() {
+      _settingsLoaded = false;
+      _settingsError = null;
+    });
     try {
       final result = await ref.read(eventsRepositoryProvider)
           .catalogue(widget.business.id, 'PHOTOGRAPHY');
@@ -169,7 +175,7 @@ class _PhotographyOwnerCalendarScreenState
           icon: const Icon(Icons.refresh)),
       ]),
     body: SafeArea(child: Column(children: [
-      Padding(padding: const EdgeInsets.fromLTRB(12, 10, 12, 4),
+      Padding(padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
         child: Row(children: [
           for (final (tab, label) in const [
             ('calendar','Calendar'), ('register','Bookings'), ('settings','Settings')
@@ -177,8 +183,15 @@ class _PhotographyOwnerCalendarScreenState
             Expanded(child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 3),
               child: ChoiceChip(
-                label: Text(label, style: const TextStyle(fontSize: 12)),
+                label: Text(label, style: TextStyle(fontSize: 12,
+                  fontWeight: _tab == tab ? FontWeight.w700 : FontWeight.w500,
+                  color: _tab == tab ? context.gx.accent : context.gx.ink)),
                 selected: _tab == tab,
+                showCheckmark: false,
+                selectedColor: context.gx.accent.withValues(alpha: 0.12),
+                backgroundColor: context.gx.card,
+                side: BorderSide(color: _tab == tab
+                  ? context.gx.accent : context.gx.border),
                 onSelected: (_) => setState(() => _tab = tab),
               ),
             )),
@@ -186,6 +199,11 @@ class _PhotographyOwnerCalendarScreenState
       ),
       if (_tab == 'settings')
         Expanded(child: _settingsBody())
+      else if (_tab == 'calendar' && !_settingsLoaded)
+        Expanded(child: _settingsError == null
+          ? const Center(child: CircularProgressIndicator())
+          : GxNetworkError(error: _settingsError!,
+              title: 'Availability unavailable', onRetry: _loadSettings))
       else
         Expanded(child: FutureBuilder<List<Map<String, dynamic>>>(
           future: _bookings,
@@ -194,9 +212,8 @@ class _PhotographyOwnerCalendarScreenState
               return const Center(child: CircularProgressIndicator());
             }
             if (snapshot.hasError) {
-              return Center(child: TextButton(
-                onPressed: _refresh,
-                child: Text('${eventError(snapshot.error!)} Retry')));
+              return GxNetworkError(error: snapshot.error,
+                title: 'Bookings unavailable', onRetry: _refresh);
             }
             final entries = snapshot.data ?? [];
             return _tab == 'register' ?
@@ -215,7 +232,7 @@ class _PhotographyOwnerCalendarScreenState
     ),
     Expanded(child: Text(DateFormat('MMMM yyyy').format(_month),
       textAlign: TextAlign.center,
-      style: const TextStyle(color: _navy, fontSize: 17,
+      style: TextStyle(color: context.gx.ink, fontSize: 17,
         fontWeight: FontWeight.w900))),
     IconButton(
       tooltip: 'Next month',
@@ -231,14 +248,14 @@ class _PhotographyOwnerCalendarScreenState
     final days = DateTime(_month.year, _month.month + 1, 0).day;
     final selectedRows = _forDay(entries, _selected);
     return ListView(
-      padding: const EdgeInsets.fromLTRB(12, 0, 12, 20),
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
       children: [
         _monthBar(),
         const SizedBox(height: 6),
         Row(children: [
           for (final label in const ['S','M','T','W','T','F','S'])
             Expanded(child: Text(label, textAlign: TextAlign.center,
-              style: const TextStyle(color: Colors.blueGrey))),
+              style: TextStyle(color: context.gx.ink.withValues(alpha: 0.60)))),
         ]),
         const SizedBox(height: 8),
         GridView.builder(
@@ -263,10 +280,10 @@ class _PhotographyOwnerCalendarScreenState
               onTap: () => setState(() => _selected = date),
               child: Container(
                 decoration: BoxDecoration(
-                  color: selected ? _light : Colors.white,
+                  color: selected ? context.gx.accent.withValues(alpha: 0.10) : context.gx.card,
                   borderRadius: BorderRadius.circular(9),
                   border: Border.all(
-                    color: selected ? _green : const Color(0xFFE2E8F0),
+                    color: selected ? context.gx.accent : context.gx.border,
                     width: selected ? 2 : 1)),
                 child: Column(mainAxisAlignment: MainAxisAlignment.center,
                   children: [
@@ -284,15 +301,16 @@ class _PhotographyOwnerCalendarScreenState
           },
         ),
         const SizedBox(height: 9),
-        const Text('Green: open · Orange: shoots · Red: full · Grey: unavailable',
-            style: TextStyle(color: Colors.blueGrey, fontSize: 11)),
+        Text('Green: open · Orange: shoots · Red: full · Grey: unavailable',
+            style: TextStyle(color: context.gx.ink.withValues(alpha: 0.60), fontSize: 11)),
         const Divider(height: 30),
         Text(DateFormat('EEE, d MMM yyyy').format(_selected),
-          style: const TextStyle(color: _navy,
+          style: TextStyle(color: context.gx.ink,
               fontWeight: FontWeight.w900, fontSize: 17)),
         if (_blocked.contains(_key(_selected)))
           const Chip(label: Text('Marked unavailable')),
-        Row(children: [
+        Wrap(alignment: WrapAlignment.spaceBetween,
+          spacing: 12, runSpacing: 4, children: [
           TextButton.icon(
             onPressed: _busy ? null :
               () => _markOffline(!_blocked.contains(_key(_selected))),
@@ -301,7 +319,6 @@ class _PhotographyOwnerCalendarScreenState
             label: Text(_blocked.contains(_key(_selected))
                 ? 'Mark available' : 'Mark unavailable'),
           ),
-          const Spacer(),
           TextButton.icon(
             onPressed: _openOutsideBookings,
             icon: const Icon(Icons.add_circle_outline),
@@ -309,8 +326,10 @@ class _PhotographyOwnerCalendarScreenState
           ),
         ]),
         if (selectedRows.isEmpty)
-          const Padding(padding: EdgeInsets.all(16),
-            child: Text('No shoots are scheduled for this date.')),
+          const Padding(padding: EdgeInsets.symmetric(vertical: 24),
+            child: GxEmptyState(icon: Icons.event_available_outlined,
+              title: 'No shoots scheduled',
+              message: 'No bookings are scheduled for this date.')),
         for (final row in selectedRows) _bookingCard(row),
       ],
     );
@@ -323,13 +342,13 @@ class _PhotographyOwnerCalendarScreenState
             (_begin(a) ?? DateTime.utc(1900))
                 .compareTo(_begin(b) ?? DateTime.utc(1900)));
     return ListView(
-      padding: const EdgeInsets.fromLTRB(12, 0, 12, 18),
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
       children: [
         _monthBar(),
-        Card(color: _light,
+        Card(color: context.gx.card2,
           child: ListTile(
             title: Text('${monthEntries.length} shoots in this month',
-              style: const TextStyle(color: _navy,
+              style: TextStyle(color: context.gx.ink,
                 fontWeight: FontWeight.w900)),
             subtitle: Text(
               '${monthEntries.where((x)=>x['source']=='gixbee').length} Gixbee · '
@@ -342,8 +361,10 @@ class _PhotographyOwnerCalendarScreenState
           label: const Text('Manage outside bookings'),
         ),
         if (monthEntries.isEmpty)
-          const Padding(padding: EdgeInsets.all(16),
-            child: Text('No shoots in this month.')),
+          const Padding(padding: EdgeInsets.symmetric(vertical: 24),
+            child: GxEmptyState(icon: Icons.event_note_outlined,
+              title: 'No shoots this month',
+              message: 'Confirmed and outside bookings appear here.')),
         for (final row in monthEntries)
           _bookingCard(row),
         const SizedBox(height: 9),
@@ -364,7 +385,7 @@ class _PhotographyOwnerCalendarScreenState
     return Card(
       child: ListTile(
         leading: Icon(platform ? Icons.verified_user_outlined :
-            Icons.photo_camera_outlined, color: _navy),
+            Icons.photo_camera_outlined, color: context.gx.accent),
         title: Text(item['title']?.toString() ?? 'Photography shoot',
           style: const TextStyle(fontWeight: FontWeight.w800)),
         subtitle: Text([
@@ -384,14 +405,14 @@ class _PhotographyOwnerCalendarScreenState
 
   Widget _settingsBody() {
     if (!_settingsLoaded) {
-      return Center(child: _settingsError == null
-        ? const CircularProgressIndicator()
-        : TextButton(onPressed: _loadSettings,
-            child: Text('$_settingsError · Retry')));
+      return _settingsError == null
+          ? const Center(child: CircularProgressIndicator())
+          : GxNetworkError(error: _settingsError!,
+              title: 'Booking settings unavailable', onRetry: _loadSettings);
     }
     return ListView(padding: const EdgeInsets.all(16), children: [
-      const Text('Booking settings',
-        style: TextStyle(color: _navy,
+      Text('Booking settings',
+        style: TextStyle(color: context.gx.ink,
           fontWeight: FontWeight.w900, fontSize: 20)),
       const SizedBox(height: 14),
       const Text('Maximum bookings per day',
@@ -406,7 +427,7 @@ class _PhotographyOwnerCalendarScreenState
       ]),
       const SizedBox(height: 10),
       Text('You can confirm up to $_dailyLimit shoots per day.',
-        style: const TextStyle(color: Colors.blueGrey)),
+        style: TextStyle(color: context.gx.ink.withValues(alpha: 0.60))),
       const SizedBox(height: 18),
       const Text('Customer booking window',
         style: TextStyle(fontWeight: FontWeight.w800)),
@@ -433,16 +454,12 @@ class _PhotographyOwnerCalendarScreenState
               setState(() => _noticeDays = n)),
       ]),
       const SizedBox(height: 18),
-      const Text('These settings are shared with the owner catalogue and '
+      Text('These settings are shared with the owner catalogue and '
           'used by the Rust booking validation API.',
-        style: TextStyle(color: Colors.blueGrey)),
+        style: TextStyle(color: context.gx.ink.withValues(alpha: 0.60))),
       const SizedBox(height: 10),
-      FilledButton(
-        style: FilledButton.styleFrom(backgroundColor: _green,
-          padding: const EdgeInsets.symmetric(vertical: 14)),
-        onPressed: _busy ? null : _saveSettings,
-        child: Text(_busy ? 'Saving...' : 'Save booking settings'),
-      ),
+      GxButton(label: 'Save booking settings',
+         onTap: _busy ? null : _saveSettings, loading: _busy),
     ]);
   }
 }

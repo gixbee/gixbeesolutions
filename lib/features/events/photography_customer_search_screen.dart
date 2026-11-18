@@ -1,3 +1,5 @@
+import '../../shared/widgets/gx_empty.dart';
+import '../../shared/widgets/gx_network_error.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -282,14 +284,17 @@ class _PhotographyCustomerSearchScreenState
         if(snapshot.connectionState!=ConnectionState.done) {
           return const Center(child:CircularProgressIndicator());
         }
-        if(snapshot.hasError) return Center(child:TextButton(
-          onPressed:_search,child:Text('${eventError(snapshot.error!)} Retry')));
+        if (snapshot.hasError) return GxNetworkError(
+          error: snapshot.error,
+          title: 'Photography search unavailable',
+          onRetry: _search,
+        );
         final matches=_filter(snapshot.data??[]);
-        if(matches.isEmpty) return const Center(child:Padding(
-          padding:EdgeInsets.all(24),child:Text(
-            'No studios currently list a matching published package or service. '
-            'Try another district, budget or photography need.',
-            textAlign:TextAlign.center)));
+        if (matches.isEmpty) return const GxEmptyState(
+          icon: Icons.camera_alt_outlined,
+          title: 'No matching studios',
+          message: 'Try another district, budget, or photography service.',
+        );
         return ListView.builder(
           padding:const EdgeInsets.fromLTRB(12,0,12,18),
           itemCount:matches.length+1,

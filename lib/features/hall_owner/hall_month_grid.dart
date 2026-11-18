@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../theme.dart';
 
 /// A local-venue calendar view of existing hall blocks and reservations.
 /// Incoming timestamps remain UTC; the grid interprets them in venue time.
@@ -30,7 +31,7 @@ class HallMonthGrid extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const navy = Color(0xFF1B2559);
+    final ink = context.gx.ink;
     final first = DateTime(month.year, month.month);
     final weekdayOffset = first.weekday % 7;
     final count = DateUtils.getDaysInMonth(month.year, month.month);
@@ -43,8 +44,8 @@ class HallMonthGrid extends StatelessWidget {
           Expanded(
               child: Center(
                   child: Text(name,
-                      style: const TextStyle(
-                          color: navy,
+                      style: TextStyle(
+                          color: ink,
                           fontSize: 11,
                           fontWeight: FontWeight.w700)))),
       ]),
@@ -72,12 +73,12 @@ class HallMonthGrid extends StatelessWidget {
           final isToday = date == today;
           final inPast = date.isBefore(today);
           final background = blocked
-              ? const Color(0xFFFEE2E2)
+              ? const Color(0xFFB91C1C).withValues(alpha: 0.13)
               : confirmed
-                  ? const Color(0xFFDCFCE7)
+                  ? const Color(0xFF047857).withValues(alpha: 0.13)
                   : held
-                      ? const Color(0xFFFFF3C4)
-                      : Colors.white;
+                      ? const Color(0xFFB45309).withValues(alpha: 0.13)
+                      : context.gx.card;
           return InkWell(
             borderRadius: BorderRadius.circular(9),
             onTap: inPast ? null : () => onSelectDate(date),
@@ -87,8 +88,8 @@ class HallMonthGrid extends StatelessWidget {
                 borderRadius: BorderRadius.circular(9),
                 border: Border.all(
                   color: isToday
-                      ? const Color(0xFF2563EB)
-                      : const Color(0xFFE2E8F0),
+                      ? context.gx.accent
+                      : context.gx.border,
                   width: isToday ? 1.5 : 1,
                 ),
               ),
@@ -98,7 +99,7 @@ class HallMonthGrid extends StatelessWidget {
                   Text('${date.day}',
                       style: TextStyle(
                           fontWeight: FontWeight.w800,
-                          color: inPast ? Colors.grey : navy)),
+                          color: inPast ? ink.withValues(alpha: 0.40) : ink)),
                   if (blocked || confirmed || held)
                     Icon(
                         blocked
@@ -126,8 +127,8 @@ class HallMonthGrid extends StatelessWidget {
         Text('🔴 Blocked', style: TextStyle(fontSize: 11)),
       ]),
       const SizedBox(height: 5),
-      const Text('Tap a date to block a full day or a selected slot.',
-          style: TextStyle(fontSize: 11, color: Colors.blueGrey)),
+      Text('Tap a date to block a full day or a selected slot.',
+          style: TextStyle(fontSize: 11, color: context.gx.ink.withValues(alpha: 0.60))),
     ]),
     );
   }

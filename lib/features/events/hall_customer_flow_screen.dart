@@ -1,3 +1,4 @@
+import '../../shared/widgets/gx_network_error.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -65,9 +66,11 @@ class _HallCustomerProfileScreenState
         if(snap.connectionState!=ConnectionState.done) {
           return const Center(child:CircularProgressIndicator());
         }
-        if(snap.hasError)return Center(child:TextButton(
-          onPressed:_reload,
-          child:Text('${eventError(snap.error!)} Retry')));
+        if (snap.hasError) return GxNetworkError(
+          error: snap.error,
+          title: 'Hall details unavailable',
+          onRetry: _reload,
+        );
         final data=snap.data!;
         _current=data;
         final pkg=data['package'] as Map? ?? const {};
@@ -255,9 +258,11 @@ class _HallCustomerSlotsScreenState
       future:_future,builder:(context,snapshot){
         if(snapshot.connectionState!=ConnectionState.done)return
           const Center(child:CircularProgressIndicator());
-        if(snapshot.hasError)return Center(child:TextButton(
-          onPressed:_refresh,
-          child:Text('${eventError(snapshot.error!)} Retry')));
+        if (snapshot.hasError) return GxNetworkError(
+          error: snapshot.error,
+          title: 'Availability unavailable',
+          onRetry: _refresh,
+        );
         final detail=snapshot.data!;
         final offers=detail['slots'] as List? ?? const [];
         final rows=HallCustomerModel.availableSlots(

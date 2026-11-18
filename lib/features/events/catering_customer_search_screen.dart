@@ -1,3 +1,5 @@
+import '../../shared/widgets/gx_empty.dart';
+import '../../shared/widgets/gx_network_error.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -302,17 +304,16 @@ class _CateringCustomerSearchScreenState
         if (snapshot.connectionState != ConnectionState.done) {
           return const Center(child: CircularProgressIndicator());
         }
-        if (snapshot.hasError) return Center(
-          child: TextButton(
-            onPressed: _search,
-            child: Text('${eventError(snapshot.error!)} Retry'),
-          ),
+        if (snapshot.hasError) return GxNetworkError(
+          error: snapshot.error,
+          title: 'Catering search unavailable',
+          onRetry: _search,
         );
         final providers = _matches(snapshot.data ?? []);
-        if (providers.isEmpty) return const Center(
-          child: Padding(padding: EdgeInsets.all(20),
-            child: Text('No caterers match this guest-count and budget range. '
-                'Try increasing the per-plate budget or changing the function filter.')),
+        if (providers.isEmpty) return const GxEmptyState(
+          icon: Icons.restaurant_menu_outlined,
+          title: 'No matching caterers',
+          message: 'Try increasing your budget or changing the function filter.',
         );
         return ListView.builder(
           padding: const EdgeInsets.fromLTRB(16, 2, 16, 16),
