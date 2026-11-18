@@ -14,6 +14,8 @@ import 'catering_package_wizard_screen.dart';
 import 'catering_customer_search_screen.dart';
 import 'photography_customer_search_screen.dart';
 import 'hall_customer_search_screen.dart';
+import '../../shared/widgets/gx_network_error.dart';
+import '../../shared/widgets/gx_empty.dart';
 
 class EventServiceBrowser extends ConsumerStatefulWidget {
   const EventServiceBrowser({
@@ -49,7 +51,9 @@ class _EventServiceBrowserState extends ConsumerState<EventServiceBrowser> {
     final prices = <int>[];
     for (final item in items.whereType<Map>()) {
       if (item['active'] == false) continue;
-      if (widget.service == 'PHOTOGRAPHY' && item['price'] is num) {
+      // An add-on alone is not a bookable base decoration service.
+      if (widget.service == 'DECORATION' && item['addon'] == true) continue;
+      if (widget.service != 'CATERING' && item['price'] is num) {
         prices.add((item['price'] as num).round());
       } else if (widget.service == 'CATERING') {
         for (final tier in (item['tiers'] as List? ?? []).whereType<Map>()) {
@@ -76,7 +80,9 @@ class _EventServiceBrowserState extends ConsumerState<EventServiceBrowser> {
     final city = ref.read(currentCityProvider)?.id;
     if (widget.service != 'CATERING' &&
         widget.service != 'PHOTOGRAPHY' && widget.service != 'HALL' &&
-        city != null) _load(city);
+        city != null) {
+      _load(city);
+    }
   }
 
   void _load(String city) {
@@ -112,7 +118,9 @@ class _EventServiceBrowserState extends ConsumerState<EventServiceBrowser> {
     final title = switch (widget.service) {
       'HALL' => 'Find a hall',
       'CATERING' => 'Find a caterer',
-      _ => 'Find a photographer',
+      'PHOTOGRAPHY' => 'Find a photographer',
+      'DECORATION' => 'Find a decorator',
+      _ => 'Find event services',
     };
     return Scaffold(
       appBar: AppBar(title: Text(title), actions: [
@@ -231,11 +239,11 @@ class _EventServiceBrowserState extends ConsumerState<EventServiceBrowser> {
               return const Center(child: CircularProgressIndicator());
             }
             if (snapshot.hasError) {
-              return Center(
-                  child: TextButton(
-                onPressed: () => setState(() => _load(_city!)),
-                child: Text('${eventError(snapshot.error!)} Retry'),
-              ));
+              return GxNetworkError(
+                error: snapshot.error,
+                title: 'Service listings unavailable',
+                onRetry: () => setState(() => _load(_city!)),
+              );
             }
             final vendors = snapshot.data!
                 .where((vendor) =>
@@ -260,7 +268,11 @@ class _EventServiceBrowserState extends ConsumerState<EventServiceBrowser> {
                     .compareTo('${b['name'] ?? b['hallName'] ?? ''}');
               });
             if (vendors.isEmpty) {
-              return const Center(child: Text('No matching listings.'));
+              return const GxEmptyState(
+                icon: Icons.storefront_outlined,
+                title: 'No matching providers',
+                message: 'Try another city, name, or price filter.',
+              );
             }
             return ListView.builder(
               padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -375,6 +387,7 @@ class _ProviderDetailState extends ConsumerState<_ProviderDetail> {
 
   bool get _isHall => widget.service == 'HALL';
   bool get _isCatering => widget.service == 'CATERING';
+  bool get _isDecoration => widget.service == 'DECORATION';
   Map get _catalogue => widget.vendor['catalogue'] as Map? ?? {};
 
   String _categoryLabel(String value) {
@@ -684,6 +697,7 @@ class _ProviderDetailState extends ConsumerState<_ProviderDetail> {
           subtitle: Text([
             item['kind'] == 'PACKAGE'
                 ? 'Package'
+                : item['addon'] == true ? 'Add-on'
                 : (_isCatering ? 'Dish' : 'Service'),
             if (item['menuItems'] case final List dishes when dishes.isNotEmpty)
               dishes.join(' · '),
@@ -722,10 +736,18 @@ class _ProviderDetailState extends ConsumerState<_ProviderDetail> {
                       _selected.remove(id);
                       return;
                     }
-                    if (!_isCatering ||
+                    if (_isDecoration) {
+                      if (item['kind'] == 'PACKAGE') {
+                        _selected.removeWhere((_, selectedItem) =>
+                          selectedItem['kind'] == 'PACKAGE' ||
+                          selectedItem['addon'] != true);
+                      } else if (item['addon'] != true) {
+                        _selected.removeWhere((_, selectedItem) =>
+                          selectedItem['kind'] == 'PACKAGE');
+                      }
+                    } else if (!_isCatering ||
                         item['kind'] == 'PACKAGE' ||
-                        _selected.values
-                            .any((item) => item['kind'] == 'PACKAGE')) {
+                        _selected.values.any((e) => e['kind'] == 'PACKAGE')) {
                       _selected.clear();
                     }
                     if (_selected.length < 20) _selected[id] = item;
@@ -787,6 +809,7 @@ class _ProviderDetailState extends ConsumerState<_ProviderDetail> {
               hintText: switch (widget.service) {
                 'PHOTOGRAPHY' => 'Coverage, albums, video and delivery',
                 'CATERING' => 'Menu changes, dietary needs and serving style',
+                 'DECORATION' => 'Event theme, colors, setup and accessories',
                 _ => 'Setup, catering and access',
               },
             ),

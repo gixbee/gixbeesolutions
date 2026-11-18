@@ -14,6 +14,8 @@ import 'catering_food_item_screen.dart';
 import 'photography_package_wizard_screen.dart';
 import 'photography_service_wizard_screen.dart';
 import 'photography_owner_pricing.dart';
+import 'decoration_entry_screen.dart';
+import '../../shared/widgets/gx_network_error.dart';
 
 class EventServiceCatalogueScreen extends ConsumerStatefulWidget {
   const EventServiceCatalogueScreen(
@@ -45,6 +47,8 @@ class _EventServiceCatalogueScreenState
   String _menuSearch = '';
   String _photoLevel = 'all';
   bool get _catering => widget.service == 'CATERING';
+  bool get _photography => widget.service == 'PHOTOGRAPHY';
+  bool get _decoration => widget.service == 'DECORATION';
 
   @override
   void initState() {
@@ -204,10 +208,12 @@ class _EventServiceCatalogueScreenState
       if (image == null || !mounted) return;
       final repo = ref.read(businessRepositoryProvider);
       final url = await repo.uploadImage(await image.readAsBytes(), image.name);
-      if (mounted) setState(() {
-        _photos.add(url);
-        _hasUnsavedChanges = true;
-      });
+      if (mounted) {
+        setState(() {
+          _photos.add(url);
+          _hasUnsavedChanges = true;
+        });
+      }
     } catch (error) {
       if (mounted) showGxSnack(context, eventError(error));
     } finally {
@@ -221,14 +227,20 @@ class _EventServiceCatalogueScreenState
         (original?['kind'] == 'PACKAGE' || (index == null && createPackage));
     final cateringDishFlow = _catering &&
         (original?['kind'] == 'ITEM' || (index == null && !createPackage));
-    final photoPackageFlow = !_catering &&
+    final photoPackageFlow = _photography &&
         (original?['kind'] == 'PACKAGE' || (index == null && createPackage));
-    final photoServiceFlow = !_catering &&
+    final photoServiceFlow = _photography &&
         (original?['kind'] == 'ITEM' || (index == null && !createPackage));
     final dishes = _items.where((item) => item['kind'] == 'ITEM').toList();
     final updated = await Navigator.of(context).push<Map<String, dynamic>>(
       MaterialPageRoute(
-        builder: (_) => packageFlow
+        builder: (_) => _decoration
+            ? DecorationEntryScreen(
+                item: original,
+                createPackage: index == null && createPackage,
+                onSave: (entry) => _savePackage(entry, index),
+              )
+            : packageFlow
             ? CateringPackageWizardScreen(
                 package: original,
                 dishes: dishes,
@@ -457,6 +469,76 @@ class _EventServiceCatalogueScreenState
     ]);
   }
 
+  Widget _decorationHub() {
+    final packagesTab = _menuTab == 'packages';
+    final packages = _items.where((item) => item['kind'] == 'PACKAGE').length;
+    final services = _items.where((item) => item['kind'] == 'ITEM').length;
+    final matches = _items.indexed.where((entry) {
+      final item = entry.$2;
+      if ((item['kind'] == 'PACKAGE') != packagesTab) return false;
+      if (_menuStatus == 'live' && item['active'] == false) return false;
+      if (_menuStatus == 'draft' && item['active'] != false) return false;
+      return (item['name']?.toString() ?? '')
+          .toLowerCase().contains(_menuSearch.toLowerCase());
+    }).toList();
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Text('Decoration catalogue',
+          style: Theme.of(context).textTheme.titleLarge),
+      const SizedBox(height: 8),
+      const Text('Create packages, individual services and optional add-ons. '
+          'Customers request a quote before a booking is confirmed.'),
+      const SizedBox(height: 14),
+      SegmentedButton<String>(
+        segments: [
+          ButtonSegment(value: 'packages', label: Text('Packages ($packages)')),
+          ButtonSegment(value: 'services',
+              label: Text('Services / add-ons ($services)')),
+        ],
+        selected: {_menuTab},
+        onSelectionChanged: (values) => setState(() => _menuTab = values.first),
+      ),
+      const SizedBox(height: 12),
+      TextField(
+        decoration: const InputDecoration(
+          prefixIcon: Icon(Icons.search),
+          labelText: 'Search decoration listings'),
+        onChanged: (value) => setState(() => _menuSearch = value),
+      ),
+      Wrap(spacing: 8, children: [
+        for (final (value, label) in const [
+          ('all', 'All'), ('live', 'Live'), ('draft', 'Draft')
+        ])
+          ChoiceChip(label: Text(label),
+            selected: _menuStatus == value,
+            onSelected: (_) => setState(() => _menuStatus = value)),
+      ]),
+      if (matches.isEmpty)
+        const Padding(padding: EdgeInsets.symmetric(vertical: 24),
+          child: Center(child: Text('No decoration listings match the filters.'))),
+      for (final entry in matches)
+        Card(margin: const EdgeInsets.only(bottom: 10),
+          child: ListTile(
+            title: Text(entry.$2['name']?.toString() ?? 'Untitled'),
+            subtitle: Text([
+              if (entry.$2['addon'] == true) 'Optional add-on',
+              if ((entry.$2['category']?.toString() ?? '').isNotEmpty)
+                entry.$2['category'].toString(),
+              if (entry.$2['price'] != null)
+                '₹${entry.$2['price']}',
+              entry.$2['active'] == false ? 'Draft' : 'Published',
+            ].join(' · ')),
+            trailing: const Icon(Icons.edit_outlined),
+            onTap: () => _edit(entry.$1),
+          )),
+      const SizedBox(height: 10),
+      GxButton(label: packagesTab ? 'Create package' : 'Add service / add-on',
+        icon: Icons.add,
+        onTap: _items.length >= 150 ? null :
+            () => _edit(null, createPackage: packagesTab)),
+      const SizedBox(height: 16),
+    ]);
+  }
+
   Widget _cateringHub() {
     final matches = _items.indexed.where((entry) {
       final item = entry.$2;
@@ -547,7 +629,7 @@ class _EventServiceCatalogueScreenState
   Widget build(BuildContext context) => Scaffold(
         appBar: AppBar(
             title:
-                Text(_catering ? 'Menu & packages' : 'Photography catalogue'),
+                Text(_catering ? 'Menu & packages' : _decoration ? 'Decoration catalogue' : 'Photography catalogue'),
             actions: [
               IconButton(
                   tooltip: 'Reload saved catalogue',
@@ -557,14 +639,16 @@ class _EventServiceCatalogueScreenState
         body: _loading
             ? const Center(child: CircularProgressIndicator())
             : _error != null
-                ? Center(
-                    child: TextButton(
-                        onPressed: _load, child: Text('$_error Retry')))
+                ? GxNetworkError(
+                    error: _error, title: 'Catalogue unavailable',
+                    onRetry: _load)
                 : AbsorbPointer(
                     absorbing: _busy,
                     child:
                         ListView(padding: const EdgeInsets.all(16), children: [
-                       if (_catering) _cateringHub() else _photographyHub(),
+                       if (_catering) _cateringHub()
+                        else if (_decoration) _decorationHub()
+                        else _photographyHub(),
                       TextField(
                           controller: _about,
                            onChanged: (_) => setState(() => _hasUnsavedChanges = true),

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../repositories/events_repository.dart';
+import '../../theme.dart';
 import 'event_plan_create_screen.dart';
 
 /// Customer-side customization before sending an interest. Choices are stored
@@ -29,7 +30,6 @@ class EventInterestCustomizeScreen extends StatefulWidget {
 
 class _EventInterestCustomizeScreenState
     extends State<EventInterestCustomizeScreen> {
-  static const _navy = Color(0xFF1B2559);
   static const _accent = Color(0xFF12B76A);
   final _notes = TextEditingController();
   final _dietNeeds = TextEditingController();
@@ -38,11 +38,16 @@ class _EventInterestCustomizeScreenState
   final _team = TextEditingController();
   final _deliverables = TextEditingController();
   final _extras = TextEditingController();
+  final _decorTheme = TextEditingController();
+  final _decorColors = TextEditingController();
+  final _decorSetup = TextEditingController();
+  final _decorExtras = TextEditingController();
   final _selectedFunctions = <String>{};
   String _serviceStyle = 'As offered';
   bool _requiresQuote = true;
 
   bool get _photography => widget.service == 'PHOTOGRAPHY';
+  bool get _decoration => widget.service == 'DECORATION';
 
   @override
   void initState() {
@@ -60,6 +65,10 @@ class _EventInterestCustomizeScreenState
     _team.dispose();
     _deliverables.dispose();
     _extras.dispose();
+    _decorTheme.dispose();
+    _decorColors.dispose();
+    _decorSetup.dispose();
+    _decorExtras.dispose();
     super.dispose();
   }
 
@@ -67,11 +76,10 @@ class _EventInterestCustomizeScreenState
         padding: const EdgeInsets.only(top: 20, bottom: 10),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Text(title,
-              style: const TextStyle(
-                  color: _navy, fontSize: 16, fontWeight: FontWeight.w800)),
+              style: TextStyle(color: context.gx.ink, fontSize: 16, fontWeight: FontWeight.w800)),
           if (subtitle != null)
             Text(subtitle,
-                style: const TextStyle(fontSize: 12, color: Colors.blueGrey)),
+                style: TextStyle(fontSize: 12, color: context.gx.ink.withValues(alpha: 0.60))),
         ]),
       );
 
@@ -103,6 +111,15 @@ class _EventInterestCustomizeScreenState
           'Delivery & albums: ${_deliverables.text.trim()}',
         if (_extras.text.trim().isNotEmpty)
           'Optional extras (price to be confirmed): ${_extras.text.trim()}',
+      ] else if (_decoration) ...[
+        if (_decorTheme.text.trim().isNotEmpty)
+          'Decoration theme: ${_decorTheme.text.trim()}',
+        if (_decorColors.text.trim().isNotEmpty)
+          'Preferred colors: ${_decorColors.text.trim()}',
+        if (_decorSetup.text.trim().isNotEmpty)
+          'Setup requirements: ${_decorSetup.text.trim()}',
+        if (_decorExtras.text.trim().isNotEmpty)
+          'Optional extras (quote required): ${_decorExtras.text.trim()}',
       ] else ...[
         'Preferred serving style: $_serviceStyle',
         if (_dietNeeds.text.trim().isNotEmpty)
@@ -145,7 +162,15 @@ class _EventInterestCustomizeScreenState
                     'deliverables': _deliverables.text.trim(),
                     'extras': _extras.text.trim(),
                   }
-                : {
+                
+                 : _decoration
+                 ? {
+                     'theme': _decorTheme.text.trim(),
+                     'colors': _decorColors.text.trim(),
+                     'setup': _decorSetup.text.trim(),
+                     'extras': _decorExtras.text.trim(),
+                   }
+                 : {
                     'servingStyle': _serviceStyle,
                     'dietaryNeeds': _dietNeeds.text.trim(),
                     'menuChanges': _menuChanges.text.trim(),
@@ -163,27 +188,26 @@ class _EventInterestCustomizeScreenState
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: context.gx.bg,
       appBar: AppBar(
         title:
-            Text(_photography ? 'Customize Photography' : 'Customize Catering'),
-        backgroundColor: Colors.white,
-        foregroundColor: _navy,
+            Text(_photography ? 'Customize Photography' : _decoration ? 'Customize Decoration' : 'Customize Catering'),
+        backgroundColor: context.gx.card,
+        foregroundColor: context.gx.ink,
       ),
       body: SafeArea(
           child: Column(children: [
         Expanded(
             child: ListView(padding: const EdgeInsets.all(16), children: [
           Card(
-            color: const Color(0xFFECFDF3),
+            color: context.gx.card2,
             child: Padding(
               padding: const EdgeInsets.all(14),
               child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text('Your selected offer',
-                        style: TextStyle(
-                            color: _navy, fontWeight: FontWeight.w800)),
+                    Text('Your selected offer',
+                         style: TextStyle(color: context.gx.ink, fontWeight: FontWeight.w800)),
                     const SizedBox(height: 5),
                     Text(widget.selection.summary),
                   ]),
@@ -226,7 +250,16 @@ class _EventInterestCustomizeScreenState
                 hint: 'Edited photos, videos, prints, albums, dates'),
             _field(_extras, 'Optional extras',
                 hint: 'Extra crew, drone, photobooth (vendor quote required)'),
-          ] else ...[
+          ] else if (_decoration) ...[
+             _field(_decorTheme, 'Decoration theme',
+               hint: 'Traditional, floral, minimalist, cinematic'),
+             _field(_decorColors, 'Preferred colors',
+               hint: 'White and gold, pastel pink, earthy tones'),
+             _field(_decorSetup, 'Stage, venue and setup details',
+               hint: 'Backdrop size, indoor/outdoor, installation time'),
+             _field(_decorExtras, 'Optional additions',
+               hint: 'Flower arch, lights, aisle, photo booth; quote required'),
+           ] else ...[
             DropdownButtonFormField<String>(
               initialValue: _serviceStyle,
               decoration: const InputDecoration(

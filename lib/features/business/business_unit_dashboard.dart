@@ -236,11 +236,15 @@ class _BusinessCard extends ConsumerWidget {
             ),
             const SizedBox(height: 18),
             if (business.type == 'SERVICE')
-              for (final service in const ['PHOTOGRAPHY', 'CATERING'])
+              for (final service in const ['PHOTOGRAPHY', 'CATERING', 'DECORATION'])
                 if (business.serviceType == service || business.eventServices.contains(service)) ...[
                   _BizAction(
                     icon: Icons.list_alt_outlined,
-                    label: service == 'CATERING' ? 'Menu & packages' : 'Photography catalogue',
+                    label: switch (service) {
+                      'CATERING' => 'Menu & packages',
+                      'DECORATION' => 'Decoration catalogue',
+                      _ => 'Photography catalogue',
+                    },
                     primary: true,
                     onTap: () => Navigator.push(context, MaterialPageRoute<void>(
                       builder: (_) => EventServiceCatalogueScreen(business: business, service: service),

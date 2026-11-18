@@ -41,8 +41,9 @@ fn validate_customization(service: &str, raw: &Value) -> AppResult<Value> {
     let fields: &[&str] = match service {
         "CATERING" => &["servingStyle", "dietaryNeeds", "menuChanges"],
         "PHOTOGRAPHY" => &["functions", "coverage", "team", "deliverables", "extras"],
+        "DECORATION" => &["theme", "colors", "setup", "extras"],
         _ => return Err(AppError::BadRequest(
-            "Customization is supported for catering and photography".into()
+            "Customization is supported for catering, photography and decoration".into()
         )),
     };
     let source = raw.as_object().ok_or_else(|| {
@@ -365,6 +366,21 @@ mod customization_tests {
             "menuChanges": "Less spicy"
         })).unwrap();
         assert_eq!(v["dietaryNeeds"], "Vegetarian");
+    }
+
+    #[test]
+    fn accepts_decoration_preference_without_changing_price() {
+        let selection = validate_customization("DECORATION", &json!({
+            "theme":"Traditional Kerala", "colors":"White and gold",
+            "setup":"Indoor stage", "extras":"Fresh flowers"
+        })).unwrap();
+        assert_eq!(selection["theme"], "Traditional Kerala");
+        assert!(validate_customization("DECORATION", &json!({
+            "theme":"Traditional Kerala", "expectedEstimate":1
+        })).is_err());
+        assert!(validate_customization("DECORATION", &json!({
+            "discountPct":99
+        })).is_err());
     }
 
     #[test]
