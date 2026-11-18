@@ -4,6 +4,8 @@ import '../../repositories/hall_repository.dart';
 import '../../shared/models/business.dart';
 import '../../shared/widgets/glass_container.dart';
 import '../../shared/widgets/gx_button.dart';
+import '../../shared/widgets/gx_network_error.dart';
+import '../../shared/widgets/gx_empty.dart';
 import '../../shared/widgets/gx_snackbar.dart';
 import 'hall_enquiries_inbox_screen.dart';
 import 'hall_manage_screen.dart';
@@ -115,20 +117,20 @@ class _HallBusinessHomeScreenState
             return const Center(child: CircularProgressIndicator());
           }
           if (snap.hasError) {
-            return Center(child: Text('${snap.error}'));
+            return GxNetworkError(
+              error: snap.error,
+              title: 'Unable to load halls',
+              onRetry: _reload,
+            );
           }
           final halls = snap.data ?? [];
           if (halls.isEmpty) {
-            return Padding(
-              padding: const EdgeInsets.all(24),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Text('No halls yet. Add your first hall to continue.'),
-                  const SizedBox(height: 16),
-                  GxButton(label: 'Add hall', onTap: _addHall),
-                ],
-              ),
+            return GxEmptyState(
+              icon: Icons.meeting_room_outlined,
+              title: 'No halls yet',
+              message: 'Add your first hall to start receiving bookings.',
+              actionLabel: 'Add hall',
+              onAction: _addHall,
             );
           }
           return ListView.builder(
