@@ -80,7 +80,9 @@ class _EventServiceBrowserState extends ConsumerState<EventServiceBrowser> {
     final city = ref.read(currentCityProvider)?.id;
     if (widget.service != 'CATERING' &&
         widget.service != 'PHOTOGRAPHY' && widget.service != 'HALL' &&
-        city != null) _load(city);
+        city != null) {
+      _load(city);
+    }
   }
 
   void _load(String city) {
