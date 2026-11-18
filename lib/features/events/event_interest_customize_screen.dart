@@ -30,7 +30,6 @@ class EventInterestCustomizeScreen extends StatefulWidget {
 
 class _EventInterestCustomizeScreenState
     extends State<EventInterestCustomizeScreen> {
-  static const _navy = Color(0xFF1B2559);
   static const _accent = Color(0xFF12B76A);
   final _notes = TextEditingController();
   final _dietNeeds = TextEditingController();
@@ -77,11 +76,10 @@ class _EventInterestCustomizeScreenState
         padding: const EdgeInsets.only(top: 20, bottom: 10),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Text(title,
-              style: const TextStyle(
-                  color: _navy, fontSize: 16, fontWeight: FontWeight.w800)),
+              style: TextStyle(color: context.gx.ink, fontSize: 16, fontWeight: FontWeight.w800)),
           if (subtitle != null)
             Text(subtitle,
-                style: const TextStyle(fontSize: 12, color: Colors.blueGrey)),
+                style: TextStyle(fontSize: 12, color: context.gx.ink.withValues(alpha: 0.60))),
         ]),
       );
 
@@ -202,15 +200,14 @@ class _EventInterestCustomizeScreenState
         Expanded(
             child: ListView(padding: const EdgeInsets.all(16), children: [
           Card(
-            color: const Color(0xFFECFDF3),
+            color: context.gx.card2,
             child: Padding(
               padding: const EdgeInsets.all(14),
               child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text('Your selected offer',
-                        style: TextStyle(
-                            color: _navy, fontWeight: FontWeight.w800)),
+                    Text('Your selected offer',
+                         style: TextStyle(color: context.gx.ink, fontWeight: FontWeight.w800)),
                     const SizedBox(height: 5),
                     Text(widget.selection.summary),
                   ]),
