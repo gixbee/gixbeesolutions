@@ -852,7 +852,6 @@ body{margin:0;background:#E8EDF5;font-family:Inter,system-ui,sans-serif;color:#1
     <input type="number" id="decOfferPct" min="1" max="90" placeholder="e.g. 10" inputmode="numeric">
     <div id="decOfferLivePreview" class="dec-offer-preview" hidden aria-live="polite"></div>
   </div></div>
-  <p class="lbl pad">GST</p><div class="dec-chip-wrap pad" id="decGstChips"></div>
   <div class="pad" id="decTierPreview"></div>
   <div class="cat-wiz-foot"><button type="button" class="btn btn-ghost" id="decPkgStep4Back2">← Back</button><button type="button" class="btn btn-decor" id="decPkgStep4Next">Preview →</button></div>
 </section>
@@ -3757,24 +3756,8 @@ function renderDecorPkgStep4() {
   el('decOfferOn').checked = !!d.offerEnabled;
   el('decOfferFields').hidden = !d.offerEnabled;
   el('decOfferPct').value = d.discountPercent === '' || d.discountPercent == null ? '' : d.discountPercent;
-  el('decGstChips').innerHTML = DECORATION_GST.map(function (g) {
-    return (
-      '<button type="button" class="dec-chip sm' +
-      (d.gstTreatment === g ? ' on' : '') +
-      '" data-gst="' +
-      esc(g) +
-      '">' +
-      esc(g) +
-      '</button>'
-    );
-  }).join('');
+  if (!d.gstTreatment) d.gstTreatment = 'Included';
   paintDecorTierPreview();
-  el('decGstChips').querySelectorAll('[data-gst]').forEach(function (btn) {
-    btn.onclick = function () {
-      decorPkgWizard.draft.gstTreatment = btn.getAttribute('data-gst');
-      renderDecorPkgStep4();
-    };
-  });
 }
 
 function decorOfferPctFromUi(draft) {
@@ -3849,6 +3832,8 @@ function syncDecorTierFromInputs() {
   if (d.offerEnabled) {
     const offerRaw = el('decOfferPct').value;
     d.discountPercent = offerRaw === '' ? '' : Math.round(+offerRaw);
+  } else {
+    d.discountPercent = '';
   }
   paintDecorTierPreview();
 }
@@ -3901,7 +3886,6 @@ function renderDecorPkgStep5() {
       esc(it.unit || 'Per Event') +
       '</li>';
   });
-  html += '</ul><p class="sub">GST: ' + esc(d.gstTreatment || 'Included') + '</p>';
   el('decPkgPreviewBody').innerHTML = html;
 }
 
@@ -5083,7 +5067,7 @@ function bindDecorationPlatform() {
 
 
 /** Decoration owner app — dashboard/platform parity with catering + decoration hub. */
-const DECORATION_OWNER_BUILD = 'decoration-owner-offer-preview-v24';
+const DECORATION_OWNER_BUILD = 'decoration-owner-no-pkg-gst-v25';
 const STORAGE_KEY = 'GIXBEE_DECORATION_OWNER_V1';
 
 function defaultStore() {

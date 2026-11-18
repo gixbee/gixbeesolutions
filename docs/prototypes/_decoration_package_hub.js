@@ -1295,24 +1295,8 @@ function renderDecorPkgStep4() {
   el('decOfferOn').checked = !!d.offerEnabled;
   el('decOfferFields').hidden = !d.offerEnabled;
   el('decOfferPct').value = d.discountPercent === '' || d.discountPercent == null ? '' : d.discountPercent;
-  el('decGstChips').innerHTML = DECORATION_GST.map(function (g) {
-    return (
-      '<button type="button" class="dec-chip sm' +
-      (d.gstTreatment === g ? ' on' : '') +
-      '" data-gst="' +
-      esc(g) +
-      '">' +
-      esc(g) +
-      '</button>'
-    );
-  }).join('');
+  if (!d.gstTreatment) d.gstTreatment = 'Included';
   paintDecorTierPreview();
-  el('decGstChips').querySelectorAll('[data-gst]').forEach(function (btn) {
-    btn.onclick = function () {
-      decorPkgWizard.draft.gstTreatment = btn.getAttribute('data-gst');
-      renderDecorPkgStep4();
-    };
-  });
 }
 
 function decorOfferPctFromUi(draft) {
@@ -1387,6 +1371,8 @@ function syncDecorTierFromInputs() {
   if (d.offerEnabled) {
     const offerRaw = el('decOfferPct').value;
     d.discountPercent = offerRaw === '' ? '' : Math.round(+offerRaw);
+  } else {
+    d.discountPercent = '';
   }
   paintDecorTierPreview();
 }
@@ -1439,7 +1425,6 @@ function renderDecorPkgStep5() {
       esc(it.unit || 'Per Event') +
       '</li>';
   });
-  html += '</ul><p class="sub">GST: ' + esc(d.gstTreatment || 'Included') + '</p>';
   el('decPkgPreviewBody').innerHTML = html;
 }
 
