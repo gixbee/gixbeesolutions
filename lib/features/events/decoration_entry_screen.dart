@@ -221,7 +221,7 @@ class _DecorationEntryScreenState extends State<DecorationEntryScreen> {
                 if (preview != null)
                   Padding(
                     padding: const EdgeInsets.symmetric(vertical: 12),
-                    child: Text('Customer estimate: ₹' + preview.toString(),
+                    child: Text('Customer estimate: ₹$preview',
                       style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800,
                         color: context.gx.accent)),
                   ),
