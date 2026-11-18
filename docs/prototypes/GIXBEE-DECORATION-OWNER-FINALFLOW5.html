@@ -100,6 +100,12 @@ body{margin:0;background:#E8EDF5;font-family:Inter,system-ui,sans-serif;color:#1
 .dec-filters button.on{background:#FDF2F8;border-color:#F9A8D4;color:var(--decor2)}
 .dec-pkg-price{margin-top:8px;font-weight:800;color:var(--decor);font-size:14px;display:flex;align-items:center;flex-wrap:wrap;gap:4px}
 .dec-off{font-size:11px;color:#059669;font-weight:800}
+.dec-offer-preview{margin-top:12px;padding:12px 14px;border-radius:12px;background:#fff;border:1.5px solid #FBCFE8}
+.dec-offer-preview .lbl{margin:0 0 8px;font-size:11px;font-weight:800;color:var(--mut);text-transform:uppercase;letter-spacing:.04em}
+.dec-offer-price{display:flex;flex-wrap:wrap;align-items:baseline;gap:8px}
+.dec-offer-price s{font-size:15px;font-weight:700;color:#94A3B8;text-decoration:line-through}
+.dec-offer-price b{font-size:20px;font-weight:900;color:#BE185D;letter-spacing:-.02em}
+.dec-preview-price s{color:#94A3B8;font-weight:700;text-decoration:line-through;margin-right:6px}
 .dec-pill{font-size:10px;font-weight:800;padding:3px 8px;border-radius:99px;display:inline-block;margin-top:6px}
 .dec-pill.live{background:#DCFCE7;color:#166534}.dec-pill.draft{background:#F3F4F6;color:#475569}
 .dec-card-actions{display:flex;gap:6px;margin-top:10px}.dec-card-actions button{flex:1;border:1px solid var(--line);border-radius:99px;padding:7px 4px;font-size:11px;font-weight:800;background:#fff;cursor:pointer;color:var(--decor-navy)}
@@ -841,7 +847,11 @@ body{margin:0;background:#E8EDF5;font-family:Inter,system-ui,sans-serif;color:#1
     <div class="fld"><label id="decPkgPriceLabel">Package amount (₹) *</label><input type="number" id="decPkgListPrice" min="0" placeholder="40,000" inputmode="numeric"></div>
   </div>
   <div class="pad dec-offer"><label><input type="checkbox" id="decOfferOn"> Offer / discount for customers</label>
-  <div id="decOfferFields" hidden><input type="number" id="decOfferPct" min="1" max="90" placeholder="Discount %" inputmode="numeric"></div></div>
+  <div id="decOfferFields" hidden>
+    <label class="sub" for="decOfferPct" style="display:block;margin:10px 0 6px;font-weight:800">Discount % (1–90)</label>
+    <input type="number" id="decOfferPct" min="1" max="90" placeholder="e.g. 10" inputmode="numeric">
+    <div id="decOfferLivePreview" class="dec-offer-preview" hidden aria-live="polite"></div>
+  </div></div>
   <p class="lbl pad">GST</p><div class="dec-chip-wrap pad" id="decGstChips"></div>
   <div class="pad" id="decTierPreview"></div>
   <div class="cat-wiz-foot"><button type="button" class="btn btn-ghost" id="decPkgStep4Back2">← Back</button><button type="button" class="btn btn-decor" id="decPkgStep4Next">Preview →</button></div>
@@ -3767,22 +3777,64 @@ function renderDecorPkgStep4() {
   });
 }
 
+function decorOfferPctFromUi(draft) {
+  const d = draft || decorPkgWizard.draft || {};
+  const offerOn = el('decOfferOn') ? el('decOfferOn').checked : !!d.offerEnabled;
+  if (!offerOn) return 0;
+  const raw = el('decOfferPct') ? el('decOfferPct').value : d.discountPercent;
+  const n = Math.round(+raw);
+  return n >= 1 && n <= 90 ? n : 0;
+}
+
+function decorBasePriceFromUi(draft) {
+  const d = draft || decorPkgWizard.draft || {};
+  const raw = el('decPkgListPrice') ? el('decPkgListPrice').value : d.listPrice;
+  return Math.round(+raw || 0);
+}
+
 function paintDecorTierPreview() {
   const d = decorPkgWizard.draft;
-  const pct = decorOfferPct(d);
+  const base = decorBasePriceFromUi(d);
+  const pct = decorOfferPctFromUi(d);
+  const offerOn = el('decOfferOn') ? el('decOfferOn').checked : !!d.offerEnabled;
+  const live = el('decOfferLivePreview');
+  if (live) {
+    if (!offerOn) {
+      live.hidden = true;
+      live.innerHTML = '';
+    } else if (!base) {
+      live.hidden = false;
+      live.innerHTML = '<p class="sub" style="margin:0">Enter the package amount above first.</p>';
+    } else if (!pct) {
+      live.hidden = false;
+      live.innerHTML = '<p class="sub" style="margin:0">Type discount % — original and offer price will show here.</p>';
+    } else {
+      const off = decorPriceAfterOffer(base, pct);
+      live.hidden = false;
+      live.innerHTML =
+        '<p class="lbl">Customer sees</p><div class="dec-offer-price"><s>' +
+        inr(base) +
+        '</s><b>' +
+        inr(off) +
+        '</b><span class="dec-off">-' +
+        pct +
+        '%</span></div>';
+    }
+  }
   const host = el('decTierPreview');
   if (!host) return;
-  const base = Math.round(+(d.listPrice || 0));
   if (!base) {
     host.innerHTML = '<p class="sub">Enter the package amount above.</p>';
     return;
   }
   const off = decorPriceAfterOffer(base, pct);
   host.innerHTML =
-    '<div class="dec-tier-row"><span>' +
+    '<p class="lbl" style="margin:0 0 8px">Summary</p><div class="dec-tier-row"><span>' +
     esc(d.level || 'Standard') +
-    ' package</span><span>' +
-    (pct ? '<s>' + inr(base) + '</s> <b>' + inr(off) + '</b>' : '<b>' + inr(base) + '</b>') +
+    ' package</span><span class="dec-offer-price">' +
+    (pct
+      ? '<s>' + inr(base) + '</s> <b>' + inr(off) + '</b> <span class="dec-off">-' + pct + '%</span>'
+      : '<b>' + inr(base) + '</b>') +
     '</span></div>';
 }
 
@@ -3829,9 +3881,11 @@ function renderDecorPkgStep5() {
   html +=
     '<p class="dec-sec-h">Package price</p><div class="dec-tier-row"><span>' +
     esc(d.level || 'Standard') +
-    '</span><b>' +
-    inr(decorPriceAfterOffer(pr.base, pr.pct)) +
-    '</b></div>';
+    '</span><span class="dec-offer-price">' +
+    (pr.pct
+      ? '<s>' + inr(pr.base) + '</s> <b>' + inr(pr.offer) + '</b> <span class="dec-off">-' + pr.pct + '%</span>'
+      : '<b>' + inr(pr.base) + '</b>') +
+    '</span></div>';
   html += '<p class="dec-sec-h">Inclusions (' + inc.length + ')</p><ul class="dec-ul">';
   inc.forEach(function (it) {
     html += '<li>' + esc(it.customName || it.name) + '</li>';
@@ -5029,7 +5083,7 @@ function bindDecorationPlatform() {
 
 
 /** Decoration owner app — dashboard/platform parity with catering + decoration hub. */
-const DECORATION_OWNER_BUILD = 'decoration-owner-church-christian-v23';
+const DECORATION_OWNER_BUILD = 'decoration-owner-offer-preview-v24';
 const STORAGE_KEY = 'GIXBEE_DECORATION_OWNER_V1';
 
 function defaultStore() {

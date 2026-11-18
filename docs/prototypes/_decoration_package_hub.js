@@ -1315,22 +1315,64 @@ function renderDecorPkgStep4() {
   });
 }
 
+function decorOfferPctFromUi(draft) {
+  const d = draft || decorPkgWizard.draft || {};
+  const offerOn = el('decOfferOn') ? el('decOfferOn').checked : !!d.offerEnabled;
+  if (!offerOn) return 0;
+  const raw = el('decOfferPct') ? el('decOfferPct').value : d.discountPercent;
+  const n = Math.round(+raw);
+  return n >= 1 && n <= 90 ? n : 0;
+}
+
+function decorBasePriceFromUi(draft) {
+  const d = draft || decorPkgWizard.draft || {};
+  const raw = el('decPkgListPrice') ? el('decPkgListPrice').value : d.listPrice;
+  return Math.round(+raw || 0);
+}
+
 function paintDecorTierPreview() {
   const d = decorPkgWizard.draft;
-  const pct = decorOfferPct(d);
+  const base = decorBasePriceFromUi(d);
+  const pct = decorOfferPctFromUi(d);
+  const offerOn = el('decOfferOn') ? el('decOfferOn').checked : !!d.offerEnabled;
+  const live = el('decOfferLivePreview');
+  if (live) {
+    if (!offerOn) {
+      live.hidden = true;
+      live.innerHTML = '';
+    } else if (!base) {
+      live.hidden = false;
+      live.innerHTML = '<p class="sub" style="margin:0">Enter the package amount above first.</p>';
+    } else if (!pct) {
+      live.hidden = false;
+      live.innerHTML = '<p class="sub" style="margin:0">Type discount % — original and offer price will show here.</p>';
+    } else {
+      const off = decorPriceAfterOffer(base, pct);
+      live.hidden = false;
+      live.innerHTML =
+        '<p class="lbl">Customer sees</p><div class="dec-offer-price"><s>' +
+        inr(base) +
+        '</s><b>' +
+        inr(off) +
+        '</b><span class="dec-off">-' +
+        pct +
+        '%</span></div>';
+    }
+  }
   const host = el('decTierPreview');
   if (!host) return;
-  const base = Math.round(+(d.listPrice || 0));
   if (!base) {
     host.innerHTML = '<p class="sub">Enter the package amount above.</p>';
     return;
   }
   const off = decorPriceAfterOffer(base, pct);
   host.innerHTML =
-    '<div class="dec-tier-row"><span>' +
+    '<p class="lbl" style="margin:0 0 8px">Summary</p><div class="dec-tier-row"><span>' +
     esc(d.level || 'Standard') +
-    ' package</span><span>' +
-    (pct ? '<s>' + inr(base) + '</s> <b>' + inr(off) + '</b>' : '<b>' + inr(base) + '</b>') +
+    ' package</span><span class="dec-offer-price">' +
+    (pct
+      ? '<s>' + inr(base) + '</s> <b>' + inr(off) + '</b> <span class="dec-off">-' + pct + '%</span>'
+      : '<b>' + inr(base) + '</b>') +
     '</span></div>';
 }
 
@@ -1377,9 +1419,11 @@ function renderDecorPkgStep5() {
   html +=
     '<p class="dec-sec-h">Package price</p><div class="dec-tier-row"><span>' +
     esc(d.level || 'Standard') +
-    '</span><b>' +
-    inr(decorPriceAfterOffer(pr.base, pr.pct)) +
-    '</b></div>';
+    '</span><span class="dec-offer-price">' +
+    (pr.pct
+      ? '<s>' + inr(pr.base) + '</s> <b>' + inr(pr.offer) + '</b> <span class="dec-off">-' + pr.pct + '%</span>'
+      : '<b>' + inr(pr.base) + '</b>') +
+    '</span></div>';
   html += '<p class="dec-sec-h">Inclusions (' + inc.length + ')</p><ul class="dec-ul">';
   inc.forEach(function (it) {
     html += '<li>' + esc(it.customName || it.name) + '</li>';
