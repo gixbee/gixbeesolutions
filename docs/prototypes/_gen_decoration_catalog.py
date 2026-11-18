@@ -148,6 +148,23 @@ function decorCatalogContextFromDraft(draft) {
   };
 }
 
+/** Categories only for selected communities (e.g. Church → Christian). */
+const DECORATION_MODULE_TRADITIONS = {
+  d02: ['christian'],
+};
+
+function decorModuleVisibleForPackage(mod, ctx) {
+  if (!mod || !ctx) return true;
+  const gate =
+    typeof DECORATION_MODULE_TRADITIONS === 'object' ? DECORATION_MODULE_TRADITIONS[mod.id] : null;
+  if (!gate || !gate.length) return true;
+  const comm = ctx.traditionTags || [];
+  if (!comm.length) return false;
+  return comm.some(function (t) {
+    return gate.indexOf(decorTraditionKey(t)) >= 0;
+  });
+}
+
 /** Owner package wizard: list every main catalogue item per category (wedding/other only). */
 function decorCatalogContextForOwnerPick(draft) {
   return Object.assign({}, decorCatalogContextFromDraft(draft), { ownerPick: true });
@@ -189,6 +206,7 @@ function decorModulesForPackage(ctx, searchQ) {
   const allowIds = typeof DECORATION_PACKAGE_MODULE_IDS !== 'undefined' ? DECORATION_PACKAGE_MODULE_IDS : null;
   return DECORATION_MODULES.map(function (m) {
     if (pkgOnly && allowIds && allowIds.indexOf(m.id) < 0) return null;
+    if (pkgOnly && !decorModuleVisibleForPackage(m, ctx)) return null;
     const nameHit = q && m.name.toLowerCase().indexOf(q) >= 0;
     const visible = decorFilteredModuleItems(m, ctx, nameHit ? '' : q);
     return { mod: m, visibleCount: visible.length, items: visible };

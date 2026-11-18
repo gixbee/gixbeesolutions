@@ -775,7 +775,7 @@ body{margin:0;background:#E8EDF5;font-family:Inter,system-ui,sans-serif;color:#1
   <div class="dec-pkg-step3-banner" id="decPkgStep3Banner"></div>
   <div class="dec-items-tabseg" id="decItemsTabSeg"></div>
   <p class="sub pad" id="decItemsTabHint" style="margin-top:0">These items are part of your package price.</p>
-  <p class="sub pad" id="decPkgCatalogHint" style="margin:0;padding-top:0">Each category has 3 main items (like the mockup). Open a category to pick Include or Extra — use Add Custom Item for anything else.</p>
+  <p class="sub pad" id="decPkgCatalogHint" style="margin:0;padding-top:0">Each category has 3 main items. Church Decoration appears only when Christian is selected in step 2.</p>
   <form class="search" onsubmit="return false"><span>🔍</span><input type="search" id="decModSearch" placeholder="Search categories" autocomplete="off"></form>
   <div class="dec-mod-list" id="decModList"></div>
   <button type="button" class="dec-add-custom-btn" id="decOpenCustomItem">+ Add Custom Item</button>
@@ -2333,6 +2333,23 @@ function decorCatalogContextFromDraft(draft) {
   };
 }
 
+/** Categories only for selected communities (e.g. Church → Christian). */
+const DECORATION_MODULE_TRADITIONS = {
+  d02: ['christian'],
+};
+
+function decorModuleVisibleForPackage(mod, ctx) {
+  if (!mod || !ctx) return true;
+  const gate =
+    typeof DECORATION_MODULE_TRADITIONS === 'object' ? DECORATION_MODULE_TRADITIONS[mod.id] : null;
+  if (!gate || !gate.length) return true;
+  const comm = ctx.traditionTags || [];
+  if (!comm.length) return false;
+  return comm.some(function (t) {
+    return gate.indexOf(decorTraditionKey(t)) >= 0;
+  });
+}
+
 /** Owner package wizard: list every main catalogue item per category (wedding/other only). */
 function decorCatalogContextForOwnerPick(draft) {
   return Object.assign({}, decorCatalogContextFromDraft(draft), { ownerPick: true });
@@ -2374,6 +2391,7 @@ function decorModulesForPackage(ctx, searchQ) {
   const allowIds = typeof DECORATION_PACKAGE_MODULE_IDS !== 'undefined' ? DECORATION_PACKAGE_MODULE_IDS : null;
   return DECORATION_MODULES.map(function (m) {
     if (pkgOnly && allowIds && allowIds.indexOf(m.id) < 0) return null;
+    if (pkgOnly && !decorModuleVisibleForPackage(m, ctx)) return null;
     const nameHit = q && m.name.toLowerCase().indexOf(q) >= 0;
     const visible = decorFilteredModuleItems(m, ctx, nameHit ? '' : q);
     return { mod: m, visibleCount: visible.length, items: visible };
@@ -5011,7 +5029,7 @@ function bindDecorationPlatform() {
 
 
 /** Decoration owner app — dashboard/platform parity with catering + decoration hub. */
-const DECORATION_OWNER_BUILD = 'decoration-owner-artificial-floral-v22';
+const DECORATION_OWNER_BUILD = 'decoration-owner-church-christian-v23';
 const STORAGE_KEY = 'GIXBEE_DECORATION_OWNER_V1';
 
 function defaultStore() {
