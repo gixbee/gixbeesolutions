@@ -46,7 +46,8 @@ async fn discover(
              AND b.status='VERIFIED'
              AND (b."serviceType"::text=$1 OR b."eventServices" ? $1)
              AND EXISTS (SELECT 1 FROM jsonb_array_elements(c.catalogue->'items') item
-                         WHERE item->'active' IS DISTINCT FROM 'false'::jsonb)
+                         WHERE item->'active' IS DISTINCT FROM 'false'::jsonb
+                            AND ($1 <> 'DECORATION' OR item->'addon' IS DISTINCT FROM 'true'::jsonb))
            ORDER BY b.name,b.id LIMIT 100"#,
     )
     .bind(query.service_type)
