@@ -51,6 +51,8 @@ class _EventServiceBrowserState extends ConsumerState<EventServiceBrowser> {
     final prices = <int>[];
     for (final item in items.whereType<Map>()) {
       if (item['active'] == false) continue;
+      // An add-on alone is not a bookable base decoration service.
+      if (widget.service == 'DECORATION' && item['addon'] == true) continue;
       if (widget.service != 'CATERING' && item['price'] is num) {
         prices.add((item['price'] as num).round());
       } else if (widget.service == 'CATERING') {
