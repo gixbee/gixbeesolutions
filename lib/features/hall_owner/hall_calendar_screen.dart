@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/intl.dart';
 import '../../repositories/hall_repository.dart';
 import 'hall_month_grid.dart';
 import 'hall_booking_settings_screen.dart';
 import '../../shared/models/business.dart';
 import '../../shared/widgets/gx_button.dart';
+import '../../shared/widgets/gx_network_error.dart';
 import '../../shared/widgets/gx_snackbar.dart';
 
 const _kolkataOffset = Duration(hours: 5, minutes: 30);
@@ -50,6 +52,7 @@ class _HallCalendarScreenState extends ConsumerState<HallCalendarScreen> {
   late DateTime _month;
   Map<String, dynamic>? _data;
   bool _loading = true;
+  Object? _loadError;
   String _tz = 'Asia/Kolkata';
 
   @override
@@ -64,7 +67,10 @@ class _HallCalendarScreenState extends ConsumerState<HallCalendarScreen> {
   DateTime get _to => _venueMidnightUtc(_tz, _month.year, _month.month + 1);
 
   Future<void> _load() async {
-    setState(() => _loading = true);
+    setState(() {
+      _loading = true;
+      _loadError = null;
+    });
     try {
       final data = await ref.read(hallRepositoryProvider).getCalendar(
             widget.business.id,
@@ -86,11 +92,14 @@ class _HallCalendarScreenState extends ConsumerState<HallCalendarScreen> {
       setState(() {
         _data = data;
         _loading = false;
+        _loadError = null;
       });
     } catch (e) {
       if (!mounted) return;
-      setState(() => _loading = false);
-      showGxSnack(context, '$e', type: GxSnackType.error);
+      setState(() {
+        _loading = false;
+        _loadError = e;
+      });
     }
   }
 
@@ -223,32 +232,44 @@ class _HallCalendarScreenState extends ConsumerState<HallCalendarScreen> {
             },
           ),
           IconButton(
-            icon: const Icon(Icons.chevron_left),
-            onPressed: () {
-              setState(() => _month = DateTime(_month.year, _month.month - 1));
-              _load();
-            },
-          ),
-          Center(
-            child: Text(
-              '${_month.year}-${_month.month.toString().padLeft(2, '0')}',
-              style: const TextStyle(fontWeight: FontWeight.w700),
-            ),
-          ),
-          IconButton(
-            icon: const Icon(Icons.chevron_right),
-            onPressed: () {
-              setState(() => _month = DateTime(_month.year, _month.month + 1));
-              _load();
-            },
+            tooltip: 'Refresh calendar',
+            icon: const Icon(Icons.refresh),
+            onPressed: _loading ? null : _load,
           ),
         ],
       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
+          : _loadError != null
+              ? GxNetworkError(error: _loadError,
+                  title: 'Hall calendar unavailable', onRetry: _load)
           : ListView(
               padding: const EdgeInsets.all(16),
               children: [
+                Row(children: [
+                  IconButton(
+                    tooltip: 'Previous month',
+                    icon: const Icon(Icons.chevron_left),
+                    onPressed: () {
+                      setState(() => _month = DateTime(_month.year, _month.month - 1));
+                      _load();
+                    },
+                  ),
+                  Expanded(child: Text(
+                    DateFormat('MMMM yyyy').format(_month),
+                    textAlign: TextAlign.center,
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w800),
+                  )),
+                  IconButton(
+                    tooltip: 'Next month',
+                    icon: const Icon(Icons.chevron_right),
+                    onPressed: () {
+                      setState(() => _month = DateTime(_month.year, _month.month + 1));
+                      _load();
+                    },
+                  ),
+                ]),
                 Text(tzLabel, style: Theme.of(context).textTheme.bodySmall),
                 const SizedBox(height: 12),
                 HallMonthGrid(
