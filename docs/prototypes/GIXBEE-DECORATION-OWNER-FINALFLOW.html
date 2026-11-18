@@ -2994,16 +2994,22 @@ function refreshDecorPkgItemsUi() {
 
 function decorCatalogItemBlurb(name) {
   const n = String(name || '').toLowerCase();
-  if (n.indexOf('car') >= 0) return 'Vehicle floral décor for the day.';
-  if (n.indexOf('stage') >= 0 || n.indexOf('mandap') >= 0) return 'Stage setup with backdrop and trim.';
-  if (n.indexOf('church') >= 0 || n.indexOf('altar') >= 0) return 'Ceremony space styling and florals.';
-  if (n.indexOf('entrance') >= 0 || n.indexOf('welcome') >= 0) return 'Entrance arch, signage, and welcome décor.';
+  if (n.indexOf('car') >= 0) return 'Artificial floral vehicle décor for the day.';
+  if (n.indexOf('stage') >= 0 || n.indexOf('mandap') >= 0) return 'Stage setup with backdrop, trim, and artificial florals.';
+  if (n.indexOf('church') >= 0 || n.indexOf('altar') >= 0 || n.indexOf('pew') >= 0) {
+    return 'Ceremony styling with artificial florals only.';
+  }
+  if (n.indexOf('entrance') >= 0 || n.indexOf('welcome') >= 0 || n.indexOf('arch') >= 0) {
+    return 'Entrance arch and welcome décor with artificial florals.';
+  }
   if (n.indexOf('light') >= 0 || n.indexOf('sound') >= 0) return 'Lighting and ambience for the venue.';
   if (n.indexOf('seat') >= 0 || n.indexOf('chair') >= 0) return 'Seating arrangement and furniture styling.';
   if (n.indexOf('photo') >= 0 || n.indexOf('display') >= 0) return 'Photo walls and display corners.';
-  if (n.indexOf('floral') >= 0 || n.indexOf('flower') >= 0) return 'Fresh or artificial floral accents.';
-  if (n.indexOf('path') >= 0 || n.indexOf('aisle') >= 0) return 'Walkway and aisle decoration.';
-  return 'Decoration for this part of your event.';
+  if (n.indexOf('floral') >= 0 || n.indexOf('flower') >= 0 || n.indexOf('bouquet') >= 0 || n.indexOf('garland') >= 0) {
+    return 'Artificial floral accents for this area.';
+  }
+  if (n.indexOf('path') >= 0 || n.indexOf('aisle') >= 0) return 'Walkway and aisle décor with artificial florals.';
+  return 'Artificial décor for this part of your event.';
 }
 
 function decorFindDraftItemIdx(catalogueId) {
@@ -5005,7 +5011,7 @@ function bindDecorationPlatform() {
 
 
 /** Decoration owner app — dashboard/platform parity with catering + decoration hub. */
-const DECORATION_OWNER_BUILD = 'decoration-owner-custom-list-v21';
+const DECORATION_OWNER_BUILD = 'decoration-owner-artificial-floral-v22';
 const STORAGE_KEY = 'GIXBEE_DECORATION_OWNER_V1';
 
 function defaultStore() {
