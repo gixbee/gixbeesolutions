@@ -16,7 +16,6 @@ import 'photography_service_wizard_screen.dart';
 import 'photography_owner_pricing.dart';
 import 'decoration_entry_screen.dart';
 import '../../shared/widgets/gx_network_error.dart';
-import '../../theme.dart';
 
 class EventServiceCatalogueScreen extends ConsumerStatefulWidget {
   const EventServiceCatalogueScreen(
@@ -209,10 +208,12 @@ class _EventServiceCatalogueScreenState
       if (image == null || !mounted) return;
       final repo = ref.read(businessRepositoryProvider);
       final url = await repo.uploadImage(await image.readAsBytes(), image.name);
-      if (mounted) setState(() {
-        _photos.add(url);
-        _hasUnsavedChanges = true;
-      });
+      if (mounted) {
+        setState(() {
+          _photos.add(url);
+          _hasUnsavedChanges = true;
+        });
+      }
     } catch (error) {
       if (mounted) showGxSnack(context, eventError(error));
     } finally {
@@ -523,7 +524,7 @@ class _EventServiceCatalogueScreenState
               if ((entry.$2['category']?.toString() ?? '').isNotEmpty)
                 entry.$2['category'].toString(),
               if (entry.$2['price'] != null)
-                '₹' + entry.$2['price'].toString(),
+                '₹${entry.$2['price']}',
               entry.$2['active'] == false ? 'Draft' : 'Published',
             ].join(' · ')),
             trailing: const Icon(Icons.edit_outlined),
