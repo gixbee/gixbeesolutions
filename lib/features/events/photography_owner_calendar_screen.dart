@@ -57,6 +57,10 @@ class _PhotographyOwnerCalendarScreenState
           .photographyCalendar(widget.business.id);
 
   Future<void> _loadSettings() async {
+    if (mounted) setState(() {
+      _settingsLoaded = false;
+      _settingsError = null;
+    });
     try {
       final result = await ref.read(eventsRepositoryProvider)
           .catalogue(widget.business.id, 'PHOTOGRAPHY');
