@@ -25,7 +25,11 @@ pub(super) async fn list(
     access(&mut tx,id,uid,false).await?;
     milestone(&mut tx,id,milestone_id,"PAYMENT").await?;
     let rows=sqlx::query_scalar::<_,Value>(
-        r#"SELECT to_jsonb(e)-'fileBytes' FROM event_payment_evidence e
+        r#"SELECT jsonb_build_object(
+             'id',e.id,'reportId',e."reportId",'fileName',e."fileName",
+             'mediaType',e."mediaType",'sha256',e."sha256",
+             'uploadedAt',e."uploadedAt")
+           FROM event_payment_evidence e
            WHERE e."quoteId"=$1 AND e."milestoneId"=$2 ORDER BY e."uploadedAt",e.id"#,
     ).bind(id).bind(milestone_id).fetch_all(&mut *tx).await?;
     tx.commit().await?;
