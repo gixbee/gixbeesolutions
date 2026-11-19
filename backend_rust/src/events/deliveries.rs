@@ -17,7 +17,7 @@ pub(super) fn routes() -> Router<AppState> {
         .route("/quotes/{id}/deliveries/file/{file_id}", get(download))
 }
 
-fn media_type(filename: &str, data: &[u8]) -> AppResult<&'static str> {
+pub(super) fn media_type(filename: &str, data: &[u8]) -> AppResult<&'static str> {
     let ext = filename.rsplit_once('.').map(|(_, v)| v.to_ascii_lowercase());
     match ext.as_deref() {
         Some("jpg" | "jpeg") if data.starts_with(&[0xff,0xd8,0xff]) =>
