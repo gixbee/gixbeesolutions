@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../repositories/events_repository.dart';
 import '../../shared/widgets/gx_snackbar.dart';
 import 'event_quote_commerce.dart';
+import '../../theme.dart';
 
 /// Acknowledgements track *direct* payment and delivery.
 /// This screen never initiates a transaction.
@@ -233,7 +234,7 @@ class _EventQuoteMilestonesState extends ConsumerState<EventQuoteMilestones> {
         null;
     final overdue = item['overdue'] == true;
     return Card(
-      color: done ? const Color(0xFFECFDF3) : Colors.white,
+      color: done ? context.gx.card2 : context.gx.card,
       margin: const EdgeInsets.only(bottom: 10),
       child: Padding(
         padding: const EdgeInsets.all(12),
@@ -244,7 +245,7 @@ class _EventQuoteMilestonesState extends ConsumerState<EventQuoteMilestones> {
                     ? Icons.payments_outlined
                     : Icons.photo_library_outlined,
                 color:
-                    done ? const Color(0xFF047857) : const Color(0xFF1B2559)),
+                    done ? context.gx.accent : context.gx.ink),
             const SizedBox(width: 8),
             Expanded(
                 child: Text(item['label']?.toString() ?? 'Milestone',
@@ -253,13 +254,13 @@ class _EventQuoteMilestonesState extends ConsumerState<EventQuoteMilestones> {
           if (payment) Text(eventMoney(item['amount'])),
           if ((item['details']?.toString() ?? '').isNotEmpty)
             Text(item['details'].toString(),
-                style: const TextStyle(fontSize: 12, color: Colors.blueGrey)),
+                style: TextStyle(fontSize: 12, color: context.gx.ink.withValues(alpha: 0.65))),
           if (item['dueAt'] != null)
             Text(
                 'Due: ${eventDate(item['dueAt'])}${overdue ? ' · Overdue' : ''}',
                 style: TextStyle(
                     fontSize: 12,
-                    color: overdue ? Colors.red : Colors.blueGrey)),
+                    color: overdue ? Theme.of(context).colorScheme.error : context.gx.ink.withValues(alpha: 0.65))),
           const SizedBox(height: 5),
           Text(
               'You: ${already ? 'Acknowledged' : 'Pending'} · '
@@ -284,9 +285,9 @@ class _EventQuoteMilestonesState extends ConsumerState<EventQuoteMilestones> {
              ),
 
           if (done)
-            const Text('Completed by both parties',
+            Text('Completed by both parties',
                 style: TextStyle(
-                    color: Color(0xFF047857), fontWeight: FontWeight.w700))
+                    color: context.gx.accent, fontWeight: FontWeight.w700))
           else if (!payment && !photoDelivery && !already && widget.status == 'CONFIRMED')
             Align(
               alignment: Alignment.centerRight,
