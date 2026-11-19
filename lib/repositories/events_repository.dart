@@ -195,6 +195,30 @@ class EventsRepository {
     return (res.data as List).map((e) => Map<String, dynamic>.from(e as Map)).toList();
   }
 
+  Future<List<Map<String, dynamic>>> paymentEvidence(
+      String quoteId, String milestoneId) async {
+    final res = await _dio.get(
+      '/events/quotes/$quoteId/payments/$milestoneId/evidence');
+    return (res.data as List)
+        .map((e) => Map<String, dynamic>.from(e as Map)).toList();
+  }
+
+  Future<void> uploadPaymentEvidence(String quoteId, String milestoneId,
+      String fileName, Uint8List content) async {
+    await _dio.post('/events/quotes/$quoteId/payments/$milestoneId/evidence',
+      data: FormData.fromMap({
+        'file': MultipartFile.fromBytes(content, filename: fileName),
+      }));
+  }
+
+  Future<Uint8List> downloadPaymentEvidence(String quoteId, String fileId) async {
+    final response = await _dio.get<List<int>>(
+      '/events/quotes/$quoteId/payments/evidence/$fileId',
+      options: Options(responseType: ResponseType.bytes),
+    );
+    return Uint8List.fromList(response.data ?? const <int>[]);
+  }
+
   Future<void> reportDirectPayment(String quoteId, String milestoneId,
       {required String method, required String reference,
        required String note}) async {
