@@ -112,6 +112,14 @@ pub(super) async fn upload(
     }) {
         return Err(AppError::Conflict("Wait for customer review before submitting another version".into()));
     }
+    // Bound total private database storage for one booking, across versions.
+    let used: i64 = sqlx::query_scalar(
+        r#"SELECT COALESCE(SUM(octet_length("fileBytes")),0)::bigint
+           FROM event_delivery_revisions WHERE "quoteId"=$1"#,
+    ).bind(id).fetch_one(&mut *tx).await?;
+    if used + bytes.len() as i64 > 256 * 1024 * 1024 {
+        return Err(AppError::Conflict("This booking has reached its 256 MB delivery quota".into()));
+    }
     let digest = format!("{:x}", Sha256::digest(&bytes));
     let revision_id = Uuid::new_v4();
     sqlx::query(
