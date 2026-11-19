@@ -1,3 +1,4 @@
+import 'dart:typed_data';
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'auth_repository.dart';
@@ -152,6 +153,82 @@ class EventsRepository {
       data: const {},
     );
     return Map<String, dynamic>.from(response.data as Map);
+  }
+
+  /// Private, authenticated photography delivery history (no public /uploads URL).
+  Future<List<Map<String, dynamic>>> deliveryVersions(
+      String quoteId, String milestoneId) async {
+    final res = await _dio.get('/events/quotes/$quoteId/deliveries/$milestoneId');
+    return (res.data as List).map((e) => Map<String, dynamic>.from(e as Map)).toList();
+  }
+
+  Future<Map<String, dynamic>> uploadDelivery(
+      String quoteId, String milestoneId, String name,
+      Uint8List content, String note) async {
+    final res = await _dio.post(
+      '/events/quotes/$quoteId/deliveries/$milestoneId',
+      data: FormData.fromMap({
+        'file': MultipartFile.fromBytes(content, filename: name),
+        'note': note,
+      }),
+    );
+    return Map<String, dynamic>.from(res.data as Map);
+  }
+
+  Future<Uint8List> downloadDelivery(String quoteId, String fileId) async {
+    final response = await _dio.get<List<int>>(
+      '/events/quotes/$quoteId/deliveries/file/$fileId',
+      options: Options(responseType: ResponseType.bytes),
+    );
+    return Uint8List.fromList(response.data ?? const <int>[]);
+  }
+
+  Future<void> reviewDelivery(String quoteId, String milestoneId,
+      String decision, String feedback) async {
+    await _dio.post('/events/quotes/$quoteId/deliveries/$milestoneId/review',
+      data: {'decision': decision, 'feedback': feedback});
+  }
+
+  Future<List<Map<String, dynamic>>> paymentReports(
+      String quoteId, String milestoneId) async {
+    final res = await _dio.get('/events/quotes/$quoteId/payments/$milestoneId');
+    return (res.data as List).map((e) => Map<String, dynamic>.from(e as Map)).toList();
+  }
+
+  Future<void> reportDirectPayment(String quoteId, String milestoneId,
+      {required String method, required String reference,
+       required String note}) async {
+    await _dio.post('/events/quotes/$quoteId/payments/$milestoneId',
+      data: {'method': method, 'reference': reference, 'note': note});
+  }
+
+  Future<void> reviewDirectPayment(String quoteId, String milestoneId,
+      String decision, String note) async {
+    await _dio.post('/events/quotes/$quoteId/payments/$milestoneId/review',
+      data: {'decision': decision, 'note': note});
+  }
+
+  Future<List<Map<String, dynamic>>> quoteDisputes(String quoteId) async {
+    final res = await _dio.get('/events/quotes/$quoteId/disputes');
+    return (res.data as List).map((e) => Map<String, dynamic>.from(e as Map)).toList();
+  }
+
+  Future<void> openQuoteDispute(String quoteId, String milestoneId,
+      String reason) async {
+    await _dio.post('/events/quotes/$quoteId/disputes',
+      data: {'milestoneId': milestoneId, 'reason': reason});
+  }
+
+  Future<void> disputeMessage(String quoteId, String disputeId,
+      String message) async {
+    await _dio.post('/events/quotes/$quoteId/disputes/$disputeId/message',
+      data: {'message': message});
+  }
+
+  Future<void> resolveQuoteDispute(String quoteId, String disputeId,
+      String resolution, String note) async {
+    await _dio.post('/events/quotes/$quoteId/disputes/$disputeId/resolve',
+      data: {'resolution': resolution, 'note': note});
   }
 
   Future<void> cancel(String id) async {
