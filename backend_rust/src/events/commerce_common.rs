@@ -76,7 +76,8 @@ pub(super) async fn notify_other(
         if context.customer { context.vendor_id } else { context.customer_id },
         title, message,
         json!({"type":"event_update","planId":context.plan_id}),
-    ).await
+    ).await?;
+    Ok(())
 }
 
 pub(super) fn validate_text(value: &str, min: usize, max: usize) -> AppResult<String> {
