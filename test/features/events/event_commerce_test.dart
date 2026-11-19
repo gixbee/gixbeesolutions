@@ -38,6 +38,17 @@ void main() {
     expect(EventCommerceRules.canReport(true, 'CONFIRMED', rejected, true), isFalse);
     expect(EventCommerceRules.canReport(false, 'CONFIRMED', [], false), isFalse);
   });
+  test('customer receipt uploads require an active claim and limit', () {
+    final pending = <String, dynamic>{'status': 'REPORTED'};
+    final contested = <String, dynamic>{'status': 'CONTESTED'};
+    expect(EventCommerceRules.canAttachReceipt(true, 'CONFIRMED', pending, 0), isTrue);
+    expect(EventCommerceRules.canAttachReceipt(true, 'CONFIRMED', contested, 4), isTrue);
+    expect(EventCommerceRules.canAttachReceipt(true, 'CONFIRMED', pending, 5), isFalse);
+    expect(EventCommerceRules.canAttachReceipt(true, 'CANCELLED', pending, 0), isFalse);
+    expect(EventCommerceRules.canAttachReceipt(false, 'CONFIRMED', pending, 0), isFalse);
+    expect(EventCommerceRules.canAttachReceipt(true, 'CONFIRMED', null, 0), isFalse);
+  });
+
   test('only vendor can reconcile a reported claim', () {
     final pending = <Map<String, dynamic>>[{'status': 'REPORTED'}];
     expect(EventCommerceRules.canReconcile(false, 'CONFIRMED', pending), isTrue);
