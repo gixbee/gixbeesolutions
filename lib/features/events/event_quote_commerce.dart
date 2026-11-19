@@ -30,6 +30,12 @@ class EventCommerceRules {
       customer && quoteStatus == 'CONFIRMED' && !openDispute &&
       (reports.isEmpty || reports.first['status'] == 'REJECTED');
 
+  static bool canAttachReceipt(bool customer, String quoteStatus,
+      Map<String, dynamic>? latestReport, int evidenceCount) =>
+      customer && quoteStatus == 'CONFIRMED' && evidenceCount < 5 &&
+      (latestReport?['status'] == 'REPORTED' ||
+       latestReport?['status'] == 'CONTESTED');
+
   static bool canReconcile(bool customer, String quoteStatus,
       List<Map<String, dynamic>> reports) =>
       !customer && quoteStatus == 'CONFIRMED' &&
@@ -269,9 +275,10 @@ class EventPaymentPanel extends ConsumerStatefulWidget {
 }
 
 class _PaymentView {
-  const _PaymentView(this.reports, this.disputes);
+  const _PaymentView(this.reports, this.disputes, this.evidence);
   final List<Map<String, dynamic>> reports;
   final List<Map<String, dynamic>> disputes;
+  final List<Map<String, dynamic>> evidence;
 }
 
 class _EventPaymentPanelState extends ConsumerState<EventPaymentPanel> {
@@ -289,8 +296,10 @@ class _EventPaymentPanelState extends ConsumerState<EventPaymentPanel> {
     _future = Future.wait([
       repo.paymentReports(widget.quoteId, widget.milestoneId),
       repo.quoteDisputes(widget.quoteId),
+      repo.paymentEvidence(widget.quoteId, widget.milestoneId),
     ]).then((results) => _PaymentView(results[0],
-        results[1].where((d) => d['milestoneId'] == widget.milestoneId).toList()));
+        results[1].where((d) => d['milestoneId'] == widget.milestoneId).toList(),
+        results[2]));
   }
 
   Future<void> _run(Future<void> Function() job) async {
@@ -306,6 +315,38 @@ class _EventPaymentPanelState extends ConsumerState<EventPaymentPanel> {
     } finally {
       if (mounted) setState(() => _busy = false);
     }
+  }
+
+  Future<void> _attachReceipt() async {
+    final selection = await FilePicker.platform.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: const ['jpg', 'jpeg', 'png', 'webp', 'pdf'],
+      withData: true,
+    );
+    if (selection == null || !mounted) return;
+    final file = selection.files.single;
+    final Uint8List? bytes = file.bytes ??
+        (file.path == null ? null : await File(file.path!).readAsBytes());
+    if (bytes == null || bytes.isEmpty || bytes.length > 5 * 1024 * 1024) {
+      showGxSnack(context, 'Choose a JPG, PNG, WebP or PDF up to 5 MB.',
+          type: GxSnackType.error);
+      return;
+    }
+    await _run(() => ref.read(eventsRepositoryProvider)
+      .uploadPaymentEvidence(widget.quoteId, widget.milestoneId, file.name, bytes));
+  }
+
+  Future<void> _downloadReceipt(Map<String, dynamic> evidence) async {
+    await _run(() async {
+      final bytes = await ref.read(eventsRepositoryProvider)
+        .downloadPaymentEvidence(widget.quoteId, evidence['id'].toString());
+      final name = (evidence['fileName']?.toString() ?? 'receipt.pdf')
+        .split(RegExp(r'[/\\]')).last;
+      await FilePicker.platform.saveFile(
+        dialogTitle: 'Save private payment evidence', fileName: name,
+        bytes: bytes,
+      );
+    });
   }
 
   Future<void> _report() async {
@@ -445,6 +486,28 @@ class _EventPaymentPanelState extends ConsumerState<EventPaymentPanel> {
               '${report['note'] ?? ''}'
               '${report['reviewNote'] == null || report['reviewNote'] == '' ? '' : '\nVendor: ${report['reviewNote']}'}',
             ),
+          ),
+        if (data.evidence.isNotEmpty)
+          const Text('Attached receipts',
+            style: TextStyle(fontWeight: FontWeight.w700)),
+        for (final receipt in data.evidence)
+          ListTile(
+            dense: true,
+            contentPadding: EdgeInsets.zero,
+            title: Text(receipt['fileName']?.toString() ?? 'Receipt'),
+            subtitle: const Text('Participant-provided evidence; not bank verified'),
+            trailing: IconButton(
+              tooltip: 'Download private receipt',
+              icon: const Icon(Icons.download_outlined),
+              onPressed: _busy ? null : () => _downloadReceipt(receipt),
+            ),
+          ),
+        if (EventCommerceRules.canAttachReceipt(
+            widget.customer, widget.status, latest, data.evidence.length))
+          TextButton.icon(
+            onPressed: _busy ? null : _attachReceipt,
+            icon: const Icon(Icons.attach_file_outlined),
+            label: const Text('Attach receipt (PDF or image)'),
           ),
         if (EventCommerceRules.canReport(
             widget.customer, widget.status, data.reports, open))
