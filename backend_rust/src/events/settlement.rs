@@ -293,7 +293,13 @@ pub(super) async fn resolve(
     let uid=Uuid::parse_str(&user.user_id)?;
     let mut tx=state.db.begin().await?;
     let context=access(&mut tx,id,uid,true).await?;
-    active(&context)?;
+    // Parties must still be able to settle an existing dispute if a
+    // cancellation was requested after the dispute was opened.
+    if !matches!(context.status.as_str(),
+        "CONFIRMED"|"CANCEL_REQUESTED"|"CANCELLED"|"COMPLETED")
+    {
+        return Err(AppError::Conflict("This quote has not been accepted".into()));
+    }
     let row=sqlx::query(
         r#"SELECT "milestoneId","reportId",status,"customerVote","vendorVote"
            FROM event_quote_disputes WHERE id=$1 AND "quoteId"=$2 FOR UPDATE"#,
