@@ -711,6 +711,14 @@ pub(super) async fn action(
             }
         }
         "payment" | "complete" => {
+            let open_disputes: bool = sqlx::query_scalar(
+                r#"SELECT EXISTS(SELECT 1 FROM event_quote_disputes
+                   WHERE "quoteId"=$1 AND status='OPEN')"#,
+            ).bind(quote_id).fetch_one(&mut *tx).await?;
+            if open_disputes {
+                return Err(AppError::Conflict(
+                    "Resolve outstanding payment disputes before completing this quote".into()));
+            }
             if status != "CONFIRMED" {
                 return Err(AppError::Conflict(
                     "This action requires a confirmed booking".into(),
