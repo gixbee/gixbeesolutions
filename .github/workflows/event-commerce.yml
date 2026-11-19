@@ -1,0 +1,49 @@
+name: Event delivery and reconciliation validation
+
+on:
+  pull_request:
+    paths:
+      - 'backend_rust/src/events/**'
+      - 'scripts/azure_event_delivery_payments.sql'
+      - 'lib/features/events/event_quote_*'
+      - 'lib/repositories/events_repository.dart'
+      - 'test/features/events/event_commerce_*'
+      - '.github/workflows/event-commerce.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  flutter:
+    name: Flutter event commerce
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.41.0'
+          channel: stable
+          cache: true
+      - run: flutter pub get
+      - run: |
+          flutter analyze --no-fatal-infos \
+            lib/features/events/event_quote_milestones.dart \
+            lib/features/events/event_quote_commerce.dart \
+            lib/repositories/events_repository.dart \
+            test/features/events/event_commerce_test.dart
+      - run: flutter test --no-pub test/features/events/event_commerce_test.dart
+
+  rust:
+    name: Rust event commerce
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: backend_rust
+      - run: cargo check --manifest-path backend_rust/Cargo.toml
+      - run: cargo test --manifest-path backend_rust/Cargo.toml events

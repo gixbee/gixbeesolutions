@@ -340,6 +340,16 @@ pub(super) async fn acknowledge(
     let own_column = if context.customer { "customerAcknowledgedAt" } else { "vendorAcknowledgedAt" };
     let other_column = if context.customer { "vendorAcknowledgedAt" } else { "customerAcknowledgedAt" };
     let already: Option<DateTime<Utc>> = milestone.get(own_column);
+    if already.is_none() && milestone.get::<String,_>("kind") == "PAYMENT" {
+        return Err(AppError::Conflict(
+            "Use payment reporting and vendor reconciliation for this installment".into()));
+    }
+    if already.is_none() && milestone.get::<String,_>("kind") == "DELIVERY"
+        && context.service == "PHOTOGRAPHY"
+    {
+        return Err(AppError::Conflict(
+            "Upload and approve the photography deliverable before acknowledging it".into()));
+    }
     if already.is_none() {
         // These identifiers come only from the two static branches above.
         let statement = format!(

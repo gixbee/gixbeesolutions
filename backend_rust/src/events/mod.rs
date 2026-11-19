@@ -11,6 +11,10 @@ mod quotes;
 mod catalogues;
 mod calendar;
 mod milestones;
+mod commerce_common;
+mod deliveries;
+mod settlement;
+mod payment_evidence;
 pub const SERVICES: [&str;8] = ["HALL","CATERING","DECORATION","PHOTOGRAPHY","DJ","MAKEUP","MEHENDI","INVITATIONS"];
 
 pub fn routes() -> Router<AppState> {
@@ -23,6 +27,9 @@ pub fn routes() -> Router<AppState> {
         .merge(catalogues::routes())
         .merge(calendar::routes())
         .merge(milestones::routes())
+        .merge(deliveries::routes())
+        .merge(settlement::routes())
+        .merge(payment_evidence::routes())
 }
 
 #[derive(Deserialize)]

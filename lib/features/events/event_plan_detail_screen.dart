@@ -199,6 +199,7 @@ class _EventPlanDetailScreenState extends ConsumerState<EventPlanDetailScreen> {
                 quoteId: quote['id'] as String,
                 customer: customer,
                 status: status,
+                 service: quote['serviceType']?.toString() ?? '',
                 onChanged: () {
                   _refresh();
                 },
