@@ -29,6 +29,8 @@ docker exec -i gixbee_postgres psql -U postgres -d gixbee_db -v ON_ERROR_STOP=1 
 docker exec -i gixbee_postgres psql -U postgres -d gixbee_db -v ON_ERROR_STOP=1 -f - < scripts/azure_hall_migrations.sql
 # Required before rolling out Rust milestone routes; fail deployment if migration fails.
 docker exec -i gixbee_postgres psql -U postgres -d gixbee_db -v ON_ERROR_STOP=1 -f - < scripts/azure_event_quote_milestones.sql
+# Private delivery history, reconciliation and disputes: do not launch Rust before migration.
+docker exec -i gixbee_postgres psql -U postgres -d gixbee_db -v ON_ERROR_STOP=1 -f - < scripts/azure_event_delivery_payments.sql
 echo SCHEMA_OK
 
 if ! grep -q CARGO_BUILD_JOBS "$ROOT/backend_rust/Dockerfile"; then
