@@ -88,6 +88,13 @@ pub(super) async fn upload(
     if count>=5 {
         return Err(AppError::Conflict("A report can include at most five receipts".into()));
     }
+    let used:i64=sqlx::query_scalar(
+        r#"SELECT COALESCE(SUM(octet_length("fileBytes")),0)::bigint
+           FROM event_payment_evidence WHERE "quoteId"=$1"#,
+    ).bind(id).fetch_one(&mut *tx).await?;
+    if used + bytes.len() as i64 > 64 * 1024 * 1024 {
+        return Err(AppError::Conflict("This booking has reached its 64 MB receipt quota".into()));
+    }
     let file_id=Uuid::new_v4();
     let hash=format!("{:x}",Sha256::digest(&bytes));
     sqlx::query(
