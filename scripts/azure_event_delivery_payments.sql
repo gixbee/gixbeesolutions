@@ -46,6 +46,23 @@ CREATE TABLE IF NOT EXISTS event_payment_reports (
 CREATE INDEX IF NOT EXISTS event_payment_reports_quote
   ON event_payment_reports ("quoteId", "milestoneId", version DESC);
 
+-- Receipts are evidence supplied by a user, not independent bank verification.
+CREATE TABLE IF NOT EXISTS event_payment_evidence (
+  id uuid PRIMARY KEY,
+  "quoteId" uuid NOT NULL REFERENCES event_quotes(id) ON DELETE CASCADE,
+  "milestoneId" uuid NOT NULL REFERENCES event_quote_milestones(id) ON DELETE CASCADE,
+  "reportId" uuid NOT NULL REFERENCES event_payment_reports(id) ON DELETE CASCADE,
+  "fileName" varchar(180) NOT NULL,
+  "mediaType" varchar(80) NOT NULL
+    CHECK ("mediaType" IN ('application/pdf','image/jpeg','image/png','image/webp')),
+  "fileBytes" bytea NOT NULL CHECK (octet_length("fileBytes") BETWEEN 1 AND 5242880),
+  "sha256" char(64) NOT NULL,
+  "uploadedBy" uuid NOT NULL REFERENCES users(id),
+  "uploadedAt" timestamptz NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS event_payment_evidence_report
+  ON event_payment_evidence ("reportId", "uploadedAt", id);
+
 CREATE TABLE IF NOT EXISTS event_quote_disputes (
   id uuid PRIMARY KEY,
   "quoteId" uuid NOT NULL REFERENCES event_quotes(id) ON DELETE CASCADE,
