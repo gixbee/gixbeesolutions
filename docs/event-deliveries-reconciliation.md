@@ -5,14 +5,14 @@ This feature extends the existing **quote-first event bookings** and **immutable
 ## Storage, privacy and authorization
 - Delivery files are stored in private PostgreSQL `bytea` rows in `event_delivery_revisions`, not the publicly served `/uploads` folder.
 - All read/write routes require a valid JWT and event quote participant identity. Only the owning photography vendor uploads; only the customer approves/requests revisions. Both can download their own quote's files.
-- Supported: real JPEG, PNG, WebP, PDF or ZIP by file-signature + extension, one file per delivery milestone revision, maximum **12 MiB** per file and **30 revisions** per milestone. A ZIP can contain multiple photographs or an album; no server-side unzip or media processing occurs.
+- Supported: real JPEG, PNG, WebP, PDF or ZIP by file-signature + extension, one file per delivery milestone revision, maximum **12 MiB** per file, **30 revisions** per milestone and **256 MiB** total delivery storage per quote. A ZIP can contain multiple photographs or an album; no server-side unzip or media processing occurs.
 - Each upload records SHA-256, filename, original byte content, uploader, version and timestamp; revisions are immutable. The latest version can be replaced only after a customer revision request.
 - The customer approves the **latest submitted** version, which completes that delivery milestone. A revision request requires a written reason and leaves the milestone incomplete.
 - No content antivirus, transcoding, watermarking or external object storage is provided; configure operational content scanning before accepting untrusted archives at scale.
 
 ## Direct-payment reconciliation
 - The customer reports a specific payment milestone's exact agreed amount, method, receipt/reference identifier and optional note.
-- The customer may attach up to five private receipt PDF/image files (maximum 5 MiB each) to an active payment report. Both participants can download them through an authenticated endpoint. File signatures are checked and each receipt is hashed; submitted receipts are **unverified evidence**, not a bank statement confirmation.
+- The customer may attach up to five private receipt PDF/image files (maximum 5 MiB each, **64 MiB** total receipt storage per quote) to an active payment report. Both participants can download them through an authenticated endpoint. File signatures are checked and each receipt is hashed; submitted receipts are **unverified evidence**, not a bank statement confirmation.
 - The server derives the amount from the milestone (the customer cannot override the quote). The vendor either **confirms receipt** or **contests the claim**.
 - Confirmation completes the corresponding payment milestone and writes both sides' milestone acknowledgement audit entries.
 - A contested claim opens a dispute. Either participant may open a dispute on an incomplete installment, add auditable notes and cast their own resolution vote.
