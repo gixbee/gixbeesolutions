@@ -8,6 +8,7 @@ import '../../repositories/cities_repository.dart';
 import '../../repositories/events_repository.dart';
 import '../../shared/media/profile_photo.dart';
 import '../../shared/widgets/gx_calendar.dart';
+import '../../shared/widgets/gx_city_field.dart';
 import 'event_plans_screen.dart';
 import 'photography_customer_flow_screen.dart';
 import 'photography_customer_model.dart';
@@ -33,6 +34,7 @@ class _PhotographyCustomerSearchScreenState
   static const _pink = Color(0xFFDB2777);
   final _area = TextEditingController();
   final _query = TextEditingController();
+  final _cityCtrl = TextEditingController();
   String? _city;
   late DateTime _day;
   String _need = 'wedding';
@@ -47,7 +49,9 @@ class _PhotographyCustomerSearchScreenState
   @override
   void initState() {
     super.initState();
-    _city = ref.read(currentCityProvider)?.id;
+    final city = ref.read(currentCityProvider);
+    _city = city?.id;
+    if (city != null) _cityCtrl.text = city.displayName;
     _day = DateUtils.dateOnly(widget.date);
     final description = widget.eventType.toLowerCase();
     for (final need in PhotographyCustomerCatalogue.needs) {
@@ -64,6 +68,7 @@ class _PhotographyCustomerSearchScreenState
   void dispose() {
     _area.dispose();
     _query.dispose();
+    _cityCtrl.dispose();
     super.dispose();
   }
 
@@ -82,6 +87,10 @@ class _PhotographyCustomerSearchScreenState
   }
 
   void _search() {
+    FocusManager.instance.primaryFocus?.unfocus();
+    final typed = matchTypedCity(
+        ref.read(citiesProvider).asData?.value ?? const [], _cityCtrl.text);
+    if (typed != null) _city = typed.id;
     if (_city == null || _area.text.trim().isEmpty ||
         _day.isBefore(DateUtils.dateOnly(DateTime.now())) ||
         _budgetMin > _budgetMax) {
@@ -151,7 +160,6 @@ class _PhotographyCustomerSearchScreenState
 
   Widget _searchForm() {
     final wedding = PhotographyCustomerCatalogue.wedding(_need);
-    final cities = ref.watch(citiesProvider);
     final mins = wedding ?
       const [0,50000,75000,100000] : const [0,5000,10000,15000];
     final maxes = wedding ?
@@ -169,19 +177,12 @@ class _PhotographyCustomerSearchScreenState
               style: const TextStyle(color:Color(0xFF6B7280))),
           ]))),
       const SizedBox(height:14),
-      cities.when(
-        loading:()=>const LinearProgressIndicator(),
-        error:(_,__)=>TextButton(onPressed:()=>ref.invalidate(citiesProvider),
-          child:const Text('Reload cities')),
-        data:(options)=>DropdownButtonFormField<String>(
-          isExpanded:true,
-          initialValue:options.any((c)=>c.id==_city)?_city:null,
-          decoration:const InputDecoration(labelText:'Location / city *',
-              border:OutlineInputBorder()),
-          items:[for(final c in options)DropdownMenuItem(
-            value:c.id,child:Text(c.displayName,overflow:TextOverflow.ellipsis))],
-          onChanged:(v)=>setState(()=>_city=v),
-        )),
+      GxCitySelectField(
+        cityId:_city,
+        controller:_cityCtrl,
+        label:'Location / city *',
+        onSelected:(c)=>setState(()=>_city=c?.id),
+      ),
       const SizedBox(height:14),
       TextField(controller:_area,maxLength:200,
         decoration:const InputDecoration(

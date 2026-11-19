@@ -55,6 +55,7 @@ class _HallPackageWizardScreenState
   bool _saving = false;
   bool _advancing = false;
   bool _ready = false;
+  bool _editing = false;
   String? _loadError;
   int _hydrateGen = 0;
   List<_TierEditors> _cancelFields = [];
@@ -135,6 +136,8 @@ class _HallPackageWizardScreenState
       if (pkg is Map) _applyPackage(Map<String, dynamic>.from(pkg));
       setState(() {
         _ready = true;
+        _editing = hall['packageSaved'] == true ||
+            hall['packageRevisionId'] != null;
         _loadError = null;
       });
     } catch (e) {
@@ -527,7 +530,7 @@ class _HallPackageWizardScreenState
             _buildPackage(),
           );
       if (!mounted) return;
-      showGxSnack(context, 'Package saved');
+      showGxSnack(context, _editing ? 'Package updated' : 'Package saved');
       Navigator.pop(context);
     } catch (e) {
       if (!mounted) return;
@@ -571,7 +574,9 @@ class _HallPackageWizardScreenState
                     const SizedBox(height: 20),
                     GxButton(
                       label: _step == 5
-                          ? (_saving ? 'Saving…' : 'Save Package')
+                          ? (_saving
+                              ? (_editing ? 'Updating…' : 'Saving…')
+                              : (_editing ? 'Update Package' : 'Save Package'))
                           : (_advancing ? 'Please wait…' : 'Continue'),
                       onTap: busy ? null : _next,
                     ),
@@ -950,8 +955,10 @@ class _HallPackageWizardScreenState
         Text('Cancellation: ${_editorSummary(_cancelFields)}'),
         Text('Reschedule: ${_editorSummary(_rescheduleFields)}'),
         const SizedBox(height: 12),
-        const Text(
-          'Times for customers will be shown in IST (Kolkata). Tap Save Package to unlock calendar and operators.',
+        Text(
+          _editing
+              ? 'Times for customers will be shown in IST (Kolkata). Tap Update Package to save your changes.'
+              : 'Times for customers will be shown in IST (Kolkata). Tap Save Package to unlock calendar and operators.',
         ),
       ],
     );

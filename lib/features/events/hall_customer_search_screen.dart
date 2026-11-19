@@ -8,6 +8,7 @@ import '../../repositories/cities_repository.dart';
 import '../../repositories/events_repository.dart';
 import '../../shared/media/profile_photo.dart';
 import '../../shared/widgets/gx_calendar.dart';
+import '../../shared/widgets/gx_city_field.dart';
 import 'event_plans_screen.dart';
 import 'hall_customer_flow_screen.dart';
 import 'hall_customer_model.dart';
@@ -32,6 +33,7 @@ class _HallCustomerSearchScreenState
   static const _green=Color(0xFF12B76A);
   final _guests=TextEditingController();
   final _query=TextEditingController();
+  final _cityCtrl=TextEditingController();
   String? _cityId;
   String _event='Wedding';
   String _ac='any';
@@ -45,7 +47,9 @@ class _HallCustomerSearchScreenState
   @override
   void initState() {
     super.initState();
-    _cityId=ref.read(currentCityProvider)?.id;
+    final city=ref.read(currentCityProvider);
+    _cityId=city?.id;
+    if (city!=null) _cityCtrl.text=city.displayName;
     _guests.text='${widget.guests.clamp(1,100000)}';
     _day=DateUtils.dateOnly(widget.date);
     final init=widget.eventType.trim();
@@ -56,6 +60,7 @@ class _HallCustomerSearchScreenState
   void dispose() {
     _guests.dispose();
     _query.dispose();
+    _cityCtrl.dispose();
     super.dispose();
   }
 
@@ -69,6 +74,10 @@ class _HallCustomerSearchScreenState
   }
 
   void _search() {
+    FocusManager.instance.primaryFocus?.unfocus();
+    final cities=ref.read(citiesProvider).asData?.value ?? const [];
+    final typed=matchTypedCity(cities,_cityCtrl.text);
+    if (typed!=null) _cityId=typed.id;
     final n=int.tryParse(_guests.text.trim());
     if (_cityId==null||n==null||n<1||n>100000||
         _day.isBefore(DateUtils.dateOnly(DateTime.now()))) {
@@ -94,7 +103,6 @@ class _HallCustomerSearchScreenState
   );
 
   Widget _searchForm() {
-    final cities=ref.watch(citiesProvider);
     return ListView(padding:const EdgeInsets.all(16),children:[
       Card(color:const Color(0xFFECFDF3),child:Padding(
         padding:const EdgeInsets.all(18),child:Column(
@@ -106,21 +114,11 @@ class _HallCustomerSearchScreenState
             const Text('Weddings, receptions, birthdays, baptisms and more.'),
           ]))),
       const SizedBox(height:15),
-      cities.when(
-        loading:()=>const LinearProgressIndicator(),
-        error:(_,__)=>TextButton(
-          onPressed:()=>ref.invalidate(citiesProvider),
-          child:const Text('Reload cities')),
-        data:(items)=>DropdownButtonFormField<String>(
-          isExpanded:true,
-          initialValue:items.any((c)=>c.id==_cityId)?_cityId:null,
-          decoration:const InputDecoration(
-            labelText:'Location / City *',border:OutlineInputBorder()),
-          items:[for(final c in items)DropdownMenuItem(
-            value:c.id,child:Text(c.displayName,
-              overflow:TextOverflow.ellipsis))],
-          onChanged:(v)=>setState(()=>_cityId=v),
-        )),
+      GxCitySelectField(
+        cityId:_cityId,
+        controller:_cityCtrl,
+        onSelected:(c)=>setState(()=>_cityId=c?.id),
+      ),
       const SizedBox(height:14),
       DropdownButtonFormField<String>(
         isExpanded:true,initialValue:const [

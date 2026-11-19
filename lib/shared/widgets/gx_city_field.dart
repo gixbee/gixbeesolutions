@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../repositories/cities_repository.dart';
 import '../../theme.dart';
 
@@ -160,6 +161,78 @@ class _GxCityFieldState extends State<GxCityField> {
               ),
             ),
           ),
+        );
+      },
+    );
+  }
+}
+
+/// Loads [citiesProvider] and lets the user type or tap a city.
+/// Replaces [DropdownButtonFormField], which often cannot open in a ListView.
+class GxCitySelectField extends ConsumerStatefulWidget {
+  const GxCitySelectField({
+    super.key,
+    required this.cityId,
+    required this.onSelected,
+    this.controller,
+    this.label = 'Location / City *',
+  });
+
+  final String? cityId;
+  final ValueChanged<CityEntry?> onSelected;
+  final TextEditingController? controller;
+  final String label;
+
+  @override
+  ConsumerState<GxCitySelectField> createState() => _GxCitySelectFieldState();
+}
+
+class _GxCitySelectFieldState extends ConsumerState<GxCitySelectField> {
+  late final TextEditingController _controller =
+      widget.controller ?? TextEditingController();
+  late final bool _ownsController = widget.controller == null;
+
+  @override
+  void dispose() {
+    if (_ownsController) _controller.dispose();
+    super.dispose();
+  }
+
+  void _fill(List<CityEntry> cities) {
+    if (widget.cityId == null) return;
+    for (final city in cities) {
+      if (city.id == widget.cityId && _controller.text != city.displayName) {
+        _controller.text = city.displayName;
+        break;
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final cities = ref.watch(citiesProvider);
+    return cities.when(
+      loading: () => const LinearProgressIndicator(),
+      error: (_, __) => TextButton(
+        onPressed: () => ref.invalidate(citiesProvider),
+        child: const Text('Reload cities'),
+      ),
+      data: (items) {
+        if (items.isEmpty) {
+          return TextButton(
+            onPressed: () => ref.invalidate(citiesProvider),
+            child: const Text('No cities loaded. Tap to retry'),
+          );
+        }
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) _fill(items);
+        });
+        return GxCityField(
+          cities: items,
+          controller: _controller,
+          label: widget.label,
+          hint: 'Type or pick a city',
+          onSelected: widget.onSelected,
         );
       },
     );

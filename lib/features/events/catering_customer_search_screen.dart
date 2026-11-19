@@ -7,6 +7,7 @@ import 'package:intl/intl.dart';
 import '../../repositories/cities_repository.dart';
 import '../../repositories/events_repository.dart';
 import '../../shared/widgets/gx_calendar.dart';
+import '../../shared/widgets/gx_city_field.dart';
 import 'catering_customer_flow_screen.dart';
 import 'catering_customer_pricing.dart';
 import 'event_plans_screen.dart';
@@ -35,6 +36,7 @@ class _CateringCustomerSearchScreenState
   final _area = TextEditingController();
   final _guestInput = TextEditingController();
   final _vendorQuery = TextEditingController();
+  final _cityCtrl = TextEditingController();
   String? _cityId;
   late DateTime _day;
   int _guests = 1;
@@ -50,7 +52,9 @@ class _CateringCustomerSearchScreenState
     _day = DateUtils.dateOnly(widget.date);
     _guests = widget.guests.clamp(1, 100000).toInt();
     _guestInput.text = '$_guests';
-    _cityId = ref.read(currentCityProvider)?.id;
+    final city = ref.read(currentCityProvider);
+    _cityId = city?.id;
+    if (city != null) _cityCtrl.text = city.displayName;
   }
 
   @override
@@ -58,6 +62,7 @@ class _CateringCustomerSearchScreenState
     _area.dispose();
     _guestInput.dispose();
     _vendorQuery.dispose();
+    _cityCtrl.dispose();
     super.dispose();
   }
 
@@ -76,6 +81,10 @@ class _CateringCustomerSearchScreenState
   }
 
   void _search() {
+    FocusManager.instance.primaryFocus?.unfocus();
+    final typed = matchTypedCity(
+        ref.read(citiesProvider).asData?.value ?? const [], _cityCtrl.text);
+    if (typed != null) _cityId = typed.id;
     final guests = int.tryParse(_guestInput.text.trim());
     if (_cityId == null || _area.text.trim().isEmpty ||
         guests == null || guests < 1 || guests > 100000 ||
@@ -146,7 +155,6 @@ class _CateringCustomerSearchScreenState
 
   @override
   Widget build(BuildContext context) {
-    final cities = ref.watch(citiesProvider);
     return Scaffold(
       appBar: AppBar(
         title: Text(_searched ? 'Catering Services' : 'Find Catering Services'),
@@ -174,22 +182,11 @@ class _CateringCustomerSearchScreenState
               ]),
             )),
           const SizedBox(height: 12),
-          cities.when(
-            loading: () => const LinearProgressIndicator(),
-            error: (_, __) => TextButton(
-              onPressed: () => ref.invalidate(citiesProvider),
-              child: const Text('Reload cities')),
-            data: (options) => DropdownButtonFormField<String>(
-              initialValue: options.any((e) => e.id == _cityId) ? _cityId : null,
-              decoration: const InputDecoration(
-                labelText: 'Event city *', border: OutlineInputBorder()),
-              items: [
-                for (final city in options)
-                  DropdownMenuItem(value: city.id,
-                    child: Text(city.displayName)),
-              ],
-              onChanged: (value) => setState(() => _cityId = value),
-            ),
+          GxCitySelectField(
+            cityId: _cityId,
+            controller: _cityCtrl,
+            label: 'Event city *',
+            onSelected: (city) => setState(() => _cityId = city?.id),
           ),
           const SizedBox(height: 12),
           TextField(

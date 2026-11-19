@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../repositories/business_repository.dart';
 import '../../repositories/hall_repository.dart';
+import '../../shared/media/profile_photo.dart';
 import '../../shared/models/business.dart';
 import '../../shared/widgets/gx_button.dart';
 import '../../shared/widgets/gx_snackbar.dart';
@@ -90,32 +91,69 @@ class _HallPhotosScreenState extends ConsumerState<HallPhotosScreen> {
                 const Text('Cover',
                     style: TextStyle(fontWeight: FontWeight.w700)),
                 const SizedBox(height: 8),
-                if (_cover != null)
-                  Text(_cover!, style: const TextStyle(fontSize: 12)),
+                _photo(_cover, height: 180),
+                const SizedBox(height: 8),
                 GxButton(
                     label: 'Set cover photo', onTap: () => _pick(cover: true)),
                 const SizedBox(height: 16),
                 const Text('Gallery',
                     style: TextStyle(fontWeight: FontWeight.w700)),
+                const SizedBox(height: 8),
+                if (_media.isEmpty)
+                  const Padding(
+                    padding: EdgeInsets.only(bottom: 8),
+                    child: Text('No gallery photos yet.'),
+                  ),
                 ..._media.map((m) {
-                  return ListTile(
-                    title: Text((m['url'] as String?) ?? '',
-                        maxLines: 1, overflow: TextOverflow.ellipsis),
-                    trailing: IconButton(
-                      icon: const Icon(Icons.delete_outline),
-                      onPressed: () async {
-                        await ref.read(hallRepositoryProvider).removeMedia(
-                              widget.business.id,
-                              widget.hallId,
-                              m['id'] as String,
-                            );
-                        _load();
-                      },
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 10),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(child: _photo(m['url'] as String?, height: 110)),
+                        IconButton(
+                          icon: const Icon(Icons.delete_outline),
+                          onPressed: () async {
+                            await ref.read(hallRepositoryProvider).removeMedia(
+                                  widget.business.id,
+                                  widget.hallId,
+                                  m['id'] as String,
+                                );
+                            _load();
+                          },
+                        ),
+                      ],
                     ),
                   );
                 }),
                 GxButton(label: 'Add gallery photo', onTap: () => _pick()),
               ],
+            ),
+    );
+  }
+
+  Widget _photo(String? path, {double height = 160}) {
+    final url = resolveProfileImageUrl(path);
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(12),
+      child: url == null
+          ? Container(
+              height: height,
+              color: const Color(0xFFECFDF3),
+              alignment: Alignment.center,
+              child: const Icon(Icons.apartment, size: 48, color: Color(0xFF12B76A)),
+            )
+          : Image.network(
+              url,
+              height: height,
+              width: double.infinity,
+              fit: BoxFit.cover,
+              errorBuilder: (_, __, ___) => Container(
+                height: height,
+                color: const Color(0xFFECFDF3),
+                alignment: Alignment.center,
+                child: const Icon(Icons.broken_image_outlined),
+              ),
             ),
     );
   }

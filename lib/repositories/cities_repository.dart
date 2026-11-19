@@ -68,15 +68,20 @@ class CitiesRepository {
 }
 
 /// Active serviceable cities. List is small; Redis caches `GET /cities` on the API.
+/// Empty/error responses are not keep-alived so the hall/catering pickers can
+/// retry instead of showing a dead dropdown for six hours.
 final citiesProvider = FutureProvider<List<CityEntry>>((ref) async {
-  final link = ref.keepAlive();
-  final timer = Timer(const Duration(hours: 6), link.close);
-  ref.onDispose(timer.cancel);
   try {
-    return await ref.watch(citiesRepositoryProvider).getActive();
+    final cities = await ref.watch(citiesRepositoryProvider).getActive();
+    if (cities.isNotEmpty) {
+      final link = ref.keepAlive();
+      final timer = Timer(const Duration(hours: 6), link.close);
+      ref.onDispose(timer.cancel);
+    }
+    return cities;
   } catch (e) {
     debugPrint('Error fetching cities: $e');
-    return const [];
+    rethrow;
   }
 });
 

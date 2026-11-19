@@ -127,7 +127,8 @@ class HallMonthGrid extends StatelessWidget {
         Text('🔴 Blocked', style: TextStyle(fontSize: 11)),
       ]),
       const SizedBox(height: 5),
-      Text('Tap a date to block a full day or a selected slot.',
+      Text(
+          'Tap a date to block one day or a slot. Use Block / Release a date range for several days.',
           style: TextStyle(fontSize: 11, color: context.gx.ink.withValues(alpha: 0.60))),
     ]),
     );

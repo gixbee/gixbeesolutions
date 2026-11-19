@@ -104,9 +104,44 @@ class _HallCalendarScreenState extends ConsumerState<HallCalendarScreen> {
   }
 
   Future<void> _blockDay(DateTime day) async {
-    final startUtc = _venueMidnightUtc(_tz, day.year, day.month, day.day);
-    final endUtc = startUtc.add(const Duration(days: 1));
+    await _blockDays(day, day);
+  }
+
+  Future<void> _blockDays(DateTime startDay, DateTime endDay) async {
+    var from = startDay;
+    var to = endDay;
+    if (to.isBefore(from)) {
+      final swap = from;
+      from = to;
+      to = swap;
+    }
+    final startUtc = _venueMidnightUtc(_tz, from.year, from.month, from.day);
+    final endUtc =
+        _venueMidnightUtc(_tz, to.year, to.month, to.day).add(const Duration(days: 1));
     await _createBlock(startUtc, endUtc);
+  }
+
+  (DateTime first, DateTime last, DateTime initial) _pickerBounds() {
+    final today = _venueNow(_tz);
+    final first = DateTime(today.year, today.month, today.day);
+    final last = first.add(const Duration(days: 730));
+    var initial = DateTime(_month.year, _month.month, 1);
+    if (initial.isBefore(first)) initial = first;
+    if (initial.isAfter(last)) initial = last;
+    return (first, last, initial);
+  }
+
+  Future<DateTimeRange?> _pickRange({DateTime? start}) async {
+    final (first, last, initial) = _pickerBounds();
+    final begin = start ?? initial;
+    return showDateRangePicker(
+      context: context,
+      firstDate: first,
+      lastDate: last,
+      initialDateRange: DateTimeRange(start: begin, end: begin),
+      helpText: 'Choose start and end dates',
+      saveText: 'Apply',
+    );
   }
 
   Future<void> _chooseBlock(DateTime day) async {
@@ -127,7 +162,11 @@ class _HallCalendarScreenState extends ConsumerState<HallCalendarScreen> {
           children: [
             SimpleDialogOption(
                 onPressed: () => Navigator.pop(dialogContext, const {}),
-                child: const Text('Full day')),
+                child: const Text('This day only')),
+            SimpleDialogOption(
+                onPressed: () =>
+                    Navigator.pop(dialogContext, const {'range': true}),
+                child: const Text('From this date through another date')),
             for (final slot in slots)
               SimpleDialogOption(
                 onPressed: () => Navigator.pop(dialogContext, slot),
@@ -138,6 +177,13 @@ class _HallCalendarScreenState extends ConsumerState<HallCalendarScreen> {
         ),
       );
       if (!mounted || selection == null) return;
+      if (selection['range'] == true) {
+        final range = await _pickRange(start: day);
+        if (range != null && mounted) {
+          await _blockDays(range.start, range.end);
+        }
+        return;
+      }
       if (selection.isEmpty) {
         await _blockDay(day);
         return;
@@ -195,6 +241,51 @@ class _HallCalendarScreenState extends ConsumerState<HallCalendarScreen> {
     } catch (e) {
       if (!mounted) return;
       showGxSnack(context, '$e', type: GxSnackType.error);
+    }
+  }
+
+  Future<void> _releaseRange(DateTime startDay, DateTime endDay) async {
+    var from = startDay;
+    var to = endDay;
+    if (to.isBefore(from)) {
+      final swap = from;
+      from = to;
+      to = swap;
+    }
+    final startUtc = _venueMidnightUtc(_tz, from.year, from.month, from.day);
+    final endUtc =
+        _venueMidnightUtc(_tz, to.year, to.month, to.day).add(const Duration(days: 1));
+    final blocks = (_data?['blocks'] as List?) ?? [];
+    final ids = blocks
+        .whereType<Map>()
+        .where((b) => b['releasedAt'] == null)
+        .where((b) {
+          final start = DateTime.tryParse('${b['startAt'] ?? ''}')?.toUtc();
+          final end = DateTime.tryParse('${b['endAt'] ?? ''}')?.toUtc();
+          if (start == null || end == null) return false;
+          return start.isBefore(endUtc) && end.isAfter(startUtc);
+        })
+        .map((b) => b['id'] as String?)
+        .whereType<String>()
+        .toList();
+    if (ids.isEmpty) {
+      showGxSnack(context, 'No blocked dates in that range');
+      return;
+    }
+    try {
+      for (final id in ids) {
+        await ref
+            .read(hallRepositoryProvider)
+            .releaseBlock(widget.business.id, id);
+      }
+      if (mounted) {
+        showGxSnack(context, 'Released ${ids.length} block(s)');
+      }
+      await _load();
+    } catch (e) {
+      if (!mounted) return;
+      showGxSnack(context, '$e', type: GxSnackType.error);
+      _load();
     }
   }
 
@@ -305,31 +396,30 @@ class _HallCalendarScreenState extends ConsumerState<HallCalendarScreen> {
                 }),
                 const SizedBox(height: 16),
                 GxButton(
-                  label: 'Block today (full day, venue TZ)',
-                  onTap: () {
-                    final today = _venueNow(_tz);
-                    _blockDay(DateTime(today.year, today.month, today.day));
+                  label: 'Block a date range',
+                  onTap: () async {
+                    final range = await _pickRange();
+                    if (range != null && mounted) {
+                      await _blockDays(range.start, range.end);
+                    }
                   },
                 ),
                 const SizedBox(height: 8),
                 GxButton(
-                  label: 'Block selected month day…',
+                  label: 'Release a date range',
                   onTap: () async {
+                    final range = await _pickRange();
+                    if (range != null && mounted) {
+                      await _releaseRange(range.start, range.end);
+                    }
+                  },
+                ),
+                const SizedBox(height: 8),
+                GxButton(
+                  label: 'Block today (full day, venue TZ)',
+                  onTap: () {
                     final today = _venueNow(_tz);
-                    final first = DateTime(today.year, today.month, today.day)
-                        .subtract(const Duration(days: 1));
-                    final last = DateTime(today.year, today.month, today.day)
-                        .add(const Duration(days: 730));
-                    var initial = DateTime(_month.year, _month.month, 1);
-                    if (initial.isBefore(first)) initial = first;
-                    if (initial.isAfter(last)) initial = last;
-                    final picked = await showDatePicker(
-                      context: context,
-                      initialDate: initial,
-                      firstDate: first,
-                      lastDate: last,
-                    );
-                    if (picked != null && mounted) await _chooseBlock(picked);
+                    _blockDay(DateTime(today.year, today.month, today.day));
                   },
                 ),
               ],

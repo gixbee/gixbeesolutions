@@ -6,6 +6,7 @@ import '../../repositories/events_repository.dart';
 import '../../shared/media/profile_photo.dart';
 import '../../shared/widgets/gx_button.dart';
 import '../../shared/widgets/gx_calendar.dart';
+import '../../shared/widgets/gx_city_field.dart';
 import 'event_plan_create_screen.dart';
 import 'event_plans_screen.dart';
 import 'event_interest_customize_screen.dart';
@@ -114,7 +115,6 @@ class _EventServiceBrowserState extends ConsumerState<EventServiceBrowser> {
         guests: widget.guests,
       );
     }
-    final cities = ref.watch(citiesProvider);
     final title = switch (widget.service) {
       'HALL' => 'Find a hall',
       'CATERING' => 'Find a caterer',
@@ -151,25 +151,12 @@ class _EventServiceBrowserState extends ConsumerState<EventServiceBrowser> {
         Padding(
           padding: const EdgeInsets.all(16),
           child: Column(children: [
-            cities.when(
-              loading: () => const LinearProgressIndicator(),
-              error: (_, __) => TextButton(
-                onPressed: () => ref.invalidate(citiesProvider),
-                child: const Text('Reload cities'),
-              ),
-              data: (items) => DropdownButtonFormField<String>(
-                initialValue:
-                    items.any((city) => city.id == _city) ? _city : null,
-                decoration: const InputDecoration(labelText: 'Event city'),
-                items: [
-                  for (final city in items)
-                    DropdownMenuItem(
-                        value: city.id, child: Text(city.displayName)),
-                ],
-                onChanged: (city) {
-                  if (city != null) setState(() => _load(city));
-                },
-              ),
+            GxCitySelectField(
+              cityId: _city,
+              label: 'Event city',
+              onSelected: (city) {
+                if (city != null) setState(() => _load(city.id));
+              },
             ),
             TextField(
               decoration: const InputDecoration(
