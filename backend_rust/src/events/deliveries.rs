@@ -45,7 +45,13 @@ pub(super) async fn list(
     }
     milestone(&mut tx, id, milestone_id, "DELIVERY").await?;
     let records = sqlx::query_scalar::<_,Value>(
-        r#"SELECT to_jsonb(d)-'fileBytes' FROM event_delivery_revisions d
+        r#"SELECT jsonb_build_object(
+             'id',d.id,'milestoneId',d."milestoneId",'version',d.version,
+             'fileName',d."fileName",'mediaType',d."mediaType",
+             'sha256',d."sha256",'note',d.note,'status',d.status,
+             'feedback',d."feedback",'uploadedAt',d."uploadedAt",
+             'reviewedAt',d."reviewedAt")
+           FROM event_delivery_revisions d
            WHERE d."quoteId"=$1 AND d."milestoneId"=$2 ORDER BY version DESC"#,
     ).bind(id).bind(milestone_id)
     .fetch_all(&mut *tx).await?;
