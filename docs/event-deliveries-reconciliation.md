@@ -12,6 +12,7 @@ This feature extends the existing **quote-first event bookings** and **immutable
 
 ## Direct-payment reconciliation
 - The customer reports a specific payment milestone's exact agreed amount, method, receipt/reference identifier and optional note.
+- The customer may attach up to five private receipt PDF/image files (maximum 5 MiB each) to an active payment report. Both participants can download them through an authenticated endpoint. File signatures are checked and each receipt is hashed; submitted receipts are **unverified evidence**, not a bank statement confirmation.
 - The server derives the amount from the milestone (the customer cannot override the quote). The vendor either **confirms receipt** or **contests the claim**.
 - Confirmation completes the corresponding payment milestone and writes both sides' milestone acknowledgement audit entries.
 - A contested claim opens a dispute. Either participant may open a dispute on an incomplete installment, add auditable notes and cast their own resolution vote.
@@ -25,6 +26,8 @@ This feature extends the existing **quote-first event bookings** and **immutable
 - `GET /events/quotes/{quoteId}/deliveries/file/{fileId}`
 - `GET/POST /events/quotes/{quoteId}/payments/{milestoneId}`
 - `POST /events/quotes/{quoteId}/payments/{milestoneId}/review`
+- `GET/POST /events/quotes/{quoteId}/payments/{milestoneId}/evidence`
+- `GET /events/quotes/{quoteId}/payments/evidence/{fileId}`
 - `GET/POST /events/quotes/{quoteId}/disputes`
 - `POST /events/quotes/{quoteId}/disputes/{disputeId}/message`
 - `POST /events/quotes/{quoteId}/disputes/{disputeId}/resolve`
@@ -36,7 +39,7 @@ Run **after** `scripts/azure_event_quote_milestones.sql`:
 docker exec -i gixbee_postgres psql -U postgres -d gixbee_db -v ON_ERROR_STOP=1 -f - < scripts/azure_event_delivery_payments.sql
 ```
 
-`scripts/azure_sync_and_deploy.sh` includes this migration before starting the Rust image. Before deployment, take a database backup and validate the change on a disposable clone; rollback the application binary if necessary. The additive tables can remain on rollback. Do **not** drop the new tables after users upload files (that would delete delivery history and evidence). For a clean, unused test database, the reverse order is: `event_quote_dispute_events`, `event_quote_disputes`, `event_payment_reports`, `event_delivery_revisions`.
+`scripts/azure_sync_and_deploy.sh` includes this migration before starting the Rust image. Before deployment, take a database backup and validate the change on a disposable clone; rollback the application binary if necessary. The additive tables can remain on rollback. Do **not** drop the new tables after users upload files (that would delete delivery history and evidence). For a clean, unused test database, the reverse order is: `event_quote_dispute_events`, `event_quote_disputes`, `event_payment_evidence`, `event_payment_reports`, `event_delivery_revisions`.
 
 ## Acceptance tests
 1. Two independent JWT accounts: customer and verified business owner. Stranger must receive 404 on listing/download/report/review and dispute routes.
