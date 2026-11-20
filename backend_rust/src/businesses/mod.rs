@@ -560,7 +560,7 @@ async fn set_hall_unavailable_day(
     use crate::halls::availability::{acquire_hall_scope_locks, availability_check, Interval};
     let (start, end) = ist_day_bounds(day)?;
     let interval = Interval::new(start, end)?;
-    acquire_hall_scope_locks(&mut *tx, business_id, None).await?;
+    acquire_hall_scope_locks(&mut **tx, business_id, None).await?;
     if add {
         let covered: bool = sqlx::query_scalar(
             r#"SELECT EXISTS(
@@ -572,12 +572,12 @@ async fn set_hall_unavailable_day(
         .bind(business_id)
         .bind(start)
         .bind(end)
-        .fetch_one(&mut *tx)
+        .fetch_one(&mut **tx)
         .await?;
         if covered {
             return Ok(());
         }
-        availability_check(&mut *tx, business_id, None, interval, None).await?;
+        availability_check(&mut **tx, business_id, None, interval, None).await?;
         let id = Uuid::new_v4();
         sqlx::query(
             r#"INSERT INTO hall_calendar_blocks
@@ -589,10 +589,10 @@ async fn set_hall_unavailable_day(
         .bind(start)
         .bind(end)
         .bind(actor)
-        .execute(&mut *tx)
+        .execute(&mut **tx)
         .await?;
         write_audit(
-            &mut *tx,
+            &mut **tx,
             business_id,
             None,
             "block",
@@ -624,11 +624,11 @@ async fn set_hall_unavailable_day(
         .bind(start)
         .bind(end)
         .bind(actor)
-        .fetch_all(&mut *tx)
+        .fetch_all(&mut **tx)
         .await?;
         for id in ids {
             write_audit(
-                &mut *tx,
+                &mut **tx,
                 business_id,
                 None,
                 "block",
